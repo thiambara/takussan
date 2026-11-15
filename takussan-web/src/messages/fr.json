@@ -11801,14 +11801,21 @@
         "dureeValeur": "{n, plural, one {# mois} other {# mois}}{renouvelable, select, oui {, renouvelable} other {}}",
         "caution": "Caution",
         "cautionMois": "{n, plural, one {# mois} other {# mois}}",
-        "aVerser": "À verser à l’entrée"
+        "aVerser": "À verser à l’entrée",
+        "financement": "Financement",
+        "delaiDeSignature": "Délai de signature",
+        "conditions": "Conditions",
+        "jours": "{n, plural, one {# jour} other {# jours}}"
       },
       "offre": {
         "titre": "Offre d’achat",
         "prixAffiche": "Prix affiché",
         "ecart": "Écart",
         "ecartValeur": "{montant} · {pourcentage}",
-        "enVenteDepuis": "{n, plural, =0 {Mis en vente aujourd’hui.} one {En vente depuis # jour.} other {En vente depuis # jours.}}"
+        "enVenteDepuis": "{n, plural, =0 {Mis en vente aujourd’hui} one {En vente depuis # jour} other {En vente depuis # jours}}",
+        "faits": "{faits}.",
+        "visites": "{n, plural, =0 {aucune visite} one {# visite} other {# visites}}",
+        "rang": "{premiere, select, oui {première offre reçue} other {{rang}ᵉ offre reçue}}"
       },
       "decision": {
         "sous": "L’offre est à {pourcentage} sous le prix affiché.",
@@ -11889,6 +11896,25 @@
           "closed": "Cette demande est close : son dossier ne se complète plus."
         },
         "erreurLecture": "Le dossier n’a pas pu être lu."
+      },
+      "financement": {
+        "cash": "Comptant",
+        "mortgage": "Crédit immobilier",
+        "mixed": "Apport et crédit"
+      },
+      "contreOffre": {
+        "geste": "{modifier, select, oui {Modifier la contre-offre} other {Contre-proposer}}",
+        "envoyee": "Contre-offre de {montant} envoyée",
+        "enAttente": "en attente {elision, select, oui {d’} other {de }}{prenom}",
+        "enAttenteJusquA": "en attente {elision, select, oui {d’} other {de }}{prenom} jusqu’au {date}",
+        "statut": {
+          "pending": "Contre-offre en attente",
+          "accepted": "Contre-offre acceptée",
+          "declined": "Contre-offre déclinée",
+          "superseded": "Contre-offre remplacée",
+          "expired": "Contre-offre expirée"
+        },
+        "toast": "Contre-offre envoyée à {prenom}"
       }
     },
     "feuilles": {
@@ -11933,6 +11959,21 @@
           "aide": "Facultative, sauf pour « Autre ». Le motif reste sur la réservation ; {prenom} reçoit un avis de refus.",
           "envoyer": "Refuser et prévenir {prenom}"
         }
+      },
+      "contreOffre": {
+        "titre": "{modifier, select, oui {Modifier la contre-offre} other {Contre-proposer}}",
+        "montant": "Montant proposé",
+        "montantAide": "Prérempli du prix affiché.",
+        "montantAideEnCours": "Le montant de la contre-offre en cours : la nouvelle la remplace.",
+        "validite": "Valable",
+        "jours": "{n, plural, one {# jour} other {# jours}}",
+        "jusquAu": "Jusqu’au {date} inclus.",
+        "message": "Message (facultatif)",
+        "messagePlaceholder": "Ce qui justifie ce prix, ce qui reste négociable…",
+        "prevenu": "Le client sera prévenu et pourra accepter ou décliner votre contre-offre.",
+        "envoyer": "Contre-proposer",
+        "envoyerMontant": "Contre-proposer {montant}",
+        "envoi": "Envoi…"
       }
     }
   },

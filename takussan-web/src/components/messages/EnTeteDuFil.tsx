@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { useState, type MouseEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { BellOff, Bell, Building2, ChevronRight, Info, MoreHorizontal, PanelRightClose, PanelRightOpen, Phone, Users, Wrench } from 'lucide-react';
+import { BellOff, Bell, Building2, ChevronRight, Flag, Info, MessageSquare, MoreHorizontal, PanelRightClose, PanelRightOpen, Phone, UserPlus, Users, Wrench } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { buttonVariants } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
@@ -25,6 +26,8 @@ import { cn } from '@/lib/utils';
 import type { Conversation } from '@/types/message';
 import { autreParticipant, titreDeConversation } from './ConversationList';
 import { useGesteDuClient } from './useGesteDuClient';
+// Type seul (effacé à la compilation) : les dialogues restent hors du graphe du widget flottant.
+import type { GestesDuFil } from './GestesDuFil';
 
 /**
  * L'identifiant de la colonne de contexte du bureau, que le bouton de l'en-tête désigne
@@ -44,10 +47,19 @@ interface EnTeteDuFilProps {
   readonly sourdine: boolean;
   /** Les infos d'un groupe (`ConversationInfoSheet`) : renommer, participants, quitter. */
   readonly onInfosDuGroupe: () => void;
-  /** La colonne de contexte du bureau (dès `xl`) : son état, et le bouton qui la replie. */
+  /**
+   * La colonne de contexte du bureau : son état, et le bouton qui la replie. Dès `lg` (TCK-2860) :
+   * entre 1024 et 1279, le bouton ouvre le panneau superposé (maquette l. 1047).
+   */
   readonly contexte?: { readonly ouvert: boolean; readonly onBasculer: () => void };
   /** Au téléphone, pour un fil direct : « ⋯ » ouvre la feuille du fil que la page rend (maquette a/2). */
   readonly onPlusDActions?: () => void;
+  /**
+   * TCK-2860 — les gestes du menu « ⋯ » de la page (maquette a/2, l. 487-498) : « Marquer comme non
+   * lue », « Ajouter un participant » (fil direct), « Signaler la conversation ». Absents (widget
+   * flottant), le menu garde la sourdine et les infos du groupe.
+   */
+  readonly gestes?: GestesDuFil;
 }
 
 /**
@@ -66,8 +78,12 @@ interface EnTeteDuFilProps {
  * Le widget flottant garde son propre en-tête (`ChatView`, variante `widget`).
  *
  * « ⋯ » : au téléphone, pour un fil direct, la feuille du fil que la page rend (`onPlusDActions`) ;
- * sinon le menu — la sourdine, et pour un groupe ses infos (renommer, participants, quitter). Les autres gestes du menu de la maquette
- * (« Marquer comme non lue », « Signaler la conversation ») n'ont pas de route : non rendus.
+ * sinon le menu — la sourdine, pour un groupe ses infos (renommer, participants, quitter), et dans la
+ * page (TCK-2860, routes de TCK-2859) « Marquer comme non lue », « Ajouter un participant » (fil
+ * direct : un nouveau groupe, ADR-0114) et, sous un séparateur, « Signaler la conversation » en rouge.
+ *
+ * TCK-2860 (maquette e5, l. 951) — au bureau, l'en-tête d'un GROUPE porte aussi la sourdine en bouton
+ * direct, à côté du bouton du panneau.
  */
 export function EnTeteDuFil({
   conversationId,
@@ -77,6 +93,7 @@ export function EnTeteDuFil({
   onInfosDuGroupe,
   contexte,
   onPlusDActions,
+  gestes,
 }: EnTeteDuFilProps) {
   const t = useTranslations('messaging');
   const tWidget = useTranslations('messaging.widget');
@@ -110,6 +127,13 @@ export function EnTeteDuFil({
   const membres = (conversation?.participants ?? []).filter((p) => !p.left_at).length;
   const archivee = Boolean(conversation?.participants?.find((p) => p.user_id === user?.id && !p.left_at)?.archived_at);
   const taille = compact ? 36 : 40;
+  const basculer = () => {
+    setErreur(null);
+    basculerSourdine.mutate(
+      { is_muted: !sourdine },
+      { onError: (err) => setErreur(messageErreur(err, t('chat.sourdineEchouee'))) },
+    );
+  };
 
   return (
     <>
@@ -297,15 +321,7 @@ export function EnTeteDuFil({
                 {t('chat.groupInfoAria')}
               </DropdownMenuItem>
             ) : null}
-            <DropdownMenuItem
-              onClick={() => {
-                setErreur(null);
-                basculerSourdine.mutate(
-                  { is_muted: !sourdine },
-                  { onError: (err) => setErreur(messageErreur(err, t('chat.sourdineEchouee'))) },
-                );
-              }}
-            >
+            <DropdownMenuItem onClick={basculer}>
               {sourdine ? (
                 <Bell className="size-4 text-muted-foreground stroke-[1.75]" aria-hidden="true" />
               ) : (
@@ -313,9 +329,51 @@ export function EnTeteDuFil({
               )}
               {sourdine ? t('group.info.unmute') : t('group.info.mute')}
             </DropdownMenuItem>
+            {gestes ? (
+              <>
+                <DropdownMenuItem
+                  data-testid="marquer-non-lue"
+                  onClick={() => {
+                    setErreur(null);
+                    gestes.onMarquerNonLue({ onError: (err) => setErreur(messageErreur(err, t('chat.nonLueEchouee'))) });
+                  }}
+                >
+                  <MessageSquare className="size-4 text-muted-foreground stroke-[1.75]" aria-hidden="true" />
+                  {t('chat.marquerNonLue')}
+                </DropdownMenuItem>
+                {!isGroup && gestes.onAjouterUnParticipant ? (
+                  <DropdownMenuItem onClick={gestes.onAjouterUnParticipant}>
+                    <UserPlus className="size-4 text-muted-foreground stroke-[1.75]" aria-hidden="true" />
+                    {t('chat.ajouterUnParticipant')}
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={gestes.onSignaler} className="text-destructive focus:text-destructive">
+                  <Flag className="size-4 stroke-[1.75]" aria-hidden="true" />
+                  {t('chat.signaler')}
+                </DropdownMenuItem>
+              </>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
         )}
+        {isGroup && !compact ? (
+          // TCK-2860 (maquette e5, l. 951) — la sourdine d'un groupe, en bouton direct au bureau.
+          <button
+            type="button"
+            onClick={basculer}
+            aria-label={sourdine ? t('group.info.unmute') : t('group.info.mute')}
+            aria-pressed={sourdine}
+            data-testid="sourdine-du-groupe"
+            className="inline-flex size-9 flex-none items-center justify-center rounded-lg border border-border bg-card text-encre-douce outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+          >
+            {sourdine ? (
+              <Bell className="size-4.5 stroke-[1.75]" aria-hidden="true" />
+            ) : (
+              <BellOff className="size-4.5 stroke-[1.75]" aria-hidden="true" />
+            )}
+          </button>
+        ) : null}
         {contexte && !compact ? (
           <button
             type="button"
@@ -329,7 +387,8 @@ export function EnTeteDuFil({
             aria-expanded={contexte.ouvert}
             aria-controls={ID_COLONNE_DE_CONTEXTE}
             data-testid="basculer-le-contexte"
-            className="hidden size-9 flex-none items-center justify-center rounded-lg border border-border bg-card text-encre-douce outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring xl:inline-flex"
+            // TCK-2860 — dès `lg` (et non plus `xl`) : entre 1024 et 1279, il ouvre le panneau superposé.
+            className="inline-flex size-9 flex-none items-center justify-center rounded-lg border border-border bg-card text-encre-douce outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
           >
             {contexte.ouvert ? (
               <PanelRightClose className="size-4.5 stroke-[1.75]" aria-hidden="true" />

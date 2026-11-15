@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { BellOff, Building2, ChevronRight, FileText, Loader2, MoreHorizontal, Pencil, UserPlus, Wrench } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +27,8 @@ import { MAX_GROUP_SIZE, useGestionDuGroupe } from './useGestionDuGroupe';
 
 interface InfosDuGroupeProps {
   readonly conversationId: number;
+  /** TCK-2860 — le panneau superposé entre `lg` et `xl` (la page le positionne). */
+  readonly superposee?: boolean;
 }
 
 /**
@@ -43,7 +46,7 @@ interface InfosDuGroupeProps {
  *
  * Repliée (le bouton de l'en-tête du fil), elle disparaît : le fil reprend la largeur.
  */
-export function InfosDuGroupe({ conversationId }: InfosDuGroupeProps) {
+export function InfosDuGroupe({ conversationId, superposee = false }: InfosDuGroupeProps) {
   const t = useTranslations('messaging.group.info');
   const tCreation = useTranslations('messaging.group.create');
   const { data: detail } = useConversation(conversationId);
@@ -62,7 +65,12 @@ export function InfosDuGroupe({ conversationId }: InfosDuGroupeProps) {
       aria-label={t('colonne')}
       // Maquette : 320 px fixes (88,9 pas de 3,6 px au bureau), et non la largeur relative de la colonne
       // de contexte : la liste des participants garde ses lignes de rôle entières.
-      className="flex w-[calc(var(--spacing)*88.9)] flex-none flex-col overflow-y-auto border-l border-border bg-background p-4 max-xl:hidden"
+      // TCK-2860 — `superposee` : entre 1024 et 1279, le panneau que le bouton de l'en-tête ouvre
+      // par-dessus le fil (la page le positionne) ; sinon, une colonne dès `xl` seulement.
+      className={cn(
+        'flex w-[calc(var(--spacing)*88.9)] flex-none flex-col overflow-y-auto border-l border-border bg-background p-4',
+        !superposee && 'max-xl:hidden',
+      )}
     >
       <p className="text-xs font-medium text-muted-foreground">{t('colonne')}</p>
       {conversation ? (

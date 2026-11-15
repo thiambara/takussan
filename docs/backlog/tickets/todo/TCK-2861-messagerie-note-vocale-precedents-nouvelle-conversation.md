@@ -109,8 +109,8 @@ Le lecteur réutilisable de note vocale est extrait par **TCK-2901** (famille 4,
 
 ### Reste
 
-- `NewGroupDialog` n'est plus ouvert par aucun geste réel (`MessagesPage` le monte encore via `onNouveauGroupe`, gardé comme signal « groupe proposé ») : à retirer dans un ticket à part.
-- `MessagesPage.test.tsx` : son double de `NouvelleConversation` clique encore « Créer un groupe » → `NewGroupDialog`, un chemin que le vrai composant n'a plus.
-- `docs/qa/audit-ux-2026-11/fidelite/TCK-2632.json` porte des écarts acceptés que ce ticket lève (l. 336 « forme d'onde », l. 402 « la rangée mène à NewGroupDialog », l. 547 catégorie « forme d'onde, bulle de note vocale ») : à retirer au relevé (AC-F2).
+- `NewGroupDialog` n'est plus ouvert par aucun geste réel (`MessagesPage` le monte encore via `onNouveauGroupe`, gardé comme signal « groupe proposé ») : à retirer dans un ticket à part. → **Soldé par TCK-2860** (fichier et test supprimés, `groupePossible`).
+- `MessagesPage.test.tsx` : son double de `NouvelleConversation` clique encore « Créer un groupe » → `NewGroupDialog`, un chemin que le vrai composant n'a plus. → **Soldé par TCK-2860**.
+- `docs/qa/audit-ux-2026-11/fidelite/TCK-2632.json` porte des écarts acceptés que ce ticket lève (l. 336 « forme d'onde », l. 402 « la rangée mène à NewGroupDialog », l. 547 catégorie « forme d'onde, bulle de note vocale ») : à retirer au relevé (AC-F2). → l. 336 (« forme d'onde ») reste à ce ticket ; les écarts lus par TCK-2860 (coche, rôle, contexte, menu) sont retirés par lui.
 - AC5, AC-F1, AC-F2 : non mesurés au navigateur (lot sans navigateur). Fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2861.json` écrite à la lecture, `releve_le: null`.
 

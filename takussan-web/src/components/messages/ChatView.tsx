@@ -7,7 +7,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import type { ZodType } from 'zod';
 import { useResolveurValidation } from '@/hooks/useApiForm';
 import { useLocale, useTranslations } from 'next-intl';
-import { BellOff, Building2, Settings, Users } from 'lucide-react';
+import { BellOff, Building2, CheckCheck, Settings, Users } from 'lucide-react';
 import {
   useConversation,
   useMessagesInfinite,
@@ -42,6 +42,7 @@ import { LecteurDeNoteVocale } from './NoteVocale';
 import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
+import type { GestesDuFil } from './GestesDuFil';
 
 interface ChatViewProps {
   readonly conversationId: number;
@@ -70,7 +71,16 @@ interface ChatViewProps {
    * page rend elle-même ; sans ce rappel (widget, groupe), « ⋯ » reste le menu.
    */
   readonly onPlusDActions?: () => void;
+  /** TCK-2860 — les gestes du menu « ⋯ » que la page monte (non lue, ajouter, signaler) ; absents du widget. */
+  readonly gestes?: GestesDuFil;
 }
+
+/**
+ * TCK-2860 — la cadence à laquelle le fil se relit tant que MON dernier message n'est pas lu : le
+ * relevé `after_id` (3 s) n'apporte que les messages NEUFS, jamais la coche des messages déjà chargés
+ * (TCK-2858, Notes). La relecture s'arrête dès que la coche est posée, et onglet caché.
+ */
+export const RELECTURE_DE_LA_COCHE_MS = 15_000;
 
 /**
  * Realtime strategy: `useMessagesInfinite` loads 30 newest messages on mount
@@ -80,7 +90,7 @@ interface ChatViewProps {
  * so polling never re-downloads loaded history. Polling pauses while the tab
  * is hidden (visibility listener below). See TCK-045 / pagination plan.
  */
-export function ChatView({ conversationId, variant = 'page', onBack, contexte, onPlusDActions }: ChatViewProps) {
+export function ChatView({ conversationId, variant = 'page', onBack, contexte, onPlusDActions, gestes }: ChatViewProps) {
   const isWidget = variant === 'widget';
   const t = useTranslations('messaging');
   const tRacine = useTranslations();
@@ -132,6 +142,25 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
 
   useNewMessagesPolling(conversationId, anchorId, { enabled: isVisible });
   useMarkConversationRead(conversationId, anchorId, { enabled: isVisible });
+
+  /**
+   * TCK-2860 (AC5) — mon dernier message attend-il sa coche « Lu » ? Seulement s'il est le plus
+   * récent du fil (une réponse de l'autre vaut lecture, et le relevé l'apporte) et que l'API le dit
+   * non lu (`read_by_recipient === false`, ou `read_count === 0` dans un groupe). Alors le fil se
+   * relit toutes les 15 s, jusqu'à la coche.
+   */
+  const dernier = messages.find((m) => m.id === anchorId);
+  const cocheEnAttente =
+    dernier !== undefined &&
+    dernier.sender_id === user?.id &&
+    (dernier.read_by_recipient === false || dernier.read_count === 0);
+  useEffect(() => {
+    if (!cocheEnAttente || !isVisible) return;
+    const minuterie = setInterval(() => {
+      void refetch();
+    }, RELECTURE_DE_LA_COCHE_MS);
+    return () => clearInterval(minuterie);
+  }, [cocheEnAttente, isVisible, refetch]);
 
   const sendMessage = useSendMessage(conversationId);
   const sendAttachment = useSendAttachment(conversationId);
@@ -398,6 +427,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
           }}
           contexte={contexte}
           onPlusDActions={onPlusDActions}
+          gestes={gestes}
         />
       )}
       {isGroup && !isWidget && (
@@ -561,6 +591,12 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
  * Une bulle (maquette `app-messagerie`, `Bulle`) : la mienne pleine à droite, l'autre bordée à
  * gauche, l'heure en bas à droite. L'auteur n'est nommé que dans un groupe (« Pas de
  * régression » de TCK-2632) : dans un fil direct, l'en-tête le dit déjà.
+ *
+ * TCK-2860 — dans un groupe, l'auteur est signé de son rôle au fil (« Fatou Wade · locataire »,
+ * maquette e5) : le CODE `sender.role_label_code` (TCK-2858), le libellé par next-intl ; un code
+ * inconnu ou nul laisse le nom seul. Sur MES messages, la double coche « Lu » (maquette l. 211) :
+ * fil direct, `read_by_recipient` ; groupe, au moins un lecteur (`read_count > 0`). Rien tant que
+ * l'API ne l'a pas dit.
  */
 function MessageBubble({
   message,
@@ -575,6 +611,14 @@ function MessageBubble({
   locale: Locale;
   relirePiece: RelirePiece;
 }) {
+  const t = useTranslations('messaging.chat');
+  const role = message.sender?.role_label_code ?? null;
+  const cleDuRole = role ? `role.${role}` : null;
+  const signature =
+    message.sender && cleDuRole && t.has(cleDuRole)
+      ? t('auteurEtRole', { nom: message.sender.full_name, role: t(cleDuRole) })
+      : message.sender?.full_name;
+  const lu = isOwn && (message.read_by_recipient === true || (message.read_count ?? 0) > 0);
   return (
     <li className={cn('flex', isOwn ? 'justify-end' : 'justify-start')}>
       <div
@@ -587,7 +631,7 @@ function MessageBubble({
       >
         {auteur && !isOwn && message.sender && (
           <p className="mb-0.5 text-xs font-semibold text-primary-deep">
-            {message.sender.full_name}
+            {signature}
           </p>
         )}
         {message.type === 'audio' && message.attachments?.[0] ? (
@@ -621,11 +665,12 @@ function MessageBubble({
         )}
         <p
           className={cn(
-            'mt-1 text-right text-[0.6875rem] tabular-nums',
+            'mt-1 flex items-center justify-end gap-1 text-[0.6875rem] tabular-nums',
             isOwn ? 'text-background/65' : 'text-muted-foreground',
           )}
         >
           {formatDateTime(message.created_at, locale, { timeStyle: 'short', dateStyle: undefined })}
+          {lu ? <CheckCheck className="size-3.5 flex-none" role="img" aria-label={t('lu')} data-testid="coche-lu" /> : null}
         </p>
       </div>
     </li>

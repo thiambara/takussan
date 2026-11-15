@@ -86,8 +86,24 @@ export type Message = {
   sender?: {
     id: number;
     full_name: string;
+    /**
+     * TCK-2858 — dans un GROUPE, le rôle de l'auteur au fil, jugé pour l'appelant (un code, le
+     * libellé est au front : `messaging.chat.role.*`, TCK-2860). `null` dans un fil direct ou sans
+     * relation lisible ; absent d'une réponse d'avant TCK-2858.
+     */
+    role_label_code?: RoleDeLAuteur | null;
   } | null;
+  /**
+   * TCK-2858 — fil direct, message de l'appelant : l'autre l'a-t-il lu (`last_read_at` ≥ `created_at`) ?
+   * `null` ailleurs (message d'un autre, groupe). Le relevé `after_id` ne le rafraîchit pas.
+   */
+  read_by_recipient?: boolean | null;
+  /** TCK-2858 — groupe, message de l'appelant : combien des autres membres actuels l'ont lu. `null` ailleurs. */
+  read_count?: number | null;
 };
+
+/** TCK-2858 — `sender.role_label_code` (`FaitsDesMessages::ROLES` + `agency_admin`, `customer`). */
+export type RoleDeLAuteur = 'tenant' | 'owner' | 'service_provider' | 'agent' | 'agency_admin' | 'customer';
 
 export type Conversation = {
   id: number;
@@ -114,7 +130,13 @@ export type Conversation = {
    * TCK-671 — rendu par la liste (`ConversationController::index`) : le type du dernier message, et la
    * `metadata` d'un avis système seulement (`null` sinon), d'où le front dérive l'aperçu.
    */
-  last_message?: Pick<Message, 'id' | 'type' | 'metadata'> | null;
+  last_message?: (Pick<Message, 'id' | 'type' | 'metadata'> & {
+    /**
+     * TCK-2858 — l'auteur du dernier message (`null` pour un avis système) : l'accueil du client
+     * (TCK-2853) ne dit « X vous a répondu » que si ce n'est pas le sien. Absent d'une réponse d'avant.
+     */
+    sender_id?: number | null;
+  }) | null;
   /**
    * TCK-2374 (P248.01) — rendu par `GET /api/conversations/{id}` seulement. `can_send_message` est
    * faux pour le demandeur dont le bail a pris fin, dans le fil de son intervention : il le lit sans
@@ -186,6 +208,29 @@ export type ConversationContext = {
     stage: string | null;
     phone: string | null;
     assigned_agent: { id: number; name: string } | null;
+    /**
+     * TCK-2858 — le besoin saisi sur la fiche (`null` sans aucun critère, ou sans droit de lecture).
+     * Budgets en nombre, comme `property.price`.
+     */
+    project?: {
+      contract_type: 'sale' | 'rent' | null;
+      property_types: string[];
+      budget_min: number | null;
+      budget_max: number | null;
+      cities: string[];
+      neighborhoods: string[];
+    } | null;
+    /** TCK-2858 — la plus récente visite passée (ni annulée ni manquée) sur un bien de l'agence du fil. */
+    last_visit?: { id: number; scheduled_at: string | null; property_title: string | null } | null;
+    /**
+     * TCK-2858 — le premier contact : le plus ancien de la fiche et de sa première demande. `null`
+     * SANS droit de lecture de la fiche (jamais sinon : la fiche a toujours une date).
+     */
+    first_contact_at?: string | null;
+    /** TCK-2858 — le canal de la première demande, quand c'est elle le premier contact. */
+    origin?: 'form' | 'whatsapp' | 'call' | null;
+    /** TCK-2858 — la demande de contact liée au fil (`null` sans `PropertyContactLeadPolicy::view`). */
+    contact_lead?: { id: number; created_at: string | null; property_title: string | null } | null;
   } | null;
   /**
    * TCK-2748 — la relation de chaque participant ACTUEL au contexte du fil, dérivée par l'API du bail,

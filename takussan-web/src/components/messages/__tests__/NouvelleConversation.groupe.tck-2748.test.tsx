@@ -1,7 +1,7 @@
 /**
  * TCK-2748 (AC1) — au bureau, « Nouvelle conversation » bascule en « groupe » DANS le même dialogue
  * (maquette a-3) : destinataires en puces, nom, bien et bail rattachés, puis `POST` groupe ; le fil
- * créé s'ouvre. Sans `onNouveauGroupe` (l'espace ne propose pas de groupe), ni rangée ni interrupteur.
+ * créé s'ouvre. Sans `groupePossible` (l'espace ne propose pas de groupe), ni rangée ni interrupteur.
  *
  * TCK-2861 — ce test change d'attentes, et c'est voulu : les personnes ne se choisissent plus dans le
  * menu d'un sélecteur mais dans la liste sous le champ « À » (une puce par personne) ; au téléphone,
@@ -44,7 +44,7 @@ vi.mock('@/lib/queries/conversations', () => ({
   useGroupLeaseOptions: () => vide,
 }));
 
-function monter(extra: { bureau?: boolean; onNouveauGroupe?: () => void } = {}) {
+function monter(extra: { bureau?: boolean; groupePossible?: boolean } = {}) {
   const props = { onClose: vi.fn(), onOuvrir: vi.fn(), onBrouillon: vi.fn(), ...extra };
   render(withIntl(<NouvelleConversation open {...props} />));
   return props;
@@ -65,11 +65,10 @@ beforeEach(() => {
 describe('<NouvelleConversation> — le groupe en un formulaire (TCK-2748)', () => {
   it('au bureau, « Créer un groupe » est un interrupteur du dialogue, pas un passage à un autre', async () => {
     const user = userEvent.setup();
-    const p = monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    const p = monter({ bureau: true, groupePossible: true });
     const interrupteur = screen.getByRole('switch', { name: /Créer un groupe/ });
     expect(interrupteur).toHaveAttribute('aria-checked', 'false');
     await user.click(interrupteur);
-    expect(p.onNouveauGroupe).not.toHaveBeenCalled();
     expect(p.onClose).not.toHaveBeenCalled();
     expect(screen.getByTestId('groupe-en-un-formulaire')).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: /Créer un groupe/ })).toHaveAttribute('aria-checked', 'true');
@@ -82,7 +81,7 @@ describe('<NouvelleConversation> — le groupe en un formulaire (TCK-2748)', () 
   it('crée le groupe par un POST groupe, bien rattaché compris, et ouvre le fil', async () => {
     creerGroupe.mockResolvedValue({ data: { id: 404 } });
     const user = userEvent.setup();
-    const p = monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    const p = monter({ bureau: true, groupePossible: true });
     await user.click(screen.getByRole('switch', { name: /Créer un groupe/ }));
     await choisirUnePersonne(user, 'Awa Ndiaye');
     await choisirUnePersonne(user, 'Astou Sy');
@@ -100,7 +99,7 @@ describe('<NouvelleConversation> — le groupe en un formulaire (TCK-2748)', () 
 
   it('refuse un groupe de moins de trois personnes, sans appel', async () => {
     const user = userEvent.setup();
-    const p = monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    const p = monter({ bureau: true, groupePossible: true });
     await user.click(screen.getByRole('switch', { name: /Créer un groupe/ }));
     await choisirUnePersonne(user, 'Awa Ndiaye');
     await user.type(screen.getByLabelText('Nom du groupe'), 'Deux');
@@ -112,7 +111,7 @@ describe('<NouvelleConversation> — le groupe en un formulaire (TCK-2748)', () 
 
   it('Entrée dans le champ « À » ne soumet pas le formulaire du groupe', async () => {
     const user = userEvent.setup();
-    const p = monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    const p = monter({ bureau: true, groupePossible: true });
     await user.click(screen.getByRole('switch', { name: /Créer un groupe/ }));
     await user.type(screen.getByLabelText('Nom du groupe'), 'Travaux');
     await user.click(screen.getByLabelText('À'));
@@ -124,10 +123,9 @@ describe('<NouvelleConversation> — le groupe en un formulaire (TCK-2748)', () 
 
   it('au téléphone aussi, « Créer un groupe » est l’interrupteur de la feuille (TCK-2861)', async () => {
     const user = userEvent.setup();
-    const p = monter({ bureau: false, onNouveauGroupe: vi.fn() });
+    const p = monter({ bureau: false, groupePossible: true });
     const interrupteur = screen.getByRole('switch', { name: /Créer un groupe/ });
     await user.click(interrupteur);
-    expect(p.onNouveauGroupe).not.toHaveBeenCalled();
     expect(p.onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('switch', { name: /Créer un groupe/ })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByLabelText('Nom du groupe')).toBeInTheDocument();
@@ -143,7 +141,7 @@ describe('<NouvelleConversation> — le groupe en un formulaire (TCK-2748)', () 
 describe('<NouvelleConversation> — les puces et la bascule automatique (TCK-2861)', () => {
   it('AC4 — au bureau, Malick puis Awa : l’interrupteur s’allume sans geste de plus, et le groupe s’ouvre', async () => {
     const user = userEvent.setup();
-    monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    monter({ bureau: true, groupePossible: true });
     const interrupteur = () => screen.getByRole('switch', { name: /Créer un groupe/ });
     expect(screen.getByText('Activé d’office à partir de deux destinataires.')).toBeInTheDocument();
 
@@ -164,7 +162,7 @@ describe('<NouvelleConversation> — les puces et la bascule automatique (TCK-28
 
   it('retirer une puce sous deux repasse en direct : plus de nom de groupe, « Écrire »', async () => {
     const user = userEvent.setup();
-    monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    monter({ bureau: true, groupePossible: true });
     await choisirUnePersonne(user, 'Malick Seck');
     await choisirUnePersonne(user, 'Awa Ndiaye');
     await user.click(screen.getByRole('button', { name: 'Retirer Awa Ndiaye' }));
@@ -176,7 +174,7 @@ describe('<NouvelleConversation> — les puces et la bascule automatique (TCK-28
 
   it('même allumé à la main, le groupe repasse en direct quand on retire une puce sous deux', async () => {
     const user = userEvent.setup();
-    monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    monter({ bureau: true, groupePossible: true });
     await user.click(screen.getByRole('switch', { name: /Créer un groupe/ }));
     await choisirUnePersonne(user, 'Malick Seck');
     await choisirUnePersonne(user, 'Awa Ndiaye');
@@ -188,7 +186,7 @@ describe('<NouvelleConversation> — les puces et la bascule automatique (TCK-28
   it('une seule puce + « Écrire » ouvre le fil direct de cette personne', async () => {
     trouver.mockResolvedValue(77);
     const user = userEvent.setup();
-    const p = monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    const p = monter({ bureau: true, groupePossible: true });
     await choisirUnePersonne(user, 'Malick Seck');
     expect(trouver).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Écrire' }));
@@ -199,7 +197,7 @@ describe('<NouvelleConversation> — les puces et la bascule automatique (TCK-28
 
   it('une personne en puce n’est plus proposée', async () => {
     const user = userEvent.setup();
-    monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    monter({ bureau: true, groupePossible: true });
     await choisirUnePersonne(user, 'Malick Seck');
     await user.type(screen.getByLabelText('À'), 'Mal');
     await screen.findByRole('button', { name: 'Awa Ndiaye' });
@@ -208,7 +206,7 @@ describe('<NouvelleConversation> — les puces et la bascule automatique (TCK-28
 
   it('une personne en puce ne fait pas dire « précisez la recherche » à une liste complète', async () => {
     const user = userEvent.setup();
-    monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    monter({ bureau: true, groupePossible: true });
     await choisirUnePersonne(user, 'Malick Seck');
     await user.type(screen.getByLabelText('À'), 'Awa');
     await screen.findByRole('button', { name: 'Awa Ndiaye' });
@@ -218,7 +216,7 @@ describe('<NouvelleConversation> — les puces et la bascule automatique (TCK-28
   it('AC4 — au téléphone, le champ est précédé de « À : » et la phrase de pied nomme l’agence', async () => {
     agence = 'Dakar Immo';
     const user = userEvent.setup();
-    monter({ bureau: false, onNouveauGroupe: vi.fn() });
+    monter({ bureau: false, groupePossible: true });
     expect(screen.getByLabelText('À :')).toBeInTheDocument();
     expect(screen.getByText('Vous pouvez écrire aux clients, aux propriétaires et aux collègues de Dakar Immo.')).toBeInTheDocument();
     // Au téléphone aussi, la deuxième puce passe en groupe.
@@ -228,7 +226,7 @@ describe('<NouvelleConversation> — les puces et la bascule automatique (TCK-28
   });
 
   it('sans agence lue, pas de phrase de pied (elle serait fausse)', () => {
-    monter({ bureau: false, onNouveauGroupe: vi.fn() });
+    monter({ bureau: false, groupePossible: true });
     expect(screen.queryByText(/Vous pouvez écrire aux clients/)).not.toBeInTheDocument();
   });
 });

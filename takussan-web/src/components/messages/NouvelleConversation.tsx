@@ -29,11 +29,12 @@ interface NouvelleConversationProps {
   /** Aucun fil : un brouillon, créé au premier envoi. */
   readonly onBrouillon: (personne: MessagingContact) => void;
   /**
-   * Sa PRÉSENCE dit que l'espace propose un groupe (`usePeutProposerUnGroupe`, TCK-645) ; absent,
-   * ni interrupteur ni puces : toucher une personne ouvre son fil, comme avant. Depuis TCK-2861, le
-   * groupe se crée DANS ce dialogue aux deux formats : le rappel n'est plus appelé d'ici.
+   * L'espace propose-t-il un groupe (`usePeutProposerUnGroupe`, TCK-645) ? Faux ou absent : ni
+   * interrupteur ni puces, toucher une personne ouvre son fil (fail-closed). Le groupe se crée DANS ce
+   * dialogue aux deux formats (TCK-2861) ; TCK-2860 a remplacé le rappel `onNouveauGroupe`, qui
+   * n'était plus appelé, par ce drapeau, et retiré `NewGroupDialog`.
    */
-  readonly onNouveauGroupe?: () => void;
+  readonly groupePossible?: boolean;
   /** Dès `lg` : le champ « À » encadré et l'aide « Activé d'office… » (maquette e3 bureau). */
   readonly bureau?: boolean;
 }
@@ -56,7 +57,7 @@ interface NouvelleConversationProps {
  * Si la recherche du fil échoue, on le DIT au lieu d'ouvrir un brouillon : un brouillon envoyé
  * créerait un second fil avec la même personne. Écart assumé : la recherche ne porte que sur le nom.
  */
-export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, onNouveauGroupe, bureau = false }: NouvelleConversationProps) {
+export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, groupePossible = false, bureau = false }: NouvelleConversationProps) {
   const t = useTranslations('messaging.nouvelle');
   const tGroupe = useTranslations('messaging.group.create');
   const tRacine = useTranslations();
@@ -73,7 +74,6 @@ export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, onN
   const groupe = useCreationDeGroupe();
   const puces = groupe.participants;
   const [groupeManuel, setGroupeManuel] = useState(false);
-  const groupePossible = onNouveauGroupe !== undefined;
   const enGroupe = groupePossible && (groupeManuel || puces.length >= 2);
   const choisis = new Set(puces.map((p) => p.id));
 
@@ -362,7 +362,7 @@ function ChampA({
 /**
  * La rangée « Créer un groupe » : un interrupteur (`role="switch"`) dont la rangée entière est la
  * cible (`<label>`). TCK-2748 l'a posé au bureau ; TCK-2861 le pose aussi au téléphone (maquette e3),
- * où il remplace la rangée qui menait à `NewGroupDialog`. Au bureau, l'aide dit la bascule
+ * où il remplace la rangée qui menait à l'ancien dialogue de groupe (retiré par TCK-2860). Au bureau, l'aide dit la bascule
  * automatique ; à deux puces ou plus, il ne s'éteint pas (`readOnly`).
  */
 function InterrupteurDeGroupe({

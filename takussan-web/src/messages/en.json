@@ -11801,14 +11801,21 @@
         "dureeValeur": "{n, plural, one {# month} other {# months}}{renouvelable, select, oui {, renewable} other {}}",
         "caution": "Security deposit",
         "cautionMois": "{n, plural, one {# month} other {# months}}",
-        "aVerser": "Due on move-in"
+        "aVerser": "Due on move-in",
+        "financement": "Financing",
+        "delaiDeSignature": "Time to sign",
+        "conditions": "Conditions",
+        "jours": "{n, plural, one {# day} other {# days}}"
       },
       "offre": {
         "titre": "Purchase offer",
         "prixAffiche": "Listed price",
         "ecart": "Difference",
         "ecartValeur": "{montant} · {pourcentage}",
-        "enVenteDepuis": "{n, plural, =0 {Listed for sale today.} one {For sale for # day.} other {For sale for # days.}}"
+        "enVenteDepuis": "{n, plural, =0 {Listed for sale today} one {For sale for # day} other {For sale for # days}}",
+        "faits": "{faits}.",
+        "visites": "{n, plural, =0 {no visits} one {# visit} other {# visits}}",
+        "rang": "{premiere, select, oui {first offer received} other {offer no. {rang} received}}"
       },
       "decision": {
         "sous": "The offer is {pourcentage} below the listed price.",
@@ -11889,6 +11896,25 @@
           "closed": "This request is closed: its file can no longer be completed."
         },
         "erreurLecture": "The file could not be loaded."
+      },
+      "financement": {
+        "cash": "Cash",
+        "mortgage": "Mortgage",
+        "mixed": "Down payment and mortgage"
+      },
+      "contreOffre": {
+        "geste": "{modifier, select, oui {Edit the counter-offer} other {Counter-offer}}",
+        "envoyee": "Counter-offer of {montant} sent",
+        "enAttente": "awaiting {prenom}",
+        "enAttenteJusquA": "awaiting {prenom} until {date}",
+        "statut": {
+          "pending": "Counter-offer pending",
+          "accepted": "Counter-offer accepted",
+          "declined": "Counter-offer declined",
+          "superseded": "Counter-offer replaced",
+          "expired": "Counter-offer expired"
+        },
+        "toast": "Counter-offer sent to {prenom}"
       }
     },
     "feuilles": {
@@ -11933,6 +11959,21 @@
           "aide": "Optional, except for “Other”. The reason stays on the booking; {prenom} receives a decline notice.",
           "envoyer": "Decline and notify {prenom}"
         }
+      },
+      "contreOffre": {
+        "titre": "{modifier, select, oui {Edit the counter-offer} other {Counter-offer}}",
+        "montant": "Proposed amount",
+        "montantAide": "Prefilled with the listed price.",
+        "montantAideEnCours": "The amount of the current counter-offer: the new one replaces it.",
+        "validite": "Valid for",
+        "jours": "{n, plural, one {# day} other {# days}}",
+        "jusquAu": "Until {date}, inclusive.",
+        "message": "Message (optional)",
+        "messagePlaceholder": "What justifies this price, what remains negotiable…",
+        "prevenu": "The customer will be notified and can accept or decline your counter-offer.",
+        "envoyer": "Send counter-offer",
+        "envoyerMontant": "Counter-offer {montant}",
+        "envoi": "Sending…"
       }
     }
   },

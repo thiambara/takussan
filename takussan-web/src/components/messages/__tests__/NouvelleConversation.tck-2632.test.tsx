@@ -34,7 +34,7 @@ vi.mock('@/lib/queries/conversations', () => ({
   useGroupLeaseOptions: () => ({ data: { data: [], meta: { total: 0 } }, isFetching: false, isError: false, refetch: vi.fn() }),
 }));
 
-function monter(extra: { onNouveauGroupe?: () => void } = {}) {
+function monter(extra: { groupePossible?: boolean } = {}) {
   const props = { onClose: vi.fn(), onOuvrir: vi.fn(), onBrouillon: vi.fn(), ...extra };
   render(withIntl(<NouvelleConversation open {...props} />));
   return props;
@@ -103,10 +103,8 @@ describe('<NouvelleConversation> (TCK-2632)', () => {
   // TCK-2861 — attente changée, voulue : « Créer un groupe » n'ouvre plus un autre dialogue, c'est un
   // interrupteur de la feuille (maquette e3) ; le dialogue ne se ferme pas.
   it('« Créer un groupe » est un interrupteur de la feuille, qui ne ferme rien (TCK-2861)', () => {
-    const onNouveauGroupe = vi.fn();
-    const p = monter({ onNouveauGroupe });
+    const p = monter({ groupePossible: true });
     fireEvent.click(screen.getByRole('switch', { name: /Créer un groupe/ }));
-    expect(onNouveauGroupe).not.toHaveBeenCalled();
     expect(p.onClose).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Nom du groupe')).toBeInTheDocument();
   });

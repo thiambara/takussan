@@ -19,7 +19,11 @@ import { Disque, LienTonal } from '../pieces';
  * chargement, ou en panne —, aucune rangée : c'est un signal, pas un bloc.
  *
  * Le nom est celui de l'autre membre du fil. La citation est l'aperçu du dernier message
- * (`last_message_preview`) ; l'API ne dit pas qui l'a écrit, et un avis système n'est jamais cité.
+ * (`last_message_preview`) ; un avis système n'est jamais cité.
+ *
+ * TCK-2860 — le fil non lu peut finir sur un message du client lui-même (il a répondu après le
+ * message non lu) : `last_message.sender_id` (TCK-2858) le dit, et la rangée n'est alors pas rendue —
+ * « X vous a répondu » serait faux. `null` (avis système) ou absent : la règle d'avant.
  */
 export function ReponseRecue({ className }: { readonly className?: string }) {
   const t = useTranslations('accueil.client.reponse');
@@ -29,6 +33,7 @@ export function ReponseRecue({ className }: { readonly className?: string }) {
   const lue = useReponseRecue();
   const fil = lue.data?.data?.[0];
   if (!fil) return null;
+  if (user && fil.last_message?.sender_id === user.id) return null;
   const nom = nomDeLAutre(fil, user?.id ?? null);
   if (!nom) return null;
   const apercu = fil.last_message?.type !== 'system' ? fil.last_message_preview?.trim() || null : null;

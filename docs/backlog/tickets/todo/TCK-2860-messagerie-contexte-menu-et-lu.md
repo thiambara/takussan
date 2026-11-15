@@ -80,4 +80,27 @@ Relevé (audit-f3-coque.md, app-messagerie e0, e1, e2, e5 ; « Écarts couverts 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-15 (agent délégué, arbre `takussan-manques`, sans navigateur).
+
+**Prémisse re-mesurée** : conforme (`ColonneDeContexte` sans projet/visite/premier contact/demande, `max-xl:hidden` et bascule `hidden xl:inline-flex` ; menu `EnTeteDuFil` réduit à la sourdine ; feuille sans demande ni « Signaler » ; bulle : nom seul, heure seule). Les lignes citées ont glissé de quelques unités (TCK-2861 est passé dans `ChatView`).
+
+**Livré** :
+- Types front (`types/message.ts`) : `Message.read_by_recipient`, `read_count`, `sender.role_label_code` (`RoleDeLAuteur`), `Conversation.last_message.sender_id`, et `customer.project | last_visit | first_contact_at | origin | contact_lead` du contexte — tous facultatifs (une réponse d'avant TCK-2858 garde le rendu d'avant).
+- **Accueil du client (TCK-2853)** : `ReponseRecue` ne rend plus « X vous a répondu » quand `last_message.sender_id` est le client lui-même.
+- **Colonne de contexte** : « Projet » (contrat · budget abrégé, à défaut les lieux), « Dernière visite » (« Aucune encore » seulement si la fiche est lisible — `first_contact_at` posé), « Premier contact » (« lun. 9 nov., par l'annonce »), « Demande de contact du 9 nov. » en lien `/app/leads?lead={id}` (cible P97.04) ; rail replié : icône « Demande de contact liée ».
+- **1024-1279** : le bouton du panneau est visible dès `lg` ; entre `lg` et `xl`, un état à part (fermé d'office, refermé au changement de fil) ouvre le contexte — ou « Infos du groupe » — en panneau superposé à droite (`absolute`, 320 px), sans rail. Dès `xl`, inchangé.
+- **Menu « ⋯ » (bureau)** : sourdine, « Marquer comme non lue », « Ajouter un participant » (fil direct), séparateur, « Signaler la conversation » en rouge. **Feuille (téléphone)** : demande liée (« Par l'annonce « … » »), puis après la sourdine les trois gestes (écart à la maquette noté dans la fiche : le Delta veut les trois gestes aux deux formats). Les gestes ne sont passés que par la page (`gestes` de `ChatView`) : le widget flottant garde son menu d'avant, et les dialogues (`GestesDuFil.tsx`) restent hors de son graphe d'imports.
+- **Signaler** : motif codé obligatoire + commentaire ≤ 500 ; « Conversation signalée » dit DANS le dialogue (pas de toast) ; 409 `conversation.already_reported` → « Vous avez déjà signalé cette conversation. ».
+- **Ajouter un participant** (direct) : le dialogue dit qu'un nouveau groupe est créé sans l'historique, liste `GET …/contacts` de la directe (l'autre partie et soi exclus), `POST …/participants` → 201 → le groupe s'ouvre ; bouton inactif pendant l'envoi (ADR-0114 : un double envoi ferait deux groupes) ; 422 dit ses phrases. Hook distinct `useElargirLeFilDirect` (la réponse n'est pas celle de `useAddParticipants`).
+- **Non lue** : `useMarkConversationUnread` (`PUT …/unread`) invalide `['conversations','list']` (pastille, compteur « Non lus ») et le détail. Le fil reste ouvert : `useMarkConversationRead` ne le remarque lu qu'au prochain message ou à la réouverture.
+- **« Lu »** : double coche sur MES messages — direct `read_by_recipient === true`, groupe `read_count > 0` (règle notée dans la fiche). Le relevé `after_id` ne rafraîchit pas la coche (reste de TCK-2858) : tant que MON dernier message est non lu, `ChatView` relit le fil toutes les 15 s (onglet visible), et s'arrête à la coche.
+- **Rôle de l'auteur** : « Fatou Wade · locataire » par `messaging.chat.role.<code>` (codes `tenant|owner|service_provider|agent|agency_admin|customer`) ; code nul ou inconnu → le nom seul.
+- **Groupe au bureau** : la sourdine en bouton direct dans l'en-tête (maquette e5, l. 951).
+
+**Restes de TCK-2861 soldés** : `NewGroupDialog.tsx` et son test supprimés (plus aucun geste ne l'ouvrait) ; `NouvelleConversation` reçoit `groupePossible: boolean` au lieu du rappel `onNouveauGroupe` jamais appelé (trois fichiers de test adaptés) ; `MessagesPage.test.tsx` ne simule plus « Créer un groupe → NewGroupDialog » ; clés orphelines retirées par l'outil (`messaging.group.create.{back,next,leaseLabel,propertyLabel,participantsLabel,subjectLabel,step1Description,step2Description}`, `messaging.voiceNote.duration`). Fiche `TCK-2632.json` : les quatre écarts « donnée » que ce ticket lève sont retirés (AC-F2).
+
+**Tests dont l'attente change (voulu)** : `EnTeteDuFil.tck-2632` (le bouton du contexte n'est plus `hidden xl:inline-flex`) ; `MessagesPage.test` (« propose le groupe » vérifie le drapeau, plus l'ouverture de `NewGroupDialog`).
+
+**Ablations** (une à une, restaurées par `cp`, md5 vérifié) : garde `sender_id` de l'accueil ; « Aucune encore » sans lisibilité ; rail en mode superposé ; lien de la demande ; règle de la coche ; signature du rôle ; relecture de la coche (absente / inconditionnelle) ; panneau superposé à 1100 ; bouton inactif pendant l'élargissement ; 409 ; « Ajouter » d'un groupe (menu et page) ; sourdine du groupe ; motif obligatoire — toutes rouges.
+
+**Non mesuré (lot sans navigateur)** : AC7 (colonne avec bail **et** intervention ; fil d'un non-personnel) — lu dans le code : les deux liens se rendent l'un sous l'autre, et sans `customer` aucune ligne neuve ne paraît ; AC-F1 à AC-F3 — fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2860.json` écrite à la lecture, `releve_le: null`. Écart restant noté : la ville du bien n'est pas dans `/context`.

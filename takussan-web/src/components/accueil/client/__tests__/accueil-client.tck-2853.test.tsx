@@ -174,6 +174,21 @@ describe('TCK-2853 — « … vous a répondu · Lire » (bureau)', () => {
     await screen.findByText('Sokhna Sène vous a répondu');
     expect(document.body.textContent).not.toContain('X a renommé');
   });
+
+  // TCK-2860 — `last_message.sender_id` (TCK-2858) : le client qui a écrit le dernier mot n'a pas « reçu de réponse ».
+  it('TCK-2860 — le dernier message est du client lui-même : aucune rangée ; d’un autre : la rangée', async () => {
+    reseau.fils = [{ ...FIL, last_message: { id: 902, type: 'text', metadata: null, sender_id: 5 } }];
+    const { container } = monter(<ReponseRecue />);
+    await waitFor(() => expect(reseau.appels.some((a) => a.chemin.startsWith('/api/conversations?'))).toBe(true));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container.querySelector('[data-slot="reponse-recue"]')).toBeNull();
+  });
+
+  it('TCK-2860 — le dernier message est de l’autre (`sender_id` posé) : la rangée', async () => {
+    reseau.fils = [{ ...FIL, last_message: { id: 903, type: 'text', metadata: null, sender_id: 31 } }];
+    monter(<ReponseRecue />);
+    expect(await screen.findByText('Sokhna Sène vous a répondu')).toBeTruthy();
+  });
 });
 
 describe('TCK-2853 — chercher et publier', () => {

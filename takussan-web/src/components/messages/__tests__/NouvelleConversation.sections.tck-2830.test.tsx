@@ -71,7 +71,7 @@ function mockApi() {
   );
 }
 
-function monter(extra: { bureau?: boolean; onNouveauGroupe?: () => void } = {}) {
+function monter(extra: { bureau?: boolean; groupePossible?: boolean } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   // L'espace actif, tel que la coque de `/app` le met en cache (`CLE_PROFILS`) : la ligne de détail
   // de l'équipe y lit le nom de l'agence, sans le demander elle-même.
@@ -189,7 +189,7 @@ describe('<NouvelleConversation> — rangée en sections (TCK-2830)', () => {
 
   it('au bureau, le rangement tient de part et d’autre du mode « groupe »', async () => {
     const user = userEvent.setup();
-    monter({ bureau: true, onNouveauGroupe: vi.fn() });
+    monter({ bureau: true, groupePossible: true });
     await screen.findByRole('heading', { name: 'Autres personnes' });
 
     await user.click(screen.getByRole('switch'));
