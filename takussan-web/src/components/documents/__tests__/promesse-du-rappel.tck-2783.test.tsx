@@ -25,6 +25,8 @@ vi.mock('@/lib/queries/documents', async () => {
     useRevokeShareLink: () => ({ mutateAsync: vi.fn(), isPending: false }),
     useDeleteDocument: () => ({ mutateAsync: vi.fn(), isPending: false }),
     useUploadDocument: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    // TCK-2898 — l'ajout du coffre peut envoyer une version (« Remplace … qui expire »).
+    useUploadDocumentVersion: () => ({ mutateAsync: vi.fn(), isPending: false }),
   };
 });
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));

@@ -88,6 +88,8 @@ export const JOURS_AVANT_EXPIRATION = 60;
 export type EtiquetteDeDossier =
   | { readonly cle: 'monBail' }
   | { readonly cle: 'bailDe'; readonly nom: string }
+  /** TCK-2898 — le sous-dossier d'un bail dans le dossier du bien, chez le bailleur : « Bail de Fatou Kiné Diallo ». */
+  | { readonly cle: 'bailDuLocataire'; readonly nom: string }
   | { readonly cle: 'bien'; readonly nom: string }
   | { readonly cle: 'quittances'; readonly annee: number }
   | { readonly cle: 'quittancesSansAnnee' }
@@ -99,8 +101,8 @@ export type EtiquetteDeDossier =
 export function etiquetteDuDossier(dossier: DossierDuCoffre, nombreDeBaux: number): EtiquetteDeDossier {
   switch (dossier.kind) {
     case 'lease':
-      // TCK-2897 — le sous-dossier d'un bail chez le bailleur porte le nom du locataire.
-      if (dossier.parent) return { cle: 'bailDe', nom: dossier.name ?? dossier.reference ?? '' };
+      // TCK-2897, TCK-2898 — le sous-dossier d'un bail chez le bailleur porte le nom du locataire.
+      if (dossier.parent) return { cle: 'bailDuLocataire', nom: dossier.name ?? dossier.reference ?? '' };
       return nombreDeBaux > 1 && dossier.name ? { cle: 'bailDe', nom: dossier.name } : { cle: 'monBail' };
     case 'property':
       return { cle: 'bien', nom: dossier.name ?? '' };
@@ -248,9 +250,17 @@ export interface DossierVu {
   readonly kind: GenreDeDossier;
   readonly etiquette: EtiquetteDeDossier;
   readonly entrees: readonly EntreeVue[];
-  /** Les quittances et les relevés s'ouvrent repliés : une ligne de résumé, la liste au toucher. */
+  /**
+   * Les quittances, les relevés (TCK-2898 : et « Devis et rapports ») s'ouvrent repliés : une ligne de
+   * résumé, la liste au toucher.
+   */
   readonly replieParDefaut: boolean;
   readonly lectureSeule: boolean;
+  /**
+   * TCK-2898 — la clé du dossier qui le contient (le bien d'un sous-dossier de bail du bailleur), `null`
+   * sinon. La liste `dossiers` reste plate : l'écran imbrique, les comptes et l'alerte parcourent tout.
+   */
+  readonly parent: string | null;
 }
 
 export interface AlerteDExpiration {
@@ -267,11 +277,6 @@ export interface CoffreVu {
   readonly alerte: AlerteDExpiration | null;
   readonly expireBientot: number;
   readonly nonVerifies: number;
-  /**
-   * TCK-2656, décision 1 (a) — les biens du bailleur dont le dossier est vide ne sont pas listés
-   * (un bailleur de 73 biens en voyait 73 dossiers vides) : ils se comptent ici.
-   */
-  readonly biensSansDocument: number;
   /** TCK-2729 — au moins un dossier en lecture seule (listé ou vide) : le coffre le dit. */
   readonly lectureSeule: boolean;
 }
@@ -326,8 +331,13 @@ export interface ArchivePreparee {
   readonly download_path: string | null;
 }
 
+/** Les baux du locataire : un sous-dossier de bail du bailleur (TCK-2897) n'en est pas un. */
+export function nombreDeBauxDuLocataire(coffre: Pick<CoffreDeDocuments, 'folders'>): number {
+  return coffre.folders.filter((d) => d.kind === 'lease' && !d.parent).length;
+}
+
 export function voirLeCoffre(coffre: CoffreDeDocuments, aujourdhui: string): CoffreVu {
-  const nombreDeBaux = coffre.folders.filter((d) => d.kind === 'lease' && !d.parent).length;
+  const nombreDeBaux = nombreDeBauxDuLocataire(coffre);
 
   const ordonnes = coffre.folders
     .map((dossier, rang) => ({ dossier, rang }))
@@ -339,16 +349,10 @@ export function voirLeCoffre(coffre: CoffreDeDocuments, aujourdhui: string): Cof
     })
     .map(({ dossier }) => dossier);
 
-  // TCK-2897 — un bien dont seuls les sous-dossiers de bail ont des entrées n'est pas « sans document » ;
-  // un sous-dossier de bail vide ne se liste pas (le bien vide ne se listait pas).
-  const vide = (d: DossierDuCoffre) =>
-    d.kind === 'property' &&
-    d.entries.length === 0 &&
-    !coffre.folders.some((f) => f.parent === d.key && f.entries.length > 0);
-  const biensSansDocument = ordonnes.filter(vide).length;
-
+  // TCK-2898 — chaque bien du bailleur est listé, même vide (« Aucun document ») : la décision 1 (a) de
+  // TCK-2656, qui les taisait et les comptait, est renversée. Un sous-dossier de bail vide ne se liste pas.
   const dossiers = ordonnes
-    .filter((d) => !vide(d) && !(d.parent && d.entries.length === 0))
+    .filter((d) => !(d.parent && d.entries.length === 0))
     .map((dossier): DossierVu => {
       const parDate =
         dossier.kind === 'receipts' ||
@@ -367,8 +371,9 @@ export function voirLeCoffre(coffre: CoffreDeDocuments, aujourdhui: string): Cof
           geste: gesteDeLEntree(entree),
           echeance: entree.kind === 'uploaded' ? echeanceDe(entree.expiry_date, aujourdhui) : null,
         })),
-        replieParDefaut: dossier.kind === 'receipts' || dossier.kind === 'statements',
+        replieParDefaut: dossier.kind === 'receipts' || dossier.kind === 'statements' || dossier.kind === 'quotes_reports',
         lectureSeule: dossier.read_only,
+        parent: dossier.parent ?? null,
       };
     });
 
@@ -388,7 +393,6 @@ export function voirLeCoffre(coffre: CoffreDeDocuments, aujourdhui: string): Cof
     alerte,
     expireBientot: coffre.counts.expiring_soon,
     nonVerifies: coffre.counts.unverified,
-    biensSansDocument,
     lectureSeule: coffre.folders.some((d) => d.read_only),
   };
 }
@@ -427,8 +431,17 @@ export interface TrouveeVue {
  * la recherche est jugée par l'API (TCK-2769), jamais sur le coffre chargé.
  *
  * `nombreDeBaux` est celui du coffre : avec un seul bail, son dossier reste « Mon bail ».
+ *
+ * TCK-2898 — la recherche ne recopie pas `parent` : `dossiersDuCoffre` (ceux du coffre chargé) le rend,
+ * pour que le bail d'un locataire, chez le bailleur, se nomme « Bail de … » et jamais « Mon bail ».
  */
-export function voirLesTrouvees(trouvees: readonly EntreeTrouvee[], aujourdhui: string, nombreDeBaux: number): TrouveeVue[] {
+export function voirLesTrouvees(
+  trouvees: readonly EntreeTrouvee[],
+  aujourdhui: string,
+  nombreDeBaux: number,
+  dossiersDuCoffre: readonly DossierDuCoffre[] = [],
+): TrouveeVue[] {
+  const parents = new Map(dossiersDuCoffre.filter((d) => d.parent).map((d) => [d.key, d.parent ?? null]));
   return trouvees.map((entree, rang) => ({
     vue: {
       cle: cleDeLEntree(entree.folder.key, entree, rang),
@@ -437,6 +450,6 @@ export function voirLesTrouvees(trouvees: readonly EntreeTrouvee[], aujourdhui: 
       geste: gesteDeLEntree(entree),
       echeance: entree.kind === 'uploaded' ? echeanceDe(entree.expiry_date, aujourdhui) : null,
     },
-    dossier: etiquetteDuDossier({ ...entree.folder, target: null, entries: [] }, nombreDeBaux),
+    dossier: etiquetteDuDossier({ ...entree.folder, target: null, entries: [], parent: parents.get(entree.folder.key) ?? null }, nombreDeBaux),
   }));
 }

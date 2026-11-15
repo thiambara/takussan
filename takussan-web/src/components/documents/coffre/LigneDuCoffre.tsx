@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { BadgeCheck, ChevronRight, ClipboardCheck, Download, FileText, IdCard, ReceiptText, ScrollText, TriangleAlert } from 'lucide-react';
+import { BadgeCheck, ClipboardCheck, Download, FileText, IdCard, ReceiptText, ScrollText, TriangleAlert } from 'lucide-react';
 
 import { StatusBadge } from '@/components/console/StatusBadge';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -16,6 +16,11 @@ import { cn } from '@/lib/utils';
  * Maquette : `LigneDoc` (téléphone) et `LigneDocBureau` (bureau) de `app-documents-pieces.tsx`.
  * Écarts tenus par les règles de l'app : la marque « Généré » prend le ton `info` de `StatusBadge`
  * (la maquette écrit l'accent de MARQUE, réservé aux badges *featured* — garde `aplat-accent`).
+ *
+ * TCK-2898 (e0) — chaque ligne finit par l'icône Télécharger de la maquette, qui télécharge sans ouvrir
+ * la fiche : un généré par son endpoint, une pièce par le fichier de sa fiche
+ * (`useTelechargementDuCoffre`). La pièce garde l'ouverture de sa fiche, à part : au téléphone, le reste
+ * de la ligne ; au bureau, l'aperçu (« Ouvrir la fiche »).
  */
 
 function IconeDeLEntree({ vue, className }: { readonly vue: EntreeVue; readonly className?: string }) {
@@ -90,7 +95,7 @@ interface LigneDuCoffreProps {
   readonly bureau: boolean;
   readonly choisie: boolean;
   readonly onChoisir: () => void;
-  readonly onTelecharger: (chemin: string, nom: string) => void;
+  readonly onTelecharger: (vue: EntreeVue, nom: string) => void;
 }
 
 export function LigneDuCoffre({ vue, nom, detail, bureau, choisie, onChoisir, onTelecharger }: LigneDuCoffreProps) {
@@ -108,12 +113,20 @@ export function LigneDuCoffre({ vue, nom, detail, bureau, choisie, onChoisir, on
       </span>
     </>
   );
-  const fin =
-    geste.geste === 'ouvrir' ? (
-      <ChevronRight className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
-    ) : geste.geste === 'telecharger' ? (
-      <Download className={cn('flex-none text-encre-douce', bureau ? 'size-4' : 'size-5')} strokeWidth={1.75} aria-hidden="true" />
-    ) : null;
+  const icone = <Download className={cn('flex-none text-encre-douce', bureau ? 'size-4' : 'size-5')} strokeWidth={1.75} aria-hidden="true" />;
+  // Un généré se télécharge toujours ; une pièce, dès qu'elle a une fiche (son fichier s'y lit).
+  const telechargeable = geste.geste !== 'aucun';
+  const boutonTelecharger = (className: string) => (
+    <button
+      type="button"
+      data-testid="telecharger-l-entree"
+      onClick={() => onTelecharger(vue, nom)}
+      aria-label={t('telechargerNomme', { nom })}
+      className={cn('inline-flex flex-none items-center justify-center rounded-md outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring', className)}
+    >
+      {icone}
+    </button>
+  );
 
   const zone = 'flex min-w-0 flex-1 items-center gap-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring';
 
@@ -124,42 +137,28 @@ export function LigneDuCoffre({ vue, nom, detail, bureau, choisie, onChoisir, on
           {contenu}
         </button>
         {marques ? <span className="hidden flex-none items-center gap-1.5 w1440:flex">{marques}</span> : null}
-        {geste.geste === 'telecharger' ? (
-          <button
-            type="button"
-            onClick={() => onTelecharger(geste.chemin, nom)}
-            aria-label={t('telechargerNomme', { nom })}
-            className="inline-flex size-8 flex-none items-center justify-center rounded-md outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
-          >
-            {fin}
-          </button>
-        ) : geste.geste === 'ouvrir' ? (
-          <Link
-            href={`/app/documents/${geste.documentId}`}
-            aria-label={t('ouvrirNomme', { nom })}
-            className="inline-flex size-8 flex-none items-center justify-center rounded-md outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
-          >
-            {fin}
-          </Link>
-        ) : null}
+        {telechargeable ? boutonTelecharger('size-8') : null}
       </li>
     );
   }
 
-  // Téléphone : la ligne entière est le geste (télécharger, ou ouvrir la fiche).
+  // Téléphone : un généré n'a pas de fiche, la ligne entière le télécharge ; une pièce ouvre sa fiche par
+  // la ligne et se télécharge par le bouton de fin de ligne, à côté (jamais imbriqué dans le lien).
   return (
-    <li data-testid="entree-du-coffre">
+    <li data-testid="entree-du-coffre" className={cn(geste.geste === 'ouvrir' && 'flex items-center')}>
       {geste.geste === 'ouvrir' ? (
-        <Link href={`/app/documents/${geste.documentId}`} className={cn(zone, 'px-4 py-3')}>
-          {contenu}
-          {fin}
-          <span className="sr-only">{t('ouvrir')}</span>
-        </Link>
+        <>
+          <Link href={`/app/documents/${geste.documentId}`} className={cn(zone, 'py-3 pl-4')}>
+            {contenu}
+            <span className="sr-only">{t('ouvrir')}</span>
+          </Link>
+          {boutonTelecharger('mr-2 ml-1 size-11')}
+        </>
       ) : geste.geste === 'telecharger' ? (
-        <button type="button" onClick={() => onTelecharger(geste.chemin, nom)} className={cn(zone, 'w-full px-4 py-3')}>
+        <button type="button" onClick={() => onTelecharger(vue, nom)} className={cn(zone, 'w-full px-4 py-3')}>
           {contenu}
           <span className="-mr-2 inline-flex size-11 flex-none items-center justify-center">
-            {fin}
+            {icone}
             <span className="sr-only">{t('telecharger')}</span>
           </span>
         </button>

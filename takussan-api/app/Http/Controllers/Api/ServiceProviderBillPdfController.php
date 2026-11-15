@@ -24,16 +24,25 @@ class ServiceProviderBillPdfController extends Controller
             ->findOrFail($bill);
         $this->authorize('downloadPdf', $found);
 
-        $locale = $request->user()?->preferredLocale() ?? app()->getLocale();
+        return self::rendre($pdf, $found, $request->user()?->preferredLocale() ?? app()->getLocale());
+    }
+
+    /**
+     * TCK-2898 — le rendu seul, sans autorisation : l'archive du coffre (« Relevés et factures » du
+     * bailleur, `ArchiveDuCoffre`) le rejoue sur une entrée que le coffre a déjà jugée.
+     */
+    public static function rendre(DocumentPdfService $pdf, ServiceProviderBill $bill, string $locale): SymfonyResponse
+    {
+        $bill->loadMissing(['maintenanceRequest:id,title', 'property:id,title,user_id,agency_id', 'provider:id,first_name,last_name,username', 'agency']);
         $title = __('maintenance.bill_pdf.title', [], $locale);
 
         return $pdf->stream('pdf.service-provider-bills.bill', [
-            'bill' => $found,
-            'provider' => $found->provider,
-            'agency' => $found->agency,
+            'bill' => $bill,
+            'provider' => $bill->provider,
+            'agency' => $bill->agency,
             'locale' => $locale,
             'title' => $title,
             'document_label' => $title,
-        ], 'facture-'.($found->reference_number ?? $found->id).'.pdf');
+        ], 'facture-'.($bill->reference_number ?? $bill->id).'.pdf');
     }
 }

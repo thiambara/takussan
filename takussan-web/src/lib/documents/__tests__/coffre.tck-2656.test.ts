@@ -130,7 +130,7 @@ describe('TCK-2656 — voirLeCoffre', () => {
     expect(vu.expireBientot).toBe(2);
   });
 
-  it('décision 1 (a) — ne liste pas les biens sans document du bailleur, il les compte', () => {
+  it('TCK-2898 — liste chaque bien du bailleur, même sans document (renverse la décision 1 (a))', () => {
     const vu = voirLeCoffre(
       coffre([
         dossier({ key: 'property:1', kind: 'property', name: 'Villa Almadies', entries: [piece(5, 'Titre foncier')] }),
@@ -140,9 +140,9 @@ describe('TCK-2656 — voirLeCoffre', () => {
       ]),
       AUJOURDHUI,
     );
-    expect(vu.dossiers.map((d) => d.key)).toEqual(['property:1', 'pieces']);
+    expect(vu.dossiers.map((d) => d.key)).toEqual(['property:1', 'property:2', 'property:3', 'pieces']);
     expect(vu.dossiers[0].etiquette).toEqual({ cle: 'bien', nom: 'Villa Almadies' });
-    expect(vu.biensSansDocument).toBe(2);
+    expect(vu.dossiers[1].entrees).toEqual([]);
   });
 
   it('TCK-2729 — le dossier en lecture seule le reste, même vide, et son alerte ne se remplace pas', () => {
@@ -155,8 +155,10 @@ describe('TCK-2656 — voirLeCoffre', () => {
       AUJOURDHUI,
     );
     expect(vu.lectureSeule).toBe(true);
+    // TCK-2898 — le bien vide est listé aussi, en lecture seule.
     expect(vu.dossiers.map((d) => [d.key, d.lectureSeule])).toEqual([
       ['property:1', true],
+      ['property:2', true],
       ['pieces', false],
     ]);
     expect(vu.alerte).toMatchObject({ jours: 18, lectureSeule: true });

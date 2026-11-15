@@ -6,11 +6,13 @@ use App\Exceptions\ApiError;
 use App\Http\Controllers\Api\DocumentPdfController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\OwnerStatementController;
+use App\Http\Controllers\Api\ServiceProviderBillPdfController;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Pdf\DocumentPdfService;
@@ -82,7 +84,7 @@ final class ArchiveDuCoffre
     public const MAX_OCTETS = 100 * 1024 * 1024;
 
     /** Les routes des `download_path` que l'archive sait rendre. */
-    public const RENDUS = ['leases.contract.pdf', 'leases.receipts.pdf', 'inventories.pdf', 'owner-statements.pdf'];
+    public const RENDUS = ['leases.contract.pdf', 'leases.receipts.pdf', 'inventories.pdf', 'owner-statements.pdf', 'service-provider-bills.pdf'];
 
     private const LONGUEUR_DU_NOM = 120;
 
@@ -280,6 +282,12 @@ final class ArchiveDuCoffre
                 Agency::query()->findOrFail((int) $requete->query('agency_id')),
                 $user,
                 (string) $requete->query('period'),
+            ),
+            // TCK-2898 — une facture refacturée au bailleur, dans « Relevés et factures ».
+            'service-provider-bills.pdf' => ServiceProviderBillPdfController::rendre(
+                $this->pdf,
+                ServiceProviderBill::query()->findOrFail($p('bill')),
+                $user->preferredLocale() ?? app()->getLocale(),
             ),
             default => throw new RuntimeException("Le coffre ne sait pas archiver la route « {$route->getName()} »."),
         };

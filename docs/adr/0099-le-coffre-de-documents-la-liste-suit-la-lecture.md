@@ -396,3 +396,15 @@ Les entrées sont celles que le coffre a **déjà jugées** : la règle « la li
 **Conséquences.** L'archive d'un dossier de bien ne contient plus les pièces de ses baux : chaque bail s'archive par sa clé `lease:{id}`, déjà acceptée. « Mes factures » et « Devis et rapports » ne s'archivent pas (422). La cible d'un bail offerte au dépôt (`attachable_targets[].folder`) devient son sous-dossier.
 
 **Application.** `DocumentVault` (sous-dossiers, `addQuotesAndReports`), `MaintenanceCompletionReportController`, `ServiceProviderBillPdfController`, `MaintenanceRequestPolicy::viewCompletionReport`, `ServiceProviderBillPolicy::downloadPdf`. Gardes : `DocumentVaultOwnerLeaseSubfolderTest`, `DocumentVaultProviderQuotesReportsTest`, `ServiceProviderBillPdfTest`, `MaintenanceCompletionReportPdfTest`.
+
+## Amendement du 2026-11-15 — « Relevés et factures » du bailleur, ses biens vides, le remplacement d'une pièce (TCK-2898)
+
+**Constat** (audit des maquettes, app-documents e2 et e8). Le bailleur ne lisait aucune de ses factures d'intervention dans son coffre (seul le prestataire avait « Mes factures »), la maquette les range avec ses relevés dans « Relevés et factures » ; un bien sans document n'était pas listé (décision 1 (a) de TCK-2656) ; et l'ajout d'une nouvelle carte d'identité créait un second document au lieu d'une version (décision L2-1 (a)).
+
+**Décision** (décisions de l'agent, sur délégation du porteur, à revoir) :
+
+1. **Les factures refacturées au bailleur sont dans son dossier `statements`**, avec ses relevés et ses attestations (libellé « Relevés et factures ») : exactement celles que la branche « bailleur du bien » de `ServiceProviderBillPolicy::downloadPdf` lui ouvre (ses biens de l'agence du profil actif, `rechargeable_to_landlord`, validées ou payées : `scopeChargedToLandlord`), une par entrée `provider_bill`, servie par `GET service-provider-bills/{bill}/pdf`. Le dossier existe dès sa première entrée, relevé ou facture. Une requête, quel que soit le nombre de biens. L'archive du dossier les contient (`ArchiveDuCoffre` sait rendre `service-provider-bills.pdf`).
+2. **Chaque bien du bailleur est listé, même vide** (« Aucun document ») : la décision 1 (a) de TCK-2656 est renversée. Le sous-dossier d'un bail vide ne se liste pas.
+3. **« Remplace la carte qui expire »** : à l'ajout d'une pièce, quand une pièce téléversée de la même catégorie est « À renouveler » (dans la fenêtre de 60 jours, ou déjà expirée), le fichier part en **nouvelle version** de cette pièce (`POST documents/{id}/versions`), l'ancienne restant dans les versions ; interrupteur désactivé, un document neuf. La décision L2-1 (a) est renversée. Un document généré n'a toujours ni version ni remplacement (§ 3).
+
+**Application.** `DocumentVault::addChargedBills`, `ArchiveDuCoffre` (`ServiceProviderBillPdfController::rendre`), le coffre du front (`CoffreDeDocuments`, `AjoutAuCoffre`). Gardes : `DocumentVaultOwnerChargedBillsTest`, et côté front `CoffreDeDocuments.tck-2898`, `AjoutAuCoffre.tck-2898`, vérifiées par ablation.

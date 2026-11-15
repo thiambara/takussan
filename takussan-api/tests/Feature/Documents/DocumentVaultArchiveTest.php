@@ -235,7 +235,7 @@ class DocumentVaultArchiveTest extends TestCase
         $this->assertSame('BAIL', $files['Avenant signé.pdf']);
     }
 
-    /** « Relevés et attestations » : les relevés envoyés et l'attestation de l'année close, rendus par l'endpoint. */
+    /** « Relevés et factures » (TCK-2898 : ex-« Relevés et attestations ») : les relevés envoyés et l'attestation de l'année close, rendus par l'endpoint. */
     public function test_the_statements_folder(): void
     {
         $snapshots = app(OwnerStatementSnapshots::class);

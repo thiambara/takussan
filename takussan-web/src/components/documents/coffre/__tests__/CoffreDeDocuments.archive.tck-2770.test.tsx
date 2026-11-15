@@ -181,9 +181,9 @@ describe('TCK-2770 — « Tout télécharger (.zip) », au bureau', () => {
     expect(lArchive.telecharger).toHaveBeenCalledWith('/api/me/document-vault/archive?folder=receipts%3A2026', 'Quittances 2026.zip');
     expect(titreQuittances).toHaveTextContent('Tout télécharger (.zip)');
 
-    const titreReleves = within(dossier('Relevés et attestations')).getByRole('heading', { level: 2 });
-    fireEvent.click(within(titreReleves).getByRole('button', { name: 'Tout télécharger : Relevés et attestations' }));
-    expect(lArchive.telecharger).toHaveBeenLastCalledWith('/api/me/document-vault/archive?folder=statements', 'Relevés et attestations.zip');
+    const titreReleves = within(dossier('Relevés et factures')).getByRole('heading', { level: 2 });
+    fireEvent.click(within(titreReleves).getByRole('button', { name: 'Tout télécharger : Relevés et factures' }));
+    expect(lArchive.telecharger).toHaveBeenLastCalledWith('/api/me/document-vault/archive?folder=statements', 'Relevés et factures.zip');
     expect(within(dossier('Mon bail')).queryByRole('button', { name: /Tout télécharger/ })).not.toBeInTheDocument();
   });
 });

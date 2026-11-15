@@ -11557,7 +11557,8 @@
         "contrat": "contrat",
         "edl": "état des lieux",
         "piece": "pièces",
-        "documents": "{count, plural, one {# document} other {# documents}}"
+        "documents": "{count, plural, one {# document} other {# documents}}",
+        "factures": "{count, plural, one {# facture} other {# factures}}"
       },
       "telecharger": "Télécharger",
       "telechargerNomme": "Télécharger : {nom}",

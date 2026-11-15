@@ -243,6 +243,7 @@ final class DocumentVault
 
         if ($activeProfile instanceof OwnerProfile) {
             $this->addStatements((int) $activeProfile->agency_id);
+            $this->addChargedBills($properties);
         }
         if ($activeProfile instanceof ServiceProviderProfile) {
             $this->addBills();
@@ -516,6 +517,42 @@ final class DocumentVault
                 'title' => (string) $year,
                 'date' => "{$year}-12-31",
                 'download_path' => route('owner-statements.pdf', ['period' => (string) $year, 'agency_id' => $agencyId], false),
+            ]);
+        }
+    }
+
+    /**
+     * TCK-2898 (ADR-0099, amendement du 2026-11-15) — « Relevés et factures » du bailleur : les factures
+     * d'intervention qui lui sont refacturées (`rechargeable_to_landlord`, validées ou payées :
+     * `ServiceProviderBill::chargedToLandlord()`), sur ses biens de l'agence active, rangées avec ses
+     * relevés. Exactement la branche « bailleur du bien » de `ServiceProviderBillPolicy::downloadPdf`
+     * (`$properties` est déjà restreint à `BailleurDuBien`) : chaque entrée s'ouvre par son PDF. Une
+     * requête, quel que soit le nombre de biens. Le dossier existe dès sa première entrée.
+     *
+     * @param  Collection<int, Property>  $properties
+     */
+    private function addChargedBills(Collection $properties): void
+    {
+        if ($properties->isEmpty()) {
+            return;
+        }
+        $bills = ServiceProviderBill::query()
+            ->chargedToLandlord()
+            ->whereIn('property_id', $properties->modelKeys())
+            ->orderByDesc('created_at')
+            ->get(['id', 'reference_number', 'created_at', 'validated_at', 'property_id']);
+        if ($bills->isEmpty()) {
+            return;
+        }
+
+        $this->folders['statements'] ??= ['key' => 'statements', 'kind' => 'statements', 'target' => null, 'name' => null, 'year' => null, 'entries' => []];
+        foreach ($bills as $bill) {
+            $this->folders['statements']['entries'][] = $this->normalised([
+                'kind' => self::KIND_GENERATED,
+                'category' => 'provider_bill',
+                'title' => $bill->reference_number,
+                'date' => $this->day($bill->validated_at ?? $bill->created_at),
+                'download_path' => route('service-provider-bills.pdf', ['bill' => $bill->id], false),
             ]);
         }
     }

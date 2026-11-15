@@ -11557,7 +11557,8 @@
         "contrat": "contract",
         "edl": "inventory",
         "piece": "files",
-        "documents": "{count, plural, one {# document} other {# documents}}"
+        "documents": "{count, plural, one {# document} other {# documents}}",
+        "factures": "{count, plural, one {# invoice} other {# invoices}}"
       },
       "telecharger": "Download",
       "telechargerNomme": "Download: {nom}",

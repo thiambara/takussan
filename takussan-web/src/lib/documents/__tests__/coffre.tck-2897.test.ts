@@ -104,19 +104,21 @@ describe("TCK-2897 — sous-dossiers de bail, devis et rapports", () => {
       "2026-11-15",
     );
 
+    // TCK-2898 — chaque bien est listé, même vide ; un sous-dossier de bail vide ne l'est pas.
     expect(vu.dossiers.map((d) => d.key)).toEqual([
       "property:1",
       "lease:7",
       "property:2",
       "lease:9",
+      "property:3",
       "pieces",
     ]);
     expect(vu.dossiers[1].etiquette).toEqual({
-      cle: "bailDe",
+      cle: "bailDuLocataire",
       nom: "Fatou Kiné Diallo",
     });
-    // Le bien dont seul le bail a des entrées n'est pas « sans document » ; le bien vide, si.
-    expect(vu.biensSansDocument).toBe(1);
+    expect(vu.dossiers[1].parent).toBe("property:1");
+    expect(vu.dossiers[0].parent).toBeNull();
   });
 
   it("nomme « Devis et rapports » et la nature de ses entrées", () => {

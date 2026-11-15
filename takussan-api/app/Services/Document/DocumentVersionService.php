@@ -56,6 +56,22 @@ class DocumentVersionService
             ])->save();
             $document->setRawAttributes($locked->getAttributes(), true);
 
+            // TCK-2898 — le fichier d'origine (collection `file`) devient la version 1, inactive, au premier
+            // remplacement : « l'ancienne reste dans les versions » (l'ajout du coffre, la fiche). Sans cela,
+            // la première version neuve était seule listée et l'original ne se lisait plus nulle part.
+            // Lu en base, jamais par la relation `media` (la mettre en cache ferait lire à l'appelant une liste périmée).
+            $original = $this->freshVersions($document)->isEmpty()
+                ? Media::query()->where('model_type', Document::class)->where('model_id', $document->id)->where('collection_name', 'file')->first()
+                : null;
+            if ($original !== null) {
+                $original->copy($document, self::COLLECTION, '', '', fn ($adder) => $adder->withCustomProperties([
+                    'is_active' => false,
+                    'version_number' => 1,
+                    'comment' => null,
+                    'uploaded_by_id' => $document->uploaded_by,
+                ]));
+            }
+
             // Deactivate previous active version.
             $this->deactivateAll($document);
 
