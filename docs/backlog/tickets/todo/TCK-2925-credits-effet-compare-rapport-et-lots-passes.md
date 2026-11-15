@@ -67,4 +67,37 @@ L'agence voit ce qu'une mise en avant lui a rapporté par rapport à avant, reli
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, worktree `feat/audit-manques-2026-11-15`), sur les API de TCK-2923 et TCK-2924.
+
+- **Ligne de comparaison** (`lecture.ts::rapportDeVues`, `MisesEnAvant.tsx`) : au téléphone « 3,0 × plus de vues que la
+  semaine d’avant » sous les mesures (maquette `:139`) ; au bureau « 3,0 × la sem. d’avant » sous le nombre de la
+  colonne « Vues » (maquette `:357`). Nombre par `f.nombre` (virgule de la locale, `check-locale-figee`).
+  **Décisions** (option la plus sûre) : la ligne n'est rendue que si (1) `views_prev_7d > 0` ; (2) la fenêtre de
+  `views_7d` couvre 7 jours — fin = `ended_at` ou aujourd'hui (jamais `ends_at`), la règle de
+  `BoostMeasures::viewsComparison` ; une Remontée (1 jour) ou une mise en avant commencée avant-hier ne compare pas
+  1 ou 3 jours à 7 ; (3) le rapport arrondi dépasse 1,0 — « 0,5 × plus de vues » serait faux.
+  **Écart de sens noté, non corrigé** : la colonne « Vues » reste `measures.clicks` (décision 1 a de TCK-2664) ; le
+  rapport compare les vues de la FICHE (`property_daily_views`), comme le dit son libellé.
+- **Rapport des 30 derniers jours** (`RapportEtLotsPasses.tsx::RapportDesTrenteJours`) : action de la carte « En avant
+  en ce moment » au bureau → `PanneauDroit` (plein écran sous `xl`). Période, trois totaux, « Par mise en avant »
+  (totaux de l'API, jamais recalculés), « Jour par jour » (30 lignes, le plus récent d'abord), légende.
+  **Décision (libellés)** : jamais deux nombres sous le même mot — « Affichages » = `impressions`, « Vues » = `clicks`
+  (le sens de la colonne de la page), « Consultations » = `views`. Aucune entrée au téléphone (la maquette n'en
+  dessine pas). Une mise en avant terminée dit « du … au … », une en cours « depuis le … ». Le panneau garde
+  titre et contenu du dernier ouvert pendant sa fermeture animée.
+- **Lots épuisés ou expirés** (`ListeDesLotsPasses`) : action de la carte « Lots de crédits » au bureau → panneau ;
+  au téléphone, le panneau « Lots de crédits » porte les lots passés sous les lots vivants. `GET /api/credits/lots`
+  sans `filter[state]` (les deux états), `fields[credit_lots]`, 20 par page, lu seulement panneau ouvert. Ligne
+  dédiée (pas `LotDeCredits`, qui dirait « Expire le … · aujourd’hui » en avertissement) : origine, pastille
+  « Épuisé » / « Expiré », « N crédits reçus le … », et pour un expiré « expiré le … ». Un lot épuisé n'a pas de
+  date d'épuisement dans l'API : aucune n'est inventée.
+- Fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2664.json` (AC-F1) : retirées les entrées « × la semaine d'avant » et
+  « Rapport… / Lots épuisés… » ; celle du titre de carte réécrite (le titre ne prend plus la place de l'action) ;
+  ajoutée l'absence légitime de la ligne de comparaison (vérité des données).
+- Tests : `credits.tck-2925.test.tsx` (13 : 6 unitaires sur la règle, 7 sur la page) + `credits.tck-2664.test.tsx`
+  (18) verts ; 10 ablations une à une, toutes rouges, restaurées au md5. `tsc`, ESLint, `check:i18n`, tous les
+  `check:*` du front et `scripts/check-*.mjs` verts. Balayage des 153 tests front qui lisent les sources : 3 rouges sans lien avec les
+  crédits (`fleche-de-retour-unique` sur `documents/coffre/ajout/Recadrage.tsx`, `seuils-de-saisie.parity`,
+  `dashboard-me.tck-595`), plus `encre-sans-alpha` et `focus-et-contour-des-champs` sur des fichiers non modifiés.
+- AC-F2 / AC-F3 **non mesurés** : pas de navigateur dans ce lot (consigne du porteur). La colonne « Vues » du bureau
+  étroit (8 rem) peut passer « 3,0 × la sem. d’avant » sur deux lignes, comme la maquette (128 px).

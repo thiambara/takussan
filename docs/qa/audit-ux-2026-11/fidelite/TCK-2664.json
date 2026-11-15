@@ -72,20 +72,6 @@
     },
     {
       "ecran": "a-0",
-      "element": "« × la semaine d'avant » (sous les vues)",
-      "propriete": "absent du produit",
-      "exception": "décision produit",
-      "motif": "contrainte du ticket : la mesure n'existe pas (TCK-2663, aucune série de vues par jour) ; aucune comparaison inventée"
-    },
-    {
-      "ecran": "a-0 bureau",
-      "element": "« Rapport des 30 derniers jours » (en-tête « En avant en ce moment ») et « Lots épuisés ou expirés » (en-tête « Lots de crédits »)",
-      "propriete": "absents du produit",
-      "exception": "décision produit",
-      "motif": "décision 4 a (tranchée le 2026-11-12, notes du ticket) : le rapport détaillé est hors périmètre du ticket ; l'API ne rend que les lots dépensables (`CreditLot::spendable()`), aucun lot épuisé ou expiré à montrer"
-    },
-    {
-      "ecran": "a-0",
       "element": "« vues » d'une mise en avant (pastille, ligne et colonne « Vues » du tableau)",
       "propriete": "sens de la mesure",
       "exception": "décision produit",
@@ -184,10 +170,10 @@
     },
     {
       "ecran": "a-0 bureau",
-      "element": "« En avant en ce moment » (titre de carte), tableau nommé « En avant en ce moment »",
-      "propriete": "largeur ; absent de la maquette",
+      "element": "tableau nommé « En avant en ce moment »",
+      "propriete": "absent de la maquette",
       "exception": "règle du design system",
-      "motif": "le titre de carte prend la place laissée par l'action « Rapport » écartée (décision 4 a) ; le tableau porte le nom de sa carte (`role=table`, `aria-label`)"
+      "motif": "le tableau porte le nom de sa carte (`role=table`, `aria-label`) ; l'action « Rapport des 30 derniers jours » est rendue depuis TCK-2925"
     },
     {
       "ecran": "a-0 bureau",
@@ -216,6 +202,13 @@
       "propriete": "présence",
       "exception": "décision produit",
       "motif": "décision 9 a : « Relancer » rachète l'offre ACTIVE de même famille et de même durée au prix d'aujourd'hui (`duration_days` rendu par `CreditBoostResource`) ; une durée cumulée par prolongation n'a pas d'offre correspondante, donc pas de « Relancer »"
+    },
+    {
+      "ecran": "a-0",
+      "element": "« × plus de vues que la semaine d'avant » / « × la sem. d'avant » absent d'une mise en avant",
+      "propriete": "présence",
+      "exception": "vérité des données",
+      "motif": "TCK-2925 : la ligne n'est rendue qu'à fenêtre égale (7 jours de mise en avant, `views_7d` de TCK-2923), avec des vues la semaine d'avant (`views_prev_7d` > 0) et en hausse (rapport arrondi > 1,0) ; une Remontée, une mise en avant de moins de 7 jours ou sans hausse n'en porte pas"
     }
   ]
 }

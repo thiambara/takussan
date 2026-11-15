@@ -51,3 +51,29 @@ const JOUR = 86_400_000;
 export function joursRestants(fin: string, maintenant: number): number {
   return Math.max(0, Math.ceil((Date.parse(fin) - maintenant) / JOUR));
 }
+
+/** Le jour calendaire UTC d'un instant, en jours depuis l'époque (celui de `property_daily_views`). */
+const jourUtc = (instant: number) => Math.floor(instant / JOUR);
+
+/**
+ * TCK-2925 — « 3,5 × plus de vues que la semaine d'avant » : le rapport `views_7d / views_prev_7d`
+ * arrondi au dixième, ou `null` quand aucune ligne ne doit être rendue :
+ *
+ *  · `views_prev_7d` absent ou nul — jamais « Infinity × » ni « 0 × » ;
+ *  · la fenêtre de `views_7d` couvre moins de 7 jours. Elle va de `max(début, fin − 6)` à la fin, la
+ *    fin étant `ended_at` ou aujourd'hui (TCK-2923, `BoostMeasures::viewsComparison`, jamais `ends_at`) :
+ *    une Remontée (1 jour) ou une Vedette commencée avant-hier comparerait 1 ou 3 jours à 7 ;
+ *  · le rapport arrondi ne dépasse pas 1,0 — « 0,5 × plus de vues » serait faux, « 1,0 × plus » vide.
+ */
+export function rapportDeVues(
+  b: { readonly starts_at: string | null; readonly ended_at: string | null; readonly views_7d?: number; readonly views_prev_7d?: number },
+  maintenant: number,
+): number | null {
+  const avant = b.views_prev_7d ?? 0;
+  if (avant <= 0 || b.views_7d === undefined || b.starts_at === null) return null;
+  const debut = Date.parse(b.starts_at);
+  const fin = b.ended_at !== null ? Date.parse(b.ended_at) : maintenant;
+  if (Number.isNaN(debut) || Number.isNaN(fin) || jourUtc(fin) - jourUtc(debut) < 6) return null;
+  const rapport = Math.round((b.views_7d / avant) * 10) / 10;
+  return rapport > 1 ? rapport : null;
+}
