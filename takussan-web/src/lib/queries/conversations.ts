@@ -399,7 +399,8 @@ export function useSendVoiceNote(conversationId: number) {
   );
 }
 
-function extensionAudio(mime: string): string {
+/** TCK-2902 — exportée : le signalement d'une intervention nomme sa note vocale de la même façon. */
+export function extensionAudio(mime: string): string {
   if (mime.includes('ogg')) return 'ogg';
   if (mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a')) return 'm4a';
   if (mime.includes('mpeg')) return 'mp3';

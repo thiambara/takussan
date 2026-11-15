@@ -138,3 +138,33 @@ describe('DemandeEnvoyee — TCK-2654', () => {
     });
   });
 });
+
+// TCK-2902 (e4, AC3) — le résumé compte la note vocale servie au détail (`media.voice_note`).
+describe('DemandeEnvoyee — le message vocal (TCK-2902)', () => {
+  const NOTE = { id: 3, url: 'https://api.test/voix', duration: 12, mime_type: 'audio/webm' };
+  beforeEach(() => {
+    lecture.resume = null;
+    lecture.moi = 78;
+  });
+
+  it('2 photos et une note : « Eau · urgent · 2 photos, 1 message vocal »', () => {
+    const base = demande();
+    lecture.demande = { ...base, media: { ...base.media!, voice_note: NOTE } };
+    monter();
+    expect(screen.getByText('Eau · urgent · 2 photos, 1 message vocal')).toBeInTheDocument();
+  });
+
+  it('une note sans photo : « 1 message vocal », jamais « sans photo »', () => {
+    lecture.demande = demande({ media: { photos: [], before_photos: [], completion_photos: [], voice_note: NOTE } as unknown as MaintenanceRequest['media'] });
+    monter();
+    expect(screen.getByText('Eau · urgent · 1 message vocal')).toBeInTheDocument();
+  });
+
+  it('sans note (`voice_note: null`) : le résumé ne parle d’aucun message vocal', () => {
+    const base = demande();
+    lecture.demande = { ...base, media: { ...base.media!, voice_note: null } };
+    monter();
+    expect(screen.getByText('Eau · urgent · 2 photos')).toBeInTheDocument();
+    expect(screen.queryByText(/message vocal/)).toBeNull();
+  });
+});

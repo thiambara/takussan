@@ -2353,7 +2353,6 @@
       "feed": {
         "title": "Bokk ci beneen arminaat",
         "intro": "Sa ndaje yi ci Google Agenda walla ci arminaatu sa telefon, ñuy yeesal ko. Lëkkalekaay bi yaw rekk la : bul ko séddoo.",
-        "onceOnly": "Duppil lëkkalekaay bii léegi : dootuñu ko wone.",
         "linkLabel": "Lëkkalekaayu bokk",
         "copy": "Duppi",
         "copied": "Duppi na",
@@ -2369,7 +2368,8 @@
         "lastAccessLabel": "Dernier accès",
         "never": "Jamais",
         "contentLabel": "Contenu",
-        "content": "Vos rendez-vous de l’agenda"
+        "content": "Vos rendez-vous de l’agenda",
+        "secret": "Qui a ce lien voit vos rendez-vous : ne le partagez pas."
       }
     },
     "bulk": {
@@ -4831,7 +4831,9 @@
         "deuxMotsExemple": "Fuite sous l’évier…",
         "envoyer": "Envoyer à l’agence",
         "envoi": "Envoi…",
-        "erreur": "La demande n’a pas pu être envoyée. Réessayez."
+        "erreur": "La demande n’a pas pu être envoyée. Réessayez.",
+        "aideVocal": "Écrivez, ou gardez le micro appuyé pour un message vocal.",
+        "aideTexte": "Écrivez ce qui ne va pas, en quelques mots."
       },
       "envoyee": {
         "metaTitle": "Demande envoyée",
@@ -4855,7 +4857,8 @@
         "voir": "Voir ma demande",
         "appeler": "Appeler l’agence",
         "erreur": "La demande n’a pas pu être chargée.",
-        "delai": "L’agence répond d’ordinaire {tranche, select, heure {dans l’heure} journee {dans la journée} other {{n, plural, one {sous # jour} other {sous # jours}}}}."
+        "delai": "L’agence répond d’ordinaire {tranche, select, heure {dans l’heure} journee {dans la journée} other {{n, plural, one {sous # jour} other {sous # jours}}}}.",
+        "resumeAvecVocal": "{categorie} · {urgence} · {photos, plural, =0 {1 message vocal} one {# photo, 1 message vocal} other {# photos, 1 message vocal}}"
       },
       "demandes": {
         "titre": "Interventions",
@@ -5199,7 +5202,9 @@
         "owner_unavailable": "Relance impossible : bailleur parti, suspendu ou injoignable",
         "journal_before": "Avant le journal",
         "autre": "Étape"
-      }
+      },
+      "signaleePar": "Signalée par {nom}",
+      "pieces": "{photos, plural, =0 {{vocal, select, oui {un message vocal} other {}}} one {# photo{vocal, select, oui {, un message vocal} other {}}} other {# photos{vocal, select, oui {, un message vocal} other {}}}}"
     },
     "annulation": {
       "titre": "Annuler la demande ?",
@@ -10488,7 +10493,8 @@
         "titreDuPanneau": "Dernière étape : votre numéro",
         "assurances": {
           "motDePasse": "Pas de mot de passe à inventer",
-          "retirable": "Annonce retirable à tout moment"
+          "retirable": "Annonce retirable à tout moment",
+          "gratuit": "Gratuit, sans commission"
         },
         "mention": "En publiant, vous acceptez les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>.",
         "nomsAide": "Ils apparaissent sur votre annonce et dans vos messages.",
@@ -10800,6 +10806,7 @@
         "quittancesSansAnnee": "Quittances",
         "releves": "Relevés et attestations",
         "factures": "Mes factures",
+        "devisEtRapports": "Devis et rapports",
         "mesPieces": "Mes pièces"
       },
       "ouvrirDossier": "Ouvrir le dossier {nom}",
@@ -10831,6 +10838,8 @@
         "releve": "Relevé {elision, select, oui {d’{mois}} other {de {mois}}}",
         "attestation": "Attestation annuelle {annee}",
         "facture": "Facture {reference}",
+        "devis": "Devis",
+        "rapport": "Rapport de fin d’intervention",
         "document": "Document"
       },
       "detail": {
@@ -18377,10 +18386,19 @@
         "lieu": "La ville suffit pour continuer : la rue et le repère sur la carte sont facultatifs.",
         "caracteristiques": "Seule la surface compte vraiment ; le reste aide votre annonce à ressortir dans les filtres.",
         "photos": "Étape facultative : « Plus tard » passe au titre, vous ajouterez des photos depuis votre espace."
+      },
+      "photos": {
+        "telephone": "Vos photos restent sur ce téléphone jusqu’à la publication : elles partent avec l’annonce.",
+        "navigateur": "Vos photos restent dans ce navigateur jusqu’à la publication : elles partent avec l’annonce."
+      },
+      "lieu": {
+        "quartierAide": "Introuvable ? Écrivez-le : il s’affiche tout de suite sur votre annonce, notre équipe le vérifie ensuite."
       }
     },
     "preuves": {
-      "recherches": "recherches à {ville} cette semaine"
+      "recherches": "recherches à {ville} cette semaine",
+      "commissionChiffre": "0 F",
+      "commission": "de commission"
     }
   },
   "layout": {
@@ -20965,7 +20983,10 @@
     "periode": {
       "trenteJours": "30 jours",
       "quatorzeJours": "14 j",
-      "quatorzeJoursLong": "Quatorze jours"
+      "quatorzeJoursLong": "Quatorze jours",
+      "trenteJoursCourt": "30 j",
+      "trenteJoursLong": "Trente jours",
+      "dureeLibelle": "Durée affichée : {duree}"
     },
     "resume": {
       "cetteSemaine": "Cette semaine",
@@ -21060,7 +21081,9 @@
         "echeance": "Échéance de bail",
         "intervention": "Intervention",
         "libre": "Libre"
-      }
+      },
+      "sejourClient": "{client}",
+      "sejourClientEnAttente": "{client} · en attente"
     },
     "fiche": {
       "titre": "Événement",
@@ -21080,12 +21103,14 @@
         "lease": "Ouvrir le bail",
         "lease_event": "Ouvrir le bail",
         "maintenance": "Ouvrir l’intervention"
-      }
+      },
+      "premiereVisite": "{nom} · 1ʳᵉ visite"
     },
     "mois": {
       "aujourdhui": "{n} · aujourd’hui",
       "sejour": "Séjour · {titre}",
-      "sejoursEnPlus": "{n, plural, one {+# séjour} other {+# séjours}}"
+      "sejoursEnPlus": "{n, plural, one {+# séjour} other {+# séjours}}",
+      "sejourClient": "Séjour · {titre} · {client}"
     },
     "vuesCourtes": {
       "day": "Jour",

@@ -388,3 +388,36 @@ describe('Fiche — créneaux dépassés d’une suggestion (TCK-2918)', () => {
     expect(suggestions[1].textContent).not.toMatch(/dépassé/);
   });
 });
+
+// TCK-2902 (e1, AC4) — le message vocal du locataire, sous sa description : rendu quand l'API le sert.
+describe('Fiche — le message vocal du signalement (TCK-2902)', () => {
+  const laDemande = () => document.querySelector<HTMLElement>('[data-slot="la-demande"]')!;
+  const MEDIA = { photos: [], before_photos: [], completion_photos: [] };
+  // La pastille joue par `new Audio()`, que jsdom ne sait pas jouer.
+  beforeEach(() => vi.stubGlobal('Audio', class { pause() {} play() { return Promise.resolve(); } }));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('`voice_note.duration = 18` : « Message vocal · 0:18 » et un bouton de lecture', async () => {
+    reseau.demande = demande({ media: { ...MEDIA, voice_note: { id: 3, url: 'https://api.test/voix?signature=x', duration: 18, mime_type: 'audio/webm' } } });
+    rendre();
+    await waitFor(() => expect(fiche()).not.toBeNull());
+    const lecteur = within(laDemande()).getByRole('button', { name: 'Écouter le message vocal' });
+    expect(lecteur).toHaveTextContent('Message vocal · 0:18');
+  });
+
+  it('sans `voice_note` (null, ou bloc `media` absent) : ni pastille ni lecture', async () => {
+    reseau.demande = demande({ media: { ...MEDIA, voice_note: null } });
+    rendre();
+    await waitFor(() => expect(fiche()).not.toBeNull());
+    expect(within(laDemande()).queryByRole('button', { name: 'Écouter le message vocal' })).toBeNull();
+    expect(laDemande().textContent).not.toMatch(/Message vocal/);
+  });
+
+  it('une demande sans description, avec note : pas de paragraphe vide, la pastille seule', async () => {
+    reseau.demande = demande({ description: null as unknown as string, media: { ...MEDIA, voice_note: { id: 3, url: 'https://api.test/voix', duration: 18, mime_type: 'audio/webm' } } });
+    rendre();
+    await waitFor(() => expect(fiche()).not.toBeNull());
+    expect(laDemande().querySelector('p.whitespace-pre-wrap')).toBeNull();
+    expect(within(laDemande()).getByRole('button', { name: 'Écouter le message vocal' })).toBeInTheDocument();
+  });
+});

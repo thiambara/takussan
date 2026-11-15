@@ -26,6 +26,7 @@ import { MotifDAnnulation } from './MotifDAnnulation';
 import { MaintenanceProviderResponse } from './MaintenanceProviderResponse';
 import { MaintenanceResolutionResponse } from './MaintenanceResolutionResponse';
 import { MaintenanceStepper } from './MaintenanceStepper';
+import { NoteVocaleDeLaDemande } from './NoteVocaleDeLaDemande';
 import { QuoteActions } from './QuoteActions';
 import { QuoteCard } from './QuoteCard';
 import { QuoteSubmitForm } from './QuoteSubmitForm';
@@ -75,9 +76,13 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
           </div>
         </div>
 
-        <p className="mt-4 max-w-prose whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-          {request.description}
-        </p>
+        {request.description ? (
+          <p className="mt-4 max-w-prose whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+            {request.description}
+          </p>
+        ) : null}
+        {/* TCK-2902 — le message vocal du signalement, aux lecteurs à qui l'API le sert. */}
+        <NoteVocaleDeLaDemande request={request} className="mt-3" />
 
         <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-xs text-muted-foreground tabular-nums lg:grid-cols-4">
           <div>

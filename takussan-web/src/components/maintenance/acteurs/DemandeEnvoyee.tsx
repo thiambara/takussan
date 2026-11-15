@@ -39,7 +39,9 @@ import { EtapesDeLaDemande } from './EtapesDeLaDemande';
  *
  * TCK-2918 (e4) — « L'agence répond d'ordinaire dans l'heure » : formulé par tranche depuis la médiane
  * servie (`maintenance_response_minutes`, ADR-0118 § 5), absent quand elle est nulle (moins de 5
- * demandes). Écart restant : « 1 message vocal » (la note vocale est hors périmètre).
+ * demandes).
+ *
+ * TCK-2902 (e4) — « 2 photos, 1 message vocal » : la note vocale se lit au détail (`media.voice_note`).
  */
 
 export function DemandeEnvoyee({ id }: { readonly id: number }) {
@@ -104,7 +106,7 @@ export function DemandeEnvoyee({ id }: { readonly id: number }) {
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-corps font-semibold text-foreground">{d.title}</span>
               <span className="mt-0.5 block text-ui text-muted-foreground">
-                {t('resume', {
+                {t(d.media?.voice_note ? 'resumeAvecVocal' : 'resume', {
                   categorie,
                   urgence: t(d.priority === 'urgent' ? 'urgence.urgent' : 'urgence.normal'),
                   photos: photos.length,

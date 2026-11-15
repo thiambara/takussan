@@ -100,7 +100,7 @@
       "element": "photos, « Ajouter une photo », « Message vocal · 0:18 »",
       "propriete": "présence",
       "exception": "donnée",
-      "motif": "la demande #10 de la démo n'a ni photo ni message vocal ; la galerie (MaintenanceGallery) s'affiche sous la frise quand la demande en a"
+      "motif": "la demande #10 de la démo n'a ni photo ni message vocal ; la galerie (MaintenanceGallery) s'affiche sous la frise quand la demande en a, et la pastille « Message vocal · 0:18 » sous la description quand l'API sert `media.voice_note` (TCK-2902) — le journal dit alors « Signalée par … » puis « 2 photos, un message vocal »"
     },
     {
       "ecran": "a-1 / a-2 (bureau)",

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { withIntl } from '@/test/intl';
 import { MaintenanceDetail } from '../MaintenanceDetail';
@@ -301,5 +301,31 @@ describe('<MaintenanceDetail>', () => {
       render(wrap(<MaintenanceDetail id={7} />));
       expect(screen.getByText('Motif : Le bailleur fait intervenir son artisan')).toBeInTheDocument();
     });
+  });
+});
+
+// TCK-2902 — la fiche du locataire (et du bailleur, du prestataire) lit la note quand l'API la sert.
+describe('<MaintenanceDetail> — le message vocal (TCK-2902)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('Audio', class { pause() {} play() { return Promise.resolve(); } });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('`media.voice_note` servi : « Message vocal · 0:18 », jouable ; sans description, pas de paragraphe vide', async () => {
+    const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query');
+    maintenanceQuery.data = {
+      data: makeRequest({
+        description: null as unknown as string,
+        media: { photos: [], before_photos: [], completion_photos: [], voice_note: { id: 3, url: 'https://api.test/voix', duration: 18, mime_type: 'audio/webm' } } as unknown as MaintenanceRequest['media'],
+      }),
+    };
+    render(wrap(<QueryClientProvider client={new QueryClient()}><MaintenanceDetail id={7} /></QueryClientProvider>));
+    expect(screen.getByRole('button', { name: 'Écouter le message vocal' })).toHaveTextContent('Message vocal · 0:18');
+  });
+
+  it('sans `voice_note` : aucun lecteur', () => {
+    maintenanceQuery.data = { data: makeRequest() };
+    render(wrap(<MaintenanceDetail id={7} />));
+    expect(screen.queryByRole('button', { name: 'Écouter le message vocal' })).toBeNull();
   });
 });

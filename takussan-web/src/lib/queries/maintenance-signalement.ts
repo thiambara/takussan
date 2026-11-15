@@ -14,10 +14,12 @@ import {
 } from '@/lib/maintenance/semaine-du-prestataire';
 import type { CorpsDuSignalement } from '@/lib/maintenance/signalement';
 import { cheminApi } from '@/lib/chemin-api';
+import { extensionAudio } from '@/lib/queries/conversations';
 import { maintenanceKeys } from '@/lib/queries/maintenance';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type { ServiceProviderBill } from '@/types/invoice';
 import type { BilanDesInterventionsDuBailleur, MaintenanceRequest } from '@/types/maintenance';
+import type { NoteVocale } from '@/components/note-vocale/useEnregistreurDeNoteVocale';
 
 /**
  * TCK-2654 — `POST /api/maintenance-requests` depuis le signalement du locataire : le corps peut ne
@@ -28,6 +30,39 @@ import type { BilanDesInterventionsDuBailleur, MaintenanceRequest } from '@/type
 export function useSignalerUnProbleme() {
   return useApiMutation<ApiResponse<MaintenanceRequest>, CorpsDuSignalement>(
     { path: '/api/maintenance-requests', method: 'POST' },
+    { idempotence: true, invalidate: [maintenanceKeys.all] },
+  );
+}
+
+export interface SignalementAvecNote {
+  readonly corps: CorpsDuSignalement;
+  readonly note: NoteVocale;
+}
+
+/**
+ * TCK-2902 (ADR-0113 § 3) — le corps MULTIPART d'un signalement qui porte une note vocale : les champs
+ * du corps JSON (une valeur absente ou nulle n'est pas envoyée : `"null"` ferait échouer `integer`),
+ * puis `voice_note` (le fichier, nommé par son type comme dans la messagerie) et `voice_note_duration`
+ * (secondes entières, 1 à 60).
+ */
+export function formDataDuSignalement({ corps, note }: SignalementAvecNote): FormData {
+  const fd = new FormData();
+  for (const [cle, valeur] of Object.entries(corps)) {
+    if (valeur !== null && valeur !== undefined) fd.append(cle, String(valeur));
+  }
+  fd.append('voice_note', note.blob, `note-vocale.${extensionAudio(note.mimeType || note.blob.type)}`);
+  fd.append('voice_note_duration', String(Math.round(note.duration)));
+  return fd;
+}
+
+/**
+ * TCK-2902 — le même `POST /api/maintenance-requests`, en multipart, quand une note vocale est jointe.
+ * Sans note, le signalement garde son corps JSON (`useSignalerUnProbleme`). Même idempotence (ADR-0072) :
+ * un double toucher ne crée ni deux demandes ni deux fichiers.
+ */
+export function useSignalerUnProblemeAvecNote() {
+  return useApiMutation<ApiResponse<MaintenanceRequest>, SignalementAvecNote>(
+    { path: '/api/maintenance-requests', method: 'POST', formData: true, body: formDataDuSignalement },
     { idempotence: true, invalidate: [maintenanceKeys.all] },
   );
 }

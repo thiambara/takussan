@@ -157,11 +157,11 @@
       "motif": "la maquette pose accent/10 ; le produit pose border-success/20 bg-success/5 et text-success : check-valeurs-arbitraires-app (aplat-accent) réserve l'aplat d'accent aux pastilles « en vedette »"
     },
     {
-      "ecran": "app-interventions a-3-*",
-      "element": "note vocale (lucide-mic, « 1 message vocal », « Message vocal »)",
+      "ecran": "app-interventions a-4-*",
+      "element": "« , 1 message vocal » du résumé",
       "propriete": "présence",
-      "exception": "hors périmètre",
-      "motif": "la note vocale n'est pas du ticket TCK-2654"
+      "exception": "donnée",
+      "motif": "TCK-2902 : le résumé compte la note quand le détail sert `media.voice_note` ; la #44 de la démo n'en porte pas. Le micro de « En deux mots » et son aide (a-3) sont rendus (navigateur doté de `MediaRecorder`)"
     },
     {
       "ecran": "app-interventions a-4-*",

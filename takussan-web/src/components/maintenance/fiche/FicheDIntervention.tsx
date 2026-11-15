@@ -37,6 +37,7 @@ import { AutreActionListe, AutreActionMenu, EchecDAutreAction, FeuillesDAutreAct
 import { ChoixDuPrestataire, useChoixDuPrestataire } from './ChoixDuPrestataire';
 import { FriseDesFiles } from './FriseDesFiles';
 import { JournalDeLaDemande } from './JournalDeLaDemande';
+import { NoteVocaleDeLaDemande } from '../NoteVocaleDeLaDemande';
 
 /**
  * TCK-2653 — la fiche d'une intervention pour l'agence (maquette `app-interventions`, approche a,
@@ -160,7 +161,9 @@ function Corps({ request }: { readonly request: InterventionEnFile }) {
           {/* Au téléphone, la demande se lit sous le titre, sans cadre (maquette « Fiche — à dispatcher »). */}
           <section data-slot="la-demande" className="md:rounded-xl md:border md:border-border md:bg-card md:p-5">
             <p className="text-xs font-medium text-muted-foreground max-md:hidden">{t('laDemande')}</p>
-            <p className="max-w-prose text-base leading-relaxed whitespace-pre-wrap md:mt-2">{request.description}</p>
+            {request.description ? <p className="max-w-prose text-base leading-relaxed whitespace-pre-wrap md:mt-2">{request.description}</p> : null}
+            {/* TCK-2902 (e1) — le message vocal du locataire, sous sa description. */}
+            <NoteVocaleDeLaDemande request={request} className="mt-3" />
           </section>
           <BienEtDemandeur request={request} />
         </div>

@@ -1613,7 +1613,8 @@
         "titreDuPanneau": "Last step: your number",
         "assurances": {
           "motDePasse": "No password to make up",
-          "retirable": "You can take the listing down at any time"
+          "retirable": "You can take the listing down at any time",
+          "gratuit": "Free, no commission"
         },
         "mention": "By publishing, you accept the <terms>terms and conditions</terms> and the <privacy>privacy policy</privacy>.",
         "nomsAide": "They appear on your listing and in your messages.",
@@ -3591,7 +3592,6 @@
       "feed": {
         "title": "Subscribe from another calendar",
         "intro": "Your appointments show up in your phone’s calendar and stay up to date on their own.",
-        "onceOnly": "Copy it now: it won’t be shown again. Anyone with this link sees your appointments: don’t share it.",
         "linkLabel": "Your private link",
         "copy": "Copy",
         "copied": "Copied",
@@ -3607,7 +3607,8 @@
         "lastAccessLabel": "Last access",
         "never": "Never",
         "contentLabel": "Content",
-        "content": "Your calendar appointments"
+        "content": "Your calendar appointments",
+        "secret": "Anyone with this link sees your appointments: don’t share it."
       }
     },
     "bulk": {
@@ -6069,7 +6070,9 @@
         "deuxMotsExemple": "Leak under the sink…",
         "envoyer": "Send to the agency",
         "envoi": "Sending…",
-        "erreur": "The request could not be sent. Please try again."
+        "erreur": "The request could not be sent. Please try again.",
+        "aideVocal": "Type, or hold the mic down to record a voice message.",
+        "aideTexte": "Type what is wrong, in a few words."
       },
       "envoyee": {
         "metaTitle": "Request sent",
@@ -6093,7 +6096,8 @@
         "voir": "See my request",
         "appeler": "Call the agency",
         "erreur": "The request could not be loaded.",
-        "delai": "The agency usually replies {tranche, select, heure {within the hour} journee {within the day} other {{n, plural, one {within # day} other {within # days}}}}."
+        "delai": "The agency usually replies {tranche, select, heure {within the hour} journee {within the day} other {{n, plural, one {within # day} other {within # days}}}}.",
+        "resumeAvecVocal": "{categorie} · {urgence} · {photos, plural, =0 {1 voice message} one {# photo, 1 voice message} other {# photos, 1 voice message}}"
       },
       "demandes": {
         "titre": "Repairs",
@@ -6437,7 +6441,9 @@
         "owner_unavailable": "Reminder impossible: owner left, suspended or unreachable",
         "journal_before": "Before the log",
         "autre": "Step"
-      }
+      },
+      "signaleePar": "Reported by {nom}",
+      "pieces": "{photos, plural, =0 {{vocal, select, oui {a voice message} other {}}} one {# photo{vocal, select, oui {, a voice message} other {}}} other {# photos{vocal, select, oui {, a voice message} other {}}}}"
     },
     "annulation": {
       "titre": "Cancel the request?",
@@ -11379,6 +11385,7 @@
         "quittancesSansAnnee": "Rent receipts",
         "releves": "Statements and certificates",
         "factures": "My invoices",
+        "devisEtRapports": "Quotes and reports",
         "mesPieces": "My documents"
       },
       "ouvrirDossier": "Open the {nom} folder",
@@ -11410,6 +11417,8 @@
         "releve": "{mois} statement",
         "attestation": "{annee} annual certificate",
         "facture": "Invoice {reference}",
+        "devis": "Quote",
+        "rapport": "Job completion report",
         "document": "Document"
       },
       "detail": {
@@ -18377,10 +18386,19 @@
         "lieu": "The city is enough to continue: the street and the pin on the map are optional.",
         "caracteristiques": "Only the floor area really matters; the rest helps your listing stand out in the filters.",
         "photos": "Optional step: “Later” moves on to the title, and you can add photos from your space."
+      },
+      "photos": {
+        "telephone": "Your photos stay on this phone until you publish: they go out with the listing.",
+        "navigateur": "Your photos stay in this browser until you publish: they go out with the listing."
+      },
+      "lieu": {
+        "quartierAide": "Not listed? Type it in: it shows on your listing right away, and our team checks it afterwards."
       }
     },
     "preuves": {
-      "recherches": "searches in {ville} this week"
+      "recherches": "searches in {ville} this week",
+      "commissionChiffre": "0 F",
+      "commission": "commission"
     }
   },
   "layout": {
@@ -20965,7 +20983,10 @@
     "periode": {
       "trenteJours": "30 days",
       "quatorzeJours": "14 d",
-      "quatorzeJoursLong": "Fourteen days"
+      "quatorzeJoursLong": "Fourteen days",
+      "trenteJoursCourt": "30 d",
+      "trenteJoursLong": "Thirty days",
+      "dureeLibelle": "Period shown: {duree}"
     },
     "resume": {
       "cetteSemaine": "This week",
@@ -21060,7 +21081,9 @@
         "echeance": "Lease date",
         "intervention": "Maintenance",
         "libre": "Free"
-      }
+      },
+      "sejourClient": "{client}",
+      "sejourClientEnAttente": "{client} · pending"
     },
     "fiche": {
       "titre": "Event",
@@ -21080,12 +21103,14 @@
         "lease": "Open the lease",
         "lease_event": "Open the lease",
         "maintenance": "Open the maintenance request"
-      }
+      },
+      "premiereVisite": "{nom} · first visit"
     },
     "mois": {
       "aujourdhui": "{n} · today",
       "sejour": "Stay · {titre}",
-      "sejoursEnPlus": "{n, plural, one {+# stay} other {+# stays}}"
+      "sejoursEnPlus": "{n, plural, one {+# stay} other {+# stays}}",
+      "sejourClient": "Stay · {titre} · {client}"
     },
     "vuesCourtes": {
       "day": "Day",
