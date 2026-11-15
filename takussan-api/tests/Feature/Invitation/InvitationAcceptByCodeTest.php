@@ -361,7 +361,10 @@ class InvitationAcceptByCodeTest extends TestCase
         $this->assertSame([], $this->sms->sentTo(self::NUMERO));
     }
 
-    /** Par e-mail, le numéro est requis ; l'état du jeton prime un corps incomplet ; par SMS, un numéro du corps est ignoré. */
+    /**
+     * Par e-mail, le numéro est requis ; l'état du jeton prime un corps incomplet ; par SMS, sans numéro au corps, le code
+     * part au numéro de l'invitation (TCK-2939 : un numéro au corps est une CORRECTION, cf. `InvitationCodePhoneChangeTest`).
+     */
     public function test_le_numero_est_requis_par_email_et_l_etat_du_jeton_prime(): void
     {
         $this->withoutMiddleware(ThrottleRequests::class);
@@ -373,9 +376,8 @@ class InvitationAcceptByCodeTest extends TestCase
         $this->code($echue)->assertStatus(410)->assertJsonPath('code', 'invitation.token_expired');
         $this->postJson('/api/public/invitations/'.str_repeat('x', 64).'/code', [])->assertNotFound()->assertJsonPath('code', 'invitation.token_not_found');
 
-        $this->code($parSms, '+221770000999')->assertStatus(202);
+        $this->code($parSms)->assertStatus(202);
         $this->assertCount(1, $this->sms->sentTo(self::NUMERO));
-        $this->assertSame([], $this->sms->sentTo('+221770000999'));
     }
 
     private function code(Invitation $invitation, ?string $phone = null): TestResponse

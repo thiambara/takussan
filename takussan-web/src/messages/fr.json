@@ -20337,7 +20337,8 @@
       "mauvaisCompte": "Cette invitation ne correspond pas au compte connecté. Changez de compte pour l’accepter.",
       "verrouille": "Trop d’essais : ce numéro est bloqué un moment. Réessayez plus tard.",
       "bloque": "Ce compte est suspendu.",
-      "codeInvalide": "Ce n’est pas le bon code. Vérifiez-le, ou demandez-en un autre."
+      "codeInvalide": "Ce n’est pas le bon code. Vérifiez-le, ou demandez-en un autre.",
+      "appelIndisponible": "L’appel n’est pas disponible pour le moment. Renvoyez le code par SMS."
     },
     "rejoindre": "Rejoindre {agence}",
     "meConnecter": "Me connecter",
@@ -20434,7 +20435,9 @@
       "renvoyerDans": "Renvoyer le code dans {temps}",
       "ensuite": "Ce code vérifie votre numéro et vous fait entrer d’un seul geste. Juste après : <fort>votre espace</fort>.",
       "ensuiteBiens": "Ce code vérifie votre numéro et vous fait entrer d’un seul geste. Juste après : <fort>{n, plural, one {votre bien} other {vos # biens}}</fort>.",
-      "verification": "Vérification…"
+      "verification": "Vérification…",
+      "ouParAppel": "<renvoi>{texte}</renvoi>, ou <appel>le recevoir par appel</appel>.",
+      "appelEnCours": "Un appel arrive : décrochez, le code vous est dicté."
     },
     "conditions": {
       "titre": "Conditions d’utilisation",

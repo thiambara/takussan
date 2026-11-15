@@ -4,16 +4,19 @@ namespace Tests\Feature\Invitation;
 
 use App\Models\Address;
 use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
+use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -89,7 +92,9 @@ class PublicInvitationPreviewTest extends TestCase
 
         $this->assertEqualsCanonicalizing(self::CLES_ACTIONNABLE, array_keys($data));
         $this->assertSame('owner', $data['role']);
-        $this->assertSame(['properties_count' => 3], $data['awaiting']);
+        // TCK-2939 — les trois biens, chacun par son titre, son quartier et sa vignette (aucun ici : factory sans adresse).
+        $this->assertSame(3, $data['awaiting']['properties_count']);
+        $this->assertCount(3, $data['awaiting']['pending_properties']);
         $this->assertSame(['first_name' => 'Moussa'], $data['inviter']);
         $this->assertSame(['channel' => 'email', 'masked' => 'a•••@gmail.com'], $data['recipient']);
         $this->assertFalse($data['recipient_has_account']);
@@ -214,7 +219,84 @@ class PublicInvitationPreviewTest extends TestCase
         $this->assertSame($code, $reponse->json('code'));
         $this->assertSame(['name' => 'Dakar Immo', 'logo_url' => null, 'public_phone' => '+221338001122'], $reponse->json('agency'));
         $this->assertSame($invitation->created_at->toIso8601String(), $reponse->json('invited_at'));
-        $this->assertEqualsCanonicalizing(['agency', 'code', 'invited_at', 'message'], array_keys($reponse->json()));
+        // TCK-2939 (ADR-0094, amendement du 2026-11-15 § 3) — le prénom seul de l'invitant.
+        $this->assertSame('Moussa', $reponse->json('inviter_first_name'));
+        $this->assertEqualsCanonicalizing(['agency', 'code', 'invited_at', 'inviter_first_name', 'message'], array_keys($reponse->json()));
+        $corps = (string) $reponse->getContent();
+        foreach (['Ndiaye', 'moussa.ndiaye', 'awa.diop', 'Plateau', 'Carnot'] as $secret) {
+            $this->assertStringNotContainsString($secret, $corps, "le 410 ne révèle pas « {$secret} »");
+        }
+    }
+
+    /**
+     * TCK-2939 (ADR-0094, amendement du 2026-11-15 § 2) — AC1 : chaque bien qui attend le bailleur rend son titre, son
+     * QUARTIER et sa VIGNETTE publique, et rien d'autre — l'aperçu est lu sans compte par quiconque tient le lien. Un
+     * bien non publié ne rend ni rue, ni libellé d'adresse, ni coordonnées, ni identifiant, ni prix.
+     */
+    public function test_les_biens_du_bailleur_rendent_titre_quartier_et_vignette_et_rien_de_prive(): void
+    {
+        $profil = OwnerProfile::factory()->create(['agency_id' => $this->agency->id, 'user_id' => null]);
+        $invitation = $this->invitation(['role' => 'owner', 'invitable_type' => OwnerProfile::class, 'invitable_id' => $profil->id]);
+        $biens = collect(['Villa Almadies', 'F3 Mermoz', 'Studio Ouakam'])->map(function (string $titre, int $i) use ($profil): Property {
+            $bien = Property::factory()->draft()->create([
+                'agency_id' => $this->agency->id,
+                'pending_owner_profile_id' => $profil->id,
+                'title' => $titre,
+                'price' => 987_654,
+            ]);
+            Address::create([
+                'addressable_type' => Property::class,
+                'addressable_id' => $bien->id,
+                'label' => 'Porte bleue',
+                'street' => 'Villa 4'.$i.', rue NG-77',
+                'neighborhood' => ['Almadies', 'Mermoz', 'Ouakam'][$i],
+                'city' => 'Dakar',
+                'country' => 'SN',
+                'latitude' => 14.7451234,
+                'longitude' => -17.5129876,
+            ]);
+
+            return $bien;
+        });
+        $biens->first()->addMedia(UploadedFile::fake()->image('facade.jpg'))->toMediaCollection('photos');
+        // Un bail en cours sur un bien qui attend le bailleur : le nom du locataire ne sort jamais.
+        Lease::factory()->create([
+            'agency_id' => $this->agency->id,
+            'property_id' => $biens[1]->id,
+            'tenant_id' => Customer::factory()->create(['agency_id' => $this->agency->id, 'first_name' => 'Aminata', 'last_name' => 'Seckloc'])->id,
+        ]);
+
+        $reponse = $this->apercu($invitation->token)->assertOk();
+        $biensRendus = $reponse->json('data.awaiting.pending_properties');
+
+        $this->assertSame(3, $reponse->json('data.awaiting.properties_count'));
+        $this->assertSame(['Villa Almadies', 'F3 Mermoz', 'Studio Ouakam'], array_column($biensRendus, 'title'));
+        $this->assertSame(['Almadies', 'Mermoz', 'Ouakam'], array_column($biensRendus, 'neighborhood'));
+        foreach ($biensRendus as $bien) {
+            $this->assertSame(['cover_url', 'neighborhood', 'title'], collect(array_keys($bien))->sort()->values()->all(), 'aucune autre clé');
+        }
+        $this->assertStringContainsString('thumbnail', (string) $biensRendus[0]['cover_url'], 'la vignette publique, jamais l\'original');
+        $this->assertNull($biensRendus[1]['cover_url']);
+
+        $corps = (string) $reponse->getContent();
+        foreach (['Aminata', 'Seckloc', 'rue NG-77', 'Villa 40', 'Porte bleue', '14.745', '17.512', '987654', '987 654', 'facade.jpg', '"id"', 'property_id', 'slug'] as $secret) {
+            $this->assertStringNotContainsString($secret, $corps, "l'aperçu ne révèle pas « {$secret} »");
+        }
+    }
+
+    /** TCK-2939 — trois biens au plus ; le total reste dans `properties_count`. Un bien d'une autre agence n'est ni compté ni montré. */
+    public function test_trois_biens_au_plus_et_jamais_ceux_d_une_autre_agence(): void
+    {
+        $profil = OwnerProfile::factory()->create(['agency_id' => $this->agency->id, 'user_id' => null]);
+        $invitation = $this->invitation(['role' => 'owner', 'invitable_type' => OwnerProfile::class, 'invitable_id' => $profil->id]);
+        Property::factory()->draft()->count(4)->create(['agency_id' => $this->agency->id, 'pending_owner_profile_id' => $profil->id]);
+        Property::factory()->draft()->create(['agency_id' => Agency::factory()->create()->id, 'pending_owner_profile_id' => $profil->id, 'title' => 'Bien ailleurs']);
+
+        $reponse = $this->apercu($invitation->token)->assertOk();
+
+        $this->assertSame(4, $reponse->json('data.awaiting.properties_count'));
+        $this->assertCount(3, $reponse->json('data.awaiting.pending_properties'));
+        $this->assertStringNotContainsString('Bien ailleurs', (string) $reponse->getContent());
     }
 
     /** TCK-1339 — une agence supprimée rend 410 `token_revoked`, comme l'acceptation, sans agence. */

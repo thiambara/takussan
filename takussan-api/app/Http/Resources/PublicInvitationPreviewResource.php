@@ -11,6 +11,7 @@ use App\Models\MaintenanceRequest;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Services\Invitation\InvitationService;
+use App\Services\Media\PublicPhotoUrl;
 use App\Support\Masking;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -32,6 +33,9 @@ use stdClass;
  */
 class PublicInvitationPreviewResource extends BaseResource
 {
+    /** TCK-2939 — les biens d'un bailleur invité montrés par l'aperçu, au plus. */
+    public const PENDING_PROPERTIES_SHOWN = 3;
+
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
@@ -72,13 +76,17 @@ class PublicInvitationPreviewResource extends BaseResource
      * invité le 3 nov. » et donner l'issue — l'agence (nom, logo, téléphone public) et la date. Une
      * agence supprimée n'est plus nommée.
      *
-     * @return array{agency: array{name: string, logo_url: ?string, public_phone: ?string}|null, invited_at: ?string}
+     * TCK-2939 (ADR-0094, amendement du 2026-11-15 § 3) — et le PRÉNOM SEUL de l'invitant, comme l'aperçu : jamais
+     * son nom de famille ni son contact.
+     *
+     * @return array{agency: array{name: string, logo_url: ?string, public_phone: ?string}|null, invited_at: ?string, inviter_first_name: ?string}
      */
     public function closed(): array
     {
         /** @var Invitation $invitation */
         $invitation = $this->resource;
         $agency = $invitation->agency;
+        $inviter = $invitation->inviter;
 
         return [
             'agency' => $agency === null ? null : [
@@ -87,6 +95,8 @@ class PublicInvitationPreviewResource extends BaseResource
                 'public_phone' => self::publicPhone($agency),
             ],
             'invited_at' => $this->iso($invitation->created_at),
+            // TCK-2939 — le prénom seul.
+            'inviter_first_name' => $inviter === null ? null : (trim((string) $inviter->first_name) ?: null),
         ];
     }
 
@@ -143,8 +153,14 @@ class PublicInvitationPreviewResource extends BaseResource
         if ($invitation->role === 'owner') {
             $profile = $invitation->invitable_type === OwnerProfile::class ? $invitation->invitable_id : null;
 
+            // TCK-2939 (ADR-0094, amendement du 2026-11-15 § 2) — bornés à l'agence qui invite.
+            $pending = $profile === null || $invitation->agency_id === null
+                ? null
+                : Property::query()->where('pending_owner_profile_id', $profile)->where('agency_id', $invitation->agency_id);
+
             return [
-                'properties_count' => $profile === null ? 0 : Property::query()->where('pending_owner_profile_id', $profile)->count(),
+                'properties_count' => $pending === null ? 0 : (clone $pending)->count(),
+                'pending_properties' => $pending === null ? [] : $this->pendingProperties($pending),
             ];
         }
 
@@ -166,5 +182,35 @@ class PublicInvitationPreviewResource extends BaseResource
         }
 
         return new stdClass;
+    }
+
+    /**
+     * TCK-2939 (ADR-0094, amendement du 2026-11-15 § 2) — les biens qu'un bailleur invité reconnaîtra : le TITRE saisi
+     * par l'agence, le QUARTIER seul (ce que montre une annonce publique, `PropertyResource::buildLocation`) et la
+     * VIGNETTE publique de la première photo (`PublicPhotoUrl` : jamais l'original, jamais une conversion non
+     * filigranée). Le lien est lu sans compte par quiconque le tient : ni rue, ni libellé d'adresse, ni coordonnées,
+     * ni identifiant, ni prix, ni locataire. Trois au plus ; `properties_count` garde le total.
+     *
+     * @param  Builder<Property>  $pending
+     * @return list<array{title: ?string, neighborhood: ?string, cover_url: ?string}>
+     */
+    private function pendingProperties(Builder $pending): array
+    {
+        return (clone $pending)
+            ->with(['address', 'media'])
+            ->orderBy('id')
+            ->limit(self::PENDING_PROPERTIES_SHOWN)
+            ->get()
+            ->map(function (Property $property): array {
+                $photo = $property->getFirstMedia('photos');
+
+                return [
+                    'title' => $property->title,
+                    'neighborhood' => trim((string) $property->address?->neighborhood) ?: null,
+                    'cover_url' => $photo === null ? null : PublicPhotoUrl::upTo($photo, 'thumbnail', fn (): bool => $property->requiresWatermark()),
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

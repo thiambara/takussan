@@ -364,6 +364,8 @@ class ImpersonationReadSweepTest extends TestCase
             'notification' => (int) AppNotification::query()->where('user_id', $this->cible->id)->value('id'),
             'owner_profile' => $owner->id,
             'ownerProfile' => $owner->id,
+            // TCK-2939 — `me/profiles/{profile}/invite-summary` : l'identifiant composite du profil bailleur de la cible.
+            'profile' => 'owner:'.$owner->id,
             'conversation' => $conversation->id,
             'maintenanceRequest' => MaintenanceRequest::factory()->create(['property_id' => $property->id])->id,
             // TCK-2627 — une alerte de seuil de l'agence de la cible : `threshold-alerts/{id}` est lue.

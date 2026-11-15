@@ -78,3 +78,22 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10 :
   - `InvitationRenewalRequestTest` ;
   - `InvitationAcceptByCodeTest` : un cas par branche du § 5 ;
   - `InvitationAcceptConnectedNoDuplicateTest`, rouge sur `dev` au 2026-11-10.
+
+## Amendement du 2026-11-15 — ce qui se montre avant le code (TCK-2939)
+
+- **Statut** : décidé à l'implémentation de TCK-2939, « valide tes choix » du porteur (2026-11-15) — l'option la plus sûre à chaque point, à confirmer à la revue.
+- **Origine** : écarts de l'audit des maquettes (TCK-2611 `#2`, `#3`, `#4`, « essais restants » ; TCK-2613 `#8`, « rien avant le code »).
+
+1. **§ 3, l'adresse de l'agence : maintenu.** L'écart demandait « l'adresse publique de la fiche d'agence ». Mesuré le 2026-11-15 : la fiche publique (`PublicAgencyController::show`) ne rend **que la ville** (`city`), ni rue ni quartier. L'aperçu rend donc déjà tout ce que la fiche montre ; aucune adresse de plus n'est servie, et la règle « jamais une adresse d'agence au-delà de la ville » reste entière.
+2. **§ 1 et § 3, les biens qui attendent un bailleur : précisé.** `awaiting.pending_properties[]` rend, pour **au plus trois** biens saisis pour lui par l'agence qui invite (`pending_owner_profile_id`, bornés à `agency_id` de l'invitation), et **rien d'autre** :
+   - `title` — le titre saisi par l'agence ;
+   - `neighborhood` — le **quartier seul**, comme l'annonce publique le montre (`PropertyResource::buildLocation`) ; jamais la rue, le libellé d'adresse, les coordonnées ni les identifiants du référentiel ;
+   - `cover_url` — la **vignette publique** de la première photo (`PublicPhotoUrl::upTo(…, 'thumbnail')` : jamais l'original, jamais une conversion non filigranée), ou `null`.
+   Ni identifiant, ni prix, ni locataire, ni bail. `properties_count` garde le total. Une liste de clés exacte est gardée par test.
+3. **§ 2, le 410 : précisé.** Le complément d'un jeton fermé (expiré, révoqué, accepté) porte aussi `inviter_first_name`, le **prénom seul** de l'invitant, comme l'aperçu du § 1 — jamais son nom de famille ni son contact.
+4. **§ 5, le numéro d'une invitation par SMS : amendé.** L'invité peut **corriger** le numéro : `POST …/code` et `…/verify` acceptent `phone` pour une invitation par SMS ; le code part à ce numéro, et l'invitation est acceptée pour le compte qui l'a vérifié. Le numéro de l'invitation est alors remplacé par le numéro vérifié, dans la transaction de l'acceptation, et le journal porte l'événement `invitation_phone_corrected` (numéros **masqués**). Mêmes limiteurs, même verrou, même service de code ; le seau du limiteur de vérification est celui du numéro **effectif** (le numéro corrigé s'il y en a un).
+   - Pourquoi ce n'est pas un affaiblissement : une invitation par e-mail laisse **déjà** saisir n'importe quel numéro ; le lien d'une invitation par SMS ne prouve rien de plus qu'un lien par e-mail, et c'est le code qui prouve le numéro du compte.
+   - **Exception : une invitation partagée** ([ADR-0123](0123-l-invitant-recoit-le-lien-d-une-invitation-partagee.md) § 4) refuse un numéro corrigé (422). Son lien sort vers l'invitant et peut être transmis à n'importe qui : la preuve du numéro saisi par l'admin est sa **seule** garde.
+   - La voie mot de passe (`POST /invitations/{token}/accept`) et l'acceptation connectée gardent la règle d'avant : le numéro de l'invitation, vérifié.
+5. **§ 5, les essais restants : ajouté.** Un code faux (422 `phone_code_invalid`, le code que le front lit déjà — l'écart nommait `invitation.code_invalid`, qui n'existe pas) porte `attempts_left` : le **plus petit** des restes des trois compteurs existants du numéro — le limiteur `auth-phone-verify` (4 par 15 min), les essais du code en cours (5), le verrou du numéro (`LoginLock`, 10). Aucune seconde comptabilité. Tous trois sont **par numéro**, jamais par compte : la valeur est la même qu'un compte existe ou non. Au bout, la réponse reste celle d'aujourd'hui (429 du limiteur, 423 du verrou).
+6. **TCK-2613 `#8`, « rien avant le code » : levé pour le titulaire du profil seulement.** `GET /api/me/profiles/{profile}/invite-summary` rend le résumé chiffré du rôle (biens suivis, titres, dernier loyer encaissé, pièces manquantes) au **titulaire** du profil (`ActiveProfileResolver::resolve`, sinon 404) — c'est-à-dire **après** l'acceptation, qui lie le profil au compte, et avant la vérification du numéro. Ce sont les données du profil de l'appelant ; rien n'en sort vers le porteur d'un lien.

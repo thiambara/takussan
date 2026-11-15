@@ -62,4 +62,53 @@ L'invité reconnaît, avant d'entrer, l'agence et les biens qui l'attendent ; il
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, arbre `takussan-manques`). Amendement écrit AVANT le code :
+[ADR-0094, § « Amendement du 2026-11-15 »](../../../adr/0094-l-invitation-se-lit-avant-d-entrer-et-s-accepte-par-code.md)
+(« valide tes choix » du porteur : l'option la plus sûre à chaque point).
+
+**Prémisses re-mesurées, et ce qui différait** :
+- **L'adresse de l'agence** : la fiche publique (`PublicAgencyController::show`) ne rend **que la ville** — aucune « adresse
+  publique » au-delà. L'aperçu rend déjà `agency.city` : **aucun champ d'adresse ajouté**, ADR-0094 § 3 maintenu sur ce point
+  (amendement § 1). AC1 « l'agence a son adresse publique » est tenu par `city`.
+- **Le code d'erreur** : un code faux rend `phone_code_invalid` (celui que le front lit), pas `invitation.code_invalid`, qui
+  n'existe pas. Gardé tel quel, `attempts_left` ajouté.
+- **AC3 « 2 puis 1 »** ne correspond à aucun compteur existant : le limiteur `auth-phone-verify` (4 / 15 min) arrête
+  l'invité le premier, les essais du code (5) et le verrou `LoginLock` (10) ensuite. `attempts_left` = le **plus petit** des
+  trois restes, sans seconde comptabilité → **3, 2, 1, 0** puis 429 (et 423 quand le verrou du numéro est déjà entamé).
+- « Si l'amendement le refuse, **AC4** sort » vise en fait **AC5** (`invite-summary`) ; l'amendement l'accepte (§ 6).
+- `awaiting.properties_count` n'était pas borné à l'agence qui invite : il l'est désormais (bien d'une autre agence ni
+  compté ni montré).
+
+**Décisions tranchées (sécurité — l'aperçu est lu sans compte par quiconque tient le lien)** :
+- `awaiting.pending_properties[]` : **3 au plus**, clés exactes `title`, `neighborhood` (quartier seul, comme l'annonce
+  publique), `cover_url` (vignette publique `PublicPhotoUrl::upTo(…, 'thumbnail')`, jamais l'original). Ni rue, ni libellé,
+  ni coordonnées, ni identifiant, ni prix, ni locataire — un test par champ refusé (`rue`, `label`, lat/long, prix, nom du
+  fichier original, `id`, `slug`) et un test de clés exactes.
+- 410 : `inviter_first_name` (prénom seul) sur **tous** les états clos (expiré, révoqué, accepté) — la même exposition que
+  l'aperçu ; ni nom de famille ni contact (testé).
+- Numéro corrigé (invitation par SMS) : le code part au numéro du corps, l'invitation est **réadressée** au numéro vérifié du
+  compte dans la transaction de l'acceptation (un refus la défait), journal `invitation_phone_corrected` avec numéros
+  **masqués** (libellé `admin.audit.events.invitation_phone_corrected` posé). Seau du limiteur de vérification = numéro
+  effectif. **Invitation partagée (ADR-0123) : correction refusée (422)**, plus une garde 403 dans le service.
+  La voie mot de passe et l'acceptation connectée gardent la règle d'avant.
+- `GET /api/me/profiles/{profile}/invite-summary` (`profile` composite `owner:12`, résolu par
+  `ActiveProfileResolver::resolve` — titulaire ET actif, sinon 404) : `{role, properties_count, titles (3 au plus),
+  last_rent: {amount, paid_at}|null, missing_documents}`. Bailleur : biens du compte dans l'agence du profil + biens encore
+  saisis pour le profil ; dernier loyer = `LeasePayment` de type `rent`, `paid`, le plus récent. Agent : parc de son agence,
+  ni titres ni loyer. Prestataire : pièces seules (`properties_count` nul). Pièces = `PiecesDuProfil`, obligatoires et
+  `missing`.
+
+- Exposition résiduelle assumée : `title` est le texte libre saisi par l'agence (AC1 l'exige) ; le nom du locataire d'un
+  bail sur un bien en attente ne sort pas (testé).
+- Mesuré : l'acceptation passe tout profil brouillon à `active` (`AcceptationNActiveQueLeBrouillonTest`), donc la résolution
+  « titulaire ET actif » répond dès l'acceptation (test par la voie réelle : code → verify → session → résumé). Aucun index
+  unique sur `invitations.phone` : le réadressage ne peut pas lever de contrainte.
+
+**Preuves** : `PublicInvitationPreviewTest` 16/16, `InvitationCodePhoneChangeTest` 6/6, `InvitationCodeAttemptsLeftTest`
+4/4, `InviteNumberStepSummaryTest` 7/7 ; voisins `InvitationAcceptByCodeTest` 15/15 (son cas « numéro du corps ignoré
+par SMS » réécrit : c'est désormais une correction), `AgentInvitationShareTest` 12/12 ; `ImpersonationReadSweepTest`
+(paramètre `profile` rempli), `ValeursEnListeParcoursDesRoutesTest` (route déclarée hors parcours), `DateInventoryByValueTest`,
+trois gardes d'architecture, `scripts/check-*.mjs` tous verts ; front : `AuditTrail -t TCK-2676`, `check:i18n`.
+Ablations une à une (restaurées par `cp`, md5 vérifié) toutes rouges : `street` ajoutée, borne d'agence retirée (aperçu),
+`inviter_first_name` en nom complet, `cover_url` original, réadressage retiré, `prohibitedIf` retiré, seau du limiteur
+remis sur le numéro de l'invitation, `attempts_left` retiré, borne d'agence retirée (résumé), résolution du profil sans titulaire.

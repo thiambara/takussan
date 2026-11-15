@@ -20337,7 +20337,8 @@
       "mauvaisCompte": "This invitation does not match the signed-in account. Switch account to accept it.",
       "verrouille": "Too many attempts: this number is blocked for a while. Try again later.",
       "bloque": "This account is suspended.",
-      "codeInvalide": "That is not the right code. Check it, or ask for another one."
+      "codeInvalide": "That is not the right code. Check it, or ask for another one.",
+      "appelIndisponible": "Calls are not available right now. Resend the code by text message."
     },
     "rejoindre": "Join {agence}",
     "meConnecter": "Sign in",
@@ -20434,7 +20435,9 @@
       "renvoyerDans": "Resend the code in {temps}",
       "ensuite": "This code verifies your number and lets you in in one step. Right after: <fort>your space</fort>.",
       "ensuiteBiens": "This code verifies your number and lets you in in one step. Right after: <fort>{n, plural, one {your property} other {your # properties}}</fort>.",
-      "verification": "Checking…"
+      "verification": "Checking…",
+      "ouParAppel": "<renvoi>{texte}</renvoi>, or <appel>get it by phone call</appel>.",
+      "appelEnCours": "A call is on its way: answer it and the code will be read out to you."
     },
     "conditions": {
       "titre": "Terms of use",
