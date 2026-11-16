@@ -60,19 +60,19 @@ Mesuré sur la préproduction le 2026-11-01 (audit du serveur, M4) :
 
 ## Delta à produire
 
-- [ ] Scope `Property::scopeIndexable()`, traduction en requête de `shouldBeSearchable()`, statut de l'agence compris (`agencyIsPublic()`).
-- [ ] `HealthcheckService::search()` : `expected` compte `Property::query()->indexable()`.
-- [ ] Test de parité : pour chaque combinaison de statut, visibilité, suppression, `is_test`, `published_at` et statut d'agence, le scope et `shouldBeSearchable()` rendent le même verdict.
-- [ ] `HealthcheckProbesTest` : l'index aligné sur `indexable()` rend la tuile sans `degraded`, malgré des biens `is_test` et `sold` ; un écart supérieur à `SEARCH_GAP_TOLERANCE` la rend `degraded`.
-- [ ] Test contre Meilisearch réel : un bien `is_test` et un bien `sold` indexés n'apparaissent ni dans `/search`, ni dans les suggestions, ni dans les emplacements, ni dans l'élargissement, ni dans les alertes de recherche, ni dans la répartition des prix (la carte, qui lit la base, est hors du test — relevé 2026-11-16).
+- [x] Scope `Property::scopeIndexable()`, traduction en requête de `shouldBeSearchable()`, statut de l'agence compris (`agencyIsPublic()`).
+- [x] `HealthcheckService::search()` : `expected` compte `Property::query()->indexable()`.
+- [x] Test de parité : pour chaque combinaison de statut, visibilité, suppression, `is_test`, `published_at` et statut d'agence, le scope et `shouldBeSearchable()` rendent le même verdict.
+- [x] `HealthcheckProbesTest` : l'index aligné sur `indexable()` rend la tuile sans `degraded`, malgré des biens `is_test` et `sold` ; un écart supérieur à `SEARCH_GAP_TOLERANCE` la rend `degraded`.
+- [x] Test contre Meilisearch réel : un bien `is_test` et un bien `sold` indexés n'apparaissent ni dans `/search`, ni dans les suggestions, ni dans les emplacements, ni dans l'élargissement, ni dans les alertes de recherche, ni dans la répartition des prix (la carte, qui lit la base, est hors du test — relevé 2026-11-16).
 
 ## Critères d'acceptation
 
 - [ ] AC1 — Sur la préproduction, après déploiement, la sonde rend un `gap` dont la valeur absolue reste sous `SEARCH_GAP_TOLERANCE`, avec `documents` et `expected` relevés dans le ticket.
-- [ ] AC2 — Par ablation : retirer un document de l'index de test au-delà de la tolérance rend la tuile `degraded`.
-- [ ] AC3 — Par ablation : ajouter une condition à `shouldBeSearchable()` sans toucher au scope rougit le test de parité.
-- [ ] AC4 — Par ablation : retirer `is_test = false` de `publicFilter()` rougit le test contre Meilisearch réel.
-- [ ] AC5 — Le ticket écrit la réponse à la question sur `is_test` et `sold`, avec la liste des chemins publics vérifiés.
+- [x] AC2 — Par ablation : retirer un document de l'index de test au-delà de la tolérance rend la tuile `degraded`.
+- [x] AC3 — Par ablation : ajouter une condition à `shouldBeSearchable()` sans toucher au scope rougit le test de parité.
+- [x] AC4 — Par ablation : retirer `is_test = false` de `publicFilter()` rougit le test contre Meilisearch réel.
+- [x] AC5 — Le ticket écrit la réponse à la question sur `is_test` et `sold`, avec la liste des chemins publics vérifiés.
 
 ## Hors périmètre
 
@@ -83,3 +83,37 @@ Mesuré sur la préproduction le 2026-11-01 (audit du serveur, M4) :
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Un seul prédicat** : `Property::NON_INDEXABLE_STATUSES` est lu par `shouldBeSearchable()` et par le nouveau
+  `scopeIndexable()` (`deleted_at` nul, `visibility=public`, statut hors brouillon/en revue/refusé, `ofPublicAgency()`).
+  La sonde compte `Property::query()->indexable()` — une requête, aucun modèle chargé.
+- **Réponse à la question (AC5) : non.** Un bien `is_test` ou `sold` est bien indexé (prouvé par `getDocument()` et
+  une requête moteur sans filtre qui le trouve), et ne sort d'aucune recherche publique. Chemins publics vers le
+  moteur, relus puis éprouvés contre Meilisearch réel : `/public/properties/search` (`meta.total`, facettes de
+  `facettes()`), emplacements et places réservées (`featuredPool()`, `organicExcluding()`), élargissement `widen()`
+  (`search.widened_total`), suggestion (`nominalQuery()` : `interpretation.count`, aperçus, comptes des lieux),
+  alertes (`alertMatches()['total']`), répartition des prix (`RepartitionDesPrix` : tranches, `min`, `max`). Tous
+  passent par `buildFilter()` → `publicFilter()`. Hors moteur : la carte, `similar`/`status` et l'index public
+  lisent la base par `->public()` ; `filter[search]` de `HasQueryBuilder` n'est servi sur `Property` par aucune
+  route publique. ⚠ Les lignes rendues sont rechargées par `->public()` en SQL : seul le moteur protège les
+  **comptes** — d'où des assertions sur les totaux, jamais sur les seules lignes.
+- Tests : `tests/Feature/Search/IndexablePropertyParityTest.php` (1 408 combinaisons insérées en masse),
+  `tests/Feature/Admin/Platform/HealthcheckSearchGapTest.php` (classe à part : `InteractsWithMeilisearch` purgerait
+  les index pour les 25 tests de `HealthcheckProbesTest` ; elle purge l'index à son `tearDown`, sinon ses 23
+  documents dégradent la tuile du `HealthcheckProbesTest` suivant — rouge reproduit sans le `tearDown` :
+  `test_un_planificateur_qui_a_tourne_il_y_a_une_minute_est_ok`, statut global non `ok`), et
+  `tests/Feature/Search/BiensHorsPublicIndexesTest.php` (7 tests).
+- AC2 : `test_un_index_qui_a_decroche_au_dela_de_la_tolerance_degrade_la_tuile` retire 11 documents → `degraded` ;
+  10 retirés → `ok`. Ablation de la sonde (retour à `public()`) : les 3 tests rougissent (corpus de 10 `is_test` +
+  10 `sold` + 3 publics, au-delà de la tolérance).
+- AC3 : ablation `&& ! $this->is_test` ajoutée à `shouldBeSearchable()` seul → le test de parité rougit.
+- AC4 : ablation de `'is_test = false'` dans `publicFilter()` → 6 tests sur 7 rougissent (seul le témoin de présence
+  dans l'index reste vert), chacun sur son compte moteur : `meta.total`, `widened_total`, `interpretation.count`,
+  `alertMatches()['total']`, somme des tranches. Même résultat en retirant la clause `NOT status IN`. Les
+  emplacements ne rougissent que par `meta.total` : la vedette de test entre dans le vivier, mais `hydrateIds()` la
+  retire de la place réservée (témoin positif : le bien public y est servi). Les comptes des lieux de la suggestion
+  sont assertés (≤ 1, liste non vide) mais l'ablation rougit d'abord sur `interpretation.count`.
+- AC1 (préproduction, après déploiement) reste à relever : `documents`, `expected` et `gap` de la sonde.
+

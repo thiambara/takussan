@@ -68,7 +68,7 @@ class HealthcheckService
 
     public const SMS_MIN_SAMPLE = 5;
 
-    /** Écart toléré entre l'index des biens et `Property::public()` (l'indexation est asynchrone). */
+    /** Écart toléré entre l'index des biens et `Property::indexable()` (l'indexation est asynchrone). */
     public const SEARCH_GAP_TOLERANCE = 10;
 
     private const RANK = ['ok' => 0, 'degraded' => 1, 'failed' => 2];
@@ -303,7 +303,12 @@ class HealthcheckService
     }
 
     /**
-     * Santé de Meilisearch, et écart entre l'index des biens et `Property::public()`.
+     * Santé de Meilisearch, et écart entre l'index des biens et `Property::indexable()`.
+     *
+     * TCK-2457 — `expected` compte le prédicat d'INDEXATION ({@see Property::scopeIndexable()}, traduction de
+     * `shouldBeSearchable()`), jamais `public()` : l'index garde les biens `is_test`, vendus ou non publiés, que le
+     * filtre public du moteur écarte à la requête. Compté contre `public()`, l'écart était permanent (−476 en
+     * préproduction le 2026-11-01), et la tuile ne pouvait plus rien dire d'une vraie panne.
      *
      * @return array<string,mixed>
      */
@@ -329,7 +334,7 @@ class HealthcheckService
             }
             $documents = 0;
         }
-        $expected = Property::query()->public()->count();
+        $expected = Property::query()->indexable()->count();
         $gap = $expected - $documents;
 
         return [

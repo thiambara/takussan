@@ -28,6 +28,7 @@ use App\Services\Payments\RentMonthStatus;
 use App\Services\Property\HeuresDuSejour;
 use App\Services\Property\Occupation;
 use App\Services\Property\PropertyOccupancy;
+use App\Services\Search\PropertySearchService;
 use App\Sorts\PropertyRentLateSort;
 use App\Support\CaseInsensitive;
 use App\Support\DayRange;
@@ -645,16 +646,53 @@ class Property extends AbstractModel implements HasMedia
         return $query->with('address', 'tagsVisibles', 'agency');
     }
 
+    /**
+     * TCK-2457 — les statuts qui tiennent un bien hors de l'index, lus par {@see shouldBeSearchable()} ET par
+     * {@see scopeIndexable()}. Plus étroite que {@see NON_PUBLIC_STATUSES}, le filtre public du moteur : vendu,
+     * loué ou archivé reste indexé, et ne sort d'aucune recherche publique.
+     *
+     * @var list<PropertyStatus>
+     */
+    public const NON_INDEXABLE_STATUSES = [
+        PropertyStatus::Draft,
+        PropertyStatus::PendingReview,
+        PropertyStatus::Rejected,
+    ];
+
+    /**
+     * ⚠ TCK-2457 — {@see scopeIndexable()} en est la traduction en requête, et `IndexablePropertyParityTest` les
+     * compare sur toutes les combinaisons : une condition ajoutée ici s'ajoute là, sinon la tuile Santé `search`
+     * compte un autre ensemble que l'index.
+     */
     public function shouldBeSearchable(): bool
     {
         return ! $this->trashed()
             && $this->visibility === PropertyVisibility::Public
-            && ! in_array($this->status, [
-                PropertyStatus::Draft,
-                PropertyStatus::PendingReview,
-                PropertyStatus::Rejected,
-            ], true)
+            && ! in_array($this->status, self::NON_INDEXABLE_STATUSES, true)
             && $this->agencyIsPublic();
+    }
+
+    /**
+     * TCK-2457 — {@see shouldBeSearchable()}, en requête : ce que l'index des biens DOIT contenir. La sonde Santé
+     * `search` le compte (une requête, aucun modèle chargé). L'index garde les biens `is_test`, non publiés, vendus
+     * ou loués : c'est {@see PropertySearchService::publicFilter()} qui les tient hors de toute
+     * recherche publique — {@see scopePublic()} compterait donc un autre ensemble que l'index.
+     *
+     * `deleted_at` est écrit même sous la portée globale : le scope dit le prédicat entier, `withTrashed()` compris.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeIndexable(Builder $query): Builder
+    {
+        return $query
+            ->whereNull($query->qualifyColumn('deleted_at'))
+            ->where($query->qualifyColumn('visibility'), PropertyVisibility::Public)
+            ->whereNotIn($query->qualifyColumn('status'), array_map(
+                static fn (PropertyStatus $statut): string => $statut->value,
+                self::NON_INDEXABLE_STATUSES,
+            ))
+            ->ofPublicAgency();
     }
 
     /**
