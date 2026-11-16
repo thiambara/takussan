@@ -64,7 +64,7 @@ a joué la suite entière : sa durée vaut mesure.
       `completedAt` de l'agrégateur) relevée en CI : avant = les trois runs ci-dessus ; après = trois runs
       qui jouent réellement les shards (non sautés par l'attestation), avec la durée de chaque shard et
       du job statique — un shard nettement plus lourd que les autres se dit.
-- [ ] AC2 — Ablation en CI : un test rendu rouge dans UN seul shard rend `quality` **rouge** (et non
+- [x] AC2 — Ablation en CI : un test rendu rouge dans UN seul shard rend `quality` **rouge** (et non
       sauté), et la liste des artefacts du run ne contient **aucun** `ci-vert-web-*`.
 - [ ] AC3 — Un arbre déjà attesté (push suivant qui ne change pas la clé `web`) : `statique` et les 4
       shards sont *skipped*, `quality` est **vert** et ne redépose pas d'artefact.
@@ -79,3 +79,17 @@ a joué la suite entière : sa durée vaut mesure.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Mesures en CI (2026-11-16)
+
+- **AC2, tenu** — branche jetable `ablation/tck-2950-ac2` (commit `a05ee95ae` = HEAD de la PR + un seul
+  test `expect(1).toBe(2)`, jamais fusionné, branche supprimée après), `workflow_dispatch` de `web-ci.yml`,
+  run 43942095863 : `Vitest (shard 2/4)` **failure**, les trois autres shards et `statique` success,
+  `Web (ESLint + tsc + Vitest + build)` **failure** ; **aucun artefact `ci-vert-web-*`** dans le run.
+- **AC1, premier relevé** — run 43940159721 (PR #1688, `3df2f414f`) : du premier job au verdict de
+  l'agrégateur, **9,8 min** (19:31:10 → 19:40:58), contre ~30 min pour le job unique d'avant (runs
+  43915535384, 43916471402, 43921607586 : Vitest seul 18,5 à 26,3 min). Par job : `statique` 9,3 min,
+  shards 7,2 / 9,4 / 6,0 / 6,3 min, agrégateur 0,1 min ; 480 + 480 + 480 + 479 = **1 919 fichiers**, tous
+  verts ; artefact `ci-vert-web-96337e54…` déposé par l'agrégateur seul. Deux runs restent à relever.
+- **AC3** — se relève au push du merge sur `dev` : même clé `web` que la PR, l'attestation doit tout faire
+  sauter et `quality` rester vert.
