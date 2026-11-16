@@ -31,7 +31,6 @@ final class CapabilityEnforcementInventory
         'properties.moderate' => 'réservée plateforme',
         'reports.view_global' => 'réservée plateforme',
         'agency.upgrade_request' => 'D-69',
-        'payments.refund' => 'D-69',
         'messaging.broadcast' => 'D-69',
         'messaging.archive' => 'D-69',
     ];

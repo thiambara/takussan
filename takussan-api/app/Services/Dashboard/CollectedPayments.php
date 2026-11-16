@@ -218,8 +218,11 @@ final class CollectedPayments
         $query ??= LeasePayment::query();
 
         // Le scope de TCK-594 reste la définition de « ce n'est pas une restitution » : on le lit.
+        // TCK-608 (contrainte 4) — une échéance dont le reste dû est nul n'est pas un impayé : une
+        // `partially_paid` héritée entièrement versée comptait « 1 impayé à 0 F ».
         return $query
             ->whereIn('lease_payments.status', self::owedStatusValues())
+            ->whereRaw(self::OWED_REMAINING_SQL.' > 0')
             ->exceptDepositRefunds();
     }
 }

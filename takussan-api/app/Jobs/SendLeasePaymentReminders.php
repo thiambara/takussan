@@ -11,6 +11,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Dashboard\CollectedPayments;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
@@ -161,7 +162,10 @@ class SendLeasePaymentReminders implements ShouldQueue
             ->where('payment_type', '!=', LeasePaymentType::Deposit->value)
             // TCK-607 (E11) — aucune relance d'une échéance postérieure à la sortie du bail.
             ->withinLeaseTerm()
-            ->whereIn('status', self::OPEN_STATUSES);
+            ->whereIn('status', self::OPEN_STATUSES)
+            // TCK-608 (contrainte 4) — rien n'est relancé à 0 F : une `partially_paid` héritée
+            // entièrement versée n'est plus due.
+            ->whereRaw(CollectedPayments::OWED_REMAINING_SQL.' > 0');
     }
 
     /**

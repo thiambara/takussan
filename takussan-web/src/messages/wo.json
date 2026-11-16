@@ -3248,7 +3248,8 @@
       "confirme": {
         "titre": "Paiement confirmé",
         "texte": "Votre paiement est bien reçu.",
-        "texteQuittance": "Votre paiement est bien reçu. Votre quittance est disponible."
+        "texteQuittance": "Votre paiement est bien reçu. Votre quittance est disponible.",
+        "partPenalite": "Votre pénalité de retard avait déjà été réglée à l’agence : cette part vous sera remboursée."
       },
       "echec": {
         "titre": "Paiement non abouti",
@@ -3278,7 +3279,8 @@
           "paye": "Payé",
           "payeLe": "Payé le {date} à {heure}",
           "echec": "Échoué · rien n’a été débité",
-          "rembourse": "Remboursement à venir"
+          "rembourse": "Remboursement à venir",
+          "annulee": "Échéance annulée"
         },
         "dontPenalite": "dont pénalité de retard"
       },
@@ -3290,6 +3292,10 @@
         "telechargerQuittance": "Télécharger la quittance",
         "contacterLAgence": "Contacter l’agence",
         "verifierANouveau": "Vérifier à nouveau"
+      },
+      "annulee": {
+        "titre": "Cette échéance a été annulée",
+        "texte": "Elle n’est plus due. Si vous avez été débité, l’agence vous remboursera."
       }
     },
     "locataire": {
@@ -4254,7 +4260,12 @@
         "enRetardDe": "En retard de {jours} j",
         "payeLe": "Payé le {date}",
         "quittance": "Quittance",
-        "relancer": "Relancer"
+        "relancer": "Relancer",
+        "doublonRembourse": {
+          "action": "Doublon remboursé",
+          "fait": "Remboursement du doublon enregistré.",
+          "echec": "Le remboursement du doublon n’a pas pu être enregistré."
+        }
       },
       "types": {
         "residential_rent": "Habitation",
@@ -8573,7 +8584,8 @@
         "webhook_processing_failed": "Échec du traitement d’un webhook de paiement",
         "audit_export_downloaded": "Export du journal téléchargé",
         "agency_spotlight_purchased": "Mise en avant de l’agence achetée",
-        "agency_spotlight_offer_yielded": "Mise en avant offerte cédée à un achat"
+        "agency_spotlight_offer_yielded": "Mise en avant offerte cédée à un achat",
+        "duplicate_refunded": "Doublon remboursé"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",

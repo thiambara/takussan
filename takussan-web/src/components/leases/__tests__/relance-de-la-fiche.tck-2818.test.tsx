@@ -34,6 +34,7 @@ vi.mock('@/lib/queries/leases', () => ({
   useReviewLeaseRent: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useLeaseGuarantors: () => ({ data: { data: [] } }),
   useMarkLateFeePaid: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useMarkDuplicateRefunded: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useIssuePaymentLink: () => ({ mutateAsync: lienCree, isPending: false }),
 }));
 vi.mock('@/lib/queries/documents', () => ({ useDocumentsGeneres: () => ({ data: { data: [] } }) }));

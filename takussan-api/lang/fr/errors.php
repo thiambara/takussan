@@ -460,10 +460,11 @@ return [
     ],
     'lease_payment' => [
         'cancelled' => 'Cette échéance a été annulée par un renouvellement : elle n\'est plus due et ne s\'encaisse pas.',
-        'cannot_mark_paid' => 'Seule une échéance en attente ou en retard peut être marquée payée.',
+        'cannot_mark_paid' => 'Seule une échéance en attente, en retard ou partiellement payée peut être marquée payée.',
         'deposit_refund_paid_by_payout' => 'Une caution rendue se règle par son reversement, jamais à la main.',
         'late_fee_not_due' => 'Aucune pénalité de retard ne reste due sur cette échéance.',
         'lease_not_active' => 'Seul un bail actif ou en préavis reçoit une ligne de paiement.',
+        'no_duplicate_to_refund' => 'Aucun doublon d\'encaissement ne reste à rembourser sur cette échéance.',
         'not_overdue' => 'Seule une échéance due, non soldée et échue se relance.',
         'receipt_not_a_payment' => 'Une caution rendue n\'est pas un paiement du locataire : elle n\'a pas de quittance.',
         'receipt_unpaid' => 'La quittance n\'est délivrée que pour un loyer acquitté.',

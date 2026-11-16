@@ -4,7 +4,7 @@ title: "Une échéance dit ce qui a été versé et ce qui reste à rembourser :
 status: todo
 phase: P2
 family: full
-estimate: M
+estimate: S-M
 wave: 76
 created: 2026-10-08
 updated: 2026-11-16
@@ -100,6 +100,14 @@ lecteurs. Mais rien n'écrit la part versée : la règle est juste et inerte.
 
 ## Décision du porteur
 
+> **Tranché le 2026-11-16 : option (b).** Le versement partiel sur une échéance de **bail** s'aligne
+> sur TCK-1918 — **aucune part enregistrée** ; `mark-paid` solde les lignes `partially_paid` héritées.
+> Le reste du ticket tient : `refund_pending` voit tous les doublons (hors `late_fee`, sans
+> `refunded_at`) + `late_fee_refund_pending`, le geste « Doublon remboursé » (manuel, avec son
+> autorisation) pose `refunded_at` et éteint le drapeau, les compteurs ne comptent pas un impayé à
+> reste nul. Le ticket tombe à S-M : le geste « Enregistrer un versement » (endpoint `installments`,
+> AC1, front) sort du périmètre.
+
 > *2026-11-16* : TCK-1918 a tranché (b) **pour les réservations**. La question se pose désormais
 > pour les échéances de bail : suivre TCK-1918 (b), ou ouvrir (a) ?
 
@@ -136,45 +144,46 @@ reste hors de la plateforme (aucun reversement automatique).
 
 ## Delta à produire
 
-- [ ] Endpoint `POST /api/lease-payments/{payment}/installments` (`RecordLeaseInstallmentRequest`,
-      `LeasePaymentService::recordInstallment`) — même autorisation que `mark-paid`.
-- [ ] `LeasePaymentService::markPaid` : `partially_paid` accepté, soldé au reste dû.
-- [ ] `CollectedPayments::OWED_REMAINING_SQL` (et tout lecteur SQL de `paid_amount` :
+- [ ] ~~Endpoint `POST /api/lease-payments/{payment}/installments` (`RecordLeaseInstallmentRequest`,
+      `LeasePaymentService::recordInstallment`) — même autorisation que `mark-paid`.~~ — retiré par
+      la décision (b).
+- [x] `LeasePaymentService::markPaid` : `partially_paid` accepté, soldé au reste dû.
+- [x] `CollectedPayments::OWED_REMAINING_SQL` (et tout lecteur SQL de `paid_amount` :
       `grep -rn "paid_amount')::numeric" app`) : contrainte 3 ; filtre `reste > 0` (contrainte 4).
       — contrainte 3 tenue par TCK-2721 (relevé 2026-11-16) ; reste le filtre `reste > 0` sur
       `FinanceSummaryService`, `AgingBalanceService`, `PortfolioMetrics` (tous via
       `CollectedPayments::leaseOwed()`) et les relances.
-- [ ] `PaymentGatewayController::isRefundPending` : contrainte 5 ; champ `late_fee_refund_pending`.
-- [ ] `POST /api/lease-payments/{payment}/duplicate-refunded` : marque les doublons `refunded_at`
+- [x] `PaymentGatewayController::isRefundPending` : contrainte 5 ; champ `late_fee_refund_pending`.
+- [x] `POST /api/lease-payments/{payment}/duplicate-refunded` : marque les doublons `refunded_at`
       (la clé que TCK-871 pose déjà pour un remboursement du fournisseur — `isRefundPending` la lit),
       journal `activity('LeasePayment')` ; même autorisation que le remboursement d'une réservation
       (famille « argent qui sort », 2FA d'agence).
-- [ ] Front : geste « Enregistrer un versement » et reste dû sur l'échéance ; page de retour de
+- [x] Front : ~~geste « Enregistrer un versement » et reste dû sur l'échéance~~ (retiré par (b)) ; page de retour de
       paiement : `cancelled` + `refund_pending` → « l'agence vous remboursera », `cancelled` sans
       drapeau → « échéance annulée ; si vous avez été débité, l'agence vous remboursera », jamais
       « réessayez » ; part pénalité annoncée.
-- [ ] Tests : `LeaseInstallmentTest`, `OwedRemainderTest` (cas non numériques et reste 0),
+- [x] Tests : ~~`LeaseInstallmentTest`~~ (b), `OwedRemainderTest` (cas non numériques et reste 0),
       `RefundPendingTest` (N2, N3, N4, extinction), tests front de la page de retour.
 
 ## Critères d'acceptation
 
-- [ ] **AC1.** Échéance de 100 000 : versement de 40 000 → `partially_paid`, `paid_amount` 40 000,
+- [ ] **AC1** — *sans objet depuis la décision (b) du 2026-11-16 : aucune part ne s'enregistre.* Échéance de 100 000 : versement de 40 000 → `partially_paid`, `paid_amount` 40 000,
       *Impayé* de l'agence compte 60 000 ; versement de 60 000 → `paid`. Un versement de 70 000 sur
       le reste de 60 000 → 422.
-- [ ] **AC2 (rouge sur `839be671`).** `mark-paid` sur une `partially_paid` → 200 `paid` (aujourd'hui
+- [x] **AC2 (rouge sur `839be671`).** `mark-paid` sur une `partially_paid` → 200 `paid` (aujourd'hui
       422 `lease_payment.cannot_mark_paid`).
 - [x] **AC3 (rouge sur `839be671`).** Écriture brute de `paid_amount` = `"abc"`, `""`, `true`, `{}` puis
       `-5` : `GET /api/dashboard/agency`, la balance âgée et `GET /api/dashboard/tenant` rendent 200,
       et le reste dû de la ligne vaut celui de l'accesseur. (tenu par TCK-2721, relevé 2026-11-16)
-- [ ] **AC4.** Une `partially_paid` entièrement versée n'apparaît dans aucun compte d'impayés ni de
+- [x] **AC4.** Une `partially_paid` entièrement versée n'apparaît dans aucun compte d'impayés ni de
       relances.
-- [ ] **AC5 (m-p, rouge sur `839be671`).** Rejeu de N2, N3 et N4 (verif-596 passe 9) :
+- [x] **AC5 (m-p, rouge sur `839be671`).** Rejeu de N2, N3 et N4 (verif-596 passe 9) :
       `refund_pending: true` dans les trois cas.
-- [ ] **AC6.** Après « Doublon remboursé » : `refund_pending: false` ; l'action est au journal ; un
+- [x] **AC6.** Après « Doublon remboursé » : `refund_pending: false` ; l'action est au journal ; un
       doublon inscrit ensuite rallume le drapeau.
-- [ ] **AC7 (front).** Page de retour : `cancelled` sans drapeau ne propose jamais de réessayer ;
+- [x] **AC7 (front).** Page de retour : `cancelled` sans drapeau ne propose jamais de réessayer ;
       avec drapeau, le texte du remboursement s'affiche ; la part pénalité s'annonce.
-- [ ] Chaque AC a son ablation rouge, consignée (dont : verrou relu hors de la transaction
+- [x] Chaque AC a son ablation rouge, consignée (dont : verrou relu hors de la transaction
       d'écriture pour AC1).
 
 ## Hors périmètre
@@ -185,4 +194,34 @@ reste hors de la plateforme (aucun reversement automatique).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+## Livré (2026-11-16)
+
+- **(b) appliquée** : `markPaid` accepte `partially_paid` et relève `metadata.paid_amount` au montant
+  sous le même verrou (jamais à la baisse : un trop-versé reste dit) — sans quoi l'accesseur d'une ligne
+  `paid` lisait encore l'acompte et un reste dû.
+  AC2 : `LeaseDuplicateRefundTest::test_mark_paid_solde_…` ; ablations du statut et de la réécriture : rouges.
+- **Impayé à reste > 0** posé une fois dans `CollectedPayments::leaseOwed()` (tableaux de bord agence,
+  bailleur, locataire, balance âgée, résumé financier, relevé du bailleur) et dans
+  `SendLeasePaymentReminders::remindable()`, et dans `OverdueInstalment::daysLate()` (relance notée →
+  409) et `PaymentHistory::daysLateSql()` ; ADR-0057 amendé. `LeasePayment::isOverdue()`/`scopeOverdue`
+  (paire de parité du trait partagé avec les réservations) n'est pas touchée : une `partially_paid`
+  héritée soldée s'affiche encore « en retard », sans être comptée ni relancée. `OwedRemainderTest` passe de 5 à 4
+  échéances (l'échéance trop payée n'est plus un impayé). AC4 : `test_une_partially_paid_entierement_versee_…` ;
+  ablation de chacun des deux filtres : rouge.
+- **`refund_pending` porte sur l'ÉCHÉANCE** (`DuplicatePayments`, lecture unique) : tout doublon hors
+  `late_fee` sans `refunded_at`, sans condition de transaction ni de réponse du fournisseur ;
+  `late_fee_refund_pending` à part. `PaymentCheckoutReuseTest` réécrit en conséquence (il épinglait
+  « le drapeau porte sur le règlement vérifié »). AC5 : tests N2, N3, N4 ; contrôleur d'origine : 4 rouges.
+- **« Doublon remboursé »** : `POST /api/lease-payments/{payment}/duplicate-refunded`
+  (`LeasePaymentDuplicateRefundController`), qui marque TOUS les doublons non remboursés, part pénalité
+  comprise (le webhook de TCK-871 ne note que la transaction remboursée), journal
+  `activity('LeasePayment')`/`duplicate_refunded`, 409 sans rien à marquer. Autorisation :
+  `LeasePolicy::refundDuplicate` — bailleur direct, personnel détenant **`payments.refund`** (capacité
+  jusque-là inerte, retirée de l'inventaire D-69 : cliquet 6 → 5), super-admin. Famille « argent qui
+  sort » (`FAMILY_CONTROLLERS` + `AGENCY_TWO_FACTOR`). AC6 et autorisation : ablations du
+  `refunded_at`, de l'entrée 2FA et de la capacité : rouges.
+- **Front** : `cancelled` sans drapeau devient l'issue `annulee` (« Cette échéance a été annulée… si vous
+  avez été débité, l'agence vous remboursera », contact de l'agence, jamais « Réessayer ») ; la part
+  pénalité s'annonce sur un paiement confirmé ; « Doublon remboursé » dans le menu de la ligne de
+  l'échéancier (`duplicate_refund_pending` de la ressource). AC7 : `PaymentReturnClient.test.tsx`,
+  `issue-du-retour.tck-2650.test.ts`, `LeaseSchedule.test.tsx` ; trois ablations : rouges.

@@ -273,6 +273,11 @@ export type LeasePayment = {
    * front ne compare pas `due_date` à l'horloge du navigateur.
    */
   is_overdue: boolean;
+  /**
+   * TCK-608 — un encaissement en double (part pénalité comprise) reste à rendre au locataire : la
+   * gestion le constate par « Doublon remboursé ». Optionnel : une réponse antérieure ne le porte pas.
+   */
+  duplicate_refund_pending?: boolean;
   notes: string | null;
   created_at: string;
 };

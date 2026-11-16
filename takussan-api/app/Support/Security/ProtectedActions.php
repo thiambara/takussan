@@ -43,6 +43,7 @@ use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\LeaseController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
+use App\Http\Controllers\Api\LeasePaymentDuplicateRefundController;
 use App\Http\Controllers\Api\LeaseRentController;
 use App\Http\Controllers\Api\LeaseSignatureController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
@@ -124,6 +125,8 @@ final class ProtectedActions
         // Décision du porteur : de l'argent qui SORT (remboursement, restitution de caution).
         BookingPaymentController::class,
         LeaseDepositRefundController::class,
+        // TCK-608 — « Doublon remboursé » : l'agence constate avoir rendu un encaissement en double.
+        LeasePaymentDuplicateRefundController::class,
         // TCK-591 — gestes d'équipe, rattachés par contrôleur aussi : leurs routes ont
         // chacune leur fichier, et un déplacement ne doit pas les faire sortir de la famille.
         AgentHandoverController::class,
@@ -210,6 +213,8 @@ final class ProtectedActions
         // Vérification adverse M4 — de l'argent qui sort.
         BookingPaymentController::class.'@refund',
         LeaseDepositRefundController::class.'@store',
+        // TCK-608 — constater le remboursement d'un doublon éteint « l'agence vous remboursera ».
+        LeasePaymentDuplicateRefundController::class.'@store',
 
         // TCK-609 (décision du porteur, 2026-11-16) — résilier un bail engage une indemnité.
         LeaseController::class.'@terminate',

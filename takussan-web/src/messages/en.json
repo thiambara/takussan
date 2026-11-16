@@ -4487,7 +4487,8 @@
       "confirme": {
         "titre": "Payment confirmed",
         "texte": "Your payment has been received.",
-        "texteQuittance": "Your payment has been received. Your rent receipt is available."
+        "texteQuittance": "Your payment has been received. Your rent receipt is available.",
+        "partPenalite": "Your late fee had already been paid at the agency: that part will be refunded to you."
       },
       "echec": {
         "titre": "Payment not completed",
@@ -4517,7 +4518,8 @@
           "paye": "Paid",
           "payeLe": "Paid on {date} at {heure}",
           "echec": "Failed · nothing was debited",
-          "rembourse": "Refund pending"
+          "rembourse": "Refund pending",
+          "annulee": "Instalment cancelled"
         },
         "dontPenalite": "of which late fee"
       },
@@ -4529,6 +4531,10 @@
         "telechargerQuittance": "Download the receipt",
         "contacterLAgence": "Contact the agency",
         "verifierANouveau": "Check again"
+      },
+      "annulee": {
+        "titre": "This instalment was cancelled",
+        "texte": "It is no longer due. If you were charged, the agency will refund you."
       }
     },
     "locataire": {
@@ -5493,7 +5499,12 @@
         "enRetardDe": "{jours} d overdue",
         "payeLe": "Paid on {date}",
         "quittance": "Receipt",
-        "relancer": "Remind"
+        "relancer": "Remind",
+        "doublonRembourse": {
+          "action": "Duplicate refunded",
+          "fait": "Duplicate refund recorded.",
+          "echec": "The duplicate refund couldn’t be recorded."
+        }
       },
       "types": {
         "residential_rent": "Residential",
@@ -9812,7 +9823,8 @@
         "webhook_processing_failed": "Payment webhook processing failed",
         "audit_export_downloaded": "Audit log export downloaded",
         "agency_spotlight_purchased": "Agency spotlight purchased",
-        "agency_spotlight_offer_yielded": "Offered spotlight yielded to a purchase"
+        "agency_spotlight_offer_yielded": "Offered spotlight yielded to a purchase",
+        "duplicate_refunded": "Duplicate payment refunded"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",

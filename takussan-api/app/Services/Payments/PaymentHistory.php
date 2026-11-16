@@ -396,7 +396,9 @@ class PaymentHistory
         $dus = implode(', ', array_map(fn (string $s) => "'{$s}'", CollectedPayments::owedStatusValues()));
         $restitution = LeasePaymentType::DepositRefund->value;
 
+        // TCK-608 (contrainte 4) — reste dû > 0, comme `OverdueInstalment::daysLate()`.
         return "(CASE WHEN lease_payments.status IN ({$dus}) AND lease_payments.payment_type != '{$restitution}'"
+            .' AND '.CollectedPayments::OWED_REMAINING_SQL.' > 0'
             .' AND lease_payments.due_date < ?::date THEN (?::date - lease_payments.due_date) END)';
     }
 

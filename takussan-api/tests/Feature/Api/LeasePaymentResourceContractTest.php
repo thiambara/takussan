@@ -33,6 +33,8 @@ class LeasePaymentResourceContractTest extends TestCase
         'is_overdue', 'notes', 'created_at',
         // TCK-2778 — les verdicts de la relance et du lien de la pénalité seule.
         'late_fee_reminder_allowed', 'late_fee_link_allowed',
+        // TCK-608 — un encaissement en double reste à rendre (« Doublon remboursé »).
+        'duplicate_refund_pending',
     ];
 
     public function test_les_cles_de_la_ressource_sont_exactement_celles_du_contrat(): void
