@@ -54,7 +54,6 @@ use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
 use App\Observers\LeasePaymentOnboardingObserver;
 use App\Observers\MaintenanceRequestObserver;
-use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
 use App\Observers\PlatformProfileObserver;
@@ -104,11 +103,6 @@ use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
-use App\Services\Media\Cdn\BunnyCdnDriver;
-use App\Services\Media\Cdn\CdnHealthGuard;
-use App\Services\Media\Cdn\CdnProviderContract;
-use App\Services\Media\Cdn\CloudflareCdnDriver;
-use App\Services\Media\MediaUrlResolver;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Notifications\Sms\Dlr\LogDlrPuller;
@@ -200,7 +194,6 @@ class AppServiceProvider extends ServiceProvider
         // dans le conteneur, et non alias : `withoutMiddleware(ThrottleRequests::class)` des tests
         // remplace cette même entrée, et continue d'éteindre le débit.
         $this->app->bind(ThrottleRequests::class, ThrottleRequestsByNetwork::class);
-        $this->registerCdnServices();
         $this->registerSmsServices();
         $this->registerWhatsappServices();
         // TCK-2940 (ADR-0126 § 2) — le pilote d'appel, relu de la configuration à chaque résolution.
@@ -328,27 +321,6 @@ class AppServiceProvider extends ServiceProvider
         // TCK-084 — share a single CurrencyFormatter so both the Blade
         // directive and any controller/service can resolve the same instance.
         $this->app->singleton(CurrencyFormatter::class);
-    }
-
-    private function registerCdnServices(): void
-    {
-        // TCK-105 — CDN layer. The contract is bound to the active provider
-        // from config. MediaUrlResolver and CdnHealthGuard are singletons so
-        // the circuit-breaker counter survives across multiple URL resolutions
-        // within the same request.
-        $this->app->singleton(CdnHealthGuard::class);
-        $this->app->singleton(CdnProviderContract::class, function ($app): CdnProviderContract {
-            return match ((string) $app['config']->get('cdn.provider', 'bunny')) {
-                'cloudflare' => $app->make(CloudflareCdnDriver::class),
-                default => $app->make(BunnyCdnDriver::class),
-            };
-        });
-        $this->app->singleton(MediaUrlResolver::class, function ($app): MediaUrlResolver {
-            return new MediaUrlResolver(
-                cdn: $app->make(CdnProviderContract::class),
-                guard: $app->make(CdnHealthGuard::class),
-            );
-        });
     }
 
     private function registerSmsServices(): void
@@ -890,7 +862,6 @@ class AppServiceProvider extends ServiceProvider
         LeasePayment::observe(LeasePaymentOnboardingObserver::class);
 
         // TCK-105 — purge CDN cache when a media item is deleted or replaced.
-        Media::observe(MediaCdnObserver::class);
 
         // TCK-585 — une photo de bien neuve est marquée « conversions en WebP » AVANT sa
         // première conversion. Une photo ancienne n'a pas le marqueur et garde ses `.jpg`

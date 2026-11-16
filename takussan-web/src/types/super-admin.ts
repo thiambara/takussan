@@ -795,7 +795,6 @@ export type PlatformHealth = {
   workers?: HealthcheckStatus & {
     queues?: Record<string, { status: HealthLevel; last_heartbeat_seconds: number | null }>;
   };
-  cdn?: HealthcheckStatus;
   /** TCK-2129 — `failed` quand aucune tâche n'a tourné depuis le seuil (`HealthcheckService::scheduler()`). */
   scheduler?: HealthcheckStatus & { last_run_at?: string | null };
   proxies?: HealthcheckStatus;

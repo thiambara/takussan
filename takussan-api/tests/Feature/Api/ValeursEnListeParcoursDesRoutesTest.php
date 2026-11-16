@@ -99,7 +99,6 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         // TCK-2939 — identifiant composite (`owner:12`), contraint par `where` : une valeur en liste ne l'atteint pas.
         'api/me/profiles/{profile}/invite-summary' => '{profile} : sans liaison de modèle',
         'api/me/wizard-drafts/{key}' => '{key} : sans liaison de modèle',
-        'api/media/{media}/sign' => '{media} : Media sans fabrique',
         'api/media/{media}/file' => '{media} : Media sans fabrique',
         'api/pay/{token}' => '{token} : sans liaison de modèle',
         'api/pay/{token}/receipt' => '{token} : sans liaison de modèle',

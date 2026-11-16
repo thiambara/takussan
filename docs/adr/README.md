@@ -166,7 +166,7 @@ ouvert.
 | `agency.kind` (standard / individual) gate des fonctionnalités — **implémenté deux fois**, PHP et TS | un docblock qui avoue le jumelage — cf. ardoise D-23 |
 | Feature flags maison plutôt que Laravel Pennant | le code seul |
 | Audit par `spatie/laravel-activitylog` encapsulé dans un trait à configuration figée | docblock + `models-spec.md` §13 |
-| Médias par `spatie/medialibrary` derrière un CDN pluggable avec kill switch | `models-spec.md` + `docs/infra/cdn.md` |
+| ~~Médias par `spatie/medialibrary` derrière un CDN pluggable avec kill switch~~ — **remplacée par [ADR-0029](0029-medias-sur-r2-servis-par-cloudflare-transformations.md)** ; l'intégration retirée par TCK-2463 | `models-spec.md` (`docs/infra/cdn.md`, supprimé le 2026-11-16) | <!-- lien-mort-assumé -->
 | ~~Déploiement zero-downtime par script bash sur VPS — pas de conteneur, pas d'orchestrateur~~ — **révoquée par [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) avant d'avoir été rédigée** | l'en-tête de `scripts/deploy.sh`, jusqu'à son retrait (plan d'ADR-0028, tâche B5) |
 | Flux de branches `dev` → `preview` → `master` | les seuls déclencheurs de workflows — cf. ardoise D-04 |
 | Trilingue fr/en/wo propagé par `Accept-Language` | `docs/configuration.md` §3, partiellement |

@@ -82,36 +82,36 @@ Super-admin, santé du système : la tuile `cdn` disparaît ; aucune autre ne bo
 
 ## Delta à produire
 
-- [ ] **En premier** : `config/media-library.php:152` — `url_generator` ramené à
+- [x] **En premier** : `config/media-library.php:152` — `url_generator` ramené à
       `Spatie\MediaLibrary\Support\UrlGenerator\DefaultUrlGenerator::class` (et `use` l.4 retiré) ;
       mettre à jour le docblock de `PrivateMediaAccess.php:28` (ajout 2026-11-16)
-- [ ] Supprimer `app/Services/Media/Cdn/`, `MediaCdnObserver`, `PurgeCdnCacheJob`, `SignMediaController`
+- [x] Supprimer `app/Services/Media/Cdn/`, `MediaCdnObserver`, `PurgeCdnCacheJob`, `SignMediaController`
       et sa route ; retirer les liaisons de `AppServiceProvider`
-- [ ] ~~`MediaUrlResolver` : retirer la branche CDN (le chemin `cdn.enabled = false` devient le seul)~~
+- [x] ~~`MediaUrlResolver` : retirer la branche CDN (le chemin `cdn.enabled = false` devient le seul)~~
       Supprimer `MediaUrlResolver` et `tests/Unit/Media/MediaUrlResolverTest.php` : la branche
       restante rend `$storageUrl` tel quel, ce que fait déjà `DefaultUrlGenerator` (relevé 2026-11-16)
-- [ ] `HealthcheckService` : retirer la sonde `cdn` ; front : retirer la tuile `cdn` et sa clé i18n
-- [ ] Supprimer `config/cdn.php` et les clés `CDN_*`/`BUNNY_*` des trois fichiers d'environnement
-- [ ] Tests : supprimer `tests/Feature/Api/SignMediaEndpointTest.php`,
+- [x] `HealthcheckService` : retirer la sonde `cdn` ; front : retirer la tuile `cdn` et sa clé i18n
+- [x] Supprimer `config/cdn.php` et les clés `CDN_*`/`BUNNY_*` des trois fichiers d'environnement
+- [x] Tests : supprimer `tests/Feature/Api/SignMediaEndpointTest.php`,
       `tests/Feature/Media/PurgeCdnCacheJobTest.php`, `tests/Unit/Media/MediaUrlResolverTest.php`, et
       `test_admin_health_reports_a_degraded_cdn` (`tests/Feature/Api/HealthCheckTest.php:49-58`) ;
       adapter `tests/Feature/Admin/Platform/HealthcheckProbesTest.php` (l.270 `cdn.enabled`,
       l.320-323, mock de `CdnProviderContract`) — chemins relevés le 2026-11-16
-- [ ] Docs : déplacer § Health de `docs/infra/cdn.md` vers `hebergement.md`, supprimer `cdn.md`,
+- [x] Docs : déplacer § Health de `docs/infra/cdn.md` vers `hebergement.md`, supprimer `cdn.md`,
       corriger `docs/configuration.md` §3.10 et les renvois (`docs/adr/README.md`, `config/cdn.php:43`) ;
       pour `check-doc-links`, vérifier un par un les fichiers qui citent `docs/infra/cdn.md` (lien
       ou simple mention) : TCK-547, `docs/plans/2026-04-26-tck-105-cdn.md`, ADR-0029, et les
       tickets done TCK-105, TCK-541, TCK-600, TCK-680, TCK-520 (relevé 2026-11-16)
-- [ ] Ajouter à ADR-0029 une ligne datée « retrait fait : TCK-2463 »
+- [x] Ajouter à ADR-0029 une ligne datée « retrait fait : TCK-2463 »
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `grep -rn -E 'Bunny|CdnProviderContract|cdn\.enabled|PurgeCdnCache|SignMedia' takussan-api/app takussan-api/config takussan-api/routes takussan-web/src` ne rend rien
-- [ ] AC2 — `GET /api/media/{id}/sign` rend 404 (route absente), épinglé par un test
-- [ ] AC3 — la suite de médias (`tests/Feature/Media/`, `tests/Unit/Media/`) est verte **sans qu'une
+- [x] AC1 — `grep -rn -E 'Bunny|CdnProviderContract|cdn\.enabled|PurgeCdnCache|SignMedia' takussan-api/app takussan-api/config takussan-api/routes takussan-web/src` ne rend rien
+- [x] AC2 — `GET /api/media/{id}/sign` rend 404 (route absente), épinglé par un test
+- [x] AC3 — la suite de médias (`tests/Feature/Media/`, `tests/Unit/Media/`) est verte **sans qu'une
       assertion sur une URL de média ait changé** — vérifiable au diff de ces dossiers
-- [ ] AC4 — la sonde de santé ne rend plus de clé `cdn`, et la console super-admin n'affiche plus la tuile
-- [ ] AC5 — `check-env-parity`, `check-env-production`, `check-doc-links` verts
+- [x] AC4 — la sonde de santé ne rend plus de clé `cdn`, et la console super-admin n'affiche plus la tuile
+- [x] AC5 — `check-env-parity`, `check-env-production`, `check-doc-links` verts
 
 ## Hors périmètre
 
@@ -122,3 +122,31 @@ Super-admin, santé du système : la tuile `cdn` disparaît ; aucune autre ne bo
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Le générateur d'URL d'abord** : `media-library.url_generator` revenu à `DefaultUrlGenerator`.
+  `MediaUrlGenerationTest` (neuf) fige `getUrl`/`getFullUrl`/`getTemporaryUrl`, original et
+  conversions, sur une photo de bien (original privé, conversions publiques), une photo privée et un
+  logo public, avec un `Accept` d'image : **joué vert sous `CdnUrlGenerator` puis sous
+  `DefaultUrlGenerator`** ; seule l'assertion sur la classe configurée rougissait avant.
+- **Prémisse fausse sur un point : la route `media.sign` avait un appelant.** TCK-2863 (2026-11-15)
+  en avait fait la lecture du RIB (`bank_statement_media_id` « à signer par `GET /api/media/{id}/sign` »).
+  Mesuré : elle rendait `/1/rib-1.pdf?token=…&expires=…&format=jpeg`, un chemin relatif que rien ne
+  sert (CDN jamais provisionné). Remplacée par `bank_statement_url` dans `PayoutMethodResource` :
+  l'URL d'API signée de `PrivateMediaAccess::signedUrl()`, gardée par `MediaPolicy::sign` (règle de
+  TCK-2863 inchangée), `null` sous impersonation. Aucune route neuve.
+- `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN` **restent**, déplacées sous « 17. PDF » des trois
+  fichiers : `spatie/laravel-pdf` (pilote `cloudflare`) les lit. Onze clés `CDN_*`/`BUNNY_*` retirées ;
+  action de déploiement `docs/deploiement/actions/2026-11-16-retirer-les-cles-du-cdn-de-tck-105.md`.
+- Supprimés aussi, hors liste : `tests/Unit/Media/Cdn/` (trois tests des pilotes) et l'exemption
+  `api/media/{media}/sign` de `ValeursEnListeParcoursDesRoutesTest`. Fixture
+  `tests/fixtures/healthcheck-sondes.json` sans `cdn` (concordance API/front).
+- `HealthcheckProbesTest` : le test « la route publique n'appelle pas le CDN » est ré-ancré sur sa
+  propriété réelle — elle ne sonde rien (`snapshot`/`refresh` jamais appelés).
+- Preuves : AC1 grep vide ; AC2 `PayoutMethodBankStatementTest::test_la_route_de_signature_cdn_est_retiree`
+  (rouge 200 avant le retrait de la route, vert 404 après) ; AC3 `tests/Feature/Media` + `tests/Unit/Media`
+  verts, aucune assertion d'URL modifiée (au diff : un fichier ajouté, cinq supprimés — CDN seul) ;
+  AC4 `HealthCheckTest::test_admin_health_no_longer_reports_a_cdn_probe` + tests front `system-health.*` ;
+  AC5 gardes vertes. Ablations : garde `can('sign')` et garde d'impersonation de `bank_statement_url`
+  retirées tour à tour → rouge, restaurées (md5).

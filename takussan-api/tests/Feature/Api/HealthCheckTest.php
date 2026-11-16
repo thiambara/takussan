@@ -3,14 +3,13 @@
 namespace Tests\Feature\Api;
 
 use App\Services\Admin\HealthcheckService;
-use App\Services\Media\Cdn\CdnProviderContract;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 /**
  * TCK-600 — `/api/health` ne sonde plus rien : il rend le statut agrégé que `health:probe` a laissé
- * en cache, sans détail. Le CDN se sonde dans la console (`/api/admin/health`, sonde `cdn`).
+ * en cache, sans détail. Le détail des sondes est dans la console (`/api/admin/health`).
  */
 class HealthCheckTest extends TestCase
 {
@@ -46,15 +45,14 @@ class HealthCheckTest extends TestCase
         $this->getJson('/api/health')->assertOk()->assertJsonPath('status', 'degraded');
     }
 
-    public function test_admin_health_reports_a_degraded_cdn(): void
+    /** TCK-2463 (AC4) — l'intégration CDN de TCK-105 retirée, la console n'a plus de sonde `cdn`. */
+    public function test_admin_health_no_longer_reports_a_cdn_probe(): void
     {
-        $cdn = $this->mock(CdnProviderContract::class);
-        $cdn->shouldReceive('healthCheck')->once()->andReturn(false);
-        config(['cdn.enabled' => true]);
         $this->actingAsRole('super_admin');
 
         $this->getJson('/api/admin/health')
             ->assertOk()
-            ->assertJsonPath('data.cdn.status', 'degraded');
+            ->assertJsonPath('data.db.status', 'ok')
+            ->assertJsonMissingPath('data.cdn');
     }
 }

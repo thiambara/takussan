@@ -819,6 +819,33 @@ aucun embedding ne part. L'ordre reste obligatoire pour la pose des clés, et po
    sans retirer la clé : `RADAR_SIMILARITY_DRIVER=trigram`, ou `VOYAGE_TRAINING_OPT_OUT=false`. Une clé sans déclaration, pilote `embeddings`, écrit
    `radar.embeddings.training_opt_out_undeclared` au journal à chaque balayage.
 
+### La santé : la route publique et la console (TCK-600, TCK-680)
+
+> Déplacé de `docs/infra/cdn.md` (§ Health endpoint) le 2026-11-16, quand TCK-2463 a supprimé ce
+> document avec l'intégration CDN de TCK-105. La sonde `cdn` n'existe plus.
+
+```
+GET /api/health
+```
+
+Publique, sans authentification. **Depuis TCK-600, elle ne sonde rien** : elle rend le statut agrégé
+que `health:probe` (planifiée chaque minute) a laissé en cache, sans détail ni appel sortant — elle
+appelait le CDN à chaque requête anonyme.
+
+```json
+{
+  "status": "ok | degraded | failed | unknown",
+  "checked_at": "2026-10-08T10:00:00.000000Z"
+}
+```
+
+`unknown` : aucune sonde n'a tourné depuis dix minutes (planificateur arrêté). `failed` répond **503**
+(TCK-680), pour qu'une sonde externe sur le code HTTP le voie ; `degraded` et `unknown` restent en 200.
+Le détail, sonde par sonde, est dans la console : `GET /api/admin/health` (page super-admin « Santé du
+système »), une tuile par sonde de `HealthcheckService::probe()`.
+
+Déclencheur d'alerte d'un moniteur externe : `status != ok`, ou le code HTTP.
+
 ## Ce que Caddy reprend de l'ancien vhost nginx
 
 | nginx (`scripts/server-setup.sh`, retiré) | `takussan-api/docker/Caddyfile` |

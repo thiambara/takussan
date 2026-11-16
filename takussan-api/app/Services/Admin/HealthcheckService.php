@@ -8,7 +8,6 @@ use App\Models\Enums\PaymentProvider;
 use App\Models\Integration;
 use App\Models\Property;
 use App\Services\Ai\AiProviderCatalogue;
-use App\Services\Media\Cdn\CdnProviderContract;
 use App\Support\RadarPhone;
 use App\Support\TrustedProxyList;
 use GuzzleHttp\Client as HttpClient;
@@ -75,7 +74,6 @@ class HealthcheckService
     private const RANK = ['ok' => 0, 'degraded' => 1, 'failed' => 2];
 
     public function __construct(
-        private readonly CdnProviderContract $cdn,
         private readonly AiProviderCatalogue $aiProviders,
     ) {}
 
@@ -157,7 +155,6 @@ class HealthcheckService
             'search' => $this->check(fn (): array => $this->search()),
             'queue' => $this->check(fn (): array => $this->queue()),
             'workers' => $this->check(fn (): array => $this->workers()),
-            'cdn' => $this->check(fn (): array => $this->cdn()),
             'scheduler' => $this->check(fn (): array => $this->scheduler()),
             'proxies' => $this->check(fn (): array => $this->proxies()),
             'lemon_squeezy_webhook' => $this->check(fn (): array => $this->lemonSqueezyWebhook()),
@@ -434,20 +431,6 @@ class HealthcheckService
             // TCK-1116 (P94.01) — la valeur brute n'a pas de fuseau : un instant ADR-0018.
             'last_run_at' => $lastRunAt === null ? null : Carbon::parse($lastRunAt)->utc()->format(DATE_ATOM),
         ];
-    }
-
-    /**
-     * Sondé ici, sur la page de la console — plus par la route publique.
-     *
-     * @return array<string,mixed>
-     */
-    private function cdn(): array
-    {
-        if (! config('cdn.enabled')) {
-            return ['value' => 'disabled'];
-        }
-
-        return $this->cdn->healthCheck() ? ['value' => 'ok'] : ['status' => 'degraded', 'value' => 'degraded'];
     }
 
     /**

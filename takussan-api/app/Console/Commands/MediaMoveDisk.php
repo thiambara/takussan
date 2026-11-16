@@ -194,10 +194,9 @@ class MediaMoveDisk extends Command
                     continue;
                 }
 
-                // `saveQuietly()` DÉLIBÉRÉ — ne pas le « corriger » en `save()` pour réveiller la
-                // purge de MediaCdnObserver : changer de disque change le DOMAINE de l'URL, donc la
-                // clé de cache ; l'ancienne entrée n'est plus jamais demandée. Et le CDN est
-                // désactivé (CDN_ENABLED=false). Décision de session, 2026-09-21.
+                // `saveQuietly()` DÉLIBÉRÉ (décision de session, 2026-09-21) : il évitait la purge de
+                // l'observateur CDN de TCK-105, retiré depuis (TCK-2463). Relire les observateurs de
+                // `Media` avant de le passer en `save()`.
                 $media->forceFill([
                     'disk' => $targets['original'] ?? $media->disk,
                     'conversions_disk' => $targets['derived'] ?? $media->conversions_disk,

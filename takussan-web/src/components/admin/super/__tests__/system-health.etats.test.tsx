@@ -22,7 +22,6 @@ const SANTE: PlatformHealth = {
   search: { status: 'ok', documents: 10, expected: 10, gap: 0, checked_at: A },
   queue: { status: 'degraded', pending: 4, processing: 0, failed_24h: 0, oldest_pending_seconds: 900, checked_at: A },
   workers: { status: 'ok', checked_at: A },
-  cdn: { status: 'ok', value: 'disabled', checked_at: A },
   scheduler: { status: 'ok', last_run_at: A },
   status: 'failed',
   generated_at: A,
@@ -60,7 +59,8 @@ describe('HealthDashboard — états (TCK-600)', () => {
     monter();
 
     expect(await screen.findByText(/Aucun envoi réel \(pilote de test\)/)).toBeInTheDocument();
-    expect(screen.getAllByText(/Sondé à/)).toHaveLength(10);
+    // Neuf depuis le retrait de la sonde `cdn` (TCK-2463).
+    expect(screen.getAllByText(/Sondé à/)).toHaveLength(9);
   });
 
   it('rend la plus longue attente des files', async () => {
