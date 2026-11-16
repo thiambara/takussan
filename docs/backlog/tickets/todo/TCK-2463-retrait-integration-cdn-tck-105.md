@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: null
 created: 2026-11-03
-updated: 2026-11-03
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -18,10 +18,27 @@ spec_refs:
 tags: [back, front, media, cdn, dette, nettoyage]
 ---
 
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+> ⚠ **Piège omis par la rédaction : `config/media-library.php:152` — `'url_generator' =>
+> CdnUrlGenerator::class`.** `CdnUrlGenerator` (sous-classe de `DefaultUrlGenerator`) génère
+> **toutes** les URL de médias, par `MediaUrlResolver::resolve()`. Supprimer
+> `app/Services/Media/Cdn/` sans ramener d'abord `url_generator` à `DefaultUrlGenerator` casse la
+> génération de toutes les URL de médias : AC3 ne peut pas être vert. Delta corrigé ci-dessous.
+
+**Verdict : toujours vrai.** Aucun commit ne cite ce ticket ; tout est encore câblé (drivers,
+observateur, job de purge, route `media.sign` sans appelant côté front, sonde et tuile `cdn`,
+`config/cdn.php`, clés `CDN_*`/`BUNNY_*`).
+
+**Reste à faire** : `url_generator` d'abord, puis les suppressions du Delta ; `MediaUrlResolver` se
+supprime (ses seuls appelants sont `CdnUrlGenerator` et `AppServiceProvider`) ; tests et renvois de
+docs listés ci-dessous ; retirer les clés `CDN_*`/`BUNNY_*` de l'environnement Dokploy de
+préproduction. Pas de décision du porteur (ADR-0029 a tranché) ; coordonner avec TCK-547.
+
 ## Objectif utilisateur
 
-Qu'un développeur qui lit le code des médias ne trouve qu'UN chemin de diffusion — R2 servi par
-Cloudflare Transformations (ADR-0029) — et non une seconde intégration désactivée qui a l'air
+Qu'un développeur qui lit le code des médias ne trouve qu'UN chemin de diffusion — R2, photos de
+biens servies en WebP direct (amendement TCK-585), autres images par Transformations (ADR-0029) — et non une seconde intégration désactivée qui a l'air
 vivante : drivers, observateur, job de purge, route de signature, tuile de santé.
 
 ## Contrat de données
@@ -37,10 +54,12 @@ Ce qui est encore câblé, relevé le 2026-11-03 sur `dev` (`CDN_ENABLED=false` 
 
 - `takussan-api/app/Services/Media/Cdn/` : `BunnyCdnDriver`, `CloudflareCdnDriver`,
   `CdnProviderContract`, `CdnUrlGenerator`, `CdnHealthGuard` ;
-- liaison du contrat dans `AppServiceProvider` (~l. 321-331), `Media::observe(MediaCdnObserver::class)`
-  (~l. 787), `app/Observers/MediaCdnObserver.php`, `app/Jobs/Media/PurgeCdnCacheJob.php` ;
+- liaison du contrat dans `AppServiceProvider` (~l. 333-350, appel l. 203 — relevé 2026-11-16),
+  `Media::observe(MediaCdnObserver::class)` (~l. 869), `app/Observers/MediaCdnObserver.php`, `app/Jobs/Media/PurgeCdnCacheJob.php` ;
 - `app/Http/Controllers/Api/Media/SignMediaController.php`, route `GET media/{media}/sign`
-  (`routes/api/media.php:17`) — **aucun appel depuis `takussan-web/src`** (relevé du 2026-11-03) ;
+  (`routes/api/media.php:16-20`) — **aucun appel depuis `takussan-web/src`** (relevé du 2026-11-03) ;
+- `config/media-library.php:4,152` — `'url_generator' => CdnUrlGenerator::class`, générateur de
+  **toutes** les URL de médias (omis à la rédaction, relevé 2026-11-16) ;
 - `MediaUrlResolver` (branche `cdn.enabled`), `HealthcheckService::cdn()` (clé `cdn` de la sonde) et
   la tuile `cdn` de `takussan-web/src/components/admin/super/system-health.tsx` ;
 - `config/cdn.php`, 8 clés `CDN_*`/`BUNNY_*` dans `.env.example` et `.env.docker`, 11 dans le
@@ -63,15 +82,26 @@ Super-admin, santé du système : la tuile `cdn` disparaît ; aucune autre ne bo
 
 ## Delta à produire
 
+- [ ] **En premier** : `config/media-library.php:152` — `url_generator` ramené à
+      `Spatie\MediaLibrary\Support\UrlGenerator\DefaultUrlGenerator::class` (et `use` l.4 retiré) ;
+      mettre à jour le docblock de `PrivateMediaAccess.php:28` (ajout 2026-11-16)
 - [ ] Supprimer `app/Services/Media/Cdn/`, `MediaCdnObserver`, `PurgeCdnCacheJob`, `SignMediaController`
       et sa route ; retirer les liaisons de `AppServiceProvider`
-- [ ] `MediaUrlResolver` : retirer la branche CDN (le chemin `cdn.enabled = false` devient le seul)
+- [ ] ~~`MediaUrlResolver` : retirer la branche CDN (le chemin `cdn.enabled = false` devient le seul)~~
+      Supprimer `MediaUrlResolver` et `tests/Unit/Media/MediaUrlResolverTest.php` : la branche
+      restante rend `$storageUrl` tel quel, ce que fait déjà `DefaultUrlGenerator` (relevé 2026-11-16)
 - [ ] `HealthcheckService` : retirer la sonde `cdn` ; front : retirer la tuile `cdn` et sa clé i18n
 - [ ] Supprimer `config/cdn.php` et les clés `CDN_*`/`BUNNY_*` des trois fichiers d'environnement
-- [ ] Tests : supprimer `SignMediaEndpointTest`, `PurgeCdnCacheJobTest` ; adapter `MediaUrlResolverTest`,
-      `HealthCheckTest`, `HealthcheckProbesTest`
+- [ ] Tests : supprimer `tests/Feature/Api/SignMediaEndpointTest.php`,
+      `tests/Feature/Media/PurgeCdnCacheJobTest.php`, `tests/Unit/Media/MediaUrlResolverTest.php`, et
+      `test_admin_health_reports_a_degraded_cdn` (`tests/Feature/Api/HealthCheckTest.php:49-58`) ;
+      adapter `tests/Feature/Admin/Platform/HealthcheckProbesTest.php` (l.270 `cdn.enabled`,
+      l.320-323, mock de `CdnProviderContract`) — chemins relevés le 2026-11-16
 - [ ] Docs : déplacer § Health de `docs/infra/cdn.md` vers `hebergement.md`, supprimer `cdn.md`,
-      corriger `docs/configuration.md` §3.10 et les renvois (`docs/adr/README.md`, `config/cdn.php:43`)
+      corriger `docs/configuration.md` §3.10 et les renvois (`docs/adr/README.md`, `config/cdn.php:43`) ;
+      pour `check-doc-links`, vérifier un par un les fichiers qui citent `docs/infra/cdn.md` (lien
+      ou simple mention) : TCK-547, `docs/plans/2026-04-26-tck-105-cdn.md`, ADR-0029, et les
+      tickets done TCK-105, TCK-541, TCK-600, TCK-680, TCK-520 (relevé 2026-11-16)
 - [ ] Ajouter à ADR-0029 une ligne datée « retrait fait : TCK-2463 »
 
 ## Critères d'acceptation

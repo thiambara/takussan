@@ -7,7 +7,7 @@ family: front
 estimate: L
 wave: null
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-11-16
 depends_on: [TCK-292]
 blocks: []
 spec_refs:
@@ -16,6 +16,26 @@ spec_refs:
   models: []
 tags: [front, i18n, formatting, intl, dette]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : partiellement fermé.** Le gros du volume a été fermé par TCK-364 et TCK-721 : 27 lignes
+`'fr-SN'`/`'fr-FR'` dans 17 fichiers (contre 86 / 48), dont une quinzaine de commentaires ; la table
+`ETIQUETTES_INTL` de `lib/format.ts:76-80` tranche déjà `fr → 'fr-SN'`, `en → 'en-GB'`, `wo → 'fr-SN'` ;
+la garde `scripts/check-locale-figee.mjs` (cliquets) couvre `Intl`/`toLocale*`. TCK-292 est `done`.
+Taille réelle : **S** (était L). Ce qui reste réellement :
+
+- `formatCurrency(x, 'fr', …)` en dur : `components/leases/CreateLeaseForm.tsx:1392,1515`,
+  `components/property-dashboard/PropertyPriceHistoryList.tsx:42,47` → passer la locale active.
+- `formatPrice()` appelé sans locale (défaut `'fr-SN'` de `lib/utils.ts:46`) : `types/search.ts:418,425`,
+  `components/property/PropertyCard.tsx:376,378`, `components/property/cards/PropertyCardStandard.tsx:105`
+  (et les homonymes locaux `PropertyReservationDialog.tsx:59`, `PropertyPriceHistory.tsx:14`, à vérifier un à un) —
+  ou retirer les défauts `'fr-SN'` de `lib/utils.ts` / `lib/format/currency.ts` pour forcer l'appelant.
+- `components/ui/calendar.tsx:6,34` : `import { fr }` … `locale={fr}` — toujours vrai.
+- Étendre la garde à `from 'date-fns/locale'` (seul `ui/calendar.tsx` hors `dateFnsLocale.ts`) et aux locales
+  littérales passées aux helpers.
+- `LOCALE_DISPLAY_LABELS.wo` (`i18n/config.ts:51-55`) : **reporté**, wolof en pause depuis le 2026-10-16.
+- AC2 réécrit (trois chaînes distinctes inatteignables : `wo` formate comme `fr`).
 
 ## Objectif utilisateur
 
@@ -32,6 +52,10 @@ Aucun endpoint neuf. Aucun libellé neuf. Le travail consiste à faire dépendre
 **locale active** au lieu d'une constante écrite dans le code.
 
 ### L'inventaire, mesuré le 2026-08-22
+
+> ⚠ **Périmé au 2026-11-16** : 27 lignes / 17 fichiers (16 `'fr-FR'`, 11 `'fr-SN'`, dont ~15
+> commentaires), et 2 `toLocale*('fr-SN')`, tous deux en commentaire. Les restes réels sont listés
+> dans la re-vérification en tête ; le tableau ci-dessous est l'historique.
 
 ```bash
 cd takussan-web
@@ -65,18 +89,20 @@ ci-dessus — **elle ne se recopie pas ici**, elle serait fausse au commit suiva
 
 `src/lib/format.ts` **fait la bonne chose depuis toujours** : `toIntlLocale(locale)` mappe
 `fr → 'fr-SN'`, `en → 'en-GB'`, `wo → ['wo', 'fr-SN']` (le tableau force un repli explicite,
-`wo` n'étant pas dans CLDR). Le correctif n'est donc pas à inventer : il est à **brancher**.
+`wo` n'étant pas dans CLDR). *Corrigé le 2026-11-16 : faux — la table est `ETIQUETTES_INTL`
+(`lib/format.ts:76-80`) et porte `wo: 'fr-SN'`, une chaîne ; le tableau ne repliait jamais (docblock
+`lib/format.ts:20-75`).* Le correctif n'est donc pas à inventer : il est à **brancher**.
 
 Même situation côté date-fns depuis TCK-292 (2026-08-22) :
 `src/lib/format/dateFnsLocale.ts` porte `localeDateFns(locale)`, et trois sites y sont déjà passés
 (`ui/date-picker.tsx`, `ui/date-time-picker.tsx`, `dashboard/admin/AgencyRevenueSnapshot.tsx`).
-Il en reste un, mesuré le 2026-08-22 : **`src/components/ui/calendar.tsx:31` passe `locale={fr}`
+Il en reste un, mesuré le 2026-08-22 : **`src/components/ui/calendar.tsx:34` (import en `:6`) passe `locale={fr}`
 en dur à `<DayPicker>`** — c'est-à-dire que les noms de jours et de mois de TOUS les sélecteurs de
 date du produit sont français, y compris ceux dont le bouton, lui, formate désormais en anglais.
 
 ### Un troisième écart, du même acabit
 
-`src/i18n/config.ts:52` — `LOCALE_DISPLAY_LABELS.wo` vaut
+`src/i18n/config.ts:51-55` — `LOCALE_DISPLAY_LABELS.wo` vaut
 `{ fr: 'Français', en: 'Anglais', wo: 'Wolof' }` : **la colonne wolof est écrite en français.** Un
 utilisateur wolophone qui ouvre le sélecteur de langue lit trois noms français. Les colonnes `fr`
 et `en`, elles, sont correctes. Ce n'est pas du formatage, mais c'est la même faute — une table de
@@ -91,36 +117,45 @@ mériter son propre ticket.
    décision déjà prise et déjà payée : TCK-292 a mesuré qu'y déroger décalait un journal d'audit
    de deux heures sous `TZ=Europe/Paris`. La locale gouverne la FORME, pas l'instant.
 3. **Le wolof retombe sur `fr-SN` pour le formatage**, et ce n'est pas un oubli : ni CLDR ni
-   date-fns ne fournissent `wo`. Ce repli doit rester **explicite** dans le code (un tableau
-   `['wo', 'fr-SN']`, un `?? fr`), jamais implicite — `Intl` retombe silencieusement sur la locale
+   date-fns ne fournissent `wo`. Ce repli doit rester **explicite** dans le code (`wo → 'fr-SN'`
+   dans `ETIQUETTES_INTL`, chaîne et non tableau ; un `?? fr`), jamais implicite — `Intl` retombe silencieusement sur la locale
    racine, c'est-à-dire un formatage de type anglais, quand on lui passe un seul tag inconnu.
 4. **`'fr-FR'` et `'fr-SN'` ne sont pas interchangeables** : trancher lequel est le français du
    produit fait partie du ticket, et le résultat vaut pour les 86 sites.
 
 ## Delta à produire
 
-- [ ] Trancher `'fr-FR'` vs `'fr-SN'` pour la locale `fr`, et l'écrire une fois — dans
-      `toIntlLocale`, pas dans 38 fichiers.
-- [ ] Remplacer les 86 occurrences par les helpers de `src/lib/format.ts` (`formatDate`,
+- [x] Trancher `'fr-FR'` vs `'fr-SN'` pour la locale `fr`, et l'écrire une fois — dans
+      `toIntlLocale`, pas dans 38 fichiers. (tenu par TCK-721, relevé 2026-11-16 : `ETIQUETTES_INTL`,
+      `fr: 'fr-SN'`)
+- [ ] Remplacer les 86 occurrences (27 lignes au 2026-11-16, restes listés en tête) par les helpers de `src/lib/format.ts` (`formatDate`,
       `formatNumber`, `formatCurrency`) et de `src/lib/format/dateFnsLocale.ts`, en passant la
       locale active (`useLocale()` côté client, `getLocale()` côté serveur).
-- [ ] `src/components/ui/calendar.tsx:31` — `locale={fr}` → `locale={localeDateFns(useLocale())}`.
-- [ ] `src/i18n/config.ts:52` — écrire la colonne `LOCALE_DISPLAY_LABELS.wo` en wolof.
+- [ ] `src/components/ui/calendar.tsx:34` — `locale={fr}` → `locale={localeDateFns(useLocale())}`.
+- [ ] `src/i18n/config.ts:51-55` — écrire la colonne `LOCALE_DISPLAY_LABELS.wo` en wolof. — reporté :
+      wolof en pause depuis le 2026-10-16.
 - [ ] **Une garde**, sans quoi les 86 reviennent : refuser tout littéral BCP-47 (`'fr-FR'`,
       `'fr-SN'`, `'en-GB'`, …) hors de `src/lib/format*`, et refuser `from 'date-fns/locale'` hors
       de `src/lib/format/dateFnsLocale.ts`. Le patron maison est
       `scripts/i18n-exceptions.mjs` : exception par SITE, avec sa raison écrite, et une exception
       périmée qui fait rougir. La prouver par MUTATION, pas par lecture.
+      *2026-11-16 : la garde existe pour `Intl`/`toLocale*` — `scripts/check-locale-figee.mjs`
+      (TCK-364/TCK-721). Restent le volet `from 'date-fns/locale'` et les locales littérales passées
+      aux helpers.*
 
 ## Critères d'acceptation
 
 - [ ] AC1 — la garde ci-dessus existe, sort en **0** sur `dev`, et sort en **1** quand on
       réintroduit un `toLocaleDateString('fr-FR')` dans un composant. Les deux sorties sont
-      consignées dans le ticket.
+      consignées dans le ticket. *(2026-11-16 : tenu pour `toLocale*`/`Intl` par
+      `check-locale-figee.mjs` ; reste le volet `date-fns/locale`.)*
 - [ ] AC2 — un test de rendu monte le MÊME composant sous `fr`, `en` et `wo`, et **assère trois
       chaînes différentes** pour la même date et le même montant. ⚠ Ce critère est écrit ainsi
       exprès : « la locale est passée au helper » se coche aussi avec un helper qui ignore son
       argument.
+      *Réécrit le 2026-11-16 : trois chaînes différentes sont inatteignables, `wo` formatant comme
+      `fr` (`ETIQUETTES_INTL`). Le critère devient : **deux chaînes différentes `fr`/`en`, et `wo`
+      identique à `fr`**.*
 - [ ] AC3 — le rendu **français** est inchangé, caractère pour caractère, sur les surfaces
       touchées. Toute divergence est nommée comme dérogation, à la manière de TCK-292 — jamais
       cochée en silence.

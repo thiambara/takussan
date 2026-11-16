@@ -7,7 +7,7 @@ family: back
 estimate: M
 wave: 67
 created: 2026-09-21
-updated: 2026-09-21
+updated: 2026-11-16
 depends_on: [TCK-539]
 blocks: []
 spec_refs:
@@ -17,6 +17,26 @@ spec_refs:
     - docs/models-spec.md#spatielaravel-medialibrary
 tags: [back, media, filigrane, r2, cloudflare, securite]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai.** Aucune des pistes A/B/C n'est implémentée (aucune sous-classe de
+`FileManipulator`, aucun ADR amendant ADR-0029 §5, pas de `WatermarkNeverPublicNakedTest`) ; le
+pipeline « écrire nu puis filigraner en file » est intact (`ApplyWatermarkOnConversionListener.php:42-75`).
+
+- **Changé entre-temps** : le listener est désormais **synchrone** (seul `ApplyWatermarkJob` est en
+  file `media`) ; TCK-541 (done) a déployé R2 et `worker-media` en préproduction — AC1 est
+  mesurable tel qu'écrit ; TCK-585 (review) sert les photos en `.webp` sans Transformations et
+  ajoute `ConvertPhotoConversionsToWebpJob`, qui écrit puis filigrane dans le même job (fenêtre
+  plus courte, mais toujours nue au même chemin public).
+- Le pilote Cloudflare reste un bouchon (`docs/infra/cdn.md`) : toujours aucune purge.
+
+**Reste à faire** : l'ADR, l'implémentation de A (+ retrait de la trace), la règle de cache C,
+`WatermarkNeverPublicNakedTest`, AC1/AC2 mesurés en préproduction, couvrir le chemin de régénération WebP.
+
+**Décision attendue du porteur** : quelle piste — (a) A, filigrane dans la conversion (contourne
+une classe vendor), (b) B, conversions sur le privé puis publication, (c) C seule en défense
+d'appoint ? Recommandation du ticket : A + C.
 
 ## Objectif utilisateur
 
@@ -40,11 +60,12 @@ un job en file, et la conversion est écrite nue sur `conversions_disk` (public)
 ```
 PerformConversionAction : copyToMediaLibrary(conversion NUE → r2-media)   ← le fichier est public ici
   → markAsConversionGenerated → ConversionHasBeenCompletedEvent
-  → ApplyWatermarkOnConversionListener (file `media`) → ApplyWatermarkJob (file `media`)
+  → ApplyWatermarkOnConversionListener (synchrone, relevé 2026-11-16) → ApplyWatermarkJob (file `media`)
   → réécriture filigranée AU MÊME CHEMIN                                    ← et jusqu'ici
 ```
 
-La clé est `{media_id}/conversions/{nom}-{conversion}.jpg`. Pour un téléversement par la console,
+La clé est `{media_id}/conversions/{nom}-{conversion}.jpg` — `….webp` pour toute photo marquée
+`conversions_format` (TCK-585, toutes les photos de la préproduction depuis le 2026-10-05 ; relevé 2026-11-16). Pour un téléversement par la console,
 `PropertyMediaController::store` garde le nom de fichier du client (`IMG_1234.jpg`, `PXL_…`,
 `WhatsApp Image …`). L'identifiant est séquentiel. La clé se devine donc sans être triviale.
 
@@ -62,7 +83,7 @@ latence de file ni les entrées-sorties R2** : ce sont des planchers.
 | téléversement, `thumbnail` synchrone compris | 155 à 290 ms |
 | `PerformConversionsJob` (`preview` + `full`) | 330 à 360 ms |
 | `ApplyWatermarkJob` thumbnail / preview / full | 35-60 / 40-70 / 85-130 ms |
-| `CallQueuedListener` (le listener qui dépose le job) | ~10 ms |
+| `CallQueuedListener` (le listener qui dépose le job) — *périmé : le listener n'est plus en file (relevé 2026-11-16)* | ~10 ms |
 
 | Fenêtre « nue sur le public » | 1 photo | lot de 5 photos |
 |---|---|---|
@@ -88,7 +109,8 @@ latence de file ni les entrées-sorties R2** : ce sont des planchers.
 
 `RegenerateAgencyWatermarksJob` (changement de logo ou de réglage), qui met en file un
 `RegeneratePhotoConversionsJob` par photo, et `media:regenerate-property-conversions` réécrivent
-les conversions **nues au même chemin**, un
+les conversions **nues au même chemin** — tout comme `ConvertPhotoConversionsToWebpJob` (TCK-585),
+qui écrit puis filigrane dans le même job (relevé 2026-11-16) —, un
 chemin **déjà publié**. Ici, la clé n'a plus à être devinée : elle est
 connue de tous. Pour une agence de P photos, la fenêtre de la dernière photo est d'environ
 P × 0,5 s en local, soit ~7 min pour 800 photos, avant la latence R2.
@@ -109,7 +131,9 @@ conversions pas encore réécrites restent servies, filigranées, et le repli
 
 ### Ce qui n'a PAS pu être mesuré en préproduction, et pourquoi
 
-- **Le code mesuré ici n'est pas déployé.** `origin/preview` (`d9eedee0`, 2026-09-17) ne contient
+- ⚠ *Périmé (relevé 2026-11-16) : déployé en préproduction depuis TCK-541 (R2 servi par
+  `media-preview.takussan.com`, `worker-media`) ; la mesure AC1 est à faire.*
+  **Le code mesuré ici n'est pas déployé.** `origin/preview` (`d9eedee0`, 2026-09-17) ne contient
   ni `PublicPhotoUrl`, ni `version_urls` (`false`), ni les conversions en file. Les trois y sont
   `nonQueued()`, mais **le filigrane y est déjà en file** (`ApplyWatermarkOnConversionListener
   implements ShouldQueue`, file `media`). La fenêtre existe donc déjà en préproduction, sur
@@ -126,7 +150,7 @@ conversions pas encore réécrites restent servies, filigranées, et le repli
 ## Le vecteur aggravant : le cache de Cloudflare
 
 Sur R2 derrière le domaine public (`R2_MEDIA_URL`, domaine personnalisé servi par le cache de
-Cloudflare), l'objet porte `CacheControl: max-age=604800` (`config/media-library.php:290`).
+Cloudflare), l'objet porte `CacheControl: max-age=604800` (`config/media-library.php:310`).
 Cloudflare inclut par défaut la requête entière dans la clé de cache. **Non mesuré sur le seau
 de la préproduction**, faute d'objet connu : c'est à vérifier (AC 2).
 
@@ -140,7 +164,10 @@ de la préproduction**, faute d'objet connu : c'est à vérifier (AC 2).
    fenêtre, elle lit donc la version nue, même quand l'URL sans `?v=` est déjà en cache filigranée.
    Une règle qui porterait seulement sur l'URL sans `v` ne ferme pas ce chemin.
 3. **Transformations** (`/cdn-cgi/image/…/<chemin>?<requête>`, TCK-540) met aussi en cache la
-   variante dérivée de la version nue, sous sa propre clé.
+   variante dérivée de la version nue, sous sa propre clé. *(Relevé 2026-11-16 : depuis TCK-585,
+   le front n'émet plus de `/cdn-cgi/image/` pour une conversion de photo —
+   `takussan-web/src/lib/image-loader.ts:55-66` ; le vecteur reste ouvert pour une URL
+   `/cdn-cgi/image/…` forgée à la main, Transformations restant actif sur la zone.)*
 4. **Aucune purge n'existe pour ce domaine.** `MediaCdnObserver` ne purge que si
    `cdn.enabled`, ne purge que les URL que rend `getUrl()`, et son pilote Cloudflare est un
    bouchon (`docs/infra/cdn.md` : « stub only — not functional »).
@@ -215,7 +242,7 @@ C'est une décision structurelle sur le pipeline des médias : **un ADR avant l'
 ## Critères d'acceptation
 
 - [ ] AC1 — **La fenêtre est mesurée en préproduction, AVANT le correctif et APRÈS lui**, avec
-      TCK-541 déployé (R2, `worker-media`, file `media`). Protocole : une agence filigranée, un
+      TCK-541 déployé (R2, `worker-media`, file `media`) — condition remplie (relevé 2026-11-16). Protocole : une agence filigranée, un
       lot de 1 puis de 10 photos téléversées par la console. On sonde en boucle la clé de chaque
       conversion sur `R2_MEDIA_URL` avec une requête **inventée** à chaque essai (pour manquer le
       cache), et l'on note, par conversion, l'instant où l'objet apparaît et celui où ses octets

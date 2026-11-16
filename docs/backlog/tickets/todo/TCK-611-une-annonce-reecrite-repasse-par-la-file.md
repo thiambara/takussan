@@ -7,7 +7,7 @@ family: back
 estimate: S
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -20,6 +20,23 @@ tags: [back, moderation, annonce, adr-0043, decision-porteur]
 ---
 
 # TCK-611 — Une annonce réécrite repasse par la file
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai, bloqué sur la décision du porteur.** Le code n'a pas bougé sur ce point
+(`git log --grep=TCK-611` : rien ; aucun `PropertyRewriteModerationTest`) et ADR-0043 §5 n'est pas
+amendé (les amendements du 2026-10-23 et du 2026-11-15 portent sur les avis).
+
+- Chemin 1 : `archived` n'efface pas l'approbation (`PropertyObserver.php:37-41`) ; `carriesStandingApproval` (`:228-238`) ne lit que `approved_at` / `rejected_at`.
+- Chemin 2 : le `PATCH` ne détourne que le passage **à** `public` (`PropertyController.php:315-319`) ; `wasAlreadyOnline` (`:221-225`) ignore toujours `visibility`.
+- Fermé entre-temps, en appui : la notification des admins actifs au passage en `pending_review` existe (TCK-782, `af8c9cbdf`).
+
+Reste à faire : la décision ; ADR-0043 §5 amendé (si a/b) ; `PropertyObserver` (prédicat de réécriture,
+`wasAlreadyOnline` avec `visibility`) ; `PropertyRewriteModerationTest` (AC1-AC5) et ablations.
+
+**Décision attendue du porteur** : (1) qu'est-ce qu'une réécriture qui annule l'approbation — (a) tout
+champ affiché, (b) seule une réécriture hors ligne, (c) rien ? (2) « déjà en ligne » exige-t-il
+`visibility = public` — oui / non ?
 
 ## Objectif utilisateur
 
@@ -37,13 +54,17 @@ décision humaine (`FILE-D-ATTENTE.md`, points hors périmètre ; TCK-597, « Ho
 
 1. **Une approbation survit à une réécriture** (verif-597 passe 2). Bien approuvé, archivé,
    entièrement réécrit (`title`, `description`, `price`), republié : `status=available`,
-   `approved_at` posé, en ligne **sans** file. `carriesStandingApproval` (`:152-160`) ne regarde que
+   `approved_at` posé, en ligne **sans** file. `carriesStandingApproval` (`:228-238`) ne regarde que
    `approved_at` / `rejected_at`, jamais ce qui a changé depuis.
 2. **Un bien en ligne avant la modération, passé en privé, réécrit, repassé public** (verif-597
-   passe 3). `wasAlreadyOnline` (`:146-150`) = statut affichable **et** `published_at` : un
+   passe 3). `wasAlreadyOnline` (`:221-225`) = statut affichable **et** `published_at` : un
    `PUT /properties/{id}` qui rend le bien privé garde `published_at`, donc le retour en public n'est
    pas une activation (`status=available approved_at=null liste=OUI`). Passé par `archived`, le même
-   bien irait en file : les deux chemins se contredisent.
+   bien irait en file : les deux chemins se contredisent. (Depuis TCK-1431, P147.02, archiver écrit
+   `published_at = null` — `app/Services/Property/PropertyPublication.php:38-46` — d'où la file
+   au retour d'`archived` et pas au retour de `private`.)
+
+**Re-mesuré le 2026-11-16 sur `9112194ec` : inchangé.**
 
 ## Décision du porteur
 
@@ -76,7 +97,9 @@ décision humaine (`FILE-D-ATTENTE.md`, points hors périmètre ; TCK-597, « Ho
 - [ ] ADR-0043 §5 amendé.
 - [ ] `PropertyObserver` : `wasAlreadyOnline` (décision 2) ; détection de la réécriture et effacement
       de l'approbation (décision 1).
-- [ ] Notification au modérateur de l'agence : réutiliser le code de mise en file existant.
+- [ ] Notification au modérateur de l'agence : réutiliser le code de mise en file existant — la
+      notification des admins actifs au passage en `pending_review` existe (TCK-782, `af8c9cbdf`) et
+      part d'elle-même si le bien entre en `pending_review`.
 - [ ] Tests : `PropertyRewriteModerationTest`.
 
 ## Critères d'acceptation

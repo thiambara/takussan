@@ -7,7 +7,7 @@ family: bug
 estimate: M
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -21,6 +21,24 @@ tags: [back, securite, notifications, e-mail, markdown, hameconnage, public, gar
 ---
 
 # TCK-605 — Une saisie reste du texte dans tous les e-mails
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai.** Aucun commit ne cite TCK-605 hors sa création (a7bf71cef) ; TCK-2704 et
+TCK-2633 (done) le citent comme « ligne à suivre » sans le fermer. Les deux contact-lead restent
+anonymes (`routes/api/public.php:176`, `:235`), `NotificationRenderer` n'échappe toujours rien.
+
+- Fermé entre-temps (sans fermer le défaut) : `ConversationInviteNotification` supprimée (2f853f3b7,
+  TCK-861 → code `message.group_invite`) et `NewBookingNotification` supprimée (5f98fcf0c → codes
+  `booking.*`, gabarit éditable `booking_confirmed`). Les deux passent désormais par
+  `CodedNotification` + `NotificationRenderer` : le correctif s'y **concentre**.
+- Reste à faire :
+  - échapper les paramètres `PARAM_TEXT` sur `mail_body` dans `NotificationRenderer` (`format`,
+    `reasonCode`, `templateData`), jamais sur `mail_subject` / SMS / cloche ;
+  - `MarkdownText::escape` à la source dans les 8 classes hors code de l'inventaire ;
+  - `SaisieDansTousLesEmailsTest` (parcours de `NotificationCode::cases()` + réflexion sur
+    `app/Notifications` et `app/Mail`, exemptions motivées) et ablations.
+- Aucune décision du porteur attendue.
 
 ## Objectif utilisateur
 
@@ -44,17 +62,17 @@ première mise en production (TCK-288).
 
 **Re-mesure sur `839be671` (2026-10-08).** Le chemin tient tel que verif-599 l'a décrit :
 
-- `routes/api/public.php:161` et `:216` — les deux `contact-lead`, sans `auth`.
-- `ContactLeadService::notifyReceived` (`app/Services/Lead/ContactLeadService.php:355-360`) passe
+- `routes/api/public.php:176` et `:235` *(relevé 2026-11-16 ; `:161` et `:216` le 2026-10-08)* — les deux `contact-lead`, sans `auth`.
+- `ContactLeadService::notifyReceived` (`app/Services/Lead/ContactLeadService.php:576-583`, relevé 2026-11-16) passe
   `name` et `message` bruts à `NotificationCode::LeadReceived`.
-- `CodedNotification::toMail` (`app/Notifications/CodedNotification.php:144-160`) découpe
+- `CodedNotification::toMail` (`app/Notifications/CodedNotification.php:251-267`, relevé 2026-11-16) découpe
   `render('mail_body')` et passe chaque ligne à `->line()`, rendu en Markdown, **sans échappement**.
-- `NotificationRenderer::format` (`app/Services/Notifications/NotificationRenderer.php:94`) rend un
-  paramètre texte tel quel pour **toutes** les surfaces ; `reasonCode` (`:155`) y recolle le motif
-  libre ; `templateData` (`:234`) le donne aussi aux gabarits éditables du super-admin.
+- `NotificationRenderer::format` (`app/Services/Notifications/NotificationRenderer.php`, l.85 au 2026-11-16) rend un
+  paramètre texte tel quel pour **toutes** les surfaces ; `reasonCode` (l.197) y recolle le motif
+  libre ; `templateData` (l.396) le donne aussi aux gabarits éditables du super-admin.
 - `MarkdownText::escape` n'est appelé que par `FavoriteChangesNotification` et
-  `SavedSearchMatchesNotification` (et les deux gabarits de résumé). **37** classes de
-  `app/Notifications` ont un `toMail` ; les 35 autres n'échappent rien.
+  `SavedSearchMatchesNotification` (et les deux gabarits de résumé). **36** classes de
+  `app/Notifications` ont un `toMail` (37 le 2026-10-08) ; les 34 autres n'échappent rien.
 
 **Inventaire des chemins atteignables** (verif-599 passe 3, lecture de code, plus la re-mesure) :
 
@@ -63,8 +81,8 @@ première mise en production (TCK-288).
 | `lead.received` (`CodedNotification`) | nom, message | **visiteur anonyme** |
 | `message.received` (`CodedNotification`) | nom de l'expéditeur, extrait | compte créé par soi-même |
 | `AgencyUpgradeRequestSubmittedNotification` | nom d'agence, prénom, nom | compte créé par soi-même → personnel plateforme |
-| `ConversationInviteNotification` | sujet, invitant | créateur d'un groupe |
-| `NewBookingNotification` | titre du bien (gabarit éditable `booking_confirmed`) | annonceur |
+| `message.group_invite` (`CodedNotification`) — ex-`ConversationInviteNotification`, supprimée par 2f853f3b7 (TCK-861) | sujet, invitant | créateur d'un groupe |
+| `booking.created` / `booking.confirmed` (`CodedNotification`, gabarit éditable `booking_confirmed`) — ex-`NewBookingNotification`, supprimée par 5f98fcf0c | titre du bien | annonceur |
 | `BookingExpiredNotification` | titre du bien | annonceur |
 | `TaskDueReminderNotification` | titre de la tâche | personnel d'agence |
 | `UrgentMaintenanceCreatedNotification` | titre de la demande | locataire actif |
@@ -108,7 +126,8 @@ d'y échapper.
       `PropertyRejectedNotification` en héritent sans autre changement.
 - [ ] Les classes hors code de l'inventaire : `MarkdownText::escape` sur chaque saisie passée au
       corps (`->line()`, `->greeting()`, paramètres de `__()` rendus dans le corps).
-      `NewBookingNotification` : les variables du gabarit éditable rendues dans le corps.
+      ~~`NewBookingNotification` : les variables du gabarit éditable rendues dans le corps.~~ — caduc
+      depuis 5f98fcf0c : `templateData` (premier Delta) couvre `booking_confirmed`.
 - [ ] `app/Mail/*` : relu ; `InvitationMailable` ne rend aujourd'hui que des libellés (le rôle) et
       les deux résumés échappent déjà (599) — la garde d'AC4 les couvre quand même.
 - [ ] Tests : `tests/Feature/Notifications/SaisieDansTousLesEmailsTest` (AC1 à AC5).
@@ -139,8 +158,10 @@ La charge utile de référence, notée `P` : `[Payez ici](https://evil.example/l
       dans une table d'exemption **avec sa raison** (« aucune saisie : libellés et références
       générés »). Une classe absente des deux rougit le test, avec son nom. *Une notification
       ajoutée sans échappement ne peut pas passer en silence.*
-- [ ] **AC5 (chaque cas de l'inventaire mord).** Les 12 classes du tableau du Contexte ont leur cas
-      dans le jeu de données d'AC4. Ablation, consignée dans les Notes : retirer
+- [ ] **AC5 (chaque cas de l'inventaire mord).** Les 8 classes hors code du tableau du Contexte
+      ont leur cas dans le jeu de données d'AC4 ; les codes du tableau (dont `message.group_invite`
+      et `booking.confirmed`, ex-classes) sont couverts par AC2 *(« les 12 classes » jusqu'au
+      2026-11-16)*. Ablation, consignée dans les Notes : retirer
       l'échappement de `NotificationRenderer` rougit AC1 et AC2 ; le retirer de chacune des
       classes hors code rougit **son** cas. Une ablation verte est un test à resserrer, pas un
       constat.

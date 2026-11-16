@@ -7,7 +7,7 @@ family: back
 estimate: M
 wave: 69
 created: 2026-09-24
-updated: 2026-09-24
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -16,6 +16,27 @@ spec_refs:
   models: []
 tags: [back, recherche, meilisearch, console, adr-requise]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai.** Aucun commit de code ne cite ce ticket ; TCK-662, TCK-591 et TCK-600
+(done) le renvoient tous ici comme non traité. Aucun ADR ne tranche l'index de la console.
+
+- `Property::shouldBeSearchable()` (`app/Models/Property.php:644-654`) n'indexe toujours que les
+  biens publics — et exige en plus, depuis TCK-600/ADR-0048, une agence publique (`agencyIsPublic()`).
+- `filter[search]` d'un modèle `Searchable` ne passe que par Meilisearch
+  (`app/Models/Concerns/HasQueryBuilder.php:255-272`) ; la garde
+  `scripts/check-filtering-single-mechanism.mjs` refuse un second chemin : la voie « repli SQL »
+  devra l'amender.
+- AC4 non tenu : `reference_number` est le **dernier** des `searchableAttributes`
+  (`config/scout.php:184-186`), sans court-circuit SQL ni réglage de tolérance aux fautes.
+
+**Reste à faire** : l'ADR, l'implémentation, le test d'isolation inter-agences et celui du filtre
+public, la référence exacte en tête. Les chiffres 196 / 4 sont à re-mesurer à l'implémentation.
+
+**Décision attendue du porteur** : quelle voie — (a) tout indexer + filtres, (b) deux index,
+(c) repli SQL pour la console (précédent : la console plateforme de TCK-600) ? À trancher avec
+TCK-2457 (prédicat d'indexation) et TCK-345 (moteur), qui recoupent.
 
 ## Objectif utilisateur
 
@@ -34,8 +55,10 @@ Relevé par la vérification adverse de TCK-576 (bien 145, privé), **re-mesuré
 | `GET /api/properties?filter[status]=draft` | 4 | oui |
 
 La cause est un choix, pas un oubli : `Property::shouldBeSearchable()` n'indexe que les biens
-publics hors `draft`, `pending_review` et `rejected` — l'index sert d'abord la recherche publique.
-Or `filter[search]` de la console passe par le même index (`HasQueryBuilder`, TCK-281) : tout ce
+publics hors `draft`, `pending_review` et `rejected`, **et dont l'agence est publique
+(`agencyIsPublic()`, TCK-600/ADR-0048 — relevé 2026-11-16)** — l'index sert d'abord la recherche publique.
+Or `filter[search]` de la console passe par le même index (`HasQueryBuilder`, TCK-281 —
+`app/Models/Concerns/HasQueryBuilder.php`, l.230-272) : tout ce
 qui n'y est pas est introuvable par la recherche, **en silence**. Les 196 réponses à une référence
 exacte montrent l'autre face : la tolérance aux fautes, voulue pour le public, noie une recherche
 par référence.
@@ -62,4 +85,6 @@ Deux voies, toutes deux **structurelles** — le `CLAUDE.md` racine exige un ADR
 
 ## Hors périmètre
 
-- Les consoles super-admin, qui ont leur propre `LIKE` SQL (TCK-281).
+- Les consoles super-admin, qui ont leur propre `LIKE` SQL (TCK-281). La console plateforme
+  (TCK-600) cherche déjà « par la base, jamais l'index public » : la voie « repli SQL pour la
+  console » a donc un précédent dans le dépôt (relevé 2026-11-16).

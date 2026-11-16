@@ -7,7 +7,7 @@ family: back
 estimate: M
 wave: 80
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-16
 depends_on: [TCK-2392, TCK-2393]
 blocks: []
 spec_refs:
@@ -16,6 +16,23 @@ spec_refs:
   models: []
 tags: [api, radar, observatoire, confidentialite, adr-0077, adr-0080]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai, bloqué par un avis juridique externe** (et par le « plus tard » du porteur).
+Rien n'a été livré : aucune table d'agrégats de marché dans `database/migrations/` (seule
+`radar_nature_counts`, TCK-2431) ; `RadarObservatory.php:23` et `RadarListingSnapshot.php:17` renvoient
+encore à « des compteurs anonymes agrégés (TCK-2434) » ; `config/radar.php:254-255` garde
+`nature_counts.enabled` = `env('RADAR_NATURE_COUNTS', false)` ; `privacy.ts:143` ne décrit que la
+rétention de 90 jours. Dépendances TCK-2392, TCK-2393, TCK-2431 : `done`.
+
+La consigne du 2026-10-31 (rédiger les textes juridiques sans attendre l'avocat) **ne s'applique pas
+ici** : ce n'est pas un texte qui manque, c'est une **qualification**.
+
+**Condition exacte qui débloque** : l'avis (avocat ou CDP) sur l'anonymat des agrégats, la valeur de k
+et le remède à la différence entre deux périodes (grain, arrondi ou bruit). Le même avis dit si
+`RADAR_NATURE_COUNTS` peut être allumé. Puis : table alimentée avant purge, seuil k, remède retenu,
+lecture par l'observatoire.
 
 ## Décision du porteur (2026-10-30)
 

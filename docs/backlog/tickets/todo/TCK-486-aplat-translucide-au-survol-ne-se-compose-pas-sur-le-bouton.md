@@ -7,7 +7,7 @@ family: front
 estimate: S
 wave: 54
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-11-16
 depends_on: [TCK-481]
 blocks: []
 spec_refs:
@@ -15,6 +15,25 @@ spec_refs:
     - docs/features.md
 tags: [front, design-system, accessibilite, contraste, dette]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : caduc probable** — le cas que le ticket prévoyait (« s'il tient le seuil, il se ferme en
+disant pourquoi »). L'occurrence de `CalendarPage.tsx` a disparu avec la refonte de l'agenda
+(0ca317bc8 / 436853053). Celle de `BrandingBanner` a déménagé en
+`components/agency/BrandingBanner.tsx:46`, dans un bandeau `bg-warning/10`, rendu en clair seulement.
+
+⚠ **Ce verdict est DÉDUIT de l'ordre des classes Tailwind, pas mesuré au navigateur.** La classe est un
+gabarit, pas `cn()` : `twMerge` ne retire rien de la variante `outline` (`ui/button.tsx:43`,
+`hover:bg-muted hover:text-foreground`). Les deux `hover:bg-*` coexistent, mais `hover:text-foreground`
+n'a pas de concurrent : Tailwind v4 émet les utilitaires à variante après ceux de base, donc l'encre
+survolée serait `--foreground`, à **11,93 à 14,87:1** selon le fond qui gagne. Les **4,26 / 4,41:1**
+(clair) ne valent que si l'encre restait `text-warning` sur l'aplat translucide.
+
+**Geste qui rendrait le verdict certain** : au navigateur, survoler le bouton du bandeau (accueil
+`/app`, agence sans logo) et lire `getComputedStyle(…).color` et `backgroundColor`. Si l'encre est
+`--foreground`, fermer en `obsolete` avec ces ratios. Au passage (remarque, pas un reste) : passer la
+chaîne par `cn()` rendrait le survol déterministe.
 
 ## Objectif utilisateur
 
@@ -24,7 +43,9 @@ l'utilisateur s'apprête à cliquer.
 ## Le défaut, et le raisonnement faux qui le produit
 
 `takussan-web/src/components/calendar/CalendarPage.tsx:280` et
-`takussan-web/src/components/ui/BrandingBanner.tsx:46` posent un survol translucide
+`takussan-web/src/components/ui/BrandingBanner.tsx:46` *(2026-11-16 : seule reste
+`takussan-web/src/components/agency/BrandingBanner.tsx:46` ; l'occurrence de CalendarPage a disparu
+avec la refonte de l'agenda)* posent un survol translucide
 (`hover:bg-<jeton>/15`) sur un bouton dont le fond au repos est opaque.
 
 **L'intuition dit que l'aplat se compose sur le fond du bouton. Elle est fausse :
@@ -45,13 +66,22 @@ sortant de son périmètre, sur la foi de la forme, pas d'un calcul. Le ticket c
 la mesure — et si elles tiennent le seuil, il se ferme en disant pourquoi, ce qui vaut mieux que
 de le supposer.
 
+*Relevés par calcul le 2026-11-16 (`scripts/lib/contraste.mjs`) : repos `text-warning` sur `--card`
+6,26:1. Au survol, l'encre déduite est `--foreground` (classe `hover:text-foreground` de la variante
+`outline`) : 11,93 à 14,87:1. Dans l'hypothèse d'une encre `text-warning` sur `warning/15` composé sur
+le bandeau : 4,26 (page `--background`) / 4,41 (page `--card`). Le bandeau n'est sous aucune portée
+`.dark` : seul le clair est rendu. Les formes voisines `accueil/pieces.tsx:143` et
+`accueil/admin/AFaireAdmin.tsx:423` (`text-destructive hover:bg-destructive/6`) : 5,91 / 6,23:1,
+conformes.*
+
 ## Contrat de données
 
 Aucun.
 
 ## Delta à produire
 
-- [ ] Mesurer les deux occurrences, dans les deux thèmes, sur leur fond RÉEL.
+- [ ] Mesurer les deux occurrences, dans les deux thèmes, sur leur fond RÉEL. *(2026-11-16 : une
+      seule occurrence ; calculée, non mesurée au navigateur ; le clair seul est rendu.)*
 - [ ] Corriger celles qui sont sous le seuil — la forme retenue par TCK-481 est un survol
       **opaque** (`hover:bg-secondary`), et son commentaire porte la raison.
 - [ ] Chercher la forme ailleurs : le relevé de TCK-481 en a nommé deux, mais il cherchait

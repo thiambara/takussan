@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 76
 created: 2026-10-08
-updated: 2026-10-18
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -21,6 +21,25 @@ tags: [back, front, paiement, echeance, paiement-partiel, doublon, remboursement
 ---
 
 # TCK-608 — La part versée et le doublon à rembourser
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : partiellement fermé.** Aucun commit ne cite TCK-608.
+
+- **Fermé** : point 3 (cast SQL) par TCK-2721 (`8bc7c4db4`, `2011ea9af`) — `OWED_REMAINING_SQL`
+  lit `paid_amount` par un fragment tolérant, borné à ≥ 0 (`PaidAmountTolerantReadTest`) → AC3 tenu.
+- **Changé de nature** : point 1 — plus **aucune** voie ne crée de `partially_paid` (bail : pas de
+  `status` ; réservation : retiré par TCK-1918, `87544a65a`, décision du porteur). Elle ne vit plus que
+  sur des lignes héritées ; le point 4 (« 1 impayé à 0 F ») reste vrai mais inerte.
+- **En partie** : point 6 — TCK-871 pose `refunded_at` sur le doublon remboursé **par webhook du
+  fournisseur** (`PaymentGatewayService.php:1570-1586`), mais `isRefundPending` ne le lit pas et aucun
+  geste manuel n'existe.
+- **Reste** : `markPaid` accepte `partially_paid` (lignes héritées) ; `isRefundPending` sur tout doublon
+  hors `late_fee` sans `refunded_at` + `late_fee_refund_pending` + geste « Doublon remboursé » ; filtre
+  `reste > 0` (FinanceSummary, AgingBalance, PortfolioMetrics, relances) ; page de retour front.
+- **Décision attendue du porteur** : versement partiel sur une échéance de **bail** — **(a)** geste
+  « Enregistrer un versement », ou **(b)** aligné sur TCK-1918 (aucune part ; `mark-paid` solde les
+  `partially_paid` héritées, ticket ramené à S) ?
 
 ## Objectif utilisateur
 
@@ -46,21 +65,26 @@ lecteurs. Mais rien n'écrit la part versée : la règle est juste et inerte.
    *(2026-10-18 : `PaymentStoreRequest` est retiré avec `POST /api/payments` par TCK-940 ; la voie
    imbriquée, `StoreLeasePaymentRequest`, ne reçoit pas de `status`. Ce point est à re-mesurer
    avant d'implémenter : il ne reste peut-être aucune voie qui crée une `partially_paid`.)*
+   *(2026-11-16 : re-mesuré — **aucune**. Bail : pas de `status` ; réservation :
+   `StoreBookingPaymentRequest.php:78-81` limite `status` à `Paid|Pending` depuis TCK-1918, décision
+   du porteur « une part reçue est une ligne `paid` de son montant ».)*
 2. **Une `partially_paid` ne se solde pas.** `LeasePaymentService::markPaid`
-   (`app/Services/Model/LeasePaymentService.php:60-64`) n'accepte que `pending` et `late` → 422
+   (`app/Services/Model/LeasePaymentService.php:66-71`) n'accepte que `pending` et `late` → 422
    `lease_payment.cannot_mark_paid` (règle de 93b4c90c, 2026-04-17). Une échéance créée
    `partially_paid` reste due pour toujours.
 3. **Une part non numérique fait tomber les tableaux de bord.** `CollectedPayments::OWED_REMAINING_SQL`
-   (`app/Services/Dashboard/CollectedPayments.php:47`) caste `(metadata->>'paid_amount')::numeric` :
+   (`app/Services/Dashboard/CollectedPayments.php:66`) caste `(metadata->>'paid_amount')::numeric` :
    une valeur `""`, `"abc"`, `true` ou un objet, écrite hors du modèle, rend **500 (22P02)** sur le
    tableau de bord de l'agence, la balance âgée et la tuile locataire (verif-595 passe 3, harnais `q8`).
-   Le modèle la refuse (`HasPaymentAttributes.php:116-122`) ; une écriture brute non. Une valeur
-   négative brute ne donne pas non plus le résultat de l'accesseur.
+   Le modèle la refuse (`HasPaymentAttributes.php:118-124`) ; une écriture brute non. Une valeur
+   négative brute ne donne pas non plus le résultat de l'accesseur. — **fermé par TCK-2721**
+   (`8bc7c4db4`, `2011ea9af`) : fragment tolérant, borné à ≥ 0, parité épinglée par
+   `PaidAmountTolerantReadTest` (écart assumé : tableau JSON non vide, 1 en PHP, 0 en SQL).
 4. **« 1 impayé à 0 F ».** Une `partially_paid` entièrement versée compte encore comme un impayé de
    0 F sur tous les lecteurs, relances comprises (`q9` : 2 / 0).
 5. **m-p — `refund_pending` ne voit que la transaction vérifiée.** `PaymentGatewayController::isRefundPending`
-   (`app/Http/Controllers/Api/PaymentGatewayController.php:98-107`) exige que le doublon soit inscrit
-   sous **la transaction que `verify` interroge**, et une réponse du fournisseur (`:65`). Trois chemins
+   (`app/Http/Controllers/Api/PaymentGatewayController.php:170-179`) exige que le doublon soit inscrit
+   sous **la transaction que `verify` interroge**, et une réponse du fournisseur (`:67`). Trois chemins
    réels rendent `false` sur une échéance annulée dont le locataire **a été débité** : N2 (deux
    checkouts, le plus ancien payé), N3 (intégration désactivée après le webhook, statut `null`), N4
    (Lemon Squeezy : doublon inscrit sous l'id de commande, `verify` interroge le checkout — le drapeau
@@ -68,11 +92,16 @@ lecteurs. Mais rien n'écrit la part versée : la règle est juste et inerte.
    rend 409.
 6. **Le drapeau ne retombe jamais.** `gateway_duplicate_payment` n'a pas de marque « remboursé » :
    une fois l'agence passée au remboursement, `verify` annonce encore « remboursement à venir ».
+   *(2026-11-16 : TCK-871 pose déjà `refunded_at` sur l'entrée remboursée par webhook du
+   fournisseur, `PaymentGatewayService.php:1570-1586` ; `isRefundPending` ne la lit pas.)*
 7. **Part pénalité.** Un règlement qui solde le loyer après que la pénalité a été réglée à l'agence
    inscrit la part pénalité en doublon (`kind: late_fee`), exclue du drapeau : la page dit « Paiement
    confirmé » sans annoncer le remboursement partiel.
 
 ## Décision du porteur
+
+> *2026-11-16* : TCK-1918 a tranché (b) **pour les réservations**. La question se pose désormais
+> pour les échéances de bail : suivre TCK-1918 (b), ou ouvrir (a) ?
 
 **Le personnel enregistre-t-il un versement partiel ?**
 
@@ -112,8 +141,12 @@ reste hors de la plateforme (aucun reversement automatique).
 - [ ] `LeasePaymentService::markPaid` : `partially_paid` accepté, soldé au reste dû.
 - [ ] `CollectedPayments::OWED_REMAINING_SQL` (et tout lecteur SQL de `paid_amount` :
       `grep -rn "paid_amount')::numeric" app`) : contrainte 3 ; filtre `reste > 0` (contrainte 4).
+      — contrainte 3 tenue par TCK-2721 (relevé 2026-11-16) ; reste le filtre `reste > 0` sur
+      `FinanceSummaryService`, `AgingBalanceService`, `PortfolioMetrics` (tous via
+      `CollectedPayments::leaseOwed()`) et les relances.
 - [ ] `PaymentGatewayController::isRefundPending` : contrainte 5 ; champ `late_fee_refund_pending`.
-- [ ] `POST /api/lease-payments/{payment}/duplicate-refunded` : marque les doublons `refunded_at`,
+- [ ] `POST /api/lease-payments/{payment}/duplicate-refunded` : marque les doublons `refunded_at`
+      (la clé que TCK-871 pose déjà pour un remboursement du fournisseur — `isRefundPending` la lit),
       journal `activity('LeasePayment')` ; même autorisation que le remboursement d'une réservation
       (famille « argent qui sort », 2FA d'agence).
 - [ ] Front : geste « Enregistrer un versement » et reste dû sur l'échéance ; page de retour de
@@ -130,9 +163,9 @@ reste hors de la plateforme (aucun reversement automatique).
       le reste de 60 000 → 422.
 - [ ] **AC2 (rouge sur `839be671`).** `mark-paid` sur une `partially_paid` → 200 `paid` (aujourd'hui
       422 `lease_payment.cannot_mark_paid`).
-- [ ] **AC3 (rouge sur `839be671`).** Écriture brute de `paid_amount` = `"abc"`, `""`, `true`, `{}` puis
+- [x] **AC3 (rouge sur `839be671`).** Écriture brute de `paid_amount` = `"abc"`, `""`, `true`, `{}` puis
       `-5` : `GET /api/dashboard/agency`, la balance âgée et `GET /api/dashboard/tenant` rendent 200,
-      et le reste dû de la ligne vaut celui de l'accesseur.
+      et le reste dû de la ligne vaut celui de l'accesseur. (tenu par TCK-2721, relevé 2026-11-16)
 - [ ] **AC4.** Une `partially_paid` entièrement versée n'apparaît dans aucun compte d'impayés ni de
       relances.
 - [ ] **AC5 (m-p, rouge sur `839be671`).** Rejeu de N2, N3 et N4 (verif-596 passe 9) :

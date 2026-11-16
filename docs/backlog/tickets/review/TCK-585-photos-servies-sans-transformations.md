@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 67
 created: 2026-10-04
-updated: 2026-10-05
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -17,6 +17,22 @@ spec_refs:
     - docs/models-spec.md#spatielaravel-medialibrary
 tags: [back, front, media, image, cloudflare, cout, adr]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : partiellement fermé — tout le code est livré et la préproduction basculée ; le seul
+reste est un relevé d'exploitation, zéro ligne de code.** Code présent sur `dev`
+(`PhotoConversionFormat`, `Property.php:1341-1346`, `ConvertPhotoConversionsToWebpJob`,
+`image-loader.ts:55-66`) ; amendement d'ADR-0029 en place ; commits `d4839f2f3`, `fcf6f069b`,
+`c428d56bd`. AC1 à AC6 relevés le 2026-10-05.
+
+**Seul reste — AC7** : le nombre de transformations uniques sur 30 jours, lu au tableau de bord
+Cloudflare de la préproduction (Images → Transformations), relevable depuis le 2026-11-04, à
+consigner daté dans `docs/infra/hebergement.md` ou l'amendement. Aucun relevé n'y figure à ce jour.
+
+**Action attendue du porteur** (accès au tableau de bord) : le tableau de bord garde-t-il
+l'historique d'octobre — (a) oui : relever avant et après, (b) non : relever l'après seul et noter
+l'avant « non relevé, définitivement » ? Puis cocher AC7 et les deux relevés, et passer en `done`.
 
 ## Objectif utilisateur
 
@@ -68,8 +84,8 @@ la phase F). Le premier geste du ticket est de la lire au tableau de bord.
    déployé, toute photo dont la conversion est encore un `.jpg` produirait donc une URL `.webp`
    inexistante. L'ordre de la bascule (régénération, puis suppression des `.jpg`) se décide dans
    l'amendement de l'ADR et se vérifie en préproduction.
-4. **Le reste du chemin ne change pas.** Sans `NEXT_PUBLIC_MEDIA_URL` (production Vercel jusqu'à
-   la phase F, `next dev`), l'optimiseur de Next reste en place. Les images qui ne sont pas des
+4. **Le reste du chemin ne change pas.** Sans `NEXT_PUBLIC_MEDIA_URL` (~~production Vercel jusqu'à
+   la phase F,~~ `next dev` — Vercel a été supprimé le 2026-10-15, relevé 2026-11-16), l'optimiseur de Next reste en place. Les images qui ne sont pas des
    conversions de photos (avatars, logos d'agence, `plans`) gardent Transformations.
 
 ## Delta à produire
@@ -138,7 +154,8 @@ Le code est sur `dev` depuis la PR #318 (2026-10-04), et sa correction depuis la
 préproduction est basculée (2026-10-05, voir « Relevés en préproduction »). Il ne reste que la
 moitié d'AC7 : le compte de transformations sur 30 jours, avant et après, se lit au tableau de bord
 Cloudflare, hors de portée de la session qui a implémenté. Et ce compte ne baisse qu'en fenêtre
-glissante : il se relève au plus tôt le 2026-11-04.
+glissante : il se relève au plus tôt le 2026-11-04. — *Relevé 2026-11-16 : relevable depuis le
+2026-11-04 ; à relever au tableau de bord (accès porteur).*
 
 ## Notes d'implémentation
 
@@ -190,6 +207,8 @@ glissante : il se relève au plus tôt le 2026-11-04.
   sur 30 jours d'AC7 (voir « Reste sur dev »). Les poids d'AC7 sont relevés.
 - **Constat hors périmètre** : sur la préproduction, la `thumbnail` d'une source de 800 × 600 mesure
   400 × 300, pas 300 × 300 (`width(300)->height(300)`). Mesuré, pas expliqué ; non touché.
+  *(Relevé 2026-11-16 : `Property.php:1323` est toujours `width(300)->height(300)` sans `fit` ;
+  toujours non traité, et sans ticket.)*
 
 ## Relevés en préproduction — 2026-10-05
 

@@ -1,13 +1,13 @@
 ---
 id: TCK-615
-title: "Alertes de recherche : un e-mail parti ne repart pas, le premier envoi ne vend pas l'historique comme nouveau, le job tient sous plusieurs workers, et un tiers n'épuise pas l'abonnement d'un contact (suites de TCK-599)"
+title: "Alertes de recherche : un e-mail parti ne repart pas, le premier envoi ne vend pas l'historique comme nouveau, et un tiers n'épuise pas l'abonnement d'un contact (suites de TCK-599)"
 status: todo
 phase: P2
 family: back
 estimate: M
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -21,6 +21,26 @@ tags: [back, alertes, recherche, favoris, file, idempotence, rate-limit, adr-005
 ---
 
 # TCK-615 — Un e-mail d'alerte parti ne repart pas
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : partiellement fermé, le reste bloqué sur les trois décisions du porteur.**
+`git log --grep=TCK-615` → vide.
+
+- Fermé entre-temps : le point 3 (`$timeout` 1800 contre `retry_after` 90) par **TCK-2397**
+  (0252e92ae, ADR-0078) — les deux jobs appellent `onLongQueue()` → connexion `database-long`
+  (`retry_after` 1900), servie par `worker-long` ; `scripts/check-queues.mjs` compare chaque
+  `$timeout` au `retry_after` de sa connexion (AC3). Nuance : sous `QUEUE_CONNECTION=redis`,
+  `RunsOnLongQueue` garde la connexion par défaut (90 s) ; préproduction et production sont en
+  `database`.
+- Toujours vrai : points 1 (réservation rendue sur tout `Throwable`), 2 (`last_notified_at` nul à
+  la création), 4 (borne de 5 demandes ouvertes, confirmées ou non), 5 (`DB::listen` seul).
+- Reste à faire : amender ADR-0050 (§6, §15 — dont sa fin, périmée depuis ADR-0078 —, borne par
+  contact) ; garder la réservation dès qu'un canal sortant est parti ; poser `last_notified_at` ;
+  borne sur les seules demandes confirmées ; `Cache::spy()` dans la garde d'oracle.
+- **Décisions attendues du porteur** : (1) après un e-mail parti, perdre la cloche (recommandé) ou
+  répéter l'e-mail ? (2) le premier envoi annonce-t-il l'historique — non (recommandé) / oui ?
+  (3) déni d'abonnement : éviction de la plus ancienne demande non confirmée (recommandé) / statu quo ?
 
 ## Objectif utilisateur
 
@@ -39,16 +59,17 @@ qui les a prises réversibles.
 **Re-mesure sur `839be671` (2026-10-08)** :
 
 1. **Un échec après l'e-mail fait repartir l'e-mail.** `SendSavedSearchAlerts` réserve la fenêtre
-   (`deplacer`, `app/Jobs/SendSavedSearchAlerts.php:136-139`), puis `notify()` ; **tout** `Throwable`
-   rend la réservation (`:141-146`), y compris quand l'e-mail est déjà parti et que la cloche, partie
-   en dernier, échoue. Même forme dans `SendFavoriteChangeAlerts.php:159-172`. verif-599 passe 3 l'a
+   (`deplacer`, `app/Jobs/SendSavedSearchAlerts.php:136-139` ; `:183-186` au 2026-11-16), puis
+   `notify()` ; **tout** `Throwable` rend la réservation (`:141-146` ; `:188-194` au 2026-11-16), y compris quand l'e-mail est déjà parti et que la cloche, partie
+   en dernier, échoue. Même forme dans `SendFavoriteChangeAlerts.php:159-172` (`:155-176` au 2026-11-16). verif-599 passe 3 l'a
    mesuré avec m12 (cloche en échec : `mails=3 cloches=0` sur trois passages) ; m12 est fermé par la
    borne `max:100`, la cause générale non. ADR-0050 décision 15 l'assume : « plutôt renvoyer que
    perdre ».
 2. **Le premier passage n'a pas de borne basse.** `getMatchingProperties($search, $search->last_notified_at, $borne)`
-   (`:124-128`) avec `last_notified_at` nul à la création : la première alerte annonce « N **nouveaux**
+   (`:124-128` ; `:169-173` au 2026-11-16) avec `last_notified_at` nul à la création : la première alerte annonce « N **nouveaux**
    biens » pour tout l'historique (ADR-0050 décision 6, verif-599 observation 1).
-3. **`$timeout = 1800` contre `retry_after = 90`.** `SendSavedSearchAlerts.php:83`,
+3. *Fermé par TCK-2397 (ADR-0078) : les deux jobs passent par `database-long` (`retry_after` 1900 >
+   1800), servie par `worker-long`. Constat d'origine conservé :* **`$timeout = 1800` contre `retry_after = 90`.** `SendSavedSearchAlerts.php:83`,
    `SendFavoriteChangeAlerts.php:61` ; `config/queue.php:43` (`DB_QUEUE_RETRY_AFTER`, 90), même valeur
    pour Redis (`:71`). Laravel demande `retry_after > timeout` : un second worker re-réserve le job à
    90 s et, `$tries = 1`, le marque échoué (`MaxAttemptsExceeded`) pendant que le premier tourne. Pas
@@ -77,10 +98,11 @@ qui les a prises réversibles.
 
 ## Contraintes strictes (métier)
 
-1. ADR-0050 est amendé (décisions 6, 15, et la borne par contact) avant le code.
+1. ADR-0050 est amendé (décisions 6, 15, et la borne par contact) avant le code. L'amendement corrige
+   aussi la fin de §15 (l.221-225, « à régler le jour où l'on en ajoute »), périmée depuis ADR-0078.
 2. La réservation se rend **seulement** si aucun canal sortant n'est parti ; l'ordre des canaux de
    599 (cloche en dernier, m11) est gardé.
-3. Les deux jobs tiennent sous N workers : `retry_after` de leur connexion **strictement supérieur**
+3. *(tenu par TCK-2397, relevé 2026-11-16)* Les deux jobs tiennent sous N workers : `retry_after` de leur connexion **strictement supérieur**
    à leur `$timeout`, par une connexion ou une file dédiée (`alerts`), sans changer `retry_after` des
    autres jobs.
 4. Aucune réponse de l'API ne dépend de l'état du contact (pas d'oracle, TCK-599 m2) — ni par la base,
@@ -92,13 +114,14 @@ qui les a prises réversibles.
 - [ ] `SendSavedSearchAlerts`, `SendFavoriteChangeAlerts` : contrainte 2 (savoir quels canaux sont
       partis : envoi canal par canal, ou écouteur `NotificationSent`).
 - [ ] Création d'une recherche et confirmation d'un abonné : `last_notified_at` posé (décision 2).
-- [ ] `config/queue.php` : connexion ou file `alerts` à `retry_after` > 1800 ; les deux jobs y vont ;
+- [x] *(tenu par TCK-2397 : `database-long` + `worker-long`, relevé 2026-11-16)* `config/queue.php` : connexion ou file `alerts` à `retry_after` > 1800 ; les deux jobs y vont ;
       `routes/console.php` et le worker de `docker-compose` / Dokploy la consomment (documenté dans
       `docs/infra/hebergement.md`).
 - [ ] Borne par contact (décision 3).
 - [ ] Garde de la fuite temporelle : `Cache::spy()` (ou un magasin de cache qui journalise) en plus de
       `DB::listen`.
-- [ ] Tests : `AlertSendOnceTest`, `AlertFirstRunTest`, `AlertQueueRetryTest`, `AlertContactQuotaTest`.
+- [ ] Tests : `AlertSendOnceTest`, `AlertFirstRunTest`, ~~`AlertQueueRetryTest`~~ (caduc depuis TCK-2397 :
+      `scripts/check-queues.mjs` le garde), `AlertContactQuotaTest`.
 
 ## Critères d'acceptation
 
@@ -108,7 +131,8 @@ qui les a prises réversibles.
 - [ ] **AC2 (rouge sur `839be671`, si décision 2).** 30 biens publiés hier ; recherche créée
       aujourd'hui ; passage de demain : aucun e-mail. Un bien publié après la création : un e-mail,
       « 1 nouveau bien ».
-- [ ] **AC3.** `config('queue.connections.<connexion des alertes>.retry_after')` > `$timeout` de chaque
+- [x] **AC3.** *(tenu par TCK-2397 : `scripts/check-queues.mjs` résout le `$timeout` des classes et
+      le compare au `retry_after` de leur connexion, relevé 2026-11-16)* `config('queue.connections.<connexion des alertes>.retry_after')` > `$timeout` de chaque
       job d'alertes — test qui lit la configuration et les classes, pas une constante recopiée.
 - [ ] **AC4 (décision 3).** Cinq demandes non confirmées pour `cible@` depuis cinq IP ; le titulaire
       demande et confirme : son abonnement est actif ; la réponse HTTP est identique dans tous les cas.

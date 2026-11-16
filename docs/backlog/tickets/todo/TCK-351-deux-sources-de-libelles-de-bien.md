@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 45
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -17,6 +17,25 @@ spec_refs:
     - docs/models-spec.md#3-property
 tags: [back, front, i18n, contrat, dette]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai.** Les 44 divergences sont toujours là, exactement l'ensemble de
+`DIVERGENCES_CONNUES` (`property-labels.parity.test.ts:82-127`), répartition inchangée ;
+`status.fr.pending` vaut toujours « Réservé » côté API (`lang/fr/properties.php:38`) contre « En attente »
+côté front. Rien n'a été fermé entre-temps, sinon un alignement ponctuel (`published` = « Validé »,
+TCK-2638, c68e2f21c) et une **bascule de fait vers l'issue 1, sans arbitrage écrit** : la console
+`/app/properties/[id]` (`page.tsx:109-119`, `en-ligne/page.tsx:69-70`) traduit le code par le dictionnaire
+du front et ne garde `*_label` qu'en repli. ADR-0097 § 4 penche vers le front pour un seul libellé ;
+aucun ADR ne tranche les `*_label`.
+
+- Écrire l'arbitrage (AC1), puis trancher les 20 divergences fr/en une à une (`status.fr.pending` d'abord).
+- Reporter explicitement les 24 wolof vers TCK-342 (wolof en pause depuis le 2026-10-16).
+
+**Décision attendue du porteur :** (a) issue 1, le front gagne — l'API cesse d'émettre six `*_label`
+(consommateurs de la fiche publique, du comparateur et de la console à reprendre) ; (b) issue 2, l'API gagne ; (c) issue 3, deux tables tenues
+identiques par la garde. Et, pendant la pause wolof : AC3 réduit à la seule partie fr/en de
+`DIVERGENCES_CONNUES` — oui ou non ?
 
 ## Objectif utilisateur
 
@@ -30,12 +49,14 @@ divergent sur 44 valeurs.**
 
 | | Source | Qui la rend |
 |---|---|---|
-| A | `takussan-api/lang/{fr,en,wo}/properties.php` | `PropertyResource:61-70` émet `type_label`, `contract_type_label`, `rent_period_label`, `status_label`, `title_type_label`, traduits par `BaseResource::enumLabel()` dans la locale de la requête |
+| A | `takussan-api/lang/{fr,en,wo}/properties.php` | `PropertyResource:61-70` émet `type_label`, `contract_type_label`, `rent_period_label`, `status_label`, `title_type_label` *(2026-11-16 : `PropertyResource.php:129-156`, six `*_label` dont `condition_label`, TCK-508 — `title_type` et `condition` nés alignés)*, traduits par `BaseResource::enumLabel()` dans la locale de la requête |
 | B | `takussan-web/src/messages/{fr,en,wo}.json` → `property.{types,contractTypes,rentPeriods,status}` | les cartes, les filtres de recherche, le formulaire |
 
 **Et le front consomme les deux.** Mesuré :
 `app/(public)/properties/[slug]/page.tsx:74` rend `property.type_label` (source A) ;
 `PropertyCharacteristics.tsx:19-20` rendent `contract_type_label` et `rent_period_label` (source A) ;
+*(2026-11-16 : `page.tsx:107`, dans la meta description seulement ; le rendu visible passe par
+`PropertyCharacteristics.tsx:32-50`, `PropertyHeader.tsx:67-68`, `PropertyBookingCard.tsx:57-58`)* ;
 les cartes et `FilterSidebar` rendent `property.types` (source B). *Un visiteur qui clique sur une
 carte passe de B à A sans le savoir.*
 
@@ -87,12 +108,13 @@ Trois issues, et aucune n'est neutre :
 
 | | Ce que ça donne | Ce que ça coûte |
 |---|---|---|
-| **1. Le front gagne** — l'API cesse d'émettre les `*_label`, le front rend tout depuis son dictionnaire | conforme au principe n°5, une seule source | **rupture de contrat d'API** sur 5 champs ; il faut trouver tous les consommateurs (le front en a au moins 3, mais l'API est publique) |
+| **1. Le front gagne** — l'API cesse d'émettre les `*_label`, le front rend tout depuis son dictionnaire | conforme au principe n°5, une seule source | **rupture de contrat d'API** sur 5 champs ; il faut trouver tous les consommateurs (le front en a au moins 3 — *au 2026-11-16 : les trois composants de la fiche publique, `page.tsx:107`, `compare/compare-rows.ts:98-102`, `admin/super/agency-detail.tsx:605`, `SuperAdminPropertiesTable.tsx:239`, plus la console `/app/properties/[id]` en repli — le compte exact se reprend par grep des `*_label`* —, mais l'API est publique) |
 | **2. L'API gagne** — le front supprime `property.{types,…}` et rend les `*_label` | une seule source, sans rupture | **révoque le principe n°5** ; et les libellés ne seraient plus disponibles hors d'une réponse d'API (filtres, formulaires vides) |
 | **3. Les deux restent, une garde les tient identiques** | pas de rupture, divergence impossible | deux tables à maintenir en miroir ; *c'est l'état actuel plus une garde* — et il faut quand même trancher les 44 valeurs |
 
 ⚠ **Quelle que soit l'issue, les 44 valeurs doivent être arbitrées une par une**, et les 24 wolof
-exigent un locuteur — c'est le même besoin que [TCK-342](TCK-342-libelles-wolof-divergents-back-front.md)
+exigent un locuteur *(wolof en pause depuis le 2026-10-16 : AC4 se coche par un report explicite vers
+TCK-342)* — c'est le même besoin que [TCK-342](TCK-342-libelles-wolof-divergents-back-front.md)
 et [TCK-339](TCK-339-vocabulaire-wolof-recherche.md). Ne pas choisir « celle de l'API » ou « celle
 du front » en bloc : `farm` montre que la bonne réponse change d'une clé à l'autre.
 

@@ -7,7 +7,7 @@ family: back
 estimate: S
 wave: 85
 created: 2026-11-09
-updated: 2026-11-09
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -16,6 +16,22 @@ spec_refs:
   models: []
 tags: [api, directory, privacy, audit-ux]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai.** La fiche (`PublicAgentController.php:285-287`) sert encore `last_name` et
+`full_name` complets pour un propriétaire, et `agency` = `$agent->agency` (`:330-334`), nul pour lui ;
+le front (`agents/[slug]/page.tsx:207-211`, renvoi `:270-278`) est prêt mais ne se déclenche jamais.
+Rien n'a été fermé entre-temps (`git log --grep=TCK-2574` : création du ticket seulement).
+
+À noter : la **liste** `GET /api/public/agents` sert déjà sous `agency` l'agence **majoritaire** des
+biens publiés (`PublicProfileFacts::agences()`, `app/Services/Public/PublicProfileFacts.php:221-260`),
+propriétaire compris — règle différente de l'AC2.
+
+Reste à faire : clé distincte sur la fiche (point de départ naturel : `PublicProfileFacts::agences()`) ;
+nom abrégé sur fiche et liste pour `public_role: owner` (AC3) ; front sur la nouvelle clé (AC1, AC4) ;
+aligner la règle de la liste (à trancher par la session : garder la majoritaire ou passer à « `null` si
+plusieurs », sinon liste et fiche se contrediront).
 
 ## Objectif utilisateur
 
@@ -29,7 +45,9 @@ n'y est jamais exposée au-delà d'un nom abrégé (« Sokhna G. »).
 
 - `agency: null` — `PublicAgentController` sert `$agent->agency`, le rattachement de la
   **personne** ; un propriétaire n'en a pas. L'agence qui gère ses biens (celle des biens publiés)
-  n'est servie nulle part sur la fiche. Le front (TCK-2523) sait déjà renvoyer le contact à cette
+  n'est servie nulle part sur la **fiche**. (*2026-11-16 :* la **liste** `GET /api/public/agents` sert
+  déjà, sous `agency`, l'agence majoritaire des biens publiés — `PublicProfileFacts::agences()` — pour un
+  propriétaire comme pour un agent.) Le front (TCK-2523) sait déjà renvoyer le contact à cette
   agence quand elle est servie, et retombe sinon sur le formulaire anonyme du propriétaire.
 - `full_name: "Sokhna Gueye"`, `last_name: "Gueye"` — le nom complet sort de l'API ; seul le front
   l'abrège (titre, `<h1>`, contact, données structurées). Un nom de famille servi à un endpoint
@@ -44,7 +62,9 @@ n'y est jamais exposée au-delà d'un nom abrégé (« Sokhna G. »).
 - [ ] Pour un propriétaire, ne plus servir `last_name` ni le nom complet : `full_name` abrégé
   (« Sokhna G. »), `last_name` absent ou réduit à l'initiale. L'agent (`public_role: agent`) garde
   son nom complet.
-- [ ] Même règle sur la liste `GET /api/public/agents` (ligne d'annuaire d'un propriétaire listé).
+- [ ] Même règle sur la liste `GET /api/public/agents` (ligne d'annuaire d'un propriétaire listé) —
+  y compris dire s'il faut **remplacer** la règle majoritaire actuelle de la liste
+  (`PublicProfileFacts::agences()`) par celle de l'AC2 (`null` si plusieurs agences), ou la garder.
 - [ ] Front : lire la nouvelle clé dans `agents/[slug]/page.tsx` (aujourd'hui
   `agenceDuProprietaire = !estAgent ? agent.agency : null`).
 

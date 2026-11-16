@@ -7,7 +7,7 @@ family: back
 estimate: M
 wave: 85
 created: 2026-11-09
-updated: 2026-11-09
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -16,6 +16,26 @@ spec_refs:
   models: []
 tags: [back, front, boost, mesure, audit-ux]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : bloqué sur une décision du porteur — défaut toujours vrai.** Rien n'a été livré
+(`git log --grep=TCK-2569` : la création seule).
+
+- L'API compte à l'émission : `takussan-api/app/Http/Middleware/CountBoostImpressions.php`
+  (`deferImpressions()` puis `BoostStatsRecorder::commitImpressions(VisitorFingerprint::of(…))`, toute
+  réponse < 400 hors 304 et robots), branché sur la recherche publique (`routes/api/public.php:52-60`).
+- Le front retire toujours : `takussan-web/src/components/property/liste/emplacements.ts:82-90`
+  (`suiteDesPages`), appelé par `PropertiesDiscoveryPage.tsx:310-315`.
+- L'écart est borné : la déduplication par visiteur et par bien sur 30 min (TCK-708) fait qu'un doublon
+  d'un bien déjà compté dans la fenêtre ne recompte pas.
+- Reste : amendement d'ADR-0061, puis l'option retenue, et un test qui rougit si l'on recompte à
+  l'émission (ablation).
+
+**Décision attendue du porteur** : **(a)** le front déclare les emplacements insérés (route publique
+groupée, non bloquante, robots exclus ; `BoostStatsRecorder` quitte la recherche), ou **(b)** l'API
+cesse de servir l'emplacement de tête quand des places réservées ouvrent la page 1 (cas 1 seulement :
+le doublon entre pages reste au front) ? Et que deviennent les statistiques passées ?
 
 ## Objectif utilisateur
 
@@ -33,7 +53,8 @@ tous les emplacements que l'API sert :
   affiché plus haut est retiré.
 
 L'impression, elle, se compte **côté API, au moment où l'emplacement est servi**
-(`docs/features.md`, contrat de `sponsored`). Un emplacement servi puis retiré compte donc une
+(`docs/features.md`, contrat de `sponsored` ; code : `CountBoostImpressions` +
+`BoostStatsRecorder`, dédupliqué par visiteur et par bien sur 30 min depuis TCK-708). Un emplacement servi puis retiré compte donc une
 impression qui n'a pas eu lieu. L'écart est connu et écrit dans l'ADR ; il n'est pas corrigé.
 
 ## Delta attendu

@@ -7,7 +7,7 @@ family: bug
 estimate: S
 wave: null
 created: 2026-11-01
-updated: 2026-11-01
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -18,6 +18,22 @@ spec_refs:
     - "docs/models-spec.md#3-property"
 tags: [back, recherche, sante, meilisearch, surveillance]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai.** Aucun commit ne cite ce ticket ; rien n'a été fermé entre-temps.
+
+- `HealthcheckService.php:335` compte toujours `Property::query()->public()` (`SEARCH_GAP_TOLERANCE = 10`, l.73) ;
+  `shouldBeSearchable()` (`Property.php:644-654`) et `conditionsEnLigne()` (l.727-736) divergent toujours.
+- Pas de `scopeIndexable` ; `HealthcheckProbesTest` ne teste aucun `gap`.
+- Relecture (non éprouvée) des chemins publics vers le moteur : tous passent par `publicFilter()`
+  (`is_test = false` et `NOT status IN [NON_PUBLIC_STATUSES]`, l.479-487) — `/search`, `widen()`,
+  emplacements, `alertMatches()`, `nominalQuery()`/`facettes()`, `RepartitionDesPrix`, aperçus de
+  `SearchSuggestions`. **La carte ne passe pas par Meilisearch** (`PublicPropertyController::map()` lit la base par `->public()`).
+
+**Reste à faire** : le scope et son test de parité, la sonde sur `indexable()` avec ses tests de `gap`,
+le test contre Meilisearch réel (liste des chemins corrigée ci-dessous), AC1 en préproduction.
+Si TCK-578 choisit « tout indexer », faire ce ticket d'abord : le test de parité protégera TCK-578.
 
 ## Objectif utilisateur
 
@@ -37,7 +53,7 @@ Mesuré sur la préproduction le 2026-11-01 (audit du serveur, M4) :
 
 ## Contraintes strictes (métier)
 
-- **Question à trancher par une mesure, pas par une lecture : un bien `is_test` ou `sold` indexé peut-il sortir d'une recherche publique ?** Relu le 2026-11-01, sans l'éprouver : `PropertySearchService::publicFilter()` les exclut, et `buildFilter()` et `SuggestService` l'emploient. Reste à prouver que **chaque** appel public au moteur passe par lui, y compris les emplacements, l'élargissement de `widen()` et la carte.
+- **Question à trancher par une mesure, pas par une lecture : un bien `is_test` ou `sold` indexé peut-il sortir d'une recherche publique ?** Relu le 2026-11-01, sans l'éprouver : `PropertySearchService::publicFilter()` les exclut, et `buildFilter()` et `SearchSuggestions` (`app/Services/Search/Suggestions/SearchSuggestions.php`, via `nominalQuery()`) l'emploient — `SuggestService` ne sert plus que les types de biens, en SQL (relevé 2026-11-16). Reste à prouver que **chaque** appel public au moteur passe par lui, y compris les emplacements, l'élargissement de `widen()`, les alertes de recherche (`alertMatches()`) et la répartition des prix (`RepartitionDesPrix`, `/price-distribution`). ~~et la carte~~ — la carte lit la base par `->public()`, pas Meilisearch (`PublicPropertyController::map()`, relevé 2026-11-16).
 - Si un chemin public les laisse sortir, c'est un défaut distinct et plus grave que la tuile : il se corrige dans ce ticket, ou se signale au porteur le jour même s'il dépasse ce ticket.
 - La sonde et l'index jugent par **un seul** prédicat : deux copies divergeraient de nouveau en silence.
 - Le critère reste compatible avec `makeAllSearchableUsing()` : compter ne doit pas charger chaque modèle en mémoire.
@@ -48,7 +64,7 @@ Mesuré sur la préproduction le 2026-11-01 (audit du serveur, M4) :
 - [ ] `HealthcheckService::search()` : `expected` compte `Property::query()->indexable()`.
 - [ ] Test de parité : pour chaque combinaison de statut, visibilité, suppression, `is_test`, `published_at` et statut d'agence, le scope et `shouldBeSearchable()` rendent le même verdict.
 - [ ] `HealthcheckProbesTest` : l'index aligné sur `indexable()` rend la tuile sans `degraded`, malgré des biens `is_test` et `sold` ; un écart supérieur à `SEARCH_GAP_TOLERANCE` la rend `degraded`.
-- [ ] Test contre Meilisearch réel : un bien `is_test` et un bien `sold` indexés n'apparaissent ni dans `/search`, ni dans les suggestions, ni dans les emplacements, ni dans la carte, ni dans l'élargissement.
+- [ ] Test contre Meilisearch réel : un bien `is_test` et un bien `sold` indexés n'apparaissent ni dans `/search`, ni dans les suggestions, ni dans les emplacements, ni dans l'élargissement, ni dans les alertes de recherche, ni dans la répartition des prix (la carte, qui lit la base, est hors du test — relevé 2026-11-16).
 
 ## Critères d'acceptation
 

@@ -7,7 +7,7 @@ family: full
 estimate: S
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -23,6 +23,25 @@ tags: [back, front, agent-responsable, passation, bulk, reparation, bail, adr-00
 ---
 
 # TCK-616 — Une revue de réparation lisible, un sélecteur juste
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : partiellement fermé.** Points 1, 2, 3 toujours vrais (`RepairReassignedOwners` inchangé
+depuis TCK-603 ; `buildAgentOptions` toujours alimenté par les biens de la page).
+
+- Point 4 — **caduc depuis TCK-817** : la cible se résout dans `PropertyBulkAssignService::cible()`
+  (`:92-105`) ; un compte absent ou supprimé rend **422 `user.not_in_active_agency` pour le lot**, à
+  dessein (pas d'oracle d'existence). L'AC5 allait contre cette décision.
+- Point 5, moitié lecture — **fermée par TCK-1926** : `LeasePolicy::view` (`:94-116`) passe par
+  `BailleurDuBien::est()` puis `isStaffOf`. Reste la moitié passation (`AgentHandoverService` ne
+  touche toujours pas aux baux).
+
+Reste à faire : `RepairReassignedOwners` (AC1-AC3) ; sélecteur de la liste sur `GET agencies/{agency}/team`
+(attention : `agentOptions` sert aussi au filtre agent de `PropertyListFilters`) ; la passation des
+baux si le porteur la confirme. La commande se joue ensuite une fois en préproduction (`--dry-run` d'abord).
+
+**Décision attendue du porteur** : à la passation, les baux `draft` du partant passent-ils au
+repreneur et les autres sont-ils listés au bilan — (a) oui, (b) non, on retire ce point du ticket ?
 
 ## Objectif utilisateur
 
@@ -40,24 +59,29 @@ Suites de **TCK-603** (verif-603 passe 1, m6 et observations ; passe 2, « Faux 
 **Re-mesure sur `839be671` (2026-10-08)** :
 
 1. **Faux négatifs de la revue.** `RepairReassignedOwners::reviewReason`
-   (`takussan-api/app/Console/Commands/RepairReassignedOwners.php:192-202`) classe `designated_after`
+   (`takussan-api/app/Console/Commands/RepairReassignedOwners.php:173-202`, le second critère `:196-199`) classe `designated_after`
    si le journal `PrimaryAgentDesignator::EVENT` **ou** une ligne `is_primary` dont `updated_at` est
    postérieure existe. Le second critère ratisse large : FN1 (agent ajouté après, marqué par le
    remplissage d'ADR-0053, sans désignation) et FN3 (marque antérieure, `commission_share` modifiée
    après) sortent `designated_after` à tort. FN2 : `original_not_landlord owner=Y original=X` ne nomme
    pas le vrai bailleur B5, intermédiaire de la chaîne.
-2. **`leases_fixed=` porte deux sens.** Sur une ligne `restore` (`:150-155`), il liste des
+2. **`leases_fixed=` porte deux sens.** Sur une ligne `restore` (`:149-155`), il liste des
    **identifiants** ; dans le bilan final (`:62`, `:146`), un **compte**.
 3. **m6 — le sélecteur du lot.** `buildAgentOptions`
-   (`takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:216-234`) propose l'utilisateur,
+   (`takussan-web/src/app/(dashboard)/app/properties/(liste)/page.tsx:444-461`) propose l'utilisateur,
    les **propriétaires** et les collaborateurs des biens de la page — des bailleurs, toujours refusés
    ligne à ligne par l'API (`invalid_target`) — et omet un agent de l'agence absent de la page.
 4. **Cible supprimée en douceur** : `bulk-assign` vers un utilisateur supprimé rend 404
    `http.not_found` pour **tout** le lot au lieu d'un refus `invalid_target` par ligne (verif-603
-   passe 1, observation).
+   passe 1, observation). — caduc depuis TCK-817 : un compte absent ou supprimé rend 422
+   `user.not_in_active_agency` pour le lot, à dessein (pas d'oracle d'existence).
 5. **Le bail d'un agent parti.** La passation de `held_properties` (TCK-603) ne touche pas les baux :
    un bail actif garde `landlord_id` = l'agent parti, et `LeasePolicy::view`
    (`takussan-api/app/Policies/LeasePolicy.php:68`) lui en laisse la lecture (verif-603 passe 1, v8).
+   — lecture fermée par TCK-1926 : `LeasePolicy::view` (`:94-116`) ne rend le bail à `landlord_id`
+   qu'avec un profil propriétaire (`BailleurDuBien`) ; la passation, elle, ne touche toujours pas aux baux.
+
+**Re-mesuré le 2026-11-16 sur `9112194ec`** : voir la section de re-vérification en tête.
 
 ## Décision du porteur
 
@@ -82,13 +106,13 @@ signé par celui qui l'a signé étant défendable.
 - [ ] `RepairReassignedOwners` : `chain=X>B5>Y` sur chaque ligne de revue et de restauration ;
       `designated_after` au seul journal ; `leases_fixed_ids=` sur la ligne, `leases_fixed=` (compte)
       au bilan.
-- [ ] `PropertyBulkAssignService` : cible supprimée → refus `invalid_target` par ligne.
-- [ ] Front : le sélecteur « Changer l'agent responsable » (liste et fiche) se remplit du personnel
+- [ ] ~~`PropertyBulkAssignService` : cible supprimée → refus `invalid_target` par ligne.~~ — caduc depuis TCK-817 (422 `user.not_in_active_agency` pour le lot, à dessein).
+- [ ] Front : le sélecteur « Changer l'agent responsable » (liste ; la fiche n'en a pas) se remplit du personnel
       actif de l'agence (endpoint existant de l'équipe, champs `id,name`) ; libellés inchangés.
 - [ ] Passation (décision) : baux `draft` du partant transmis, autres listés au bilan ;
-      `LeasePolicy::view` resserré.
-- [ ] Tests : `RepairReassignedOwnersOutputTest` (FN1, FN2, FN3), `PropertyBulkAssignTest` (cible
-      supprimée), test front du sélecteur, `AgentHandoverLeaseTest`.
+      ~~`LeasePolicy::view` resserré~~ — caduc depuis TCK-1926.
+- [ ] Tests : `RepairReassignedOwnersOutputTest` (FN1, FN2, FN3), ~~`PropertyBulkAssignTest` (cible
+      supprimée)~~ (caduc depuis TCK-817), test front du sélecteur, `AgentHandoverLeaseTest`.
 
 ## Critères d'acceptation
 
@@ -98,9 +122,10 @@ signé par celui qui l'a signé étant défendable.
 - [ ] **AC3.** La ligne `restore` porte `leases_fixed_ids=…` ; le bilan porte `leases_fixed=<compte>`.
 - [ ] **AC4 (rouge sur `839be671`).** Le sélecteur de la liste propose un agent actif de l'agence sans
       aucun bien sur la page, et ne propose aucun bailleur.
-- [ ] **AC5.** `bulk-assign` de 3 biens vers un utilisateur supprimé : 200, 3 refus `invalid_target`.
+- [ ] ~~**AC5.** `bulk-assign` de 3 biens vers un utilisateur supprimé : 200, 3 refus `invalid_target`.~~ — caduc depuis TCK-817 (422 `user.not_in_active_agency` pour le lot, anti-oracle).
 - [ ] **AC6 (décision).** Après la passation d'un bien dont un bail actif a `landlord_id` = le partant :
-      le bail figure au bilan ; `GET /api/leases/{id}` par le partant → 403.
+      le bail figure au bilan ; `GET /api/leases/{id}` par le partant → 403 (cette moitié est déjà
+      vraie depuis TCK-1926 : à garder au plus comme test de non-régression).
 - [ ] Ablations consignées : second critère `is_primary` remis → AC1 rouge ; sélecteur rendu à
       `buildAgentOptions` → AC4 rouge.
 

@@ -7,7 +7,7 @@ family: front
 estimate: S
 wave: 54
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-11-16
 depends_on: [TCK-480]
 blocks: []
 spec_refs:
@@ -15,6 +15,25 @@ spec_refs:
     - docs/features.md
 tags: [front, design-system, accessibilite, contraste, dette]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai au calcul**, avec deux corrections. Rien n'a été fermé (`git log
+--grep=TCK-485` : l'ouverture seule) ; jetons inchangés depuis TCK-480 (`--destructive` `#b70110`
+`globals.css:127`, `#ff7f7d` `:826`).
+
+- **Le ratio sombre est faux** : blanc sur `#ff7f7d` = **2,45:1**, pas 2,77 (même formule,
+  `scripts/lib/contraste.mjs`, qui rend bien 2,89 pour l'ancien `#ff6467`). Le titre et l'en-tête de
+  `check-destructive-contrast.mjs:70-73` portent le même chiffre faux.
+- **Le couple sombre n'est rendu nulle part** : le widget est monté par `app/layout.tsx:188`, sous
+  aucune des six portées `.dark` (`src/test/portees-sombres.ts`, cf. TCK-452).
+- Le badge a quitté `ChatWidget.tsx` pour `components/chat-widget/CorpsDuWidget.tsx:329` et `:356`.
+- Sept autres `bg-destructive` pleins portent du texte, tous en `text-background` /
+  `text-primary-foreground` : **6,61:1** (clair) / **7,17:1** (sombre), conformes. La solution existe
+  donc dans le dépôt, sans décision produit.
+
+Reste : `text-white` → `text-background` aux deux badges ; couple inverse dans
+`check-destructive-contrast.mjs` (et retrait du trou déclaré) ; ablation (AC3).
 
 ## Objectif utilisateur
 
@@ -25,7 +44,7 @@ quoi.
 ## Le défaut
 
 `takussan-web/src/components/chat-widget/ChatWidget.tsx:215` et `:239` — deux pastilles
-identiques (bureau et mobile) :
+identiques (bureau et mobile) *(2026-11-16 : `components/chat-widget/CorpsDuWidget.tsx:329` et `:356`)* :
 
 ```
 bg-destructive … text-white
@@ -38,10 +57,10 @@ et **légèrement dégradé le sombre** :
 | thème | avant TCK-480 | après TCK-480 | seuil |
 |---|---|---|---|
 | clair (`#e7000b` → `#b70110`) | 4,77:1 | **6,94:1** | 4,5 |
-| sombre (`#ff6467` → `#ff7f7d`) | **2,89:1** | **2,77:1** | 4,5 |
+| sombre (`#ff6467` → `#ff7f7d`) | **2,89:1** | **2,77:1** — *faux, recalculé le 2026-11-16 : **2,45:1*** | 4,5 |
 
 ⚠ **Le défaut est PRÉEXISTANT et il faut le dire ainsi** : le sombre était déjà à 2,89:1 avant
-qu'on touche au jeton. TCK-480 lui a coûté 0,12, en tenant AC1 sur le périmètre qui était le
+qu'on touche au jeton. TCK-480 lui a coûté 0,12 *(0,44 : 2,89 → 2,45, recalcul du 2026-11-16)*, en tenant AC1 sur le périmètre qui était le
 sien — *l'encre peinte AVEC le jeton*. Les deux directions ne se règlent pas ensemble : rendre
 le jeton plus clair aide l'encre en sombre et nuit au blanc posé dessus.
 
@@ -55,8 +74,15 @@ directions se contredisent. Les issues plausibles, sans préjuger :
 - un **fond différent en sombre** pour cette pastille, à l'image des variantes `dark:` que
   `MaintenancePriorityBadge` porte déjà ;
 - **assumer le seuil non textuel** (3:1) en retirant le chiffre — ce serait changer ce que la
-  pastille dit, donc une décision produit, pas une décision de couleur. Elle est à 2,77:1, donc
+  pastille dit, donc une décision produit, pas une décision de couleur. Elle est à 2,77:1 *(2,45:1)*, donc
   même ce seuil-là ne serait pas tenu en sombre.
+
+*2026-11-16 : une quatrième issue est déjà la convention du dépôt — `text-background` (ou
+`text-primary-foreground`) sur `bg-destructive` plein, 6,61:1 / 7,17:1, employée par
+`commissions/gestes.tsx:399`, `admin/finances/argent/ReversementsAApprouver.tsx:178`,
+`announcements/GlobalAnnouncementBanner.tsx:19`, `maintenance/MaintenanceBanner.tsx:80`,
+`inventory/terrain/Pastilles.tsx:63`, et au survol `compare/CompareFloatingBar.tsx:622`,
+`compare/CompareColonnes.tsx:379`.*
 
 ## Contrat de données
 
@@ -67,7 +93,8 @@ Aucun.
 - [ ] Trancher, et écrire la décision avec les deux ratios mesurés.
 - [ ] Chercher les autres `bg-destructive` PLEIN avant de corriger celui-ci : le relevé du
       2026-08-30 en donne **deux, tous deux dans ce fichier** — mais il partait d'un littéral,
-      et une recette de variante ne s'y verrait pas.
+      et une recette de variante ne s'y verrait pas. *(2026-11-16 : faux aujourd'hui — sept autres
+      sites pleins, tous conformes ; liste ci-dessus.)*
 
 ## Critères d'acceptation
 
@@ -87,6 +114,6 @@ Aucun.
 ## Notes d'implémentation
 
 Mesuré en marge de TCK-480, pendant le recensement des littéraux : c'est le seul emploi de
-`bg-destructive` **plein** du dépôt, et il était invisible au périmètre du ticket parce que son
+`bg-destructive` **plein** du dépôt *(plus vrai au 2026-11-16 : sept autres, conformes)*, et il était invisible au périmètre du ticket parce que son
 encre n'est pas le jeton. *Un recensement par littéraux trouve ce qui peint AVEC ; ce qui est
 peint DESSUS demande de retourner la question.*
