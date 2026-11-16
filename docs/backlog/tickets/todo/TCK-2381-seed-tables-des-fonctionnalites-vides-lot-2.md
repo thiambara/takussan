@@ -74,24 +74,24 @@ Celles de TCK-2379, reconduites :
 
 ## Delta à produire
 
-- [ ] Seeders rangés dans le dossier de leur domaine, branchés dans
+- [x] Seeders rangés dans le dossier de leur domaine, branchés dans
       `YearOfActivitySeeder::PIPELINE` après leurs dépendances.
-- [ ] Les invariants qui en découlent dans `ReferentialIntegrityChecker`
+- [x] Les invariants qui en découlent dans `ReferentialIntegrityChecker`
       (`database/seeders/Support/ReferentialIntegrityChecker.php` ; ligne de relevé
       rapprochée ↔ paiement du même montant, reprise ≤ reversement, métrique du jour = compte
       des lignes du jour).
-- [ ] Les tables ajoutées à `SeedingFeatureTablesTest::PAR_AGENCE` quand elles se rattachent à une
+- [x] Les tables ajoutées à `SeedingFeatureTablesTest::PAR_AGENCE` quand elles se rattachent à une
       agence.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Après un seed, chaque table ci-dessus rattachée à une agence a au moins une ligne par
+- [x] AC1 — Après un seed, chaque table ci-dessus rattachée à une agence a au moins une ligne par
       agence `standard` ; les tables de plateforme (`platform_metrics_daily`, `announcements`) en
       ont au moins une.
-- [ ] AC2 — Chaque ligne de relevé rapprochée désigne un paiement de même montant, d'une date
+- [x] AC2 — Chaque ligne de relevé rapprochée désigne un paiement de même montant, d'une date
       voisine.
-- [ ] AC3 — `platform_metrics_daily` d'un jour se recalcule depuis les lignes semées de ce jour.
-- [ ] AC4 — Le seed ne fait aucune requête HTTP sortante.
+- [x] AC3 — `platform_metrics_daily` d'un jour se recalcule depuis les lignes semées de ce jour.
+- [x] AC4 — Le seed ne fait aucune requête HTTP sortante.
 
 ## Hors périmètre
 
@@ -102,3 +102,36 @@ Celles de TCK-2379, reconduites :
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- Neuf seeders en un bloc juste avant `PostProcessingSeeder` (insérés plus haut, ils décaleraient le tirage
+  de tous les suivants) : `Activity/{TenantOnboarding,PayoutClawback,OwnerStatementSnapshot}Seeder`,
+  `Accounting/BankStatementSeeder`, `Engagement/{ThresholdAlert,NotificationDelivery}Seeder`,
+  `System/{Announcement,PlatformMetrics}Seeder`, `Core/DataExportSeeder` ; chacun passe par le service
+  (`ReconciliationManager`, `IgnoredPaymentService`, `PayoutClawbacks` + `ObservedRefundPayout`,
+  `OwnerStatementSnapshots::record`, `PlatformMetricsSnapshotter::snapshot`, `TenantOnboardingService`,
+  `DataExportBuilder` + `PurgeExpiredDataExports`, `SmsRouterDriver`) rejoué par `Timeline::aLaDate()`.
+- Le relevé est un vrai CSV déposé comme `BankStatementController::store`, lu par `ParseBankStatementJob` puis
+  apparié par le matcher, tous deux joués en ligne (`handle()`) : la file `sync` diffère ses jobs à la validation
+  de la transaction englobante, et la revue qui suit trouvait un relevé encore `processing`. Lignes = encaissements reçus sur le compte (`expectedBankAmount()`, référence du paiement)
+  + reversements émis (net) + frais bancaires ignorés ; espèces et Free Money sortis du reste à rapprocher
+  (`reconciliation_ignored_payments`). Deux mois clôturés, le dernier en revue avec un tiers des propositions.
+- `PayoutSeeder` pose désormais la copie de ligne au pivot (TCK-2017) : sans elle `recordRefund()` n'écrit
+  aucune reprise. La commission d'un reversement semé est la somme de celles des lignes. Le remboursement suit le
+  dernier reversement du bailleur : la reprise reste due, aucun reversement semé ne l'impute.
+- Les relevés de gérance sont figés AVANT le remboursement (l'instantané du 1er ne peut pas déduire un
+  remboursement postérieur : il se lit en rectificatif). Un seeder ne lève que si sa source existait et qu'il
+  n'a rien écrit (agence sans reversement, relevé déjà déposé : rien à dériver, pas une faute).
+- Aucun envoi sortant : avis d'import/clôture de relevé faux le temps du seeder (affirmé : aucune notification
+  `bank_statement.*`), `payouts:send-owner-statements`
+  non joué (il avise et son cache le rendrait muet), avis « export prêt » non envoyé, chaînes SMS réduites au
+  pilote `log` (tentatives au fournisseur `log`). Le CSV du relevé va au disque privé des médias (`r2-private` en
+  préproduction) comme les dossiers KYC et les contrats figés du lot 1 : ce n'est pas une dépendance neuve.
+- Métriques : 90 jours de flux, stocks sur la veille seule (comme `metrics:snapshot`). `data_exports` et
+  `announcements` n'ont pas d'agence : comptées « au moins une » avec `platform_metrics_daily`.
+- Preuves : AC1-AC4 — `SeedingFeatureTablesTest` (8 tables ajoutées à `PAR_AGENCE`, 3 tables plateforme, non-vacuité
+  des lignes rapprochées des deux sens et des reprises, 3 invariants à zéro, `Http::preventStrayRequests()`) ;
+  invariants qui mordent — `RemainingTablesInvariantsTest` (ablation : les trois rendus à 0 → 3 rouges) ;
+  ablation des copies au pivot → `PayoutClawbackSeeder : aucune reprise pour l'agence standard 1`.
+

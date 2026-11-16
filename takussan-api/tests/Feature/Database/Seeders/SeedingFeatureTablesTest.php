@@ -3,8 +3,12 @@
 namespace Tests\Feature\Database\Seeders;
 
 use App\Models\Agency;
+use App\Models\BankStatement;
+use App\Models\BankStatementLine;
 use App\Models\CommissionEntry;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\BankStatementLineMatchStatus;
+use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\BoostKind;
 use App\Models\Enums\BoostStatus;
 use App\Models\Enums\LeaseStatus;
@@ -13,6 +17,7 @@ use App\Models\PropertyBoost;
 use App\Services\Credits\CreditLedger;
 use Database\Seeders\Support\ReferentialIntegrityChecker;
 use Database\Seeders\Support\SeedingConfig;
+use Database\Seeders\System\PlatformMetricsSeeder;
 use Database\Seeders\YearOfActivitySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +25,9 @@ use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
- * TCK-2379 — le seed remplit les tables des fonctionnalités livrées, par leurs services.
+ * TCK-2379 — le seed remplit les tables des fonctionnalités livrées, par leurs services. TCK-2381 (lot 2) :
+ * rapprochement bancaire, reprises, relevés de gérance envoyés, métriques plateforme, annonces, alertes de
+ * seuil, Espace résident, exports de données et tentatives d'envoi SMS.
  *
  * Mesuré le 2026-10-25 sur un seed par défaut : 25 tables lues par du code et vides, dont
  * `commission_entries`, `credit_lots`, `lease_signatures` et `kyc_dossiers` ; 162 vedettes sans
@@ -44,6 +51,10 @@ class SeedingFeatureTablesTest extends TestCase
         'indisponibilite_sur_une_reservation_confirmee',
         'demande_convertie_apres_sa_fiche',
         'reversement_vers_une_destination_non_verifiee',
+        // TCK-2381
+        'ligne_rapprochee_sans_paiement_du_meme_montant',
+        'reprise_superieure_a_ce_que_le_reversement_a_pris',
+        'metrique_du_jour_qui_ne_se_recalcule_pas',
     ];
 
     /**
@@ -67,7 +78,19 @@ class SeedingFeatureTablesTest extends TestCase
         'property_reports' => 'SELECT p.agency_id FROM property_reports r JOIN properties p ON p.id = r.property_id',
         'property_boost_tranches' => 'SELECT b.agency_id FROM property_boost_tranches t JOIN property_boosts b ON b.id = t.property_boost_id',
         'property_boost_daily_stats' => 'SELECT b.agency_id FROM property_boost_daily_stats d JOIN property_boosts b ON b.id = d.property_boost_id',
+        // TCK-2381 — le lot 2.
+        'bank_statements' => 'SELECT agency_id FROM bank_statements',
+        'bank_statement_lines' => 'SELECT s.agency_id FROM bank_statement_lines l JOIN bank_statements s ON s.id = l.bank_statement_id',
+        'reconciliation_ignored_payments' => 'SELECT agency_id FROM reconciliation_ignored_payments',
+        'payout_clawbacks' => 'SELECT agency_id FROM payout_clawbacks',
+        'owner_statement_snapshots' => 'SELECT agency_id FROM owner_statement_snapshots',
+        'threshold_alerts' => 'SELECT agency_id FROM threshold_alerts',
+        'tenant_onboarding_checklists' => 'SELECT l.agency_id FROM tenant_onboarding_checklists c JOIN leases l ON l.id = c.lease_id',
+        'notification_delivery_attempts' => 'SELECT agency_id FROM notification_delivery_attempts',
     ];
+
+    /** TCK-2381 — les tables de la plateforme, sans agence : au moins une ligne. */
+    private const PLATEFORME = ['platform_metrics_daily', 'announcements', 'data_exports'];
 
     public function test_chaque_fonctionnalite_livree_s_ouvre_sur_des_donnees_coherentes(): void
     {
@@ -93,6 +116,25 @@ class SeedingFeatureTablesTest extends TestCase
             }
         }
         $this->assertSame([], $manques);
+
+        // TCK-2381, AC1 — les tables de la plateforme.
+        foreach (self::PLATEFORME as $table) {
+            $this->assertTrue(DB::table($table)->exists(), "{$table} est vide.");
+        }
+        // TCK-2381, AC2 — non-vacuité de l'invariant : des lignes rapprochées, de chaque sens, et des reprises.
+        $confirmees = BankStatementLine::query()->where('match_status', BankStatementLineMatchStatus::Confirmed);
+        $this->assertTrue($confirmees->clone()->where('direction', 'credit')->exists(), 'Aucun crédit rapproché.');
+        $this->assertTrue($confirmees->clone()->where('direction', 'debit')->exists(), 'Aucun débit rapproché.');
+        $this->assertTrue(BankStatement::query()->where('status', BankStatementStatus::ReadyForReview)->exists(), 'Aucun relevé en cours de revue.');
+        $this->assertTrue(BankStatement::query()->whereIn('status', [BankStatementStatus::Reconciled, BankStatementStatus::PartiallyReconciled])->exists(), 'Aucun relevé clôturé.');
+        $this->assertTrue(DB::table('payout_clawbacks')->exists());
+        // TCK-2381, AC4 — les avis d'import et de clôture de relevé ne partent pas pendant le seed :
+        // `Http::preventStrayRequests()` ne voit pas une notification.
+        $this->assertSame(0, DB::table('app_notifications')->whereIn('code', ['bank_statement.imported', 'bank_statement.finalized'])->count());
+        // TCK-2381, AC3 — la série et ses stocks : la veille seule les porte.
+        $this->assertSame(PlatformMetricsSeeder::JOURS, DB::table('platform_metrics_daily')->count());
+        $this->assertSame(1, DB::table('platform_metrics_daily')->whereNotNull('stocks_captured_at')->count());
+        $this->assertTrue(DB::table('platform_metrics_daily')->where('gmv_amount', '>', 0)->exists(), 'Aucun encaissé dans la série.');
 
         // AC2 — le solde que l'application rend est Σ des mouvements.
         foreach (Agency::query()->pluck('id') as $agencyId) {
