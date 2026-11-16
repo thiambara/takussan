@@ -286,6 +286,8 @@ return [
         'neighborhood_not_pending' => 'Ce quartier n\'est plus en attente de modération.',
     ],
     'guarantor' => [
+        // TCK-2893
+        'attached_to_open_booking' => 'Ce garant est déclaré sur une candidature ou une offre en cours : retirez-le d\'abord de la demande.',
         'attached_to_open_lease' => 'Ce garant est rattaché à un bail en attente de signature ou en cours : détachez-le d\'abord du bail.',
     ],
     'http' => [

@@ -191,6 +191,37 @@ class BookingGuarantorTest extends TestCase
         $this->attach($close)->assertStatus(422)->assertJsonPath('code', 'booking.dossier_closed');
     }
 
+    /**
+     * TCK-2893 (relecture) — la fiche d'un garant déclaré sur une candidature OUVERTE ne se supprime
+     * pas par `DELETE /api/guarantors/{id}` : ses deux pièces attendues resteraient au dossier sans
+     * garant. 422 `guarantor.attached_to_open_booking`, fiche et pièces intactes ; retiré de la
+     * demande, ou la demande close, la fiche se supprime.
+     */
+    public function test_the_guarantor_of_an_open_request_cannot_be_deleted_from_its_card(): void
+    {
+        $booking = $this->application();
+        $id = $this->attach($booking)->assertCreated()->json('data.guarantor_id');
+
+        foreach ([BookingStatus::Pending, BookingStatus::Confirmed] as $status) {
+            $booking->forceFill(['status' => $status])->save();
+            $this->deleteJson("/api/guarantors/{$id}")
+                ->assertStatus(422)
+                ->assertJsonPath('code', 'guarantor.attached_to_open_booking');
+            $this->assertNotSoftDeleted('guarantors', ['id' => $id]);
+        }
+        $this->assertSame(5, $this->dossier($booking)['required'], 'les pièces du garant restent attendues');
+
+        // Retiré de la demande : ses pièces partent, puis sa fiche se supprime.
+        $this->deleteJson("/api/bookings/{$booking->id}/guarantors/{$id}")->assertOk();
+        $this->deleteJson("/api/guarantors/{$id}")->assertNoContent();
+
+        // Une demande close ne retient rien.
+        $close = $this->application();
+        $autre = $this->attach($close)->assertCreated()->json('data.guarantor_id');
+        $close->forceFill(['status' => BookingStatus::Rejected])->save();
+        $this->deleteJson("/api/guarantors/{$autre}")->assertNoContent();
+    }
+
     public function test_a_guarantor_not_attached_cannot_be_removed(): void
     {
         $booking = $this->application();

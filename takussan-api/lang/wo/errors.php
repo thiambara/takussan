@@ -286,6 +286,8 @@ return [
         'neighborhood_not_pending' => 'Gox bii nekkatul di xaar ñu saytu ko.',
     ],
     'guarantor' => [
+        // TCK-2893
+        'attached_to_open_booking' => 'Ce garant est déclaré sur une candidature ou une offre en cours : retirez-le d\'abord de la demande.',
         'attached_to_open_lease' => 'Garant bii dafa lëkkaloo ak ab bayle buy xaar xaatim walla bu ngi dox : nangeel ko jëlee ci bayle bi njëkk.',
     ],
     'http' => [

@@ -286,6 +286,8 @@ return [
         'neighborhood_not_pending' => 'This neighbourhood is no longer awaiting moderation.',
     ],
     'guarantor' => [
+        // TCK-2893
+        'attached_to_open_booking' => 'This guarantor is declared on an application or offer still in progress: remove them from the request first.',
         'attached_to_open_lease' => 'This guarantor is attached to a lease awaiting signature or in force: detach them from the lease first.',
     ],
     'http' => [

@@ -8,7 +8,7 @@
  *   son canal au bureau ; rien pour un bien payé ;
  * - AC5 : la vignette et « Bail LS-… » de chaque ligne ;
  * - AC6 : la nature, le moyen et « Avis » (`GET /api/payouts/{id}/notice/pdf`, porteur du jeton) de chaque
- *   versement terminé au bailleur, et « Versements 3 » depuis `payouts_count`.
+ *   versement terminé au bailleur, et « Versements 3 » depuis le total de la liste de l'onglet (`GET /api/payouts`).
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,6 +34,8 @@ const ETAT = vi.hoisted(() => ({
   releve: {} as Partial<OwnerStatement>,
   versements: [] as Partial<Payout>[],
   versement: null as Partial<Payout> | null,
+  /** TCK-2916 — le `meta.total` servi par `GET /api/payouts` ; `undefined` : la longueur de la page. */
+  totalVersements: undefined as number | undefined,
 }));
 
 function bien(surcharge: Partial<OwnerStatementProperty>): OwnerStatementProperty {
@@ -82,12 +84,12 @@ const { requete, mutation } = vi.hoisted(() => ({
   requete: <T,>(data: T) => ({ data, isLoading: false, isError: false, error: null, refetch: () => undefined }),
   mutation: () => ({ mutateAsync: async () => undefined, mutate: () => undefined, isPending: false }),
 }));
-const page = <T,>(data: T[]) => ({ data, meta: { current_page: 1, last_page: 1, per_page: 20, total: data.length, from: 1, to: data.length } });
+const page = <T,>(data: T[], total = data.length) => ({ data, meta: { current_page: 1, last_page: 1, per_page: 20, total, from: 1, to: data.length } });
 
 vi.mock('@/lib/queries/payments', () => ({
   useOwnerStatement: () => requete({ data: releve() }),
   usePaymentsHistory: () => requete(page([])),
-  usePayouts: () => requete(page(ETAT.versements)),
+  usePayouts: () => requete(page(ETAT.versements, ETAT.totalVersements)),
   useInvoices: () => requete(page([])),
   usePayout: (id: number | null) => requete(id === null || ETAT.versement === null ? undefined : { data: ETAT.versement }),
   useInvoice: () => requete(undefined),
@@ -132,6 +134,7 @@ describe('LoyersDuBailleur — les revenus complets (TCK-2916)', () => {
     ETAT.releve = {};
     ETAT.versements = [];
     ETAT.versement = null;
+    ETAT.totalVersements = undefined;
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -267,16 +270,14 @@ describe('LoyersDuBailleur — les revenus complets (TCK-2916)', () => {
     expect(telephone[0]?.querySelector('img')).not.toBeNull();
   });
 
-  it('AC6 — « Versements 3 » depuis payouts_count ; sans compteur servi, « Versements » seul', () => {
-    ETAT.releve = { payouts_count: 3 };
+  it('AC6 — « Versements 7 » : le total de la liste de l’onglet, pas payouts_count (les versements de la période)', () => {
+    // La liste de l'onglet montre TOUS les versements (7) ; le relevé du mois n'en compte qu'un.
+    ETAT.releve = { payouts_count: 1 };
+    ETAT.totalVersements = 7;
     const { unmount } = rendre();
-    expect(screen.getByRole('link', { name: 'Versements (3)' })).toBeInTheDocument();
-    expect(texte(document.querySelector('[data-slot="compte-de-l-onglet"]')?.textContent)).toBe('3');
+    expect(screen.getByRole('link', { name: 'Versements (7)' })).toBeInTheDocument();
+    expect(texte(document.querySelector('[data-slot="compte-de-l-onglet"]')?.textContent)).toBe('7');
     unmount();
-
-    ETAT.releve = {};
-    rendre();
-    expect(screen.getByRole('link', { name: 'Versements' })).toBeInTheDocument();
   });
 
   it('AC6 — chaque versement dit sa nature, son moyen, sa référence ; « Avis » télécharge l’avis avec le jeton', async () => {

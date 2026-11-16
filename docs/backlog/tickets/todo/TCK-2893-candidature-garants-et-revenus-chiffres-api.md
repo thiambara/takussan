@@ -121,7 +121,18 @@ Reste :
   `booking.max_guarantors`) n'ont pas de traduction dans le front ; `types/booking.ts` ne porte pas les clés neuves —
   TCK-2875/2878.
 - Une fiche de garant supprimée (douce) encore rattachée à une demande ouverte laisse ses deux pièces attendues :
-  `GuarantorController::destroy` ne garde que les baux.
+  `GuarantorController::destroy` ne garde que les baux. → **Corrigé** (relecture du 2026-11-16, plus bas).
 - **Une réservation sans agence** (bien d'un bailleur direct) peut recevoir un revenu et un garant par le tunnel, mais
   n'a aucun lecteur des faits (`servesStaff`) ni du clair (`viewSensitive`) hors super-admin — à trancher par le porteur.
 - `docs/models-spec.md` : la colonne `bookings.declared_monthly_income` et le pivot `booking_guarantor` (aucun modèle neuf).
+
+**Relecture des specs (2026-11-16) — la fiche d'un garant d'une demande ouverte.** Corrigé, et non laissé
+en reste : `GuarantorController::destroy` refuse désormais la suppression de la fiche, en 422
+`guarantor.attached_to_open_booking` (fr/en/wo), tant qu'une candidature ou une offre **en attente ou
+confirmée** la déclare (`Guarantor::bookings()`, pivot `booking_guarantor`). Choix : **refuser plutôt que
+détacher** — la forme déjà tenue pour le bail ouvert (`guarantor.attached_to_open_lease`), sans écriture
+cachée dans un autre dossier, et la seule voie qui retire les pièces passe par
+`DELETE /api/bookings/{booking}/guarantors/{guarantor}` (`BookingGuarantorService::detach`, qui garde une
+pièce reçue). Une demande close (rejetée, annulée, terminée, expirée) ne retient rien. Test :
+`BookingGuarantorTest::test_the_guarantor_of_an_open_request_cannot_be_deleted_from_its_card` — ablation
+(garde neutralisée) → 204 au lieu de 422, rouge ; restauré au md5.

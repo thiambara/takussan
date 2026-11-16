@@ -62,7 +62,7 @@ export function OngletsDesLoyers({ actif, compteVersements }: { readonly actif: 
       >
         {ONGLETS_DES_LOYERS.map((onglet) => {
           const estActif = onglet === actif;
-          // TCK-2916 — « Versements 3 » (maquette e4) : `payouts_count` du relevé servi, rien sans lui.
+          // TCK-2916 — « Versements 3 » (maquette e4) : le total de la liste de l'onglet (`GET /api/payouts`), rien sans lui.
           const compte = onglet === 'versements' && typeof compteVersements === 'number' ? compteVersements : null;
           return (
             <Link

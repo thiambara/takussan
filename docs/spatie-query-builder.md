@@ -214,7 +214,11 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
 | `filter[pipeline_stage]` | exact | `lead`, `prospect`, `client`, ... |
 | `filter[agency_id]` | exact | ID de l'agence |
 | `filter[search]` | search | Recherche dans first_name, last_name, email, phone |
-| `sort` | `-created_at`, `first_name`, `last_name`, `status` | |
+| `sort` | `-created_at`, `first_name`, `last_name`, `status`, `next_action_at`, `follow_up_days`, `last_contacted_at` | `follow_up_days` et `last_contacted_at` retombent sur la date de création hors personnel de l'agence |
+| `sort=pipeline_stage` | calculé | TCK-2889 — par le RANG de l'étape dans le pipeline (l'ordre de `CustomerPipelineStage` : nouveau, prospect, qualifié, négociation, gagné, perdu), jamais l'ordre alphabétique des codes ; une valeur inconnue en dernier (`CustomerPipelineStageSort`) |
+| `sort=referent` | calculé | TCK-2889 — par le nom affiché du référent de la fiche (celui de l'attribut `referent` et de `filter[referent]`), en `COLLATE "und-x-icu"` ; sans référent en dernier dans les deux sens (`CustomerReferentSort`) |
+| `filter[referent]` | `me` \| `none` \| `{user_id}` | TCK-2588 — le référent (relation `agent_client` principale et active) ; `me` dans l'agence active ; autre forme → 422 |
+| `filter[follow_up]` | `1` \| `0` \| `week` | TCK-2588 — `1` : les fiches à relancer, `0` : les autres (`CustomerFollowUpQuery`). TCK-2890 — `week` : les fiches à relancer ET celles d'une étape vivante dont la prochaine action (l'instant de `sort=next_action_at`) tombe d'ici dimanche soir, heure de Dakar, sans être échue (« Relances prévues cette semaine »). Hors personnel de l'agence : `1` et `week` ne rendent rien, `0` ne retire rien |
 | `fields[customers]=…,suggested_stage` | calculé | TCK-2591 — `{to, reason, at}` ou `null` : l'étape que propose le dernier fait postérieur au dernier changement d'étape (ADR-0103 § 5) ; jamais une colonne |
 
 `GET /api/customers/pipeline-stats` (TCK-2591) accepte `scope=mine` (= `filter[referent]=me`, qu'aucun autre `filter[referent]` ne peut contredire : 422) ou `scope=agency` (CRM de l'agence active, 403 sans `crm.view_all`), et les MÊMES `filter[…]` que la liste des clients ; sans `scope`, la lecture de la fiche, comme avant. Rend aussi `median_days_in_stage` et `exits_last_30d` ; `conversion_rate` se lit dans le journal des étapes.
@@ -515,7 +519,7 @@ Périmètre : `CommissionEntry::visibleTo` (l'agent ses lignes, `reports.view_ag
 | `filter[status]`, `filter[beneficiary_id]`, `filter[lease_id]`, `filter[origin]` | exact | |
 | `filter[earned_from]` / `filter[earned_to]` | date | `YYYY-MM-DD`, heure de Dakar, bornes incluses ; illisible ou liste → 422 (TCK-2661) |
 | `filter[paid_from]` / `filter[paid_to]` | date | idem sur `paid_at` ; une ligne non payée n'entre dans aucune plage (TCK-2661) |
-| `include` | `lease`, `beneficiary`, `lease.property` | `lease.property` ajoute `lease.property {id, title, quarter}` (TCK-2661) |
+| `include` | `lease`, `beneficiary`, `lease.property`, `lease.tenant` | `lease.property` ajoute `lease.property {id, title, quarter}` (TCK-2661) ; `lease.tenant` ajoute `lease.tenant {id, name}`, le client du bail (TCK-2867) |
 | `sort` | `-earned_at` (défaut), `amount`, `paid_at`, `id` | |
 
 `GET /api/commissions/summary?month=YYYY-MM&year=YYYY` (défaut : le mois courant de Dakar et son
@@ -595,6 +599,13 @@ Une invitation née d'une fiche client porte `abilities: {resend, revoke}` quand
 client la relance et l'annule sans `team.invite` (`InvitationPolicy`, vérification de TCK-2668, D1).
 
 ---
+
+### Carnet des bailleurs — `GET /api/owners` ; boîte des demandes de contact — `GET /api/contact-leads`
+
+| Param | Type | Description |
+|---|---|---|
+| `sort` (`/api/owners`) | `id`, `created_at`, `status`, `name`, `remaining_to_pay`, `last_payout_at` | TCK-2910 — `last_payout_at` : la date du dernier reversement versé au bailleur dans l'agence du profil (la colonne de la ligne), jamais payé en dernier dans les deux sens ; hors lecteur du relevé (`payouts.create`), range par id seulement (`OwnerLastPayoutSort`) |
+| `include` (`/api/contact-leads`) | `property`, `recipient`, `property.address` | TCK-2884 — `property.address` : le quartier du bien demandé ; la ressource n'en émet que `neighborhood` |
 
 ## Architecture interne
 
