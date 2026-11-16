@@ -125,6 +125,13 @@ npm run test          # vitest
 npm run build
 ```
 
+**Ce qu'une personne doit faire au déploiement s'écrit dans `docs/deploiement/actions/`, un fichier par
+action** ([ADR-0127](docs/adr/0127-les-actions-de-deploiement-un-fichier-par-action.md)) : une PR qui exige
+une clé à poser, un gabarit à faire approuver, une donnée à fournir ou une vérification crée son fichier,
+la description de la PR n'en est pas la source. Ce qu'un script peut faire va dans
+`takussan-api/docker/release.sh`, **qu'il faut relire avant** : il joue déjà `migrate` et la
+réimportation des index. Ce qui reste : `node scripts/check-actions-de-deploiement.mjs --report preview`.
+
 Images et déploiement — **le runbook complet vit dans [`docs/infra/hebergement.md`](docs/infra/hebergement.md)**
 (ADR-0028) :
 
