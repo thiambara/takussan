@@ -2,10 +2,9 @@
 
 namespace App\Http\Requests\Maintenance;
 
-use App\Http\Requests\Concerns\BorneLesReglesDElement;
+use App\Http\Requests\BaseFormRequest;
 use App\Rules\JourIso;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * TCK-592 (P12) — un devis structuré : des lignes (main-d'œuvre ou fourniture, quantité, prix
@@ -16,12 +15,8 @@ use Illuminate\Foundation\Http\FormRequest;
  * IMPOSÉE (celle du bail, sinon de l'agence — `MaintenanceQuoteWorkflow::resolveCurrency()`).
  * Les envoyer rend 422, pour qu'un client qui croit les fixer l'apprenne.
  */
-class SubmitQuoteRequest extends FormRequest
+class SubmitQuoteRequest extends BaseFormRequest
 {
-    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
-    // BaseFormRequest pour les autres).
-    use BorneLesReglesDElement;
-
     /** Le prestataire assigné, et lui seul — avant la validation (403 avant 422). */
     public function authorize(): bool
     {

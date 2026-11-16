@@ -2,22 +2,17 @@
 
 namespace App\Http\Requests\Api\Me;
 
-use App\Http\Requests\Concerns\BorneLesReglesDElement;
+use App\Http\Requests\BaseFormRequest;
 use App\Rules\TelephoneJoignable;
 use App\Services\Auth\PhoneChangeGuard;
-use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * TCK-253 — Partial update for the authenticated user's lightweight
  * personalisation fields. All fields are optional; only the supplied
  * keys are persisted.
  */
-class UpdateMeRequest extends FormRequest
+class UpdateMeRequest extends BaseFormRequest
 {
-    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
-    // BaseFormRequest pour les autres).
-    use BorneLesReglesDElement;
-
     public function authorize(): bool
     {
         return $this->user() !== null;

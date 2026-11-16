@@ -2,9 +2,45 @@
 
 namespace Tests\Unit\Architecture;
 
+use App\Http\Requests\Accounting\MatchBankStatementLineRequest;
+use App\Http\Requests\Accounting\StoreBankStatementRequest;
+use App\Http\Requests\Accounting\UpdateBankCsvMappingRequest;
+use App\Http\Requests\Agency\StoreAgentAbsenceRequest;
+use App\Http\Requests\Agency\StoreAgentHandoverRequest;
+use App\Http\Requests\Api\Admin\AssignAgencySubscriptionRequest;
+use App\Http\Requests\Api\Admin\CancelPlatformPayoutRequest;
+use App\Http\Requests\Api\Admin\ClosePlatformPayoutPeriodRequest;
+use App\Http\Requests\Api\Admin\MarkPlatformPayoutPaidRequest;
+use App\Http\Requests\Api\Admin\ReportExportRequest;
+use App\Http\Requests\Api\Admin\StorePlanRequest;
+use App\Http\Requests\Api\Admin\UpdatePlanRequest;
+use App\Http\Requests\Api\Me\UpdateMeRequest;
+use App\Http\Requests\AttachCustomerTagsRequest;
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RequestPhoneLoginCodeRequest;
+use App\Http\Requests\Auth\UpdateProfileRequest;
+use App\Http\Requests\InitiatePaymentRequest;
+use App\Http\Requests\InventorySignRequest;
+use App\Http\Requests\InventoryStoreRequest;
+use App\Http\Requests\InventoryUpdateRequest;
+use App\Http\Requests\Kyc\RejectKycDossierRequest;
+use App\Http\Requests\Kyc\UploadKycDocumentRequest;
+use App\Http\Requests\Maintenance\RejectQuoteRequest;
+use App\Http\Requests\Maintenance\SubmitQuoteRequest;
+use App\Http\Requests\MediaUploadRequest;
+use App\Http\Requests\Onboarding\HostIndividualOnboardRequest;
+use App\Http\Requests\Permissions\StoreRoleDelegationRequest;
+use App\Http\Requests\PropertyBulkArchiveRequest;
+use App\Http\Requests\PropertyBulkAssignRequest;
+use App\Http\Requests\PropertyBulkVisibilityRequest;
+use App\Http\Requests\PropertyDuplicateRequest;
+use App\Http\Requests\RejectPropertyRequest;
+use App\Http\Requests\Search\SearchQueryRequest;
+use App\Http\Requests\UploadDocumentVersionRequest;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use ReflectionMethod;
 
 /**
  * TCK-730 (P03.05) — un FormRequest de l'API étend `BaseFormRequest`, dont `authorize()` refuse
@@ -13,49 +49,79 @@ use RecursiveIteratorIterator;
  * avant l'autorisation, et un appelant sans droit reçoit 422 et les noms des champs au lieu de 403
  * (voir `AuthorizationPrecedesValidationTest`).
  *
- * Cette garde FIGE les fichiers qui le font encore : aucun nouveau ne s'y ajoute, et la liste ne
- * fait que décroître. Elle est expirante : un fichier de la liste qui n'étend plus `FormRequest`
- * (ou qui n'existe plus) la fait rougir, pour qu'on l'en retire.
- *
- * Hors de son champ, comme dans la mesure de P03.05 : `Auth/` (connexion et inscription, appelées
- * sans compte) et `Admin/` (derrière le middleware de la console).
+ * TCK-612 — et `BaseFormRequest` porte aussi la règle « une écriture se valide sur le corps seul »
+ * (`validationData()`) : une classe qui étend `FormRequest` validait un champ venu de l'URL. La
+ * garde couvre donc TOUT `app/Http/Requests`, `Auth/` et `Admin/` compris (ils en étaient hors
+ * champ sous TCK-730), et ne connaît plus de liste figée : seulement des EXEMPTIONS motivées.
+ * Elle est expirante : une exemption qui n'étend plus `FormRequest` la fait rougir.
  */
 class FormRequestEtendBaseFormRequestTest extends TestCase
 {
     /**
-     * Les FormRequests qui étendent encore `FormRequest`, relatifs à `app/Http/Requests/`. Chacun
-     * se reprend un à un (P03.05, « reste ») : déléguer son `authorize()` à la policy que le
-     * contrôleur appelle, passer à `BaseFormRequest`, et le retirer d'ici.
+     * Les FormRequests qui étendent encore `FormRequest`, relatifs à `app/Http/Requests/`, chacun
+     * avec son motif. `QueryNeverFeedsAWriteTest` lit cette liste : une écriture qui type-hint une
+     * de ces classes y est déclarée non couverte, toute autre y fait rougir le parcours.
+     *
+     * @var array<string, string>
      */
-    private const FIGES = [
-        'Accounting/MatchBankStatementLineRequest.php',
-        'Accounting/StoreBankStatementRequest.php',
-        'Accounting/UpdateBankCsvMappingRequest.php',
-        'Agency/StoreAgentAbsenceRequest.php',
-        'Agency/StoreAgentHandoverRequest.php',
-        'Api/Me/UpdateMeRequest.php',
-        'AttachCustomerTagsRequest.php',
-        'InitiatePaymentRequest.php',
-        'InventorySignRequest.php',
-        'InventoryStoreRequest.php',
-        'InventoryUpdateRequest.php',
-        'Kyc/RejectKycDossierRequest.php',
-        'Kyc/UploadKycDocumentRequest.php',
-        'Maintenance/RejectQuoteRequest.php',
-        'Maintenance/SubmitQuoteRequest.php',
-        'MediaUploadRequest.php',
-        'Onboarding/HostIndividualOnboardRequest.php',
-        'Permissions/StoreRoleDelegationRequest.php',
-        'PropertyBulkArchiveRequest.php',
-        'PropertyBulkAssignRequest.php',
-        'PropertyBulkVisibilityRequest.php',
-        'PropertyDuplicateRequest.php',
-        'RejectPropertyRequest.php',
-        'Search/SearchQueryRequest.php',
-        'UploadDocumentVersionRequest.php',
+    public const EXEMPTIONS = [
+        'Auth/RegisterRequest.php' => "TCK-537 la modifie dans le même lot (2026-11-16) : à converger après sa fusion, puis à retirer d'ici",
     ];
 
-    private const HORS_CHAMP = ['Auth/', 'Api/Admin/', 'Admin/'];
+    /**
+     * TCK-612 — les 35 classes passées de `FormRequest` à `BaseFormRequest` le 2026-11-16. Chacune
+     * déclarait son propre `authorize()` : elle doit le garder, sans quoi elle hériterait du refus
+     * par défaut de la base (fail-closed), ou d'une autorisation qui n'est plus la sienne.
+     *
+     * @var list<class-string>
+     */
+    private const CONVERTIES_TCK_612 = [
+        MatchBankStatementLineRequest::class,
+        StoreBankStatementRequest::class,
+        UpdateBankCsvMappingRequest::class,
+        StoreAgentAbsenceRequest::class,
+        StoreAgentHandoverRequest::class,
+        AssignAgencySubscriptionRequest::class,
+        CancelPlatformPayoutRequest::class,
+        ClosePlatformPayoutPeriodRequest::class,
+        MarkPlatformPayoutPaidRequest::class,
+        ReportExportRequest::class,
+        StorePlanRequest::class,
+        UpdatePlanRequest::class,
+        UpdateMeRequest::class,
+        AttachCustomerTagsRequest::class,
+        LoginRequest::class,
+        RequestPhoneLoginCodeRequest::class,
+        UpdateProfileRequest::class,
+        InitiatePaymentRequest::class,
+        InventorySignRequest::class,
+        InventoryStoreRequest::class,
+        InventoryUpdateRequest::class,
+        RejectKycDossierRequest::class,
+        UploadKycDocumentRequest::class,
+        RejectQuoteRequest::class,
+        SubmitQuoteRequest::class,
+        MediaUploadRequest::class,
+        HostIndividualOnboardRequest::class,
+        StoreRoleDelegationRequest::class,
+        PropertyBulkArchiveRequest::class,
+        PropertyBulkAssignRequest::class,
+        PropertyBulkVisibilityRequest::class,
+        PropertyDuplicateRequest::class,
+        RejectPropertyRequest::class,
+        SearchQueryRequest::class,
+        UploadDocumentVersionRequest::class,
+    ];
+
+    public function test_chaque_classe_convertie_garde_son_propre_authorize(): void
+    {
+        $heritees = array_values(array_filter(
+            self::CONVERTIES_TCK_612,
+            fn (string $classe) => (new ReflectionMethod($classe, 'authorize'))->getDeclaringClass()->getName() !== $classe,
+        ));
+
+        $this->assertSame([], $heritees, "Ces FormRequests n'écrivent plus leur authorize() : elles héritent de celui de BaseFormRequest (TCK-612) :\n- ".implode("\n- ", $heritees));
+    }
 
     private function racine(): string
     {
@@ -77,7 +143,7 @@ class FormRequestEtendBaseFormRequestTest extends TestCase
                 continue;
             }
             $relatif = str_replace('\\', '/', substr($fichier->getPathname(), strlen($racine) + 1));
-            if ($relatif === 'BaseFormRequest.php' || $this->horsChamp($relatif)) {
+            if ($relatif === 'BaseFormRequest.php') {
                 continue;
             }
 
@@ -89,17 +155,6 @@ class FormRequestEtendBaseFormRequestTest extends TestCase
         sort($directs);
 
         return ['lus' => $lus, 'directs' => $directs];
-    }
-
-    private function horsChamp(string $relatif): bool
-    {
-        foreach (self::HORS_CHAMP as $prefixe) {
-            if (str_starts_with($relatif, $prefixe)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /** `extends FormRequest`, ou son nom complet ; jamais `extends BaseFormRequest`. */
@@ -114,16 +169,16 @@ class FormRequestEtendBaseFormRequestTest extends TestCase
 
         $this->assertGreaterThan(100, $lus, "balayage vide : {$lus} fichier(s) lu(s) sous app/Http/Requests");
 
-        $neufs = array_values(array_diff($directs, self::FIGES));
-        $this->assertSame([], $neufs, "Ces FormRequests étendent FormRequest au lieu de BaseFormRequest (TCK-730) :\n- ".implode("\n- ", $neufs));
+        $neufs = array_values(array_diff($directs, array_keys(self::EXEMPTIONS)));
+        $this->assertSame([], $neufs, "Ces FormRequests étendent FormRequest au lieu de BaseFormRequest (TCK-730, TCK-612) :\n- ".implode("\n- ", $neufs));
     }
 
-    public function test_la_liste_figee_ne_garde_que_des_fichiers_qui_etendent_encore_form_request(): void
+    public function test_les_exemptions_ne_gardent_que_des_fichiers_qui_etendent_encore_form_request(): void
     {
         ['directs' => $directs] = $this->balayer();
 
-        $perimes = array_values(array_diff(self::FIGES, $directs));
-        $this->assertSame([], $perimes, "Ces fichiers n'étendent plus FormRequest : retirez-les de FIGES (TCK-730) :\n- ".implode("\n- ", $perimes));
+        $perimes = array_values(array_diff(array_keys(self::EXEMPTIONS), $directs));
+        $this->assertSame([], $perimes, "Ces fichiers n'étendent plus FormRequest : retirez-les d'EXEMPTIONS (TCK-612) :\n- ".implode("\n- ", $perimes));
     }
 
     public function test_le_motif_reconnait_les_deux_formes_et_pas_base_form_request(): void

@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Maintenance;
 
+use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class RejectQuoteRequest extends FormRequest
+class RejectQuoteRequest extends BaseFormRequest
 {
     /**
      * Determine if the user is authorized to make this request.

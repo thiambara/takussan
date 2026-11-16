@@ -2,13 +2,13 @@
 
 namespace App\Http\Requests\Accounting;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Models\BankStatement;
 use App\Models\Enums\BankStatementSourceFormat;
 use App\Models\Enums\BankStatementStatus;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
 
-class StoreBankStatementRequest extends FormRequest
+class StoreBankStatementRequest extends BaseFormRequest
 {
     /** TCK-818 (P22.04) — la policy que le contrôleur juge, invoquée avant la validation. */
     public function authorize(): bool

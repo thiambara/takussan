@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Agency;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Agency;
 use App\Models\RoleDelegation;
 use App\Rules\InstantIso;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
@@ -18,7 +18,7 @@ use Illuminate\Validation\Rule;
  * délégation liée : il faut alors pouvoir déléguer (`create` de la page Rôles), sinon 403 avant
  * toute écriture.
  */
-class StoreAgentAbsenceRequest extends FormRequest
+class StoreAgentAbsenceRequest extends BaseFormRequest
 {
     use ConvertitLesInstantsRecus;
 

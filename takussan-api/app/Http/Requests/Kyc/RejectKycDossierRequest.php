@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Kyc;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\BaseFormRequest;
 
-class RejectKycDossierRequest extends FormRequest
+class RejectKycDossierRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

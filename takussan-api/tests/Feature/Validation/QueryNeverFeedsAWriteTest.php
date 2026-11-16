@@ -12,6 +12,7 @@ use App\Models\Invitation;
 use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Redirector;
@@ -21,6 +22,7 @@ use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
 use Tests\ApiTestCase;
+use Tests\Unit\Architecture\FormRequestEtendBaseFormRequestTest;
 use Throwable;
 
 /**
@@ -32,7 +34,8 @@ use Throwable;
  * (`POST …/impersonate?reason=…` sous n'importe quel corps).
  *
  * Le premier test parcourt `Route::getRoutes()` : une `BaseFormRequest` ajoutée demain sur une
- * écriture est couverte sans toucher à ce fichier. Il rejoue, hors autorisation, l'ordre de
+ * écriture est couverte sans toucher à ce fichier, et une FormRequest qui étend `FormRequest` en
+ * direct le fait rougir, sauf exemption motivée de `FormRequestEtendBaseFormRequestTest`. Il rejoue, hors autorisation, l'ordre de
  * `validateResolved()` — relevé des clés, query cachée, `prepareForValidation()`, query rendue,
  * `validationData()` — deux fois :
  * sans query, puis avec chaque champ de premier niveau des `rules()` posé EN QUERY SEULEMENT. Les
@@ -86,11 +89,19 @@ class QueryNeverFeedsAWriteTest extends ApiTestCase
         $fuites = [];
         $exemptionsVues = [];
         $nonRejouees = [];
+        $horsBase = [];
 
         foreach (Route::getRoutes()->getRoutes() as $route) {
             $ecritures = array_values(array_diff($route->methods(), ['GET', 'HEAD', 'OPTIONS']));
             $classe = $ecritures === [] ? null : $this->formRequestDe($route);
             if ($classe === null) {
+                continue;
+            }
+            // Une FormRequest qui n'étend pas BaseFormRequest n'a pas `validationData()` corps seul :
+            // elle n'est admise que si la garde d'architecture l'exempte, avec son motif.
+            if (! is_subclass_of($classe, BaseFormRequest::class)) {
+                $horsBase[$classe] = true;
+
                 continue;
             }
 
@@ -123,9 +134,19 @@ class QueryNeverFeedsAWriteTest extends ApiTestCase
         }
 
         $this->assertSame([], $fuites, "Des champs posés en query seulement entrent dans la validation d'une écriture :\n".implode("\n", $fuites));
+        $exemptees = array_map(
+            fn (string $relatif) => 'App\\Http\\Requests\\'.str_replace('/', '\\', substr($relatif, 0, -4)),
+            array_keys(FormRequestEtendBaseFormRequestTest::EXEMPTIONS),
+        );
+        $nonExemptees = array_values(array_diff(array_keys($horsBase), $exemptees));
+        $this->assertSame([], $nonExemptees, "Ces écritures type-hintent une FormRequest qui n'étend pas BaseFormRequest : la query y entre (TCK-612) :\n".implode("\n", $nonExemptees));
         $this->assertSame([], $nonRejouees, "Écritures que le test n'a pas su rejouer :\n".implode("\n", $nonRejouees));
         // Plancher : un parcours qui ne trouverait plus rien serait vert sans rien prouver.
         $this->assertGreaterThan(200, count($couvertes), 'Le parcours des routes ne trouve presque plus de FormRequest.');
+        // Témoins des classes qui étendaient `FormRequest` en direct jusqu'au 2026-11-16 : le parcours les rejoue.
+        foreach (['POST api/auth/login (App\Http\Requests\Auth\LoginRequest)', 'POST api/{paymentType}/{paymentId}/initiate (App\Http\Requests\InitiatePaymentRequest)', 'POST api/agencies/{agency}/members/{user}/handover (App\Http\Requests\Agency\StoreAgentHandoverRequest)'] as $temoin) {
+            $this->assertContains($temoin, $couvertes, "Écriture attendue dans le parcours : {$temoin}");
+        }
         ksort($exemptionsVues);
         $attendues = self::EXEMPTIONS;
         ksort($attendues);
@@ -178,6 +199,20 @@ class QueryNeverFeedsAWriteTest extends ApiTestCase
             ->assertJsonPath('validated', ['nom' => 'a', 'drapeau' => true, 'email' => 'saisi@exemple.sn']);
     }
 
+    /**
+     * Une classe qui étendait `FormRequest` en direct (`LoginRequest`, jusqu'au 2026-11-16) : des
+     * identifiants posés dans l'URL seule n'ouvrent pas de session ; dans le corps, si.
+     */
+    public function test_la_connexion_ne_lit_pas_les_identifiants_dans_la_query(): void
+    {
+        User::factory()->create(['email' => 'query@exemple.sn', 'password' => bcrypt('password123')]);
+
+        $this->postJson('/api/auth/login?email=query@exemple.sn&password=password123')
+            ->assertStatus(422)->assertJsonValidationErrors(['email', 'password']);
+
+        $this->postJson('/api/auth/login', ['email' => 'query@exemple.sn', 'password' => 'password123'])->assertOk();
+    }
+
     /** Une lecture garde sa source : la query. */
     public function test_une_lecture_se_valide_toujours_sur_la_query(): void
     {
@@ -217,7 +252,7 @@ class QueryNeverFeedsAWriteTest extends ApiTestCase
         return [User::factory()->withAgentProfile($agence)->create(), Customer::factory()->create(['agency_id' => $agence->id])];
     }
 
-    /** @return class-string<BaseFormRequest>|null */
+    /** @return class-string<FormRequest>|null */
     private function formRequestDe(LaRoute $route): ?string
     {
         $uses = $route->getAction('uses');
@@ -234,7 +269,7 @@ class QueryNeverFeedsAWriteTest extends ApiTestCase
 
         foreach ($reflexion?->getParameters() ?? [] as $parametre) {
             $type = $parametre->getType();
-            if ($type instanceof ReflectionNamedType && ! $type->isBuiltin() && is_subclass_of($type->getName(), BaseFormRequest::class)) {
+            if ($type instanceof ReflectionNamedType && ! $type->isBuiltin() && is_subclass_of($type->getName(), FormRequest::class)) {
                 return $type->getName();
             }
         }

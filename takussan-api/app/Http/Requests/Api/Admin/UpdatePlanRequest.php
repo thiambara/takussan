@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Api\Admin;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdatePlanRequest extends FormRequest
+class UpdatePlanRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

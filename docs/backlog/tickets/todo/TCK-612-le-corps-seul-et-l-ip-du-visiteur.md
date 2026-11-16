@@ -156,6 +156,24 @@ par contrat : **exemptées** par `$queryKeysAcceptedOnWrite`, motif dans la clas
 - Ablations : `validationData()` rendu à `all()` → AC1 + AC2 (422) rouges ; cacher neutralisé → AC1
   (6 FormRequests : invitations, clients, demande de passage en agence) rouge ; retrait de la query
   neutralisé → test `input()` rouge ; `removeAgent` remis à `boolean()` → son test rouge.
-- `StartImpersonationRequest` garde sa forme (redondante). Les 36 classes qui étendent `FormRequest`
-  directement (`LoginRequest`, `StoreAgentHandoverRequest`, `InitiatePaymentRequest`…) ne sont pas
-  couvertes : hors de la classe de base du ticket.
+- `StartImpersonationRequest` garde sa forme (redondante).
+- **Les 35 FormRequests qui étendaient `FormRequest` en direct étendent `BaseFormRequest`**
+  (`LoginRequest`, `StoreAgentHandoverRequest`, `InitiatePaymentRequest`…, `Auth/` et `Api/Admin/`
+  compris) : aucun trait ni copie de `validationData()`. Chacune déclarait déjà son `authorize()`,
+  inchangé (le diff ne touche que `use`/`extends`) ; les neuf qui portaient `BorneLesReglesDElement`
+  le reçoivent de la base. Normalisation : sans effet sur les mots de passe — `LoginRequest`,
+  `UpdateBankCsvMappingRequest` (tabulation), `StoreBankStatementRequest`… surchargent
+  `prepareForValidation()` sans appeler le parent ; les autres ne portent aucun champ que
+  `TrimStrings` exempte. Inventaire de la contrainte 2 pour elles : 33 `POST`/`PUT`/`PATCH` sans
+  champ attendu en query (relevé : aucun appel du front vers elles ne porte de chaîne de requête —
+  le seul, `absences?current=1`, est un `GET`), 3 `GET` (`SearchQueryRequest`, `ReportExportRequest`)
+  inchangés.
+- Gardes : `tests/Unit/Architecture/FormRequestEtendBaseFormRequestTest.php` couvre désormais tout
+  `app/Http/Requests` (plus de hors-champ `Auth/`/`Admin/`), sa liste figée devient `EXEMPTIONS`
+  motivées — seule `Auth/RegisterRequest.php`, tenue par TCK-537 dans le même lot — et épingle le
+  `authorize()` propre des 35. `QueryNeverFeedsAWriteTest` reconnaît toute `FormRequest` : une
+  écriture qui en type-hint une hors de `BaseFormRequest` et hors `EXEMPTIONS` le fait rougir ;
+  témoins `login`, `initiate`, `handover` ; `test_la_connexion_ne_lit_pas_les_identifiants_dans_la_query`.
+  Ablations (copie + md5) : `LoginRequest` sans `authorize()` → garde d'autorisation + test de
+  connexion + `AuthLoginCaseInsensitiveTest` rouges ; `LoginRequest` remis à `extends FormRequest`
+  → garde d'héritage, parcours AC1 et connexion par la query (200 au lieu de 422) rouges.

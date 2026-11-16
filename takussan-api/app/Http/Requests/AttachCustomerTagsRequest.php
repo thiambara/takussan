@@ -2,15 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Http\Requests\Concerns\BorneLesReglesDElement;
-use Illuminate\Foundation\Http\FormRequest;
-
-class AttachCustomerTagsRequest extends FormRequest
+class AttachCustomerTagsRequest extends BaseFormRequest
 {
-    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
-    // `BaseFormRequest` par les autres : cette requête l'étend encore en direct, TCK-730).
-    use BorneLesReglesDElement;
-
     public function authorize(): bool
     {
         return true;

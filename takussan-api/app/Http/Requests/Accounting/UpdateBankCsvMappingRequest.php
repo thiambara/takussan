@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Accounting;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Models\BankStatement;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -17,7 +17,7 @@ use Illuminate\Validation\Rule;
  * le brouillon de TCK-574) : le délimiteur tabulation et le séparateur de milliers espace SONT
  * des blancs, et le trim les réduisait à `null` — un mapping tabulé devenait impossible à écrire.
  */
-class UpdateBankCsvMappingRequest extends FormRequest
+class UpdateBankCsvMappingRequest extends BaseFormRequest
 {
     /**
      * Le middleware global court AVANT le routage : seul le chemin se lit.

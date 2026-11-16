@@ -2,12 +2,10 @@
 
 namespace App\Http\Requests;
 
-use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryElementState;
 use App\Models\Enums\InventoryType;
 use App\Models\Inventory;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
@@ -18,12 +16,8 @@ use Illuminate\Validation\Rule;
  * without default, so a null cannot clear them and must be a 422 (TCK-980). `notes` keeps
  * its nullable clear.
  */
-class InventoryUpdateRequest extends FormRequest
+class InventoryUpdateRequest extends BaseFormRequest
 {
-    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
-    // BaseFormRequest pour les autres).
-    use BorneLesReglesDElement;
-
     public function authorize(): bool
     {
         return $this->user() !== null;

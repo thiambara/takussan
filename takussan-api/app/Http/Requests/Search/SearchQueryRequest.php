@@ -2,12 +2,12 @@
 
 namespace App\Http\Requests\Search;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\DocumentType;
 use App\Rules\JourIso;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class SearchQueryRequest extends FormRequest
+class SearchQueryRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
