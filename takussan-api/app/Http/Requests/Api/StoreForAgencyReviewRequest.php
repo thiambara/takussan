@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Lease;
 use App\Services\Review\ReviewEligibility;
 
 /**
@@ -15,6 +16,8 @@ use App\Services\Review\ReviewEligibility;
  */
 class StoreForAgencyReviewRequest extends BaseFormRequest
 {
+    private ?Lease $proof = null;
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -35,9 +38,12 @@ class StoreForAgencyReviewRequest extends BaseFormRequest
             return false;
         }
 
-        // TCK-597 — la règle vit dans `ReviewEligibility`, inchangée.
-        return $user->isSuperAdmin()
-            || app(ReviewEligibility::class)->forAgency($user, $agency) !== null;
+        // TCK-597 — la règle vit dans `ReviewEligibility`, inchangée. TCK-2577 — la preuve trouvée est
+        // gardée pour le contrôleur, qui l'écrit dans `context_*` (ADR-0043 § 3). Elle est cherchée
+        // AVANT le passe-droit du super-admin : un super-admin locataire écrit lui aussi son bail.
+        $this->proof = app(ReviewEligibility::class)->forAgency($user, $agency);
+
+        return $this->proof !== null || $user->isSuperAdmin();
     }
 
     /** @return array<string, mixed> */
@@ -48,5 +54,14 @@ class StoreForAgencyReviewRequest extends BaseFormRequest
             'title' => ['nullable', 'string', 'max:255'],
             'content' => ['nullable', 'string', 'max:2000'],
         ];
+    }
+
+    /**
+     * TCK-2577 — le bail qui rend l'avis possible, ou `null` pour le super-admin sans bail : son avis
+     * reste alors sans contexte, et la fiche n'affiche rien (comme un avis antérieur).
+     */
+    public function proof(): ?Lease
+    {
+        return $this->proof;
     }
 }

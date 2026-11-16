@@ -546,9 +546,11 @@ class ReviewController extends Controller
 
         // TCK-305 — même raison que dans storeForProperty() ci-dessus.
         $data = $request->validated();
+        // TCK-2577 — le bail trouvé par `forAgency()`, ou null (super-admin sans bail).
+        $proof = $request->proof();
 
         // verif-597 M4 — même verrou parent que storeForProperty().
-        $review = DB::transaction(function () use ($agency, $user, $data, $request) {
+        $review = DB::transaction(function () use ($agency, $user, $data, $proof, $request) {
             Agency::query()->whereKey($agency->getKey())->lockForUpdate()->first();
 
             $alreadyReviewed = $agency->reviews()->withTrashed()->where('author_id', $user->id)->exists();
@@ -556,6 +558,8 @@ class ReviewController extends Controller
 
             return $agency->reviews()->create(array_merge($data, [
                 'author_id' => $user->id,
+                'context_type' => $proof?->getMorphClass(),
+                'context_id' => $proof?->getKey(),
                 'is_approved' => false,
                 'status' => ReviewStatus::Pending,
                 'metadata' => $this->creationMetadata($request),

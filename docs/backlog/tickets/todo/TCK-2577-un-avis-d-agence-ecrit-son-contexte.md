@@ -73,14 +73,14 @@ d'un agent.
 
 ## Critères d'acceptation
 
-- [ ] AC1 (a) — Un avis d'agence déposé par `POST /api/agencies/{agency}/reviews` écrit son contexte
+- [x] AC1 (a) — Un avis d'agence déposé par `POST /api/agencies/{agency}/reviews` écrit son contexte
   d'éligibilité (`context_type` du bail, `context_id` du bail trouvé par `forAgency()`), comme un avis
   d'agent. Le test passe par la route, jamais par la factory.
-- [ ] AC2 (b) — La fiche publique d'agence affiche ce contexte (« Locataire · bail ») pour un avis déposé et
+- [x] AC2 (b) — La fiche publique d'agence affiche ce contexte (« Locataire · bail ») pour un avis déposé et
   approuvé par les routes ; l'API ne sert que `context_kind`, jamais `context_id` ni `context_type`.
-- [ ] AC3 (c) — Une ablation le prouve : retirer l'écriture du contexte dans `storeForAgency` fait rougir
+- [x] AC3 (c) — Une ablation le prouve : retirer l'écriture du contexte dans `storeForAgency` fait rougir
   le test de AC1 et celui de AC2.
-- [ ] AC4 (d) — Les avis d'agence déjà déposés restent sans contexte et n'affichent rien : ni libellé, ni
+- [x] AC4 (d) — Les avis d'agence déjà déposés restent sans contexte et n'affichent rien : ni libellé, ni
   séparateur orphelin. Aucune donnée existante n'est réécrite.
 
 ## Hors périmètre
@@ -97,3 +97,22 @@ d'un agent.
   contexte (« Locataire · bail ») ») ne peut pas être tenue tant qu'un avis d'agence n'écrit pas son
   contexte. Décision de la session : ne pas changer l'écriture des avis dans la vague 3 (changement de
   données) ; TCK-2522 livre la lecture et l'affichage, ce ticket l'écriture.
+
+## Livré (2026-11-16)
+
+- `StoreForAgencyReviewRequest` garde le bail trouvé par `ReviewEligibility::forAgency()` et l'expose
+  (`proof(): ?Lease`) ; `storeForAgency` écrit `context_type` / `context_id` depuis lui. Aucune migration :
+  l'index `reviews_author_context_uniq` couvre déjà ces lignes.
+- **Super-admin sans bail (décision de session)** : il dépose toujours, et son avis reste sans contexte
+  (n'affiche rien, comme un avis antérieur). Le refuser aurait changé une autorisation hors du delta (même
+  passe-droit dans `StoreForPropertyReviewRequest`, avis de modération de la plateforme). La preuve est
+  cherchée AVANT le passe-droit : un super-admin locataire de l'agence écrit lui aussi son bail.
+- AC1 — `tests/Feature/Public/AvisAgenceContexteParLaRouteTest.php::test_ac1_…` (dépôt par la route,
+  `context_type` = `Lease`, `context_id` = le bail).
+- AC2 — `…::test_ac2_…` : dépôt, approbation par la plateforme, `GET /api/public/agencies/{slug}` rend
+  `context_kind` `lease`, ni `context_id` ni `context_type` dans la réponse. L'affichage « Locataire · bail »
+  est celui de `ReviewsSection.contexte.tck-2522.test.tsx` (7 verts).
+- AC3 — ablation des deux lignes `context_*` de `storeForAgency` : AC1 et AC2 rouges, restauré (md5 identique).
+- AC4 — `…::test_ac4_…` (avis antérieur sans contexte : `context_kind` null, rien réécrit) ; côté front,
+  ni libellé ni séparateur orphelin (`ReviewsSection.contexte.tck-2522.test.tsx`).
+
