@@ -94,7 +94,7 @@ class LiensDesCourrielsTest extends TestCase
      * @var array<string, string>
      */
     private const HORS_DU_FRONT = [
-        'ActivityLogExportReadyNotification' => "téléchargement signé servi par l'API (ExportActivityLogJob)",
+        'ActivityLogExportReadyNotification' => 'téléchargement signé relayé par le BFF du front avec la session (ExportActivityLogJob, TCK-613) : un route handler, pas une page',
         'ReportExportReadyNotification' => "téléchargement signé servi par l'API (ReportExportDownloadController)",
     ];
 

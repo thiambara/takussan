@@ -138,7 +138,15 @@ class LemonSqueezyDriver implements PaymentDriverContract
             default => PaymentEvent::TYPE_PENDING,
         };
 
-        return new PaymentEvent(self::PROVIDER, $type, $transactionId, $this->extractFees($attributes));
+        // TCK-606 (ADR-0046, amendement du 2026-11-16, point 3) — le checkout note l'UUID du
+        // CHECKOUT, la commande porte son propre id : c'est `custom_data` qui la relie au payable,
+        // sous la même forme que le chemin du paquet. Le service ne l'apparie qu'à un payable initié
+        // chez ce fournisseur par une intégration du propriétaire de l'autorité.
+        $customData = $attributes['first_order_item']['custom_data'] ?? $payload['meta']['custom_data'] ?? [];
+
+        return new PaymentEvent(self::PROVIDER, $type, $transactionId, array_merge($this->extractFees($attributes), [
+            'custom_data' => is_array($customData) ? $customData : [],
+        ]));
     }
 
     /**

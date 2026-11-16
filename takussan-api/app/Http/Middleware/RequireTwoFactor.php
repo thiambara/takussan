@@ -70,15 +70,19 @@ class RequireTwoFactor
         // `/api/admin/*`, une action protégée (rôles, blocage, reversements…) lui était ouverte
         // sans 2FA. Tout profil plateforme la porte sur TOUTE action listée. TCK-597 (verif-597
         // passe 3, M5) — et sur la modération qu'il tranche hors de la console.
+        // TCK-609 (ADR-0033 §8, amendement du 2026-11-16) — un geste de famille peut n'en être un
+        // que sous condition (forcer un loyer) : la condition se lit comme le service la lit.
         $action = $request->route()?->getActionName();
+        $famille = ProtectedActions::requiresAgencyTwoFactor($action)
+            || ProtectedActions::requiresAgencyTwoFactorWhen($action, fn (string $champ) => $request->boolean($champ));
         if ($plateforme && ! $request->isMethodSafe()
-            && (ProtectedActions::requiresAgencyTwoFactor($action) || ProtectedActions::requiresStepUpForPlatform($action)
+            && ($famille || ProtectedActions::requiresStepUpForPlatform($action)
                 || ProtectedActions::requiresPlatformTwoFactor($action))) {
             return true;
         }
 
         return ! $request->isMethodSafe()
-            && ProtectedActions::requiresAgencyTwoFactor($action)
+            && $famille
             && TwoFactorRequirement::requiredAtAgency($user, $this->requestAgencyId($request));
     }
 

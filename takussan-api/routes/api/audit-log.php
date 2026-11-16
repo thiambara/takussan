@@ -17,8 +17,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-104 — audit trail export (agency_admin / super_admin only).
     Route::get('activity-logs/export', [ActivityLogExportController::class, 'export'])
         ->name('activity-logs.export');
-});
 
-// Signed temporary URL for async export download — no auth guard, validated by signature.
-Route::get('activity-logs/export/download', [ActivityLogExportController::class, 'download'])
-    ->name('activity-logs.export.download');
+    // TCK-613 (ADR-0044 §2) — le fichier asynchrone : lien signé ET session du demandeur. Hors
+    // `auth:sanctum`, le lien était un droit au porteur (sonde P4 de verif-601).
+    Route::get('activity-logs/export/download', [ActivityLogExportController::class, 'download'])
+        ->name('activity-logs.export.download');
+});

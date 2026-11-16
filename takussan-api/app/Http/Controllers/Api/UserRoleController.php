@@ -11,6 +11,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Calendar\CalendarFeedService;
 use App\Services\Membership\ProfileMaterializer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -184,6 +185,9 @@ class UserRoleController extends Controller
             ['user_id' => $user->id, 'agency_id' => $agencyId],
             [],
         );
+        // TCK-617 — passé bailleur, il n'est plus personnel de l'agence : son lien d'agenda tombe. Jugé
+        // après le profil de bailleur, qui porte une délégation encore en vigueur (`enVigueur()`).
+        app(CalendarFeedService::class)->revokeUnlessStaff($user, $agencyId);
     }
 
     /**

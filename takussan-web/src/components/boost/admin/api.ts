@@ -32,6 +32,15 @@ export interface BoostStatsRow {
 export interface BoostStatsResponse {
   readonly data: readonly BoostStatsRow[];
   readonly totals: { readonly impressions: number; readonly clicks: number; readonly ctr: number };
+  /** TCK-2525 — les places « Mise en avant » créées sur la période, et les crédits mouvementés pour elles. */
+  readonly spotlights?: BoostStatsSpotlights;
+}
+
+export interface BoostStatsSpotlights {
+  readonly purchased: number;
+  readonly offered: number;
+  readonly credits_spent: number;
+  readonly credits_refunded: number;
 }
 
 export interface NewBoostProduct {
@@ -122,7 +131,17 @@ export interface AgencySpotlight {
   readonly ends_at: string;
   readonly note: string | null;
   readonly granted_by: { readonly id: number; readonly name: string } | null;
+  /** TCK-2525 — offerte par la plateforme, ou achetée en crédits par l'agence. */
+  readonly origin: AgencySpotlightOrigin;
+  /** Le prix figé à l'achat ; nul pour une place offerte. */
+  readonly price_credits: number | null;
+  readonly purchased_by: { readonly id: number; readonly name: string } | null;
+  /** La libération (suspension, retrait d'une place achetée) ; la place reste dans l'historique. */
+  readonly cancelled_at: string | null;
+  readonly refunded_credits: number | null;
 }
+
+export type AgencySpotlightOrigin = 'offered' | 'purchased';
 
 export type AgencySpotlightWhen = '' | 'current' | 'upcoming' | 'past';
 

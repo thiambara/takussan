@@ -180,12 +180,26 @@ class PublicSearchAlertController extends Controller
         return $this->json(['data' => ['status' => 'pending_confirmation']], 202);
     }
 
+    /**
+     * TCK-615 (ADR-0050, amendement du 2026-11-16, B) — l'alerte existe pour son destinataire à la
+     * confirmation : la première ne porte que ce qui est publié depuis, jamais l'historique.
+     */
+    private function bornerLePremierEnvoi(AlertSubscriber $subscriber): void
+    {
+        SavedSearch::query()->where('alert_subscriber_id', $subscriber->id)->update(['last_notified_at' => now()]);
+    }
+
     private function confirmByToken(string $token): ?AlertSubscriber
     {
         $subscriber = $this->pendingConfirmation(AlertSubscriber::tokenHash($token))->first();
 
         // Usage unique : l'empreinte disparaît avec la confirmation.
-        $subscriber?->forceFill(['confirmed_at' => now(), 'confirmation_token_hash' => null])->save();
+        if ($subscriber !== null) {
+            DB::transaction(function () use ($subscriber): void {
+                $subscriber->forceFill(['confirmed_at' => now(), 'confirmation_token_hash' => null])->save();
+                $this->bornerLePremierEnvoi($subscriber);
+            });
+        }
 
         return $subscriber;
     }
@@ -217,6 +231,7 @@ class PublicSearchAlertController extends Controller
 
             DB::transaction(function () use ($subscriber, $phone): void {
                 $subscriber->forceFill(['confirmed_at' => now()])->save();
+                $this->bornerLePremierEnvoi($subscriber);
                 // La garde d'opt-in de `WhatsappChannel` (TCK-588) sert un destinataire sans compte
                 // seulement s'il y a consenti : la confirmation EST ce consentement.
                 // Un consentement déjà donné ailleurs garde sa source : la désinscription de l'alerte

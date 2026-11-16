@@ -2,10 +2,9 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class RejectPropertyRequest extends FormRequest
+class RejectPropertyRequest extends BaseFormRequest
 {
     /** TCK-2672 — les motifs d'une demande de correction ; le texte reste exigé (20 caractères). */
     public const REASON_CODES = ['photos', 'price', 'address', 'description', 'other'];

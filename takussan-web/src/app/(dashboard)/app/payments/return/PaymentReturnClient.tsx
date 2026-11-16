@@ -73,7 +73,9 @@ function PaymentReturnInner() {
   }, [lienLu, decision.terminale, relance]);
 
   // Le téléphone de l'agence, pour « Contacter l'agence » au remboursement (locataire seulement).
-  const resume = useResumeDuLoyer({ enabled: decision.issue === 'rembourse' && lien?.type === 'lease-payments' });
+  const resume = useResumeDuLoyer({
+    enabled: (decision.issue === 'rembourse' || decision.issue === 'annulee') && lien?.type === 'lease-payments',
+  });
 
   const enVerification = chargementMinimal || (lien !== null && serveur === null && erreur === null);
 
@@ -107,6 +109,7 @@ function PaymentReturnInner() {
               }}
               onReessayer={() => setReessai(true)}
               telephoneDeLAgence={resume.data?.data?.lease?.agency?.phone ?? resume.data?.data?.offline_payment?.agency_phone ?? null}
+              partPenaliteARembourser={serveur?.late_fee_refund_pending === true}
             />
           )}
         </div>

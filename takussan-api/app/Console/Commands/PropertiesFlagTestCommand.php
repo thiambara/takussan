@@ -2,8 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\Property\RevalidatePublicPropertyPage;
 use App\Models\Property;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-163 — flag legacy seed/QA fixtures so the public listing scope
@@ -56,7 +58,20 @@ class PropertiesFlagTestCommand extends Command
             return self::SUCCESS;
         }
 
-        $updated = $query->update(['is_test' => true]);
+        // TCK-618 (contrainte 5) — l'écriture de masse passe hors Éloquent : aucun
+        // `PropertyPublicCacheObserver` ne part. Les slugs touchés sont relevés AVANT (après, le
+        // filtre `is_test = false` ne les retrouverait plus) et la revalidation envoyée ici, sans
+        // quoi la fiche reste servie jusqu'au plancher de 300 s (ADR-0052). Le job est
+        // `afterCommit` : rien ne part avant que la modification soit visible.
+        $updated = DB::transaction(function () use ($query) {
+            $slugs = (clone $query)->lockForUpdate()->pluck('slug')->filter()->map(fn ($s) => (string) $s)->values()->all();
+            $updated = $query->update(['is_test' => true]);
+            foreach (array_chunk($slugs, 100) as $lot) {
+                RevalidatePublicPropertyPage::dispatch($lot);
+            }
+
+            return $updated;
+        });
         $this->info("Flagged {$updated} row(s) as is_test=true.");
 
         return self::SUCCESS;

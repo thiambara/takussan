@@ -26,11 +26,11 @@ const ligneTags = COMPARE_ROW_DEFS.find((d) => d.id === 'tags')!;
 
 describe('TCK-924 — les autres étiquettes du comparateur', () => {
   it('passent par le traducteur et se trient sur le libellé affiché', () => {
-    const cellule = buildCell(ligneTags, makeProperty({ tags: TAGS }), (tag) => libelleEquipement(tag, t));
+    const cellule = buildCell(ligneTags, makeProperty({ tags: TAGS }), 'fr', (tag) => libelleEquipement(tag, t));
     expect(cellule).toEqual(['Backup generator', 'Coup de cœur', 'Lift']);
   });
 
   it('sans traducteur (appelant hors React), le nom en base', () => {
-    expect(buildCell(ligneTags, makeProperty({ tags: TAGS }))).toEqual(['Ascenseur', 'Coup de cœur', 'Groupe électrogène']);
+    expect(buildCell(ligneTags, makeProperty({ tags: TAGS }), 'fr')).toEqual(['Ascenseur', 'Coup de cœur', 'Groupe électrogène']);
   });
 });

@@ -38,6 +38,7 @@ use App\Services\Payout\PayoutApprovalRule;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -328,6 +329,66 @@ class PayoutBypassTest extends TestCase
         $this->actingWithStepUp($issuer);
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-R', 'payout_method_id' => $m1->id])
             ->assertOk()->assertJsonPath('data.payout_method_id', $m1->id);
+    }
+
+    /** TCK-614 (AC3) — la procédure complète : clé d'empreinte posée, recalcul, rotation, ré-chiffrement, RETRAIT. */
+    private function poserLaCleTournerEtRetirer(): void
+    {
+        config(['app.hmac_key' => 'cle-d-empreinte-de-test']);
+        $this->artisan('security:rehash-fingerprints')->assertExitCode(0);
+        $this->tournerAppKey();
+        $this->artisan('security:reencrypt')->assertExitCode(0);
+        config(['app.previous_keys' => []]);
+        $this->app->forgetInstance('encrypter');
+        Crypt::clearResolvedInstance('encrypter');
+    }
+
+    /**
+     * TCK-614 (AC3) — approuvé sous l'ancienne `APP_KEY`, le versement se paie après `security:rehash-fingerprints`,
+     * `security:reencrypt` et le retrait de cette clé d'`APP_PREVIOUS_KEYS`.
+     */
+    public function test_tck614_ac3_un_versement_approuve_avant_la_rotation_se_paie_apres_le_retrait_de_l_ancienne_cle(): void
+    {
+        Notification::fake();
+        config(['app.hmac_key' => null]);
+        [$agency, $landlord, $issuer, $approver, $agent] = $this->fourEyesAgency();
+        $m1 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id]);
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, $m1);
+        $this->actingWithStepUp($approver);
+        $this->postJson("/api/payouts/{$id}/approve")->assertOk();
+
+        $this->poserLaCleTournerEtRetirer();
+
+        $this->actingWithStepUp($issuer);
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-614', 'payout_method_id' => $m1->id])
+            ->assertOk()->assertJsonPath('data.payout_method_id', $m1->id);
+    }
+
+    /**
+     * TCK-614 — le recalcul ne BLANCHIT pas une destination changée depuis l'approbation : il la compte (`changees`),
+     * ne réécrit pas l'empreinte approuvée, et le paiement reste refusé.
+     */
+    public function test_tck614_le_recalcul_ne_blanchit_pas_une_destination_changee_depuis_l_approbation(): void
+    {
+        Notification::fake();
+        config(['app.hmac_key' => null]);
+        [$agency, $landlord, $issuer, $approver, $agent] = $this->fourEyesAgency();
+        $m1 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id]);
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, $m1);
+        $this->actingWithStepUp($approver);
+        $this->postJson("/api/payouts/{$id}/approve")->assertOk();
+        $approuvee = Payout::query()->findOrFail($id)->metadata['approved_destination_fingerprint'];
+        $m1->forceFill(['account_identifier' => '+221770000099'])->save();
+
+        config(['app.hmac_key' => 'cle-d-empreinte-de-test']);
+        $this->artisan('security:rehash-fingerprints')
+            ->expectsOutputToContain('versements — reecrites=0 courantes=0 changees=1 sans_source=0')
+            ->assertExitCode(0);
+
+        $this->assertSame($approuvee, Payout::query()->findOrFail($id)->metadata['approved_destination_fingerprint']);
+        $this->actingWithStepUp($issuer);
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-614b', 'payout_method_id' => $m1->id])
+            ->assertStatus(422)->assertJsonPath('code', 'payout.destination_changed_since_approval');
     }
 
     /** M-4 — le payeur ne choisit pas une AUTRE destination que celle approuvée, même vérifiée. */

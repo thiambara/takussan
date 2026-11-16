@@ -7,11 +7,17 @@
  * durées décrits ici sont ceux RELEVÉS dans le code le même jour — un nouveau prestataire, un
  * nouveau traceur ou une nouvelle purge doit être reporté ici dans le même changement.
  *
- * ⚠ Trois engagements de ce texte ne sont pas encore tenus par le code et sont suivis par
- * TCK-537 : la conservation de la preuve du consentement, l'effacement des profils à la
- * suppression du compte, et les purges planifiées (journal d'activité, pièces de vérification,
- * demandes de contact). À faire relire par un avocat ; la déclaration à la CDP est un préalable à
- * la mise en production.
+ * Les engagements du § 6 sont tenus par le code (TCK-537, 2026-11-16) : la preuve du consentement
+ * (`consent_proofs`, `ConsentLedger`), l'effacement des colonnes identifiantes des profils à la
+ * suppression du compte (`AccountDeletionService::IDENTIFYING_PROFILE_COLUMNS`), et les purges
+ * planifiées — journal d'activité (TCK-2342), pièces KYC (`kyc:prune-ended-pieces`), demandes de
+ * contact (`crm:prune-contact-leads`), preuves de consentement (`account:prune-consent-proofs`).
+ * À faire relire par un avocat ; la déclaration à la CDP est un préalable à la mise en production.
+ *
+ * TCK-537 (décisions du porteur du 2026-11-16) : l'auteur d'un avis public est nommé par son
+ * prénom et l'initiale de son nom (`NomPublic` côté API) ; ipapi.co n'est joint qu'au premier geste
+ * du visiteur (`UserLocationProvider`, `GESTES`) ; les jobs échoués (TCK-803), le contenu de
+ * l'archive pour les fiches clients (TCK-956, ADR-0070 § 7) et la dictée vocale (TCK-2903) sont dits.
  */
 import { A_COMPLETER, EDITEUR, HEBERGEURS, VERSION_DOCUMENTS } from './editeur';
 
@@ -53,7 +59,8 @@ Les agences, propriétaires et professionnels qui utilisent la plateforme traite
 - **Journal d’activité** : les opérations effectuées sur les éléments importants (biens, baux, paiements, profils, droits d’accès), avec leur auteur et leur date.
 - **Préférences** : favoris, recherches enregistrées, préférences de notification.
 - **Localisation précise** : la position de votre appareil, **uniquement si vous l’autorisez**, pour la recherche « autour de moi » ou pour placer un bien sur la carte.
-- **Localisation approximative** : la ville et le pays déduits de votre adresse IP, pour vous proposer des biens proches.
+- **Localisation approximative** : la ville et le pays déduits de votre adresse IP, pour vous proposer des biens proches. Cette déduction n’est demandée qu’après votre premier geste dans la page (un appui, un clic ou une touche du clavier), jamais au simple chargement d’une page ; son résultat est gardé 24 heures sur votre appareil.
+- **Dictée vocale** : certaines notes (compte rendu de visite, note de pièce d’un état des lieux) peuvent être dictées en appuyant sur le micro. La reconnaissance vocale est celle de votre navigateur : selon le navigateur, le son est transmis au service de son éditeur (Google pour Chrome, Apple pour Safari), qui le traite selon ses propres conditions et non sur nos instructions. Nous ne recevons que le texte produit, que vous relisez avant de l’enregistrer ; aucun son ne nous parvient ni n’est conservé par nous.
 - **Mesure d’audience** : des statistiques de fréquentation agrégées, sans cookie de suivi publicitaire.
 - **Recherches** : lorsque vous lancez une recherche sur la liste des biens, nous l’ajoutons à un journal anonyme tenu par jour : le texte saisi, mis en minuscules et sans accents, les critères choisis (type de contrat, type de bien, ville, quartier, budget, nombre de chambres, etc.), le nombre de fois où cette recherche a été faite, le nombre de visiteurs distincts, le nombre de recherches sans résultat et le dernier nombre de résultats. Ce journal ne contient ni votre compte, ni votre adresse IP, ni votre position, ni aucun identifiant qui vous suive d’un jour à l’autre. Pour compter les visiteurs distincts d’une recherche, nous gardons à part une empreinte chiffrée de votre adresse IP, recalculée chaque jour et propre à chaque recherche, si bien qu’elle ne relie pas vos recherches entre elles, effacée en moins de 48 heures. Une saisie de plus de 80 caractères, six chiffres ou plus, une arobase (@) ou ce qui ressemble à une adresse électronique écrite sans elle (un nom de domaine comme « gmail.com » ou « gmail point com », le nom d’un service de messagerie, le mot « arobase » ou « (at) ») n’est jamais enregistrée, ni elle ni la recherche qui la contient, pour ne pas garder un numéro de téléphone ou une adresse électronique tapés par erreur. Seule une recherche faite un même jour par au moins cinq visiteurs distincts venus d’au moins cinq réseaux distincts, et qui donne encore des résultats, peut être montrée à d’autres visiteurs, par exemple en suggestion. Par ailleurs, les recherches sans résultat comptées pour au moins deux visiteurs sur les 30 derniers jours (un même visiteur compte une fois par jour) sont transmises, agrégées, à un fournisseur d’intelligence artificielle (rubrique « Intelligence artificielle » du § 4.3) : chaque semaine, le texte saisi, normalisé, et le nombre de visiteurs, pour tenir les variantes d’écriture que la recherche reconnaît (par exemple « wakam » pour Ouakam) ; chaque nuit, leurs seuls critères et le nombre de visiteurs, pour orienter le relevé de nouvelles annonces vers ce que les visiteurs cherchent. Ni votre compte, ni votre adresse IP, ni l’empreinte du jour ne leur sont transmis. Enfin, quand nous proposons à un annonceur repéré ailleurs de publier ses annonces sur Takussan, nous pouvons lui indiquer le nombre total de recherches faites sur les 30 derniers jours pour le quartier de ses annonces, et seulement à partir de 50 recherches : ce total ne contient aucun texte saisi ni aucune recherche particulière. De même, au départ de la publication d’une annonce, nous pouvons montrer à tout visiteur le nombre total de recherches faites sur les 7 derniers jours pour une ville, arrondi à la dizaine inférieure et seulement à partir de 200 recherches : ce total ne contient aucun texte saisi, aucun quartier ni aucune recherche particulière.
 
@@ -93,7 +100,7 @@ Nous ne prenons **aucune décision produisant des effets juridiques à votre ég
 
 - Les informations d’une annonce publiée sont publiques.
 - Vos demandes de contact, de visite et de réservation, vos messages et votre profil sont communiqués au professionnel ou à l’annonceur concerné, et aux collaborateurs de son agence dans la limite de leurs droits d’accès.
-- Vos avis publiés sont publics, accompagnés de vos prénom, nom et photo de profil.
+- Vos avis publiés sont publics, accompagnés de votre prénom, de l’initiale de votre nom et de votre photo de profil. Votre nom complet n’est montré qu’à vous et à qui répond à l’avis ou le modère : l’agence, le professionnel ou l’annonceur concerné, et notre équipe.
 
 ## 4.2 L’équipe ${EDITEUR.marque}
 
@@ -110,7 +117,7 @@ Nous faisons appel à des prestataires. Ils traitent des données pour notre com
 - **Paiement** : Wave, Orange Money et Lemon Squeezy, selon le moyen choisi.
 - **Connexion par un tiers** : Google, Meta (Facebook) et Apple, uniquement si vous choisissez ce mode de connexion.
 - **Cartographie** : OpenStreetMap, dont les serveurs reçoivent votre adresse IP lorsque la carte s’affiche.
-- **Localisation approximative** : ipapi.co, qui reçoit votre adresse IP pour en déduire votre ville.
+- **Localisation approximative** : ipapi.co, qui reçoit votre adresse IP pour en déduire votre ville, seulement après votre premier geste dans une page qui s’en sert (§ 2.2).
 - **Intelligence artificielle** : Anthropic (États-Unis), OpenAI (États-Unis) et OpenRouter (États-Unis) — analyse du texte et des images d’une annonce pour en extraire les caractéristiques, rédaction de messages, vérification d’une preuve d’accord, pour proposer une saisie, une rédaction ou un avis qu’une personne vérifie. Aucune demande que nous classons comme portant une donnée sensible (pièce d’identité, revenus) ne leur est transmise. En revanche, le nom ou le numéro de téléphone que contient une annonce ou une preuve d’accord leur parvient en clair : nous ne les masquons pas pour ces traitements. Leur sont aussi transmises, sans compte ni adresse IP, les recherches sans résultat agrégées décrites au § 2.2, pour tenir les variantes d’écriture de la recherche et orienter le relevé de nouvelles annonces. Nous demandons à OpenAI de ne pas conserver ses réponses pour un usage ultérieur ; ses journaux de surveillance des abus peuvent contenir les demandes et les réponses, et sont gardés jusqu’à 30 jours, ou plus longtemps si la loi l’exige ou si c’est raisonnablement nécessaire pour protéger ses services ou des tiers ; une image signalée comme pédopornographique peut être gardée pour une revue humaine. OpenRouter achemine chaque demande vers un fournisseur du modèle choisi : selon le modèle, elle peut être traitée par des fournisseurs de plusieurs pays, selon leurs propres conditions et non sur nos instructions. Nous demandons à OpenRouter de n’utiliser que des fournisseurs qui déclarent ne pas collecter ces données. OpenRouter indique ne pas stocker le contenu des demandes, sauf option activée sur le compte ou contenu signalé comme pédopornographique ; il conserve des métadonnées de chaque demande (nombre de jetons, durée), et sa politique de confidentialité prévoit qu’il peut collecter les données personnelles qui lui sont transmises et les garder aussi longtemps que raisonnablement nécessaire. ⚠ Anthropic, OpenAI et OpenRouter n’utilisent pas les données transmises pour entraîner leurs modèles : à vérifier sur leurs conditions en vigueur. Voyage AI Innovations, Inc. (États-Unis) — calcul d’une représentation numérique du texte d’une annonce relevée ailleurs, pour signaler à une personne les annonces qui décrivent peut-être le même bien. Nos filtres retirent les chiffres de ce texte et masquent les numéros de téléphone qu’ils reconnaissent ; ce que l’annonceur y a écrit en toutes lettres, comme un nom, une adresse électronique ou un numéro, peut lui parvenir. Aucun texte ne lui est envoyé avant que nous ayons refusé, sur notre compte, qu’il serve à entraîner ses modèles ; selon ses conditions, ce refus entraîne l’effacement du texte dès son traitement. À la réception de la demande d’un annonceur de ne plus être contacté, nous cessons les envois suivants de son texte ; un envoi déjà en cours n’est pas annulé.
 
 ## 4.4 Les autorités
@@ -126,10 +133,10 @@ Certains de nos prestataires sont établis ou stockent des données hors du Sén
 # 6. Combien de temps nous les conservons
 
 - **Compte** : tant que le compte est actif. Après une demande de suppression, un délai de 30 jours permet de l’annuler ; les données d’identification du compte et des profils sont ensuite **effacées ou anonymisées**.
-- **Pièces de vérification (KYC)** : pendant la relation, puis 5 ans après sa fin, sauf durée plus longue imposée par la réglementation relative à la lutte contre le blanchiment de capitaux.
+- **Pièces de vérification (KYC)** : pendant la relation, puis 5 ans après sa fin (la fin du profil qui les porte, ou la suppression de l’agence pour son dossier de vérification), sauf durée plus longue imposée par la réglementation relative à la lutte contre le blanchiment de capitaux.
 - **Paiements, factures, reversements et pièces comptables** : **10 ans**, conformément à l’Acte uniforme OHADA relatif au droit comptable et à l’information financière. Ils sont alors détachés de votre identité autant que la loi le permet.
 - **Baux, réservations et états des lieux** : pendant la durée de la relation contractuelle, puis pendant le délai de prescription applicable.
-- **Demandes de contact d’un visiteur sans compte** : 3 ans à compter du dernier échange.
+- **Demandes de contact d’un visiteur sans compte** : 3 ans à compter du dernier échange (le dépôt de la demande, la réponse ou le traitement le plus récent), puis suppression automatique.
 - **Messages** : tant que la conversation reste active pour l’un de ses participants, et au plus tard jusqu’à la suppression de la plateforme de l’agence concernée, sauf obligation de conservation.
 - **Journal d’activité** : 12 mois, sauf les deux familles qui suivent.
 - **Journaux de sécurité et de preuve** (consultation de vos données, exercice de vos droits, sécurité et suppression du compte, accès du support, vérification d’identité, rôles et adhésions dans une agence, intégrations, exports) : 5 ans.
@@ -142,8 +149,9 @@ Certains de nos prestataires sont établis ou stockent des données hors du Sén
 - **Brouillons d’annonce non publiés** : 90 jours sans modification.
 - **Annonces relevées ailleurs et jamais publiées** : 90 jours à compter du relevé, et effacées dès que vous demandez à ne plus être contacté. Ne subsiste alors qu’une empreinte chiffrée de votre numéro, qui sert seulement à ne jamais vous recontacter. La représentation numérique de leur texte s’efface avec elles.
 - **Preuve de votre accord à la publication** : tant que les annonces concernées sont en ligne, puis ⚠ 3 ans.
+- **Tâches techniques en échec** (un envoi de courriel ou de notification qui n’a pas abouti, par exemple), avec les données qu’elles portent : 30 jours, puis suppression automatique.
 - **Sauvegardes** : conservées au plus 14 jours, puis écrasées.
-- **Consentements** : le temps du consentement, puis 5 ans pour pouvoir en justifier.
+- **Consentements** : le temps du consentement, puis 5 ans pour pouvoir en justifier. Quand vous cochez une case d’acceptation des conditions générales ou de la présente politique, la preuve (le document, sa version, la date et l’adresse IP) est conservée tant que votre compte existe, puis 5 ans après sa suppression.
 
 # 7. Sécurité
 
@@ -189,7 +197,7 @@ Le droit d’opposition s’exerce aussi en répondant « STOP » au message re�
 Depuis votre compte, vous pouvez dès maintenant :
 
 - modifier vos informations dans votre profil ;
-- **télécharger une archive de vos données** depuis la rubrique Confidentialité ;
+- **télécharger une archive de vos données** depuis la rubrique Confidentialité. Elle contient l’identité qu’une agence a enregistrée sur vous dans sa fiche client ; les notes, les critères de recherche et les autres informations de travail que l’agence y ajoute n’y figurent pas : ils vous sont communiqués sur demande, adressée à l’agence concernée ou à nous (§ 1.2) ;
 - gérer vos préférences de notification et désactiver SMS et WhatsApp ;
 - **supprimer votre compte** depuis la rubrique Sécurité.
 
@@ -248,7 +256,8 @@ Agencies, owners and professionals using the platform also process personal data
 - **Technical and security data**: IP address, browser and device type, last sign-in date, active sessions, server access logs.
 - **Activity log**: operations on key items (properties, leases, payments, profiles, access rights), with author and date.
 - **Preferences**: favourites, saved searches, notification preferences.
-- **Location**: your device’s precise position **only if you allow it**, for “near me” search or to place a property on the map; and an approximate location (city, country) inferred from your IP address to suggest nearby properties.
+- **Location**: your device’s precise position **only if you allow it**, for “near me” search or to place a property on the map; and an approximate location (city, country) inferred from your IP address to suggest nearby properties. That inference is only requested after your first gesture on the page (a tap, a click or a key press), never on a mere page load; its result is kept on your device for 24 hours.
+- **Voice dictation**: some notes (visit report, room note of an inventory) can be dictated by pressing the microphone. Speech recognition is your browser’s own: depending on the browser, the audio is sent to its publisher’s service (Google for Chrome, Apple for Safari), which processes it under its own terms and not on our instructions. We only receive the resulting text, which you review before saving it; no audio reaches us or is kept by us.
 - **Audience measurement**: aggregated traffic statistics, without advertising tracking cookies.
 - **Searches**: when you run a search on the property list, we add it to an anonymous log kept per day: the text entered, lower-cased and without accents, the criteria chosen (type of contract, type of property, city, neighbourhood, budget, number of bedrooms, etc.), the number of times this search was run, the number of distinct visitors, the number of searches without results and the latest number of results. This log contains neither your account, nor your IP address, nor your location, nor any identifier that follows you from one day to the next. To count the distinct visitors of a search, we keep separately an encrypted fingerprint of your IP address, recomputed every day and specific to each search, so that it does not link your searches together, deleted within 48 hours. An entry of more than 80 characters, six or more digits, an at sign (@) or what looks like an email address written without it (a domain name such as “gmail.com” or “gmail dot com”, the name of an email service, the word “arobase” or “(at)”) is never recorded, neither the entry nor the search that contains it, so that a phone number or email address typed by mistake is not kept. Only a search run on the same day by at least five distinct visitors from at least five distinct networks, and that still returns results, may be shown to other visitors, for instance as a suggestion. In addition, searches without results counted for at least two visitors over the last 30 days (the same visitor counts once a day) are sent, aggregated, to an artificial intelligence provider (“Artificial intelligence” item of § 4.3): every week, the text entered, normalised, and the number of visitors, to maintain the alternative spellings that search recognises (for instance “wakam” for Ouakam); every night, their criteria alone and the number of visitors, to steer the collection of new listings towards what visitors are looking for. Neither your account, nor your IP address, nor the daily fingerprint is sent to it. Finally, when we invite an advertiser spotted elsewhere to publish their listings on Takussan, we may show them the total number of searches run over the last 30 days for the neighbourhood of their listings, and only from 50 searches upwards: this total contains no text entered and no individual search. Likewise, when a listing is about to be published, we may show any visitor the total number of searches run over the last 7 days for a city, rounded down to the nearest ten and only from 200 searches upwards: this total contains no text entered, no neighbourhood and no individual search.
 
@@ -284,7 +293,7 @@ We send **no marketing** by email, SMS or WhatsApp. Should we ever do so, it wou
 
 ## 4.1 Other users
 
-Published listing information is public. Your contact, visit and booking requests, messages and profile are shared with the professional or advertiser concerned and with their agency’s team members within their access rights. Published reviews are public, together with your first name, last name and profile photo.
+Published listing information is public. Your contact, visit and booking requests, messages and profile are shared with the professional or advertiser concerned and with their agency’s team members within their access rights. Published reviews are public, together with your first name, the initial of your last name and your profile photo. Your full name is shown only to you and to those who reply to or moderate the review: the agency, professional or advertiser concerned, and our team.
 
 ## 4.2 The ${EDITEUR.marque} team
 
@@ -301,7 +310,7 @@ We use providers. They process data on our behalf, on our instructions and under
 - **Payments**: Wave, Orange Money and Lemon Squeezy, depending on the method chosen.
 - **Third-party sign-in**: Google, Meta (Facebook) and Apple, only if you choose that sign-in method.
 - **Maps**: OpenStreetMap, whose servers receive your IP address when a map is displayed.
-- **Approximate location**: ipapi.co, which receives your IP address to infer your city.
+- **Approximate location**: ipapi.co, which receives your IP address to infer your city, only after your first gesture on a page that uses it (§ 2.2).
 - **Artificial intelligence**: Anthropic (United States), OpenAI (United States) and OpenRouter (United States) — analysis of the text and images of a listing to extract its characteristics, drafting of messages, checking of a proof of agreement, to suggest an entry, a draft or an assessment that a person reviews. No request that we classify as carrying sensitive data (identity documents, income) is sent to them. However, a name or phone number contained in a listing or a proof of agreement reaches them in clear: we do not mask them for these processing operations. The aggregated searches without results described in § 2.2 are also sent to them, without any account or IP address, to maintain the alternative spellings recognised by search and to steer the collection of new listings. We ask OpenAI not to store its responses for later use; its abuse-monitoring logs may contain requests and responses, and are kept for up to 30 days, or longer where the law requires it or where reasonably necessary to protect its services or third parties; an image flagged as child sexual abuse material may be kept for human review. OpenRouter routes each request to a provider of the chosen model: depending on the model, it may be processed by providers in several countries, under their own terms and not on our instructions. We ask OpenRouter to use only providers that declare they do not collect this data. OpenRouter states that it does not store the content of requests, unless an option is enabled on the account or the content is flagged as child sexual abuse material; it keeps metadata for each request (token counts, latency), and its privacy policy provides that it may collect personal data sent to it and keep it for as long as is reasonably necessary. ⚠ Anthropic, OpenAI and OpenRouter do not use the data sent to train their models: to be verified against their current terms. Voyage AI Innovations, Inc. (United States) — computing a numerical representation of the text of a listing collected elsewhere, to point out to a person the listings that may describe the same property. Our filters remove digits from this text and mask the phone numbers they recognise; what the advertiser wrote out in words, such as a name, an email address or a number, may reach it. No text is sent to it before we have refused, on our account, that it be used to train its models; under its terms, this refusal means the text is deleted as soon as it is processed. When we receive an advertiser’s request not to be contacted, we stop any further sending of their text; a sending already under way is not cancelled.
 
 ## 4.4 Authorities
@@ -317,10 +326,10 @@ Some providers are established or store data outside Senegal, notably in the Eur
 # 6. How long we keep it
 
 - **Account**: while it is active. After a deletion request, a 30-day period allows you to cancel; the account’s and profiles’ identification data are then **erased or anonymised**.
-- **Verification documents (KYC)**: for the relationship, then 5 years after it ends, unless anti-money-laundering rules require longer.
+- **Verification documents (KYC)**: for the relationship, then 5 years after it ends (the end of the profile they belong to, or the agency’s deletion for its verification file), unless anti-money-laundering rules require longer.
 - **Payments, invoices, payouts and accounting records**: **10 years**, under the OHADA Uniform Act on Accounting and Financial Reporting, detached from your identity as far as the law allows.
 - **Leases, bookings and inventories**: for the contractual relationship, then for the applicable limitation period.
-- **Contact requests from visitors without an account**: 3 years from the last exchange.
+- **Contact requests from visitors without an account**: 3 years from the last exchange (the request itself, or its latest reply or handling), then automatically deleted.
 - **Messages**: while the conversation remains active for one of its participants, and at the latest until the agency concerned is removed from the platform, unless retention is required.
 - **Activity log**: 12 months, except for the two families below.
 - **Security and evidence logs** (access to your data, exercise of your rights, account security and deletion, support access, identity verification, roles and memberships within an agency, integrations, exports): 5 years.
@@ -333,8 +342,9 @@ Some providers are established or store data outside Senegal, notably in the Eur
 - **Unpublished listing drafts**: 90 days without changes.
 - **Listings collected elsewhere and never published**: 90 days from collection, and erased as soon as you ask not to be contacted. All that remains is an encrypted fingerprint of your number, used only to never contact you again. The numerical representation of their text is deleted with them.
 - **Proof of your agreement to publication**: for as long as the listings concerned are online, then ⚠ 3 years.
+- **Failed technical tasks** (an email or notification that could not be sent, for example), with the data they carry: 30 days, then automatically deleted.
 - **Backups**: kept for at most 14 days, then overwritten.
-- **Consents**: for as long as the consent applies, then 5 years so that it can be evidenced.
+- **Consents**: for as long as the consent applies, then 5 years so that it can be evidenced. When you tick a box accepting the terms or this policy, the proof (the document, its version, the date and the IP address) is kept for as long as your account exists, then 5 years after its deletion.
 
 # 7. Security
 
@@ -359,7 +369,7 @@ You can clear these items at any time in your browser settings; some features, i
 
 Law No. 2008-12 gives you the right to be **informed** (this policy); to **access** your data and obtain a copy; to have it **corrected** and, where it is inaccurate, incomplete, ambiguous, outdated or unlawfully kept, **erased**; to **object**, on legitimate grounds, to its processing, and at no cost and without reason to its use for marketing; and to **withdraw your consent** at any time for processing based on it, without affecting processing already carried out. The right to object can also be exercised by replying “STOP” to the message received.
 
-From your account you can already edit your profile, **download an archive of your data** from the Privacy section, manage notification preferences and turn off SMS and WhatsApp, and **delete your account** from the Security section.
+From your account you can already edit your profile, **download an archive of your data** from the Privacy section (it contains the identity an agency has recorded about you in its client record; the notes, search criteria and other working information the agency adds there are not included, and are provided on request to the agency concerned or to us, § 1.2), manage notification preferences and turn off SMS and WhatsApp, and **delete your account** from the Security section.
 
 For any other request, write to **${EDITEUR.courriels.donnees}**. We may ask you to prove your identity and will reply within **one month**. Exercising your rights is free unless a request is manifestly abusive. If you believe your rights have not been respected, you may complain to the **Personal Data Protection Commission (CDP)** — www.cdp.sn.
 

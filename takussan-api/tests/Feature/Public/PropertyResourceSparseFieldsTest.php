@@ -149,7 +149,7 @@ class PropertyResourceSparseFieldsTest extends ApiTestCase
 
         $ligne = $this->ligneDeLIndex('?fields[properties]=id,title,type&include=address', $bien->id);
 
-        foreach (['location', 'main_photo_url', 'type_label', 'status_label', 'contract_type_label', 'condition_label'] as $derivee) {
+        foreach (['location', 'main_photo_url'] as $derivee) {
             $this->assertArrayHasKey(
                 $derivee,
                 $ligne,
@@ -161,7 +161,8 @@ class PropertyResourceSparseFieldsTest extends ApiTestCase
 
         // Et elles disent vrai, pas seulement « présentes » : une dérivée vidée
         // de son contenu cocherait un simple `assertArrayHasKey`.
-        $this->assertNotNull($ligne['type_label']);
+        // TCK-351 — plus aucun `*_label` : le front rend les codes par next-intl.
+        $this->assertArrayNotHasKey('type_label', $ligne);
         $this->assertSame('Dakar', $ligne['location']['city']);
     }
 

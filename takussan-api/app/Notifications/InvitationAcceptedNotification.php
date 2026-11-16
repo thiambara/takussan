@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Invitation;
 use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -38,7 +39,7 @@ class InvitationAcceptedNotification extends Notification implements ShouldQueue
             ->subject(__('notifications.invitation_accepted.subject', ['email' => $email]))
             ->greeting(__('notifications.invitation_accepted.greeting'))
             ->line(__('notifications.invitation_accepted.intro', [
-                'email' => $email,
+                'email' => MarkdownText::escape((string) $email),
                 'role' => $role,
             ]))
             ->salutation(__('notifications.salutation'));

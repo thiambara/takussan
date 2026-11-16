@@ -24,7 +24,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Mockery;
 use Tests\TestCase;
 
 /**
@@ -442,6 +444,74 @@ class WhatsappChannelTest extends TestCase
         $this->app->make(WhatsappChannel::class)->send($this->user, $this->makeNotification('hi'));
 
         $this->assertSame(1, RateLimiter::attempts("whatsapp-channel:user:{$this->user->id}"));
+    }
+
+    /**
+     * TCK-2464 — même règle que `SmsChannel` : sans événement déclaré, une notification non critique
+     * ne part ni par WhatsApp ni par le repli SMS (qui ne relit pas le consentement SMS), même dans
+     * la fenêtre de service d'un utilisateur qui a consenti ailleurs ; le refus se journalise.
+     */
+    public function test_tck2464_non_critical_without_event_is_refused_and_logged(): void
+    {
+        $this->fakeHttp();
+        $this->contact(now()->subHour());
+        Log::spy();
+
+        $result = $this->app->make(WhatsappChannel::class)->send($this->user, $this->sansEvenement(critical: false));
+
+        $this->assertNull($result);
+        Http::assertNothingSent();
+        Log::shouldHaveReceived('warning')
+            ->with('[whatsapp-channel] non-critical notification without a preference event — refused', Mockery::on(
+                fn (array $ctx) => str_contains((string) ($ctx['notification'] ?? ''), '@anonymous')
+                    && ($ctx['user_id'] ?? null) === $this->user->id,
+            ))
+            ->once();
+    }
+
+    /** TCK-2464 — un WhatsApp critique part toujours sans événement. */
+    public function test_tck2464_critical_without_event_is_still_sent(): void
+    {
+        $this->fakeHttp();
+        $this->contact(now()->subHour());
+
+        $result = $this->app->make(WhatsappChannel::class)->send($this->user, $this->sansEvenement(critical: true));
+
+        $this->assertNotNull($result);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'graph.facebook.com'));
+    }
+
+    private function sansEvenement(bool $critical): Notification
+    {
+        return new class($critical) extends Notification implements SupportsWhatsapp
+        {
+            public function __construct(public bool $critical) {}
+
+            public function via(object $notifiable): array
+            {
+                return ['whatsapp'];
+            }
+
+            public function toWhatsapp(object $notifiable): string
+            {
+                return 'sans evenement';
+            }
+
+            public function whatsappTemplate(object $notifiable): ?WhatsappTemplateRef
+            {
+                return null;
+            }
+
+            public function shouldSendWhatsapp(): bool
+            {
+                return true;
+            }
+
+            public function isCriticalWhatsapp(): bool
+            {
+                return $this->critical;
+            }
+        };
     }
 
     /** Délègue tout à `$base` et ajoute le seul crochet `smsFallbackAllowed()`. */

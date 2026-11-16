@@ -10,9 +10,12 @@ use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Concerns\SupportsSms;
 use App\Services\Notifications\Sms\SmsResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Mockery;
 use Tests\TestCase;
 
 /**
@@ -137,6 +140,82 @@ class SmsChannelTest extends TestCase
         $this->assertIsArray($channel->send($this->user, $this->makeCritical('2')));
         // 3rd hit blocked by rate limiter.
         $this->assertNull($channel->send($this->user, $this->makeCritical('3')));
+    }
+
+    /**
+     * TCK-2464 (AC1) — le canal est FERMÉ par défaut : une notification non critique qui ne déclare
+     * aucun événement de préférence n'atteint pas le fournisseur, même pour un utilisateur qui a
+     * activé le SMS sur un autre événement, et le refus se journalise au lieu de se taire.
+     */
+    public function test_tck2464_non_critical_without_event_is_refused_and_logged(): void
+    {
+        NotificationPreference::updateOrCreate(
+            ['user_id' => $this->user->id, 'event_type' => 'message_received', 'channel' => 'sms'],
+            ['enabled' => true],
+        );
+        Log::spy();
+        $channel = $this->app->make(SmsChannel::class);
+
+        $this->assertNull($channel->send($this->user, $this->makeWithoutEvent(critical: false)));
+
+        Http::assertNothingSent();
+        Log::shouldHaveReceived('warning')
+            ->with('[sms-channel] non-critical notification without a preference event — refused', Mockery::on(
+                fn (array $ctx) => str_contains((string) ($ctx['notification'] ?? ''), '@anonymous')
+                    && ($ctx['user_id'] ?? null) === $this->user->id,
+            ))
+            ->once();
+    }
+
+    /** TCK-2464 — le SMS critique (code de signature, avis de suppression) part toujours sans événement. */
+    public function test_tck2464_critical_without_event_is_still_sent(): void
+    {
+        $channel = $this->app->make(SmsChannel::class);
+        $result = $channel->send($this->user, $this->makeWithoutEvent(critical: true));
+        $this->assertIsArray($result);
+        $this->assertSame(SmsResult::STATUS_SENT, $result['+221761234567']->status);
+    }
+
+    /**
+     * TCK-2464 — l'exception MOTIVÉE, option (a) : un destinataire qui n'est pas un `User` (abonné
+     * d'alerte sans compte, contact routé) n'a pas de préférence ; son consentement est porté par sa
+     * confirmation (ADR-0050). Le canal le laisse passer, événement déclaré ou non — c'est le
+     * comportement d'avant le ticket, écrit ici pour qu'on ne le change pas sans le voir.
+     */
+    public function test_tck2464_non_user_recipient_is_an_explicit_exception(): void
+    {
+        $contact = (new AnonymousNotifiable)->route('sms', '+221761234567');
+        $channel = $this->app->make(SmsChannel::class);
+
+        $this->assertIsArray($channel->send($contact, $this->makeWithoutEvent(critical: false)));
+    }
+
+    private function makeWithoutEvent(bool $critical): Notification
+    {
+        return new class($critical) extends Notification implements SupportsSms
+        {
+            public function __construct(public bool $critical) {}
+
+            public function via(object $notifiable): array
+            {
+                return ['sms'];
+            }
+
+            public function toSms(object $notifiable): string
+            {
+                return 'sans evenement';
+            }
+
+            public function shouldSendSms(): bool
+            {
+                return true;
+            }
+
+            public function isCriticalSms(): bool
+            {
+                return $this->critical;
+            }
+        };
     }
 
     private function makeCritical(string $body): Notification

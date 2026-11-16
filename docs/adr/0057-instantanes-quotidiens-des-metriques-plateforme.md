@@ -241,3 +241,13 @@ La première règle du § 2 devient :
 `PaymentPlatformFeeObserver` fige ce taux au passage à `paid`, quel que soit l'encaisseur. La
 clôture, elle, ne frappe que les lignes encaissées par la plateforme. L'écart est relevé ici, mais il
 n'est pas tranché.
+
+## Amendement du 2026-11-16 (TCK-608) — une échéance au reste dû nul n'est pas un impayé
+
+L'*Impayé* (`CollectedPayments::leaseOwed()`) gagne une condition : **reste dû > 0**
+(`OWED_REMAINING_SQL > 0`), en plus des statuts `pending | partially_paid | late`. Une `partially_paid`
+héritée entièrement versée comptait « 1 impayé à 0 F » sur tous les lecteurs ; elle ne compte plus, ni
+dans les relances (`SendLeasePaymentReminders::remindable()`). Le montant ne change pas (il était déjà
+de 0) : seul le **compte** baisse. Aucune voie ne crée plus de `partially_paid` (TCK-1918 ; décision du
+porteur du 2026-11-16 pour les échéances de bail) : la condition ne vise que des lignes héritées, que
+`mark-paid` solde désormais.

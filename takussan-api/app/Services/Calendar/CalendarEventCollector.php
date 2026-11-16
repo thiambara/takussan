@@ -398,7 +398,9 @@ class CalendarEventCollector
             $query->where(fn (Builder $q) => $q->where($assigned)->orWhere($created));
         }
 
-        return $query->get()->map(fn (Task $t) => [
+        // TCK-617 (décision du porteur, 2026-11-16) — la tâche d'un parent supprimé en douceur reste à
+        // l'agenda (`parentAgencyIn()` le garde), marquée ; `taskable` ne relit pas le parent supprimé.
+        return $query->with('taskable')->get()->map(fn (Task $t) => [
             'key' => "task-{$t->id}",
             'id' => $t->id,
             'type' => 'task',
@@ -413,7 +415,8 @@ class CalendarEventCollector
                 default => null,
             },
             'taskable_id' => $t->taskable_id,
-            'property_id' => $t->taskable_type === Property::class ? $t->taskable_id : null,
+            'parent_deleted' => $t->taskable_type !== null && $t->taskable === null,
+            'property_id' => $t->taskable_type === Property::class && $t->taskable !== null ? $t->taskable_id : null,
             'resource_url' => '/app/tasks',
         ]);
     }

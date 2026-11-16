@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\LeaseDefaultsController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\LeaseEarlyTerminationController;
 use App\Http\Controllers\Api\LeasePaymentController;
+use App\Http\Controllers\Api\LeasePaymentDuplicateRefundController;
 use App\Http\Controllers\Api\LeaseRenewalController;
 use App\Http\Controllers\Api\LeaseRentController;
 use App\Http\Controllers\Api\LeaseSignatureController;
@@ -72,6 +73,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-593 — la pénalité de retard réglée à l'agence (le loyer garde son statut).
     Route::post('lease-payments/{payment}/late-fee/mark-paid', [LeasePaymentController::class, 'markLateFeePaid'])
         ->name('lease-payments.late-fee.mark-paid');
+    // TCK-608 — l'agence constate qu'elle a rendu un encaissement en double (sous 2FA, `ProtectedActions`).
+    Route::post('lease-payments/{payment}/duplicate-refunded', [LeasePaymentDuplicateRefundController::class, 'store'])
+        ->name('lease-payments.duplicate-refunded');
 
     // Nested guarantors (many-to-many, max 3 per lease)
     Route::get('leases/{lease}/guarantors', [LeaseController::class, 'listGuarantors'])->name('leases.guarantors.index');

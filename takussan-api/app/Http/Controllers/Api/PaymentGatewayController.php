@@ -10,6 +10,7 @@ use App\Models\Enums\PaymentProvider;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Services\Payments\DuplicatePayments;
 use App\Services\Payments\PaymentGatewayService;
 use BackedEnum;
 use DateTimeInterface;
@@ -64,7 +65,11 @@ class PaymentGatewayController extends Controller
                 'status' => $payment->status->value ?? null,
                 'provider_status' => $status?->status,
                 'transaction_id' => $payment->transaction_id,
-                'refund_pending' => $status !== null && $this->isRefundPending($payment, $status->transactionId),
+                // TCK-608 — tout doublon non remboursé, quelle que soit la transaction vérifiée et même
+                // sans réponse du fournisseur (N2, N3, N4) ; éteint par `refunded_at`.
+                'refund_pending' => DuplicatePayments::refundPending($payment->metadata ?? null),
+                // TCK-608 (point 7) — la part pénalité encaissée deux fois s'annonce à part.
+                'late_fee_refund_pending' => DuplicatePayments::lateFeeRefundPending($payment->metadata ?? null),
                 // TCK-2650 — ce que la page de retour nomme, lu en base : elle ne croit plus l'adresse.
                 'payment' => $this->paiementVerifie($payment),
             ],
@@ -159,23 +164,6 @@ class PaymentGatewayController extends Controller
                 ),
             ],
         ]);
-    }
-
-    /**
-     * VERIF-596 passe 8 (m-o) — le règlement vérifié a débité le payeur sans rien solder (échéance
-     * annulée par un renouvellement, ou déjà réglée) : il est inscrit en doublon, et l'agence doit
-     * le rembourser. La part « pénalité » d'un règlement qui a soldé le loyer (`kind: late_fee`)
-     * n'en fait pas un règlement à rembourser.
-     */
-    private function isRefundPending(Model $payment, string $transactionId): bool
-    {
-        $duplicates = is_array($payment->metadata ?? null) ? ($payment->metadata['gateway_duplicate_payment'] ?? []) : [];
-
-        return collect(is_array($duplicates) ? $duplicates : [])->contains(
-            fn ($entry): bool => is_array($entry)
-                && ($entry['transaction_id'] ?? null) === $transactionId
-                && ($entry['kind'] ?? null) !== 'late_fee',
-        );
     }
 
     protected function resolvePayment(string $type, int $id): Model

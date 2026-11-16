@@ -3,10 +3,12 @@
 namespace App\Services\Property;
 
 use App\Exceptions\ApiError;
+use App\Models\ConsentProof;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Privacy\ConsentLedger;
 
 /**
  * TCK-633 (lot C, AC11) — un bien ne devient public que si quelqu'un peut répondre.
@@ -27,10 +29,11 @@ final class PublishReadiness
 {
     /**
      * La version des CGU que la phrase désigne : `VERSION_DOCUMENTS.date` du front
-     * (`takussan-web/src/content/legal/editeur.ts`, « 13 novembre 2026 »). À changer ensemble —
-     * `scripts/check-terms-version.mjs` le tient (Repo CI).
+     * (`takussan-web/src/content/legal/editeur.ts`, « 16 novembre 2026 »), qui fait foi (TCK-537,
+     * décision du porteur du 2026-11-16). Cette constante en est le reflet côté API : à changer
+     * ensemble — `scripts/check-terms-version.mjs` rougit sur tout écart (Repo CI).
      */
-    public const TERMS_VERSION = '2026-11-13';
+    public const TERMS_VERSION = '2026-11-16';
 
     public const MISSING_FIRST_NAME = 'first_name';
 
@@ -98,13 +101,19 @@ final class PublishReadiness
         $this->ensure(PrimaryPropertyContact::for($property), $publisher, $acceptTerms);
     }
 
-    /** La première publication date les CGU ; les suivantes ne réécrivent rien. */
-    public function recordTerms(User $publisher, bool $acceptTerms): void
+    /**
+     * La première publication date les CGU ; les suivantes ne réécrivent rien.
+     *
+     * TCK-537 (AC1) — et la case cochée laisse sa preuve (`consent_proofs`, {@see ConsentLedger}) :
+     * `users.terms_accepted_at` n'est qu'une date, la preuve dit quel document, quelle version, d'où.
+     */
+    public function recordTerms(User $publisher, bool $acceptTerms, string $context = ConsentLedger::CONTEXT_PUBLISH): void
     {
         if ($publisher->terms_accepted_at !== null || ! $acceptTerms) {
             return;
         }
 
         $publisher->forceFill(['terms_accepted_at' => now(), 'terms_version' => self::TERMS_VERSION])->save();
+        app(ConsentLedger::class)->record($publisher, $context, request()->ip(), [ConsentProof::DOCUMENT_TERMS]);
     }
 }

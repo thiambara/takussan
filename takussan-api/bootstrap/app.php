@@ -3,7 +3,6 @@
 use App\Exceptions\ApiError;
 use App\Exceptions\HttpErrorCode;
 use App\Http\Middleware\AddRobotsTagOutsideProduction;
-use App\Http\Middleware\CountBoostImpressions;
 use App\Http\Middleware\EnforceImpersonationReadOnly;
 use App\Http\Middleware\EnsureAgencyWritable;
 use App\Http\Middleware\EnsureIdempotentWrite;
@@ -119,7 +118,6 @@ return Application::configure(basePath: dirname(__DIR__))
             // TCK-600 (ADR-0047) — le geste de console que sert une route de `/api/admin`.
             'platform-can' => EnsurePlatformAbility::class,
             // TCK-708 (P01.04) — les impressions sponsorisées, comptées une fois la réponse connue.
-            'boost.impressions' => CountBoostImpressions::class,
             // TCK-1396 (ADR-0072) — une écriture rejouée sous la même `Idempotency-Key`, après `throttle`.
             'idempotent' => EnsureIdempotentWrite::class,
         ]);
@@ -186,7 +184,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // TCK-2356 (P14.07) — toute exception rapportée part aussi en une ligne JSON sur stdout
         // (canal `exceptions`), quel que soit `LOG_CHANNEL`. Enregistré AVANT le rapporteur des
         // `QueryException`, qui s'arrête (`stop()`) : après lui, elles n'y arriveraient jamais.
-        // Ne s'arrête pas, lui : le rapport par défaut suit. Forme sûre (`SafeExceptionContext`),
+        // Ne s'arrête pas, lui : le rapport du canal par défaut suit (`query_exception` ou `exception`,
+        // plus bas). Forme sûre (`SafeExceptionContext`),
         // plus la route en GABARIT — jamais l'URL, qui porte des jetons (`/pay/{token}`, signatures) —,
         // la méthode et l'utilisateur. Ni corps, ni en-tête, ni cookie. Un échec du journal ne
         // casse jamais la réponse qu'il décrit.
@@ -209,5 +208,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // la forme sûre : SQLSTATE, SQL à placeholders, nombre de valeurs, `fichier:ligne`.
         $exceptions->report(function (QueryException $e): void {
             Log::error('query_exception', SafeExceptionContext::of($e) + ['user_id' => Auth::id()]);
+        })->stop();
+
+        // TCK-613 (ADR-0044 §2) — le rapport par défaut de TOUTE autre exception est remplacé de même :
+        // le framework écrivait `getMessage()` sur le canal par défaut, et un refus SMTP y recopiait
+        // l'adresse refusée (sonde P7 de verif-601). Enregistré EN DERNIER : il ne court-circuite ni le
+        // canal `exceptions` ni la forme SQL ci-dessus. `dontReport` reste respecté — le framework le
+        // juge avant tout rapporteur. Ni le message, ni `context()` de l'exception, ni l'objet lui-même.
+        $exceptions->report(function (Throwable $e): void {
+            Log::error('exception', SafeExceptionContext::of($e) + ['user_id' => Auth::id()]);
         })->stop();
     })->create();

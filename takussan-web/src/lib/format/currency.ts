@@ -128,12 +128,16 @@ export function currencySymbol(currency: CurrencyCode | string): string {
  *   1_200_000_000 → "1,2 Md"
  *
  * Locale rules: French uses a comma as decimal mark, space as thousands
- * separator. The symbol/suffix is rendered in the active locale (FR by
- * default; EN/WO callers can pass `en-US`).
+ * separator. The symbol/suffix is rendered in the given BCP-47 locale.
+ *
+ * TCK-347 — la locale est OBLIGATOIRE : le défaut `'fr-SN'` rendait « 1,2 M » sur le marqueur de
+ * carte d'une page anglaise, dont l'`aria-label` disait déjà « 1,200,000 F CFA ». L'appelant passe
+ * `toIntlLocale(locale)` de `@/lib/format` (repli `wo → 'fr-SN'` explicite) — une étiquette et non
+ * une `Locale`, parce que `@/lib/format` importe ce module et que l'inverse ferait un cycle.
  */
 export function formatPriceShort(
   amount: number | null | undefined,
-  locale = 'fr-SN',
+  locale: string,
 ): string {
   if (amount === null || amount === undefined || Number.isNaN(amount)) return '';
   const abs = Math.abs(amount);

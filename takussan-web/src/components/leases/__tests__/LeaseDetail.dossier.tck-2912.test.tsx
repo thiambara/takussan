@@ -126,7 +126,7 @@ const RIEN: LeaseAbilities = {
   give_notice: false,
   rent_review_force: false,
 };
-const GESTION: LeaseAbilities = { ...RIEN, renew: true, review_rent: true, record_payment: true, refund_deposit: true, request_early_termination: true, update: true, add_document: true, download_contract: true };
+const GESTION: LeaseAbilities = { ...RIEN, renew: true, review_rent: true, record_payment: true, refund_deposit: true, request_early_termination: true, update: true, attach_guarantor: true, add_document: true, download_contract: true };
 
 /** Le premier jour du mois dans `n` mois, à Dakar (UTC). */
 function debutDeMois(n: number): string {

@@ -64,7 +64,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 | **OAuth Google** | Google Cloud Console | ⚠️ (si SSO Google) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` |
 | **OAuth Facebook** | Meta for Developers | ⚠️ (si SSO Facebook) | `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_REDIRECT_URI` |
 | **OAuth Apple** | Apple Developer (Services ID + .p8) | ⚠️ (si SSO Apple) | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_PATH`, `APPLE_REDIRECT_URI` |
-| **CDN images** | Bunny.net ou Cloudflare | ⚠️ (prod) | `CDN_ENABLED=true`, `CDN_PROVIDER`, `CDN_BASE_URL`, `CDN_PULL_ZONE`, `CDN_SIGNING_KEY`, `BUNNY_*` ou `CLOUDFLARE_*` |
+| **Images publiques** | Cloudflare Transformations sur le seau R2 public ([ADR-0029](adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md)) | ✅ | `MEDIA_PUBLIC_DISK`, `R2_*` — l'intégration CDN de TCK-105 (Bunny, `CDN_*`) est retirée (TCK-2463) |
 | **PDF** | DomPDF (déclaré), ou Cloudflare Browser Rendering / Gotenberg / Browsershot | ✅ | `LARAVEL_PDF_DRIVER` |
 | **SMS** | Orange API SN, mTarget, lAfricaMobile (fallback chain) | ✅ (notifs) | `SMS_DEFAULT_DRIVER`, `SMS_*_SEND_URL`, `SMS_WEBHOOK_URL_TOKEN`, `SMS_*_WEBHOOK_IPS` (clefs par-agence stockées en DB sur `Integration`) |
 | **Paiements** | Lemon Squeezy | ⚠️ (option) | `LEMON_SQUEEZY_*` (cf. `config/lemon-squeezy.php`) |
@@ -325,24 +325,13 @@ APPLE_PRIVATE_KEY_PATH=         # chemin absolu vers AuthKey_XXXXXXXXXX.p8
 APPLE_REDIRECT_URI="${FRONTEND_URL}/auth/oauth/apple/callback"
 ```
 
-### 3.10 CDN (TCK-105)
+### 3.10 CDN — retiré (TCK-2463)
 
-```env
-CDN_ENABLED=false               # bascule à true une fois le CDN provisionné
-CDN_PROVIDER=bunny              # bunny | cloudflare
-CDN_BASE_URL=                   # ex. https://takussan.b-cdn.net
-CDN_PULL_ZONE=
-CDN_SIGNING_KEY=                # HMAC-SHA256
-CDN_SIGNATURE_TTL=300           # secondes
-
-# Bunny
-BUNNY_ACCESS_KEY=
-BUNNY_STORAGE_ZONE=
-
-# Cloudflare
-CLOUDFLARE_ACCOUNT_ID=
-CLOUDFLARE_API_TOKEN=
-```
+L'intégration CDN de TCK-105 (Bunny/Cloudflare, URL signées, purge, sonde `cdn`) a été retirée le
+2026-11-16 avec `config/cdn.php` et ses clés `CDN_*`/`BUNNY_*`. Les médias sont sur R2, les images
+publiques transformées par Cloudflare ([ADR-0029](adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md)),
+les fichiers privés servis par l'API (`PrivateMediaAccess`). `CLOUDFLARE_ACCOUNT_ID` et
+`CLOUDFLARE_API_TOKEN` restent, sous « PDF » : le pilote `cloudflare` de `spatie/laravel-pdf` les lit.
 
 ### 3.11 PDF (spatie/laravel-pdf)
 
@@ -549,17 +538,14 @@ npm run build
 - CORS : vérifier `config/cors.php` → `supports_credentials = true` et `paths` couvrent `api/*` + `sanctum/csrf-cookie`
 
 #### e) S3 / Media library
-- Provisionner bucket (public ou privé selon les collections — voir `cdn.secure_collections`)
+- Provisionner les deux seaux, public et privé : une collection est privée sauf si elle déclare le disque public (ADR-0029 §3)
 - IAM user avec `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` sur le bucket
 - `FILESYSTEM_DISK` reste `local` (volume privé des exports temporaires) ; les médias passent par `MEDIA_PUBLIC_DISK=r2-media`, `MEDIA_PRIVATE_DISK=r2-private` et les `R2_*` ([ADR-0029](adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md))
 - `php artisan media-library:regenerate` après bascule
 
-#### f) CDN (Bunny.net ou Cloudflare)
-- Créer pull-zone pointant vers le bucket S3 ou l'origin Laravel
-- Récupérer `BUNNY_ACCESS_KEY`, `BUNNY_STORAGE_ZONE`, ou `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN`
-- Définir `CDN_BASE_URL` = URL publique du pull-zone
-- Générer `CDN_SIGNING_KEY` (`openssl rand -hex 32`) pour signer les URLs des `secure_collections`
-- Basculer `CDN_ENABLED=true`
+#### f) CDN — sans objet
+- L'intégration CDN de TCK-105 est retirée (TCK-2463) : les images publiques passent par Cloudflare
+  Transformations sur le domaine du seau public (ADR-0029), rien à provisionner côté API.
 
 #### g) SMS multi-provider (TCK-102)
 - Comptes : Orange API SN (api.orange.com), mTarget, lAfricaMobile
@@ -615,7 +601,7 @@ npm run build
       `config/session.php:202` la lit avec le défaut `'lax'`, exactement la valeur prescrite.
       *Deux clés absentes du même fichier n'ont pas le même coût — c'est le défaut du code qui
       décide, pas l'absence.* L'ardoise D-11 les mettait dans le même sac.
-- [ ] CDN actif (`CDN_ENABLED=true`) et `secure_collections` correctement listées
+- [ ] Domaine du seau R2 public et Transformations Cloudflare actifs (ADR-0029)
 - [ ] Backups DB + storage automatisés
 - [ ] Frontend déployé avec `NEXT_PUBLIC_API_URL` pointant vers l'API HTTPS
 - [ ] CORS / Sanctum stateful domains alignés sur le domaine prod

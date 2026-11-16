@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: 90
 created: 2026-11-14
-updated: 2026-11-15
+updated: 2026-11-16
 depends_on: [TCK-2787]
 blocks: []
 spec_refs:
@@ -15,6 +15,22 @@ spec_refs:
   models: []
 tags: [technique, dependances, securite, npm, minimatch, front]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai, bloqué par l'amont** — conformément à la décision du porteur du 2026-11-15
+(attendre, pas d'`overrides`). `npm audit --package-lock-only` rend toujours 12 avis (2 basses,
+10 moyennes), mêmes paquets ; `package.json` n'a pas de bloc `overrides`.
+
+- **Moitié `typescript-eslint` débloquée en canari** : `@typescript-eslint/typescript-estree@8.72.3-alpha.1`
+  à `alpha.8` déclarent `minimatch ^11.0.1` ; la stable 8.72.2 reste en `^10.2.2`. La 8.72.3 stable
+  devrait fermer les 8 avis de cette chaîne par un simple `npm update typescript-eslint`.
+- **Moitié `ts-morph` toujours bloquée** : même `ts-morph@28.0.0` (dernière) → `@ts-morph/common ~0.29.0`
+  → `minimatch ^10.0.1`. La chaîne `shadcn` exige une `@ts-morph/common` neuve **et** un `shadcn` qui la tire.
+
+**Condition qui débloque** : `npm view @typescript-eslint/typescript-estree@latest dependencies.minimatch`
+et `npm view @ts-morph/common@latest dependencies.minimatch` rendent `^11`. Alors : `npm update`,
+`npm ls minimatch` sans 10.x, `npm audit` sans `minimatch`, lint / tsc / shadcn (AC2).
 
 ## Décision du porteur (2026-11-15)
 
@@ -46,14 +62,15 @@ Dependabot (relevé du 2026-11-14).
 
 - La seule voie sans attendre l'amont est `overrides` dans `takussan-web/package.json` (`minimatch: ^11.0.1`
   pour ces deux chaînes), qui impose une **majeure** à des paquets qui ne la déclarent pas : c'est la décision
-  à prendre. L'autre voie est d'attendre une version de `typescript-eslint` et de `ts-morph` qui déclare `^11`.
+  à prendre *(prise le 2026-11-15 : attente de l'amont, pas de surcharge)*. L'autre voie est d'attendre une version de `typescript-eslint` et de `ts-morph` qui déclare `^11`.
 - Vérifier que l'API utilisée (`minimatch()` / `Minimatch`, options) est inchangée entre 10 et 11 avant de
   surcharger.
 
 ## Delta à produire
 
-- [ ] Décision : surcharge ou attente de l'amont.
-- [ ] Si surcharge : `overrides` posé, `npm ls minimatch` ne rend plus de 10.x.
+- [x] Décision : surcharge ou attente de l'amont. (décision du porteur du 2026-11-15 : attente de l'amont)
+- [ ] Si surcharge : `overrides` posé, `npm ls minimatch` ne rend plus de 10.x. — caduc depuis la décision
+      du 2026-11-15 (pas de surcharge).
 
 ## Critères d'acceptation
 

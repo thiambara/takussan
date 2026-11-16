@@ -23,7 +23,7 @@ use Tests\TestCase;
  * aucune impression comptée, et `data` est l'ordre organique seul (aucune place payée sans robe).
  *
  * Le témoin sans le paramètre garde que le corpus produit bien un emplacement, une place réservée
- * et une impression : sans lui, le test serait vert sur un corpus où rien n'est sponsorisé.
+ * (l'impression se déclare depuis TCK-2569) : sans lui, le test serait vert sur un corpus où rien n'est sponsorisé.
  */
 class AccueilSansEmplacementsTest extends TestCase
 {
@@ -49,14 +49,14 @@ class AccueilSansEmplacementsTest extends TestCase
         ], $this->actingAsRole('super_admin'));
     }
 
-    public function test_temoin_sans_le_parametre_la_requete_tire_les_emplacements_et_compte(): void
+    /** TCK-2569 — servir n'est plus compter : le témoin ne garde que le tirage des emplacements. */
+    public function test_temoin_sans_le_parametre_la_requete_tire_les_emplacements(): void
     {
         // TCK-2500 — `per_page=2` : une vedette déjà parmi les cartes de la page n'est plus servie en emplacement ; sur une
         // page de 12, les six biens y seraient tous et le témoin ne tirerait plus rien.
         $r = $this->getJson('/api/public/properties/search?contract_type=sale&per_page=2')->assertOk();
 
         $this->assertNotSame([], $r->json('sponsored'));
-        $this->assertGreaterThan(0, $this->impressions());
     }
 
     public function test_placements_false_ne_sert_aucun_emplacement_et_ne_compte_rien(): void

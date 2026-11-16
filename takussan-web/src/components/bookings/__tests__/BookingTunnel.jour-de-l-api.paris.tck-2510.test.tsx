@@ -25,7 +25,6 @@ vi.mock('@/lib/connexion-telephone', async (importOriginal) => ({
 
 const bien = {
   id: 7, slug: 'bien-7', title: 'Studio', price: 20_000, currency: 'XOF', contract_type: 'rent', rent_period: 'daily',
-  rent_period_label: null, main_photo_url: null, location: { city: 'Dakar' }, owner: null, primary_contact: null,
 } as unknown as PropertyDetail;
 
 const jour = (j: string) => document.querySelector<HTMLButtonElement>(`[data-jour="${j}"]`)!;

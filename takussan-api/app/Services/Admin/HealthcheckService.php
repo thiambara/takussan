@@ -8,7 +8,6 @@ use App\Models\Enums\PaymentProvider;
 use App\Models\Integration;
 use App\Models\Property;
 use App\Services\Ai\AiProviderCatalogue;
-use App\Services\Media\Cdn\CdnProviderContract;
 use App\Support\RadarPhone;
 use App\Support\TrustedProxyList;
 use GuzzleHttp\Client as HttpClient;
@@ -69,13 +68,12 @@ class HealthcheckService
 
     public const SMS_MIN_SAMPLE = 5;
 
-    /** Écart toléré entre l'index des biens et `Property::public()` (l'indexation est asynchrone). */
+    /** Écart toléré entre l'index des biens et `Property::indexable()` (l'indexation est asynchrone). */
     public const SEARCH_GAP_TOLERANCE = 10;
 
     private const RANK = ['ok' => 0, 'degraded' => 1, 'failed' => 2];
 
     public function __construct(
-        private readonly CdnProviderContract $cdn,
         private readonly AiProviderCatalogue $aiProviders,
     ) {}
 
@@ -157,7 +155,6 @@ class HealthcheckService
             'search' => $this->check(fn (): array => $this->search()),
             'queue' => $this->check(fn (): array => $this->queue()),
             'workers' => $this->check(fn (): array => $this->workers()),
-            'cdn' => $this->check(fn (): array => $this->cdn()),
             'scheduler' => $this->check(fn (): array => $this->scheduler()),
             'proxies' => $this->check(fn (): array => $this->proxies()),
             'lemon_squeezy_webhook' => $this->check(fn (): array => $this->lemonSqueezyWebhook()),
@@ -306,7 +303,12 @@ class HealthcheckService
     }
 
     /**
-     * Santé de Meilisearch, et écart entre l'index des biens et `Property::public()`.
+     * Santé de Meilisearch, et écart entre l'index des biens et `Property::indexable()`.
+     *
+     * TCK-2457 — `expected` compte le prédicat d'INDEXATION ({@see Property::scopeIndexable()}, traduction de
+     * `shouldBeSearchable()`), jamais `public()` : l'index garde les biens `is_test`, vendus ou non publiés, que le
+     * filtre public du moteur écarte à la requête. Compté contre `public()`, l'écart était permanent (−476 en
+     * préproduction le 2026-11-01), et la tuile ne pouvait plus rien dire d'une vraie panne.
      *
      * @return array<string,mixed>
      */
@@ -332,7 +334,7 @@ class HealthcheckService
             }
             $documents = 0;
         }
-        $expected = Property::query()->public()->count();
+        $expected = Property::query()->indexable()->count();
         $gap = $expected - $documents;
 
         return [
@@ -434,20 +436,6 @@ class HealthcheckService
             // TCK-1116 (P94.01) — la valeur brute n'a pas de fuseau : un instant ADR-0018.
             'last_run_at' => $lastRunAt === null ? null : Carbon::parse($lastRunAt)->utc()->format(DATE_ATOM),
         ];
-    }
-
-    /**
-     * Sondé ici, sur la page de la console — plus par la route publique.
-     *
-     * @return array<string,mixed>
-     */
-    private function cdn(): array
-    {
-        if (! config('cdn.enabled')) {
-            return ['value' => 'disabled'];
-        }
-
-        return $this->cdn->healthCheck() ? ['value' => 'ok'] : ['status' => 'degraded', 'value' => 'degraded'];
     }
 
     /**

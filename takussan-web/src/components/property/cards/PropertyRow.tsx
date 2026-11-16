@@ -12,6 +12,7 @@ import { PropertyCardCompact } from './PropertyCardCompact';
 import type { CardVariant } from './types';
 import { EnTeteDeRangee } from './EnTeteDeRangee';
 import { ArriveeSponsorisee } from '@/components/boost/arrivee-sponsorisee';
+import { useEmplacementsDeLaRangee } from '@/components/boost/impressions-affichees';
 
 export type { CardVariant } from './types';
 
@@ -43,8 +44,8 @@ interface PropertyRowProps {
    */
   readonly robeVedette?: boolean;
   /**
-   * TCK-704 (ADR-0061 §7 et §10) — la rangée est un EMPLACEMENT : l'API compte une impression par
-   * bien qu'elle y sert, et le lien de chaque carte porte le marqueur d'arrivée `?src=sponsored`
+   * TCK-704 (ADR-0061 §7 et §10) — la rangée est un EMPLACEMENT : chaque carte affichée déclare son
+   * impression (TCK-2569, `useEmplacementsDeLaRangee` ; l'API ne compte plus au service), et le lien de chaque carte porte le marqueur d'arrivée `?src=sponsored`
    * (TCK-794) que le compteur de vue de la fiche consomme. Sans ce marqueur, ses impressions ne
    * deviennent jamais des clics.
    * Réservé à la rangée vedette de l'accueil.
@@ -169,6 +170,9 @@ export function PropertyRow({
   const t = useTranslations('propertyRow');
   const spec = VARIANTS[variant];
   const scrollerRef = useRef<HTMLDivElement>(null);
+  // TCK-2569 — une rangée d'emplacements (la vedette de l'accueil) déclare chaque carte AFFICHÉE :
+  // une carte hors champ du carrousel ne compte pas tant qu'on n'y a pas défilé.
+  useEmplacementsDeLaRangee(scrollerRef, emplacementSponsorise && !loading ? properties.map((p) => p.slug) : null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
 

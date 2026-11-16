@@ -5,6 +5,7 @@ namespace App\Services\Onboarding;
 use App\Events\Onboarding\SpaceCreated;
 use App\Http\Requests\Onboarding\HostIndividualOnboardRequest;
 use App\Models\Agency;
+use App\Models\ConsentProof;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
@@ -14,6 +15,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Auth\PhoneVerificationService;
+use App\Services\Privacy\ConsentLedger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -93,6 +95,9 @@ class HostIndividualOnboardingService
             $agencyAdminProfile = $this->createAgencyAdminProfile($user, $agency);
             $ownerProfile = $this->createOwnerProfile($user, $agency);
             $this->markPhoneVerified($user);
+            // TCK-537 (AC1) — la case `cgu_accepted` (« J'accepte les conditions générales
+            // d'utilisation ») : sa preuve, dans la même transaction que l'espace.
+            app(ConsentLedger::class)->record($user, ConsentLedger::CONTEXT_HOST_ONBOARDING, request()->ip(), [ConsentProof::DOCUMENT_TERMS]);
 
             activity('Onboarding')
                 ->causedBy($user)

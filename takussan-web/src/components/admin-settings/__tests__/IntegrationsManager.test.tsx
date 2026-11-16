@@ -76,16 +76,22 @@ describe('<IntegrationsManager />', () => {
     expect(screen.getAllByText('Adresse de notification')).toHaveLength(1);
   });
 
-  it('TCK-293 (m-1) — Lemon Squeezy d’agence : aucune adresse à coller, une mention neutre', () => {
+  it('TCK-606 (m-1) — Lemon Squeezy d’agence : l’adresse à coller dans la boutique, avec sa consigne', () => {
     const ls = { ...initial[0], id: 44, provider: 'lemon_squeezy' };
-    renderWithIntl(<IntegrationsManager initialIntegrations={[ls]} />);
+    renderWithIntl(
+      <IntegrationsManager
+        initialIntegrations={[ls]}
+        initialWebhookUrls={{ 44: 'https://api.takussan.test/api/webhooks/payments/lemon_squeezy/t' }}
+      />,
+    );
 
+    expect(screen.getByLabelText('Adresse de notification Lemon Squeezy')).toHaveValue(
+      'https://api.takussan.test/api/webhooks/payments/lemon_squeezy/t',
+    );
+    expect(screen.getByText(/boutique Lemon Squeezy/)).toBeInTheDocument();
     expect(
-      screen.getByText("La confirmation automatique des paiements n'est pas encore prise en charge pour ce fournisseur."),
-    ).toBeInTheDocument();
-    expect(screen.queryByText('Adresse de notification')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: "Afficher l'adresse" })).not.toBeInTheDocument();
-    expect(fetchEndpointMock).not.toHaveBeenCalled();
+      screen.queryByText("La confirmation automatique des paiements n'est pas encore prise en charge pour ce fournisseur."),
+    ).not.toBeInTheDocument();
     attendAucuneCleBrute();
   });
 

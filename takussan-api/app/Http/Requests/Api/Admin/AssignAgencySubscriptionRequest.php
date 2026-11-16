@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Api\Admin;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Rules\InstantIso;
-use Illuminate\Foundation\Http\FormRequest;
 
-class AssignAgencySubscriptionRequest extends FormRequest
+class AssignAgencySubscriptionRequest extends BaseFormRequest
 {
     use ConvertitLesInstantsRecus;
 

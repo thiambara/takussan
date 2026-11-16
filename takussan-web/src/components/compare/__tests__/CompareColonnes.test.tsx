@@ -41,11 +41,8 @@ function location(id: number, o: Partial<PropertyDetail>): CompareColumn {
       slug: `bien-${id}`,
       title: `Bien ${id}`,
       contract_type: 'rent',
-      contract_type_label: 'Location',
       rent_period: 'monthly',
-      rent_period_label: 'Mensuel',
       type: 'apartment',
-      type_label: 'Appartement',
       floor_number: id,
       year_built: 2020,
       parking_spaces: 1,
@@ -454,8 +451,8 @@ describe('<CompareColonnes> — statut foncier et lignes vides (TCK-491)', () =>
 
   it('AC1 — deux statuts différents rendent la ligne, et elle est signalée divergente', () => {
     render(wrap(<CompareColonnes columns={[
-      vente(1, { title_type: 'bail', title_type_label: 'Bail' }),
-      vente(2, { title_type: 'titre_foncier', title_type_label: 'Titre foncier' }),
+      vente(1, { title_type: 'bail' }),
+      vente(2, { title_type: 'titre_foncier' }),
     ]} onRemove={() => undefined} />));
     const rangee = ligne('title_type')!;
     expect(within(rangee).getByRole('rowheader')).toHaveTextContent('Titre foncier');
@@ -472,8 +469,8 @@ describe('<CompareColonnes> — statut foncier et lignes vides (TCK-491)', () =>
 
   it('AC3 — la valeur affichée est le libellé émis par l’API, jamais un second vocabulaire', () => {
     render(wrap(<CompareColonnes columns={[
-      vente(1, { title_type: 'deliberation', title_type_label: 'Délibération' }),
-      vente(2, { title_type: null, title_type_label: null }),
+      vente(1, { title_type: 'deliberation' }),
+      vente(2, { title_type: null }),
     ]} onRemove={() => undefined} />));
     expect(screen.getByText('Délibération')).toBeInTheDocument();
   });

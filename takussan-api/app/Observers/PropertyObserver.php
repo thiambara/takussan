@@ -16,6 +16,7 @@ use App\Services\Boost\BoostLifecycle;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Property\PropertyModerationNotifier;
+use App\Services\Property\PropertyRewriteModeration;
 use App\Services\Property\SimilarPropertiesService;
 
 class PropertyObserver
@@ -183,6 +184,11 @@ class PropertyObserver
 
     private function routeActivationThroughModeration(Property $property): void
     {
+        // TCK-611 (ADR-0043, amendement du 2026-11-16) — une réécriture d'un champ affiché efface
+        // l'approbation (et met en file un bien en ligne) AVANT le jugement de l'activation : dans
+        // la même sauvegarde, l'approbation qu'elle efface ne compte plus comme approbation debout.
+        $rewritten = app(PropertyRewriteModeration::class)->applyToPendingSave($property);
+
         if ($property->isDirty('status') && in_array($property->status, self::UNAPPROVING_STATUSES, true)) {
             $property->approved_at = null;
             $property->approved_by_user_id = null;
@@ -194,7 +200,7 @@ class PropertyObserver
         if (! $property->agency_id
             || ! in_array($property->status, self::DISPLAYABLE_STATUSES, true)
             || ! $this->movesTowardPublic($property)
-            || $this->carriesStandingApproval($property)
+            || (! $rewritten && $this->carriesStandingApproval($property))
             || $this->wasAlreadyOnline($property, $from)) {
             return;
         }
@@ -217,11 +223,16 @@ class PropertyObserver
      * `pending` ou `available` privé, jamais approuvé ni publié (né avant que l'agence active la
      * modération), n'a jamais été en ligne : le publier, le rendre public ou changer son statut
      * affichable est une activation.
+     *
+     * TCK-611 (ADR-0043, amendement du 2026-11-16, décision 2) — ET `visibility = public` : un bien
+     * passé en privé garde son `published_at`, et son retour en public n'était pas une activation,
+     * quand le même bien passé par `archived` allait en file.
      */
     private function wasAlreadyOnline(Property $property, mixed $from): bool
     {
         return in_array($from, self::DISPLAYABLE_STATUSES, true)
-            && $property->getOriginal('published_at') !== null;
+            && $property->getOriginal('published_at') !== null
+            && $property->getOriginal('visibility') === PropertyVisibility::Public;
     }
 
     /** Une approbation que rien n'a annulée depuis : un refus postérieur l'efface. */

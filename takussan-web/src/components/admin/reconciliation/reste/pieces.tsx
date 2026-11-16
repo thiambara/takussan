@@ -257,7 +257,7 @@ export function CarteDuReste({ p, gestes }: { readonly p: PendingPayment; readon
           <p className="min-w-0 flex-1 leading-snug">{t('carte.aucunDepot')}</p>
           <button
             type="button"
-            className="flex-none font-medium text-primary hover:underline disabled:opacity-50"
+            className="flex-none font-medium text-primary-deep hover:underline disabled:opacity-50"
             disabled={occupe}
             aria-label={t('actions.chercherPour', { qui: v.qui })}
             onClick={() => gestes.onChercher(p)}

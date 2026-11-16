@@ -35,6 +35,8 @@ export interface AgencyDto {
   is_verified?: boolean;
   email?: string | null;
   phone?: string | null;
+  /** TCK-2576 — le numéro WhatsApp DÉCLARÉ par l'agence ; absent sinon (jamais `phone` ni l'admin). */
+  phone_whatsapp?: string;
   city?: string | null;
   logo_url: string | null;
   /** TCK-2518 — l'accroche de la vitrine ; `null` = pas de bloc. */

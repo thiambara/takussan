@@ -87,6 +87,8 @@ export interface Agency {
   description: string | null;
   email: string | null;
   phone: string | null;
+  /** TCK-2576 — le numéro WhatsApp de l'agence (E.164), offert au premier rang de sa fiche publique. */
+  phone_whatsapp?: string | null;
   website: string | null;
   commission_rate: number | null;
   /**

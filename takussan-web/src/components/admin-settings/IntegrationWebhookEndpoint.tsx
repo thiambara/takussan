@@ -20,8 +20,8 @@ import {
  *
  * Chaque intégration a la sienne : le jeton qu'elle porte désigne l'intégration dont le secret
  * vérifie la signature, et le rapprochement ne sort pas de son agence. Wave l'attend collée dans
- * son portail ; Orange Money la reçoit à chaque paiement. Lemon Squeezy d'agence n'a pas ce bloc
- * (`hasWebhookEndpoint`) : son adresse ne solderait rien aujourd'hui.
+ * son portail ; Orange Money la reçoit à chaque paiement ; Lemon Squeezy l'attend dans les
+ * réglages de webhooks de la boutique (TCK-606 : sa commande se relie au payable par `custom_data`).
  *
  * L'adresse arrive préchargée par la page ; sinon (intégration créée à l'instant, lecture en
  * échec), un bouton la lit. Régénérer est un geste protégé : le refus de second facteur passe par
@@ -37,6 +37,7 @@ interface IntegrationWebhookEndpointProps {
 const HINT_KEYS = {
   wave: 'hintWave',
   orange_money: 'hintOrangeMoney',
+  lemon_squeezy: 'hintLemonSqueezy',
 } as const satisfies Record<WebhookEndpointProviderId, string>;
 
 export function IntegrationWebhookEndpoint({

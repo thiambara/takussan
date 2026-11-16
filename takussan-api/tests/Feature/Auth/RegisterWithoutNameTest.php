@@ -21,6 +21,7 @@ class RegisterWithoutNameTest extends TestCase
     public function test_l_adresse_et_le_mot_de_passe_suffisent(): void
     {
         $reponse = $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'email' => 'awa@example.com',
             'password' => 'password123',
         ])->assertCreated()
@@ -44,6 +45,7 @@ class RegisterWithoutNameTest extends TestCase
     public function test_un_prenom_et_un_nom_vides_s_ecrivent_vides(): void
     {
         $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => '',
             'last_name' => null,
             'email' => 'moussa@example.com',
@@ -59,12 +61,14 @@ class RegisterWithoutNameTest extends TestCase
     public function test_une_confirmation_envoyee_et_differente_refuse(): void
     {
         $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'email' => 'awa@example.com',
             'password' => 'password123',
             'password_confirmation' => 'autre',
         ])->assertUnprocessable()->assertJsonValidationErrors(['password']);
 
         $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'email' => 'awa@example.com',
             'password' => 'password123',
             'password_confirmation' => '',
@@ -76,14 +80,15 @@ class RegisterWithoutNameTest extends TestCase
     /** Les autres règles ne bougent pas : mot de passe faible, prénom trop long. */
     public function test_les_autres_regles_tiennent(): void
     {
-        $this->postJson('/api/auth/register', ['email' => 'awa@example.com', 'password' => 'short'])
+        $this->postJson('/api/auth/register', ['terms_accepted' => true, 'email' => 'awa@example.com', 'password' => 'short'])
             ->assertUnprocessable()->assertJsonValidationErrors(['password']);
         $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => str_repeat('a', 101),
             'email' => 'awa@example.com',
             'password' => 'password123',
         ])->assertUnprocessable()->assertJsonValidationErrors(['first_name']);
-        $this->postJson('/api/auth/register', ['email' => 'awa@example.com'])
+        $this->postJson('/api/auth/register', ['terms_accepted' => true, 'email' => 'awa@example.com'])
             ->assertUnprocessable()->assertJsonValidationErrors(['password']);
     }
 
@@ -91,6 +96,7 @@ class RegisterWithoutNameTest extends TestCase
     public function test_le_corps_d_aujourd_hui_rend_la_meme_reponse(): void
     {
         $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Amine',
             'last_name' => 'Thiam',
             'email' => 'amine@example.com',

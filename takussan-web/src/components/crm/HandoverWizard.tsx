@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -26,6 +27,7 @@ import {
   fetchMemberPortfolio,
   handOverPortfolio,
   removeMember,
+  type HandoverResult,
 } from '@/lib/queries/agent-crm';
 import type { MemberPortfolio, PortfolioCategory } from '@/types/agent-crm';
 
@@ -66,6 +68,10 @@ const CATEGORIES: readonly PortfolioCategory[] = [
  * TCK-603 — les biens se transmettent : ceux dont le partant est l'agent responsable (la marque passe
  * au repreneur, le bailleur reste propriétaire) et ceux saisis à son nom. `pending` est vide depuis ;
  * le mécanisme reste pour la prochaine catégorie que l'API comptera avant de savoir la transmettre.
+ *
+ * TCK-616 AC6 — quand la passation touche des baux (brouillons passés au repreneur, baux engagés
+ * restés au nom du partant), le bilan s'affiche avant de fermer : le compte des brouillons, et un
+ * lien vers chaque bail à reprendre à la main. Sans bail touché, la fenêtre se ferme comme avant.
  */
 export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWizardProps) {
   const t = useTranslations('agentCrm.handover');
@@ -74,7 +80,8 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
   const garde = useGardeDoubleFacteur();
   const [successor, setSuccessor] = useState('');
   const [leaveUnassigned, setLeaveUnassigned] = useState(false);
-  const [step, setStep] = useState<'choose' | 'review'>('choose');
+  const [step, setStep] = useState<'choose' | 'review' | 'done'>('choose');
+  const [leases, setLeases] = useState<HandoverResult['leases'] | null>(null);
 
   const open = member !== null;
   const memberId = member?.id ?? 0;
@@ -97,10 +104,11 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
     setSuccessor('');
     setLeaveUnassigned(false);
     setStep('choose');
+    setLeases(null);
     onDone();
   };
 
-  const transfer = useMutation<unknown, ApiError, void>({
+  const transfer = useMutation<HandoverResult, ApiError, void>({
     mutationFn: () =>
       avecGardeDoubleFacteur(
         () =>
@@ -111,7 +119,15 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
           }),
         garde,
       ),
-    onSuccess: finish,
+    onSuccess: (result) => {
+      const touched = result.leases;
+      if (touched && (touched.moved > 0 || touched.to_review.length > 0)) {
+        setLeases(touched);
+        setStep('done');
+        return;
+      }
+      finish();
+    },
   });
   const removeOnly = useMutation<void, ApiError, void>({
     mutationFn: () =>
@@ -133,6 +149,11 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
 
   const close = () => {
     if (busy) return;
+    // La passation a eu lieu : fermer le bilan, c'est la terminer.
+    if (step === 'done') {
+      finish();
+      return;
+    }
     setSuccessor('');
     setLeaveUnassigned(false);
     setStep('choose');
@@ -205,6 +226,25 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
               </label>
             ) : null}
           </div>
+        ) : step === 'done' && leases ? (
+          <div className="space-y-2 text-sm" data-testid="handover-leases">
+            <p className="font-medium">{t('leases.title')}</p>
+            {leases.moved > 0 ? <p>{t('leases.moved', { count: leases.moved, successor: successorName })}</p> : null}
+            {leases.to_review.length > 0 ? (
+              <>
+                <p>{t('leases.toReview', { count: leases.to_review.length, name })}</p>
+                <ul className="list-disc space-y-0.5 pl-5">
+                  {leases.to_review.map((id) => (
+                    <li key={id}>
+                      <Link href={`/app/leases/${id}`} className="font-semibold text-foreground underline-offset-2 hover:underline">
+                        {t('leases.link', { id })}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </div>
         ) : (
           <div className="space-y-2 text-sm" data-testid="handover-review">
             <p>{t('reviewIntro', { successor: successorName, name })}</p>
@@ -220,6 +260,10 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
         {failure ? <p role="alert" className="text-sm text-destructive">{failure.proseServeur ?? t('failed')}</p> : null}
 
         <DialogFooter>
+          {step === 'done' ? (
+            <Button data-testid="handover-leases-close" onClick={finish}>{t('leases.close')}</Button>
+          ) : (
+          <>
           <Button variant="outline" onClick={step === 'review' ? () => setStep('choose') : close} disabled={busy}>
             {step === 'review' ? t('back') : t('cancel')}
           </Button>
@@ -241,6 +285,8 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
               {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
               {t('confirm')}
             </Button>
+          )}
+          </>
           )}
         </DialogFooter>
       </DialogContent>

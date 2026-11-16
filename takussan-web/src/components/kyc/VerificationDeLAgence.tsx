@@ -583,7 +583,7 @@ function EnvoiDePiece({
             <p className="truncate text-sm font-medium">{choisi.name}</p>
             <p className="text-xs tabular-nums text-muted-foreground">{t('envoi.fichierChoisi', { taille: tailleLisible(choisi.size) })}</p>
           </div>
-          <button type="button" className="flex-none text-sm font-medium text-primary hover:underline" onClick={() => fichier.current?.click()}>
+          <button type="button" className="flex-none text-sm font-medium text-primary-deep hover:underline" onClick={() => fichier.current?.click()}>
             {t('actions.changer')}
           </button>
         </div>

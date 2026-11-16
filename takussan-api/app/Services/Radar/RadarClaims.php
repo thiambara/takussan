@@ -30,6 +30,7 @@ use App\Services\Auth\PhoneLoginService;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Onboarding\HostIndividualOnboardingService;
+use App\Services\Privacy\ConsentLedger;
 use App\Services\Property\PublishReadiness;
 use App\Support\CanonicalPhone;
 use App\Support\PhoneMasker;
@@ -300,7 +301,8 @@ final class RadarClaims
                 $user->forceFill(['first_name' => $firstName])->save();
             }
         }
-        $this->readiness->recordTerms($user, true);
+        // TCK-537 (AC1) — la case de la page de réclamation : la preuve le dit.
+        $this->readiness->recordTerms($user, true, ConsentLedger::CONTEXT_RADAR_CLAIM);
 
         $space = $this->onboarding->autoOnboard($user);
         $agency = $space['agency'];

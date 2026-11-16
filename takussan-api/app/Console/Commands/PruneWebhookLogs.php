@@ -8,7 +8,8 @@ use Illuminate\Console\Command;
 /**
  * TCK-602 (ADR-0051 §6) — purge le journal des webhooks au-delà de la rétention de chaque canal
  * (`config/webhooks.php`). Un canal absent de la configuration garde la plus longue des rétentions
- * déclarées : on n'efface jamais par défaut ce qu'on n'a pas décidé d'effacer.
+ * déclarées : on n'efface jamais par défaut ce qu'on n'a pas décidé d'effacer. TCK-606 — une ligne
+ * `rejected` se purge plus tôt, à `webhooks.rejected_retention_days` (7 jours par défaut).
  *
  * Planifiée chaque jour (`routes/console.php`) ; idempotente — une seconde exécution ne trouve plus
  * rien à supprimer.
@@ -26,6 +27,17 @@ class PruneWebhookLogs extends Command
         $longest = max([0, ...array_values($retention)]);
 
         $deleted = 0;
+
+        // TCK-606 — les lignes rejetées d'abord, à leur propre borne (la plus courte des deux) : une
+        // ligne `rejected` n'attend pas la rétention de son canal.
+        $rejectedDays = (int) config('webhooks.rejected_retention_days', 7);
+        if ($rejectedDays > 0) {
+            $deleted += IntegrationWebhookLog::query()
+                ->where('status', IntegrationWebhookLog::STATUS_REJECTED)
+                ->where('created_at', '<', now()->subDays($rejectedDays))
+                ->delete();
+        }
+
         foreach ($retention as $channel => $days) {
             $deleted += IntegrationWebhookLog::query()
                 ->where('channel', $channel)

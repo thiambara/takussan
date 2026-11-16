@@ -131,7 +131,7 @@ const RIEN: LeaseAbilities = {
   give_notice: false,
   rent_review_force: false,
 };
-const GESTION: LeaseAbilities = { ...RIEN, renew: true, review_rent: true, record_payment: true, refund_deposit: true, request_early_termination: true, update: true, add_document: true, download_contract: true };
+const GESTION: LeaseAbilities = { ...RIEN, renew: true, review_rent: true, record_payment: true, refund_deposit: true, request_early_termination: true, update: true, attach_guarantor: true, add_document: true, download_contract: true };
 const LOCATAIRE: LeaseAbilities = { ...RIEN, request_early_termination: true, add_document: true, download_contract: true, leave_review: true, give_notice: true };
 
 /** Le premier jour du mois dans `n` mois, à Dakar (UTC). */
@@ -681,6 +681,22 @@ describe('TCK-2762 — le garant parmi les parties (bureau) et « Garant (n) » 
     expect(ligne(within(dossierDuTelephone()).getByText(fr.lease.guarantor.add)).className).toContain('md:hidden');
     fireEvent.click(dansParties);
     expect(screen.getByText('feuille des garants : ajout, 0, gestion')).toBeInTheDocument();
+  });
+
+  it('TCK-607 — `update` sans `attach_guarantor` (bail signé, garants figés) : l’ajout n’est pas offert', () => {
+    etat.lease = bail({ ...GESTION, attach_guarantor: false });
+    monter();
+
+    expect(screen.queryByText(fr.lease.guarantor.add)).toBeNull();
+  });
+
+  it('TCK-607 — avec un garant et sans `attach_guarantor`, la feuille se lit seulement', () => {
+    etat.lease = bail({ ...GESTION, attach_guarantor: false });
+    etat.garants = [OUSMANE];
+    monter();
+
+    fireEvent.click(within(screen.getByTestId('partie-bailleur').parentElement!).getByText('Ousmane Seck'));
+    expect(screen.getByText('feuille des garants : liste, 1')).toBeInTheDocument();
   });
 
   it('sans garant ni `update` : rien du garant', () => {

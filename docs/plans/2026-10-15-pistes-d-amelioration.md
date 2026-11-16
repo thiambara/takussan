@@ -840,7 +840,7 @@ ajoutent que des faits neufs.*
 - Réf : P19.04
 - Statut : fait · TCK-2342
 - Gravité : 🟠 risque ou dette
-- Où : `takussan-api/vendor/spatie/laravel-activitylog/src/Commands/CleanActivitylogCommand.php:13-40`, `takussan-api/config/activitylog.php:71-74`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:40-52`, `docs/backlog/tickets/todo/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md` (contrainte 5, AC3b)
+- Où : `takussan-api/vendor/spatie/laravel-activitylog/src/Commands/CleanActivitylogCommand.php:13-40`, `takussan-api/config/activitylog.php:71-74`, `takussan-api/app/Http/Controllers/Api/Admin/CrossTenantAuditController.php:40-52`, `docs/backlog/tickets/done/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md` (contrainte 5, AC3b)
 - Constat :
   - `activitylog:clean {log?}` purge un seul journal ou tous (lu, `CleanActivitylogCommand.php:13-40`). La commande ne sait pas exclure des journaux. L'exemption que demande TCK-537 passe donc par l'action surchargeable `actions.clean_log` (lu, `config/activitylog.php:73`) ou par une commande à part.
   - TCK-537 n'exempte que `PersonalDataAccess` et `Privacy`. La console tient pourtant onze journaux pour sensibles : `PrivacyRequest`, `Security`, `UserSupport`, `KYC`, `KycDossier`, `Membership`, `AgencyRole`, `Integration`, `export`… (lu, `CrossTenantAuditController.php:40-52`). Le registre des droits écrit sous `PrivacyRequest` (lu, `activity(PrivacyRequest::LOG_NAME)`), et l'exécution d'une suppression de compte sous `Account` (lu, `AccountDeletionService.php:115,154,193`). Une purge à 365 jours effacerait ces traces.

@@ -174,6 +174,7 @@ return [
         'value_not_found' => 'Valeur introuvable.',
     ],
     'calendar' => [
+        'feed_agency_required' => "Choisissez l'agence de votre lien d'agenda : vous travaillez pour plusieurs agences.",
         'feed_not_staff' => "Le lien d'agenda est réservé au personnel d'une agence et aux prestataires.",
         'other_agency_forbidden' => 'Seuls les administrateurs peuvent consulter d\'autres agences.',
     ],
@@ -192,6 +193,14 @@ return [
     'credits' => [
         'insufficient' => 'Solde insuffisant : il vous manque :missing crédits (solde : :balance).',
         'no_space' => 'Aucun espace actif : sélectionnez un espace pour consulter ses crédits.',
+        // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — l'achat de la mise en avant d'une agence.
+        'spotlight_sale_closed' => 'La mise en avant de l’agence n’est pas en vente pour le moment.',
+        'spotlight_directory_wide_closed' => 'La place de l’annuaire sans ville n’est pas en vente : choisissez une ville.',
+        'spotlight_agency_not_listed' => 'Votre agence n’apparaît pas dans l’annuaire de cette ville : publiez au moins un bien dans cette ville avant d’acheter sa mise en avant.',
+        'spotlight_taken' => 'La place de cette ville est déjà prise sur cette période.',
+        'spotlight_no_free_period' => 'Aucune période libre pour cette ville dans les :days prochains jours.',
+        'spotlight_too_far' => 'La mise en avant se réserve au plus :days jours à l’avance.',
+        'spotlight_key_reused' => 'Cette demande d’achat a déjà servi pour une autre ville : rouvrez le formulaire.',
     ],
     'conversation' => [
         // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.
@@ -412,6 +421,8 @@ return [
         'commission_forbidden' => 'Seul le personnel de l\'agence autorisé à ouvrir des baux fixe la commission et le négociateur.',
         'commission_locked' => 'La commission et le négociateur se fixent sur un bail en brouillon : une fois activé, sa commission est déjà répartie.',
         'guarantor_already_attached' => 'Ce garant est déjà rattaché au bail.',
+        // TCK-607 (n3) — ADR-0042, amendement du 2026-11-16.
+        'guarantors_frozen' => 'Les garants d\'un bail signé sont figés : seul un bail renouvelé qui n\'a encore aucun garant peut en recevoir un.',
         'max_guarantors' => 'Un bail ne peut pas avoir plus de 3 garants.',
         'not_activatable' => 'Seul un bail en brouillon ou en attente de signature peut être activé.',
         'not_active_schedule' => 'Seul un bail actif peut générer un échéancier.',
@@ -450,10 +461,11 @@ return [
     ],
     'lease_payment' => [
         'cancelled' => 'Cette échéance a été annulée par un renouvellement : elle n\'est plus due et ne s\'encaisse pas.',
-        'cannot_mark_paid' => 'Seule une échéance en attente ou en retard peut être marquée payée.',
+        'cannot_mark_paid' => 'Seule une échéance en attente, en retard ou partiellement payée peut être marquée payée.',
         'deposit_refund_paid_by_payout' => 'Une caution rendue se règle par son reversement, jamais à la main.',
         'late_fee_not_due' => 'Aucune pénalité de retard ne reste due sur cette échéance.',
         'lease_not_active' => 'Seul un bail actif ou en préavis reçoit une ligne de paiement.',
+        'no_duplicate_to_refund' => 'Aucun doublon d\'encaissement ne reste à rembourser sur cette échéance.',
         'not_overdue' => 'Seule une échéance due, non soldée et échue se relance.',
         'receipt_not_a_payment' => 'Une caution rendue n\'est pas un paiement du locataire : elle n\'a pas de quittance.',
         'receipt_unpaid' => 'La quittance n\'est délivrée que pour un loyer acquitté.',
@@ -538,6 +550,7 @@ return [
         'amount_short' => 'Le montant reçu est inférieur au montant attendu.',
         'amount_unresolved' => 'Le montant à payer n\'a pas pu être déterminé.',
         'checkout_in_progress' => 'Un paiement en ligne est en cours sur cette échéance : réessayez dans quelques minutes.',
+        'currency_mismatch' => 'La devise du paiement reçu ne correspond pas à celle du paiement demandé.',
         'currency_unsupported' => 'Le prestataire :provider n\'accepte pas la devise :currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy n\'accepte pas le XOF : utilisez Wave ou Orange Money pour un paiement en XOF.',
         'filter_days_late_invalid' => 'Filtre de jours de retard invalide : un entier positif ou nul est attendu.',

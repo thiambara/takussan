@@ -21,7 +21,8 @@ use Illuminate\Validation\Rule;
  *
  * Lecteurs : `currency.default` → `PaymentGatewayService` ; `currency.supported` →
  * `AgencyUpdateRequest` ; `platform.session_max_minutes` →
- * `SessionTokenIssuer` ; `credits.*` et `boost.*` (TCK-633) → `App\Services\Boost\BoostSettings`.
+ * `SessionTokenIssuer` ; `credits.*` et `boost.*` (TCK-633) → `App\Services\Boost\BoostSettings` ; `spotlight.*` (TCK-2525) →
+ * `App\Services\Boost\SpotlightSettings`.
  *
  * TCK-651 (ADR-0065) — catégorie `rentals` : les cinq réglages métier à repli par agence
  * (`App\Support\ScopedSetting`). Leur valeur GLOBALE ne s'écrivait que par la route brute
@@ -36,6 +37,15 @@ use Illuminate\Validation\Rule;
 class EditablePlatformSettings
 {
     public const CURRENCIES = ['XOF', 'EUR', 'USD'];
+
+    /** TCK-2525 — place prise : refuser, ou placer l'achat au premier créneau libre (file d'attente). */
+    public const SPOTLIGHT_WHEN_TAKEN = ['refuse', 'next_free'];
+
+    /** TCK-2525 — remboursement d'une place achetée quand l'agence quitte le site. */
+    public const SPOTLIGHT_REFUND = ['prorata', 'full', 'none'];
+
+    /** TCK-2525 — une place offerte qui chevauche un achat : elle bloque, ou elle cède. */
+    public const SPOTLIGHT_OFFERED_OVERLAP = ['blocks', 'yields'];
 
     /**
      * @return array<string,array<string,mixed>>
@@ -94,6 +104,43 @@ class EditablePlatformSettings
             'boost.reserved_top_results' => [
                 'category' => 'boost', 'type' => 'integer', 'default' => 2, 'public' => false,
                 'rules' => ['required', 'integer', 'min:0', 'max:10'],
+            ],
+            // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — la place « Mise en avant » de l'annuaire,
+            // vendue en crédits. Lus par `App\Services\Boost\SpotlightSettings`.
+            'spotlight.sale_enabled' => [
+                'category' => 'boost', 'type' => 'boolean', 'default' => true, 'public' => false,
+                'rules' => ['present', 'boolean'],
+            ],
+            'spotlight.price_credits' => [
+                'category' => 'boost', 'type' => 'integer', 'default' => 100, 'public' => false,
+                'rules' => ['required', 'integer', 'min:1', 'max:100000'],
+            ],
+            'spotlight.duration_days' => [
+                'category' => 'boost', 'type' => 'integer', 'default' => 7, 'public' => false,
+                'rules' => ['required', 'integer', 'min:1', 'max:90'],
+            ],
+            'spotlight.max_advance_days' => [
+                'category' => 'boost', 'type' => 'integer', 'default' => 60, 'public' => false,
+                'rules' => ['required', 'integer', 'min:0', 'max:365'],
+            ],
+            'spotlight.when_taken' => [
+                'category' => 'boost', 'type' => 'select', 'default' => 'refuse', 'public' => false,
+                'options' => self::SPOTLIGHT_WHEN_TAKEN,
+                'rules' => ['required', 'string', Rule::in(self::SPOTLIGHT_WHEN_TAKEN)],
+            ],
+            'spotlight.refund_on_suspension' => [
+                'category' => 'boost', 'type' => 'select', 'default' => 'prorata', 'public' => false,
+                'options' => self::SPOTLIGHT_REFUND,
+                'rules' => ['required', 'string', Rule::in(self::SPOTLIGHT_REFUND)],
+            ],
+            'spotlight.offered_overlap' => [
+                'category' => 'boost', 'type' => 'select', 'default' => 'blocks', 'public' => false,
+                'options' => self::SPOTLIGHT_OFFERED_OVERLAP,
+                'rules' => ['required', 'string', Rule::in(self::SPOTLIGHT_OFFERED_OVERLAP)],
+            ],
+            'spotlight.sell_directory_wide' => [
+                'category' => 'boost', 'type' => 'boolean', 'default' => false, 'public' => false,
+                'rules' => ['present', 'boolean'],
             ],
             // TCK-651 (ADR-0065) — réglages métier à repli par agence, lus par `ScopedSetting` + `getValue`.
             'invoice.reminder_offsets_days' => [

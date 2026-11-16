@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarClock, MoreHorizontal } from 'lucide-react';
-import { useIssuePaymentLink, useLeasePayments, useMarkLateFeePaid } from '@/lib/queries/leases';
+import { useIssuePaymentLink, useLeasePayments, useMarkDuplicateRefunded, useMarkLateFeePaid } from '@/lib/queries/leases';
 import { EmptyState, ErreurDeLecture } from '@/components/feedback';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { StatusBadge, type StatusTone } from '@/components/console';
@@ -177,6 +177,7 @@ export function LeaseSchedule({
   const paymentsQuery = useLeasePayments(leaseId);
   const { data, isLoading, isError } = paymentsQuery;
   const markLateFeePaid = useMarkLateFeePaid(leaseId);
+  const markDuplicateRefunded = useMarkDuplicateRefunded(leaseId);
   const issuePaymentLink = useIssuePaymentLink();
   const { user } = useAuth();
   const { data: mesProfils } = useMyProfiles();
@@ -248,6 +249,15 @@ export function LeaseSchedule({
       });
     } catch (err) {
       toast.add({ title: messageErreur(err, t('paymentLink.failed')), type: 'error' });
+    }
+  }
+
+  async function constaterDoublonRembourse(paymentId: number) {
+    try {
+      await markDuplicateRefunded.mutateAsync({ paymentId });
+      toast.add({ title: tFiche('doublonRembourse.fait'), type: 'success' });
+    } catch (err) {
+      toast.add({ title: messageErreur(err, tFiche('doublonRembourse.echec')), type: 'error' });
     }
   }
 
@@ -326,6 +336,8 @@ export function LeaseSchedule({
             const ouverte = !annulee && (p.status === 'pending' || p.status === 'late' || p.status === 'partially_paid' || p.status === 'failed');
             const marquerPenalite = canRecordPayment && !annulee && p.late_fee_outstanding > 0;
             const copierLien = canManage && due && !locataire;
+            // TCK-608 — un encaissement en double attend d'être rendu : la gestion constate le remboursement.
+            const doublonARendre = canManage && !locataire && p.duplicate_refund_pending === true;
             const relancer = relance?.joignable && relance.relancable(p) ? relance.lien(p) : null;
             // TCK-2645 (lot 3) — « En retard de 6 j », « Payé le 29 oct. » : l'état et sa date (maquette a-1).
             const joursDeRetard = st === 'late' && p.due_date ? joursEntre(p.due_date, aujourdhui) : 0;
@@ -409,7 +421,7 @@ export function LeaseSchedule({
                         {tFiche('quittance')}
                       </BoutonTelechargement>
                     ) : null}
-                    {marquerPenalite || copierLien || relancer ? (
+                    {marquerPenalite || copierLien || relancer || doublonARendre ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           aria-label={tFiche('menu', { periode })}
@@ -426,6 +438,15 @@ export function LeaseSchedule({
                           {marquerPenalite ? (
                             <DropdownMenuItem disabled={markLateFeePaid.isPending} onClick={() => void constaterPenaliteReglee(p.id)}>
                               {tFiche('marquerPenalite')}
+                            </DropdownMenuItem>
+                          ) : null}
+                          {doublonARendre ? (
+                            <DropdownMenuItem
+                              disabled={markDuplicateRefunded.isPending}
+                              onClick={() => void constaterDoublonRembourse(p.id)}
+                              data-testid="doublon-rembourse"
+                            >
+                              {tFiche('doublonRembourse.action')}
                             </DropdownMenuItem>
                           ) : null}
                           {copierLien ? (

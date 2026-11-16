@@ -6,6 +6,7 @@ use App\Models\Property;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\WatermarkService;
 use App\Services\Media\WatermarkTrace;
+use App\Support\Logging\SafeExceptionContext;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -121,7 +122,7 @@ class ApplyWatermarkJob implements ShouldQueue
             'media_id' => $this->mediaId,
             'property_id' => $media?->model_type === Property::class ? $media->model_id : null,
             'conversion' => $this->conversionName,
-            'exception' => $exception?->getMessage(),
+            'exception' => $exception === null ? null : SafeExceptionContext::of($exception),
         ]);
     }
 

@@ -252,6 +252,12 @@ class Task extends AbstractModel
      * TCK-591 (verif-591 B1) — les tâches dont le parent est hors de toute agence, ou dans l'une des
      * agences données. Forme SQL de la borne que `TaskPolicy::view` applique à une ligne.
      *
+     * TCK-617 (décision du porteur, 2026-11-16) — parent supprimé en douceur COMPRIS, comme
+     * {@see self::scopeParentInAgency()} et comme la policy (`parentRecord()`) : la tâche ouverte d'un
+     * bien ou d'un client supprimé reste dans la liste de son responsable, marquée (`parent_deleted`),
+     * au lieu de disparaître de la liste quand le détail la rend. Un parent effacé pour de bon reste
+     * hors liste, comme il est hors détail (`parentIsMissing()`).
+     *
      * @param  Builder<Task>  $query
      * @param  list<int>  $agencyIds
      * @return Builder<Task>
@@ -261,6 +267,7 @@ class Task extends AbstractModel
         return $query->where(function (Builder $q) use ($agencyIds) {
             $q->whereNull('taskable_type')
                 ->orWhereHasMorph('taskable', [Customer::class, Property::class], fn (Builder $parent) => $parent
+                    ->withoutGlobalScope(SoftDeletingScope::class)
                     ->where(fn (Builder $w) => $w->whereNull('agency_id')->orWhereIn('agency_id', $agencyIds)));
         });
     }

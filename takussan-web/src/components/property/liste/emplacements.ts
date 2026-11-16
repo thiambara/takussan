@@ -16,7 +16,8 @@ import { placementDe } from '@/components/boost/lecture-recherche';
  * à la suite des emplacements déjà posés.
  *
  * Une position au-delà de la suite (impossible sous le contrat) pose l'emplacement à la fin, plutôt
- * que de le perdre : un emplacement servi est une impression comptée (ADR-0061 §10).
+ * que de le perdre : un emplacement servi est fait pour être montré. L'impression, elle, ne se compte
+ * qu'à l'affichage de la cellule (TCK-2569, `impressions-affichees.ts`).
  */
 export type CarteDeLaListe =
   | { readonly genre: 'organique'; readonly bien: PropertyListItem; readonly rang: number }
@@ -71,8 +72,8 @@ export type CarteDeLaSuite = CarteDeLaListe & { readonly page: number };
  *    contrat d'avant posait en tête) n'est pas inséré. Les suivants gardent leurs positions (11,
  *    22) : elles comptent dans la suite affichée, et `insererEmplacements` les y pose telles quelles.
  *
- * ⚠ Un emplacement que le front ne montre pas a pu être compté comme impression par l'API
- * (`BoostStatsRecorder`, une par emplacement SERVI) : écart signalé à la session.
+ * TCK-2569 (amendement d'ADR-0061 du 2026-11-16) — un emplacement retiré ici ne compte AUCUNE
+ * impression : l'API ne compte plus au service, c'est la cellule rendue qui déclare son affichage.
  */
 export function suiteDesPages(pages: readonly PageDeLaListe[]): CarteDeLaSuite[] {
   const montres = new Set<number>();

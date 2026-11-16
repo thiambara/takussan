@@ -106,7 +106,9 @@ describe('TCK-2687 — hors de la portée `/app`, les primitives rendent les cla
     );
     expect(horsPortee(screen.getByTestId('liste-defaut'))).toEqual(ensemble(`${AVANT.tabsList} bg-muted overflow-x-auto`));
     expect(horsPortee(screen.getByTestId('liste-ligne'))).toEqual(ensemble(`${AVANT.tabsList} gap-1 bg-transparent`));
-    expect(horsPortee(screen.getByTestId('onglet'))).toEqual(ensemble(AVANT.tabsTrigger));
+    // TCK-452 — aucune portée `.dark` ne monte l'onglet : ses variantes `dark:` d'avant sont parties.
+    const avantSansSombre = new Set([...ensemble(AVANT.tabsTrigger)].filter((c) => !c.startsWith('dark:')));
+    expect(horsPortee(screen.getByTestId('onglet'))).toEqual(avantSansSombre);
   });
 
   it('l’onglet souligné inactif garde un survol sous la portée (sa couleur de portée battrait `hover:` nu)', () => {

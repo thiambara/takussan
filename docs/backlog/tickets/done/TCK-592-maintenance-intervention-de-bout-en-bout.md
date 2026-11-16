@@ -172,7 +172,7 @@ rend comme un avis de la plateforme (`ChatView.tsx:409`), il n'est pas compté n
 sans fichier. Le seul auteur légitime d'un avis système est `SystemMessageFactory` (`:93`). Le fil
 par intervention de H y poste ses messages d'étape : la porte doit être fermée avant.
 
-**Articulation avec [TCK-446](../todo/TCK-446-spec-muette-sur-le-prestataire.md)** : 446 écrit la spec de ce
+**Articulation avec [TCK-446](../obsolete/TCK-446-spec-muette-sur-le-prestataire.md)** : 446 écrit la spec de ce
 que le produit sert déjà au prestataire ; ce ticket construit. La ligne « consulter ses interventions
 assignées » est le delta de 446 ; le fil par intervention tranche **pour la maintenance** sa question
 « messagerie du prestataire : voulue ou défaut ? » (voulue, limitée au fil de l'intervention).

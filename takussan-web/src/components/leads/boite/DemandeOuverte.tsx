@@ -434,7 +434,7 @@ function DejaConnu({ lead }: { readonly lead: ContactLead }) {
           <span className="block text-muted-foreground">{visible && connu.name ? t('knownBody', { name: connu.name }) : t('knownBodyHidden')}</span>
         </p>
         {visible ? (
-          <Link href={`/app/customers/${connu.id}`} className="relative flex-none rounded-sm text-sm font-medium text-primary outline-none after:absolute after:-inset-3 after:content-[''] focus-visible:ring-3 focus-visible:ring-ring">
+          <Link href={`/app/customers/${connu.id}`} className="relative flex-none rounded-sm text-sm font-medium text-primary-deep outline-none after:absolute after:-inset-3 after:content-[''] focus-visible:ring-3 focus-visible:ring-ring">
             {t('knownOpen')}
           </Link>
         ) : null}

@@ -654,7 +654,9 @@ class PublicProfileIndexTest extends TestCase
             $this->slugs($this->getJson('/api/public/agencies?filter[search]='.rawurlencode('Immo, Conseil'))->assertOk()),
         );
 
-        $this->agentEligible(['username' => 'awa-diop', 'first_name' => 'Awa', 'last_name' => 'Diop, Ndiaye']);
+        // TCK-2574 — un AGENT en exercice : le nom de famille d'un propriétaire n'est plus cherchable.
+        $awa = $this->agentEligible(['username' => 'awa-diop', 'first_name' => 'Awa', 'last_name' => 'Diop, Ndiaye']);
+        AgentProfile::factory()->create(['user_id' => $awa->id]);
         $this->agentEligible(['username' => 'moussa-fall', 'first_name' => 'Moussa', 'last_name' => 'Fall']);
 
         $this->assertSame(

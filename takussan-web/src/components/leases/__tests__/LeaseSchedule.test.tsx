@@ -30,6 +30,7 @@ import { LeaseSchedule } from '../LeaseSchedule';
 const useLeasePayments = vi.fn();
 const markLateFeePaid = vi.fn();
 const issuePaymentLink = vi.fn();
+const markDuplicateRefunded = vi.fn();
 const providers = vi.fn<() => string[]>(() => []);
 
 /**
@@ -49,6 +50,7 @@ vi.mock('@/lib/queries/leases', () => ({
     isPending: false,
   }),
   useIssuePaymentLink: () => ({ mutateAsync: issuePaymentLink, isPending: false }),
+  useMarkDuplicateRefunded: () => ({ mutateAsync: markDuplicateRefunded, isPending: false }),
 }));
 
 const providersLus = vi.fn();
@@ -674,5 +676,27 @@ describe('LeaseSchedule — la table de la maquette au bureau (TCK-2645, lot 3)'
     expect(screen.queryByRole('button', { name: 'Les 3 échéances' })).toBeNull();
     rerender(withIntl(<LeaseSchedule leaseId={1} agencyId={1} landlordId={7} limite={2} toutes />));
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('TCK-608 — « Doublon remboursé » dans le menu d’une échéance dont un encaissement en double reste à rendre', async () => {
+    avecEcheances([{ ...PAYEE, duplicate_refund_pending: true }]);
+    markDuplicateRefunded.mockResolvedValue({});
+    rendre(true);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: /Autres gestes pour Loyer · juillet 2026/ }));
+    await userEvent.setup().click(await screen.findByRole('menuitem', { name: fr.lease.fiche.echeancier.doublonRembourse.action }));
+    expect(markDuplicateRefunded).toHaveBeenCalledWith({ paymentId: 11 });
+    await waitFor(() => expect(toastAdd).toHaveBeenCalledWith({ title: fr.lease.fiche.echeancier.doublonRembourse.fait, type: 'success' }));
+  });
+
+  it('TCK-608 — ni sans doublon à rendre, ni pour le locataire', () => {
+    avecEcheances([PAYEE]);
+    const { unmount } = rendre(true);
+    expect(screen.queryByRole('button', { name: /Autres gestes pour Loyer · juillet 2026/ })).toBeNull();
+    unmount();
+
+    avecEcheances([{ ...PAYEE, duplicate_refund_pending: true }]);
+    rendre(false);
+    expect(screen.queryByRole('button', { name: /Autres gestes pour Loyer · juillet 2026/ })).toBeNull();
   });
 });

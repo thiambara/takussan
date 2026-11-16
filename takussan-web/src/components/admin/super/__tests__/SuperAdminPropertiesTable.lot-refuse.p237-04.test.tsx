@@ -33,7 +33,6 @@ function bien(id: number, title: string): AdminPropertyRow {
     slug: `bien-${id}`,
     type: 'apartment',
     status: 'available',
-    status_label: null,
     visibility: 'public',
     contract_type: 'rent',
     rent_period: 'monthly',

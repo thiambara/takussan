@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Property;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\WatermarkTrace;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -107,7 +108,7 @@ class RegenerateAgencyWatermarksJob implements ShouldQueue
                     Log::error('[RegenerateAgencyWatermarksJob] Retrait des exemptions impossible : la photo reste servie sans filigrane.', [
                         'media_id' => (int) $media->getKey(),
                         'agency_id' => $this->agencyId,
-                        'exception' => $retrait->getMessage(),
+                        'exception' => SafeExceptionContext::of($retrait),
                     ]);
                 }
             });
@@ -120,7 +121,7 @@ class RegenerateAgencyWatermarksJob implements ShouldQueue
                 'watermark_required' => $required,
                 'exemptions_withdrawn' => $retirees,
                 'withdrawal_failures' => $impossibles,
-                'exception' => $exception?->getMessage(),
+                'exception' => $exception === null ? null : SafeExceptionContext::of($exception),
             ]);
     }
 

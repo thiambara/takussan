@@ -66,11 +66,11 @@ class CauseurSupprimeDansLExportTest extends TestCase
         $rows = app(ActivityLogExporter::class)->buildPayload($admin, [], $agency->id)['rows'];
 
         $supprime = $this->row($rows, 'temoin-supprime');
-        $this->assertSame("deleted#{$agent->id}", $supprime['causer_email']);
+        $this->assertSame("deleted#{$agent->id}", $supprime['causer_name']);
         $this->assertSame('deleted', $supprime['causer_role']);
 
         $systeme = $this->row($rows, 'temoin-systeme');
-        $this->assertSame('system', $systeme['causer_email']);
+        $this->assertSame('system', $systeme['causer_name']);
         $this->assertSame('system', $systeme['causer_role']);
     }
 
@@ -81,11 +81,11 @@ class CauseurSupprimeDansLExportTest extends TestCase
         $rows = app(ActivityLogExporter::class)->payloadForQuery(Activity::query(), 'console')['rows'];
 
         $supprime = $this->row($rows, 'temoin-supprime');
-        $this->assertSame("deleted#{$agent->id}", $supprime['causer_email']);
+        $this->assertSame("deleted#{$agent->id}", $supprime['causer_name']);
         $this->assertSame('deleted', $supprime['causer_role']);
 
         $systeme = $this->row($rows, 'temoin-systeme');
-        $this->assertSame('system', $systeme['causer_email']);
+        $this->assertSame('system', $systeme['causer_name']);
         $this->assertSame('system', $systeme['causer_role']);
     }
 }

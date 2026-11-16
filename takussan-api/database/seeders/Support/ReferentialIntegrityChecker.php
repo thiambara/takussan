@@ -2,8 +2,11 @@
 
 namespace Database\Seeders\Support;
 
+use App\Models\BankStatementLine;
+use App\Models\BookingPayment;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\BoostKind;
@@ -15,11 +18,17 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Invoice;
 use App\Models\Lease;
+use App\Models\LeasePayment;
+use App\Models\Payout;
+use App\Models\PlatformPayout;
 use App\Models\Property;
 use App\Services\Credits\CreditLedger;
+use App\Services\Reporting\PlatformMetricsSnapshotter;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -278,7 +287,93 @@ class ReferentialIntegrityChecker
                     ->whereColumn('v.payout_method_id', 'p.payout_method_id')
                     ->whereColumn('v.agency_id', 'p.agency_id'))
                 ->count(),
+            // TCK-2381 — le rapprochement, la reprise et la métrique plateforme se recalculent depuis
+            // ce qu'ils désignent.
+            'ligne_rapprochee_sans_paiement_du_meme_montant' => $this->lignesRapprocheesFausses(),
+            'reprise_superieure_a_ce_que_le_reversement_a_pris' => $this->reprisesHorsDuReversement(),
+            'metrique_du_jour_qui_ne_se_recalcule_pas' => $this->metriquesFausses(),
         ];
+    }
+
+    /** Écart toléré entre la date d'une ligne de relevé et celle du paiement qu'elle rapproche, en jours. */
+    public const ECART_RAPPROCHEMENT_JOURS = 7;
+
+    /**
+     * Les lignes de relevé confirmées dont le paiement désigné n'existe pas, n'a pas le montant que la
+     * ligne porte (celui que `ReconciliationManager` attend : `expectedBankAmount()`, le net d'un
+     * reversement), est daté à plus de {@see self::ECART_RAPPROCHEMENT_JOURS} jours, ou ne désigne pas
+     * la ligne en retour.
+     */
+    private function lignesRapprocheesFausses(): int
+    {
+        $fausses = 0;
+        BankStatementLine::query()
+            ->where('match_status', BankStatementLineMatchStatus::Confirmed->value)
+            ->with('matchedPayment')
+            ->chunkById(500, function ($lignes) use (&$fausses): void {
+                foreach ($lignes as $ligne) {
+                    $paiement = $ligne->matchedPayment;
+                    $tardive = $ligne->matched_part === LeasePayment::PART_LATE_FEE;
+                    [$attendu, $date, $retour] = match (true) {
+                        $paiement instanceof LeasePayment && $tardive => [$paiement->expectedLateFeeBankAmount(), $paiement->late_fee_paid_at, $paiement->late_fee_bank_statement_line_id],
+                        $paiement instanceof LeasePayment => [$paiement->expectedBankAmount(), $paiement->paid_at, $paiement->bank_statement_line_id],
+                        $paiement instanceof Payout, $paiement instanceof PlatformPayout => [(float) $paiement->net_amount, $paiement->processed_at, $paiement->bank_statement_line_id],
+                        $paiement instanceof Invoice => [(float) $paiement->total_amount, $paiement->issue_date, $paiement->bank_statement_line_id],
+                        $paiement !== null => [(float) $paiement->amount, $paiement->paid_at, $paiement->bank_statement_line_id],
+                        default => [null, null, null],
+                    };
+                    if ($attendu === null || $date === null
+                        || abs((float) $ligne->amount - $attendu) >= 0.01
+                        || abs($ligne->posted_at->startOfDay()->diffInDays(Carbon::parse($date)->startOfDay())) > self::ECART_RAPPROCHEMENT_JOURS
+                        || (int) $retour !== (int) $ligne->id) {
+                        $fausses++;
+                    }
+                }
+            });
+
+        return $fausses;
+    }
+
+    /**
+     * Les reprises dont la base dépasse ce que leur reversement source a pris de la pièce remboursée :
+     * la copie de la ligne au pivot (part `payment`), ou celle de la pénalité (part `late_fee`) — et
+     * celles dont la pièce n'est pas portée par ce reversement.
+     */
+    private function reprisesHorsDuReversement(): int
+    {
+        $pris = fn (string $pivot, string $colonne, string $classe) => fn (Builder $q) => $q->select(DB::raw(1))->from("{$pivot} as x")
+            ->whereColumn('x.payout_id', 'c.source_payout_id')
+            ->whereColumn("x.{$colonne}", 'c.refunded_payment_id')
+            ->where('c.refunded_payment_type', $classe)
+            ->whereRaw('x.amount >= (SELECT SUM(c2.refund_amount) FROM payout_clawbacks c2 WHERE c2.source_payout_id = c.source_payout_id AND c2.refunded_payment_type = c.refunded_payment_type AND c2.refunded_payment_id = c.refunded_payment_id AND c2.part = c.part)');
+
+        return DB::table('payout_clawbacks as c')
+            ->where(fn (Builder $q) => $q
+                ->where(fn (Builder $p) => $p->where('c.part', 'payment')
+                    ->whereNotExists($pris('payout_lease_payment', 'lease_payment_id', LeasePayment::class))
+                    ->whereNotExists($pris('payout_booking_payment', 'booking_payment_id', BookingPayment::class)))
+                ->orWhere(fn (Builder $p) => $p->where('c.part', 'late_fee')
+                    ->whereNotExists(fn (Builder $x) => $x->select(DB::raw(1))->from('lease_payments as lp')
+                        ->whereColumn('lp.id', 'c.refunded_payment_id')
+                        ->whereColumn('lp.late_fee_payout_id', 'c.source_payout_id')
+                        ->whereRaw('lp.late_fee_payout_amount >= c.refund_amount'))))
+            ->count();
+    }
+
+    /** Les instantanés dont l'encaissé ou les frais du jour ne se recalculent pas depuis les paiements semés. */
+    private function metriquesFausses(): int
+    {
+        $snapshotter = app(PlatformMetricsSnapshotter::class);
+
+        return DB::table('platform_metrics_daily')->orderBy('date')->get(['date', 'gmv_amount', 'platform_fees_amount'])
+            ->filter(function (object $ligne) use ($snapshotter): bool {
+                $jour = Carbon::parse($ligne->date)->startOfDay();
+                $flux = $snapshotter->flowsBetween($jour, $jour->copy()->endOfDay());
+
+                return abs($flux['gmv'] - (float) $ligne->gmv_amount) >= 0.01
+                    || abs($flux['fees'] - (float) $ligne->platform_fees_amount) >= 0.01;
+            })
+            ->count();
     }
 
     /** Les lignes de `$table` dont l'agent n'était pas encore arrivé, ou déjà parti, à leur date. */

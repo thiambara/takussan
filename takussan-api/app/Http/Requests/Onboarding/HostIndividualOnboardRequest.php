@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Onboarding;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PropertyType;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
@@ -31,7 +31,7 @@ use Illuminate\Validation\Rule;
  * button until the user ticks the box; we reject server-side too because
  * the front contract isn't a security boundary.
  */
-class HostIndividualOnboardRequest extends FormRequest
+class HostIndividualOnboardRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

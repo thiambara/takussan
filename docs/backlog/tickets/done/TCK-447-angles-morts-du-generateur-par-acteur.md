@@ -92,7 +92,7 @@ Aucune. Le périmètre est `docs/gen-features-by-actor.mjs` et sa sortie génér
 ## Hors périmètre
 
 - Changer la forme du fichier généré ou l'ordre de ses sections.
-- Le contenu de `features.md` → [TCK-446](../todo/TCK-446-spec-muette-sur-le-prestataire.md).
+- Le contenu de `features.md` → [TCK-446](../obsolete/TCK-446-spec-muette-sur-le-prestataire.md).
 
 ## Notes d'implémentation
 

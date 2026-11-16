@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Api\Admin;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Rules\JourIso;
-use Illuminate\Foundation\Http\FormRequest;
 
-class ClosePlatformPayoutPeriodRequest extends FormRequest
+class ClosePlatformPayoutPeriodRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

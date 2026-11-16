@@ -79,7 +79,7 @@ class MemberProfileRestoreTest extends TestCase
     {
         $membre = $this->membre();
 
-        $this->deleteJson("/api/agencies/{$this->agency->id}/agents/{$membre->id}?leave_unassigned=1")
+        $this->deleteJson("/api/agencies/{$this->agency->id}/agents/{$membre->id}", ['leave_unassigned' => true])
             ->assertSuccessful();
         $this->assertSame(0, AgentProfile::query()->where('user_id', $membre->id)->count());
 

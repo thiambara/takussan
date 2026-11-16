@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Payments\DuplicatePayments;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Http\Request;
 
@@ -58,6 +59,9 @@ class LeasePaymentResource extends BaseResource
             // TCK-1831 (P183.01) — le retard, jugé UNE fois ici à la règle de `scopeOverdue` : le front
             // l'affiche et ne compare plus `due_date` à l'horloge du navigateur.
             'is_overdue' => $this->resource->isOverdue(),
+            // TCK-608 — un encaissement en double (part pénalité comprise) reste à rendre au locataire :
+            // le personnel le constate par « Doublon remboursé ».
+            'duplicate_refund_pending' => DuplicatePayments::anyRefundPending($this->metadata),
             'notes' => $this->notes,
             'created_at' => $this->iso($this->created_at),
         ];

@@ -27,6 +27,7 @@ use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
 use App\Jobs\NotifyNewMessageJob;
 use App\Models\Booking;
+use App\Models\ConsentProof;
 use App\Models\Customer;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingSource;
@@ -54,6 +55,7 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
+use App\Services\Privacy\ConsentLedger;
 use App\Services\Property\EtatPublicDuBien;
 use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\PrimaryPropertyContact;
@@ -304,10 +306,19 @@ class PublicPropertyController extends Controller
      */
     public function neighborhoods(NeighborhoodsPublicPropertyRequest $request): JsonResponse
     {
-        $replie = CaseInsensitive::sql('addresses.neighborhood');
+        // TCK-618 (contrainte 2) — le regroupement porte sur le quartier ROGNÉ : « Mermoz » et
+        // « ␠Mermoz␠ » (seeders, imports : `TrimStrings` ne nettoie que la saisie par l'API) faisaient
+        // deux entrées et fractionnaient le compte jugé au seuil. Aucun index ne porte sur
+        // `addresses.neighborhood` : rien à recopier (piège PostgreSQL n°9).
+        //
+        // Deux niveaux : les graphies rognées comptées une à une, puis repliées. La graphie rendue est
+        // la plus fréquente ; à égalité, une graphie qui n'est pas tout en capitales (« Médina »
+        // contre « MÉDINA » : en collation C, `mode()` donnait la capitale), puis l'ordre binaire.
+        // `mode()` ne prend qu'une clé de tri : d'où `array_agg(… ORDER BY …)[1]`.
+        $replie = CaseInsensitive::sql('graphies.graphie');
         $max = self::neighborhoodsMax();
 
-        $lignes = Property::query()
+        $graphies = Property::query()
             ->public()
             ->join('addresses', function ($jointure) {
                 $jointure->on('addresses.addressable_id', '=', 'properties.id')
@@ -316,13 +327,22 @@ class PublicPropertyController extends Controller
             ->whereRaw(CaseInsensitive::sql('addresses.city').' = ?', [CaseInsensitive::fold($request->city())])
             ->whereNotNull('addresses.neighborhood')
             ->whereRaw("trim(addresses.neighborhood) != ''")
+            ->groupByRaw('trim(addresses.neighborhood)')
+            ->select([
+                DB::raw('trim(addresses.neighborhood) as graphie'),
+                DB::raw('count(*) as n'),
+            ])
+            ->toBase();
+
+        $lignes = DB::query()
+            ->fromSub($graphies, 'graphies')
             ->groupByRaw($replie)
-            ->orderByDesc(DB::raw('count(*)'))
+            ->orderByDesc(DB::raw('sum(graphies.n)'))
             ->orderByRaw($replie)
             ->limit($max + 1)
             ->get([
-                DB::raw('mode() WITHIN GROUP (ORDER BY addresses.neighborhood) as valeur'),
-                DB::raw('count(*) as compte'),
+                DB::raw('(array_agg(graphies.graphie ORDER BY graphies.n DESC, (graphies.graphie = upper(graphies.graphie)) ASC, graphies.graphie))[1] as valeur'),
+                DB::raw('sum(graphies.n) as compte'),
             ]);
 
         $tronque = $lignes->count() > $max;
@@ -419,6 +439,11 @@ class PublicPropertyController extends Controller
             //     trois corps distincts servis `public, s-maxage=300` sous UNE
             //     seule entrée de cache. Un visiteur anglophone recevait la
             //     page d'un francophone, et rien ne pouvait le signaler.
+            //     TCK-351 (2026-11-16) : ces libellés ne sont plus émis, le corps
+            //     ne varie plus avec la locale. `Accept-Language` RESTE, par
+            //     prudence : un texte localisé qui reviendrait serait sinon servi
+            //     dans la langue du premier visiteur. L'identité des corps est
+            //     épinglée par `CataloguePublicCacheTest`, qui rougira ce jour-là.
             //   · L'APPELANT : `PropertyResource` émet quatre champs de
             //     modération dès que `$request->user() !== null`, et
             //     `ResolveActiveProfile` propage un porteur Bearer au garde par
@@ -1064,6 +1089,9 @@ class PublicPropertyController extends Controller
                     'list_price_at_offer' => (float) $property->price,
                 ],
             ] + BookingConditions::columnsFor(BookingKind::Offer, $property, (string) $data['offer_amount'], $data));
+            // TCK-537 (AC1) — la case `terms_accepted` de l'offre (« J'ai lu et j'accepte les conditions
+            // générales d'utilisation ») : sa preuve. Une candidature ou un séjour n'a pas de case.
+            app(ConsentLedger::class)->record($user, ConsentLedger::CONTEXT_OFFER, $request->ip(), [ConsentProof::DOCUMENT_TERMS]);
             // TCK-2893 — le garant déclaré : une fiche neuve sur une offre neuve, rien ne peut le refuser ici
             // (nature, statut, borne de trois, `guarantor_id` interdit au tunnel).
             $this->rattacherLeGarantDeclare($booking, $data, $user);

@@ -21,10 +21,16 @@
  * avertissement. Ce script ne sort en erreur que sur un usage faux ; le défaut qu'il ne doit
  * jamais avoir est de faire sauter une suite qu'aucun run n'a vue verte.
  *
+ * DEUX VOLETS POUR L'API (TCK-637, amendement d'ADR-0063 §4) : `api` atteste les TESTS (joués en
+ * `--parallel` par `lint-and-test`), `api-couverture` atteste la COUVERTURE (PCOV séquentiel + le
+ * cliquet, job `couverture`). Même périmètre, mais le nom de suite entre dans le hachage : deux clés,
+ * deux artefacts, et chaque job n'est sauté que sur le sien. Une attestation commune ferait sauter
+ * la couverture d'un arbre aux tests verts et au cliquet rouge.
+ *
  * Usage :
- *   node scripts/ci-attestation.mjs <api|web>          en CI : écrit `cle`, `artefact`, `deja-vert`
- *                                                     et `carte-courante` dans $GITHUB_OUTPUT
- *   node scripts/ci-attestation.mjs <api|web> --cle    imprime la clé, sans réseau
+ *   node scripts/ci-attestation.mjs <api|api-couverture|web>          en CI : écrit `cle`, `artefact`,
+ *                                          `deja-vert` et `carte-courante` dans $GITHUB_OUTPUT
+ *   node scripts/ci-attestation.mjs <api|api-couverture|web> --cle    imprime la clé, sans réseau
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -52,6 +58,18 @@ export const PERIMETRES = {
     'scripts/ci-attestation.mjs',
   ],
 };
+
+// Le volet couverture de l'API lit EXACTEMENT ce que lisent ses tests : c'est la même suite, jouée
+// sous PCOV. Un périmètre recopié divergerait ; il est donc partagé.
+PERIMETRES['api-couverture'] = PERIMETRES.api;
+
+/**
+ * Les suites qui tournent quelle que soit l'attestation sur `schedule` / `workflow_dispatch` :
+ * `api-couverture` parce qu'il produit `cov.php` ; `web` pour que son `workflow_dispatch` force
+ * toujours la suite, comme avant TCK-637. Seuls les tests de l'API (`api`) en sortent : depuis
+ * TCK-637 ils ne produisent rien, et la nuit les rejouerait sur un arbre déjà attesté.
+ */
+export const TOUJOURS_LA_NUIT = ['api-couverture', 'web'];
 
 /** Les workflows dont un run peut avoir déposé une attestation. */
 export const WORKFLOWS_ATTESTANTS = [
@@ -177,17 +195,20 @@ async function principal() {
   }
 
   const evenement = process.env.GITHUB_EVENT_NAME ?? '';
-  // La nuit et à la demande, la suite tourne toujours : c'est elle qui produit `cov.php`.
-  const nuit = evenement === 'schedule' || evenement === 'workflow_dispatch';
+  // La nuit et à la demande, tout tourne sauf les tests de l'API, qui se sautent comme ailleurs sur
+  // un arbre déjà attesté (TOUJOURS_LA_NUIT).
+  const nuit = (evenement === 'schedule' || evenement === 'workflow_dispatch') && TOUJOURS_LA_NUIT.includes(suite);
   let dejaVert = false;
   let resume;
 
-  const courante = evenement === 'schedule' && suite === 'api' && carteCourante();
+  const courante = evenement === 'schedule' && suite.startsWith('api') && carteCourante();
 
   if (courante) {
     resume = "Aucun fichier de l'API n'a changé depuis la dernière carte d'impact : la nuit est sautée.";
   } else if (nuit) {
-    resume = `Exécution \`${evenement}\` : la suite tourne quelle que soit l'attestation (elle produit la carte d'impact).`;
+    resume =
+      `Exécution \`${evenement}\` : la suite tourne quelle que soit l'attestation` +
+      (suite === 'api-couverture' ? " (elle produit la carte d'impact)." : '.');
   } else {
     try {
       const trouvee = await attestation(nom);

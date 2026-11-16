@@ -122,9 +122,11 @@ vi.mock('@/components/public/profile/PortfolioTabs', () => ({
 // bureau). Le double rend le CANAL de message reçu (formulaire de qui, ou renvoi à l'agence) et le
 // numéro reçu : c'est la page qui décide des deux (TCK-573, TCK-633, décision 1b).
 vi.mock('@/components/public/fiche/ContactDeFiche', () => ({
-  ContactDeFiche: ({ telephone, message, nom }: { telephone: string | null; nom: string; message: { genre: string; role?: string; slug: string } | null }) => (
+  ContactDeFiche: ({ telephone, whatsapp, message, nom, fiche }: { telephone: string | null; whatsapp?: string | null; nom: string; message: { genre: string; role?: string; slug: string } | null; fiche?: unknown }) => (
     <div
+      data-whatsapp={whatsapp ?? ''}
       data-testid="contact"
+      data-fiche={JSON.stringify(fiche ?? null)}
       data-nom={nom}
       data-canal={message?.genre ?? ''}
       data-role={message?.genre === 'formulaire' ? message.role : message?.genre === 'agence' ? `agence:${message.slug}` : ''}
@@ -273,6 +275,7 @@ describe('fiche d’un propriétaire sous /agents — TCK-573', () => {
       years_of_experience: null,
       // Un propriétaire rattaché à une agence ne devient pas pour autant « Agent chez » elle.
       agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' },
+      managing_agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' },
     });
 
   beforeEach(() => {
@@ -583,18 +586,37 @@ describe('TCK-2523 · AC3 — la fiche d’un propriétaire sur option (décisio
   });
 
   it('l’agence qui gère ses biens connue : le contact vise l’agence, et l’encart y mène', async () => {
-    await rendreFiche(sokhna({ agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' } }));
+    // TCK-2574 — la clé que l'API sert pour l'agence de gestion, distincte de `agency`.
+    await rendreFiche(sokhna({ managing_agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' } }));
 
     expect(screen.getByTestId('contact')).toHaveAttribute('data-role', 'agence:dakar-immo');
     expect(screen.getAllByText(/Ses biens sont gérés par Dakar Immo/).length).toBeGreaterThan(0);
     for (const lien of screen.getAllByRole('link', { name: /Voir l'agence/ })) expect(lien).toHaveAttribute('href', '/fr/agencies/dakar-immo');
   });
 
-  it('agence inconnue (l’API ne la sert pas encore, TCK-2574) : le formulaire anonyme du propriétaire, sans encart', async () => {
-    await rendreFiche(sokhna());
+  it('TCK-2575 — le contact reçoit qui est la fiche (l’id de l’utilisateur, son rôle public), pour la reconnaître côté client', async () => {
+    await rendreFiche(sokhna({ id: 42 }));
+    expect(JSON.parse(screen.getByTestId('contact').getAttribute('data-fiche') ?? 'null')).toEqual({ genre: 'personne', id: 42, role: 'owner' });
+  });
+
+  it('aucune agence de gestion (`managing_agency: null`) : le formulaire anonyme du propriétaire, sans encart', async () => {
+    await rendreFiche(sokhna({ managing_agency: null }));
 
     expect(screen.getByTestId('contact')).toHaveAttribute('data-role', 'owner');
     expect(screen.queryByText(/Ses biens sont gérés par/)).not.toBeInTheDocument();
+  });
+
+  it('TCK-2574 — `agency` (le rattachement de la personne) ne suffit pas : seule `managing_agency` renvoie à l’agence', async () => {
+    await rendreFiche(sokhna({ agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' }, managing_agency: null }));
+
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-role', 'owner');
+    expect(screen.queryByText(/Ses biens sont gérés par/)).not.toBeInTheDocument();
+  });
+
+  it('TCK-2574 — la forme que l’API sert désormais (« G. », « Sokhna G. ») s’affiche « Sokhna G. »', async () => {
+    await rendreFiche(sokhna({ last_name: 'G.', full_name: 'Sokhna G.' }));
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Sokhna G.' })).toBeInTheDocument();
   });
 
   it('le contrôle : un agent garde son nom entier et son numéro vérifié', async () => {
@@ -660,5 +682,44 @@ describe('TCK-2568 — le haut de l’écran au téléphone, branché par la fic
   it('la personne inconnue (404) ouvre sur la barre de marque', () => {
     render(withIntl(<NotFound />));
     expect(surcharges()).toEqual(['marque', 'marque']);
+  });
+});
+
+/**
+ * TCK-2576 — WhatsApp au premier rang, sur le numéro PUBLIÉ et seulement si l'API le dit
+ * (`phone_whatsapp`) ; jamais pour un propriétaire, jamais pour un numéro non vérifié.
+ */
+describe('TCK-2576 — WhatsApp de la fiche d’agent', () => {
+  beforeEach(() => {
+    getAgentMock.mockReset();
+    notFoundMock.mockClear();
+  });
+
+  it('AC1 — numéro vérifié et déclaré WhatsApp : le contact reçoit ce numéro pour WhatsApp', async () => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: agent({ phone_verified: true, phone_whatsapp: true }) });
+    render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-whatsapp', '+221 77 000 00 00');
+  });
+
+  it.each([
+    ['vérifié, non déclaré WhatsApp', { phone_verified: true, phone_whatsapp: false }],
+    ['vérifié, champ absent', { phone_verified: true }],
+    ['non vérifié (champ servi par erreur)', { phone_verified: false, phone_whatsapp: true }],
+  ] as const)('AC2 — %s : pas de WhatsApp', async (_cas, champs) => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: agent({ ...champs }) });
+    render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-whatsapp', '');
+  });
+
+  it('un propriétaire : jamais de WhatsApp, même déclaré', async () => {
+    getAgentMock.mockResolvedValue({
+      etat: 'trouve',
+      agent: agent({ public_role: 'owner', phone_verified: true, phone_whatsapp: true, managing_agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' } }),
+    });
+    render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-whatsapp', '');
   });
 });

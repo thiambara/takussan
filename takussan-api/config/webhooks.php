@@ -13,4 +13,9 @@ return [
         'sms' => 30,
         'whatsapp' => 30,
     ],
+
+    // TCK-606 — une ligne `rejected` (signature absente ou fausse, jeton inconnu) ne porte rien
+    // qu'un litige de rapprochement relira : elle se purge à cette borne, quel que soit son canal.
+    // Au plafond du débit, elle vivait sinon 90 jours comme une ligne authentifiée.
+    'rejected_retention_days' => 7,
 ];

@@ -85,9 +85,10 @@ const INVENTAIRE = 'app/Services/Membership/CapabilityEnforcementInventory.php';
  * `bookings.refund` et `leases.sign`, 594 `payouts.approve` et `agency.update_billing`, chacun à 10
  * de son côté. 7 à la fusion de TCK-601 dans TCK-596 : 601 retire `agency.update_kyc`, 596 ses deux.
  * 6 par TCK-1701 (P82.04) : `agency.update` juge les indicateurs et les alertes de seuil
- * (`AgencyIndicatorPolicy`).
+ * (`AgencyIndicatorPolicy`). 5 par TCK-608 : `payments.refund` juge « Doublon remboursé »
+ * (`LeasePolicy::refundDuplicate`).
  */
-const CLIQUET = 6;
+const CLIQUET = 5;
 
 /** Plancher de plausibilité du balayage, bien sous le compte réel (~1 100 fichiers). */
 const PLANCHER_FICHIERS = 400;

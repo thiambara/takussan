@@ -451,7 +451,8 @@ export async function deleteAdminUserSession(
  * contre ce que TCK-336 affirmait :
  *   · ce tableau n'a AUCUNE vignette — ni `<img>`, ni `next/image`, ni `main_photo_url`
  *     dans le fichier. Ne pas lui en « rétablir » une ;
- *   · les seules clés qu'il lit hors colonnes sont `location`, `status_label` et `agency`.
+ *   · les seules clés qu'il lit hors colonnes sont `location` et `agency` (`status_label` en est
+ *     sorti avec TCK-351 : le statut se traduit par `property.status` du front).
  *     Elles ne peuvent pas être demandées (spatie rend 400) : la ressource les sert
  *     inconditionnellement, et le test le vérifie des deux côtés.
  */
@@ -609,6 +610,30 @@ export async function exportAuditLog(params: AuditLogFilterParams = {}): Promise
   });
   const json = await jsonOrThrow<{ data: AuditLogExport }>(res);
   return json.data;
+}
+
+/** Le chemin signé que l'API rend pour le fichier de l'audit de la console (TCK-613). */
+const CHEMIN_SIGNE_DE_L_AUDIT = '/api/admin/audit/export/download?';
+
+/**
+ * TCK-613 (ADR-0044 §2) — télécharge le CSV de l'audit plateforme. Le lien n'est plus un droit au
+ * porteur : l'API rend un chemin signé RELATIF, servi au seul opérateur qui l'a demandé et sous sa
+ * session. Il passe par le relais `/api/super-admin/*` (jeton de l'opérateur), sa requête intacte —
+ * la signature se recalcule sur la chaîne brute — puis est enregistré par un `<a download>`.
+ */
+export async function downloadAuditLogExport(url: string): Promise<string> {
+  if (!url.startsWith(CHEMIN_SIGNE_DE_L_AUDIT)) {
+    throw new ApiError(400, { code: 'activity_log.export_link_invalid' });
+  }
+  const res = await fetch(cheminApi`/api/super-admin/audit/export/download${requete(url.slice(CHEMIN_SIGNE_DE_L_AUDIT.length))}`, {
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status, await res.json().catch(() => null));
+  }
+  const filename = filenameFromDisposition(res.headers.get('content-disposition') ?? '') ?? 'audit-plateforme.csv';
+  triggerDownload(await res.blob(), filename);
+  return filename;
 }
 
 export async function postModerationDecision(

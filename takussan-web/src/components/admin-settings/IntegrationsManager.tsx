@@ -338,11 +338,6 @@ export function IntegrationsManager({
                     provider={integration.provider}
                     initialUrl={initialWebhookUrls[integration.id] ?? null}
                   />
-                ) : isPaymentProvider(integration.provider) ? (
-                  // Lemon Squeezy : pas d'adresse à coller, elle ne solderait rien (TCK-293, m-1).
-                  <p className="text-xs text-pretty text-muted-foreground">
-                    {t('webhookEndpoint.unsupported')}
-                  </p>
                 ) : null}
 
                 <div className="flex flex-wrap gap-2 pt-2">

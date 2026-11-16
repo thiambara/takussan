@@ -68,6 +68,8 @@ class Agency extends AbstractModel implements HasMedia
         // TCK-2518 — la vitrine de la fiche publique. `median_response_minutes` n'est PAS ici : son
         // seul écrivain est le job nocturne `RefreshDirectoryResponseTimes`.
         'tagline', 'highlights', 'showcase_property_ids',
+        // TCK-2576 — le numéro WhatsApp de l'agence (E.164, `TelephoneSaisi`), jamais celui de l'admin.
+        'phone_whatsapp',
     ];
 
     protected $casts = [
@@ -124,7 +126,21 @@ class Agency extends AbstractModel implements HasMedia
         'primary_admin_id',
         // TCK-2518 — la vitrine de la fiche publique, que l'écran de saisie relit.
         'tagline', 'highlights', 'showcase_property_ids', 'median_response_minutes',
+        // TCK-2576 — l'écran de saisie relit le numéro WhatsApp de l'agence.
+        'phone_whatsapp',
     ];
+
+    /**
+     * TCK-2576 — le numéro WhatsApp que la fiche publique de l'agence sert, ou `null` : seul un numéro
+     * DÉCLARÉ par l'agence (`phone_whatsapp`) sort. Ni `phone` (la ligne du bureau, peut-être un fixe),
+     * ni le numéro d'un membre : un bouton WhatsApp qui viserait un numéro hors WhatsApp mentirait.
+     */
+    public function numeroWhatsAppPublic(): ?string
+    {
+        return is_string($this->phone_whatsapp) && trim($this->phone_whatsapp) !== ''
+            ? $this->phone_whatsapp
+            : null;
+    }
 
     /**
      * TCK-593 — l'agence encaisse-t-elle la pénalité de retard avec le paiement en ligne ?

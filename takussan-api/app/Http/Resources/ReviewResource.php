@@ -11,6 +11,7 @@ use App\Services\Media\PublicPhotoUrl;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Review\ReviewEligibility;
 use App\Services\Review\ReviewRiskClassifier;
+use App\Support\NomPublic;
 use Illuminate\Http\Request;
 
 class ReviewResource extends BaseResource
@@ -22,11 +23,25 @@ class ReviewResource extends BaseResource
         // TCK-2672, TCK-2722 — qui modère dans le périmètre de l'avis (la règle de `GET …/reports`)
         // lit son risque et son nombre de signalements ; l'auteur et le public, ni l'un ni l'autre.
         $readsReports = $viewer !== null && $viewer->can('viewReports', $this->resource);
+        $canReply = $viewer !== null && $viewer->can('reply', $this->resource);
+        $canModerate = $viewer !== null && $viewer->can('moderate', $this->resource);
         // TCK-1781 (P175.05) — un auteur effacé ou sans nom rend `name` nul : le front écrit
         // « Anonyme » dans la langue du lecteur (principe 5), l'API n'émet pas de libellé.
-        $authorName = $author
-            ? (trim(($author->first_name ?? '').' '.($author->last_name ?? '')) ?: ($author->username ?: null))
-            : null;
+        //
+        // TCK-537 (décision du porteur du 2026-11-16) — un avis montré au public nomme son auteur par
+        // son prénom et l'initiale de son nom ({@see NomPublic}), jamais en entier : sur toute route
+        // `public.*` (fiche de bien, d'agent, d'agence), quel que soit le lecteur ; ailleurs, le nom
+        // entier ne se lit que par l'auteur lui-même et par qui répond ou modère dans le périmètre
+        // de l'avis (la console), tous les autres lecteurs reçoivent la forme abrégée.
+        $fullNameAllowed = $author !== null
+            && ! $request->routeIs('public.*')
+            && $viewer !== null
+            && ($viewer->id === $author->id || $readsReports || $canModerate || $canReply);
+        $authorName = match (true) {
+            $author === null => null,
+            $fullNameAllowed => trim(($author->first_name ?? '').' '.($author->last_name ?? '')) ?: ($author->username ?: null),
+            default => NomPublic::abrege($author->first_name, $author->last_name, $author->username),
+        };
 
         return [
             'id' => $this->id,
@@ -59,8 +74,8 @@ class ReviewResource extends BaseResource
             'context_kind' => ReviewEligibility::contextKindOf($this->resource->context_type),
             // verif-597 m1 — les gestes que l'API ACCEPTERA, jugés par la policy : le front ne les
             // devine plus (il offrait « Répondre » ou « Approuver » que l'API refusait en 403).
-            'can_reply' => $viewer !== null && $viewer->can('reply', $this->resource),
-            'can_moderate' => $viewer !== null && $viewer->can('moderate', $this->resource),
+            'can_reply' => $canReply,
+            'can_moderate' => $canModerate,
             // TCK-2930 (ADR-0043, amendement du 2026-11-15) — supprimer et ignorer les signalements
             // ont leur propre capacité : l'admin d'agence les tient aussi sur un avis publié.
             'can_delete' => $viewer !== null && $viewer->can('delete', $this->resource),

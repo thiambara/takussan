@@ -4,6 +4,7 @@ namespace App\Services\Auth\Voice;
 
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Client\Response;
@@ -51,7 +52,7 @@ class LAfricaMobileVoiceCodeSender implements VoiceCodeSender
                 $response = $this->push($phone, $code, $locale, $this->token());
             }
         } catch (\Throwable $e) {
-            Log::warning('[voice.lam] exception HTTP', ['error' => $e->getMessage(), 'phone_suffix' => substr($phone, -4)]);
+            Log::warning('[voice.lam] exception HTTP', ['error' => SafeExceptionContext::of($e), 'phone_suffix' => substr($phone, -4)]);
 
             return false;
         }

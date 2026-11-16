@@ -194,7 +194,7 @@ et **doit être re-mesuré** : c'est le travail réel du ticket, et c'est ce qui
 
 - La conversion des couleurs de la chrome publique —
   [TCK-440](TCK-440-chrome-publique-en-palette-brute.md).
-- Le sort du thème sombre — [TCK-452](../todo/TCK-452-theme-sombre-inatteignable.md).
+- Le sort du thème sombre — [TCK-452](TCK-452-theme-sombre-inatteignable.md).
 - Les classes composées à l'exécution (`` `bg-${x}` ``) : aucun contrôle statique ne peut les
   voir. **Trou à DÉCLARER dans l'en-tête du contrôle**, pas à fermer.
 

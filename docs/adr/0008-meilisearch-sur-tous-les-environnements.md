@@ -71,3 +71,38 @@ Il n'y a donc plus qu'un chemin, et il classe par pertinence. `scripts/check-fil
   TCK-326, et il restitue l'ordre de pertinence (TCK-281). L'ancien
   `app/Models/Bases/Traits/BaseModelTrait.php`, qui portait le caveat, n'existe plus.
 - `docs/configuration.md` §3.6 — **qui se contredit avec ses §1 et §5.1** (ardoise D-25).
+
+## Amendement du 2026-11-16 (TCK-578) — les consoles cherchent les biens par la base
+
+**Décision du porteur (option c).** L'index des biens reste **public** : `Property::shouldBeSearchable()`
+n'y admet ni brouillon, ni bien en attente, refusé ou privé, ni bien d'une agence hors ligne
+(TCK-600, ADR-0048). Les consoles, elles, listent tout cela — et leur `filter[search]` passait par
+cet index : un brouillon était introuvable, **en silence** (mesuré le 2026-09-24 : une référence
+exacte de brouillon, 196 réponses, le bien absent).
+
+- **Tous les appelants de `Property::buildQuery()` sont des consoles** (relevé du 2026-11-16 :
+  `/api/properties`, `portfolio-summary`, les sous-biens, les biens d'un bailleur,
+  `/api/admin/agencies/{agency}/properties`). Le modèle le déclare par
+  `HasQueryBuilder::rechercheParLaBase()` → `true` : `filter[search]` y prend le repli SQL existant,
+  replié par `CaseInsensitive` (piège n° 9), dans la portée d'agence que la requête impose déjà.
+  C'est le précédent des consoles super-admin (TCK-281) et de la console plateforme (TCK-600).
+- **La recherche publique ne change pas** : elle passe par `PropertySearchService`, jamais par
+  `buildQuery()`, et l'index ne reçoit toujours aucun bien non public. Les voies (a) « tout indexer
+  et filtrer » et (b) « deux index » sont écartées : (a) met la non-fuite à la merci d'un filtre
+  oublié, (b) double l'indexation pour une console qui n'en a pas besoin.
+- **Le prix, assumé** : la console des biens perd la tolérance aux fautes et le classement du
+  moteur, et deux choses plus fréquentes en pratique : les **accents** (`residence` ne trouve plus
+  `Résidence` — `CaseInsensitive` ne les replie pas, ADR-0025) et les **mots non contigus**
+  (`villa almadies` ne trouve plus « Villa de luxe aux Almadies » : un seul motif `%…%`). Elle classe en SQL (`rangDeRechercheSql()`) : **référence exacte en tête**, puis titre,
+  puis le reste, l'ordre par défaut départageant ; un `sort=` explicite reste souverain.
+- **Mesure, pas d'index** : `EXPLAIN ANALYZE` sur la base de développement (582 biens, 214 pour la
+  plus grosse agence) — `Bitmap Index Scan on properties_agency_id_index`, 1,2 ms ; sans portée
+  d'agence (super-admin), `Seq Scan`, 1,4 ms. Un `LIKE '%…%'` n'emprunterait aucun index btree
+  d'expression ; `pg_trgm` serait une décision à part, à prendre sur une mesure qui le justifie.
+- **Garde** : `RechercheConsoleDesBiensTest`, qui joue les cinq appelants (vérifié par ablation des deux côtés : retirer
+  `rechercheParLaBase()` rend les brouillons introuvables ; affaiblir `shouldBeSearchable()` fait
+  entrer les biens non publics dans l'index).
+
+Le « seul chemin » de la section Conséquences tient : c'est toujours `HasQueryBuilder`
+`filter[search]`, qui choisit désormais entre le moteur et la base selon ce que l'index du modèle
+peut contenir.

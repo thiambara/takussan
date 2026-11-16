@@ -25,8 +25,9 @@ use Symfony\Component\Mime\MimeTypes;
  * Tout passe par `Storage::disk($media->disk)` et le chemin RELATIF au disque. Jamais
  * `$media->getPath()` : sur `r2-private` il rend un chemin qui n'existe sur aucun système de
  * fichiers, et `response()->file()` / `file_get_contents()` meurent dessus. Jamais non plus
- * `getFullUrl()` / `getTemporaryUrl()` de Spatie : ils passent par `CdnUrlGenerator`, qui
- * réécrirait une URL privée vers le CDN si celui-ci était réactivé.
+ * `getFullUrl()` / `getTemporaryUrl()` de Spatie : ils rendent l'URL brute du disque, sans
+ * passer par l'autorisation ni par la route signée (le générateur est `DefaultUrlGenerator`
+ * depuis le retrait de l'intégration CDN, TCK-2463).
  *
  * Trois formes, choisies par l'appelant APRÈS sa décision d'autorisation :
  *   - `redirect()` : URL présignée de 5 minutes — les octets ne traversent pas le VPS ;

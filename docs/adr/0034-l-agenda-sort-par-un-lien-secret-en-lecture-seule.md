@@ -87,3 +87,32 @@ agence.**
   `App\Http\Controllers\Api\CalendarFeedController`.
 - `tests/Feature/Calendar/CalendarFeedTest.php` : VCALENDAR valide, aucun nom ni téléphone de
   visiteur, 404 après révocation et après retrait, jeton jamais stocké en clair (AC10 de TCK-591).
+
+## Amendement du 2026-11-16 (TCK-617)
+
+Le § 5 disait qu'une suspension éteint le flux « sans écriture ». C'était vrai à la lecture, et c'était
+le défaut : le lien éteint par la seule lecture **revivait** le jour où le titulaire redevenait
+personnel (réactivation, délégation neuve). Et un lien `.ics` créé avec une session volée survivait à
+la réinitialisation du mot de passe, qui ne coupait que les jetons Sanctum.
+
+**Décision du porteur (2026-11-16) : tous les gestes de révocation coupent le lien d'agenda, par
+écriture.**
+
+1. **Un point commun**, `App\Services\Auth\AccountTokenRevoker` : toute suppression de jetons Sanctum
+   d'un compte y passe et révoque, dans la même transaction, **tous** ses liens d'agenda (on ne sait
+   pas quelle session a créé un lien) — réinitialisation du mot de passe, révocation d'une ou de
+   toutes les sessions (par le titulaire ou le support), réinitialisation forcée, blocage, demande et
+   exécution de l'effacement, retrait d'un profil plateforme, cooptation retirée, départ d'un
+   bailleur, suspension du dernier profil actif. `tests/Feature/Architecture/AccountTokenRevokerGuardTest`
+   rougit sur une suppression de jetons écrite ailleurs ; seules la déconnexion (le titulaire ferme
+   SA session), l'expiration par inactivité et la fin d'une impersonation (lecture seule, § 3
+   d'ADR-0055) en sont exemptées, motif écrit.
+2. **Les gestes qui font sortir du personnel d'une agence sans couper de jeton** révoquent le lien de
+   cette agence : la suspension (même quand le membre garde un profil ailleurs), la fin ou
+   l'expiration d'une délégation (si le délégué n'y est plus personnel), le passage au rôle de
+   bailleur (`CalendarFeedService::revokeUnlessStaff()`), en plus du retrait déjà en place.
+3. La vérification à la lecture (§ 3) reste, comme filet.
+
+Le lien sans agence refusé au personnel d'au moins une agence qui n'en a pas choisi rend désormais
+`calendar.feed_agency_required` (il **est** du personnel) ; `calendar.feed_not_staff` reste celui de
+qui ne l'est nulle part.

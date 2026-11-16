@@ -166,23 +166,27 @@ class AgencyDetailTest extends TestCase
 
     /**
      * P192.02 (TCK-1876) — l'onglet « Biens » de la fiche d'agence liste aussi les biens en revue
-     * et refusés, et affiche `status_label ?? status` : sans clé `properties.status.<cas>`,
-     * `enumLabel()` rendait `null` et l'écran montrait `pending_review` en clair.
+     * et refusés. TCK-351 : l'API n'émet plus `status_label` — le front rend le CODE par
+     * `property.status` de next-intl, qui porte `pending_review` et `rejected` ; c'est donc le code
+     * qui doit sortir, dans toutes les locales.
      */
-    public function test_un_bien_en_revue_ou_refuse_a_un_libelle_de_statut(): void
+    public function test_un_bien_en_revue_ou_refuse_sort_avec_son_code_de_statut(): void
     {
         $this->actingAsRole('super_admin');
         $agency = Agency::factory()->create();
         Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::PendingReview]);
         Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Rejected]);
 
-        foreach (['fr' => ['En revue', 'Refusé'], 'en' => ['In review', 'Rejected']] as $locale => $attendus) {
-            $libelles = $this->withHeader('Accept-Language', $locale)
+        foreach (['fr', 'en'] as $locale) {
+            $lignes = $this->withHeader('Accept-Language', $locale)
                 ->getJson("/api/admin/agencies/{$agency->id}/properties?fields[properties]=id,status&per_page=10")
                 ->assertOk()
-                ->json('data.*.status_label', []);
+                ->json('data', []);
 
-            $this->assertEqualsCanonicalizing($attendus, $libelles, "Accept-Language: {$locale}");
+            $this->assertEqualsCanonicalizing(['pending_review', 'rejected'], array_column($lignes, 'status'), "Accept-Language: {$locale}");
+            foreach ($lignes as $ligne) {
+                $this->assertArrayNotHasKey('status_label', $ligne);
+            }
         }
     }
 

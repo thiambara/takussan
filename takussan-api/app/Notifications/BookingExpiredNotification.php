@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Booking;
 use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Notifications\PreferenceResolver;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -75,7 +76,7 @@ class BookingExpiredNotification extends Notification implements ShouldQueue
             ->greeting(__('notifications.booking_expired.greeting'))
             ->line(__('notifications.booking_expired.intro', [
                 'reference' => $reference,
-                'property' => $propertyTitle,
+                'property' => MarkdownText::escape($propertyTitle),
             ]))
             ->line(__('notifications.booking_expired.expired_reason'))
             ->line(__('notifications.booking_expired.next_steps'))

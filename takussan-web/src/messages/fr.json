@@ -3565,7 +3565,8 @@
         "never": "Jamais",
         "contentLabel": "Contenu",
         "content": "Vos rendez-vous de l’agenda",
-        "secret": "Qui a ce lien voit vos rendez-vous : ne le partagez pas."
+        "secret": "Qui a ce lien voit vos rendez-vous : ne le partagez pas.",
+        "agencyRequired": "Choisissez d'abord l'agence de ce lien : vous travaillez pour plusieurs agences."
       }
     },
     "bulk": {
@@ -3613,7 +3614,14 @@
       "reviewPending": "{count, plural, one {# élément restera sans responsable.} other {# éléments resteront sans responsable.}}",
       "confirm": "Transmettre et retirer",
       "removeOnly": "Retirer de l'agence",
-      "failed": "Le retrait n'a pas abouti."
+      "failed": "Le retrait n'a pas abouti.",
+      "leases": {
+        "title": "Baux des biens transmis",
+        "moved": "{count, plural, one {# bail en brouillon est passé à {successor}.} other {# baux en brouillon sont passés à {successor}.}}",
+        "toReview": "{count, plural, one {Ce bail, déjà engagé, reste au nom de {name} : à reprendre à la main.} other {Ces # baux, déjà engagés, restent au nom de {name} : à reprendre à la main.}}",
+        "link": "Bail n° {id}",
+        "close": "Fermer"
+      }
     },
     "absences": {
       "title": "Absences et remplacements",
@@ -4444,7 +4452,8 @@
       "confirme": {
         "titre": "Paiement confirmé",
         "texte": "Votre paiement est bien reçu.",
-        "texteQuittance": "Votre paiement est bien reçu. Votre quittance est disponible."
+        "texteQuittance": "Votre paiement est bien reçu. Votre quittance est disponible.",
+        "partPenalite": "Votre pénalité de retard avait déjà été réglée à l’agence : cette part vous sera remboursée."
       },
       "echec": {
         "titre": "Paiement non abouti",
@@ -4474,7 +4483,8 @@
           "paye": "Payé",
           "payeLe": "Payé le {date} à {heure}",
           "echec": "Échoué · rien n’a été débité",
-          "rembourse": "Remboursement à venir"
+          "rembourse": "Remboursement à venir",
+          "annulee": "Échéance annulée"
         },
         "dontPenalite": "dont pénalité de retard"
       },
@@ -4486,6 +4496,10 @@
         "telechargerQuittance": "Télécharger la quittance",
         "contacterLAgence": "Contacter l’agence",
         "verifierANouveau": "Vérifier à nouveau"
+      },
+      "annulee": {
+        "titre": "Cette échéance a été annulée",
+        "texte": "Elle n’est plus due. Si vous avez été débité, l’agence vous remboursera."
       }
     },
     "locataire": {
@@ -5450,7 +5464,12 @@
         "enRetardDe": "En retard de {jours} j",
         "payeLe": "Payé le {date}",
         "quittance": "Quittance",
-        "relancer": "Relancer"
+        "relancer": "Relancer",
+        "doublonRembourse": {
+          "action": "Doublon remboursé",
+          "fait": "Remboursement du doublon enregistré.",
+          "echec": "Le remboursement du doublon n’a pas pu être enregistré."
+        }
       },
       "types": {
         "residential_rent": "Habitation",
@@ -9808,7 +9827,13 @@
         "agency_self_opened": "Agence ouverte depuis l'orientation",
         "invitation_phone_corrected": "Numéro corrigé par l'invité",
         "payment_ignored": "Paiement sorti du reste à rapprocher",
-        "payment_unignored": "Paiement remis dans le reste à rapprocher"
+        "payment_unignored": "Paiement remis dans le reste à rapprocher",
+        "webhook_processing_failed": "Échec du traitement d’un webhook de paiement",
+        "audit_export_downloaded": "Export du journal téléchargé",
+        "agency_spotlight_purchased": "Mise en avant de l’agence achetée",
+        "agency_spotlight_offer_yielded": "Mise en avant offerte cédée à un achat",
+        "duplicate_refunded": "Doublon remboursé",
+        "leases": "Baux brouillons transmis à un autre agent"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -10613,7 +10638,9 @@
         "website": "Site internet",
         "commission": "Commission par défaut (%)",
         "emptyRateIsZero": "Laissé vide, ce taux vaut 0 %.",
-        "websitePlaceholder": "https://votre-agence.sn"
+        "websitePlaceholder": "https://votre-agence.sn",
+        "phoneWhatsapp": "WhatsApp de l'agence",
+        "phoneWhatsappHint": "Le numéro que vos visiteurs joignent sur WhatsApp depuis la fiche publique. Vide : pas de bouton WhatsApp."
       },
       "moderation": {
         "label": "Modération obligatoire avant publication",
@@ -13323,7 +13350,15 @@
         "caption": "Mesure des emplacements par jour",
         "colDate": "Jour",
         "empty": "Aucune donnée sur la période.",
-        "loadError": "Impossible de charger les statistiques."
+        "loadError": "Impossible de charger les statistiques.",
+        "spotlights": {
+          "title": "Mise en avant des agences",
+          "hint": "Places créées sur la période, et crédits dépensés ou rendus pour elles.",
+          "purchased": "Places achetées",
+          "offered": "Places offertes",
+          "creditsSpent": "Crédits dépensés",
+          "creditsRefunded": "Crédits remboursés"
+        }
       }
     },
     "credits": {
@@ -13721,7 +13756,6 @@
         "search": "Recherche",
         "queue": "Files de jobs",
         "workers": "Workers",
-        "cdn": "CDN",
         "whatsapp": "WhatsApp",
         "scheduler": "Planificateur",
         "proxies": "Mandataires de confiance",
@@ -16117,7 +16151,8 @@
         "ops_health_degraded": "Santé de la plateforme dégradée",
         "ops_critical_job_failed": "Échec d’un job d’argent ou de bail",
         "radar_source_listing_gone": "Annonce source d’un bien disparue",
-        "radar_withdrawal_proposed": "Retrait proposé : le titulaire n’a pas répondu"
+        "radar_withdrawal_proposed": "Retrait proposé : le titulaire n’a pas répondu",
+        "webhook_processing_failed": "Échec du traitement d’un webhook authentifié"
       },
       "channels": {
         "email": "E-mail",
@@ -16307,6 +16342,53 @@
           "follow_up_days": {
             "label": "Relance sans contact",
             "description": "En jours, de 1 à 90. Une fiche client de prospect à négociation est à relancer quand son dernier contact date d’au moins ce nombre de jours. Une agence qui a son propre réglage garde le sien."
+          }
+        },
+        "spotlight": {
+          "sale_enabled": {
+            "label": "Vente de la mise en avant d’agence",
+            "description": "Les agences achètent elles-mêmes la place en tête de l’annuaire d’une ville. Couper la vente ne touche ni les places déjà achetées ni celles que vous offrez."
+          },
+          "price_credits": {
+            "label": "Prix de la mise en avant d’agence",
+            "description": "En crédits, de 1 à 100 000, pour la durée ci-dessous. Figé sur la place à l’achat."
+          },
+          "duration_days": {
+            "label": "Durée de la mise en avant d’agence",
+            "description": "En jours, de 1 à 90."
+          },
+          "max_advance_days": {
+            "label": "Réservation à l’avance",
+            "description": "En jours, de 0 à 365 : jusqu’où une agence peut réserver. 0 : la place commence tout de suite, ou pas."
+          },
+          "when_taken": {
+            "label": "Quand la place est prise",
+            "description": "Refuser l’achat, ou le placer au premier créneau libre (file d’attente), annoncé avant la confirmation.",
+            "options": {
+              "refuse": "Refuser",
+              "next_free": "Premier créneau libre"
+            }
+          },
+          "refund_on_suspension": {
+            "label": "Remboursement si l’agence est suspendue",
+            "description": "Pour une place achetée, en cours ou à venir, quand l’agence quitte le site. « Aucun » garde la place, qui revient à la levée de la suspension.",
+            "options": {
+              "prorata": "Au prorata des jours non servis",
+              "full": "Intégral",
+              "none": "Aucun"
+            }
+          },
+          "offered_overlap": {
+            "label": "Place offerte face à un achat",
+            "description": "Une place que vous offrez bloque-t-elle un achat sur la même période, ou lui cède-t-elle sa place ?",
+            "options": {
+              "blocks": "Elle bloque l’achat",
+              "yields": "Elle cède à l’achat"
+            }
+          },
+          "sell_directory_wide": {
+            "label": "Vendre la place de l’annuaire sans ville",
+            "description": "La place de l’annuaire sans filtre de ville, la plus vue. Fermée, elle reste offerte par l’équipe."
           }
         }
       },
@@ -16720,7 +16802,6 @@
       "colPeriod": "Période",
       "colState": "État",
       "colNote": "Motif",
-      "colGrantedBy": "Offerte par",
       "colActions": "Actions",
       "period": "du {from} au {to}",
       "empty": "Aucune agence mise en avant pour cette période.",
@@ -16752,7 +16833,16 @@
         "body": "L’agence quitte la vitrine de l’annuaire dès maintenant. Elle reste dans la liste, à son rang.",
         "back": "Annuler",
         "submit": "Retirer",
-        "failed": "La mise en avant n’a pas pu être retirée."
+        "failed": "La mise en avant n’a pas pu être retirée.",
+        "bodyPurchased": "Cette place a été achetée : elle est libérée et l’agence est remboursée au prorata des jours restants."
+      },
+      "colOrigin": "Origine",
+      "released": "Libérée le {date}",
+      "refunded": "{count, plural, =0 {Aucun crédit rendu} one {# crédit rendu} other {# crédits rendus}}",
+      "origin": {
+        "offered": "Offerte",
+        "purchased": "Achetée — {count, plural, one {# crédit} other {# crédits}}",
+        "by": "par {name}"
       }
     },
     "photosDeQuartier": {
@@ -16874,9 +16964,10 @@
         "rotated": "Nouvelle adresse générée. L'ancienne ne fonctionne plus.",
         "providers": {
           "wave": "Wave",
-          "orange_money": "Orange Money"
+          "orange_money": "Orange Money",
+          "lemon_squeezy": "Lemon Squeezy"
         },
-        "unsupported": "La confirmation automatique des paiements n'est pas encore prise en charge pour ce fournisseur."
+        "hintLemonSqueezy": "Collez cette adresse dans les réglages de webhooks de votre boutique Lemon Squeezy, avec le secret de signature de cette intégration, et cochez l’événement order_created : c’est là que Lemon Squeezy confirme les paiements de cette intégration."
       },
       "paymentFields": {
         "legend": "Identifiants du fournisseur",
@@ -17226,7 +17317,16 @@
         "passwordPlaceholder": "Mot de passe",
         "confirmDisable": "Confirmer la désactivation",
         "enableShort": "Activer",
-        "explication": "Un code de votre application à chaque connexion, et des codes de secours à garder."
+        "explication": "Un code de votre application à chaque connexion, et des codes de secours à garder.",
+        "remplacer": {
+          "action": "Remplacer l'appareil",
+          "titre": "Remplacer l'appareil de second facteur",
+          "explication": "Vous allez associer une nouvelle application d'authentification, sur votre nouveau téléphone par exemple. Dès que son premier code est confirmé, l'ancien appareil cesse de fonctionner et de nouveaux codes de secours remplacent les anciens. Jusque-là, l'ancien appareil reste valide.",
+          "continuer": "Continuer",
+          "nouvelAppareil": "Scannez ce code avec le nouvel appareil.",
+          "confirmer": "Confirmer le nouvel appareil",
+          "fait": "Appareil remplacé : l'ancien ne génère plus de codes valides."
+        }
       },
       "title": "Sécurité",
       "description": "Gérez l'accès à votre compte et les appareils connectés.",
@@ -18511,7 +18611,15 @@
       "leadSuccessOwner": "Le propriétaire vous recontactera sous peu.",
       "message": "Message",
       "ecrireALAgence": "Écrire à l'agence",
-      "contacterNom": "Contacter {nom}"
+      "contacterNom": "Contacter {nom}",
+      "votreFiche": "C'est votre fiche publique",
+      "votreFicheAgence": "C'est la fiche publique de votre agence",
+      "votreFicheAide": "Vos visiteurs la voient ainsi, avec les boutons pour vous joindre.",
+      "modifierMaFiche": "Modifier ma fiche",
+      "modifierLaFicheDeLAgence": "Modifier la fiche de l'agence",
+      "whatsapp": "WhatsApp",
+      "whatsappAria": "Écrire à {nom} sur WhatsApp",
+      "whatsappPrefill": "Bonjour {nom}, je vous contacte depuis votre fiche Takussan."
     },
     "portfolio": {
       "filterAria": "Filtrer le portefeuille",
@@ -20073,7 +20181,9 @@
     "movements": {
       "caption": "Historique des crédits de l’espace",
       "empty": "Aucun mouvement pour le moment.",
-      "object": "{offer} — {property}"
+      "object": "{offer} — {property}",
+      "spotlight": "Mise en avant — {city}, du {from} au {to}",
+      "spotlightSansDetail": "Mise en avant de l’agence"
     },
     "types": {
       "grant": "Octroi",
@@ -20240,6 +20350,41 @@
       },
       "expireLe": "expiré le {date}",
       "recus": "{count, plural, one {# crédit reçu} other {# crédits reçus}} le {date}"
+    },
+    "agence": {
+      "titre": "Votre agence en tête de l’annuaire",
+      "texte": "Une seule agence est mise en avant par ville. Elle apparaît en tête de l’annuaire de cette ville, et garde aussi sa place dans la liste.",
+      "aucune": "Aucune mise en avant en cours ou à venir.",
+      "prix": "{price, plural, one {# crédit} other {# crédits}} pour {days, plural, one {# jour} other {# jours}}",
+      "ouvrir": "Mettre l’agence en avant",
+      "venteFermee": "La mise en avant de l’agence n’est pas en vente pour le moment.",
+      "toutAnnuaire": "Tout l’annuaire",
+      "periode": "du {from} au {to}",
+      "offerte": "Offerte",
+      "fait": "Votre agence est mise en avant à {city}, du {from} au {to}.",
+      "dialogue": {
+        "titre": "Mettre l’agence en avant",
+        "description": "Choisissez la ville et le jour de début. La place dure {days, plural, one {# jour} other {# jours}}.",
+        "ville": "Ville",
+        "aucuneVille": "Aucune ville trouvée",
+        "debut": "Jour de début (facultatif)",
+        "debutAide": "Sans date, la place commence tout de suite. Au plus {days, plural, one {# jour} other {# jours}} à l’avance.",
+        "periode": "Période",
+        "periodeValeur": "Du {from} au {to}",
+        "prix": "Prix",
+        "credits": "{count, plural, one {# crédit} other {# crédits}}",
+        "soldeApres": "Solde après achat",
+        "soldeInsuffisant": "Votre solde ne couvre pas cet achat.",
+        "prise": "La place de cette ville est prise. Prochaine disponibilité : {date}.",
+        "priseSansDate": "La place de cette ville est prise sur toute la période de réservation.",
+        "choisirJour": "Commencer le {date}",
+        "tropLoin": "Choisissez un jour de début plus proche.",
+        "aucunCreneau": "Aucune période libre pour cette ville dans la période de réservation.",
+        "fileAttente": "La place est prise ce jour-là : votre mise en avant commencera dès qu’elle se libère.",
+        "annuler": "Annuler",
+        "confirmer": "Payer {count, plural, one {# crédit} other {# crédits}}",
+        "echec": "L’achat n’a pas abouti."
+      }
     }
   },
   "commissions": {
@@ -21543,7 +21688,11 @@
       "rouvrir": "Rouvrir « {titre} »",
       "appeler": "Appeler {nom}",
       "whatsapp": "Écrire à {nom} sur WhatsApp",
-      "messageWhatsApp": "Bonjour {prenom},"
+      "messageWhatsApp": "Bonjour {prenom},",
+      "supprime": {
+        "customer": "Client supprimé",
+        "property": "Bien supprimé"
+      }
     },
     "fiche": {
       "titreFeuille": "Tâche",
@@ -21579,7 +21728,11 @@
       "annuler": "Annuler",
       "echecSuppression": "La tâche n’a pas pu être supprimée.",
       "marquerFaite": "Marquer faite",
-      "rouvrirLaTache": "Rouvrir la tâche"
+      "rouvrirLaTache": "Rouvrir la tâche",
+      "supprime": {
+        "customer": "Client supprimé",
+        "property": "Bien supprimé"
+      }
     },
     "nouvelle": {
       "titreFeuille": "Nouvelle tâche",

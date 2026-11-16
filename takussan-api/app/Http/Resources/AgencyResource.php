@@ -57,6 +57,8 @@ class AgencyResource extends BaseResource
             'highlights' => $this->whenHas('highlights', fn ($valeur) => $valeur ?? []),
             'showcase_property_ids' => $this->whenHas('showcase_property_ids', fn ($valeur) => $valeur ?? []),
             'median_response_minutes' => $this->whenHas('median_response_minutes'),
+            // TCK-2576 — le numéro WhatsApp de l'agence, relu par l'écran de saisie.
+            'phone_whatsapp' => $this->whenHas('phone_whatsapp'),
             'is_verified' => (bool) $this->is_verified,
             'status' => $this->status?->value,
             'properties_count' => $this->properties_count,

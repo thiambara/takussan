@@ -73,7 +73,9 @@ class IntegrationController extends Controller
 
         $data = $request->validated();
 
-        $agencyId = $data['agency_id'] ?? $user->agency_id;
+        // TCK-606 (O-5) — la règle `integer` valide `"5"` sans le convertir : comparé tel quel à
+        // l'entier de `$user->agency_id`, il refusait (403) l'admin légitime de l'agence 5.
+        $agencyId = isset($data['agency_id']) ? (int) $data['agency_id'] : $user->agency_id;
 
         abort_code_unless(
             $user->isSuperAdmin() || ($user->agency_id !== null && $user->agency_id === $agencyId && $user->can('configure', Agency::query()->find($agencyId))),

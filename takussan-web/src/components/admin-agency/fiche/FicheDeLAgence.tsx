@@ -130,6 +130,7 @@ const LIBELLES_DES_CHAMPS: Readonly<Record<string, CleDeLibelle>> = {
   description: ['config', 'fields.description'],
   email: ['config', 'fields.email'],
   phone: ['config', 'fields.phone'],
+  phone_whatsapp: ['config', 'fields.phoneWhatsapp'],
   website: ['config', 'fields.website'],
   commission_rate: ['config', 'fields.commission'],
   currency: ['fiche', 'champ.devise'],

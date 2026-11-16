@@ -236,7 +236,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
         row.status ? (
           <StatusBadge
             tone={lireTable(PROPERTY_STATUS_TONE, row.status) ?? 'neutral'}
-            label={tStatuts.has(row.status) ? tStatuts(row.status) : (row.status_label ?? row.status)}
+            label={tStatuts.has(row.status) ? tStatuts(row.status) : row.status}
           />
         ) : (
           <span className="text-muted-foreground">—</span>

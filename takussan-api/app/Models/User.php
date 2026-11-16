@@ -21,6 +21,7 @@ use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Profiles\ActiveProfileResolver;
+use App\Services\Property\PropertyContactNumbers;
 use App\Services\Public\PublicProfileFacts;
 use App\Services\Public\PublicSlugService;
 use App\Sorts\CollatedNameSort;
@@ -531,6 +532,16 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         return is_string($this->phone) && $this->phone !== '' && $this->phone_verified_at !== null
             ? $this->phone
             : null;
+    }
+
+    /**
+     * TCK-2576 — le numéro principal PUBLIÉ est-il déclaré WhatsApp ? Même règle que la fiche d'un
+     * bien ({@see PropertyContactNumbers::hasWhatsApp()}, qui l'appelle) :
+     * un numéro non vérifié n'est jamais présenté comme WhatsApp.
+     */
+    public function principalPublicSurWhatsApp(): bool
+    {
+        return $this->numeroPrincipalPublic() !== null && (bool) $this->phone_whatsapp;
     }
 
     /** Même règle pour le second numéro (TCK-633, lot C) : servi seulement s'il est vérifié. */

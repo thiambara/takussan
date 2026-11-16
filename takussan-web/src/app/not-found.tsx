@@ -145,7 +145,7 @@ export default function NotFound() {
             aria-label={t('searchLabel')}
             placeholder={t('searchPlaceholder')}
             enterKeyHint="search"
-            className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 focus-visible:ring-0 dark:bg-transparent md:text-base"
+            className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 focus-visible:ring-0 md:text-base"
           />
           <button
             type="submit"

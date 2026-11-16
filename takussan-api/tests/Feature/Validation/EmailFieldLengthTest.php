@@ -42,6 +42,7 @@ class EmailFieldLengthTest extends ApiTestCase
     public function test_inscription(): void
     {
         $corps = fn (string $email) => [
+            'terms_accepted' => true,
             'first_name' => 'Awa',
             'last_name' => 'Diop',
             'email' => $email,

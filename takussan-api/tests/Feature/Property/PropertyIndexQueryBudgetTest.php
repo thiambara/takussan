@@ -168,4 +168,30 @@ class PropertyIndexQueryBudgetTest extends ApiTestCase
         $this->assertFalse($liste['owner']['is_agent']);
         $this->assertSame(Agency::query()->value('id'), $liste['agency']['id']);
     }
+
+    /**
+     * TCK-619 (verif-595) — l'amorce compte l'admin d'agence parmi le personnel (`staff`), pas seulement
+     * l'agent. Un bien saisi par un admin d'agence (sans profil agent ni bailleur, sans collaborateur) n'a
+     * de contact que par lui, jugé personnel par `isStaffAt` : la liste amorcée doit le rendre comme la
+     * fiche, qui le juge sans amorce. L'appelant est un agent, pour que seul le titulaire en dépende.
+     */
+    public function test_la_page_amorcee_compte_l_admin_d_agence_parmi_le_personnel(): void
+    {
+        $agency = $this->agence();
+        $admin = $this->personnel($agency, 'agency_admin');
+        Property::factory()->create(['user_id' => $admin->id, 'agency_id' => $agency->id]);
+
+        $this->actingAsApi($this->personnel($agency));
+        $liste = $this->getJson('/api/properties?fields[properties]=id,user_id,agency_id,title&include=address,owner,collaborators&per_page=1')
+            ->assertOk()->json('data.0');
+        $fiche = $this->getJson('/api/properties/'.$liste['id'].'?fields[properties]=id,user_id,agency_id,title')
+            ->assertOk()->json('data');
+
+        $this->assertSame($admin->id, $fiche['primary_contact']['id'] ?? null, 'la fiche ne juge pas l\'admin d\'agence personnel');
+        foreach (['primary_contact', 'primary_contact_source', 'owner'] as $cle) {
+            $this->assertSame($fiche[$cle], $liste[$cle], $cle);
+        }
+        $this->assertSame('owner', $liste['primary_contact_source']);
+        $this->assertFalse($liste['owner']['is_agent']);
+    }
 }

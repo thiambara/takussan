@@ -24,6 +24,7 @@ import { useBiensAPousser, useCreditsJournal, useMisesEnAvant, type BienAPousser
 
 import { grilleDesOffres, prochaineExpiration } from './lecture';
 import { MettreEnAvant, type Preselection } from './MettreEnAvant';
+import { MettreLAgenceEnAvant } from './MettreLAgenceEnAvant';
 import { ListeDesLotsPasses, RapportDesTrenteJours } from './RapportEtLotsPasses';
 import { AucuneMiseEnAvant, BienAPousserLigne, MiseEnAvantMobile, TableDesMisesEnAvant } from './MisesEnAvant';
 import { Carte, Recharger, Rubrique, signe } from './pieces';
@@ -184,7 +185,8 @@ export function PageCredits() {
   const grille = grilleDesOffres(offres);
   const remontee = remonteeActive(offres);
   const expiration = prochaineExpiration(lots);
-  const libelleSolde = natureDeLEspaceActif(profils.data) === 'standard' ? t('page.soldeAgence') : t('page.soldeEspace');
+  const agenceStandard = natureDeLEspaceActif(profils.data) === 'standard';
+  const libelleSolde = agenceStandard ? t('page.soldeAgence') : t('page.soldeEspace');
   const listeBoosts = boosts.data?.data ?? [];
   const listeSuggestions = suggestions.data?.data ?? [];
   const nbSuggestions = suggestions.data?.meta.total ?? 0;
@@ -268,6 +270,9 @@ export function PageCredits() {
           <Carte aria-labelledby="credits-cout">
             <GrilleDesOffres lignes={grille} />
           </Carte>
+
+          {/* TCK-2525 — la place de l'annuaire, pour une agence seulement (un hôte n'y figure pas). */}
+          {agenceStandard ? <MettreLAgenceEnAvant className="mt-6" /> : null}
 
           <Carte className="mt-6 overflow-hidden [&_[data-slot=ligne-de-liste]:last-child]:border-b-0">
             <LigneDeListe
@@ -356,6 +361,7 @@ export function PageCredits() {
           <Carte titre={t('page.cout')} aria-labelledby="credits-cout">
             <GrilleDesOffres lignes={grille} />
           </Carte>
+          {agenceStandard ? <MettreLAgenceEnAvant /> : null}
         </div>
       </div>
 

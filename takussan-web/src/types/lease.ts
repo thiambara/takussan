@@ -196,6 +196,13 @@ export interface LeaseAbilities {
    * `draft`. Les échéances saisies se jugent à part (l'écran les lit, l'API les refuse en 422).
    */
   readonly abandon?: boolean;
+  /**
+   * TCK-607 (n3, ADR-0042 amendé le 2026-11-16) — « Ajouter un garant » : la règle d'`update`, sur un
+   * bail non signé (`draft`, `pending_signature`) ou l'enfant `active` d'un renouvellement qui n'a
+   * encore aucun garant. Ailleurs l'API rend 409 `lease.guarantors_frozen` : la fiche n'offre rien.
+   * Optionnel : absent, rien n'est offert.
+   */
+  readonly attach_guarantor?: boolean;
 }
 
 /**
@@ -266,6 +273,11 @@ export type LeasePayment = {
    * front ne compare pas `due_date` à l'horloge du navigateur.
    */
   is_overdue: boolean;
+  /**
+   * TCK-608 — un encaissement en double (part pénalité comprise) reste à rendre au locataire : la
+   * gestion le constate par « Doublon remboursé ». Optionnel : une réponse antérieure ne le porte pas.
+   */
+  duplicate_refund_pending?: boolean;
   notes: string | null;
   created_at: string;
 };

@@ -8,6 +8,7 @@ use App\Models\Enums\Currency;
 use App\Models\User;
 use App\Services\Admin\NotificationTemplateService;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Support\MarkdownText;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
@@ -61,6 +62,10 @@ class NotificationRenderer
         }
 
         $formatted = $this->format($code, $params, $locale, $timezone ?: self::DEFAULT_TIMEZONE, $surface === 'sms' ? self::SMS_TEXT_MAX : null);
+        if ($surface === 'mail_body') {
+            $formatted = $this->escapeForMarkdown($code, $formatted);
+            $firstName = $firstName !== null ? MarkdownText::escape($firstName) : null;
+        }
 
         $fromTemplate = $this->fromTemplate($code, $params, $formatted, $locale, $surface, $firstName);
         if ($fromTemplate !== null) {
@@ -110,6 +115,39 @@ class NotificationRenderer
         }
 
         return $out;
+    }
+
+    /**
+     * TCK-605 — sur le corps d'un e-mail (`mail_body`), et sur lui seul, une saisie reste du TEXTE.
+     *
+     * Le corps passe par `->line()` ou par un gabarit de l'éditeur, puis par CommonMark : un nom de
+     * visiteur `[Payez ici](https://evil.example)` y devenait un lien signé Takussan, depuis la route
+     * ANONYME `contact-lead`. Tout paramètre qui peut porter du texte libre est échappé — `text`,
+     * `person`, le complément libre de `reason_code` et de `booking_rejection_reason`, et la valeur
+     * brute qu'un libellé inconnu laisse passer (`role`, `month`, pièce, créneau, réponse). Les
+     * valeurs que le formateur GÉNÈRE (montant, date, compte, URL) ne changent pas : une URL
+     * échappée casserait un lien voulu. Le sujet, le SMS, WhatsApp et la cloche ne passent jamais
+     * ici : ce ne sont pas du Markdown, une barre oblique y serait affichée.
+     *
+     * @param  array<string, string>  $formatted
+     * @return array<string, string>
+     */
+    private function escapeForMarkdown(NotificationCode $code, array $formatted): array
+    {
+        $generated = [
+            NotificationCode::PARAM_MONEY,
+            NotificationCode::PARAM_DATE,
+            NotificationCode::PARAM_DATETIME,
+            NotificationCode::PARAM_COUNT,
+            NotificationCode::PARAM_URL,
+        ];
+        foreach ($code->params() + $code->optionalParams() as $name => $type) {
+            if (isset($formatted[$name]) && ! in_array($type, $generated, true)) {
+                $formatted[$name] = MarkdownText::escape($formatted[$name]);
+            }
+        }
+
+        return $formatted;
     }
 
     /**

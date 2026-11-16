@@ -7,8 +7,10 @@ use App\Models\Bases\Auditable;
 use App\Models\Concerns\HasPaymentAttributes;
 use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Services\Dashboard\CollectedPayments;
+use App\Services\Model\LeaseService;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Pdf\PrintedIdentity;
 use Illuminate\Database\Eloquent\Builder;
@@ -397,6 +399,38 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
     public function scopeExceptDepositRefunds(Builder $query): Builder
     {
         return $query->where($query->qualifyColumn('payment_type'), '!=', LeasePaymentType::DepositRefund->value);
+    }
+
+    /**
+     * TCK-607 (E11, contrainte 3) — sans les loyers et charges d'un bail sorti dont la période commence
+     * APRÈS sa sortie : bail `terminated` (date d'effet du préavis, à défaut le jour de
+     * `terminated_at` — la date que passent `LeaseService::terminate` et
+     * `EarlyTerminationService::confirm` à `LeaseExitScheduleService::cancelAfterExit`) ou `renewed`
+     * (sa `end_date`, coupée la veille de l'enfant par `LeaseRenewalService::handOver`).
+     *
+     * Les voies vivantes annulent déjà ces échéances ; ce filtre ferme ce qu'elles n'ont pas repris
+     * (baux résiliés avant le 2026-10-21, `lease:cancel-dues-after-exit`). Une échéance dont la
+     * période commence au plus tard le jour de la sortie reste due, relancée et pénalisable
+     * (décision E11). Lu par `ApplyLateFeesJob` et `SendLeasePaymentReminders`.
+     */
+    public function scopeWithinLeaseTerm(Builder $query): Builder
+    {
+        $start = 'COALESCE('.$query->qualifyColumn('period_start').', '.$query->qualifyColumn('due_date').')';
+
+        // Seuls le loyer et les charges sont visés, comme à la sortie (`SCHEDULED_PERIOD_TYPES`) : une
+        // indemnité ou une régularisation due après la sortie reste une dette, relancée.
+        return $query->where(function (Builder $query) use ($start): void {
+            $query->whereNotIn($query->qualifyColumn('payment_type'), LeaseService::SCHEDULED_PERIOD_TYPES)
+                ->orWhereDoesntHave('lease', function (Builder $q) use ($start): void {
+                    $q->where(function (Builder $q) use ($start): void {
+                        $q->where('leases.status', LeaseStatus::Terminated->value)
+                            ->whereRaw("COALESCE(leases.early_termination_effective_date, CAST(leases.terminated_at AS date)) < {$start}");
+                    })->orWhere(function (Builder $q) use ($start): void {
+                        $q->where('leases.status', LeaseStatus::Renewed->value)
+                            ->whereRaw("leases.end_date < {$start}");
+                    });
+                });
+        });
     }
 
     /**

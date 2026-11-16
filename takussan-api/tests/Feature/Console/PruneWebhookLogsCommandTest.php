@@ -34,6 +34,25 @@ class PruneWebhookLogsCommandTest extends TestCase
         $this->assertModelMissing($whatsapp31);
     }
 
+    /**
+     * TCK-606 (AC8) — une ligne `rejected` se purge à `rejected_retention_days` (7 j), pas à la
+     * rétention de son canal ; une ligne traitée garde celle de son canal.
+     */
+    public function test_rejected_rows_are_pruned_at_their_own_shorter_retention(): void
+    {
+        $rejected8 = $this->logAged('payment', 8, ['status' => IntegrationWebhookLog::STATUS_REJECTED]);
+        $rejected6 = $this->logAged('payment', 6, ['status' => IntegrationWebhookLog::STATUS_REJECTED]);
+        $processed8 = $this->logAged('payment', 8);
+        $processed91 = $this->logAged('payment', 91);
+
+        $this->artisan('webhooks:prune')->assertSuccessful();
+
+        $this->assertModelMissing($rejected8);
+        $this->assertModelExists($rejected6);
+        $this->assertModelExists($processed8);
+        $this->assertModelMissing($processed91);
+    }
+
     /** AC8 — lire la piste d'une intégration ne supprime aucune ligne de 31 jours. */
     public function test_reading_the_console_trail_prunes_nothing(): void
     {

@@ -15,14 +15,14 @@ describe('compare-rows — coût d’entrée', () => {
     });
     const sansCout = makeProperty({ id: 2, entry_cost: null });
 
-    const ligne = buildCompareRows([loue, sansCout]).find((r) => r.id === 'entry_cost');
+    const ligne = buildCompareRows([loue, sansCout], 'fr').find((r) => r.id === 'entry_cost');
     expect(ligne).toBeDefined();
     expect(String(ligne!.values[0]).replace(NBSP, ' ')).toContain('1 520 000');
     expect(ligne!.values[1]).toBeNull();
   });
 
   it('aucun bien n’a de coût d’entrée : pas de ligne de tirets', () => {
-    const rows = buildCompareRows([makeProperty({ id: 1 }), makeProperty({ id: 2, entry_cost: null })]);
+    const rows = buildCompareRows([makeProperty({ id: 1 }), makeProperty({ id: 2, entry_cost: null })], 'fr');
     expect(rows.find((r) => r.id === 'entry_cost')).toBeUndefined();
   });
 });

@@ -23,7 +23,8 @@ use Tests\ApiTestCase;
  * par la factory : `ReviewContextKindTest` prouve ce que la ressource SERT d'une colonne donnée, celui-ci
  * prouve que l'application PRODUIT cette colonne.
  *
- * L'avis d'AGENCE n'y est pas : `storeForAgency` ne pose pas encore le contexte (TCK-2577).
+ * L'avis d'AGENCE, lui aussi écrit avec son contexte depuis TCK-2577, est prouvé par
+ * `AvisAgenceContexteParLaRouteTest`.
  */
 class ReviewContextKindParLaRouteTest extends ApiTestCase
 {

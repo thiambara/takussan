@@ -20,11 +20,6 @@ function bien(patch: Record<string, unknown> = {}): PropertyDetail {
     id: 1,
     type: 'apartment',
     contract_type: 'rent',
-    type_label: 'Appartement',
-    contract_type_label: 'À louer',
-    rent_period_label: 'Par mois',
-    status_label: 'Disponible',
-    title_type_label: null,
     floor_number: null,
     total_floors: null,
     year_built: null,
@@ -75,18 +70,31 @@ describe('date de disponibilité sur la fiche publique (TCK-489)', () => {
   });
 
   it('TCK-508 / AC6 — l’état complet figure dans les caractéristiques, y compris « À rénover »', () => {
-    rendre(bien({ condition_label: 'À rénover' }));
+    rendre(bien({ condition: 'to_renovate' }));
     expect(screen.getByText('État du bien')).toBeInTheDocument();
     expect(screen.getByText('À rénover')).toBeInTheDocument();
   });
 
   it('TCK-508 — un bien sans état déclaré ne rend pas de ligne vide', () => {
-    rendre(bien({ condition_label: null }));
+    rendre(bien({ condition: null }));
     expect(screen.queryByText('État du bien')).not.toBeInTheDocument();
   });
 
+  it('TCK-351 — un code inconnu du dictionnaire sort brut, jamais en chemin de clé', () => {
+    rendre(bien({ type: 'chateau' as never }));
+    expect(screen.getByText('chateau')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/property\.types/);
+  });
+
+  it('TCK-351 — type, contrat et période se lisent dans le dictionnaire du front, pas dans l’API', () => {
+    rendre(bien({ type: 'apartment', contract_type: 'rent', rent_period: 'monthly' }));
+    expect(screen.getByText('Appartement')).toBeInTheDocument();
+    expect(screen.getByText('Location')).toBeInTheDocument();
+    expect(screen.getByText('Mensuel')).toBeInTheDocument();
+  });
+
   it('le statut foncier, lui, reste affiché — TCK-464 l’avait déjà branché', () => {
-    rendre(bien({ title_type_label: 'Bail' }));
+    rendre(bien({ title_type: 'bail' }));
     expect(screen.getByText('Titre foncier')).toBeInTheDocument();
     expect(screen.getByText('Bail')).toBeInTheDocument();
   });

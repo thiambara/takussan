@@ -27,6 +27,8 @@ final class OverdueInstalment
     {
         if ($payment->payment_type === LeasePaymentType::DepositRefund
             || ! in_array($payment->status, CollectedPayments::OWED_STATUSES, true)
+            // TCK-608 (contrainte 4) — un reste dû nul n'est pas un impayé : ni « en retard », ni relancé.
+            || (float) $payment->remaining_amount <= 0
             || $payment->due_date === null) {
             return null;
         }

@@ -86,13 +86,16 @@ class BoostStatsTest extends TestCase
         $this->assertSame(1, (int) DB::table('property_boost_daily_stats')->value('impressions'));
     }
 
-    /** La rangée vedette de l'accueil est un emplacement : ses biens servis comptent une impression. */
-    public function test_la_rangee_vedette_de_l_accueil_compte_une_impression(): void
+    /**
+     * TCK-2569 (amendement d'ADR-0061 du 2026-11-16) — la rangée vedette de l'accueil est un emplacement,
+     * mais la servir ne compte plus : c'est le navigateur qui déclare les cartes affichées.
+     */
+    public function test_la_rangee_vedette_de_l_accueil_servie_ne_compte_aucune_impression(): void
     {
         $this->getJson('/api/public/properties/discovery')->assertOk()
             ->assertJsonPath('data.featured.items.0.id', $this->property->id);
 
-        $this->assertSame(1, (int) Cache::get(BoostStatsRecorder::key($this->boost->id, now(), 'impressions')));
+        $this->assertSame(0, (int) Cache::get(BoostStatsRecorder::key($this->boost->id, now(), 'impressions')));
     }
 
     public function test_deux_heures_du_meme_jour_s_additionnent(): void

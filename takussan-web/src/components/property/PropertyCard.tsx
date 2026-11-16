@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useId } from 'react';
 import { Clock, MapPin, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useDateRelative } from '@/components/property/cards/useDateRelative';
 import type { ContractType, PropertyListItem } from '@/types/property';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
@@ -164,6 +165,7 @@ export function PropertyCard({
   disposition = 'carte',
 }: PropertyCardProps) {
   const t = useTranslations('property');
+  const { locale } = useFormatteurs();
   const tCards = useTranslations('property.cards');
   const tLigne = useTranslations('search.results.ligne');
   const ligne = disposition === 'ligne-au-telephone';
@@ -373,9 +375,9 @@ export function PropertyCard({
             className={`flex min-w-0 flex-wrap items-baseline gap-x-0.5 text-primary font-bold text-[0.9375rem] tabular-nums ${
               ligne ? 'max-md:gap-x-1 max-md:font-display max-md:text-[1.0625rem] max-md:leading-6 max-md:font-semibold max-md:text-foreground' : ''
             }`}
-            title={formatPrice(property.price, property.currency ?? 'XOF')}
+            title={formatPrice(property.price, property.currency ?? 'XOF', locale)}
           >
-            <span className="whitespace-nowrap">{formatPrice(property.price, property.currency ?? 'XOF')}</span>
+            <span className="whitespace-nowrap">{formatPrice(property.price, property.currency ?? 'XOF', locale)}</span>
             {property.contract_type === 'rent' && (
               <span className={`whitespace-nowrap text-sm font-semibold text-muted-foreground ${ligne ? 'max-md:font-normal' : ''}`}>
                 {property.rent_period

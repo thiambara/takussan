@@ -326,7 +326,7 @@ export function CorpsDuWidget() {
             <span
               data-testid="chat-widget-badge"
               aria-live="polite"
-              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[0.6875rem] font-bold leading-none text-white ring-2 ring-background"
+              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[0.6875rem] font-bold leading-none text-background ring-2 ring-background"
             >
               <span aria-hidden>{badgeLabel}</span>
               <span className="sr-only">
@@ -353,7 +353,7 @@ export function CorpsDuWidget() {
             <span
               data-testid="chat-widget-mobile-badge"
               aria-live="polite"
-              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[0.6875rem] font-bold leading-none text-white ring-2 ring-background"
+              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[0.6875rem] font-bold leading-none text-background ring-2 ring-background"
             >
               <span aria-hidden>{badgeLabel}</span>
               <span className="sr-only">

@@ -64,8 +64,10 @@ class LeasePaymentService
             );
 
             abort_code_if($locked->status === PaymentStatus::Cancelled, 409, 'lease_payment.cancelled');
+            // TCK-608 (décision du porteur du 2026-11-16, option (b)) — aucune voie ne crée plus de
+            // `partially_paid` (TCK-1918) ; une ligne héritée se solde ici, au reste dû.
             abort_code_unless(
-                in_array($locked->status, [PaymentStatus::Pending, PaymentStatus::Late], true),
+                in_array($locked->status, [PaymentStatus::Pending, PaymentStatus::Late, PaymentStatus::PartiallyPaid], true),
                 422,
                 'lease_payment.cannot_mark_paid'
             );
@@ -84,8 +86,18 @@ class LeasePaymentService
             }
             $gateway->markManualSettlement($locked);
 
+            // TCK-608 — soldée, la ligne a reçu son montant entier : la part versée d'une `partially_paid`
+            // héritée, laissée telle quelle, ferait lire à l'accesseur d'une ligne `paid` le seul acompte
+            // (`metadata.paid_amount > 0`), et un reste dû. Relevée seulement : un trop-versé reste dit
+            // tel quel (l'accesseur ne rabote jamais un surplus).
+            $metadata = $locked->metadata;
+            if (is_array($metadata) && array_key_exists('paid_amount', $metadata)) {
+                $metadata['paid_amount'] = max((float) $metadata['paid_amount'], (float) $locked->amount);
+            }
+
             $locked->update([
                 'status' => PaymentStatus::Paid,
+                'metadata' => $metadata,
                 'paid_at' => $data['paid_at'] ?? now(),
                 // TCK-1342 (P132.01) — le moment de l'enregistrement : la quittance reste lisible
                 // 30 jours après lui, même si la date effective saisie est plus ancienne.

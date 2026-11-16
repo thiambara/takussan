@@ -7,12 +7,8 @@ use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\NotificationType;
-use App\Models\Enums\PropertyCondition;
-use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
-use App\Models\Enums\RentPeriod;
 use App\Models\Enums\ServiceProviderBillStatus;
-use App\Models\Enums\TitleType;
 use App\Models\ThresholdAlert;
 use BackedEnum;
 use PHPUnit\Framework\TestCase;
@@ -40,12 +36,12 @@ class LabelKeysCoverValuesTest extends TestCase
     private function table(): array
     {
         return [
+            // TCK-351 — `properties.type` et `properties.contract_type` ne sont plus lus par
+            // `PropertyResource` (le front rend ces codes) mais par la recherche, le radar et
+            // `SearchWolofReviewSheet`. Les groupes `rent_period`, `status`, `title_type` et
+            // `condition` ont quitté `lang/` avec leur dernier lecteur.
             'properties.type' => ['properties.php', 'type', $this->cases(PropertyType::class)],
             'properties.contract_type' => ['properties.php', 'contract_type', $this->cases(ContractType::class)],
-            'properties.rent_period' => ['properties.php', 'rent_period', $this->cases(RentPeriod::class)],
-            'properties.status' => ['properties.php', 'status', $this->cases(PropertyStatus::class)],
-            'properties.title_type' => ['properties.php', 'title_type', $this->cases(TitleType::class)],
-            'properties.condition' => ['properties.php', 'condition', $this->cases(PropertyCondition::class)],
             // BankStatementResource, BankStatementLineResource : `__()` sans repli.
             'reconciliation.status' => ['reconciliation.php', 'status', $this->cases(BankStatementStatus::class)],
             'reconciliation.line_status' => ['reconciliation.php', 'line_status', $this->cases(BankStatementLineMatchStatus::class)],

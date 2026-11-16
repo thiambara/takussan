@@ -7,6 +7,14 @@
 - **Amendement du 2026-10-18** (piste P24.05) : le remboursement d'une Vedette prolongée rend les
   jours restants tranche par tranche, en partant des plus tardifs. Voir
   [§ Amendement du 2026-10-18](#amendement-du-2026-10-18--le-remboursement-dune-vedette-prolongée-p2405).
+- **Amendement du 2026-11-16** ([TCK-2525](../backlog/tickets/done/TCK-2525-mise-en-avant-d-agence-vendue-en-credits.md)) :
+  la place « Mise en avant » de l'annuaire se vend en crédits ; tous ses paramètres sont des réglages.
+  Amende aussi ADR-0092 § 4 et § 6. Voir
+  [§ Amendement du 2026-11-16](#amendement-du-2026-11-16-tck-2525--la-mise-en-avant-dune-agence-se-vend-en-crédits).
+- **Amendement du 2026-11-16** ([TCK-2569](../backlog/tickets/done/TCK-2569-impressions-des-emplacements-non-affiches.md)) :
+  une impression se compte quand le navigateur déclare avoir **affiché** l'emplacement, plus quand
+  l'API le sert. Amende § 10 et l'amendement du 2026-11-09. Voir
+  [§ Amendement du 2026-11-16 (TCK-2569)](#amendement-du-2026-11-16-tck-2569--limpression-est-déclarée-par-laffichage).
 
 ## Contexte
 
@@ -303,3 +311,150 @@ page courte, aucun doublon). Cinq tests Boost qui épinglaient l'ancienne inclus
 (`sponsored ⊂ organiques`) ont vu leurs fixtures déplacées vers une page qui ne porte pas la
 vedette ; seule l'assertion « `slots = 10` sert toutes les vedettes » est abandonnée : elle exigeait
 le doublon.
+
+## Amendement du 2026-11-16 (TCK-2525) — la mise en avant d'une agence se vend en crédits
+
+**Décision du porteur, 2026-11-16** : « fais comme si c'était ton app ; TOUS les paramètres de cette
+section doivent être totalement configurables ». La place « Mise en avant » de l'annuaire
+([ADR-0092](0092-une-agence-mise-en-avant-par-ville-gardee-par-la-base.md), offerte seulement) devient
+achetable par l'agence, avec ses crédits. Chaque paramètre est un **réglage de plateforme** (§ 6),
+modifiable par le super-admin dans la console, à côté de ceux du boost ; les défauts ci-dessous sont
+ceux de l'implémenteur, choisis et justifiés à sa place par délégation.
+
+**Cet amendement amende aussi ADR-0092 § 4 et § 6** : une place peut désormais être achetée (§ 6 :
+« offerte seulement » tombe), et une place achetée puis remboursée à la suspension est **libérée**
+(§ 4 : « sa place restant intacte » ne vaut plus que pour une place offerte, ou achetée sous la règle
+« aucun remboursement »).
+
+### Les réglages (catégorie `boost` d'`EditablePlatformSettings`)
+
+| Clé | Défaut | Valeurs | Pourquoi ce défaut |
+|---|---|---|---|
+| `spotlight.sale_enabled` | `true` | oui / non | L'interrupteur de la vente : la couper ne touche ni les places achetées ni l'offre du super-admin. |
+| `spotlight.price_credits` | 100 | 1 à 100 000 | Une place est **exclusive** sur une ville entière : cinq Vedettes de 7 jours (20 crédits chacune), un cinquième de l'offre de bienvenue (500). |
+| `spotlight.duration_days` | 7 | 1 à 90 | La durée la plus courte du catalogue des Vedettes : une ville ne se bloque pas un mois d'un coup. |
+| `spotlight.max_advance_days` | 60 | 0 à 365 | Réserver d'avance sans geler l'agenda d'une ville un an à l'avance ; 0 : la place commence tout de suite, ou pas. |
+| `spotlight.when_taken` | `refuse` | `refuse` · `next_free` | Refuser est lisible et ne décide rien à la place de l'agence. `next_free` est la **file d'attente** : la place achetée commence au premier créneau libre de sa durée, dans l'horizon de réservation, et l'écran l'annonce **avant** la confirmation. |
+| `spotlight.refund_on_suspension` | `prorata` | `prorata` · `full` · `none` | Les jours que l'agence a payés et que la plateforme ne sert pas lui reviennent ; `full` rend tout ; `none` ne rend rien et garde la place (ADR-0092 § 4). |
+| `spotlight.offered_overlap` | `blocks` | `blocks` · `yields` | Une place offerte est une promesse de l'équipe à une agence : par défaut elle occupe la ville comme une place achetée. `yields` la fait céder devant un achat (voir plus bas). |
+| `spotlight.sell_directory_wide` | `false` | oui / non | L'annuaire **sans ville** est la vitrine nationale : elle reste éditoriale (offerte) par défaut, au lieu de partir au prix d'une ville. |
+
+Le prix et la période sont **figés sur la place à l'achat** (comme le § 5 pour un boost) : modifier un
+réglage ne touche aucune place déjà achetée.
+
+### L'achat
+
+- **Capacité : `boost.spend`, réutilisée** — pas de capacité déclinée. C'est la même dépense du même
+  portefeuille, par les mêmes personnes (§ 1) ; une seconde capacité ferait un réglage d'équipe de
+  plus pour une distinction que personne n'a demandée.
+- **L'espace est l'espace actif** (`WalletSpace`), jamais un identifiant du corps de la requête.
+- **Une agence que l'annuaire ne montrerait pas ne peut pas acheter** : active, `standard`, visible
+  dans l'annuaire, au moins un bien public — et, pour une ville, au moins un bien public dans cette
+  ville. Le filtre est **celui de l'annuaire** (`PublicAgencyController`), composé, jamais recopié :
+  on ne vend pas une place qui ne s'afficherait pas le jour de l'achat. (La lecture reste l'arbitre
+  ensuite : ADR-0092 § 4.)
+- **Concurrence.** Le verrou de l'agence (§ 2) sérialise deux achats d'une même agence, **pas** deux
+  agences qui visent la même ville. Ordre : le verrou de la ligne de l'agence, puis un verrou
+  consultatif transactionnel par ville (`pg_advisory_xact_lock`, que l'offre du super-admin prend
+  aussi), puis l'éligibilité, le solde (refus **avant toute écriture**), le chevauchement (refus
+  lisible), l'**insertion de la place dans un point de reprise**, et **le débit en dernier**. La
+  contrainte d'exclusion d'ADR-0092 reste l'arbitre : si elle refuse malgré tout (un écrivain qui ne
+  prend pas le verrou consultatif), le point de reprise seul est abandonné, l'achat rend le même 422,
+  et aucun débit n'a été écrit. Aucun débit sans place, aucune place sans débit : une seule
+  transaction.
+- **Idempotence** : l'en-tête `Idempotency-Key` rejoue l'achat déjà fait (comme TCK-822) — indispensable
+  sous `next_free`, où un double clic achèterait deux créneaux consécutifs.
+
+### Le registre : le mouvement désigne la place, pas l'inverse
+
+Le ticket demandait « une référence au mouvement de crédits » sur `agency_spotlights`. **Elle est
+posée dans l'autre sens** : une dépense écrit **un mouvement par lot entamé** (§ 2), et le
+remboursement au prorata a besoin du lot d'origine de chacun (§ 4). Une colonne sur la place ne
+pourrait désigner qu'un seul de ces mouvements. `credit_movements` gagne donc
+`agency_spotlight_id` (clé étrangère, `ON DELETE SET NULL`), protégée par le trigger d'insertion
+seule exactement comme `property_boost_id` (mise à NULL admise seulement depuis l'action
+référentielle). La place porte son origine (`origin` : `offered` | `purchased`), son prix figé
+(`price_credits`), son acheteur (`purchased_by_id`), et, une fois libérée, `cancelled_at` et
+`refunded_credits`. `granted_by_id` reste nul pour une place achetée.
+
+Les contraintes d'exclusion d'ADR-0092 ne portent plus que sur les places **non libérées**
+(`WHERE cancelled_at IS NULL`) : une place libérée garde sa ligne (l'historique, les statistiques, la
+référence des mouvements) sans plus occuper la ville.
+
+### Une place qui se perd
+
+- **L'agence quitte le site** (statut suspendu ou inactif, ADR-0048) : selon
+  `spotlight.refund_on_suspension`, chaque place **achetée**, en cours ou à venir, est libérée et
+  remboursée — `prorata` : les jours pleins non servis au prix figé (`prix × jours pleins restants /
+  jours de la période`, arrondi à l'entier inférieur ; une place pas encore commencée est rendue en
+  entier) ; `full` : le prix entier ; `none` : rien, et la place reste (elle se cache tant que
+  l'agence est suspendue et revient à la levée, ADR-0092 § 4). Le remboursement suit le § 4 : un lot
+  `refund` par lot d'origine, qui en hérite l'expiration. Écrit à la transition par l'observateur de
+  l'agence, rattrapé par `boosts:tick` pour une écriture de masse ; **idempotent** : la libération est
+  réclamée par `UPDATE … WHERE cancelled_at IS NULL`, et seule la requête qui la réclame rembourse.
+- **Le super-admin retire une place achetée** : elle est libérée et remboursée **au prorata**, quel
+  que soit le réglage — un retrait de la plateforme ne confisque pas des crédits payés. Une place
+  offerte se supprime comme avant.
+- Une place offerte n'est jamais remboursée (elle n'a rien coûté).
+
+### Une place offerte qui chevauche
+
+- `blocks` (défaut) : elle occupe la ville comme une autre ; l'achat est refusé, ou (sous
+  `next_free`) placé après elle.
+- `yields` : l'achat la fait céder. Une place offerte qui commence **dans ou après** le début de la
+  période achetée est libérée ; une place offerte déjà commencée est **écourtée** au début de la
+  période achetée (sa suite éventuelle après la période achetée n'est pas recréée). Chaque cession
+  est journalisée (`agency_spotlight_offer_yielded`). Une place **achetée** ne cède jamais.
+
+### Mesure
+
+Les statistiques des boosts du super-admin (`GET /api/admin/boost-stats`) comptent, sur la période,
+les places achetées et offertes, les crédits dépensés et remboursés pour elles.
+
+**Gardes** : `tests/Feature/Directory/AgencySpotlightPurchaseTest.php` (débit et place atomiques,
+contrainte rencontrée sans débit, crédits insuffisants sans écriture, refus et `next_free`, éligibilité,
+capacité, idempotence, remboursement à la suspension sous les trois règles et son idempotence, place
+offerte qui cède, statistiques) et `AgencySpotlightConcurrentPurchaseTest.php` (deux achats
+simultanés de la même ville par deux connexions : un seul réussit, un seul débit).
+
+## Amendement du 2026-11-16 (TCK-2569) — l'impression est déclarée par l'affichage
+
+**Décision du porteur du 2026-11-16, option (a).** L'amendement du 2026-11-09 laissait un écart
+connu : le front n'insère pas tous les emplacements que l'API sert (tête de la première page sous
+des places réservées, doublon de la suite continue), et l'impression se comptait au service. Ce
+paragraphe le ferme ; il remplace, dans § 10 et dans l'amendement du 2026-11-09, « une impression
+est comptée pour chaque emplacement **servi** ».
+
+- **C'est le front qui déclare.** Une cellule d'emplacement rendue — dans la liste de `/properties`
+  comme dans la rangée vedette de l'accueil — déclare son bien quand la moitié de la carte entre
+  dans l'écran (`IntersectionObserver`, seuil 0,5), une fois par bien et par document. Les
+  déclarations partent groupées, sans bloquer l'affichage : un lot une seconde après la première
+  carte vue, ou à la sortie de la page (`keepalive`, sans identifiants, corps de formulaire pour
+  rester une requête « simple » sans pré-vérification CORS). Code :
+  `takussan-web/src/components/boost/impressions-affichees.ts`. Un emplacement que le front ne
+  monte pas n'a pas de cellule, et ne peut donc rien déclarer.
+- **L'API ne compte plus au service.** Ni la recherche (`PropertySearchService`) ni l'accueil
+  (`HomepageDiscoveryService`) n'appellent plus le compteur ; le middleware `boost.impressions`
+  (TCK-708) est retiré. Elle reçoit `POST /api/public/properties/sponsored-impressions`
+  (`slugs[]`, au plus 24, limiteur `public-sponsored-impressions`) et rend **204 toujours** : un
+  slug inconnu, un bien qui n'est pas public, un bien sans vedette active ne comptent rien et ne se
+  distinguent pas. Restent en place la déduplication par visiteur et par bien sur 30 minutes
+  (TCK-708) et l'exclusion des robots déclarés (TCK-792), désormais à la déclaration.
+- **Limite assumée** : l'API croit la déclaration. Un appelant peut déclarer un emplacement qu'il
+  n'a pas vu ; l'écart est borné par la déduplication (une impression par visiteur et par bien sur
+  30 minutes), le limiteur, et le filtre « public + vedette active ». Les impressions ne sont pas
+  facturées : elles mesurent, elles ne débitent rien.
+- **Les statistiques passées sont gardées telles quelles**, sans réécriture. La **bascule** est le
+  déploiement de TCK-2569 : avant, `property_boost_daily_stats.impressions` compte des
+  emplacements **servis** ; après, des emplacements **affichés**. Les deux séries ne se comparent
+  pas de part et d'autre de cette date : le taux de clic d'après la bascule est mécaniquement plus
+  haut. La date réelle est celle du déploiement en préproduction, puis en production (phase F), à
+  relever au moment de la promotion.
+
+**Gardes** : `tests/Feature/Boost/SponsoredImpressionsTest.php` (servir ne compte rien — rouge si
+l'on recompte à l'émission, vérifié par ablation ; un emplacement déclaré compte une fois par
+visiteur sur 30 minutes ; un bien non public ou inconnu ne compte rien et rend le même 204 —
+ablation du filtre `public()`), `RobotImpressionsTest.php` (ablation de l'exclusion des robots),
+`takussan-web/src/components/property/__tests__/PropertiesDiscoveryPage.impressions.test.tsx`
+(emplacement de tête et doublon retirés : aucune déclaration — rouge si la déclaration part de la
+réponse au lieu de la cellule) et `takussan-web/src/components/property/cards/__tests__/PropertyRow.impressions.test.tsx`.

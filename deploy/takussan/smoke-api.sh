@@ -257,6 +257,7 @@ preparer_pile() {
     echo "$MARQUE"
     cat deploy/takussan/.env.smoke.example
     echo "APP_KEY=base64:$(openssl rand -base64 32)"
+    echo "APP_HMAC_KEY=$(openssl rand -base64 48)"   # TCK-614 : release.sh refuse sans elle
     echo "REDIS_PASSWORD=$(openssl rand -hex 24)"
   } > "$ENV_LOCAL"
   docker network inspect dokploy-network >/dev/null 2>&1 || docker network create dokploy-network >/dev/null

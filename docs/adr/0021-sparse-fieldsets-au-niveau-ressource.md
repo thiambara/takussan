@@ -127,3 +127,14 @@ ni test rouge.
 - **Pas encore de garde CI.** Les 43 autres ressources n'ont rien de tout cela, et rien ne le
   signalera. C'est le premier candidat à une garde de forme, sur le modèle de
   `scripts/check-resource-date-format.mjs`.
+
+## Amendement du 2026-11-16 (TCK-351)
+
+Les « 5 `*_label` » de la famille des clés dérivées — six depuis `condition_label` (TCK-508) — **ne sont
+plus émis** par `PropertyResource`. Le porteur a tranché TCK-351 pour l'option (a), le principe n° 5 :
+le front possède le texte affiché. L'API n'émet que les CODES (`type`, `contract_type`, `rent_period`,
+`status`, `title_type`, `condition`), qui sont des colonnes et suivent donc la règle `whenHas` de cet
+ADR : un appelant qui affiche l'un d'eux doit le demander dans `fields[properties]`. Ce que le libellé
+inconditionnel masquait — une colonne lue mais non demandée — redevient visible, et c'est
+`property-fields.coverage.test.ts` qui le garde. La disparition est gardée des deux côtés par
+`PropertyLabelLocaleTest` (API) et `property-labels.parity.test.ts` (front).

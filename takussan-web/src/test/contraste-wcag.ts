@@ -247,7 +247,10 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
  *   des jetons, pas la lisibilité d'un écran existant.
  *
  * La distinction juste n'est pas « mort / vivant » mais **« portée locale assumée » contre
- * « bascule globale absente »** (TCK-452).
+ * « bascule globale absente »** — et le porteur l'a tranchée le 2026-11-16 (TCK-452, option B) :
+ * il n'y aura PAS de sombre global. Cette table sert les seules portées `.dark` ; une mesure en
+ * sombre d'un fichier qu'aucune portée ne monte garde la cohérence des jetons, pas un écran.
+ * `__tests__/sombre-local.tck-452.test.ts` refuse la bascule et toute variante `dark:` hors portée.
  *
  * ⚠ **Le `...JETONS_CLAIR` de la première ligne est un piège, et il a mordu.** Il fait hériter en
  * silence des valeurs CLAIRES tout jeton non ré-écrit ci-dessous — `primary`, `secondary`,

@@ -35,6 +35,9 @@ class SavedSearchController extends Controller
         $search = SavedSearch::create(array_merge($data, [
             'user_id' => $request->user()->id,
             'is_active' => true,
+            // TCK-615 (ADR-0050, amendement du 2026-11-16, B) — la première alerte ne porte que ce qui
+            // est publié après la création, jamais l'historique.
+            'last_notified_at' => now(),
         ]));
         // TCK-2470 — compté tout de suite : à 0 jusqu'au passage des alertes, la recherche compterait comme une demande
         // sans résultat pour le Radar. Un moteur indisponible ne fait pas échouer la création. Revue de code du 2026-11-04 :

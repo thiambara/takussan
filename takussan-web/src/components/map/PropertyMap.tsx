@@ -16,7 +16,9 @@ import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn, formatPrice } from '@/lib/utils';
+import { toIntlLocale } from '@/lib/format';
 import { formatPriceShort } from '@/lib/format/currency';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   usePropertyMapQuery,
   type MapBounds,
@@ -62,8 +64,7 @@ function escapeHtml(value: string): string {
   });
 }
 
-function createPriceIcon(price: number, currency: string, fullLabel: string): L.DivIcon {
-  const short = formatPriceShort(price);
+function createPriceIcon(short: string, currency: string, fullLabel: string): L.DivIcon {
   const safeShort = escapeHtml(short);
   const safeFull = escapeHtml(fullLabel);
   const safeCurrency = escapeHtml(currency);
@@ -369,13 +370,14 @@ function MarqueurDeBien({
   onFermeture: () => void;
 }) {
   const t = useTranslations('map');
+  const { locale } = useFormatteurs();
   const p = feature.properties;
   const currency = p.currency ?? 'XOF';
-  const fullPrice = formatPrice(p.price, currency);
+  const fullPrice = formatPrice(p.price, currency, locale);
   const position = usePosition(feature.geometry.coordinates[1], feature.geometry.coordinates[0]);
   const icone = useMemo(
-    () => createPriceIcon(p.price, currency, fullPrice),
-    [p.price, currency, fullPrice],
+    () => createPriceIcon(formatPriceShort(p.price, toIntlLocale(locale)), currency, fullPrice),
+    [p.price, currency, fullPrice, locale],
   );
   const apercu = useMemo(() => <MapPopupCard feature={feature} />, [feature]);
   return (
@@ -463,6 +465,7 @@ function MarqueurDeListe({
 
 function ListeDeLaGrappe({ biens }: { biens: PropertyMapFeature[] }) {
   const t = useTranslations('map');
+  const { locale } = useFormatteurs();
   return (
     <div className="w-[240px]">
       {/* `bg-card` : le fond du popup de Leaflet (#fff) DÉCLARÉ, pour que la garde de contraste
@@ -481,7 +484,7 @@ function ListeDeLaGrappe({ biens }: { biens: PropertyMapFeature[] }) {
                 {f.properties.title}
               </span>
               <span className="block text-sm font-bold text-primary">
-                {formatPrice(f.properties.price, f.properties.currency ?? 'XOF')}
+                {formatPrice(f.properties.price, f.properties.currency ?? 'XOF', locale)}
               </span>
             </LienLocalise>
           </li>
@@ -576,6 +579,7 @@ export function PropertyMap({
 
 function MapPopupCard({ feature }: { feature: PropertyMapFeature }) {
   const t = useTranslations('property.contractTypes');
+  const { locale } = useFormatteurs();
   const p = feature.properties;
   const isSale = p.contract_type === 'sale';
   return (
@@ -602,7 +606,7 @@ function MapPopupCard({ feature }: { feature: PropertyMapFeature }) {
           {p.title}
         </p>
         <p className="font-bold text-primary text-sm">
-          {formatPrice(p.price, p.currency ?? 'XOF')}
+          {formatPrice(p.price, p.currency ?? 'XOF', locale)}
         </p>
       </div>
     </LienLocalise>

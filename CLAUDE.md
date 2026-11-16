@@ -22,7 +22,7 @@ Ce qui existe réellement — **ordres de grandeur**, non des comptes à tenir �
 |---|---|---|
 | Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
 | Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
-| Données | 135 migrations · 38 factories · 48 fichiers de seeders | — |
+| Données | 135 migrations · 38 factories · ~80 fichiers de seeders | — |
 | Tests | ~380 fichiers · **~2740 tests, verts sur PostgreSQL** *(2026-08-22)* | ~190 fichiers · **~1330 tests, verts** *(2026-08-22)* |
 
 > **Le compte exact se prend à la source**, jamais ici : `php artisan test`, `npm run test`,
@@ -59,8 +59,14 @@ CI, P12.05, TCK-2360 — [historique](docs/journal-des-corrections.md#j-02)).
 **`--parallel` est validé, y compris lancé par deux agents en même temps** (TCK-321, TCK-322,
 TCK-334), mais c'est le **rituel de fin de branche**, machine au repos — deux exécutions demandent
 16 cœurs à une machine qui en a 8. La boucle quotidienne reste `php bin/impacted-tests.php --run`.
-Il n'est **pas** activé en CI, et c'est un résultat : une seule exécution y porte les tests **et** la
-couverture, et PCOV agrège mal entre processus ([J-11](docs/journal-des-corrections.md#j-11), [J-12](docs/journal-des-corrections.md#j-12)).
+**Il est activé en CI depuis TCK-637** ([ADR-0063](docs/adr/0063-attestation-de-ci-par-arbre.md) §4
+amendé) : `lint-and-test` joue la suite en `--parallel` **sans couverture** et juge les tests ; le job
+`couverture` la rejoue **en `--parallel` sous PCOV** (TCK-2951), à côté, et tient le cliquet. *PCOV
+n'agrège pas mal entre processus* : la phrase qui le disait n'avait jamais été mesurée, et la mesure,
+même arbre, l'a démentie — `Total: 96.9 %` des deux côtés
+([J-12](docs/journal-des-corrections.md#j-12)). Relevé du 2026-11-16 (runner à 4 processus) :
+`lint-and-test` 18 à 20 min au lieu de 54 à 90, `couverture` **~42 min** au lieu de 77 — c'est elle
+qui reste le chemin critique du « tout vert ».
 
 **L'ardoise est ouverte et écrite.** `docs/ardoise.md` porte l'inventaire des manquements mesurés,
 chacun sourcé, classé et priorisé — dont quatre qui touchent la **production** et ne se voient pas
@@ -87,7 +93,8 @@ php artisan test                    # ⚠ PostgreSQL, plus SQLite (ADR-0020) : `
 php artisan test --filter=Foo
 php artisan test --parallel         # RITUEL DE FIN DE BRANCHE, machine au repos — pas la boucle
                                     #   quotidienne. Deux agents peuvent la lancer en même temps
-                                    #   (TCK-322, TCK-334). NON activée en CI : cf. § État courant.
+                                    #   (TCK-322, TCK-334). En CI depuis TCK-637 ; la couverture
+                                    #   aussi, dans son job, depuis TCK-2951 : cf. § État courant.
 php bin/impacted-tests.php --run    # ← LA commande du quotidien : ne lance que les tests que le
                                     #   diff touche, via tests/impact-map.json (carte dérivée d'un
                                     #   rapport de couverture, jamais éditée à la main). Mesuré par
@@ -98,8 +105,14 @@ php bin/impacted-tests.php --run    # ← LA commande du quotidien : ne lance qu
 XDEBUG_MODE=coverage php vendor/phpunit/phpunit/phpunit \
   --coverage-clover=storage/coverage/clover.xml
 php bin/coverage-gate.php storage/coverage/clover.xml --min=92
-                                    # le CLIQUET de la CI, dans sa forme EXACTE (TCK-302, TCK-331).
+                                    # le CLIQUET de la CI (TCK-302, TCK-331). La CI produit le
+                                    #   clover par `php artisan test --parallel --processes=N
+                                    #   --coverage-clover=…` (TCK-2951) — `--parallel` EN PREMIER,
+                                    #   jamais `--coverage` ; même `Total:` que la forme ci-dessus.
                                     #   Exige un pilote de couverture : PCOV en CI, Xdebug en local.
+                                    #   ⚠ Xdebug local : `RadarWhatsappReceiptGuardTest::test_i1_…`
+                                    #   fait segfault (139) sous couverture, séquentiel comme
+                                    #   parallèle — bug Xdebug, la CI (PCOV) n'est pas touchée.
                                     #   ⚠ La VARIABLE D'ENVIRONNEMENT, pas `-d xdebug.mode=…`.
                                     #   Il lit le clover et fait ÉCHOUER bruyamment un rapport
                                     #   absent, tronqué, ou qui n'a mesuré aucune ligne : `0/0`
@@ -109,7 +122,8 @@ php bin/coverage-gate.php storage/coverage/clover.xml --min=92
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.
 php artisan migrate
-php artisan migrate:fresh --seed    # 48 fichiers de seeders, ~260 s, ~840 biens. SANS médias par
+php artisan migrate:fresh --seed    # ~80 fichiers de seeders, ~840 biens ; ~260 s mesurés AVANT
+                                    #   TCK-2381, plus long depuis, non re-mesuré. SANS médias par
                                     #   défaut (`SEED_DOWNLOAD_MEDIA=false` des deux côtés depuis
                                     #   TCK-301). Détail + vérification des séquences :
                                     #   docs/journal-des-corrections.md#j-13
@@ -280,11 +294,14 @@ gh api repos/thiambara/takussan/branches/preview/protection -q .required_status_
 ```
 
 **Un arbre déjà éprouvé vert ne rejoue pas sa suite** ([ADR-0063](docs/adr/0063-attestation-de-ci-par-arbre.md),
-TCK-636) : `lint-and-test` et `quality` déposent un artefact `ci-vert-<suite>-<clé>`, la clé étant
-le `ls-tree` de ce que la suite **lit** ; le job `attestation` qui les précède les fait sauter
-quand il le trouve, et nomme le run qui a attesté. Le push du merge sur `dev` et la promotion
-sautent donc d'ordinaire ces deux jobs — sauté par `if:` vaut réussi pour un check requis. Toute
-incertitude rejoue. Images, rollback des migrations et gardes tournent toujours.
+TCK-636) : `lint-and-test`, `couverture` (TCK-637) et, pour le front, l'agrégateur `quality`
+(TCK-2950) déposent un artefact `ci-vert-<suite>-<clé>`, la clé étant le `ls-tree` de ce que la
+suite **lit** ; le job `attestation` qui les précède fait sauter les jobs lourds quand il le trouve
+(`lint-and-test`, `couverture`, et côté front `statique` et les 4 shards Vitest), et nomme le run
+qui a attesté. Le push du merge sur `dev` et la promotion sautent donc d'ordinaire ces jobs — sauté
+par `if:` vaut réussi pour un check requis, et c'est pourquoi `quality`, qui porte le check requis
+du front, n'est **jamais** sauté : il tourne sous `!cancelled()`, constate le saut ou juge, et
+échoue si un shard ou le job `statique` n'est pas vert. Toute incertitude rejoue. Images, rollback des migrations et gardes tournent toujours.
 
 ⚠ **`dev` n'est PAS protégée, et c'est voulu** : le step « Régénérer la carte d'impact »
 d'`api-ci.yml` (TCK-479), qui tourne **la nuit** depuis ADR-0063, y pousse un commit avec le `GITHUB_TOKEN`, ce qu'une protection avec

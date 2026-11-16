@@ -38,6 +38,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\ReleveSqlParTransaction;
 use Tests\TestCase;
 
 /**
@@ -52,6 +53,7 @@ use Tests\TestCase;
 class LeaseRenewalOverlapTest extends TestCase
 {
     use RefreshDatabase;
+    use ReleveSqlParTransaction;
 
     protected function setUp(): void
     {
@@ -371,6 +373,33 @@ class LeaseRenewalOverlapTest extends TestCase
         foreach ($locks as $level) {
             $this->assertGreaterThan($base, $level, 'mark-paid : le FOR UPDATE n\'est tenu par aucune transaction du code');
         }
+        $this->assertSame(PaymentStatus::Paid, $due->fresh()->status);
+    }
+
+    /**
+     * TCK-619 (verif-596 passe 9, P9-ML.4) — le niveau ne suffit pas : un verrou pris dans une première
+     * `DB::transaction`, relâché à son `COMMIT`, puis une écriture dans une seconde, se relèvent au même
+     * niveau et laissent le test précédent vert. Le `FOR UPDATE` et l'`UPDATE` qui pose `paid` doivent
+     * être portés par LA MÊME transaction du code.
+     */
+    public function test_mark_paid_writes_the_due_in_the_transaction_that_locked_it(): void
+    {
+        $parent = $this->parent();
+        $due = LeasePayment::query()->where('lease_id', $parent->id)->orderBy('due_date')->firstOrFail();
+        $base = DB::transactionLevel();
+        $releve = $this->releverSqlParTransaction();
+
+        $this->postJson("/api/lease-payments/{$due->id}/mark-paid", ['payment_method' => 'cash'])->assertOk();
+
+        $verrous = array_values(array_filter($releve->getArrayCopy(), fn (array $q): bool => (bool) preg_match('/from "lease_payments" .*for update/i', $q['sql'])));
+        $ecritures = array_values(array_filter($releve->getArrayCopy(), fn (array $q): bool => (bool) preg_match('/^update "lease_payments" set /i', $q['sql'])
+            && in_array(PaymentStatus::Paid->value, $q['bindings'], true)
+            && in_array($due->id, $q['bindings'], true)));
+
+        $this->assertCount(1, $verrous, 'mark-paid : l\'échéance n\'est pas relue FOR UPDATE une fois');
+        $this->assertCount(1, $ecritures, 'mark-paid : l\'UPDATE qui pose `paid` n\'est pas relevé');
+        $this->assertGreaterThan($base, $verrous[0]['level'], 'mark-paid : le FOR UPDATE n\'est tenu par aucune transaction du code');
+        $this->assertSame($verrous[0]['tx'], $ecritures[0]['tx'], 'mark-paid : le verrou est relâché avant l\'écriture (deux transactions)');
         $this->assertSame(PaymentStatus::Paid, $due->fresh()->status);
     }
 

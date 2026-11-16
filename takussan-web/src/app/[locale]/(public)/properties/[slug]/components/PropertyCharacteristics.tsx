@@ -3,6 +3,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
 import { formatDate } from '@/lib/format';
 import { disponibiliteDe } from '@/lib/property-availability';
+import { ESPACES_DES_LIBELLES_DE_BIEN, libelleDeBien } from '@/lib/biens/libelles-de-bien';
 import { statutPourLeVisiteur } from '@/lib/biens/statut-au-visiteur';
 import type { PropertyDetail } from '@/types/property';
 
@@ -18,6 +19,13 @@ function Row({ label, value }: { label: string; value: string | number | null | 
 
 export function PropertyCharacteristics({ property }: { property: PropertyDetail }) {
   const t = useTranslations('propertyDetail');
+  // TCK-351 — les codes se traduisent ici, par le dictionnaire du front : l'API n'émet plus de `*_label`.
+  const tType = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.type);
+  const tContrat = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.contract_type);
+  const tPeriode = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.rent_period);
+  const tStatut = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.status);
+  const tTitre = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.title_type);
+  const tEtat = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.condition);
   const localeBrute = useLocale();
   const locale = isLocale(localeBrute) ? localeBrute : DEFAULT_LOCALE;
   /**
@@ -29,11 +37,11 @@ export function PropertyCharacteristics({ property }: { property: PropertyDetail
    */
   const disponibilite = disponibiliteDe(property);
   const rows: Array<{ label: string; value: string | number | null | undefined }> = [
-    { label: t('rows.type'), value: property.type_label },
-    { label: t('rows.contract'), value: property.contract_type_label },
-    { label: t('rows.period'), value: property.rent_period_label },
+    { label: t('rows.type'), value: libelleDeBien(tType, 'type', property.type) },
+    { label: t('rows.contract'), value: libelleDeBien(tContrat, 'contract_type', property.contract_type) },
+    { label: t('rows.period'), value: libelleDeBien(tPeriode, 'rent_period', property.rent_period) },
     // TCK-2638 — ni « Validé » ni « Disponible » au visiteur (`statutPourLeVisiteur`).
-    { label: t('rows.status'), value: statutPourLeVisiteur(property) },
+    { label: t('rows.status'), value: statutPourLeVisiteur(property, tStatut) },
     {
       label: t('rows.floor'),
       value:
@@ -42,12 +50,12 @@ export function PropertyCharacteristics({ property }: { property: PropertyDetail
           : property.floor_number ?? property.total_floors ?? null,
     },
     // TCK-508 — l'état COMPLET, les cinq valeurs : la fiche est le seul endroit où « À rénover »
-    // se lit. Le libellé est localisé par l'API, comme `title_type_label`.
-    { label: t('rows.condition'), value: property.condition_label },
+    // se lit. Le libellé vient du dictionnaire du front (TCK-351).
+    { label: t('rows.condition'), value: libelleDeBien(tEtat, 'condition', property.condition) },
     { label: t('rows.yearBuilt'), value: property.year_built },
     { label: t('rows.parking'), value: property.parking_spaces },
     { label: t('rows.furnished'), value: property.furnished ? t('rows.yes') : null },
-    { label: t('rows.titleDeed'), value: property.title_type_label },
+    { label: t('rows.titleDeed'), value: libelleDeBien(tTitre, 'title_type', property.title_type) },
     {
       label: t('rows.availability'),
       value: disponibilite

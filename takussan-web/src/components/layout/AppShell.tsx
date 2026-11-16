@@ -69,6 +69,8 @@ interface AppShellProps {
   modulesMasques?: readonly string[];
   /** TCK-2846 — l'espace actif lié par le layout (`profilLieDeLaCoque`) : la clé des récents. Absent : aucun récent. */
   espaceActif?: string | null;
+  /** TCK-610 (AC6) — le compte détient `platform.console.access` (`accesALaConsole`, lu par le layout). */
+  accesConsole?: boolean;
 }
 
 /**
@@ -96,6 +98,7 @@ function CoqueDeLApp({
   modeIcones = 'complet',
   modulesMasques = [],
   espaceActif = null,
+  accesConsole = false,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.sidebar');
@@ -247,6 +250,7 @@ function CoqueDeLApp({
                     agencySuspended={agencySuspended}
                     modulesMasques={modulesMasques}
                     espaceActif={espaceActif}
+                    accesConsole={accesConsole}
                     onOuvrirPalette={(depuis) => changerPalette(true, depuis)}
                   />
                 </div>
@@ -269,6 +273,7 @@ function CoqueDeLApp({
                       agencySuspended={agencySuspended}
                       modulesMasques={modulesMasques}
                       espaceActif={espaceActif}
+                      accesConsole={accesConsole}
                       tiroir
                       // TCK-2490 — « Aller à » depuis le tiroir : le tiroir se ferme, la palette s'ouvre, et
                       // c'est « Menu » (qui a ouvert le tiroir) qui reprend le focus à sa fermeture.

@@ -19,6 +19,8 @@ export const AGENCY_ADMIN_FIELDS = [
   'description',
   'email',
   'phone',
+  // TCK-2576 — le numéro WhatsApp de l'agence, saisi dans « Identité et contact ».
+  'phone_whatsapp',
   'website',
   'commission_rate',
   'status',

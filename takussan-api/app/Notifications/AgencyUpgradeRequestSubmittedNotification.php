@@ -11,6 +11,7 @@ use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Notifications\NotificationRenderer;
 use App\Support\LienFront;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -58,8 +59,8 @@ class AgencyUpgradeRequestSubmittedNotification extends Notification implements 
                 'agency' => $agency?->name ?? '#'.$this->upgradeRequest->agency_id,
             ]))
             ->line(__('agency_upgrade.notifications.submitted.body', [
-                'submitter' => $submitterName,
-                'agency' => $agency?->name ?? '#'.$this->upgradeRequest->agency_id,
+                'submitter' => MarkdownText::escape($submitterName),
+                'agency' => MarkdownText::escape($agency?->name ?? '#'.$this->upgradeRequest->agency_id),
             ]))
             ->action(__('agency_upgrade.notifications.submitted.action'), $reviewUrl)
             ->salutation(__('notifications.salutation'));

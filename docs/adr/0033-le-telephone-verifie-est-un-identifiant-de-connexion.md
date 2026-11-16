@@ -299,6 +299,33 @@ réponse du sujet de l'avis, mais `Gate::before` les ouvre encore au super-admin
 est antérieur à 597 et renvoyé au ticket de suite, et le motif de l'exemption le dit, pour que ce
 ticket les trouve en partant de la liste.
 
+**Amendement du 2026-11-16 (TCK-609) : la liste étendue, et un registre de tout ce qu'elle laisse
+ouvert.** Décision du porteur, option (b) : pas de règle générale « toute route mutante » pour la
+plateforme. La liste de ce que `RequireTwoFactor` garde s'étend aux pouvoirs plateforme exercés hors
+de `/api/admin` que TCK-609 a mesurés.
+
+- **`PLATFORM_TWO_FACTOR`** reçoit `ReviewController@reply` et `@deleteReply` (le super-admin
+  réécrivait ou effaçait la réponse d'une agence sans 2FA), et `LeaseSignatureController@request`
+  (figer et envoyer le contrat d'un bail de n'importe quelle agence). L'exemption de `reply` /
+  `deleteReply` disparaît ; l'admin d'agence y répond toujours sans 2FA.
+- **La famille d'agence reçoit deux gestes du bail** : `LeaseController@terminate` (résilier), et
+  `LeaseRentController@update` **seulement quand `force` est vrai** (forcer un loyer au-delà du
+  plafond d'un bail antérieur). Tous deux engagent un loyer ou une indemnité. La condition se lit
+  comme le service la lit (booléen), dans `ProtectedActions::AGENCY_TWO_FACTOR_WHEN`. Une révision
+  de loyer sans `force` reste ouverte sans 2FA. `signature-request` **n'entre pas** dans la famille
+  d'agence : il ne fait que figer et envoyer. Il n'est gardé que pour la plateforme (ci-dessus).
+- **`ProtectedActions::PLATFORM_ANY_ROUTE_EXEMPT`** (nom neuf : `PLATFORM_POWER_EXEMPT` désigne
+  déjà les actions qui *confèrent* un pouvoir plateforme) range, avec un motif, chaque autre route
+  mutante sous `/api` qu'un profil plateforme atteint. Elle ne change aucun comportement. C'est le
+  registre explicite de ce que l'option (b) laisse ouvert. Le motif « pouvoir plateforme non gardé »
+  dit ce qu'il est : `Gate::before` y ouvre encore au super-admin sans second facteur un geste
+  d'agence ordinaire (une annonce, un bail, une visite…).
+- **La garde** : `ProtectedActionsCoverageTest` parcourt `Route::getRoutes()`. Toute route mutante
+  sous `/api` servie par un contrôleur doit être couverte par la console (`/api/admin/*`) ou par
+  l'exemption structurelle de `/api/auth/*` (s'enrôler, se vérifier). Sinon, elle doit figurer dans
+  une liste qui la garde ou dans une exemption motivée. Une route ajoutée demain sans décision fait
+  rougir la garde, qui donne son nom. Une liste qu'on oublie de compléter rougit au lieu de passer.
+
 ## Alternatives écartées
 
 - **Rattacher la connexion par téléphone au compte qui porte le numéro, même non vérifié.** Le numéro

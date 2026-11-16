@@ -2,14 +2,14 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Rules\TelephoneJoignable;
-use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * TCK-589 — `POST /auth/phone/request-code`. Drapeau `auth.phone_login.enabled`
  * éteint : 404, avant toute validation (la route n'existe pas pour le client).
  */
-class RequestPhoneLoginCodeRequest extends FormRequest
+class RequestPhoneLoginCodeRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

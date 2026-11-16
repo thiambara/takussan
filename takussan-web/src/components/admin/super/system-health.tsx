@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import {
   Activity,
   CalendarClock,
-  Cloud,
   Cpu,
   Database,
   HardDrive,
@@ -46,7 +45,6 @@ type CheckKey =
   | 'search'
   | 'queue'
   | 'workers'
-  | 'cdn'
   | 'scheduler'
   | 'proxies'
   | 'lemon_squeezy_webhook'
@@ -54,7 +52,8 @@ type CheckKey =
   | 'ai_providers';
 
 /**
- * TCK-600 — médias (R2), recherche, files, workers et CDN rejoignent les cinq sondes d'origine.
+ * TCK-600 — médias (R2), recherche, files et workers rejoignent les cinq sondes d'origine (le CDN
+ * aussi, retiré depuis avec l'intégration de TCK-105, TCK-2463).
  *
  * TCK-2129 — une tuile par sonde de `HealthcheckService::probe()`, dans son ordre : l'état général
  * est le pire de TOUTES, et une sonde sans tuile faisait dire « En panne » à la page sans qu'aucune
@@ -72,7 +71,6 @@ const CHECKS: Array<{ key: CheckKey; icon: typeof Database }> = [
   { key: 'search', icon: Search },
   { key: 'queue', icon: ListChecks },
   { key: 'workers', icon: Cpu },
-  { key: 'cdn', icon: Cloud },
   { key: 'scheduler', icon: CalendarClock },
   { key: 'proxies', icon: Network },
   { key: 'lemon_squeezy_webhook', icon: Webhook },

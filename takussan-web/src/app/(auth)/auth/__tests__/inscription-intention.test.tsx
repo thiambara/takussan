@@ -109,7 +109,7 @@ describe('AC5 — l’inscription ouvre la session avec le jeton reçu', () => {
 
     await sInscrire();
 
-    expect(registerMock).toHaveBeenCalledWith({ email: 'fatou.diop@example.com', password: 'Secret123!' });
+    expect(registerMock).toHaveBeenCalledWith({ email: 'fatou.diop@example.com', password: 'Secret123!', terms_accepted: true });
   });
 
   it('le geste interrompu suit la page à rouvrir jusqu’à la vérification de l’adresse', async () => {

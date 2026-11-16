@@ -95,6 +95,8 @@ class AucunGuardTokenTest extends TestCase
         'GET api/public/properties/neighborhoods' => self::PUBLIQUE,
         'GET api/public/properties/price-distribution' => self::PUBLIQUE,
         'GET api/public/properties/search' => self::PUBLIQUE,
+        // TCK-2569 — la déclaration des emplacements sponsorisés affichés.
+        'POST api/public/properties/sponsored-impressions' => self::PUBLIQUE,
         'GET api/public/properties/sitemap' => self::PUBLIQUE,
         'GET api/public/properties/{property}/documents/{document}/file' => self::PUBLIQUE,
         'GET api/public/properties/{slug}' => self::PUBLIQUE,
@@ -142,7 +144,6 @@ class AucunGuardTokenTest extends TestCase
         'GET api/share/{token}/download' => self::JETON,
         'POST api/share/{token}/download' => self::JETON,
         // Une URL signée (ValidateSignature, ou hasValidSignature() dans l'action).
-        'GET api/activity-logs/export/download' => self::SIGNEE,
         'GET api/auth/verify-email/{id}/{hash}' => self::SIGNEE,
         'GET api/media/{media}/file' => self::SIGNEE,
         'POST api/notifications/digest/unsubscribe/{user}' => self::SIGNEE,

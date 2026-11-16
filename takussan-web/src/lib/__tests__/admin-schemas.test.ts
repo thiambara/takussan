@@ -26,6 +26,7 @@ describe('agencyFormSchema', () => {
     description: '',
     email: '',
     phone: '',
+    phone_whatsapp: '', // TCK-2576
     website: '',
     commission_rate: '',
     currency: '',
@@ -268,6 +269,7 @@ describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', (
     description: '',
     email: '',
     phone: '',
+    phone_whatsapp: '', // TCK-2576
     website: '',
     commission_rate: '',
     currency: '',

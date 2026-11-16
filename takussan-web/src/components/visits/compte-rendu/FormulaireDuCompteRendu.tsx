@@ -204,7 +204,7 @@ export function FormulaireDuCompteRendu({ visitId, existant, densite, prenom, en
             maxLength={NOTE_MAX}
             rows={3}
             placeholder={t('notePlaceholder')}
-            className="min-h-20 rounded-none border-0 bg-transparent p-0 focus-visible:ring-0 dark:bg-transparent"
+            className="min-h-20 rounded-none border-0 bg-transparent p-0 focus-visible:ring-0"
           />
           <DicteeDeLaNote onTexte={(texte) => setNote((avant) => ajouterALaNote(avant, texte, NOTE_MAX))} />
         </div>

@@ -182,7 +182,8 @@ export function FicheDeTache({ tache, maintenant, moi, membres, onModifiee, onSu
                   {nomCible}
                 </Link>
               ) : (
-                t(`cache.${cible.type}`)
+                // TCK-617 — un parent supprimé se dit, sans lien vers une fiche qui n'existe plus.
+                t(tache.parent_deleted ? `supprime.${cible.type}` : `cache.${cible.type}`)
               )}
             </dd>
           </div>

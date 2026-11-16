@@ -267,7 +267,7 @@ function ContextCombobox({
                   // AVANT que le `click` n'arrive (même raison que dans `AgencyCombobox`).
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={onRetry}
-                  className="min-h-11 shrink-0 rounded-md px-3 text-sm font-medium text-primary hover:bg-accent"
+                  className="min-h-11 shrink-0 rounded-md px-3 text-sm font-medium text-primary hover:bg-muted"
                 >
                   {t('retry')}
                 </button>

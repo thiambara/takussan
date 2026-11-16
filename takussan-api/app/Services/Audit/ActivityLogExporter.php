@@ -16,11 +16,16 @@ class ActivityLogExporter
     /**
      * Columns emitted in every export. TCK-1703 (P108.02) — plus d'`ip_address` : aucun chemin
      * n'écrit l'IP au journal, la colonne sortait vide dans tout fichier.
+     *
+     * TCK-613 (ADR-0044 §2) — plus de `causer_email` : l'auteur se dit par son identifiant et son
+     * nom, comme l'historique d'un objet (TCK-2763), jamais par son adresse. Le fichier en portait
+     * une par acteur, jusqu'à 50 000 lignes.
      */
     private const COLUMNS = [
         'id',
         'logged_at',
-        'causer_email',
+        'causer_id',
+        'causer_name',
         'causer_role',
         'event',
         'subject_type',
@@ -163,9 +168,12 @@ class ActivityLogExporter
         return [
             'id' => $log->id,
             'logged_at' => $log->created_at?->toIso8601String(),
-            // TCK-1997 (P193.03) — un causeur présent sans e-mail se nomme `user#<id>`, jamais par son
-            // numéro : il tombait dans le repli `system` d'une ligne sans causeur.
-            'causer_email' => $causer === null ? $absentCauser : ($causer->email ?: "user#{$causer->getKey()}"),
+            // TCK-613 — l'identifiant et le nom, jamais l'adresse. TCK-1997 (P193.03) — un causeur
+            // présent sans nom se nomme `user#<id>`, jamais par son numéro ni par le repli `system`.
+            'causer_id' => $causer?->getKey() ?? $log->causer_id,
+            'causer_name' => $causer === null
+                ? $absentCauser
+                : ((($causer instanceof User ? $causer->full_name : ($causer->name ?? null)) ?: null) ?? "user#{$causer->getKey()}"),
             'causer_role' => ($causer instanceof User ? self::roleDansLAgence($causer, $log->agency_id) : $causer?->profileTypes()->first())
                 ?? ($deletedCauser ? 'deleted' : 'system'),
             'event' => $log->event,

@@ -23,6 +23,7 @@ use App\Support\TelephoneSaisi;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -50,8 +51,10 @@ class TaskController extends Controller
                 // TCK-591 (ADR-0035) — pendant une absence, le remplaçant voit les tâches de
                 // l'absent rattachées à l'agence de l'absence.
                 foreach ($covered as $absence) {
+                    // TCK-617 — parent supprimé en douceur compris, comme `parentAgencyIn()`.
                     $q->orWhere(fn ($c) => $c->where('assigned_to_id', $absence['absent_id'])
-                        ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($t) => $t->where('agency_id', $absence['agency_id'])));
+                        ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($t) => $t
+                            ->withoutGlobalScope(SoftDeletingScope::class)->where('agency_id', $absence['agency_id'])));
                 }
             });
         }
@@ -220,6 +223,10 @@ class TaskController extends Controller
             'taskable_id' => $task->taskable_id,
             'taskable_type' => $task->taskable_type,
             'taskable' => $this->taskable($task, $viewer),
+            // TCK-617 (décision du porteur, 2026-11-16) — la tâche d'un parent supprimé reste listée,
+            // marquée : le front ne lie plus vers la fiche, et `taskable.label` reste nul (le parent
+            // supprimé n'est pas relu).
+            'parent_deleted' => $this->parentDeleted($task),
             'status' => $task->status?->value,
             'priority' => $task->priority?->value,
             'due_at' => $this->instant($task->due_at),
@@ -230,6 +237,12 @@ class TaskController extends Controller
             'creator' => $this->whenLoaded($task, 'creator', fn ($u) => ['id' => $u->id, 'name' => $u->getFullNameAttribute()]),
             'created_at' => $this->instant($task->created_at),
         ];
+    }
+
+    /** TCK-617 — un parent attendu que `taskable` ne voit plus : supprimé (en douceur ou non). */
+    private function parentDeleted(Task $task): bool
+    {
+        return $task->taskable_type !== null && $task->taskable_id !== null && $task->taskable === null;
     }
 
     /**

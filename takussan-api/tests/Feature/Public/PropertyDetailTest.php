@@ -74,10 +74,10 @@ class PropertyDetailTest extends TestCase
         $response->assertOk()->assertJsonStructure([
             'data' => [
                 'id', 'reference_number',
-                'type', 'type_label',
-                'contract_type', 'contract_type_label',
-                'status', 'status_label',
-                'title_type_label',
+                'type',
+                'contract_type',
+                'status',
+                'title_type',
                 'location' => ['full', 'quarter', 'city', 'region', 'country', 'latitude', 'longitude'],
                 'views_count', 'favorites_count',
                 'average_rating', 'reviews_count',

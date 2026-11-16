@@ -34,7 +34,7 @@ piloté par **7 propriétés statiques déclaratives** sur le modèle :
 | `$requestFilterable` | `filter[col]=` exact |
 | `$requestFilterablePartial` | `filter[col]=` partiel |
 | `$requestRangeFilters` | génère `filter[col_min]` / `filter[col_max]` |
-| `$requestSearchFields` | `filter[search]=` (route vers Scout si le modèle est `Searchable`, sinon LIKE) |
+| `$requestSearchFields` | `filter[search]=` (route vers Scout si le modèle est `Searchable`, sauf `rechercheParLaBase()` ; sinon LIKE) |
 | `$requestSortable` | `sort=-col` |
 | `$requestLoadable` | `include=relation` |
 | `$requestCountable` | `include=relationCount` |
@@ -208,7 +208,7 @@ Il n'y a plus de validation en ligne dans un contrôleur, et `scripts/check-inli
    Quand c'est un **404** qui doit primer, même principe : résoudre dans le FormRequest — c'est ce
    que fait `Public\PublicPropertySlugRequest`, qui garde le 404 avant le 422.
 
-`BaseFormRequest` apporte deux choses qu'on ne veut pas réécrire :
+`BaseFormRequest` apporte trois choses qu'on ne veut pas réécrire :
 
 - `authorize()` retourne **`false`** par défaut — *fail-closed*, chaque sous-classe doit surcharger.
   ⚠ **La RÈGLE d'autorisation ne migre pas ici, son INVOCATION oui** : la règle appartient aux
@@ -216,8 +216,17 @@ Il n'y a plus de validation en ligne dans un contrôleur, et `scripts/check-inli
   c'est ce qui rétablit l'ordre autorisation-puis-validation (cf. piège 2 ci-dessus). Un
   `authorize()` qui retourne `true` sec ne se justifie que sur un endpoint dont le contrôleur
   n'autorisait rien avant de valider ;
+- **une écriture se valide sur le corps seul** (TCK-612) : pour `POST`/`PUT`/`PATCH`/`DELETE`,
+  `validationData()` ne lit que le corps et les fichiers, et `getValidatorInstance()` retire de la
+  query toute clé réglée venue d'elle seule — ni `validated()` ni `input()` ne la voient ; les clés
+  sans règle (`include`, `fields`, `lang`) restent lisibles, et `authorize()` lit la requête entière.
+  Une exception se déclare dans `$queryKeysAcceptedOnWrite` (`token` de la désinscription d'alerte,
+  `filter` de la purge des invitations), recensées par
+  `tests/Feature/Validation/QueryNeverFeedsAWriteTest.php`. Que tout `app/Http/Requests` étende
+  `BaseFormRequest`, `Auth/` et `Admin/` compris et sans exemption, est gardé par
+  `tests/Unit/Architecture/FormRequestEtendBaseFormRequestTest.php` ;
 - `prepareForValidation()` normalise récursivement : trim de toutes les chaînes, chaîne vide →
-  `null`.
+  `null` — **le corps seul pour une écriture**, toute l'entrée pour une lecture (TCK-612).
 
   ⚠ **Ce n'est PAS un changement de comportement, et j'avais écrit le contraire ici.** Laravel monte
   `TrimStrings` et `ConvertEmptyStringsToNull` en middleware **global**
@@ -386,8 +395,7 @@ explicite) et les huit helpers non événementiels.
 
 **Pattern driver/registry**, récurrent et systématique : une interface + N drivers + un binding
 conditionnel par config. Instances : SMS (`SmsDriverInterface` + Orange/Mtarget/LAfricaMobile/Log +
-`SmsRouterDriver`), WhatsApp (`WhatsappDriverInterface` + CloudApi/Log), CDN (`CdnProviderContract` +
-Bunny/Cloudflare), Paiements (`PaymentDriverContract` + LemonSqueezy/OrangeMoney/Wave), Parsing
+`SmsRouterDriver`), WhatsApp (`WhatsappDriverInterface` + CloudApi/Log), Paiements (`PaymentDriverContract` + LemonSqueezy/OrangeMoney/Wave), Parsing
 bancaire (`StatementParserInterface` + Csv/Ofx + factory), Intégrations (`IntegrationProvider` +
 registry). Un nouveau fournisseur suit ce patron, sans exception.
 
@@ -443,6 +451,15 @@ l'appelant classée au-delà de ce rang global disparaît sans message ni compte
 ⚠️ **Les consoles super-admin (`/api/admin/agencies`, `/api/admin/users`) n'empruntent aucun des deux
 chemins** : elles écrivent leur propre `LIKE` SQL. Elles restent strictes, par choix (TCK-281,
 « Hors périmètre ») — pas par oubli.
+
+⚠️ **`Property` cherche par la base, pas par Scout, sur `buildQuery()`** (TCK-578, ADR-0008 amendé le
+2026-11-16) : `Property::rechercheParLaBase()` rend `true`, et `filter[search]` prend alors le repli
+SQL de `HasQueryBuilder` bien que le modèle soit `Searchable`. Tous les appelants de `buildQuery()`
+sont des consoles qui listent brouillons, biens en attente, refusés et privés — que l'index
+**public** ne contient pas. Le prix est assumé : ni tolérance aux fautes ni pertinence du moteur ;
+la référence exacte passe en tête (`rangDeRechercheSql()`). La recherche publique reste au moteur
+(`PropertySearchService`). Un autre modèle dont l'index ne contient pas tout ce que sa console liste
+surcharge le même point (défaut : `false`).
 
 ⚠️ **Une migration qui réécrit une colonne indexée réimporte son modèle** — ou au moins les lignes
 qu'elle touche (P122.04, décision du porteur du 2026-10-23). Une colonne est indexée dès que
@@ -783,7 +800,24 @@ node ../scripts/check-impact-map.mjs --report
 ⚠ **PHPUnit directement, et pas `php artisan test --coverage-php=…`** : `artisan test --coverage`
 passe déjà cette option en interne, et une seconde occurrence est écartée par PHPUnit — la commande
 sort alors en 1 sans un mot (TCK-331). Sans le drapeau `--coverage`, `artisan test --coverage-php=…`
-fonctionne encore, mais il n'y a plus aucune raison de passer par lui.
+fonctionne encore, mais en un seul processus il n'y a aucune raison de passer par lui.
+
+**La forme parallèle est équivalente, et c'est celle de la CI depuis TCK-2951** : ParaTest fusionne
+les couvertures de ses workers et écrit `cov.php` depuis l'objet fusionné.
+
+```bash
+XDEBUG_MODE=coverage php artisan test --parallel --processes=8 --coverage-php=/tmp/cov.php
+```
+
+`--parallel` **en premier** (Collision arrête son analyse à la première option qu'il ne connaît pas ;
+un `--parallel` placé après n'est pas vu, et PHPUnit, lancé seul, le refuse), et **jamais**
+`--coverage`. Mesuré en local sur
+`tests/Feature/Auth` (586 tests, 8 processus) : 169 s → 58 s, aucune ligne couverte différente, et
+**aucun test perdu par ligne** pour la carte — quelques-uns de plus là où une ligne jouée une fois par
+worker est attribuée au premier test de chacun ; la carte relance donc un sur-ensemble.
+⚠ Sous Xdebug (3.4.2), `tests/Feature/Radar/RadarWhatsappReceiptGuardTest.php::test_i1_…` fait
+segfault (sortie 139) sous couverture, séquentiel comme parallèle : bug d'Xdebug, sans effet sur la
+CI (PCOV).
 
 ⚠ **Le clover ne peut PAS remplacer `cov.php` pour la carte.** La carte a besoin de l'attribution
 **test → lignes** ; le clover ne porte que des compteurs par fichier. Une carte dérivée du clover

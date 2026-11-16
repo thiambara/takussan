@@ -1,7 +1,8 @@
 /**
  * TCK-2129 (P219.01) — une sonde en panne se voit sur sa tuile.
  *
- * Le `status` global est le pire des quatorze sondes de l'API ; la page n'en rendait que dix. Avec
+ * Le `status` global est le pire des quatorze sondes de l'API (treize depuis le retrait de `cdn`,
+ * TCK-2463) ; la page n'en rendait que dix. Avec
  * le seul planificateur en panne, elle disait « État général : En panne » au-dessus de dix « OK ».
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -25,7 +26,6 @@ const SANTE: PlatformHealth = {
   search: { status: 'ok', documents: 10, expected: 10, gap: 0, checked_at: A },
   queue: { status: 'ok', pending: 0, processing: 0, failed_24h: 0, oldest_pending_seconds: 0, checked_at: A },
   workers: { status: 'ok', checked_at: A },
-  cdn: { status: 'ok', value: 'disabled', checked_at: A },
   scheduler: { status: 'failed', last_run_at: null, checked_at: A },
   proxies: { status: 'ok', checked_at: A },
   lemon_squeezy_webhook: { status: 'ok', checked_at: A },
@@ -47,7 +47,7 @@ function monter() {
   ));
 }
 
-describe('HealthDashboard — les quatorze sondes (TCK-2129)', () => {
+describe('HealthDashboard — une tuile par sonde (TCK-2129)', () => {
   it('nomme le planificateur quand il est seul en panne', async () => {
     monter();
 
@@ -64,6 +64,7 @@ describe('HealthDashboard — les quatorze sondes (TCK-2129)', () => {
     for (const libelle of ['WhatsApp', 'Planificateur', 'Mandataires de confiance', 'Webhook Lemon Squeezy']) {
       expect(screen.getByText(libelle)).toBeInTheDocument();
     }
-    expect(screen.getAllByText(/Sondé à/)).toHaveLength(14);
+    // Treize depuis le retrait de la sonde `cdn` (TCK-2463).
+    expect(screen.getAllByText(/Sondé à/)).toHaveLength(13);
   });
 });

@@ -56,7 +56,7 @@ export function RelancerLeBailleur({
     inactif
       ? 'border border-border bg-muted text-muted-foreground'
       : taille === 'fiche'
-        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+        ? 'bg-primary text-primary-foreground hover:bg-primary-deep'
         : 'border border-border bg-card text-foreground hover:bg-muted',
   );
   const duree = (d: Duree) => f.nombre(d.n, { style: 'unit', unit: d.unite, unitDisplay: 'short' });

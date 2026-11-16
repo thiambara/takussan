@@ -124,7 +124,7 @@ class PropertyWritableFieldsTest extends TestCase
      * `?lang=fr` et non `setLocale()` : `SetLocaleMiddleware` repose la locale à chaque
      * requête, d'après la préférence de l'utilisateur ou `Accept-Language`.
      */
-    public function test_condition_est_persistee_et_relue_avec_son_libelle(): void
+    public function test_condition_est_persistee_et_relue_par_son_code(): void
     {
         $reponse = $this->actingAs($this->acteur())
             ->postJson('/api/properties?lang=fr', $this->payloadVilla(['condition' => 'off_plan']));
@@ -135,7 +135,8 @@ class PropertyWritableFieldsTest extends TestCase
             Property::query()->findOrFail($reponse->json('data.id'))->condition,
         );
         $this->assertSame('off_plan', $reponse->json('data.condition'));
-        $this->assertSame('Sur plan', $reponse->json('data.condition_label'));
+        // TCK-351 — le code seul : le front rend « Sur plan » par `property.conditions`.
+        $this->assertArrayNotHasKey('condition_label', $reponse->json('data'));
     }
 
     public function test_une_condition_inconnue_est_refusee(): void

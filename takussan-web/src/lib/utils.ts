@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { extendTailwindMerge } from "tailwind-merge"
-import { formatMontant } from "./format/currency"
+import type { Locale } from "@/i18n/config"
+import { formatCurrency } from "./format"
 import {
   DENSITE_DE_L_APP,
   ESPACEMENTS_DE_LETTRES,
@@ -41,10 +42,16 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // TCK-078 — delegate to the single currency helper. New call sites should
-// import `formatMontant` from `@/lib/format/currency` directly; this
-// wrapper stays for source-compat with existing imports.
-export function formatPrice(amount: number, currency = 'XOF', locale = 'fr-SN'): string {
-  return formatMontant(amount, currency, { locale });
+// use `useFormatteurs().montant` (`@/lib/format/useFormatteurs`); this wrapper stays for the
+// property cards and the search chips.
+//
+// TCK-347 — la locale est OBLIGATOIRE, et c'est une `Locale` de l'application (`fr`/`en`/`wo`),
+// plus une étiquette BCP-47 : le défaut `'fr-SN'` rendait chaque carte de bien en français sous
+// `en`, et accepter une étiquette aurait envoyé `'wo'` brut à `Intl`, hors du repli explicite
+// `wo → 'fr-SN'` d'`ETIQUETTES_INTL`. En `fr`, la chaîne est la même qu'avant, caractère pour
+// caractère (`formatCurrency` → `formatMontant(…, { locale: 'fr-SN' })`).
+export function formatPrice(amount: number, currency: string, locale: Locale): string {
+  return formatCurrency(amount, locale, { currency });
 }
 
 export function formatDate(date: string | Date, locale = 'fr-SN'): string {

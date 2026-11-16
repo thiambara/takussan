@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\Boost\BoostLifecycle;
 use App\Services\Boost\BoostStatsRecorder;
+use App\Services\Boost\SpotlightPurchaseService;
 use App\Services\Credits\CreditExpiryNotifier;
 use App\Services\Credits\CreditLedger;
 use Illuminate\Console\Command;
@@ -20,15 +21,17 @@ class BoostsTick extends Command
 
     protected $description = 'Clôt les boosts échus, réconcilie, expire les lots de crédits et envoie les préavis (ADR-0061 §9).';
 
-    public function handle(BoostLifecycle $lifecycle, CreditLedger $ledger, CreditExpiryNotifier $notifier, BoostStatsRecorder $stats): int
+    public function handle(BoostLifecycle $lifecycle, CreditLedger $ledger, CreditExpiryNotifier $notifier, BoostStatsRecorder $stats, SpotlightPurchaseService $spotlights): int
     {
         $ended = $lifecycle->endExpired();
         $reconciled = $lifecycle->reconcileAll();
         $expired = $ledger->expireDue();
         $notices = $notifier->sendNotices();
         $flushed = $stats->flush();
+        // TCK-2525 — les places achetées d'une agence passée hors du site par une écriture de masse.
+        $released = $spotlights->releaseForInactiveAgencies();
 
-        $this->info("boosts:tick ended={$ended} reconciled={$reconciled} expired_lots={$expired} notices={$notices} stats_rows={$flushed}");
+        $this->info("boosts:tick ended={$ended} reconciled={$reconciled} expired_lots={$expired} notices={$notices} stats_rows={$flushed} released_spotlights={$released}");
 
         return self::SUCCESS;
     }

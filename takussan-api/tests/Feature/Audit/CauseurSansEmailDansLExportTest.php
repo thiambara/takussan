@@ -14,8 +14,9 @@ use Tests\TestCase;
 
 /**
  * TCK-1997 (P193.03) — un causeur présent sans e-mail (compte créé par téléphone) sortait de
- * l'export en `system`, le repli d'une ligne sans causeur. Il sort en `user#<id>`, jamais par son
- * numéro ; un causeur à e-mail garde son e-mail.
+ * l'export en `system`, le repli d'une ligne sans causeur. Il sort par son identifiant et son nom
+ * (`user#<id>` s'il n'en a pas), jamais par son numéro ; depuis TCK-613, aucun causeur n'y sort par
+ * son adresse.
  */
 class CauseurSansEmailDansLExportTest extends TestCase
 {
@@ -32,6 +33,10 @@ class CauseurSansEmailDansLExportTest extends TestCase
 
         activity()->performedOn($property)->event('updated')->causedBy($agent)->log('temoin-sans-email');
         activity()->performedOn($property)->event('updated')->causedBy($admin)->log('temoin-avec-email');
+        // Un causeur sans nom ni e-mail : `user#<id>`, jamais le repli `system`.
+        $anonyme = User::factory()->create(['first_name' => '', 'last_name' => '', 'email' => null, 'phone' => '+221770009999']);
+        AgentProfile::factory()->create(['user_id' => $anonyme->id, 'agency_id' => $agency->id]);
+        activity()->performedOn($property)->event('updated')->causedBy($anonyme)->log('temoin-sans-nom');
 
         foreach ([
             app(ActivityLogExporter::class)->buildPayload($admin, [], $agency->id)['rows'],
@@ -39,11 +44,19 @@ class CauseurSansEmailDansLExportTest extends TestCase
         ] as $rows) {
             $sansEmail = collect($rows)->firstWhere('description', 'temoin-sans-email');
             $this->assertNotNull($sansEmail);
-            $this->assertSame("user#{$agent->id}", $sansEmail['causer_email']);
+            $this->assertSame($agent->id, $sansEmail['causer_id']);
+            $this->assertSame($agent->full_name, $sansEmail['causer_name']);
             $this->assertStringNotContainsString('770001234', (string) json_encode($sansEmail));
 
+            // TCK-613 (ADR-0044 §2) — l'auteur se dit par son identifiant et son nom, plus par son adresse.
             $avecEmail = collect($rows)->firstWhere('description', 'temoin-avec-email');
-            $this->assertSame($admin->email, $avecEmail['causer_email']);
+            $this->assertSame($admin->id, $avecEmail['causer_id']);
+            $this->assertSame($admin->full_name, $avecEmail['causer_name']);
+            $this->assertArrayNotHasKey('causer_email', $avecEmail);
+            $this->assertStringNotContainsString((string) $admin->email, (string) json_encode($avecEmail));
+
+            $sansNom = collect($rows)->firstWhere('description', 'temoin-sans-nom');
+            $this->assertSame("user#{$anonyme->id}", $sansNom['causer_name']);
         }
     }
 }

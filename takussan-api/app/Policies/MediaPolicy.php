@@ -86,9 +86,10 @@ class MediaPolicy extends BasePolicy
     }
 
     /**
-     * TCK-105 — only the owner of the underlying resource may request a
-     * signed CDN URL for private media.  Reuses the same ownership rules
-     * as delete().
+     * Qui peut recevoir l'URL d'API signée d'un média privé (`PrivateMediaAccess::signedUrl()`) :
+     * le propriétaire de la ressource, par les règles de delete(). Née pour la route de signature
+     * CDN de TCK-105, retirée par TCK-2463 ; elle garde aujourd'hui le RIB que
+     * `PayoutMethodResource` émet (`bank_statement_url`).
      */
     public function sign(User $user, Model $model): bool
     {

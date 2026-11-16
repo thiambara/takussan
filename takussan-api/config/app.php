@@ -108,6 +108,13 @@ return [
     ],
 
     /*
+     * TCK-614 (ADR-0084, amendement du 2026-11-16) — la clé des empreintes HMAC hors du Radar, distincte d'`APP_KEY`.
+     * Lue par `App\Support\AppKeyHmac` seul. Vide ou absente : repli explicite sur `APP_KEY` (le comportement d'avant),
+     * et hors `local`/`testing` le déploiement est refusé (`security:rehash-fingerprints`, `docker/release.sh`).
+     */
+    'hmac_key' => env('APP_HMAC_KEY'),
+
+    /*
     |--------------------------------------------------------------------------
     | Maintenance Mode Driver
     |--------------------------------------------------------------------------

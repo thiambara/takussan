@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -35,7 +36,7 @@ class ActivityLogExportReadyNotification extends Notification implements ShouldQ
             ->line(trans_choice('notifications.activity_log_export.intro', $this->rowCount, ['count' => $this->rowCount]))
             ->line(__('notifications.activity_log_export.expires'))
             ->action(__('notifications.activity_log_export.action'), $this->downloadUrl)
-            ->line(__('notifications.activity_log_export.file', ['filename' => $this->filename]))
+            ->line(__('notifications.activity_log_export.file', ['filename' => MarkdownText::escape($this->filename)]))
             ->salutation(__('notifications.salutation'));
     }
 

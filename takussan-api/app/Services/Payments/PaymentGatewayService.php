@@ -668,6 +668,7 @@ class PaymentGatewayService
         }
 
         return DB::transaction(function () use ($event): int {
+            $this->customDataCheckouts = [];
             $candidates = $this->paymentsForEvent($event);
 
             // TCK-593 (V2) — un événement qui ne retrouve aucun payable est de l'argent peut-être
@@ -692,7 +693,13 @@ class PaymentGatewayService
                     continue;
                 }
 
-                $this->applyStatusToPayment($payment, $this->mapEventTypeToDriverStatus($event->type), $event->metadata, $event->transactionId);
+                $this->applyStatusToPayment(
+                    $payment,
+                    $this->mapEventTypeToDriverStatus($event->type),
+                    $event->metadata,
+                    $event->transactionId,
+                    $this->customDataCheckouts[spl_object_id($payment)] ?? null,
+                );
                 $this->markAsProcessed($payment, $event);
             }
 
@@ -716,8 +723,11 @@ class PaymentGatewayService
      * transition matrix — invalid transitions throw 422 from the model.
      *
      * @param  array<string,mixed>  $metadata
+     * @param  string|null  $customDataCheckout  TCK-606 — le checkout qui relie au payable une commande
+     *                                           appariée par `custom_data` : son montant figé et sa
+     *                                           devise font foi, sans saut
      */
-    protected function applyStatusToPayment(Model $payment, string $providerStatus, array $metadata = [], ?string $transactionId = null): void
+    protected function applyStatusToPayment(Model $payment, string $providerStatus, array $metadata = [], ?string $transactionId = null, ?string $customDataCheckout = null): void
     {
         $existingMeta = is_array($payment->metadata ?? null) ? $payment->metadata : [];
 
@@ -783,8 +793,14 @@ class PaymentGatewayService
                     break;
                 }
 
-                $initiation = $this->initiationFor($existingMeta, $transactionId);
-                $this->assertReportedAmountCoversPayment($payment, $metadata, $initiation['amount']);
+                // TCK-606 (ADR-0046, amendement du 2026-11-16, point 2) — une commande appariée par
+                // `custom_data` se compare au checkout qui la relie au payable, dans SA devise.
+                $initiation = $this->initiationFor($existingMeta, $customDataCheckout ?? $transactionId);
+                if ($customDataCheckout !== null) {
+                    $this->assertReportedAmountMatchesCheckout($payment, $metadata, $initiation);
+                } else {
+                    $this->assertReportedAmountCoversPayment($payment, $metadata, $initiation['amount']);
+                }
                 $this->writeStatus($payment, PaymentStatus::Paid);
                 // TCK-593 — loyer et pénalité réglés ensemble : la pénalité est acquittée dans la
                 // MÊME sauvegarde que le loyer. `late_fee_included` a été figé à l'initiation DE CE
@@ -1012,6 +1028,29 @@ class PaymentGatewayService
     }
 
     /**
+     * TCK-606 (ADR-0046, amendement du 2026-11-16, point 2) — la garde du chemin `custom_data`, qui
+     * ne saute jamais : le montant rapporté doit exister, être dans la devise DU CHECKOUT (notée à
+     * l'initiation, à défaut celle du payable) et couvrir le montant figé de ce checkout. Une autre
+     * devise rend 422 `payment.currency_mismatch` ; un montant absent ou inférieur, 422
+     * `payment.amount_short`.
+     *
+     * @param  array<string,mixed>  $metadata
+     * @param  array{amount: float|null, currency?: string|null}  $initiation
+     */
+    protected function assertReportedAmountMatchesCheckout(Model $payment, array $metadata, array $initiation): void
+    {
+        $reported = $metadata['amount'] ?? null;
+        $reportedCurrency = isset($metadata['currency']) ? strtoupper((string) $metadata['currency']) : null;
+        $checkoutCurrency = strtoupper((string) ($initiation['currency'] ?? $this->paymentCurrency($payment)));
+
+        abort_code_if($reportedCurrency !== $checkoutCurrency, 422, 'payment.currency_mismatch');
+
+        $expected = $initiation['amount'] ?? $this->amountDue($payment);
+        abort_code_if(! is_numeric($reported) || $expected === null, 422, 'payment.amount_short');
+        abort_code_if((float) $reported + 0.01 < (float) $expected, 422, 'payment.amount_short');
+    }
+
+    /**
      * @param  array{late_fee_included: bool, late_fee_amount: float}|null  $frozen  la part de
      *                                                                               pénalité figée avec le montant (P65.02)
      */
@@ -1031,6 +1070,9 @@ class PaymentGatewayService
             // ou la plateforme) pourra solder CE checkout par webhook.
             'integration_id' => $integration?->id,
             'amount' => $amount,
+            // TCK-606 (ADR-0046, amendement du 2026-11-16) — la devise DE CE CHECKOUT : le chemin
+            // `custom_data` compare la commande rapportée à ce montant, dans cette devise, sans saut.
+            'currency' => strtoupper($this->paymentCurrency($payment)),
             'late_fee_included' => $lateFeeIncluded,
             // La part de pénalité de CE montant : un webhook tardif sur une pénalité réglée entre-temps
             // à l'agence la marque en double, à ce montant.
@@ -1110,9 +1152,23 @@ class PaymentGatewayService
             }
         }
 
+        // Un identifiant du fournisseur qui désigne un payable hors de l'autorité ne se rattrape pas
+        // par `custom_data` : le repli ne joue que si aucun chemin n'a rien trouvé.
+        $byTransaction = $matches !== [];
+        $matches = array_values(array_filter(
+            $matches,
+            fn (Model $row): bool => $this->initiatedWithinAuthority($row, $event->transactionId, $authority),
+        ));
+
         // Lemon Squeezy embeds our payment hint in custom_data — fall
         // back to that when the transaction id matching missed.
-        if ($matches === [] && ! empty($event->metadata['custom_data']['payment_id'])) {
+        //
+        // TCK-606 (ADR-0046, amendement du 2026-11-16) — ce chemin désigne un payable par son
+        // identifiant, que le fournisseur nous renvoie : il n'apparie qu'un payable dont le checkout
+        // COURANT a été ouvert chez ce fournisseur, par une intégration NOTÉE du propriétaire de
+        // l'autorité. Un payable jamais initié (échéance réglée en espèces, facture neuve) n'est
+        // jamais soldé ici, sous aucune autorité — plateforme comprise (M-1).
+        if (! $byTransaction && ! empty($event->metadata['custom_data']['payment_id'])) {
             $paymentId = (int) $event->metadata['custom_data']['payment_id'];
             $type = (string) ($event->metadata['custom_data']['payment_type'] ?? '');
             if ($paymentId > 0 && in_array($type, self::PAYABLES, true)) {
@@ -1120,21 +1176,52 @@ class PaymentGatewayService
                     ->whereKey($paymentId)
                     ->lockForUpdate()
                     ->first();
-                // TCK-602 (ADR-0051, conséquence M-1) — un payable dont le checkout COURANT a été
-                // ouvert chez un autre fournisseur (une échéance initiée par son lien, en Wave ou
-                // en Orange Money) n'est pas soldé par ce chemin : seul un payable jamais initié,
-                // ou initié chez ce fournisseur, l'est encore (limite M-1, inchangée).
-                $current = $row !== null && is_array($row->metadata['gateway'] ?? null) ? ($row->metadata['gateway']['provider'] ?? null) : null;
-                if ($row !== null && ($current === null || $current === $event->provider)) {
+                $checkout = $row !== null ? $this->customDataCheckout($row, $event->provider, $authority) : null;
+                if ($row !== null && $checkout !== null) {
+                    $this->customDataCheckouts[spl_object_id($row)] = $checkout;
                     $matches[] = $row;
                 }
             }
         }
 
-        return array_values(array_filter(
-            $matches,
-            fn (Model $row): bool => $this->initiatedWithinAuthority($row, $event->transactionId, $authority),
-        ));
+        return $matches;
+    }
+
+    /**
+     * TCK-606 — les payables appariés par `custom_data` pendant le rapprochement en cours, et le
+     * checkout qui les relie à la commande : `spl_object_id` de la ligne → identifiant du checkout.
+     *
+     * @var array<int, string>
+     */
+    private array $customDataCheckouts = [];
+
+    /**
+     * TCK-606 (ADR-0046, amendement du 2026-11-16, point 1) — le checkout par lequel une commande
+     * `custom_data` peut solder ce payable : le checkout COURANT, ouvert chez `$provider`, par une
+     * intégration notée dont le propriétaire est celui de l'autorité. `null` sinon — et toujours pour
+     * un payable jamais initié.
+     */
+    private function customDataCheckout(Model $payment, string $provider, WebhookAuthority $authority): ?string
+    {
+        $gateway = is_array($payment->metadata['gateway'] ?? null) ? $payment->metadata['gateway'] : [];
+        $checkoutId = $gateway['transaction_id'] ?? null;
+        if (($gateway['provider'] ?? null) !== $provider || ! is_string($checkoutId) || $checkoutId === '') {
+            return null;
+        }
+
+        $integrationId = $this->initiatingIntegrationId($payment->metadata, $checkoutId);
+        if ($integrationId === null) {
+            return null;
+        }
+
+        $initiator = Integration::withTrashed()->whereKey($integrationId)->first(['id', 'agency_id', 'provider']);
+        if ($initiator === null || $initiator->provider !== $provider) {
+            return null;
+        }
+
+        return ($initiator->agency_id !== null ? (int) $initiator->agency_id : null) === $authority->agencyId
+            ? $checkoutId
+            : null;
     }
 
     /**
@@ -1369,7 +1456,7 @@ class PaymentGatewayService
      * sur la dernière initiation.
      *
      * @param  array<string,mixed>  $meta
-     * @return array{amount: ?float, late_fee_included: bool, late_fee_amount: ?float}
+     * @return array{amount: ?float, currency: ?string, late_fee_included: bool, late_fee_amount: ?float}
      */
     protected function initiationFor(array $meta, ?string $transactionId): array
     {
@@ -1378,6 +1465,7 @@ class PaymentGatewayService
             if ($transactionId !== null && ($entry['transaction_id'] ?? null) === $transactionId) {
                 return [
                     'amount' => is_numeric($entry['amount'] ?? null) ? (float) $entry['amount'] : null,
+                    'currency' => is_string($entry['currency'] ?? null) ? $entry['currency'] : null,
                     'late_fee_included' => ($entry['late_fee_included'] ?? false) === true,
                     'late_fee_amount' => is_numeric($entry['late_fee_amount'] ?? null) ? (float) $entry['late_fee_amount'] : null,
                 ];
@@ -1386,6 +1474,7 @@ class PaymentGatewayService
 
         return [
             'amount' => is_numeric($meta['gateway_expected_amount'] ?? null) ? (float) $meta['gateway_expected_amount'] : null,
+            'currency' => null,
             'late_fee_included' => ($meta['late_fee_included'] ?? false) === true,
             'late_fee_amount' => null,
         ];

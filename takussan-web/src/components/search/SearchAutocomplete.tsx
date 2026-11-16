@@ -962,7 +962,7 @@ export function SearchAutocomplete({
               <span className="flex min-w-0 gap-1 text-xs">
                 {bien.price !== null ? (
                   <span className="shrink-0 font-semibold tabular-nums">
-                    {formatPrice(bien.price, 'XOF')}
+                    {formatPrice(bien.price, 'XOF', locale)}
                     {bien.contract_type === 'rent' && bien.rent_period ? `/${tPeriodes(bien.rent_period)}` : ''}
                   </span>
                 ) : null}
@@ -1042,8 +1042,8 @@ export function SearchAutocomplete({
             ? cn(
                 'inline-flex min-h-10 max-w-full items-center gap-2 rounded-full border px-3.5 text-sm font-medium',
                 actif
-                  ? 'border-primary bg-secondary text-primary-deep dark:bg-primary/8'
-                  : 'border-border bg-card text-foreground hover:bg-muted dark:hover:bg-muted/50',
+                  ? 'border-primary bg-secondary text-primary-deep'
+                  : 'border-border bg-card text-foreground hover:bg-muted',
               )
             : carte
               ? cn('mx-4 flex rounded-2xl border bg-card p-3.5', option.genre === 'alerte' ? 'mt-2 border-border' : 'border-primary/30 shadow-[0_6px_18px_-12px_color-mix(in_oklab,var(--shadow-color)_45%,transparent)]', actif && 'ring-2 ring-ring')
@@ -1056,7 +1056,7 @@ export function SearchAutocomplete({
                   // 4,45:1 sur `--secondary` : l'encre active est `primary-deep`. En sombre, les teintes
                   // translucides d'avant : `--secondary` et `--muted` y valent #3a2e23, où le surlignage
                   // du `<mark>` tombe à 4,44:1 (`pastille-et-surlignage.contraste.test.ts`).
-                  actif ? 'bg-secondary text-primary-deep dark:bg-primary/8' : 'text-foreground hover:bg-muted dark:hover:bg-muted/50',
+                  actif ? 'bg-secondary text-primary-deep' : 'text-foreground hover:bg-muted',
                 ),
         )}
         onMouseEnter={() => setActiveIndex(idx)}

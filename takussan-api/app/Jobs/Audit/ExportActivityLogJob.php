@@ -7,13 +7,13 @@ use App\Models\User;
 use App\Notifications\ActivityLogExportReadyNotification;
 use App\Services\Audit\ActivityLogExporter;
 use App\Support\Export\CsvCell;
+use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -66,10 +66,15 @@ class ExportActivityLogJob implements ShouldQueue
 
         // La signature couvre le demandeur, le fichier et le nom : le téléchargement ne sert que le
         // dossier du demandeur signé (`ActivityLogExportController::download`).
-        $downloadUrl = URL::temporarySignedRoute(
+        // TCK-613 — le lien du courriel vise le FRONT, dont le BFF relaie le chemin signé (relatif)
+        // avec la session : la route de l'API est sous `auth:sanctum`, qu'un clic depuis une
+        // messagerie ne porte pas (même défaut que TCK-575). Sans session, le front mène à la connexion.
+        $downloadUrl = LienFront::base().ActivityLogExportController::signedPath(
             'activity-logs.export.download',
+            $this->user->id,
+            $file,
+            $filename,
             now()->addHours(ActivityLogExportController::LINK_TTL_HOURS),
-            ['user' => $this->user->id, 'file' => $file, 'name' => $filename],
         );
 
         $this->user->notify(new ActivityLogExportReadyNotification(

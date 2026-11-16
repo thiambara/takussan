@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * P179.03 (TCK-1797) — les notifications dont l'APPELANT juge l'envoi restent synchrones.
  *
- * Leur appelant entoure `notify()` d'un `try` et rend quelque chose sur un échec : la réservation
+ * Leur appelant entoure l'envoi (`notify()`, ou `notifyNow()` canal par canal depuis TCK-615) d'un `try` et rend quelque chose sur un échec : la réservation
  * d'une fenêtre ({@see SendSavedSearchAlerts}, {@see SendFavoriteChangeAlerts}), la fenêtre de
  * renvoi d'un code ({@see LeaseSignatureService::sendCode()}, qui lit aussi `smsLeft()`). Mise en
  * file, la notification ne lèverait plus qu'au worker : le `catch` deviendrait inerte, et la

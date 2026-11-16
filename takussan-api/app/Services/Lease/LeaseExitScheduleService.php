@@ -81,6 +81,55 @@ class LeaseExitScheduleService
     }
 
     /**
+     * TCK-607 (reliquat d'E11) — la reprise d'un bail DÉJÀ sorti avant TCK-1151 (2026-10-21) : mêmes
+     * règles que {@see cancelAfterExit()}, sauf qu'une échéance postérieure engagée ne fait rien
+     * refuser — la sortie a eu lieu. Elle est laissée telle quelle et RENDUE à l'appelant, qui la
+     * signale (le remboursement reste un geste humain) ; les autres s'annulent quand même.
+     * Idempotente : une seconde passe ne trouve plus rien d'annulable et ne journalise rien.
+     *
+     * L'appelant tient le verrou de la ligne du bail, dans sa transaction.
+     *
+     * @return array{cancelled: list<string>, cancelled_deposits: list<string>, engaged: list<string>}
+     */
+    public function repairAfterExit(Lease $lease, CarbonInterface $exitDate): array
+    {
+        $dues = $this->rentDuesAfter($lease, $exitDate)
+            ->filter(fn (LeasePayment $due) => in_array($due->status, LeaseRenewalService::CANCELLABLE_DUE_STATUSES, true)
+                || $this->renewals->isEngaged($due));
+
+        $cancelled = [];
+        $engaged = [];
+        foreach ($dues as $due) {
+            if (in_array($due->status, [PaymentStatus::Cancelled, PaymentStatus::Refunded], true)) {
+                continue;
+            }
+            if ($this->renewals->isEngaged($due)) {
+                $engaged[] = $due->reference_number;
+
+                continue;
+            }
+            $due->update(['status' => PaymentStatus::Cancelled]);
+            $cancelled[] = $due->reference_number;
+        }
+
+        $cancelledDeposits = $this->cancelOpenDeposit($lease);
+
+        if ($cancelled !== [] || $cancelledDeposits !== []) {
+            $properties = ['exit_date' => $exitDate->toDateString(), 'cancelled' => $cancelled, 'repair' => 'TCK-607'];
+            if ($cancelledDeposits !== []) {
+                $properties['cancelled_deposits'] = $cancelledDeposits;
+            }
+            activity('Lease')
+                ->performedOn($lease)
+                ->withProperties($properties)
+                ->event('lease_termination_schedule_cancelled')
+                ->log('lease_termination_schedule_cancelled');
+        }
+
+        return ['cancelled' => $cancelled, 'cancelled_deposits' => $cancelledDeposits, 'engaged' => $engaged];
+    }
+
+    /**
      * TCK-2375 (P04.10) — l'échéance de caution encore due (`pending`, `late`, `failed`) s'annule à la
      * sortie, quelle que soit sa date : un locataire parti n'en est ni relancé ni invité à la payer.
      * Réglée, en partie réglée ou sous un checkout ouvert, elle reste telle quelle, sans refuser la

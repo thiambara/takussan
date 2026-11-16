@@ -4,11 +4,10 @@ namespace App\Http\Requests;
 
 use App\Rules\PixelsAuPlus;
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\HasMedia;
 
-class MediaUploadRequest extends FormRequest
+class MediaUploadRequest extends BaseFormRequest
 {
     public const COLLECTIONS = ['photos', 'documents', 'avatars', 'logo'];
 

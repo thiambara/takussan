@@ -5,6 +5,7 @@ namespace App\Services\Notifications\Whatsapp;
 use App\Services\Notifications\Sms\AmbiguousDelivery;
 use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Log;
@@ -83,7 +84,7 @@ class CloudApiWhatsappDriver implements WhatsappDriverInterface
                 ->timeout(10)
                 ->post($url, $this->payloadFor($recipient, $message));
         } catch (\Throwable $e) {
-            Log::warning('[whatsapp.cloud] HTTP exception', ['error' => $e->getMessage()]);
+            Log::warning('[whatsapp.cloud] HTTP exception', ['error' => SafeExceptionContext::of($e)]);
 
             return WhatsappResult::failed($recipient, $this->id(), 'whatsapp_http_exception', AmbiguousDelivery::fromThrowable($e));
         }
