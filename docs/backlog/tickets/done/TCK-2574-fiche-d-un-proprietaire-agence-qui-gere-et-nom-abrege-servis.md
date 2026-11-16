@@ -1,7 +1,7 @@
 ---
 id: TCK-2574
 title: Fiche d'un propriétaire — l'API sert l'agence qui gère ses biens et son nom abrégé
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
@@ -79,7 +79,7 @@ n'y est jamais exposée au-delà d'un nom abrégé (« Sokhna G. »).
   `null`, et la fiche garde le formulaire anonyme du propriétaire.
 - [x] AC3 — Le JSON de la fiche et de la liste d'un propriétaire ne contient pas son nom de famille
   (balayage de la réponse) ; celui d'un agent le contient.
-- [ ] AC4 — (front + API) La fiche d'un propriétaire géré par une agence propose de contacter l'agence :
+- [x] AC4 — (front + API) La fiche d'un propriétaire géré par une agence propose de contacter l'agence :
   sur la vraie API, « Écrire à l'agence » mène à `/agencies/<slug>` de l'agence qui gère ses biens.
   _AC transféré de TCK-2523 (AC3) par la session le 2026-11-09 : l'API sert `agency: null` pour un
   propriétaire._
@@ -90,7 +90,7 @@ n'y est jamais exposée au-delà d'un nom abrégé (« Sokhna G. »).
 
 ## Notes d'implémentation
 
-- 2026-11-09 — transféré par la session : l'AC3 de [TCK-2523](../done/TCK-2523-fiche-d-agent-la-personne-d-abord.md)
+- 2026-11-09 — transféré par la session : l'AC3 de [TCK-2523](TCK-2523-fiche-d-agent-la-personne-d-abord.md)
   (« son bouton de contact vise l'agence ») devient l'AC4 ici, l'API servant `agency: null` pour un
   propriétaire. TCK-2523 est livré sans lui : la fiche d'un propriétaire garde son formulaire. Le
   front sait déjà rendre le renvoi (`agenceDuProprietaire`, `agents/[slug]/page.tsx`) ; il suffit d'y
@@ -115,5 +115,6 @@ n'y est jamais exposée au-delà d'un nom abrégé (« Sokhna G. »).
   fiche seul, nom de la liste seul, `managing_agency` de la fiche. Front :
   `agents/[slug]/__tests__/page.server.test.tsx` (renvoi par `managing_agency`, pas par `agency` —
   ablation rouge).
-- **AC4 non coché** : la partie API et la partie front sont prouvées séparément, mais « sur la vraie
+- **AC4 coché le 2026-11-16 (voir la ligne suivante)** ; ancien texte :  la partie API et la partie front sont prouvées séparément, mais « sur la vraie
   API » n'a pas été mesuré (API locale éteinte au moment de livrer).
+- 2026-11-16 — AC4 vérifié à l'écran sur la vraie API locale (`./dev.sh`, API :8002) : `curl -g localhost:8002/api/public/agents/mouhamed-s` → `public_role: owner`, `agency: null`, `managing_agency: {id:1, slug:dakar-immo, name:Dakar Immo}` ; `/fr/agents/mouhamed-s` (1280 et 500, aucun défilement horizontal) affiche « Ses biens sont gérés par Dakar Immo », un « Écrire à l'agence » dont le `href` est `/fr/agencies/dakar-immo` (cliqué : arrivée sur `/fr/agencies/dakar-immo`, titre « Dakar Immo — Agence immobilière »), et aucun formulaire propriétaire. Autres propriétaires de la base : bineta-n → saint-louis-habitat, yacine-f → thies-properties.

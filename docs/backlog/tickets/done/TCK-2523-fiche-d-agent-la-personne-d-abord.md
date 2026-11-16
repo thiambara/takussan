@@ -52,7 +52,7 @@ Mettre un visage sur l'annonce : savoir avant d'écrire si l'agent parle sa lang
 - [x] AC1 — Un agent à six biens n'a pas de recherche ; à sept, il l'a.
 - [x] AC2 — Une recherche sans résultat propose les biens de son agence avec leur compte.
 - [ ] AC3 — La fiche d'un propriétaire sur option ne contient aucun numéro (balayage du HTML) et son bouton de contact vise l'agence.
-  _Transféré par la session le 2026-11-09 : l'API sert `agency: null` pour un propriétaire → [TCK-2574](../todo/TCK-2574-fiche-d-un-proprietaire-agence-qui-gere-et-nom-abrege-servis.md). Livré ici : aucun numéro (balayage du HTML, prouvé) ; le contact du propriétaire reste son formulaire._
+  _Transféré par la session le 2026-11-09 : l'API sert `agency: null` pour un propriétaire → [TCK-2574](TCK-2574-fiche-d-un-proprietaire-agence-qui-gere-et-nom-abrege-servis.md). Livré ici : aucun numéro (balayage du HTML, prouvé) ; le contact du propriétaire reste son formulaire._
 - [x] AC4 — Langues et délai absents : aucune ligne vide ni « — ».
 
 ## Hors périmètre
