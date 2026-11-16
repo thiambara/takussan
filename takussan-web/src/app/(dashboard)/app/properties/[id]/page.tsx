@@ -106,17 +106,14 @@ export default async function Page({ params, searchParams }: { params: Params; s
     throw e;
   }
 
-  // Le front possède le texte affiché (principe n° 5) : `type_label`, `contract_type_label` et
-  // `status_label` arrivent de l'API en anglais sous une interface française (« Rented ·
-  // Studio · For Rent », mesuré le 2026-09-16). Les codes se traduisent ici, comme dans la liste.
+  // Le front possède le texte affiché (principe n° 5, TCK-351) : l'API n'émet plus que les codes,
+  // qui se traduisent ici comme dans la liste.
   const tType = await getTranslations(PROPERTY_ENUM_NAMESPACES.type);
-  const typeLabel = property.type
-    ? enumLabel(tType, propertyTypeValues, property.type)
-    : property.type_label;
+  const typeLabel = property.type ? enumLabel(tType, propertyTypeValues, property.type) : null;
   const tContract = await getTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
   const contractLabel = property.contract_type
     ? enumLabel(tContract, contractTypeValues, property.contract_type)
-    : property.contract_type_label;
+    : null;
 
   // TCK-591 §5 — le rapprochement est un outil du personnel ; le bailleur n'en voit pas l'entrée
   // (l'API le lui refuse aussi). `getMeAction` est mémoïsé : le layout l'a déjà appelé.

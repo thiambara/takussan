@@ -1,197 +1,169 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ESPACES_DES_LIBELLES_DE_BIEN, type ChampLibelleDeBien } from '@/lib/biens/libelles-de-bien';
+import {
+  conditionValues,
+  contractTypeValues,
+  propertyStatusFilterValues,
+  propertyTypeValues,
+  rentPeriodValues,
+  titleTypeValues,
+} from '@/lib/enums/property';
+
 /**
- * Garde de PARITÉ sur les libellés de bien émis PAR L'API et affichés PAR LE FRONT.
+ * TCK-351 — UNE seule source pour le texte affiché d'un bien : le dictionnaire du front.
  *
- * ## Pourquoi cette garde existe
+ * ## D'où vient cette garde
  *
- * Le principe non négociable n°5 du `CLAUDE.md` racine dit que **le front possède le texte
- * affiché** : « l'API émet des codes et des données ; les libellés passent par next-intl ».
- * `PropertyResource` le viole — mesuré le 2026-08-22, il émet **cinq** champs de libellé
- * (`type_label`, `contract_type_label`, `rent_period_label`, `status_label`,
- * `title_type_label`, lignes 61-70), traduits côté serveur par
- * `BaseResource::enumLabel()` depuis `takussan-api/lang/<locale>/properties.php`.
+ * Jusqu'au 2026-11-16, `PropertyResource` émettait six libellés traduits côté serveur
+ * (`type_label`, `contract_type_label`, `rent_period_label`, `status_label`, `title_type_label`,
+ * `condition_label`) depuis `takussan-api/lang/<locale>/properties.php`, pendant que les cartes, les
+ * filtres et le formulaire rendaient `property.*` de next-intl. Deux tables dans le même parcours, et
+ * 44 divergences mesurées le 2026-08-22 — dont `status.pending`, « Réservé » sur la fiche et « En
+ * attente » sur la carte : deux ÉTATS différents pour le même bien. Cette garde était alors un
+ * cliquet de 44 divergences nommées (`DIVERGENCES_CONNUES`).
  *
- * Et le front les CONSOMME : `app/(public)/properties/[slug]/page.tsx:74` rend
- * `property.type_label`, `PropertyCharacteristics.tsx:19-20` rendent
- * `contract_type_label` et `rent_period_label` — pendant que les cartes et les filtres
- * de recherche rendent, eux, `property.types` du dictionnaire.
+ * Le porteur a tranché le 2026-11-16 pour l'option (a) — le principe n° 5 : **le front possède le
+ * texte affiché**. L'API n'émet plus que les codes, et le front les traduit par
+ * `@/lib/biens/libelles-de-bien`. La liste des divergences n'a donc plus d'objet : il n'y a plus
+ * qu'une table à l'écran. Ce qui peut encore casser, et que cette garde tient :
  *
- * **Deux sources de vérité s'affichent donc dans le même parcours**, et rien ne les
- * comparait. Mesuré à l'ouverture de cette garde : **44 divergences de valeur**, dont une
- * qui n'est pas une nuance de style — `status.pending` vaut « Réservé » côté API et
- * « En attente » côté front, deux choses différentes pour le même état.
+ *   1. qu'un `*_label` de bien REVIENNE — côté API dans `PropertyResource`, ou côté front relu par un
+ *      composant (une réponse d'API ancienne, un champ rétabli « pour aller plus vite ») : la seconde
+ *      source renaîtrait sans bruit ;
+ *   2. qu'un code émis par l'API n'ait PAS sa clé dans le dictionnaire : le front le rendrait brut
+ *      (`enumLabel` replie sur le code), ce que la seconde source masquait jusqu'ici.
  *
- * TCK-292 avait nommé ce risque et l'avait mis hors périmètre, faute de mesure :
- * *« Si l'API renvoie des phrases françaises, traduire le front ne suffira pas : ce sera un
- * ticket backend, pas celui-ci. »* La mesure est faite ; le ticket est **TCK-351**.
- *
- * ## Ce que cette garde fait, et ce qu'elle ne fait pas
- *
- * Elle est un **cliquet à contenu nommé**, pas une liste de tolérance : chaque divergence
- * connue est écrite ci-dessous, et la garde rougit dans les DEUX sens —
- *
- *   · une divergence NOUVELLE, non inscrite → rouge. C'est ce qui empêche la dette de croître ;
- *   · une entrée inscrite qui a CESSÉ de diverger → rouge aussi. Sans cela, la liste pourrit
- *     et finit par excuser des divergences qui n'existent plus, en masquant celles qui les
- *     ont remplacées. Même règle que `EXCEPTIONS_JUSTIFIEES` de
- *     `scripts/check-resource-date-format.mjs` et que `scripts/i18n-exceptions.mjs`.
- *
- * Elle ne dit PAS laquelle des deux valeurs est juste. Sur les 24 divergences wolof, seul un
- * locuteur peut trancher (`farm` : l'API dit « Jën », qui désigne le poisson, quand le front
- * dit « Tool », qui désigne le champ) — c'est l'objet de TCK-342 et de TCK-351.
- *
- * ⚠ `web-ci.yml` doit déclencher sur les DEUX côtés lus ici : les fichiers
- * `lang/<locale>/properties.php` (écrit ainsi et non avec une étoile : la séquence qui suit
- * une étoile refermerait ce commentaire — elle l'a déjà fait une fois en écrivant ce fichier)
- * ET les dictionnaires. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle
- * dort quand l'un bouge seul.
+ * ⚠ `web-ci.yml` déclenche sur `PropertyResource.php` et les six fichiers d'enum lus ici : les deux
+ * côtés qu'une garde compare doivent la réveiller, sinon elle dort quand le back bouge seul.
  */
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+const SRC = join(RACINE, 'takussan-web', 'src');
 const LOCALES = ['fr', 'en', 'wo'] as const;
 
-/** Groupe PHP → sous-arbre `property.*` du dictionnaire. */
-const GROUPES: Record<string, string> = {
-  type: 'types',
-  contract_type: 'contractTypes',
-  rent_period: 'rentPeriods',
-  status: 'status',
-  // TCK-464 — `title_type` A un pendant front depuis que le formulaire l'expose. Le
-  // vocabulaire a été aligné au caractère près sur `lang/<locale>/properties.php` DANS le
-  // même lot : aucune entrée n'entre dans DIVERGENCES_CONNUES, la garde se resserre sans
-  // acquérir de tolérance.
-  title_type: 'titleTypes',
-  // TCK-508 — né aligné : `wo` porte les termes français des deux côtés, en attendant qu'un
-  // locuteur valide un vocabulaire wolof. Aucune entrée n'entre dans DIVERGENCES_CONNUES.
-  condition: 'conditions',
-};
+const LIBELLES_RETIRES = [
+  'type_label',
+  'contract_type_label',
+  'rent_period_label',
+  'status_label',
+  'title_type_label',
+  'condition_label',
+] as const;
 
 /**
- * Les divergences CONNUES, au 2026-08-22, sous la forme `<groupe>.<locale>.<clé>`.
- *
- * Elles ne sont pas excusées : elles sont COMPTÉES, en attendant l'arbitrage de **TCK-351**,
- * qui doit décider laquelle des deux sources porte le texte affiché. Chacune est une
- * divergence RÉELLE et vérifiée par cette garde à chaque exécution.
- *
- * ⚠ Cette liste ne doit que RÉTRÉCIR. Une entrée qu'on ajoute est une régression du principe
- * n°5, pas une dette qu'on assume.
+ * Les fichiers du front qui lisent l'un de ces six noms SUR UNE AUTRE RESSOURCE que le bien, avec
+ * leur raison. Vide au 2026-11-16 : `RoleDelegationResource` et `BankStatementResource` émettent bien
+ * un `status_label`, mais aucun écran ne le lit. Une entrée ajoutée ici doit nommer la ressource ; une
+ * entrée qui ne lit plus rien fait rougir la garde (cliquet dans les deux sens).
  */
-const DIVERGENCES_CONNUES = new Set<string>([
-  'type.en.resort',
-  'type.en.shop',
-  'type.wo.apartment',
-  'type.wo.factory',
-  'type.wo.farm',
-  'type.wo.garage',
-  'type.wo.hotel',
-  'type.wo.land',
-  'type.wo.office',
-  'type.wo.other',
-  'type.wo.resort',
-  'type.wo.room',
-  'type.wo.shop',
-  'type.wo.villa',
-  'type.wo.warehouse',
-  'contract_type.fr.rent',
-  'contract_type.fr.sale',
-  'contract_type.en.rent',
-  'contract_type.en.sale',
-  'contract_type.wo.rent',
-  'contract_type.wo.sale',
-  'rent_period.fr.daily',
-  'rent_period.fr.monthly',
-  'rent_period.fr.weekly',
-  'rent_period.fr.yearly',
-  'rent_period.en.daily',
-  'rent_period.en.monthly',
-  'rent_period.en.weekly',
-  'rent_period.en.yearly',
-  'rent_period.wo.daily',
-  'rent_period.wo.monthly',
-  'rent_period.wo.weekly',
-  'rent_period.wo.yearly',
-  'status.fr.pending',
-  'status.en.under_maintenance',
-  'status.wo.archived',
-  'status.wo.available',
-  'status.wo.draft',
-  'status.wo.pending',
-  'status.wo.published',
-  'status.wo.rented',
-  'status.wo.sold',
-  'status.wo.unavailable',
-  'status.wo.under_maintenance',
-]);
+const LECTURES_HORS_BIEN = new Map<string, string>([]);
 
-function tablePhp(locale: string, groupe: string): Record<string, string> {
-  const chemin = join(RACINE, 'takussan-api', 'lang', locale, 'properties.php');
-  const source = readFileSync(chemin, 'utf8');
-  const bloc = new RegExp(`'${groupe}'\\s*=>\\s*\\[(.*?)\\n    \\]`, 's').exec(source);
-  expect(bloc, `groupe '${groupe}' introuvable dans ${chemin}`).not.toBeNull();
-  const table: Record<string, string> = {};
-  for (const [, cle, valeur] of bloc![1].matchAll(/'([a-z_]+)'\s*=>\s*'([^']*)'/g)) {
-    table[cle] = valeur;
-  }
-  expect(Object.keys(table).length, `aucune entrée lue dans ${groupe} (${locale})`).toBeGreaterThan(1);
-  return table;
+/** Le champ de l'API → l'enum PHP qui en porte les cas, et la liste du front qui les connaît. */
+const ENUMS: Record<ChampLibelleDeBien, { php: string; front: readonly string[] }> = {
+  type: { php: 'PropertyType', front: propertyTypeValues },
+  contract_type: { php: 'ContractType', front: contractTypeValues },
+  rent_period: { php: 'RentPeriod', front: rentPeriodValues },
+  status: { php: 'PropertyStatus', front: propertyStatusFilterValues },
+  title_type: { php: 'TitleType', front: titleTypeValues },
+  condition: { php: 'PropertyCondition', front: conditionValues },
+};
+
+function casDeLEnum(nom: string): string[] {
+  const source = readFileSync(join(RACINE, 'takussan-api', 'app', 'Models', 'Enums', `${nom}.php`), 'utf8');
+  return [...source.matchAll(/^\s*case\s+\w+\s*=\s*'([^']+)'\s*;/gm)].map((m) => m[1]);
 }
 
-function tableFront(locale: string, sousArbre: string): Record<string, string> {
-  const chemin = join(RACINE, 'takussan-web', 'src', 'messages', `${locale}.json`);
-  const dictionnaire = JSON.parse(readFileSync(chemin, 'utf8')) as Record<string, unknown>;
-  const propriete = (dictionnaire.property ?? {}) as Record<string, unknown>;
-  const table = (propriete[sousArbre] ?? {}) as Record<string, string>;
-  expect(Object.keys(table).length, `property.${sousArbre} vide dans ${chemin}`).toBeGreaterThan(1);
-  return table;
+function sousArbre(locale: string, espace: string): Record<string, unknown> {
+  const dictionnaire = JSON.parse(readFileSync(join(SRC, 'messages', `${locale}.json`), 'utf8')) as Record<string, unknown>;
+  return espace.split('.').reduce<Record<string, unknown>>(
+    (noeud, cle) => ((noeud?.[cle] ?? {}) as Record<string, unknown>),
+    dictionnaire,
+  );
 }
 
-/** Toutes les divergences réellement présentes dans l'arbre, à l'instant du test. */
-function divergencesMesurees(): string[] {
-  const trouvees: string[] = [];
-  for (const [groupe, sousArbre] of Object.entries(GROUPES)) {
-    for (const locale of LOCALES) {
-      const api = tablePhp(locale, groupe);
-      const front = tableFront(locale, sousArbre);
-      for (const cle of Object.keys(api).sort()) {
-        if (front[cle] !== undefined && front[cle] !== api[cle]) {
-          trouvees.push(`${groupe}.${locale}.${cle}`);
-        }
-      }
+function fichiersDuFront(dossier: string, acc: string[] = []): string[] {
+  for (const nom of readdirSync(dossier)) {
+    const chemin = join(dossier, nom);
+    if (statSync(chemin).isDirectory()) {
+      if (nom === '__tests__' || nom === 'messages' || nom === 'node_modules') continue;
+      fichiersDuFront(chemin, acc);
+    } else if (/\.(ts|tsx)$/.test(nom) && !/\.(test|spec)\.tsx?$/.test(nom)) {
+      acc.push(chemin);
     }
+  }
+  return acc;
+}
+
+/** Le code seul : un commentaire qui RACONTE l'histoire d'un `type_label` n'en lit aucun. */
+function sansCommentaires(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1');
+}
+
+/**
+ * Une LECTURE ou une DÉCLARATION de champ — `p.status_label`, `p?.type_label`, `p['condition_label']`,
+ * `title_type_label: string` —, jamais une chaîne : `t('status_label')` est une clé de dictionnaire
+ * (`MaintenanceList`), pas un champ de l'API.
+ */
+const NOMS = LIBELLES_RETIRES.join('|');
+const MOTIF = new RegExp(`(?:\\?\\.|\\.)\\s*(${NOMS})\\b|\\[\\s*['"](${NOMS})['"]\\s*\\]|^\\s*(${NOMS})\\??\\s*:`, 'gm');
+const nomLu = (m: RegExpMatchArray) => m[1] ?? m[2] ?? m[3];
+
+function lecturesDuFront(): Map<string, string[]> {
+  const trouvees = new Map<string, string[]>();
+  for (const fichier of fichiersDuFront(SRC)) {
+    const noms = [...sansCommentaires(readFileSync(fichier, 'utf8')).matchAll(MOTIF)].map(nomLu);
+    if (noms.length > 0) trouvees.set(relative(SRC, fichier), [...new Set(noms)]);
   }
   return trouvees;
 }
 
-describe('TCK-351 — parité des libellés de bien entre l’API et le dictionnaire du front', () => {
-  it('n’introduit aucune divergence nouvelle', () => {
-    const nouvelles = divergencesMesurees().filter((d) => !DIVERGENCES_CONNUES.has(d));
-    // Une divergence neuve, c'est deux textes différents pour le même état, affichés dans le
-    // même parcours — le défaut que TCK-351 existe pour solder, en train de grossir.
-    expect(nouvelles).toEqual([]);
+describe('TCK-351 — le front possède le texte affiché d’un bien', () => {
+  it('l’API n’émet plus aucun des six libellés de bien', () => {
+    const ressource = readFileSync(
+      join(RACINE, 'takussan-api', 'app', 'Http', 'Resources', 'PropertyResource.php'),
+      'utf8',
+    );
+    const emis = LIBELLES_RETIRES.filter((cle) => new RegExp(`'${cle}'\\s*=>`).test(ressource));
+    expect(emis, 'PropertyResource émet de nouveau un libellé : le front possède le texte affiché').toEqual([]);
   });
 
-  it('ne garde aucune entrée qui aurait cessé de diverger', () => {
-    const mesurees = new Set(divergencesMesurees());
-    const perimees = [...DIVERGENCES_CONNUES].filter((d) => !mesurees.has(d));
-    // Sans ce contrôle, la liste pourrit : elle finirait par excuser des divergences qui
-    // n'existent plus, en masquant celles qui les ont remplacées.
-    expect(perimees).toEqual([]);
+  it('aucun fichier du front ne relit un libellé de bien venu de l’API', () => {
+    const lectures = lecturesDuFront();
+    const fautives = [...lectures].filter(([fichier]) => !LECTURES_HORS_BIEN.has(fichier));
+    expect(
+      fautives,
+      'traduire le CODE par `libelleDeBien` (@/lib/biens/libelles-de-bien), jamais relire un `*_label`',
+    ).toEqual([]);
+    const perimees = [...LECTURES_HORS_BIEN.keys()].filter((fichier) => !lectures.has(fichier));
+    expect(perimees, 'entrée de LECTURES_HORS_BIEN qui ne lit plus rien : la retirer').toEqual([]);
   });
 
-  it('mesure réellement quelque chose', () => {
-    // La vacuité qui ressemble le plus à un succès : deux sources illisibles, zéro comparaison,
-    // et les deux contrôles ci-dessus au vert sur des ensembles vides.
-    let comparees = 0;
-    for (const [groupe, sousArbre] of Object.entries(GROUPES)) {
+  it('le balayage voit vraiment quelque chose', () => {
+    // La vacuité qui ressemble le plus à un succès : un dossier mal visé, zéro fichier lu, et le
+    // contrôle ci-dessus vert sur un ensemble vide. Puis le motif lui-même, éprouvé sur du code.
+    expect(fichiersDuFront(SRC).length).toBeGreaterThan(500);
+    const code = sansCommentaires(
+      "// type_label raconté\nconst x = property.status_label ?? t('condition_label');\ny = p?.['type_label'];\n  rent_period_label?: string;",
+    );
+    expect([...code.matchAll(MOTIF)].map(nomLu)).toEqual(['status_label', 'type_label', 'rent_period_label']);
+  });
+
+  it.each(Object.entries(ENUMS))(
+    '%s — chaque cas de l’enum de l’API a sa clé dans fr, en et wo, et le front le connaît',
+    (champ, { php, front }) => {
+      const cas = casDeLEnum(php);
+      expect(cas.length, `aucun cas lu dans ${php}.php`).toBeGreaterThan(1);
+      // Inconnu de la liste du front, le code sortirait brut même avec sa clé (`enumLabel`).
+      expect(cas.filter((c) => !front.includes(c)), `cas de ${php} absents de la liste du front`).toEqual([]);
+      const espace = ESPACES_DES_LIBELLES_DE_BIEN[champ as ChampLibelleDeBien];
       for (const locale of LOCALES) {
-        const api = tablePhp(locale, groupe);
-        const front = tableFront(locale, sousArbre);
-        comparees += Object.keys(api).filter((c) => front[c] !== undefined).length;
+        const table = sousArbre(locale, espace);
+        const manquants = cas.filter((c) => typeof table[c] !== 'string' || table[c] === '');
+        expect(manquants, `${espace} (${locale}) : clés manquantes`).toEqual([]);
       }
-    }
-    expect(comparees).toBeGreaterThan(80);
-  });
+    },
+  );
 });

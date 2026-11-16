@@ -152,8 +152,8 @@ export async function apiFetch<T>(
   options: ApiFetchOptions = {},
 ): Promise<T> {
   // TCK-335 — la locale part en `Accept-Language`, comme le fait `apiRequest`. Sans elle,
-  // les libellés d'énumération de l'API (`type_label`, `contract_type_label`, `status_label`)
-  // sortent dans `APP_LOCALE` — c'est-à-dire dans la langue du SERVEUR, pas du visiteur — et
+  // les textes que l'API rend encore (messages d'erreur ; les `*_label` de bien, eux, ont disparu
+  // avec TCK-351) sortent dans `APP_LOCALE` — c'est-à-dire dans la langue du SERVEUR, pas du visiteur — et
   // les deux surfaces les plus parcourues du site public, `/properties` et la fiche, étaient
   // justement celles qui passaient par ici.
   //

@@ -66,8 +66,8 @@ export default async function Page({ params }: { readonly params: Promise<{ id: 
     getTranslations(PROPERTY_ENUM_NAMESPACES.type),
   ]);
 
-  // Le front possède le texte affiché : `type_label` arrive de l'API en anglais (cf. `[id]/page.tsx`).
-  const typeLibelle = bien.type ? enumLabel(tType, propertyTypeValues, bien.type) : bien.type_label;
+  // Le front possède le texte affiché (TCK-351) : l'API n'émet que le code `type`.
+  const typeLibelle = bien.type ? enumLabel(tType, propertyTypeValues, bien.type) : '';
   const urlPublique = bien.slug ? `${origineSite()}${hrefLocalise(`/properties/${bien.slug}`, locale as Locale)}` : null;
   // Les demandes arrivent sur WhatsApp au numéro VÉRIFIÉ que l'auteur a déclaré WhatsApp (feuille de compte).
   const numeroWhatsApp = utilisateur.phone && utilisateur.phone_verified_at && utilisateur.phone_whatsapp ? utilisateur.phone : null;

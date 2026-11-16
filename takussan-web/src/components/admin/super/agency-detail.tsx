@@ -50,6 +50,7 @@ import type {
   KycDossier,
 } from '@/types/super-admin';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { ESPACES_DES_LIBELLES_DE_BIEN, libelleDeBien } from '@/lib/biens/libelles-de-bien';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 import { AVEC_MOTIF, GESTE_DE_TRANSITION, transitionsDeModeration } from './agency-moderation';
 import { usePlatformAbilities } from './PlatformAbilitiesProvider';
@@ -586,6 +587,8 @@ export function AgencyPropertiesTab({
   loading: boolean;
 }) {
   const t = useTranslations('superAdmin.agencyDetail.properties');
+  // TCK-351 — le statut par le dictionnaire du front : l'API n'émet plus `status_label`.
+  const tStatut = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.status);
   const fmt = useFormatteurs();
   return (
     <Card>
@@ -602,7 +605,7 @@ export function AgencyPropertiesTab({
             <div className="min-w-0">
               <p className="font-medium text-foreground">{property.title}</p>
               <p className="text-sm text-muted-foreground">
-                {property.reference_number} · {property.status_label ?? property.status ?? '—'}
+                {property.reference_number} · {libelleDeBien(tStatut, 'status', property.status) ?? '—'}
               </p>
             </div>
             <p className="font-semibold tabular-nums text-foreground">{fmt.montant(property.price, property.currency)}</p>

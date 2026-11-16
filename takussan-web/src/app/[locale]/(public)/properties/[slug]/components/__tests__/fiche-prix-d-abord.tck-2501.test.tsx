@@ -38,7 +38,6 @@ function bien(contract_type: 'rent' | 'sale', extra: Partial<PropertyDetail> = {
     price: 2240000,
     currency: 'XOF',
     contract_type,
-    contract_type_label: contract_type === 'rent' ? 'Location' : 'Vente',
     rent_period: contract_type === 'rent' ? 'monthly' : null,
     entry_cost: null,
     owner: CONTACT,

@@ -984,7 +984,6 @@ export type AdminPropertyRow = {
   slug: string;
   type: string | null;
   status: string | null;
-  status_label: string | null;
   visibility: string | null;
   contract_type: string | null;
   rent_period: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;

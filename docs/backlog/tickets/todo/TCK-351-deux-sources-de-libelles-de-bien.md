@@ -37,6 +37,37 @@ aucun ADR ne tranche les `*_label`.
 identiques par la garde. Et, pendant la pause wolof : AC3 réduit à la seule partie fr/en de
 `DIVERGENCES_CONNUES` — oui ou non ?
 
+## Arbitrage du porteur (2026-11-16) — option (a), le front gagne
+
+**Décision : issue 1.** Le principe non négociable n° 5 s'applique tel qu'il est écrit — *le front
+possède le texte affiché*. `PropertyResource` cesse d'émettre les six `*_label` (`type_label`,
+`contract_type_label`, `rent_period_label`, `status_label`, `title_type_label`, `condition_label`) ;
+le front rend chaque code par `property.{types,contractTypes,rentPeriods,status,titleTypes,conditions}`
+de next-intl, via `src/lib/biens/libelles-de-bien.ts`. Raison : une seule table à l'écran, la seule qui
+existe aussi hors d'une réponse d'API (filtres, formulaire vide) ; l'issue 2 révoquait un principe,
+l'issue 3 laissait deux tables à tenir en miroir.
+
+**Rupture de contrat relevée** : six clés retirées de `GET /api/public/properties/{slug}`, des listes
+publiques, de `/api/properties` et de `/api/admin/agencies/{id}/properties`. Aucun consommateur hors du
+front n'est connu (l'API n'a jamais servi en production). Côté API, `lang/<locale>/properties.php` garde
+`type` et `contract_type` pour leurs seuls lecteurs serveur (alias et suggestions de recherche — que le
+front retraduit par code —, titre du radar, `SearchWolofReviewSheet`) ; `rent_period`, `status`,
+`title_type` et `condition`, sans autre lecteur, sont retirés.
+
+### Les 44 valeurs, une par une
+
+Le décompte réel de `DIVERGENCES_CONNUES` est **16 fr/en + 28 wo** (et non 20 + 24 comme écrit plus haut).
+
+| Entrée(s) | API (retirée de l'écran) | Front (affiché) | Raison |
+|---|---|---|---|
+| `status.fr.pending` | « Réservé » | **« En attente »** | `pending` est un état « À valider » (`Property::LISTING_PENDING_STATUSES`, TCK-2638), pas une réservation : « Réservé » était un libellé faux (AC5). |
+| `status.en.under_maintenance` | « Under Maintenance » | **« Under maintenance »** | casse de phrase, celle de tout le dictionnaire anglais. |
+| `type.en.resort` | « Resort » | **« Complex »** | le mot du front, celui des cartes et des filtres ; « Resort » reste un terme de recherche. |
+| `type.en.shop` | « Shop » | **« Retail »** | idem ; « Shop » reste un terme de recherche. |
+| `contract_type.fr.{sale,rent}`, `.en.{sale,rent}` | « À vendre / À louer », « For Sale / For Rent » | **« Vente / Location »** (ligne « Contrat »), **« En vente / En location »** (pastille et carte de réservation) | la pastille de la fiche reprend le mot de `ContractTypeChip`, celui de la carte qui y mène. |
+| `rent_period.fr.*`, `.en.*` (8) | « par jour… », « per day… » | **« Journalier / Hebdo / Mensuel / Annuel »**, « Daily… » | la ligne « Période » attend un adjectif ; le suffixe du prix a sa propre table (`rentPeriodsShort`), inchangée. |
+| 28 entrées `*.wo.*` | wolof de l'API (dont `farm` « Jën », `land` « Dëkk ») | la valeur du front, telle quelle | **aucune n'est tranchée ici** : wolof en pause depuis le 2026-10-16. **Reportées à [TCK-342](TCK-342-libelles-wolof-divergents-back-front.md)** pour relecture par un locuteur ; les tables wolof `type`/`contract_type` de l'API restent du vocabulaire de recherche (TCK-339). |
+
 ## Objectif utilisateur
 
 Qu'un bien porte **le même mot d'un écran à l'autre** — que la carte de résultat et la fiche du
@@ -131,19 +162,19 @@ qu'une garde compare doivent la déclencher, sinon elle dort quand l'un bouge se
 
 ## Critères d'acceptation
 
-- [ ] **AC1 — l'arbitrage est écrit** (ADR ou section de ce ticket) et dit laquelle des trois issues
+- [x] **AC1 — l'arbitrage est écrit** (ADR ou section de ce ticket) et dit laquelle des trois issues
       est retenue, avec la raison. *Le dépôt exige qu'une décision structurelle s'écrive AVANT
       l'implémentation.*
-- [ ] **AC2 — les 44 valeurs sont arbitrées une par une**, et celles qui changent le sont sur une
+- [x] **AC2 — les 44 valeurs sont arbitrées une par une**, et celles qui changent le sont sur une
       raison écrite. Un arbitrage en bloc (« l'API gagne partout ») est refusé par ce critère :
       `type.farm` et `type.land` montrent que la bonne réponse change d'une clé à l'autre.
-- [ ] **AC3 — `DIVERGENCES_CONNUES` de la garde est VIDE**, et la garde reste verte. C'est la
+- [x] **AC3 — `DIVERGENCES_CONNUES` de la garde est VIDE**, et la garde reste verte. C'est la
       formulation qui ne peut pas être cochée par une régression : vider la liste sans corriger
       fait rougir le second contrôle.
-- [ ] **AC4 — les 24 divergences wolof portent la trace d'une relecture par un locuteur**, ou sont
+- [x] **AC4 — les 24 divergences wolof portent la trace d'une relecture par un locuteur**, ou sont
       explicitement reportées avec leur ticket. *Aucune garde ne peut établir qu'une traduction est
       juste ; ne pas cocher ce critère sur une parité.*
-- [ ] **AC5 — `status.pending` rend le MÊME état des deux côtés.** C'est la seule divergence qui
+- [x] **AC5 — `status.pending` rend le MÊME état des deux côtés.** C'est la seule divergence qui
       induit l'utilisateur en erreur sur une donnée métier, pas sur un mot.
 
 ## Ce que ce ticket ne fait pas
@@ -151,3 +182,12 @@ qu'une garde compare doivent la déclencher, sinon elle dort quand l'un bouge se
 - Il ne traite pas les autres groupes d'enums que `properties.php` (`agencies`, `leases`…) : la
   mesure n'a porté que sur les biens. Si l'issue retenue est la n°1, ils suivront.
 - Il ne touche pas au vocabulaire de recherche wolof — [TCK-339](TCK-339-vocabulaire-wolof-recherche.md).
+
+## Livré (2026-11-16)
+
+- **AC1** — section « Arbitrage du porteur » ci-dessus, et amendement d'ADR-0021 (les `*_label` quittent la famille des clés dérivées).
+- **AC2** — tableau des 44 valeurs ci-dessus ; les 28 wolof sont reportées, pas tranchées.
+- **AC3** — la liste a disparu avec son objet : il n'y a plus qu'une table à l'écran. `property-labels.parity.test.ts` garde désormais (1) que `PropertyResource` n'émet aucun des six libellés, (2) qu'aucun fichier du front n'en lit un (lecture ou déclaration de champ, commentaires et clés de dictionnaire exclus, liste `LECTURES_HORS_BIEN` à cliquet), (3) que chaque cas des six enums PHP est connu du front et a sa clé fr/en/wo. Ablations : relire `status_label` dans `statut-au-visiteur.ts` → rouge ; réémettre `type_label` → rouge (front) et 4 rouges `PropertyLabelLocaleTest` (API) ; ajouter `case Castle` à `PropertyType` → rouge. Restauré par copie, md5 vérifiés.
+- **AC4** — report explicite vers TCK-342, sans parité invoquée.
+- **AC5** — `pending` se dit « En attente » partout (fiche, carte, console) : `statut-au-visiteur.tck-2638.test.tsx` l'épingle sur la fiche publique.
+- `web-ci.yml` se déclenche aussi sur les six fichiers d'enum que la garde lit.

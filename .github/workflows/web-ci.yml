@@ -43,13 +43,19 @@ on:
       # La garde le lit ; ce déclencheur doit donc le suivre, sinon elle dort quand le
       # contrat géographique bouge seul.
       - 'takussan-api/app/Http/Requests/Concerns/**'
-      # ⚠ `property-labels.parity.test.ts` compare les libellés que `PropertyResource` ÉMET
-      # (traduits par `enumLabel()` depuis ces fichiers) à ceux que le dictionnaire du front
-      # affiche. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle dort
-      # quand le back bouge seul — et c'est précisément ce qui a laissé 44 divergences
-      # s'installer sans que rien ne le signale (TCK-351).
+      # ⚠ `property-labels.parity.test.ts` (TCK-351, option a : le front possède le texte affiché)
+      # lit `PropertyResource` — qui ne doit plus émettre aucun `*_label` de bien — et les six
+      # enums dont le front traduit les codes : un cas ajouté côté API sans sa clé fr/en/wo doit
+      # réveiller la garde. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle
+      # dort quand le back bouge seul — c'est ce qui avait laissé 44 divergences s'installer.
       - 'takussan-api/lang/**'
       - 'takussan-api/app/Http/Resources/PropertyResource.php'
+      - 'takussan-api/app/Models/Enums/PropertyType.php'
+      - 'takussan-api/app/Models/Enums/ContractType.php'
+      - 'takussan-api/app/Models/Enums/RentPeriod.php'
+      - 'takussan-api/app/Models/Enums/PropertyStatus.php'
+      - 'takussan-api/app/Models/Enums/TitleType.php'
+      - 'takussan-api/app/Models/Enums/PropertyCondition.php'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
       # TCK-508 — `field-matrix.test.ts` lit la famille FONCIÈRE de `PropertyLabels::FAMILLES` :
       # les types sans « état du bien » côté front doivent être exactement ceux-là.
@@ -98,13 +104,15 @@ on:
       # La garde le lit ; ce déclencheur doit donc le suivre, sinon elle dort quand le
       # contrat géographique bouge seul.
       - 'takussan-api/app/Http/Requests/Concerns/**'
-      # ⚠ `property-labels.parity.test.ts` compare les libellés que `PropertyResource` ÉMET
-      # (traduits par `enumLabel()` depuis ces fichiers) à ceux que le dictionnaire du front
-      # affiche. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle dort
-      # quand le back bouge seul — et c'est précisément ce qui a laissé 44 divergences
-      # s'installer sans que rien ne le signale (TCK-351).
+      # TCK-351 — la garde décrite au déclencheur `pull_request` (resource + six enums).
       - 'takussan-api/lang/**'
       - 'takussan-api/app/Http/Resources/PropertyResource.php'
+      - 'takussan-api/app/Models/Enums/PropertyType.php'
+      - 'takussan-api/app/Models/Enums/ContractType.php'
+      - 'takussan-api/app/Models/Enums/RentPeriod.php'
+      - 'takussan-api/app/Models/Enums/PropertyStatus.php'
+      - 'takussan-api/app/Models/Enums/TitleType.php'
+      - 'takussan-api/app/Models/Enums/PropertyCondition.php'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
       - 'takussan-api/app/Support/Search/PropertyLabels.php'
       # TCK-633 (lot D) — les trois gardes croisées décrites au déclencheur `pull_request`.

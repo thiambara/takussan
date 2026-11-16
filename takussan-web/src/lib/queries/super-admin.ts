@@ -451,7 +451,8 @@ export async function deleteAdminUserSession(
  * contre ce que TCK-336 affirmait :
  *   · ce tableau n'a AUCUNE vignette — ni `<img>`, ni `next/image`, ni `main_photo_url`
  *     dans le fichier. Ne pas lui en « rétablir » une ;
- *   · les seules clés qu'il lit hors colonnes sont `location`, `status_label` et `agency`.
+ *   · les seules clés qu'il lit hors colonnes sont `location` et `agency` (`status_label` en est
+ *     sorti avec TCK-351 : le statut se traduit par `property.status` du front).
  *     Elles ne peuvent pas être demandées (spatie rend 400) : la ressource les sert
  *     inconditionnellement, et le test le vérifie des deux côtés.
  */

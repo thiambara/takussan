@@ -53,7 +53,7 @@ export interface AnnonceEnLigneDonnees {
   /** `en-ligne` : public et visible ; `verification` : en attente de modération. */
   readonly etat: EtatDeLAnnonce;
   readonly type: PropertyType;
-  /** Le libellé du type, rendu par l'API (`type_label`). */
+  /** Le libellé du type, traduit par le dictionnaire du front depuis le code (TCK-351). */
   readonly typeLibelle: string;
   readonly contrat: ContractType | null;
   readonly periode: RentPeriod | null;

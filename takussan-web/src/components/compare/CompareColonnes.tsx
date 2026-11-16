@@ -21,6 +21,7 @@ import {
   type LigneComparee,
 } from '@/components/compare/compare-rows';
 import { ESPACE_DU_CATALOGUE, libelleEquipement } from '@/lib/libelle-equipement';
+import { ESPACES_DES_LIBELLES_DE_BIEN, libelleDeBien } from '@/lib/biens/libelles-de-bien';
 
 /**
  * TCK-2509 — le comparateur en COLONNES ALIGNÉES, au téléphone comme au bureau.
@@ -142,6 +143,11 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
   const t = useTranslations('compare');
   const tRows = useTranslations('compare.rows');
   const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
+  // TCK-351 — les codes du bien par le dictionnaire du front, comme sur la fiche.
+  const tType = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.type);
+  const tContrat = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.contract_type);
+  const tPeriode = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.rent_period);
+  const tTitre = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.title_type);
   const { locale } = useFormatteurs();
   const idBascule = useId();
   const [seulementCeQuiDiffere, setSeulementCeQuiDiffere] = useState(true);
@@ -149,8 +155,19 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
 
   const properties = useMemo(() => columns.map((col) => col.property), [columns]);
   const lignes = useMemo(
-    () => buildCompareRows(properties, locale, (tag) => libelleEquipement(tag, tCatalogue)),
-    [properties, locale, tCatalogue],
+    () => {
+      const traducteurs = { type: tType, contract_type: tContrat, rent_period: tPeriode, title_type: tTitre };
+      return buildCompareRows(
+        properties,
+        locale,
+        (tag) => libelleEquipement(tag, tCatalogue),
+        (champ, code) => {
+          const t = traducteurs[champ as keyof typeof traducteurs];
+          return t ? libelleDeBien(t, champ, code) : (code ?? null);
+        },
+      );
+    },
+    [properties, locale, tCatalogue, tType, tContrat, tPeriode, tTitre],
   );
 
   const n = columns.length;

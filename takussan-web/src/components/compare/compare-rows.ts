@@ -2,6 +2,7 @@ import type { PropertyDetail, PropertyTag } from '@/types/property';
 import { type CompareRow, highlightDivergent, type HighlightedRow } from '@/lib/compare';
 import type { Locale } from '@/i18n/config';
 import { formatPrice } from '@/lib/utils';
+import type { ChampLibelleDeBien } from '@/lib/biens/libelles-de-bien';
 
 /**
  * TCK-633 — le libellé d'un équipement à l'écran : `libelleEquipement(tag, t)` (lot D), que le
@@ -10,6 +11,15 @@ import { formatPrice } from '@/lib/utils';
 export type LibelleDEquipement = (tag: PropertyTag) => string;
 
 const NOM_EN_BASE: LibelleDEquipement = (tag) => tag.name;
+
+/**
+ * TCK-351 — le libellé d'un CODE de bien (`type`, `contract_type`, `rent_period`, `title_type`),
+ * que le composant lie au dictionnaire du front (`libelleDeBien`). L'API n'émet plus de `*_label` :
+ * sans traducteur (un appelant hors React), le code brut.
+ */
+export type LibelleDeCode = (champ: ChampLibelleDeBien, code: string | null | undefined) => string | null;
+
+const CODE_BRUT: LibelleDeCode = (_champ, code) => code ?? null;
 
 /**
  * TCK-082 — transforms the list of fetched properties into a stable set
@@ -84,6 +94,7 @@ export function buildCell(
   property: PropertyDetail | null,
   locale: Locale,
   libelleEquipement: LibelleDEquipement = NOM_EN_BASE,
+  libelleDeCode: LibelleDeCode = CODE_BRUT,
 ): CompareCell {
   if (!property) return null;
 
@@ -97,19 +108,18 @@ export function buildCell(
       // currencies.
       return formatPrice(property.price, property.currency || 'XOF', locale);
     case 'contract_type':
-      return property.contract_type_label ?? property.contract_type ?? null;
+      return libelleDeCode('contract_type', property.contract_type);
     case 'type':
-      return property.type_label ?? property.type ?? null;
+      return libelleDeCode('type', property.type);
     case 'rent_period':
-      return property.rent_period_label ?? property.rent_period ?? null;
+      return libelleDeCode('rent_period', property.rent_period);
     case 'entry_cost':
       return property.entry_cost
         ? formatPrice(property.entry_cost.total, property.currency || 'XOF', locale)
         : null;
-    // Le libellé vient de l'API, dans la langue négociée — le même que celui de la fiche. Aucun
-    // second vocabulaire côté front : `DIVERGENCES_CONNUES` de la garde de parité ne grossit pas.
+    // TCK-351 — le même dictionnaire que la fiche (`property.titleTypes`), jamais un libellé d'API.
     case 'title_type':
-      return property.title_type_label ?? null;
+      return libelleDeCode('title_type', property.title_type);
     case 'city':
       return property.location?.city ?? null;
     case 'quarter':
@@ -149,10 +159,11 @@ export function buildCompareRows(
   properties: readonly (PropertyDetail | null)[],
   locale: Locale,
   libelleEquipement: LibelleDEquipement = NOM_EN_BASE,
+  libelleDeCode: LibelleDeCode = CODE_BRUT,
 ): LigneComparee[] {
   const rows: CompareRow<CompareCell>[] = COMPARE_ROW_DEFS.map((def) => ({
     id: def.id,
-    values: properties.map((property) => buildCell(def, property, locale, libelleEquipement)),
+    values: properties.map((property) => buildCell(def, property, locale, libelleEquipement, libelleDeCode)),
   })).filter((row) => row.values.some(porteUneValeur));
   return highlightDivergent<CompareCell>(rows).map((row) => ({
     ...row,
