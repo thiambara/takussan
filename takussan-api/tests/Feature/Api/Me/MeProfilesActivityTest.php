@@ -77,7 +77,8 @@ class MeProfilesActivityTest extends TestCase
             ->getJson('/api/me/profiles?include=activity')
             ->assertOk();
 
-        return collect($reponse->json('data'))->mapWithKeys(fn (array $p) => [$p['id'] => $p['activity']])->all();
+        // L'ordre des profils n'est pas le contrat : trié par clé, le test ne dépend plus de l'ordre de lecture.
+        return collect($reponse->json('data'))->mapWithKeys(fn (array $p) => [$p['id'] => $p['activity']])->sortKeys(SORT_NATURAL)->all();
     }
 
     public function test_ac3_l_agent_de_deux_agences_lit_les_compteurs_propres_a_chaque_espace(): void
@@ -128,7 +129,7 @@ class MeProfilesActivityTest extends TestCase
         $this->assertSame([
             "owner:{$aDakar->id}" => ['properties' => 2, 'rent_overdue' => 1],
             "owner:{$aThies->id}" => ['properties' => 1, 'rent_overdue' => 0],
-        ], $this->activite($user));
+        ], $this->activite($user)); // $aDakar est créé avant $aThies : son identifiant trie en premier.
     }
 
     /** Le prestataire (profil sans agence) à côté d'un profil d'agent : chacun ses compteurs. */
