@@ -95,6 +95,7 @@ use App\Http\Controllers\Public\InvitationRenewalRequestController;
 use App\Http\Controllers\Public\PublicAgentController;
 use App\Http\Controllers\Public\PublicPropertyController;
 use App\Http\Controllers\Public\PublicReviewController;
+use App\Http\Controllers\Public\PublicSponsoredImpressionController;
 use App\Http\Controllers\Public\RadarClaimController;
 use App\Http\Controllers\ServiceProviderOnboardingController;
 use App\Http\Controllers\Webhook\MtargetSmsStatusController;
@@ -380,6 +381,8 @@ final class PlatformAnyRouteExempt
         PublicPropertyController::class.'@view' => self::PUBLIC,
         PublicPropertyController::class.'@visitRequest' => self::PUBLIC,
         PublicReviewController::class.'@report' => self::PUBLIC,
+        // TCK-2569 — un compteur de mesure : le navigateur déclare les emplacements affichés, 204 toujours, aucune écriture hors des compteurs d'impressions.
+        PublicSponsoredImpressionController::class.'@__invoke' => self::PUBLIC,
         RadarClaimController::class.'@confirm' => self::PUBLIC,
         RadarClaimController::class.'@decline' => self::PUBLIC,
         RadarClaimController::class.'@otp' => self::PUBLIC,

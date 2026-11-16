@@ -154,7 +154,8 @@ export function HomepageDiscovery({
   });
   const raccourcisAffiches = autreVille ? (relus.data ?? AUCUN_RACCOURCI) : raccourcis;
 
-  // TCK-2495 — aucun bien dans deux rangées ; la vedette garde les siens (impressions comptées).
+  // TCK-2495 — aucun bien dans deux rangées ; la vedette garde les siens (chaque carte affichée déclare
+  // son impression, TCK-2569).
   const { near: biensProches, featured: biensVedette, latest: biensNouveaux } = rangeesSansDoublon({
     near: near?.items ?? NO_ITEMS,
     featured: rows?.featured.items ?? NO_ITEMS,

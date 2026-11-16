@@ -37,6 +37,14 @@ groupée, non bloquante, robots exclus ; `BoostStatsRecorder` quitte la recherch
 cesse de servir l'emplacement de tête quand des places réservées ouvrent la page 1 (cas 1 seulement :
 le doublon entre pages reste au front) ? Et que deviennent les statistiques passées ?
 
+## Décision du porteur (2026-11-16)
+
+**Option (a)** : c'est **le front qui déclare** ce qu'il affiche réellement — seuls les emplacements
+effectivement rendus et visibles comptent une impression ; l'API ne compte plus une impression au
+simple service d'un emplacement. Les **statistiques passées sont gardées** telles quelles, sans
+réécriture rétroactive. ADR-0061 est amendé (section « Amendement du 2026-11-16 (TCK-2569) »), avec
+la bascule au déploiement de ce ticket.
+
 ## Objectif utilisateur
 
 Le propriétaire ou l'agence qui paie une mise en avant lit, dans ses statistiques, le nombre de fois
@@ -66,8 +74,35 @@ retirerait (ce qui suppose qu'elle connaisse les places réservées et la suite 
 
 ## Critères d'acceptation
 
-1. Sur la première page avec des places réservées en tête, l'emplacement de tête non inséré ne
+1. [x] Sur la première page avec des places réservées en tête, l'emplacement de tête non inséré ne
    compte aucune impression ; les emplacements insérés en comptent une chacun.
-2. Sur la suite continue, un emplacement retiré pour doublon ne compte aucune impression.
-3. Une régression qui recompterait à l'émission rougit un test (vérifié par ablation).
-4. Aucun contact ni identifiant de bien non public ne transite par l'appel de déclaration.
+2. [x] Sur la suite continue, un emplacement retiré pour doublon ne compte aucune impression.
+3. [x] Une régression qui recompterait à l'émission rougit un test (vérifié par ablation).
+4. [x] Aucun contact ni identifiant de bien non public ne transite par l'appel de déclaration.
+
+## Livré (2026-11-16)
+
+- L'API ne compte plus au service : appels retirés de `PropertySearchService` et de
+  `HomepageDiscoveryService`, middleware `boost.impressions` (`CountBoostImpressions`) supprimé. La
+  rangée vedette de l'accueil bascule aussi : la décision vise tout emplacement servi.
+- Déclaration : `POST /api/public/properties/sponsored-impressions` (`PublicSponsoredImpressionController`),
+  `slugs[]` en formulaire (requête simple, sans pré-vérification CORS), 24 au plus, 204 toujours,
+  filtre `public()` + vedette active, robots exclus, déduplication 30 min reprise par
+  `BoostStatsRecorder::declared()`, limiteur `public-sponsored-impressions`, rangée `PUBLIC` dans
+  `PlatformAnyRouteExempt` (garde 2FA), `AucunGuardTokenTest` et `IpRateLimitKeyTest`.
+- Front : `components/boost/impressions-affichees.ts` — la CELLULE rendue déclare (seuil 0,5
+  d'`IntersectionObserver`, une fois par bien et par document, lot à 1 s ou à `pagehide`) ; branché
+  sur `CelluleDeLaListe` (`PropertiesDiscoveryPage`) et sur la rangée d'emplacements de `PropertyRow`.
+- AC1 et AC2 : `PropertiesDiscoveryPage.impressions.test.tsx` (tête retirée sous places réservées,
+  doublon retiré : aucune déclaration ; témoin : tête insérée déclarée) — ablation « déclarer depuis
+  `sponsored` de la réponse » : 2 rouges. Le doublon est joué sur une page ; la règle entre pages est celle de
+  `suiteDesPages` (`suite-des-pages.test.ts`), et une cellule non montée ne déclare rien.
+- Déploiement : `docs/deploiement/actions/2026-11-16-dater-la-bascule-des-impressions-sponsorisees.md`
+  (vérifier l'appel réel du navigateur, écrire la date de bascule dans ADR-0061).
+- AC3 : `SponsoredImpressionsTest::test_la_recherche_qui_sert_un_emplacement_ne_compte_aucune_impression`
+  — ablation « recompter dans `PropertySearchService` » : rouge.
+- AC4 : seuls des slugs d'emplacements servis transitent (aucun contact) ; un bien non public rend le
+  même 204 vide qu'un slug inconnu et ne compte rien
+  (`test_un_bien_non_public_ou_inconnu_ne_compte_rien_et_ne_fuit_pas`) — ablation de `public()` :
+  rouge. Robots : ablation de l'exclusion, 2 rouges dans `RobotImpressionsTest`.
+

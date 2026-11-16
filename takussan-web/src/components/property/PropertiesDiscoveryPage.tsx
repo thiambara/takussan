@@ -26,6 +26,7 @@ import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 import { ArriveeSponsorisee } from '@/components/boost/arrivee-sponsorisee';
+import { useEmplacementAffiche } from '@/components/boost/impressions-affichees';
 import { badgeDe, lireEmplacements, placementDe } from '@/components/boost/lecture-recherche';
 import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 import { LienLocalise } from '@/components/shared/LienLocalise';
@@ -212,6 +213,9 @@ const LG_BREAKPOINT_PX = 1024;
  *
  * Un emplacement porte le marqueur d'arrivée (`?src=sponsored`, TCK-794) et sa mention en TEXTE :
  * ruban « Sponsorisé » sur la carte, mention sobre dans la ligne (ADR-0061 §7).
+ *
+ * TCK-2569 — et c'est LA CELLULE qui déclare l'impression, une fois affichée : un emplacement que
+ * `suiteDesPages` n'a pas inséré n'a pas de cellule, et ne peut donc rien déclarer.
  */
 function CelluleDeLaListe({
   carte,
@@ -226,9 +230,11 @@ function CelluleDeLaListe({
 }) {
   const sponsorise = carte.genre === 'sponsorise';
   const place = sponsorise ? 'sponsorise' : placementDe(carte.bien) === 'reserved' ? 'vedette' : undefined;
+  const cellule = useRef<HTMLDivElement>(null);
+  useEmplacementAffiche(cellule, sponsorise ? carte.bien.slug : null);
 
   return (
-    <div data-emplacement={sponsorise ? 'sponsorise' : undefined} data-cellule={carte.genre}>
+    <div ref={cellule} data-emplacement={sponsorise ? 'sponsorise' : undefined} data-cellule={carte.genre}>
       <ArriveeSponsorisee value={sponsorise}>
         <PropertyCard
           property={carte.bien}

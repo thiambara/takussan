@@ -99,7 +99,6 @@ use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\OtpPreview;
 use App\Services\Auth\Voice\VoiceCodeDrivers;
 use App\Services\Auth\Voice\VoiceCodeSender;
-use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
@@ -246,10 +245,6 @@ class AppServiceProvider extends ServiceProvider
         // TCK-602 (ADR-0051 §4) — SCOPED : le journal du webhook en cours, que le middleware
         // `webhook.journal` ouvre et que le gestionnaire annote, dans la même requête.
         $this->app->scoped(WebhookJournal::class);
-
-        // TCK-708 (P01.04) — SCOPED : les impressions que la requête a servies, que le middleware
-        // `boost.impressions` diffère puis valide, une fois la réponse connue (aucune sur un 304).
-        $this->app->scoped(BoostStatsRecorder::class);
 
         // TCK-602 — la route du paquet Lemon Squeezy est reprise à l'URL et au nom identiques
         // (`routes/lemon-squeezy.php`), derrière un débit et le journal : le paquet n'en avait aucun.
@@ -515,6 +510,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-598 — `POST /public/properties/{slug}/view`. Le service de comptage déduplique déjà
         // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
         RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
+        // TCK-2569 — `POST /public/properties/sponsored-impressions`, la déclaration groupée des emplacements affichés.
+        // Le compteur déduplique par (visiteur, bien) sur 30 min ; ce limiteur borne les appels, pas le compte.
+        RateLimiter::for('public-sponsored-impressions', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
         // TCK-2599 (ADR-0093) — `POST /public/geo/resolve-link` : un lien collé SANS compte déclenche
         // une requête SORTANTE. Par IP (réseau /64 en IPv6), et plus serré que la route connectée
         // (20/min par compte) ; préfixe propre, pour ne partager aucun compteur avec elle.

@@ -95,6 +95,8 @@ class AucunGuardTokenTest extends TestCase
         'GET api/public/properties/neighborhoods' => self::PUBLIQUE,
         'GET api/public/properties/price-distribution' => self::PUBLIQUE,
         'GET api/public/properties/search' => self::PUBLIQUE,
+        // TCK-2569 — la déclaration des emplacements sponsorisés affichés.
+        'POST api/public/properties/sponsored-impressions' => self::PUBLIQUE,
         'GET api/public/properties/sitemap' => self::PUBLIQUE,
         'GET api/public/properties/{property}/documents/{document}/file' => self::PUBLIQUE,
         'GET api/public/properties/{slug}' => self::PUBLIQUE,
