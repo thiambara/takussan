@@ -88,33 +88,33 @@ Suites de **TCK-600** : verif-600 passe 2 (B1-bis, « API, défense en profondeu
 
 ## Delta à produire
 
-- [ ] Back : `BaseFormRequest::validationData()` → corps seul pour une méthode non sûre ;
+- [x] Back : `BaseFormRequest::validationData()` → corps seul pour une méthode non sûre ;
       `prepareForValidation` normalise le corps seul. `StartImpersonationRequest` garde sa forme
       (redondante, gardée par son test).
-- [ ] Back : inventaire des écritures qui lisent un champ en query (`grep -rn "query(" app/Http`),
+- [x] Back : inventaire des écritures qui lisent un champ en query (`grep -rn "query(" app/Http`),
       consigné dans les Notes, et migration ou exemption motivée.
 - [x] Front : les 21 route handlers passent par l'assistant serveur commun (contrainte 3) (tenu par TCK-894, relevé 2026-11-16).
 - [x] Garde front (tenu par TCK-894, `relais-chemin-serveur.test.ts`, relevé 2026-11-16) : un test (ou `scripts/check-*.mjs`) échoue si un fichier `src/app/api/**/route.ts`
       lit `API_URL` / `NEXT_PUBLIC_API_URL` au lieu de l'assistant commun.
-- [ ] Tests : `QueryNeverFeedsAWriteTest` (back), ~~tests des route handlers (front)~~ — caduc depuis TCK-894.
+- [x] Tests : `QueryNeverFeedsAWriteTest` (back), ~~tests des route handlers (front)~~ — caduc depuis TCK-894.
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (rouge sur `839be671`).** Un test parcourt **`Route::getRoutes()`** et, pour chaque route
+- [x] **AC1 (rouge sur `839be671`).** Un test parcourt **`Route::getRoutes()`** et, pour chaque route
       d'écriture dont l'action type-hint une `BaseFormRequest`, construit la requête avec un champ de
       ses `rules()` placé **en query seulement** : `validated()` ne le contient pas. Les exemptions
       motivées sont listées dans le test. Une `FormRequest` ajoutée demain est couverte sans toucher au
       test.
-- [ ] **AC2.** `POST /api/customers/{id}/notes?body=injecte` avec un corps `{"body":"saisi"}` : la note
+- [x] **AC2.** `POST /api/customers/{id}/notes?body=injecte` avec un corps `{"body":"saisi"}` : la note
       porte « saisi » ; sans corps, 422.
-- [ ] **AC3.** Les tests existants des écritures restent verts (le front envoie déjà ses champs dans le
+- [x] **AC3.** Les tests existants des écritures restent verts (le front envoie déjà ses champs dans le
       corps) ; l'inventaire de la contrainte 2 est vide ou résolu.
 - [x] **AC4 (rouge sur `839be671`).** *(tenu par TCK-894, relevé 2026-11-16)* La garde front rougit sur un route handler qui lit `API_URL`
       directement ; elle est verte après la migration des 21.
 - [x] **AC5.** *(tenu par TCK-894, relevé 2026-11-16)* Un route handler migré, appelé avec `x-forwarded-for: 203.0.113.7` derrière le nombre de
       mandataires de confiance configuré, transmet `203.0.113.7` à l'API par `API_INTERNAL_URL`
       (test du handler, `fetch` simulé).
-- [ ] Ablations consignées : `validationData()` rendu à `all()` → AC1 rouge ; ~~un handler remis en
+- [x] Ablations consignées : `validationData()` rendu à `all()` → AC1 rouge ; ~~un handler remis en
       `fetch` direct → AC4 rouge~~ — caduc depuis TCK-894.
 
 ## Hors périmètre
@@ -124,4 +124,38 @@ Suites de **TCK-600** : verif-600 passe 2 (B1-bis, « API, défense en profondeu
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Inventaire de la contrainte 2 (2026-11-16).** Les 57 `->query(` de `app/Http/Controllers` relus
+(script de tri par route) : tous sur des `GET` sauf
+
+- `PublicPropertyController::view` (`POST …/view?src=sponsored`) — signal de comptage, sans
+  FormRequest, ni champ validé : **exempté** (une URL réécrite ne fait que compter une vue sponsorisée) ;
+- `LAfricaMobileSmsStatusController`, webhooks WhatsApp — routes `GET`, contrat du fournisseur : hors sujet.
+
+Hors `->query(` : `AgencyController::removeAgent` (`DELETE …/agents|members/{user}`) lisait
+`leave_unassigned` par `boolean()`, query comprise — **migré** au corps seul (le front l'envoie déjà
+dans le corps, `lib/queries/agent-crm.ts`). Côté FormRequest, deux écritures lisent un champ en query
+par contrat : **exemptées** par `$queryKeysAcceptedOnWrite`, motif dans la classe —
+`PurgeExpiredInvitationsRequest` (`filter`, un `DELETE` sans corps) et
+`UnsubscribePublicSearchAlertRequest` (`token`, RFC 8058).
+
+## Livré (2026-11-16)
+
+- `BaseFormRequest`, pour une méthode non sûre : `validationData()` = corps + fichiers (+ clés
+  exemptées) ; `prepareForValidation()` normalise le corps seul ; les clés que la query porte seule
+  sont **cachées** pendant `prepareForValidation()` (rendues avant `authorize()`), pour qu'une
+  sous-classe qui relit `input()` puis `merge()` (`InviteAgentRequest`, `StoreCustomerRequest`…) ne
+  les recopie pas ; une fois les règles connues, un champ **réglé** venu de la query seule est retiré
+  de la query (`input()`/`boolean()` du contrôleur ne le voient plus), les paramètres sans règle
+  (`include`, `fields`, `lang`) restent lisibles. `GET`/`HEAD` inchangés.
+- AC1 : `tests/Feature/Validation/QueryNeverFeedsAWriteTest.php` parcourt `Route::getRoutes()` et
+  compare `validationData()` sans query / avec chaque champ des `rules()` en query ; exemptions
+  recensées dans le test, plancher de 200 écritures couvertes. Les `rules()` qui lisent le modèle lié
+  à la route sont couverts par un champ témoin (le mécanisme ne dépend pas du nom du champ).
+- AC2 : `test_la_note_d_un_client_porte_le_corps_et_non_la_query` et `…_query_seule_est_refusee`.
+- AC3 : 382 tests verts sur `tests/Feature/Validation` + les classes qui postent avec une query.
+- Ablations : `validationData()` rendu à `all()` → AC1 + AC2 (422) rouges ; cacher neutralisé → AC1
+  (6 FormRequests : invitations, clients, demande de passage en agence) rouge ; retrait de la query
+  neutralisé → test `input()` rouge ; `removeAgent` remis à `boolean()` → son test rouge.
+- `StartImpersonationRequest` garde sa forme (redondante). Les 36 classes qui étendent `FormRequest`
+  directement (`LoginRequest`, `StoreAgentHandoverRequest`, `InitiatePaymentRequest`…) ne sont pas
+  couvertes : hors de la classe de base du ticket.

@@ -206,12 +206,18 @@ class AgencyController extends Controller
      * TCK-591 §8 — le retrait passe par {@see AgencyMemberRemovalService}, seul chemin (gardes,
      * journal, portefeuille, flux) ; il s'autorise par `team.remove` dans l'agence de la route.
      * `leave_unassigned=true` assume de laisser un portefeuille sans repreneur.
+     *
+     * TCK-612 — le drapeau se lit dans le CORPS seul, comme le front l'envoie
+     * (`lib/queries/agent-crm.ts`) : `boolean()` lisait aussi la query, et une URL réécrite
+     * (`…?leave_unassigned=1`) faisait retirer un membre sans passation que personne n'avait choisi.
      */
     public function removeAgent(Request $request, Agency $agency, User $user, AgencyMemberRemovalService $removal): JsonResponse
     {
         $this->authorize('removeMember', $agency);
 
-        $removed = $removal->remove($agency, $user, $request->user(), $request->boolean('leave_unassigned'));
+        $corps = $request->isJson() ? $request->json() : $request->request;
+        $leaveUnassigned = filter_var($corps->get('leave_unassigned'), FILTER_VALIDATE_BOOLEAN);
+        $removed = $removal->remove($agency, $user, $request->user(), $leaveUnassigned);
 
         return $this->json(['data' => ['user_id' => $user->id, 'removed' => true, 'removed_profiles' => $removed]]);
     }

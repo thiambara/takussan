@@ -16,6 +16,15 @@ use Closure;
  */
 class PurgeExpiredInvitationsRequest extends BaseFormRequest
 {
+    /**
+     * TCK-612 — exception motivée : un `DELETE` ne porte pas de corps, et `filter[role]` est un
+     * FILTRE (contrainte 1 du ticket), le contrat du front depuis TCK-2665. Le pire qu'une URL
+     * réécrite puisse y mettre est un rôle de la liste blanche, sous la 2FA et la policy.
+     *
+     * @var list<string>
+     */
+    protected array $queryKeysAcceptedOnWrite = ['filter'];
+
     public function authorize(): bool
     {
         $agency = $this->agency();

@@ -11,6 +11,15 @@ use App\Http\Requests\BaseFormRequest;
  */
 class UnsubscribePublicSearchAlertRequest extends BaseFormRequest
 {
+    /**
+     * TCK-612 — exception motivée : RFC 8058 impose le jeton dans l'URI de `List-Unsubscribe`, que
+     * le client de messagerie POSTe telle quelle. Le jeton est le secret même de la désinscription :
+     * qui le tient peut déjà désinscrire, une URL réécrite n'ajoute rien.
+     *
+     * @var list<string>
+     */
+    protected array $queryKeysAcceptedOnWrite = ['token'];
+
     public function authorize(): bool
     {
         return true;
