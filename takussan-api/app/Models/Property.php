@@ -192,6 +192,33 @@ class Property extends AbstractModel implements HasMedia
     /** @var array<int,string> */
     protected static array $requestSearchFields = ['title', 'reference_number', 'description'];
 
+    /**
+     * TCK-578 (ADR-0008, amendement du 2026-11-16) — `filter[search]` de `buildQuery()` cherche en
+     * SQL : ses appelants sont TOUS des consoles (`/api/properties`, le portefeuille, les sous-biens,
+     * `/api/admin/agencies/{agency}/properties`, les biens d'un bailleur), qui listent brouillons,
+     * biens en attente, refusés et privés — que l'index PUBLIC ne contient pas et ne contiendra pas
+     * ({@see shouldBeSearchable()}). La recherche publique reste au moteur (`PropertySearchService`).
+     */
+    protected static function rechercheParLaBase(): bool
+    {
+        return true;
+    }
+
+    /**
+     * TCK-578 (AC4) — la référence exacte en tête, puis le titre, puis le reste ; l'ordre par défaut
+     * de l'appelant départage. Repli de casse par {@see CaseInsensitive}, comme le filtre.
+     *
+     * @return array{0: string, 1: array<int, mixed>}
+     */
+    protected static function rangDeRechercheSql(string $valeur, string $motif): array
+    {
+        return [
+            'CASE WHEN '.CaseInsensitive::sql('properties.reference_number').' = ? THEN 0'
+            .' WHEN '.CaseInsensitive::sql('properties.title').' LIKE ? THEN 1 ELSE 2 END',
+            [CaseInsensitive::fold($valeur), $motif],
+        ];
+    }
+
     /** @var array<int,string> */
     /** TCK-596 (ADR-0041) — l'empreinte du jeton d'export iCal ne sort d'aucune sérialisation. */
     protected $hidden = ['ical_export_token_hash'];

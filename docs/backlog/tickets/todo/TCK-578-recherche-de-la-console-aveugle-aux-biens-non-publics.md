@@ -38,6 +38,13 @@ public, la référence exacte en tête. Les chiffres 196 / 4 sont à re-mesurer 
 (c) repli SQL pour la console (précédent : la console plateforme de TCK-600) ? À trancher avec
 TCK-2457 (prédicat d'indexation) et TCK-345 (moteur), qui recoupent.
 
+**Décision du porteur (2026-11-16) : option (c), repli SQL pour la console.** Quand la recherche
+vise des biens que l'index public ne peut pas contenir, la console cherche en SQL
+(`App\Support\CaseInsensitive`, jamais `LOWER()` nu — piège n° 9) au lieu de Meilisearch. L'index
+public ne reçoit AUCUN bien non public. Précédent : les consoles `/api/admin/agencies` et
+`/api/admin/users`, qui écrivent leur propre `LIKE` par choix (TCK-281). Écrite en amendement
+d'ADR-0008.
+
 ## Objectif utilisateur
 
 Un agent qui tape le titre ou la référence d'un bien de son agence dans la recherche de la console
@@ -75,16 +82,46 @@ Deux voies, toutes deux **structurelles** — le `CLAUDE.md` racine exige un ADR
 
 ## Critères d'acceptation
 
-- [ ] Un ADR tranche entre les voies ci-dessus (ou une autre), avec la mesure du risque
+- [x] Un ADR tranche entre les voies ci-dessus (ou une autre), avec la mesure du risque
       d'exposition d'un bien non public sur la recherche publique.
-- [ ] Un agent trouve un brouillon, un bien en attente, refusé ou privé de son agence par son titre
+- [x] Un agent trouve un brouillon, un bien en attente, refusé ou privé de son agence par son titre
       et par sa référence exacte ; jamais un bien d'une autre agence.
-- [ ] La recherche publique ne rend aucun bien non public — gardé par un test qui rougit si le
+- [x] La recherche publique ne rend aucun bien non public — gardé par un test qui rougit si le
       filtre de visibilité disparaît.
-- [ ] Une référence exacte vient en tête des résultats.
+- [x] Une référence exacte vient en tête des résultats.
 
 ## Hors périmètre
 
 - Les consoles super-admin, qui ont leur propre `LIKE` SQL (TCK-281). La console plateforme
   (TCK-600) cherche déjà « par la base, jamais l'index public » : la voie « repli SQL pour la
   console » a donc un précédent dans le dépôt (relevé 2026-11-16).
+
+## Livré (2026-11-16)
+
+- **Au niveau du mécanisme, pas d'un contrôleur** : tous les appelants de `Property::buildQuery()`
+  sont des consoles (agence, portefeuille, sous-biens, bailleur, super-admin
+  `/api/admin/agencies/{agency}/properties`). `HasQueryBuilder::rechercheParLaBase()` (défaut
+  `false`), surchargé à `true` par `Property`, envoie `filter[search]` au repli SQL existant, déjà
+  replié par `CaseInsensitive`. `PropertySearchService` (public) et `shouldBeSearchable()` inchangés.
+- **AC1** — [ADR-0008, amendement du 2026-11-16](../../../adr/0008-meilisearch-sur-tous-les-environnements.md) :
+  voies (a)/(b) écartées et pourquoi ; le risque d'exposition est nul par construction (l'index
+  ne change pas), et gardé par l'AC3.
+- **AC2** — `RechercheConsoleDesBiensTest::test_l_agent_trouve_son_bien_non_public_par_titre_et_par_reference`
+  (brouillon, en attente, refusé, privé ; titre et référence, casse indifférente ; jamais l'autre
+  agence) + `test_la_console_super_admin_trouve_le_brouillon_d_une_agence`. Ablation :
+  `rechercheParLaBase()` → `false` : 6 rouges sur 11.
+- **AC3** — `test_l_index_public_ne_recoit_aucun_bien_non_public` (moteur seul et
+  `/api/public/properties/search`, quatre états) + témoin public indexé. Ablation :
+  `shouldBeSearchable()` sans les prédicats visibilité/statut → 4 rouges.
+- **AC4** — rang SQL `HasQueryBuilder::rangDeRechercheSql()` (référence exacte → titre → reste),
+  rejoué par `defaultSortsWithRelevance()` ; `sort=` explicite souverain.
+  `test_la_reference_exacte_vient_en_tete` ; ablation du rang → rouge.
+- **Le prix** : la console des biens n'est plus tolérante aux fautes (épinglé par
+  `PropertyDashboardSearchTest::test_dashboard_search_is_strict_by_decision`), ni aux accents
+  (`residence` ≠ `Résidence`), ni aux mots non contigus (`villa almadies`) : un seul motif `%…%`.
+- Les trois autres appelants (`portfolio-summary` égal à la liste, `/children`, biens d'un
+  bailleur) : `test_les_autres_listes_de_console_trouvent_le_brouillon`, rouge par la même ablation.
+- Prémisse : le « brouillon absent » est reproduit (ablation n° 1), le chiffre 196 n'a pas été
+  re-mesuré sur la pile locale.
+- **Aucune migration** : `EXPLAIN ANALYZE` (582 biens) → `properties_agency_id_index`, 1,2 ms ; un
+  `LIKE '%…%'` n'emprunterait aucun index d'expression btree.
