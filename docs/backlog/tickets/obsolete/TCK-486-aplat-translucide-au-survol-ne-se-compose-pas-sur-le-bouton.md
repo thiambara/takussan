@@ -1,7 +1,7 @@
 ---
 id: TCK-486
 title: "Un aplat translucide au survol ne se compose pas sur le fond du bouton : 4,41:1 dans deux composants"
-status: todo
+status: obsolete
 phase: P2
 family: front
 estimate: S
@@ -18,7 +18,8 @@ tags: [front, design-system, accessibilite, contraste, dette]
 
 ## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
 
-**Verdict : caduc probable** — le cas que le ticket prévoyait (« s'il tient le seuil, il se ferme en
+**Verdict : caduc — établi le 2026-11-16 par la feuille compilée, voir « Clôture » ci-dessous** (texte d'origine :
+« caduc probable ») — le cas que le ticket prévoyait (« s'il tient le seuil, il se ferme en
 disant pourquoi »). L'occurrence de `CalendarPage.tsx` a disparu avec la refonte de l'agenda
 (0ca317bc8 / 436853053). Celle de `BrandingBanner` a déménagé en
 `components/agency/BrandingBanner.tsx:46`, dans un bandeau `bg-warning/10`, rendu en clair seulement.
@@ -34,6 +35,15 @@ survolée serait `--foreground`, à **11,93 à 14,87:1** selon le fond qui gagne
 `/app`, agence sans logo) et lire `getComputedStyle(…).color` et `backgroundColor`. Si l'encre est
 `--foreground`, fermer en `obsolete` avec ces ratios. Au passage (remarque, pas un reste) : passer la
 chaîne par `cn()` rendrait le survol déterministe.
+
+### Clôture (2026-11-16)
+
+La certitude ne vient pas de l'ordre des classes mais de la **spécificité**. Feuille compilée de
+`takussan-web/.next/static/chunks/*.css` : `.hover\:text-foreground:hover{color:var(--foreground)}`
+(spécificité 0,2,0, la pseudo-classe compte) contre `.text-warning{color:var(--warning)}` (0,1,0).
+L'encre survolée du bouton de `BrandingBanner` est donc `--foreground` **quel que soit l'ordre de la
+feuille et quel que soit le `hover:bg-*` qui gagne**, soit 11,93 à 14,87:1. Aucun bouton du dépôt ne
+compose plus `text-warning` au survol sur `bg-warning/15` sans encre de survol. Fermé en `obsolete`.
 
 ## Objectif utilisateur
 

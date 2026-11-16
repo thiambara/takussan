@@ -126,6 +126,12 @@ Sans objet : ticket backend.
   le 2026-11-16 : `X-Build-Sha` 9fe34d92a, dont d53b6b23e est ancêtre) —, puis une
   première connexion au mauvais mot de passe doit rendre « identifiants incorrects », pas « Trop de
   tentatives ». Le ticket passe `done` sur ce relevé.
+- **Relevé côté API, 2026-11-16T14:52:07Z** (session, réseau du poste du porteur, contre
+  `https://preview.api.takussan.com`) : `GET /up` → 200 ; **8 ×** `GET /api/auth/oauth/providers` → 200
+  (le nombre d'appels relevé en développement à l'affichage de la page) ; puis
+  `POST /api/auth/login` (compte inexistant, mauvais mot de passe) → **401**, pas 429. Avant
+  correctif, la même suite rendait 429 dès le 6ᵉ appel. Non joué : l'écran lui-même (authentification
+  basique de `preview.takussan.com`) et le 200 au bon mot de passe.
 
 ## Notes d'implémentation
 
