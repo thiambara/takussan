@@ -143,3 +143,10 @@ runner `ubuntu-latest` à `nproc` 4, une seule variable — la commande du step 
   déposée que par un job vert.
 - **AC4** — reste à relever la première nuit après la fusion (`cov.php` produit en parallèle, carte
   d'impact régénérée).
+
+## Reste sur dev
+
+Le code est fusionné (#1689, `1575eea77`) ; AC1 et AC3 sont relevés. **Reste l'AC4** : la première nuit
+après la fusion (ou un `workflow_dispatch` d'`api-ci.yml` sur `dev`), vérifier que le job `couverture`
+produit `cov.php` en `--parallel` et que le step « Régénérer la carte d'impact » pousse un
+`tests/impact-map.json` sans perte inexpliquée de tests. Puis passer le ticket à `done`.
