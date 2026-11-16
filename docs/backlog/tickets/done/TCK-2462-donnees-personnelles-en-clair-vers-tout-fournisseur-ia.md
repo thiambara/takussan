@@ -1,7 +1,7 @@
 ---
 id: TCK-2462
 title: "Dette : les usages IA de classe personnelle partent en clair vers tout fournisseur"
-status: todo
+status: done
 phase: P1
 family: technique
 estimate: S
@@ -60,5 +60,10 @@ de ces usages à Anthropic, proposée en revue, n'est ni retenue ni écartée.
 
 ## Critère d'acceptation
 
-- [ ] Le porteur a tranché entre garder ce comportement et restreindre les fournisseurs de ces usages, et la décision est
+- [x] Le porteur a tranché entre garder ce comportement et restreindre les fournisseurs de ces usages, et la décision est
       écrite dans un ADR amendant ADR-0076.
+
+## Livré (2026-11-16)
+
+- Décision du porteur le 2026-11-16 : **garder** le comportement actuel, pour les fournisseurs présents et futurs. Écrite
+  dans l'amendement du 2026-11-16 d'ADR-0076. Aucun code changé.

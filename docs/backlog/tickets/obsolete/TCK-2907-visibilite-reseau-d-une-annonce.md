@@ -1,7 +1,7 @@
 ---
 id: TCK-2907
 title: "La visibilité « Réseau » d'une annonce — à définir par le porteur, puis API et écran"
-status: blocked
+status: obsolete
 phase: P3
 family: full
 estimate: M
@@ -17,6 +17,8 @@ spec_refs:
     - "docs/models-spec.md#3-property"
 tags: [back, front, biens, annonces, visibilite, decision-produit, audit-ux, app]
 ---
+
+> **Obsolète (2026-11-16)** — le porteur, 2026-11-16 : ticket supprimé — la visibilité « Réseau » n'est pas retenue ; le code garde Public et Privé.
 
 ## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
 

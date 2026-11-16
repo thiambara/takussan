@@ -1,7 +1,7 @@
 ---
 id: TCK-547
 title: "Une conversion de photo n'est jamais lisible sans filigrane dans le seau public, même avant le passage du worker"
-status: todo
+status: obsolete
 phase: P1
 family: back
 estimate: M
@@ -17,6 +17,8 @@ spec_refs:
     - docs/models-spec.md#spatielaravel-medialibrary
 tags: [back, media, filigrane, r2, cloudflare, securite]
 ---
+
+> **Obsolète (2026-11-16)** — le porteur, 2026-11-16 : « ce n'est plus d'actualité ».
 
 ## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
 
