@@ -173,4 +173,29 @@ class IntegrationTest extends TestCase
         $this->deleteJson("/api/integrations/{$integration->id}")
             ->assertForbidden();
     }
+
+    /**
+     * TCK-606 (O-5) — `agency_id` envoyé en CHAÎNE (`"5"`, la forme d'un corps JSON construit à la
+     * main) : l'admin de B crée l'intégration de B (201), jamais celle de A (403).
+     */
+    public function test_agency_id_sent_as_a_string_is_compared_as_an_integer(): void
+    {
+        $agencyA = Agency::factory()->create();
+        $agencyB = Agency::factory()->create();
+        $admin = User::factory()->withTwoFactor()->create(['agency_id' => $agencyB->id]);
+        $this->materializeRoleProfile($admin, 'agency_admin', $agencyB);
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/integrations', [
+            'provider' => 'stripe',
+            'agency_id' => (string) $agencyA->id,
+            'credentials' => ['secret_key' => 'sk_test_a'],
+        ])->assertForbidden();
+
+        $this->postJson('/api/integrations', [
+            'provider' => 'stripe',
+            'agency_id' => (string) $agencyB->id,
+            'credentials' => ['secret_key' => 'sk_test_b'],
+        ])->assertCreated()->assertJsonPath('data.agency_id', $agencyB->id);
+    }
 }

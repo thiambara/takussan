@@ -31,8 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('payments.gateway.providers');
 });
 
-// TCK-079 — public webhook receiver. Throttled to 60 requests / minute / IP
-// to mitigate replay floods. Signature verification is performed inside
+// TCK-079 — public webhook receiver. Throttled per integration (TCK-606: 60/min per token
+// fingerprint, plus 600/min per IP) to mitigate replay floods. Signature verification is performed inside
 // each driver's `handleWebhook()` (Wave / OM / LS via HMAC-SHA256).
 //
 // TCK-293 (ADR-0046) — une URL par intégration : `{token}` désigne l'intégration dont le secret
@@ -41,11 +41,14 @@ Route::middleware('auth:sanctum')->group(function () {
 //
 // TCK-602 (ADR-0051 §4) — le journal s'ouvre après le débit et AVANT la résolution du jeton et la
 // signature : un rejet laisse sa ligne. Le jeton n'y est jamais écrit, l'intégration qu'il résout oui.
+//
+// TCK-606 — limiteurs NOMMÉS (`AppServiceProvider::bootRateLimiters`) : un seau par intégration
+// (empreinte du jeton) plus une borne par IP ; la route 410 a le sien.
 Route::post('webhooks/payments/{provider}/{token}', PaymentWebhookController::class)
-    ->middleware(['throttle:60,1,payment-webhook', 'webhook.journal:payment'])
+    ->middleware(['throttle:payment-webhook', 'webhook.journal:payment'])
     ->name('payments.webhook');
 
 // TCK-293 (ADR-0046 §8) — l'ancienne URL sans jeton rend 410, sans rien lire ni muter.
 Route::post('webhooks/payments/{provider}', [PaymentWebhookController::class, 'gone'])
-    ->middleware('throttle:60,1,payment-webhook-gone')
+    ->middleware('throttle:payment-webhook-gone')
     ->name('payments.webhook.gone');

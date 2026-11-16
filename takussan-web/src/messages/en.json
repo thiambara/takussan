@@ -16117,7 +16117,8 @@
         "ops_health_degraded": "Platform health degraded",
         "ops_critical_job_failed": "Money or lease job failed",
         "radar_source_listing_gone": "Source listing of a property gone",
-        "radar_withdrawal_proposed": "Removal suggested: the holder did not answer"
+        "radar_withdrawal_proposed": "Removal suggested: the holder did not answer",
+        "webhook_processing_failed": "Authenticated webhook processing failed"
       },
       "channels": {
         "email": "Email",
@@ -16874,9 +16875,10 @@
         "rotated": "New address generated. The previous one no longer works.",
         "providers": {
           "wave": "Wave",
-          "orange_money": "Orange Money"
+          "orange_money": "Orange Money",
+          "lemon_squeezy": "Lemon Squeezy"
         },
-        "unsupported": "Automatic payment confirmation is not yet supported for this provider."
+        "hintLemonSqueezy": "Paste this address in your Lemon Squeezy store's webhook settings, with this integration's signing secret, and tick the order_created event: that is where Lemon Squeezy confirms this integration's payments."
       },
       "paymentFields": {
         "legend": "Provider credentials",

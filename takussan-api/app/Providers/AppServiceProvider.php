@@ -597,6 +597,30 @@ class AppServiceProvider extends ServiceProvider
                 }));
         }
 
+        // TCK-606 (ADR-0046, amendement du 2026-11-16, point 4) — webhooks de paiement : un seau par
+        // INTÉGRATION (empreinte du jeton de l'URL, jamais le jeton en clair), pour que deux agences
+        // derrière une même IP de fournisseur n'épuisent pas le seau l'une de l'autre ; et une borne
+        // par IP, plus large, qui freine l'essai de jetons (chaque jeton inventé aurait sinon son
+        // seau neuf). L'ancienne URL (410) a le sien, qui ne touche jamais ceux des URL à jeton.
+        RateLimiter::for('payment-webhook', fn (Request $request) => [
+            Limit::perMinute(60)->by('payment-webhook-integration:'.hash('sha256', (string) $request->route('token'))),
+            Limit::perMinute(600)->by('payment-webhook-ip:'.$this->clientNetwork($request)),
+        ]);
+        RateLimiter::for('payment-webhook-gone', fn (Request $request) => Limit::perMinute(60)
+            ->by('payment-webhook-gone-ip:'.$this->clientNetwork($request)));
+
+        // TCK-606 (verif-602 m4) — le lien de paiement : `verify` déclenche un appel sortant chez le
+        // fournisseur avec la clé de l'agence, `initiate` ouvre un checkout. Bornés par IP ET par
+        // JETON (empreinte `sha256`, jamais en clair) : un lien qui fuit ne se martèle plus depuis N IP.
+        RateLimiter::for('pay-link-verify', fn (Request $request) => [
+            Limit::perMinute(6)->by('pay_link_verify_ip:'.$this->clientNetwork($request)),
+            Limit::perMinute(6)->by('pay_link:verify:'.hash('sha256', (string) $request->route('token'))),
+        ]);
+        RateLimiter::for('pay-link-initiate', fn (Request $request) => [
+            Limit::perMinute(10)->by('pay_link_initiate_ip:'.$this->clientNetwork($request)),
+            Limit::perMinute(10)->by('pay_link:initiate:'.hash('sha256', (string) $request->route('token'))),
+        ]);
+
         // Unauthenticated auth surface — registration / password-reset flows.
         // `/login` is already throttled inline; these mirror it to stop
         // account-creation spam, reset-email bombing, user enumeration and

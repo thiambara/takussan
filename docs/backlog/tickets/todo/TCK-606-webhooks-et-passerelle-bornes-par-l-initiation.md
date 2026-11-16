@@ -117,22 +117,22 @@ fermée ici »).
 
 ## Delta à produire
 
-- [ ] ADR-0046 : §6 et « Conséquences » amendés (contraintes 1-3), commit à part, avant le code.
-- [ ] `PaymentGatewayService` : repli `custom_data` restreint (contrainte 1) — `initiatedWithinAuthority`
+- [x] ADR-0046 : §6 et « Conséquences » amendés (contraintes 1-3), commit à part, avant le code.
+- [x] `PaymentGatewayService` : repli `custom_data` restreint (contrainte 1) — `initiatedWithinAuthority`
       rend `false` quand l'appariement vient de `custom_data` sans intégration notée ;
       `assertReportedAmountCoversPayment` appelé avec la devise du checkout, sans saut (contrainte 2).
-- [ ] `LemonSqueezyDriver::handleWebhook` : `custom_data` porté dans l'événement (même forme que le
+- [x] `LemonSqueezyDriver::handleWebhook` : `custom_data` porté dans l'événement (même forme que le
       chemin du paquet), pour l'URL à jeton d'agence — **seulement** avec la garde de la contrainte 1.
       Front : la consigne LS d'agence réapparaît dans l'écran de l'URL de webhook (fr/en/wo).
-- [ ] `AppServiceProvider` (ou le fournisseur des limiteurs) : `RateLimiter::for('payment-webhook', …)`,
+- [x] `AppServiceProvider` (ou le fournisseur des limiteurs) : `RateLimiter::for('payment-webhook', …)`,
       `'payment-webhook-gone'`, `'pay-link-token'` ; `routes/api/payments.php` et `routes/api/pay.php`
       les déclarent.
-- [ ] `IntegrationController::store` : `agency_id` comparé après cast (`(int)`), ou validé `integer`
+- [x] `IntegrationController::store` : `agency_id` comparé après cast (`(int)`), ou validé `integer`
       et casté dans la requête.
-- [ ] `AlertableEvents` : clé `webhook_processing_failed` ; écouteur de `WebhookProcessingFailed` qui
+- [x] `AlertableEvents` : clé `webhook_processing_failed` ; écouteur de `WebhookProcessingFailed` qui
       évalue les règles d'alerte (même voie que les autres événements de la console, TCK-600) ;
       libellés `superAdmin.alerts.events.webhook_processing_failed` (fr/en/wo).
-- [ ] `config/webhooks.php` : `rejected_retention_days` (défaut 7) ; `PruneWebhookLogs` purge les lignes
+- [x] `config/webhooks.php` : `rejected_retention_days` (défaut 7) ; `PruneWebhookLogs` purge les lignes
       `rejected` à cette borne, les autres à celle de leur canal.
 - [x] Import de relevé : un OFX dont l'en-tête déclare un jeu autre qu'UTF-8 est converti, ou refusé
       avec un code (`bank_statement.charset_unsupported`) — jamais lu de travers. (tenu par TCK-1443,
@@ -140,32 +140,32 @@ fermée ici »).
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (M-1, rouge sur `839be671`).** Intégration LS de plateforme ; `BookingPayment` de
+- [x] **AC1 (M-1, rouge sur `839be671`).** Intégration LS de plateforme ; `BookingPayment` de
       l'agence A, XOF, jamais initié ; `order_created` signé, `custom_data` désignant ce payable,
       100 USD : le payable reste `pending`, aucune ligne `gateway_events`. Même résultat par l'URL à
       jeton d'une intégration LS de l'agence **B**.
-- [ ] **AC2 (montant).** Payable initié par LS (checkout de 15 000 XOF figé) : commande rapportée de
+- [x] **AC2 (montant).** Payable initié par LS (checkout de 15 000 XOF figé) : commande rapportée de
       14 000 XOF → 422 `payment.amount_short` ; rapportée dans une autre devise que le checkout → 422 ;
       15 000 → `paid`.
-- [ ] **AC3 (m-1).** Intégration LS de l'agence A, payable de A initié par elle : `order_created`
+- [x] **AC3 (m-1).** Intégration LS de l'agence A, payable de A initié par elle : `order_created`
       signé par son `signing_secret` sur son URL, `custom_data` désignant ce payable → `paid`. Le même
       `custom_data` désignant un payable de B → inchangé.
-- [ ] **AC4 (O-2).** ~~60 requêtes vers l'ancienne URL (410) depuis une IP, puis un webhook signé vers
+- [x] **AC4 (O-2).** ~~60 requêtes vers l'ancienne URL (410) depuis une IP, puis un webhook signé vers
       l'URL à jeton d'une agence depuis la même IP : 200, pas 429.~~ (première moitié tenue par
       TCK-634, relevé 2026-11-16) Reste : deux intégrations n'épuisent pas le seau l'une de l'autre.
-- [ ] **AC5 (m4).** `verify` sur un même jeton depuis 7 IP distinctes : la requête au-delà du seuil du
+- [x] **AC5 (m4).** `verify` sur un même jeton depuis 7 IP distinctes : la requête au-delà du seuil du
       jeton rend 429, et le pilote n'est pas appelé (`Http::assertSentCount`). Aucune clé de cache ne
       contient le jeton en clair.
-- [ ] **AC6 (O-5).** `POST /api/integrations` par l'admin de B avec `agency_id: "<id de B>"` (chaîne) :
+- [x] **AC6 (O-5).** `POST /api/integrations` par l'admin de B avec `agency_id: "<id de B>"` (chaîne) :
       201 ; avec l'id de A : 403.
-- [ ] **AC7.** Une ligne du journal fermée sur `failed` déclenche la règle d'alerte
+- [x] **AC7.** Une ligne du journal fermée sur `failed` déclenche la règle d'alerte
       `webhook_processing_failed` ; la charge de l'alerte ne contient ni le corps ni un en-tête.
       `AlertableEvents::has('webhook_processing_failed')` est vrai.
-- [ ] **AC8.** `webhooks:prune` : une ligne `rejected` de 8 jours est supprimée, une ligne `processed`
+- [x] **AC8.** `webhooks:prune` : une ligne `rejected` de 8 jours est supprimée, une ligne `processed`
       de 8 jours est gardée, une ligne `processed` de 91 jours est supprimée.
 - [x] **AC9.** Un OFX `CHARSET:1252` portant `Société Générale` est importé lisible, ou refusé par code ;
       jamais `SociÃ©tÃ©`. (tenu par TCK-1443, relevé 2026-11-16 : `OfxJeuDeCaracteresTest`)
-- [ ] Chaque AC a son ablation rouge, consignée dans les Notes (garde retirée → rouge).
+- [x] Chaque AC a son ablation rouge, consignée dans les Notes (garde retirée → rouge).
 
 ## Hors périmètre
 
@@ -177,3 +177,34 @@ fermée ici »).
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **ADR-0046 amendé** (§ *Amendement du 2026-11-16 (TCK-606)*) : la « Limite connue » du §6 devient
+  la règle ; « Conséquences » ne dit plus que LS d'agence ne solde rien. Le commit à part revient à la
+  session qui commite (arbre partagé).
+- **`custom_data` borné** (`PaymentGatewayService::customDataCheckout`) : checkout COURANT chez le même
+  fournisseur, intégration initiatrice **notée**, de même fournisseur, propriétaire = autorité ; sinon
+  rien, plateforme comprise. Le repli ne joue que si aucun chemin `transaction_id`/historique n'a rien
+  trouvé avant filtrage (inchangé). Preuve : `LemonSqueezyCustomDataTest` (AC1, AC3) — ablation
+  « garde ouverte » → 2 rouges.
+- **Montant sans saut** : la commande appariée par `custom_data` se compare au montant figé **du
+  checkout** (entrée de `gateway.transactions`, qui note désormais `currency`), devise différente →
+  422 `payment.currency_mismatch` (code neuf, fr/en/wo), montant absent ou court → 422
+  `payment.amount_short`. Les chemins Wave/OM gardent l'ancienne garde. Preuve : AC2 — ablation
+  « ancienne garde » → rouge ; ablation « pilote sans `custom_data` » → AC2 et AC3 rouges.
+- **Front** : `lemon_squeezy` rejoint `WEBHOOK_ENDPOINT_PROVIDER_IDS`, consigne `hintLemonSqueezy` ;
+  la mention « pas encore prise en charge » (`webhookEndpoint.unsupported`) devenue inatteignable est
+  retirée avec sa clé.
+- **Limiteurs nommés** : `payment-webhook` = 60/min par `sha256(jeton)` + 600/min par IP (freine
+  l'essai de jetons) ; `payment-webhook-gone` à part ; `pay-link-verify` (6/min) et
+  `pay-link-initiate` (10/min), chacun par IP **et** par `pay_link:<action>:sha256(jeton)` — deux
+  limiteurs plutôt qu'un `pay-link-token`, pour garder les deux seuils. Preuve :
+  `PaymentWebhookRateLimitTest` (AC4), `PayLinkTokenRateLimitTest` (AC5, `Http::assertSentCount`) —
+  ablations clé IP, route en `throttle:60,1`, seau jeton retiré, jeton en clair → rouges.
+- **AC6** : `(int)` sur `agency_id` validé (`IntegrationTest::test_agency_id_sent_as_a_string…`) —
+  ablation → rouge. **AC7** : `Listeners\Admin\AlertOnWebhookProcessingFailed` écrit l'activité
+  `webhook_processing_failed` (5 champs de l'événement seulement), alertable, mise en file comme les
+  autres événements non `ops_` (`WebhookReplayTest`) — ablation → rouge. **AC8** :
+  `webhooks.rejected_retention_days` = 7 (`PruneWebhookLogsCommandTest`) — ablation → rouge.
+

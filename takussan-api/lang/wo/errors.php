@@ -538,6 +538,7 @@ return [
         'amount_short' => 'Xaalis bi ñu jot moo gën a tuuti xaalis bi ñu xaaroon.',
         'amount_unresolved' => 'Xaalis bi ñuy fay, mënuñu ko xam.',
         'checkout_in_progress' => 'Fey ci internet mungi dox ci bii échéance : jéemaatal ci ay simili.',
+        'currency_mismatch' => 'La devise du paiement reçu ne correspond pas à celle du paiement demandé.',
         'currency_unsupported' => 'Prestataire :provider nanguwul xaalisu :currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy nanguwul XOF : jëfandikoo Wave walla Orange Money ngir fey ci XOF.',
         'filter_days_late_invalid' => 'Filtre de jours de retard invalide : un entier positif ou nul est attendu.',

@@ -538,6 +538,7 @@ return [
         'amount_short' => 'Le montant reçu est inférieur au montant attendu.',
         'amount_unresolved' => 'Le montant à payer n\'a pas pu être déterminé.',
         'checkout_in_progress' => 'Un paiement en ligne est en cours sur cette échéance : réessayez dans quelques minutes.',
+        'currency_mismatch' => 'La devise du paiement reçu ne correspond pas à celle du paiement demandé.',
         'currency_unsupported' => 'Le prestataire :provider n\'accepte pas la devise :currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy n\'accepte pas le XOF : utilisez Wave ou Orange Money pour un paiement en XOF.',
         'filter_days_late_invalid' => 'Filtre de jours de retard invalide : un entier positif ou nul est attendu.',

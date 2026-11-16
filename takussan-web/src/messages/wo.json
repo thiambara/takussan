@@ -15538,7 +15538,8 @@
         "ops_health_degraded": "Wérgi platform bi wàññiku na",
         "ops_critical_job_failed": "Échec d’un job d’argent ou de bail",
         "radar_source_listing_gone": "Annonce source d’un bien disparue",
-        "radar_withdrawal_proposed": "Retrait proposé : le titulaire n’a pas répondu"
+        "radar_withdrawal_proposed": "Retrait proposé : le titulaire n’a pas répondu",
+        "webhook_processing_failed": "Échec du traitement d’un webhook authentifié"
       },
       "channels": {
         "email": "Imeel",
@@ -16295,9 +16296,10 @@
         "rotated": "Adrees bu bees sosu na. Bu njëkk bi dootul dox.",
         "providers": {
           "wave": "Wave",
-          "orange_money": "Orange Money"
+          "orange_money": "Orange Money",
+          "lemon_squeezy": "Lemon Squeezy"
         },
-        "unsupported": "Takussan mënagul dëggal fey yi ci boppam ak fournisseur bii."
+        "hintLemonSqueezy": "Collez cette adresse dans les réglages de webhooks de votre boutique Lemon Squeezy, avec le secret de signature de cette intégration, et cochez l’événement order_created : c’est là que Lemon Squeezy confirme les paiements de cette intégration."
       },
       "paymentFields": {
         "legend": "Identifiants yu jottalikat bi",
