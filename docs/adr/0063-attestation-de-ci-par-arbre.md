@@ -3,8 +3,8 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-13
 - **Tickets** : [TCK-636](../backlog/tickets/done/TCK-636-ci-attestation-par-arbre.md) ·
-  suite : [TCK-637](../backlog/tickets/todo/TCK-637-ci-parallele-couverture-decouplee.md) ·
-  amendement §1 : [TCK-638](../backlog/tickets/done/TCK-638-ci-api-ignore-markdown.md)
+  amendement §1 : [TCK-638](../backlog/tickets/done/TCK-638-ci-api-ignore-markdown.md) ·
+  amendement §4 : [TCK-637](../backlog/tickets/todo/TCK-637-ci-parallele-couverture-decouplee.md)
 
 ## Contexte
 
@@ -104,6 +104,66 @@ Exclure la carte de la clé l'éviterait, au prix d'une attestation fausse sur c
 Le gain mesuré est ×2,48, mais une seule exécution porte tests **et** couverture, et PCOV agrège
 mal entre processus. Le découplage est un chantier distinct ; il ne conditionne pas celui-ci.
 
+#### Amendement du 2026-11-16 (TCK-637) — deux jobs : les tests en `--parallel` jugent, la couverture séquentielle mesure, à côté
+
+**Contexte.** Relevé le 2026-11-16 : `lint-and-test` dure **54 à 90 min** par PR (runs 43674090498,
+43734501786, 43799491209), contre 17-23 min au moment de cet ADR — la suite a grossi (~16 300 tests).
+Trois options étaient ouvertes : (a) deux jobs, (b) une couverture fusionnée par `phpcov merge`,
+(c) la couverture sortie de la PR (nuit sur `dev`). **Décision du porteur : (a).**
+
+- **`lint-and-test`** joue la suite par `php artisan test --parallel --processes="$(nproc)"`, sans
+  pilote de couverture (`coverage: none`). Il porte aussi Pint et la garde Spatie. C'est lui qui
+  **juge** les tests, et il dépose l'attestation `ci-vert-api-<clé>` comme avant : même nom, même
+  clé, même sens — *les tests sont verts sur cet arbre*. Il ne dit plus rien du cliquet.
+- **`couverture`** rejoue la suite **en un seul processus sous PCOV** — la seule forme qui donne un
+  clover complet sans fusion —, applique `bin/coverage-gate.php storage/coverage/clover.xml --min=92`
+  sur chaque PR vers `dev`, publie le clover (et le HTML sur un rouge), produit `cov.php` la nuit ou
+  à la demande sur `dev`, et pousse la carte d'impact (`contents: write` a suivi ce step ;
+  `lint-and-test` redescend à `contents: read`).
+- **Les deux jobs ne dépendent que d'`attestation`** : ils tournent **en même temps**, jamais l'un
+  après l'autre.
+
+**L'attestation : une par job, pas une pour les deux.** Le job `attestation` lance
+`ci-attestation.mjs` deux fois — `api` et `api-couverture` — et expose deux jeux de sorties
+(`deja-vert` / `artefact`, `deja-vert-couverture` / `artefact-couverture`). Chaque job lourd n'est
+sauté que sur **son** artefact et ne dépose que le sien, en dernier step.
+
+- *Pourquoi pas une seule attestation déposée par les tests* : un arbre aux tests verts et au
+  cliquet rouge serait attesté ; le push sur `dev` et la promotion sauteraient alors `couverture`,
+  et un job sauté passe un check requis. Le cliquet ne garderait plus que la première PR.
+- *Pourquoi pas un troisième job qui attesterait « les deux verts »* : le porteur veut que le job qui
+  juge les tests reste celui qui atteste (TCK-636), et un arbre aux tests verts n'a pas à rejouer ses
+  tests parce que sa couverture a rougi.
+- *La clé* : `api-couverture` a **le même périmètre de lecture** qu'`api` (c'est la même suite) ;
+  le nom de suite entrant dans le hachage, les deux clés diffèrent, les deux artefacts aussi
+  (`ci-vert-api-couverture-<clé>`). Le cliquet (`bin/coverage-gate.php`, le `--min` d'`api-ci.yml`)
+  est dans ce périmètre : changer le seuil change la clé.
+- *La nuit et à la demande* : `api-couverture` tourne quelle que soit l'attestation (il produit
+  `cov.php`), `web` aussi (inchangé) ; `api` — les tests seuls — se saute comme ailleurs sur un arbre
+  déjà attesté. `carte-courante` saute les deux volets de l'API.
+- *Une fois* : `api-ci.yml` et `ci-attestation.mjs` sont dans les clés de toutes les suites — ce
+  changement invalide toutes les attestations existantes, celles du front comprises. C'est voulu :
+  une ancienne `ci-vert-api-…` disait « tests **et** cliquet » et ne doit pas servir sous le nouveau sens.
+
+`scripts/check-ci-attestation.mjs` tient la forme pour les **trois** volets (needs, `!cancelled()`,
+`deja-vert<suffixe>` du bon volet, dépôt de **son** artefact après sa preuve : `php artisan test
+--parallel` pour les tests, `bin/coverage-gate.php` pour la couverture).
+
+**Check requis.** `API / couverture` doit rejoindre les checks requis de `preview` et `master`, et
+`promotion-ci.yml` le rejoue déjà (il appelle `api-ci.yml` en entier). La protection vit chez GitHub :
+[action de déploiement](../deploiement/actions/2026-11-16-exiger-le-check-de-couverture.md).
+
+**Conséquence assumée, et elle borne le gain.** `lint-and-test` rend son verdict bien plus tôt, mais
+« tous les checks verts » attend `couverture`, **qui reste le chemin critique** de la PR — c'est ce
+que J-12 disait déjà. Le gain mesurable est (1) le verdict des tests, (2) la durée de `couverture`,
+allégée de Pint et des gardes, contre l'ancien job. Le temps total d'une PR ne baisse franchement
+qu'avec (b) ou (c) ; ce sont les leviers suivants si la mesure le demande. **AC1 se mesure donc sur
+les deux jobs et sur leur maximum**, trois exécutions avant, trois après.
+
+**Risque à mesurer en CI** : `nproc` processus contre un seul service Meilisearch n'a été éprouvé
+qu'en local (J-11). Une `MeilisearchNotIdleException` sur les premières exécutions se lit comme ce
+risque, pas comme un défaut applicatif.
+
 ## Conséquences
 
 - **Le parcours attendu** : PR → `dev` complète (17-23 min) ; push sur `dev` en ~3 min (attestation,
@@ -116,7 +176,8 @@ mal entre processus. Le découplage est un chantier distinct ; il ne conditionne
   pas d'attestation du front, et la promotion rejoue le front. **C'est voulu** : c'est exactement
   ce qui rattrape les `paths` incomplets mesurés plus haut.
 - **Garde** : `scripts/check-ci-attestation.mjs` tient la forme (job `attestation` en tête des deux
-  workflows, `needs` + `!cancelled()` + sortie `deja-vert` sur le job lourd, dépôt de l'artefact au
+  workflows, `needs` + `!cancelled()` + sortie `deja-vert` sur le job lourd — sur les **deux** jobs
+  lourds de l'API depuis TCK-637, chacun son volet —, dépôt de l'artefact au
   nom de la clé, `actions: read` accordé par `promotion-ci` à **chaque** appel — sans bloc
   `permissions`, le réglage du dépôt borne le jeton à `contents` et `packages`, et le run de
   promotion échoue au démarrage : mesuré sur #369, le 2026-10-13) et le périmètre de
