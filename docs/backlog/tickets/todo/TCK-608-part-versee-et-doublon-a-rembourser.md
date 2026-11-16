@@ -4,7 +4,7 @@ title: "Une échéance dit ce qui a été versé et ce qui reste à rembourser :
 status: todo
 phase: P2
 family: full
-estimate: S-M
+estimate: M
 wave: 76
 created: 2026-10-08
 updated: 2026-11-16
