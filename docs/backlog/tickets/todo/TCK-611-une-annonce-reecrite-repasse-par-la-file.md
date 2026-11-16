@@ -68,6 +68,23 @@ décision humaine (`FILE-D-ATTENTE.md`, points hors périmètre ; TCK-597, « Ho
 
 ## Décision du porteur
 
+**Tranchée le 2026-11-16** — écrite dans [ADR-0043, amendement du 2026-11-16](../../../adr/0043-avis-cible-eligibilite-moderation-et-verrou-plateforme.md) :
+
+1. **(a)** : toute réécriture d'un **champ affiché** publiquement annule l'approbation, et renvoie
+   le bien en file s'il est en ligne. Liste des champs (ce que `PropertyResource` sert sur la fiche) :
+   `title`, `description`, `price`, `currency`, `type`, `contract_type`, `rent_period`, `title_type`,
+   `condition`, `area`, `bedrooms`, `bathrooms`, `furnished`, `floor_number`, `total_floors`,
+   `year_built`, `parking_spaces`, `available_from`, `check_in_from`, `check_out_before`,
+   `virtual_tour_url`, `deposit_months`, `advance_months`, `agency_fee_months`, `monthly_charges` ;
+   l'adresse ; les photos (ajout, suppression) ; les équipements. Le modérateur de l'agence et le
+   super-admin n'y sont pas soumis.
+2. **Oui** : « déjà en ligne » exige `visibility = public` ; un bien privé qui redevient public
+   repasse par la file.
+
+La notification des admins au passage en `pending_review` existe déjà (TCK-782).
+
+### Options soumises
+
 1. **Qu'est-ce qu'une réécriture qui annule l'approbation ?** Options :
    - **(a)** toute modification d'un champ **affiché au public** (titre, description, prix, photos,
      adresse affichée) d'un bien d'une agence `moderation_required`, faite par qui n'a pas le droit
@@ -94,25 +111,25 @@ décision humaine (`FILE-D-ATTENTE.md`, points hors périmètre ; TCK-597, « Ho
 
 ## Delta à produire
 
-- [ ] ADR-0043 §5 amendé.
-- [ ] `PropertyObserver` : `wasAlreadyOnline` (décision 2) ; détection de la réécriture et effacement
+- [x] ADR-0043 §5 amendé.
+- [x] `PropertyObserver` : `wasAlreadyOnline` (décision 2) ; détection de la réécriture et effacement
       de l'approbation (décision 1).
-- [ ] Notification au modérateur de l'agence : réutiliser le code de mise en file existant — la
+- [x] Notification au modérateur de l'agence : réutiliser le code de mise en file existant — la
       notification des admins actifs au passage en `pending_review` existe (TCK-782, `af8c9cbdf`) et
       part d'elle-même si le bien entre en `pending_review`.
-- [ ] Tests : `PropertyRewriteModerationTest`.
+- [x] Tests : `PropertyRewriteModerationTest`.
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (rouge sur `839be671` si (a) ou (b)).** Rejeu de verif-597 passe 2 : bien approuvé,
+- [x] **AC1 (rouge sur `839be671` si (a) ou (b)).** Rejeu de verif-597 passe 2 : bien approuvé,
       archivé, réécrit, republié → `pending_review`, absent de `/api/public/properties`.
-- [ ] **AC2 (rouge sur `839be671`).** Rejeu de verif-597 passe 3 : bien publié avant l'activation de
+- [x] **AC2 (rouge sur `839be671`).** Rejeu de verif-597 passe 3 : bien publié avant l'activation de
       la modération, passé en privé, réécrit, repassé public → `pending_review`.
-- [ ] **AC3.** Le même parcours dans une agence sans modération : en ligne, aucune file.
-- [ ] **AC4.** La réécriture d'un admin d'agence de son propre bien (décision 1) : approbation gardée.
-- [ ] **AC5.** Un changement d'un champ non affiché (notes internes, collaborateurs) ne renvoie pas
+- [x] **AC3.** Le même parcours dans une agence sans modération : en ligne, aucune file.
+- [x] **AC4.** La réécriture d'un admin d'agence de son propre bien (décision 1) : approbation gardée.
+- [x] **AC5.** Un changement d'un champ non affiché (notes internes, collaborateurs) ne renvoie pas
       en file.
-- [ ] Ablations consignées : prédicat de réécriture retiré → AC1 rouge ; `visibility` retirée de
+- [x] Ablations consignées : prédicat de réécriture retiré → AC1 rouge ; `visibility` retirée de
       `wasAlreadyOnline` → AC2 rouge.
 
 ## Hors périmètre
@@ -124,3 +141,30 @@ décision humaine (`FILE-D-ATTENTE.md`, points hors périmètre ; TCK-597, « Ho
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- Un seul point de règle, `App\Services\Property\PropertyRewriteModeration` (liste
+  `DISPLAYED_COLUMNS`, prédicat, effet) : appelé par `PropertyObserver::updating` pour les colonnes,
+  et après coup par `PropertyController::update` (adresse réellement changée),
+  `PropertyMediaController::store`/`destroy` (photos) et `PropertyTagController::sync`/`destroy`
+  (équipements). Les chemins hors colonnes passent par `$property->update()` : notification
+  TCK-782, boosts, cache de fiche et index suivent seuls.
+- Prédicat : agence `moderation_required`, utilisateur authentifié, ni super-admin ni
+  `PropertyModerationPolicy::moderatesAt` ; une valeur renvoyée identique n'est pas une réécriture
+  (`isDirty`). Sans utilisateur (job, console), rien. L'exemption du modérateur ne vaut que pour la
+  réécriture : l'activation reste sans exemption par rôle.
+- Dans une même sauvegarde, l'approbation effacée par la réécriture ne compte plus comme
+  approbation debout (`PUT {title, status: available}` sur un bien approuvé archivé → file).
+- `wasAlreadyOnline` exige `visibility = public` à l'origine (décision 2).
+- Non couverts, écrits dans l'ADR : documents publics, médias `videos`/`plans` ; le
+  réordonnancement des photos n'est pas une réécriture.
+- Preuves (`tests/Feature/Api/PropertyRewriteModerationTest.php`, 15 tests) : AC1
+  `test_ac1_*` (×2) — ablation du prédicat → 4 rouges ; AC2 `test_ac2_*` +
+  `test_private_then_public_*` — ablation de `visibility` → 2 rouges ; AC3 — ablation du test
+  `moderation_required` → rouge ; AC4 — ablation de l'exemption du modérateur → rouge ; AC5
+  `test_ac5_*` (métadonnées, collaborateur) ; ablation de `! $rewritten` → rouge du cas « même
+  sauvegarde » ; AC5 rougit si `metadata` entre dans la liste (l'acteur est bien vu). Chaque point
+  d'appel hors colonnes (adresse, photo ajoutée/supprimée, équipements synchronisés/retirés) a son
+  test et son ablation rouge ; un `PATCH` de statut seul n'est pas une réécriture. Restaurations
+  par `cp`, md5 vérifié.

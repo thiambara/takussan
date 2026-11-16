@@ -34,6 +34,7 @@ use App\Services\Property\PropertyDuplicationService;
 use App\Services\Property\PropertyListScope;
 use App\Services\Property\PropertyOccupancy;
 use App\Services\Property\PropertyPublication;
+use App\Services\Property\PropertyRewriteModeration;
 use App\Services\Property\PropertyStats30d;
 use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\PublishReadiness;
@@ -355,9 +356,18 @@ class PropertyController extends Controller
             $property->fill($data)->save();
 
             if ($addressData !== null) {
-                $property->address
-                    ? $property->address->update($addressData)
-                    : $property->address()->create($addressData);
+                $adresse = $property->address;
+                if ($adresse) {
+                    $adresse->update($addressData);
+                } else {
+                    $adresse = $property->address()->create($addressData);
+                }
+
+                // TCK-611 (ADR-0043, amendement du 2026-11-16) — l'adresse est affichée (`location`) :
+                // la changer réellement est une réécriture, qui repasse par la file de l'agence.
+                if ($adresse->wasRecentlyCreated || array_diff(array_keys($adresse->getChanges()), ['updated_at', 'created_at']) !== []) {
+                    app(PropertyRewriteModeration::class)->afterOffColumnRewrite($property);
+                }
             }
 
             // Dans la transaction : un refus de `publish()` annule le PATCH entier.

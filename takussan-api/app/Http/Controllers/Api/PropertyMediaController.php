@@ -8,6 +8,7 @@ use App\Http\Requests\Api\StorePropertyMediaRequest;
 use App\Models\Property;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
+use App\Services\Property\PropertyRewriteModeration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -54,6 +55,12 @@ class PropertyMediaController extends Controller
             $media->refresh()->setRelation('model', $property);
             $raw ??= $this->viewRaw($media);
             $added[] = $this->urls($media, $property->requiresWatermark(), $raw);
+        }
+
+        // TCK-611 (ADR-0043, amendement du 2026-11-16) — les photos sont affichées : en ajouter ou en
+        // retirer est une réécriture, qui repasse par la file de l'agence.
+        if ($added !== []) {
+            app(PropertyRewriteModeration::class)->afterOffColumnRewrite($property);
         }
 
         // TCK-676 (P10.01) — le lot n'est pas atomique : les photos lisibles restent, et le 422
@@ -147,7 +154,13 @@ class PropertyMediaController extends Controller
     public function destroy(Request $request, Property $property, int $mediaId): JsonResponse
     {
         $this->authorize('update', $property);
-        $property->getMedia('photos')->firstWhere('id', $mediaId)?->delete();
+        $photo = $property->getMedia('photos')->firstWhere('id', $mediaId);
+        if ($photo !== null) {
+            $photo->delete();
+            // TCK-611 (ADR-0043, amendement du 2026-11-16) — les photos sont affichées : en ajouter ou en
+            // retirer est une réécriture, qui repasse par la file de l'agence.
+            app(PropertyRewriteModeration::class)->afterOffColumnRewrite($property);
+        }
 
         return $this->json(['message' => 'deleted'], 204);
     }
