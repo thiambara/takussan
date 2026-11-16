@@ -13,7 +13,6 @@ use App\Support\Audit\PropertyRedactor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -126,9 +125,9 @@ class CrossTenantAuditController extends Controller
 
         return $this->json([
             'data' => [
-                'url' => URL::temporarySignedRoute('activity-logs.export.download', $expiresAt, [
-                    'user' => $request->user()->id, 'file' => $file, 'name' => $filename.'.csv',
-                ]),
+                // TCK-613 — le chemin signé RELATIF de la route de la console, que l'écran télécharge par
+                // le relais `/api/super-admin/*`, avec la session de l'opérateur : plus un lien au porteur.
+                'url' => ActivityLogExportController::signedPath('admin.audit.export.download', $request->user()->id, $file, $filename.'.csv', $expiresAt),
                 'expires_at' => $this->instant($expiresAt),
                 'count' => $count,
             ],

@@ -11,6 +11,7 @@ use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsSegmentCalculator;
 use App\Services\Notifications\Sms\SmsTimeBudget;
 use App\Services\Notifications\Sms\SmsWebhookUrlToken;
+use App\Support\Logging\SafeExceptionContext;
 use App\Support\RelativeSignedUrl;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
@@ -98,7 +99,7 @@ class LAfricaMobileSmsDriver implements SmsDriverInterface
                     ->acceptJson()
                     ->post($url, $payload);
             } catch (\Throwable $e) {
-                Log::warning('[sms.lam] HTTP exception', ['error' => $e->getMessage()]);
+                Log::warning('[sms.lam] HTTP exception', ['error' => SafeExceptionContext::of($e)]);
                 $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'lam_http_exception', AmbiguousDelivery::fromThrowable($e));
 
                 continue;

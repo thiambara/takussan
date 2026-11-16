@@ -14,6 +14,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Notifications\ActivityLogExportReadyNotification;
 use App\Services\Audit\ActivityLogExporter;
+use App\Support\LienFront;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Testing\TestResponse;
 use Tests\ApiTestCase;
 use Tests\Support\OperateursPlateforme;
 
@@ -177,9 +179,20 @@ class AgencyAuditScopeTest extends ApiTestCase
         return $lien;
     }
 
-    private function contenuDuLien(string $lien): string
+    /**
+     * TCK-613 — le lien du courriel vise le BFF du front, qui relaie son chemin signé à l'API avec
+     * la session du demandeur : le test rejoue ce relais.
+     */
+    private function telecharger(string $lien, User $demandeur): TestResponse
     {
-        return $this->get($lien)->assertOk()->streamedContent();
+        $this->assertStringStartsWith(LienFront::base().'/api/activity-logs/export/download?', $lien);
+
+        return $this->actingAs($demandeur, 'sanctum')->get(substr($lien, strlen(LienFront::base())));
+    }
+
+    private function contenuDuLien(string $lien, User $demandeur): string
+    {
+        return $this->telecharger($lien, $demandeur)->assertOk()->streamedContent();
     }
 
     public function test_deux_agences_de_meme_nom_recoivent_chacune_leur_journal(): void
@@ -195,11 +208,11 @@ class AgencyAuditScopeTest extends ApiTestCase
         $lienB = $this->lienDExport($adminB, $b->id);
 
         // Le nom lisible ne sert plus qu'au `Content-Disposition`.
-        $this->get($lienA)->assertDownload('audit-trail-immo-dakar-'.now()->subDays(30)->toDateString().'-'.now()->toDateString().'.csv');
-        $contenuA = $this->contenuDuLien($lienA);
+        $this->telecharger($lienA, $adminA)->assertDownload('audit-trail-immo-dakar-'.now()->subDays(30)->toDateString().'-'.now()->toDateString().'.csv');
+        $contenuA = $this->contenuDuLien($lienA, $adminA);
         $this->assertStringContainsString('temoin-homonyme-a', $contenuA);
         $this->assertStringNotContainsString('temoin-homonyme-b', $contenuA);
-        $contenuB = $this->contenuDuLien($lienB);
+        $contenuB = $this->contenuDuLien($lienB, $adminB);
         $this->assertStringContainsString('temoin-homonyme-b', $contenuB);
         $this->assertStringNotContainsString('temoin-homonyme-a', $contenuB);
     }
@@ -216,7 +229,7 @@ class AgencyAuditScopeTest extends ApiTestCase
         $lienAdmin = $this->lienDExport($admin, $platform->id);
         $this->lienDExport($this->operateur(PlatformProfileLevel::SuperAdmin), null);
 
-        $contenu = $this->contenuDuLien($lienAdmin);
+        $contenu = $this->contenuDuLien($lienAdmin, $admin);
         $this->assertStringContainsString('temoin-agence-platform', $contenu);
         $this->assertStringNotContainsString('temoin-agence-tierce', $contenu);
     }
@@ -237,8 +250,9 @@ class AgencyAuditScopeTest extends ApiTestCase
             'activity-logs.export.download',
             now()->addHour(),
             array_merge(array_diff_key($parametres, array_flip(['expires', 'signature'])), ['user' => $autre->id]),
+            absolute: false,
         );
-        $this->get($detourne)->assertNotFound();
+        $this->actingAs($autre, 'sanctum')->get($detourne)->assertNotFound();
     }
 
     /** AC13 — l'historique d'un objet : borné à l'agence, et au type EXACT (pas de `LIKE`). */

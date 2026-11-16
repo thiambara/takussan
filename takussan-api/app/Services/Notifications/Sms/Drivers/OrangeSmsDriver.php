@@ -11,6 +11,7 @@ use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsSegmentCalculator;
 use App\Services\Notifications\Sms\SmsTimeBudget;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
@@ -107,7 +108,7 @@ class OrangeSmsDriver implements SmsDriverInterface
                     ->timeout(SmsTimeBudget::httpTimeout($context))
                     ->post($url, $payload);
             } catch (\Throwable $e) {
-                Log::warning('[sms.orange] HTTP exception', ['error' => $e->getMessage()]);
+                Log::warning('[sms.orange] HTTP exception', ['error' => SafeExceptionContext::of($e)]);
                 $results[$recipient] = SmsResult::failed($recipient, $this->id(), 'orange_http_exception', AmbiguousDelivery::fromThrowable($e));
 
                 continue;
@@ -266,7 +267,7 @@ class OrangeSmsDriver implements SmsDriverInterface
                     ['grant_type' => 'client_credentials'],
                 );
         } catch (\Throwable $e) {
-            Log::warning('[sms.orange] OAuth exception', ['error' => $e->getMessage()]);
+            Log::warning('[sms.orange] OAuth exception', ['error' => SafeExceptionContext::of($e)]);
 
             return null;
         }

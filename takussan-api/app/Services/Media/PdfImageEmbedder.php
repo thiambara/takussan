@@ -2,6 +2,7 @@
 
 namespace App\Services\Media;
 
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Image\Enums\Fit;
@@ -50,7 +51,7 @@ class PdfImageEmbedder
             Log::warning('pdf.image_embed_failed', [
                 'media_id' => $media->getKey(),
                 'disk' => $media->disk,
-                'error' => $e->getMessage(),
+                'error' => SafeExceptionContext::of($e),
             ]);
 
             return null;

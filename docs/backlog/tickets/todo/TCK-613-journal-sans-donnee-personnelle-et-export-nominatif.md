@@ -107,34 +107,34 @@ session ; ADR-0044 §2 « les limites connues […] relèvent d'un ticket de sui
 
 ## Delta à produire
 
-- [ ] `bootstrap/app.php` : le rapporteur `Throwable` existant (TCK-2356, l.193-203) devient un
+- [x] `bootstrap/app.php` : le rapporteur `Throwable` existant (TCK-2356, l.193-203) devient un
       **remplaçant** du rapport par défaut (`->stop()` ou équivalent), en respectant `dontReport`
       (contrainte 1).
-- [ ] Pilotes SMS/WhatsApp et jobs cités : `SafeExceptionContext::of($e)` à la place de `getMessage()`.
-- [ ] ~~`LogSmsDriver`,~~ `LogWhatsappDriver` : contrainte 2 (`LogSmsDriver` — caduc depuis TCK-1025).
-- [ ] `routes/api/audit-log.php` : téléchargement sous `auth:sanctum` ; `ActivityLogExportController@download`
+- [x] Pilotes SMS/WhatsApp et jobs cités : `SafeExceptionContext::of($e)` à la place de `getMessage()`.
+- [x] ~~`LogSmsDriver`,~~ `LogWhatsappDriver` : contrainte 2 (`LogSmsDriver` — caduc depuis TCK-1025).
+- [x] `routes/api/audit-log.php` : téléchargement sous `auth:sanctum` ; `ActivityLogExportController@download`
       vérifie le demandeur et journalise ; ~~commande planifiée de purge des exports expirés~~
       (tenu par TCK-1143, `routes/console.php:131`, relevé 2026-11-16).
-- [ ] Front : `CrossTenantAuditTable.tsx` (et l'export d'agence) téléchargent par un route handler.
-- [ ] ADR-0044 §2 amendé.
-- [ ] Tests : `NoPersonalDataInLogsTest` (AC1 à AC3), `ActivityLogExportDownloadTest` (AC4).
+- [x] Front : `CrossTenantAuditTable.tsx` (et l'export d'agence) téléchargent par un route handler.
+- [x] ADR-0044 §2 amendé.
+- [x] Tests : `NoPersonalDataInLogsTest` (AC1 à AC3), `ActivityLogExportDownloadTest` (AC4).
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (rouge sur `839be671`).** Rejeu de la sonde P7 : `report(new TransportException('… "550
+- [x] **AC1 (rouge sur `839be671`).** Rejeu de la sonde P7 : `report(new TransportException('… "550
       <p7.temoin@exemple.sn>: Recipient address rejected"'))` → le journal ne contient pas
       `p7.temoin@exemple.sn`, et contient la classe de l'exception.
-- [ ] **AC2 (garde structurelle).** Un test balaie `app/` et rougit sur toute occurrence de
+- [x] **AC2 (garde structurelle).** Un test balaie `app/` et rougit sur toute occurrence de
       `getMessage()` passée à `Log::` ou dans un tableau de contexte de journal, sauf une exemption
       motivée (commande console interactive). *Un pilote ajouté demain qui journalise `getMessage()`
       rougit.*
-- [ ] **AC3.** Avec `SMS_LOG_FALLBACK` actif, l'envoi d'un SMS portant un lien `/pay/{jeton}` ne laisse
+- [x] **AC3.** Avec `SMS_LOG_FALLBACK` actif, l'envoi d'un SMS portant un lien `/pay/{jeton}` ne laisse
       au journal ni le jeton ni le numéro complet.
-- [ ] **AC4 (rouge sur `839be671`).** Rejeu de la sonde P4 : sans authentification → 401 ; par un autre
+- [x] **AC4 (rouge sur `839be671`).** Rejeu de la sonde P4 : sans authentification → 401 ; par un autre
       super-admin ou un bailleur → 403 ; par le demandeur → 200 et une ligne `activity_log` ; après
       l'expiration, le fichier n'est plus sur le disque (déjà vrai depuis TCK-1143 : gardé comme
       non-régression).
-- [ ] Ablations consignées : rapporteur `Throwable` retiré → AC1 rouge ; `auth:sanctum` retiré → AC4
+- [x] Ablations consignées : rapporteur `Throwable` retiré → AC1 rouge ; `auth:sanctum` retiré → AC4
       rouge ; une occurrence `getMessage()` réintroduite dans un pilote → AC2 rouge.
 
 ## Hors périmètre
@@ -146,3 +146,35 @@ session ; ADR-0044 §2 « les limites connues […] relèvent d'un ticket de sui
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Rapporteur** : un rapporteur `Throwable` enregistré EN DERNIER remplace (`->stop()`) le rapport
+  par défaut (`exception` + `SafeExceptionContext`) ; la ligne JSON de TCK-2356 et `query_exception`
+  restent devant lui. `dontReport` est jugé par le framework avant tout rapporteur.
+  Preuve : `NoPersonalDataInLogsTest` (AC1, dont un cas `dontReport`) ; ablation du rapporteur → rouge.
+- **AC2** : la garde est un lexeur (`token_get_all`) sur `app/`, qui voit `getMessage()` et la
+  variable d'exception passée telle quelle (`=> $e`, `(string) $e`) dans un `Log::…`/`logger(…)` ;
+  son détecteur a son propre test sur des formes fautives et sûres. Aucune exemption. ⚠ Elle juge
+  l'INSTRUCTION de journal : un message porté par un objet puis journalisé ailleurs lui échappe —
+  relevé à la main : seuls les `AiUnavailable` (dont le message EST un code, `AiErrorCode`) suivent
+  ce chemin, et `MtargetDlrPuller`, corrigé.
+  Ablation : `getMessage()` réintroduit dans `OrangeSmsDriver` → rouge sur `OrangeSmsDriver.php:111`.
+  `MtargetDlrPuller` (erreur relayée à `Log::error` par `sms:pull-mtarget-dlr`) ne porte plus que la classe.
+- **AC3** : `LogWhatsappDriver` écrit `phone_suffix` et `text_length`, comme `LogSmsDriver` ; le cas
+  SMS passe par le routeur avec une chaîne `log`. Ablation (texte remis au journal) → rouge.
+- **AC4** : route sous `auth:sanctum`, demandeur signé = appelant, ligne `export` /
+  `audit_export_downloaded` (famille `export`, 5 ans — le registre des exports, plutôt que
+  `activity('Audit')` qu'aucune purge par famille ne nomme). Signature RELATIVE : le BFF relaie.
+  Le lien du courriel vise le front (`/api/activity-logs/export/download`, route handler : sans
+  session, la connexion qui ramène ; une requête `RSC` n'atteint pas l'API) ; la console télécharge
+  par `/api/super-admin/audit/export/download` (route API `admin.audit.export.download`). Lu dans
+  `fetch-server-response.js` de Next 16 : une réponse non-RSC fait repasser le routeur en navigation
+  complète ; `api` est dans `SEGMENTS_NON_LOCALISES`. Effet de bord : un téléchargement compte parmi
+  les « gestes sensibles » de la console.
+  Preuve : `ActivityLogExportDownloadTest` ; ablations `auth:sanctum` retiré → rouge (500 au lieu de
+  401), contrôle du demandeur retiré → rouge (200 au lieu de 403).
+- **`causer_email`** : remplacée par `causer_id` + `causer_name` — décidé par analogie avec
+  TCK-2763 (l'auteur par son nom, jamais par son adresse), le ticket n'en fixant aucun traitement :
+  à confirmer. L'en-tête du CSV change. `user#<id>`, `deleted#<id>`, `system` gardent leur sens.
+- `MediaUrlResolver` n'a pas été touché : supprimé par TCK-2463 pendant ce lot.

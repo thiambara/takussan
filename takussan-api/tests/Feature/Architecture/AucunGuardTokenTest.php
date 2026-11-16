@@ -142,7 +142,6 @@ class AucunGuardTokenTest extends TestCase
         'GET api/share/{token}/download' => self::JETON,
         'POST api/share/{token}/download' => self::JETON,
         // Une URL signée (ValidateSignature, ou hasValidSignature() dans l'action).
-        'GET api/activity-logs/export/download' => self::SIGNEE,
         'GET api/auth/verify-email/{id}/{hash}' => self::SIGNEE,
         'GET api/media/{media}/file' => self::SIGNEE,
         'POST api/notifications/digest/unsubscribe/{user}' => self::SIGNEE,

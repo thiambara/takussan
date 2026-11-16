@@ -5,13 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Audit\ExportActivityLogRequest;
 use App\Jobs\Audit\ExportActivityLogJob;
-use App\Models\User;
 use App\Services\Audit\ActivityLogExporter;
 use App\Services\Export\ExportWriter;
 use App\Support\AgencyKindGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Spatie\Activitylog\Models\Activity;
 
 class ActivityLogExportController extends Controller
@@ -74,27 +74,52 @@ class ActivityLogExportController extends Controller
      * Serve an async export file via signed temporary URL (TTL 24h).
      *
      * TCK-1054 (P63.01) — le lien est lié à son demandeur : `user`, `file` et `name` sont signés
-     * ensemble, et le fichier ne se cherche que dans le dossier du demandeur signé, qui doit
-     * toujours exister. Un lien ne sert donc que le fichier écrit pour celui qui l'a reçu.
+     * ensemble, et le fichier ne se cherche que dans le dossier du demandeur signé.
+     *
+     * TCK-613 (ADR-0044 §2) — le lien n'est plus un droit au porteur : la route est sous
+     * `auth:sanctum`, le demandeur signé doit ÊTRE l'appelant (403 à tout autre, super-admin
+     * compris), et chaque téléchargement est journalisé, sans le contenu. La signature est
+     * RELATIVE : le front relaie le lien par son BFF, dont l'hôte amont n'est pas celui du lien.
+     * Deux routes servent cette action — `activity-logs.export.download` (le lien du courriel de
+     * l'export d'agence) et `admin.audit.export.download` (la console, par le relais
+     * `/api/super-admin/*`) — chacune signée pour son propre chemin.
      */
     public function download(Request $request): mixed
     {
-        if (! $request->hasValidSignature()) {
+        if (! $request->hasValidRelativeSignature()) {
             abort_code(403, 'activity_log.export_link_invalid');
         }
 
         $userId = filter_var($request->query('user'), FILTER_VALIDATE_INT);
         $file = (string) $request->query('file', '');
-        if ($userId === false || preg_match(self::FICHIER, $file) !== 1 || ! User::query()->whereKey($userId)->exists()) {
+        if ($userId === false || preg_match(self::FICHIER, $file) !== 1) {
             abort(404);
         }
+        abort_unless((int) $request->user()->getKey() === $userId, 403);
 
         $path = self::storagePath($userId, $file);
         if (! Storage::disk(self::DISK)->exists($path)) {
             abort(404);
         }
 
+        // Le registre des exports (famille `export`, gardée 5 ans par `activitylog:prune`) : le
+        // téléchargement, jamais ce que le fichier contient.
+        activity('export')
+            ->causedBy($request->user())
+            ->event('audit_export_downloaded')
+            ->withProperties(['file' => $file, 'route' => $request->route()?->getName()])
+            ->log('audit_export_downloaded');
+
         return Storage::disk(self::DISK)->download($path, (string) $request->query('name', $file));
+    }
+
+    /**
+     * TCK-613 — le lien signé, RELATIF (`/api/…?expires=…&signature=…`), d'un export écrit pour
+     * `$userId`. `$route` : `activity-logs.export.download` ou `admin.audit.export.download`.
+     */
+    public static function signedPath(string $route, int $userId, string $file, string $name, \DateTimeInterface $expiresAt): string
+    {
+        return URL::temporarySignedRoute($route, $expiresAt, ['user' => $userId, 'file' => $file, 'name' => $name], absolute: false);
     }
 
     /** Le nom opaque que le job donne au fichier : un UUID et l'extension du format. */

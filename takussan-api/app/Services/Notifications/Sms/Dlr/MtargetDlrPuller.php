@@ -69,7 +69,7 @@ class MtargetDlrPuller implements SmsDlrPullerInterface
                 ->timeout(15)
                 ->post((string) $this->config->get('sms.mtarget.pull_url'), $payload);
         } catch (\Throwable $e) {
-            return SmsDlrBatch::failed('mtarget_pull_http_exception: '.$e->getMessage());
+            return SmsDlrBatch::failed('mtarget_pull_http_exception: '.$e::class);
         }
 
         if (! $response->successful()) {
