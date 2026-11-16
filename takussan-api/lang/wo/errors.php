@@ -192,6 +192,14 @@ return [
     'credits' => [
         'insufficient' => 'Sa kredi doyul : des na la :missing kredi (sa kredi : :balance).',
         'no_space' => 'Amul bérab bu dox : tannal benn bérab ngir gis ay kredi am.',
+        // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — l'achat de la mise en avant d'une agence.
+        'spotlight_sale_closed' => 'La mise en avant de l’agence n’est pas en vente pour le moment.',
+        'spotlight_directory_wide_closed' => 'La place de l’annuaire sans ville n’est pas en vente : choisissez une ville.',
+        'spotlight_agency_not_listed' => 'Votre agence n’apparaît pas dans l’annuaire de cette ville : publiez au moins un bien dans cette ville avant d’acheter sa mise en avant.',
+        'spotlight_taken' => 'La place de cette ville est déjà prise sur cette période.',
+        'spotlight_no_free_period' => 'Aucune période libre pour cette ville dans les :days prochains jours.',
+        'spotlight_too_far' => 'La mise en avant se réserve au plus :days jours à l’avance.',
+        'spotlight_key_reused' => 'Cette demande d’achat a déjà servi pour une autre ville : rouvrez le formulaire.',
     ],
     'conversation' => [
         // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.

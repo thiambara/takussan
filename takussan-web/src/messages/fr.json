@@ -9810,7 +9810,9 @@
         "payment_ignored": "Paiement sorti du reste à rapprocher",
         "payment_unignored": "Paiement remis dans le reste à rapprocher",
         "webhook_processing_failed": "Échec du traitement d’un webhook de paiement",
-        "audit_export_downloaded": "Export du journal téléchargé"
+        "audit_export_downloaded": "Export du journal téléchargé",
+        "agency_spotlight_purchased": "Mise en avant de l’agence achetée",
+        "agency_spotlight_offer_yielded": "Mise en avant offerte cédée à un achat"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -16310,6 +16312,54 @@
             "label": "Relance sans contact",
             "description": "En jours, de 1 à 90. Une fiche client de prospect à négociation est à relancer quand son dernier contact date d’au moins ce nombre de jours. Une agence qui a son propre réglage garde le sien."
           }
+        },
+        "spotlight": {
+          "{sale_enabled,price_credits,duration_days,max_advance_days,when_taken,refund_on_suspension,offered_overlap,sell_directory_wide}": {},
+          "when_taken": {
+            "options": {
+              "refuse": "Refuser",
+              "next_free": "Premier créneau libre"
+            },
+            "label": "Quand la place est prise",
+            "description": "Refuser l’achat, ou le placer au premier créneau libre (file d’attente), annoncé avant la confirmation."
+          },
+          "refund_on_suspension": {
+            "options": {
+              "prorata": "Au prorata des jours non servis",
+              "full": "Intégral",
+              "none": "Aucun"
+            },
+            "label": "Remboursement si l’agence est suspendue",
+            "description": "Pour une place achetée, en cours ou à venir, quand l’agence quitte le site. « Aucun » garde la place, qui revient à la levée de la suspension."
+          },
+          "offered_overlap": {
+            "options": {
+              "blocks": "Elle bloque l’achat",
+              "yields": "Elle cède à l’achat"
+            },
+            "label": "Place offerte face à un achat",
+            "description": "Une place que vous offrez bloque-t-elle un achat sur la même période, ou lui cède-t-elle sa place ?"
+          },
+          "sale_enabled": {
+            "label": "Vente de la mise en avant d’agence",
+            "description": "Les agences achètent elles-mêmes la place en tête de l’annuaire d’une ville. Couper la vente ne touche ni les places déjà achetées ni celles que vous offrez."
+          },
+          "price_credits": {
+            "label": "Prix de la mise en avant d’agence",
+            "description": "En crédits, de 1 à 100 000, pour la durée ci-dessous. Figé sur la place à l’achat."
+          },
+          "duration_days": {
+            "label": "Durée de la mise en avant d’agence",
+            "description": "En jours, de 1 à 90."
+          },
+          "max_advance_days": {
+            "label": "Réservation à l’avance",
+            "description": "En jours, de 0 à 365 : jusqu’où une agence peut réserver. 0 : la place commence tout de suite, ou pas."
+          },
+          "sell_directory_wide": {
+            "label": "Vendre la place de l’annuaire sans ville",
+            "description": "La place de l’annuaire sans filtre de ville, la plus vue. Fermée, elle reste offerte par l’équipe."
+          }
         }
       },
       "noLimit": "Aucun plafond",
@@ -20257,6 +20307,41 @@
       },
       "expireLe": "expiré le {date}",
       "recus": "{count, plural, one {# crédit reçu} other {# crédits reçus}} le {date}"
+    },
+    "agence": {
+      "dialogue": {
+        "titre": "Mettre l’agence en avant",
+        "description": "Choisissez la ville et le jour de début. La place dure {days, plural, one {# jour} other {# jours}}.",
+        "ville": "Ville",
+        "aucuneVille": "Aucune ville trouvée",
+        "debut": "Jour de début (facultatif)",
+        "debutAide": "Sans date, la place commence tout de suite. Au plus {days, plural, one {# jour} other {# jours}} à l’avance.",
+        "periode": "Période",
+        "periodeValeur": "Du {from} au {to}",
+        "prix": "Prix",
+        "credits": "{count, plural, one {# crédit} other {# crédits}}",
+        "soldeApres": "Solde après achat",
+        "soldeInsuffisant": "Votre solde ne couvre pas cet achat.",
+        "prise": "La place de cette ville est prise. Prochaine disponibilité : {date}.",
+        "priseSansDate": "La place de cette ville est prise sur toute la période de réservation.",
+        "choisirJour": "Commencer le {date}",
+        "tropLoin": "Choisissez un jour de début plus proche.",
+        "aucunCreneau": "Aucune période libre pour cette ville dans la période de réservation.",
+        "fileAttente": "La place est prise ce jour-là : votre mise en avant commencera dès qu’elle se libère.",
+        "annuler": "Annuler",
+        "confirmer": "Payer {count, plural, one {# crédit} other {# crédits}}",
+        "echec": "L’achat n’a pas abouti."
+      },
+      "titre": "Votre agence en tête de l’annuaire",
+      "texte": "Une seule agence est mise en avant par ville. Elle apparaît en tête de l’annuaire de cette ville, et garde aussi sa place dans la liste.",
+      "aucune": "Aucune mise en avant en cours ou à venir.",
+      "prix": "{price, plural, one {# crédit} other {# crédits}} pour {days, plural, one {# jour} other {# jours}}",
+      "ouvrir": "Mettre l’agence en avant",
+      "venteFermee": "La mise en avant de l’agence n’est pas en vente pour le moment.",
+      "toutAnnuaire": "Tout l’annuaire",
+      "periode": "du {from} au {to}",
+      "offerte": "Offerte",
+      "fait": "Votre agence est mise en avant à {city}, du {from} au {to}."
     }
   },
   "commissions": {
@@ -23487,5 +23572,8 @@
       "silence": "Rien n’a été entendu. Réessayez.",
       "autre": "La dictée s’est interrompue. Votre texte est conservé."
     }
+  },
+  "API lang errors": {
+    "credits": {}
   }
 }

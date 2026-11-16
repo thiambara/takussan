@@ -192,6 +192,14 @@ return [
     'credits' => [
         'insufficient' => 'Insufficient balance: you are missing :missing credits (balance: :balance).',
         'no_space' => 'No active workspace: select a workspace to see its credits.',
+        // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — l'achat de la mise en avant d'une agence.
+        'spotlight_sale_closed' => 'Agency spotlights are not on sale at the moment.',
+        'spotlight_directory_wide_closed' => 'The spotlight of the directory without a city is not on sale: choose a city.',
+        'spotlight_agency_not_listed' => 'Your agency does not appear in this city’s directory: publish at least one property in this city before buying its spotlight.',
+        'spotlight_taken' => 'This city’s spotlight is already taken for this period.',
+        'spotlight_no_free_period' => 'No free period for this city in the next :days days.',
+        'spotlight_too_far' => 'A spotlight can be booked at most :days days ahead.',
+        'spotlight_key_reused' => 'This purchase request was already used for another city: reopen the form.',
     ],
     'conversation' => [
         // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.

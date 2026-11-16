@@ -9810,7 +9810,9 @@
         "payment_ignored": "Payment removed from the payments to reconcile",
         "payment_unignored": "Payment put back into the payments to reconcile",
         "webhook_processing_failed": "Payment webhook processing failed",
-        "audit_export_downloaded": "Audit log export downloaded"
+        "audit_export_downloaded": "Audit log export downloaded",
+        "agency_spotlight_purchased": "Agency spotlight purchased",
+        "agency_spotlight_offer_yielded": "Offered spotlight yielded to a purchase"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
@@ -16310,6 +16312,54 @@
             "label": "Follow-up without contact",
             "description": "In days, from 1 to 90. A customer from lead to negotiation is due for follow-up once their last contact is at least this many days old. An agency with its own setting keeps it."
           }
+        },
+        "spotlight": {
+          "{sale_enabled,price_credits,duration_days,max_advance_days,when_taken,refund_on_suspension,offered_overlap,sell_directory_wide}": {},
+          "when_taken": {
+            "options": {
+              "refuse": "Refuse",
+              "next_free": "First free slot"
+            },
+            "label": "When the place is taken",
+            "description": "Refuse the purchase, or place it in the first free slot (queue), shown before confirmation."
+          },
+          "refund_on_suspension": {
+            "options": {
+              "prorata": "Pro rata of unserved days",
+              "full": "Full",
+              "none": "None"
+            },
+            "label": "Refund if the agency is suspended",
+            "description": "For a bought place, current or upcoming, when the agency leaves the site. “None” keeps the place, which returns when the suspension is lifted."
+          },
+          "offered_overlap": {
+            "options": {
+              "blocks": "It blocks the purchase",
+              "yields": "It gives way to the purchase"
+            },
+            "label": "Offered place versus a purchase",
+            "description": "Does a place you offer block a purchase over the same period, or give way to it?"
+          },
+          "sale_enabled": {
+            "label": "Agency spotlight sale",
+            "description": "Agencies buy the top spot of a city directory themselves. Closing the sale affects neither places already bought nor those you offer."
+          },
+          "price_credits": {
+            "label": "Agency spotlight price",
+            "description": "In credits, from 1 to 100,000, for the duration below. Frozen on the place at purchase."
+          },
+          "duration_days": {
+            "label": "Agency spotlight duration",
+            "description": "In days, from 1 to 90."
+          },
+          "max_advance_days": {
+            "label": "Advance booking",
+            "description": "In days, from 0 to 365: how far ahead an agency can book. 0: the place starts now, or not at all."
+          },
+          "sell_directory_wide": {
+            "label": "Sell the directory-wide place",
+            "description": "The place of the directory without a city filter, the most viewed. Closed, it stays offered by the team."
+          }
         }
       },
       "noLimit": "No cap",
@@ -20257,6 +20307,41 @@
       },
       "expireLe": "expired on {date}",
       "recus": "{count, plural, one {# credit received} other {# credits received}} on {date}"
+    },
+    "agence": {
+      "dialogue": {
+        "titre": "Highlight the agency",
+        "description": "Choose the city and the start day. The spotlight lasts {days, plural, one {# day} other {# days}}.",
+        "ville": "City",
+        "aucuneVille": "No city found",
+        "debut": "Start day (optional)",
+        "debutAide": "Without a date, the spotlight starts now. At most {days, plural, one {# day} other {# days}} ahead.",
+        "periode": "Period",
+        "periodeValeur": "From {from} to {to}",
+        "prix": "Price",
+        "credits": "{count, plural, one {# credit} other {# credits}}",
+        "soldeApres": "Balance after purchase",
+        "soldeInsuffisant": "Your balance does not cover this purchase.",
+        "prise": "This city’s spotlight is taken. Next availability: {date}.",
+        "priseSansDate": "This city’s spotlight is taken for the whole booking period.",
+        "choisirJour": "Start on {date}",
+        "tropLoin": "Choose an earlier start day.",
+        "aucunCreneau": "No free period for this city within the booking period.",
+        "fileAttente": "The spotlight is taken that day: yours will start as soon as it is free.",
+        "annuler": "Cancel",
+        "confirmer": "Pay {count, plural, one {# credit} other {# credits}}",
+        "echec": "The purchase did not go through."
+      },
+      "titre": "Your agency at the top of the directory",
+      "texte": "One agency is highlighted per city. It appears at the top of that city’s directory and keeps its place in the list.",
+      "aucune": "No current or upcoming spotlight.",
+      "prix": "{price, plural, one {# credit} other {# credits}} for {days, plural, one {# day} other {# days}}",
+      "ouvrir": "Highlight the agency",
+      "venteFermee": "Agency spotlights are not on sale at the moment.",
+      "toutAnnuaire": "Whole directory",
+      "periode": "{from} to {to}",
+      "offerte": "Offered",
+      "fait": "Your agency is highlighted in {city}, from {from} to {to}."
     }
   },
   "commissions": {
@@ -23487,5 +23572,8 @@
       "silence": "Nothing was heard. Please try again.",
       "autre": "Dictation stopped. Your text is kept."
     }
+  },
+  "API lang errors": {
+    "credits": {}
   }
 }

@@ -14,13 +14,17 @@ class PlatformSettingsCatalogueTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_le_catalogue_se_reduit_aux_dix_huit_cles_lues(): void
+    public function test_le_catalogue_se_reduit_aux_vingt_six_cles_lues(): void
     {
         $this->assertSame(
             [
                 'currency.default', 'currency.supported', 'platform.session_max_minutes',
                 'credits.welcome_amount', 'credits.welcome_validity_days', 'credits.expiry_notice_days',
                 'boost.bump_cooldown_hours', 'boost.sponsored_slots_per_page', 'boost.reserved_top_results',
+                // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — la mise en avant d'agence vendue.
+                'spotlight.sale_enabled', 'spotlight.price_credits', 'spotlight.duration_days',
+                'spotlight.max_advance_days', 'spotlight.when_taken', 'spotlight.refund_on_suspension',
+                'spotlight.offered_overlap', 'spotlight.sell_directory_wide',
                 // TCK-651 (ADR-0065) — les réglages métier à repli par agence.
                 'invoice.reminder_offsets_days', 'lease.rent_review_max_pct',
                 'lease.early_termination_penalty_months', 'lease.require_signature',
@@ -57,6 +61,10 @@ class PlatformSettingsCatalogueTest extends TestCase
                 'currency.default', 'currency.supported', 'platform.session_max_minutes',
                 'credits.welcome_amount', 'credits.welcome_validity_days', 'credits.expiry_notice_days',
                 'boost.bump_cooldown_hours', 'boost.sponsored_slots_per_page', 'boost.reserved_top_results',
+                // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — la mise en avant d'agence vendue.
+                'spotlight.sale_enabled', 'spotlight.price_credits', 'spotlight.duration_days',
+                'spotlight.max_advance_days', 'spotlight.when_taken', 'spotlight.refund_on_suspension',
+                'spotlight.offered_overlap', 'spotlight.sell_directory_wide',
                 // TCK-651 (ADR-0065) — les réglages métier à repli par agence.
                 'invoice.reminder_offsets_days', 'lease.rent_review_max_pct',
                 'lease.early_termination_penalty_months', 'lease.require_signature',

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Credits\AgencySpotlightController;
 use App\Http\Controllers\Api\Credits\BoostProductController;
 use App\Http\Controllers\Api\Credits\CreditBoostController;
 use App\Http\Controllers\Api\Credits\CreditBoostReportController;
@@ -19,6 +20,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('credits/boosts/report', CreditBoostReportController::class)->name('credits.boosts.report');
     Route::get('credits/lots', [CreditLotController::class, 'index'])->name('credits.lots.index');
     Route::get('credits/suggestions', [CreditBoostController::class, 'suggestions'])->name('credits.suggestions');
+    // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — la mise en avant de l'agence, achetée en crédits.
+    Route::get('credits/spotlights', [AgencySpotlightController::class, 'index'])->name('credits.spotlights.index');
+    Route::get('credits/spotlights/quote', [AgencySpotlightController::class, 'quote'])->name('credits.spotlights.quote');
+    Route::post('credits/spotlights', [AgencySpotlightController::class, 'store'])->name('credits.spotlights.store');
     Route::get('boost-products', [BoostProductController::class, 'index'])->name('boost-products.index');
     Route::get('properties/{property}/boosts', [PropertyBoostController::class, 'index'])->name('properties.boosts.index');
     Route::post('properties/{property}/boosts', [PropertyBoostController::class, 'store'])->name('properties.boosts.store');

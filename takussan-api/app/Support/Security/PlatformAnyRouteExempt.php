@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\ContactLeadController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationParticipantController;
 use App\Http\Controllers\Api\ConversationReportController;
+use App\Http\Controllers\Api\Credits\AgencySpotlightController;
 use App\Http\Controllers\Api\Credits\PropertyBoostController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\CustomerInvitationController;
@@ -184,6 +185,8 @@ final class PlatformAnyRouteExempt
         ConversationParticipantController::class.'@update' => self::NON_GARDE,
         ConversationReportController::class.'@store' => self::NON_GARDE,
         PropertyBoostController::class.'@store' => self::NON_GARDE,
+        // TCK-2525 — la même dépense de crédits que l'achat d'un boost, rangée comme lui.
+        AgencySpotlightController::class.'@store' => self::NON_GARDE,
         CustomerController::class.'@destroy' => self::NON_GARDE,
         CustomerController::class.'@dismissSuggestedStage' => self::NON_GARDE,
         CustomerController::class.'@setPrimaryContact' => self::NON_GARDE,

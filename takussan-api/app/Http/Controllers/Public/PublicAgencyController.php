@@ -238,10 +238,12 @@ class PublicAgencyController extends Controller
      * a déjà sa fiche sous `/agents/{slug}`. Même filtre dans `show()` et `properties()`, sans quoi
      * l'annuaire et la fiche se contrediraient. TCK-2520 — la place « Mise en avant » passe par le
      * même filtre : une place ne ramène jamais une agence que l'annuaire refuse (ADR-0092 § 4).
+     * TCK-2525 — et l'achat de la place le compose (`SpotlightPurchaseService`) : on ne vend pas une
+     * place qui ne s'afficherait pas.
      *
      * @return Builder<Agency>
      */
-    private static function agencesDeLAnnuaire(): Builder
+    public static function agencesDeLAnnuaire(): Builder
     {
         return Agency::query()
             ->where('agencies.status', AgencyStatus::Active)
@@ -259,7 +261,7 @@ class PublicAgencyController extends Controller
      *
      * @param  Builder<Agency>  $agences
      */
-    private static function filtrerParVille(Builder $agences, ?string $ville): void
+    public static function filtrerParVille(Builder $agences, ?string $ville): void
     {
         if ($ville === null) {
             return;
@@ -463,6 +465,9 @@ class PublicAgencyController extends Controller
                 'logo_url' => $agency->getFirstMediaUrl('logo') ?: null,
                 'email' => $agency->email,
                 'phone' => $agency->phone,
+                // TCK-2576 — le numéro WhatsApp DÉCLARÉ par l'agence, absent sinon : jamais `phone`
+                // ni le numéro de son administrateur ({@see Agency::numeroWhatsAppPublic()}).
+                ...(($whatsApp = $agency->numeroWhatsAppPublic()) !== null ? ['phone_whatsapp' => $whatsApp] : []),
                 'city' => $agency->addresses->first()?->city,
                 // TCK-2518 — la vitrine. Tous facultatifs : `null` / `[]`, la fiche s'en passe sans trou.
                 'tagline' => $agency->tagline,
