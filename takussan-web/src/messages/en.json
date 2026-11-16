@@ -9808,7 +9808,9 @@
         "agency_self_opened": "Agency opened from onboarding",
         "invitation_phone_corrected": "Phone number corrected by the invitee",
         "payment_ignored": "Payment removed from the payments to reconcile",
-        "payment_unignored": "Payment put back into the payments to reconcile"
+        "payment_unignored": "Payment put back into the payments to reconcile",
+        "webhook_processing_failed": "Payment webhook processing failed",
+        "audit_export_downloaded": "Audit log export downloaded"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",

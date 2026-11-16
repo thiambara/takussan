@@ -543,8 +543,14 @@ const FICHIERS_HORS_JETONS = 5;
  * Le dégradé ne porte pas l'encre (il serait compté « hors jetons »), et le compte reste à 85 % par
  * `opacity-85` plutôt que par une seconde encre. Relevé par `couplesDesFichiers` sur la version de
  * HEAD (1 encre) puis sur la nouvelle (2). Aucun défaut réel.
+ *
+ * 436 → 437 (2026-11-16, TCK-2575) : sa propre fiche publique (`VotreFiche` de
+ * `public/fiche/ContactDeFiche.tsx`) : 1, l'aide « votreFicheAide » sous le titre,
+ * `text-muted-foreground` OPAQUE sur la carte (`bg-card`), comme le sous-titre du contact déjà compté.
+ * Relevé en listant les encres inverses de la surface sur une extraction d'`origin/dev` et sur
+ * l'arbre de la branche, sans maquettes. Aucun défaut réel.
  */
-const ENCRES_INVERSES = 436;
+const ENCRES_INVERSES = 437;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

@@ -9808,7 +9808,9 @@
         "agency_self_opened": "Agence ouverte depuis l'orientation",
         "invitation_phone_corrected": "Numéro corrigé par l'invité",
         "payment_ignored": "Paiement sorti du reste à rapprocher",
-        "payment_unignored": "Paiement remis dans le reste à rapprocher"
+        "payment_unignored": "Paiement remis dans le reste à rapprocher",
+        "webhook_processing_failed": "Échec du traitement d’un webhook de paiement",
+        "audit_export_downloaded": "Export du journal téléchargé"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
