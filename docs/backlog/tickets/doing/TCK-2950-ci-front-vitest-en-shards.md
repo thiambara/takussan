@@ -1,7 +1,7 @@
 ---
 id: TCK-2950
 title: "CI du front — Vitest en 4 shards parallèles, le statique à côté, le check requis devient l'agrégateur"
-status: todo
+status: doing
 phase: P2
 family: technique
 estimate: S
@@ -97,3 +97,9 @@ _(à remplir par implementing-specs)_
   artefact `ci-vert-web-*` déposé (le délai de 7 jours n'est pas prolongé par un saut).
 - **AC1, deuxième relevé** — run de `5b5e5c98f` : shards 7,0 / 6,7 / 9,6 / 9,4 min, `statique` 7,9 min,
   agrégateur 5 s. Le troisième se relèvera sur la prochaine PR qui touche le front.
+
+## Reste sur dev
+
+Le code est fusionné (#1688, `8554e877a`) ; AC2 et AC3 sont tenus, AC1 a deux relevés sur trois.
+**Reste le troisième relevé d'AC1** : la durée du check requis `Web (ESLint + tsc + Vitest + build)` sur
+la prochaine PR qui touche le front (premier job → verdict de l'agrégateur). Puis passer le ticket à `done`.
