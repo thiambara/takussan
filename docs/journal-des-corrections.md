@@ -314,6 +314,9 @@ distincts, tous Meilisearch, qui relancés seuls passaient 22/22.
 barrière lève désormais, compte les tâches en attente index par index, et nomme elle-même la cause
 probable. **Le diagnostic était dans l'erreur.**
 
+*En CI, la question de `--parallel` est tranchée depuis le 2026-11-16 par TCK-637 : cf. la fin de
+[J-12](#j-12).*
+
 ### <a id="j-12"></a>J-12 — `--parallel` en CI : un gain réel et inutilisable
 
 Mesuré le 2026-08-18 sur le runner `ubuntu-latest`, `nproc` **4**, AMD EPYC 7763, load 1,05 au
@@ -333,12 +336,22 @@ chemin critique.
 *Le gain est réel et inutilisable dans la forme actuelle de la CI* — ce n'est pas « ça ne vaut pas
 le coup ». Ce qui changerait la réponse : sortir le cliquet du job de PR. Détail : ardoise **D-30**.
 
+**Levé par TCK-637 (2026-11-16, [ADR-0063](adr/0063-attestation-de-ci-par-arbre.md) § 4 amendé).**
+C'est la réponse annoncée, sous une autre forme : le cliquet n'est pas sorti de la PR, il est sorti
+du job qui juge les tests. `lint-and-test` joue la suite en `--parallel` sans couverture ; le job
+`couverture` la rejoue en un seul processus sous PCOV, à côté, et tient le cliquet. Relevé sur la
+PR #1688 (4 processus) : `lint-and-test` **18 à 20 min** au lieu de 54 à 90, `couverture` **77 min**,
+`Total: 96.9 %`. Le dernier mot de ce paragraphe reste juste : la couverture est toujours le chemin
+critique du « tout vert ».
+
 ### <a id="j-13"></a>J-13 — Le seed, les médias, et les séquences PostgreSQL
 
 `php artisan migrate:fresh --seed` mesuré sur PostgreSQL le 2026-08-21 : **262 s**, sortie 0,
 836 biens / 305 utilisateurs / 4 agences, 0 erreur, et **aucune séquence désynchronisée** — vérifié
 en insérant une ligne applicative dans 5 tables semées, parce que *la panne des séquences ne se voit
 qu'au PREMIER insert suivant, pas au seed lui-même.*
+*Ces 262 s datent d'avant TCK-2381 (2026-11-16), qui a ajouté neuf fichiers de seeders au jeu de
+démonstration ; la durée actuelle n'est pas re-mesurée.*
 
 `SEED_DOWNLOAD_MEDIA` vaut `false` des DEUX côtés (`.env.example` ET `.env.docker`) depuis TCK-301.
 Il valait `true`, et décidait pour tout nouveau clone de **1000 à 2700 requêtes HTTP**. `true`

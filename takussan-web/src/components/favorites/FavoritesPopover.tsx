@@ -19,6 +19,7 @@ import {
   useRemoveFavoriteMutation,
 } from '@/lib/queries/favorites';
 import { formatPrice } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import { ZONE_TACTILE_44 } from '@/lib/zone-tactile';
 import type { PropertyListItem } from '@/types/property';
@@ -149,6 +150,7 @@ interface PopoverBodyProps {
 
 function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps) {
   const t = useTranslations('favorites.popover');
+  const { locale } = useFormatteurs();
   const { user } = useAuth();
   const removeMutation = useRemoveFavoriteMutation();
 
@@ -217,7 +219,7 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
                 {[property.location.quarter, property.location.city].filter(Boolean).join(', ')}
               </p>
               <p className="text-xs font-semibold text-primary mt-0.5">
-                {formatPrice(property.price, property.currency ?? 'XOF')}
+                {formatPrice(property.price, property.currency ?? 'XOF', locale)}
               </p>
             </div>
           </LienLocalise>

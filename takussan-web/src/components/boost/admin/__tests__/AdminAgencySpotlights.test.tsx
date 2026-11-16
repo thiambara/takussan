@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,6 +47,26 @@ const PLACE = {
   ends_at: '2099-01-01T00:00:00+00:00',
   note: 'Lancement',
   granted_by: { id: 1, name: 'Awa Ndiaye' },
+  origin: 'offered',
+  price_credits: null,
+  purchased_by: null,
+  cancelled_at: null,
+  refunded_credits: null,
+} as const;
+
+/** TCK-2525 — une place achetée en crédits, puis libérée (agence suspendue) et remboursée au prorata. */
+const ACHETEE_LIBEREE = {
+  ...PLACE,
+  id: 10,
+  agency: { id: 8, name: 'Agence Saloum', slug: 'saloum', status: 'suspended' },
+  agency_id: 8,
+  note: null,
+  granted_by: null,
+  origin: 'purchased',
+  price_credits: 100,
+  purchased_by: { id: 3, name: 'Moussa Sow' },
+  cancelled_at: '2026-11-10T10:00:00+00:00',
+  refunded_credits: 57,
 } as const;
 
 const META = { current_page: 1, last_page: 1, per_page: 25, total: 1 };
@@ -68,6 +88,24 @@ describe('AdminAgencySpotlights (TCK-2520)', () => {
     await user.click(screen.getAllByRole('button', { name: 'Retirer' }).at(-1)!);
 
     await waitFor(() => expect(deleteAgencySpotlight).toHaveBeenCalledWith(9));
+  });
+
+  it('TCK-2525 — dit l’origine (offerte par, achetée : prix et acheteur) et la libération (date, crédits rendus)', async () => {
+    vi.mocked(fetchAgencySpotlights).mockResolvedValue({ data: [PLACE, ACHETEE_LIBEREE], meta: { ...META, total: 2 } });
+    rendre(<AdminAgencySpotlights />);
+
+    const offerte = (await screen.findByText('Agence Teranga')).closest('tr')!;
+    expect(within(offerte).getByText('Offerte')).toBeInTheDocument();
+    expect(within(offerte).getByText('par Awa Ndiaye')).toBeInTheDocument();
+
+    const achetee = screen.getByText('Agence Saloum').closest('tr')!;
+    expect(within(achetee).getByText('Achetée — 100 crédits')).toBeInTheDocument();
+    expect(within(achetee).getByText('par Moussa Sow')).toBeInTheDocument();
+    expect(within(achetee).getByText(/^Libérée le /)).toBeInTheDocument();
+    expect(within(achetee).getByText('57 crédits rendus')).toBeInTheDocument();
+    // Libérée : ni « En cours » (sa fin est en 2099), ni bouton de retrait.
+    expect(within(achetee).queryByText('En cours')).not.toBeInTheDocument();
+    expect(within(achetee).queryByRole('button', { name: 'Retirer' })).not.toBeInTheDocument();
   });
 
   it('offre une place : agence choisie, tout l’annuaire, période inclusive convertie en fin exclue', async () => {

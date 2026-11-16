@@ -31,6 +31,8 @@
  *    cran d'avertissement par l'intensité » — et rendait 3,36 à 3,98:1 sur les quatre surfaces des
  *    deux thèmes. Le cran est passé sur une BORDURE pleine, qui ne porte pas de texte : seuil 3:1
  *    (WCAG 1.4.11), mesurée à 4,65:1 contre son propre aplat.
+ *  · *(2026-11-16, TCK-487 : les 15 sont fermés — `bg-primary/8 text-primary-deep`, cf.
+ *    `TONS_SOUS_AA_DECLARES`, désormais vide.)*
  *  · **Les 15 qui restent sont `text-primary`, et ils ne se corrigent pas ici.** `--primary`
  *    échoue AA sur ces surfaces **à tous les alphas d'aplat, `/0` compris** — 3,99:1 au mieux.
  *    C'est la signature d'un défaut de JETON : *aucun alpha d'aplat ne rattrape une encre trop
@@ -122,14 +124,18 @@ const SURFACES_MAINTENANCE: readonly Surface[] = [
 /**
  * Les tons dont on SAIT qu'ils échouent, et pourquoi — cliquet à deux sens, cf. l'en-tête.
  *
- * Ils échouent tous les trois par `text-primary`, et tous les trois pour la même raison : le jeton
- * n'est pas une encre. Les recopier ici n'est pas une exemption — c'est ce qui fait rougir le jour
- * où l'un d'eux cesse d'échouer sans que la déclaration bouge.
+ * Une entrée n'est pas une exemption : c'est ce qui fait rougir le jour où le ton cesse d'échouer
+ * sans que la déclaration bouge. Vide depuis TCK-487 (2026-11-16), cf. le commentaire ci-dessous.
  */
-const TONS_SOUS_AA_DECLARES: ReadonlyMap<string, string> = new Map([
-  ['bg-primary/12 text-primary',
-    '`--primary` n’est pas une encre : échoue AA à TOUS les alphas, `/0` compris (3,99:1 au mieux). '
-    + 'Défaut de jeton, partagé par la visite du calendrier, `move_out` et `quote_*`. Ticket à part.'],
+const TONS_SOUS_AA_DECLARES: ReadonlyMap<string, string> = new Map<string, string>([
+  // ⚠ VIDE depuis le 2026-11-16 (TCK-487, option b du porteur) : l'unique entrée,
+  // `bg-primary/12 text-primary`, est sortie parce que ses trois sites (`move_out`,
+  // `quote_requested`/`quote_submitted`/`awaiting_owner`) écrivent désormais
+  // `bg-primary/8 text-primary-deep` — l'encre de la charte faite pour se poser sur la marque, et
+  // l'alpha descendu de 12 à 8 parce que `primary-deep` sur `bg-primary/12` au-dessus de `--muted`
+  // sombre ne rendait que 4,32:1 (4,57:1 à /8, 6,16:1 en clair). Le jeton `--primary`, lui, n'a
+  // PAS bougé : le porteur a écarté la décision de palette. Le cliquet reste à deux sens — un ton
+  // qui retombe sous AA rougit comme « non déclaré ».
 ]);
 
 /** Extrait le couple (aplat, encre) INCONDITIONNEL d'une chaîne de classes. */
@@ -218,10 +224,11 @@ describe('TCK-484 — les tons des familles hors DS, sur leurs propres surfaces'
       mesurer('inventory/labels.ts', etat, inventoryElementStateBadgeClass(etat), SURFACES_INVENTAIRE);
     }
 
-    // ── 3. Maintenance — les onze statuts, un par un.
+    // ── 3. Maintenance — les douze statuts, un par un (`awaiting_owner`, TCK-592, ajouté le
+    //      2026-11-16 par TCK-487 : il portait le même `bg-primary/12 text-primary` sans être mesuré).
     const STATUTS: readonly MaintenanceStatus[] = [
-      'open', 'acknowledged', 'quote_requested', 'quote_submitted', 'approved', 'rejected',
-      'assigned', 'in_progress', 'completed', 'closed', 'cancelled',
+      'open', 'acknowledged', 'quote_requested', 'quote_submitted', 'awaiting_owner', 'approved',
+      'rejected', 'assigned', 'in_progress', 'completed', 'closed', 'cancelled',
     ];
     for (const statut of STATUTS) {
       mesurer('maintenance/labels.ts', statut, maintenanceStatusBadgeClass(statut), SURFACES_MAINTENANCE);

@@ -38,8 +38,12 @@ describe('TCK-2650 — l’issue du retour vient du serveur (AC1)', () => {
     expect(decider('pending', 'cancelled')).toEqual({ issue: 'echec', terminale: false });
   });
 
-  it.each(['failed', 'cancelled'])('statut serveur %s : non abouti, définitif, même avec `status=success`', (statut) => {
-    for (const indice of INDICES) expect(decider(statut, indice)).toEqual({ issue: 'echec', terminale: true });
+  it('statut serveur failed : non abouti, définitif, même avec `status=success`', () => {
+    for (const indice of INDICES) expect(decider('failed', indice)).toEqual({ issue: 'echec', terminale: true });
+  });
+
+  it('TCK-608 — statut serveur cancelled sans drapeau : « annulée », définitif, jamais un échec à réessayer', () => {
+    for (const indice of INDICES) expect(decider('cancelled', indice)).toEqual({ issue: 'annulee', terminale: true });
   });
 
   it('remboursement : `refund_pending` l’emporte sur `paid` comme sur `cancelled` ; `refunded` aussi', () => {

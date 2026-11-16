@@ -38,7 +38,7 @@ class PayoutSeeder extends Seeder
             ->get()
             ->groupBy(fn ($p) => CarbonImmutable::parse($p->period_start)->format('Y-m'));
 
-        $commissionRate = (float) ($lease->commission_rate ?? 8.0) / 100;
+        $taux = (float) ($lease->commission_rate ?? 8.0);
         $maintenant = CarbonImmutable::now();
 
         foreach ($paidPayments as $bucket => $payments) {
@@ -46,7 +46,16 @@ class PayoutSeeder extends Seeder
             if ($gross <= 0) {
                 continue;
             }
-            $commission = (int) round($gross * $commissionRate);
+            // TCK-2381 — la copie de chaque ligne, comme `PayoutService::createLocked` la pose (TCK-2017) :
+            // le montant retenu, le taux, la commission de la ligne. Sans elle, un remboursement après
+            // reversement ne donnait aucune reprise (`PayoutClawbacks::recordRefund` lit la copie), et la
+            // commission du reversement est la somme de celles des lignes, comme au calcul de l'application.
+            $copies = $payments->mapWithKeys(fn (LeasePayment $p) => [$p->id => [
+                'amount' => (float) $p->amount,
+                'commission_rate' => $taux,
+                'commission_amount' => round((float) $p->amount * $taux / 100),
+            ]]);
+            $commission = (int) $copies->sum('commission_amount');
             $net = $gross - $commission;
             $periodStart = CarbonImmutable::parse($bucket.'-01');
             $processedAt = $periodStart->endOfMonth()->addDays(mt_rand(1, 5));
@@ -66,7 +75,7 @@ class PayoutSeeder extends Seeder
                 $moyen = null;
             }
             Payout::withoutEvents(function () use (
-                $lease, $gross, $commission, $net, $periodStart, $processedAt, $payments, $moyen
+                $lease, $gross, $commission, $net, $periodStart, $processedAt, $copies, $moyen
             ) {
                 $payout = Payout::create([
                     'lease_id' => $lease->id,
@@ -91,7 +100,7 @@ class PayoutSeeder extends Seeder
                     'updated_at' => $processedAt,
                 ]);
 
-                $payout->leasePayments()->attach($payments->pluck('id')->all());
+                $payout->leasePayments()->attach($copies->all());
             });
         }
     }

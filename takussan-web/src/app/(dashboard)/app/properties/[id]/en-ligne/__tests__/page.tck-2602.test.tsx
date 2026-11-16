@@ -35,7 +35,7 @@ import Page from '../page';
 
 const BIEN = {
   id: 42, title: 'Studio meublé lumineux à Mermoz', reference_number: 'TK-58204', slug: 'studio-mermoz-42',
-  status: 'available', visibility: 'public', type: 'studio', type_label: 'Studio', contract_type: 'rent', rent_period: 'monthly',
+  status: 'available', visibility: 'public', type: 'studio', contract_type: 'rent', rent_period: 'monthly',
   price: 250000, currency: 'XOF', location: { quarter: 'Mermoz', city: 'Dakar' }, furnished: true, area: 38, floor_number: 2,
   entry_cost: { total: 1015000 }, photos: [{ preview: 'https://media/1.jpg' }, { preview: 'https://media/2.jpg' }], main_photo_url: null,
   agency: { id: 9, kind: 'individual' },

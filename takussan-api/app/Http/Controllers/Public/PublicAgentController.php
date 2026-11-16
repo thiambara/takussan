@@ -8,6 +8,7 @@ use App\Http\Requests\Public\IndexPublicProfilesRequest;
 use App\Http\Requests\Public\PublicPortfolioRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\UserStatus;
 use App\Models\Property;
@@ -141,9 +142,19 @@ class PublicAgentController extends Controller
                     // Trois colonnes en OU, et `username` en fait partie : c'est le slug public,
                     // donc la chaîne qu'un visiteur a sous les yeux dans l'URL d'une fiche.
                     $q->where(function (Builder $inner) use ($motif) {
-                        foreach (['users.first_name', 'users.last_name', 'users.username', 'users.public_slug'] as $colonne) {
+                        foreach (['users.first_name', 'users.username', 'users.public_slug'] as $colonne) {
                             $inner->orWhereRaw(CaseInsensitive::sql($colonne).' LIKE ?', [$motif]);
                         }
+                        // TCK-2574 — le nom de famille n'est cherchable que chez un agent en exercice
+                        // (même prédicat que `PublicProfileFacts::rolesPublics()`) : celui d'un
+                        // propriétaire n'est plus servi, et une recherche préfixe lettre à lettre le
+                        // reconstituait.
+                        $inner->orWhere(fn (Builder $pro) => $pro
+                            ->whereRaw(CaseInsensitive::sql('users.last_name').' LIKE ?', [$motif])
+                            ->where(fn (Builder $role) => $role
+                                ->whereHas('agentProfiles', fn (Builder $p) => $p->active())
+                                ->orWhereHas('agencyAdminProfiles', fn (Builder $p) => $p->active()
+                                    ->whereHas('agency', fn (Builder $a) => $a->where('kind', AgencyKind::Standard->value)))));
                     });
                     // `delimiter('')` : spatie découperait sinon la saisie à la virgule, et le
                     // tableau qui en sort faisait ignorer la recherche (P187.01, TCK-1843).
@@ -185,8 +196,8 @@ class PublicAgentController extends Controller
                 // directement à l'adresse canonique, sans redirection.
                 'slug' => $agent->slugDeFiche(),
                 'first_name' => $agent->first_name,
-                'last_name' => $agent->last_name,
-                'full_name' => trim($agent->first_name.' '.$agent->last_name),
+                // TCK-2574 — le nom de famille d'un propriétaire ne sort pas : initiale seulement.
+                ...PublicProfileFacts::nomPublic($agent->first_name, $agent->last_name, $roles[$id]),
                 // TCK-573 — `agent` ou `owner` : l'index liste aussi des propriétaires, et le
                 // front ne doit présenter comme « agent » que ceux qui le sont
                 // ({@see PublicProfileFacts::rolesPublics()}).
@@ -197,6 +208,13 @@ class PublicAgentController extends Controller
                 'avatar_url' => $agent->avatarUrl(),
                 'specialty' => $profil?->specialty,
                 'agency' => $agence === null ? null : [
+                    'id' => $agence['id'],
+                    'slug' => $agence['slug'],
+                    'name' => $agence['name'],
+                ],
+                // TCK-2574 — la même agence sous le nom que la fiche lui donne : sur les deux surfaces,
+                // `managing_agency` est l'agence qui gère ses biens publics, et la même valeur.
+                'managing_agency' => $agence === null ? null : [
                     'id' => $agence['id'],
                     'slug' => $agence['slug'],
                     'name' => $agence['name'],
@@ -283,8 +301,8 @@ class PublicAgentController extends Controller
                 // (ancien slug, `username`, autre casse) : le front redirige en 301 vers elle.
                 ...($canonique !== $slug ? ['canonical_slug' => $canonique] : []),
                 'first_name' => $agent->first_name,
-                'last_name' => $agent->last_name,
-                'full_name' => trim($agent->first_name.' '.$agent->last_name),
+                // TCK-2574 — un propriétaire : « Sokhna G. », jamais son nom de famille.
+                ...PublicProfileFacts::nomPublic($agent->first_name, $agent->last_name, $role),
                 // TCK-573 — un propriétaire garde sa fiche sous `/agents/…` (liens existants) mais
                 // n'y est jamais présenté comme agent immobilier : titre, libellé et données
                 // structurées en dépendent ({@see PublicProfileFacts::rolesPublics()}).
@@ -310,6 +328,10 @@ class PublicAgentController extends Controller
                 // booléen que `primary_contact.phone_verified` de la fiche du bien.
                 'phone' => $agent->numeroPrincipalPublic(),
                 'phone_verified' => $agent->phone_verified_at !== null,
+                // TCK-2576 — WhatsApp au premier rang de la fiche : servi AVEC le numéro publié, et
+                // seulement alors (aucune clé pour un numéro non vérifié). Une seule règle, celle de la
+                // fiche d'un bien (`PropertyContactNumbers::hasWhatsApp()`).
+                ...($agent->numeroPrincipalPublic() !== null ? ['phone_whatsapp' => $agent->principalPublicSurWhatsApp()] : []),
                 // TCK-2863 — `avatarUrl()`, la miniature : `$agent->avatar_url` n'existe pas sur `User`
                 // et rendait toujours null — la fiche n'affichait jamais la photo.
                 'avatar_url' => $agent->avatarUrl(),
@@ -332,6 +354,10 @@ class PublicAgentController extends Controller
                     'name' => $agent->agency->name,
                     'slug' => $agent->agency->slug,
                 ] : null,
+                // TCK-2574 — l'agence qui GÈRE ses biens publics, distincte de `agency` (le
+                // rattachement de la personne, nul pour un propriétaire) : c'est à elle que la fiche
+                // d'un propriétaire renvoie le visiteur. Même source et même règle que l'annuaire.
+                'managing_agency' => PublicProfileFacts::agences([(int) $agent->id])[(int) $agent->id] ?? null,
                 'stats' => [
                     'rent_count' => $rentCount,
                     'sale_count' => $saleCount,

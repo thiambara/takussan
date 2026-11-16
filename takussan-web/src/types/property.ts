@@ -296,10 +296,10 @@ export interface PropertyPriceHistoryItem {
 }
 
 export interface PropertyDetail extends PropertyListItem {
-  type_label: string;
-  contract_type_label: string | null;
-  rent_period_label: string | null;
-  status_label: string;
+  // TCK-351 (option a du porteur, 2026-11-16) — plus aucun `*_label` : l'API n'émet que les codes
+  // (`type`, `contract_type`, `rent_period`, `status`, `title_type`, `condition`), et le front les
+  // traduit par `@/lib/biens/libelles-de-bien`. Ne pas rétablir ces champs : la garde
+  // `src/types/__tests__/property-labels.parity.test.ts` rougit sur toute lecture de l'un d'eux.
   /**
    * TCK-464 — `whenHas('title_type', …)` côté `PropertyResource` : la clé est ABSENTE du JSON,
    * pas nulle, dès qu'elle ne fait pas partie du `fields[properties]` demandé. `COMPARE_FIELDS`
@@ -307,9 +307,6 @@ export interface PropertyDetail extends PropertyListItem {
    * ci-dessous.
    */
   title_type?: PropertyTitleType | null;
-  title_type_label: string | null;
-  /** TCK-508 — émis SANS condition par `PropertyResource`, comme `title_type_label`. */
-  condition_label: string | null;
   floor_number: number | null;
   total_floors: number | null;
   /**

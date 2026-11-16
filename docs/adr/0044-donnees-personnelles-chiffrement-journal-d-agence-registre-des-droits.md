@@ -66,6 +66,9 @@ trace conservée cinq ans.**
   seconde copie dérivée à gouverner. Si le besoin naît, ce sera une colonne `<col>_hmac`
   (HMAC-SHA256 sous une clé **distincte** d'`APP_KEY`), par ADR.
   Voir [ADR-0082](0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md) (TCK-2414) : premier cas, l'empreinte des refus du Radar.
+  **Amendement du 2026-11-16 (TCK-614)** : hors du Radar, les empreintes passent sous `APP_HMAC_KEY`, et la commande de
+  ré-chiffrement existe (`security:reencrypt`) ; une ancienne clé peut quitter `APP_PREVIOUS_KEYS` après elle —
+  [ADR-0084, § Amendement du 2026-11-16](0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md#amendement-du-2026-11-16--la-clé-dempreinte-distincte-et-le-retrait-dune-ancienne-app_key-tck-614).
 - **Masquage** : une seule fonction, `App\Support\Masking` — `iban()` (forme `SN•• •••• ••34`) et
   `tail()` (quatre derniers caractères). Les autres masqueurs s'y ramènent.
 - **Écarté** : chiffrement au niveau de PostgreSQL (`pgcrypto`) — la clé voyagerait dans chaque
@@ -88,13 +91,9 @@ trace conservée cinq ans.**
   `FlipAgencyKindOnUpgradeApproved`, `ExpirePendingBookingsJob::failed`) et `failed_jobs.exception`.
   Une version antérieure de ce paragraphe disait « la **seule** forme d'une exception dans un
   journal » : c'était faux.
-- **Limites connues, hors de cette décision** (ticket de suite) : toute AUTRE exception rapportée par
-  le framework (requête HTTP qui lève, job en échec) passe encore par le rapport par défaut, qui écrit
-  `getMessage()` — un refus SMTP y recopie l'adresse refusée ; les pilotes SMS et WhatsApp
-  (`OrangeSmsDriver`, `MtargetSmsDriver`, `LAfricaMobileSmsDriver`, `CloudApiWhatsappDriver`) et deux
-  commandes (`SendSavedSearchAlerts`, renvoyé à TCK-599 ; `SendProspectMatchDigest`) journalisent
-  `getMessage()`. Élargir le rapporteur global touche tout le dépôt (`dontReport`, rapporteurs
-  tiers) : c'est une décision à part, pas un correctif de ce ticket.
+- **Toute AUTRE exception rapportée** (depuis TCK-613, [§ Amendement du 2026-11-16](#amendement-du-2026-11-16--toute-exception-et-lexport-du-journal-daudit-tck-613)) :
+  le rapport par défaut du framework est remplacé de même (`exception` + `SafeExceptionContext`), et
+  les `catch` qui journalisent passent par la forme sûre — une garde le tient.
 - **`failed_jobs.exception`** : le fournisseur de jobs échoués (`queue.failer`) est **décoré** pour
   écrire `SafeExceptionContext` (JSON) au lieu de `(string) $e`. Écarté : une purge périodique (la
   donnée vit jusqu'au passage) et `zend.exception_ignore_args` seul (il ne retire pas les valeurs du
@@ -475,7 +474,7 @@ Décision du porteur du 2026-10-25, sur la piste P19.04 (angle 19 du fichier de 
 `docs/plans/2026-10-15-pistes-d-amelioration.md`). Elle étend la ligne *Conservation* du § 4. Relu
 sur `pre-dev` f10a94ff3. Ticket :
 [TCK-2342](../backlog/tickets/done/TCK-2342-purge-du-journal-d-activite-par-famille.md), qui fait la
-partie « purge du journal » de [TCK-537](../backlog/tickets/todo/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md).
+partie « purge du journal » de [TCK-537](../backlog/tickets/done/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md).
 
 ### Constat
 
@@ -527,3 +526,62 @@ une seconde exécution ne trouve rien. 12 mois se comptent en mois, comme la pol
   cas par journal de chaque famille (un nom retiré d'une liste → son cas rougit), la frontière de
   chaque durée, le `log_name` nul, les lots, la seconde exécution, la planification ;
   `takussan-web/src/content/legal/__tests__/textes.test.ts` pour le texte.
+
+## Amendement du 2026-11-16 — toute exception, et l'export du journal d'audit (TCK-613)
+
+Le §2 garantissait la forme sûre pour les seules `QueryException` et trois `catch` ; il listait en
+« limites connues » le reste, renvoyé à un ticket de suite. TCK-613 les ferme.
+
+### A. Toute exception rapportée passe par `SafeExceptionContext`
+
+- `bootstrap/app.php` enregistre, **en dernier**, un rapporteur `Throwable` qui **remplace**
+  (`->stop()`) le rapport par défaut : `Log::error('exception', SafeExceptionContext::of($e) +
+  ['user_id' => …])`. Il ne court-circuite ni la ligne JSON du canal `exceptions` (TCK-2356), ni
+  `query_exception`. `dontReport` reste respecté : le framework le juge avant tout rapporteur. Ni le
+  message, ni `context()` de l'exception, ni l'objet. Aucun rapporteur tiers n'est branché ; celui
+  qui le serait reçoit la même forme, s'il s'enregistre comme les autres par `report()`.
+- Les sites qui journalisaient `getMessage()` à la main (pilotes SMS et WhatsApp, envoi vocal,
+  jobs de médias, `PropertyVisitController`, `PdfImageEmbedder`) passent par la forme sûre ;
+  l'erreur d'un relevé d'accusés Mtarget ne porte plus que la classe de l'exception.
+- **La garde** : `tests/Feature/Logging/NoPersonalDataInLogsTest.php` balaie `app/` et rougit sur
+  tout appel `Log::…`/`logger(…)` qui reçoit `getMessage()`, ou une variable d'exception telle quelle
+  (`=> $e`, `(string) $e`). Les sorties de console (`$this->error(…)`) n'en sont pas : elles ne vont
+  à aucun journal. Une exemption s'écrit dans la garde, avec son motif.
+- Les pilotes de journal : `LogWhatsappDriver` écrit, comme `LogSmsDriver` (TCK-1025), les quatre
+  derniers chiffres du numéro et la **longueur** du texte, jamais le texte — qui porte un code ou
+  un lien porteur `/pay/{jeton}` quand `SMS_LOG_FALLBACK` est actif.
+
+### B. L'export du journal d'audit n'est plus un droit au porteur
+
+- `GET /api/activity-logs/export/download` est sous `auth:sanctum` ; le demandeur porté par le chemin
+  signé doit être l'appelant (403 à tout autre, super-admin compris) ; chaque téléchargement écrit
+  une ligne `export` / `audit_export_downloaded` (le fichier, jamais son contenu), de la famille
+  gardée 5 ans (TCK-2342). Le fichier est purgé à l'échéance du lien (TCK-1143).
+- La signature est **relative** (`absolute: false`, `hasValidRelativeSignature()`) : le front la
+  relaie par son BFF, dont l'hôte amont n'est pas celui du lien. Le lien du courriel vise le front
+  (`/api/activity-logs/export/download?…`, route handler) ; la console télécharge par son relais
+  `/api/super-admin/audit/export/download`, une seconde route de l'API signée pour son propre chemin.
+- L'export ne porte plus l'adresse des auteurs : `causer_email` devient `causer_id` et `causer_name`,
+  comme l'historique d'un objet (TCK-2763).
+
+## Amendement du 2026-11-16 (TCK-537) — preuve du consentement, effacement des profils, trois purges
+
+**Preuve du consentement.** Une table `consent_proofs`, en ajout seul : une ligne par document accepté
+(`terms`, `privacy`), avec la version (`PublishReadiness::TERMS_VERSION`, reflet gardé de
+`VERSION_DOCUMENTS`, qui fait foi), le geste (`register`, `host_onboarding`, `offer`, `publish`,
+`phone_login`, `radar_claim`), l'adresse IP et l'instant. Écrite par `ConsentLedger` là où une case
+est cochée, jamais présumée ailleurs. `users.terms_accepted_at` reste ce qu'il était : la date qui
+gouverne la case de la première publication, pas une preuve.
+
+**Effacement des profils.** À l'exécution d'une suppression de compte, les colonnes identifiantes de
+chaque profil (`AccountDeletionService::IDENTIFYING_PROFILE_COLUMNS`) passent à nul par requête de
+masse — sans événement, donc sans copie au journal —, profils déjà terminés compris ; les moyens de
+versement perdent IBAN, titulaire et relevé, la forme masquée reste. Les lignes comptables demeurent
+(10 ans, OHADA), détachées de l'identité.
+
+**Trois purges planifiées**, idempotentes : `kyc:prune-ended-pieces` (pièces de vérification d'un
+profil terminé depuis 5 ans ; dossier KYC d'une agence supprimée depuis 5 ans — le mandat de gestion
+et les documents `other` n'en sont pas), `crm:prune-contact-leads` (demande sans compte dont le
+dernier échange — la plus récente de ses quatre dates — a plus de 3 ans), `account:prune-consent-proofs`
+(5 ans après l'effacement du compte). Les durées sont des constantes de commande, comme pour
+`audit:prune-activity-log`.

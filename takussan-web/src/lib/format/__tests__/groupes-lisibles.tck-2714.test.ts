@@ -60,7 +60,7 @@ describe('TCK-2714 — un seul point de passage : tout formatage de montant ou d
   });
 
   it('formatPriceShort et les montants de l’IA (entrée en chaîne) aussi', () => {
-    expect(formatPriceShort(1_500_000_000_000)).not.toContain(FINE);
+    expect(formatPriceShort(1_500_000_000_000, 'fr-SN')).not.toContain(FINE);
     expect(formaterMontantIa('1234567.5', 'XOF').startsWith(`1${INSEC}234${INSEC}568`)).toBe(true);
     expect(equivalentXofIa('2000', '600.5')).not.toContain(FINE);
   });

@@ -10,6 +10,8 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Auth\AccountTokenRevoker;
+use App\Services\Calendar\CalendarFeedService;
 use App\Services\Invitation\AgentInvitationService;
 use App\Services\Profiles\ActiveProfileResolver;
 use Illuminate\Database\Eloquent\Model;
@@ -95,7 +97,13 @@ class TeamMemberSuspensionService
             // un, ses jetons servent cette autre agence et la suspension prend effet ici sans eux.
             $revoked = 0;
             if ($suspend && ! $this->keepsAnActiveProfile($target)) {
-                $revoked = $target->tokens()->delete();
+                // TCK-617 — jetons et liens d'agenda, par le point commun.
+                $revoked = app(AccountTokenRevoker::class)->revokeAll($target);
+            } elseif ($suspend) {
+                // TCK-617 (décision du porteur, 2026-11-16) — la suspension coupe le lien d'agenda
+                // de CETTE agence, même quand le membre garde ses jetons pour une autre : sans
+                // écriture, le lien éteint par la lecture revivait à la réactivation.
+                app(CalendarFeedService::class)->revoke($target, (int) $agency->id);
             }
 
             activity('team')

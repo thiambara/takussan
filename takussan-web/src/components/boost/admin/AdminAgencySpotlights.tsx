@@ -53,7 +53,9 @@ function dernierJour(instant: string): string {
   return date.toISOString();
 }
 
-function etatDe(place: AgencySpotlight, maintenant: number): 'current' | 'upcoming' | 'past' {
+function etatDe(place: AgencySpotlight, maintenant: number): 'current' | 'upcoming' | 'past' | 'cancelled' {
+  // TCK-2525 — une place libérée (suspension, retrait d'une place achetée) n'est plus en vitrine.
+  if (place.cancelled_at) return 'cancelled';
   if (new Date(place.starts_at).getTime() > maintenant) return 'upcoming';
   if (new Date(place.ends_at).getTime() <= maintenant) return 'past';
   return 'current';
@@ -63,6 +65,8 @@ function etatDe(place: AgencySpotlight, maintenant: number): 'current' | 'upcomi
  * TCK-2520 (ADR-0092) — la place « Mise en avant » de l'annuaire des agences : une agence en tête de
  * l'annuaire d'une ville, pendant une période, offerte par la plateforme. Une seule par ville et par
  * instant : un chevauchement revient en 422, dont le message est affiché tel quel.
+ * TCK-2525 — la table dit aussi l'origine (offerte, ou achetée : prix et acheteur) et la libération
+ * (date, crédits rendus) ; retirer une place achetée la libère et la rembourse au prorata (API).
  */
 export function AdminAgencySpotlights() {
   const t = useTranslations('superAdmin.miseEnAvantAgences');
@@ -138,16 +142,45 @@ export function AdminAgencySpotlights() {
       header: t('colPeriod'),
       cell: (p) => <span className="tabular-nums">{t('period', { from: f.date(p.starts_at), to: f.date(dernierJour(p.ends_at)) })}</span>,
     },
-    { id: 'state', header: t('colState'), cell: (p) => t(`when.${etatDe(p, maintenant)}`) },
+    {
+      id: 'state',
+      header: t('colState'),
+      cell: (p) =>
+        p.cancelled_at ? (
+          <span className="block leading-tight">
+            <span className="block">{t('released', { date: f.date(p.cancelled_at) })}</span>
+            {p.origin === 'purchased' ? (
+              <span className="mt-0.5 block text-ui text-muted-foreground tabular-nums">{t('refunded', { count: p.refunded_credits ?? 0 })}</span>
+            ) : null}
+          </span>
+        ) : (
+          t(`when.${etatDe(p, maintenant)}`)
+        ),
+    },
     { id: 'note', header: t('colNote'), cell: (p) => p.note ?? '—' },
-    { id: 'by', header: t('colGrantedBy'), cell: (p) => p.granted_by?.name ?? '—' },
+    {
+      id: 'origin',
+      header: t('colOrigin'),
+      cell: (p) =>
+        p.origin === 'purchased' ? (
+          <span className="block leading-tight">
+            <span className="block tabular-nums">{t('origin.purchased', { count: p.price_credits ?? 0 })}</span>
+            {p.purchased_by ? <span className="mt-0.5 block text-ui text-muted-foreground">{t('origin.by', { name: p.purchased_by.name })}</span> : null}
+          </span>
+        ) : (
+          <span className="block leading-tight">
+            <span className="block">{t('origin.offered')}</span>
+            {p.granted_by ? <span className="mt-0.5 block text-ui text-muted-foreground">{t('origin.by', { name: p.granted_by.name })}</span> : null}
+          </span>
+        ),
+    },
     {
       id: 'actions',
       header: t('colActions'),
       headerSrOnly: true,
       align: 'end',
       cell: (p) =>
-        etatDe(p, maintenant) === 'past' ? null : (
+        etatDe(p, maintenant) === 'past' || etatDe(p, maintenant) === 'cancelled' ? null : (
           <Button
             size="sm"
             variant="outline"
@@ -283,6 +316,7 @@ export function AdminAgencySpotlights() {
             <DialogDescription>{aRetirer?.agency?.name ?? ''}</DialogDescription>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">{t('revoke.body')}</p>
+          {aRetirer?.origin === 'purchased' ? <p className="text-sm text-muted-foreground">{t('revoke.bodyPurchased')}</p> : null}
           {erreurRetrait ? <p role="alert" className="text-sm text-destructive">{erreurRetrait}</p> : null}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setARetirer(null)}>{t('revoke.back')}</Button>

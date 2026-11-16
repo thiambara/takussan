@@ -17,8 +17,8 @@ interface PropertyPhotoProps extends Omit<ImageProps, 'src' | 'alt' | 'fill'> {
    * (revue de l'accueil du 2026-09-28). L'encre est à 92 % sur le beige du cadre (`bg-muted`) :
    * à 100 %, la plaque « En vente » (`bg-foreground/85`) s'y fondait et perdait son contour ; un
    * mélange arbitraire (`color-mix`, dégradé) l'aurait rendue, mais la garde de contraste de la
-   * surface publique ne lit un fond que par son jeton. En thème sombre, `--foreground` est clair :
-   * la surface passe alors sur `--muted`, qui y est sombre.
+   * surface publique ne lit un fond que par son jeton. Aucune portée `.dark` ne monte la carte
+   * (TCK-452) : pas de variante `dark:`.
    */
   readonly ton?: 'clair' | 'sombre';
 }
@@ -42,7 +42,7 @@ export function PropertyPhoto({ src, alt, className, compact = false, ton = 'cla
         className={cn(
           'absolute inset-0 flex flex-col items-center justify-center gap-1.5',
           ton === 'sombre'
-            ? 'bg-foreground/92 text-background/60 dark:bg-muted dark:text-muted-foreground'
+            ? 'bg-foreground/92 text-background/60'
             : 'bg-muted text-muted-foreground',
         )}
       >

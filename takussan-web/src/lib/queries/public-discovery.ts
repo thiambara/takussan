@@ -13,7 +13,8 @@ import { cheminApi } from '@/lib/chemin-api';
  * ════════════════════════════════════════════════════════════════════════════════════════════════
  *
  * La rangée « Près de toi » est personnalisée par une ville devinée côté CLIENT
- * (`UserLocationProvider`, qui interroge ipapi.co avec une échéance de 1200 ms). **Le rendu serveur
+ * (`UserLocationProvider`, qui interroge ipapi.co avec une échéance de 1200 ms, au premier geste du
+ * visiteur seulement depuis TCK-537). **Le rendu serveur
  * ne peut pas l'attendre** — ni la deviner : la seule chose qu'il pourrait lire est l'adresse IP
  * de la requête, ce qui est un autre mécanisme, un autre fournisseur, et une autre décision.
  *

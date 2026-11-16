@@ -2,12 +2,12 @@
 
 namespace App\Http\Requests\Kyc;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Rules\JourIso;
 use App\Support\Uploads\AcceptedUploads;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UploadKycDocumentRequest extends FormRequest
+class UploadKycDocumentRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

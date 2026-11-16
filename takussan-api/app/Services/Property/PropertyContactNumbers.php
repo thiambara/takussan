@@ -81,7 +81,7 @@ final class PropertyContactNumbers
      */
     public static function hasWhatsApp(Property $property, ?User $contact): bool
     {
-        if ($contact !== null && self::principalUtilisable($contact) && $contact->phone_whatsapp) {
+        if ($contact !== null && $contact->principalPublicSurWhatsApp()) {
             return true;
         }
         if ($contact !== null && self::secondUtilisable($contact) && $contact->secondary_phone_whatsapp) {

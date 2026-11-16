@@ -453,3 +453,12 @@ journal : *une ligne dont le titulaire n'est que le causeur décrit un tiers*.
 **Ce que les tests fixent** : `ArchiveDuTitulaireTest` (agent actif et retiré, client, locataire,
 bailleur, commission, pièces) et `ExportScopingTest::test_a_tenant_of_two_agencies_exports_the_leases_and_payments_of_both`,
 chacun vérifié par ablation.
+
+## Amendement du 2026-11-16 (TCK-537) — les notes et critères de la fiche, sur demande
+
+Le § 7 laissait à TCK-537 de dire si les `notes`, les `metadata` et les critères de recherche d'une
+fiche client relèvent du droit d'accès. **Ils en relèvent, mais n'entrent pas dans l'archive
+automatique** : `customers.json` reste limité à l'identité, et la politique de confidentialité (§ 9)
+dit que ces informations de travail sont communiquées **sur demande**, adressée à l'agence concernée
+(responsable de ce traitement, § 1.2 de la politique) ou à Takussan. Les ajouter à l'archive reste
+possible plus tard ; ce serait un changement de l'export, pas de la politique.

@@ -40,4 +40,42 @@ class AppKeyHmacTest extends TestCase
         $this->assertSame(hash_hmac('sha256', 'x', rtrim(self::NEUVE, '=')), AppKeyHmac::of('x'));
         $this->assertCount(2, AppKeyHmac::all('x'), 'la forme canonique de la clé courante est lue aussi');
     }
+
+    /** TCK-614 — la clé dédiée posée, l'écriture ne dépend plus d'`APP_KEY` : une rotation ne change aucune empreinte. */
+    public function test_tck614_l_ecriture_se_fait_sous_app_hmac_key_et_survit_a_une_rotation_d_app_key(): void
+    {
+        config(['app.hmac_key' => 'cle-d-empreinte', 'app.key' => self::ANCIENNE, 'app.previous_keys' => []]);
+        $avant = AppKeyHmac::of('x');
+
+        config(['app.key' => self::NEUVE, 'app.previous_keys' => []]);
+
+        $this->assertSame(hash_hmac('sha256', 'x', 'cle-d-empreinte'), AppKeyHmac::of('x'));
+        $this->assertSame($avant, AppKeyHmac::of('x'));
+        $this->assertTrue(AppKeyHmac::hasDedicatedKey());
+    }
+
+    /** TCK-614 — la double lecture : ce qui a été écrit sous `APP_KEY` avant la pose de la clé dédiée reste reconnu. */
+    public function test_tck614_la_lecture_reconnait_ce_qui_a_ete_ecrit_sous_app_key_avant_la_cle_dediee(): void
+    {
+        config(['app.hmac_key' => null, 'app.key' => self::NEUVE, 'app.previous_keys' => [self::ANCIENNE]]);
+        $sousLaCourante = AppKeyHmac::of('x');
+        config(['app.key' => self::ANCIENNE, 'app.previous_keys' => []]);
+        $sousLAncienne = AppKeyHmac::of('x');
+
+        config(['app.hmac_key' => 'cle-d-empreinte', 'app.key' => self::NEUVE, 'app.previous_keys' => [self::ANCIENNE]]);
+
+        $toutes = AppKeyHmac::all('x');
+        $this->assertSame(hash_hmac('sha256', 'x', 'cle-d-empreinte'), $toutes[0], 'la clé dédiée d\'abord');
+        $this->assertContains($sousLaCourante, $toutes);
+        $this->assertContains($sousLAncienne, $toutes);
+    }
+
+    /** TCK-614 — une clé vide (ligne `APP_HMAC_KEY=` d'un fichier d'environnement) vaut absente : repli sur `APP_KEY`. */
+    public function test_tck614_une_cle_vide_vaut_absente_et_l_ecriture_se_replie_sur_app_key(): void
+    {
+        config(['app.hmac_key' => '', 'app.key' => self::NEUVE, 'app.previous_keys' => []]);
+
+        $this->assertFalse(AppKeyHmac::hasDedicatedKey());
+        $this->assertSame(hash_hmac('sha256', 'x', self::NEUVE), AppKeyHmac::of('x'));
+    }
 }

@@ -135,7 +135,7 @@ export function ConversationList({ selectedId, onSelect, dense = false, onNouvel
             onChange={(e) => setSaisie(e.target.value)}
             placeholder={t('list.recherche')}
             autoComplete="off"
-            className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-foreground focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
+            className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-foreground focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden"
           />
           {saisie.length > 0 ? (
             <button

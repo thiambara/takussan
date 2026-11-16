@@ -7,7 +7,6 @@ use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\AlertSubscriber;
 use App\Models\Booking;
-use App\Models\CalendarFeed;
 use App\Models\Customer;
 use App\Models\DataExport;
 use App\Models\Document;
@@ -25,7 +24,12 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\Payout;
+use App\Models\PayoutMethod;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
@@ -33,7 +37,7 @@ use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
 use App\Services\Agency\AgencyMemberRemovalService;
-use App\Services\Calendar\CalendarFeedService;
+use App\Services\Auth\AccountTokenRevoker;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\PayoutCalculator;
@@ -138,7 +142,8 @@ class AccountDeletionService
 
             // Token revocation — user is logged out everywhere immediately.
             // They can re-authenticate to cancel, which mints a fresh token.
-            $user->tokens()->delete();
+            // TCK-617 — les liens d'agenda tombent avec les jetons (point commun).
+            app(AccountTokenRevoker::class)->revokeAll($user);
 
             activity('Account')
                 ->performedOn($request)
@@ -381,11 +386,9 @@ class AccountDeletionService
 
         // Tokens already revoked at request time, but in case the user
         // signed back in to cancel and let the request lapse, revoke now.
-        $user->tokens()->delete();
-
-        // TCK-2887 (ADR-0121 § 4) — les liens d'agenda meurent avec le compte, et leur copie chiffrée
-        // avec eux : la ligne de l'utilisateur est gardée (suppression douce), la cascade ne joue pas.
-        CalendarFeed::query()->active()->where('user_id', $user->id)->update(CalendarFeedService::revocation());
+        // TCK-2887 (ADR-0121 § 4), TCK-617 — les liens d'agenda meurent avec le compte, et leur copie
+        // chiffrée avec eux (la ligne de l'utilisateur est gardée, la cascade ne joue pas) : point commun.
+        app(AccountTokenRevoker::class)->revokeAll($user);
 
         // TCK-688 (P19.01) — anonymiser sans journaliser : `User` journalise `email`, `phone`, les
         // noms et `username` en `logOnlyDirty()`, et la ligne `updated` recopierait l'identité
@@ -536,6 +539,7 @@ class AccountDeletionService
         app(ErasedMemberPortfolio::class)->release($user);
 
         $this->endProfiles($user);
+        $this->erasePayoutMethods($user);
 
         // TCK-1025 (P57.05) — le contact WhatsApp et les alertes sans compte du contact vérifié
         // partent avec le compte (décision du porteur, 2026-10-19). Les recherches des alertes
@@ -780,7 +784,47 @@ class AccountDeletionService
     }
 
     /**
+     * TCK-537 (AC2) — les moyens de versement du compte : l'IBAN ou le numéro (`account_identifier`,
+     * NOT NULL, chiffré : vidé par le cast), le titulaire et le relevé bancaire déposé partent ; la
+     * forme masquée (`masked_identifier`, « •••• 4567 ») reste, que les reversements passés affichent.
+     * Puis la ligne est terminée (`deleted_at`). Le modèle n'est pas journalisé.
+     */
+    private function erasePayoutMethods(User $user): void
+    {
+        PayoutMethod::withTrashed()->where('user_id', $user->id)->orderBy('id')->get()
+            ->each(function (PayoutMethod $method): void {
+                $method->clearMediaCollection(PayoutMethod::BANK_STATEMENT_COLLECTION);
+                $method->forceFill(['account_identifier' => '', 'account_holder_name' => null])->save();
+                if (! $method->trashed()) {
+                    $method->delete();
+                }
+            });
+    }
+
+    /**
+     * TCK-537 (AC2) — les colonnes qui IDENTIFIENT la personne sur chacun de ses profils, effacées à
+     * la suppression du compte : la politique (§ 6) et les CGU (art. 17.1) promettent « les données
+     * d'identification du compte ET DES PROFILS effacées ou anonymisées ». Le reste du profil (agence,
+     * statut, dates, taux) demeure : les paiements, factures et reversements s'y rattachent 10 ans
+     * (OHADA), détachés de l'identité. `metadata` porte, selon le profil, le nom et le numéro d'un
+     * prestataire ou les pièces déclarées d'un agent : elle part entière.
+     *
+     * @var array<class-string, list<string>>
+     */
+    public const IDENTIFYING_PROFILE_COLUMNS = [
+        OwnerProfile::class => ['rib', 'tax_id', 'id_document_type', 'id_document_number', 'monthly_income', 'employer', 'metadata'],
+        AgentProfile::class => ['license_number', 'metadata'],
+        AgencyAdminProfile::class => ['metadata'],
+        ServiceProviderProfile::class => ['insurance_policy_id', 'certifications', 'metadata'],
+        PlatformProfile::class => ['notes'],
+    ];
+
+    /**
      * TCK-1061 (P64.02) — termine les profils du compte et retire le nom d'origine de leurs pièces.
+     *
+     * TCK-537 (AC2) — et efface leurs colonnes identifiantes ({@see self::IDENTIFYING_PROFILE_COLUMNS}),
+     * profils déjà terminés compris, par une requête de masse : ni événement ni journal d'activité,
+     * qui recopieraient l'ancienne valeur ailleurs.
      */
     private function endProfiles(User $user): void
     {
@@ -800,6 +844,10 @@ class AccountDeletionService
                     $document->forceFill(['name' => $label])->save();
                     $document->media->each(fn ($media) => $media->forceFill(['name' => $label])->save());
                 });
+
+            $profileClass::withTrashed()->whereIn('id', $ids)->update(
+                array_fill_keys(self::IDENTIFYING_PROFILE_COLUMNS[$profileClass] ?? [], null),
+            );
 
             $profileClass::query()->whereIn('id', $ids)->get()->each->delete();
         }

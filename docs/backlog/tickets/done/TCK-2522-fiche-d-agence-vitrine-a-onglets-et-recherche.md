@@ -83,10 +83,10 @@ Relevés du 2026-11-09 (agent « fiches », vague 3), pile `./dev.sh` :
 - **Pas de WhatsApp d'agence dans l'API** (ni `has_whatsapp` ni numéro dédié) : la barre ne propose
   WhatsApp que là où un numéro est déclaré WhatsApp — jamais sur la fiche d'agence aujourd'hui.
   La donnée existe côté personnes (`users.phone_whatsapp`, TCK-633) mais aucun endpoint public de fiche
-  ne la sert → [TCK-2576](../todo/TCK-2576-whatsapp-au-premier-rang-des-fiches-d-agence-et-d-agent.md).
+  ne la sert → [TCK-2576](TCK-2576-whatsapp-au-premier-rang-des-fiches-d-agence-et-d-agent.md).
 - **Contexte d'un avis (« Locataire · bail ») : livré pour les avis qui le portent — aujourd'hui ceux
   d'AGENT, sur la fiche d'agent (TCK-2523) ; pas encore sur la fiche d'agence, qui attend
-  [TCK-2577](../todo/TCK-2577-un-avis-d-agence-ecrit-son-contexte.md).**
+  [TCK-2577](TCK-2577-un-avis-d-agence-ecrit-son-contexte.md).**
   - Livré (contre-vérification du 2026-11-09) : `ReviewResource` sert `context_kind` — le TYPE seul
     (`lease`, `booking`, `visit`, `maintenance_request`), lu de `reviews.context_type` sans charger la
     preuve (`ReviewEligibility::contextKindOf`), `null` sans contexte ou pour un type inconnu ; jamais
@@ -98,7 +98,7 @@ Relevés du 2026-11-09 (agent « fiches », vague 3), pile `./dev.sh` :
     route (test jetable, hors dépôt) : un avis d'agence déposé sur un bail `active` dont l'auteur est le
     locataire, puis approuvé par la plateforme, garde `context_type` et `context_id` nuls, et la fiche
     d'agence sert `context_kind` null. Sur la fiche d'agence, le contexte ne s'affiche donc pour AUCUN
-    avis aujourd'hui → [TCK-2577](../todo/TCK-2577-un-avis-d-agence-ecrit-son-contexte.md) (écriture du contexte
+    avis aujourd'hui → [TCK-2577](TCK-2577-un-avis-d-agence-ecrit-son-contexte.md) (écriture du contexte
     au dépôt ; décision de la session : pas de changement de données dans cette vague).
   - **Transfert (2026-11-09)** : aucun AC de ce ticket ne promettait le contexte sur la fiche d'agence ;
     seule la Direction UX le décrivait (« les avis avec leur contexte (« Locataire · bail ») »). Cette

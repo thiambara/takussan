@@ -174,6 +174,7 @@ return [
         'value_not_found' => 'Value not found.',
     ],
     'calendar' => [
+        'feed_agency_required' => 'Choose the agency for your calendar link: you work for several agencies.',
         'feed_not_staff' => 'The calendar link is reserved for agency staff and service providers.',
         'other_agency_forbidden' => 'Only administrators can view other agencies.',
     ],
@@ -192,6 +193,14 @@ return [
     'credits' => [
         'insufficient' => 'Insufficient balance: you are missing :missing credits (balance: :balance).',
         'no_space' => 'No active workspace: select a workspace to see its credits.',
+        // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — l'achat de la mise en avant d'une agence.
+        'spotlight_sale_closed' => 'Agency spotlights are not on sale at the moment.',
+        'spotlight_directory_wide_closed' => 'The spotlight of the directory without a city is not on sale: choose a city.',
+        'spotlight_agency_not_listed' => 'Your agency does not appear in this city’s directory: publish at least one property in this city before buying its spotlight.',
+        'spotlight_taken' => 'This city’s spotlight is already taken for this period.',
+        'spotlight_no_free_period' => 'No free period for this city in the next :days days.',
+        'spotlight_too_far' => 'A spotlight can be booked at most :days days ahead.',
+        'spotlight_key_reused' => 'This purchase request was already used for another city: reopen the form.',
     ],
     'conversation' => [
         // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.
@@ -412,6 +421,8 @@ return [
         'commission_forbidden' => 'Only agency staff allowed to open leases can set the commission and the negotiator.',
         'commission_locked' => 'The commission and the negotiator are set on a draft lease: once activated, its commission is already split.',
         'guarantor_already_attached' => 'This guarantor is already attached to the lease.',
+        // TCK-607 (n3) — ADR-0042, amendement du 2026-11-16.
+        'guarantors_frozen' => 'The guarantors of a signed lease are frozen: only a renewed lease with no guarantor yet can receive one.',
         'max_guarantors' => 'A lease cannot have more than 3 guarantors.',
         'not_activatable' => 'Only a draft lease or one awaiting signature can be activated.',
         'not_active_schedule' => 'Only an active lease can generate a payment schedule.',
@@ -450,10 +461,11 @@ return [
     ],
     'lease_payment' => [
         'cancelled' => 'This instalment was cancelled by a renewal: it is no longer due and cannot be collected.',
-        'cannot_mark_paid' => 'Only a pending or late payment can be marked paid.',
+        'cannot_mark_paid' => 'Only a pending, late or partially paid instalment can be marked paid.',
         'deposit_refund_paid_by_payout' => 'A refunded deposit is settled by its payout, never by hand.',
         'late_fee_not_due' => 'No late fee remains due on this instalment.',
         'lease_not_active' => 'Only an active lease, or one under notice, can take a payment line.',
+        'no_duplicate_to_refund' => 'No duplicate payment remains to be refunded on this instalment.',
         'not_overdue' => 'Only an instalment that is due, unsettled and past its due date can be chased.',
         'receipt_not_a_payment' => 'A refunded deposit is not a tenant payment: it has no receipt.',
         'receipt_unpaid' => 'A rent receipt is only issued for a paid rent.',
@@ -538,6 +550,7 @@ return [
         'amount_short' => 'The amount received is less than the amount expected.',
         'amount_unresolved' => 'The amount to pay could not be determined.',
         'checkout_in_progress' => 'An online payment is in progress on this instalment: try again in a few minutes.',
+        'currency_mismatch' => 'The currency of the payment received does not match the one requested.',
         'currency_unsupported' => 'The provider :provider does not accept the :currency currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy does not accept XOF: use Wave or Orange Money for a payment in XOF.',
         'filter_days_late_invalid' => 'Invalid days-late filter: a non-negative integer is expected.',

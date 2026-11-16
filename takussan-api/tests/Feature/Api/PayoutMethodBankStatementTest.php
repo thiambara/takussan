@@ -2,11 +2,16 @@
 
 namespace Tests\Feature\Api;
 
+use App\Http\Resources\PayoutMethodResource;
 use App\Models\Enums\PayoutMethodKind;
 use App\Models\PayoutMethod;
+use App\Models\User;
+use App\Support\ImpersonationContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsMoneyOut;
@@ -132,13 +137,66 @@ class PayoutMethodBankStatementTest extends TestCase
         $this->actingWithStepUp($landlord);
         $mediaId = $this->envoyer($method)->assertCreated()->json('data.bank_statement_media_id');
 
-        $this->actingWithStepUp($this->agencyAgent($agency));
-        $this->getJson("/api/payout-methods?filter[user_id]={$landlord->id}")->assertOk()
+        // TCK-2463 — le RIB se lit par l'URL d'API signée que la ressource émet (`media.private.show`),
+        // plus par `GET /api/media/{id}/sign`, qui signait pour un CDN jamais provisionné.
+        $verifier = $this->agencyAgent($agency);
+        $this->actingWithStepUp($verifier);
+        $url = $this->getJson("/api/payout-methods?filter[user_id]={$landlord->id}")->assertOk()
             ->assertJsonPath('data.0.verification_status', 'in_review')
-            ->assertJsonPath('data.0.bank_statement_media_id', $mediaId);
-        $this->getJson("/api/media/{$mediaId}/sign")->assertOk();
+            ->assertJsonPath('data.0.bank_statement_media_id', $mediaId)
+            ->json('data.0.bank_statement_url');
+        $this->assertIsString($url);
+        $this->assertStringContainsString("/api/media/{$mediaId}/file?", $url);
+        $this->assertStringContainsString('signature=', $url);
+        // Vers l'URL présignée du disque privé (`PrivateMediaAccess::redirect`), qui porte le fichier du RIB.
+        $this->assertMatchesRegularExpression('~/rib[^/?]*\.pdf\?~', (string) $this->get($url)->assertRedirect()->headers->get('Location'));
 
-        $this->actingWithStepUp($this->agencyAgent($this->moneyAgency()));
-        $this->getJson("/api/media/{$mediaId}/sign")->assertForbidden();
+        $this->assertNull($this->rendu($method, $this->agencyAgent($this->moneyAgency()))['bank_statement_url']);
+    }
+
+    public function test_le_titulaire_lit_son_rib_mais_jamais_sous_impersonation(): void
+    {
+        $landlord = $this->landlordOf($this->moneyAgency());
+        $method = $this->bank($landlord->id);
+        $this->actingWithStepUp($landlord);
+        $this->envoyer($method)->assertCreated();
+
+        $url = $this->getJson('/api/me/payout-methods')->assertOk()->json('data.0.bank_statement_url');
+        $this->assertIsString($url);
+        // Vers l'URL présignée du disque privé (`PrivateMediaAccess::redirect`), qui porte le fichier du RIB.
+        $this->assertMatchesRegularExpression('~/rib[^/?]*\.pdf\?~', (string) $this->get($url)->assertRedirect()->headers->get('Location'));
+
+        app(ImpersonationContext::class)->bind(1, User::factory()->create()->id);
+        $this->assertNull($this->rendu($method, $landlord)['bank_statement_url']);
+    }
+
+    public function test_un_compte_sans_rib_n_a_pas_d_url(): void
+    {
+        $landlord = $this->landlordOf($this->moneyAgency());
+
+        $this->assertNull($this->rendu($this->bank($landlord->id), $landlord)['bank_statement_url']);
+    }
+
+    /** TCK-2463 (AC2) — la route de signature CDN de TCK-105 n'existe plus. */
+    public function test_la_route_de_signature_cdn_est_retiree(): void
+    {
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $method = $this->bank($landlord->id);
+        $this->actingWithStepUp($landlord);
+        $mediaId = $this->envoyer($method)->assertCreated()->json('data.bank_statement_media_id');
+
+        // Le titulaire, autorisé par `MediaPolicy::sign` : rendait 200 tant que la route existait.
+        $this->getJson("/api/media/{$mediaId}/sign")->assertNotFound();
+        $this->assertFalse(Route::has('media.sign'));
+    }
+
+    /** @return array<string,mixed> */
+    private function rendu(PayoutMethod $method, User $lecteur): array
+    {
+        $request = Request::create('/api/payout-methods');
+        $request->setUserResolver(fn () => $lecteur);
+
+        return (new PayoutMethodResource($method->fresh()))->toArray($request);
     }
 }

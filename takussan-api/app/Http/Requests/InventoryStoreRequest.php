@@ -2,13 +2,11 @@
 
 namespace App\Http\Requests;
 
-use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryElementState;
 use App\Models\Enums\InventoryType;
 use App\Rules\InstantIso;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
@@ -27,11 +25,8 @@ use Illuminate\Validation\Rule;
  *     }
  *   ]
  */
-class InventoryStoreRequest extends FormRequest
+class InventoryStoreRequest extends BaseFormRequest
 {
-    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
-    // BaseFormRequest pour les autres).
-    use BorneLesReglesDElement;
     use ConvertitLesInstantsRecus;
 
     /**

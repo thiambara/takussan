@@ -8,6 +8,7 @@ use App\Http\Resources\PropertyTagResource;
 use App\Models\Enums\TagType;
 use App\Models\Property;
 use App\Models\Tag;
+use App\Services\Property\PropertyRewriteModeration;
 use App\Services\Tags\TagProposals;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -58,6 +59,9 @@ class PropertyTagController extends Controller
         // non active n'a rien à faire dans l'index.
         if (array_filter($changements) !== []) {
             $property->reindexer();
+            // TCK-611 (ADR-0043, amendement du 2026-11-16) — les équipements sont affichés : en changer la
+            // liste est une réécriture, qui repasse par la file de l'agence.
+            app(PropertyRewriteModeration::class)->afterOffColumnRewrite($property);
         }
 
         // TCK-2045 (P61.04) — par la ressource : le modèle brut rendait son `pivot`, nom de classe compris.
@@ -70,6 +74,9 @@ class PropertyTagController extends Controller
 
         if ($property->tags()->detach($tag->id) > 0) {
             $property->reindexer();
+            // TCK-611 (ADR-0043, amendement du 2026-11-16) — les équipements sont affichés : en changer la
+            // liste est une réécriture, qui repasse par la file de l'agence.
+            app(PropertyRewriteModeration::class)->afterOffColumnRewrite($property);
         }
 
         return $this->json(null, 204);

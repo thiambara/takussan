@@ -6,6 +6,7 @@ use App\Domain\Settings\AgencySettings;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Currency;
+use App\Rules\TelephoneJoignable;
 use App\Services\Admin\PlatformSettingService;
 use App\Support\TelephoneSaisi;
 use Illuminate\Validation\Rule;
@@ -51,6 +52,11 @@ class AgencyUpdateRequest extends BaseFormRequest
     {
         parent::prepareForValidation();
 
+        // TCK-2576 — le numéro WhatsApp de l'agence : même normalisation que tout téléphone saisi.
+        if ($this->has('phone_whatsapp')) {
+            $this->merge(['phone_whatsapp' => TelephoneSaisi::normaliser($this->input('phone_whatsapp'))]);
+        }
+
         $settings = $this->input('settings');
         if (! is_array($settings)) {
             return;
@@ -95,6 +101,9 @@ class AgencyUpdateRequest extends BaseFormRequest
             ],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            // TCK-2576 — le numéro WhatsApp de l'agence (le bouton de sa fiche publique) : les règles
+            // des numéros de paiement hors ligne (`AgencySettings`), E.164 joignable.
+            'phone_whatsapp' => ['sometimes', 'nullable', 'string', 'max:30', new TelephoneJoignable, new TelephoneSaisi],
             'website' => ['sometimes', 'nullable', 'url'],
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             // TCK-600 — les devises que la plateforme accepte (`currency.supported`), pas tout l'enum.

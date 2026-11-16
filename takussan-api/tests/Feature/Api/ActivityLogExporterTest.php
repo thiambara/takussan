@@ -55,7 +55,7 @@ class ActivityLogExporterTest extends ApiTestCase
 
         $body = $response->streamedContent();
         // All required columns must appear in the header row.
-        foreach (['id', 'logged_at', 'causer_email', 'causer_role', 'event', 'subject_type', 'subject_id', 'description'] as $col) {
+        foreach (['id', 'logged_at', 'causer_id', 'causer_name', 'causer_role', 'event', 'subject_type', 'subject_id', 'description'] as $col) {
             $this->assertStringContainsString($col, $body, "Column {$col} missing from CSV header");
         }
     }
@@ -118,6 +118,7 @@ class ActivityLogExporterTest extends ApiTestCase
         $userB = User::factory()->create([
             'agency_id' => $agencyB->id,
             'email' => 'unique-agencyB-user@example-b.test',
+            'first_name' => 'TemoinB', 'last_name' => 'AgenceB',
         ]);
 
         // Log by agencyA user.
@@ -130,9 +131,11 @@ class ActivityLogExporterTest extends ApiTestCase
             ->assertOk()
             ->streamedContent();
 
-        // adminA's email appears (their own log is visible).
-        $this->assertStringContainsString($adminA->email, $body);
-        // agencyB user's email must NOT appear (cross-agency isolation).
+        // adminA's own log is visible — by name, never by address (TCK-613).
+        $this->assertStringContainsString($adminA->full_name, $body);
+        $this->assertStringNotContainsString((string) $adminA->email, $body);
+        // agencyB user's log must NOT appear (cross-agency isolation).
+        $this->assertStringNotContainsString('TemoinB AgenceB', $body);
         $this->assertStringNotContainsString('unique-agencyB-user@example-b.test', $body);
     }
 
@@ -302,10 +305,12 @@ class ActivityLogExporterTest extends ApiTestCase
         $userA = User::factory()->create([
             'agency_id' => $agencyA->id,
             'email' => 'user-agency-a@example-a.test',
+            'first_name' => 'TemoinA', 'last_name' => 'AgenceA',
         ]);
         $userB = User::factory()->create([
             'agency_id' => $agencyB->id,
             'email' => 'user-agency-b@example-b.test',
+            'first_name' => 'TemoinB', 'last_name' => 'AgenceB',
         ]);
 
         $this->makeLog($userA);
@@ -317,8 +322,10 @@ class ActivityLogExporterTest extends ApiTestCase
             ->assertOk()
             ->streamedContent();
 
-        $this->assertStringContainsString('user-agency-a@example-a.test', $body);
-        $this->assertStringContainsString('user-agency-b@example-b.test', $body);
+        $this->assertStringContainsString('TemoinA AgenceA', $body);
+        $this->assertStringContainsString('TemoinB AgenceB', $body);
+        // TCK-613 — par leur nom, jamais par leur adresse.
+        $this->assertStringNotContainsString('user-agency-a@example-a.test', $body);
     }
 
     // ─── TCK-692 — l'avant/après d'une modification, expurgé ───────────────────

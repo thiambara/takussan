@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { CircleCheck, CircleHelp, CircleX, Hourglass, MessageSquare, RefreshCw, RotateCcw } from 'lucide-react';
+import { CircleCheck, CircleHelp, CircleSlash, CircleX, Hourglass, MessageSquare, RefreshCw, RotateCcw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { isReachable, telHref } from '@/components/crm/contact';
@@ -24,6 +24,7 @@ const DISQUES: Record<IssueDuRetour, { readonly icone: ReactNode; readonly class
   attente: { icone: <Hourglass className="size-7" strokeWidth={1.5} aria-hidden="true" />, classe: 'bg-warning/15 text-warning' },
   confirme: { icone: <CircleCheck className="size-7" strokeWidth={1.5} aria-hidden="true" />, classe: 'bg-success/15 text-success' },
   echec: { icone: <CircleX className="size-7" strokeWidth={1.5} aria-hidden="true" />, classe: 'bg-destructive/10 text-destructive' },
+  annulee: { icone: <CircleSlash className="size-7" strokeWidth={1.5} aria-hidden="true" />, classe: 'bg-muted text-muted-foreground' },
   rembourse: { icone: <RotateCcw className="size-7" strokeWidth={1.5} aria-hidden="true" />, classe: 'bg-muted text-accent' },
   invalide: { icone: <CircleHelp className="size-7" strokeWidth={1.5} aria-hidden="true" />, classe: 'bg-muted text-muted-foreground' },
 };
@@ -40,6 +41,7 @@ const TITRES = {
   attente: 'attente.titre',
   confirme: 'confirme.titre',
   echec: 'echec.titre',
+  annulee: 'annulee.titre',
   invalide: 'invalide.titre',
 } as const;
 
@@ -62,6 +64,8 @@ export interface CarteDuRetourProps {
   readonly onReessayer: () => void;
   /** Le téléphone de l'agence (résumé du locataire), pour « Contacter l'agence ». */
   readonly telephoneDeLAgence: string | null;
+  /** TCK-608 — la part « pénalité » de ce règlement a été encaissée deux fois : l'agence la rendra. */
+  readonly partPenaliteARembourser?: boolean;
 }
 
 export function CarteDuRetour({
@@ -74,6 +78,7 @@ export function CarteDuRetour({
   onVerifierANouveau,
   onReessayer,
   telephoneDeLAgence,
+  partPenaliteARembourser = false,
 }: CarteDuRetourProps) {
   const t = useTranslations('payments.retour');
   const tPasserelle = useTranslations('payments.gateway');
@@ -107,6 +112,9 @@ export function CarteDuRetour({
     case 'confirme':
       texte = t(loyer && paiement?.lease_id ? 'confirme.texteQuittance' : 'confirme.texte');
       break;
+    case 'annulee':
+      texte = t('annulee.texte');
+      break;
     case 'echec':
       texte = fournisseur ? t('echec.texteNomme', { fournisseur }) : t('echec.texte');
       break;
@@ -131,7 +139,9 @@ export function CarteDuRetour({
           : t('detail.statut.paye')
         : issue === 'echec'
           ? t('detail.statut.echec')
-          : t('detail.statut.rembourse');
+          : issue === 'annulee'
+            ? t('detail.statut.annulee')
+            : t('detail.statut.rembourse');
 
   const disque = DISQUES[issue];
   const lignes: { readonly cle: string; readonly libelle: string; readonly valeur: string; readonly fort?: boolean }[] = [];
@@ -153,6 +163,11 @@ export function CarteDuRetour({
       <span className={cn('inline-flex size-16 items-center justify-center rounded-full', disque.classe)}>{disque.icone}</span>
       <h1 className="mt-5 font-display text-affiche-22 font-semibold leading-tight tracking-titre text-foreground">{titre}</h1>
       <p className="mt-2 text-corps leading-snug text-muted-foreground">{texte}</p>
+      {issue === 'confirme' && partPenaliteARembourser ? (
+        <p className="mt-2 text-corps leading-snug text-foreground" data-slot="part-penalite-a-rembourser">
+          {t('confirme.partPenalite')}
+        </p>
+      ) : null}
 
       {issue !== 'invalide' && lignes.length > 0 ? (
         <dl className="mt-6 w-full divide-y divide-border rounded-xl border border-border bg-card px-4 py-1.5 text-left" data-slot="detail-du-paiement">
@@ -194,7 +209,7 @@ export function CarteDuRetour({
             ) : null}
           </>
         ) : null}
-        {issue === 'rembourse' && telephone ? (
+        {(issue === 'rembourse' || issue === 'annulee') && telephone ? (
           <a href={telHref(telephone)} className={cn(LIEN_CONTOUR, grand)}>
             <MessageSquare className="size-icone" strokeWidth={1.75} aria-hidden="true" />
             {t('actions.contacterLAgence')}

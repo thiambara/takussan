@@ -129,13 +129,13 @@ export function EcranFerme({ etat, fermee = null, jeton = null }: { readonly eta
       );
   } else if (etat === 'acceptee') {
     action = (
-      <Link href="/auth/login" className={cn(LIEN_BOUTON, 'bg-primary text-primary-foreground hover:bg-primary/90')}>
+      <Link href="/auth/login" className={cn(LIEN_BOUTON, 'bg-primary text-primary-foreground hover:bg-primary-deep')}>
         {t('acceptee.action')}
       </Link>
     );
   } else if (etat === 'annulee' && telephone) {
     action = (
-      <a href={`tel:${telephone}`} className={cn(LIEN_BOUTON, 'bg-primary text-primary-foreground hover:bg-primary/90')}>
+      <a href={`tel:${telephone}`} className={cn(LIEN_BOUTON, 'bg-primary text-primary-foreground hover:bg-primary-deep')}>
         <Phone className="size-4" aria-hidden="true" />
         {t('annulee.action')}
       </a>

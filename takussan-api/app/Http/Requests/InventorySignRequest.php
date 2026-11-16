@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
@@ -36,7 +35,7 @@ use Illuminate\Validation\Rule;
  * `InventorySignatureService::sign()` — it needs the inventory context that is
  * not available here.
  */
-class InventorySignRequest extends FormRequest
+class InventorySignRequest extends BaseFormRequest
 {
     public const ROLE_TENANT = 'tenant';
 

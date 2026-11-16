@@ -46,7 +46,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * consultés et les boutons de favoris sont de l'état local.
  *
  * ⚠️ **Cette page n'attend PAS la ville du visiteur.** Elle est devinée côté client par
- * `UserLocationProvider` (ipapi.co, échéance 1200 ms), et un rendu serveur qui attendrait un
+ * `UserLocationProvider` (ipapi.co, échéance 1200 ms ; depuis TCK-537, seulement après le premier
+ * geste du visiteur — sans geste ni cache, la page reste sur ses rangées sans ville), et un rendu serveur qui attendrait un
  * fournisseur tiers serait un rendu serveur qu'on ne peut pas servir. Le serveur demande donc les
  * rangées **sans ville** — le back-end sert alors son marché de référence et le DIT
  * (`requested_city: null`, `fallback: false`), de sorte que le titre affiché reste vrai des biens

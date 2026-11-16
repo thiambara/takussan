@@ -56,7 +56,7 @@ un `hash_hmac` écrit à la main.
 
 - L'empreinte des refus du Radar et le lien de réclamation : TCK-2414.
 - La clé d'empreinte distincte d'`APP_KEY`, la commande de ré-chiffrement et la réécriture des empreintes anciennes :
-  [TCK-614](../todo/TCK-614-rotation-d-app-key-et-cle-d-empreinte-distincte.md).
+  [TCK-614](TCK-614-rotation-d-app-key-et-cle-d-empreinte-distincte.md).
 
 ## Prérequis du porteur
 

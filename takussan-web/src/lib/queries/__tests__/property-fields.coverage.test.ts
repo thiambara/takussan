@@ -170,7 +170,8 @@ const APPELANTS: readonly Appelant[] = [
     // Pas de `main_photo_url` : mesuré le 2026-08-21, ce tableau n'a AUCUNE vignette
     // (ni `<img>`, ni `next/image`, ni `main_photo_url` dans le fichier). TCK-336 prétend
     // le contraire ; ne pas lui en ajouter une au prétexte de « rétablir » l'existant.
-    inconditionnelles: ['location', 'status_label', 'agency'],
+    // TCK-351 — `status_label` en est sorti : l'API ne l'émet plus, le statut se lit par son code.
+    inconditionnelles: ['location', 'agency'],
     horsQueryFields: [],
     minColonnesLues: 13,
   },

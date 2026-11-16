@@ -93,7 +93,6 @@ function bien(rent_period: string, price: number, extra: Record<string, unknown>
     currency: 'XOF',
     contract_type: 'rent',
     rent_period,
-    rent_period_label: null,
     main_photo_url: null,
     location: { city: 'Dakar', quarter: 'Ngor' },
     owner: { id: 3, name: 'Awa', slug: 'awa-agent', avatar_url: null, is_agent: true, member_since: null },

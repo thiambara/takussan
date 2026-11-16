@@ -2,12 +2,12 @@
 
 namespace App\Http\Requests\Api\Admin;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Rules\InstantIso;
 use App\Support\InstantRecu;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 
-class MarkPlatformPayoutPaidRequest extends FormRequest
+class MarkPlatformPayoutPaidRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

@@ -3,6 +3,7 @@
 - **Statut** : Accepté le 2026-11-09 (décision 1a du porteur, audit UX famille 1 ; écrit à l'implémentation de TCK-2520)
 - **Date** : 2026-11-09
 - **Tickets** : TCK-2520 (la place offerte), TCK-2525 (la vente, qui amendera [ADR-0061](0061-credits-d-espace-et-boost-des-annonces.md))
+- **Amendé** le 2026-11-16 par [l'amendement TCK-2525 d'ADR-0061](0061-credits-d-espace-et-boost-des-annonces.md#amendement-du-2026-11-16-tck-2525--la-mise-en-avant-dune-agence-se-vend-en-crédits) : la place s'achète en crédits (§ 6), une place achetée remboursée à la suspension est libérée (§ 4), les contraintes d'exclusion ne portent plus que sur les places non libérées (§ 2).
 - **Prolonge** : [ADR-0061](0061-credits-d-espace-et-boost-des-annonces.md) — la mise en avant d'un **bien** ; celle-ci porte sur une **agence**, et ne se vend pas encore
 
 ## Contexte

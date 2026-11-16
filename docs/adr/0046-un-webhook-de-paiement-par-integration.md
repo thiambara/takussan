@@ -1,6 +1,6 @@
 # ADR-0046 — Un webhook de paiement arrive par l'URL secrète de SON intégration, et ne rapproche que dans son agence
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **§6 et Conséquences amendés le 2026-11-16** (cf. § *Amendement du 2026-11-16 (TCK-606)*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-293](../backlog/tickets/done/TCK-293-webhook-paiement-scope-agence.md) ; lu par
   [TCK-602](../backlog/tickets/done/TCK-602-paiement-sans-compte-journal-webhooks.md)
@@ -96,7 +96,8 @@ SON agence.**
    lignes antérieures à ce ticket : tout payable **jamais initié en ligne** (échéance réglée en
    espèces, facture neuve) n'en porte aucune, aujourd'hui comme demain.
 
-   **Limite connue, non fermée ici** (vérification adverse de TCK-293, M-1) : le chemin du paquet
+   **Limite connue, non fermée ici — fermée par TCK-606, voir l'amendement du 2026-11-16**
+   (vérification adverse de TCK-293, M-1) : le chemin du paquet
    Lemon Squeezy, qui porte l'autorité de la plateforme, peut encore apparier par `custom_data` un
    payable d'agence jamais initié, et le solder **sans contrôle de montant**. Le montant rapporté
    est en USD, le payable en XOF, et le contrôle de couverture est sauté quand les devises
@@ -152,7 +153,8 @@ SON agence.**
 - **Coût opérationnel, accepté par le porteur** : chaque agence qui encaisse par **Wave** doit
   coller l'URL de son intégration dans son portail Wave Business, et le refaire à chaque
   régénération ; l'onboarding d'une agence Wave gagne cette étape manuelle. Orange Money n'en
-  demande aucune. **Lemon Squeezy d'agence n'est pas invité à déclarer son URL** : son pilote ne
+  demande aucune. ~~**Lemon Squeezy d'agence n'est pas invité à déclarer son URL**~~ (caduc depuis
+  TCK-606, voir l'amendement du 2026-11-16) : son pilote ne
   relie la commande ni au checkout initié ni à `custom_data` (vérification adverse de TCK-293,
   m-1), l'URL ne solderait donc rien. L'écran le dit au lieu d'afficher l'adresse, jusqu'au ticket
   de suite de M-1.
@@ -172,6 +174,34 @@ SON agence.**
 - Lacune assumée, hors de ce ticket : Wave signe un horodatage (`t=`), que le pilote ne compare à
   aucune fenêtre. Un webhook capturé se rejoue donc tant que son secret vit ; l'idempotence de
   `gateway_events` (fournisseur, transaction, type) en neutralise l'effet sur les montants.
+
+## Amendement du 2026-11-16 (TCK-606)
+
+La « Limite connue » du §6 devient la règle, et Lemon Squeezy d'agence solde ses commandes.
+
+1. **Le chemin `custom_data` n'apparie qu'un payable initié.** Une commande qui désigne un payable
+   par `custom_data` ne le rapproche que si son checkout **courant** a été ouvert chez **le même
+   fournisseur** (`metadata.gateway.provider`), par une intégration **notée**
+   (`metadata.gateway.integration_id`, ou l'entrée de `gateway.transactions` de ce checkout) dont le
+   propriétaire est celui de l'autorité : une agence pour l'URL à jeton d'une intégration d'agence,
+   la plateforme pour le chemin du paquet. Un payable **jamais initié** (échéance réglée en espèces,
+   facture neuve) n'est **jamais** soldé par ce chemin, sous aucune autorité — la tolérance
+   « aucune intégration notée ⇒ borné par l'agence seule » ne vaut plus que pour les chemins
+   `transaction_id` et historique, où l'identifiant du fournisseur désigne déjà le checkout.
+2. **Le montant se contrôle toujours sur ce chemin.** Le montant rapporté est comparé au montant
+   figé à l'initiation **de ce checkout** (`gateway.transactions[]`), dans **la devise du checkout**
+   (notée à l'initiation, à défaut celle du payable). Une devise rapportée différente rend **422**
+   (`payment.currency_mismatch`), un montant absent ou inférieur **422** (`payment.amount_short`) —
+   jamais un saut. Les chemins `transaction_id` et historique gardent la règle antérieure (Wave et
+   Orange Money rapportent en XOF, à l'unité).
+3. **Le pilote Lemon Squeezy porte `custom_data` dans l'événement** reçu sur l'URL à jeton, sous la
+   même forme que le chemin du paquet. Le checkout note l'UUID du *checkout*, le webhook porte l'id
+   de *commande* : c'est donc `custom_data`, sous la garde du point 1, qui relie la commande au
+   payable. L'écran de l'URL de notification invite de nouveau l'agence Lemon Squeezy à la déclarer.
+4. **Débit des webhooks par intégration.** `payment-webhook` compte par **empreinte du jeton**
+   (`sha256`) — deux intégrations derrière une même IP n'épuisent plus le seau l'une de l'autre —,
+   avec une borne par IP plus large qui freine l'essai de jetons ; `payment-webhook-gone` (410) a
+   son seau. Aucun jeton n'apparaît en clair dans une clé de cache.
 
 ## Application
 

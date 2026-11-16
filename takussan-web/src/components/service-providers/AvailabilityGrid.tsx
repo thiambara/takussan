@@ -139,7 +139,7 @@ export function AvailabilityGrid({ value, onChange }: AvailabilityGridProps) {
                     className={cn(
                       'h-9 w-full rounded-md border text-xs font-medium transition',
                       checked
-                        ? 'border-primary bg-primary/10 text-primary'
+                        ? 'border-primary bg-primary/10 text-primary-deep'
                         : 'border-border bg-background text-muted-foreground hover:border-primary/40',
                     )}
                   >

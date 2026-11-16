@@ -14,12 +14,14 @@
  *    l'interrogation continue — un `paid` serveur l'emporte encore —, et `success` ne change rien ;
  *  · un lien sans type connu ou sans identifiant entier, un paiement introuvable (404) ou celui d'un
  *    autre (403) : « lien invalide », sans requête dans le premier cas, sans relance dans les deux autres ;
- *  · une erreur serveur ou réseau n'est ni « invalide » ni « confirmé » : on attend, et on réessaie.
+ *  · une erreur serveur ou réseau n'est ni « invalide » ni « confirmé » : on attend, et on réessaie ;
+ *  · TCK-608 — une échéance `cancelled` sans doublon connu n'est pas un échec : « annulée », sans jamais
+ *    proposer de réessayer (le locataire a pu être débité : l'agence le remboursera).
  */
 export const TYPES_DE_PAIEMENT = ['booking-payments', 'lease-payments', 'invoices'] as const;
 export type TypeDePaiement = (typeof TYPES_DE_PAIEMENT)[number];
 
-export type IssueDuRetour = 'attente' | 'confirme' | 'echec' | 'rembourse' | 'invalide';
+export type IssueDuRetour = 'attente' | 'confirme' | 'echec' | 'annulee' | 'rembourse' | 'invalide';
 
 export interface LienDeRetour {
   readonly type: TypeDePaiement;
@@ -64,7 +66,8 @@ export function issueDuRetour({ lien, serveur, erreur, indice }: EntreeDuRetour)
   // seconde fois, ni un succès. L'agence rembourse.
   if (serveur?.refund_pending === true || statut === 'refunded') return { issue: 'rembourse', terminale: true };
   if (statut === 'paid') return { issue: 'confirme', terminale: true };
-  if (statut === 'failed' || statut === 'cancelled') return { issue: 'echec', terminale: true };
+  if (statut === 'cancelled') return { issue: 'annulee', terminale: true };
+  if (statut === 'failed') return { issue: 'echec', terminale: true };
 
   const indiceDEchec = INDICES_D_ECHEC.has((indice ?? '').toLowerCase());
   return { issue: indiceDEchec ? 'echec' : 'attente', terminale: false };

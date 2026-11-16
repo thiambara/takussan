@@ -84,6 +84,7 @@ class NotificationsDeCompteEnFileTest extends TestCase
     public function test_l_inscription_aboutit_quand_le_transport_d_e_mail_est_en_panne(): void
     {
         $response = $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Awa',
             'last_name' => 'Ndiaye',
             'email' => 'awa.ndiaye@example.test',

@@ -110,7 +110,7 @@ class PropertyResource extends BaseResource
             // `PaymentGatewayService::amountDue()` (ardoise D-51).
             //
             // ⚠ Les clés DÉRIVÉES restent inconditionnelles, et ce n'est pas un oubli :
-            // `location`, `main_photo_url`, les cinq `*_label`, `photos`, `tags`,
+            // `location`, `main_photo_url`, `photos`, `tags`,
             // `media_extra`, `average_rating`, `reviews_count`, `price_history`, `documents`
             // et les relations d'`include=` ne sont PAS des colonnes — elles ne peuvent pas
             // figurer dans `fields[properties]` (spatie rend 400 `InvalidFieldQuery`) et donc
@@ -125,14 +125,17 @@ class PropertyResource extends BaseResource
             'slug' => $this->whenHas('slug'),
             'price' => $this->whenHas('price', fn ($valeur) => (float) $valeur),
             'currency' => $this->whenHas('currency', fn ($valeur) => $valeur?->value),
+            // TCK-351 (décision du porteur, 2026-11-16, option a) — les CODES seuls, jamais leur
+            // libellé : le front possède le texte affiché (principe n° 5) et rend `type`,
+            // `contract_type`, `rent_period`, `status`, `title_type` et `condition` par
+            // `property.{types,contractTypes,rentPeriods,status,titleTypes,conditions}` de next-intl.
+            // Les six `*_label` émis ici jusqu'alors divergeaient de ce dictionnaire sur 44 valeurs
+            // (`pending` : « Réservé » sur la fiche, « En attente » sur la carte). Ne pas les rétablir :
+            // `property-labels.parity.test.ts` côté front rougit sur toute lecture de l'un d'eux.
             'type' => $this->whenHas('type', fn ($valeur) => $valeur?->value),
-            'type_label' => $this->enumLabel($this->type, 'properties.type'),
             'contract_type' => $this->whenHas('contract_type', fn ($valeur) => $valeur?->value),
-            'contract_type_label' => $this->enumLabel($this->contract_type, 'properties.contract_type'),
             'rent_period' => $this->whenHas('rent_period', fn ($valeur) => $valeur?->value),
-            'rent_period_label' => $this->enumLabel($this->rent_period, 'properties.rent_period'),
             'status' => $this->whenHas('status', fn ($valeur) => $valeur?->value),
-            'status_label' => $this->enumLabel($this->status, 'properties.status'),
             'visibility' => $this->whenHas('visibility', fn ($valeur) => $valeur?->value),
             // TCK-2637 (ADR-0097 § 1) — « en ligne » et l'occupation, posés pour la page par le
             // contrôleur (`include=online`, `include=occupancy`) : rien sinon.
@@ -151,9 +154,7 @@ class PropertyResource extends BaseResource
             // TCK-2906 — les interventions du bien que le lecteur lit (`include=maintenanceSummary`, fiche seule).
             ...($this->maintenanceSummary !== null ? ['maintenance_summary' => $this->maintenanceSummary] : []),
             'title_type' => $this->whenHas('title_type', fn ($valeur) => $valeur?->value),
-            'title_type_label' => $this->enumLabel($this->title_type, 'properties.title_type'),
             'condition' => $this->whenHas('condition', fn ($valeur) => $valeur?->value),
-            'condition_label' => $this->enumLabel($this->condition, 'properties.condition'),
             'location' => $this->buildLocation($address),
             'bedrooms' => $this->whenHas('bedrooms'),
             'bathrooms' => $this->whenHas('bathrooms'),

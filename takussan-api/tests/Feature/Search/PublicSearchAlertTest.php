@@ -12,6 +12,14 @@ use App\Models\User;
 use App\Models\WhatsappContact;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Model\SearchService;
+use Illuminate\Cache\Events\CacheEvent;
+use Illuminate\Cache\Events\CacheHit;
+use Illuminate\Cache\Events\CacheMissed;
+use Illuminate\Cache\Events\ForgettingKey;
+use Illuminate\Cache\Events\KeyForgotten;
+use Illuminate\Cache\Events\KeyWritten;
+use Illuminate\Cache\Events\RetrievingKey;
+use Illuminate\Cache\Events\WritingKey;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -121,6 +129,11 @@ class PublicSearchAlertTest extends TestCase
         $this->postJson('/api/public/search-alerts/confirm', ['token' => $jeton])
             ->assertStatus(422)->assertJsonPath('code', 'search_alert.invalid_token');
 
+        // TCK-615 — la première alerte ne porte que ce qui est publié APRÈS la confirmation.
+        $this->lancerLeJob();
+        $this->assertSame(0, $this->alertesRecues(self::EMAIL), 'l\'historique n\'est pas annoncé');
+        $this->travel(2)->days();
+        $this->bienCorrespondant();
         $this->lancerLeJob();
         $this->assertSame(1, $this->alertesRecues(self::EMAIL), 'confirmée : l\'alerte part');
     }
@@ -179,6 +192,8 @@ class PublicSearchAlertTest extends TestCase
         $this->postJson('/api/public/search-alerts/confirm', ['phone' => self::PHONE, 'code' => $this->sms->lastCodeFor(self::PHONE)])->assertOk();
 
         $this->assertSame(1, AlertSubscriber::whereNotNull('confirmed_at')->count());
+        // TCK-615 — la confirmation par code borne aussi le premier envoi.
+        $this->assertNotNull(SavedSearch::query()->where('name', 'Seconde')->sole()->last_notified_at);
         $this->assertSame(WhatsappContact::OPT_IN_OPTED_IN, WhatsappContact::where('phone', self::PHONE)->sole()->opt_in_status);
     }
 
@@ -297,9 +312,40 @@ class PublicSearchAlertTest extends TestCase
         DB::listen(function (QueryExecuted $q) use (&$requetes): void {
             $requetes[] = $q->sql;
         });
-        $reponses = array_map(fn (array $demande) => $this->postJson('/api/public/search-alerts', $demande), $cas);
+        // TCK-615 (AC5) — et AUCUNE clé de cache lue ou écrite ne dépend du contact : une lecture
+        // de cache par contact (`RateLimiter::tooManyAttempts()` sur la boîte, un `Cache::get()`
+        // d'un drapeau) échappe à `DB::listen` et rendait vert (verif-599 passe 3). Chaque requête
+        // touche la MÊME suite de clés, quel que soit le contact ; aucune ne cite le contact ni
+        // ses empreintes. Les clés, pas leur sort : le limiteur par visiteur rate puis touche, selon
+        // le rang de la requête. (Un `Cache::lock()` n'émet aucun événement : il resterait invisible.)
+        $cles = [];
+        $courante = null;
+        Event::listen([RetrievingKey::class, CacheHit::class, CacheMissed::class, WritingKey::class, KeyWritten::class, ForgettingKey::class, KeyForgotten::class],
+            function (CacheEvent $e) use (&$cles, &$courante): void {
+                if ($courante !== null) {
+                    $cles[$courante][$e->key] = $e->key;
+                }
+            });
+        $reponses = [];
+        foreach ($cas as $contact => $demande) {
+            $courante = $contact;
+            $cles[$contact] = [];
+            $reponses[$contact] = $this->postJson('/api/public/search-alerts', $demande);
+        }
+        $courante = null;
         $touchees = array_values(array_filter($requetes, fn (string $sql) => preg_match('/\b(alert_subscribers|saved_searches)\b/', $sql) === 1));
         $this->assertSame([], $touchees, 'la requête HTTP ne touche pas les tables du contact');
+        $this->assertNotSame([], reset($cles), 'le journal du cache voit au moins le limiteur par visiteur');
+        foreach ($cles as $contact => $suite) {
+            $this->assertSame(reset($cles), $suite, "les clés de cache de la requête dépendent du contact ({$contact})");
+            $canal = str_starts_with($contact, '+') ? AlertSubscriber::CHANNEL_WHATSAPP : AlertSubscriber::CHANNEL_EMAIL;
+            $marques = [$contact, AlertSubscriber::contactHash($canal, $contact), AlertSubscriber::mailboxHash($canal, $contact)];
+            foreach ($suite as $cle) {
+                foreach ($marques as $marque) {
+                    $this->assertStringNotContainsString($marque, $cle, 'une clé de cache cite le contact');
+                }
+            }
+        }
 
         $premiere = reset($reponses);
         foreach ($reponses as $contact => $reponse) {
@@ -336,7 +382,10 @@ class PublicSearchAlertTest extends TestCase
         $this->assertSame(0, AlertSubscriber::count());
     }
 
-    /** **AC17** — au plus cinq alertes ouvertes par contact : la sixième n'est pas créée, en silence. */
+    /**
+     * **AC17**, amendé par TCK-615 — au plus cinq demandes non confirmées par contact : la sixième
+     * évince la plus ancienne demande muette (aucune confirmation partie depuis 24 h), en silence.
+     */
     public function test_cinq_alertes_au_plus_par_contact(): void
     {
         foreach (range(1, 6) as $i) {
@@ -492,6 +541,9 @@ class PublicSearchAlertTest extends TestCase
         $this->travel(2)->minutes();
         $this->postJson('/api/public/search-alerts', $this->demande(['name' => 'Autre']))->assertStatus(202);
         $this->postJson('/api/public/search-alerts', $this->demande(['email' => 'voisin@exemple.sn']))->assertStatus(202);
+        // TCK-615 — un bien publié après la confirmation : l'historique n'est plus annoncé.
+        $this->travel(2)->days();
+        $this->bienCorrespondant();
 
         $this->lancerLeJob();
         $alerte = collect($this->emailsA(self::EMAIL))->first(fn (Email $e) => str_contains((string) $e->getSubject(), 'Dakar abordable'));

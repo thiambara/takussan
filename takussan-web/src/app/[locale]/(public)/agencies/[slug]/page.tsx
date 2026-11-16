@@ -452,8 +452,11 @@ export default async function Page({ params, searchParams }: Props) {
               <ContactDeFiche
                 nom={agency.name}
                 telephone={telephone}
+                // TCK-2576 — le numéro WhatsApp DÉCLARÉ par l'agence, absent sinon : jamais `phone`.
+                whatsapp={agency.phone_whatsapp ?? null}
                 message={agency.email ? { genre: 'courriel', adresse: agency.email, sujet: t('contactSubject', { name: agency.name }) } : null}
                 sousTitre={texteDelai}
+                fiche={{ genre: 'agence', id: agency.id }}
               />
             </div>
           </aside>

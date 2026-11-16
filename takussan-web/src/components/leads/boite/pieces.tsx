@@ -101,7 +101,7 @@ const GESTE = 'inline-flex min-w-0 items-center justify-center gap-2 whitespace-
 const TON_WHATSAPP = 'bg-success text-success-foreground hover:bg-success/90';
 const TON_CONTOUR = 'border border-border bg-card text-foreground hover:bg-muted';
 const TON_DOUX = 'bg-secondary text-primary-deep hover:bg-secondary/80';
-const TON_PRIMAIRE = 'bg-primary text-primary-foreground hover:bg-primary/90';
+const TON_PRIMAIRE = 'bg-primary text-primary-foreground hover:bg-primary-deep';
 
 /** Le numéro d'une demande, composable : ses chiffres, `+` gardé. Un numéro saisi par un visiteur. */
 function numeroDe(lead: ContactLead): string | null {

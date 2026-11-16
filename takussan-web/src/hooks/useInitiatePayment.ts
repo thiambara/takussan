@@ -44,6 +44,11 @@ export interface VerifyPaymentResult {
    */
   readonly refund_pending?: boolean;
   /**
+   * TCK-608 — la part « pénalité de retard » de ce règlement a été encaissée deux fois (elle avait été
+   * réglée à l'agence) : le paiement est confirmé, et l'agence rendra cette part.
+   */
+  readonly late_fee_refund_pending?: boolean;
+  /**
    * TCK-2650 — ce que la page de retour nomme (montant, période, fournisseur, référence), lu sur le
    * serveur, jamais dans l'adresse. Optionnel : absent, la page ne dit que l'issue.
    */

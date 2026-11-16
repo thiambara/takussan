@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use App\Rules\JourIso;
 use App\Support\Uploads\AcceptedUploads;
-use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Validation for POST /api/documents/{document}/versions.
@@ -15,7 +14,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * formats were announced here and checked nowhere.
  * TCK-2300 — an optional `expiry_date`: a new version clears the old one.
  */
-class UploadDocumentVersionRequest extends FormRequest
+class UploadDocumentVersionRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

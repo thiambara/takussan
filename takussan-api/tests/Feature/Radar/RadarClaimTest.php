@@ -5,6 +5,7 @@ namespace Tests\Feature\Radar;
 use App\Jobs\Radar\PrepareRadarListingPhotos;
 use App\Jobs\Radar\PublishClaimedRadarListings;
 use App\Models\Agency;
+use App\Models\ConsentProof;
 use App\Models\Conversation;
 use App\Models\CreditWelcomeGrant;
 use App\Models\Customer;
@@ -355,6 +356,9 @@ class RadarClaimTest extends TestCase
         $this->assertNotNull($compte->phone_verified_at);
         $this->assertNotNull($compte->terms_accepted_at);
         $this->assertSame(PublishReadiness::TERMS_VERSION, $compte->terms_version);
+        // TCK-537 (AC1) — la preuve du consentement, par le chemin de la réclamation.
+        $preuve = ConsentProof::query()->where('user_id', $compte->id)->sole();
+        $this->assertSame(['terms', 'radar_claim', PublishReadiness::TERMS_VERSION], [$preuve->document, $preuve->context, $preuve->version]);
         $this->assertSame('Awa', $compte->first_name);
         $this->assertSame($compte->id, $this->annonceur->fresh()->user_id);
 

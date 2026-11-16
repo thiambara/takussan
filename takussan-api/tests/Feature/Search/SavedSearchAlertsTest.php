@@ -430,6 +430,8 @@ class SavedSearchAlertsTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
         $this->postJson('/api/saved-searches', ['name' => 'AC8', 'criteria' => $criteria, 'notification_frequency' => 'daily'])->assertCreated();
+        // TCK-615 — la création pose la borne : seuls les biens publiés ensuite sont annoncés.
+        $this->travel(2)->hours();
 
         $neutre = ['type' => 'villa', 'title' => 'Villa lumineuse', 'description' => 'Belle maison.'];
         $bienA = $this->bienPublieLe(now()->subHour(), [...$neutre, ...$a[0]], $a[1]);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\ForgotPasswordPasswordResetRequest;
 use App\Http\Requests\Auth\ResetPasswordPasswordResetRequest;
 use App\Models\User;
+use App\Services\Auth\AccountTokenRevoker;
 use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -49,8 +50,9 @@ class PasswordResetController extends Controller
                     'password' => Hash::make($password),
                     'password_set_at' => now(),
                 ])->save();
-                // Revoke all tokens on password reset
-                $user->tokens()->delete();
+                // TCK-617 — les jetons ET les liens d'agenda : un lien créé avec une session volée
+                // ne survit pas à la reprise du compte.
+                app(AccountTokenRevoker::class)->revokeAll($user);
             }
         );
 

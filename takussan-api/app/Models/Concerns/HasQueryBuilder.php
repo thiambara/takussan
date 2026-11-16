@@ -47,6 +47,15 @@ trait HasQueryBuilder
     protected static array $searchRelevanceIds = [];
 
     /**
+     * TCK-578 (ADR-0008, amendement du 2026-11-16) — le rang SQL de la dernière recherche
+     * `filter[search]` servie PAR LA BASE ({@see self::rechercheParLaBase()}), indexé par classe :
+     * `[expression, liaisons]`, rejoué par {@see self::defaultSortsWithRelevance()}.
+     *
+     * @var array<class-string, array{0: string, 1: array<int, mixed>}>
+     */
+    protected static array $searchRelevanceSql = [];
+
+    /**
      * Plafond de `per_page` — le même que `PropertySearchService`.
      */
     public const PER_PAGE_MAX = 100;
@@ -176,6 +185,16 @@ trait HasQueryBuilder
      */
     public static function defaultSortsWithRelevance(AllowedSort|string ...$fallback): array
     {
+        // TCK-578 — une recherche servie par la base porte son rang en SQL (la référence exacte en tête).
+        if (($rang = static::$searchRelevanceSql[static::class] ?? null) !== null) {
+            [$expression, $liaisons] = $rang;
+
+            return [
+                AllowedSort::callback('search_relevance', fn (Builder $q) => $q->orderByRaw($expression, $liaisons)),
+                ...$fallback,
+            ];
+        }
+
         $ids = static::$searchRelevanceIds[static::class] ?? null;
 
         // Moins de deux résultats : il n'y a pas d'ordre à restituer, et on
@@ -196,7 +215,7 @@ trait HasQueryBuilder
         // L'ordre de pertinence n'appartient qu'à la requête en cours : le
         // reposer ici évite qu'un `buildQuery()` sans recherche hérite de
         // l'ordre du précédent (même processus : Octane, jobs, tests).
-        unset(static::$searchRelevanceIds[static::class]);
+        unset(static::$searchRelevanceIds[static::class], static::$searchRelevanceSql[static::class]);
 
         // Une colonne d'identifiant refuse en 400 une valeur non entière : PostgreSQL en ferait
         // une 500 (`ExactIdentifierFilter`).
@@ -252,7 +271,11 @@ trait HasQueryBuilder
                 // `scripts/check-filtering-single-mechanism.mjs` (contrôle D)
                 // refuse d'en voir réapparaître un second, y compris sous un
                 // autre nom.
-                if (in_array(Searchable::class, class_uses_recursive($model), true)) {
+                //
+                // TCK-578 (ADR-0008, amendement du 2026-11-16) — un modèle dont l'index ne peut pas
+                // contenir ce que la console liste ({@see self::rechercheParLaBase()}) cherche en SQL :
+                // l'index des biens est PUBLIC, un brouillon n'y entre jamais.
+                if (in_array(Searchable::class, class_uses_recursive($model), true) && ! static::rechercheParLaBase()) {
                     // TCK-1009 (P59.01) — `keys()` ne lit que la clé de chaque hit : sans
                     // projection, le moteur rendait le document entier de chaque
                     // correspondance, jusqu'à SEARCH_ID_CAP (≈ 6 Mo pour 5 000 biens).
@@ -285,6 +308,9 @@ trait HasQueryBuilder
                     // du périmètre que la requête de base impose (l'agence, par exemple).
                     static::extraSearchClauses($inner, $motif, $value);
                 });
+                if (($rang = static::rangDeRechercheSql(trim($value), $motif)) !== null) {
+                    static::$searchRelevanceSql[static::class] = $rang;
+                }
                 // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
             })->delimiter('');
         }
@@ -304,6 +330,29 @@ trait HasQueryBuilder
      * valeur brute. Chaque clause s'écrit en `orWhere…`. Défaut : aucune.
      */
     protected static function extraSearchClauses(Builder $inner, string $motif, string $valeur): void {}
+
+    /**
+     * TCK-578 (ADR-0008, amendement du 2026-11-16) — `true` : `filter[search]` passe par le repli SQL
+     * même si le modèle est `Searchable`, parce que son index ne contient pas tout ce que les listes
+     * de `buildQuery()` rendent. Le prix est assumé : ni tolérance aux fautes ni pertinence du moteur,
+     * comme les consoles super-admin (TCK-281). Défaut : le moteur.
+     */
+    protected static function rechercheParLaBase(): bool
+    {
+        return false;
+    }
+
+    /**
+     * TCK-578 — le rang d'une recherche servie par le repli SQL, `[expression, liaisons]` à trier en
+     * ordre croissant ; `null` : aucun rang (l'ordre par défaut de l'appelant). Reçoit la valeur
+     * brute (rognée) et le motif `%…%` déjà replié et échappé.
+     *
+     * @return array{0: string, 1: array<int, mixed>}|null
+     */
+    protected static function rangDeRechercheSql(string $valeur, string $motif): ?array
+    {
+        return null;
+    }
 
     /**
      * Override on a model to add filters that don't fit the exact/partial/range

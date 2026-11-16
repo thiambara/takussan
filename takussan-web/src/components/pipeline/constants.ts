@@ -15,11 +15,11 @@ export const PIPELINE_STAGES: readonly CustomerPipelineStage[] = [
 
 export const STAGE_COLOR: Record<CustomerPipelineStage, string> = {
   lead: 'border-muted bg-card/40',
-  prospect: 'border-info/30 bg-info/10 dark:bg-info/20',
-  qualified: 'border-primary/30 bg-primary/10 dark:bg-primary/20',
-  negotiating: 'border-warning/30 bg-warning/10 dark:bg-warning/20',
-  converted: 'border-success/30 bg-success/10 dark:bg-success/20',
-  lost: 'border-border bg-muted/40 dark:bg-foreground/20',
+  prospect: 'border-info/30 bg-info/10',
+  qualified: 'border-primary/30 bg-primary/10',
+  negotiating: 'border-warning/30 bg-warning/10',
+  converted: 'border-success/30 bg-success/10',
+  lost: 'border-border bg-muted/40',
 };
 
 export const STAGE_DOT: Record<CustomerPipelineStage, string> = {

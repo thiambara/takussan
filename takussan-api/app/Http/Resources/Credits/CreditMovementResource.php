@@ -26,6 +26,15 @@ class CreditMovementResource extends BaseResource
                 'variant' => $this->boost->variant?->value,
                 'property' => $this->boost->property ? ['id' => $this->boost->property->id, 'title' => $this->boost->property->title] : null,
             ] : null),
+            // TCK-2525 — l'objet d'une dépense ou d'un remboursement de la mise en avant de l'agence :
+            // la ville (nulle : l'annuaire sans ville) et la période.
+            'agency_spotlight_id' => $this->agency_spotlight_id,
+            'spotlight' => $this->whenLoaded('spotlight', fn () => $this->spotlight ? [
+                'id' => $this->spotlight->id,
+                'city' => $this->spotlight->city ? ['id' => $this->spotlight->city->id, 'name' => $this->spotlight->city->name] : null,
+                'starts_at' => $this->iso($this->spotlight->starts_at),
+                'ends_at' => $this->iso($this->spotlight->ends_at),
+            ] : null),
             'created_at' => $this->iso($this->created_at),
         ];
     }

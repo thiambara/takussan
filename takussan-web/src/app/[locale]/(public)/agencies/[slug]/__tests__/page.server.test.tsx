@@ -386,6 +386,11 @@ describe('TCK-2522 — la vitrine à onglets', () => {
     expect(screen.getByRole('tab', { name: 'Infos' })).toBeInTheDocument();
   });
 
+  it('TCK-2575 — le contact reçoit l’id de l’agence, pour reconnaître qui la configure côté client', async () => {
+    await rendre(agence({ id: 7 }));
+    expect((contactProps.mock.calls.at(-1)?.[0] as { fiche: unknown }).fiche).toEqual({ genre: 'agence', id: 7 });
+  });
+
   it('TCK-2518 — une médiane absente n’affiche aucun délai ; une médiane servie l’affiche', async () => {
     await rendre(agence({ median_response_minutes: null }));
     expect(screen.queryByText(/Répond en/)).not.toBeInTheDocument();
@@ -403,6 +408,14 @@ describe('TCK-2522 — la vitrine à onglets', () => {
     const props = contactProps.mock.calls.at(-1)?.[0] as { telephone: unknown; message: { genre: string; adresse: string } };
     expect(props.telephone).toBe('+221 33 000 00 00');
     expect(props.message).toMatchObject({ genre: 'courriel', adresse: 'contact@dakar-immo.sn' });
+  });
+
+  it('TCK-2576 · AC3 — WhatsApp : le numéro DÉCLARÉ par l’agence ; absent, aucun — jamais son téléphone', async () => {
+    await rendre(agence({ phone_whatsapp: '+221781234567' }));
+    expect((contactProps.mock.calls.at(-1)?.[0] as { whatsapp: unknown }).whatsapp).toBe('+221781234567');
+
+    await rendre(agence());
+    expect((contactProps.mock.calls.at(-1)?.[0] as { whatsapp: unknown }).whatsapp).toBeNull();
   });
 });
 

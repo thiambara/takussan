@@ -2,6 +2,7 @@
 import { useTranslations } from 'next-intl';
 import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
 import { ListeDeNumeros } from '@/components/contact/ListeDeNumeros';
+import { ESPACES_DES_LIBELLES_DE_BIEN, libelleLongDuContrat } from '@/lib/biens/libelles-de-bien';
 import type { PropertyDetail, PropertyOwnerLite } from '@/types/property';
 import { PropertyEntryCost } from './PropertyEntryCost';
 import { actionsDuContrat } from './actions-de-la-fiche';
@@ -44,6 +45,9 @@ export function PropertyBookingCard({
   canMessage = true,
 }: PropertyBookingCardProps) {
   const t = useTranslations('propertyDetail');
+  // TCK-351 — « En location » / « En vente », le mot des cartes, par le dictionnaire du front.
+  const tContrat = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.contract_type);
+  const contrat = libelleLongDuContrat(tContrat, property.contract_type);
   const { primaire, secondaire } = actionsDuContrat(property);
   // TCK-590 — sans numéro, ni « Appeler » ni WhatsApp. TCK-633 — WhatsApp vers un numéro DÉCLARÉ.
   const hasPhone = contact?.has_phone === true;
@@ -54,8 +58,8 @@ export function PropertyBookingCard({
     <section className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
       <div>
         <PropertyPrice property={property} className="text-3xl tracking-tight" periodeClassName="text-base" />
-        {property.contract_type_label && (
-          <p className="text-sm text-muted-foreground mt-0.5">{property.contract_type_label}</p>
+        {contrat && (
+          <p className="text-sm text-muted-foreground mt-0.5">{contrat}</p>
         )}
       </div>
 

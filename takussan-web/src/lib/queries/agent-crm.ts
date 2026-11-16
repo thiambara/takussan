@@ -218,13 +218,24 @@ export interface HandoverPayload {
   remove_after?: boolean;
 }
 
+/**
+ * Le bilan de la passation. `leases` (TCK-616 AC6) : les baux des biens saisis transmis — les
+ * brouillons passés au repreneur (compte), les autres restés au nom du partant (identifiants, à revoir).
+ */
+export interface HandoverResult {
+  moved: Record<string, number>;
+  unassigned: Record<string, number>;
+  removed: boolean;
+  leases: { moved: number; to_review: number[] };
+}
+
 export async function handOverPortfolio(
   token: string,
   agencyId: number,
   userId: number,
   payload: HandoverPayload,
-): Promise<{ moved: Record<string, number>; unassigned: Record<string, number>; removed: boolean }> {
-  const res = await apiRequest<ApiResponse<{ moved: Record<string, number>; unassigned: Record<string, number>; removed: boolean }>>(
+): Promise<HandoverResult> {
+  const res = await apiRequest<ApiResponse<HandoverResult>>(
     cheminApi`/api/agencies/${agencyId}/members/${userId}/handover`,
     { method: 'POST', body: payload, token },
   );

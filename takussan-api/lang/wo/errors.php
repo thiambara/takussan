@@ -174,6 +174,7 @@ return [
         'value_not_found' => 'Valeur bi gisuñu ko.',
     ],
     'calendar' => [
+        'feed_agency_required' => "Choisissez l'agence de votre lien d'agenda : vous travaillez pour plusieurs agences.",
         'feed_not_staff' => 'Lëkkalekaayu ajandaa bi, liggéeykatu ajaans ak prestataire yi rekk la.',
         'other_agency_forbidden' => 'Administrateur yi rekk ñoo mën a xool yeneen agence.',
     ],
@@ -192,6 +193,14 @@ return [
     'credits' => [
         'insufficient' => 'Sa kredi doyul : des na la :missing kredi (sa kredi : :balance).',
         'no_space' => 'Amul bérab bu dox : tannal benn bérab ngir gis ay kredi am.',
+        // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — l'achat de la mise en avant d'une agence.
+        'spotlight_sale_closed' => 'La mise en avant de l’agence n’est pas en vente pour le moment.',
+        'spotlight_directory_wide_closed' => 'La place de l’annuaire sans ville n’est pas en vente : choisissez une ville.',
+        'spotlight_agency_not_listed' => 'Votre agence n’apparaît pas dans l’annuaire de cette ville : publiez au moins un bien dans cette ville avant d’acheter sa mise en avant.',
+        'spotlight_taken' => 'La place de cette ville est déjà prise sur cette période.',
+        'spotlight_no_free_period' => 'Aucune période libre pour cette ville dans les :days prochains jours.',
+        'spotlight_too_far' => 'La mise en avant se réserve au plus :days jours à l’avance.',
+        'spotlight_key_reused' => 'Cette demande d’achat a déjà servi pour une autre ville : rouvrez le formulaire.',
     ],
     'conversation' => [
         // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.
@@ -412,6 +421,8 @@ return [
         'commission_forbidden' => 'Personelu ajaans bi rekk ñoo mën a tëral komisioŋ bi ak ki ko jëflante, su ñu leen may ubbi ay kontaraa.',
         'commission_locked' => 'Komisioŋ bi ak ki ko jëflante dañuy tëru ci kontaraa bu nekkagul ci jëfandikoo : bu ñu ko taalee, komisioŋ bi séddalees na ko ba noppi.',
         'guarantor_already_attached' => 'Garant bii takk nañu ko ci bail bi ba noppi.',
+        // TCK-607 (n3) — ADR-0042, amendement du 2026-11-16.
+        'guarantors_frozen' => 'Les garants d\'un bail signé sont figés : seul un bail renouvelé qui n\'a encore aucun garant peut en recevoir un.',
         'max_guarantors' => 'Benn luwé du mën a am lu ëpp 3 ñu koy wóolu.',
         'not_activatable' => 'Bayle bu nekk ci brouillon walla buñuy xaar xaatim rekk lañu mën a doxal.',
         'not_active_schedule' => 'Bail buy dox rekk moo mën a defar échéancier.',
@@ -450,10 +461,11 @@ return [
     ],
     'lease_payment' => [
         'cancelled' => 'Fey bii, yeesal bi moo ko far : warul ñu koy fey te duñu ko jël.',
-        'cannot_mark_paid' => 'Échéance buy xaar walla bu yéex rekk lañu mën a màndargaal ni lu ñu fay.',
+        'cannot_mark_paid' => 'Seule une échéance en attente, en retard ou partiellement payée peut être marquée payée.',
         'deposit_refund_paid_by_payout' => 'Kaution bu ñu delloo, ci reversement bi lañu koy fey, du ak loxo.',
         'late_fee_not_due' => 'Amul penalité bu des ci fey bii.',
         'lease_not_active' => 'Seul un bail actif ou en préavis reçoit une ligne de paiement.',
+        'no_duplicate_to_refund' => 'Aucun doublon d\'encaissement ne reste à rembourser sur cette échéance.',
         'not_overdue' => 'Seule une échéance due, non soldée et échue se relance.',
         'receipt_not_a_payment' => 'Kaution bu ñu delloo du fey bu luwékat bi : amul kitaas.',
         'receipt_unpaid' => 'Kitaas bi, ñu ngi koy jox rekk su luyer bi feyoo.',
@@ -538,6 +550,7 @@ return [
         'amount_short' => 'Xaalis bi ñu jot moo gën a tuuti xaalis bi ñu xaaroon.',
         'amount_unresolved' => 'Xaalis bi ñuy fay, mënuñu ko xam.',
         'checkout_in_progress' => 'Fey ci internet mungi dox ci bii échéance : jéemaatal ci ay simili.',
+        'currency_mismatch' => 'La devise du paiement reçu ne correspond pas à celle du paiement demandé.',
         'currency_unsupported' => 'Prestataire :provider nanguwul xaalisu :currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy nanguwul XOF : jëfandikoo Wave walla Orange Money ngir fey ci XOF.',
         'filter_days_late_invalid' => 'Filtre de jours de retard invalide : un entier positif ou nul est attendu.',

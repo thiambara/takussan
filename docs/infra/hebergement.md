@@ -329,22 +329,40 @@ en préproduction compris. Les clés vivent dans les gabarits, les drivers là-b
   dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS`, puis `radar:rehash-phones`. **Une ancienne clé ne se retire jamais** : un refus
   purgé ne dit pas sous quelle clé il a été écrit ([ADR-0082](../adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)).
 
-**Rotation d'`APP_KEY` — ce qu'on garde dans `APP_PREVIOUS_KEYS`, et combien de temps** (TCK-2430,
-[ADR-0084](../adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md)) :
+**`APP_HMAC_KEY` — la clé des empreintes, distincte d'`APP_KEY`** (TCK-614,
+[ADR-0084, amendement du 2026-11-16](../adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md)) :
+action [`2026-11-16-cle-d-empreinte-app-hmac-key`](../deploiement/actions/2026-11-16-cle-d-empreinte-app-hmac-key.md).
+Une valeur par environnement (`openssl rand -base64 48`), recopiée à l'identique, **rangée hors du VPS avec `APP_KEY`** :
+une restauration de base se fait avec les **deux** clés de la même époque. Hors `local`/`testing`, `docker/release.sh`
+refuse le déploiement sans elle. Une fois les conteneurs neufs démarrés, `php artisan security:rehash-fingerprints`
+réécrit sous elle les empreintes qui se recalculent (jamais pendant le release : l'ancien code ne lit que sous
+`APP_KEY`) ; ensuite, plus de retour à une image antérieure à TCK-614. Elle ne tourne pas (pas d'`APP_HMAC_PREVIOUS_KEYS`) : une fuite demanderait un ADR.
 
-- on ne la fait tourner qu'après une fuite ou le départ de quelqu'un qui l'a lue. La neuve (`php artisan key:generate --show`)
-  va dans `APP_KEY`, l'ancienne **en tête** d'`APP_PREVIOUS_KEYS` (séparées par des virgules, sans espace), les plus
-  anciennes derrière. **Chaque valeur se recopie à l'identique, `base64:` et `=` final compris** : les empreintes du Radar
-  (`RadarPhone`, `ClaimLinks`) se calculent sur la chaîne, et une clé tronquée qui déchiffre encore ne les retrouve plus.
-  On redéploie, et rien d'autre ne se lance : les colonnes chiffrées se relisent sous l'ancienne clé, et les empreintes
-  HMAC des alertes, du crédit de bienvenue et des versements approuvés y sont aussi reconnues ;
-- **une ancienne `APP_KEY` ne quitte jamais `APP_PREVIOUS_KEYS` tant que TCK-614 n'est pas livré** (ré-chiffrement et
-  réécriture des empreintes). Retirée trop tôt, elle rend illisibles les colonnes chiffrées sous elle (ADR-0044), rend
-  partielle une désinscription d'alerte, et laisse un numéro déjà crédité recevoir une seconde bienvenue ;
-- même après TCK-614, l'octroi de bienvenue d'un compte anonymisé ne se réécrit pas, faute de numéro. Retirer la clé qui
-  l'a écrit rend une bienvenue à chacun de ces numéros : une perte bornée, à peser à ce moment-là ;
-- l'ancienne valeur reste rangée hors du serveur, comme la courante. Une clé gardée dans `APP_PREVIOUS_KEYS` sert encore à
-  déchiffrer et à vérifier une URL signée : après une fuite, c'est le prix de ne rien perdre, jusqu'à TCK-614.
+**Rotation d'`APP_KEY`, puis retrait de l'ancienne** (TCK-2430, TCK-614,
+[ADR-0084](../adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md)) — après une fuite ou le départ de
+quelqu'un qui l'a lue :
+
+1. **Tourner** : la neuve (`php artisan key:generate --show`) dans `APP_KEY`, l'ancienne **en tête** d'`APP_PREVIOUS_KEYS`
+   (virgules, sans espace), les plus anciennes derrière. **Chaque valeur se recopie à l'identique, `base64:` et `=` final
+   compris** : les empreintes du Radar (`RadarPhone`, `ClaimLinks`) se calculent sur la chaîne. Redéployer : les colonnes
+   chiffrées se relisent sous l'ancienne clé, et les empreintes encore écrites sous elle y sont reconnues.
+2. **Ré-chiffrer** : dans le conteneur `api`, `php artisan security:reencrypt --dry-run` (bilan par modèle), puis
+   `php artisan security:reencrypt` jusqu'à une sortie en 0. Une valeur illisible est nommée (modèle, id, colonne) et
+   son lot n'est pas réécrit : **ne rien retirer** tant qu'il en reste. Rejouée, la commande ne doit plus rien réécrire.
+3. **Relire les empreintes** : `php artisan security:rehash-fingerprints --dry-run` doit rendre `reecrites=0`. Ses
+   `sans_source` (octroi de bienvenue d'un compte anonymisé ou dont le numéro a changé, contact d'alerte illisible) et
+   les versements `changees` sont ce que le retrait perd : une seconde bienvenue possible par numéro, une demande
+   d'alerte qu'une désinscription ne retrouverait plus. À peser.
+4. **Attendre** que la file des jobs soit vide (un job chiffré sous l'ancienne clé ne se lirait plus) et dix minutes
+   (le cache porte, chiffrés à la main, un secret 2FA en renouvellement et un code vocal) ; les liens de
+   réclamation du Radar émis sous elle (`ClaimLinks`, restés sous `APP_KEY` par décision du porteur) tombent au retrait,
+   l'annonceur en redemande un.
+5. **Retirer** l'ancienne clé d'`APP_PREVIOUS_KEYS` dans Dokploy, redéployer, puis `php artisan backup:verify-encryption`
+   doit sortir en 0. Garder l'ancienne valeur au coffre le temps de la rétention des sauvegardes : une sauvegarde
+   d'avant le ré-chiffrement ne se lit qu'avec elle.
+
+Une clé gardée dans `APP_PREVIOUS_KEYS` sert encore à déchiffrer et à vérifier une URL signée : après une fuite, c'est
+le prix de ne rien perdre, jusqu'au retrait (étape 5).
 
 **À poser par le porteur — TCK-598, ADR-0052** (ni Dokploy ni Vercel ne les portaient au 2026-10-08 ; **la préproduction les porte toutes depuis le 2026-11-01**, la production reste à poser en F3) :
 
@@ -818,6 +836,33 @@ aucun embedding ne part. L'ordre reste obligatoire pour la pose des clés, et po
    `pg_trgm` aux vecteurs. Le coût et les pannes se lisent dans la console IA, usage `radar.embedding`. Pour revenir en arrière
    sans retirer la clé : `RADAR_SIMILARITY_DRIVER=trigram`, ou `VOYAGE_TRAINING_OPT_OUT=false`. Une clé sans déclaration, pilote `embeddings`, écrit
    `radar.embeddings.training_opt_out_undeclared` au journal à chaque balayage.
+
+### La santé : la route publique et la console (TCK-600, TCK-680)
+
+> Déplacé de `docs/infra/cdn.md` (§ Health endpoint) le 2026-11-16, quand TCK-2463 a supprimé ce
+> document avec l'intégration CDN de TCK-105. La sonde `cdn` n'existe plus.
+
+```
+GET /api/health
+```
+
+Publique, sans authentification. **Depuis TCK-600, elle ne sonde rien** : elle rend le statut agrégé
+que `health:probe` (planifiée chaque minute) a laissé en cache, sans détail ni appel sortant — elle
+appelait le CDN à chaque requête anonyme.
+
+```json
+{
+  "status": "ok | degraded | failed | unknown",
+  "checked_at": "2026-10-08T10:00:00.000000Z"
+}
+```
+
+`unknown` : aucune sonde n'a tourné depuis dix minutes (planificateur arrêté). `failed` répond **503**
+(TCK-680), pour qu'une sonde externe sur le code HTTP le voie ; `degraded` et `unknown` restent en 200.
+Le détail, sonde par sonde, est dans la console : `GET /api/admin/health` (page super-admin « Santé du
+système »), une tuile par sonde de `HealthcheckService::probe()`.
+
+Déclencheur d'alerte d'un moniteur externe : `status != ok`, ou le code HTTP.
 
 ## Ce que Caddy reprend de l'ancien vhost nginx
 

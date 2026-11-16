@@ -111,7 +111,7 @@ export function ChampDeRecherche({
         placeholder={libelle ?? t('champ')}
         autoComplete="off"
         enterKeyHint="search"
-        className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-foreground focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
+        className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-foreground focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden"
       />
       {saisie.length > 0 ? (
         <button

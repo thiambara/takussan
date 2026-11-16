@@ -9,7 +9,6 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Rules\JourIso;
 use App\Services\Boost\BoostSettings;
-use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Boost\SponsoredRotation;
 use App\Support\Search\CleDeQuartier;
 use Carbon\CarbonImmutable;
@@ -966,8 +965,8 @@ class PropertySearchService
         }
 
         $sponsored = $this->emplacementsEspaces($pool, $seed, $page, $slots, $data);
-        // ADR-0061 §10 — une impression par bien réellement servi (hydraté, donc public), quelle que soit sa position.
-        app(BoostStatsRecorder::class)->impressions(array_column($sponsored, 'id'));
+        // TCK-2569 (amendement d'ADR-0061 du 2026-11-16) — servir n'est plus compter : le front déclare les emplacements
+        // qu'il affiche (`POST /api/public/properties/sponsored-impressions`), il en retire certains (TCK-2500).
 
         return [$data, $sponsored];
     }

@@ -2,15 +2,15 @@
 
 namespace App\Http\Requests\Permissions;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Rules\InstantIso;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class StoreRoleDelegationRequest extends FormRequest
+class StoreRoleDelegationRequest extends BaseFormRequest
 {
     use ConvertitLesInstantsRecus;
 

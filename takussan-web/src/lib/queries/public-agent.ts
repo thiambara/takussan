@@ -41,6 +41,11 @@ export interface AgentDto {
    * vérifié (D10) ; la page ne le publie qu'à `true`, et un champ absent vaut « non ».
    */
   phone_verified?: boolean;
+  /**
+   * TCK-2576 — le numéro publié est-il déclaré WhatsApp ? Servi AVEC `phone` seulement (absent pour un
+   * numéro non vérifié) ; un champ absent vaut « non ».
+   */
+  phone_whatsapp?: boolean;
   city?: string | null;
   preferred_language?: string | null;
   specialty?: string | null;
@@ -57,7 +62,14 @@ export interface AgentDto {
   neighborhoods?: { id: number; name: string }[];
   /** TCK-2518 — médiane en minutes ; `null` sous le seuil ou quand elle tombe sur l'infini. */
   median_response_minutes?: number | null;
+  /** Le rattachement de la PERSONNE (son profil d'agent) : nul pour un propriétaire. */
   agency: { id: number; name: string; slug: string } | null;
+  /**
+   * TCK-2574 — l'agence qui GÈRE ses biens publics : la plus fréquente parmi ceux qui en ont une
+   * (à égalité, la plus ancienne), `null` sans aucune. Même règle que l'annuaire. C'est à elle que
+   * la fiche d'un propriétaire renvoie le contact.
+   */
+  managing_agency?: { id: number; name: string; slug: string } | null;
   portfolio_count: number;
   portfolio_total: number;
   portfolio: PropertyListItem[];

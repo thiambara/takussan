@@ -4,7 +4,7 @@ import { keepPreviousData } from '@tanstack/react-query';
 
 import { CLE_CREDITS } from '@/components/boost/api';
 import type { BoostKind, BoostStatus, BoostVariant, CreditLot, CreditsResponse } from '@/components/boost/types';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { PaginatedResponse } from '@/types/api';
 
 /**
@@ -23,6 +23,9 @@ export const creditsQueryKeys = {
   // TCK-2925 — le rapport des mises en avant et les lots passés.
   rapport: (jours: number) => [...CLE_CREDITS, 'rapport', jours] as const,
   lotsPasses: (page: number, parPage: number) => [...CLE_CREDITS, 'lots-passes', page, parPage] as const,
+  // TCK-2525 — la mise en avant de l'agence dans l'annuaire.
+  miseEnAvantAgence: () => [...CLE_CREDITS, 'spotlights'] as const,
+  devisMiseEnAvantAgence: (ville: number | null, jour: string) => [...CLE_CREDITS, 'spotlights', 'quote', ville, jour] as const,
 };
 
 /**
@@ -171,4 +174,67 @@ export function useLotsPasses(page: number, parPage: number, enabled = true) {
     params: { fields: { credit_lots: [...LOT_PASSE_FIELDS] }, page, per_page: parPage },
     placeholderData: keepPreviousData,
   });
+}
+
+/* ───────────── TCK-2525 — la mise en avant de l'agence dans l'annuaire, achetée en crédits ───────────── */
+
+/** Les réglages de la plateforme que l'écran d'achat lit (amendement du 2026-11-16 d'ADR-0061). */
+export interface ReglagesMiseEnAvantAgence {
+  readonly sale_enabled: boolean;
+  readonly price_credits: number;
+  readonly duration_days: number;
+  readonly max_advance_days: number;
+  readonly when_taken: 'refuse' | 'next_free';
+  readonly sell_directory_wide: boolean;
+}
+
+/** Une place de l'agence, en cours ou à venir. `city` nul : l'annuaire sans ville. */
+export interface PlaceDeLAgence {
+  readonly id: number;
+  readonly geo_city_id: number | null;
+  readonly city: { readonly id: number; readonly name: string } | null;
+  readonly origin: 'offered' | 'purchased';
+  readonly price_credits: number;
+  readonly starts_at: string;
+  readonly ends_at: string;
+}
+
+export interface MiseEnAvantAgenceResponse {
+  readonly data: { readonly settings: ReglagesMiseEnAvantAgence; readonly balance: number; readonly spotlights: readonly PlaceDeLAgence[] };
+}
+
+/** Le devis : la période réelle (sous `next_free`, le premier créneau libre), le prix, le solde après. */
+export interface DevisMiseEnAvantAgence {
+  readonly available: boolean;
+  readonly reason: 'taken' | 'too_far' | 'no_free_period' | null;
+  readonly starts_at: string | null;
+  readonly ends_at: string | null;
+  readonly next_free_at: string | null;
+  readonly price_credits: number;
+  readonly balance: number;
+  readonly balance_after: number;
+}
+
+export function useMiseEnAvantAgence(enabled = true) {
+  return useApiQuery<MiseEnAvantAgenceResponse>(creditsQueryKeys.miseEnAvantAgence(), '/api/credits/spotlights', { enabled });
+}
+
+/** `ville` nul : l'annuaire sans ville ; `jour` vide : tout de suite. Rien n'est demandé sans `enabled`. */
+export function useDevisMiseEnAvantAgence(ville: number | null, jour: string, enabled = true) {
+  return useApiQuery<{ readonly data: DevisMiseEnAvantAgence }>(creditsQueryKeys.devisMiseEnAvantAgence(ville, jour), '/api/credits/spotlights/quote', {
+    enabled,
+    params: { extra: { geo_city_id: ville ?? undefined, starts_on: jour || undefined } },
+  });
+}
+
+/**
+ * L'achat. `cleIdempotence` part dans l'en-tête `Idempotency-Key` : un double clic ne paie pas deux
+ * places (sous `next_free`, il en paierait deux consécutives). Invalide tout `['credits']` : solde,
+ * historique et places se relisent.
+ */
+export function useAcheterMiseEnAvantAgence(cleIdempotence: string) {
+  return useApiMutation<{ readonly data: PlaceDeLAgence; readonly balance: number }, { readonly geo_city_id: number | null; readonly starts_on?: string }>(
+    { path: '/api/credits/spotlights', method: 'POST' },
+    { invalidate: [[...CLE_CREDITS]], request: { headers: { 'Idempotency-Key': cleIdempotence } } },
+  );
 }

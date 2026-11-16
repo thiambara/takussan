@@ -198,6 +198,25 @@ class LeasePolicy extends BasePolicy
     }
 
     /**
+     * TCK-608 — constater qu'un encaissement en double d'une échéance a été rendu au locataire
+     * (« Doublon remboursé »). De l'argent qui sort : le bailleur direct sur son bail, le personnel de
+     * l'agence qui détient `payments.refund` (l'administrateur d'agence par défaut, jamais l'agent du
+     * rôle système), le super-admin. Jamais le locataire.
+     */
+    public function refundDuplicate(User $user, Lease $lease): bool
+    {
+        if ($this->bailleurEcrit($user, $lease->landlord_id, $lease->agency_id)) {
+            return true;
+        }
+
+        if ($this->isStaffOf($user, $lease->agency_id)) {
+            return $user->can(Capability::PaymentsRefund->value, $lease);
+        }
+
+        return $user->isSuperAdmin();
+    }
+
+    /**
      * TCK-089 — Renouveler un bail (créer un avenant chaîné).
      * Réservé à l'agency-side : landlord, membre d'agence, ou admin.
      * Requiert la capacité `Capability::LeasesRenew` (`leases.renew`) afin

@@ -28,6 +28,7 @@ use App\Services\Payments\RentMonthStatus;
 use App\Services\Property\HeuresDuSejour;
 use App\Services\Property\Occupation;
 use App\Services\Property\PropertyOccupancy;
+use App\Services\Search\PropertySearchService;
 use App\Sorts\PropertyRentLateSort;
 use App\Support\CaseInsensitive;
 use App\Support\DayRange;
@@ -191,6 +192,33 @@ class Property extends AbstractModel implements HasMedia
     /** @var array<int,string> */
     protected static array $requestSearchFields = ['title', 'reference_number', 'description'];
 
+    /**
+     * TCK-578 (ADR-0008, amendement du 2026-11-16) — `filter[search]` de `buildQuery()` cherche en
+     * SQL : ses appelants sont TOUS des consoles (`/api/properties`, le portefeuille, les sous-biens,
+     * `/api/admin/agencies/{agency}/properties`, les biens d'un bailleur), qui listent brouillons,
+     * biens en attente, refusés et privés — que l'index PUBLIC ne contient pas et ne contiendra pas
+     * ({@see shouldBeSearchable()}). La recherche publique reste au moteur (`PropertySearchService`).
+     */
+    protected static function rechercheParLaBase(): bool
+    {
+        return true;
+    }
+
+    /**
+     * TCK-578 (AC4) — la référence exacte en tête, puis le titre, puis le reste ; l'ordre par défaut
+     * de l'appelant départage. Repli de casse par {@see CaseInsensitive}, comme le filtre.
+     *
+     * @return array{0: string, 1: array<int, mixed>}
+     */
+    protected static function rangDeRechercheSql(string $valeur, string $motif): array
+    {
+        return [
+            'CASE WHEN '.CaseInsensitive::sql('properties.reference_number').' = ? THEN 0'
+            .' WHEN '.CaseInsensitive::sql('properties.title').' LIKE ? THEN 1 ELSE 2 END',
+            [CaseInsensitive::fold($valeur), $motif],
+        ];
+    }
+
     /** @var array<int,string> */
     /** TCK-596 (ADR-0041) — l'empreinte du jeton d'export iCal ne sort d'aucune sérialisation. */
     protected $hidden = ['ical_export_token_hash'];
@@ -244,7 +272,11 @@ class Property extends AbstractModel implements HasMedia
     {
         static::creating(function (self $m) {
             if (empty($m->slug)) {
-                $m->slug = Str::slug($m->title).'-'.Str::random(6);
+                // TCK-618 (contrainte 1) — `Str::slug()` rend '' pour un titre en émojis, en
+                // idéogrammes ou fait de tirets : le slug devenait `-XXXXXX`. Repli `bien`, à la
+                // CRÉATION seulement — aucun slug existant ne change (pas de redirection d'un ancien).
+                $base = Str::slug((string) $m->title);
+                $m->slug = ($base !== '' ? $base : 'bien').'-'.Str::random(6);
             }
             if (empty($m->reference_number)) {
                 $m->reference_number = 'TK-'.now()->format('Y').'-'.strtoupper(Str::random(6));
@@ -641,16 +673,53 @@ class Property extends AbstractModel implements HasMedia
         return $query->with('address', 'tagsVisibles', 'agency');
     }
 
+    /**
+     * TCK-2457 — les statuts qui tiennent un bien hors de l'index, lus par {@see shouldBeSearchable()} ET par
+     * {@see scopeIndexable()}. Plus étroite que {@see NON_PUBLIC_STATUSES}, le filtre public du moteur : vendu,
+     * loué ou archivé reste indexé, et ne sort d'aucune recherche publique.
+     *
+     * @var list<PropertyStatus>
+     */
+    public const NON_INDEXABLE_STATUSES = [
+        PropertyStatus::Draft,
+        PropertyStatus::PendingReview,
+        PropertyStatus::Rejected,
+    ];
+
+    /**
+     * ⚠ TCK-2457 — {@see scopeIndexable()} en est la traduction en requête, et `IndexablePropertyParityTest` les
+     * compare sur toutes les combinaisons : une condition ajoutée ici s'ajoute là, sinon la tuile Santé `search`
+     * compte un autre ensemble que l'index.
+     */
     public function shouldBeSearchable(): bool
     {
         return ! $this->trashed()
             && $this->visibility === PropertyVisibility::Public
-            && ! in_array($this->status, [
-                PropertyStatus::Draft,
-                PropertyStatus::PendingReview,
-                PropertyStatus::Rejected,
-            ], true)
+            && ! in_array($this->status, self::NON_INDEXABLE_STATUSES, true)
             && $this->agencyIsPublic();
+    }
+
+    /**
+     * TCK-2457 — {@see shouldBeSearchable()}, en requête : ce que l'index des biens DOIT contenir. La sonde Santé
+     * `search` le compte (une requête, aucun modèle chargé). L'index garde les biens `is_test`, non publiés, vendus
+     * ou loués : c'est {@see PropertySearchService::publicFilter()} qui les tient hors de toute
+     * recherche publique — {@see scopePublic()} compterait donc un autre ensemble que l'index.
+     *
+     * `deleted_at` est écrit même sous la portée globale : le scope dit le prédicat entier, `withTrashed()` compris.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeIndexable(Builder $query): Builder
+    {
+        return $query
+            ->whereNull($query->qualifyColumn('deleted_at'))
+            ->where($query->qualifyColumn('visibility'), PropertyVisibility::Public)
+            ->whereNotIn($query->qualifyColumn('status'), array_map(
+                static fn (PropertyStatus $statut): string => $statut->value,
+                self::NON_INDEXABLE_STATUSES,
+            ))
+            ->ofPublicAgency();
     }
 
     /**

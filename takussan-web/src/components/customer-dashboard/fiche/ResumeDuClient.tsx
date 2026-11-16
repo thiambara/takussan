@@ -107,7 +107,7 @@ function ConfirmerLaVisite({ visite }: { readonly visite: ProchaineVisite }) {
         type="button"
         disabled={confirmer.isPending}
         onClick={() => confirmer.mutate(undefined, { onSuccess: () => router.refresh() })}
-        className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-60"
+        className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground outline-none hover:bg-primary-deep focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-60"
       >
         {confirmer.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
         {t('confirmer')}

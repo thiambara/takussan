@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
+use App\Services\Auth\AccountTokenRevoker;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -36,7 +37,9 @@ class SessionController extends Controller
         $currentId = $request->user()->currentAccessToken()?->id;
         abort_code_if($tokenId === $currentId, 422, 'session.cannot_revoke_current');
 
-        $deleted = $request->user()->tokens()->where('id', $tokenId)->delete();
+        // TCK-617 — révoquer une session (la volée) coupe aussi les liens d'agenda : on ne sait pas
+        // laquelle les a créés.
+        $deleted = app(AccountTokenRevoker::class)->revokeOne($request->user(), $tokenId);
         abort_code_unless($deleted > 0, 404, 'session.not_found');
 
         return $this->json(null, 204);

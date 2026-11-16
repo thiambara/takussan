@@ -7,7 +7,6 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
-use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryAgentDesignator;
@@ -41,6 +40,13 @@ use Spatie\Activitylog\Models\Activity;
  *
  * `--dry-run` n'écrit rien et imprime les mêmes lignes, une par bien, avec les identifiants. Une
  * transaction par bien.
+ *
+ * TCK-616 (ADR-0059, amendement du 2026-11-16) — la sortie se lit sans `activity_log` : chaque ligne
+ * `review` et `restore` porte `chain=X>B5>Y`, tous les titulaires successifs de la signature (le
+ * bailleur intermédiaire y est lisible) ; une ligne `restore` liste ses baux rétablis par
+ * `leases_fixed_ids=` (et ses baux à reprendre par `leases_to_review_ids=`), le bilan les COMPTE
+ * par `leases_fixed=` et `leases_to_review=` ; `designated_after` se lit au SEUL
+ * journal de désignation.
  *
  * ⚠ Environnements : aucune production API n'existe ; seule la préproduction peut porter ces
  * entrées. Elle s'y joue une fois, `--dry-run` d'abord, par une personne (TCK-603, « Au porteur »).
@@ -80,7 +86,7 @@ class RepairReassignedOwners extends Command
             if ($reason !== null) {
                 $counts['owners_to_review']++;
                 $ownersToReview[] = $propertyId;
-                $this->line("{$prefix}review property={$propertyId} reason={$reason} owner={$current} original={$original}");
+                $this->line("{$prefix}review property={$propertyId} reason={$reason} owner={$current} original={$original} chain={$this->chaine($chain)}");
 
                 continue;
             }
@@ -147,11 +153,12 @@ class RepairReassignedOwners extends Command
             $counts['leases_to_review'] += count($others);
             array_push($leasesToReview, ...$others);
             $this->line(sprintf(
-                '%srestore property=%d owner=%d->%d responsible=%s leases_fixed=%s leases_to_review=%s',
+                '%srestore property=%d owner=%d->%d responsible=%s leases_fixed_ids=%s leases_to_review_ids=%s chain=%s',
                 $prefix, $propertyId, $current, $original,
                 $responsible ? (string) $lastTarget?->id : '-',
                 $drafts === [] ? '-' : implode(',', $drafts),
                 $others === [] ? '-' : implode(',', $others),
+                $this->chaine($chain),
             ));
         }
 
@@ -189,17 +196,29 @@ class RepairReassignedOwners extends Command
             return 'current_is_landlord';
         }
 
+        // TCK-616 — le SEUL journal de désignation : `updated_at` d'une ligne marquée bouge aussi pour
+        // une marque posée par le remplissage d'ADR-0053 (FN1) ou une part de commission modifiée (FN3),
+        // sans que personne ait choisi l'agent principal.
         $designeApres = Activity::query()
             ->where('subject_type', Property::class)->where('subject_id', $property->id)
             ->where('event', PrimaryAgentDesignator::EVENT)
             ->where('created_at', '>=', $since)
-            ->exists()
-            || PropertyCollaborator::query()
-                ->where('property_id', $property->id)->where('is_primary', true)
-                ->where('updated_at', '>=', $since)
-                ->exists();
+            ->exists();
 
         return $designeApres ? 'designated_after' : null;
+    }
+
+    /**
+     * TCK-616 — les titulaires successifs d'un bien selon la signature : `X>B5>Y` (le premier `old`,
+     * puis chaque `attributes`), pour que la ligne nomme aussi un bailleur intermédiaire.
+     *
+     * @param  Collection<int, object{old_user_id: string, new_user_id: string}>  $chain
+     */
+    private function chaine(Collection $chain): string
+    {
+        return collect([(int) $chain->first()->old_user_id])
+            ->merge($chain->map(fn ($c) => (int) $c->new_user_id))
+            ->implode('>');
     }
 
     /**

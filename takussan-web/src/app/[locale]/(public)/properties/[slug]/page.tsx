@@ -10,6 +10,7 @@ import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { BarreDOngletsPublique } from '@/components/navigation-publique/BarreDOngletsPublique';
 import { alternatesPubliques } from '@/lib/alternates';
+import { ESPACES_DES_LIBELLES_DE_BIEN, libelleDeBien } from '@/lib/biens/libelles-de-bien';
 import { resumePourMeta } from '@/lib/resume-pour-meta';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
@@ -96,6 +97,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = property.title;
   const socialTitle = `${property.title} — Takussan`;
   const tMeta = await getTranslations('meta.property');
+  // TCK-351 — le type se traduit par le dictionnaire du front : l'API n'émet plus `type_label`.
+  const tType = await getTranslations(ESPACES_DES_LIBELLES_DE_BIEN.type);
   // `quarter` et `city` sont `string | null`. Le gabarit qui occupait cette place avant TCK-292
   // rendait littéralement « null » quand ils l'étaient, et TCK-292 a reproduit le défaut à
   // l'identique plutôt que de le réparer en passant. **Il est réparé ici** : un repli qui n'a pas
@@ -104,7 +107,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     resumePourMeta(property.description) ??
     tMeta('descriptionFallback', {
-      type: property.type_label,
+      type: libelleDeBien(tType, 'type', property.type) ?? '',
       quarter: property.location.quarter ?? '',
       city: property.location.city ?? '',
     });

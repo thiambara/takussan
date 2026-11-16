@@ -16,7 +16,7 @@ class CreditMovement extends AbstractModel
     public const UPDATED_AT = null;
 
     protected $fillable = [
-        'agency_id', 'credit_lot_id', 'type', 'amount', 'property_boost_id', 'actor_id', 'reason',
+        'agency_id', 'credit_lot_id', 'type', 'amount', 'property_boost_id', 'agency_spotlight_id', 'actor_id', 'reason',
     ];
 
     protected $casts = [
@@ -58,6 +58,12 @@ class CreditMovement extends AbstractModel
     public function boost(): BelongsTo
     {
         return $this->belongsTo(PropertyBoost::class, 'property_boost_id');
+    }
+
+    /** TCK-2525 — la place « Mise en avant » qu'une dépense ou un remboursement concerne. */
+    public function spotlight(): BelongsTo
+    {
+        return $this->belongsTo(AgencySpotlight::class, 'agency_spotlight_id');
     }
 
     public function actor(): BelongsTo

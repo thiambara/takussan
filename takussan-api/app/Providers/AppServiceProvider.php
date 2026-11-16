@@ -54,7 +54,6 @@ use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
 use App\Observers\LeasePaymentOnboardingObserver;
 use App\Observers\MaintenanceRequestObserver;
-use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
 use App\Observers\PlatformProfileObserver;
@@ -100,15 +99,9 @@ use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\OtpPreview;
 use App\Services\Auth\Voice\VoiceCodeDrivers;
 use App\Services\Auth\Voice\VoiceCodeSender;
-use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
-use App\Services\Media\Cdn\BunnyCdnDriver;
-use App\Services\Media\Cdn\CdnHealthGuard;
-use App\Services\Media\Cdn\CdnProviderContract;
-use App\Services\Media\Cdn\CloudflareCdnDriver;
-use App\Services\Media\MediaUrlResolver;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Notifications\Sms\Dlr\LogDlrPuller;
@@ -200,7 +193,6 @@ class AppServiceProvider extends ServiceProvider
         // dans le conteneur, et non alias : `withoutMiddleware(ThrottleRequests::class)` des tests
         // remplace cette même entrée, et continue d'éteindre le débit.
         $this->app->bind(ThrottleRequests::class, ThrottleRequestsByNetwork::class);
-        $this->registerCdnServices();
         $this->registerSmsServices();
         $this->registerWhatsappServices();
         // TCK-2940 (ADR-0126 § 2) — le pilote d'appel, relu de la configuration à chaque résolution.
@@ -253,10 +245,6 @@ class AppServiceProvider extends ServiceProvider
         // TCK-602 (ADR-0051 §4) — SCOPED : le journal du webhook en cours, que le middleware
         // `webhook.journal` ouvre et que le gestionnaire annote, dans la même requête.
         $this->app->scoped(WebhookJournal::class);
-
-        // TCK-708 (P01.04) — SCOPED : les impressions que la requête a servies, que le middleware
-        // `boost.impressions` diffère puis valide, une fois la réponse connue (aucune sur un 304).
-        $this->app->scoped(BoostStatsRecorder::class);
 
         // TCK-602 — la route du paquet Lemon Squeezy est reprise à l'URL et au nom identiques
         // (`routes/lemon-squeezy.php`), derrière un débit et le journal : le paquet n'en avait aucun.
@@ -328,27 +316,6 @@ class AppServiceProvider extends ServiceProvider
         // TCK-084 — share a single CurrencyFormatter so both the Blade
         // directive and any controller/service can resolve the same instance.
         $this->app->singleton(CurrencyFormatter::class);
-    }
-
-    private function registerCdnServices(): void
-    {
-        // TCK-105 — CDN layer. The contract is bound to the active provider
-        // from config. MediaUrlResolver and CdnHealthGuard are singletons so
-        // the circuit-breaker counter survives across multiple URL resolutions
-        // within the same request.
-        $this->app->singleton(CdnHealthGuard::class);
-        $this->app->singleton(CdnProviderContract::class, function ($app): CdnProviderContract {
-            return match ((string) $app['config']->get('cdn.provider', 'bunny')) {
-                'cloudflare' => $app->make(CloudflareCdnDriver::class),
-                default => $app->make(BunnyCdnDriver::class),
-            };
-        });
-        $this->app->singleton(MediaUrlResolver::class, function ($app): MediaUrlResolver {
-            return new MediaUrlResolver(
-                cdn: $app->make(CdnProviderContract::class),
-                guard: $app->make(CdnHealthGuard::class),
-            );
-        });
     }
 
     private function registerSmsServices(): void
@@ -543,6 +510,9 @@ class AppServiceProvider extends ServiceProvider
         // TCK-598 — `POST /public/properties/{slug}/view`. Le service de comptage déduplique déjà
         // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
         RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
+        // TCK-2569 — `POST /public/properties/sponsored-impressions`, la déclaration groupée des emplacements affichés.
+        // Le compteur déduplique par (visiteur, bien) sur 30 min ; ce limiteur borne les appels, pas le compte.
+        RateLimiter::for('public-sponsored-impressions', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
         // TCK-2599 (ADR-0093) — `POST /public/geo/resolve-link` : un lien collé SANS compte déclenche
         // une requête SORTANTE. Par IP (réseau /64 en IPv6), et plus serré que la route connectée
         // (20/min par compte) ; préfixe propre, pour ne partager aucun compteur avec elle.
@@ -596,6 +566,30 @@ class AppServiceProvider extends ServiceProvider
                     throw new ThrottleRequestsException('Too Many Attempts.', null, $headers);
                 }));
         }
+
+        // TCK-606 (ADR-0046, amendement du 2026-11-16, point 4) — webhooks de paiement : un seau par
+        // INTÉGRATION (empreinte du jeton de l'URL, jamais le jeton en clair), pour que deux agences
+        // derrière une même IP de fournisseur n'épuisent pas le seau l'une de l'autre ; et une borne
+        // par IP, plus large, qui freine l'essai de jetons (chaque jeton inventé aurait sinon son
+        // seau neuf). L'ancienne URL (410) a le sien, qui ne touche jamais ceux des URL à jeton.
+        RateLimiter::for('payment-webhook', fn (Request $request) => [
+            Limit::perMinute(60)->by('payment-webhook-integration:'.hash('sha256', (string) $request->route('token'))),
+            Limit::perMinute(600)->by('payment-webhook-ip:'.$this->clientNetwork($request)),
+        ]);
+        RateLimiter::for('payment-webhook-gone', fn (Request $request) => Limit::perMinute(60)
+            ->by('payment-webhook-gone-ip:'.$this->clientNetwork($request)));
+
+        // TCK-606 (verif-602 m4) — le lien de paiement : `verify` déclenche un appel sortant chez le
+        // fournisseur avec la clé de l'agence, `initiate` ouvre un checkout. Bornés par IP ET par
+        // JETON (empreinte `sha256`, jamais en clair) : un lien qui fuit ne se martèle plus depuis N IP.
+        RateLimiter::for('pay-link-verify', fn (Request $request) => [
+            Limit::perMinute(6)->by('pay_link_verify_ip:'.$this->clientNetwork($request)),
+            Limit::perMinute(6)->by('pay_link:verify:'.hash('sha256', (string) $request->route('token'))),
+        ]);
+        RateLimiter::for('pay-link-initiate', fn (Request $request) => [
+            Limit::perMinute(10)->by('pay_link_initiate_ip:'.$this->clientNetwork($request)),
+            Limit::perMinute(10)->by('pay_link:initiate:'.hash('sha256', (string) $request->route('token'))),
+        ]);
 
         // Unauthenticated auth surface — registration / password-reset flows.
         // `/login` is already throttled inline; these mirror it to stop
@@ -866,7 +860,6 @@ class AppServiceProvider extends ServiceProvider
         LeasePayment::observe(LeasePaymentOnboardingObserver::class);
 
         // TCK-105 — purge CDN cache when a media item is deleted or replaced.
-        Media::observe(MediaCdnObserver::class);
 
         // TCK-585 — une photo de bien neuve est marquée « conversions en WebP » AVANT sa
         // première conversion. Une photo ancienne n'a pas le marqueur et garde ses `.jpg`

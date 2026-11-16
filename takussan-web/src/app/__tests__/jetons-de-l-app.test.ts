@@ -145,11 +145,10 @@ describe('TCK-2685 — espacement des lettres, icône, ombres', () => {
     const deuxXl = theme.match(/--shadow-2xl:\s*([^;]+);/)![1]!.trim();
     // TCK-2741 — trois ombres du comparateur flottant sortent de la règle, chacune à la valeur EXACTE
     // qu'elle a remplacée (rendu identique, relevé avant/après) : la pastille sombre composée en
-    // `in oklab`, et le contour intérieur de vignette, sur `--scrim` en clair et `--foreground` en sombre.
+    // `in oklab`, et le contour intérieur de vignette, sur `--scrim` (sa variante sombre est partie avec TCK-452).
     const HORS_REGLE: Record<string, string> = {
       '--shadow-pastille-flottante': '0 8px 20px -8px color-mix(in oklab, var(--shadow-color) 55%, transparent)',
       '--shadow-contour-vignette': 'inset 0 0 0 1px color-mix(in srgb, var(--scrim) 12%, transparent)',
-      '--shadow-contour-vignette-sombre': 'inset 0 0 0 1px color-mix(in srgb, var(--foreground) 14%, transparent)',
     };
     for (const [nom, valeur] of ombres) {
       if (nom === '--shadow-feuille') expect(valeur).toBe(deuxXl);

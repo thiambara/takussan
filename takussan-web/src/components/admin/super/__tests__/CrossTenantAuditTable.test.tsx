@@ -27,6 +27,9 @@ const LISTE = {
 
 const fetchMock = vi.fn();
 
+/** TCK-613 — le chemin signé RELATIF de la console, encodage compris, que le relais doit garder tel quel. */
+const CHEMIN_SIGNE = '/api/admin/audit/export/download?expires=1&file=f.csv&name=audit%20plateforme.csv&signature=x&user=3';
+
 function urls(prefixe: string): URL[] {
   return fetchMock.mock.calls
     .map(([u]) => new URL(String(u), 'http://localhost'))
@@ -44,9 +47,15 @@ beforeEach(() => {
   toastAdd.mockReset();
   fetchMock.mockReset();
   fetchMock.mockImplementation(async (u: string) => {
+    if (String(u).startsWith('/api/super-admin/audit/export/download')) {
+      return new Response('id,logged_at\n', {
+        status: 200,
+        headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="audit-plateforme-20261008.csv"' },
+      });
+    }
     if (String(u).startsWith('/api/super-admin/audit/export')) {
       return new Response(JSON.stringify({
-        data: { url: 'https://api.test/signed/audit.csv?signature=x', expires_at: '2026-10-08T12:00:00Z', count: 12 },
+        data: { url: CHEMIN_SIGNE, expires_at: '2026-10-08T12:00:00Z', count: 12 },
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
     return new Response(JSON.stringify(LISTE), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -82,10 +91,11 @@ describe('<CrossTenantAuditTable> — gestes sensibles et export (TCK-601 · F)'
     expect(screen.queryByText(/Consultations de données personnelles/)).not.toBeInTheDocument();
   });
 
-  it('l’export reprend les filtres affichés, ouvre le lien signé et dit combien d’entrées', async () => {
+  it('l’export reprend les filtres affichés, télécharge par le relais avec la session et dit combien d’entrées', async () => {
     const clics: string[] = [];
     const origine = HTMLAnchorElement.prototype.click;
-    HTMLAnchorElement.prototype.click = function clic(this: HTMLAnchorElement) { clics.push(this.href); };
+    HTMLAnchorElement.prototype.click = function clic(this: HTMLAnchorElement) { clics.push(this.download); };
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:audit'), revokeObjectURL: vi.fn() }));
 
     try {
       const user = userEvent.setup();
@@ -99,7 +109,10 @@ describe('<CrossTenantAuditTable> — gestes sensibles et export (TCK-601 · F)'
       // Ni pagination ni `include` : l'export porte des filtres, pas une page.
       expect(exportUrl.searchParams.has('page')).toBe(false);
 
-      await waitFor(() => expect(clics).toEqual(['https://api.test/signed/audit.csv?signature=x']));
+      // TCK-613 — par le relais de la console, la requête signée intacte, jamais par un lien ouvert.
+      await waitFor(() => expect(clics).toEqual(['audit-plateforme-20261008.csv']));
+      const telechargement = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('/download'));
+      expect(telechargement).toEqual(['/api/super-admin/audit/export/download?expires=1&file=f.csv&name=audit%20plateforme.csv&signature=x&user=3']);
       expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Export prêt : 12 entrées', type: 'success' }));
     } finally {
       HTMLAnchorElement.prototype.click = origine;

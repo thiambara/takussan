@@ -4,7 +4,7 @@ namespace App\Support;
 
 /**
  * TCK-633 lot F (ADR-0061 §3, interface C → F du plan maître) — l'empreinte d'un numéro : HMAC
- * sha256 de sa forme canonique, clé `app.key`. Même construction que
+ * sha256 de sa forme canonique, sous `APP_HMAC_KEY` depuis TCK-614 (`AppKeyHmac`). Même construction que
  * `AlertSubscriber::contactHash()` ; le numéro en clair n'est jamais conservé.
  *
  * TCK-2430 (ADR-0084) — `of()` écrit sous la clé courante ; `all()` est ce qu'une lecture cherche, `APP_PREVIOUS_KEYS`

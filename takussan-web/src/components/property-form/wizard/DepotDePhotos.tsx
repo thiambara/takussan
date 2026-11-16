@@ -82,7 +82,7 @@ export function DepotDePhotos({
       <div className="grid grid-cols-2 gap-2.5 lg:hidden">
         <label
           htmlFor={cameraId}
-          className="flex min-h-19 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-primary bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 group-has-[[data-champ=camera]:focus-visible]/depot:ring-3 group-has-[[data-champ=camera]:focus-visible]/depot:ring-ring"
+          className="flex min-h-19 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-primary bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-deep group-has-[[data-champ=camera]:focus-visible]/depot:ring-3 group-has-[[data-champ=camera]:focus-visible]/depot:ring-ring"
         >
           <Camera className="size-5" strokeWidth={1.75} aria-hidden="true" />
           {tMedia('take_photo')}

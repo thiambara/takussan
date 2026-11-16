@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityLogExportController;
 use App\Http\Controllers\Api\Admin\AgencyDetailController;
 use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
@@ -201,6 +202,9 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     // TCK-601 (F) — même filtres que l'index (`filter[sensitive]=1` compris), CSV par lien signé.
     Route::get('audit/export', [CrossTenantAuditController::class, 'export'])
         ->name('admin.audit.export');
+    // TCK-613 — le fichier de cet export, au seul opérateur qui l'a demandé, par le relais de la console.
+    Route::get('audit/export/download', [ActivityLogExportController::class, 'download'])
+        ->name('admin.audit.export.download');
 
     // TCK-2859 (ADR-0114 § 2) — les signalements de conversation, au seul `super_admin` (aucun geste).
     Route::get('conversation-reports', [ConversationReportController::class, 'index'])->name('admin.conversation-reports.index');

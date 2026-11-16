@@ -88,7 +88,7 @@ export function inventoryStatusTone(status: InventoryStatus): StatusTone {
  */
 const TYPE_TONE: Record<InventoryType, string> = {
   move_in: 'bg-info/10 text-info',
-  move_out: 'bg-primary/12 text-primary',
+  move_out: 'bg-primary/8 text-primary-deep',
 };
 
 export function inventoryTypeBadgeClass(type: InventoryType): string {

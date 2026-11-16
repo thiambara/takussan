@@ -165,7 +165,7 @@ wolof de la table de l'API sont **en français** : `status.draft` = « Brouillon
 `status.archived` = « Archivé », `type.factory` = « Usine ».
 
 La cause structurelle est plus large que le wolof, et elle a son ticket :
-[TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md). Un cliquet à contenu nommé
+[TCK-351](../done/TCK-351-deux-sources-de-libelles-de-bien.md). Un cliquet à contenu nommé
 (`takussan-web/src/types/__tests__/property-labels.parity.test.ts`) empêche désormais la dette de
 croître, dans les deux sens.
 

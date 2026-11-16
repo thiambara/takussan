@@ -109,6 +109,8 @@ export interface AgentTask {
   due_at: string | null;
   /** `label` et `phone` sont `null` pour qui ne passe pas le contrôle de rattachement. */
   taskable: { type: 'customer' | 'property'; id: number; label: string | null; phone: string | null } | null;
+  /** TCK-617 — le parent (bien, client) est supprimé : la tâche reste listée, marquée, sans lien. */
+  parent_deleted?: boolean;
   assignee: { id: number; name: string } | null;
 }
 

@@ -4,6 +4,7 @@ import { useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { Sparkles } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ContractTypeChip } from './ContractTypeChip';
 import { NewBuildChip } from './NewBuildChip';
 import { PropertyPhoto } from './PropertyPhoto';
@@ -27,6 +28,7 @@ export function PropertyCardCover({
   allegee = false,
 }: PropertyCardCommonProps) {
   const tPeriods = useTranslations('property.rentPeriodsShort');
+  const { locale } = useFormatteurs();
   const tCards = useTranslations('property.cards');
   const quarter = property.location.quarter || property.location.city || null;
   const idTitre = useId();
@@ -99,7 +101,7 @@ export function PropertyCardCover({
             {property.title}
           </h3>
           <p className="text-[0.875rem] font-semibold tabular-nums">
-            {formatPrice(property.price, property.currency ?? 'XOF')}
+            {formatPrice(property.price, property.currency ?? 'XOF', locale)}
             {property.contract_type === 'rent' && property.rent_period && (
               <span className="ml-1 text-[0.75rem] font-medium opacity-80">
                 /{tPeriods(property.rent_period)}

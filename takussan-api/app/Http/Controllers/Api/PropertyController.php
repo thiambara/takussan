@@ -34,6 +34,7 @@ use App\Services\Property\PropertyDuplicationService;
 use App\Services\Property\PropertyListScope;
 use App\Services\Property\PropertyOccupancy;
 use App\Services\Property\PropertyPublication;
+use App\Services\Property\PropertyRewriteModeration;
 use App\Services\Property\PropertyStats30d;
 use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\PublishReadiness;
@@ -41,6 +42,7 @@ use App\Services\Property\ResponsibleAgentAssigner;
 use App\Services\Property\TitulaireALaSaisie;
 use App\Support\Http\ParametreUnique;
 use App\Support\Logging\SafeExceptionContext;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -354,9 +356,18 @@ class PropertyController extends Controller
             $property->fill($data)->save();
 
             if ($addressData !== null) {
-                $property->address
-                    ? $property->address->update($addressData)
-                    : $property->address()->create($addressData);
+                $adresse = $property->address;
+                if ($adresse) {
+                    $adresse->update($addressData);
+                } else {
+                    $adresse = $property->address()->create($addressData);
+                }
+
+                // TCK-611 (ADR-0043, amendement du 2026-11-16) — l'adresse est affichée (`location`) :
+                // la changer réellement est une réécriture, qui repasse par la file de l'agence.
+                if ($adresse->wasRecentlyCreated || array_diff(array_keys($adresse->getChanges()), ['updated_at', 'created_at']) !== []) {
+                    app(PropertyRewriteModeration::class)->afterOffColumnRewrite($property);
+                }
             }
 
             // Dans la transaction : un refus de `publish()` annule le PATCH entier.
@@ -531,6 +542,13 @@ class PropertyController extends Controller
      */
     public function recordView(Request $request, Property $property, PropertyViewCounter $compteur): JsonResponse
     {
+        // TCK-618 (contrainte 4) — une vue ne se compte que sur un bien que l'appelant peut voir : en
+        // ligne, ou lisible par lui. Sinon le MÊME 404 qu'un bien inconnu : ni compte, ni
+        // `views_count` d'un bien privé lu, ni existence révélée.
+        if (! $property->isOnline() && ! $request->user()->can('view', $property)) {
+            throw (new ModelNotFoundException)->setModel(Property::class, [$property->getKey()]);
+        }
+
         $compteur->record($property, (string) $request->ip());
 
         return $this->json(['data' => ['views_count' => $property->refresh()->views_count]]);

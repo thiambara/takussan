@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Api\Admin;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Rules\InstantIso;
-use Illuminate\Foundation\Http\FormRequest;
 
-class ReportExportRequest extends FormRequest
+class ReportExportRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

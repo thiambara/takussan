@@ -121,7 +121,7 @@ function Gestes({ i, taille, maintenant }: { readonly i: InterventionEnFile; rea
           className={cn(
             'inline-flex min-w-0 flex-1 items-center justify-center whitespace-nowrap font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring',
             taille === 'telephone' ? 'h-11 rounded-lg px-3 text-sm' : 'h-8 rounded-md px-2 text-xs',
-            g === 'choisir' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-border bg-card text-foreground hover:bg-muted',
+            g === 'choisir' ? 'bg-primary text-primary-foreground hover:bg-primary-deep' : 'border border-border bg-card text-foreground hover:bg-muted',
           )}
         >
           {libelle(g)}

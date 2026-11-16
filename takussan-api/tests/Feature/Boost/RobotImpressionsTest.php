@@ -43,30 +43,32 @@ class RobotImpressionsTest extends TestCase
         app(PlatformSettingService::class)->bulkUpdate(['boost.sponsored_slots_per_page' => 1, 'boost.reserved_top_results' => 0], $this->actingAsRole('super_admin'));
     }
 
-    public function test_une_recherche_sous_googlebot_ne_compte_aucune_impression(): void
+    /**
+     * TCK-2569 — l'impression se compte à la déclaration du navigateur : c'est elle qui ignore un
+     * robot déclaré. (La recherche et l'accueil ne comptent plus rien, robot ou non.)
+     */
+    public function test_une_declaration_sous_googlebot_ne_compte_aucune_impression(): void
     {
-        // TCK-2500 — page 2 d'une carte : le bien boosté est la carte de la page 1, et une vedette déjà parmi les cartes
-        // de la page n'est plus servie en emplacement.
-        $this->appeler('/api/public/properties/search?per_page=1&page=2', '198.51.100.1', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')
-            ->assertOk()->assertJsonPath('sponsored.0.id', $this->boost->property_id);
-        $this->assertSame(0, $this->impressions(), 'le robot voit l’emplacement, mais ne le compte pas');
+        $this->declarer('198.51.100.1', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')->assertNoContent();
+        $this->assertSame(0, $this->impressions(), 'le robot déclare, mais ne compte pas');
 
-        $this->appeler('/api/public/properties/search?per_page=1&page=2', '198.51.100.2', 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36');
+        $this->declarer('198.51.100.2', 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36');
         $this->assertSame(1, $this->impressions(), 'témoin : un navigateur compte');
     }
 
-    public function test_l_accueil_sous_un_robot_ne_compte_aucune_impression(): void
+    public function test_une_declaration_sous_bingbot_ne_compte_aucune_impression(): void
     {
-        $this->appeler('/api/public/properties/discovery', '198.51.100.1', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)')->assertOk();
+        $this->declarer('198.51.100.1', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)')->assertNoContent();
         $this->assertSame(0, $this->impressions());
 
-        $this->appeler('/api/public/properties/discovery', '198.51.100.2', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15');
+        $this->declarer('198.51.100.2', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15');
         $this->assertSame(1, $this->impressions(), 'témoin : un navigateur compte');
     }
 
-    private function appeler(string $uri, string $ip, string $agent): TestResponse
+    private function declarer(string $ip, string $agent): TestResponse
     {
-        return $this->withServerVariables(['REMOTE_ADDR' => $ip])->withHeader('User-Agent', $agent)->getJson($uri);
+        return $this->withServerVariables(['REMOTE_ADDR' => $ip])->withHeader('User-Agent', $agent)
+            ->post('/api/public/properties/sponsored-impressions', ['slugs' => [$this->boost->property->slug]]);
     }
 
     private function impressions(): int

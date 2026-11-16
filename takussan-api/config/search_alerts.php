@@ -22,8 +22,13 @@ return [
     // Messages de confirmation envoyés au même contact sur 24 h glissantes.
     'max_confirmations_per_day' => 2,
 
-    // Alertes non closes (en attente ou confirmées) pour un même contact.
+    // TCK-615 (décision du porteur, 2026-11-16) — alertes CONFIRMÉES pour un même contact (sa boîte) : au-delà,
+    // une demande neuve se tait. À ce nombre de demandes NON confirmées, la neuve évince la plus ancienne dont
+    // aucun message de confirmation n'est parti depuis 24 h (`RecordPublicSearchAlert`).
     'max_open_per_contact' => 5,
+
+    // TCK-615 — attente du verrou par boîte quand un autre worker traite une demande du même contact.
+    'contact_lock_wait_seconds' => 10,
 
     // Validité du lien signé de désinscription d'une recherche de compte.
     'account_unsubscribe_days' => 60,

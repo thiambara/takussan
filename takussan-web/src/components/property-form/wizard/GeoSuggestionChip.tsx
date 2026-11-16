@@ -36,7 +36,7 @@ export function GeoSuggestionChip({
       data-testid="geo-suggestion"
       onClick={onAccept}
       // TCK-2819 (lot 2) — maquette a-1 : une pastille `primary`, à sa largeur, l'étincelle d'une proposition.
-      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/35 bg-primary/7 px-4 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/35 bg-primary/7 px-4 text-left text-sm font-medium text-primary-deep transition-colors hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
     >
       <Sparkles className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
       <span>{region ? t('geoSuggestFull', { city, region }) : t('geoSuggestCity', { city })}</span>

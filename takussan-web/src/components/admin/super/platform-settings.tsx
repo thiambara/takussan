@@ -144,6 +144,10 @@ export function SettingField({
 }) {
   const t = useTranslations('superAdmin.platformSettings');
   const fmt = useFormatteurs();
+  // TCK-2525 — une liste fermée de comportements (`spotlight.when_taken`…) se lit traduite ; une
+  // option sans libellé (un code de devise) reste telle quelle.
+  const libelleOption = (option: string): string =>
+    t.has(`keys.${setting.key}.options.${option}`) ? t(`keys.${setting.key}.options.${option}`) : option;
   return (
     <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[minmax(200px,0.8fr)_minmax(0,1.2fr)_minmax(160px,0.7fr)] lg:items-center">
       <div className="min-w-0">
@@ -158,7 +162,7 @@ export function SettingField({
             onValueChange={(next) => {
               if (next !== null) onChange(next);
             }}
-            items={(setting.options ?? []).map((option) => ({ value: option, label: option }))}
+            items={(setting.options ?? []).map((option) => ({ value: option, label: libelleOption(option) }))}
           >
             <SelectTrigger id={setting.key} className="w-full bg-card">
               <SelectValue />
@@ -166,7 +170,7 @@ export function SettingField({
             <SelectContent>
               {(setting.options ?? []).map((option) => (
                 <SelectItem key={option} value={option}>
-                  {option}
+                  {libelleOption(option)}
                 </SelectItem>
               ))}
             </SelectContent>

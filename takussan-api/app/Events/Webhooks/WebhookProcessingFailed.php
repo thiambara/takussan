@@ -10,9 +10,9 @@ use Illuminate\Foundation\Events\Dispatchable;
  * authentifié et son traitement a échoué côté serveur (5xx). Émis par `WebhookJournal::close`, sur
  * le chemin réel comme au rejeu.
  *
- * ⚠ AUCUN écouteur, délibérément : les règles d'alerte appartiennent à TCK-600
- * (`AlertableEvents`), qui l'y abonnera. L'événement ne porte ni corps ni en-tête — seulement de
- * quoi rouvrir la ligne.
+ * TCK-606 — écouté par `Listeners\Admin\AlertOnWebhookProcessingFailed`, qui écrit l'activité
+ * alertable `webhook_processing_failed` (`AlertableEvents`). L'événement ne porte ni corps ni
+ * en-tête — seulement de quoi rouvrir la ligne.
  */
 class WebhookProcessingFailed implements ShouldDispatchAfterCommit
 {

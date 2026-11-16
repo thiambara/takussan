@@ -134,11 +134,12 @@ class DashboardAgencyAccessTest extends ApiTestCase
 
         $this->actingAsApi($this->adminWithout($agency, Capability::ReportsViewAgency));
         $this->getJson('/api/dashboard/agency')->assertForbidden();
-        $data = $this->getJson('/api/dashboard/me')->assertOk()->assertJsonPath('data.role', 'agency_admin')->json('data');
-        foreach (['revenue_month', 'commission_month', 'overdue_count', 'overdue_amount', 'unpaid_rate_percent'] as $key) {
+        // TCK-617 (décision du porteur, 2026-11-16) — sans la capacité, ses chiffres seuls, comme un
+        // agent : ni les consolidés, ni le portefeuille de l'agence (DashboardMeAgencyAdminScopeTest).
+        $data = $this->getJson('/api/dashboard/me')->assertOk()->assertJsonPath('data.role', 'agent')->json('data');
+        foreach (['revenue_month', 'commission_month', 'overdue_count', 'overdue_amount', 'unpaid_rate_percent', 'properties_total'] as $key) {
             $this->assertArrayNotHasKey($key, $data['metrics'], $key);
         }
-        $this->assertArrayHasKey('properties_total', $data['metrics']);
 
         $this->actingAsApi($this->agencyAdmin($agency));
         $this->assertArrayHasKey('revenue_month', $this->getJson('/api/dashboard/me')->assertOk()->json('data.metrics'));

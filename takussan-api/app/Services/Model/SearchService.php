@@ -142,6 +142,8 @@ class SearchService
             'criteria' => $criteria,
             'notification_frequency' => $criteria['notification_frequency'] ?? 'daily',
             'is_active' => true,
+            // TCK-615 — la première alerte ne porte que ce qui est publié après la création.
+            'last_notified_at' => now(),
         ]);
     }
 

@@ -322,11 +322,30 @@ class WhatsappChannel
         return is_int($id) ? $id : null;
     }
 
+    /**
+     * TCK-2464 — FERMÉ par défaut, même règle que {@see SmsChannel::isOptedIn()} : une notification
+     * non critique sans événement de préférence ne part pas, et le refus se journalise. Ici plus
+     * encore qu'au SMS : le repli SMS de ce canal ne relit pas le consentement SMS, une porte ouverte
+     * ici l'était donc aussi pour le SMS.
+     *
+     * Exception MOTIVÉE (option (a) du ticket, en attendant que le porteur tranche) : un
+     * destinataire non-`User` (abonné d'alerte sans compte, contact routé) n'a aucune ligne de
+     * préférence à lire ; pour WhatsApp, `resolveMessage()` exige en plus que son contact soit
+     * `opted_in` (TCK-588), sinon repli SMS.
+     */
     private function isOptedIn(object $notifiable, Notification $notification): bool
     {
-        $eventType = $this->resolveEventType($notification);
-        if (! $eventType || ! $notifiable instanceof User) {
+        if (! $notifiable instanceof User) {
             return true;
+        }
+        $eventType = $this->resolveEventType($notification);
+        if ($eventType === null || $eventType === '') {
+            Log::warning('[whatsapp-channel] non-critical notification without a preference event — refused', [
+                'notification' => $notification::class,
+                'user_id' => $notifiable->getKey(),
+            ]);
+
+            return false;
         }
 
         return $this->preferences->shouldSend($notifiable, $eventType, PreferenceResolver::CHANNEL_WHATSAPP);

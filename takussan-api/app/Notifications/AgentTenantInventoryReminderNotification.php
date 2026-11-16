@@ -6,6 +6,7 @@ use App\Models\Lease;
 use App\Notifications\Concerns\AlertsWhenMarkedDeliveryFails;
 use App\Services\Notifications\PreferenceResolver;
 use App\Support\LienFront;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
@@ -71,7 +72,7 @@ class AgentTenantInventoryReminderNotification extends Notification implements S
             ->greeting(__('notifications.agent_tenant_inventory_reminder.greeting'))
             ->line(__('notifications.agent_tenant_inventory_reminder.intro', [
                 'reference' => $reference,
-                'tenant' => $tenantName,
+                'tenant' => MarkdownText::escape($tenantName),
             ]))
             ->line(__('notifications.agent_tenant_inventory_reminder.body'))
             ->action(__('notifications.agent_tenant_inventory_reminder.action'), $url)

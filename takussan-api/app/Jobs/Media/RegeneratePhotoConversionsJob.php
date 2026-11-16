@@ -4,6 +4,7 @@ namespace App\Jobs\Media;
 
 use App\Models\Property;
 use App\Services\Media\WatermarkTrace;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -88,7 +89,7 @@ class RegeneratePhotoConversionsJob implements ShouldQueue
         if ($media === null) {
             Log::warning('[RegeneratePhotoConversionsJob] Régénération abandonnée pour un média supprimé depuis : rien à retirer.', [
                 'media_id' => $this->mediaId,
-                'exception' => $exception?->getMessage(),
+                'exception' => $exception === null ? null : SafeExceptionContext::of($exception),
             ]);
 
             return;

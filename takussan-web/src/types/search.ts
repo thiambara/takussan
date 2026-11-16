@@ -415,14 +415,15 @@ export const SEARCH_FILTER_KEYS = {
     // TCK-552 — le montant passe par `formatPrice`, la fonction des CARTES : la puce écrivait
     // « 2 000 000 FCFA » quand chaque carte de la même page écrit « 2 000 000 F CFA ». La devise
     // n'est plus dans le gabarit (`≥ {value}`) : une seule fonction l'écrit, partout.
-    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMin', { value: formatPrice(Number(v), 'XOF') }),
+    // TCK-347 — et dans la langue de l'écran (`t.locale`), comme les cartes.
+    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMin', { value: formatPrice(Number(v), 'XOF', t.locale) }),
   },
   price_max: {
     role: 'filtre',
     params: ['price_max'],
     lire: (sp: URLSearchParams) => litNombre(sp, 'price_max'),
     ecrire: (v: number | boolean) => String(v),
-    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMax', { value: formatPrice(Number(v), 'XOF') }),
+    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMax', { value: formatPrice(Number(v), 'XOF', t.locale) }),
   },
   bedrooms: {
     role: 'filtre',

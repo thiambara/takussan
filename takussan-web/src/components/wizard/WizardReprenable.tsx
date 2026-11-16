@@ -454,7 +454,7 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
                     'relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border text-[0.6875rem] font-medium tabular-nums',
                     'transition-colors duration-200 ease-out',
                     isActive && 'border-primary bg-primary text-primary-foreground',
-                    isDone && 'border-primary/40 bg-primary/10 text-primary',
+                    isDone && 'border-primary/40 bg-primary/10 text-primary-deep',
                     !isActive && !isDone && 'border-border bg-card text-muted-foreground',
                   )}
                 >

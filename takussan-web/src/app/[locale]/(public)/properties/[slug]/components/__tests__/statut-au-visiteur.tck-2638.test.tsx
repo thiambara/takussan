@@ -15,7 +15,7 @@ import { PropertyHeader } from '../PropertyHeader';
 
 vi.mock('@/components/compare/CompareToggleAction', () => ({ CompareToggleAction: () => null }));
 
-function bien(status: string, status_label: string): PropertyDetail {
+function bien(status: string): PropertyDetail {
   return {
     id: 1,
     title: 'Villa Mermoz',
@@ -25,11 +25,7 @@ function bien(status: string, status_label: string): PropertyDetail {
     type: 'villa',
     contract_type: 'rent',
     rent_period: 'monthly',
-    type_label: 'Villa',
-    contract_type_label: 'À louer',
-    rent_period_label: 'Par mois',
     status,
-    status_label,
     visibility: 'public',
     views_count: 3,
     reviews_count: 0,
@@ -38,7 +34,6 @@ function bien(status: string, status_label: string): PropertyDetail {
     featured: false,
     condition: null,
     location: { quarter: 'Mermoz', city: 'Dakar', region: null, country: 'SN', full: 'Mermoz, Dakar', latitude: null, longitude: null },
-    title_type_label: null,
     floor_number: null,
     total_floors: null,
     year_built: null,
@@ -62,17 +57,19 @@ describe('Fiche publique — le statut dit au visiteur (TCK-2638)', () => {
     ['published', 'Validé'],
     ['available', 'Disponible'],
   ])('un bien en ligne (%s) : ni pastille ni ligne « Statut »', (status, libelle) => {
-    rendre(bien(status, libelle));
+    rendre(bien(status));
     expect(screen.queryByText(libelle)).toBeNull();
     expect(screen.queryByText('Statut')).toBeNull();
   });
 
   it.each([
-    ['reserved', 'Réservé'],
+    // TCK-351 — `pending` se dit « En attente » partout, le mot de la carte et de la console :
+    // l'API, qui le disait « Réservé » sur la fiche, n'émet plus de `status_label`.
+    ['pending', 'En attente'],
     ['sold', 'Vendu'],
     ['rented', 'Loué'],
   ])('%s : le statut informe le visiteur, il reste', (status, libelle) => {
-    rendre(bien(status, libelle));
+    rendre(bien(status));
     expect(screen.getAllByText(libelle)).toHaveLength(2);
   });
 });

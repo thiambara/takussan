@@ -635,11 +635,14 @@ class LeaseContractTermsTest extends TestCase
         $this->slipActivationAtBinding($lease->id);
         Sanctum::actingAs($lease->landlord);
 
+        // TCK-607 (n3) — la ligne verrouillée est `active` : ses garants sont figés (409), jugé sous le
+        // verrou et non sur l'instance liée encore `pending_signature`.
         $this->postJson("/api/leases/{$lease->id}/guarantors", ['first_name' => 'Awa', 'last_name' => 'Diop', 'phone' => '+221770000000'])
-            ->assertCreated();
+            ->assertStatus(409)->assertJsonPath('code', 'lease.guarantors_frozen');
 
         $this->assertSame(LeaseStatus::Active, $lease->fresh()->status);
         $this->assertSame($sha, $lease->fresh()->contract_sha256);
+        $this->assertSame(0, $lease->guarantors()->count());
     }
 
     public function test_detaching_a_guarantor_racing_an_activation_keeps_the_frozen_contract(): void
@@ -652,10 +655,13 @@ class LeaseContractTermsTest extends TestCase
         $this->slipActivationAtBinding($lease->id);
         Sanctum::actingAs($lease->landlord);
 
-        $this->deleteJson("/api/leases/{$lease->id}/guarantors/{$guarantor->id}")->assertOk();
+        // TCK-607 (n3) — même jugement sous verrou au retrait.
+        $this->deleteJson("/api/leases/{$lease->id}/guarantors/{$guarantor->id}")
+            ->assertStatus(409)->assertJsonPath('code', 'lease.guarantors_frozen');
 
         $this->assertSame(LeaseStatus::Active, $lease->fresh()->status);
         $this->assertSame($sha, $lease->fresh()->contract_sha256);
+        $this->assertSame(1, $lease->guarantors()->count());
     }
 
     // ── VERIF-596 passe 4 (m-d) — un renouvellement qui change un terme signé se signe ───────────
@@ -791,11 +797,12 @@ class LeaseContractTermsTest extends TestCase
             }
         });
 
-        $this->postJson("/api/leases/{$lease->id}/guarantors", ['guarantor_id' => $guarantor->id])->assertCreated();
+        // TCK-607 (n3) — sur ce bail actif, le refus (409) tombe APRÈS le verrou : c'est lui qui juge.
+        $this->postJson("/api/leases/{$lease->id}/guarantors", ['guarantor_id' => $guarantor->id])->assertStatus(409);
         $seen['POST guarantors'] = count($locks) - $before;
         $before = count($locks);
 
-        $this->deleteJson("/api/leases/{$lease->id}/guarantors/{$guarantor->id}")->assertOk();
+        $this->deleteJson("/api/leases/{$lease->id}/guarantors/{$guarantor->id}")->assertStatus(409);
         $seen['DELETE guarantors'] = count($locks) - $before;
         $before = count($locks);
 

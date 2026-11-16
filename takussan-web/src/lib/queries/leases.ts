@@ -557,6 +557,26 @@ export function useMarkLateFeePaid(leaseId: number) {
   );
 }
 
+/**
+ * TCK-608 — « Doublon remboursé » : l'agence constate avoir rendu au locataire un encaissement en double
+ * de l'échéance. Sous second facteur ; 409 s'il n'y a rien à constater.
+ */
+export function useMarkDuplicateRefunded(leaseId: number) {
+  return useApiMutation<ApiResponse<LeasePayment>, { paymentId: number }>(
+    {
+      path: ({ paymentId }) => cheminApi`/api/lease-payments/${paymentId}/duplicate-refunded`,
+      method: 'POST',
+      body: () => ({}),
+    },
+    {
+      invalidate: [
+        ['leases', 'payments', leaseId],
+        ['leases', 'detail', leaseId],
+      ],
+    },
+  );
+}
+
 export type IssuePaymentLinkPayload = { paymentId: number; regenerate?: boolean };
 
 /**

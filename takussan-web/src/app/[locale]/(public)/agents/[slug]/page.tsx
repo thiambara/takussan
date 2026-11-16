@@ -38,8 +38,9 @@ const estUnAgent = (agent: AgentDto) => agent.public_role === 'agent';
  * TCK-2523 (décision 1b) — le nom AFFICHÉ : complet pour un agent, ABRÉGÉ pour un propriétaire
  * (« Sokhna G. »), partout — titre de la page, `<h1>`, données structurées, contact, partage.
  *
- * ⚠ L'API sert encore `full_name` et `last_name` en entier pour un propriétaire (collision notée) :
- * c'est la page qui abrège, et aucun composant client ne reçoit le nom complet.
+ * Depuis TCK-2574, l'API ne sert plus que l'initiale du nom d'un propriétaire (`last_name: "G."`,
+ * `full_name: "Sokhna G."`) ; la page abrège quand même — `nomAbrege` est idempotent —, pour qu'une
+ * réponse plus ancienne ne fasse pas reparaître le nom complet.
  */
 const nomAffiche = (agent: AgentDto) =>
   estUnAgent(agent) ? agent.full_name : nomAbrege(agent.first_name, agent.last_name, agent.full_name);
@@ -197,16 +198,19 @@ export default async function Page({ params, searchParams }: Props) {
   // qu'à `phone_verified === true` — un champ absent vaut « non ». TCK-2523 (1b) — et JAMAIS celui
   // d'un propriétaire : sa fiche ne porte aucun numéro personnel, vérifié ou non.
   const telephone = estAgent && agent.phone_verified === true ? agent.phone : null;
+  // TCK-2576 — WhatsApp au premier rang, sur CE numéro publié et seulement si l'API le dit sur WhatsApp
+  // (`phone_whatsapp`, servi avec `phone` seulement) : jamais pour un propriétaire, jamais sans numéro.
+  const whatsapp = telephone && agent.phone_whatsapp === true ? telephone : null;
   const delai = delaiDeReponse(agent.median_response_minutes);
   const texteDelai = delai ? tProfil(`delai.${delai.unite}`, { n: delai.valeur }) : null;
   const langues = nomsDesLangues(agent.languages ?? [], locale);
   const quartiers = (agent.neighborhoods ?? []).map((q) => q.name.trim()).filter((q) => q !== '');
   const noteMoyenne = reviews && reviews.count > 0 && reviews.average !== null ? reviews.average : null;
 
-  // L'agence qui reçoit le contact d'un propriétaire (1b). ⚠ Mesuré le 2026-11-09 : l'API rend
-  // `agency: null` pour tout propriétaire (`User::agency` passe par le profil d'AGENT) — le renvoi ne
-  // joue donc que quand elle saura la servir (TCK-2574). D'ici là, le formulaire anonyme, comme avant.
-  const agenceDuProprietaire = !estAgent ? agent.agency : null;
+  // L'agence qui reçoit le contact d'un propriétaire (1b) : celle qui GÈRE ses biens publics,
+  // `managing_agency` (TCK-2574) — jamais `agency`, le rattachement de la personne, nul pour lui.
+  // Sans elle (aucune agence, ou une API plus ancienne), le formulaire anonyme, comme avant.
+  const agenceDuProprietaire = !estAgent ? (agent.managing_agency ?? null) : null;
   const message: CanalDeMessage = agenceDuProprietaire
     ? { genre: 'agence', nom: agenceDuProprietaire.name, slug: agenceDuProprietaire.slug }
     : { genre: 'formulaire', slug: agent.slug, role: estAgent ? 'agent' : 'owner' };
@@ -446,8 +450,10 @@ export default async function Page({ params, searchParams }: Props) {
             <ContactDeFiche
               nom={nom}
               telephone={telephone}
+              whatsapp={whatsapp}
               message={message}
               sousTitre={texteDelai}
+              fiche={{ genre: 'personne', id: agent.id, role: estAgent ? 'agent' : 'owner' }}
             />
           </aside>
         </div>

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Invitation;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -31,7 +32,7 @@ class InvitationExpiredNotification extends Notification
         return (new MailMessage)
             ->subject(__('notifications.invitation_expired.subject', ['email' => $email]))
             ->greeting(__('notifications.invitation_expired.greeting'))
-            ->line(__('notifications.invitation_expired.intro', ['email' => $email]))
+            ->line(__('notifications.invitation_expired.intro', ['email' => MarkdownText::escape((string) $email)]))
             ->line(__('notifications.invitation_expired.advice'))
             ->salutation(__('notifications.salutation'));
     }

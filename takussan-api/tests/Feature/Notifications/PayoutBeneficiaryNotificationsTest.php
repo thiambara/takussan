@@ -78,7 +78,9 @@ class PayoutBeneficiaryNotificationsTest extends TestCase
             $this->assertSame(NotificationCode::PayoutProcessed, $n->code);
             $text = implode("\n", $this->mailText($n, $landlord, 'fr'));
             $this->assertMatchesRegularExpression('/180\s000/u', $text);
-            $this->assertStringContainsString('CHQ-778899', $text);
+            // TCK-605 — la référence est une saisie : échappée dans le Markdown du corps, elle se lit
+            // à l'identique dans l'e-mail rendu.
+            $this->assertStringContainsString('CHQ-778899', (string) $n->toMail($landlord)->render());
             $this->assertEveryLineIsTranslated($n, $landlord, 'payout.processed');
 
             return true;

@@ -194,7 +194,7 @@ Deux choses à trancher, et elles sont indépendantes :
 
 - La conversion des couleurs brutes de la chrome —
   [TCK-440](TCK-440-chrome-publique-en-palette-brute.md).
-- Le sort du thème sombre — [TCK-452](../todo/TCK-452-theme-sombre-inatteignable.md).
+- Le sort du thème sombre — [TCK-452](TCK-452-theme-sombre-inatteignable.md).
 - Le contrôle des classes non émises — [TCK-453](TCK-453-classes-non-emises.md).
 
 ## Notes d'implémentation

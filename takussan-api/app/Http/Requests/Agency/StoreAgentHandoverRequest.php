@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests\Agency;
 
-use App\Http\Requests\Concerns\BorneLesReglesDElement;
+use App\Http\Requests\BaseFormRequest;
 use App\Models\Agency;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Agency\AgentPortfolio;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -20,12 +19,8 @@ use Illuminate\Validation\Validator;
  * {@see PersonnelDeLAgence::estPersonnel()}, et n'est pas le partant : un bailleur, un compte bloqué
  * ou supprimé ne sont jamais repreneurs.
  */
-class StoreAgentHandoverRequest extends FormRequest
+class StoreAgentHandoverRequest extends BaseFormRequest
 {
-    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
-    // `BaseFormRequest` par les autres : cette requête l'étend encore en direct, TCK-730).
-    use BorneLesReglesDElement;
-
     public function authorize(): bool
     {
         return $this->user()->can('removeMember', $this->route('agency'));

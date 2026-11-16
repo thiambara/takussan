@@ -35,7 +35,12 @@ class FilterSearchProjectionTest extends TestCase
     /** @var list<array{path: string, body: array<string, mixed>}> */
     private array $envois = [];
 
-    public function test_la_liste_des_biens_ne_demande_que_l_identifiant(): void
+    /**
+     * TCK-578 (ADR-0008, amendement du 2026-11-16) — la liste des biens des consoles cherche en SQL :
+     * l'index des biens est public, il ne contient pas les brouillons qu'elle liste. Elle n'envoie
+     * donc AUCUNE recherche au moteur — ni projection à vérifier.
+     */
+    public function test_la_liste_des_biens_n_interroge_pas_le_moteur(): void
     {
         $agency = Agency::factory()->create();
         $agent = User::factory()->withAgentProfile($agency)->create();
@@ -51,7 +56,10 @@ class FilterSearchProjectionTest extends TestCase
             ->assertJsonPath('data.0.id', $mien->id)
             ->assertJsonPath('data.0.title', 'Appartement Zorglub');
 
-        $this->assertSeuleLaCle('properties');
+        $this->assertSame([], array_values(array_filter(
+            $this->envois,
+            fn (array $e) => str_ends_with($e['path'], '/search') && str_contains($e['path'], 'properties'),
+        )));
     }
 
     public function test_la_liste_des_clients_ne_demande_que_l_identifiant(): void

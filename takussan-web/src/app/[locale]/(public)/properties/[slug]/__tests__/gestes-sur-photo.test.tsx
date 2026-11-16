@@ -99,8 +99,6 @@ function bien(): PropertyDetail {
     price: 450000,
     contract_type: 'rent',
     rent_period: 'monthly',
-    status_label: 'Disponible',
-    contract_type_label: 'À louer',
     views_count: 0,
     reviews_count: 0,
     average_rating: null,

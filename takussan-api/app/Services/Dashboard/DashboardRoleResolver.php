@@ -53,9 +53,17 @@ class DashboardRoleResolver
         if ($agencyId !== null && $user->isAgencyAdminAt((int) $agencyId)) {
             $kind = Agency::query()->whereKey($agencyId)->value('kind');
 
-            return ($kind instanceof AgencyKind ? $kind : AgencyKind::tryFrom((string) $kind)) === AgencyKind::Individual
-                ? $this->owner
-                : $this->agency;
+            if (($kind instanceof AgencyKind ? $kind : AgencyKind::tryFrom((string) $kind)) === AgencyKind::Individual) {
+                return $this->owner;
+            }
+
+            // TCK-617 (décision du porteur, 2026-11-16) — sans `reports.view_agency`
+            // (`AgencyPolicy::viewReports`), l'admin d'agence ne lit que SES chiffres non financiers,
+            // comme un agent (visites, tâches, clients, biens qu'il gère) : jamais le portefeuille ni
+            // l'activité de toute l'agence. Avec la capacité, la vue d'agence est inchangée.
+            $agency = Agency::query()->find($agencyId);
+
+            return $agency !== null && $user->can('viewReports', $agency) ? $this->agency : $this->agent;
         }
 
         if ($agencyId !== null && $user->isAgentAt((int) $agencyId)) {

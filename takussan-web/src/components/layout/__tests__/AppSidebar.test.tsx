@@ -168,6 +168,8 @@ interface OptionsDeBarre {
   readonly modulesMasques?: readonly string[];
   /** TCK-2490 — la coque sait ouvrir la palette : la ligne « Aller à » est rendue. */
   readonly onOuvrirPalette?: (depuis: HTMLElement) => void;
+  /** TCK-610 — le compte détient `platform.console.access`, tel que le layout le lit. */
+  readonly accesConsole?: boolean;
 }
 
 function barre(compte: Compte, options: OptionsDeBarre = {}) {
@@ -187,6 +189,7 @@ function barre(compte: Compte, options: OptionsDeBarre = {}) {
           agencySuspended={options.agencySuspended}
           modulesMasques={options.modulesMasques ?? []}
           onOuvrirPalette={options.onOuvrirPalette}
+          accesConsole={options.accesConsole}
         />
       </AccesAdminProvider>
     </QueryClientProvider>,
@@ -674,6 +677,23 @@ describe('TCK-2478 — la carte du client et le lien « Console plateforme »', 
 
   it('un admin d’agence n’a pas le lien de la console', () => {
     renderSidebar('admin-agence', '/app');
+    expect(screen.queryByRole('link', { name: /^Console plateforme/ })).toBeNull();
+  });
+
+  // TCK-610 (AC6) — un opérateur `viewer` ou `support` n'a pas le rôle `super_admin` : l'entrée suit
+  // le geste `platform.console.access`, lu par le layout (`accesALaConsole`).
+  it('un opérateur `viewer` (client par ailleurs) voit « Console plateforme »', () => {
+    renderSidebar('client', '/app', { accesConsole: true });
+    expect(screen.getByRole('link', { name: /^Console plateforme/ })).toHaveAttribute('href', '/super-admin');
+  });
+
+  it('un opérateur `support` au profil actif d’agence la garde aussi', () => {
+    renderSidebar('agent', '/app', { accesConsole: true });
+    expect(screen.getByRole('link', { name: /^Console plateforme/ })).toHaveAttribute('href', '/super-admin');
+  });
+
+  it('sans le geste, un client n’a pas le lien de la console', () => {
+    renderSidebar('client', '/app', { accesConsole: false });
     expect(screen.queryByRole('link', { name: /^Console plateforme/ })).toBeNull();
   });
 });

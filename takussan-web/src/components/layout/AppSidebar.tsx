@@ -122,6 +122,11 @@ interface AppSidebarProps {
   readonly onOuvrirPalette?: (depuis: HTMLElement) => void;
   /** TCK-2846 — l'espace actif : « Récents » est rangé par espace. Absent : aucun récent. */
   readonly espaceActif?: string | null;
+  /**
+   * TCK-610 (AC6) — le compte détient `platform.console.access` (opérateur `viewer`, `support` ou
+   * `super_admin`), lu par le layout (`accesALaConsole`). Absent : seul le rôle `super_admin` le dit.
+   */
+  readonly accesConsole?: boolean;
 }
 
 /**
@@ -439,7 +444,7 @@ function BandeauDEdition({ nombre, onTerminer }: { readonly nombre: number; read
         data-slot="terminer-l-edition"
         onClick={onTerminer}
         className={cn(
-          'inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-ui font-medium text-primary-foreground hover:bg-primary/90 max-md:h-10',
+          'inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-ui font-medium text-primary-foreground hover:bg-primary-deep max-md:h-10',
           FOCUS_RING,
         )}
       >
@@ -778,6 +783,7 @@ export function AppSidebar({
   tiroir = false,
   onOuvrirPalette,
   espaceActif = null,
+  accesConsole = false,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations('nav.sidebar');
@@ -1241,7 +1247,9 @@ export function AppSidebar({
         ) : null}
         {/* Revue de TCK-2478 — la console suit le RÔLE, pas le persona : un super-admin dont le profil
             actif est d'agence (persona `admin-agence`) la perdait. La console garde sa propre porte. */}
-        {isSuperAdmin(user.roles) ? (
+        {/* TCK-610 — et sur le GESTE `platform.console.access` : un `viewer` ou un `support` n'a pas le
+            rôle `super_admin`, et n'entrait dans la console qu'en tapant son adresse. */}
+        {accesConsole || isSuperAdmin(user.roles) ? (
           <LigneDeStatut
             href={HREF_CONSOLE}
             slot="console"

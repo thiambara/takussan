@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Garde du CONTRASTE DU JETON `--destructive` — TCK-480.
+ * Garde du CONTRASTE DU JETON `--destructive` — TCK-480, et du texte posé SUR lui — TCK-485.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * LE DÉFAUT, ET POURQUOI DEUX TICKETS L'ONT MANQUÉ EN LE TOUCHANT
@@ -63,14 +63,26 @@
  * indicateur non textuel n'est pas celui d'un texte (3:1, WCAG 1.4.11). *Confondre les deux
  * seuils est exactement l'erreur qui a laissé passer le défaut de `ProfileBadge`.*
  *
+ *   **C — le COUPLE INVERSE (TCK-485).** Le texte posé SUR `--destructive` PLEIN : l'encre n'y
+ *   est pas le jeton, elle est dessus. Chaque liste de classes qui porte `bg-destructive` plein
+ *   (variantes comprises : `hover:`, `group-hover:`, `dark:`) est appariée à son encre `text-*`
+ *   de même état — à défaut, celle du repos — et le couple doit tenir 4,5:1 dans les deux thèmes.
+ *
+ *   ⚠ **A et C tirent en sens contraires, et c'est pourquoi C existe.** Rendre le jeton plus clair
+ *   sert l'encre `text-destructive` en sombre et nuit au blanc posé dessus : TCK-480 a fait passer
+ *   le badge du chat (`bg-destructive text-white`) de 2,89 à **2,45:1** en sombre en tenant A.
+ *   Ce couple était déclaré ci-dessous, comme un trou. *Un trou déclaré reste un trou.* La
+ *   réponse est une encre qui suit le thème — `text-background` / `text-primary-foreground`,
+ *   6,61:1 en clair, 7,17:1 en sombre — et non une valeur du jeton.
+ *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * CE QU'ELLE NE VOIT PAS, DÉCLARÉ
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
- *  · **Le texte posé SUR `--destructive` plein** (`bg-destructive text-white` du badge de
- *    `ChatWidget`) : l'encre n'y est pas le jeton, elle est dessus. Mesuré au passage et **sous
- *    le seuil en thème sombre — 2,89:1 avant ce ticket, 2,77:1 après** ; défaut préexistant,
- *    hors du périmètre d'AC1, ouvert en ticket plutôt que corrigé en douce.
+ *  · **Une encre héritée** par un `bg-destructive` plein dont la liste de classes ne porte aucun
+ *    `text-*` de couleur : la garde la tient pour une pastille muette (point, jauge) et ne mesure
+ *    rien. Une encre posée par un parent, ou dans une autre chaîne combinée par `cn()`, lui
+ *    échappe — `check-heritage-encre.mjs` regarde l'héritage, pas celle-ci.
  *  · **La surface réelle d'un `text-destructive` nu** : la garde l'éprouve sur les trois
  *    surfaces les plus défavorables, elle ne remonte pas l'arbre JSX. Un conteneur exotique lui
  *    échappe — c'est `check-heritage-encre.mjs` qui regarde l'héritage, pas celle-ci.
@@ -173,6 +185,93 @@ function aplatsDuCode() {
   return parTheme;
 }
 
+/**
+ * Contrôle C — les `bg-destructive` PLEINS d'une liste de classes, chacun apparié à son encre.
+ *
+ * Rend `[{ etat, sombreSeul, encres }]`. `etat` est la chaîne de variantes
+ * hors `dark:` (`''`, `hover`, `group-hover`) ; l'encre est le `text-*` du même état — à défaut,
+ * celui du repos, puisqu'un survol qui ne change pas l'encre garde celle du repos. Les candidats
+ * qui ne sont pas des couleurs (`text-sm`, `text-center`) sont écartés plus tard, par le CSS : une
+ * classe dont le nom n'est pas un jeton déclaré n'est pas une encre.
+ */
+function pleinsDe(contenu) {
+  const classes = contenu.split(/\s+/).filter(Boolean);
+  const lire = (c, prefixe) => {
+    const m = new RegExp(`^((?:[a-z0-9-]+:)*)${prefixe}-([a-z][a-z0-9-]*?)(?:\\/(\\d{1,3}))?$`).exec(c);
+    if (!m) return null;
+    const variantes = m[1] ? m[1].slice(0, -1).split(':') : [];
+    return {
+      sombre: variantes.includes('dark'),
+      etat: variantes.filter((v) => v !== 'dark').join(':'),
+      nom: m[2],
+      alpha: m[3] === undefined ? 1 : Number(m[3]) / 100,
+    };
+  };
+  const encres = classes.map((c) => lire(c, 'text')).filter(Boolean);
+  const out = [];
+  for (const c of classes) {
+    const fond = lire(c, 'bg');
+    if (!fond || fond.nom !== 'destructive' || fond.alpha !== 1) continue;
+    out.push({ etat: fond.etat, sombreSeul: fond.sombre, encres });
+  }
+  return out;
+}
+
+/** L'encre du couple, pour un thème : même état d'abord, repos ensuite ; `dark:` d'abord en sombre. */
+function encreDe(encres, etat, sombre, estCouleur) {
+  const ordre = sombre
+    ? [[true, etat], [false, etat], [true, ''], [false, '']]
+    : [[false, etat], [false, '']];
+  for (const [d, e] of ordre) {
+    const trouve = encres.find((x) => x.sombre === d && x.etat === e && estCouleur(x.nom));
+    if (trouve) return trouve;
+  }
+  return null;
+}
+
+/**
+ * Tous les couples (fond plein, encre) du source, avec leur fichier et leur ligne.
+ *
+ * ⚠ **Ligne par ligne, et non par `CHAINES`** : le lexeur de chaînes se désynchronise sur la
+ * première apostrophe d'un commentaire ou d'un texte JSX (« l'encre »), et il ne voyait ni
+ * `MaintenanceBanner.tsx` ni `CompareColonnes.tsx` — deux des neuf `bg-destructive` pleins à
+ * encre. La liste de classes est ici la portion de la ligne bornée par le guillemet qui précède
+ * l'occurrence et le même guillemet qui la suit.
+ */
+function pleinsDuCode() {
+  const out = [];
+  const PLEIN = /(?:^|[\s'"`])(?:[a-z0-9-]+:)*bg-destructive(?=[\s'"`]|$)/g;
+  for (const f of fichiers(SRC)) {
+    const lignesDuFichier = readFileSync(f, 'utf8').split('\n');
+    lignesDuFichier.forEach((ligne, i) => {
+      const vues = new Set();
+      for (const m of ligne.matchAll(PLEIN)) {
+        const at = m.index + (/[\s'"`]/.test(m[0][0]) ? 1 : 0);
+        const avant = ligne.slice(0, at);
+        const g = Math.max(avant.lastIndexOf("'"), avant.lastIndexOf('"'), avant.lastIndexOf('`'));
+        const fin = g === -1 ? -1 : ligne.indexOf(ligne[g], at);
+        const contenu = ligne.slice(g + 1, fin === -1 ? ligne.length : fin);
+        if (vues.has(contenu)) continue;
+        vues.add(contenu);
+        for (const p of pleinsDe(contenu)) out.push({ ...p, ou: `${relative(ROOT, f)}:${i + 1}` });
+      }
+    });
+  }
+  return out;
+}
+
+/** `white`/`black` sont des littéraux Tailwind ; tout autre nom se lit dans le CSS du thème. */
+function couleurDEncre(nom, source, racine) {
+  if (nom === 'white') return '#ffffff';
+  if (nom === 'black') return '#000000';
+  return jeton(source, nom) ?? jeton(racine, nom);
+}
+
+/** Un nom DÉCLARÉ comme jeton mais illisible en hexadécimal est une encre non mesurée, pas « rien ». */
+function estDeclare(nom, css) {
+  return nom === 'white' || nom === 'black' || new RegExp(`--${nom}\\s*:`).test(css);
+}
+
 // ── L'AUTO-ÉPREUVE ──────────────────────────────────────────────────────────────────────────────
 
 /*
@@ -207,6 +306,21 @@ function autoEpreuve() {
   if (r.clair.join(',') !== '10,15' || r.sombre.join(',') !== '20') {
     throw new Error(`lecture des aplats cassée : clair=[${r.clair}] sombre=[${r.sombre}]`);
   }
+
+  // Contrôle C — l'appariement. Chacune de ces lectures, fausse, rendait C muet ou injuste :
+  // le badge du chat lu sans encre (muet), le survol apparié au repos (faux), `/90` pris pour plein.
+  const tous = () => true;
+  const [badge] = pleinsDe('rounded-full bg-destructive px-1.5 text-[0.6875rem] font-bold text-white');
+  if (encreDe(badge.encres, badge.etat, true, (n) => n === 'white')?.nom !== 'white')
+    throw new Error('contrôle C : le badge `bg-destructive text-white` est lu sans encre');
+  const [survol] = pleinsDe('text-muted-foreground hover:bg-destructive hover:text-primary-foreground');
+  if (survol.etat !== 'hover' || encreDe(survol.encres, survol.etat, false, tous)?.nom !== 'primary-foreground')
+    throw new Error('contrôle C : `hover:bg-destructive` n\'est pas apparié à `hover:text-*`');
+  if (pleinsDe('bg-destructive/90 hover:bg-destructive/80').length !== 0)
+    throw new Error('contrôle C : un aplat `/NN` est lu comme un fond plein');
+  // Et le couple que TCK-485 a corrigé doit rougir : blanc sur le `--destructive` sombre.
+  if (contraste('#ffffff', '#ff7f7d') >= SEUIL)
+    throw new Error('contrôle C : blanc sur #ff7f7d passe le seuil — le calcul a dérivé');
 
   // Et la composition doit rendre le fond mesuré : un `/15` de #b70110 sur du blanc n'est pas
   // #b70110, c'est un rose pâle — c'est CETTE couleur que le seuil juge.
@@ -273,6 +387,50 @@ for (const theme of THEMES) {
   }
 }
 
+// Contrôle C — le texte posé SUR `--destructive` plein (TCK-485).
+const racine = bloc(css, ':root');
+const pleins = pleinsDuCode();
+const couplesC = [];
+for (const theme of THEMES) {
+  const source = bloc(css, theme.selecteur);
+  const fond = jeton(source, 'destructive');
+  if (!fond) continue; // déjà signalé par le contrôle A
+  const estCouleur = (nom) => estDeclare(nom, css);
+  for (const p of pleins) {
+    if (p.sombreSeul && !theme.sombre) continue;
+    const e = encreDe(p.encres, p.etat, theme.sombre, estCouleur);
+    if (!e) continue; // pastille muette — cf. « CE QU'ELLE NE VOIT PAS »
+    const brute = couleurDEncre(e.nom, source, racine);
+    if (!brute) {
+      echecs.push(`[${theme.nom}] encre text-${e.nom} illisible en hexadécimal, posée sur bg-destructive : ${p.ou}`);
+      continue;
+    }
+    const encre = e.alpha === 1 ? brute : composer(brute, fond, e.alpha);
+    const r = contraste(encre, fond);
+    const quoi = `${p.etat ? `${p.etat}:` : ''}text-${e.nom}${e.alpha === 1 ? '' : `/${Math.round(e.alpha * 100)}`}`;
+    couplesC.push({ theme: theme.nom, quoi, r, ou: p.ou });
+    if (r < SEUIL) {
+      echecs.push(
+        `[${theme.nom}] ${quoi} (${encre}) SUR bg-destructive plein (${fond}) — ${r.toFixed(2)}:1, seuil ${SEUIL} : ${p.ou}` +
+          ` → une encre qui suit le thème (text-background), pas du blanc.`,
+      );
+    }
+  }
+}
+
+// Un contrôle qui n'apparie rien n'a rien mesuré : le dépôt porte des `bg-destructive` pleins à
+// encre (`gestes.tsx`, `MaintenanceBanner.tsx`…), un C vide est donc une lecture cassée.
+if (couplesC.length === 0) {
+  echecs.push('contrôle C : aucun couple (encre, bg-destructive plein) relevé — la lecture est cassée, pas le code.');
+}
+
+if (REPORT) {
+  console.log('\n  contrôle C — texte SUR bg-destructive plein');
+  for (const x of [...couplesC].sort((a, b) => a.r - b.r)) {
+    console.log(`      ${x.r >= SEUIL ? '✓' : '✗'} [${x.theme}] ${x.quoi.padEnd(34)} ${x.r.toFixed(2)}:1  ${x.ou}`);
+  }
+}
+
 if (REPORT) {
   for (const theme of THEMES) {
     const l = lignes.filter((x) => x.theme === theme.nom);
@@ -287,7 +445,7 @@ if (REPORT) {
 }
 
 if (echecs.length > 0) {
-  console.error(`\n✗ --destructive : ${echecs.length} constat(s) sous le contrat de TCK-480 :\n`);
+  console.error(`\n✗ --destructive : ${echecs.length} constat(s) sous le contrat de TCK-480 et TCK-485 :\n`);
   for (const e of echecs) console.error(`    ${e}`);
   console.error(
     `\n  La valeur et le plafond des aplats se corrigent ENSEMBLE : le jeton seul exigerait, en\n` +
@@ -300,5 +458,6 @@ if (echecs.length > 0) {
 const min = Math.min(...lignes.map((l) => l.r));
 console.log(
   `✓ --destructive : ${lignes.length} couples RENDUS ≥ ${SEUIL}:1 (${THEMES.length} thèmes × ${SURFACES.length} surfaces × ses aplats), ` +
-    `minimum ${min.toFixed(2)}:1 ; aucun aplat porteur de texte au-delà de /${APLAT_MAX}.`,
+    `minimum ${min.toFixed(2)}:1 ; aucun aplat porteur de texte au-delà de /${APLAT_MAX} ; ` +
+    `${couplesC.length} couples texte SUR bg-destructive plein ≥ ${SEUIL}:1 (minimum ${Math.min(...couplesC.map((c) => c.r)).toFixed(2)}:1).`,
 );

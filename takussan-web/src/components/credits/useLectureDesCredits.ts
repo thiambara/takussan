@@ -22,12 +22,25 @@ export function useLectureDesCredits() {
     return x === 'featured' && jours ? t('offres.featured.court', { jours }) : famille(x);
   };
 
-  /** Le titre d'une opération : l'offre et le bien pour une mise en avant, sinon son motif ou son type. */
+  /**
+   * Le titre d'une opération : l'offre et le bien pour un boost, la ville et la période pour la mise en
+   * avant de l'agence, sinon son motif ou son type.
+   */
   const objet = (m: CreditMovement) => {
     if (m.boost) {
       const o = offre(m.boost.kind, m.boost.variant);
       return m.boost.property ? t('movements.object', { offer: o, property: m.boost.property.title }) : o;
     }
+    // TCK-2525 — la place « Mise en avant » de l'agence : la ville et la période, lues comme la carte
+    // « Votre agence en tête de l'annuaire » de la même page les écrit.
+    if (m.spotlight) {
+      return t('movements.spotlight', {
+        city: m.spotlight.city?.name ?? t('agence.toutAnnuaire'),
+        from: f.jourMois(m.spotlight.starts_at),
+        to: f.jourMois(m.spotlight.ends_at),
+      });
+    }
+    if (m.agency_spotlight_id) return t('movements.spotlightSansDetail');
     return m.reason ?? t(`types.${m.type}`);
   };
 

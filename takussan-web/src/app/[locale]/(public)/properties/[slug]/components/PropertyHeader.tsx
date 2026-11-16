@@ -8,6 +8,7 @@ import { porteUnBadgeNeuf } from '@/components/property/cards/NewBuildChip';
 import { MarquesDeBoost } from '@/components/boost/MarquesDeBoost';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { formatAddressShort } from '@/lib/format/address';
+import { ESPACES_DES_LIBELLES_DE_BIEN, libelleLongDuContrat } from '@/lib/biens/libelles-de-bien';
 import { statutPourLeVisiteur } from '@/lib/biens/statut-au-visiteur';
 import type { PropertyDetail } from '@/types/property';
 import { PropertyPrice } from './PropertyContactActions';
@@ -22,7 +23,11 @@ interface PropertyHeaderProps {
 export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite }: PropertyHeaderProps) {
   const t = useTranslations('propertyDetail');
   const tCondition = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
-  const statutDuBien = statutPourLeVisiteur(property);
+  // TCK-351 — statut et contrat par le dictionnaire du front, jamais par un `*_label` de l'API.
+  const tStatut = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.status);
+  const tContrat = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.contract_type);
+  const statutDuBien = statutPourLeVisiteur(property, tStatut);
+  const contrat = libelleLongDuContrat(tContrat, property.contract_type);
 
   return (
     <header className="flex flex-col gap-3">
@@ -62,10 +67,11 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
             )}
           </div>
           <div className="flex min-h-10 flex-wrap items-center gap-2 pr-14 md:min-h-0 md:pr-0">
-            {/* TCK-2501 — « À louer » / « À vendre », que la carte de réservation porte sous le prix en
-                bureau : sous `lg`, une pastille de plus sur la rangée, qui ne coûte aucune ligne. */}
-            {property.contract_type_label && (
-              <Badge variant="outline" className="lg:hidden">{property.contract_type_label}</Badge>
+            {/* TCK-2501 — « En location » / « En vente », que la carte de réservation porte sous le prix en
+                bureau : sous `lg`, une pastille de plus sur la rangée, qui ne coûte aucune ligne.
+                TCK-351 — le mot de la pastille des cartes (`ContractTypeChip`), pas celui de l'API. */}
+            {contrat && (
+              <Badge variant="outline" className="lg:hidden">{contrat}</Badge>
             )}
             {/* TCK-2638 — ni « Validé » ni « Disponible » au visiteur : seulement un statut qui l'informe. */}
             {statutDuBien ? <Badge variant="outline">{statutDuBien}</Badge> : null}

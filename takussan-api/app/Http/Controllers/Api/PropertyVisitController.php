@@ -299,7 +299,7 @@ class PropertyVisitController extends Controller
                 try {
                     $sms = $this->notifier->confirmed($confirmed, $user);
                 } catch (Throwable $e) {
-                    Log::warning('visit.bulk_confirm.notify_failed', ['visit_id' => $id, 'error' => $e->getMessage()]);
+                    Log::warning('visit.bulk_confirm.notify_failed', ['visit_id' => $id, 'error' => SafeExceptionContext::of($e)]);
                     $sms = false;
                 }
                 if ($parLeBailleur) {

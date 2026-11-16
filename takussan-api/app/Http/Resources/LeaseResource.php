@@ -182,6 +182,12 @@ class LeaseResource extends BaseResource
                 // garde, et l'agent sans `leases.terminate` voyait le préavis.
                 'request_early_termination' => $this->viewer->can('requestEarlyTermination', $this->resource),
                 'update' => $this->viewer->can('update', $this->resource),
+                // TCK-607 (n3) — « Ajouter un garant » là seulement où l'API l'accepte : la règle
+                // d'`update`, plus `Lease::acceptsGuarantorChange` (garants figés sur un bail signé, sauf
+                // le premier d'un enfant de renouvellement). Hors verrou : un indice pour l'écran,
+                // l'API rejuge sous verrou.
+                'attach_guarantor' => $this->viewer->can('update', $this->resource)
+                    && $this->resource->acceptsGuarantorChange($this->guarantorsCount(), attaching: true),
                 // TCK-2764 — abandonner le brouillon (`DELETE /api/leases/{id}`) : la règle d'`update` sur un
                 // `draft`. Les échéances saisies restent jugées par l'écran et par l'API, sous verrou.
                 'abandon' => $this->viewer->can('abandon', $this->resource),
@@ -341,5 +347,15 @@ class LeaseResource extends BaseResource
         $candidature = Booking::query()->whereKey($this->booking_id)->first(['id', 'status']);
 
         return $candidature === null ? null : ['id' => $candidature->id, 'status' => $this->enumValue($candidature->status)];
+    }
+
+    /** TCK-607 — le compte des garants : la relation chargée, le `withCount`, sinon une requête. */
+    private function guarantorsCount(): int
+    {
+        if ($this->resource->relationLoaded('guarantors')) {
+            return $this->resource->guarantors->count();
+        }
+
+        return (int) ($this->resource->guarantors_count ?? $this->resource->guarantors()->count());
     }
 }

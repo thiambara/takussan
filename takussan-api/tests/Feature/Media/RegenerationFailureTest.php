@@ -208,7 +208,8 @@ class RegenerationFailureTest extends TestCase
             && str_contains($message, 'Exemptions retirées')
             && ($context['agency_id'] ?? null) === $agency->id
             && ($context['exemptions_withdrawn'] ?? null) === 2
-            && str_contains((string) ($context['exception'] ?? ''), 'attempted too many times'));
+            // TCK-613 — la forme sûre de l'échec (`MaxAttemptsExceededException` ou `TimeoutExceededException`).
+            && str_contains((string) ($context['exception']['exception'] ?? ''), 'ExceededException'));
 
         // `--untraced` rattrape la photo une fois la cause levée : filigranée, et servie.
         $this->artisan('media:regenerate-property-conversions', ['--agency' => $agency->id, '--untraced' => true])->assertSuccessful();

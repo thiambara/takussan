@@ -1,6 +1,6 @@
 # ADR-0043 — Un avis a une cible, une preuve et un modérateur ; une annonce masquée par la plateforme tient à un verrou que seule la plateforme lève
 
-- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — qui le locataire peut noter comme agent*) et **le 2026-11-15** (cf. § *Amendement du 2026-11-15 — l'admin d'agence supprime et ignore les signalements*)
+- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — qui le locataire peut noter comme agent*) **le 2026-11-15** (cf. § *Amendement du 2026-11-15 — l'admin d'agence supprime et ignore les signalements*) et **le 2026-11-16** (cf. § *Amendement du 2026-11-16 (TCK-611) — une annonce réécrite repasse par la file*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-597](../backlog/tickets/done/TCK-597-avis-signalements-et-moderation.md)
 - **Précise** : le principe non négociable n° 2 (« l'agence est la frontière d'isolation ») et
@@ -435,3 +435,69 @@ amendement, pas d'ajouter un plafond.
 `ReviewResource` (`can_delete`, `can_dismiss_reports`), `ReviewModerationService` (journal) ;
 `tests/Feature/Api/ReviewAgencyAdminDeleteTest.php`.
 
+
+## Amendement du 2026-11-16 (TCK-611) — une annonce réécrite repasse par la file
+
+Décision du **porteur** (2026-11-16) sur [TCK-611](../backlog/tickets/done/TCK-611-une-annonce-reecrite-repasse-par-la-file.md),
+après verif-597 passes 2 et 3. Elle amende le § 5, qui ne modérait que l'**activation** : un bien
+approuvé, ou déjà en ligne, changeait ensuite librement de contenu. Une agence
+`moderation_required` voyait donc en ligne un texte, un prix ou des photos qu'elle n'avait pas
+validés.
+
+**1. Une réécriture d'un champ affiché annule l'approbation (option (a)).** Dans une agence
+`moderation_required`, toute modification d'un champ que la fiche publique affiche, faite par un
+utilisateur authentifié qui **ne modère pas** cette agence, efface `approved_at` et
+`approved_by_user_id`. Si le bien était **en ligne** avant la sauvegarde (statut hors
+`Property::NON_PUBLIC_STATUSES`, `published_at` posé, `visibility = public`, hors `is_test`) et que
+la sauvegarde ne le retire pas déjà, il passe en `pending_review` avec `submitted_at = now()` : il
+sort du catalogue et de l'index dans la même sauvegarde, la fiche en cache est invalidée
+(`PropertyPublicCacheObserver`, ADR-0052) et les admins actifs sont prévenus (TCK-782). Hors ligne
+(archivé, privé, brouillon), seule l'approbation tombe : la remise en ligne est alors une
+activation au sens du § 5.
+
+Les **champs affichés** sont ceux que `PropertyResource` sert sur la fiche et que le formulaire
+écrit :
+
+- colonnes de `properties` : `title`, `description`, `price`, `currency`, `type`, `contract_type`,
+  `rent_period`, `title_type`, `condition`, `area`, `bedrooms`, `bathrooms`, `furnished`,
+  `floor_number`, `total_floors`, `year_built`, `parking_spaces`, `available_from`,
+  `check_in_from`, `check_out_before`, `virtual_tour_url`, `deposit_months`, `advance_months`,
+  `agency_fee_months`, `monthly_charges` (le coût d'entrée) — la liste vit dans
+  `PropertyRewriteModeration::DISPLAYED_COLUMNS` ;
+- l'**adresse** (`location`) quand le `PUT /properties/{id}` en change réellement une valeur ;
+- les **photos** : une photo ajoutée ou supprimée (`POST`/`DELETE …/media`) — pas leur
+  réordonnancement, qui ne montre rien que l'agence n'ait validé ;
+- les **équipements** (étiquettes de la fiche) quand leur synchronisation ou leur retrait change
+  réellement la liste.
+
+Ne sont **pas** des réécritures : les champs que la fiche ne montre pas (notes internes,
+`metadata`, collaborateurs, `parent_id`, `reference_number`), ce qu'écrivent les boosts
+(`featured`, `badge`, `badge_until`, `sponsored_until`, `ranked_at`), les compteurs, et
+`status` / `visibility` / `published_at`, qui relèvent de l'activation (§ 5). Renvoyer une valeur
+identique n'est pas une réécriture : le formulaire d'édition renvoie tous ses champs.
+
+Non couverts à ce jour, faute d'un point d'écriture commun : les documents publics
+(`metadata.public`) et les médias `videos` / `plans`.
+
+**Qui n'est pas renvoyé en file.** L'utilisateur qui modère l'agence du bien
+(`PropertyModerationPolicy::moderatesAt` : admin de l'agence ET `properties.publish`) et le
+super-admin : sa propre réécriture garde l'approbation, puisqu'il l'aurait accordée. Cette
+exemption ne vaut **que** pour la réécriture ; l'**activation** reste sans exemption par rôle
+(§ 5). Une écriture sans utilisateur authentifié (job, console, seeder) n'est pas une réécriture
+d'annonceur et ne touche pas l'approbation. Une agence sans modération n'est jamais concernée.
+
+Dans la même sauvegarde, une réécriture qui efface l'approbation la retire aussi au jugement de
+l'activation : `PUT {title, status: available}` sur un bien approuvé et archivé va en file.
+
+**2. « Déjà en ligne » exige `visibility = public`.** Le § 5 définissait « déjà en ligne » par un
+statut affichable et un `published_at`. Un bien rendu privé gardait son `published_at`, si bien
+que son retour en public n'était pas une activation, alors que le même bien passé par `archived`
+(qui efface `published_at` depuis TCK-1431) allait en file. Être déjà en ligne, c'est désormais :
+statut affichable, `published_at` posé **et** `visibility = public` à l'origine. Le chemin
+« privé puis public » est une activation, comme « archivé puis disponible ».
+
+**Application.** `App\Services\Property\PropertyRewriteModeration` (liste des colonnes, prédicat,
+effet), appelé par `PropertyObserver::updating` (colonnes, avant le jugement de l'activation),
+`PropertyController::update` (adresse), `PropertyMediaController::store` / `::destroy`,
+`PropertyTagController::sync` / `::destroy` ; `PropertyObserver::wasAlreadyOnline`.
+`tests/Feature/Api/PropertyRewriteModerationTest.php`.

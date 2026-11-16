@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use App\Models\Property;
-use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * TCK-603 (ADR-0059 §2) — `POST /api/properties/bulk-assign` : changer l'agent responsable d'un lot.
@@ -14,12 +12,8 @@ use Illuminate\Foundation\Http\FormRequest;
  * service. La cible doit exister ; qu'elle soit du personnel actif de l'agence de CHAQUE bien se juge
  * ligne à ligne (`invalid_target`).
  */
-class PropertyBulkAssignRequest extends FormRequest
+class PropertyBulkAssignRequest extends BaseFormRequest
 {
-    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
-    // BaseFormRequest pour les autres).
-    use BorneLesReglesDElement;
-
     /** TCK-817 (P22.02) — la capacité de l'action unitaire à l'agence active, avant toute validation. */
     public function authorize(): bool
     {

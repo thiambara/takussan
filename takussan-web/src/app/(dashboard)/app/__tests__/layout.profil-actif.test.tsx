@@ -22,6 +22,8 @@ vi.mock('@/components/profile/ChoixDEspace', () => ({
 }));
 vi.mock('@/lib/session', () => ({
   getToken: async () => 'jeton',
+  // TCK-610 — le layout demande si la session est une impersonation (entrée « console » du menu).
+  estEnImpersonation: async () => false,
   getActiveProfileId: () => profilActif(),
   getModeIconesDuMenu: async () => 'auto' as const,
 }));
