@@ -1,7 +1,7 @@
 ---
 id: TCK-2525
 title: Mise en avant d'une agence dans l'annuaire, achetée en crédits par l'agence
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M
@@ -78,7 +78,7 @@ Prolonge TCK-2520, qui livre la place **offerte** par la plateforme (table `agen
 ## Delta à produire
 
 - [x] Amendement d'ADR-0061, accepté par le porteur.
-- [ ] Spec : ligne de `docs/features.md` § 2.9 et § 1.12 mise à jour, colonnes de `agency_spotlights` si l'amendement en ajoute.
+- [x] Spec : ligne de `docs/features.md` § 2.9 et § 1.12 mise à jour, colonnes de `agency_spotlights` si l'amendement en ajoute.
 - [x] Achat (API) + débit + refus.
 - [x] Écran d'achat dans la console de l'agence.
 - [x] Tests (débit et place atomiques, place prise, crédits insuffisants, statistiques).

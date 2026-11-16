@@ -7,7 +7,7 @@
 - **Amendement du 2026-10-18** (piste P24.05) : le remboursement d'une Vedette prolongée rend les
   jours restants tranche par tranche, en partant des plus tardifs. Voir
   [§ Amendement du 2026-10-18](#amendement-du-2026-10-18--le-remboursement-dune-vedette-prolongée-p2405).
-- **Amendement du 2026-11-16** ([TCK-2525](../backlog/tickets/todo/TCK-2525-mise-en-avant-d-agence-vendue-en-credits.md)) :
+- **Amendement du 2026-11-16** ([TCK-2525](../backlog/tickets/done/TCK-2525-mise-en-avant-d-agence-vendue-en-credits.md)) :
   la place « Mise en avant » de l'annuaire se vend en crédits ; tous ses paramètres sont des réglages.
   Amende aussi ADR-0092 § 4 et § 6. Voir
   [§ Amendement du 2026-11-16](#amendement-du-2026-11-16-tck-2525--la-mise-en-avant-dune-agence-se-vend-en-crédits).
