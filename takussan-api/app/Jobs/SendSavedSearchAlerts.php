@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\EnvoieCanalParCanal;
 use App\Jobs\Concerns\RunsOnLongQueue;
 use App\Models\Enums\UserStatus;
 use App\Models\SavedSearch;
@@ -73,11 +74,20 @@ use Throwable;
  * `SendFavoriteChangeAlerts` : un verrou de job, et surtout une RÉSERVATION avant l'envoi —
  * `UPDATE … SET last_notified_at = :borne WHERE id = ? AND last_notified_at IS NOT DISTINCT FROM
  * :lue`. Un passage qui a lu la même borne n'affecte aucune ligne et n'envoie rien ; un envoi qui
- * échoue rend la réservation.
+ * échoue rend la réservation — SAUF si un canal sortant (e-mail, WhatsApp) est déjà parti
+ * (TCK-615, décision du porteur du 2026-11-16) : l'e-mail parti ne repart pas, l'alerte perd la
+ * cloche qui a levé après lui.
+ *
+ * ## Le premier envoi (TCK-615)
+ *
+ * `last_notified_at` est posé à la création (compte) ou à la confirmation (sans compte) : la
+ * première alerte ne porte que ce qui a été publié depuis. Une ligne à borne nulle (antérieure à la
+ * migration `borne_les_alertes_jamais_envoyees`, ou créée hors des deux chemins) garde l'ancien
+ * comportement : aucune borne basse.
  */
 class SendSavedSearchAlerts implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, RunsOnLongQueue, SerializesModels;
+    use Dispatchable, EnvoieCanalParCanal, InteractsWithQueue, Queueable, RunsOnLongQueue, SerializesModels;
 
     private const JOURS_PAR_SEMAINE = 7;
 
@@ -185,10 +195,15 @@ class SendSavedSearchAlerts implements ShouldQueue
             return $connu;
         }
 
+        // TCK-615 — canal par canal : un échec APRÈS un canal sortant (la cloche, en dernier) garde la
+        // réservation — l'e-mail parti ne repart pas, l'alerte perd la cloche. Rien de sorti : rendue.
+        $sortant = false;
         try {
-            $recipient->notify(new SavedSearchMatchesNotification($search, $properties, $total));
+            $this->envoyerCanalParCanal($recipient, new SavedSearchMatchesNotification($search, $properties, $total), $sortant);
         } catch (Throwable $e) {
-            $this->deplacer($search, $borne, $lue);
+            if (! $sortant) {
+                $this->deplacer($search, $borne, $lue);
+            }
 
             throw $e;
         }

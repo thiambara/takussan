@@ -85,6 +85,18 @@ qui les a prises réversibles.
 
 ## Décision du porteur
 
+**Tranché par le porteur le 2026-11-16** (amendement d'ADR-0050 du même jour) :
+
+1. **Après un e-mail parti, l'alerte perd la cloche** — un e-mail parti ne repart jamais ; pas de
+   répétition de l'e-mail.
+2. **Le premier envoi n'annonce pas l'historique** : il ne porte que ce qui est apparu depuis la
+   création de l'alerte (ou rien) — `last_notified_at` posé à la création (compte) ou à la
+   confirmation (sans compte), comme recommandé ci-dessous.
+3. **Déni d'abonnement : évincer la plus ancienne demande non confirmée** quand la borne par contact
+   est atteinte ; la borne ne retient plus que les demandes confirmées.
+
+*Les questions et recommandations d'origine :*
+
 1. **Après un e-mail parti, faut-il préférer perdre la cloche ou répéter l'e-mail ?** ADR-0050 (15)
    a choisi « répéter ». *Recommandation de la session : garder la réservation dès qu'un canal
    sortant (e-mail, WhatsApp) est parti ;* une cloche manquée se voit dans l'application, un e-mail
@@ -110,35 +122,38 @@ qui les a prises réversibles.
 
 ## Delta à produire
 
-- [ ] ADR-0050 amendé.
-- [ ] `SendSavedSearchAlerts`, `SendFavoriteChangeAlerts` : contrainte 2 (savoir quels canaux sont
+- [x] ADR-0050 amendé.
+- [x] `SendSavedSearchAlerts`, `SendFavoriteChangeAlerts` : contrainte 2 (savoir quels canaux sont
       partis : envoi canal par canal, ou écouteur `NotificationSent`).
-- [ ] Création d'une recherche et confirmation d'un abonné : `last_notified_at` posé (décision 2).
+- [x] Création d'une recherche et confirmation d'un abonné : `last_notified_at` posé (décision 2).
 - [x] *(tenu par TCK-2397 : `database-long` + `worker-long`, relevé 2026-11-16)* `config/queue.php` : connexion ou file `alerts` à `retry_after` > 1800 ; les deux jobs y vont ;
       `routes/console.php` et le worker de `docker-compose` / Dokploy la consomment (documenté dans
       `docs/infra/hebergement.md`).
-- [ ] Borne par contact (décision 3).
-- [ ] Garde de la fuite temporelle : `Cache::spy()` (ou un magasin de cache qui journalise) en plus de
+- [x] Borne par contact (décision 3).
+- [x] Garde de la fuite temporelle : `Cache::spy()` (ou un magasin de cache qui journalise) en plus de
       `DB::listen`.
-- [ ] Tests : `AlertSendOnceTest`, `AlertFirstRunTest`, ~~`AlertQueueRetryTest`~~ (caduc depuis TCK-2397 :
+- [x] Tests : `AlertSendOnceTest`, `AlertFirstRunTest`, ~~`AlertQueueRetryTest`~~ (caduc depuis TCK-2397 :
       `scripts/check-queues.mjs` le garde), `AlertContactQuotaTest`.
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (rouge sur `839be671`).** La cloche lève après l'e-mail (fausse cloche) : trois passages →
+- [x] **AC1 (rouge sur `839be671`).** La cloche lève après l'e-mail (fausse cloche) : trois passages →
       **un** e-mail. Un e-mail qui lève avant tout envoi : la réservation est rendue et le passage
       suivant envoie.
-- [ ] **AC2 (rouge sur `839be671`, si décision 2).** 30 biens publiés hier ; recherche créée
+- [x] **AC2 (rouge sur `839be671`, si décision 2).** 30 biens publiés hier ; recherche créée
       aujourd'hui ; passage de demain : aucun e-mail. Un bien publié après la création : un e-mail,
       « 1 nouveau bien ».
 - [x] **AC3.** *(tenu par TCK-2397 : `scripts/check-queues.mjs` résout le `$timeout` des classes et
       le compare au `retry_after` de leur connexion, relevé 2026-11-16)* `config('queue.connections.<connexion des alertes>.retry_after')` > `$timeout` de chaque
       job d'alertes — test qui lit la configuration et les classes, pas une constante recopiée.
-- [ ] **AC4 (décision 3).** Cinq demandes non confirmées pour `cible@` depuis cinq IP ; le titulaire
+- [x] **AC4 (décision 3).** Cinq demandes non confirmées pour `cible@` depuis cinq IP ; le titulaire
       demande et confirme : son abonnement est actif ; la réponse HTTP est identique dans tous les cas.
-- [ ] **AC5.** Ablation « lecture de cache par contact dans la requête » : la garde de la fuite
+      *Tenu sous condition (2026-11-16) : le titulaire revient plus de 24 h après le tiers — dans les 24 h,
+      le plafond de 2 confirmations et le limiteur horaire (inchangés) le retardent encore ; à trancher
+      par le porteur (amendement d'ADR-0050, C).*
+- [x] **AC5.** Ablation « lecture de cache par contact dans la requête » : la garde de la fuite
       temporelle rougit (elle survivait en passe 3).
-- [ ] Les classes de 599 restent vertes (`SaisieDansLesEmailsTest`, `PublicSearchAlertTest`,
+- [x] Les classes de 599 restent vertes (`SaisieDansLesEmailsTest`, `PublicSearchAlertTest`,
       `SavedSearchAlertsTest`, `FavoriteChangeAlertsTest`).
 
 ## Hors périmètre
@@ -150,3 +165,26 @@ qui les a prises réversibles.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Envoi canal par canal** (`App\Jobs\Concerns\EnvoieCanalParCanal`, `notifyNow($n, [$canal])` dans l'ordre de
+  `via()`) : la réservation n'est rendue que si aucun canal sortant (tout canal hors `database`) n'est parti. AC1 :
+  `AlertSendOnceTest` (recherches et favoris) ; ablation « rendre toujours » → 2 rouges (cloche après e-mail),
+  ablation « ne jamais rendre » → 2 rouges (e-mail qui lève avant tout envoi).
+- **Borne du premier envoi** : posée à la création (`SavedSearchController::store`, `SearchService::saveSearch()`) et
+  à la confirmation (lien et code, même transaction) ; migration `2026_11_16_400100_borne_les_alertes_jamais_envoyees`
+  (nul → `created_at`, sans retour). AC2 : `AlertFirstRunTest` (30 biens d'hier, route réelle) ; ablation de la pose à
+  la confirmation → rouge. Trois tests de 599 adaptés (le bien est publié après la création/confirmation).
+- **Éviction** : la borne de 5 ne compte que les confirmées ; à 5 muettes, la plus ancienne est évincée — **jamais une
+  dont le message de confirmation est parti depuis moins de 24 h**, sinon l'éviction rendait le plafond de 2
+  confirmations/24 h au tiers (un e-mail par heure). AC4 : `AlertContactQuotaTest` ; ablations « pas d'éviction » et
+  « sans la protection 24 h » → rouges.
+- **Verrou par boîte** (`Cache::lock`, attente `search_alerts.contact_lock_wait_seconds`) autour de compter/évincer/
+  créer/plafond : deux workers ne dépassent aucune borne ; ablation du verrou → rouge.
+- **AC5** : la garde journalise les clés de cache (événements `RetrievingKey`/`KeyWritten`/…) par requête — même
+  ensemble de clés pour chaque contact, aucune ne cite le contact ni ses empreintes. Ablations `RateLimiter` par boîte
+  et `Cache::get()` par contact plantées dans `store()` → rouges. Un `Cache::lock()` n'émet pas d'événement : invisible.
+- **Reste, assumé dans l'amendement** : le plafond de 2 confirmations/24 h, épuisé par un tiers, retarde encore la
+  confirmation du titulaire (AC4 joue son retour 25 h plus tard). Le relever est une autre décision du porteur.
+
