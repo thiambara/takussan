@@ -28,6 +28,8 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/components/visits/compte-rendu/SuiteDeLaVisite.tsx': 'annuler',
   // TCK-2885 — « Annuler » du toast de « Marquer traitée » (Undo2) : défaire un geste, pas un retour.
   'src/components/leads/boite/traiter.tsx': 'annuler',
+  // TCK-2933 — « Annuler » du toast d'« Ignorer » un paiement sans ligne (Undo2) : défaire un geste, pas un retour.
+  'src/components/admin/reconciliation/reste/Ignorer.tsx': 'annuler',
   // TCK-2597 — « Précédent » de la barre de période de l'agenda : une période plus tôt, pas un retour.
   'src/components/agenda/pieces.tsx': 'periode',
   // TCK-2641 — le sélecteur de mois du relevé du bailleur : « mois précédent », pas un retour.

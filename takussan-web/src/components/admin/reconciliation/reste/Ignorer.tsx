@@ -158,12 +158,13 @@ export function FenetreIgnorer({
               maxLength={NOTE_MAX}
               rows={3}
               aria-invalid={erreur !== null && noteManquante ? true : undefined}
+              aria-describedby={erreur !== null && noteManquante ? 'ignorer-erreur' : undefined}
               onChange={(e) => setNote(e.target.value)}
             />
           </div>
         ) : null}
         {erreur ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p id="ignorer-erreur" role="alert" className="text-sm text-destructive">
             {erreur}
           </p>
         ) : null}

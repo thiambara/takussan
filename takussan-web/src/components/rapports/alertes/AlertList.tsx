@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { pourcentMesure, pourcentSaisi } from '@/lib/rapports/pourcentages';
-import { CANAUX_D_ALERTE, type AlertChannel, type ThresholdAlert } from '@/lib/queries/alerts';
+import { CANAUX_D_ALERTE, type AlertChannel, type ThresholdAlert } from '@/types/alert';
 import {
   METRIQUES_D_ALERTE,
   dernierDeclenchement,

@@ -43,6 +43,11 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // `expires_at` de send (:247) ou de resend (:571), aucun autre écrivain.
   'invitationAccept.ferme.expiree.texte': 'idem — InvitationService.php:139, posé à :247 (send) et :571 (resend)',
   'invitationAccept.ferme.expiree.texteSans': 'idem — InvitationService.php:139',
+  // TCK-2941 — le même écran, avec le prénom de l'invitant (`EcranFerme.tsx`) : même promesse, même
+  // mécanisme — `DEFAULT_TTL_DAYS` (InvitationService.php:140), posé par send (:259), renewShareLink
+  // (:343) et resend (:650).
+  'invitationAccept.ferme.expiree.texteInvitant': 'idem — InvitationService.php:140, posé à :259 (send), :343 (renewShareLink) et :650 (resend)',
+  'invitationAccept.ferme.expiree.texteInvitantSans': 'idem — InvitationService.php:140',
   // TCK-2606 — « Lien envoyé » de l'oubli (remplace `auth.forgotPassword.sentBody`).
   'auth.oubli.envoye.sousTitre': "takussan-api/config/auth.php:99 — `passwords.users.expire` = 60 (minutes)",
   'account.deletion.dialog.codeSentHint':
