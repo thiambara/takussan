@@ -329,7 +329,7 @@ function ChampA({
         autoComplete="off"
         placeholder={puces.length > 0 ? t('ajouter') : tGroupe('participantInputPlaceholder')}
         aria-describedby={bureau ? `${id}-aide` : undefined}
-        className="min-w-[8rem] flex-1 rounded-none border-0 bg-transparent px-1 focus-visible:ring-0 dark:bg-transparent"
+        className="min-w-[8rem] flex-1 rounded-none border-0 bg-transparent px-1 focus-visible:ring-0"
       />
     </>
   );

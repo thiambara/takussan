@@ -340,7 +340,7 @@ function ChampDeRecherche({
         defaultValue={valeur}
         placeholder={placeholder}
         enterKeyHint="search"
-        className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-foreground shadow-none focus-visible:ring-0 md:text-[0.9375rem] dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
+        className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-foreground shadow-none focus-visible:ring-0 md:text-[0.9375rem] [&::-webkit-search-cancel-button]:hidden"
       />
       {valeur ? (
         <button type="button" onClick={onVider} aria-label={libelleVider} className="-mr-2 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground">

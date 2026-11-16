@@ -577,7 +577,6 @@ function Vignette({
         // cette garde ne dépouille pas les commentaires, délibérément, et la première
         // version de ce bloc l'a fait rougir sur sa propre justification.
         'shadow-contour-vignette',
-        'dark:shadow-contour-vignette-sombre',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         'transition-[scale] duration-150 active:scale-[0.96]',
       )}

@@ -77,7 +77,7 @@ export function CustomerStageControl({ customerId, name, stage, forme }: Custome
           size={forme === 'puce' ? 'sm' : 'default'}
           className={
             forme === 'puce'
-              ? 'h-7 gap-1 rounded-full border-0 bg-secondary px-2.5 py-0 font-sans text-ui font-semibold text-primary-deep data-[size=sm]:h-7 data-[size=sm]:rounded-full dark:bg-secondary dark:hover:bg-secondary [&_svg]:text-primary-deep'
+              ? 'h-7 gap-1 rounded-full border-0 bg-secondary px-2.5 py-0 font-sans text-ui font-semibold text-primary-deep data-[size=sm]:h-7 data-[size=sm]:rounded-full [&_svg]:text-primary-deep'
               : undefined
           }
         >

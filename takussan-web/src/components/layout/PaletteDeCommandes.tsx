@@ -306,7 +306,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
             // Hauteur et texte de la primitive (TCK-2460 : 44 px et 16 px sous le pouce, iOS ne zoome pas).
             // Téléphone : un champ bordé ; bureau : le champ EST l'en-tête de la fenêtre (son conteneur fait
             // 52 px), sans bord ni anneau — le curseur et le filet du dessous le désignent.
-            className="rounded-xl border-foreground/25 bg-card pl-11 md:rounded-none md:border-0 md:bg-transparent md:pl-12 md:focus-visible:ring-0 dark:md:bg-transparent"
+            className="rounded-xl border-foreground/25 bg-card pl-11 md:rounded-none md:border-0 md:bg-transparent md:pl-12 md:focus-visible:ring-0"
           />
         </div>
         <DialogClose

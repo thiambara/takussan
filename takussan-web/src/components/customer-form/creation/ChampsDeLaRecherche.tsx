@@ -174,7 +174,7 @@ function Quartiers({ id, valeur, villes, onChange }: { readonly id: string; read
           onKeyDown={touche}
           onBlur={ajouter}
           placeholder={t('ajouterQuartier')}
-          className="-my-1.5 w-auto min-w-24 flex-1 rounded-none border-0 bg-transparent px-1 focus-visible:ring-0 dark:bg-transparent"
+          className="-my-1.5 w-auto min-w-24 flex-1 rounded-none border-0 bg-transparent px-1 focus-visible:ring-0"
         />
       </div>
       {/* TCK-2890 — maquette e2/e4 : « + Sacré-Cœur · + Point E · + Liberté 6 », un toucher ajoute. */}

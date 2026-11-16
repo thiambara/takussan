@@ -16,6 +16,15 @@ spec_refs:
 tags: [front, design-system, tokens, dette, decision]
 ---
 
+## Décision du porteur (2026-11-16) — option (B)
+
+**Pas de thème sombre global.** Le sombre n'existe que comme **surface locale `.dark`** : des
+sections volontairement sombres posées par le design (chrome super-admin, bandeau de modération,
+toast…). On retire ce qui promet un sombre global inatteignable, on garde les jetons `.dark` dont
+ces surfaces ont besoin, et les gardes de contraste ne mesurent le sombre que sous une portée `.dark`
+locale. La classe **garde son nom `.dark`** (c'est elle que la variante `dark:` de shadcn vise) :
+c'est son STATUT qui change, pas son nom.
+
 ## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
 
 **Verdict : toujours vrai, bloqué sur la décision produit (A ou B).** Aucune bascule : `ThemeProvider`,
@@ -183,39 +192,40 @@ Ce qui se retire, si le produit ne veut pas de bascule utilisateur :
 
 ## Delta à produire
 
-- [ ] Trancher entre A et B — décision produit, écrite, datée
-- [ ] Issue A : mécanisme d'activation + `prefers-color-scheme` + persistance sans clignotement
-- [ ] Issue A : arbitrage humain du bloc `.dark`, qui n'a jamais été affiché
-- [ ] Issue B : retrait du bloc, de la variante, des utilitaires produit et de la moitié sombre du
-      harnais de contraste
-- [ ] Issue B : décision explicite et écrite sur les 46 `dark:` des primitives partagées
-- [ ] Dans les deux cas : une garde qui empêche l'état d'arrivée de redevenir l'état actuel
+- [x] Trancher entre A et B — décision produit, écrite, datée (B, 2026-11-16, ci-dessus)
+- [ ] Issue A : mécanisme d'activation + `prefers-color-scheme` + persistance sans clignotement — sans objet (B)
+- [ ] Issue A : arbitrage humain du bloc `.dark`, qui n'a jamais été affiché — sans objet (B)
+- [x] Issue B : retrait des utilitaires hors portée et de la moitié sombre du harnais là où elle
+      mesurait un fichier hors portée — le bloc et la variante RESTENT (décision du porteur : surface
+      locale `.dark`)
+- [x] Issue B : décision explicite et écrite sur les 46 `dark:` des primitives partagées
+- [x] Dans les deux cas : une garde qui empêche l'état d'arrivée de redevenir l'état actuel
 - [x] Dans les deux cas : mettre à jour l'en-tête de `src/test/contraste-wcag.ts`, qui promet
       aujourd'hui « pour le jour où un `ThemeProvider` existera » (tenu par TCK-458, dae4fd103,
       relevé 2026-11-16 : `contraste-wcag.ts:35`)
 
 ## Critères d'acceptation
 
-- [ ] AC1 — une commande décide, et pas une lecture : `grep` sur `ThemeProvider|next-themes|
+- [x] AC1 — une commande décide, et pas une lecture : `grep` sur `ThemeProvider|next-themes|
       documentElement.classList|prefers-color-scheme` rend **> 0** (issue A), ou le bloc a été
       renommé en surface locale et plus rien ne l'appelle « thème » (issue B). L'état actuel — 0
       côté bascule, et un bloc nommé `.dark` que deux composants utilisent comme surface — fait
       échouer le test dans les deux lectures.
-- [ ] AC1bis — quelle que soit l'issue, la chrome super-admin **rend toujours ses couleurs**
+- [x] AC1bis — quelle que soit l'issue, la chrome super-admin **rend toujours ses couleurs**
       *(2026-11-16 : et le toast sombre de `ui/toast.tsx`, TCK-2688)*. Un
       test le vérifie sur les valeurs, pas à l'œil : c'est la surface que la première rédaction de
       ce ticket aurait cassée.
-- [ ] AC2 — issue A : un test éprouve la bascule **par le mécanisme réel**, pas par une table de
+- [ ] AC2 — *sans objet (issue B retenue)* — issue A : un test éprouve la bascule **par le mécanisme réel**, pas par une table de
       jetons simulée. Un test qui résout deux tables sans activer la classe passerait déjà
       aujourd'hui : c'est celui de TCK-440, et il ne suffit pas ici.
-- [ ] AC3 — issue B : le compte d'utilitaires `dark:` **hors chrome super-admin** tombe à 0, et
+- [x] AC3 — issue B : le compte d'utilitaires `dark:` **hors chrome super-admin** tombe à 0, et
       une garde échoue si un seul revient. Le périmètre exact se dérive de ce que les deux barres
       montent — il ne s'énumère pas à la main. *(2026-11-16 : se dérive des **six** portées de
       `portees-sombres.ts`, dont les primitives montées dans un toast.)*
-- [ ] AC4 — `JETONS_SOMBRE` (24 entrées ; **38** au 2026-11-16) reste cohérent avec le bloc, dans les deux issues :
+- [x] AC4 — `JETONS_SOMBRE` (24 entrées ; **38** au 2026-11-16) reste cohérent avec le bloc, dans les deux issues :
       `src/test/__tests__/jetons-compiles.test.ts` le confronte déjà valeur par valeur à la
       feuille compilée, et ce contrôle doit rester vert.
-- [ ] AC5 — le coût est reconsigné après coup : le relevé de ce ticket date du 2026-08-27 et sera
+- [x] AC5 — le coût est reconsigné après coup : le relevé de ce ticket date du 2026-08-27 et sera
       périmé. Une mesure sans sa date devient une croyance.
 
 ## Hors périmètre
@@ -235,4 +245,35 @@ fonctionnalité spécifiée, seulement un défaut de gabarit qu'on a entretenu. 
 voisine pour remplir le champ aurait été pire que de le laisser vide. Si l'issue A est retenue,
 elle commence par écrire cette section.
 
-_(le reste à remplir par implementing-specs)_
+## Livré (2026-11-16)
+
+- **AC1, lecture B** : la classe garde son nom (`.dark`, visé par la variante `dark:` de shadcn) ; le
+  bloc s'appelle « La SURFACE SOMBRE LOCALE (TCK-452) » au lieu de « Dark mode (non prioritaire) »,
+  et `sombre-local.tck-452.test.ts` refuse tout mécanisme global (`ThemeProvider`, `next-themes`,
+  `prefers-color-scheme`, `documentElement.classList`, `colorScheme`, code sans commentaires via le
+  scanner TS), toute lecture de la préférence dans la feuille, toute portée sur `<html>`/`<body>`, et
+  les mots « dark mode / thème sombre / mode sombre » dans `globals.css`. Ablation : un
+  `@media (prefers-color-scheme: dark)` ajouté à la feuille → rouge.
+- **Primitives partagées, décision** : la MÊME règle que le produit, sans exception — une variante
+  `dark:` ne s'écrit que dans un fichier que la clôture d'import d'une portée atteint
+  (`fichiersSousPorteeSombre()`). Gardent les leurs : `button`, `input`, `textarea`, `avatar`, `toast`
+  (19 variantes). Les perdent : `badge`, `select`, `tabs`, `date-picker`, `date-time-picker`. Une
+  primitive shadcn régénérée qui les ramène fait rougir la garde, et c'est voulu.
+- **AC3** : 51 variantes retirées dans 21 fichiers (dont `MaintenancePrioritySelector` 7,
+  `pipeline/constants.ts` 5, `SearchAutocomplete` 4, et neuf `dark:bg-transparent` qui annulaient le
+  `dark:bg-input/30` du champ hors de toute portée). Le jeton `shadow-contour-vignette-sombre`, dont le
+  seul appelant était hors portée, sort de `globals.css` et de `OMBRES`. Garde : lecture des littéraux
+  par AST (`.ts` compris, commentaires exclus), plancher de non-vacuité, auto-épreuve. Ablation :
+  `dark:hover:bg-muted/50` remis dans `badge.tsx` → rouge nommant le fichier.
+- **AC1bis** : la garde exige les cinq porteurs vivants (super-admin ×3, `agency-detail`, `toast`) dans
+  la liste dérivée et lit dans la feuille `--background #1f1812` / `--foreground #fcf9f3` du bloc,
+  égaux à `JETONS_SOMBRE` ; `primitives-existantes-tck-2688` (AC6) éprouve le toast rendu. Ablation :
+  `dark` retiré du toast → 3 rouges (les deux tests, et la garde AC3 sur `[.dark_&]`).
+- **Moitié sombre du harnais** : `tabs.contrast.test.tsx` ne mesure plus l'onglet en sombre (il refuse
+  désormais toute variante `dark:`) ; les autres mesures en sombre de fichiers hors portée restent
+  vertes et sont déclarées comme cohérence des jetons, pas comme écran (en-tête de `JETONS_SOMBRE`).
+- **AC4** : `jetons-compiles.test.ts` vert, `JETONS_SOMBRE` inchangé (38 entrées).
+- **AC5, relevé du 2026-11-16 après coup** : 0 mécanisme global ; 6 portées dérivées ; 19 variantes
+  sombres, toutes sous portée (contre 78 avant, 28 fichiers) ; bloc `.dark` principal 40 jetons.
+- Angle mort déclaré dans la garde : un nœud INJECTÉ dans une portée (`toast.data.action`) n'est pas
+  dans la clôture d'import ; les deux injections réelles n'atteignent que `button` (sous portée).

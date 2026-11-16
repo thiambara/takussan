@@ -216,7 +216,7 @@ function NomDuGroupe({
         value={saisie}
         onChange={(e) => setSaisie(e.target.value)}
         maxLength={120}
-        className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 font-medium focus-visible:ring-0 dark:bg-transparent"
+        className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 font-medium focus-visible:ring-0"
       />
       <Button
         type="submit"
