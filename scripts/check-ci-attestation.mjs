@@ -36,10 +36,18 @@ const REPORT = process.argv.includes('--report');
 const erreurs = [];
 const notes = [];
 
-/** Les suites attestées : le workflow, son job lourd, et la commande qui prouve qu'il a tourné. */
+/**
+ * Les suites attestées : le workflow, son job lourd, la commande qui prouve qu'il a tourné, et le
+ * suffixe de ses sorties dans le job `attestation` (`deja-vert<sfx>`, `artefact<sfx>`).
+ *
+ * TCK-637 — l'API a DEUX jobs lourds, chacun son volet : `lint-and-test` (tests en `--parallel`) et
+ * `couverture` (PCOV séquentiel + le cliquet). Chacun doit lire SON `deja-vert` et déposer SON
+ * artefact : un job de couverture qui lirait celui des tests serait sauté sur un cliquet rouge.
+ */
 const SUITES = [
-  { suite: 'api', fichier: 'api-ci.yml', job: 'lint-and-test', preuve: /phpunit/ },
-  { suite: 'web', fichier: 'web-ci.yml', job: 'quality', preuve: /npm run build/ },
+  { suite: 'api', fichier: 'api-ci.yml', job: 'lint-and-test', preuve: /php artisan test --parallel/, sfx: '' },
+  { suite: 'api-couverture', fichier: 'api-ci.yml', job: 'couverture', preuve: /bin\/coverage-gate\.php/, sfx: '-couverture' },
+  { suite: 'web', fichier: 'web-ci.yml', job: 'quality', preuve: /npm run build/, sfx: '' },
 ];
 
 const lireWorkflow = (f) => readFileSync(join(ROOT, '.github/workflows', f), 'utf8');
@@ -82,7 +90,7 @@ function steps(lignes) {
   return resultat.map((s) => s.filter((l) => !/^\s*#/.test(l)).join('\n'));
 }
 
-for (const { suite, fichier, job, preuve } of SUITES) {
+for (const { suite, fichier, job, preuve, sfx } of SUITES) {
   let texte;
   try {
     texte = lireWorkflow(fichier);
@@ -98,7 +106,7 @@ for (const { suite, fichier, job, preuve } of SUITES) {
     erreurs.push(`${fichier} : aucun job \`attestation\` — « ${job} » n'a plus rien qui le saute, ni qui le nomme`);
   } else {
     const corps = steps(att).join('\n');
-    if (!new RegExp(`node scripts/ci-attestation\\.mjs ${suite}\\b`).test(corps)) {
+    if (!new RegExp(`node scripts/ci-attestation\\.mjs ${suite}(?![\\w-])`).test(corps)) {
       erreurs.push(`${fichier} : le job \`attestation\` ne lance pas \`node scripts/ci-attestation.mjs ${suite}\``);
     }
     if (!/^ {6}actions: read\s*$/m.test(att.join('\n'))) {
@@ -122,18 +130,18 @@ for (const { suite, fichier, job, preuve } of SUITES) {
         `      le ferait SAUTER, et un job sauté passe un check requis.`,
     );
   }
-  if (!/needs\.attestation\.outputs\.deja-vert != 'true'/.test(si)) {
-    erreurs.push(`${fichier} : le \`if:\` de « ${job} » ne lit pas \`needs.attestation.outputs.deja-vert != 'true'\``);
+  if (!si.includes(`needs.attestation.outputs.deja-vert${sfx} != 'true'`)) {
+    erreurs.push(`${fichier} : le \`if:\` de « ${job} » ne lit pas \`needs.attestation.outputs.deja-vert${sfx} != 'true'\` — son propre volet`);
   }
 
   const ss = steps(lourd);
   const iPreuve = ss.findLastIndex((s) => preuve.test(s));
   const iDepot = ss.findIndex(
-    (s) => /uses: actions\/upload-artifact@/.test(s) && /name: \$\{\{ needs\.attestation\.outputs\.artefact \}\}/.test(s),
+    (s) => /uses: actions\/upload-artifact@/.test(s) && s.includes(`name: \${{ needs.attestation.outputs.artefact${sfx} }}`),
   );
   if (iDepot < 0) {
     erreurs.push(
-      `${fichier} : « ${job} » ne dépose aucun artefact nommé \`\${{ needs.attestation.outputs.artefact }}\` —\n` +
+      `${fichier} : « ${job} » ne dépose aucun artefact nommé \`\${{ needs.attestation.outputs.artefact${sfx} }}\` —\n` +
         `      aucun arbre ne serait plus jamais attesté, et la suite tournerait partout, sans un rouge.`,
     );
   } else if (iPreuve < 0 || iDepot < iPreuve) {
@@ -141,7 +149,7 @@ for (const { suite, fichier, job, preuve } of SUITES) {
   } else if (/^\s*if:.*always\(\)|^\s*if:.*failure\(\)|continue-on-error: true/m.test(ss[iDepot])) {
     erreurs.push(`${fichier} : le dépôt de l'attestation tourne aussi sur une suite rouge`);
   }
-  if (REPORT) notes.push(`${fichier} : attestation → « ${job} » (needs, !cancelled(), deja-vert), dépôt au step ${iDepot + 1}/${ss.length}`);
+  if (REPORT) notes.push(`${fichier} : attestation → « ${job} » (needs, !cancelled(), deja-vert${sfx}), dépôt au step ${iDepot + 1}/${ss.length}`);
 }
 
 // ── promotion-ci : un appel qui restreint les permissions doit garder `actions: read` ──────────

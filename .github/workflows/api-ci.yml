@@ -48,16 +48,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ─── L'ATTESTATION PAR ARBRE (ADR-0063, TCK-636) ─────────────────────────────────────────
+  # ─── L'ATTESTATION PAR ARBRE (ADR-0063, TCK-636 ; deux volets depuis TCK-637) ────────────
   #
   # La même suite tournait trois fois sur le même arbre : PR vers `dev`, push du merge, promotion.
   # Ce job calcule la clé de l'arbre (le `ls-tree` de ce que la suite LIT, pas de ses `paths`) et
-  # cherche l'artefact qu'une exécution verte de cette clé a déposé. S'il existe, `lint-and-test`
+  # cherche l'artefact qu'une exécution verte de cette clé a déposé. S'il existe, le job lourd
   # est sauté — un job sauté par `if:` compte comme réussi pour un check requis.
   #
+  # ⚠ DEUX ATTESTATIONS, UNE PAR JOB LOURD (amendement d'ADR-0063 §4, TCK-637) : `lint-and-test`
+  # (les tests, en `--parallel`) dépose `ci-vert-api-<clé>`, `couverture` (PCOV séquentiel + le
+  # cliquet) dépose `ci-vert-api-couverture-<clé>`, et CHACUN n'est sauté que sur SON artefact.
+  # Une attestation commune déposée par les tests attesterait un arbre aux tests verts et au
+  # cliquet rouge : le push sur `dev` et la promotion sauteraient alors la couverture, et un job
+  # sauté passe un check requis.
+  #
   # ⚠ Toute incertitude REJOUE : le script rend `deja-vert=false` sur n'importe quelle erreur, et
-  # `lint-and-test` porte `!cancelled()` pour tourner même si ce job-ci échoue.
-  # `scripts/check-ci-attestation.mjs` tient cette forme.
+  # les deux jobs lourds portent `!cancelled()` pour tourner même si ce job-ci échoue.
+  # `scripts/check-ci-attestation.mjs` tient cette forme, pour les deux volets.
   attestation:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -71,6 +78,9 @@ jobs:
       artefact: ${{ steps.attestation.outputs.artefact }}
       deja-vert: ${{ steps.attestation.outputs.deja-vert }}
       carte-courante: ${{ steps.attestation.outputs.carte-courante }}
+      cle-couverture: ${{ steps.couverture.outputs.cle }}
+      artefact-couverture: ${{ steps.couverture.outputs.artefact }}
+      deja-vert-couverture: ${{ steps.couverture.outputs.deja-vert }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -85,38 +95,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/ci-attestation.mjs api
+      # Le volet couverture : même périmètre, autre nom de suite (donc autre clé, autre artefact).
+      # La nuit, c'est lui qui produit `cov.php` : il ne se saute jamais par attestation.
+      - id: couverture
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci-attestation.mjs api-couverture
 
+  # ─── LES TESTS, EN `--parallel` : ILS JUGENT ET ILS ATTESTENT (TCK-637, ADR-0063 §4) ─────────
+  #
+  # Jusqu'au 2026-11-16, UNE exécution séquentielle sous PCOV portait les tests ET le cliquet de
+  # couverture : 54 à 90 min par PR (relevé du ticket). PCOV agrège mal entre processus (J-12),
+  # d'où le découplage décidé par le porteur, option (a) : ce job-ci joue la suite en `--parallel`
+  # SANS couverture, et c'est lui qui dit si les tests passent ; `couverture`, plus bas, rejoue la
+  # suite séquentiellement sous PCOV, À CÔTÉ (les deux ne dépendent que d'`attestation`), et tient
+  # le cliquet. Pint et la garde Spatie vivent ici seulement : ils jugent, ils ne mesurent rien.
   lint-and-test:
-    # ─── L'ANTI-BOUCLE, ET CE QU'ELLE A REMPLACÉ (TCK-479) ──────────────────────────────
-    #
-    # Le step « Régénérer la carte d'impact » (plus bas) pousse un commit sur `dev`. Ce push
-    # touche `takussan-api/tests/`, donc le déclencheur ci-dessus : sans frein, il relance ce
-    # workflow, qui régénère, qui repousse — une boucle qui ne s'arrête pas seule.
-    #
-    # Le frein a été, jusqu'au 2026-08-30, le marqueur d'exclusion GLOBAL de GitHub, écrit
-    # dans le message du commit. Il coupait bien la boucle. Il coupait AUSSI tout le reste :
-    # GitHub applique ce marqueur au COMMIT, et pour TOUS les événements qui le visent —
-    # `push` comme `pull_request`. Ce commit devenant la tête de `dev`, il était le `head` de
-    # la PR d'intégration `dev` → `preview` suivante, ouverte des jours plus tard et sans
-    # aucun rapport avec la carte : elle n'exécutait alors AUCUN workflow du dépôt. Mesuré le
-    # 2026-08-30 : 7 des 12 dernières PR vers `preview` — celles qui alimentent
-    # `preview.api.takussan.com` — n'affichaient qu'un seul contrôle, celui de Vercel, qui
-    # n'est pas GitHub Actions et ignore le marqueur. Une PR sans garde s'y présentait
-    # `mergeable: CLEAN`, avec un vert.
-    #
-    # Le frein est donc DÉPLACÉ, pas supprimé. Le commit du bot porte `[carte-impact]`, un
-    # marqueur PROPRE À CE DÉPÔT que GitHub ne connaît pas, et c'est la condition ci-dessous
-    # qui saute les jobs. Différence entière : elle n'éteint QUE ce workflow, QUE sur ce
-    # push, et elle ne survit pas au commit. La PR d'intégration suivante voit ses gardes.
-    #
-    # ⚠ `github.event.head_commit` n'existe QUE pour `push`. La première clause fait donc
-    # passer tout `pull_request` sans même évaluer les deux autres : le comportement en PR
-    # est inchangé, `paths:` compris.
-    #
-    # ⚠ DEUX CÔTÉS QUI DOIVENT BOUGER ENSEMBLE — le littéral de cette condition et la chaîne
-    # du `git commit -m` plus bas. S'ils divergent, la boucle revient, et elle revient en
-    # silence. `scripts/check-skip-ci-marker.mjs` les compare, et refuse en plus que le
-    # marqueur global reparaisse dans ce message.
+    # Même anti-boucle qu'en tête de `couverture` (TCK-479, expliquée là-bas, où vit le step qui
+    # pousse la carte) : ce job ne pousse rien, mais le commit du bot ne change que la carte, et
+    # rejouer la suite pour lui ne prouverait rien.
     #
     # ADR-0063 — et le job ne tourne pas sur un arbre déjà attesté vert, ni la nuit quand l'API n'a
     # pas changé depuis la dernière carte. `!cancelled()` d'abord : sans lui, un job `attestation`
@@ -130,14 +127,10 @@ jobs:
       || github.event.head_commit.author.name != 'github-actions[bot]'
       || !contains(github.event.head_commit.message, '[carte-impact]')) }}
 
-    # TCK-320 — `contents: write` pour le step « Régénérer la carte d'impact » : il pousse un
-    # commit sur `dev` après coup. `dev` n'est pas protégée (vérifié le 2026-08-17 : `gh api
-    # repos/thiambara/takussan/branches/dev/protection` → 404), le push direct est donc possible.
-    # Déclarer `permissions` sur le job REMPLACE les scopes par défaut du token — le reste du job
-    # (checkout, upload-artifact) ne lit et n'écrit rien d'autre que `contents`, donc rien n'est
-    # perdu qu'on utilisait déjà.
+    # Plus de `contents: write` ici depuis TCK-637 : le step qui pousse la carte d'impact a suivi
+    # `cov.php` dans le job `couverture`. Ce job lit le dépôt et dépose des artefacts, rien d'autre.
     permissions:
-      contents: write
+      contents: read
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -180,6 +173,7 @@ jobs:
           --health-timeout 3s
           --health-retries 20
 
+
     steps:
       - uses: actions/checkout@v7
 
@@ -188,28 +182,14 @@ jobs:
         with:
           php-version: '8.4'
           extensions: mbstring, pdo, pdo_pgsql, pgsql, bcmath, intl, gd, zip
-          # TCK-302 — `coverage: none` vivait ici, et le bloc `<source>` de `phpunit.xml`
-          # n'alimentait donc AUCUN rapport : ni seuil, ni tendance, ni garde-fou contre
-          # l'érosion. Une couverture qu'on ne mesure pas ne baisse jamais — elle baisse
-          # sans qu'on le voie, ce qui n'est pas la même chose.
-          #
-          # PCOV et pas Xdebug : c'est le pilote de couverture à faible surcoût (Xdebug
-          # instrumente chaque opcode, PCOV se contente des lignes exécutables). Le job
-          # ne fait pas de pas-à-pas, il compte des lignes.
-          coverage: pcov
-          # `pcov.directory` restreint la COLLECTE à `app/`. Sans lui, PCOV instrumente
-          # aussi `vendor/` (~100 paquets) pour un résultat que `<source>` de
-          # `phpunit.xml` filtre de toute façon à l'arrivée : on paierait la collecte
-          # d'un rapport qu'on jette.
-          # `memory_limit` : les rapports de couverture (PHP pour la carte d'impact, HTML) se
-          # construisent en mémoire et grossissent avec la suite. À 1G, ils échouaient après une
-          # suite VERTE (`Allowed memory size … exhausted`, sortie 255, cliquet non évalué) :
-          # mesuré sur les 3 pushes vers `dev` du 2026-10-08 (5289 tests) et sur la PR #343.
-          # Le runner public a 16 Go ; 4G laisse de la marge sans masquer une fuite d'un test.
-          # 4G a cédé à son tour, sur le seul rapport PHP de la carte d'impact (nocturne) : nuits
-          # du 2026-11-12 au 14 (~16 300 tests, dev ea1211cf4), « tried to allocate 1342963712
-          # bytes » dans Report/PHP.php, après une suite verte. 8G : la moitié du runner.
-          ini-values: pcov.directory=${{ github.workspace }}/takussan-api/app, memory_limit=8G
+          # TCK-637 — PAS de pilote de couverture ici : ce job juge les tests, `couverture` mesure.
+          # Un PCOV chargé et non lu ralentirait chaque processus pour un rapport que personne
+          # ne demande. `memory_limit` à 2G par processus : un CHOIX, pas une mesure. Les 4G puis 8G
+          # de `couverture` ont été exigés par les RAPPORTS de couverture, pas par la suite ; le 1G
+          # qui tenait date d'une suite trois fois plus petite, et jamais sous ParaTest. À relever
+          # sur les premières exécutions (aucun « Allowed memory size » dans le journal).
+          coverage: none
+          ini-values: memory_limit=2G
           tools: composer:v2
 
       - name: Cache composer dependencies
@@ -310,6 +290,237 @@ jobs:
       # `scout:sync-index-settings` une fois par processus, DANS le processus, donc sur le bon
       # préfixe par construction. C'est la seule place où l'accord est structurellement garanti.
       #
+      # ─── `--parallel`, ET POURQUOI C'EST SÛR ICI (TCK-637) ─────────────────────────────────
+      #
+      # La base, l'index Meilisearch, les disques `Storage::fake()` et les vues compilées sont
+      # isolés PAR PROCESSUS (`tests/bootstrap.php` → `TestDatabase`, `TestSearchIndex`,
+      # `TestFilesystemIsolation`, `TestCompiledViews` ; takussan-api/CLAUDE.md § Déterminisme) :
+      # chaque processus de ParaTest crée sa base sur le service `postgres` du job et la supprime
+      # en sortant. Validé en local (J-11 : cinq paires simultanées, 0 échec) ; en CI, le gain
+      # était ×2,48 le 2026-08-18 sur `nproc` 4 (J-12), à re-mesurer sur la suite d'aujourd'hui.
+      #
+      # ⚠ `php artisan test`, et rien d'autre sur la ligne que `--parallel --processes` : Collision
+      # appelle `ignoreValidationErrors()`, et la première option qu'il ne connaît pas fait
+      # disparaître EN SILENCE toutes les suivantes (TCK-331, cf. `couverture`). C'est aussi
+      # pourquoi la couverture n'est PAS demandée ici.
+      - name: Run tests (--parallel, sans couverture — TCK-637)
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5433
+          DB_USERNAME: takussan
+          DB_PASSWORD: takussan
+          # ⚠ Ne PAS déclarer `DB_DATABASE` ici — il valait `:memory:`, et cette valeur
+          # donnait à chaque processus sa propre base SANS que personne ait eu à le
+          # décider. Sur PostgreSQL, `tests/bootstrap.php` engendre le nom par processus
+          # (`Tests\Support\TestDatabase`) ; un littéral ici serait écrasé, et laisserait
+          # croire qu'il pilote encore quelque chose. Même raison que `SCOUT_PREFIX`.
+          SCOUT_DRIVER: meilisearch
+          MEILISEARCH_HOST: http://127.0.0.1:7700
+          MEILISEARCH_KEY: masterKey
+          # ⚠ Ne PAS réintroduire `SCOUT_PREFIX` ici : `tests/bootstrap.php` l'écrase de toute
+          # façon, et le déclarer laisserait croire qu'il pilote encore quelque chose.
+        run: |
+          # Un processus par cœur du runner, et le nombre ÉCRIT dans le journal : une durée sans
+          # le nombre de cœurs qui l'a produite ne se compare à rien (J-09).
+          processus=$(nproc)
+          echo "Processus ParaTest : $processus (nproc du runner)"
+          debut=$(date +%s)
+          set +e
+          php artisan test --parallel --processes="$processus"
+          code=$?
+          set -e
+          echo "Durée de la suite --parallel ($processus processus) : $(( $(date +%s) - debut )) s"
+          exit "$code"
+
+      # ADR-0063 — L'ATTESTATION DES TESTS : la suite est verte sur cet arbre (ce step ne tourne que
+      # si le précédent a réussi). Elle n'atteste PAS le cliquet, que `couverture` atteste sous son
+      # propre nom. 7 jours : au-delà, une image de runner ou un service a pu bouger, et l'arbre se
+      # rejoue. Sans nom (le job `attestation` a échoué, la suite a tourné par `!cancelled()`), rien
+      # à déposer — et surtout pas un rouge sur une suite verte.
+      - name: Attester l'arbre (ADR-0063)
+        if: needs.attestation.outputs.artefact != ''
+        run: |
+          printf '{"cle":"%s","sha":"%s","run":"%s","evenement":"%s"}\n' \
+            "${{ needs.attestation.outputs.cle }}" "${{ github.sha }}" "${{ github.run_id }}" "${{ github.event_name }}" \
+            > "${{ runner.temp }}/attestation.json"
+      - name: Déposer l'attestation
+        if: needs.attestation.outputs.artefact != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.attestation.outputs.artefact }}
+          path: ${{ runner.temp }}/attestation.json
+          retention-days: 7
+          if-no-files-found: error
+
+  # ─── LA COUVERTURE, SÉQUENTIELLE SOUS PCOV, À CÔTÉ DES TESTS (TCK-637, ADR-0063 §4) ─────────
+  #
+  # Rejoue la suite EN UN SEUL PROCESSUS sous PCOV — la seule forme qui produise un clover
+  # complet sans fusion (`phpcov merge` écarté par le porteur, option (a)) — et applique le
+  # cliquet `bin/coverage-gate.php … --min=92` sur chaque PR vers `dev`. Il produit aussi `cov.php`
+  # la nuit (ou à la demande) sur `dev`, et pousse la carte d'impact qui en dérive.
+  #
+  # ⚠ CE JOB EST LE CHEMIN CRITIQUE de la PR : `lint-and-test` rend son verdict plus tôt, mais
+  # « tous les checks verts » attend celui-ci (J-12 le disait déjà : la couverture reste le
+  # chemin critique). Il est REQUIS sur `preview`/`master` — action de déploiement
+  # `docs/deploiement/actions/2026-11-16-exiger-le-check-de-couverture.md`.
+  couverture:
+    # ─── L'ANTI-BOUCLE, ET CE QU'ELLE A REMPLACÉ (TCK-479) ──────────────────────────────
+    #
+    # Le step « Régénérer la carte d'impact » (plus bas) pousse un commit sur `dev`. Ce push
+    # touche `takussan-api/tests/`, donc le déclencheur ci-dessus : sans frein, il relance ce
+    # workflow, qui régénère, qui repousse — une boucle qui ne s'arrête pas seule.
+    #
+    # Le frein a été, jusqu'au 2026-08-30, le marqueur d'exclusion GLOBAL de GitHub, écrit
+    # dans le message du commit. Il coupait bien la boucle. Il coupait AUSSI tout le reste :
+    # GitHub applique ce marqueur au COMMIT, et pour TOUS les événements qui le visent —
+    # `push` comme `pull_request`. Ce commit devenant la tête de `dev`, il était le `head` de
+    # la PR d'intégration `dev` → `preview` suivante, ouverte des jours plus tard et sans
+    # aucun rapport avec la carte : elle n'exécutait alors AUCUN workflow du dépôt. Mesuré le
+    # 2026-08-30 : 7 des 12 dernières PR vers `preview` — celles qui alimentent
+    # `preview.api.takussan.com` — n'affichaient qu'un seul contrôle, celui de Vercel, qui
+    # n'est pas GitHub Actions et ignore le marqueur. Une PR sans garde s'y présentait
+    # `mergeable: CLEAN`, avec un vert.
+    #
+    # Le frein est donc DÉPLACÉ, pas supprimé. Le commit du bot porte `[carte-impact]`, un
+    # marqueur PROPRE À CE DÉPÔT que GitHub ne connaît pas, et c'est la condition ci-dessous
+    # qui saute les jobs. Différence entière : elle n'éteint QUE ce workflow, QUE sur ce
+    # push, et elle ne survit pas au commit. La PR d'intégration suivante voit ses gardes.
+    #
+    # ⚠ `github.event.head_commit` n'existe QUE pour `push`. La première clause fait donc
+    # passer tout `pull_request` sans même évaluer les deux autres : le comportement en PR
+    # est inchangé, `paths:` compris.
+    #
+    # ⚠ DEUX CÔTÉS QUI DOIVENT BOUGER ENSEMBLE — le littéral de cette condition et la chaîne
+    # du `git commit -m` plus bas. S'ils divergent, la boucle revient, et elle revient en
+    # silence. `scripts/check-skip-ci-marker.mjs` les compare, et refuse en plus que le
+    # marqueur global reparaisse dans ce message.
+    #
+    # ADR-0063 — le job ne tourne pas sur un arbre dont la COUVERTURE est déjà attestée verte (son
+    # propre artefact, pas celui des tests), ni la nuit quand l'API n'a pas changé depuis la
+    # dernière carte. `!cancelled()` d'abord : sans lui, un job `attestation` en échec ferait SAUTER
+    # celui-ci, et un job sauté passe un check requis.
+    needs: attestation
+    if: >-
+      ${{ !cancelled()
+      && needs.attestation.outputs.deja-vert-couverture != 'true'
+      && needs.attestation.outputs.carte-courante != 'true'
+      && (github.event_name != 'push'
+      || github.event.head_commit.author.name != 'github-actions[bot]'
+      || !contains(github.event.head_commit.message, '[carte-impact]')) }}
+
+    # TCK-320 — `contents: write` pour le step « Régénérer la carte d'impact » : il pousse un
+    # commit sur `dev` après coup. `dev` n'est pas protégée (vérifié le 2026-08-17 : `gh api
+    # repos/thiambara/takussan/branches/dev/protection` → 404), le push direct est donc possible.
+    # Déclarer `permissions` sur le job REMPLACE les scopes par défaut du token — le reste du job
+    # (checkout, upload-artifact) ne lit et n'écrit rien d'autre que `contents`, donc rien n'est
+    # perdu qu'on utilisait déjà.
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: takussan-api
+
+    # TCK-280 — search runs on Meilisearch on every environment, CI included.
+    # ADR-0020 — et depuis, la BASE aussi : la suite tourne sur le moteur de production,
+    # plus sur SQLite. La divergence « tests sur SQLite, production sur autre chose »
+    # préexistait à la migration ; c'est elle que ce service ferme.
+    services:
+      meilisearch:
+        image: getmeili/meilisearch:v1.16
+        env:
+          MEILI_MASTER_KEY: masterKey
+          MEILI_NO_ANALYTICS: 'true'
+        ports:
+          - 7700:7700
+
+      postgres:
+        # `pgvector/pgvector:pg17`, PAS `postgres:17` — la même image qu'en développement.
+        # L'extension `vector` doit être disponible partout, y compris ici : c'est le seul
+        # endroit où une divergence d'image se verrait avant la production.
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: takussan
+          POSTGRES_USER: takussan
+          POSTGRES_PASSWORD: takussan
+          # `--locale=C` comme le compose : collation DÉTERMINISTE. Une base de CI créée
+          # dans une autre collation n'éprouve pas les comparaisons de chaînes de la
+          # production — c'est exactement ce que l'ancienne garde de collation gardait
+          # pour MySQL, transposé.
+          POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+        ports:
+          # 5433 côté runner comme côté poste, pour que `phpunit.xml` n'ait pas deux
+          # valeurs selon l'endroit où il s'exécute.
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U takussan -d takussan"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_pgsql, pgsql, bcmath, intl, gd, zip
+          # TCK-302 — `coverage: none` vivait ici, et le bloc `<source>` de `phpunit.xml`
+          # n'alimentait donc AUCUN rapport : ni seuil, ni tendance, ni garde-fou contre
+          # l'érosion. Une couverture qu'on ne mesure pas ne baisse jamais — elle baisse
+          # sans qu'on le voie, ce qui n'est pas la même chose.
+          #
+          # PCOV et pas Xdebug : c'est le pilote de couverture à faible surcoût (Xdebug
+          # instrumente chaque opcode, PCOV se contente des lignes exécutables). Le job
+          # ne fait pas de pas-à-pas, il compte des lignes.
+          coverage: pcov
+          # `pcov.directory` restreint la COLLECTE à `app/`. Sans lui, PCOV instrumente
+          # aussi `vendor/` (~100 paquets) pour un résultat que `<source>` de
+          # `phpunit.xml` filtre de toute façon à l'arrivée : on paierait la collecte
+          # d'un rapport qu'on jette.
+          # `memory_limit` : les rapports de couverture (PHP pour la carte d'impact, HTML) se
+          # construisent en mémoire et grossissent avec la suite. À 1G, ils échouaient après une
+          # suite VERTE (`Allowed memory size … exhausted`, sortie 255, cliquet non évalué) :
+          # mesuré sur les 3 pushes vers `dev` du 2026-10-08 (5289 tests) et sur la PR #343.
+          # Le runner public a 16 Go ; 4G laisse de la marge sans masquer une fuite d'un test.
+          # 4G a cédé à son tour, sur le seul rapport PHP de la carte d'impact (nocturne) : nuits
+          # du 2026-11-12 au 14 (~16 300 tests, dev ea1211cf4), « tried to allocate 1342963712
+          # bytes » dans Report/PHP.php, après une suite verte. 8G : la moitié du runner.
+          ini-values: pcov.directory=${{ github.workspace }}/takussan-api/app, memory_limit=8G
+          tools: composer:v2
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: takussan-api/vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('takussan-api/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install composer dependencies
+        # Ni `--prefer-dist` ni jeton en Bearer : le pourquoi est au même step de `lint-and-test`.
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+        run: composer install --no-interaction --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env || echo "APP_ENV=testing" > .env
+          php artisan key:generate --force
+
+      - name: Wait for Meilisearch
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:7700/health > /dev/null; then
+              echo "Meilisearch is up."; exit 0
+            fi
+            echo "Waiting for Meilisearch ($i)..."; sleep 2
+          done
+          echo "::error::Meilisearch did not become healthy in time."; exit 1
+
       # ─── LE SEUIL DE COUVERTURE EST UN CLIQUET, PAS UN OBJECTIF (TCK-302) ───────────────────
       #
       # MESURE DU 2026-08-16, suite complète (2313 tests, 7136 assertions, 0 échec), PCOV 1.0.12,
@@ -359,6 +570,10 @@ jobs:
       # où le workflow l'a passée une seconde fois, PHPUnit l'a écartée, le rapport ne
       # s'est jamais matérialisé, `--min` n'a rien eu à évaluer, et le step est sorti en
       # **1 sans imprimer un chiffre** — sur une suite verte à 86,33 %.
+      #
+      # TCK-637 — ce step ne JUGE plus seul les tests : `lint-and-test` les joue en `--parallel` et
+      # dépose leur attestation. Il les rejoue ici en un seul processus parce que c'est le prix d'un
+      # clover complet ; un test rouge le rougit aussi, et le cliquet n'est alors pas évalué.
       - name: Run tests (avec couverture — cliquet TCK-302)
         env:
           DB_CONNECTION: pgsql
@@ -522,23 +737,20 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      # ADR-0063 — L'ATTESTATION : la suite ET le cliquet sont verts sur cet arbre (le step de test
-      # porte les deux, et ce step ne tourne que s'il a réussi). Son NOM est la preuve que le job
-      # `attestation` cherche ; son contenu dit seulement qui l'a déposée. 7 jours : au-delà, une
-      # image de runner ou un service a pu bouger, et l'arbre se rejoue.
-      # Sans nom (le job `attestation` a échoué, la suite a tourné par `!cancelled()`), rien à
-      # déposer — et surtout pas un rouge sur une suite verte.
-      - name: Attester l'arbre (ADR-0063)
-        if: needs.attestation.outputs.artefact != ''
+      # ADR-0063 — L'ATTESTATION DE LA COUVERTURE : la suite séquentielle ET le cliquet sont verts
+      # sur cet arbre. Son nom (`ci-vert-api-couverture-<clé>`) n'est PAS celui des tests : un
+      # arbre aux tests verts et au cliquet rouge n'a que la première, et ce job se rejoue.
+      - name: Attester l'arbre (ADR-0063, couverture)
+        if: needs.attestation.outputs.artefact-couverture != ''
         run: |
           printf '{"cle":"%s","sha":"%s","run":"%s","evenement":"%s"}\n' \
-            "${{ needs.attestation.outputs.cle }}" "${{ github.sha }}" "${{ github.run_id }}" "${{ github.event_name }}" \
+            "${{ needs.attestation.outputs.cle-couverture }}" "${{ github.sha }}" "${{ github.run_id }}" "${{ github.event_name }}" \
             > "${{ runner.temp }}/attestation.json"
-      - name: Déposer l'attestation
-        if: needs.attestation.outputs.artefact != ''
+      - name: Déposer l'attestation (couverture)
+        if: needs.attestation.outputs.artefact-couverture != ''
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ needs.attestation.outputs.artefact }}
+          name: ${{ needs.attestation.outputs.artefact-couverture }}
           path: ${{ runner.temp }}/attestation.json
           retention-days: 7
           if-no-files-found: error
@@ -558,7 +770,7 @@ jobs:
       # régénérerait la carte, qui repousserait. Le marqueur d'exclusion global de
       # GitHub tenait ce rôle et en tenait un second, non voulu : il éteignait aussi
       # la PR d'intégration suivante, dont ce commit devenait le `head` (TCK-479, et
-      # le bloc `if:` en tête de `lint-and-test`). Le message porte désormais
+      # le bloc `if:` en tête de `couverture`). Le message porte désormais
       # `[carte-impact]`, que GitHub ignore et que la condition de job lit.
       #
       # CE QUE LE CHANGEMENT AJOUTE, ET C'EST UN GAIN : ce push déclenche maintenant
@@ -659,7 +871,7 @@ jobs:
 
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # ⚠ `[carte-impact]` est LU par la condition `if:` en tête des deux jobs de ce
+          # ⚠ `[carte-impact]` est LU par la condition `if:` en tête des jobs de ce
           # fichier : c'est lui, et lui seul, qui coupe la boucle. Ne pas le retirer, ne
           # pas le renommer d'un seul côté, et ne JAMAIS remettre ici le marqueur
           # d'exclusion global de GitHub — il éteindrait de nouveau la PR d'intégration
@@ -727,7 +939,7 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────────────────────
   migrations-pgsql:
     name: Rollback des migrations sur PostgreSQL 17 (le code que rien d'autre n'exécute)
-    # Même condition, même raison qu'en tête de `lint-and-test` (TCK-479) — recopiée parce
+    # Même condition, même raison qu'en tête de `couverture` (TCK-479) — recopiée parce
     # que GitHub Actions n'a NI ancre YAML NI `if:` au niveau du workflow. C'est justement
     # cette recopie que `scripts/check-skip-ci-marker.mjs` compare, job par job.
     #

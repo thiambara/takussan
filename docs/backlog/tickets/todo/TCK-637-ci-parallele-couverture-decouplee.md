@@ -38,6 +38,13 @@ part, l'ajouter aux checks requis de `preview`/`master` et à `promotion-ci.yml`
 jugent et attestent, couverture séquentielle à côté —, (b) couverture fusionnée par `phpcov merge`,
 (c) couverture sortie de la PR (nuit sur `dev`) ?
 
+**Décision du porteur (2026-11-16) : (a).** Deux jobs qui tournent en même temps : (1)
+`lint-and-test`, les tests en `--parallel`, qui JUGENT et ATTESTENT (`ci-vert-api-<clé>`, inchangé
+dans son principe) ; (2) `couverture`, la suite séquentielle sous PCOV, qui produit le clover complet
+et applique `bin/coverage-gate.php … --min=92` sur chaque PR vers `dev`, garde `cov.php` (nuit /
+`workflow_dispatch` sur `dev`) et le step de la carte d'impact. `API / couverture` devient un check
+requis de `preview`/`master`, rejoué par `promotion-ci.yml`. Écrite en amendement d'ADR-0063 §4.
+
 ## Objectif utilisateur
 
 - **Le porteur, qui livre** : la seule exécution complète qui reste après TCK-636 — la PR vers
@@ -65,9 +72,9 @@ ADR-0063) — ce ticket est le principal levier du temps de livraison.
 ## Delta à produire
 
 - [ ] Mesurer en CI : suite `--parallel` sans couverture, et couverture seule, sur le même arbre.
-- [ ] Choisir entre deux jobs (tests parallèles + couverture séquentielle en parallèle d'eux) et
+- [x] Choisir entre deux jobs (tests parallèles + couverture séquentielle en parallèle d'eux) et
       une couverture fusionnée (`phpcov merge`) ; écrire la décision en amendement d'ADR-0063.
-- [ ] Le job qui dépose l'attestation (TCK-636) reste celui qui juge les tests.
+- [x] Le job qui dépose l'attestation (TCK-636) reste celui qui juge les tests.
 
 ## Critères d'acceptation
 
@@ -78,3 +85,23 @@ ADR-0063) — ce ticket est le principal levier du temps de livraison.
 ## Hors périmètre
 
 - Le front : sa suite ne porte pas de couverture.
+
+## Livré (2026-11-16)
+
+- `api-ci.yml` : `lint-and-test` joue `php artisan test --parallel --processes="$(nproc)"` sans pilote
+  de couverture (Pint + garde Spatie restent là) ; nouveau job `couverture` (PCOV séquentiel, clover,
+  cliquet `--min=92`, `cov.php` la nuit, carte d'impact, `contents: write`). Les deux ne dépendent que
+  d'`attestation` : ils tournent en parallèle.
+- **Une attestation par job** : volet `api-couverture` dans `scripts/ci-attestation.mjs` (même
+  périmètre, autre nom de suite → autre clé, artefact `ci-vert-api-couverture-<clé>`) ; chaque job ne
+  se saute que sur le sien. Une attestation unique ferait sauter le cliquet d'un arbre aux tests verts.
+  La nuit, seul le volet couverture ignore l'attestation (il produit `cov.php`).
+- `scripts/check-ci-attestation.mjs` tient les deux volets de l'API ; preuves par ablation (copie +
+  `md5`) : le `if:` de `couverture` qui lit le `deja-vert` des tests, sans `!cancelled()`, l'artefact
+  des tests déposé par `couverture`, le volet absent du job `attestation`, les tests sans `--parallel`
+  → rouge chaque fois ; l'anti-boucle retirée de `couverture` → `check-skip-ci-marker.mjs` rouge (B2).
+- Check requis : action [`2026-11-16-exiger-le-check-de-couverture`](../../../deploiement/actions/2026-11-16-exiger-le-check-de-couverture.md)
+  (point d'accès additif `…/required_status_checks/contexts`, nom relevé sur une vraie promotion d'abord).
+- ⚠ `couverture` reste le chemin critique de la PR (J-12) : le verdict des tests arrive plus tôt, le
+  « tout vert » non — dit dans l'amendement.
+- AC1 et AC2 ne se mesurent qu'en CI : à relever sur la PR après push (non tenus à cette date).
