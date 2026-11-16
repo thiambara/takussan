@@ -37,6 +37,9 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 | KycDossier | `documents` | Pièces du dossier KYC |
 | BankStatement | `statement` | Fichier du relevé importé (unique, disque privé) |
 | PrivacyRequest | `proof` | Preuve jointe à une demande de droits (unique) |
+| PayoutMethod | `bank_statement` | RIB déposé par le titulaire (unique, disque privé) ; lu par qui peut vérifier le moyen (`MediaPolicy::sign`, `PayoutMethodPolicy::verify`), supprimé par le titulaire seul (TCK-2863) |
+| ServiceProviderBill | `invoice` | La pièce du prestataire jointe à « Facturer » (unique, privée) (TCK-2911, ADR-0120 § 1) |
+| MaintenanceQuoteAlternative | `quote` | Le devis concurrent consulté, PDF ou image (unique, privée) (TCK-2911, ADR-0120 § 3) |
 
 ### ~~`spatie/laravel-permission`~~ — **DÉSINSTALLÉ** (TCK-278)
 
@@ -452,6 +455,8 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | bio | text | oui | null | Biographie / présentation | ➕ |
 | preferred_language | string(10) | | 'fr' | Langue préférée (fr, en, wo) | ➕ |
 | last_login_at | datetime | oui | null | Dernière connexion | ➕ |
+| last_login_device | string(64) | oui | null | Famille d'appareil de la dernière connexion (`iPhone · Safari`, liste fermée `FamilleDAppareil`), jamais le `User-Agent` brut ; écrasée à chaque connexion par `LastLoginRecorder` (mot de passe, code, OAuth) ; hors `$queryFields` et hors journal ; effacée à la suppression du compte, rendue par l'export des données (TCK-2926, [ADR-0124](adr/0124-l-appareil-et-la-ville-de-la-derniere-connexion.md)) | ➕ |
+| last_login_city | string(120) | oui | null | Ville de la dernière connexion, ni IP ni coordonnées ; résolue par `LoginCityResolver`, lié par défaut à `NullLoginCityResolver` : **toujours `null` aujourd'hui**, aucune base de villes n'étant branchée (TCK-2926, ADR-0124 § 2) | ➕ |
 | ~~agency_id~~ | — | — | — | ~~Supprimée — l'attache à une agence est portée par le profil actif (cutover TCK-142)~~ | ➖ |
 | added_by_id | FK users | oui | null | Créateur du compte (si ajouté par un admin/agent) | |
 | google_id | string | oui | null | Identifiant OAuth Google | |
@@ -460,6 +465,7 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | remember_token | string(100) | oui | null | Token de session persistante | |
 | timezone | string(50) | | 'Africa/Dakar' | Fuseau horaire préféré | ➕ |
 | two_factor_enabled | boolean | | false | Authentification à deux facteurs activée | ➕ |
+| two_factor_enabled_at | timestamp | oui | null | Activation de la 2FA, posée par un `saving` du modèle quand `two_factor_enabled` change (remise à `null` à la désactivation) ; `null` pour un compte déjà protégé avant la colonne (TCK-2926) | ➕ |
 | two_factor_secret | text (encrypted) | oui | null | Secret TOTP (chiffré) | ➕ |
 | two_factor_recovery_codes | text (encrypted) | oui | null | Codes de récupération 2FA (chiffrés) | ➕ |
 | force_2fa_at_first_login | boolean | | false | Exige l'enrôlement d'un facteur TOTP à la première connexion web — posé par la commande d'amorçage super-admin et la cooptation (TCK-263, TCK-264 ; `2026_05_10_120000`). Voir §48 | ➕ |
@@ -595,6 +601,7 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 | founded_at | date | oui | null | Date de création de l'agence | ➕ |
 | is_verified | boolean | | false | Agence vérifiée par l'admin Takussan | ➕ |
 | verified_at | datetime | oui | null | Date de vérification | ➕ |
+| self_opened_at | timestamp | oui | null | Agence ouverte en libre-service par « Créer mon espace pro » (`POST /api/me/agencies`, `OwnAgencyOpeningService`). Tant qu'elle n'a jamais été vérifiée (`is_verified` faux et `verified_at` nul — `Agency::awaitsFirstVerification`) : pas de mise en ligne (422 `agency.unverified_publication`, `PropertyObserver`), hors de l'annuaire public (`scopeVisibleInPublicDirectory`), ni reversement ni crédits de bienvenue ; et son NINEA ne bloque pas celui d'une autre ouverture (TCK-2937, [ADR-0125](adr/0125-l-espace-pro-de-l-orientation-est-une-agence-verifiee-ensuite.md)) | ➕ |
 | primary_admin_id | FK users | oui | null | Responsable principal de l'agence | ➕ |
 | properties_count | integer | | 0 | Compteur biens (cache) : `PropertyObserver` l'incrémente à la création d'un bien et le décrémente à sa suppression ; seule la reprise sous mandat du Radar reporte un changement d'espace, sur les deux espaces (TCK-2421) — tout autre changement d'`agency_id` d'un bien le laisse dériver. La ressource publique le rend tel quel, comme la réponse d'une action de modération ; seule la liste de la console de modération lit le compte réel (`live_properties_count`) | ➕ |
 | active_leases_count | integer | | 0 | Compteur baux actifs (cache) | ➕ |
@@ -650,6 +657,8 @@ dans son type, défaut compris quand la clé est absente.
 | `offline_payment_bank_details` | texte ≤ 500 | `null` | Idem, `offline_payment.bank_details` (sauts de ligne permis) (TCK-2504) ; saisis dans la section « Paiement hors ligne » des réglages de l'agence (TCK-2536) |
 | `booking_pending_expiry_hours` | int, 0-168 | 48 (0 = désactivé) | `BookingExpirationService` (TCK-963) |
 | `maintenance_provider_response_hours` | int, 0-168 | 48 (0 = aucun délai annoncé) | `ServiceProviderOnboardingService::echeanceDeReponse` — `respond_by` de l'intervention jointe à l'invitation d'un prestataire, compté depuis l'invitation, indicatif (ADR-0122, TCK-2943) |
+| `owners_confirm_visits` | bool | `false` | `PropertyVisitPolicy::bailleurConfirme` — vrai, le bailleur **actif** d'un bien confirme une visite ou propose un autre créneau ; faux, le personnel seul (règle de TCK-590) (TCK-2849, [ADR-0112](adr/0112-le-bailleur-confirme-les-visites-quand-l-agence-le-lui-confie.md) § 1) |
+| `payout_day` | int, 1-28 | `null` | `App\Services\Payout\PayoutDay` — jour des reversements aux bailleurs quand le mandat n'en fixe pas (`owner_profiles.payout_day` d'abord) ; servi dans `payout_rule {day, source: mandate\|agency\|null}` du relevé du bailleur et `meta.payout_day` / `meta.payout_day_source` de `GET /api/me/payout-methods`. **Informatif** : aucune préparation de reversement n'en dépend (TCK-2915) |
 | `tenant_onboarding_enabled` | bool | `true` | `TenantOnboardingService` — `false` comme `0` coupent la checklist (TCK-963, TCK-970) |
 | `hidden_modules` | liste de `AgencyModule` (`commissions`, `inventories`, `move_in_follow_up`, `provider_book`, `calendar`, `credits`, `analytics`), sans doublon, ≤ 7 | `[]` | **Aucun lecteur dans l'API** : affichage seulement. Le front (`modulesMasquesDe`, layout de `/app`) retire ces modules du menu du seul personnel (agent, admin d'agence) ; aucune page ni aucun droit n'en dépend. Refusée (`prohibited`) pour une agence `individual` ; une liste lue hors forme rend `[]` (ADR-0089, amendement « modules par agence », TCK-2483) |
 
@@ -731,6 +740,8 @@ pause, le réactiver les reprend (ADR-0061 §8).
 | deposit_months | unsigned smallint | oui | null | Coût d'entrée d'une location mensuelle : mois de caution (`2026_10_08_100000`, TCK-598) | ➕ |
 | advance_months | unsigned smallint | oui | null | Mois d'avance | ➕ |
 | agency_fee_months | decimal(4,2) | oui | null | Frais d'agence **en mois de loyer** (0,5 ou 1 le plus souvent) | ➕ |
+| check_in_from | time | oui | null | Heure d'arrivée à partir de laquelle, servie `HH:MM` ; **location à la nuit ou à la semaine seulement** (`HeuresDuSejour`, refusée sinon) — un bien qui quitte le séjour perd ses heures (`saving`) (TCK-2892) | ➕ |
+| check_out_before | time | oui | null | Heure de départ avant laquelle, mêmes règles (TCK-2892) | ➕ |
 | monthly_charges | decimal(14,2) | oui | null | Charges mensuelles (montant) — le total à l'entrée est calculé par l'API, jamais stocké | ➕ |
 | virtual_tour_url | string(2048) | oui | null | Visite virtuelle ou vidéo : un **lien https** vers un hébergeur autorisé, pas un fichier (TCK-598) | ➕ |
 | submitted_at | timestamp | oui | null | Soumission à la modération de l'agence (`2026_04_26_000001`, TCK-597) | ➕ |
@@ -897,7 +908,18 @@ vide), utilisé par les PDF.
 | offer_expires_at | date | oui | null | Validité d'une offre (dernier jour inclus, heure de Dakar) (TCK-2579) | ➕ |
 | list_price_at_booking | decimal(14,2) | oui | null | Prix ou loyer affiché du bien à la création d'une offre ou d'une candidature (TCK-2579) | ➕ |
 | source | BookingSource (string(20)) | | 'public' | Origine : `public` (tunnel public), `invitation` (tunnel ouvert par le lien d'invitation, `via=invitation` — un indice sans droit), `staff` (saisie du personnel). Rattrapée `staff` quand l'auteur n'est pas le compte de la fiche client (TCK-2874, ADR-0110 § 6) | ➕ |
-| metadata | jsonb | oui | null | `stage_change` (`from`, `to`, `at`, `undone_at`) : le passage de la fiche en Négociation fait à l'acceptation, servi au personnel par `BookingResource::stage_change` (TCK-2874, ADR-0110 § 8) | |
+| term_months | smallint | oui | null | **Candidature** : durée souhaitée en mois — 12 par défaut quand la saisie ne la donne pas (`BookingConditions::DEFAULT_TERM_MONTHS`) (TCK-2870, ADR-0110 § 1) | ➕ |
+| renewable | boolean | oui | null | **Candidature** : renouvelable — vrai par défaut (TCK-2870) | ➕ |
+| security_deposit_months | smallint | oui | null | **Candidature**, instantané du bien à la création (`properties.deposit_months`) (TCK-2870) | ➕ |
+| security_deposit_amount | decimal(14,2) | oui | null | **Candidature**, instantané : montant × mois de caution du bien, arrondi à l'unité de la devise (TCK-2870) | ➕ |
+| advance_months_at_booking | smallint | oui | null | **Candidature**, instantané de `properties.advance_months` (TCK-2870) | ➕ |
+| agency_fee_months_at_booking | decimal(4,2) | oui | null | **Candidature**, instantané de `properties.agency_fee_months` (un demi-mois de frais existe) (TCK-2870) | ➕ |
+| financing | OfferFinancing (string(16)) | oui | null | **Offre** : `cash`, `mortgage`, `mixed` (TCK-2870) | ➕ |
+| signature_within_days | smallint | oui | null | **Offre** : délai de signature proposé, en jours (TCK-2870) | ➕ |
+| conditions | string(500) | oui | null | **Offre** : conditions suspensives, texte libre (TCK-2870) | ➕ |
+| declared_monthly_income | text (cast `encrypted`) | oui | null | **Candidature** : revenu mensuel déclaré du candidat, **chiffré** ; `Booking::SENSITIVE` — dans `$hidden`, hors de `$queryFields` (`fields[bookings]=declared_monthly_income` → 400) et hors du journal d'activité (`getActivitylogOptions` → `logExcept`). Servi masqué (`declared_monthly_income_masked`) et en rapport au loyer (`income_to_rent_ratio`) au seul personnel de l'agence ; en clair par `GET /api/bookings/{booking}/sensitive` (`BookingPolicy::viewSensitive` : admin de l'agence, sous step-up, journalisé `booking_sensitive`) (TCK-2893, ADR-0110 § 4, ADR-0070) | ➕ |
+| guests | smallint | oui | null | **Séjour** : nombre de voyageurs ; rattrapé des seuls séjours depuis `metadata.guests` (encore écrit, plus lu) (TCK-2892) | ➕ |
+| metadata | jsonb | oui | null | `stage_change` (`from`, `to`, `at`, `undone_at`) : le passage de la fiche en Négociation fait à l'acceptation, servi au personnel par `BookingResource::stage_change` (TCK-2874, ADR-0110 § 8) ; `rejection` (`reason_code` en `BookingRejectionReason`, `message`) : le motif codé et la précision d'un refus, transmis au client (TCK-2874, ADR-0110 § 7) | |
 | deleted_at | timestamp | oui | null | Soft delete | |
 | created_at | timestamp | | auto | | |
 | updated_at | timestamp | | auto | | |
@@ -906,6 +928,13 @@ vide), utilisé par les PDF.
 et n'est plus lu. Pour une candidature, `start_date` est la date d'entrée et `end_date` peut être nulle. Une
 réservation saisie par le personnel a toujours un `customer_id` (règle applicative). Index ajouté :
 `(agency_id, kind, status)`.
+
+**Conditions par nature (TCK-2870, ADR-0110 § 1).** `App\Services\Booking\BookingConditions` fixe les champs
+d'entrée de chaque nature — candidature : `term_months`, `renewable`, `declared_monthly_income` ; offre : `financing`,
+`signature_within_days`, `conditions` ; séjour : aucun (et `guests` n'est admis que d'un séjour). Un champ d'une autre
+nature rend 422 `booking.field_not_for_kind`, par les deux chemins de création (saisie du personnel, tunnel public). Les
+quatre colonnes d'instantané d'une candidature sont recopiées du bien, jamais saisies. Aucune réservation antérieure
+n'a été rattrapée.
 
 **Le client d'une réservation (`include=customer`, TCK-2593).** Le personnel de l'agence lit `customer.phone`,
 `customer.pipeline_stage` et `visits_on_property` (visites terminées du client sur le bien) ; le **bailleur du bien**
@@ -942,6 +971,15 @@ dans les `$queryFields` (TCK-575) : `response_deadline` en dépend.
   (`nullOnDelete`), `status` `CounterOfferStatus` string(16) défaut `'pending'` (`pending`, `accepted`, `declined`,
   `superseded`, `expired`), `responded_at` timestamp nullable, timestamps ; index `(booking_id, status)`,
   `(status, valid_until)`, `created_by_id`
+- `dossierItems()` → hasMany [BookingDossierItem](#126-bookingdossieritem-) — les pièces du dossier, semées à
+  l'insertion d'une candidature ou d'une offre par `Booking::performInsert` (tous les chemins de création, même sous
+  `withoutEvents()`) ; aucune pour un séjour (TCK-2872, ADR-0110 § 2)
+- `guarantors()` → belongsToMany Guarantor via le **pivot `booking_guarantor`** (sans modèle) : `booking_id` FK
+  (`cascadeOnDelete`), `guarantor_id` FK guarantors (`cascadeOnDelete`), timestamps ; unique
+  `(booking_id, guarantor_id)` (`booking_guarantor_unique`), index `guarantor_id`. Trois garants au plus, candidature ou
+  offre, réservation `pending` ou `confirmed` — règle unique `BookingGuarantorService` (`booking.max_guarantors`,
+  `booking.guarantor_already_attached`, `booking.guarantor_not_for_kind`, `booking.dossier_closed`) (TCK-2893,
+  ADR-0110 § 3)
 - ~~`lease()`~~ — **retirée** (TCK-2372, P250.03) : un `hasOne` sur `leases.booking_id`, colonne sans unicité, et sans lecteur
 
 ---
@@ -962,7 +1000,7 @@ dans les `$queryFields` (TCK-575) : `response_deadline` en dépend.
 | amount | decimal(14,2) | | | Montant payé | |
 | currency | Currency (string(3)) | | 'XOF' | Devise (XOF, XAF, EUR, USD) — celle de la réservation à la saisie | ✏️ |
 | payment_method | PaymentMethod | oui | null | Moyen de paiement (cash, bank_transfer, mobile_money, card) | |
-| payment_type | BookingPaymentType (string) | | | Nature du paiement (deposit, advance, fee) — indexé | |
+| payment_type | BookingPaymentType (string) | | | Nature du paiement (deposit, advance, fee, **security_deposit**, **other**) — indexé. `security_deposit` (caution d'un séjour) et `other` (`notes` exigé) ne sont ni bornés par le reste dû ni déduits de ce qu'il reste à payer : seuls `deposit` et `advance` règlent le total (`BookingPaymentType::reglantLeTotal()`) ; le reçu PDF imprime le libellé `bookings.payment_types.*` (TCK-2892) | |
 | status | PaymentStatus | | 'pending' | Statut du paiement | |
 | refund_amount | decimal(14,2) | oui | null | Montant remboursé (si applicable) | ➕ |
 | refund_reason | text | oui | null | Motif du remboursement | ➕ |
@@ -1684,6 +1722,7 @@ porte la carte complète ; les autres une projection `{id, slug, title}`, `remov
 | completed_at | timestamp | oui | null | Date de réalisation effective |
 | cancelled_at | timestamp | oui | null | Date d'annulation |
 | cancellation_reason | text | oui | null | Motif d'annulation |
+| cancelled_by | VisitCancelledBy (string(16)) | oui | null | Qui a annulé : `visitor` ou `agency` (CHECK `property_visits_cancelled_by_check`), écrit par `cancelOrFail` dans la transaction qui annule ; `null` pour une visite annulée avant la colonne (TCK-2871) |
 | feedback | text | oui | null | Retour du visiteur après la visite |
 | rating | decimal(2,1) | oui | null | Note donnée au bien, saisie à la clôture de la visite (`CompletePropertyVisitRequest` : 0 à 5) — distincte d'un [Review](#11-review) |
 | notes | text | oui | null | Notes internes de l'agent |
@@ -1925,7 +1964,7 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | documentable_type | string | | | FK polymorphique (type) |
 | uploaded_by | FK users | | | Utilisateur ayant uploadé |
 | name | string | | | Nom affiché du document |
-| type | DocumentType | | | Catégorie (id_card, passport, lease_contract, receipt, invoice, insurance, inventory_report, other) |
+| type | DocumentType | | | Catégorie (id_card, passport, lease_contract, receipt, invoice, insurance, inventory_report, photo, rib, ninea, management_mandate, other — cf. [Enums](#nouveaux-enums)) |
 | description | text | oui | null | Description / contexte |
 | is_verified | boolean | | false | Document vérifié par un admin/agent |
 | is_internal | boolean | | false | ➕ **Document interne d'une fiche client** (TCK-2759, [ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md), amendement du 2026-11-12) : lu par le personnel actif de l'agence de la fiche et le super-admin, **jamais par le sujet de la fiche** (`customers.user_id`), même auteur ou membre du personnel. Refusé (422 `document.internal_customer_only`) sur tout autre porteur, et (422 `document.internal_own_upload`) sur une pièce téléversée par le sujet. Posé par le personnel seul (`POST /api/documents`, puis `PATCH /api/documents/{id}/visibility`, journalisé) ; **vaut `true` par défaut quand le personnel téléverse sur une fiche client sans le dire**, `false` partout ailleurs et pour les lignes antérieures |
@@ -1946,6 +1985,13 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 
 **Relations :**
 - `documentable()` → morphTo (Lease, Customer, Property, MaintenanceRequest, Inventory, **User**, **Agency**, **Booking**) 🆕 User (pièces d'identité, RIB), Agency (licence, K-bis), Booking (promesse de vente, offre signée)
+  — ➕ **OwnerProfile** (`documentable_type=owner_profile` au dépôt, TCK-2909, ADR-0099 amendé) : le mandat de gestion
+  signé (`management_mandate`), que le personnel de l'agence du profil lit et dépose et que le titulaire lit ; les pièces
+  KYC du profil (CNI, RIB, NINEA) restent fermées au personnel (lecture, liste, dépôt — 422
+  `document.profile_piece_by_kyc` —, lien de partage)
+- **Index de recherche** (TCK-2895) : l'index recopie `carrier_property_title` (le bien du porteur, ou le bien du bail)
+  et `carrier_tenant_name` (le locataire d'un bail), cherchables après le titre et la description ; `DocumentsDuPorteurObserver`
+  réindexe quand le nom du client, le titre du bien ou le bien d'un bail change
 - `uploader()` → belongsTo User
 - `verifier()` → belongsTo User (via verified_by)
 
@@ -2009,12 +2055,19 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | owner_signature_hash | string(64) | oui | null | SHA-256 du tracé |
 | owner_signed_by_user_id | FK users | oui | null | **Qui** a signé pour le bailleur — FK `inventories_owner_signed_by_fk`, `nullOnDelete` (TCK-596 §5, `2026_10_07_235910`) |
 | owner_signed_on_behalf_of_user_id | FK users | oui | null | Bailleur pour le compte duquel un membre du personnel a signé au titre du mandat — FK `inventories_owner_on_behalf_fk`, `nullOnDelete` |
+| owner_signature_method | string(20) | oui | null | ➕ `drawn` (rattrapé pour tout état des lieux déjà signé du bailleur) ou `onsite_otp` : le bailleur signe sur le téléphone du personnel, par un code SMS envoyé à son numéro vérifié (`POST …/sign/onsite-code`, `party=landlord` ; 422 `inventory_signature.landlord_without_phone` sans numéro) — TCK-2913, ADR-0098 amendé |
+| owner_signed_via_user_id | FK users | oui | null | ➕ Le membre du personnel sur le téléphone duquel le bailleur a signé (FK `inventories_owner_signed_via_fk`, `nullOnDelete`) — TCK-2913 |
+| owner_otp_channel | string(10) | oui | null | ➕ Canal du code du bailleur — TCK-2913 |
+| owner_otp_destination | string(120) | oui | null | ➕ Numéro **masqué** auquel le code est parti — TCK-2913 |
+| owner_signed_ip | string(45) | oui | null | ➕ Adresse de la requête de signature ; ne sort jamais de l'API — TCK-2913 |
 | tenant_signature_method | string(20) | oui | null | ➕ `drawn` (le locataire signe depuis son compte ; valeur reprise par la migration pour tout état des lieux déjà signé du locataire) ou `onsite_otp` (sur le téléphone de l'agent, code SMS) — TCK-2646, [ADR-0098](adr/0098-le-locataire-signe-l-etat-des-lieux-sur-place-par-code-sms.md) |
 | tenant_signed_via_user_id | FK users | oui | null | ➕ L'agent sur le téléphone duquel le locataire a signé (`nullOnDelete`) — TCK-2646 |
 | tenant_otp_channel | string(10) | oui | null | ➕ Canal du code (`sms`) — TCK-2646 |
 | tenant_otp_destination | string(120) | oui | null | ➕ Numéro **masqué** auquel le code est parti, comme `lease_signatures.otp_destination` — TCK-2646 |
 | tenant_signed_ip | string(45) | oui | null | ➕ Adresse de la requête de signature ; ne sort jamais de l'API (ADR-0042 §3) — TCK-2646 |
 | signed_at | timestamp | oui | null | Seconde signature : l'état des lieux est signé des deux parties |
+| pdf_sent_at | timestamp | oui | null | ➕ Envoi du PDF signé, réclamé une seule fois (`SendSignedInventoryPdf`, mis en file après la seconde signature) : avis `inventory.signed_pdf_available` (cloche + e-mail, **un lien, pas une pièce jointe**) au compte du locataire et au bailleur — TCK-2913 |
+| pdf_sent_to | json | oui | null | ➕ Les ids des comptes avisés ; un locataire sans compte n'y figure pas — TCK-2913 |
 | traceability_hash | string(64) | oui | null | Empreinte SHA-256 complète, **figée une fois** à la seconde signature, photos par pièce comprises (`InventorySignatureService`). Nulle pour un état des lieux signé avant TCK-596 : son PDF garde l'empreinte qu'il imprimait |
 | metadata | jsonb | oui | null | |
 | deleted_at | timestamp | oui | null | Soft delete |
@@ -2174,6 +2227,8 @@ de toute sérialisation par défaut (`$hidden`). Ils ne sortent que masqués par
 - `leases()` → hasMany Lease, via `leases.guarantor_id` (un même garant peut couvrir plusieurs baux)
 - `leasesPivot()` → belongsToMany Lease (pivot `lease_guarantor`, `withPivot(['role'])`, horodaté)
 - `documents()` → morphMany Document (`documentable`)
+- *Pas de relation inverse vers les réservations* : le rattachement d'un garant à une candidature ou à une offre passe
+  par le pivot `booking_guarantor`, lu depuis `Booking::guarantors()` seulement (TCK-2893)
 
 Le modèle ne déclare **pas** `addresses()`.
 
@@ -2193,6 +2248,7 @@ Le modèle ne déclare **pas** `addresses()`.
 | agency_id | FK agencies | oui | null | Agence émettrice du reversement (`nullOnDelete`) |
 | landlord_id | FK users | | | Utilisateur bénéficiaire (`restrictOnDelete`). Le nom est historique : pour un reversement `service_provider`, c'est l'utilisateur prestataire (`PayoutService`) ; pour une caution rendue (`tenant`), c'est le bailleur du bail, et le bénéficiaire réel se lit par `beneficiaryUserId()` (le locataire du bail) |
 | payee_role | PayeeRole (string(30)) | | 'landlord' | Qui reçoit l'argent : `landlord`, `tenant`, `service_provider`. Chaîne, pas `enum()` SQL (ADR-0007). Tout cumul de « reversements au bailleur » filtre `landlord`. Les remboursements de caution antérieurs ont été passés à `tenant` par `2026_10_07_200300` (TCK-594, ADR-0039 §2) |
+| nature | PayoutNature (string(32)) | oui | null | ➕ `advance` (acompte : il reste au bailleur un encaissement reversable non porté du mois de `period_end`), `balance` (solde), `deposit_refund`, `refund`, `provider_bill` — **écrite à la création** (`PayoutCalculator` pour les deux premières ; `creating` du modèle pour les trois autres), jamais recalculée à la lecture. Rattrapée pour `refund` (`refunded_payment_id`), `deposit_refund` (bénéficiaire locataire) et `provider_bill` ; un reversement au bailleur antérieur reste `null`. L'avis de versement PDF (`GET /api/payouts/{payout}/notice/pdf`) n'existe que pour un reversement au bailleur terminé (sinon 422 `payout.notice_unavailable`) — TCK-2909, ADR-0039 amendé le 2026-11-15 |
 | issued_by_id | FK users | oui | null | Utilisateur ayant initié le reversement (`nullOnDelete`) |
 | approved_by_id | FK users | oui | null | Approbateur, quand le net atteint le seuil d'approbation de l'agence (`nullOnDelete`, FK `payouts_approved_by_fk`) (TCK-594, ADR-0039 §4) |
 | approved_at | timestamp | oui | null | Date de l'approbation (TCK-594) |
@@ -2499,6 +2555,11 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | id_document_number | text (cast `encrypted`) | oui | null | Numéro de pièce — chiffré (TCK-601) |
 | monthly_income | text (cast `encrypted`) | oui | null | Revenus mensuels déclarés (XOF) — chiffré (TCK-956, ADR-0070, `2026_10_19_120000`) |
 | works_approval_threshold | decimal(14,2) | oui | null | Plafond de travaux du bailleur pour cette agence : au-delà, l'approbation d'un devis — ou un coût réel déclaré — par l'équipe attend l'accord du bailleur. `null` = pas d'accord requis (état de toutes les lignes antérieures). Lu en un seul endroit, `OwnerApprovalThreshold` (TCK-592, ADR-0037, `2026_10_07_130100`) ; **➕ lu par sparse fieldset et écrit par `PATCH /api/owners/{id}` (capacité `owners.update`, admin d'agence), journalisé (`owner_works_threshold_updated`) ; vaut pour les devis **approuvés** après le changement : le plafond se lit à l'approbation (TCK-2640)** |
+| mandate_starts_on | date | oui | null | ➕ Début du mandat de gestion (TCK-2909) |
+| mandate_ends_on | date | oui | null | ➕ Fin du mandat ; CHECK `owner_profiles_mandate_dates_check` (fin ≥ début) |
+| payout_method | PaymentMethod (string(32)) | oui | null | ➕ Moyen de reversement convenu au mandat (`bank_transfer`, `wave`, `cash`…) (TCK-2909) |
+| payout_day | smallint | oui | null | ➕ Jour du reversement, 1 à 28 (CHECK `owner_profiles_payout_day_check`) ; servi au bailleur par `GET /api/me/payout-methods` → `meta.payout_day` (profil actif) (TCK-2909) |
+| referent_agent_id | FK users | oui | null | ➕ Agent référent du bailleur, membre du personnel de l'agence du profil (422 sinon), `nullOnDelete`, indexé ; actif, il devient l'interlocuteur du bailleur avant l'invitant (TCK-2909) |
 | employer | string | oui | null | Employeur |
 | guarantor_user_id | FK users | oui | null | Garant (autre user — `nullOnDelete`) |
 | metadata | jsonb | oui | null | Données flexibles |
@@ -2517,6 +2578,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 - `agency()` → belongsTo Agency
 - `agencyRole()` → belongsTo AgencyRole (`HasAgencyRole`)
 - `guarantor()` → belongsTo User (via guarantor_user_id)
+- `referentAgent()` → belongsTo User (via `referent_agent_id`) — TCK-2909
 - `invitations()` → morphMany Invitation
 
 **Inverse :**
@@ -3022,7 +3084,7 @@ consignant le refus d'une pièce de profil ; pièces attendues = toutes celles q
 | revoked_at | datetime | oui | null | |
 | last_reminded_at | datetime | oui | null | Date du dernier **essai** de rappel J+2 |
 | reminder_attempts | unsignedSmallInteger | | 0 | Essais du rappel automatique (`InvitationService::remindPending()`) : un SMS refusé par tous les fournisseurs se retente un jour plus tard, trois essais au plus (`MAX_REMINDER_ATTEMPTS`) ; un rappel posé épuise le compte. Défaut 0 sans réécriture : une invitation déjà rappelée reste tenue pour rappelée (TCK-2155, `2026_10_24_150000`) |
-| metadata | jsonb | oui | null | Données additionnelles propres au parcours (ex. zones d'intervention pré-sélectionnées, premier lead pré-assigné) |
+| metadata | jsonb | oui | null | Données additionnelles propres au parcours (ex. zones d'intervention pré-sélectionnées, premier lead pré-assigné) ; `delivery = 'share'` (`Invitation::DELIVERY_SHARE`, `estPartagee()`) : l'invitant a reçu le lien pour le partager lui-même — la plateforme n'a rien envoyé, le lien ne prouve donc pas le numéro et l'acceptation exige le code SMS (TCK-2927, [ADR-0123](adr/0123-l-invitant-recoit-le-lien-d-une-invitation-partagee.md)) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
@@ -4058,8 +4120,9 @@ traite `key` comme un identifiant court opaque.
 **Table :** `calendar_feeds`
 **Description :** Lien d'abonnement iCalendar d'un utilisateur, en lecture seule (TCK-591,
 [ADR-0034](adr/0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md)). Le jeton n'est connu
-que par son **empreinte** SHA-256 (`CalendarFeed::hashToken()`) : il est rendu une seule fois, à la
-création ou à la rotation, et jamais stocké en clair. Le lien est révoqué par l'utilisateur, à la
+que par son **empreinte** SHA-256 (`CalendarFeed::hashToken()`) pour la résolution, et jamais stocké en
+clair ; depuis TCK-2887 ([ADR-0121](adr/0121-le-lien-ical-se-relit-par-son-titulaire.md), amende ADR-0034 § 1) une
+copie chiffrée (`token_encrypted`) permet au titulaire de relire son lien à la réouverture. Le lien est révoqué par l'utilisateur, à la
 rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`).
 
 | Colonne | Type | Nullable | Défaut | Description |
@@ -4068,6 +4131,7 @@ rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`).
 | user_id | FK users | | | Titulaire du lien (`calendar_feeds_user_fk`, `cascadeOnDelete`) |
 | agency_id | FK agencies | ✓ | null | Agence où le titulaire est du personnel ; `null` pour un compte qui n'est personnel d'aucune agence (prestataire) (`calendar_feeds_agency_fk`, `cascadeOnDelete`) |
 | token_hash | string(64) | | | Empreinte SHA-256 du jeton ; masquée à la sérialisation (`$hidden`) |
+| token_encrypted | text | ✓ | null | ➕ Copie **chiffrée** du jeton (cast `encrypted`, clé de l'application, rotation par `APP_PREVIOUS_KEYS`), masquée (`$hidden`) : `GET /api/me/calendar-feed` rend l'`url` au titulaire (absente sous impersonation, `null` pour un lien d'avant la colonne ou une copie indéchiffrable), réponse `no-store`. Remise à `null` à toute révocation (`CalendarFeedService::revocation()` : révocation, rotation, blocage, effacement du compte) — TCK-2887, [ADR-0121](adr/0121-le-lien-ical-se-relit-par-son-titulaire.md) |
 | revoked_at | timestamp | ✓ | null | Révocation ; un lien révoqué rend 404 |
 | last_accessed_at | timestamp | ✓ | null | Dernière lecture du flux |
 | created_at / updated_at | timestamp | | | |
@@ -4183,6 +4247,7 @@ payé que vers une destination du bénéficiaire **vérifiée par l'agence qui p
 | account_holder_name | text | oui | null | Nom du titulaire — cast `encrypted`, `$hidden` |
 | masked_identifier | string(40) | | | Seule forme lue par l'agence (`•••• 1234`) — écrite par `PayoutMethod::mask()`, branché sur le masqueur commun `Masking::tail()` (TCK-601) : un identifiant de quatre caractères ou moins ne se montre pas en entier |
 | is_default | boolean | | false | |
+| bank_statement_submitted_at | timestamp | oui | null | ➕ RIB déposé par le titulaire (`POST /api/me/payout-methods/{id}/bank-statement`, step-up ; compte bancaire seulement, sinon 422 `payout.bank_statement_bank_only`), pièce dans la collection privée `bank_statement`. **Informatif** : « en revue » (`verification_status` = `verified` / `in_review` / `to_confirm`), jamais une vérification — seule une ligne de `payout_method_verifications` autorise le versement. Changer la nature, le numéro ou le titulaire retire le RIB et la date — TCK-2863 |
 | deleted_at | timestamp | oui | null | Soft delete (un reversement passé garde sa destination) |
 | created_at / updated_at | timestamp | | auto | |
 
@@ -4864,6 +4929,14 @@ remaining_amount <= initial_amount)` ; index `credit_lots_agency_expires_idx (ag
 **Relations :** `agency()` → belongsTo Agency ; `grantedBy()` → belongsTo User ; `movements()` →
 hasMany CreditMovement. Scopes `spendable()` (restant > 0, non expiré), `inConsumptionOrder()`.
 Inverse : `Agency::creditLots()`.
+
+**Lots passés (TCK-2924).** L'expiration (`CreditLedger::expireDue`) solde un lot à 0 avec un mouvement `expire` :
+« solde nul » ne veut donc pas dire « épuisé ». Deux états exclusifs, dont l'union est exactement le complément de
+`spendable()` : `expired()` — un mouvement `expire`, ou un reste > 0 dont la date est passée (pas encore balayé) ;
+`spent()` — solde nul sans mouvement `expire`. `notSpendable()` les réunit ; `CreditLot::stateSql()` donne l'état
+servi. Lus par `GET /api/credits/lots` (`fields[credit_lots]` sur `id`, `origin`, `initial_amount`,
+`remaining_amount`, `expires_at`, `reason`, `created_at` ; `filter[state]=spent|expired`, autre valeur → 422 ;
+`per_page` 1 à 50 ; plus récent d'abord).
 
 ---
 
@@ -6166,7 +6239,7 @@ Unique `(booking_id, piece)`, index `document_id`. La liste est FIXE PAR NATURE,
 | reason | string(32) | | | Motif codé : `spam`, `harassment`, `fraud`, `inappropriate`, `other` |
 | comment | string(500) | oui | null | Commentaire facultatif |
 
-Unique `(conversation_id, reporter_id)` : une seule fois par auteur (409 `conversation.already_reported`). Le
+Index : `reporter_id`, `created_at`. Unique `(conversation_id, reporter_id)` : une seule fois par auteur (409 `conversation.already_reported`). Le
 signalement ne gèle rien ; seul le super-admin le lit (`GET /api/admin/conversation-reports`), sans le contenu des
 messages.
 
@@ -6323,7 +6396,7 @@ collection privée `quote` (PDF ou image), rendue en URL d'API signée.
 | **PaymentMethod** | cash, bank_transfer, mobile_money, **wave, orange_money, free_money**, check, card | LeasePayment, BookingPayment |
 | **PaymentFrequency** | monthly, quarterly, yearly | Lease.payment_frequency |
 | **LeasePaymentType** | rent, charges, deposit, **deposit_refund**, regularization, penalty | LeasePayment.payment_type |
-| **BookingPaymentType** | deposit, advance, fee | BookingPayment.payment_type |
+| **BookingPaymentType** | deposit, advance, fee, **security_deposit, other** (TCK-2892) | BookingPayment.payment_type |
 | **CancellationBy** | owner, customer, agent, system | Booking.cancellation_by |
 | **IdType** | id_card, passport, driving_license | Customer.id_type |
 | **CollaboratorRole** | manager, co_owner, agent, viewer | PropertyCollaborator.role |
@@ -6341,6 +6414,14 @@ collection privée `quote` (PDF ou image), rendue en URL d'API signée.
 | **VisitObjection** 🆕 (TCK-2578) | price, neighborhood, size, condition, availability, guarantor | [PropertyVisit.report_objections](#17-propertyvisit-) (liste) |
 | **VisitFollowUp** 🆕 (TCK-2578, TCK-2581) | invite_apply, invite_offer, record_booking, second_visit, propose_properties, remind, create_lease | [PropertyVisit.report_follow_up](#17-propertyvisit-) |
 | **BookingKind** 🆕 (TCK-2579) | stay, application, offer | [Booking.kind](#5-booking) |
+| **BookingSource** 🆕 (TCK-2874) | public, invitation, staff | [Booking.source](#5-booking) (ADR-0110 § 6) |
+| **BookingRejectionReason** 🆕 (TCK-2874) | incomplete_file, insufficient_income, property_allocated, offer_too_low, property_sold, dates_unavailable, property_unavailable, other | `reason_code` de `POST /api/bookings/{id}/reject`, gardé dans `Booking.metadata.rejection` (ADR-0110 § 7) |
+| **OfferFinancing** 🆕 (TCK-2870) | cash, mortgage, mixed | [Booking.financing](#5-booking) |
+| **CounterOfferStatus** 🆕 (TCK-2873) | pending, accepted, declined, superseded, expired | `booking_counter_offers.status` ([Booking](#5-booking), ADR-0110 § 5) |
+| **DossierPiece** 🆕 (TCK-2872) | identity, payslips, employment_certificate, guarantor_commitment, guarantor_identity, proof_of_funds, other | [BookingDossierItem.piece](#126-bookingdossieritem-) |
+| **VisitCancelledBy** 🆕 (TCK-2871) | visitor, agency | [PropertyVisit.cancelled_by](#17-propertyvisit-) |
+| **PayoutNature** 🆕 (TCK-2909) | advance, balance, deposit_refund, refund, provider_bill | [Payout.nature](#28-payout-) |
+| **IgnoredPaymentReason** 🆕 (TCK-2932) | cash_kept, other_account, other | [ReconciliationIgnoredPayment.reason](#41-bis-reconciliationignoredpayment) |
 | **ReminderChannel** 🆕 (TCK-2658) | whatsapp, call | [LeasePaymentReminder.channel](#125-leasepaymentreminder-) |
 | **PaymentLinkSubject** 🆕 (TCK-2778) | rent, late_fee | [LeasePaymentLink.subject](#84-leasepaymentlink-), [LeasePaymentReminder.subject](#125-leasepaymentreminder-) |
 | **LastContactChannel** 🆕 (TCK-2766) | whatsapp, call, email, sms, note, visit | [Customer.last_contact_channel](#7-customer) |
@@ -6353,7 +6434,7 @@ collection privée `quote` (PDF ou image), rendue en URL d'API signée.
 | **MaintenanceCategory** | plumbing, electrical, structural, appliance, painting, cleaning, pest_control, locksmith, other | MaintenanceRequest.category |
 | **MaintenancePriority** | low, **normal**, high, urgent | MaintenanceRequest.priority — `medium` renommé `normal`, données et défaut (`2026_04_26_013446`) |
 | **MaintenanceStatus** | open, acknowledged, **quote_requested, quote_submitted, awaiting_owner, approved, rejected**, assigned, in_progress, completed, closed, cancelled | MaintenanceRequest.status — circuit du devis (TCK-592, ADR-0037) |
-| **DocumentType** | id_card, passport, lease_contract, receipt, invoice, insurance, inventory_report, photo, **rib, ninea**, other | Document.type — `rib`, `ninea` : pièces KYC du propriétaire (TCK-257) |
+| **DocumentType** | id_card, passport, lease_contract, receipt, invoice, insurance, inventory_report, photo, **rib, ninea, management_mandate**, other | Document.type — `rib`, `ninea` : pièces KYC du propriétaire (TCK-257) ; `management_mandate` : le mandat de gestion signé, déposé par le personnel de l'agence sur le profil du bailleur (TCK-2909, ADR-0099 amendé) |
 | **InventoryType** | move_in, move_out | Inventory.type |
 | **InventoryStatus** | draft, pending_signature, signed, disputed | Inventory.status |
 | **InventoryCondition** | excellent, good, fair, poor | Inventory.general_condition |
@@ -6392,7 +6473,7 @@ collection privée `quote` (PDF ou image), rendue en URL d'API signée.
 | **PayeeRole** (relevé 2026-10-14) | landlord, tenant, service_provider | [Payout.payee_role](#28-payout-) (TCK-594, ADR-0039 §2) |
 | **InvoiceKind** (relevé 2026-10-14) | invoice, credit_note | [Invoice.kind](#25-invoice-) (TCK-594, ADR-0039 §7) |
 | **PayoutMethodKind** (relevé 2026-10-14) | wave, orange_money, free_money, bank_transfer | [PayoutMethod.kind](#76-payoutmethod-) (TCK-594, ADR-0039 §6) |
-| **ServiceProviderBillStatus** (relevé 2026-10-14) | pending_validation, validated, rejected, paid, cancelled | [ServiceProviderBill.status](#77-serviceproviderbill-) (TCK-594, ADR-0039 §8) |
+| **ServiceProviderBillStatus** (relevé 2026-10-14) | **draft** (TCK-2911, ADR-0120), pending_validation, validated, rejected, paid, cancelled | [ServiceProviderBill.status](#77-serviceproviderbill-) (TCK-594, ADR-0039 §8) |
 | **PaymentProvider** (relevé 2026-10-14) | wave, orange_money, lemon_squeezy | Pas de cast : `Integration::isPaymentIntegration()` (`tryFrom` sur `integrations.provider`), `InitiatePaymentRequest` et les demandes de paiement en ligne |
 | **CommissionEntryStatus** (relevé 2026-10-14) | due, paid, cancelled | [CommissionEntry.status](#85-commissionentry-) (TCK-595, ADR-0049 §3) |
 | **CommissionOrigin** (relevé 2026-10-14) | negotiator, collaborator | [CommissionEntry.origin](#85-commissionentry-) (TCK-595, ADR-0049 §3) |
