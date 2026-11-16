@@ -4,7 +4,8 @@
 - **Date** : 2026-10-13
 - **Tickets** : [TCK-636](../backlog/tickets/done/TCK-636-ci-attestation-par-arbre.md) ·
   amendement §1 : [TCK-638](../backlog/tickets/done/TCK-638-ci-api-ignore-markdown.md) ·
-  amendement §4 : [TCK-637](../backlog/tickets/done/TCK-637-ci-parallele-couverture-decouplee.md)
+  amendement §4 : [TCK-637](../backlog/tickets/done/TCK-637-ci-parallele-couverture-decouplee.md) ·
+  amendement §5 : [TCK-2950](../backlog/tickets/todo/TCK-2950-ci-front-vitest-en-shards.md)
 
 ## Contexte
 
@@ -163,6 +164,64 @@ les deux jobs et sur leur maximum**, trois exécutions avant, trois après.
 **Risque à mesurer en CI** : `nproc` processus contre un seul service Meilisearch n'a été éprouvé
 qu'en local (J-11). Une `MeilisearchNotIdleException` sur les premières exécutions se lit comme ce
 risque, pas comme un défaut applicatif.
+
+### 5. Le front : Vitest en shards, un agrégateur qui juge et atteste
+
+#### Amendement du 2026-11-16 (TCK-2950) — quatre shards et un job statique en parallèle, le check requis devient l'agrégateur
+
+**Contexte.** Relevé le 2026-11-16 (runs `web-ci.yml` 43921607586, 43916471402, 43915535384) : le job
+unique `quality` dure ~30 min, dont **Vitest 18-26 min** — 1 919 fichiers, 17 076 tests,
+`Duration 1575s (import 1520s, environment 1373s, tests 1260s)` sur un runner à 4 cœurs. Le coût est la
+mise en place de chaque fichier (jsdom, imports), pas les tests : il se divise par le nombre de runners.
+Le dépôt est public, les minutes de runners standards sont gratuites. **Décision du porteur : oui.**
+
+- **`statique`** joue ESLint, `tsc --noEmit`, les gardes `check:*`, le build et le poids des routes.
+- **`tests`** joue Vitest en matrice `shard: [1, 2, 3, 4]`, chaque shard sur son runner, par
+  `npx vitest run --shard=${{ matrix.shard }}/${{ strategy.job-total }}` — le dénominateur se lit sur la
+  matrice, il ne se recopie pas ; `fail-fast: false`, un shard rouge ne masque pas les autres.
+- Les deux ne dépendent que d'`attestation` et sont sautés sur `deja-vert` : ils tournent **en même temps**.
+- **`quality`**, l'**agrégateur**, garde **au caractère près** le nom du check requis de `preview` et
+  `master` (`Front / Web (ESLint + tsc + Vitest + build)`) : la protection n'est pas touchée.
+  `needs: [attestation, statique, tests]`, `if: ${{ !cancelled() }}`, et un step de verdict qui ne sort
+  en 0 que si les deux `result` valent `success`, ou si une attestation a été trouvée **et** les deux
+  valent `skipped`. Tout autre cas sort en 1.
+
+**Pourquoi l'agrégateur tourne sous `!cancelled()` et juge lui-même.** Un job dont une dépendance a
+échoué est *skipped*, et un *skipped* passe un check requis : sous le `if:` par défaut (`success()`),
+un shard rouge rendrait le check requis… vert. L'agrégateur ne lit pas non plus `deja-vert` dans son
+`if:` : il tourne toujours, c'est lui qui constate le saut.
+
+**Une seule attestation, déposée par l'agrégateur — et pourquoi ce n'est pas le refus de §4.** Pour
+l'API, l'amendement TCK-637 a écarté un troisième job qui attesterait « les deux verts » : les deux jobs
+y rendent **deux verdicts distincts** (les tests, requis ; le cliquet, dont l'exigence attend son
+[action de déploiement](../deploiement/actions/2026-11-16-exiger-le-check-de-couverture.md)), et un arbre aux
+tests verts n'avait pas à rejouer ses tests parce que sa couverture rougissait. Ici, il n'y a **qu'un**
+check requis, donc **un** verdict et **une** clé (`ci-vert-web-<clé>`, périmètre inchangé) : le job qui
+juge, c'est l'agrégateur, et c'est lui qui atteste. Un shard vert n'atteste pas l'arbre — il n'en a vu
+qu'un quart. Rejouer seulement le shard rouge est déjà offert par « Re-run failed jobs ».
+
+- Le dépôt s'abstient sur le chemin déjà attesté (`deja-vert != 'true'`) : redéposer à chaque saut
+  prolongerait sans fin la validité de 7 jours qui borne la dérive (§ « Ce que l'attestation ne garde pas »).
+- `scripts/ci-attestation.mjs` **n'est pas modifié** : il est dans la clé de l'API, et le toucher
+  invaliderait les deux attestations de l'API (≈ 77 min de `couverture` rejouées). `web-ci.yml`, lui,
+  est dans la clé du front : ce changement invalide les attestations du front existantes, ce qui est voulu.
+
+**Ce que §5 remplace pour le front.** Là où §1, §2 et la puce « Garde » des Conséquences disent « le
+job lourd `quality` de web-ci » — sauté sur l'attestation, et qui dépose —, lire désormais : les jobs
+lourds du front sont `statique` et `tests`, sautés et sans dépôt ; `quality` **n'est jamais sauté**, il
+constate le saut ou juge, et dépose seul.
+
+`scripts/check-ci-attestation.mjs` tient la forme : `statique` et `tests` sautés sur l'attestation et
+sans dépôt ; aucun job autre que l'agrégateur ne dépose ; matrice exactement `[1..N]` et
+dénominateur `strategy.job-total` (ou `N`) ; agrégateur nommé comme le check requis, sous
+`!cancelled()` (ou `always()`), sans `deja-vert` dans son `if:`, avec un verdict qui lit les deux
+`result` **avant** un dépôt qui ne tourne ni sur `always()`/`failure()` ni sur un arbre déjà attesté.
+
+**Équilibrage.** Le découpage de Vitest trie les fichiers par SHA-1 de leur chemin et les coupe en
+parts égales : 480/480/480/479 fichiers au 2026-11-16 ; rapporté aux durées par fichier du run
+43921607586, le temps de tests par shard va de 284 à 335 s (écart max/moyenne ≈ 6 %). La mise en place,
+qui domine, suit le nombre de fichiers. Le chemin critique attendu est `statique` (~8-9 min), non un
+shard. **À mesurer en CI (TCK-2950, AC1)**, et cette mesure tranche, pas ce paragraphe.
 
 ## Conséquences
 
