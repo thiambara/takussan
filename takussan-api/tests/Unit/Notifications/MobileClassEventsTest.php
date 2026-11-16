@@ -83,7 +83,8 @@ class MobileClassEventsTest extends TestCase
     /**
      * TCK-1053 (P75.01) — chaque événement dont la matrice ouvre les cases `sms`/`whatsapp` a un
      * émetteur réel : un code `mobile()` de cet événement nommé hors du catalogue des codes, ou une
-     * classe mobile de cet événement envoyée par `notify(new …)` / `send(…, new …)`.
+     * classe mobile de cet événement envoyée par `notify(new …)` / `send(…, new …)` /
+     * `envoyerCanalParCanal(…, new …)` (TCK-615).
      *
      * `NewBookingNotification` n'était nommée que par `AppDatabaseChannel` et `PreferenceResolver` :
      * le premier test passait, et les cases `booking_request` étaient cochables sans rien commander.
@@ -113,7 +114,9 @@ class MobileClassEventsTest extends TestCase
             }
             foreach (array_keys($classes, $event, true) as $class) {
                 $court = (new ReflectionClass($class))->getShortName();
-                if (preg_match('/(notify|notifyNow|send|sendNow)\(\s*(\$[^,()]+,\s*)?new\s+'.$court.'\b/', $code) === 1) {
+                // TCK-615 — `envoyerCanalParCanal($destinataire, new …)` (`App\Jobs\Concerns\EnvoieCanalParCanal`)
+                // est un émetteur : il appelle `notifyNow()` sur chaque canal de `via()`.
+                if (preg_match('/(notify|notifyNow|send|sendNow|envoyerCanalParCanal)\(\s*(\$[^,()]+,\s*)?new\s+'.$court.'\b/', $code) === 1) {
                     $emis = true;
                 }
             }
