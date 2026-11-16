@@ -23,7 +23,11 @@ import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
  * Three states:
  *  - disabled  → « Activer la double authentification » button.
  *  - setup     → enabled but not confirmed: show secret + otpauth URL + 6-digit code form.
- *  - active    → "Désactiver" + "Régénérer les codes de récupération".
+ *  - active    → "Désactiver" + "Régénérer les codes de récupération" + "Remplacer l'appareil".
+ *
+ * TCK-610 — remplacer l'appareil (téléphone changé) : le geste se lit d'abord (ce qu'il remplace),
+ * puis `enable` sous step-up prépare un NOUVEAU secret ; `confirm` le prouve et remplace l'ancien,
+ * codes de secours compris. Jusque-là l'ancien appareil reste valide : abandonner ne casse rien.
  *
  * Recovery codes are only shown immediately after confirm/regenerate — the
  * backend never re-emits them (security invariant).
@@ -46,6 +50,10 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [disablePassword, setDisablePassword] = useState('');
   const [showDisable, setShowDisable] = useState(false);
+  // TCK-610 — `annonce` : le geste « Remplacer l'appareil » s'explique avant de partir ;
+  // `nouveauQr` : le QR affiché est celui du NOUVEL appareil.
+  const [remplacement, setRemplacement] = useState<'annonce' | 'nouveauQr' | null>(null);
+  const [appareilRemplace, setAppareilRemplace] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   // TCK-1203 — renouveler l'appareil et régénérer les codes exigent un TOTP récent (step-up).
@@ -84,6 +92,8 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
       setEnabled(true);
       setSetup(null);
       setCode('');
+      setAppareilRemplace(remplacement === 'nouveauQr');
+      setRemplacement(null);
       setRecoveryCodes(result.data.recovery_codes);
       await refreshUser();
     });
@@ -99,6 +109,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
         return;
       }
       setEnabled(false);
+      setAppareilRemplace(false);
       setShowDisable(false);
       setDisablePassword('');
       setRecoveryCodes(null);
@@ -106,8 +117,35 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
     });
   }
 
+  function handleRemplacer() {
+    setError(null);
+    setAppareilRemplace(false);
+    startTransition(async () => {
+      // Le même `enable` que l'enrôlement : sur une 2FA active, l'API exige un TOTP récent et ne
+      // touche pas au secret en place. Refusé, l'explication reste affichée avec le message.
+      const result = await avecGardeDoubleFacteurAction(() => twoFactorEnableAction(), garde);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      setRemplacement('nouveauQr');
+      setSetup({
+        secret: result.data.secret,
+        qrUrl: result.data.qr_url,
+        qrSvg: result.data.qr_svg ?? null,
+      });
+    });
+  }
+
+  function abandonnerLaConfiguration() {
+    setSetup(null);
+    setCode('');
+    setRemplacement(null);
+  }
+
   function handleRegenerate() {
     setError(null);
+    setAppareilRemplace(false);
     startTransition(async () => {
       const result = await avecGardeDoubleFacteurAction(() => twoFactorRegenerateAction(), garde);
       if (!result.ok) {
@@ -161,6 +199,9 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
               />
             ) : null}
             <div className="space-y-2 text-sm">
+              {remplacement === 'nouveauQr' ? (
+                <p className="font-semibold text-foreground">{t('remplacer.nouvelAppareil')}</p>
+              ) : null}
               <p className="text-muted-foreground">
                 {t('scanHint')}
               </p>
@@ -192,21 +233,28 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
 
           <div className="flex gap-2">
             <Button type="submit" disabled={pending || code.length !== 6}>
-              {pending ? t('verifying') : t('confirmAndEnable')}
+              {pending
+                ? t('verifying')
+                : remplacement === 'nouveauQr'
+                  ? t('remplacer.confirmer')
+                  : t('confirmAndEnable')}
             </Button>
             <Button
               type="button"
               variant="ghost"
-              onClick={() => {
-                setSetup(null);
-                setCode('');
-              }}
+              onClick={abandonnerLaConfiguration}
               disabled={pending}
             >
               {tCommon('cancel')}
             </Button>
           </div>
         </form>
+      ) : null}
+
+      {appareilRemplace ? (
+        <p role="status" className="text-sm text-foreground">
+          {t('remplacer.fait')}
+        </p>
       ) : null}
 
       {recoveryCodes ? (
@@ -252,10 +300,43 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
         </div>
       ) : null}
 
-      {enabled && !setup ? (
+      {enabled && !setup && remplacement === 'annonce' ? (
+        <div className="space-y-3 rounded-md border border-border bg-card p-4 text-sm">
+          <p className="font-semibold text-foreground">{t('remplacer.titre')}</p>
+          <p className="text-muted-foreground">{t('remplacer.explication')}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleRemplacer} disabled={pending}>
+              {pending ? t('initializing') : t('remplacer.continuer')}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setError(null);
+                setRemplacement(null);
+              }}
+              disabled={pending}
+            >
+              {tCommon('cancel')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {enabled && !setup && remplacement === null ? (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={handleRegenerate} disabled={pending}>
             {t('regenerate')}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setError(null);
+              setAppareilRemplace(false);
+              setRemplacement('annonce');
+            }}
+            disabled={pending}
+          >
+            {t('remplacer.action')}
           </Button>
           {!showDisable ? (
             <Button

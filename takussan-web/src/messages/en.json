@@ -17227,7 +17227,16 @@
         "passwordPlaceholder": "Password",
         "confirmDisable": "Confirm deactivation",
         "enableShort": "Turn on",
-        "explication": "A code from your app at each sign-in, and backup codes to keep."
+        "explication": "A code from your app at each sign-in, and backup codes to keep.",
+        "remplacer": {
+          "action": "Replace the device",
+          "titre": "Replace your two-factor device",
+          "explication": "You are about to link a new authenticator app, on your new phone for instance. As soon as its first code is confirmed, the old device stops working and new backup codes replace the old ones. Until then, the old device stays valid.",
+          "continuer": "Continue",
+          "nouvelAppareil": "Scan this code with the new device.",
+          "confirmer": "Confirm the new device",
+          "fait": "Device replaced: the old one no longer generates valid codes."
+        }
       },
       "title": "Security",
       "description": "Manage access to your account and the connected devices.",

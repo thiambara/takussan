@@ -17227,7 +17227,16 @@
         "passwordPlaceholder": "Mot de passe",
         "confirmDisable": "Confirmer la désactivation",
         "enableShort": "Activer",
-        "explication": "Un code de votre application à chaque connexion, et des codes de secours à garder."
+        "explication": "Un code de votre application à chaque connexion, et des codes de secours à garder.",
+        "remplacer": {
+          "action": "Remplacer l'appareil",
+          "titre": "Remplacer l'appareil de second facteur",
+          "explication": "Vous allez associer une nouvelle application d'authentification, sur votre nouveau téléphone par exemple. Dès que son premier code est confirmé, l'ancien appareil cesse de fonctionner et de nouveaux codes de secours remplacent les anciens. Jusque-là, l'ancien appareil reste valide.",
+          "continuer": "Continuer",
+          "nouvelAppareil": "Scannez ce code avec le nouvel appareil.",
+          "confirmer": "Confirmer le nouvel appareil",
+          "fait": "Appareil remplacé : l'ancien ne génère plus de codes valides."
+        }
       },
       "title": "Sécurité",
       "description": "Gérez l'accès à votre compte et les appareils connectés.",

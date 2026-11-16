@@ -1,6 +1,6 @@
 import { getMeAction } from '@/app/actions/auth';
 import { AppShell } from '@/components/layout/AppShell';
-import { getActiveProfileId, getModeIconesDuMenu, getToken } from '@/lib/session';
+import { estEnImpersonation, getActiveProfileId, getModeIconesDuMenu, getToken } from '@/lib/session';
 import { profilLieDeLaCoque, typeDuProfilActif } from '@/lib/navigation/personas';
 import { espacesAChoisir } from '@/lib/espaces-serveur';
 import { ChoixDEspace } from '@/components/profile/ChoixDEspace';
@@ -14,6 +14,7 @@ import { accesAdmin, capacitesAmorcees } from '@/lib/access/pages-admin-server';
 import { AmorceCapacites } from '@/components/providers/AmorceCapacites';
 import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
 import { espaceDesRecents } from '@/lib/navigation/pages-recentes';
+import { accesALaConsole } from '@/lib/navigation/acces-console';
 
 
 /**
@@ -108,9 +109,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // (TCK-649), le menu utilisateur, les raccourcis et les états vides. L'agence est relue par la promesse mise
   // en cache ci-dessus ; les capacités coûtent une requête, pour tout compte rattaché à une agence
   // depuis TCK-1412 (une délégation ou un rôle personnalisé ouvre des pages sans rôle d'admin).
-  const acces = await accesAdmin(user);
   // TCK-1278 (P136.02) — la même lecture des capacités (promesse `cache()`ée), passée au navigateur.
-  const capacites = await capacitesAmorcees(user);
+  // TCK-610 (AC6) — l'entrée de la console sur le geste `platform.console.access` (opérateurs `viewer`
+  // et `support` compris) : une requête de plus pour tout compte qui n'a pas le rôle `super_admin`,
+  // menée en même temps que les deux lectures d'accès (promesses `cache()`ées, sans ordre entre elles).
+  // Sous impersonation, aucune lecture : l'API refuse `/api/admin/*` à ce jeton (`impersonation.read_only`).
+  const [acces, capacites, accesConsole] = await Promise.all([
+    accesAdmin(user),
+    capacitesAmorcees(user),
+    Promise.all([getToken(), estEnImpersonation()]).then(([token, impersonation]) =>
+      accesALaConsole(user, impersonation ? undefined : token),
+    ),
+  ]);
   // TCK-2477 (ADR-0089 §2) — le persona du menu se juge sur le profil ACTIF : le cookie, sinon (TCK-2621)
   // le profil que l'API a lié à la requête — dernier espace retenu, auto-bascule, ou celui de la cible
   // pendant une impersonation (`getActiveProfileId` n'y rend rien, TCK-600).
@@ -136,6 +146,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             modeIcones={modeIcones}
             modulesMasques={modulesMasques}
             espaceActif={espaceDesRecents(espaceActif)}
+            accesConsole={accesConsole}
           >
             {children}
           </AppShell>

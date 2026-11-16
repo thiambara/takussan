@@ -127,11 +127,11 @@ bout de chaîne, hors critères, à trancher » ; `FILE-D-ATTENTE.md` 15:35).
       `throttle` nommé ; test `PublicInvitationPreviewTest` (404 unique, aucun champ de contact).
 - [x] ~~Front : page `/invitations/accept`~~ — tenu par TCK-626 / TCK-2611 : (aperçu, branches compte connecté / nouveau compte /
       connexion, expiré) ; mesure d'audience sans jeton.
-- [ ] Front : renouvellement de l'appareil de second facteur dans les réglages de sécurité.
-- [ ] Front : entrée de console dans la navigation de `/app` sur `platform.console.access` ;
+- [x] Front : renouvellement de l'appareil de second facteur dans les réglages de sécurité.
+- [x] Front : entrée de console dans la navigation de `/app` sur `platform.console.access` ;
       ~~`configurationDoubleFacteurExigee` juge la capacité plateforme~~ — caduc depuis TCK-1203
       (ce n'est plus elle qui renvoie l'opérateur hors de la console).
-- [ ] Tests front : ~~page d'invitation (rendu sans requête mutante, branches, expiré)~~ (caduc
+- [x] Tests front : ~~page d'invitation (rendu sans requête mutante, branches, expiré)~~ (caduc
       depuis TCK-2611), entrée de console pour `viewer` ~~, redirection vers l'enrôlement d'un
       `support` sans 2FA~~ (tenu par TCK-1203).
 
@@ -145,9 +145,9 @@ bout de chaîne, hors critères, à trancher » ; `FILE-D-ATTENTE.md` 15:35).
       page affiche « demandez une nouvelle invitation ».
 - [x] **AC4.** *(caduc depuis TCK-2609/TCK-2610/TCK-2611, encart du 2026-11-10)* Le rendu de la page n'émet aucune requête `POST` ; la mesure d'audience ne reçoit pas le
       jeton.
-- [ ] **AC5.** Un compte à 2FA renouvelle son appareil : step-up, nouveau QR, confirmation ; l'ancien
+- [x] **AC5.** Un compte à 2FA renouvelle son appareil : step-up, nouveau QR, confirmation ; l'ancien
       code ne passe plus.
-- [ ] **AC6 (rouge sur `839be671`).** Un `viewer` voit l'entrée de la console dans `/app` ; un
+- [x] **AC6 (rouge sur `839be671`).** Un `viewer` voit l'entrée de la console dans `/app` ; un
       `support` sans 2FA est conduit à l'enrôlement au lieu de `/app` *(seconde moitié tenue par
       TCK-1203, relevé 2026-11-16 ; reste la première)*.
 
@@ -160,3 +160,28 @@ bout de chaîne, hors critères, à trancher » ; `FILE-D-ATTENTE.md` 15:35).
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Remplacer l'appareil** (`TwoFactorSection`) : un bouton à côté de « Régénérer les codes », qui
+  s'explique d'abord (l'ancien appareil cesse de marcher à la confirmation, les codes de secours sont
+  remplacés, jusque-là rien ne change), puis `enable` sous la garde du step-up, QR du nouvel appareil,
+  `confirm` « Confirmer le nouvel appareil ». Abandonner est sans effet : l'API garde l'ancien secret
+  jusqu'à `confirm` (`TwoFactorController::confirmRenewal`).
+- **AC5** — `TwoFactorSection.remplacer.tck-610.test.tsx` (4 tests : explication sans appel, step-up →
+  QR → confirmation, step-up refusé, abandon). Ablation : `enable` sans `avecGardeDoubleFacteurAction`
+  → rouge. « L'ancien code ne passe plus » se DÉDUIT du secret remplacé à la confirmation, que prouve
+  `TwoFactorRenewalTest` côté API (aucune assertion n'y rejoue un code de l'ancien appareil après
+  renouvellement ; aucun changement back dans ce ticket).
+- **Entrée de console** : `accesALaConsole` (`lib/navigation/acces-console.ts`) lit
+  `GET /api/admin/me/abilities` dans le layout de `/app`, avec le jeton de la COQUE (`getToken`, la
+  cible pendant une impersonation), en parallèle des lectures d'accès ; le `super_admin` n'en paie
+  aucune. Le refus `two_factor_required` compte comme une entrée (`EnsureSuperAdmin` teste le profil
+  plateforme avant la 2FA) : la console conduit ensuite à l'enrôlement (TCK-1203). Toute autre panne
+  ferme l'entrée sans faire tomber `/app`.
+- **AC6** — `acces-console.tck-610.test.ts` (8 tests) et `AppSidebar.test.tsx` (`viewer`, `support` au
+  profil d'agence, client sans le geste), `AppShell.console.tck-610.test.tsx` (colonne et tiroir).
+  Ablations : condition ramenée au rôle → 2 rouges ; forcée à vrai → 2 rouges ; branche `doubleFacteur`
+  retirée → 2 rouges ; `catch` retiré → 1 rouge ; prop retirée d'un montage d'`AppShell` → 1 rouge
+  (chacun des deux). Sous impersonation, le layout ne lit rien (l'API refuse `/api/admin/*` à ce jeton).
+
