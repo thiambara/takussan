@@ -42,3 +42,11 @@ plus un avis qu'il avait signalé.
   illisibles) restent lus sous `APP_KEY` : c'est attendu, rien à corriger.
 
 ## Historique
+
+- 2026-11-16, préproduction — **étapes 1 à 3 faites** (session, à la demande du porteur) : valeur tirée de 48 octets
+  aléatoires, posée par `compose.update` (200) dans le Compose `takussan-api-preview` juste après `APP_KEY` ;
+  relue : 316 lignes, les 315 autres intactes. Empreinte **`d70339bd3886`** (12 premiers caractères du `sha256`),
+  identique dans le trousseau macOS du porteur (service `takussan-preview-APP_HMAC_KEY`). Environnement d'avant
+  sauvegardé : `~/Sauvegardes/env-takussan-api-preview-avant-app-hmac-key-2026-11-16.env` (0600). Aucun
+  redéploiement déclenché : **restent les étapes 4 et 5** à la promotion qui livre TCK-614 — `preview` reste
+  `a-faire` jusque-là.
