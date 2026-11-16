@@ -66,7 +66,7 @@ a joué la suite entière : sa durée vaut mesure.
       du job statique — un shard nettement plus lourd que les autres se dit.
 - [x] AC2 — Ablation en CI : un test rendu rouge dans UN seul shard rend `quality` **rouge** (et non
       sauté), et la liste des artefacts du run ne contient **aucun** `ci-vert-web-*`.
-- [ ] AC3 — Un arbre déjà attesté (push suivant qui ne change pas la clé `web`) : `statique` et les 4
+- [x] AC3 — Un arbre déjà attesté (push suivant qui ne change pas la clé `web`) : `statique` et les 4
       shards sont *skipped*, `quality` est **vert** et ne redépose pas d'artefact.
 
 ## Hors périmètre
@@ -91,5 +91,9 @@ _(à remplir par implementing-specs)_
   43915535384, 43916471402, 43921607586 : Vitest seul 18,5 à 26,3 min). Par job : `statique` 9,3 min,
   shards 7,2 / 9,4 / 6,0 / 6,3 min, agrégateur 0,1 min ; 480 + 480 + 480 + 479 = **1 919 fichiers**, tous
   verts ; artefact `ci-vert-web-96337e54…` déposé par l'agrégateur seul. Deux runs restent à relever.
-- **AC3** — se relève au push du merge sur `dev` : même clé `web` que la PR, l'attestation doit tout faire
-  sauter et `quality` rester vert.
+- **AC3, tenu** — push de `15b7119d2` sur la PR (documentation seule, même clé `web`), run 43956487948 :
+  `attestation` trouve l'artefact, `statique` et les 4 shards **skipped**, `Web (ESLint + tsc + Vitest +
+  build)` **vert en 3 s** (« Arbre déjà attesté vert (ADR-0063) : rien n'est rejoué ») ; aucun nouvel
+  artefact `ci-vert-web-*` déposé (le délai de 7 jours n'est pas prolongé par un saut).
+- **AC1, deuxième relevé** — run de `5b5e5c98f` : shards 7,0 / 6,7 / 9,6 / 9,4 min, `statique` 7,9 min,
+  agrégateur 5 s. Le troisième se relèvera sur la prochaine PR qui touche le front.
