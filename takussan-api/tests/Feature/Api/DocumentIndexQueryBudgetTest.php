@@ -73,7 +73,8 @@ class DocumentIndexQueryBudgetTest extends TestCase
         [$two, $json] = $this->mediaQueries(self::URL);
 
         $this->assertNotNull($json['data'][0]['file_name'], 'la ligne doit rendre son fichier');
-        $this->assertSame(2, $json['data'][0]['active_version']['version_number'] ?? null, 'la version active est la dernière téléversée');
+        // TCK-2898 — au premier remplacement, le fichier d'origine devient la version 1 : les deux téléversées sont 2 et 3.
+        $this->assertSame(3, $json['data'][0]['active_version']['version_number'] ?? null, 'la version active est la dernière téléversée');
 
         for ($i = 0; $i < 10; $i++) {
             $this->documentAvecFichierEtVersions();

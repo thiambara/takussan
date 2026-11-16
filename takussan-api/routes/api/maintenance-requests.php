@@ -59,7 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-2911 (ADR-0120 § 3) — les devis concurrents consultés : le personnel de l'agence du bien.
     Route::post('maintenance-requests/{maintenanceRequest}/quote-alternatives', [MaintenanceQuoteAlternativeController::class, 'store'])->name('maintenance-requests.quote-alternatives.store');
     Route::delete('maintenance-requests/{maintenanceRequest}/quote-alternatives/{alternative}', [MaintenanceQuoteAlternativeController::class, 'destroy'])
-        ->whereNumber('alternative')->name('maintenance-requests.quote-alternatives.destroy');
+        ->where('alternative', '[0-9]{1,18}')->name('maintenance-requests.quote-alternatives.destroy');
 
     // History per property
     Route::get('properties/{property}/maintenance-requests', [MaintenanceRequestController::class, 'indexForProperty'])->name('properties.maintenance-requests.index');

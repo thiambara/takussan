@@ -12,6 +12,7 @@ use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\NotificationChannel;
 use App\Models\Enums\NotificationType;
+use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgentProfile;
@@ -75,6 +76,8 @@ class AgenceDeLaCibleTest extends TestCase
             'lead' => PropertyContactLead::factory()->create(['property_id' => $bien->id])->id,
             'visit' => PropertyVisit::factory()->create(['property_id' => $bien->id])->id,
             'maintenance' => MaintenanceRequest::factory()->create(['property_id' => $bien->id])->id,
+            // TCK-2913
+            'inventory' => Inventory::factory()->create(['property_id' => $bien->id])->id,
         ];
         $this->assertSame(array_keys(AgenceDeLaCible::OBJETS), array_keys($objets), 'Un objet d\'agence neuf demande sa ligne ici.');
 

@@ -112,7 +112,8 @@ class LeaseIndexQueryCountTest extends ApiTestCase
         $data = $this->getJson($url)->assertOk()->json('data');
         $this->assertSame(['id' => $this->owner->id, 'first_name' => 'Aminata', 'last_name' => 'DIALLO', 'full_name' => 'Aminata DIALLO', 'phone' => '+221770000001'], $data['landlord']);
         $this->assertSame($this->agent->id, $data['agent']['id']);
-        $this->assertArrayNotHasKey('phone', $data['agent']);
+        // TCK-2906 — le téléphone de l'agent sort vers le personnel de l'agence (règle entière : LeaseAgentPhoneVisibilityTest).
+        $this->assertArrayHasKey('phone', $data['agent']);
         $this->assertSame('+221770000001', $this->getJson('/api/leases?include=landlord')->json('data.0.landlord.phone'), 'la liste sert la même projection');
 
         $this->actingAsApi($this->owner);
@@ -122,6 +123,7 @@ class LeaseIndexQueryCountTest extends ApiTestCase
         $asTenant = $this->getJson($url)->assertOk()->json('data');
         $this->assertSame('Aminata DIALLO', $asTenant['landlord']['full_name']);
         $this->assertArrayNotHasKey('phone', $asTenant['landlord']);
+        $this->assertArrayNotHasKey('phone', $asTenant['agent'], 'TCK-2906 — jamais au locataire');
 
         $this->assertArrayNotHasKey('landlord', $this->getJson("/api/leases/{$lease->id}")->json('data'));
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\JourIso;
 use App\Support\Http\ParametreUnique;
 use Carbon\CarbonImmutable;
 
@@ -22,7 +23,7 @@ class OwnerMaintenanceSummaryRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return ['since' => ['nullable', 'date_format:Y-m-d']];
+        return ['since' => ['nullable', 'date_format:Y-m-d', new JourIso]]; // TCK-2911 — l'année bornée (TCK-2768)
     }
 
     public function since(): CarbonImmutable

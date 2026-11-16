@@ -153,7 +153,10 @@ final class BatirLArchiveDuCoffreJob implements ShouldQueue
      */
     public static function cibleDe(string $dossier): NotificationTarget
     {
-        return NotificationTarget::of($dossier === 'receipts:all' || str_starts_with($dossier, 'receipts:lease:') ? 'receipts_archive' : 'document_archive');
+        // Deux littéraux, et non un genre calculé : la garde des avis de section (TCK-1761) lit le genre au site d'appel.
+        return $dossier === 'receipts:all' || str_starts_with($dossier, 'receipts:lease:')
+            ? NotificationTarget::of('receipts_archive')
+            : NotificationTarget::of('document_archive');
     }
 
     /** Le disque des médias privés : `local` en dev et en test, `r2-private` ensuite (ADR-0029). */

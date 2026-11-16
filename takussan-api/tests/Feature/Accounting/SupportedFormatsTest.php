@@ -64,7 +64,7 @@ class SupportedFormatsTest extends ApiTestCase
 
     public function test_ac3_un_prereglage_avec_son_fichier_d_epreuve_parait(): void
     {
-        $this->registryWith('tests/Fixtures/bank/sample.csv');
+        $this->registryWith('tests/fixtures/bank/sample.csv');
 
         $this->formats()->assertOk()
             ->assertJsonPath('data.banks.0.code', 'banque_fictive')
@@ -74,7 +74,7 @@ class SupportedFormatsTest extends ApiTestCase
 
     public function test_un_prereglage_sans_fichier_d_epreuve_n_est_pas_servi(): void
     {
-        $this->registryWith('tests/Fixtures/bank/absent.csv');
+        $this->registryWith('tests/fixtures/bank/absent.csv');
 
         $this->formats()->assertOk()->assertJsonPath('data.banks', []);
     }

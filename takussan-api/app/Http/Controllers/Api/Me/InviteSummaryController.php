@@ -102,7 +102,7 @@ class InviteSummaryController extends Controller
 
         return $payment === null ? null : [
             'amount' => round((float) $payment->amount, 2),
-            'paid_at' => $payment->paid_at === null ? null : Carbon::parse($payment->paid_at)->toIso8601String(),
+            'paid_at' => $this->instant($payment->paid_at === null ? null : Carbon::parse($payment->paid_at)),
         ];
     }
 }

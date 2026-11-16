@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\JourIso;
 use App\Support\Http\ParametreUnique;
 use Carbon\CarbonImmutable;
 use Illuminate\Validation\Validator;
@@ -26,8 +27,8 @@ class ServiceProviderBillStatementRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to' => ['nullable', 'date_format:Y-m-d'],
+            'from' => ['nullable', 'date_format:Y-m-d', new JourIso], // TCK-2911 — l'année bornée (TCK-2768)
+            'to' => ['nullable', 'date_format:Y-m-d', new JourIso], // TCK-2911 — l'année bornée (TCK-2768)
         ];
     }
 
