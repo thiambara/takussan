@@ -6,6 +6,7 @@ use App\Models\Enums\NotificationType;
 use App\Models\User;
 use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -42,8 +43,8 @@ class SuperAdminAcceptedBroadcast extends Notification implements ShouldQueue
             ]))
             ->greeting(__('notifications.greeting'))
             ->line(__('super_admins.cooptation.notifications.accepted.body', [
-                'name' => $this->nomAffiche(),
-                'email' => $this->newSuperAdmin->email,
+                'name' => MarkdownText::escape($this->nomAffiche()),
+                'email' => MarkdownText::escape((string) $this->newSuperAdmin->email),
             ]))
             ->salutation(__('notifications.salutation'));
     }

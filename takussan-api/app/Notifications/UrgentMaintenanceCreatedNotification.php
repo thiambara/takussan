@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -71,13 +72,13 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
         if ($this->isEscalation) {
             $mail->line(__('notifications.urgent_maintenance.intro_escalation', [
                 'id' => $this->maintenanceRequest->id,
-                'title' => $title,
+                'title' => MarkdownText::escape((string) $title),
             ]));
         } else {
             $mail->line(__($this->becameUrgent
                 ? 'notifications.urgent_maintenance.intro_became_urgent'
                 : 'notifications.urgent_maintenance.intro'))
-                ->line(__('notifications.urgent_maintenance.job', ['title' => $title]));
+                ->line(__('notifications.urgent_maintenance.job', ['title' => MarkdownText::escape((string) $title)]));
         }
 
         return $mail

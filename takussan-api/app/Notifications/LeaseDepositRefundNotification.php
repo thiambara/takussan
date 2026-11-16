@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\PrivateMediaAccess;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -74,12 +75,12 @@ class LeaseDepositRefundNotification extends Notification implements ShouldQueue
         if ($this->retained > 0) {
             $message->line(__('notifications.lease_deposit_refunded.retention', [
                 'amount' => app(CurrencyFormatter::class)->format($this->retained, $this->lease->currency ?? Currency::XOF, app()->getLocale()),
-                'reason' => $this->reason !== '' ? $this->reason : '—',
+                'reason' => $this->reason !== '' ? MarkdownText::escape($this->reason) : '—',
             ]));
         }
 
         foreach ($this->attachments() as $attachment) {
-            $message->line('• '.$attachment['name'].' — '.$attachment['url']);
+            $message->line('• '.MarkdownText::escape((string) $attachment['name']).' — '.$attachment['url']);
         }
 
         return $message->salutation(__('notifications.salutation'));

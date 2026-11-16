@@ -7,6 +7,7 @@ use App\Models\Enums\NotificationType;
 use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Support\LienFront;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -41,7 +42,7 @@ class AgencyUpgradeRejectedNotification extends Notification implements ShouldQu
             // P155.05 (TCK-1441) — les formules du dépôt, plus celles du gabarit de Laravel.
             ->greeting(__('notifications.greeting'))
             ->subject(__('agency_upgrade.notifications.rejected.subject'))
-            ->line(__('agency_upgrade.notifications.rejected.body', ['comment' => $comment]))
+            ->line(__('agency_upgrade.notifications.rejected.body', ['comment' => MarkdownText::escape((string) $comment)]))
             ->action(__('agency_upgrade.notifications.rejected.action'), $resubmitUrl)
             ->salutation(__('notifications.salutation'));
     }

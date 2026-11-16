@@ -120,17 +120,17 @@ d'y échapper.
 
 ## Delta à produire
 
-- [ ] `NotificationRenderer::format` / `render` : échappement des paramètres texte sur la surface
+- [x] `NotificationRenderer::format` / `render` : échappement des paramètres texte sur la surface
       `mail_body` (et `mail_subject` **exclu**), y compris le complément libre de `reasonCode` et les
       variables texte de `templateData`. `CodedNotification`, `PropertyApprovedNotification` et
       `PropertyRejectedNotification` en héritent sans autre changement.
-- [ ] Les classes hors code de l'inventaire : `MarkdownText::escape` sur chaque saisie passée au
+- [x] Les classes hors code de l'inventaire : `MarkdownText::escape` sur chaque saisie passée au
       corps (`->line()`, `->greeting()`, paramètres de `__()` rendus dans le corps).
       ~~`NewBookingNotification` : les variables du gabarit éditable rendues dans le corps.~~ — caduc
       depuis 5f98fcf0c : `templateData` (premier Delta) couvre `booking_confirmed`.
-- [ ] `app/Mail/*` : relu ; `InvitationMailable` ne rend aujourd'hui que des libellés (le rôle) et
+- [x] `app/Mail/*` : relu ; `InvitationMailable` ne rend aujourd'hui que des libellés (le rôle) et
       les deux résumés échappent déjà (599) — la garde d'AC4 les couvre quand même.
-- [ ] Tests : `tests/Feature/Notifications/SaisieDansTousLesEmailsTest` (AC1 à AC5).
+- [x] Tests : `tests/Feature/Notifications/SaisieDansTousLesEmailsTest` (AC1 à AC5).
 
 ## Critères d'acceptation
 
@@ -138,34 +138,34 @@ La charge utile de référence, notée `P` : `[Payez ici](https://evil.example/l
 « Vivant » = un `href` ou un `src` vers `evil.example` dans le HTML rendu par `MailMessage::render()`
 (ou le `Mailable` rendu).
 
-- [ ] **AC1 (le relais anonyme, rouge sur `839be671`).** `POST /api/public/properties/{slug}/contact-lead`
+- [x] **AC1 (le relais anonyme, rouge sur `839be671`).** `POST /api/public/properties/{slug}/contact-lead`
       sans compte, `name` = `P`, `message` = `P` : l'e-mail `lead.received` de l'agent ne contient
       **aucun** lien ni image vivant, et le texte de `P` y est lisible. Même assertion par
       `POST /api/public/agents/{slug}/contact-lead`. *Rouge aujourd'hui : 3 liens ou images vivants.*
-- [ ] **AC2 (toutes les notifications par code, garde structurelle).** Un test parcourt
+- [x] **AC2 (toutes les notifications par code, garde structurelle).** Un test parcourt
       **`NotificationCode::cases()`** — pas une liste écrite à la main — et, pour chaque code,
       remplit **chaque** paramètre de type texte de `P` (les autres de valeurs valides), rend
       `CodedNotification::toMail` pour un `User` et pour un `AnonymousNotifiable` : zéro lien ou
       image vivant. Un code ajouté demain est couvert sans toucher au test.
-- [ ] **AC3 (l'échappement ne déborde pas).** Pour les mêmes codes : le **sujet** de l'e-mail, le
+- [x] **AC3 (l'échappement ne déborde pas).** Pour les mêmes codes : le **sujet** de l'e-mail, le
       texte SMS (`toSms`) et le corps de la cloche (`toBroadcast`) portent `P` **à l'identique**,
       sans barre oblique ajoutée. Et `Awa & Fils [SARL]` se lit à l'identique dans l'e-mail rendu.
       *Un correctif qui échapperait toutes les surfaces rougit ici.*
-- [ ] **AC4 (l'inventaire est exhaustif par construction).** Un test énumère par réflexion **toutes**
+- [x] **AC4 (l'inventaire est exhaustif par construction).** Un test énumère par réflexion **toutes**
       les classes de `app/Notifications` qui définissent `toMail`, et toutes celles de `app/Mail`.
       Chacune figure soit dans le jeu de données du test d'injection (un cas qui construit la
       notification avec `P` dans chaque champ saisi, et affirme zéro lien ou image vivant), soit
       dans une table d'exemption **avec sa raison** (« aucune saisie : libellés et références
       générés »). Une classe absente des deux rougit le test, avec son nom. *Une notification
       ajoutée sans échappement ne peut pas passer en silence.*
-- [ ] **AC5 (chaque cas de l'inventaire mord).** Les 8 classes hors code du tableau du Contexte
+- [x] **AC5 (chaque cas de l'inventaire mord).** Les 8 classes hors code du tableau du Contexte
       ont leur cas dans le jeu de données d'AC4 ; les codes du tableau (dont `message.group_invite`
       et `booking.confirmed`, ex-classes) sont couverts par AC2 *(« les 12 classes » jusqu'au
       2026-11-16)*. Ablation, consignée dans les Notes : retirer
       l'échappement de `NotificationRenderer` rougit AC1 et AC2 ; le retirer de chacune des
       classes hors code rougit **son** cas. Une ablation verte est un test à resserrer, pas un
       constat.
-- [ ] **AC6.** `php artisan test tests/Feature/Search/SaisieDansLesEmailsTest.php` reste vert (les
+- [x] **AC6.** `php artisan test tests/Feature/Search/SaisieDansLesEmailsTest.php` reste vert (les
       e-mails de 599 ne sont pas doublement échappés).
 
 ## Hors périmètre
@@ -179,3 +179,28 @@ La charge utile de référence, notée `P` : `[Payez ici](https://evil.example/l
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Un seul point pour les codes** : `NotificationRenderer::render()` échappe, sur `mail_body` seul, tout paramètre
+  hors `money`/`date`/`datetime`/`count`/`url` — donc `text`, mais aussi `person`, le complément libre de
+  `reason_code` et de `booking_rejection_reason`, et la valeur brute qu'un libellé inconnu laisse passer (`role`,
+  `month`, pièce, créneau, réponse) — ainsi que `user.first_name` des gabarits éditables. `format()` (public, lu par
+  les variables Meta WhatsApp) reste brut.
+- **Hors code, à la source, et au-delà des 8 de l'inventaire** : la réflexion d'AC4 a trouvé cinq classes de plus qui
+  rendaient une saisie (`AgentTenantInventoryReminder` nom du locataire, `SuperAdminAcceptedBroadcast` nom/e-mail,
+  `InvitationAccepted`/`InvitationExpired` contact invité, `ActivityLogExportReady` nom de fichier) : échappées aussi.
+  Le sujet n'est jamais échappé.
+- `PayoutBeneficiaryNotificationsTest` lisait la référence dans la SOURCE Markdown (`introLines`) : il la lit désormais
+  dans l'e-mail rendu.
+- Preuves : `tests/Feature/Notifications/SaisieDansTousLesEmailsTest.php` (8 tests, 2403 assertions). AC1 : deux
+  tests `ac1_*` (bien et agent). AC2 : `ac2_aucun_code…` (tous les `cases()`, `User` et `AnonymousNotifiable`, avec et
+  sans facultatifs) + `ac2_les_gabarits_editables…`. AC3 : `ac3_sujet_sms_et_cloche…` + `ac3_une_saisie_echappee…`.
+  AC4 : `ac4_toute_classe…` (réflexion `app/Notifications` + `app/Mail`, exemptions motivées). AC5 : `ac5_chaque_classe…`
+  (17 cas). AC6 : `SaisieDansLesEmailsTest` vert (6).
+- Ablations, toutes rouges puis restaurées (md5) : échappement des paramètres du rendu (rougit AC1 ×2 et AC2), prénom
+  du gabarit (rougit le test des gabarits), échappement restreint à `text` (rougit AC2 : `person` etc.), échappement
+  étendu à toutes les surfaces (rougit AC3), chacune des 13 classes hors code (rougit AC5), les pièces jointes seules
+  du remboursement de dépôt et le seul chemin non escaladé de la maintenance urgente (rougissent AC5), une exemption
+  retirée (rougit AC4).
+

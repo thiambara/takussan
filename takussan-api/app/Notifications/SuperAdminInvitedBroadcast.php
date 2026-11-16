@@ -7,6 +7,7 @@ use App\Models\Invitation;
 use App\Models\User;
 use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -48,8 +49,8 @@ class SuperAdminInvitedBroadcast extends Notification implements ShouldQueue
             ]))
             ->greeting(__('notifications.greeting'))
             ->line(__('super_admins.cooptation.notifications.invited.body', [
-                'inviter' => $inviterName,
-                'email' => $targetEmail,
+                'inviter' => MarkdownText::escape($inviterName),
+                'email' => MarkdownText::escape((string) $targetEmail),
             ]))
             ->salutation(__('notifications.salutation'));
     }
