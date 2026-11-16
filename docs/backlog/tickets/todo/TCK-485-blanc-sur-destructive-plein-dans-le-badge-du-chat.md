@@ -1,6 +1,6 @@
 ---
 id: TCK-485
-title: "Le badge du chat pose du blanc sur `--destructive` plein : 2,77:1 en thème sombre"
+title: "Le badge du chat pose du blanc sur `--destructive` plein : 2,45:1 en thème sombre"
 status: todo
 phase: P2
 family: front
@@ -90,21 +90,21 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Trancher, et écrire la décision avec les deux ratios mesurés.
-- [ ] Chercher les autres `bg-destructive` PLEIN avant de corriger celui-ci : le relevé du
+- [x] Trancher, et écrire la décision avec les deux ratios mesurés.
+- [x] Chercher les autres `bg-destructive` PLEIN avant de corriger celui-ci : le relevé du
       2026-08-30 en donne **deux, tous deux dans ce fichier** — mais il partait d'un littéral,
       et une recette de variante ne s'y verrait pas. *(2026-11-16 : faux aujourd'hui — sept autres
       sites pleins, tous conformes ; liste ci-dessus.)*
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — le texte de la pastille atteint 4,5:1 sur son fond réel, dans les **deux**
+- [x] **AC1** — le texte de la pastille atteint 4,5:1 sur son fond réel, dans les **deux**
       thèmes, mesuré par calcul sur les couleurs RENDUES.
-- [ ] **AC2** — `node scripts/check-destructive-contrast.mjs` reste vert, et gagne le couple
+- [x] **AC2** — `node scripts/check-destructive-contrast.mjs` reste vert, et gagne le couple
       inverse : cette garde déclare aujourd'hui, dans « CE QU'ELLE NE VOIT PAS », qu'elle ne
       mesure pas le texte posé SUR le jeton. *Un trou déclaré reste un trou* — c'est la leçon
       que TCK-480 a payée sur `--destructive` lui-même.
-- [ ] **AC3** — ablation : rétablir le couple d'aujourd'hui fait rougir AC1 et AC2, changement
+- [x] **AC3** — ablation : rétablir le couple d'aujourd'hui fait rougir AC1 et AC2, changement
       prouvé par `md5` **avant** lecture du résultat.
 
 ## Hors périmètre
@@ -117,3 +117,27 @@ Mesuré en marge de TCK-480, pendant le recensement des littéraux : c'est le se
 `bg-destructive` **plein** du dépôt *(plus vrai au 2026-11-16 : sept autres, conformes)*, et il était invisible au périmètre du ticket parce que son
 encre n'est pas le jeton. *Un recensement par littéraux trouve ce qui peint AVEC ; ce qui est
 peint DESSUS demande de retourner la question.*
+
+## Livré (2026-11-16)
+
+- **Décision : `text-white` → `text-background`** aux deux pastilles de `CorpsDuWidget.tsx` (:329
+  bureau, :356 mobile) — la convention des sept autres `bg-destructive` pleins. Ratios mesurés :
+  **6,61:1** en clair (`#fcf9f3` sur `#b70110`), **7,17:1** en sombre (`#1f1812` sur `#ff7f7d`),
+  contre 6,94 / **2,45:1** avant. Le jeton n'est pas touché.
+- **Relevé des pleins porteurs d'encre : neuf sites**, dérivés du source par la garde (les deux
+  pastilles + `gestes.tsx`, `ReversementsAApprouver.tsx`, `GlobalAnnouncementBanner.tsx`,
+  `MaintenanceBanner.tsx`, `Pastilles.tsx`, et au survol `CompareColonnes.tsx`,
+  `CompareFloatingBar.tsx`) ; tous ≥ 6,61:1.
+- **AC1** — `ChatWidget.badge-contraste.tck-485.test.tsx` : rend le widget, lit les classes des
+  DEUX pastilles dans le DOM, les résout contre `JETONS_CLAIR` et `JETONS_SOMBRE`
+  (`src/test/contraste-wcag.ts`) et exige 4,5:1. Le widget n'est sous aucune portée `.dark`
+  (`portees-sombres.ts`) mais sous `html.dark` au choix de l'utilisateur : le sombre est exigé.
+- **AC2** — `check-destructive-contrast.mjs` gagne un **contrôle C** (texte SUR `bg-destructive`
+  plein, variantes `hover:`/`group-hover:`/`dark:` appariées à leur `text-*`), le trou déclaré est
+  retiré, et un C qui n'apparie rien rougit. ⚠ C lit **ligne par ligne**, pas par le lexeur
+  `CHAINES` : celui-ci se désynchronise sur une apostrophe de commentaire et manquait
+  `MaintenanceBanner.tsx` et `CompareColonnes.tsx`.
+- **AC3** — ablation : `CorpsDuWidget.tsx` d'avant rétabli (md5 `9a9e4e8b…` vérifié avant
+  lecture) → le test rougit (2 échecs, `2,45:1`), la garde rougit (2 constats, `:329` et `:356`) ;
+  restauré par `cp`, md5 `fc98b7a4…` vérifié.
+
