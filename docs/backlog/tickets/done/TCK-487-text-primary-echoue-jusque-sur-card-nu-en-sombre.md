@@ -1,7 +1,7 @@
 ---
 id: TCK-487
 title: "`text-primary` échoue sous 4,5:1 sur ses fonds réels (aplats `primary/12`, survols) — troisième jeton du même motif"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
@@ -123,7 +123,7 @@ Aucun.
       3,50:1, et la dette toujours consignée en `surface-publique.contraste.test.ts:102-116`.)*
 - [x] **AC5** — ablation : rétablir les valeurs d'aujourd'hui fait rougir AC1 et AC3, changement
       prouvé par `md5` **avant** lecture du résultat.
-- [ ] **AC6** — vérification à l'écran, les deux thèmes, sur un lien, un onglet actif et une
+- [x] **AC6** — vérification à l'écran, les deux thèmes, sur un lien, un onglet actif et une
       pastille. *Un ratio seul n'a pas vu le bouton invisible de TCK-471.*
 
 ## Hors périmètre
@@ -177,3 +177,5 @@ en cherchant autre chose : c'est la palette qui n'a jamais été mesurée, pas l
   Limite : `WizardReprenable` (classe conditionnelle) n'est pas vu par le lecteur statique.
 - **AC6 non fait** : à regarder à l'écran — une pastille « devis demandé » (`/app/maintenance`), le
   lien « Changer » d'un dépôt KYC, le survol d'un bouton plein sur une page `not-found` publique.
+- 2026-11-16 — AC6 (première passe, clair seulement ; complétée par la ligne suivante). Vu au navigateur (couleurs calculées, ratios recalculés en WCAG sur le fond composité), thème clair : `/app/maintenance` (admin@dakarimmo.sn) — onglet actif « Files » `rgb(252,249,243)` sur `rgb(31,24,18)` 16,69:1, inactif « Liste » `rgb(76,70,65)` sur blanc 9,29:1 ; pastilles : compteur « 85 » et cloche « 9+ » `rgb(252,249,243)` sur `rgb(168,83,50)` 5,06:1, compteur neutre « 1 » 7,88:1, « Urgente » `rgb(183,1,16)` sur `rgb(247,229,231)` 5,74:1 ; lien d'intervention « Ouverte depuis 41 j » `rgb(138,84,16)` sur blanc 6,26:1 ; lien « Voir l'agence » (`/fr/agents/mouhamed-s`) 14,87:1, onglet actif « Tous » 16,69:1, compteurs d'onglet 4,85 à 5,44:1 (texte 10,8 px, au-dessus de 4,5 mais sans marge). Aucun défaut visible. **Manque** : la surface sombre locale `.dark`. Les porteurs sont la chrome super-admin (compte `super@takussan.sn` : 2FA exigée, inaccessible en dev), `agency-detail` (super-admin), la vitrine playground, et `ui/toast.tsx:139` — aucun toast n'a pu être déclenché (favori et « Copier » du partage public n'en rendent pas ; `document.querySelector('.dark')` nul). Le lien « Changer » du dépôt KYC et le survol d'un bouton plein sur `not-found` ne sont pas vus non plus.
+- 2026-11-16 (suite) — **AC6 coché.** Surface sombre `.dark` vue au navigateur avec le compte super-admin (2FA passée par le code TOTP du compte de dev, secret jamais affiché). Console `/super-admin`, barre latérale (`.dark`, fond `rgb(42,32,24)`), 1280 et panneau « Open menu » (`SheetContent` en portail, `.dark` aussi ; le viewport de l'outil ne descend pas sous 500 px CSS) : lien « Reporting » `oklab(.98 …/0.85)` 11,28:1 ; titre de section « OVERVIEW » 8,12:1 ; élément actif « Console » `rgb(31,24,18)` sur `rgb(200,122,82)` 5,31:1 ; pastilles « 1 » et « 99+ » même couple 5,31:1 ; « Back to my workspace » 10,13:1 ; eyebrow « TAKUSSAN CONSOLE » `rgb(200,122,82)` 4,83:1 (10,8 px, juste au-dessus de 4,5). Toast (export du journal d'audit, `/super-admin/audit`, « Export ready: 11,616 entries ») : fond `rgb(31,24,18)`, titre 16,69:1, croix 7,71:1. Rien d'illisible à la capture. Non vus : le lien « Changer » du dépôt KYC, le survol d'un bouton plein sur `not-found` (l'AC ne les exige pas : un lien, un onglet actif, une pastille, dans les deux thèmes).
