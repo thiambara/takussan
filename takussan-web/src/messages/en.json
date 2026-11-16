@@ -16754,6 +16754,61 @@
         "submit": "Remove",
         "failed": "The featured spot could not be removed."
       }
+    },
+    "photosDeQuartier": {
+      "tabs": {
+        "proposals": "Proposals",
+        "approved": "Approved neighbourhoods"
+      },
+      "title": "Neighbourhood photos",
+      "description": "Approved neighbourhoods, those with the most listings first. Their photo appears on the homepage tiles, without credit.",
+      "city": "City",
+      "allCities": "All cities",
+      "noCity": "No city found.",
+      "search": "Search a neighbourhood",
+      "searchSubmit": "Search",
+      "error": "Neighbourhoods could not be loaded.",
+      "retry": "Retry",
+      "emptyTitle": "No approved neighbourhood",
+      "emptyDescription": "Change the city or the search.",
+      "addresses": "{count, plural, =0 {No address} =1 {# address} other {# addresses}}",
+      "noPhoto": "No photo",
+      "source": {
+        "upload": "Uploaded photo",
+        "wikimedia": "Photo from Wikimedia Commons"
+      },
+      "upload": "Upload a photo",
+      "uploadLabel": "Photo of {name} (JPEG, PNG or WebP, 10 MB max)",
+      "remove": "Remove",
+      "removeConfirmTitle": "Remove the photo",
+      "removeConfirm": "Remove the photo of {name}? The homepage tile will show the pattern again.",
+      "removeConfirmAction": "Remove the photo",
+      "cancel": "Cancel",
+      "unsplash": "Search on Unsplash",
+      "newTab": "(new tab)",
+      "done": {
+        "uploaded": "Photo saved.",
+        "imported": "Photo imported.",
+        "removed": "Photo removed."
+      },
+      "suggestions": {
+        "toggle": "Wikimedia suggestions",
+        "loading": "Looking for suggestions…",
+        "error": "Suggestions could not be loaded.",
+        "unavailable": "Wikimedia is not responding right now: upload a photo or search on Unsplash.",
+        "empty": "Wikimedia has no credit-free photo for this neighbourhood.",
+        "hint": "Photos free of any attribution. One click imports the photo.",
+        "import": "Import {title}"
+      },
+      "errors": {
+        "generic": "The photo could not be saved.",
+        "fileType": "Format not accepted: choose a JPEG, PNG or WebP image.",
+        "fileSize": "File too large: 10 MB max.",
+        "notApproved": "This neighbourhood is no longer approved: its photo cannot be changed.",
+        "attributionRequired": "This photo now requires a credit: it cannot be imported.",
+        "sourceNotFound": "This photo no longer exists on Wikimedia Commons.",
+        "sourceUnavailable": "Wikimedia Commons is not responding: try again later or upload a file."
+      }
     }
   },
   "adminSettings": {

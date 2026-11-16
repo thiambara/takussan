@@ -285,6 +285,13 @@ return [
         'name_taken' => 'This name is already used in this city.',
         'neighborhood_not_pending' => 'This neighbourhood is no longer awaiting moderation.',
     ],
+    'geo_cover' => [
+        'attribution_required' => 'This file now requires crediting its author: it cannot be used as a neighbourhood photo.',
+        'not_approved' => 'Only an approved, unmerged neighbourhood can have a photo.',
+        'source_invalid' => 'The Wikimedia file is not a JPEG, PNG or WebP image of at most 10 MB served by upload.wikimedia.org.',
+        'source_not_found' => 'This file does not exist on Wikimedia Commons.',
+        'source_unavailable' => 'Wikimedia Commons is not responding. Try again later, or upload the photo yourself.',
+    ],
     'guarantor' => [
         // TCK-2893
         'attached_to_open_booking' => 'This guarantor is declared on an application or offer still in progress: remove them from the request first.',

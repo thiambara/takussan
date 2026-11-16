@@ -26,13 +26,13 @@ class GeoNeighborhoodAdminController extends Controller
     {
         $base = GeoNeighborhood::query()
             ->whereNull('merged_into_id')
-            ->with(['city.region', 'createdBy'])
+            ->with(['city.region', 'createdBy', 'media'])
             ->withCount('addresses');
 
         $paginator = GeoNeighborhood::buildQuery($base, $request)->defaultSort('-created_at')->paginate();
         $proches = $this->prochesApprouves($paginator->getCollection());
 
-        return $this->paginated($paginator, $paginator->getCollection()->map(fn (GeoNeighborhood $q) => $this->format($q) + [
+        return $this->paginated($paginator, $paginator->getCollection()->map(fn (GeoNeighborhood $q) => $this->ligne($q) + [
             'similar' => $proches[$q->id] ?? [],
         ])->values());
     }
@@ -75,30 +75,36 @@ class GeoNeighborhoodAdminController extends Controller
 
     public function approve(Request $request, GeoNeighborhood $neighborhood): JsonResponse
     {
-        return $this->json(['data' => $this->format($this->moderation->approuver($neighborhood, $request->user()))]);
+        return $this->json(['data' => $this->ligne($this->moderation->approuver($neighborhood, $request->user()))]);
     }
 
     public function reject(Request $request, GeoNeighborhood $neighborhood): JsonResponse
     {
-        return $this->json(['data' => $this->format($this->moderation->rejeter($neighborhood, $request->user()))]);
+        return $this->json(['data' => $this->ligne($this->moderation->rejeter($neighborhood, $request->user()))]);
     }
 
     public function rename(GeoRenameRequest $request, GeoNeighborhood $neighborhood): JsonResponse
     {
-        return $this->json(['data' => $this->format($this->moderation->renommer($neighborhood, (string) $request->validated('name'), $request->user()))]);
+        return $this->json(['data' => $this->ligne($this->moderation->renommer($neighborhood, (string) $request->validated('name'), $request->user()))]);
     }
 
     public function merge(GeoMergeRequest $request, GeoNeighborhood $neighborhood): JsonResponse
     {
         $cible = GeoNeighborhood::query()->findOrFail((int) $request->validated('into_id'));
 
-        return $this->json(['data' => $this->format($this->moderation->fusionner($neighborhood, $cible, $request->user()))]);
+        return $this->json(['data' => $this->ligne($this->moderation->fusionner($neighborhood, $cible, $request->user()))]);
     }
 
-    /** @return array<string, mixed> */
-    private function format(GeoNeighborhood $q): array
+    /**
+     * Une ligne de la console. Publique pour `GeoNeighborhoodCoverController` (TCK-2844), dont les
+     * écritures rendent la ligne sous cette même forme.
+     *
+     * @return array<string, mixed>
+     */
+    public function ligne(GeoNeighborhood $q): array
     {
-        $q->loadMissing(['city.region', 'createdBy']);
+        $q->loadMissing(['city.region', 'createdBy', 'media']);
+        $photo = $q->getFirstMedia('cover');
 
         return [
             'id' => $q->id,
@@ -112,6 +118,8 @@ class GeoNeighborhoodAdminController extends Controller
             'created_by' => $q->createdBy !== null ? ['id' => $q->createdBy->id, 'name' => $q->createdBy->nameWithoutContact()] : null,
             'addresses_count' => (int) ($q->addresses_count ?? $q->addresses()->count()),
             'created_at' => $this->instant($q->created_at),
+            // TCK-2844 (ADR-0109) — la photo de la tuile et sa seule provenance utile à la console.
+            'cover' => $photo !== null ? ['url' => $photo->getUrl('display'), 'source' => (string) $photo->getCustomProperty('source', 'upload')] : null,
         ];
     }
 }
