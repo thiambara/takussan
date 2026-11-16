@@ -165,7 +165,10 @@ seulement **29 des 111 pages** : l'essentiel des pages est RSC et délègue à d
 **Fichier exemplaire : `src/app/globals.css`** (272 lignes) — Tailwind v4 pur (`@import "tailwindcss"`,
 `@theme inline`, `@custom-variant dark`). Palette **« Lin »** sur `:root` : `--background #fcf9f3`,
 `--foreground #1f1812`, `--primary #a85332`, `--accent #5d6e4f`, `--border #ebe5d5`. Échelle de rayons
-calculée depuis `--radius 0.625rem`. Dark mode par classe `.dark`.
+calculée depuis `--radius 0.625rem`. **Pas de thème sombre** (TCK-452) : `.dark` est une
+SURFACE locale posée par un conteneur (chrome super-admin, bandeau de modération, toast) ; une
+variante `dark:` ne s'écrit que dans un fichier qu'une portée monte (garde
+`src/test/__tests__/sombre-local.tck-452.test.ts`).
 
 **La racine vaut 16 px à toute largeur** : la densité ×0,9 du bureau passe par les jetons dès `lg`
 (`--spacing`, `--text-*`, `--radius`, `--container-*`), plus par `html { font-size: 90% }`
@@ -304,7 +307,11 @@ pour les composants serveur. `vitest.setup.ts` ne monte **aucun** provider, et u
 ## Tests & gardes
 
 vitest 4 + jsdom + @testing-library, alias `@` → `./src`, setup global qui polyfille
-`ResizeObserver` et `matchMedia` (`vitest.setup.ts`). **~143 fichiers, ~810 tests, tous verts** (arrondi : cf. la note du `CLAUDE.md` racine).
+`ResizeObserver` et `matchMedia` (`vitest.setup.ts`). **~1 900 fichiers, ~17 000 tests, tous verts** (arrondi : cf. la note du `CLAUDE.md` racine ; le compte se prend par `npx vitest list`).
+
+En CI, Vitest tourne en **4 shards** (`npx vitest run --shard=<i>/4`, un runner chacun) et ESLint, `tsc`,
+les gardes et le build dans un job `statique` en parallèle ; le check requis `Web (ESLint + tsc + Vitest +
+build)` est l'agrégateur (TCK-2950). Un shard rouge se reproduit en local par la même commande.
 
 > **Deux plafonds, deux valeurs MESURÉES, et aucune des deux ne se rabaisse sans refaire la
 > mesure** : `testTimeout` à **20 s** (`vitest.config.ts`, TCK-312) et le délai des attentes à

@@ -37,7 +37,7 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 | KycDossier | `documents` | Pièces du dossier KYC |
 | BankStatement | `statement` | Fichier du relevé importé (unique, disque privé) |
 | PrivacyRequest | `proof` | Preuve jointe à une demande de droits (unique) |
-| PayoutMethod | `bank_statement` | RIB déposé par le titulaire (unique, disque privé) ; lu par qui peut vérifier le moyen (`MediaPolicy::sign`, `PayoutMethodPolicy::verify`), supprimé par le titulaire seul (TCK-2863) |
+| PayoutMethod | `bank_statement` | RIB déposé par le titulaire (unique, disque privé) ; lu par qui peut vérifier le moyen (`MediaPolicy::sign`, `PayoutMethodPolicy::verify`), supprimé par le titulaire seul (TCK-2863) ; servi par `PayoutMethodResource.bank_statement_url`, URL d'API signée (TCK-2463) |
 | ServiceProviderBill | `invoice` | La pièce du prestataire jointe à « Facturer » (unique, privée) (TCK-2911, ADR-0120 § 1) |
 | MaintenanceQuoteAlternative | `quote` | Le devis concurrent consulté, PDF ou image (unique, privée) (TCK-2911, ADR-0120 § 3) |
 
@@ -400,6 +400,7 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 129. [PropertyDailyView](#129-propertydailyview-) 🆕
 130. [MaintenanceRescheduleRequest](#130-maintenancereschedulerequest-) 🆕
 131. [MaintenanceQuoteAlternative](#131-maintenancequotealternative-) 🆕
+132. [ConsentProof](#132-consentproof-) 🆕 (TCK-537)
 
 ### Enums
 
@@ -588,6 +589,7 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 | license_number | string | oui | null | Numéro de licence professionnelle — **unique** | |
 | email | string | oui | null | Email de contact | |
 | phone | string(30) | oui | null | Téléphone principal | |
+| phone_whatsapp | string(30) | oui | null | Numéro WhatsApp de l'agence, E.164, saisi par qui configure l'agence (`/app/agency`) ; servi par `GET /api/public/agencies/{slug}` seulement s'il est déclaré — jamais le numéro de son admin (`2026_11_16_500100`) | ➕ TCK-2576 |
 | website | string | oui | null | Site web | |
 | ~~logo_path~~ | — | — | — | ~~Remplacé par media collection `logo` (spatie/medialibrary)~~ | ➖ |
 | description | text | oui | null | Présentation de l'agence | |
@@ -713,7 +715,7 @@ pause, le réactiver les reprend (ADR-0061 §8).
 | pending_owner_profile_id | FK owner_profiles | oui | null | Bailleur invité pour qui le bien a été saisi (FK `properties_pending_owner_profile_fk`, `nullOnDelete`, index `properties_pending_owner_profile_idx` ; TCK-1000, `2026_10_25_120000`) : un profil `draft` de l'agence du bien dont l'invitation est `sent` et non échue, jamais avec `owner_id`. Le bien lui passe quand il accepte l'invitation, si son titulaire est encore du personnel ; le lien s'efface à l'acceptation, à la révocation (effacement du compte compris) ou à l'expiration. Ajoutée sans reprise : aucun bien saisi avant n'en porte | ➕ |
 | agency_id | FK agencies | oui | null | Agence gestionnaire (`nullOnDelete`) | |
 | title | string | | | Titre de l'annonce | |
-| slug | string | | | Identifiant URL — **unique** ; fabriqué par `Str::slug()`, donc sans variante de casse possible | |
+| slug | string | | | Identifiant URL — **unique** ; fabriqué par `Str::slug()`, donc sans variante de casse possible ; quand `Str::slug()` du titre est vide (emoji, idéogrammes), repli `bien-XXXXXX` à la création (TCK-618) | |
 | description | text | oui | null | Description détaillée | |
 | reference_number | string | oui | null | Référence unique du bien (ex: TK-2025-001) | ➕ |
 | type | PropertyType | | | Type de bien (voir enum PropertyType) — indexé | ✏️ |
@@ -745,7 +747,7 @@ pause, le réactiver les reprend (ADR-0061 §8).
 | monthly_charges | decimal(14,2) | oui | null | Charges mensuelles (montant) — le total à l'entrée est calculé par l'API, jamais stocké | ➕ |
 | virtual_tour_url | string(2048) | oui | null | Visite virtuelle ou vidéo : un **lien https** vers un hébergeur autorisé, pas un fichier (TCK-598) | ➕ |
 | submitted_at | timestamp | oui | null | Soumission à la modération de l'agence (`2026_04_26_000001`, TCK-597) | ➕ |
-| approved_at | timestamp | oui | null | Validation | ➕ |
+| approved_at | timestamp | oui | null | Validation. Effacé aussi, dans une agence à modération, par la réécriture d'un champ affiché (colonnes de `PropertyRewriteModeration::DISPLAYED_COLUMNS`, adresse, photos ajoutées ou supprimées, équipements) par qui ne modère pas l'agence ni n'est super-admin ; un bien en ligne repasse alors en file (TCK-611, ADR-0043 amendé le 2026-11-16) | ➕ |
 | approved_by_user_id | FK users | oui | null | Qui a validé (`nullOnDelete`) | ➕ |
 | rejected_at | timestamp | oui | null | Refus | ➕ |
 | rejected_by_user_id | FK users | oui | null | Qui a refusé (`nullOnDelete`) | ➕ |
@@ -790,6 +792,10 @@ pause, le réactiver les reprend (ADR-0061 §8).
 - `ofPublicAgency()` → sans agence, ou agence `active` (TCK-600, ADR-0048)
 - `withHostCalendar()` → location `daily` / `weekly`, ni archivée ni vendue (TCK-596, ADR-0041 §5)
 - `roots()` → `parent_id` nul
+- `indexable()` → la traduction SQL de `shouldBeSearchable()` : non supprimé, `visibility = public`, statut hors
+  `NON_INDEXABLE_STATUSES` (`draft`, `pending_review`, `rejected`), agence publique (`ofPublicAgency()`). La tuile
+  « moteur de recherche » de la page Santé compare l'index à ce compte, plus à `public()` (TCK-2457) : l'index garde
+  les biens de test, vendus, loués ou non publiés, que `PropertySearchService::publicFilter()` écarte à la requête
 
 **Relations :**
 - `owner()` → belongsTo User (via `user_id`, le titulaire)
@@ -822,6 +828,15 @@ Le modèle ne déclare **ni `user()`** (c'est `owner()`), **ni `inventories()`, 
 `replicating` les remet à zéro avec `ranked_at` : une copie (`PropertyDuplicationService`)
 n'hérite d'aucune mise en avant payée pour l'original. Le document de recherche porte `ranked_at`
 (repli sur `published_at`).
+
+**Libellés (TCK-351, ADR-0021 amendé le 2026-11-16) :** `PropertyResource` n'émet plus aucun `*_label` ; il rend
+les codes seuls (`type`, `contract_type`, `rent_period`, `status`, `title_type`, `condition`), à demander dans
+`fields[properties]`, et le front les traduit par next-intl. Les écarts connus entre langues se lisent dans
+`property-labels.parity.test.ts`.
+
+**Recherche des consoles (TCK-578, ADR-0008 amendé le 2026-11-16) :** `rechercheParLaBase()` rend `true` :
+`filter[search]` de `buildQuery()` passe par le repli SQL (`title`, `reference_number`, `description`), tous
+statuts, sans tolérance aux fautes, la référence exacte en tête puis le titre (`rangDeRechercheSql()`).
 
 ---
 
@@ -1100,7 +1115,7 @@ en base, en `text`, absent de toute sérialisation par défaut (`$hidden`) et ho
 `GET /api/customers/{id}/sensitive`, réservé à l'admin de l'agence de la fiche et au super-admin,
 sous second facteur récent, consultation journalisée (surface `customer_sensitive`) — une fiche sans
 agence n'est lisible en clair que par le super-admin ; et par l'export du droit d'accès de
-l'utilisateur lié (`customers.json`, colonnes d'identité seules, ADR-0070 § 7).
+l'utilisateur lié (`customers.json`, colonnes d'identité seules, ADR-0070 § 7 ; notes, `metadata` et critères relèvent du droit d'accès mais se communiquent sur demande, ADR-0070 amendé le 2026-11-16, TCK-537).
 
 **Visibilité (`scopeVisibleTo`)** : un détenteur de `crm.view_all` voit les fiches de son agence de
 personnel, plus celles qu'il a ajoutées ; les autres ne voient que leurs propres ajouts, hors agence
@@ -1593,6 +1608,12 @@ contrainte en base.
 
 Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le modèle ne la déclare pas.
 
+**Garants figés (TCK-607, ADR-0042 amendé le 2026-11-16).** `Lease::acceptsGuarantorChange()` : un garant se
+rattache ou se retire en `draft` ou `pending_signature` ; sur un bail `active`, seul un **rattachement** à l'enfant
+d'un renouvellement (`renewed_from_lease_id` posé) qui n'a aucun garant passe, une fois ; tout le reste rend 409
+`lease.guarantors_frozen`, jugé sous verrou. `LeaseResource.abilities.attach_guarantor` (TCK-607b) le rend au front :
+`update` permis **et** ce rattachement accepté.
+
 ---
 
 ### 15. LeasePayment 🆕
@@ -1661,6 +1682,22 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 - `payouts()` → belongsToMany Payout (pivot `payout_lease_payment`) 🆕
 - `bankStatementLine()` → belongsTo BankStatementLine 🆕
 - `reminders()` → hasMany [LeasePaymentReminder](#125-leasepaymentreminder-) — relances notées à la main (TCK-2658) 🆕
+
+**Après la sortie du bail (TCK-607).** Le scope `withinLeaseTerm()` écarte des relances
+(`SendLeasePaymentReminders`) et des pénalités (`ApplyLateFeesJob`) les échéances de loyer et de charges
+postérieures à la sortie d'un bail `terminated` ou `renewed` ; une indemnité ou une régularisation reste
+relancée. `lease:cancel-dues-after-exit` (`--dry-run`) reprend les baux résiliés avant le 2026-10-21.
+
+**Doublon payé à rembourser (TCK-608).** `metadata.gateway_duplicate_payment[]` liste les paiements en ligne
+reçus en double ; `refunded_at` y est posé par la passerelle **ou** par le geste manuel « Doublon remboursé »
+(`POST /api/lease-payments/{id}/duplicate-refunded`, `payments.refund`, 2FA de la famille d'agence, journal
+`duplicate_refunded`). La ressource rend `duplicate_refund_pending` ; la passerelle, `refund_pending` (doublons hors
+pénalité) et `late_fee_refund_pending`. `mark-paid` solde une `partially_paid` héritée : aucune voie n'en crée plus.
+
+**Historique des checkouts (`metadata.gateway.transactions[]`).** Une entrée par checkout ouvert, sur tout payable
+en ligne : `transaction_id`, `provider`, `integration_id`, `amount` figé, et depuis TCK-606 sa **devise**
+(`currency`) — une commande Lemon Squeezy soldée par `custom_data` est jugée contre ce montant et cette devise
+(422 `payment.currency_mismatch` / `payment.amount_short`).
 
 Le modèle ne déclare **ni** `invoice()` **ni** `platformPayout()` (relevé 2026-10-14), **ni** de
 relation vers le reversement de la pénalité (`late_fee_payout_id`, relevé 2026-10-27) ; la facture
@@ -1995,6 +2032,8 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 - `uploader()` → belongsTo User
 - `verifier()` → belongsTo User (via verified_by)
 
+**Purge des pièces de vérification (TCK-537).** Les documents de profil de type pièce d'identité, passeport, RIB, NINEA, photo ou assurance sont supprimés définitivement cinq ans après la fin (suppression douce) de leur profil, par `kyc:prune-ended-pieces` (quotidienne, 04:15, heure de Dakar) ; mandat et autres types restent.
+
 ---
 
 ### 23. SavedSearch 🆕
@@ -2011,7 +2050,7 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | criteria | jsonb | | | Critères dans le vocabulaire FERMÉ de `/properties` : `App\Support\SavedSearchCriteria::KEYS` (23 clés), toute autre clé → 422 (TCK-599) ; **➕ `locations` : liste de 2 à 12 quartiers, exclusive de `location` (TCK-2607)** |
 | notification_frequency | string | | 'daily' | Fréquence d'alerte (`daily`, `weekly`, `off` — `instant` retiré par TCK-599, ramené à `daily`). **NOT NULL** — la sentinelle « ne pas notifier » est `off`, jamais `null` ni `""` (TCK-330) |
 | is_active | boolean | | true | Alerte active |
-| last_notified_at | datetime | oui | null | Dernière notification envoyée |
+| last_notified_at | datetime | oui | null | Dernière notification envoyée. **Borne du premier envoi** depuis TCK-615 : posée à la création (compte) ou à la confirmation (sans compte : nulle jusque-là), la première alerte ne porte que les biens publiés après. La migration `2026_11_16_400100` a posé `created_at` sur les lignes nulles ([ADR-0050](adr/0050-alertes-de-recherche-un-seul-moteur-et-des-abonnes-sans-compte.md), amendement du 2026-11-16) |
 | last_viewed_at | datetime | oui | null | Dernière ouverture de la recherche par son titulaire depuis la page des favoris, posée par `POST /api/saved-searches/{savedSearch}/viewed` (204 ; 404 pour la recherche d'un autre — les autres routes de la ressource rendent 403 ; `updated_at` inchangé), émise par `SavedSearchResource` ; borne le compte des « biens nouveaux » : la liste publique sous `published_after=<last_viewed_at ?? created_at>` (paramètre à plat de `GET /api/public/properties/search`, TCK-2496) ; `null` = jamais ouverte, le compte part de `created_at` (TCK-2507) |
 | results_count | integer | | 0 | Nombre de biens que la recherche trouve (cache). Écrit par `SearchService::refreshResultsCount()` seulement s'il change, sans toucher `updated_at` : à la création et à un changement de `criteria` (`SavedSearchController`), et par `SendSavedSearchAlerts` après les alertes, pour chaque recherche active (fréquence coupée comprise ; total de la première alerte repris sans requête). Un échec du moteur garde le compte précédent (`saved_search.count_failed`). Une alerte publique sans compte n'est comptée qu'au passage suivant. Lu par la demande du Radar (`RadarDemandSignals` : `results_count = 0`) (TCK-2470, TCK-2471) |
 | metadata | jsonb | oui | null | |
@@ -2584,6 +2623,8 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 **Inverse :**
 - `User.ownerProfiles()` → hasMany OwnerProfile (`HasProfiles`)
 
+**Effacement du compte (TCK-537, ADR-0044 amendé le 2026-11-16).** À l'exécution d'une suppression de compte, `AccountDeletionService::endProfiles()` met à nul `rib`, `tax_id`, `id_document_type`, `id_document_number`, `monthly_income`, `employer` et `metadata` de chaque profil du compte, profils déjà terminés compris.
+
 ---
 
 ### 35. AgentProfile 🆕
@@ -2623,6 +2664,8 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 
 **Inverse :**
 - `User.agentProfiles()` → hasMany AgentProfile (`HasProfiles`)
+
+**Effacement du compte (TCK-537, ADR-0044 amendé le 2026-11-16).** À l'exécution d'une suppression de compte, `AccountDeletionService::endProfiles()` met à nul `license_number` et `metadata` de chaque profil du compte, profils déjà terminés compris.
 
 ---
 
@@ -2674,6 +2717,8 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 
 **Inverse :**
 - `User.serviceProviderProfile()` → hasOne ServiceProviderProfile (`HasProfiles`)
+
+**Effacement du compte (TCK-537, ADR-0044 amendé le 2026-11-16).** À l'exécution d'une suppression de compte, `AccountDeletionService::endProfiles()` met à nul `insurance_policy_id`, `certifications` et `metadata` de chaque profil du compte, profils déjà terminés compris.
 
 ---
 
@@ -2895,6 +2940,8 @@ consignant le refus d'une pièce de profil ; pièces attendues = toutes celles q
 
 **Scopes :**
 - `pending()`, `submitted()`, `verified()`, `rejected()`
+
+**Purge à cinq ans (TCK-537, ADR-0044 amendé le 2026-11-16).** `kyc:prune-ended-pieces`, chaque jour à 04:15 (heure de Dakar), supprime définitivement le dossier d'une agence supprimée depuis plus de cinq ans, et les pièces de vérification (pièce d'identité, passeport, RIB, NINEA, photo, assurance) d'un profil supprimé depuis plus de cinq ans ; les autres documents (mandat, `other`) restent — cf. [Document](#22-document-).
 
 ---
 
@@ -3251,6 +3298,8 @@ invitation sans e-mail existe : le retour en arrière ne supprime pas d'invitati
 - Pas de `agency_id` (le profil est strictement plateforme).
 - `level` est un enum séparé pour éviter d'introduire un type polymorphe par niveau (cf. justification dans la décision design TCK-278).
 - Le check `$user->isSuperAdmin()` devient `$user->platformProfile?->level === PlatformProfileLevel::SuperAdmin && $user->platformProfile->isActive()`.
+
+**Effacement du compte (TCK-537, ADR-0044 amendé le 2026-11-16).** À l'exécution d'une suppression de compte, `AccountDeletionService::endProfiles()` met à nul `notes` de chaque profil du compte, profils déjà terminés compris.
 
 ---
 
@@ -3664,7 +3713,7 @@ péremption.
 | id | bigint PK | | auto | |
 | integration_id | FK integrations | oui | null | Intégration concernée — `null` si le webhook n'a pu être rattaché (`nullOnDelete`) ; la relation lit aussi une intégration supprimée (`withTrashed`) |
 | agency_id | FK agencies | oui | null | Agence concernée (`nullOnDelete`, FK `iwl_agency_fk`) (TCK-602, `2026_10_08_160000`) |
-| channel | string(20) | | 'payment' | Canal : `payment`, `sms`, `whatsapp` (`IntegrationWebhookLog::CHANNELS`) ; la rétention de purge se règle par canal (`webhooks:prune`, `config/webhooks.php`) (TCK-602) |
+| channel | string(20) | | 'payment' | Canal : `payment`, `sms`, `whatsapp` (`IntegrationWebhookLog::CHANNELS`) ; la rétention de purge se règle par canal (`webhooks:prune`, `config/webhooks.php`) (TCK-602) ; les lignes `rejected` se purgent à 7 jours, sans attendre la rétention de leur canal (`webhooks.rejected_retention_days`, TCK-606) |
 | route_name | string(60) | oui | null | Le **nom** de la route — jamais l'URL, qui porte des segments secrets ; le rejeu y lit quel gestionnaire rappeler (TCK-602) |
 | provider | string | | | Fournisseur émetteur |
 | direction | string | | 'incoming' | Sens du webhook |
@@ -3951,6 +4000,8 @@ sont protégés par le limiteur nommé `public-contact-lead` (5 requêtes / 10 m
 (`properties/{slug}/contact-click`) par `public-contact-click` (20 / 10 min), tous deux définis dans
 `AppServiceProvider::bootRateLimiters()` — il n'y a **pas** de `throttle:api` global sur ce dépôt.
 
+**Purge à trois ans (TCK-537, ADR-0044 amendé le 2026-11-16).** `crm:prune-contact-leads`, chaque jour à 04:20 (heure de Dakar), supprime une demande dont le dernier échange — le plus tardif de `created_at`, `updated_at`, `handled_at`, `first_responded_at` — date de plus de trois ans ; les liens vers fiche client, notes et visites sont mis à nul.
+
 ---
 
 ### 68. PropertyReport ✅
@@ -4123,7 +4174,13 @@ traite `key` comme un identifiant court opaque.
 que par son **empreinte** SHA-256 (`CalendarFeed::hashToken()`) pour la résolution, et jamais stocké en
 clair ; depuis TCK-2887 ([ADR-0121](adr/0121-le-lien-ical-se-relit-par-son-titulaire.md), amende ADR-0034 § 1) une
 copie chiffrée (`token_encrypted`) permet au titulaire de relire son lien à la réouverture. Le lien est révoqué par l'utilisateur, à la
-rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`).
+rotation, et au retrait du membre de l'agence (`AgencyMemberRemovalService`). **Depuis TCK-617** ([ADR-0034](adr/0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md),
+amendement du 2026-11-16) : toute révocation de jetons d'un compte (`AccountTokenRevoker` — réinitialisation par
+oubli, révocation de sessions, support, blocage, effacement, profil plateforme, départ, suspension) révoque aussi ses
+liens, dans la même transaction ; la déconnexion et la fin d'une impersonation n'y touchent pas. La suspension d'un
+membre, la fin d'une délégation et le passage au rôle de bailleur révoquent le lien de l'agence s'il n'y est plus
+du personnel (`CalendarFeedService::revokeUnlessStaff()`). Créer un lien sans agence quand le compte est du
+personnel d'une agence rend 403 `calendar.feed_agency_required`.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -4255,15 +4312,19 @@ payé que vers une destination du bénéficiaire **vérifiée par l'agence qui p
 
 Le modèle n'est pas `Auditable` : les identifiants ne passent jamais par `activity_log`. Ce que
 l'approbateur d'un reversement a approuvé se garde par `fingerprint()` — HMAC de la nature et du
-numéro normalisé sous la clé de l'application, jamais un hachage nu — dans `payouts.metadata`
+numéro normalisé sous la clé d'empreinte (`APP_HMAC_KEY` depuis TCK-614, `APP_KEY` à défaut), jamais un hachage nu — dans `payouts.metadata`
 (VERIF-594 M-4). Le paiement compare cette empreinte à celles de la destination sous toutes les clés reconnues
-(`fingerprints()`, `APP_PREVIOUS_KEYS` comprise) : un reversement approuvé avant une rotation d'`APP_KEY` reste payable
-vers la même destination tant que l'ancienne clé reste dans `APP_PREVIOUS_KEYS`, qu'elle ne doit pas quitter avant TCK-614 ([hébergement](infra/hebergement.md), « Rotation d'`APP_KEY` ») ; la clé retirée, le paiement est refusé (422 `payout.destination_changed_since_approval`) (TCK-2430, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), proposé).
+(`fingerprints()` : la clé d'écriture, `APP_KEY` et `APP_PREVIOUS_KEYS`) : un reversement approuvé avant une rotation d'`APP_KEY` reste payable
+vers la même destination. L'ancienne clé ne quitte `APP_PREVIOUS_KEYS` qu'après `security:reencrypt` puis `security:rehash-fingerprints`, qui réécrit sous la clé courante l'empreinte d'un versement à venir **seulement si** elle est celle de la destination actuelle — une destination changée depuis l'approbation reste refusée (422 `payout.destination_changed_since_approval`) ([hébergement](infra/hebergement.md), « Rotation d'`APP_KEY`, puis retrait de l'ancienne ») (TCK-2430, TCK-614, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), amendé le 2026-11-16).
 
 **Relations :** `user()` → belongsTo User ; `verifications()` → hasMany PayoutMethodVerification
 (§78). Inverse : `Payout.payoutMethod()` (withTrashed). Les colonnes `verified_at` et
 `verified_by_id` ont été retirées (VERIF-594 M-6) : une vérification globale valait pour toute
 agence.
+
+**Effacement du compte (TCK-537).** À la suppression du compte, `account_identifier` devient `''` (colonne NOT NULL) et `account_holder_name` nul, le RIB déposé est retiré ; `masked_identifier` reste, puis la ligne passe en suppression douce.
+
+**Lecture du RIB (TCK-2463).** `PayoutMethodResource.bank_statement_url` : URL d'API signée (route `media.private.show`) rendue au titulaire et à qui peut vérifier le moyen (`MediaPolicy::sign`), `null` à tout autre lecteur et sous impersonation. La route `GET /api/media/{id}/sign` est retirée.
 
 ---
 
@@ -4642,13 +4703,16 @@ de `GET /api/admin/system/metrics` se lit dans la ligne de J-30, et nulle part a
 porteuse d'une `SavedSearch` ; rien ne part avant la confirmation (lien e-mail ou code WhatsApp), une
 demande non confirmée est purgée à 48 h (`search-alerts:purge-unconfirmed`), la désinscription efface
 toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contact est connu.
+**Depuis TCK-615** (ADR-0050 amendé le 2026-11-16) : la borne de demandes par contact
+(`max_open_per_contact`, 5) ne compte que les **confirmées** ; une demande neuve évince la plus ancienne demande non
+confirmée du contact — jamais une dont la confirmation est partie il y a moins de 24 h.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
 | channel | string(16) | | | `email`, `whatsapp` (ce dernier derrière `SEARCH_ALERTS_WHATSAPP_ENABLED`) |
 | contact | text | | | Adresse ou numéro E.164 normalisé, **chiffré** (cast `encrypted`) |
-| contact_hash | string(64) | | | HMAC-SHA256 sous `APP_KEY` de `canal\|contact normalisé` — recherche, rattachement, désinscription. Écrit sous la clé courante (`App\Support\AppKeyHmac::of()`), cherché aussi sous chaque clé d'`APP_PREVIOUS_KEYS` (`contactHashes()`, TCK-2430, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), proposé) |
+| contact_hash | string(64) | | | HMAC-SHA256 sous la clé d'empreinte (`APP_HMAC_KEY` depuis TCK-614, `APP_KEY` à défaut) de `canal\|contact normalisé` — recherche, rattachement, désinscription. Écrit sous la clé courante (`App\Support\AppKeyHmac::of()`), cherché aussi sous chaque clé d'`APP_PREVIOUS_KEYS` (`contactHashes()`, TCK-2430, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), proposé) |
 | mailbox_hash | string(64) | | | HMAC de la BOÎTE (`awa+x@` → `awa@`) — plafonds et limiteur par contact (verif-599 m1) ; posée à la création. Les plafonds (demandes ouvertes, confirmations sur 24 h) la cherchent sous toutes les clés reconnues (`mailboxHashes()`) ; le limiteur horaire, en cache, reste sous la clé courante (TCK-2430) |
 | locale | string(8) | | 'fr' | `fr`, `en`, `wo` |
 | confirmation_token_hash | string(64) | ✓ | null | sha256 du lien de confirmation (e-mail), unique ; effacé à la confirmation (usage unique) |
@@ -4669,7 +4733,9 @@ toutes les lignes du même contact. Aucune réponse de l'API ne dit si un contac
 **Rotation d'`APP_KEY` (TCK-2430, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), proposé).**
 La recherche d'un contact (`scopeForContact()`), le rattachement et la suppression de compte lisent sous toutes les
 clés reconnues : la clé courante, puis chaque clé d'`APP_PREVIOUS_KEYS`, telle qu'écrite et sous sa forme base64
-canonique. Ces lectures ne valent que tant que l'ancienne clé reste dans `APP_PREVIOUS_KEYS`, qu'elle ne doit pas quitter avant TCK-614 ([hébergement](infra/hebergement.md), « Rotation d'`APP_KEY` »). `eraseContact()` supprime sous l'empreinte stockée **et** sous
+canonique — et, depuis TCK-614, sous `APP_HMAC_KEY`, la clé d'écriture. `security:rehash-fingerprints` réécrit
+`contact_hash` et `mailbox_hash` depuis le contact déchiffré ; ensuite seulement l'ancienne clé peut quitter
+`APP_PREVIOUS_KEYS` ([hébergement](infra/hebergement.md), « Rotation d'`APP_KEY`, puis retrait de l'ancienne »). `eraseContact()` supprime sous l'empreinte stockée **et** sous
 toutes celles du contact déchiffré : une désinscription efface aussi les demandes du même contact écrites sous une
 autre clé reconnue. Un numéro que la normalisation refuse, ou un contact qui ne se déchiffre plus (ancienne clé
 retirée), se désinscrit sous l'empreinte stockée seule, sans erreur : les demandes de ce contact écrites sous une
@@ -4959,6 +5025,7 @@ modèle double la garde (`updating` / `deleting` lèvent `LogicException`) et n'
 | type | string(20) | | | `CreditMovementType` : `grant`, `spend`, `refund`, `expire`, `admin_debit` |
 | amount | integer | | | **Signé** ; CHECK `credit_movements_amount_check (amount <> 0)` |
 | property_boost_id | FK property_boosts | oui | null | `credit_movements_boost_fk`, `nullOnDelete` |
+| agency_spotlight_id | FK agency_spotlights | oui | null | ➕ La place « Mise en avant » achetée ou remboursée (`credit_movements_spotlight_fk`, `nullOnDelete`, index `credit_movements_spotlight_idx`) — `2026_11_16_200100`, TCK-2525 |
 | actor_id | FK users | oui | null | `credit_movements_actor_fk`, `nullOnDelete` |
 | reason | text | oui | null | |
 | created_at | timestamp | | `CURRENT_TIMESTAMP` | Pas d'`updated_at` |
@@ -4971,7 +5038,8 @@ référentielle d'une clé étrangère (le trigger d'intégrité de la table par
 l'écriture qu'il émet déclenche celui-ci à la profondeur 2 ou plus) :
 
 - un `DELETE` — la suppression **en cascade** d'une agence ou d'un lot ;
-- un `UPDATE` qui ne change **que** `property_boost_id` et/ou `actor_id`, et seulement pour les
+- un `UPDATE` qui ne change **que** `property_boost_id`, `agency_spotlight_id` (depuis `2026_11_16_200100`)
+  et/ou `actor_id`, et seulement pour les
   mettre à `NULL` — l'`ON DELETE SET NULL` d'un boost ou d'un utilisateur supprimés (directement, ou
   plus bas : un bien supprimé emporte son boost, qui détache le mouvement à la profondeur 3).
 
@@ -5002,9 +5070,12 @@ l'**empreinte HMAC** du numéro (`App\Support\PhoneFingerprint`), qui survit à 
 compte supprimé : un numéro ne fait pas gagner deux espaces, et changer de numéro ne re-crédite pas
 l'espace. Les deux unicités se tiennent par `insertOrIgnore`, jamais par une exception attrapée
 (piège n°1). Avant l'insertion, un octroi se cherche sous toutes les clés reconnues (`PhoneFingerprint::all()` :
-`APP_KEY`, puis `APP_PREVIOUS_KEYS`) : une rotation d'`APP_KEY` ne rouvre pas la bienvenue d'un numéro déjà crédité,
-celui d'un compte anonymisé compris, tant que l'ancienne clé reste dans `APP_PREVIOUS_KEYS`, qu'elle ne doit pas quitter avant TCK-614 ([hébergement](infra/hebergement.md), « Rotation d'`APP_KEY` »). La clé retirée, ce numéro reçoit une seconde bienvenue ; même après
-TCK-614, l'octroi d'un compte anonymisé ne se réécrit pas, faute de numéro (TCK-2430, [ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), proposé).
+la clé d'écriture `APP_HMAC_KEY`, `APP_KEY`, puis `APP_PREVIOUS_KEYS`) : une rotation d'`APP_KEY` ne rouvre pas la
+bienvenue d'un numéro déjà crédité, celui d'un compte anonymisé compris, tant que l'ancienne clé reste reconnue.
+`security:rehash-fingerprints` réécrit `phone_hash` sous la clé courante **seulement si** l'empreinte stockée est celle
+du numéro actuel de son titulaire ; un compte anonymisé ou un numéro changé est compté `sans_source` et ne se réécrit
+pas, faute de numéro — retirer l'ancienne clé lui rouvre alors une seconde bienvenue ([hébergement](infra/hebergement.md), « Rotation d'`APP_KEY`, puis retrait de l'ancienne ») (TCK-2430, TCK-614,
+[ADR-0084](adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md), amendé le 2026-11-16).
 Montant et validité sont des réglages lus à l'octroi (`credits.welcome_amount` 500,
 `credits.welcome_validity_days` 180).
 
@@ -5065,6 +5136,8 @@ de `/sync-specs`).
 **Inverse :**
 - `User::agencyAdminProfiles()` → hasMany AgencyAdminProfile (trait `HasProfiles`)
 - `AgencyRole::agencyAdminProfiles()` → hasMany AgencyAdminProfile
+
+**Effacement du compte (TCK-537, ADR-0044 amendé le 2026-11-16).** À l'exécution d'une suppression de compte, `AccountDeletionService::endProfiles()` met à nul `metadata` de chaque profil du compte, profils déjà terminés compris.
 
 ---
 
@@ -6138,14 +6211,15 @@ planifiée `search:refresh-aliases` ne met rien en file. Opérateur disparu (com
 
 **Table :** `agency_spotlights` (TCK-2520)
 **Description :** La place « Mise en avant » de l'annuaire public des agences : une agence en tête de l'annuaire d'une
-ville, pendant une période. **Offerte par la plateforme** (super-admin, journalisé) ; la vente en crédits attend un
-amendement d'[ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md) (TCK-2525). Décision :
+ville, pendant une période. **Offerte par la plateforme** (super-admin, journalisé), ou **achetée en crédits par
+l'agence** depuis TCK-2525 ([ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md), amendement du 2026-11-16). Décision :
 [ADR-0092](adr/0092-une-agence-mise-en-avant-par-ville-gardee-par-la-base.md). Au plus une place active par ville et par
 instant, **gardé par la base** (extension `btree_gist`, créée par la migration et retirée par son `down()`) :
 
-- `agency_spotlights_city_no_overlap` : `EXCLUDE USING gist (geo_city_id WITH =, tsrange(starts_at, ends_at) WITH &&)` ;
-- `agency_spotlights_nocity_no_overlap` : `EXCLUDE USING gist (tsrange(starts_at, ends_at) WITH &&) WHERE (geo_city_id IS NULL)`
+- `agency_spotlights_city_no_overlap` : `EXCLUDE USING gist (geo_city_id WITH =, tsrange(starts_at, ends_at) WITH &&) WHERE (cancelled_at IS NULL)` ;
+- `agency_spotlights_nocity_no_overlap` : `EXCLUDE USING gist (tsrange(starts_at, ends_at) WITH &&) WHERE (geo_city_id IS NULL AND cancelled_at IS NULL)`
   — `=` ne joint pas deux `NULL`, la première laissait passer deux places « sans ville » qui se chevauchent ;
+  depuis TCK-2525 (`2026_11_16_200100`), une place libérée (`cancelled_at` posé) ne compte plus dans les deux ;
 - `agency_spotlights_period_check` : `CHECK (ends_at > starts_at)`.
 
 **`tsrange` et non `tstzrange`** : les colonnes sont des `timestamp` sans fuseau (convention du dépôt), et
@@ -6170,11 +6244,29 @@ rang de l'agence dans `data`.
 | ends_at | timestamp | | | Fin de la période (exclue), en UTC — la console saisit le dernier jour inclus et envoie minuit du lendemain |
 | granted_by_id | FK users | oui | null | Opérateur qui l'a offerte (`nullOnDelete`, FK `agency_spotlights_granted_by_fk`) |
 | note | string(255) | oui | null | Motif, obligatoire à l'offre (5 à 255 caractères), visible du seul super-admin |
+| origin | string(16) | | `offered` | ➕ `offered` (offerte par la plateforme) ou `purchased` (achetée en crédits par l'agence) ; CHECK `agency_spotlights_origin_check` (TCK-2525) |
+| price_credits | unsigned integer | | 0 | ➕ Prix figé à l'achat, en crédits ; 0 pour une place offerte (TCK-2525) |
+| purchased_by_id | FK users | oui | null | ➕ Qui l'a achetée (`nullOnDelete`, FK `agency_spotlights_purchased_by_fk`, index `agency_spotlights_purchased_by_idx`) (TCK-2525) |
+| cancelled_at | timestamp | oui | null | ➕ Place libérée (retrait, suspension de l'agence) : la ligne reste, mais n'occupe plus la période (TCK-2525) |
+| refunded_credits | unsigned integer | | 0 | ➕ Crédits rendus à la libération (TCK-2525) |
 | created_at / updated_at | timestamp | | auto | |
 
 **Écriture** : `GET`/`POST /api/admin/agency-spotlights` (`filter[when]` : `current`, `upcoming`, `past`) et
 `DELETE /api/admin/agency-spotlights/{spotlight}`, super-admin seul (`routes/api/admin-credits.php`), écritures sous
 second facteur récent (`ProtectedActions::STEP_UP`) ; journal `super_admin_agency_spotlight_granted` / `…_revoked`.
+
+**Achat en crédits** (TCK-2525, ADR-0061 amendé le 2026-11-16) : `GET /api/credits/spotlights`,
+`GET /api/credits/spotlights/quote` et `POST /api/credits/spotlights`, sous `auth:sanctum`, la capacité
+`boost.spend` jugée par le contrôleur (`CreditLotPolicy`) ; offert depuis `/app/credits` à une agence `standard`.
+Le prix est figé dans `price_credits`, le débit est un `credit_movements` porteur d'`agency_spotlight_id`. Huit
+réglages de plateforme (catégorie `boost`), modifiables dans la console : `spotlight.sale_enabled` (oui),
+`spotlight.price_credits` (100), `spotlight.duration_days` (7), `spotlight.max_advance_days` (60),
+`spotlight.when_taken` (`refuse` | `next_free`), `spotlight.refund_on_suspension` (`prorata` | `full` | `none`),
+`spotlight.offered_overlap` (`blocks` | `yields`), `spotlight.sell_directory_wide` (non). La suspension de l'agence
+libère ses places achetées et les rembourse selon `spotlight.refund_on_suspension` (rattrapage par `boosts:tick`) ;
+le retrait d'une place achetée par le super-admin la libère (`cancelled_at`) et rembourse au prorata
+(`refunded_credits`). `GET /api/admin/boost-stats` compte les places achetées, offertes, et les crédits dépensés et
+rendus.
 
 ---
 
@@ -6354,15 +6446,19 @@ collection privée `quote` (PDF ou image), rendue en URL d'API signée.
 ### 132. ConsentProof 🆕
 
 **Table :** `consent_proofs` (migration `2026_11_16_100100`, TCK-537)
-**Modèle :** `App\Models\ConsentProof` (`AbstractModel`) — `accepted_at` en `datetime` ; `belongsTo user`.
+**Modèle :** `App\Models\ConsentProof` (`AbstractModel`) — `accepted_at` en `datetime` ; `belongsTo user` (`withTrashed()`).
 **Description :** La preuve qu'une personne a accepté un document juridique (conditions ou politique), dans
 la version affichée (`VERSION_DOCUMENTS` du front, reflétée par `PublishReadiness::TERMS_VERSION`), à un
 moment et depuis une adresse. **Ajout seul** : une ligne ne se modifie jamais. Écrite à l'inscription,
 à l'assistant hôte, à l'offre d'achat, à la publication, à la connexion par téléphone et à la
-réclamation radar ; le séjour et la candidature n'ont pas de case, donc pas de ligne.
+réclamation radar ; le séjour et la candidature n'ont pas de case, donc pas de ligne. Seule l'inscription écrit
+les deux documents (`terms` et `privacy`) ; les autres gestes n'écrivent que `terms`, et seulement si
+`users.terms_accepted_at` n'était pas encore posée. L'ajout seul est une convention du seul écrivain
+(`ConsentLedger::record()`), pas une garde du modèle.
 
 **Rétention (`privacy.ts` § 6, ADR-0044 amendé le 2026-11-16).** Conservée tant que le compte existe, puis
-cinq ans après son effacement (`users.deleted_at`) : `account:prune-consent-proofs`, quotidienne.
+cinq ans après son effacement (`users.deleted_at`) ; une preuve sans compte (`user_id` nul) cinq ans après son
+`accepted_at` : `account:prune-consent-proofs`, quotidienne (04:25, heure de Dakar).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|

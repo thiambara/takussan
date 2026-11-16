@@ -34,7 +34,7 @@ piloté par **7 propriétés statiques déclaratives** sur le modèle :
 | `$requestFilterable` | `filter[col]=` exact |
 | `$requestFilterablePartial` | `filter[col]=` partiel |
 | `$requestRangeFilters` | génère `filter[col_min]` / `filter[col_max]` |
-| `$requestSearchFields` | `filter[search]=` (route vers Scout si le modèle est `Searchable`, sinon LIKE) |
+| `$requestSearchFields` | `filter[search]=` (route vers Scout si le modèle est `Searchable`, sauf `rechercheParLaBase()` ; sinon LIKE) |
 | `$requestSortable` | `sort=-col` |
 | `$requestLoadable` | `include=relation` |
 | `$requestCountable` | `include=relationCount` |
@@ -208,7 +208,7 @@ Il n'y a plus de validation en ligne dans un contrôleur, et `scripts/check-inli
    Quand c'est un **404** qui doit primer, même principe : résoudre dans le FormRequest — c'est ce
    que fait `Public\PublicPropertySlugRequest`, qui garde le 404 avant le 422.
 
-`BaseFormRequest` apporte deux choses qu'on ne veut pas réécrire :
+`BaseFormRequest` apporte trois choses qu'on ne veut pas réécrire :
 
 - `authorize()` retourne **`false`** par défaut — *fail-closed*, chaque sous-classe doit surcharger.
   ⚠ **La RÈGLE d'autorisation ne migre pas ici, son INVOCATION oui** : la règle appartient aux
@@ -216,8 +216,17 @@ Il n'y a plus de validation en ligne dans un contrôleur, et `scripts/check-inli
   c'est ce qui rétablit l'ordre autorisation-puis-validation (cf. piège 2 ci-dessus). Un
   `authorize()` qui retourne `true` sec ne se justifie que sur un endpoint dont le contrôleur
   n'autorisait rien avant de valider ;
+- **une écriture se valide sur le corps seul** (TCK-612) : pour `POST`/`PUT`/`PATCH`/`DELETE`,
+  `validationData()` ne lit que le corps et les fichiers, et `getValidatorInstance()` retire de la
+  query toute clé réglée venue d'elle seule — ni `validated()` ni `input()` ne la voient ; les clés
+  sans règle (`include`, `fields`, `lang`) restent lisibles, et `authorize()` lit la requête entière.
+  Une exception se déclare dans `$queryKeysAcceptedOnWrite` (`token` de la désinscription d'alerte,
+  `filter` de la purge des invitations), recensées par
+  `tests/Feature/Validation/QueryNeverFeedsAWriteTest.php`. Que tout `app/Http/Requests` étende
+  `BaseFormRequest`, `Auth/` et `Admin/` compris et sans exemption, est gardé par
+  `tests/Unit/Architecture/FormRequestEtendBaseFormRequestTest.php` ;
 - `prepareForValidation()` normalise récursivement : trim de toutes les chaînes, chaîne vide →
-  `null`.
+  `null` — **le corps seul pour une écriture**, toute l'entrée pour une lecture (TCK-612).
 
   ⚠ **Ce n'est PAS un changement de comportement, et j'avais écrit le contraire ici.** Laravel monte
   `TrimStrings` et `ConvertEmptyStringsToNull` en middleware **global**
@@ -442,6 +451,15 @@ l'appelant classée au-delà de ce rang global disparaît sans message ni compte
 ⚠️ **Les consoles super-admin (`/api/admin/agencies`, `/api/admin/users`) n'empruntent aucun des deux
 chemins** : elles écrivent leur propre `LIKE` SQL. Elles restent strictes, par choix (TCK-281,
 « Hors périmètre ») — pas par oubli.
+
+⚠️ **`Property` cherche par la base, pas par Scout, sur `buildQuery()`** (TCK-578, ADR-0008 amendé le
+2026-11-16) : `Property::rechercheParLaBase()` rend `true`, et `filter[search]` prend alors le repli
+SQL de `HasQueryBuilder` bien que le modèle soit `Searchable`. Tous les appelants de `buildQuery()`
+sont des consoles qui listent brouillons, biens en attente, refusés et privés — que l'index
+**public** ne contient pas. Le prix est assumé : ni tolérance aux fautes ni pertinence du moteur ;
+la référence exacte passe en tête (`rangDeRechercheSql()`). La recherche publique reste au moteur
+(`PropertySearchService`). Un autre modèle dont l'index ne contient pas tout ce que sa console liste
+surcharge le même point (défaut : `false`).
 
 ⚠️ **Une migration qui réécrit une colonne indexée réimporte son modèle** — ou au moins les lignes
 qu'elle touche (P122.04, décision du porteur du 2026-10-23). Une colonne est indexée dès que

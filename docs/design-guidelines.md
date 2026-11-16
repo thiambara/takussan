@@ -102,9 +102,8 @@ police de 20 px). Une page de `/app` n'écrit **aucune valeur arbitraire** pour 
   jour, TCK-2587). Le comparateur flottant, partagé par le site public et `/app` (TCK-2741) :
   `shadow-barre-flottante` (sa barre du bureau et sa pastille repliée, deux couches),
   `shadow-pastille-flottante` (sa pastille sombre sous `lg`, composée en `in_oklab`, valeur reprise
-  telle quelle), `shadow-contour-vignette` + `dark:shadow-contour-vignette-sombre` (le liseré intérieur
-  d'une vignette de bien : `--scrim` à 12 % en clair, `--foreground` à 14 % en sombre — un jeton
-  `@theme` ne bascule pas de thème, d'où deux noms) et `shadow-pastille-retrait` (la pastille
+  telle quelle), `shadow-contour-vignette` (le liseré intérieur d'une vignette de bien : `--scrim`
+  à 12 % ; la variante `shadow-contour-vignette-sombre` est retirée avec TCK-452) et `shadow-pastille-retrait` (la pastille
   « retirer » posée sur la vignette).
 - **L'encre douce** `text-encre-douce` remplace les `foreground/70` à `/85` des maquettes : une seule
   encre, **opaque** (`foreground` à 80 % composé sur `--card`, `#4c4641` : 9,3:1 sur `card`, 8,8:1 sur
@@ -138,6 +137,18 @@ un compte qui monte rougit, un compte qui descend aussi tant que la consigne ne 
 ## Palette de couleurs
 
 Palette officielle : **Lin** — fond clair quasi-blanc, terracotta atténué, sage discret.
+
+> **Il n'y a pas de thème sombre** (TCK-452, option B du porteur, 2026-11-16) : aucune bascule, aucune
+> lecture de la préférence système, rien ne pose `.dark` sur `<html>`. `.dark` est une **surface
+> locale**, posée par un conteneur qui la demande (chrome super-admin, bandeau de modération, toast).
+> Les colonnes « Sombre » des tableaux de cette section décrivent cette surface, pas un thème ; une
+> variante `dark:` ne s'écrit que dans un fichier qu'une telle portée peut monter
+> (`takussan-web/src/test/__tests__/sombre-local.tck-452.test.ts`).
+>
+> **`--primary` ne change pas ; les sites sous leur seuil se corrigent un par un** (TCK-487, option b) :
+> une encre `primary` posée sur un aplat `bg-primary/N` passe en `text-primary-deep`, et le survol d'un
+> plein `bg-primary` est `hover:bg-primary-deep`, opaque — `hover:bg-primary/80` ou `/90` tombe sous
+> 4,5:1. Garde : `takussan-web/src/test/__tests__/encre-primary.contraste.test.ts`.
 
 | Rôle | Hex | Token CSS | Token Tailwind |
 |---|---|---|---|

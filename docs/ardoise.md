@@ -1506,6 +1506,13 @@ seul est le motif le plus tenace de ce genre de duplication.
 > **muette sur la justesse**. Le formatage des nombres et des dates, figé en `fr-SN` quelle que
 > soit la locale, est sorti dans **TCK-347** : traduire les libellés ne le corrige pas, et un
 > anglophone lit des libellés anglais avec des nombres au format français.
+>
+> **Mise à jour du 2026-11-16 — le formatage est levé par
+> [TCK-347](backlog/tickets/done/TCK-347-formatage-nombres-et-dates-suit-la-locale.md).** Les montants (cartes, puces
+> de prix, carte, comparateur, réservation, historique de prix, baux) et le calendrier des sélecteurs de date
+> suivent la langue active (`fr` → `fr-SN`, `en` → `en-GB`, `wo` → `fr-SN`). Deux sites hors de la liste du ticket
+> formatent encore un montant sans la langue : `PropertyShareDialog.tsx` et `PropertyContactActions.tsx`. Restent
+> aussi la décision produit et la relecture du wolof, en pause.
 
 **Mesuré par AST le 2026-08-15 : 431 fichiers portaient 3 735 occurrences de texte affiché en dur.**
 
@@ -2039,7 +2046,7 @@ charge, intersection non vide mais ensembles distincts) · `tests/Concerns/Inter
 > pour ce qui est mergé sur `dev` » est juste ; elle n'a de valeur que si l'on va **regarder** ce
 > qui est mergé sur `dev`.
 
-### D-30 — Aucune mesure de couverture, aucune parallélisation ✅ *couverture SOLDÉE le 2026-08-16 ; parallélisation MESURÉE SUR LE RUNNER le 2026-08-18 (TCK-324) — gain réel ×2,48, décision de NE PAS activer, motivée* → [TCK-302](backlog/tickets/done/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) · [TCK-324](backlog/tickets/done/TCK-324-mesurer-parallel-sur-le-runner-ci.md)
+### D-30 — Aucune mesure de couverture, aucune parallélisation ✅ *couverture SOLDÉE le 2026-08-16 ; parallélisation MESURÉE SUR LE RUNNER le 2026-08-18 (TCK-324) — gain réel ×2,48, décision de NE PAS activer, motivée ; `--parallel` ACTIVÉ en CI le 2026-11-16, la couverture dans un job à part* → [TCK-302](backlog/tickets/done/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) · [TCK-324](backlog/tickets/done/TCK-324-mesurer-parallel-sur-le-runner-ci.md) · [TCK-637](backlog/tickets/done/TCK-637-ci-parallele-couverture-decouplee.md)
 
 > **Confirmé le 2026-08-16** : `coverage: none` apparaît **deux fois** dans `api-ci.yml` (lignes 42
 > et 192), et `--parallel` n'est configuré nulle part. Le temps de référence à retenir est
@@ -2237,6 +2244,13 @@ l'égalité avec `TestProcessToken::value()` lui-même plutôt qu'une forme fig�
 deux modes par construction et suit tout étage futur sans qu'il faille retoucher le test. C'est la
 **troisième** fois dans ce dépôt que la course révèle un défaut que le déterminisme masquait, après
 D-44 et TCK-314.
+
+> **Levé le 2026-11-16 par [TCK-637](backlog/tickets/done/TCK-637-ci-parallele-couverture-decouplee.md)**
+> ([ADR-0063](adr/0063-attestation-de-ci-par-arbre.md) § 4 amendé). Les décisions de ne pas l'activer, ci-dessous,
+> sont caduques : `lint-and-test` joue la suite en `--parallel` sans couverture et juge les tests ;
+> le job `couverture` la rejoue en un seul processus sous PCOV, à côté, et tient le cliquet `--min=92`.
+> Relevé sur la PR #1688 (runner à 4 processus) : `lint-and-test` 18 à 20 min au lieu de 54 à 90,
+> `couverture` 77 min, `Total: 96.9 %` ([J-12](journal-des-corrections.md#j-12)).
 
 **Décision du 2026-08-17 : `--parallel` reste NON activé en CI — mais pour une raison différente de
 celle du 2026-08-16.** Le critère de fond (gain net, cinq exécutions à 0 échec) est désormais rempli
@@ -2975,6 +2989,12 @@ dira désormais (« sans effet pour l'instant »). Relevé du 2026-10-06 (passe 
 des indicateurs et des alertes de seuil (`AgencyIndicatorPolicy`, [TCK-1701](backlog/tickets/done/TCK-1701-indicateurs-et-alertes-par-capacite.md),
 P82.04) : sa ligne a quitté l'inventaire, cliquet 7 → 6. Restent `agency.upgrade_request`,
 `payments.refund`, `messaging.broadcast`, `messaging.archive`.
+
+**Mise à jour du 2026-11-16 — il en reste trois.** `payments.refund` juge désormais le geste « Doublon
+remboursé » d'une échéance de bail (`POST /api/lease-payments/{id}/duplicate-refunded`, `LeasePolicy`,
+[TCK-608](backlog/tickets/done/TCK-608-part-versee-et-doublon-a-rembourser.md)) : sa ligne a quitté
+l'inventaire (`CapabilityEnforcementInventory`), cliquet 6 → 5 — les deux autres lignes sont réservées à
+la plateforme. Restent `agency.upgrade_request`, `messaging.broadcast`, `messaging.archive`.
 
 *Pas de ticket : brancher une capacité sans geste, c'est inventer le geste. Condition de réouverture :
 le ticket qui crée le geste (remboursement, diffusion, archivage de conversation…) la branche et la

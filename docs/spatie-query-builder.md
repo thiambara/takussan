@@ -134,7 +134,7 @@ GET /api/properties?per_page=10&page=2
 | `filter[price_max]` | range | Prix maximum |
 | `filter[area_min]` | range | Surface minimum (m²) |
 | `filter[area_max]` | range | Surface maximum (m²) |
-| `filter[search]` | search | Recherche dans title, reference_number, description |
+| `filter[search]` | search | Recherche dans title, reference_number, description — **par la base, pas par Scout** (`Property::rechercheParLaBase()`, TCK-578) : tous statuts, sans tolérance aux fautes, la référence exacte en tête puis le titre |
 | `filter[public]` | callback | `1` : les biens EN LIGNE (`Property::scopePublic`, ADR-0097) |
 | `filter[occupancy]` | callback | TCK-2637 — `occupied` (bail courant, préavis compris), `notice` (bail courant en préavis), `vacant` ; autre valeur → 422 |
 | `filter[listing]` | callback | TCK-2638 — l'état d'annonce, une partition : `online` (= `filter[public]=1`), `pending` (pas en ligne ; `pending` ou `pending_review`), `draft` (pas en ligne ; brouillon), `offline` (tout le reste, négation de `scopePublic`) ; autre valeur → 422 |
