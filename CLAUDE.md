@@ -61,10 +61,12 @@ TCK-334), mais c'est le **rituel de fin de branche**, machine au repos — deux 
 16 cœurs à une machine qui en a 8. La boucle quotidienne reste `php bin/impacted-tests.php --run`.
 **Il est activé en CI depuis TCK-637** ([ADR-0063](docs/adr/0063-attestation-de-ci-par-arbre.md) §4
 amendé) : `lint-and-test` joue la suite en `--parallel` **sans couverture** et juge les tests ; le job
-`couverture` rejoue la suite **séquentiellement sous PCOV**, à côté, et tient le cliquet — PCOV agrège
-toujours mal entre processus ([J-11](docs/journal-des-corrections.md#j-11), [J-12](docs/journal-des-corrections.md#j-12)).
-Relevé du 2026-11-16 (PR #1688, runner à 4 processus) : `lint-and-test` 18 à 20 min au lieu de 54 à
-90, `couverture` 77 min et `Total: 96.9 %` — c'est elle, désormais, le chemin critique du « tout vert ».
+`couverture` la rejoue **en `--parallel` sous PCOV** (TCK-2951), à côté, et tient le cliquet. *PCOV
+n'agrège pas mal entre processus* : la phrase qui le disait n'avait jamais été mesurée, et la mesure,
+même arbre, l'a démentie — `Total: 96.9 %` des deux côtés
+([J-12](docs/journal-des-corrections.md#j-12)). Relevé du 2026-11-16 (runner à 4 processus) :
+`lint-and-test` 18 à 20 min au lieu de 54 à 90, `couverture` **~42 min** au lieu de 77 — c'est elle
+qui reste le chemin critique du « tout vert ».
 
 **L'ardoise est ouverte et écrite.** `docs/ardoise.md` porte l'inventaire des manquements mesurés,
 chacun sourcé, classé et priorisé — dont quatre qui touchent la **production** et ne se voient pas
@@ -91,8 +93,8 @@ php artisan test                    # ⚠ PostgreSQL, plus SQLite (ADR-0020) : `
 php artisan test --filter=Foo
 php artisan test --parallel         # RITUEL DE FIN DE BRANCHE, machine au repos — pas la boucle
                                     #   quotidienne. Deux agents peuvent la lancer en même temps
-                                    #   (TCK-322, TCK-334). En CI depuis TCK-637, la couverture
-                                    #   à part : cf. § État courant.
+                                    #   (TCK-322, TCK-334). En CI depuis TCK-637 ; la couverture
+                                    #   aussi, dans son job, depuis TCK-2951 : cf. § État courant.
 php bin/impacted-tests.php --run    # ← LA commande du quotidien : ne lance que les tests que le
                                     #   diff touche, via tests/impact-map.json (carte dérivée d'un
                                     #   rapport de couverture, jamais éditée à la main). Mesuré par
@@ -103,8 +105,14 @@ php bin/impacted-tests.php --run    # ← LA commande du quotidien : ne lance qu
 XDEBUG_MODE=coverage php vendor/phpunit/phpunit/phpunit \
   --coverage-clover=storage/coverage/clover.xml
 php bin/coverage-gate.php storage/coverage/clover.xml --min=92
-                                    # le CLIQUET de la CI, dans sa forme EXACTE (TCK-302, TCK-331).
+                                    # le CLIQUET de la CI (TCK-302, TCK-331). La CI produit le
+                                    #   clover par `php artisan test --parallel --processes=N
+                                    #   --coverage-clover=…` (TCK-2951) — `--parallel` EN PREMIER,
+                                    #   jamais `--coverage` ; même `Total:` que la forme ci-dessus.
                                     #   Exige un pilote de couverture : PCOV en CI, Xdebug en local.
+                                    #   ⚠ Xdebug local : `RadarWhatsappReceiptGuardTest::test_i1_…`
+                                    #   fait segfault (139) sous couverture, séquentiel comme
+                                    #   parallèle — bug Xdebug, la CI (PCOV) n'est pas touchée.
                                     #   ⚠ La VARIABLE D'ENVIRONNEMENT, pas `-d xdebug.mode=…`.
                                     #   Il lit le clover et fait ÉCHOUER bruyamment un rapport
                                     #   absent, tronqué, ou qui n'a mesuré aucune ligne : `0/0`

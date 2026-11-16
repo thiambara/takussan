@@ -800,7 +800,24 @@ node ../scripts/check-impact-map.mjs --report
 ⚠ **PHPUnit directement, et pas `php artisan test --coverage-php=…`** : `artisan test --coverage`
 passe déjà cette option en interne, et une seconde occurrence est écartée par PHPUnit — la commande
 sort alors en 1 sans un mot (TCK-331). Sans le drapeau `--coverage`, `artisan test --coverage-php=…`
-fonctionne encore, mais il n'y a plus aucune raison de passer par lui.
+fonctionne encore, mais en un seul processus il n'y a aucune raison de passer par lui.
+
+**La forme parallèle est équivalente, et c'est celle de la CI depuis TCK-2951** : ParaTest fusionne
+les couvertures de ses workers et écrit `cov.php` depuis l'objet fusionné.
+
+```bash
+XDEBUG_MODE=coverage php artisan test --parallel --processes=8 --coverage-php=/tmp/cov.php
+```
+
+`--parallel` **en premier** (Collision arrête son analyse à la première option qu'il ne connaît pas ;
+un `--parallel` placé après n'est pas vu, et PHPUnit, lancé seul, le refuse), et **jamais**
+`--coverage`. Mesuré en local sur
+`tests/Feature/Auth` (586 tests, 8 processus) : 169 s → 58 s, aucune ligne couverte différente, et
+**aucun test perdu par ligne** pour la carte — quelques-uns de plus là où une ligne jouée une fois par
+worker est attribuée au premier test de chacun ; la carte relance donc un sur-ensemble.
+⚠ Sous Xdebug (3.4.2), `tests/Feature/Radar/RadarWhatsappReceiptGuardTest.php::test_i1_…` fait
+segfault (sortie 139) sous couverture, séquentiel comme parallèle : bug d'Xdebug, sans effet sur la
+CI (PCOV).
 
 ⚠ **Le clover ne peut PAS remplacer `cov.php` pour la carte.** La carte a besoin de l'attribution
 **test → lignes** ; le clover ne porte que des compteurs par fichier. Une carte dérivée du clover

@@ -117,7 +117,7 @@ Trois options étaient ouvertes : (a) deux jobs, (b) une couverture fusionnée p
   **juge** les tests, et il dépose l'attestation `ci-vert-api-<clé>` comme avant : même nom, même
   clé, même sens — *les tests sont verts sur cet arbre*. Il ne dit plus rien du cliquet.
 - **`couverture`** rejoue la suite **en un seul processus sous PCOV** — la seule forme qui donne un
-  clover complet sans fusion —, applique `bin/coverage-gate.php storage/coverage/clover.xml --min=92`
+  clover complet sans fusion, croyait-on : *démenti par la mesure, cf. l'amendement TCK-2951 ci-dessous* —, applique `bin/coverage-gate.php storage/coverage/clover.xml --min=92`
   sur chaque PR vers `dev`, publie le clover (et le HTML sur un rouge), produit `cov.php` la nuit ou
   à la demande sur `dev`, et pousse la carte d'impact (`contents: write` a suivi ce step ;
   `lint-and-test` redescend à `contents: read`).
@@ -164,6 +164,53 @@ les deux jobs et sur leur maximum**, trois exécutions avant, trois après.
 **Risque à mesurer en CI** : `nproc` processus contre un seul service Meilisearch n'a été éprouvé
 qu'en local (J-11). Une `MeilisearchNotIdleException` sur les premières exécutions se lit comme ce
 risque, pas comme un défaut applicatif.
+
+#### Amendement du 2026-11-16 (TCK-2951) — `couverture` passe en `--parallel` lui aussi
+
+**Contexte.** L'amendement précédent gardait `couverture` en un seul processus parce que « PCOV agrège
+mal entre processus » (J-12). Cette affirmation n'avait **jamais été mesurée**. Mesurée le 2026-11-16,
+même arbre (`5b5e5c98f`), PCOV 1.0.12, runner `ubuntu-latest` à `nproc` 4, une seule variable — la
+commande :
+
+| `couverture` | run | durée du job | `Total:` |
+|---|---|---|---|
+| `php vendor/phpunit/phpunit/phpunit` (séquentiel) | 43942819541 | **77 min** | `96.9 % (74260 / 76633 lignes exécutables)` |
+| `php artisan test --parallel --processes="$(nproc)"` | 43956403876 | **42,5 min** (step 2506 s) | `96.9 % (74265 / 76633)` · 17 498 tests |
+
+Les deux clovers, comparés ligne par ligne : mêmes 2 175 fichiers, mêmes lignes exécutables ; le
+parallèle couvre **toutes** les lignes du séquentiel, plus 5 (`SearchVerifyIndexes.php:90,94`,
+`HealthcheckService.php:331,332,335`) — des branches qui dépendent de l'état d'un Meilisearch partagé
+par 4 processus, donc un non-déterminisme de chemin, pas une erreur de fusion (0,007 %). ParaTest
+fusionne lui-même les couvertures de ses workers (`CoverageMerger`) et écrit clover, HTML et PHP depuis
+l'objet fusionné. En local (Xdebug, 8 processus, `tests/Feature/Auth`, 586 tests) : 169 s → 58 s,
+0 ligne couverte différente, et `cov.php` ne perd **aucun** test par ligne pour la carte d'impact (il
+en attribue davantage sur 133 lignes jouées une fois par worker : la carte relance un sur-ensemble).
+**Décision du porteur (2026-11-16) : oui.**
+
+- **`couverture`** joue `php artisan test --parallel --processes="$processus" [--coverage-php=…]
+  --coverage-clover=… --coverage-html=…`, `processus=$(nproc)` imprimé dans le journal. Sorties, code
+  de sortie, remontée des avertissements du lanceur, cliquet `--min=92` et attestation
+  `ci-vert-api-couverture-<clé>` : inchangés.
+- **`--parallel` en premier**, et **jamais** le drapeau `--coverage` de Collision : Collision arrête
+  son analyse à la première option inconnue (`ignoreValidationErrors()`), et `--coverage` ajoute un
+  second `--coverage-php` — les deux pièges de TCK-331. Le reste de la ligne passe tel quel à ParaTest,
+  qui refuse une option inconnue. `scripts/check-ci-attestation.mjs` tient la forme : la commande qui
+  écrit le clover doit être `php artisan test --parallel --processes=…`, aucun PHPUnit ni ParaTest
+  direct dans le job, pas de `--coverage`.
+- **Les deux jobs restent deux** (la structure de l'amendement TCK-637 tient) : `lint-and-test` juge
+  sans pilote de couverture et rend son verdict plus tôt (18-20 min), `couverture` reste le chemin
+  critique du « tout vert », ramené de ~77 à ~42 min.
+- *Une fois* : `api-ci.yml` est dans la clé de l'API — ce changement invalide les deux attestations
+  de l'API. `scripts/ci-attestation.mjs`, dans la clé des **deux** suites, n'est **pas** modifié (son
+  commentaire « PCOV séquentiel » est donc périmé, et c'est ce paragraphe qui fait foi) : le toucher
+  rejouerait aussi le front pour un commentaire.
+
+**Reste à observer en CI** (TCK-2951, AC4) : l'écriture de `cov.php` en `--parallel` sur la suite
+entière, la nuit sur `dev`. La fusion des workers est déjà éprouvée par le run 43956403876 (ParaTest
+fusionne une fois, puis écrit **tous** les rapports demandés depuis l'objet fusionné, `WrapperRunner::
+generateCodeCoverageReports()`) ; seul l'écrivain PHP, ~100 Mo sous `memory_limit=8G`, n'y a pas
+tourné. Un échec y est bruyant (le step rougit, la carte n'est pas poussée), jamais une carte
+silencieusement fausse.
 
 ### 5. Le front : Vitest en shards, un agrégateur qui juge et atteste
 
