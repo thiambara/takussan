@@ -91,31 +91,31 @@ manque. *Un test vert ne prouve rien s'il serait vert sans le correctif.*
 
 ## Delta à produire
 
-- [ ] `PropertyIndexQueryBudgetTest` : un bien dont le propriétaire est **admin d'agence** (sans profil
+- [x] `PropertyIndexQueryBudgetTest` : un bien dont le propriétaire est **admin d'agence** (sans profil
       agent) dans la page amorcée ; `is_agent` et la décision de personnel identiques à la ligne seule.
 - ~~`OwedRemainderTest` : `/api/dashboard/stats` en super-admin (branche globale) et en locataire
       (branche locataire), sur la même échéance trop payée.~~ — sans objet, route retirée (TCK-952).
-- [ ] `LeaseRenewalOverlapTest` (ou `LeasePaymentMarkPaidLockTest`) : le `FOR UPDATE` et l'`UPDATE
+- [x] `LeaseRenewalOverlapTest` (ou `LeasePaymentMarkPaidLockTest`) : le `FOR UPDATE` et l'`UPDATE
       "lease_payments"` relevés dans **la même** transaction — même niveau, sans `COMMIT` ni
       `RELEASE SAVEPOINT` entre les deux.
-- [ ] `PaymentInitiationOutsideTransactionTest` (hôte naturel depuis TCK-1075, même harnais de niveaux
+- [x] `PaymentInitiationOutsideTransactionTest` (hôte naturel depuis TCK-1075, même harnais de niveaux
       de transaction ; ~~`PaymentCheckoutReuseTest`~~) : `POST …/initiate` relit le paiement
       `FOR UPDATE` dans chacune des deux transactions d'`initiateWith` : avant l'écriture de la
       réservation, puis avant celle du `transaction_id`.
 
 ## Critères d'acceptation
 
-- [ ] **AC1.** Mutation « `staff` sans les `AgencyAdminProfile` » (`MembershipCapabilityResolver.php:612`)
+- [x] **AC1.** Mutation « `staff` sans les `AgencyAdminProfile` » (`MembershipCapabilityResolver.php:612`)
       → le test de la page amorcée rougit.
 - ~~**AC2.** Mutation « `globalStats()` compte `overdue_payments` par `status = overdue` » → rouge ;
       même mutation dans `tenantStats()` → rouge.~~ — sans objet, route retirée (TCK-952).
-- [ ] **AC3.** Mutation « verrou dans une première `DB::transaction`, écriture dans une seconde »
+- [x] **AC3.** Mutation « verrou dans une première `DB::transaction`, écriture dans une seconde »
       dans `markPaid` → rouge. Le code actuel → vert.
-- [ ] **AC4.** Mutation « `lockForUpdate()` retiré de `lockAndRefresh` » → rouge ; mutation
+- [x] **AC4.** Mutation « `lockForUpdate()` retiré de `lockAndRefresh` » → rouge ; mutation
       « `lockAndRefresh` sorti de la première `DB::transaction` d'`initiateWith` » → rouge ; même
       mutation sur la seconde → rouge. `lockAndRefresh` sert les deux temps : l'ablation vise chaque
       temps séparément. (réécrit le 2026-11-16 : `initiateLocked` n'existe plus depuis TCK-1075)
-- [ ] Les classes touchées restent vertes sur le code actuel ; aucune autre classe ne change.
+- [x] Les classes touchées restent vertes sur le code actuel ; aucune autre classe ne change.
 
 ## Hors périmètre
 
@@ -128,3 +128,27 @@ manque. *Un test vert ne prouve rien s'il serait vert sans le correctif.*
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Utilitaire de test `Tests\Support\ReleveSqlParTransaction`** : relève le SQL réel avec le niveau ET
+  l'identité de la transaction qui le porte (pile alimentée par `TransactionBeginning` / `Committed` /
+  `RolledBack`). Le niveau seul ne distingue pas deux `DB::transaction` successives — c'est exactement la
+  mutation d'AC3, que `test_mark_paid_rereads_the_due_under_lock` laisse verte (constaté).
+- **AC1** — `PropertyIndexQueryBudgetTest::test_la_page_amorcee_compte_l_admin_d_agence_parmi_le_personnel` :
+  bien saisi par un admin d'agence (ni agent, ni bailleur, sans collaborateur), liste lue par un agent ;
+  le contact principal n'existe que par `isStaffAt` du titulaire. Mutation « `staff` sans
+  `$profils(AgencyAdmin)` » → rouge (`null` contre la fiche, contact = l'admin) ; restauré, md5 identique.
+- **AC3** — `LeaseRenewalOverlapTest::test_mark_paid_writes_the_due_in_the_transaction_that_locked_it` :
+  le `FOR UPDATE` et l'`UPDATE "lease_payments"` qui pose `paid` portent la même identité de transaction.
+  Mutation « verrou dans une première `DB::transaction`, écriture dans une seconde » → rouge
+  (`2 is identical to 1`) ; restauré, md5 identique.
+- **AC4** — `PaymentInitiationOutsideTransactionTest::test_chaque_temps_ecrit_sous_le_verrou_de_sa_propre_transaction` :
+  pour l'écriture de la réservation (`initiating`) puis celle du `transaction_id`, le dernier `FOR UPDATE`
+  du paiement qui la précède est au-dessus du niveau du test et dans la même transaction ; les deux temps
+  dans deux transactions distinctes. Trois mutations, chacune rouge : `lockForUpdate()` retiré de
+  `lockAndRefresh` ; `lockAndRefresh` sorti de la première transaction ; sorti de la seconde.
+- Les ablations d'AC4 ont été jouées sur une **copie isolée** de `takussan-api/` (vendor copié, jamais lié) :
+  `PaymentGatewayService` était en cours d'édition par un autre ticket dans l'arbre partagé.
+- Aucun code applicatif modifié.
+

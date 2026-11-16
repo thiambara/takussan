@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\LeaseDueFixture;
+use Tests\Support\ReleveSqlParTransaction;
 use Tests\TestCase;
 
 /**
@@ -33,7 +34,7 @@ use Tests\TestCase;
  */
 class PaymentInitiationOutsideTransactionTest extends TestCase
 {
-    use LeaseDueFixture, RefreshDatabase;
+    use LeaseDueFixture, RefreshDatabase, ReleveSqlParTransaction;
 
     /** Un pilote dont l'appel au fournisseur exécute `$pendant` (ce qui arrive pendant la latence). */
     private function driver(?\Closure $pendant = null): object
@@ -94,6 +95,57 @@ class PaymentInitiationOutsideTransactionTest extends TestCase
         $gateway = $ctx['payment']->refresh()->metadata['gateway'];
         $this->assertSame('txn_1', $gateway['transaction_id']);
         $this->assertArrayNotHasKey('initiating', $gateway, 'La réservation survit à l\'enregistrement.');
+    }
+
+    /**
+     * TCK-619 (verif-593, V2) — chacun des deux temps sous verrou d'`initiateWith` relit le paiement
+     * `FOR UPDATE` DANS la transaction qui écrit ensuite : la réservation (`metadata.gateway.initiating`),
+     * puis l'enregistrement du `transaction_id`. Un verrou absent, ou pris hors de la transaction qui
+     * écrit (au niveau du test, ou dans une transaction déjà refermée), rougit ce test. Le SQL réel est
+     * relevé avec l'identité de la transaction qui le porte ({@see ReleveSqlParTransaction}).
+     */
+    public function test_chaque_temps_ecrit_sous_le_verrou_de_sa_propre_transaction(): void
+    {
+        $ctx = $this->leaseDue();
+        $this->driver();
+        Sanctum::actingAs($ctx['tenant']);
+        $id = $ctx['payment']->id;
+        $base = DB::transactionLevel();
+        $releve = $this->releverSqlParTransaction();
+
+        $this->initiate($id)->assertOk()->assertJsonPath('data.transaction_id', 'txn_1');
+
+        $requetes = $releve->getArrayCopy();
+        $ecriture = function (string $marque) use ($requetes, $id): int {
+            foreach ($requetes as $i => $q) {
+                if (preg_match('/^update "lease_payments" set /i', $q['sql']) && in_array($id, $q['bindings'], true)
+                    && str_contains(implode(' ', array_map(fn ($b) => is_scalar($b) ? (string) $b : '', $q['bindings'])), $marque)) {
+                    return $i;
+                }
+            }
+            $this->fail("initiate : aucune écriture du paiement ne porte « {$marque} »");
+        };
+        $verrouAvant = function (int $i) use ($requetes, $id): ?array {
+            for ($j = $i - 1; $j >= 0; $j--) {
+                $q = $requetes[$j];
+                if (preg_match('/from "lease_payments" .*for update/i', $q['sql']) && in_array($id, $q['bindings'], true)) {
+                    return $q;
+                }
+            }
+
+            return null;
+        };
+
+        $temps = [];
+        foreach (['réservation' => 'initiating', 'enregistrement' => 'txn_1'] as $nom => $marque) {
+            $i = $ecriture($marque);
+            $verrou = $verrouAvant($i);
+            $this->assertNotNull($verrou, "initiate ({$nom}) : le paiement n'est pas relu FOR UPDATE avant l'écriture");
+            $this->assertGreaterThan($base, $verrou['level'], "initiate ({$nom}) : le FOR UPDATE n'est tenu par aucune transaction du code");
+            $this->assertSame($requetes[$i]['tx'], $verrou['tx'], "initiate ({$nom}) : le verrou n'est pas tenu par la transaction qui écrit");
+            $temps[$nom] = $requetes[$i]['tx'];
+        }
+        $this->assertNotSame($temps['réservation'], $temps['enregistrement'], 'initiate : réservation et enregistrement dans la même transaction');
     }
 
     public function test_pendant_l_appel_la_ligne_porte_la_reservation_et_une_seconde_initiation_est_refusee(): void
