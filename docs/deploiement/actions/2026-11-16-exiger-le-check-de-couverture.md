@@ -4,8 +4,8 @@ type: externe
 tickets: [TCK-637]
 cles: []
 creee: 2026-11-16
-preview: a-faire
-production: a-faire
+preview: fait
+production: fait
 ---
 
 ## Quoi faire
@@ -53,3 +53,8 @@ production : les deux se posent par le même geste, d'où `production: a-faire`.
   job `couverture` → le check rougit et la PR n'est plus fusionnable, alors que `API / lint-and-test` reste vert.
 
 ## Historique
+- 2026-11-16 · preview · fait · Claude (session, pour le porteur) · contexts 6 → 7, API / couverture
+- 2026-11-16 · production · fait · Claude (session, pour le porteur) · master : contexts 6 → 7, API / couverture
+- 2026-11-16, 23:3x Z — nom relevé sur la PR de promotion #1691 : `API / couverture`. Ajouté par le point d'accès
+  additif sur `preview` et `master` : `required_status_checks.contexts` passe de 6 à **7** sur les deux, les six
+  précédents inchangés. Ligne « Protection des branches » de `docs/infra/hebergement.md` mise à jour.
