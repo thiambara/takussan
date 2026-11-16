@@ -44,6 +44,18 @@ tags: [back, front, légal, données-personnelles, conformité]
   (b) garder la lecture au premier affichage, déclarée ? Quelle version fait foi —
   `VERSION_DOCUMENTS` (`editeur.ts`) ou `PublishReadiness::TERMS_VERSION` (même date aujourd'hui) ?
 
+## Décisions du porteur (2026-11-16)
+
+1. **Une personne montrée publiquement est nommée par son prénom et l'initiale de son nom**
+   (« Awa N. »). Ce que le ticket relève : l'auteur d'un avis. Les fiches d'agent et d'agence sont
+   des fiches professionnelles (TCK-2576) et gardent leur nom.
+2. **`ipapi.co` n'est appelé qu'au premier geste du visiteur** (appui, clic ou touche), jamais au
+   simple chargement d'une page ; la politique le dit.
+3. **La version des documents juridiques a une seule source : `VERSION_DOCUMENTS`**
+   (`takussan-web/src/content/legal/editeur.ts`). `PublishReadiness::TERMS_VERSION` en est le reflet
+   côté API, tenu égal par `scripts/check-terms-version.mjs` (Repo CI) — jamais une recopie silencieuse.
+   Répond à la question de la contrainte 3.
+
 ## Objectif utilisateur
 
 Que ce que la politique de confidentialité et les CGU affirment soit vrai. Un texte juridique qui
@@ -63,7 +75,7 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
 | Journal d'activité : **12 mois** ; journaux de sécurité et de preuve : **5 ans** ; journaux des pièces comptables : **10 ans** (durées par famille, décision du porteur du 2026-10-25 sur P19.04) | `privacy.ts` §6 | **tenu** par TCK-2342 : `audit:prune-activity-log`, par famille de `log_name`, planifiée chaque jour. Relevé du 2026-09-17 : `activitylog:clean` n'était pas planifiée, rien n'était jamais purgé |
 | Pièces KYC : la relation **+ 5 ans** ; demandes de contact anonymes : **3 ans** | `privacy.ts` §6 | aucune purge (point de départ déjà décidé par TCK-1061 : le `deleted_at` du profil) |
 | Notifications in-app lues : **6 mois** après leur lecture (ajout du 2026-10-18, décision du porteur sur P19.06) | `privacy.ts` §6 | **tenu** par TCK-918 : `notifications:prune-read`, planifiée chaque jour |
-| Avis publics : le texte dit (vrai) « prénom, nom et photo » | `privacy.ts` §4.1 | `ReviewResource` expose le nom complet et l'avatar. **Recommandation** : prénom + initiale, par minimisation (loi 2008-12, principe de proportionnalité) — puis corriger le texte |
+| Avis publics : le texte dit (vrai) « prénom, nom et photo » | `privacy.ts` §4.1 | `ReviewResource` expose le nom complet et l'avatar. **Recommandation** : prénom + initiale, par minimisation (loi 2008-12, principe de proportionnalité) — puis corriger le texte. *Tenu le 2026-11-16 (décision 1) : « Prénom N. » sur les routes `public.*`, photo gardée, § 4.1 aligné.* |
 | *(ajouté le 2026-11-16, renvoyé par TCK-803)* La conservation des **jobs échoués** | `privacy.ts` | absente du texte |
 | *(ajouté le 2026-11-16, renvoyé par TCK-956)* Les notes et critères de la **fiche client** dans l'export | `privacy.ts` | absente du texte (conseil juridique demandé) |
 | *(ajouté le 2026-11-16, renvoyé par TCK-2903)* La **dictée vocale** du navigateur | `privacy.ts` | absente du texte |
@@ -78,7 +90,8 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
 - `ipapi.co` reçoit l'IP de tout visiteur au premier affichage, **avant** tout geste de sa part
   (`UserLocationProvider.tsx`). Déclaré dans la politique ; à confirmer comme choix produit.
   *Au 2026-11-16 : TCK-1225 — au premier lecteur seulement ; l'accueil (`HomepageDiscovery.tsx`)
-  le lit encore sans geste — décision produit.*
+  le lit encore sans geste — décision produit.* *Tenu le 2026-11-16 (décision 2) : au premier geste
+  seulement, § 2.2 et § 4.3 le disent.*
 - ~~Adresses divergentes~~ — fermé : TCK-590, `support@takussan.app` disparu de `web/src`. Constat d'origine : adresses divergentes : `support@takussan.app` dans `HostIndividualWizard.tsx`, « Takussan.sn »
   dans le message pré-rempli de `PublicPropertyController::contact` ; les textes citent
   `contact@`, `privacy@`, `legal@takussan.com`.
@@ -120,10 +133,11 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
       planifiée chaque jour, `docs/models-spec.md` § 13 mis à jour — fait par TCK-2342 (2026-10-25).
 - [ ] Purges KYC (+5 ans après la fin de la relation) et demandes de contact anonymes (3 ans) ;
       `docs/models-spec.md` mis à jour.
-- [ ] Décision produit sur l'auteur d'un avis public ; texte aligné.
-- [ ] Ticket à part, ou décision écrite de ne pas le traiter, pour ~~chacun des cinq écarts hors
+- [x] Décision produit sur l'auteur d'un avis public ; texte aligné.
+- [x] Ticket à part, ou décision écrite de ne pas le traiter, pour ~~chacun des cinq écarts hors
       politique~~ `ipapi.co` seul — les quatre autres sont fermés (TCK-2355, TCK-589, TCK-590).
-- [ ] Les trois mentions renvoyées à ce ticket (jobs échoués, export de la fiche client, dictée
+      Décision 2 du 2026-11-16, tenue dans ce ticket.
+- [x] Les trois mentions renvoyées à ce ticket (jobs échoués, export de la fiche client, dictée
       vocale) écrites dans `privacy.ts`, `VERSION_DOCUMENTS` avancée.
 
 ## Critères d'acceptation
@@ -156,3 +170,31 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
   profils, purges KYC et demandes de contact anonymes, auteur des avis, écarts hors politique.
   `activitylog:clean` du paquet reste enregistré, non planifié ; lancé à la main sans `--days`, il
   purge à 3653 jours (`config/activitylog.php`), la plus longue des trois durées.
+
+## Livré (2026-11-16)
+
+Partie « texte, noms, ipapi, version » seulement. Restent ouverts : preuve du consentement (AC1),
+effacement des colonnes de profil (AC2), purges KYC et demandes de contact (AC3) — d'où AC4 non coché.
+
+- **Auteur d'un avis** : `App\Support\NomPublic::abrege()` (prénom + initiale ; sans prénom,
+  l'initiale ; sans nom, le `username` réduit de même, partie avant `@` comprise). `ReviewResource`
+  l'emploie sur toute route `public.*` quel que soit le lecteur ; ailleurs, le nom entier reste à
+  l'auteur et à qui répond ou modère. La photo reste (la décision ne la vise pas), et le § 4.1 le dit.
+  Preuve : `tests/Feature/Public/NomDeLAuteurDAvisTest.php` (corps entier des trois réponses publiques
+  sans « Ndiouckmbaye »), `tests/Unit/Support/NomPublicTest.php`. Ablations : nom entier rétabli → 4
+  rouges ; clause `public.*` retirée → 1 rouge.
+- **ipapi.co** : `UserLocationProvider` écoute `GESTES` (`pointerdown`, `touchstart`, `keydown`) dès
+  son montage ; un lecteur ne lit que le cache de 24 h, le réseau attend le geste. Sans cache ni geste,
+  `loading` retombe sans ville et ne remonte jamais (l'assistant hôte ne repasse pas en squelette) ;
+  geste déjà fait (clic qui mène à l'écran), `loading` attend la réponse. Coût accepté : arrivé par un
+  chargement direct sans cache ni geste, l'assistant hôte ne préremplit plus ville ni devise. Preuve :
+  `UserLocationProvider.test.tsx` ; ablations (geste réputé fait → 5 rouges ; `loading` inconditionnel
+  → 1 rouge).
+- **Version** : `VERSION_DOCUMENTS` et `TERMS_VERSION` avancés au 16 novembre 2026 ; la connexion par
+  téléphone et la réclamation radar redemandent donc l'acceptation aux comptes de la version
+  précédente, ce qui est voulu.
+- **Textes** (`privacy.ts`, fr et en) : § 2.2 localisation au premier geste et dictée vocale (son
+  envoyé par le navigateur à son éditeur, jamais à nous) ; § 4.1 prénom et initiale ; § 4.3 ipapi ;
+  § 6 tâches en échec 30 jours (`queue:prune-failed --hours=720`) ; § 9 l'archive ne contient pas les
+  notes ni les critères de la fiche client, communiqués sur demande (droit d'accès de la loi 2008-12).
+  Preuve : `textes.test.ts`, bloc TCK-537.

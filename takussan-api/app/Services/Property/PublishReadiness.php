@@ -27,10 +27,11 @@ final class PublishReadiness
 {
     /**
      * La version des CGU que la phrase désigne : `VERSION_DOCUMENTS.date` du front
-     * (`takussan-web/src/content/legal/editeur.ts`, « 13 novembre 2026 »). À changer ensemble —
-     * `scripts/check-terms-version.mjs` le tient (Repo CI).
+     * (`takussan-web/src/content/legal/editeur.ts`, « 16 novembre 2026 »), qui fait foi (TCK-537,
+     * décision du porteur du 2026-11-16). Cette constante en est le reflet côté API : à changer
+     * ensemble — `scripts/check-terms-version.mjs` rougit sur tout écart (Repo CI).
      */
-    public const TERMS_VERSION = '2026-11-13';
+    public const TERMS_VERSION = '2026-11-16';
 
     public const MISSING_FIRST_NAME = 'first_name';
 

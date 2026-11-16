@@ -262,7 +262,7 @@ describe('politique de confidentialité — le journal des recherches', () => {
 
   it('la version des documents avance avec le journal', () => {
     // Avancée par TCK-2482 (le journal y entrait le 4 novembre 2026), puis par TCK-2511, puis par TCK-2603.
-    expect(VERSION_DOCUMENTS).toEqual({ date: '13 novembre 2026', dateEn: 'November 13, 2026' });
+    expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
   });
 });
 
@@ -281,7 +281,7 @@ describe('politique de confidentialité — la demande du quartier montrée à l
 
   it('la version des documents avance avec elle', () => {
     // Avancée depuis par TCK-2603.
-    expect(VERSION_DOCUMENTS).toEqual({ date: '13 novembre 2026', dateEn: 'November 13, 2026' });
+    expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
   });
 });
 
@@ -303,7 +303,7 @@ describe('politique de confidentialité — la demande d’une ville montrée au
   });
 
   it('la version des documents avance avec elle', () => {
-    expect(VERSION_DOCUMENTS).toEqual({ date: '13 novembre 2026', dateEn: 'November 13, 2026' });
+    expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
   });
 });
 
@@ -337,7 +337,7 @@ describe('politique de confidentialité — ce que le stockage local garde de la
 
   it('la version des documents avance avec elles', () => {
     // Avancée depuis par TCK-2511, puis par TCK-2603.
-    expect(VERSION_DOCUMENTS).toEqual({ date: '13 novembre 2026', dateEn: 'November 13, 2026' });
+    expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
   });
 });
 
@@ -380,5 +380,42 @@ describe('politique de confidentialité — tout ce que le front garde sur l’a
         expect(section).toContain(nom);
       }
     }
+  });
+});
+
+/**
+ * TCK-537 (décisions du porteur du 2026-11-16) — la politique dit ce que le code fait devenu : l'auteur
+ * d'un avis public par son prénom et l'initiale de son nom (`NomPublic`, API), ipapi.co au premier
+ * geste seulement (`UserLocationProvider`), les jobs échoués (30 jours, TCK-803), l'archive face aux
+ * fiches clients (TCK-956, ADR-0070 § 7) et la dictée vocale du navigateur (TCK-2903).
+ */
+describe('politique de confidentialité — les écarts fermés par TCK-537', () => {
+  it('nomme l’auteur d’un avis par son prénom et l’initiale de son nom, plus par son nom', () => {
+    expect(privacy.fr).toContain('accompagnés de votre prénom, de l’initiale de votre nom et de votre photo de profil');
+    expect(privacy.en).toContain('together with your first name, the initial of your last name and your profile photo');
+    expect(privacy.fr).not.toContain('accompagnés de vos prénom, nom et photo de profil');
+    expect(privacy.en).not.toContain('your first name, last name and profile photo');
+  });
+
+  it('ne joint ipapi.co qu’après le premier geste, jamais au chargement', () => {
+    expect(privacy.fr).toContain('n’est demandée qu’après votre premier geste dans la page (un appui, un clic ou une touche du clavier), jamais au simple chargement d’une page');
+    expect(privacy.en).toContain('only requested after your first gesture on the page (a tap, a click or a key press), never on a mere page load');
+    expect(privacy.fr).toContain('ipapi.co, qui reçoit votre adresse IP pour en déduire votre ville, seulement après votre premier geste');
+    expect(privacy.en).toContain('ipapi.co, which receives your IP address to infer your city, only after your first gesture');
+  });
+
+  it('dit la durée des tâches en échec, la dictée et le contenu de l’archive', () => {
+    expect(privacy.fr).toContain('**Tâches techniques en échec**');
+    expect(privacy.fr).toContain('30 jours, puis suppression automatique');
+    expect(privacy.en).toContain('**Failed technical tasks**');
+    expect(privacy.fr).toContain('**Dictée vocale**');
+    expect(privacy.fr).toContain('aucun son ne nous parvient ni n’est conservé par nous');
+    expect(privacy.en).toContain('**Voice dictation**');
+    expect(privacy.fr).toContain('les notes, les critères de recherche et les autres informations de travail que l’agence y ajoute n’y figurent pas : ils vous sont communiqués sur demande');
+    expect(privacy.en).toContain('are provided on request to the agency concerned or to us');
+  });
+
+  it('la version des documents avance avec eux', () => {
+    expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
   });
 });

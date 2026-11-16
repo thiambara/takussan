@@ -69,7 +69,7 @@ function useGeoSettled(geoLoading: boolean): boolean {
  * « Nouveau » ; il laisse « Coup de cœur » chevaucher, et c'est le front qui retire de la rangée
  * locale et des nouveautés les biens de la vedette — jamais l'inverse (cf. `rangeesSansDoublon`).
  *
- * « À <ville> » et jamais « près de vous » : la ville est devinée par l'IP (ipapi.co) ou vaut le
+ * « À <ville> » et jamais « près de vous » : la ville est devinée par l'IP (ipapi.co, au premier geste du visiteur — TCK-537) ou vaut le
  * marché de référence ; la position du visiteur n'est jamais demandée au chargement.
  */
 export function HomepageDiscovery({

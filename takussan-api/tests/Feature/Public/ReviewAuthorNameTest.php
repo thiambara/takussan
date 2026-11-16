@@ -41,7 +41,8 @@ class ReviewAuthorNameTest extends TestCase
             ->assertJsonPath('data.0.author.name', null);
     }
 
-    public function test_author_name_is_the_full_name_when_present(): void
+    /** TCK-537 (décision du porteur du 2026-11-16) — au public, le prénom et l'initiale du nom. */
+    public function test_author_name_is_the_first_name_and_initial_when_present(): void
     {
         $property = Property::factory()->published()->create();
         $author = User::factory()->create(['first_name' => 'Awa', 'last_name' => 'Ndiaye']);
@@ -49,7 +50,7 @@ class ReviewAuthorNameTest extends TestCase
 
         $this->getJson("/api/public/properties/{$property->slug}/reviews")
             ->assertOk()
-            ->assertJsonPath('data.0.author.name', 'Awa Ndiaye');
+            ->assertJsonPath('data.0.author.name', 'Awa N.');
     }
 
     private function review(Property $property, User $author): void

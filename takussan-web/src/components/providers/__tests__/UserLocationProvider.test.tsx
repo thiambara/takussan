@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UserLocationProvider, useUserLocation } from '../UserLocationProvider';
@@ -9,6 +9,9 @@ import { UserLocationProvider, useUserLocation } from '../UserLocationProvider';
  * Monté par la mise en page racine, le fournisseur appelait ipapi.co dès son montage, sur toute
  * page, alors que quatre écrans seulement lisent `useUserLocation()` : l'IP du visiteur partait
  * chez ce tiers sans qu'aucun écran ne s'en serve.
+ *
+ * TCK-537 (décision du porteur du 2026-11-16) — et seulement au PREMIER GESTE du visiteur : un
+ * lecteur monté (l'accueil en est un) ne lit que le cache ; le réseau attend un appui ou une touche.
  */
 
 const fetchMock = vi.fn();
@@ -45,15 +48,104 @@ describe('UserLocationProvider', () => {
     expect(appelsIpapi()).toBe(0);
   });
 
-  it('au premier lecteur, résout une fois et rend la ville', async () => {
+  it('un lecteur monté sans geste ne joint pas ipapi.co et rend le repli', async () => {
     render(
       <UserLocationProvider>
-        <Lecteur />
         <Lecteur />
       </UserLocationProvider>,
     );
 
-    expect((await screen.findAllByText('ville : Thiès')).length).toBe(2);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(screen.getByText('ville : Dakar')).toBeInTheDocument();
+    expect(appelsIpapi()).toBe(0);
+  });
+
+  it('sans geste, `loading` retombe : aucun écran ne reste en squelette', async () => {
+    function Etat() {
+      const { loading } = useUserLocation();
+      return <p>{loading ? 'attente' : 'prêt'}</p>;
+    }
+    render(
+      <UserLocationProvider>
+        <Etat />
+      </UserLocationProvider>,
+    );
+
+    expect(await screen.findByText('prêt')).toBeInTheDocument();
+    expect(appelsIpapi()).toBe(0);
+  });
+
+  it.each(['pointerDown', 'touchStart', 'keyDown'] as const)(
+    'au premier geste (%s), résout une fois et rend la ville',
+    async (geste) => {
+      render(
+        <UserLocationProvider>
+          <Lecteur />
+          <Lecteur />
+        </UserLocationProvider>,
+      );
+      await new Promise((r) => setTimeout(r, 30));
+      expect(appelsIpapi()).toBe(0);
+
+      fireEvent[geste](document.body);
+      fireEvent[geste](document.body);
+
+      expect((await screen.findAllByText('ville : Thiès')).length).toBe(2);
+      expect(appelsIpapi()).toBe(1);
+    },
+  );
+
+  it('un geste sans lecteur ne joint pas ipapi.co', async () => {
+    render(
+      <UserLocationProvider>
+        <p>une fiche</p>
+      </UserLocationProvider>,
+    );
+
+    fireEvent.pointerDown(document.body);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(appelsIpapi()).toBe(0);
+  });
+
+  it('geste déjà fait, sans cache : `loading` attend la réponse (défauts de l’assistant non figés à vide)', async () => {
+    let repondre: (r: Response) => void = () => {};
+    fetchMock.mockReturnValueOnce(new Promise<Response>((r) => (repondre = r)));
+    function Etat() {
+      const { loading, location } = useUserLocation();
+      return <p>{loading ? 'attente' : `prêt ${location?.city ?? '—'}`}</p>;
+    }
+    const { rerender } = render(
+      <UserLocationProvider>
+        <p>une fiche</p>
+      </UserLocationProvider>,
+    );
+    fireEvent.pointerDown(document.body);
+    rerender(
+      <UserLocationProvider>
+        <Etat />
+      </UserLocationProvider>,
+    );
+
+    await waitFor(() => expect(appelsIpapi()).toBe(1));
+    expect(screen.getByText('attente')).toBeInTheDocument();
+    repondre(new Response(JSON.stringify({ city: 'Thiès' }), { status: 200 }));
+    expect(await screen.findByText('prêt Thiès')).toBeInTheDocument();
+  });
+
+  it('un geste fait AVANT le montage du lecteur compte (navigation côté client)', async () => {
+    const { rerender } = render(
+      <UserLocationProvider>
+        <p>une fiche</p>
+      </UserLocationProvider>,
+    );
+    fireEvent.pointerDown(document.body);
+    rerender(
+      <UserLocationProvider>
+        <Lecteur />
+      </UserLocationProvider>,
+    );
+
+    expect(await screen.findByText('ville : Thiès')).toBeInTheDocument();
     expect(appelsIpapi()).toBe(1);
   });
 
@@ -69,6 +161,8 @@ describe('UserLocationProvider', () => {
     );
 
     await waitFor(() => expect(screen.getByText('ville : Ziguinchor')).toBeInTheDocument());
+    fireEvent.pointerDown(document.body);
+    await new Promise((r) => setTimeout(r, 30));
     expect(appelsIpapi()).toBe(0);
   });
 });
