@@ -29,7 +29,7 @@ pipeline « écrire nu puis filigraner en file » est intact (`ApplyWatermarkOnC
   mesurable tel qu'écrit ; TCK-585 (review) sert les photos en `.webp` sans Transformations et
   ajoute `ConvertPhotoConversionsToWebpJob`, qui écrit puis filigrane dans le même job (fenêtre
   plus courte, mais toujours nue au même chemin public).
-- Le pilote Cloudflare reste un bouchon (`docs/infra/cdn.md`) : toujours aucune purge.
+- Le pilote Cloudflare de TCK-105 n'existe plus (retiré par TCK-2463, 2026-11-16, avec `docs/infra/cdn.md`) : aucune purge de cache n'est câblée.
 
 **Reste à faire** : l'ADR, l'implémentation de A (+ retrait de la trace), la règle de cache C,
 `WatermarkNeverPublicNakedTest`, AC1/AC2 mesurés en préproduction, couvrir le chemin de régénération WebP.
@@ -170,7 +170,7 @@ de la préproduction**, faute d'objet connu : c'est à vérifier (AC 2).
    `/cdn-cgi/image/…` forgée à la main, Transformations restant actif sur la zone.)*
 4. **Aucune purge n'existe pour ce domaine.** `MediaCdnObserver` ne purge que si
    `cdn.enabled`, ne purge que les URL que rend `getUrl()`, et son pilote Cloudflare est un
-   bouchon (`docs/infra/cdn.md` : « stub only — not functional »).
+   bouchon (`docs/infra/cdn.md` : « stub only — not functional » ; pilote et document retirés par TCK-2463 le 2026-11-16).
 
 ## Pistes, pesées (sans implémentation)
 

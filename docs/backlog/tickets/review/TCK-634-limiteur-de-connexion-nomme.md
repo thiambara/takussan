@@ -150,5 +150,5 @@ Sans objet : ticket backend.
 - **AC1 au navigateur** : non joué en local ; la page de connexion est relevée en préproduction
   après le déploiement.
 - **Hors périmètre, relevé** : les `throttle:N,M` sans préfixe des routes **authentifiées**
-  partagent de même la clé de l'utilisateur entre elles (`media/{media}/sign` à 60/min et les
+  partagent de même la clé de l'utilisateur entre elles (`media/{media}/sign` à 60/min — route retirée par TCK-2463 le 2026-11-16 et les
   confirmations 2FA à 5/min, par exemple).

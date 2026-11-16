@@ -386,8 +386,7 @@ explicite) et les huit helpers non événementiels.
 
 **Pattern driver/registry**, récurrent et systématique : une interface + N drivers + un binding
 conditionnel par config. Instances : SMS (`SmsDriverInterface` + Orange/Mtarget/LAfricaMobile/Log +
-`SmsRouterDriver`), WhatsApp (`WhatsappDriverInterface` + CloudApi/Log), CDN (`CdnProviderContract` +
-Bunny/Cloudflare), Paiements (`PaymentDriverContract` + LemonSqueezy/OrangeMoney/Wave), Parsing
+`SmsRouterDriver`), WhatsApp (`WhatsappDriverInterface` + CloudApi/Log), Paiements (`PaymentDriverContract` + LemonSqueezy/OrangeMoney/Wave), Parsing
 bancaire (`StatementParserInterface` + Csv/Ofx + factory), Intégrations (`IntegrationProvider` +
 registry). Un nouveau fournisseur suit ce patron, sans exception.
 
