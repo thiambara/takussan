@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Public;
 
+use App\Models\Enums\PropertyType;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,9 +43,10 @@ use Tests\Concerns\InteractsWithMeilisearch;
  *     naïvement — pire que pas d'ETag du tout, puisqu'il servirait du périmé.
  *     On vérifie donc AUSSI qu'il CHANGE quand le corps change ;
  *   · `Vary: Accept-Language` sur une réponse dont le corps ne varie PAS avec
- *     la locale coche un AC2 littéral sans rien prouver. On vérifie donc que
- *     les deux locales produisent deux ETags DISTINCTS — c'est ce que « ne
- *     partagent pas la même entrée de cache » veut dire.
+ *     la locale coche un AC2 littéral sans rien prouver. On vérifiait donc que
+ *     les deux locales produisaient deux ETags DISTINCTS. TCK-351 a retiré les
+ *     libellés traduits : les corps sont désormais IDENTIQUES, et c'est cette
+ *     identité que les tests épinglent (cf. § AC2 ci-dessous).
  */
 class CataloguePublicCacheTest extends ApiTestCase
 {
@@ -201,53 +203,75 @@ class CataloguePublicCacheTest extends ApiTestCase
         $this->assertStringNotContainsString('s-maxage', $entete, "Cache-Control émis : « {$entete} »");
     }
 
-    // ── AC2 — deux locales, deux entrées ─────────────────────────────────────
+    // ── AC2 — deux locales : relu par TCK-351 ────────────────────────────────
 
     /**
-     * AC2 pris au mot : « deux locales différentes ne partagent pas la même
-     * entrée de cache ». La clé d'entrée d'un validateur, c'est l'ETag — donc
-     * on vérifie que l'ETag du français ne vaut PAS revalidation en wolof.
-     * Assertion sur `Vary` seul : une tautologie, l'en-tête peut être posé sur
-     * une réponse qui ne varie pas.
+     * AC2 de TCK-341 reposait sur une PRÉMISSE : les libellés d'enum étaient traduits côté serveur
+     * (TCK-335), donc le corps variait avec la locale, et ce test assertait deux ETags distincts.
+     * **TCK-351 (2026-11-16) a retiré ces libellés** — le front possède le texte affiché — et la
+     * prémisse est tombée : aucun champ de ces réponses ne dépend plus de la locale.
+     *
+     * Décision relue : sur `search` (`etag` seul, cache PRIVÉ), rien à garder. L'ETag est le hachage
+     * du corps : deux locales au même corps partagent légitimement la même entrée, et le jour où un
+     * texte localisé reviendrait, les ETags divergeraient d'eux-mêmes — aucune revalidation croisée
+     * ne servirait la mauvaise langue.
+     *
+     * Ce test épingle donc l'IDENTITÉ, et c'est lui qui doit rougir si un texte localisé réapparaît
+     * dans le catalogue : la décision de TCK-341 et celle-ci seraient alors à relire ensemble.
      */
-    public function test_deux_locales_ne_partagent_pas_la_meme_entree_de_cache_sur_search(): void
+    public function test_le_corps_de_search_ne_depend_plus_de_la_locale(): void
     {
-        $this->bienPublie();
+        // Un type dont le mot change dans les trois langues (« Appartement », « Apartment », « Appart »
+        // dans `lang/`) : avec une `villa`, identique partout, un libellé réémis passerait inaperçu.
+        $this->bienPublie(['type' => PropertyType::Apartment]);
         $this->indexProperties();
 
         $fr = $this->getJson('/api/public/properties/search?per_page=20', ['Accept-Language' => 'fr'])->assertOk();
+        $en = $this->getJson('/api/public/properties/search?per_page=20', ['Accept-Language' => 'en'])->assertOk();
         $wo = $this->getJson('/api/public/properties/search?per_page=20', ['Accept-Language' => 'wo'])->assertOk();
 
-        $this->assertNotSame(
-            $fr->getContent(),
-            $wo->getContent(),
-            'Les libellés d\'enum sont traduits (TCK-335) : si les deux corps deviennent identiques, '
-            .'la prémisse de TCK-341 a changé et la décision doit être relue.',
-        );
+        $this->assertNotEmpty($fr->json('data'), 'Prémisse : un bien est rendu, sinon l\'identité ne prouve rien.');
+        foreach (['en' => $en, 'wo' => $wo] as $locale => $reponse) {
+            $this->assertSame(
+                $fr->getContent(),
+                $reponse->getContent(),
+                "Un texte localisé est revenu dans search ({$locale}) : relire TCK-341 et TCK-351 — le front "
+                .'possède le texte affiché, l\'API émet des codes.',
+            );
+        }
 
+        // Même corps, même ETag : la revalidation croisée rend 304, et c'est juste.
         $etagFr = (string) $fr->headers->get('ETag');
-        $this->assertNotSame($etagFr, (string) $wo->headers->get('ETag'));
-
+        $this->assertNotSame('', $etagFr);
         $this->getJson('/api/public/properties/search?per_page=20', [
             'Accept-Language' => 'wo',
             'If-None-Match' => $etagFr,
-        ])->assertOk();
+        ])->assertStatus(304);
     }
 
     /**
-     * `discovery` est la SEULE réponse `public` du catalogue, et c'est le seul
-     * défaut de ce ticket qui vivait réellement en production : servie
-     * `public, max-age=60, s-maxage=300` avec un corps qui varie avec la
-     * locale depuis TCK-335, et un `Vary` réduit à `Origin`.
+     * `discovery` est la SEULE réponse `public` du catalogue (`s-maxage=300`) : un cache PARTAGÉ la
+     * stocke. TCK-341 y avait posé `Vary: Accept-Language` parce que son corps variait avec la locale.
+     *
+     * TCK-351 — le corps ne varie plus (épinglé ci-dessous), mais **`Accept-Language` reste dans le
+     * `Vary`, délibérément**. Le retirer n'achèterait qu'un facteur 3 sur le taux de succès d'un cache
+     * à cinq minutes ; le garder protège du seul défaut qui ne se verrait pas : un texte localisé qui
+     * reviendrait dans ce corps serait servi, sans lui, dans la langue du premier visiteur à tous les
+     * suivants. Ce qui reste visible, c'est l'assertion d'identité : si elle rougit, la décision se relit.
      */
-    public function test_discovery_varie_avec_la_locale_et_le_declare(): void
+    public function test_discovery_ne_varie_plus_avec_la_locale_et_garde_son_vary(): void
     {
-        $this->bienPublie();
+        $this->bienPublie(['type' => PropertyType::Apartment]);
 
         $fr = $this->getJson('/api/public/properties/discovery?per_row=3', ['Accept-Language' => 'fr'])->assertOk();
         $wo = $this->getJson('/api/public/properties/discovery?per_row=3', ['Accept-Language' => 'wo'])->assertOk();
 
-        $this->assertNotSame($fr->getContent(), $wo->getContent(), 'Prémisse : discovery varie avec la locale.');
+        $this->assertStringContainsString('"id"', $fr->getContent(), 'Prémisse : discovery rend au moins un bien.');
+        $this->assertSame(
+            $fr->getContent(),
+            $wo->getContent(),
+            'Un texte localisé est revenu dans discovery : relire TCK-341 et TCK-351 (le `Vary` le couvre encore).',
+        );
         $this->assertStringContainsString('public', (string) $fr->headers->get('Cache-Control'));
 
         $vary = array_map('trim', explode(',', (string) $fr->headers->get('Vary')));

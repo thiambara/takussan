@@ -439,6 +439,11 @@ class PublicPropertyController extends Controller
             //     trois corps distincts servis `public, s-maxage=300` sous UNE
             //     seule entrée de cache. Un visiteur anglophone recevait la
             //     page d'un francophone, et rien ne pouvait le signaler.
+            //     TCK-351 (2026-11-16) : ces libellés ne sont plus émis, le corps
+            //     ne varie plus avec la locale. `Accept-Language` RESTE, par
+            //     prudence : un texte localisé qui reviendrait serait sinon servi
+            //     dans la langue du premier visiteur. L'identité des corps est
+            //     épinglée par `CataloguePublicCacheTest`, qui rougira ce jour-là.
             //   · L'APPELANT : `PropertyResource` émet quatre champs de
             //     modération dès que `$request->user() !== null`, et
             //     `ResolveActiveProfile` propage un porteur Bearer au garde par
