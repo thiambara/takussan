@@ -186,6 +186,17 @@ et aucune écriture n'est ajoutée.
 - **Un nom, un sens** : sur une ligne `restore`, les baux rétablis sont listés par `leases_fixed_ids=` et ceux à
   reprendre par `leases_to_review_ids=` ; au bilan, `leases_fixed=` et `leases_to_review=` sont des **comptes**.
   La trace `property.owner_restored` garde ses clés (`leases_fixed`, `leases_to_review`, listes d'identifiants).
+- **La passation transmet les baux brouillons du partant** (décision du porteur du 2026-11-16, TCK-616 AC6) —
+  même règle que la réparation : sur chaque bien **saisi réellement transmis** (`held_properties`), un bail
+  `draft` dont `landlord_id` = le partant passe au repreneur de cette catégorie, comme le reste de son
+  portefeuille ; tout autre statut garde son bailleur et est **listé** au bilan (`leases.to_review`, identifiants ;
+  `leases.moved`, compte), jamais réécrit — un bail signé est un document contractuel. Un bien laissé au partant
+  (repreneur bailleur, ADR-0036) garde ses baux ; le brouillon d'un autre bailleur ne bouge pas. Aucune catégorie
+  neuve : l'inventaire et la garde du retrait ne changent pas. Écriture de masse (ni `LeaseObserver` ni journal du
+  modèle), journalisée sous `AgentHandover`, évènement `leases` (`ids`, `to_review_ids`). **Verrous** : bien → bail
+  (`takussan-api/CLAUDE.md` § Migrations n°10) — les biens sont tenus depuis le verrou du §3, les brouillons se
+  verrouillent ensuite par identifiant croissant, par la requête bornée à ces biens, et le statut se juge sous ce
+  verrou ; tout écrivain d'un bail passe par son bien d'abord et attend donc sur lui.
 
 ## Options écartées
 
