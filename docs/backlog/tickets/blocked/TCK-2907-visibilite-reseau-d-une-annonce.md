@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 92
 created: 2026-11-15
-updated: 2026-11-15
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -17,6 +17,30 @@ spec_refs:
     - "docs/models-spec.md#3-property"
 tags: [back, front, biens, annonces, visibilite, decision-produit, audit-ux, app]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : bloqué externe — décision du porteur**, puis ADR si le sens est inter-agences. Prémisse
+toujours vraie : `PropertyVisibility` n'a que `Public` et `Private` (`:7-8`) ; aucune « visibilité
+Réseau » dans `docs/features.md`, aucun ADR de partage inter-agences. Rien de fermé entre-temps :
+TCK-2905 et TCK-2908 sont livrés **sans** elle (ils l'excluent explicitement). Numéros de ligne de
+la maquette justes.
+
+Reste à faire : la décision ; puis selon elle — ADR (si a), `PropertyVisibility::Network` + règle
+d'accès + `filter[visibility]=network`, écran (pastille, filtre, sous-titre), tests par profil avec
+ablation. Taille : S (d), M (b/c), L (a).
+
+**Question au porteur** :
+
+> La maquette des biens propose trois visibilités : Public, **Réseau**, Privé. Le code n'en a que deux. Que doit ouvrir « Réseau » ?
+> - **(a) Les autres agences de Takussan** voient l'annonce dans leur espace (pour la proposer à leurs clients, façon mandat partagé). → Décision structurelle : une agence lirait les biens d'une autre, ce que le principe « l'agence est la frontière d'isolation » interdit aujourd'hui. Il faudrait un ADR, et dire ce que l'autre agence voit (adresse exacte ? bailleur ? prix ?), et à qui vont les contacts et la commission.
+> - **(b) Les seuls visiteurs connectés** à un compte Takussan (l'annonce n'apparaît pas aux anonymes ni aux moteurs de recherche).
+> - **(c) Les seuls détenteurs du lien** : l'annonce n'apparaît ni dans la recherche, ni dans le sitemap, ni chez Google, mais s'ouvre à qui a le lien (partage WhatsApp).
+> - **(d) Rien** : on retire « Réseau » de la maquette, la liste garde Public / Privé.
+>
+> Deux questions de plus si (a), (b) ou (c) : une annonce « Réseau » compte-t-elle dans le quota d'annonces de l'offre (aujourd'hui, toute annonce disponible compte, même privée) ? Et qui reçoit les demandes de contact qu'elle génère — l'agence du bien seulement, ou aussi l'agence qui l'a montrée (a) ?
+>
+> *Coût indicatif* : (c) ou (d) se livrent en S/M sans ADR ; (a) est un chantier à part (ADR, accès inter-agences, partage des contacts et des commissions).
 
 ## Objectif utilisateur
 
@@ -30,8 +54,8 @@ Audit (`audit-f4-patrimoine.md`, app-biens **e1** : « visibilité « Réseau »
 
 **Bloqué : la maquette nomme la valeur, rien ne dit ce qu'elle ouvre.** Questions au porteur :
 
-1. « Réseau » veut-il dire : (a) visible des autres agences de la plateforme (partage inter-agences, mandat partagé) ; (b) visible des seuls comptes connectés ; (c) visible par lien seulement (non listé dans la recherche publique) ?
-2. Une annonce « Réseau » entre-t-elle dans les quotas d'annonces en ligne de l'offre ?
+1. « Réseau » veut-il dire : (a) visible des autres agences de la plateforme (partage inter-agences, mandat partagé) ; (b) visible des seuls comptes connectés ; (c) visible par lien seulement (non listé dans la recherche publique **ni dans le sitemap, en `noindex`**) ?
+2. Une annonce « Réseau » entre-t-elle dans les quotas d'annonces en ligne de l'offre ? (Aujourd'hui le quota compte par statut, pas par visibilité — `QuotaResolver::ACTIVE_LISTING_STATUSES`, `app/Services/Billing/QuotaResolver.php:67-71` : une annonce privée `available` l'occupe déjà. Répondre « oui » ne demande rien.)
 3. Qui reçoit les contacts d'une annonce vue par le réseau ?
 
 Selon la réponse, (a) est une décision structurelle (accès d'une agence au bien d'une autre : principe 2, l'agence frontière d'isolation) → **ADR avant le code** ; (b) et (c) se règlent dans la portée publique existante.

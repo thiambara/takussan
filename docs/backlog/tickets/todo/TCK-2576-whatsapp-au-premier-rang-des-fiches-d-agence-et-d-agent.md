@@ -7,7 +7,7 @@ family: full
 estimate: S
 wave: 85
 created: 2026-11-09
-updated: 2026-11-09
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -16,6 +16,23 @@ spec_refs:
   models: []
 tags: [api, front, directory, audit-ux]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai.** Fiche d'agent : `phone` et `phone_verified` seuls
+(`PublicAgentController.php:311-312`, aucune clé `*whatsapp*`) ; fiche d'agence : `phone` seul
+(`PublicAgencyController.php:465`), aucune colonne WhatsApp sur `agencies` ; `ContactDeFiche.tsx`
+n'a pas de bouton WhatsApp. Rien de fermé entre-temps (`git log --grep=TCK-2576` : création seulement).
+
+Reste à faire :
+- API agent : `phone_whatsapp` (booléen) servi seulement quand `phone` l'est (AC1, AC2), par la règle
+  existante `PropertyContactNumbers::hasWhatsApp()` restreinte au numéro principal.
+- API agence selon la décision ci-dessous (AC3) — S, ou M avec colonne et saisie.
+- Front : WhatsApp au premier rang (réutiliser `components/contact/WhatsAppButton.tsx`), puis Appeler, puis Message ; i18n fr/en/wo.
+
+**Décision attendue du porteur** : le bouton WhatsApp de la fiche d'agence vise-t-il (a) un numéro
+d'agence déclaré WhatsApp (nouvelle colonne `agencies.phone_whatsapp`, migration additive, saisie dans
+la vitrine `/app/agency`), ou (b) le numéro de l'administrateur de l'agence ?
 
 ## Objectif utilisateur
 
@@ -37,11 +54,13 @@ mais seulement quand le numéro publié est bien sur WhatsApp.
 ## Delta à produire
 
 - [ ] API, fiche d'agent : `phone_whatsapp` (booléen) servi avec `phone`, et seulement quand le
-  numéro est publié (vérifié, même règle que `numeroPrincipalPublic()`).
+  numéro est publié (vérifié, même règle que `PropertyContactNumbers::hasWhatsApp()` restreinte au
+  numéro principal — `principalUtilisable` + `phone_whatsapp` —, pour ne pas réécrire la règle).
 - [ ] API, fiche d'agence : décider la source (numéro de l'agence déclaré WhatsApp — colonne à créer,
   ou administrateur de l'agence) ; écrire la décision ici avant de l'implémenter.
 - [ ] Front, `ContactDeFiche` : WhatsApp au premier rang quand l'API le dit, lien `wa.me` sur le
-  numéro publié ; Appeler, puis Message, ensuite. Clés i18n `fr`/`en`/`wo`.
+  numéro publié (réutiliser `components/contact/WhatsAppButton.tsx`) ; Appeler, puis Message, ensuite.
+  Clés i18n `fr`/`en`/`wo`.
 
 ## Critères d'acceptation
 

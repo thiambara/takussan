@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 73
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -20,6 +20,24 @@ spec_refs:
     - docs/models-spec.md#63-integrationwebhooklog-
 tags: [back, front, paiement, free-money, integration, webhook, documentation-requise]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : bloqué externe — défaut toujours vrai.** `docs/infra/paiements/` n'existe pas : la
+documentation marchande Free Money (ou Yas) n'est toujours pas versée. Rien n'a été livré
+(`git log --grep=TCK-604` : seulement `23dabd2e7`, la sortie de TCK-602).
+
+- Toujours absents : `PaymentProvider::FreeMoney` (l'enum porte `Wave`, `OrangeMoney`, `LemonSqueezy`),
+  `FreeMoneyDriver`, `FreeMoneyProvider`.
+- Prérequis tous présents : `PaymentGatewayService::driverFor` (`:103`), `availableProviders` (`:119`),
+  `extractProvider` (`:1661`), `WebhookPayloadRedactor` (`:16`), routes `providers`
+  (`routes/api/payments.php:29`), webhook à jeton (`:44`), 410 (`:49`).
+- Reste : tout le Delta. Libellés : fr/en, et wo = texte français tel quel (wolof en pause).
+- Une fois livré, la contrainte 4 de TCK-606 (limiteur par intégration) vaut aussi pour Free Money.
+
+**Décision attendue du porteur** : verser `docs/infra/paiements/free-money.md` — (a) le contrat
+Free Money/Yas est disponible et le ticket démarre, ou (b) pas de contrat marchand en vue et le
+ticket reste parqué.
 
 > ⚠️ **Prérequis, avant toute ligne de code** : la documentation marchande de Free Money est
 > versée par le porteur dans `docs/infra/paiements/free-money.md`. Elle couvre l'URL et
@@ -95,8 +113,9 @@ Repris tels quels de TCK-602 (AC31 à AC33) :
       `free_money`, `initiate` rend un `checkout_url`, et le webhook `paid` signé passe l'échéance
       à `paid` avec une entrée `gateway_events`. Sans intégration active, `free_money` est absent
       de `providers` et `initiate` rend 422. *Rougit sur le code actuel :
-      `POST /api/webhooks/payments/free_money` rend 404 et `initiate` refuse `free_money` (422 de
-      validation).*
+      `POST /api/webhooks/payments/free_money/{token}` rend 404 (jeton sans intégration),
+      `POST /api/webhooks/payments/free_money` rend 410 (ADR-0046), et `initiate` refuse
+      `free_money` (422 de validation).* (corrigé le 2026-11-16)
 - [ ] **AC33** — Front : la sélection du fournisseur affiche Free Money si et seulement si la
       liste du serveur le contient ; le formulaire de reversement garde son mode `free_money`.
 

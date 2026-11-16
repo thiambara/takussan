@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -15,6 +15,23 @@ spec_refs:
   models: []
 tags: [front, design-system, tokens, dette, decision]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai, bloqué sur la décision produit (A ou B).** Aucune bascule : `ThemeProvider`,
+`next-themes`, `documentElement.classList`, `prefers-color-scheme` ne paraissent qu'en commentaire. Rien
+n'a été tranché (4 commits de docs/garde, aucun ADR). Fait entre-temps : l'en-tête de
+`src/test/contraste-wcag.ts:35` ne promet plus « le jour où » (dae4fd103, TCK-458).
+
+**Ce qui a changé, et pèse sur l'issue B** : la portée `.dark` s'est élargie de 2 à **six porteurs**
+(liste dérivée par AST dans `src/test/portees-sombres.ts`, TCK-459), dont **`components/ui/toast.tsx:139`**
+(d7e9cecb7, TCK-2688) : chaque toast du produit est rendu sombre, **vu par tout utilisateur, site
+public compris**. La surface sombre n'est donc plus « la chrome super-admin ». Comptes repris plus bas.
+
+**Décision attendue du porteur :** (A) une bascule globale de thème — mécanisme, `prefers-color-scheme`,
+persistance sans clignotement, arbitrage visuel du bloc ; ou (B) pas de thème sombre — `.dark` (et
+`@custom-variant dark` de `globals.css:19`) renommé en surface locale, périmètre dérivé des six portées,
+garde contre le retour des `dark:` hors portée.
 
 ## Objectif utilisateur
 
@@ -47,6 +64,11 @@ produit en sombre, et aucun réglage ne le lui propose.**
 > src/components/layout/SuperAdminTopbar.tsx:49     'dark flex h-14 shrink-0 …'
 > ```
 >
+> *2026-11-16 : **six porteurs** — `SuperAdminSidebar.tsx:290`, `SuperAdminTopbar.tsx:52`,
+> `SuperAdminShell.tsx:83` (`<SheetContent>`, par portail), `admin/super/agency-detail.tsx:443`,
+> **`ui/toast.tsx:139` (tous les toasts, TCK-2688)**, `playground/vitrine/VitrineClient.tsx:857` ; liste
+> dérivée par `src/test/portees-sombres.ts`. « La chrome super-admin » n'est plus la seule surface vivante.*
+>
 > Leurs docblocks le disent depuis TCK-358, et l'un d'eux prend soin de préciser : *« La classe
 > `dark` n'est PAS le mode sombre de l'utilisateur : c'est une surface »*. **Le bloc `.dark` est
 > donc VIVANT — il est le socle chromatique de la chrome super-admin, réellement rendue.**
@@ -58,6 +80,13 @@ produit en sombre, et aucun réglage ne le lui propose.**
 > locale assumée » contre « bascule globale absente »**.
 
 ### Ce que ça représente — mesuré le 2026-08-27, pas estimé
+
+> *Re-mesuré le 2026-11-16 : bloc `.dark` principal `globals.css:802` = **40** jetons, plus trois blocs
+> `.dark` d'appoint (`:1161`, `:1215`, `:1233`) ; utilitaires `dark:` (arbre suivi, hors tests) = **78**
+> dans **28** fichiers, dont **43** primitives `components/ui/**` et **35** produit (maintenance 12 —
+> `MaintenancePrioritySelector` 7, `MaintenancePriorityBadge` 5 —, `pipeline/constants.ts` 5,
+> `SearchAutocomplete` 4…) ; `JETONS_SOMBRE` (`contraste-wcag.ts:259`) = **38** entrées. Le tableau
+> ci-dessous est l'historique.*
 
 | | quantité | où |
 |---|---|---|
@@ -161,8 +190,9 @@ Ce qui se retire, si le produit ne veut pas de bascule utilisateur :
       harnais de contraste
 - [ ] Issue B : décision explicite et écrite sur les 46 `dark:` des primitives partagées
 - [ ] Dans les deux cas : une garde qui empêche l'état d'arrivée de redevenir l'état actuel
-- [ ] Dans les deux cas : mettre à jour l'en-tête de `src/test/contraste-wcag.ts`, qui promet
-      aujourd'hui « pour le jour où un `ThemeProvider` existera »
+- [x] Dans les deux cas : mettre à jour l'en-tête de `src/test/contraste-wcag.ts`, qui promet
+      aujourd'hui « pour le jour où un `ThemeProvider` existera » (tenu par TCK-458, dae4fd103,
+      relevé 2026-11-16 : `contraste-wcag.ts:35`)
 
 ## Critères d'acceptation
 
@@ -171,7 +201,8 @@ Ce qui se retire, si le produit ne veut pas de bascule utilisateur :
       renommé en surface locale et plus rien ne l'appelle « thème » (issue B). L'état actuel — 0
       côté bascule, et un bloc nommé `.dark` que deux composants utilisent comme surface — fait
       échouer le test dans les deux lectures.
-- [ ] AC1bis — quelle que soit l'issue, la chrome super-admin **rend toujours ses couleurs**. Un
+- [ ] AC1bis — quelle que soit l'issue, la chrome super-admin **rend toujours ses couleurs**
+      *(2026-11-16 : et le toast sombre de `ui/toast.tsx`, TCK-2688)*. Un
       test le vérifie sur les valeurs, pas à l'œil : c'est la surface que la première rédaction de
       ce ticket aurait cassée.
 - [ ] AC2 — issue A : un test éprouve la bascule **par le mécanisme réel**, pas par une table de
@@ -179,8 +210,9 @@ Ce qui se retire, si le produit ne veut pas de bascule utilisateur :
       aujourd'hui : c'est celui de TCK-440, et il ne suffit pas ici.
 - [ ] AC3 — issue B : le compte d'utilitaires `dark:` **hors chrome super-admin** tombe à 0, et
       une garde échoue si un seul revient. Le périmètre exact se dérive de ce que les deux barres
-      montent — il ne s'énumère pas à la main.
-- [ ] AC4 — `JETONS_SOMBRE` (24 entrées) reste cohérent avec le bloc, dans les deux issues :
+      montent — il ne s'énumère pas à la main. *(2026-11-16 : se dérive des **six** portées de
+      `portees-sombres.ts`, dont les primitives montées dans un toast.)*
+- [ ] AC4 — `JETONS_SOMBRE` (24 entrées ; **38** au 2026-11-16) reste cohérent avec le bloc, dans les deux issues :
       `src/test/__tests__/jetons-compiles.test.ts` le confronte déjà valeur par valeur à la
       feuille compilée, et ce contrôle doit rester vert.
 - [ ] AC5 — le coût est reconsigné après coup : le relevé de ce ticket date du 2026-08-27 et sera

@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: null
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-11-16
 depends_on: [TCK-2379]
 blocks: []
 spec_refs:
@@ -21,10 +21,27 @@ spec_refs:
     - "docs/models-spec.md#86-platformmetricdaily-"
     - "docs/models-spec.md#46-announcement-"
     - "docs/models-spec.md#65-thresholdalert-"
-    - "docs/models-spec.md#27-guarantor-"
     - "docs/models-spec.md#50-tenantonboardingchecklist-"
 tags: [api, seed, données, rapprochement, reporting]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : partiellement fermé.** Aucun commit ne cite ce ticket ; dépendance TCK-2379 : done.
+
+- **Fermé entre-temps** : `lease_guarantor` est semée par `database/seeders/Activity/LeaseSeeder.php:352-364`
+  (à la signature du premier bail, TCK-2377, commit `067cd4f6e`), plus `Crm/GuarantorSeeder.php`
+  branché dans `YearOfActivitySeeder.php:94`. Retirée de la liste ci-dessous.
+- Les dix autres tables n'ont toujours aucun seeder ; aucune n'est dans `PAR_AGENCE`
+  (`SeedingFeatureTablesTest.php:54-88`). Les services à emprunter existent
+  (`ReconciliationManager`, `OwnerStatementSnapshots`, `PlatformMetricsSnapshotter`).
+- Base locale (informatif, pas un seed frais) : `platform_metrics_daily`=1, `threshold_alerts`=2,
+  `notification_delivery_attempts`=11 — origine non établie, à compter juste après le prochain
+  `migrate:fresh --seed`.
+
+**Reste à faire** : les seeders par domaine, rejoués par `Timeline::aLaDate()` et branchés dans
+`YearOfActivitySeeder::PIPELINE` (l.68) ; les invariants ; `PAR_AGENCE` ; AC4. Candidate naturelle
+au même lot : `reconciliation_ignored_payments` (créée le 2026-11-15, `IgnoredPaymentService`).
 
 ## Objectif utilisateur
 
@@ -40,8 +57,10 @@ lues par du code :
 
 `bank_statements` (et leurs lignes), `payout_clawbacks`, `owner_statement_snapshots`,
 `platform_metrics_daily`, `announcements`, `threshold_alerts` — et, restées hors du lot 1 :
-`lease_guarantor`, `tenant_onboarding_checklists`, `data_exports`,
-`notification_delivery_attempts`.
+~~`lease_guarantor`~~ (semée par `LeaseSeeder.php:352-364` depuis TCK-2377 — caduc, relevé
+2026-11-16), `tenant_onboarding_checklists`, `data_exports`,
+`notification_delivery_attempts`. À ajouter éventuellement au rapprochement :
+`reconciliation_ignored_payments` (créée le 2026-11-15).
 
 ## Contraintes strictes (métier)
 
@@ -57,7 +76,8 @@ Celles de TCK-2379, reconduites :
 
 - [ ] Seeders rangés dans le dossier de leur domaine, branchés dans
       `YearOfActivitySeeder::PIPELINE` après leurs dépendances.
-- [ ] Les invariants qui en découlent dans `ReferentialIntegrityChecker` (ligne de relevé
+- [ ] Les invariants qui en découlent dans `ReferentialIntegrityChecker`
+      (`database/seeders/Support/ReferentialIntegrityChecker.php` ; ligne de relevé
       rapprochée ↔ paiement du même montant, reprise ≤ reversement, métrique du jour = compte
       des lignes du jour).
 - [ ] Les tables ajoutées à `SeedingFeatureTablesTest::PAR_AGENCE` quand elles se rattachent à une

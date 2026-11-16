@@ -7,7 +7,7 @@ family: full
 estimate: S
 wave: 85
 created: 2026-11-09
-updated: 2026-11-09
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -16,6 +16,18 @@ spec_refs:
   models: []
 tags: [api, front, avis, agence, directory, audit-ux]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : toujours vrai.** `ReviewController::storeForAgency` (`:543-566`) crée toujours l'avis sans
+`context_type` / `context_id` (à comparer à `storeForAgent`, `:578-581`, `$request->proof()`), et
+`StoreForAgencyReviewRequest::authorize` (`:29-41`) jette la preuve. La lecture et l'affichage sont
+prêts (`ReviewResource.php:59`, `ReviewsSection.tsx`). Rien de fermé entre-temps.
+
+Reste à faire : `StoreForAgencyReviewRequest::proof()` ; `storeForAgency` écrit le contexte ; tests par
+la route (AC1, AC2), ablation (AC3), avis existants inchangés (AC4). Côté api seul (le front affiche
+déjà). Le cas du super-admin sans bail relève de la session (défaut naturel : sans preuve, pas de
+contexte — déjà le comportement d'AC4) ; aucune décision du porteur attendue.
 
 ## Objectif utilisateur
 
@@ -35,9 +47,9 @@ d'un agent.
   `StoreForAgentReviewRequest::proof()`. Prouvé par la route (dépôt, approbation, fiche publique) :
   `tests/Feature/Public/ReviewContextKindParLaRouteTest.php` rend `visit` et `lease`.
 - **`storeForAgency` ne le pose pas** : l'avis est créé sans `context_*`
-  (`ReviewController::storeForAgency`), alors que son `authorize()` a trouvé la preuve —
+  (`ReviewController::storeForAgency`, `:543-566`), alors que son `authorize()` a trouvé la preuve —
   `ReviewEligibility::forAgency()` rend le `Lease` dont l'auteur est le locataire — et la jette
-  (`StoreForAgencyReviewRequest::authorize`, `… !== null`).
+  (`StoreForAgencyReviewRequest::authorize`, `:29-41`, `… !== null`).
 - **Mesure** (test jetable, hors dépôt) : agence active, bien publié, bail `active` n° 1 dont l'auteur est
   le locataire ; `POST /api/agencies/{id}/reviews` → 201 ; approbation par la plateforme (l'admin d'agence
   reçoit 403 : un avis d'agence relève de la plateforme seule, ADR-0043 § 1) ; relu :
@@ -53,7 +65,11 @@ d'un agent.
   sans preuve, l'avis reste sans contexte (et n'affiche rien), ou le dépôt lui est refusé.
 - Vérifier l'index `reviews_author_context_uniq` (ADR-0043 § 3) : il ne couvre aujourd'hui que les lignes
   à `context_id` non nul ; les avis d'agence y entrent. L'unicité par auteur et par agence reste vérifiée
-  par le contrôleur sous verrou.
+  par le contrôleur sous verrou. — *Vérifié le 2026-11-16* : l'index porte `(author_id, reviewable_type,
+  context_type, context_id) WHERE context_id IS NOT NULL`
+  (`database/migrations/2026_10_08_100000_add_moderation_scope_to_reviews_table.php:33`), `reviewable_type`
+  mais pas `reviewable_id` ; pour un avis d'agence, un bail donné n'ouvre qu'un avis par auteur — sans
+  conflit avec la règle « un avis par auteur et par agence » (`ReviewController.php:551-555`).
 
 ## Critères d'acceptation
 

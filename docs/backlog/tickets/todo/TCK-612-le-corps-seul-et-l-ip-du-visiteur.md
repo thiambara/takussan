@@ -1,13 +1,13 @@
 ---
 id: TCK-612
-title: "Ce qui transite par le BFF garde sa forme : une écriture lit le corps seul (`BaseFormRequest`), et chaque route handler transmet l'IP du visiteur par l'adresse interne (suites de TCK-600 passe 2 et du rapport de TCK-600)"
+title: "Ce qui transite par le BFF garde sa forme : une écriture lit le corps seul (`BaseFormRequest`), et chaque route handler transmet l'IP du visiteur par l'adresse interne — volet front fermé par TCK-893/TCK-894 (suites de TCK-600 passe 2 et du rapport de TCK-600)"
 status: todo
 phase: P2
-family: full
+family: back
 estimate: M
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -16,10 +16,29 @@ spec_refs:
     - docs/features.md#29-administration--configuration
   models:
     - docs/models-spec.md#1-user
-tags: [back, front, bff, securite, form-request, rate-limit, ip, adr-0052, garde]
+tags: [back, securite, form-request, rate-limit, ip, adr-0052, garde]
 ---
 
 # TCK-612 — Une écriture lit le corps seul ; chaque route handler transmet l'IP du visiteur
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : partiellement fermé — le volet front est caduc, le volet back reste entier.**
+
+- Fermé entre-temps : le point 2 (IP du visiteur, AC4, AC5, deltas front) par **TCK-893**
+  (169b733c1, `relayerVersApi()`) et **TCK-894** (f35f9f36b) : les 39 `route.ts` passent par
+  `relayerVersApi()` ou `urlApiServeur()` + `enTetesServeurAmont()` (`X-Forwarded-For`), gardés
+  par `src/app/api/__tests__/relais-chemin-serveur.test.ts`.
+- Toujours vrai : `BaseFormRequest::prepareForValidation` (l.90-93) fait toujours
+  `replace(normalize(input()))`, aucun `validationData()` ; **347** classes en héritent ;
+  `QueryNeverFeedsAWriteTest` absent ; la route d'AC2 (`customers.php:49`) est là.
+- Reste à faire (api seul) :
+  - `validationData()` = corps seul pour une méthode non sûre ; `prepareForValidation` normalise
+    le corps seul ;
+  - inventaire des écritures qui lisent un champ en query (57 `->query(` dans
+    `app/Http/Controllers`, à trier lecture/écriture), migration ou exemption motivée ;
+  - `QueryNeverFeedsAWriteTest` (parcours de `Route::getRoutes()`), AC2, ablation.
+- Aucune décision du porteur attendue.
 
 ## Objectif utilisateur
 
@@ -37,11 +56,13 @@ Suites de **TCK-600** : verif-600 passe 2 (B1-bis, « API, défense en profondeu
    (`takussan-api/app/Http/Requests/BaseFormRequest.php`) fait `$this->replace($this->normalize($this->input()))` :
    `input()` fusionne la query et le corps, et `replace` réécrit le tout dans la source d'entrée (le
    corps JSON). Toute requête validée d'une écriture accepte donc un champ venu de l'URL. 215 classes
-   en héritent (`grep -rln "extends BaseFormRequest" app | wc -l`) ; **une seule** s'en protège,
+   en héritent (**347** au 2026-11-16) (`grep -rln "extends BaseFormRequest" app | wc -l`) ; **une seule** s'en protège,
    `StartImpersonationRequest` (`validationData()` lit le corps seul, verif-600 B1-bis). Le défaut est
    la condition qui a rendu B1-bis exploitable (`POST …/impersonate?reason=…` sous n'importe quel
    corps).
-2. **21 route handlers joignent l'API par l'URL publique, sans l'IP du visiteur.** ADR-0052 §5 : le
+2. *Fermé par TCK-893 et TCK-894 : les 39 `route.ts` passent par `relayerVersApi()` ou
+   `urlApiServeur()` + `enTetesServeurAmont()` (relevé 2026-11-16). Constat d'origine conservé :*
+   **21 route handlers joignent l'API par l'URL publique, sans l'IP du visiteur.** ADR-0052 §5 : le
    serveur Next joint l'API par `API_INTERNAL_URL` et transmet `X-Forwarded-For`, seul chemin sur
    lequel Laravel honore l'IP du visiteur (`takussan-web/src/lib/api.ts:14-27`, `ipDuVisiteur`
    `:551`). `apiFetch` / `apiRequest` le font ; les fichiers `src/app/api/**/route.ts` qui lisent
@@ -72,10 +93,10 @@ Suites de **TCK-600** : verif-600 passe 2 (B1-bis, « API, défense en profondeu
       (redondante, gardée par son test).
 - [ ] Back : inventaire des écritures qui lisent un champ en query (`grep -rn "query(" app/Http`),
       consigné dans les Notes, et migration ou exemption motivée.
-- [ ] Front : les 21 route handlers passent par l'assistant serveur commun (contrainte 3).
-- [ ] Garde front : un test (ou `scripts/check-*.mjs`) échoue si un fichier `src/app/api/**/route.ts`
+- [x] Front : les 21 route handlers passent par l'assistant serveur commun (contrainte 3) (tenu par TCK-894, relevé 2026-11-16).
+- [x] Garde front (tenu par TCK-894, `relais-chemin-serveur.test.ts`, relevé 2026-11-16) : un test (ou `scripts/check-*.mjs`) échoue si un fichier `src/app/api/**/route.ts`
       lit `API_URL` / `NEXT_PUBLIC_API_URL` au lieu de l'assistant commun.
-- [ ] Tests : `QueryNeverFeedsAWriteTest` (back), tests des route handlers (front).
+- [ ] Tests : `QueryNeverFeedsAWriteTest` (back), ~~tests des route handlers (front)~~ — caduc depuis TCK-894.
 
 ## Critères d'acceptation
 
@@ -88,13 +109,13 @@ Suites de **TCK-600** : verif-600 passe 2 (B1-bis, « API, défense en profondeu
       porte « saisi » ; sans corps, 422.
 - [ ] **AC3.** Les tests existants des écritures restent verts (le front envoie déjà ses champs dans le
       corps) ; l'inventaire de la contrainte 2 est vide ou résolu.
-- [ ] **AC4 (rouge sur `839be671`).** La garde front rougit sur un route handler qui lit `API_URL`
+- [x] **AC4 (rouge sur `839be671`).** *(tenu par TCK-894, relevé 2026-11-16)* La garde front rougit sur un route handler qui lit `API_URL`
       directement ; elle est verte après la migration des 21.
-- [ ] **AC5.** Un route handler migré, appelé avec `x-forwarded-for: 203.0.113.7` derrière le nombre de
+- [x] **AC5.** *(tenu par TCK-894, relevé 2026-11-16)* Un route handler migré, appelé avec `x-forwarded-for: 203.0.113.7` derrière le nombre de
       mandataires de confiance configuré, transmet `203.0.113.7` à l'API par `API_INTERNAL_URL`
       (test du handler, `fetch` simulé).
-- [ ] Ablations consignées : `validationData()` rendu à `all()` → AC1 rouge ; un handler remis en
-      `fetch` direct → AC4 rouge.
+- [ ] Ablations consignées : `validationData()` rendu à `all()` → AC1 rouge ; ~~un handler remis en
+      `fetch` direct → AC4 rouge~~ — caduc depuis TCK-894.
 
 ## Hors périmètre
 

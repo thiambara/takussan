@@ -1,13 +1,13 @@
 ---
 id: TCK-609
-title: "Un pouvoir de la plateforme exige le second facteur où qu'il s'exerce : `featured`, réponses d'avis, gestes du bail et tout ce que `Gate::before` ouvre hors de `/api/admin` (suites de TCK-597 passes 3-4 et TCK-596 passe 4)"
+title: "Un pouvoir de la plateforme exige le second facteur où qu'il s'exerce : réponses d'avis, gestes du bail et tout ce que `Gate::before` ouvre hors de `/api/admin` (suites de TCK-597 passes 3-4 et TCK-596 passe 4)"
 status: todo
 phase: P1
 family: back
 estimate: M
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -24,11 +24,32 @@ tags: [back, securite, 2fa, plateforme, super-admin, gate-before, garde, adr-003
 
 # TCK-609 — Un pouvoir de la plateforme exige le second facteur où qu'il s'exerce
 
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : partiellement fermé, le reste bloqué sur la décision du porteur.** `git log --grep=TCK-609` → vide.
+
+- Fermé entre-temps : le volet **`featured`** — TCK-633 lot F (5e2fb25d0, ADR-0061 §5) le rend
+  `prohibited` pour tout le monde (`UpdatePropertyRequest.php:78-79`, dérivé des boosts, écrit par
+  `BoostLifecycle` seul) : 422 pour tous, plus aucun pouvoir plateforme à garder.
+- Toujours vrai : `Gate::before` global (`AppServiceProvider.php:930`) ; `RequireTwoFactor`
+  (`:62-82`) ne juge que des listes ; `reply`/`deleteReply` toujours exemptés
+  (`ProtectedActions.php:388-389`) ; ni `terminate`, ni `rent` (`force`), ni `signature-request`
+  dans `AGENCY_TWO_FACTOR`. `PlatformPowerTwoFactorTest` absent.
+- Le nom `PLATFORM_POWER_EXEMPT` est **déjà pris** (`ProtectedActions.php:343-347`, step-up des
+  actions qui *confèrent* un pouvoir plateforme) : la nouvelle liste prend un autre nom
+  (p. ex. `PLATFORM_ANY_ROUTE_EXEMPT`).
+- Reste à faire : décision, amendement d'ADR-0033 §8, `RequireTwoFactor` + exemptions motivées,
+  gestes du bail, `PlatformPowerTwoFactorTest` + garde de parcours des routes mutantes, ablations.
+- **Décision attendue du porteur** : (a) règle générale ou (b) liste étendue ? Et les gestes du
+  bail (`terminate`, `rent` `force`, `signature-request`) entrent-ils dans la famille d'agence —
+  oui pour les trois / oui pour `terminate` et `rent` seulement (recommandé) / non ?
+
 ## Objectif utilisateur
 
 Un jeton de super-admin qui n'a pas vu le second facteur (jeton OAuth, jeton antérieur à
-l'enrôlement, jeton volé) ne peut rien changer nulle part : ni dans la console, ni sur une annonce,
-un avis ou un bail d'agence.
+l'enrôlement, jeton volé) ne peut rien changer nulle part : ni dans la console, ni sur ~~une annonce,~~
+un avis ou un bail d'agence *(l'annonce : caduc depuis TCK-633 lot F, `featured` n'est plus écrit
+par personne)*.
 
 ## Contexte
 
@@ -41,14 +62,17 @@ mesuré le même trou sur le bail.
 
 **Re-mesure sur `839be671` (2026-10-08)** :
 
-- `RequireTwoFactor::handle` (`app/Http/Middleware/RequireTwoFactor.php:64-80`) : profil plateforme →
+- `RequireTwoFactor::handle` (`app/Http/Middleware/RequireTwoFactor.php:64-80` ; `:62-82` au 2026-11-16) : profil plateforme →
   2FA sur `api/admin/*`, puis sur les seules actions de `AGENCY_TWO_FACTOR`, `STEP_UP_FOR_PLATFORM` et
-  `PLATFORM_TWO_FACTOR` (`app/Support/Security/ProtectedActions.php:121`, `:264`, `:299`).
-- **`featured`** : écrit par `PUT /api/properties/{id}`, réservé au super-admin par
-  `UpdatePropertyRequest` (`app/Http/Requests/UpdatePropertyRequest.php:58`), hors de toute liste
-  (verif-597 passe 3).
+  `PLATFORM_TWO_FACTOR` (`app/Support/Security/ProtectedActions.php` — au 2026-11-16 : `AGENCY_TWO_FACTOR` l.138,
+  `STEP_UP_FOR_PLATFORM` l.327, `PLATFORM_TWO_FACTOR` l.362). Depuis, `PLATFORM_TWO_FACTOR` couvre
+  aussi `moderateBatch` (TCK-2672) et `SettingController@store/update/destroy` (TCK-600/651) :
+  exemples de la liste (b) qui grossit à la main.
+- ~~**`featured`** : écrit par `PUT /api/properties/{id}`, réservé au super-admin par
+  `UpdatePropertyRequest`, hors de toute liste (verif-597 passe 3).~~ — caduc depuis TCK-633 lot F
+  (5e2fb25d0) : `featured` est `prohibited` pour tous (422).
 - **`ReviewController@reply` et `@deleteReply`** : exemptés comme « réponse du sujet »
-  (`ProtectedActions.php:323-324`), mais le super-admin y passe par `Gate::before` et réécrit ou
+  (`ProtectedActions.php:323-324` ; `:388-389` au 2026-11-16), mais le super-admin y passe par `Gate::before` et réécrit ou
   efface la réponse d'une agence sans 2FA (verif-597 passe 4, n5 : 200, `replied_by_id` = le
   super-admin). Le motif d'exemption renvoie lui-même à ce ticket.
 - **Bail** : le super-admin **sans 2FA** obtient 200 sur `POST leases/{id}/terminate`, sur
@@ -66,7 +90,7 @@ mesuré le même trou sur le bail.
   d'exemptions motivées (se déconnecter, s'enrôler, confirmer, vérifier son second facteur, lire et
   modifier ses propres préférences). Les listes plateforme existantes deviennent redondantes pour
   ce profil.
-- **(b) Liste étendue** : ajouter `featured`, `reply`/`deleteReply` (chemin super-admin) et les
+- **(b) Liste étendue** : ajouter ~~`featured`,~~ `reply`/`deleteReply` (chemin super-admin) et les
   gestes du bail à `PLATFORM_TWO_FACTOR`, et faire suivre toute route future à la main.
 
 *Recommandation de la session : (a).* C'est la seule forme qu'une route ajoutée demain ne contourne
@@ -92,8 +116,9 @@ envoyer).
 
 - [ ] ADR-0033 amendé (décisions ci-dessus).
 - [ ] `RequireTwoFactor` : (a) branche « profil plateforme, méthode non sûre, action hors
-      `PLATFORM_POWER_EXEMPT` » ; ou (b) entrées ajoutées à `PLATFORM_TWO_FACTOR`.
-- [ ] `ProtectedActions::PLATFORM_POWER_EXEMPT` : les exemptions, chacune motivée.
+      la liste d'exemptions (nom neuf : `PLATFORM_POWER_EXEMPT` est déjà pris) » ; ou (b) entrées ajoutées à `PLATFORM_TWO_FACTOR`.
+- [ ] `ProtectedActions::PLATFORM_ANY_ROUTE_EXEMPT` (ou autre nom neuf — `PLATFORM_POWER_EXEMPT`
+      existe déjà avec un autre sens, l.343-347) : les exemptions, chacune motivée.
 - [ ] Bail (décision de famille) : `LeaseController@terminate`, `LeaseRentController@update` (`force`),
       éventuellement `LeaseSignatureController@request`, dans `AGENCY_TWO_FACTOR` avec la famille
       déclarée dans `FAMILIES` / `FAMILY_CONTROLLERS`.
@@ -102,14 +127,16 @@ envoyer).
 ## Critères d'acceptation
 
 - [ ] **AC1 (rouge sur `839be671`).** Super-admin à 2FA, jeton qui ne l'a pas vue :
-      `PUT /api/properties/{id}` avec `featured: true` → 403 `two_factor_step_up_required` ;
+      ~~`PUT /api/properties/{id}` avec `featured: true` → 403 `two_factor_step_up_required`~~ —
+      caduc depuis TCK-633 lot F (`featured` `prohibited`, 422 pour tous) ;
       `POST /api/reviews/{id}/reply` et `DELETE …/reply` sur l'avis d'une agence → 403 ;
       `POST leases/{id}/terminate`, `PATCH leases/{id}/rent` (`force`), `POST leases/{id}/signature-request`
       → 403. Le même jeton après vérification du second facteur → 200.
 - [ ] **AC2 (garde structurelle, si (a)).** Un test parcourt **`Route::getRoutes()`** — pas une liste
       écrite à la main — et, pour chaque route mutante (`POST`, `PUT`, `PATCH`, `DELETE`) servie par un
       contrôleur, affirme qu'un profil plateforme sans second facteur sur ce jeton est refusé par
-      `RequireTwoFactor`, sauf si l'action figure dans `PLATFORM_POWER_EXEMPT` avec un motif non vide.
+      `RequireTwoFactor`, sauf si l'action figure dans la liste d'exemptions neuve (`PLATFORM_ANY_ROUTE_EXEMPT` ou
+      équivalent) avec un motif non vide.
       Une route ajoutée demain sans décision rougit, avec son nom.
 - [ ] **AC2-bis (si (b)).** Le même parcours affirme que toute route mutante qu'un super-admin peut
       atteindre figure dans une liste ou dans une exemption motivée. *Une liste qu'on oublie de

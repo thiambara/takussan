@@ -7,7 +7,7 @@ family: bug
 estimate: S
 wave: null
 created: 2026-10-12
-updated: 2026-10-21
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -16,6 +16,24 @@ spec_refs:
   models: []
 tags: [back, auth, rate-limit, oauth, production]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : tout le code est sur `dev` et servi en préproduction ; un seul reste, le relevé AC1 au
+navigateur.**
+
+- Tenu : `auth.php:29` (`throttle:auth-login`), `:147` (`throttle:auth-oauth`), `:154`
+  (`oauth-2fa` gardé) ; limiteurs `AppServiceProvider.php:609-610` ; `LoginRateLimitIsolationTest`
+  présent (d53b6b23e, PR #916 ; c70b71d0d, PR #920). L'API de préproduction sert `X-Build-Sha`
+  9fe34d92a, dont d53b6b23e est ancêtre (relevé le 2026-11-16 ; le front n'a pas été relu).
+- Les `throttle:N,M` sans préfixe restants de `routes/api/` sont **tous** sous `auth:sanctum` :
+  hors périmètre, conforme aux Notes.
+- Reste à faire, et rien d'autre : **AC1 en préproduction** — compteurs neufs (autre IP ou 10 min
+  d'attente), afficher `/auth/login`, une première connexion au mauvais mot de passe doit rendre
+  « identifiants incorrects », soit **401** (pas 422, pas 429), puis 200 au bon mot de passe.
+  Consigner le relevé daté (réseau, nombre d'appels `oauth/providers` vus), cocher AC1, passer `done`.
+- Bloqué externe : geste humain sur `preview.takussan.com` (authentification basique) — porteur, ou
+  session munie des identifiants.
 
 ## Objectif utilisateur
 
@@ -26,9 +44,9 @@ tags: [back, auth, rate-limit, oauth, production]
 
 Aucune donnée neuve. Deux routes existantes, dans `takussan-api/routes/api/auth.php` :
 
-- `POST /api/auth/login`, sous `throttle:5,10` (ligne 29) ;
+- `POST /api/auth/login`, sous `throttle:5,10` (ligne 29, avant correctif) ;
 - le groupe `auth/oauth/*` (dont `GET /api/auth/oauth/providers`), sous `throttle:60,1`
-  (ligne 149).
+  (ligne 149, avant correctif ; l.147 au 2026-11-16).
 
 **Le défaut, relevé le 2026-10-12 pendant l'essai au navigateur de TCK-633.** Un `throttle`
 numérique sans préfixe compte sous la signature de la requête, `sha1(domaine|ip)` pour un
@@ -42,7 +60,8 @@ Reproduit en local, et contre-épreuve :
 
 ```text
 6 × GET /api/auth/oauth/providers, puis POST /api/auth/login (mauvais mot de passe) → 429
-POST /api/auth/login seul (mauvais mot de passe), compteur vidé                → 422
+POST /api/auth/login seul (mauvais mot de passe), compteur vidé                → 401
+# (« 422 » écrit le 2026-10-12 ; le code rend 401, cf. Notes)
 ```
 
 Présent depuis avril 2026, donc en préproduction et dans tout environnement qui sert l'API.
@@ -73,7 +92,7 @@ Sans objet : ticket backend.
       dans ce ticket pourquoi un partage est voulu.
 - [x] Test `tests/Feature/Auth/LoginRateLimitIsolationTest.php` (étend `Tests\ApiTestCase`) :
       1. dix `GET /api/auth/oauth/providers`, puis `POST /api/auth/login` avec un mauvais mot de
-         passe → **422**, pas 429 ;
+         passe → **422**, pas 429 *(401 en vrai : c'est ce que le test attend, cf. Notes)* ;
       2. six `POST /api/auth/login` avec un mauvais mot de passe → la sixième rend **429** (la
          borne de connexion tient toujours) ;
       3. soixante et un `GET /api/auth/oauth/providers` → le dernier rend **429** (la borne
@@ -83,8 +102,9 @@ Sans objet : ticket backend.
 ## Critères d'acceptation
 
 - [ ] AC1 — Après l'affichage de la page de connexion (autant d'appels à `oauth/providers` qu'elle
-      en fait), une première connexion au mauvais mot de passe rend 422, et au bon mot de passe 200.
-      Prouvé au navigateur en local, compteurs vidés au départ.
+      en fait), une première connexion au mauvais mot de passe rend **401** (« 422 » jusqu'au
+      2026-11-16, faux : cf. Notes), et au bon mot de passe 200.
+      Prouvé au navigateur **en préproduction** (« en local » jusqu'au 2026-11-16), compteurs vidés au départ.
 - [x] AC2 — La sixième tentative de connexion en 10 minutes depuis une même IP rend 429, quel que
       soit le nombre d'appels OAuth intercalés.
 - [x] AC3 — `oauth/*` rend 429 au-delà de 60 appels par minute, quel que soit le nombre de
@@ -102,7 +122,8 @@ Sans objet : ticket backend.
 
 ## Reste sur dev
 
-- AC1 au navigateur : afficher `/auth/login` en préproduction après le déploiement de #916, puis une
+- AC1 au navigateur : afficher `/auth/login` en préproduction — #916 y est servi par l'API (relevé
+  le 2026-11-16 : `X-Build-Sha` 9fe34d92a, dont d53b6b23e est ancêtre) —, puis une
   première connexion au mauvais mot de passe doit rendre « identifiants incorrects », pas « Trop de
   tentatives ». Le ticket passe `done` sur ce relevé.
 

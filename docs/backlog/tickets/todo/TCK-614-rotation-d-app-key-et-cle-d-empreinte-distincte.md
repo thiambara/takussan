@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -21,6 +21,26 @@ tags: [back, infra, securite, chiffrement, hmac, app-key, rotation, adr-0044, sa
 ---
 
 # TCK-614 — `APP_KEY` se tourne sans rien perdre
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : partiellement fermé.** Le cœur du ticket — clé distincte, réécriture des empreintes,
+`security:reencrypt` — reste à faire.
+
+- **Fermé** : point unique d'empreinte et lecture sous les anciennes clés par TCK-2430 (ADR-0084,
+  `App\Support\AppKeyHmac`) ; vérification de lisibilité d'une sauvegarde par TCK-882
+  (`backup:verify-encryption`, lit sans écrire) ; `hebergement.md` porte la sauvegarde d'`APP_KEY`
+  (`:125`) et la rotation **sans retrait** (`:332-347`).
+- **Hors du point unique** : `ClaimLinks.php:104,115` (signature des liens Radar, HMAC sous `app.key`)
+  et le repli de `RadarPhone` sur `app.key` (`:254,272`). 17 modèles à cast chiffré (et non 12).
+- **Reste** : amender ADR-0044 (ou ADR-0084) ; `APP_HMAC_KEY` (config, `.env.example`, `.env.docker`,
+  gabarits `deploy/takussan/env.*.production.example`) et `AppKeyHmac` qui bascule dessus ; migration
+  des empreintes ; `security:reencrypt` (réutiliser la découverte de `BackupVerifyEncryption`) ;
+  procédure de **retrait** d'une ancienne clé. Patron à suivre : `RADAR_PHONE_HMAC_KEY` +
+  `radar:rehash-phones` (ADR-0082).
+- **Mise en prod** : variable `APP_HMAC_KEY` à poser dans Dokploy (préproduction, puis production F3).
+- **Décision attendue du porteur** (légère) : les liens `ClaimLinks` (signature, pas empreinte)
+  **(a)** restent sous `APP_KEY` et une rotation les invalide, ou **(b)** passent sous `APP_HMAC_KEY` ?
 
 ## Objectif utilisateur
 
@@ -39,20 +59,29 @@ d'ADR-0044 n'existe pas encore. Sauvegarder la clé. » ADR-0050, décision 2 (T
 
 **Re-mesure sur `839be671` (2026-10-08)** — `grep -rn "config('app.key')" app` :
 
+> *2026-11-16* : les numéros de ligne ci-dessous ne pointent plus un `config('app.key')` : ces sites
+> passent tous par `AppKeyHmac::of/all`. Les appelants sont huit fichiers : `AlertSubscriber`,
+> `PayoutMethod`, `PhoneFingerprint`, `VisitorFingerprint`, `PhoneVerificationService`, `VisitNotifier`,
+> `WebhookJournal` et **`SearchJournal`** (absent du tableau). Hors du point unique : `ClaimLinks`
+> (`:104`, `:115`, HMAC sous `app.key` écrit à la main) et le **repli** de `RadarPhone` sur `app.key`
+> (`:254`, `:272`, quand `RADAR_PHONE_HMAC_KEY` manque).
+
 | Site | Durée de vie | Effet d'une rotation |
 |---|---|---|
 | `AlertSubscriber.php:79`, `:95` (contact, boîte) — TCK-599 | **persistant** (recherche par contact) | abonnés introuvables, désinscription impossible, borne par contact contournée |
-| `PayoutMethod.php:68` (empreinte de destination) — TCK-594 | **persistant** (unicité, vérification) | doublons de destination non détectés |
+| `PayoutMethod.php:68` (empreinte de destination) — TCK-594 | **persistant** (~~unicité,~~ vérification) | ~~doublons de destination non détectés~~ *(2026-11-16 : l'empreinte ne sert à aucune unicité ; seul le contrôle « destination approuvée » la lit, `PayoutService.php:264` et `:884-891` — un versement approuvé avant la rotation ne se paierait plus)* |
 | `WebhookJournal.php:108` (empreinte du corps) — TCK-602 | persistant (90 j) | rejeu ou rapprochement par empreinte faux sur l'historique |
 | `VisitNotifier.php:297` (borne SMS par numéro) — TCK-590 | cache horaire | borne remise à zéro, sans gravité |
 | `VisitorFingerprint.php:26` (vues) — TCK-598 | cache court | compte de vues du jour, sans gravité |
 | `PhoneVerificationService.php:294` (code) — TCK-589 | 5 min | codes en cours invalidés, sans gravité |
 
-Et **12** modèles portent un cast chiffré (`grep -rln "'encrypted'\|encrypted:array\|AsEncrypted"
+Et ~~**12**~~ **17** (relevé 2026-11-16) modèles portent un cast chiffré (`grep -rln "'encrypted'\|encrypted:array\|encrypted:object\|AsEncrypted"
 app/Models`) : `APP_PREVIOUS_KEYS` les lit après une rotation, mais aucune commande ne les ré-chiffre,
 donc aucune clé ne peut jamais quitter `APP_PREVIOUS_KEYS`. Aucune commande n'existe
 (`ls app/Console/Commands | grep -i -E "encrypt|key"` : rien). `docs/infra/hebergement.md` cite
 `APP_KEY` à la création de l'environnement (`:123`), jamais sa sauvegarde ni sa rotation.
+*(2026-11-16 : `backup:verify-encryption` (TCK-882) lit et compte, aucune commande n'**écrit** ;
+`hebergement.md` porte la sauvegarde hors VPS (`:125`) et la rotation sans retrait (`:332-347`).)*
 
 **Mise à jour du 2026-10-30 ([TCK-2430](../done/TCK-2430-empreintes-sous-app-key-hors-radar.md),
 [ADR-0084](../../../adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md))** — les empreintes sous
@@ -70,7 +99,10 @@ anonymisés ne se réécrivent pas (numéro effacé) : la contrainte 3 doit les 
    signatures de Laravel. Les empreintes éphémères suivent la même clé, par simplicité.
 2. **Un seul point** calcule une empreinte : `App\Support\Empreinte::de(string $contexte, string $valeur)`
    (contexte séparé de la valeur, comme les deux formes d'`AlertSubscriber`). Plus aucun
-   `hash_hmac(…, config('app.key'))` dans `app/`.
+   `hash_hmac(…, config('app.key'))` dans `app/`. *(2026-11-16 : ce point unique existe déjà sous le
+   nom `App\Support\AppKeyHmac` (`of`/`all`, TCK-2430) : le faire passer sur `APP_HMAC_KEY`, renommé
+   ou non, plutôt que créer une seconde classe ; `ClaimLinks` et le repli de `RadarPhone` restent à
+   trancher.)*
 3. **Migration des empreintes existantes** : recalculées depuis la valeur en clair (déchiffrée) sous la
    nouvelle clé, par lots, de façon idempotente ; une ligne dont la source n'est plus lisible est
    comptée et listée, jamais effacée en silence.
@@ -88,22 +120,31 @@ anonymisés ne se réécrivent pas (numéro effacé) : la contrainte 3 doit les 
 - [ ] ADR-0044 amendé (contraintes 1, 4, 6).
 - [ ] `config/app.php` : `hmac_key` (`APP_HMAC_KEY`) ; `.env.example` et `.env.docker` : la clé
       (gardées par `scripts/check-env-parity.mjs`) ; démarrage refusé en production si elle manque.
-- [ ] `App\Support\Empreinte` ; les six sites du tableau y passent.
-- [ ] Migration de données : recalcul des empreintes persistantes (contrainte 3).
+- [ ] `App\Support\Empreinte` ; les six sites du tableau y passent. — *2026-11-16 : les sites passent déjà
+      par `AppKeyHmac` (TCK-2430) ; reste à le basculer sur `APP_HMAC_KEY`, `SearchJournal` compris.*
+- [ ] Migration de données : recalcul des empreintes persistantes (contrainte 3) — alertes, versements,
+      bienvenue, journal des webhooks, journal de recherche.
 - [ ] Commande `security:reencrypt {--dry-run} {--model=*}` (contraintes 4, 5).
-- [ ] `docs/infra/hebergement.md` : procédure de sauvegarde et de rotation (contrainte 6).
+- [ ] `docs/infra/hebergement.md` : procédure de sauvegarde et de rotation (contrainte 6). — sauvegarde et
+      rotation sans retrait faites (`:125`, `:332-347`) ; reste la procédure de **retrait** d'une
+      ancienne clé après `security:reencrypt`.
 - [ ] Tests : `EmpreinteTest`, `ReencryptCommandTest`, `HmacKeyRotationTest`.
 
 ## Critères d'acceptation
 
 - [ ] **AC1 (garde structurelle).** Un test balaie `app/` : aucune occurrence de `config('app.key')`
       hors du fournisseur de chiffrement de Laravel. *Une empreinte ajoutée demain sous `APP_KEY`
-      rougit.*
+      rougit.* (2026-11-16 : la garde exempte `AppKeyHmac` ou son successeur et vise `ClaimLinks` et
+      le repli de `RadarPhone`.)
 - [ ] **AC2 (rouge sur `839be671`).** Abonné aux alertes sans compte créé, puis `APP_KEY` changée
       (l'ancienne dans `APP_PREVIOUS_KEYS`) : la désinscription par son lien et la recherche par contact
-      le retrouvent ; la borne par contact le compte toujours.
-- [ ] **AC3.** Même scénario pour une destination de versement : une seconde destination identique est
-      encore refusée comme doublon après la rotation.
+      le retrouvent ; la borne par contact le compte toujours. — avec l'ancienne clé gardée : tenu par
+      TCK-2430, relevé 2026-11-16. Reste : le même résultat **après `security:reencrypt` et retrait de
+      l'ancienne clé** d'`APP_PREVIOUS_KEYS`.
+- [ ] **AC3.** ~~Même scénario pour une destination de versement : une seconde destination identique est
+      encore refusée comme doublon après la rotation.~~ *(prémisse fausse, relevé 2026-11-16 : aucune
+      unicité ne lit l'empreinte)* Un versement approuvé avant la rotation se paie après
+      `security:reencrypt` et retrait de l'ancienne clé (contrôle `approved_destination_fingerprint`).
 - [ ] **AC4.** `security:reencrypt` après rotation : chaque valeur des modèles chiffrés se déchiffre
       **sans** `APP_PREVIOUS_KEYS` ; `--dry-run` n'écrit rien et compte ; une seconde exécution
       n'écrit rien (idempotente).

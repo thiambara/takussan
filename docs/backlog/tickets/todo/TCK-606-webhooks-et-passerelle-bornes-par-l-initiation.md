@@ -7,7 +7,7 @@ family: back
 estimate: M
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -23,6 +23,23 @@ tags: [back, paiement, webhook, lemon-squeezy, rate-limit, securite, alertes, re
 
 # TCK-606 — Une commande ne solde que ce qui a été initié, et au bon montant
 
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : partiellement fermé** — 1,5 point sur 8. Aucun commit ne cite TCK-606.
+
+- **Fermé** : point 8 (OFX) par TCK-1443 (`8cf8511df`) — `OfxDriver.php:28-44` lit `CHARSET:` et
+  convertit en UTF-8, gardé par `OfxJeuDeCaracteresTest` → AC9 tenu.
+- **Fermé à moitié** : point 3 (O-2) par TCK-634 (`d53b6b23e`) — la route 410 a son seau
+  (`payment-webhook-gone`), mais la clé reste l'IP : deux intégrations derrière une même IP partagent
+  `payment-webhook`.
+- **Reste** : amender ADR-0046 §6 (toujours « Limite connue, non fermée ici ») ; restreindre le repli
+  `custom_data` + montant sans saut de devise ; `custom_data` dans `LemonSqueezyDriver::handleWebhook`
+  et consigne LS d'agence au front ; limiteurs nommés par intégration (webhook) et par jeton haché
+  (`pay/{token}`) ; cast `(int)` d'`agency_id` ; écouteur `WebhookProcessingFailed` +
+  `webhook_processing_failed` ; `rejected_retention_days`.
+- Numéros de ligne du Contexte re-pointés ci-dessous. Pas de décision du porteur attendue (l'amendement
+  d'ADR s'écrit d'après les contraintes déjà posées).
+
 ## Objectif utilisateur
 
 Une agence n'a aucun payable soldé par une commande qu'elle n'a pas émise ; une agence Lemon
@@ -36,33 +53,38 @@ observations), consignées dans `FILE-D-ATTENTE.md` (14:40, 17:30, 19:10) et dan
 [ADR-0046 §6](../../../adr/0046-un-webhook-de-paiement-par-integration.md) (« Limite connue, non
 fermée ici »).
 
-**Re-mesure sur `839be671` (2026-10-08)** — chaque point tient :
+**Re-mesure sur `839be671` (2026-10-08)** — chaque point tenait alors ; lignes re-pointées sur
+`9112194ec` le 2026-11-16 (points 3 et 8 : voir la re-vérification ci-dessus) :
 
 1. **M-1 (sécurité).** `PaymentGatewayService::paymentsForEvent`, repli `custom_data`
-   (`app/Services/Payments/PaymentGatewayService.php:738-756`) : un payable dont
+   (`app/Services/Payments/PaymentGatewayService.php:1113-1127`) : un payable dont
    `metadata.gateway.provider` est **nul** (jamais initié en ligne : échéance réglée en espèces,
-   facture neuve) est apparié. `initiatedWithinAuthority` (`:795-808`) rend `true` quand aucune
-   intégration initiatrice n'est notée, et `withinAuthority` (`:773-786`) ne borne rien sous
-   l'autorité plateforme (le chemin du paquet LS, `:365-385`). `assertReportedAmountCoversPayment`
-   (`:604-621`) saute le contrôle quand la devise rapportée diffère (USD contre XOF). Reproduction de
+   facture neuve) est apparié. `initiatedWithinAuthority` (`:1170-1183`) rend `true` quand aucune
+   intégration initiatrice n'est notée, et `withinAuthority` (`:1148-1161`) ne borne rien sous
+   l'autorité plateforme (le chemin du paquet LS, `:620-655`). `assertReportedAmountCoversPayment`
+   (`:975-1013`) saute le contrôle quand la devise rapportée diffère (USD contre XOF). Reproduction de
    verif-293 : `test_ls_platform_custom_data_reaches_never_initiated_agency_payable` → `paid`.
-   TCK-602 a fermé le seul cas « checkout courant chez un autre fournisseur » (commentaire `:749-752`).
-2. **m-1.** `LemonSqueezyDriver::handleWebhook` (`app/Services/Payments/Drivers/LemonSqueezyDriver.php:98-122`)
+   TCK-602 a fermé le seul cas « checkout courant chez un autre fournisseur » (commentaire `:1122-1125`).
+2. **m-1.** `LemonSqueezyDriver::handleWebhook` (`app/Services/Payments/Drivers/LemonSqueezyDriver.php:117-141`)
    ne met pas `custom_data` dans l'événement, et `initiate` note l'UUID du **checkout** quand le
    webhook porte l'id de **commande** : une intégration LS d'agence ne solde jamais rien
    (verif-293 : `LS agence: 200 statut=pending`). L'écran ne l'invite plus à déclarer son URL
    (ADR-0046, Conséquences).
-3. **O-2.** `routes/api/payments.php:46` et `:51` : `throttle:60,1` sans préfixe, clé = IP. Le seau
+3. **O-2.** ~~`routes/api/payments.php:46` et `:51` : `throttle:60,1` sans préfixe, clé = IP. Le seau
    est commun à toutes les intégrations, à la route 410 et aux autres routes `throttle:60,1` d'une
-   même IP. Les relances de Wave vers l'ancienne URL (410) consomment le seau des agences migrées.
-4. **602 m4.** `routes/api/pay.php` : débit par IP seulement (`throttle:N,1,<préfixe>`). Un lien qui
+   même IP. Les relances de Wave vers l'ancienne URL (410) consomment le seau des agences migrées.~~
+   *Relevé 2026-11-16* : `:45` et `:50` sont préfixés `payment-webhook` / `payment-webhook-gone`
+   depuis TCK-634 ; la route 410 a son seau, mais la clé reste l'IP : toutes les intégrations
+   derrière une même IP partagent `payment-webhook`.
+4. **602 m4.** `routes/api/pay.php` : débit par IP seulement (`throttle:6,1,pay_link_verify`,
+   `throttle:10,1,pay_link_initiate`, `:21-30`). Un lien qui
    fuit se martèle depuis N IP, et `verify` déclenche un appel sortant chez Wave ou Orange Money avec
    la clé de l'agence.
-5. **O-5.** `IntegrationController::store` (`app/Http/Controllers/Api/IntegrationController.php:77`) :
+5. **O-5.** `IntegrationController::store` (`app/Http/Controllers/Api/IntegrationController.php:79`) :
    `$user->agency_id === $agencyId` compare un entier à une chaîne JSON `"5"` → 403 pour un admin
    légitime.
 6. **`WebhookProcessingFailed` sans écouteur.** L'événement
-   (`app/Events/Webhooks/WebhookProcessingFailed.php:13`) dit que TCK-600 l'abonnera ;
+   (`app/Events/Webhooks/WebhookProcessingFailed.php:17`) dit que TCK-600 l'abonnera ;
    `AlertableEvents::keys()` (`app/Domain/Alerts/AlertableEvents.php`) ne le connaît pas et aucun
    écouteur n'existe (`grep -rn WebhookProcessingFailed app` : l'événement et son émetteur seuls).
 7. **Rétention des lignes rejetées.** `PruneWebhookLogs` purge par canal seulement
@@ -71,7 +93,8 @@ fermée ici »).
 8. **Relevé OFX (TCK-593, R6).** Le contrôle UTF-8 ne vise que le CSV
    (`app/Http/Requests/Accounting/StoreBankStatementRequest.php:47-48`, « l'OFX […] n'est pas jugé
    ici ») et `StatementParser/OfxDriver.php` ne lit pas `CHARSET` : un OFX en 1252 mal décodé n'est
-   pas détecté.
+   pas détecté. — caduc depuis TCK-1443 (`8cf8511df`) : `OfxDriver.php:28-44` lit `CHARSET:` et
+   convertit en UTF-8.
 
 ## Contraintes strictes (métier)
 
@@ -111,8 +134,9 @@ fermée ici »).
       libellés `superAdmin.alerts.events.webhook_processing_failed` (fr/en/wo).
 - [ ] `config/webhooks.php` : `rejected_retention_days` (défaut 7) ; `PruneWebhookLogs` purge les lignes
       `rejected` à cette borne, les autres à celle de leur canal.
-- [ ] Import de relevé : un OFX dont l'en-tête déclare un jeu autre qu'UTF-8 est converti, ou refusé
-      avec un code (`bank_statement.charset_unsupported`) — jamais lu de travers.
+- [x] Import de relevé : un OFX dont l'en-tête déclare un jeu autre qu'UTF-8 est converti, ou refusé
+      avec un code (`bank_statement.charset_unsupported`) — jamais lu de travers. (tenu par TCK-1443,
+      relevé 2026-11-16)
 
 ## Critères d'acceptation
 
@@ -126,9 +150,9 @@ fermée ici »).
 - [ ] **AC3 (m-1).** Intégration LS de l'agence A, payable de A initié par elle : `order_created`
       signé par son `signing_secret` sur son URL, `custom_data` désignant ce payable → `paid`. Le même
       `custom_data` désignant un payable de B → inchangé.
-- [ ] **AC4 (O-2).** 60 requêtes vers l'ancienne URL (410) depuis une IP, puis un webhook signé vers
-      l'URL à jeton d'une agence depuis la même IP : 200, pas 429. Deux intégrations n'épuisent pas
-      le seau l'une de l'autre.
+- [ ] **AC4 (O-2).** ~~60 requêtes vers l'ancienne URL (410) depuis une IP, puis un webhook signé vers
+      l'URL à jeton d'une agence depuis la même IP : 200, pas 429.~~ (première moitié tenue par
+      TCK-634, relevé 2026-11-16) Reste : deux intégrations n'épuisent pas le seau l'une de l'autre.
 - [ ] **AC5 (m4).** `verify` sur un même jeton depuis 7 IP distinctes : la requête au-delà du seuil du
       jeton rend 429, et le pilote n'est pas appelé (`Http::assertSentCount`). Aucune clé de cache ne
       contient le jeton en clair.
@@ -139,8 +163,8 @@ fermée ici »).
       `AlertableEvents::has('webhook_processing_failed')` est vrai.
 - [ ] **AC8.** `webhooks:prune` : une ligne `rejected` de 8 jours est supprimée, une ligne `processed`
       de 8 jours est gardée, une ligne `processed` de 91 jours est supprimée.
-- [ ] **AC9.** Un OFX `CHARSET:1252` portant `Société Générale` est importé lisible, ou refusé par code ;
-      jamais `SociÃ©tÃ©`.
+- [x] **AC9.** Un OFX `CHARSET:1252` portant `Société Générale` est importé lisible, ou refusé par code ;
+      jamais `SociÃ©tÃ©`. (tenu par TCK-1443, relevé 2026-11-16 : `OfxJeuDeCaracteresTest`)
 - [ ] Chaque AC a son ablation rouge, consignée dans les Notes (garde retirée → rouge).
 
 ## Hors périmètre

@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 85
 created: 2026-11-09
-updated: 2026-11-09
+updated: 2026-11-16
 depends_on: [TCK-2520]
 blocks: []
 spec_refs:
@@ -19,6 +19,25 @@ spec_refs:
 tags: [back, front, credits, boost, directory]
 ---
 
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : bloqué sur une décision du porteur.** Rien n'est livré ; la dépendance TCK-2520 est levée
+(`done`).
+
+- Existe : la table `agency_spotlights` (migration `2026_11_09_110100_…`, contraintes `EXCLUDE USING
+  gist` : une vitrine par ville et par instant, déjà garantie en base) et la place offerte par le
+  super-admin (`routes/api/admin-credits.php:31-33`).
+- Absent : colonne de référence au mouvement de crédits, route d'achat par l'agence, capacité dédiée
+  (seule `Capability::BoostSpend`, `boost.spend`, existe), amendement d'ADR-0061 (aucun sur la mise en
+  avant d'agence).
+- Reste : amendement d'ADR-0061 ; migration (référence au mouvement de crédits, réglages prix/durée) ;
+  achat API sous verrou de l'agence, débit + place dans une transaction ; écran de console (fr/en,
+  wo = fr) ; statistiques super-admin.
+
+**Décision attendue du porteur** (l'amendement d'ADR-0061) : prix et durée de la place ; place prise
+→ **(a)** refus ou **(b)** file d'attente ; remboursement à la suspension de l'agence ; sort d'une
+place offerte qui chevauche ; capacité : **(a)** réutiliser `boost.spend` ou **(b)** en décliner une.
+
 ## Objectif utilisateur
 
 Une agence achète elle-même, avec ses crédits, la vitrine de l'annuaire d'une ville pour une période, sans passer par l'équipe Takussan.
@@ -28,8 +47,11 @@ Une agence achète elle-même, avec ses crédits, la vitrine de l'annuaire d'une
 Prolonge TCK-2520, qui livre la place **offerte** par la plateforme (table `agency_spotlights`, unicité par ville et période, `spotlight` dans l'annuaire public).
 
 1. **Avant tout code : un amendement d'[ADR-0061](../../../adr/0061-credits-d-espace-et-boost-des-annonces.md)** qui étend la mise en avant d'un bien à une agence — prix et durée de la place (réglages de la plateforme, à côté de ceux du boost), ville, file d'attente ou refus quand la place est prise, remboursement quand la place se perd (agence suspendue), et ce qu'il advient d'une place offerte qui chevauche.
-2. Achat par l'agence (capacité de mise en avant du catalogue des capacités, TCK-633 lot F) : débit du portefeuille de l'espace dans la même transaction que la création de la place ; refus lisible si les crédits manquent ou si la place est prise sur la période.
-3. Une place achetée porte son origine (`granted_by_id` nul, référence au mouvement de crédits) ; les statistiques des boosts du super-admin la comptent.
+2. Achat par l'agence (capacité de mise en avant du catalogue des capacités, TCK-633 lot F — existe :
+   `Capability::BoostSpend`, `boost.spend`, `Capability.php:122`, à réutiliser ou à décliner, à trancher
+   dans l'amendement) : débit du portefeuille de l'espace dans la même transaction que la création de la place ; refus lisible si les crédits manquent ou si la place est prise sur la période.
+3. Une place achetée porte son origine (`granted_by_id` nul, référence au mouvement de crédits — colonne
+   absente d'`agency_spotlights` : c'est une **migration**) ; les statistiques des boosts du super-admin la comptent.
 
 ## Direction UX / Artistique
 
@@ -52,7 +74,9 @@ Prolonge TCK-2520, qui livre la place **offerte** par la plateforme (table `agen
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un achat qui échoue sur la contrainte de place ne débite rien.
+- [ ] AC1 — Un achat qui échoue sur la contrainte de place ne débite rien. (2026-11-16 : la contrainte
+      `EXCLUDE … gist` existe déjà en base ; une violation PostgreSQL abandonne la transaction, donc le
+      refus se juge **avant** l'insert, sous le verrou de la ligne de l'agence — ADR-0061 « Concurrence ».)
 - [ ] AC2 — Deux achats simultanés de la même place : un seul réussit, un seul débit.
 - [ ] AC3 — Crédits insuffisants : refus avant toute écriture, message lisible.
 

@@ -1,13 +1,13 @@
 ---
 id: TCK-448
 title: "Les dialogues d'invitation avalent l'erreur de saisie : la soumission est bloquée et rien ne s'affiche — cause non identifiée"
-status: todo
+status: obsolete
 phase: P2
 family: bug
 estimate: M
 wave: 50
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-11-16
 depends_on: []
 blocks: []
 spec_refs:
@@ -16,6 +16,22 @@ spec_refs:
     - docs/features.md#29-administration--configuration
 tags: [front, forms, validation, admin, investigation]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : caduc — à fermer en `obsolete`.** Les deux dialogues constatés n'existent plus :
+`InviteMemberDialog` a été retiré par 776dc214f (TCK-2667), `InviteAgentDialog` par 6df482123
+(TCK-2365), et la surface qui les remplace, `components/admin/equipe/FormulaireDInvitation.tsx`
+(TCK-2668), est un **formulaire posé sur l'écran des invitations, pas un dialogue**. Il affiche son
+erreur de champ (`__tests__/FormulaireDInvitation.test.tsx:89-100` : `aria-invalid="true"`, « Email
+invalide. », réseau non appelé), alors même que son schéma est construit dans le corps du composant
+(`:110-118`). Le dialogue vivant `documents/coffre/ajout/AjoutAuCoffre.tsx` (schéma de module) affiche
+aussi le sien (`AjoutAuCoffre.tck-2656.test.tsx:159-167`).
+
+**La cause n'a jamais été nommée** : le défaut est sorti du code avec ses surfaces, sans correctif
+(le test d'`InviteAgentDialog` à `6df482123^` le consignait encore). La combinaison exacte « dialogue +
+schéma construit au rendu » n'est couverte par aucun test vivant — un test sur `QuoteRejectionModal`
+la couvrirait, facultatif, sans ticket neuf. Le titre est périmé.
 
 ## Objectif utilisateur
 
@@ -30,6 +46,9 @@ comporte à l'identique.
 
 **Ce ticket est une INVESTIGATION, pas un correctif connu.** Trois faits rendent le défaut
 contre-intuitif, et aucun n'a encore été relié aux autres :
+
+*(2026-11-16 : `InviteMemberDialog.tsx` et `InviteAgentDialog.tsx` supprimés — voir la re-vérification ;
+les numéros de ligne ci-dessous sont l'historique.)*
 
 1. **Le balisage est là.** `InviteMemberDialog.tsx:114-116` rend bien
    `{errors.email.message}` dans un `<p role="alert">`. Ce n'est donc pas un oubli d'affichage :
@@ -47,9 +66,9 @@ pièce, éprouvée séparément, disculpe la suivante.
 - **Identité instable du schéma, donc du résolveur.**
   `InviteMemberDialog.tsx:60` fait `const schema = buildSchema(t('emailInvalid'))` **dans le
   corps du composant** : un nouvel objet à chaque rendu. Il descend dans `useApiForm`, puis dans
-  `useResolveurValidation(schema)` (`useApiForm.ts:256`), qui rend une **nouvelle fonction** à
+  `useResolveurValidation(schema)` (`useApiForm.ts:256` — *`:247` au 2026-11-16*), qui rend une **nouvelle fonction** à
   chaque rendu et reconstruit même `zodResolver(schema)` à l'intérieur de chaque appel
-  (`useApiForm.ts:211-229`). Les formulaires qui marchent importent en général un schéma de
+  (`useApiForm.ts:211-229` — *`:202-219` au 2026-11-16*). Les formulaires qui marchent importent en général un schéma de
   module, d'identité stable — ce qui collerait au fait n°3.
 - **Le cycle de vie du dialogue.** `useEffect(() => { if (!open) form.reset(); }, [open, form])`
   (`InviteMemberDialog.tsx:83-85`) remet le formulaire à zéro. `form` est stable en
@@ -97,10 +116,12 @@ refuse : l'utilisateur re-clique, croit à une panne, et recommence.
 ## Critères d'acceptation
 
 - [ ] AC1 — sur saisie invalide, `document.querySelectorAll('[role="alert"]').length >= 1` et le
-      texte nomme le champ fautif, dans les deux dialogues constatés
+      texte nomme le champ fautif, dans les deux dialogues constatés — caduc depuis TCK-2667 / TCK-2365
+      (dialogues supprimés) ; sur la surface qui les remplace, tenu par TCK-2668 (relevé 2026-11-16)
 - [ ] AC2 — un test reproduit le défaut et **échoue avant** le correctif ; l'ablation du
       correctif le refait rougir
-- [ ] AC3 — la soumission reste bloquée : l'action serveur n'est pas appelée sur saisie invalide
+- [x] AC3 — la soumission reste bloquée : l'action serveur n'est pas appelée sur saisie invalide
+      (tenu par TCK-2668 sur `FormulaireDInvitation`, relevé 2026-11-16)
 - [ ] AC4 — la cause est **nommée** dans le ticket ou dans le code ; « corrigé en stabilisant le
       schéma » sans dire pourquoi cela suffisait ne referme pas ce ticket
 - [ ] AC5 — un formulaire non-dialogue utilisant le même hook n'a pas régressé
