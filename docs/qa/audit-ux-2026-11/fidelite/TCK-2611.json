@@ -257,10 +257,10 @@
   "ecarts_acceptes": [
     {
       "ecran": "a-0 à a-3 (téléphone, bureau)",
-      "element": "« Aide » / « Besoin d’aide ? » dans la barre ; « Retour au site » à sa place",
-      "propriete": "absent du produit / absent de la maquette",
-      "exception": "incohérence des maquettes",
-      "motif": "TCK-2598 (écarts acceptés) : la coque d'entrée porte « Retour au site » à cette place, avec la confirmation de sortie ; le lien d'aide, propre à la maquette de l'invitation, n'a aucune destination dans le produit (aucune page d'aide). La barre (rembourrage, filet, marque rabattue à 20 px) est celle de la coque, acceptée là-bas ; d'où « Takussan » et son icône 5,4 à 6 px plus haut, le filet du bureau à rgb(235,229,213) au lieu de rgba(…, 0.7), et les marges de la barre du téléphone (4 px au lieu de 16 et 12)"
+      "element": "« Aide » / « Besoin d’aide ? » dans la barre ; à a-3, le compte (initiales ; nom et initiales au bureau)",
+      "propriete": "présent selon la donnée ; barre de la coque",
+      "exception": "donnée",
+      "motif": "TCK-2941 : « Aide » (téléphone, une feuille) et « Besoin d’aide ? » (bureau, un menu) prennent la place de « Retour au site » quand l’agence a un téléphone PUBLIC (aperçu et 410 : « Appeler {agence} », « Écrire à {agence} sur WhatsApp ») ; sans téléphone public, « Retour au site » reste — le site n’a aucune page d’aide (relevé du 2026-11-15), rien n’en est inventé. Connecté (a-3), le compte à cette place (`DeclarerEntree aDroite`). Reste la barre de la coque (TCK-2598, écarts acceptés) : rembourrage, filet, marque rabattue à 20 px — d’où « Takussan » et son icône 5,4 à 6 px plus haut, le filet du bureau à rgb(235,229,213) au lieu de rgba(…, 0.7), et les marges de la barre du téléphone (4 px au lieu de 16 et 12)"
     },
     {
       "ecran": "a-0 à a-3 (téléphone, bureau)",
@@ -274,21 +274,21 @@
       "element": "adresse et ville de l'agence (« 12, avenue Léopold Sédar Senghor · Plateau, Dakar »), « 214 biens · agence vérifiée », pastille vérifiée",
       "propriete": "absent du produit / texte",
       "exception": "donnée",
-      "motif": "ADR-0094 § 3 : la ville seule, jamais la rue — et l'agence de la démo n'a pas d'adresse (city null) ; 67 biens publics ; `is_verified` faux dans la démo (rendue quand vrai, BadgeVerifiee) ; d'où le nom centré plus bas à côté du logo (deux lignes au lieu de trois)"
+      "motif": "ADR-0094 § 3, maintenu par l’amendement du 2026-11-15 § 1 (TCK-2939) : la fiche publique de l’agence ne sert que la ville, l’« adresse » de la maquette n’a pas de source — la ville en tient lieu (TCK-2941) ; l’agence de la démo n’a pas de ville (city null) ; 67 biens publics ; `is_verified` faux dans la démo (rendue quand vrai, BadgeVerifiee) ; d’où le nom centré plus bas à côté du logo (deux lignes au lieu de trois)"
     },
     {
       "ecran": "a-0, a-1, a-3 (bureau)",
       "element": "vignettes des biens (« Appartement F4 · Mermoz », « Studio · Ouakam », « Villa · Ngor »)",
-      "propriete": "absent du produit",
+      "propriete": "absent du relevé (donnée)",
       "exception": "donnée",
-      "motif": "l'aperçu ne sert ni titre ni photo de bien (ADR-0094 § 3) ; aucun bien en attente pour l'invitation de relevé"
+      "motif": "rendues depuis TCK-2941 (bailleur seulement, `awaiting.pending_properties[]` de TCK-2939 : titre, quartier, vignette publique, trois au plus — `VignettesDesBiens`, éprouvé en vitest) ; l’invitation de relevé n’a aucun bien en attente"
     },
     {
       "ecran": "a-0 (téléphone, bureau)",
       "element": "numéro donné par l'agence (« +221 77 •• •• 45 67 ») et « Modifier »",
       "propriete": "absent du produit",
       "exception": "donnée",
-      "motif": "une invitation par e-mail ne sert pas le numéro de l'invité : le champ est vide et se saisit (relevé : p-11-numero.js le remplit) ; « Modifier » n'a pas d'objet. La valeur d'un `<input>` n'est pas un nœud de texte (« Moussa », « Ndiaye » de même) : corps et place du champ suivent la maquette"
+      "motif": "TCK-2941 : « Modifier » est rendu pour une invitation par SMS non partagée (ADR-0094, amendement § 4 ; le corrigé part à `…/code` et à `…/verify`, éprouvé en vitest) ; l’invitation de relevé est par e-mail : son numéro se saisit (p-11-numero.js le remplit), « Modifier » n’a pas d’objet. La valeur d’un `<input>` n’est pas un nœud de texte (« Moussa », « Ndiaye » de même) : corps et place du champ suivent la maquette"
     },
     {
       "ecran": "a-1 (téléphone, bureau)",
@@ -365,7 +365,7 @@
       "element": "« La demande part chez l’agence : vous n’avez rien à écrire. » et lucide-phone de « Ou appelez l’agence : »",
       "propriete": "hauteur (une ligne au lieu de deux) ; x +7 px",
       "exception": "donnée",
-      "motif": "la phrase est plus courte sans le prénom de l'invitant (le 410 ne le sert pas, ADR-0094 § 3) ; « appelez » est plus large que « appelle » (vouvoiement)"
+      "motif": "TCK-2941 : le 410 sert désormais le prénom de qui invitait (`inviter_first_name`), dit dans le texte (« Awa vous avait invité chez Dakar Immo le 3 nov. ») ; la ligne d’aide garde « l’agence » (la réponse 202 de la demande ne dit pas qui est prévenu : la page ne le promet pas) ; « appelez » est plus large que « appelle » (vouvoiement)"
     },
     {
       "ecran": "a-0, a-1, a-3 (bureau)",

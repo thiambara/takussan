@@ -46,11 +46,11 @@ L'invité trouve de l'aide, corrige son numéro, reconnaît ses biens, reçoit s
 
 ## Delta à produire
 
-- [ ] « Aide » / « Besoin d'aide ? » dans la barre.
-- [ ] « Modifier » du numéro donné par l'agence.
-- [ ] Panneau bureau : adresse et vignettes des biens du bailleur.
-- [ ] Message des essais restants ; prénom de l'invitant sur le lien expiré.
-- [ ] Compte connecté dans la barre (e3).
+- [x] « Aide » / « Besoin d'aide ? » dans la barre.
+- [x] « Modifier » du numéro donné par l'agence.
+- [x] Panneau bureau : adresse et vignettes des biens du bailleur.
+- [x] Message des essais restants ; prénom de l'invitant sur le lien expiré.
+- [x] Compte connecté dans la barre (e3).
 - [ ] Vérifications au navigateur (AC7).
 
 ## Critères d'acceptation
@@ -74,4 +74,47 @@ L'invité trouve de l'aide, corrige son numéro, reconnaît ses biens, reçoit s
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-16 — implémenté (agent délégué, arbre `takussan-manques`), front seul : l'API est celle de TCK-2939.
+
+**Prémisses re-mesurées, et ce qui différait** :
+- **L'adresse de l'agence** n'existe pas : l'amendement d'ADR-0094 (§ 1, TCK-2939) la maintient hors de l'aperçu (la fiche
+  publique ne sert que la ville). AC3 « l'adresse de l'agence » est tenu par la **ville**, déjà rendue dans le panneau.
+- **AC5, tutoiement** : la page **vouvoie** (ADR-0095, `check-vouvoiement`) — « Ce n'est pas le bon code. Il vous reste
+  2 essais avant d'en demander un autre. » (« 1 essai » ; `0` : « Il ne vous reste plus d'essai : demandez un nouveau
+  code. »). Lu seulement sur un 422 `phone_code_invalid` dont `attempts_left` est un entier ≥ 0 ; sinon le message d'avant.
+- **AC4** : le texte d'avant disait « {agence} vous l'a envoyée le {date} » ; avec le prénom : « Awa vous avait invité
+  chez Dakar Immo le 3 nov. … » (la date en fin de phrase garde le point de l'abréviation). Sans agence :
+  « Awa vous avait invité le 3 nov. … ». Sans prénom servi : le texte d'avant.
+- La voie par appel (TCK-2948) est réutilisée telle quelle ; la barre de l'écran du code (déclarée par la page) reçoit
+  « Aide » à la main.
+
+**Décisions tranchées (« valide tes choix »)** :
+- **La barre** : un champ additif `aDroite` de `DeclarationDEntree` (coque d'entrée, `CoqueDEntree.tsx`, bloc TCK-2941)
+  remplace « Retour au site » dans les deux barres ; la **marque reste la sortie**, avec sa garde de saisie (testé).
+  Priorité : connecté → le compte ; sinon téléphone public → l'aide ; sinon rien de déclaré (« Retour au site »).
+  Connecté avant la relecture de la session : la place est gardée vide (ni l'aide ni « Retour au site » ne clignotent).
+- **L'aide** : feuille du bas (`FeuilleDuBas`) au téléphone, menu (`DropdownMenu`) au bureau, deux gestes —
+  « Appeler {agence} » (`tel:` en E.164 par `telephonePublie`, `agencies.phone` gardant la saisie brute) et « Écrire à
+  {agence} sur WhatsApp » (`wa.me/<chiffres>?text=` d'un texte fixe, `target=_blank rel="noopener noreferrer"`). Aucun
+  lien ne porte le jeton ni l'URL de la page (testé). Rendue aussi sur un lien fermé (e2) dont le 410 sert le téléphone.
+- **« Modifier »** : invitation par SMS **non partagée** seulement (`code_only` → absent, l'API rendrait 422). Le numéro
+  masqué laisse place au champ du numéro (focus posé, vide) ; le numéro corrigé part à `…/code` ET à `…/verify` ;
+  « Garder le numéro donné par {agence} » revient en arrière. « · Modifier » de l'écran du code est désormais rendu
+  pour une invitation par SMS (il ramène au numéro, en correction).
+- **Vignettes** : bailleur seulement, dans le panneau de l'agence du bureau (≥ 1280, comme la maquette), trois au plus
+  (relu côté front aussi), photo publique ou aplat et icône si absente ou cassée.
+
+**Preuves** : `npx vitest run` de `src/app/invitations/accept/__tests__/` (dont les deux fichiers neufs
+`EntreeDInvitation.tck-2941` 17 et `EcranFerme.tck-2941` 3), `src/components/entree/__tests__/`,
+`src/lib/__tests__/invitation-apercu.tck-2611` : verts. Trois tests d'avant réécrits, le comportement changeant :
+`tck-2611` AC3 (« · Modifier » désormais rendu par SMS), `sortie.tck-2598` (fixture sans téléphone public ; le cas
+connecté passe par la marque ; un cas neuf : « Aide » à la place de « Retour au site », la marque garde la sortie),
+`invitation-apercu` (champs neufs). Ablations une à une (md5 restauré) toutes rouges : `phone` corrigé absent de
+`…/verify`, « Modifier » sur un lien partagé, `attempts_left` ignoré, `aDroite` non propagé par `Declarant`, `tel:` sans
+`telephonePublie`, prénom du 410 ignoré, vignettes pour tout rôle, place du compte non gardée. `tsc --noEmit`, `eslint`,
+`check:i18n`, `check-i18n-namespaces` (aucun espace neuf : `invitationAccept` et `common`), `check-vouvoiement`,
+`scripts/check-*.mjs` : verts.
+
+**Non mesuré** : AC7 et AC-F2 (consigne du lot : aucun relevé au navigateur). AC7 est éprouvé en vitest (bloc « compte
+existant » d'une invitation par e-mail ; voie mot de passe seule drapeau éteint, `tck-2611`). AC-F1 : fiche
+`TCK-2611.json` — motifs réécrits (aide et compte de la barre, ville pour l'adresse, vignettes, « Modifier », prénom du 410).

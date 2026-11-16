@@ -1,12 +1,13 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import Image from 'next/image';
+import { useState, type ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { BadgeCheck, Building2, CalendarDays, Clock, FlaskConical, Inbox, Receipt, Wallet, Wrench, type LucideIcon } from 'lucide-react';
 
 import { BOUTON_D_ENTREE } from '@/components/auth/BoutonCollant';
 import { LogoOuInitiales } from '@/components/public/index/LogoOuInitiales';
-import type { ApercuDInvitation, RoleDInvitation } from '@/lib/invitation-apercu';
+import type { ApercuDInvitation, BienEnAttente, RoleDInvitation } from '@/lib/invitation-apercu';
 import { cn } from '@/lib/utils';
 
 /**
@@ -15,8 +16,9 @@ import { cn } from '@/lib/utils';
  * « Invitation pour … · valable jusqu'au … », et le panneau de l'agence du bureau.
  *
  * ⚠ **Rien que l'API ne serve** (ADR-0094 § 3) : l'invitant par son prénom seul, l'agence par sa
- * ville seule, ce qui attend par ses comptes seuls — les photos et les titres des biens de la
- * maquette n'ont pas de source, ils ne sont pas inventés.
+ * ville seule (l'« adresse » de la maquette : la fiche publique n'en sert pas plus, amendement du
+ * 2026-11-15 § 1), ce qui attend par ses comptes — et, TCK-2941 (amendement § 2), trois biens du
+ * bailleur au plus par leur titre, leur QUARTIER seul et leur vignette publique.
  */
 
 /**
@@ -244,7 +246,45 @@ export function PanneauDeLAgence({ apercu }: { readonly apercu: ApercuDInvitatio
       </div>
 
       <CeQuiVousAttend apercu={apercu} detaille className="mt-7" />
+      <VignettesDesBiens apercu={apercu} className="mt-6" />
     </div>
+  );
+}
+
+/** TCK-2941 — la vignette d'un bien : la photo publique, ou un aplat et l'icône d'un bâtiment (absente ou cassée). */
+function VignetteDuBien({ bien }: { readonly bien: BienEnAttente }) {
+  const [cassee, setCassee] = useState(false);
+  return (
+    <li className="min-w-0 overflow-hidden rounded-xl bg-card">
+      <div className="relative flex h-[5.25rem] items-center justify-center bg-muted text-muted-foreground">
+        {bien.vignette && !cassee ? (
+          <Image src={bien.vignette} alt="" fill sizes="(min-width: 1280px) 200px, 33vw" className="object-cover" onError={() => setCassee(true)} />
+        ) : (
+          <Building2 className="size-6" strokeWidth={1.5} aria-hidden="true" />
+        )}
+      </div>
+      <p className="px-2.5 py-2 text-[0.8125rem] leading-tight">
+        <span className="block truncate font-medium">{bien.titre}</span>
+        {bien.quartier ? <span className="block truncate text-muted-foreground">{bien.quartier}</span> : null}
+      </p>
+    </li>
+  );
+}
+
+/**
+ * TCK-2941 — « les biens qui vous attendent », en vignettes (maquette `PanneauAgence`, `:184-196`) : bailleur
+ * seulement, et seulement ceux que l'aperçu sert (trois au plus).
+ */
+export function VignettesDesBiens({ apercu, className }: { readonly apercu: ApercuDInvitation; readonly className?: string }) {
+  const t = useTranslations('invitationAccept.attente');
+  const biens = cleDuRole(apercu.role) === 'owner' ? (apercu.attente.biensEnAttente ?? []) : [];
+  if (biens.length === 0) return null;
+  return (
+    <ul aria-label={t('owner.vignettes')} className={cn('grid grid-cols-3 gap-2.5', className)}>
+      {biens.map((bien, i) => (
+        <VignetteDuBien key={`${i}-${bien.titre}`} bien={bien} />
+      ))}
+    </ul>
   );
 }
 

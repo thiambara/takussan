@@ -50,9 +50,11 @@ const LIBELLES: LibellesDeLaCoque = {
   sortie: C.sortie,
 };
 
+// TCK-2941 — sans téléphone public : la barre garde « Retour au site » (avec un téléphone, « Aide » prend sa place ;
+// la garde de la marque y est éprouvée plus bas).
 const PAR_SMS: ApercuDInvitation = {
   role: 'owner',
-  agence: { nom: 'Dakar Immo', logo: null, ville: 'Dakar', biensPublics: 214, verifiee: true, telephone: '+221338200000' },
+  agence: { nom: 'Dakar Immo', logo: null, ville: 'Dakar', biensPublics: 214, verifiee: true, telephone: null },
   invitant: 'Aïssatou',
   destinataire: { canal: 'phone', masque: '77 ••• 45 67' },
   compteExistant: false,
@@ -154,10 +156,22 @@ describe('r2 — l’invitation déclare sa saisie', () => {
   });
 
   it('connecté sans nom : des noms corrigés sont une saisie, les noms proposés intacts n’en sont pas', () => {
+    // TCK-2941 — connecté, le compte remplace « Retour au site » dans la barre : la marque est la sortie.
     monter(PAR_SMS, true, { prenom: 'Moussa', nom: 'Ndiaye' });
-    expect(demande(retourAuSite())).toBe(false);
+    const marque = () => screen.getAllByRole('link', { name: 'Takussan' })[0];
+    expect(screen.queryByRole('link', { name: C.retourAuSite })).toBeNull();
+    expect(demande(marque())).toBe(false);
     fireEvent.change(screen.getByLabelText(T.firstName), { target: { value: 'Awa' } });
-    expect(demande(retourAuSite())).toBe(true);
+    expect(demande(marque())).toBe(true);
+  });
+
+  it('TCK-2941 — téléphone public : « Aide » remplace « Retour au site », et la marque garde la sortie', () => {
+    monter({ ...PAR_SMS, agence: { ...PAR_SMS.agence!, telephone: '+221338200000' } });
+    expect(screen.queryByRole('link', { name: C.retourAuSite })).toBeNull();
+    expect(screen.getAllByRole('button', { name: T.aide.court }).length).toBeGreaterThan(0);
+    for (const marque of screen.getAllByRole('link', { name: 'Takussan' })) expect(demande(marque)).toBe(false);
+    fireEvent.change(screen.getByLabelText(T.firstName), { target: { value: 'Moussa Awa' } });
+    for (const marque of screen.getAllByRole('link', { name: 'Takussan' })) expect(demande(marque)).toBe(true);
   });
 
   it('r1 — l’écran du code : la marque de son en-tête demande dès qu’un code est tapé', async () => {

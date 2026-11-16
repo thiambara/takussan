@@ -57,8 +57,23 @@ export interface ApercuDInvitation {
   readonly attente: {
     readonly biens: number | null;
     readonly intervention: { readonly titre: string; readonly bien: string | null } | null;
+    /**
+     * TCK-2941 (ADR-0094, amendement du 2026-11-15 § 2) — trois au plus des biens que l'agence a saisis pour le
+     * bailleur : le titre, le QUARTIER seul et la vignette publique. Absent : aucun (une API d'avant TCK-2939).
+     */
+    readonly biensEnAttente?: readonly BienEnAttente[];
   };
 }
+
+/** TCK-2941 — un bien qui attend le bailleur invité, tel que l'aperçu le sert (`awaiting.pending_properties[]`). */
+export interface BienEnAttente {
+  readonly titre: string;
+  readonly quartier: string | null;
+  readonly vignette: string | null;
+}
+
+/** TCK-2941 — l'API en rend trois au plus ; l'écran n'en montre jamais plus, quoi qu'elle serve. */
+export const BIENS_EN_ATTENTE_MONTRES = 3;
 
 export type EtatFerme = 'expiree' | 'annulee' | 'acceptee';
 
@@ -66,6 +81,8 @@ export interface InvitationFermee {
   readonly etat: EtatFerme;
   readonly agence: { readonly nom: string; readonly logo: string | null; readonly telephone: string | null } | null;
   readonly inviteeLe: string | null;
+  /** TCK-2941 (ADR-0094, amendement § 3) — le PRÉNOM seul de qui invitait (`inviter_first_name`), s'il est servi. */
+  readonly invitant?: string | null;
 }
 
 export type LectureDInvitation =
@@ -100,6 +117,20 @@ function agence(brut: unknown): AgenceDeLInvitation | null {
   };
 }
 
+/** TCK-2941 — `awaiting.pending_properties[]`, relu champ par champ : un bien sans titre n'est pas montré. */
+function biensEnAttente(brut: unknown): BienEnAttente[] {
+  if (!Array.isArray(brut)) return [];
+  const biens: BienEnAttente[] = [];
+  for (const element of brut) {
+    const b = objet(element);
+    const titre = texte(b?.title);
+    if (!b || !titre) continue;
+    biens.push({ titre, quartier: texte(b.neighborhood), vignette: texte(b.cover_url) });
+    if (biens.length === BIENS_EN_ATTENTE_MONTRES) break;
+  }
+  return biens;
+}
+
 /** Le corps de l'aperçu, relu champ par champ : rien de ce que l'API ne sert pas n'est supposé. */
 export function apercuDepuisLaReponse(brut: unknown): ApercuDInvitation | null {
   const d = objet(brut);
@@ -125,11 +156,12 @@ export function apercuDepuisLaReponse(brut: unknown): ApercuDInvitation | null {
     attente: {
       biens: nombre(attente?.properties_count),
       intervention: titreIntervention ? { titre: titreIntervention, bien: texte(intervention?.property_label) } : null,
+      biensEnAttente: biensEnAttente(attente?.pending_properties),
     },
   };
 }
 
-/** Le complément d'un 410 : l'agence (nom, logo, téléphone public) et la date de l'invitation. */
+/** Le complément d'un 410 : l'agence (nom, logo, téléphone public), la date de l'invitation et (TCK-2941) le prénom de qui invitait. */
 export function fermeeDepuisLErreur(err: ApiError): InvitationFermee | null {
   const corps = objet(err.data);
   const etat = ETATS_FERMES[String(corps?.code ?? '')];
@@ -140,6 +172,7 @@ export function fermeeDepuisLErreur(err: ApiError): InvitationFermee | null {
     etat,
     agence: a && nom ? { nom, logo: texte(a.logo_url), telephone: texte(a.public_phone) } : null,
     inviteeLe: texte(corps?.invited_at),
+    invitant: texte(corps?.inviter_first_name),
   };
 }
 

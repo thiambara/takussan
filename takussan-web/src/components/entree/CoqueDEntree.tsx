@@ -118,6 +118,12 @@ export interface DeclarationDEntree {
    *    (« DeuxVolets », a-2 à a-4).
    */
   readonly largeur?: LargeurDeColonne;
+  /**
+   * TCK-2941 — ce que la page pose À LA PLACE de « Retour au site », à droite des deux barres (maquette
+   * `app-entree-invitation` : « Aide » au téléphone, « Besoin d'aide ? » au bureau ; le compte connecté).
+   * La marque reste la sortie, avec sa garde. Absent : « Retour au site ».
+   */
+  readonly aDroite?: { readonly telephone: ReactNode; readonly bureau: ReactNode };
 }
 
 /**
@@ -200,10 +206,11 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
-  const { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur } = declaration;
+  // TCK-2941 — `aDroite` déclaré comme les autres champs (oublié ici, il ne parviendrait jamais à la coque).
+  const { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur });
-  }, [declarer, id, titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur]);
+    declarer(id, { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite });
+  }, [declarer, id, titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -341,6 +348,8 @@ export function CoqueDEntree({
     (declaree.avancementEcrit === true || parDefaut.avancementEcrit === true) && pas && total
       ? libelles.avancement.replace('{pas}', String(pas)).replace('{total}', String(total))
       : null;
+  // TCK-2941 — la page peut poser autre chose à cette place (« Aide », le compte connecté).
+  const aDroite = declaree.aDroite ?? parDefaut.aDroite ?? null;
   const retourAuSite =
     sortie?.forme === 'retour-au-site' ? (
       <NextLink href={sortie.href} onClick={auClicDeSortie} {...inerte} className={cn(CLASSES_LIEN_TEXTE, CLASSES_INERTES)}>
@@ -406,10 +415,10 @@ export function CoqueDEntree({
               ) : (
                 <span className="flex-1" />
               )}
-              {avancement || retourAuSite ? (
+              {avancement || retourAuSite || aDroite ? (
                 <span className="flex flex-none items-center gap-2 pr-3">
                   {avancement}
-                  {retourAuSite}
+                  {aDroite ? aDroite.telephone : retourAuSite}
                 </span>
               ) : null}
             </header>
@@ -454,6 +463,8 @@ export function CoqueDEntree({
                 >
                   {libelles.quitter}
                 </NextLink>
+              ) : aDroite ? (
+                aDroite.bureau
               ) : (
                 retourAuSite
               )}

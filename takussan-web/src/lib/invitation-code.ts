@@ -10,8 +10,10 @@ import type { ConditionsAAccepter } from './connexion-telephone';
  * depuis le navigateur. Les deux routes du code (TCK-2610) suivent le drapeau `phone_login` : 404
  * drapeau éteint.
  *
- * ⚠ `phone` ne part QUE pour une invitation par e-mail : par SMS, le code part au numéro de
- * l'invitation et l'API ignore celui du corps.
+ * ⚠ `phone` part pour une invitation par e-mail, et — TCK-2941 (ADR-0094, amendement du 2026-11-15 § 4) — pour
+ * une invitation par SMS dont l'invité a CORRIGÉ le numéro (« Modifier ») : le code part alors à ce numéro, et
+ * `…/verify` doit porter le même. Sans correction, aucun `phone` : le code part au numéro de l'invitation. Une
+ * invitation partagée (`code_only`) refuse la correction (422) : l'écran ne l'offre pas.
  */
 export interface DemandeDeCode {
   readonly attente: number;

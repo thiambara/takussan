@@ -128,8 +128,8 @@ describe('<EntreeDInvitation> — invitation valide, déconnecté', () => {
     // Par SMS, aucun numéro ne part : le code va au numéro de l'invitation.
     expect(demanderCode).toHaveBeenCalledWith('jeton-abc', null, 'fr');
     expect(await screen.findByRole('heading', { level: 1, name: T.code.titre })).toBeInTheDocument();
-    expect(screen.getByText(/Code envoyé au/)).toHaveTextContent('Code envoyé au 77 ••• 45 67');
-    expect(screen.queryByRole('button', { name: T.code.modifier })).not.toBeInTheDocument();
+    // TCK-2941 (ADR-0094, amendement § 4) — le numéro d'une invitation par SMS se corrige : « · Modifier » est rendu.
+    expect(screen.getByText(/Code envoyé au/)).toHaveTextContent('Code envoyé au 77 ••• 45 67 · Modifier');
 
     await user.type(screen.getByLabelText(T.code.libelle), '123456');
 
