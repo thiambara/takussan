@@ -148,7 +148,7 @@ ces conditions tiennent ; sinon il est listé dans `owners_to_review` avec son m
 | `original_missing` | le titulaire d'origine n'existe plus, **suppression douce comprise** |
 | `original_not_landlord` | il ne détient aucun profil propriétaire **non supprimé** dans l'agence du bien |
 | `current_is_landlord` | le titulaire actuel détient lui-même un tel profil : le dernier geste a pu être un transfert légitime entre bailleurs |
-| `designated_after` | la marque `is_primary` du bien a été posée ou changée après la première réattribution fautive (journal `property.primary_agent_designated` postérieur, ou ligne marquée dont `updated_at` l'est) : la réparation n'écrase pas un choix de l'agence |
+| `designated_after` | la marque `is_primary` du bien a été posée ou changée après la première réattribution fautive (journal `property.primary_agent_designated` postérieur ~~, ou ligne marquée dont `updated_at` l'est~~ — retiré, §7) : la réparation n'écrase pas un choix de l'agence |
 
 `--dry-run` et le passage réel impriment **une ligne par bien** : `restore` (bien, titulaire actuel → d'origine,
 responsable désigné, baux rétablis, baux à reprendre) ou `review` (bien, motif, titulaires actuel et d'origine).
@@ -170,6 +170,22 @@ biens et le traitement des lignes, un bien peut entrer dans le portefeuille du p
 les deux). Le traiter imposerait un verrou de bien après des lignes, l'ordre exclu. Les catégories de biens ne
 traitent donc que l'ensemble verrouillé, et **si le portefeuille de biens a changé** depuis, la passation est
 refusée en `409 agency_member.handover_conflict` — elle n'a rien écrit et se rejoue.
+
+### 7. Amendement du 2026-11-16 (TCK-616) — une sortie qui se lit sans `activity_log`
+
+La décision de la réparation ne change pas (§5, §6) ; seules la classification d'un motif et la sortie changent,
+et aucune écriture n'est ajoutée.
+
+- **`designated_after` se lit au SEUL journal `property.primary_agent_designated`** postérieur à la première
+  réattribution. Le second critère du §6 (« ou ligne marquée dont `updated_at` l'est ») est **retiré** :
+  `updated_at` bouge aussi pour une marque posée par le remplissage d'ADR-0053 sur un agent ajouté après (FN1),
+  ou pour une `commission_share` modifiée sur une marque antérieure (FN3) — deux biens listés à tort. Une marque
+  posée hors du service, sans journal, n'est plus un motif de liste : la réparation ne sait pas la dater.
+- **Chaque ligne `review` et `restore` porte `chain=X>B5>Y`** : le premier `old.user_id`, puis chaque
+  `attributes.user_id`. Le bailleur intermédiaire d'une chaîne (B5 de verif-603 passe 2, FN2) y est lisible.
+- **Un nom, un sens** : sur une ligne `restore`, les baux rétablis sont listés par `leases_fixed_ids=` et ceux à
+  reprendre par `leases_to_review_ids=` ; au bilan, `leases_fixed=` et `leases_to_review=` sont des **comptes**.
+  La trace `property.owner_restored` garde ses clés (`leases_fixed`, `leases_to_review`, listes d'identifiants).
 
 ## Options écartées
 
