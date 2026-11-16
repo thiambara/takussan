@@ -12771,7 +12771,15 @@
         "caption": "Natt bérab yi bés bu nekk",
         "colDate": "Bés",
         "empty": "Amul dara ci diir bii.",
-        "loadError": "Mënuñu yeb natt yi."
+        "loadError": "Mënuñu yeb natt yi.",
+        "spotlights": {
+          "title": "Mise en avant des agences",
+          "hint": "Places créées sur la période, et crédits dépensés ou rendus pour elles.",
+          "purchased": "Places achetées",
+          "offered": "Places offertes",
+          "creditsSpent": "Crédits dépensés",
+          "creditsRefunded": "Crédits remboursés"
+        }
       }
     },
     "credits": {
@@ -16215,7 +16223,6 @@
       "colPeriod": "Période",
       "colState": "État",
       "colNote": "Motif",
-      "colGrantedBy": "Offerte par",
       "colActions": "Actions",
       "period": "du {from} au {to}",
       "empty": "Aucune agence mise en avant pour cette période.",
@@ -16247,7 +16254,16 @@
         "body": "L’agence quitte la vitrine de l’annuaire dès maintenant. Elle reste dans la liste, à son rang.",
         "back": "Annuler",
         "submit": "Retirer",
-        "failed": "La mise en avant n’a pas pu être retirée."
+        "failed": "La mise en avant n’a pas pu être retirée.",
+        "bodyPurchased": "Cette place a été achetée : elle est libérée et l’agence est remboursée au prorata des jours restants."
+      },
+      "colOrigin": "Origine",
+      "released": "Libérée le {date}",
+      "refunded": "{count, plural, =0 {Aucun crédit rendu} one {# crédit rendu} other {# crédits rendus}}",
+      "origin": {
+        "offered": "Offerte",
+        "purchased": "Achetée — {count, plural, one {# crédit} other {# crédits}}",
+        "by": "par {name}"
       }
     },
     "photosDeQuartier": {
@@ -20165,7 +20181,9 @@
     "movements": {
       "caption": "Li xew ci kredi bérab bi",
       "empty": "Dara xewagul.",
-      "object": "{offer} — {property}"
+      "object": "{offer} — {property}",
+      "spotlight": "Mise en avant — {city}, du {from} au {to}",
+      "spotlightSansDetail": "Mise en avant de l’agence"
     },
     "types": {
       "grant": "May",

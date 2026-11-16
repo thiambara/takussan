@@ -13350,7 +13350,15 @@
         "caption": "Slot measurement per day",
         "colDate": "Day",
         "empty": "No data for this period.",
-        "loadError": "Could not load statistics."
+        "loadError": "Could not load statistics.",
+        "spotlights": {
+          "title": "Agency featuring",
+          "hint": "Spots created over the period, and credits spent or returned for them.",
+          "purchased": "Spots purchased",
+          "offered": "Spots offered",
+          "creditsSpent": "Credits spent",
+          "creditsRefunded": "Credits refunded"
+        }
       }
     },
     "credits": {
@@ -16794,7 +16802,6 @@
       "colPeriod": "Period",
       "colState": "Status",
       "colNote": "Reason",
-      "colGrantedBy": "Offered by",
       "colActions": "Actions",
       "period": "from {from} to {to}",
       "empty": "No featured agency for this period.",
@@ -16826,7 +16833,16 @@
         "body": "The agency leaves the directory showcase right away. It stays in the list, at its rank.",
         "back": "Cancel",
         "submit": "Remove",
-        "failed": "The featured spot could not be removed."
+        "failed": "The featured spot could not be removed.",
+        "bodyPurchased": "This spot was purchased: it is released and the agency is refunded pro rata for the remaining days."
+      },
+      "colOrigin": "Origin",
+      "released": "Released on {date}",
+      "refunded": "{count, plural, =0 {No credit returned} one {# credit returned} other {# credits returned}}",
+      "origin": {
+        "offered": "Offered",
+        "purchased": "Purchased — {count, plural, one {# credit} other {# credits}}",
+        "by": "by {name}"
       }
     },
     "photosDeQuartier": {
@@ -20165,7 +20181,9 @@
     "movements": {
       "caption": "Workspace credit history",
       "empty": "No activity yet.",
-      "object": "{offer} — {property}"
+      "object": "{offer} — {property}",
+      "spotlight": "Featured agency — {city}, from {from} to {to}",
+      "spotlightSansDetail": "Featured agency"
     },
     "types": {
       "grant": "Grant",

@@ -123,4 +123,16 @@ _(à remplir par implementing-specs)_
 - AC3 — `test_ac3_…` (aucune écriture sur les tables du registre ni des places, relevée par `DB::listen`) ;
   ablation du contrôle de solde → rouge. Ablations aussi : prorata (100 ≠ 57), idempotence du
   remboursement (514 ≠ 457), garde `boost.spend` (201 ≠ 403), garde de solde du dialogue (front).
+- **Affichage (front, 2026-11-16)** — les trois lectures servies par l'API sont affichées (formes fixes,
+  sans `fields[...]` : `forme()` du contrôleur des places, `CreditController::show`, `AdminBoostStatsController`) :
+  - console super-admin des places (`AdminAgencySpotlights`) : colonne « Origine » (offerte par X, ou achetée —
+    prix en crédits et acheteur), état « Libérée le … » avec les crédits rendus (0 compris), plus de bouton
+    « Retirer » sur une place libérée, et le dialogue de retrait d'une place achetée annonce le remboursement au prorata ;
+  - statistiques du boost (`AdminBoostStats`) : bloc « Mise en avant des agences » (achetées, offertes, crédits
+    dépensés et remboursés), hors de l'état vide des emplacements ;
+  - journal `/app/credits` (`useLectureDesCredits`) : « Mise en avant — <ville | Tout l'annuaire>, du … au … »
+    pour une dépense ou un remboursement de place, période écrite comme la carte de la même page.
+  Tests : `AdminAgencySpotlights.test.tsx` (cas TCK-2525), `AdminBoostStats.mise-en-avant.tck-2525.test.tsx`,
+  `credits/__tests__/journal-mise-en-avant.tck-2525.test.tsx` ; ablations → rouge : état libéré ignoré, colonne
+  d'origine sans la branche « achetée », bloc des places soumis à l'état vide, branche `spotlight` du libellé.
 

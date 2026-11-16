@@ -45,6 +45,14 @@ export interface CreditMovement {
     readonly variant: BoostVariant | null;
     readonly property: { readonly id: number; readonly title: string } | null;
   } | null;
+  /** TCK-2525 — la place « Mise en avant » de l'agence que paie ou rembourse la ligne. `null` hors place. */
+  readonly agency_spotlight_id?: number | null;
+  readonly spotlight?: {
+    readonly id: number;
+    readonly city: { readonly id: number; readonly name: string } | null;
+    readonly starts_at: string;
+    readonly ends_at: string;
+  } | null;
 }
 
 export interface PropertyBoost {
