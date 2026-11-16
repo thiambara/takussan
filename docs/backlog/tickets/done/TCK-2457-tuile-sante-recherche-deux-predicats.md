@@ -1,7 +1,7 @@
 ---
 id: TCK-2457
 title: "La tuile Santé `search` compare l'index au bon prédicat, et les biens `is_test` ou `sold` indexés ne sortent d'aucune recherche publique"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -68,7 +68,7 @@ Mesuré sur la préproduction le 2026-11-01 (audit du serveur, M4) :
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sur la préproduction, après déploiement, la sonde rend un `gap` dont la valeur absolue reste sous `SEARCH_GAP_TOLERANCE`, avec `documents` et `expected` relevés dans le ticket.
+- [x] AC1 — Sur la préproduction, après déploiement, la sonde rend un `gap` dont la valeur absolue reste sous `SEARCH_GAP_TOLERANCE`, avec `documents` et `expected` relevés dans le ticket.
 - [x] AC2 — Par ablation : retirer un document de l'index de test au-delà de la tolérance rend la tuile `degraded`.
 - [x] AC3 — Par ablation : ajouter une condition à `shouldBeSearchable()` sans toucher au scope rougit le test de parité.
 - [x] AC4 — Par ablation : retirer `is_test = false` de `publicFilter()` rougit le test contre Meilisearch réel.
@@ -117,3 +117,8 @@ _(à remplir par implementing-specs)_
   sont assertés (≤ 1, liste non vide) mais l'ablation rougit d'abord sur `interpretation.count`.
 - AC1 (préproduction, après déploiement) reste à relever : `documents`, `expected` et `gap` de la sonde.
 
+## Mesure en préproduction (2026-11-16)
+
+Après la promotion #1691 (`ac2a32f66`, déployée à 23:34 Z), la sonde `search` de `HealthcheckService`, jouée
+dans le conteneur `api` de la préproduction, rend `{"documents":1102,"expected":1102,"gap":0}` pour
+`SEARCH_GAP_TOLERANCE` = 10 : l'index et `Property::indexable()` concordent exactement.
