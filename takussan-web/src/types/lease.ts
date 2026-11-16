@@ -196,6 +196,13 @@ export interface LeaseAbilities {
    * `draft`. Les échéances saisies se jugent à part (l'écran les lit, l'API les refuse en 422).
    */
   readonly abandon?: boolean;
+  /**
+   * TCK-607 (n3, ADR-0042 amendé le 2026-11-16) — « Ajouter un garant » : la règle d'`update`, sur un
+   * bail non signé (`draft`, `pending_signature`) ou l'enfant `active` d'un renouvellement qui n'a
+   * encore aucun garant. Ailleurs l'API rend 409 `lease.guarantors_frozen` : la fiche n'offre rien.
+   * Optionnel : absent, rien n'est offert.
+   */
+  readonly attach_guarantor?: boolean;
 }
 
 /**

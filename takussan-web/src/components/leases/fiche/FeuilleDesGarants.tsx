@@ -58,7 +58,7 @@ type Vue = { readonly type: 'liste' } | { readonly type: 'ajout' } | { readonly 
 interface FeuilleDesGarantsProps {
   readonly leaseId: number;
   readonly garants: readonly LeaseGuarantor[];
-  /** `abilities.update` du bail : l'ajout. Sans lui, la feuille se lit seulement. */
+  /** `abilities.attach_guarantor` du bail (TCK-607) : l'ajout. Sans lui, la feuille se lit seulement. */
   readonly peutGerer: boolean;
   readonly ouverte: boolean;
   /** Ouverte directement sur le formulaire d'ajout (la ligne « Ajouter un garant » d'un bail sans garant). */

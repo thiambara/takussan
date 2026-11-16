@@ -256,7 +256,8 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
   const empeche = raisonDAbandonEmpeche(lease, paiements);
   const peutTelechargerLeContrat = a?.download_contract === true;
   const peutDeposer = a?.add_document === true;
-  const peutGererLesGarants = a?.update === true;
+  // TCK-607 — les garants d'un bail signé sont figés : l'API dit où l'ajout est accepté.
+  const peutGererLesGarants = a?.attach_guarantor === true;
   const lignes = paiements ? ordreDeLEcheancier(paiements) : [];
   const type = lease.type ? (KNOWN_LEASE_TYPES.has(lease.type) ? tTypes(lease.type) : lease.type) : null;
 

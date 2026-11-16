@@ -196,4 +196,48 @@ class LeaseGuarantorFreezeTest extends TestCase
         $this->assertSame($sha, $child->fresh()->contract_sha256);
         $this->assertSame(LeaseStatus::Active, $child->fresh()->status);
     }
+
+    // ── TCK-607 (suite) — la fiche ne propose le geste que là où l'API l'accepte ─────────────────
+
+    private function ability(User $viewer, Lease $lease): mixed
+    {
+        Sanctum::actingAs($viewer);
+
+        return $this->getJson("/api/leases/{$lease->id}")->assertOk()->json('data.abilities.attach_guarantor');
+    }
+
+    #[DataProvider('statutsOuverts')]
+    public function test_la_fiche_offre_l_ajout_sur_un_bail_non_signe(LeaseStatus $status): void
+    {
+        [$owner, $lease] = $this->bail($status);
+
+        $this->assertTrue($this->ability($owner, $lease));
+    }
+
+    #[DataProvider('statutsFiges')]
+    public function test_la_fiche_n_offre_pas_l_ajout_sur_un_bail_fige(LeaseStatus $status): void
+    {
+        [$owner, $lease] = $this->bail($status);
+
+        $this->assertFalse($this->ability($owner, $lease));
+    }
+
+    public function test_la_fiche_offre_l_ajout_a_l_enfant_sans_garant_une_fois(): void
+    {
+        [$owner, $child] = $this->enfantDeRenouvellement();
+        $this->assertTrue($this->ability($owner, $child));
+
+        $this->garantRattache($owner, $child);
+        $this->assertFalse($this->ability($owner, $child));
+    }
+
+    public function test_la_fiche_n_offre_pas_l_ajout_sans_le_droit_d_ecrire(): void
+    {
+        // Le locataire lit sa fiche, il n'écrit pas le bail.
+        [, $lease] = $this->bail(LeaseStatus::PendingSignature);
+        $locataire = User::factory()->create();
+        $lease->tenant->update(['user_id' => $locataire->id]);
+
+        $this->assertFalse($this->ability($locataire, $lease));
+    }
 }

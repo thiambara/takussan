@@ -475,6 +475,27 @@ class Lease extends AbstractModel implements HasMedia
     }
 
     /**
+     * TCK-607 (n3) — décision du porteur du 2026-11-16, option (b), ADR-0042 amendé : les garants
+     * sont imprimés au contrat, ils ne bougent que tant qu'il n'est pas signé (`draft`,
+     * `pending_signature`, où {@see unfreezeContract()} le défige). Sur un bail `active`, une seule
+     * exception : l'enfant d'un renouvellement qui n'a encore AUCUN garant en reçoit un (il naît
+     * sans, amendement TCK-2316). La règle UNIQUE : l'API la juge sous verrou
+     * (`LeaseController::attachGuarantor`/`detachGuarantor`, 409 `lease.guarantors_frozen`), la
+     * ressource la sert à la fiche (`abilities.attach_guarantor`).
+     */
+    public function acceptsGuarantorChange(int $guarantorsCount, bool $attaching): bool
+    {
+        if (in_array($this->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true)) {
+            return true;
+        }
+
+        return $attaching
+            && $this->status === LeaseStatus::Active
+            && $this->renewed_from_lease_id !== null
+            && $guarantorsCount === 0;
+    }
+
+    /**
      * TCK-596 §4B (ADR-0042 §1) — défige le contrat d'un bail en attente de signature : les
      * signatures posées sur l'ancienne empreinte cessent de compter. Appelé par toute écriture qui
      * change ce que le PDF figé dit (colonnes ci-dessous, garants).

@@ -240,4 +240,12 @@ _(à remplir par implementing-specs)_
   pousse rien en file et n'envoie rien (`Queue::fake`, `Notification::assertNothingSent`) ; les
   hooks de `LeasePayment` sur le passage à `cancelled` sont synchrones et inertes.
 - Aucune migration.
-
+- **Suite, la fiche du bail** : la règle vit en un seul endroit, `Lease::acceptsGuarantorChange()`, que
+  le contrôleur juge sous verrou et que `LeaseResource` sert en `abilities.attach_guarantor` (règle
+  d'`update` ET garants non figés ; compte des garants pris sur la relation chargée, sinon une requête,
+  seulement pour qui peut écrire). Le front (`LeaseDetail`, `FeuilleDesGarants`) lit ce booléen au
+  lieu d'`abilities.update` : « Ajouter un garant » n'apparaît plus sur un bail signé, la feuille s'y
+  lit seulement. Aucun geste de retrait n'existe côté front. Preuves :
+  `LeaseGuarantorFreezeTest` (9 tests de l'ability : statuts, enfant une fois, locataire) — ablation
+  de la règle dans la ressource → 6 rouges, de la condition « aucun garant » du modèle → 2 rouges ;
+  `LeaseDetail.fiche.tck-2645.test.tsx` (2 tests) — ablation (retour à `update`) → 2 rouges.

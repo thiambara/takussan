@@ -422,25 +422,12 @@ class LeaseController extends Controller
     }
 
     /**
-     * TCK-607 (n3) — décision du porteur du 2026-11-16, option (b), ADR-0042 amendé : les garants
-     * sont imprimés au contrat, ils ne bougent que tant qu'il n'est pas signé (`draft`,
-     * `pending_signature`, où {@see Lease::unfreezeContract()} le défige). Sur un bail `active`,
-     * une seule exception : l'enfant d'un renouvellement qui n'a encore AUCUN garant (il naît
-     * sans, amendement TCK-2316) en reçoit un. Partout ailleurs : 409 `lease.guarantors_frozen`.
-     * Jugé sur la ligne VERROUILLÉE et le pivot relu sous ce verrou.
+     * TCK-607 (n3) — la règle est {@see Lease::acceptsGuarantorChange()}, jugée ici sur la ligne
+     * VERROUILLÉE et le pivot relu sous ce verrou : 409 `lease.guarantors_frozen`.
      */
     private function abortUnlessGuarantorsEditable(Lease $locked, int $guarantorsCount, bool $attaching): void
     {
-        if (in_array($locked->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true)) {
-            return;
-        }
-
-        $enfantSansGarant = $attaching
-            && $locked->status === LeaseStatus::Active
-            && $locked->renewed_from_lease_id !== null
-            && $guarantorsCount === 0;
-
-        abort_code_unless($enfantSansGarant, 409, 'lease.guarantors_frozen');
+        abort_code_unless($locked->acceptsGuarantorChange($guarantorsCount, $attaching), 409, 'lease.guarantors_frozen');
     }
 
     public function listGuarantors(Request $request, Lease $lease): JsonResponse

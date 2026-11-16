@@ -321,10 +321,11 @@ reste inchangé après le rattachement (épinglé, sur un enfant construit par f
 **Ce que la décision ne fait pas.** Le contrat figé de l'enfant n'est ni défigé ni re-figé (l'avenant
 tracé était l'option (c), non retenue) : l'empreinte du contrat figé de l'enfant ne change pas, et ce
 contrat a été rendu avant le rattachement — il ne peut donc pas imprimer ce garant (non re-mesuré sur
-le PDF lui-même). La fiche du bail peut encore proposer « Ajouter un garant » sur un bail
-actif (elle lit `abilities.update`) ; l'API refuse alors avec le libellé de `lease.guarantors_frozen`.
+le PDF lui-même).
 
-**Application.** `LeaseController::abortUnlessGuarantorsEditable()`, appelée par `attachGuarantor` et
-`detachGuarantor` sous le verrou ; `lang/{fr,en,wo}/errors.php` (`lease.guarantors_frozen`, wo = fr) ;
+**Application.** La règle unique est `Lease::acceptsGuarantorChange()` : l'API la juge sous le verrou
+(`LeaseController::abortUnlessGuarantorsEditable()`, appelée par `attachGuarantor` et
+`detachGuarantor`), et `LeaseResource` la sert à la fiche (`abilities.attach_guarantor`, avec la règle
+d'`update`), qui n'offre « Ajouter un garant » que là où l'API l'accepte ; `lang/{fr,en,wo}/errors.php` (`lease.guarantors_frozen`, wo = fr) ;
 `tests/Feature/Lease/LeaseGuarantorFreezeTest.php` et `LeaseContractTermsTest` (course avec une
 activation : 409 jugé sous verrou).
