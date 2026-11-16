@@ -74,7 +74,10 @@ class LeaseRentEndpointTest extends TestCase
         // TCK-278 — `leases.rent_review_force` est désormais réservé au
         // super_admin (bypass Gate::before). Promouvoir le landlord.
         $this->materializeRoleProfile($landlord, 'super_admin');
-        Sanctum::actingAs($landlord);
+        // TCK-609 — forcer un loyer est un geste de la famille gardée : le super-admin agit par une
+        // session à deux facteurs (`TestCase::be()`), comme après sa connexion.
+        $landlord->forceFill(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET])->save();
+        $this->actingAs($landlord, 'sanctum');
 
         $this->patchJson("/api/leases/{$lease->id}/rent", [
             'new_rent' => 260_000,

@@ -37,7 +37,10 @@ class LeaseRentReviewForceAbilityTest extends TestCase
     {
         [$landlord, $lease] = $this->scaffold(null);
         $this->materializeRoleProfile($landlord, 'super_admin');
-        Sanctum::actingAs($landlord);
+        // TCK-609 — forcer un loyer est un geste de la famille gardée : le super-admin agit par une
+        // session à deux facteurs (`TestCase::be()`), comme après sa connexion.
+        $landlord->forceFill(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET])->save();
+        $this->actingAs($landlord, 'sanctum');
 
         $this->getJson("/api/leases/{$lease->id}")
             ->assertOk()
@@ -54,7 +57,10 @@ class LeaseRentReviewForceAbilityTest extends TestCase
     {
         [$landlord, $lease] = $this->scaffold(10);
         $this->materializeRoleProfile($landlord, 'super_admin');
-        Sanctum::actingAs($landlord);
+        // TCK-609 — forcer un loyer est un geste de la famille gardée : le super-admin agit par une
+        // session à deux facteurs (`TestCase::be()`), comme après sa connexion.
+        $landlord->forceFill(['two_factor_enabled' => true, 'two_factor_secret' => self::TEST_TWO_FACTOR_SECRET])->save();
+        $this->actingAs($landlord, 'sanctum');
 
         $this->getJson("/api/leases/{$lease->id}")
             ->assertOk()

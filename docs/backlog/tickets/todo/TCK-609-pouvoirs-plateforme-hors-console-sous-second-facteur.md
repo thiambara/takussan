@@ -83,6 +83,19 @@ mesuré le même trou sur le bail.
 
 ## Décision du porteur
 
+**Tranché le 2026-11-16 :**
+
+- (b) **liste étendue** — pas de règle générale : on étend la liste de ce que `RequireTwoFactor` garde
+  aux pouvoirs plateforme exercés hors de `/api/admin` que le ticket recense (réponses d'avis
+  `reply`/`deleteReply`, etc.).
+- Gestes du bail entrant dans la famille gardée : **`terminate` et `rent` (`force`) seulement** ;
+  `signature-request` reste hors liste.
+- La nouvelle liste prend un nom NEUF : `PLATFORM_POWER_EXEMPT` existe déjà dans le code avec un
+  autre sens.
+- Amende ADR-0033 §8 en conséquence (section datée « Amendement du 2026-11-16 (TCK-609) »).
+
+*Les options telles qu'elles étaient posées :*
+
 **Règle générale ou liste étendue ?**
 
 - **(a) Règle générale** : un profil plateforme dont le jeton n'a pas vu le second facteur reçoit
@@ -114,38 +127,38 @@ envoyer).
 
 ## Delta à produire
 
-- [ ] ADR-0033 amendé (décisions ci-dessus).
-- [ ] `RequireTwoFactor` : (a) branche « profil plateforme, méthode non sûre, action hors
+- [x] ADR-0033 amendé (décisions ci-dessus).
+- [x] `RequireTwoFactor` : (a) branche « profil plateforme, méthode non sûre, action hors
       la liste d'exemptions (nom neuf : `PLATFORM_POWER_EXEMPT` est déjà pris) » ; ou (b) entrées ajoutées à `PLATFORM_TWO_FACTOR`.
-- [ ] `ProtectedActions::PLATFORM_ANY_ROUTE_EXEMPT` (ou autre nom neuf — `PLATFORM_POWER_EXEMPT`
+- [x] `ProtectedActions::PLATFORM_ANY_ROUTE_EXEMPT` (ou autre nom neuf — `PLATFORM_POWER_EXEMPT`
       existe déjà avec un autre sens, l.343-347) : les exemptions, chacune motivée.
-- [ ] Bail (décision de famille) : `LeaseController@terminate`, `LeaseRentController@update` (`force`),
+- [x] Bail (décision de famille) : `LeaseController@terminate`, `LeaseRentController@update` (`force`),
       éventuellement `LeaseSignatureController@request`, dans `AGENCY_TWO_FACTOR` avec la famille
       déclarée dans `FAMILIES` / `FAMILY_CONTROLLERS`.
-- [ ] Tests : `PlatformPowerTwoFactorTest`, `ProtectedActionsCoverageTest` étendu.
+- [x] Tests : `PlatformPowerTwoFactorTest`, `ProtectedActionsCoverageTest` étendu.
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (rouge sur `839be671`).** Super-admin à 2FA, jeton qui ne l'a pas vue :
+- [x] **AC1 (rouge sur `839be671`).** Super-admin à 2FA, jeton qui ne l'a pas vue :
       ~~`PUT /api/properties/{id}` avec `featured: true` → 403 `two_factor_step_up_required`~~ —
       caduc depuis TCK-633 lot F (`featured` `prohibited`, 422 pour tous) ;
       `POST /api/reviews/{id}/reply` et `DELETE …/reply` sur l'avis d'une agence → 403 ;
       `POST leases/{id}/terminate`, `PATCH leases/{id}/rent` (`force`), `POST leases/{id}/signature-request`
       → 403. Le même jeton après vérification du second facteur → 200.
-- [ ] **AC2 (garde structurelle, si (a)).** Un test parcourt **`Route::getRoutes()`** — pas une liste
+- [ ] ~~**AC2 (garde structurelle, si (a)).**~~ *(sans objet : option (b) retenue — voir AC2-bis)* Un test parcourt **`Route::getRoutes()`** — pas une liste
       écrite à la main — et, pour chaque route mutante (`POST`, `PUT`, `PATCH`, `DELETE`) servie par un
       contrôleur, affirme qu'un profil plateforme sans second facteur sur ce jeton est refusé par
       `RequireTwoFactor`, sauf si l'action figure dans la liste d'exemptions neuve (`PLATFORM_ANY_ROUTE_EXEMPT` ou
       équivalent) avec un motif non vide.
       Une route ajoutée demain sans décision rougit, avec son nom.
-- [ ] **AC2-bis (si (b)).** Le même parcours affirme que toute route mutante qu'un super-admin peut
+- [x] **AC2-bis (si (b)).** Le même parcours affirme que toute route mutante qu'un super-admin peut
       atteindre figure dans une liste ou dans une exemption motivée. *Une liste qu'on oublie de
       compléter doit rougir, pas passer.*
-- [ ] **AC3.** L'admin d'agence sans 2FA : `reply` sur un avis de son agence → 200 (inchangé) ;
+- [x] **AC3.** L'admin d'agence sans 2FA : `reply` sur un avis de son agence → 200 (inchangé) ;
       `terminate` → selon la décision de famille, 403 ou 200, affirmé dans les deux sens.
-- [ ] **AC4.** Un bailleur et un client sans 2FA : aucune route qu'ils atteignaient ne leur est
+- [x] **AC4.** Un bailleur et un client sans 2FA : aucune route qu'ils atteignaient ne leur est
       refusée (rejeu des tests existants de leurs parcours).
-- [ ] **AC5.** Ablations consignées : retirer la branche plateforme de `RequireTwoFactor` rougit AC1
+- [x] **AC5.** Ablations consignées : retirer la branche plateforme de `RequireTwoFactor` rougit AC1
       et AC2 ; ajouter une route mutante factice non exemptée rougit AC2.
 
 ## Hors périmètre
@@ -157,3 +170,25 @@ envoyer).
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Lecture de « `signature-request` reste hors liste »** : hors de la famille d'AGENCE (l'admin
+  d'agence l'envoie sans 2FA), mais inscrit dans `PLATFORM_TWO_FACTOR` pour tenir AC1 (super-admin
+  sans second facteur → 403). Une ligne à retirer si le porteur voulait aussi l'ouvrir à la plateforme.
+- `rent` n'est gardé **qu'avec `force`** : `ProtectedActions::AGENCY_TWO_FACTOR_WHEN` (action → champ),
+  lu par `$request->boolean()` comme le service (`"1"` compte). Une révision ordinaire reste ouverte,
+  plateforme comprise. `LeaseController` et `LeaseRentController` entrent dans `FAMILY_CONTROLLERS` ;
+  leurs autres actions mutantes sont dans `EXEMPT`, motivées.
+- Registre neuf `PLATFORM_ANY_ROUTE_EXEMPT` (`App\Support\Security\PlatformAnyRouteExempt`) :
+  256 actions rangées par motif — `PUBLIC`, `SOI`, `SANS_ECRITURE` et **199 `NON_GARDE`** (pouvoir
+  plateforme que `Gate::before` ouvre encore sans second facteur : décision (b), écrit tel quel). Il ne
+  change aucun comportement ; pour garder l'une, la déplacer vers `PLATFORM_TWO_FACTOR`.
+- AC1, AC3, AC4 : `PlatformPowerTwoFactorTest` (avis, résiliation, loyer forcé, envoi en signature ;
+  jeton réel non vérifié puis vérifié ; admin d'agence dans les deux sens ; bailleur et locataire).
+- AC2-bis, AC5 : `ProtectedActionsCoverageTest` — parcours de `Route::getRoutes()` (toute route
+  mutante sous `/api` hors `/api/admin` et `/api/auth`), registre motivé sans contradiction, et une
+  route factice non rangée qui rougit avec son nom (l'ablation rendue permanente).
+- Ablations : branche plateforme de `RequireTwoFactor` retirée → AC1 rouge ; entrées retirées des listes → AC1/AC3 et la garde rouges ;
+  restauration vérifiée par md5.
+

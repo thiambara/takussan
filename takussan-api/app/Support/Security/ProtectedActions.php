@@ -41,7 +41,10 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\GuarantorController;
 use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
+use App\Http\Controllers\Api\LeaseController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
+use App\Http\Controllers\Api\LeaseRentController;
+use App\Http\Controllers\Api\LeaseSignatureController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
 use App\Http\Controllers\Api\OwnerDepartureController;
 use App\Http\Controllers\Api\OwnerProfileController;
@@ -127,6 +130,10 @@ final class ProtectedActions
         AgentAbsenceController::class,
         // TCK-2753 (ADR-0108 § 7) — le départ d'un bailleur : `owners.php` n'est pas une famille.
         OwnerDepartureController::class,
+        // TCK-609 (ADR-0033 §8, amendement du 2026-11-16) — les gestes du bail qui engagent un loyer
+        // ou une indemnité : résilier, forcer un loyer (`AGENCY_TWO_FACTOR_WHEN`).
+        LeaseController::class,
+        LeaseRentController::class,
     ];
 
     /**
@@ -203,6 +210,22 @@ final class ProtectedActions
         // Vérification adverse M4 — de l'argent qui sort.
         BookingPaymentController::class.'@refund',
         LeaseDepositRefundController::class.'@store',
+
+        // TCK-609 (décision du porteur, 2026-11-16) — résilier un bail engage une indemnité.
+        LeaseController::class.'@terminate',
+    ];
+
+    /**
+     * TCK-609 (ADR-0033 §8, amendement du 2026-11-16) — actions de la famille d'agence gardées
+     * SEULEMENT quand le champ nommé est vrai, lu comme le service le lit (booléen :
+     * `$request->boolean()`, donc `"1"`, `"on"`, `"true"` comptent). Hors de ce cas, l'action
+     * reste ouverte sans 2FA : une révision de loyer ordinaire n'est pas un geste de la famille.
+     *
+     * @var array<string, string>
+     */
+    public const AGENCY_TWO_FACTOR_WHEN = [
+        // Forcer un loyer au-delà du plafond d'un bail antérieur (`RentReviewService`).
+        LeaseRentController::class.'@update' => 'force',
     ];
 
     /**
@@ -221,6 +244,15 @@ final class ProtectedActions
         InvitationCodeController::class.'@verify' => 'acceptation publique d\'une invitation par code SMS',
         // L'argent ENTRE : le client règle sa réservation, il n'est le personnel de personne.
         BookingPaymentController::class.'@store' => 'paiement d\'une réservation par le client',
+        // TCK-609 — les autres gestes du bail : la décision du porteur n'a rangé que `terminate`
+        // et `rent` (`force`) dans la famille.
+        LeaseController::class.'@store' => 'rédiger un bail : rien n\'est engagé avant la signature',
+        LeaseController::class.'@update' => 'modifier un brouillon de bail : le loyer passe par `rent`',
+        LeaseController::class.'@destroy' => 'abandonner un brouillon jamais envoyé en signature',
+        LeaseController::class.'@activate' => 'activer un bail signé sur papier par son bailleur',
+        LeaseController::class.'@attachGuarantor' => 'rattacher une caution au bail',
+        LeaseController::class.'@detachGuarantor' => 'détacher une caution du bail',
+        LeaseController::class.'@generateSchedule' => 'générer les échéances que le bail fixe déjà',
     ];
 
     /**
@@ -367,6 +399,14 @@ final class ProtectedActions
         ReviewController::class.'@moderateBatch',
         ReviewController::class.'@approve',
         ReviewController::class.'@reject',
+        // TCK-609 (verif-597 passe 4, n5) — `Gate::before` ouvrait au super-admin la réponse d'une
+        // agence : la réécrire ou l'effacer exige désormais son second facteur. L'admin d'agence,
+        // sujet de l'avis, y répond toujours sans 2FA.
+        ReviewController::class.'@reply',
+        ReviewController::class.'@deleteReply',
+        // TCK-609 (verif-596 passe 4, Q4a) — figer et envoyer en signature le contrat d'un bail de
+        // n'importe quelle agence. Hors de la famille d'agence (décision du porteur).
+        LeaseSignatureController::class.'@request',
         // TCK-600 (verif-600 R1) — les réglages génériques. TCK-651 (ADR-0065) : la portée `global`
         // n'y est plus écrite (422 `setting.global_not_writable`) — les réglages métier qu'elle
         // portait sont au catalogue, sous la même garde. Reste la portée `agency` écrite par un
@@ -384,11 +424,28 @@ final class ProtectedActions
         ReviewController::class.'@storeForAgency' => "dépôt d'un avis par son auteur",
         ReviewController::class.'@storeForAgent' => "dépôt d'un avis par son auteur",
         ReviewController::class.'@storeForServiceProvider' => "dépôt d'un avis par son auteur",
-        // verif-597 passe 4, n5 — le super-admin y passe encore sans 2FA : à reprendre là-bas.
-        ReviewController::class.'@reply' => 'réponse du sujet ; le chemin super-admin (Gate::before) est un pouvoir plateforme antérieur, renvoyé au ticket de suite',
-        ReviewController::class.'@deleteReply' => 'réponse du sujet ; le chemin super-admin (Gate::before) est un pouvoir plateforme antérieur, renvoyé au ticket de suite',
         ReviewController::class.'@report' => 'un signalement range, il ne tranche rien (ADR-0043 §6)',
+        LeaseSignatureController::class.'@sendCode' => 'le signataire reçoit SON code : rien ne se signe sans lui',
+        LeaseSignatureController::class.'@sign' => 'le signataire signe par le code qu\'il a reçu : le geste ne se délègue pas',
     ];
+
+    /**
+     * TCK-609 (ADR-0033 §8, amendement du 2026-11-16 ; option (b) du porteur) — le REGISTRE de
+     * chaque autre route mutante sous `/api` qu'un profil plateforme atteint, avec son motif.
+     * Ne change aucun comportement : c'est la décision écrite route par route, et
+     * `ProtectedActionsCoverageTest` rougit sur toute route mutante rangée nulle part.
+     *
+     * @var array<string, string>
+     */
+    public const PLATFORM_ANY_ROUTE_EXEMPT = PlatformAnyRouteExempt::ACTIONS;
+
+    /** TCK-609 — l'action est-elle gardée pour cette requête par `AGENCY_TWO_FACTOR_WHEN` ? */
+    public static function requiresAgencyTwoFactorWhen(?string $action, callable $flag): bool
+    {
+        $champ = self::AGENCY_TWO_FACTOR_WHEN[self::normalize($action)] ?? null;
+
+        return $champ !== null && (bool) $flag($champ);
+    }
 
     public static function requiresPlatformTwoFactor(?string $action): bool
     {

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\PropertyModerationController;
 use App\Http\Controllers\Api\Admin\SuperAdminInvitationController;
 use App\Http\Controllers\Api\Admin\UserLifecycleController;
 use App\Http\Controllers\Api\AgentProfileController;
+use App\Http\Controllers\Api\LeaseController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
 use App\Http\Controllers\Api\PayoutController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Api\PayoutMethodController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceProviderBillController;
 use App\Http\Controllers\Api\UserAdminController;
+use App\Http\Middleware\RequireTwoFactor;
 use App\Support\Security\ProtectedActions;
 use Illuminate\Routing\Route as RouteDefinition;
 use Illuminate\Routing\Router;
@@ -67,6 +69,7 @@ class ProtectedActionsCoverageTest extends TestCase
                 continue;
             }
             if (! in_array($action, ProtectedActions::AGENCY_TWO_FACTOR, true)
+                && ! array_key_exists($action, ProtectedActions::AGENCY_TWO_FACTOR_WHEN)
                 && ! array_key_exists($action, ProtectedActions::EXEMPT)) {
                 $oubliees[] = implode('|', $route->methods()).' '.$route->uri()." → {$action}";
             }
@@ -84,12 +87,14 @@ class ProtectedActionsCoverageTest extends TestCase
 
         $entrees = [
             ...ProtectedActions::AGENCY_TWO_FACTOR,
+            ...array_keys(ProtectedActions::AGENCY_TWO_FACTOR_WHEN),
             ...ProtectedActions::STEP_UP,
             ...ProtectedActions::STEP_UP_FOR_PLATFORM,
             ...ProtectedActions::PLATFORM_TWO_FACTOR,
             ...array_keys(ProtectedActions::PLATFORM_TWO_FACTOR_EXEMPT),
             ...array_keys(ProtectedActions::EXEMPT),
             ...array_keys(ProtectedActions::PLATFORM_POWER_EXEMPT),
+            ...array_keys(ProtectedActions::PLATFORM_ANY_ROUTE_EXEMPT),
         ];
         $orphelines = array_values(array_filter($entrees, fn (string $e) => ! isset($enregistrees[$e])));
 
@@ -193,6 +198,91 @@ class ProtectedActionsCoverageTest extends TestCase
         }
 
         $this->assertSame([], $oubliees, "Route de modération plateforme absente de PLATFORM_TWO_FACTOR :\n".implode("\n", $oubliees));
+    }
+
+    /**
+     * TCK-609 AC2-bis (ADR-0033 §8, amendement du 2026-11-16 ; option (b) du porteur) — `Gate::before`
+     * ouvre au super-admin TOUTE route : chaque route mutante sous `/api` servie par un contrôleur
+     * est soit couverte par la console (`/api/admin/*`) ou par l'exemption structurelle de
+     * `/api/auth/*` (le middleware n'y juge rien : on s'y enrôle), soit gardée par une liste, soit
+     * rangée dans une exemption MOTIVÉE. Une liste qu'on oublie de compléter rougit ici, avec le
+     * nom de la route.
+     */
+    public function test_toute_route_mutante_qu_un_profil_plateforme_atteint_est_rangee(): void
+    {
+        $this->assertContains(RequireTwoFactor::class, Route::getMiddlewareGroups()['api'] ?? [], 'RequireTwoFactor hors du groupe `api` : la garde ne dit plus rien.');
+
+        // Plancher : un registre vidé, ou un parcours qui ne voit plus rien, ne passent pas pour un vert.
+        $this->assertGreaterThan(100, count(ProtectedActions::PLATFORM_ANY_ROUTE_EXEMPT));
+        $this->assertSame([], $this->routesPlateformeNonRangees());
+        $this->assertTrue(ProtectedActions::requiresPlatformTwoFactor(ReviewController::class.'@reply'));
+        $this->assertTrue(ProtectedActions::requiresAgencyTwoFactor(LeaseController::class.'@terminate'));
+    }
+
+    /** TCK-609 AC5 — l'ablation rendue permanente : une route mutante factice, rangée nulle part, rougit. */
+    public function test_une_route_mutante_neuve_sans_decision_rougit_avec_son_nom(): void
+    {
+        Route::post('api/tck-609-factice/{id}', [ReviewController::class, 'tck609Factice']);
+        Route::getRoutes()->refreshNameLookups();
+
+        $this->assertContains(
+            'POST api/tck-609-factice/{id} → '.ReviewController::class.'@tck609Factice',
+            $this->routesPlateformeNonRangees(),
+        );
+    }
+
+    /** TCK-609 — une exemption a un motif, et une action n'est pas à la fois gardée et exemptée. */
+    public function test_le_registre_plateforme_est_motive_et_ne_contredit_aucune_liste(): void
+    {
+        $gardees = [
+            ...ProtectedActions::AGENCY_TWO_FACTOR,
+            ...array_keys(ProtectedActions::AGENCY_TWO_FACTOR_WHEN),
+            ...ProtectedActions::STEP_UP,
+            ...ProtectedActions::STEP_UP_FOR_PLATFORM,
+            ...ProtectedActions::PLATFORM_TWO_FACTOR,
+        ];
+        $exemptees = [
+            ...ProtectedActions::PLATFORM_ANY_ROUTE_EXEMPT,
+            ...ProtectedActions::PLATFORM_TWO_FACTOR_EXEMPT,
+            ...ProtectedActions::PLATFORM_POWER_EXEMPT,
+        ];
+
+        $vides = array_keys(array_filter($exemptees, fn (string $motif) => trim($motif) === ''));
+        $this->assertSame([], $vides, "Exemption sans motif :\n".implode("\n", $vides));
+
+        $contradictions = array_values(array_intersect($gardees, array_keys($exemptees)));
+        $this->assertSame([], $contradictions, "Action à la fois gardée et exemptée :\n".implode("\n", $contradictions));
+    }
+
+    /** @return list<string> les routes mutantes sous `/api` qu'aucune liste ni exemption ne range */
+    private function routesPlateformeNonRangees(): array
+    {
+        $rangees = array_fill_keys([
+            ...ProtectedActions::AGENCY_TWO_FACTOR,
+            ...array_keys(ProtectedActions::AGENCY_TWO_FACTOR_WHEN),
+            ...ProtectedActions::STEP_UP,
+            ...ProtectedActions::STEP_UP_FOR_PLATFORM,
+            ...ProtectedActions::PLATFORM_TWO_FACTOR,
+            ...array_keys(ProtectedActions::PLATFORM_TWO_FACTOR_EXEMPT),
+            ...array_keys(ProtectedActions::PLATFORM_POWER_EXEMPT),
+            ...array_keys(ProtectedActions::PLATFORM_ANY_ROUTE_EXEMPT),
+        ], true);
+
+        $oubliees = [];
+        foreach (Route::getRoutes()->getRoutes() as $route) {
+            if (array_diff($route->methods(), ['GET', 'HEAD', 'OPTIONS']) === []
+                || ! str_starts_with($route->uri(), 'api/')
+                || preg_match('#^api/(admin|auth)(/|$)#', $route->uri()) === 1
+                || $route->getActionName() === 'Closure') {
+                continue;
+            }
+            $action = ProtectedActions::normalize($route->getActionName());
+            if (! isset($rangees[$action])) {
+                $oubliees[] = implode('|', array_diff($route->methods(), ['HEAD'])).' '.$route->uri()." → {$action}";
+            }
+        }
+
+        return $oubliees;
     }
 
     public function test_les_alias_sans_nom_sont_couverts(): void
