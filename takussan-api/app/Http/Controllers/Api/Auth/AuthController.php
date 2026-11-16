@@ -15,11 +15,13 @@ use App\Services\Auth\PhoneChangeGuard;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Auth\TwoFactorService;
 use App\Services\Media\AvatarReencode;
+use App\Services\Privacy\ConsentLedger;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -32,18 +34,24 @@ class AuthController extends Controller
 
     public function register(RegisterRequest $request): JsonResponse
     {
-        $user = User::create([
-            // TCK-2605 — facultatifs : absents, ils s'écrivent `''`, comme
-            // `PhoneLoginService::createAccount()` ; l'étape prénom les demande ensuite.
-            'first_name' => (string) ($request->validated('first_name') ?? ''),
-            'last_name' => (string) ($request->validated('last_name') ?? ''),
-            'email' => $request->email,
-            'password' => $request->password,
-            // TCK-689 (P11.01) — la langue négociée par `SetLocaleMiddleware` (le front envoie
-            // celle qu'il affiche), comme `PhoneLoginService::createAccount()` : sans elle, la
-            // colonne gardait son défaut `fr`, et toutes les notifications partaient en français.
-            'preferred_language' => app()->getLocale(),
-        ]);
+        // TCK-537 (AC1) — le compte et la preuve de son consentement naissent ensemble, ou pas du tout.
+        $user = DB::transaction(function () use ($request): User {
+            $user = User::create([
+                // TCK-2605 — facultatifs : absents, ils s'écrivent `''`, comme
+                // `PhoneLoginService::createAccount()` ; l'étape prénom les demande ensuite.
+                'first_name' => (string) ($request->validated('first_name') ?? ''),
+                'last_name' => (string) ($request->validated('last_name') ?? ''),
+                'email' => $request->email,
+                'password' => $request->password,
+                // TCK-689 (P11.01) — la langue négociée par `SetLocaleMiddleware` (le front envoie
+                // celle qu'il affiche), comme `PhoneLoginService::createAccount()` : sans elle, la
+                // colonne gardait son défaut `fr`, et toutes les notifications partaient en français.
+                'preferred_language' => app()->getLocale(),
+            ]);
+            app(ConsentLedger::class)->record($user, ConsentLedger::CONTEXT_REGISTER, $request->ip());
+
+            return $user;
+        });
 
         // TCK-272 — ce mot de passe a été CHOISI par l'utilisateur, il le
         // connaît : le step-up de suppression de compte peut le lui

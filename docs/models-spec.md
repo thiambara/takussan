@@ -6351,6 +6351,36 @@ collection privée `quote` (PDF ou image), rendue en URL d'API signée.
 
 ---
 
+### 132. ConsentProof 🆕
+
+**Table :** `consent_proofs` (migration `2026_11_16_100100`, TCK-537)
+**Modèle :** `App\Models\ConsentProof` (`AbstractModel`) — `accepted_at` en `datetime` ; `belongsTo user`.
+**Description :** La preuve qu'une personne a accepté un document juridique (conditions ou politique), dans
+la version affichée (`VERSION_DOCUMENTS` du front, reflétée par `PublishReadiness::TERMS_VERSION`), à un
+moment et depuis une adresse. **Ajout seul** : une ligne ne se modifie jamais. Écrite à l'inscription,
+à l'assistant hôte, à l'offre d'achat, à la publication, à la connexion par téléphone et à la
+réclamation radar ; le séjour et la candidature n'ont pas de case, donc pas de ligne.
+
+**Rétention (`privacy.ts` § 6, ADR-0044 amendé le 2026-11-16).** Conservée tant que le compte existe, puis
+cinq ans après son effacement (`users.deleted_at`) : `account:prune-consent-proofs`, quotidienne.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | oui | null | `nullOnDelete` |
+| document | string(20) | | | `terms` ou `privacy` |
+| version | string(20) | | | Version acceptée (`2026-11-16`) |
+| context | string(40) | | | `register`, `host_onboarding`, `offer`, `publish`, `phone_login`, `radar_claim` |
+| ip_address | string(45) | oui | null | Adresse du client |
+| accepted_at | timestamp | | | |
+| created_at / updated_at | timestamp | | auto | |
+
+Index : `(user_id, document)`.
+
+**Relations :** `user()` → belongsTo User.
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)

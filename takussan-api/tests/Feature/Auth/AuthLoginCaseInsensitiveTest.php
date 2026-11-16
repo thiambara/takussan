@@ -46,6 +46,7 @@ class AuthLoginCaseInsensitiveTest extends TestCase
         User::factory()->create(['email' => 'alice@example.com']);
 
         $response = $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Alice',
             'last_name' => 'Copy',
             'email' => 'ALICE@example.com',
@@ -60,6 +61,7 @@ class AuthLoginCaseInsensitiveTest extends TestCase
     public function test_register_normalizes_email_to_lowercase(): void
     {
         $response = $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Bob',
             'last_name' => 'Marley',
             'email' => '  BOB.MARLEY@Example.COM  ',

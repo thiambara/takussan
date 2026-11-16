@@ -202,6 +202,7 @@ class ContactPreferencesTest extends TestCase
     public function test_l_inscription_rend_les_preferences_pour_soi(): void
     {
         $reponse = $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Awa', 'last_name' => 'Ndiaye', 'email' => 'awa.tck633@example.com',
             'password' => 'password123', 'password_confirmation' => 'password123',
         ])->assertCreated();

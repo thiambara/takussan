@@ -32,7 +32,7 @@ la plateforme fait réellement**, relevé dans le code le même jour.
    variable ; clauses identiques à `accord.v2` mot pour mot), ni la phrase d'`accord.v4`
    (`accord.v4.*.md`, TCK-2471 : `accord.v3` plus « Des personnes recherchent en ce moment sur Takussan un
    bien comme le vôtre. », une information et non une clause ; clauses identiques mot pour mot).
-5. **Fermer TCK-537** : trois engagements de la politique ne sont pas encore tenus par le code.
+5. ~~**Fermer TCK-537**~~ : les engagements de la politique (preuve du consentement, effacement des profils, purges) sont tenus par le code depuis le 2026-11-16.
 8. **Retirer les `⚠` du corps des textes**, avec la relecture de l'avocat (ligne 4), sans ticket : ceux de
    l'article 6.3 des CGU et des § 3, § 4.3 et § 6 de la politique s'affichent tels quels sur la page
    publique, comme les `[⚠ à compléter : …]` de la ligne 1, mais le test des marqueurs ne les voit pas.

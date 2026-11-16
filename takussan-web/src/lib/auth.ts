@@ -45,6 +45,8 @@ export function isTwoFactorChallenge(
 export type RegisterPayload = {
   email: string;
   password: string;
+  /** TCK-537 (AC1) — la case des conditions et de la politique : exigée par l'API, qui en garde la preuve. */
+  terms_accepted: boolean;
   first_name?: string;
   last_name?: string;
 };

@@ -3,10 +3,12 @@
 namespace App\Services\Property;
 
 use App\Exceptions\ApiError;
+use App\Models\ConsentProof;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Privacy\ConsentLedger;
 
 /**
  * TCK-633 (lot C, AC11) — un bien ne devient public que si quelqu'un peut répondre.
@@ -99,13 +101,19 @@ final class PublishReadiness
         $this->ensure(PrimaryPropertyContact::for($property), $publisher, $acceptTerms);
     }
 
-    /** La première publication date les CGU ; les suivantes ne réécrivent rien. */
-    public function recordTerms(User $publisher, bool $acceptTerms): void
+    /**
+     * La première publication date les CGU ; les suivantes ne réécrivent rien.
+     *
+     * TCK-537 (AC1) — et la case cochée laisse sa preuve (`consent_proofs`, {@see ConsentLedger}) :
+     * `users.terms_accepted_at` n'est qu'une date, la preuve dit quel document, quelle version, d'où.
+     */
+    public function recordTerms(User $publisher, bool $acceptTerms, string $context = ConsentLedger::CONTEXT_PUBLISH): void
     {
         if ($publisher->terms_accepted_at !== null || ! $acceptTerms) {
             return;
         }
 
         $publisher->forceFill(['terms_accepted_at' => now(), 'terms_version' => self::TERMS_VERSION])->save();
+        app(ConsentLedger::class)->record($publisher, $context, request()->ip(), [ConsentProof::DOCUMENT_TERMS]);
     }
 }

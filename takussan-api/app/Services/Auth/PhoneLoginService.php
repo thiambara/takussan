@@ -7,6 +7,7 @@ use App\Http\Resources\UserResource;
 use App\Models\Enums\UserStatus;
 use App\Models\RadarAdvertiser;
 use App\Models\User;
+use App\Services\Privacy\ConsentLedger;
 use App\Services\Property\PublishReadiness;
 use App\Support\CanonicalPhone;
 use Illuminate\Http\JsonResponse;
@@ -197,7 +198,10 @@ class PhoneLoginService
         }
         if ($termsRequired) {
             // La version reposée est celle que la réponse `requires_terms` désignait : l'acceptation la date.
-            $this->readiness->recordTerms($user, true);
+            // TCK-537 (AC1) — la preuve dit par quel chemin : la réclamation du Radar, ou la connexion.
+            $this->readiness->recordTerms($user, true, str_contains((string) request()->route()?->getName(), 'radar')
+                ? ConsentLedger::CONTEXT_RADAR_CLAIM
+                : ConsentLedger::CONTEXT_PHONE_LOGIN);
             // Vérification adverse m2 — la trace, comme `radar_claimed` : qui, quelle version, par quel chemin (la
             // connexion, ou la réclamation qui passe par ici). Ni numéro ni adresse IP.
             activity('Radar')

@@ -70,10 +70,10 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
 
 | Engagement écrit | Où | Ce que fait le code (2026-09-17) |
 |---|---|---|
-| **Preuve du consentement** conservée « le temps du consentement, puis 5 ans » | `privacy.ts` §6 | `cgu_accepted` (assistant hôte) et `terms_accepted` (offre) sont **validés puis jetés** ; `RegisterRequest` ne porte **aucune** case CGU alors que le front en affiche une obligatoire (`app/Http/Requests/Auth/RegisterRequest.php`). *Depuis TCK-633 lot C (2261d4f45) : `users.terms_accepted_at` + `terms_version` posés à la publication, à la connexion par téléphone et à la réclamation radar — une date unique écrasée, sans document ni IP ; l'inscription par e-mail, l'assistant hôte, la réservation et l'offre n'écrivent toujours rien (relevé 2026-11-16).* |
-| À la suppression, « les données d'identification du compte **et des profils** sont effacées ou anonymisées » | `privacy.ts` §6, `terms.ts` §17.1 | `AccountDeletionService` anonymise `users` et les médias du compte, **pas** les profils : RIB, `tax_id`, type et numéro de pièce, revenu, employeur de `OwnerProfile` restent en base. *Au 2026-11-16 : `endProfiles` (TCK-1061) renomme les pièces et soft-delete les profils ; leurs colonnes chiffrées (`rib`, `tax_id`, `id_document_*`, `monthly_income`) restent.* |
+| **Preuve du consentement** conservée « le temps du consentement, puis 5 ans » | `privacy.ts` §6 | `cgu_accepted` (assistant hôte) et `terms_accepted` (offre) sont **validés puis jetés** ; `RegisterRequest` ne porte **aucune** case CGU alors que le front en affiche une obligatoire (`app/Http/Requests/Auth/RegisterRequest.php`). *Depuis TCK-633 lot C (2261d4f45) : `users.terms_accepted_at` + `terms_version` posés à la publication, à la connexion par téléphone et à la réclamation radar — une date unique écrasée, sans document ni IP ; l'inscription par e-mail, l'assistant hôte, la réservation et l'offre n'écrivent toujours rien (relevé 2026-11-16).* *Tenu le 2026-11-16 : `consent_proofs` (AC1).* |
+| À la suppression, « les données d'identification du compte **et des profils** sont effacées ou anonymisées » | `privacy.ts` §6, `terms.ts` §17.1 | `AccountDeletionService` anonymise `users` et les médias du compte, **pas** les profils : RIB, `tax_id`, type et numéro de pièce, revenu, employeur de `OwnerProfile` restent en base. *Au 2026-11-16 : `endProfiles` (TCK-1061) renomme les pièces et soft-delete les profils ; leurs colonnes chiffrées (`rib`, `tax_id`, `id_document_*`, `monthly_income`) restent.* *Tenu le 2026-11-16 (AC2).* |
 | Journal d'activité : **12 mois** ; journaux de sécurité et de preuve : **5 ans** ; journaux des pièces comptables : **10 ans** (durées par famille, décision du porteur du 2026-10-25 sur P19.04) | `privacy.ts` §6 | **tenu** par TCK-2342 : `audit:prune-activity-log`, par famille de `log_name`, planifiée chaque jour. Relevé du 2026-09-17 : `activitylog:clean` n'était pas planifiée, rien n'était jamais purgé |
-| Pièces KYC : la relation **+ 5 ans** ; demandes de contact anonymes : **3 ans** | `privacy.ts` §6 | aucune purge (point de départ déjà décidé par TCK-1061 : le `deleted_at` du profil) |
+| Pièces KYC : la relation **+ 5 ans** ; demandes de contact anonymes : **3 ans** | `privacy.ts` §6 | aucune purge (point de départ déjà décidé par TCK-1061 : le `deleted_at` du profil). *Tenu le 2026-11-16 : `kyc:prune-ended-pieces`, `crm:prune-contact-leads` (AC3).* |
 | Notifications in-app lues : **6 mois** après leur lecture (ajout du 2026-10-18, décision du porteur sur P19.06) | `privacy.ts` §6 | **tenu** par TCK-918 : `notifications:prune-read`, planifiée chaque jour |
 | Avis publics : le texte dit (vrai) « prénom, nom et photo » | `privacy.ts` §4.1 | `ReviewResource` expose le nom complet et l'avatar. **Recommandation** : prénom + initiale, par minimisation (loi 2008-12, principe de proportionnalité) — puis corriger le texte. *Tenu le 2026-11-16 (décision 1) : « Prénom N. » sur les routes `public.*`, photo gardée, § 4.1 aligné.* |
 | *(ajouté le 2026-11-16, renvoyé par TCK-803)* La conservation des **jobs échoués** | `privacy.ts` | absente du texte |
@@ -125,13 +125,13 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
 
 ## Delta à produire
 
-- [ ] Modèle et migration de preuve de consentement (utilisateur ou contact anonyme, document,
+- [x] Modèle et migration de preuve de consentement (utilisateur ou contact anonyme, document,
       version, horodatage, IP) ; écriture à l'inscription, à l'assistant hôte, à la demande de
       réservation et à l'offre. `RegisterRequest` exige la case.
-- [ ] `AccountDeletionService` : anonymiser les champs identifiants de chaque profil du compte.
+- [x] `AccountDeletionService` : anonymiser les champs identifiants de chaque profil du compte.
 - [x] Purge du journal d'activité par famille (contrainte 5) : `audit:prune-activity-log`,
       planifiée chaque jour, `docs/models-spec.md` § 13 mis à jour — fait par TCK-2342 (2026-10-25).
-- [ ] Purges KYC (+5 ans après la fin de la relation) et demandes de contact anonymes (3 ans) ;
+- [x] Purges KYC (+5 ans après la fin de la relation) et demandes de contact anonymes (3 ans) ;
       `docs/models-spec.md` mis à jour.
 - [x] Décision produit sur l'auteur d'un avis public ; texte aligné.
 - [x] Ticket à part, ou décision écrite de ne pas le traiter, pour ~~chacun des cinq écarts hors
@@ -142,18 +142,18 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Une inscription sans la case CGU est refusée (422) ; une inscription acceptée crée une
+- [x] AC1 — Une inscription sans la case CGU est refusée (422) ; une inscription acceptée crée une
       preuve portant la version en vigueur. Ablation : retirer l'écriture → rouge.
-- [ ] AC2 — Après suppression effective d'un compte propriétaire, aucune colonne identifiante de
+- [x] AC2 — Après suppression effective d'un compte propriétaire, aucune colonne identifiante de
       son `OwnerProfile` ne porte sa valeur d'origine ; ses paiements existent toujours.
-- [ ] AC3 — `php artisan schedule:list` montre la purge du journal d'activité et les deux purges
+- [x] AC3 — `php artisan schedule:list` montre la purge du journal d'activité et les deux purges
       ajoutées ; un test prouve chacune par ablation.
 - [x] AC3b — Une ligne de chacun des onze journaux de preuve datée de 400 jours survit à la purge
       planifiée, quand une ligne `default` de 12 mois et un jour disparaît ; à 5 ans et un jour, elle
       disparaît. Une ligne de chacun des sept journaux de pièces comptables survit à 5 ans et un jour,
       et disparaît à 10 ans et un jour. Ablation : retirer un nom d'une liste → son cas rougit. Tenu
       par `tests/Feature/Console/PruneActivityLogCommandTest.php` (TCK-2342).
-- [ ] AC4 — Chaque ligne du tableau « Contrat de données » est vraie, ou le texte juridique a été
+- [x] AC4 — Chaque ligne du tableau « Contrat de données » est vraie, ou le texte juridique a été
       changé sur décision écrite du porteur, avec `VERSION_DOCUMENTS` avancée.
 
 ## Hors périmètre
@@ -173,8 +173,7 @@ tracé ici** — plutôt que d'écrire une politique qui décrirait un défaut c
 
 ## Livré (2026-11-16)
 
-Partie « texte, noms, ipapi, version » seulement. Restent ouverts : preuve du consentement (AC1),
-effacement des colonnes de profil (AC2), purges KYC et demandes de contact (AC3) — d'où AC4 non coché.
+Première partie (bb998f64a) : texte, noms, ipapi, version. Seconde partie : AC1 à AC4, ci-dessous.
 
 - **Auteur d'un avis** : `App\Support\NomPublic::abrege()` (prénom + initiale ; sans prénom,
   l'initiale ; sans nom, le `username` réduit de même, partie avant `@` comprise). `ReviewResource`
@@ -190,11 +189,43 @@ effacement des colonnes de profil (AC2), purges KYC et demandes de contact (AC3)
   chargement direct sans cache ni geste, l'assistant hôte ne préremplit plus ville ni devise. Preuve :
   `UserLocationProvider.test.tsx` ; ablations (geste réputé fait → 5 rouges ; `loading` inconditionnel
   → 1 rouge).
-- **Version** : `VERSION_DOCUMENTS` et `TERMS_VERSION` avancés au 16 novembre 2026 ; la connexion par
-  téléphone et la réclamation radar redemandent donc l'acceptation aux comptes de la version
-  précédente, ce qui est voulu.
+- **Version** : `VERSION_DOCUMENTS` et `TERMS_VERSION` avancés au 16 novembre 2026. Une acceptation
+  déjà datée ne se redemande pas (`PhoneLoginService::termsRequired`, « quelle que soit sa version ») ;
+  seule une page de réclamation radar ouverte avant l'avance renvoie l'ancienne version et reçoit
+  `radar.claim.terms_outdated`.
 - **Textes** (`privacy.ts`, fr et en) : § 2.2 localisation au premier geste et dictée vocale (son
   envoyé par le navigateur à son éditeur, jamais à nous) ; § 4.1 prénom et initiale ; § 4.3 ipapi ;
   § 6 tâches en échec 30 jours (`queue:prune-failed --hours=720`) ; § 9 l'archive ne contient pas les
   notes ni les critères de la fiche client, communiqués sur demande (droit d'accès de la loi 2008-12).
   Preuve : `textes.test.ts`, bloc TCK-537.
+- **AC1 — preuve du consentement** : table `consent_proofs` (migration `2026_11_16_100100`, ajout seul :
+  document, version, contexte, IP, `accepted_at`), écrite par `App\Services\Privacy\ConsentLedger` à
+  l'inscription (conditions + politique, dans la transaction du compte), à l'assistant hôte, à l'offre
+  d'achat, et à la première acceptation datée par `PublishReadiness::recordTerms` (publication,
+  connexion par téléphone, réclamation radar — contexte passé par l'appelant) — conditions seules, ce
+  que ces cases disent.
+  `RegisterRequest` exige `terms_accepted` ; le front l'envoie (`VoieEmail`). La version écrite est
+  `TERMS_VERSION`, reflet gardé de `VERSION_DOCUMENTS`. Le séjour et la candidature n'ont pas de case :
+  rien n'est écrit, rien n'est présumé. Aucun des gestes visés ne recueille de case sans compte : pas de
+  colonne « contact anonyme ». Preuve : `tests/Feature/Privacy/ConsentProofTest.php`, plus une assertion
+  dans `PhoneLoginRadarTermsTest` et `RadarClaimTest` ; ablations
+  (écriture retirée → 1 rouge ; règle retirée → 1 rouge).
+- **AC2 — effacement des profils** : `AccountDeletionService::IDENTIFYING_PROFILE_COLUMNS` (RIB, NINEA,
+  pièce, revenu, employeur, carte pro, police d'assurance, certifications, notes, `metadata`) mis à nul
+  dans `endProfiles`, profils déjà terminés compris, par requête de masse (aucun événement, rien de
+  recopié au journal). Les moyens de versement du compte perdent aussi IBAN, titulaire et relevé
+  (`erasePayoutMethods`), forme masquée gardée. Preuve : `tests/Feature/Privacy/ProfileErasureOnDeletionTest.php`
+  (lecture brute, journal sans trace, reversement intact) ; ablations (profils → rouge ; moyens → rouge).
+- **AC3 — purges** : `kyc:prune-ended-pieces` (pièces de VÉRIFICATION des profils terminés depuis 5 ans
+  — CNI, passeport, RIB, NINEA, photo, assurance —, `forceDelete` avec fichiers ; le mandat de gestion et
+  les documents `other`, dont la carte pro d'agent, restent ; dossier KYC d'une agence supprimée depuis
+  5 ans, sans copie au journal), `crm:prune-contact-leads` (dernier
+  échange = la plus récente de `created_at`, `updated_at`, `handled_at`, `first_responded_at`, plus de
+  3 ans), et `account:prune-consent-proofs` (5 ans après l'effacement du compte). `schedule:list` :
+  `10 4 * * * audit:prune-activity-log` · `15 4 * * * kyc:prune-ended-pieces` ·
+  `20 4 * * * crm:prune-contact-leads` · `25 4 * * * account:prune-consent-proofs`. Preuve :
+  `tests/Feature/Console/PrivacyRetentionPurgesTest.php` (bornes à un jour près) ; ablations (borne KYC
+  retirée → rouge ; dernier échange réduit au dépôt → rouge).
+- **AC4** : § 6 de la politique précise la fin de la relation KYC, le dernier échange d'une demande et le
+  contenu de la preuve du consentement ; le ⚠ du docblock de `privacy.ts` et la ligne 5 du README sont
+  levés. Toutes les lignes du tableau « Contrat de données » sont vraies.

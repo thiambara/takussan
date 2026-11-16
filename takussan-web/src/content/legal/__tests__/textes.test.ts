@@ -419,3 +419,20 @@ describe('politique de confidentialité — les écarts fermés par TCK-537', ()
     expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
   });
 });
+
+/**
+ * TCK-537 (AC4) — les durées du § 6 dites comme le code les applique : la fin de la relation KYC, le
+ * dernier échange d'une demande de contact, la preuve du consentement et ce qu'elle contient.
+ */
+describe('politique de confidentialité — les durées tenues par les purges de TCK-537', () => {
+  it('dit les trois règles dans les deux langues', () => {
+    expect(privacy.fr).toContain('5 ans après sa fin (la fin du profil qui les porte, ou la suppression de l’agence pour son dossier de vérification)');
+    expect(privacy.fr).toContain('3 ans à compter du dernier échange (le dépôt de la demande, la réponse ou le traitement le plus récent)');
+    expect(privacy.fr).toContain('- **Consentements** : le temps du consentement, puis 5 ans pour pouvoir en justifier. Quand vous cochez une case d’acceptation');
+    expect(privacy.fr).toContain('(le document, sa version, la date et l’adresse IP) est conservée tant que votre compte existe, puis 5 ans après sa suppression');
+    expect(privacy.en).toContain('5 years after it ends (the end of the profile they belong to');
+    expect(privacy.en).toContain('3 years from the last exchange (the request itself, or its latest reply or handling)');
+    expect(privacy.en).toContain('is kept for as long as your account exists, then 5 years after its deletion');
+    expect(privacy.en).toContain('- **Consents**: for as long as the consent applies, then 5 years so that it can be evidenced.');
+  });
+});

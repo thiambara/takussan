@@ -67,7 +67,7 @@ afterEach(() => {
 });
 
 describe('« Créer un compte »', () => {
-  it('AC1 — le corps de la requête ne porte que l’adresse et le mot de passe, puis la vérification de l’adresse', async () => {
+  it('AC1 — le corps de la requête porte l’adresse, le mot de passe et la case des conditions (TCK-537), puis la vérification de l’adresse', async () => {
     const user = userEvent.setup();
     searchParams = new URLSearchParams({ voie: 'inscription', redirect: '/properties/villa-ngor', intention: 'reservation' });
     render(withIntl(<FormulaireDeConnexion />));
@@ -80,7 +80,7 @@ describe('« Créer un compte »', () => {
     await waitFor(() => expect(pushMock).toHaveBeenCalledTimes(1));
     const inscription = appels.filter((a) => a.url.endsWith('/api/auth/register'));
     expect(inscription).toHaveLength(1);
-    expect(inscription[0].corps).toEqual({ email: 'awa@example.com', password: 'Secret123' });
+    expect(inscription[0].corps).toEqual({ email: 'awa@example.com', password: 'Secret123', terms_accepted: true });
     expect(openSessionMock).toHaveBeenCalledWith('jeton', { id: 9, email: 'awa@example.com' }, null);
     expect(pushMock).toHaveBeenCalledWith('/auth/verify-email?redirect=%2Fproperties%2Fvilla-ngor&intention=reservation');
   });

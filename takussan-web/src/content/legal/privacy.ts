@@ -7,11 +7,12 @@
  * durées décrits ici sont ceux RELEVÉS dans le code le même jour — un nouveau prestataire, un
  * nouveau traceur ou une nouvelle purge doit être reporté ici dans le même changement.
  *
- * ⚠ Engagements de ce texte que le code ne tient pas encore, suivis par TCK-537 : la conservation
- * de la preuve du consentement, l'effacement des colonnes des profils à la suppression du compte,
- * et deux purges planifiées (pièces de vérification, demandes de contact). La purge du journal
- * d'activité est tenue (TCK-2342). À faire relire par un avocat ; la déclaration à la CDP est un
- * préalable à la mise en production.
+ * Les engagements du § 6 sont tenus par le code (TCK-537, 2026-11-16) : la preuve du consentement
+ * (`consent_proofs`, `ConsentLedger`), l'effacement des colonnes identifiantes des profils à la
+ * suppression du compte (`AccountDeletionService::IDENTIFYING_PROFILE_COLUMNS`), et les purges
+ * planifiées — journal d'activité (TCK-2342), pièces KYC (`kyc:prune-ended-pieces`), demandes de
+ * contact (`crm:prune-contact-leads`), preuves de consentement (`account:prune-consent-proofs`).
+ * À faire relire par un avocat ; la déclaration à la CDP est un préalable à la mise en production.
  *
  * TCK-537 (décisions du porteur du 2026-11-16) : l'auteur d'un avis public est nommé par son
  * prénom et l'initiale de son nom (`NomPublic` côté API) ; ipapi.co n'est joint qu'au premier geste
@@ -132,10 +133,10 @@ Certains de nos prestataires sont établis ou stockent des données hors du Sén
 # 6. Combien de temps nous les conservons
 
 - **Compte** : tant que le compte est actif. Après une demande de suppression, un délai de 30 jours permet de l’annuler ; les données d’identification du compte et des profils sont ensuite **effacées ou anonymisées**.
-- **Pièces de vérification (KYC)** : pendant la relation, puis 5 ans après sa fin, sauf durée plus longue imposée par la réglementation relative à la lutte contre le blanchiment de capitaux.
+- **Pièces de vérification (KYC)** : pendant la relation, puis 5 ans après sa fin (la fin du profil qui les porte, ou la suppression de l’agence pour son dossier de vérification), sauf durée plus longue imposée par la réglementation relative à la lutte contre le blanchiment de capitaux.
 - **Paiements, factures, reversements et pièces comptables** : **10 ans**, conformément à l’Acte uniforme OHADA relatif au droit comptable et à l’information financière. Ils sont alors détachés de votre identité autant que la loi le permet.
 - **Baux, réservations et états des lieux** : pendant la durée de la relation contractuelle, puis pendant le délai de prescription applicable.
-- **Demandes de contact d’un visiteur sans compte** : 3 ans à compter du dernier échange.
+- **Demandes de contact d’un visiteur sans compte** : 3 ans à compter du dernier échange (le dépôt de la demande, la réponse ou le traitement le plus récent), puis suppression automatique.
 - **Messages** : tant que la conversation reste active pour l’un de ses participants, et au plus tard jusqu’à la suppression de la plateforme de l’agence concernée, sauf obligation de conservation.
 - **Journal d’activité** : 12 mois, sauf les deux familles qui suivent.
 - **Journaux de sécurité et de preuve** (consultation de vos données, exercice de vos droits, sécurité et suppression du compte, accès du support, vérification d’identité, rôles et adhésions dans une agence, intégrations, exports) : 5 ans.
@@ -150,7 +151,7 @@ Certains de nos prestataires sont établis ou stockent des données hors du Sén
 - **Preuve de votre accord à la publication** : tant que les annonces concernées sont en ligne, puis ⚠ 3 ans.
 - **Tâches techniques en échec** (un envoi de courriel ou de notification qui n’a pas abouti, par exemple), avec les données qu’elles portent : 30 jours, puis suppression automatique.
 - **Sauvegardes** : conservées au plus 14 jours, puis écrasées.
-- **Consentements** : le temps du consentement, puis 5 ans pour pouvoir en justifier.
+- **Consentements** : le temps du consentement, puis 5 ans pour pouvoir en justifier. Quand vous cochez une case d’acceptation des conditions générales ou de la présente politique, la preuve (le document, sa version, la date et l’adresse IP) est conservée tant que votre compte existe, puis 5 ans après sa suppression.
 
 # 7. Sécurité
 
@@ -325,10 +326,10 @@ Some providers are established or store data outside Senegal, notably in the Eur
 # 6. How long we keep it
 
 - **Account**: while it is active. After a deletion request, a 30-day period allows you to cancel; the account’s and profiles’ identification data are then **erased or anonymised**.
-- **Verification documents (KYC)**: for the relationship, then 5 years after it ends, unless anti-money-laundering rules require longer.
+- **Verification documents (KYC)**: for the relationship, then 5 years after it ends (the end of the profile they belong to, or the agency’s deletion for its verification file), unless anti-money-laundering rules require longer.
 - **Payments, invoices, payouts and accounting records**: **10 years**, under the OHADA Uniform Act on Accounting and Financial Reporting, detached from your identity as far as the law allows.
 - **Leases, bookings and inventories**: for the contractual relationship, then for the applicable limitation period.
-- **Contact requests from visitors without an account**: 3 years from the last exchange.
+- **Contact requests from visitors without an account**: 3 years from the last exchange (the request itself, or its latest reply or handling), then automatically deleted.
 - **Messages**: while the conversation remains active for one of its participants, and at the latest until the agency concerned is removed from the platform, unless retention is required.
 - **Activity log**: 12 months, except for the two families below.
 - **Security and evidence logs** (access to your data, exercise of your rights, account security and deletion, support access, identity verification, roles and memberships within an agency, integrations, exports): 5 years.
@@ -343,7 +344,7 @@ Some providers are established or store data outside Senegal, notably in the Eur
 - **Proof of your agreement to publication**: for as long as the listings concerned are online, then ⚠ 3 years.
 - **Failed technical tasks** (an email or notification that could not be sent, for example), with the data they carry: 30 days, then automatically deleted.
 - **Backups**: kept for at most 14 days, then overwritten.
-- **Consents**: for as long as the consent applies, then 5 years so that it can be evidenced.
+- **Consents**: for as long as the consent applies, then 5 years so that it can be evidenced. When you tick a box accepting the terms or this policy, the proof (the document, its version, the date and the IP address) is kept for as long as your account exists, then 5 years after its deletion.
 
 # 7. Security
 

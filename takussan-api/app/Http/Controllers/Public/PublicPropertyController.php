@@ -27,6 +27,7 @@ use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
 use App\Jobs\NotifyNewMessageJob;
 use App\Models\Booking;
+use App\Models\ConsentProof;
 use App\Models\Customer;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingSource;
@@ -54,6 +55,7 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
+use App\Services\Privacy\ConsentLedger;
 use App\Services\Property\EtatPublicDuBien;
 use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\PrimaryPropertyContact;
@@ -1082,6 +1084,9 @@ class PublicPropertyController extends Controller
                     'list_price_at_offer' => (float) $property->price,
                 ],
             ] + BookingConditions::columnsFor(BookingKind::Offer, $property, (string) $data['offer_amount'], $data));
+            // TCK-537 (AC1) — la case `terms_accepted` de l'offre (« J'ai lu et j'accepte les conditions
+            // générales d'utilisation ») : sa preuve. Une candidature ou un séjour n'a pas de case.
+            app(ConsentLedger::class)->record($user, ConsentLedger::CONTEXT_OFFER, $request->ip(), [ConsentProof::DOCUMENT_TERMS]);
             // TCK-2893 — le garant déclaré : une fiche neuve sur une offre neuve, rien ne peut le refuser ici
             // (nature, statut, borne de trois, `guarantor_id` interdit au tunnel).
             $this->rattacherLeGarantDeclare($booking, $data, $user);

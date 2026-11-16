@@ -271,6 +271,15 @@ Schedule::command('radar:observe-sources')->everyFifteenMinutes()->withoutOverla
 // (`PruneActivityLog`). Idempotente : une suppression par date, par lots.
 Schedule::command('audit:prune-activity-log')->dailyAt('04:10')->timezone('Africa/Dakar')->withoutOverlapping();
 
+// TCK-537 (AC3) — les deux durées de la politique de confidentialité (§ 6) que rien ne tenait : les
+// pièces KYC, 5 ans après la fin du profil (ou de l'agence) qui les porte (`PruneEndedKycPieces`) ;
+// les demandes de contact sans compte, 3 ans après leur dernier échange (`PruneContactLeads`). Et
+// la preuve du consentement, 5 ans après l'effacement du compte (`PruneConsentProofs`).
+// Idempotentes : une suppression par date, qu'une seconde exécution trouve vide.
+Schedule::command('kyc:prune-ended-pieces')->dailyAt('04:15')->timezone('Africa/Dakar')->withoutOverlapping();
+Schedule::command('crm:prune-contact-leads')->dailyAt('04:20')->timezone('Africa/Dakar')->withoutOverlapping();
+Schedule::command('account:prune-consent-proofs')->dailyAt('04:25')->timezone('Africa/Dakar')->withoutOverlapping();
+
 // TCK-633 lot F (ADR-0061 §9) — fin des boosts échus, réconciliation (filet des écritures de masse),
 // expiration et préavis des lots de crédits. Idempotent : chaque transition est réclamée par un
 // `UPDATE … WHERE status IN (…)`, un lot expiré est soldé à zéro, un préavis est marqué.

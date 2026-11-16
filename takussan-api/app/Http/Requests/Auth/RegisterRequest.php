@@ -30,6 +30,10 @@ class RegisterRequest extends FormRequest
             'first_name' => ['sometimes', 'nullable', 'string', 'max:100'],
             'last_name' => ['sometimes', 'nullable', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            // TCK-537 (AC1) — la case « J'accepte les conditions générales et la politique de
+            // confidentialité » que l'écran rend obligatoire : l'API l'exige aussi, et l'inscription
+            // en écrit la preuve (`ConsentLedger`, contexte `register`).
+            'terms_accepted' => ['required', 'accepted'],
             'password' => array_values(array_filter([
                 'required',
                 'string',

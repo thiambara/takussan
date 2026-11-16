@@ -50,6 +50,7 @@ class ListenerSideEffectsRunOnceTest extends TestCase
         Notification::fake();
 
         $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Amine',
             'last_name' => 'Thiam',
             'email' => 'amine.verification@example.com',

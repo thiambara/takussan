@@ -40,7 +40,7 @@ import { RetourAuth } from './RetourAuth';
  *   l'intention), puis le second facteur s'il est demandé ; le bandeau « Mot de passe modifié »
  *   (`?reset=1`) et les échecs Google lus dans l'URL restent.
  * - **Créer** : trois contrôles — l'adresse, le mot de passe (l'œil remplace la confirmation, la
- *   règle reste écrite SOUS le champ pendant la frappe), les conditions. Envoie `{email, password}`
+ *   règle reste écrite SOUS le champ pendant la frappe), les conditions. Envoie `{email, password, terms_accepted}`
  *   (TCK-2605) ; le prénom est demandé après (`/onboarding/intention`), et la vérification de
  *   l'adresse vient d'abord (`/auth/verify-email`, intention gardée).
  *
@@ -374,8 +374,9 @@ function FormulaireCreationEmail({
     defaultValues: { email: '', password: '', accept_cgu: false },
     // La règle du mot de passe est écrite sous le champ : l'erreur ne vient qu'à la sortie du champ.
     formOptions: { mode: 'onTouched' },
-    // `accept_cgu` reste dans le navigateur : l'API n'attend que l'adresse et le mot de passe.
-    onSubmit: ({ email, password }) => register({ email, password }),
+    // TCK-537 (AC1) — la case part avec l'inscription : l'API l'exige (`terms_accepted`) et en écrit
+    // la preuve (version, horodatage, adresse). Le schéma refuse déjà l'envoi sans elle.
+    onSubmit: ({ email, password, accept_cgu }) => register({ email, password, terms_accepted: accept_cgu }),
     onSuccess: async ({ token, user, expires_at: expiresAt }) => {
       // TCK-589 — jamais sans jeton : `set-token` reçu vide EFFACE le cookie.
       if (!token) {
