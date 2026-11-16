@@ -32,7 +32,7 @@ class LeasePaymentDuplicateRefundController extends Controller
             $locked = LeasePayment::query()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
 
             $metadata = is_array($locked->metadata) ? $locked->metadata : [];
-            [$metadata, $marked] = DuplicatePayments::markAllRefunded($metadata, now()->toIso8601String());
+            [$metadata, $marked] = DuplicatePayments::markAllRefunded($metadata, now());
             abort_code_if($marked === 0, 409, 'lease_payment.no_duplicate_to_refund');
 
             $locked->forceFill(['metadata' => $metadata])->save();

@@ -2,6 +2,8 @@
 
 namespace App\Services\Payments;
 
+use Illuminate\Support\Carbon;
+
 /**
  * TCK-608 — LA lecture des doublons d'encaissement d'un payable (`metadata.gateway_duplicate_payment`),
  * une fois, pour la page de retour (`PaymentGatewayController::verify`), la ressource d'une échéance et
@@ -60,8 +62,10 @@ final class DuplicatePayments
      * @param  array<string,mixed>  $metadata
      * @return array{0: array<string,mixed>, 1: int}
      */
-    public static function markAllRefunded(array $metadata, string $at): array
+    public static function markAllRefunded(array $metadata, \DateTimeInterface $at): array
     {
+        // Même forme que le webhook du fournisseur pose dans la metadata (ISO 8601, `+00:00`).
+        $at = Carbon::instance($at)->toIso8601String();
         $marked = 0;
         if (! is_array($metadata['gateway_duplicate_payment'] ?? null)) {
             return [$metadata, 0];
