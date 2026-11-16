@@ -449,7 +449,8 @@ est comptée pour chaque emplacement **servi** ».
   emplacements **servis** ; après, des emplacements **affichés**. Les deux séries ne se comparent
   pas de part et d'autre de cette date : le taux de clic d'après la bascule est mécaniquement plus
   haut. La date réelle est celle du déploiement en préproduction, puis en production (phase F), à
-  relever au moment de la promotion.
+  relever au moment de la promotion. **Préproduction : 2026-11-16, 23:34 Z** (promotion #1691, `ac2a32f66`) ;
+  production : à la phase F.
 
 **Gardes** : `tests/Feature/Boost/SponsoredImpressionsTest.php` (servir ne compte rien — rouge si
 l'on recompte à l'émission, vérifié par ablation ; un emplacement déclaré compte une fois par
