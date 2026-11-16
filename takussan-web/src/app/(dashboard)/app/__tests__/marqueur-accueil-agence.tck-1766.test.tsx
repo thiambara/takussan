@@ -17,6 +17,8 @@ vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMeAction() }));
 vi.mock('@/lib/espaces-serveur', () => ({ espacesAChoisir: async () => null }));
 vi.mock('@/lib/session', () => ({
   getToken: async () => 'jeton',
+  // TCK-610 — le layout demande si la session est une impersonation (entrée « console » du menu).
+  estEnImpersonation: async () => false,
   getActiveProfileId: async () => undefined,
   getModeIconesDuMenu: async () => 'auto' as const,
 }));
