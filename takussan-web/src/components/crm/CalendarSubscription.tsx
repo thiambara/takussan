@@ -27,6 +27,12 @@ import type { CalendarFeedState } from '@/types/agent-crm';
  * avant TCK-2887 n'a pas de copie (`url: null`) : la page ne sait alors que « un lien est actif »,
  * et propose d'en générer un autre, qui éteint l'ancien.
  */
+/** TCK-617 — le code d'erreur de l'API (`ApiError.code` ne rend que ceux du BFF). */
+function codeDe(erreur: ApiError): string | null {
+  const data = erreur.data as { code?: unknown } | null;
+  return data && typeof data.code === 'string' ? data.code : null;
+}
+
 /** Une ligne « clé · valeur » de la feuille. */
 function Ligne({ cle, children }: { readonly cle: string; readonly children: ReactNode }) {
   return (
@@ -148,7 +154,11 @@ export function CalendarSubscription() {
           {t('create')}
         </Button>
       )}
-      {failure ? <p role="alert" className="text-sm text-destructive">{failure.proseServeur ?? t('failed')}</p> : null}
+      {failure ? (
+        <p role="alert" className="text-sm text-destructive">
+          {codeDe(failure) === 'calendar.feed_agency_required' ? t('agencyRequired') : (failure.proseServeur ?? t('failed'))}
+        </p>
+      ) : null}
     </section>
   );
 }

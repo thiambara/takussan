@@ -2369,7 +2369,8 @@
         "never": "Jamais",
         "contentLabel": "Contenu",
         "content": "Vos rendez-vous de l’agenda",
-        "secret": "Qui a ce lien voit vos rendez-vous : ne le partagez pas."
+        "secret": "Qui a ce lien voit vos rendez-vous : ne le partagez pas.",
+        "agencyRequired": "Choisissez d'abord l'agence de ce lien : vous travaillez pour plusieurs agences."
       }
     },
     "bulk": {
@@ -21662,7 +21663,11 @@
       "rouvrir": "Rouvrir « {titre} »",
       "appeler": "Appeler {nom}",
       "whatsapp": "Écrire à {nom} sur WhatsApp",
-      "messageWhatsApp": "Bonjour {prenom},"
+      "messageWhatsApp": "Bonjour {prenom},",
+      "supprime": {
+        "customer": "Client supprimé",
+        "property": "Bien supprimé"
+      }
     },
     "fiche": {
       "titreFeuille": "Tâche",
@@ -21698,7 +21703,11 @@
       "annuler": "Annuler",
       "echecSuppression": "La tâche n’a pas pu être supprimée.",
       "marquerFaite": "Marquer faite",
-      "rouvrirLaTache": "Rouvrir la tâche"
+      "rouvrirLaTache": "Rouvrir la tâche",
+      "supprime": {
+        "customer": "Client supprimé",
+        "property": "Bien supprimé"
+      }
     },
     "nouvelle": {
       "titreFeuille": "Nouvelle tâche",

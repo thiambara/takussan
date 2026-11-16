@@ -3608,7 +3608,8 @@
         "never": "Never",
         "contentLabel": "Content",
         "content": "Your calendar appointments",
-        "secret": "Anyone with this link sees your appointments: don’t share it."
+        "secret": "Anyone with this link sees your appointments: don’t share it.",
+        "agencyRequired": "First choose the agency for this link: you work for several agencies."
       }
     },
     "bulk": {
@@ -21662,7 +21663,11 @@
       "rouvrir": "Reopen “{titre}”",
       "appeler": "Call {nom}",
       "whatsapp": "Message {nom} on WhatsApp",
-      "messageWhatsApp": "Hello {prenom},"
+      "messageWhatsApp": "Hello {prenom},",
+      "supprime": {
+        "customer": "Deleted client",
+        "property": "Deleted property"
+      }
     },
     "fiche": {
       "titreFeuille": "Task",
@@ -21698,7 +21703,11 @@
       "annuler": "Cancel",
       "echecSuppression": "The task could not be deleted.",
       "marquerFaite": "Mark as done",
-      "rouvrirLaTache": "Reopen task"
+      "rouvrirLaTache": "Reopen task",
+      "supprime": {
+        "customer": "Deleted client",
+        "property": "Deleted property"
+      }
     },
     "nouvelle": {
       "titreFeuille": "New task",

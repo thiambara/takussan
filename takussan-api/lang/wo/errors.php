@@ -174,6 +174,7 @@ return [
         'value_not_found' => 'Valeur bi gisuñu ko.',
     ],
     'calendar' => [
+        'feed_agency_required' => "Choisissez l'agence de votre lien d'agenda : vous travaillez pour plusieurs agences.",
         'feed_not_staff' => 'Lëkkalekaayu ajandaa bi, liggéeykatu ajaans ak prestataire yi rekk la.',
         'other_agency_forbidden' => 'Administrateur yi rekk ñoo mën a xool yeneen agence.',
     ],

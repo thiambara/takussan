@@ -174,6 +174,7 @@ return [
         'value_not_found' => 'Valeur introuvable.',
     ],
     'calendar' => [
+        'feed_agency_required' => "Choisissez l'agence de votre lien d'agenda : vous travaillez pour plusieurs agences.",
         'feed_not_staff' => "Le lien d'agenda est réservé au personnel d'une agence et aux prestataires.",
         'other_agency_forbidden' => 'Seuls les administrateurs peuvent consulter d\'autres agences.',
     ],

@@ -57,6 +57,8 @@ export interface CalendarEvent {
   /** Tâche : ce à quoi elle est rattachée. */
   taskable_type?: 'customer' | 'property' | null;
   taskable_id?: number | null;
+  /** TCK-617 — tâche dont le parent (bien, client) est supprimé : gardée à l'agenda, marquée. */
+  parent_deleted?: boolean;
   /** Deeplink vers la page détail (`/app/bookings/{id}` ou `/app/visits/{id}`). */
   resource_url: string;
 }

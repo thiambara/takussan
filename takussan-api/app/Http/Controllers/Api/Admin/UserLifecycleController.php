@@ -8,12 +8,11 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Admin\BlockUserRequest;
 use App\Http\Requests\Admin\EraseUserRequest;
 use App\Http\Requests\Admin\ReactivateUserRequest;
-use App\Models\CalendarFeed;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
 use App\Services\Account\AccountDeletionService;
 use App\Services\Admin\ImpersonationService;
-use App\Services\Calendar\CalendarFeedService;
+use App\Services\Auth\AccountTokenRevoker;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -44,9 +43,8 @@ class UserLifecycleController extends Controller
 
         DB::transaction(function () use ($request, $user, $reason): void {
             $user->forceFill(['status' => UserStatus::Blocked])->save();
-            $user->tokens()->delete();
-            // TCK-2887 (ADR-0121 § 4) — la révocation efface aussi la copie chiffrée du lien.
-            CalendarFeed::query()->active()->where('user_id', $user->id)->update(CalendarFeedService::revocation());
+            // TCK-2887 (ADR-0121 § 4), TCK-617 — jetons et liens d'agenda, par le point commun.
+            app(AccountTokenRevoker::class)->revokeAll($user);
 
             $this->journaliser($request->user(), $user, 'super_admin_user_blocked', $reason);
         });

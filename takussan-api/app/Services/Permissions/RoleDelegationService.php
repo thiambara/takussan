@@ -13,6 +13,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Services\Calendar\CalendarFeedService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Support\FinInclusive;
 use Illuminate\Support\Collection;
@@ -145,6 +146,7 @@ class RoleDelegationService
     {
         $this->transition($delegation, [RoleDelegationStatus::Active, RoleDelegationStatus::Scheduled], function (RoleDelegation $locked) use ($caller): void {
             $locked->markRevoked($caller);
+            $this->dropFeedIfNoLongerStaff($locked);
 
             event(new RoleDelegationRevoked($locked));
 
@@ -184,6 +186,7 @@ class RoleDelegationService
     {
         $this->transition($delegation, [RoleDelegationStatus::Active], function (RoleDelegation $locked): void {
             $locked->markExpired();
+            $this->dropFeedIfNoLongerStaff($locked);
 
             event(new RoleDelegationExpired($locked));
 
@@ -196,6 +199,20 @@ class RoleDelegationService
 
             $this->linkedCover($locked, fn (RoleDelegation $cover) => $this->expire($cover));
         });
+    }
+
+    /**
+     * TCK-617 (décision du porteur, 2026-11-16) — la fin d'une délégation coupe le lien d'agenda que
+     * le délégué tenait dans l'agence, s'il n'y est plus personnel : éteint par la seule lecture
+     * (`CalendarFeedService::resolve()`), le lien revivait à la délégation suivante.
+     */
+    private function dropFeedIfNoLongerStaff(RoleDelegation $delegation): void
+    {
+        $user = $delegation->user;
+        if ($user === null || $delegation->agency_id === null) {
+            return;
+        }
+        app(CalendarFeedService::class)->revokeUnlessStaff($user, (int) $delegation->agency_id);
     }
 
     /**

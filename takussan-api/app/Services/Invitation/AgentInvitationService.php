@@ -10,6 +10,7 @@ use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Policies\AgentProfilePolicy;
 use App\Services\Agency\AgencyMemberRemovalService;
+use App\Services\Calendar\CalendarFeedService;
 use App\Support\AgencyKindGuard;
 use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
@@ -202,6 +203,11 @@ class AgentInvitationService
 
         DB::transaction(function () use ($profile, $actor, $newStatus, $active): void {
             $profile->forceFill(['status' => $newStatus])->save();
+            // TCK-617 (décision du porteur, 2026-11-16) — suspendu, il n'est plus personnel de
+            // l'agence : son lien d'agenda tombe par écriture, et ne revit pas à la réactivation.
+            if (! $active && $profile->user !== null && $profile->agency_id !== null) {
+                app(CalendarFeedService::class)->revokeUnlessStaff($profile->user, (int) $profile->agency_id);
+            }
 
             activity('Invitation')
                 ->performedOn($profile)

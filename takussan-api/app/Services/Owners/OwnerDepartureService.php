@@ -9,6 +9,7 @@ use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Auth\AccountTokenRevoker;
 use App\Services\Payout\PayoutClawbacks;
 use App\Services\Profiles\ActiveProfileResolver;
 use Illuminate\Support\Facades\DB;
@@ -73,7 +74,8 @@ final class OwnerDepartureService
 
             $revoked = 0;
             if (! $this->gardeUnProfilActif($landlord)) {
-                $revoked = $landlord->tokens()->delete();
+                // TCK-617 — jetons et liens d'agenda, par le point commun.
+                $revoked = app(AccountTokenRevoker::class)->revokeAll($landlord);
             }
 
             activity('Membership')

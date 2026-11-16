@@ -277,7 +277,9 @@ class SuperAdminCooptationService
             abort_code_unless($actifs->contains('user_id', $actor->id), 403, 'platform.ability_missing');
 
             $profile->forceFill(['revoked_at' => now()])->save();
-            $target->tokens()->delete();
+            // TCK-617 — jetons et liens d'agenda, par le point commun (l'observateur du profil y passe
+            // aussi ; la seconde passe ne trouve plus rien).
+            app(AccountTokenRevoker::class)->revokeAll($target);
 
             activity('User')
                 ->performedOn($target)

@@ -204,7 +204,9 @@ export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisib
   const parRattachement = (
     <div className="space-y-5 md:space-y-6">
       {grouperParRattachement(lignes).map((g, i) => {
-        const titre = g.cible ? (g.cible.label ?? t(`ligne.cache.${g.cible.type}`)) : t('groupe.sansRattachement');
+        // TCK-617 — un parent supprimé se dit dans l'en-tête du groupe aussi.
+        const supprime = g.taches.some((tache) => tache.parent_deleted);
+        const titre = g.cible ? (g.cible.label ?? t(supprime ? `ligne.supprime.${g.cible.type}` : `ligne.cache.${g.cible.type}`)) : t('groupe.sansRattachement');
         return (
           <section key={g.cle} data-rattachement={g.cle} aria-label={titre} className="pt-5 md:pt-0">
             <Etiquette className="px-4 pb-1 md:px-0 md:pb-2" compte={g.taches.length}>

@@ -51,7 +51,8 @@ export function LigneDeTache({ tache, maintenant, dense, enCours, onCocher, onOu
   const faite = estFaite(tache);
   const { texte, retard } = echeanceEnClair(tache, maintenant);
   const cible = tache.taskable;
-  const libelleCible = cible ? (cible.label ?? t(`cache.${cible.type}`)) : null;
+  // TCK-617 — un parent supprimé se dit « Bien supprimé », pas « Un bien ».
+  const libelleCible = cible ? (cible.label ?? t(tache.parent_deleted ? `supprime.${cible.type}` : `cache.${cible.type}`)) : null;
   const telephone = cible?.type === 'customer' && isReachable(cible.phone) ? cible.phone : null;
 
   const depart = useRef<{ x: number; y: number; id: number } | null>(null);

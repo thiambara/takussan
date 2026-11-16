@@ -67,7 +67,7 @@ export function TableauDeTaches({ taches, maintenant, bloquee, modifiable, onCoc
                     {tache.title}
                   </button>
                 </td>
-                <td className="px-3 text-muted-foreground">{cible ? (cible.label ?? t(`ligne.cache.${cible.type}`)) : null}</td>
+                <td className="px-3 text-muted-foreground">{cible ? (cible.label ?? t(tache.parent_deleted ? `ligne.supprime.${cible.type}` : `ligne.cache.${cible.type}`)) : null}</td>
                 <td className={cn('whitespace-nowrap px-3 tabular-nums', retard && !faite ? 'text-destructive' : 'text-muted-foreground')}>{texte}</td>
                 <td className="w-55 whitespace-nowrap pr-4 text-right">
                   {gestes ? (

@@ -110,6 +110,19 @@ ticketer »).
 
 ## Décision du porteur
 
+**Tranché le 2026-11-16 :**
+
+1. **Tâche d'un parent supprimé** (bien, bail, client…) : **gardée et marquée** — ni supprimée, ni cachée.
+2. **`/dashboard/me` de l'admin d'agence sans `viewReports`** (option a) : **ses chiffres seuls**
+   (ses visites, ses tâches, ses clients…), comme un agent — jamais ceux de toute l'agence. Avec
+   `reports.view_agency`, inchangé.
+3. **Tuile des commissions** : **confirmée** telle que décrite (repli sur `commission_amount` sans
+   ligne du grand livre ; base pleine quand toutes les lignes sont annulées). Aucun code.
+4. **Tous les gestes de révocation** (retrait d'un agent, suspension, révocation ou fin d'une
+   délégation, fin de profil, et ceux qui coupent les jetons) coupent l'accès à l'agenda du révoqué.
+
+*Recommandations d'origine, pour mémoire :*
+
 - **Point 5** : une tâche dont le parent est supprimé reste-t-elle dans la liste de son responsable ?
   *Recommandation* : oui, marquée « parent supprimé » (la liste ⊇ ce que le détail rend), plutôt que
   de cacher du travail ouvert.
@@ -137,31 +150,31 @@ ticketer »).
 ## Delta à produire
 
 - [x] `DashboardAgentService` : visites bornées par l'agence active (via le bien). (tenu par TCK-1361, relevé 2026-11-16)
-- [ ] `App\Services\Auth\AccountTokenRevoker` (ou équivalent) : jetons Sanctum **et** `CalendarFeed`,
+- [x] `App\Services\Auth\AccountTokenRevoker` (ou équivalent) : jetons Sanctum **et** `CalendarFeed`,
       appelé par les gestes de la contrainte 2 (liste relevée le 2026-11-16) et par le blocage de la console.
 - [x] `PipelineStatsService` : `attribute_changes`. (tenu par TCK-985, relevé 2026-11-16)
-- [ ] `CalendarFeedService::issue` : code `calendar.feed_agency_required` quand l'utilisateur est du
+- [x] `CalendarFeedService::issue` : code `calendar.feed_agency_required` quand l'utilisateur est du
       personnel d'au moins une agence sans en avoir choisi ; libellé front.
-- [ ] Tâches et `/dashboard/me` : selon la décision.
-- [ ] Tests : `DashboardAgentCrossAgencyTest`, `CalendarFeedRevocationTest`, `PipelineStatsTest`
+- [x] Tâches et `/dashboard/me` : selon la décision.
+- [x] Tests : `DashboardAgentCrossAgencyTest`, `CalendarFeedRevocationTest`, `PipelineStatsTest`
       (changement d'étape réel), `CalendarFeedIssueTest`.
 
 ## Critères d'acceptation
 
 - [x] **AC1 (rouge sur `839be671`).** (tenu par TCK-1361, relevé 2026-11-16 — `DashboardAgentAgencyBoundTest`) Agent retiré de X, personnel de Y, une visite demain sur un bien
       de X : `GET /api/dashboard/agent` dans Y ne la compte ni ne la liste.
-- [ ] **AC2 (rouge sur `839be671`).** Lien d'agenda créé, puis réinitialisation du mot de passe par le
+- [x] **AC2 (rouge sur `839be671`).** Lien d'agenda créé, puis réinitialisation du mot de passe par le
       lien d'oubli : `GET` du flux `.ics` → 404 (même réponse qu'un lien inconnu). Même résultat après
       chacun des autres gestes de la contrainte 2.
-- [ ] **AC3 (garde).** Un test énumère les sites qui suppriment des jetons Sanctum
+- [x] **AC3 (garde).** Un test énumère les sites qui suppriment des jetons Sanctum
       (`grep -rln "tokens()->delete\|tokens()->where" app`, relu par le test) et affirme que chacun passe
       par le point commun. *Un sixième geste qui coupe les jetons sans couper l'agenda rougit.*
 - [x] **AC4 (rouge sur `839be671`).** (tenu par TCK-985, relevé 2026-11-16) Un client passe de `lead` à `qualified` : `stage_changes_last_30d`
       vaut 1. Aucune occurrence de `properties->'old'` ni `properties->'attributes'` dans `app/`.
-- [ ] **AC5.** L'agent de deux agences sans profil choisi : 403 `calendar.feed_agency_required` ; un
+- [x] **AC5.** L'agent de deux agences sans profil choisi : 403 `calendar.feed_agency_required` ; un
       ex-agent sans agence : `calendar.feed_not_staff` (inchangé).
-- [ ] **AC6 (décisions).** Tâches et `/dashboard/me` selon la décision, affirmés dans les deux sens.
-- [ ] Ablations consignées.
+- [x] **AC6 (décisions).** Tâches et `/dashboard/me` selon la décision, affirmés dans les deux sens.
+- [x] Ablations consignées.
 
 ## Hors périmètre
 
@@ -171,3 +184,46 @@ ticketer »).
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Point commun** `App\Services\Auth\AccountTokenRevoker` (`revokeAll`, `revokeOne`, `revokeFeeds`),
+  transactionnel : jetons Sanctum **et tous** les liens d'agenda du compte (on ne sait pas quelle
+  session a créé un lien). Branché sur la réinitialisation par oubli, la révocation d'une session
+  (titulaire et support), `revokeSessions`, la réinitialisation forcée, le blocage, la demande et
+  l'exécution de l'effacement, `PlatformProfileObserver`, la cooptation retirée, le départ d'un
+  bailleur, la suspension du dernier profil actif. ADR-0034 amendé.
+- **Décision 4 au-delà des jetons** : la suspension révoque le lien de l'agence même quand le membre
+  garde ses jetons ailleurs (et la voie `AgentInvitationService::suspend`) ; la fin ou l'expiration
+  d'une délégation et le passage au rôle de bailleur (`UserRoleController`, `AgencyMemberRoleController`) révoquent le lien de l'agence si le
+  titulaire n'y est plus personnel (`CalendarFeedService::revokeUnlessStaff`). Sans écriture, le lien
+  éteint à la lecture revivait à la réactivation.
+- **AC2** — `CalendarFeedRevocationTest` (13) : 404 du `.ics` après réinitialisation par oubli et
+  révocation de session ; pour les autres gestes, la ligne écrite (`revoked_at`, copie chiffrée nulle)
+  et le lien encore mort après réactivation / délégation neuve — le 404 seul serait vert sans
+  correctif (`resolve()` refuse déjà le non-personnel). Départ d'un bailleur et cooptation retirée :
+  couverts par le point commun et la garde AC3, sans test de lien propre. Ablations : point commun
+  neutralisé → 5 rouges ; suspension → 1 ; voie `AgentProfileController` → 1 ; délégation → 2 ;
+  changement de rôle → 1. ⚠ Révoquer UNE session coupe aussi les liens d'agenda de son titulaire.
+- **AC3** — `tests/Feature/Architecture/AccountTokenRevokerGuardTest` lit le code de `app/`
+  (commentaires retirés, instructions multilignes repliées) : `->tokens()…->delete()`,
+  `PersonalAccessToken::…->delete()`, variable tirée de l'un ou l'autre puis supprimée,
+  `currentAccessToken()->delete()`. Exemptions fermées et motivées : déconnexion, expiration par
+  inactivité (`PruneIdleSessionTokens`, trouvée par la garde), fin d'impersonation. Ablation :
+  `tokens()->delete()` réinjecté dans `PasswordResetController` → rouge.
+- **AC5** — `CalendarFeedIssueTest` : 403 `calendar.feed_agency_required` (fr/en/wo) pour l'agent de
+  deux agences sans espace choisi, `feed_not_staff` pour l'ex-agent ; le front l'affiche par sa clé
+  `agentCrm.calendar.feed.agencyRequired`. Ablations API et front → rouge.
+- **AC6, tâches** — `Task::scopeParentAgencyIn` (liste, agenda et flux `.ics`) et la branche du
+  suppléant gardent le parent supprimé en douceur, comme la policy ; `parent_deleted` dans la réponse
+  de `/api/tasks` et dans l'événement d'agenda (`property_id` nul), `taskable.label` reste nul ; le
+  front écrit « Bien supprimé » / « Client supprimé » sans lien (ligne, fiche, tableau, en-tête de
+  groupe). Un parent d'une autre agence, ou effacé pour de bon, reste hors liste et hors agenda.
+  `TaskParentDeletedTest` (5), `LigneDeTache.tck-617.test.tsx` ; ablations (portée, marque d'agenda,
+  marque front) → rouge.
+- **AC6, `/dashboard/me`** — `DashboardRoleResolver` : l'admin d'une agence (non individuelle) sans
+  `AgencyPolicy::viewReports` reçoit la vue d'agent (`AgentMeMetrics`, `role: agent`, portée « les
+  miens ») ; avec la capacité, la vue d'agence. `DashboardMeAgencyAdminScopeTest` : sans capacité,
+  `tasks_open` = 1 (la sienne ; les 2 d'un collègue n'y entrent pas), ni portefeuille ni consolidés ;
+  avec, `role: agency_admin` et les 3 biens de l'agence. `DashboardAgencyAccessTest::test_m1_…` mis à
+  jour (il épinglait l'ancienne lecture). Ablation (vue d'agence rendue sans condition) → rouge.

@@ -174,6 +174,7 @@ return [
         'value_not_found' => 'Value not found.',
     ],
     'calendar' => [
+        'feed_agency_required' => 'Choose the agency for your calendar link: you work for several agencies.',
         'feed_not_staff' => 'The calendar link is reserved for agency staff and service providers.',
         'other_agency_forbidden' => 'Only administrators can view other agencies.',
     ],
