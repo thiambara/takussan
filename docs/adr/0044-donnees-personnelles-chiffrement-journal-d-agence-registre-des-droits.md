@@ -66,6 +66,9 @@ trace conservée cinq ans.**
   seconde copie dérivée à gouverner. Si le besoin naît, ce sera une colonne `<col>_hmac`
   (HMAC-SHA256 sous une clé **distincte** d'`APP_KEY`), par ADR.
   Voir [ADR-0082](0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md) (TCK-2414) : premier cas, l'empreinte des refus du Radar.
+  **Amendement du 2026-11-16 (TCK-614)** : hors du Radar, les empreintes passent sous `APP_HMAC_KEY`, et la commande de
+  ré-chiffrement existe (`security:reencrypt`) ; une ancienne clé peut quitter `APP_PREVIOUS_KEYS` après elle —
+  [ADR-0084, § Amendement du 2026-11-16](0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md#amendement-du-2026-11-16--la-clé-dempreinte-distincte-et-le-retrait-dune-ancienne-app_key-tck-614).
 - **Masquage** : une seule fonction, `App\Support\Masking` — `iban()` (forme `SN•• •••• ••34`) et
   `tail()` (quatre derniers caractères). Les autres masqueurs s'y ramènent.
 - **Écarté** : chiffrement au niveau de PostgreSQL (`pgcrypto`) — la clé voyagerait dans chaque

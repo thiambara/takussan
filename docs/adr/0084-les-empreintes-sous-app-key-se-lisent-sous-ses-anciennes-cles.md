@@ -3,6 +3,7 @@
 - **Statut** : Accepté — décision de la session du 2026-10-30, validée par le porteur le 2026-11-01
 - **Date** : 2026-10-30
 - **Tickets** : [TCK-2430](../backlog/tickets/done/TCK-2430-empreintes-sous-app-key-hors-radar.md) ; la clé d'empreinte distincte et le ré-chiffrement restent à [TCK-614](../backlog/tickets/todo/TCK-614-rotation-d-app-key-et-cle-d-empreinte-distincte.md)
+- **Amendement du 2026-11-16 ([TCK-614](../backlog/tickets/todo/TCK-614-rotation-d-app-key-et-cle-d-empreinte-distincte.md))** : les empreintes s'écrivent désormais sous une clé distincte, `APP_HMAC_KEY` ; `APP_KEY` et `APP_PREVIOUS_KEYS` restent lues comme clés héritées ; `security:rehash-fingerprints` réécrit ce qui se recalcule, `security:reencrypt` ré-chiffre les colonnes, et une ancienne `APP_KEY` peut enfin quitter `APP_PREVIOUS_KEYS`. Les liens de réclamation du Radar (`ClaimLinks`) restent sous `APP_KEY`. Voir [§ Amendement du 2026-11-16](#amendement-du-2026-11-16--la-clé-dempreinte-distincte-et-le-retrait-dune-ancienne-app_key-tck-614).
 - **Dépend de** : [ADR-0044](0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md) §1 (rotation d'`APP_KEY`, clé distincte pour une empreinte), [ADR-0082](0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md) (le patron : écrire sous la clé courante, lire sous toutes)
 
 ## Contexte
@@ -109,3 +110,91 @@ Retenu / écarté / raison :
 - Épreuves, chacune passée par une ablation : `SearchAlertAppKeyRotationTest`, `AppKeyHmacTest`,
   `WelcomeCreditOncePerPhoneTest::test_ac2_…`, `PayoutBypassTest::test_m4_une_rotation_…`,
   `RadarActivationReminderTest::test_un_numero_credite_avant_une_rotation_…`, `PhoneFingerprintTest::test_all_…`.
+
+## Amendement du 2026-11-16 — la clé d'empreinte distincte, et le retrait d'une ancienne `APP_KEY` (TCK-614)
+
+Décision du porteur du 2026-11-16, **option (a)** : les empreintes HMAC de ce document passent sous une clé distincte,
+`APP_HMAC_KEY` ; la signature des liens de réclamation du Radar (`ClaimLinks`) reste sous `APP_KEY`. Cet amendement
+remplace « aucune clé neuve » (Décision), le point 8 et la consigne de rotation ; il tient la promesse d'ADR-0044 §1
+(« sous une clé **distincte** d'`APP_KEY` »).
+
+### Décision
+
+1. **Écriture sous `APP_HMAC_KEY`.** `AppKeyHmac::of()` calcule sous `config('app.hmac_key')` ; le nom de la classe
+   est historique, elle reste le point unique (la renommer toucherait huit appelants pour rien). La clé se lit telle
+   qu'écrite, sans la tolérance base64 du point 7 : elle n'a jamais servi à Laravel. Une clé vide ou absente vaut
+   absente : **repli explicite sur `APP_KEY`**, c'est-à-dire le comportement d'avant cet amendement, à l'identique.
+2. **Lecture : la clé dédiée, puis les clés héritées.** `AppKeyHmac::all()` cherche sous `APP_HMAC_KEY`, puis sous
+   `APP_KEY` et chaque clé d'`APP_PREVIOUS_KEYS` (avec la tolérance du point 7). **Double lecture ET commande de
+   recalcul, pas l'une ou l'autre** / la seule double lecture, ou la seule réécriture / certaines empreintes ne se
+   recalculent jamais, comme l'octroi de bienvenue d'un compte anonymisé (numéro effacé). La double lecture garde ce
+   qui passe par `all()` — alertes, bienvenue, versements, les lectures qui décident d'un droit (points 2 à 5) ; la
+   commande réduit ce qui dépend encore des anciennes clés, et le compte. **Les sites qui n'appellent que `of()`**
+   (`VisitorFingerprint`, `SearchJournal`, `WebhookJournal`, `VisitNotifier`, code SMS) **perdent une fois, à la pose
+   de la clé**, ce qu'ils avaient écrit sous `APP_KEY` : codes SMS en cours invalidés, plafond SMS de visite remis à
+   zéro, visiteurs du jour recomptés, un signalement d'avis de plus possible par visiteur anonyme, aucun lecteur pour
+   le corps d'un webhook. Borné, sans effet de droit durable : le point 6 d'origine vaut toujours.
+3. **`security:rehash-fingerprints {--dry-run}`, idempotente, jouée À LA MAIN une fois les conteneurs neufs démarrés.**
+   Une **commande** et non une migration de données : une migration tourne pendant que les ANCIENS conteneurs servent
+   (le release précède le démarrage), or l'ancien code ne lit que sous `APP_KEY` : réécrire alors lui rendrait les
+   empreintes introuvables, et un retour d'image le rendrait durable. `docker/release.sh` ne la joue qu'**à blanc**
+   (pour le refus du point 6). Après la réécriture, plus de retour à une image antérieure à TCK-614. Elle réécrit sous
+   la clé courante :
+   - `alert_subscribers.contact_hash` et `mailbox_hash`, recalculés depuis le `contact` déchiffré de la ligne ;
+   - `credit_welcome_grants.phone_hash`, **seulement si** l'empreinte stockée figure parmi celles du numéro actuel de
+     son titulaire (`PhoneFingerprint::all()`) ; sinon (compte anonymisé, numéro changé), la ligne est comptée
+     `sans_source` et listée par son id ; une empreinte déjà prise par une autre ligne (index unique) est comptée en
+     conflit, jamais réécrite ;
+   - `payouts.metadata.approved_destination_fingerprint` des versements à venir (`PayoutStatus::upcoming()`),
+     **seulement si** l'empreinte stockée figure parmi celles de la destination actuelle (`fingerprints()`). **C'est le
+     point de sécurité** : recalculer depuis la destination courante blanchirait une destination changée depuis
+     l'approbation. Une destination changée est comptée `changee` et reste refusée.
+   Une source illisible est comptée et listée (modèle, id), jamais effacée. Elle écrit par `DB::table()` : ni
+   observateur, ni journal d'audit, ni `updated_at`.
+4. **`security:reencrypt {--dry-run} {--model=*}`** relit chaque valeur des colonnes chiffrées et la réécrit sous la
+   clé courante. La liste des colonnes se **dérive des casts** (`encrypted*` et `AsEncrypted*`) de `app/Models`, par
+   `App\Support\Security\ColonnesChiffrees`, que `backup:verify-encryption` partage. Elle travaille sur la chaîne
+   chiffrée (`decryptString` sous toutes les clés, `encryptString` sous la courante), comme chacun de ces casts : un
+   aller-retour par le cast réécrirait un JSON reformaté. « Déjà courante » se juge en déchiffrant sous la seule clé
+   courante : c'est ce qui la rend idempotente. Une transaction par lot de 200 lignes ; une valeur indéchiffrable
+   annule son lot entier, se nomme (modèle, id, colonne, **jamais la valeur**) et fait sortir la commande en échec.
+   Chaque écriture compare l'ancienne valeur (`WHERE colonne = ancienne`) : une ligne réécrite entre-temps par
+   l'application est laissée, elle l'est déjà sous la clé courante. Elle refuse de tourner quand
+   `APP_PREVIOUS_KEYS` est vide : il n'y a rien à ré-chiffrer.
+5. **`ClaimLinks` reste sous `APP_KEY`** (décision du porteur, a). C'est une signature à durée de vie bornée, pas une
+   empreinte : une rotation la garde valide tant que l'ancienne clé est dans `APP_PREVIOUS_KEYS` ; le **retrait** de
+   cette clé invalide les liens émis sous elle, que l'annonceur redemande. **Le repli de `RadarPhone` sur `APP_KEY`
+   ne change pas** : il relève d'ADR-0082, qui interdit de le modifier (des refus purgés en dépendent).
+6. **Le déploiement est refusé sans la clé.** Hors `local` et `testing` (préproduction en `staging` comprise),
+   `security:rehash-fingerprints --dry-run` sort en 2 quand `APP_HMAC_KEY` manque, et `release.sh` arrête alors le déploiement
+   avant que les services ne démarrent. Au démarrage du code de l'application, rien ne lève : le repli sur `APP_KEY`
+   reste vrai pour un conteneur lancé hors de `release.sh`.
+
+### Consigne de rotation (remplace celle ci-dessus)
+
+- **Poser `APP_HMAC_KEY`** (`openssl rand -base64 48`), une valeur par environnement, rangée hors du serveur comme
+  `APP_KEY`. Elle ne tourne pas : elle n'a pas d'`APP_HMAC_PREVIOUS_KEYS`. La faire tourner (après une fuite) demandera
+  un ADR, car les empreintes non recalculables écrites sous elle seraient perdues.
+- **Après la pose**, une fois les conteneurs neufs démarrés : `php artisan security:rehash-fingerprints` (puis
+  `--dry-run` : `reecrites=0`).
+- **Faire tourner `APP_KEY`** : la neuve dans `APP_KEY`, l'ancienne en tête d'`APP_PREVIOUS_KEYS`, redéployer, puis
+  `security:rehash-fingerprints` (sans effet si la clé dédiée était déjà posée et la commande jouée). Puis `php artisan security:reencrypt --dry-run`, puis sans `--dry-run`
+  jusqu'à une sortie en 0, puis une seconde fois : elle ne doit plus rien réécrire.
+- **Retirer l'ancienne `APP_KEY`** d'`APP_PREVIOUS_KEYS` seulement alors, après avoir relu le dernier bilan de
+  `security:rehash-fingerprints` : ses `sans_source` sont ce que le retrait perd (une seconde bienvenue possible par
+  numéro anonymisé, une désinscription d'alerte qui ne trouve plus une demande illisible), et les liens de
+  réclamation du Radar émis sous elle tombent. Les jobs en file chiffrés sous elle doivent avoir été consommés, et
+  les entrées de cache chiffrées à la main (secret 2FA en renouvellement, 10 min ; code vocal, minutes) expirées.
+  Procédure pas à pas : `docs/infra/hebergement.md`.
+
+### Application (amendement)
+
+- `config/app.php` : `hmac_key` (`APP_HMAC_KEY`) ; `.env.example` et `.env.docker` (commentée) ; gabarit
+  `deploy/takussan/env.api.production.example` ; action de déploiement
+  `docs/deploiement/actions/2026-11-16-cle-d-empreinte-app-hmac-key.md`.
+- `App\Support\AppKeyHmac` (`of`, `all`, `hasDedicatedKey`) ; `App\Support\Security\ColonnesChiffrees` ;
+  `security:rehash-fingerprints`, `security:reencrypt` ; `docker/release.sh`.
+- Garde `AppKeyHmacPointUniqueTest` : `app.hmac_key` et `APP_HMAC_KEY` ne se lisent que dans `AppKeyHmac` et
+  `config/app.php` ; `security:reencrypt` est permise (elle lit les clés du chiffreur pour juger « déjà courante »).
+- Épreuves : `AppKeyHmacTest`, `HmacKeyRotationTest`, `ReencryptCommandTest`,
+  `PayoutBypassTest::test_tck614_…`.
