@@ -9832,7 +9832,8 @@
         "audit_export_downloaded": "Audit log export downloaded",
         "agency_spotlight_purchased": "Agency spotlight purchased",
         "agency_spotlight_offer_yielded": "Offered spotlight yielded to a purchase",
-        "duplicate_refunded": "Duplicate payment refunded"
+        "duplicate_refunded": "Duplicate payment refunded",
+        "leases": "Draft leases handed over to another agent"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",

@@ -9832,7 +9832,8 @@
         "audit_export_downloaded": "Export du journal téléchargé",
         "agency_spotlight_purchased": "Mise en avant de l’agence achetée",
         "agency_spotlight_offer_yielded": "Mise en avant offerte cédée à un achat",
-        "duplicate_refunded": "Doublon remboursé"
+        "duplicate_refunded": "Doublon remboursé",
+        "leases": "Baux brouillons transmis à un autre agent"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
