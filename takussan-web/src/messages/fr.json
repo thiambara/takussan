@@ -3614,7 +3614,14 @@
       "reviewPending": "{count, plural, one {# élément restera sans responsable.} other {# éléments resteront sans responsable.}}",
       "confirm": "Transmettre et retirer",
       "removeOnly": "Retirer de l'agence",
-      "failed": "Le retrait n'a pas abouti."
+      "failed": "Le retrait n'a pas abouti.",
+      "leases": {
+        "title": "Baux des biens transmis",
+        "moved": "{count, plural, one {# bail en brouillon est passé à {successor}.} other {# baux en brouillon sont passés à {successor}.}}",
+        "toReview": "{count, plural, one {Ce bail, déjà engagé, reste au nom de {name} : à reprendre à la main.} other {Ces # baux, déjà engagés, restent au nom de {name} : à reprendre à la main.}}",
+        "link": "Bail n° {id}",
+        "close": "Fermer"
+      }
     },
     "absences": {
       "title": "Absences et remplacements",

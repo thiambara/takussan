@@ -3657,7 +3657,14 @@
       "reviewPending": "{count, plural, one {# item will stay unassigned.} other {# items will stay unassigned.}}",
       "confirm": "Transfer and remove",
       "removeOnly": "Remove from agency",
-      "failed": "The removal did not go through."
+      "failed": "The removal did not go through.",
+      "leases": {
+        "title": "Leases of the transferred properties",
+        "moved": "{count, plural, one {# draft lease was handed to {successor}.} other {# draft leases were handed to {successor}.}}",
+        "toReview": "{count, plural, one {This lease, already under way, stays in {name}'s name: to be taken over by hand.} other {These # leases, already under way, stay in {name}'s name: to be taken over by hand.}}",
+        "link": "Lease #{id}",
+        "close": "Close"
+      }
     },
     "absences": {
       "title": "Absences and cover",

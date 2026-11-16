@@ -2418,7 +2418,14 @@
       "reviewPending": "{count, plural, one {# lu des, kenn du ko yor.} other {# lu des, kenn du leen yor.}}",
       "confirm": "Jàllale te génne",
       "removeOnly": "Génne ci ajaas bi",
-      "failed": "Génne gi antuwul."
+      "failed": "Génne gi antuwul.",
+      "leases": {
+        "title": "Baux des biens transmis",
+        "moved": "{count, plural, one {# bail en brouillon est passé à {successor}.} other {# baux en brouillon sont passés à {successor}.}}",
+        "toReview": "{count, plural, one {Ce bail, déjà engagé, reste au nom de {name} : à reprendre à la main.} other {Ces # baux, déjà engagés, restent au nom de {name} : à reprendre à la main.}}",
+        "link": "Bail n° {id}",
+        "close": "Fermer"
+      }
     },
     "absences": {
       "title": "Ñi nekkul ak ñi leen wuutu",

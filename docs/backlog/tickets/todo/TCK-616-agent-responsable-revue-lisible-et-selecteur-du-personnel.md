@@ -172,6 +172,9 @@ _(à remplir par implementing-specs)_
   actif et en signature listés et inchangés, brouillon d'un autre agent intact, bien laissé au partant (repreneur
   bailleur) qui garde son brouillon ; non-régression de lecture (partant → 403, ablation `BailleurDuBien` → 200).
   Ablations : écriture retirée → rouge ; filtre `landlord_id` retiré → rouge ; filtre `draft` retiré → 2 rouges.
-  L'assistant du front n'affiche pas encore `leases` (la réponse le porte).
+  **Front** : `HandoverWizard` affiche ce bilan avant de fermer quand des baux sont touchés — compte des
+  brouillons passés au repreneur, lien `/app/leases/{id}` vers chaque bail à revoir, « Fermer » termine ;
+  sans bail touché, fermeture comme avant. Preuves : `HandoverWizard.leases.tck-616.test.tsx` ; ablations
+  « bilan sauté » et « liens sans identifiant » → 2 rouges chacune.
 - La commande se joue ensuite une fois en préproduction, `--dry-run` d'abord : son format de sortie a changé.
 
