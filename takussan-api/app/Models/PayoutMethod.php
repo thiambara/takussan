@@ -84,7 +84,7 @@ class PayoutMethod extends AbstractModel implements HasMedia
 
     /**
      * VERIF-594 M-4 — l'empreinte de CE que l'approbateur a approuvé : la nature et le numéro
-     * normalisé. HMAC sous la clé de l'application, jamais un hachage nu : un numéro de téléphone se
+     * normalisé. HMAC sous `APP_HMAC_KEY` (TCK-614, `AppKeyHmac`), jamais un hachage nu : un numéro de téléphone se
      * retrouve par force brute depuis son SHA-256, et l'empreinte vit dans `payouts.metadata`.
      */
     public function fingerprint(): string

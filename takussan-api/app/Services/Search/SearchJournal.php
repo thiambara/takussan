@@ -17,7 +17,7 @@ use function Illuminate\Support\defer;
  *
  * **Une ligne par jour et par recherche, rien par personne** (`search_query_stats`) : la saisie normalisée, les critères
  * structurés, cinq compteurs. Le visiteur distinct se compte par une empreinte DU JOUR ET DE LA RECHERCHE
- * (`search_query_visitors`, `HMAC-SHA256(jour | recherche | IP — /64 en IPv6 —, APP_KEY)` par `AppKeyHmac`), effacée
+ * (`search_query_visitors`, `HMAC-SHA256(jour | recherche | IP — /64 en IPv6 —, APP_HMAC_KEY)` par `AppKeyHmac` (TCK-614)), effacée
  * au-delà de 48 heures : elle ne rejoint ni un autre jour, ni une autre recherche du même visiteur (revue adverse n° 7),
  * ni un compte. Le SEUIL d'affichage compte, lui, les réseaux (/24, /48 : `distinct_networks`, revue adverse n° 8),
  * par une seconde empreinte de même forme. Ni compte, ni IP en clair, nulle part.

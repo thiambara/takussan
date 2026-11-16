@@ -9,6 +9,21 @@ APP_ROOT=${APP_ROOT:-/app}   # déplacé seulement par scripts/test-release-rein
 
 php artisan migrate --force
 
+# TCK-614 (ADR-0084, amendement du 2026-11-16) — les empreintes HMAC s'écrivent sous APP_HMAC_KEY. Sans elle (hors
+# local/testing), la commande sort en 2 et le DÉPLOIEMENT S'ARRÊTE : les services ne démarrent pas, les anciens
+# conteneurs restent. À BLANC seulement : le release tourne pendant que les ANCIENS conteneurs servent, et l'ancien
+# code ne lit que sous APP_KEY — réécrire ici les lui rendrait introuvables (désinscription partielle, seconde
+# bienvenue, versement refusé), et un retour d'image le rendrait durable. La réécriture est une étape humaine de
+# l'action de déploiement, une fois les conteneurs neufs démarrés. Un autre échec n'arrête pas le déploiement.
+statut=0
+php artisan security:rehash-fingerprints --dry-run || statut=$?
+if [ "$statut" = 2 ]; then
+  echo "ERREUR : APP_HMAC_KEY est vide — déploiement arrêté. La poser dans Dokploy (docs/deploiement/actions/2026-11-16-cle-d-empreinte-app-hmac-key.md)." >&2
+  exit 1
+elif [ "$statut" != 0 ]; then
+  echo "AVERTISSEMENT : security:rehash-fingerprints --dry-run a échoué — sans effet sur le service." >&2
+fi
+
 # deploy.sh tolérait cet échec, on le tolère aussi : les rôles système rattrapent le catalogue
 # au déploiement suivant.
 php artisan membership:reconcile-system-roles \

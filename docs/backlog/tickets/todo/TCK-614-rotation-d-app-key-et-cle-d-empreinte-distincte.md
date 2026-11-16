@@ -41,6 +41,10 @@ tags: [back, infra, securite, chiffrement, hmac, app-key, rotation, adr-0044, sa
 - **Mise en prod** : variable `APP_HMAC_KEY` à poser dans Dokploy (préproduction, puis production F3).
 - **Décision attendue du porteur** (légère) : les liens `ClaimLinks` (signature, pas empreinte)
   **(a)** restent sous `APP_KEY` et une rotation les invalide, ou **(b)** passent sous `APP_HMAC_KEY` ?
+- **Décision du porteur (2026-11-16) : option (a).** Les empreintes HMAC recensées ici (alertes, bienvenue,
+  versements, plafonds, signalements, journaux) passent sous une clé distincte, `APP_HMAC_KEY` ; les liens de
+  réclamation du Radar (`ClaimLinks`) restent signés sous `APP_KEY`, et le retrait d'une ancienne `APP_KEY` invalide
+  ceux émis sous elle. La rotation d'`APP_KEY` reste possible par `APP_PREVIOUS_KEYS` sans rien casser de chiffré.
 
 ## Objectif utilisateur
 
@@ -117,42 +121,42 @@ anonymisés ne se réécrivent pas (numéro effacé) : la contrainte 3 doit les 
 
 ## Delta à produire
 
-- [ ] ADR-0044 amendé (contraintes 1, 4, 6).
-- [ ] `config/app.php` : `hmac_key` (`APP_HMAC_KEY`) ; `.env.example` et `.env.docker` : la clé
+- [x] ADR-0044 amendé (contraintes 1, 4, 6).
+- [x] `config/app.php` : `hmac_key` (`APP_HMAC_KEY`) ; `.env.example` et `.env.docker` : la clé
       (gardées par `scripts/check-env-parity.mjs`) ; démarrage refusé en production si elle manque.
-- [ ] `App\Support\Empreinte` ; les six sites du tableau y passent. — *2026-11-16 : les sites passent déjà
+- [x] `App\Support\Empreinte` ; les six sites du tableau y passent. — *2026-11-16 : les sites passent déjà
       par `AppKeyHmac` (TCK-2430) ; reste à le basculer sur `APP_HMAC_KEY`, `SearchJournal` compris.*
-- [ ] Migration de données : recalcul des empreintes persistantes (contrainte 3) — alertes, versements,
+- [x] Migration de données : recalcul des empreintes persistantes (contrainte 3) — alertes, versements,
       bienvenue, journal des webhooks, journal de recherche.
-- [ ] Commande `security:reencrypt {--dry-run} {--model=*}` (contraintes 4, 5).
-- [ ] `docs/infra/hebergement.md` : procédure de sauvegarde et de rotation (contrainte 6). — sauvegarde et
+- [x] Commande `security:reencrypt {--dry-run} {--model=*}` (contraintes 4, 5).
+- [x] `docs/infra/hebergement.md` : procédure de sauvegarde et de rotation (contrainte 6). — sauvegarde et
       rotation sans retrait faites (`:125`, `:332-347`) ; reste la procédure de **retrait** d'une
       ancienne clé après `security:reencrypt`.
-- [ ] Tests : `EmpreinteTest`, `ReencryptCommandTest`, `HmacKeyRotationTest`.
+- [x] Tests : `EmpreinteTest`, `ReencryptCommandTest`, `HmacKeyRotationTest`.
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (garde structurelle).** Un test balaie `app/` : aucune occurrence de `config('app.key')`
+- [x] **AC1 (garde structurelle).** Un test balaie `app/` : aucune occurrence de `config('app.key')`
       hors du fournisseur de chiffrement de Laravel. *Une empreinte ajoutée demain sous `APP_KEY`
       rougit.* (2026-11-16 : la garde exempte `AppKeyHmac` ou son successeur et vise `ClaimLinks` et
       le repli de `RadarPhone`.)
-- [ ] **AC2 (rouge sur `839be671`).** Abonné aux alertes sans compte créé, puis `APP_KEY` changée
+- [x] **AC2 (rouge sur `839be671`).** Abonné aux alertes sans compte créé, puis `APP_KEY` changée
       (l'ancienne dans `APP_PREVIOUS_KEYS`) : la désinscription par son lien et la recherche par contact
       le retrouvent ; la borne par contact le compte toujours. — avec l'ancienne clé gardée : tenu par
       TCK-2430, relevé 2026-11-16. Reste : le même résultat **après `security:reencrypt` et retrait de
       l'ancienne clé** d'`APP_PREVIOUS_KEYS`.
-- [ ] **AC3.** ~~Même scénario pour une destination de versement : une seconde destination identique est
+- [x] **AC3.** ~~Même scénario pour une destination de versement : une seconde destination identique est
       encore refusée comme doublon après la rotation.~~ *(prémisse fausse, relevé 2026-11-16 : aucune
       unicité ne lit l'empreinte)* Un versement approuvé avant la rotation se paie après
       `security:reencrypt` et retrait de l'ancienne clé (contrôle `approved_destination_fingerprint`).
-- [ ] **AC4.** `security:reencrypt` après rotation : chaque valeur des modèles chiffrés se déchiffre
+- [x] **AC4.** `security:reencrypt` après rotation : chaque valeur des modèles chiffrés se déchiffre
       **sans** `APP_PREVIOUS_KEYS` ; `--dry-run` n'écrit rien et compte ; une seconde exécution
       n'écrit rien (idempotente).
-- [ ] **AC5.** Un modèle ajouté demain avec un cast chiffré entre dans la commande sans la modifier
+- [x] **AC5.** Un modèle ajouté demain avec un cast chiffré entre dans la commande sans la modifier
       (test sur un modèle de fixture).
-- [ ] **AC6.** Une valeur indéchiffrable : la commande sort en échec, la nomme (modèle, id, colonne,
+- [x] **AC6.** Une valeur indéchiffrable : la commande sort en échec, la nomme (modèle, id, colonne,
       jamais la valeur), et n'a réécrit aucune ligne de ce lot.
-- [ ] Ablations consignées : un site rendu à `config('app.key')` → AC1 rouge ; recalcul des empreintes
+- [x] Ablations consignées : un site rendu à `config('app.key')` → AC1 rouge ; recalcul des empreintes
       retiré → AC2 rouge.
 
 ## Hors périmètre
@@ -163,4 +167,30 @@ anonymisés ne se réécrivent pas (numéro effacé) : la contrainte 3 doit les 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Transition : **double lecture ET commande de recalcul**, pas l'une ou l'autre. Certaines empreintes ne se
+  recalculent jamais (octroi d'un compte anonymisé) : `all()` les garde sous `APP_KEY`/`APP_PREVIOUS_KEYS` pour les
+  lectures qui décident d'un droit (alertes, bienvenue, versements). Les sites en `of()` seul (visiteur, journal de
+  recherche, webhook, plafond SMS, code SMS) perdent une fois, à la pose, ce qu'ils avaient écrit : borné, écrit dans
+  l'action de déploiement. La « migration de données » est une **commande** idempotente
+  (`security:rehash-fingerprints`) jouée à la main **après** le démarrage des conteneurs neufs : une migration (ou le
+  release) tourne pendant que l'ancien code, qui ne lit que sous `APP_KEY`, sert encore.
+
+## Livré (2026-11-16)
+
+- `AppKeyHmac` (nom gardé : huit appelants) écrit sous `APP_HMAC_KEY` ; vide ou absente → **repli explicite sur
+  `APP_KEY`** (le comportement d'avant). `.env.example` porte la clé **commentée** (la CI éprouve le repli, aucune
+  valeur de test) ; les tests neufs posent `config(['app.hmac_key' => …])`. ADR-0084 amendé, ADR-0044 §1 renvoie.
+- « Démarrage refusé » : hors `local`/`testing` (préproduction `staging` comprise), `security:rehash-fingerprints --dry-run`
+  (le release ne la joue qu'à blanc) sort en 2 sans la clé et `docker/release.sh` arrête le déploiement avant que les services démarrent ; rien ne lève au
+  démarrage du code (un `artisan` cassé partout aurait été pire). Action : `docs/deploiement/actions/2026-11-16-cle-d-empreinte-app-hmac-key.md`.
+- Le recalcul ne **blanchit** rien : un octroi de bienvenue ou un versement approuvé n'est réécrit que si l'empreinte
+  stockée est l'une de celles de la source actuelle ; sinon compté (`sans_source`, `changees`), jamais réécrit.
+- `security:reencrypt` travaille sur la chaîne chiffrée, lot de 200 par transaction, écriture contre l'ancienne valeur ;
+  colonnes dérivées des casts (`encrypted*` et `AsEncrypted*`) par `ColonnesChiffrees`, partagée avec `backup:verify-encryption`.
+- `ClaimLinks` et le repli de `RadarPhone` inchangés (décision a ; ADR-0082) ; la garde les permet toujours et interdit
+  désormais `app.hmac_key`/`APP_HMAC_KEY` hors `AppKeyHmac`.
+- Preuves : AC1 `AppKeyHmacPointUniqueTest` (ablation : `VisitNotifier` rendu à `config('app.key')` → rouge) ;
+  AC2 `HmacKeyRotationTest::test_ac2_*` (ablation : écritures du recalcul retirées → 2 rouges) ; AC3
+  `PayoutBypassTest::test_tck614_ac3_*` (même ablation → rouge) et `test_tck614_le_recalcul_ne_blanchit_pas_*`
+  (contrôle de source retiré → rouge) ; AC4-AC6 `ReencryptCommandTest` (ablation : lot réécrit malgré une illisible →
+  AC6 rouge) ; `AppKeyHmacTest` (écriture rendue à `APP_KEY` → 2 rouges).
