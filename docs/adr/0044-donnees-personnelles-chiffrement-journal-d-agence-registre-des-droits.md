@@ -563,3 +563,25 @@ Le §2 garantissait la forme sûre pour les seules `QueryException` et trois `ca
   `/api/super-admin/audit/export/download`, une seconde route de l'API signée pour son propre chemin.
 - L'export ne porte plus l'adresse des auteurs : `causer_email` devient `causer_id` et `causer_name`,
   comme l'historique d'un objet (TCK-2763).
+
+## Amendement du 2026-11-16 (TCK-537) — preuve du consentement, effacement des profils, trois purges
+
+**Preuve du consentement.** Une table `consent_proofs`, en ajout seul : une ligne par document accepté
+(`terms`, `privacy`), avec la version (`PublishReadiness::TERMS_VERSION`, reflet gardé de
+`VERSION_DOCUMENTS`, qui fait foi), le geste (`register`, `host_onboarding`, `offer`, `publish`,
+`phone_login`, `radar_claim`), l'adresse IP et l'instant. Écrite par `ConsentLedger` là où une case
+est cochée, jamais présumée ailleurs. `users.terms_accepted_at` reste ce qu'il était : la date qui
+gouverne la case de la première publication, pas une preuve.
+
+**Effacement des profils.** À l'exécution d'une suppression de compte, les colonnes identifiantes de
+chaque profil (`AccountDeletionService::IDENTIFYING_PROFILE_COLUMNS`) passent à nul par requête de
+masse — sans événement, donc sans copie au journal —, profils déjà terminés compris ; les moyens de
+versement perdent IBAN, titulaire et relevé, la forme masquée reste. Les lignes comptables demeurent
+(10 ans, OHADA), détachées de l'identité.
+
+**Trois purges planifiées**, idempotentes : `kyc:prune-ended-pieces` (pièces de vérification d'un
+profil terminé depuis 5 ans ; dossier KYC d'une agence supprimée depuis 5 ans — le mandat de gestion
+et les documents `other` n'en sont pas), `crm:prune-contact-leads` (demande sans compte dont le
+dernier échange — la plus récente de ses quatre dates — a plus de 3 ans), `account:prune-consent-proofs`
+(5 ans après l'effacement du compte). Les durées sont des constantes de commande, comme pour
+`audit:prune-activity-log`.
