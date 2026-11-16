@@ -412,6 +412,8 @@ return [
         'commission_forbidden' => 'Personelu ajaans bi rekk ñoo mën a tëral komisioŋ bi ak ki ko jëflante, su ñu leen may ubbi ay kontaraa.',
         'commission_locked' => 'Komisioŋ bi ak ki ko jëflante dañuy tëru ci kontaraa bu nekkagul ci jëfandikoo : bu ñu ko taalee, komisioŋ bi séddalees na ko ba noppi.',
         'guarantor_already_attached' => 'Garant bii takk nañu ko ci bail bi ba noppi.',
+        // TCK-607 (n3) — ADR-0042, amendement du 2026-11-16.
+        'guarantors_frozen' => 'Les garants d\'un bail signé sont figés : seul un bail renouvelé qui n\'a encore aucun garant peut en recevoir un.',
         'max_guarantors' => 'Benn luwé du mën a am lu ëpp 3 ñu koy wóolu.',
         'not_activatable' => 'Bayle bu nekk ci brouillon walla buñuy xaar xaatim rekk lañu mën a doxal.',
         'not_active_schedule' => 'Bail buy dox rekk moo mën a defar échéancier.',

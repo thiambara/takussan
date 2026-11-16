@@ -346,6 +346,10 @@ class LeaseController extends Controller
             $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
             $pivotRows = $locked->guarantors()->lockForUpdate()->get(['guarantors.id']);
 
+            // TCK-607 (n3) — les garants d'un contrat signé sont figés ; seul l'enfant d'un
+            // renouvellement, né sans garant, en reçoit un (ADR-0042, amendement du 2026-11-16).
+            $this->abortUnlessGuarantorsEditable($locked, $pivotRows->count(), attaching: true);
+
             abort_code_if(
                 $guarantor !== null && $pivotRows->contains('id', $guarantor->id),
                 422,
@@ -401,6 +405,8 @@ class LeaseController extends Controller
         DB::transaction(function () use ($lease, $guarantor): void {
             /** @var Lease $locked */
             $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            // TCK-607 (n3) — aucun retrait hors brouillon et attente de signature.
+            $this->abortUnlessGuarantorsEditable($locked, 0, attaching: false);
             $locked->guarantors()->detach($guarantor->id);
             // TCK-596 §4B (ADR-0042 §1) — idem au retrait d'un garant.
             $locked->unfreezeContract();
@@ -413,6 +419,28 @@ class LeaseController extends Controller
                 'guarantors_count' => $lease->guarantors()->count(),
             ],
         ]);
+    }
+
+    /**
+     * TCK-607 (n3) — décision du porteur du 2026-11-16, option (b), ADR-0042 amendé : les garants
+     * sont imprimés au contrat, ils ne bougent que tant qu'il n'est pas signé (`draft`,
+     * `pending_signature`, où {@see Lease::unfreezeContract()} le défige). Sur un bail `active`,
+     * une seule exception : l'enfant d'un renouvellement qui n'a encore AUCUN garant (il naît
+     * sans, amendement TCK-2316) en reçoit un. Partout ailleurs : 409 `lease.guarantors_frozen`.
+     * Jugé sur la ligne VERROUILLÉE et le pivot relu sous ce verrou.
+     */
+    private function abortUnlessGuarantorsEditable(Lease $locked, int $guarantorsCount, bool $attaching): void
+    {
+        if (in_array($locked->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true)) {
+            return;
+        }
+
+        $enfantSansGarant = $attaching
+            && $locked->status === LeaseStatus::Active
+            && $locked->renewed_from_lease_id !== null
+            && $guarantorsCount === 0;
+
+        abort_code_unless($enfantSansGarant, 409, 'lease.guarantors_frozen');
     }
 
     public function listGuarantors(Request $request, Lease $lease): JsonResponse

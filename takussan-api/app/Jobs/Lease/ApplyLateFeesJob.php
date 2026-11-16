@@ -74,6 +74,8 @@ class ApplyLateFeesJob implements ShouldQueue
         return LeasePayment::query()
             ->with('lease')
             ->where('payment_type', LeasePaymentType::Rent->value)
+            // TCK-607 (E11) — aucune pénalité sur un loyer postérieur à la sortie du bail.
+            ->withinLeaseTerm()
             ->whereHas('lease', function ($q) use ($agencyId) {
                 $q->whereNotNull('late_fee_percent')
                     ->where('late_fee_percent', '>', 0);

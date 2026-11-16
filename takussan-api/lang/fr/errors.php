@@ -412,6 +412,8 @@ return [
         'commission_forbidden' => 'Seul le personnel de l\'agence autorisé à ouvrir des baux fixe la commission et le négociateur.',
         'commission_locked' => 'La commission et le négociateur se fixent sur un bail en brouillon : une fois activé, sa commission est déjà répartie.',
         'guarantor_already_attached' => 'Ce garant est déjà rattaché au bail.',
+        // TCK-607 (n3) — ADR-0042, amendement du 2026-11-16.
+        'guarantors_frozen' => 'Les garants d\'un bail signé sont figés : seul un bail renouvelé qui n\'a encore aucun garant peut en recevoir un.',
         'max_guarantors' => 'Un bail ne peut pas avoir plus de 3 garants.',
         'not_activatable' => 'Seul un bail en brouillon ou en attente de signature peut être activé.',
         'not_active_schedule' => 'Seul un bail actif peut générer un échéancier.',

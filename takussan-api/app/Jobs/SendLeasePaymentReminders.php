@@ -159,6 +159,8 @@ class SendLeasePaymentReminders implements ShouldQueue
         return LeasePayment::query()
             ->exceptDepositRefunds()
             ->where('payment_type', '!=', LeasePaymentType::Deposit->value)
+            // TCK-607 (E11) — aucune relance d'une échéance postérieure à la sortie du bail.
+            ->withinLeaseTerm()
             ->whereIn('status', self::OPEN_STATUSES);
     }
 

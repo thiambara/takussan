@@ -109,7 +109,12 @@ H-2 (une restitution lue comme dette du locataire) est **fermé** sur `dev` :
 ## Décision du porteur
 
 > **H-1 tranché (c)** de fait par TCK-2375 et l'amendement d'ADR-0039 du 2026-10-25 (point 4).
-> La question ouverte est désormais celle des garants (voir la re-vérification).
+>
+> **n3 tranché (b) le 2026-11-16** (ADR-0042, amendement du 2026-11-16) : sur un bail `active`,
+> rattacher un garant n'est permis **que sur un enfant de renouvellement qui n'a encore aucun
+> garant** (ADR-0042, amendement TCK-2316) ; partout ailleurs sur un bail `active`, rattacher ou
+> détacher rend 409 `lease.guarantors_frozen`. Hors `draft` et `pending_signature`, la contrainte 5
+> vaut telle quelle (409).
 
 **H-1 — que devient la caution au renouvellement ?** Trois réponses justes ; une seule à retenir,
 écrite en ADR (amendement d'[ADR-0039](../../../adr/0039-les-sorties-d-argent.md)) avant le code :
@@ -153,17 +158,20 @@ dette du locataire, relancée et pénalisable) ; seules les échéances dont la 
 - [x] ADR : amendement d'ADR-0039 portant la décision H-1 (et la règle E11), avant le code. (tenu par TCK-2375, relevé 2026-11-16)
 - [x] `LeaseRenewalService::renew` : la règle retenue, sous le verrou du parent (contrainte 1). (tenu par TCK-2375, relevé 2026-11-16 — option (c) : `renew` recopie `deposit_amount` ; le verrou porte sur le bail restitué, pas sur la tête de chaîne, fenêtre quasi théorique)
 - [x] `DepositRefundService` : le restituable de l'enfant tient compte de la chaîne si (c). (tenu par TCK-2375, relevé 2026-11-16)
-- [ ] `LeaseService::terminate` et `EarlyTerminationService` (finalisation) : annulation des échéances
+- [x] `LeaseService::terminate` et `EarlyTerminationService` (finalisation) : annulation des échéances
       futures (contrainte 2), partagée avec le renouvellement plutôt que recopiée. — tenu par
-      TCK-1151 pour le neuf ; reste la reprise des baux résiliés avant le 2026-10-21.
-- [ ] `ApplyLateFeesJob`, `SendLeasePaymentReminders` : filtre du bail (contrainte 3).
+      TCK-1151 pour le neuf ; la reprise des baux résiliés avant le 2026-10-21 est
+      `lease:cancel-dues-after-exit` (action de déploiement).
+- [x] `ApplyLateFeesJob`, `SendLeasePaymentReminders` : filtre du bail (contrainte 3).
 - [x] `LeasePaymentService::create` (et `PaymentStoreRequest` / la requête du bail) : contrainte 4. (tenu par TCK-957 + TCK-1920, relevé 2026-11-16 — par un 422 au contrôleur, pas le 409 prévu)
-- [ ] `LeaseController::attachGuarantor` / `detachGuarantor`, `GuarantorController::destroy` :
+- [x] `LeaseController::attachGuarantor` / `detachGuarantor`, `GuarantorController::destroy` :
       contrainte 5 ; libellés d'erreur fr/en/wo côté front. — `GuarantorController::destroy` tenu
       par TCK-1716 ; reste `attachGuarantor`/`detachGuarantor`, après la décision du porteur.
 - [x] `LeaseSignatureService::signOnPaper` : contrainte 6. (tenu par TCK-596, relevé 2026-11-16)
-- [ ] Tests : `LeaseRenewalDepositChainTest`, `TerminatedLeaseScheduleTest`,
-      `LeasePaymentAfterEndTest`, `LeaseGuarantorFreezeTest`, `PaperActivationFileTest`.
+- [x] Tests : `LeaseRenewalDepositChainTest`, `TerminatedLeaseScheduleTest`,
+      `LeasePaymentAfterEndTest`, `LeaseGuarantorFreezeTest`, `PaperActivationFileTest`. (les
+      points fermés ailleurs ont leurs tests sous d'autres noms, cités par AC ;
+      `TerminatedLeaseScheduleTest` et `LeaseGuarantorFreezeTest` livrés ici)
 
 ## Critères d'acceptation
 
@@ -186,13 +194,13 @@ dette du locataire, relancée et pénalisable) ; seules les échéances dont la 
       `lease_payment.lease_not_active` / `lease_payment.type_from_schedule`, et `mark-paid` sur une
       échéance annulée → 409 `lease_payment.cancelled`. *(La voie `POST /api/payments` de la version du
       2026-10-08 est retirée par TCK-940.)* Un loyer d'octobre sur le même parent → 201. (tenu par TCK-957 + TCK-1920, relevé 2026-11-16)
-- [ ] **AC5 (n3, rouge sur `839be671`).** `POST leases/{id}/guarantors` sur un bail `active` → 409 ;
+- [x] **AC5 (n3, rouge sur `839be671`).** `POST leases/{id}/guarantors` sur un bail `active` → 409 ;
       sur un bail `draft` → 201. `DELETE leases/{id}/guarantors/{g}` sur un bail `active` → 409.
 - [x] **AC6 (préavis).** `DELETE guarantors/{g}` d'un garant rattaché à un bail `terminating` → 422
       `guarantor.attached_to_open_lease`. (tenu par TCK-1716, relevé 2026-11-16)
 - [x] **AC7.** Activation papier refusée (409) : aucun fichier nouveau sur le disque de la
       collection (`Storage::fake` compté avant et après). (tenu par TCK-596, relevé 2026-11-16)
-- [ ] Chaque AC a son ablation rouge (garde retirée, ou verrou retiré pour AC1-AC2), consignée.
+- [x] Chaque AC a son ablation rouge (garde retirée, ou verrou retiré pour AC1-AC2), consignée.
 
 ## Hors périmètre
 
@@ -203,3 +211,33 @@ dette du locataire, relancée et pénalisable) ; seules les échéances dont la 
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **n3, option (b)** : `LeaseController::abortUnlessGuarantorsEditable()` juge, sous le verrou de la
+  ligne `leases` et le pivot relu, avant les refus `already_attached`/`max` : `draft` et
+  `pending_signature` libres ; sur `active`, seul le **premier** garant d'un enfant de renouvellement
+  passe (geste à usage unique) ; tout le reste 409 `lease.guarantors_frozen`, sans pivot ni fiche
+  neuve. ADR-0042 amendé (dont la correction mesurée : un garant rattaché à un enfant `active` ne
+  défige pas son contrat). Libellé par la prose de l'API (`lang/*/errors.php`, wo = fr) : le
+  formulaire du front affiche la prose serveur, aucune clé front ajoutée.
+- **AC5** : `tests/Feature/Lease/LeaseGuarantorFreezeTest.php` (13 tests) ; ablation de la garde → 9
+  rouges, de la condition « aucun garant » → 1 rouge. Trois tests de `LeaseContractTermsTest` qui
+  épinglaient 201/200 sur un bail actif attendent désormais 409 (le verrou est toujours pris).
+- **Contrainte 3** : `LeasePayment::scopeWithinLeaseTerm()` — sans les loyers et charges
+  (`SCHEDULED_PERIOD_TYPES`, comme `cancelAfterExit` ; une régularisation ou une indemnité reste
+  relancée, testé et ablaté) dont la période
+  commence après la sortie d'un bail `terminated` (date d'effet du préavis, à défaut le jour de
+  `terminated_at`) ou `renewed` (`end_date`) ; lue par `ApplyLateFeesJob` et
+  `SendLeasePaymentReminders::remindable()` (donc aussi `NextDueNotice`). Les échéances commencées au
+  plus tard le jour de la sortie restent dues (décision E11). Ablation par job → 1 et 3 rouges.
+- **Reliquat d'E11** : `lease:cancel-dues-after-exit {--dry-run}` (`LeaseExitScheduleService::repairAfterExit`)
+  — sélection par état (tout `terminated`), une transaction verrouillée par bail, `--dry-run` = même
+  passe dans une transaction annulée ; une échéance engagée est laissée et listée ; journal
+  `lease_termination_schedule_cancelled` + `repair: TCK-607`. Idempotente (seconde passe : 0).
+  Action : `docs/deploiement/actions/2026-11-16-annuler-les-echeances-des-baux-resilies.md`.
+  Ablations : dry-run qui commite → 1 rouge ; engagée non épargnée → 1 rouge. Le `--dry-run` ne
+  pousse rien en file et n'envoie rien (`Queue::fake`, `Notification::assertNothingSent`) ; les
+  hooks de `LeasePayment` sur le passage à `cancelled` sont synchrones et inertes.
+- Aucune migration.
+

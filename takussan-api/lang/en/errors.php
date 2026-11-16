@@ -412,6 +412,8 @@ return [
         'commission_forbidden' => 'Only agency staff allowed to open leases can set the commission and the negotiator.',
         'commission_locked' => 'The commission and the negotiator are set on a draft lease: once activated, its commission is already split.',
         'guarantor_already_attached' => 'This guarantor is already attached to the lease.',
+        // TCK-607 (n3) — ADR-0042, amendement du 2026-11-16.
+        'guarantors_frozen' => 'The guarantors of a signed lease are frozen: only a renewed lease with no guarantor yet can receive one.',
         'max_guarantors' => 'A lease cannot have more than 3 guarantors.',
         'not_activatable' => 'Only a draft lease or one awaiting signature can be activated.',
         'not_active_schedule' => 'Only an active lease can generate a payment schedule.',
