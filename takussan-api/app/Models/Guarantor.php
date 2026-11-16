@@ -66,6 +66,12 @@ class Guarantor extends AbstractModel
             ->withTimestamps();
     }
 
+    /** TCK-2893 (ADR-0110 § 3) — les candidatures et offres qui déclarent ce garant. */
+    public function bookings(): BelongsToMany
+    {
+        return $this->belongsToMany(Booking::class, 'booking_guarantor')->withTimestamps();
+    }
+
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');

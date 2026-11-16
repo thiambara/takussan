@@ -85,7 +85,8 @@ class StoreBookingPaymentRequest extends BaseFormRequest
             // naît `paid` et garde sa date : d'où `prohibited_if` et non `prohibited_unless`.
             'paid_at' => ['nullable', 'date', new InstantIso, 'prohibited_if:status,'.PaymentStatus::Pending->value],
             'transaction_id' => ['nullable', 'string', 'max:255'],
-            'notes' => ['nullable', 'string'],
+            // TCK-2892 — un paiement « autre » dit ce qu'il est : sa note est exigée.
+            'notes' => ['nullable', 'string', 'required_if:payment_type,'.BookingPaymentType::Other->value],
         ];
     }
 

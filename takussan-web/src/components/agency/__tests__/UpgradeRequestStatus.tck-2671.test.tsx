@@ -56,6 +56,9 @@ describe('<UpgradeRequestStatus> (TCK-2671)', () => {
     expect(screen.getByRole('heading', { name: 'Demande refusée' })).toBeInTheDocument();
     expect(screen.getByText('« Statuts illisibles »')).toBeInTheDocument();
     expect(screen.getByText(/remplacez la pièce, puis renvoyez-la : le reste est conservé/)).toBeInTheDocument();
+    // TCK-2929 (AC5, maquette e9) — la pastille et la date du refus, lues de `reviewed_at`.
+    expect(screen.getByText('Refusée')).toBeInTheDocument();
+    expect(screen.getByText(/Votre demande a été refusée le 2 nov\./)).toBeInTheDocument();
     expect(screen.getByText(/Soumise le 28 oct\. 2025 · décision de l’équipe Takussan/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Révoquer la demande' })).not.toBeInTheDocument();
   });

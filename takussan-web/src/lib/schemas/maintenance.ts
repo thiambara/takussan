@@ -47,12 +47,25 @@ export type MaintenanceCreateInput = z.infer<typeof maintenanceCreateSchema>;
 
 /**
  * Payload for `PUT /api/maintenance-requests/{id}/status`.
+ *
+ * TCK-2917 (ADR-0118 § 1) — `reason` : le motif de qui annule, EXIGÉ par l'API pour `cancelled` (422
+ * sinon) ; le locataire, le bailleur et le prestataire le lisent (`cancellation_reason`).
  */
 export const maintenanceStatusSchema = z.object({
   status: statusEnum,
+  reason: z.string().max(500).optional(),
 });
 
-export type MaintenanceStatusInput = z.infer<typeof maintenanceStatusSchema>;
+/**
+ * TCK-2918 — le type de l'appel : `cancelled` EXIGE `reason` (sans lui, l'API rend 422). Le compilateur
+ * refuse ainsi toute annulation envoyée sans motif, où qu'elle soit écrite.
+ */
+export type MaintenanceStatusInput =
+  | { readonly status: Exclude<MaintenanceStatus, 'cancelled'>; readonly reason?: undefined }
+  | { readonly status: 'cancelled'; readonly reason: string };
+
+/** TCK-2918 — la borne du motif d'annulation (`UpdateStatusMaintenanceRequestRequest`, `max:500`). */
+export const MOTIF_D_ANNULATION_MAX = 500;
 
 /**
  * Payload for `PUT /api/maintenance-requests/{id}/complete`.

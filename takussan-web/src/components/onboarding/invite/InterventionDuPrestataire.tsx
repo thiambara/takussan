@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowRight, Banknote, CalendarDays, Check, CheckCircle2, ChevronRight, Loader2, MapPin, ShieldCheck, Wrench } from 'lucide-react';
+import { ArrowRight, Banknote, CalendarDays, Check, CheckCircle2, ChevronRight, Clock, Loader2, MapPin, ShieldCheck, Wrench } from 'lucide-react';
 
 import { BOUTON_D_ENTREE, BoutonCollant } from '@/components/auth/BoutonCollant';
 import { useDecalageDuClavier } from '@/components/entree/useDecalageDuClavier';
@@ -11,13 +11,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { spAccepterInterventionAction } from '@/app/actions/service-provider-onboarding';
 import type { Locale } from '@/i18n/config';
-import { formatCurrency, formatDateTime } from '@/lib/format';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import type { PieceDuProfil } from '@/lib/pieces/pieces';
 import type { InterventionDOrigine, ReglagesDuPrestataire } from '@/lib/service-provider-onboarding';
 import { heureMuraleADakar, instantADakar } from '@/lib/visites/heure-de-dakar';
 import { cn } from '@/lib/utils';
 
 import { NumeroVerifie, TitreDInvite } from './pieces';
+import { TarifsEtDisponibilites } from './TarifsEtDisponibilites';
 
 /**
  * TCK-2613 — l'écran 2 du prestataire invité : « Une intervention vous attend » (maquette `app-entree-assistants`,
@@ -32,6 +33,12 @@ import { NumeroVerifie, TitreDInvite } from './pieces';
  *
  * La carte ne montre que ce que la route rend avant l'acceptation : titre, catégorie, quartier, photo, devis.
  * L'adresse exacte et le contact du locataire s'ouvrent après (TCK-592, P6).
+ *
+ * TCK-2946 — la carte complète (TCK-2943, ADR-0122) : la pastille d'échéance (`respond_by`, jamais un délai en dur),
+ * « Signalée par le locataire le {date} · réf. {réf.} », les mots du locataire (masqués par l'API), et « Voir le
+ * détail », actif seulement après l'acceptation (`detail_url` répond 403 avant). Au bureau, « Tarifs » et
+ * « Disponibilités » se règlent dans l'écran (`TarifsEtDisponibilites`) ; au téléphone, les lignes mènent au profil.
+ * Un prestataire qui travaille déjà avec une autre agence lit la note « Vous travaillez déjà avec… » (AC4).
  */
 interface InterventionDuPrestataireProps {
   readonly agence: string | null;
@@ -47,6 +54,8 @@ interface InterventionDuPrestataireProps {
   /** Finalise si besoin, puis va à `href`. */
   readonly onAller: (href: string) => void;
   readonly enCours: boolean;
+  /** TCK-2946 — les autres agences du prestataire (collaborations ouvertes hors celle qui invite) : la note multi-agences. */
+  readonly autresAgences?: readonly string[];
 }
 
 const CIBLE = 'rounded-lg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
@@ -64,6 +73,7 @@ export function InterventionDuPrestataire({
   finaliser,
   onAller,
   enCours,
+  autresAgences = [],
 }: InterventionDuPrestataireProps) {
   const t = useTranslations('onboarding.invite.prestataire');
   const locale = useLocale() as Locale;
@@ -75,6 +85,11 @@ export function InterventionDuPrestataire({
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [acceptee, setAcceptee] = useState<Acceptee | null>(null);
+  // TCK-2946 — ce que « Enregistrer mon profil » a écrit : la liste « n sur 5 » le lit. Pris UNE fois : la fin
+  // d'onboarding re-rend la page, qui relirait des réglages d'avant l'écriture.
+  const [reglagesCourants, setReglagesCourants] = useState(reglages);
+  // Lu une fois au montage (la pastille dit un délai restant, pas une horloge).
+  const [maintenant] = useState(() => Date.now());
 
   async function accepter(avecCreneau: boolean) {
     if (!intervention || envoi) return;
@@ -104,6 +119,12 @@ export function InterventionDuPrestataire({
 
   const occupe = envoi || enCours;
   const lien = cn('inline-flex min-h-11 items-center text-sm font-medium text-primary underline decoration-1 underline-offset-4 disabled:opacity-50', CIBLE);
+  const plusTard =
+    intervention && !acceptee ? (
+      <button type="button" disabled={occupe} onClick={() => onAller('/app')} className={cn('mt-2 lg:mt-0', lien)}>
+        {t('plusTard')}
+      </button>
+    ) : null;
 
   return (
     <div className="mx-auto grid w-full grid-cols-1 lg:max-w-[33.75rem] xl:max-w-none xl:grid-cols-[minmax(0,33.75rem)_minmax(0,1fr)] xl:grid-rows-[auto_1fr] xl:gap-x-14">
@@ -115,7 +136,16 @@ export function InterventionDuPrestataire({
             <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted-foreground lg:mt-3 lg:text-base">
               {agence ? t('texte', { agence }) : t('texteSans')}
             </p>
-            <CarteIntervention intervention={intervention} categorie={categorie} agence={agence} acceptee={acceptee} locale={locale} />
+            <CarteIntervention
+              intervention={intervention}
+              categorie={categorie}
+              agence={agence}
+              acceptee={acceptee}
+              locale={locale}
+              maintenant={maintenant}
+              onAller={onAller}
+              occupe={occupe}
+            />
 
             {creneauOuvert && !acceptee ? (
               <div className="mt-4">
@@ -157,16 +187,16 @@ export function InterventionDuPrestataire({
             <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted-foreground lg:mt-3 lg:text-base">{t('sans.texte')}</p>
           </>
         )}
+        {autresAgences.length > 0 ? <MultiAgences autres={autresAgences} agence={agence} /> : null}
       </div>
 
       <aside className="mt-7 min-w-0 lg:order-3 lg:mt-10 xl:order-none xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:mt-0 xl:pt-13">
-        <ProfilACompleter reglages={reglages} pieces={pieces} titre={intervention ? t('profil.titre') : t('profil.titreSans')} onAller={onAller} occupe={occupe} />
-        {intervention && !acceptee ? (
-          <p className="flex justify-center lg:justify-start">
-            <button type="button" disabled={occupe} onClick={() => onAller('/app')} className={cn('mt-2', lien)}>
-              {t('plusTard')}
-            </button>
-          </p>
+        <ProfilACompleter reglages={reglagesCourants} pieces={pieces} titre={intervention ? t('profil.titre') : t('profil.titreSans')} onAller={onAller} occupe={occupe} />
+        {reglagesCourants ? (
+          // TCK-2946 — un seul « Plus tard » dans le DOM : au bureau à côté de « Enregistrer mon profil », seul au téléphone.
+          <TarifsEtDisponibilites reglages={reglagesCourants} onEnregistre={setReglagesCourants} occupe={occupe} plusTard={plusTard} />
+        ) : plusTard ? (
+          <p className="flex justify-center lg:justify-start">{plusTard}</p>
         ) : null}
       </aside>
 
@@ -240,16 +270,31 @@ function CarteIntervention({
   agence,
   acceptee,
   locale,
+  maintenant,
+  onAller,
+  occupe,
 }: {
   readonly intervention: InterventionDOrigine;
   readonly categorie: string | null;
   readonly agence: string | null;
   readonly acceptee: Acceptee | null;
   readonly locale: Locale;
+  readonly maintenant: number;
+  readonly onAller: (href: string) => void;
+  readonly occupe: boolean;
 }) {
   const t = useTranslations('onboarding.invite.prestataire');
   const lieu = [intervention.place?.quarter, intervention.place?.city].filter(Boolean).join(', ');
   const photo = intervention.photo ?? null;
+  const echeance = intervention.respond_by ? <PastilleDEcheance respondBy={intervention.respond_by} maintenant={maintenant} locale={locale} /> : null;
+  // TCK-2946 — « Signalée par le locataire le 9 nov. · réf. INT-0042 » : le rôle, jamais une identité.
+  const signalee = intervention.reported_at
+    ? t(`carte.signalee.${intervention.reported_by_role ?? 'inconnu'}`, { date: formatDate(intervention.reported_at, locale, { dateStyle: undefined, day: 'numeric', month: 'short' }) })
+    : null;
+  const reference = intervention.reference ? t('carte.reference', { reference: intervention.reference }) : null;
+  const ligneDuSignalement = [signalee, reference].filter(Boolean).join(' · ');
+  // La fiche que l'API nomme ; un chemin hors de `/app/` ne sort pas de l'écran.
+  const detail = intervention.detail_url?.startsWith('/app/') ? intervention.detail_url : `/app/maintenance/${intervention.id}`;
 
   return (
     <div
@@ -258,6 +303,7 @@ function CarteIntervention({
     >
       {photo ? (
         <div className="relative h-40 bg-muted lg:h-44">
+          {echeance ? <span className="absolute left-3 top-3 z-1">{echeance}</span> : null}
           {/* URL signée et privée, servie par l'API : pas d'optimiseur ni de loader de médias publics. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photo.thumbnail_url} alt={t('carte.photo')} className="size-full object-cover" />
@@ -269,6 +315,7 @@ function CarteIntervention({
         </div>
       ) : null}
       <div className="p-4 lg:p-6">
+        {echeance && !photo ? <p className="mb-3">{echeance}</p> : null}
         <p className="font-display text-xl font-semibold tracking-[-0.01em] lg:text-2xl">{intervention.title || t('carte.sansTitre')}</p>
         {categorie || lieu ? (
           <p className="mt-1 flex items-center gap-1.5 text-[0.9375rem]">
@@ -280,6 +327,16 @@ function CarteIntervention({
           <p className="mt-0.5 text-sm text-muted-foreground tabular-nums">
             {t('carte.devis', { montant: formatCurrency(intervention.quote.amount, locale, { currency: intervention.quote.currency ?? 'XOF' }) })}
           </p>
+        ) : null}
+        {ligneDuSignalement ? (
+          <p data-signalement="" className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+            {ligneDuSignalement}
+          </p>
+        ) : null}
+        {intervention.tenant_quote ? (
+          <blockquote data-citation="" className="mt-3 rounded-xl bg-muted/60 px-3 py-2.5 text-[0.8125rem] leading-snug text-foreground">
+            {t('carte.citation', { texte: intervention.tenant_quote })}
+          </blockquote>
         ) : null}
         {acceptee ? (
           <div role="status" className="mt-3 flex items-start gap-2 rounded-xl bg-success/10 px-3 py-2.5 text-sm">
@@ -293,22 +350,82 @@ function CarteIntervention({
               </span>
             </span>
           </div>
-        ) : (
+        ) : intervention.tenant_quote ? null : (
           <p className="mt-3 rounded-xl bg-muted/60 px-3 py-2.5 text-[0.8125rem] leading-snug text-foreground">{t('carte.adresseApres')}</p>
         )}
-        {agence ? (
-          <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
-            <span aria-hidden="true" className="inline-flex size-9 flex-none items-center justify-center rounded-[0.625rem] bg-accent font-display text-sm font-semibold text-accent-foreground">
-              {agence
-                .split(/\s+/)
-                .filter(Boolean)
-                .slice(0, 2)
-                .map((m) => m.charAt(0).toUpperCase())
-                .join('')}
+        <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
+          {agence ? (
+            <>
+              <span aria-hidden="true" className="inline-flex size-9 flex-none items-center justify-center rounded-[0.625rem] bg-accent font-display text-sm font-semibold text-accent-foreground">
+                {agence
+                  .split(/\s+/)
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((m) => m.charAt(0).toUpperCase())
+                  .join('')}
+              </span>
+              <p className="min-w-0 flex-1 truncate text-sm font-semibold">{t('carte.demandeDe', { agence })}</p>
+            </>
+          ) : (
+            <span className="flex-1" />
+          )}
+          {/* TCK-2946 — la fiche répond 403 avant l'acceptation : avant, un texte ; après, le lien. */}
+          {acceptee ? (
+            <button type="button" disabled={occupe} onClick={() => onAller(detail)} data-voir-le-detail="" className={cn('flex-none text-sm font-medium text-primary hover:underline disabled:opacity-50', CIBLE)}>
+              {t('carte.voirLeDetail')}
+            </button>
+          ) : (
+            <span data-detail-apres="" className="flex-none text-[0.8125rem] text-muted-foreground">
+              {t('carte.detailApres')}
             </span>
-            <p className="min-w-0 flex-1 truncate text-sm font-semibold">{t('carte.demandeDe', { agence })}</p>
-          </div>
-        ) : null}
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * TCK-2946 — « À traiter sous 47 h » : le délai restant jusqu'à `respond_by` (l'échéance que l'agence annonce,
+ * ADR-0122), en heures jusqu'à trois jours, puis en date ; passée, « Délai de réponse dépassé ».
+ */
+function PastilleDEcheance({ respondBy, maintenant, locale }: { readonly respondBy: string; readonly maintenant: number; readonly locale: Locale }) {
+  const t = useTranslations('onboarding.invite.prestataire.carte.echeance');
+  const reste = new Date(respondBy).getTime() - maintenant;
+  if (Number.isNaN(reste)) return null;
+  const heures = Math.ceil(reste / 3_600_000);
+  const texte =
+    reste <= 0
+      ? t('depassee')
+      : heures <= 72
+        ? t('sous', { heures })
+        : t('avant', { date: formatDate(respondBy, locale, { dateStyle: undefined, day: 'numeric', month: 'short' }) });
+  return (
+    <span data-echeance="" className="inline-flex h-7 items-center gap-1.5 rounded-full bg-card px-2.5 text-xs font-semibold text-foreground shadow-xs">
+      <Clock className={cn('size-3.5', reste <= 0 ? 'text-destructive' : 'text-warning')} aria-hidden="true" />
+      {/* Le délai se compte au montage : le rendu du serveur et celui du navigateur peuvent différer d'une heure. */}
+      <span suppressHydrationWarning>{texte}</span>
+    </span>
+  );
+}
+
+/** TCK-2946 (AC4) — « Vous travaillez déjà avec… » : même compte, même profil, l'agence qui invite s'ajoute. */
+function MultiAgences({ autres, agence }: { readonly autres: readonly string[]; readonly agence: string | null }) {
+  const t = useTranslations('onboarding.invite.prestataire.multiAgences');
+  const premiere = autres[0] ?? '';
+  return (
+    <div data-testid="multi-agences" className="mt-6 flex items-start gap-3 rounded-xl bg-card p-4 lg:mt-10">
+      <span aria-hidden="true" className="inline-flex size-10 flex-none items-center justify-center rounded-[0.625rem] bg-accent font-display text-sm font-semibold text-accent-foreground">
+        {premiere
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((m) => m.charAt(0).toUpperCase())
+          .join('')}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[0.9375rem] font-semibold">{t('titre', { agences: autres.join(', ') })}</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">{agence ? t('texte', { agence }) : t('texteSans')}</p>
       </div>
     </div>
   );

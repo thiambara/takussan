@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import Link from 'next/link';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, BadgeCheck } from 'lucide-react';
 
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { getMeAction } from '@/app/actions/auth';
@@ -18,11 +18,13 @@ import { PastilleHorsLigne } from '@/components/property-dashboard/fiche/Pastill
 import { BlocResponsable } from '@/components/property-dashboard/fiche/PiecesDeLaLocation';
 import { PhotosDuBien } from '@/components/property-dashboard/fiche/PhotosDuBien';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { OublierLaFiche, RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
 import { PARAMETRE_BOOSTER } from '@/components/boost/parametre-booster';
 import { ProprietaireEtResponsable } from '@/components/property-dashboard/ProprietaireEtResponsable';
 import { ChangerLeTitulaire } from '@/components/property-dashboard/ChangerLeTitulaire';
 import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
+import { LienNouvelleTache } from '@/components/taches/LienNouvelleTache';
 import { agenceDuBien } from '@/lib/visites/agence-du-bien';
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
 import { PropertyVisibilityBadge } from '@/components/property-dashboard/PropertyVisibilityBadge';
@@ -32,6 +34,8 @@ import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/
 import { contractTypeValues, propertyTypeValues } from '@/lib/schemas/property';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+import { StatusBadge } from '@/components/console/StatusBadge';
+import { CarteInterventionsEnCours } from '@/components/property-dashboard/fiche/CarteInterventionsEnCours';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { ouvreLaFicheDuBailleur } from '@/lib/owners/fiche-accessible';
 import { isAdmin, isAgent } from '@/lib/roles';
@@ -88,11 +92,15 @@ export default async function Page({ params, searchParams }: { params: Params; s
       // · Et surtout, il ne DISAIT rien : on quittait la page sans savoir pourquoi. Le panneau
       //   nomme le refus et propose le retour, comme `CustomerDetailUnavailable`.
       return (
-        <PropertyDetailUnavailable
-          title={t('forbidden_title')}
-          message={t('forbidden_message')}
-          backLabel={t('back_cta')}
-        />
+        <>
+          {/* TCK-2846 — une fiche qui n'est plus lisible sort des récents. */}
+          <OublierLaFiche chemin={`/app/properties/${id}`} />
+          <PropertyDetailUnavailable
+            title={t('forbidden_title')}
+            message={t('forbidden_message')}
+            backLabel={t('back_cta')}
+          />
+        </>
       );
     }
     throw e;
@@ -141,6 +149,12 @@ export default async function Page({ params, searchParams }: { params: Params; s
       <ChangerLeTitulaire propertyId={property.id} agencyId={property.agency.id} />
     ) : null;
 
+  // TCK-2857 — « Nouvelle tâche » (le personnel) : la page « Tâches », le formulaire ouvert, ce bien
+  // rattaché. Un lien, rendu au serveur : rien n'entre dans la feuille « ⋯ » montée par la coque.
+  const tTache = await getTranslations('taches.nouvelle');
+  const nouvelleTache = (telephone: boolean) =>
+    staff ? <LienNouvelleTache type="property" id={property.id} libelle={tTache('titreFeuille')} telephone={telephone} /> : null;
+
   const tFiche = await getTranslations('propertyDashboard.fiche.identite');
   const tMotif = await getTranslations('propertyDashboard.horsLigne');
   // TCK-2678 — pourquoi le bien est hors ligne, tel que l'API l'a jugé (`include=offlineReasons`). La
@@ -162,9 +176,22 @@ export default async function Page({ params, searchParams }: { params: Params; s
   ]
     .filter(Boolean)
     .join(' · ');
+  // TCK-2908 — « Validé » (maquette a-2, décision 2) : la modération, lue sur `approved_at` et distincte de
+  // « En ligne ». Un bien revenu en modération, refusé ou en brouillon ne la porte pas, même daté ; ni un bien
+  // `published`, dont la pastille de statut dit déjà « Validé » (TCK-2638).
+  const valide =
+    Boolean(property.approved_at) && !['pending_review', 'rejected', 'draft', 'published'].includes(property.status ?? '');
   const pastilles = (focalisable: boolean) => (
     <>
       <PropertyStatusBadge status={property.status} />
+      {valide ? (
+        <StatusBadge
+          tone="neutral"
+          icon={<BadgeCheck className="size-3.5" strokeWidth={1.75} aria-hidden="true" />}
+          label={tFiche('valide')}
+          data-testid="pastille-valide"
+        />
+      ) : null}
       <PropertyVisibilityBadge visibility={property.visibility} />
       {property.is_online === undefined ? null : (
         // La copie du téléphone est tue aux lecteurs d'écran (`aria-hidden`) : rien n'y prend le focus.
@@ -187,12 +214,15 @@ export default async function Page({ params, searchParams }: { params: Params; s
     // TCK-2639 (TCK-2691, C1) — pleine largeur au téléphone : la photo va bord à bord sous l'en-tête de
     // la coque, chaque bloc pose sa marge (`max-md:px-4`).
     <PagePleineLargeur className="space-y-6 max-md:space-y-3 max-md:pb-6">
+      {/* TCK-2846 — la fiche entre dans les récents sous son titre (« Villa 4 chambres à Ngor · Bien »). */}
+      <RetenirLaFiche type="bien" id={property.id} titre={property.title} chemin={`/app/properties/${property.id}`} />
       {/* TCK-2639 — au téléphone, les gestes de l'en-tête passent dans « ⋯ » (la feuille de l'en-tête
           de la coque) : aucune rangée de boutons ne précède le titre ni l'occupation (AC5). */}
       <DeclarerEnTete
         actions={
           <div className="flex flex-col items-stretch gap-2 pb-2" data-slot="autres-gestes-du-bien">
             {planifier(false)}
+            {nouvelleTache(true)}
             {changerLeTitulaire}
             {/* « Ajouter un document » : ici au téléphone, dans l'onglet Documents partout (AC3). */}
             <PropertyHeaderActions property={property} ajouterUnDocument />
@@ -233,6 +263,7 @@ export default async function Page({ params, searchParams }: { params: Params; s
         actions={
           <div className="flex flex-wrap items-center gap-2 max-md:hidden" data-slot="gestes-de-l-en-tete">
             {planifier(staff)}
+            {nouvelleTache(false)}
             {changerLeTitulaire}
             <PropertyHeaderActions property={property} ouvrirBoost={ouvrirBoost} />
           </div>
@@ -256,6 +287,8 @@ export default async function Page({ params, searchParams }: { params: Params; s
         <aside className="hidden flex-none space-y-4 xl:sticky xl:top-6 xl:block xl:w-100" data-slot="colonne-occupation">
           <CarteOccupation property={property} personnel={staff} lienVersLeBailleur={lienVersLeBailleur} />
           {locatif ? <BlocResponsable property={property} /> : null}
+          {/* TCK-2908 (maquette e2, bureau) — « 1 intervention en cours », sur tous les onglets ; rien sans elle. */}
+          <CarteInterventionsEnCours resume={property.maintenance_summary ?? null} />
         </aside>
       </div>
     </PagePleineLargeur>

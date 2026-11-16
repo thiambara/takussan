@@ -1,0 +1,152 @@
+{
+  "ticket": "TCK-2888",
+  "ecrans": [
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Mon agenda — jour",
+      "references": {
+        "telephone": "references/app-agenda/a-0-telephone.json",
+        "bureau-1440": "references/app-agenda/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar",
+        "persona": "agent",
+        "etat": "agent avec une visite aujourd’hui dans moins de deux heures (« dans 45 min » dans la tête de sa carte au téléphone, dans la tête de la carte du jour au bureau) ; agence avec séjours confirmés et en attente, une fin de bail et une intervention (lien « Occupation : N séjours en cours »)",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Occupation des biens",
+      "references": {
+        "telephone": "references/app-agenda/a-2-telephone.json",
+        "bureau-1440": "references/app-agenda/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar?mode=occupation&mine=0",
+        "persona": "agent",
+        "etat": "agence avec séjours confirmés et en attente (nom du client sur la barre, hachure de l’attente), une fin de bail, une intervention ; biens avec adresse (quartier sous le titre) ; au téléphone, « 14 j ▾ » ouvre 14 j / 30 j",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Mois (admin)",
+      "references": {
+        "telephone": "references/app-agenda/a-3-telephone.json",
+        "bureau-1440": "references/app-agenda/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar?view=month",
+        "persona": "admin",
+        "etat": "admin, mois avec séjours (« Séjour · {bien} · {client} », « +N séjours »), échéances, visites",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Événement",
+      "references": {
+        "telephone": "references/app-agenda/a-4-telephone.json",
+        "bureau-1440": "references/app-agenda/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar",
+        "persona": "agent",
+        "etat": "comme a-0, une première visite ouverte (`visit_rank` = 1) : « {visiteur} · 1ʳᵉ visite »",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Abonnement iCal",
+      "references": {
+        "telephone": "references/app-agenda/a-5-telephone.json",
+        "bureau-1440": "references/app-agenda/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar",
+        "persona": "agent",
+        "etat": "agent avec un lien d’abonnement émis après TCK-2887 (relisible) : la feuille rouverte montre le lien, « Copier », « Ajouter à Google Agenda », « Apple Calendrier »",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/calendar",
+    "persona": "voir `ecrans[].produit`",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-agenda a-0-telephone",
+      "element": "« dans 45 min » dans la tête de la carte de la prochaine visite",
+      "propriete": "présence",
+      "exception": "décision produit",
+      "motif": "la maquette ne le pose qu’au bureau (`action` de la carte du jour) ; TCK-2888 AC1 le demande à 390 dans la tête de la carte : à droite du type en mots, en `text-primary-deep`"
+    },
+    {
+      "ecran": "app-agenda a-2-telephone",
+      "element": "à 30 j, un numéro de jour sur trois (et aujourd’hui) au-dessus des cases",
+      "propriete": "texte",
+      "exception": "contrainte technique",
+      "motif": "trente colonnes à 390 px laissent ~11 px par case : deux chiffres ne tiennent pas ; la maquette ne dessine que l’état 14 j"
+    },
+    {
+      "ecran": "app-agenda a-2-*, a-3-*",
+      "element": "nom du client et quartier pour un lecteur hors du personnel de l’agence (bailleur)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "`customer_name` n’est servi qu’au super-admin et au personnel de l’agence du bien (TCK-2886) : la barre du bailleur garde « {n} nuits · {référence} » à l’occupation et « Séjour · {bien} » au mois"
+    },
+    {
+      "ecran": "app-agenda a-5-*",
+      "element": "« Générer un nouveau lien » à la place du lien pour un abonnement émis avant TCK-2887 ou sous impersonation",
+      "propriete": "présence",
+      "exception": "sécurité",
+      "motif": "ADR-0121 : seul un lien émis après TCK-2887 a une copie chiffrée relisible ; `url` est nul sans copie et absent sous impersonation"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "app-agenda a-1-*",
+      "element": "filtres et légende",
+      "motif": "conformes (TCK-2597), hors périmètre de TCK-2888"
+    }
+  ],
+  "mesures": {
+    "date": null,
+    "outil": "non relevé — consigne du porteur du 2026-11-15 (pas de relevé au navigateur : le front servi en local tourne sur un autre arbre)",
+    "commit": null,
+    "resultats": []
+  }
+}

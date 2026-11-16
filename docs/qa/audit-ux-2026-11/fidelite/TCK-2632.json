@@ -283,13 +283,6 @@
    "motif": "même rangée, autre fil et autre état : chez le produit, « Malick Seck » est un fil lu et NON sélectionné (bien « Terrain viabilisé à Kaolack ») — l'arrivée du bureau ouvre le non-lu le plus récent, Bineta Samb ; la maquette la dessine non lue et sélectionnée (fond `foreground/6`, nom et heure en 600, heure en primary). Les marges et l'écart à 0 viennent de la résolution du rôle : le bouton de la rangée (sans fond au repos) n'est pas dans le relevé, `boiteDe` tombe sur le `<li>` (272, 168, 338,8 × 82,3), qui n'a ni marge ni écart. Les positions de ses enfants, relevées, rendent les valeurs de la maquette : avatar à +14,4 / +9 du `<li>` (286,4 ; 177), nom à avatar + 44 + 10,8 (341,2)."
   },
   {
-   "ecran": "a-1-*, a-2-*, a-5-*",
-   "element": "double coche « lu », bulle de note vocale avec lecture, rôle de l'auteur dans un groupe (« · locataire »)",
-   "propriete": "icône, texte",
-   "exception": "donnée",
-   "motif": "l'API ne rend ni l'état de lecture par message ni le rôle d'un participant dans un groupe ; aucune note vocale dans les fils de démo. Les bulles rendent l'auteur (groupe seulement) et l'heure."
-  },
-  {
    "ecran": "a-1-telephone, a-2-telephone, a-5-telephone",
    "element": "zone de 56 px en tête de l'écran (« coque · en-tête »)",
    "propriete": "pixels",
@@ -304,32 +297,11 @@
    "motif": "relevé du 2026-11-12 après d7a76f4ec (29 conformes · 9 écarts · 0,35 % de l'écran), coque inchangée depuis au HEAD c161fe5ef. En-tête : la pastille de la cloche lit le compte de l'agent de démo, « 9+ » au lieu du « 7 » dessiné — plus large, son texte part 4 px plus à gauche (362 au lieu de 366). Barre d'onglets : la maquette dessine une pastille « 2 » sur « Messages » (x 277) ; l'état de l'écran réécrit `GET /api/conversations` à vide, compteurs à 0 (`ecrans[4].produit.etat`), donc aucune pastille de non-lus. Le reste des deux zones est déjà couvert : traits et encre des icônes (« règle du design system », ligne « a-* » plus bas) ; libellés, icônes et positions des cinq onglets et du titre « Messages » conformes."
   },
   {
-   "ecran": "a-0-bureau-*, a-2-bureau-*",
-   "element": "colonne de contexte : « Projet », « Dernière visite », « Premier contact », demande de contact liée, ville du bien ; d'où « Planifier une visite » plus haut (Δ y ≈ −100 px)",
-   "propriete": "absents, y",
-   "exception": "donnée",
-   "motif": "`GET /api/conversations/{id}/context` (TCK-2630) ne porte aucune de ces données (AC-F3 : non rendues plutôt qu'inventées). Le bien, la fiche du client (étape, téléphone, agent), le bail ou l'intervention liés, « Planifier une visite » (PlanifierDialog, bien et fiche posés) et « Voir la fiche du client » sont rendus."
-  },
-  {
-   "ecran": "a-2-telephone",
-   "element": "feuille du fil : demande de contact liée, « Signaler la conversation »",
-   "propriete": "absents ; feuille plus courte d'autant",
-   "exception": "donnée",
-   "motif": "la feuille (`FeuilleDuFil`) rend ce que `/context` rend : le bien, « Fiche du client » (nom · étape), « Écrire sur WhatsApp », la sourdine, et au pied « Planifier une visite ». Aucune donnée de demande de contact dans le contexte du fil, aucune route de signalement. Ancrée en bas, la feuille plus courte descend son titre et le bien."
-  },
-  {
    "ecran": "a-0-bureau-*, a-2-*",
    "element": "« Planifier une visite » : bordure 1 px",
    "propriete": "bordure",
    "exception": "composant partagé",
    "motif": "`Button` porte `border border-transparent` dans toutes ses variantes (src/components/ui/button.tsx) ; la bordure ne se voit pas (transparente) et ne change pas la boîte."
-  },
-  {
-   "ecran": "a-2-bureau-*",
-   "element": "menu « ⋯ » : « Marquer comme non lue », « Ajouter un participant », « Signaler la conversation »",
-   "propriete": "absents",
-   "exception": "donnée",
-   "motif": "API absente : aucune route derrière ces gestes, et un item sans geste serait un bouton mort (décision du lead, 2026-11-12)."
   },
   {
    "ecran": "a-5-*",

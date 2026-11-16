@@ -3,12 +3,13 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ArrowLeftRight, Check, Landmark, Search, TriangleAlert, Unlink, Zap } from 'lucide-react';
+import { ArrowLeftRight, Check, EyeOff, Landmark, MoreHorizontal, Search, TriangleAlert, Unlink, Zap } from 'lucide-react';
 
 import { StatusBadge } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Progress } from '@/components/ui/progress';
 import { initialesDuNom } from '@/components/admin/finances/argent/encaissement';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -170,6 +171,8 @@ export interface GestesDuPaiement {
   readonly onConfirmer: (p: PendingPayment) => void;
   readonly onDelier: (p: PendingPayment) => void;
   readonly onChercher: (p: PendingPayment) => void;
+  /** TCK-2933 — « Ignorer » un paiement sans ligne proposée (le motif se demande ensuite). */
+  readonly onIgnorer: (p: PendingPayment) => void;
   /** Un geste est en vol sur ce paiement (ou un « Confirmer les N ») : ses boutons attendent. */
   readonly enVol: (p: PendingPayment) => boolean;
   /** Le nom de banque du relevé d'une ligne proposée, lu dans la liste des relevés. */
@@ -261,6 +264,22 @@ export function CarteDuReste({ p, gestes }: { readonly p: PendingPayment; readon
           >
             {t('actions.chercher')}
           </button>
+          {/* TCK-2933 — au téléphone, « Ignorer » vit dans le menu de la carte (le ticket). */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={t('actions.plusPour', { qui: v.qui })}
+              disabled={occupe}
+              className="-my-1 -mr-1.5 inline-flex size-8 flex-none items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-50 aria-expanded:bg-muted"
+            >
+              <MoreHorizontal className="size-4" aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 p-1.5">
+              <DropdownMenuItem onClick={() => gestes.onIgnorer(p)} className="gap-2.5 px-2.5 py-2">
+                <EyeOff className="size-4 flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+                {t('actions.ignorer')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </article>
@@ -368,9 +387,23 @@ export function RangeeDuReste({ p, gestes }: { readonly p: PendingPayment; reado
             </Button>
           </>
         ) : (
-          <Button size="sm" variant="ghost" disabled={occupe} aria-label={t('actions.chercherPour', { qui: v.qui })} onClick={() => gestes.onChercher(p)}>
-            <Search className="size-3.5" aria-hidden="true" /> {t('actions.chercher')}
-          </Button>
+          // TCK-2933 — la maquette (`:337`) : « Ignorer » en bouton discret, la loupe de « Chercher » à côté.
+          <>
+            <Button size="sm" variant="ghost" disabled={occupe} aria-label={t('actions.ignorerPour', { qui: v.qui })} onClick={() => gestes.onIgnorer(p)}>
+              {t('actions.ignorer')}
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              className="text-muted-foreground"
+              disabled={occupe}
+              aria-label={t('actions.chercherPour', { qui: v.qui })}
+              title={t('actions.chercher')}
+              onClick={() => gestes.onChercher(p)}
+            >
+              <Search className="size-4" strokeWidth={1.75} aria-hidden="true" />
+            </Button>
+          </>
         )}
       </span>
     </div>

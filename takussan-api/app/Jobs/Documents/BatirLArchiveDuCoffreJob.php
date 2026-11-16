@@ -133,7 +133,7 @@ final class BatirLArchiveDuCoffreJob implements ShouldQueue
             return;
         }
 
-        $notifications->send($user, NotificationCode::DocumentArchiveReady, [], NotificationTarget::of('document_archive'));
+        $notifications->send($user, NotificationCode::DocumentArchiveReady, [], self::cibleDe($archive->folder));
     }
 
     /** Les essais épuisés, le délai dépassé, ou une erreur imprévue : la préparation échoue, sans fichier. */
@@ -144,6 +144,19 @@ final class BatirLArchiveDuCoffreJob implements ShouldQueue
             $code = $e instanceof ApiError ? $e->errorCode : 'document.archive_render_failed';
             $this->echouer($archive, $code, app(NotificationService::class));
         }
+    }
+
+    /**
+     * TCK-2916 — où mène l'avis : le coffre, où l'archive se montre sous son dossier ; sauf pour les dossiers
+     * VIRTUELS des quittances (`receipts:all`, `receipts:lease:{id}`, TCK-2915), que le coffre ne liste pas —
+     * ceux-là se téléchargent depuis « Tout télécharger » de l'historique des paiements.
+     */
+    public static function cibleDe(string $dossier): NotificationTarget
+    {
+        // Deux littéraux, et non un genre calculé : la garde des avis de section (TCK-1761) lit le genre au site d'appel.
+        return $dossier === 'receipts:all' || str_starts_with($dossier, 'receipts:lease:')
+            ? NotificationTarget::of('receipts_archive')
+            : NotificationTarget::of('document_archive');
     }
 
     /** Le disque des médias privés : `local` en dev et en test, `r2-private` ensuite (ADR-0029). */
@@ -167,7 +180,7 @@ final class BatirLArchiveDuCoffreJob implements ShouldQueue
 
         $user = $archive->user;
         if ($echouee === 1 && $user instanceof User) {
-            $notifications->send($user, NotificationCode::DocumentArchiveFailed, [], NotificationTarget::of('document_archive'));
+            $notifications->send($user, NotificationCode::DocumentArchiveFailed, [], self::cibleDe($archive->folder));
         }
     }
 

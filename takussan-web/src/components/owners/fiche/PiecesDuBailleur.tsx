@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
-import { Eye, EyeOff, FileText, IdCard, Landmark, Loader2, Lock, ReceiptText } from 'lucide-react';
+import { ChevronRight, Eye, EyeOff, FileText, IdCard, Landmark, Loader2, Lock, ReceiptText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
@@ -12,7 +13,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { DOCUMENT_LIST_FIELDS } from '@/lib/queries/documents';
-import { fetchOwnerSensitive, type OwnerProfileDetail, type OwnerSensitiveData } from '@/lib/queries/owners';
+import { fetchOwnerSensitive, type OwnerMandateDocument, type OwnerProfileDetail, type OwnerSensitiveData } from '@/lib/queries/owners';
 import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
 import type { Document } from '@/types/document';
@@ -26,7 +27,14 @@ import type { Document } from '@/types/document';
  * (`GET /api/owners/{id}/sensitive`, preuve récente de second facteur, JOURNALISÉ) et « Masquer » les
  * efface. Le geste est sur chaque ligne (maquette) ; une lecture rend les trois valeurs, qui
  * s'affichent ensemble. La valeur ne vit que dans l'état de ce composant : ni cache React Query, ni stockage.
+ *
+ * TCK-2910 — en tête, « Mandat de gestion signé » : la pièce `management_mandate` que la fiche sert
+ * (`mandate_document`, TCK-2909), sa date, son format et sa taille (l'API ne compte pas les pages) ; la
+ * ligne mène à la fiche du document, qui juge la lecture. Elle n'est pas répétée dans la liste du coffre.
  */
+/** La clé de requête de la liste : la fiche l'invalide après un dépôt. */
+export const clePiecesDuBailleur = (ownerId: number) => ['owners', ownerId, 'documents'] as const;
+
 const ICONE: Partial<Record<string, typeof FileText>> = {
   id_card: IdCard,
   passport: IdCard,
@@ -52,7 +60,7 @@ export function PiecesDuBailleur({ owner, peutAfficher, compact = false }: Props
   const [clair, setClair] = useState<OwnerSensitiveData | null>(null);
   const [lecture, setLecture] = useState(false);
 
-  const documents = useApiQuery<PaginatedResponse<Document>>(['owners', owner.id, 'documents'], '/api/documents', {
+  const documents = useApiQuery<PaginatedResponse<Document>>([...clePiecesDuBailleur(owner.id)], '/api/documents', {
     params: {
       fields: { documents: DOCUMENT_LIST_FIELDS },
       filter: { documentable_type: 'owner_profile', documentable_id: owner.id },
@@ -82,11 +90,13 @@ export function PiecesDuBailleur({ owner, peutAfficher, compact = false }: Props
 
   const ligne = cn('flex min-h-14 items-center gap-3 py-2', compact ? 'px-0' : 'px-4');
   const geste = 'inline-flex h-11 flex-none items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-primary outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-50';
-  const lignes = documents.data?.data ?? [];
+  const mandat = owner.mandate_document ?? null;
+  const lignes = (documents.data?.data ?? []).filter((doc) => doc.id !== mandat?.id);
 
   return (
     <div data-slot="pieces-du-bailleur">
       <ul className="divide-y divide-border">
+        {mandat ? <LigneDuMandat mandat={mandat} className={ligne} /> : null}
         {lignes.map((doc) => {
           const Icone = (doc.type ? ICONE[doc.type] : undefined) ?? FileText;
           return (
@@ -136,7 +146,7 @@ export function PiecesDuBailleur({ owner, peutAfficher, compact = false }: Props
             ) : null}
           </li>
         ))}
-        {lignes.length === 0 && identifiants.length === 0 && !documents.isLoading ? (
+        {!mandat && lignes.length === 0 && identifiants.length === 0 && !documents.isLoading ? (
           <li className={cn(ligne, 'text-sm text-muted-foreground')}>{t('aucune')}</li>
         ) : null}
       </ul>
@@ -145,5 +155,39 @@ export function PiecesDuBailleur({ owner, peutAfficher, compact = false }: Props
         {t('mention')}
       </p>
     </div>
+  );
+}
+
+/** TCK-2910 — « PDF », « JPEG »… : le sous-type du fichier qui fait foi. */
+function formatDu(mime: string | null): string | null {
+  const sous = mime?.split('/')[1]?.split('+')[0];
+  return sous ? sous.toUpperCase() : null;
+}
+
+/** TCK-2910 — « Mandat de gestion signé — 12 mars 2025 · PDF, 245 Ko », vers la fiche du document. */
+function LigneDuMandat({ mandat, className }: { readonly mandat: OwnerMandateDocument; readonly className: string }) {
+  const t = useTranslations('owners.fiche.pieces');
+  const tTaille = useTranslations('documents.coffre.ajout');
+  const f = useFormatteurs();
+  const octets = mandat.file_size;
+  const taille =
+    octets === null
+      ? null
+      : octets >= 1024 * 1024
+        ? tTaille('tailleMo', { n: f.nombre(octets / (1024 * 1024), { maximumFractionDigits: 1, minimumFractionDigits: 1 }) })
+        : tTaille('tailleKo', { n: f.nombre(Math.max(1, Math.round(octets / 1024))) });
+  const fichier = [formatDu(mandat.mime_type), taille].filter(Boolean).join(', ');
+  const detail = [mandat.created_at ? f.date(mandat.created_at, { day: 'numeric', month: 'long', year: 'numeric' }) : null, fichier || null].filter(Boolean).join(' · ');
+  return (
+    <li className={cn(className, 'relative')} data-slot="mandat-signe">
+      <FileText className="size-icone flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+      <span className="min-w-0 flex-1 leading-snug">
+        <Link href={`/app/documents/${mandat.id}`} className="block truncate font-medium text-foreground outline-none after:absolute after:inset-0 focus-visible:underline">
+          {t('mandat')}
+        </Link>
+        {detail ? <span className="block truncate text-ui text-muted-foreground">{detail}</span> : null}
+      </span>
+      <ChevronRight className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
+    </li>
   );
 }

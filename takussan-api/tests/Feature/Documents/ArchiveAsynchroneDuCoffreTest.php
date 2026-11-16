@@ -510,7 +510,7 @@ class ArchiveAsynchroneDuCoffreTest extends TestCase
 
     /**
      * Le travail juge sous le PROFIL ACTIF DE LA DEMANDE, qu'il réinstalle hors requête, puis retire :
-     * « Relevés et attestations » n'existe que sous le profil propriétaire du bailleur.
+     * « Relevés et factures » (TCK-2898) n'existe que sous le profil propriétaire du bailleur.
      */
     public function test_the_job_judges_under_the_profile_of_the_request_and_restores_the_worker_state(): void
     {

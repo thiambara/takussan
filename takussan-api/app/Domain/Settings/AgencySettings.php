@@ -67,6 +67,13 @@ final class AgencySettings
                 'type' => self::INT, 'default' => 48,
                 'rules' => ['sometimes', 'nullable', 'integer', 'between:0,168'],
             ],
+            // TCK-2943 (ADR-0122 § 6) — le délai de réponse annoncé au prestataire invité sur l'intervention jointe,
+            // compté depuis l'invitation (`ServiceProviderOnboardingService::echeanceDeReponse`). Indicatif : aucun job
+            // ne le fait respecter. 0 = aucun délai annoncé ; `null` retire la clé, le défaut revient.
+            'maintenance_provider_response_hours' => [
+                'type' => self::INT, 'default' => 48,
+                'rules' => ['sometimes', 'nullable', 'integer', 'between:0,168'],
+            ],
             // TCK-963 — `TenantOnboardingService` ; `false` comme `0` coupent la checklist (TCK-970).
             'tenant_onboarding_enabled' => [
                 'type' => self::BOOL, 'default' => true,
@@ -91,6 +98,21 @@ final class AgencySettings
             'offline_payment_bank_details' => [
                 'type' => self::STRING, 'default' => null,
                 'rules' => ['sometimes', 'nullable', 'string', 'max:500'],
+            ],
+            // TCK-2849 (ADR-0112 § 1) — « Les bailleurs confirment les visites de leurs biens » :
+            // faux par défaut, la règle de TCK-590 (le personnel seul) tient. Vrai, le bailleur ACTIF
+            // d'un bien confirme ou propose un autre créneau (`PropertyVisitPolicy::bailleurConfirme`).
+            'owners_confirm_visits' => [
+                'type' => self::BOOL, 'default' => false,
+                'rules' => ['sometimes', 'nullable', 'boolean'],
+            ],
+            // TCK-2915 — le jour du mois où partent les reversements aux bailleurs de l'agence, quand
+            // le mandat d'un bailleur n'en fixe pas (`owner_profiles.payout_day`, TCK-2909) :
+            // {@see \App\Services\Payout\PayoutDay}. Informatif : aucune préparation n'en dépend.
+            // `null` retire la clé.
+            'payout_day' => [
+                'type' => self::INT, 'default' => null,
+                'rules' => ['sometimes', 'nullable', 'integer', 'between:1,28'],
             ],
             'hidden_modules' => [
                 'type' => self::LIST, 'default' => [], 'enum' => AgencyModule::class,

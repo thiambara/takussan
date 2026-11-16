@@ -13,4 +13,38 @@ return [
     'refund_task' => [
         'title' => 'Refund to process — booking :reference',
     ],
+    // TCK-2872 (ADR-0110 § 2) — the documents of the file, for a notification text.
+    'dossier_pieces' => [
+        'identity' => 'identity document',
+        'payslips' => 'salary slips',
+        'employment_certificate' => 'employment certificate',
+        'guarantor_commitment' => 'guarantor commitment',
+        'guarantor_identity' => 'guarantor identity document',
+        'proof_of_funds' => 'proof of funds',
+        'other' => 'other document',
+    ],
+    // TCK-2873 (ADR-0110 § 5) — the customer's answer to a counter-offer, rendered in a notification to the agency.
+    'counter_offer_answers' => [
+        'accepted' => 'has accepted',
+        'declined' => 'has declined',
+    ],
+    // TCK-2874 (ADR-0110 § 7) — le motif codé d'un refus, rendu dans `booking.rejected`.
+    'rejection_reasons' => [
+        'incomplete_file' => 'Incomplete file',
+        'insufficient_income' => 'Insufficient income',
+        'property_allocated' => 'Property already allocated',
+        'offer_too_low' => 'Offer too low',
+        'property_sold' => 'Property already sold',
+        'dates_unavailable' => 'Dates unavailable',
+        'property_unavailable' => 'Property unavailable',
+        'other' => 'Other reason',
+    ],
+    // TCK-2892 — le type d'un paiement de réservation, imprimé sur le reçu (`BookingPaymentType::label`).
+    'payment_types' => [
+        'deposit' => 'Deposit',
+        'advance' => 'Balance',
+        'fee' => 'Fee',
+        'security_deposit' => 'Security deposit',
+        'other' => 'Other',
+    ],
 ];

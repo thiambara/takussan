@@ -244,7 +244,8 @@ export function WizardShell({
                 data-wizard-panneau=""
                 data-cadre-d-entree={cadreDEntree ? '' : undefined}
                 className={cn(
-                  panneauOuvert ? 'hidden xl:block' : 'hidden',
+                  // TCK-2934 — dans le cadre d'entrée, dès `lg` : le seuil de `usePanneauDeBureau` (`CadreDeLaFeuille`).
+                  panneauOuvert ? (cadreDEntree ? 'hidden lg:block' : 'hidden xl:block') : 'hidden',
                   // Le panneau de compte (TCK-2601) se pose dans la colonne de la question : celle de la
                   // grille d'entrée, ou celle du cadre plein écran.
                   !cadreDEntree && 'mx-auto w-full max-w-3xl px-4 pt-6 pb-10 sm:px-8 lg:pt-9 xl:px-14',
@@ -256,7 +257,7 @@ export function WizardShell({
                   'mx-auto w-full max-w-3xl px-4 pt-6 pb-10 sm:px-8 lg:pt-9 xl:px-14',
                   cadreDEntree && 'lg:mx-0 lg:max-w-none lg:p-0 xl:px-0',
                   direction > 0 ? 'wizard-step-in-forward' : 'wizard-step-in-back',
-                  panneauOuvert && 'xl:hidden',
+                  panneauOuvert && (cadreDEntree ? 'lg:hidden' : 'xl:hidden'),
                 )}
               >
                 {parts && !(cadreDEntree && etape.accueil) ? (
@@ -329,7 +330,7 @@ export function WizardShell({
               cadreDEntree
                 ? 'lg:bg-card'
                 : 'lg:bg-background/95 lg:backdrop-blur lg:supports-[backdrop-filter]:bg-background/80',
-              panneauOuvert && 'xl:hidden',
+              panneauOuvert && (cadreDEntree ? 'lg:hidden' : 'xl:hidden'),
             )}
           >
             <GrilleDEntree

@@ -154,6 +154,9 @@ return [
 
     'phone_login' => [
         'enabled' => (bool) env('PHONE_LOGIN_ENABLED', false),
+        // TCK-2940 (ADR-0126 § 2) — le pilote qui dicte le code par appel : `lafricamobile`, `log` (local et tests
+        // seulement), ou vide (défaut) — aucun pilote, `channel: "voice"` refusé en 422 et l'option non proposée.
+        'voice_driver' => (string) env('PHONE_VOICE_CODE_DRIVER'),
     ],
 
     /*

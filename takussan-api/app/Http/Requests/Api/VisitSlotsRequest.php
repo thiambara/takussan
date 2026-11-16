@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Property;
+use App\Policies\PropertyVisitPolicy;
 use App\Rules\JourIso;
 use App\Rules\PersonnelDeLAgence;
 
@@ -15,6 +16,9 @@ use App\Rules\PersonnelDeLAgence;
  * Réservé au personnel qui gère le bien (`StorePropertyVisitRequest::managesProperty`), pour tout
  * bien de son agence, publié ou non. Un bien absent et un bien d'une autre agence rendent le MÊME
  * 403, avant toute validation.
+ *
+ * TCK-2869 — et au bailleur d'un bien d'agence quand l'agence lui confie ses visites
+ * ({@see PropertyVisitPolicy::bailleurConfirme()}) : « Autre créneau » se choisit sur cette grille.
  */
 class VisitSlotsRequest extends BaseFormRequest
 {
@@ -30,6 +34,9 @@ class VisitSlotsRequest extends BaseFormRequest
         return $user !== null && $property !== null && (
             $user->isSuperAdmin()
             || PersonnelDeLAgence::personnelActifDe($user, $property->agency_id)
+            // TCK-2869 (ADR-0112) — le bailleur à qui l'agence confie ses visites propose « Autre
+            // créneau » : il lit la grille de l'agent de SES biens, sous le prédicat de `confirm`.
+            || PropertyVisitPolicy::bailleurConfirme($user, $property->agency_id, $property->user_id)
         );
     }
 

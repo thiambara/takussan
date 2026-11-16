@@ -24,6 +24,11 @@ return [
         'date_range_too_long' => 'Date range must not exceed 1 year.',
     ],
     'agency' => [
+        // TCK-2937 (ADR-0125) — l'agence ouverte depuis l'orientation.
+        'already_admin' => 'You already manage an agency: use its space.',
+        'ninea_taken' => 'This NINEA is already held by another agency.',
+        'phone_unverified' => 'Verify your phone number first to open an agency.',
+        'unverified_publication' => 'Your agency must be verified by our team before a property can go online.',
         'active_profile_missing' => 'No active agency profile.',
         'admin_email_taken' => 'An account already exists with this administrator email.',
         'admin_phone_taken' => 'An account already exists with this verified manager phone number.',
@@ -110,13 +115,31 @@ return [
         'application_already_accepted' => 'Another application has already been accepted for this property: cancel it, or send its lease for signature, before accepting a second one.',
         'cannot_cancel' => 'This booking cannot be cancelled in its current state.',
         'cannot_expire' => 'This booking cannot be expired: it must be pending.',
+        // TCK-2873 (ADR-0110 § 5)
+        'counter_offer_expired' => 'This counter-offer has expired: it can no longer be accepted or declined.',
+        'counter_offer_not_allowed' => 'Only a pending purchase offer can receive a counter-offer.',
+        'counter_offer_not_open' => 'This counter-offer no longer awaits an answer: it was replaced, already answered, or the offer is no longer pending.',
         // TCK-2579
         'customer_required' => 'A booking recorded by the agency must name a customer.',
         'dates_overlap' => 'Another confirmed booking already covers these dates on this property.',
         'dates_unavailable' => 'These dates are not available for this property.',
+        // TCK-2872 (ADR-0110 § 2)
+        'dossier_closed' => 'This request is closed: its file can still be read, but no longer accepts documents or requests.',
+        'dossier_not_found' => 'This booking has no file: only an application and an offer have one.',
+        'dossier_piece_not_found' => 'This document is not part of the file of this request.',
+        'dossier_piece_received' => 'This document has already been received: there is nothing to request.',
+        'dossier_request_throttled' => 'This document was already requested less than 24 hours ago.',
         'expire_race' => 'The booking status changed in the meantime. Reload the page.',
+        // TCK-2870 (ADR-0110 § 1)
+        'field_not_for_kind' => 'This field does not belong to this kind of request: an application states its term, an offer its financing, deadline and conditions, a stay neither.',
+        // TCK-2893 (ADR-0110 § 3)
+        'guarantor_already_attached' => 'This guarantor is already attached to this request.',
+        'guarantor_not_attached' => 'This guarantor is not attached to this request.',
+        'guarantor_not_for_kind' => 'Only an application or an offer can have a guarantor.',
         // TCK-2579
         'kind_mismatch' => 'This kind of request does not match the property: an application is for a monthly rental, an offer for a property for sale.',
+        // TCK-2893 (ADR-0110 § 3)
+        'max_guarantors' => 'A request cannot have more than 3 guarantors.',
         'not_found' => 'Booking not found.',
         'not_in_active_agency' => 'This booking does not belong to your active agency.',
         'not_pending_confirm' => 'Only a pending booking can be confirmed.',
@@ -171,6 +194,8 @@ return [
         'no_space' => 'No active workspace: select a workspace to see its credits.',
     ],
     'conversation' => [
+        // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.
+        'already_reported' => 'You have already reported this conversation.',
         'participant_not_found' => 'This participant is not part of the conversation.',
         'participant_required' => 'At least one other participant is required.',
     ],
@@ -183,11 +208,15 @@ return [
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
         // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
         'suggested_stage_stale' => 'This suggested stage is no longer current: reload the customer.',
+        // TCK-2874 (ADR-0110 § 8) — défaire le passage en Négociation fait par l'acceptation.
+        'stage_undo_unavailable' => 'This stage has changed since the acceptance: there is nothing left to undo.',
+        'stage_undo_expired' => 'The move to Negotiating can only be undone within 24 hours of the acceptance.',
     ],
     'dashboard' => [
         'invalid_scope' => 'The requested scope must be “mine” or “agency”.',
         // TCK-2791 — `period` des tableaux de bord : une liste fermée.
-        'invalid_period' => 'The requested period must be “current_month” or “last_month”.',
+        // TCK-2865 — `last_12_months` added to the list.
+        'invalid_period' => 'The requested period must be “current_month”, “last_month” or “last_12_months”.',
     ],
     'data_export' => [
         'expired' => 'This data export has expired.',
@@ -219,6 +248,8 @@ return [
         'invalid_target' => 'The expected target is “lease:{id}” or “property:{id}”.',
         'owner_not_found' => 'The item to attach the document to was not found.',
         'profile_piece_not_versioned' => 'A profile document cannot be versioned: upload it again from your profile.',
+        // TCK-2909
+        'profile_piece_by_kyc' => "An ID document, bank details or NINEA is uploaded through the profile's documents flow.",
         'pdf_template_missing' => 'The document template was not found.',
         'pdf_uploader_missing' => 'The document cannot be generated without an author.',
         'unsupported_type' => 'This kind of item cannot hold documents.',
@@ -234,6 +265,8 @@ return [
     'export' => [
         'forbidden' => 'You are not allowed to export this data.',
         'entity_unknown' => 'Unknown export.',
+        // TCK-2866 (ADR-0115) — le fichier gardé d'un export, passé son échéance.
+        'file_expired' => 'This export file has expired: run the export again.',
     ],
     'failed_job' => [
         'bulk_retry_limit' => 'Too many failed jobs to retry at once.',
@@ -260,6 +293,8 @@ return [
         'source_unavailable' => 'Wikimedia Commons is not responding. Try again later, or upload the photo yourself.',
     ],
     'guarantor' => [
+        // TCK-2893
+        'attached_to_open_booking' => 'This guarantor is declared on an application or offer still in progress: remove them from the request first.',
         'attached_to_open_lease' => 'This guarantor is attached to a lease awaiting signature or in force: detach them from the lease first.',
     ],
     'http' => [
@@ -325,10 +360,14 @@ return [
         'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
         'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or have the tenant sign from their account.',
         'tenant_without_phone' => 'The tenant has no account with a verified phone number: they sign from their account.',
+        // TCK-2913 (ADR-0098, amendement A) — le code du bailleur part au numéro vérifié de son compte.
+        'landlord_without_phone' => 'The landlord has no account with a verified phone number: they sign from their account, or you sign on their behalf.',
     ],
     'invitation' => [
         'already_member' => 'This account is already a member of the agency with this profile: the invitation has nothing to add.',
         'sms_daily_cap_reached' => 'The agency\'s daily limit of SMS invitations has been reached. Try again tomorrow, or invite by email.',
+        // TCK-2927 (ADR-0123 § 4) — invitation partagée : le lien ne prouve pas le numéro.
+        'code_required' => 'This invitation is accepted with the code sent by SMS to the invited number.',
         'phone_mismatch' => 'This number is not the one the invitation was sent to.',
         'profile_unavailable' => 'The profile this invitation targets is no longer available (suspended or inactive). Ask the agency for a new invitation.',
         'service_provider_profile_exists' => 'This account already has a service provider profile. Ask the agency to invite you at this account\'s email or number: the invitation will then join that profile.',
@@ -364,6 +403,8 @@ return [
         'already_converted' => 'This request has already been converted into a customer record.',
         'contact_unavailable' => 'This property has no reachable contact at the moment. Your request was not sent.',
         'not_convertible' => 'Only a request sent through the form can become a customer record.',
+        // TCK-2884 — « Annuler » un traitement sur une demande non traitée.
+        'not_handled' => 'This request is not marked as handled: there is nothing to undo.',
         'without_agency' => 'This request is not linked to any agency: it cannot become a customer record.',
     ],
     'lease' => [
@@ -436,6 +477,8 @@ return [
         'in_progress' => 'Maintenance in progress. Try again in a moment.',
         'no_longer_assigned' => 'This job has been handed to another provider: it can no longer be accepted on your behalf.',
         'photos_closed' => 'Photos cannot be added to a closed or cancelled request.',
+        // TCK-2911 (ADR-0120 § 3).
+        'quote_alternatives_full' => 'A maintenance request holds at most :max competing quotes.',
         'quote_amount_too_large' => 'The quote total exceeds the largest amount that can be recorded.',
         'quote_expired' => 'This quote is no longer valid: its validity date has passed.',
         'reassign_after_completion' => 'The work is done: the job can no longer be reassigned.',
@@ -522,6 +565,10 @@ return [
         'integration_misconfigured' => 'Online payment is misconfigured for this provider. Please contact your agency.',
     ],
     'payout' => [
+        // TCK-2909
+        'notice_unavailable' => 'Only a completed payout to a landlord has a payout notice.',
+        // TCK-2863
+        'bank_statement_bank_only' => 'A bank details statement can only be sent for a bank account.',
         'agency_required' => 'A payout is issued on behalf of an agency.',
         'already_paid_out' => 'One of the cited items has already been paid out.',
         'amount_changed_since_approval' => 'The amount changed since it was approved: have it approved again.',
@@ -619,9 +666,17 @@ return [
         'batch_not_confirmable' => 'One of the lines in the batch is not a suggested line of an open statement of this agency: nothing was confirmed.',
         'cross_agency' => 'The target payment does not belong to this agency.',
         'duplicate_file' => 'This statement has already been imported for this agency.',
+        // TCK-2932 — sortir un paiement du reste à rapprocher, et l'y remettre.
+        'ignored_payment_not_found' => 'This ignored payment cannot be found in this agency.',
+        'payment_already_ignored' => 'This payment has already been removed from the payments to reconcile.',
+        'payment_not_found' => 'This payment cannot be found in this agency.',
+        'payment_not_pending' => 'Only a paid, non-gateway, unreconciled payment can be removed from the payments to reconcile.',
+        'preview_unreadable' => 'The statement could not be read: its header or content does not match the selected format.',
     ],
     'reporting' => [
         'invalid_group_by' => 'The requested grouping must be “tenant” or “landlord”.',
+        // TCK-2866 — `filter[landlord_id]` de la balance âgée (JSON et PDF).
+        'invalid_landlord' => 'The requested landlord must be an integer identifier.',
         'invalid_period' => 'The requested period must be a month in YYYY-MM format.',
         'range_too_wide' => 'The requested range exceeds the limit of :max “:granularity” intervals. Narrow the range or widen the granularity.',
         'report_unknown' => 'Unknown report.',
@@ -646,6 +701,10 @@ return [
     'role_delegation' => [
         'covers_absence' => 'This delegation covers an absence: change or revoke the absence, which carries it.',
     ],
+    // TCK-2866 — les destinataires choisis d'une alerte de seuil : ceux de sa mesure seulement.
+    'threshold_alert' => [
+        'recipient_not_allowed' => 'These recipients cannot receive this alert: :ids.',
+    ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [
         'invalid_token' => 'This confirmation link is no longer valid.',
@@ -666,6 +725,8 @@ return [
     ],
     'service_provider_bill' => [
         'already_in_payout' => 'This maintenance bill is already in an ongoing payout.',
+        // TCK-2911 (ADR-0120 § 1) — « Facturer » depuis le brouillon seulement.
+        'not_draft' => 'This maintenance bill has already been sent.',
         'not_payable' => 'Only a validated maintenance bill can be paid.',
         'not_pending' => 'This maintenance bill is no longer awaiting validation.',
         'request_not_completed' => 'The work on this maintenance request is not delivered (contested, resumed or cancelled): its bill cannot be validated, paid or recharged.',
@@ -714,6 +775,10 @@ return [
         'assignee_other_agency' => 'The assignee must belong to your agency.',
     ],
     'team' => [
+        // TCK-2926 (ADR-0124 § 6) — le rappel de la double authentification.
+        'two_factor_already_enabled' => 'This member has already turned on two-factor authentication: there is nothing to remind.',
+        'two_factor_reminder_throttled' => 'A reminder was already sent to this member less than 24 hours ago.',
+        'member_not_found' => 'This person is not a member of this agency\'s team.',
         'admin_suspension_reserved' => 'Only an active administrator of the agency can suspend or reactivate an administrator.',
         'nothing_to_reactivate' => 'This member has no suspended profile to reactivate in this agency. A pending invitation is accepted, not reactivated.',
         'nothing_to_suspend' => 'This member has no active profile to suspend in this agency.',

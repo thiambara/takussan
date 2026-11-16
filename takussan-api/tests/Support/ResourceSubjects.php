@@ -32,6 +32,7 @@ use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
@@ -531,6 +532,11 @@ final class ResourceSubjects
                     customer: Customer::factory()->create(),
                     customerReadable: true,
                     referent: User::factory()->create(),
+                    // TCK-2858 — trois instants de plus : la dernière visite, la demande liée, le premier contact.
+                    lastVisit: tap(PropertyVisit::factory()->create()->refresh(), self::hydraterLesDates(...)),
+                    contactLead: tap(PropertyContactLead::factory()->create()->refresh(), self::hydraterLesDates(...)),
+                    firstContactAt: Carbon::parse(self::INSTANT, 'UTC'),
+                    origin: 'form',
                 ),
             ],
             // TCK-2640 — la fiche d'un bailleur, telle que la compose le contrôleur : deux instants

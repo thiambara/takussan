@@ -51,6 +51,8 @@ vi.mock('@/components/owner/OwnerWelcomeWizard', () => ({ OwnerWelcomeWizard: ()
 vi.mock('@/components/tenant/TenantWelcomeWizard', () => ({ TenantWelcomeWizard: () => null }));
 
 const NOM = 'Aller à une page ou changer d’espace';
+/** TCK-2846 — l'espace actif lié par le layout : les récents sont rangés par espace. */
+const ESPACE = 'tenant:1';
 /**
  * TCK-2490 / TCK-2491 — deux déclencheurs portent ce nom : le bouton de l'EN-TÊTE MOBILE (qui remplace
  * celui de la barre haute, retirée) et la ligne « Aller à » de la colonne. Les épreuves héritées de
@@ -68,7 +70,7 @@ function monter(roles: UserRole[] = ['customer', 'tenant'], modulesMasques?: rea
     withIntl(
       <QueryClientProvider client={client}>
         <ToastProvider>
-          <AppShell user={utilisateur(roles)} agencyIsStandard modulesMasques={modulesMasques}>
+          <AppShell user={utilisateur(roles)} agencyIsStandard modulesMasques={modulesMasques} espaceActif={ESPACE}>
             <button type="button">avant</button>
           </AppShell>
         </ToastProvider>
@@ -156,20 +158,22 @@ describe('TCK-2482 — la palette dans la coque', () => {
   it('la coque retient la page courante sur l’appareil, pas une page plein écran', () => {
     chemin.valeur = '/app/payments';
     const { unmount } = monter();
-    expect(lirePagesRecentes(1)).toEqual(['/app/payments']);
+    expect(lirePagesRecentes(1, ESPACE)).toEqual([{ chemin: '/app/payments' }]);
     unmount();
     chemin.valeur = '/app/properties/new';
     monter(['customer', 'agent']);
-    expect(lirePagesRecentes(1)).toEqual(['/app/payments']);
+    expect(lirePagesRecentes(1, ESPACE)).toEqual([{ chemin: '/app/payments' }]);
   });
 
-  it('revue I3 — huit fiches de bail visitées n’effacent pas les autres sections de « Récents »', async () => {
+  // TCK-2846 — la coque ne retient plus que les pages du MENU : une fiche de bail n'est plus « Mon bail »
+  // (sa section) ; c'est la fiche qui se retient, sous son nom (`RetenirLaFiche`, plus bas).
+  it('revue I3, TCK-2846 — huit fiches de bail visitées ne deviennent pas leur section dans « Récents »', async () => {
     chemin.valeur = '/app/payments';
     const { rerender } = monter();
     const arbre = () => (
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <ToastProvider>
-          <AppShell user={utilisateur(['customer', 'tenant'])} agencyIsStandard>
+          <AppShell user={utilisateur(['customer', 'tenant'])} agencyIsStandard espaceActif={ESPACE}>
             <button type="button">avant</button>
           </AppShell>
         </ToastProvider>
@@ -179,12 +183,11 @@ describe('TCK-2482 — la palette dans la coque', () => {
       chemin.valeur = c;
       rerender(withIntl(arbre()));
     }
-    // Le plafond de 8 tient, et la section des baux n'en occupe qu'une place.
-    expect(lirePagesRecentes(1)).toEqual(['/app', '/app/leases/8', '/app/messages', '/app/payments']);
+    expect(lirePagesRecentes(1, ESPACE).map((p) => p.chemin)).toEqual(['/app', '/app/messages', '/app/payments']);
     const u = userEvent.setup();
     await u.keyboard('{Control>}k{/Control}');
     const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Récents' });
-    expect(within(groupe).getAllByRole('option').map((o) => o.textContent)).toEqual(['Mon bail', 'Messagerie', 'Paiements']);
+    expect(within(groupe).getAllByRole('option').map((o) => o.textContent)).toEqual(['Messagerie', 'Paiements']);
   });
 
   // TCK-2491 — la recherche de biens de la barre haute est partie (elle vit dans la palette, TCK-2489) :
@@ -284,7 +287,7 @@ describe('TCK-2483 — la coque passe les modules masqués à la barre et à la 
     const arbre = () => (
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <ToastProvider>
-          <AppShell user={utilisateur(AGENT)} agencyIsStandard modulesMasques={['commissions']}>
+          <AppShell user={utilisateur(AGENT)} agencyIsStandard modulesMasques={['commissions']} espaceActif={ESPACE}>
             <button type="button">avant</button>
           </AppShell>
         </ToastProvider>
@@ -294,8 +297,8 @@ describe('TCK-2483 — la coque passe les modules masqués à la barre et à la 
       chemin.valeur = c;
       rerender(withIntl(arbre()));
     }
-    // Résolues sur l'entrée « Commissions », la seconde fiche aurait remplacé la première.
-    expect(lirePagesRecentes(1)).toEqual(['/app/calendar', '/app/commissions/2', '/app/commissions/1', '/app/messages', '/app']);
+    // TCK-2846 — une fiche n'est plus retenue par la coque : seules les pages du menu le sont.
+    expect(lirePagesRecentes(1, ESPACE).map((p) => p.chemin)).toEqual(['/app/calendar', '/app/messages', '/app']);
     const u = userEvent.setup();
     await u.keyboard('{Control>}k{/Control}');
     const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Récents' });

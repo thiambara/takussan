@@ -25,6 +25,24 @@ vi.mock('../ConversationList', () => ({
   ConversationList: ({ selectedId }: { selectedId: number | null }) => (
     <div data-testid="conv-list">selected={String(selectedId)}</div>
   ),
+  // TCK-2860 — la page y lit l'autre partie d'un fil direct (« Ajouter un participant »).
+  autreParticipant: (c: { type?: string }) => (c.type === 'direct' ? { id: 99, full_name: 'Malick Seck', avatar_url: null } : null),
+}));
+
+// TCK-2860 — les dialogues des gestes du « ⋯ » ont leurs propres tests (`GestesDuFil.tck-2860`) : ici,
+// seulement ce que la page en fait (lequel s'ouvre, pour quel fil, et le groupe créé qui s'ouvre).
+vi.mock('../GestesDuFil', () => ({
+  DialogueSignaler: ({ open, conversationId }: { open: boolean; conversationId: number }) =>
+    open ? <div data-testid="dialogue-signaler">signaler={conversationId}</div> : null,
+  DialogueElargirLeFil: ({ open, conversationId, exclus, onCree }: { open: boolean; conversationId: number; exclus: number[]; onCree: (id: number) => void }) =>
+    open ? (
+      <div data-testid="dialogue-elargir">
+        elargir={conversationId} exclus={exclus.join(',')}
+        <button type="button" onClick={() => onCree(501)}>
+          créer le groupe
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock('../ChatView', () => ({
@@ -33,14 +51,31 @@ vi.mock('../ChatView', () => ({
     onBack,
     contexte,
     onPlusDActions,
+    gestes,
   }: {
     conversationId: number;
     onBack?: () => void;
     contexte?: { ouvert: boolean; onBasculer: () => void };
     onPlusDActions?: () => void;
+    gestes?: { onMarquerNonLue: (r: { onError: () => void }) => void; onAjouterUnParticipant?: () => void; onSignaler: () => void };
   }) => (
     <div data-testid="chat-view">
       chat={conversationId}
+      {gestes && (
+        <>
+          <button type="button" onClick={() => gestes.onMarquerNonLue({ onError: () => {} })}>
+            geste non lue
+          </button>
+          {gestes.onAjouterUnParticipant && (
+            <button type="button" onClick={gestes.onAjouterUnParticipant}>
+              geste ajouter
+            </button>
+          )}
+          <button type="button" onClick={gestes.onSignaler}>
+            geste signaler
+          </button>
+        </>
+      )}
       {onPlusDActions && (
         <button type="button" data-testid="plus-d-actions" onClick={onPlusDActions}>
           ⋯
@@ -60,14 +95,9 @@ vi.mock('../ChatView', () => ({
   ),
 }));
 
-vi.mock('../NewGroupDialog', () => ({
-  NewGroupDialog: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="new-group-dialog" /> : null,
-}));
-
 /**
  * TCK-2632 — « Nouvelle conversation » est remplacé par un double : ses gestes (ouvrir un fil
- * existant, ouvrir un brouillon, « Créer un groupe ») sont ce que la PAGE en fait. Le dialogue
+ * existant, ouvrir un brouillon ; « Créer un groupe » n’y est que le drapeau `groupePossible`, TCK-2860) sont ce que la PAGE en fait. Le dialogue
  * lui-même a ses propres tests (`NouvelleConversation.tck-2632.test.tsx`).
  */
 vi.mock('../NouvelleConversation', () => ({
@@ -76,21 +106,18 @@ vi.mock('../NouvelleConversation', () => ({
     onClose,
     onOuvrir,
     onBrouillon,
-    onNouveauGroupe,
+    groupePossible,
   }: {
     open: boolean;
     onClose: () => void;
     onOuvrir: (id: number) => void;
     onBrouillon: (p: { id: number; name: string; avatar_url: string | null }) => void;
-    onNouveauGroupe?: () => void;
+    groupePossible?: boolean;
   }) =>
     open ? (
       <div data-testid="nouvelle-conversation">
-        {onNouveauGroupe ? (
-          <button type="button" onClick={() => { onClose(); onNouveauGroupe(); }}>
-            Créer un groupe
-          </button>
-        ) : null}
+        {/* TCK-2860 — le vrai dialogue crée le groupe lui-même : le double ne rend que le drapeau. */}
+        {groupePossible ? <span role="switch" aria-checked={false} aria-label="Créer un groupe" /> : null}
         <button type="button" onClick={() => { onClose(); onOuvrir(42); }}>
           fil existant
         </button>
@@ -145,6 +172,8 @@ vi.mock('../PropertyDraftChatView', () => ({
 }));
 
 const resolution = vi.fn<() => { data: unknown } | undefined>(() => undefined);
+/** TCK-2860 — « Marquer comme non lue » : le fil visé (l'id passé au hook) et l'appel. */
+const marquerNonLue = vi.fn();
 /** TCK-2632 — la première page de la liste sans filtre : l'arrivée au bureau et le sous-titre la lisent. */
 type FilDeListe = { id: number; unread_count?: number };
 const listeSansFiltre = vi.fn<() => { data: unknown }>(() => ({ data: undefined }));
@@ -156,6 +185,7 @@ const typesDesFils = new Map<number, 'direct' | 'group'>();
 
 vi.mock('@/lib/queries/conversations', () => ({
   usePropertyConversation: () => ({ data: resolution() }),
+  useMarkConversationUnread: (id: number) => ({ mutate: (...args: unknown[]) => marquerNonLue(id, ...args) }),
   useConversationsInfinite: () => listeSansFiltre(),
   useConversation: (id: number | null | undefined) => ({
     data: id ? { data: { id, type: typesDesFils.get(id) ?? 'direct' } } : undefined,
@@ -163,7 +193,11 @@ vi.mock('@/lib/queries/conversations', () => ({
 }));
 
 vi.mock('../InfosDuGroupe', () => ({
-  InfosDuGroupe: ({ conversationId }: { conversationId: number }) => <div data-testid="infos-du-groupe">infos={conversationId}</div>,
+  InfosDuGroupe: ({ conversationId, superposee }: { conversationId: number; superposee?: boolean }) => (
+    <div data-testid="infos-du-groupe" data-superposee={String(Boolean(superposee))}>
+      infos={conversationId}
+    </div>
+  ),
 }));
 
 vi.mock('../FeuilleDuFil', () => ({
@@ -172,8 +206,8 @@ vi.mock('../FeuilleDuFil', () => ({
 }));
 
 vi.mock('../ColonneDeContexte', () => ({
-  ColonneDeContexte: ({ conversationId, ouverte, onOuvrir }: { conversationId: number; ouverte: boolean; onOuvrir: () => void }) => (
-    <div data-testid="colonne-de-contexte" data-ouverte={String(ouverte)}>
+  ColonneDeContexte: ({ conversationId, ouverte, onOuvrir, superposee }: { conversationId: number; ouverte: boolean; onOuvrir: () => void; superposee?: boolean }) => (
+    <div data-testid="colonne-de-contexte" data-ouverte={String(ouverte)} data-superposee={String(Boolean(superposee))}>
       contexte={conversationId}
       {!ouverte && (
         <button type="button" data-testid="rouvrir-le-contexte" onClick={onOuvrir}>
@@ -559,7 +593,7 @@ describe('<MessagesPage> « Nouvelle conversation » et le groupe selon l’agen
 
   function ligneDeGroupe(): HTMLElement | null {
     fireEvent.click(screen.getByTestId('nouvelle-conversation-bureau'));
-    return screen.queryByRole('button', { name: 'Créer un groupe' });
+    return screen.queryByRole('switch', { name: 'Créer un groupe' });
   }
 
   beforeEach(() => {
@@ -577,18 +611,16 @@ describe('<MessagesPage> « Nouvelle conversation » et le groupe selon l’agen
     expect(screen.getByTestId('nouvelle-conversation')).toBeInTheDocument();
   });
 
-  // AC2 — présent, et il ouvre la création, depuis chacun des deux boutons.
+  // AC2 — présent, depuis chacun des deux boutons. TCK-2860 : la création elle-même vit dans
+  // `NouvelleConversation` (ses tests) ; `NewGroupDialog`, qu'aucun geste n'ouvrait plus, est retiré.
   it.each(['nouvelle-conversation-bureau', 'nouvelle-conversation-compact'])(
-    'propose le groupe en agence standard, qui ouvre la création (%s)',
+    'propose le groupe en agence standard (%s)',
     (testId) => {
       mesProfils.mockReturnValue({ data: profilActif('standard') });
       render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
       fireEvent.click(screen.getByTestId(testId));
-      expect(screen.queryByTestId('new-group-dialog')).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
-      expect(screen.getByTestId('new-group-dialog')).toBeInTheDocument();
-      expect(screen.queryByTestId('nouvelle-conversation')).not.toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Créer un groupe' })).toBeInTheDocument();
     },
   );
 
@@ -993,5 +1025,78 @@ describe('<MessagesPage> l’arrivée au bureau et le contexte (TCK-2632)', () =
     largeurDeFenetre(1280);
     render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
     expect(screen.queryByTestId('plus-d-actions')).not.toBeInTheDocument();
+  });
+  // TCK-2860 (AC2) — à 1100 × 800, la colonne n'a pas la place : rien à droite à l'arrivée, et le bouton
+  // de l'en-tête ouvre le contexte en panneau SUPERPOSÉ ; le rebasculer le referme.
+  it('AC2 — à 1100 px, le bouton du contexte ouvre le panneau superposé (fermé à l’arrivée)', () => {
+    largeurDeFenetre(1100);
+    listeSansFiltre.mockReturnValue(pageDeListe(FILS));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    expect(screen.queryByTestId('colonne-de-contexte')).not.toBeInTheDocument();
+    expect(screen.getByTestId('basculer-le-contexte')).toHaveTextContent('afficher');
+    fireEvent.click(screen.getByTestId('basculer-le-contexte'));
+    expect(screen.getByTestId('panneau-superpose')).toBeInTheDocument();
+    const colonne = screen.getByTestId('colonne-de-contexte');
+    expect(colonne).toHaveTextContent('contexte=9');
+    expect(colonne).toHaveAttribute('data-superposee', 'true');
+    fireEvent.click(screen.getByTestId('basculer-le-contexte'));
+    expect(screen.queryByTestId('panneau-superpose')).not.toBeInTheDocument();
+  });
+
+  it('à 1100 px, un groupe : le même bouton ouvre « Infos du groupe » superposées', () => {
+    typesDesFils.set(9, 'group');
+    try {
+      largeurDeFenetre(1100);
+      listeSansFiltre.mockReturnValue(pageDeListe(FILS));
+      render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+      expect(screen.queryByTestId('infos-du-groupe')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('basculer-le-contexte'));
+      expect(screen.getByTestId('infos-du-groupe')).toHaveAttribute('data-superposee', 'true');
+    } finally {
+      typesDesFils.delete(9);
+    }
+  });
+
+  it('dès 1280 px, la colonne n’est pas superposée', () => {
+    listeSansFiltre.mockReturnValue(pageDeListe(FILS));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+    expect(screen.getByTestId('colonne-de-contexte')).toHaveAttribute('data-superposee', 'false');
+    expect(screen.queryByTestId('panneau-superpose')).not.toBeInTheDocument();
+  });
+
+  // TCK-2860 (AC3) — « Marquer comme non lue » vise le fil ouvert (la liste et son compteur suivent par
+  // l'invalidation de `['conversations', 'list']`, `useMarkConversationUnread`).
+  it('AC3 — « Marquer comme non lue » vise le fil ouvert', () => {
+    marquerNonLue.mockReset();
+    listeSansFiltre.mockReturnValue(pageDeListe(FILS));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+    fireEvent.click(screen.getByRole('button', { name: 'geste non lue' }));
+    expect(marquerNonLue).toHaveBeenCalledWith(9, undefined, expect.anything());
+  });
+
+  it('« Signaler » ouvre le dialogue du fil ouvert ; « Ajouter un participant » ouvre le groupe créé', () => {
+    listeSansFiltre.mockReturnValue(pageDeListe(FILS));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+    fireEvent.click(screen.getByRole('button', { name: 'geste signaler' }));
+    expect(screen.getByTestId('dialogue-signaler')).toHaveTextContent('signaler=9');
+
+    fireEvent.click(screen.getByRole('button', { name: 'geste ajouter' }));
+    // L'autre partie (99) n'est jamais « de neuf ».
+    expect(screen.getByTestId('dialogue-elargir')).toHaveTextContent('elargir=9 exclus=99');
+    fireEvent.click(screen.getByRole('button', { name: 'créer le groupe' }));
+    expect(screen.getByTestId('chat-view')).toHaveTextContent('chat=501');
+  });
+
+  it('un groupe n’a pas « Ajouter un participant » (ses infos le portent)', () => {
+    typesDesFils.set(9, 'group');
+    try {
+      listeSansFiltre.mockReturnValue(pageDeListe(FILS));
+      render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+      expect(screen.getByRole('button', { name: 'geste signaler' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'geste ajouter' })).toBeNull();
+    } finally {
+      typesDesFils.delete(9);
+    }
   });
 });

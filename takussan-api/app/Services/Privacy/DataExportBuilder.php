@@ -104,6 +104,23 @@ class DataExportBuilder
     }
 
     /**
+     * TCK-2874 (ADR-0110 § 8) — `metadata.stage_change` dit l'étape commerciale de la fiche (avant et
+     * après l'acceptation), que seul le personnel de l'agence lit (TCK-2593) : ni le client ni le
+     * bailleur ne la reçoivent dans leur export.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private static function sansEtapeDeLaFiche(array $row): array
+    {
+        if (is_array($row['metadata'] ?? null)) {
+            unset($row['metadata']['stage_change']);
+        }
+
+        return $row;
+    }
+
+    /**
      * @return array<string,mixed>
      */
     public function payloads(User $user): array
@@ -150,9 +167,13 @@ class DataExportBuilder
                 ->whereIn('customer_id', $customerIds)
                 ->orWhere('created_by_id', $user->id)
                 ->get()
-                ->map(fn (Booking $booking) => $customerIds->contains($booking->customer_id) || $propertyIds->contains($booking->property_id)
-                    ? $booking->toArray()
-                    : self::project($booking->toArray(), self::BOOKING_ACT))
+                // TCK-2893 (ADR-0070 § 7) — le revenu déclaré du candidat est dans SA ligne, en clair ; le
+                // bailleur du bien reçoit la ligne sans lui (`Booking::$hidden`).
+                ->map(fn (Booking $booking) => self::sansEtapeDeLaFiche($customerIds->contains($booking->customer_id)
+                    ? $booking->makeVisible(Booking::SENSITIVE)->toArray()
+                    : ($propertyIds->contains($booking->property_id)
+                        ? $booking->toArray()
+                        : self::project($booking->toArray(), self::BOOKING_ACT))))
                 ->all(),
             'leases.json' => $leases->toArray(),
             'payments.json' => [

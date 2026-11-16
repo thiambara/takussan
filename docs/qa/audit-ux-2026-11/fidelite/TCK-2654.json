@@ -157,11 +157,11 @@
       "motif": "la maquette pose accent/10 ; le produit pose border-success/20 bg-success/5 et text-success : check-valeurs-arbitraires-app (aplat-accent) réserve l'aplat d'accent aux pastilles « en vedette »"
     },
     {
-      "ecran": "app-interventions a-3-*",
-      "element": "note vocale (lucide-mic, « 1 message vocal », « Message vocal »)",
+      "ecran": "app-interventions a-4-*",
+      "element": "« , 1 message vocal » du résumé",
       "propriete": "présence",
-      "exception": "hors périmètre",
-      "motif": "la note vocale n'est pas du ticket TCK-2654"
+      "exception": "donnée",
+      "motif": "TCK-2902 : le résumé compte la note quand le détail sert `media.voice_note` ; la #44 de la démo n'en porte pas. Le micro de « En deux mots » et son aide (a-3) sont rendus (navigateur doté de `MediaRecorder`)"
     },
     {
       "ecran": "app-interventions a-4-*",
@@ -169,13 +169,6 @@
       "propriete": "état des étapes, photo, ordonnée (+44 px)",
       "exception": "donnée",
       "motif": "la #44 de la démo est terminée : trois étapes faites, aucune photo, les étapes remontent de 44 px"
-    },
-    {
-      "ecran": "app-interventions a-4-*",
-      "element": "« l'agence répond d'ordinaire dans l'heure »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "aucune source ne sert ce délai (décision 2 de team-lead : aucun texte inventé)"
     },
     {
       "ecran": "app-interventions a-3-*",
@@ -200,17 +193,10 @@
     },
     {
       "ecran": "app-interventions a-5-*",
-      "element": "métier de l'artisan, fenêtre de passage, « Changer le créneau », « Écrire à l'agence »",
+      "element": "métier de l'artisan, fenêtre de passage",
       "propriete": "présence",
       "exception": "donnée",
-      "motif": "l'API ne les sert pas au locataire"
-    },
-    {
-      "ecran": "app-interventions a-5-bureau-*",
-      "element": "note « Les réparations… prises en charge selon votre bail : aucun montant… »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "aucune source ne sert ce texte (décision 2 : aucun texte inventé)"
+      "motif": "l'API ne les sert pas au locataire (TCK-2918 a levé « Changer le créneau » et « Écrire à l'agence »)"
     },
     {
       "ecran": "app-interventions a-5-*",
@@ -270,13 +256,6 @@
     },
     {
       "ecran": "app-interventions a-6-*",
-      "element": "« Dakar Immo a consulté deux autres artisans (…) et recommande ce devis »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "aucune source ne sert la mise en concurrence (décision 2 de team-lead : aucun texte inventé) ; le rappel du plafond, lui, est servi (owner_approval_threshold)"
-    },
-    {
-      "ecran": "app-interventions a-6-*",
       "element": "« ; l'agence vous proposera une autre solution » après « Un refus demande un motif »",
       "propriete": "texte",
       "exception": "donnée",
@@ -290,25 +269,18 @@
       "motif": "aucune date de fin prévue n'est servie ; le produit écrit le passage (`scheduled_at`) : « Aujourd'hui à 10:00 »"
     },
     {
-      "ecran": "app-interventions a-6-*",
-      "element": "carte « Depuis janvier » (Interventions 12, dont 9 closes, À votre charge 1 521 000 F) et « Historique par bien »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "aucun agrégat annuel des interventions n'est servi au bailleur"
-    },
-    {
       "ecran": "app-interventions a-6-telephone",
       "element": "« En cours sur vos biens » (y 754)",
       "propriete": "présence",
       "exception": "donnée",
-      "motif": "la maquette la pose aussi, sous le pli (pages/app/app-interventions-autres.tsx, section après la carte du devis) ; elle remonte dans le pli du produit de la hauteur des textes de donnée absents de la carte (★ de l'artisan, « a consulté deux autres artisans », lien PDF), comme « Total du devis » et « Refuser » (y −22 et −84)"
+      "motif": "la maquette la pose aussi, sous le pli (pages/app/app-interventions-autres.tsx, section après la carte du devis) ; elle remonte dans le pli du produit de la hauteur des textes de donnée absents de la carte (★ de l'artisan, « a consulté deux autres artisans », lien PDF), comme « Total du devis » et « Refuser » (y −22 et −84) — TCK-2919 : la ligne « a consulté… » est désormais rendue quand l'API sert `quote_alternatives` ; la doublure du relevé n'en sert pas, d'où le décalage mesuré (non re-mesuré : navigateur hors du lot du 2026-11-15)"
     },
     {
       "ecran": "app-interventions a-6-bureau-*",
       "element": "« Approuver », « Refuser », « Un refus demande un motif »",
       "propriete": "ordonnée (−57,5 px)",
       "exception": "donnée",
-      "motif": "la ligne « Dakar Immo a consulté deux autres artisans… » et le lien PDF, absents (voir plus haut), remontent les gestes ; leurs x et tailles sont ceux de la maquette"
+      "motif": "la ligne « Dakar Immo a consulté deux autres artisans… » et le lien PDF, absents (voir plus haut), remontent les gestes ; leurs x et tailles sont ceux de la maquette — TCK-2919 : la ligne « a consulté… » est désormais rendue quand l'API sert `quote_alternatives` ; la doublure du relevé n'en sert pas, d'où le décalage mesuré (non re-mesuré : navigateur hors du lot du 2026-11-15)"
     },
     {
       "ecran": "app-interventions a-6-bureau-*",
@@ -382,20 +354,6 @@
     },
     {
       "ecran": "app-interventions a-7-*",
-      "element": "« À facturer · 2 », « Facturer », « , 2 à facturer » du sous-titre",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "la facture naît seule à la fin des travaux (`MaintenanceRequestObserver`, montant > 0) et le prestataire n'a aucun POST de facture : décision 1 a de team-lead, question produit renvoyée au porteur"
-    },
-    {
-      "ecran": "app-interventions a-7-*",
-      "element": "« Relevé de mes factures » (lucide-download), « Calendrier »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "aucun export des factures du prestataire ni aucun calendrier propre ne sont servis ; « Toutes » mène au registre complet (`?factures=toutes`)"
-    },
-    {
-      "ecran": "app-interventions a-7-*",
       "element": "« Wave · 2 nov. », « Paiement le 15 nov. » (moyen et date de paiement d'une facture)",
       "propriete": "texte",
       "exception": "donnée",
@@ -424,13 +382,6 @@
     },
     {
       "ecran": "app-interventions a-7-*",
-      "element": "« Cette semaine » (largeur du titre), « Mes interventions » (largeur)",
-      "propriete": "largeur",
-      "exception": "technique",
-      "motif": "le titre occupe sa ligne ; dans la maquette il partage une rangée avec « Calendrier » ou « Relevé de mes factures », absents (voir plus haut)"
-    },
-    {
-      "ecran": "app-interventions a-7-*",
       "element": "mise en page en deux colonnes",
       "propriete": "seuil",
       "exception": "décision produit",
@@ -442,6 +393,34 @@
       "propriete": "libellé : « Télécharger le devis (PDF) » ; trait de l'icône 1,75 / 1,5 contre 2",
       "exception": "donnée",
       "motif": "le lien est rendu (QuotePdfButton, forme « lien », sous can_view_quote_pdf, L3b partie 2) ; l'API ne sert aucune référence de devis (« DV-… ») : le libellé reprend la clé existante du geste de la fiche. Le trait suit TCK-2685 (A § 7)."
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "montants « 150 000 F CFA », « 520 000 F CFA » (maquette : « F »)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "TCK-2919 — un montant en XOF s'écrit par `useFormatteurs().montant` dans toute l'application ; la phrase de mise en concurrence suit l'écriture du rappel du plafond"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "feuille (téléphone) / panneau (bureau) « Interventions par bien depuis janvier »",
+      "propriete": "présence (absent de la maquette)",
+      "exception": "donnée",
+      "motif": "TCK-2919 — le ticket exige que « Par bien » / « Historique par bien » ouvre le détail `by_property` ; la maquette ne dessine pas sa cible. Forme : `FeuilleDuBas` (décision du porteur du 2026-11-11), chaque bien menant à l'onglet Interventions de sa fiche"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "feuille / panneau « Facturer « … » » (montant, numéro, pièce) et « Relevé de mes factures » (choix de la période)",
+      "propriete": "présence (absent de la maquette)",
+      "exception": "donnée",
+      "motif": "TCK-2919 — le ticket exige la saisie du montant final et de la pièce avant `submit`, et le choix de la période du relevé (mois en cours par défaut) ; la maquette ne dessine que les déclencheurs"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "« À facturer » : « Sacré-Cœur 3 · terminée hier » nomme le bien (titre), pas le quartier",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "TCK-2919 — la facture ne sert que le titre de son bien (`include=property`, réduit au titre) ; le jour de fin est le `created_at` du brouillon, né à la fin des travaux"
     }
   ],
   "ecarts_ouverts": []

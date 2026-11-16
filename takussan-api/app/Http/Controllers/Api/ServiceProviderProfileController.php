@@ -65,6 +65,8 @@ class ServiceProviderProfileController extends Controller
                 'completed_interventions_count' => ServiceProviderProfile::completedInterventionsSubquery($agency->id),
                 // TCK-2772 — le délai de réponse médian sur les interventions de CETTE agence.
                 'response_delay_minutes' => ServiceProviderProfile::responseDelaySubquery($agency->id),
+                // TCK-2917 (ADR-0118 § 4) — « 1 créneau dépassé » chez CETTE agence.
+                'overdue_slots_count' => ServiceProviderProfile::overdueSlotsSubquery($agency->id),
             ]);
 
         // TCK-2834 — au carnet par défaut, les invitations à un prestataire déjà inscrit ailleurs : des
@@ -108,13 +110,23 @@ class ServiceProviderProfileController extends Controller
             $zones = $this->fusionnerLesZones($zones, CarnetInvitationsDeProfilsExistants::zones($agency));
         }
 
+        // TCK-2917 (ADR-0118 § 4) — `meta.trade_counts` : les pastilles de métier, comptées sur le même
+        // périmètre que `meta.zones` (invitations du carnet par défaut comprises).
+        $tradeCounts = ServiceProviderProfile::tradeCountsOf($this->scopeForAgency($agency, $statuses));
+        if ($statuses === null) {
+            foreach (CarnetInvitationsDeProfilsExistants::trades($agency) as $trade) {
+                $tradeCounts[$trade] = ($tradeCounts[$trade] ?? 0) + 1;
+            }
+            ksort($tradeCounts);
+        }
+
         return $this->paginated(
             $paginator,
             [
                 ...$invitationsDeLaPage->all(),
                 ...ServiceProviderDirectoryResource::collection($modeles)->toArray($request),
             ],
-            ['zones' => $zones],
+            ['zones' => $zones, 'trade_counts' => (object) $tradeCounts],
         );
     }
 

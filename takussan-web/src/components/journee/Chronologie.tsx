@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import type { Moment } from '@/lib/journee/journee';
+import { compteARebours, prochaineVisite, type Moment } from '@/lib/journee/journee';
 import { lienItineraire, nomDuVisiteur, telephoneDuVisiteur } from '@/components/visits/par-le-temps/pieces';
 import { finDeLaVisite } from '@/lib/visites/par-le-temps';
 import { cn } from '@/lib/utils';
@@ -69,7 +69,9 @@ function CarteVisite({ v }: { readonly v: PropertyVisit }) {
         </Link>
         {adresse || nom ? <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{[adresse, nom].filter(Boolean).join(' · ')}</p> : null}
       </div>
-      <div className="mt-3 flex gap-2 xl:mt-0 xl:flex-none">
+      {/* TCK-2856 — entre 1024 et 1280 (deux colonnes dès `lg`), la carte n'a que ~185 px utiles : Itinéraire (~114 px)
+          et les deux disques (2 × 44 px) passent à la ligne au lieu d'être rognés par la section. */}
+      <div className="mt-3 flex flex-wrap gap-2 xl:mt-0 xl:flex-none xl:flex-nowrap">
         {itineraire ? (
           <a href={itineraire} target="_blank" rel="noopener noreferrer" className={cn(GESTE, GESTE_CONTOUR, 'flex-1 xl:flex-none')}>
             <Navigation className="size-4" strokeWidth={1.75} aria-hidden="true" />
@@ -103,12 +105,26 @@ function CarteTache({ moment, gestes }: { readonly moment: Extract<Moment, { gen
   );
 }
 
-function Ligne({ heure, sous, children }: { readonly heure: string; readonly sous?: string | null; readonly children: ReactNode }) {
+/**
+ * `sousBureau` (TCK-2856) : ce que la ligne dit sous l'heure AU BUREAU quand il diffère du téléphone — le
+ * compte à rebours de la prochaine visite (maquette `app-aujourdhui` e0 : « dans 45 min » au bureau, la
+ * durée au téléphone). La chronologie est un seul nœud rendu dans les deux blocs : la bascule est en CSS.
+ */
+function Ligne({ heure, sous, sousBureau, children }: { readonly heure: string; readonly sous?: string | null; readonly sousBureau?: string | null; readonly children: ReactNode }) {
   return (
     <li className="flex gap-3 px-4 md:px-5">
       <div className="w-13 flex-none pt-3.5 md:w-19">
         <p className="font-display text-lg font-semibold leading-none tabular-nums">{heure}</p>
-        {sous ? <p className="mt-1.5 text-xs text-muted-foreground">{sous}</p> : null}
+        {sousBureau ? (
+          <>
+            {sous ? <p className="mt-1.5 text-xs text-muted-foreground md:hidden">{sous}</p> : null}
+            <p data-slot="compte-a-rebours" className="mt-1.5 text-xs text-muted-foreground max-md:hidden">
+              {sousBureau}
+            </p>
+          </>
+        ) : sous ? (
+          <p className="mt-1.5 text-xs text-muted-foreground">{sous}</p>
+        ) : null}
       </div>
       <div className="min-w-0 flex-1 pb-3">{children}</div>
     </li>
@@ -132,6 +148,10 @@ export function Chronologie({ moments, maintenant, gestes, onPlanifier }: Chrono
   const t = useTranslations('journee.chronologie');
   const f = useFormatteurs();
   const lignes: ReactNode[] = [];
+  // TCK-2856 — la prochaine visite d'aujourd'hui dit dans combien de temps elle commence ; passée, sa durée.
+  const prochaine = maintenant ? prochaineVisite(moments, maintenant) : null;
+  const rebours = prochaine && maintenant ? compteARebours(prochaine.instant, maintenant) : null;
+  const dans = rebours ? (rebours.heures === 0 ? t('dansMinutes', { n: rebours.minutes }) : t('dansHeures', { h: rebours.heures, m: String(rebours.minutes).padStart(2, '0'), minutes: rebours.minutes })) : null;
   let maintenantPose = maintenant === null;
   const poserMaintenant = () => {
     if (maintenantPose || !maintenant) return;
@@ -150,7 +170,7 @@ export function Chronologie({ moments, maintenant, gestes, onPlanifier }: Chrono
     if (m.genre === 'visite') {
       const duree = m.visite.duration_minutes && m.visite.duration_minutes > 0 ? m.visite.duration_minutes : null;
       lignes.push(
-        <Ligne key={`v-${m.visite.id}`} heure={f.heure(m.visite.scheduled_at)} sous={duree ? t('duree', { n: duree }) : null}>
+        <Ligne key={`v-${m.visite.id}`} heure={f.heure(m.visite.scheduled_at)} sous={duree ? t('duree', { n: duree }) : null} sousBureau={m === prochaine ? dans : null}>
           <CarteVisite v={m.visite} />
         </Ligne>,
       );

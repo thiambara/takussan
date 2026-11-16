@@ -34,6 +34,13 @@ const LIST_FIELDS: string[] = [
   // TCK-2579 / TCK-2594 — la nature et le prix affiché à la réservation (l'écart d'une offre).
   'kind',
   'list_price_at_booking',
+  // TCK-2875 — « Expire demain » lit `response_deadline`, que l'API ne calcule que sur toutes les
+  // colonnes de `BookingResource::CHAMPS_DE_L_ECHEANCE` (status, agency_id, created_at, ci-dessus) ;
+  // la caution en mois dit le détail d'une candidature (« Entrée 1er déc. · caution 2 mois »).
+  // `dossier` n'est pas une colonne : il sort sans être demandé, sa complétude seule (jamais les pièces).
+  'expires_at',
+  'expired_at',
+  'security_deposit_months',
 ];
 
 /** TCK-2594 — le client d'une ligne : son nom et, pour le personnel, son téléphone. */
@@ -167,7 +174,8 @@ export type CreateBookingPaymentPayload = {
   amount?: number;
   /** TCK-2594 — les huit moyens que `StoreBookingPaymentRequest` accepte (`PaymentMethod`). */
   payment_method?: (typeof PAYMENT_METHOD_VALUES)[number];
-  payment_type?: 'deposit' | 'advance' | 'fee';
+  // TCK-2892 — `other` exige `notes`.
+  payment_type?: 'deposit' | 'advance' | 'fee' | 'security_deposit' | 'other';
   /**
    * TCK-172 — set to `pending` for the customer self-service gateway flow. TCK-1266 — sans
    * `cancelled`, que `StoreBookingPaymentRequest` refuse. TCK-1311 — ni `refunded` : une ligne
@@ -199,19 +207,29 @@ export function useConfirmBooking(bookingId: number) {
       invalidate: [
         ['bookings', 'detail', bookingId],
         ['bookings', 'list'],
+        // TCK-2878 — l'acceptation (ou le refus) entre au fil du client et fait avancer sa fiche : « Le fil de
+        // {prénom} » et « De la demande au bail » se relisent, comme la fiche et le pipeline.
+        ['customer-timeline'],
+        ['customers'],
+        ['crm-pipeline'],
+        ['agent-crm'],
       ],
     },
   );
 }
 
 export function useRejectBooking(bookingId: number) {
-  return useApiMutation<ApiResponse<Booking>, { reason?: string }>(
+  // TCK-2877 — le motif CODÉ et le message au client (`RejectBookingRequest`, TCK-2874), à côté du motif en mots.
+  return useApiMutation<ApiResponse<Booking>, { reason?: string; reason_code?: string; message?: string }>(
     { path: cheminApi`/api/bookings/${bookingId}/reject`, method: 'POST' },
     {
       relireSurErreur: true,
       invalidate: [
         ['bookings', 'detail', bookingId],
         ['bookings', 'list'],
+        // TCK-2878 — l'acceptation (ou le refus) entre au fil du client et fait avancer sa fiche : « Le fil de
+        // {prénom} » et « De la demande au bail » se relisent, comme la fiche et le pipeline.
+        ['customer-timeline'],
       ],
     },
   );

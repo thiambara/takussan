@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Model;
 
@@ -135,6 +136,18 @@ class CustomerPolicy extends BasePolicy
         return $user->isSuperAdmin()
             || ($this->view($user, $customer)
                 && PersonnelDeLAgence::personnelActifDe($user, $customer->agency_id));
+    }
+
+    /**
+     * TCK-2874 (ADR-0110 § 8) — défaire le passage en Négociation fait par l'acceptation d'une
+     * candidature ou d'une offre : le personnel de l'agence de la fiche qui peut la modifier — la
+     * borne de « Plus tard » sur l'étape proposée (`DismissSuggestedStageRequest`). Le bailleur qui a
+     * ajouté la fiche ne défait pas un geste de l'agence.
+     */
+    public function undoPipelineStage(User $user, Customer $customer): bool
+    {
+        return $this->update($user, $customer)
+            && CustomerCommercialAttributes::staffReadable($user, [(int) $customer->getKey()]) !== [];
     }
 
     /**

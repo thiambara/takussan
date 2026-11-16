@@ -1,17 +1,15 @@
 'use client';
 
-import type { ReactNode } from 'react';
-
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgenceDuPersonnelActif } from '@/hooks/usePersonnelActif';
 import { useMyProfiles } from '@/hooks/useProfiles';
 
+import { DocumentsDeLAgence } from './agence/DocumentsDeLAgence';
 import { CoffreDeDocuments } from './coffre/CoffreDeDocuments';
-import { DocumentsLibrary } from './DocumentsLibrary';
 
 /**
- * TCK-2656 — `/app/documents` selon le profil ACTIF : le personnel de l'agence garde la bibliothèque
+ * TCK-2656 — `/app/documents` selon le profil ACTIF : le personnel de l'agence ouvre les documents
  * de l'agence ; le locataire, le bailleur et le prestataire ouvrent leur coffre, rangé par dossier
  * (`GET /api/me/document-vault`).
  *
@@ -20,9 +18,13 @@ import { DocumentsLibrary } from './DocumentsLibrary';
  *
  * TCK-2769 — la recherche de ces profils est celle du coffre (« Chercher un document », `?q=`), jugée
  * par le serveur, documents générés compris : elle remplace `?vue=recherche` de TCK-2656, qui ne
- * cherchait que les documents téléversés. Le personnel garde celle de sa bibliothèque.
+ * cherchait que les documents téléversés.
+ *
+ * TCK-2896 — le personnel actif d'une agence ouvre les documents de l'agence rangés par bien, puis par
+ * bail (`GET /api/agency/document-vault`), qui remplacent la bibliothèque à plat groupée par type
+ * (`DocumentsLibrary`, TCK-062, retirée).
  */
-export function EspaceDesDocuments({ enTeteDeLaBibliotheque }: { readonly enTeteDeLaBibliotheque: ReactNode }) {
+export function EspaceDesDocuments() {
   const { user } = useAuth();
   const profils = useMyProfiles();
   const agence = useAgenceDuPersonnelActif();
@@ -36,14 +38,7 @@ export function EspaceDesDocuments({ enTeteDeLaBibliotheque }: { readonly enTete
     );
   }
 
-  if (agence !== null) {
-    return (
-      <div className="space-y-6">
-        {enTeteDeLaBibliotheque}
-        <DocumentsLibrary />
-      </div>
-    );
-  }
+  if (agence !== null) return <DocumentsDeLAgence />;
 
   return <CoffreDeDocuments />;
 }

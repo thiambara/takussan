@@ -18,6 +18,7 @@ use App\Models\PropertyCollaborator;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\Task;
+use App\Services\Crm\ContactLeadResponseStatsService;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -34,7 +35,23 @@ use Illuminate\Support\Facades\DB;
  */
 class TeamPerformanceService
 {
-    /** @return array{period: string, agents: list<array<string, mixed>>} */
+    /** TCK-2865 — les colonnes que `totals` additionne (les autres : `agents`, et le délai, une médiane). */
+    private const SUMMED = [
+        'leases_signed', 'sales_signed', 'visits_completed', 'leads_handled', 'customers_added',
+        'commissions_earned', 'properties_managed', 'tasks_overdue',
+    ];
+
+    public function __construct(private readonly ContactLeadResponseStatsService $responseStats) {}
+
+    /**
+     * TCK-2865 — chaque ligne porte `median_response_minutes`, le délai de première réponse de l'agent aux demandes
+     * du formulaire déposées dans le mois (la mesure de `contact-leads/response-stats` et de `response-time`,
+     * {@see ContactLeadResponseStatsService::minutesForTeam()}), `null` sous le seuil. `totals` : `agents` (le
+     * nombre de lignes), la somme de chaque colonne de compte ou de montant, et `median_response_minutes`, la
+     * médiane de l'équipe sur toutes les demandes de l'agence (jamais la médiane des médianes).
+     *
+     * @return array{period: string, agents: list<array<string, mixed>>, totals: array<string, mixed>}
+     */
     public function forPeriod(Agency $agency, CarbonInterface $month): array
     {
         $from = $month->copy()->startOfMonth();
@@ -99,25 +116,38 @@ class TeamPerformanceService
             // P198.01 (TCK-1910) — la règle de la liste : échue avant aujourd'hui.
             ->overdue(), 'assigned_to_id');
 
+        $responseTimes = $this->responseStats->minutesForTeam($agencyId, $ids, $from, $to);
+
+        $rows = $agents->map(function (AgentProfile $profile) use ($signed, $visits, $customers, $commissions, $managed, $overdue, $leadsHandled, $responseTimes): array {
+            $id = (int) $profile->user_id;
+            $user = $profile->user;
+
+            return [
+                'user_id' => $id,
+                'name' => $user ? (trim($user->first_name.' '.$user->last_name) ?: $user->username) : null,
+                'leases_signed' => (int) ($signed[$id]->leases ?? 0),
+                'sales_signed' => (int) ($signed[$id]->sales ?? 0),
+                'visits_completed' => (int) ($visits[$id] ?? 0),
+                'leads_handled' => (int) ($leadsHandled[$id] ?? 0),
+                'customers_added' => (int) ($customers[$id] ?? 0),
+                'commissions_earned' => round((float) ($commissions[$id] ?? 0), 2),
+                'properties_managed' => (int) ($managed[$id] ?? 0),
+                'tasks_overdue' => (int) ($overdue[$id] ?? 0),
+                'median_response_minutes' => $responseTimes['agents'][$id] ?? null,
+            ];
+        })->values()->all();
+
+        $totals = ['agents' => count($rows)];
+        foreach (self::SUMMED as $column) {
+            $totals[$column] = array_sum(array_column($rows, $column));
+        }
+        $totals['commissions_earned'] = round((float) $totals['commissions_earned'], 2);
+        $totals['median_response_minutes'] = $responseTimes['team'];
+
         return [
             'period' => $from->format('Y-m'),
-            'agents' => $agents->map(function (AgentProfile $profile) use ($signed, $visits, $customers, $commissions, $managed, $overdue, $leadsHandled): array {
-                $id = (int) $profile->user_id;
-                $user = $profile->user;
-
-                return [
-                    'user_id' => $id,
-                    'name' => $user ? (trim($user->first_name.' '.$user->last_name) ?: $user->username) : null,
-                    'leases_signed' => (int) ($signed[$id]->leases ?? 0),
-                    'sales_signed' => (int) ($signed[$id]->sales ?? 0),
-                    'visits_completed' => (int) ($visits[$id] ?? 0),
-                    'leads_handled' => (int) ($leadsHandled[$id] ?? 0),
-                    'customers_added' => (int) ($customers[$id] ?? 0),
-                    'commissions_earned' => round((float) ($commissions[$id] ?? 0), 2),
-                    'properties_managed' => (int) ($managed[$id] ?? 0),
-                    'tasks_overdue' => (int) ($overdue[$id] ?? 0),
-                ];
-            })->values()->all(),
+            'agents' => $rows,
+            'totals' => $totals,
         ];
     }
 

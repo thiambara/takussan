@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { BadgeCheck, Download, MoreHorizontal, Share2, Trash2, TriangleAlert } from 'lucide-react';
+import { BadgeCheck, Download, FilePlus2, MoreHorizontal, Share2, Trash2, TriangleAlert } from 'lucide-react';
 
 import { PageHeader } from '@/components/console';
 import { StatusBadge } from '@/components/console/StatusBadge';
@@ -12,6 +13,7 @@ import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { SheetClose } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
@@ -25,7 +27,7 @@ import { cn } from '@/lib/utils';
 import { jourADakar } from '@/lib/visites/par-le-temps';
 import type { DocumentType, DocumentWithVersions } from '@/types/document';
 
-import { DOCUMENT_TYPE_ORDER } from './constants';
+import { DOCUMENT_TYPE_ORDER, resolveDocumentableAlias } from './constants';
 import { ApercuDuDocument } from './fiche/ApercuDuDocument';
 import { useNomDAuteur } from './fiche/auteur';
 import { Carte, Paire } from './fiche/blocs';
@@ -50,6 +52,12 @@ interface DocumentDetailClientProps {
  * « Restaurer » `update` (hors pièce de profil, `seVersionne`), « Partager » et les liens `share`,
  * « Supprimer » `delete`. Les noms (auteur, vérificateur, entité de rattachement) ne sont pas servis :
  * « vous » quand c'est l'appelant, la date seule sinon — écarts « donnée » de la fiche de fidélité.
+ *
+ * TCK-2896 — ce à quoi la pièce est rattachée (`context`, TCK-2895) : « Rattaché à » (le bail, lien vers
+ * sa fiche, ou le bien) et « Bien » (nom, quartier) en tête des métadonnées ; au bureau, le fil
+ * « Documents › Bien › Bail › dossier › nom ». Au téléphone, « ⋯ » porte les gestes secondaires
+ * (« Ajouter une version », « Supprimer »). Sans `context` (porteur hors bien et bail, ou cible que
+ * l'appelant ne lit pas), la fiche est celle d'avant.
  */
 export function DocumentDetailClient({ documentId }: DocumentDetailClientProps) {
   const t = useTranslations('documents.detail');
@@ -116,6 +124,9 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
   const suivi = useSuiviDesLiens();
   const [partage, setPartage] = useState(false);
   const [suppression, setSuppression] = useState(false);
+  const [ajoutDeVersion, setAjoutDeVersion] = useState(false);
+  const tAgence = useTranslations('documents.agence');
+  const tVersions = useTranslations('documents.fiche.versions');
 
   const peutPartager = document.abilities?.share === true;
   // TCK-2729 (5a) — le bailleur bloqué ne partage plus, mais voit et révoque les liens qu'il a créés : la liste
@@ -197,6 +208,57 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
       </a>
     ) : null;
 
+  /* ── Rattachement (TCK-2896) : « Rattaché à », « Bien », et le fil du bureau ── */
+  const contexte = document.context ?? null;
+  const bien = contexte?.property ?? null;
+  const bail = contexte?.lease ?? null;
+  const alias = resolveDocumentableAlias(document.documentable_type);
+  const libelleDuBail = bail ? tAgence('bailDe', { nom: bail.tenant_name ?? bail.reference_number ?? `#${bail.id}` }) : null;
+  // Le dossier de l'arbre de l'agence où la pièce se range : pièces du locataire (bail) ou du bien.
+  // `context` n'est servi qu'à qui LIT la cible (`DocumentPolicy::readsTarget`) : ses liens mènent à
+  // des fiches qu'il lit ; hors du personnel, `?dossier=` est ignoré par le coffre.
+  const dossierDeLArbre =
+    alias === 'lease' && bail ? { cle: `lease-${bail.id}-tenant_pieces`, nom: tAgence('dossiers.tenant_pieces') } : alias === 'property' && bien ? { cle: `property-${bien.id}-property_pieces`, nom: tAgence('dossiers.property_pieces') } : null;
+  const etapesDuFil = [
+    { label: tPages('documents.title'), href: '/app/documents' },
+    ...(bien ? [{ label: bien.title ?? `#${bien.id}`, href: `/app/properties/${bien.id}` }] : []),
+    ...(bail && libelleDuBail ? [{ label: libelleDuBail, href: `/app/leases/${bail.id}` }] : []),
+    ...(dossierDeLArbre ? [{ label: dossierDeLArbre.nom, href: `/app/documents?dossier=${dossierDeLArbre.cle}` }] : []),
+    { label: document.name },
+  ];
+  const rattacheA = bail ? (
+    <Link href={`/app/leases/${bail.id}`} className="font-medium text-primary-deep underline-offset-2 hover:underline">
+      {bail.reference_number ? t('meta.bailRef', { reference: bail.reference_number }) : libelleDuBail}
+    </Link>
+  ) : bien ? (
+    <Link href={`/app/properties/${bien.id}`} className="font-medium text-primary-deep underline-offset-2 hover:underline">
+      {bien.title ?? `#${bien.id}`}
+    </Link>
+  ) : null;
+  const libelleDuBien = bien ? (bien.neighborhood && bien.title ? t('meta.bienEtQuartier', { bien: bien.title, quartier: bien.neighborhood }) : (bien.title ?? bien.neighborhood)) : null;
+  const peutAjouterUneVersion = seVersionne(document);
+  // Au téléphone, « ⋯ » : les gestes secondaires de la fiche (maquette `FicheMobile`).
+  const actionsDuTelephone =
+    peutAjouterUneVersion || peutSupprimer ? (
+      <div className="flex flex-col items-stretch gap-2 pb-2" data-slot="actions-du-telephone">
+        {peutAjouterUneVersion ? (
+          <SheetClose render={<Button type="button" variant="outline" className="h-12 w-full justify-start gap-3" />} onClick={() => setAjoutDeVersion(true)}>
+            <FilePlus2 className="size-5" aria-hidden="true" />
+            {tVersions('ajouter')}
+          </SheetClose>
+        ) : null}
+        {peutSupprimer ? (
+          <SheetClose
+            render={<Button type="button" variant="outline" className="h-12 w-full justify-start gap-3 text-destructive hover:text-destructive" />}
+            onClick={() => setSuppression(true)}
+          >
+            <Trash2 className="size-5" aria-hidden="true" />
+            {t('supprimer')}
+          </SheetClose>
+        ) : null}
+      </div>
+    ) : undefined;
+
   const boutonPartager = (
     <Button type="button" onClick={() => setPartage(true)}>
       <Share2 data-icon="inline-start" aria-hidden="true" />
@@ -207,11 +269,11 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
   return (
     <PagePleineLargeur className="flex flex-col pb-8 md:pb-0 xl:flex-row xl:flex-wrap xl:items-start xl:gap-x-6">
       {/* Au téléphone, l'en-tête dit « Document » ; le nom est le titre de la page, sous l'aperçu. */}
-      <DeclarerEnTete titre={t('titreCourt')} />
+      <DeclarerEnTete titre={t('titreCourt')} actions={bureau ? undefined : actionsDuTelephone} />
 
       <div className="order-2 px-4 pt-4 md:order-1 md:px-0 md:pt-0 xl:basis-full">
         <PageHeader
-          fil={{ label: tConsole('breadcrumb'), etapes: [{ label: tPages('documents.title'), href: '/app/documents' }, { label: document.name }] }}
+          fil={{ label: tConsole('breadcrumb'), etapes: etapesDuFil }}
           title={<span className="break-words">{document.name}</span>}
           description={marques}
           actions={
@@ -248,6 +310,8 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
       <aside aria-label={t('aPropos')} className="order-3 mt-4 space-y-6 px-4 md:mt-6 md:px-0 xl:w-[calc(var(--spacing)*111)] xl:flex-none">
         <Carte className="px-4">
           <dl className="divide-y divide-border">
+            {rattacheA ? <Paire libelle={t('meta.rattacheA')}>{rattacheA}</Paire> : null}
+            {libelleDuBien ? <Paire libelle={t('meta.bien')}>{libelleDuBien}</Paire> : null}
             {categorie ? <Paire libelle={t('meta.categorie')}>{categorie}</Paire> : null}
             {ajoute ? (
               moi(document.uploaded_by) ? (
@@ -272,7 +336,14 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
           </dl>
         </Carte>
 
-        <VersionsDuDocument documentId={document.id} peutAjouter={seVersionne(document)} peutRestaurer={peutRestaurer} echeanceActuelle={document.expiry_date} />
+        <VersionsDuDocument
+          documentId={document.id}
+          peutAjouter={peutAjouterUneVersion}
+          peutRestaurer={peutRestaurer}
+          echeanceActuelle={document.expiry_date}
+          ajoutOuvert={ajoutDeVersion}
+          onAjoutOuvert={setAjoutDeVersion}
+        />
 
         {peutPartager || sesLiensSeuls ? <LiensDePartage document={document} suivi={suivi} lesSiens={sesLiensSeuls} /> : null}
 

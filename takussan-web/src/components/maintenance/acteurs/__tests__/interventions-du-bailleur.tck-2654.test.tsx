@@ -30,6 +30,8 @@ vi.mock('@/lib/api', async (importOriginal) => {
       const lu = decodeURIComponent(path);
       reseau.appels.push({ path: lu, method });
       if (method !== 'GET') return { data: reseau.fiche };
+      // TCK-2919 — le bilan « Depuis janvier » : vide ici, testé à part (`…tck-2919`).
+      if (lu.startsWith('/api/owner/maintenance-summary')) return { data: { since: '2026-01-01', total: 0, closed: 0, charged_amount: 0, currency: 'XOF', by_property: [] } };
       if (lu.startsWith('/api/maintenance-requests?')) {
         const data = lu.includes('filter[status]=awaiting_owner') ? reseau.devis : reseau.enCours;
         return { data, meta: { total: data.length, per_page: 10, current_page: 1, last_page: 1 } };

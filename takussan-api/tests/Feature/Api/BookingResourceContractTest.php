@@ -28,6 +28,13 @@ class BookingResourceContractTest extends TestCase
         'cancellation_by', 'cancellation_reason', 'notes', 'created_at',
         // TCK-2579 (ADR-0102) — la nature et les termes d'une offre ou d'une candidature.
         'kind', 'offer_expires_at', 'list_price_at_booking',
+        // TCK-2870 (ADR-0110 § 1) — les conditions, et « à verser à l'entrée », dérivé.
+        'term_months', 'renewable', 'security_deposit_months', 'security_deposit_amount',
+        'advance_months_at_booking', 'agency_fee_months_at_booking',
+        'financing', 'signature_within_days', 'conditions', 'entry_amount',
+        // TCK-2892 (ADR-0110 § 1) — le nombre de voyageurs d'un séjour ; et l'origine (TCK-2874,
+        // ADR-0110 § 6), servie depuis TCK-2874 sans que ce contrat l'ait reçue.
+        'guests', 'source',
     ];
 
     /** Seulement quand `payments` est chargé (TCK-596). */

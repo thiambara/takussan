@@ -13,7 +13,21 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment } from '@/types/booking';
 import { useNomDuClient } from './liste/pieces';
-import { Avertissement, FeuilleOuPanneau, useEnPanneau } from './feuilles/pieces-des-feuilles';
+import { Avertissement, FeuilleOuPanneau, PastillesDeChoix, useEnPanneau } from './feuilles/pieces-des-feuilles';
+
+/**
+ * TCK-2877 — ce qu'un paiement peut encore rendre : son montant moins le cumul déjà remboursé
+ * (TCK-1214 : un remboursement partiel laisse la ligne `paid`). Le plafond que l'API juge
+ * (`booking_payment.refund_exceeds_paid`).
+ */
+export function plafondDuRemboursement(p: BookingPayment): number {
+  return Math.max(0, Number(p.amount ?? 0) - Number(p.refund_amount ?? 0));
+}
+
+/** TCK-2877 — les paiements qu'on peut encore rembourser : encaissés, et pas entièrement rendus. */
+export function paiementsRemboursables(booking: Booking): BookingPayment[] {
+  return (booking.booking_payments ?? []).filter((p) => p.status === 'paid' && plafondDuRemboursement(p) > 0);
+}
 
 interface BookingRefundPanelProps {
   readonly booking: Booking;
@@ -88,7 +102,7 @@ export function BookingRefundPanel({ booking, locale, isCustomer }: BookingRefun
         <BookingRefundDialog
           key={target.id}
           booking={booking}
-          payment={target}
+          paiements={[target]}
           locale={locale}
           onClose={() => setTarget(null)}
         />
@@ -102,18 +116,27 @@ export function BookingRefundPanel({ booking, locale, isCustomer }: BookingRefun
  * feuille du bas au téléphone, le panneau droit dès `xl`. Le montant est prérempli de ce que le
  * client a payé et l'aide en dit le plafond ; l'avertissement des fonds déjà reversés reste
  * (TCK-2153) ; le bouton, destructif, dit le montant qu'il rend.
+ *
+ * TCK-2877 — ouverte aussi depuis un séjour CONFIRMÉ (« Rembourser » des autres gestes et de
+ * l'en-tête). Le plafond est ce qui reste à rendre (payé − déjà remboursé) ; plusieurs paiements
+ * remboursables se choisissent en pastilles, le premier proposé.
  */
-function BookingRefundDialog({
+export function BookingRefundDialog({
   booking,
-  payment,
+  paiements,
   locale,
   onClose,
 }: {
   readonly booking: Booking;
-  readonly payment: BookingPayment;
+  /** Au moins un paiement ; plusieurs se choisissent dans la feuille. */
+  readonly paiements: readonly BookingPayment[];
   readonly locale: Locale;
   readonly onClose: () => void;
 }) {
+  const tTypes = useTranslations('bookings.paymentType');
+  const [cibleId, setCibleId] = useState<number>(paiements[0].id);
+  const payment = paiements.find((p) => p.id === cibleId) ?? paiements[0];
+  const plafond = plafondDuRemboursement(payment);
   const t = useTranslations('bookings.detail.refund');
   const tFeuille = useTranslations('bookings.feuilles.rembourser');
   const f = useFormatteurs();
@@ -130,7 +153,7 @@ function BookingRefundDialog({
     unknown
   >({
     schema: bookingRefundSchema,
-    defaultValues: { refund_amount: Number(payment.amount), refund_reason: '' },
+    defaultValues: { refund_amount: plafond, refund_reason: '' },
     onSubmit: async (values) => {
       await refund.mutateAsync({ paymentId: payment.id, ...values });
       return undefined;
@@ -169,6 +192,22 @@ function BookingRefundDialog({
         className="space-y-4 pt-1"
       >
         <FormGlobalError>{globalError}</FormGlobalError>
+        {paiements.length > 1 ? (
+          <PastillesDeChoix
+            libelle={tFeuille('paiement')}
+            options={paiements.map((p) => ({
+              valeur: String(p.id),
+              libelle: `${tTypes.has(p.payment_type) ? tTypes(p.payment_type) : p.payment_type} · ${f.montantCourt(plafondDuRemboursement(p), p.currency ?? devise)}`,
+            }))}
+            valeur={String(payment.id)}
+            onChange={(v) => {
+              const suivant = paiements.find((p) => String(p.id) === v);
+              if (!suivant) return;
+              setCibleId(suivant.id);
+              form.setValue('refund_amount', plafondDuRemboursement(suivant), { shouldValidate: false });
+            }}
+          />
+        ) : null}
         <div>
           <FormAmountInput<BookingRefundFormValues>
             control={form.control}
@@ -179,7 +218,7 @@ function BookingRefundDialog({
             required
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            {tFeuille('montantAide', { montant: f.montantCourt(payment.amount, devise), prenom })}
+            {tFeuille('montantAide', { montant: f.montantCourt(plafond, devise), prenom })}
           </p>
         </div>
         <FormTextarea<BookingRefundFormValues>

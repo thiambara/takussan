@@ -129,6 +129,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // TCK-2899 : moteur d'OCR minifié, copié depuis node_modules par scripts/copier-moteur-ocr.mjs
+    // (predev / prebuild) et ignoré par git — ce n'est pas notre code.
+    "public/ocr/**",
   ]),
 ]);
 

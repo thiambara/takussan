@@ -58,6 +58,9 @@ vi.mock('@/lib/queries/agency-queues', async (importOriginal) => ({
   fetchPendingInvitationsCount: vi.fn(async () => 4),
 }));
 vi.mock('../ProchainsReversements', () => ({ ProchainsReversements: () => null }));
+// TCK-2867 — deux blocs lus côté navigateur, hors de ce que ce test relève.
+vi.mock('../DetailParBail', () => ({ DetailParBail: () => null }));
+vi.mock('@/components/accueil/bailleur/AFaireBailleur', () => ({ AFaireBailleur: () => null }));
 vi.mock('@/components/rapports/vues/LienDesIndicateurs', () => ({ LienDesIndicateurs: () => null }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: vi.fn(async () => ({ id: 3, roles: ['agency_admin'], agency_id: 1 })) }));
 vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
@@ -175,6 +178,7 @@ describe('TCK-2791 — l’agent et le bailleur', () => {
     expect(vi.mocked(fetchOwnerDashboard).mock.calls.at(-1)).toEqual([{ period: 'last_month' }]);
     expect(tuile('bauxActifs')).toMatch(/aujourd’hui$/);
     render(withIntl(await EnsembleBailleur()));
-    expect(vi.mocked(fetchOwnerDashboard).mock.calls.at(-1)).toEqual([undefined]);
+    // TCK-2867 — `periodeALire` : un objet sans `period` (la lecture d'avant, à l'identique).
+    expect(vi.mocked(fetchOwnerDashboard).mock.calls.at(-1)).toEqual([{}]);
   });
 });

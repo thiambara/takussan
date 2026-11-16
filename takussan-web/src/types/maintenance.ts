@@ -120,6 +120,8 @@ export interface MaintenanceUserSummary {
   readonly name: string | null;
   readonly email?: string | null;
   readonly username?: string | null;
+  /** TCK-2917 (ADR-0118 § 2) — au seul personnel de l'agence du bien, au détail (clé absente sinon). */
+  readonly phone?: string | null;
 }
 
 /**
@@ -143,6 +145,8 @@ export interface MaintenanceAbilities {
   readonly can_remind_owner?: boolean;
   /** TCK-2786 — le journal de la demande : le personnel de l'agence du bien et le super-admin. */
   readonly can_view_journal?: boolean;
+  /** TCK-2917 — « Changer le créneau » : le demandeur au bail en cours, demande ni close ni rendue. */
+  readonly can_request_reschedule?: boolean;
   /** Les seules cibles de `PUT …/status` que cet utilisateur peut demander. */
   readonly transitions: readonly MaintenanceStatus[];
 }
@@ -165,6 +169,16 @@ export interface MaintenanceMedia {
   readonly completion_photos: readonly MaintenanceMediaItem[];
   /** Absent pour le demandeur qui n'est que demandeur. */
   readonly quotes?: readonly MaintenanceMediaItem[];
+  /** TCK-2900 (ADR-0113) — la note vocale du signalement, aux lecteurs des `photos` ; `null` sans note. */
+  readonly voice_note?: MaintenanceVoiceNote | null;
+}
+
+/** TCK-2900 (ADR-0113 § 4) — `media.voice_note` : URL d'API signée, durée déclarée en secondes. */
+export interface MaintenanceVoiceNote {
+  readonly id: number;
+  readonly url: string;
+  readonly duration: number | null;
+  readonly mime_type: string | null;
 }
 
 /** Le kit d'accès : au prestataire assigné, après acceptation, tant que rien n'est clos. */
@@ -224,9 +238,62 @@ export interface MaintenanceRequest {
   readonly assignee?: MaintenanceUserSummary | null;
   readonly quote_decision_by?: MaintenanceUserSummary | null;
   readonly created_at: string;
+  /** TCK-2900 — la demande porte une note vocale (liste et détail ; le fichier est dans `media`). */
+  readonly has_voice_note?: boolean;
   readonly abilities?: MaintenanceAbilities;
   readonly media?: MaintenanceMedia;
   readonly access?: MaintenanceAccess;
   /** Le fil de l'intervention, si l'utilisateur y participe (« Discuter »). */
   readonly conversation_id?: number | null;
+  /** TCK-2917 (ADR-0118 § 1) — le motif de qui a annulé, à tout lecteur. */
+  readonly cancellation_reason?: string | null;
+  /** TCK-2917 (ADR-0118 § 3) — la demande de créneau en attente du demandeur (au détail). */
+  readonly pending_reschedule_request?: MaintenanceRescheduleRequest | null;
+  /** TCK-2917 (ADR-0118 § 5) — la médiane de prise en charge de l'agence, en minutes (au détail ; `null` sous 5 demandes). */
+  readonly maintenance_response_minutes?: number | null;
+  /**
+   * TCK-2919 (ADR-0120 § 3) — les devis consultés et non retenus, aux seuls donneurs d'ordre (bailleur
+   * du bien, personnel de l'agence), au détail. Clé ABSENTE pour le prestataire et le demandeur.
+   */
+  readonly quote_alternatives?: readonly MaintenanceQuoteAlternative[];
+}
+
+/** TCK-2919 — un devis concurrent consulté par l'agence (`quote_alternatives[]`, ADR-0120 § 3). */
+export interface MaintenanceQuoteAlternative {
+  readonly id: number;
+  readonly provider_id: number | null;
+  readonly provider_name: string | null;
+  readonly amount: number;
+  readonly currency: string;
+  readonly file: { readonly id: number; readonly name: string; readonly mime_type: string | null; readonly url: string } | null;
+  readonly created_at: string | null;
+}
+
+/** TCK-2917 — `POST /api/maintenance-requests/{id}/reschedule-requests`, rendue au détail. */
+export interface MaintenanceRescheduleRequest {
+  readonly id: number;
+  readonly proposed_slots: readonly string[];
+  readonly note: string | null;
+  readonly requested_at: string | null;
+}
+
+/** TCK-2919 — `GET /api/owner/maintenance-summary` (ADR-0120 § 4), un bien de `by_property`. */
+export interface BilanDUnBien {
+  readonly property: { readonly id: number; readonly title: string | null };
+  readonly total: number;
+  readonly closed: number;
+  readonly charged_amount: number;
+}
+
+/**
+ * TCK-2919 — le bilan « Depuis janvier » du bailleur : les interventions signalées depuis `since`
+ * (hors annulées), les closes, et ce qui lui a été imputé (factures refacturables validées ou payées).
+ */
+export interface BilanDesInterventionsDuBailleur {
+  readonly since: string;
+  readonly total: number;
+  readonly closed: number;
+  readonly charged_amount: number;
+  readonly currency: string;
+  readonly by_property: readonly BilanDUnBien[];
 }

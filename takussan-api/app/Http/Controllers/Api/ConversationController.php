@@ -24,6 +24,7 @@ use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Messaging\ConversationWriter;
 use App\Services\Messaging\DirectConversationService;
+use App\Services\Messaging\FaitsDesMessages;
 use App\Services\Messaging\GroupConversationService;
 use App\Support\CaseInsensitive;
 use Closure;
@@ -31,6 +32,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Spatie\Image\Exceptions\CouldNotLoadImage;
 
@@ -394,7 +396,9 @@ class ConversationController extends Controller
                 ->get();
 
             return $this->json([
-                'data' => MessageResource::collection($messages)->toArray($request),
+                // TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page ; rien à
+                // calculer quand le relevé ne rapporte aucun message (le cas de presque chaque tic).
+                'data' => $messages->isEmpty() ? [] : MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request),
                 'meta' => ['has_more' => false],
             ]);
         }
@@ -413,7 +417,8 @@ class ConversationController extends Controller
         $messages = $query->limit($perPage)->with(['media', 'sender'])->get();
 
         return $this->json([
-            'data' => MessageResource::collection($messages)->toArray($request),
+            // TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page.
+            'data' => MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request),
             'meta' => ['has_more' => $messages->count() === $perPage],
         ]);
     }
@@ -456,7 +461,8 @@ class ConversationController extends Controller
         });
 
         return $this->json([
-            'data' => MessageResource::make($message)->resolve($request),
+            // TCK-2858 — le message envoyé porte déjà sa coche (fausse) et le rôle de son auteur.
+            'data' => MessageResource::make($message)->avecFaits(FaitsDesMessages::pour($sender, $conversation))->resolve($request),
         ], 201);
     }
 
@@ -507,6 +513,43 @@ class ConversationController extends Controller
             'data' => [
                 'conversation_id' => $conversation->id,
                 'last_read_at' => $this->instant(now()),
+            ],
+        ]);
+    }
+
+    /**
+     * TCK-2859 (ADR-0114 § 1) — `PUT /conversations/{conversation}/unread` : le `last_read_at` du
+     * lecteur passe une seconde avant le dernier message qui compte comme non lu — le prédicat de
+     * `index()` (`$nonLus`) : d'un autre, hors avis système, non supprimé. Idempotent (la valeur ne
+     * dépend que de ce message) ; jamais AVANCÉ (un `last_read_at` nul ou plus ancien reste) ; sans
+     * message d'un autre, rien ne change.
+     */
+    public function markAsUnread(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->ensureParticipant($request, $conversation);
+
+        $user = $request->user();
+        $dernier = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('type', '!=', MessageType::System->value)
+            ->where(fn ($w) => $w->whereNull('sender_id')->orWhere('sender_id', '!=', $user->id))
+            ->max('created_at');
+
+        $lecture = $conversation->participants()->where('users.id', $user->id)->first()?->pivot?->last_read_at;
+        $lecture = $lecture !== null ? Carbon::parse($lecture) : null;
+
+        if ($dernier !== null) {
+            $avant = Carbon::parse($dernier)->subSecond();
+            if ($lecture !== null && $lecture->greaterThan($avant)) {
+                $conversation->participants()->updateExistingPivot($user->id, ['last_read_at' => $avant]);
+                $lecture = $avant;
+            }
+        }
+
+        return $this->json([
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'last_read_at' => $this->instant($lecture),
             ],
         ]);
     }

@@ -26,6 +26,8 @@ const L = fr.lease.liste;
 
 const reseau = vi.hoisted(() => ({ appels: [] as { chemin: string; methode: string; corps: unknown }[] }));
 const toastAdd = vi.hoisted(() => vi.fn());
+// TCK-2912 — le routeur, partagé : `push` se lit (« Réviser » refusé mène à la fiche).
+const routeur = vi.hoisted(() => ({ replace: (url: string) => nav.poser(url.split('?')[1] ?? ''), push: vi.fn() }));
 const nav = vi.hoisted(() => {
   let query = '';
   const abonnes = new Set<() => void>();
@@ -46,7 +48,7 @@ const nav = vi.hoisted(() => {
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(useSyncExternalStore(nav.abonner, () => nav.query, () => nav.query)),
-  useRouter: () => ({ replace: (url: string) => nav.poser(url.split('?')[1] ?? ''), push: vi.fn() }),
+  useRouter: () => routeur,
   usePathname: () => '/app/leases',
 }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: toastAdd }) }));
@@ -111,6 +113,8 @@ let echeances: PaymentHistoryRow[] = [];
 let echeancier: Record<string, unknown>[] = [];
 /** TCK-2778 — la réponse de `POST …/payment-link` : le lien, ou le 409 d'une agence hors ligne. */
 let reponseDuLien: 'lien' | 'horsLigne' | 'nonPayable' = 'lien';
+/** TCK-2912 — la fiche du bail (`GET /api/leases/{id}`), lue par « Réviser » pour ouvrir sa feuille sur la liste. */
+let ficheDuBail: Record<string, unknown> | null = null;
 
 function echeance(id: number, bailId: number): PaymentHistoryRow {
   return {
@@ -158,6 +162,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
       }
       if (url.pathname === '/api/agencies/1/tenant-onboarding-pending') return { data: listesDEntree, meta: { current_page: 1, last_page: 1, per_page: 100, total: listesDEntree.length } };
       if (url.pathname === '/api/payments/history') return { data: echeances, meta: { current_page: 1, last_page: 1, per_page: 20, total: echeances.length } };
+      if (/^\/api\/leases\/\d+$/.test(url.pathname) && methode === 'GET' && ficheDuBail) return { data: ficheDuBail };
       if (/^\/api\/leases\/\d+\/payments$/.test(url.pathname) && methode === 'GET') {
         return { data: echeancier, meta: { current_page: 1, last_page: 1, per_page: 100, total: echeancier.length } };
       }
@@ -212,6 +217,7 @@ beforeEach(() => {
   echeances = [echeance(507, 1)];
   echeancier = [];
   reponseDuLien = 'lien';
+  ficheDuBail = null;
   fenetres.length = 0;
   document.addEventListener('click', empecherLaNavigation, true);
   vi.spyOn(window, 'open').mockImplementation(() => {
@@ -311,7 +317,6 @@ describe('TCK-2644 — la file « À traiter » de l’agence', () => {
     });
 
     it.each([
-      ['rent_review_open', 'reviser', L.gestes.rent_review_open, 'Révision de loyer possible'],
       ['ending_soon', 'renouveler', L.gestes.ending_soon, 'Fin du bail le 30 juin 2029'],
       ['deposit_to_refund', 'restituer', L.gestes.deposit_to_refund, /^Caution à restituer · sorti le /],
     ] as const)('%s → la fiche, feuille ouverte (`?geste=%s`)', async (motif, geste, libelle, quoi) => {
@@ -320,6 +325,51 @@ describe('TCK-2644 — la file « À traiter » de l’agence', () => {
       const c = await carte('Mamadou Seck4');
       expect(within(c).getByText(quoi)).toBeInTheDocument();
       expect(within(c).getByRole('link', { name: libelle })).toHaveAttribute('href', `/app/leases/4?geste=${geste}`);
+    });
+
+    describe('TCK-2912 (AC9) — « Réviser » ouvre la feuille de révision SUR la liste', () => {
+      const RIEN = {
+        renew: false, review_rent: false, record_payment: false, refund_deposit: false, request_early_termination: false,
+        update: false, add_document: false, download_contract: false, leave_review: false, give_notice: false, rent_review_force: false,
+      };
+      const fiche = (abilities: Record<string, boolean>) => ({
+        id: 4, reference_number: 'LS-4', status: 'active', type: 'residential_rent', start_date: '2025-07-01', end_date: '2029-06-30',
+        monthly_rent: 1_800_000, currency: 'XOF', landlord_id: 50, rent_review_cap_pct: 5, abilities,
+        tenant: { id: 304, user_id: 70, first_name: 'Cheikh', last_name: 'Fall' },
+        property: { id: 204, title: 'Villa vue mer, Ngor', slug: 'villa', main_photo_url: null },
+      });
+
+      it('la feuille s’ouvre sans quitter la page, lue sur la fiche du bail ; au bureau, un dialogue centré', async () => {
+        baux = [bail(4, { motif: 'rent_review_open', since: '2026-11-01' })];
+        ficheDuBail = fiche({ ...RIEN, review_rent: true });
+        const utilisateur = rendre();
+        const c = await carte('Mamadou Seck4');
+        expect(within(c).getByText('Révision de loyer possible')).toBeInTheDocument();
+        expect(within(c).queryByRole('link', { name: L.gestes.rent_review_open })).toBeNull();
+        await utilisateur.click(within(c).getByRole('button', { name: L.gestes.rent_review_open }));
+        const feuille = await screen.findByRole('dialog', { name: fr.lease.fiche.revision.titre });
+        expect(within(feuille).getByText('Cheikh Fall · Villa vue mer, Ngor')).toBeInTheDocument();
+        // La page n'a pas changé : aucune navigation, l'adresse de la liste reste la même.
+        expect(nav.query).toBe('');
+        // Le bail est lu comme la fiche le lit (capacités, plafond, locataire).
+        const lecture = requetes('/api/leases/4')[0]!;
+        expect(lecture.get('include')).toContain('tenant');
+        // Maquette a-4 bureau : le dialogue centré de 520 px, pas le panneau latéral.
+        const popup = document.querySelector<HTMLElement>('[data-slot="feuille-du-bas"]')!;
+        expect(popup.className).toMatch(/md:top-1\/2/);
+        expect(popup.className).toMatch(/md:w-130/);
+        expect(popup.className).not.toMatch(/md:w-panneau/);
+      });
+
+      it('un bail que la fiche n’offrirait pas à réviser : la fiche, qui le dit', async () => {
+        baux = [bail(4, { motif: 'rent_review_open', since: '2026-11-01' })];
+        ficheDuBail = fiche(RIEN);
+        const utilisateur = rendre();
+        const c = await carte('Mamadou Seck4');
+        await utilisateur.click(within(c).getByRole('button', { name: L.gestes.rent_review_open }));
+        await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/leases/4?geste=reviser'));
+        expect(screen.queryByRole('dialog', { name: fr.lease.fiche.revision.titre })).toBeNull();
+      });
     });
 
     it('signature qui traîne → « Relancer la signature » : POST …/signature-request', async () => {

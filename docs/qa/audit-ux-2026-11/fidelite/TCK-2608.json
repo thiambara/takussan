@@ -200,15 +200,19 @@
     "Tu en seras l’administratrice": "Vous l’administrerez",
     "Ce que tu auras": "Ce que vous aurez",
     "Fais remonter une annonce le jour où tu le décides.": "Faites remonter une annonce le jour où vous le décidez.",
-    "Ton espace est prêt : tu ajoutes tes biens et ton équipe.": "Votre espace est prêt : vous ajoutez vos biens et publiez vos annonces.",
-    "Notre équipe vérifie l’agence (NINEA, registre du commerce).": "Takussan vérifie l’agence (NINEA, registre du commerce).",
-    "Repris de ton compte. Tu peux en mettre un autre.": "Repris de votre compte. Un autre numéro se donne dans la demande de passage en a",
-    "Ton espace d’agence s’ouvre tout de suite : équipe, bailleurs, mandats.": "Votre espace d’agence s’ouvre tout de suite : vos biens, vos baux, vos encaissem",
+    "Ton espace est prêt : tu ajoutes tes biens et ton équipe.": "Votre espace est prêt : vous ajoutez vos biens et votre équipe.",
+    "Notre équipe vérifie l’agence (NINEA, registre du commerce).": "Notre équipe vérifie l’agence (NINEA, registre du commerce). D’ici là, vos biens",
+    "Repris de ton compte. Tu peux en mettre un autre.": "Repris de votre compte. Vous pouvez en mettre un autre.",
+    "Ton espace d’agence s’ouvre tout de suite : équipe, bailleurs, mandats.": "Votre espace d’agence s’ouvre tout de suite : équipe, bailleurs, mandats.",
     "Demande le lien à ton agence": "Demandez le lien à votre agence",
-    "Son administrateur te l’envoie depuis son espace (Équipe, puis « Inviter »). Col": "Son administrateur vous l’envoie depuis son espace Takussan. Collez-le ici : vot",
+    "Son administrateur te l’envoie depuis son espace (Équipe, puis « Inviter »). Col": "Son administrateur vous l’envoie depuis son espace (Équipe, puis « Inviter »). C",
     "Écris à ton agence sur WhatsApp": "Écrire à votre agence sur WhatsApp",
     "T’invite comme agent · envoyée par Mamadou Sow le 9 nov.": "Vous invite comme agent · envoyée par Mamadou le 9 nov.",
-    "Et autres. La liste suit tes réponses.": "La liste suit vos réponses."
+    "Et autres. La liste suit tes réponses.": "La liste suit vos réponses.",
+    "Ton équipe": "Votre équipe",
+    "Tes bailleurs": "Vos bailleurs",
+    "Tes mandats": "Vos mandats",
+    "Invite tes agents : chacun son accès, ses biens, ses rendez-vous.": "Invitez vos agents : chacun son accès, ses biens, ses rendez-vous."
   },
   "alias_motifs": {
     "Comment tu t’appelles ?": "vouvoiement",
@@ -306,24 +310,17 @@
     },
     {
       "ecran": "a-3, a-4 (bureau)",
-      "element": "« Ce que vous aurez » : « Ton équipe », « Tes bailleurs », « Tes mandats » et leurs icônes (users, building2)",
-      "propriete": "absent du produit / absent de la maquette (« Vos biens et vos annonces », « Vos baux », « Vos encaissements », house, wallet)",
-      "exception": "incohérence des maquettes",
-      "motif": "AC3 du ticket : aucun texte n'annonce « équipe » avant la validation — l'espace qui s'ouvre est individuel (pas d'équipe, pas de mandats). La liste dit ce qu'il ouvre vraiment ; « Des crédits de mise en avant » reste ; d'où les icônes à d'autres rangs (lucide-file-pen-line sur « Vos baux », 2e, au lieu du 3e : −72,7) et la largeur des lignes (« Des crédits de mise en avant » +26,6 : la boîte suit sa phrase la plus longue, « Faites remonter une annonce le jour où vous le décidez. »)"
-    },
-    {
-      "ecran": "a-3 (téléphone, bureau)",
-      "element": "« Sous 48 h . » et « Notre équipe vérifie… »",
-      "propriete": "absent du produit / texte",
-      "exception": "incohérence des maquettes",
-      "motif": "aucun délai de vérification n'est garanti (aucune échéance d'instruction côté API ; la garde `src/test/__tests__/promesses-de-delai.test.ts` refuse un délai promis sans source) ; la vérification est celle de la demande de passage en agence, que Takussan instruit"
-    },
-    {
-      "ecran": "a-3 (téléphone, bureau)",
-      "element": "« Ville principale » en liste déroulante (« Dakar », lucide-chevron-down)",
+      "element": "« Ce que vous aurez » : « Des crédits de mise en avant » (lucide-megaphone, 4e rangée)",
       "propriete": "absent du produit",
-      "exception": "technique",
-      "motif": "l'API d'ouverture prend une ville libre (`agency.primary_city`) et aucune liste de villes n'est servie pour elle : un champ texte prérempli « Dakar »"
+      "exception": "donnée",
+      "motif": "TCK-2938 : le panneau porte les trois rangées de la maquette (« Votre équipe », « Vos bailleurs », « Vos mandats », users / building2 / file-pen-line) — l'agence ouverte (ADR-0125) a une équipe, des bailleurs et des mandats. La 4e rangée n'est pas reprise : l'ouverture ne donne aucun crédit (ADR-0125 § 5, `SpaceCreated` non déclenché) et rien ne se met en ligne avant la vérification ; la promettre serait faux. NON MESURÉ au navigateur (consigne du lot : pas de relevé)."
+    },
+    {
+      "ecran": "a-3 (téléphone, bureau)",
+      "element": "« Sous 48 h . » (2e temps de « En deux temps »)",
+      "propriete": "texte",
+      "exception": "incohérence des maquettes",
+      "motif": "TCK-2938 : ADR-0125 § 8 — « Sous 48 h » n'est pas promis (aucun délai de revue mesuré ni engagé ; la garde `src/test/__tests__/promesses-de-delai.test.ts` refuse un délai sans source). Le 2e temps dit « Ensuite. Notre équipe vérifie l’agence (NINEA, registre du commerce). D’ici là, vos biens ne sont pas en ligne et les loyers encaissés vous sont reversés après la vérification. » : la phrase ajoutée dit honnêtement ce qui attend la vérification (ADR-0125 § 5) ; elle allonge le bloc (une à deux lignes)."
     },
     {
       "ecran": "a-3 (téléphone, bureau)",
@@ -361,13 +358,6 @@
       "motif": "la maquette pose la note en pied d'écran sans filet ni fond ; le pied collé de la coque d'entrée (TCK-2598) porte un filet, un fond et une ombre, pensés pour une action : la note suit les cartes. AC4 tient (rien ne défile à 390 × 844 : la note finit à 553,6)"
     },
     {
-      "ecran": "a-2 (bureau)",
-      "element": "pastille « Nouveau » sur un résultat de l'aperçu",
-      "propriete": "absent du produit",
-      "exception": "donnée",
-      "motif": "aucune notion de « nouveau » n'existe dans le contrat de la recherche publique ni dans les cartes de bien du produit (aucun champ, aucune règle de fraîcheur) : la pastille n'est pas inventée. Indépendant du compte à 0"
-    },
-    {
       "ecran": "a-0 (téléphone, bureau)",
       "element": "« (facultatif) »",
       "propriete": "x, largeur",
@@ -379,14 +369,7 @@
       "element": "« En deux temps » et ses lignes (−10,7 au bureau, +12,2 au téléphone), « Créer mon espace pro » (+25,2 au bureau)",
       "propriete": "y",
       "exception": "donnée",
-      "motif": "au-dessus : l'aide du numéro (« Repris de votre compte. Un autre numéro se donne dans la demande de passage en agence. », cf. alias) n'a pas la hauteur de la maquette (28,8 au lieu de 35,8 au bureau, deux lignes au lieu d'une au téléphone) ; au-dessous : la ligne des conditions d'utilisation (écart accepté plus haut) pousse le bouton. « Ensuite . » remplace « Sous 48 h . » (écart accepté plus haut)"
-    },
-    {
-      "ecran": "a-4 (téléphone)",
-      "element": "« Lien d’invitation », le champ, « Coller », l'aperçu (lucide-check), « Pas encore de lien ? » : −19 à −29",
-      "propriete": "y",
-      "exception": "donnée",
-      "motif": "la phrase d'au-dessus est plus courte (« Son administrateur vous l’envoie depuis son espace Takussan… », cf. alias : le chemin « Équipe, puis Inviter » n'est pas nommé) : tout le bloc remonte d'autant ; les espacements internes sont ceux de la maquette"
+      "motif": "TCK-2938 : l'aide du numéro est celle de la maquette (« Repris de votre compte. Vous pouvez en mettre un autre. », cf. alias) ; au-dessous, la phrase de l'écart « Sous 48 h » (ce qui attend la vérification) et la ligne des conditions d'utilisation (écart accepté plus haut) poussent le bouton. « Ensuite . » remplace « Sous 48 h . ». Décalages NON RE-MESURÉS au navigateur (consigne du lot : pas de relevé) ; les chiffres d'avant TCK-2938 ne valent plus."
     },
     {
       "ecran": "tous",
@@ -401,6 +384,7 @@
     "Retouches tirées des relevés 1 à 3 (même jour) : l'action de la barre (« Plus tard », « Passer ») sans rembourrage horizontal et à 75 % du texte, à 15 px au bureau sur les écrans à retour ; « Retour » à 54,5 px ; les libellés de champ à la largeur de leur texte sur 20 px d'interligne, « Prénom * » et « Nom (facultatif) » comme la maquette ; les champs à 44 px (`densiteDesChamps`, `fieldDensityScope`) ; les promesses des portes à 85 % et l'interligne de leurs sous-titres ; « Ce que vous aurez » à 20 px ; la pastille « 2 » à 70 %.",
     "AC4 : à 390 × 844, les trois cartes et « Plus tard » tiennent (dernier élément à 553,6) ; à 1280 et 1440, les trois cartes sont sur une ligne (« Commencer » au même y). AC-F6 : balayage sans débord ni coupe à 390, 768, 1024, 1280, 1440.",
     "Réconciliation ligne à ligne des quinze rapports de e08-cmp4 (2026-11-13, 22:45) : chaque écart et chaque présent d'un seul côté a son entrée ci-dessus ou son alias. Limites connues : l'aperçu peuplé du chercheur n'est pas comparé (aucun résultat dans l'état relevé) ; l'interrupteur WhatsApp n'est pas comparé (capacité fermée en local).",
-    "⚠ Personas t8-awa et t8-sans-prenom : les comptes de démo 187 et 189 ont été SUPPRIMÉS après les relevés (2026-11-13, consigne de team-lead) — ces quinze relevés ne se rejouent pas tels quels ; les rejouer demande d'abord deux personas équivalentes (un compte vérifié sans réponse ni profil, l'un avec prénom, l'autre sans) fournies par le script idempotent des personas de démo (règle de cadence 6). Le téléphone est relevé à 390 × 844, la taille des références gelées : aucune référence à 360 n'existe, et le balayage à 360 n'a pas été fait."
+    "⚠ Personas t8-awa et t8-sans-prenom : les comptes de démo 187 et 189 ont été SUPPRIMÉS après les relevés (2026-11-13, consigne de team-lead) — ces quinze relevés ne se rejouent pas tels quels ; les rejouer demande d'abord deux personas équivalentes (un compte vérifié sans réponse ni profil, l'un avec prénom, l'autre sans) fournies par le script idempotent des personas de démo (règle de cadence 6). Le téléphone est relevé à 390 × 844, la taille des références gelées : aucune référence à 360 n'existe, et le balayage à 360 n'a pas été fait.",
+    "TCK-2938 (2026-11-15) : écarts retirés — « Ville principale » en liste (combobox du référentiel `GET /api/public/geo/cities`, ex-12), pastille « Nouveau » de l'aperçu (règle `estNouveau` de TCK-2499, ex-18), chemin « Équipe, puis « Inviter » » nommé (ex-21). Motifs réécrits : « Ce que vous aurez » (ex-10, seule la rangée des crédits manque), « Sous 48 h » (ex-11, ADR-0125 § 8), décalages de « En deux temps » (ex-20). L'interrupteur WhatsApp (9) garde son motif. AC-F2 (`fidelite compare` à 390 et 1440) NON MESURÉ : la consigne du lot interdit le relevé au navigateur."
   ]
 }

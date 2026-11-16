@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Services\Dashboard\Adapters\AgentMeMetrics;
+use App\Services\Dashboard\AgentDaySuggestions;
 use App\Services\Dashboard\DashboardRoleResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,7 +15,10 @@ use Illuminate\Http\Request;
  */
 class DashboardController extends Controller
 {
-    public function __construct(private readonly DashboardRoleResolver $resolver) {}
+    public function __construct(
+        private readonly DashboardRoleResolver $resolver,
+        private readonly AgentDaySuggestions $suggestions,
+    ) {}
 
     /**
      * GET /api/dashboard/me — adaptive entry returning role + flat metrics + sections.
@@ -25,12 +30,26 @@ class DashboardController extends Controller
         // TCK-595 — le résolveur rend toujours une vue : au pire celle du client.
         $metrics = $this->resolver->resolve($user);
 
-        return $this->json([
-            'data' => [
-                'role' => $metrics->role(),
-                'metrics' => $metrics->metrics($user),
-                'sections' => $metrics->sections($user),
-            ],
-        ]);
+        $data = [
+            'role' => $metrics->role(),
+            'metrics' => $metrics->metrics($user),
+            'sections' => $metrics->sections($user),
+        ];
+
+        // TCK-2855 — `include=suggestions` : les gestes nominatifs de « Ma journée », pour l'agent seul.
+        // Calculés sur demande seulement : le rapprochement coûte plus que les chiffres.
+        if ($metrics instanceof AgentMeMetrics && $this->includes($request, 'suggestions')) {
+            $data['suggestions'] = $this->suggestions->for($user);
+        }
+
+        return $this->json(['data' => $data]);
+    }
+
+    /** `include=a,b` ; une valeur qui n'est pas une chaîne (tableau) n'inclut rien. */
+    private function includes(Request $request, string $name): bool
+    {
+        $include = $request->query('include');
+
+        return is_string($include) && in_array($name, array_map('trim', explode(',', $include)), true);
     }
 }

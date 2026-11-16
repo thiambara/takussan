@@ -31,16 +31,18 @@ import { MentionFigee, SignatureDeLAgence, SignatureDuBailleurAttendue, Signatur
 /**
  * TCK-2648 — « Récapitulatif et signatures » : la fin du tour (maquette `app-etats-des-lieux`, approche
  * A, écran a-2). L'agent relit avec le locataire les comptes et les réserves, le fait signer sur son
- * téléphone (code SMS, ADR-0098), signe pour le bailleur, puis « Terminer » rend la fiche, figée, et
- * son PDF.
+ * téléphone (code SMS, ADR-0098), signe pour le bailleur — ou lui fait signer par son propre code
+ * (TCK-2914) —, puis « Terminer et envoyer le PDF » rend la fiche, figée, et son PDF.
  *
  *  · Ouvert par `?etape=signatures` (la dernière pièce du parcours y mène ; la fiche y renvoie par
  *    « Faire signer sur place ») : un état de la page, pas une route.
  *  · Le BROUILLON se fige au premier geste de signature (`POST …/submit`, qui refuse un élément non
  *    qualifié) : le locataire signe un contenu qui ne bouge plus. Avant, l'état général et les notes se
  *    modifient ici (`PATCH`) ; après, ils se lisent.
- *  · « Terminer » ne s'active que les deux signatures posées. Il ne promet aucun envoi : à la seconde
- *    signature, l'API fige l'état des lieux et n'envoie rien (le PDF se télécharge depuis la fiche).
+ *  · « Terminer et envoyer le PDF » ne s'active que les deux signatures posées. TCK-2914 : la promesse
+ *    est tenue par l'API (TCK-2913) — à la seconde signature, l'avis du PDF signé part au locataire et
+ *    au bailleur (un lien, cloche et e-mail). Signé, l'écran nomme les destinataires (`pdf_sent_to`
+ *    une fois l'envoi fait, les parties nommées par la fiche en attendant).
  */
 
 const CONDITIONS: readonly InventoryCondition[] = ['excellent', 'good', 'fair', 'poor'];
@@ -140,14 +142,22 @@ function Recap({ inventory, bail }: { readonly inventory: Inventory; readonly ba
     ) : (
       <LocataireDepuisSonCompte nom={nomLocataire} />
     );
+  // TCK-2914 — `landlord_onsite` ouvre aussi la carte : « Lui envoyer un code par SMS » au bailleur.
   const blocAgence =
-    roles.includes('landlord') || agenceSigne ? (
-      <SignatureDeLAgence inventory={inventory} signataire={user?.full_name ?? ''} avantDeSigner={avantDeSigner} />
+    roles.includes('landlord') || roles.includes('landlord_onsite') || agenceSigne ? (
+      <SignatureDeLAgence
+        inventory={inventory}
+        signataire={user?.full_name ?? ''}
+        avantDeSigner={avantDeSigner}
+        pourLeCompte={roles.includes('landlord')}
+        parCode={roles.includes('landlord_onsite')}
+      />
     ) : (
       <SignatureDuBailleurAttendue inventory={inventory} />
     );
 
   const terminer = () => router.replace(`/app/inventories/${inventory.id}`);
+  const envoiDuPdf = signe ? <EnvoiDuPdf inventory={inventory} /> : null;
   // Revenir aux pièces : le parcours tant que le brouillon se modifie ; figé, les pièces se RELISENT
   // sur la fiche (le locataire les relit avec l'agent avant de signer).
   const lienDesPieces = modifiable ? `/app/inventories/${inventory.id}?piece=1` : `/app/inventories/${inventory.id}#pieces`;
@@ -221,7 +231,9 @@ function Recap({ inventory, bail }: { readonly inventory: Inventory; readonly ba
               <p className="text-ui text-muted-foreground" aria-live="polite">
                 {manque}
               </p>
-            ) : null}
+            ) : (
+              envoiDuPdf
+            )}
           </div>
         </div>
       </div>
@@ -253,9 +265,13 @@ function Recap({ inventory, bail }: { readonly inventory: Inventory; readonly ba
       </div>
       <BarreDAction>
         <div>
-          <p className="mb-2 text-center text-ui text-muted-foreground" aria-live="polite">
-            {manque}
-          </p>
+          {signe ? (
+            <div className="mb-2 text-center">{envoiDuPdf}</div>
+          ) : (
+            <p className="mb-2 text-center text-ui text-muted-foreground" aria-live="polite">
+              {manque}
+            </p>
+          )}
           <Button type="button" size="xl" className="h-14 w-full gap-2 rounded-xl text-base font-semibold" disabled={!signe} onClick={terminer}>
             <FileDown className="size-5" aria-hidden />
             {t('terminer')}
@@ -263,6 +279,22 @@ function Recap({ inventory, bail }: { readonly inventory: Inventory; readonly ba
         </div>
       </BarreDAction>
     </PagePleineLargeur>
+  );
+}
+
+/**
+ * TCK-2914 — « Le PDF part à Aminata Diop et à Mouhamed Sène » : les comptes avisés par l'API
+ * (`pdf_sent_to`, posé par la tâche d'envoi après la seconde signature) ; avant que la tâche ait tourné,
+ * les deux parties que la fiche nomme. Personne à aviser : le PDF se télécharge depuis la fiche.
+ */
+function EnvoiDuPdf({ inventory }: { readonly inventory: Inventory }) {
+  const t = useTranslations('inventory.terrain.recap.pdf');
+  const envoyes = inventory.pdf_sent_at ? (inventory.pdf_sent_to ?? []).map((p) => p.full_name) : [inventory.tenant?.full_name, inventory.landlord?.full_name];
+  const noms = [...new Set(envoyes.filter((n): n is string => typeof n === 'string' && n.trim() !== ''))];
+  return (
+    <p data-slot="envoi-du-pdf" className="text-ui text-muted-foreground" aria-live="polite">
+      {noms.length >= 2 ? t('aDeux', { a: noms[0], b: noms[1] }) : noms.length === 1 ? t('aUn', { a: noms[0] }) : t('aPersonne')}
+    </p>
   );
 }
 

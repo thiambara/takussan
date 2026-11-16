@@ -76,6 +76,30 @@ class LeasePaymentReminderReader
      */
     public function summaries(Collection $payments): array
     {
+        $all = $this->forPayments($payments);
+
+        $out = [];
+        foreach ($payments as $payment) {
+            $entries = $all[$payment->id];
+            $last = $entries[0] ?? null;
+            $out[$payment->id] = [
+                'last_reminder' => $last !== null ? array_intersect_key($last, array_flip(['at', 'source', 'channel', 'subject', 'by'])) : null,
+                'reminders_count' => count($entries),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * TCK-2915 — les relances de chaque échéance d'une page, en une requête pour toutes : la forme
+     * de {@see self::forPayment()}. {@see self::summaries()} et le relevé du bailleur la lisent.
+     *
+     * @param  Collection<int, LeasePayment>  $payments
+     * @return array<int, list<array<string, mixed>>> échéance → ses relances
+     */
+    public function forPayments(Collection $payments): array
+    {
         $manual = $payments->isEmpty() ? collect() : LeasePaymentReminder::query()
             ->whereIn('lease_payment_id', $payments->modelKeys())
             ->with(['createdBy' => fn ($q) => $q->withTrashed()])
@@ -84,12 +108,7 @@ class LeasePaymentReminderReader
 
         $out = [];
         foreach ($payments as $payment) {
-            $entries = $this->merge($payment, $manual->get($payment->id, collect()));
-            $last = $entries[0] ?? null;
-            $out[$payment->id] = [
-                'last_reminder' => $last !== null ? array_intersect_key($last, array_flip(['at', 'source', 'channel', 'subject', 'by'])) : null,
-                'reminders_count' => count($entries),
-            ];
+            $out[$payment->id] = $this->merge($payment, $manual->get($payment->id, collect()));
         }
 
         return $out;

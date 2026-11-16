@@ -31,6 +31,8 @@ export const CLES_D_UNE_VISITE = [
   'completed_at',
   'cancelled_at',
   'cancellation_reason',
+  // TCK-2871 — qui a annulé (`visitor` | `agency`).
+  'cancelled_by',
   'duration_minutes',
   'feedback',
   'rating',
@@ -43,6 +45,8 @@ export const CLES_D_UNE_VISITE = [
   'customer',
   'report',
   'created_at',
+  // TCK-2849 — la capacité de confirmer, au détail et nommée en liste.
+  'can_confirm',
   'abilities',
 ] as const;
 

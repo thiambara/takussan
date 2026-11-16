@@ -118,6 +118,7 @@ class ReviewModerationService
     private function remove(Review $review, User $actor, ?string $reason): array
     {
         $this->assertTransition($review, ReviewStatus::Rejected);
+        $before = $review->status;
 
         $review->update([
             'status' => ReviewStatus::Rejected,
@@ -125,6 +126,7 @@ class ReviewModerationService
             'metadata' => $this->moderationMetadata($review, $actor, $reason),
         ]);
         $review->delete();
+        $this->journal($review, $actor, 'delete', $before, $reason, 'review.removed', 'Avis supprimé');
 
         return ['review' => $review, 'deleted' => true];
     }
@@ -138,8 +140,32 @@ class ReviewModerationService
         $metadata['ignored_reason_code'] = $this->reasonCode;
 
         $review->update(['metadata' => $metadata]);
+        $this->journal($review, $actor, 'ignore', $review->status, $reason, 'review.reports_ignored', 'Signalements d’un avis ignorés');
 
         return $review->refresh();
+    }
+
+    /**
+     * TCK-2930 (ADR-0043, amendement du 2026-11-15) — supprimer un avis et en ignorer les
+     * signalements sont ouverts à l'admin d'agence sur son périmètre : chaque geste, de l'agence
+     * comme de la plateforme, laisse sa ligne au journal d'activité, avec le motif (code et texte)
+     * et le statut de l'avis AVANT le geste. C'est le contrepoids du « juge et partie ».
+     */
+    private function journal(Review $review, User $actor, string $decision, ?ReviewStatus $before, ?string $reason, string $event, string $description): void
+    {
+        activity('Review')
+            ->performedOn($review)
+            ->causedBy($actor)
+            ->withProperties([
+                'decision' => $decision,
+                'reason_code' => $this->reasonCode,
+                'reason' => $reason,
+                'status_before' => $before?->value,
+                'agency_id' => $review->agency_id,
+                'by_platform' => $actor->isSuperAdmin(),
+            ])
+            ->event($event)
+            ->log($description);
     }
 
     /**

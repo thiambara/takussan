@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\MaintenanceCompletionReportController;
 use App\Http\Controllers\Api\MaintenanceJournalController;
 use App\Http\Controllers\Api\MaintenanceOwnerReminderController;
+use App\Http\Controllers\Api\MaintenanceQuoteAlternativeController;
 use App\Http\Controllers\Api\MaintenanceQuoteController;
 use App\Http\Controllers\Api\MaintenanceRequestController;
+use App\Http\Controllers\Api\MaintenanceRescheduleRequestController;
 use App\Http\Controllers\Api\SuggestedProvidersController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,11 +45,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('maintenance-requests/{maintenanceRequest}/quote/approve', [MaintenanceQuoteController::class, 'approveQuote'])->name('maintenance-requests.quote.approve');
     Route::post('maintenance-requests/{maintenanceRequest}/quote/reject', [MaintenanceQuoteController::class, 'rejectQuote'])->name('maintenance-requests.quote.reject');
     Route::get('maintenance-requests/{maintenanceRequest}/quote/pdf', [MaintenanceQuoteController::class, 'pdf'])->name('maintenance-requests.quote.pdf');
+    // TCK-2897 (ADR-0099, amendement du 2026-11-15) — le rapport de fin d'intervention, généré depuis la demande.
+    Route::get('maintenance-requests/{maintenanceRequest}/completion-report/pdf', MaintenanceCompletionReportController::class)->name('maintenance-requests.completion-report.pdf');
     Route::post('maintenance-requests/{maintenanceRequest}/start', [MaintenanceQuoteController::class, 'start'])->name('maintenance-requests.start');
 
     // TCK-2786 — « Relancer le bailleur » (une par 24 h, en `awaiting_owner`) et le journal de la demande.
     Route::post('maintenance-requests/{maintenanceRequest}/owner-reminders', [MaintenanceOwnerReminderController::class, 'store'])->name('maintenance-requests.owner-reminders.store');
     Route::get('maintenance-requests/{maintenanceRequest}/journal', [MaintenanceJournalController::class, 'index'])->name('maintenance-requests.journal');
+
+    // TCK-2917 (ADR-0118 § 3) — le demandeur demande un autre créneau ; `scheduled_at` ne change pas.
+    Route::post('maintenance-requests/{maintenanceRequest}/reschedule-requests', [MaintenanceRescheduleRequestController::class, 'store'])->name('maintenance-requests.reschedule-requests.store');
+
+    // TCK-2911 (ADR-0120 § 3) — les devis concurrents consultés : le personnel de l'agence du bien.
+    Route::post('maintenance-requests/{maintenanceRequest}/quote-alternatives', [MaintenanceQuoteAlternativeController::class, 'store'])->name('maintenance-requests.quote-alternatives.store');
+    Route::delete('maintenance-requests/{maintenanceRequest}/quote-alternatives/{alternative}', [MaintenanceQuoteAlternativeController::class, 'destroy'])
+        ->where('alternative', '[0-9]{1,18}')->name('maintenance-requests.quote-alternatives.destroy');
 
     // History per property
     Route::get('properties/{property}/maintenance-requests', [MaintenanceRequestController::class, 'indexForProperty'])->name('properties.maintenance-requests.index');

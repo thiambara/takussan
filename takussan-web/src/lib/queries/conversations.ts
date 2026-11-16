@@ -399,7 +399,8 @@ export function useSendVoiceNote(conversationId: number) {
   );
 }
 
-function extensionAudio(mime: string): string {
+/** TCK-2902 — exportée : le signalement d'une intervention nomme sa note vocale de la même façon. */
+export function extensionAudio(mime: string): string {
   if (mime.includes('ogg')) return 'ogg';
   if (mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a')) return 'm4a';
   if (mime.includes('mpeg')) return 'mp3';
@@ -580,6 +581,65 @@ export function useRenameConversation(conversationId: number) {
         ['conversations', conversationId, 'messages'],
       ],
     },
+  );
+}
+
+/**
+ * TCK-2860 — « Marquer comme non lue » (`PUT …/unread`, TCK-2859) : le lecteur recule son
+ * `last_read_at` juste avant le dernier message d'un autre. La liste (pastille, compteur « Non lus »)
+ * et la pastille globale suivent par l'invalidation de `['conversations', 'list']`.
+ *
+ * Le fil reste ouvert : `useMarkConversationRead` ne le remarque lu qu'au PROCHAIN message (un appel
+ * par couple fil/dernier message) — ouvrir à nouveau le fil, ou en recevoir un, le relit.
+ */
+export function useMarkConversationUnread(conversationId: number) {
+  return useApiMutation<ApiResponse<{ conversation_id: number; last_read_at: string | null }>, void>(
+    {
+      path: cheminApi`/api/conversations/${conversationId}/unread`,
+      method: 'PUT',
+      body: () => undefined,
+    },
+    {
+      invalidate: [
+        ['conversations', 'list'],
+        ['conversations', 'detail', conversationId],
+      ],
+    },
+  );
+}
+
+/** TCK-2859 — les motifs d'un signalement (`ReportConversationRequest`). */
+export const MOTIFS_DE_SIGNALEMENT = ['spam', 'harassment', 'fraud', 'inappropriate', 'other'] as const;
+export type MotifDeSignalement = (typeof MOTIFS_DE_SIGNALEMENT)[number];
+
+/**
+ * TCK-2860 — « Signaler la conversation » (`POST …/reports`, TCK-2859) : 201, ou 409
+ * `conversation.already_reported` quand l'appelant l'a déjà signalée (l'appelant le dit).
+ */
+export function useReportConversation(conversationId: number) {
+  return useApiMutation<
+    ApiResponse<{ id: number; conversation_id: number; reason: MotifDeSignalement; comment: string | null; created_at: string }>,
+    { reason: MotifDeSignalement; comment?: string }
+  >({
+    path: cheminApi`/api/conversations/${conversationId}/reports`,
+    method: 'POST',
+  });
+}
+
+/**
+ * TCK-2860 — « Ajouter un participant » à un fil DIRECT (ADR-0114, TCK-2859) : la même route que
+ * l'ajout à un groupe, mais qui rend 201 avec le NOUVEAU groupe (l'appelant, l'autre partie, les
+ * ajoutés ; sans l'historique). Distinct de `useAddParticipants`, dont la réponse est
+ * `{conversation_id, added_user_ids}`. Un double envoi crée deux groupes : l'appelant désactive le
+ * bouton pendant l'envoi.
+ */
+export function useElargirLeFilDirect(conversationId: number) {
+  return useApiMutation<ApiResponse<Conversation>, { user_ids: number[] }>(
+    {
+      path: cheminApi`/api/conversations/${conversationId}/participants`,
+      method: 'POST',
+    },
+    { invalidate: [['conversations', 'list']] },
   );
 }
 

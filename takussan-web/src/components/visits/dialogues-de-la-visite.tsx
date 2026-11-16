@@ -21,6 +21,7 @@ import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 import { useProposeVisitSlot } from '@/lib/queries/visits';
 import { heureMuraleADakar, instantADakar } from '@/lib/visites/heure-de-dakar';
 import { JOURS_DE_VISITE_OUVERTS, useCreneaux } from '@/lib/visites/useCreneaux';
+import type { PropertyVisit } from '@/types/visit';
 
 /*
  * TCK-2587 (lot C) — les dialogues du visiteur et de la fiche, sortis de `VisitDetail` : « Mes
@@ -32,7 +33,18 @@ import { JOURS_DE_VISITE_OUVERTS, useCreneaux } from '@/lib/visites/useCreneaux'
  * TCK-590 — le visiteur propose un autre créneau, choisi dans la grille que le serveur rend pour
  * ce bien (créneaux pris inclus, non choisissables). L'heure est construite à Dakar.
  */
-export function ProposerUnCreneau({ visitId, slug, onClose }: { visitId: number; slug: string; onClose: () => void }) {
+export function ProposerUnCreneau({
+  visitId,
+  slug,
+  onClose,
+  onPropose,
+}: {
+  visitId: number;
+  slug: string;
+  onClose: () => void;
+  /** TCK-2853 — la visite telle que l'API la rend après le report (nouvelle heure, de nouveau en attente). */
+  onPropose?: (visite: PropertyVisit) => void;
+}) {
   const t = useTranslations('visitPlanning');
   const tDetail = useTranslations('visits.detail');
   const toast = useToast();
@@ -48,7 +60,8 @@ export function ProposerUnCreneau({ visitId, slug, onClose }: { visitId: number;
     e.preventDefault();
     if (!jour || !heure) return;
     try {
-      await propose.mutateAsync({ scheduled_at: instantADakar(jour, heure) });
+      const reponse = await propose.mutateAsync({ scheduled_at: instantADakar(jour, heure) });
+      if (reponse?.data) onPropose?.(reponse.data); // TCK-2853
       toast.add({ title: t('propose.success'), type: 'success' });
       onClose();
     } catch (err) {

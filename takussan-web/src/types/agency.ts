@@ -49,6 +49,16 @@ export interface AgencySettings {
    */
   late_fee_online_collection?: boolean;
   /**
+   * TCK-2849 / TCK-2869 (ADR-0112) — « Les bailleurs confirment les visites de leurs biens ». Absente
+   * = non : seule l'agence confirme (TCK-590).
+   */
+  owners_confirm_visits?: boolean;
+  /**
+   * TCK-2915 — le jour du mois (1-28) où partent les reversements aux bailleurs dont le mandat n'en
+   * fixe pas ; absent = aucune règle d'agence.
+   */
+  payout_day?: number | null;
+  /**
    * TCK-2483 — les modules que l'agence retire du menu de son personnel (codes d'`AgencyModule`).
    * Lu par `modulesMasquesDe`, jamais tel quel : un code inconnu y est ignoré.
    */

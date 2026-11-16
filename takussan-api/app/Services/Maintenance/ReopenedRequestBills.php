@@ -73,7 +73,8 @@ final class ReopenedRequestBills
     /** Un geste d'argent la tient : payée, imputée au bailleur, ou dans un reversement vivant. */
     private function committed(ServiceProviderBill $bill): bool
     {
-        if ($bill->status === ServiceProviderBillStatus::PendingValidation) {
+        // TCK-2911 (ADR-0120 § 1) — un brouillon n'est jamais engagé.
+        if (in_array($bill->status, [ServiceProviderBillStatus::Draft, ServiceProviderBillStatus::PendingValidation], true)) {
             return false;
         }
 

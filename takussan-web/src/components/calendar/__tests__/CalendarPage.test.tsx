@@ -230,7 +230,8 @@ describe('<CalendarPage> — l’admin et le bailleur (TCK-2597)', () => {
     monte({ persona: 'admin', audience: 'staff' });
 
     expect(screen.getByTestId('calendar-focus-label')).toHaveTextContent('10–23 nov.');
-    expect(screen.getByLabelText('Quatorze jours')).toHaveTextContent('14 j');
+    // TCK-2888 — « 14 j ▾ » est un menu (14 j, 30 j) : `CalendarPage.tck-2888.test.tsx`.
+    expect(screen.getByLabelText('Durée affichée : Quatorze jours')).toHaveTextContent('14 j');
     expect(principale()).toMatchObject({ start_date: '2026-11-10', end_date: '2026-11-23' });
   });
 

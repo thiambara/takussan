@@ -42,13 +42,25 @@ export function requeteAvecFiltre(actuelle: URLSearchParams | string, cle: CleDe
   return qs ? `?${qs}` : '';
 }
 
+/**
+ * TCK-2876 — la clé d'une entrée du fil : le type et l'id ne suffisent pas. Une visite ou une
+ * réservation a plusieurs jalons sous le MÊME id (sa demande, sa confirmation…), et deux
+ * contre-offres d'une même réservation portent l'id de la réservation.
+ */
+export function cleDeLEntree(e: EntreeDuFil): string {
+  const jalon = 'milestone' in e ? e.milestone : '';
+  const contreOffre = e.type === 'booking' && e.counter_offer ? `-${e.counter_offer.id}` : '';
+  return `${e.type}-${e.id}-${jalon}${contreOffre}`;
+}
+
 /** Les entrées de toutes les pages lues, dans l'ordre de l'API, sans doublon (une page relue). */
 export function entreesDesPages(pages: readonly { readonly data: readonly EntreeDuFil[] }[] | undefined): EntreeDuFil[] {
   const vues = new Set<string>();
   const entrees: EntreeDuFil[] = [];
   for (const page of pages ?? []) {
     for (const e of page.data) {
-      const cle = `${e.type}:${e.id}:${e.type === 'visit' ? e.milestone : ''}`;
+      // TCK-2876 — la clé de l'entrée : un jalon de réservation ou une seconde contre-offre, sous le même id, n'est pas un doublon.
+      const cle = cleDeLEntree(e);
       if (vues.has(cle)) continue;
       vues.add(cle);
       entrees.push(e);

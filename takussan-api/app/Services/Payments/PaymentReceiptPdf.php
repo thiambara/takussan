@@ -58,7 +58,9 @@ class PaymentReceiptPdf
             'currency' => $payment->currency?->value ?? 'XOF',
             'paid_at' => $payment->paid_at,
             'method' => $payment->payment_method?->value,
-            'type' => $payment->payment_type?->value,
+            // TCK-2892 — le type NOMMÉ (« Caution », « Autre »…), et non sa valeur brute ; en
+            // français, comme tout le gabarit.
+            'type' => $payment->payment_type?->label('fr'),
             'property' => $property,
             'customer' => $customer,
             'agency' => $agency,

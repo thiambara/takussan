@@ -86,6 +86,14 @@ export interface Destination {
    * action, groupes, « Plus » —, et elle ne paraît donc jamais dans « Aussi … ».
    */
   readonly surLEspace?: true;
+  /**
+   * TCK-2891 — d'autres racines de chemin que la destination COUVRE : une page qui vit sous l'une
+   * d'elles allume cette entrée (et l'onglet du même nom), comme une sous-page de `href`. « Clients »
+   * couvre `/app/crm` : le pipeline (`/app/crm/pipeline`) est une page de la relation client, que la
+   * maquette `app-pipeline` montre sous « Clients » au téléphone comme au bureau. Lu par
+   * {@link cheminDuMenu}, jamais à la main.
+   */
+  readonly couvreAussi?: readonly string[];
 }
 
 /**
@@ -307,7 +315,8 @@ const TABLE = [
   { id: 'rapports', href: '/app/reports', cle: 'reports', icone: BarChart3, accessible: ({ roles }) => isAdmin(roles) || isAgent(roles) || isOwner(roles) },
   // TCK-256 — l'annuaire des propriétaires ; standard-only par la page et par l'API.
   { id: 'proprietaires', href: '/app/owners', cle: 'owners', icone: Users, accessible: ({ roles }) => isAdmin(roles) },
-  { id: 'clients', href: '/app/customers', cle: 'crm', icone: Users, accessible: ({ roles }) => personnel(roles) || isOwner(roles) },
+  // TCK-2891 — `couvreAussi` : le pipeline (`/app/crm/pipeline`) allume « Clients ».
+  { id: 'clients', href: '/app/customers', cle: 'crm', icone: Users, accessible: ({ roles }) => personnel(roles) || isOwner(roles), couvreAussi: ['/app/crm'] },
   // TCK-072 — le calendrier agrégé de qui gère un catalogue.
   // Revue de TCK-2478 (M3) — et du prestataire, comme la garde de sa page (`assertCanReachCalendar`,
   // `lib/auth/guards.ts`, TCK-591) : il y lit ses interventions. Sans lui, la page lui était ouverte
@@ -339,6 +348,22 @@ const TABLE = [
 export type IdDestination = (typeof TABLE)[number]['id'];
 
 export const CATALOGUE: readonly (Destination & { readonly id: IdDestination })[] = TABLE;
+
+/**
+ * TCK-2891 — le chemin que le MENU doit juger : un chemin couvert par le `couvreAussi` d'une
+ * destination devient le `href` de celle-ci ; tout autre chemin est rendu tel quel. À passer à
+ * `resolveActiveHref` par chaque barre qui allume une entrée (barre latérale, barre d'onglets, récents
+ * de la palette) : une seule lecture, sinon l'onglet et l'entrée finissent par diverger.
+ */
+export function cheminDuMenu(pathname: string | null): string | null {
+  if (!pathname) return pathname;
+  for (const destination of CATALOGUE as readonly Destination[]) {
+    for (const racine of destination.couvreAussi ?? []) {
+      if (pathname === racine || pathname.startsWith(`${racine}/`)) return destination.href;
+    }
+  }
+  return pathname;
+}
 
 export function cleDe(destination: Destination, ctx: ContexteDeMenu): string {
   return typeof destination.cle === 'function' ? destination.cle(ctx) : destination.cle;

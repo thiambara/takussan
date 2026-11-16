@@ -64,9 +64,9 @@ export interface ContexteDesSections {
 export function sectionsMontrees(contexte: ContexteDesSections): SectionDeLaFiche[] {
   return SECTIONS_DE_LA_FICHE.filter((s) => {
     if (s === 'publique') return contexte.vitrine;
-    // TCK-2832 — « Réglages de bail » : à qui configure l'agence, seul (`AgencyPolicy::configure`, la
-    // même règle que `peutEcrireLaVitrine`). L'API refuse la lecture aux autres : pas d'état lecture.
-    if (s === 'bail') return contexte.vitrine;
+    // TCK-2921 (ADR-0111) — « Réglages de bail » : à tout lecteur de la fiche. L'API ouvre la lecture
+    // au personnel actif de l'agence ; qui ne configure pas l'agence y trouve l'état « lecture seule »
+    // (`can_edit: false`), décidé par la page sur la réponse de l'API, jamais ici.
     if (s === 'menu') return !contexte.individuelle;
     return true;
   });
@@ -100,7 +100,10 @@ const SECTION_DE_LA_CLE: Readonly<Record<string, SectionDeLaFiche>> = {
   legal_address: 'facturation',
   moderation_required: 'regles',
   late_fee_online_collection: 'regles',
+  owners_confirm_visits: 'regles',
   payout_approval_threshold: 'regles',
+  // TCK-2915
+  payout_day: 'regles',
   require_team_two_factor: 'regles',
   hidden_modules: 'menu',
 };

@@ -78,6 +78,8 @@ function ajouterAuxComptes(
   return {
     ...suivant,
     counts: {
+      // TCK-2848 — les totaux (lues comprises) ne changent pas quand une ligne change de camp : gardés.
+      ...meta.counts,
       a_traiter_non_lues: Math.max(0, meta.counts.a_traiter_non_lues + (ligne.a_traiter ? delta : 0)),
       par_famille: parFamille,
     },
@@ -113,7 +115,8 @@ function toutLu(precedent: NotificationsResponse | undefined): NotificationsResp
     meta: {
       ...precedent.meta,
       unread: 0,
-      ...(precedent.meta.counts ? { counts: { a_traiter_non_lues: 0, par_famille: {} } } : {}),
+      // TCK-2848 — tout lire vide les non-lues, pas les totaux (lues comprises).
+      ...(precedent.meta.counts ? { counts: { ...precedent.meta.counts, a_traiter_non_lues: 0, par_famille: {} } } : {}),
     },
   };
 }

@@ -90,11 +90,17 @@ export type ServiceProviderProfileSummary = {
    * (assignation → acceptation, lue au journal de l'intervention) ; `null` sans aucune mesure.
    */
   readonly response_delay_minutes?: number | null;
+  /** TCK-2917 (ADR-0118 § 4) — les interventions de l'agence dont le créneau est passé sans clôture. */
+  readonly overdue_slots_count?: number;
 };
 
 /** TCK-2772 — la liste porte en `meta.zones` les zones du carnet entier de l'agence, triées. */
 export type ServiceProvidersPage = PaginatedResponse<ServiceProviderProfileSummary> & {
-  readonly meta: PaginatedResponse<ServiceProviderProfileSummary>['meta'] & { readonly zones?: readonly string[] };
+  readonly meta: PaginatedResponse<ServiceProviderProfileSummary>['meta'] & {
+    readonly zones?: readonly string[];
+    /** TCK-2917 (ADR-0118 § 4) — les pastilles de métier : profils du carnet entier par métier. */
+    readonly trade_counts?: Readonly<Record<string, number>>;
+  };
 };
 
 export type InviteServiceProviderPayload = {

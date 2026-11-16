@@ -126,9 +126,13 @@ export function etapeAProposer(verdict: Verdict | null, etape: string | null | u
  * Le lien de la fiche publique qui ROUVRE la boîte de candidature ou d'offre (`?action=reserver`,
  * TCK-589 / TCK-2510), connexion par numéro comprise. Préfixé de la langue (ADR-0026) : sans
  * préfixe, le proxy répond 307 vers la langue du cookie du destinataire.
+ *
+ * TCK-2874 (ADR-0110 § 6) — `&via=invitation` : l'INDICE que la candidature vient de ce lien, que le
+ * tunnel transmet à l'API (`via` du corps) pour le libellé « par le lien envoyé après la visite ».
+ * Aucun droit n'en dépend.
  */
 export function lienDInvitation(origine: string, langue: string, slug: string): string {
-  return `${origine.replace(/\/$/, '')}/${langue}/properties/${encodeURIComponent(slug)}?action=reserver`;
+  return `${origine.replace(/\/$/, '')}/${langue}/properties/${encodeURIComponent(slug)}?action=reserver&via=invitation`;
 }
 
 /** La date d'échéance d'une relance à J+N, à 09:00 heure de Dakar (UTC+0, sans heure d'été). */

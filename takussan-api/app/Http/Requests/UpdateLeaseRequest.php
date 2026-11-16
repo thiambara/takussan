@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Domain\Settings\EditablePlatformSettings;
+use App\Http\Requests\Api\StoreLeaseRequest;
 use App\Models\Lease;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Lease\EarlyTerminationService;
@@ -39,6 +40,8 @@ class UpdateLeaseRequest extends BaseFormRequest
             // que le bail n'est pas signé, refusés ensuite (`lease.terms_locked`).
             'early_termination_penalty_months' => ['sometimes', 'nullable', 'integer', ...EditablePlatformSettings::reglesDeBornes(EarlyTerminationService::SETTING_KEY)], // TCK-2842
             'rent_review_max_pct' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
+            // TCK-2906 — le préavis, terme imprimé : même régime (défige avant signature, 422 après).
+            'notice_period_days' => ['sometimes', 'nullable', 'integer', 'between:'.StoreLeaseRequest::NOTICE_PERIOD_DAYS_MIN.','.StoreLeaseRequest::NOTICE_PERIOD_DAYS_MAX],
             // TCK-2679 — les charges, terme imprimé : même régime (défigent avant signature, 422 après).
             'monthly_charges' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             // TCK-595 (ADR-0049 §1, §2) — modifiables, mais le grand livre est figé à l'activation : une

@@ -11,6 +11,7 @@ use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\RentPeriod;
+use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\Enums\TitleType;
 use App\Models\ThresholdAlert;
 use BackedEnum;
@@ -57,6 +58,8 @@ class LabelKeysCoverValuesTest extends TestCase
             'notifications.threshold_alert_mail.severities' => ['notifications.php', 'threshold_alert_mail.severities', ThresholdAlert::allowedSeverities()],
             // pdf/maintenance/quote.blade.php : `kinds.<kind>`, valeurs de la règle `in:` de la requête.
             'maintenance.quote_pdf.kinds' => ['maintenance.php', 'quote_pdf.kinds', $this->inRule('app/Http/Requests/Maintenance/SubmitQuoteRequest.php', 'lines.*.kind')],
+            // TCK-2911 — pdf/service-provider-bills/statement.blade.php : `statuses.<statut>`, sans repli.
+            'maintenance.bill_statement_pdf.statuses' => ['maintenance.php', 'bill_statement_pdf.statuses', $this->cases(ServiceProviderBillStatus::class)],
         ];
     }
 

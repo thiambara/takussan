@@ -509,3 +509,18 @@ describe('TCK-2662 (reprise) — le premier rendu ne dépend pas des capacités 
   });
 });
 
+
+// TCK-2922 — l'icône « Relevé de l'agent » en bout de rangée de la table « par agent » (maquette e1, bureau).
+describe('TCK-2922 — AC5 : « Relevé de l’agent » sur chaque rangée', () => {
+  it('chaque agent a son icône « Relevé de l’agent », nommée, qui ouvre son relevé (`?agent=`)', async () => {
+    routeur(['reports.view_agency', 'payouts.approve']);
+    rendre();
+    const table = await screen.findByRole('table', { name: T.tableAgents });
+
+    const releve = within(table).getByRole('link', { name: 'Relevé de l’agent — Sokhna Sène' });
+    expect(releve).toHaveAttribute('href', expect.stringMatching(/\?agent=\d+$/));
+    expect(releve).toHaveAttribute('title', 'Relevé de l’agent');
+    // Une par rangée d'agent.
+    expect(within(table).getAllByRole('link', { name: /^Relevé de l’agent — / }).length).toBe(within(table).getAllByRole('row').length - 2);
+  });
+});

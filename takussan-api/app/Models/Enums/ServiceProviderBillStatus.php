@@ -9,6 +9,12 @@ use App\Services\Maintenance\ReopenedRequestBills;
  */
 enum ServiceProviderBillStatus: string
 {
+    /**
+     * TCK-2911 (ADR-0120 § 1) — « À facturer » : née à la clôture, lue de son seul prestataire, qui
+     * l'envoie par « Facturer » (`POST …/submit`). Pas encore une pièce reçue : ni validée, ni payée,
+     * ni imputée au bailleur.
+     */
+    case Draft = 'draft';
     case PendingValidation = 'pending_validation';
     case Validated = 'validated';
     case Rejected = 'rejected';

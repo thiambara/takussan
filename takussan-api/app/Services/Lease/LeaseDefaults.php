@@ -115,6 +115,9 @@ final class LeaseDefaults
                 $agencyId,
                 $this->number($this->rentReview->resolveMaxPct($agencyId)),
             ),
+            // TCK-2906 — le préavis de départ : aucun réglage ne le porte, le défaut est celui que
+            // `EarlyTerminationService` exécute pour un bail sans valeur (source `platform`, comme le jour).
+            'notice_period_days' => ['value' => EarlyTerminationService::DEFAULT_NOTICE_DAYS, 'source' => self::SOURCE_PLATFORM],
             // TCK-2734 — les candidatures ouvertes que l'ENVOI en signature du bail fermera (décision 7b :
             // plus la création du brouillon) : l'étape « Vérifier » le dit près de « Envoyer à la
             // signature ». Avec leur client : celles du LOCATAIRE du bail (la réservation d'origine

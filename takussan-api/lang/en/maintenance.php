@@ -57,4 +57,59 @@ return [
             'supply' => 'Supply',
         ],
     ],
+
+    // TCK-2911 (ADR-0120 § 2) — the service provider's bill statement.
+    'bill_statement_pdf' => [
+        'title' => 'My bills statement',
+        'provider' => 'Service provider',
+        'period' => 'Period',
+        'reference' => 'Reference',
+        'date' => 'Date',
+        'request' => 'Job',
+        'property' => 'Property',
+        'status' => 'Status',
+        'amount' => 'Amount',
+        'empty' => 'No bill over this period.',
+        'billed_total' => 'Total billed (excluding rejected and cancelled)',
+        'paid_total' => 'Of which paid',
+        'statuses' => [
+            'draft' => 'To invoice',
+            'pending_validation' => 'Awaiting validation',
+            'validated' => 'Validated',
+            'rejected' => 'Rejected',
+            'paid' => 'Paid',
+            'cancelled' => 'Cancelled',
+        ],
+    ],
+
+    // TCK-2897 (ADR-0099, amendment of 2026-11-15) — the PDF of a service provider bill.
+    'bill_pdf' => [
+        'title' => 'Job invoice',
+        'reference' => 'Reference',
+        'provider_reference' => 'Provider reference',
+        'date' => 'Date',
+        'request' => 'Job',
+        'property' => 'Property',
+        'provider' => 'Service provider',
+        'status' => 'Status',
+        'amount' => 'Amount',
+    ],
+
+    // TCK-2897 (ADR-0099, amendment of 2026-11-15) — the job completion report.
+    'completion_report_pdf' => [
+        'title' => 'Job completion report',
+        'request' => 'Job',
+        'property' => 'Property',
+        'provider' => 'Service provider',
+        'reported_at' => 'Reported on',
+        'started_at' => 'Started on',
+        'completed_at' => 'Completed on',
+        'cost' => 'Actual cost',
+        'description' => 'Requested work',
+        'resolution' => 'Work done',
+        'no_notes' => 'No notes.',
+        'photos_before' => 'Photos before',
+        'photos_after' => 'Photos after',
+        'no_photos' => 'No photo.',
+    ],
 ];

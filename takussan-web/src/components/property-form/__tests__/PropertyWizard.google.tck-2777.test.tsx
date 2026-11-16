@@ -100,7 +100,7 @@ vi.mock('@/context/AuthContext', async () => {
 import * as ModuleAuth from '@/context/AuthContext';
 import { createPropertyAction, setPropertyTagsAction, uploadPropertyPhotosAction } from '@/app/actions/dashboard-properties';
 import { CLE_INTENTION_OAUTH } from '@/components/auth/intention-oauth';
-import { REQUETE_DU_PANNEAU } from '@/components/publication/CadreDeLaFeuille';
+import { REQUETE_DU_PANNEAU_D_ENTREE } from '@/components/publication/CadreDeLaFeuille';
 import type { RepriseDePublication } from '@/lib/publication/reprise-oauth';
 import { AssistantDePublication, type ModeAnonyme } from '../PropertyWizard';
 
@@ -199,7 +199,7 @@ beforeEach(() => {
   window.matchMedia = ((query: string) => ({
     get matches() {
       if (query === '(width >= 48rem)') return media.large;
-      return query === REQUETE_DU_PANNEAU && media.large;
+      return query === REQUETE_DU_PANNEAU_D_ENTREE && media.large;
     },
     media: query,
     onchange: null,

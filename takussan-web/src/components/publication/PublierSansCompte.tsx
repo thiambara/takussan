@@ -272,9 +272,9 @@ export function PublierSansCompte({
       // téléphone, `mt-6` au bureau, puis la question à `mt-6` / `mt-8`). Elle est le premier enfant du corps de
       // l'étape (`mt-7 space-y-7` dans `WizardShell`). Au-dessus, sa marge négative fusionne avec le `mt-7` du corps
       // (28 − 12 = 16 au téléphone, 25,2 − 3,6 = 21,6 au bureau) ; au-dessous, `space-y-*` de Tailwind 4 pose un
-      // `margin-block-end` sous `:where()`, que sa propre marge remplace (24, puis 28,8). Absente (pas de chiffre),
-      // l'étape ne change pas d'un pixel. La ville est celle d'un brouillon repris, s'il en porte une : au départ,
-      // elle ne se saisit qu'à l'étape suivante.
+      // `margin-block-end` sous `:where()`, que sa propre marge remplace (24, puis 28,8). TCK-2934 — elle n'est
+      // jamais absente : sans chiffre, elle porte la seule preuve « 0 F de commission ». La ville est celle d'un
+      // brouillon repris, s'il en porte une : au départ, elle ne se saisit qu'à l'étape suivante.
       dessus: <PreuvesDuDepart ville={villeDuBrouillon} className="-mt-3 mb-6 lg:-mt-1 lg:mb-8" />,
       dessous: (
         <div className="space-y-2 border-t border-border pt-4 text-sm text-muted-foreground">
@@ -324,6 +324,19 @@ export function PublierSansCompte({
       </>
     ),
     pourPublierEnPlus: { libelle: t('numero.libelle'), note: t('numero.note') },
+    // TCK-2934 — maquette e4 : « sur ce téléphone » sous `lg`, « dans ce navigateur » dès `lg` (la bascule de l'état du
+    // brouillon, sous la barre). Les photos sont gardées dans ce navigateur (ADR-0093 § 2) et partent avec l'annonce.
+    // En mémoire (stockage refusé ou plein), rien n'est gardé : la note mentirait, elle ne paraît pas — l'état du
+    // brouillon le dit déjà.
+    notePhotos: memoire ? undefined : (
+      <p className="mt-6 flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-ui leading-snug text-encre-douce" data-note-des-photos="">
+        <Smartphone className="mt-px size-4 flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+        <span className="lg:hidden">{t('photos.telephone')}</span>
+        <span className="hidden lg:inline">{t('photos.navigateur')}</span>
+      </p>
+    ),
+    // TCK-2934 — maquette e1 : l'aide du quartier, visible avant toute saisie (écart TCK-2819 a-1, décision 4a rouverte).
+    aideDuQuartier: t('lieu.quartierAide'),
   };
 
   async function effacer() {

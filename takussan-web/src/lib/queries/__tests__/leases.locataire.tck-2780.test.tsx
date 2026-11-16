@@ -40,7 +40,11 @@ describe('TCK-2780 — le locataire du bail, à la demande', () => {
   it('la fiche du bail demande le locataire, avec les seules clés qu’elle lit', async () => {
     const { chemin, params } = await requeteDe(() => useLease(80, { avecLocataire: true }));
     expect(chemin).toBe('/api/leases/80');
-    expect(params.get('include')?.split(',')).toEqual(['property', 'landlord', 'agent', 'tenant']);
+    // TCK-2912 — la fiche seule demande aussi ses calculs (TCK-2906) : « Interventions (n) » et les
+    // comptes des onglets « Documents (n) » / « Historique (n) » (`LeaseController::show`).
+    expect(params.get('include')?.split(',')).toEqual([
+      'property', 'landlord', 'agent', 'tenant', 'maintenance_summary', 'documentsCount', 'historyCount',
+    ]);
     expect(params.get('fields[customers]')?.split(',')).toEqual(['id', 'user_id', 'first_name', 'last_name', 'phone', 'email']);
     // Rien d'autre que le locataire n'est borné : `show` rend le bail entier.
     expect([...params.keys()].filter((k) => k.startsWith('fields['))).toEqual(['fields[customers]']);

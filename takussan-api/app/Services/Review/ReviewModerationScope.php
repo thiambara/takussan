@@ -2,6 +2,7 @@
 
 namespace App\Services\Review;
 
+use App\Http\Requests\Api\ModerateReviewRequest;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\ReviewStatus;
@@ -102,7 +103,9 @@ class ReviewModerationScope
 
     /**
      * Les décisions de l'admin d'agence : approuver ou masquer un avis AVANT sa publication
-     * (verif-597 M3). Retirer, ignorer des signalements, revenir sur un avis publié : plateforme.
+     * (verif-597 M3). Revenir sur un avis publié : plateforme. Supprimer et ignorer des
+     * signalements ne sont plus ici : {@see self::canDelete()}, {@see self::canDismissReports()}
+     * (TCK-2930, ADR-0043 amendé le 2026-11-15).
      */
     public const AGENCY_DECISIONS = ['approve', 'hide'];
 
@@ -120,6 +123,40 @@ class ReviewModerationScope
         return $this->inAgencyScope($user, $review)
             && $review->status === ReviewStatus::Pending
             && ($decision === null || in_array($decision, self::AGENCY_DECISIONS, true));
+    }
+
+    /**
+     * TCK-2930 (ADR-0043, amendement du 2026-11-15) — SUPPRIMER un avis : la plateforme, et l'admin
+     * d'agence sur un avis de bien ou d'agent de son périmètre, QUEL QUE SOIT son statut. Le
+     * contrepoids du « juge et partie » est ailleurs : motif codé et texte exigés
+     * ({@see ModerateReviewRequest}), geste journalisé
+     * ({@see ReviewModerationService}).
+     */
+    public function canDelete(User $user, Review $review): bool
+    {
+        return $this->inAgencyScope($user, $review);
+    }
+
+    /** TCK-2930 (ADR-0043, amendement du 2026-11-15) — ignorer les signalements : même périmètre que supprimer. */
+    public function canDismissReports(User $user, Review $review): bool
+    {
+        return $this->inAgencyScope($user, $review);
+    }
+
+    /**
+     * TCK-2930 — l'avis est dans la FILE de l'acteur ({@see self::restrict()}), y compris un avis sur
+     * l'agence elle-même qu'il lit sans le trancher. Sert au résumé du sujet, qui ne rend que des
+     * avis publiés.
+     */
+    public function inQueueScope(User $user, Review $review): bool
+    {
+        if ($this->isSuperAdmin($user)) {
+            return true;
+        }
+
+        $agencyId = $this->agencyFor($user);
+
+        return $agencyId !== null && $review->agency_id !== null && (int) $review->agency_id === $agencyId;
     }
 
     /** L'avis relève de l'agence que l'acteur modère, quel que soit son statut. */

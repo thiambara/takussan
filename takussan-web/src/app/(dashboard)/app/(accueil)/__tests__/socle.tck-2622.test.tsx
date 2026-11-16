@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
@@ -19,7 +19,11 @@ const { ETAT, rafraichir } = vi.hoisted(() => ({
     user: { id: 1, roles: ['agency_admin'] as string[], agency_id: 7 as number | null, first_name: 'Awa' },
     agence: { ok: true, data: { id: 7, kind: 'standard', logo_url: 'x.png' } } as unknown,
     lecture: null as unknown,
+    // TCK-2854 — une lecture de `/dashboard/me` retardée : la promesse que le test résout à la main.
+    retard: null as Promise<void> | null,
     kpis: [] as unknown[],
+    // TCK-2853 — les biens de la recherche publique que l'invitation à chercher montre.
+    biensPublics: [] as unknown[],
   },
   rafraichir: vi.fn(),
 }));
@@ -33,6 +37,7 @@ vi.mock('@/lib/queries/kpis', () => ({ fetchKpisActifs: async () => ETAT.kpis })
 vi.mock('@/lib/queries/dashboard-me', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/queries/dashboard-me')>()),
   fetchDashboardMe: async () => {
+    if (ETAT.retard) await ETAT.retard;
     if (ETAT.lecture instanceof Error) throw ETAT.lecture;
     return ETAT.lecture;
   },
@@ -40,7 +45,7 @@ vi.mock('@/lib/queries/dashboard-me', async (importOriginal) => ({
 vi.mock('@/components/accueil/BandeauMiseEnService', () => ({ BandeauMiseEnService: () => <div data-testid="mise-en-service" /> }));
 vi.mock('@/components/agency/BrandingBanner', () => ({ BrandingBanner: () => null }));
 vi.mock('@/components/wizard/WizardDraftsBanner', () => ({ WizardDraftsBanner: () => <div data-testid="brouillons" /> }));
-vi.mock('@/components/tenant/TenantOnboardingChecklistWidget', () => ({ TenantOnboardingChecklistWidget: () => null }));
+vi.mock('@/components/tenant/TenantOnboardingChecklistWidget', () => ({ TenantOnboardingChecklistWidget: () => <div data-testid="bandeau-check-list" /> }));
 vi.mock('@/components/dashboard/DashboardEmpty', () => ({ DashboardEmpty: () => <div data-testid="etat-vide" /> }));
 vi.mock('@/components/journee/MaJournee', () => ({ MaJournee: () => <div data-testid="ma-journee" /> }));
 
@@ -49,26 +54,55 @@ vi.mock('@/components/accueil/admin/AFaireAdmin', () => ({ AFaireAdmin: () => <d
 vi.mock('@/components/accueil/admin/EquipeDuJour', () => ({ EquipeDuJour: () => <div data-testid="equipe-du-jour" /> }));
 vi.mock('@/components/accueil/admin/ResumeDuJour', () => ({ ResumeDuJour: ({ jour }: { jour: string }) => jour }));
 vi.mock('@/components/accueil/bailleur/AFaireBailleur', () => ({
-  AFaireBailleur: ({ confirmeLesVisites, hote }: { confirmeLesVisites: boolean; hote: unknown }) => (
-    <div data-testid="a-faire-bailleur" data-confirme={String(confirmeLesVisites)} data-hote={JSON.stringify(hote)} />
+  // TCK-2869 — plus de `confirmeLesVisites` : la capacité vient de chaque visite (`can_confirm`).
+  AFaireBailleur: ({ hote }: { hote: unknown }) => (
+    <div data-testid="a-faire-bailleur" data-hote={JSON.stringify(hote)} />
   ),
 }));
 vi.mock('@/components/accueil/bailleur/EnCoursSurVosBiens', () => ({ EnCoursSurVosBiens: () => <div data-testid="en-cours" /> }));
+// TCK-2850 — « Démarrer » et la place des loyers lisent react-query : éprouvés par `accueil-bailleur.tck-2850`.
+// La page les CHOISIT ; la carte de gauche reste la vraie (« Loyers de novembre »), la droite ne se rend pas.
+vi.mock('@/components/accueil/bailleur/DemarrerDuBailleur', () => ({
+  DemarrerDuBailleur: ({ large }: { large?: boolean }) => <div data-testid={large ? 'demarrer-bureau' : 'demarrer-telephone'} />,
+}));
+vi.mock('@/components/accueil/bailleur/PlaceDesLoyers', async () => {
+  const { LoyersDuMois } = await import('@/components/accueil/bailleur/LoyersDuMois');
+  return {
+    PlaceDesLoyers: ({ place, ...props }: { place: string } & React.ComponentProps<typeof LoyersDuMois>) =>
+      place === 'blocs' ? <LoyersDuMois {...props} /> : <div data-testid="loyers-a-droite" />,
+  };
+});
 vi.mock('@/components/accueil/bailleur/ResumeDuBailleur', () => ({ ResumeDuBailleur: ({ jour }: { jour: string }) => jour }));
 // TCK-2625 — les blocs du locataire, du client et du prestataire, doublés : la page les CHOISIT.
 vi.mock('@/components/accueil/locataire/CarteDuLoyer', () => ({ CarteDuLoyer: () => <div data-testid="carte-du-loyer" /> }));
-vi.mock('@/components/accueil/locataire/MonLogement', () => ({ MonLogement: () => <div data-testid="mon-logement" /> }));
+vi.mock('@/components/accueil/locataire/MonLogement', () => ({ MonLogement: ({ className }: { className?: string }) => <div data-testid="mon-logement" className={className} /> }));
+// TCK-2852 — les blocs du bureau et « À finir », éprouvés par leurs propres tests (`accueil-locataire.tck-2852`).
+vi.mock('@/components/accueil/locataire/DerniersPaiements', () => ({ DerniersPaiements: ({ className }: { className?: string }) => <div data-testid="derniers-paiements" className={className} /> }));
+vi.mock('@/components/accueil/locataire/CarteDuLogement', () => ({ CarteDuLogement: ({ className }: { className?: string }) => <div data-testid="carte-du-logement" className={className} /> }));
+vi.mock('@/components/accueil/locataire/InterventionsEnCours', () => ({ InterventionsEnCours: ({ className }: { className?: string }) => <div data-testid="interventions-en-cours" className={className} /> }));
+vi.mock('@/components/accueil/locataire/EntreeDansLesLieux', () => ({
+  EntreeDansLesLieux: ({ forme, className }: { forme: string; className?: string }) => <div data-testid={`entree-${forme}`} className={className} />,
+}));
 vi.mock('@/components/accueil/locataire/EcheancesDes30Jours', () => ({ EcheancesDes30Jours: () => <div data-testid="echeances-30-jours" /> }));
 vi.mock('@/components/accueil/locataire/ResumeDuLocataire', () => ({ ResumeDuLocataire: ({ jour }: { jour: string }) => jour }));
 vi.mock('@/components/accueil/client/VosVisites', () => ({ VosVisites: ({ visites }: { visites: unknown[] }) => <div data-testid="vos-visites" data-n={visites.length} /> }));
 vi.mock('@/components/accueil/client/VosRecherches', () => ({ VosRecherches: () => <div data-testid="vos-recherches" /> }));
-vi.mock('@/components/accueil/client/FavorisQuiBougent', () => ({ FavorisQuiBougent: () => <div data-testid="favoris-qui-bougent" /> }));
+vi.mock('@/components/accueil/client/FavorisQuiBougent', () => ({ FavorisQuiBougent: ({ bureau, className }: { bureau?: boolean; className?: string }) => (
+    <div data-testid={bureau ? 'favoris-qui-bougent-bureau' : 'favoris-qui-bougent'} className={className} />
+  ),
+}));
+// TCK-2853 — la rangée de réponse et le filtre « sans recherche » lisent react-query : doublés.
+vi.mock('@/components/accueil/client/ReponseRecue', () => ({ ReponseRecue: ({ className }: { className?: string }) => <div data-testid="reponse-recue" className={className} /> }));
+vi.mock('@/components/accueil/client/ChercherEtPublier', async (orig) => ({
+  ...(await orig<typeof import('@/components/accueil/client/ChercherEtPublier')>()),
+  SiAucuneRecherche: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 vi.mock('@/components/accueil/prestataire/AccueilDuPrestataire', () => ({
   JourneeDuPrestataire: () => <div data-testid="journee-du-prestataire" />,
   AChiffrer: () => <div data-testid="a-chiffrer" />,
   ResumeDuPrestataire: ({ jour }: { jour: string }) => jour,
 }));
-vi.mock('@/lib/queries/public-search', () => ({ rechercherBiensPublics: async () => ({ data: [] }) }));
+vi.mock('@/lib/queries/public-search', () => ({ rechercherBiensPublics: async () => ({ data: ETAT.biensPublics }) }));
 vi.mock('@/lib/access/tableau-du-bailleur', () => ({ vueBailleurOuverte: async () => true }));
 vi.mock('@/lib/queries/dashboard', () => ({ fetchOwnerDashboard: async () => ({ data: { bookings: { pending: 2 }, reviews: { unanswered: 1 } } }) }));
 
@@ -82,8 +116,14 @@ const ADMIN = {
   },
 };
 
+/** TCK-2854 — `act` asynchrone : « Ce mois » de l'admin se lit en flux (`use` sous `Suspense`). */
 async function monter() {
-  return render(withIntl(await DashboardPage()));
+  const page = await DashboardPage();
+  let rendu!: ReturnType<typeof render>;
+  await act(async () => {
+    rendu = render(withIntl(page));
+  });
+  return rendu;
 }
 
 /** Les deux rendus de « Ce mois » : les puces du téléphone et les tuiles du bureau. */
@@ -96,6 +136,8 @@ beforeEach(() => {
   ETAT.agence = { ok: true, data: { id: 7, kind: 'standard', logo_url: 'x.png' } };
   ETAT.lecture = ADMIN;
   ETAT.kpis = [];
+  ETAT.retard = null;
+  ETAT.biensPublics = [];
   rafraichir.mockReset();
 });
 
@@ -126,6 +168,43 @@ describe('TCK-2622 — « Ce mois »', () => {
     const tuile = chiffres().find((a) => a.closest('.max-md\\:hidden'))!;
     expect(tuile).toHaveAttribute('href', '/app/customers');
     expect(tuile).toHaveTextContent('Clients suivis');
+  });
+});
+
+describe('TCK-2854 — « Ce mois » de l’admin, lu en flux', () => {
+  it('AC2 — lecture retardée : un squelette `aria-busy` tient la place de « Ce mois » pendant que « À faire » est rendu, puis les chiffres', async () => {
+    let liberer!: () => void;
+    ETAT.retard = new Promise<void>((r) => {
+      liberer = r;
+    });
+    const { container } = await monter();
+
+    // La page n'a pas attendu `/dashboard/me` : « À faire » et l'équipe sont là, « Ce mois » est un squelette.
+    expect(screen.getByTestId('a-faire-admin')).toBeInTheDocument();
+    expect(screen.getByTestId('equipe-du-jour')).toBeInTheDocument();
+    const squelette = container.querySelector('[data-slot="ce-mois-chargement"]');
+    expect(squelette).not.toBeNull();
+    expect(squelette).toHaveAttribute('aria-busy', 'true');
+    expect(squelette!.querySelector('[data-slot="squelette-des-chiffres"]')).not.toBeNull();
+    expect(chiffres()).toHaveLength(0);
+    // À la place de « Ce mois » : la cellule de la colonne de droite, avant l'équipe.
+    expect(squelette!.compareDocumentPosition(screen.getByTestId('equipe-du-jour')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await act(async () => {
+      liberer();
+    });
+    expect(container.querySelector('[data-slot="ce-mois-chargement"]')).toBeNull();
+    expect(chiffres()).toHaveLength(8);
+  });
+
+  it('lecture en échec : « Ce mois » garde son erreur et « Réessayer »', async () => {
+    ETAT.lecture = new Error('500');
+    const { container } = await monter();
+
+    expect(container.querySelector('[data-slot="ce-mois-chargement"]')).toBeNull();
+    const erreur = container.querySelector('[data-slot="ce-mois"] [role="alert"]');
+    expect(erreur).toHaveTextContent('Impossible de charger les chiffres du mois.');
+    expect(screen.getByTestId('a-faire-admin')).toBeInTheDocument();
   });
 });
 
@@ -232,22 +311,40 @@ describe('TCK-2624 — les blocs de l’admin d’agence', () => {
 });
 
 describe('TCK-2624 (lot 2) — les blocs du bailleur et de l’hôte', () => {
-  it('AC4 — le bailleur : « Loyers de novembre : 8 reçus sur 14 » lu depuis `rent_month`, « À faire » sans confirmation des visites, « En cours » dans la colonne', async () => {
+  it('AC4 — le bailleur : « Loyers de novembre : 8 reçus sur 14 » lu depuis `rent_month`, « À faire », « En cours » dans la colonne', async () => {
     ETAT.user = { id: 4, roles: ['owner'], agency_id: null, first_name: 'Mouhamed' };
     ETAT.lecture = { data: { role: 'owner', metrics: { rent_month: { received_count: 8, expected_count: 14, received_amount: 11_400_000 } }, sections: [] } };
     await monter();
     expect(screen.getByRole('region', { name: /^Loyers de / }).textContent).toContain('8 reçus sur 14');
-    expect(screen.getByTestId('a-faire-bailleur').dataset.confirme).toBe('false');
     expect(screen.getByTestId('a-faire-bailleur').dataset.hote).toBe('null');
     expect(screen.getByTestId('en-cours')).toBeInTheDocument();
     expect(screen.queryByTestId('a-faire-admin')).toBeNull();
   });
 
-  it('l’hôte (admin d’une agence individuelle) : il confirme ses visites, et garde réservations et avis de la Vue bailleur', async () => {
+  it('TCK-2850 — le bailleur : « Démarrer » au téléphone et au bureau, « Loyers du mois » posé aux deux places', async () => {
+    ETAT.user = { id: 4, roles: ['owner'], agency_id: null, first_name: 'Mouhamed' };
+    ETAT.lecture = { data: { role: 'owner', metrics: { rent_month: { received_count: 8, expected_count: 14, received_amount: 11_400_000 } }, sections: [] } };
+    await monter();
+    expect(screen.getByTestId('demarrer-telephone').closest('.md\\:hidden')).not.toBeNull();
+    expect(screen.getByTestId('demarrer-bureau').closest('.max-md\\:hidden')).not.toBeNull();
+    // e6 : la place de droite est montée (elle ne rend que si rien n'attend) ; e2 : celle de gauche.
+    expect(screen.getByTestId('loyers-a-droite')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /^Loyers de / })).toBeInTheDocument();
+  });
+
+  it('TCK-2850 — l’hôte n’a pas « Démarrer » du bailleur (il a la mise en service de son agence)', async () => {
+    ETAT.agence = { ok: true, data: { id: 7, kind: 'individual', logo_url: 'x.png' } };
+    await monter();
+    expect(screen.queryByTestId('demarrer-telephone')).toBeNull();
+    expect(screen.queryByTestId('demarrer-bureau')).toBeNull();
+    // Deux gardes : la page ne le donne qu'au persona `bailleur`, et le socle fait primer la mise en service.
+    expect(screen.getAllByTestId('mise-en-service').length).toBeGreaterThan(0);
+  });
+
+  it('l’hôte (admin d’une agence individuelle) garde réservations et avis de la Vue bailleur', async () => {
     ETAT.agence = { ok: true, data: { id: 7, kind: 'individual', logo_url: 'x.png' } };
     await monter();
     const bloc = screen.getByTestId('a-faire-bailleur');
-    expect(bloc.dataset.confirme).toBe('true');
     expect(JSON.parse(bloc.dataset.hote!)).toEqual({ reservations: { etat: 'pret', total: 2 }, avis: { etat: 'pret', total: 1 } });
     // Sans `rent_month` (vue `agency_admin`), aucune carte de loyers n'est inventée.
     expect(screen.queryByRole('region', { name: /^Loyers d/ })).toBeNull();
@@ -279,11 +376,14 @@ describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () 
     expect(screen.getByRole('heading', { name: 'Ce qui m\'attend' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Réservations en attente/ }).getAttribute('href')).toBe('/app/bookings');
     expect(screen.queryByTestId('etat-vide')).toBeNull();
-    // L'ordre du ticket au téléphone (et du document) : la carte, « Mon logement », les échéances, ce qui
-    // m'attend, les documents ; au bureau, la carte SEULE à gauche, le reste dans la colonne.
+    // TCK-2852 — l'ordre du document (celui du téléphone) : la carte, « Mon logement », « À finir », puis
+    // les blocs du produit (échéances, ce qui m'attend, documents) — jamais avant ceux de la maquette.
     const ordre = [
       screen.getByTestId('carte-du-loyer'),
       screen.getByTestId('mon-logement'),
+      screen.getByTestId('entree-telephone'),
+      screen.getByTestId('carte-du-logement'),
+      screen.getByTestId('interventions-en-cours'),
       screen.getByTestId('echeances-30-jours'),
       screen.getByRole('heading', { name: 'Ce qui m\'attend' }),
       screen.getByRole('heading', { name: 'Documents récents' }),
@@ -291,8 +391,33 @@ describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () 
     for (let i = 1; i < ordre.length; i++) {
       expect(ordre[i - 1].compareDocumentPosition(ordre[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
-    expect(screen.getByTestId('mon-logement').closest('[class*="xl:row-span-2"]')).toBeNull();
-    expect(screen.getByTestId('carte-du-loyer').closest('[class*="xl:row-span-2"]')).not.toBeNull();
+    // Au bureau, à gauche : la carte du loyer, « Derniers paiements », « Votre entrée dans les lieux » ; à
+    // droite : la carte du logement et « Interventions en cours ».
+    const gauche = screen.getByTestId('carte-du-loyer').closest('[class*="xl:row-span-2"]');
+    expect(gauche).not.toBeNull();
+    for (const id of ['derniers-paiements', 'entree-bureau']) {
+      expect(screen.getByTestId(id).closest('[class*="xl:row-span-2"]')).toBe(gauche);
+      expect(screen.getByTestId(id).className).toContain('max-md:hidden');
+    }
+    for (const id of ['mon-logement', 'entree-telephone', 'carte-du-logement', 'interventions-en-cours']) {
+      expect(screen.getByTestId(id).closest('[class*="xl:row-span-2"]')).toBeNull();
+    }
+    // Chaque forme à sa largeur : le téléphone sous `md`, le bureau dès `md`.
+    expect(screen.getByTestId('mon-logement').className).toContain('md:hidden');
+    expect(screen.getByTestId('entree-telephone').className).toContain('md:hidden');
+    expect(screen.getByTestId('carte-du-logement').className).toContain('max-md:hidden');
+    expect(screen.getByTestId('interventions-en-cours').className).toContain('max-md:hidden');
+    // AC1 — plus de bandeau de check-list en tête pour le locataire.
+    expect(screen.queryByTestId('bandeau-check-list')).toBeNull();
+  });
+
+  it('TCK-2852 — un bailleur qui loue aussi un logement garde la check-list en bandeau (`isTenant`, pas le persona)', async () => {
+    ETAT.user = { id: 9, roles: ['customer', 'owner', 'tenant'], agency_id: null, first_name: 'Ousmane' };
+    ETAT.lecture = { data: { role: 'owner', metrics: {}, sections: [] } };
+    await monter();
+
+    expect(screen.getByTestId('bandeau-check-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('entree-telephone')).toBeNull();
   });
 
   it('le locataire, `/dashboard/me` en panne : la carte, « Mon logement » et les échéances rendent ; « Ce qui m’attend » dit son erreur', async () => {
@@ -310,6 +435,20 @@ describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () 
     expect(rafraichir).toHaveBeenCalledTimes(1);
   });
 
+  it('TCK-2850 — ni le client ni le locataire n’ont « Démarrer » du bailleur', async () => {
+    ETAT.user = { id: 9, roles: ['customer'], agency_id: null, first_name: 'Fatou' };
+    ETAT.lecture = { data: { role: 'tenant', metrics: { ...SITUATION, leases_active: 0 }, sections: [] } };
+    const { unmount } = await monter();
+    expect(screen.queryByTestId('demarrer-telephone')).toBeNull();
+    expect(screen.queryByTestId('demarrer-bureau')).toBeNull();
+    unmount();
+    ETAT.user = { id: 9, roles: ['tenant'], agency_id: null, first_name: 'Fatou' };
+    ETAT.lecture = { data: { role: 'tenant', metrics: SITUATION, sections: [] } };
+    await monter();
+    expect(screen.queryByTestId('demarrer-telephone')).toBeNull();
+    expect(screen.queryByTestId('demarrer-bureau')).toBeNull();
+  });
+
   it('le client : ses visites, ses recherches et l’invitation à chercher, sans carte du loyer ni état vide', async () => {
     ETAT.user = { id: 9, roles: ['customer'], agency_id: null, first_name: 'Fatou' };
     ETAT.lecture = { data: { role: 'tenant', metrics: { ...SITUATION, leases_active: 0 }, sections: [] } };
@@ -321,9 +460,44 @@ describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () 
     const favoris = screen.getByTestId('favoris-qui-bougent');
     expect(screen.getByTestId('vos-visites').compareDocumentPosition(favoris) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(favoris.compareDocumentPosition(screen.getByTestId('vos-recherches')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).not.toBeNull();
+    // TCK-2853 — sans bien à montrer (la recherche doublée n'en rend aucun), l'invitation se tait :
+    // « Chercher un bien » porte l'invitation à chercher.
+    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).toBeNull();
+    expect(container.querySelector('[data-slot="chercher-un-bien"]')).not.toBeNull();
     expect(screen.queryByTestId('carte-du-loyer')).toBeNull();
     expect(screen.queryByTestId('etat-vide')).toBeNull();
+  });
+
+  it('TCK-2853 — le client (maquette e5) : « Chercher un bien » au téléphone ET dans la tête du bureau, « Vous avez un bien à louer ? », la réponse au bureau, les favoris à droite au bureau', async () => {
+    ETAT.user = { id: 9, roles: ['customer'], agency_id: null, first_name: 'Fatou', preferences: { city: 'Dakar', search_intent: 'rent' } } as typeof ETAT.user;
+    ETAT.biensPublics = [{ id: 1, slug: 'studio-plateau', title: 'Studio Plateau', price: 150_000, currency: 'XOF' }];
+    ETAT.lecture = { data: { role: 'tenant', metrics: { ...SITUATION, leases_active: 0 }, sections: [] } };
+    const { container } = await monter();
+
+    const chercher = [...container.querySelectorAll<HTMLAnchorElement>('[data-slot="chercher-un-bien"]')];
+    expect(chercher).toHaveLength(2);
+    for (const a of chercher) expect(a).toHaveAttribute('href', '/fr/properties?contract_type=rent&city=Dakar');
+    // Au téléphone, sous « Vos recherches », pleine largeur ; au bureau, dans la tête de page.
+    const telephone = chercher.find((a) => a.closest('.md\\:hidden'));
+    const bureau = chercher.find((a) => a.closest('header'));
+    expect(telephone).toBeDefined();
+    expect(screen.getByTestId('vos-recherches').compareDocumentPosition(telephone!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bureau).toBeDefined();
+    expect(bureau!.closest('.md\\:hidden')).toBeNull();
+    // L'invitation (client sans recherche, avec des biens à montrer) garde ses biens, plus son bouton :
+    // « Chercher un bien » porte le même lien.
+    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).not.toBeNull();
+    expect(screen.getByRole('link', { name: /Studio Plateau/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Voir les annonces' })).toBeNull();
+
+    expect(container.querySelector('[data-slot="publier-un-bien"]')).toHaveAttribute('href', '/publish');
+    expect(screen.getByTestId('reponse-recue')).toHaveClass('max-md:hidden');
+    // Les favoris : au téléphone dans les blocs, au bureau dans la colonne, APRÈS les blocs.
+    expect(screen.getByTestId('favoris-qui-bougent')).toHaveClass('md:hidden');
+    const aDroite = screen.getByTestId('favoris-qui-bougent-bureau');
+    expect(aDroite).toHaveClass('max-md:hidden');
+    expect(screen.getByTestId('vos-recherches').compareDocumentPosition(aDroite) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(aDroite.parentElement?.contains(screen.getByTestId('vos-recherches'))).toBe(false);
   });
 
   it('le client sans fiche : l’invitation à chercher, jamais l’état vide générique', async () => {
@@ -331,7 +505,7 @@ describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () 
     ETAT.lecture = { data: { role: 'tenant', metrics: { has_customer_profile: false }, sections: [] } };
     const { container } = await monter();
 
-    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="chercher-un-bien"]')).not.toBeNull();
     expect(screen.queryByTestId('etat-vide')).toBeNull();
   });
 

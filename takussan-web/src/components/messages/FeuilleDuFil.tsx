@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Bell, BellOff, Building2, ChevronRight, Users } from 'lucide-react';
+import { Bell, BellOff, Building2, ChevronRight, Flag, Inbox, MessageSquare, UserPlus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { PlanifierDialog } from '@/components/visits/PlanifierUneVisite';
@@ -17,16 +17,20 @@ import { usePersonnelActif } from '@/hooks/usePersonnelActif';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { pipelineStageValues } from '@/lib/enums/customer';
 import { formatMontant } from '@/lib/format/currency';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { formaterTelephone } from '@/lib/phone';
 import { useConversation, useConversationContext, useToggleMute } from '@/lib/queries/conversations';
 import { cn } from '@/lib/utils';
 import { titreDeConversation } from './ConversationList';
 import { useGesteDuClient } from './useGesteDuClient';
+import type { GestesDuFil } from './GestesDuFil';
 
 interface FeuilleDuFilProps {
   readonly conversationId: number;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /** TCK-2860 — « Ajouter un participant » et « Signaler la conversation », dont la page monte les dialogues. */
+  readonly gestes?: GestesDuFil;
 }
 
 const RANGEE =
@@ -45,19 +49,23 @@ const RANGEE =
  * quand le contexte rend les deux — la fiche n'est rendue qu'au personnel de l'agence du fil — et pour
  * un profil actif du personnel (`usePersonnelActif`, la garde de `PlanifierUneVisite`).
  *
- * Écarts à la maquette, faute de route ou de donnée : la demande de contact liée et « Signaler la
- * conversation » — non rendus plutôt qu'inventés.
+ * TCK-2860 — la demande de contact liée (« Demande de contact du 9 nov. » / « Par l'annonce « … » »,
+ * TCK-2858), puis, après la sourdine, « Marquer comme non lue », « Ajouter un participant » (un
+ * nouveau groupe, ADR-0114) et « Signaler la conversation » en rouge (routes de TCK-2859). La maquette
+ * (a/2, l. 696-699) ne dessine pas les deux premiers dans la feuille ; le ticket les veut aux deux
+ * formats (Delta « les trois gestes ») : ils y sont, entre la sourdine et le signalement.
  *
  * Importée par la seule page de la messagerie, jamais par l'en-tête du fil : le widget flottant
  * importe celui-ci, et les dictionnaires du bien et du pipeline entreraient sinon dans la coque.
  */
-export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFilProps) {
+export function FeuilleDuFil({ conversationId, open, onOpenChange, gestes }: FeuilleDuFilProps) {
   const t = useTranslations('messaging');
   const tEtape = useTranslations('crm.pipeline.stage');
   const { user } = useAuth();
   const { data: conversationData } = useConversation(conversationId);
   const { data: contexteData } = useConversationContext(conversationId);
   const basculerSourdine = useToggleMute(conversationId);
+  const f = useFormatteurs();
   const { consigner, enCours } = useGesteDuClient(contexteData?.data?.customer?.id ?? null);
   const personnel = usePersonnelActif();
   const [planifier, setPlanifier] = useState(false);
@@ -81,6 +89,8 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFi
   const telephone = client && isReachable(client.phone) ? client.phone : null;
   const peutPlanifier = personnel && bien !== null && client != null;
   const etape = client?.stage ? enumLabel(tEtape, pipelineStageValues, client.stage) : null;
+  const demande = client?.contact_lead ?? null;
+  const direct = conversation?.type === 'direct';
 
   return (
     <>
@@ -161,6 +171,22 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFi
               <ChevronRight className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
             </Link>
           ) : null}
+          {demande ? (
+            <Link href={`/app/leads?lead=${demande.id}`} className={RANGEE} data-testid="feuille-du-fil-demande">
+              <Inbox className="size-5 flex-none text-muted-foreground stroke-[1.75]" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">
+                  {demande.created_at ? t('contexte.demandeDu', { date: f.jourMois(demande.created_at) }) : t('contexte.demandeLiee')}
+                </span>
+                {demande.property_title ? (
+                  <span className="block truncate text-ui text-muted-foreground">
+                    {t('contexte.surLAnnonce', { titre: demande.property_title })}
+                  </span>
+                ) : null}
+              </span>
+              <ChevronRight className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
+            </Link>
+          ) : null}
           {telephone ? (
             <a
               href={whatsappHref(telephone, '')}
@@ -208,6 +234,49 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFi
             <span className="min-w-0 flex-1 font-medium">{sourdine ? t('group.info.unmute') : t('group.info.mute')}</span>
             <ChevronRight className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
           </button>
+          {gestes ? (
+            <>
+              <button
+                type="button"
+                data-testid="feuille-marquer-non-lue"
+                onClick={() => {
+                  setErreur(null);
+                  gestes.onMarquerNonLue({
+                    onSuccess: () => fermer(),
+                    onError: (err) => setErreur(messageErreur(err, t('chat.nonLueEchouee'))),
+                  });
+                }}
+                className={RANGEE}
+              >
+                <MessageSquare className="size-5 flex-none text-muted-foreground stroke-[1.75]" aria-hidden="true" />
+                <span className="min-w-0 flex-1 font-medium">{t('chat.marquerNonLue')}</span>
+              </button>
+              {direct && gestes.onAjouterUnParticipant ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    fermer();
+                    gestes.onAjouterUnParticipant?.();
+                  }}
+                  className={RANGEE}
+                >
+                  <UserPlus className="size-5 flex-none text-muted-foreground stroke-[1.75]" aria-hidden="true" />
+                  <span className="min-w-0 flex-1 font-medium">{t('chat.ajouterUnParticipant')}</span>
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  fermer();
+                  gestes.onSignaler();
+                }}
+                className={cn(RANGEE, 'text-destructive')}
+              >
+                <Flag className="size-5 flex-none stroke-[1.75]" aria-hidden="true" />
+                <span className="min-w-0 flex-1 font-medium">{t('chat.signaler')}</span>
+              </button>
+            </>
+          ) : null}
         </div>
       </FeuilleDuBas>
       {planifier && bien && client ? (

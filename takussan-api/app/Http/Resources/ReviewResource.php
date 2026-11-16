@@ -61,6 +61,10 @@ class ReviewResource extends BaseResource
             // devine plus (il offrait « Répondre » ou « Approuver » que l'API refusait en 403).
             'can_reply' => $viewer !== null && $viewer->can('reply', $this->resource),
             'can_moderate' => $viewer !== null && $viewer->can('moderate', $this->resource),
+            // TCK-2930 (ADR-0043, amendement du 2026-11-15) — supprimer et ignorer les signalements
+            // ont leur propre capacité : l'admin d'agence les tient aussi sur un avis publié.
+            'can_delete' => $viewer !== null && $viewer->can('delete', $this->resource),
+            'can_dismiss_reports' => $viewer !== null && $viewer->can('dismissReports', $this->resource),
             // TCK-2672 — le risque ({@see ReviewRiskClassifier}), pour qui modère dans le périmètre
             // de l'avis (la règle de `GET …/reports`) : absent pour l'auteur et le public.
             'risk' => $this->when(

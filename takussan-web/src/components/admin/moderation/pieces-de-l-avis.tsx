@@ -83,21 +83,25 @@ export function lienDuSujet(sujet: ModerationReviewTarget | null | undefined): s
   return null;
 }
 
-/** Le sujet de l'avis, en bloc : sur quoi il porte, et le lien pour aller le voir. */
-export function BlocDuSujet({ sujet }: { readonly sujet: ModerationReviewTarget | null | undefined }) {
+/**
+ * Le sujet de l'avis, en bloc : sur quoi il porte, et le lien pour aller le voir.
+ *
+ * TCK-2931 — `note` : « 4,2 ★ sur 12 avis », la moyenne publiée du sujet (résumé de TCK-2930), en
+ * tête de la troisième ligne (maquette `app-moderation` B, `BlocSujet`) ; absente, la ligne reste.
+ */
+export function BlocDuSujet({ sujet, note = null }: { readonly sujet: ModerationReviewTarget | null | undefined; readonly note?: string | null }) {
   const t = useTranslations('admin.moderation.file');
   const lien = lienDuSujet(sujet);
   const detail =
     sujet?.type === 'property'
       ? [
+          note,
           sujet.subtitle ? t('sujet.reference', { ref: sujet.subtitle }) : null,
           sujet.agent?.name ? t('sujet.suiviPar', { nom: sujet.agent.name }) : null,
         ]
           .filter(Boolean)
           .join(' · ')
-      : sujet?.type === 'user'
-        ? t('sujet.agent')
-        : '';
+      : [note, sujet?.type === 'user' ? t('sujet.agent') : null].filter(Boolean).join(' · ');
   const contenu = (
     <>
       <VignetteDuSujet sujet={sujet} grande />

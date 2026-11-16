@@ -13,12 +13,14 @@ use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
 use App\Policies\OwnerProfilePolicy;
+use App\Services\Maintenance\MaintenanceSummary;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\CoutDEntree;
+use App\Services\Property\HeuresDuSejour;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyContactNumbers;
 use App\Services\Property\TitulaireALaSaisie;
@@ -35,6 +37,27 @@ class PropertyResource extends BaseResource
     private ?array $contactResolu = null;
 
     private ?bool $watermarkRequired = null;
+
+    /**
+     * TCK-2906 — `maintenance_summary` de la fiche (`include=maintenanceSummary`), posé par
+     * `PropertyController::show` seul ; `null` : non demandé, rien n'est émis.
+     *
+     * @var array{total: int, open: int, latest_open: array<string, mixed>|null}|null
+     */
+    private ?array $maintenanceSummary = null;
+
+    /**
+     * TCK-2906 — le résumé des interventions du bien, à la portée du lecteur
+     * ({@see MaintenanceSummary}).
+     *
+     * @param  array{total: int, open: int, latest_open: array<string, mixed>|null}|null  $summary
+     */
+    public function avecResumeDesInterventions(?array $summary): static
+    {
+        $this->maintenanceSummary = $summary;
+
+        return $this;
+    }
 
     /**
      * TCK-539 (R2) — toute liste de biens décide du filigrane en UNE requête au plus, sans
@@ -121,6 +144,12 @@ class PropertyResource extends BaseResource
                 ? ['offline_reasons' => $this->resource->offlineReasonsFlag()] : []),
             ...($this->resource instanceof Property && $this->resource->occupancyBlock() !== null
                 ? ['occupancy' => $this->buildOccupancy($this->resource->occupancyBlock())] : []),
+            // TCK-2905 (ADR-0117 § 4) — vues, contacts et visites des 30 derniers jours (`include=stats30d`),
+            // posés par le seul `PropertyController::index` : ni une route publique ni un lecteur imbriqué.
+            ...($this->resource instanceof Property && $this->resource->stats30d() !== null
+                ? ['stats_30d' => $this->resource->stats30d()] : []),
+            // TCK-2906 — les interventions du bien que le lecteur lit (`include=maintenanceSummary`, fiche seule).
+            ...($this->maintenanceSummary !== null ? ['maintenance_summary' => $this->maintenanceSummary] : []),
             'title_type' => $this->whenHas('title_type', fn ($valeur) => $valeur?->value),
             'title_type_label' => $this->enumLabel($this->title_type, 'properties.title_type'),
             'condition' => $this->whenHas('condition', fn ($valeur) => $valeur?->value),
@@ -134,6 +163,9 @@ class PropertyResource extends BaseResource
             'year_built' => $this->whenHas('year_built'),
             'parking_spaces' => $this->whenHas('parking_spaces'),
             'available_from' => $this->whenHas('available_from', fn ($valeur) => $this->calendarDate($valeur)),
+            // TCK-2892 — `HH:MM`, `null` quand le bien ne les dit pas (le front affiche 14:00 / 11:00).
+            'check_in_from' => $this->whenHas('check_in_from', fn ($valeur) => HeuresDuSejour::lue($valeur)),
+            'check_out_before' => $this->whenHas('check_out_before', fn ($valeur) => HeuresDuSejour::lue($valeur)),
             'furnished' => $this->whenHas('furnished', fn ($valeur) => (bool) $valeur),
             'featured' => $this->whenHas('featured', fn ($valeur) => (bool) $valeur),
             // TCK-633 lot F (ADR-0061 §5) — le badge acheté (« Urgent », « Baisse de prix »), projeté
@@ -365,6 +397,10 @@ class PropertyResource extends BaseResource
         if (is_array($block['current_month'] ?? null)) {
             $block['current_month']['due_date'] = $this->calendarDate($block['current_month']['due_date']);
         }
+        // TCK-2915 — la date du prochain avis d'échéance (absente quand le bail n'est pas lisible).
+        if (array_key_exists('next_due_notice_date', $block)) {
+            $block['next_due_notice_date'] = $this->calendarDate($block['next_due_notice_date']);
+        }
 
         return $block;
     }
@@ -572,6 +608,13 @@ class PropertyResource extends BaseResource
             'rating' => $agencyRating !== null ? round((float) $agencyRating, 2) : null,
             // TCK-633 (AC4) — un indépendant ne facture pas de frais d'agence : le formulaire masque le champ.
             'kind' => $agency->kind?->value,
+            // TCK-2935 — le délai de réponse habituel de l'agence, la colonne même que sert sa fiche
+            // publique (`PublicAgencyController`) : un seul écrivain (`RefreshDirectoryResponseTimes`),
+            // donc une seule définition, `null` sous le seuil. Omis seulement quand la colonne n'est pas
+            // chargée (sélection réduite d'une liste) — jamais un `null` inventé.
+            ...(array_key_exists('median_response_minutes', $agency->getAttributes())
+                ? ['median_response_minutes' => $agency->median_response_minutes]
+                : []),
         ];
     }
 

@@ -89,6 +89,12 @@ final class NotificationClassification
         'booking.cancelled' => [self::D, false],
         'booking.recorded_on_behalf' => [self::D, false],
         'booking.application_not_selected' => [self::D, false],
+        // TCK-2872 — le client a une pièce à fournir : un geste attendu de lui.
+        'booking.dossier_piece_requested' => [self::D, true],
+        // TCK-2873 — le client a une contre-offre à accepter ou décliner ; l'agence, une offre à
+        // conclure (acceptée) ou à reprendre (déclinée) : un geste attendu des deux côtés.
+        'booking.counter_offer_received' => [self::D, true],
+        'booking.counter_offer_answered' => [self::D, true],
 
         // ─── Visites ──────────────────────────────────────────────────────────────────────
         'visit.reminder' => [self::V, false],
@@ -102,6 +108,10 @@ final class NotificationClassification
         'visit.rescheduled' => [self::V, false],
         'visit.cancelled' => [self::V, false],
         'visit.cancelled_window' => [self::V, false],
+        // TCK-2849 — une information : la visite est déjà confirmée, l'agent n'a rien à faire.
+        'visit.confirmed_by_owner' => [self::V, false],
+        // TCK-2871 — une information au visiteur absent ; en reprendre une est facultatif.
+        'visit.no_show' => [self::V, false],
 
         // ─── Messages et demandes de contact ──────────────────────────────────────────────
         // Un message se traite dans la messagerie, qui a ses propres non-lus.
@@ -176,6 +186,11 @@ final class NotificationClassification
         'maintenance.schedule_changed' => [self::D, false],
         // TCK-2786 — au bailleur : la relance de l'agence, le devis attend toujours son accord.
         'maintenance.owner_reminder' => [self::D, true],
+        // TCK-2917 — l'annulation avec son motif ; à l'agence et au prestataire : le locataire demande
+        // un autre créneau, à poser.
+        'maintenance.cancelled_with_reason' => [self::D, false],
+        'maintenance.step_cancelled_with_reason' => [self::D, false],
+        'maintenance.reschedule_requested' => [self::D, true],
 
         // ─── Biens ────────────────────────────────────────────────────────────────────────
         'prospect_match.digest' => [self::B, false],
@@ -199,6 +214,8 @@ final class NotificationClassification
         'lease.signature_completed' => [self::S, false],
         // TCK-2642 — au bailleur : son loyer a changé, il est informé (le geste est fait).
         'lease.rent_reviewed_landlord' => [self::P, false],
+        // TCK-2913 — l'état des lieux signé, son PDF prêt : une information, comme le bail signé.
+        'inventory.signed_pdf_available' => [self::S, false],
 
         // ─── Reversements, commissions, relevés du bailleur ───────────────────────────────
         'payout.awaiting_approval' => [self::P, true],
@@ -230,6 +247,8 @@ final class NotificationClassification
 
         // ─── Compte, agence, plateforme ───────────────────────────────────────────────────
         'account.phone_changed' => [self::S, false],
+        // TCK-2926 — activer la double authentification : un geste attendu du membre.
+        'account.two_factor_reminder' => [self::S, true],
         'impersonation.ended' => [self::S, false],
         'agency.suspended' => [self::S, false],
         'agency.reinstated' => [self::S, false],
@@ -292,6 +311,12 @@ final class NotificationClassification
         'document' => self::S,
         // TCK-2812 — le coffre, où se télécharge l'archive préparée.
         'document_archive' => self::S,
+        // TCK-2916 — la page des paiements, où se télécharge l'archive préparée des quittances.
+        'receipts_archive' => self::S,
+        // TCK-2926 — la page de sécurité du compte (le rappel de la 2FA).
+        'profile_security' => self::S,
+        // TCK-2913 — la fiche d'un état des lieux, où se télécharge son PDF signé.
+        'inventory' => self::S,
     ];
 
     /**

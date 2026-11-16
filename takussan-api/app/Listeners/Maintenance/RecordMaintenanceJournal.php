@@ -3,6 +3,7 @@
 namespace App\Listeners\Maintenance;
 
 use App\Events\Maintenance\MaintenanceStatusChanged;
+use App\Models\Enums\MaintenanceStatus;
 use App\Services\Maintenance\MaintenanceJournal;
 
 /**
@@ -15,7 +16,8 @@ use App\Services\Maintenance\MaintenanceJournal;
  * doublée.
  *
  * Le contexte de l'événement (motif du refus, commentaire de la contestation) n'est PAS recopié :
- * le journal ne montre que ce que la fiche montre déjà ({@see MaintenanceJournal}).
+ * le journal ne montre que ce que la fiche montre déjà ({@see MaintenanceJournal}). TCK-2917 — le
+ * motif d'une annulation (`cancellation_reason`), que la fiche montre, l'est.
  */
 class RecordMaintenanceJournal
 {
@@ -27,7 +29,13 @@ class RecordMaintenanceJournal
             $event->maintenanceRequest,
             MaintenanceJournal::STATUS_PREFIX.$event->cause,
             $event->actor,
-            ['from' => $event->from?->value, 'to' => $event->to->value],
+            [
+                'from' => $event->from?->value,
+                'to' => $event->to->value,
+                // TCK-2917 (ADR-0118 § 1) — le motif d'une annulation, lu sur la colonne que la fiche
+                // montre déjà : la seule exception à « ni motif ni commentaire ».
+                'reason' => $event->to === MaintenanceStatus::Cancelled ? $event->maintenanceRequest->cancellation_reason : null,
+            ],
         );
     }
 }

@@ -23,12 +23,27 @@ export type Selection =
   | { readonly mode: 'toutes' }
   | { readonly mode: 'faites' };
 
+/** TCK-2857 — « Grouper par » (bureau) : l'échéance (l'ouverture) ou le client/bien rattaché. */
+export type Regroupement = 'echeance' | 'rattachement';
+/** TCK-2857 — « Rattachée à » (bureau) : tout, les tâches d'un client, celles d'un bien. */
+export type FiltreDeRattachement = 'tout' | 'customer' | 'property';
+
 export interface EtatDesTaches {
   readonly selection: Selection;
   readonly aMoi: boolean;
   readonly equipe: boolean;
   readonly agent: number | null;
+  readonly grouper: Regroupement;
+  readonly rattachement: FiltreDeRattachement;
 }
+
+/**
+ * TCK-2857 — `?rattachement=clients|biens` ↔ le filtre ; la valeur envoyée à l'API est le type morph
+ * stocké (`taskable_type`, la classe Laravel que `StoreTaskRequest::TASKABLE_TYPES` accepte).
+ */
+const RATTACHEMENT_DE_L_URL: Readonly<Record<string, FiltreDeRattachement>> = { clients: 'customer', biens: 'property' };
+const URL_DU_RATTACHEMENT: Readonly<Record<Exclude<FiltreDeRattachement, 'tout'>, string>> = { customer: 'clients', property: 'biens' };
+export const TYPE_MORPH: Readonly<Record<Exclude<FiltreDeRattachement, 'tout'>, string>> = { customer: 'App\\Models\\Customer', property: 'App\\Models\\Property' };
 
 type Lecture = Readonly<Record<string, string | string[] | undefined>>;
 
@@ -56,6 +71,8 @@ export function lireEtat(params: Lecture): EtatDesTaches {
     aMoi: premiere(params['filter[assigned_to]']) === 'me',
     equipe: premiere(params['filter[team]']) === '1',
     agent: Number.isInteger(agentBrut) && agentBrut > 0 ? agentBrut : null,
+    grouper: premiere(params.grouper) === 'rattachement' ? 'rattachement' : 'echeance',
+    rattachement: RATTACHEMENT_DE_L_URL[premiere(params.rattachement) ?? ''] ?? 'tout',
   };
 }
 
@@ -72,6 +89,8 @@ export function rechercheDe(etat: EtatDesTaches): string {
     etat.aMoi ? 'filter[assigned_to]=me' : null,
     etat.equipe ? 'filter[team]=1' : null,
     etat.equipe && etat.agent !== null ? `filter[assigned_to_id]=${etat.agent}` : null,
+    etat.grouper === 'rattachement' ? 'grouper=rattachement' : null,
+    etat.rattachement !== 'tout' ? `rattachement=${URL_DU_RATTACHEMENT[etat.rattachement]}` : null,
   ];
   return morceaux.filter(Boolean).join('&');
 }
@@ -101,6 +120,8 @@ export function filtreDePortee(etat: EtatDesTaches): Record<string, string> {
     ...(etat.aMoi ? { assigned_to: 'me' } : {}),
     ...(etat.equipe ? { team: '1' } : {}),
     ...(etat.equipe && etat.agent !== null ? { assigned_to_id: String(etat.agent) } : {}),
+    // TCK-2857 — « Rattachée à » : la liste ET les comptes des pastilles.
+    ...(etat.rattachement !== 'tout' ? { taskable_type: TYPE_MORPH[etat.rattachement] } : {}),
   };
 }
 
@@ -155,6 +176,30 @@ export function grouper<T extends Pick<AgentTask, 'status' | 'due_at'>>(taches: 
     groupes.set(g, [...(groupes.get(g) ?? []), t]);
   }
   return new Map(GROUPES.filter((g) => groupes.has(g)).map((g) => [g, groupes.get(g)!]));
+}
+
+/** TCK-2857 — un groupe de « Grouper par : Rattachement » : un client, un bien, ou rien. */
+export interface GroupeDeRattachement<T> {
+  readonly cle: string;
+  readonly cible: NonNullable<AgentTask['taskable']> | null;
+  readonly taches: readonly T[];
+}
+
+/**
+ * TCK-2857 — les tâches regroupées par leur client ou leur bien (clé type + id : le libellé peut être
+ * caché), dans l'ordre de la liste (l'échéance la plus proche d'abord) ; les tâches sans rattachement
+ * lisible ferment la marche.
+ */
+export function grouperParRattachement<T extends Pick<AgentTask, 'taskable'>>(taches: readonly T[]): readonly GroupeDeRattachement<T>[] {
+  const groupes = new Map<string, { cible: NonNullable<AgentTask['taskable']> | null; taches: T[] }>();
+  for (const t of taches) {
+    const cle = t.taskable ? `${t.taskable.type}:${t.taskable.id}` : 'sans';
+    const g = groupes.get(cle) ?? { cible: t.taskable ?? null, taches: [] };
+    g.taches.push(t);
+    groupes.set(cle, g);
+  }
+  const tous = [...groupes].map(([cle, g]) => ({ cle, cible: g.cible, taches: g.taches }));
+  return [...tous.filter((g) => g.cle !== 'sans'), ...tous.filter((g) => g.cle === 'sans')];
 }
 
 export type JourDEcheance = 'aujourdhui' | 'demain' | 'lundi';

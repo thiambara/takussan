@@ -242,6 +242,13 @@ export interface ModeAnonyme {
   readonly depart: { readonly titre: string; readonly sousTitre: string; readonly dessus?: ReactNode; readonly dessous: ReactNode };
   readonly finition: ReactNode;
   /**
+   * TCK-2934 — sous le dépôt des photos (maquette e4) : où restent les photos jusqu'à la publication. Sans compte
+   * seulement : l'assistant connecté les envoie à la création du bien.
+   */
+  readonly notePhotos?: ReactNode;
+  /** TCK-2934 — l'aide du quartier, visible d'emblée à l'étape du lieu (maquette e1). */
+  readonly aideDuQuartier?: string;
+  /**
    * TCK-2600 — ce que le pied dit sous l'aperçu au bureau (le cadre d'entrée de `WizardShell`), selon
    * l'étape (`bien`, `lieu`, `caracteristiques`, `prix`, `photos`, `finition`).
    */
@@ -878,7 +885,7 @@ export function AssistantDePublication({
       part: PARTIE_PAR_ETAPE[1],
       title: t('steps.lieu.title'),
       subtitle: t('steps.lieu.subtitle'),
-      body: <StepLieu form={form} refus={refus} />,
+      body: <StepLieu form={form} refus={refus} aideDuQuartier={anonyme?.aideDuQuartier} />,
     },
     {
       id: 'caracteristiques',
@@ -916,17 +923,21 @@ export function AssistantDePublication({
       subtitle: t('steps.photos.subtitle'),
       skippable: true,
       body: (
-        <StepPhotos
-          files={photos}
-          onChange={(fichiers) => {
-            setErreurPhotos(null);
-            // TCK-2600 (ADR-0093 § 2) — sans compte, la photo entre au brouillon local DÉJÀ réduite.
-            if (anonyme) void reduirePhotos(fichiers).then((reduites) => setPhotos((precedentes) => [...precedentes, ...reduites]));
-            else setPhotos((precedentes) => [...precedentes, ...fichiers]);
-          }}
-          onRemove={(i) => setPhotos((precedentes) => precedentes.filter((_, k) => k !== i))}
-          error={erreurPhotos}
-        />
+        <>
+          <StepPhotos
+            files={photos}
+            onChange={(fichiers) => {
+              setErreurPhotos(null);
+              // TCK-2600 (ADR-0093 § 2) — sans compte, la photo entre au brouillon local DÉJÀ réduite.
+              if (anonyme) void reduirePhotos(fichiers).then((reduites) => setPhotos((precedentes) => [...precedentes, ...reduites]));
+              else setPhotos((precedentes) => [...precedentes, ...fichiers]);
+            }}
+            onRemove={(i) => setPhotos((precedentes) => precedentes.filter((_, k) => k !== i))}
+            error={erreurPhotos}
+          />
+          {/* TCK-2934 — sans compte, sous le dépôt : les photos restent dans l'appareil jusqu'à la publication. */}
+          {anonyme?.notePhotos ?? null}
+        </>
       ),
     },
     {
@@ -1074,7 +1085,7 @@ export function AssistantDePublication({
             )}
           </BarreApercu>
         }
-        // TCK-2601 (AC5) — dès 1280 px, la feuille de compte prend la place de l'étape.
+        // TCK-2601 (AC5) — dès 1280 px (1024 dans le cadre d'entrée, TCK-2934), la feuille de compte prend la place de l'étape.
         refDuPanneau={setCibleDuPanneau}
         panneauOuvert={!proposition && feuille.ouverte}
         // TCK-2600 — sans compte (`/publish`), le cadre des écrans d'entrée dès `lg` (maquette a-0 à a-5).

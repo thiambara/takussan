@@ -44,7 +44,9 @@ class BookingPaymentService
                 ? $data['payment_type']
                 : BookingPaymentType::from((string) $data['payment_type']);
 
-            if ($type !== BookingPaymentType::Fee) {
+            // TCK-2892 — seuls l'acompte et le solde règlent le total : les frais, la caution et un
+            // paiement « autre » n'en sont pas bornés (ils ne bornaient que `fee` jusqu'ici).
+            if (in_array($type, BookingPaymentType::reglantLeTotal(), true)) {
                 $remaining = $this->remainingReversable($booking);
                 abort_code_if(
                     (float) $data['amount'] > $remaining,
@@ -67,7 +69,7 @@ class BookingPaymentService
     {
         $paid = (float) $booking->payments()
             ->where('status', PaymentStatus::Paid->value)
-            ->whereIn('payment_type', [BookingPaymentType::Deposit->value, BookingPaymentType::Advance->value])
+            ->whereIn('payment_type', array_map(fn (BookingPaymentType $t): string => $t->value, BookingPaymentType::reglantLeTotal()))
             ->sum('amount');
 
         return max((float) $booking->total_amount - $paid, 0.0);
@@ -113,7 +115,11 @@ class BookingPaymentService
      */
     public function dueFromCustomer(Booking $booking): array
     {
-        $paid = (float) $booking->payments()->where('status', PaymentStatus::Paid->value)->sum('amount');
+        // TCK-2892 — une caution ou un paiement « autre » encaissé ne réduit pas ce que le client doit
+        // sur le séjour.
+        $paid = (float) $booking->payments()->where('status', PaymentStatus::Paid->value)
+            ->whereNotIn('payment_type', [BookingPaymentType::SecurityDeposit->value, BookingPaymentType::Other->value])
+            ->sum('amount');
         $remaining = max((float) $booking->total_amount - $paid, 0.0);
         abort_code_if($remaining <= 0, 422, 'booking_payment.nothing_due');
 

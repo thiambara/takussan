@@ -135,10 +135,13 @@ const LIBELLES_DES_CHAMPS: Readonly<Record<string, CleDeLibelle>> = {
   currency: ['fiche', 'champ.devise'],
   moderation_required: ['config', 'moderation.label'],
   late_fee_online_collection: ['config', 'lateFeeOnline.label'],
+  owners_confirm_visits: ['config', 'ownersConfirmVisits.label'],
   require_team_two_factor: ['config', 'security.teamTwoFactorLabel'],
   hidden_modules: ['fiche', 'menu.titre'],
   default_tax_rate: ['argent', 'taxRate'],
   payout_approval_threshold: ['argent', 'threshold'],
+  // TCK-2915
+  payout_day: ['argent', 'payoutDay'],
   legal_name: ['argent', 'legalName'],
   ninea: ['argent', 'ninea'],
   rccm: ['argent', 'rccm'],

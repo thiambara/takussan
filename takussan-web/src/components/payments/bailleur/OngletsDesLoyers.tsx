@@ -19,7 +19,7 @@ import { ONGLETS_DES_LOYERS, type OngletDesLoyers } from './adresse';
  * cache un onglet, posé seulement quand la rangée déborde vraiment (mesuré, jamais supposé).
  * Changer d'onglet garde la période (`period`) et laisse les filtres de l'onglet quitté.
  */
-export function OngletsDesLoyers({ actif }: { readonly actif: OngletDesLoyers }) {
+export function OngletsDesLoyers({ actif, compteVersements }: { readonly actif: OngletDesLoyers; readonly compteVersements?: number }) {
   const t = useTranslations('payments.bailleur.onglets');
   const recherche = useSearchParams();
   const rangee = useRef<HTMLElement>(null);
@@ -62,12 +62,15 @@ export function OngletsDesLoyers({ actif }: { readonly actif: OngletDesLoyers })
       >
         {ONGLETS_DES_LOYERS.map((onglet) => {
           const estActif = onglet === actif;
+          // TCK-2916 — « Versements 3 » (maquette e4) : le total de la liste de l'onglet (`GET /api/payouts`), rien sans lui.
+          const compte = onglet === 'versements' && typeof compteVersements === 'number' ? compteVersements : null;
           return (
             <Link
               key={onglet}
               href={lien(onglet)}
               scroll={false}
               aria-current={estActif ? 'page' : undefined}
+              aria-label={compte !== null ? t('compteAria', { libelle: t(onglet), n: compte }) : undefined}
               className={cn(
                 'relative inline-flex h-11 flex-none items-center whitespace-nowrap rounded-sm text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring lg:h-auto lg:pb-3',
                 // TCK-2804 — au téléphone, l'onglet de la maquette : 32 px visibles (texte de 20 + `pb-3`), souligné en
@@ -80,6 +83,11 @@ export function OngletsDesLoyers({ actif }: { readonly actif: OngletDesLoyers })
               )}
             >
               {t(onglet)}
+              {compte !== null ? (
+                <span className="ml-1.5 text-xs tabular-nums text-muted-foreground" data-slot="compte-de-l-onglet">
+                  {compte}
+                </span>
+              ) : null}
             </Link>
           );
         })}

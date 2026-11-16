@@ -63,6 +63,9 @@ vi.mock('@/lib/queries/contact-leads', () => ({
     return { data: etat.designe.data ? { data: etat.designe.data } : undefined, isError: etat.designe.isError ?? false };
   },
   useHandleLead: () => handle,
+  // TCK-2885 — « Annuler » et les créneaux du message prérempli.
+  useUnhandleLead: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreneauxLibresDuBien: () => ({ data: undefined }),
   useConvertLead: () => convert,
   useAssignLead: () => assign,
   useEnregistrerContact: () => contact,
@@ -115,8 +118,10 @@ vi.mock('@/context/AuthContext', () => ({
 }));
 
 vi.mock('@/components/ui/toast', () => ({
-  useToast: () => ({ add: toastAdd }),
+  useToast: () => ({ add: toastAdd, close: vi.fn() }),
+  ActionDuToast: (p: Record<string, unknown>) => <button type="button" {...p} />,
 }));
+vi.mock('@/hooks/useNomDeLAgenceActive', () => ({ useNomDeLAgenceActive: () => null }));
 
 // L'en-tête du téléphone est rendu PAR LA COQUE : on retient ce que la boîte y déclare.
 const declarations = vi.hoisted(() => [] as Record<string, unknown>[]);

@@ -6,10 +6,11 @@ import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
 
 /**
- * TCK-2601 (AC5) — le bureau : dès 1280 px, la feuille de compte devient un PANNEAU qui prend la
+ * TCK-2601 (AC5) — le bureau : dès 1280 px (dès 1024 dans le cadre d'entrée de `/publish`, TCK-2934 — l'assistant
+ * monté ici est celui de `/publish`), la feuille de compte devient un PANNEAU qui prend la
  * place de l'étape et du pied dans la colonne gauche de l'assistant ; l'aperçu reste à droite.
  * Harnais de `PropertyWizard.sans-compte.tck-2601.test.tsx` ; `matchMedia` répond à la requête du
- * panneau (`REQUETE_DU_PANNEAU`), et peut changer en cours de route.
+ * panneau du cadre d'entrée (`REQUETE_DU_PANNEAU_D_ENTREE`), et peut changer en cours de route.
  */
 const media = vi.hoisted(() => ({ large: true, tablette: false, abonnes: new Set<() => void>() }));
 const routeur = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn(), refresh: vi.fn() }));
@@ -172,7 +173,7 @@ beforeEach(() => {
 });
 
 
-import { REQUETE_DU_PANNEAU } from '@/components/publication/CadreDeLaFeuille';
+import { REQUETE_DU_PANNEAU_D_ENTREE } from '@/components/publication/CadreDeLaFeuille';
 
 beforeEach(() => {
   media.large = true;
@@ -181,7 +182,7 @@ beforeEach(() => {
   window.matchMedia = ((query: string) => ({
     get matches() {
       if (query === '(width >= 48rem)') return media.tablette || media.large;
-      return query === REQUETE_DU_PANNEAU && media.large;
+      return query === REQUETE_DU_PANNEAU_D_ENTREE && media.large;
     },
     media: query,
     onchange: null,
@@ -228,11 +229,11 @@ describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', ()
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(panneau.closest('[data-wizard-panneau]')).not.toBeNull();
-    expect(document.querySelector('[data-wizard-panneau]')).toHaveClass('xl:block');
-    // L'étape et le pied se cachent dès xl (la largeur où le panneau est le régime), pas avant.
-    expect(document.querySelector('[data-wizard-footer]')).toHaveClass('xl:hidden');
+    // TCK-2934 — dans le cadre d'entrée, dès `lg` (la largeur où le panneau y est le régime), pas avant.
+    expect(document.querySelector('[data-wizard-panneau]')).toHaveClass('lg:block');
+    expect(document.querySelector('[data-wizard-footer]')).toHaveClass('lg:hidden');
     // TCK-2600 — dans le cadre d'entrée, le panneau et l'étape partagent la colonne de la question.
-    expect(document.querySelector('[data-wizard-scroll] [data-wizard-panneau] + div')).toHaveClass('xl:hidden');
+    expect(document.querySelector('[data-wizard-scroll] [data-wizard-panneau] + div')).toHaveClass('lg:hidden');
     // L'aperçu reste à droite pendant tout le compte.
     expect(screen.getByRole('complementary', { name: 'Aperçu de l’annonce' })).toBeInTheDocument();
 
@@ -241,9 +242,11 @@ describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', ()
     expect(within(panneau).getByText('Votre annonce est prête')).toBeInTheDocument();
     // Le titre dit déjà « votre numéro » : pas de second titre ; le rappel est l'aperçu, à droite.
     expect(within(panneau).queryByRole('heading', { level: 3 })).not.toBeInTheDocument();
-    // Deux assurances : « Gratuit, sans commission » n'est pas vrai pour tout espace (abonnement).
+    // TCK-2934 — les trois assurances de la maquette : `/publish` ne publie que dans un espace particulier, sans
+    // abonnement, donc sans commission (cf. `PreuvesDuDepart`).
     expect(within(panneau).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
       'Pas de mot de passe à inventer',
+      'Gratuit, sans commission',
       'Annonce retirable à tout moment',
     ]);
   });
@@ -326,8 +329,8 @@ describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', ()
     await user.click(within(panneau).getByRole('button', { name: 'Revenir à l’annonce' }));
 
     expect(screen.queryByRole('region', { name: 'Dernière étape : votre numéro' })).not.toBeInTheDocument();
-    expect(document.querySelector('[data-wizard-footer]')).not.toHaveClass('xl:hidden');
-    expect(document.querySelector('[data-wizard-panneau]')).not.toHaveClass('xl:block');
+    expect(document.querySelector('[data-wizard-footer]')).not.toHaveClass('lg:hidden');
+    expect(document.querySelector('[data-wizard-panneau]')).not.toHaveClass('lg:block');
     expect(publier).toHaveFocus();
   });
 
@@ -372,7 +375,7 @@ describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', ()
     expect(page.surPublier).not.toHaveBeenCalled();
   });
 
-  it('un seul point de montage : passer sous 1280 px en cours de compte garde le numéro et le code envoyé', async () => {
+  it('un seul point de montage : passer sous 1024 px en cours de compte garde le numéro et le code envoyé', async () => {
     const user = monter();
     const { panneau } = await ouvrirLePanneau(user);
     fireEvent.change(within(panneau).getByLabelText('Votre numéro'), { target: { value: '770000999' } });
@@ -396,7 +399,7 @@ describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', ()
     expect(screen.queryByRole('region', { name: 'Dernière étape : votre numéro' })).not.toBeInTheDocument();
   });
 
-  it('sous 1280 px, rien ne change : la feuille, son rappel, son titre « Dernière étape : votre numéro », le libellé visible du numéro, aucune assurance', async () => {
+  it('sous 1024 px, rien ne change : la feuille, son rappel, son titre « Dernière étape : votre numéro », le libellé visible du numéro, aucune assurance', async () => {
     media.large = false;
     const user = monter();
     await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });

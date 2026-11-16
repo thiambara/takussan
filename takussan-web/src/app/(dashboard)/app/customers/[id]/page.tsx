@@ -18,6 +18,8 @@ import {
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { FicheDuClient } from '@/components/customer-dashboard/fiche/FicheDuClient';
+import { OublierLaFiche, RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
+import { nomCompletDe } from '@/lib/identite';
 
 /**
  * TCK-042 — la fiche client. TCK-2589 — résumé, fil et dossier (`FicheDuClient`, maquette `app-clients-fiche` a) ;
@@ -80,25 +82,34 @@ export default async function Page({ params }: { params: Params }) {
   } catch (e) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
       return (
-        <CustomerDetailUnavailable
-          title={t('forbidden_title')}
-          message={t('forbidden_message')}
-          backLabel={t('back_cta')}
-        />
+        <>
+          {/* TCK-2846 — une fiche qui n'est plus lisible sort des récents. */}
+          <OublierLaFiche chemin={`/app/customers/${customerId}`} />
+          <CustomerDetailUnavailable
+            title={t('forbidden_title')}
+            message={t('forbidden_message')}
+            backLabel={t('back_cta')}
+          />
+        </>
       );
     }
     throw e;
   }
 
   return (
-    <FicheDuClient
-      customer={customer}
-      relationships={relationships}
-      suggestionsDEtiquettes={crmTagSuggestions}
-      notes={notes}
-      peutInviter={canInviteToAccount}
-      peutReveler={canRevealIdNumber}
-    />
+    <>
+      {/* TCK-2846 — la fiche entre dans les récents sous le NOM du client, jamais son courriel ni son
+          numéro (`nomCompletDe` : prénom et nom seulement ; sans nom, rien n'est retenu). */}
+      <RetenirLaFiche type="client" id={customerId} titre={nomCompletDe(customer)} chemin={`/app/customers/${customerId}`} />
+      <FicheDuClient
+        customer={customer}
+        relationships={relationships}
+        suggestionsDEtiquettes={crmTagSuggestions}
+        notes={notes}
+        peutInviter={canInviteToAccount}
+        peutReveler={canRevealIdNumber}
+      />
+    </>
   );
 }
 

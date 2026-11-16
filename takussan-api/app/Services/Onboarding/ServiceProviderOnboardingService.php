@@ -2,6 +2,7 @@
 
 namespace App\Services\Onboarding;
 
+use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\MaintenanceStatus;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Model\MaintenanceRequestService;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -235,6 +237,25 @@ class ServiceProviderOnboardingService
         }
 
         return $mr;
+    }
+
+    /**
+     * TCK-2943 (ADR-0122 § 6) — l'échéance de réponse annoncée au prestataire sur la demande d'origine : l'instant de
+     * l'invitation (quand l'agence a demandé à CE prestataire) plus le réglage `maintenance_provider_response_hours`
+     * de l'agence. `null` quand l'agence n'annonce aucun délai (0) ou sans invitation acceptée. Indicative : rien ne
+     * se passe à l'échéance ; une échéance passée est rendue telle quelle.
+     */
+    public function echeanceDeReponse(ServiceProviderProfile $sp): ?CarbonInterface
+    {
+        $invitation = $this->acceptedInvitation($sp);
+        $agence = $invitation?->agency_id === null ? null : Agency::query()->find($invitation->agency_id);
+        if ($invitation === null || $agence === null || $invitation->created_at === null) {
+            return null;
+        }
+
+        $heures = (int) $agence->setting('maintenance_provider_response_hours');
+
+        return $heures > 0 ? $invitation->created_at->copy()->addHours($heures) : null;
     }
 
     /**

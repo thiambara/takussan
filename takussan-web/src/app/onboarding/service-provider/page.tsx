@@ -11,6 +11,7 @@ import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { profilAReprendre } from '@/lib/onboarding-reprise';
 import type { MesPiecesResponse } from '@/lib/pieces/pieces';
+import { fetchResumeDInvite } from '@/lib/resume-d-invite';
 import { fetchInterventionDOrigine, fetchReglagesDuPrestataire, fetchSpAgencies } from '@/lib/service-provider-onboarding';
 import { MAINTENANCE_CATEGORIES } from '@/types/maintenance';
 
@@ -77,7 +78,12 @@ export default async function ServiceProviderOnboardingPage({
   // travaillait DÉJÀ avec une autre agence (plus d'une collaboration), ou qui arrive sans lien de reprise.
   const dejaPrestataireAilleurs = collabs.length > 1;
 
-  if (isExistingSp && collabs.length > 0 && (!aReprendre || dejaPrestataireAilleurs)) {
+  // TCK-2946 (AC4) — avec le lien de l'invitation (`?sp=`), le prestataire déjà en poste ailleurs passe lui AUSSI
+  // par l'écran 2 (maquette `app-entree-assistants` a, e2, variante « déjà prestataire d'une autre agence ») :
+  // l'intervention jointe, et la note « Vous travaillez déjà avec… ». Le panneau le privait de la carte et de la fin
+  // d'onboarding qui lui assigne la demande (`complete()` se rejoue sans dommage sur un profil actif). Sans lien de
+  // reprise, le panneau de TCK-262 reste.
+  if (isExistingSp && collabs.length > 0 && !aReprendre) {
     return (
       <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
         <ServiceProviderMultiAgencyWelcome
@@ -97,7 +103,8 @@ export default async function ServiceProviderOnboardingPage({
   // TCK-2613 — ce que l'écran 2 montre, lu ici : l'intervention jointe (projection minimale, titulaire seul), les
   // réglages du profil et ses pièces (`X-Profile-Id`) pour « Complétez votre profil », l'agence qui invite. Une
   // lecture en échec n'empêche pas d'entrer : l'écran montre ce qu'il a.
-  const [intervention, reglages, pieces, agences] = await Promise.all([
+  // TCK-2949 — le résumé chiffré du panneau de l'étape du numéro ; 404 ou échec → `null`, le panneau sans chiffres.
+  const [intervention, reglages, pieces, agences, resume] = await Promise.all([
     fetchInterventionDOrigine(token, sp.numeric_id).catch(() => null),
     fetchReglagesDuPrestataire(token, sp.numeric_id).catch(() => null),
     apiRequest<MesPiecesResponse>('/api/me/pieces', {
@@ -105,6 +112,7 @@ export default async function ServiceProviderOnboardingPage({
       headers: { 'X-Profile-Id': `service_provider:${sp.numeric_id}` },
     }).catch(() => null),
     agenciesRes?.ok ? Promise.resolve(agenciesRes.data) : fetchSpAgencies(token).catch(() => null),
+    fetchResumeDInvite(token, 'service_provider', sp.numeric_id),
   ]);
   // L'agence qui invite : la collaboration la plus récente encore ouverte de CE profil (la liste est celle du
   // premier profil prestataire du compte : un autre profil n'y prête pas son agence).
@@ -113,6 +121,10 @@ export default async function ServiceProviderOnboardingPage({
       ? agences.data.filter((c) => c.status !== 'ended').sort((a, b) => b.collaboration_id - a.collaboration_id)
       : [];
   const agence = collaborations[0]?.agency.name ?? null;
+  // TCK-2946 — les AUTRES agences ouvertes du prestataire (la note multi-agences de l'écran 2).
+  const autresAgences = dejaPrestataireAilleurs
+    ? [...new Set(collaborations.slice(1).map((c) => c.agency.name).filter((nom) => nom !== agence))]
+    : [];
   // Le libellé de la catégorie se traduit ICI : l'espace `maintenance` entier n'a pas à suivre l'onboarding
   // (`src/i18n/namespaces.json`) pour un seul mot. Un code inconnu ne s'affiche pas.
   const code = intervention?.data?.category ?? null;
@@ -129,6 +141,8 @@ export default async function ServiceProviderOnboardingPage({
         categorie={categorie}
         reglages={reglages?.data ?? null}
         pieces={pieces?.data ?? null}
+        resume={resume}
+        {...(autresAgences.length > 0 ? { autresAgences } : {})}
       />
     </OnboardingShell>
   );

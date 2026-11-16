@@ -227,6 +227,55 @@ class ReviewEligibility
         return array_values($items);
     }
 
+    /**
+     * TCK-2863 — l'invitation à noter après un bail CLÔTURÉ (`terminated` ou `expired`) depuis moins
+     * de `reviews.lease_closed_window_days` jours (90 par défaut) : la carte « Bail clôturé le … »
+     * du profil du locataire. La cible est le bien du bail, avec ce bail pour preuve ; elle n'est
+     * offerte que tant que l'avis du bien l'est — la règle de {@see self::opportunities()} (le
+     * même `leasesOf()`, le même « déjà noté »), pas une copie.
+     *
+     * La date de clôture est `terminated_at` pour un bail résilié, `end_date` sinon.
+     *
+     * @return list<array{kind: string, lease: array{id: int, end_date: string, property_title: string|null}, target: array{type: string, subject: array<string, mixed>, context: array{type: string, id: int}}}>
+     */
+    public function closedLeaseOpportunities(User $author): array
+    {
+        $today = now()->startOfDay();
+        $since = $today->copy()->subDays((int) config('reviews.lease_closed_window_days', 90));
+        $reviewedProperties = Review::withTrashed()->where('author_id', $author->id)
+            ->where('reviewable_type', Property::class)
+            ->pluck('reviewable_id')->map(fn ($id) => (int) $id)->all();
+
+        $items = [];
+        $leases = $this->leasesOf($author)
+            ->whereIn('status', [LeaseStatus::Terminated, LeaseStatus::Expired])
+            ->with('property')
+            ->get();
+        foreach ($leases as $lease) {
+            $closedOn = $lease->status === LeaseStatus::Terminated && $lease->terminated_at !== null
+                ? $lease->terminated_at->copy()->startOfDay()
+                : $lease->end_date?->copy()->startOfDay();
+            $property = $lease->property;
+            if ($closedOn === null || $property === null
+                || $closedOn->lt($since) || $closedOn->gt($today)
+                || in_array((int) $property->id, $reviewedProperties, true)
+                || isset($items[$property->id])) {
+                continue;
+            }
+            $items[$property->id] = [
+                'kind' => 'lease_closed',
+                'lease' => ['id' => (int) $lease->id, 'end_date' => $closedOn->toDateString(), 'property_title' => $property->title],
+                'target' => [
+                    'type' => 'property',
+                    'subject' => ['id' => $property->id, 'title' => $property->title, 'slug' => $property->slug],
+                    'context' => ['type' => 'lease', 'id' => (int) $lease->id],
+                ],
+            ];
+        }
+
+        return array_values($items);
+    }
+
     public static function contextKind(Model $proof): string
     {
         return match (true) {

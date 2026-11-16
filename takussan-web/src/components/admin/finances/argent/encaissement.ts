@@ -11,7 +11,8 @@ const TYPES_MENSUELS = new Set(['rent', 'charges', 'penalty']);
 /** Les autres types de bail, nommés sans mois. */
 const TYPES_DE_BAIL = new Set(['deposit', 'deposit_refund', 'regularization']);
 /** Les types d'un paiement de réservation (`BookingPaymentType`). */
-const TYPES_DE_RESERVATION = new Set(['deposit', 'advance', 'fee']);
+// TCK-2892 — `other` retombe sur `reservation.autre`.
+const TYPES_DE_RESERVATION = new Set(['deposit', 'advance', 'fee', 'security_deposit']);
 
 export interface PeriodeLue {
   /** La clé sous `admin.finances.argent.periode`. */

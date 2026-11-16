@@ -61,8 +61,42 @@ export function SqueletteDeCarte() {
   );
 }
 
-/** Le squelette de « Ce mois » : des puces au téléphone, quatre tuiles au bureau. */
-export function SqueletteDesChiffres() {
+/**
+ * TCK-2854 — le squelette de « À faire » au BUREAU (maquette `app-accueil` a, e7) : des groupes à
+ * rangées, la forme que prennent les files une fois lues (titre du groupe, puis ses rangées), pas des
+ * cartes. Quatre puis trois rangées, comme la maquette.
+ */
+export function SqueletteDeGroupes({ rangees = [4, 3] }: { readonly rangees?: readonly number[] }) {
+  return (
+    <div data-slot="squelette-de-groupes" className="space-y-5" aria-hidden="true">
+      {rangees.map((n, k) => (
+        <div key={k} data-slot="squelette-de-groupe" className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex h-11 items-center border-b border-border px-4">
+            <span className="h-3.5 w-32 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="divide-y divide-border">
+            {Array.from({ length: n }, (_, i) => (
+              <div key={i} data-slot="squelette-de-rangee" className="flex h-14 items-center gap-3 px-4">
+                <span className="size-8 flex-none animate-pulse rounded-full bg-muted" />
+                <span className="flex-1 space-y-2">
+                  <span className="block h-3 w-2/5 animate-pulse rounded bg-muted" />
+                  <span className="block h-3 w-3/5 animate-pulse rounded bg-muted" />
+                </span>
+                <span className="h-8 w-24 flex-none animate-pulse rounded-lg bg-muted" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Le squelette de « Ce mois » : des puces au téléphone, quatre tuiles au bureau. TCK-2854 —
+ * `pleineLargeur` suit la grille des tuiles (quatre de front au large sans colonne de droite).
+ */
+export function SqueletteDesChiffres({ pleineLargeur = false }: { readonly pleineLargeur?: boolean }) {
   return (
     <div data-slot="squelette-des-chiffres" aria-hidden="true">
       <div className="flex gap-2 overflow-hidden px-4 md:hidden">
@@ -70,7 +104,7 @@ export function SqueletteDesChiffres() {
           <span key={l} className="h-11 flex-none animate-pulse rounded-full bg-muted" style={{ width: `calc(var(--spacing) * ${l})` }} />
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-3 max-md:hidden">
+      <div className={cn('grid grid-cols-2 gap-3 max-md:hidden', pleineLargeur && 'xl:grid-cols-4')}>
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="space-y-2.5 rounded-xl border border-border bg-card p-4">
             <span className="block h-3 w-20 animate-pulse rounded bg-muted" />

@@ -15,14 +15,14 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { InterventionEnFile } from '@/lib/maintenance/files';
 import { jourRelatif } from '@/lib/maintenance/mes-demandes';
 import { semaineDe, type SemaineDuPrestataire } from '@/lib/maintenance/semaine-du-prestataire';
-import { useAChiffrer } from '@/lib/queries/accueil-prestataire';
+import { useAChiffrer, useDevisEnvoyes } from '@/lib/queries/accueil-prestataire';
 import { useMaintenanceRequest, useTransitionMaintenanceStatus } from '@/lib/queries/maintenance';
 import { useInterventionsAAccepter, useSemaineDuPrestataire } from '@/lib/queries/maintenance-signalement';
 import { cn } from '@/lib/utils';
 import type { MaintenanceAccess } from '@/types/maintenance';
 
 import { ErreurDeBloc, SqueletteDeCarte } from '../EtatsDeBloc';
-import { Disque, LienTonal, TitreBloc, TitreColonne } from '../pieces';
+import { Disque, LienTonal, TitreBloc } from '../pieces';
 
 /**
  * TCK-2625 (ADR-0096, maquette `app-accueil` a, écran « Prestataire ») — l'accueil du prestataire est
@@ -37,8 +37,8 @@ import { Disque, LienTonal, TitreBloc, TitreColonne } from '../pieces';
  *    créneau seulement assigné ne porte que le verrou (AC5).
  *  · « Commencer » et « Terminé » naissent des drapeaux de la fiche (`gesteDuCreneau`).
  *
- * Écarts de donnée à la maquette (rien d'inventé) : le nom du locataire (non servi au prestataire),
- * « Mes devis en attente » au-delà de « À chiffrer » (le devis envoyé et son montant).
+ * Écart de donnée à la maquette (rien d'inventé) : le nom du locataire (non servi au prestataire).
+ * TCK-2854 — « Mes devis en attente » porte désormais le devis envoyé et son montant (bureau).
  */
 
 /** La lecture de la journée, partagée par le résumé, les blocs et la colonne : une requête. */
@@ -144,47 +144,102 @@ export function JourneeDuPrestataire() {
   );
 }
 
-/** La colonne : « À chiffrer » — les devis demandés, « Chiffrer » mène à la fiche. Rien s'il n'y en a pas. */
+/**
+ * La colonne : les devis du prestataire.
+ *
+ *  · Au téléphone, « À chiffrer » : les devis demandés, « Chiffrer » mène à la fiche (la maquette
+ *    téléphone ne montre que ceux-là).
+ *  · TCK-2854 — au bureau, « Mes devis en attente » (maquette e4) : une carte à rangées, les devis à
+ *    chiffrer puis ceux qu'il a ENVOYÉS — le montant, « Envoyé le 8 nov. · en attente du bailleur ».
+ *    Un devis envoyé n'offre aucun geste (il attend la décision) : la rangée mène à l'intervention.
+ *
+ * Rien quand il n'y a rien à montrer à cette largeur.
+ */
 export function AChiffrer() {
   const t = useTranslations('accueil.prestataire.aChiffrer');
   const f = useFormatteurs();
   const { user } = useAuth();
   const lue = useAChiffrer(user?.id);
+  const envoyes = useDevisEnvoyes(user?.id);
   const lignes = lue.data?.data ?? [];
-  if (lue.isError) return <ErreurDeBloc quoi={t('quoi')} onReessayer={() => void lue.refetch()} className="max-md:mx-4" />;
-  if (lignes.length === 0) return null;
+  const lignesEnvoyees = envoyes.data?.data ?? [];
   const jourDe = (d: Date) => f.date(d, { dateStyle: undefined, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const demande = (l: InterventionEnFile) => {
+    const lieu = lieuDe(l);
+    const depuis = l.waiting_since ?? l.created_at;
+    return t('demande', { lieu: lieu ?? '', aLieu: lieu ? 'oui' : 'non', jour: jourRelatif(depuis, new Date(), jourDe), date: f.jourMois(depuis) });
+  };
 
-  return (
-    <section aria-labelledby="prestataire-a-chiffrer" className="space-y-2" data-slot="a-chiffrer">
-      <div className="md:hidden">
-        <TitreBloc id="prestataire-a-chiffrer">{t('titre')}</TitreBloc>
-      </div>
-      <div className="max-md:hidden">
-        <TitreColonne>{t('titre')}</TitreColonne>
-      </div>
-      <ul className="space-y-3 max-md:px-4">
-        {lignes.map((l) => {
-          const lieu = lieuDe(l);
-          const depuis = l.waiting_since ?? l.created_at;
-          const relatif = jourRelatif(depuis, new Date(), jourDe);
-          return (
-            <li key={l.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
-              <Disque icone={FileText} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-corps font-semibold">{l.title}</p>
-                <p className="truncate text-ui text-muted-foreground">
-                  {t('demande', { lieu: lieu ?? '', aLieu: lieu ? 'oui' : 'non', jour: relatif, date: f.jourMois(depuis) })}
-                </p>
-              </div>
-              <LienTonal href={`/app/maintenance/${l.id}`} className="flex-none">
-                {t('chiffrer')}
-              </LienTonal>
-            </li>
-          );
-        })}
+  const telephone = lue.isError ? (
+    <div className="md:hidden">
+      <ErreurDeBloc quoi={t('quoi')} onReessayer={() => void lue.refetch()} className="mx-4" />
+    </div>
+  ) : lignes.length > 0 ? (
+    <section aria-labelledby="prestataire-a-chiffrer" className="space-y-2 md:hidden" data-slot="a-chiffrer">
+      <TitreBloc id="prestataire-a-chiffrer">{t('titre')}</TitreBloc>
+      <ul className="space-y-3 px-4">
+        {lignes.map((l) => (
+          <li key={l.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+            <Disque icone={FileText} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-corps font-semibold">{l.title}</p>
+              <p className="truncate text-ui text-muted-foreground">{demande(l)}</p>
+            </div>
+            <LienTonal href={`/app/maintenance/${l.id}`} className="flex-none">
+              {t('chiffrer')}
+            </LienTonal>
+          </li>
+        ))}
       </ul>
     </section>
+  ) : null;
+
+  const enEchec = lue.isError ? lue : envoyes.isError ? envoyes : null;
+  const bureau = enEchec ? (
+    <div className="max-md:hidden">
+      <ErreurDeBloc quoi={t('quoiBureau')} onReessayer={() => void enEchec.refetch()} />
+    </div>
+  ) : lignes.length + lignesEnvoyees.length > 0 ? (
+    <section aria-labelledby="prestataire-devis-en-attente" className="overflow-hidden rounded-xl border border-border bg-card max-md:hidden" data-slot="devis-en-attente">
+      <h2 id="prestataire-devis-en-attente" className="flex h-11 items-center border-b border-border px-4 text-sm font-semibold">
+        {t('titreBureau')}
+      </h2>
+      <ul className="divide-y divide-border">
+        {lignes.map((l) => (
+          <li key={l.id} className="px-4 py-3" data-slot="devis-a-chiffrer">
+            <p className="text-sm font-semibold">{l.title}</p>
+            <p className="mt-0.5 text-ui text-muted-foreground">{demande(l)}</p>
+            <LienTonal href={`/app/maintenance/${l.id}`} className="mt-3 h-9">
+              {t('chiffrer')}
+            </LienTonal>
+          </li>
+        ))}
+        {lignesEnvoyees.map((l) => (
+          <li key={l.id} data-slot="devis-envoye">
+            <Link
+              href={`/app/maintenance/${l.id}`}
+              className="block px-4 py-3 outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring"
+            >
+              <span className="flex items-baseline justify-between gap-3 text-sm font-semibold">
+                <span className="min-w-0">{l.title}</span>
+                {l.quote_amount != null ? <span className="flex-none tabular-nums">{f.montant(l.quote_amount, l.quote_currency ?? 'XOF')}</span> : null}
+              </span>
+              <span className="mt-0.5 block text-ui text-muted-foreground">
+                {t('envoye', { date: l.quote_submitted_at ? f.jourMois(l.quote_submitted_at) : '', aDate: l.quote_submitted_at ? 'oui' : 'non' })}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : null;
+
+  if (!telephone && !bureau) return null;
+  return (
+    <>
+      {telephone}
+      {bureau}
+    </>
   );
 }
 

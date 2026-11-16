@@ -11,15 +11,16 @@ import { useDecalageDuClavier } from '@/components/entree/useDecalageDuClavier';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 
 /**
- * TCK-2601 (AC5) — le bureau : dès 1280 px (`xl`, la largeur de la maquette « bureau »), la feuille de
+ * TCK-2601 (AC5) — le bureau : dès 1280 px (`xl`, la largeur de la maquette « bureau » ; dès 1024 px dans le cadre
+ * d'entrée de `/publish`, TCK-2934), la feuille de
  * compte n'est plus une feuille. Son contenu prend la place de l'étape dans la colonne gauche de
  * l'assistant (`WizardShell`, `refDuPanneau`), « Revenir à l'annonce » au-dessus, et l'aperçu de
  * l'annonce RESTE à droite pendant tout le compte — c'est lui qui rappelle l'annonce, d'où l'absence
- * du rappel dans le panneau. Sous 1280 px, la `FeuilleDuBas` d'avant, inchangée.
+ * du rappel dans le panneau. Sous ce seuil, la `FeuilleDuBas` d'avant, inchangée.
  *
  * ⚠ Un seul point de montage : seule l'ENVELOPPE change (feuille ou portail dans la colonne), jamais
  * le composant qui la porte. L'état de la feuille (numéro saisi, code envoyé, prénom) survit donc à
- * un redimensionnement de part et d'autre de 1280 px. Rendre les deux et en cacher un par CSS
+ * un redimensionnement de part et d'autre du seuil. Rendre les deux et en cacher un par CSS
  * doublerait les `id` des champs et les crochets de l'entrée par téléphone.
  *
  * Ce que le dialogue modal donnait seul, le panneau le refait : le focus va au titre à l'ouverture et
@@ -34,10 +35,20 @@ import { useMatchesMedia } from '@/hooks/useMatchesMedia';
  */
 export const REQUETE_DU_PANNEAU = '(width >= 80rem)';
 
+/**
+ * TCK-2934 — dans le cadre d'entrée (`/publish`, maquette `app-entree-publier` a-6 / a-7), le panneau dès 1024 px
+ * (`lg`) : la maquette écrit « Bureau 1280 : inchangé à 1280 et à 1024 », et l'aperçu y est déjà à droite dès `lg`
+ * (`GrilleDEntree`). L'assistant connecté de `/app/properties/new` garde 1280. La colonne cible le dit elle-même
+ * (`data-cadre-d-entree`, posé par `WizardShell`), qui cache et montre les mêmes nœuds au même seuil.
+ */
+export const REQUETE_DU_PANNEAU_D_ENTREE = '(width >= 64rem)';
+
 /** Le panneau de bureau est-il le régime ? Il faut la largeur ET une place où se rendre. */
 export function usePanneauDeBureau(cible: HTMLElement | null): boolean {
   const large = useMatchesMedia(REQUETE_DU_PANNEAU);
-  return large && cible !== null;
+  const largeDEntree = useMatchesMedia(REQUETE_DU_PANNEAU_D_ENTREE);
+  if (cible === null) return false;
+  return cible.hasAttribute('data-cadre-d-entree') ? largeDEntree : large;
 }
 
 interface CadreDeLaFeuilleProps {
@@ -49,7 +60,7 @@ interface CadreDeLaFeuilleProps {
   readonly bureau: boolean;
   /** Le nœud de la colonne gauche où le panneau se rend. */
   readonly cible: HTMLElement | null;
-  /** Le titre de la feuille, sous 1280 px. */
+  /** Le titre de la feuille, sous le seuil du panneau. */
   readonly titre: string;
   /** Le titre du panneau, qui remplace celui de l'étape. */
   readonly titreDuPanneau: string;

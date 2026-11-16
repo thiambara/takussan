@@ -100,6 +100,11 @@ export function NotificationsHistory() {
   const unread = meta?.unread ?? 0;
   const aTraiter = meta?.counts?.a_traiter_non_lues ?? 0;
   const parFamille = meta?.counts?.par_famille ?? {};
+  // TCK-2848 (AC7) — la colonne « Familles » compte TOUTES les notifications de chaque famille, lues
+  // comprises (« Toutes 42 », « Demandes 3 », maquette `app-notifications` e1), servies par TCK-2847.
+  // Une réponse sans ces totaux (antérieure) garde les non-lues.
+  const totalParFamille = meta?.counts?.total_par_famille ?? (meta?.counts?.total === undefined ? parFamille : {});
+  const totalToutes = meta?.counts?.total ?? unread;
   const lastPage = Math.max(1, meta?.last_page ?? 1);
   const total = meta?.total ?? 0;
 
@@ -124,9 +129,9 @@ export function NotificationsHistory() {
   /** La colonne du bureau (`h-9`) ou la feuille du téléphone (`h-11`, la cible du pouce). */
   const familles = (hauteur: string) => (
     <>
-      <EntreeDeFamille famille={null} compte={unread} active={famille === null} onChoisir={() => choisirFamille(null)} className={hauteur} />
+      <EntreeDeFamille famille={null} compte={totalToutes} active={famille === null} onChoisir={() => choisirFamille(null)} className={hauteur} />
       {FAMILLES_DE_NOTIFICATION.map((f) => (
-        <EntreeDeFamille key={f} famille={f} compte={parFamille[f] ?? 0} active={famille === f} onChoisir={() => choisirFamille(f)} className={hauteur} />
+        <EntreeDeFamille key={f} famille={f} compte={totalParFamille[f] ?? 0} active={famille === f} onChoisir={() => choisirFamille(f)} className={hauteur} />
       ))}
     </>
   );

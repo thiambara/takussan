@@ -359,7 +359,10 @@ function AlerteDoublon({ doublons, memeNumero, action }: { readonly doublons: re
       <ul className="mt-2 space-y-1.5">
         {doublons.map((d, i) => {
           const nom = d.name ?? tCrm('duplicate.hidden');
-          const detail = [d.stage && tStage.has(d.stage) ? tStage(d.stage) : null, memeNumero ? t('memeNumero') : null].filter(Boolean).join(' · ');
+          // TCK-2890 (AC4) — l'étape, puis qui la suit : « Négociation · suivi par Khady Diallo ».
+          const detail = [d.stage && tStage.has(d.stage) ? tStage(d.stage) : null, memeNumero ? t('memeNumero') : null, d.referent?.name ? t('suiviPar', { nom: d.referent.name }) : null]
+            .filter(Boolean)
+            .join(' · ');
           const corps = (
             <>
               <span aria-hidden="true" className="inline-flex size-9 flex-none items-center justify-center rounded-full bg-fond-avatar text-ui leading-normal font-semibold text-encre-avatar">

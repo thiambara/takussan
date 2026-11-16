@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Controllers\Api\LeaseController;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Booking;
 use App\Models\Inventory;
@@ -12,6 +13,7 @@ use App\Policies\LeasePolicy;
 use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
+use App\Services\Lease\RentReviewSchedule;
 use App\Services\Lease\RentReviewService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\MissingValue;
@@ -30,6 +32,14 @@ class LeaseResource extends BaseResource
      * @var array{inclus: bool, champs: list<string>|null}|null
      */
     private ?array $locataire = null;
+
+    /**
+     * TCK-2906 — les clés calculées par la fiche sur demande (`maintenance_summary`, `documents_count`,
+     * `history_count`), posées par le contrôleur : absentes sans l'inclusion.
+     *
+     * @var array<string, mixed>
+     */
+    private array $calculs = [];
 
     /**
      * TCK-596 §4B — ce que l'utilisateur courant peut faire de la signature : les rôles pour
@@ -51,6 +61,18 @@ class LeaseResource extends BaseResource
     public function avecLocataire(bool $inclus, ?array $champs): static
     {
         $this->locataire = ['inclus' => $inclus, 'champs' => $champs];
+
+        return $this;
+    }
+
+    /**
+     * TCK-2906 — les clés calculées de la fiche ({@see LeaseController::show()}).
+     *
+     * @param  array<string, mixed>  $calculs
+     */
+    public function avecCalculs(array $calculs): static
+    {
+        $this->calculs = $calculs;
 
         return $this;
     }
@@ -200,6 +222,11 @@ class LeaseResource extends BaseResource
             // Sur le détail seul : le réglage d'agence se lit une fois par bail.
             'rent_review_cap_pct' => $this->when($this->viewer !== null,
                 fn (): float => app(RentReviewService::class)->maxPctFor($this->resource)),
+            // TCK-2906 — le jour où la révision devient possible ({@see RentReviewSchedule}, la règle du motif
+            // `rent_review_open`) : passé sur un bail dont la révision est ouverte, nul sans révision possible
+            // (bail terminé, vente, plafond figé à 0 %). Sur le détail seul : une requête par bail.
+            'next_revision_date' => $this->when($this->viewer !== null && $this->resource instanceof Lease,
+                fn (): ?string => $this->calendarDate(RentReviewSchedule::nextRevisionDate($this->resource))),
             'created_at' => $this->iso($this->created_at),
         ];
 
@@ -211,6 +238,7 @@ class LeaseResource extends BaseResource
         // `include=due_summary`) et les parties nommées (`include=landlord`, `include=agent`) :
         // absentes sans l'inclusion. Ajoutées ici et non par `when()` : la liste appelle `toArray()`.
         $data += $this->computedAndParties($request);
+        $data += $this->calculs;
 
         // P21.06 (TCK-904) — le détail appelle `toArray()` directement, qui ne filtre pas les
         // `MissingValue` : une relation de renouvellement non chargée sortait en `{}`.
@@ -226,7 +254,7 @@ class LeaseResource extends BaseResource
     /**
      * TCK-2642 — `attention[]`, le résumé d'échéance, et les parties nommées par une projection fixe :
      * le bailleur (noms ; téléphone pour le personnel de l'agence du bail et pour le bailleur
-     * lui-même, jamais pour le seul locataire, que l'agence sert), l'agent (noms).
+     * lui-même, jamais pour le seul locataire, que l'agence sert), l'agent (noms ; téléphone pour le personnel de l'agence du bail — TCK-2906).
      *
      * @return array<string, mixed>
      */
@@ -249,6 +277,8 @@ class LeaseResource extends BaseResource
                 : ['due_date' => $this->calendarDate($due['next_due']['due_date'])] + $due['next_due'];
             $out['overdue_count'] = $due['overdue_count'];
             $out['overdue_amount'] = $due['overdue_amount'];
+            // TCK-2915 — la date du prochain avis d'échéance (le rappel J-3), `null` sans avis à venir.
+            $out['next_due_notice_date'] = isset($due['next_due_notice_date']) ? $this->calendarDate($due['next_due_notice_date']) : null;
         }
 
         if ($lease->relationLoaded('landlord')) {
@@ -258,7 +288,9 @@ class LeaseResource extends BaseResource
             $out['landlord'] = $this->party($lease->landlord, $seesPhone);
         }
         if ($lease->relationLoaded('agent')) {
-            $out['agent'] = $this->party($lease->agent, false);
+            // TCK-2906 — le téléphone de l'agent responsable, au seul personnel de l'agence du bail (et au
+            // super-admin) : jamais au locataire ni au bailleur, que l'agence sert par ses propres canaux.
+            $out['agent'] = $this->party($lease->agent, $this->viewerIsAgencyStaff($request));
         }
 
         return $out;

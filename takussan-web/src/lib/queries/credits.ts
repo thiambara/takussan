@@ -3,7 +3,7 @@
 import { keepPreviousData } from '@tanstack/react-query';
 
 import { CLE_CREDITS } from '@/components/boost/api';
-import type { BoostKind, BoostStatus, BoostVariant, CreditsResponse } from '@/components/boost/types';
+import type { BoostKind, BoostStatus, BoostVariant, CreditLot, CreditsResponse } from '@/components/boost/types';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import type { PaginatedResponse } from '@/types/api';
 
@@ -20,6 +20,9 @@ export const creditsQueryKeys = {
   suggestions: (limite: number) => [...CLE_CREDITS, 'suggestions', limite] as const,
   biensEnLigne: (recherche: string) => [...CLE_CREDITS, 'biens-en-ligne', recherche] as const,
   journal: (page: number, parPage: number) => [...CLE_CREDITS, 'journal', page, parPage] as const,
+  // TCK-2925 — le rapport des mises en avant et les lots passés.
+  rapport: (jours: number) => [...CLE_CREDITS, 'rapport', jours] as const,
+  lotsPasses: (page: number, parPage: number) => [...CLE_CREDITS, 'lots-passes', page, parPage] as const,
 };
 
 /**
@@ -49,6 +52,12 @@ export interface MiseEnAvant {
   readonly ended_at: string | null;
   readonly property: CarteDeBien | null;
   readonly measures: { readonly impressions: number; readonly clicks: number; readonly contacts: number; readonly visits: number } | null;
+  /**
+   * TCK-2923/TCK-2925 — les vues de la FICHE (`property_daily_views`) sur les 7 derniers jours de la
+   * mise en avant (moins de 7 quand elle est plus courte) et sur les 7 jours qui précèdent son début.
+   */
+  readonly views_7d?: number;
+  readonly views_prev_7d?: number;
 }
 
 export interface CarteDeBien {
@@ -104,5 +113,62 @@ export function useBiensEnLigne(recherche: string, enabled = true) {
       include: ['address'],
       per_page: 10,
     },
+  });
+}
+
+/* ───────────────── TCK-2925 — le rapport sur 30 jours et les lots passés ───────────────── */
+
+/** Un jour du rapport (`date` : jour calendaire UTC `AAAA-MM-JJ`) ; 0 sans mesure. */
+export interface JourDuRapport {
+  readonly date: string;
+  readonly impressions: number;
+  readonly clicks: number;
+  /** Les vues de fiche des biens un jour où l'une de leurs mises en avant courait. */
+  readonly views: number;
+}
+
+/** Une mise en avant qui a couru dans la période, et ses totaux sur la période. */
+export interface MiseEnAvantDuRapport {
+  readonly id: number;
+  readonly kind: BoostKind;
+  readonly variant: BoostVariant | null;
+  readonly status: BoostStatus;
+  readonly starts_at: string | null;
+  readonly ended_at: string | null;
+  readonly property: CarteDeBien | null;
+  readonly impressions: number;
+  readonly clicks: number;
+  readonly views: number;
+}
+
+export interface RapportDesMisesEnAvant {
+  readonly data: { readonly days: readonly JourDuRapport[]; readonly boosts: readonly MiseEnAvantDuRapport[] };
+  readonly meta: { readonly days: number; readonly from: string; readonly to: string };
+}
+
+/** `GET /api/credits/boosts/report?days=…` (7, 30 ou 90 ; TCK-2924). */
+export function useRapportDesMisesEnAvant(jours: 7 | 30 | 90, enabled = true) {
+  return useApiQuery<RapportDesMisesEnAvant>(creditsQueryKeys.rapport(jours), '/api/credits/boosts/report', {
+    enabled,
+    params: { extra: { days: String(jours) } },
+  });
+}
+
+/** Un lot qu'on ne peut plus dépenser : `spent` (vidé) ou `expired` (échu). */
+export interface LotPasse extends CreditLot {
+  readonly state: 'spent' | 'expired';
+}
+
+export const LOT_PASSE_FIELDS = ['id', 'origin', 'initial_amount', 'remaining_amount', 'expires_at', 'reason', 'created_at'] as const;
+
+/**
+ * `GET /api/credits/lots` (TCK-2924) : les lots épuisés ET expirés (sans `filter[state]`, l'API rend
+ * les deux), le plus récent d'abord — jamais filtrés côté client.
+ */
+export function useLotsPasses(page: number, parPage: number, enabled = true) {
+  return useApiQuery<PaginatedResponse<LotPasse>>(creditsQueryKeys.lotsPasses(page, parPage), '/api/credits/lots', {
+    enabled,
+    params: { fields: { credit_lots: [...LOT_PASSE_FIELDS] }, page, per_page: parPage },
+    placeholderData: keepPreviousData,
   });
 }

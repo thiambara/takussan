@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Building2, ChevronRight, FileText, Wrench } from 'lucide-react';
+import { Building2, ChevronRight, FileText, Inbox, Wrench } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +15,7 @@ import { usePersonnelActif } from '@/hooks/usePersonnelActif';
 import { PIPELINE_STAGE_TONE, enumLabel } from '@/components/customer-form/options';
 import { pipelineStageValues } from '@/lib/enums/customer';
 import { formatMontant } from '@/lib/format/currency';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { formaterTelephone } from '@/lib/phone';
 import { initiales } from '@/lib/fiche-publique';
 import { useConversationContext } from '@/lib/queries/conversations';
@@ -28,6 +29,12 @@ interface ColonneDeContexteProps {
   readonly conversationId: number;
   readonly ouverte: boolean;
   readonly onOuvrir: () => void;
+  /**
+   * TCK-2860 — entre 1024 et 1279 : le panneau que le bouton de l'en-tête ouvre PAR-DESSUS le fil (la
+   * page le positionne), à largeur fixe ; sans rail replié (maquette : « à 1024 le contexte disparaît,
+   * le bouton du panneau l'ouvre »). Sinon, la colonne dès `xl`.
+   */
+  readonly superposee?: boolean;
 }
 
 /**
@@ -42,18 +49,23 @@ interface ColonneDeContexteProps {
  * « Planifier une visite » ouvre `PlanifierDialog` (TCK-590), le bien et la fiche du fil posés : quand
  * le contexte rend les deux, pour un profil actif du personnel (la garde de `PlanifierUneVisite`).
  *
- * Écarts à la maquette, faute de donnée (AC-F3) : « Projet », « Dernière visite », « Premier
- * contact » et la demande de contact liée n'ont rien derrière eux dans le contexte du fil — non
- * rendus plutôt qu'inventés.
+ * TCK-2860 (données de TCK-2858) — la fiche porte aussi « Projet » (« Achat · jusqu'à 70 M F »),
+ * « Dernière visite » et « Premier contact » (« lun. 9 nov., par l'annonce ») ; « Lié à cette
+ * conversation » ouvre la demande de contact liée (« Demande de contact du 9 nov. »). Une ligne sans
+ * donnée ne se rend pas — sauf « Dernière visite : Aucune encore », que la maquette écrit, et
+ * seulement quand la fiche est lisible (`first_contact_at` posé : sans droit de lecture, tout est nul
+ * et « aucune » serait faux).
  *
- * Repliée, elle devient un rail de vignettes, qui est tout entier le bouton qui la rouvre.
+ * Repliée, elle devient un rail de vignettes (dont l'icône de la demande liée), qui est tout entier le
+ * bouton qui la rouvre. Entre `lg` et `xl`, elle est un panneau superposé (`superposee`).
  */
-export function ColonneDeContexte({ conversationId, ouverte, onOuvrir }: ColonneDeContexteProps) {
+export function ColonneDeContexte({ conversationId, ouverte, onOuvrir, superposee = false }: ColonneDeContexteProps) {
   const t = useTranslations('messaging.contexte');
   const { data, isLoading } = useConversationContext(conversationId);
   const contexte = data?.data ?? null;
 
   if (!ouverte) {
+    if (superposee) return null;
     return (
       <aside
         id={ID_COLONNE_DE_CONTEXTE}
@@ -73,6 +85,11 @@ export function ColonneDeContexte({ conversationId, ouverte, onOuvrir }: Colonne
               <AvatarFallback>{initiales(contexte.customer.full_name)}</AvatarFallback>
             </Avatar>
           ) : null}
+          {contexte?.customer?.contact_lead ? (
+            <span className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground" data-testid="rail-demande">
+              <Inbox className="size-4.5 stroke-[1.75]" role="img" aria-label={t('demandeLiee')} />
+            </span>
+          ) : null}
           {contexte?.lease ? (
             <FileText className="size-4.5 text-muted-foreground stroke-[1.75]" aria-hidden="true" />
           ) : contexte?.maintenance ? (
@@ -89,7 +106,10 @@ export function ColonneDeContexte({ conversationId, ouverte, onOuvrir }: Colonne
       data-testid="colonne-de-contexte"
       data-etat="ouverte"
       aria-label={t('titre')}
-      className="flex w-[min(calc(var(--spacing)*88.9),29.6%)] flex-none flex-col overflow-y-auto border-l border-border bg-background max-xl:hidden"
+      className={cn(
+        'flex flex-none flex-col overflow-y-auto border-l border-border bg-background',
+        superposee ? 'h-full w-[calc(var(--spacing)*88.9)]' : 'w-[min(calc(var(--spacing)*88.9),29.6%)] max-xl:hidden',
+      )}
     >
       <div className="p-4">
         {isLoading ? (
@@ -113,6 +133,10 @@ function ContenuDuContexte({ contexte }: { readonly contexte: ConversationContex
   const { property: bien, customer: client, lease: bail, maintenance: intervention } = contexte;
   const personnel = usePersonnelActif();
   const [planifier, setPlanifier] = useState(false);
+  const f = useFormatteurs();
+  const projet = client ? ligneDuProjet(client.project ?? null, t, f.montantAbrege) : null;
+  const lisible = Boolean(client?.first_contact_at);
+  const demande = client?.contact_lead ?? null;
 
   return (
     <>
@@ -163,12 +187,40 @@ function ContenuDuContexte({ contexte }: { readonly contexte: ConversationContex
             {client.assigned_agent ? (
               <LigneDeContexte libelle={t('agent')}>{client.assigned_agent.name}</LigneDeContexte>
             ) : null}
+            {projet ? <LigneDeContexte libelle={t('projet')}>{projet}</LigneDeContexte> : null}
+            {lisible ? (
+              <LigneDeContexte libelle={t('derniereVisite')}>
+                {client.last_visit?.scheduled_at ? f.dateTime(client.last_visit.scheduled_at, JOUR) : t('aucuneVisite')}
+              </LigneDeContexte>
+            ) : null}
+            {client.first_contact_at ? (
+              <LigneDeContexte libelle={t('premierContact')}>
+                {client.origin
+                  ? t('dateEtOrigine', { date: f.dateTime(client.first_contact_at, JOUR), origine: t(`origine.${client.origin}`) })
+                  : f.dateTime(client.first_contact_at, JOUR)}
+              </LigneDeContexte>
+            ) : null}
           </div>
         </>
       ) : null}
 
       <p className="mt-5 mb-1 text-xs font-medium text-muted-foreground">{t('lie')}</p>
       <div className="divide-y divide-border/70 rounded-xl border border-border bg-card px-3.5 text-ui" data-testid="contexte-lie">
+        {demande ? (
+          // TCK-2860 — la demande liée (TCK-2858), ouverte par la cible `lead` de la boîte « Demandes »
+          // (P97.04 : lue par son id, hors du filtre courant).
+          <Link
+            href={`/app/leads?lead=${demande.id}`}
+            data-testid="contexte-demande"
+            className="flex items-center gap-2.5 py-2.5 outline-none focus-visible:ring-3 focus-visible:ring-ring"
+          >
+            <Inbox className="size-4 flex-none text-muted-foreground stroke-[1.75]" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">
+              {demande.created_at ? t('demandeDu', { date: f.jourMois(demande.created_at) }) : t('demandeLiee')}
+            </span>
+            <ChevronRight className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
+          </Link>
+        ) : null}
         {bail ? (
           <Link
             href={`/app/leases/${bail.id}`}
@@ -227,6 +279,35 @@ function ContenuDuContexte({ contexte }: { readonly contexte: ConversationContex
       ) : null}
     </>
   );
+}
+
+/** « lun. 9 nov. » — le jour de la maquette (l. 550-551). */
+const JOUR = { weekday: 'short', day: 'numeric', month: 'short' } as const;
+
+/**
+ * TCK-2860 — « Achat · jusqu'à 70 M F » : le type de contrat, puis le budget abrégé ; sans l'un ni
+ * l'autre, les quartiers ou villes cherchés ; rien du tout → `null` (la ligne ne se rend pas).
+ */
+type ProjetDuClient = NonNullable<NonNullable<ConversationContext['customer']>['project']>;
+
+export function ligneDuProjet(
+  projet: ProjetDuClient | null,
+  t: (cle: string, valeurs?: Record<string, string>) => string,
+  abreger: (montant: number) => string,
+): string | null {
+  if (!projet) return null;
+  const { budget_min: min, budget_max: max } = projet;
+  const budget =
+    min !== null && max !== null
+      ? t('entre', { min: abreger(min), max: abreger(max) })
+      : max !== null
+        ? t('jusqua', { montant: abreger(max) })
+        : min !== null
+          ? t('aPartirDe', { montant: abreger(min) })
+          : null;
+  const parties = [projet.contract_type ? t(`contrat.${projet.contract_type}`) : null, budget].filter(Boolean);
+  if (parties.length === 0) parties.push(...[...projet.neighborhoods, ...projet.cities].slice(0, 2));
+  return parties.length > 0 ? parties.join(' · ') : null;
 }
 
 function LigneDeContexte({ libelle, children }: { readonly libelle: string; readonly children: React.ReactNode }) {

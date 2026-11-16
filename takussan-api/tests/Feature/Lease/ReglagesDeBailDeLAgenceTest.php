@@ -24,7 +24,7 @@ use Tests\Concerns\CreatesAgencyMembers;
  * neuf reprend (pénalité de retard, délai de grâce, indemnité de départ, plafond de révision) :
  *
  * - `GET /api/settings/lease` rend, pour chaque clé, la valeur appliquée, sa source, la valeur de
- *   la plateforme, la ligne d'agence et les bornes du catalogue — à qui configure l'agence, seul ;
+ *   la plateforme, la ligne d'agence et les bornes du catalogue — au personnel actif de l'agence (TCK-2920) ;
  * - l'écriture passe par `POST /api/settings` (portée `agency`), et « revenir à la valeur de la
  *   plateforme » par `DELETE /api/settings/{id}` : la ligne disparaît, une ligne à 0 n'y sert pas ;
  * - `GET /api/leases/defaults` dit au front si l'appelant peut modifier ces réglages
@@ -161,10 +161,13 @@ class ReglagesDeBailDeLAgenceTest extends ApiTestCase
         return ['agent' => ['agent'], 'bailleur' => ['bailleur'], 'admin d’une autre agence' => ['adminDAilleurs']];
     }
 
-    #[DataProvider('quiLitLesDefautsSansConfigurer')]
-    public function test_l_ecran_est_refuse_a_qui_ne_configure_pas_l_agence(string $qui): void
+    /**
+     * TCK-2920 (ADR-0111) — l'agent LIT l'écran (`can_edit: false`, cf. `LeaseSettingsReadTest`) :
+     * seul le bailleur reste refusé ici ; l'agent garde son 403 en écriture (AC4 ci-dessous).
+     */
+    public function test_l_ecran_est_refuse_au_bailleur(): void
     {
-        $this->actingAsApi($this->{$qui});
+        $this->actingAsApi($this->bailleur);
         $this->getJson('/api/settings/lease')->assertForbidden();
     }
 

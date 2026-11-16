@@ -38,7 +38,7 @@ describe('FeuilleDeDecision — refuser, annuler, accepter', () => {
     return { onSubmit, feuille: screen.getByRole('dialog') };
   }
 
-  it('une candidature se refuse par un motif en pastilles, plus une précision, et le geste prévient le client', async () => {
+  it('une candidature se refuse par un motif en pastilles, plus un message au client, et le geste le prévient (TCK-2877 : code et message envoyés)', async () => {
     const { onSubmit, feuille } = ouvrir('reject');
     expect(within(feuille).getByText('Refuser la candidature')).toBeInTheDocument();
     const geste = screen.getByRole('button', { name: 'Refuser et prévenir Ousmane' });
@@ -51,11 +51,19 @@ describe('FeuilleDeDecision — refuser, annuler, accepter', () => {
     ]);
 
     fireEvent.click(within(feuille).getByRole('radio', { name: 'Bien déjà attribué' }));
-    fireEvent.change(within(feuille).getByRole('textbox', { name: F.decision.refuser.precision }), { target: { value: 'Le F3 vient d’être attribué.' } });
+    // TCK-2877 — « Message à Ousmane », et l'aide dit que le motif part avec lui.
+    fireEvent.change(within(feuille).getByRole('textbox', { name: 'Message à Ousmane' }), { target: { value: 'Le F3 vient d’être attribué.' } });
+    expect(within(feuille).getByText(F.decision.refuser.aide)).toHaveTextContent('Le motif lui est transmis avec ce message.');
     expect(geste).toBeEnabled();
     fireEvent.click(geste);
 
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith('Bien déjà attribué — Le F3 vient d’être attribué.'));
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        reason: 'Bien déjà attribué — Le F3 vient d’être attribué.',
+        reason_code: 'property_allocated',
+        message: 'Le F3 vient d’être attribué.',
+      }),
+    );
   });
 
   it('« Autre… » demande la précision avant de laisser refuser', () => {
@@ -66,7 +74,23 @@ describe('FeuilleDeDecision — refuser, annuler, accepter', () => {
     fireEvent.change(within(feuille).getByRole('textbox'), { target: { value: 'Le bailleur reprend le bien.' } });
     expect(geste).toBeEnabled();
     fireEvent.click(geste);
-    expect(onSubmit).toHaveBeenCalledWith('Le bailleur reprend le bien.');
+    expect(onSubmit).toHaveBeenCalledWith({ reason: 'Le bailleur reprend le bien.', reason_code: 'other', message: 'Le bailleur reprend le bien.' });
+  });
+
+  it('TCK-2877 (AC4) — « Dossier incomplet » et « Il manque l’engagement du garant » partent en `reason_code` et `message`', async () => {
+    const { onSubmit, feuille } = ouvrir('reject');
+    fireEvent.click(within(feuille).getByRole('radio', { name: 'Dossier incomplet' }));
+    fireEvent.change(within(feuille).getByRole('textbox', { name: 'Message à Ousmane' }), { target: { value: 'Il manque l’engagement du garant' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Refuser et prévenir Ousmane' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0]![0]).toMatchObject({ reason_code: 'incomplete_file', message: 'Il manque l’engagement du garant' });
+  });
+
+  it('TCK-2877 — un motif sans message envoie le code, sans message vide', async () => {
+    const { onSubmit, feuille } = ouvrir('reject', 'stay');
+    fireEvent.click(within(feuille).getByRole('radio', { name: 'Dates indisponibles' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refuser et prévenir Ousmane' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ reason: 'Dates indisponibles', reason_code: 'dates_unavailable', message: undefined }));
   });
 
   it('les motifs suivent la nature : une offre se refuse « trop basse » ou « bien déjà vendu »', () => {
@@ -84,14 +108,14 @@ describe('FeuilleDeDecision — refuser, annuler, accepter', () => {
     expect(geste).toBeDisabled();
     fireEvent.change(within(feuille).getByRole('textbox'), { target: { value: 'Indisponible' } });
     fireEvent.click(geste);
-    expect(onSubmit).toHaveBeenCalledWith('Indisponible');
+    expect(onSubmit).toHaveBeenCalledWith({ reason: 'Indisponible' });
   });
 
   it('accepter n’a rien à saisir : un geste, sans motif envoyé', () => {
     const { onSubmit, feuille } = ouvrir('confirm');
     expect(within(feuille).queryByRole('textbox')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: fr.bookings.detail.decision.confirm.submit }));
-    expect(onSubmit).toHaveBeenCalledWith(undefined);
+    expect(onSubmit).toHaveBeenCalledWith({});
   });
 
   it('au téléphone, une feuille du bas ; dès xl, le panneau droit', () => {
@@ -134,6 +158,31 @@ describe('BookingPaymentDialog — « Enregistrer un paiement »', () => {
     expect(appels.paiement.mock.calls[0]![0]).toMatchObject({ amount: 115_500, payment_method: 'wave', payment_type: 'advance', transaction_id: 'WV-2291-5530' });
   });
 
+  it('TCK-2877 — les types de la maquette : Acompte, Solde, Caution, Autre (puis Frais) ; « Autre » sans note est bloqué', async () => {
+    render(withIntl(<BookingPaymentDialog bookingId={7} open onOpenChange={() => {}} restant={20_000} devise="XOF" />));
+    const feuille = screen.getByRole('dialog');
+    const types = within(screen.getByRole('group', { name: F.paiement.type })).getAllByRole('radio');
+    expect(types.map((r) => r.closest('label')?.textContent)).toEqual(['Acompte', 'Solde', 'Caution', 'Autre', 'Frais']);
+
+    fireEvent.click(within(feuille).getByRole('radio', { name: 'Autre' }));
+    fireEvent.click(screen.getByRole('button', { name: montant('Enregistrer 20 000 F') }));
+    expect(await within(feuille).findByText(fr.validation.booking.notesRequiredForOther)).toBeInTheDocument();
+    expect(appels.paiement).not.toHaveBeenCalled();
+
+    fireEvent.change(within(feuille).getByRole('textbox', { name: /Notes/ }), { target: { value: 'Ménage supplémentaire' } });
+    fireEvent.click(screen.getByRole('button', { name: montant('Enregistrer 20 000 F') }));
+    await waitFor(() => expect(appels.paiement).toHaveBeenCalledTimes(1));
+    expect(appels.paiement.mock.calls[0]![0]).toMatchObject({ amount: 20_000, payment_type: 'other', notes: 'Ménage supplémentaire' });
+  });
+
+  it('TCK-2877 — une caution s’enregistre sans note', async () => {
+    render(withIntl(<BookingPaymentDialog bookingId={7} open onOpenChange={() => {}} restant={100_000} devise="XOF" />));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('radio', { name: 'Caution' }));
+    fireEvent.click(screen.getByRole('button', { name: montant('Enregistrer 100 000 F') }));
+    await waitFor(() => expect(appels.paiement).toHaveBeenCalledTimes(1));
+    expect(appels.paiement.mock.calls[0]![0]).toMatchObject({ payment_type: 'security_deposit' });
+  });
+
   it('sans reste connu, rien n’est prérempli et le geste ne promet pas de montant', () => {
     render(withIntl(<BookingPaymentDialog bookingId={7} open onOpenChange={() => {}} />));
     expect(screen.queryByText(F.paiement.montantAide)).toBeNull();
@@ -169,5 +218,17 @@ describe('BookingRefundPanel — « Rembourser Awa Diop »', () => {
 
     await waitFor(() => expect(appels.remboursement).toHaveBeenCalledTimes(1));
     expect(appels.remboursement.mock.calls[0]![0]).toMatchObject({ paymentId: 41, refund_amount: 49_500, refund_reason: 'Séjour annulé deux jours avant.' });
+  });
+
+  it('TCK-2877 — le plafond est ce qui reste à rendre : payé − déjà remboursé', () => {
+    const partiel = {
+      ...booking,
+      booking_payments: [{ ...booking.booking_payments![0]!, refund_amount: 9_500, paid_out: null }],
+    } as unknown as Booking;
+    render(withIntl(<BookingRefundPanel booking={partiel} locale="fr" isCustomer={false} />));
+    fireEvent.click(screen.getByRole('button', { name: fr.bookings.detail.refund.action }));
+    const feuille = screen.getByRole('dialog');
+    expect(within(feuille).getByText(montant('Au plus 40 000 F : ce que Awa a payé.'))).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: montant('Rembourser 40 000 F') })).toBeInTheDocument();
   });
 });

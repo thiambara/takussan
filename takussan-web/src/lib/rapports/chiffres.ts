@@ -310,10 +310,13 @@ export function chiffresDeLAgent(
   {
     moisServi = null,
     etatsDuJour = null,
+    douzeMois = false,
   }: {
     /** TCK-2791 — le mois que l'API résume ; « Baux signés » se lit à son point de la série, pas au dernier. */
     readonly moisServi?: string | null;
     readonly etatsDuJour?: readonly string[] | null;
+    /** TCK-2867 — « 12 mois » : « Baux signés » est la somme des douze mois de la série, sans cumul de l'année à côté. */
+    readonly douzeMois?: boolean;
   } = {},
 ): ChiffreDuRapport[] {
   const signes = series?.signed_leases ?? [];
@@ -345,9 +348,9 @@ export function chiffresDeLAgent(
     },
     {
       cle: 'bauxSignes',
-      valeur: signes.length && rang >= 0 ? (signes[rang] ?? 0) : null,
+      valeur: douzeMois ? (signes.length ? signes.reduce((s, n) => s + (n ?? 0), 0) : null) : signes.length && rang >= 0 ? (signes[rang] ?? 0) : null,
       forme: 'nombre',
-      ...(passe && !anneeEntiere
+      ...(douzeMois || (passe && !anneeEntiere)
         ? {}
         : { contexte: passe ? { cle: 'bauxDuMoisDernier' as const, n: cetteAnnee, annee } : { cle: 'bauxCetteAnnee' as const, n: cetteAnnee } }),
       href: LISTES_DES_CHIFFRES.bauxSignes,
@@ -378,14 +381,25 @@ export interface ResumeDuBailleur {
  */
 export function chiffresDuBailleur(
   resume: ResumeDuBailleur,
-  { etatsDuJour = null }: { readonly etatsDuJour?: readonly string[] | null } = {},
+  {
+    etatsDuJour = null,
+    attenduDeLaPeriode,
+  }: {
+    readonly etatsDuJour?: readonly string[] | null;
+    /**
+     * TCK-2867 — sous « 12 mois », l'attendu des douze mois (la somme de `timeseries.expected`) : l'encaissé de la
+     * période ne se lit pas sur le loyer d'UN mois. `null` : rien à dire.
+     */
+    readonly attenduDeLaPeriode?: number | null;
+  } = {},
 ): ChiffreDuRapport[] {
   const total = nombre(resume.portfolio?.total) ?? 0;
   const loues = nombre(resume.portfolio?.rented) ?? 0;
   const libres = nombre(resume.portfolio?.available) ?? 0;
   const enRetard = nombre(resume.finance?.overdue_count) ?? 0;
   // TCK-2791 — l'attendu est le loyer des baux en cours AUJOURD'HUI : sous « Mois dernier », pas de « sur … attendus ».
-  const attendu = etatsDuJour?.includes('finance.expected_monthly') ? null : nombre(resume.finance?.expected_monthly);
+  const attendu =
+    attenduDeLaPeriode !== undefined ? attenduDeLaPeriode : etatsDuJour?.includes('finance.expected_monthly') ? null : nombre(resume.finance?.expected_monthly);
   const base = baseDOccupation(resume.occupancy);
   return [
     {

@@ -120,6 +120,46 @@ class GroupConversationService
     }
 
     /**
+     * TCK-2859 (ADR-0114 § 3) — « ajouter quelqu'un » à un fil DIRECT : un groupe neuf, administré par
+     * l'acteur, dont les membres sont l'autre partie de la directe et les personnes ajoutées. Il
+     * reprend le bien et le bail de la directe ; AUCUN message n'y est copié (l'échange à deux reste
+     * à ces deux-là). La directe n'est pas touchée. Le sujet : celui envoyé, sinon celui de la
+     * directe, sinon les noms des membres.
+     *
+     * La joignabilité, la borne du bail et le plafond de 20 sont jugés avant, par
+     * `AddParticipantsRequest` ; l'autorisation par `ConversationPolicy::addToDirect`.
+     *
+     * @param  list<int>  $userIds
+     */
+    public function createFromDirect(Conversation $direct, User $actor, array $userIds, ?string $subject = null): Conversation
+    {
+        $autres = $direct->participants()
+            ->wherePivotNull('left_at')
+            ->where('users.id', '!=', $actor->id)
+            ->pluck('users.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $membres = array_values(array_unique(array_filter(
+            array_merge($autres, array_map('intval', $userIds)),
+            fn (int $id) => $id !== (int) $actor->id,
+        )));
+
+        $sujet = trim((string) $subject) !== '' ? trim((string) $subject)
+            : (trim((string) $direct->subject) !== '' ? (string) $direct->subject
+                : User::query()->whereIn('id', [$actor->id, ...$membres])->orderBy('id')->get()
+                    ->map(fn (User $u) => $u->nameWithoutContact())->implode(', '));
+
+        return $this->create(
+            $actor,
+            mb_substr($sujet, 0, 255),
+            $membres,
+            $direct->property_id !== null ? (int) $direct->property_id : null,
+            $direct->lease_id !== null ? (int) $direct->lease_id : null,
+        );
+    }
+
+    /**
      * Add new participants. Returns the freshly-attached user IDs (skipped
      * duplicates / re-invites are reflected in the count).
      *

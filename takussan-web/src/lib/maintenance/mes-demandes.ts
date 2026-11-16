@@ -74,3 +74,31 @@ export function jourRelatif(iso: string | null | undefined, maintenant: Date, jo
   if (jour === jourDe(new Date(maintenant.getTime() + JOUR_MS))) return 'demain';
   return 'autre';
 }
+
+/**
+ * TCK-2918 (e4) — le délai de prise en charge médian de l'agence (`maintenance_response_minutes`,
+ * ADR-0118 § 5), dit par tranche : « dans l'heure » jusqu'à 60 min, « dans la journée » jusqu'à
+ * 24 h, sinon en jours. `null` (moins de 5 demandes, ou rien de servi) : aucune phrase.
+ */
+export type TrancheDeReponse = { readonly cle: 'heure' } | { readonly cle: 'journee' } | { readonly cle: 'jours'; readonly n: number };
+
+export function trancheDeReponse(minutes: number | null | undefined): TrancheDeReponse | null {
+  if (minutes === null || minutes === undefined || !Number.isFinite(minutes) || minutes < 0) return null;
+  if (minutes <= 60) return { cle: 'heure' };
+  if (minutes <= 24 * 60) return { cle: 'journee' };
+  return { cle: 'jours', n: Math.ceil(minutes / (24 * 60)) };
+}
+
+/** TCK-2918 (e5) — « Changer le créneau » : un à trois créneaux (`MaintenanceRescheduleRequest::MAX_SLOTS`). */
+export const CRENEAUX_PROPOSES_MAX = 3;
+
+/**
+ * Les créneaux saisis (`YYYY-MM-DDTHH:mm`, heure du poste), convertis en instants ISO comme le fait
+ * l'assignation (`MaintenanceAssignmentBlock`), sans vide ni doublon. Un créneau déjà passé n'est pas
+ * envoyé (l'API le refuse, `after:now`) : il est compté, pour que l'écran le dise.
+ */
+export function lireLesCreneaux(saisis: readonly string[], maintenant: Date): { readonly instants: string[]; readonly passes: number } {
+  const dates = saisis.filter((v) => v.trim() !== '').map((v) => new Date(v)).filter((d) => Number.isFinite(d.getTime()));
+  const avenir = dates.filter((d) => d.getTime() > maintenant.getTime());
+  return { instants: [...new Set(avenir.map((d) => d.toISOString()))].slice(0, CRENEAUX_PROPOSES_MAX), passes: dates.length - avenir.length };
+}

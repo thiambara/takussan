@@ -8,6 +8,7 @@
  * facultatif et `null` vide le champ. Ce module ne porte que des fonctions pures : le composant
  * (`fiche/SectionFichePublique`, TCK-2670) n'a ni règle ni calcul à lui.
  */
+import { cheminApi } from '@/lib/chemin-api';
 import type { ContractType, RentPeriod } from '@/types/property';
 
 export const MAX_ACCROCHE = 120;
@@ -208,7 +209,38 @@ export function parametresDeLaSelection(agencyId: number, ids: readonly number[]
   };
 }
 
+/**
+ * TCK-2929 — « Suggestion : vos biens les plus vus ce mois ». La lecture de TCK-2923
+ * (`GET /api/agencies/{agency}/properties/most-viewed`) : les biens PUBLICS de l'agence, du plus vu au
+ * moins vu sur le mois civil en cours, un bien sans vue ce mois absent. Au plus les places de la
+ * vitrine. Réponse à forme fixe (celle d'un `BienDeVitrine`, plus `views_month`) : pas de `fields[]`.
+ */
+export function cheminDesPlusVus(agencyId: number): string {
+  return cheminApi`/api/agencies/${agencyId}/properties/most-viewed`;
+}
+
+export const PARAMETRES_DES_PLUS_VUS = { extra: { limit: MAX_BIENS_VITRINE } } as const;
+
+/** Un bien de la suggestion : celui de la vitrine, et ses vues du mois. */
+export interface BienLePlusVu extends BienDeVitrine {
+  readonly views_month: number;
+}
+
+/**
+ * TCK-2929 — la sélection que « Utiliser cette sélection » pose : les ids DANS L'ORDRE DE L'API (le plus
+ * vu d'abord — jamais retrié ici), sans doublon, six au plus. `null` quand il n'y a rien à suggérer :
+ * aucun bien vu ce mois, ou la vitrine est déjà exactement cette sélection (le geste ne changerait rien).
+ */
+export function selectionSuggeree(plusVus: readonly BienDeVitrine[], selection: readonly number[]): readonly number[] | null {
+  const ids = [...new Set(plusVus.map((b) => b.id))].slice(0, MAX_BIENS_VITRINE);
+  if (ids.length === 0) return null;
+  if (ids.length === selection.length && ids.every((id, i) => selection[i] === id)) return null;
+  return ids;
+}
+
 export const vitrineQueryKeys = {
+  /** TCK-2929 */
+  plusVus: (agencyId: number) => ['agency', agencyId, 'vitrine', 'plus-vus'] as const,
   biensPublics: (agencyId: number, recherche: string) => ['agency', agencyId, 'vitrine', 'biens-publics', recherche.trim()] as const,
   selection: (agencyId: number, ids: readonly number[]) =>
     ['agency', agencyId, 'vitrine', 'selection', [...ids].sort((a, b) => a - b).join(',')] as const,

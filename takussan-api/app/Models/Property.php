@@ -23,7 +23,9 @@ use App\Observers\PropertyObserver;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
+use App\Services\Membership\TeamMemberSheet;
 use App\Services\Payments\RentMonthStatus;
+use App\Services\Property\HeuresDuSejour;
 use App\Services\Property\Occupation;
 use App\Services\Property\PropertyOccupancy;
 use App\Sorts\PropertyRentLateSort;
@@ -86,6 +88,14 @@ class Property extends AbstractModel implements HasMedia
     /** TCK-2637 — le bloc `occupancy` posé par `PropertyOccupancy`, ou `null` s'il n'a pas été demandé. */
     private ?array $occupancyBlock = null;
 
+    /**
+     * TCK-2905 (ADR-0117 § 4) — `stats_30d`, posé pour une page entière par `PropertyStats30d` sur
+     * `include=stats30d` ; `null` : non demandé, et la ressource n'émet rien.
+     *
+     * @var array{views: int, contacts: int, visits: int}|null
+     */
+    private ?array $stats30d = null;
+
     protected $fillable = [
         'user_id', 'agency_id', 'parent_id', 'reference_number',
         'title', 'slug', 'description',
@@ -104,6 +114,8 @@ class Property extends AbstractModel implements HasMedia
         'virtual_tour_url',
         // TCK-1000 — le bailleur invité pour qui le bien a été saisi, jusqu'à l'acceptation.
         'pending_owner_profile_id',
+        // TCK-2892 — les heures d'arrivée et de départ d'un séjour (`HeuresDuSejour`).
+        'check_in_from', 'check_out_before',
     ];
 
     protected $casts = [
@@ -191,6 +203,8 @@ class Property extends AbstractModel implements HasMedia
         'views_count', 'favorites_count', 'available_from', 'published_at', 'created_at', 'updated_at',
         'deposit_months', 'advance_months', 'agency_fee_months', 'monthly_charges', 'virtual_tour_url',
         'ranked_at', 'sponsored_until', 'badge', 'badge_until',
+        // TCK-2892
+        'check_in_from', 'check_out_before',
     ];
 
     /**
@@ -210,6 +224,9 @@ class Property extends AbstractModel implements HasMedia
             // TCK-2678 — `offline_reasons` ({@see offlineReasonsAmong()}), à part de `online` : ses
             // lecteurs actuels ne paient pas ses requêtes.
             AllowedInclude::custom('offlineReasons', new InclusionLueParLeControleur),
+            // TCK-2905 (ADR-0117 § 4) — `stats_30d` (vues, contacts, visites sur 30 jours), amorcé pour la page
+            // par `PropertyController::index` seul ; jamais un champ de `fields[properties]` (ADR-0021).
+            AllowedInclude::custom('stats30d', new InclusionLueParLeControleur),
         ];
     }
 
@@ -253,6 +270,22 @@ class Property extends AbstractModel implements HasMedia
         static::saving(function (self $m) {
             if ($m->condition !== null && ! PropertyCondition::appliesTo($m->type)) {
                 $m->condition = null;
+            }
+        });
+
+        // TCK-2892 — invariant : les heures d'arrivée et de départ n'appartiennent qu'à un séjour
+        // (location à la nuit ou à la semaine). Un bien qui passe au mois ou à la vente les perd,
+        // comme l'état d'un terrain (TCK-508) : gardées, elles s'afficheraient sur une fiche qui
+        // n'en a pas. ⚠ `withoutEvents()` (les seeders) le contourne.
+        static::saving(function (self $m) {
+            // Seulement quand une heure est posée ET que le contrat est lu : un modèle chargé sans
+            // ces colonnes ne doit rien effacer.
+            $attributs = $m->getAttributes();
+            if (($m->check_in_from !== null || $m->check_out_before !== null)
+                && array_key_exists('contract_type', $attributs) && array_key_exists('rent_period', $attributs)
+                && ! HeuresDuSejour::sApplique($m->contract_type, $m->rent_period)) {
+                $m->check_in_from = null;
+                $m->check_out_before = null;
             }
         });
 
@@ -844,6 +877,22 @@ class Property extends AbstractModel implements HasMedia
     }
 
     /**
+     * TCK-2905 — pose `stats_30d` sur une instance de la page (`PropertyController`).
+     *
+     * @param  array{views: int, contacts: int, visits: int}  $stats
+     */
+    public function setStats30d(array $stats): void
+    {
+        $this->stats30d = $stats;
+    }
+
+    /** @return array{views: int, contacts: int, visits: int}|null */
+    public function stats30d(): ?array
+    {
+        return $this->stats30d;
+    }
+
+    /**
      * TCK-2637 — `filter[occupancy]`, les tuiles de `portfolio-summary` et l'état du bloc
      * `occupancy` ({@see PropertyOccupancy::attach()}) : `occupied` (un bail
      * courant, préavis COMPRIS), `notice` (bail courant en préavis), `vacant` (aucun bail courant).
@@ -1082,6 +1131,63 @@ class Property extends AbstractModel implements HasMedia
                     }
                 }));
         })->delimiter('');
+
+        // TCK-2905 — « Tous les bailleurs » : les biens d'un profil bailleur, qu'il ait un compte (`user_id`, dans
+        // l'agence du profil) ou qu'il soit invité sans compte (`pending_owner_profile_id`, TCK-1000). Borné à
+        // l'agence du personnel de l'appelant (ou à ses propres profils) : un profil d'une autre agence, inconnu
+        // ou supprimé rend la même liste vide, jamais une erreur qui dirait qu'il existe.
+        $filters[] = AllowedFilter::callback('owner_profile_id', function (Builder $q, mixed $value): void {
+            $id = ParametreUnique::valeur($value);
+            if ($id === null || $id === '') {
+                return;
+            }
+            ExactIdentifierFilter::exiger($id, 'owner_profile_id');
+            $viewer = request()->user();
+            $profil = $viewer === null ? null : OwnerProfile::query()->find((int) $id, ['id', 'user_id', 'agency_id']);
+            $lisible = $profil !== null && (
+                $viewer->isSuperAdmin()
+                || ($profil->agency_id !== null && (int) $profil->agency_id === $viewer->staffAgencyId())
+                || ($profil->user_id !== null && (int) $profil->user_id === (int) $viewer->id)
+            );
+            if (! $lisible) {
+                $q->whereRaw('1 = 0');
+
+                return;
+            }
+            $q->where(function (Builder $w) use ($profil): void {
+                $w->where('pending_owner_profile_id', $profil->id);
+                // Un profil invité n'a pas de compte : `where('user_id', null)` serait `IS NULL`.
+                if ($profil->user_id !== null) {
+                    $w->orWhere(fn (Builder $compte) => $compte->where('user_id', $profil->user_id)
+                        ->where('agency_id', $profil->agency_id));
+                }
+            });
+        });
+
+        // TCK-2926 (ADR-0124) — `filter[agent]={user_id}` : les biens que ce membre gère, par la règle de « Mes
+        // chiffres » ({@see scopeManagedBy()}), dans l'agence du PERSONNEL de l'appelant. Un compte qui n'est pas
+        // membre de cette agence (autre agence, inconnu) rend la même liste vide, jamais une erreur qui dirait
+        // qu'il existe ; `scopeManagedBy` seul laisserait passer l'agent d'ailleurs qui collabore sur un bien d'ici.
+        $filters[] = AllowedFilter::callback('agent', function (Builder $q, mixed $value): void {
+            $id = ParametreUnique::valeur($value);
+            if ($id === null || $id === '') {
+                return;
+            }
+            ExactIdentifierFilter::exiger($id, 'agent');
+            $viewer = request()->user();
+            $agencyId = $viewer?->staffAgencyId();
+            $agent = $viewer === null ? null : User::query()->find((int) $id, ['id']);
+            $lisible = $agent !== null && (
+                ($agencyId !== null && TeamMemberSheet::isMember($agencyId, (int) $agent->id))
+                || ($agencyId === null && $viewer->isSuperAdmin())
+            );
+            if (! $lisible) {
+                $q->whereRaw('1 = 0');
+
+                return;
+            }
+            $q->managedBy($agent, $agencyId);
+        });
 
         $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {

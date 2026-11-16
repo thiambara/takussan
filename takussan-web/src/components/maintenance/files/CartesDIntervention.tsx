@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronRight, Clock } from 'lucide-react';
 
@@ -189,7 +190,7 @@ export function LigneDeFile({ i, maintenant }: { readonly i: InterventionEnFile;
 }
 
 /** La carte d'une colonne du bureau. */
-export function CarteDeColonne({ i, maintenant }: { readonly i: InterventionEnFile; readonly maintenant: Date }) {
+export function CarteDeColonne({ i, maintenant, poignee }: { readonly i: InterventionEnFile; readonly maintenant: Date; readonly poignee?: ReactNode }) {
   const f = useFormatteurs();
   const t = useTranslations('maintenance.files.carte');
   const attente = attenteDe(i, maintenant);
@@ -202,11 +203,15 @@ export function CarteDeColonne({ i, maintenant }: { readonly i: InterventionEnFi
           <PastilleDePriorite priorite={i.priority} />
         </p>
       ) : null}
-      <h3 className="text-sm leading-snug font-semibold">
-        <Link href={lienDeLaFiche(i.id)} className="outline-none after:absolute after:inset-0 after:rounded-lg">
-          {i.title}
-        </Link>
-      </h3>
+      <div className="flex items-start gap-1.5">
+        <h3 className="min-w-0 flex-1 text-sm leading-snug font-semibold">
+          <Link href={lienDeLaFiche(i.id)} className="outline-none after:absolute after:inset-0 after:rounded-lg">
+            {i.title}
+          </Link>
+        </h3>
+        {/* TCK-2918 (e0) — la poignée du kanban, au-dessus du lien étiré. */}
+        {poignee ? <span className="relative z-10 -mt-0.5 -mr-1 flex-none">{poignee}</span> : null}
+      </div>
       <p className="mt-1 text-xs leading-snug text-muted-foreground">
         {lieu(i).join(' · ')}
         {i.requester?.name ? (

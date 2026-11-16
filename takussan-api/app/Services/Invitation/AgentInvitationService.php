@@ -65,7 +65,7 @@ class AgentInvitationService
     public function __construct(private readonly InvitationService $invitations) {}
 
     /**
-     * @param  array{email:string, role:string, first_name:string, last_name:string, phone?:string|null}  $data
+     * @param  array{email?:string|null, role:string, first_name:string, last_name:string, phone?:string|null, delivery?:string|null}  $data
      *
      * @throws HttpException 403 if agency.kind != standard or inviter
      *                       lacks the `manage_team` permission.
@@ -129,6 +129,8 @@ class AgentInvitationService
                     'first_name' => trim((string) ($data['first_name'] ?? '')),
                     'last_name' => trim((string) ($data['last_name'] ?? '')),
                 ],
+                // TCK-2927 (ADR-0123) — `share` : aucun envoi, le lien est rendu à l'invitant.
+                'delivery' => $data['delivery'] ?? null,
             ], $inviter);
 
             activity('Invitation')
@@ -140,12 +142,45 @@ class AgentInvitationService
                     'target_email' => $email,
                     'agent_profile_id' => $profile->id,
                     'role' => $role,
+                    // TCK-2927 (ADR-0123) — le canal, jamais le jeton ni le lien.
+                    'delivery' => $invitation->estPartagee() ? Invitation::DELIVERY_SHARE : null,
                 ])
                 ->event('agent_invited')
                 ->log('agent_invited');
 
             return $invitation;
         });
+    }
+
+    /**
+     * TCK-2927 (ADR-0123 § 2) — un lien neuf pour une invitation d'équipe, que l'invitant partage
+     * lui-même : le jeton est renouvelé (l'ancien lien cesse de marcher), rien n'est envoyé. Seulement
+     * pour une invitation adressée à un numéro sans e-mail : l'acceptation par code poserait cet e-mail
+     * vérifié (ADR-0094 § 6) sans qu'aucun message y soit arrivé. L'accès est jugé par le contrôleur
+     * (`InvitationPolicy::resend`), comme la relance ; le type d'agence et l'invitation d'un
+     * administrateur, ici, comme à l'émission.
+     *
+     * @throws ValidationException 422 pour une invitation hors équipe, ou adressée à un e-mail
+     */
+    public function renewShareLink(Invitation $invitation, User $actor): Invitation
+    {
+        if ($invitation->invitable_type !== AgentProfile::class || $invitation->email !== null || blank($invitation->phone)) {
+            throw ValidationException::withMessages([
+                'invitation' => [__('invitations.errors.cannot_share')],
+            ])->status(422);
+        }
+
+        $agency = $invitation->agency;
+        if ($agency !== null) {
+            $this->assertAgencyCanInvite($agency);
+            // Le lien est un secret rendu à l'appelant : la règle de l'émission, pas seulement celle de la relance.
+            $this->assertInviterCanManageTeam($actor, 'invite', [AgentProfile::class, $agency]);
+            if ($invitation->role === 'agency_admin') {
+                $this->assertInviterCanManageTeam($actor, 'changeMemberRole', $agency);
+            }
+        }
+
+        return $this->invitations->renewShareLink($invitation, $actor);
     }
 
     /**

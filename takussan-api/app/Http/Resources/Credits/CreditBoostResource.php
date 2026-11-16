@@ -33,6 +33,10 @@ class CreditBoostResource extends BaseResource
             'ended_at' => $this->iso($this->ended_at),
             'property' => self::propertyCard($this->property),
             'measures' => $this->resource->getAttribute('measures'),
+            // TCK-2923 — les vues de la fiche des sept derniers jours de la mise en avant, et des sept jours
+            // d'avant son début (`BoostMeasures::viewsComparison`) ; `null` si elles n'ont pas été posées.
+            'views_7d' => $this->resource->getAttribute('views_7d'),
+            'views_prev_7d' => $this->resource->getAttribute('views_prev_7d'),
         ];
     }
 

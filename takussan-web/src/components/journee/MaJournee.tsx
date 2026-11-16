@@ -32,7 +32,7 @@ import {
 } from '@/lib/journee/journee';
 import { useCalendar } from '@/lib/queries/calendar';
 import { useEnregistrerContact } from '@/lib/queries/contact-leads';
-import { useCocherTache, useDemandesQuiAttendent, useProspectsACompter, useRelancesACompter, useReporterTache, useTachesDeLaJournee, useVisitesDeLaSemaine } from '@/lib/queries/journee';
+import { useCocherTache, useDemandesQuiAttendent, useProspectsACompter, useRelancesACompter, useReporterTache, useSuggestionsDeLaJournee, useTachesDeLaJournee, useVisitesDeLaSemaine } from '@/lib/queries/journee';
 import { useVisitesDeLaVue } from '@/lib/queries/visits';
 import { FUSEAU_DES_VISITES } from '@/lib/visites/heure-de-dakar';
 import { cn } from '@/lib/utils';
@@ -55,7 +55,11 @@ const HEURE = 3_600_000;
  * la semaine, « À régler » (comptes rendus à faire, demandes qui attendent depuis plus de 24 h,
  * tâches en retard), la chronologie du jour choisi, « Toutes les tâches », et ses chiffres en bas —
  * chacun un lien. Au téléphone une colonne ; au bureau, dès `xl`, la chronologie à gauche, « À
- * régler » et « Mes chiffres » à droite (400 px).
+ * régler » et « Mes chiffres » à droite.
+ *
+ * TCK-2856 — deux colonnes dès `lg` (1024, demande du porteur ; la maquette ne les ouvrait qu'à `xl`). À
+ * 1024 il reste 1024 − 272 (barre) − 64 (marges) = 688 px : la colonne de droite y prend 320 px (80), la
+ * chronologie ~344 px, ses cartes restent empilées (leurs variantes `xl:`) ; dès `xl`, 400 px à droite.
  */
 export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
   const t = useTranslations('journee');
@@ -117,6 +121,8 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
   const mesChiffres = { ...chiffres, pipeline_total: prospects.data?.meta.total ?? null };
   const charge = !visites.isPending && !aClore.isPending && !taches.isPending && !demandes.isPending;
   const libre = estAujourdhui && charge && moments.length === 0 && aRegler === 0;
+  // TCK-2856 — les suggestions nominatives ne se lisent qu'une journée libre (le rapprochement a un coût côté API).
+  const lesSuggestions = useSuggestionsDeLaJournee(libre).data?.data.suggestions ?? null;
   const mois = f.date(dateDuJour(aujourdhui), { month: 'short', timeZone: FUSEAU_DES_VISITES });
 
   const nbVisites = moments.filter((m) => m.genre === 'visite').length;
@@ -188,7 +194,7 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
         {alerte ? <div className="pt-3">{alerte}</div> : null}
         {libre ? (
           <>
-            <JourneeLibre aRelancer={aRelancer} onPlanifier={() => ouvrirPlanifier()} className="px-4 pt-10" />
+            <JourneeLibre aRelancer={aRelancer} suggestions={lesSuggestions} onPlanifier={() => ouvrirPlanifier()} className="px-4 pt-10" />
             <div className="px-4 pb-8 pt-7">
               <Etiquette>{t('chiffres.titre')}</Etiquette>
               <MesChiffres chiffres={mesChiffres} aRelancer={aRelancer} mois={mois} className="mt-3" />
@@ -231,10 +237,10 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
           dessous={<SemaineBureau semaine={semaine} jour={jour} resume={resume} onChoisir={setChoisi} />}
         />
         {alerte ? <div className="pt-4">{alerte}</div> : null}
-        <div className="grid grid-cols-1 items-start gap-6 pt-6 xl:grid-cols-[minmax(0,1fr)_calc(var(--spacing)*100)]">
+        <div className="grid grid-cols-1 items-start gap-6 pt-6 lg:grid-cols-[minmax(0,1fr)_calc(var(--spacing)*80)] xl:grid-cols-[minmax(0,1fr)_calc(var(--spacing)*100)]">
           {libre ? (
             <div className="rounded-xl border border-border bg-card px-8 py-12">
-              <JourneeLibre aRelancer={aRelancer} onPlanifier={() => ouvrirPlanifier()} className="mx-auto max-w-130" />
+              <JourneeLibre aRelancer={aRelancer} suggestions={lesSuggestions} onPlanifier={() => ouvrirPlanifier()} className="mx-auto max-w-130" />
             </div>
           ) : (
             <section className="overflow-hidden rounded-xl border border-border bg-card">

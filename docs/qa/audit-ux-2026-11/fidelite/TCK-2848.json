@@ -1,0 +1,133 @@
+{
+  "ticket": "TCK-2848",
+  "ecrans": [
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Menu (tiroir) — bureau, mode « Modifier le menu »",
+      "references": {
+        "telephone": "references/app-coque/a-3-telephone.json",
+        "bureau-1440": "references/app-coque/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-coque/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "agent",
+        "etat": "colonne en édition (« Modifier le menu »), épingles Biens et Visites",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Compte et espaces",
+      "references": {
+        "telephone": "references/app-coque/a-5-telephone.json",
+        "bureau-1440": "references/app-coque/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-coque/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "agent",
+        "etat": "agent de deux agences (Dakar Immo actif, profil agent : 4 demandes non traitées, 2 visites du jour ; Thiès Properties, profil bailleur : 2 biens, 1 loyer en retard) ; menu du compte ouvert (bureau) / feuille du compte (téléphone)",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Choisir un espace (connexion)",
+      "references": {
+        "telephone": "references/app-coque/a-6-telephone.json",
+        "bureau-1440": "references/app-coque/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-coque/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "agent",
+        "etat": "agent de deux agences (Dakar Immo actif, profil agent : 4 demandes non traitées, 2 visites du jour ; Thiès Properties, profil bailleur : 2 biens, 1 loyer en retard) ; aucun espace retenu (écran de choix)",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 8,
+      "nom": "Page introuvable",
+      "references": {
+        "telephone": "references/app-coque/a-8-telephone.json",
+        "bureau-1440": "references/app-coque/a-8-bureau-1440.json",
+        "bureau-1280": "references/app-coque/a-8-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/properties/{id d'un bien de Thiès Properties}",
+        "persona": "agent",
+        "etat": "agent de deux agences (Dakar Immo actif, profil agent : 4 demandes non traitées, 2 visites du jour ; Thiès Properties, profil bailleur : 2 biens, 1 loyer en retard) ; espace Dakar Immo actif, bien lisible sous le profil bailleur de Thiès",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "voir `ecrans[].produit`",
+    "persona": "agent",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-coque a-5-bureau-*",
+      "element": "ligne d'activité sous chaque espace du menu du compte (« 4 demandes · 2 visites aujourd'hui »)",
+      "propriete": "présence",
+      "exception": "motif",
+      "motif": "la maquette dense (256 px) ne la dessine pas (`dense ? null : e.jour`) ; AC3 du ticket l'exige à 1440 : `text-xs`, encre douce, rien à zéro"
+    },
+    {
+      "ecran": "app-coque a-8-*",
+      "element": "carte « Ce bien est dans l'espace … · Basculer vers … »",
+      "propriete": "forme",
+      "exception": "motif",
+      "motif": "la maquette pose la variante en encadré pointillé titré « Variante — … », annotation de planche : le produit rend une carte pleine (bord `border`), sans ce titre ; au téléphone et sous `xl` elle est empilée AVANT « Aller à… » (la maquette téléphone ne dessine pas la variante, « même contenu empilé »)"
+    },
+    {
+      "ecran": "app-coque a-8-*",
+      "element": "titre de la carte",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le nom de la fiche suit le type localisé (« Ce bien », « Ce bail », « Cette visite »…) : la maquette dit « Ce bail » pour une URL de bail"
+    },
+    {
+      "ecran": "app-coque a-3-bureau-*",
+      "element": "pied du compte estompé en édition",
+      "propriete": "forme",
+      "exception": "motif",
+      "motif": "le pied du compte reste actif en édition (TCK-2619, même écart) ; la réinitialisation est désormais dans la colonne (TCK-2848)"
+    },
+    {
+      "ecran": "app-coque a-3-bureau-*",
+      "element": "poignée d'une ligne non épinglée",
+      "propriete": "comportement",
+      "exception": "hors maquette",
+      "motif": "la maquette dessine une poignée sur chaque ligne sans dire ce qu'elle fait : glissée sur une épingle (ou flèche haut), elle épingle la ligne à ce rang ; à cinq épingles, refusée (`aria-disabled`)"
+    }
+  ],
+  "hors_perimetre": [
+    "les récents en entités (TCK-2846)",
+    "la palette (TCK-2845)"
+  ],
+  "mesures": {}
+}

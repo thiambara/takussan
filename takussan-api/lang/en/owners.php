@@ -15,4 +15,10 @@ return [
             'not_owner' => 'You do not have access to this owner profile.',
         ],
     ],
+    // TCK-2909 — les termes du mandat (`PATCH /api/owners/{id}`).
+    'mandate' => [
+        'nothing_to_update' => 'Provide at least one mandate setting to update.',
+        'ends_before_start' => 'The mandate cannot end before it starts.',
+        'referent_not_staff' => "The referent must be active staff of the landlord's agency.",
+    ],
 ];

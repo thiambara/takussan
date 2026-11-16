@@ -53,7 +53,6 @@
     "Colonnes par banque": "Réglages de l’import",
     "Ce que Wave et Orange Money ont confirmé est déjà rapproché. Il reste les espèces et les virements.": "Ce qu’une passerelle de paiement a confirmé est déjà rapproché ; le reste se rapproche d’un relevé de banque.",
     "Aucun dépôt en banque ne correspond encore à ces espèces.": "Aucun dépôt en banque ne correspond encore à ce paiement.",
-    "CSV ou OFX · on vous montre ce qu’on a lu avant d’importer": "CSV ou OFX de votre banque",
     "6 à traiter": "Partiellement rapproché (statut du relevé, lu de l’API)",
     "3 lignes non lues": "À vérifier (statut) et « ⚠ 3 lignes non lues — vérifiez le paramétrage CSV. »"
   },
@@ -79,13 +78,6 @@
       "propriete": "absent de la maquette du téléphone ; décale les cartes de ~240 px",
       "exception": "décision produit (objectif du ticket)",
       "motif": "l'objectif du ticket est que l'admin « confirme d'un geste les correspondances sûres » ; la maquette du bureau porte ce geste, celle du téléphone ne le dessine pas. Le retirer au téléphone priverait l'admin du geste là où il gère « depuis le téléphone » ; le bandeau est celui du bureau, même texte, même règle (≥ 90 %, une seule requête)"
-    },
-    {
-      "ecran": "c-0 bureau",
-      "element": "« Ignorer » sur la rangée d'un paiement sans ligne de banque",
-      "propriete": "absent du produit (« Chercher » à sa place)",
-      "exception": "donnée",
-      "motif": "aucune route n'ignore un PAIEMENT : `…/ignore` porte sur une LIGNE de relevé. Noté au ticket"
     },
     {
       "ecran": "c-0 bureau",
@@ -117,10 +109,10 @@
     },
     {
       "ecran": "c-1",
-      "element": "« Banques prises en charge » et « on vous montre ce qu’on a lu avant d’importer »",
-      "propriete": "absent du produit",
+      "element": "les puces de banques de « Banques prises en charge » (Wave Business, Orange Money, CBAO, Ecobank, SGBS, Autre banque)",
+      "propriete": "texte : la rubrique rend « L’import lit vos relevés par leur format, quelle que soit la banque : » et les puces « CSV — colonnes réglables » · « OFX »",
       "exception": "décision produit (D-67)",
-      "motif": "le produit n'a ni liste de banques ni aperçu avant import : le ticket interdit de le promettre"
+      "motif": "TCK-2933 — les puces ne viennent que de `supported-formats.banks` ; la liste est vide tant qu'aucun préréglage n'est éprouvé sur un export réel (D-67, TCK-2932 : à fournir par le porteur). La rubrique et la promesse « on vous montre ce qu’on a lu avant d’importer » sont désormais au produit (l'aperçu avant import existe)"
     },
     {
       "ecran": "c-0, c-1 téléphone",
@@ -135,6 +127,20 @@
       "propriete": "texte",
       "exception": "donnée",
       "motif": "c-0 : données de la maquette, simulées ; c-1 : la démo (75 paiements en novembre, 0 confirmé tout seul, 75 à rapprocher)"
+    },
+    {
+      "ecran": "c-0 téléphone",
+      "element": "« ⋯ » (« Autres gestes pour … ») sur la carte d'un paiement sans ligne, menu « Ignorer »",
+      "propriete": "absent de la maquette du téléphone",
+      "exception": "décision produit (TCK-2933)",
+      "motif": "le ticket place « Ignorer » au téléphone dans le menu de la carte ; la maquette ne dessine le geste qu'au bureau (`:337`)"
+    },
+    {
+      "ecran": "c-0, c-1",
+      "element": "« N paiements ignorés ce mois-ci · Voir » sous la liste (rendu seulement si `overview.ignored` > 0)",
+      "propriete": "absent de la maquette",
+      "exception": "décision produit (TCK-2933)",
+      "motif": "une fois le toast « Annuler » passé, seule cette liste (`GET …/reconciliation/ignored-payments`) permet de rétablir un paiement ignoré par erreur"
     }
   ],
   "comparaisons": {
@@ -156,6 +162,7 @@
       "AC4": "v2-ac4-telephone (390 × 844, détail du relevé 5 simulé, p-ac4.js) : débord du document 0, pas de tableau, « Valider » de la première ligne à x 33-101, y 558 (à l'écran)",
       "AC5": "rapprochement.test « AC5 — ni date, ni amount, ni label, ni d/m/Y dans le DOM » (balayage du DOM des réglages), rouge par ablation"
     },
-    "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024,1280` sur /app/agency/finances/reconciliation?period=2026-11 et /…/999 : débord 0 et coupes 0 partout ; à 768, les ellipses sont celles du rail de 60 px de la coque (famille 3)"
+    "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024,1280` sur /app/agency/finances/reconciliation?period=2026-11 et /…/999 : débord 0 et coupes 0 partout ; à 768, les ellipses sont celles du rail de 60 px de la coque (famille 3)",
+    "apres_TCK-2933": "2026-11-15 TCK-2933 — « Ignorer » et l'aperçu avant import livrés : écart « Ignorer » retiré, alias « on vous montre… » retiré, écart « banques » gardé avec D-67 ; deux écarts neufs (menu « ⋯ » du téléphone, ignorés du mois). Aucune passe `fidelite compare` (consigne du lot : pas de navigateur)"
   }
 }

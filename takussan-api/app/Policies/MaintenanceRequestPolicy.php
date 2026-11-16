@@ -15,6 +15,7 @@ use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Messaging\ConversationAccess;
 use App\Services\Property\BailleurDuBien;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -136,6 +137,20 @@ class MaintenanceRequestPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2917 (ADR-0118 § 3) — demander un autre créneau : le DEMANDEUR qui peut encore agir (bail du
+     * bien en cours, {@see self::requesterMayAct()}), sur une demande ni terminale ni rendue
+     * (`completed` : le passage a eu lieu). La demande ne change jamais `scheduled_at` d'elle-même.
+     */
+    public function requestReschedule(User $user, MaintenanceRequest $request): bool
+    {
+        $status = $request->status ?? MaintenanceStatus::Open;
+
+        return $this->requesterMayAct($user, $request)
+            && $status !== MaintenanceStatus::Completed
+            && ! app(MaintenanceStateMachine::class)->isTerminal($status);
+    }
+
+    /**
      * TCK-306 — reprise de `MaintenanceQuoteController::authorizeAgentOrOwner()` : côté
      * DONNEUR D'ORDRE seulement. Ni le demandeur, ni le prestataire assigné — c'est ce côté-là
      * qui accepte ou refuse un devis.
@@ -155,6 +170,26 @@ class MaintenanceRequestPolicy extends BasePolicy
     public function viewQuote(User $user, MaintenanceRequest $request): bool
     {
         return $this->actAsProvider($user, $request) || self::isPrincipalFor($user, $request->property);
+    }
+
+    /**
+     * TCK-2897 (ADR-0099, amendement du 2026-11-15) — le rapport de fin d'intervention en PDF : le
+     * prestataire ASSIGNÉ (la règle d'`actAsProvider`, que le coffre du prestataire juge en SQL) et le
+     * personnel de l'agence du bien. Hors du cercle de la demande — ni lecteur de la demande, ni
+     * prestataire ou personnel de l'agence du bien —, 404 : la demande ne se révèle pas. Dans le cercle
+     * (le demandeur, le bailleur, un autre prestataire de l'agence), 403. Le super-admin passe par
+     * `Gate::before`.
+     */
+    public function viewCompletionReport(User $user, MaintenanceRequest $request): Response
+    {
+        if ($this->actAsProvider($user, $request) || self::isTeamPrincipalFor($user, $request->property)) {
+            return Response::allow();
+        }
+
+        $inTheCircle = $this->view($user, $request)
+            || app(ProviderEligibility::class)->isAssignable($user, $request->property);
+
+        return $inTheCircle ? Response::deny() : Response::denyAsNotFound();
     }
 
     /**
@@ -183,6 +218,18 @@ class MaintenanceRequestPolicy extends BasePolicy
      * avant d'apprendre quoi que ce soit de la demande. Le super-admin passe par `Gate::before`.
      */
     public function remindOwner(User $user, MaintenanceRequest $request): bool
+    {
+        return self::isTeamPrincipalFor($user, $request->property)
+            && $user->canActAt(Capability::MaintenanceAssign, $request->property->agency);
+    }
+
+    /**
+     * TCK-2911 (ADR-0120 § 3) — enregistrer ou retirer un devis concurrent consulté : le PERSONNEL actif
+     * de l'agence du bien qui gère les interventions (`maintenance.assign`), la règle de
+     * {@see self::remindOwner()}. Jamais le bailleur (il lit la mise en concurrence, il ne la fait
+     * pas), le prestataire ni le locataire. Le super-admin passe par `Gate::before`.
+     */
+    public function manageQuoteAlternatives(User $user, MaintenanceRequest $request): bool
     {
         return self::isTeamPrincipalFor($user, $request->property)
             && $user->canActAt(Capability::MaintenanceAssign, $request->property->agency);

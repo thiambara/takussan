@@ -39,7 +39,10 @@ vi.mock('@/lib/api', async (importOriginal) => {
       const fiche = lu.match(/^\/api\/maintenance-requests\/(\d+)(\?|$)/);
       if (fiche) return { data: reseau.fiches[Number(fiche[1])] };
       if (lu.startsWith('/api/service-provider-bills?')) {
-        if (lu.includes('filter[status]=')) return page(reseau.aPercevoir, reseau.aPercevoirTotal);
+        // TCK-2919 — les brouillons (« À facturer ») ont leur requête ; « Mes factures » filtre les émises.
+        if (lu.includes('filter[status]=draft')) return page([], null);
+        if (lu.includes('filter[status]=pending_validation,validated&') || lu.endsWith('filter[status]=pending_validation,validated'))
+          return page(reseau.aPercevoir, reseau.aPercevoirTotal);
         return page(reseau.factures, reseau.facturesTotal);
       }
       throw new Error(`requête inattendue : ${method} ${lu}`);
@@ -175,7 +178,7 @@ describe('InterventionsDuPrestataire — TCK-2654, lot 4', () => {
       return el as HTMLElement;
     });
     expect(total.textContent?.replace(/\D/g, '')).toBe('552016');
-    const requete = reseau.appels.find((a) => a.path.startsWith('/api/service-provider-bills?') && a.path.includes('filter[status]='));
+    const requete = reseau.appels.find((a) => a.path.startsWith('/api/service-provider-bills?') && /filter\[status\]=pending_validation,validated(&|$)/.test(a.path));
     expect(requete?.path).toContain('filter[status]=pending_validation,validated');
     expect(requete?.path).toContain('filter[provider_id]=18');
   });

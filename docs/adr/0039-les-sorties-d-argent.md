@@ -1284,3 +1284,9 @@ encaissée par la plateforme avant ce changement.
   `PlatformPayoutRefundSignal` (changé au point 6) et les `$fillable`. La relation
   `PlatformPayout::leasePayments()` n'a aucun lecteur sous `app/`. Le détail d'un reversement
   (`breakdown`) lit la pénalité seule par `metadata.late_fees_gross`.
+
+## Amendement du 2026-11-15 — la nature d'un reversement, et son avis (TCK-2909)
+
+1. **`payouts.nature`** est écrite à la création et jamais recalculée : `advance` (acompte) quand, après les pièces que porte un reversement au bailleur, l'agence détient encore pour ce bailleur un encaissement reversable qu'aucun reversement ne porte (la règle de la préparation, `PayoutCalculator`), encaissé au plus tard à la fin du mois de la période du reversement (`period_end`) ; `balance` (solde) sinon. Un loyer d'octobre ne fait pas du reversement de septembre un acompte ; les pénalités de retard n'y comptent pas. Les autres se lisent de leurs colonnes : `refund` (remboursement constaté), `deposit_refund` (restitution au locataire), `provider_bill` (facture de prestataire). La migration ne remplit que ces trois-là ; un reversement au bailleur antérieur reste `null`, sa nature ne se relit nulle part.
+2. **L'avis de versement** (`GET /api/payouts/{payout}/notice/pdf`) : agence, bailleur, référence, nature, période, montants (`@currency`, XOF sans sous-unité), moyen et destination **masquée** (§ 6), date du versement. Lu sous `PayoutPolicy::view` ; seul un reversement **au bailleur** et **terminé** en a un (422 `payout.notice_unavailable` sinon, après l'autorisation).
+3. Gardes : `PayoutNoticePdfTest`, vérifiée par ablation.

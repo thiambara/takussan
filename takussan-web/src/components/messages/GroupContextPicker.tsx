@@ -19,7 +19,7 @@ export type GroupContextOption = {
   readonly label: string;
   readonly detail: string | null;
   /**
-   * Pour un BAIL : le bien qu'il concerne. `NewGroupDialog` le lit pour ne retirer le bail que si
+   * Pour un BAIL : le bien qu'il concerne. `useCreationDeGroupe` le lit pour ne retirer le bail que si
    * l'on choisit un AUTRE bien — choisir le sien le garde (réparation 1, 2026-09-24).
    */
   readonly propertyId?: number | null;

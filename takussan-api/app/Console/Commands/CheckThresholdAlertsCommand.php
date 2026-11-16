@@ -62,7 +62,8 @@ class CheckThresholdAlertsCommand extends Command
 
                 // TCK-2627 — la requête que la lecture de l'alerte nomme aussi.
                 // Contre-vérification : un chiffre consolidé ne prévient que qui lit les rapports.
-                $recipients = ThresholdAlertRecipients::forMetric($agency, (string) $alert->metric);
+                // TCK-2866 — réduite aux destinataires choisis, re-jugés ici.
+                $recipients = ThresholdAlertRecipients::forAlert($agency, $alert);
 
                 // P123.05 (TCK-1249) — marquée AVANT l'envoi, et l'échec rattrapé par alerte : un
                 // courriel qui levait laissait la cloche écrite et `last_triggered_at` nul, arrêtait
@@ -85,6 +86,8 @@ class CheckThresholdAlertsCommand extends Command
                             'threshold' => (float) $alert->threshold,
                             'operator' => $alert->operator,
                             'recipients_count' => $recipients->count(),
+                            // TCK-2866 — le canal choisi au déclenchement, que l'historique relit.
+                            'channel' => $alert->channel ?? ThresholdAlert::CHANNEL_EMAIL,
                         ])
                         ->log(ThresholdAlertReading::EVENT);
                 });

@@ -46,7 +46,7 @@ interface FeuilleSansCompteProps {
   /** Le drapeau `phone_login` s'est éteint entre l'affichage et l'envoi (404) : la voie e-mail. */
   readonly onEmail: () => void;
   readonly onPublier: () => void | Promise<void>;
-  /** TCK-2601 (AC5) — la colonne de l'assistant où la feuille devient panneau dès 1280 px. */
+  /** TCK-2601 (AC5) — la colonne de l'assistant où la feuille devient panneau dès 1280 px (1024 dans le cadre d'entrée, TCK-2934). */
   readonly cible?: HTMLElement | null;
   /**
    * TCK-2777 — écrit l'annonce dans ce navigateur avant le départ chez Google. Absent (l'annonce ne
@@ -150,7 +150,7 @@ export function FeuilleSansCompte({
               setDepart(enCours);
             }}
             surEchec={setErreur}
-            // Dans la rangée du panneau latéral (`md`, avant 1280), centrée sur la hauteur du geste, sans marge.
+            // Dans la rangée du panneau latéral (`md`, avant 1024 — TCK-2934), centrée sur la hauteur du geste, sans marge.
             className={bureau ? undefined : 'self-center max-md:mt-1'}
           />
         ) : null}
@@ -226,9 +226,11 @@ export function FeuilleSansCompte({
           </p>
         ) : null
       }
-      // « Gratuit, sans commission » n'est pas écrit : la commission dépend de l'abonnement de
-      // l'espace qui publiera (plan `pro` à 3 %, dérogation du super-admin), inconnu avant le code.
-      assurances={[t('assurances.motDePasse'), t('assurances.retirable')]}
+      // TCK-2934 — les trois assurances de la maquette (a-6 / a-7), dans son ordre. « Gratuit, sans commission »
+      // est tenu par le code : publier ne débite rien, et l'espace où `/publish` publie est un particulier sans
+      // abonnement, donc à 0 % de commission de plateforme — le détail est dans `PreuvesDuDepart`. Une feuille qui
+      // mène à une agence (plusieurs espaces, agence `standard`) ne publie pas d'ici (`preparerLEspace`).
+      assurances={[t('assurances.motDePasse'), t('assurances.gratuit'), t('assurances.retirable')]}
     >
       <div className="space-y-5" data-feuille-sans-compte="">
         {entree.etape === 'numero' && !compte ? (

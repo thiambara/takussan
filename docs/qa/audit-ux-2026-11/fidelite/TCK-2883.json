@@ -1,0 +1,71 @@
+{
+  "ticket": "TCK-2883",
+  "ecrans": [
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Planifier — confirmée",
+      "references": {
+        "telephone": "references/app-visites/a-6-telephone.json",
+        "bureau-1440": "references/app-visites/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits",
+        "persona": "agent",
+        "etat": "« Planifier une visite » envoyé pour un client qui a un mobile et un e-mail : la réponse porte `notification: {channels: [app, email, sms], sms: {…}}` ; la phrase dit « Un SMS et un e-mail ont prévenu {prénom}. La visite est dans votre agenda. » (SMS seul : « Un SMS a prévenu {prénom}. »)",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Côté client",
+      "references": {
+        "telephone": "references/app-visites/a-7-telephone.json",
+        "bureau-1440": "references/app-visites/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits",
+        "persona": "client",
+        "etat": "client avec une visite confirmée à venir, une visite terminée dans les 24 h (avis « encore N h »), une demande `scheduled` sur un bien d'une agence dont `response-time` rend `median_hours = 2` (« {bien} · {quartier} », « L'agence vous répond d'ordinaire en 2 h »), et une visite passée annulée par lui-même avec motif (« Annulée par vous : « empêchement » »)",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/visits",
+    "persona": "client",
+    "disposition": "client",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-visites a-6-*",
+      "element": "« Mariama est prévenue par SMS et par e-mail » de la maquette rendu « Un SMS et un e-mail ont prévenu {prénom}. »",
+      "propriete": "texte",
+      "exception": "décision du ticket",
+      "motif": "le ticket fixe la formule (« Un SMS et un e-mail ont prévenu … ») et l'accord en genre n'est pas servi ; la phrase suit `notification` (TCK-2871) et ne promet jamais un canal qui n'est pas parti"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "« L'agence vous répond d'ordinaire en 2 h » absent",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "`GET /api/agencies/{agency}/response-time` rend 204 sous 10 réponses mesurées sur 90 jours (TCK-2871) : aucun chiffre inventé"
+    }
+  ]
+}

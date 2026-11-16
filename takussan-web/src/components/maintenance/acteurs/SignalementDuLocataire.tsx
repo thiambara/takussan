@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -8,6 +8,8 @@ import { Bug, Camera, Check, Clock, DoorOpen, Droplets, Home, Plus, TriangleAler
 
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { FormGlobalError } from '@/components/forms';
+import { EnregistreurDeNoteVocale } from '@/components/note-vocale/EnregistreurDeNoteVocale';
+import { enregistrementPossible, type NoteVocale } from '@/components/note-vocale/useEnregistreurDeNoteVocale';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +26,7 @@ import {
 } from '@/lib/maintenance/signalement';
 import { useAllOngoingLeases, type LeaseWithRelations } from '@/lib/queries/leases';
 import { useUploadMaintenancePhotos } from '@/lib/queries/maintenance';
-import { useSignalerUnProbleme } from '@/lib/queries/maintenance-signalement';
+import { useSignalerUnProbleme, useSignalerUnProblemeAvecNote } from '@/lib/queries/maintenance-signalement';
 import { reduirePhotos } from '@/lib/reduire-photo';
 import { cn } from '@/lib/utils';
 
@@ -46,8 +48,13 @@ import { cn } from '@/lib/utils';
  *  · Envoyée, la demande mène à « Demande envoyée » (`/app/maintenance/{id}/envoyee`). Les photos partent
  *    une à une, réduites (TCK-2370, TCK-542) ; un échec laisse la demande créée et le dit, persistant.
  *
- * Hors périmètre (ticket) : la note vocale de la maquette (« Message vocal », son aide).
+ * TCK-2902 (ADR-0113 § 3) — « En deux mots » porte à sa droite le micro rond de la maquette : garder
+ * appuyé enregistre (`EnregistreurDeNoteVocale`, mode `appui`), la note se réécoute et se supprime avant
+ * l'envoi, et part AVEC la demande (multipart, `voice_note` + `voice_note_duration`). Sans note, le corps
+ * reste en JSON. Sans `MediaRecorder`, ni micro ni « gardez le micro appuyé » : l'aide dit « Écrivez ».
  */
+
+const rienAEcouter = () => () => undefined;
 
 const TYPES_ACCEPTES = 'image/jpeg,image/png,image/webp';
 
@@ -179,6 +186,7 @@ function FormulaireDuLocataire({ logement, onChanger }: { readonly logement: Log
   const router = useRouter();
   const toast = useToast();
   const signaler = useSignalerUnProbleme();
+  const signalerAvecNote = useSignalerUnProblemeAvecNote();
   const envoyerPhotos = useUploadMaintenancePhotos();
   const id = useId();
   const formulaire = `${id}-signalement`;
@@ -189,6 +197,10 @@ function FormulaireDuLocataire({ logement, onChanger }: { readonly logement: Log
   const [categorieManquante, setCategorieManquante] = useState(false);
   const [urgence, setUrgence] = useState<Urgence | null>(null);
   const [texte, setTexte] = useState('');
+  const [note, setNote] = useState<NoteVocale | null>(null);
+  const [noteActive, setNoteActive] = useState(false);
+  // Lu comme l'enregistreur le lit (faux au rendu serveur) : l'aide suit le micro, sans écart d'hydratation.
+  const micro = useSyncExternalStore(rienAEcouter, enregistrementPossible, () => false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const premiereTuile = useRef<HTMLInputElement | null>(null);
@@ -227,16 +239,16 @@ function FormulaireDuLocataire({ logement, onChanger }: { readonly logement: Log
     setErreur(null);
     setEnCours(true);
     try {
-      const reponse = await signaler.mutateAsync(
-        corpsDuSignalement({
-          propertyId: logement.propertyId,
-          leaseId: logement.leaseId,
-          categorie,
-          urgence,
-          texte,
-          titre: t(`titres.${categorie}`),
-        }),
-      );
+      const corps = corpsDuSignalement({
+        propertyId: logement.propertyId,
+        leaseId: logement.leaseId,
+        categorie,
+        urgence,
+        texte,
+        titre: t(`titres.${categorie}`),
+      });
+      // TCK-2902 — la note part avec la demande : un seul envoi, une seule clé d'idempotence.
+      const reponse = note ? await signalerAvecNote.mutateAsync({ corps, note }) : await signaler.mutateAsync(corps);
       const demande = reponse.data.id;
       if (photos.length > 0) {
         try {
@@ -416,14 +428,22 @@ function FormulaireDuLocataire({ logement, onChanger }: { readonly logement: Log
           <label htmlFor={`${id}-texte`} className="block">
             <Question aide={t('facultatif')}>{t('deuxMots')}</Question>
           </label>
-          <Input
-            id={`${id}-texte`}
-            value={texte}
-            onChange={(e) => setTexte(e.target.value)}
-            placeholder={t('deuxMotsExemple')}
-            maxLength={2000}
-            className="mt-3 rounded-xl px-3.5 text-corps"
-          />
+          {/* TCK-2902 — le champ et, à sa droite, le micro ; une note en cours ou enregistrée passe dessous. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Input
+              id={`${id}-texte`}
+              value={texte}
+              onChange={(e) => setTexte(e.target.value)}
+              placeholder={t('deuxMotsExemple')}
+              maxLength={2000}
+              aria-describedby={`${id}-texte-aide`}
+              className="min-w-0 flex-1 rounded-xl px-3.5 text-corps"
+            />
+            <EnregistreurDeNoteVocale mode="appui" onChange={setNote} onActif={setNoteActive} className={cn('flex-none', noteActive && 'basis-full')} />
+          </div>
+          <p id={`${id}-texte-aide`} className="mt-2 text-xs text-muted-foreground">
+            {micro ? t('aideVocal') : t('aideTexte')}
+          </p>
         </div>
 
         {/* Bureau : le pied de la carte. Le téléphone a la barre collante, ci-dessous. */}

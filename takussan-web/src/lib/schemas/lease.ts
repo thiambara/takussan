@@ -84,6 +84,14 @@ export const createLeaseSchema = z
       .min(0, msgValidation('lease.earlyTerminationInvalid'))
       .max(12, msgValidation('lease.earlyTerminationInvalid'))
       .optional(),
+    // TCK-2912 — le préavis de départ dès la création, en jours, aux bornes de `StoreLeaseRequest`
+    // (`NOTICE_PERIOD_DAYS_MIN`/`_MAX`, TCK-2906).
+    notice_period_days: z
+      .number()
+      .int(msgValidation('lease.noticePeriodInvalid'))
+      .min(1, msgValidation('lease.noticePeriodInvalid'))
+      .max(365, msgValidation('lease.noticePeriodInvalid'))
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (data.type === 'sale') {

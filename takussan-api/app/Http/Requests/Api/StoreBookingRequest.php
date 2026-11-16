@@ -6,7 +6,9 @@ use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Booking;
 use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingSource;
 use App\Models\Enums\Currency;
+use App\Models\Enums\OfferFinancing;
 use App\Models\Property;
 use App\Rules\InstantIso;
 use App\Rules\JourIso;
@@ -101,9 +103,75 @@ class StoreBookingRequest extends BaseFormRequest
             'notes' => ['nullable', 'string'],
             // TCK-1065 (P80.02) — le nombre que le tunnel exige (1 à 20, `booking.ts`) ; rangé dans
             // `metadata.guests` par `BookingService::create()`, comme la demande publique.
+            // TCK-2892 — et désormais en colonne `bookings.guests` ; un séjour seul (interdit à la
+            // candidature et à l'offre saisies, refusé à toute autre nature par `BookingConditions`).
             'guests' => [Rule::prohibitedIf($recorded), 'sometimes', 'integer', 'min:1', 'max:20'],
             'expires_at' => ['nullable', 'date', new InstantIso],
+            // TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation : un libellé, aucun droit.
+            'via' => self::viaRule(),
+        ] + self::conditionRules() + self::guarantorRules(existant: true);
+    }
+
+    /**
+     * TCK-2870 (ADR-0110 § 1) — les conditions d'une candidature (durée 1 à 120 mois,
+     * renouvellement) et d'une offre (financement, signature sous 1 à 365 jours, conditions de 500
+     * caractères au plus). Toutes facultatives ici : qu'un champ appartienne à la nature se juge
+     * APRÈS, sur la nature du bien (`BookingConditions::refuseForeignFields`, 422
+     * `booking.field_not_for_kind`). Partagées avec le tunnel public.
+     *
+     * @return array<string, mixed>
+     */
+    public static function conditionRules(): array
+    {
+        return [
+            'term_months' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:120'],
+            'renewable' => ['sometimes', 'nullable', 'boolean'],
+            'financing' => ['sometimes', 'nullable', Rule::enum(OfferFinancing::class)],
+            'signature_within_days' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:365'],
+            'conditions' => ['sometimes', 'nullable', 'string', 'max:500'],
+            // TCK-2893 (ADR-0110 § 4) — le revenu mensuel déclaré du candidat (candidature seule,
+            // chiffré en base) ; borne du ticket, 1e10.
+            'declared_monthly_income' => ['sometimes', 'nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:'.self::MAX_DECLARED_INCOME],
         ];
+    }
+
+    /** TCK-2893 — le plus grand revenu mensuel déclaré admis. */
+    public const MAX_DECLARED_INCOME = 10_000_000_000;
+
+    /**
+     * TCK-2893 (ADR-0110 § 3) — le garant facultatif d'une candidature ou d'une offre, à la création :
+     * une fiche neuve (champs de `StoreGuarantorRequest`) ou, pour le personnel seulement
+     * (`$existant`), une fiche existante par `guarantor.guarantor_id`. Un séjour qui l'envoie reçoit
+     * 422 `booking.field_not_for_kind` (`BookingConditions`). Créé APRÈS tous les refus, dans la
+     * transaction qui crée la réservation (`BookingGuarantorService::attach`).
+     *
+     * @return array<string, mixed>
+     */
+    public static function guarantorRules(bool $existant): array
+    {
+        $rules = [
+            'guarantor' => ['sometimes', 'nullable', 'array'],
+            'guarantor.guarantor_id' => $existant
+                ? ['sometimes', 'nullable', 'integer', Rule::exists('guarantors', 'id')->withoutTrashed()]
+                : ['prohibited'],
+        ];
+        $requis = $existant ? 'required_without:guarantor.guarantor_id' : 'required';
+        foreach (AttachBookingGuarantorRequest::fieldRules($requis) as $champ => $regles) {
+            $rules['guarantor.'.$champ] = ['exclude_without:guarantor', ...$regles];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * TCK-2874 (ADR-0110 § 6) — `via=invitation`, posé par le lien « Inviter à candidater » et
+     * transmis par la fiche publique au tunnel. Une autre valeur est refusée (422) plutôt qu'ignorée.
+     *
+     * @return list<mixed>
+     */
+    public static function viaRule(): array
+    {
+        return ['sometimes', 'nullable', 'string', Rule::in([BookingSource::VIA_INVITATION])];
     }
 
     /**

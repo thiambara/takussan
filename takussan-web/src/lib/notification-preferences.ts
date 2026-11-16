@@ -77,12 +77,53 @@ export const EVENEMENTS_DE_PREFERENCE: readonly EvenementDePreference[] = GROUPE
   (g) => g.evenements,
 );
 
+/**
+ * TCK-2863 / TCK-2864 — une ligne du catalogue (`App\Domain\Notifications\PreferenceCatalog`) : un
+ * événement, les personas de `/app` qui le reçoivent, et, pour un événement IMPOSÉ (`locked`), ses
+ * canaux fixes et sa raison (`always_sent`). L'API le rend NON filtré au `PATCH` : l'écran filtre
+ * lui-même, sur la persona de la coque.
+ */
+export type LigneDuCatalogue = {
+  event_type: string;
+  locked: boolean;
+  channels: NotificationChannel[] | null;
+  personas: string[];
+  reason?: string;
+};
+
 export type NotificationPreferencesResponse = {
   preferences: NotificationPreferenceCell[];
   events: string[];
   channels: NotificationChannel[];
   phone_verified: boolean;
+  /** TCK-2863 — absent d'une API plus ancienne : rien n'est alors masqué ni ajouté. */
+  catalog?: LigneDuCatalogue[];
 };
+
+/**
+ * TCK-2864 — le groupe où se range chaque événement IMPOSÉ (maquette `app-profil-pieces`, l. 231 :
+ * « Vérification d'identité » en tête des alertes). Un imposé inconnu ici n'est pas rendu.
+ */
+export const GROUPE_DES_IMPOSES: Readonly<Record<string, (typeof GROUPES_DE_PREFERENCES)[number]['cle']>> = {
+  identity_verification: 'alerts',
+};
+
+/**
+ * TCK-2864 — ce que l'écran montre à une persona : les événements réglables qu'elle reçoit (`null` :
+ * tous — pas de catalogue, ou pas de persona à juger) et les événements imposés qu'elle reçoit.
+ */
+export function vueDuCatalogue(
+  catalog: readonly LigneDuCatalogue[] | undefined,
+  persona: string | null | undefined,
+): { readonly reglables: ReadonlySet<string> | null; readonly imposes: readonly LigneDuCatalogue[] } {
+  if (!catalog) return { reglables: null, imposes: [] };
+  const recoit = (l: LigneDuCatalogue) => !persona || l.personas.includes(persona);
+  const imposes = catalog.filter((l) => l.locked && recoit(l) && l.event_type in GROUPE_DES_IMPOSES);
+  return {
+    reglables: persona ? new Set(catalog.filter((l) => !l.locked && recoit(l)).map((l) => l.event_type)) : null,
+    imposes,
+  };
+}
 
 export async function getNotificationPreferences(
   token: string,

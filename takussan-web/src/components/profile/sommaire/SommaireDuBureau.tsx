@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Trash2, UserRound } from 'lucide-react';
 
 import {
+  HREF_ANNUAIRE_AU_BUREAU,
   HREF_DE_LA_RANGEE,
   CHEMIN_DU_SOMMAIRE,
   HREF_SUPPRESSION,
@@ -45,6 +46,9 @@ export function SommaireDuBureau({ rangees, points }: SommaireDuBureauProps) {
   const surVue = chemin === CHEMIN_DU_SOMMAIRE;
   const surSuppression = chemin === HREF_SUPPRESSION;
   const aPoint = new Set(points);
+  // TCK-2864 — au bureau, l'annuaire du bailleur est un bloc de la page des versements.
+  const hrefDe = (id: IdDeRangee) =>
+    id === 'annuaire' && rangees.includes('versement') ? HREF_ANNUAIRE_AU_BUREAU : HREF_DE_LA_RANGEE[id].href;
 
   return (
     <nav
@@ -66,7 +70,7 @@ export function SommaireDuBureau({ rangees, points }: SommaireDuBureauProps) {
         return (
           <Link
             key={id}
-            href={HREF_DE_LA_RANGEE[id].href}
+            href={hrefDe(id)}
             aria-current={courante ? 'page' : undefined}
             className={cn(RANGEE, courante ? ACTIVE : INACTIVE)}
           >

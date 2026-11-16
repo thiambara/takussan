@@ -36,10 +36,18 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'admin.team.equipe.invitations.formulaire.validite':
     'takussan-api/app/Services/Invitation/InvitationService.php:139 — DEFAULT_TTL_DAYS = 7, posé à :247 (send)',
   'crm.customerDetail.inviteAccount.relancee': 'idem — InvitationService.php:139, reposé à :571 (resend)',
+  // TCK-2938 (trouvé rouge, posé par TCK-2928) — le message WhatsApp « Par WhatsApp » / « Repartager » de
+  // l'équipe porte le lien d'une invitation envoyée ou relancée : même validité.
+  'admin.team.equipe.invitations.messageWhatsApp': 'idem — InvitationService.php:139, posé à :247 (send) et :571 (resend)',
   // TCK-2611 — l'écran « Cette invitation a expiré » de /invitations/accept : toute invitation tient son
   // `expires_at` de send (:247) ou de resend (:571), aucun autre écrivain.
   'invitationAccept.ferme.expiree.texte': 'idem — InvitationService.php:139, posé à :247 (send) et :571 (resend)',
   'invitationAccept.ferme.expiree.texteSans': 'idem — InvitationService.php:139',
+  // TCK-2941 — le même écran, avec le prénom de l'invitant (`EcranFerme.tsx`) : même promesse, même
+  // mécanisme — `DEFAULT_TTL_DAYS` (InvitationService.php:140), posé par send (:259), renewShareLink
+  // (:343) et resend (:650).
+  'invitationAccept.ferme.expiree.texteInvitant': 'idem — InvitationService.php:140, posé à :259 (send), :343 (renewShareLink) et :650 (resend)',
+  'invitationAccept.ferme.expiree.texteInvitantSans': 'idem — InvitationService.php:140',
   // TCK-2606 — « Lien envoyé » de l'oubli (remplace `auth.forgotPassword.sentBody`).
   'auth.oubli.envoye.sousTitre': "takussan-api/config/auth.php:99 — `passwords.users.expire` = 60 (minutes)",
   'account.deletion.dialog.codeSentHint':
@@ -172,6 +180,11 @@ const REGISTRE: Readonly<Record<string, string>> = {
     'takussan-api/app/Models/DocumentVaultArchive.php:49 — DUREE_EN_HEURES = 24, posé à BatirLArchiveDuCoffreJob.php:127 (expires_at, borne du lien signé), purgé par PurgerLesArchivesDuCoffre.php:25',
   'notifications.codes.document.archive_ready.body':
     'idem — DocumentVaultArchive.php:49, posé à BatirLArchiveDuCoffreJob.php:127',
+  // TCK-2916 — l'archive préparée des quittances du locataire : le même modèle, la même durée.
+  'payments.locataire.historique.archive.notes.prete': 'idem — DocumentVaultArchive.php:49',
+  // TCK-2872 — une pièce du dossier ne se redemande pas avant 24 h.
+  'bookings.fiche.dossier.erreurs.throttled':
+    'takussan-api/app/Services/Booking/BookingDossierService.php:45 — REQUEST_COOLDOWN_HOURS = 24, appliqué à :174',
 };
 
 /**
@@ -212,6 +225,8 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'admin.finances.impayes.tranches.moins8': 8,
   'documents.coffre.archive.preparee.prete': 24,
   'notifications.codes.document.archive_ready.body': 24,
+  'payments.locataire.historique.archive.notes.prete': 24,
+  'bookings.fiche.dossier.erreurs.throttled': 24,
 };
 
 /**

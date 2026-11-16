@@ -27,7 +27,8 @@ import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
 import { MAINTENANCE_CATEGORIES, MAINTENANCE_PRIORITIES, type MaintenancePriority } from '@/types/maintenance';
 
-import { CarteDeColonne, CarteDeFile, LigneDeFile, lienDeLaFiche, lieu } from './CartesDIntervention';
+import { CarteDeFile, LigneDeFile, lienDeLaFiche, lieu } from './CartesDIntervention';
+import { KanbanDesFiles } from './KanbanDesFiles';
 
 /**
  * TCK-2653 — « Interventions » de l'agence (maquette `app-interventions`, approche a, « Agence —
@@ -166,11 +167,8 @@ export function InterventionsDeLAgence() {
 
           {/* Sous `xl`, les cinq colonnes défilent dans leur conteneur plutôt que de tomber sous 170 px. */}
           <div data-slot="files-du-bureau" className="hidden overflow-x-auto pt-5 lg:block">
-            <div className="grid min-w-[calc(var(--spacing)*244.44)] grid-cols-5 gap-3 xl:min-w-0">
-              {FILES_DE_L_AGENCE.map((f) => (
-                <Colonne key={f} file={f} filtres={filtres} compte={comptes?.[f]} parPage={parPage(f)} voirPlus={voirPlus} maintenant={maintenant} />
-              ))}
-            </div>
+            {/* TCK-2918 (e0) — le kanban qu'on manipule : poignée, zones de dépôt, choix du prestataire. */}
+            <KanbanDesFiles filtres={filtres} comptes={comptes} parPage={parPage} voirPlus={voirPlus} maintenant={maintenant} />
           </div>
         </>
       )}
@@ -277,47 +275,6 @@ function SectionDuTelephone({ file, filtres, compte, parPage, voirPlus, maintena
           {t('afficherLesAutres', { n: autres })}
         </Button>
       ) : null}
-    </section>
-  );
-}
-
-function Colonne({ file, filtres, compte, parPage, voirPlus, maintenant }: FileProps) {
-  const t = useTranslations('maintenance.files');
-  const lu = useFileDInterventions(file, filtres, parPage);
-  const lignes = lu.data?.data ?? [];
-  const total = lu.data?.meta.total ?? compte ?? 0;
-  const autres = total - lignes.length;
-  return (
-    <section data-file={file} aria-labelledby={`colonne-${file}`} className={cn('min-w-0 rounded-xl p-2', file === 'en_retard' ? 'bg-destructive/6' : 'bg-muted/50')}>
-      <div className="px-1.5 pt-1 pb-2">
-        <h2 id={`colonne-${file}`} className="flex items-baseline gap-1.5 text-sm font-semibold">
-          {t(`noms.${file}`)}
-          {compte !== undefined ? <span className="text-muted-foreground tabular-nums">{compte}</span> : null}
-        </h2>
-        <p className="text-xs text-muted-foreground">{t(`aides.${file}`)}</p>
-      </div>
-      <div className="space-y-2">
-        {lu.isPending ? (
-          <Skeleton className="h-24 rounded-lg" />
-        ) : lu.isError ? (
-          <button type="button" onClick={() => void lu.refetch()} className="w-full rounded-lg border border-dashed border-border px-2 py-3 text-center text-xs text-destructive">
-            {t('erreurCourte')}
-          </button>
-        ) : lignes.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-2 py-3 text-center text-xs text-muted-foreground">{t('fileVide')}</p>
-        ) : (
-          lignes.map((i) => <CarteDeColonne key={i.id} i={i} maintenant={maintenant} />)
-        )}
-        {autres > 0 ? (
-          <button
-            type="button"
-            onClick={() => voirPlus(file, total)}
-            className="h-8 w-full rounded-md text-xs font-medium text-primary-deep outline-none hover:bg-card focus-visible:ring-3 focus-visible:ring-ring"
-          >
-            {t('afficherLesAutres', { n: autres })}
-          </button>
-        ) : null}
-      </div>
     </section>
   );
 }

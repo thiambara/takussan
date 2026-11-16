@@ -14,6 +14,8 @@ const reseau = vi.hoisted(() => ({
 }));
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 5, roles: ['customer'] }, token: 'jeton' }) }));
+// TCK-2853 — la carte de visite relit la page après « Déplacer ».
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }), usePathname: () => '/app' }));
 
 vi.mock('@/lib/api', async (importOriginal) => {
   const reel = await importOriginal<typeof import('@/lib/api')>();

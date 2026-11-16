@@ -19,12 +19,24 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface PageProps {
-  readonly searchParams: Promise<{ status?: string | string[]; factures?: string | string[] }>;
+  readonly searchParams: Promise<{ status?: string | string[]; factures?: string | string[]; 'filter[lease_id]'?: string | string[] }>;
 }
 
 export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations('dashboard.pages.maintenance');
   const user = await getMeAction();
+  const parametres = await searchParams;
+  // TCK-2919 — « Interventions » de la fiche du bail (TCK-2912) mène à `?filter[lease_id]=` : la liste
+  // complète, bornée à ce bail par l'API (`MaintenanceList`), quel que soit le persona — les files de
+  // l'agence et les vues d'accueil ne portent pas ce filtre.
+  if (typeof parametres['filter[lease_id]'] === 'string') {
+    return (
+      <div className="space-y-6">
+        <PageHeader title={t('title')} description={t('subtitleDuBail')} />
+        <MaintenanceList />
+      </div>
+    );
+  }
   // TCK-2653 — le personnel de l'agence ouvre les files d'attente (en-tête, filtres et « Signaler
   // une intervention » dans la vue) ; le locataire, le bailleur et le prestataire ont leur vue
   // (TCK-2654). Même partage que « Baux » (TCK-2644).
@@ -43,7 +55,6 @@ export default async function Page({ searchParams }: PageProps) {
     roles: user.roles,
     typeProfilActif: typeDuProfilActif(profilLieDeLaCoque(await getActiveProfileId(), user)),
   });
-  const parametres = await searchParams;
   const toutVoir = parametres.status !== undefined;
   if (persona === 'locataire' && !toutVoir) {
     return (

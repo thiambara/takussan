@@ -18,6 +18,9 @@ class PayoutResource extends BaseResource
             'landlord_id' => $this->landlord_id,
             // TCK-594 (ADR-0039 §2) — le bénéficiaire explicite : un remboursement de caution est `tenant`.
             'payee_role' => $this->payee_role?->value,
+            // TCK-2909 — acompte, solde, restitution, remboursement constaté, facture de prestataire ;
+            // `null` pour un reversement au bailleur antérieur à la colonne. Omise hors du fieldset.
+            'nature' => $this->whenHas('nature', fn () => $this->nature?->value),
             'service_provider_bill_id' => $this->service_provider_bill_id,
             'issued_by_id' => $this->issued_by_id,
             'approved_by_id' => $this->approved_by_id,

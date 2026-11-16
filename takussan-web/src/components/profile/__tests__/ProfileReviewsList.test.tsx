@@ -261,7 +261,10 @@ describe('<ProfileReviewsList> — boîte des avis reçus', () => {
     renderList(['agent', 'customer']);
 
     expect(await screen.findByTestId('received-review-90')).toHaveTextContent('Bon accueil');
-    const premieres = appels.filter((a) => a.url.includes('/api/reviews/received'));
+    // TCK-2864 — hors la tête de l'agent (sa répartition, `subject_type=agent`, lue à part).
+    const premieres = appels.filter(
+      (a) => a.url.includes('/api/reviews/received') && !decodeURIComponent(a.url).includes('filter[subject_type]=agent'),
+    );
     expect(premieres).toHaveLength(1);
     expect(appels.some((a) => /\/api\/properties\/\d+\/reviews/.test(a.url))).toBe(false);
 

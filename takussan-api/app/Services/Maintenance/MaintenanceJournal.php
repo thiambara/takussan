@@ -26,7 +26,8 @@ use Illuminate\Database\Eloquent\Builder;
  * ni fuite de ce qu'ils portent.
  *
  * **Le journal ne révèle rien que le lecteur ne lit pas déjà.** Une entrée n'écrit que `from` et
- * `to` (deux statuts, que la fiche montre) ; jamais le contexte de l'événement — motif d'un refus,
+ * `to` (deux statuts, que la fiche montre), plus `reason` pour une annulation (TCK-2917 : le
+ * `cancellation_reason` que la fiche montre aussi) ; jamais le contexte de l'événement — motif d'un refus,
  * commentaire d'une contestation, montant d'un devis. La ressource ne sert de toute façon que des
  * champs nommés ({@see MaintenanceJournalEntryResource}).
  *
@@ -54,14 +55,22 @@ class MaintenanceJournal
      * Écrit une entrée. `$actor` nul : un geste du système (clôture automatique, fin de
      * collaboration) — jamais l'utilisateur connecté par défaut, que spatie prendrait sinon.
      *
-     * @param  array{from?: ?string, to?: ?string}  $properties
+     * TCK-2917 (ADR-0118 § 1) — `reason` : le motif d'une annulation, celui que la fiche montre
+     * (`cancellation_reason`) ; écrit seulement s'il est non nul.
+     *
+     * @param  array{from?: ?string, to?: ?string, reason?: ?string}  $properties
      */
     public function record(MaintenanceRequest $mr, string $event, ?User $actor, array $properties = []): void
     {
         $logger = activity(self::LOG)->performedOn($mr)->event($event);
         $logger = $actor !== null ? $logger->causedBy($actor) : $logger->causedByAnonymous();
 
-        $logger->withProperties(array_intersect_key($properties, array_flip(['from', 'to'])))->log($event);
+        $kept = array_intersect_key($properties, array_flip(['from', 'to', 'reason']));
+        if (($kept['reason'] ?? null) === null) {
+            unset($kept['reason']);
+        }
+
+        $logger->withProperties($kept)->log($event);
     }
 
     public function recordCreated(MaintenanceRequest $mr, ?User $actor): void

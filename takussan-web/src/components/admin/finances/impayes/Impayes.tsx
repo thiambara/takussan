@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { CircleCheckBig, Phone, Search, X } from 'lucide-react';
 
 import { isReachable, telHref } from '@/components/crm/contact';
+import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { EmptyState } from '@/components/feedback';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
@@ -16,12 +17,14 @@ import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { Input } from '@/components/ui/input';
 import { PanneauDroit } from '@/components/ui/panneau-droit';
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useFermeAuRetour } from '@/hooks/useFermeAuRetour';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { cheminApi } from '@/lib/chemin-api';
 import { useAgingBalance } from '@/lib/queries/agency-reporting';
 import { paymentsQueryKeys, usePaymentsHistory, type UsePaymentsHistoryParams } from '@/lib/queries/payments';
 import { cn } from '@/lib/utils';
@@ -48,10 +51,15 @@ const REQUETE_DU_BUREAU = '(width >= 64rem)';
 
 const INCLUDES = ['payer', 'property', 'landlord', 'reminders'] as const;
 
+/** TCK-2868 — l'ordre de la liste : le retard (par défaut), ou le montant dû (« Tri : montant dû », Rapports au bureau). */
+const TRIS = ['-days_late', '-remaining_amount'] as const;
+type Tri = (typeof TRIS)[number];
+
 interface Filtres {
   readonly tranche: CleDeTranche;
   readonly bailleur: { readonly id: number; readonly nom: string } | null;
   readonly recherche: string;
+  readonly tri: Tri;
 }
 
 function parametres(filtres: Filtres, page: number, perPage: number = IMPAYES_PAR_PAGE): UsePaymentsHistoryParams {
@@ -59,7 +67,7 @@ function parametres(filtres: Filtres, page: number, perPage: number = IMPAYES_PA
   return {
     days_late_min: min,
     ...(max !== undefined ? { days_late_max: max } : {}),
-    sort: '-days_late',
+    sort: filtres.tri,
     include: INCLUDES,
     ...(filtres.bailleur ? { landlord_id: filtres.bailleur.id } : {}),
     ...(filtres.recherche.trim() ? { search: filtres.recherche.trim() } : {}),
@@ -89,6 +97,11 @@ function parametres(filtres: Filtres, page: number, perPage: number = IMPAYES_PA
  *
  * TCK-2775 — `relanceDemandee` : la relance que l'adresse de la page demande (`?relance=…`, lue et
  * retirée par la page, `relance-de-l-adresse.ts`) ; l'écran l'ouvre une fois, puis la rend (`onRelancePrise`).
+ *
+ * TCK-2868 — trois options que Rapports active (décision du porteur : groupes, tri et PDF repris) :
+ * `groupes` (téléphone : la liste groupée par tranche, chaque groupe sous « > 90 j · 2 échéances · montant »),
+ * `triEtPdf` (bureau : « Tri : montant dû » → `sort=-remaining_amount`, et « Balance âgée en PDF »,
+ * `finance/aging.pdf` sous le même filtre de bailleur). « Argent » ne les active pas.
  */
 export function Impayes({
   agencyId,
@@ -97,6 +110,8 @@ export function Impayes({
   jamaisRelanceEnAlerte = false,
   relanceDemandee = null,
   onRelancePrise,
+  groupes = false,
+  triEtPdf = false,
 }: {
   readonly agencyId: number | undefined;
   /** Le grand total et les cautions en tête : au téléphone seulement (le bureau les dit dans l'en-tête de page), ou toujours. */
@@ -112,18 +127,26 @@ export function Impayes({
   /** TCK-2775 — la relance demandée par l'adresse de la page : une échéance, ou la file. */
   readonly relanceDemandee?: DemandeDeRelance | null;
   readonly onRelancePrise?: () => void;
+  /** TCK-2868 — au téléphone, la liste groupée par tranche du jeu (en-tête : compte et montant de la tranche). */
+  readonly groupes?: boolean;
+  /** TCK-2868 — au bureau, « Tri : montant dû » et « Balance âgée en PDF » au-dessus du tableau. */
+  readonly triEtPdf?: boolean;
 }) {
   const t = useTranslations('admin.finances.impayes');
   const bureau = useMatchesMedia(REQUETE_DU_BUREAU);
   const [vue, setVue] = useState<'locataire' | 'bailleur'>('locataire');
-  const [filtres, setFiltres] = useState<Filtres>({ tranche: 'tous', bailleur: null, recherche: '' });
+  const [filtres, setFiltres] = useState<Filtres>({ tranche: 'tous', bailleur: null, recherche: '', tri: '-days_late' });
   const [frappe, setFrappe] = useState('');
   const recherche = useDebouncedValue(frappe, 300);
-  const actifs: Filtres = { ...filtres, recherche: bureau ? recherche : '' };
+  // TCK-2868 — le tri n'existe qu'au bureau : le téléphone reste par retard (ses groupes en dépendent).
+  const actifs: Filtres = { ...filtres, recherche: bureau ? recherche : '', tri: bureau && triEtPdf ? filtres.tri : '-days_late' };
   const [pageBureau, setPageBureau] = useState(1);
   const [pagesTelephone, setPagesTelephone] = useState(1);
   const [aRelancer, setARelancer] = useState<{ readonly row: PaymentHistoryRow; readonly ouverte: boolean } | null>(null);
   const [dossier, setDossier] = useState<{ readonly row: PaymentHistoryRow; readonly relancer: boolean; readonly ouvert: boolean } | null>(null);
+  // TCK-2922 — « Encaisser un paiement » du menu ⋯ d'une rangée (bureau), sans passer par le dossier.
+  const [aEncaisser, setAEncaisser] = useState<PaymentHistoryRow | null>(null);
+  const queryClient = useQueryClient();
 
   const f = useFormatteurs();
   const l = useLectureDImpaye();
@@ -169,7 +192,8 @@ export function Impayes({
   };
 
   const premiere = usePaymentsHistory(parametres(actifs, bureau ? pageBureau : 1));
-  const comptes = useComptesDesTranches(actifs, jeu);
+  // Les comptes ne dépendent pas de l'ordre : un changement de tri ne les relit pas.
+  const comptes = useComptesDesTranches({ ...actifs, tri: '-days_late' }, jeu);
 
   // Les échéances affichées : la page du tableau, ou les pages 1 à n des cartes.
   const pagesAffichees = vue !== 'locataire' ? [] : bureau ? [pageBureau] : Array.from({ length: pagesTelephone }, (_, i) => i + 1);
@@ -258,13 +282,24 @@ export function Impayes({
           </div>
 
           <TabsContent value="locataire">
-            {filtres.bailleur ? (
+            {/* TCK-2868 — au bureau de Rapports, le sélecteur « Tous les bailleurs » dit déjà le filtre : pas de puce en double. */}
+            {filtres.bailleur && !(bureau && triEtPdf) ? (
               <div className="mt-3 flex">
                 <PuceDeFiltre active onClick={() => changerDeFiltres({ bailleur: null })} aria-label={t('bailleur.retirer', { nom: filtres.bailleur.nom })}>
                   {t('bailleur.filtre', { nom: filtres.bailleur.nom })}
                   <X className="size-3.5" aria-hidden="true" />
                 </PuceDeFiltre>
               </div>
+            ) : null}
+            {bureau && triEtPdf ? (
+              <BarreDuRapport
+                agencyId={agencyId}
+                total={premiere.data?.meta.total ?? null}
+                tri={filtres.tri}
+                onTri={(tri) => changerDeFiltres({ tri })}
+                bailleur={filtres.bailleur}
+                onBailleur={(bailleur) => changerDeFiltres({ bailleur })}
+              />
             ) : null}
             {bureau && selection.n > 0 ? (
               <BarreDeSelection
@@ -321,6 +356,8 @@ export function Impayes({
                       }}
                       selection={{ coche: selection.coche, changer: selection.changer, figee: fileApi.file !== null }}
                       enCours={fileApi.enCours?.id ?? null}
+                      // TCK-2922 — le menu ⋯ de la rangée.
+                      onEncaisser={fileApi.file ? undefined : setAEncaisser}
                     />
                   </div>
                 ) : (
@@ -332,6 +369,7 @@ export function Impayes({
                     onVoirPlus={() => setPagesTelephone((n) => n + 1)}
                     onRelancer={(row) => setARelancer({ row, ouverte: true })}
                     selection={modeEffectif ? selection : undefined}
+                    groupes={groupes ? { jeu, de: comptes.de } : undefined}
                   />
                 )
               }
@@ -353,6 +391,21 @@ export function Impayes({
             row={aRelancer.row}
             ouverte={aRelancer.ouverte}
             onFermer={() => setARelancer((a) => (a ? { ...a, ouverte: false } : a))}
+          />
+        ) : null}
+        {/* TCK-2922 — l'encaissement ouvert depuis le menu ⋯ : le même dialogue que le pied du dossier. */}
+        {aEncaisser?.lease_id ? (
+          <LeasePaymentDialog
+            leaseId={aEncaisser.lease_id}
+            open
+            onOpenChange={(ouvert) => {
+              if (!ouvert) setAEncaisser(null);
+            }}
+            paiementInitial={aEncaisser.id}
+            onEncaisse={(paymentId) => {
+              selection.retirer([paymentId]);
+              void queryClient.invalidateQueries({ queryKey: ['payments', 'history'] });
+            }}
           />
         ) : null}
         {dossier ? (
@@ -459,7 +512,132 @@ function useComptesDesTranches(filtres: Filtres, jeu: JeuDeTranches) {
       const c = parTranche[cle];
       return c && c.montant !== null ? f.montantCourt(c.montant) : null;
     },
+    /** TCK-2868 — le compte et le montant d'une tranche (sous les filtres de l'écran), pour l'en-tête de son groupe. */
+    de: (cle: CleDeTranche) => parTranche[cle] ?? null,
   };
+}
+
+/**
+ * TCK-2868 — la barre de Rapports au bureau, au-dessus du tableau (maquette `app-rapports`, « Impayés (balance
+ * âgée) ») : « N échéances en retard », « Tous les bailleurs » (les bailleurs de la balance âgée par bailleur,
+ * le même filtre que la puce posée depuis « Par bailleur »), « Tri : montant dû » (`sort=-remaining_amount` ; le
+ * retard par défaut) et « Balance âgée en PDF » (`GET /api/agencies/{agence}/finance/aging.pdf`, la lecture de l'écran, sous le
+ * filtre de bailleur quand il est posé).
+ */
+function BarreDuRapport({
+  agencyId,
+  total,
+  tri,
+  onTri,
+  bailleur,
+  onBailleur,
+}: {
+  readonly agencyId: number | undefined;
+  readonly total: number | null;
+  readonly tri: Tri;
+  readonly onTri: (tri: Tri) => void;
+  readonly bailleur: Filtres['bailleur'];
+  readonly onBailleur: (bailleur: Filtres['bailleur']) => void;
+}) {
+  const t = useTranslations('admin.finances.impayes');
+  const items = TRIS.map((v) => ({ value: v, label: t(`tri.${v === '-remaining_amount' ? 'montant' : 'retard'}`) }));
+  // Les bailleurs qui ont des impayés : la balance âgée par bailleur (lue aussi par l'onglet « Par bailleur »).
+  const parBailleur = useAgingBalance(agencyId, 'landlord');
+  const bailleurs = (parBailleur.data?.data.rows ?? []).flatMap((r) => (r.id !== null ? [{ id: r.id, nom: r.name ?? t('bailleur.sansNom') }] : []));
+  const itemsBailleurs = [{ value: 'tous', label: t('bailleur.tous') }, ...bailleurs.map((b) => ({ value: String(b.id), label: b.nom }))];
+  const bailleurId = bailleur?.id ?? null;
+  const filtre = bailleurId !== null ? `?${new URLSearchParams({ 'filter[landlord_id]': String(bailleurId) }).toString()}` : '';
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2" data-slot="barre-du-rapport">
+      <h2 className="min-w-0 flex-1 text-corps font-semibold tabular-nums">{total !== null ? t('enRetard', { count: total }) : null}</h2>
+      <Select
+        value={bailleur ? String(bailleur.id) : 'tous'}
+        onValueChange={(v) => {
+          const choisi = bailleurs.find((b) => String(b.id) === v);
+          onBailleur(choisi ?? (bailleur && String(bailleur.id) === v ? bailleur : null));
+        }}
+        items={bailleur && !bailleurs.some((b) => b.id === bailleur.id) ? [...itemsBailleurs, { value: String(bailleur.id), label: bailleur.nom }] : itemsBailleurs}
+      >
+        <SelectTrigger aria-label={t('bailleur.label')} className="w-auto min-w-44">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {itemsBailleurs.map((i) => (
+            <SelectItem key={i.value} value={i.value}>
+              {i.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={tri} onValueChange={(v) => onTri((v ?? tri) as Tri)} items={items}>
+        <SelectTrigger aria-label={t('tri.label')} className="w-auto min-w-44">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {items.map((i) => (
+            <SelectItem key={i.value} value={i.value}>
+              {i.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {agencyId !== undefined ? (
+        <BoutonTelechargement
+          chemin={`${cheminApi`/api/agencies/${agencyId}/finance/aging.pdf`}${filtre}`}
+          nomFichier={`balance-agee${bailleurId !== null ? `-${bailleurId}` : ''}.pdf`}
+          variant="outline"
+        >
+          {t('balancePdf')}
+        </BoutonTelechargement>
+      ) : null}
+    </div>
+  );
+}
+
+/** TCK-2868 — la tranche bornée du jeu où tombe une échéance (par son retard). */
+function trancheDeLaLigne(row: PaymentHistoryRow, jeu: JeuDeTranches): CleDeTranche | null {
+  const jours = row.days_late ?? 0;
+  return JEUX_DE_TRANCHES[jeu].find((tr) => tr.cle !== 'tous' && jours >= tr.min && (tr.max === undefined || jours <= tr.max))?.cle ?? null;
+}
+
+interface Groupes {
+  readonly jeu: JeuDeTranches;
+  readonly de: (cle: CleDeTranche) => { n: number; montant: number | null } | null;
+}
+
+/** TCK-2868 — l'en-tête d'un groupe au téléphone : « > 90 j · 2 échéances », et le montant de la tranche à droite. */
+function EnTeteDeTranche({ cle, groupes }: { readonly cle: CleDeTranche; readonly groupes: Groupes }) {
+  const t = useTranslations('admin.finances.impayes');
+  const f = useFormatteurs();
+  const c = groupes.de(cle);
+  // Une bande à fond perdu (la gouttière de 16 px, comme la rangée de pastilles), comme la maquette.
+  return (
+    <h3 className="-mx-4 flex items-baseline justify-between gap-3 bg-muted/50 px-4 py-2 text-ui" data-slot="en-tete-de-tranche" data-tranche={cle}>
+      <span className="min-w-0 truncate font-semibold">
+        {t(`tranches.${cle}`)}
+        {c ? ` · ${t('anciennete.echeances', { count: c.n })}` : null}
+      </span>
+      {c && c.montant !== null ? <span className="flex-none tabular-nums text-muted-foreground">{f.montantCourt(c.montant)}</span> : null}
+    </h3>
+  );
+}
+
+/** Les cartes d'une page, chacune précédée de l'en-tête de sa tranche quand elle en ouvre une (`precedente` : la tranche d'avant). */
+function cartesGroupees(
+  rows: readonly PaymentHistoryRow[],
+  rendre: (row: PaymentHistoryRow) => ReactNode,
+  groupes: Groupes | undefined,
+  precedente: CleDeTranche | null,
+): ReactNode[] {
+  let avant = precedente;
+  return rows.flatMap((row) => {
+    const carte = rendre(row);
+    if (!groupes) return [carte];
+    const cle = trancheDeLaLigne(row, groupes.jeu);
+    if (cle === null || cle === avant) return [carte];
+    avant = cle;
+    return [<EnTeteDeTranche key={`tranche-${cle}`} cle={cle} groupes={groupes} />, carte];
+  });
 }
 
 /** Le téléphone : la première page, puis une page de plus à chaque « Voir plus ». */
@@ -471,6 +649,7 @@ function ListeDeCartes({
   onVoirPlus,
   onRelancer,
   selection,
+  groupes,
 }: {
   readonly premiere: readonly PaymentHistoryRow[];
   readonly total: number;
@@ -479,16 +658,20 @@ function ListeDeCartes({
   readonly onVoirPlus: () => void;
   readonly onRelancer: (row: PaymentHistoryRow) => void;
   readonly selection?: SelectionDesImpayes;
+  readonly groupes?: Groupes;
 }) {
   const t = useTranslations('admin.finances.impayes');
   const affichees = Math.min(total, pages * IMPAYES_PAR_PAGE);
   return (
     <div className="space-y-3 pb-8" data-slot="liste-impayes">
-      {premiere.map((row) => (
-        <CarteDImpaye key={`${row.source}-${row.id}`} row={row} onRelancer={onRelancer} selection={caseDe(selection, row)} />
-      ))}
+      {cartesGroupees(
+        premiere,
+        (row) => <CarteDImpaye key={`${row.source}-${row.id}`} row={row} onRelancer={onRelancer} selection={caseDe(selection, row)} />,
+        groupes,
+        null,
+      )}
       {Array.from({ length: pages - 1 }, (_, i) => (
-        <PageDeCartes key={i + 2} page={i + 2} filtres={filtres} onRelancer={onRelancer} selection={selection} />
+        <PageDeCartes key={i + 2} page={i + 2} filtres={filtres} onRelancer={onRelancer} selection={selection} groupes={groupes} />
       ))}
       {affichees < total ? (
         <button
@@ -508,19 +691,27 @@ function PageDeCartes({
   filtres,
   onRelancer,
   selection,
+  groupes,
 }: {
   readonly page: number;
   readonly filtres: Filtres;
   readonly onRelancer: (row: PaymentHistoryRow) => void;
   readonly selection?: SelectionDesImpayes;
+  readonly groupes?: Groupes;
 }) {
   const requete = usePaymentsHistory(parametres(filtres, page));
+  // TCK-2868 — la page d'avant (déjà en cache) dit la tranche de sa dernière échéance : pas de second en-tête au raccord.
+  const avant = usePaymentsHistory({ ...parametres(filtres, page - 1), enabled: groupes !== undefined });
   if (requete.isPending) return <Skeleton className="h-40 rounded-xl" aria-hidden="true" />;
+  const derniere = avant.data?.data.at(-1);
   return (
     <>
-      {(requete.data?.data ?? []).map((row) => (
-        <CarteDImpaye key={`${row.source}-${row.id}`} row={row} onRelancer={onRelancer} selection={caseDe(selection, row)} />
-      ))}
+      {cartesGroupees(
+        requete.data?.data ?? [],
+        (row) => <CarteDImpaye key={`${row.source}-${row.id}`} row={row} onRelancer={onRelancer} selection={caseDe(selection, row)} />,
+        groupes,
+        groupes && derniere ? trancheDeLaLigne(derniere, groupes.jeu) : null,
+      )}
     </>
   );
 }

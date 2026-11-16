@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\OwnerDepartureController;
+use App\Http\Controllers\Api\OwnerMaintenanceSummaryController;
 use App\Http\Controllers\Api\OwnerProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Route;
  */
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('owners', [OwnerProfileController::class, 'index'])->name('owners.index');
+    // TCK-2911 (ADR-0120 § 4) — « Depuis janvier » : le bilan des interventions du bailleur du profil actif.
+    Route::get('owner/maintenance-summary', OwnerMaintenanceSummaryController::class)->name('owner.maintenance-summary');
     // TCK-601 (ADR-0044) — valeurs complètes, admin de l'agence du profil, consultation journalisée.
     Route::get('owners/{ownerProfile}/sensitive', [OwnerProfileController::class, 'sensitive'])
         ->whereNumber('ownerProfile')

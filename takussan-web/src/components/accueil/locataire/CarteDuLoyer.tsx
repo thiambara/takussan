@@ -28,8 +28,9 @@ import { ErreurDeBloc } from '../EtatsDeBloc';
  * carte vise ; son montant exact (pénalité encaissée en ligne comprise) vient de la ligne des dus que
  * la page Paiements lit aussi (`useDusDuLocataire`, même requête, même cache).
  *
- * Écart de donnée à la maquette : « Wave · Orange Money · Free Money » sous le bouton — les
- * fournisseurs ouverts ne se lisent qu'à l'ouverture de la feuille (`…/providers`).
+ * TCK-2852 — sous « Payer », la ligne des moyens EN LIGNE réellement ouverts (« Wave · Orange Money »),
+ * lue dans `online_means` du résumé (TCK-2851) : jamais une liste écrite à la main, jamais un moyen
+ * fermé ; vide, la ligne ne se rend pas.
  */
 export function CarteDuLoyer({ className }: { readonly className?: string }) {
   const t = useTranslations('accueil.locataire.carte');
@@ -46,12 +47,13 @@ export function CarteDuLoyer({ className }: { readonly className?: string }) {
   const carte = carteDuLoyer(resumeQ.data?.data, aujourdHui);
   if (!carte) return null;
   const dus = dusQ.data?.data ?? [];
+  const moyens = resumeQ.data?.data?.online_means ?? [];
 
   switch (carte.genre) {
     case 'du':
-      return <CarteDu carte={carte} dus={dus} className={className} />;
+      return <CarteDu carte={carte} dus={dus} moyens={moyens} className={className} />;
     case 'aJour':
-      return <CarteAJour prochain={carte.prochain} dans={carte.dans} devise={carte.devise} aLAgence={carte.aLAgence} dus={dus} className={className} />;
+      return <CarteAJour prochain={carte.prochain} dans={carte.dans} devise={carte.devise} aLAgence={carte.aLAgence} dus={dus} moyens={moyens} className={className} />;
     case 'sansEcheance':
       return <CarteSansEcheance className={className} />;
   }
@@ -67,6 +69,29 @@ function useTitreDeLEcheance() {
     if (nature === 'charges') return mois ? t('chargesDe', { mois, voyelle }) : t('charges');
     return mois ? t('loyerDe', { mois, voyelle }) : t('loyer');
   };
+}
+
+/**
+ * TCK-2852 — le code d'un fournisseur (`PaymentProvider` de l'API) vers la clé de son libellé dans
+ * `payments.methods` ; un code inconnu ne se nomme pas.
+ */
+const METHODE_DU_FOURNISSEUR: Readonly<Record<string, 'wave' | 'orange_money' | 'free_money' | 'card'>> = {
+  wave: 'wave',
+  orange_money: 'orange_money',
+  free_money: 'free_money',
+  lemon_squeezy: 'card',
+};
+
+/** TCK-2852 — « Wave · Orange Money » : les seuls moyens en ligne que l'API dit ouverts. */
+function MoyensEnLigne({ moyens, className }: { readonly moyens: readonly string[]; readonly className?: string }) {
+  const t = useTranslations('payments.methods');
+  const libelles = [...new Set(moyens.map((m) => METHODE_DU_FOURNISSEUR[m]).filter((m) => m !== undefined))].map((m) => t(m));
+  if (libelles.length === 0) return null;
+  return (
+    <p data-slot="moyens-en-ligne" className={cn('mt-2.5 text-center text-xs text-muted-foreground md:mt-2 md:text-right', className)}>
+      {libelles.join(' · ')}
+    </p>
+  );
 }
 
 /** Le bouton « Payer » : la feuille de la page Paiements, sur cette échéance. */
@@ -118,10 +143,12 @@ function BoutonPayer({
 function CarteDu({
   carte,
   dus,
+  moyens,
   className,
 }: {
   readonly carte: Extract<NonNullable<ReturnType<typeof carteDuLoyer>>, { genre: 'du' }>;
   readonly dus: readonly PaymentHistoryRow[];
+  readonly moyens: readonly string[];
   readonly className?: string;
 }) {
   const t = useTranslations('accueil.locataire.carte');
@@ -161,17 +188,20 @@ function CarteDu({
             </Link>
           ) : null}
         </div>
-        <div className="mt-4 md:mt-0 md:flex-none">
+        <div className="mt-4 md:mt-0 md:flex-none md:text-right">
           {cible ? (
-            <BoutonPayer
-              paymentId={cible.lease_payment_id}
-              nature={cible.kind}
-              periodStart={cible.period_start}
-              montantAffiche={cible.amount}
-              devise={cible.currency ?? carte.devise}
-              aLAgence={carte.aLAgence}
-              dus={dus}
-            />
+            <>
+              <BoutonPayer
+                paymentId={cible.lease_payment_id}
+                nature={cible.kind}
+                periodStart={cible.period_start}
+                montantAffiche={cible.amount}
+                devise={cible.currency ?? carte.devise}
+                aLAgence={carte.aLAgence}
+                dus={dus}
+              />
+              <MoyensEnLigne moyens={moyens} />
+            </>
           ) : (
             <Link href="/app/payments?moyen=agence" className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-12 w-full font-semibold md:h-10 md:w-auto')}>
               {tTete('commentPayerALAgence')}
@@ -189,6 +219,7 @@ function CarteAJour({
   devise,
   aLAgence,
   dus,
+  moyens,
   className,
 }: {
   readonly prochain: ProchainLoyer | null;
@@ -196,6 +227,7 @@ function CarteAJour({
   readonly devise: string | null;
   readonly aLAgence: number;
   readonly dus: readonly PaymentHistoryRow[];
+  readonly moyens: readonly string[];
   readonly className?: string;
 }) {
   const t = useTranslations('accueil.locataire.carte');
@@ -230,7 +262,7 @@ function CarteAJour({
           {prochain.charges_amount > 0 ? <p className="text-ui text-muted-foreground">{tTete('plusCharges', { montant: f.montantCourt(prochain.charges_amount, devise) })}</p> : null}
         </div>
         {prochain.payable_online ? (
-          <div className="mt-4 md:mt-0 md:flex-none">
+          <div className="mt-4 md:mt-0 md:flex-none md:text-right">
             <BoutonPayer
               paymentId={prochain.lease_payment_id}
               nature="rent"
@@ -240,6 +272,7 @@ function CarteAJour({
               aLAgence={aLAgence}
               dus={dus}
             />
+            <MoyensEnLigne moyens={moyens} />
           </div>
         ) : null}
       </div>

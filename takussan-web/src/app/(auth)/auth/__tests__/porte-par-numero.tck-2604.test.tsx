@@ -76,7 +76,13 @@ const STUDIO: BienQuitte = {
   devise: 'XOF',
   periode: 'monthly',
   agence: 'Dakar Immo',
+  delaiMinutes: null,
 };
+
+/** TCK-2936 — les images HORS de l'accueil de la porte (photo de ville de l'arrivée directe) : celles d'un bien. */
+function imagesDeBien(): Element[] {
+  return [...document.querySelectorAll('img')].filter((img) => !img.closest('[data-en-tete-d-accueil], [data-panneau-d-accueil]'));
+}
 
 beforeEach(() => {
   pushMock.mockReset();
@@ -181,7 +187,7 @@ describe('AC1 — l’intention et le bien quitté', () => {
   ])('%s est ignorée : aucune lecture du bien, aucune image, aucun texte de l’URL', async (_nom, params) => {
     await ouvrir(params);
     expect(bienQuitteMock).not.toHaveBeenCalled();
-    expect(document.querySelector('img')).toBeNull();
+    expect(imagesDeBien()).toHaveLength(0);
     expect(document.body).not.toHaveTextContent('piratage');
     expect(screen.getByRole('heading', { name: 'Entrez votre numéro' })).toBeInTheDocument();
   });
@@ -200,36 +206,125 @@ describe('AC1 — l’intention et le bien quitté', () => {
   });
 });
 
-// Suite xl de TCK-2604, décision (b) : entre 1024 et 1280, le panneau d'intention est absent ; c'est la
-// barre de 64 px qui garde l'intention — l'action ET le bien quitté —, sur chaque écran de la porte.
-describe('à 1024, la barre du bureau dit l’action et le bien quitté', () => {
-  const TITRE_DE_BUREAU = `Votre réservation · ${STUDIO.titre}`;
-
-  function titreDeLaBarreA1024(): HTMLElement {
-    const titre = screen.getByText(TITRE_DE_BUREAU);
-    expect(afficheA(titre, 1024)).toBe(true);
-    expect(titre.closest('header')!.className).toMatch(/(^|\s)h-16(\s|$)/);
-    return titre;
+// TCK-2936 — le panneau du bien paraît dès 1024 (AC4) : la barre de 64 px qui disait l'action et le bien
+// entre 1024 et 1280 (suite xl de TCK-2604) n'est plus rendue ; c'est le panneau qui les dit.
+describe('TCK-2936 · AC4 — à 1024 et 1279, venu d’un bien, le panneau du bien est rendu à gauche', () => {
+  function panneauA(largeur: number): HTMLElement {
+    const panneau = document.querySelector('[data-panneau-d-entree]') as HTMLElement;
+    expect(panneau).not.toBeNull();
+    expect(afficheA(panneau, largeur)).toBe(true);
+    return panneau;
   }
 
-  it('la porte du numéro, puis l’écran du code', async () => {
+  it.each([1024, 1279])('à %i : la porte du numéro, puis l’écran du code', async (largeur) => {
     const user = userEvent.setup();
     await ouvrir({ redirect: '/fr/properties/studio-meuble-mermoz-a1b2c3?action=reserver', intention: 'reservation' });
-    titreDeLaBarreA1024();
+    expect(within(panneauA(largeur)).getByText(STUDIO.titre)).toBeInTheDocument();
+    expect(screen.queryByText(`Votre réservation · ${STUDIO.titre}`)).toBeNull();
     await jusquAuCode(user);
-    titreDeLaBarreA1024();
+    expect(within(panneauA(largeur)).getByText(STUDIO.titre)).toBeInTheDocument();
   });
 
   it('la voie e-mail', async () => {
     await ouvrir({ voie: 'email', redirect: '/fr/properties/studio-meuble-mermoz-a1b2c3', intention: 'reservation' });
     await screen.findByRole('tab', { name: 'J’ai un compte' });
-    titreDeLaBarreA1024();
+    expect(within(panneauA(1024)).getByText(STUDIO.titre)).toBeInTheDocument();
   });
 
-  it('sans bien quitté, la barre ne dit que le titre de l’écran', async () => {
+  it('sans bien quitté, ni panneau ni « action · bien »', async () => {
     bienQuitteMock.mockResolvedValue(null);
     await ouvrir({ redirect: '/fr/properties/retire-a1b2c3', intention: 'reservation' });
+    expect(document.querySelector('[data-panneau-d-entree]')).toBeNull();
     expect(screen.queryByText(/ · /)).toBeNull();
+  });
+});
+
+describe('TCK-2936 · AC1/AC2 — l’arrivée directe : la photo de ville et la marque en clair', () => {
+  it('à 390 : l’en-tête photo de 176 px, la marque et « Vos visites, vos favoris, vos annonces. » précèdent le champ', async () => {
+    await ouvrir({});
+    const enTete = document.querySelector('[data-en-tete-d-accueil]') as HTMLElement;
+    expect(enTete).not.toBeNull();
+    expect(afficheA(enTete, 390)).toBe(true);
+    expect(afficheA(enTete, 1024)).toBe(false);
+    expect(enTete.className).toMatch(/(^|\s)h-44(\s|$)/);
+    expect(enTete).toHaveTextContent('Vos visites, vos favoris, vos annonces.');
+    expect(enTete).toHaveTextContent('Takussan');
+    expect(enTete.querySelector('img')).not.toBeNull();
+    // Le retour au site, porté par la photo (la barre de 56 px n'est pas rendue).
+    expect(within(enTete).getByRole('link', { name: 'Retour au site' })).toBeInTheDocument();
+    const champ = await screen.findByLabelText('Votre numéro');
+    expect(enTete.compareDocumentPosition(champ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it.each([1024, 1440])('à %i : deux colonnes — la photo à gauche (45 %%, décor), le formulaire de 400 px à droite', async (largeur) => {
+    await ouvrir({});
+    const panneau = document.querySelector('[data-panneau-d-entree]') as HTMLElement;
+    expect(afficheA(panneau, largeur)).toBe(true);
+    expect(panneau.className).toMatch(/(^|\s)w-\[45%\](\s|$)/);
+    const accueil = panneau.querySelector('[data-panneau-d-accueil]') as HTMLElement;
+    expect(accueil).not.toBeNull();
+    expect(accueil).toHaveAttribute('aria-hidden', 'true');
+    expect(accueil.querySelector('img')).not.toBeNull();
+    const colonne = (await screen.findByLabelText('Votre numéro')).closest('main')!.firstElementChild!.firstElementChild!;
+    expect(colonne.className).toMatch(/(^|\s)lg:max-w-\[25rem\](\s|$)/);
+  });
+
+  it('le numéro fermé (`phone_login` éteint) : la voie e-mail garde le panneau d’accueil au bureau', async () => {
+    actif.mockResolvedValue(false);
+    await ouvrir({});
+    await screen.findByRole('tab', { name: 'J’ai un compte' });
+    const accueil = document.querySelector('[data-panneau-d-accueil]');
+    expect(accueil).not.toBeNull();
+    expect(afficheA(accueil!, 1024)).toBe(true);
+    expect(document.querySelector('[data-en-tete-d-accueil]')).toBeNull();
+  });
+
+  it('une action sans bien n’est pas une arrivée directe : ni photo de ville, ni panneau', async () => {
+    bienQuitteMock.mockResolvedValue(null);
+    await ouvrir({ redirect: '/fr/properties/retire-a1b2c3', intention: 'visite' });
+    expect(document.querySelector('[data-en-tete-d-accueil], [data-panneau-d-accueil]')).toBeNull();
+  });
+});
+
+describe('TCK-2936 · AC3 — la date de la visite et le délai de réponse de l’agence', () => {
+  const VISITE = '/fr/properties/studio-meuble-mermoz-a1b2c3?action=reserver&debut=2026-11-15';
+
+  it('120 min et `debut=2026-11-15` : « Visite demandée pour dimanche 15 nov. », « Avec Dakar Immo · réponse en 2 h environ », et « · dimanche 15 nov. » au téléphone', async () => {
+    bienQuitteMock.mockResolvedValue({ ...STUDIO, delaiMinutes: 120 });
+    await ouvrir({ redirect: VISITE, intention: 'visite' });
+    const panneau = document.querySelector('[data-panneau-d-entree]') as HTMLElement;
+    expect(panneau).toHaveTextContent('Visite demandée pour dimanche 15 nov.');
+    expect(panneau).toHaveTextContent('Avec Dakar Immo · réponse en 2 h environ');
+    expect(document.querySelector('[data-en-tete-du-bien]')).toHaveTextContent(/mois · dimanche 15 nov\./);
+    expect(document.querySelector('[data-en-tete-du-bien]')).not.toHaveTextContent('À partir du');
+  });
+
+  it('l’arrondi de la fiche d’agence : 45 min, 90 min (2 h), 3 jours', async () => {
+    for (const [minutes, texte] of [
+      [45, 'réponse en 45 min environ'],
+      [90, 'réponse en 2 h environ'],
+      [3 * 1440, 'réponse en 3 jours environ'],
+    ] as const) {
+      bienQuitteMock.mockResolvedValue({ ...STUDIO, delaiMinutes: minutes });
+      const { unmount } = await ouvrir({ redirect: VISITE, intention: 'visite' });
+      expect(document.querySelector('[data-agence-du-bien]')).toHaveTextContent(`Avec Dakar Immo · ${texte}`);
+      unmount();
+    }
+  });
+
+  it('sans `debut`, aucune date ; avec `null`, aucune mention de délai', async () => {
+    await ouvrir({ redirect: '/fr/properties/studio-meuble-mermoz-a1b2c3', intention: 'visite' });
+    const panneau = document.querySelector('[data-panneau-d-entree]') as HTMLElement;
+    expect(panneau).not.toHaveTextContent('Visite demandée');
+    expect(panneau).not.toHaveTextContent(/nov\./);
+    expect(document.querySelector('[data-en-tete-du-bien]')).not.toHaveTextContent(/nov\./);
+    expect(document.querySelector('[data-agence-du-bien]')).toHaveTextContent(/^Avec Dakar Immo$/);
+    expect(panneau).not.toHaveTextContent('réponse en');
+  });
+
+  it('une réservation garde « Du … au … » : seule la visite dit un jour', async () => {
+    await ouvrir({ redirect: '/fr/bookings?property=studio-meuble-mermoz-a1b2c3&debut=2099-01-10&fin=2099-01-14', intention: 'reservation' });
+    expect(document.querySelector('[data-panneau-d-entree]')).toHaveTextContent(/Du .*10 janv\..* au .*14 janv\./);
   });
 });
 

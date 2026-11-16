@@ -3,6 +3,7 @@
 namespace App\Services\Dashboard;
 
 use App\Models\BookingPayment;
+use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
@@ -186,7 +187,26 @@ final class CollectedPayments
     {
         $query ??= BookingPayment::query();
 
-        return $query->where('booking_payments.status', PaymentStatus::Paid->value);
+        // TCK-2892 — une caution de séjour est rendue au départ : ce n'est pas de l'argent encaissé,
+        // comme la caution de bail ({@see self::DEPOSIT_TYPES}).
+        return $query
+            ->where('booking_payments.status', PaymentStatus::Paid->value)
+            ->where('booking_payments.payment_type', '!=', BookingPaymentType::SecurityDeposit->value);
+    }
+
+    /**
+     * TCK-2865 — les loyers ATTENDUS : les échéances de loyer (`rent`) hors annulées (une échéance remplacée par un
+     * renouvellement n'est plus due ; une échéance en échec de paiement reste attendue). La règle de « Loyers du
+     * mois » du bailleur (TCK-2623, `expected_count`) et de sa série `timeseries.expected` ; le lecteur borne
+     * `due_date`.
+     */
+    public static function rentExpected(?Builder $query = null): Builder
+    {
+        $query ??= LeasePayment::query();
+
+        return $query
+            ->where('lease_payments.payment_type', LeasePaymentType::Rent->value)
+            ->where('lease_payments.status', '!=', PaymentStatus::Cancelled->value);
     }
 
     /**

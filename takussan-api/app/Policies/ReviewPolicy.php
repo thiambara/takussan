@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Review\ReviewModerationScope;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * TCK-597 (ADR-0043 §1) — modérer, lire les signalements, répondre.
@@ -42,6 +43,27 @@ class ReviewPolicy extends BasePolicy
     public function moderate(User $user, Review $review, ?string $decision = null): bool
     {
         return $this->scope()->canModerate($user, $review, $decision);
+    }
+
+    /**
+     * TCK-2930 (ADR-0043, amendement du 2026-11-15) — supprimer un avis. Signature de
+     * {@see BasePolicy::delete()} : le paramètre ne se resserre pas en `Review`.
+     */
+    public function delete(User $user, Model $model): bool
+    {
+        return $model instanceof Review && $this->scope()->canDelete($user, $model);
+    }
+
+    /** TCK-2930 (ADR-0043, amendement du 2026-11-15) — ignorer les signalements d'un avis. */
+    public function dismissReports(User $user, Review $review): bool
+    {
+        return $this->scope()->canDismissReports($user, $review);
+    }
+
+    /** TCK-2930 — le résumé du sujet d'un avis de la file (moyenne, compte, autres avis publiés). */
+    public function viewSubjectSummary(User $user, Review $review): bool
+    {
+        return $this->scope()->inQueueScope($user, $review);
     }
 
     public function viewReports(User $user, Review $review): bool

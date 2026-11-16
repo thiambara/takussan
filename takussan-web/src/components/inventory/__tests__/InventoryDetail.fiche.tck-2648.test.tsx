@@ -139,6 +139,21 @@ describe('TCK-2648 — le titre et les signataires (AC4)', () => {
     expect(screen.getByText('Réalisé le').nextElementSibling).toHaveTextContent(/^1 juil\. 2026$/);
   });
 
+  it('TCK-2914 — la signature du bailleur recueillie sur place par SON code se dit comme celle du locataire', () => {
+    etat.inventory = signe({
+      owner_signature_method: 'onsite_otp',
+      owner_signed_by: { id: 9, full_name: 'Mouhamed Sène' },
+      owner_signed_on_behalf_of: null,
+      owner_signed_on_behalf_of_user_id: null,
+      owner_signed_via: { id: 3, full_name: 'Sokhna Sène' },
+      owner_otp_destination: '+221 76 ••• 44 21',
+    });
+    ouvrir();
+    const bailleur = screen.getByTestId('signature-card-landlord');
+    expect(bailleur).toHaveTextContent('Signé sur place devant Sokhna Sène, avec le code reçu au +221 76 ••• 44 21');
+    expect(bailleur).not.toHaveTextContent('au titre du mandat');
+  });
+
   it('une heure connue se dit', () => {
     etat.inventory = signe({ conducted_at: '2026-07-01T10:30:00Z' });
     ouvrir();

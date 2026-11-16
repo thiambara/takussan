@@ -48,3 +48,28 @@ export async function hostIndividualOnboard(
     body: payload,
   });
 }
+
+/**
+ * TCK-2938 — `POST /api/me/agencies` (TCK-2937, ADR-0125) : « Créer mon espace pro » de l'orientation
+ * ouvre une agence `standard`, non vérifiée, dont l'appelant est l'administrateur principal.
+ * Miroir de `App\Http\Requests\Api\Me\StoreOwnAgencyRequest` ; `ninea` n'est pas envoyé par l'écran.
+ */
+export type OuvertureDAgencePayload = {
+  name: string;
+  /** La ville principale, choisie dans `GET /api/public/geo/cities` — jamais un texte libre. */
+  geo_city_id?: number | null;
+  /** Le téléphone de l'agence ; absent, l'API reprend celui du compte. */
+  phone?: string | null;
+};
+
+export type OuvertureDAgenceResponse = {
+  data: {
+    agency: { id: number; name: string; slug: string; kind: string; status: string; is_verified: boolean };
+    kyc_dossier: { id: number; status: string };
+    active_profile_id: string;
+  };
+};
+
+export async function ouvrirMonAgence(token: string, payload: OuvertureDAgencePayload): Promise<OuvertureDAgenceResponse> {
+  return apiRequest<OuvertureDAgenceResponse>('/api/me/agencies', { method: 'POST', token, body: payload });
+}

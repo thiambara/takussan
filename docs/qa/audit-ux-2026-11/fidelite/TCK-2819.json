@@ -368,13 +368,6 @@
    "motif": "jeton partagé `tracking-surtitre` ; `tracking-[…]` est refusé par check-valeurs-arbitraires-app"
   },
   {
-   "ecran": "a-1",
-   "element": "aide du quartier « Introuvable ? Écrivez-le… », note des photos « restent dans ce navigateur »",
-   "propriete": "l’aide ne paraît que pour un quartier neuf ; la note des photos est absente",
-   "exception": "validé par le porteur le 2026-11-14 (décision 4a du lot 3)",
-   "motif": "comportement voulu : l’aide de ChampsLieu ne vaut que pour un quartier absent du référentiel ; la note des photos ne serait vraie que sur /publish (le brouillon serveur de /app/properties/new ne garde pas les photos), et l’assistant est un seul pour les deux entrées"
-  },
-  {
    "ecran": "a-5",
    "element": "aide du lien de visite virtuelle",
    "propriete": "12 px au lieu de 13",
@@ -434,5 +427,16 @@
   "Lot 2 (2026-11-14) : contenu des étapes — prix (loyer, pastilles de fréquence, encadré à compteurs et total), bien (cartes et tuiles), caractéristiques (grille, « Meublé » en case), lieu (grille, rue en encadré repliable, « Sur la carte », pastilles), photos (DepotDePhotos), finition (aide du titre). La page d'édition garde EntryCostFields, ChampsPosition (variante `presentation`) et MediaDropzone ; l'aperçu ne dit plus que « À l’entrée : … ».",
   "Lot 3 (2026-11-14) : « Contacts sur place » au dessin de la maquette (variante `presentation=\"assistant\"` de ContactsSurPlace, aux deux entrées ; la fiche du bien garde le sien), la phrase des CGU sous « Publier l’annonce » au téléphone (`sousLesGestes` de WizardShell), le repli de l’encadré du coût d’entrée. Les décisions 1a à 5a ont été validées par le porteur le 2026-11-14. La note « C’est tout pour l’annonce » existait déjà sur /publish (TCK-2600) : non dupliquée."
  ],
- "ecarts_ouverts": []
+ "ecarts_ouverts": [],
+ "ecarts_resolus": [
+  {
+   "ecran": "a-1",
+   "element": "aide du quartier « Introuvable ? Écrivez-le… », note des photos « restent dans ce navigateur »",
+   "propriete": "l’aide ne paraît que pour un quartier neuf ; la note des photos est absente",
+   "exception": "validé par le porteur le 2026-11-14 (décision 4a du lot 3)",
+   "motif": "comportement voulu : l’aide de ChampsLieu ne vaut que pour un quartier absent du référentiel ; la note des photos ne serait vraie que sur /publish (le brouillon serveur de /app/properties/new ne garde pas les photos), et l’assistant est un seul pour les deux entrées",
+   "resolu_le": "2026-11-15",
+   "comment": "TCK-2934 (décision 4a rouverte par le porteur) : sans compte seulement (`ModeAnonyme.aideDuQuartier`, `notePhotos`) — l'aide du quartier sous le champ avant toute saisie (elle remplace l'indice du quartier neuf, et cède à l'erreur) ; la note des photos sous le dépôt, « sur ce téléphone » sous `lg`, « dans ce navigateur » dès `lg`. `/app/properties/new` inchangé. Test : PublierSansCompte.manques.tck-2934."
+  }
+ ]
 }

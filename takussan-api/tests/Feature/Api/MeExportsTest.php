@@ -40,12 +40,15 @@ class MeExportsTest extends ApiTestCase
 
         $rows = $this->actingAsApi($a)->getJson('/api/me/exports')->assertOk()->json('data');
 
+        // TCK-2866 (ADR-0115) — plus l'identifiant du journal et le fichier gardé (7 jours).
         $this->assertSame([[
+            'id' => (int) Activity::query()->where('event', 'data_exported')->where('causer_id', $a->id)->value('id'),
             'at' => '2026-11-15T10:00:00+00:00',
             'entity' => 'payments',
             'format' => 'xlsx',
             'filters' => ['from' => '2026-10-01', 'to' => '2026-10-31'],
             'row_count' => 0,
+            'file' => ['available' => true, 'expires_at' => '2026-11-22T10:00:00+00:00'],
         ]], $rows);
     }
 

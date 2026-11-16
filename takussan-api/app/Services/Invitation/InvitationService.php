@@ -36,6 +36,7 @@ use App\Support\CaseInsensitive;
 use App\Support\LienFront;
 use App\Support\Masking;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -198,6 +199,16 @@ class InvitationService
         // garde la priorité à l'envoi ({@see self::preferredLocale()}).
         $metadata = [...($payload['metadata'] ?? []), 'locale' => ContactSansCompte::DEFAULT_LOCALE];
 
+        // TCK-2927 (ADR-0123 § 1) — une invitation PARTAGÉE : rien ne part, l'invitant reçoit le lien.
+        // Adressée au seul numéro (le code SMS y prouvera le destinataire), jamais à un e-mail.
+        $partagee = ($payload['delivery'] ?? null) === Invitation::DELIVERY_SHARE;
+        if ($partagee) {
+            if ($email !== null || $phone === null) {
+                throw new \InvalidArgumentException('Une invitation partagée exige un numéro, sans e-mail.');
+            }
+            $metadata['delivery'] = Invitation::DELIVERY_SHARE;
+        }
+
         // TCK-455 — refus À L'ÉMISSION d'une invitation qui ne rattache à
         // rien. Le garde vit ICI : `send()` est le seul point que traversent
         // les services par rôle et la cooptation. (La FormRequest de la
@@ -226,12 +237,13 @@ class InvitationService
 
         $existingUser = $this->recipientAccount($email, $phone);
 
-        if ($email === null) {
+        // TCK-2927 — une invitation partagée n'envoie aucun SMS : elle ne consomme pas le plafond.
+        if ($email === null && ! $partagee) {
             $this->reserveAgencySms($agencyId);
         }
 
         $invitation = DB::transaction(function () use (
-            $email, $phone, $role, $invitableType, $invitableId, $agencyId, $metadata, $inviter, $existingUser
+            $email, $phone, $role, $invitableType, $invitableId, $agencyId, $metadata, $inviter, $existingUser, $partagee
         ): Invitation {
             $invitation = Invitation::query()->create([
                 'token' => $this->generateUniqueToken(),
@@ -255,6 +267,8 @@ class InvitationService
                     'email' => $email,
                     'role' => $role,
                     'agency_id' => $agencyId,
+                    // TCK-2927 (ADR-0123 § 6) — le canal, jamais le jeton ni le lien.
+                    'delivery' => $partagee ? Invitation::DELIVERY_SHARE : null,
                 ])
                 ->event('invitation_sent')
                 ->log('invitation_sent');
@@ -272,9 +286,74 @@ class InvitationService
         // les trois services par rôle appellent `send()` depuis la leur.
         // `afterCommit` attend le commit le plus externe (exécution immédiate
         // s'il n'y en a pas), et n'envoie rien si l'appelant échoue ensuite.
-        DB::afterCommit(fn () => $this->deliver($invitation, $existingUser));
+        // TCK-2927 (ADR-0123 § 1) — partagée : l'invitant envoie lui-même le lien ({@see self::shareUrl()}).
+        if (! $partagee) {
+            DB::afterCommit(fn () => $this->deliver($invitation, $existingUser));
+        }
 
         return $invitation;
+    }
+
+    /**
+     * TCK-2927 (ADR-0123 § 1) — le lien d'acceptation complet, celui du courriel et du SMS
+     * ({@see self::deliver()}) : un secret porteur, rendu à l'invitant d'une invitation partagée par
+     * les deux seules réponses qui l'émettent, jamais journalisé.
+     */
+    public static function shareUrl(string $token): string
+    {
+        return LienFront::vers('/invitations/accept?token='.$token);
+    }
+
+    /**
+     * TCK-2927 (ADR-0123 § 2) — renouveler le lien d'une invitation que l'invitant partage lui-même :
+     * jeton neuf (l'ancien lien rend 404), échéance repartie pour {@see self::DEFAULT_TTL_DAYS} jours,
+     * rappel remis à zéro, RIEN n'est envoyé. Recevable comme {@see self::resend()} sur `sent` et sur
+     * `expired` (résurrection gardée par {@see self::assertSlotIsFree()}), sous le même verrou. Une
+     * invitation par SMS renouvelée ainsi devient partagée : le lien ne prouve plus le numéro.
+     *
+     * La forme de l'invitation (équipe, numéro sans e-mail) est jugée par l'appelant
+     * ({@see AgentInvitationService::renewShareLink()}).
+     */
+    public function renewShareLink(Invitation $invitation, User $actor): Invitation
+    {
+        if (! in_array($invitation->status, [InvitationStatus::Sent, InvitationStatus::Expired], true)) {
+            throw ValidationException::withMessages([
+                'status' => [__('invitations.errors.cannot_resend')],
+            ])->status(422);
+        }
+
+        return DB::transaction(function () use ($invitation, $actor): Invitation {
+            /** @var Invitation $fraiche */
+            $fraiche = Invitation::query()
+                ->whereKey($invitation->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($fraiche->status === InvitationStatus::Expired) {
+                $this->assertSlotIsFree($fraiche);
+            } elseif ($fraiche->status !== InvitationStatus::Sent) {
+                throw ValidationException::withMessages([
+                    'status' => [__('invitations.errors.cannot_resend')],
+                ])->status(422);
+            }
+
+            $fraiche->forceFill([
+                'status' => InvitationStatus::Sent->value,
+                'token' => $this->generateUniqueToken(),
+                'expires_at' => now()->addDays(self::DEFAULT_TTL_DAYS),
+                'last_reminded_at' => null,
+                'reminder_attempts' => 0,
+                'metadata' => [...($fraiche->metadata ?? []), 'delivery' => Invitation::DELIVERY_SHARE],
+            ])->save();
+
+            activity('Invitation')
+                ->performedOn($fraiche)
+                ->causedBy($actor)
+                ->event('invitation_share_link_issued')
+                ->log('invitation_share_link_issued');
+
+            return $fraiche;
+        });
     }
 
     /**
@@ -571,6 +650,8 @@ class InvitationService
                 'expires_at' => now()->addDays(self::DEFAULT_TTL_DAYS),
                 'last_reminded_at' => null,
                 'reminder_attempts' => 0,
+                // TCK-2927 (ADR-0123 § 5) — la relance ENVOIE le lien : l'invitation cesse d'être partagée.
+                'metadata' => Arr::except($fraiche->metadata ?? [], 'delivery'),
             ])->save();
 
             // Le courriel part DANS la transaction (TCK-367 : un échec la défait).
@@ -711,6 +792,8 @@ class InvitationService
             // docblock de `resend`. `created_at` faisait partir le rappel dans l'heure de la relance.
             ->where('expires_at', '<=', $threshold->copy()->addDays(self::DEFAULT_TTL_DAYS))
             ->where('expires_at', '>', $now)
+            // TCK-2927 (ADR-0123 § 5) — la plateforme n'envoie rien d'une invitation partagée.
+            ->where(fn ($q) => $q->whereNull('metadata->delivery')->orWhere('metadata->delivery', '!=', Invitation::DELIVERY_SHARE))
             // P179.01 (TCK-2155) — jamais rappelée, ou un essai refusé (compte entre 1 et le
             // plafond) daté de plus d'un jour. Un rappel posé épuise le compte ; une invitation
             // rappelée avant la colonne (compte 0, date posée) reste tenue pour rappelée.
@@ -797,6 +880,10 @@ class InvitationService
      */
     protected function acceptAsNewUser(Invitation $invitation, array $payload): Invitation
     {
+        // TCK-2927 (ADR-0123 § 4) — le lien d'une invitation partagée est passé par l'invitant : il ne
+        // prouve pas le numéro, que la branche ci-dessous poserait vérifié. Le code SMS seul le prouve.
+        abort_code_if($invitation->estPartagee(), 403, 'invitation.code_required');
+
         return DB::transaction(function () use ($invitation, $payload): Invitation {
             $user = User::query()->create([
                 'first_name' => $payload['first_name'] ?? '',
@@ -1405,7 +1492,7 @@ class InvitationService
         $params = [
             'agency' => self::smsAgencyName($invitation->agency?->name),
             // Même lien que le courriel (`InvitationMailable`).
-            'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
+            'url' => self::shareUrl($invitation->token),
         ];
         // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit l'invitation avant de partir.
         $guard = DeferredSmsGuard::forInvitation($invitation);

@@ -7,6 +7,7 @@ use App\Models\NotificationPreference;
 use App\Models\User;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Notifications\SavedSearchMatchesNotification;
+use App\Notifications\ThresholdAlertTriggered;
 
 /**
  * TCK-070 — Central decision point for "should we send this notification?"
@@ -115,6 +116,8 @@ class PreferenceResolver
      */
     public const MOBILE_CLASS_EVENTS = [
         SavedSearchMatchesNotification::EVENT_TYPE,
+        // TCK-2866 — l'alerte de seuil part sur WhatsApp quand l'alerte le choisit (jamais en SMS).
+        ThresholdAlertTriggered::EVENT_TYPE,
     ];
 
     /**
@@ -128,6 +131,8 @@ class PreferenceResolver
     {
         return [
             SavedSearchMatchesNotification::EVENT_TYPE => (bool) config('search_alerts.whatsapp_enabled'),
+            // TCK-2866 — WhatsApp seul, sans repli SMS : l'admin a choisi WhatsApp, pas le SMS.
+            ThresholdAlertTriggered::EVENT_TYPE => true,
         ];
     }
 

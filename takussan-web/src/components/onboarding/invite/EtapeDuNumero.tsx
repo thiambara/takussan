@@ -38,8 +38,9 @@ interface EtapeDuNumeroProps {
   /** Le code est accepté : la page note le numéro vérifié et passe à l'étape suivante. */
   readonly onVerifie: () => void;
   /**
-   * AC5 — le panneau voisin du bureau large (`CeQuiVousAttend`), à droite de la colonne de 480 px dès `xl` ; absent
-   * en dessous (la maquette n'en a pas au téléphone).
+   * AC5 — le panneau voisin du bureau (`CeQuiVousAttend`), à droite de la colonne de 480 px dès `xl` ; de 1024 à
+   * 1279, SOUS le formulaire, dans la même colonne de 480 px (TCK-2945, maquette `max-xl:max-w-[480px]`, ADR-0106
+   * § 4) ; absent au téléphone (la maquette n'en a pas).
    */
   readonly panneau?: ReactNode;
 }
@@ -132,7 +133,8 @@ export function EtapeDuNumero({ numero, onNumero, agence, onVerifie, panneau }: 
   return (
     // La colonne de 480 px dès `xl` (maquette : `xl:grid-cols-[480px_1fr]`), le panneau à droite : sans elle, le champ
     // et « Recevoir le code » prenaient les 1080 px de la largeur `assistant` (relevé du 2026-11-14).
-    <div className="xl:grid xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)] xl:items-start xl:gap-16">
+    // TCK-2945 — de 1024 à 1279, la colonne de 480 px centrée (maquette `max-xl:max-w-[480px]`), le panneau dessous.
+    <div className="lg:mx-auto lg:max-w-[30rem] xl:grid xl:max-w-none xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)] xl:items-start xl:gap-16">
       <div className="flex flex-col xl:max-w-[30rem]">
         <TitreDInvite>{t('titre')}</TitreDInvite>
         <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted-foreground lg:mt-3 lg:text-base">
@@ -274,7 +276,7 @@ export function EtapeDuNumero({ numero, onNumero, agence, onVerifie, panneau }: 
         </BoutonCollant>
       </div>
       {panneau ? (
-        <div data-apercu-d-invite="" className="hidden pt-2 xl:block">
+        <div data-apercu-d-invite="" className="hidden pt-2 lg:mt-16 lg:block xl:mt-0">
           {panneau}
         </div>
       ) : null}

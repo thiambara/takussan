@@ -6,12 +6,15 @@ use App\Events\Auth\PhoneVerified;
 use App\Exceptions\SmsCodeUndelivered;
 use App\Models\User;
 use App\Services\Account\DeletionStepUpService;
+use App\Services\Auth\Voice\VoiceCodeSender;
 use App\Services\Notifications\Sms\OtpLateFailureMemory;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsRouterDriver;
 use App\Support\AppKeyHmac;
 use App\Support\CanonicalPhone;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -24,7 +27,8 @@ use Illuminate\Support\Facades\Log;
  *    TCK-596 / TCK-599) — code rangé par portée et par numéro.
  *
  * Le code : 6 chiffres, TTL 5 min, usage unique, HACHÉ en cache, comparé par
- * `hash_equals`, invalidé après 5 échecs. Il n'est rendu à aucun appelant — sauf, hors
+ * `hash_equals`, invalidé après 5 échecs (TCK-2940, ADR-0126 § 3 : voie « par appel » disponible, une copie
+ * chiffrée l'accompagne, que seul l'appel relit). Il n'est rendu à aucun appelant — sauf, hors
  * production et drapeau allumé, dans la réponse HTTP par {@see OtpPreview} (TCK-620,
  * ADR-0060). Les tests le lisent par `Tests\Support\FakeSmsRouter`.
  *
@@ -41,6 +45,9 @@ class PhoneVerificationService
     public const MAX_ATTEMPTS_PER_CODE = 5;
 
     private const RESEND_COOLDOWN_SECONDS = 60;  // 1 / 60s
+
+    /** TCK-2940 (ADR-0126 § 4) — le délai entre deux appels, propre à la voie : l'appel part pendant le délai du SMS. */
+    public const VOICE_COOLDOWN_SECONDS = 60;
 
     public function __construct(
         private readonly CacheRepository $cache,
@@ -151,9 +158,101 @@ class PhoneVerificationService
         return is_array($entry) && ($entry['phone'] ?? null) === $phone;
     }
 
+    /**
+     * TCK-2939 (ADR-0094, amendement du 2026-11-15 § 5) — les essais qui restent au code en cours de ce numéro, sous
+     * cette portée ; `null` sans code en cours (une saisie n'y a alors rien à réfuter). Lu, jamais écrit : le compteur
+     * de `check()`.
+     */
+    public function attemptsLeftFor(string $scope, string $phone): ?int
+    {
+        $entry = $this->cache->get($this->codeKey($this->numberSubject($scope, $phone)));
+        if (! is_array($entry) || ($entry['phone'] ?? null) !== $phone) {
+            return null;
+        }
+
+        return max(0, self::MAX_ATTEMPTS_PER_CODE - (int) ($entry['attempts'] ?? 0));
+    }
+
     public function retryAfter(): int
     {
         return self::RESEND_COOLDOWN_SECONDS;
+    }
+
+    // -----------------------------------------------------------------
+    // TCK-2940 (ADR-0126) — le même code, dicté par un appel
+    // -----------------------------------------------------------------
+
+    /** La voie « par appel » existe-t-elle ? Faux sans pilote ou sans l'une de ses clés. */
+    public static function voiceAvailable(): bool
+    {
+        return app(VoiceCodeSender::class)->available();
+    }
+
+    public function canCallTo(string $scope, string $phone): bool
+    {
+        return ! $this->cache->has($this->voiceCooldownKey($this->numberSubject($scope, $phone)));
+    }
+
+    /** Secondes avant qu'un nouvel appel puisse partir vers ce numéro, sous cette portée (0 : tout de suite). */
+    public function callToAvailableIn(string $scope, string $phone): int
+    {
+        return $this->remaining($this->voiceCooldownKey($this->numberSubject($scope, $phone)), self::VOICE_COOLDOWN_SECONDS);
+    }
+
+    /** Le délai d'un appel, sans appel : la réponse à un numéro verrouillé doit se comporter comme un appel réel. */
+    public function holdVoiceCooldownFor(string $scope, string $phone): void
+    {
+        $this->hold($this->voiceCooldownKey($this->numberSubject($scope, $phone)), self::VOICE_COOLDOWN_SECONDS);
+    }
+
+    /**
+     * Dicte le code EN COURS pour ce numéro — même valeur, même échéance, même compteur d'essais, rien de l'entrée n'est
+     * réécrit — ou, sans code en cours, en émet un neuf comme le SMS (délai de renvoi du SMS compris). Mêmes portes que
+     * le SMS : indicatif servi et plafond global du jour ({@see reserveCodeDelivery()}). `false` : rien n'est parti.
+     *
+     * @throws SmsCodeUndelivered quand le fournisseur n'accepte pas l'appel (aperçu éteint)
+     */
+    public function callCodeTo(string $scope, string $phone, ?string $locale = null): bool
+    {
+        $subject = $this->numberSubject($scope, $phone);
+        $voice = app(VoiceCodeSender::class);
+        if (! $voice->available() || ! self::countryAllowed($phone) || $this->cache->has($this->voiceCooldownKey($subject))) {
+            return false;
+        }
+        if (! $this->reserveCodeDelivery($phone)) {
+            return false;
+        }
+
+        $code = $this->currentCode($subject, $phone);
+        if ($code === null) {
+            $code = $this->newCode();
+            $this->storeCode($subject, $phone, $code);
+            $this->holdCooldown($subject);
+        }
+        $this->hold($this->voiceCooldownKey($subject), self::VOICE_COOLDOWN_SECONDS);
+
+        $delivered = $voice->call($phone, $code, $locale);
+        app(OtpPreview::class)->record($code);
+        if (! $delivered && ! OtpPreview::enabled()) {
+            throw new SmsCodeUndelivered;
+        }
+
+        return true;
+    }
+
+    /** Le code en cours, relu de sa copie chiffrée (ADR-0126 § 3) ; `null` sans code, sans copie, ou copie illisible. */
+    private function currentCode(string $subject, string $phone): ?string
+    {
+        $entry = $this->cache->get($this->codeKey($subject));
+        if (! is_array($entry) || ($entry['phone'] ?? null) !== $phone || ! is_string($entry['voice'] ?? null)) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($entry['voice']);
+        } catch (DecryptException) {
+            return null;
+        }
     }
 
     // -----------------------------------------------------------------
@@ -311,14 +410,8 @@ class PhoneVerificationService
             return false;
         }
 
-        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-
-        $this->cache->put($this->codeKey($subject), [
-            'hash' => $this->hash($code),
-            'phone' => $phone,
-            'attempts' => 0,
-            'expires_at' => now()->addSeconds(self::CODE_TTL_SECONDS)->getTimestamp(),
-        ], self::CODE_TTL_SECONDS);
+        $code = $this->newCode();
+        $this->storeCode($subject, $phone, $code);
         $this->holdCooldown($subject);
 
         $delivered = $this->deliver($phone, $code, $locale, $this->cooldownKey($subject));
@@ -335,6 +428,33 @@ class PhoneVerificationService
         }
 
         return true;
+    }
+
+    private function newCode(): string
+    {
+        return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * TCK-2940 (ADR-0126 § 3, amende ADR-0033 § 5) — voie « par appel » disponible, l'entrée d'un code de la portée
+     * `login` porte aussi une copie CHIFFRÉE du code, que seul l'appel relit pour dicter le même code. Voie éteinte, ou
+     * autre portée : le hachage seul, comme avant.
+     */
+    private function storeCode(string $subject, string $phone, string $code): void
+    {
+        $entry = [
+            'hash' => $this->hash($code),
+            'phone' => $phone,
+            'attempts' => 0,
+            'expires_at' => now()->addSeconds(self::CODE_TTL_SECONDS)->getTimestamp(),
+        ];
+        // Seule la portée que l'appel sert (l'entrée par téléphone, donc l'invitation) porte la copie : ni la vérification
+        // du numéro d'un compte, ni le second numéro, ni le step-up.
+        if (str_starts_with($subject, PhoneLoginService::SCOPE.':') && self::voiceAvailable()) {
+            $entry['voice'] = Crypt::encryptString($code);
+        }
+
+        $this->cache->put($this->codeKey($subject), $entry, self::CODE_TTL_SECONDS);
     }
 
     private function check(string $subject, string $phone, string $code, bool $consume = true): bool
@@ -429,21 +549,27 @@ class PhoneVerificationService
      */
     private function holdCooldown(string $subject): void
     {
-        $this->cache->put(
-            $this->cooldownKey($subject),
-            now()->addSeconds(self::RESEND_COOLDOWN_SECONDS)->getTimestamp(),
-            self::RESEND_COOLDOWN_SECONDS,
-        );
+        $this->hold($this->cooldownKey($subject), self::RESEND_COOLDOWN_SECONDS);
     }
 
     private function cooldownRemaining(string $subject): int
     {
-        $until = $this->cache->get($this->cooldownKey($subject));
+        return $this->remaining($this->cooldownKey($subject), self::RESEND_COOLDOWN_SECONDS);
+    }
+
+    private function hold(string $key, int $seconds): void
+    {
+        $this->cache->put($key, now()->addSeconds($seconds)->getTimestamp(), $seconds);
+    }
+
+    private function remaining(string $key, int $seconds): int
+    {
+        $until = $this->cache->get($key);
         if ($until === null) {
             return 0;
         }
         if (! is_int($until)) {
-            return self::RESEND_COOLDOWN_SECONDS;
+            return $seconds;
         }
 
         return max(1, $until - now()->getTimestamp());
@@ -472,5 +598,10 @@ class PhoneVerificationService
     private function cooldownKey(string $subject): string
     {
         return "phone-otp-cooldown:{$subject}";
+    }
+
+    private function voiceCooldownKey(string $subject): string
+    {
+        return "phone-otp-voice-cooldown:{$subject}";
     }
 }

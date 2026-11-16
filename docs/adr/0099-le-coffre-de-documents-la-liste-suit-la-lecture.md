@@ -1,8 +1,8 @@
 # ADR-0099 — Le coffre de documents : la liste suit la lecture, et les documents générés sont listés depuis leur source, jamais copiés
 
-- **Statut** : Accepté le 2026-11-10 (recommandation de la famille 4 validée par le porteur, « je valide tes recommandations ») — modalités : décisions de la session, à revoir ; **amendé le 2026-11-12** (cf. § *Amendement du 2026-11-12 — le document interne de la fiche client*), **validé par le porteur le 2026-11-12** pour l'export des métadonnées, le défaut « interne » au téléversement du personnel et l'existant non migré ; **amendé le 2026-11-13** (cf. § *Amendement du 2026-11-13 — le nom des auteurs d'un document, selon le lecteur*), décisions de la session appliquées par défaut, sur la liste du porteur ; **amendé le 2026-11-14** (cf. § *Amendement du 2026-11-14 — l'archive préparée d'un dossier du coffre*), décisions de la session appliquées par défaut ; **amendé le 2026-11-14** (cf. § *Amendement du 2026-11-14 — un bien et ses baux, en une lecture*), décision de la session appliquée par défaut
+- **Statut** : Accepté le 2026-11-10 (recommandation de la famille 4 validée par le porteur, « je valide tes recommandations ») — modalités : décisions de la session, à revoir ; **amendé le 2026-11-12** (cf. § *Amendement du 2026-11-12 — le document interne de la fiche client*), **validé par le porteur le 2026-11-12** pour l'export des métadonnées, le défaut « interne » au téléversement du personnel et l'existant non migré ; **amendé le 2026-11-13** (cf. § *Amendement du 2026-11-13 — le nom des auteurs d'un document, selon le lecteur*), décisions de la session appliquées par défaut, sur la liste du porteur ; **amendé le 2026-11-14** (cf. § *Amendement du 2026-11-14 — l'archive préparée d'un dossier du coffre*), décisions de la session appliquées par défaut ; **amendé le 2026-11-14** (cf. § *Amendement du 2026-11-14 — un bien et ses baux, en une lecture*), décision de la session appliquée par défaut ; **amendé le 2026-11-15** (cf. § *Amendement du 2026-11-15 — le coffre de l'agence*), demandé par le porteur (« implémente tout », audit des maquettes, app-documents e4/e5), modalités : décisions de la session, à revoir ; **amendé le 2026-11-15** (cf. § *Amendement du 2026-11-15 — toutes les quittances en une archive*, TCK-2915)
 - **Date** : 2026-11-10
-- **Tickets** : TCK-2655 (API), TCK-2656 (coffre par dossier) ; la partie « Documents » de TCK-2639 (fiche bien) et de TCK-2641 (fiche bailleur) ; TCK-2759 (document interne, amendement du 2026-11-12) ; TCK-2773 (noms des auteurs, amendement du 2026-11-13) ; TCK-2812 (archive préparée, amendement du 2026-11-14) ; TCK-2841 (un bien et ses baux, amendement du 2026-11-14)
+- **Tickets** : TCK-2655 (API), TCK-2656 (coffre par dossier) ; la partie « Documents » de TCK-2639 (fiche bien) et de TCK-2641 (fiche bailleur) ; TCK-2759 (document interne, amendement du 2026-11-12) ; TCK-2773 (noms des auteurs, amendement du 2026-11-13) ; TCK-2812 (archive préparée, amendement du 2026-11-14) ; TCK-2841 (un bien et ses baux, amendement du 2026-11-14) ; TCK-2895 (le coffre de l'agence, amendement du 2026-11-15)
 - **Amende** : la règle posée par TCK-820 (liste restreinte aux téléversements de l'appelant), **sans la révoquer**
 - **S'appuie sur** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (cloisonnement des bailleurs), [ADR-0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md) (impersonation)
 
@@ -291,3 +291,120 @@ Le § 1 prend **une** cible. L'onglet Documents de la fiche d'un bien lisait don
 - `DocumentPolicy::listableOnPropertyAndLeases()`, appelée par `DocumentController::index` ; `filter[property_with_leases]` déclaré dans `Document::customQueryFilters()` (la borne vit dans la politique) ; `DocumentResource` (`lease`).
 - Front : `useDocumentsDuBien` (`OngletDocuments.tsx`), une lecture au lieu de deux, rangée par bail.
 - Gardes : `DocumentsDuBienEtDeSesBauxTest`, vérifiées par ablation du filtre d'agence, du `view` appliqué au bail et de l'exclusion des brouillons.
+
+## Amendement du 2026-11-15 — le coffre de l'agence (TCK-2895)
+
+- **Demandé par le porteur** (« implémente tout », sur l'audit des maquettes du 2026-11-15 : app-documents **e4** et **e5**). Les modalités ci-dessous sont des décisions de la session, à revoir.
+- **Revient sur une option écartée** : « une liste globale sans écran pour la lire ». L'écran existe désormais (« Documents » de l'agence, TCK-2896). Ce qui ne revient pas : une liste **sans cible**. L'agence devient une cible nommée, bornée à son personnel actif.
+
+### Contexte
+
+Relevé sur `feat/audit-manques-2026-11-15` le 2026-11-15 :
+
+- `GET /api/documents` sans cible ne rend que les téléversements de l'appelant (§ 1, TCK-820) ; avec une cible, un bien, un bail, une fiche… une à la fois, ou un bien et ses baux (TCK-2841).
+- Le coffre (§ 2) range par dossier pour le locataire, le bailleur et le prestataire. **Le personnel de l'agence n'en a pas** : rien ne rend l'arbre « bien › bail › dossier » de toute l'agence, ni ses comptes.
+- La fiche d'un document ne dit pas à quel bien ni à quel bail il est rattaché : le fil « Bien › Bail › dossier » de la maquette e5 ne peut pas s'écrire.
+
+### Décision
+
+1. **Le coffre de l'agence : `GET /api/agency/document-vault`**, pour le personnel **actif** de l'agence du profil actif (`staffAgencyId()`), et pour lui seul.
+   - Le locataire, le bailleur, le prestataire, l'agent suspendu ou retiré, et le super-admin (qui n'a pas de coffre de plateforme, § 4) reçoivent **403**.
+   - L'agence est celle du **profil actif**, jamais un identifiant passé dans l'URL : le membre de deux agences lit celle où il agit.
+2. **L'arbre rendu, compté, sans les entrées** (les entrées se lisent par la liste, point 4, ou par `documents/generated`) :
+   - par bien de l'agence : son nom, son quartier, son nombre de documents, ses alertes ;
+   - sous le bien, **Pièces du bien** (téléversées sur le bien), puis un nœud par **bail hors brouillon** dont l'agence est celle de l'appelant (locataire, référence, date de début), découpé en **Contrat**, **États des lieux**, **Quittances** (générés, comptés depuis leur source, § 3, sous la règle de leur endpoint) et **Pièces du locataire** (téléversées sur le bail) ;
+   - le dossier **de l'agence** (téléversés sur l'agence elle-même : NINEA, RC, modèles) ;
+   - les **totaux** de l'en-tête : documents, expirent bientôt, à vérifier — la somme des dossiers.
+   - Chaque dossier compte `documents`, `expiring_soon` (60 jours, comme la liste), `unverified`, et donne `next_expiry_date` : la date la plus proche parmi ce qui expire bientôt. **Le texte (« 1 expire dans 42 jours ») est écrit par le front** (principe 5).
+   - Un généré n'a ni vérification ni expiration (§ 3) : il compte dans `documents`, jamais dans les alertes.
+3. **Ce que l'arbre ne range pas**, et pourquoi : les pièces d'une fiche client, d'une réservation, d'un état des lieux (ses pièces jointes, pas son PDF) et d'un bail en brouillon. Elles vivent sur leur fiche, qui les liste par sa cible (§ 1). L'arbre range ce que la maquette nomme, rien de plus : un dossier « autres » mélangerait des lecteurs différents (le sujet d'une fiche ne lit pas ses documents internes).
+4. **La cible `agency` de la liste : `GET /api/documents?filter[agency]=current`**.
+   - Elle rend **exactement** les téléversés que l'arbre compte : ceux des biens de l'agence, de ses baux hors brouillon (`leases.agency_id`, la colonne que lit `view`) et de l'agence elle-même. Un seul prédicat, `DocumentPolicy::listableOnAgency()`, sert l'arbre et la liste.
+   - Seule la valeur `current` est acceptée. Toute autre valeur, ou un appelant qui n'est pas du personnel actif, ne rend **rien** — ni 403 ni 404 (TCK-732).
+   - Elle **se distingue** de `filter[documentable_type]=agency`, qui désigne le seul dossier de l'agence. Elle **se combine** avec `documentable_type` / `documentable_id` pour ne garder qu'un dossier, et avec les filtres existants (`expiring_within_days`, `is_verified`, `type`…).
+   - **La parité du § 1 s'étend** : tout ce que la cible agence liste s'ouvre en `show`, et rien de ce qu'un `show` refuse n'y figure.
+5. **`filter[generated]=1`** (avec la cible agence seulement) rend les **générés** de l'agence — contrats, états des lieux signés, quittances — dans la forme d'une entrée du coffre (`kind`, `category`, `title`, `date`, `download_path`…) et non un `DocumentResource` : un généré n'est pas un `Document` (§ 3). Chaque entrée porte son `context` (bien, bail, locataire), et la page est paginée par le serveur dans l'enveloppe habituelle. Sans la cible agence, `filter[generated]=1` ne rend rien. La liste des téléversés de l'agence porte en méta le compte `generated` (la pastille « Générés »).
+6. **La recherche** (« un document, un locataire, un bien ») : l'index des documents recopie, pour un document de bail, le nom du locataire et le titre du bien, et pour un document de bien, son titre (`carrier_tenant_name`, `carrier_property_title`, cherchables après `title` et `description`). `filter[search]` reste **le seul chemin** de recherche (Meilisearch, puis l'intersection avec la portée de la liste). Il vaut pour toute liste, pas seulement pour la cible agence : il ne rend jamais rien hors de la portée, qui reste la seule garde. Ces faits se réindexent quand le nom du locataire, le titre du bien ou le bien d'un bail changent (`DocumentsDuPorteurObserver`, comme TCK-2781).
+   - Les générés se cherchent sur leur titre, le nom du bien et celui du locataire, dans la page déjà jugée.
+7. **Le contexte d'un document** (`DocumentResource.context`, sur la fiche seule) : le bien (`id`, `title`, `neighborhood`) et, pour un document de bail ou d'état des lieux, le bail (`id`, `reference_number`, `tenant_name`). Il ne se rend que si l'appelant **lit la cible** (`readsTarget`) : le téléverseur gardé qui ne lit plus le porteur n'en apprend pas plus que la pièce.
+8. **Règles conservées** (§ 4) : sous impersonation, les pièces de profil ne se listent pas (aucune n'est dans la portée de l'agence, la condition reste posée) ; l'agent suspendu ou retiré n'a ni arbre ni liste d'agence ; le nombre de requêtes de l'arbre ne dépend ni du nombre de biens ni du nombre de baux.
+
+### Conséquences
+
+- Le personnel lit, en une page, ce que ses collègues ont déposé sur tous les biens et baux de l'agence : c'est ce que `view` lui ouvre déjà document par document.
+- Deux formes de ligne pour une même route (`DocumentResource`, entrée générée), choisies par `filter[generated]`. Le front les sépare par la pastille.
+- L'index des documents porte deux champs de plus, et se réimporte une fois sur chaque environnement déployé (`scout:sync-index-settings`, puis `scout:import "App\Models\Document"`).
+- Une recherche sur le nom d'un locataire trouve désormais, pour le bailleur ou le locataire aussi, les pièces de ce bail qu'ils lisent : c'est la même portée, mieux trouvée.
+
+### Options écartées
+
+- **Un identifiant d'agence dans l'URL** (`filter[agency]=12`) : il faudrait le comparer au profil actif, et une agence d'un autre profil de l'appelant deviendrait lisible sans en changer.
+- **Ranger aussi les fiches client et les réservations** : leurs lecteurs ne sont pas ceux d'un bien (le document interne, amendement du 2026-11-12) ; un dossier « autres » ne dirait pas qui le lit.
+- **Une seconde recherche, en SQL, sur le locataire et le bien** : un deuxième chemin de recherche (`check-filtering-single-mechanism`, D), qui perdrait la tolérance aux fautes et le classement.
+- **Matérialiser les générés pour les lister avec les téléversés** : écarté par le § 3.
+
+### Application
+
+- `DocumentPolicy::listableOnAgency()` ; `App\Services\Documents\AgencyDocumentVault` ; `DocumentVaultController::agency` (`GET /api/agency/document-vault`) ; `DocumentController::index` (`filter[agency]`, `filter[generated]`) ; `Document::toSearchableArray()` et `config/scout.php` ; `DocumentsDuPorteurObserver` ; `DocumentResource` (`context`).
+- Gardes : `AgencyDocumentVaultTest` (arbre, comptes, alertes, dossier de l'agence, autre agence, agent retiré, impersonation, double appartenance, requêtes constantes, parité liste ↔ `show`, totaux ↔ méta de la liste), vérifiées par ablation de la condition d'agence ; `DocumentContexteTest`.
+
+## Amendement du 2026-11-15 — le profil du bailleur, cible d'un dépôt de l'agence (TCK-2909)
+
+### Contexte
+
+Le § 5 nommait l'alias `owner_profile`, mais `POST /api/documents` ne l'acceptait pas et `DocumentPolicy::reaches()` n'avait aucune branche pour un profil : l'agence ne pouvait déposer aucune pièce du bailleur, dont le mandat de gestion signé que sa fiche montre.
+
+### Décision
+
+1. **`owner_profile` est une cible de dépôt.** Le personnel actif de l'agence du profil (`isStaffOf`) y dépose et y lit ; le **titulaire** du profil y lit (jamais il n'y dépose par cette route : ses pièces passent par son parcours de pièces). Aucune autre agence, aucun autre bailleur : 404 au dépôt, 403 à la fiche, rien à la liste.
+2. **Les pièces KYC d'un profil (CNI, RIB, NINEA, `Document::PIECE_TYPES`) restent fermées à la branche du porteur** : `view` les refuse à qui n'en est pas le téléverseur (le titulaire) ou le super-admin, `listableOn` les retire de la liste d'un lecteur qui lit la cible par cette branche, le dépôt d'un de ces types sur un profil par `POST /api/documents` est refusé (422 `document.profile_piece_by_kyc`), et `share` ne les ouvre plus au personnel de l'agence du profil — sa branche « personnel de l'agence du porteur » publiait, AVANT ce ticket, un lien public vers la CNI d'un bailleur. Ouvrir le profil au personnel n'ouvre donc rien de ce que seul le super-admin lisait.
+3. **Un type neuf, `management_mandate`** (le mandat de gestion signé). La fiche du bailleur (`GET /api/owners/{id}`) rend la dernière pièce de ce type (`mandate_document` : nom, date, taille, type, chemin de sa fiche) ; le coffre du bailleur la range dans « mes pièces », sous son profil bailleur actif.
+
+### Conséquences
+
+- Le compte par type de la liste porte une clé de plus (`management_mandate`) ; le vocabulaire du coffre aussi.
+- Les documents d'un profil de bailleur vivent sur la fiche du bailleur : la liste de l'agence (`filter[agency]=current`, § 4 de l'amendement du 2026-11-15) ne les range pas, comme les pièces d'une fiche client.
+
+### Application
+
+`DocumentController` (`ALLOWED_DOCUMENTABLE_TYPES`, refus des pièces), `DocumentPolicy::reaches()` / `view()` / `listableOn()`, `DocumentVault` (cible du profil actif), `OwnerDirectory::detail()`. Gardes : `OwnerDocumentUploadTest` (dépôt, lecture de la fiche, du coffre, parité avec une autre agence, les quatre portes des pièces KYC), vérifiées par ablation.
+
+## Amendement du 2026-11-15 — toutes les quittances en une archive (TCK-2915)
+
+**Constat.** L'archive (TCK-2770) et l'archive préparée (TCK-2812) prennent **un** dossier du coffre, et les quittances y sont rangées par année (`receipts:{année}`). L'historique des paiements du locataire propose « Tout télécharger » (audit des maquettes, app-paiements e0 et e2) : il fallait autant d'archives que d'années.
+
+**Décision.** Deux clés de dossier **virtuelles**, acceptées par `GET /api/me/document-vault/archive` et `POST /api/me/document-vault/archives`, et **jamais listées** par le coffre (une quittance n'apparaît toujours que dans son dossier d'année, ni la liste, ni la recherche, ni les compteurs ne changent) :
+
+- `receipts:all` : l'union des dossiers `receipts:{année}` de l'appelant ;
+- `receipts:lease:{id}` : les quittances d'un de ses baux, prises dans ces mêmes dossiers.
+
+Les entrées sont celles que le coffre a **déjà jugées** : la règle « la liste suit la lecture » vaut telle quelle, l'archive ne contient que les quittances que l'appelant peut ouvrir. Sans quittance, le dossier virtuel est vide : 422 `document.archive_empty`, comme un dossier vide, et le bail d'un autre ne se distingue pas d'un bail sans quittance. Les bornes (40 en direct, 150 préparées) restent celles des amendements précédents.
+
+**Précision du 2026-11-15 (TCK-2916) — où mène l'avis de l'archive préparée.** Le coffre ne listant pas ces dossiers virtuels, l'avis « archive prête » (ou « échouée ») d'un `receipts:all` ou `receipts:lease:{id}` ne mène pas au coffre, où rien ne la montrerait, mais à la page des paiements (cible `receipts_archive` → `/app/payments`), où « Tout télécharger » de l'historique remet l'archive prête ou en redemande une. Les autres dossiers gardent la cible `document_archive` (le coffre). Le texte de l'avis ne nomme plus l'un ou l'autre lieu (« Ouvrez cet avis pour la télécharger »).
+
+## Amendement du 2026-11-15 — le dossier d'un bail sous son bien, les devis et rapports du prestataire, le PDF d'une facture (TCK-2897)
+
+**Constat** (audit des maquettes, app-documents e8 et e9). Le coffre du bailleur rangeait les documents d'un bail **à plat** dans le dossier du bien. Le prestataire n'avait que « Mes factures », dont chaque entrée menait à une fiche JSON : aucun PDF, ni de ses devis, ni de ses rapports de fin d'intervention.
+
+**Décision** (décisions de l'agent, sur délégation du porteur, à revoir) :
+
+1. **Un sous-dossier par bail hors brouillon dans le dossier d'un bien** (bailleur). Clé `lease:{id}`, genre `lease`, nom = le nom du locataire, `reference` = la référence du bail, `parent` = la clé du dossier du bien. Il reçoit le contrat, les états des lieux signés et les pièces du bail et de ses états des lieux ; le dossier du bien garde les pièces du bien. La liste reste **plate** : chaque dossier porte `parent` (nul hors de ce cas) et `reference` (la référence d'un dossier de bail, nulle sinon), une seule forme, que la recherche, l'archive et le front parcourent sans changement. Un bail brouillon n'a pas de dossier (il n'en avait pas d'entrée). Le sous-dossier d'un bien en lecture seule (bailleur bloqué) l'est aussi.
+2. **« Devis et rapports »** (genre `quotes_reports`, prestataire au profil prestataire actif, existe même vide) : ses devis soumis (`maintenance_quote`, servis par `GET maintenance-requests/{id}/quote/pdf`) et un rapport de fin d'intervention (`maintenance_completion_report`) par intervention au travail rendu (`completed` ou `closed`, `ServiceProviderBill::BILLABLE_REQUEST_STATUSES`) qui lui est assignée. Listés depuis la demande (§ 3), sous la règle de leur endpoint : le prestataire **assigné et encore assignable** (`ProviderEligibility`, jugée une fois par la liste des agences où il l'est).
+3. **`GET maintenance-requests/{id}/completion-report/pdf`** — le rapport, généré depuis la demande (bien, dates, travaux, notes de résolution, photos avant / après). Lecteurs : le prestataire assigné (même règle qu'`actAsProvider`) et le personnel de l'agence du bien. 404 tant que le travail n'est pas rendu. Un lecteur hors de l'agence du bien reçoit **404** ; un membre de son cercle (le demandeur, le bailleur, un autre prestataire de l'agence) **403**.
+4. **`GET service-provider-bills/{bill}/pdf`** — le PDF d'une facture, que l'entrée de « Mes factures » sert désormais comme `download_path`. Lecteurs : ceux de la fiche (le prestataire de la facture, brouillon compris ; le personnel de l'agence, hors brouillon) et le **bailleur du bien** pour une facture qui lui est refacturée (`rechargeable_to_landlord`, validée ou payée : `scopeChargedToLandlord`). Hors de ce cercle : 404 ; un autre prestataire de l'agence ou le bailleur du bien d'une facture qui ne lui est pas imputée : 403. Montants en XOF sans sous-unité (`@currency`).
+
+**Conséquences.** L'archive d'un dossier de bien ne contient plus les pièces de ses baux : chaque bail s'archive par sa clé `lease:{id}`, déjà acceptée. « Mes factures » et « Devis et rapports » ne s'archivent pas (422). La cible d'un bail offerte au dépôt (`attachable_targets[].folder`) devient son sous-dossier.
+
+**Application.** `DocumentVault` (sous-dossiers, `addQuotesAndReports`), `MaintenanceCompletionReportController`, `ServiceProviderBillPdfController`, `MaintenanceRequestPolicy::viewCompletionReport`, `ServiceProviderBillPolicy::downloadPdf`. Gardes : `DocumentVaultOwnerLeaseSubfolderTest`, `DocumentVaultProviderQuotesReportsTest`, `ServiceProviderBillPdfTest`, `MaintenanceCompletionReportPdfTest`.
+
+## Amendement du 2026-11-15 — « Relevés et factures » du bailleur, ses biens vides, le remplacement d'une pièce (TCK-2898)
+
+**Constat** (audit des maquettes, app-documents e2 et e8). Le bailleur ne lisait aucune de ses factures d'intervention dans son coffre (seul le prestataire avait « Mes factures »), la maquette les range avec ses relevés dans « Relevés et factures » ; un bien sans document n'était pas listé (décision 1 (a) de TCK-2656) ; et l'ajout d'une nouvelle carte d'identité créait un second document au lieu d'une version (décision L2-1 (a)).
+
+**Décision** (décisions de l'agent, sur délégation du porteur, à revoir) :
+
+1. **Les factures refacturées au bailleur sont dans son dossier `statements`**, avec ses relevés et ses attestations (libellé « Relevés et factures ») : exactement celles que la branche « bailleur du bien » de `ServiceProviderBillPolicy::downloadPdf` lui ouvre (ses biens de l'agence du profil actif, `rechargeable_to_landlord`, validées ou payées : `scopeChargedToLandlord`), une par entrée `provider_bill`, servie par `GET service-provider-bills/{bill}/pdf`. Le dossier existe dès sa première entrée, relevé ou facture. Une requête, quel que soit le nombre de biens. L'archive du dossier les contient (`ArchiveDuCoffre` sait rendre `service-provider-bills.pdf`).
+2. **Chaque bien du bailleur est listé, même vide** (« Aucun document ») : la décision 1 (a) de TCK-2656 est renversée. Le sous-dossier d'un bail vide ne se liste pas.
+3. **« Remplace la carte qui expire »** : à l'ajout d'une pièce, quand une pièce téléversée de la même catégorie est « À renouveler » (dans la fenêtre de 60 jours, ou déjà expirée), le fichier part en **nouvelle version** de cette pièce (`POST documents/{id}/versions`), l'ancienne restant dans les versions ; interrupteur désactivé, un document neuf. La décision L2-1 (a) est renversée. Un document généré n'a toujours ni version ni remplacement (§ 3).
+
+**Application.** `DocumentVault::addChargedBills`, `ArchiveDuCoffre` (`ServiceProviderBillPdfController::rendre`), le coffre du front (`CoffreDeDocuments`, `AjoutAuCoffre`). Gardes : `DocumentVaultOwnerChargedBillsTest`, et côté front `CoffreDeDocuments.tck-2898`, `AjoutAuCoffre.tck-2898`, vérifiées par ablation.

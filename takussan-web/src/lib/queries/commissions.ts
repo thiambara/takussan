@@ -57,7 +57,13 @@ export interface CommissionEntry {
     readonly id: number;
     readonly reference_number: string | null;
     readonly type: string | null;
+    /** TCK-2867 — le jour de la signature, le loyer mensuel et sa devise. */
+    readonly signed_at?: string | null;
+    readonly monthly_rent?: number | null;
+    readonly currency?: string | null;
     readonly property?: { readonly id: number; readonly title: string | null; readonly quarter: string | null } | null;
+    /** TCK-2867 — `include=lease.tenant` : le client du bail. */
+    readonly tenant?: { readonly id: number; readonly name: string } | null;
   } | null;
 }
 
@@ -131,6 +137,25 @@ export function useCommissionEntries({ enabled = true, ...params }: UseCommissio
       sort: params.sort ?? '-earned_at',
       page: params.page ?? 1,
       per_page: params.perPage ?? 20,
+    },
+  });
+}
+
+/**
+ * TCK-2867 — « Détail par bail » de l'agent (Rapports) : ses lignes les plus récentes, avec le bien, le client, la
+ * signature et le loyer du bail (`include=lease.property,lease.tenant`). `beneficiaryId` sous la portée « Moi » : qui
+ * détient `reports.view_agency` lit sinon tout le grand livre de l'agence (`CommissionEntry::readsWholeLedger`).
+ */
+export function useDetailParBail({ beneficiaryId, perPage, enabled = true }: { readonly beneficiaryId?: number; readonly perPage: number; readonly enabled?: boolean }) {
+  return useApiQuery<CommissionLedgerResponse>(['commissions', 'detail-par-bail', beneficiaryId ?? null, perPage], '/api/commissions', {
+    enabled,
+    params: {
+      fields: { commission_entries: ['id', 'lease_id', 'beneficiary_id', 'amount', 'currency', 'status', 'earned_at', 'paid_at', 'cancelled_at'] },
+      ...(beneficiaryId ? { filter: { beneficiary_id: beneficiaryId } } : {}),
+      include: ['lease.property', 'lease.tenant'],
+      sort: '-earned_at',
+      page: 1,
+      per_page: perPage,
     },
   });
 }

@@ -32,7 +32,8 @@ export type DashboardAgencySummary = {
    * TCK-2791 — `key` : la période servie ; `as_of_today` : les chemins des chiffres qui restent l'état du jour,
    * quelle que soit la période (absents d'une réponse d'avant TCK-2791).
    */
-  period: { start: string; end: string; key?: PeriodeDesRapports; as_of_today?: string[] };
+  /** TCK-2865 — `months` : les mois couverts (`AAAA-MM`). */
+  period: { start: string; end: string; key?: PeriodeDesRapports; months?: string[]; as_of_today?: string[] };
   properties: {
     total: number;
     published: number;
@@ -65,6 +66,8 @@ export type DashboardAgencySummary = {
 export type DashboardAgencyTimeseries = {
   months: string[];
   revenue: number[];
+  /** TCK-2865 — l'impayé en fin de mois, au reste dû (le mois en cours : à aujourd'hui). */
+  overdue?: number[];
   /** `null` pour un mois sans bien éligible longue durée (P127.02, TCK-1355). */
   occupancy: (number | null)[];
 };
@@ -89,7 +92,8 @@ export async function fetchDashboardAgency(
   if (!token) return null;
 
   const params = new URLSearchParams();
-  if (opts.period === 'last_month') params.set('period', opts.period);
+  // TCK-2867 — « Mois dernier » et « 12 mois » ; le mois en cours n'écrit rien.
+  if (opts.period && opts.period !== 'current_month') params.set('period', opts.period);
   if (opts.withTimeseries) {
     params.set('include', 'timeseries');
     if (opts.months) params.set('months', String(opts.months));

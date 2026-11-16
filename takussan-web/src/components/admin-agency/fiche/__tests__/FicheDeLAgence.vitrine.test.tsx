@@ -15,7 +15,7 @@ import fr from '@/messages/fr.json';
 import type { Agency } from '@/types/agency';
 
 import { ACTIONS, API, reinitialiserLesDoublures } from './doublures';
-import { AGENCE, enregistrer, rendreLaFiche, type Utilisateur } from './outils';
+import { AGENCE, barreDuBureau, enregistrer, rendreLaFiche, type Utilisateur } from './outils';
 
 /**
  * TCK-2524, porté sur la section « Fiche publique » de la fiche (TCK-2670) : compteurs, six biens
@@ -37,6 +37,8 @@ const bien = (id: number, photo = true) => ({
 const PUBLICS = [bien(10), bien(11), bien(12), bien(13), bien(14), bien(15), bien(16), bien(17, false)];
 /** Public et disponible, mais au-delà de la page reçue : seule une lecture par ids le rend. */
 const HORS_PAGE = [bien(150)];
+/** TCK-2929 — la réponse de `most-viewed` (TCK-2923), du plus vu au moins vu. */
+const PLUS_VUS: { current: Array<ReturnType<typeof bien> & { views_month: number }> } = { current: [] };
 
 const ouvrir = (vitrine: Partial<Agency> = {}) => rendreLaFiche({ ...AGENCE, id: 1, tagline: null, highlights: [], showcase_property_ids: [], ...vitrine }, { section: 'publique', vitrine: true });
 const accroche = () => screen.getByLabelText(/^Accroche/);
@@ -47,7 +49,10 @@ const choisir = (user: Utilisateur, id: number) => user.click(screen.getByRole('
 
 beforeEach(() => {
   reinitialiserLesDoublures();
+  PLUS_VUS.current = [];
   API.apiRequest.mockImplementation(async (chemin: string) => {
+    // TCK-2929 — aucun bien vu ce mois par défaut : pas de ligne de suggestion.
+    if (chemin.includes('/most-viewed')) return { data: PLUS_VUS.current };
     const ids = decodeURIComponent(chemin).match(/filter\[id\]=([^&]*)/)?.[1];
     if (ids) {
       const voulus = ids.split(',').map(Number);
@@ -253,6 +258,7 @@ describe('Fiche de l’agence — le prix des biens de la vitrine (TCK-2670, maq
 
   beforeEach(() => {
     API.apiRequest.mockImplementation(async (chemin: string) => {
+      if (chemin.includes('/most-viewed')) return { data: [] }; // TCK-2929
       const ids = decodeURIComponent(chemin).match(/filter\[id\]=([^&]*)/)?.[1];
       const voulus = ids ? ids.split(',').map(Number) : null;
       const data = voulus ? PRIX.filter((b) => voulus.includes(b.id)) : PRIX;
@@ -280,5 +286,85 @@ describe('Fiche de l’agence — le prix des biens de la vitrine (TCK-2670, maq
     // Un prix à 0 n'est pas un prix : jamais « 0 F / mois ».
     expect(aChoisir(15)).toContain('PR-15');
     expect(aChoisir(15)).not.toMatch(/·|F\b|mois/);
+  });
+});
+
+describe('Fiche de l’agence — « Utiliser cette sélection » : vos biens les plus vus ce mois (TCK-2929, maquette e2)', () => {
+  const F = fr.admin.agencyConfig.fiche.publique;
+  const suggestion = () => screen.queryByTestId('suggestion-vitrine');
+  const ordre = () =>
+    [...screen.getByRole('list', { name: P.showcaseOrder }).querySelectorAll('li')].map((li) => li.querySelector('p')?.textContent);
+
+  it('AC1 — pose B, A, C dans l’ordre de l’API, dans le formulaire seulement ; « Annuler » rend la vitrine d’avant', async () => {
+    const user = userEvent.setup();
+    PLUS_VUS.current = [
+      { ...bien(12), views_month: 40 },
+      { ...bien(10), views_month: 25 },
+      { ...bien(14), views_month: 3 },
+    ];
+    ouvrir({ showcase_property_ids: [11] });
+    await screen.findByText('Bien 10');
+    const ligne = await screen.findByTestId('suggestion-vitrine');
+    expect(ligne).toHaveTextContent(F.suggestionPlusVus);
+    expect(barreDuBureau()).toBeNull();
+
+    await user.click(within(ligne).getByRole('button', { name: F.utiliserLaSelection }));
+
+    expect(ordre()).toEqual(['Bien 12', 'Bien 10', 'Bien 14']);
+    expect(screen.getByText('3 sur 6')).toBeInTheDocument();
+    expect(barreDuBureau()).not.toBeNull();
+    expect(ACTIONS.updateAgencyAction).not.toHaveBeenCalled();
+    // La vitrine est déjà la suggestion : le geste ne changerait rien, la ligne se tait.
+    expect(suggestion()).toBeNull();
+
+    await user.click(within(barreDuBureau()!).getByRole('button', { name: 'Annuler' }));
+    expect(barreDuBureau()).toBeNull();
+    expect(ordre()).toEqual(['Bien 11']);
+    expect(ACTIONS.updateAgencyAction).not.toHaveBeenCalled();
+    expect(await screen.findByTestId('suggestion-vitrine')).toBeInTheDocument();
+  });
+
+  it('AC1 — « Enregistrer » envoie la seule sélection suggérée, dans son ordre', async () => {
+    const user = userEvent.setup();
+    PLUS_VUS.current = [{ ...bien(12), views_month: 9 }, { ...bien(10), views_month: 4 }];
+    ouvrir();
+    await user.click(await screen.findByRole('button', { name: F.utiliserLaSelection }));
+    expect(await enregistrer(user)).toEqual({ showcase_property_ids: [12, 10] });
+  });
+
+  it('demande au plus les places de la vitrine, sur la route de TCK-2923', async () => {
+    PLUS_VUS.current = [{ ...bien(12), views_month: 9 }];
+    ouvrir();
+    await screen.findByTestId('suggestion-vitrine');
+    const chemin = API.apiRequest.mock.calls.map(([c]) => c as string).find((c) => c.includes('/most-viewed'))!;
+    expect(chemin.startsWith('/api/agencies/1/properties/most-viewed')).toBe(true);
+    expect(chemin).toContain('limit=6');
+  });
+
+  it('AC2 — sans aucun bien vu ce mois, aucune ligne de suggestion', async () => {
+    // Une vitrine déjà remplie : la ligne ne se tait pas parce que « rien ne changerait ».
+    ouvrir({ showcase_property_ids: [10] });
+    await screen.findByText('Bien 11');
+    await waitFor(() => expect(API.apiRequest.mock.calls.some(([c]) => (c as string).includes('/most-viewed'))).toBe(true));
+    expect(suggestion()).toBeNull();
+    expect(screen.queryByRole('button', { name: F.utiliserLaSelection })).toBeNull();
+  });
+
+  it('« N autres biens publiés » ne compte que ceux au-delà de la liste reçue, et se tait à 0', async () => {
+    PLUS_VUS.current = [{ ...bien(12), views_month: 9 }];
+    ouvrir();
+    const ligne = await screen.findByTestId('suggestion-vitrine');
+    // La liste reçue porte tout le portefeuille public (`meta.total` = sa longueur) : aucun « autre ».
+    expect(ligne).not.toHaveTextContent(/autres? biens? publiés?/);
+  });
+
+  it('« N autres biens publiés » quand le total dépasse la page reçue', async () => {
+    PLUS_VUS.current = [{ ...bien(12), views_month: 9 }];
+    API.apiRequest.mockImplementation(async (chemin: string) => {
+      if (chemin.includes('/most-viewed')) return { data: PLUS_VUS.current };
+      return { data: PUBLICS, meta: { total: PUBLICS.length + 64 } };
+    });
+    ouvrir();
+    expect(await screen.findByTestId('suggestion-vitrine')).toHaveTextContent('64 autres biens publiés. Suggestion : vos biens les plus vus ce mois.');
   });
 });

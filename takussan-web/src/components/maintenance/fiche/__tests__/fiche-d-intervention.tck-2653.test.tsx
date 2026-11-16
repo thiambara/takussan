@@ -17,6 +17,7 @@ import type { InterventionEnFile } from '@/lib/maintenance/files';
 import type { MaintenanceAbilities } from '@/types/maintenance';
 
 const FI = fr.maintenance.fiche;
+const ANNULATION = fr.maintenance.annulation;
 const reseau = vi.hoisted(() => ({
   appels: [] as { chemin: string; methode: string; corps: unknown }[],
   demande: null as unknown as InterventionEnFile,
@@ -223,15 +224,23 @@ describe('Fiche — à dispatcher (AC3)', () => {
     expect(within(menu).getByText(FI.autre.transitions.acknowledged.titre)).toBeInTheDocument();
   });
 
-  it('annuler se confirme avant d’écrire', async () => {
+  it('annuler demande un motif avant d’écrire, et l’envoie (TCK-2918, AC5)', async () => {
     const u = rendre();
     await waitFor(() => expect(fiche()).not.toBeNull());
     await u.click(screen.getAllByRole('button', { name: new RegExp(FI.autre.bouton) })[0]);
     await u.click(await screen.findByText(FI.autre.annuler.texte));
     expect(ecritures()).toEqual([]);
-    const dialogue = await screen.findByRole('dialog', { name: FI.autre.annuler.confirmerTitre });
-    await u.click(within(dialogue).getByRole('button', { name: FI.autre.annuler.confirmer }));
-    await waitFor(() => expect(ecritures()).toEqual([{ chemin: '/api/maintenance-requests/8/status', methode: 'PUT', corps: { status: 'cancelled' } }]));
+    const dialogue = await screen.findByRole('dialog', { name: ANNULATION.titre });
+    const confirmer = within(dialogue).getByRole('button', { name: ANNULATION.confirmer });
+    // Sans motif (espaces seuls compris), confirmer est impossible : l'API rendrait 422.
+    expect(confirmer).toBeDisabled();
+    await u.type(within(dialogue).getByLabelText(ANNULATION.motif), '   ');
+    expect(confirmer).toBeDisabled();
+    await u.type(within(dialogue).getByLabelText(ANNULATION.motif), 'Le bailleur fait intervenir son artisan');
+    await u.click(confirmer);
+    await waitFor(() =>
+      expect(ecritures()).toEqual([{ chemin: '/api/maintenance-requests/8/status', methode: 'PUT', corps: { status: 'cancelled', reason: 'Le bailleur fait intervenir son artisan' } }]),
+    );
   });
 });
 
@@ -252,10 +261,11 @@ describe('Fiche — « Autre action » au téléphone, dans « ⋯ »', () => {
     await u.click(await screen.findByRole('button', { name: 'Plus d’actions' }));
     const liste = await waitFor(() => document.querySelector<HTMLElement>('[data-slot="autre-action-liste"]')!);
     await u.click(within(liste).getByText(FI.autre.annuler.texte));
-    const dialogue = await screen.findByRole('dialog', { name: FI.autre.annuler.confirmerTitre });
+    const dialogue = await screen.findByRole('dialog', { name: ANNULATION.titre });
     expect(ecritures()).toEqual([]);
-    await u.click(within(dialogue).getByRole('button', { name: FI.autre.annuler.confirmer }));
-    await waitFor(() => expect(ecritures()).toEqual([{ chemin: '/api/maintenance-requests/8/status', methode: 'PUT', corps: { status: 'cancelled' } }]));
+    await u.type(within(dialogue).getByLabelText(ANNULATION.motif), 'Doublon de la demande 7');
+    await u.click(within(dialogue).getByRole('button', { name: ANNULATION.confirmer }));
+    await waitFor(() => expect(ecritures()).toEqual([{ chemin: '/api/maintenance-requests/8/status', methode: 'PUT', corps: { status: 'cancelled', reason: 'Doublon de la demande 7' } }]));
   });
 });
 
@@ -337,5 +347,77 @@ describe('Fiche — en retard : relancer', () => {
     await waitFor(() => expect(fiche()).toHaveAttribute('data-geste', 'relancer'));
     await u.click(within(geste()).getByRole('button', { name: FI.geste.reassigner }));
     expect(within(geste()).getByRole('heading', { name: new RegExp(FI.choix.titreReassigner) })).toBeInTheDocument();
+  });
+});
+
+// TCK-2918 (e1, AC4) — le téléphone du demandeur, servi au seul personnel de l'agence du bien
+// (ADR-0118 § 2) : le numéro, « Appeler » (`tel:`) et « WhatsApp » ; sans lui, aucun des trois.
+describe('Fiche — joindre le demandeur (TCK-2918)', () => {
+  const zone = () => document.querySelector<HTMLElement>('[data-slot="bien-et-demandeur"]')!;
+
+  it('avec `requester.phone` : le numéro, « Appeler » en tel: et « WhatsApp »', async () => {
+    reseau.demande = demande({ requester: { id: 10, name: 'Astou Seck', phone: '+221772041563' } });
+    rendre();
+    await waitFor(() => expect(fiche()).not.toBeNull());
+    expect(within(zone()).getByText('+221 77 204 15 63')).toBeInTheDocument();
+    const appeler = within(zone()).getByRole('link', { name: FI.joindre.appeler.replace('{nom}', 'Astou Seck') });
+    expect(appeler.getAttribute('href')).toBe('tel:+221772041563');
+    const whatsapp = within(zone()).getByRole('link', { name: FI.joindre.whatsapp.replace('{nom}', 'Astou Seck') });
+    expect(whatsapp.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/221772041563\?text=/);
+  });
+
+  it('sans `phone` (bailleur, prestataire, autre agence) : ni numéro, ni « Appeler », ni « WhatsApp »', async () => {
+    rendre();
+    await waitFor(() => expect(fiche()).not.toBeNull());
+    expect(zone().querySelector('[data-slot="telephone-du-demandeur"]')).toBeNull();
+    expect(within(zone()).queryByRole('link', { name: /Appeler|WhatsApp/ })).toBeNull();
+  });
+});
+
+// TCK-2918 (e1) — la raison d'une suggestion dit les créneaux dépassés du prestataire (ADR-0118 § 4).
+describe('Fiche — créneaux dépassés d’une suggestion (TCK-2918)', () => {
+  it('« 1 créneau dépassé » quand l’API en compte un ; rien quand il n’y en a pas', async () => {
+    reseau.suggestions = [{ ...SUGGESTION, overdue_slots_count: 1 }, { ...SUGGESTION, id: 8, user_id: 182, name: 'Moussa Ba', overdue_slots_count: 0 }];
+    rendre();
+    const suggestions = await waitFor(() => {
+      const s = [...document.querySelectorAll<HTMLElement>('[data-slot="suggestion"]')];
+      if (s.length < 2) throw new Error('suggestions pas encore rendues');
+      return s;
+    });
+    expect(suggestions[0].textContent).toMatch(/· 1 créneau dépassé/);
+    expect(suggestions[1].textContent).not.toMatch(/dépassé/);
+  });
+});
+
+// TCK-2902 (e1, AC4) — le message vocal du locataire, sous sa description : rendu quand l'API le sert.
+describe('Fiche — le message vocal du signalement (TCK-2902)', () => {
+  const laDemande = () => document.querySelector<HTMLElement>('[data-slot="la-demande"]')!;
+  const MEDIA = { photos: [], before_photos: [], completion_photos: [] };
+  // La pastille joue par `new Audio()`, que jsdom ne sait pas jouer.
+  beforeEach(() => vi.stubGlobal('Audio', class { pause() {} play() { return Promise.resolve(); } }));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('`voice_note.duration = 18` : « Message vocal · 0:18 » et un bouton de lecture', async () => {
+    reseau.demande = demande({ media: { ...MEDIA, voice_note: { id: 3, url: 'https://api.test/voix?signature=x', duration: 18, mime_type: 'audio/webm' } } });
+    rendre();
+    await waitFor(() => expect(fiche()).not.toBeNull());
+    const lecteur = within(laDemande()).getByRole('button', { name: 'Écouter le message vocal' });
+    expect(lecteur).toHaveTextContent('Message vocal · 0:18');
+  });
+
+  it('sans `voice_note` (null, ou bloc `media` absent) : ni pastille ni lecture', async () => {
+    reseau.demande = demande({ media: { ...MEDIA, voice_note: null } });
+    rendre();
+    await waitFor(() => expect(fiche()).not.toBeNull());
+    expect(within(laDemande()).queryByRole('button', { name: 'Écouter le message vocal' })).toBeNull();
+    expect(laDemande().textContent).not.toMatch(/Message vocal/);
+  });
+
+  it('une demande sans description, avec note : pas de paragraphe vide, la pastille seule', async () => {
+    reseau.demande = demande({ description: null as unknown as string, media: { ...MEDIA, voice_note: { id: 3, url: 'https://api.test/voix', duration: 18, mime_type: 'audio/webm' } } });
+    rendre();
+    await waitFor(() => expect(fiche()).not.toBeNull());
+    expect(laDemande().querySelector('p.whitespace-pre-wrap')).toBeNull();
+    expect(within(laDemande()).getByRole('button', { name: 'Écouter le message vocal' })).toBeInTheDocument();
   });
 });

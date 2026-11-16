@@ -18,9 +18,10 @@ import type { PeriodeDesRapports } from '@/lib/rapports/periode';
 
 /**
  * TCK-2791 — `key` : la période servie (`period=last_month`) ; `as_of_today` : les chemins des chiffres qui restent
- * l'état du jour quelle que soit la période. Absents de la lecture du locataire.
+ * l'état du jour quelle que soit la période. Absents de la lecture du locataire. TCK-2865 — `months` : les mois
+ * couverts (`AAAA-MM`), un seul pour un mois, douze pour `last_12_months`.
  */
-export type PeriodWindow = { start: string; end: string; key?: PeriodeDesRapports; as_of_today?: string[] };
+export type PeriodWindow = { start: string; end: string; key?: PeriodeDesRapports; months?: string[]; as_of_today?: string[] };
 
 export type OwnerDashboard = {
   owner_id: number;
@@ -162,7 +163,8 @@ async function call<T>(tableau: 'owner' | 'agent' | 'tenant', opts: FetchOpts = 
   const extra: Record<string, string | number> = {};
   if (typeof opts.months === 'number') extra.months = opts.months;
   if (opts.scope) extra.scope = opts.scope;
-  if (opts.period === 'last_month') extra.period = opts.period;
+  // TCK-2867 — « Mois dernier » et « 12 mois » ; le mois en cours n'écrit rien.
+  if (opts.period && opts.period !== 'current_month') extra.period = opts.period;
   const qs = buildQueryString({
     include: opts.include,
     extra: Object.keys(extra).length > 0 ? extra : undefined,

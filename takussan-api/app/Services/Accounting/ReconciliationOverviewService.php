@@ -34,6 +34,8 @@ use Illuminate\Support\Facades\DB;
  * - **À rapprocher** : payé sans passerelle (règlement saisi, ou aucune trace) et non rapproché
  *   (`bank_reconciled_at` nul). C'est la liste de {@see self::pendingPayments()}, et son compte.
  * - **Rapproché à la main** : payé sans passerelle, et rapproché.
+ * - **Ignoré** (TCK-2932) : payé sans passerelle, non rapproché, sorti du reste à rapprocher parce
+ *   qu'il n'aura jamais de ligne de banque (`reconciliation_ignored_payments`).
  */
 final class ReconciliationOverviewService
 {
@@ -49,6 +51,12 @@ final class ReconciliationOverviewService
 
     public const RECONCILED_MANUALLY = 'reconciled_manually';
 
+    /**
+     * TCK-2932 — payé sans passerelle, non rapproché, et sorti du reste à rapprocher à la main
+     * (`reconciliation_ignored_payments`) : il n'aura jamais de ligne de banque.
+     */
+    public const IGNORED = 'ignored';
+
     /** Les statuts d'un relevé dont une ligne se confirme encore (`ReconciliationManager::confirmMatch`). */
     public const OPEN_STATEMENT_STATUSES = [BankStatementStatus::ReadyForReview, BankStatementStatus::PartiallyReconciled];
 
@@ -61,7 +69,7 @@ final class ReconciliationOverviewService
     }
 
     /**
-     * @return array{period: string, payments_total: int, confirmed_automatically: array{total: int, by_provider: array<string, int>|\stdClass}, to_reconcile: array{total: int, by_method: array<string, int>|\stdClass}, reconciled_manually: int}
+     * @return array{period: string, payments_total: int, confirmed_automatically: array{total: int, by_provider: array<string, int>|\stdClass}, to_reconcile: array{total: int, by_method: array<string, int>|\stdClass}, reconciled_manually: int, ignored: int}
      */
     public function overview(Agency $agency, string $period): array
     {
@@ -73,12 +81,15 @@ final class ReconciliationOverviewService
         $byProvider = [];
         $byMethod = [];
         $reconciledManually = 0;
+        $ignored = 0;
         foreach ($rows as $row) {
             $n = (int) $row->n;
             if ($row->bucket === self::CONFIRMED_AUTOMATICALLY) {
                 $byProvider[$row->provider] = ($byProvider[$row->provider] ?? 0) + $n;
             } elseif ($row->bucket === self::RECONCILED_MANUALLY) {
                 $reconciledManually += $n;
+            } elseif ($row->bucket === self::IGNORED) {
+                $ignored += $n;
             } else {
                 $method = $row->payment_method ?? 'unknown';
                 $byMethod[$method] = ($byMethod[$method] ?? 0) + $n;
@@ -94,6 +105,8 @@ final class ReconciliationOverviewService
             'confirmed_automatically' => ['total' => array_sum($byProvider), 'by_provider' => $byProvider ?: new \stdClass],
             'to_reconcile' => ['total' => array_sum($byMethod), 'by_method' => $byMethod ?: new \stdClass],
             'reconciled_manually' => $reconciledManually,
+            // TCK-2932 — hors du reste à rapprocher ; la somme des quatre classes reste `payments_total`.
+            'ignored' => $ignored,
         ];
     }
 
@@ -230,8 +243,12 @@ final class ReconciliationOverviewService
                 '? as type, ? as class, '.$table.'.id, '.$table.'.amount, '.$table.'.currency, '.$table.'.payment_method, '
                 .self::providerSql($table).' as provider, '
                 .'CASE WHEN '.self::gatewaySettledSql($table).' THEN ? '
-                .'WHEN '.$table.'.bank_reconciled_at IS NOT NULL THEN ? ELSE ? END as bucket',
-                [$type, self::PAYMENT_TYPES[$type], self::CONFIRMED_AUTOMATICALLY, self::RECONCILED_MANUALLY, self::TO_RECONCILE],
+                .'WHEN '.$table.'.bank_reconciled_at IS NOT NULL THEN ? '
+                // TCK-2932 — après les deux classes où l'argent est vu : un paiement ignoré puis
+                // rapproché quand même compte rapproché.
+                .'WHEN EXISTS (SELECT 1 FROM reconciliation_ignored_payments ip WHERE ip.payable_type = ? AND ip.payable_id = '.$table.'.id) THEN ? '
+                .'ELSE ? END as bucket',
+                [$type, self::PAYMENT_TYPES[$type], self::CONFIRMED_AUTOMATICALLY, self::RECONCILED_MANUALLY, self::PAYMENT_TYPES[$type], self::IGNORED, self::TO_RECONCILE],
             );
         }
 

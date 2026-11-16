@@ -13,8 +13,9 @@ type Nature = 'stay' | 'application' | 'offer' | 'autre';
 
 /**
  * Les motifs d'un refus, par nature (maquette « Refuser (motif) » pour la candidature). « Autre »
- * demande la précision. La clé technique n'est jamais envoyée : le motif part en mots, dans
- * `reason`, suivi de la précision (comme la sortie du pipeline, TCK-2592).
+ * demande le message. Le motif part en mots dans `reason` (ce qui reste écrit sur la réservation,
+ * suivi du message, comme la sortie du pipeline, TCK-2592) ; TCK-2877 — et CODÉ dans `reason_code`,
+ * avec le message dans `message` : l'API transmet l'un et l'autre au client (TCK-2874).
  */
 export const MOTIFS_DE_REFUS: Readonly<Record<Nature, readonly string[]>> = {
   application: ['dossierIncomplet', 'revenusInsuffisants', 'bienAttribue', 'autre'],
@@ -23,8 +24,29 @@ export const MOTIFS_DE_REFUS: Readonly<Record<Nature, readonly string[]>> = {
   autre: [],
 };
 
+/** TCK-2877 — la pastille → le cas de `BookingRejectionReason` (API, TCK-2874). */
+export const CODE_DU_MOTIF: Readonly<Record<string, string>> = {
+  dossierIncomplet: 'incomplete_file',
+  revenusInsuffisants: 'insufficient_income',
+  bienAttribue: 'property_allocated',
+  offreTropBasse: 'offer_too_low',
+  bienVendu: 'property_sold',
+  datesIndisponibles: 'dates_unavailable',
+  bienIndisponible: 'property_unavailable',
+  autre: 'other',
+};
+
+/** Ce que la feuille envoie : le motif en mots ; au refus, son code et le message au client. */
+export interface SaisieDeDecision {
+  readonly reason?: string;
+  readonly reason_code?: string;
+  readonly message?: string;
+}
+
 /** Une borne prudente pour le motif (l'API n'en pose pas : `nullable|string`). */
 const BORNE = 2000;
+/** TCK-2877 — le message au client d'un refus : `message` est `max:500` côté API. */
+const BORNE_DU_MESSAGE = 500;
 
 interface FeuilleDeDecisionProps {
   readonly action: ActionDeDecision | null;
@@ -33,7 +55,7 @@ interface FeuilleDeDecisionProps {
   readonly prenom: string;
   readonly pending: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly onSubmit: (reason?: string) => Promise<void>;
+  readonly onSubmit: (saisie: SaisieDeDecision) => Promise<void>;
 }
 
 interface Saisie {
@@ -76,7 +98,10 @@ export function FeuilleDeDecision({ action, nature, prenom, pending, onOpenChang
     if (!action || !pret) return;
     poser({ erreur: null });
     try {
-      await onSubmit(action === 'confirm' ? undefined : reason.slice(0, BORNE) || undefined);
+      if (action === 'confirm') await onSubmit({});
+      else if (enPastilles && motif)
+        await onSubmit({ reason: reason.slice(0, BORNE) || undefined, reason_code: CODE_DU_MOTIF[motif], message: texte.slice(0, BORNE_DU_MESSAGE) || undefined });
+      else await onSubmit({ reason: reason.slice(0, BORNE) || undefined });
     } catch (e) {
       poser({ erreur: messageErreur(e) });
     }
@@ -119,19 +144,19 @@ export function FeuilleDeDecision({ action, nature, prenom, pending, onOpenChang
           {action !== 'confirm' ? (
             <div>
               <label htmlFor={`${id}-precision`} className="mb-1.5 block text-sm font-medium">
-                {enPastilles ? tF('refuser.precision') : t(`decision.${action}.label`)}
+                {enPastilles ? tF('refuser.message', { prenom }) : t(`decision.${action}.label`)}
               </label>
               <Textarea
                 id={`${id}-precision`}
                 value={precision}
                 onChange={(e) => poser({ precision: e.target.value })}
                 rows={3}
-                maxLength={BORNE}
+                maxLength={enPastilles ? BORNE_DU_MESSAGE : BORNE}
                 placeholder={enPastilles ? undefined : t(`decision.${action}.placeholder`)}
                 className="min-h-19"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                {enPastilles ? tF('refuser.aide', { prenom }) : texte.length === 0 ? t('decision.reasonRequired') : null}
+                {enPastilles ? tF('refuser.aide') : texte.length === 0 ? t('decision.reasonRequired') : null}
               </p>
             </div>
           ) : null}

@@ -1,0 +1,115 @@
+{
+  "ticket": "TCK-2921",
+  "ecrans": [
+    {
+      "page": "app-agence-reglages-bail",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Vide (rien de réglé)",
+      "references": {
+        "telephone": "references/app-agence-reglages-bail/a-1-telephone.json",
+        "bureau-1440": "references/app-agence-reglages-bail/a-1-bureau-1440.json"
+      },
+      "gele_le": null,
+      "produit": {
+        "route": "/app/agency/lease-settings",
+        "persona": "admin d'agence (configure l'agence)",
+        "etat": "les quatre réglages de source `platform` (GET /api/settings/lease, can_edit: true) : encart neutre « Votre agence n’a encore rien réglé… » (icône Settings2) en tête de la section",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-agence-reglages-bail",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Venu du nouveau bail",
+      "references": {
+        "telephone": "references/app-agence-reglages-bail/a-3-telephone.json",
+        "bureau-1440": "references/app-agence-reglages-bail/a-3-bureau-1440.json"
+      },
+      "gele_le": null,
+      "produit": {
+        "route": "/app/agency/lease-settings?depuis=bail&…",
+        "persona": "admin d'agence (configure l'agence)",
+        "etat": "arrivé par « Modifier » de l’encart du nouveau bail (même onglet) : /app/agency/lease-settings?depuis=bail&property=…&customer=…&locataire=… ; encart « Vous venez du nouveau bail de {locataire}. Votre saisie est gardée en brouillon. » + « Reprendre le bail » (contour)",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-agence-reglages-bail",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Enregistré (venu du bail)",
+      "references": {
+        "telephone": "references/app-agence-reglages-bail/a-4-telephone.json",
+        "bureau-1440": "references/app-agence-reglages-bail/a-4-bureau-1440.json"
+      },
+      "gele_le": null,
+      "produit": {
+        "route": "/app/agency/lease-settings?depuis=bail&…",
+        "persona": "admin d'agence (configure l'agence)",
+        "etat": "même arrivée, après « Enregistrer » réussi : encart succès « Réglages enregistrés. Vos prochains baux les reprennent. » (icône Check) + « Reprendre le bail » (primaire)",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-agence-reglages-bail",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Lecture seule",
+      "references": {
+        "telephone": "references/app-agence-reglages-bail/a-5-telephone.json",
+        "bureau-1440": "references/app-agence-reglages-bail/a-5-bureau-1440.json"
+      },
+      "gele_le": null,
+      "produit": {
+        "route": "/app/agency/lease-settings",
+        "persona": "agent de l’agence",
+        "etat": "can_edit: false (agent actif de l’agence, ADR-0111) : encart cadenas « Vous pouvez consulter ces réglages, pas les modifier… », valeurs en texte (font-display 2xl), source et valeur de la plateforme ; ni champ, ni bornes, ni « Revenir à la valeur de la plateforme », ni barre",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/agency/lease-settings",
+    "persona": "agency_admin (e1, e3, e4) · agent (e5)",
+    "disposition": "agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-5-bureau-1440",
+      "element": "navigation des sections de « Mon agence »",
+      "propriete": "absente pour l’agent ; la colonne de la section prend la largeur",
+      "exception": "décision produit",
+      "motif": "TCK-2921 : « Mon agence » (/app/agency) reste fermée à l’agent ; chaque entrée de la navigation y mènerait et le renverrait — une porte peinte. La maquette dessine e5 avec la persona admin"
+    },
+    {
+      "ecran": "a-3-*, a-4-*",
+      "element": "nom du locataire",
+      "propriete": "libellé",
+      "exception": "donnée",
+      "motif": "lu par son identifiant (GET /api/customers/{id}) ; sans locataire choisi dans le bail, la phrase sans nom « Vous venez d’un nouveau bail. »"
+    }
+  ],
+  "hors_perimetre": [
+    "e0 (rempli) et e2 (erreur) : conformes (TCK-2832), inchangés",
+    "la règle d’accès de l’API (TCK-2920)",
+    "le brouillon du bail lui-même (TCK-2912)"
+  ],
+  "decisions": {},
+  "mesures": {
+    "l1": {
+      "date": null,
+      "note": "non mesuré : le lot du 2026-11-15 n'a pas de relevé au navigateur (consigne du porteur : l'API et le front servis en local tournent sur un autre arbre) ; références de la maquette à geler. AC-F2 à AC-F4 restent à relever par la session."
+    }
+  }
+}

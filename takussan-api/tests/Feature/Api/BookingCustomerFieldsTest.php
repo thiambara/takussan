@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
@@ -13,6 +14,7 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -119,6 +121,47 @@ class BookingCustomerFieldsTest extends TestCase
         $this->assertSame(2, $row['visits_on_property']);
     }
 
+    /**
+     * TCK-2870 (AC4) — avec `visits_on_property`, la dernière visite terminée de ce client sur ce
+     * bien : sa date et le verdict de son compte rendu (ADR-0101 § 3), au seul personnel.
+     */
+    public function test_ac4_the_staff_reads_the_date_and_the_verdict_of_the_last_visit(): void
+    {
+        PropertyVisit::query()->where('property_id', $this->property->id)->where('status', VisitStatus::Completed->value)
+            ->update(['scheduled_at' => '2026-11-01 10:00:00', 'report_outcome' => 'thinking']);
+        $this->visit(['customer_id' => $this->booking->customer_id, 'visitor_id' => null, 'scheduled_at' => '2026-11-07 10:00:00', 'report_outcome' => 'interested'], VisitStatus::Completed);
+
+        Sanctum::actingAs($this->agent);
+        foreach ([
+            $this->getJson('/api/bookings?include=customer')->assertOk()->json('data.0'),
+            $this->getJson("/api/bookings/{$this->booking->id}")->assertOk()->json('data'),
+        ] as $row) {
+            $this->assertSame(3, $row['visits_on_property'], 'reste un nombre');
+            // La forme d'instant d'ADR-0018 (registre de `DateInventoryByValueTest`), pas la chaîne brute du SQL.
+            $this->assertSame(BaseResource::instantOnWire(Carbon::parse('2026-11-07 10:00:00')), $row['last_visit_on_property']['scheduled_at']);
+            $this->assertSame('interested', $row['last_visit_on_property']['report_verdict']);
+        }
+
+        Sanctum::actingAs($this->client);
+        foreach ([
+            $this->getJson('/api/bookings?include=customer')->assertOk()->json('data.0'),
+            $this->getJson("/api/bookings/{$this->booking->id}")->assertOk()->json('data'),
+        ] as $row) {
+            $this->assertArrayNotHasKey('last_visit_on_property', $row);
+        }
+    }
+
+    public function test_without_a_completed_visit_the_last_visit_is_null_for_the_staff(): void
+    {
+        PropertyVisit::query()->where('property_id', $this->property->id)->delete();
+
+        Sanctum::actingAs($this->agent);
+        $row = $this->getJson("/api/bookings/{$this->booking->id}")->assertOk()->json('data');
+        $this->assertSame(0, $row['visits_on_property']);
+        $this->assertArrayHasKey('last_visit_on_property', $row);
+        $this->assertNull($row['last_visit_on_property']);
+    }
+
     public function test_the_visits_cost_one_query_for_the_page(): void
     {
         Sanctum::actingAs($this->agent);
@@ -170,6 +213,9 @@ class BookingCustomerFieldsTest extends TestCase
         $this->assertSame('+221771234567', $row['customer']['phone']);
         $this->assertSame(CustomerPipelineStage::cases()[1]->value, $row['customer']['pipeline_stage']);
         $this->assertArrayNotHasKey('visits_on_property', $row);
+        // TCK-2870 — ni la dernière visite, ni les faits du bien.
+        $this->assertArrayNotHasKey('last_visit_on_property', $row);
+        $this->assertArrayNotHasKey('other_pending_on_property', $row);
 
         $fiche = $this->getJson("/api/bookings/{$this->booking->id}?include=customer")->assertOk()->json('data.customer');
         $this->assertSame('+221771234567', $fiche['phone']);

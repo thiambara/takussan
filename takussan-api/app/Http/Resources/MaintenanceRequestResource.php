@@ -4,15 +4,18 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\MaintenanceQuoteAlternative;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Policies\MaintenanceRequestPolicy;
+use App\Services\Maintenance\AgencyResponseTime;
 use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Maintenance\OwnerReminder;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\MaintenanceRequestService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -69,9 +72,14 @@ class MaintenanceRequestResource extends BaseResource
             'accepted_at' => $this->iso($this->accepted_at),
             // TCK-2786 — la dernière relance du bailleur (« Relancé il y a … ») ; au donneur d'ordre seul.
             'owner_reminded_at' => $this->iso($this->owner_reminded_at),
+            // TCK-2917 (ADR-0118 § 1) — le motif de qui a annulé : à tout lecteur de la demande.
+            'cancellation_reason' => $this->cancellation_reason,
             'access_instructions' => $this->access_instructions,
+            // TCK-2900 (ADR-0113 § 4) — la demande porte-t-elle une note vocale ? Le fichier, lui, n'est
+            // servi qu'au détail (`media.voice_note`). En liste : la sous-requête `withVoiceNoteFlag`.
+            'has_voice_note' => $this->resource->hasVoiceNote(),
             'property' => $this->whenLoaded('property', fn () => $this->propertySummary()),
-            'requester' => $this->whenLoaded('requester', fn () => $this->requesterSummary($request->user())),
+            'requester' => $this->whenLoaded('requester', fn () => $this->requesterSummary($request->user(), $this->isDetailRequest($request))),
             'assignee' => $this->whenLoaded('assignee', fn () => $this->userSummary($this->assignee)),
             'quote_decision_by' => $this->whenLoaded('quoteDecisionBy', fn () => $this->userSummary($this->quoteDecisionBy)),
             'created_at' => $this->iso($this->created_at),
@@ -111,9 +119,20 @@ class MaintenanceRequestResource extends BaseResource
                 $threshold = app(OwnerApprovalThreshold::class)->of($this->resource);
                 $data['owner_approval_threshold'] = $threshold !== null ? (float) $threshold : null;
             }
+            // TCK-2911 (ADR-0120 § 3) — la mise en concurrence : aux seuls donneurs d'ordre (bailleur du
+            // bien, personnel de l'agence). Clé ABSENTE pour tout prestataire, l'assigné compris (le prix
+            // d'un concurrent n'est pas le sien), et pour le demandeur. Au détail : une requête.
+            if ($isPrincipal) {
+                $data['quote_alternatives'] = $this->quoteAlternativesBlock();
+            }
             if ($this->opensAccess($user)) {
                 $data['access'] = $this->accessBlock();
             }
+            // TCK-2917 (ADR-0118 § 3) — la demande de créneau en attente du demandeur, au demandeur, au
+            // prestataire assigné et aux donneurs d'ordre (tout lecteur de la demande).
+            $data['pending_reschedule_request'] = $this->pendingRescheduleBlock();
+            // TCK-2917 (ADR-0118 § 5) — le délai de prise en charge médian de l'agence du bien.
+            $data['maintenance_response_minutes'] = app(AgencyResponseTime::class)->minutesFor($this->property?->agency_id);
         }
 
         return $data;
@@ -145,7 +164,7 @@ class MaintenanceRequestResource extends BaseResource
      * TCK-2088 (P180.02) — `thumbnail_url` sert la vignette des photos à la galerie, `url`
      * l'original au clic ; l'original tant que la file ne l'a pas produite, et toujours pour un devis.
      *
-     * @return array<string, list<array<string, mixed>>>
+     * @return array<string, mixed>
      */
     private function mediaBlock(User $user): array
     {
@@ -170,6 +189,10 @@ class MaintenanceRequestResource extends BaseResource
                 ->values()
                 ->all();
         }
+
+        // TCK-2900 (ADR-0113 § 4) — la note vocale du signalement : les lecteurs de `photos`, ni plus
+        // ni moins (ce bloc entier) ; un objet `{id, url, duration, mime_type}` ou `null`.
+        $block['voice_note'] = $this->resource->voiceNoteBlock();
 
         return $block;
     }
@@ -254,6 +277,8 @@ class MaintenanceRequestResource extends BaseResource
             // et le bailleur joignable, que `OwnerReminder::remind()` rejuge sous le verrou.
             'can_remind_owner' => $user->can('remindOwner', $mr) && app(OwnerReminder::class)->possible($mr),
             'can_view_journal' => $user->can('viewJournal', $mr),
+            // TCK-2917 (ADR-0118 § 3) — « Changer le créneau » du demandeur.
+            'can_request_reschedule' => $user->can('requestReschedule', $mr),
             'transitions' => $transitions,
         ];
     }
@@ -349,9 +374,17 @@ class MaintenanceRequestResource extends BaseResource
      * TCK-592 (verif-592, mineur 9) — l'e-mail du demandeur suit son téléphone (P6) : au prestataire
      * assigné, seulement APRÈS acceptation. `include=requester` le lui rendait avant.
      */
-    private function requesterSummary(?User $viewer): ?array
+    private function requesterSummary(?User $viewer, bool $detail = false): ?array
     {
         $summary = $this->userSummary($this->requester);
+
+        // TCK-2917 (ADR-0118 § 2) — « Appeler » / « WhatsApp » : le téléphone du demandeur au seul
+        // personnel actif de l'agence du bien (lecteur du bail à ce titre, règle de TCK-2637), au
+        // détail. Clé absente pour le bailleur, un prestataire, une autre agence, et sur une liste.
+        if ($summary !== null && $viewer !== null && $detail
+            && MaintenanceRequestPolicy::isTeamPrincipalFor($viewer, $this->property)) {
+            $summary['phone'] = $this->requester?->phone;
+        }
 
         if ($summary !== null && $viewer !== null
             && $this->assigned_to === $viewer->id
@@ -362,6 +395,69 @@ class MaintenanceRequestResource extends BaseResource
         }
 
         return $summary;
+    }
+
+    /**
+     * TCK-2917 (ADR-0118 § 3) — la demande de créneau en attente : les instants proposés, le mot, la date.
+     *
+     * @return array{id: int, proposed_slots: list<?string>, note: ?string, requested_at: ?string}|null
+     */
+    private function pendingRescheduleBlock(): ?array
+    {
+        // Une demande close, annulée ou rendue n'attend plus de créneau.
+        $status = $this->status ?? MaintenanceStatus::Open;
+        if ($status === MaintenanceStatus::Completed || app(MaintenanceStateMachine::class)->isTerminal($status)) {
+            return null;
+        }
+
+        $pending = $this->resource->pendingRescheduleRequest()->first();
+        if ($pending === null) {
+            return null;
+        }
+
+        return [
+            'id' => $pending->id,
+            'proposed_slots' => array_values(array_map(
+                fn (mixed $slot): ?string => is_string($slot) ? $this->iso(CarbonImmutable::parse($slot)) : null,
+                $pending->proposed_slots ?? [],
+            )),
+            'note' => $pending->note,
+            'requested_at' => $this->iso($pending->created_at),
+        ];
+    }
+
+    /**
+     * TCK-2911 (ADR-0120 § 3) — les devis consultés et non retenus, leur pièce en URL d'API signée.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function quoteAlternativesBlock(): array
+    {
+        $access = app(PrivateMediaAccess::class);
+
+        return $this->resource->quoteAlternatives()->with(['provider:id,first_name,last_name,username', 'media'])->get()
+            ->map(function (MaintenanceQuoteAlternative $alternative) use ($access): array {
+                $media = $alternative->getFirstMedia('quote');
+
+                return [
+                    'id' => $alternative->id,
+                    'provider_id' => $alternative->provider_id,
+                    'provider_name' => $alternative->provider !== null
+                        ? (trim($alternative->provider->first_name.' '.$alternative->provider->last_name) ?: $alternative->provider->username)
+                        : $alternative->provider_name,
+                    'amount' => (float) $alternative->amount,
+                    'currency' => $alternative->currency?->value ?? 'XOF',
+                    'file' => $media instanceof Media ? [
+                        'id' => $media->id,
+                        'name' => $media->file_name,
+                        'mime_type' => $media->mime_type,
+                        'url' => $access->signedUrl($media),
+                    ] : null,
+                    'created_at' => $this->iso($alternative->created_at),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function userSummary(?User $user): ?array

@@ -15,7 +15,10 @@ import { StatusBadge } from '@/components/console';
 import { Pagination } from '@/components/console/Pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { PropertyVisit } from '@/types/visit';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { valeurBornee } from '@/hooks/useVueDansLUrl';
+import type { PropertyVisit, VisitType } from '@/types/visit';
+import { Filtre, Option } from './par-le-temps/filtres';
 import type { Locale } from '@/i18n/config';
 import { VISIT_STATUS_LABEL_KEY, VISIT_STATUS_TONE, VISIT_TYPE_LABEL_KEY } from './visit-status';
 import {
@@ -44,6 +47,11 @@ export function VisitsList() {
   // TCK-2479 — le lecteur est partagé avec la garde de la pastille « À traiter » du menu.
   const tab: TabKey = ongletDesVisites(params, personnel);
   const setTab = (next: TabKey) => remplacer({ tab: next === 'requested' ? null : next });
+  // TCK-2882 (AC2) — le filtre « Type » du bureau (maquette `BureauListe`, mode par statut), dans
+  // `?type=` : chaque onglet le passe en `filter[type]`, et ses comptes le suivent.
+  const large = useMatchesMedia('(width >= 64rem)');
+  // Au téléphone, aucun contrôle ne le montre : il ne filtre pas (un lien du bureau ouvert au téléphone).
+  const type = large ? typeDeLUrl(params) : null;
 
   // TCK-867 (P02.10) — arrondi à la minute (vers le bas) : l'instant entre dans la clé de cache
   // des `useVisits` (cinq alors), et à la milliseconde chaque montage en faisait autant de clés neuves.
@@ -64,6 +72,7 @@ export function VisitsList() {
   // TCK-2587 — « Toutes » : la portée entière, celle que compte la pastille « Toutes N » du bureau.
   const all = useVisits({
     ...bornesDeLOnglet('all', nowIso),
+    ...(type ? { type } : {}),
     sort: '-scheduled_at',
     per_page: 30,
     page: pages.all,
@@ -72,6 +81,7 @@ export function VisitsList() {
   // TCK-2479 (revue, I2) — le périmètre de chaque onglet est celui que le compteur du menu reprend.
   const unassigned = useVisits({
     ...bornesDeLOnglet('unassigned', nowIso),
+    ...(type ? { type } : {}),
     sort: 'scheduled_at',
     per_page: 30,
     page: pages.unassigned,
@@ -79,6 +89,7 @@ export function VisitsList() {
 
   const requested = useVisits({
     ...bornesDeLOnglet('requested', nowIso),
+    ...(type ? { type } : {}),
     sort: 'scheduled_at',
     per_page: 30,
     page: pages.requested,
@@ -86,6 +97,7 @@ export function VisitsList() {
 
   const confirmed = useVisits({
     ...bornesDeLOnglet('confirmed', nowIso),
+    ...(type ? { type } : {}),
     sort: 'scheduled_at',
     per_page: 30,
     page: pages.confirmed,
@@ -93,6 +105,7 @@ export function VisitsList() {
 
   const past = useVisits({
     ...bornesDeLOnglet('past', nowIso),
+    ...(type ? { type } : {}),
     sort: '-scheduled_at',
     per_page: 30,
     page: pages.past,
@@ -100,6 +113,7 @@ export function VisitsList() {
 
   const cancelled = useVisits({
     ...bornesDeLOnglet('cancelled', nowIso),
+    ...(type ? { type } : {}),
     sort: '-scheduled_at',
     per_page: 30,
     page: pages.cancelled,
@@ -116,8 +130,32 @@ export function VisitsList() {
     { value: 'cancelled', label: t('list.tabs.cancelled'), query: cancelled },
   ];
 
+  const choisirLeType = (suite: VisitType | null) => {
+    // Un autre type, une autre liste : chaque onglet repart de sa première page.
+    setPages({ all: 1, unassigned: 1, requested: 1, confirmed: 1, past: 1, cancelled: 1 });
+    remplacer({ type: suite });
+  };
+
   return (
     <Tabs value={tab} onValueChange={(v) => setTab((v as TabKey) ?? 'requested')}>
+      {large ? (
+        <div data-slot="filtres-par-statut" className="mb-4 flex flex-wrap items-center gap-2">
+          <Filtre libelle={t('list.filtreType')} valeur={type ? t(VISIT_TYPE_LABEL_KEY[type]) : t('list.typesTous')} actif={type !== null}>
+            {(fermer) => (
+              <>
+                <Option choisie={type === null} onClick={() => (choisirLeType(null), fermer())}>
+                  {t('list.typesTous')}
+                </Option>
+                {TYPES_DE_VISITE.map((ty) => (
+                  <Option key={ty} choisie={type === ty} onClick={() => (choisirLeType(ty), fermer())}>
+                    {t(VISIT_TYPE_LABEL_KEY[ty])}
+                  </Option>
+                ))}
+              </>
+            )}
+          </Filtre>
+        </div>
+      ) : null}
       {/* Quatre onglets ne tiennent pas à 360 : la rangée défile au lieu de couper « Annulées ». */}
       <div className="-mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
         <TabsList className="w-max">
@@ -141,6 +179,14 @@ export function VisitsList() {
       ))}
     </Tabs>
   );
+}
+
+/** TCK-2882 — les quatre types de visite, dans l'ordre de la maquette. */
+export const TYPES_DE_VISITE: readonly VisitType[] = ['in_person', 'virtual', 'self_guided', 'hybrid'];
+
+/** Le type de `?type=`, borné aux quatre ; `null` : tous. */
+export function typeDeLUrl(params: Pick<URLSearchParams, 'get'>): VisitType | null {
+  return valeurBornee(params, 'type', TYPES_DE_VISITE) ?? null;
 }
 
 type QueryLike = ReturnType<typeof useVisits>;

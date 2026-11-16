@@ -25,8 +25,12 @@ use Illuminate\Support\Facades\DB;
  *   TCK-2723 (décision du porteur du 2026-11-11) — les NOMS au seul lecteur qui peut modifier
  *   l'alerte ({@see AgencyIndicatorPolicy::update()}, la règle de l'écriture) ; les autres lisent le
  *   même `count` et `users: []`.
- * - `channels` : les canaux de l'événement ({@see ThresholdAlertTriggered::CHANNELS}), sans les
- *   préférences de chacun.
+ * - `channels` : les canaux de l'ALERTE ({@see ThresholdAlertTriggered::channelsOf()}, TCK-2866 : la
+ *   cloche, puis courriel et/ou WhatsApp selon `channel`), sans les préférences de chacun.
+ * - TCK-2866 — `channel` (colonne), `recipient_ids` (le choix, `[]` = tous) et `recipient_candidates
+ *   [{id, name}]` (qui peut être choisi pour cette mesure) au seul lecteur qui peut modifier l'alerte ;
+ *   les autres lisent `recipient_ids: null` et `recipient_candidates: []`. `recipients` est le choix
+ *   re-jugé ({@see ThresholdAlertRecipients::forAlert()}).
  * - `triggers [{at, value}]` sur demande : les dix derniers déclenchements, au journal
  *   (`threshold_alert` / `triggered`), le plus récent d'abord.
  *
@@ -83,6 +87,7 @@ final class ThresholdAlertReading
 
         $metrics = [];
         $recipients = [];
+        $nameOf = [];
         $readsMoney = [];
         $readsNames = [];
         foreach ($agencyIds as $agencyId) {
@@ -107,9 +112,10 @@ final class ThresholdAlertReading
             // Deux listes par agence : tous les admins actifs, et ceux qu'une alerte sur un chiffre
             // consolidé prévient ({@see ThresholdAlertRecipients::forMetric()}).
             $recipients[$agencyId] = $agency === null ? null : [
-                'all' => $named($admins),
-                'money' => $named(ThresholdAlertRecipients::forMetric($agency, AgencyMeMetrics::CONSOLIDATED_KEYS[0], $admins)),
+                'all' => $admins,
+                'money' => ThresholdAlertRecipients::forMetric($agency, AgencyMeMetrics::CONSOLIDATED_KEYS[0], $admins),
             ];
+            $nameOf[$agencyId] = $named;
         }
 
         $triggers = $withTriggers ? $this->triggers($alerts) : [];
@@ -121,21 +127,32 @@ final class ThresholdAlertReading
             $value = $values[$alert->metric] ?? null;
             $hidden = ! ($readsMoney[$agencyId] ?? false)
                 && in_array($alert->metric, AgencyMeMetrics::CONSOLIDATED_KEYS, true);
-            $named = ($recipients[$agencyId] ?? null) === null
-                ? ['count' => 0, 'users' => []]
+            // Deux listes par agence : tous les admins actifs, et ceux qu'une alerte sur un chiffre
+            // consolidé prévient ; TCK-2866 — réduites au choix de l'alerte quand il y en a un.
+            $candidates = ($recipients[$agencyId] ?? null) === null
+                ? collect()
                 : $recipients[$agencyId][in_array($alert->metric, AgencyMeMetrics::CONSOLIDATED_KEYS, true) ? 'money' : 'all'];
+            $chosen = $alert->chosenRecipientIds();
+            $effective = $chosen === []
+                ? $candidates
+                : $candidates->filter(fn (User $user): bool => in_array((int) $user->id, $chosen, true))->values();
+            $reads = $readsNames[$agencyId] ?? false;
+            $named = ($nameOf[$agencyId])($effective);
             $row = [
                 'current_value' => $value === null || $hidden ? null : (float) $value,
                 // TCK-2723 — la clé reste, la liste est vide ; `count` ne dépend pas du lecteur.
-                'recipients' => ($readsNames[$agencyId] ?? false) ? $named : ['count' => $named['count'], 'users' => []],
-                'channels' => ThresholdAlertTriggered::CHANNELS,
+                'recipients' => $reads ? $named : ['count' => $named['count'], 'users' => []],
+                'channels' => ThresholdAlertTriggered::channelsOf($alert),
+                // TCK-2866 — le choix et ce qui peut être choisi : à qui peut modifier l'alerte.
+                'recipient_ids' => $reads ? $chosen : null,
+                'recipient_candidates' => $reads ? ($nameOf[$agencyId])($candidates)['users'] : [],
             ];
             if ($hidden) {
                 $row['last_value'] = null;
             }
             if ($withTriggers) {
                 $row['triggers'] = $hidden
-                    ? array_map(fn (array $t): array => ['at' => $t['at'], 'value' => null], $triggers[(int) $alert->id] ?? [])
+                    ? array_map(fn (array $t): array => ['value' => null] + $t, $triggers[(int) $alert->id] ?? [])
                     : ($triggers[(int) $alert->id] ?? []);
             }
             $out[(int) $alert->id] = $row;
@@ -146,7 +163,7 @@ final class ThresholdAlertReading
 
     /**
      * @param  Collection<int, ThresholdAlert>  $alerts
-     * @return array<int, list<array{at: string|null, value: float|null}>>
+     * @return array<int, list<array{at: string|null, value: float|null, channel: string|null, recipients_count: int|null}>>
      */
     private function triggers(Collection $alerts): array
     {
@@ -177,6 +194,9 @@ final class ThresholdAlertReading
             $out[(int) $row->subject_id][] = [
                 'at' => BaseResource::instantOnWire(Carbon::parse($row->created_at)),
                 'value' => isset($properties['value']) ? (float) $properties['value'] : null,
+                // TCK-2866 — le canal du déclenchement et le nombre de prévenus (`null` avant TCK-2866).
+                'channel' => $properties['channel'] ?? null,
+                'recipients_count' => isset($properties['recipients_count']) ? (int) $properties['recipients_count'] : null,
             ];
         }
 

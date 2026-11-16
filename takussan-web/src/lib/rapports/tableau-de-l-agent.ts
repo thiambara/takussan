@@ -1,7 +1,7 @@
 import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { porteeTransmise } from '@/lib/navigation/rapports';
 import { fetchAgentDashboard, type AgentDashboardScope } from '@/lib/queries/dashboard';
-import type { PeriodeDesRapports } from '@/lib/rapports/periode';
+import { periodeALire, type PeriodeDesRapports } from '@/lib/rapports/periode';
 
 /**
  * TCK-595 (ADR-0049 §4) — « Moi » par défaut ; « Agence » seulement pour qui détient
@@ -31,6 +31,6 @@ export async function lireLeTableauDeLAgent(
   const capacites = await capacitesDuProfilActif();
   const peutVoirAgence = (capacites ?? []).includes(CAPACITE_AGENCE);
   const portee: AgentDashboardScope = porteeTransmise(scope) && peutVoirAgence ? 'agency' : 'mine';
-  const payload = await fetchAgentDashboard({ scope: portee, ...(periode === 'last_month' ? { period: periode } : {}) });
+  const payload = await fetchAgentDashboard({ scope: portee, ...periodeALire(periode) });
   return { payload, peutVoirAgence, agence: (payload?.data.scope ?? portee) === 'agency' };
 }

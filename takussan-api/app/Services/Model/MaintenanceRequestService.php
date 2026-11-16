@@ -6,6 +6,7 @@ use App\Events\Maintenance\MaintenanceScheduleChanged;
 use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\MaintenanceRescheduleRequest;
 use App\Models\User;
 use App\Services\Maintenance\CurrencyUnit;
 use App\Services\Maintenance\MaintenanceStateMachine;
@@ -53,11 +54,12 @@ class MaintenanceRequestService
         ?User $actor = null,
         string $cause = MaintenanceStatusChanged::CAUSE_TRANSITION,
         array $context = [],
+        ?string $cancellationReason = null,
     ): MaintenanceRequest {
         // P211.03 (TCK-2193) — le patron d'`accept` (TCK-1822) : la ligne relue sous verrou, la
         // table jugée sur elle, l'événement après le commit. Jugée sur le modèle reçu, la clôture
         // automatique écrasait une contestation faite pendant son passage.
-        $current = DB::transaction(function () use ($mr, $to, $actor): ?MaintenanceStatus {
+        $current = DB::transaction(function () use ($mr, $to, $actor, $cancellationReason): ?MaintenanceStatus {
             $fresh = $this->lockFresh($mr);
             $current = $fresh->status ?? MaintenanceStatus::Open;
 
@@ -83,6 +85,13 @@ class MaintenanceRequestService
 
             if ($to === MaintenanceStatus::Completed && $fresh->completed_at === null) {
                 $fresh->completed_at = now();
+            }
+
+            // TCK-2917 (ADR-0118 § 1) — le motif de qui annule, dans la même écriture que le statut.
+            // Une annulation du système (bien supprimé) n'en porte pas : son code reste à l'audit.
+            if ($to === MaintenanceStatus::Cancelled) {
+                $reason = $cancellationReason !== null ? trim($cancellationReason) : '';
+                $fresh->cancellation_reason = $reason !== '' ? $reason : null;
             }
 
             $fresh->save();
@@ -260,6 +269,11 @@ class MaintenanceRequestService
                 $scheduleChanged = $fresh->isDirty('scheduled_at');
             }
             $fresh->save();
+
+            // TCK-2917 (ADR-0118 § 3) — le créneau proposé à l'acceptation répond à la demande en attente.
+            if ($scheduleChanged) {
+                MaintenanceRescheduleRequest::closeFor($fresh, $provider);
+            }
 
             return $fresh;
         });

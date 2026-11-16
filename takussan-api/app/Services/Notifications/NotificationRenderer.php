@@ -99,6 +99,12 @@ class NotificationRenderer
                 NotificationCode::PARAM_MONTH => $this->month($value, $locale, $textMax),
                 NotificationCode::PARAM_PERSON => $this->person($value, $locale, $textMax),
                 NotificationCode::PARAM_VISIT_WINDOW => $this->visitWindow($value, $locale),
+                // TCK-2872
+                NotificationCode::PARAM_DOSSIER_PIECE => $this->dossierPiece($value, $locale),
+                // TCK-2873
+                NotificationCode::PARAM_COUNTER_OFFER_ANSWER => $this->counterOfferAnswer($value, $locale),
+                // TCK-2874
+                NotificationCode::PARAM_BOOKING_REJECTION_REASON => $this->bookingRejectionReason($value, $params['message'] ?? null, $locale, $textMax),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
@@ -206,6 +212,43 @@ class NotificationRenderer
         $key = 'invitations.roles.'.$code;
 
         return $this->text(trans()->has($key, $locale) ? __($key, [], $locale) : $code, $max);
+    }
+
+    /** TCK-2872 — le libellé de la pièce de dossier, jamais le code brut quand il est connu. */
+    private function dossierPiece(mixed $code, string $locale): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+        $key = 'bookings.dossier_pieces.'.$code;
+
+        return trans()->has($key, $locale) ? __($key, [], $locale) : $code;
+    }
+
+    /** TCK-2873 — la réponse du client à une contre-offre, jamais son code quand il est connu. */
+    private function counterOfferAnswer(mixed $code, string $locale): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+        $key = 'bookings.counter_offer_answers.'.$code;
+
+        return trans()->has($key, $locale) ? __($key, [], $locale) : $code;
+    }
+
+    /**
+     * TCK-2874 (ADR-0110 § 7) — « Dossier incomplet — Il manque l'engagement du garant » : le libellé
+     * du motif (jamais le code quand il est connu), puis la précision du personnel telle quelle ; la
+     * précision seule sans motif, « — » sans rien.
+     */
+    private function bookingRejectionReason(mixed $code, mixed $message, string $locale, ?int $max): string
+    {
+        $key = 'bookings.rejection_reasons.'.(is_string($code) ? $code : '');
+        $label = is_string($code) && $code !== '' ? (trans()->has($key, $locale) ? __($key, [], $locale) : $code) : null;
+        $detail = is_string($message) && trim($message) !== '' ? trim($message) : null;
+        $texte = implode(' — ', array_filter([$label, $detail], fn (?string $v) => $v !== null));
+
+        return $texte === '' ? '—' : $this->text($texte, $max);
     }
 
     /** TCK-2502 — la tranche de la journée dans la langue du destinataire, jamais son code. */

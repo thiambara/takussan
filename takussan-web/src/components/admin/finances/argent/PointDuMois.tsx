@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ArrowLeftRight,
   ArrowUpRight,
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,11 +31,14 @@ import { bornesDuMois, dateDuMois, moisPrecedent } from '@/lib/finances/mois';
 import { usePaymentsHistory, usePayouts } from '@/lib/queries/payments';
 import type { FinanceSummary } from '@/lib/queries/agency-reporting';
 import { cn } from '@/lib/utils';
-import type { PaymentHistoryRow } from '@/types/invoice';
+import type { PaymentHistoryRow, Payout } from '@/types/invoice';
+
+import { FeuilleDeRelance } from '../impayes/Impayes';
 
 import { variationSurLeMoisPrecedent } from './encaissement';
 import type { GestesDeLArgent } from './gestes';
 import { AvatarDuPayeur, LigneDEncaissementTelephone, useLectureDEncaissement } from './LigneDEncaissement';
+import { GestesDUnReversement, RefuserUnReversement } from './ReversementsAApprouver';
 import type { OngletArgent } from '@/lib/finances/vue-argent';
 
 /**
@@ -431,7 +435,9 @@ export function TuilesDuMois(ctx: ContexteDuPoint) {
 
 // Les largeurs de la maquette (116 px, 124 px ; colonne droite 432 px, gauche 580 px au moins), sur
 // l'échelle du bureau (`--spacing` = 3,6 px dès `lg`, ADR-0107) : K = px ÷ 3,6.
-const COLS_IMPAYE = 'grid-cols-[minmax(0,1fr)_calc(var(--spacing)*32)_calc(var(--spacing)*34.5)]';
+// TCK-2922 — la 4ᵉ colonne de la maquette, « Relancer » (104 px) : `COLS_IMPAYE_COURT`.
+const COLS_IMPAYE = 'grid-cols-[minmax(0,1fr)_calc(var(--spacing)*32)_calc(var(--spacing)*34.5)_calc(var(--spacing)*29)]';
+
 // Les hauteurs de rangée, elles, sont des tailles fixes de la maquette (56 px, 60 px à toute densité) :
 // en `rem` (3,5 et 3,75), jamais `min-h-14` / `min-h-15`, que la densité ramène à 50 et 54 px.
 
@@ -447,6 +453,23 @@ export function AFaireEtDerniers(ctx: ContexteDuPoint) {
   const derniers = usePaymentsHistory({ status: 'paid', paid_from: du, paid_to: au, per_page: 8, include: ['payer', 'property'] });
   const lignesAnciennes = anciens.data?.data ?? [];
   const reversements = aApprouver.data?.data ?? [];
+  // TCK-2922 — la relance d'une ligne (la feuille de l'écran Impayés, en panneau dès `md`), et le refus d'un reversement.
+  const [aRelancer, setARelancer] = useState<{ readonly row: PaymentHistoryRow; readonly ouverte: boolean } | null>(null);
+  const [aRefuser, setARefuser] = useState<Payout | null>(null);
+  const tGestes = useTranslations('admin.finances.impayes');
+  // TCK-2922 — les échéances relancées d'ici, dont la note a été PRISE : leur ligne dit « relancé à l'instant ».
+  // `FeuilleDeRelance` passe à `onFermer` la note de la relance (la promesse d'`OuvrirWhatsApp.onOuvert`) ;
+  // une note refusée ne marque rien (le toast d'`useNoterLaRelance` le dit).
+  const [relanceesIci, setRelanceesIci] = useState<ReadonlySet<number>>(() => new Set());
+  const fermerLaRelance = (note?: unknown) => {
+    const row = aRelancer?.row;
+    setARelancer((a) => (a ? { ...a, ouverte: false } : a));
+    if (row && note instanceof Promise) {
+      void note.then((prise) => {
+        if (prise === true) setRelanceesIci((ids) => new Set(ids).add(row.id));
+      });
+    }
+  };
 
   return (
     <div className="mt-6 grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_min(calc(var(--spacing)*120),calc(100%-var(--spacing)*161))]">
@@ -460,6 +483,7 @@ export function AFaireEtDerniers(ctx: ContexteDuPoint) {
               </CardAction>
             </CardHeader>
             <div className="max-xl:overflow-x-auto">
+              {/* TCK-2922 — la colonne « Relancer » de plus ; 520 px au moins (`TableDefilante min={520}` de la maquette), puis défilement dans la carte. */}
               <ul className="min-w-144">
                 {lignesAnciennes.map((row) => {
                   const nom = l.nom(row);
@@ -473,8 +497,25 @@ export function AFaireEtDerniers(ctx: ContexteDuPoint) {
                           {t('aFaire.joursDeRetardCourt', { count: retard })}
                         </span>
                       </span>
-                      <span className="truncate text-ui text-muted-foreground">
-                        {row.last_reminder ? t('aFaire.relanceLe', { date: f.jourMois(row.last_reminder.at) }) : t('aFaire.jamaisRelance')}
+                      <span className="truncate text-ui text-muted-foreground" data-slot="relance-de-la-ligne">
+                        {relanceesIci.has(row.id)
+                          ? t('aFaire.relanceALInstant')
+                          : row.last_reminder
+                            ? t('aFaire.relanceLe', { date: f.jourMois(row.last_reminder.at) })
+                            : t('aFaire.jamaisRelance')}
+                      </span>
+                      <span className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          aria-label={tGestes('relancer.titre', { nom })}
+                          onClick={() => setARelancer({ row, ouverte: true })}
+                          className="gap-1.5"
+                        >
+                          <IconeWhatsApp className="size-3.5 text-success lg:size-3.5" />
+                          {tGestes('gestes.relancer')}
+                        </Button>
                       </span>
                     </li>
                   );
@@ -492,28 +533,29 @@ export function AFaireEtDerniers(ctx: ContexteDuPoint) {
                 <Link href={lienDOnglet('a-approuver', periode)}>{t('aFaire.voirLes', { count: synthese?.payouts_awaiting_approval.count ?? reversements.length })}</Link>
               </CardAction>
             </CardHeader>
-            <ul>
-              {reversements.map((p) => (
-                <li key={p.id} className="flex min-h-[3.5rem] items-center gap-4 border-t border-border px-4 py-2 text-sm first:border-t-0">
-                  <span className="min-w-0 flex-1 leading-tight">
-                    <span className="block truncate font-medium">{p.reference_number ?? t('aFaire.reversementSansReference')}</span>
-                    <span className="mt-0.5 block truncate text-ui text-muted-foreground">
-                      {[
-                        p.period_start ? f.date(p.period_start, { month: 'long', year: 'numeric' }) : null,
-                        p.payout_method_masked ?? null,
-                        p.issuer?.name ? t('aFaire.preparePar', { nom: p.issuer.name }) : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
+            {/* TCK-2922 — trois gestes en bout de ligne : sous `xl`, la liste défile dans sa carte. */}
+            <div className="max-xl:overflow-x-auto">
+              <ul className="min-w-144">
+                {reversements.map((p) => (
+                  <li key={p.id} className="flex min-h-[3.5rem] items-center gap-4 border-t border-border px-4 py-2 text-sm first:border-t-0">
+                    <span className="min-w-0 flex-1 leading-tight">
+                      <span className="block truncate font-medium">{p.reference_number ?? t('aFaire.reversementSansReference')}</span>
+                      <span className="mt-0.5 block truncate text-ui text-muted-foreground">
+                        {[
+                          p.period_start ? f.date(p.period_start, { month: 'long', year: 'numeric' }) : null,
+                          p.payout_method_masked ?? null,
+                          p.issuer?.name ? t('aFaire.preparePar', { nom: p.issuer.name }) : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
                     </span>
-                  </span>
-                  <span className="flex-none text-right font-semibold tabular-nums">{f.montantCourt(p.net_amount, p.currency)}</span>
-                  <Button type="button" size="sm" onClick={() => gestes.ouvrirReversement(p.id)}>
-                    {t('aFaire.examiner')}
-                  </Button>
-                </li>
-              ))}
-            </ul>
+                    <span className="flex-none text-right font-semibold tabular-nums">{f.montantCourt(p.net_amount, p.currency)}</span>
+                    <GestesDUnReversement p={p} gestes={gestes} onRefuser={setARefuser} />
+                  </li>
+                ))}
+              </ul>
+            </div>
           </Card>
         ) : null}
       </div>
@@ -552,6 +594,11 @@ export function AFaireEtDerniers(ctx: ContexteDuPoint) {
           </ul>
         )}
       </Card>
+
+      {aRelancer ? (
+        <FeuilleDeRelance row={aRelancer.row} ouverte={aRelancer.ouverte} onFermer={fermerLaRelance} />
+      ) : null}
+      {aRefuser ? <RefuserUnReversement p={aRefuser} onFermer={() => setARefuser(null)} /> : null}
     </div>
   );
 }

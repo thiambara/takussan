@@ -57,4 +57,59 @@ return [
             'supply' => 'Jumtukaay',
         ],
     ],
+
+    // TCK-2911 (ADR-0120 § 2) — wolof en pause : texte français.
+    'bill_statement_pdf' => [
+        'title' => 'Relevé de mes factures',
+        'provider' => 'Prestataire',
+        'period' => 'Période',
+        'reference' => 'Référence',
+        'date' => 'Date',
+        'request' => 'Intervention',
+        'property' => 'Bien',
+        'status' => 'Statut',
+        'amount' => 'Montant',
+        'empty' => 'Aucune facture sur cette période.',
+        'billed_total' => 'Total facturé (hors rejetées et annulées)',
+        'paid_total' => 'Dont payé',
+        'statuses' => [
+            'draft' => 'À facturer',
+            'pending_validation' => 'En attente de validation',
+            'validated' => 'Validée',
+            'rejected' => 'Rejetée',
+            'paid' => 'Payée',
+            'cancelled' => 'Annulée',
+        ],
+    ],
+
+    // TCK-2897 (ADR-0099, amendement du 2026-11-15) — le PDF d'une facture d'intervention.
+    'bill_pdf' => [
+        'title' => 'Facture d\'intervention',
+        'reference' => 'Référence',
+        'provider_reference' => 'Référence du prestataire',
+        'date' => 'Date',
+        'request' => 'Intervention',
+        'property' => 'Bien',
+        'provider' => 'Prestataire',
+        'status' => 'Statut',
+        'amount' => 'Montant',
+    ],
+
+    // TCK-2897 (ADR-0099, amendement du 2026-11-15) — le rapport de fin d'intervention.
+    'completion_report_pdf' => [
+        'title' => 'Rapport de fin d\'intervention',
+        'request' => 'Intervention',
+        'property' => 'Bien',
+        'provider' => 'Prestataire',
+        'reported_at' => 'Signalée le',
+        'started_at' => 'Commencée le',
+        'completed_at' => 'Terminée le',
+        'cost' => 'Coût réel',
+        'description' => 'Travaux demandés',
+        'resolution' => 'Travaux réalisés',
+        'no_notes' => 'Aucune note.',
+        'photos_before' => 'Photos avant',
+        'photos_after' => 'Photos après',
+        'no_photos' => 'Aucune photo.',
+    ],
 ];

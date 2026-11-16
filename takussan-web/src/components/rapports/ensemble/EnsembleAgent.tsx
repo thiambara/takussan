@@ -1,16 +1,15 @@
-import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
 import { ChoixDeLaPeriode } from '@/components/rapports/ChoixDeLaPeriode';
 import { TuilesDuRapport } from '@/components/rapports/TuilesDuRapport';
 import { BlocDeRapport, BlocVide, LienChiffre, PeriodeDuRapport, formatDateHeure } from '@/components/rapports/vues/pieces';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
-import { bornesLisibles, moisEnCoursDeLaReponse, type PeriodeDesRapports } from '@/lib/rapports/periode';
+import { bornesLisibles, moisEnCoursDeLaReponse, moisServiDeLaReponse, type PeriodeDesRapports } from '@/lib/rapports/periode';
 import { hrefDeLOnglet } from '@/lib/navigation/rapports';
 import { chiffresDeLAgent, etatsDuJourAMarquer } from '@/lib/rapports/chiffres';
 import { lireLeTableauDeLAgent } from '@/lib/rapports/tableau-de-l-agent';
 
+import { DetailParBail } from './DetailParBail';
 import { GraphiquesDuRapport } from './GraphiquesDuRapport';
 import { BasculePortee, BlocPipeline } from './PiecesDeLAgent';
 import { serieDe } from './series';
@@ -24,8 +23,11 @@ import { serieDe } from './series';
  * « Priorités » (demandes en attente, baux à signer, tâches du jour) et « Activité récente » RESTENT, sous les
  * graphiques, hors maquette : « Ma journée » (TCK-2596) ne porte ni ces trois comptes ni leurs liens filtrés
  * (TCK-1735, TCK-1513, TCK-1733), et la règle du ticket est qu'aucune fonction des vues remplacées ne se perd.
- * Les visites du jour et les tâches assignées, elles, vivent dans « Ma journée ». « Détail par bail » mène à
- * l'onglet Commissions, qui mène à la page Commissions (famille 6, hors périmètre).
+ * Les visites du jour et les tâches assignées, elles, vivent dans « Ma journée ».
+ *
+ * TCK-2867 (maquette e7) — à côté du pipeline, « Mes commissions · 12 derniers mois » seul (côte à côte dès `xl`) :
+ * « Baux signés » sur 12 mois reste dans l'onglet Commissions. « Détail par bail » (`DetailParBail`) suit, avec le
+ * lien vers l'onglet Commissions. Sous « 12 mois », « Baux signés » est la somme des douze mois.
  */
 export async function EnsembleAgent({
   scope,
@@ -50,8 +52,9 @@ export async function EnsembleAgent({
   const commissions = serieDe(ts, 'commissions');
   const bauxSignes = serieDe(ts, 'signed_leases');
   const chiffres = chiffresDeLAgent(data, ts && bauxSignes ? { months: ts.months, signed_leases: bauxSignes.map((v) => v ?? 0) } : undefined, agence, {
-    moisServi: data.period.start.slice(0, 7),
+    moisServi: moisServiDeLaReponse(data.period),
     etatsDuJour,
+    douzeMois: data.period.key === 'last_12_months',
   });
   const prospects = chiffres.find((c) => c.cle === 'prospects')?.valeur ?? 0;
 
@@ -80,13 +83,16 @@ export async function EnsembleAgent({
           <GraphiquesDuRapport
             className="xl:grid-cols-1"
             moisEnCours={moisEnCours}
-            series={[
-              ...(commissions ? [{ id: 'commissions' as const, mois: ts.months, valeurs: commissions }] : []),
-              ...(bauxSignes ? [{ id: 'bauxSignes' as const, mois: ts.months, valeurs: bauxSignes }] : []),
-            ]}
+            series={commissions ? [{ id: 'commissions' as const, mois: ts.months, valeurs: commissions }] : []}
           />
         ) : null}
       </div>
+
+      <DetailParBail
+        agence={agence}
+        lignes={5}
+        lien={{ href: hrefDeLOnglet('commissions', agence ? 'agency' : null), libelle: tRapports('detailParBail.ongletCommissions') }}
+      />
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <BlocDeRapport title={t('pipelinePriorities')}>
@@ -125,13 +131,6 @@ export async function EnsembleAgent({
         </BlocDeRapport>
       </div>
 
-      <Link
-        href={hrefDeLOnglet('commissions', agence ? 'agency' : null)}
-        className="inline-flex min-h-11 items-center gap-0.5 rounded-sm text-sm font-medium text-primary outline-none focus-visible:ring-3 focus-visible:ring-ring"
-      >
-        {t('commissionsDetail')}
-        <ChevronRight className="size-4" aria-hidden="true" />
-      </Link>
     </div>
   );
 }

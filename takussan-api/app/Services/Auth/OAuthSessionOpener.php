@@ -112,6 +112,9 @@ final class OAuthSessionOpener
         // Émis par le seul émetteur, borné. Le blocage est refusé avant, par chaque chemin
         // (`account_blocked`) ; l'émetteur le refuse encore, en dernier recours.
         $issued = $this->tokens->issue($user, $tokenName, twoFactorJustVerified: $twoFactorJustVerified);
+        // TCK-2926 (ADR-0124 § 3) — la connexion par OAuth n'écrivait pas `last_login_at` : la dernière connexion,
+        // comme le mot de passe et le code SMS.
+        app(LastLoginRecorder::class)->record($user, $request);
 
         return new JsonResponse(['data' => [
             'token' => $issued['token'],

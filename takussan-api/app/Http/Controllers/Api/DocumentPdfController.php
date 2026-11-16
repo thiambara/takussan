@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\LeaseContractPreviewRequest;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
@@ -13,6 +14,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Services\Documents\ArchiveDuCoffre;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Model\LeaseService;
 use App\Services\Pdf\DocumentPdfService;
 use App\Services\Pdf\PrintedIdentity;
 use App\Services\Property\BailleurDuBien;
@@ -25,6 +27,7 @@ use Symfony\Component\HttpFoundation\Response;
  *   - GET /api/leases/{lease}/receipts/{payment}/pdf
  *   - GET /api/invoices/{invoice}/pdf
  *   - GET /api/leases/{lease}/contract/pdf
+ *   - POST /api/leases/contract-preview (TCK-2906 — l'aperçu, avant création)
  *
  * Each endpoint authorises the caller against a distinct policy (receipt:
  * tenant + landlord + agency staff ; invoice: destinataire + issuer + admin ;
@@ -186,8 +189,27 @@ class DocumentPdfController extends Controller
         }
         $lease->loadMissing(['property' => fn ($q) => $q->withTrashed(), 'property.address', 'tenant', 'landlord', 'agency', 'guarantors']);
 
+        return self::streamContract($pdf, $lease, 'Contrat de bail '.($lease->reference_number ?? $lease->id), sprintf('bail-%s.pdf', $lease->reference_number ?? $lease->id));
+    }
+
+    /**
+     * TCK-2906 — `POST /api/leases/contract-preview` : le contrat que la création écrirait, rendu depuis le
+     * formulaire, sans rien écrire en base. L'autorisation (`LeasePolicy::createOn` sur le bien) précède la
+     * validation, qui est celle de la création ({@see LeaseContractPreviewRequest}) ; les refus du locataire,
+     * du garant et de la réservation sont ceux de {@see LeaseService::preview()}.
+     */
+    public function leaseContractPreview(LeaseContractPreviewRequest $request, LeaseService $leases): Response
+    {
+        $lease = $leases->preview($request->property(), $request->user(), $request->validated());
+
+        return self::streamContract($this->pdf, $lease, 'Aperçu du contrat de bail', 'apercu-du-bail.pdf');
+    }
+
+    /** Le gabarit du contrat, ses relations déjà posées (bail lu, ou bail en mémoire de l'aperçu). */
+    private static function streamContract(DocumentPdfService $pdf, Lease $lease, string $title, string $filename): Response
+    {
         return $pdf->stream('pdf.leases.contract', [
-            'title' => 'Contrat de bail '.($lease->reference_number ?? $lease->id),
+            'title' => $title,
             'document_label' => 'Bail',
             'lease' => $lease,
             'tenant' => $lease->tenant,
@@ -196,7 +218,7 @@ class DocumentPdfController extends Controller
             'property' => $lease->property,
             'agency' => $lease->agency,
             'guarantors' => $lease->guarantors,
-            'filename' => sprintf('bail-%s.pdf', $lease->reference_number ?? $lease->id),
+            'filename' => $filename,
         ]);
     }
 

@@ -260,6 +260,9 @@ describe('TCK-2670 — « Reprendre ces deux numéros »', () => {
     rendreLaFiche(AGENCE, { section: 'facturation' });
 
     // Deux boutons, l'un du téléphone, l'autre du bureau (CSS) : le même geste.
+    // TCK-2929 (AC4, maquette e4) — l'encart nomme ce qui manque, et les numéros du dossier.
+    expect(await screen.findByText('NINEA et RCCM manquent sur vos factures')).toBeInTheDocument();
+    expect(screen.getAllByText(/SN-DKR-2019-B-12345/).length).toBeGreaterThan(0);
     await user.click((await screen.findAllByRole('button', { name: 'Reprendre ces deux numéros' }))[0]);
     expect(ACTIONS.updateAgencyAction).not.toHaveBeenCalled();
     expect(champ('ninea')).toHaveValue('005678912 2G3');

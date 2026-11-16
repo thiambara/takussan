@@ -16,6 +16,8 @@ import type { PaginatedResponse } from '@/types/api';
 export interface BienDeLAgenda {
   readonly id: number;
   readonly title: string;
+  /** TCK-2888 — le quartier sous le titre, à l'occupation (`include=address`, clé dérivée `location`). */
+  readonly location?: { readonly quarter: string | null } | null;
 }
 
 export const BIEN_DE_L_AGENDA_FIELDS = ['id', 'title'];
@@ -44,7 +46,7 @@ export function useBiensDeLAgenda(recherche: string, enabled = true) {
 /** Le titre du bien choisi, quand l'URL ne porte que son identifiant. */
 export function useBienDeLAgenda(id: number | null) {
   return useApiQuery<PaginatedResponse<BienDeLAgenda>>(agendaQueryKeys.bien(id ?? 0), '/api/properties', {
-    params: { fields: { properties: BIEN_DE_L_AGENDA_FIELDS }, filter: { id: String(id ?? 0) }, page: 1, per_page: 1 },
+    params: { fields: { properties: BIEN_DE_L_AGENDA_FIELDS }, include: ['address'], filter: { id: String(id ?? 0) }, page: 1, per_page: 1 },
     enabled: id !== null,
     staleTime: 5 * 60_000,
   });
@@ -54,7 +56,7 @@ export function useBienDeLAgenda(id: number | null) {
 export function useBiensParIdentifiants(ids: readonly number[], enabled = true) {
   const liste = [...ids].sort((a, b) => a - b).slice(0, 100);
   return useApiQuery<PaginatedResponse<BienDeLAgenda>>(['properties', 'agenda', 'ids', liste.join(',')], '/api/properties', {
-    params: { fields: { properties: BIEN_DE_L_AGENDA_FIELDS }, filter: { id: liste.join(',') }, sort: ['title'], page: 1, per_page: 100 },
+    params: { fields: { properties: BIEN_DE_L_AGENDA_FIELDS }, include: ['address'], filter: { id: liste.join(',') }, sort: ['title'], page: 1, per_page: 100 },
     enabled: enabled && liste.length > 0,
     staleTime: 5 * 60_000,
   });
@@ -72,7 +74,7 @@ export function useBiensLocatifs(enabled = true) {
     queryKey: ['properties', 'agenda', 'locatifs'],
     queryFn: ({ pageParam, signal }) =>
       apiRequest<PaginatedResponse<BienDeLAgenda>>(
-        cheminApi`/api/properties${requete(buildQueryString({ fields: { properties: BIEN_DE_L_AGENDA_FIELDS }, filter: { contract_type: 'rent' }, sort: ['title'], page: pageParam, per_page: PAR_PAGE_DES_BIENS_LIBRES }))}`,
+        cheminApi`/api/properties${requete(buildQueryString({ fields: { properties: BIEN_DE_L_AGENDA_FIELDS }, include: ['address'], filter: { contract_type: 'rent' }, sort: ['title'], page: pageParam, per_page: PAR_PAGE_DES_BIENS_LIBRES }))}`,
         { token: token ?? '', signal },
       ),
     initialPageParam: 1,

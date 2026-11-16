@@ -4,14 +4,14 @@ import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { GesteItineraire, GestesDuVisiteur } from '@/components/visits/par-le-temps/pieces';
-import { heureDeMinutes, journeeDeLAgenda, minutesADakar, occupationDuJour, estEnAttente, pointsDuJour, type Minute } from '@/lib/agenda/agenda';
+import { heureDeMinutes, journeeDeLAgenda, minutesADakar, occupationDuJour, estEnAttente, pointsDuJour, reboursDuProchain, type Minute } from '@/lib/agenda/agenda';
 import { semaineDe } from '@/lib/journee/journee';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/calendar';
 import type { PropertyVisit } from '@/types/visit';
 import { paletteForType } from '@/components/calendar/event-colors';
 import { useDatesDeLAgenda } from './dates';
-import { CreneauLibre, HACHURE, LienOccupation, TitreJour, TypeMot } from './pieces';
+import { CreneauLibre, HACHURE, LienOccupation, TitreJour, TypeMot, useTexteDuRebours } from './pieces';
 
 /** Le titre d'un événement : « Local commercial · Dakar-Plateau » (le quartier, s'il n'y est pas déjà). */
 export function titreDeLEvenement(e: CalendarEvent): string {
@@ -30,11 +30,13 @@ interface CarteProps {
   readonly visite: PropertyVisit | undefined;
   readonly gestes: boolean;
   readonly ouvert: boolean;
+  /** TCK-2888 — « dans 45 min » : le prochain événement du jour, à moins de deux heures. */
+  readonly rebours: string | null;
   readonly onOuvrir: (e: CalendarEvent) => void;
 }
 
 /** Un événement du jour : l'heure à gauche, la carte à droite ; toute la carte ouvre la fiche. */
-function CarteDuJour({ e, visite, gestes, ouvert, onOuvrir }: CarteProps) {
+function CarteDuJour({ e, visite, gestes, ouvert, rebours, onOuvrir }: CarteProps) {
   const t = useTranslations('agenda.jour');
   const titre = titreDeLEvenement(e);
   const sous = sousTitreDeLEvenement(e);
@@ -44,7 +46,16 @@ function CarteDuJour({ e, visite, gestes, ouvert, onOuvrir }: CarteProps) {
       data-testid={`calendar-event-row-${e.type}-${e.id}`}
       className={cn('relative mb-3 min-w-0 flex-1 rounded-xl border p-3.5', estEnAttente(e) ? HACHURE : 'border-border bg-card', ouvert && 'ring-2 ring-primary/50')}
     >
-      <TypeMot evenement={e} />
+      {rebours ? (
+        <div className="flex items-center justify-between gap-2">
+          <TypeMot evenement={e} />
+          <span data-slot="rebours" className="flex-none text-ui font-semibold tabular-nums text-primary-deep">
+            {rebours}
+          </span>
+        </div>
+      ) : (
+        <TypeMot evenement={e} />
+      )}
       <button
         type="button"
         onClick={() => onOuvrir(e)}
@@ -142,6 +153,8 @@ export interface JourDeLAgendaProps {
   readonly onOccupation: (() => void) | null;
   /** Sous le mois du téléphone : les séjours en cours en tête de la journée, le compte seul. */
   readonly occupationEnHaut?: boolean;
+  /** TCK-2888 — l'instant présent : « dans 45 min » dans la tête de la prochaine carte d'aujourd'hui. */
+  readonly maintenant?: Date | null;
 }
 
 /**
@@ -149,7 +162,7 @@ export interface JourDeLAgendaProps {
  * Appeler et WhatsApp pour une visite à venir —, le temps libre d'au moins une heure (« Libre de
  * 11:30 à 16:55 · Planifier »), et en bas, repliés, les séjours en cours.
  */
-export function JourDeLAgenda({ jour, aujourdhui, evenements, visites, sejoursDuJour, ouvert, onOuvrir, onPlanifier, onOccupation, occupationEnHaut = false }: JourDeLAgendaProps) {
+export function JourDeLAgenda({ jour, aujourdhui, evenements, visites, sejoursDuJour, ouvert, onOuvrir, onPlanifier, onOccupation, occupationEnHaut = false, maintenant = null }: JourDeLAgendaProps) {
   const t = useTranslations('agenda.jour');
   const d = useDatesDeLAgenda();
   const journee = journeeDeLAgenda(evenements, jour);
@@ -157,7 +170,18 @@ export function JourDeLAgenda({ jour, aujourdhui, evenements, visites, sejoursDu
   const occupation = occupationDuJour(sejours, jour);
   const gestes = jour >= aujourdhui;
   const vide = journee.sansHeure.length === 0 && journee.lignes.length === 0;
-  const carte = (e: CalendarEvent) => <CarteDuJour e={e} visite={e.type === 'visit' ? visites.get(e.id) : undefined} gestes={gestes} ouvert={ouvert?.type === e.type && ouvert.id === e.id} onOuvrir={onOuvrir} />;
+  const texteDuRebours = useTexteDuRebours();
+  const prochain = reboursDuProchain(evenements, jour, maintenant);
+  const carte = (e: CalendarEvent) => (
+    <CarteDuJour
+      e={e}
+      visite={e.type === 'visit' ? visites.get(e.id) : undefined}
+      gestes={gestes}
+      ouvert={ouvert?.type === e.type && ouvert.id === e.id}
+      rebours={prochain && prochain.evenement.type === e.type && prochain.evenement.id === e.id ? texteDuRebours(prochain) : null}
+      onOuvrir={onOuvrir}
+    />
+  );
   const duree = (m: Minute) => (m.evenement.type === 'visit' && m.fin > m.debut ? t('duree', { n: m.fin - m.debut }) : null);
 
   return (

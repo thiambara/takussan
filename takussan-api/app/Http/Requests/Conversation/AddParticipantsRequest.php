@@ -5,6 +5,7 @@ namespace App\Http\Requests\Conversation;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Conversation\Concerns\GuardsConversationScope;
 use App\Models\Conversation;
+use App\Models\Enums\ConversationType;
 use App\Models\Enums\ParticipantRole;
 use App\Models\User;
 use App\Rules\ParticipantIdsRule;
@@ -47,6 +48,8 @@ class AddParticipantsRequest extends BaseFormRequest
             // AUCUNE règle sur `user_ids.*` : `integer` ou `distinct` y produiraient la même forme.
             'user_ids' => ['bail', 'required', 'array', 'min:1', 'max:20', new ParticipantIdsRule(distinct: true)],
             'role' => ['nullable', Rule::enum(ParticipantRole::class)],
+            // TCK-2859 (ADR-0114 § 3) — le sujet du groupe neuf né d'un fil direct ; ignoré sur un groupe.
+            'subject' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -106,6 +109,14 @@ class AddParticipantsRequest extends BaseFormRequest
             $actor = $this->user();
             $newIds = array_values(array_unique(array_diff(array_map('intval', $userIds), $alreadyIn)));
 
+            // TCK-2859 (ADR-0114 § 3) — sur un fil direct, l'ajout crée un groupe : sans personne de
+            // neuf (l'autre partie, soi-même), il ne créerait qu'un « groupe » à deux.
+            if ($newIds === [] && $conversation->type === ConversationType::Direct) {
+                $v->errors()->add('user_ids', __('messaging.errors.participants_required'));
+
+                return;
+            }
+
             if (User::query()->whereIn('id', $newIds)->count() !== count($newIds)) {
                 $v->errors()->add('user_ids', __('messaging.errors.participants_unavailable'));
 
@@ -122,7 +133,10 @@ class AddParticipantsRequest extends BaseFormRequest
             // le prestataire assigné à l'intervention que le fil porte. Jugé pour le seul acteur qui
             // peut ajouter : à tout autre, le contrôleur répond 403 (`messaging.admin_only`), et un
             // 422 rendu avant lui dirait qui lit le bail à qui n'a aucun geste sur le fil.
-            if ($actor->can('addParticipant', $conversation)) {
+            // TCK-2859 (ADR-0114 § 3) — sur un fil direct, l'ajout crée un groupe qui reprend son bail :
+            // la même borne, pour le seul acteur qui peut l'élargir.
+            if ($actor->can('addParticipant', $conversation)
+                || ($conversation->type === ConversationType::Direct && $actor->can('addToDirect', $conversation))) {
                 $this->guardLeaseReaders($v, $conversation->lease_id, $newIds, 'user_ids', $conversation->maintenance_request_id);
             }
         });

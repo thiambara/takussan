@@ -141,7 +141,8 @@ class MaintenanceNotificationsTest extends TestCase
         ['mr' => $mr, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::InProgress);
 
         Sanctum::actingAs($landlord);
-        $this->putJson("/api/maintenance-requests/{$mr->id}/status", ['status' => 'cancelled'])->assertOk();
+        // TCK-2917 — qui annule dit pourquoi (ADR-0118 § 1).
+        $this->putJson("/api/maintenance-requests/{$mr->id}/status", ['status' => 'cancelled', 'reason' => 'Doublon'])->assertOk();
 
         $this->assertSame(0, AppNotification::query()->where('user_id', $landlord->id)->count());
         $this->assertSame(1, AppNotification::query()->where('user_id', $mr->assigned_to)->count());

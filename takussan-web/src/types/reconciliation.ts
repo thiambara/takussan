@@ -122,6 +122,11 @@ export interface ReconciliationOverview {
   confirmed_automatically: { total: number; by_provider: Record<string, number> };
   to_reconcile: { total: number; by_method: Record<string, number> };
   reconciled_manually: number;
+  /**
+   * TCK-2932 / TCK-2933 — les paiements sortis du reste à rapprocher (« Ignorer » : espèces gardées,
+   * autre compte…). La somme des quatre classes reste `payments_total` ; ils ne sont PAS rapprochés.
+   */
+  ignored: number;
 }
 
 /** La ligne de banque que l'API propose pour un paiement (la meilleure, sur un relevé ouvert). */
@@ -159,3 +164,50 @@ export type FiltreDuReste =
   | { readonly type: 'suggestion' }
   | { readonly type: 'sans' }
   | { readonly type: 'moyen'; readonly moyen: string };
+
+/* ─────────────── TCK-2933 — ignorer un paiement, aperçu d'un relevé, formats lus (TCK-2932) ─────────────── */
+
+/** Pourquoi un paiement n'aura jamais de ligne de banque (`IgnoredPaymentReason`) ; `other` exige une note. */
+export type MotifDIgnorer = 'cash_kept' | 'other_account' | 'other';
+
+/** Un geste « Ignorer » encore en effet (`…/reconciliation/ignored-payments`) ; `id` est celui du geste. */
+export interface PaiementIgnore {
+  id: number;
+  reason: MotifDIgnorer | string | null;
+  note: string | null;
+  ignored_at: string | null;
+  ignored_by: { id: number; first_name: string | null; last_name: string | null } | null;
+  payment: PendingPayment | null;
+}
+
+/** Une ligne lue par l'aperçu (`POST …/bank-statements/preview`) : montant en chaîne décimale. */
+export interface LigneDApercu {
+  date: string;
+  amount: string;
+  direction: BankLineDirection;
+  currency: string | null;
+  label: string | null;
+  reference: string | null;
+  counterparty: string | null;
+}
+
+/** Ce que l'import LIRAIT du fichier — rien n'est écrit. */
+export interface ApercuDuReleve {
+  source_format: BankStatementSourceFormat;
+  read: number;
+  skipped: number;
+  /** Une table vide arrive en objet (`{}`). Codes : `missing_value`, `invalid_date`… */
+  skipped_by_reason: Record<string, number>;
+  /** Le rang de la ligne dans le fichier et sa raison (50 au plus). */
+  skipped_lines: { line: number; reason: string }[];
+  period: { start: string | null; end: string | null };
+  lines: LigneDApercu[];
+  /** Le même fichier a déjà été importé (hors relevé en échec) : l'import le refuserait. */
+  already_imported: boolean;
+}
+
+/** `GET …/reconciliation/supported-formats` — les banques ne sont listées qu'à préréglage éprouvé (D-67). */
+export interface FormatsPrisEnCharge {
+  formats: { code: BankStatementSourceFormat; extensions: string[]; configurable_columns: boolean }[];
+  banks: { code: string; name: string; format: BankStatementSourceFormat }[];
+}

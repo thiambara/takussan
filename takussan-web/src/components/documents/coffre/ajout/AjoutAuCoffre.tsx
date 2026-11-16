@@ -12,13 +12,16 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { PanneauDroit } from '@/components/ui/panneau-droit';
+import { Switch } from '@/components/ui/switch';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import type { CoffreDeDocuments, CoffreVu } from '@/lib/documents/coffre';
-import { ciblesDeRangement, cibleParDefaut, piecesARenouveler, type CibleDeRangement } from '@/lib/documents/rangement';
+import { ciblesDeRangement, cibleParDefaut, pieceARemplacer, piecesARenouveler, type CibleDeRangement } from '@/lib/documents/rangement';
+import { CADRE_ENTIER, recadrerLaPhoto, type Cadre } from '@/lib/documents/recadrage';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import { DOCUMENT_MAX_SIZE_BYTES, DOCUMENT_MIME_ACCEPT, useUploadDocument } from '@/lib/queries/documents';
+import { DOCUMENT_MAX_SIZE_BYTES, DOCUMENT_MIME_ACCEPT, useUploadDocument, useUploadDocumentVersion } from '@/lib/queries/documents';
 import { CLE_DE_LA_PROMESSE, rappelAVenir } from '@/lib/documents/rappel-d-expiration';
+import { lireLaDateDExpiration, PIECES_A_MRZ } from '@/lib/documents/lecture-mrz/moteur';
 import { jourADakar } from '@/lib/visites/par-le-temps';
 import { documentUploadSchema, type DocumentUploadFormValues } from '@/lib/schemas/document';
 import { cn } from '@/lib/utils';
@@ -27,6 +30,7 @@ import type { DocumentType } from '@/types/document';
 import { DOCUMENT_TYPE_UPLOAD_ORDER } from '../../constants';
 import { useLibellesDuCoffre } from '../libelles';
 import { TuileDEntree } from '../LigneDuCoffre';
+import { Recadrage } from './Recadrage';
 
 /**
  * TCK-2656 (lot 2) — l'ajout au coffre en deux temps (maquette `app-documents` a, « ajouter (photo ou
@@ -41,33 +45,85 @@ import { TuileDEntree } from '../LigneDuCoffre';
  * « Rangé dans » se choisit parmi les SEULES cibles que l'API rend (`attachable_targets`) : aucun champ
  * d'identifiant n'est rendu, l'identifiant voyage avec le dossier choisi.
  *
- * Écarts décidés : ni « Redressée et recadrée toute seule » ni « Lu sur la photo » (aucun redressement,
- * aucune lecture du texte) ; ni le nom de l'agence (le coffre ne le rend pas). « Remplacer » et
- * l'interrupteur « Remplace … » mènent à la fiche de la pièce, qui porte les versions (décision L2 (a)).
- * Les pastilles de catégorie sont des valeurs de l'API : « Justificatif de revenus » n'en est pas une.
+ * TCK-2899 — « Lu sur la photo » : la photo d'une carte d'identité ou d'un passeport est lue DANS le
+ * navigateur (bande MRZ, `lib/documents/lecture-mrz`) pendant qu'on nomme le document ; une date validée
+ * par les clés de contrôle pré-remplit « Expire le », qui reste modifiable. Rien lu : rien ne s'affiche.
+ *
+ * TCK-2898 — « Redressée et recadrée » : une image choisie (photo ou fichier) passe par l'étape
+ * {@link Recadrage} — quarts de tour, coins du cadre —, et c'est l'image recadrée qui part (JPEG, mêmes
+ * bornes de taille). Une image que le navigateur ne décode pas (HEIC hors Safari…) part telle quelle.
+ *
+ * TCK-2898 — « Remplace la carte qui expire » (renverse la décision L2-1 (a)) : quand une pièce de la
+ * catégorie choisie est « À renouveler » ({@link pieceARemplacer}), l'interrupteur, activé par défaut,
+ * envoie le fichier en NOUVELLE VERSION de cette pièce (`POST /api/documents/{id}/versions`, l'échéance
+ * et la précision avec lui) ; désactivé, un document neuf, comme avant. Le nom, la catégorie et
+ * « Rangé dans » ne s'appliquent pas à une version : la pièce garde les siens.
+ *
+ * Écarts décidés : ni « toute seule » (le recadrage se règle à la main) ; ni le nom de l'agence (le
+ * coffre ne le rend pas). Les pastilles de catégorie sont des valeurs de l'API : « Justificatif de
+ * revenus » n'en est pas une.
  */
 
 /** Les pastilles de la maquette, en valeurs de l'API ; « Plus de catégories » ouvre la liste entière. */
 const CATEGORIES_RAPIDES: readonly DocumentType[] = ['id_card', 'passport', 'insurance', 'other'];
 
-export interface AjoutAuCoffreProps {
+/**
+ * TCK-2910 — un dépôt au rangement IMPOSÉ : la carte « Documents » de la fiche d'un bailleur dépose sur
+ * son profil (`owner_profile:{id}`, TCK-2909). Même parcours (photo ou fichier, nommer et ranger), sans
+ * dossier à choisir ni « À renouveler » (qui lisent le coffre de l'appelant), et sans les pièces KYC
+ * que l'API refuse sur un profil (422 `document.profile_piece_by_kyc`).
+ */
+export interface RangementImpose {
+  readonly type: 'owner_profile';
+  readonly id: number;
+  /** Le nom du dossier, tel que la fiche le dit (« Mouhamed Sène »). */
+  readonly nom: string;
+  /** Les pastilles de catégorie ; « Plus de catégories » offre le reste, pièces KYC exclues. */
+  readonly categories: readonly DocumentUploadFormValues['type'][];
+  /** La catégorie cochée à l'ouverture. */
+  readonly categorie: DocumentUploadFormValues['type'];
+}
+
+/** TCK-2910 — les pièces KYC qu'un dépôt sur un profil ne prend pas (`Document::PIECE_TYPES` de l'API). */
+const PIECES_KYC: readonly DocumentType[] = ['id_card', 'rib', 'ninea'];
+
+type SourceDuRangement =
+  | { readonly coffre: CoffreDeDocuments; readonly vu: CoffreVu; readonly impose?: undefined }
+  | { readonly impose: RangementImpose; readonly coffre?: undefined; readonly vu?: undefined };
+
+export type AjoutAuCoffreProps = SourceDuRangement & {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly coffre: CoffreDeDocuments;
-  readonly vu: CoffreVu;
   readonly onAjoute?: () => void;
-}
+};
 
 type Source = 'photo' | 'fichier';
 
-export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: AjoutAuCoffreProps) {
+export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, impose, onAjoute }: AjoutAuCoffreProps) {
   const t = useTranslations('documents.coffre.ajout');
   const tCommon = useTranslations('common');
   const bureau = useMatchesMedia('(min-width: 48rem)');
-  const cibles = ciblesDeRangement(coffre);
+  const cibles = coffre ? ciblesDeRangement(coffre) : [];
   const parDefaut = cibleParDefaut(cibles);
   const upload = useUploadDocument();
+  const version = useUploadDocumentVersion();
+  const libelles = useLibellesDuCoffre();
   const [fichier, setFichier] = useState<File | null>(null);
+  // TCK-2898 — l'image d'origine en cours de recadrage, ses dimensions et le réglage.
+  const [aRecadrer, setARecadrer] = useState<{
+    readonly fichier: File;
+    readonly source: Source;
+    readonly naturel: { readonly largeur: number; readonly hauteur: number };
+  } | null>(null);
+  const [apercuARecadrer, setApercuARecadrer] = useState<string | null>(null);
+  const [quarts, setQuarts] = useState(0);
+  const [cadre, setCadre] = useState<Cadre>(CADRE_ENTIER);
+  const [recadrageEnCours, setRecadrageEnCours] = useState(false);
+  const [recadree, setRecadree] = useState(false);
+  const decodage = useRef(0);
+  // TCK-2898 — « Remplace … qui expire », activé par défaut ; la pièce visée, lue à l'envoi.
+  const [remplace, setRemplace] = useState(true);
+  const versionDe = useRef<number | null>(null);
   const [source, setSource] = useState<Source | null>(null);
   const [erreurFichier, setErreurFichier] = useState<string | null>(null);
   // L'aperçu d'une image choisie : une URL `blob:`, rendue au changement de fichier, à la fermeture et au démontage.
@@ -84,13 +140,15 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
   const entreePhoto = useRef<HTMLInputElement>(null);
   const entreeFichier = useRef<HTMLInputElement>(null);
   const prendrePhoto = () => entreePhoto.current?.click();
+  // TCK-2899 — la date lue sur la photo ; l'aide « Lu sur la photo. » ne vaut que tant que le champ la porte.
+  const [dateLue, setDateLue] = useState<string | null>(null);
   const choisirFichier = () => entreeFichier.current?.click();
 
   const valeursInitiales = (): DocumentUploadFormValues => ({
     name: '',
-    type: 'other',
-    documentable_type: parDefaut?.type ?? 'user',
-    documentable_id: parDefaut?.id ?? 0,
+    type: impose?.categorie ?? 'other',
+    documentable_type: impose?.type ?? parDefaut?.type ?? 'user',
+    documentable_id: impose?.id ?? parDefaut?.id ?? 0,
     description: '',
     expiry_date: '',
   });
@@ -100,6 +158,16 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
     defaultValues: valeursInitiales(),
     onSubmit: async (values) => {
       if (!fichier) throw new Error(t('sansFichier'));
+      if (versionDe.current !== null) {
+        await version.mutateAsync({
+          document_id: versionDe.current,
+          file: fichier,
+          comment: values.description || undefined,
+          // Absente, l'API viderait l'échéance de la pièce (TCK-2300) : la date du formulaire part toujours.
+          expiry_date: values.expiry_date || undefined,
+        });
+        return undefined;
+      }
       await upload.mutateAsync({
         file: fichier,
         name: values.name,
@@ -117,6 +185,37 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
     },
   });
 
+  // TCK-2899 — la lecture tourne pendant qu'on nomme le document, pour une carte d'identité ou un
+  // passeport en image seulement (les autres pièces ne chargent pas le moteur). Une photo reprise, une
+  // catégorie changée ou la fenêtre fermée l'abandonnent : son résultat tardif est jeté. Une date déjà
+  // saisie n'est jamais écrasée.
+  const typeChoisi = useWatch({ control: form.control, name: 'type' });
+  // TCK-2898 — la pièce du même genre à remplacer, s'il y en a une (jamais sur un rangement imposé).
+  const aRemplacer = vu && !impose ? pieceARemplacer(vu, typeChoisi) : null;
+  const versionVisee = aRemplacer !== null && remplace ? aRemplacer.documentId : null;
+  useEffect(() => {
+    versionDe.current = versionVisee;
+  }, [versionVisee]);
+  const nomARemplacer = aRemplacer ? libelles.entree(aRemplacer) : null;
+  useEffect(() => {
+    // Le nom n'est pas celui de la version (la pièce garde le sien) ; il évite un champ obligatoire vide.
+    if (nomARemplacer && !form.getValues('name')) form.setValue('name', nomARemplacer);
+  }, [nomARemplacer, form]);
+  const aLire = fichier !== null && fichier.type.startsWith('image/') && PIECES_A_MRZ.includes(typeChoisi);
+  const luPour = useRef<File | null>(null);
+  useEffect(() => {
+    if (!aLire || !fichier || luPour.current === fichier) return;
+    const abandon = new AbortController();
+    void lireLaDateDExpiration(fichier, abandon.signal).then((date) => {
+      if (abandon.signal.aborted) return;
+      luPour.current = fichier;
+      if (!date || form.getValues('expiry_date')) return;
+      form.setValue('expiry_date', date, { shouldDirty: true });
+      setDateLue(date);
+    });
+    return () => abandon.abort();
+  }, [aLire, fichier, form]);
+
   function remplacerApercu(suivant: File | null) {
     if (apercuCourant.current) URL.revokeObjectURL(apercuCourant.current);
     apercuCourant.current =
@@ -124,7 +223,18 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
     setApercu(apercuCourant.current);
   }
 
+  function fermerLeRecadrage() {
+    if (apercuARecadrer) URL.revokeObjectURL(apercuARecadrer);
+    setApercuARecadrer(null);
+    setARecadrer(null);
+  }
+
   function fermer() {
+    decodage.current += 1;
+    fermerLeRecadrage();
+    setRecadree(false);
+    setRemplace(true);
+    setDateLue(null);
     remplacerApercu(null);
     setFichier(null);
     setSource(null);
@@ -141,6 +251,56 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
       return;
     }
     setErreurFichier(null);
+    // TCK-2898 — une image passe d'abord par le recadrage, si le navigateur sait la décoder ; sinon
+    // (HEIC hors Safari, environnement sans `createImageBitmap`), elle part telle quelle.
+    if (choisi.type.startsWith('image/') && typeof createImageBitmap === 'function') {
+      const jeton = (decodage.current += 1);
+      void createImageBitmap(choisi, { imageOrientation: 'from-image' }).then(
+        (image) => {
+          const naturel = { largeur: image.width, hauteur: image.height };
+          image.close();
+          if (jeton !== decodage.current) return;
+          if (apercuARecadrer) URL.revokeObjectURL(apercuARecadrer);
+          setApercuARecadrer(typeof URL.createObjectURL === 'function' ? URL.createObjectURL(choisi) : null);
+          setQuarts(0);
+          setCadre(CADRE_ENTIER);
+          setARecadrer({ fichier: choisi, source: depuis, naturel });
+        },
+        () => {
+          if (jeton === decodage.current) accepter(choisi, depuis, false);
+        },
+      );
+      return;
+    }
+    accepter(choisi, depuis, false);
+  }
+
+  /** TCK-2898 — l'image recadrée (ou l'originale, si le dessin échoue) remplace le fichier choisi. */
+  async function validerLeRecadrage() {
+    if (!aRecadrer || recadrageEnCours) return;
+    setRecadrageEnCours(true);
+    let resultat = aRecadrer.fichier;
+    try {
+      resultat = await recadrerLaPhoto(aRecadrer.fichier, quarts, cadre);
+    } catch {
+      // Le dessin a échoué : l'original part, comme une image non décodée.
+    } finally {
+      setRecadrageEnCours(false);
+    }
+    if (resultat.size > DOCUMENT_MAX_SIZE_BYTES) {
+      setErreurFichier(t('tropLourd'));
+      return;
+    }
+    const { source: depuis, fichier: original } = aRecadrer;
+    fermerLeRecadrage();
+    accepter(resultat, depuis, resultat !== original);
+  }
+
+  function accepter(choisi: File, depuis: Source, estRecadree: boolean) {
+    setRecadree(estRecadree);
+    // TCK-2899 — une date lue sur la photo précédente ne vaut pas pour la nouvelle.
+    if (dateLue !== null && form.getValues('expiry_date') === dateLue) form.setValue('expiry_date', '');
+    setDateLue(null);
     remplacerApercu(choisi);
     setFichier(choisi);
     setSource(depuis);
@@ -182,15 +342,43 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
     </p>
   ) : null;
 
+  const interrupteurDeRemplacement = aRemplacer ? (
+    <Remplace categorie={typeChoisi} actif={remplace} onChange={setRemplace} />
+  ) : null;
+
   const champs = (
     <ChampsDeLAjout
       control={form.control}
       cibles={cibles}
+      impose={impose}
+      dateLue={dateLue}
+      remplacement={interrupteurDeRemplacement}
       onCible={(c) => {
         form.setValue('documentable_type', c.type);
         form.setValue('documentable_id', c.id);
       }}
     />
+  );
+
+  const editeur = aRecadrer ? (
+    <Recadrage
+      apercu={apercuARecadrer}
+      naturel={aRecadrer.naturel}
+      quarts={quarts}
+      cadre={cadre}
+      onTourner={() => {
+        setQuarts((q) => (q + 1) % 4);
+        setCadre(CADRE_ENTIER);
+      }}
+      onCadre={setCadre}
+      onReprendre={aRecadrer.source === 'photo' ? prendrePhoto : choisirFichier}
+    />
+  ) : null;
+
+  const utiliser = (
+    <Button type="button" className={cn(!bureau && 'text-corps')} onClick={() => void validerLeRecadrage()} disabled={recadrageEnCours}>
+      {recadrageEnCours ? t('recadrage.enCours') : t('recadrage.valider')}
+    </Button>
   );
 
   const envoyer = (
@@ -229,11 +417,17 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
           </div>
           <div data-testid="corps-de-l-ajout" className="min-h-0 flex-1 overflow-y-auto p-5">
             {entrees}
-            {formulaire(
+            {editeur ? (
+              <>
+                {editeur}
+                <div className="mt-3">{erreur}</div>
+              </>
+            ) : formulaire(
               <>
                 {fichier ? (
                   <LeFichier
                     fichier={fichier}
+                    recadree={recadree}
                     apercu={apercu}
                     action={
                       <button type="button" onClick={choisirFichier} className={LIEN}>
@@ -250,13 +444,32 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
             )}
           </div>
           <div className="flex flex-none justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={fermer}>
+            {/* TCK-2898 — pendant le recadrage, « Annuler » revient au formulaire sans changer de fichier. */}
+            <Button type="button" variant="outline" onClick={aRecadrer ? fermerLeRecadrage : fermer}>
               {tCommon('actions.cancel')}
             </Button>
-            {envoyer}
+            {aRecadrer ? utiliser : envoyer}
           </div>
         </DialogContent>
       </Dialog>
+    );
+  }
+
+  // TCK-2898 — téléphone : l'étape « Redresser et recadrer », plein écran, entre la prise et le formulaire.
+  if (aRecadrer) {
+    return (
+      <PanneauDroit
+        open={open}
+        formulaire
+        onOpenChange={(o) => (o ? undefined : fermer())}
+        titre={t('recadrage.titre')}
+        sousTitre={aRecadrer.source === 'photo' ? t('etapePhoto') : t('etapeFichier')}
+        pied={utiliser}
+      >
+        {entrees}
+        {editeur}
+        <div className="mt-3">{erreur}</div>
+      </PanneauDroit>
     );
   }
 
@@ -269,8 +482,12 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
           <TuileDAjout onClick={choisirFichier} icone={<Upload className="size-5" strokeWidth={1.75} aria-hidden="true" />} titre={t('fichier.titre')} texte={t('fichier.texte')} />
         </div>
         <div className="mt-3">{erreur}</div>
-        <ARenouveler vu={vu} />
-        {parDefaut ? <RangementParDefaut cible={parDefaut} /> : null}
+        {vu ? <ARenouveler vu={vu} /> : null}
+        {impose ? (
+          <p className="mt-4 text-ui leading-snug text-muted-foreground">{t('rangeImpose', { dossier: impose.nom })}</p>
+        ) : parDefaut ? (
+          <RangementParDefaut cible={parDefaut} />
+        ) : null}
       </FeuilleDuBas>
     );
   }
@@ -289,6 +506,7 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
         <>
           <LeFichier
             fichier={fichier}
+            recadree={recadree}
             apercu={apercu}
             action={
               <button type="button" onClick={source === 'photo' ? prendrePhoto : choisirFichier} className={cn(LIEN, 'inline-flex items-center gap-1.5')}>
@@ -382,7 +600,18 @@ function RangementParDefaut({ cible }: { readonly cible: CibleDeRangement }) {
   return <p className="mt-4 text-ui leading-snug text-muted-foreground">{t('rangeParDefaut', { dossier: libelles.dossier(cible.etiquette) })}</p>;
 }
 
-function LeFichier({ fichier, apercu, action }: { readonly fichier: File; readonly apercu: string | null; readonly action: ReactNode }) {
+function LeFichier({
+  fichier,
+  recadree = false,
+  apercu,
+  action,
+}: {
+  readonly fichier: File;
+  /** TCK-2898 — l'image a été recadrée : « Photo recadrée » tient lieu de nom de fichier. */
+  readonly recadree?: boolean;
+  readonly apercu: string | null;
+  readonly action: ReactNode;
+}) {
   const t = useTranslations('documents.coffre.ajout');
   const f = useFormatteurs();
   const extension = /\.([a-z0-9]+)$/i.exec(fichier.name)?.[1] ?? fichier.type.split('/')[1] ?? '';
@@ -404,7 +633,7 @@ function LeFichier({ fichier, apercu, action }: { readonly fichier: File; readon
       {/* Téléphone : l'action sous le nom ; dès `md` : à droite, comme la maquette. */}
       <span className="min-w-0 flex-1 md:flex md:items-center md:gap-3">
         <span className="block min-w-0 leading-tight md:flex-1">
-          <span className="block truncate text-sm font-medium">{fichier.name}</span>
+          <span className="block truncate text-sm font-medium">{recadree ? t('photoRecadree') : fichier.name}</span>
           <span className="mt-0.5 block text-ui text-muted-foreground">{t('taille', { format: extension.toUpperCase(), taille })}</span>
         </span>
         <span className="mt-1 block flex-none md:mt-0">{action}</span>
@@ -446,10 +675,17 @@ function Depot({ onParcourir, onDepot }: { readonly onParcourir: () => void; rea
 function ChampsDeLAjout({
   control,
   cibles,
+  impose,
+  dateLue,
+  remplacement,
   onCible,
 }: {
   readonly control: Control<DocumentUploadFormValues>;
   readonly cibles: readonly CibleDeRangement[];
+  readonly impose?: RangementImpose;
+  readonly dateLue: string | null;
+  /** TCK-2898 — l'interrupteur « Remplace … qui expire », sous « Rangé dans » (maquette `Remplace`). */
+  readonly remplacement?: ReactNode;
   readonly onCible: (cible: CibleDeRangement) => void;
 }) {
   const t = useTranslations('documents.coffre.ajout');
@@ -459,14 +695,19 @@ function ChampsDeLAjout({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput<DocumentUploadFormValues> control={control} name="name" label={t('nom')} placeholder={t('nomExemple')} aria-required />
         <div className="md:order-last md:col-span-2">
-          <ChoixDeCategorie control={control} />
+          <ChoixDeCategorie
+            control={control}
+            rapides={impose?.categories ?? CATEGORIES_RAPIDES}
+            toutes={impose ? DOCUMENT_TYPE_UPLOAD_ORDER.filter((c) => !PIECES_KYC.includes(c)) : DOCUMENT_TYPE_UPLOAD_ORDER}
+          />
         </div>
         <div>
           <FormDatePicker<DocumentUploadFormValues> control={control} name="expiry_date" label={t('expire')} placeholder={t('facultatif')} />
-          <PromesseDuRappel control={control} />
+          <PromesseDuRappel control={control} dateLue={dateLue} />
         </div>
       </div>
-      <RangeDans control={control} cibles={cibles} onCible={onCible} />
+      {impose ? <RangeDansImpose nom={impose.nom} /> : <RangeDans control={control} cibles={cibles} onCible={onCible} />}
+      {remplacement}
       <FormInput<DocumentUploadFormValues> control={control} name="description" label={t('precision')} placeholder={t('precisionExemple')} />
     </>
   );
@@ -477,19 +718,34 @@ function ChampsDeLAjout({
  * rangée dans « Mes pièces » (le rappel va au compte qui porte la pièce) ; « 7 jours avant » entre 8 et
  * 60 jours ; rien à 7 jours ou moins.
  */
-function PromesseDuRappel({ control }: { readonly control: Control<DocumentUploadFormValues> }) {
+function PromesseDuRappel({ control, dateLue }: { readonly control: Control<DocumentUploadFormValues>; readonly dateLue: string | null }) {
+  const t = useTranslations('documents.coffre.ajout');
   const tMarques = useTranslations('documents.coffre.marques');
   const [type, expiry] = useWatch({ control, name: ['documentable_type', 'expiry_date'] });
   const jalon = type === 'user' ? rappelAVenir(expiry, jourADakar(new Date())) : null;
-  if (jalon === null) return null;
-  return <p className="mt-1.5 text-legende text-muted-foreground">{tMarques(CLE_DE_LA_PROMESSE[jalon])}</p>;
+  // TCK-2899 — « Lu sur la photo. » précède la promesse, tant que le champ porte la date lue.
+  const lu = dateLue !== null && expiry === dateLue;
+  if (jalon === null && !lu) return null;
+  return (
+    <p data-testid="aide-de-l-expiration" className="mt-1.5 text-legende text-muted-foreground">
+      {[lu ? t('luSurLaPhoto') : null, jalon === null ? null : tMarques(CLE_DE_LA_PROMESSE[jalon])].filter(Boolean).join(' ')}
+    </p>
+  );
 }
 
-function ChoixDeCategorie({ control }: { readonly control: Control<DocumentUploadFormValues> }) {
+function ChoixDeCategorie({
+  control,
+  rapides,
+  toutes,
+}: {
+  readonly control: Control<DocumentUploadFormValues>;
+  readonly rapides: readonly DocumentType[];
+  readonly toutes: readonly DocumentType[];
+}) {
   const t = useTranslations('documents.coffre.ajout');
   const tTypes = useTranslations('documents.types');
   const type = useWatch({ control, name: 'type' });
-  const [plus, setPlus] = useState(() => !CATEGORIES_RAPIDES.includes(type));
+  const [plus, setPlus] = useState(() => !rapides.includes(type));
   return (
     <Controller
       control={control}
@@ -498,7 +754,7 @@ function ChoixDeCategorie({ control }: { readonly control: Control<DocumentUploa
         <fieldset>
           <legend className="mb-1.5 text-sm font-medium">{t('categorie')}</legend>
           <div className="flex flex-wrap gap-2">
-            {CATEGORIES_RAPIDES.map((valeur) => (
+            {rapides.map((valeur) => (
               <button
                 key={valeur}
                 type="button"
@@ -524,12 +780,48 @@ function ChoixDeCategorie({ control }: { readonly control: Control<DocumentUploa
               name="type"
               label={t('plusDeCategories')}
               containerClassName="mt-3"
-              options={DOCUMENT_TYPE_UPLOAD_ORDER.map((valeur) => ({ value: valeur, label: tTypes(valeur) }))}
+              options={toutes.map((valeur) => ({ value: valeur, label: tTypes(valeur) }))}
             />
           ) : null}
         </fieldset>
       )}
     />
+  );
+}
+
+/**
+ * TCK-2898 — « Remplace la carte qui expire — L'ancienne reste dans les versions. » (maquette `Remplace`) :
+ * la ligne entière bascule l'interrupteur.
+ */
+function Remplace({ categorie, actif, onChange }: { readonly categorie: string; readonly actif: boolean; readonly onChange: (actif: boolean) => void }) {
+  const t = useTranslations('documents.coffre.ajout.remplace');
+  const id = useId();
+  return (
+    <label data-testid="remplace" className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-3 py-3">
+      <span className="min-w-0 flex-1 leading-tight">
+        <span id={`${id}-titre`} className="block text-corps font-medium">
+          {t('titre', { categorie })}
+        </span>
+        <span className="mt-0.5 block text-ui text-muted-foreground">{t('texte')}</span>
+      </span>
+      <Switch checked={actif} onCheckedChange={(suivant) => onChange(suivant)} aria-labelledby={`${id}-titre`} />
+    </label>
+  );
+}
+
+/** TCK-2910 — « Rangé dans » d'un rangement imposé : le dossier, sans « Changer ». */
+function RangeDansImpose({ nom }: { readonly nom: string }) {
+  const t = useTranslations('documents.coffre.ajout');
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium">{t('rangeDans')}</p>
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+        <FolderOpen className="size-5 flex-none text-primary" strokeWidth={1.5} aria-hidden="true" />
+        <span data-testid="range-dans" className="min-w-0 flex-1 truncate text-corps leading-tight font-medium">
+          {nom}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -575,7 +867,12 @@ function RangeDans({
         ? c.precision.reference
           ? t('leBailNumero', { reference: c.precision.reference })
           : t('leBail')
-        : null;
+        : c.precision?.cle === 'dansLeBien'
+          ? // TCK-2898 — le sous-dossier d'un bail se précise par son bien (et son numéro).
+            c.precision.reference
+            ? t('dansLeBienNumero', { bien: c.precision.nom, reference: c.precision.reference })
+            : c.precision.nom
+          : null;
 
   return (
     <div>

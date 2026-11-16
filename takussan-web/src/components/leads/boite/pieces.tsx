@@ -220,10 +220,39 @@ export function GestesDuBureau(props: GestesDeLaDemandeProps) {
           {t('actions.email')}
         </button>
       )}
-      <button type="button" onClick={() => onVisite(lead)} data-slot="geste-visite" className={classe(TON_PRIMAIRE)}>
+      <button type="button" onClick={() => onVisite(lead)} aria-keyshortcuts="V" data-slot="geste-visite" className={classe(TON_PRIMAIRE)}>
         <CalendarPlus className="size-icone" strokeWidth={1.75} aria-hidden="true" />
         {t('gestures.proposeVisit')}
       </button>
+      {/* TCK-2885 — à 1440 (`app-fil-commercial` a-0), la barre redit V et T ; dessous, le pied de la
+          liste les porte seul. */}
+      <span data-slot="raccourcis-de-la-demande" aria-hidden="true" className="ml-auto hidden items-center gap-1 text-ui text-muted-foreground min-[90rem]:flex">
+        <Touche>V</Touche> {t('shortcuts.visit')}
+        <Touche className="ml-2">T</Touche> {t('shortcuts.handle')}
+      </span>
     </div>
+  );
+}
+
+/** Une touche du clavier, en petite capsule (maquette : 11 px sur fond atténué). */
+export function Touche({ children, className }: { readonly children: ReactNode; readonly className?: string }) {
+  return <kbd className={cn('rounded bg-muted px-1.5 py-0.5 font-sans text-legende', className)}>{children}</kbd>;
+}
+
+/** TCK-2885 — le pied de la liste au bureau : « J K parcourir · V visite · T traiter ». */
+export function PiedDesRaccourcis({ className }: { readonly className?: string }) {
+  const t = useTranslations('contactLeads.shortcuts');
+  return (
+    <p data-slot="pied-des-raccourcis" aria-label={t('label')} className={cn('flex items-center justify-center gap-3 px-4 py-4 text-xs text-muted-foreground', className)}>
+      <span>
+        <Touche className="px-1">J</Touche> <Touche className="px-1">K</Touche> {t('browse')}
+      </span>
+      <span>
+        <Touche className="px-1">V</Touche> {t('visit')}
+      </span>
+      <span>
+        <Touche className="px-1">T</Touche> {t('handle')}
+      </span>
+    </p>
   );
 }

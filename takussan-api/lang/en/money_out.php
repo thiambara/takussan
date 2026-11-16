@@ -50,4 +50,32 @@ return [
         'ninea' => 'NINEA',
         'rccm' => 'RCCM',
     ],
+
+    // TCK-2909 — the payout notice (`GET /api/payouts/{payout}/notice/pdf`).
+    'notice' => [
+        'title' => 'Payout notice',
+        'nature' => 'Type',
+        'paid_on' => 'Paid on',
+        'method' => 'Method',
+        'transaction' => 'Transaction reference',
+        'net' => 'Amount paid',
+        'attestation' => 'This notice confirms that the amount shown, net of the management fee, was paid to the landlord.',
+        'natures' => [
+            'advance' => 'Advance',
+            'balance' => 'Balance',
+            'deposit_refund' => 'Deposit refund',
+            'refund' => 'Refund',
+            'provider_bill' => 'Service provider invoice',
+        ],
+        'methods' => [
+            'cash' => 'Cash',
+            'bank_transfer' => 'Bank transfer',
+            'mobile_money' => 'Mobile money',
+            'wave' => 'Wave',
+            'orange_money' => 'Orange Money',
+            'free_money' => 'Free Money',
+            'check' => 'Cheque',
+            'card' => 'Card',
+        ],
+    ],
 ];

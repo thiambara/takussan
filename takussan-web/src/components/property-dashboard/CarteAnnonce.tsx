@@ -24,7 +24,8 @@ import { ProprietaireEtResponsable } from './ProprietaireEtResponsable';
 /**
  * TCK-2638 (lot B) — la carte du mode Annonces (maquette `app-biens` a-1) : la photo en 3:2, le prix
  * avec sa période (AC7), le titre · quartier, l'état d'annonce (« En ligne » = `is_online`, ADR-0097)
- * et la visibilité (« Public / Privé », un réglage), puis les vues et les favoris.
+ * et la visibilité (« Public / Privé », un réglage), puis les chiffres des 30 derniers jours (TCK-2908 :
+ * « 312 vues · 9 contacts · 3 visites (30 j) », `stats_30d` de TCK-2905 — les favoris n'y sont plus).
  *
  * **Rien ne se perd** (Contraintes strictes du ticket) : la carte garde ce que portait la ligne d'avant
  * — propriétaire et agent responsable, référence, ancienneté, le statut quand l'état ne le dit pas, le
@@ -134,10 +135,23 @@ export function CarteAnnonce({
         {/* Le pied se pose en bas de la carte (`mt-auto`) : dans la grille du bureau, les cartes d'une rangée
             ont la même hauteur, et leurs chiffres s'alignent. La case garde sa cible de 44 px (`-my-2`). */}
         <div className="mt-auto flex items-center gap-1.5 border-t border-border pt-0.5 text-ui text-muted-foreground tabular-nums">
-          <Eye className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
-          <span className="min-w-0 flex-1">
-            {t('chiffres', { vues: property.views_count ?? 0, favoris: property.favorites_count ?? 0 })}
-          </span>
+          {/* TCK-2908 — les chiffres de la fenêtre glissante, seulement quand l'API les sert : jamais le
+              compteur de toujours (`views_count`) sous l'étiquette « (30 j) ». */}
+          {property.stats_30d ? (
+            <>
+              <Eye className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate" data-testid="chiffres-30-jours">
+                {t('chiffres30j', {
+                  vues: property.stats_30d.views,
+                  contacts: property.stats_30d.contacts,
+                  visites: property.stats_30d.visits,
+                })}{' '}
+                <span className="text-muted-foreground">{t('fenetre30j')}</span>
+              </span>
+            </>
+          ) : (
+            <span className="min-w-0 flex-1" />
+          )}
           <label className="relative z-10 -my-1.5 -mr-2.5 grid size-11 shrink-0 cursor-pointer place-items-center">
             <input
               type="checkbox"

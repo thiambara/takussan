@@ -7,6 +7,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { Ban, Check, Clock, CloudOff, Link2Off, Loader2, Phone, Unlink, type LucideIcon } from 'lucide-react';
 
 import { BoutonCollant } from '@/components/auth/BoutonCollant';
+import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
 import { useDecalageDuClavier } from '@/components/entree/useDecalageDuClavier';
 import { Button } from '@/components/ui/button';
 import { useCurrentLocale } from '@/i18n/hooks';
@@ -16,6 +17,7 @@ import { demanderNouvelleInvitation } from '@/lib/invitation-code';
 import { formaterTelephone } from '@/lib/phone';
 import { cn } from '@/lib/utils';
 
+import { useAideDeLAgence } from './BarreDeLInvitation';
 import { BOUTON_D_INVITATION, LogoDeLAgence } from './PiecesDeLInvitation';
 
 /**
@@ -26,8 +28,10 @@ import { BOUTON_D_INVITATION, LogoDeLAgence } from './PiecesDeLInvitation';
  *
  * ⚠ **Aucun champ de saisie** (AC1) : rien à remplir pour un lien qui ne marche plus.
  *
- * Le 410 ne sert que l'agence (nom, logo, téléphone public) et la date : ni l'invitant ni le rôle — la
- * carte dit « Invitation du 3 nov. » là où la maquette nomme la personne.
+ * Le 410 sert l'agence (nom, logo, téléphone public), la date et — TCK-2941 (ADR-0094, amendement § 3) — le
+ * PRÉNOM de qui invitait : « Awa vous avait invité le 3 nov. ». Ni le rôle : la carte dit « Invitation du 3 nov. »
+ * là où la maquette nomme la personne et le rôle. Sans prénom servi, le texte d'avant (l'agence et la date).
+ * Le téléphone public de l'agence met aussi « Aide » dans la barre (TCK-2941, maquette e2).
  */
 export type EtatDuLien = InvitationFermee['etat'] | 'inconnue' | 'incomplet' | 'indisponible';
 
@@ -60,6 +64,8 @@ export function EcranFerme({ etat, fermee = null, jeton = null }: { readonly eta
   const agence = fermee?.agence ?? null;
   const date = fermee?.inviteeLe ? format.dateTime(new Date(fermee.inviteeLe), { day: 'numeric', month: 'short' }) : null;
   const telephone = agence?.telephone ?? null;
+  const invitant = fermee?.invitant ?? null;
+  const aide = useAideDeLAgence(agence);
 
   async function demander() {
     if (!jeton || demande === 'envoi' || demande === 'envoyee') return;
@@ -79,7 +85,12 @@ export function EcranFerme({ etat, fermee = null, jeton = null }: { readonly eta
 
   const texte =
     etat === 'expiree'
-      ? agence && date
+      ? invitant && date
+        ? // TCK-2941 — « Awa vous avait invité le 3 nov., de la part de Dakar Immo. »
+          agence
+          ? t('expiree.texteInvitant', { prenom: invitant, agence: agence.nom, date: date.replace(/\.$/, '') })
+          : t('expiree.texteInvitantSans', { prenom: invitant, date: date.replace(/\.$/, '') })
+        : agence && date
         ? // « le 3 nov. Les invitations… » : le point de l'abréviation tient lieu de point final (sans quoi « nov.. »).
           t('expiree.texte', { agence: agence.nom, date: date.replace(/\.$/, '') })
         : t('expiree.texteSans')
@@ -145,6 +156,7 @@ export function EcranFerme({ etat, fermee = null, jeton = null }: { readonly eta
 
   return (
     <div className="pt-3 lg:pt-0">
+      {aide ? <DeclarerEntree aDroite={aide} /> : null}
       <span className="inline-flex size-14 items-center justify-center rounded-full bg-secondary text-primary-deep xl:size-16">
         <Icone className="size-7 xl:size-8" strokeWidth={1.5} aria-hidden="true" />
       </span>

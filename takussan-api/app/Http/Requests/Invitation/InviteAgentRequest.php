@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Invitation;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Invitation;
 use App\Rules\TelephoneJoignable;
 use App\Services\Invitation\AgentInvitationService;
 use App\Support\TelephoneSaisi;
@@ -41,16 +42,24 @@ class InviteAgentRequest extends BaseFormRequest
         return [
             // TCK-589 — drapeau `auth.phone_login.enabled` allumé, le numéro suffit
             // (lien par SMS) ; éteint, l'e-mail reste exigé.
+            // TCK-2927 (ADR-0123) — une invitation partagée est adressée au seul numéro : un e-mail
+            // serait posé vérifié à l'acceptation par code (ADR-0094 § 6) sans qu'aucun message y
+            // soit arrivé.
             'email' => $this->phoneLoginEnabled()
-                ? ['nullable', 'required_without:phone', 'email:rfc']
+                ? ['nullable', 'required_without:phone', 'prohibited_if:delivery,'.Invitation::DELIVERY_SHARE, 'email:rfc']
                 : ['required', 'email:rfc'],
+            // TCK-2927 (ADR-0123) — `share` : aucun envoi, le lien est rendu à l'invitant. Drapeau
+            // `auth.phone_login.enabled` éteint, les routes du code rendent 404 : refusé.
+            'delivery' => $this->phoneLoginEnabled()
+                ? ['nullable', 'string', Rule::in([Invitation::DELIVERY_SHARE])]
+                : ['prohibited'],
             'role' => ['required', 'string', Rule::in(AgentInvitationService::ALLOWED_ROLES)],
             'first_name' => ['required', 'string', 'max:80'],
             'last_name' => ['required', 'string', 'max:80'],
             // TCK-589 — un numéro qu'aucun SMS ne joint n'est plus stocké, drapeau
             // éteint comme allumé.
             'phone' => $this->phoneLoginEnabled()
-                ? ['nullable', 'required_without:email', 'string', 'max:30', new TelephoneJoignable]
+                ? ['nullable', 'required_without:email', 'required_if:delivery,'.Invitation::DELIVERY_SHARE, 'string', 'max:30', new TelephoneJoignable]
                 : ['nullable', 'string', 'max:30', new TelephoneJoignable],
         ];
     }

@@ -46,8 +46,17 @@ function Entree({ e, maintenant }: { readonly e: EntreeDuJournal; readonly maint
   const tStatut = useTranslations('maintenance.status');
   const f = useFormatteurs();
   const cle = cleDuJournal(e.code);
-  const quoi = cle === 'status_transition' && e.to ? t('codes.status_transition', { statut: tStatut(e.to) }) : t(`codes.${cle}`);
-  const qui = cle === 'journal_before' ? t('avantLeJournal') : e.actor ? t('par', { nom: e.actor.full_name }) : t('systeme');
+  // TCK-2902 (e1) — le signalement se dit « Signalée par Ousmane Niang », puis ses pièces : « 2 photos, un
+  // message vocal » (`photos_count`, `has_voice_note`, servis sur la seule entrée `created`).
+  const signalement = cle === 'created' && e.actor !== null;
+  const photos = e.photos_count ?? 0;
+  const vocal = e.has_voice_note === true;
+  const quoi = signalement && e.actor
+    ? t('signaleePar', { nom: e.actor.full_name })
+    : cle === 'status_transition' && e.to ? t('codes.status_transition', { statut: tStatut(e.to) }) : t(`codes.${cle}`);
+  const qui = signalement
+    ? photos > 0 || vocal ? t('pieces', { photos, vocal: vocal ? 'oui' : 'non' }) : null
+    : cle === 'journal_before' ? t('avantLeJournal') : e.actor ? t('par', { nom: e.actor.full_name }) : t('systeme');
   return (
     <li data-code={e.code} className="flex gap-3">
       <span className="w-14 flex-none leading-tight text-muted-foreground tabular-nums">
@@ -62,7 +71,7 @@ function Entree({ e, maintenant }: { readonly e: EntreeDuJournal; readonly maint
       </span>
       <span className="min-w-0 flex-1 leading-tight">
         <span className="block">{quoi}</span>
-        <span className="block text-xs text-muted-foreground">{qui}</span>
+        {qui ? <span className="block text-xs text-muted-foreground">{qui}</span> : null}
       </span>
     </li>
   );

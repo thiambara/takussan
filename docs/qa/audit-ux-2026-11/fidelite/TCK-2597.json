@@ -125,7 +125,6 @@
   "alias": {
     "Mardi 10 novembre": "le jour du relevé en toutes lettres, au calendrier de Dakar",
     "Cette semaine : 3 visites, dont 1 à confirmer · 2 tâches": "le résumé de la période relevée ; un compte nul se tait (« rien de prévu » quand tout est nul)",
-    "Séjour · Villa Almadies": "la barre d'un séjour au mois porte le titre du bien (« Séjour · {titre} ») : l'API ne sert pas le nom du client d'une réservation dans l'agenda",
     "Confirmée": "statut d'une visite ou d'une réservation confirmée ; « En attente » pour une visite `scheduled` (à confirmer) ou une réservation `pending`, au motif hachuré"
   },
   "ancres": [],
@@ -146,13 +145,6 @@
       "motif": "la démo n'a aucun séjour (`GET /api/bookings?filter[kind]=stay` → 0 pour Dakar Immo) ni aucun `lease_event` dans la fenêtre octobre-janvier, pour l'admin comme pour les bailleurs ; les barres sont éprouvées par les tests de composant (`CalendarPage.test.tsx` : un séjour de 23 nuits = quatre barres au mois ; `occupation.tck-2597.test.ts`)"
     },
     {
-      "ecran": "app-agenda a-2-bureau-*, a-3-*",
-      "element": "nom du client sur la barre d'un séjour (« Awa Diop · 6 nuits »)",
-      "propriete": "texte",
-      "exception": "donnée",
-      "motif": "l'événement `booking` de `/api/calendar` ne porte que le titre du bien et la référence : la barre dit « {n} nuits · {référence} » à l'occupation et « Séjour · {bien} » au mois. Servir le client demande une évolution de l'API (CalendarEventCollector), hors périmètre"
-    },
-    {
       "ecran": "app-agenda a-*-telephone",
       "element": "en-tête de la coque (titre, « Moi ▾ », « + »)",
       "propriete": "trait, couleur",
@@ -165,13 +157,6 @@
       "propriete": "tailles et positions",
       "exception": "technique",
       "motif": "la référence gelée est antérieure à TCK-2692 (ADR-0107) ; densité 0,9 des deux côtés"
-    },
-    {
-      "ecran": "app-agenda a-5-*",
-      "element": "le lien iCal et « Copier » dès l'ouverture de la feuille ; « Générer un nouveau lien » quand le lien est actif mais n'est plus affiché",
-      "propriete": "présence",
-      "exception": "sécurité",
-      "motif": "le lien secret ne se montre qu'une fois, à sa génération (TCK-591) : rouverte plus tard, la feuille dit « Créé le / Dernier accès / Contenu » et propose de régénérer. Le relevé montre l'état « lien émis » par une réponse simulée (aucune écriture)"
     },
     {
       "ecran": "app-agenda a-5-*",
@@ -193,20 +178,6 @@
       "propriete": "couleur",
       "exception": "accessibilité (ADR-0106 § 2 a)",
       "motif": "`text-primary-deep` (contraste AA sur fond clair, TCK-658) au lieu de `text-primary` de la maquette"
-    },
-    {
-      "ecran": "app-agenda a-2-telephone",
-      "element": "pastille « 14 j » à côté de la plage",
-      "propriete": "chevron",
-      "exception": "décision produit",
-      "motif": "la période du téléphone est fixe (14 jours) : la pastille n'ouvre aucun choix, le chevron de la maquette promettrait un menu absent"
-    },
-    {
-      "ecran": "app-agenda a-2-bureau-*",
-      "element": "quartier sous le titre du bien dans la colonne des biens",
-      "propriete": "texte",
-      "exception": "donnée",
-      "motif": "la ligne dit l'état (« Libre », « Occupé jusqu'au … ») ; le quartier n'est pas dans `fields[properties]` de l'index (id, title) et l'ajouter demande une jointure d'adresse, hors périmètre"
     },
     {
       "ecran": "app-agenda a-*-telephone",

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Check, ChevronRight, Landmark, Settings2, Upload } from 'lucide-react';
+import { Check, ChevronRight, Landmark, Settings2, Smartphone, Upload } from 'lucide-react';
 
 import { SelecteurDeMois, useTextesDuSelecteurDeMois } from '@/components/admin/finances/argent/SelecteurDeMois';
 import { PageHeader } from '@/components/console';
@@ -22,13 +22,14 @@ import {
   useConfirmBatch,
   useCsvMapping,
   useDelierLigne,
+  useFormatsPrisEnCharge,
   usePendingPayments,
   useRapprocherLigne,
   useReconciliationOverview,
   useSuggestionsDuReste,
 } from '@/lib/queries/reconciliation';
 import { cn } from '@/lib/utils';
-import type { BankStatementLine, FiltreDuReste, PendingPayment, ReconciliationOverview } from '@/types/reconciliation';
+import type { BankStatementLine, FiltreDuReste, MotifDIgnorer, PendingPayment, ReconciliationOverview } from '@/types/reconciliation';
 
 import { CsvMappingForm } from '../CsvMappingForm';
 import { ImportStatementForm } from '../ImportStatementForm';
@@ -36,6 +37,7 @@ import { StatementsList } from '../StatementsList';
 import { confianceEnFraction } from '../format';
 import { ChercherUneLigne } from './ChercherUneLigne';
 import { FenetreAdaptee } from './FenetreAdaptee';
+import { FenetreIgnorer, PaiementsIgnores, useIgnorerAvecAnnulation } from './Ignorer';
 import {
   CarteDuReste,
   CarteTitree,
@@ -98,6 +100,9 @@ export function ResteARapprocher({
   const textesDuMois = useTextesDuSelecteurDeMois();
 
   const [fenetre, setFenetre] = useState<'importer' | 'reglages' | null>(null);
+  // TCK-2933 — « Ignorer » et son « Annuler » vivent ici : ignorer le dernier paiement du reste
+  // démonte la liste, le toast doit lui survivre.
+  const ignorer = useIgnorerAvecAnnulation(agencyId);
   const apercu = useReconciliationOverview(agencyId, periode);
   const releves = useBankStatements(agencyId);
   const nbReleves = releves.data?.data.length ?? 0;
@@ -161,6 +166,8 @@ export function ResteARapprocher({
         fournisseursConnectes={fournisseursConnectes}
         onImporter={() => setFenetre('importer')}
         onReglages={() => setFenetre('reglages')}
+        onIgnorer={ignorer.ignorer}
+        onRetablir={ignorer.retablir}
       />
     );
   }
@@ -195,6 +202,8 @@ function Contenu({
   fournisseursConnectes,
   onImporter,
   onReglages,
+  onIgnorer,
+  onRetablir,
 }: {
   readonly agencyId: number;
   readonly apercu: ReconciliationOverview;
@@ -204,9 +213,15 @@ function Contenu({
   readonly fournisseursConnectes: readonly string[] | null;
   readonly onImporter: () => void;
   readonly onReglages: () => void;
+  readonly onIgnorer: (p: PendingPayment, motif: MotifDIgnorer, note: string) => Promise<void>;
+  readonly onRetablir: (id: number) => Promise<unknown>;
 }) {
   const t = useTranslations('admin.reconciliation');
   const rienARapprocher = apercu.to_reconcile.total === 0;
+  // TCK-2933 — les ignorés du mois, repliés : la voie pour en rétablir un après le toast.
+  const ignores = (
+    <PaiementsIgnores agencyId={agencyId} periode={apercu.period} nombre={apercu.ignored} bureau={bureau} retablir={onRetablir} />
+  );
 
   const colonneDroite = bureau ? (
     <div className="space-y-5">
@@ -230,9 +245,9 @@ function Contenu({
   if (rienARapprocher) {
     principal = <ToutRapproche apercu={apercu} bureau={bureau} />;
   } else if (sansReleve) {
-    principal = <SansReleve apercu={apercu} bureau={bureau} onImporter={onImporter} onReglages={onReglages} />;
+    principal = <SansReleve agencyId={agencyId} apercu={apercu} bureau={bureau} onImporter={onImporter} onReglages={onReglages} />;
   } else {
-    principal = <ListeDuReste agencyId={agencyId} apercu={apercu} bureau={bureau} />;
+    principal = <ListeDuReste agencyId={agencyId} apercu={apercu} bureau={bureau} onIgnorer={onIgnorer} />;
   }
 
   if (!bureau) {
@@ -240,6 +255,7 @@ function Contenu({
       <div className="space-y-4">
         <CompteursDuReste apercu={apercu} enAttente={sansReleve} />
         {principal}
+        {ignores}
         {importDansLeVide ? null : (
           <section aria-labelledby="releves-telephone" className="pt-2">
             <h2 id="releves-telephone" className="px-1 pb-2 text-xs font-semibold tracking-surtitre text-muted-foreground uppercase">
@@ -261,6 +277,7 @@ function Contenu({
       <div className="min-w-0">
         <CompteursDuReste apercu={apercu} bureau enAttente={sansReleve} />
         {principal}
+        {ignores}
       </div>
       {colonneDroite}
     </div>
@@ -282,11 +299,13 @@ function LigneDeFenetre({ icone, titre, detail, onClick }: { readonly icone: Rea
 
 /** « Il ne manque que le relevé de la banque » : chaque phrase est tirée du point du mois. */
 function SansReleve({
+  agencyId,
   apercu,
   bureau,
   onImporter,
   onReglages,
 }: {
+  readonly agencyId: number;
   readonly apercu: ReconciliationOverview;
   readonly bureau: boolean;
   readonly onImporter: () => void;
@@ -312,7 +331,8 @@ function SansReleve({
           <Upload data-icon="inline-start" aria-hidden="true" /> {t('actions.importer')}
         </Button>
       </div>
-      <p className="mt-3 text-ui text-muted-foreground">{t('vide.formats')}</p>
+      {/* TCK-2933 — l'import passe par l'aperçu : la promesse de la maquette (`:380`) est tenue. */}
+      <p className="mt-3 text-ui text-muted-foreground">{t('vide.formatsEtApercu')}</p>
       {bureau ? null : (
         <button type="button" className="mt-3 text-sm font-medium text-primary hover:underline" onClick={onReglages}>
           {t('actions.reglages')}
@@ -320,7 +340,81 @@ function SansReleve({
       )}
     </div>
   );
-  return bureau ? <section className="mt-5 rounded-xl border border-border bg-card">{message}</section> : message;
+  return bureau ? (
+    <section className="mt-5 rounded-xl border border-border bg-card">
+      {message}
+      <BanquesPrisesEnCharge agencyId={agencyId} bureau />
+    </section>
+  ) : (
+    <>
+      {message}
+      <BanquesPrisesEnCharge agencyId={agencyId} bureau={false} />
+    </>
+  );
+}
+
+/** Une passerelle mobile (Wave, Orange Money, Free Money) : l'icône du téléphone, comme la maquette. */
+const MOBILE = /wave|orange|free/i;
+
+/**
+ * TCK-2933 — « Banques prises en charge » (maquette `:391-398`, `:426-431`). Les banques viennent de
+ * `supported-formats.banks` SEULEMENT (D-67 : un préréglage n'est servi qu'éprouvé sur un export
+ * réel) ; liste vide, la rubrique dit les formats que l'import lit, sans inventer de banque.
+ * Rien n'est rendu pendant la lecture ni sur une erreur : la rubrique n'affirme que ce qu'elle a lu.
+ */
+function BanquesPrisesEnCharge({ agencyId, bureau }: { readonly agencyId: number; readonly bureau: boolean }) {
+  const t = useTranslations('admin.reconciliation.banques');
+  const lecture = useFormatsPrisEnCharge(agencyId);
+  const donnees = lecture.data?.data;
+  if (!donnees) return null;
+
+  const banques = donnees.banks;
+  const puce = cn(
+    'inline-flex items-center gap-1.5 border border-border bg-card font-medium',
+    bureau ? 'h-11 justify-center rounded-lg px-3 text-ui text-encre-douce' : 'h-9 rounded-full px-3.5 text-sm',
+  );
+  const nomDuFormat = (code: string) => (t.has(`formats.${code}`) ? t(`formats.${code}`) : code.toUpperCase());
+
+  const contenu =
+    banques.length > 0 ? (
+      <ul className={cn(bureau ? 'grid grid-cols-6 gap-2 max-lg:grid-cols-3' : 'flex flex-wrap gap-2')}>
+        {banques.map((b) => (
+          <li key={b.code} className={puce}>
+            {bureau ? (
+              MOBILE.test(b.code) ? (
+                <Smartphone className="size-3.5" aria-hidden="true" />
+              ) : (
+                <Landmark className="size-3.5" aria-hidden="true" />
+              )
+            ) : null}
+            {b.name}
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <>
+        <p className="mb-2 text-ui text-muted-foreground">{t('parFormat')}</p>
+        <ul className="flex flex-wrap gap-2">
+          {donnees.formats.map((f) => (
+            <li key={f.code} className={cn(puce, bureau && 'px-4')}>
+              {nomDuFormat(f.code)}
+            </li>
+          ))}
+        </ul>
+      </>
+    );
+
+  return (
+    <section aria-labelledby="banques-prises-en-charge" className={bureau ? 'border-t border-border p-5' : 'pt-2'} data-testid="banques-prises-en-charge">
+      <h2
+        id="banques-prises-en-charge"
+        className={bureau ? 'sr-only' : 'px-1 pb-2 text-xs font-semibold tracking-surtitre text-muted-foreground uppercase'}
+      >
+        {t('titre')}
+      </h2>
+      {contenu}
+    </section>
+  );
 }
 
 function ToutRapproche({ apercu, bureau }: { readonly apercu: ReconciliationOverview; readonly bureau: boolean }) {
@@ -338,7 +432,17 @@ function ToutRapproche({ apercu, bureau }: { readonly apercu: ReconciliationOver
 }
 
 /** Les pastilles, la liste (cartes ou tableau), « Confirmer les N » et les gestes d'un paiement. */
-function ListeDuReste({ agencyId, apercu, bureau }: { readonly agencyId: number; readonly apercu: ReconciliationOverview; readonly bureau: boolean }) {
+function ListeDuReste({
+  agencyId,
+  apercu,
+  bureau,
+  onIgnorer,
+}: {
+  readonly agencyId: number;
+  readonly apercu: ReconciliationOverview;
+  readonly bureau: boolean;
+  readonly onIgnorer: (p: PendingPayment, motif: MotifDIgnorer, note: string) => Promise<void>;
+}) {
   const t = useTranslations('admin.reconciliation');
   const tCommon = useTranslations('common');
   const f = useFormatteurs();
@@ -351,6 +455,7 @@ function ListeDuReste({ agencyId, apercu, bureau }: { readonly agencyId: number;
   const [enVol, setEnVol] = useState<ReadonlySet<string>>(new Set());
   const [annonce, setAnnonce] = useState<{ ton: 'ok' | 'erreur'; texte: string } | null>(null);
   const [cherche, setCherche] = useState<PendingPayment | null>(null);
+  const [aIgnorer, setAIgnorer] = useState<PendingPayment | null>(null);
 
   const releves = useBankStatements(agencyId);
   const avecSuggestion = useCompteAvecSuggestion(agencyId, periode);
@@ -402,6 +507,7 @@ function ListeDuReste({ agencyId, apercu, bureau }: { readonly agencyId: number;
       void geste(p, () => delier.mutateAsync(l.id), t('reste.actions.delie'), t('reste.actions.echecDelier'));
     },
     onChercher: (p) => setCherche(p),
+    onIgnorer: (p) => setAIgnorer(p),
     enVol: (p) => lotEnVol || enVol.has(cleDuPaiement(p)),
     banqueDuReleve,
   };
@@ -548,6 +654,20 @@ function ListeDuReste({ agencyId, apercu, bureau }: { readonly agencyId: number;
           {lignes}
         </div>
       )}
+      <FenetreIgnorer
+        paiement={aIgnorer}
+        qui={aIgnorer?.payer?.name?.trim() || t('reste.carte.sansPayeur')}
+        onFermer={() => setAIgnorer(null)}
+        onIgnorer={async (p, motif, note) => {
+          marquer(p, true);
+          setAnnonce(null);
+          try {
+            await onIgnorer(p, motif, note);
+          } finally {
+            marquer(p, false);
+          }
+        }}
+      />
       {cherche ? (
         <ChercherUneLigne agencyId={agencyId} paiement={cherche} banqueDuReleve={banqueDuReleve} onFermer={() => setCherche(null)} onChoisir={choisirLaLigne} />
       ) : null}

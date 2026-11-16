@@ -5,6 +5,7 @@ namespace App\Services\Lease;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Services\Dashboard\CollectedPayments;
+use App\Services\Payments\NextDueNotice;
 use App\Services\Reporting\OverdueInstalment;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -18,7 +19,9 @@ use Illuminate\Support\Collection;
  *   balance âgée ({@see OverdueInstalment::daysLate()} — échue avant aujourd'hui, heure de Dakar),
  *   comptées au RESTE DÛ. C'est ce que la fiche recomptait sur `is_overdue` (`LeaseDetail.tsx`) ;
  * - `next_due` : la prochaine à venir (échéance aujourd'hui ou plus tard, reste dû > 0) —
- *   `{due_date, amount, status}`, `amount` au reste dû ; `null` s'il n'y en a pas.
+ *   `{due_date, amount, status}`, `amount` au reste dû ; `null` s'il n'y en a pas ;
+ * - `next_due_notice_date` (TCK-2915) : la date du prochain avis d'échéance (le rappel J-3), lue par
+ *   {@see NextDueNotice} — une requête de plus pour la page ; `null` si aucun avis n'attend.
  */
 final class LeaseDueSummary
 {
@@ -36,6 +39,8 @@ final class LeaseDueSummary
             ->orderBy('lease_payments.id')
             ->get()
             ->groupBy('lease_id');
+        // TCK-2915 — la date du prochain avis d'échéance, une requête pour la page.
+        $notices = NextDueNotice::forLeases($leases->map(fn (Lease $l) => (int) $l->getKey())->values()->all());
 
         foreach ($leases as $lease) {
             /** @var Collection<int, LeasePayment> $payments */
@@ -52,6 +57,7 @@ final class LeaseDueSummary
                 ],
                 'overdue_count' => $overdue->count(),
                 'overdue_amount' => round((float) $overdue->sum(fn (LeasePayment $p) => (float) $p->remaining_amount), 2),
+                'next_due_notice_date' => isset($notices[$lease->getKey()]) ? CarbonImmutable::parse($notices[$lease->getKey()]) : null,
             ]);
         }
     }

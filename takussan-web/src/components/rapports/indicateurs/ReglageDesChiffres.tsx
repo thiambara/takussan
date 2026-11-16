@@ -3,7 +3,7 @@
 import { useId, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { ArrowDown, ArrowUp, GripVertical, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, GripVertical, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { createKpiConfigAction, deleteKpiConfigAction, updateKpiConfigAction } from '@/app/actions/kpis';
@@ -12,7 +12,6 @@ import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PanneauDroit } from '@/components/ui/panneau-droit';
-import { PuceDeFiltre } from '@/components/ui/puce-de-filtre';
 import { Switch } from '@/components/ui/switch';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -20,6 +19,8 @@ import { pourcentMesure } from '@/lib/rapports/pourcentages';
 import type { KpiConfig } from '@/lib/queries/kpis';
 import { deplacer, ecrituresDuReglage, formatParDefaut, inverse, ordonner, type ChiffreRegle, type Ecriture } from '@/lib/rapports/indicateurs';
 import { cn } from '@/lib/utils';
+
+import { Segmente } from '../Segmente';
 
 const FORMATS = ['number', 'currency', 'percent'] as const;
 
@@ -57,17 +58,28 @@ async function ecrire(ecritures: readonly Ecriture[], avant: readonly ChiffreReg
  * le masquage s'écrivent à « Terminé » : `PATCH kpi-configs/{id}` pour les seules lignes changées
  * (`ecrituresDuReglage`). Un échec rend l'ordre d'avant — à l'écran ET à l'API, les écritures déjà passées
  * sont défaites — et le dit.
+ *
+ * TCK-2868 — un chiffre AFFICHÉ se déplie (« Libellé / Format », maquette) : le libellé et le format changés
+ * partent avec l'ordre, à « Terminé », dans le même `PATCH` ; « Annuler » et le retour arrière d'un échec
+ * les couvrent aussi. Un libellé vide n'est pas envoyé : l'écran le refuse.
  */
 export function useReglageDesChiffres({ configs }: Pick<ReglageProps, 'configs'>) {
   const router = useRouter();
   const [enregistres, setEnregistres] = useState<ChiffreRegle[]>(() => ordonner(configs));
   const [lignes, setLignes] = useState<ChiffreRegle[]>(enregistres);
   const [echec, setEchec] = useState(false);
+  const [libelleVide, setLibelleVide] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const terminer = (apres: () => void) => {
-    const ecritures = ecrituresDuReglage(enregistres, lignes);
     setEchec(false);
+    // TCK-2868 — un libellé vide ne part pas (l'API l'exige) : l'écran le dit et garde le réglage ouvert.
+    if (lignes.some((c) => !c.label.trim())) {
+      setLibelleVide(true);
+      return;
+    }
+    setLibelleVide(false);
+    const ecritures = ecrituresDuReglage(enregistres, lignes);
     if (ecritures.length === 0) {
       apres();
       return;
@@ -79,7 +91,7 @@ export function useReglageDesChiffres({ configs }: Pick<ReglageProps, 'configs'>
         setEchec(true);
         return;
       }
-      const suivants = lignes.map((c, rang) => ({ ...c, sort_order: rang }));
+      const suivants = lignes.map((c, rang) => ({ ...c, label: c.label.trim(), sort_order: rang }));
       setEnregistres(suivants);
       setLignes(suivants);
       router.refresh();
@@ -91,11 +103,13 @@ export function useReglageDesChiffres({ configs }: Pick<ReglageProps, 'configs'>
     lignes,
     setLignes,
     echec,
+    libelleVide,
     isPending,
     terminer,
     annuler: () => {
       setLignes(enregistres);
       setEchec(false);
+      setLibelleVide(false);
     },
     /** Après un ajout ou une suppression (écrits tout de suite) : les deux états suivent. */
     ajoutee: (c: KpiConfig) => {
@@ -171,6 +185,7 @@ export function ListeDuReglage({ reglage, catalog, apercus }: { readonly reglage
                 onDeplacer={(a) => setLignes((l) => deplacer(l, i, a))}
                 onBasculer={(on) => setLignes((l) => l.map((x) => (x.id === c.id ? { ...x, is_enabled: on } : x)))}
                 onSupprimer={() => supprimer(c)}
+                onChanger={(suivant) => setLignes((l) => l.map((x) => (x.id === c.id ? { ...x, ...suivant } : x)))}
               />
             ))}
           </ol>
@@ -222,6 +237,11 @@ export function ListeDuReglage({ reglage, catalog, apercus }: { readonly reglage
           {t('echec')}
         </p>
       ) : null}
+      {reglage.libelleVide ? (
+        <p role="alert" className="mt-3 text-sm text-pretty text-destructive" data-testid="reglage-libelle-vide">
+          {t('libelleVide')}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -236,6 +256,7 @@ function LigneDuReglage({
   onDeplacer,
   onBasculer,
   onSupprimer,
+  onChanger,
 }: {
   readonly chiffre: ChiffreRegle;
   readonly rang: number;
@@ -246,8 +267,11 @@ function LigneDuReglage({
   readonly onDeplacer: (a: number) => void;
   readonly onBasculer: (on: boolean) => void;
   readonly onSupprimer: () => void;
+  readonly onChanger: (suivant: Partial<Pick<ChiffreRegle, 'label' | 'format'>>) => void;
 }) {
   const t = useTranslations('rapports.reglage');
+  const [deplie, setDeplie] = useState(false);
+  const idPanneau = useId();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({ id: chiffre.id });
   const { setNodeRef: setDepotRef, isOver } = useDroppable({ id: chiffre.id });
   const style = transform ? { transform: `translate3d(0, ${transform.y}px, 0)` } : undefined;
@@ -271,8 +295,17 @@ function LigneDuReglage({
         </button>
         {/* TCK-2629 (O9) — sous `lg`, la ligne n'a pas la place d'un libellé, d'un aperçu et de quatre commandes :
             l'aperçu passe sous le libellé, qui passe à la ligne plutôt que d'être coupé. */}
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className={cn('block text-corps font-medium break-words lg:truncate', !chiffre.is_enabled && 'text-muted-foreground')}>{chiffre.label}</span>
+        {/* TCK-2868 — le libellé déplie la ligne : « Libellé / Format » du chiffre affiché. */}
+        <button
+          type="button"
+          aria-expanded={deplie}
+          aria-controls={idPanneau}
+          aria-label={t('modifierAria', { libelle: chiffre.label })}
+          onClick={() => setDeplie((d) => !d)}
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-md text-left leading-tight outline-none focus-visible:ring-3 focus-visible:ring-ring"
+        >
+        <span className="min-w-0 flex-1">
+          <span className={cn('block text-corps font-medium break-words lg:truncate', !chiffre.is_enabled && 'text-muted-foreground')}>{chiffre.label || '—'}</span>
           {apercu !== null || chiffre.label !== metrique ? (
             <span className="block truncate text-xs text-muted-foreground">
               {apercu !== null ? (
@@ -285,6 +318,8 @@ function LigneDuReglage({
             </span>
           ) : null}
         </span>
+        <ChevronDown className={cn('size-4 flex-none text-muted-foreground transition-transform', deplie && 'rotate-180')} aria-hidden="true" />
+        </button>
         {apercu !== null ? <span className="flex-none text-sm tabular-nums text-muted-foreground max-lg:hidden" data-slot="apercu">{apercu}</span> : null}
         <button
           type="button"
@@ -321,7 +356,62 @@ function LigneDuReglage({
           <Trash2 className="size-4" aria-hidden="true" />
         </button>
       </div>
+      {deplie ? (
+        <div id={idPanneau} className="border-t border-border bg-muted/40 p-3" data-slot="edition-du-chiffre">
+          <ChampsDuChiffre
+            label={chiffre.label}
+            format={chiffre.format}
+            onLabel={(label) => onChanger({ label })}
+            onFormat={(format) => onChanger({ format })}
+            aide={apercu !== null ? t('metriqueAvecValeur', { metrique, valeur: apercu }) : t('metrique', { metrique })}
+          />
+        </div>
+      ) : null}
     </li>
+  );
+}
+
+/** TCK-2868 — « Libellé » et « Format » (Nombre · Montant · Pourcentage) : l'ajout et l'édition d'un chiffre. */
+function ChampsDuChiffre({
+  label,
+  format,
+  onLabel,
+  onFormat,
+  aide,
+}: {
+  readonly label: string;
+  readonly format: KpiConfig['format'];
+  readonly onLabel: (label: string) => void;
+  readonly onFormat: (format: KpiConfig['format']) => void;
+  readonly aide?: string;
+}) {
+  const t = useTranslations('rapports.reglage');
+  const tK = useTranslations('dashboard.kpis');
+  const id = useId();
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label htmlFor={`${id}-libelle`}>{tK('label')}</Label>
+        <Input
+          id={`${id}-libelle`}
+          value={label}
+          maxLength={120}
+          onChange={(e) => onLabel(e.target.value)}
+          aria-describedby={aide ? `${id}-aide` : undefined}
+        />
+        {aide ? (
+          <p id={`${id}-aide`} className="text-xs text-pretty text-muted-foreground tabular-nums">
+            {aide}
+          </p>
+        ) : null}
+      </div>
+      <div>
+        <p id={`${id}-format`} className="mb-1.5 text-sm font-medium text-foreground">
+          {tK('format')}
+        </p>
+        <Segmente idDuLibelle={`${id}-format`} valeur={format} onChange={onFormat} options={FORMATS.map((v) => ({ valeur: v, libelle: t(`formats.${v}`) }))} />
+      </div>
+    </div>
   );
 }
 
@@ -337,7 +427,6 @@ function AjoutDUnChiffre({
 }) {
   const t = useTranslations('rapports.reglage');
   const tK = useTranslations('dashboard.kpis');
-  const id = useId();
   const [label, setLabel] = useState(libelleParDefaut);
   const [format, setFormat] = useState<KpiConfig['format']>(formatParDefaut(metric));
   const [erreur, setErreur] = useState<string | null>(null);
@@ -361,22 +450,7 @@ function AjoutDUnChiffre({
 
   return (
     <div className="space-y-3 border-t border-border bg-muted/40 p-3" data-slot="ajout-d-un-chiffre">
-      <div className="space-y-1.5">
-        <Label htmlFor={`${id}-libelle`}>{tK('label')}</Label>
-        <Input id={`${id}-libelle`} value={label} maxLength={120} onChange={(e) => setLabel(e.target.value)} />
-      </div>
-      <div role="group" aria-labelledby={`${id}-format`}>
-        <p id={`${id}-format`} className="mb-1.5 text-sm font-medium text-foreground">
-          {tK('format')}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {FORMATS.map((v) => (
-            <PuceDeFiltre key={v} active={format === v} onClick={() => setFormat(v)}>
-              {tK(`formats.${v}`)}
-            </PuceDeFiltre>
-          ))}
-        </div>
-      </div>
+      <ChampsDuChiffre label={label} format={format} onLabel={setLabel} onFormat={setFormat} />
       {erreur ? (
         <p role="alert" className="text-sm text-destructive">
           {erreur}

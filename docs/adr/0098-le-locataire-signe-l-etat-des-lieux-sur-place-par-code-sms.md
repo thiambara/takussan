@@ -63,3 +63,51 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10 :
   - `InventoryTenantOwnSignatureUnchangedTest` ;
   - `InventoryDisputeAuthorizationTest` ;
   - un test qui vérifie que la fiche client sans compte vérifié rend 422, même avec un téléphone saisi.
+
+## Amendement du 2026-11-15 (TCK-2913) — le bailleur signe aussi sur place par code ; le PDF part aux parties
+
+Relevé sur la branche `feat/audit-manques-2026-11-15` le 2026-11-15 : la voie du code n'existait que pour
+le locataire ; à la seconde signature, l'état des lieux passait `signed` sans que rien ne parte — le PDF ne
+se rendait qu'à la demande (`GET inventories/{inventory}/pdf`). Audit `audit-f4-patrimoine.md`,
+app-etats-des-lieux e2.
+
+**A. La voie du code s'ouvre au bailleur, aux mêmes conditions que le locataire.**
+
+1. **Qui la lance** : le même personnel qu'au § 1 (l'agence du bail, `update` sur l'état des lieux), par la
+   même route `POST inventories/{inventory}/sign/onsite-code`, avec `party=landlord` dans le corps
+   (`party` absent : `tenant`, l'appel d'avant cet amendement). Jamais le bailleur lui-même : il signe
+   depuis son compte.
+2. **Où part le code** : au numéro **vérifié** du compte du bailleur DU BAIL (`leases.landlord_id`), à lui
+   seul, SMS seulement (§ 2 et § 3, inchangés). Sans ce numéro : 422 `inventory_signature.landlord_without_phone`.
+3. **Mêmes bornes, même service** (§ 4) : six chiffres, 10 min, 60 s avant renvoi, cinq essais puis verrou
+   de 15 min ; le code est celui DU BAILLEUR sur cet état des lieux
+   (`inventory-signature-…:{état}:{compte du bailleur}:landlord`), distinct de celui du locataire.
+4. **Ce qui distingue les deux voies du bailleur** : la présence du `code` dans `POST …/sign` avec
+   `role=landlord`. Sans code, rien ne change : le bailleur signe pour lui, ou le personnel qui détient
+   `leases.sign` signe **pour son compte** (`LandlordSignatory`, inchangé). Avec un code, le membre du
+   personnel habilité recueille la signature **du bailleur** : elle est enregistrée comme la sienne
+   (`owner_signed_by_user_id` = le bailleur, `owner_signed_on_behalf_of_user_id` nul).
+5. **La trace, en colonnes** comme au § 5 : `owner_signature_method` (`drawn` | `onsite_otp`),
+   `owner_signed_via_user_id`, `owner_otp_channel`, `owner_otp_destination` (masqué), `owner_signed_ip`
+   (ne sort jamais de l'API). Le PDF dit « Signé sur place, code envoyé au … » sous la signature du bailleur.
+   `can_sign_as` rend `landlord_onsite`.
+
+**B. À la seconde signature, le PDF part aux deux parties.**
+
+1. Une tâche en file (`SendSignedInventoryPdf`), mise en file **après** la transaction de la signature :
+   la réponse de la signature n'attend rien.
+2. **Une fois par état des lieux** : la tâche réclame l'envoi par `UPDATE … WHERE pdf_sent_at IS NULL` ;
+   rejouée, elle ne renvoie rien. Mieux vaut un envoi perdu (le PDF reste téléchargeable) que deux.
+3. **Destinataires** : le compte du locataire du bail et le bailleur du bail, dédoublonnés. Un locataire
+   sans compte ne reçoit rien par cette voie (il n'a ni cloche ni page où lire le PDF) ; la ressource rend
+   les destinataires réellement avisés (`pdf_sent_to`, un id et un nom).
+4. **Un lien, pas une pièce jointe** — patron de `document.archive_ready` (TCK-2812) : la notification
+   `inventory.signed_pdf_available` (cloche + e-mail) ouvre `/app/inventories/{id}`, où le PDF se
+   télécharge sous la session. Deux raisons : les octets d'un PDF ne voyagent pas dans une charge de file
+   (ni dans `failed_jobs`), et un lien vers l'API ne s'ouvre pas sans jeton (leçon de TCK-575). L'URL ne
+   porte que l'identifiant de l'état des lieux. Le PDF servi est celui de l'empreinte figée : il imprime
+   `traceability_hash` et l'instantané des parties pris à la seconde signature (TCK-596, TCK-1792).
+5. **Sans canal mobile** : comme `lease.signature_completed`, l'avis n'a pas d'interrupteur (un acte
+   contractuel) et n'ouvre ni SMS ni WhatsApp — un SMS par partie et par état des lieux aurait un coût sans
+   rien porter que la cloche et l'e-mail ne portent.
+6. **Le journal** de l'état des lieux porte l'événement `inventory_pdf_sent` (destinataires, date).

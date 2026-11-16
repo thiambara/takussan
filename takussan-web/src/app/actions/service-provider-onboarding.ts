@@ -60,7 +60,8 @@ async function nonConnecte(): Promise<ActionResult<never>> {
 
 export async function spPatchTradesAction(
   spProfileId: number,
-  payload: TradesPayload,
+  // TCK-2946 — les clés absentes ne sont pas écrites (l'écran 2 n'envoie que les tarifs).
+  payload: Partial<TradesPayload>,
 ): Promise<ActionResult<{ id: number }>> {
   const token = await getToken();
   if (!token) return nonConnecte();

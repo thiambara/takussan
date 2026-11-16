@@ -11,7 +11,10 @@ import { Impayes } from '@/components/admin/finances/impayes/Impayes';
  * TCK-2629 — Rapports y ajoute les tranches d'ANCIENNETÉ (ADR-0096 § 5) : la balance âgée en tête, dont
  * chaque tranche filtre la liste, et les mêmes tranches en pastilles ; « jamais relancé » en ton
  * d'alerte (maquette `app-rapports`). La liste, ses filtres et la relance restent ceux d'« Argent ».
+ *
+ * TCK-2868 — et les trois options que la décision 14 a avait laissées (reprises à la demande du porteur) : la
+ * liste groupée par tranche au téléphone, « Tri : montant dû » et « Balance âgée en PDF » au bureau.
  */
 export function OngletImpayes({ agencyId }: { readonly agencyId: number | undefined }) {
-  return <Impayes agencyId={agencyId} resume="toujours" tranches="anciennete" jamaisRelanceEnAlerte />;
+  return <Impayes agencyId={agencyId} resume="toujours" tranches="anciennete" jamaisRelanceEnAlerte groupes triEtPdf />;
 }

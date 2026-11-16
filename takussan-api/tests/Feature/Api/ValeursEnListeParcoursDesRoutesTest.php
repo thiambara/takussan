@@ -89,9 +89,15 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/share/{token}/download' => '{token} : sans liaison de modèle',
         'api/enums/{key}' => '{key} : sans liaison de modèle',
         'api/export/{entity}' => '{entity} : sans liaison de modèle',
+        // TCK-2866 — le compte avant l'export, même paramètre.
+        'api/export/{entity}/count' => '{entity} : sans liaison de modèle',
         'api/kyc/documents/{media}' => '{media} : Media sans fabrique',
         'api/me/document-vault/archives/{archive}/download' => '{archive} : sans liaison de modèle',
+        // TCK-2866 — le fichier gardé d'un export, par l'identifiant du journal.
+        'api/me/exports/{id}/download' => '{id} : sans liaison de modèle',
         'api/me/payouts/{payout}' => '{payout} : sans liaison de modèle',
+        // TCK-2939 — identifiant composite (`owner:12`), contraint par `where` : une valeur en liste ne l'atteint pas.
+        'api/me/profiles/{profile}/invite-summary' => '{profile} : sans liaison de modèle',
         'api/me/wizard-drafts/{key}' => '{key} : sans liaison de modèle',
         'api/media/{media}/sign' => '{media} : Media sans fabrique',
         'api/media/{media}/file' => '{media} : Media sans fabrique',
@@ -116,6 +122,8 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/public/agencies/{slug}' => '{slug} : sans liaison de modèle',
         'api/public/agencies/{slug}/properties' => '{slug} : sans liaison de modèle',
         'api/service-provider-bills/{bill}' => '{bill} : sans liaison de modèle',
+        // TCK-2897 — le PDF d'une facture, même paramètre que sa fiche.
+        'api/service-provider-bills/{bill}/pdf' => '{bill} : sans liaison de modèle',
         // TCK-2627 — liée (`ThresholdAlert $thresholdAlert`), mais sous le nom `{threshold_alert}` de
         // `apiResource`, que ce parcours ne rapproche pas ; et `ThresholdAlert` n'a pas de fabrique.
         'api/threshold-alerts/{threshold_alert}' => '{threshold_alert} : sans liaison de modèle',

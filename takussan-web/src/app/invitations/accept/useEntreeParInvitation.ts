@@ -10,7 +10,7 @@ import { useCurrentLocale } from '@/i18n/hooks';
 import { ApiError } from '@/lib/api';
 import { exigeConditions, exigeDoubleFacteur } from '@/lib/connexion-telephone';
 import { destinationDInvitation } from '@/lib/invitation-destination';
-import { demanderCodeDInvitation, verifierCodeDInvitation, type ReponseDeVerification } from '@/lib/invitation-code';
+import { demanderCodeDInvitation, verifierCodeDInvitation, type CanalDuCode, type ReponseDeVerification } from '@/lib/invitation-code';
 
 /**
  * TCK-2611 (ADR-0094 § 5) — l'automate de l'entrée par code d'une invitation : le numéro (saisi pour
@@ -29,8 +29,13 @@ export type EtapeDInvitation = 'numero' | 'code' | 'conditions' | 'double-facteu
 
 interface Options {
   readonly jeton: string;
-  /** Invitation par SMS : le code part au numéro de l'invitation, et aucun `phone` ne part. */
+  /** Invitation par SMS : le code part au numéro de l'invitation, et aucun `phone` ne part — sauf numéro corrigé. */
   readonly parSms: boolean;
+  /**
+   * TCK-2941 (ADR-0094, amendement du 2026-11-15 § 4) — le numéro d'une invitation par SMS se corrige (« Modifier »),
+   * sauf sur une invitation partagée (`code_only`, 422 côté API). Faux : `modifierNumero` ne fait rien.
+   */
+  readonly numeroModifiable?: boolean;
   /** Prénom et nom confirmés par l'invité ; l'API ne les écrit que sur un compte sans nom. */
   readonly noms: () => { readonly prenom: string; readonly nom: string };
   /** Drapeau éteint entre l'affichage et l'envoi (404) : la voie mot de passe reste la seule. */
@@ -42,10 +47,21 @@ export interface ConnexionDemandee {
   readonly emailMasque: string | null;
 }
 
-const corps = (err: ApiError): { code?: unknown; email?: unknown; requires_login?: unknown } =>
-  err.data && typeof err.data === 'object' ? (err.data as { code?: unknown; email?: unknown; requires_login?: unknown }) : {};
+type CorpsDErreur = { code?: unknown; email?: unknown; requires_login?: unknown; attempts_left?: unknown };
 
-export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Options) {
+const corps = (err: ApiError): CorpsDErreur => (err.data && typeof err.data === 'object' ? (err.data as CorpsDErreur) : {});
+
+/**
+ * TCK-2941 (ADR-0094, amendement § 5) — les essais restants d'un code faux : `attempts_left` d'un 422
+ * `phone_code_invalid` seulement, entier positif ou nul ; toute autre forme se tait (le message d'avant).
+ */
+function essaisRestants(corpsDErreur: CorpsDErreur): number | null {
+  if (corpsDErreur.code !== 'phone_code_invalid') return null;
+  const n = corpsDErreur.attempts_left;
+  return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : null;
+}
+
+export function useEntreeParInvitation({ jeton, parSms, numeroModifiable = false, noms, onMotDePasse }: Options) {
   const t = useTranslations('invitationAccept.errors');
   const router = useRouter();
   const locale = useCurrentLocale();
@@ -65,6 +81,12 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
   const [caseConditions, setCaseConditions] = useState(false);
   const [versionAcceptee, setVersionAcceptee] = useState<string | null>(null);
   const [codeRefuse, setCodeRefuse] = useState(false);
+  // TCK-2948 — la voie « appel » : offerte seulement si la dernière réponse de `…/code` la dit active.
+  const [voixDisponible, setVoixDisponible] = useState(false);
+  const [appelDemande, setAppelDemande] = useState(false);
+  // TCK-2941 — l'invité a remplacé le numéro de l'invitation par SMS : le sien part, à l'envoi ET à la vérification.
+  const [numeroCorrige, setNumeroCorrige] = useState(false);
+  const telephoneEnvoye = parSms && !numeroCorrige ? null : telephone;
   const verificationEnCours = useRef(false);
 
   // Compte à rebours du renvoi : `retry_after` est la seule source.
@@ -82,18 +104,33 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
     return t('echec');
   }
 
-  async function envoyerCode(): Promise<void> {
+  /**
+   * Le code par SMS (défaut) ou, TCK-2948, dicté par un appel (`channel: "voice"`, même code, mêmes
+   * limites) : l'appel relance le même rebours que le renvoi.
+   */
+  async function envoyerCode(canal: CanalDuCode = 'sms'): Promise<void> {
     setEnvoi(true);
     setErreur(null);
     setConnexionDemandee(null);
     try {
-      const demande = await demanderCodeDInvitation(jeton, parSms ? null : telephone, locale);
+      const demande =
+        canal === 'voice'
+          ? await demanderCodeDInvitation(jeton, telephoneEnvoye, locale, 'voice')
+          : await demanderCodeDInvitation(jeton, telephoneEnvoye, locale);
       setAttente(demande.attente);
       setApercu(demande.codeApercu);
+      setVoixDisponible(demande.voixDisponible);
+      setAppelDemande(canal === 'voice');
       setCode('');
       setCodeRefuse(false);
       setEtape('code');
     } catch (err) {
+      if (canal === 'voice' && err instanceof ApiError && err.status === 422) {
+        // TCK-2948 — pilote ou clé d'appel absents (TCK-2940 : 422 sur `channel`) : le lien se retire, le SMS reste.
+        setVoixDisponible(false);
+        setErreur(t('appelIndisponible'));
+        return;
+      }
       if (err instanceof ApiError && err.status === 404 && corps(err).code !== 'invitation.token_not_found') {
         // Drapeau éteint entre l'affichage et l'envoi : la voie mot de passe reste.
         onMotDePasse();
@@ -131,7 +168,7 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
         jeton,
         {
           code: codeSaisi,
-          ...(parSms ? {} : { phone: telephone }),
+          ...(telephoneEnvoye === null ? {} : { phone: telephoneEnvoye }),
           ...(prenom.trim() ? { first_name: prenom.trim() } : {}),
           ...(nom.trim() ? { last_name: nom.trim() } : {}),
           ...(conditions ? { terms_version: conditions } : {}),
@@ -183,7 +220,8 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
           setCode('');
           setEtape('code');
         } else if (etape === 'code') setCodeRefuse(true);
-        setErreur(t('codeInvalide'));
+        const essais = essaisRestants(corps(err));
+        setErreur(essais === null ? t('codeInvalide') : t('codeInvalideEssais', { n: essais }));
       } else setErreur(t('echec'));
     } finally {
       verificationEnCours.current = false;
@@ -202,10 +240,26 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
 
   function revenirAuNumero(): void {
     setEtape('numero');
+    setAppelDemande(false);
     setCode('');
     setCodeRefuse(false);
     setErreur(null);
     setVersionAcceptee(null);
+  }
+
+  /** TCK-2941 — « Modifier » : le numéro de l'invitation laisse place à un champ vide, à remplir. */
+  function modifierNumero(): void {
+    if (!parSms || !numeroModifiable) return;
+    setNumeroCorrige(true);
+    setTelephone('');
+    setErreur(null);
+  }
+
+  /** TCK-2941 — revenir au numéro donné par l'agence : rien de saisi ne part. */
+  function garderNumeroDeLInvitation(): void {
+    setNumeroCorrige(false);
+    setTelephone('');
+    setErreur(null);
   }
 
   function accepterConditions(): void {
@@ -232,6 +286,8 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
     codeDeSecours,
     basculerCodeDeSecours,
     attente,
+    voixDisponible,
+    appelDemande,
     apercu,
     envoi,
     erreur,
@@ -242,6 +298,9 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
     verifier,
     accepterConditions,
     revenirAuNumero,
+    numeroCorrige,
+    modifierNumero,
+    garderNumeroDeLInvitation,
   };
 }
 

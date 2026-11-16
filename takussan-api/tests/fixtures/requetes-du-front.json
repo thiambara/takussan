@@ -73,7 +73,7 @@
       "acteur": "agence",
       "chemin": "/api/bookings",
       "parametres": {
-        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,currency,created_at,property_id,customer_id,agency_id,kind,list_price_at_booking",
+        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,currency,created_at,property_id,customer_id,agency_id,kind,list_price_at_booking,expires_at,expired_at,security_deposit_months",
         "fields[properties]": "id,title,slug,price,currency,contract_type,rent_period",
         "include": "property",
         "sort": "-created_at",
@@ -86,7 +86,7 @@
       "acteur": "agence",
       "chemin": "/api/bookings",
       "parametres": {
-        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,currency,created_at,property_id,customer_id,agency_id,kind,list_price_at_booking",
+        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,currency,created_at,property_id,customer_id,agency_id,kind,list_price_at_booking,expires_at,expired_at,security_deposit_months",
         "fields[properties]": "id,title,slug,price,currency,contract_type,rent_period",
         "fields[customers]": "id,first_name,last_name,phone",
         "filter[kind]": "offer",
@@ -106,7 +106,7 @@
       "acteur": "agence",
       "chemin": "/api/bookings",
       "parametres": {
-        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,currency,created_at,property_id,customer_id,agency_id,kind,list_price_at_booking",
+        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,currency,created_at,property_id,customer_id,agency_id,kind,list_price_at_booking,expires_at,expired_at,security_deposit_months",
         "fields[properties]": "id,title,slug,price,currency,contract_type,rent_period",
         "filter[status]": "pending,confirmed",
         "include": "property",
@@ -154,7 +154,7 @@
       "acteur": "agence",
       "chemin": "/api/properties",
       "parametres": {
-        "fields[properties]": "id,user_id,agency_id,reference_number,title,slug,price,currency,type,contract_type,rent_period,status,visibility,views_count,favorites_count,bedrooms,area,published_at,created_at,sponsored_until",
+        "fields[properties]": "id,user_id,agency_id,reference_number,title,slug,price,currency,type,contract_type,rent_period,status,visibility,bedrooms,area,published_at,created_at,sponsored_until",
         "include": "address,owner,collaborators",
         "sort": "-created_at",
         "page": "1",

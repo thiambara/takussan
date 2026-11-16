@@ -18,6 +18,8 @@ vi.mock('@/app/actions/alerts', () => ({
   createThresholdAlertAction: vi.fn(async () => ({ ok: false, error: 'non' })),
   deleteThresholdAlertAction: vi.fn(),
   updateThresholdAlertAction: vi.fn(),
+  // TCK-2868 — « Qui est prévenu » lit les destinataires possibles de la mesure.
+  recipientCandidatesAction: vi.fn().mockResolvedValue({ ok: true, data: [] }),
 }));
 
 const { ExportForm } = await import('../exports/ExportForm');

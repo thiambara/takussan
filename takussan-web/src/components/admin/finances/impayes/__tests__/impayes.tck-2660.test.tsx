@@ -536,3 +536,32 @@ describe('TCK-2660 — le bureau', () => {
     expect(liensCrees()).toHaveLength(1);
   });
 });
+
+// TCK-2922 — le menu ⋯ « Plus d'actions » en bout de rangée (maquette `app-argent-a.tsx:545`).
+describe('TCK-2922 — le menu ⋯ d’une rangée (bureau)', () => {
+  it('AC3 — « Plus d’actions » offre « Fiche client », « Encaisser un paiement » et « Voir le bail » de CETTE rangée', async () => {
+    bureau(true);
+    lignes = [ligne(1, 34), ligne(2, 12)];
+    const utilisateur = rendre();
+
+    await utilisateur.click(await screen.findByRole('button', { name: 'Plus d’actions — Locataire 2' }));
+
+    expect(await screen.findByRole('menuitem', { name: 'Fiche client' })).toHaveAttribute('href', '/app/customers/302');
+    expect(screen.getByRole('menuitem', { name: 'Voir le bail' })).toHaveAttribute('href', '/app/leases/102');
+    expect(screen.getByRole('menuitem', { name: 'Encaisser un paiement' })).toBeInTheDocument();
+  });
+
+  it('« Encaisser un paiement » ouvre l’encaissement de l’échéance, sans ouvrir le dossier de la rangée', async () => {
+    bureau(true);
+    lignes = [ligne(1, 34)];
+    const utilisateur = rendre();
+
+    await utilisateur.click(await screen.findByRole('button', { name: 'Plus d’actions — Locataire 1' }));
+    await utilisateur.click(await screen.findByRole('menuitem', { name: 'Encaisser un paiement' }));
+
+    expect(await screen.findByRole('button', { name: 'simuler l’encaissement' })).toBeInTheDocument();
+    // Le clic du menu (dans un portail) remonte à la rangée : il n'ouvre pas le dossier pour autant.
+    expect(screen.queryByText('Caution détenue')).not.toBeInTheDocument();
+    expect(reseau.appels.some((a) => /\/deposit-refund$/.test(a.chemin))).toBe(false);
+  });
+});

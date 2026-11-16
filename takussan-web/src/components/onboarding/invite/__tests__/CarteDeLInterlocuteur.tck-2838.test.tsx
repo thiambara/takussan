@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 
+import { afficheA } from '@/test/affiche-a';
 import { withIntl } from '@/test/intl';
 import type { InterlocuteurDuBailleur } from '@/lib/owner-onboarding';
 
@@ -106,14 +107,17 @@ describe('BiensDuBailleur — la carte dans la colonne du bureau (TCK-2838)', ()
       ),
     );
 
-  it('au-dessus d’« À faire pour être payé », dans la colonne cachée sous xl', () => {
+  it('au-dessus d’« À faire pour être payé », dans la colonne du bureau (cachée au téléphone, dessous de lg à xl — TCK-2945)', () => {
     rendre(AGENTE, [{ code: 'rib', required: true, kind: 'file', state: 'missing' } as never]);
 
     const carte = screen.getByTestId('interlocuteur');
     const aFaire = screen.getByTestId('a-faire-pour-etre-paye');
     const colonne = carte.parentElement!;
     expect(colonne.tagName).toBe('ASIDE');
-    expect(colonne).toHaveClass('hidden', 'xl:block');
+    // TCK-2945 — dès lg (et non plus dès xl) : de 1024 à 1279 le volet passe sous les biens, jamais caché.
+    expect(afficheA(colonne, 390)).toBe(false);
+    expect(afficheA(colonne, 1024)).toBe(true);
+    expect(afficheA(colonne, 1440)).toBe(true);
     expect(colonne).toContainElement(aFaire);
     expect(carte.compareDocumentPosition(aFaire) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

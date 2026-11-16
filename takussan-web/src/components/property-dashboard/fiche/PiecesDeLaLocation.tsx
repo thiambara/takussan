@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronRight, ClipboardCheck, FileText, Phone, Send, UserRound, Wallet } from 'lucide-react';
+import { ChevronRight, ClipboardCheck, FileText, Phone, Send, TrendingUp, UserRound, Wallet } from 'lucide-react';
 
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
@@ -285,13 +285,34 @@ export function BlocCeMois({
   );
 }
 
-/** « À venir » : le prochain loyer et l'état des lieux d'entrée du bail. */
+/**
+ * TCK-2908 — l'avis d'échéance (le rappel au locataire, `occupancy.next_due_notice_date`, TCK-2915) se dit
+ * avec le prochain loyer quand il le PRÉCÈDE : après l'échéance du mois et au plus tard le jour du prochain
+ * loyer. Une date d'avis qui vise encore l'échéance du mois (non avisée, voire passée) n'est pas la sienne :
+ * la ligne garde alors sa forme d'avant.
+ */
+export function avisDuProchainLoyer(location: Pick<LocationDuBien, 'occupation' | 'prochainLoyer'>): string | null {
+  const avis = location.occupation?.next_due_notice_date ?? null;
+  const prochain = location.prochainLoyer;
+  const echeanceDuMois = location.occupation?.current_month?.due_date ?? null;
+  if (!avis || !prochain) return null;
+  if (avis > prochain) return null;
+  if (echeanceDuMois !== null && avis <= echeanceDuMois) return null;
+  return avis;
+}
+
+/**
+ * « À venir » : le prochain loyer (et son avis d'échéance, TCK-2908), la révision possible du loyer
+ * (`next_revision_date` du bail, TCK-2906 ; rien sans elle) et l'état des lieux d'entrée du bail.
+ */
 export function BlocAVenir({ property, location, className }: { readonly property: PropertyDetail; readonly location: LocationDuBien; readonly className?: string }) {
   const t = useTranslations('propertyDashboard.fiche.aVenir');
   const tPeriodes = useTranslations('property.rentPeriodsShort');
   const f = useFormatteurs();
   const loyer = location.occupation?.rent ?? null;
   const edl = location.etatDesLieux.data?.data[0] ?? null;
+  const avis = avisDuProchainLoyer(location);
+  const revision = location.bail.data?.data.next_revision_date ?? null;
   const detailEdl = (() => {
     if (location.etatDesLieux.isError) return t('edl.echec');
     if (!location.etatDesLieux.data) return null;
@@ -314,10 +335,22 @@ export function BlocAVenir({ property, location, className }: { readonly propert
           icone={<Wallet className="size-icone" strokeWidth={1.75} aria-hidden="true" />}
           titre={t('prochainLoyer', { date: f.jourMois(location.prochainLoyer) })}
           detail={
-            loyer
-              ? `${f.montantCourt(loyer.amount, loyer.currency ?? property.currency ?? 'XOF')} / ${tPeriodes(loyer.payment_frequency ?? 'monthly')}`
-              : null
+            [
+              loyer
+                ? `${f.montantCourt(loyer.amount, loyer.currency ?? property.currency ?? 'XOF')} / ${tPeriodes(loyer.payment_frequency ?? 'monthly')}`
+                : null,
+              avis ? t('avisDEcheance', { date: f.jourMois(avis) }) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ') || null
           }
+        />
+      ) : null}
+      {revision ? (
+        <LigneLien
+          icone={<TrendingUp className="size-icone" strokeWidth={1.75} aria-hidden="true" />}
+          titre={t('revision', { date: f.date(revision, { day: 'numeric', month: 'short', year: 'numeric' }) })}
+          detail={t('revisionDetail')}
         />
       ) : null}
       <LigneLien
@@ -359,6 +392,14 @@ export function BlocBailleur({ property, lien, className }: { readonly property:
 }
 
 /**
+ * TCK-2908 — les autres membres de l'équipe du bien (« · 1 collaborateur ») : ni l'agent principal
+ * (`is_primary`), ni le responsable affiché.
+ */
+export function autresCollaborateurs(property: Pick<PropertyDetail, 'collaborators'>, responsableId: number | null): number {
+  return (property.collaborators ?? []).filter((c) => !c.is_primary && c.user_id !== responsableId).length;
+}
+
+/**
  * TCK-2639 (TCK-603) — l'agent responsable du bien, sous le bailleur (maquette a-2 : « Mandat » au
  * téléphone, sous la carte « Occupation » au bureau). La même lecture que `ProprietaireEtResponsable` :
  * un agent DÉSIGNÉ (ou celui de l'ordre d'invitation) ; un repli n'est pas un responsable. Rien tant que
@@ -369,12 +410,16 @@ export function BlocResponsable({ property, className }: { readonly property: Pr
   const source = property.primary_contact_source;
   if (property.primary_contact === undefined || source === undefined) return null;
   const responsable = source === 'designated' || source === 'invitation_order' ? (property.primary_contact ?? null) : null;
+  // TCK-2908 (maquette a-2) — « Agent principal · 1 collaborateur » : le compte des autres collaborateurs.
+  const collaborateurs = autresCollaborateurs(property, responsable?.id ?? null);
   return (
     <Carte className={className}>
       <LigneLien
         icone={<UserRound className="size-icone" strokeWidth={1.75} aria-hidden="true" />}
         titre={responsable?.name ?? t('aucun')}
-        detail={t('detail')}
+        detail={
+          collaborateurs > 0 ? `${t('principal')} · ${t('collaborateurs', { count: collaborateurs })}` : t('principal')
+        }
       />
     </Carte>
   );

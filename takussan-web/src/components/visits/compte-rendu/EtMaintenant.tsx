@@ -29,17 +29,18 @@ import { PanneauDroit } from '@/components/ui/panneau-droit';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { PlanifierDialog } from '@/components/visits/PlanifierUneVisite';
 import { useAuth } from '@/context/AuthContext';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { cheminApi } from '@/lib/chemin-api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
 import { AGENT_CRM_QUERY_KEY, fetchMatchingProperties } from '@/lib/queries/agent-crm';
+import { ATTRIBUTS_CALCULES_DE_LA_FICHE } from '@/lib/queries/customers';
 import { useUpdateVisitReport } from '@/lib/queries/visits';
 import {
   SUITES_SUR_FICHE,
@@ -85,8 +86,6 @@ interface EtMaintenantProps {
   readonly etapeSuggeree?: { readonly from: string; readonly to: string } | null;
   readonly densite: 'telephone' | 'colonne';
   readonly onModifier: () => void;
-  /** Après « Terminer » (au téléphone : retour au détail). */
-  readonly onTermine?: () => void;
 }
 
 const ICONE_DU_VERDICT: Record<Verdict, LucideIcon> = { interested: ThumbsUp, thinking: CircleHelp, not_interested: ThumbsDown };
@@ -100,33 +99,51 @@ const TONS: Record<Ton, string> = {
 
 const JOURS_DE_RELANCE = [1, 2, 3, 7] as const;
 
+/** TCK-2880 — l'étape que les faits proposent (`CustomerSuggestedStageQuery`) ; `reason` repart tel quel à « Plus tard ». */
+interface EtapeProposee {
+  readonly to: string;
+  readonly reason: string;
+}
+
 interface Fiche {
   readonly id: number;
   readonly first_name?: string | null;
   readonly pipeline_stage?: string | null;
+  /** Absent : l'API ne l'a pas rendu ; `null` : rien n'est proposé (ou le lecteur n'est pas du personnel). */
+  readonly suggested_stage?: EtapeProposee | null;
 }
 
+/** Le fait qui propose « Qualifié » : le compte rendu « intéressé » (`CustomerSuggestedStageQuery::VISIT_INTERESTED`). */
+const FAIT_DU_COMPTE_RENDU = 'visit_interested';
+
 /**
- * L'étape de la fiche, relue. `/api/customers/{id}` est un `show` : il rend la fiche entière et
- * ignore `fields` (P60.03, `show-sans-fields.garde.test.ts`) — d'où une déclaration à part, sans
- * paramètres.
+ * L'étape de la fiche, relue, et l'étape que les faits proposent. `/api/customers/{id}` est un
+ * `show` : il rend la fiche entière et n'admet que les attributs CALCULÉS de la fiche
+ * (`ATTRIBUTS_CALCULES_DE_LA_FICHE`, seule exception de `show-sans-fields.garde.test.ts`) —
+ * TCK-2880 : dont `suggested_stage`, que « Plus tard » renvoie. Clé à part de `useFicheDuClient`
+ * (même chemin, sans paramètres) : deux réponses différentes ne partagent pas une clé.
  */
 function useEtapeDeLaFiche(clientId: number | null) {
-  return useApiQuery<ApiResponse<Fiche>>(['customers', 'etape', clientId ?? 0], cheminApi`/api/customers/${clientId ?? 0}`, {
+  return useApiQuery<ApiResponse<Fiche>>(['customers', 'etape', clientId ?? 0, 'proposee'], cheminApi`/api/customers/${clientId ?? 0}`, {
+    params: { fields: { customers: [...ATTRIBUTS_CALCULES_DE_LA_FICHE] } },
     enabled: clientId !== null,
   });
 }
 
 /**
  * TCK-2581 (ADR-0101 § 3) — « Et maintenant ? » : le résumé du compte rendu (« Modifier »), puis les
- * suites dans l'ordre utile, la conseillée en tête et dépliée, et l'interrupteur « Passer <prénom>
- * en « Qualifié » » (décision 2a). Maquette `app-fil-commercial`, écran 5 (`SuiteMobile`, et la
- * colonne droite de `VisiteTermineeBureau`).
+ * suites dans l'ordre utile, la conseillée en tête et dépliée. Maquette `app-fil-commercial`, écran 5
+ * (`SuiteMobile`, et la colonne droite de `VisiteTermineeBureau`).
  *
  * Chaque suite passe par une route EXISTANTE ; le serveur ne trace que le choix (`follow_up`,
- * `PATCH …/report`). L'étape ne change qu'à la validation : le choix d'une suite, ou « Terminer ».
+ * `PATCH …/report`).
+ *
+ * TCK-2880 (ADR-0103 § 5) — l'étape ne change plus avec une suite : la question « Passer en
+ * Qualifié ? » (`PasserEnQualifie`), en bas, la pose — « Oui » est le geste de l'agent, « Plus
+ * tard » écarte la proposition pour ce fait. Elle n'est rendue que si l'API propose « Qualifié » ;
+ * sinon rien (ni interrupteur, ni « Terminer »).
  */
-export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien, etapeSuggeree, densite, onModifier, onTermine }: EtMaintenantProps) {
+export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien, etapeSuggeree, densite, onModifier }: EtMaintenantProps) {
   const t = useTranslations('etMaintenant');
   const tCR = useTranslations('compteRendu');
   const tEtapes = useTranslations('crm.pipeline.stage');
@@ -151,10 +168,23 @@ export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien,
   const fiche = useEtapeDeLaFiche(client?.id ?? null);
   const etapeActuelle = fiche.data?.data.pipeline_stage ?? etapeSuggeree?.from ?? null;
   const etapeOuverte = etapeActuelle === 'lead' || etapeActuelle === 'prospect';
-  const proposee = etapeSuggeree ? etapeSuggeree.to === 'qualified' : etapeAProposer(verdict, etapeActuelle);
-  const [qualifier, setQualifier] = useState<boolean | null>(null);
-  const allume = qualifier ?? proposee;
+  // TCK-2880 — la proposition est celle de l'API (`suggested_stage` de la fiche relue), et elle
+  // seule : la réponse de l'écriture ne sait pas qu'un « Plus tard » l'a écartée depuis. Tant que la
+  // fiche n'est pas lue, rien n'est demandé ; une API qui ne rendrait pas la clé retombe sur la règle
+  // locale (le même fait : compte rendu « intéressé » sur une fiche Prospect).
+  const lue = fiche.data?.data.suggested_stage;
+  const proposition: EtapeProposee | null =
+    fiche.data === undefined
+      ? null
+      : lue !== undefined
+        ? lue?.to === 'qualified'
+          ? lue
+          : null
+        : etapeAProposer(verdict, etapeActuelle)
+          ? { to: 'qualified', reason: FAIT_DU_COMPTE_RENDU }
+          : null;
   const [etapeAppliquee, setEtapeAppliquee] = useState(false);
+  const [ecartee, setEcartee] = useState(false);
 
   const correspondances = useQuery({
     queryKey: AGENT_CRM_QUERY_KEY.matchingProperties(client?.id ?? 0),
@@ -183,6 +213,10 @@ export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien,
     { invalidate: [['customers']] },
   );
   const relance = useApiMutation<ApiResponse<{ readonly id: number }>, Record<string, unknown>>({ path: '/api/tasks', method: 'POST' }, { invalidate: [['tasks'], ['agent-crm']] });
+  const plusTard = useApiMutation<unknown, { reason_event: string }>(
+    { path: cheminApi`/api/customers/${client?.id ?? 0}/suggested-stage/dismiss`, method: 'POST' },
+    { invalidate: [['customers'], ['agent-crm']] },
+  );
 
   const [saisir, setSaisir] = useState(false);
   const [planifier, setPlanifier] = useState(false);
@@ -195,32 +229,47 @@ export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien,
   const { suites, conseillee } = suitesDeLaVisite(verdict, bien?.nature ?? null);
   const depliee = apercu ? null : ouverte ?? (conseillee === 'invite_apply' || conseillee === 'invite_offer' ? conseillee : null);
 
+  /** « Oui » : le geste de l'agent (ADR-0103 § 5). */
   async function appliquerEtape() {
-    if (!client || !etapeOuverte || !allume || etapeAppliquee) return;
+    if (!client || etapeAppliquee) return;
     // Relue AVANT d'écrire : le PATCH n'a pas de précondition, et l'étape a pu avancer depuis
     // l'ouverture de l'écran (un collègue, une candidature) — on n'écrase jamais une étape au-delà
     // de « Prospect ». C'est aussi ce qui tient la seconde validation quand l'écran a été remonté.
     const relue = (await fiche.refetch()).data?.data.pipeline_stage ?? etapeActuelle;
     if (relue !== 'lead' && relue !== 'prospect') return;
+    if (relue !== 'lead' && relue !== 'prospect') {
+      setEtapeAppliquee(true);
+      return;
+    }
     await etape.mutateAsync({ pipeline_stage: 'qualified' });
     setEtapeAppliquee(true);
     toast.add({ title: t('etapeAppliquee', { prenom }), type: 'success' });
   }
 
-  async function choisir(s: Suite) {
-    if (!compteRendu) return;
+  async function oui() {
     try {
       await appliquerEtape();
-      if (compteRendu.follow_up !== s) await suite.mutateAsync({ follow_up: s });
     } catch (err) {
       toast.add({ title: messageErreur(err), type: 'error' });
     }
   }
 
-  async function terminer() {
+  /** « Plus tard » : la proposition écartée pour ce fait ; un 409 dit qu'elle a déjà changé — elle se retire aussi. */
+  async function ecarter() {
+    if (!proposition) return;
     try {
-      await appliquerEtape();
-      onTermine?.();
+      await plusTard.mutateAsync({ reason_event: proposition.reason });
+      setEcartee(true);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) setEcartee(true);
+      else toast.add({ title: messageErreur(err), type: 'error' });
+    }
+  }
+
+  async function choisir(s: Suite) {
+    if (!compteRendu) return;
+    try {
+      if (compteRendu.follow_up !== s) await suite.mutateAsync({ follow_up: s });
     } catch (err) {
       toast.add({ title: messageErreur(err), type: 'error' });
     }
@@ -432,30 +481,18 @@ export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien,
     />
   );
 
-  const interrupteur =
-    client && etapeOuverte && !etapeAppliquee ? (
-      <label data-slot="passer-en-qualifie" className="flex min-h-11 flex-1 cursor-pointer items-center gap-3">
-        <span className="inline-flex size-10 flex-none items-center justify-center rounded-full bg-secondary text-primary-deep">
-          <TrendingUp className="size-5" strokeWidth={1.75} aria-hidden />
-        </span>
-        <span className="min-w-0 flex-1 text-sm leading-snug">
-          <span className="block font-semibold text-foreground">{t('qualifier')}</span>
-          <span className="block text-ui text-muted-foreground">{t('aujourdhui', { etape: tEtapes(etapeActuelle ?? 'prospect') })}</span>
-        </span>
-        <Switch checked={allume} onCheckedChange={(v) => setQualifier(v)} />
-      </label>
-    ) : (
-      <span className="flex-1" />
-    );
-
-  const pied = (
-    <div className="flex items-center gap-3">
-      {interrupteur}
-      <Button type="button" variant={telephone ? 'default' : 'outline'} size={telephone ? 'lg' : 'default'} onClick={() => void terminer()} disabled={etape.isPending}>
-        {t('terminer')}
-      </Button>
-    </div>
-  );
+  const question =
+    client && etapeOuverte && proposition && !etapeAppliquee && !ecartee ? (
+      <PasserEnQualifie
+        titre={t('question.titre')}
+        detail={t('aujourdhui', { etape: tEtapes(etapeActuelle ?? 'prospect') })}
+        plusTard={t('question.plusTard')}
+        oui={t('question.oui')}
+        enCours={etape.isPending || plusTard.isPending}
+        onPlusTard={() => void ecarter()}
+        onOui={() => void oui()}
+      />
+    ) : null;
 
   return (
     <div data-slot="et-maintenant" className={cn('space-y-4', telephone && 'px-4')}>
@@ -487,13 +524,16 @@ export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien,
 
       {liste}
 
-      <p className="px-1 text-ui leading-snug text-muted-foreground">{t('fil')}</p>
+      {/* TCK-2880 — « Sans choix, une relance… » : au téléphone, où « Passer » la pose (`SuiteDeLaVisite`). */}
+      <p className="px-1 text-ui leading-snug text-muted-foreground">{telephone && client ? t('filTelephone') : t('fil')}</p>
 
-      {telephone ? (
-        <BarreDAction>{pied}</BarreDAction>
-      ) : (
-        <div className="rounded-xl border border-border bg-card p-3.5">{pied}</div>
-      )}
+      {question ? (
+        telephone ? (
+          <BarreDAction>{question}</BarreDAction>
+        ) : (
+          <div className="rounded-xl border border-border bg-card p-3.5">{question}</div>
+        )
+      ) : null}
 
       {saisir && client && bien ? (
         <SaisirUneDemande
@@ -520,6 +560,46 @@ export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien,
           <CustomerMatches customerId={client.id} firstName={prenom} phone={numero} />
         </PanneauDroit>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * TCK-2880 — « Passer en Qualifié ? · Prospect → Qualifié · Plus tard · Oui » (maquette
+ * `app-fil-commercial` a-5, `PasserEnQualifie`) : « Plus tard » discret, « Oui » sombre.
+ */
+function PasserEnQualifie({
+  titre,
+  detail,
+  plusTard,
+  oui,
+  enCours,
+  onPlusTard,
+  onOui,
+}: {
+  readonly titre: string;
+  readonly detail: string;
+  readonly plusTard: string;
+  readonly oui: string;
+  readonly enCours: boolean;
+  readonly onPlusTard: () => void;
+  readonly onOui: () => void;
+}) {
+  return (
+    <div data-slot="passer-en-qualifie" role="group" aria-label={titre} className="flex w-full items-center gap-3">
+      <span className="inline-flex size-10 flex-none items-center justify-center rounded-full bg-secondary text-primary-deep">
+        <TrendingUp className="size-5" strokeWidth={1.75} aria-hidden />
+      </span>
+      <p className="min-w-0 flex-1 text-sm leading-snug">
+        <span className="block font-semibold text-foreground">{titre}</span>
+        <span className="block text-ui text-muted-foreground">{detail}</span>
+      </p>
+      <Button type="button" variant="ghost" className="px-2.5 text-sm" disabled={enCours} onClick={onPlusTard}>
+        {plusTard}
+      </Button>
+      <Button type="button" variant="sombre" className="px-5" disabled={enCours} onClick={onOui}>
+        {oui}
+      </Button>
     </div>
   );
 }

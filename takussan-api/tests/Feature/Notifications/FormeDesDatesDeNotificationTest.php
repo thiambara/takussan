@@ -21,6 +21,7 @@ use App\Models\AppNotification;
 use App\Models\BankStatement;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\Enums\MaintenanceStatus;
@@ -39,6 +40,7 @@ use App\Models\RoleDelegation;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\Account\AccountDeletionService;
+use App\Services\Booking\BookingCounterOfferService;
 use App\Services\Booking\PropertyCalendarSyncService;
 use App\Services\Documents\DocumentExpiryReminder;
 use App\Services\Kyc\KycExpiryService;
@@ -103,6 +105,12 @@ class FormeDesDatesDeNotificationTest extends TestCase
         NotificationCode::LeaseRentReviewedLandlord,
         // TCK-2783 — le rappel d'expiration d'une pièce.
         NotificationCode::DocumentExpiringSoon,
+        // TCK-2849 — la visite confirmée par le bailleur, à l'agent.
+        NotificationCode::VisitConfirmedByOwner,
+        // TCK-2871 — l'avis « Absent » au visiteur (un JOUR, pas d'heure).
+        NotificationCode::VisitNoShow,
+        // TCK-2873 — la contre-offre au client (`valid_until`, un JOUR).
+        NotificationCode::BookingCounterOfferReceived,
     ];
 
     protected function setUp(): void
@@ -178,11 +186,14 @@ class FormeDesDatesDeNotificationTest extends TestCase
         $notifier->cancelledByAgency($visit);
         $notifier->rescheduledByVisitor($visit);
         $notifier->cancelledByVisitor($visit);
+        $notifier->confirmedByOwner($visit, $this->client); // TCK-2849
+        $notifier->noShow($visit); // TCK-2871
         app()->call([new SendPropertyVisitReminders, 'handle']);
 
         foreach ([NotificationCode::VisitRequested, NotificationCode::VisitConfirmed, NotificationCode::VisitRescheduled,
             NotificationCode::VisitCancelled, NotificationCode::VisitReminder,
-            NotificationCode::VisitRescheduledByVisitor, NotificationCode::VisitCancelledByVisitor] as $code) {
+            NotificationCode::VisitRescheduledByVisitor, NotificationCode::VisitCancelledByVisitor,
+            NotificationCode::VisitConfirmedByOwner /* TCK-2849 */, NotificationCode::VisitNoShow /* TCK-2871 */] as $code) {
             $this->assertFormes($code);
         }
     }
@@ -367,6 +378,16 @@ class FormeDesDatesDeNotificationTest extends TestCase
         ]);
 
         $this->assertFormes(NotificationCode::LeaseRentReviewedLandlord);
+    }
+
+    /** TCK-2873 — la contre-offre sur une offre d'achat : `valid_until` est un jour. */
+    public function test_la_contre_offre_au_client(): void
+    {
+        $offre = $this->bookingOfClient(['kind' => BookingKind::Offer, 'status' => BookingStatus::Pending, 'start_date' => null, 'end_date' => null]);
+
+        app(BookingCounterOfferService::class)->propose($offre, ['amount' => 90_000_000], $this->agent);
+
+        $this->assertFormes(NotificationCode::BookingCounterOfferReceived);
     }
 
     public function test_chaque_code_date_du_catalogue_est_eprouve_ici(): void

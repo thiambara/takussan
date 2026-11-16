@@ -44,14 +44,22 @@ interface SocleDeLAccueilProps {
   readonly vide?: ReactNode;
   /** « Ce mois », ou `null` quand le persona n'a pas de chiffres. */
   readonly ceMois: ReactNode;
+  /** TCK-2853 — les actions de la tête de page, au bureau seul (le client : « Chercher un bien »). */
+  readonly actions?: ReactNode;
+  /**
+   * TCK-2850 — « Démarrer » d'un persona hors agence (le bailleur) : sa ligne au téléphone, au-dessus du
+   * salut, et son bandeau dans l'en-tête au bureau — la place de la mise en service, qui prime si les deux
+   * étaient donnés. Chacun ne rend rien quand il n'y a plus d'étape.
+   */
+  readonly demarrage?: { readonly telephone: ReactNode; readonly bureau: ReactNode } | null;
 }
 
-export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, colonne, vide, ceMois }: SocleDeLAccueilProps) {
+export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, colonne, vide, ceMois, actions, demarrage = null }: SocleDeLAccueilProps) {
   return (
     <PagePleineLargeur data-slot="accueil" className="max-md:pb-8">
       {/* ─── Le téléphone : la ligne de mise en service, puis le salut ─── */}
       <div className="md:hidden">
-        {miseEnService ? <BandeauMiseEnService agencyId={miseEnService.agencyId} kind={miseEnService.kind} /> : null}
+        {miseEnService ? <BandeauMiseEnService agencyId={miseEnService.agencyId} kind={miseEnService.kind} /> : (demarrage?.telephone ?? null)}
         <div className="px-4 pt-5">
           <h1 className="font-display text-2xl font-semibold tracking-titre text-foreground">{titre}</h1>
           <p className="mt-0.5 text-ui text-muted-foreground">{ligne}</p>
@@ -63,7 +71,8 @@ export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, 
         className="max-md:hidden"
         title={titre}
         description={ligne}
-        bandeau={miseEnService ? <BandeauMiseEnService large agencyId={miseEnService.agencyId} kind={miseEnService.kind} /> : undefined}
+        actions={actions}
+        bandeau={miseEnService ? <BandeauMiseEnService large agencyId={miseEnService.agencyId} kind={miseEnService.kind} /> : (demarrage?.bureau ?? undefined)}
       />
 
       <div data-slot="bandeaux-de-l-accueil" className="space-y-3 empty:hidden max-md:px-4 max-md:pt-4 md:pt-6">
@@ -75,7 +84,8 @@ export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, 
           <div className="min-w-0 space-y-5 xl:row-span-2">{blocs}</div>
           {/* TCK-2625 — sans « Ce mois » (le locataire), pas de cellule vide : elle prenait la première rangée de
               la colonne et la décalait d'un gap-y-5 sous le haut de la carte (relevé à 1440 : 18 px). */}
-          {ceMois ? <div className="min-w-0 space-y-5 max-xl:order-last">{ceMois}</div> : null}
+          {/* TCK-2850 — `empty:hidden` : la cellule du bailleur porte aussi « Loyers du mois » (e6), qui peut ne rien rendre. */}
+          {ceMois ? <div className="min-w-0 space-y-5 empty:hidden max-xl:order-last">{ceMois}</div> : null}
           {colonne ? <div className="min-w-0 space-y-5">{colonne}</div> : null}
         </div>
       ) : (

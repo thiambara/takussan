@@ -54,14 +54,14 @@
       "element": "« Dakar Immo les vérifie sous 48 h. » (première phrase de la ligne d'information au téléphone, du sous-titre au bureau)",
       "propriete": "présence ; au téléphone, la ligne tient sur une ligne et toute la page remonte de 18 px",
       "exception": "donnée",
-      "motif": "décision 5a de team-lead (2026-11-13) : aucun délai de vérification ni vérificateur n'est garanti par un mécanisme (la vérification par l'agence est hors périmètre, famille 6 ; promesses-de-delai) ; seule la phrase sourcée reste — aucune route ne refuse l'usage de l'espace faute de pièce"
+      "motif": "décision 5a de team-lead (2026-11-13) : aucun délai de vérification ni vérificateur n'est garanti par un mécanisme (la vérification par l'agence est hors périmètre, famille 6 ; promesses-de-delai) ; seule la phrase sourcée reste — aucune route ne refuse l'usage de l'espace faute de pièce — re-mesuré par TCK-2947 (2026-11-15) : aucun délai n'est une règle ni un réglage ; la seule vérification d'une pièce de profil est `POST /api/documents/{document}/verify`, réservée au super-admin (`DocumentController.php:271-276`), qu'aucun écran n'appelle — ni l'agence ni « 48 h » ne s'écrivent (test `vos-pieces.tck-2947.test.tsx`, AC2)"
     },
     {
       "ecran": "app-entree-assistants a-3-bureau-*",
       "element": "aside « Ce que ça débloque » (RIB — « le reversement de tes loyers, le 10 de chaque mois » ; Pièce d'identité — « la signature de tes mandats et de tes baux »)",
       "propriete": "présence ; la carte « Les trois états d'une pièce » monte à sa place",
       "exception": "donnée",
-      "motif": "décision 5a : aucune de ces deux promesses n'est tenue par une pièce (rien ne bloque sur une pièce, aucun reversement daté au 10)"
+      "motif": "décision 5a : aucune de ces deux promesses n'est tenue par une pièce (rien ne bloque sur une pièce, aucun reversement daté au 10) — re-mesuré par TCK-2947 (2026-11-15), liste déclarée VIDE dans `takussan-web/src/lib/pieces/ce-que-ca-debloque.ts` : un reversement se paie sur une destination de paiement vérifiée par l'agence (`PayoutPreparationService.php:89-101`), jamais sur le RIB envoyé en pièce ; le jour est `payout_day` (1-28) ou celui de l'agence (`PayoutMethodController.php:37-45`), pas le 10 ; la signature d'un bail ne lit aucune pièce (`LeaseSignatureService.php`) et aucun mandat ne se signe en ligne. L'aside paraîtra, ligne par ligne, le jour où une règle tiendra une ligne"
     },
     {
       "ecran": "app-entree-assistants a-3-*",
@@ -72,10 +72,10 @@
     },
     {
       "ecran": "app-entree-assistants a-3-*",
-      "element": "coque : barre latérale (groupe « Démarrer » dessiné pièce par pièce, barre de progression, « Vérifier mon numéro » barré), en-tête du téléphone",
+      "element": "coque : barre latérale — groupe « Démarrer » : étapes faites barrées et gardées, barre de progression, « Vérifier mon numéro » ; en-tête du téléphone",
       "propriete": "boîtes, libellés, pixels des zones de coque",
       "exception": "hors périmètre",
-      "motif": "la coque est TCK-2617/2618/2619 et le groupe « Démarrer » TCK-2479/2490 : l'API rend une étape `kyc` pour le bailleur (« Envoyer vos pièces d'identité »), pas une étape par pièce ; ce ticket la fait pointer vers /app/pieces (décision 3a)"
+      "motif": "TCK-2947 (2026-11-15) : le groupe « Démarrer » liste désormais les pièces UNE À UNE (« Envoyer votre RIB », « Envoyer votre pièce d’identité », étapes `piece:<code>` de TCK-2944) — entrée couverte. Restent : une étape faite SORT du groupe et compte dans « n sur m » (règle AC5 de TCK-2479, gardée) au lieu d'être barrée ; aucune barre de progression (dessin de TCK-2490, ADR-0090 § 1) ; « Vérifier mon numéro » n'est pas une étape que l'API rend (le numéro est vérifié à l'entrée). La coque est TCK-2617/2618/2619"
     },
     {
       "ecran": "app-entree-assistants a-3-*",

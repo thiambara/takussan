@@ -32,6 +32,8 @@ return [
         'cannot_create' => 'You do not have permission to send invitations.',
         'cannot_view' => 'You do not have permission to view this invitation.',
         'cannot_revoke' => 'You do not have permission to revoke this invitation.',
+        // TCK-2927 (ADR-0123 § 2)
+        'cannot_share' => 'Only a team invitation addressed to a phone number, without an email, can be shared by link.',
         'cannot_resend' => 'This invitation can no longer be resent.',
         'already_accepted' => 'This invitation has already been accepted and cannot be revoked.',
         'invalid_role' => 'The requested role is not allowed for invitations.',

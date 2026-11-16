@@ -22,6 +22,8 @@ export interface DoublonSonde {
   readonly id: number | null;
   readonly name: string | null;
   readonly stage: string | null;
+  /** TCK-2889 — le référent de la fiche trouvée, `null` sans référent ou masqué comme l'étape. */
+  readonly referent?: { readonly id: number; readonly name: string } | null;
 }
 
 export const DELAI_DE_LA_SONDE = 400;

@@ -38,6 +38,13 @@ interface CadreDeLaFicheProps {
    * des éléments de la jauge, ni sur le passage en pro de l'hôte (a-9).
    */
   readonly jauge?: boolean;
+  /**
+   * TCK-2921 — `false` : le lecteur n'ouvre pas « Mon agence » (l'agent, sur les réglages de bail) ; la
+   * navigation des sections, qui y mène, ne se montre pas.
+   */
+  readonly navigation?: boolean;
+  /** TCK-2921 — le repli du retour du téléphone, quand `/app/agency` n'est pas le bon (agent, retour au bail). */
+  readonly repli?: string;
   readonly children: ReactNode;
 }
 
@@ -52,7 +59,18 @@ interface CadreDeLaFicheProps {
  * vers une section du formulaire est une navigation vers `/app/agency?section=…` : il n'y a pas de
  * formulaire à garder monté ici.
  */
-export function CadreDeLaFiche({ agency, vitrine, origineSite, section, titre, texte, jauge = false, children }: CadreDeLaFicheProps) {
+export function CadreDeLaFiche({
+  agency,
+  vitrine,
+  origineSite,
+  section,
+  titre,
+  texte,
+  jauge = false,
+  navigation = true,
+  repli = '/app/agency',
+  children,
+}: CadreDeLaFicheProps) {
   const tFiche = useTranslations('admin.agencyConfig.fiche');
   const individuelle = agency.kind === 'individual';
   const montrees = sectionsMontrees({ individuelle, vitrine });
@@ -62,6 +80,8 @@ export function CadreDeLaFiche({ agency, vitrine, origineSite, section, titre, t
     queryFn: () => fetchAgencyKyc(agency.id),
     staleTime: 60_000,
     retry: false,
+    // TCK-2921 — sans navigation ni jauge, le dossier ne sert à rien (et l'agent ne le lit pas).
+    enabled: navigation || jauge,
   });
   const dossier = kyc.data?.data ?? null;
   const verification = kyc.isError ? null : dossier ? verificationAJour(dossier) : kyc.isSuccess ? false : null;
@@ -74,7 +94,7 @@ export function CadreDeLaFiche({ agency, vitrine, origineSite, section, titre, t
 
   return (
     <PagePleineLargeur>
-      <DeclarerEnTete titre={titreDeSection(section)} forme="detail" repli="/app/agency" />
+      <DeclarerEnTete titre={titreDeSection(section)} forme="detail" repli={repli} />
 
       <div className="max-md:hidden">
         <PageHeader
@@ -92,7 +112,9 @@ export function CadreDeLaFiche({ agency, vitrine, origineSite, section, titre, t
       <div className="mt-6 space-y-6 max-md:mt-0 max-md:px-4 max-md:py-4">
         {jauge ? <JaugeDuBureau completude={completude} surLien={null} /> : null}
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:gap-8">
-          <NavigationDesSections montrees={montrees} active={section} etats={etats} titre={titreDeSection} lien={lienExterne} surLien={null} />
+          {navigation ? (
+            <NavigationDesSections montrees={montrees} active={section} etats={etats} titre={titreDeSection} lien={lienExterne} surLien={null} />
+          ) : null}
           <div className="min-w-0 flex-1" data-slot="section-de-la-fiche">
             <TitreDeSection id={`titre-section-${section}`} titre={titre} texte={texte} texteAuBureauSeulement />
             {children}

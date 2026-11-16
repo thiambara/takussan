@@ -52,11 +52,31 @@ export interface TeamPerformanceRow {
   readonly tasks_overdue: number;
   /** TCK-2626 — les demandes de contact que l’agent a marquées traitées (`handled_by_id`) dans le mois. */
   readonly leads_handled?: number;
+  /**
+   * TCK-2865 — la médiane du délai de première réponse aux demandes du formulaire déposées dans le mois, en minutes ;
+   * `null` sous 5 réponses mesurées.
+   */
+  readonly median_response_minutes?: number | null;
+}
+
+/** TCK-2865 — les totaux de l'équipe : le nombre d'agents, la somme de chaque colonne, la médiane de l'équipe. */
+export interface TeamPerformanceTotals {
+  readonly agents: number;
+  readonly leases_signed: number;
+  readonly sales_signed: number;
+  readonly visits_completed: number;
+  readonly leads_handled: number;
+  readonly customers_added: number;
+  readonly commissions_earned: number;
+  readonly properties_managed: number;
+  readonly tasks_overdue: number;
+  readonly median_response_minutes: number | null;
 }
 
 export interface TeamPerformance {
   readonly period: string;
   readonly agents: readonly TeamPerformanceRow[];
+  readonly totals?: TeamPerformanceTotals;
 }
 
 export const agencyReportingKeys = {

@@ -13,6 +13,7 @@ use App\Models\Enums\UserStatus;
 use App\Models\User;
 use App\Services\Account\AccountDeletionService;
 use App\Services\Admin\ImpersonationService;
+use App\Services\Calendar\CalendarFeedService;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -44,7 +45,8 @@ class UserLifecycleController extends Controller
         DB::transaction(function () use ($request, $user, $reason): void {
             $user->forceFill(['status' => UserStatus::Blocked])->save();
             $user->tokens()->delete();
-            CalendarFeed::query()->active()->where('user_id', $user->id)->update(['revoked_at' => now()]);
+            // TCK-2887 (ADR-0121 § 4) — la révocation efface aussi la copie chiffrée du lien.
+            CalendarFeed::query()->active()->where('user_id', $user->id)->update(CalendarFeedService::revocation());
 
             $this->journaliser($request->user(), $user, 'super_admin_user_blocked', $reason);
         });

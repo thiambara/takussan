@@ -2,7 +2,7 @@
 
 import { Fragment, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { CalendarOff, ChevronRight, Mail, Phone, ShieldCheck } from 'lucide-react';
 
@@ -13,13 +13,22 @@ import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { ErrorState } from '@/components/feedback';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { initialesDe, nomAffichable } from '@/lib/identite';
 import { formaterTelephone } from '@/lib/phone';
-import { AGENT_CRM_QUERY_KEY, fetchAbsences, fetchMemberPortfolio } from '@/lib/queries/agent-crm';
+import { AGENT_CRM_QUERY_KEY, fetchAbsences } from '@/lib/queries/agent-crm';
+import {
+  STATUTS_SUR_LE_MARCHE,
+  fetchFicheDuMembre,
+  ficheDuMembreKeys,
+  lienDesBiensDuMembre,
+  lienDesClientsDuMembre,
+  rappelerLaDoubleAuthentification,
+} from '@/lib/queries/fiche-du-membre';
 import type { TeamSuspensionAction } from '@/lib/queries/team-suspension';
 import { cn } from '@/lib/utils';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
@@ -41,11 +50,14 @@ import { PuceDEtat, TexteConnexion } from './pieces';
  * au membre), suspendre / réactiver (`suspensionOffer`, jamais soi ni l'admin principal), retirer et
  * passer le portefeuille (`HandoverWizard`, ouvert par la console). Ne s'affiche que ce que l'API sert :
  *
- *  · « Clients et visites » vient du portefeuille de passation (`GET …/members/{u}/portfolio`), que
- *    l'API ouvre sous `team.remove` : sans ce droit, la ligne n'est pas là ;
- *  · « Commissions dues » n'existe que si la ligne porte `commissions_due_amount` (AC4) et mène à la
- *    page Commissions filtrée sur la personne (`/app/commissions?agent=`, TCK-2662) ;
- *  · ni l'appareil de la dernière connexion, ni la date d'activation de la 2FA ne sont servis.
+ *  · TCK-2928 — le Portefeuille et la Sécurité se lisent sur la fiche de l'API (`GET …/team/{u}`,
+ *    TCK-2926) : biens ventilés (« 9 en location, 14 à louer ou à vendre ») et chevron vers la liste des
+ *    biens filtrée sur la personne (`?agent=`), clients actifs et visites de la semaine et chevron vers
+ *    les clients dont elle est le référent (`?referent=`), ancienneté des commissions dues, date
+ *    d'activation de la 2FA et « Rappeler » quand elle manque, appareil et ville de la dernière
+ *    connexion. Fiche illisible (403, panne) : les rangées retombent sur la ligne du tableau ;
+ *  · « Commissions dues » n'existe que si la ligne porte `commissions_due_amount` (AC4 de TCK-2667 : qui
+ *    lit l'argent de l'agence) et mène à la page Commissions filtrée sur la personne (`/app/commissions?agent=`).
  */
 interface FicheDuMembreProps {
   readonly membre: AdminAgencyUserRow;
@@ -53,8 +65,6 @@ interface FicheDuMembreProps {
   readonly currentUserId: number;
   readonly affectations: readonly AgencyRoleAssignment[];
   readonly peutAttribuerLeRole: boolean;
-  /** Le portefeuille se lit sous `team.remove` (comme le retrait qu'il précède). */
-  readonly peutLireLePortefeuille: boolean;
   readonly suspension: TeamSuspensionAction | null;
   readonly onSuspension: (membre: AdminAgencyUserRow, action: TeamSuspensionAction) => void;
   readonly onRetirer?: (membre: AdminAgencyUserRow) => void;
@@ -138,7 +148,6 @@ export function FicheDuMembre({
   currentUserId,
   affectations,
   peutAttribuerLeRole,
-  peutLireLePortefeuille,
   suspension,
   onSuspension,
   onRetirer,
@@ -149,6 +158,7 @@ export function FicheDuMembre({
   const { token } = useAuth();
   const messageErreur = useMessageErreurApi();
   const { date, jourMois, montantCourt } = useFormatteurs();
+
   const role = roleDuMembre(membre, agencyId);
   const etat = etatDuMembre(membre, agencyId);
   const soi = membre.id === currentUserId;
@@ -180,14 +190,26 @@ export function FicheDuMembre({
   const deuxProfils = affectationsDuPersonnel.length > 1;
   const personnel = affectations.length === 0 || affectations.some((a) => a.profile_type === 'agent' || a.profile_type === 'agency_admin');
 
-  const portefeuille = useQuery({
-    queryKey: AGENT_CRM_QUERY_KEY.portfolio(agencyId, membre.id),
-    queryFn: () => fetchMemberPortfolio(token ?? '', agencyId, membre.id),
-    enabled: Boolean(token) && peutLireLePortefeuille && personnel,
+  // TCK-2928 — la fiche de l'API (TCK-2926) : lue par qui lit l'équipe ; refusée ou en panne, les
+  // rangées retombent sur la ligne du tableau.
+  const ficheApi = useQuery({
+    queryKey: ficheDuMembreKeys.fiche(agencyId, membre.id),
+    queryFn: () => fetchFicheDuMembre(token ?? '', agencyId, membre.id),
+    enabled: Boolean(token) && personnel,
     retry: false,
     staleTime: 30_000,
   });
-  const inventaire = portefeuille.data?.portfolio;
+  const fiche = ficheApi.data;
+  const biens = fiche?.portfolio.properties ?? null;
+  const nbBiens = fiche?.portfolio.properties_total ?? membre.properties_followed_count ?? 0;
+  const enLocation = biens?.rented ?? 0;
+  const surLeMarche = STATUTS_SUR_LE_MARCHE.reduce((n, s) => n + (biens?.[s] ?? 0), 0);
+  const autresBiens = Math.max(nbBiens - enLocation - surLeMarche, 0);
+  const dues = fiche?.commissions_due ?? null;
+  const montantDu = dues?.amount ?? membre.commissions_due_amount ?? 0;
+  const doubleAuth = fiche?.two_factor_enabled ?? membre.two_factor_enabled;
+  const connexion = fiche?.last_login ?? null;
+  const detailConnexion = [connexion?.device, connexion?.city].filter(Boolean).join(' · ');
 
   const contacts = [
     telephone ? (
@@ -332,19 +354,29 @@ export function FicheDuMembre({
         />
       </Carte>
 
+      {/* TCK-2928 — maquette `app-equipe`, a, e1 : « Biens suivis » ventilé et « Clients et visites »,
+          chacun vers sa liste filtrée côté serveur sur la personne ; « Commissions dues » et l'ancienneté. */}
       <Carte titre={t('fiche.portefeuille')}>
         <LigneFiche
           libelle={t('fiche.biensSuivis')}
-          valeur={<span className="tabular-nums">{t('fiche.nbBiens', { n: membre.properties_followed_count ?? 0 })}</span>}
+          valeur={
+            <span className="tabular-nums">
+              {biens && nbBiens > 0
+                ? t('fiche.biensVentiles', { n: nbBiens, location: enLocation, marche: surLeMarche, autres: autresBiens })
+                : t('fiche.nbBiens', { n: nbBiens })}
+            </span>
+          }
+          href={lienDesBiensDuMembre(membre.id)}
         />
-        {inventaire ? (
+        {fiche ? (
           <LigneFiche
             libelle={t('fiche.clientsEtVisites')}
             valeur={
               <span className="tabular-nums">
-                {t('fiche.nbClientsEtVisites', { clients: inventaire.customers ?? 0, visites: inventaire.visits ?? 0 })}
+                {t('fiche.clientsEtVisitesSemaine', { clients: fiche.portfolio.active_customers, visites: fiche.portfolio.visits_this_week })}
               </span>
             }
+            href={lienDesClientsDuMembre(membre.id)}
           />
         ) : null}
         {membre.commissions_due_amount !== undefined ? (
@@ -352,27 +384,46 @@ export function FicheDuMembre({
             libelle={t('fiche.commissionsDues')}
             valeur={
               <span className="tabular-nums">
-                {membre.commissions_due_amount > 0
-                  ? t('fiche.duesMontant', { montant: montantCourt(membre.commissions_due_amount) })
-                  : t('fiche.rienAPayer')}
+                {montantDu > 0 ? t('fiche.duesMontant', { montant: montantCourt(montantDu) }) : t('fiche.rienAPayer')}
               </span>
+            }
+            detail={
+              montantDu > 0 && dues && dues.leases > 0 && dues.oldest_due_at
+                ? t('fiche.duesDetail', { n: dues.leases, date: jourMois(dues.oldest_due_at) })
+                : undefined
             }
             href={`/app/commissions?agent=${membre.id}`}
           />
         ) : null}
       </Carte>
 
+      {/* TCK-2928 — maquette e1, « Sécurité » : la date d'activation, ou « Pas encore activée » et
+          « Rappeler » ; la dernière connexion et, en détail, l'appareil et la ville quand l'API les rend. */}
       <Carte titre={t('fiche.securite')}>
-        {membre.two_factor_enabled !== undefined ? (
+        {doubleAuth !== undefined ? (
           <LigneFiche
             libelle={t('fiche.doubleAuth')}
-            valeur={membre.two_factor_enabled ? t('fiche.doubleAuthActivee') : t('fiche.doubleAuthAbsente')}
+            valeur={
+              doubleAuth
+                ? fiche?.two_factor_enabled_at
+                  ? t('fiche.doubleAuthActiveeDepuis', { date: jourMois(fiche.two_factor_enabled_at) })
+                  : t('fiche.doubleAuthActivee')
+                : t('fiche.doubleAuthAbsente')
+            }
             droite={
-              membre.two_factor_enabled ? <ShieldCheck className="size-5 flex-none text-success" strokeWidth={1.75} aria-hidden="true" /> : null
+              doubleAuth ? (
+                <ShieldCheck className="size-5 flex-none text-success" strokeWidth={1.75} aria-hidden="true" />
+              ) : fiche && !soi ? (
+                <Rappeler agencyId={agencyId} userId={membre.id} nom={nom} />
+              ) : null
             }
           />
         ) : null}
-        <LigneFiche libelle={t('fiche.derniereConnexion')} valeur={<TexteConnexion derniereConnexion={membre.last_login_at} />} />
+        <LigneFiche
+          libelle={t('fiche.derniereConnexion')}
+          valeur={<TexteConnexion derniereConnexion={connexion ? connexion.at : membre.last_login_at} />}
+          detail={detailConnexion || undefined}
+        />
       </Carte>
 
       {/* Maquette `app-equipe`, a, « Fiche » : la carte « Absences », « Déclarer » en tête ; une
@@ -482,6 +533,36 @@ export function FicheDuMembre({
         </Carte>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * TCK-2928 — « Rappeler » (2FA inactive) : `POST …/two-factor-reminder` et un toast ; 429 → « déjà
+ * rappelé aujourd'hui » ; 409 (activée entre-temps) → la fiche se relit. Isolé : seul geste de la
+ * fiche qui parle par toast.
+ */
+function Rappeler({ agencyId, userId, nom }: { readonly agencyId: number; readonly userId: number; readonly nom: string }) {
+  const t = useTranslations('admin.team.equipe.fiche');
+  const { token } = useAuth();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const messageErreur = useMessageErreurApi();
+  const rappeler = useMutation<void, ApiError>({
+    mutationFn: () => rappelerLaDoubleAuthentification(token ?? '', agencyId, userId),
+    onSuccess: () => toast.add({ title: t('rappelEnvoye', { nom }), type: 'success' }),
+    onError: (e) => {
+      if (e.status === 429) {
+        toast.add({ title: t('dejaRappele'), type: 'info' });
+        return;
+      }
+      if (e.status === 409) void queryClient.invalidateQueries({ queryKey: ficheDuMembreKeys.fiche(agencyId, userId) });
+      toast.add({ title: messageErreur(e, t('rappelEchec')), type: 'error' });
+    },
+  });
+  return (
+    <LienDAction onClick={() => rappeler.mutate()} disabled={rappeler.isPending} ariaLabel={t('rappelerAria', { nom })} className="flex-none text-sm">
+      {t('rappeler')}
+    </LienDAction>
   );
 }
 

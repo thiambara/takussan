@@ -88,6 +88,13 @@ final class NotificationTarget
         'document' => '/app/documents/{id}',
         // TCK-2812 — l'archive préparée d'un dossier ouvre le coffre, où elle se télécharge.
         'document_archive' => '/app/documents',
+        // TCK-2916 — l'archive préparée des quittances (`receipts:all`, `receipts:lease:{id}`), que le coffre ne
+        // liste pas : elle se télécharge depuis « Tout télécharger » de l'historique, sur la page des paiements.
+        'receipts_archive' => '/app/payments',
+        // TCK-2913 — la fiche d'un état des lieux signé, où son PDF se télécharge (`InventoryPdfButton`).
+        'inventory' => '/app/inventories/{id}',
+        // TCK-2926 — le rappel d'activer la double authentification ouvre la sécurité du compte.
+        'profile_security' => '/app/profile/security',
     ];
 
     /**

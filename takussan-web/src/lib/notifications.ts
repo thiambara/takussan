@@ -84,6 +84,9 @@ export type FamilleDeNotification = (typeof FAMILLES_DE_NOTIFICATION)[number];
 export type ComptesDesNotifications = {
   a_traiter_non_lues: number;
   par_famille: Partial<Record<FamilleDeNotification, number>>;
+  /** TCK-2847 — TOUTES les notifications, lues comprises (« Toutes 42 »), et par famille ; absente = 0. */
+  total?: number;
+  total_par_famille?: Partial<Record<FamilleDeNotification, number>>;
 };
 
 export type NotificationsResponse = {

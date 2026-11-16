@@ -24,6 +24,11 @@ return [
         'date_range_too_long' => 'La période exportée ne doit pas dépasser un an.',
     ],
     'agency' => [
+        // TCK-2937 (ADR-0125) — l'agence ouverte depuis l'orientation.
+        'already_admin' => 'Vous administrez déjà une agence : passez par son espace.',
+        'ninea_taken' => 'Ce NINEA est déjà porté par une autre agence.',
+        'phone_unverified' => 'Vérifiez d\'abord votre numéro de téléphone pour ouvrir une agence.',
+        'unverified_publication' => 'Votre agence doit être vérifiée par notre équipe avant de mettre un bien en ligne.',
         'active_profile_missing' => 'Amul benn profil agence bu dox.',
         'admin_email_taken' => 'Am na compte bu am e-mail administrateur bii ba noppi.',
         'admin_phone_taken' => 'Un compte existe déjà avec ce numéro vérifié du gérant.',
@@ -110,13 +115,31 @@ return [
         'application_already_accepted' => 'Une autre candidature est déjà acceptée sur ce bien : annulez-la, ou envoyez son bail en signature, avant d\'en accepter une seconde.',
         'cannot_cancel' => 'Wootu bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_expire' => 'Wootu bii mënuñu ko jeexal: war na nekk ci xaar.',
+        // TCK-2873 (ADR-0110 § 5)
+        'counter_offer_expired' => 'Cette contre-proposition a expiré : elle ne peut plus être acceptée ni déclinée.',
+        'counter_offer_not_allowed' => 'Seule une offre d\'achat en attente peut recevoir une contre-proposition.',
+        'counter_offer_not_open' => 'Cette contre-proposition n\'attend plus de réponse : elle a été remplacée, déjà traitée, ou l\'offre n\'est plus en attente.',
         // TCK-2579
         'customer_required' => 'Une réservation saisie par l\'agence doit désigner un client.',
         'dates_overlap' => 'Beneen wootu bu ñu dëggal am na ba noppi ci bés yii ci kër gii.',
         'dates_unavailable' => 'Bis yii jëfandikoowuñu leen ci kër gii.',
+        // TCK-2872 (ADR-0110 § 2)
+        'dossier_closed' => 'Cette demande est close : son dossier reste lisible, mais n\'accepte plus de pièce ni de demande.',
+        'dossier_not_found' => 'Cette réservation n\'a pas de dossier : seules une candidature et une offre en ont un.',
+        'dossier_piece_not_found' => 'Cette pièce ne fait pas partie du dossier de cette demande.',
+        'dossier_piece_received' => 'Cette pièce est déjà reçue : il n\'y a rien à demander.',
+        'dossier_request_throttled' => 'Cette pièce a déjà été demandée il y a moins de 24 heures.',
         'expire_race' => 'Statut wootu bi soppiku na ci diggante bi. Yeesalal page bi.',
+        // TCK-2870 (ADR-0110 § 1)
+        'field_not_for_kind' => 'Ce champ n\'appartient pas à cette nature de demande : une candidature dit sa durée, une offre son financement, son délai et ses conditions, un séjour aucun des deux.',
+        // TCK-2893 (ADR-0110 § 3)
+        'guarantor_already_attached' => 'Ce garant est déjà rattaché à cette demande.',
+        'guarantor_not_attached' => 'Ce garant n\'est pas rattaché à cette demande.',
+        'guarantor_not_for_kind' => 'Seules une candidature et une offre peuvent avoir un garant.',
         // TCK-2579
         'kind_mismatch' => 'Cette nature de demande ne correspond pas au bien : une candidature vise une location au mois, une offre un bien à vendre.',
+        // TCK-2893 (ADR-0110 § 3)
+        'max_guarantors' => 'Une demande ne peut pas avoir plus de 3 garants.',
         'not_found' => 'Wootu bi gisuñu ko.',
         'not_in_active_agency' => 'Wootu bii bokkul ci sa agence bu dox bi.',
         'not_pending_confirm' => 'Wootu buy xaar rekk lañu mën a dëggal.',
@@ -171,6 +194,8 @@ return [
         'no_space' => 'Amul bérab bu dox : tannal benn bérab ngir gis ay kredi am.',
     ],
     'conversation' => [
+        // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.
+        'already_reported' => 'Vous avez déjà signalé cette conversation.',
         'participant_not_found' => 'Participant bii bokkul ci waxtaan wi.',
         'participant_required' => 'War na am beneen participant benn lu mu gën a tuuti.',
     ],
@@ -183,11 +208,15 @@ return [
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
         // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
         'suggested_stage_stale' => "Cette étape proposée n'est plus d'actualité : rechargez la fiche.",
+        // TCK-2874 (ADR-0110 § 8) — défaire le passage en Négociation fait par l'acceptation.
+        'stage_undo_unavailable' => "Cette étape a changé depuis l'acceptation : il n'y a plus rien à annuler.",
+        'stage_undo_expired' => "Le passage en Négociation ne s'annule que dans les 24 heures qui suivent l'acceptation.",
     ],
     'dashboard' => [
         'invalid_scope' => 'Wàll wi ñu laaj war na nekk « mine » walla « agency ».',
         // TCK-2791 — `period` des tableaux de bord : une liste fermée.
-        'invalid_period' => 'La période demandée doit être « current_month » ou « last_month ».',
+        // TCK-2865 — `last_12_months` ajouté à la liste.
+        'invalid_period' => 'La période demandée doit être « current_month », « last_month » ou « last_12_months ».',
     ],
     'data_export' => [
         'expired' => 'Export données bii jeex na.',
@@ -219,6 +248,8 @@ return [
         'invalid_target' => 'La cible attendue est « lease:{id} » ou « property:{id} ».',
         'owner_not_found' => 'Mbir mi ñuy takk document bi gisuñu ko.',
         'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
+        // TCK-2909
+        'profile_piece_by_kyc' => "Une pièce d'identité, un RIB ou un NINEA se dépose depuis le parcours des pièces du profil.",
         'pdf_template_missing' => 'Modèle document bi gisuñu ko.',
         'pdf_uploader_missing' => 'Document bi mënuñu ko defar te amul ki ko def.',
         'unsupported_type' => 'Xeetu mbir mii mënul am document.',
@@ -234,6 +265,8 @@ return [
     'export' => [
         'forbidden' => 'Amuloo sañ-sañ génne donne yii.',
         'entity_unknown' => 'Export bii xamuñu ko.',
+        // TCK-2866 (ADR-0115) — le fichier gardé d'un export, passé son échéance.
+        'file_expired' => 'Ce fichier d\'export a expiré : relancez l\'export.',
     ],
     'failed_job' => [
         'bulk_retry_limit' => 'Liggéey yu daanu dafa bari lool ngir tàmbaliwaat leen benn yoon.',
@@ -260,6 +293,8 @@ return [
         'source_unavailable' => 'Wikimedia Commons ne répond pas. Réessayez plus tard, ou envoyez la photo vous-même.',
     ],
     'guarantor' => [
+        // TCK-2893
+        'attached_to_open_booking' => 'Ce garant est déclaré sur une candidature ou une offre en cours : retirez-le d\'abord de la demande.',
         'attached_to_open_lease' => 'Garant bii dafa lëkkaloo ak ab bayle buy xaar xaatim walla bu ngi dox : nangeel ko jëlee ci bayle bi njëkk.',
     ],
     'http' => [
@@ -325,10 +360,14 @@ return [
         'resend_too_soon' => 'Un code vient d\'être envoyé : patientez une minute avant d\'en demander un autre.',
         'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou faites signer le locataire depuis son compte.',
         'tenant_without_phone' => 'Le locataire n\'a pas de compte avec un numéro vérifié : il signe depuis son compte.',
+        // TCK-2913 (ADR-0098, amendement A) — le code du bailleur part au numéro vérifié de son compte.
+        'landlord_without_phone' => 'Le bailleur n\'a pas de compte avec un numéro vérifié : il signe depuis son compte, ou vous signez pour son compte.',
     ],
     'invitation' => [
         'already_member' => 'Ce compte est déjà membre de l\'agence sous ce profil : l\'invitation n\'a rien à ajouter.',
         'sms_daily_cap_reached' => 'Limu woote yi ci SMS ci bés bi jot na ci agence bi. Jéemaatal ëllëg, walla woo ko ci e-mail.',
+        // TCK-2927 (ADR-0123 § 4) — invitation partagée : le lien ne prouve pas le numéro.
+        'code_required' => 'Cette invitation s\'accepte par le code envoyé par SMS au numéro invité.',
         'phone_mismatch' => 'Nimero bii du bi ñu yónne woote bi.',
         'profile_unavailable' => 'Le profil visé par cette invitation n\'est plus disponible (suspendu ou inactif). Demandez une nouvelle invitation à l\'agence.',
         'service_provider_profile_exists' => 'Ce compte a déjà un profil de prestataire. Demandez à l\'agence de vous inviter à l\'adresse ou au numéro de ce compte : l\'invitation rejoindra alors ce profil.',
@@ -364,6 +403,8 @@ return [
         'already_converted' => 'Laaj bii def nañu ko fiche kiliyaan ba noppi.',
         'contact_unavailable' => 'Kër gii amul ku ñu mën a jokkoo léegi. Sa laaj yónnewul.',
         'not_convertible' => 'Laaj bu ñu yónne ci formulaire bi rekk moo mën a nekk fiche kiliyaan.',
+        // TCK-2884 — « Annuler » un traitement sur une demande non traitée.
+        'not_handled' => 'Cette demande n\'est pas marquée traitée : il n\'y a rien à annuler.',
         'without_agency' => 'Laaj bii amul benn ajaans : du mën a nekk fiche kiliyaan.',
     ],
     'lease' => [
@@ -436,6 +477,8 @@ return [
         'in_progress' => 'Maintenance mi ngi dox. Jéemaatal ci kanam.',
         'no_longer_assigned' => 'Cette intervention a été confiée à un autre prestataire : elle ne s\'accepte plus en votre nom.',
         'photos_closed' => 'Mënuñu yokk nataal ci laaj bu ñu tëj walla neenal.',
+        // TCK-2911 (ADR-0120 § 3).
+        'quote_alternatives_full' => 'Une intervention compte au plus :max devis concurrents.',
         'quote_amount_too_large' => 'Limu devis bi yépp ëpp na li ñu mëna bind.',
         'quote_expired' => 'Devis bii amatul solo : bisu jeexitalam wees na.',
         'reassign_after_completion' => 'Liggéey bi jeex na : liggéey bi kenn du ko jotaat.',
@@ -522,6 +565,10 @@ return [
         'integration_misconfigured' => 'Feyu internet bi baaxul ngir jottalikat bii. Jokkool ak sa ajaas.',
     ],
     'payout' => [
+        // TCK-2909
+        'notice_unavailable' => 'Seul un reversement au bailleur, versé, a un avis de versement.',
+        // TCK-2863
+        'bank_statement_bank_only' => 'Un relevé d\'identité bancaire ne s\'envoie que pour un compte bancaire.',
         'agency_required' => 'Reversement dañu koy def ci turu agence.',
         'already_paid_out' => 'Benn ci pièce yi dañu ko delloo ba noppi.',
         'amount_changed_since_approval' => 'Montant bi soppiku na ginnaaw ba ñu ko nangoo : nangu ko ci kanam.',
@@ -619,9 +666,17 @@ return [
         'batch_not_confirmable' => 'Une des lignes du lot n\'est pas une ligne proposée d\'un relevé ouvert de l\'agence : rien n\'a été confirmé.',
         'cross_agency' => 'Bii paiement du ci bii agence.',
         'duplicate_file' => 'Bii relevé dañu ko wone nanu bii agence.',
+        // TCK-2932 — sortir un paiement du reste à rapprocher, et l'y remettre.
+        'ignored_payment_not_found' => 'Ce paiement ignoré est introuvable dans cette agence.',
+        'payment_already_ignored' => 'Ce paiement est déjà sorti du reste à rapprocher.',
+        'payment_not_found' => 'Ce paiement est introuvable dans cette agence.',
+        'payment_not_pending' => 'Seul un paiement encaissé, hors passerelle et non rapproché peut être sorti du reste à rapprocher.',
+        'preview_unreadable' => "Le relevé n'a pas pu être lu : son en-tête ou son contenu ne correspond pas au format choisi.",
     ],
     'reporting' => [
         'invalid_group_by' => 'Mboolo mi ñu laaj war na nekk « tenant » walla « landlord ».',
+        // TCK-2866 — `filter[landlord_id]` de la balance âgée (JSON et PDF).
+        'invalid_landlord' => 'Le bailleur demandé doit être un identifiant entier.',
         'invalid_period' => 'La période demandée doit être un mois au format AAAA-MM.',
         'range_too_wide' => 'Diggante bi nga laaj ëpp na :max intervalle « :granularity ». Wàññil diggante bi walla yokk granularité bi.',
         'report_unknown' => 'Rapport bii xamuñu ko.',
@@ -646,6 +701,10 @@ return [
     'role_delegation' => [
         'covers_absence' => 'Cette délégation couvre une absence : modifiez ou révoquez l\'absence, qui la porte.',
     ],
+    // TCK-2866 — les destinataires choisis d'une alerte de seuil : ceux de sa mesure seulement.
+    'threshold_alert' => [
+        'recipient_not_allowed' => 'Ces destinataires ne peuvent pas recevoir cette alerte : :ids.',
+    ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [
         'invalid_token' => 'Lënk bii dëggëlu bi amatul solo.',
@@ -666,6 +725,8 @@ return [
     ],
     'service_provider_bill' => [
         'already_in_payout' => 'Bii facture d\'intervention mi ngi ci reversement bu ñu nekk di def.',
+        // TCK-2911 (ADR-0120 § 1) — « Facturer » depuis le brouillon seulement.
+        'not_draft' => 'Cette facture d\'intervention a déjà été envoyée.',
         'not_payable' => 'Facture d\'intervention bu ñu valider rekk lañuy fey.',
         'not_pending' => 'Bii facture d\'intervention du xaar validation.',
         'request_not_completed' => 'Le travail de cette intervention n\'est pas rendu (contestée, reprise ou annulée) : sa facture ne se valide, ne se paie ni ne se refacture.',
@@ -714,6 +775,10 @@ return [
         'assignee_other_agency' => 'Ki ñu dénk liggéey bi war na bokk ci sa agence.',
     ],
     'team' => [
+        // TCK-2926 (ADR-0124 § 6) — le rappel de la double authentification.
+        'two_factor_already_enabled' => 'Ce membre a déjà activé la double authentification : il n\'y a rien à rappeler.',
+        'two_factor_reminder_throttled' => 'Un rappel a déjà été envoyé à ce membre il y a moins de 24 heures.',
+        'member_not_found' => 'Cette personne n\'est pas membre de l\'équipe de cette agence.',
         'admin_suspension_reserved' => 'Administraateur bu dox ci ajaas bi rekk mën a taxawal walla delloo administraateur.',
         'nothing_to_reactivate' => 'Bokk bii amul benn profil bu ñu taxawal buñu mën a delloo ci ajaas bii. Woote buñu xaar dañuy nangu, duñu ko delloo.',
         'nothing_to_suspend' => 'Bokk bii amul benn profil buy dox buñu mën a taxawal ci ajaas bii.',

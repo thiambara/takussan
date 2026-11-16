@@ -31,9 +31,10 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function ProfilePage() {
   const faits = await faitsDuSommaire();
-  const [tDetails, tTypes, locale] = await Promise.all([
+  const [tDetails, tTypes, tKinds, locale] = await Promise.all([
     getTranslations('profile.sommaire.details'),
     getTranslations('profile.types'),
+    getTranslations('payments.payoutMethodKinds'),
     getLocale(),
   ]);
   const rangees = rangeesDuSommaire(faits);
@@ -42,6 +43,7 @@ export default async function ProfilePage() {
   const details = detailsDuSommaire(faits, {
     t: (cle, valeurs) => tDetails(cle, valeurs),
     tTypes: (cle) => tTypes(cle),
+    tKinds: (cle) => tKinds(cle),
     locale: locale as Locale,
     note,
   });

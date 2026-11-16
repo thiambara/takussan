@@ -12,6 +12,7 @@ import type { LectureDesCapacites } from './capacites-amorcees';
 
 import {
   accesDepuis,
+  cheminsDEntree,
   pageAccessible,
   pageAdmin,
   type AccesAdmin,
@@ -170,7 +171,8 @@ export async function garderPageAdmin(chemin: CheminAdmin): Promise<void> {
   if (besoins.capacites && ctx.capacites === null) redirect(ROUTE_VERIF_INDISPONIBLE);
 
   const acces = accesDepuis(await contexteAdmin(user, TOUT, 'affichage'));
-  redirect(acces.chemins.find((c) => c !== chemin) ?? '/app');
+  // TCK-2921 — jamais une page du personnel en repli : un agent refusé ici irait aux réglages de bail.
+  redirect(cheminsDEntree(acces).find((c) => c !== chemin) ?? '/app');
 }
 
 /**

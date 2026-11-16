@@ -169,6 +169,48 @@ class CustomerFollowUpTest extends ApiTestCase
         }
     }
 
+    /**
+     * TCK-2890 — `filter[follow_up]=week` : les relances dues, PLUS les fiches dont la prochaine action
+     * tombe d'ici dimanche soir sans être échue ; ni celle de lundi prochain, ni la fiche sans rien.
+     * Trié `-follow_up_days,next_action_at` : les retards d'abord, puis la semaine dans l'ordre du jour.
+     */
+    public function test_tck_2890_la_semaine_ajoute_les_relances_prevues_d_ici_dimanche(): void
+    {
+        // Lundi 9 novembre, 9 h : la semaine court jusqu'au dimanche 15 à 23:59:59 (Dakar = UTC).
+        $enRetard = $this->fiche(CustomerPipelineStage::Lead, '2026-10-20 09:00:00');
+        $jeudi = $this->fiche(CustomerPipelineStage::Lead, '2026-11-08 09:00:00');
+        $mardi = $this->fiche(CustomerPipelineStage::Lead, '2026-11-08 09:00:00');
+        $dimancheSoir = $this->fiche(CustomerPipelineStage::Lead, '2026-11-08 09:00:00');
+        $lundiProchain = $this->fiche(CustomerPipelineStage::Lead, '2026-11-08 09:00:00');
+        $rien = $this->fiche(CustomerPipelineStage::Lead, '2026-11-08 09:00:00');
+        $gagnee = $this->fiche(CustomerPipelineStage::Converted, '2026-11-08 09:00:00');
+        $this->tacheEchue($gagnee, '2026-11-12 10:00:00');
+        $this->tacheEchue($jeudi, '2026-11-12 10:00:00');
+        $this->tacheEchue($mardi, '2026-11-10 10:00:00');
+        $this->tacheEchue($dimancheSoir, '2026-11-15 23:30:00');
+        $this->tacheEchue($lundiProchain, '2026-11-16 08:00:00');
+
+        $this->assertSame(
+            [$enRetard->id, $mardi->id, $jeudi->id, $dimancheSoir->id],
+            $this->liste('&filter[follow_up]=week&sort=-follow_up_days,next_action_at')->pluck('id')->all(),
+        );
+        // Ni la fiche sans rien, ni la fiche gagnée (jamais « à relancer », même avec une tâche jeudi).
+        $this->assertNotContains($rien->id, $this->liste('&filter[follow_up]=week')->pluck('id')->all());
+        $this->assertNotContains($gagnee->id, $this->liste('&filter[follow_up]=week')->pluck('id')->all());
+        // `=1` reste la relance due seule.
+        $this->assertSame([$enRetard->id], $this->liste('&filter[follow_up]=1')->pluck('id')->all());
+    }
+
+    /** TCK-2890 — hors personnel, `=week` ne rend rien, comme `=1`. */
+    public function test_tck_2890_la_semaine_ne_rend_rien_hors_personnel(): void
+    {
+        $bailleur = $this->bailleur($this->agence);
+        $fiche = $this->fiche(CustomerPipelineStage::Lead, '2026-11-08 09:00:00', ['added_by_id' => $bailleur->id]);
+        $this->tacheEchue($fiche, '2026-11-12 10:00:00');
+
+        $this->assertSame([], $this->liste('&filter[follow_up]=week', $bailleur)->pluck('id')->all());
+    }
+
     /** `filter[follow_up]=1` rend exactement les fiches dont `follow_up` n'est pas nul ; `=0`, les autres. */
     public function test_le_filtre_suit_exactement_l_attribut(): void
     {

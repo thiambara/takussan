@@ -46,7 +46,12 @@ export interface CalendarEvent {
   /** TCK-2585 — visite, pour le personnel de l'agence du bien seulement : le visiteur et l'adresse. */
   visitor_name?: string | null;
   address_line?: string | null;
+  /** TCK-2886 — séjour : aussi le quartier du bien, à tout lecteur de l'événement. */
   neighborhood?: string | null;
+  /** TCK-2886 — séjour, pour le super-admin et le personnel de l'agence du bien seulement : le client. */
+  customer_name?: string | null;
+  /** TCK-2886 — visite : son rang parmi les visites non annulées du même client sur le bien ; nul sans client. */
+  visit_rank?: number | null;
   /** Visite demandée par tranche (`morning`…) : journée entière, la tranche dans le titre. */
   preferred_window?: string | null;
   /** Tâche : ce à quoi elle est rattachée. */

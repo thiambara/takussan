@@ -12,15 +12,20 @@ use App\Models\Enums\PayoutStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Payout;
+use App\Models\PayoutMethod;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
 use App\Services\Dashboard\PortfolioMetrics;
+use App\Services\Media\PublicPhotoUrl;
+use App\Services\Media\WatermarkRequirement;
+use App\Services\Payments\LeasePaymentReminderReader;
 use App\Services\Payments\RentMonthStatus;
 use App\Services\Reporting\OverdueInstalment;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -108,18 +113,13 @@ final class OwnerStatementService
             // TCK-2760 — le solde cumulé au jour, à côté des totaux de la période.
         ] + ($withBalance ? ['balance' => $this->balance($agency, $landlord)] : []) + [
             'next_payout' => $this->nextPayout($agency, $landlord),
+            // TCK-2915 — la règle de versement : le jour du mandat, sinon celui de l'agence.
+            'payout_rule' => PayoutDay::of((int) $landlord->id, (int) $agency->id),
             'properties' => $this->properties($agency, $landlord, $start, $end, $this->byProperty($computation['lines'])),
             'lines' => $computation['lines'],
-            'payouts' => $payouts->map(fn (Payout $p): array => [
-                'id' => $p->id,
-                'reference_number' => $p->reference_number,
-                'status' => $p->status?->value,
-                'net_amount' => (float) $p->net_amount,
-                'clawback_amount' => $p->clawback_amount !== null ? (float) $p->clawback_amount : null,
-                'transaction_id' => $p->transaction_id,
-                'processed_at' => $p->processed_at?->toIso8601String(),
-                'paid_in_period' => in_array($p->id, $paidIds, true),
-            ])->values()->all(),
+            'payouts' => $payouts->map(fn (Payout $p): array => self::payoutRow($p, in_array($p->id, $paidIds, true)))->values()->all(),
+            // TCK-2915 — le compteur de l'onglet « Versements » : la longueur de `payouts[]`.
+            'payouts_count' => $payouts->count(),
             'unpaid' => $this->unpaid($agency, $landlord, $start, $end),
             'late_fees_outstanding' => $this->lateFeesOutstanding($agency, $landlord, $start, $end),
         ];
@@ -301,11 +301,12 @@ final class OwnerStatementService
      * le plus tôt programmé d'abord ; un reversement sans date passe après. Lu au jour, quelle que
      * soit la période : c'est un « prochain », pas un fait du mois.
      *
-     * @return array{id: int, scheduled_at: ?string, payment_method: ?string, status: ?string, net_amount: float}|null
+     * @return array{id: int, scheduled_at: ?string, payment_method: ?string, status: ?string, net_amount: float, payout_method_kind: ?string, payout_method_masked: ?string, payout_method_source: ?string}|null
      */
     public function nextPayout(Agency $agency, User $landlord): ?array
     {
         $payout = Payout::query()
+            ->with('payoutMethod')
             ->where('agency_id', $agency->id)
             ->where('landlord_id', $landlord->id)
             ->where('payee_role', PayeeRole::Landlord->value)
@@ -314,12 +315,56 @@ final class OwnerStatementService
             ->orderBy('id')
             ->first();
 
-        return $payout === null ? null : [
+        if ($payout === null) {
+            return null;
+        }
+        // TCK-2915 — le compte du versement, MASQUÉ (ADR-0039 § 6), dans cet ordre : celui que le
+        // reversement porte (`source: payout`) ; sinon la destination qu'il a déjà figée (`payout`) ;
+        // sinon le moyen par défaut du bailleur VÉRIFIÉ pour cette agence (`source: default`) — la
+        // seule destination qu'une approbation accepterait (`PayoutService::approve`,
+        // `payout.unverified_destination`), donc celle où il partira tant que l'agence n'en fixe pas
+        // d'autre. Aucun : `null` (espèces, chèque, ou rien de vérifié).
+        [$kind, $masked, $source] = [null, null, null];
+        if ($payout->payoutMethod !== null) {
+            [$kind, $masked, $source] = [$payout->payoutMethod->kind?->value, $payout->payoutMethod->masked_identifier, 'payout'];
+        } elseif (is_string($payout->metadata['destination_masked'] ?? null)) {
+            [$masked, $source] = [$payout->metadata['destination_masked'], 'payout'];
+        } elseif (($default = PayoutMethod::query()->where('user_id', $landlord->id)->verifiedFor((int) $agency->id)
+            ->orderByDesc('is_default')->orderBy('id')->first()) !== null) {
+            [$kind, $masked, $source] = [$default->kind?->value, $default->masked_identifier, 'default'];
+        }
+
+        return [
             'id' => (int) $payout->id,
             'scheduled_at' => $payout->scheduled_at?->toIso8601String(),
             'payment_method' => $payout->payment_method?->value,
             'status' => $payout->status?->value,
             'net_amount' => (float) $payout->net_amount,
+            'payout_method_kind' => $kind,
+            'payout_method_masked' => $masked,
+            'payout_method_source' => $source,
+        ];
+    }
+
+    /**
+     * Une ligne de `payouts[]`. TCK-2915 — `payment_method` (le moyen) et `nature` (TCK-2909 :
+     * acompte, solde… ; `null` pour un reversement antérieur à la colonne).
+     *
+     * @return array<string, mixed>
+     */
+    public static function payoutRow(Payout $p, bool $paidInPeriod): array
+    {
+        return [
+            'id' => $p->id,
+            'reference_number' => $p->reference_number,
+            'status' => $p->status?->value,
+            'net_amount' => (float) $p->net_amount,
+            'clawback_amount' => $p->clawback_amount !== null ? (float) $p->clawback_amount : null,
+            'transaction_id' => $p->transaction_id,
+            'processed_at' => $p->processed_at?->toIso8601String(),
+            'paid_in_period' => $paidInPeriod,
+            'payment_method' => $p->payment_method?->value,
+            'nature' => $p->nature?->value,
         ];
     }
 
@@ -381,23 +426,74 @@ final class OwnerStatementService
             $rows[] = ['property_id' => (int) $id, 'collected' => 0.0, 'commission' => 0.0, 'fees' => 0.0, 'net' => 0.0, 'has_movements' => false];
         }
 
-        $titles = Property::withTrashed()->whereIn('id', array_column($rows, 'property_id'))->pluck('title', 'id');
+        // TCK-2915 — la vignette de chaque bien (sa première photo, jamais l'original, filigrane
+        // respecté) : les biens et leurs médias en deux requêtes.
+        $models = Property::withTrashed()->whereIn('id', array_column($rows, 'property_id'))->with('media')->get()->keyBy('id');
+        WatermarkRequirement::attach($models);
+        $reminders = $this->overdueReminders($dues);
 
-        return array_map(function (array $row) use ($leases, $dues, $titles): array {
+        return array_map(function (array $row) use ($leases, $dues, $models, $reminders): array {
             $id = $row['property_id'];
             /** @var Collection<int, Lease> $propertyLeases */
             $propertyLeases = $leases->get($id, collect());
             $lease = $propertyLeases->first(fn (Lease $l) => in_array($l->status?->value, Lease::ONGOING_STATUSES, true)) ?? $propertyLeases->first();
             /** @var Collection<int, LeasePayment> $propertyDues */
             $propertyDues = $dues->get($id, collect());
+            $property = $models->get($id);
+            $photo = $property?->getFirstMedia('photos');
 
             return $row + [
-                'title' => $titles[$id] ?? null,
+                'title' => $property?->title,
                 'tenant_name' => trim((string) $lease?->tenant?->full_name) ?: null,
                 'expected_rent' => round((float) $propertyDues->sum(fn (LeasePayment $p) => (float) $p->amount), 2),
                 ...self::monthStatus($propertyDues, $lease !== null),
+                // TCK-2915 — le bail de la ligne (« Bail LS-… ») et la vignette du bien.
+                'lease_reference' => $lease?->reference_number,
+                'photo_url' => $photo === null ? null : PublicPhotoUrl::upTo($photo, 'thumbnail', fn (): bool => $property->requiresWatermark()),
+                'reminders' => $reminders[$id] ?? [],
             ];
         }, $rows);
+    }
+
+    /**
+     * TCK-2915 (ADR-0105, amendement du 2026-11-15) — les relances NOTÉES par l'agence des échéances
+     * de loyer en retard de la période, par bien, lues par {@see LeasePaymentReminderReader} (la
+     * lecture unique) et projetées par LISTE BLANCHE : `{at, channel, by_name}`. Jamais la note
+     * interne, ni le sujet, ni l'identifiant de l'auteur ; les rappels automatiques n'y sont pas
+     * (le bailleur reçoit déjà le sien). De la plus récente à la plus ancienne.
+     *
+     * @param  Collection<int|string, Collection<int, LeasePayment>>  $dues  les échéances de la période, par bien
+     * @return array<int, list<array{at: ?string, channel: ?string, by_name: ?string}>>
+     */
+    private function overdueReminders(Collection $dues): array
+    {
+        $today = OverdueInstalment::today();
+        $overdue = $dues->flatten()
+            ->filter(fn (LeasePayment $p): bool => OverdueInstalment::daysLate($p, $today) !== null)
+            ->values();
+        if ($overdue->isEmpty()) {
+            return [];
+        }
+        $entries = app(LeasePaymentReminderReader::class)->forPayments(new EloquentCollection($overdue->all()));
+
+        $out = [];
+        foreach ($overdue as $payment) {
+            foreach ($entries[$payment->id] ?? [] as $entry) {
+                if ($entry['source'] !== 'manual') {
+                    continue;
+                }
+                $out[(int) $payment->statement_property_id][] = [
+                    'at' => $entry['at'],
+                    'channel' => $entry['channel'],
+                    'by_name' => $entry['by']['name'] ?? null,
+                ];
+            }
+        }
+        foreach ($out as &$list) {
+            usort($list, fn (array $a, array $b): int => strcmp((string) $b['at'], (string) $a['at']));
+        }
+
+        return $out;
     }
 
     /** Le dernier jour d'occupation d'un bail : la sortie anticipée, sinon la résiliation, sinon le terme. */

@@ -4,6 +4,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { AgencyDegradedState } from '@/components/dashboard/admin/AgencyDegradedState';
 import { MiseEnService } from '@/components/dashboard/admin/MiseEnService';
 import { AmorceLectures } from '@/components/providers/AmorceLectures';
+import { ChoixDeLAgence } from '@/components/rapports/ChoixDeLAgence';
 import { ChoixDeLaPeriode } from '@/components/rapports/ChoixDeLaPeriode';
 import { LienDesIndicateurs } from '@/components/rapports/vues/LienDesIndicateurs';
 import { PeriodeDuRapport } from '@/components/rapports/vues/pieces';
@@ -11,7 +12,7 @@ import { TuilesDuRapport } from '@/components/rapports/TuilesDuRapport';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
-import { bornesLisibles, moisEnCoursDeLaReponse, type PeriodeDesRapports } from '@/lib/rapports/periode';
+import { bornesLisibles, moisEnCoursDeLaReponse, moisServiDeLaReponse, periodeALire, type PeriodeDesRapports } from '@/lib/rapports/periode';
 import { ongletOuvert } from '@/lib/navigation/rapports';
 import { AGENCY_INVITATIONS_COUNT_KEY, fetchPendingInvitationsCount } from '@/lib/queries/agency-queues';
 import { fetchThresholdAlerts } from '@/lib/queries/alerts';
@@ -43,6 +44,10 @@ import { GraphiquesDuRapport } from './GraphiquesDuRapport';
  * TCK-2791 — `periode` : le mois que l'API résume (« Ce mois · Mois dernier »). Sous « Mois dernier », les états
  * du jour se disent « aujourd'hui », « Équipe » lit le mois servi, et la variation d'« Encaissé » compare ce mois
  * clos au précédent ; le mois en cours, lui, reste celui qui suit le mois servi (`moisEnCoursDeLaReponse`), jamais `period`.
+ *
+ * TCK-2867 — « 12 mois » (`last_12_months`) : les montants valent pour les douze mois, la tuile « Encaissé » ne dit
+ * plus de variation mensuelle, « Équipe » reste le mois en cours (`team-performance` ne lit qu'un mois). La série
+ * « Impayés » rejoint le segment du téléphone ; au téléphone, « Agence ▾ » suit la ligne de période.
  */
 export async function EnsembleAgence({ periode = 'current_month' }: { readonly periode?: PeriodeDesRapports } = {}) {
   const [t, tActivite, user, contexte, locale] = await Promise.all([
@@ -58,11 +63,12 @@ export async function EnsembleAgence({ periode = 'current_month' }: { readonly p
   const agencyId = typeof user.agency_id === 'number' ? user.agency_id : null;
 
   const token = agencyId !== null ? await getToken() : undefined;
-  const agencyIsStandard = await lireLeKind(token, agencyId);
+  const agence = await lireLAgence(token, agencyId);
+  const agencyIsStandard = agence ? agence.kind === 'standard' : undefined;
   // UNE lecture de l'endpoint par affichage (AC3 de TCK-647), séries comprises.
   const [payload, lectures, seuils] = await Promise.all([
     // TCK-2791 — le mois en cours n'écrit rien : la lecture d'avant, à l'identique.
-    fetchDashboardAgency({ withTimeseries: true, ...(periode === 'last_month' ? { period: periode } : {}) }),
+    fetchDashboardAgency({ withTimeseries: true, ...periodeALire(periode) }),
     lecturesDePremierAffichage(token, agencyId, agencyIsStandard),
     ongletOuvert('alertes', contexte) ? lireLesSeuils() : Promise.resolve(undefined),
   ]);
@@ -80,7 +86,9 @@ export async function EnsembleAgence({ periode = 'current_month' }: { readonly p
   const data = payload.data;
   const ts = payload.timeseries;
   const moisEnCours = moisEnCoursDeLaReponse(data.period);
-  const moisServi = data.period.start.slice(0, 7);
+  // TCK-2867 — sous « 12 mois », aucun mois servi : ce qui se lit au mois (l'équipe, la variation) prend le mois en cours.
+  const moisServi = moisServiDeLaReponse(data.period) ?? moisEnCours;
+  const douzeMois = data.period.key === 'last_12_months';
   const etatsDuJour = etatsDuJourAMarquer(data.period);
   const jour = (chemin: string) => (etatsDuJour?.includes(chemin) ? { aujourdhui: true as const } : {});
   const ouvertes = { impayes: ongletOuvert('impayes', contexte), equipe: ongletOuvert('equipe', contexte) };
@@ -101,7 +109,7 @@ export async function EnsembleAgence({ periode = 'current_month' }: { readonly p
     // Repris des indices de l'ancienne tuile « Revenus du mois » et « Impayés » de l'ancienne vue d'agence : la commission de
     // l'agence sur le mois, et les pénalités de retard à recouvrer quand il y en a. Sans lien : aucune liste ne
     // les détaille pour l'admin (le grand livre des commissions est celui de l'agent, famille 6).
-    { cle: 'commission', libelle: t('commissionsDuMois'), valeur: data.finance.commission_month, forme: 'montant' },
+    { cle: 'commission', libelle: douzeMois ? t('commissionsDouzeMois') : t('commissionsDuMois'), valeur: data.finance.commission_month, forme: 'montant' },
     ...((data.finance.late_fees_outstanding_amount ?? 0) > 0
       ? [
           {
@@ -120,7 +128,10 @@ export async function EnsembleAgence({ periode = 'current_month' }: { readonly p
       <div className="space-y-7">
         <div>
           <ChoixDeLaPeriode variante="puces" />
-          <PeriodeDuRapport periode>{t('periode', bornesLisibles(data.period.start, data.period.end, locale))}</PeriodeDuRapport>
+          <div className="flex min-h-11 items-center justify-between gap-3 md:hidden">
+            <PeriodeDuRapport periode>{t('periode', bornesLisibles(data.period.start, data.period.end, locale))}</PeriodeDuRapport>
+            {contexte.persona === 'admin-agence' && agence?.name ? <ChoixDeLAgence nom={agence.name} variante="ligne" /> : null}
+          </div>
         </div>
 
         {/* TCK-589 — la mise en service en tête : elle disparaît une fois l'agence prête. */}
@@ -129,7 +140,7 @@ export async function EnsembleAgence({ periode = 'current_month' }: { readonly p
         <section aria-labelledby="rapports-chiffres-cles">
           <div className="mb-2.5 flex items-center justify-between gap-3">
             <h2 id="rapports-chiffres-cles" className="text-ui font-semibold text-muted-foreground">
-              {etatsDuJour ? t('chiffresClesMoisDernier') : t('chiffresCles')}
+              {etatsDuJour ? t('chiffresClesMoisDernier') : douzeMois ? t('chiffresClesDouzeMois') : t('chiffresCles')}
             </h2>
             <LienDesIndicateurs apercus={apercusDuResume(data)} />
           </div>
@@ -142,12 +153,16 @@ export async function EnsembleAgence({ periode = 'current_month' }: { readonly p
             series={[
               { id: 'encaisse', mois: ts.months, valeurs: ts.revenue },
               { id: 'occupation', mois: ts.months, valeurs: ts.occupancy },
+              // TCK-2867 — « Impayés » (l'impayé en fin de mois, TCK-2865) : au téléphone, dans le segment (maquette).
+              ...(ts.overdue && ts.overdue.length === ts.months.length
+                ? [{ id: 'impayes' as const, mois: ts.months, valeurs: ts.overdue, telephoneSeulement: true }]
+                : []),
             ]}
           />
         ) : null}
 
         {ouvertes.equipe && agencyId !== null ? (
-          <EquipeDuMois agencyId={agencyId} periode={moisServi} moisDernier={etatsDuJour !== null} agencyIsStandard={agencyIsStandard} />
+          <EquipeDuMois agencyId={agencyId} periode={moisServi} moisDernier={data.period.key === 'last_month'} agencyIsStandard={agencyIsStandard} />
         ) : null}
 
         <section aria-labelledby="rapports-en-chiffres">
@@ -174,11 +189,13 @@ async function lireLesSeuils(): Promise<SeuilsDesAlertes | undefined> {
   }
 }
 
-/** Le `kind` de l'agence, LU (`resolveAgencyOrNull` est `cache()`é : la garde vient de le lire). */
-async function lireLeKind(token: string | null | undefined, agencyId: number | null): Promise<boolean | undefined> {
-  if (agencyId === null) return undefined;
-  const agence = token ? await resolveAgencyOrNull(token, agencyId, 'reports (ensemble)', 'decision') : null;
-  return agence ? agence.kind === 'standard' : undefined;
+/**
+ * L'agence, LUE (`resolveAgencyOrNull` est `cache()`é : la garde vient de la lire) : son `kind` (invitations) et,
+ * TCK-2867, son nom (« Agence ▾ » du téléphone).
+ */
+async function lireLAgence(token: string | null | undefined, agencyId: number | null) {
+  if (agencyId === null || !token) return null;
+  return resolveAgencyOrNull(token, agencyId, 'reports (ensemble)', 'decision');
 }
 
 /**

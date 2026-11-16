@@ -33,7 +33,7 @@ describe('Tâches — la portée du lien (TCK-1733, TCK-2596)', () => {
     render(await Page({ searchParams: Promise.resolve({ 'filter[due]': 'today', 'filter[assigned_to]': 'me' }) }));
     expect(page).toHaveBeenCalledWith(
       expect.objectContaining({
-        etatInitial: { selection: { mode: 'periodes', periodes: ['today'] }, aMoi: true, equipe: false, agent: null },
+        etatInitial: { selection: { mode: 'periodes', periodes: ['today'] }, aMoi: true, equipe: false, agent: null, grouper: 'echeance', rattachement: 'tout' },
         ouvrirNouvelle: false,
         equipeVisible: false,
       }),
@@ -42,7 +42,7 @@ describe('Tâches — la portée du lien (TCK-1733, TCK-2596)', () => {
 
   it('ignore une autre portée ; sans échéance, En retard + Aujourd’hui', async () => {
     render(await Page({ searchParams: Promise.resolve({ 'filter[assigned_to]': '42' }) }));
-    expect(page).toHaveBeenCalledWith(expect.objectContaining({ etatInitial: { selection: { mode: 'periodes', periodes: ['overdue', 'today'] }, aMoi: false, equipe: false, agent: null } }));
+    expect(page).toHaveBeenCalledWith(expect.objectContaining({ etatInitial: { selection: { mode: 'periodes', periodes: ['overdue', 'today'] }, aMoi: false, equipe: false, agent: null, grouper: 'echeance', rattachement: 'tout' } }));
   });
 
   it('`?nouvelle=1` ouvre la création ; l’admin qui tient `crm.view_all` a le filtre d’équipe', async () => {

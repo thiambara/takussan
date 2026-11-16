@@ -17,6 +17,7 @@ use App\Rules\HoteDeVisiteVirtuelle;
 use App\Rules\JourIso;
 use App\Services\Geo\GeoAddressRules;
 use App\Services\Property\CoutDEntree;
+use App\Services\Property\HeuresDuSejour;
 use App\Services\Property\HierarchyService;
 use Closure;
 use Illuminate\Validation\Rule;
@@ -146,6 +147,11 @@ class StorePropertyRequest extends BaseFormRequest
                 CoutDEntree::sApplique($this->input('contract_type'), $this->input('rent_period')),
                 partiel: false,
                 fraisAdmis: CoutDEntree::fraisDAgenceAdmis($this->agenceVisee()),
+            ),
+            // TCK-2892 — les heures d'arrivée et de départ, d'un bien à la nuit ou à la semaine (422 sinon).
+            ...HeuresDuSejour::regles(
+                HeuresDuSejour::sApplique($this->input('contract_type'), $this->input('rent_period')),
+                partiel: false,
             ),
         ];
     }

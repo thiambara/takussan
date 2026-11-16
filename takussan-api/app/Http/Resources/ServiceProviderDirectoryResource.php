@@ -37,6 +37,11 @@ class ServiceProviderDirectoryResource extends BaseResource
             $data['completed_interventions_count'] = (int) $data['completed_interventions_count'];
         }
 
+        // TCK-2917 (ADR-0118 § 4) — les créneaux dépassés chez l'agence du carnet.
+        if (array_key_exists('overdue_slots_count', $data)) {
+            $data['overdue_slots_count'] = (int) $data['overdue_slots_count'];
+        }
+
         // TCK-2772 — le délai de réponse médian en minutes, nul sans mesure.
         if (array_key_exists('response_delay_minutes', $data)) {
             $data['response_delay_minutes'] = $data['response_delay_minutes'] === null ? null : (int) $data['response_delay_minutes'];

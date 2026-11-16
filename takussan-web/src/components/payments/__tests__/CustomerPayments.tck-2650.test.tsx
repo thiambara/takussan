@@ -39,6 +39,12 @@ vi.mock('@/hooks/usePaymentProviders', () => ({ usePaymentProviders: () => ({ pr
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton' }) }));
 let recherche = '';
 vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(recherche) }));
+// TCK-2916 — « Tout télécharger » de l'historique lit l'état des archives préparées (épinglé par
+// `CustomerPayments.tout-telecharger.tck-2916`) : ici, aucune.
+vi.mock('@/lib/queries/coffre', () => ({
+  useArchivesPreparees: () => ({ data: { data: [] }, refetch: async () => ({ data: { data: [] } }) }),
+  useDemanderLArchive: () => ({ mutate: vi.fn(), isPending: false }),
+}));
 
 const texte = (s: string | null | undefined) => (s ?? '').replace(/[  ]/g, ' ');
 /** Un nom accessible comparé espaces insécables ramenés à l'espace : « 1 355 000 F » s'écrit avec U+202F et U+00A0. */

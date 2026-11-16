@@ -1,0 +1,80 @@
+{
+ "ticket": "TCK-2880",
+ "ecrans": [
+  {
+   "page": "app-fil-commercial",
+   "approche": "a",
+   "ecran": 4,
+   "nom": "Compte rendu de visite (30 secondes)",
+   "references": {
+    "telephone": "references/app-fil-commercial/a-4-telephone.json",
+    "bureau-1440": "references/app-fil-commercial/a-4-bureau-1440.json",
+    "bureau-1280": "references/app-fil-commercial/a-4-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/visits/369?etape=compte-rendu (téléphone) · /app/visits/369 (bureau) — visite terminée sans compte rendu, rien n'est enregistré",
+    "persona": "admin",
+    "etat": "visite terminée sans compte rendu. Le formulaire rempli comme la maquette par `--perturber etat-a4.js` (scratchpad) aux trois appareils : « Intéressé », Prix · Taille · Garant, la note — sans envoyer. Au téléphone, l'étape plein écran ; au bureau, la colonne droite « Compte rendu » et, sous elle, l'aperçu inerte d'« Et maintenant ? » — TCK-2880 : « Dicter » sous la note (navigateur à reconnaissance vocale) ; au bureau, l'en-tête « Voir le bien » · « Ouvrir la fiche de {prénom} », la ligne « {téléphone} · 1re visite · Prospect » et « Avant cette visite »."
+   }
+  },
+  {
+   "page": "app-fil-commercial",
+   "approche": "a",
+   "ecran": 5,
+   "nom": "Et maintenant ? — les suites de la visite",
+   "references": {
+    "telephone": "references/app-fil-commercial/a-5-telephone.json",
+    "bureau-1440": "references/app-fil-commercial/a-5-bureau-1440.json",
+    "bureau-1280": "references/app-fil-commercial/a-5-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/visits/228?etape=et-maintenant (téléphone) · /app/visits/228 (bureau)",
+    "persona": "admin",
+    "etat": "compte rendu « Intéressé · Prix » enregistré ; le client (37) est encore prospect et l'API propose « Qualifié » (`suggested_stage`) : la question « Passer en Qualifié ? · Plus tard · Oui » en bas (téléphone, barre collante) ou dans sa carte (bureau). Aucun interrupteur, aucun « Terminer »."
+   }
+  }
+ ],
+ "produit": {
+  "route": "/app/visits/228",
+  "persona": "admin",
+  "disposition": "admin-agence",
+  "etat": "voir `ecrans[].produit`",
+  "defiler": null,
+  "perturber": "scratchpad : etat-a4.js — coche « Intéressé », Prix · Taille · Garant et écrit la note, sans enregistrer (a-4, trois appareils)"
+ },
+ "zones": [],
+ "alias": {
+  "Messages": "Messagerie"
+ },
+ "ancres": [],
+ "ignorer": [
+  {
+   "element": "lien court « takussan.com/c/7Hk2 » (a-5)",
+   "motif": "exclu (TCK-2581) : aucun raccourcisseur n'existe ; l'invitation porte le lien public du bien avec `?action=reserver`"
+  },
+  {
+   "element": "« 0:14 dictées » (a-4)",
+   "motif": "la durée n'existe qu'après une dictée réelle ; sur une note tapée, seul « Dicter » est rendu"
+  },
+  {
+   "element": "« Visite confirmée, SMS envoyé » (a-4/a-5, Avant cette visite)",
+   "motif": "le fil ne dit pas si le SMS est parti : le jalon s'écrit « Visite confirmée · {rendez-vous} » (libellé du fil de la fiche, TCK-2589)"
+  }
+ ],
+ "ecarts_acceptes": [],
+ "hors_perimetre": [
+  {
+   "element": "app-visites a-4 (écran unique « Visite terminée — compte rendu à faire »)",
+   "ticket": null,
+   "motif": "Abandonné par décision du porteur du 2026-11-15 (« valide celui qui est implémenté si une maquette le confirme ») : le compte rendu suit `app-fil-commercial` (a-4 puis a-5), qui fait foi ; l'écran unique de `app-visites` e4 n'est ni ticketé ni comparé."
+  }
+ ],
+ "ecarts_ouverts": [
+  {
+   "element": "AC-F2 — compare à 390 et 1440",
+   "motif": "lot du 2026-11-15 : pas de relevé au navigateur (l'API et le front servis tournent sur un autre arbre) ; fidélité jugée à la lecture de la maquette `app-fil-commercial-a-suite.tsx` (e4, e5, téléphone et bureau)."
+  }
+ ]
+}

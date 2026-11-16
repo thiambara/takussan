@@ -200,6 +200,8 @@ class MaintenanceRequestTest extends TestCase
 
         $this->putJson("/api/maintenance-requests/{$mr->id}/status", [
             'status' => 'cancelled',
+            // TCK-2917 — qui annule dit pourquoi (ADR-0118 § 1).
+            'reason' => 'Doublon',
         ])->assertOk()
             ->assertJsonPath('data.status', 'cancelled');
     }

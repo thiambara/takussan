@@ -82,6 +82,14 @@ const PROSPECT = {
   email: null,
   phone: '+221775302148',
   pipeline_stage: 'prospect',
+  // TCK-2945 — les champs de TCK-2942, nuls ici : la carte n'en rend aucune ligne.
+  need: null,
+  budget_min: null,
+  budget_max: null,
+  last_contacted_at: null,
+  last_contact_channel: null,
+  origin: null,
+  agency_note: null,
 };
 
 function piece(code: string, state = 'missing') {

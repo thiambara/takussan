@@ -9,25 +9,39 @@ import { Button } from '@/components/ui/button';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import { PLAFOND_LIGNES_EXPORT, PLAFOND_LIGNES_EXPORT_PDF, type ExportEntity, type ExportFormat } from '@/lib/queries/exports';
+import {
+  JOURS_DE_CONSERVATION_D_UN_EXPORT,
+  PLAFOND_LIGNES_EXPORT,
+  PLAFOND_LIGNES_EXPORT_PDF,
+  type ExportEntity,
+  type ExportFormat,
+} from '@/lib/queries/exports';
 import { bornesDuPrereglage, cartesPermises, estUnExport, estUnFormat, type CartePrete } from '@/lib/rapports/exports';
 import { cn } from '@/lib/utils';
 
 import { ExportForm } from './ExportForm';
-import { useDerniersExports, useExportsPermis, useTelechargement, type ExportJournalise, type Telechargement } from './useExports';
+import {
+  useDerniersExports,
+  useExportsPermis,
+  useRetelechargement,
+  useTelechargement,
+  type ExportJournalise,
+  type Telechargement,
+} from './useExports';
 
 const COURT: Record<ExportFormat, string> = { csv: 'CSV', xlsx: 'Excel', pdf: 'PDF' };
 
 /**
  * TCK-2629 — l'onglet « Exports » de Rapports (maquette `app-rapports`, écrans « Exports » et « Export
  * personnalisé ») : les cartes prêtes, l'export personnalisé (colonne droite au bureau, feuille du bas au
- * téléphone) et « Derniers exports » avec « Refaire ».
+ * téléphone) et « Derniers exports » avec « Retélécharger » ou « Refaire ».
  *
  * Une carte prête est un export comme un autre : elle n'est rendue que si son type est permis aujourd'hui
  * (`cartesPermises` sur `useExportsPermis`, la liste que le formulaire lit), et part par le même relais.
- * « Refaire » rejoue type, format et période journalisés (`GET /api/me/exports`), sous les capacités
- * d'AUJOURD'HUI : un type qui ne l'est plus, ou que ce formulaire ne connaît pas, n'a pas de « Refaire ».
- * Aucun fichier n'est gardé ni promis.
+ * TCK-2868 (ADR-0115) — le fichier d'un export est gardé quelques jours à son auteur : tant que la ligne dit
+ * `file.available`, elle porte « Retélécharger » (`GET /api/me/exports/{id}/download`). Au-delà, « Refaire »
+ * rejoue type, format et période journalisés (`GET /api/me/exports`), sous les capacités d'AUJOURD'HUI : un
+ * type qui ne l'est plus, ou que ce formulaire ne connaît pas, n'a pas de « Refaire ».
  */
 export function ExportsDuRapport({ staff }: { readonly staff: boolean }) {
   const t = useTranslations('rapports.exports');
@@ -165,6 +179,7 @@ function DerniersExports({ permis, telechargement }: { readonly permis: readonly
   const tE = useTranslations('dashboard.exports');
   const f = useFormatteurs();
   const derniers = useDerniersExports();
+  const retelechargement = useRetelechargement();
   const lignes = derniers.data?.data ?? [];
 
   const type = (x: ExportJournalise) => (estUnExport(x.entity) ? tE(`entities.${x.entity}`) : t('typeInconnu'));
@@ -180,6 +195,31 @@ function DerniersExports({ permis, telechargement }: { readonly permis: readonly
   /** « Refaire » : le type ET le format sont connus, et le type est permis AUJOURD'HUI. */
   const refaisable = (x: ExportJournalise): x is ExportJournalise & { entity: ExportEntity; format: ExportFormat } =>
     estUnExport(x.entity) && estUnFormat(x.format) && permis.includes(x.entity);
+  /** TCK-2868 — « Retélécharger » : le fichier gardé de la ligne, tant qu'il l'est ; sinon « Refaire ». */
+  const geste = (x: ExportJournalise, i: number) => {
+    if (x.id === undefined || !x.file?.available) return refaire(x, i);
+    const id = x.id;
+    const extension = estUnFormat(x.format) ? x.format : 'bin';
+    const nom = `export-${estUnExport(x.entity) ? x.entity : 'donnees'}-${(x.at ?? '').slice(0, 10) || id}.${extension}`;
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        className="h-11 flex-none px-2 text-ui font-medium text-primary lg:h-8"
+        disabled={retelechargement.enCours !== null}
+        aria-label={t('retelechargerAria', { type: type(x), periode: periode(x) })}
+        onClick={() => void retelechargement.retelecharger(id, nom)}
+      >
+        {retelechargement.enCours === id ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download className="max-lg:hidden" aria-hidden="true" />}
+        {t('retelecharger')}
+      </Button>
+    );
+  };
+  const issue = retelechargement.issue ? (
+    <p className="mt-2 text-ui text-pretty text-destructive" role="alert" data-testid="retelechargement-issue">
+      {retelechargement.issue.quoi === 'expire' ? t('retelechargerExpire') : t('retelechargerEchec')}
+    </p>
+  ) : null;
   const refaire = (x: ExportJournalise, i: number) => {
     if (!refaisable(x)) return null;
     const id = `refaire:${i}`;
@@ -222,14 +262,14 @@ function DerniersExports({ permis, telechargement }: { readonly permis: readonly
         <>
           <ul className="divide-y divide-border rounded-xl border border-border bg-card lg:hidden" data-slot="derniers-exports">
             {lignes.slice(0, 3).map((x, i) => (
-              <li key={`${x.at}-${i}`} className="flex min-h-14 items-center gap-3 py-2 pr-3 pl-4">
+              <li key={x.id ?? `${x.at}-${i}`} className="flex min-h-14 items-center gap-3 py-2 pr-3 pl-4">
                 <div className="min-w-0 flex-1 leading-tight">
                   <p className="truncate text-corps font-medium">{t('typeEtPeriode', { type: type(x), periode: periode(x) })}</p>
                   <p className="mt-0.5 truncate text-ui tabular-nums text-muted-foreground">
                     {t('ligneTelephone', { date: x.at ? f.jourMois(x.at) : '—', format: format(x), lignes: f.nombre(x.row_count), n: x.row_count })}
                   </p>
                 </div>
-                {refaire(x, i)}
+                {geste(x, i)}
               </li>
             ))}
           </ul>
@@ -248,13 +288,13 @@ function DerniersExports({ permis, telechargement }: { readonly permis: readonly
               </thead>
               <tbody className="divide-y divide-border">
                 {lignes.map((x, i) => (
-                  <tr key={`${x.at}-${i}`}>
+                  <tr key={x.id ?? `${x.at}-${i}`}>
                     <td className="px-4 py-2 whitespace-nowrap tabular-nums text-muted-foreground">{x.at ? f.jourMois(x.at) : '—'}</td>
                     <td className="px-4 py-2 font-medium">{type(x)}</td>
                     <td className="px-4 py-2 text-foreground">{periode(x)}</td>
                     <td className="px-4 py-2">{format(x)}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{f.nombre(x.row_count)}</td>
-                    <td className="px-2 py-1 text-right">{refaire(x, i)}</td>
+                    <td className="px-2 py-1 text-right">{geste(x, i)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -262,7 +302,10 @@ function DerniersExports({ permis, telechargement }: { readonly permis: readonly
           </div>
         </>
       )}
-      <p className="mt-2 text-xs text-pretty text-muted-foreground">{t('pied', { max: f.nombre(PLAFOND_LIGNES_EXPORT), pdf: f.nombre(PLAFOND_LIGNES_EXPORT_PDF) })}</p>
+      {issue}
+      <p className="mt-2 text-xs text-pretty text-muted-foreground">
+        {t('pied', { jours: JOURS_DE_CONSERVATION_D_UN_EXPORT, max: f.nombre(PLAFOND_LIGNES_EXPORT), pdf: f.nombre(PLAFOND_LIGNES_EXPORT_PDF) })}
+      </p>
     </section>
   );
 }

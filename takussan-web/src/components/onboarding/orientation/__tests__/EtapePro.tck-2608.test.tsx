@@ -23,9 +23,18 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 1 }, token: 'jeton', refreshUser }),
 }));
 
-type Resultat = { ok: true; data: unknown } | { ok: false; status?: number; message: string };
-const hostIndividualOnboardAction = vi.fn(async (_p: unknown): Promise<Resultat> => ({ ok: true, data: { active_profile_id: 'agency_admin:3' } }));
-vi.mock('@/app/actions/onboarding', () => ({ hostIndividualOnboardAction: (p: unknown) => hostIndividualOnboardAction(p) }));
+type Resultat = { ok: true; data: unknown } | { ok: false; status?: number; code?: string; message: string };
+// TCK-2938 — « Créer mon espace pro » ouvre une agence (`POST /api/me/agencies`, ADR-0125).
+const ouvrirMonAgenceAction = vi.fn(async (_p: unknown): Promise<Resultat> => ({ ok: true, data: { active_profile_id: 'agency_admin:3' } }));
+vi.mock('@/app/actions/onboarding', () => ({ ouvrirMonAgenceAction: (p: unknown) => ouvrirMonAgenceAction(p) }));
+// TCK-2938 — la ville principale se choisit dans le référentiel (`GET /api/public/geo/cities`).
+const VILLES = [
+  { id: 7, region_id: 1, name: 'Dakar', slug: 'dakar', latitude: null, longitude: null },
+  { id: 9, region_id: 2, name: 'Thiès', slug: 'thies', latitude: null, longitude: null },
+];
+vi.mock('@/lib/queries/referentiel-public', () => ({
+  useVillesDuReferentiel: () => ({ data: { data: VILLES }, isLoading: false }),
+}));
 vi.mock('@/app/actions/security', () => ({ phoneSendOtpAction: vi.fn(), phoneVerifyOtpAction: vi.fn() }));
 vi.mock('@/lib/arrivee-de-parcours', () => ({ marquerArriveeDeParcours: vi.fn() }));
 
@@ -37,6 +46,7 @@ const lireInvitation = vi.fn(async (_jeton: string) => ({
     invitant: 'Mamadou',
     destinataire: null,
     compteExistant: true,
+    codeSeul: false, // TCK-2927
     expireLe: null,
     inviteeLe: '2026-11-09T10:00:00Z',
     prerempli: { prenom: '', nom: '' },
@@ -81,36 +91,79 @@ function bouton(nom: string) {
 }
 
 /**
- * TCK-2608 — « Votre agence sur Takussan » : créer un espace (puis la demande de passage en agence,
- * préremplie du nom — AC3), ou rejoindre une agence par un lien d'invitation de Takussan seulement.
+ * TCK-2608, TCK-2938 — « Votre agence sur Takussan » : créer son agence (`POST /api/me/agencies`,
+ * ADR-0125), ou rejoindre une agence par un lien d'invitation de Takussan seulement.
  */
-describe('TCK-2608 — la porte du professionnel : créer', () => {
+describe('TCK-2938 — la porte du professionnel : créer', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('AC3 — « Keur Immo » : l’espace s’ouvre (host/individual/onboard, XOF, numéro vérifié du compte), puis la demande préremplie', async () => {
+  it('AC2 — « Keur Immo » : l’agence s’ouvre (nom, Dakar du référentiel, numéro du compte), puis /app dans cette agence', async () => {
     const user = userEvent.setup();
     monter();
     await user.type(screen.getByLabelText(new RegExp(P.nom)), 'Keur Immo');
     await user.click(bouton(P.creerBouton));
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
-    expect(hostIndividualOnboardAction).toHaveBeenCalledWith({
-      agency: { name: 'Keur Immo', primary_city: 'Dakar', currency: 'XOF' },
-      phone_otp: { phone: '+221771234567', code: '' },
-      cgu_accepted: true,
-    });
+    expect(ouvrirMonAgenceAction).toHaveBeenCalledWith({ name: 'Keur Immo', geo_city_id: 7, phone: '+221771234567' });
     expect(refreshUser).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith('/app/settings/agency/upgrade?raison_sociale=Keur%20Immo');
+    expect(push).toHaveBeenCalledWith('/app');
   });
 
-  it('AC3 — aucun texte de l’écran n’annonce « équipe » (un espace individuel n’en a pas)', () => {
+  it('AC4 — « Ville principale » est une liste : la ville choisie part par son identifiant', async () => {
+    const user = userEvent.setup();
+    monter();
+    await user.type(screen.getByLabelText(new RegExp(P.nom)), 'Keur Immo');
+    const ville = screen.getByRole('combobox', { name: P.ville });
+    await user.clear(ville);
+    await user.type(ville, 'Thi');
+    await user.click(await screen.findByRole('option', { name: 'Thiès' }));
+    await user.click(bouton(P.creerBouton));
+    await waitFor(() => expect(ouvrirMonAgenceAction).toHaveBeenCalledTimes(1));
+    expect(ouvrirMonAgenceAction).toHaveBeenCalledWith(expect.objectContaining({ geo_city_id: 9 }));
+  });
+
+  it('AC4 — une valeur hors liste n’est pas envoyée', async () => {
+    const user = userEvent.setup();
+    monter();
+    await user.type(screen.getByLabelText(new RegExp(P.nom)), 'Keur Immo');
+    const ville = screen.getByRole('combobox', { name: P.ville });
+    await user.clear(ville);
+    await user.type(ville, 'Kédougou-sur-Mer');
+    await user.keyboard('{Escape}');
+    await user.click(bouton(P.creerBouton));
+    await waitFor(() => expect(ouvrirMonAgenceAction).toHaveBeenCalledTimes(1));
+    const envoi = ouvrirMonAgenceAction.mock.calls[0]![0] as Record<string, unknown>;
+    expect(envoi.geo_city_id ?? null).toBeNull();
+    expect(JSON.stringify(envoi)).not.toContain('Kédougou');
+  });
+
+  it('AC3 — « Ce que vous aurez » : votre équipe, vos bailleurs, vos mandats ; « En deux temps » sans délai promis, et ce qui attend la vérification', () => {
     const { container } = monter();
-    expect(container.textContent).not.toMatch(/équipe/i);
-    // …ni un délai que rien ne tient.
+    for (const a of ['equipe', 'bailleurs', 'mandats'] as const) {
+      expect(screen.getByText(P.avantages[a].titre)).toBeInTheDocument();
+    }
+    expect(container.textContent).toContain(P.deuxTemps.ensuiteTexte);
+    // ADR-0125 § 8 — aucun délai de vérification n'est tenu.
     expect(container.textContent).not.toMatch(/48\s*h/i);
+    // ADR-0125 § 5 — l'écran dit ce qui attend la vérification : la mise en ligne et les reversements.
+    expect(P.deuxTemps.ensuiteTexte).toMatch(/pas en ligne/);
+    expect(P.deuxTemps.ensuiteTexte).toMatch(/reversés après la vérification/);
   });
 
-  it('le compte qui a déjà un espace (409) va directement à la demande', async () => {
-    hostIndividualOnboardAction.mockResolvedValueOnce({ ok: false, status: 409, message: 'Déjà un espace.' });
+  it('le téléphone de l’agence se change : le numéro saisi part', async () => {
+    const user = userEvent.setup();
+    monter();
+    await user.type(screen.getByLabelText(new RegExp(P.nom)), 'Keur Immo');
+    const champ = screen.getByLabelText(P.telephone);
+    expect(champ).not.toBeDisabled();
+    await user.clear(champ);
+    await user.type(champ, '776543210');
+    await user.click(bouton(P.creerBouton));
+    await waitFor(() => expect(ouvrirMonAgenceAction).toHaveBeenCalledTimes(1));
+    expect(ouvrirMonAgenceAction).toHaveBeenCalledWith(expect.objectContaining({ phone: '+221776543210' }));
+  });
+
+  it('le compte qui administre déjà une agence ou un espace (409) va à la demande de passage', async () => {
+    ouvrirMonAgenceAction.mockResolvedValueOnce({ ok: false, status: 409, code: 'agency.already_admin', message: 'Déjà admin.' });
     const user = userEvent.setup();
     monter();
     await user.type(screen.getByLabelText(new RegExp(P.nom)), 'Keur Immo');
@@ -118,13 +171,25 @@ describe('TCK-2608 — la porte du professionnel : créer', () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith('/app/settings/agency/upgrade?raison_sociale=Keur%20Immo'));
   });
 
-  it('un refus de l’API est dit, et rien ne s’ouvre', async () => {
-    hostIndividualOnboardAction.mockResolvedValueOnce({ ok: false, status: 422, message: 'Numéro différent.' });
+  it('numéro non vérifié côté API (422 agency.phone_unverified) : l’écran l’explique et remontre la vérification', async () => {
+    ouvrirMonAgenceAction.mockResolvedValueOnce({ ok: false, status: 422, code: 'agency.phone_unverified', message: 'Vérifiez.' });
     const user = userEvent.setup();
     monter();
     await user.type(screen.getByLabelText(new RegExp(P.nom)), 'Keur Immo');
     await user.click(bouton(P.creerBouton));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Numéro différent.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(P.numeroNonVerifie);
+    expect(screen.getByRole('button', { name: P.numero.envoyer })).toBeInTheDocument();
+    expect(bouton(P.creerBouton)).toBeDisabled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('un autre refus de l’API est dit, et rien ne s’ouvre', async () => {
+    ouvrirMonAgenceAction.mockResolvedValueOnce({ ok: false, status: 422, code: 'agency.ninea_taken', message: 'NINEA déjà porté.' });
+    const user = userEvent.setup();
+    monter();
+    await user.type(screen.getByLabelText(new RegExp(P.nom)), 'Keur Immo');
+    await user.click(bouton(P.creerBouton));
+    expect(await screen.findByRole('alert')).toHaveTextContent('NINEA déjà porté.');
     expect(push).not.toHaveBeenCalled();
   });
 
@@ -133,7 +198,7 @@ describe('TCK-2608 — la porte du professionnel : créer', () => {
     monter();
     await user.click(bouton(P.creerBouton));
     expect(screen.getByText(P.nomRequis)).toBeInTheDocument();
-    expect(hostIndividualOnboardAction).not.toHaveBeenCalled();
+    expect(ouvrirMonAgenceAction).not.toHaveBeenCalled();
   });
 
   it('un numéro non vérifié se vérifie ici d’abord : la création attend', () => {
@@ -171,6 +236,11 @@ describe('TCK-2608 — la porte du professionnel : rejoindre', () => {
     expect(within(carte).getByText(/Vous invite comme agent/)).toBeInTheDocument();
     await user.click(await screen.findAllByRole('button', { name: 'Rejoindre Dakar Immo' }).then((b) => b[0]!));
     expect(push).toHaveBeenCalledWith(`/invitations/accept?token=${JETON}`);
+  });
+
+  it('AC4 (TCK-2938) — l’écran nomme le chemin de l’administrateur : « Équipe, puis « Inviter » »', async () => {
+    await rejoindre();
+    expect(screen.getByText(/Équipe, puis « Inviter »/)).toBeInTheDocument();
   });
 
   it('« Pas encore de lien ? » ouvre WhatsApp avec un message prêt', async () => {

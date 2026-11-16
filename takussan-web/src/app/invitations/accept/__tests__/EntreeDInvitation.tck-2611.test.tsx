@@ -55,6 +55,7 @@ const PAR_SMS: ApercuDInvitation = {
   invitant: 'Aïssatou',
   destinataire: { canal: 'phone', masque: '77 ••• 45 67' },
   compteExistant: false,
+  codeSeul: false, // TCK-2927
   expireLe: '2026-11-17T10:00:00+00:00',
   inviteeLe: '2026-11-10T10:00:00+00:00',
   prerempli: { prenom: 'Moussa', nom: 'Ndiaye' },
@@ -127,8 +128,8 @@ describe('<EntreeDInvitation> — invitation valide, déconnecté', () => {
     // Par SMS, aucun numéro ne part : le code va au numéro de l'invitation.
     expect(demanderCode).toHaveBeenCalledWith('jeton-abc', null, 'fr');
     expect(await screen.findByRole('heading', { level: 1, name: T.code.titre })).toBeInTheDocument();
-    expect(screen.getByText(/Code envoyé au/)).toHaveTextContent('Code envoyé au 77 ••• 45 67');
-    expect(screen.queryByRole('button', { name: T.code.modifier })).not.toBeInTheDocument();
+    // TCK-2941 (ADR-0094, amendement § 4) — le numéro d'une invitation par SMS se corrige : « · Modifier » est rendu.
+    expect(screen.getByText(/Code envoyé au/)).toHaveTextContent('Code envoyé au 77 ••• 45 67 · Modifier');
 
     await user.type(screen.getByLabelText(T.code.libelle), '123456');
 
@@ -326,5 +327,21 @@ describe('<EntreeDInvitation> — déjà inscrit', () => {
     await user.click(screen.getByRole('button', { name: T.connecte.changer }));
     await waitFor(() => expect(logout).toHaveBeenCalled());
     expect(push).not.toHaveBeenCalled();
+  });
+});
+
+// TCK-2927 (ADR-0123 § 4) — le lien partagé par l'invitant ne prouve pas le numéro : la voie mot de passe,
+// que l'API refuse (403 `invitation.code_required`), n'est pas offerte.
+describe('EntreeDInvitation — lien partagé (TCK-2927)', () => {
+  it('n’offre pas la voie mot de passe quand l’invitation ne s’accepte que par code', () => {
+    drapeau = true;
+    monter({ ...PAR_SMS, codeSeul: true });
+    expect(screen.queryByRole('button', { name: T.voies.motDePasse })).not.toBeInTheDocument();
+  });
+
+  it('l’offre toujours pour une invitation ordinaire', () => {
+    drapeau = true;
+    monter(PAR_SMS);
+    expect(screen.getByRole('button', { name: T.voies.motDePasse })).toBeInTheDocument();
   });
 });

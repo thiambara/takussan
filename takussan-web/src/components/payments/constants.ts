@@ -1,5 +1,5 @@
 import type { StatusTone } from '@/components/console';
-import type { InvoiceStatus, PayoutMethodKind, PayoutStatus, ServiceProviderBillStatus } from '@/types/invoice';
+import type { InvoiceStatus, Payout, PayoutMethodKind, PayoutStatus, ServiceProviderBillStatus } from '@/types/invoice';
 
 /**
  * Variantes de badge et helpers purs des vues « paiements » (TCK-063). À garder
@@ -89,6 +89,8 @@ export const PAYOUT_STATUS_TONE: Record<PayoutStatus, StatusTone> = {
 
 /** TCK-594 (ADR-0039 §8) — la facture d'intervention attend la validation de l'agence. */
 export const SERVICE_PROVIDER_BILL_STATUS_TONE: Record<ServiceProviderBillStatus, StatusTone> = {
+  // TCK-2911 (ADR-0120 § 1) — le brouillon du prestataire, pas encore envoyé.
+  draft: 'neutral',
   pending_validation: 'attention',
   validated: 'info',
   rejected: 'danger',
@@ -140,3 +142,7 @@ export const DESTINATION_KINDS_BY_METHOD: Partial<Record<(typeof PAYMENT_METHOD_
   bank_transfer: ['bank_transfer'],
 };
 
+/** TCK-2916 — l'API n'a d'avis de versement que d'un reversement AU BAILLEUR terminé (422 `payout.notice_unavailable` sinon). */
+export function aUnAvis(v: Pick<Payout, 'status' | 'payee_role'>): boolean {
+  return v.status === 'completed' && (v.payee_role ?? 'landlord') === 'landlord';
+}

@@ -208,13 +208,13 @@ describe('TCK-2812 — au-delà du seuil, « Tout télécharger » demande une a
 });
 
 describe('TCK-2812 — en deçà du seuil, le téléchargement direct de TCK-2770 ne change pas', () => {
-  it('« Relevés et attestations » (1 entrée) se télécharge directement, sans préparation', () => {
+  it('« Relevés et factures » (1 entrée) se télécharge directement, sans préparation', () => {
     rendre();
-    fireEvent.click(within(dossier('Relevés et attestations')).getByRole('button', { name: 'Tout télécharger : Relevés et attestations' }));
+    fireEvent.click(within(dossier('Relevés et factures')).getByRole('button', { name: 'Tout télécharger : Relevés et factures' }));
 
-    expect(lArchive.telecharger).toHaveBeenCalledWith('/api/me/document-vault/archive?folder=statements', 'Relevés et attestations.zip');
+    expect(lArchive.telecharger).toHaveBeenCalledWith('/api/me/document-vault/archive?folder=statements', 'Relevés et factures.zip');
     expect(demande.mutate).not.toHaveBeenCalled();
-    expect(within(dossier('Relevés et attestations')).queryByTestId('note-d-archive')).not.toBeInTheDocument();
+    expect(within(dossier('Relevés et factures')).queryByTestId('note-d-archive')).not.toBeInTheDocument();
   });
 
   it('sans dossier au-delà du seuil, l’état des préparations n’est pas lu', () => {

@@ -8,6 +8,7 @@ import { initialesDe } from '@/lib/identite';
 import type { ContactLead } from '@/lib/queries/contact-leads';
 import { cn } from '@/lib/utils';
 
+import { bienEtQuartier } from './message-whatsapp';
 import { ageAffiche, PointDAge, TexteDAge, TroisGestes, useTexteDeLAge, type GestesDeLaDemandeProps } from './pieces';
 
 interface LigneDeDemandeProps extends Omit<GestesDeLaDemandeProps, 'messageWhatsApp'> {
@@ -38,7 +39,8 @@ export function LigneDeDemande(props: LigneDeDemandeProps) {
   const texteDAge = useTexteDeLAge();
   const age = ageAffiche(lead, maintenant);
   const connu = lead.known_customer ?? null;
-  const bien = lead.property?.title ?? t('aboutAgent');
+  // TCK-2885 — « Chambre meublée · Ouakam » : le quartier du bien (TCK-2884) après son titre.
+  const bien = lead.property ? bienEtQuartier(lead.property) : t('aboutAgent');
   const initiales = initialesDe({ first_name: nom.split(' ')[0] ?? null, last_name: nom.split(' ').slice(1).join(' ') || null }) ?? '?';
 
   return (

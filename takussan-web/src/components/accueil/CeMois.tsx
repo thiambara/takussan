@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowUpRight, ChevronRight } from 'lucide-react';
@@ -8,7 +9,7 @@ import { useTranslations } from 'next-intl';
 import type { ChiffreDuMois } from '@/lib/accueil/chiffres-du-mois';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
-import { ErreurDeBloc } from './EtatsDeBloc';
+import { ErreurDeBloc, SqueletteDesChiffres } from './EtatsDeBloc';
 
 /**
  * TCK-2622 — « Ce mois » (maquette `app-accueil` a) : 2 à 4 chiffres, CHACUN un lien vers la liste
@@ -144,6 +145,56 @@ export function CeMois({ chiffres, rapport, pleineLargeur = false }: CeMoisProps
             ))}
           </ul>
         )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * TCK-2854 — « Ce mois » LU EN FLUX (maquette `app-accueil` a, e7). La page ne l'attend plus : elle passe
+ * la lecture (une promesse qui ne rejette jamais — `null` dit l'échec) et l'enveloppe d'un `Suspense`
+ * dont le repli est {@link SqueletteDeCeMois}. « À faire » et le reste de l'accueil rendent pendant ce
+ * temps ; une lecture en échec garde `ErreurDeBloc` + « Réessayer ».
+ */
+export function CeMoisEnFlux({
+  lecture,
+  pleineLargeur,
+}: {
+  readonly lecture: Promise<{ readonly chiffres: readonly ChiffreDuMois[] | null; readonly rapport: string | null }>;
+  readonly pleineLargeur?: boolean;
+}) {
+  const { chiffres, rapport } = use(lecture);
+  return <CeMois chiffres={chiffres} rapport={rapport} pleineLargeur={pleineLargeur} />;
+}
+
+/**
+ * TCK-2854 — la place de « Ce mois » pendant sa lecture : au téléphone, l'intertitre (et « Rapport »)
+ * au-dessus des puces ; au bureau, l'intertitre et les quatre tuiles (la maquette e7 omet l'intertitre,
+ * l'écran chargé a-2 le porte : écart noté dans la fiche de fidélité).
+ * `aria-busy` sur la région, le dessin lui-même est muet.
+ */
+export function SqueletteDeCeMois({ rapport, pleineLargeur = false }: { readonly rapport: string | null; readonly pleineLargeur?: boolean }) {
+  const t = useTranslations('accueil.ceMois');
+  return (
+    <section data-slot="ce-mois-chargement" aria-busy="true" aria-labelledby="ce-mois-chargement-titre">
+      <div className="flex items-baseline justify-between gap-3 px-4 md:hidden">
+        <h2 id="ce-mois-chargement-titre" className="text-ui font-semibold text-muted-foreground">
+          {t('titre')}
+        </h2>
+        {rapport ? (
+          <Link href={rapport} className={cn('inline-flex items-center gap-0.5 rounded text-ui font-medium text-primary', LIEN)}>
+            {t('rapportCourt')}
+            <ChevronRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        ) : null}
+      </div>
+      {/* Au bureau, l'intertitre de l'écran chargé (a-2) : les tuiles ne descendent pas à la fin de la lecture. */}
+      <h2 className="mb-2 text-ui font-semibold text-muted-foreground max-md:hidden" aria-hidden="true">
+        {t('titre')}
+      </h2>
+      <span className="sr-only">{t('chargement')}</span>
+      <div className="max-md:mt-2">
+        <SqueletteDesChiffres pleineLargeur={pleineLargeur} />
       </div>
     </section>
   );

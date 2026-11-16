@@ -17,6 +17,7 @@ use App\Services\Owners\OwnerDirectory;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\AgencyKindGuard;
 use App\Support\Http\ParametreUnique;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -148,25 +149,73 @@ class OwnerProfileController extends Controller
      * les décisions À VENIR : il est lu à l'approbation d'un devis, et rien de ce qui est déjà
      * tranché ou en attente du bailleur ne bouge. L'écriture est journalisée (avant, après, auteur)
      * — le journal automatique du profil ne retient que `AUDIT_ONLY`.
+     *
+     * TCK-2909 — et les termes du mandat ({@see UpdateOwnerProfileRequest::KEYS}) : seule une clé
+     * envoyée s'écrit ; un changement est journalisé (`owner_mandate_terms_updated`, avant et après
+     * des seules clés changées).
      */
     public function update(UpdateOwnerProfileRequest $request, OwnerProfile $ownerProfile): JsonResponse
     {
-        $before = $ownerProfile->works_approval_threshold !== null ? (float) $ownerProfile->works_approval_threshold : null;
-        $value = $request->input('works_approval_threshold');
-        $after = $value !== null ? round((float) $value, 2) : null;
+        if ($request->has('works_approval_threshold')) {
+            $before = $ownerProfile->works_approval_threshold !== null ? (float) $ownerProfile->works_approval_threshold : null;
+            $value = $request->input('works_approval_threshold');
+            $after = $value !== null ? round((float) $value, 2) : null;
 
-        if ($before !== $after) {
-            $ownerProfile->forceFill(['works_approval_threshold' => $after])->save();
+            if ($before !== $after) {
+                $ownerProfile->forceFill(['works_approval_threshold' => $after])->save();
 
-            activity('OwnerProfile')
-                ->causedBy($request->user())
-                ->performedOn($ownerProfile)
-                ->withProperties(['before' => $before, 'after' => $after])
-                ->event('owner_works_threshold_updated')
-                ->log('owner_works_threshold_updated');
+                activity('OwnerProfile')
+                    ->causedBy($request->user())
+                    ->performedOn($ownerProfile)
+                    ->withProperties(['before' => $before, 'after' => $after])
+                    ->event('owner_works_threshold_updated')
+                    ->log('owner_works_threshold_updated');
+            }
         }
 
+        $this->updateMandateTerms($request, $ownerProfile);
+
         return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile->refresh(), OwnerDirectory::currentPeriod(), OwnerDirectory::readsMoney($request->user())))->resolve($request)]);
+    }
+
+    /** TCK-2909 — les termes du mandat envoyés, écrits et journalisés s'ils changent. */
+    private function updateMandateTerms(UpdateOwnerProfileRequest $request, OwnerProfile $ownerProfile): void
+    {
+        $read = static fn (OwnerProfile $profile): array => [
+            'mandate_starts_on' => $profile->mandate_starts_on?->toDateString(),
+            'mandate_ends_on' => $profile->mandate_ends_on?->toDateString(),
+            'payout_method' => $profile->payout_method?->value,
+            'payout_day' => $profile->payout_day,
+            'referent_agent_id' => $profile->referent_agent_id,
+        ];
+        $current = $read($ownerProfile);
+        $wanted = [];
+        foreach (array_keys($current) as $key) {
+            if ($request->has($key)) {
+                $value = $request->input($key);
+                $wanted[$key] = match ($key) {
+                    'payout_day', 'referent_agent_id' => $value !== null ? (int) $value : null,
+                    'mandate_starts_on', 'mandate_ends_on' => $value !== null ? CarbonImmutable::parse((string) $value)->toDateString() : null,
+                    default => $value,
+                };
+            }
+        }
+        $changed = array_keys(array_filter($wanted, fn ($value, string $key): bool => $current[$key] !== $value, ARRAY_FILTER_USE_BOTH));
+        if ($changed === []) {
+            return;
+        }
+
+        $ownerProfile->forceFill(array_intersect_key($wanted, array_flip($changed)))->save();
+
+        activity('OwnerProfile')
+            ->causedBy($request->user())
+            ->performedOn($ownerProfile)
+            ->withProperties([
+                'before' => array_intersect_key($current, array_flip($changed)),
+                'after' => array_intersect_key($wanted, array_flip($changed)),
+            ])
+            ->event('owner_mandate_terms_updated')
+            ->log('owner_mandate_terms_updated');
     }
 
     /**

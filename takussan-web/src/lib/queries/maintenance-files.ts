@@ -105,6 +105,8 @@ export interface PrestataireSuggere {
   readonly average_rating: number | null;
   readonly reviews_count: number;
   readonly completed_interventions_count: number;
+  /** TCK-2917 (ADR-0118 § 4) — « 1 créneau dépassé ». */
+  readonly overdue_slots_count?: number;
 }
 
 export function useSuggestionsDePrestataires(id: number, enabled: boolean) {
@@ -126,6 +128,8 @@ export interface LigneDuCarnet {
   readonly average_rating?: number | null;
   readonly reviews_count?: number;
   readonly completed_interventions_count?: number;
+  /** TCK-2917 (ADR-0118 § 4) — « 1 créneau dépassé » chez l'agence du carnet. */
+  readonly overdue_slots_count?: number;
   readonly pending_invitation_id?: number | null;
   readonly user?: { readonly id: number; readonly first_name: string | null; readonly last_name: string | null; readonly email?: string | null } | null;
 }

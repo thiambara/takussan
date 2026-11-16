@@ -30,6 +30,11 @@ export interface GestesDeLArgent {
    * `canEmit` : l'ancien onglet ne le demandait pas.
    */
   readonly peutPayerLesPrestataires: boolean;
+  /**
+   * TCK-2922 — « Refuser » en ligne annule le reversement : `PayoutPolicy::update` (le préparateur, ou
+   * `payouts.create`), pas `payouts.approve`.
+   */
+  readonly peutAnnulerUnReversement: boolean;
   /** Les capacités se lisent encore : le squelette tient la place des boutons. */
   readonly capacitesEnCours: boolean;
   readonly canEmit: boolean;
@@ -69,6 +74,7 @@ export function useGestesDeLArgent(canEmit: boolean): GestesDeLArgent & { readon
     emetReversement,
     peutApprouver,
     peutPayerLesPrestataires: peutReverser,
+    peutAnnulerUnReversement: peutReverser,
     capacitesEnCours: facturationEnCours || reversementEnCours,
     canEmit,
     nouvelleFacture: () => setInvoiceOpen(true),

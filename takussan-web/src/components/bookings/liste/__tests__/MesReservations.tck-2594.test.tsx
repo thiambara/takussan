@@ -54,7 +54,8 @@ describe('MesReservations (TCK-2594)', () => {
     render(withIntl(<MesReservations />));
     expect(screen.getAllByRole('button', { name: new RegExp(`^${fr.bookings.client.groupes.en_cours}\\s*4$`) })[0]).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getAllByRole('button', { name: new RegExp(`^${fr.bookings.client.groupes.annulees}\\s*3$`) })).not.toHaveLength(0);
-    expect(etat.lus.map((p) => p.status)).toEqual(['pending,confirmed']);
+    // TCK-2879 — l'en-tête lit aussi la page « En cours » (le sous-titre de l'acompte) : même lecture que la liste.
+    expect([...new Set(etat.lus.map((p) => p.status))]).toEqual(['pending,confirmed']);
 
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(`^${fr.bookings.client.groupes.annulees}`) })[0]!);
     expect(nav.replace).toHaveBeenLastCalledWith('?groupe=annulees', { scroll: false });
@@ -77,7 +78,8 @@ describe('MesReservations (TCK-2594)', () => {
       },
     ];
     render(withIntl(<MesReservations />));
-    expect(etat.lus.map((p) => p.status)).toEqual(['completed']);
+    // TCK-2879 — la liste lit « Terminées » ; l'en-tête, la page « En cours » (le sous-titre de l'acompte).
+    expect(etat.lus.map((p) => p.status)).toEqual(['pending,confirmed', 'completed']);
     const carte = screen.getByRole('listitem');
     expect(texte(carte)).toContain(fr.bookings.client.nature.stay);
     expect(texte(carte)).toContain(fr.bookings.status.completed);

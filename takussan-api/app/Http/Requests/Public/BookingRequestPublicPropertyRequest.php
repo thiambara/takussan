@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Public;
 
+use App\Http\Requests\Api\StoreBookingRequest;
+use App\Models\Enums\BookingKind;
 use App\Rules\JourIso;
+use Illuminate\Validation\Rule;
 
 /**
  * TCK-305 — extrait de `PublicPropertyController::bookingRequest()`, où les règles étaient
@@ -20,7 +23,9 @@ class BookingRequestPublicPropertyRequest extends PublicPropertySlugRequest
         // Le 404 sur un slug inconnu doit primer sur le 422 : cf. l'en-tête de la classe de base.
         $isSale = $this->property()->contract_type?->value === 'sale';
 
-        return $isSale
+        // TCK-2870 (ADR-0110 § 1) — les conditions des deux natures, aux deux formes : qu'un champ
+        // appartienne à la nature se juge sur le bien relu (`BookingConditions::refuseForeignFields`).
+        return ($isSale
             ? [
                 'offer_amount' => ['required', 'numeric', 'min:1'],
                 // TCK-2752 — la validité est un JOUR (le seul que le tunnel envoie) : un instant près de
@@ -28,13 +33,22 @@ class BookingRequestPublicPropertyRequest extends PublicPropertySlugRequest
                 'offer_expires_at' => ['required', 'date_format:Y-m-d', new JourIso, 'after:today'],
                 'terms_accepted' => ['required', 'accepted'],
                 'message' => ['nullable', 'string', 'max:1000'],
+                // TCK-2892 — une règle pour que `validated()` le garde : une offre qui l'envoie
+                // reçoit `booking.field_not_for_kind` (`BookingConditions::refuseForeignFields`).
+                'guests' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:50'],
             ]
             : [
                 'start_date' => ['required', 'date', new JourIso, 'after_or_equal:today'],
                 'end_date' => ['required', 'date', new JourIso, 'after:start_date'],
-                'guests' => ['required', 'integer', 'min:1', 'max:50'],
+                // TCK-2892 (ADR-0110 § 1) — exigé d'un séjour seul ; une candidature qui l'envoie reçoit
+                // `booking.field_not_for_kind` (jugé sur le bien relu, `BookingConditions`).
+                'guests' => [Rule::requiredIf(fn (): bool => BookingKind::forProperty($this->property()) === BookingKind::Stay), 'nullable', 'integer', 'min:1', 'max:50'],
                 'message' => ['nullable', 'string', 'max:1000'],
-            ];
+            ]) + StoreBookingRequest::conditionRules()
+            // TCK-2893 (ADR-0110 § 3) — le candidat peut déclarer un garant : une fiche neuve seulement.
+            + StoreBookingRequest::guarantorRules(existant: false)
+            // TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation.
+            + ['via' => StoreBookingRequest::viaRule()];
     }
 
     /**

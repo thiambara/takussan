@@ -221,7 +221,7 @@ describe('LoyersDuBailleur — la page « Loyers » du bailleur (TCK-2651)', () 
   it('un ancien lien de notification (?tab=payouts) ouvre « Versements »', () => {
     ADRESSE.courante = 'tab=payouts';
     rendre();
-    expect(screen.getByRole('link', { name: 'Versements' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Versements (1)' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('AC4 — le sélecteur dit « novembre 2026 », relit period=2026-11, en change par l’adresse, sans champ natif', async () => {

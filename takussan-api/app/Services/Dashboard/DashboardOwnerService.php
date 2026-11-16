@@ -4,12 +4,10 @@ namespace App\Services\Dashboard;
 
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
-use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
-use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\PropertyVisit;
@@ -87,13 +85,14 @@ class DashboardOwnerService
         $leaseIncome = $this->metrics->leaseIncomeByMonth($scope, $monthStart, $monthEnd);
         $bookingIncome = $this->metrics->bookingIncomeByMonth($scope, $monthStart, $monthEnd);
         $netPaidOut = $this->metrics->netPaidOutByMonth($scope, $monthStart, $monthEnd);
-        $shortStay = $this->metrics->shortStayOccupancy($scope, $monthStart, $monthEnd);
+        // TCK-2865 — une seule mesure sur la période (nuitées ÷ capacité), jamais une moyenne de taux.
+        $shortStay = $this->metrics->shortStayOccupancyOver($scope, $monthStart, $monthEnd);
         $occupancyToday = $this->metrics->longStayOccupancyToday($scope);
         $overdue = $this->metrics->overdue($scope);
-        $month = $periode->mois();
 
-        $leaseIncomeMonth = $leaseIncome[$month] ?? 0.0;
-        $bookingIncomeMonth = $bookingIncome[$month] ?? 0.0;
+        // TCK-2865 — la somme des mois servis : un mois, ou douze sous `last_12_months`.
+        $leaseIncomeMonth = $periode->somme($leaseIncome);
+        $bookingIncomeMonth = $periode->somme($bookingIncome);
 
         return [
             'owner_id' => $owner->id,
@@ -113,7 +112,7 @@ class DashboardOwnerService
                 'cashflow_month' => round($leaseIncomeMonth + $bookingIncomeMonth, 2),
                 'lease_income_month' => $leaseIncomeMonth,
                 'booking_income_month' => $bookingIncomeMonth,
-                'net_paid_out_month' => $netPaidOut[$month] ?? 0.0,
+                'net_paid_out_month' => $periode->somme($netPaidOut),
                 'deposits_held' => $this->metrics->depositsHeld($scope),
                 'expected_monthly' => round((float) $leases->expected, 2),
                 'overdue_count' => $overdue['count'],
@@ -137,7 +136,7 @@ class DashboardOwnerService
                 'rate_percent' => $occupancyToday['rate_percent'],
                 'eligible_count' => $occupancyToday['eligible_count'],
                 'occupied_count' => $occupancyToday['occupied_count'],
-                'short_stay_percent' => $shortStay[$month] ?? null,
+                'short_stay_percent' => $shortStay,
             ],
             'maintenance' => [
                 'quotes_pending' => MaintenanceRequest::query()
@@ -187,12 +186,13 @@ class DashboardOwnerService
      */
     private function loyersDuMois(QueryBuilder $query, PortfolioScope $scope, PeriodeDuTableauDeBord $periode): void
     {
-        // TCK-2791 — le mois servi, au calendrier de Dakar.
-        $mois = $periode->debut->setTimezone(self::TIMEZONE);
-        $loyers = fn () => LeasePayment::query()
-            ->where('lease_payments.payment_type', LeasePaymentType::Rent->value)
-            ->where('lease_payments.status', '!=', PaymentStatus::Cancelled->value)
-            ->whereBetween('lease_payments.due_date', [$mois->startOfMonth()->toDateString(), $mois->endOfMonth()->toDateString()])
+        // TCK-2791 — le mois servi, au calendrier de Dakar. TCK-2865 — la période servie : du premier jour de son
+        // premier mois au dernier jour de son dernier (douze mois sous `last_12_months`).
+        $debut = $periode->debut->setTimezone(self::TIMEZONE)->startOfMonth();
+        $fin = $periode->fin->setTimezone(self::TIMEZONE)->endOfMonth();
+        // TCK-2865 — la règle des loyers attendus, partagée avec `timeseries.expected`.
+        $loyers = fn () => CollectedPayments::rentExpected()
+            ->whereBetween('lease_payments.due_date', [$debut->toDateString(), $fin->toDateString()])
             ->whereIn('lease_payments.lease_id', $scope->leases(Lease::query()->select('leases.id')))
             ->toBase();
         $paye = PaymentStatus::Paid->value;
@@ -227,6 +227,7 @@ class DashboardOwnerService
         $occupancy = $this->metrics->longStayOccupancy($scope, $from, $to);
         $shortStay = $this->metrics->shortStayOccupancy($scope, $from, $to);
         $netPaidOut = $this->metrics->netPaidOutByMonth($scope, $from, $to);
+        $expected = $this->metrics->expectedRentByMonth($scope, $from, $to);
 
         $labels = array_keys($leaseIncome);
 
@@ -239,6 +240,8 @@ class DashboardOwnerService
             'occupancy' => array_map(static fn (string $m): ?float => $occupancy[$m] ?? null, $labels),
             'short_stay_occupancy' => array_map(static fn (string $m): ?float => $shortStay[$m] ?? null, $labels),
             'net_paid_out' => array_map(static fn (string $m): float => $netPaidOut[$m] ?? 0.0, $labels),
+            // TCK-2865 — les loyers attendus du mois (échéances de loyer échéant dans le mois), face à `cashflow`.
+            'expected' => array_map(static fn (string $m): float => $expected[$m] ?? 0.0, $labels),
         ];
     }
 }

@@ -39,11 +39,11 @@ import {
   type ContactLead,
   useBienDeLaDemande,
   useConvertLead,
-  useHandleLead,
 } from '@/lib/queries/contact-leads';
 import { cn } from '@/lib/utils';
 
 import { AttribuerDialog } from './AttribuerDialog';
+import { bienEtQuartier } from './message-whatsapp';
 import {
   ageAffiche,
   BarreDeLaDemande,
@@ -94,6 +94,9 @@ interface DemandeOuverteProps extends Omit<GestesDeLaDemandeProps, 'nom'> {
   readonly repli?: string;
   /** Bureau : la barre « Vous avez répondu ? », au pied du panneau. */
   readonly pied?: ReactNode;
+  /** TCK-2885 — « Marquer traitée » : le traitement de la boîte (toast et « Annuler » lui survivent). */
+  readonly onTraiter: (lead: ContactLead) => void;
+  readonly traitementEnCours: boolean;
 }
 
 /**
@@ -107,7 +110,7 @@ interface DemandeOuverteProps extends Omit<GestesDeLaDemandeProps, 'nom'> {
  * Convertir (doublon, « Convertir quand même », déjà convertie), Marquer traitée, Attribuer.
  */
 export function DemandeOuverte(props: DemandeOuverteProps) {
-  const { lead, nom, maintenant, regime, position, repli, pied, onContact, messageWhatsApp } = props;
+  const { lead, nom, maintenant, regime, position, repli, pied, onContact, messageWhatsApp, onTraiter, traitementEnCours } = props;
   const t = useTranslations('contactLeads');
   const tDoublon = useTranslations('agentCrm.form.duplicate');
   const f = useFormatteurs();
@@ -115,7 +118,6 @@ export function DemandeOuverte(props: DemandeOuverteProps) {
   const { user } = useAuth();
   const texteDAge = useTexteDeLAge();
   const sourceDe = useSourceDeLaDemande();
-  const handle = useHandleLead();
   const convert = useConvertLead();
   const lu = useBienDeLaDemande(lead.property_id);
   const bien = lu.data?.data ?? null;
@@ -134,14 +136,7 @@ export function DemandeOuverte(props: DemandeOuverteProps) {
   const recue = t('detail.dateAt', { jour: f.jourMois(lead.created_at, maintenant), heure: f.heure(lead.created_at) });
   const source = lead.recipient ? t('detail.sourceFor', { source: sourceDe(lead), name: nomAffichable(lead.recipient) }) : sourceDe(lead);
 
-  async function marquerTraitee() {
-    try {
-      await handle.mutateAsync({ id: lead.id });
-      toast.add({ title: t('toasts.handled'), type: 'success' });
-    } catch {
-      toast.add({ title: t('toasts.error'), type: 'error' });
-    }
-  }
+  const marquerTraitee = () => onTraiter(lead);
 
   async function convertir(forcer = false) {
     try {
@@ -275,7 +270,7 @@ export function DemandeOuverte(props: DemandeOuverteProps) {
           ? { cle: 'fiche', icone: UserPlus, titre: t('actions.openCustomer'), detail: t('detail.openKnownDetail'), href: `/app/customers/${ficheConnue}` }
           : { cle: 'convertir', icone: UserPlus, titre: t('detail.convertTitle'), detail: t('detail.convertDetail'), onClick: () => void convertir(), inactif: convert.isPending },
       ...(attribuable ? [{ cle: 'attribuer', icone: Send, titre: t('detail.assignTitle'), detail: t('detail.assignDetail'), onClick: () => setAttribuer(true) }] : []),
-      ...(traitable ? [{ cle: 'traiter', icone: SquareCheckBig, titre: t('actions.handle'), detail: t('detail.handleDetail'), onClick: () => void marquerTraitee(), inactif: handle.isPending }] : []),
+      ...(traitable ? [{ cle: 'traiter', icone: SquareCheckBig, titre: t('actions.handle'), detail: t('detail.handleDetail'), onClick: marquerTraitee, inactif: traitementEnCours }] : []),
       lead.email
         ? { cle: 'email', icone: Mail, titre: t('detail.emailTitle'), detail: lead.email, href: `mailto:${lead.email}`, onClick: ecrire, externe: true }
         : { cle: 'email', icone: Mail, titre: t('detail.emailTitle'), detail: t('detail.emailNone'), inactif: true },
@@ -335,7 +330,7 @@ export function DemandeOuverte(props: DemandeOuverteProps) {
               </Button>
             ) : null}
             {traitable ? (
-              <Button variant="outline" size="sm" onClick={() => void marquerTraitee()} disabled={handle.isPending}>
+              <Button variant="outline" size="sm" onClick={marquerTraitee} disabled={traitementEnCours} aria-keyshortcuts="T">
                 <SquareCheckBig className="size-4" strokeWidth={1.75} aria-hidden="true" />
                 {t('actions.handle')}
               </Button>
@@ -411,7 +406,7 @@ function CarteDuBien({ lead, bien }: { readonly lead: ContactLead; readonly bien
       {/* 56 px aux deux largeurs (`app-demandes` a-1) : la densité du bureau ne réduit pas la vignette. */}
       <Vignette src={bien?.main_photo_url ?? null} className="size-14 lg:size-[calc(var(--spacing)*15.56)]" />
       <span className="min-w-0 flex-1 leading-snug">
-        <span className="block truncate text-corps font-semibold">{lead.property.title}</span>
+        <span className="block truncate text-corps font-semibold">{bienEtQuartier(lead.property)}</span>
         <span className="block truncate text-ui text-muted-foreground">{t('detail.seeProperty')}</span>
         {prix ? <span className="block truncate text-sm font-medium tabular-nums">{prix}</span> : null}
       </span>

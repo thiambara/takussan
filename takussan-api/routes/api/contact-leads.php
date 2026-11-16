@@ -13,6 +13,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('contact-leads/response-stats', ContactLeadResponseStatsController::class)->name('contact-leads.response-stats');
     Route::get('contact-leads/{lead}', [ContactLeadController::class, 'show'])->whereNumber('lead')->name('contact-leads.show');
     Route::post('contact-leads/{lead}/handle', [ContactLeadController::class, 'handle'])->whereNumber('lead')->name('contact-leads.handle');
+    // TCK-2884 — « Annuler » un traitement : la demande revient à traiter.
+    Route::post('contact-leads/{lead}/unhandle', [ContactLeadController::class, 'unhandle'])->whereNumber('lead')->name('contact-leads.unhandle');
     Route::post('contact-leads/{lead}/assign', [ContactLeadController::class, 'assign'])->whereNumber('lead')->name('contact-leads.assign');
     Route::post('contact-leads/{lead}/convert', [ContactLeadController::class, 'convert'])->whereNumber('lead')->name('contact-leads.convert');
     // TCK-2583 — un geste de contact (WhatsApp, appel, e-mail, SMS) : 204.

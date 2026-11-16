@@ -34,7 +34,8 @@ export interface EntreeDuCoffre {
   readonly versions_count: number | null;
 }
 
-export type GenreDeDossier = 'lease' | 'property' | 'pieces' | 'receipts' | 'statements' | 'bills';
+/** TCK-2897 — `quotes_reports` : « Devis et rapports » du prestataire. */
+export type GenreDeDossier = 'lease' | 'property' | 'pieces' | 'receipts' | 'statements' | 'bills' | 'quotes_reports';
 
 export interface DossierDuCoffre {
   readonly key: string;
@@ -48,6 +49,13 @@ export interface DossierDuCoffre {
    * lisible, où rien ne s'ajoute (sa cible n'est jamais dans `attachable_targets`).
    */
   readonly read_only: boolean;
+  /**
+   * TCK-2897 — la clé du dossier qui le contient : le bien d'un sous-dossier de bail du bailleur
+   * (`property:{id}`) ; `null` partout ailleurs. La liste reste plate.
+   */
+  readonly parent?: string | null;
+  /** TCK-2897 — la référence d'un dossier de bail (`LS-…`), `null` sinon. */
+  readonly reference?: string | null;
 }
 
 export interface CibleRattachable {
@@ -80,16 +88,21 @@ export const JOURS_AVANT_EXPIRATION = 60;
 export type EtiquetteDeDossier =
   | { readonly cle: 'monBail' }
   | { readonly cle: 'bailDe'; readonly nom: string }
+  /** TCK-2898 — le sous-dossier d'un bail dans le dossier du bien, chez le bailleur : « Bail de Fatou Kiné Diallo ». */
+  | { readonly cle: 'bailDuLocataire'; readonly nom: string }
   | { readonly cle: 'bien'; readonly nom: string }
   | { readonly cle: 'quittances'; readonly annee: number }
   | { readonly cle: 'quittancesSansAnnee' }
   | { readonly cle: 'releves' }
   | { readonly cle: 'factures' }
+  | { readonly cle: 'devisEtRapports' }
   | { readonly cle: 'mesPieces' };
 
 export function etiquetteDuDossier(dossier: DossierDuCoffre, nombreDeBaux: number): EtiquetteDeDossier {
   switch (dossier.kind) {
     case 'lease':
+      // TCK-2897, TCK-2898 — le sous-dossier d'un bail chez le bailleur porte le nom du locataire.
+      if (dossier.parent) return { cle: 'bailDuLocataire', nom: dossier.name ?? dossier.reference ?? '' };
       return nombreDeBaux > 1 && dossier.name ? { cle: 'bailDe', nom: dossier.name } : { cle: 'monBail' };
     case 'property':
       return { cle: 'bien', nom: dossier.name ?? '' };
@@ -99,13 +112,28 @@ export function etiquetteDuDossier(dossier: DossierDuCoffre, nombreDeBaux: numbe
       return { cle: 'releves' };
     case 'bills':
       return { cle: 'factures' };
+    case 'quotes_reports':
+      return { cle: 'devisEtRapports' };
     case 'pieces':
       return { cle: 'mesPieces' };
   }
 }
 
 /** Rang d'affichage : baux, biens, quittances (année récente d'abord), relevés, factures, pièces. */
-const RANG: Record<GenreDeDossier, number> = { lease: 0, property: 1, receipts: 2, statements: 3, bills: 4, pieces: 5 };
+const RANG: Record<GenreDeDossier, number> = {
+  lease: 0,
+  property: 1,
+  receipts: 2,
+  statements: 3,
+  bills: 4,
+  quotes_reports: 5,
+  pieces: 6,
+};
+
+/** TCK-2897 — un sous-dossier se range au rang de son parent, juste après lui (l'ordre de l'API). */
+function rangDuDossier(dossier: DossierDuCoffre): number {
+  return dossier.parent ? RANG.property : RANG[dossier.kind];
+}
 
 /* ─────────────────────────────────────────── Entrées ─────────────────────────────────────────── */
 
@@ -122,6 +150,9 @@ export type NatureDEntree =
   | 'releve'
   | 'attestation'
   | 'facture'
+  /** TCK-2897 — le devis et le rapport de fin d'intervention du prestataire. */
+  | 'devis'
+  | 'rapport'
   | 'piece'
   /** Un document généré d'une catégorie que ce module ne connaît pas encore : « Document ». */
   | 'autre';
@@ -147,6 +178,10 @@ export function natureDeLEntree(entree: EntreeDuCoffre): NatureDEntree {
       return 'attestation';
     case 'provider_bill':
       return 'facture';
+    case 'maintenance_quote':
+      return 'devis';
+    case 'maintenance_completion_report':
+      return 'rapport';
     default:
       if (entree.category?.startsWith('inventory_')) return 'edlEntree';
       // Une quittance de loyer, et tout `receipt_*` qu'un nouveau type d'échéance ajouterait.
@@ -156,8 +191,8 @@ export function natureDeLEntree(entree: EntreeDuCoffre): NatureDEntree {
 }
 
 /**
- * Le geste d'une ligne. Un document généré se télécharge par son endpoint, sauf la facture
- * d'intervention, qui n'a pas de PDF (sa « fiche » est du JSON) ; une pièce téléversée s'ouvre sur sa
+ * Le geste d'une ligne. Un document généré se télécharge par son endpoint (la facture d'intervention
+ * aussi, depuis TCK-2897 : `service-provider-bills/{id}/pdf`) ; une pièce téléversée s'ouvre sur sa
  * fiche, qui porte le téléchargement, les versions et le partage (ADR-0099 : jamais pour un généré).
  */
 export type GesteDeLEntree =
@@ -169,7 +204,6 @@ export function gesteDeLEntree(entree: EntreeDuCoffre): GesteDeLEntree {
   if (entree.kind === 'uploaded') {
     return entree.document_id !== null ? { geste: 'ouvrir', documentId: entree.document_id } : { geste: 'aucun' };
   }
-  if (entree.category === 'provider_bill') return { geste: 'aucun' };
   return { geste: 'telecharger', chemin: entree.download_path };
 }
 
@@ -216,9 +250,17 @@ export interface DossierVu {
   readonly kind: GenreDeDossier;
   readonly etiquette: EtiquetteDeDossier;
   readonly entrees: readonly EntreeVue[];
-  /** Les quittances et les relevés s'ouvrent repliés : une ligne de résumé, la liste au toucher. */
+  /**
+   * Les quittances, les relevés (TCK-2898 : et « Devis et rapports ») s'ouvrent repliés : une ligne de
+   * résumé, la liste au toucher.
+   */
   readonly replieParDefaut: boolean;
   readonly lectureSeule: boolean;
+  /**
+   * TCK-2898 — la clé du dossier qui le contient (le bien d'un sous-dossier de bail du bailleur), `null`
+   * sinon. La liste `dossiers` reste plate : l'écran imbrique, les comptes et l'alerte parcourent tout.
+   */
+  readonly parent: string | null;
 }
 
 export interface AlerteDExpiration {
@@ -235,11 +277,6 @@ export interface CoffreVu {
   readonly alerte: AlerteDExpiration | null;
   readonly expireBientot: number;
   readonly nonVerifies: number;
-  /**
-   * TCK-2656, décision 1 (a) — les biens du bailleur dont le dossier est vide ne sont pas listés
-   * (un bailleur de 73 biens en voyait 73 dossiers vides) : ils se comptent ici.
-   */
-  readonly biensSansDocument: number;
   /** TCK-2729 — au moins un dossier en lecture seule (listé ou vide) : le coffre le dit. */
   readonly lectureSeule: boolean;
 }
@@ -294,25 +331,34 @@ export interface ArchivePreparee {
   readonly download_path: string | null;
 }
 
+/** Les baux du locataire : un sous-dossier de bail du bailleur (TCK-2897) n'en est pas un. */
+export function nombreDeBauxDuLocataire(coffre: Pick<CoffreDeDocuments, 'folders'>): number {
+  return coffre.folders.filter((d) => d.kind === 'lease' && !d.parent).length;
+}
+
 export function voirLeCoffre(coffre: CoffreDeDocuments, aujourdhui: string): CoffreVu {
-  const nombreDeBaux = coffre.folders.filter((d) => d.kind === 'lease').length;
+  const nombreDeBaux = nombreDeBauxDuLocataire(coffre);
 
   const ordonnes = coffre.folders
     .map((dossier, rang) => ({ dossier, rang }))
     .sort((a, b) => {
-      const ecart = RANG[a.dossier.kind] - RANG[b.dossier.kind];
+      const ecart = rangDuDossier(a.dossier) - rangDuDossier(b.dossier);
       if (ecart !== 0) return ecart;
       if (a.dossier.kind === 'receipts') return (b.dossier.year ?? 0) - (a.dossier.year ?? 0);
       return a.rang - b.rang;
     })
     .map(({ dossier }) => dossier);
 
-  const biensSansDocument = ordonnes.filter((d) => d.kind === 'property' && d.entries.length === 0).length;
-
+  // TCK-2898 — chaque bien du bailleur est listé, même vide (« Aucun document ») : la décision 1 (a) de
+  // TCK-2656, qui les taisait et les comptait, est renversée. Un sous-dossier de bail vide ne se liste pas.
   const dossiers = ordonnes
-    .filter((d) => !(d.kind === 'property' && d.entries.length === 0))
+    .filter((d) => !(d.parent && d.entries.length === 0))
     .map((dossier): DossierVu => {
-      const parDate = dossier.kind === 'receipts' || dossier.kind === 'statements' || dossier.kind === 'bills';
+      const parDate =
+        dossier.kind === 'receipts' ||
+        dossier.kind === 'statements' ||
+        dossier.kind === 'bills' ||
+        dossier.kind === 'quotes_reports';
       const entrees = parDate ? [...dossier.entries].sort(parDateDecroissante) : dossier.entries;
       return {
         key: dossier.key,
@@ -325,8 +371,9 @@ export function voirLeCoffre(coffre: CoffreDeDocuments, aujourdhui: string): Cof
           geste: gesteDeLEntree(entree),
           echeance: entree.kind === 'uploaded' ? echeanceDe(entree.expiry_date, aujourdhui) : null,
         })),
-        replieParDefaut: dossier.kind === 'receipts' || dossier.kind === 'statements',
+        replieParDefaut: dossier.kind === 'receipts' || dossier.kind === 'statements' || dossier.kind === 'quotes_reports',
         lectureSeule: dossier.read_only,
+        parent: dossier.parent ?? null,
       };
     });
 
@@ -346,7 +393,6 @@ export function voirLeCoffre(coffre: CoffreDeDocuments, aujourdhui: string): Cof
     alerte,
     expireBientot: coffre.counts.expiring_soon,
     nonVerifies: coffre.counts.unverified,
-    biensSansDocument,
     lectureSeule: coffre.folders.some((d) => d.read_only),
   };
 }
@@ -385,8 +431,17 @@ export interface TrouveeVue {
  * la recherche est jugée par l'API (TCK-2769), jamais sur le coffre chargé.
  *
  * `nombreDeBaux` est celui du coffre : avec un seul bail, son dossier reste « Mon bail ».
+ *
+ * TCK-2898 — la recherche ne recopie pas `parent` : `dossiersDuCoffre` (ceux du coffre chargé) le rend,
+ * pour que le bail d'un locataire, chez le bailleur, se nomme « Bail de … » et jamais « Mon bail ».
  */
-export function voirLesTrouvees(trouvees: readonly EntreeTrouvee[], aujourdhui: string, nombreDeBaux: number): TrouveeVue[] {
+export function voirLesTrouvees(
+  trouvees: readonly EntreeTrouvee[],
+  aujourdhui: string,
+  nombreDeBaux: number,
+  dossiersDuCoffre: readonly DossierDuCoffre[] = [],
+): TrouveeVue[] {
+  const parents = new Map(dossiersDuCoffre.filter((d) => d.parent).map((d) => [d.key, d.parent ?? null]));
   return trouvees.map((entree, rang) => ({
     vue: {
       cle: cleDeLEntree(entree.folder.key, entree, rang),
@@ -395,6 +450,6 @@ export function voirLesTrouvees(trouvees: readonly EntreeTrouvee[], aujourdhui: 
       geste: gesteDeLEntree(entree),
       echeance: entree.kind === 'uploaded' ? echeanceDe(entree.expiry_date, aujourdhui) : null,
     },
-    dossier: etiquetteDuDossier({ ...entree.folder, target: null, entries: [] }, nombreDeBaux),
+    dossier: etiquetteDuDossier({ ...entree.folder, target: null, entries: [], parent: parents.get(entree.folder.key) ?? null }, nombreDeBaux),
   }));
 }

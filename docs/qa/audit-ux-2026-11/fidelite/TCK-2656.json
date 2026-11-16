@@ -244,9 +244,7 @@
     }
   ],
   "zones": [],
-  "alias": {
-    "Relevés et factures": "Relevés et attestations"
-  },
+  "alias": {},
   "ancres": [],
   "ignorer": [],
   "ecarts_acceptes": [
@@ -293,32 +291,11 @@
       "motif": "aucune première page n'est servie : la tuile du document tient lieu d'aperçu ; un document généré ne se partage pas (ADR-0099), « Partager » d'une pièce vit sur sa fiche (lot 3)"
     },
     {
-      "ecran": "app-documents a-8-*",
-      "element": "sous-dossier « Bail de … » dans le dossier d'un bien",
-      "propriete": "absent",
-      "exception": "donnée",
-      "motif": "le coffre (TCK-2655) range les documents d'un bail dans le dossier de son bien, à plat"
-    },
-    {
       "ecran": "app-documents a-0-telephone, a-8-telephone, a-9-telephone",
       "element": "ligne « N documents » sous le titre",
       "propriete": "présent dans le produit, absent de la maquette",
       "exception": "décision produit",
       "motif": "la description de l'en-tête de page (`PageHeader`) tient la place du champ de recherche écarté (décision 2 (c) : « Rechercher » à droite de l'en-tête) et porte le compte que l'AC1 exige sans « 0 document »"
-    },
-    {
-      "ecran": "app-documents a-0-*, a-8-*, a-9-*",
-      "element": "fin de ligne d'une pièce téléversée",
-      "propriete": "chevron au lieu de l'icône de téléchargement",
-      "exception": "vérité des données",
-      "motif": "le coffre ne sert pas le fichier d'une pièce (son `download_path` est la fiche JSON) : la ligne ouvre la fiche, qui porte « Télécharger », « Partager » et « Supprimer » aux verdicts de l'API (GestesDuDocument)"
-    },
-    {
-      "ecran": "app-documents a-9-*",
-      "element": "facture d'intervention (« Mes factures »)",
-      "propriete": "aucun geste de fin de ligne",
-      "exception": "vérité des données",
-      "motif": "aucune facture n'a de PDF (`service-provider-bills/{id}` est une fiche JSON) et aucune page ne la sert au prestataire ; non rendu sur la démo (le profil actif du prestataire de fidélité n'est pas le profil prestataire)"
     },
     {
       "ecran": "app-documents a-0-*, a-8-*",
@@ -332,7 +309,7 @@
       "element": "« Redressée et recadrée toute seule » (tuile photo)",
       "propriete": "texte",
       "exception": "vérité des données",
-      "motif": "aucun redressement ni recadrage n'existe : la tuile dit « Avec l’appareil photo du téléphone »."
+      "motif": "TCK-2898 : la photo est redressée (quarts de tour) et recadrée (coins) dans le navigateur, avant l'envoi, à une étape où l'utilisateur règle le cadre — pas « toute seule » (aucune détection automatique des bords) : la tuile dit « Redressée et recadrée avant l’envoi »."
     },
     {
       "ecran": "app-documents a-1-*",
@@ -357,17 +334,10 @@
     },
     {
       "ecran": "app-documents a-2-*",
-      "element": "« Lu sur la photo. Nous vous préviendrons 60 jours avant. »",
-      "propriete": "absent",
-      "exception": "vérité des données",
-      "motif": "aucune lecture du texte de la photo, et aucun rappel d'expiration de document n'existe dans l'API."
-    },
-    {
-      "ecran": "app-documents a-2-*",
-      "element": "interrupteur « Remplace la carte qui expire »",
-      "propriete": "absent",
-      "exception": "décision produit",
-      "motif": "décision L2-1 (a) : le remplacement est une nouvelle version, portée par la fiche de la pièce (lot 3) ; « Remplacer » de « À renouveler » y mène."
+      "element": "« Lu sur la photo »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "TCK-2899 : rendu seulement quand la date d'expiration a été lue sur la photo (bande MRZ, dans le navigateur) et que le champ la porte encore ; une image sans bande lisible n'affiche rien. La promesse « Nous vous préviendrons 60 jours avant » n'est plus un écart : le rappel J-60/J-7 existe depuis TCK-2783 (TCK-2904)."
     },
     {
       "ecran": "app-documents a-2-*",
@@ -434,7 +404,7 @@
     },
     {
       "ecran": "app-documents a-5-*, a-6-*",
-      "element": "« Rattaché à », « Bien », « Ajouté par Ousmane Niang », « Vérifié par Awa Diop », auteurs des versions, « Créé le … par Sokhna Sène »",
+      "element": "« Ajouté par Ousmane Niang », « Vérifié par Awa Diop », auteurs des versions, « Créé le … par Sokhna Sène »",
       "propriete": "absent du produit",
       "exception": "donnée",
       "motif": "l'API ne sert que des identifiants (`uploaded_by`, `verified_by`, `uploaded_by_id`, aucun créateur de lien) : « vous » quand c'est l'appelant, la date seule sinon (« Ajouté le », « Vérifié le ») ; suite TCK-2773 (décision L3-1)."
@@ -445,20 +415,6 @@
       "propriete": "texte et présence",
       "exception": "donnée",
       "motif": "le document 82 de la démo n'a ni fichier (seed sans médias), ni version, ni catégorie : tuile « Aucun fichier », « Aucune autre version… », catégorie « Autre » ; aperçu, versions et légende éprouvés en vitest (`DocumentDetailClient.abilities`, `VersionsDuDocument.tck-2656`)."
-    },
-    {
-      "ecran": "app-documents a-5-*, a-6-*",
-      "element": "fil « Documents › Villa 4 chambres › Bail … › Pièces du locataire »",
-      "propriete": "texte",
-      "exception": "donnée",
-      "motif": "le fil s'arrête à « Documents › nom » ; Bien › Bail › dossier vient avec la vue de l'agence (lot 4)."
-    },
-    {
-      "ecran": "app-documents a-5-telephone",
-      "element": "« ⋯ » de l'en-tête du téléphone",
-      "propriete": "absent du produit",
-      "exception": "décision produit",
-      "motif": "sa seule action serait « Supprimer », déjà au bas de la fiche (« Supprimer ce document ») ; la feuille « ⋯ » n'aurait rien d'autre à offrir."
     },
     {
       "ecran": "app-documents a-5-*",
@@ -494,20 +450,27 @@
       "propriete": "position",
       "exception": "décision produit",
       "motif": "ancrée sous « Partager » (`Popover`, aligné à droite, 8 px) là où la maquette la pose à 112 px du haut de la page : elle suit son déclencheur, à toute largeur."
+    },
+    {
+      "ecran": "app-documents a-8-*",
+      "element": "« Factures d’intervention 2026 — 9 factures · 1 521 000 F » (une ligne pour toutes les factures)",
+      "propriete": "une ligne par facture",
+      "exception": "décision produit",
+      "motif": "TCK-2898 : chaque facture refacturée au bailleur est une entrée de « Relevés et factures » qui se télécharge en PDF (`service-provider-bills/{id}/pdf`) ; le coffre ne sert aucun PDF groupé ni de total, et « Tout télécharger » du dossier réunit relevés et factures."
     }
   ],
   "hors_perimetre": [
     "écrans 1 et 2 (ajouter, nommer et ranger) : lot 2",
-    "écran 4 (agence par bien, par bail) : lot 4",
+    "écran 4 (agence par bien, par bail) : lot 4, TCK-2896 (fiche TCK-2896.json, qui lève aussi le fil, « Rattaché à », « Bien » et « ⋯ » de l'écran 5)",
     "les écarts de la coque (barre latérale, en-tête du téléphone, barre d'onglets), relevés sans fiche de rôles",
     "l'entrée « Documents » du menu du bailleur et du prestataire (famille 3)",
     "écran 7 (lien copié) au navigateur : il suit une écriture en base (création d'un lien), éprouvé en vitest"
   ],
   "decisions": {
-    "1": "(a), chef d'équipe 2026-11-13 — biens sans document comptés, non listés",
+    "1": "(a), chef d'équipe 2026-11-13 — biens sans document comptés, non listés ; RENVERSÉE par TCK-2898 (2026-11-15) : chaque bien est listé, « Aucun document » quand il est vide",
     "2": "(c), chef d'équipe 2026-11-13 — « Rechercher » ouvre la recherche serveur des documents (TCK-2769 pour le coffre entier)",
     "3": "(a), chef d'équipe 2026-11-13 — pas de « Tout télécharger » (TCK-2770)",
-    "L2-1": "(a), validée par le chef d'équipe le 2026-11-13 — « Remplace » non rendu ; « Remplacer » mène à la fiche (versions au lot 3)",
+    "L2-1": "(a), validée par le chef d'équipe le 2026-11-13 — « Remplace » non rendu ; RENVERSÉE par TCK-2898 (2026-11-15) : l'interrupteur « Remplace la carte qui expire » est rendu quand une pièce de la catégorie est « À renouveler », activé par défaut, et envoie une nouvelle version (`POST documents/{id}/versions`)",
     "L2-2": "(a), validée par le chef d'équipe le 2026-11-13 — pastilles = types de l'API, jamais de catégorie inventée",
     "L3-1": "(a), chef d'équipe 2026-11-13 — noms absents, « vous » quand c'est l'appelant, lignes construites par les données ; suite TCK-2773 (règle de visibilité par acteur)",
     "L3-2": "(a), chef d'équipe 2026-11-13 — 1 heure et « Sans limite » gardés (quatre pastilles, compteur qui peut valoir « Sans limite »)",

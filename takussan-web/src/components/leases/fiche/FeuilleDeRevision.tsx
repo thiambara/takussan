@@ -40,8 +40,9 @@ import { aujourdhuiADakar } from './CartesDuBail';
  *  · « Prévenus » ne se promet qu'à qui l'API prévient (décision 9) : le locataire s'il a un
  *    compte (`NotifyTenantOfRentReview`), le bailleur s'il n'est pas l'auteur
  *    (`NotifyLandlordOfRentReview`).
- *  · Au bureau, la feuille est le panneau latéral de `FeuilleDuBas` (décision du porteur du
- *    2026-11-11), et non le dialogue centré de 520 px de la maquette : écart inscrit à la fiche.
+ *  · Au bureau, TCK-2912 : le dialogue centré de 520 px de la maquette (`FeuilleDuBas bureau="dialogue"`),
+ *    sur la fiche comme sur la file des baux. Le ticket l'exige en sachant qu'il renverse, pour cette
+ *    feuille, la décision du porteur du 2026-11-11 (panneau latéral) : signalé dans la PR.
  */
 
 export type MotifDeRevision = 'indexation' | 'travaux' | 'accord';
@@ -170,6 +171,7 @@ export function FeuilleDeRevision({ lease, paiements, ouverte, onFermer, libelle
       open={ouverte}
       onOpenChange={(o) => (o ? undefined : fermer())}
       titre={t('titre')}
+      bureau="dialogue"
       pied={
         <>
           <Button type="button" variant="outline" className="max-md:hidden" onClick={fermer}>

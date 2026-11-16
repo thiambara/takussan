@@ -3,6 +3,7 @@
 namespace App\Services\Payout;
 
 use App\Models\Agency;
+use App\Models\Payout;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -56,8 +57,11 @@ final class OwnerStatementSnapshots
         // lisent au jour (un locataire effacé est anonymisé). Le prochain reversement non plus :
         // c'est un fait du jour, pas du mois envoyé.
         unset($payload['next_payout']);
+        // TCK-2915 — la règle de versement, le bail, la vignette et les relances d'un bien sont des faits
+        // du jour, servis vivants comme le titre ; le compteur des reversements se recompte à la lecture.
+        unset($payload['payout_rule'], $payload['payouts_count']);
         $payload['properties'] = array_map(function (array $row): array {
-            unset($row['title'], $row['tenant_name']);
+            unset($row['title'], $row['tenant_name'], $row['lease_reference'], $row['photo_url'], $row['reminders']);
 
             return $row;
         }, $payload['properties']);
@@ -106,12 +110,42 @@ final class OwnerStatementSnapshots
         $sent['properties'] = array_map(fn (array $row): array => array_merge($row, [
             'title' => $names[$row['property_id']]['title'] ?? null,
             'tenant_name' => $names[$row['property_id']]['tenant_name'] ?? null,
+            // TCK-2915 — servis au jour, comme le titre.
+            'lease_reference' => $names[$row['property_id']]['lease_reference'] ?? null,
+            'photo_url' => $names[$row['property_id']]['photo_url'] ?? null,
+            'reminders' => $names[$row['property_id']]['reminders'] ?? [],
         ]), $sent['properties'] ?? []);
+        // TCK-2915 — la règle de versement au jour ; le moyen et la nature d'un reversement qu'un
+        // instantané plus ancien n'a pas, lus sur le reversement (aucun chiffre ne change) ; le compteur
+        // sur les reversements SERVIS.
+        $sent['payout_rule'] = $live['payout_rule'];
+        $sent['payouts'] = $this->withPayoutDetails($sent['payouts'] ?? []);
+        $sent['payouts_count'] = count($sent['payouts']);
 
         return $sent + [
             'snapshot' => ['sent_at' => CarbonImmutable::parse($row->sent_at)->toIso8601String()],
             'rectification' => $this->rectification($sent, $live),
         ];
+    }
+
+    /**
+     * TCK-2915 — `payment_method` et `nature` des reversements d'un instantané écrit avant eux.
+     *
+     * @param  list<array<string, mixed>>  $payouts
+     * @return list<array<string, mixed>>
+     */
+    private function withPayoutDetails(array $payouts): array
+    {
+        $missing = array_values(array_filter($payouts, fn (array $p): bool => ! array_key_exists('payment_method', $p) || ! array_key_exists('nature', $p)));
+        if ($missing === []) {
+            return $payouts;
+        }
+        $known = Payout::query()->whereKey(array_column($missing, 'id'))->get(['id', 'payment_method', 'nature'])->keyBy('id');
+
+        return array_map(fn (array $p): array => $p + [
+            'payment_method' => $known->get($p['id'])?->payment_method?->value,
+            'nature' => $known->get($p['id'])?->nature?->value,
+        ], $payouts);
     }
 
     /**

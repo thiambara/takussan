@@ -33,7 +33,7 @@ use Illuminate\Support\Facades\DB;
  * | `notice_received` | en cours et en préavis ({@see Occupation::onNotice()}) | la demande de préavis |
  * | `rent_late` | une échéance de LOYER due, non soldée, échue depuis plus que le délai de grâce du bail | l'échéance la plus ancienne |
  * | `late_fee_unpaid` | bail en cours (`active`, `terminating`), une échéance payée dont la pénalité n'est pas réglée ({@see CollectedPayments::lateFeesOutstanding()}) | la pénalité la plus ancienne |
- * | `rent_review_open` | `active`, un an passé depuis le début, aucune révision depuis 12 mois | le dernier anniversaire |
+ * | `rent_review_open` | `active`, la date de révision possible passée ({@see RentReviewSchedule} : un an après le début et après la dernière révision ; ni vente ni plafond figé à 0 %) | le dernier anniversaire |
  * | `deposit_to_refund` | terminé ou expiré, caution restant à rendre > 0 ({@see DepositRemaining}) | la fin effective |
  * | `ending_soon` | `active`, fin dans moins de 4 mois, aucun renouvellement | l'entrée dans la fenêtre |
  * | `onboarding_incomplete` | entrée en attente ({@see TenantOnboardingChecklist::scopePending()}) | la création de la liste |
@@ -63,7 +63,8 @@ final class LeaseAttention
 
     public const ENDING_WITHIN_MONTHS = 4;
 
-    public const REVIEW_EVERY_MONTHS = 12;
+    /** TCK-2906 — la périodicité vit dans {@see RentReviewSchedule}. */
+    public const REVIEW_EVERY_MONTHS = RentReviewSchedule::REVIEW_EVERY_MONTHS;
 
     /** Les baux EN COURS (l'onglet « en cours » du résumé) : seuls à porter `late_fee_unpaid`. */
     public const LATE_FEE_STATUSES = [LeaseStatus::Active, LeaseStatus::Terminating];
@@ -102,14 +103,11 @@ final class LeaseAttention
             'rent_late' => $this->scalar($this->latePayments($table)->selectRaw('MIN(lease_payments.due_date)')),
             'late_fee_unpaid' => $this->scalar($this->unpaidFees($table)
                 ->selectRaw('MIN(COALESCE(lease_payments.late_fee_applied_at::date, lease_payments.due_date))')),
+            // TCK-2906 — la date de révision possible vit dans `RentReviewSchedule`, que lit aussi
+            // `next_revision_date` du dossier : le motif vaut quand elle est passée, sur un bail actif.
             'rent_review_open' => $this->onLease($table, fn (Builder $l) => $l
                 ->where('att.status', LeaseStatus::Active->value)
-                ->whereRaw('att.start_date + make_interval(months => ?) <= ?::date', [self::REVIEW_EVERY_MONTHS, $this->today])
-                ->whereNotExists(fn ($a) => $a->from('activity_log')
-                    ->where('activity_log.subject_type', (new Lease)->getMorphClass())
-                    ->whereColumn('activity_log.subject_id', 'att.id')
-                    ->where('activity_log.event', 'lease_rent_reviewed')
-                    ->whereRaw('activity_log.created_at >= ?::date - make_interval(months => ?)', [$this->today, self::REVIEW_EVERY_MONTHS])),
+                ->whereRaw(RentReviewSchedule::possibleFromSql('att').' <= ?::date', [$this->today]),
                 "(att.start_date + (EXTRACT(YEAR FROM age({$q($this->today)}::date, att.start_date))::int * interval '1 year'))::date"),
             'deposit_to_refund' => $this->onLease($table, fn (Builder $l) => $l
                 ->whereIn('att.status', array_map(fn (LeaseStatus $s) => $s->value, self::DEPOSIT_REFUND_STATUSES))

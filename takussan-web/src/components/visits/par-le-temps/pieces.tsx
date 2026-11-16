@@ -42,7 +42,9 @@ export function telephoneDuVisiteur(v: PropertyVisit): string | null {
 /** « Local commercial · Dakar-Plateau » : le titre du bien et son quartier. */
 export function bienEtQuartier(v: PropertyVisit, repli: string): string {
   const titre = v.property?.title?.trim() || repli;
-  const quartier = v.property?.address?.neighborhood?.trim();
+  // TCK-2883 — le quartier est servi dès la demande (`property.neighborhood`, TCK-2871), l'adresse
+  // seulement une fois la visite confirmée : sans ce repli, une demande en attente perdait son quartier.
+  const quartier = (v.property?.neighborhood ?? v.property?.address?.neighborhood)?.trim();
   return quartier ? `${titre} · ${quartier}` : titre;
 }
 

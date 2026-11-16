@@ -130,7 +130,7 @@ describe('TCK-2656 — voirLeCoffre', () => {
     expect(vu.expireBientot).toBe(2);
   });
 
-  it('décision 1 (a) — ne liste pas les biens sans document du bailleur, il les compte', () => {
+  it('TCK-2898 — liste chaque bien du bailleur, même sans document (renverse la décision 1 (a))', () => {
     const vu = voirLeCoffre(
       coffre([
         dossier({ key: 'property:1', kind: 'property', name: 'Villa Almadies', entries: [piece(5, 'Titre foncier')] }),
@@ -140,9 +140,9 @@ describe('TCK-2656 — voirLeCoffre', () => {
       ]),
       AUJOURDHUI,
     );
-    expect(vu.dossiers.map((d) => d.key)).toEqual(['property:1', 'pieces']);
+    expect(vu.dossiers.map((d) => d.key)).toEqual(['property:1', 'property:2', 'property:3', 'pieces']);
     expect(vu.dossiers[0].etiquette).toEqual({ cle: 'bien', nom: 'Villa Almadies' });
-    expect(vu.biensSansDocument).toBe(2);
+    expect(vu.dossiers[1].entrees).toEqual([]);
   });
 
   it('TCK-2729 — le dossier en lecture seule le reste, même vide, et son alerte ne se remplace pas', () => {
@@ -155,8 +155,10 @@ describe('TCK-2656 — voirLeCoffre', () => {
       AUJOURDHUI,
     );
     expect(vu.lectureSeule).toBe(true);
+    // TCK-2898 — le bien vide est listé aussi, en lecture seule.
     expect(vu.dossiers.map((d) => [d.key, d.lectureSeule])).toEqual([
       ['property:1', true],
+      ['property:2', true],
       ['pieces', false],
     ]);
     expect(vu.alerte).toMatchObject({ jours: 18, lectureSeule: true });
@@ -196,12 +198,16 @@ describe('TCK-2656 — nature et geste d’une entrée', () => {
     expect(natureDeLEntree(genere('mandate', '2026-07-05', '/x'))).toBe('autre');
   });
 
-  it('télécharge un généré par son endpoint, ouvre la fiche d’une pièce, et rien pour une facture sans PDF', () => {
+  it('télécharge un généré par son endpoint, ouvre la fiche d’une pièce, et la facture en PDF (TCK-2897)', () => {
     expect(gesteDeLEntree(genere('lease_contract', '2026-06-29', '/api/leases/22/contract/pdf'))).toEqual({
       geste: 'telecharger',
       chemin: '/api/leases/22/contract/pdf',
     });
     expect(gesteDeLEntree(piece(210, 'Contrat'))).toEqual({ geste: 'ouvrir', documentId: 210 });
-    expect(gesteDeLEntree(genere('provider_bill', '2026-11-06', '/api/service-provider-bills/4'))).toEqual({ geste: 'aucun' });
+    // TCK-2897 — la facture d'intervention se télécharge en PDF.
+    expect(gesteDeLEntree(genere('provider_bill', '2026-11-06', '/api/service-provider-bills/4/pdf'))).toEqual({
+      geste: 'telecharger',
+      chemin: '/api/service-provider-bills/4/pdf',
+    });
   });
 });

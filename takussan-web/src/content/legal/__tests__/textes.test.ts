@@ -313,10 +313,12 @@ describe('politique de confidentialité — la demande d’une ville montrée au
  * Le même changement rattrape les dernières recherches de TCK-2475 (`src/lib/recherches-recentes.ts`,
  * clé `takussan.recherches-recentes`), gardées sur l'appareil depuis sans que la liste les nomme.
  */
+// TCK-2846 — les récents retiennent désormais le NOM des fiches ouvertes (« Villa 4 chambres à Ngor »,
+// « Moussa Diallo ») : la politique le dit.
 describe('politique de confidentialité — ce que le stockage local garde de la navigation', () => {
   it('nomme les pages récentes de la palette, dans les deux langues', () => {
-    expect(privacy.fr).toContain('pages de votre espace ouvertes récemment (palette de commandes)');
-    expect(privacy.en).toContain('recently opened pages of your space (command palette)');
+    expect(privacy.fr).toContain('pages et fiches de votre espace ouvertes récemment, avec leur nom (palette de commandes)');
+    expect(privacy.en).toContain('recently opened pages and records of your space, with their name (command palette)');
   });
 
   it('nomme les dernières recherches de biens (TCK-2475), dans les deux langues', () => {
@@ -326,10 +328,10 @@ describe('politique de confidentialité — ce que le stockage local garde de la
 
   it('les range dans la ligne du stockage local du navigateur', () => {
     expect(privacy.fr).toContain(
-      '- **stockage local du navigateur** — biens consultés récemment, dernières recherches de biens (barre de recherche), pages de votre espace ouvertes récemment (palette de commandes), favoris',
+      '- **stockage local du navigateur** — biens consultés récemment, dernières recherches de biens (barre de recherche), pages et fiches de votre espace ouvertes récemment, avec leur nom (palette de commandes), favoris',
     );
     expect(privacy.en).toContain(
-      '- **browser local storage** — recently viewed properties, latest property searches (search bar), recently opened pages of your space (command palette), offline favourites',
+      '- **browser local storage** — recently viewed properties, latest property searches (search bar), recently opened pages and records of your space, with their name (command palette), offline favourites',
     );
   });
 

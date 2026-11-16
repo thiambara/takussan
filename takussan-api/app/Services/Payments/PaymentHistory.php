@@ -54,7 +54,7 @@ class PaymentHistory
      *
      * @param  array<array-key, mixed>  $filters  le `filter[…]` de la requête
      * @param  list<string>  $includes  {@see self::requestedIncludes()}
-     * @return array{rows: Collection<int, array<string, mixed>>, truncated: bool, lease_payments: EloquentCollection<int, LeasePayment>}
+     * @return array{rows: Collection<int, array<string, mixed>>, truncated: bool, lease_payments: EloquentCollection<int, LeasePayment>, count: int}
      */
     public function select(User $user, array $filters, array $includes, string $sort, int $maxRows): array
     {
@@ -213,7 +213,9 @@ class PaymentHistory
             $truncated = true;
         }
 
-        return ['rows' => $merged, 'truncated' => $truncated, 'lease_payments' => $leasePayments];
+        // TCK-2866 — `count` : les lignes de la sélection AVANT le plafond, que `GET export/payment_history/count`
+        // annonce avant l'export (même sélection, même cloisonnement).
+        return ['rows' => $merged, 'truncated' => $truncated, 'lease_payments' => $leasePayments, 'count' => $bookingCount + $leaseCount];
     }
 
     /**

@@ -1,6 +1,6 @@
 # ADR-0105 — La relance d'un impayé part du téléphone de l'agence ; Takussan la note et ne l'envoie pas
 
-- **Statut** : Accepté le 2026-11-10 par le porteur (décision n° 13 (a) : *par WhatsApp, message prérempli*) — modalités : décisions de la session, à revoir ; **amendé le 2026-11-10** (la relance en lot entre dans le lot, comme une file guidée : cf. § *Amendement du 2026-11-10*) ; **amendé le 2026-11-12** (le lien de paiement n'est créé qu'à l'envoi, et le message nomme l'agence : cf. § *Amendement du 2026-11-12*)
+- **Statut** : Accepté le 2026-11-10 par le porteur (décision n° 13 (a) : *par WhatsApp, message prérempli*) — modalités : décisions de la session, à revoir ; **amendé le 2026-11-10** (la relance en lot entre dans le lot, comme une file guidée : cf. § *Amendement du 2026-11-10*) ; **amendé le 2026-11-12** (le lien de paiement n'est créé qu'à l'envoi, et le message nomme l'agence : cf. § *Amendement du 2026-11-12*) ; **amendé le 2026-11-15** (le bailleur lit la date, le canal et l'auteur des relances de ses échéances, dans son relevé : cf. § *Amendement du 2026-11-15*, TCK-2915)
 - **Date** : 2026-11-10
 - **Tickets** : TCK-2658 (API : relances journalisées), TCK-2660 (impayés : relancer sur WhatsApp), TCK-2682 (relance en lot, file guidée), TCK-2644 (liste des baux : « À traiter » et relance) ; la lisent : TCK-2624 (accueil de l'admin), TCK-2629 (onglet Impayés de Rapports)
 - **S'appuie sur** : [ADR-0051](0051-lien-porteur-de-paiement-et-journal-des-webhooks.md) (lien porteur de paiement d'une échéance), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (l'API n'écrit pas de prose)
@@ -115,3 +115,16 @@ Le porteur a retenu le 2026-11-10 l'option (a) : *la relance se fait par WhatsAp
 - **WhatsApp attend une requête.** L'onglet s'ouvre à l'appui, mais WhatsApp n'y arrive qu'une fois le lien créé. C'est le prix du point 1. L'onglet ouvert d'avance évite le blocage d'une ouverture différée, et le repli du point 5 couvre le reste.
 
 **Ce qui ne change pas.** Takussan n'envoie toujours rien. La note (§ 2), la lecture unique (§ 3), le journal (§ 4) et la file guidée (amendement du 2026-11-10, points 1 à 3 et 5) restent tels quels.
+
+## Amendement du 2026-11-15 — le bailleur lit la date, le canal et l'auteur des relances de ses échéances (TCK-2915)
+
+**Constat.** Le § 3 réservait la lecture des relances au personnel de l'agence et au super-admin (`PaymentHistory::withReminders`, `LeasePaymentPolicy::remind`). Le bailleur d'un bien en retard ne savait donc pas si l'agence avait relancé son locataire : l'audit des maquettes (app-paiements e4, accueil du bailleur de TCK-2850) lui montre « relancé par l'agence le … ».
+
+**Décision.**
+
+1. Le **relevé du bailleur** (`GET /api/owner-statements`, sous `viewOwnerStatement`) rend, sur chaque ligne de bien, `reminders[]` : les relances **notées par l'agence** (`source: manual`) des échéances de loyer **en retard** de la période, de ce bien et de CE bailleur.
+2. Chaque entrée ne porte que `{at, channel, by_name}` — **projection par liste blanche**. Jamais `note` (la note interne de l'agence), jamais `subject`, jamais l'identifiant de l'auteur.
+3. Les **rappels automatiques** (`source: automatic`) n'y sont pas : ils n'ont ni canal ni auteur, et le bailleur reçoit déjà, au même jalon, sa propre notification (`lease_payment_overdue_landlord`). « Relancé par l'agence » ne désigne que le geste de l'agence.
+4. La lecture reste **unique** (§ 3) : le relevé lit `LeasePaymentReminderReader` (lecture groupée d'une page d'échéances), jamais une trace à lui.
+
+**Ce qui ne change pas.** `LeasePaymentPolicy::remind` (noter une relance) et `include=reminders` de l'historique restent au personnel et au super-admin. Le locataire ne lit aucune relance. La note, le journal (§ 4) et l'absence d'envoi par Takussan (§ 1) restent tels quels.

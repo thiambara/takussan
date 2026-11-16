@@ -22,9 +22,9 @@ import type { PropertyVisit } from '@/types/visit';
  * proposée par Sokhna Sène », puis « Autre créneau » et « Confirmer ».
  *
  * Le geste est celui de la rangée du bureau (`LigneDeVisite`) : l'heure fixée, ou une heure libre de
- * la tranche (`ConfirmerALHeure`). Sans le geste (`geste = false` : le bailleur d'un bien d'agence,
- * que `PropertyVisitPolicy::agitPourLeBien` refuse — décision 7 ; ou un 403 de l'API), la carte porte
- * « Voir » seul, vers la visite.
+ * la tranche (`ConfirmerALHeure`). Sans le geste (`geste = false` : la visite n'est pas rendue avec
+ * `can_confirm` — le bailleur d'un bien d'agence dont l'agence ne lui confie pas les visites, décision 7
+ * et ADR-0112 (TCK-2869) ; ou un 403 de l'API), la carte porte « Voir » seul, vers la visite.
  */
 export function CarteDeVisite({ v, geste, onRefus }: { readonly v: PropertyVisit; readonly geste: boolean; readonly onRefus: () => void }) {
   const t = useTranslations('accueil.bailleur.visite');

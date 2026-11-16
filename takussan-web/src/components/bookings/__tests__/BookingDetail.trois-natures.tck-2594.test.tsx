@@ -22,6 +22,25 @@ vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => new Date(
 vi.mock('@/hooks/useCan', () => ({ useCanAll: () => ({ can: true, isLoading: false }) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/usePaymentProviders', () => ({ usePaymentProviders: () => ({ providers: [] }) }));
+// TCK-2877 — la carte « Nuits du bien » d'un séjour, au bureau : ses lectures, vides.
+vi.mock('@/lib/queries/nuits-du-bien', () => ({
+  useSejoursDuBien: () => ({ data: { data: [] }, isLoading: false, isError: false }),
+  useNuitsBloqueesDuBien: () => ({ data: undefined, isLoading: false, isError: true }),
+}));
+// TCK-2878 — les gestes de la candidature et du bail (retour d'étape, bail repris, garants) : hors du sujet ici.
+vi.mock('@/lib/queries/candidature-et-bail', () => ({
+  useAnnulerLePassageDEtape: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreerLeBailRepris: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAjouterUnGarant: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRetirerUnGarant: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+// TCK-2878 — le fil du client (« Le fil de {prénom} », l'historique), vide ici.
+vi.mock('@/lib/queries/booking-dossier', () => ({
+  useDossierDeLaReservation: () => ({ data: { data: { received: 0, required: 0, missing: [], pieces: [] } }, isPending: false, isError: false, refetch: vi.fn() }),
+  useDemanderUnePiece: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAutresCandidaturesDuBien: () => ({ data: { data: [] } }),
+  useVisitesDuClient: () => ({ data: { data: [] } }),
+}));
 vi.mock('@/lib/queries/bookings', () => ({
   useBooking: vi.fn(),
   useCancelBooking: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -170,11 +189,12 @@ describe('BookingDetail — trois natures (TCK-2594)', () => {
     }
   });
 
-  it('au téléphone, la suite est dans la barre collante : Refuser et Accepter, une seule fois', () => {
+  // TCK-2876 — une offre en attente porte aussi « Contre-proposer », entre Refuser et Accepter (maquette e4).
+  it('au téléphone, la suite est dans la barre collante : Refuser, Contre-proposer et Accepter, une seule fois', () => {
     ecran.telephone = true;
     rendre(OFFRE);
     const barre = document.querySelector<HTMLElement>('[data-slot="barre-d-action"]')!;
-    expect(within(barre).getAllByRole('button').map((b) => b.textContent)).toEqual([fr.bookings.detail.actions.reject, fr.bookings.detail.actions.accept]);
+    expect(within(barre).getAllByRole('button').map((b) => b.textContent)).toEqual([fr.bookings.detail.actions.reject, 'Contre-proposer', fr.bookings.detail.actions.accept]);
     expect(screen.getAllByRole('button', { name: fr.bookings.detail.actions.accept })).toHaveLength(1);
   });
 
@@ -182,7 +202,8 @@ describe('BookingDetail — trois natures (TCK-2594)', () => {
     ecran.telephone = true;
     rendre(CANDIDATURE_ACCEPTEE);
     const suite = document.querySelector<HTMLElement>('[data-slot="suite-du-bail"]')!;
-    expect(texte(suite)).toContain(fr.bookings.fiche.suiteBail.titre);
+    // TCK-2878 — l'acceptation se dit dans son bandeau ; la carte est le bail prêt.
+    expect(texte(suite)).toContain(fr.bookings.fiche.suiteBail.pret);
     expect(texte(suite)).toContain('Ousmane Ba');
     expect(texte(suite)).toContain('300 000 F/mois');
     const barre = document.querySelector<HTMLElement>('[data-slot="barre-d-action"]')!;
@@ -196,7 +217,8 @@ describe('BookingDetail — trois natures (TCK-2594)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Candidature d’Ousmane Ba' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: fr.dashboard.pages.bookings.title })).toHaveAttribute('href', '/app/bookings');
     expect(screen.getByRole('link', { name: fr.bookings.liste.natures.application })).toHaveAttribute('href', '/app/bookings?kind=application');
-    expect(screen.getByRole('link', { name: fr.bookings.detail.actions.createLease })).toBeInTheDocument();
+    // TCK-2878 — au bureau, « Créer le bail » ouvre le panneau du bail repris de la candidature.
+    expect(screen.getByRole('button', { name: fr.bookings.detail.actions.createLease })).toBeInTheDocument();
   });
 
   it('au bureau, une demande à décider ne montre que la décision en tête ; « Annuler » et l’encaissement passent dans « Autres gestes »', () => {

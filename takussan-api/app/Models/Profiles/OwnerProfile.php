@@ -8,9 +8,11 @@ use App\Models\Bases\Auditable;
 use App\Models\Concerns\HasAgencyRole;
 use App\Models\Enums\IdType;
 use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\PaymentMethod;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Services\Owners\OwnerDirectory;
+use App\Sorts\OwnerLastPayoutSort;
 use App\Sorts\OwnerNameSort;
 use App\Sorts\OwnerRemainingToPaySort;
 use App\Support\Http\ParametreUnique;
@@ -39,6 +41,8 @@ class OwnerProfile extends AbstractModel
         'guarantor_user_id', 'metadata',
         // TCK-592 — ADR-0037 : au-delà, l'approbation d'un devis par l'équipe attend le bailleur.
         'works_approval_threshold',
+        // TCK-2909 — les termes du mandat de gestion (`PATCH /api/owners/{id}`).
+        'mandate_starts_on', 'mandate_ends_on', 'payout_method', 'payout_day', 'referent_agent_id',
     ];
 
     /**
@@ -65,6 +69,12 @@ class OwnerProfile extends AbstractModel
         'monthly_income' => 'encrypted',
         'works_approval_threshold' => 'decimal:2',
         'metadata' => 'array',
+        // TCK-2909
+        'mandate_starts_on' => 'date',
+        'mandate_ends_on' => 'date',
+        'payout_method' => PaymentMethod::class,
+        'payout_day' => 'integer',
+        'referent_agent_id' => 'integer',
     ];
 
     /**
@@ -149,6 +159,8 @@ class OwnerProfile extends AbstractModel
         return [
             AllowedSort::custom('name', new OwnerNameSort),
             AllowedSort::custom('remaining_to_pay', new OwnerRemainingToPaySort),
+            // TCK-2910 — le dernier versement (« Filtres et tri » du carnet au téléphone).
+            AllowedSort::custom('last_payout_at', new OwnerLastPayoutSort),
         ];
     }
 
@@ -160,6 +172,12 @@ class OwnerProfile extends AbstractModel
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    /** TCK-2909 — le membre de l'agence qui suit ce bailleur (référent du mandat). */
+    public function referentAgent(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'referent_agent_id');
     }
 
     public function guarantor(): BelongsTo

@@ -14,13 +14,14 @@
 
 import { Fragment, useState, type ComponentProps } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ban, Mail, Phone, Plus, Star, UserPlus } from 'lucide-react';
+import { Ban, Mail, MoreHorizontal, Phone, Plus, Star, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { PageHeader } from '@/components/console';
 import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -223,7 +224,17 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       id: 'delai',
       header: tCarnet('colonnes.delai'),
       className: 'align-middle whitespace-nowrap',
-      cell: (sp) => dureeDe(sp) ?? <span className="text-muted-foreground">—</span>,
+      cell: (sp) => (
+        <span className="leading-tight">
+          <span className="block">{dureeDe(sp) ?? <span className="text-muted-foreground">—</span>}</span>
+          {/* TCK-2918 (e8) — les créneaux passés sans clôture chez l'agence (ADR-0118 § 4). */}
+          {depassesDe(sp) > 0 ? (
+            <span data-slot="creneaux-depasses" className="block text-xs font-semibold text-destructive">
+              {tCarnet('creneauxDepasses', { count: depassesDe(sp) })}
+            </span>
+          ) : null}
+        </span>
+      ),
     },
     {
       id: 'status',
@@ -237,9 +248,64 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       headerSrOnly: true,
       align: 'end',
       className: 'align-middle',
-      cell: (sp) => gestes(sp),
+      cell: (sp) => (
+        <span className="inline-flex items-center justify-end gap-2">
+          {gestes(sp)}
+          {menuDeLigne(sp)}
+        </span>
+      ),
     },
   ];
+
+  /**
+   * TCK-2918 (e8) — « ⋯ » de ligne au bureau (maquette « Agence — carnet des prestataires ») : les gestes
+   * de la ligne, en menu. « Voir la fiche » de la maquette n'est pas rendu : aucune fiche de prestataire
+   * n'existe dans l'application (aucune route), et un lien sans destination n'en serait pas un.
+   */
+  const menuDeLigne = (sp: ServiceProviderProfileSummary) => {
+    const nom = nomDe(sp);
+    const telephone = telephoneDe(sp);
+    const brouillon = sp.status === 'draft';
+    const joignable = !brouillon && isReachable(telephone);
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<button type="button" data-slot="menu-de-ligne" aria-label={tCarnet('menu.ouvrir', { nom })} className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring" />}
+        >
+          <MoreHorizontal className="size-icone" aria-hidden="true" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {brouillon ? (
+            <>
+              <DropdownMenuItem disabled={resendMutation.isPending} onClick={() => resendMutation.mutate(sp)}>
+                <Mail aria-hidden="true" />
+                {tList('actions.resend')}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" disabled={revokeMutation.isPending} onClick={() => revokeMutation.mutate(sp)}>
+                <Ban aria-hidden="true" />
+                {tList('actions.revoke')}
+              </DropdownMenuItem>
+            </>
+          ) : joignable ? (
+            <>
+              {/* eslint-disable-next-line jsx-a11y/anchor-has-content -- base-ui rend le contenu de l'item DANS l'ancre (`render`). */}
+              <DropdownMenuItem render={<a href={telHref(telephone)} />}>
+                <Phone aria-hidden="true" />
+                {tCarnet('appeler', { nom })}
+              </DropdownMenuItem>
+              {/* eslint-disable-next-line jsx-a11y/anchor-has-content -- base-ui rend le contenu de l'item DANS l'ancre (`render`). */}
+              <DropdownMenuItem render={<a href={whatsappHref(telephone, tCarnet('messageWhatsApp', { nom }))} target="_blank" rel="noopener noreferrer" />}>
+                <IconeWhatsApp className="size-4" />
+                {tCarnet('whatsapp', { nom })}
+              </DropdownMenuItem>
+            </>
+          ) : (
+            <DropdownMenuItem disabled>{tCarnet('sansTelephone')}</DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
 
   /** Les gestes d'une ligne : relancer ou révoquer l'invitation d'un brouillon ; sinon appeler et WhatsApp. */
   const gestes = (sp: ServiceProviderProfileSummary) => {
@@ -327,6 +393,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
           {noteDe(sp)}
           <span>· {tCarnet('interventions', { count: sp.completed_interventions_count ?? 0 })}</span>
           {dureeDe(sp) ? <span>· {tCarnet('repondEn', { duree: dureeDe(sp) as string })}</span> : null}
+          {depassesDe(sp) > 0 ? <span data-slot="creneaux-depasses" className="font-semibold text-destructive">· {tCarnet('creneauxDepasses', { count: depassesDe(sp) })}</span> : null}
         </p>
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
           <span className="min-w-0 text-base tabular-nums">{telephone ? formaterTelephone(telephone) : tCarnet('sansTelephone')}</span>
@@ -336,7 +403,10 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
     );
   };
 
-  const metiersPresents = [...new Set(tous.flatMap(metiersDe))];
+  // TCK-2918 (e8) — les pastilles de métier portent leur compte : `meta.trade_counts` (le carnet entier,
+  // ADR-0118 § 4) ; à défaut, les métiers de la page reçue, sans compte.
+  const comptesDesMetiers = providersQuery.data?.meta?.trade_counts ?? null;
+  const metiersPresents = comptesDesMetiers ? Object.keys(comptesDesMetiers) : [...new Set(tous.flatMap(metiersDe))];
   const compte = (statut: ServiceProviderProfileStatus) => tous.filter((sp) => sp.status === statut).length;
   const sousTitre = [tCarnet('actifs', { count: compte('active') }), compte('draft') > 0 ? tCarnet('invitations', { count: compte('draft') }) : null].filter(Boolean).join(' · ');
 
@@ -380,7 +450,11 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
                 className={cn('inline-flex h-11 flex-none items-center gap-1.5 rounded-full border px-4 text-base font-medium whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring', metier === m ? 'border-foreground bg-foreground text-background' : 'border-border bg-card')}
               >
                 {m === null ? tCarnet('filtres.tous') : translateTrade(tCategories, m)}
-                {m === null ? <span className="opacity-70 tabular-nums">{tous.length}</span> : null}
+                {m === null ? (
+                  <span className="opacity-70 tabular-nums">{tous.length}</span>
+                ) : comptesDesMetiers?.[m] !== undefined ? (
+                  <span className="opacity-70 tabular-nums">{comptesDesMetiers[m]}</span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -495,6 +569,11 @@ const TON_DU_STATUT: Record<ServiceProviderProfileStatus, NonNullable<ComponentP
  * TCK-2834 — une invitation à un prestataire déjà inscrit ailleurs n'a pas d'`id` de profil : sa clé
  * est celle de l'invitation.
  */
+/** TCK-2918 (e8) — les créneaux dépassés chez l'agence du carnet (0 quand l'API n'en sert pas). */
+function depassesDe(sp: ServiceProviderProfileSummary): number {
+  return sp.overdue_slots_count ?? 0;
+}
+
 function cleDeLigne(sp: ServiceProviderProfileSummary): string | number {
   return sp.id ?? `invitation-${sp.pending_invitation_id ?? ''}`;
 }

@@ -15,9 +15,9 @@ export const MIN_PARTICIPANTS = 2; // creator + 2 others = 3 total
 export const MAX_PARTICIPANTS = 19; // creator + 19 = 20 total
 
 /**
- * TCK-2748 — la création d'un groupe, UNE fois, pour ses deux formulaires : `NewGroupDialog` (deux
- * étapes, au téléphone et entre `md` et `lg`) et le mode « groupe » de `NouvelleConversation` au
- * bureau (un seul formulaire, maquette a-3). L'état (personnes, nom, bien, bail), la cohérence du
+ * TCK-2748 — la création d'un groupe, UNE fois, pour le mode « groupe » de `NouvelleConversation`,
+ * aux deux formats depuis TCK-2861 (maquette a-3 ; `NewGroupDialog`, son autre formulaire, est retiré
+ * par TCK-2860). L'état (personnes, nom, bien, bail), la cohérence du
  * bien et du bail, les bornes, et l'envoi `POST /api/conversations` (`type: group`) avec les phrases
  * de l'API par problème (M13).
  */

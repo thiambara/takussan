@@ -7,6 +7,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Payments\NextDueNotice;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Payments\RentMonthStatus;
 use App\Services\Reporting\OverdueInstalment;
@@ -27,6 +28,9 @@ use Illuminate\Support\Collection;
  *   (`Lease::scopeVisibleTo`, la clause de `GET /api/leases`) ; absents sinon. Vacant : `null`.
  *   Un bien hors location AVEC un bail courant garde ces blocs : le bail est un fait, et le retard
  *   de son loyer compte dans `filter[rent_late]` (TCK-2638, décision du porteur Q2a).
+ * - `next_due_notice_date` (TCK-2915) : la date du prochain avis d'échéance du bail courant (le
+ *   rappel J-3, {@see NextDueNotice}) — sous la même condition que `lease` ; `null` pour un bien
+ *   vacant ou un bail sans avis à venir. Une requête de plus pour la page.
  *
  * `current_month` lit les échéances de loyer du mois ({@see RentMonthStatus::ofMonth()}) : l'état
  * est celui du relevé du bailleur ({@see RentMonthStatus::of()}), et `amount_due` /
@@ -58,6 +62,8 @@ final class PropertyOccupancy
             ->get()
             ->each(fn (LeasePayment $p) => $p->setRelation('lease', $readable->get($p->lease_id)))
             ->groupBy('lease_id');
+        // TCK-2915 — la prochaine échéance est souvent celle du mois SUIVANT : lue à part, une requête.
+        $notices = NextDueNotice::forLeases(array_map('intval', $readable->modelKeys()));
         $lastEnds = Occupation::lastEnds(array_values(array_diff($ids, $leases->keys()->all())));
         $today = OverdueInstalment::today();
 
@@ -76,9 +82,11 @@ final class PropertyOccupancy
                     : null,
             ];
             if ($lease === null) {
-                $block += ['lease' => null, 'tenant' => null, 'rent' => null, 'current_month' => null];
+                $block += ['lease' => null, 'tenant' => null, 'rent' => null, 'current_month' => null, 'next_due_notice_date' => null];
             } elseif (isset($visible[$lease->id])) {
-                $block += $this->leaseBlocks($lease, $dues->get($lease->id, collect()), $today);
+                $block += $this->leaseBlocks($lease, $dues->get($lease->id, collect()), $today) + [
+                    'next_due_notice_date' => isset($notices[$lease->id]) ? CarbonImmutable::parse($notices[$lease->id]) : null,
+                ];
             }
             $property->setOccupancyBlock($block);
         }

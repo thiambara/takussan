@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 
 import { Logo, SymboleTakussan } from '@/components/brand/Logo';
 import { BoutonFlecheDeRetour } from '@/components/navigation-publique/FlecheDeRetour';
+import { delaiDeReponse } from '@/lib/fiche-publique';
 import { formatMontant } from '@/lib/format/currency';
 import type { BienQuitte } from '@/lib/queries/bien-quitte';
 import { cn } from '@/lib/utils';
@@ -16,7 +17,7 @@ import type { ActionDEntree } from './lien-connexion';
 /**
  * TCK-2604 — ce que le visiteur était en train de faire, dit par l'écran de connexion (maquette
  * `app-entree-connexion`, approche a) : la photo du bien quitté en tête du téléphone, sa barre sur
- * l'écran du code, et au bureau le panneau de gauche.
+ * l'écran du code, et au bureau le panneau de gauche (dès 1024, TCK-2936).
  *
  * L'action vient d'une liste FERMÉE (`ACTIONS_D_ENTREE`) ; le bien, de la lecture partagée de la
  * fiche (`bienQuitte`, côté serveur). Aucun texte de l'URL n'est affiché tel quel.
@@ -29,8 +30,14 @@ export interface IntentionAffichee {
   readonly dates: { readonly debut: string; readonly fin: string | null } | null;
 }
 
-/** Le prix et sa période (« 250 000 F CFA / mois »), puis les dates du geste quand elles sont connues. */
-function useDetailsDuBien(intention: IntentionAffichee): { readonly prix: string | null; readonly date: string | null } {
+/**
+ * Le prix et sa période (« 250 000 F CFA / mois »), puis les dates du geste quand elles sont connues.
+ *
+ * TCK-2936 — une demande de VISITE porte un jour, pas un séjour : l'en-tête du téléphone dit le jour nu
+ * (« · dimanche 15 nov. »), le panneau du bureau « Visite demandée pour dimanche 15 nov. » (maquette
+ * `EnTeteBien`, `PanneauBien`). Sans `debut` dans la page à rouvrir, aucune date — jamais inventée.
+ */
+function useDetailsDuBien(intention: IntentionAffichee): { readonly prix: string | null; readonly date: string | null; readonly dateDuPanneau: string | null } {
   const t = useTranslations('auth.porte');
   const format = useFormatter();
   const bien = intention.bien;
@@ -39,22 +46,26 @@ function useDetailsDuBien(intention: IntentionAffichee): { readonly prix: string
   const jour = (valeur: string) =>
     format.dateTime(new Date(`${valeur}T12:00:00Z`), { weekday: 'long', day: 'numeric', month: 'short' });
   const dates = intention.dates;
+  if (dates && intention.action === 'visite') {
+    return { prix, date: jour(dates.debut), dateDuPanneau: t('dates.visiteDemandee', { debut: jour(dates.debut) }) };
+  }
   const date = dates
     ? dates.fin
       ? t('dates.du', { debut: jour(dates.debut), fin: jour(dates.fin) })
       : t('dates.aPartirDu', { debut: jour(dates.debut) })
     : null;
-  return { prix, date };
+  return { prix, date, dateDuPanneau: date };
 }
 
 /**
- * TCK-2604 — le titre de la barre du bureau entre 1024 et 1280 (« Votre demande de visite · Studio
- * meublé à Mermoz ») : le panneau, qui dit le bien dès 1280, n'y paraît pas, et l'en-tête du
- * téléphone s'arrête à 1024. Sans bien, `undefined` : la page déclare l'action seule.
+ * TCK-2936 — « Avec Dakar Immo · réponse en 2 h environ » : le délai suit l'arrondi de la fiche publique
+ * d'agence (`delaiDeReponse` de `@/lib/fiche-publique`, celui qu'elle importe) ; `null`, l'agence seule.
  */
-export function useTitreDeLaBarre(intention: (IntentionAffichee & { readonly bien: BienQuitte }) | null): string | undefined {
+function useAgenceEtDelai(bien: BienQuitte): string | null {
   const t = useTranslations('auth.porte');
-  return intention ? `${t(`actions.${intention.action}.titre`)} · ${intention.bien.titre}` : undefined;
+  if (!bien.agence) return null;
+  const delai = delaiDeReponse(bien.delaiMinutes);
+  return delai ? t(`avecAgenceEtDelai.${delai.unite}`, { agence: bien.agence, n: delai.valeur }) : t('avecAgence', { agence: bien.agence });
 }
 
 /** L'icône du geste : un dossier pour une candidature, le calendrier de la maquette pour le reste. */
@@ -135,16 +146,17 @@ export function BarreDuBien({
 /** Bureau, écran du numéro : le bien en grand, à gauche — lui, pas une villa à piscine (`PanneauBien`). */
 export function PanneauDuBien({ intention }: { readonly intention: IntentionAffichee & { readonly bien: BienQuitte } }) {
   const t = useTranslations('auth.porte');
-  const { prix, date } = useDetailsDuBien(intention);
+  const { prix, dateDuPanneau: date } = useDetailsDuBien(intention);
+  const agence = useAgenceEtDelai(intention.bien);
   return (
     <div className="relative h-full">
       <Photo bien={intention.bien} sizes="45vw" />
       <div className="absolute inset-0 bg-gradient-to-t from-scrim/60 via-scrim/10 to-transparent" aria-hidden="true" />
-      <div className="absolute inset-x-6 bottom-6 rounded-2xl bg-card p-5 shadow-[0_18px_40px_-18px_color-mix(in_oklab,var(--shadow-color)_55%,transparent)] xl:inset-x-auto xl:bottom-10 xl:left-10 xl:w-[23.75rem]">
+      <div className="absolute inset-x-6 bottom-6 rounded-2xl bg-card p-5 shadow-[0_18px_40px_-18px_color-mix(in_oklab,var(--shadow-color)_55%,transparent)] lg:inset-x-auto lg:bottom-10 lg:left-10 lg:w-[23.75rem]">
         <p className="text-xs font-semibold uppercase tracking-[0.1em] text-primary">{t(`actions.${intention.action}.titre`)}</p>
         <p className="mt-2 font-display text-[22px] font-semibold leading-tight tracking-[-0.01em]">{intention.bien.titre}</p>
         {prix ? <p className="mt-1 font-display text-lg font-semibold tabular-nums text-primary-deep">{prix}</p> : null}
-        {date || intention.bien.agence ? (
+        {date || agence ? (
           <div className="mt-4 space-y-2.5 border-t border-border pt-4 text-sm">
             {date ? (
               <p className="flex items-center gap-2.5">
@@ -152,11 +164,11 @@ export function PanneauDuBien({ intention }: { readonly intention: IntentionAffi
                 {date}
               </p>
             ) : null}
-            {/* Le délai de réponse de la maquette (« réponse en 2 h environ ») n'est mesuré nulle part : l'agence seule. */}
-            {intention.bien.agence ? (
-              <p className="flex items-center gap-2.5">
+            {/* TCK-2936 — le délai de réponse de l'agence (TCK-2935), quand il est mesuré. */}
+            {agence ? (
+              <p data-agence-du-bien="" className="flex items-center gap-2.5">
                 <Building2 className="size-4 flex-none text-accent" strokeWidth={1.75} aria-hidden="true" />
-                {t('avecAgence', { agence: intention.bien.agence })}
+                {agence}
               </p>
             ) : null}
           </div>

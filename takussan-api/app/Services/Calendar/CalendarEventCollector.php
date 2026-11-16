@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-591 — les événements d'agenda d'un utilisateur, pour la console (`GET /api/calendar`) et pour
@@ -140,7 +141,7 @@ class CalendarEventCollector
         $events = collect();
 
         if (in_array('booking', $types, true)) {
-            $events = $events->merge($this->bookings($start, $end, $restrict));
+            $events = $events->merge($this->bookings($start, $end, $restrict, $isAdmin, $staffAgencyIds));
         }
         if (in_array('visit', $types, true)) {
             $events = $events->merge($this->visits($start, $end, $restrict, $mine, $userId, $isAdmin, $staffAgencyIds));
@@ -188,8 +189,16 @@ class CalendarEventCollector
         });
     }
 
-    /** @return Collection<int, array<string, mixed>> */
-    private function bookings(Carbon $start, Carbon $end, \Closure $restrict): Collection
+    /**
+     * TCK-2886 — un séjour dit aussi qui séjourne (`customer_name`) et où est le bien
+     * (`neighborhood`). Le quartier sort à tout lecteur de l'événement (le bailleur lit celui de son
+     * bien) ; le nom du client, au super-admin et au PERSONNEL de l'agence du bien seulement, même
+     * règle que `visitor_name` (TCK-2585). Fiche et adresse : chargées en groupe, pas par séjour.
+     *
+     * @param  list<int>  $staffAgencyIds
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function bookings(Carbon $start, Carbon $end, \Closure $restrict, bool $isAdmin = false, array $staffAgencyIds = []): Collection
     {
         // TCK-2735 (ADR-0102 § 3) — une barre de séjour n'est qu'un séjour : ni candidature ni offre.
         $query = Booking::query()
@@ -199,7 +208,7 @@ class CalendarEventCollector
             ->whereDate('end_date', '>=', $start);
         $restrict($query);
 
-        return $query->with('property:id,title,slug')->get()->map(fn (Booking $b) => [
+        return $query->with(['property:id,title,slug,agency_id', 'property.address', 'customer:id,first_name,last_name'])->get()->map(fn (Booking $b) => [
             'key' => "booking-{$b->id}",
             'id' => $b->id,
             'type' => 'booking',
@@ -212,7 +221,28 @@ class CalendarEventCollector
             'property_id' => $b->property_id,
             'property_slug' => $b->property?->slug,
             'resource_url' => "/app/bookings/{$b->id}",
-        ]);
+            // TCK-2886 — le quartier du bien, à tout lecteur de l'événement.
+            'neighborhood' => $b->property?->address?->neighborhood,
+        ] + self::stayer($b, $isAdmin, $staffAgencyIds));
+    }
+
+    /**
+     * TCK-2886 — le nom du client d'un séjour, pour le personnel de l'agence du bien ; aucune clé
+     * pour tout autre lecteur.
+     *
+     * @param  list<int>  $staffAgencyIds
+     * @return array{customer_name?: ?string}
+     */
+    private static function stayer(Booking $b, bool $isAdmin, array $staffAgencyIds): array
+    {
+        $agencyId = $b->property?->agency_id;
+        if (! $isAdmin && ($agencyId === null || ! in_array((int) $agencyId, $staffAgencyIds, true))) {
+            return [];
+        }
+
+        $name = $b->customer !== null ? trim($b->customer->first_name.' '.$b->customer->last_name) : '';
+
+        return ['customer_name' => $name !== '' ? $name : null];
     }
 
     /**
@@ -235,9 +265,25 @@ class CalendarEventCollector
             $query->where('agent_id', $userId);
         }
 
+        // TCK-2886 — le rang de la visite (« 1re visite ») : sa place parmi les visites non annulées
+        // du même client sur le même bien, par date puis id, sur tout l'historique (une visite faite
+        // avant la fenêtre compte). Une sous-requête corrélée dans la même requête — l'équivalent
+        // d'un `row_number()` partitionné, servi par l'index `(property_id, scheduled_at)` au lieu
+        // d'une fenêtre calculée sur toute la table ; nul sans client (lu plus bas).
+        $query->select('property_visits.*')->selectSub(
+            DB::table('property_visits as earlier')
+                ->selectRaw('count(*)')
+                ->whereColumn('earlier.property_id', 'property_visits.property_id')
+                ->whereColumn('earlier.customer_id', 'property_visits.customer_id')
+                ->where('earlier.status', '!=', VisitStatus::Cancelled->value)
+                ->whereRaw('(earlier.scheduled_at, earlier.id) <= (property_visits.scheduled_at, property_visits.id)'),
+            'visit_rank',
+        );
+
         // TCK-2585 — l'agence du bien, son adresse et la fiche : en trois requêtes pour la fenêtre.
         return $query->with(['property:id,title,slug,agency_id', 'property.address', 'customer:id,first_name,last_name'])->get()->map(function (PropertyVisit $v) use ($isAdmin, $staffAgencyIds) {
             $terrain = self::terrain($v, $isAdmin, $staffAgencyIds);
+            $rank = $v->customer_id !== null ? (int) $v->getAttribute('visit_rank') : null;
             $startAt = $v->scheduled_at;
             $endAt = $startAt && $v->duration_minutes
                 ? $startAt->copy()->addMinutes((int) $v->duration_minutes)
@@ -269,6 +315,7 @@ class CalendarEventCollector
                     'property_id' => $v->property_id,
                     'property_slug' => $v->property?->slug,
                     'resource_url' => "/app/visits/{$v->id}",
+                    'visit_rank' => $rank,
                 ] + $terrain;
             }
 
@@ -286,6 +333,7 @@ class CalendarEventCollector
                 'property_id' => $v->property_id,
                 'property_slug' => $v->property?->slug,
                 'resource_url' => "/app/visits/{$v->id}",
+                'visit_rank' => $rank,
             ] + $terrain;
         });
     }

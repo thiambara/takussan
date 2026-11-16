@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ConversationContextController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationParticipantController;
+use App\Http\Controllers\Api\ConversationReportController;
 use App\Http\Controllers\Api\MessagingContactController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,10 +41,17 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['throttle:conversation-message', 'idempotent'])
         ->name('conversations.messages.store');
     Route::put('conversations/{conversation}/read', [ConversationController::class, 'markAsRead'])->name('conversations.read');
+    // TCK-2859 (ADR-0114 § 1) — remettre le fil en non lu pour le lecteur.
+    Route::put('conversations/{conversation}/unread', [ConversationController::class, 'markAsUnread'])->name('conversations.unread');
     Route::put('conversations/{conversation}/archive', [ConversationController::class, 'archive'])->name('conversations.archive');
     Route::put('conversations/{conversation}/unarchive', [ConversationController::class, 'unarchive'])->name('conversations.unarchive');
 
-    // TCK-085 — group participant management
+    // TCK-2859 (ADR-0114 § 2) — un participant signale le fil, une fois.
+    Route::post('conversations/{conversation}/reports', [ConversationReportController::class, 'store'])
+        ->name('conversations.reports.store');
+
+    // TCK-085 — group participant management. TCK-2859 (ADR-0114 § 3) — sur un fil direct, l'ajout
+    // crée un groupe neuf et rend ce groupe.
     Route::post('conversations/{conversation}/participants', [ConversationParticipantController::class, 'store'])
         ->name('conversations.participants.store');
     Route::delete('conversations/{conversation}/participants/{user}', [ConversationParticipantController::class, 'destroy'])

@@ -96,7 +96,9 @@
   "zones": [],
   "alias": {
     "Appeler": "Appeler Aliou Toure",
-    "WhatsApp": "Écrire à Aliou Toure sur WhatsApp"
+    "WhatsApp": "Écrire à Aliou Toure sur WhatsApp",
+    "virement": "Virement bancaire",
+    "devis attendu": "Devis demandé"
   },
   "ancres": [],
   "ignorer": [],
@@ -117,17 +119,10 @@
     },
     {
       "ecran": "app-biens a-2-*",
-      "element": "pastille « Validé »",
-      "propriete": "pastille absente",
-      "exception": "donnée",
-      "motif": "l'API rend un seul `status`, qui porte à la fois l'état locatif et la modération (TCK-1268) : aucun champ ne dit « Validé » à part de « Loué »"
-    },
-    {
-      "ecran": "app-biens a-2-*",
-      "element": "« Révision possible le … », « avis d'échéance le 28 nov. », « · Wave · quittance envoyée », « 1 collaborateur », « 1 intervention en cours » (bureau), « 3 mois » de préavis",
+      "element": "« · quittance envoyée » de l'historique des loyers, « 3 mois » de préavis",
       "propriete": "lignes absentes",
       "exception": "donnée",
-      "motif": "l'API ne sert ni la date de révision, ni la date d'avis d'échéance, ni le moyen de paiement dans l'historique de la fiche, ni le compte de collaborateurs ; le préavis du bail de la démo est vide (« — ») ; sans intervention en cours, la ligne n'a pas d'objet. La ligne « octobre payé le … » est rendue quand la période d'avant est réglée (`precedentRegle`)"
+      "motif": "TCK-2908 a levé « Validé » (`approved_at`), « Révision possible le … » (`next_revision_date`), « avis d'échéance le … » (`occupancy.next_due_notice_date`, rendu quand il précède le prochain loyer), le moyen de paiement de chaque échéance payée (« Reçu le 29 oct. · Wave »), « Agent principal · 1 collaborateur » et la carte « 1 intervention en cours » (`maintenance_summary`, bureau, liée à l'intervention). Restent : l'envoi de la quittance, que l'historique de la fiche ne sert pas ; le préavis du bail de la démo, vide (« — »). La ligne « octobre payé le … » est rendue quand la période d'avant est réglée (`precedentRegle`)"
     },
     {
       "ecran": "app-biens a-2-bureau-*",
@@ -233,6 +228,13 @@
       "propriete": "couleur de l'icône `muted-foreground` (#6e655a) au lieu de `foreground` à 70 % (≈ #5e5850 sur `muted`)",
       "exception": "accessibilité",
       "motif": "une encre translucide neuve est refusée par `encre-sans-alpha.contraste.test.ts` (TCK-658, WCAG 2.2 § 1.4.3) : le jeton plein de toutes les icônes de ligne du produit la remplace"
+    },
+    {
+      "ecran": "app-biens a-2-bureau-*",
+      "element": "« 1 intervention en cours » dans la carte de l'agent",
+      "propriete": "une carte à part sous celle de l'agent",
+      "exception": "technique",
+      "motif": "TCK-2908 : la ligne de l'agent (`BlocResponsable`) n'est rendue que pour un bien en location dont l'API dit l'agent ; l'intervention en cours vaut pour tout bien et sur tous les onglets — elle a sa carte, sous la précédente, même ligne (icône, titre, détail, chevron)"
     }
   ],
   "hors_perimetre": [

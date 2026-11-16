@@ -15,5 +15,7 @@ enum DocumentType: string
     // TCK-257 — owner KYC documents (RIB scan + NINEA tax ID).
     case Rib = 'rib';
     case Ninea = 'ninea';
+    // TCK-2909 — le mandat de gestion signé, déposé par l'agence sur le profil du bailleur.
+    case ManagementMandate = 'management_mandate';
     case Other = 'other';
 }

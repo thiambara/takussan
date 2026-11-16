@@ -3,9 +3,10 @@ import { getTranslations } from 'next-intl/server';
 
 import { PageHeader } from '@/components/console';
 import { ActionDeLOnglet, FournisseurDActionDOnglet } from '@/components/rapports/ActionDeLOnglet';
+import { ChoixDeLAgence } from '@/components/rapports/ChoixDeLAgence';
 import { ChoixDeLaPeriode } from '@/components/rapports/ChoixDeLaPeriode';
 import { OngletsDesRapports } from '@/components/rapports/OngletsDesRapports';
-import { DescriptionDesRapports, ExporterLeRapport } from '@/components/rapports/TeteDesRapports';
+import { DescriptionDesRapports, ExporterLeRapport, PlusDActionsDesRapports } from '@/components/rapports/TeteDesRapports';
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
 import { messagesPour } from '@/i18n/messages';
@@ -13,7 +14,7 @@ import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { ongletsDesRapports } from '@/lib/navigation/rapports';
 import type { ContexteServeurDesRapports } from '@/lib/rapports/contexte-serveur';
 import { garderLesRapports } from '@/lib/rapports/gardes-serveur';
-import { bornesLisibles, moisCourant, moisPrecedent } from '@/lib/rapports/periode';
+import { bornesLisibles, douzeDerniersMois, moisCourant, moisPrecedent } from '@/lib/rapports/periode';
 import { getToken } from '@/lib/session';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -41,7 +42,13 @@ export default async function Layout({ children }: { readonly children: React.Re
   // TCK-2791 — la description de la vue d'ensemble sous « Mois dernier » (la tête la choisit d'après l'adresse).
   const precedent = moisPrecedent();
   const periodeMoisDernier = t('descriptionPeriode', bornesLisibles(precedent.debut, precedent.fin, locale));
+  // TCK-2867 — « 12 mois » : du 1er du mois d'il y a onze mois à la fin du mois en cours.
+  const douze = douzeDerniersMois();
+  const periodeDouzeMois = t('descriptionPeriode', bornesLisibles(douze.debut, douze.fin, locale));
   const personnel = contexte.persona === 'admin-agence' || contexte.persona === 'plateforme';
+  // TCK-2867 — « Agence ▾ » : la portée de l'admin d'agence (maquette e0), le nom de l'espace actif.
+  const choixDeLAgence = contexte.persona === 'admin-agence' && nomDeLAgence ? nomDeLAgence : null;
+  const exporter = ids.includes('exports') ? t('exporter') : null;
   return (
     <IntlProvider messages={await messagesPour('(dashboard)/app/reports')}>
       <FournisseurDActionDOnglet>
@@ -61,14 +68,16 @@ export default async function Layout({ children }: { readonly children: React.Re
                 nomDeLAgence={contexte.persona === 'agent' ? nomDeLAgence : null}
                 periode={periode}
                 periodeMoisDernier={periodeMoisDernier}
+                periodeDouzeMois={periodeDouzeMois}
               />
             }
             actions={
               <>
+                {choixDeLAgence ? <ChoixDeLAgence nom={choixDeLAgence} variante="tete" /> : null}
                 {/* TCK-2791 — « Ce mois ▾ » : rendu sur la vue d'ensemble seulement (le composant le juge). */}
                 <ChoixDeLaPeriode variante="menu" />
                 {/* TCK-2629 (O10) — l'action de tête de l'onglet : « + Nouvelle alerte » sur Alertes, « Exporter » ailleurs. */}
-                <ActionDeLOnglet exporter={ids.includes('exports') ? <ExporterLeRapport libelle={t('exporter')} /> : null} />
+                <ActionDeLOnglet exporter={exporter ? <ExporterLeRapport libelle={exporter} /> : null} />
               </>
             }
             dessous={
@@ -79,6 +88,8 @@ export default async function Layout({ children }: { readonly children: React.Re
               />
             }
           />
+          {/* TCK-2867 — au téléphone, « ⋯ › Exporter » dans l'en-tête de la coque. */}
+          <PlusDActionsDesRapports exporter={exporter} />
           {children}
         </div>
       </FournisseurDActionDOnglet>

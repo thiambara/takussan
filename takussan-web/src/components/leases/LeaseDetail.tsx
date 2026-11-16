@@ -23,6 +23,7 @@ import {
   Trash2,
   TrendingUp,
   Wallet,
+  Wrench,
 } from 'lucide-react';
 
 import { PageHeader, StatusBadge, type StatusTone } from '@/components/console';
@@ -32,6 +33,7 @@ import { BoutonTelechargement } from '@/components/documents/BoutonTelechargemen
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { ErreurDeLecture, ErrorState } from '@/components/feedback';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
 import { detailMontantDu } from '@/components/payments/montant-du';
@@ -63,7 +65,7 @@ import { LeaseRenewalDialog } from './LeaseRenewalDialog';
 import { LeaseSchedule, ordreDeLEcheancier } from './LeaseSchedule';
 import { LeaseSignaturePanel } from './LeaseSignaturePanel';
 import { AbandonnerLeBrouillon } from './fiche/AbandonnerLeBrouillon';
-import { CarteCaution, CarteDuree, CarteLoyer } from './fiche/CartesDuBail';
+import { CarteCaution, CarteDuree, CarteLoyer, totalDuDeLEcheance } from './fiche/CartesDuBail';
 import { useRelanceDeLaFiche } from './fiche/RelanceDuLoyer';
 import { FeuilleDeRevision } from './fiche/FeuilleDeRevision';
 import { FeuilleDesGarants, nomDuGarant, useEtatDeLaPiece } from './fiche/FeuilleDesGarants';
@@ -408,11 +410,13 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
     </Carte>
   );
 
-  const principalProps = { lease, geste: principal, fournisseurs, onEncaisser: (id: number | null) => setEncaisser({ paiement: id }) };
+  const principalProps = { lease, geste: principal, paiements, fournisseurs, onEncaisser: (id: number | null) => setEncaisser({ paiement: id }) };
 
   return (
     <PagePleineLargeur data-slot="fiche-du-bail" className="max-md:pb-6">
       <DeclarerEnTete forme="detail" titre={titre} repli="/app/leases" actions={actionsDeLEnTete} />
+      {/* TCK-2846 — la fiche entre dans les récents sous son titre (« Bail de Moussa Diallo »). */}
+      <RetenirLaFiche type="bail" id={lease.id} titre={titre} chemin={`/app/leases/${lease.id}`} />
 
       <div className="max-md:hidden">
         <PageHeader
@@ -434,8 +438,17 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
             <Tabs value={onglet} onValueChange={(v) => choisirOnglet(v as Onglet)}>
               <TabsList variant="line" aria-label={t('onglets.libelle')}>
                 <TabsTrigger value="dossier">{t('onglets.dossier')}</TabsTrigger>
-                <TabsTrigger value="documents">{t('onglets.documents')}</TabsTrigger>
-                {historique ? <TabsTrigger value="historique">{t('onglets.historique')}</TabsTrigger> : null}
+                {/* TCK-2912 — maquette a-1 : « Documents 6 », « Historique 14 » (le compte servi par TCK-2906). */}
+                <TabsTrigger value="documents" aria-label={typeof lease.documents_count === 'number' ? t('onglets.documentsCompte', { n: lease.documents_count }) : undefined}>
+                  {t('onglets.documents')}
+                  <CompteDOnglet n={lease.documents_count} />
+                </TabsTrigger>
+                {historique ? (
+                  <TabsTrigger value="historique" aria-label={typeof lease.history_count === 'number' ? t('onglets.historiqueCompte', { n: lease.history_count }) : undefined}>
+                    {t('onglets.historique')}
+                    <CompteDOnglet n={lease.history_count} />
+                  </TabsTrigger>
+                ) : null}
               </TabsList>
             </Tabs>
           }
@@ -633,27 +646,40 @@ function aRegler(paiements: readonly LeasePayment[] | undefined): boolean {
 function BoutonPrincipal({
   lease,
   geste,
+  paiements,
   fournisseurs,
   onEncaisser,
   pleineLargeur,
 }: {
   readonly lease: LeaseWithRelations;
   readonly geste: GestePrincipal | null;
+  /** TCK-2912 — l'échéance que « Encaisser » vise s'y lit, pour en dire le montant dû. */
+  readonly paiements?: readonly LeasePayment[];
   readonly fournisseurs: ReturnType<typeof usePaymentProviders>['providers'];
   readonly onEncaisser: (paiement: number | null) => void;
   readonly pleineLargeur?: boolean;
 }) {
   const t = useTranslations('lease.fiche.gestes');
+  const f = useFormatteurs();
   if (!geste) return null;
   const largeur = pleineLargeur ? 'w-full' : undefined;
   switch (geste.type) {
-    case 'encaisser':
+    case 'encaisser': {
+      // TCK-2912 — maquette a-1 : « Encaisser 1 422 750 F », le total dû de l'échéance visée (loyer
+      // restant + pénalité, le « total » de la carte Loyer) ; sans échéance visée, « Encaisser » seul.
+      const visee = geste.paiement !== null ? (paiements?.find((p) => p.id === geste.paiement) ?? null) : null;
+      const du = visee ? totalDuDeLEcheance(visee) : 0;
       return (
         <Button type="button" className={largeur} onClick={() => onEncaisser(geste.paiement)} data-testid="geste-principal">
           <Wallet className="size-4" strokeWidth={1.75} aria-hidden="true" />
-          {t('encaisser')}
+          {visee && du > 0 ? (
+            <span className="tabular-nums">{t('encaisserMontant', { montant: f.montantCourt(du, visee.currency) })}</span>
+          ) : (
+            t('encaisser')
+          )}
         </Button>
       );
+    }
     case 'envoyer-signature':
       return geste.bloque ? (
         <Button type="button" className={largeur} disabled data-testid="geste-principal">
@@ -861,6 +887,7 @@ function DossierDuBail({
   );
   const clauses = [lease.terms ? tLease('terms') : null, lease.special_conditions ? tLease('specialConditions') : null].filter(Boolean);
   const etatDeLaPiece = useEtatDeLaPiece();
+  const resume = lease.maintenance_summary ?? null;
 
   return (
     <Carte className="overflow-hidden [&>[data-slot=ligne-de-liste]:last-child]:border-b-0" data-testid="dossier-du-bail">
@@ -899,6 +926,21 @@ function DossierDuBail({
           ) : undefined
         }
       />
+      {/* TCK-2912 — maquette a-1 (téléphone ET bureau) : « Interventions (3) » · « 1 en cours · rideau
+          métallique », vers la liste des interventions du bail. Rien sans intervention. */}
+      {resume && resume.total > 0 ? (
+        <LigneDeListe
+          href={`/app/maintenance?filter[lease_id]=${lease.id}`}
+          chevron
+          debut={icone(Wrench)}
+          titre={t('interventions', { n: resume.total })}
+          detail={
+            resume.open > 0
+              ? [t('interventionsEnCours', { n: resume.open }), resume.latest_open?.title?.trim() || null].filter(Boolean).join(' · ')
+              : t('interventionsAucuneEnCours')
+          }
+        />
+      ) : null}
       {clauses.length > 0 ? (
         <>
           <LigneDeListe
@@ -942,5 +984,15 @@ function DossierDuBail({
       ) : null}
       <LigneDeListe className="md:hidden" debut={icone(FolderOpen)} titre={t('documents')} detail={t('documentsDetail')} chevron onClick={onDocuments} />
     </Carte>
+  );
+}
+
+/** TCK-2912 — le compte d'un onglet (maquette `OngletsSoulignes` : 12 px, chiffres tabulaires, encre discrète). */
+function CompteDOnglet({ n }: { readonly n: number | undefined }) {
+  if (typeof n !== 'number') return null;
+  return (
+    <span className="ml-1.5 text-xs tabular-nums text-muted-foreground" aria-hidden="true">
+      {n}
+    </span>
   );
 }

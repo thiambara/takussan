@@ -136,28 +136,38 @@ class ProspectMatcher
         return $query;
     }
 
-    /** @return Builder<Customer> les prospects de l'agence du bien auxquels il correspond */
-    public function customersFor(Property $property): Builder
+    /**
+     * TCK-2855 — les fiches qu'un rapprochement peut servir : actives, ni gagnées ni perdues, avec au
+     * moins un critère (un prospect sans critère ne correspond à rien, cf. docblock). Extrait de
+     * {@see self::customersFor()} pour que « Ma journée » choisisse ses candidats par la même règle.
+     *
+     * @param  Builder<Customer>  $query
+     * @return Builder<Customer>
+     */
+    public static function whereMatchable(Builder $query): Builder
     {
-        $query = Customer::query()
-            ->where('customers.agency_id', $property->agency_id)
+        return $query
             ->where('customers.status', CustomerStatus::Active)
             ->where(fn (Builder $q) => $q
                 ->whereNull('customers.pipeline_stage')
-                ->orWhereNotIn('customers.pipeline_stage', [CustomerPipelineStage::Converted, CustomerPipelineStage::Lost]));
+                ->orWhereNotIn('customers.pipeline_stage', [CustomerPipelineStage::Converted, CustomerPipelineStage::Lost]))
+            ->where(function (Builder $q) {
+                foreach (self::CRITERIA as $column) {
+                    in_array($column, ['seeking_property_types', 'seeking_cities', 'seeking_neighborhoods'], true)
+                        ? $q->orWhereRaw("jsonb_array_length(COALESCE(customers.{$column}, '[]'::jsonb)) > 0")
+                        : $q->orWhereNotNull("customers.{$column}");
+                }
+            });
+    }
+
+    /** @return Builder<Customer> les prospects de l'agence du bien auxquels il correspond */
+    public function customersFor(Property $property): Builder
+    {
+        $query = self::whereMatchable(Customer::query()->where('customers.agency_id', $property->agency_id));
 
         if ($property->agency_id === null || in_array($property->status, self::UNOFFERABLE_STATUSES, true)) {
             return $query->whereRaw('1 = 0');
         }
-
-        // Au moins un critère : un prospect sans critère ne correspond à rien (cf. docblock).
-        $query->where(function (Builder $q) {
-            foreach (self::CRITERIA as $column) {
-                in_array($column, ['seeking_property_types', 'seeking_cities', 'seeking_neighborhoods'], true)
-                    ? $q->orWhereRaw("jsonb_array_length(COALESCE(customers.{$column}, '[]'::jsonb)) > 0")
-                    : $q->orWhereNotNull("customers.{$column}");
-            }
-        });
 
         $value = fn ($v) => $v instanceof \BackedEnum ? $v->value : $v;
 

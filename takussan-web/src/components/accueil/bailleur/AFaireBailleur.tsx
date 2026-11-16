@@ -6,14 +6,15 @@ import { useTranslations } from 'next-intl';
 import { CalendarCheck, ChevronRight, FileText, MessageSquareReply, Wallet } from 'lucide-react';
 
 import { LigneDeVisite } from '@/components/accueil/admin/LigneDeVisite';
-import { ErreurDeBloc, SqueletteDeCarte, ToutEstAJour } from '@/components/accueil/EtatsDeBloc';
+import { ErreurDeBloc, SqueletteDeCarte, SqueletteDeGroupes, ToutEstAJour } from '@/components/accueil/EtatsDeBloc';
 import { CarteAFaire, CarteFile, GroupeAFaire, LienTonal, RangeeAFaire, TitreBloc, TitreColonne } from '@/components/accueil/pieces';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { aUneLigne, etatDeLaRequete, etatDuBloc, type EtatDeFile } from '@/lib/accueil/a-faire';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { InterventionEnFile } from '@/lib/maintenance/files';
 import { useVisitesAConfirmer } from '@/lib/queries/accueil';
-import { useLoyersEnRetard } from '@/lib/queries/accueil-bailleur';
+import { useLoyersEnRetard, useRelancesDesLoyers } from '@/lib/queries/accueil-bailleur';
 import { useDevisAttendantLeBailleur } from '@/lib/queries/maintenance-signalement';
 import { cn } from '@/lib/utils';
 import type { PaymentHistoryRow } from '@/types/invoice';
@@ -32,8 +33,10 @@ import { FeuilleDuDevis } from './FeuilleDuDevis';
  *  - **L'hôte** (`hote` non nul) a en plus « Réservations à traiter » et « Avis sans réponse », lus
  *    comme la Vue bailleur les lisait (`GET /api/dashboard/owner`) : aucune régression.
  *
- * Le bailleur d'un bien d'agence ne confirme pas une visite (`PropertyVisitPolicy::agitPourLeBien`,
- * décision 7) : `confirmeLesVisites = false` lui donne « Voir ». Un geste que l'API refuse (403)
+ * TCK-2869 (ADR-0112) — « Confirmer » et « Autre créneau » suivent la capacité rendue avec CHAQUE
+ * visite (`can_confirm`, `PropertyVisitPolicy::peutConfirmer`) : l'hôte (son bien), et le bailleur
+ * d'un bien d'agence quand l'agence lui confie ses visites (`settings.owners_confirm_visits`). Sans
+ * elle — la décision 7 de TCK-2624, réglage faux —, « Voir ». Un geste que l'API refuse (403)
  * devient « Voir » de même.
  */
 
@@ -51,32 +54,44 @@ const DESTINATIONS = {
   avis: '/app/profile/reviews?reply=unreplied&subject=property',
 } as const;
 
-export function AFaireBailleur({
-  landlordId,
-  confirmeLesVisites,
-  hote = null,
-}: {
-  /** Le compte du bailleur : `filter[landlord_id]` des loyers en retard. */
-  readonly landlordId: number;
-  readonly confirmeLesVisites: boolean;
-  readonly hote?: FilesDeLHote | null;
-}) {
-  const t = useTranslations('accueil.bailleur');
-  const tBlocs = useTranslations('accueil.blocs');
+/**
+ * TCK-2850 — les files de « À faire » et l'état du bloc (`chargement`, `echec`, `aJour`, `lignes`), en UN
+ * endroit : `AFaireBailleur` les rend, `PlaceDesLoyers` y lit si le bailleur n'a rien à faire (maquette e6 :
+ * « Loyers du mois » passe alors à droite au bureau). Mêmes clés de cache : aucune lecture de plus.
+ */
+export function useFilesDuBailleur(landlordId: number, hote: FilesDeLHote | null) {
   const visites = useVisitesAConfirmer(true);
   const devis = useDevisAttendantLeBailleur();
   const loyers = useLoyersEnRetard(landlordId, true);
-  const [devisOuvert, setDevisOuvert] = useState<InterventionEnFile | null>(null);
-  const [refuses, setRefuses] = useState<ReadonlySet<string>>(new Set());
-  const refuser = (cle: string) => setRefuses((avant) => new Set(avant).add(cle));
-
   const etats = {
     visites: etatDeLaRequete(visites, (d) => d.meta.total),
     devis: etatDeLaRequete(devis, (d) => d.meta.total),
     loyers: etatDeLaRequete(loyers, (d) => d.meta.total),
   };
   const files: EtatDeFile[] = [etats.visites, etats.devis, etats.loyers, ...(hote ? [hote.reservations, hote.avis] : [])];
-  const bloc = etatDuBloc(files);
+  return { visites, devis, loyers, etats, files, bloc: etatDuBloc(files) };
+}
+
+export function AFaireBailleur({
+  landlordId,
+  hote = null,
+  titre,
+}: {
+  /** Le compte du bailleur : `filter[landlord_id]` des loyers en retard. */
+  readonly landlordId: number;
+  readonly hote?: FilesDeLHote | null;
+  /**
+   * TCK-2867 — le titre du bloc ailleurs que sur l'accueil : « Demandes en attente » de la vue d'ensemble du bailleur
+   * (Rapports, maquette e8), qui monte CE bloc — mêmes lectures, mêmes gestes — sans deuxième implémentation.
+   */
+  readonly titre?: string;
+}) {
+  const t = useTranslations('accueil.bailleur');
+  const tBlocs = useTranslations('accueil.blocs');
+  const { visites, devis, loyers, etats, files, bloc } = useFilesDuBailleur(landlordId, hote);
+  const [devisOuvert, setDevisOuvert] = useState<InterventionEnFile | null>(null);
+  const [refuses, setRefuses] = useState<ReadonlySet<string>>(new Set());
+  const refuser = (cle: string) => setRefuses((avant) => new Set(avant).add(cle));
   const reessayer = () => {
     for (const q of [visites, devis, loyers]) if (q.isError) void q.refetch();
   };
@@ -89,17 +104,24 @@ export function AFaireBailleur({
     hote,
     refuses,
     refuser,
-    confirmeLesVisites,
     ouvrirDevis: setDevisOuvert,
   };
 
   let corps: ReactNode;
   if (bloc === 'chargement') {
+    // TCK-2854 — comme l'admin (maquette e7) : des cartes au téléphone, des groupes à rangées au bureau
+    // (`GroupesDuBureau`), pas des cartes.
     corps = (
-      <ul className="space-y-3 max-md:px-4" aria-busy="true">
-        <SqueletteDeCarte />
-        <SqueletteDeCarte />
-      </ul>
+      <div aria-busy="true" data-slot="a-faire-chargement">
+        <span className="sr-only">{tBlocs('chargement')}</span>
+        <div className="space-y-3 px-4 md:hidden">
+          <SqueletteDeCarte />
+          <SqueletteDeCarte />
+        </div>
+        <div className="max-md:hidden">
+          <SqueletteDeGroupes />
+        </div>
+      </div>
     );
   } else if (bloc === 'echec') {
     corps = <ErreurDeBloc quoi={tBlocs('quoi.aFaire')} onReessayer={reessayer} className="max-md:mx-4" />;
@@ -130,10 +152,10 @@ export function AFaireBailleur({
   return (
     <section data-slot="a-faire" aria-labelledby="a-faire-titre">
       <div className="md:hidden">
-        <TitreBloc id="a-faire-titre">{t('titre')}</TitreBloc>
+        <TitreBloc id="a-faire-titre">{titre ?? t('titre')}</TitreBloc>
       </div>
       <div className="mb-2 max-md:hidden">
-        <TitreColonne>{t('titre')}</TitreColonne>
+        <TitreColonne>{titre ?? t('titre')}</TitreColonne>
       </div>
       <div className="max-md:mt-2">{corps}</div>
       {devisOuvert ? (
@@ -158,8 +180,12 @@ interface Lignes {
   readonly hote: FilesDeLHote | null;
   readonly refuses: ReadonlySet<string>;
   readonly refuser: (cle: string) => void;
-  readonly confirmeLesVisites: boolean;
   readonly ouvrirDevis: (d: InterventionEnFile) => void;
+}
+
+/** TCK-2869 — le geste n'existe que si l'API le permet (`can_confirm`) et ne l'a pas refusé depuis (403). */
+function confirmable(v: PropertyVisit, refuses: ReadonlySet<string>): boolean {
+  return v.can_confirm === true && !refuses.has(`visite-${v.id}`);
 }
 
 /** « Remplacement d'un chauffe-eau » · « Appartement F3, Liberté 6 · Astou Sy » · 85 000 F. */
@@ -179,7 +205,7 @@ function CartesDuTelephone({ l }: { readonly l: Lignes }) {
   return (
     <ul data-slot="a-faire-telephone" className="space-y-3 px-4 md:hidden">
       {l.visites.map((v) => (
-        <CarteDeVisite key={v.id} v={v} geste={l.confirmeLesVisites && !l.refuses.has(`visite-${v.id}`)} onRefus={() => l.refuser(`visite-${v.id}`)} />
+        <CarteDeVisite key={v.id} v={v} geste={confirmable(v, l.refuses)} onRefus={() => l.refuser(`visite-${v.id}`)} />
       ))}
       {l.devis.map((d) => {
         const lu = lireDevis(d);
@@ -207,6 +233,17 @@ function CartesDuTelephone({ l }: { readonly l: Lignes }) {
       })}
       <FilesDeLHoteEnCartes hote={l.hote} />
       <AutresDuTelephone l={l} />
+      {/* TCK-2867 — seuls des loyers en retard : le téléphone ne les détaille pas (« Ce mois » les dit sur l'accueil),
+          mais le bloc ne reste pas un titre au-dessus du vide — une carte mène à la liste. */}
+      {l.visites.length === 0 && l.devis.length === 0 && !aUneLigne(l.hote?.reservations ?? { etat: 'pret', total: 0 }) && !aUneLigne(l.hote?.avis ?? { etat: 'pret', total: 0 }) && l.loyers.length > 0 ? (
+        <CarteFile
+          icone={Wallet}
+          danger
+          titre={t('groupes.loyers')}
+          detail={t('loyers.carte', { n: l.etats.loyers.etat === 'pret' ? l.etats.loyers.total : l.loyers.length })}
+          action={<LienTonal href={DESTINATIONS.loyers} className="flex-none">{t('voir')}</LienTonal>}
+        />
+      ) : null}
     </ul>
   );
 }
@@ -272,9 +309,19 @@ function GroupesDuBureau({ l }: { readonly l: Lignes }) {
   const t = useTranslations('accueil.bailleur');
   const f = useFormatteurs();
   const lireDevis = useLectureDuDevis();
+  // TCK-2850 — « relancé par l'agence le 8 nov. » : la dernière relance notée, lue dans le relevé du bailleur ;
+  // au bureau seulement (ces rangées sont cachées au téléphone : pas de relevé lu pour rien).
+  const bureau = useMatchesMedia('(width >= 48rem)');
+  const relanceDe = useRelancesDesLoyers(bureau ? l.loyers : []);
   const { etats } = l;
   const total = (e: EtatDeFile) => (e.etat === 'pret' ? e.total : undefined);
   const autres = (e: EtatDeFile, montrees: number) => (e.etat === 'pret' ? Math.max(0, e.total - montrees) : 0);
+  // TCK-2850 — relancé : « 1 400 000 F · relancé par l'agence le 8 nov. » (maquette e2) ; sinon l'échéance.
+  const detailDuLoyer = (row: PaymentHistoryRow, relance: string | null) => {
+    const montant = f.montantCourt(row.amount_due ?? row.remaining_amount, row.currency ?? undefined);
+    if (relance) return t('loyers.relance', { montant, date: f.jourMois(relance) });
+    return row.due_date ? t('loyers.detail', { montant, echeance: f.jourMois(row.due_date) }) : montant;
+  };
   const pied = (e: EtatDeFile, montrees: number, cle: 'visites' | 'devis' | 'loyers', href: string) =>
     autres(e, montrees) > 0 ? { texte: t(`${cle}.autres`, { n: autres(e, montrees) }), href } : null;
 
@@ -286,8 +333,9 @@ function GroupesDuBureau({ l }: { readonly l: Lignes }) {
             <LigneDeVisite
               key={v.id}
               v={v}
-              refusee={!l.confirmeLesVisites || l.refuses.has(`visite-${v.id}`)}
+              refusee={!confirmable(v, l.refuses)}
               onRefus={() => l.refuser(`visite-${v.id}`)}
+              pour="bailleur"
             />
           ))}
         </GroupeAFaire>
@@ -330,11 +378,7 @@ function GroupesDuBureau({ l }: { readonly l: Lignes }) {
               icone={Wallet}
               ton="danger"
               titre={[row.payer?.name ?? t('loyers.sansLocataire'), row.property?.title ?? null].filter(Boolean).join(' · ')}
-              detail={
-                row.due_date
-                  ? t('loyers.detail', { montant: f.montantCourt(row.amount_due ?? row.remaining_amount, row.currency ?? undefined), echeance: f.jourMois(row.due_date) })
-                  : f.montantCourt(row.amount_due ?? row.remaining_amount, row.currency ?? undefined)
-              }
+              detail={detailDuLoyer(row, relanceDe(row))}
               quand={row.days_late ? t('loyers.jours', { n: row.days_late }) : null}
               gestes={<LienTonal href={DESTINATIONS.loyer(row)} className={TONAL_RANGEE}>{t('voir')}</LienTonal>}
             />

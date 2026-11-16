@@ -6,9 +6,8 @@ import { Check, Phone } from 'lucide-react';
 
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/toast';
 import { ageDeLaDemande, prenomDuDemandeur } from '@/lib/demandes/boite';
-import { type CanalDeContact, type ContactLead, useEnregistrerContact, useHandleLead } from '@/lib/queries/contact-leads';
+import { type CanalDeContact, type ContactLead, useEnregistrerContact } from '@/lib/queries/contact-leads';
 import { cn } from '@/lib/utils';
 
 import { useTexteDeLAge } from './pieces';
@@ -66,35 +65,32 @@ export function BarreDeRetour({
   regime,
   maintenant,
   onFermer,
+  onTraiter,
+  traitementEnCours,
 }: {
   readonly retour: ContactEnCours;
   readonly regime: 'telephone' | 'bureau';
   readonly maintenant: Date;
   readonly onFermer: () => void;
+  /** TCK-2885 — le traitement de la boîte (`useTraiterLaDemande`) : « Demande traitée. » et « Annuler ». */
+  readonly onTraiter: (lead: ContactLead, options: { court: boolean }) => Promise<boolean>;
+  readonly traitementEnCours: boolean;
 }) {
   const t = useTranslations('contactLeads');
   const texteDAge = useTexteDeLAge();
-  const toast = useToast();
-  const handle = useHandleLead();
   const prenom = prenomDuDemandeur(retour.lead.name) ?? t('anonymous');
   const Icone = retour.canal === 'whatsapp' ? IconeWhatsApp : Phone;
   const ilYA = texteDAge(ageDeLaDemande(new Date(retour.le).toISOString(), maintenant));
 
   async function oui() {
-    try {
-      await handle.mutateAsync({ id: retour.lead.id });
-      toast.add({ title: t('toasts.handledShort'), type: 'success' });
-      onFermer();
-    } catch {
-      toast.add({ title: t('toasts.error'), type: 'error' });
-    }
+    if (await onTraiter(retour.lead, { court: true })) onFermer();
   }
 
   const question = t('return.question', { name: prenom });
   // Téléphone : les boutons des gestes de la ligne (44 px, 15 px semi-gras, rayon 14, `gap-2`).
   const auPouce = regime === 'telephone' ? 'w-full gap-2 rounded-xl text-corps font-semibold' : undefined;
   const boutonOui = (
-    <Button variant="sombre" onClick={() => void oui()} disabled={handle.isPending} className={cn(auPouce, 'border-0')}>
+    <Button variant="sombre" onClick={() => void oui()} disabled={traitementEnCours} className={cn(auPouce, 'border-0')}>
       <Check className={regime === 'telephone' ? 'size-icone' : 'size-4'} strokeWidth={1.75} aria-hidden="true" />
       {t('return.yes')}
     </Button>

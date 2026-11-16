@@ -156,14 +156,21 @@ class NotifyMaintenanceParticipants implements ShouldQueue
      */
     private function planTransition(MaintenanceStatusChanged $event, array $provider, \Closure $principals, \Closure $step): array
     {
+        // TCK-2917 (ADR-0118 § 1) — le motif de qui a annulé, lu sur la colonne (jamais le `context`
+        // d'une annulation du système, qui porte un code d'audit).
+        $reason = $event->to === MaintenanceStatus::Cancelled ? $event->maintenanceRequest->cancellation_reason : null;
+        $cancelled = $reason !== null ? ['cancelled_with_reason', ['reason' => $reason]] : ['cancelled', []];
+
         $plan = match ($event->to) {
-            MaintenanceStatus::Cancelled => [[$provider, 'cancelled', []], [$principals(), 'cancelled', []]],
+            MaintenanceStatus::Cancelled => [[$provider, ...$cancelled], [$principals(), ...$cancelled]],
             MaintenanceStatus::Completed => [[$principals(), 'completed', []]],
             default => [],
         };
 
         if ($event->from !== $event->to && in_array($event->to->value, self::REQUESTER_STEPS, true)) {
-            $plan[] = $step($event->to->value);
+            $plan[] = $reason !== null
+                ? [$step('cancelled')[0], 'step_cancelled_with_reason', ['reason' => $reason]]
+                : $step($event->to->value);
         }
 
         return $plan;
@@ -194,6 +201,9 @@ class NotifyMaintenanceParticipants implements ShouldQueue
             'contested' => NotificationCode::MaintenanceContested,
             'auto_closed' => NotificationCode::MaintenanceAutoClosed,
             'cancelled' => NotificationCode::MaintenanceCancelled,
+            // TCK-2917
+            'cancelled_with_reason' => NotificationCode::MaintenanceCancelledWithReason,
+            'step_cancelled_with_reason' => NotificationCode::MaintenanceStepCancelledWithReason,
             'step' => $this->stepCode((string) $extra['status_key'], $mr, $params),
         };
 

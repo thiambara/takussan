@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { Download } from 'lucide-react';
 
 import { StatusBadge } from '@/components/console';
 import {
@@ -18,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 import { useAuth } from '@/context/AuthContext';
 import { useCan } from '@/hooks/useCan';
+import { useTelechargementApi } from '@/hooks/useTelechargementApi';
+import { cheminApi } from '@/lib/chemin-api';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   useBeneficiaryPayoutMethods,
@@ -30,7 +33,7 @@ import {
 import type { Locale } from '@/i18n/config';
 import type { PayoutStatus } from '@/types/invoice';
 
-import { DESTINATION_KINDS_BY_METHOD, PAYMENT_METHOD_VALUES, PAYOUT_STATUS_TONE } from './constants';
+import { aUnAvis, DESTINATION_KINDS_BY_METHOD, PAYMENT_METHOD_VALUES, PAYOUT_STATUS_TONE } from './constants';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface PayoutDetailDialogProps {
@@ -55,6 +58,8 @@ export function PayoutDetailDialog({ payoutId, onClose, sansIdentifiants = false
   const markProcessed = usePayoutMarkProcessed(payoutId ?? 0);
   const markFailed = usePayoutMarkFailed(payoutId ?? 0);
   const cancel = usePayoutCancel(payoutId ?? 0);
+  // TCK-2916 — l'avis de versement (`GET /api/payouts/{id}/notice/pdf`, TCK-2909) d'un reversement au bailleur terminé.
+  const avis = useTelechargementApi();
 
   const [paymentMethod, setPaymentMethod] = useState('');
   const [transactionId, setTransactionId] = useState('');
@@ -460,7 +465,29 @@ export function PayoutDetailDialog({ payoutId, onClose, sansIdentifiants = false
               </p>
             ) : null}
 
-            <div className="flex justify-end">
+            {avis.echec ? (
+              <p role="alert" className="text-sm text-destructive">
+                {t('echecAvis')}
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap justify-end gap-2">
+              {payout && aUnAvis(payout) ? (
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled={avis.enCours}
+                  onClick={() =>
+                    void avis.telecharger(
+                      cheminApi`/api/payouts/${payout.id}/notice/pdf`,
+                      t('nomDeLAvis', { reference: payout.reference_number || String(payout.id) }),
+                    )
+                  }
+                >
+                  <Download aria-hidden="true" />
+                  {t('avis')}
+                </Button>
+              ) : null}
               <Button variant="ghost" type="button" onClick={onClose}>
                 {t('close')}
               </Button>

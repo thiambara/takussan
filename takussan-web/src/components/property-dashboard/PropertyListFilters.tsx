@@ -109,6 +109,10 @@ const ADVANCED_KEYS = [
   'contract_type',
   'visibility',
   'user_id',
+  // TCK-2908 — « Tous les bailleurs » (le panneau du bureau, mode Gestion).
+  'owner_profile_id',
+  // TCK-2928 — les biens d'un membre, ouverts depuis sa fiche (`filter[agent]`).
+  'agent',
   'created_from',
   'created_to',
 ] as const;
@@ -130,6 +134,7 @@ type EtatDuPanneau = 'auto' | 'ouvert' | 'replie';
 export function PropertyListFilters({
   currentUserId,
   agentOptions = [],
+  bailleurOptions,
   mode = 'annonces',
   basculeMesBiens = true,
   resume,
@@ -140,6 +145,11 @@ export function PropertyListFilters({
 }: {
   readonly currentUserId: number;
   readonly agentOptions?: readonly { id: number; name: string }[];
+  /**
+   * TCK-2908 — les bailleurs de l'agence (profils, invités compris) : « Tous les bailleurs » dans le panneau
+   * du mode Gestion (`filter[owner_profile_id]`). Absents (lecteur sans accès au carnet) : pas de liste.
+   */
+  readonly bailleurOptions?: readonly { id: number; name: string }[];
   /** TCK-2638 — le mode de la liste : il ajoute « Retards d'abord » et survit à « Tout réinitialiser ». */
   readonly mode?: 'gestion' | 'annonces';
   /** TCK-2638 — « Mes biens » n'est pas proposée au bailleur : sa liste n'a que ses biens. */
@@ -172,6 +182,7 @@ export function PropertyListFilters({
   const currentContract = searchParams.get('contract_type') ?? '';
   const currentVisibility = searchParams.get('visibility') ?? '';
   const currentAgent = searchParams.get('user_id') ?? '';
+  const currentOwner = searchParams.get('owner_profile_id') ?? '';
   const currentPriceMin = searchParams.get('price_min') ?? '';
   const currentPriceMax = searchParams.get('price_max') ?? '';
   const currentCreatedFrom = searchParams.get('created_from') ?? '';
@@ -199,6 +210,7 @@ export function PropertyListFilters({
       buildActiveChips(searchParams, {
         currentUserId,
         agentOptions,
+        bailleurOptions,
         tChips,
         tStatus,
         tType,
@@ -209,6 +221,7 @@ export function PropertyListFilters({
       searchParams,
       currentUserId,
       agentOptions,
+      bailleurOptions,
       tChips,
       tStatus,
       tType,
@@ -359,7 +372,22 @@ export function PropertyListFilters({
             {gestion ? champs.type : null}
             {champs.city}
           </GroupeDuPanneau>
-          <GroupeDuPanneau titre={t(gestion ? 'panneau.agentEtPortee' : 'panneau.afficher')}>
+          <GroupeDuPanneau
+            titre={t(gestion ? (bailleurOptions ? 'panneau.bailleurEtAgent' : 'panneau.agentEtPortee') : 'panneau.afficher')}
+          >
+            {/* TCK-2908 (maquette e0) — « Tous les bailleurs » au-dessus de l'agent : un filtre serveur. */}
+            {gestion && bailleurOptions ? (
+              <FilterSelect
+                label={t('ownerLabel')}
+                value={currentOwner || ALL_VALUE}
+                onChange={(v) => updateParam('owner_profile_id', v === ALL_VALUE ? null : v)}
+                placeholder={t('ownerAll')}
+                options={[
+                  { value: ALL_VALUE, label: t('ownerAll') },
+                  ...bailleurOptions.map((b) => ({ value: String(b.id), label: b.name })),
+                ]}
+              />
+            ) : null}
             {gestion ? champs.agent : null}
             {basculeMesBiens ? <LigneInterrupteur label={t('toggleMine')} checked={onlyMine} onChange={toggleMine} /> : null}
             <LigneInterrupteur label={t('toggleArchived')} checked={includeArchived} onChange={toggleArchived} />
@@ -1024,6 +1052,7 @@ function buildActiveChips(
   ctx: {
     readonly currentUserId: number;
     readonly agentOptions: readonly { id: number; name: string }[];
+    readonly bailleurOptions?: readonly { id: number; name: string }[];
     readonly tChips: Traducteur;
     readonly tStatus: Traducteur;
     readonly tType: Traducteur;
@@ -1076,6 +1105,19 @@ function buildActiveChips(
   if (userId) {
     const agent = ctx.agentOptions.find((a) => String(a.id) === userId);
     chips.push({ key: 'user_id', label: ctx.tChips('agent'), value: agent?.name ?? userId });
+  }
+  // TCK-2928 — « Biens suivis » de la fiche d'un membre : le nom, lu sur les lignes (il saisit ou suit
+  // chacune), sinon l'identifiant.
+  const suiviPar = searchParams.get('agent');
+  if (suiviPar) {
+    const agent = ctx.agentOptions.find((a) => String(a.id) === suiviPar);
+    chips.push({ key: 'agent', label: ctx.tChips('suiviPar'), value: agent?.name ?? suiviPar });
+  }
+  // TCK-2908 — le bailleur choisi au bureau se retire aussi au téléphone, où le panneau n'est pas.
+  const ownerProfileId = searchParams.get('owner_profile_id');
+  if (ownerProfileId) {
+    const bailleur = ctx.bailleurOptions?.find((b) => String(b.id) === ownerProfileId);
+    chips.push({ key: 'owner_profile_id', label: ctx.tChips('owner'), value: bailleur?.name ?? ownerProfileId });
   }
   return chips;
 }

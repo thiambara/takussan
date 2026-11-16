@@ -20,7 +20,12 @@ vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => ecran.bureau 
 const envoi = vi.fn();
 vi.mock('@/lib/queries/documents', async () => {
   const actual = await vi.importActual<typeof import('@/lib/queries/documents')>('@/lib/queries/documents');
-  return { ...actual, useUploadDocument: () => ({ mutateAsync: envoi, isPending: false }) };
+  return {
+    ...actual,
+    useUploadDocument: () => ({ mutateAsync: envoi, isPending: false }),
+    // TCK-2898 — « Remplace … qui expire » envoie une version.
+    useUploadDocumentVersion: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  };
 });
 
 import { AjoutAuCoffre } from '../AjoutAuCoffre';

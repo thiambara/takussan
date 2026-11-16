@@ -227,7 +227,7 @@ describe('TCK-2656 — le coffre du locataire, au téléphone', () => {
 });
 
 describe('TCK-2656 — le coffre du bailleur', () => {
-  it('décision 1 (a) — un dossier par bien qui a des documents, les autres comptés ; « Relevés et attestations » replié', () => {
+  it('TCK-2898 — un dossier par bien, même vide (« Aucun document ») ; « Relevés et factures » replié', () => {
     reponse.data = {
       data: {
         folders: [
@@ -263,12 +263,13 @@ describe('TCK-2656 — le coffre du bailleur', () => {
     };
     rendre();
     expect(dossier('Villa Almadies')).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Appartement Mermoz' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('biens-sans-document')).toHaveTextContent('2 biens sans document');
-    const releves = dossier('Relevés et attestations');
+    // TCK-2898 — chaque bien est listé, même vide (renverse la décision 1 (a)).
+    expect(dossier('Appartement Mermoz')).toHaveTextContent('Aucun document');
+    expect(dossier('Garage Ouest Foire')).toHaveTextContent('Aucun document');
+    const releves = dossier('Relevés et factures');
     // Replié : le mois de chaque relevé, l'année de l'attestation.
     expect(within(releves).getByText('oct. · sept. · 2025')).toBeInTheDocument();
-    fireEvent.click(within(releves).getByRole('button', { name: /^Relevés et attestations/ }));
+    fireEvent.click(within(releves).getByRole('button', { name: /^Relevés et factures/ }));
     expect(within(releves).getAllByTestId('entree-du-coffre').map((li) => li.textContent)).toEqual([
       expect.stringContaining('Relevé d’octobre 2026'),
       expect.stringContaining('Relevé de septembre 2026'),
@@ -290,7 +291,7 @@ describe('TCK-2656 — le coffre du bailleur', () => {
       },
     };
     rendre();
-    expect(screen.getByTestId('biens-sans-document')).toHaveTextContent('1 bien sans document');
+    expect(dossier('Appartement Mermoz')).toHaveTextContent('Aucun document');
     expect(screen.queryByRole('heading', { name: 'Vos pièces, votre contrat et vos quittances' })).not.toBeInTheDocument();
   });
 });
@@ -317,7 +318,7 @@ describe('TCK-2656 — le coffre au bureau large', () => {
     fireEvent.click(within(quittances).getByRole('button', { name: 'Voir les 3 autres' }));
     expect(within(quittances).getAllByTestId('entree-du-coffre')).toHaveLength(6);
 
-    fireEvent.click(within(dossier('Mes pièces')).getByRole('button', { name: /Carte d’identité/ }));
+    fireEvent.click(within(dossier('Mes pièces')).getByRole('button', { name: /^Carte d’identité/ }));
     expect(within(apercu).getByText('Carte d’identité')).toBeInTheDocument();
     expect(within(apercu).getByRole('link', { name: 'Ouvrir la fiche' })).toHaveAttribute('href', '/app/documents/301');
 

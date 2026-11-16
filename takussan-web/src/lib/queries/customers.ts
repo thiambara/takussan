@@ -59,10 +59,13 @@ export interface DashboardCustomerFilters {
   readonly search?: string;
   readonly tags?: string;
   readonly tags_all?: string;
-  /** TCK-2588 — `1` : les fiches à relancer (« À relancer », TCK-2590). */
-  readonly follow_up?: '1';
+  /**
+   * TCK-2588 — `1` : les fiches à relancer. TCK-2890 — `week` : les mêmes, plus celles dont la
+   * prochaine action tombe d'ici dimanche (la vue « À relancer » de la liste).
+   */
+  readonly follow_up?: '1' | 'week';
   /** TCK-2588 — `me` : « Mes clients » ; `none` : « Sans référent ». */
-  readonly referent?: 'me' | 'none';
+  readonly referent?: 'me' | 'none' | `${number}`;
   /** TCK-2588 — `active` : les étapes vivantes (« Prospects » de « Ma journée », TCK-2596). */
   readonly stage_group?: 'active';
 }
@@ -177,7 +180,8 @@ export async function fetchDashboardCustomer(
  * l'API, et qu'aucun autre nom n'est envoyé.
  */
 // TCK-2761 — `visit_places` : l'adresse du bien de chaque visite à venir, rendue sur `upcoming_visits[]`.
-export const ATTRIBUTS_CALCULES_DE_LA_FICHE = ['next_action', 'follow_up', 'referent', 'visit_places'] as const;
+// TCK-2880 — `suggested_stage` : l'étape proposée et son fait, que « Plus tard » renvoie (« Et maintenant ? »).
+export const ATTRIBUTS_CALCULES_DE_LA_FICHE = ['next_action', 'follow_up', 'referent', 'visit_places', 'suggested_stage'] as const;
 
 /**
  * TCK-2589 — ce que la fiche lit en une requête : pièces, étiquettes, bien d'intérêt, origine, les

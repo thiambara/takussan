@@ -125,6 +125,11 @@ class Document extends AbstractModel implements HasMedia
             // l'arbre (le bien et ses baux hors brouillon) et sa garde vivent dans la requête de base
             // (`DocumentPolicy::listableOnPropertyAndLeases`), que `DocumentController::index` choisit.
             AllowedFilter::callback('property_with_leases', function (): void {})->delimiter(''),
+            // TCK-2895 (ADR-0099, amendement du 2026-11-15) — déclarés pour être acceptés : la portée de la
+            // cible agence (`DocumentPolicy::listableOnAgency`) et le choix des générés vivent dans
+            // `DocumentController::index`.
+            AllowedFilter::callback('agency', function (): void {})->delimiter(''),
+            AllowedFilter::callback('generated', function (): void {})->delimiter(''),
             AllowedFilter::callback('expiring_within_days', function (Builder $q, mixed $value): void {
                 $raw = ParametreUnique::valeur($value);
                 if ($raw === null || ! ctype_digit($raw) || strlen($raw) > 4) {
@@ -226,6 +231,32 @@ class Document extends AbstractModel implements HasMedia
             // filtre borné (`DocumentSearchService::filtreDeLecture`) au lieu d'un `NOT id IN [...]`.
             'is_internal' => (bool) $this->is_internal,
             ...$this->porteurPourLIndex(),
+            // TCK-2895 (ADR-0099, amendement du 2026-11-15, § 6) — « un document, un locataire, un bien » :
+            // le titre du bien et le nom du locataire du porteur, cherchables après le nom de la pièce.
+            ...$this->libellesDuPorteur(),
+        ];
+    }
+
+    /**
+     * TCK-2895 — le titre du bien (document de bien ou de bail) et le nom du locataire (document de
+     * bail). Nuls pour tout autre porteur, ou un porteur supprimé. Réindexés quand ils changent
+     * (`DocumentsDuPorteurObserver`).
+     *
+     * @return array{carrier_property_title: ?string, carrier_tenant_name: ?string}
+     */
+    public function libellesDuPorteur(): array
+    {
+        $porteur = $this->documentable_type !== null ? $this->documentable : null;
+        $bien = match (true) {
+            $porteur instanceof Property => $porteur,
+            $porteur instanceof Lease => $porteur->property,
+            default => null,
+        };
+        $locataire = $porteur instanceof Lease ? $porteur->tenant?->full_name : null;
+
+        return [
+            'carrier_property_title' => $bien?->title,
+            'carrier_tenant_name' => $locataire !== null && $locataire !== '' ? $locataire : null,
         ];
     }
 
@@ -311,7 +342,8 @@ class Document extends AbstractModel implements HasMedia
 
     private const PRECHARGE_DU_PORTEUR = [
         Inventory::class => ['property'],
-        Lease::class => ['tenant'],
+        // TCK-2895 — `property` : le titre du bien d'un document de bail (`libellesDuPorteur`).
+        Lease::class => ['tenant', 'property'],
         Booking::class => ['customer'],
     ];
 

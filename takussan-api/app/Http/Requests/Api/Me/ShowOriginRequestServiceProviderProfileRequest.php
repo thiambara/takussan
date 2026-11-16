@@ -16,8 +16,14 @@ use App\Support\Http\ParametreUnique;
  */
 class ShowOriginRequestServiceProviderProfileRequest extends BaseFormRequest
 {
-    /** Ce que la projection peut rendre — jamais l'adresse exacte, le demandeur ni son téléphone. */
-    public const CHAMPS = ['title', 'category', 'place', 'photo', 'quote'];
+    /**
+     * Ce que la projection peut rendre — jamais l'adresse exacte, le demandeur ni son téléphone. TCK-2943 (ADR-0122) :
+     * l'échéance, la date, la référence et le rôle de l'auteur du signalement, ses mots masqués, le lien de la fiche.
+     */
+    public const CHAMPS = [
+        'title', 'category', 'place', 'photo', 'quote',
+        'respond_by', 'reported_at', 'reference', 'reported_by_role', 'tenant_quote', 'detail_url',
+    ];
 
     public function authorize(): bool
     {
@@ -33,7 +39,7 @@ class ShowOriginRequestServiceProviderProfileRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'fields.intervention_d_origine' => ['nullable', 'string', 'max:200'],
+            'fields.intervention_d_origine' => ['nullable', 'string', 'max:300'],
         ];
     }
 

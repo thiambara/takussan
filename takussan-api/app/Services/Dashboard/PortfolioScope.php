@@ -28,6 +28,7 @@ final class PortfolioScope
         public readonly string $payoutColumn,
         public readonly int $id,
         private readonly bool $bailleur = false,
+        private readonly ?int $agence = null,
     ) {}
 
     public static function landlord(int $userId): self
@@ -38,6 +39,17 @@ final class PortfolioScope
     public static function agency(int $agencyId): self
     {
         return new self('agency_id', 'agency_id', 'agency_id', $agencyId);
+    }
+
+    /**
+     * TCK-2847 — le même périmètre, borné en plus à UNE agence : la ligne d'activité d'un espace de
+     * bailleur ne compte que les biens et les baux de l'agence de ce profil. La borne s'ajoute à
+     * {@see self::properties()}, {@see self::leases()} et {@see self::propertiesSql()} — jamais aux
+     * colonnes lues en direct (`payoutColumn`).
+     */
+    public function dansLAgence(int $agencyId): self
+    {
+        return new self($this->propertyColumn, $this->leaseColumn, $this->payoutColumn, $this->id, $this->bailleur, $agencyId);
     }
 
     /** Les biens du périmètre, sur une requête qui lit `properties` (ou une jointure qualifiée). */
@@ -60,22 +72,31 @@ final class PortfolioScope
     public function propertiesSql(string $alias): array
     {
         $sql = "{$alias}.{$this->propertyColumn} = ?";
+        $bindings = [$this->id];
+        // TCK-2847 — la borne d'agence de `dansLAgence()`.
+        if ($this->agence !== null) {
+            $sql .= " AND {$alias}.agency_id = ?";
+            $bindings[] = $this->agence;
+        }
         if (! $this->bailleur) {
-            return [$sql, [$this->id]];
+            return [$sql, $bindings];
         }
 
         $agences = BailleurDuBien::agences($this->id);
 
         return [
             "{$sql} AND ({$alias}.agency_id IS NULL OR {$alias}.agency_id IN ({$agences->toSql()}))",
-            [$this->id, ...$agences->getBindings()],
+            [...$bindings, ...$agences->getBindings()],
         ];
     }
 
     private function borner(Builder $query, string $table, string $column): Builder
     {
-        return $this->bailleur
+        $borne = $this->bailleur
             ? BailleurDuBien::restreindre($query, $this->id, "{$table}.{$column}", "{$table}.agency_id")
             : $query->where("{$table}.{$column}", $this->id);
+
+        // TCK-2847 — la borne d'agence de `dansLAgence()`.
+        return $this->agence !== null ? $borne->where("{$table}.agency_id", $this->agence) : $borne;
     }
 }

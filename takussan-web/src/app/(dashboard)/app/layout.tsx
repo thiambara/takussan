@@ -13,6 +13,7 @@ import { isAgent, isOwner } from '@/lib/roles';
 import { accesAdmin, capacitesAmorcees } from '@/lib/access/pages-admin-server';
 import { AmorceCapacites } from '@/components/providers/AmorceCapacites';
 import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
+import { espaceDesRecents } from '@/lib/navigation/pages-recentes';
 
 
 /**
@@ -113,7 +114,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // TCK-2477 (ADR-0089 §2) — le persona du menu se juge sur le profil ACTIF : le cookie, sinon (TCK-2621)
   // le profil que l'API a lié à la requête — dernier espace retenu, auto-bascule, ou celui de la cible
   // pendant une impersonation (`getActiveProfileId` n'y rend rien, TCK-600).
-  const typeProfilActif = typeDuProfilActif(profilLieDeLaCoque(await getActiveProfileId(), user));
+  // TCK-2846 — l'identifiant lié lui-même range les récents par espace ; un compte sans profil (client,
+  // locataire) en a un seul, le sien (`espaceDesRecents`).
+  const espaceActif = profilLieDeLaCoque(await getActiveProfileId(), user);
+  const typeProfilActif = typeDuProfilActif(espaceActif);
   // TCK-2480 (AC5) — la barre réduite aux icônes, réglage de l'appareil : lue ici pour que la largeur
   // soit dans le HTML serveur.
   const modeIcones = await getModeIconesDuMenu();
@@ -131,6 +135,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             typeProfilActif={typeProfilActif}
             modeIcones={modeIcones}
             modulesMasques={modulesMasques}
+            espaceActif={espaceDesRecents(espaceActif)}
           >
             {children}
           </AppShell>

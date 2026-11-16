@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Http\Resources\PropertyVisitResource;
+use App\Models\Agency;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
@@ -180,5 +181,43 @@ class PropertyVisitPolicy extends BasePolicy
 
         return ($visit->agent_id === $user->id && PrimaryPropertyContact::joignable($user))
             || PrimaryPropertyContact::estProprietaire($user, $property);
+    }
+
+    /**
+     * TCK-2849 (ADR-0112) — CONFIRMER une visite, avec ou sans autre créneau (`scheduled_at`) : ceux
+     * qui agissent pour le bien ({@see agitPourLeBien()}), ou le bailleur d'un bien d'agence à qui
+     * l'agence le confie ({@see bailleurConfirme()}). Le seul geste ouvert au bailleur : `update`,
+     * `complete`, `no-show`, `cancel` et l'attribution restent à {@see agitPourLeBien()}. Lue par
+     * `confirm`, `bulk-confirm` et `abilities.confirm`.
+     */
+    public static function peutConfirmer(User $user, PropertyVisit $visit): bool
+    {
+        $property = $visit->property;
+
+        return self::agitPourLeBien($user, $visit)
+            || ($property !== null && self::bailleurConfirme($user, $property->agency_id, $property->user_id));
+    }
+
+    /**
+     * TCK-2849 (ADR-0112 § 2 et § 3) — le bailleur confirme-t-il au titre du réglage : bien d'AGENCE,
+     * désigné par `properties.user_id`, ET {@see bailleurConfirmeDans()} cette agence. Un bien sans
+     * agence n'en relève pas : son hôte confirme déjà par {@see agitPourLeBien()}.
+     */
+    public static function bailleurConfirme(User $user, mixed $agencyId, mixed $ownerId): bool
+    {
+        return $agencyId !== null && $ownerId !== null && (int) $ownerId === (int) $user->id
+            && self::bailleurConfirmeDans($user, (int) $agencyId);
+    }
+
+    /**
+     * TCK-2849 — la moitié « agence » de {@see bailleurConfirme()}, que la liste juge une fois par
+     * agence : l'utilisateur y est bailleur ACTIF et joignable (`PersonnelDeLAgence::estBailleur` —
+     * ni `blocked`, ni `inactive`, ni `draft`, ni compte bloqué), et l'agence a posé
+     * `owners_confirm_visits` (faux par défaut).
+     */
+    public static function bailleurConfirmeDans(User $user, int $agencyId): bool
+    {
+        return PersonnelDeLAgence::estBailleur($user, $agencyId)
+            && (bool) Agency::query()->find($agencyId)?->setting('owners_confirm_visits');
     }
 }

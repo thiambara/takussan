@@ -12,7 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { moisCourant } from '@/lib/finances/mois';
-import { useOwnerStatement } from '@/lib/queries/payments';
+import { useOwnerStatement, usePayouts } from '@/lib/queries/payments';
 
 import { InvoiceDetailDialog } from '../InvoiceDetailDialog';
 import { InvoicesTable } from '../InvoicesTable';
@@ -55,6 +55,11 @@ export function LoyersDuBailleur() {
 
   const lecture = useOwnerStatement(periode);
   const releve = lecture.data?.data;
+  // TCK-2916 (relecture) — le compteur de l'onglet « Versements » compte ce que l'onglet LISTE : tous les
+  // versements (`GET /api/payouts`, le `meta.total` d'une page d'une ligne), et non `payouts_count` du
+  // relevé, qui ne compte que ceux de la période (le contrat de TCK-2915 : la longueur de `payouts[]`).
+  const versements = usePayouts({ page: 1, per_page: 1 });
+  const compteVersements = versements.data?.meta?.total;
   const telechargement = useTelechargerLeReleve(t('documents.echec'));
   const [factureId, setFactureId] = useState<number | null>(null);
   const [versementId, setVersementId] = useState<number | null>(null);
@@ -105,7 +110,7 @@ export function LoyersDuBailleur() {
         </p>
       ) : null}
 
-      <OngletsDesLoyers actif={onglet} />
+      <OngletsDesLoyers actif={onglet} compteVersements={compteVersements} />
 
       {onglet === 'revenus' ? (
         <RevenusDuBailleur

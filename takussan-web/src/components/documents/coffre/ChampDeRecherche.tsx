@@ -48,7 +48,17 @@ export function useEcrireLaRecherche() {
  * La requête part au SERVEUR (`filter[search]` de `GET /api/me/document-vault`) : ce champ ne fait
  * qu'écrire `?q=` dans l'URL, après une courte pause de frappe, ou tout de suite à la validation.
  */
-export function ChampDeRecherche({ bureau }: { readonly bureau: boolean }) {
+export function ChampDeRecherche({
+  bureau,
+  libelle,
+  className,
+}: {
+  readonly bureau: boolean;
+  /** TCK-2896 — le texte du champ (« Chercher un document, un locataire, un bien » pour l'agence). */
+  readonly libelle?: string;
+  /** TCK-2896 — une largeur propre (320 px au bureau de l'agence). */
+  readonly className?: string;
+}) {
   const t = useTranslations('documents.coffre.recherche');
   const id = useId();
   const { q } = useRechercheDansLURL();
@@ -86,10 +96,11 @@ export function ChampDeRecherche({ bureau }: { readonly bureau: boolean }) {
       className={cn(
         'flex items-center gap-2 rounded-lg border border-border bg-card px-3 text-muted-foreground focus-within:border-ring focus-within:ring-3 focus-within:ring-ring',
         bureau ? 'h-9 w-64' : 'h-11 w-full',
+        className,
       )}
     >
       <label htmlFor={id} className="sr-only">
-        {t('champ')}
+        {libelle ?? t('champ')}
       </label>
       <Search className={cn('flex-none', bureau ? 'size-4' : 'size-icone')} strokeWidth={1.75} aria-hidden="true" />
       <Input
@@ -97,7 +108,7 @@ export function ChampDeRecherche({ bureau }: { readonly bureau: boolean }) {
         type="search"
         value={saisie}
         onChange={(e) => changer(e.target.value)}
-        placeholder={t('champ')}
+        placeholder={libelle ?? t('champ')}
         autoComplete="off"
         enterKeyHint="search"
         className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-foreground focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"

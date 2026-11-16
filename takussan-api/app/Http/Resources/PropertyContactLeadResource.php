@@ -45,6 +45,10 @@ class PropertyContactLeadResource extends BaseResource
                 'id' => $this->property->id,
                 'title' => $this->property->title,
                 'slug' => $this->property->slug,
+                // TCK-2884 — `include=property.address` : le quartier SEUL, jamais la rue.
+                ...($this->property->relationLoaded('address') ? ['address' => $this->property->address ? [
+                    'neighborhood' => $this->property->address->neighborhood,
+                ] : null] : []),
             ] : null),
             'recipient' => $this->whenLoaded('recipient', fn () => $this->recipient ? [
                 'id' => $this->recipient->id,
