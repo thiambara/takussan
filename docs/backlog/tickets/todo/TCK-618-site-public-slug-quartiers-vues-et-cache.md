@@ -94,28 +94,28 @@ Suites relevées par **verif-598** et inscrites dans le ticket 598 (« Suites re
 
 ## Delta à produire
 
-- [ ] `Property::booted()` : contrainte 1 (création seulement).
-- [ ] `PublicPropertyController::neighborhoods` : `trim` dans le regroupement et la graphie (contrainte 2).
+- [x] `Property::booted()` : contrainte 1 (création seulement).
+- [x] `PublicPropertyController::neighborhoods` : `trim` dans le regroupement et la graphie (contrainte 2).
 - [x] `PropertyViewCounter` : contrainte 3 (fiche publique et `POST …/view`). (tenu par TCK-851, relevé 2026-11-16)
-- [ ] `PropertyController::recordView` : contrainte 4.
-- [ ] `PropertiesFlagTestCommand` : revalidation des slugs touchés (contrainte 5).
-- [ ] Tests : `PropertySlugFallbackTest`, `PublicNeighborhoodsTest` (espaces, capitales),
+- [x] `PropertyController::recordView` : contrainte 4.
+- [x] `PropertiesFlagTestCommand` : revalidation des slugs touchés (contrainte 5).
+- [x] Tests : `PropertySlugFallbackTest`, `PublicNeighborhoodsTest` (espaces, capitales),
       ~~`PropertyViewCounterTest` (IPv6)~~ (caduc depuis TCK-851 : `IpRateLimitKeyTest`), `RecordViewVisibilityTest`, `PropertiesFlagTestCommandTest`.
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (rouge sur `839be671`).** Titre `🏠🌴`, puis `北京公寓`, puis `---` : le slug commence par
+- [x] **AC1 (rouge sur `839be671`).** Titre `🏠🌴`, puis `北京公寓`, puis `---` : le slug commence par
       une lettre ; un titre `Villa Mermoz` garde `villa-mermoz-XXXXXX`. Un bien existant au slug
       `-XXXXXX` modifié (titre inchangé) garde son slug.
-- [ ] **AC2 (rouge sur `839be671`).** Quatre biens à `Mermoz`, un à ` Mermoz ` : une seule entrée,
+- [x] **AC2 (rouge sur `839be671`).** Quatre biens à `Mermoz`, un à ` Mermoz ` : une seule entrée,
       compte 5 ; `Médina` ×2 et `MÉDINA` ×2 : une entrée, graphie `Médina`.
 - [x] **AC3 (rouge sur `839be671`).** (tenu par TCK-851, relevé 2026-11-16 — `IpRateLimitKeyTest`) quatre vues alternées entre `2001:db8::1`, `2001:DB8:0:0:0:0:0:1` et
       `2001:db8::2` (même /64) : `views_count` augmente de `MAX_PAR_HEURE`, pas de 4.
-- [ ] **AC4.** `POST /api/properties/{id}/view` sur un bien privé d'une autre agence → 404, et
+- [x] **AC4.** `POST /api/properties/{id}/view` sur un bien privé d'une autre agence → 404, et
       `views_count` inchangé ; sur un bien public → 200.
-- [ ] **AC5.** `properties:flag-test` sur deux biens : deux `RevalidatePublicPropertyPage` en file
+- [x] **AC5.** `properties:flag-test` sur deux biens : deux `RevalidatePublicPropertyPage` en file
       (`Queue::fake`).
-- [ ] Ablations consignées.
+- [x] Ablations consignées.
 
 ## Hors périmètre
 
@@ -127,3 +127,21 @@ Suites relevées par **verif-598** et inscrites dans le ticket 598 (« Suites re
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Slug** : `Property::booted()` replie sur `bien` quand `Str::slug()` rend `''`, à la création seule ; un `-XXXXXX`
+  existant ne bouge pas. AC1 : `PropertySlugFallbackTest` (5 cas) — ablation du repli : 3 rouges.
+- **Quartiers** : requête à deux niveaux — graphies rognées comptées, puis repliées (`CaseInsensitive::sql` sur la
+  graphie rognée) ; la graphie rendue est la plus fréquente, puis pas tout en capitales, puis l'ordre binaire
+  (`array_agg(… ORDER BY …)[1]` : `mode()` n'accepte qu'une clé). Aucun index sur `addresses.neighborhood` à
+  recopier. AC2 : `PublicNeighborhoodsTest` — ablation du `trim` : rouge ; ablation de la préférence non capitale :
+  rouge. `PropertyNeighborhoodsTest` attendait `MÉDINA` à égalité 1-1 : il attend désormais `Médina`.
+- **`recordView`** : un bien ni en ligne (`isOnline()`) ni lisible (`can('view')`) lève le `ModelNotFoundException`
+  du bien inconnu — même message, pas de `views_count`. ⚠ `view` seul refuserait un bien public d'une autre agence
+  (la politique ne connaît que bailleur, personnel, super-admin), d'où le « en ligne OU lisible ». AC4 :
+  `RecordViewVisibilityTest` — ablation de la garde : rouge.
+- **`flag-test`** : slugs relevés sous `lockForUpdate` dans la transaction avant l'`update()`, puis
+  `RevalidatePublicPropertyPage` par lots de 100 (`afterCommit`) ; `--dry` n'envoie rien. AC5 :
+  `PropertiesFlagTestCommandTest` — ablation de l'envoi : rouge.
+

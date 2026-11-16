@@ -41,6 +41,7 @@ use App\Services\Property\ResponsibleAgentAssigner;
 use App\Services\Property\TitulaireALaSaisie;
 use App\Support\Http\ParametreUnique;
 use App\Support\Logging\SafeExceptionContext;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -531,6 +532,13 @@ class PropertyController extends Controller
      */
     public function recordView(Request $request, Property $property, PropertyViewCounter $compteur): JsonResponse
     {
+        // TCK-618 (contrainte 4) — une vue ne se compte que sur un bien que l'appelant peut voir : en
+        // ligne, ou lisible par lui. Sinon le MÊME 404 qu'un bien inconnu : ni compte, ni
+        // `views_count` d'un bien privé lu, ni existence révélée.
+        if (! $property->isOnline() && ! $request->user()->can('view', $property)) {
+            throw (new ModelNotFoundException)->setModel(Property::class, [$property->getKey()]);
+        }
+
         $compteur->record($property, (string) $request->ip());
 
         return $this->json(['data' => ['views_count' => $property->refresh()->views_count]]);

@@ -44,7 +44,7 @@ class PropertyNeighborhoodsTest extends TestCase
             ->assertJsonPath('meta.truncated', false);
 
         $this->assertSame(
-            [['value' => 'Mermoz', 'count' => 3, 'photo' => null], ['value' => 'MÉDINA', 'count' => 2, 'photo' => null]],
+            [['value' => 'Mermoz', 'count' => 3, 'photo' => null], ['value' => 'Médina', 'count' => 2, 'photo' => null]],
             $reponse->json('data'),
         );
     }

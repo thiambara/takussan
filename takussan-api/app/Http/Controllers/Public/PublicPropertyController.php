@@ -304,10 +304,19 @@ class PublicPropertyController extends Controller
      */
     public function neighborhoods(NeighborhoodsPublicPropertyRequest $request): JsonResponse
     {
-        $replie = CaseInsensitive::sql('addresses.neighborhood');
+        // TCK-618 (contrainte 2) — le regroupement porte sur le quartier ROGNÉ : « Mermoz » et
+        // « ␠Mermoz␠ » (seeders, imports : `TrimStrings` ne nettoie que la saisie par l'API) faisaient
+        // deux entrées et fractionnaient le compte jugé au seuil. Aucun index ne porte sur
+        // `addresses.neighborhood` : rien à recopier (piège PostgreSQL n°9).
+        //
+        // Deux niveaux : les graphies rognées comptées une à une, puis repliées. La graphie rendue est
+        // la plus fréquente ; à égalité, une graphie qui n'est pas tout en capitales (« Médina »
+        // contre « MÉDINA » : en collation C, `mode()` donnait la capitale), puis l'ordre binaire.
+        // `mode()` ne prend qu'une clé de tri : d'où `array_agg(… ORDER BY …)[1]`.
+        $replie = CaseInsensitive::sql('graphies.graphie');
         $max = self::neighborhoodsMax();
 
-        $lignes = Property::query()
+        $graphies = Property::query()
             ->public()
             ->join('addresses', function ($jointure) {
                 $jointure->on('addresses.addressable_id', '=', 'properties.id')
@@ -316,13 +325,22 @@ class PublicPropertyController extends Controller
             ->whereRaw(CaseInsensitive::sql('addresses.city').' = ?', [CaseInsensitive::fold($request->city())])
             ->whereNotNull('addresses.neighborhood')
             ->whereRaw("trim(addresses.neighborhood) != ''")
+            ->groupByRaw('trim(addresses.neighborhood)')
+            ->select([
+                DB::raw('trim(addresses.neighborhood) as graphie'),
+                DB::raw('count(*) as n'),
+            ])
+            ->toBase();
+
+        $lignes = DB::query()
+            ->fromSub($graphies, 'graphies')
             ->groupByRaw($replie)
-            ->orderByDesc(DB::raw('count(*)'))
+            ->orderByDesc(DB::raw('sum(graphies.n)'))
             ->orderByRaw($replie)
             ->limit($max + 1)
             ->get([
-                DB::raw('mode() WITHIN GROUP (ORDER BY addresses.neighborhood) as valeur'),
-                DB::raw('count(*) as compte'),
+                DB::raw('(array_agg(graphies.graphie ORDER BY graphies.n DESC, (graphies.graphie = upper(graphies.graphie)) ASC, graphies.graphie))[1] as valeur'),
+                DB::raw('sum(graphies.n) as compte'),
             ]);
 
         $tronque = $lignes->count() > $max;

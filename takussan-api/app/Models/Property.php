@@ -244,7 +244,11 @@ class Property extends AbstractModel implements HasMedia
     {
         static::creating(function (self $m) {
             if (empty($m->slug)) {
-                $m->slug = Str::slug($m->title).'-'.Str::random(6);
+                // TCK-618 (contrainte 1) — `Str::slug()` rend '' pour un titre en émojis, en
+                // idéogrammes ou fait de tirets : le slug devenait `-XXXXXX`. Repli `bien`, à la
+                // CRÉATION seulement — aucun slug existant ne change (pas de redirection d'un ancien).
+                $base = Str::slug((string) $m->title);
+                $m->slug = ($base !== '' ? $base : 'bien').'-'.Str::random(6);
             }
             if (empty($m->reference_number)) {
                 $m->reference_number = 'TK-'.now()->format('Y').'-'.strtoupper(Str::random(6));
