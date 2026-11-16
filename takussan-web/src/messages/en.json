@@ -18511,7 +18511,12 @@
       "leadSuccessOwner": "The owner will get back to you shortly.",
       "message": "Message",
       "ecrireALAgence": "Contact the agency",
-      "contacterNom": "Contact {nom}"
+      "contacterNom": "Contact {nom}",
+      "votreFiche": "This is your public profile",
+      "votreFicheAgence": "This is your agency's public page",
+      "votreFicheAide": "Visitors see it like this, with the buttons to reach you.",
+      "modifierMaFiche": "Edit my profile",
+      "modifierLaFicheDeLAgence": "Edit the agency's page"
     },
     "portfolio": {
       "filterAria": "Filter the portfolio",

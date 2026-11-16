@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Building2, Mail, MessageCircle, Phone } from 'lucide-react';
+import { Building2, Mail, MessageCircle, PencilLine, Phone } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { telephonePublie } from '@/lib/phone';
 import { submitAgentContactLead } from '@/app/actions/property';
 import { AnonymousLeadDialog } from '@/components/public/AnonymousLeadDialog';
 import { LienLocalise } from '@/components/shared/LienLocalise';
+import { useFicheDeSoi, type FicheIdentifiee } from '@/components/public/fiche/useFicheDeSoi';
 
 /**
  * Le canal « Message » d'une fiche — trois formes, et une seule à la fois :
@@ -31,6 +32,20 @@ export interface ContactDeFicheProps {
   readonly message: CanalDeMessage | null;
   /** Le sous-titre de la carte de bureau (« Répond en ~1 h »), ou `null`. */
   readonly sousTitre?: string | null;
+  /**
+   * TCK-2575 — qui est la fiche : sur SA propre fiche, la personne (ou qui configure l'agence) ne se
+   * voit pas proposer de s'écrire, mais un lien vers l'écran qui la modifie. Reconnu côté client
+   * seulement, après l'hydratation : le HTML servi reste celui d'un visiteur ({@link useFicheDeSoi}).
+   */
+  readonly fiche?: FicheIdentifiee;
+}
+
+/** TCK-2575 — l'écran qui modifie la fiche (TCK-2524) : `/app/…`, jamais préfixé d'une langue. */
+function ecranDeModification(fiche: FicheIdentifiee): string {
+  if (fiche.genre === 'agence') return '/app/agency';
+  // La section « Fiche publique » (langues, quartiers) n'existe que pour un agent ; celle d'un
+  // propriétaire rendrait 404 (`SectionDuProfil`) : ce qu'il montre au public vient de son profil.
+  return fiche.role === 'agent' ? '/app/profile/public-profile' : '/app/profile';
 }
 
 /**
@@ -41,11 +56,13 @@ export interface ContactDeFicheProps {
  * ni d'une agence ni d'une personne si son numéro est sur WhatsApp. Un bouton qui viserait un
  * numéro sans WhatsApp mentirait (TCK-633, lot C) : il viendra avec la donnée.
  */
-export function ContactDeFiche({ nom, telephone, message, sousTitre = null }: ContactDeFicheProps) {
+export function ContactDeFiche({ nom, telephone, message, sousTitre = null, fiche }: ContactDeFicheProps) {
   const t = useTranslations('publicProfile.contact');
   const [formulaireOuvert, setFormulaireOuvert] = useState(false);
+  const deSoi = useFicheDeSoi(fiche);
   const telHref = telephone ? `tel:${telephonePublie(telephone)}` : null;
 
+  if (deSoi && fiche) return <VotreFiche fiche={fiche} />;
   if (!telHref && !message) return null;
 
   const boutonMessage = (classe: string) => {
@@ -128,6 +145,45 @@ export function ContactDeFiche({ nom, telephone, message, sousTitre = null }: Co
           onSubmit={(payload, cle) => submitAgentContactLead(message.slug, payload, cle)}
         />
       ) : null}
+    </>
+  );
+}
+
+/**
+ * TCK-2575 — sa propre fiche : « C'est votre fiche publique » et le lien qui la modifie, à la place
+ * des canaux — ni « Appeler », ni « Message », ni formulaire. Mêmes deux emplacements que le contact.
+ */
+function VotreFiche({ fiche }: { readonly fiche: FicheIdentifiee }) {
+  const t = useTranslations('publicProfile.contact');
+  const agence = fiche.genre === 'agence';
+  const href = ecranDeModification(fiche);
+  const titre = agence ? t('votreFicheAgence') : t('votreFiche');
+  const lien = agence ? t('modifierLaFicheDeLAgence') : t('modifierMaFiche');
+  const classeLien =
+    'inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-[0.9375rem] font-semibold text-foreground transition-[border-color,scale] hover:border-primary active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+
+  return (
+    <>
+      <div data-contact-fiche="carte" data-fiche-de-soi="" className="hidden rounded-2xl border border-border bg-card p-5 shadow-[0_12px_32px_-20px_color-mix(in_oklab,var(--shadow-color)_45%,transparent)] lg:block">
+        <p className="font-display text-lg font-semibold tracking-tight text-foreground">{titre}</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">{t('votreFicheAide')}</p>
+        <LienLocalise data-lien="modifier-la-fiche" href={href} className={cn(classeLien, 'mt-4 w-full')}>
+          <PencilLine className="size-[18px]" aria-hidden />
+          {lien}
+        </LienLocalise>
+      </div>
+
+      <div
+        data-contact-fiche="barre"
+        data-fiche-de-soi=""
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border bg-card px-4 pb-[max(var(--spacing)*4,env(safe-area-inset-bottom))] pt-3 lg:hidden"
+      >
+        <p className="min-w-0 flex-1 text-sm font-medium text-foreground">{titre}</p>
+        <LienLocalise data-lien="modifier-la-fiche" href={href} className={cn(classeLien, 'shrink-0')}>
+          <PencilLine className="size-[18px]" aria-hidden />
+          {lien}
+        </LienLocalise>
+      </div>
     </>
   );
 }

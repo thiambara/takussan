@@ -448,6 +448,7 @@ export default async function Page({ params, searchParams }: Props) {
               telephone={telephone}
               message={message}
               sousTitre={texteDelai}
+              fiche={{ genre: 'personne', id: agent.id, role: estAgent ? 'agent' : 'owner' }}
             />
           </aside>
         </div>

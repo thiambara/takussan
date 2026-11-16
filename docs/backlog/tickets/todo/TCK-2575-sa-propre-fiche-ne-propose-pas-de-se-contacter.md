@@ -59,17 +59,17 @@ porte le sien.
 - [ ] ~~Servir à `GET /api/me` le slug public de l'utilisateur (ou l'identifiant comparé à `id` de la
   fiche) — ce qu'il faut pour se reconnaître, rien de plus.~~ — sans objet (relevé 2026-11-16) : la
   fiche sert déjà `id`, comparé à `user.id` d'`AuthContext` ; aucun changement d'API.
-- [ ] `ContactDeFiche` (et la barre d'actions au téléphone) : sur sa propre fiche, remplacer les
+- [x] `ContactDeFiche` (et la barre d'actions au téléphone) : sur sa propre fiche, remplacer les
   canaux par « C'est votre fiche publique » et un lien vers l'écran qui la modifie (TCK-2524) : agent →
   son profil (langues, quartiers) ; agence → `/app/agency` (bloc « Fiche publique »).
-- [ ] Même règle sur la fiche d'agence pour qui peut configurer l'agence — « peut configurer » se lit
+- [x] Même règle sur la fiche d'agence pour qui peut configurer l'agence — « peut configurer » se lit
   à la capacité de l'agence active (pas la simple appartenance), dans le contexte d'espace existant.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Connecté en tant que la personne de la fiche : ni « Message », ni « Appeler », et le lien
+- [x] AC1 — Connecté en tant que la personne de la fiche : ni « Message », ni « Appeler », et le lien
   de modification est rendu ; le HTML servi par le serveur reste identique à celui d'un visiteur.
-- [ ] AC2 — Un autre utilisateur connecté et un anonyme voient les canaux de contact, inchangés.
+- [x] AC2 — Un autre utilisateur connecté et un anonyme voient les canaux de contact, inchangés.
 
 ## Hors périmètre
 
@@ -78,3 +78,21 @@ porte le sien.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- Reconnaissance côté client seulement, dans `useFicheDeSoi` : le layout racine pose l'utilisateur dans
+  `AuthContext` dès le rendu serveur, d'où un garde d'hydratation (`useSyncExternalStore`, `false` au serveur)
+  — sans lui, « C'est votre fiche » entrait dans le HTML servi.
+- Personne : `user.id === fiche.id`. Agence : le profil ACTIF est dans l'agence de la fiche ET `GET
+  /api/me/capabilities` rend `agency.update` pour cette même agence (`agency_id` comparé) ; les capacités ne sont
+  lues que si l'agence active est celle de la fiche — aucune requête de plus pour un visiteur.
+- Liens : agent → `/app/profile/public-profile` ; propriétaire → `/app/profile` (la section « Fiche publique »
+  rend 404 hors agent, `SectionDuProfil`) ; agence → `/app/agency`. Carte de bureau ET barre du téléphone ;
+  le formulaire anonyme n'est plus monté.
+- AC1 — `ContactDeFiche.test.tsx` : la personne voit « C'est votre fiche publique » + lien, aucun `data-canal` ;
+  `renderToString` identique pour elle et pour un anonyme (personne et agence). Ablations : garde d'hydratation
+  levé → les deux tests HTML rougissent ; reconnaissance retirée → 3 rouges.
+- AC2 — mêmes tests : autre connecté, anonyme, membre sans `agency.update`, capacité dans une autre agence →
+  canaux inchangés. Ablation : capacité non vérifiée → rouge. Les deux pages transmettent `fiche`
+  (`page.server.test.tsx` des agents et des agences).

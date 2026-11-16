@@ -18511,7 +18511,12 @@
       "leadSuccessOwner": "Le propriétaire vous recontactera sous peu.",
       "message": "Message",
       "ecrireALAgence": "Écrire à l'agence",
-      "contacterNom": "Contacter {nom}"
+      "contacterNom": "Contacter {nom}",
+      "votreFiche": "C'est votre fiche publique",
+      "votreFicheAgence": "C'est la fiche publique de votre agence",
+      "votreFicheAide": "Vos visiteurs la voient ainsi, avec les boutons pour vous joindre.",
+      "modifierMaFiche": "Modifier ma fiche",
+      "modifierLaFicheDeLAgence": "Modifier la fiche de l'agence"
     },
     "portfolio": {
       "filterAria": "Filtrer le portefeuille",

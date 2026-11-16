@@ -454,6 +454,7 @@ export default async function Page({ params, searchParams }: Props) {
                 telephone={telephone}
                 message={agency.email ? { genre: 'courriel', adresse: agency.email, sujet: t('contactSubject', { name: agency.name }) } : null}
                 sousTitre={texteDelai}
+                fiche={{ genre: 'agence', id: agency.id }}
               />
             </div>
           </aside>

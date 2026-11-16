@@ -122,9 +122,10 @@ vi.mock('@/components/public/profile/PortfolioTabs', () => ({
 // bureau). Le double rend le CANAL de message reçu (formulaire de qui, ou renvoi à l'agence) et le
 // numéro reçu : c'est la page qui décide des deux (TCK-573, TCK-633, décision 1b).
 vi.mock('@/components/public/fiche/ContactDeFiche', () => ({
-  ContactDeFiche: ({ telephone, message, nom }: { telephone: string | null; nom: string; message: { genre: string; role?: string; slug: string } | null }) => (
+  ContactDeFiche: ({ telephone, message, nom, fiche }: { telephone: string | null; nom: string; message: { genre: string; role?: string; slug: string } | null; fiche?: unknown }) => (
     <div
       data-testid="contact"
+      data-fiche={JSON.stringify(fiche ?? null)}
       data-nom={nom}
       data-canal={message?.genre ?? ''}
       data-role={message?.genre === 'formulaire' ? message.role : message?.genre === 'agence' ? `agence:${message.slug}` : ''}
@@ -588,6 +589,11 @@ describe('TCK-2523 · AC3 — la fiche d’un propriétaire sur option (décisio
     expect(screen.getByTestId('contact')).toHaveAttribute('data-role', 'agence:dakar-immo');
     expect(screen.getAllByText(/Ses biens sont gérés par Dakar Immo/).length).toBeGreaterThan(0);
     for (const lien of screen.getAllByRole('link', { name: /Voir l'agence/ })) expect(lien).toHaveAttribute('href', '/fr/agencies/dakar-immo');
+  });
+
+  it('TCK-2575 — le contact reçoit qui est la fiche (l’id de l’utilisateur, son rôle public), pour la reconnaître côté client', async () => {
+    await rendreFiche(sokhna({ id: 42 }));
+    expect(JSON.parse(screen.getByTestId('contact').getAttribute('data-fiche') ?? 'null')).toEqual({ genre: 'personne', id: 42, role: 'owner' });
   });
 
   it('agence inconnue (l’API ne la sert pas encore, TCK-2574) : le formulaire anonyme du propriétaire, sans encart', async () => {

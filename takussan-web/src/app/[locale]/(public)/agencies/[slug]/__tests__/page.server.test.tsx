@@ -386,6 +386,11 @@ describe('TCK-2522 — la vitrine à onglets', () => {
     expect(screen.getByRole('tab', { name: 'Infos' })).toBeInTheDocument();
   });
 
+  it('TCK-2575 — le contact reçoit l’id de l’agence, pour reconnaître qui la configure côté client', async () => {
+    await rendre(agence({ id: 7 }));
+    expect((contactProps.mock.calls.at(-1)?.[0] as { fiche: unknown }).fiche).toEqual({ genre: 'agence', id: 7 });
+  });
+
   it('TCK-2518 — une médiane absente n’affiche aucun délai ; une médiane servie l’affiche', async () => {
     await rendre(agence({ median_response_minutes: null }));
     expect(screen.queryByText(/Répond en/)).not.toBeInTheDocument();
