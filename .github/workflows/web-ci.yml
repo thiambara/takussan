@@ -135,12 +135,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ─── L'ATTESTATION PAR ARBRE (ADR-0063, TCK-636) ─────────────────────────────────────────
+  # ─── L'ATTESTATION PAR ARBRE (ADR-0063, TCK-636 ; agrégateur : TCK-2950) ───────────────────
   #
   # Même mécanisme qu'api-ci.yml : la clé est le `ls-tree` de ce que la suite LIT — ici TOUT
   # `takussan-api/` en plus du front, pas les `paths:` ci-dessus. Mesuré le 2026-10-13 : deux
   # tests du front lisent des fichiers de l'API que ces `paths` ignorent. S'il existe une
-  # attestation verte de cette clé, `quality` est sauté ; toute incertitude le fait tourner.
+  # attestation verte de cette clé, `statique` et les shards de `tests` sont sautés, et `quality`
+  # le constate ; toute incertitude les fait tourner.
   attestation:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -160,13 +161,27 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/ci-attestation.mjs web
 
-  quality:
-    name: Web (ESLint + tsc + Vitest + build)
-    # `!cancelled()` d'abord : un job `attestation` en échec ne doit pas faire SAUTER la suite —
-    # un job sauté passe un check requis.
+  # ─── TROIS JOBS, UN VERDICT (TCK-2950, amendement d'ADR-0063 du 2026-11-16) ──────────────────
+  #
+  # Avant : un seul job enchaînait lint, tsc, gardes, Vitest (18-26 min sur 4 cœurs : le coût est la
+  # mise en place de chacun des ~1 900 fichiers, pas les tests) et le build — ~30 min. Désormais :
+  #   · `statique` — ESLint, tsc, les gardes `check:*`, le build et le poids des routes ;
+  #   · `tests`    — Vitest en matrice de 4 shards, chacun sur son runner ;
+  # les deux ne dépendent que d'`attestation` et tournent EN MÊME TEMPS. Puis
+  #   · `quality`  — l'AGRÉGATEUR, qui porte le nom du check requis de `preview`/`master`
+  #     (« Front / Web (ESLint + tsc + Vitest + build) », au caractère près) et rend le verdict.
+  #
+  # ⚠ Le piège que `quality` existe pour fermer : un job dont une dépendance a échoué est SAUTÉ, et
+  # un job sauté passe un check requis. `quality` tourne donc sous `!cancelled()` quoi qu'il arrive,
+  # et ÉCHOUE lui-même sur tout autre résultat que « tout vert » ou « tout sauté sur une attestation
+  # trouvée ». `scripts/check-ci-attestation.mjs` tient cette forme.
+  statique:
+    name: Web (ESLint + tsc + gardes + build)
+    # `!cancelled()` d'abord : un job `attestation` en échec ne doit pas faire SAUTER la suite.
     needs: attestation
     if: ${{ !cancelled() && needs.attestation.outputs.deja-vert != 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: takussan-web
@@ -244,9 +259,6 @@ jobs:
         # la parité des langues, et un texte au tutoiement est une chaîne valide pour tout le reste.
         run: npm run check:vouvoiement
 
-      - name: Tests (Vitest)
-        run: npm run test
-
       - name: Build
         run: npm run build
 
@@ -259,16 +271,82 @@ jobs:
         # lu n'est pas un vert). Le chiffre se lit dans le journal de cette étape.
         run: node scripts/poids-des-routes.mjs
 
-      # ADR-0063 — lint, types, gardes, tests et build sont verts sur cet arbre : le nom de
-      # l'artefact en est la preuve, son contenu dit qui l'a déposé. Sans nom (attestation en
-      # échec), rien à déposer.
+  tests:
+    name: Vitest (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: attestation
+    if: ${{ !cancelled() && needs.attestation.outputs.deja-vert != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      # Un shard rouge n'arrête pas les autres : le run montre TOUS les tests en échec d'un coup.
+      fail-fast: false
+      matrix:
+        # Exactement 1..N : le dénominateur est `strategy.job-total`, pas un chiffre recopié — une
+        # liste et un `/4` qui divergent laisseraient un quart des fichiers sans runner, en vert.
+        # Le découpage est celui de Vitest (hachage des chemins) : ~480 fichiers par shard.
+        shard: [1, 2, 3, 4]
+    defaults:
+      run:
+        working-directory: takussan-web
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: takussan-web/package-lock.json
+
+      - run: npm ci
+
+      - name: Tests (Vitest, shard ${{ matrix.shard }}/${{ strategy.job-total }})
+        run: npx vitest run --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+
+  quality:
+    name: Web (ESLint + tsc + Vitest + build)
+    # ⚠ PAS de `deja-vert` ici : l'agrégateur tourne toujours, c'est lui qui rend le verdict. Et
+    # `!cancelled()` plutôt qu'un `if:` par défaut — qui vaut `success()` et le ferait SAUTER dès
+    # qu'un shard rougit : un check requis sauté est un check requis vert.
+    needs: [attestation, statique, tests]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verdict (statique + 4 shards)
+        env:
+          DEJA_VERT: ${{ needs.attestation.outputs.deja-vert }}
+          STATIQUE: ${{ needs.statique.result }}
+          TESTS: ${{ needs.tests.result }}
+        run: |
+          echo "attestation trouvée : ${DEJA_VERT:-non} · statique : $STATIQUE · tests : $TESTS"
+          if [ "$DEJA_VERT" = "true" ]; then
+            # Le seul vert sans exécution : tout a été sauté PARCE QU'une attestation existe.
+            if [ "$STATIQUE" = "skipped" ] && [ "$TESTS" = "skipped" ]; then
+              echo "Arbre déjà attesté vert (ADR-0063) : rien n'est rejoué."
+              exit 0
+            fi
+            echo "::error::Arbre attesté, mais statique=$STATIQUE et tests=$TESTS — incohérent."
+            exit 1
+          fi
+          if [ "$STATIQUE" = "success" ] && [ "$TESTS" = "success" ]; then
+            exit 0
+          fi
+          echo "::error::statique=$STATIQUE, tests=$TESTS — le check du front n'est vert que si TOUT l'est."
+          exit 1
+
+      # ADR-0063 — lint, types, gardes, build et les 4 shards sont verts sur cet arbre : le nom de
+      # l'artefact en est la preuve, son contenu dit qui l'a déposé. Sans nom (attestation en échec),
+      # rien à déposer ; sur un arbre déjà attesté, rien non plus — redéposer prolongerait sans fin
+      # la validité de 7 jours qui borne la dérive. `if:` sans fonction de statut = `success()` :
+      # un verdict rouge ne dépose rien.
       - name: Attester l'arbre (ADR-0063)
-        if: needs.attestation.outputs.artefact != ''
+        if: needs.attestation.outputs.artefact != '' && needs.attestation.outputs.deja-vert != 'true'
         run: |
           printf '{"sha":"%s","run":"%s","evenement":"%s"}\n' \
             "${{ github.sha }}" "${{ github.run_id }}" "${{ github.event_name }}" > "${{ runner.temp }}/attestation.json"
       - name: Déposer l'attestation
-        if: needs.attestation.outputs.artefact != ''
+        if: needs.attestation.outputs.artefact != '' && needs.attestation.outputs.deja-vert != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ needs.attestation.outputs.artefact }}
