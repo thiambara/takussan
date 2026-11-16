@@ -1,0 +1,181 @@
+{
+  "ticket": "TCK-2868",
+  "ecrans": [
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Personnaliser les chiffres",
+      "references": {
+        "telephone": "references/app-rapports/a-1-telephone.json",
+        "bureau-1440": "references/app-rapports/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "un chiffre AFFICHÉ déplié (« Libellé / Format ») dans « Personnaliser les chiffres » — TCK-2868",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Impayés (balance âgée)",
+      "references": {
+        "telephone": "references/app-rapports/a-2-telephone.json",
+        "bureau-1440": "references/app-rapports/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports/unpaid",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "téléphone : liste groupée par tranche (bande « > 90 j · 2 échéances · montant » à fond perdu) ; bureau : barre « N échéances en retard · Tous les bailleurs · Tri : montant dû · Balance âgée en PDF » — TCK-2868",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Exports",
+      "references": {
+        "telephone": "references/app-rapports/a-3-telephone.json",
+        "bureau-1440": "references/app-rapports/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports/exports",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "« Derniers exports » : un export de moins de 7 jours porte « Retélécharger », un export expiré « Refaire » — TCK-2868",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Export personnalisé",
+      "references": {
+        "telephone": "references/app-rapports/a-4-telephone.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports/exports",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "périodes « Ce mois · Mois dernier · Trimestre · Année 2026 · Autre… » et « 38 lignes à exporter. 5 000 lignes au plus par export, 200 en PDF. » — TCK-2868",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Alertes",
+      "references": {
+        "telephone": "references/app-rapports/a-5-telephone.json",
+        "bureau-1440": "references/app-rapports/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports/alerts",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "colonnes « Destinataires » (noms du choix) et « Canal » (E-mail · WhatsApp · E-mail et WhatsApp), « Déclenchements récents » avec ce qui est parti — TCK-2868",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Nouvelle alerte",
+      "references": {
+        "telephone": "references/app-rapports/a-6-telephone.json",
+        "bureau-1440": "references/app-rapports/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports/alerts",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "« Qui est prévenu » : un champ à choix multiple parmi les destinataires possibles de la mesure (vide : « Tous les administrateurs ») ; « Canal » E-mail · WhatsApp · Les deux — TCK-2868",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/reports/unpaid, /app/reports/exports, /app/reports/alerts, /app/reports (Personnaliser)",
+    "persona": "admin",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null,
+    "releves": "non relevé au navigateur : consigne du porteur du 2026-11-15 (l'API et le front servis en local tournent sur un autre arbre). La fidélité est jugée en lisant la maquette (`app-rapports.tsx` l. 342-547, 600-700 ; `app-rapports-pieces.tsx` l. 610-745) ; chaque élément neuf est prouvé par test (vitest, TCK-2868)."
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-rapports a-2-telephone",
+      "element": "une échéance = la carte `CarteDImpaye` (bordée, espacée) et non une rangée de liste séparée par des filets",
+      "propriete": "forme",
+      "exception": "composant partagé",
+      "motif": "contrainte du ticket : « La page des impayés reste le composant d'« Argent » (une seule implémentation) » — les groupes sont une option de ce composant, la carte reste celle d'« Argent »"
+    },
+    {
+      "ecran": "app-rapports a-2-bureau-*",
+      "element": "« Tri : … » est un sélecteur à deux valeurs (« Tri : retard » par défaut, « Tri : montant dû »)",
+      "propriete": "état",
+      "exception": "composant partagé",
+      "motif": "l'ordre par défaut reste celui du composant d'« Argent » (le retard) ; la maquette dessine l'état « montant dû », que le sélecteur sert"
+    },
+    {
+      "ecran": "app-rapports a-6-*",
+      "element": "phrase d'aide sous « Canal » quand WhatsApp est choisi (« WhatsApp ne parvient qu'aux personnes qui l'ont activé… »)",
+      "propriete": "présence",
+      "exception": "vérité des données",
+      "motif": "TCK-2866 : WhatsApp exige la préférence du destinataire (désactivée par défaut) et un numéro vérifié ; l'écran ne promet pas un envoi qui n'aura pas lieu"
+    },
+    {
+      "ecran": "app-rapports a-5-bureau-*",
+      "element": "« Déclenchements récents », 4ᵉ colonne : « E-mail · 2 personnes prévenues » au lieu de « E-mail envoyé à Awa Diop et Oumy Samb »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le journal du déclenchement (TCK-2866) garde `channel` et `recipients_count`, pas les noms"
+    },
+    {
+      "ecran": "app-rapports a-3-*",
+      "element": "pied « Chaque fichier se retélécharge pendant 7 jours ; ensuite, « Refaire »… » au lieu de « Au téléphone, le PDF se lit le mieux. 5 000 lignes au plus, 200 en PDF. »",
+      "propriete": "texte",
+      "exception": "vérité des données",
+      "motif": "ADR-0115 : le fichier est gardé 7 jours et l'ancien pied (« Aucun fichier n'est conservé ») était devenu faux ; la durée se dit. « Le PDF se lit le mieux » reste dit dans l'export personnalisé du téléphone"
+    },
+    {
+      "ecran": "app-rapports a-4-telephone",
+      "element": "tant que le nombre de lignes n'est pas lu (anti-rebond, échec), la phrase ne dit que les plafonds ; au-delà du plafond du format, elle dit le refus (ton d'erreur) et le bouton est désactivé",
+      "propriete": "état",
+      "exception": "hors maquette",
+      "motif": "contrainte du ticket : « l'export est refusé à l'écran au-delà de la limite » ; une lecture absente ne bloque rien"
+    },
+    {
+      "ecran": "app-rapports a-1-*",
+      "element": "la ligne se déplie au toucher du libellé (chevron), et garde ses commandes (monter, descendre, afficher, supprimer)",
+      "propriete": "interaction",
+      "exception": "hors maquette",
+      "motif": "la maquette dessine la ligne dépliée, pas son déclencheur ; les commandes de la ligne sont celles de TCK-2629 (écarts acceptés là)"
+    }
+  ],
+  "hors_perimetre": [
+    "les vues d'ensemble (TCK-2867)"
+  ],
+  "mesures": []
+}

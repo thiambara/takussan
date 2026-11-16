@@ -1,6 +1,7 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import type { PaginatedResponse } from '@/types/api';
+import type { CounterOfferStatus } from '@/types/booking';
 import type { CustomerPipelineStage } from '@/types/customer';
 
 /**
@@ -14,7 +15,8 @@ import type { CustomerPipelineStage } from '@/types/customer';
  */
 
 /** Les types du fil (`CustomerTimeline::TYPES`). */
-export const TYPES_DU_FIL = ['note', 'visit', 'contact', 'stage', 'record', 'task'] as const;
+/** TCK-2894 — `booking` : la réservation entre au fil (ADR-0110 § 9) ; son rendu est TCK-2878. */
+export const TYPES_DU_FIL = ['note', 'visit', 'contact', 'stage', 'record', 'task', 'booking'] as const;
 export type TypeDuFil = (typeof TYPES_DU_FIL)[number];
 
 /** Une entrée par page : la taille d'une page du fil. */
@@ -42,6 +44,11 @@ export interface NoteDuFil {
   readonly property_visit_id: number | null;
   readonly author: PersonneDuFil | null;
   readonly report?: CompteRenduDuFil;
+  /**
+   * TCK-2878 (TCK-2875 AC6) — le bien de la demande dont une note `lead_message` reprend le message,
+   * au seul personnel ; `null` : demande inconnue ou sans bien. Absente des autres notes.
+   */
+  readonly property?: { readonly id: number; readonly title: string } | null;
 }
 
 /** Un jalon de visite : sa demande, sa confirmation ou son annulation (7a). */
@@ -101,7 +108,37 @@ export interface TacheDuFil {
   readonly causer: PersonneDuFil | null;
 }
 
-export type EntreeDuFil = NoteDuFil | VisiteDuFil | ContactDuFil | EtapeDuFil | FicheDuFil | TacheDuFil;
+/**
+ * TCK-2894 (ADR-0110 § 9) — un jalon de réservation : son dépôt, son acceptation ou son refus, au
+ * seul personnel de l'agence de la fiche. Jamais le revenu déclaré, le dossier ni les garants.
+ */
+export interface ReservationDuFil {
+  readonly type: 'booking';
+  readonly id: number;
+  readonly at: string;
+  /** TCK-2876 — `counter_offer` (TCK-2873) : une entrée PAR contre-offre, sous l'`id` de sa réservation. */
+  readonly milestone: 'created' | 'confirmed' | 'rejected' | 'counter_offer';
+  readonly kind: 'stay' | 'application' | 'offer' | null;
+  /** Le statut COURANT de la réservation, pas celui du jalon. */
+  readonly status: string | null;
+  readonly reference_number: string | null;
+  readonly amount: string | null;
+  readonly currency: string | null;
+  readonly start_date: string | null;
+  readonly property: { readonly id: number; readonly title: string } | null;
+  /**
+   * TCK-2876 — le jalon `counter_offer` seul : la contre-offre (son prix en CHAÎNE décimale, sa validité,
+   * un jour, et son état COURANT). Son `id` distingue deux contre-offres d'une même réservation.
+   */
+  readonly counter_offer?: {
+    readonly id: number;
+    readonly amount: string;
+    readonly valid_until: string | null;
+    readonly status: CounterOfferStatus;
+  };
+}
+
+export type EntreeDuFil = NoteDuFil | VisiteDuFil | ContactDuFil | EtapeDuFil | FicheDuFil | TacheDuFil | ReservationDuFil;
 
 export const FIL_QUERY_KEY = {
   tout: (customerId: number) => ['customer-timeline', customerId] as const,

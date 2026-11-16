@@ -38,24 +38,25 @@ class DocumentVaultOwnerTest extends TestCase
         $this->connecter($this->landlord, $this->ownerProfile);
         $vault = $this->coffre();
 
+        // TCK-2897 — sous chaque bien, un sous-dossier par bail hors brouillon (`parent`).
         $keys = array_column($vault['folders'], 'key');
-        $this->assertSame(["property:{$this->otherProperty->id}", "property:{$this->property->id}", 'pieces'], $keys);
+        $this->assertSame(["property:{$this->otherProperty->id}", "lease:{$this->otherLease->id}", "property:{$this->property->id}", "lease:{$this->lease->id}", 'pieces'], $keys);
         $this->assertNotContains('receipts:2026', $keys);
 
         $villa = collect($vault['folders'])->firstWhere('key', "property:{$this->property->id}");
         $this->assertSame('Villa Almadies', $villa['name']);
-        $paths = array_column($villa['entries'], 'download_path');
+        $bailDeLaVilla = collect($vault['folders'])->firstWhere('key', "lease:{$this->lease->id}");
+        $this->assertSame("property:{$this->property->id}", $bailDeLaVilla['parent']);
+        $paths = array_column($bailDeLaVilla['entries'], 'download_path');
         $this->assertContains("/api/leases/{$this->lease->id}/contract/pdf", $paths);
         $this->assertContains("/api/inventories/{$this->signedInventory->id}/pdf", $paths);
         $this->assertNotContains("/api/inventories/{$this->draftInventory->id}/pdf", $paths);
-        $this->assertEqualsCanonicalizing(
-            [$this->adminDocOnLease->id, $this->adminDocOnProperty->id],
-            array_values(array_filter(array_column($villa['entries'], 'document_id'))),
-        );
-        $onLease = collect($villa['entries'])->firstWhere('document_id', $this->adminDocOnLease->id);
+        $this->assertSame([$this->adminDocOnProperty->id], array_values(array_filter(array_column($villa['entries'], 'document_id'))));
+        $this->assertSame([$this->adminDocOnLease->id], array_values(array_filter(array_column($bailDeLaVilla['entries'], 'document_id'))));
+        $onLease = collect($bailDeLaVilla['entries'])->firstWhere('document_id', $this->adminDocOnLease->id);
         $this->assertSame([['type' => 'lease', 'id' => $this->lease->id], ['type' => 'property', 'id' => $this->property->id]], $onLease['targets']);
 
-        $plateau = collect($vault['folders'])->firstWhere('key', "property:{$this->otherProperty->id}");
+        $plateau = collect($vault['folders'])->firstWhere('key', "lease:{$this->otherLease->id}");
         $plateauPaths = array_column($plateau['entries'], 'download_path');
         $this->assertContains("/api/leases/{$this->otherLease->id}/contract/pdf", $plateauPaths);
         $this->assertNotContains("/api/leases/{$this->draftLease->id}/contract/pdf", $plateauPaths);
@@ -75,7 +76,8 @@ class DocumentVaultOwnerTest extends TestCase
         $this->assertNotNull($bail);
         $this->assertNotNull($this->lease->reference_number);
         $this->assertSame($this->lease->reference_number, $bail['reference']);
-        $this->assertSame("property:{$this->property->id}", $bail['folder']);
+        // TCK-2897 — le dossier d'un bail est son sous-dossier dans le bien.
+        $this->assertSame("lease:{$this->lease->id}", $bail['folder']);
         $autre = $cibles->first(fn (array $c) => $c['type'] === 'lease' && $c['id'] === $this->otherLease->id);
         $this->assertSame($this->otherLease->reference_number, $autre['reference']);
         $this->assertNotSame($bail['reference'], $autre['reference']);

@@ -4,17 +4,22 @@ import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Radio as RadioPrimitive } from '@base-ui/react/radio';
 import { RadioGroup as RadioGroupPrimitive } from '@base-ui/react/radio-group';
-import { Check, CircleHelp, Lock, ThumbsDown, ThumbsUp, type LucideIcon } from 'lucide-react';
+import { Check, CircleHelp, Lock, Mic, ThumbsDown, ThumbsUp, type LucideIcon } from 'lucide-react';
 
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { useDictee } from '@/hooks/useDictee';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { ajouterALaNote, dureeDictee } from '@/lib/dictee';
 import { codeDuRefus } from '@/lib/reservations/saisie-de-demande';
 import { useCreateVisitReport, useUpdateVisitReport, type ReponseDuCompteRendu } from '@/lib/queries/visits';
 import { OBJECTIONS, VERDICTS, type CompteRendu, type Objection, type Verdict } from '@/lib/visites/compte-rendu';
 import { cn } from '@/lib/utils';
+
+/** La borne de la note (`StorePropertyVisitReportRequest` : `note` ≤ 2000). */
+const NOTE_MAX = 2000;
 
 /** Les refus `{code}` du compte rendu (`VisitReportService`, `abort_code_*` : sans sac `errors`). */
 const CODES_CONNUS = new Set(['visit.report_exists', 'visit.report_not_closable', 'visit.report_missing']);
@@ -183,15 +188,26 @@ export function FormulaireDuCompteRendu({ visitId, existant, densite, prenom, en
         <label htmlFor={`${id}-note`} className={cn(telephone ? 'mb-2 block text-corps font-semibold text-foreground' : 'sr-only')}>
           {t('note')}
         </label>
-        <Textarea
-          id={`${id}-note`}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          maxLength={2000}
-          rows={3}
-          placeholder={t('notePlaceholder')}
-          className={cn('min-h-24', !telephone && 'bg-background')}
-        />
+        {/* TCK-2880 — la saisie de la maquette (`NoteDictee`) : le champ et, dessous dans la même boîte,
+            « Dicter » et la durée dictée. Sans reconnaissance vocale, la boîte n'a que le champ. */}
+        <div
+          data-slot="note-dictee"
+          className={cn(
+            'rounded-xl border border-input p-3 transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring',
+            telephone ? 'bg-card' : 'bg-background',
+          )}
+        >
+          <Textarea
+            id={`${id}-note`}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={NOTE_MAX}
+            rows={3}
+            placeholder={t('notePlaceholder')}
+            className="min-h-20 rounded-none border-0 bg-transparent p-0 focus-visible:ring-0 dark:bg-transparent"
+          />
+          <DicteeDeLaNote onTexte={(texte) => setNote((avant) => ajouterALaNote(avant, texte, NOTE_MAX))} />
+        </div>
       </div>
 
       {erreur ? (
@@ -226,5 +242,43 @@ export function FormulaireDuCompteRendu({ visitId, existant, densite, prenom, en
         </div>
       )}
     </form>
+  );
+}
+
+/**
+ * TCK-2880 — « Dicter » sous la note (maquette `app-fil-commercial` a-4, `NoteDictee`) : la
+ * reconnaissance vocale du navigateur (`useDictee`), le texte reconnu ajouté à la fin de la note.
+ * Absent du DOM quand le navigateur n'expose pas l'API.
+ */
+function DicteeDeLaNote({ onTexte }: { readonly onTexte: (texte: string) => void }) {
+  const t = useTranslations('compteRendu.dictee');
+  const tErreur = useTranslations('dictee.erreurs');
+  const dictee = useDictee(onTexte);
+  if (!dictee.disponible) return null;
+  return (
+    <>
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={dictee.basculer}
+          aria-pressed={dictee.ecoute}
+          className={cn(
+            'inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-ui font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring',
+            dictee.ecoute ? 'bg-primary text-primary-foreground' : 'bg-secondary text-primary-deep hover:bg-secondary/80',
+          )}
+        >
+          <Mic className="size-4" strokeWidth={1.75} aria-hidden />
+          {dictee.ecoute ? t('arreter') : t('dicter')}
+        </button>
+        <span aria-live="polite" className="text-xs text-muted-foreground tabular-nums">
+          {dictee.ecoute ? t('ecoute') : dictee.secondes > 0 ? t('duree', { duree: dureeDictee(dictee.secondes) }) : null}
+        </span>
+      </div>
+      {dictee.erreur ? (
+        <p role="alert" className="mt-1.5 text-xs text-destructive">
+          {tErreur(dictee.erreur)}
+        </p>
+      ) : null}
+    </>
   );
 }

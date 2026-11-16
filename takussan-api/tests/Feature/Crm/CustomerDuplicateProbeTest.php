@@ -50,7 +50,7 @@ class CustomerDuplicateProbeTest extends ApiTestCase
     {
         Sanctum::actingAs($this->agent);
 
-        $attendu = [['id' => $this->mariama->id, 'name' => 'Mariama Fall', 'stage' => 'qualified']];
+        $attendu = [['id' => $this->mariama->id, 'name' => 'Mariama Fall', 'stage' => 'qualified', 'referent' => null]];
         // Écrit tel quel, le « + » arrive décodé en espace.
         $this->assertSame($attendu, $this->getJson('/api/customers/duplicates?phone=+221706482056')->assertOk()->json('data'));
         $this->assertSame($attendu, $this->getJson('/api/customers/duplicates?phone=%2B221706482056')->assertOk()->json('data'));
@@ -60,13 +60,13 @@ class CustomerDuplicateProbeTest extends ApiTestCase
         $this->assertSame([], $this->getJson('/api/customers/duplicates?phone=%2B221700000000')->assertOk()->json('data'));
     }
 
-    /** Rien d'autre que l'identifiant, le nom et l'étape : ni pièce, ni téléphone, ni profession. */
-    public function test_la_sonde_ne_rend_que_trois_champs(): void
+    /** Rien d'autre que l'identifiant, le nom, l'étape et le référent (TCK-2889) : ni pièce, ni téléphone, ni profession. */
+    public function test_la_sonde_ne_rend_que_quatre_champs(): void
     {
         Sanctum::actingAs($this->agent);
         $corps = $this->getJson('/api/customers/duplicates?phone=%2B221706482056')->assertOk();
 
-        $this->assertSame(['id', 'name', 'stage'], array_keys($corps->json('data.0')));
+        $this->assertSame(['id', 'name', 'stage', 'referent'], array_keys($corps->json('data.0')));
         foreach (['1234567890123', 'Juriste', '706482056', 'example.com'] as $secret) {
             $this->assertStringNotContainsString($secret, $corps->getContent());
         }
@@ -94,7 +94,7 @@ class CustomerDuplicateProbeTest extends ApiTestCase
 
         $this->getJson('/api/customers/duplicates?phone=%2B221706482056')
             ->assertOk()
-            ->assertExactJson(['data' => [['id' => null, 'name' => null, 'stage' => null]]]);
+            ->assertExactJson(['data' => [['id' => null, 'name' => null, 'stage' => null, 'referent' => null]]]);
     }
 
     public function test_un_critere_est_requis(): void
@@ -120,7 +120,7 @@ class CustomerDuplicateProbeTest extends ApiTestCase
     {
         Sanctum::actingAs($this->agent);
 
-        $attendu = [['id' => $this->mariama->id, 'name' => 'Mariama Fall', 'stage' => 'qualified']];
+        $attendu = [['id' => $this->mariama->id, 'name' => 'Mariama Fall', 'stage' => 'qualified', 'referent' => null]];
         foreach (['70%20648%2020', '%2B2217064820', '+2217064820', '002217064820', '70648205'] as $saisie) {
             $this->assertSame($attendu, $this->getJson('/api/customers/duplicates?phone='.$saisie)->assertOk()->json('data'), $saisie);
         }
@@ -176,7 +176,7 @@ class CustomerDuplicateProbeTest extends ApiTestCase
             'first_name' => 'Codou', 'last_name' => 'Sarr', 'phone' => '+221706482099', 'added_by_id' => $membre->id,
         ]);
         $this->assertSame(
-            [['id' => $sienne->id, 'name' => 'Codou Sarr', 'stage' => $sienne->pipeline_stage?->value]],
+            [['id' => $sienne->id, 'name' => 'Codou Sarr', 'stage' => $sienne->pipeline_stage?->value, 'referent' => null]],
             $this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data'),
         );
     }
@@ -198,7 +198,7 @@ class CustomerDuplicateProbeTest extends ApiTestCase
             $this->assertSame([], $this->getJson('/api/customers/duplicates?phone='.$prefixe)->assertOk()->json('data'), $prefixe);
         }
 
-        $masquee = [['id' => null, 'name' => null, 'stage' => null]];
+        $masquee = [['id' => null, 'name' => null, 'stage' => null, 'referent' => null]];
         $this->assertSame($masquee, $this->getJson('/api/customers/duplicates?phone=706482056')->assertOk()->json('data'));
         $this->assertSame($masquee, $this->getJson('/api/customers/duplicates?email=mariama.fall@example.com')->assertOk()->json('data'));
 
@@ -269,7 +269,7 @@ class CustomerDuplicateProbeTest extends ApiTestCase
         Sanctum::actingAs($this->agent);
         $this->travel(1)->hours();
         $this->assertSame(
-            [['id' => $this->mariama->id, 'name' => 'Mariama Fall', 'stage' => 'qualified']],
+            [['id' => $this->mariama->id, 'name' => 'Mariama Fall', 'stage' => 'qualified', 'referent' => null]],
             $this->getJson('/api/customers/duplicates?phone=%2B221706482056')->assertOk()->json('data'),
         );
     }

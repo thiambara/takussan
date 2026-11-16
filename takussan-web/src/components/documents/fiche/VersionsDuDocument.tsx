@@ -45,6 +45,8 @@ export function VersionsDuDocument({
   peutRestaurer,
   echeanceActuelle = null,
   className,
+  ajoutOuvert,
+  onAjoutOuvert,
 }: {
   readonly documentId: number;
   /** L'échéance du document (`expiry_date`) : elle préremplit « Expire le » de la nouvelle version. */
@@ -54,6 +56,12 @@ export function VersionsDuDocument({
   /** `abilities.update`. */
   readonly peutRestaurer: boolean;
   readonly className?: string;
+  /**
+   * TCK-2896 — « Ajouter une version » ouvert depuis ailleurs (le « ⋯ » du téléphone) : l'état devient
+   * contrôlé quand les deux sont donnés.
+   */
+  readonly ajoutOuvert?: boolean;
+  readonly onAjoutOuvert?: (ouvert: boolean) => void;
 }) {
   const t = useTranslations('documents.fiche.versions');
   const tCommon = useTranslations('common');
@@ -61,7 +69,10 @@ export function VersionsDuDocument({
   const { user } = useAuth();
   const nomDe = useNomDAuteur();
   const requete = useDocumentVersions(documentId);
-  const [ajout, setAjout] = useState(false);
+  const [ajoutInterne, setAjoutInterne] = useState(false);
+  const controle = ajoutOuvert !== undefined && onAjoutOuvert !== undefined;
+  const ajout = controle ? ajoutOuvert : ajoutInterne;
+  const setAjout = controle ? onAjoutOuvert : setAjoutInterne;
   const [aRestaurer, setARestaurer] = useState<DocumentVersion | null>(null);
   const versions = requete.data?.data ?? [];
 

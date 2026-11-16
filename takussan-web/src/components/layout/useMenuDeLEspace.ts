@@ -43,6 +43,12 @@ export interface ParametresDuMenu {
    * branchement de chaque lecteur du menu (barre, tiroir, onglets, palette et ses récents).
    */
   readonly modulesMasques: readonly string[];
+  /**
+   * TCK-2846 — l'identifiant de l'espace actif (`agency_admin:12`), tel que le layout l'a lié
+   * (`profilLieDeLaCoque`) : les récents sont rangés par espace. Absent : aucun récent. Le menu ne le
+   * lit pas.
+   */
+  readonly espaceActif?: string | null;
 }
 
 export interface MenuDeLEspace {

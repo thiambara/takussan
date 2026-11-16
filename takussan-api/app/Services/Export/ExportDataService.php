@@ -17,7 +17,10 @@ use App\Services\Payments\PaymentHistory;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Reporting\AgingBalanceService;
 use App\Support\DayRange;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Collects rows for the CSV/XLSX/PDF exports (TCK-032 P2).
@@ -59,13 +62,7 @@ class ExportDataService
      */
     public function payments(User $actor, array $filters = []): array
     {
-        $query = LeasePayment::query()
-            ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount', 'late_fee_paid_at'])
-            ->with(['lease:id,reference_number,agency_id,landlord_id', 'payer:id,first_name,last_name']);
-
-        $this->scopeToActor($query, $actor, 'lease_payment');
-
-        $this->applyRangeFilter($query, 'due_date', $filters['from'] ?? null, $filters['to'] ?? null);
+        $query = $this->query('payments', $actor, $filters);
 
         $rows = $query->orderByDesc('due_date')->limit($this->limit($filters) + 1)->get()->map(function ($p) {
             return [
@@ -140,13 +137,7 @@ class ExportDataService
      */
     public function leases(User $actor, array $filters = []): array
     {
-        $query = Lease::query()
-            ->select(['id', 'reference_number', 'property_id', 'tenant_id', 'landlord_id', 'monthly_rent', 'currency', 'type', 'status', 'start_date', 'end_date', 'signed_at'])
-            ->with(['property:id,title,reference_number', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name,username']);
-
-        $this->scopeToActor($query, $actor, 'lease');
-
-        $this->applyRangeFilter($query, 'start_date', $filters['from'] ?? null, $filters['to'] ?? null);
+        $query = $this->query('leases', $actor, $filters);
 
         $rows = $query->orderByDesc('start_date')->limit($this->limit($filters) + 1)->get()->map(function ($l) {
             return [
@@ -177,10 +168,7 @@ class ExportDataService
      */
     public function customers(User $actor, array $filters = []): array
     {
-        $query = Customer::query()
-            ->select(['id', 'first_name', 'last_name', 'email', 'phone', 'status', 'pipeline_stage', 'occupation', 'created_at']);
-        $this->scopeToActor($query, $actor, 'customer');
-        $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
+        $query = $this->query('customers', $actor, $filters);
 
         $rows = $query->orderByDesc('created_at')->limit($this->limit($filters) + 1)->get()->map(function ($c) {
             return [
@@ -208,10 +196,7 @@ class ExportDataService
      */
     public function properties(User $actor, array $filters = []): array
     {
-        $query = Property::query()
-            ->select(['id', 'reference_number', 'title', 'type', 'contract_type', 'status', 'price', 'currency', 'area', 'bedrooms', 'bathrooms', 'created_at']);
-        $this->scopeToActor($query, $actor, 'property');
-        $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
+        $query = $this->query('properties', $actor, $filters);
 
         $rows = $query->orderByDesc('created_at')->limit($this->limit($filters) + 1)->get()->map(function ($p) {
             return [
@@ -244,12 +229,7 @@ class ExportDataService
      */
     public function payouts(User $actor, array $filters = []): array
     {
-        $query = Payout::query()
-            ->select(['id', 'reference_number', 'payee_role', 'landlord_id', 'lease_id', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at', 'refunded_payment_type', 'refunded_payment_id'])
-            ->with(['lease:id,reference_number', 'landlord:id,first_name,last_name,username']);
-
-        $this->scopeToActor($query, $actor, 'payout');
-        $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
+        $query = $this->query('payouts', $actor, $filters);
 
         $rows = $query->orderByDesc('created_at')->limit($this->limit($filters) + 1)->get()->map(fn ($p) => [
             'id' => $p->id,
@@ -286,12 +266,7 @@ class ExportDataService
      */
     public function invoices(User $actor, array $filters = []): array
     {
-        $query = Invoice::query()
-            ->select(['id', 'reference_number', 'kind', 'customer_id', 'issue_date', 'due_date', 'subtotal', 'tax_amount', 'total_amount', 'currency', 'status'])
-            ->with('customer:id,first_name,last_name');
-
-        $this->scopeToActor($query, $actor, 'invoice');
-        $this->applyRangeFilter($query, 'issue_date', $filters['from'] ?? null, $filters['to'] ?? null);
+        $query = $this->query('invoices', $actor, $filters);
 
         $rows = $query->orderByDesc('issue_date')->orderByDesc('id')->limit($this->limit($filters) + 1)->get()->map(fn ($i) => [
             'id' => $i->id,
@@ -321,18 +296,7 @@ class ExportDataService
      */
     public function commissions(User $actor, array $filters = []): array
     {
-        $query = CommissionEntry::query()
-            ->select(['id', 'lease_id', 'beneficiary_id', 'origin', 'base_amount', 'share_percent', 'amount', 'currency', 'status', 'earned_at', 'paid_at'])
-            ->with(['lease:id,reference_number', 'beneficiary:id,first_name,last_name,username']);
-
-        // verif-595 M2 — le périmètre du relevé, pas seulement l'agence : sans `viewReports`, ses lignes.
-        $query->visibleTo($actor);
-        // TCK-2661 — l'export ouvert au bénéficiaire sans `reports.export` (`ExportController`) : ses
-        // seules lignes, quel que soit ce que le relevé lui montre.
-        if (! empty($filters['own_lines_only'])) {
-            $query->where('commission_entries.beneficiary_id', $actor->id);
-        }
-        $this->applyRangeFilter($query, 'earned_at', $filters['from'] ?? null, $filters['to'] ?? null);
+        $query = $this->query('commissions', $actor, $filters);
 
         $rows = $query->orderByDesc('earned_at')->orderByDesc('id')->limit($this->limit($filters) + 1)->get()->map(fn ($c) => [
             'id' => $c->id,
@@ -366,14 +330,7 @@ class ExportDataService
     public function aging(User $actor, array $filters = []): array
     {
         $today = Carbon::today();
-        $query = CollectedPayments::leaseOwed()
-            ->whereDate('due_date', '<', $today->toDateString())
-            // `metadata` porte le reçu d'un paiement partiel, que lit `remaining_amount`.
-            ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'due_date', 'amount', 'currency', 'status', 'metadata'])
-            ->with(['lease:id,reference_number,landlord_id', 'lease.landlord:id,first_name,last_name,username', 'payer:id,first_name,last_name']);
-
-        $this->scopeToActor($query, $actor, 'lease_payment');
-        $this->applyRangeFilter($query, 'due_date', $filters['from'] ?? null, $filters['to'] ?? null);
+        $query = $this->query('aging', $actor, $filters);
 
         $rows = $query->orderBy('due_date')->orderBy('id')->limit($this->limit($filters) + 1)->get()->map(function ($p) use ($today) {
             $days = (int) $p->due_date->diffInDays($today);
@@ -401,12 +358,12 @@ class ExportDataService
     }
 
     /**
-     * TCK-595 (§7) — les cautions détenues, une ligne par bail : encaissées moins restituées, payées
-     * (la règle de `AgingBalanceService::depositsHeld`). Un stock, sans borne de dates.
+     * TCK-2866 — les cautions détenues par bail (encaissées moins restituées, non nulles), sous le
+     * cloisonnement de l'acteur : la sélection du fichier des cautions et de son compte.
      *
-     * @return array{columns: array<int,string>, rows: array<int,array<string,mixed>>, filename: string}
+     * @return Collection<int|string, object>
      */
-    public function deposits(User $actor, array $filters = []): array
+    protected function depositSums(User $actor): Collection
     {
         $query = LeasePayment::query()
             ->where('status', PaymentStatus::Paid->value)
@@ -423,6 +380,19 @@ class ExportDataService
             ->get()
             ->filter(fn ($row) => round((float) $row->collected - (float) $row->refunded, 2) != 0.0)
             ->keyBy('lease_id');
+
+        return $sums;
+    }
+
+    /**
+     * TCK-595 (§7) — les cautions détenues, une ligne par bail : encaissées moins restituées, payées
+     * (la règle de `AgingBalanceService::depositsHeld`). Un stock, sans borne de dates.
+     *
+     * @return array{columns: array<int,string>, rows: array<int,array<string,mixed>>, filename: string}
+     */
+    public function deposits(User $actor, array $filters = []): array
+    {
+        $sums = $this->depositSums($actor);
 
         $leases = Lease::query()
             ->select(['id', 'reference_number', 'property_id', 'tenant_id', 'landlord_id', 'currency'])
@@ -452,6 +422,132 @@ class ExportDataService
             'rows' => $rows,
             'filename' => 'deposits-'.now()->format('Ymd-His'),
         ];
+    }
+
+    /**
+     * TCK-2866 — la requête d'une entité, CLOISONNÉE et FILTRÉE, sans tri ni limite : la même pour le
+     * fichier ({@see self::dataset()}) et pour son compte ({@see self::count()}). Une seule source, pour
+     * que le nombre annoncé avant l'export soit celui des lignes du fichier.
+     *
+     * @return Builder<Model>
+     */
+    protected function query(string $entity, User $actor, array $filters): Builder
+    {
+        return match ($entity) {
+            'payments' => (function () use ($actor, $filters): Builder {
+                $query = LeasePayment::query()
+                    ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount', 'late_fee_paid_at'])
+                    ->with(['lease:id,reference_number,agency_id,landlord_id', 'payer:id,first_name,last_name']);
+
+                $this->scopeToActor($query, $actor, 'lease_payment');
+
+                $this->applyRangeFilter($query, 'due_date', $filters['from'] ?? null, $filters['to'] ?? null);
+
+                return $query;
+            })(),
+            'leases' => (function () use ($actor, $filters): Builder {
+                $query = Lease::query()
+                    ->select(['id', 'reference_number', 'property_id', 'tenant_id', 'landlord_id', 'monthly_rent', 'currency', 'type', 'status', 'start_date', 'end_date', 'signed_at'])
+                    ->with(['property:id,title,reference_number', 'tenant:id,first_name,last_name', 'landlord:id,first_name,last_name,username']);
+
+                $this->scopeToActor($query, $actor, 'lease');
+
+                $this->applyRangeFilter($query, 'start_date', $filters['from'] ?? null, $filters['to'] ?? null);
+
+                return $query;
+            })(),
+            'customers' => (function () use ($actor, $filters): Builder {
+                $query = Customer::query()
+                    ->select(['id', 'first_name', 'last_name', 'email', 'phone', 'status', 'pipeline_stage', 'occupation', 'created_at']);
+                $this->scopeToActor($query, $actor, 'customer');
+                $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
+
+                return $query;
+            })(),
+            'properties' => (function () use ($actor, $filters): Builder {
+                $query = Property::query()
+                    ->select(['id', 'reference_number', 'title', 'type', 'contract_type', 'status', 'price', 'currency', 'area', 'bedrooms', 'bathrooms', 'created_at']);
+                $this->scopeToActor($query, $actor, 'property');
+                $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
+
+                return $query;
+            })(),
+            'payouts' => (function () use ($actor, $filters): Builder {
+                $query = Payout::query()
+                    ->select(['id', 'reference_number', 'payee_role', 'landlord_id', 'lease_id', 'period_start', 'period_end', 'gross_amount', 'commission_amount', 'fees_amount', 'net_amount', 'currency', 'status', 'approved_at', 'processed_at', 'refunded_payment_type', 'refunded_payment_id'])
+                    ->with(['lease:id,reference_number', 'landlord:id,first_name,last_name,username']);
+
+                $this->scopeToActor($query, $actor, 'payout');
+                $this->applyRangeFilter($query, 'created_at', $filters['from'] ?? null, $filters['to'] ?? null);
+
+                return $query;
+            })(),
+            'invoices' => (function () use ($actor, $filters): Builder {
+                $query = Invoice::query()
+                    ->select(['id', 'reference_number', 'kind', 'customer_id', 'issue_date', 'due_date', 'subtotal', 'tax_amount', 'total_amount', 'currency', 'status'])
+                    ->with('customer:id,first_name,last_name');
+
+                $this->scopeToActor($query, $actor, 'invoice');
+                $this->applyRangeFilter($query, 'issue_date', $filters['from'] ?? null, $filters['to'] ?? null);
+
+                return $query;
+            })(),
+            'commissions' => (function () use ($actor, $filters): Builder {
+                $query = CommissionEntry::query()
+                    ->select(['id', 'lease_id', 'beneficiary_id', 'origin', 'base_amount', 'share_percent', 'amount', 'currency', 'status', 'earned_at', 'paid_at'])
+                    ->with(['lease:id,reference_number', 'beneficiary:id,first_name,last_name,username']);
+
+                // verif-595 M2 — le périmètre du relevé, pas seulement l'agence : sans `viewReports`, ses lignes.
+                $query->visibleTo($actor);
+                // TCK-2661 — l'export ouvert au bénéficiaire sans `reports.export` (`ExportController`) : ses
+                // seules lignes, quel que soit ce que le relevé lui montre.
+                if (! empty($filters['own_lines_only'])) {
+                    $query->where('commission_entries.beneficiary_id', $actor->id);
+                }
+                $this->applyRangeFilter($query, 'earned_at', $filters['from'] ?? null, $filters['to'] ?? null);
+
+                return $query;
+            })(),
+            'aging' => (function () use ($actor, $filters): Builder {
+                $today = Carbon::today();
+                $query = CollectedPayments::leaseOwed()
+                    ->whereDate('due_date', '<', $today->toDateString())
+                    // `metadata` porte le reçu d'un paiement partiel, que lit `remaining_amount`.
+                    ->select(['id', 'reference_number', 'lease_id', 'payer_id', 'due_date', 'amount', 'currency', 'status', 'metadata'])
+                    ->with(['lease:id,reference_number,landlord_id', 'lease.landlord:id,first_name,last_name,username', 'payer:id,first_name,last_name']);
+
+                $this->scopeToActor($query, $actor, 'lease_payment');
+                $this->applyRangeFilter($query, 'due_date', $filters['from'] ?? null, $filters['to'] ?? null);
+
+                return $query;
+            })(),
+            default => throw new \InvalidArgumentException("Unknown export entity: {$entity}"),
+        };
+    }
+
+    /**
+     * TCK-2866 — le nombre de lignes qu'un export produirait SANS plafond, par les requêtes mêmes
+     * du fichier ({@see self::query()}), et le plafond du format (`limit`) : l'écran prévient avant de
+     * lancer un export qui serait coupé.
+     *
+     * @return array{count: int, limit: int}
+     */
+    public function count(string $entity, User $actor, array $filters = []): array
+    {
+        $count = match ($entity) {
+            // Les baux de la sélection, comme le fichier (un bail supprimé n'y a pas de ligne).
+            'deposits' => Lease::query()->whereIn('id', $this->depositSums($actor)->keys()->all())->count(),
+            'payment_history' => $this->paymentHistory->select(
+                $actor,
+                (array) ($filters['history_filters'] ?? []),
+                [],
+                PaymentHistory::sort($filters['history_sort'] ?? '-date'),
+                0,
+            )['count'],
+            default => $this->query($entity, $actor, $filters)->toBase()->getCountForPagination(),
+        };
+
+        return ['count' => (int) $count, 'limit' => $this->limit($filters)];
     }
 
     /**

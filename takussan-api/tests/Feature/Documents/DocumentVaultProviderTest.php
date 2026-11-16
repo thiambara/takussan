@@ -7,6 +7,7 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\LaravelPdf\Facades\Pdf;
 use Tests\Support\CoffreDeDocuments;
 use Tests\Support\MaintenanceActors;
 use Tests\TestCase;
@@ -14,7 +15,7 @@ use Tests\TestCase;
 /**
  * TCK-2655 (ADR-0099 §2) — le coffre du PRESTATAIRE, au profil prestataire actif : ses factures
  * d'intervention (la branche prestataire de `ServiceProviderBillController::visibleTo`) et ses pièces.
- * Une facture n'a pas de PDF : son `download_path` est sa fiche JSON.
+ * TCK-2897 — une facture se télécharge en PDF (`service-provider-bills/{bill}/pdf`).
  */
 class DocumentVaultProviderTest extends TestCase
 {
@@ -34,16 +35,19 @@ class DocumentVaultProviderTest extends TestCase
         $this->connecter($provider, $profile);
         $vault = $this->coffre();
 
-        $this->assertSame(['pieces', 'bills'], array_column($vault['folders'], 'key'));
+        // TCK-2897 — « Devis et rapports » suit « Mes factures ».
+        $this->assertSame(['pieces', 'bills', 'quotes_reports'], array_column($vault['folders'], 'key'));
         $bills = collect($vault['folders'])->firstWhere('key', 'bills');
         $this->assertEqualsCanonicalizing(
-            $mine->map(fn (ServiceProviderBill $b) => "/api/service-provider-bills/{$b->id}")->all(),
+            // TCK-2897 — le PDF de la facture, plus sa fiche JSON.
+            $mine->map(fn (ServiceProviderBill $b) => "/api/service-provider-bills/{$b->id}/pdf")->all(),
             array_column($bills['entries'], 'download_path'),
         );
-        $this->assertNotContains("/api/service-provider-bills/{$theirs->id}", $this->chemins($vault));
+        $this->assertNotContains("/api/service-provider-bills/{$theirs->id}/pdf", $this->chemins($vault));
+        Pdf::fake();
         foreach ($bills['entries'] as $entry) {
             $this->assertSame('provider_bill', $entry['category']);
-            $this->getJson($entry['download_path'])->assertOk();
+            $this->get($entry['download_path'])->assertOk();
         }
         $this->getJson("/api/service-provider-bills/{$theirs->id}")->assertNotFound();
 

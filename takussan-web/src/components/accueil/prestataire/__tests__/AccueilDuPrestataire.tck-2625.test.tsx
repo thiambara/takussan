@@ -14,6 +14,7 @@ const reseau = vi.hoisted(() => ({
   aAccepter: [] as unknown[],
   semaine: [] as unknown[],
   aChiffrer: [] as unknown[],
+  envoyes: [] as unknown[],
   fiches: {} as Record<number, Record<string, unknown>>,
 }));
 
@@ -33,6 +34,8 @@ vi.mock('@/lib/api', async (importOriginal) => {
         if (lu.includes('filter[file]=a_accepter')) return page(reseau.aAccepter);
         if (lu.includes('filter[scheduled_from]=')) return page(reseau.semaine);
         if (lu.includes('filter[status]=quote_requested')) return page(reseau.aChiffrer);
+        // TCK-2854 — les devis envoyés, qui attendent une décision.
+        if (lu.includes('filter[status]=quote_submitted,awaiting_owner')) return page(reseau.envoyes);
       }
       const fiche = lu.match(/^\/api\/maintenance-requests\/(\d+)(\?|$)/);
       if (fiche) return { data: reseau.fiches[Number(fiche[1])] };
@@ -86,6 +89,7 @@ describe('Accueil du prestataire — TCK-2625', () => {
     reseau.aAccepter = [];
     reseau.semaine = [ACCEPTEE, ASSIGNEE, JEUDI, RENDUE];
     reseau.aChiffrer = [];
+    reseau.envoyes = [];
     // La fiche du créneau NON accepté porte quand même une adresse et un téléphone : la garde est celle
     // du front (la fiche n'est pas lue), pas l'absence de donnée.
     reseau.fiches = { 61: fiche(61), 62: fiche(62, { access: { ...ACCES, street: 'Rue MZ-9', requester_phone: '76 540 22 18' } }), 63: fiche(63) };
@@ -157,6 +161,9 @@ describe('Accueil du prestataire — TCK-2625', () => {
     });
     expect(await within(rangees[0]).findByText(/Rue GY-112/)).toBeTruthy();
     expect(within(rangees[0]).getByText('À commencer')).toBeTruthy();
+    // TCK-2854 AC4 — la rangée planifiée le jour même porte « Itinéraire » et « Commencer » (maquette e4).
+    expect(within(rangees[0]).getByRole('link', { name: 'Itinéraire' })).toBeTruthy();
+    expect(within(rangees[0]).getByRole('button', { name: 'Commencer' })).toBeTruthy();
     expect(within(rangees[1]).getByText('À accepter')).toBeTruthy();
     expect(rangees[1].textContent).not.toContain('Rue MZ-9');
   });
@@ -186,9 +193,10 @@ describe('Accueil du prestataire — TCK-2625', () => {
   it('« À chiffrer » : SES devis demandés, filtrés par l’API ; « Chiffrer » mène à la fiche', async () => {
     reseau.aChiffrer = [{ id: 80, title: 'Infiltration au plafond', status: 'quote_requested', accepted_at: null, waiting_since: '2026-11-09T09:00:00Z', created_at: '2026-11-08T09:00:00Z', scheduled_at: null, property: { ...BIEN, title: 'Appartement standing', location: { quarter: 'Plateau' } } }];
     monter(<AChiffrer />);
-    expect(await screen.findByText('Infiltration au plafond')).toBeTruthy();
-    expect(screen.getByText('Appartement standing · Plateau · demandé hier')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Chiffrer' }).getAttribute('href')).toBe('/app/maintenance/80');
+    expect((await screen.findAllByText('Infiltration au plafond')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Appartement standing · Plateau · demandé hier').length).toBeGreaterThan(0);
+    // Au téléphone (« À chiffrer ») et au bureau (« Mes devis en attente ») : la même fiche.
+    for (const a of screen.getAllByRole('link', { name: 'Chiffrer' })) expect(a.getAttribute('href')).toBe('/app/maintenance/80');
     const lu = reseau.appels.find((a) => a.path.includes('filter[status]=quote_requested'));
     expect(lu?.path).toMatch(/filter\[assigned_to\]=18/);
     expect(lu?.path).toContain('fields[maintenance_requests]=');
@@ -199,5 +207,57 @@ describe('Accueil du prestataire — TCK-2625', () => {
     await waitFor(() => expect(reseau.appels.some((a) => a.path.includes('quote_requested'))).toBe(true));
     await new Promise((r) => setTimeout(r, 0));
     expect(container.querySelector('[data-slot="a-chiffrer"]')).toBeNull();
+    expect(container.querySelector('[data-slot="devis-en-attente"]')).toBeNull();
+  });
+
+  // TCK-2854 (maquette e4, bureau) — « Mes devis en attente » : à chiffrer, puis envoyés.
+  const ENVOYE = {
+    id: 90,
+    title: 'Remplacement d’un chauffe-eau',
+    status: 'quote_submitted',
+    accepted_at: '2026-11-05T10:00:00Z',
+    quote_amount: 85_000,
+    quote_currency: 'XOF',
+    quote_submitted_at: '2026-11-08T11:00:00Z',
+    created_at: '2026-11-04T09:00:00Z',
+    scheduled_at: null,
+    property: BIEN,
+  };
+
+  it('AC1 — au bureau, un devis envoyé : « 85 000 F », « Envoyé le 8 nov. · en attente du bailleur », sans bouton ; la rangée mène à l’intervention', async () => {
+    reseau.envoyes = [ENVOYE];
+    const { container } = monter(<AChiffrer />);
+    const carte = await waitFor(() => {
+      const c = container.querySelector<HTMLElement>('[data-slot="devis-en-attente"]');
+      if (!c) throw new Error('pas de carte');
+      return c;
+    });
+    expect(carte.className).toContain('max-md:hidden');
+    expect(within(carte).getByRole('heading', { name: 'Mes devis en attente' })).toBeTruthy();
+    const rangee = carte.querySelector<HTMLElement>('[data-slot="devis-envoye"]')!;
+    expect(rangee.textContent).toMatch(/85\s000\sF/);
+    expect(rangee.textContent).toContain('Envoyé le 8 nov. · en attente du bailleur');
+    expect(within(rangee).queryByRole('button')).toBeNull();
+    const liens = within(rangee).getAllByRole('link');
+    expect(liens).toHaveLength(1);
+    expect(liens[0]!.getAttribute('href')).toBe('/app/maintenance/90');
+    expect(within(rangee).queryByText('Chiffrer')).toBeNull();
+    // Le téléphone ne montre que « À chiffrer » (maquette téléphone) : rien sans devis demandé.
+    expect(container.querySelector('[data-slot="a-chiffrer"]')).toBeNull();
+    // SES devis, filtrés par l'API : `quote_submitted` et `awaiting_owner`, avec la date d'envoi.
+    const lu = reseau.appels.find((a) => a.path.includes('filter[status]=quote_submitted,awaiting_owner'));
+    expect(lu?.path).toMatch(/filter\[assigned_to\]=18/);
+    expect(lu?.path).toMatch(/fields\[maintenance_requests\]=[^&]*quote_submitted_at/);
+  });
+
+  it('au bureau, à chiffrer PUIS envoyés dans la même carte ; « Chiffrer » sur le seul devis demandé', async () => {
+    reseau.aChiffrer = [{ id: 80, title: 'Infiltration au plafond', status: 'quote_requested', accepted_at: null, waiting_since: '2026-11-09T09:00:00Z', created_at: '2026-11-08T09:00:00Z', scheduled_at: null, property: BIEN }];
+    reseau.envoyes = [ENVOYE];
+    const { container } = monter(<AChiffrer />);
+    await waitFor(() => expect(container.querySelector('[data-slot="devis-envoye"]')).not.toBeNull());
+    const carte = container.querySelector<HTMLElement>('[data-slot="devis-en-attente"]')!;
+    const rangees = [...carte.querySelectorAll<HTMLElement>('li')];
+    expect(rangees.map((r) => r.dataset.slot)).toEqual(['devis-a-chiffrer', 'devis-envoye']);
+    expect(within(rangees[0]!).getByRole('link', { name: 'Chiffrer' }).getAttribute('href')).toBe('/app/maintenance/80');
   });
 });

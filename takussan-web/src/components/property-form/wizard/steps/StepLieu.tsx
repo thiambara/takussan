@@ -37,8 +37,11 @@ export function StepLieu({
   form,
   refus = 0,
   geolocalisation,
+  aideDuQuartier,
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
+  /** TCK-2934 — l'aide du quartier visible d'emblée, sans compte (`ModeAnonyme.aideDuQuartier`). */
+  readonly aideDuQuartier?: string;
   /**
    * TCK-574 — le nombre de « Continuer » refusés, compté par l'assistant. Chaque nouveau refus
    * redéplie le détail d'adresse s'il porte une erreur.
@@ -158,7 +161,7 @@ export function StepLieu({
         ) : null}
 
         <div className="grid gap-4 lg:grid-cols-2 lg:[&>*:nth-child(3)]:col-span-2">
-          <ChampsLieu form={form} flash={champsRemplis} />
+          <ChampsLieu form={form} flash={champsRemplis} aideDuQuartier={aideDuQuartier} />
         </div>
 
         <section className="rounded-xl border border-border bg-card">

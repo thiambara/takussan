@@ -9,7 +9,10 @@
  *  · un brouillon se FIGE au premier geste (`POST …/submit`) : refusé, rien ne part ;
  *  · l'agence signe pour le bailleur (`role=landlord`) ;
  *  · le récapitulatif : les comptes, les réserves (Usé, Abîmé, Manquant) avec leur note et leur photo ;
- *  · « Terminer » ne s'active que les deux signatures posées, et ne promet aucun envoi ;
+ *  · « Terminer et envoyer le PDF » ne s'active que les deux signatures posées (TCK-2914 : l'API
+ *    envoie le PDF aux parties, TCK-2913) ;
+ *  · TCK-2914 — le bailleur signe lui-même par code (`party=landlord`), et l'écran signé nomme les
+ *    destinataires du PDF ;
  *  · AC5 — le tracé plein écran : « Effacer » et « Valider » à 44 px (`h-11`).
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -435,17 +438,18 @@ describe('TCK-2648 — le récapitulatif', () => {
     expect(within(reserves[1]).queryByRole('img')).not.toBeInTheDocument();
   });
 
-  it('« Terminer » attend les deux signatures, dit ce qui manque, et ne promet aucun envoi', async () => {
+  it('« Terminer et envoyer le PDF » attend les deux signatures et dit ce qui manque (TCK-2914 AC1)', async () => {
     const user = userEvent.setup();
     const { unmount } = ouvrir();
-    const terminer = screen.getByRole('button', { name: 'Terminer' });
+    const terminer = screen.getByRole('button', { name: 'Terminer et envoyer le PDF' });
     expect(terminer).toBeDisabled();
     expect(screen.getByText('Il manque la signature d’Aminata et la signature de l’agence')).toBeInTheDocument();
-    expect(screen.queryByText(/envoyer le PDF/)).not.toBeInTheDocument();
+    // Rien n'est encore parti : aucune ligne d'envoi tant que les deux n'ont pas signé.
+    expect(document.querySelector('[data-slot="envoi-du-pdf"]')).toBeNull();
     unmount();
 
     ouvrir(etatDesLieux({ status: 'signed', tenant_signed: true, owner_signed: true, signed_at: '2026-11-13T11:00:00Z', can_sign_as: [] }));
-    await user.click(screen.getByRole('button', { name: 'Terminer' }));
+    await user.click(screen.getByRole('button', { name: 'Terminer et envoyer le PDF' }));
     expect(routeur.replace).toHaveBeenCalledWith('/app/inventories/19');
   });
 
@@ -484,5 +488,113 @@ describe('TCK-2648 — le récapitulatif', () => {
 
     ouvrir();
     expect(screen.getByRole('radio', { name: 'Correct' })).toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+// ─── TCK-2914 ────────────────────────────────────────────────────────────────────────────────
+describe('TCK-2914 — le bailleur signe lui-même, par un code reçu par SMS', () => {
+  const avecCode = (o: Partial<Inventory> = {}) => etatDesLieux({ can_sign_as: ['tenant_onsite', 'landlord', 'landlord_onsite'], ...o });
+
+  it('AC1 — à 390 et à 1440, le bouton final s’intitule « Terminer et envoyer le PDF »', () => {
+    for (const bureau of [false, true]) {
+      etat.bureau = bureau;
+      const { unmount } = ouvrir();
+      expect(screen.getByRole('button', { name: 'Terminer et envoyer le PDF' })).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('AC2 — « Lui envoyer un code par SMS » part avec `party=landlord`, ouvre les six cases ; le bon code signe POUR le bailleur', async () => {
+    const user = userEvent.setup();
+    ouvrir(avecCode());
+    expect(blocDeLAgence()).toHaveTextContent('Mandat de gestion de Mouhamed Sène');
+    await user.click(within(blocDeLAgence()).getByRole('button', { name: 'Lui envoyer un code par SMS' }));
+
+    await waitFor(() => expect(envoyer.mutateAsync).toHaveBeenCalledWith({ party: 'landlord' }));
+    const bloc = screen.getByRole('heading', { name: 'Bailleur · Mouhamed Sène' }).closest('section') as HTMLElement;
+    expect(bloc).toHaveTextContent('Code reçu par Mouhamed Sène au +221 77 ••• 18 90');
+    expect(within(bloc).getByText('Code attendu')).toBeInTheDocument();
+    expect(bloc).toHaveTextContent(/Rien reçu \?\s*Renvoyer le code/);
+
+    await tracer(user, bloc);
+    await user.type(within(bloc).getByRole('textbox'), '654321');
+    await waitFor(() => expect(signer.mutateAsync).toHaveBeenCalledWith({ role: 'landlord', signature: TRACE, code: '654321' }));
+    // Le locataire n'a rien reçu : son propre code n'est pas parti.
+    expect(envoyer.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('les cases du locataire et du bailleur coexistent sans partager d’identifiant', async () => {
+    const user = userEvent.setup();
+    ouvrir(avecCode());
+    await user.click(within(blocDuLocataire()).getByRole('button', { name: 'Lui envoyer un code par SMS' }));
+    await user.click(within(blocDeLAgence()).getByRole('button', { name: 'Lui envoyer un code par SMS' }));
+    const ids = (await screen.findAllByRole('textbox')).map((c) => c.id);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it('« Signer au titre du mandat » ramène à la carte de l’agence', async () => {
+    const user = userEvent.setup();
+    ouvrir(avecCode());
+    await user.click(within(blocDeLAgence()).getByRole('button', { name: 'Lui envoyer un code par SMS' }));
+    await user.click(await screen.findByRole('button', { name: 'Signer au titre du mandat' }));
+    expect(blocDeLAgence()).toHaveTextContent('Mandat de gestion de Mouhamed Sène');
+  });
+
+  it('AC3 — sans `landlord_onsite` (bailleur sans numéro vérifié : l’API ne l’offre pas), le lien n’est pas rendu', () => {
+    ouvrir(etatDesLieux({ can_sign_as: ['tenant_onsite', 'landlord'] }));
+    expect(within(blocDeLAgence()).queryByRole('button', { name: 'Lui envoyer un code par SMS' })).not.toBeInTheDocument();
+  });
+
+  it('`landlord_onsite` sans `landlord` : la carte est d’emblée celle du bailleur, rien ne part avant le geste', () => {
+    ouvrir(etatDesLieux({ can_sign_as: ['tenant_onsite', 'landlord_onsite'] }));
+    const bloc = screen.getByRole('heading', { name: 'Bailleur · Mouhamed Sène' }).closest('section') as HTMLElement;
+    expect(within(bloc).getByRole('button', { name: 'Lui envoyer un code par SMS' })).toBeInTheDocument();
+    expect(within(bloc).queryByRole('button', { name: 'Signer au titre du mandat' })).not.toBeInTheDocument();
+    expect(envoyer.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('signée sur place par code, la carte est celle DU bailleur, pas « pour son compte »', () => {
+    ouvrir(
+      etatDesLieux({
+        owner_signed: true,
+        owner_signed_at: '2026-11-13T10:50:00Z',
+        owner_signature_method: 'onsite_otp',
+        owner_signed_by: { id: 9, full_name: 'Mouhamed Sène' },
+        sign_on_behalf_of: null,
+      }),
+    );
+    const bloc = screen.getByRole('heading', { name: 'Bailleur · Mouhamed Sène' }).closest('section') as HTMLElement;
+    expect(bloc).toHaveTextContent(/Signé sur place à .*, avec le code reçu par SMS/);
+    expect(bloc).not.toHaveTextContent('Mandat de gestion');
+  });
+});
+
+describe('TCK-2914 — AC4 : signé, l’écran nomme les destinataires du PDF', () => {
+  const signe = (o: Partial<Inventory> = {}) =>
+    etatDesLieux({ status: 'signed', tenant_signed: true, owner_signed: true, signed_at: '2026-11-13T11:00:00Z', can_sign_as: [], ...o });
+
+  it('l’envoi fait : les comptes avisés par l’API (`pdf_sent_to`), au téléphone et au bureau', () => {
+    for (const bureau of [false, true]) {
+      etat.bureau = bureau;
+      const { unmount } = ouvrir(
+        signe({ pdf_sent_at: '2026-11-13T11:00:05Z', pdf_sent_to: [{ id: 4, full_name: 'Aminata Diop' }, { id: 9, full_name: 'Mouhamed Sène' }] }),
+      );
+      expect(screen.getByText('Le PDF part à Aminata Diop et à Mouhamed Sène.')).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('l’envoi pas encore fait (la tâche suit la signature) : les deux parties nommées par la fiche', () => {
+    ouvrir(signe({ pdf_sent_at: null }));
+    expect(screen.getByText('Le PDF part à Aminata Diop et à Mouhamed Sène.')).toBeInTheDocument();
+  });
+
+  it('un seul compte avisé : un seul nom ; aucun : le PDF se télécharge depuis la fiche', () => {
+    const { unmount } = ouvrir(signe({ pdf_sent_at: '2026-11-13T11:00:05Z', pdf_sent_to: [{ id: 9, full_name: 'Mouhamed Sène' }] }));
+    expect(screen.getByText('Le PDF part à Mouhamed Sène.')).toBeInTheDocument();
+    unmount();
+    ouvrir(signe({ pdf_sent_at: '2026-11-13T11:00:05Z', pdf_sent_to: [] }));
+    expect(screen.getByText(/le PDF se télécharge depuis la fiche/)).toBeInTheDocument();
   });
 });

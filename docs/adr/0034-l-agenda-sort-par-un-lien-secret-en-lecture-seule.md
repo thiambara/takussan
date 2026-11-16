@@ -1,6 +1,6 @@
 # ADR-0034 — L'agenda sort de la plateforme par un lien secret, en lecture seule, propre à une agence
 
-- **Statut** : Accepté
+- **Statut** : Accepté — § 1 et l'option « jeton en clair en base » amendés par [ADR-0121](0121-le-lien-ical-se-relit-par-son-titulaire.md) (TCK-2887) : une copie chiffrée rend le lien à son titulaire ; la vérification reste par l'empreinte
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-591](../backlog/tickets/done/TCK-591-crm-agenda-agent-et-passation.md)
 

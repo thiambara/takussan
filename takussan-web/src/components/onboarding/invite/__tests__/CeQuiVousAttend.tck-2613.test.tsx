@@ -3,6 +3,7 @@
  * (maquette `app-entree-assistants` a, « Ton numéro, étape commune », bureau). AVANT le code, le panneau ne montre
  * rien que l'invité n'ait déjà vu (team-lead, 2026-11-14) : l'agence, le rôle, et le titre de l'intervention que la
  * page d'invitation lui montrait (`awaiting.maintenance_request.title`) — jamais ses pièces ni un compte de biens.
+ * TCK-2949 — c'est le panneau SANS résumé : `invite-summary` (TCK-2939) le chiffre, cf. `CeQuiVousAttend.tck-2949.test.tsx`.
  */
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -47,7 +48,7 @@ describe('<CeQuiVousAttend> (TCK-2613)', () => {
 });
 
 describe('<EtapeDuNumero> au bureau large (TCK-2613, AC5)', () => {
-  it('la colonne tient 480 px dès xl, et l’aperçu passe à droite — absent en dessous de 1280', () => {
+  it('la colonne tient 480 px dès xl, et l’aperçu passe à droite — dessous de 1024 à 1279, absent au téléphone (TCK-2945)', () => {
     render(
       withIntl(
         <EtapeDuNumero numero="+221776124567" onNumero={vi.fn()} agence="Dakar Immo" onVerifie={vi.fn()} panneau={<p>aperçu</p>} />,
@@ -58,7 +59,7 @@ describe('<EtapeDuNumero> au bureau large (TCK-2613, AC5)', () => {
     expect(colonne.className).toMatch(/(^|\s)xl:max-w-\[30rem\](\s|$)/);
     const aside = screen.getByText('aperçu').closest('[data-apercu-d-invite]')!;
     expect(afficheA(aside, 390)).toBe(false);
-    expect(afficheA(aside, 1024)).toBe(false);
+    expect(afficheA(aside, 1024)).toBe(true);
     expect(afficheA(aside, 1280)).toBe(true);
     expect(colonne.parentElement!.className).toMatch(/(^|\s)xl:grid-cols-\[minmax\(0,30rem\)_minmax\(0,1fr\)\](\s|$)/);
   });

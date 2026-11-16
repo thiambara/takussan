@@ -12,6 +12,7 @@ import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { cheminLocalise } from '@/i18n/routing';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
+import { cheminDuMenu } from '@/lib/navigation/catalogue';
 import { DISPOSITIONS } from '@/lib/navigation/dispositions';
 import { ongletsDuMenu } from '@/lib/navigation/onglets';
 import type { NavCounterKey } from '@/lib/navigation/types';
@@ -96,8 +97,9 @@ export function BarreDOnglets({
   const counters = useCompteursDuMenu(onglets, { agencyIsStandard, actif: sousMd });
   // Résolu sur TOUTES les entrées, comme la barre latérale : une sous-page d'une entrée qui n'est
   // pas un onglet n'en allume aucun à tort.
+  // TCK-2891 — `cheminDuMenu` : une page couverte par une destination (`/app/crm/*` → « Clients »).
   const activeHref = resolveActiveHref(
-    pathname,
+    cheminDuMenu(pathname),
     entrees.map((e) => e.href),
     APP_EXACT_ROOTS,
   );

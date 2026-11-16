@@ -13,4 +13,38 @@ return [
     'refund_task' => [
         'title' => 'Delloo bu ñu wara def — réservation :reference',
     ],
+    // TCK-2872 (ADR-0110 § 2) — les pièces du dossier, pour le texte d'une notification.
+    'dossier_pieces' => [
+        'identity' => 'pièce d\'identité',
+        'payslips' => 'bulletins de salaire',
+        'employment_certificate' => 'attestation de travail',
+        'guarantor_commitment' => 'engagement du garant',
+        'guarantor_identity' => 'pièce d\'identité du garant',
+        'proof_of_funds' => 'justificatif de fonds',
+        'other' => 'autre pièce',
+    ],
+    // TCK-2873 (ADR-0110 § 5) — la réponse du client à une contre-offre, rendue dans une notification à l'agence.
+    'counter_offer_answers' => [
+        'accepted' => 'accepté',
+        'declined' => 'décliné',
+    ],
+    // TCK-2874 (ADR-0110 § 7) — le motif codé d'un refus, rendu dans `booking.rejected`.
+    'rejection_reasons' => [
+        'incomplete_file' => 'Dossier incomplet',
+        'insufficient_income' => 'Revenus insuffisants',
+        'property_allocated' => 'Bien déjà attribué',
+        'offer_too_low' => 'Offre trop basse',
+        'property_sold' => 'Bien déjà vendu',
+        'dates_unavailable' => 'Dates indisponibles',
+        'property_unavailable' => 'Bien indisponible',
+        'other' => 'Autre motif',
+    ],
+    // TCK-2892 — le type d'un paiement de réservation, imprimé sur le reçu (`BookingPaymentType::label`).
+    'payment_types' => [
+        'deposit' => 'Acompte',
+        'advance' => 'Solde',
+        'fee' => 'Frais',
+        'security_deposit' => 'Caution',
+        'other' => 'Autre',
+    ],
 ];

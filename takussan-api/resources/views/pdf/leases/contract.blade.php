@@ -34,7 +34,8 @@
 
 @section('content')
     <h1>Contrat de bail</h1>
-    <p class="muted">Référence : {{ $lease->reference_number ?? 'LS-'.$lease->id }}</p>
+    {{-- TCK-2906 — l'aperçu (bail en mémoire, sans référence ni id) le dit au lieu d'imprimer « LS- ». --}}
+    <p class="muted">Référence : {{ $lease->reference_number ?? ($lease->id !== null ? 'LS-'.$lease->id : 'aperçu, bail non encore créé') }}</p>
 
     <h2>Parties</h2>
     <table class="kv">
@@ -157,7 +158,8 @@
         @endif
         <tr>
             <th>Préavis de résiliation anticipée</th>
-            <td>{{ $noticeDays }} jour(s)</td>
+            {{-- TCK-2906 — un préavis en mois ronds (multiple de 30 jours) se dit aussi en mois : « 90 jours (3 mois) ». --}}
+            <td>{{ $noticeDays }} jour(s)@if ($noticeDays % 30 === 0) ({{ intdiv($noticeDays, 30) }} mois)@endif</td>
         </tr>
         <tr>
             <th>Indemnité de résiliation anticipée</th>

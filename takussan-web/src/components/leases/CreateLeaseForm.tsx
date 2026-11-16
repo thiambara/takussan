@@ -8,6 +8,8 @@ import { Controller, useFormState, useWatch, type Control, type FieldPath } from
 import { FileSignature, Info } from 'lucide-react';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useAvertissementDepart } from '@/hooks/useAvertissementDepart';
+import { useWizardDraft } from '@/hooks/useWizardDraft';
+import { serialiserEtatBrouillon } from '@/hooks/useAutosaveBrouillon';
 import { Button } from '@/components/ui/button';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Input } from '@/components/ui/input';
@@ -46,6 +48,8 @@ import type { FormatDateOptions } from '@/lib/format';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
 import type { Booking } from '@/types/booking';
+// TCK-2878 — ce que le bail reprend d'une candidature (loyer, caution, terme).
+import { termesDuBailRepris } from '@/lib/reservations/candidature';
 import type { CustomerListItem } from '@/types/customer';
 import type { LeaseDefaults, SourceDuDefaut } from '@/types/lease';
 import type { PropertyListItem } from '@/types/property';
@@ -58,6 +62,9 @@ import { formaterTelephone } from '@/lib/phone';
 import { ReperesDEtapes } from './creation/ReperesDEtapes';
 import { SectionDuBail, TitreDeBloc } from './creation/SectionDuBail';
 import { TotalALEntreeDuBail } from './creation/TotalALEntreeDuBail';
+import { ApercuDuContrat } from './creation/ApercuDuContrat';
+import { cleDuBrouillonDeBail, usePoserLeBrouillon } from './creation/BrouillonDuBail';
+import { lienVersLesReglagesDepuisLeBail, type RetourAuBail } from '@/lib/agence/retour-au-bail';
 
 /**
  * ⚠ Ce formulaire emploie un VOCABULAIRE DIFFÉRENT de `LeaseDetail` pour le même enum
@@ -105,6 +112,7 @@ const CHAMPS_DES_ETAPES: readonly (readonly FieldPath<CreateLeaseFormValues>[])[
     'late_fee_percent',
     'late_fee_grace_days',
     'early_termination_penalty_months',
+    'notice_period_days',
     'terms',
     'special_conditions',
   ],
@@ -112,8 +120,16 @@ const CHAMPS_DES_ETAPES: readonly (readonly FieldPath<CreateLeaseFormValues>[])[
 ];
 const ETAPE_VERIFIER = 3;
 
-/** Les termes qu'une vente n'a pas : ni loyer, ni charges, ni pénalité de loyer, ni indemnité de départ. */
-const TERMES_DE_LOCATION = ['monthly_rent', 'monthly_charges', 'late_fee_percent', 'late_fee_grace_days', 'early_termination_penalty_months'] as const;
+/** Les termes qu'une vente n'a pas : ni loyer, ni charges, ni pénalité de loyer, ni indemnité de départ, ni préavis (TCK-2912). */
+const TERMES_DE_LOCATION = ['monthly_rent', 'monthly_charges', 'late_fee_percent', 'late_fee_grace_days', 'early_termination_penalty_months', 'notice_period_days'] as const;
+
+/** Le bail tel que la création l'envoie — et que l'aperçu du contrat le reçoit (TCK-2912) : une vente sans terme de location. */
+function corpsDuBail(values: CreateLeaseFormValues): CreateLeaseFormValues {
+  return values.type === 'sale' ? { ...values, ...Object.fromEntries(TERMES_DE_LOCATION.map((nom) => [nom, undefined])) } : values;
+}
+
+/** TCK-2912 — ce que le brouillon garde : les seuls champs SAISIS (jamais un préremplissage, TCK-566), et l'étape. */
+type BrouillonDuBail = { readonly valeurs: Partial<CreateLeaseFormValues> };
 
 interface CreateLeaseFormProps {
   /**
@@ -138,7 +154,13 @@ interface CreateLeaseFormProps {
 }
 
 export function CreateLeaseForm({ bookingId, propertyId, customerId, personnel = false, retour = '/app/leases' }: CreateLeaseFormProps = {}) {
-  const commun = { personnel, retour };
+  const commun = {
+    personnel,
+    retour,
+    cleDuBrouillon: cleDuBrouillonDeBail({ bookingId, propertyId, customerId }),
+    // TCK-2921 — l'adresse du bail, en identifiants : « Reprendre le bail » la reconstruit.
+    idsDuBail: { bookingId, propertyId, customerId },
+  };
   if (bookingId) {
     return <CreateLeaseFormDepuisReservation bookingId={bookingId} {...commun} />;
   }
@@ -152,6 +174,10 @@ interface Commun {
   readonly personnel: boolean;
   readonly retour: string;
   readonly locatairePrechoisi?: number;
+  /** TCK-2912 — la clé du brouillon, dérivée de l'adresse seule (`cleDuBrouillonDeBail`). */
+  readonly cleDuBrouillon: string;
+  /** TCK-2921 — les identifiants de l'adresse du bail, portés vers les réglages pour y revenir. */
+  readonly idsDuBail: RetourAuBail;
 }
 
 function AiguillageDuBien({ propertyId, ...commun }: { readonly propertyId?: number } & Commun) {
@@ -207,7 +233,14 @@ function CreateLeaseFormDepuisReservation({ bookingId, ...commun }: { readonly b
 
 function valeursDeLaReservation(reservation: Booking): Partial<CreateLeaseFormValues> {
   const bien = reservation.property;
-  const devise = DEVISES.find((code) => code === bien?.currency);
+  // TCK-2878 — la devise de la réservation d'abord (celle de son montant), sinon celle du bien.
+  const devise = DEVISES.find((code) => code === (reservation.currency ?? bien?.currency));
+  /**
+   * TCK-2878 (ADR-0102 § 3, TCK-2894) — une CANDIDATURE donne au bail SON loyer (le prix du bien à sa
+   * création, pas le prix courant), sa caution et la fin de son terme. Le formulaire envoyait toujours
+   * le loyer courant du bien et une caution à 0, qui l'emportent sur la reprise de l'API.
+   */
+  const termes = termesDuBailRepris(reservation);
   return {
     property_id: reservation.property_id,
     tenant_id: reservation.customer_id,
@@ -216,6 +249,7 @@ function valeursDeLaReservation(reservation: Booking): Partial<CreateLeaseFormVa
     end_date: reservation.end_date?.slice(0, 10) ?? '',
     ...(bien?.contract_type === 'rent' && typeof bien.price === 'number' ? { monthly_rent: bien.price } : {}),
     ...(devise ? { currency: devise } : {}),
+    ...termes,
   };
 }
 
@@ -253,6 +287,8 @@ function valeursPreremplies(d: LeaseDefaults): [FieldPath<CreateLeaseFormValues>
     ['late_fee_grace_days', d.late_fee_grace_days.value],
     ['early_termination_penalty_months', d.early_termination_penalty_months.value],
   ];
+  // TCK-2912 — le préavis (TCK-2906 : 30 jours de la plateforme, aucun réglage d'agence).
+  if (d.notice_period_days) valeurs.push(['notice_period_days', d.notice_period_days.value]);
   if (devise) valeurs.push(['currency', devise]);
   return valeurs;
 }
@@ -277,6 +313,8 @@ function FormulaireDuBail({
   locatairePrechoisi,
   personnel,
   retour,
+  cleDuBrouillon,
+  idsDuBail,
 }: {
   readonly reservation: Booking | null;
   readonly bienPrechoisi?: number;
@@ -306,6 +344,11 @@ function FormulaireDuBail({
   const [etape, setEtape] = useState(
     reservation ? 2 : bienPrechoisi ? (locatairePrechoisi ? 2 : 1) : 0,
   );
+  // TCK-2912 — le brouillon enregistré (`PUT /api/me/wizard-drafts/{key}`, maquette e2 : « Brouillon » à
+  // l'en-tête du téléphone, « brouillon enregistré à 10:42 » au bureau). Clos dès que le bail existe.
+  const brouillon = useWizardDraft<BrouillonDuBail>(cleDuBrouillon);
+  const brouillonClos = useRef(false);
+  const poserLeBrouillon = usePoserLeBrouillon();
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<CreateLeaseFormValues, Envoi>({
     schema: createLeaseSchema,
@@ -328,11 +371,12 @@ function FormulaireDuBail({
     },
     onSubmit: async (values) => {
       // Une vente n'emporte aucun terme de location, même prérempli.
-      const corps = values.type === 'sale'
-        ? { ...values, ...Object.fromEntries(TERMES_DE_LOCATION.map((nom) => [nom, undefined])) }
-        : values;
-      const cree = await createLease.mutateAsync(corps);
+      const cree = await createLease.mutateAsync(corpsDuBail(values));
       const id = cree.data.id;
+      // TCK-2912 — le bail existe : son brouillon n'a plus rien à reprendre, et plus rien ne s'y écrit
+      // (le formulaire reste modifié jusqu'à la navigation). Aussi quand la signature échoue ensuite.
+      brouillonClos.current = true;
+      void brouillon.clear();
       if (intention.current !== 'signature') return { id, echec: null };
       // « Envoyer à la signature » = le brouillon, PUIS la demande de signature. Un échec de la
       // seconde laisse le brouillon : il ne se recrée jamais (aucun second POST).
@@ -355,8 +399,37 @@ function FormulaireDuBail({
   // P08.06 (TCK-755) — avertir avant de quitter la page, seulement quand le formulaire est modifié.
   // `useFormState` et non `form.formState` lu au rendu : compilé, la lecture resterait figée (TCK-571).
   // Le brouillon créé (signature en échec), il n'y a plus rien à perdre.
-  const { isDirty } = useFormState({ control: form.control });
+  const { isDirty, dirtyFields } = useFormState({ control: form.control });
   useAvertissementDepart(isDirty && bailCree === null);
+
+  const enregistreLe = brouillon.draft?.updated_at ?? null;
+  useEffect(() => {
+    poserLeBrouillon(enregistreLe);
+  }, [enregistreLe, poserLeBrouillon]);
+
+  /**
+   * TCK-2921 — « Modifier » les réglages de l'agence, dans le MÊME onglet : la saisie est d'abord
+   * écrite en brouillon (`flush` : la dernière frappe est encore dans l'attente de 800 ms), puis la
+   * page part, avec les identifiants du bail et du locataire choisi. Un brouillon qui n'a pas pu
+   * s'écrire retient la page : partir perdrait la saisie sans un mot.
+   */
+  const [brouillonEnEchec, setBrouillonEnEchec] = useState(false);
+  const lienDesReglages = (locataire: number) =>
+    lienVersLesReglagesDepuisLeBail({ ...idsDuBail, locataireId: locataire > 0 ? locataire : undefined });
+  const versLesReglages = async (evenement: React.MouseEvent<HTMLAnchorElement>) => {
+    // Un clic modifié (nouvel onglet, fenêtre) reste au navigateur : la page en cours ne part pas.
+    if (evenement.metaKey || evenement.ctrlKey || evenement.shiftKey || evenement.altKey || evenement.button !== 0) return;
+    evenement.preventDefault();
+    // L'adresse du lien rendu : celle du locataire choisi à cet instant.
+    const destination = evenement.currentTarget.getAttribute('href');
+    setBrouillonEnEchec(false);
+    const ecriture = await brouillon.flush();
+    if (!ecriture.ok) {
+      setBrouillonEnEchec(true);
+      return;
+    }
+    if (destination) router.push(destination);
+  };
 
   const customerLabel = (customer: CustomerListItem | LocataireRetenu) =>
     formatCustomerLabel(customer, (id) => t('customerFallback', { id: String(id) }));
@@ -388,6 +461,7 @@ function FormulaireDuBail({
     debut,
     fin,
     prixDeVente,
+    preavis,
   ] = useWatch({
     control: form.control,
     name: [
@@ -405,6 +479,7 @@ function FormulaireDuBail({
       'start_date',
       'end_date',
       'sale_price',
+      'notice_period_days',
     ],
   });
   const isSale = type === 'sale';
@@ -479,7 +554,8 @@ function FormulaireDuBail({
     }
     // Une caution que l'agent n'a pas saisie vaut les mois du bien × le loyer DU FORMULAIRE : celui
     // du bien, ou celui que l'agent a tapé avant de le choisir, ou celui de la réservation.
-    if (!form.getFieldState('deposit_amount').isDirty) {
+    // TCK-2878 — une caution reprise de la candidature reste la sienne : elle ne suit pas les mois du bien.
+    if (!form.getFieldState('deposit_amount').isDirty && !deLaReservation.has('deposit_amount')) {
       const loyerCourant = form.getValues('monthly_rent');
       const mois = defauts.deposit_months?.value ?? moisEntiers(form.getValues('deposit_amount'), loyerCourant);
       moisDeCautionSuivis.current = mois;
@@ -503,6 +579,66 @@ function FormulaireDuBail({
     }
     moisDeCautionSuivis.current = null;
   };
+
+  /**
+   * TCK-2912 (AC6) — la reprise : le brouillon relu, ses champs saisis reviennent COMME SAISIS
+   * (`shouldDirty`) — le préremplissage des défauts du bien (`keepDirtyValues`) ne les réécrit donc pas —
+   * et l'étape avec eux. Une saisie faite avant que le brouillon ne soit relu l'emporte : rien n'est repris.
+   * Puis l'enregistrement : à chaque modification, les SEULS champs saisis (un formulaire intact ou
+   * seulement prérempli n'écrit rien, TCK-566), débouncé par `useWizardDraft` ; jamais deux fois le même état.
+   * Relu pendant le rendu (l'étape et la reprise sont des états), posé dans le formulaire par un effet.
+   */
+  const toutesLesValeurs = useWatch({ control: form.control });
+  const [brouillonRelu, setBrouillonRelu] = useState(false);
+  const [aReprendre, setAReprendre] = useState<{ readonly etape: number; readonly valeurs: Partial<CreateLeaseFormValues> } | null>(null);
+  if (!brouillonRelu && !brouillon.isLoading) {
+    setBrouillonRelu(true);
+    const repris = brouillon.draft?.data?.valeurs ?? null;
+    if (repris && !isDirty) {
+      const etapeReprise = Math.min(ETAPE_VERIFIER, Math.max(0, brouillon.draft?.step ?? 0));
+      setAReprendre({ etape: etapeReprise, valeurs: repris });
+      setEtape(etapeReprise);
+    }
+  }
+  const dernierEnregistre = useRef<string | null>(null);
+  useEffect(() => {
+    if (!aReprendre) return;
+    const bien = aReprendre.valeurs.property_id;
+    if (typeof bien === 'number' && bien > 0) bienChoisi.current = bien;
+    for (const [nom, valeur] of Object.entries(aReprendre.valeurs)) {
+      form.setValue(nom as FieldPath<CreateLeaseFormValues>, valeur as never, { shouldDirty: true });
+    }
+    dernierEnregistre.current = serialiserEtatBrouillon(aReprendre.etape, { valeurs: aReprendre.valeurs });
+  }, [aReprendre, form]);
+
+  const enregistrer = brouillon.save;
+  useEffect(() => {
+    if (!brouillonRelu || brouillonClos.current || !isDirty) return;
+    const valeurs = Object.fromEntries(
+      Object.keys(dirtyFields).map((nom) => [nom, form.getValues(nom as FieldPath<CreateLeaseFormValues>)]),
+    ) as Partial<CreateLeaseFormValues>;
+    const etat = serialiserEtatBrouillon(etape, { valeurs });
+    if (etat === dernierEnregistre.current) return;
+    dernierEnregistre.current = etat;
+    enregistrer(etape, { valeurs });
+  }, [brouillonRelu, isDirty, dirtyFields, toutesLesValeurs, etape, form, enregistrer]);
+
+  // TCK-2912 (AC7) — l'aperçu du contrat reçoit le bail que la création enverrait, et rien tant que ce
+  // que l'API exige n'est pas saisi (bien, locataire, début, loyer ou prix) : elle refuserait l'aperçu
+  // comme la création. Le reste, l'API le juge (un refus se dit « Aperçu indisponible »).
+  const corpsDeLApercu = useMemo(() => {
+    const v = toutesLesValeurs as CreateLeaseFormValues;
+    const montant = v.type === 'sale' ? v.sale_price : v.monthly_rent;
+    const complet =
+      (v.property_id ?? 0) > 0 &&
+      (v.tenant_id ?? 0) > 0 &&
+      /^\d{4}-\d{2}-\d{2}$/.test(v.start_date ?? '') &&
+      typeof montant === 'number' &&
+      montant > 0 &&
+      typeof v.deposit_amount === 'number';
+    return complet ? (corpsDuBail(v) as Record<string, unknown>) : null;
+  }, [toutesLesValeurs]);
+
 
   // TCK-2643 (r2) — `type === 'change'` : une saisie de l'agent, jamais un `setValue` du formulaire.
   useEffect(
@@ -530,7 +666,7 @@ function FormulaireDuBail({
 
   /** La source d'une valeur, tant qu'elle est celle qui a été préremplie. */
   const sourceDe = (
-    nom: 'monthly_rent' | 'monthly_charges' | 'deposit_amount' | 'payment_day' | 'late_fee_percent' | 'early_termination_penalty_months',
+    nom: 'monthly_rent' | 'monthly_charges' | 'deposit_amount' | 'payment_day' | 'late_fee_percent' | 'early_termination_penalty_months' | 'notice_period_days',
     valeur: unknown,
   ): SourceDuDefaut | null => {
     const defaut = defauts?.[nom];
@@ -593,6 +729,14 @@ function FormulaireDuBail({
     typeof taux === 'number' && taux > 0
       ? t('valeurs.penalite', { taux: f.nombre(taux), jours: typeof delai === 'number' ? delai : 0 })
       : t('valeurs.sansPenalite');
+
+  // TCK-2912 — « 3 mois » sous un préavis de 90 jours (maquette : « Préavis 3 mois ») ; en jours, il se lit tel quel.
+  const equivalentDuPreavis = (jours: unknown): string | undefined =>
+    typeof jours === 'number' && Number.isInteger(jours) && jours > 0 && jours % 30 === 0 ? t('preavis.equivalent', { mois: jours / 30 }) : undefined;
+  const valeurDuPreavis =
+    typeof preavis === 'number' && preavis > 0
+      ? (equivalentDuPreavis(preavis) ?? t('preavis.jours', { jours: preavis }))
+      : '—';
 
   const nomsDesEtapes = ETAPES.map((cle) => t(`etapes.${cle}`));
   // « 670 000 F / mois », « / mois » en encre secondaire (maquette `ParMois`).
@@ -694,6 +838,9 @@ function FormulaireDuBail({
         titre={t('titre')}
         sousTitre={t('etapes.sousTitre', { n: etape + 1, total: ETAPES.length, nom: nomsDesEtapes[etape] })}
         repli={retour}
+        // TCK-2912 — maquette e2 : « Brouillon » à droite, une fois la saisie enregistrée (traduit ici : la
+        // coque le monte hors de la frontière des baux).
+        droite={enregistreLe ? <span data-testid="brouillon-de-l-en-tete">{t('brouillon.libelle')}</span> : undefined}
       />
       <form
         id={idFormulaire}
@@ -967,7 +1114,13 @@ function FormulaireDuBail({
                   detail={commission !== null ? t('reglages.detailAvecCommission') : t('reglages.detail')}
                   modifier={
                     defauts.can_edit_agency_settings
-                      ? { libelle: t('reglages.modifier'), nouvelOnglet: t('reglages.nouvelOnglet') }
+                      ? {
+                          libelle: t('reglages.modifier'),
+                          cible: t('reglages.cible'),
+                          href: lienDesReglages(selectedTenantId),
+                          onClick: (e) => void versLesReglages(e),
+                          erreur: brouillonEnEchec ? t('reglages.brouillonEchec') : null,
+                        }
                       : undefined
                   }
                   className="md:mt-1"
@@ -986,6 +1139,22 @@ function FormulaireDuBail({
                   />
                   <Aide>{aideDeSource(sourceDe('payment_day', jour)) ?? t('echeanceAide')}</Aide>
                 </div>
+                {/* TCK-2912 (AC8) — maquette e2 : « Préavis », après l'échéance au téléphone, en dernier au bureau. */}
+                {isSale ? null : (
+                  <div className="lg:order-1" data-testid="champ-preavis">
+                    <FormInput<CreateLeaseFormValues>
+                      control={form.control}
+                      name="notice_period_days"
+                      type="number"
+                      inputMode="numeric"
+                      label={t('preavis.titre')}
+                      min={1}
+                      max={365}
+                      trailing={<span aria-hidden="true" className="text-sm">{t('unites.jours')}</span>}
+                    />
+                    <Aide>{aideDeSource(sourceDe('notice_period_days', preavis)) ?? equivalentDuPreavis(preavis)}</Aide>
+                  </div>
+                )}
                 {isSale ? null : (
                   <div role="group" aria-labelledby={`${idFormulaire}-penalite`}>
                     <p id={`${idFormulaire}-penalite`} className="mb-1.5 text-sm font-medium">
@@ -1026,7 +1195,7 @@ function FormulaireDuBail({
                   </div>
                 ) : null}
                 {isSale ? null : (
-                  <div>
+                  <div className="lg:order-2">
                     <FormInput<CreateLeaseFormValues>
                       control={form.control}
                       name="early_termination_penalty_months"
@@ -1119,6 +1288,8 @@ function FormulaireDuBail({
                     : [
                         { cle: t('recap.penalite'), valeur: valeurDePenalite },
                         ...(commission !== null ? [{ cle: t('recap.commission'), valeur: f.pourcentage(commission / 100, { maximumFractionDigits: 2 }) }] : []),
+                        // TCK-2912 — maquette e3 (« Vérifier ») : « Préavis 3 mois ».
+                        { cle: t('recap.preavis'), valeur: valeurDuPreavis },
                         { cle: t('recap.indemnite'), valeur: t('valeurs.mois', { count: typeof indemnite === 'number' ? indemnite : 0 }) },
                       ]),
                 ]}
@@ -1131,6 +1302,8 @@ function FormulaireDuBail({
         {/* ── Bureau : la colonne du total et des deux envois (collante dès `xl`) ──────────── */}
         <aside className="space-y-4 max-md:hidden xl:sticky xl:top-6">
           <TotalALEntreeDuBail total={total} prixDeVente={isSale ? (prixDeVente ?? null) : undefined} devise={devise} />
+          {/* TCK-2912 (AC7) — maquette e2 bureau : « Aperçu du contrat », sous le total. */}
+          <ApercuDuContrat corps={corpsDeLApercu} />
           {avisDEnvoi}
           <div className="space-y-2">{boutonsDEnvoi(false)}</div>
         </aside>

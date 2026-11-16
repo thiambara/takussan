@@ -6,6 +6,7 @@ use App\Http\Filters\DateBoundaryFilter;
 use App\Http\Filters\TypedExactFilter;
 use App\Http\Middleware\EnsureAgencyWritable;
 use App\Models\Bases\AbstractModel;
+use App\Models\Concerns\HasVoiceNotes;
 use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ConversationType;
@@ -26,6 +27,7 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -43,6 +45,9 @@ use Spatie\QueryBuilder\QueryBuilder;
 class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMedia
 {
     use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
+
+    // TCK-2900 (ADR-0113 § 3) — la note vocale du signalement : collection privée `voice_notes`.
+    use HasVoiceNotes;
 
     /** TCK-2088 — grand côté de la vignette des photos (tuiles de la galerie, 3 à 5 colonnes). */
     public const THUMBNAIL_WIDTH = 400;
@@ -125,6 +130,8 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         'queue_entered_at',
         // TCK-2786 — « Relancé il y a … » sur la carte « Chez le bailleur ».
         'owner_reminded_at',
+        // TCK-2917 (ADR-0118 § 1) — le motif de l'annulation, sur la carte « Terminées ».
+        'cancellation_reason',
         'created_at', 'updated_at',
     ];
 
@@ -167,6 +174,15 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         };
 
         return $dated ?? $this->created_at;
+    }
+
+    /**
+     * TCK-2943 (ADR-0122 § 5) — la référence montrée d'une intervention, dérivée de l'identifiant : `INT-` suivi
+     * d'au moins quatre chiffres (`INT-0042`, `INT-12345`). Aucune colonne : l'identifiant la donne.
+     */
+    public function reference(): string
+    {
+        return sprintf('INT-%04d', $this->getKey());
     }
 
     /**
@@ -351,6 +367,8 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         $this->addMediaCollection('quotes');
         // TCK-592 (P7) — l'état constaté par le prestataire AVANT d'intervenir.
         $this->addMediaCollection('before_photos');
+        // TCK-2900 (ADR-0113 § 3) — la note vocale du demandeur, au signalement : privée, une au plus.
+        $this->registerVoiceNotesCollection();
     }
 
     /**
@@ -447,6 +465,27 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /** TCK-2917 (ADR-0118 § 3) — les demandes de changement de créneau du demandeur. */
+    /** TCK-2911 (ADR-0120 § 3) — les devis consultés et non retenus, enregistrés par le personnel. */
+    public function quoteAlternatives(): HasMany
+    {
+        return $this->hasMany(MaintenanceQuoteAlternative::class)->orderBy('id');
+    }
+
+    public function rescheduleRequests(): HasMany
+    {
+        return $this->hasMany(MaintenanceRescheduleRequest::class);
+    }
+
+    /** TCK-2917 — la demande de créneau en attente (une au plus). */
+    public function pendingRescheduleRequest(): HasOne
+    {
+        return $this->hasOne(MaintenanceRescheduleRequest::class)->ofMany(
+            ['id' => 'max'],
+            fn ($query) => $query->where('status', MaintenanceRescheduleRequest::PENDING),
+        );
     }
 
     /** TCK-601 (ADR-0044 §3) — l'agence d'une activité sur cette ligne est celle du bien. */

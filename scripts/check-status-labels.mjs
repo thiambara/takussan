@@ -83,6 +83,8 @@ const LIBELLES = {
     { chemin: 'admin.reconciliation.status', lu: 'components/admin/reconciliation/StatementDetail.tsx' },
   ],
   BookingStatus: [{ chemin: 'bookings.status', lu: 'components/crm/CustomerLinkedRecords.tsx' }],
+  // TCK-2876 — l'historique de la fiche d'une offre (la contre-offre de l'agence).
+  CounterOfferStatus: [{ chemin: 'bookings.fiche.contreOffre.statut', lu: 'components/bookings/detail/contre-offre.tsx' }],
   BoostStatus: [{ chemin: 'superAdmin.boosts.statuses', lu: 'components/boost/admin/AdminBoosts.tsx' }],
   CollaborationStatus: [{ chemin: 'serviceProviders.multiAgency.status', lu: 'components/onboarding/ServiceProviderMultiAgencyWelcome.tsx' }],
   CommissionEntryStatus: [{ chemin: 'commissions.status', lu: 'components/commissions/pieces.tsx' }],

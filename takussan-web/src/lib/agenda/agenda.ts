@@ -1,5 +1,5 @@
 import { decalerJour } from '@/lib/jour-de-l-api';
-import { instantDeLEvenement, rangDansLaSemaine, semaineDe } from '@/lib/journee/journee';
+import { compteARebours, instantDeLEvenement, rangDansLaSemaine, semaineDe } from '@/lib/journee/journee';
 import { heureMuraleADakar } from '@/lib/visites/heure-de-dakar';
 import type { CalendarEvent, CalendarEventType, CalendarView } from '@/types/calendar';
 
@@ -293,4 +293,30 @@ export function pointsDuJour(evenements: readonly CalendarEvent[], jour: string)
 /** Le lundi de la semaine de `jour` : la fenêtre que lit la vue Jour (la bande porte la semaine). */
 export function lundiDe(jour: string): string {
   return decalerJour(jour, -rangDansLaSemaine(jour));
+}
+
+/** TCK-2888 — le compte à rebours ne se dit qu'à moins de deux heures ; au-delà, l'heure seule. */
+export const HORIZON_DU_REBOURS_MINUTES = 120;
+
+/**
+ * TCK-2888 — « dans 45 min » (maquette `app-agenda` a, e0) : le PROCHAIN événement à heure de
+ * `jour` — visite, tâche, intervention ; jamais un séjour ni une journée entière —, seulement si
+ * `jour` est aujourd'hui à Dakar et qu'il commence dans les deux heures. Le compte est celui de
+ * « Ma journée » (`compteARebours`, TCK-2856) : arrondi à la minute supérieure.
+ */
+export function reboursDuProchain(
+  evenements: readonly CalendarEvent[],
+  jour: string,
+  maintenant: Date | null | undefined,
+): { readonly evenement: CalendarEvent; readonly heures: number; readonly minutes: number } | null {
+  if (!maintenant || heureMuraleADakar(maintenant).slice(0, 10) !== jour) return null;
+  const prochain = evenements
+    .filter((e) => e.type !== 'booking' && !estSansHeure(e) && jourDeLEvenement(e) === jour)
+    .map((e) => ({ e, instant: instantDeLEvenement(e.start).getTime() }))
+    .filter((x) => x.instant > maintenant.getTime())
+    .sort((a, b) => a.instant - b.instant)[0];
+  if (!prochain) return null;
+  const rebours = compteARebours(prochain.instant, maintenant);
+  if (!rebours || rebours.heures * 60 + rebours.minutes > HORIZON_DU_REBOURS_MINUTES) return null;
+  return { evenement: prochain.e, ...rebours };
 }

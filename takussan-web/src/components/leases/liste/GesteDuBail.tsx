@@ -2,7 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useId, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { estPenaliteHorsLigne } from '@/components/admin/finances/impayes/penalite-hors-ligne';
@@ -15,12 +16,15 @@ import { useMyProfiles } from '@/hooks/useProfiles';
 import { apiRequest } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
 import type { BailDeLaListe, ElementDEntree, EntreeDAttention, MotifDAttention } from '@/lib/queries/leases-file';
-import { fetchAllLeasePayments, useDemanderLaSignature } from '@/lib/queries/leases';
+import { fetchAllLeasePayments, useDemanderLaSignature, useLease, useLeasePayments } from '@/lib/queries/leases';
+import { nomCompletDe } from '@/lib/identite';
 import { cn } from '@/lib/utils';
 import type { ApiResponse } from '@/types/api';
 import type { PaymentHistoryRow } from '@/types/invoice';
 import type { LeasePayment } from '@/types/lease';
 
+import { FeuilleDeRevision } from '../fiche/FeuilleDeRevision';
+import { gestesSecondaires } from '../fiche/gestes';
 import { TON_DU_MOTIF, type LectureDuBail } from './lecture';
 
 // La feuille de relance de l'écran des impayés (TCK-2660) : chargée au premier « Relancer ».
@@ -35,13 +39,15 @@ const FeuilleDeRelance = dynamic(() => import('@/components/admin/finances/impay
  * | `notice_received` | « Programmer l'état des lieux » : `/app/inventories/new?lease=…&type=move_out` |
  * | `rent_late` | « Relancer » : la feuille de relance de TCK-2660 sur l'échéance en retard |
  * | `late_fee_unpaid` | « Relancer » : la même feuille, pour la pénalité de retard SEULE de l'échéance payée (TCK-2778) |
- * | `rent_review_open` | « Réviser » : la fiche, feuille ouverte (`?geste=reviser`) |
+ * | `rent_review_open` | « Réviser » : la feuille de révision, ouverte SUR la liste (TCK-2912) |
  * | `ending_soon` | « Proposer le renouvellement » : la fiche (`?geste=renouveler`) |
  * | `deposit_to_refund` | « Restituer la caution » : la fiche (`?geste=restituer`) |
  * | `onboarding_incomplete` | « Relancer la locataire » : WhatsApp, ce qui manque, sans lien |
  *
- * Les lignes de l'index ne portent pas de capacités : Réviser, Renouveler et Restituer passent par la
- * fiche, qui les juge (`GESTES_PAR_LIEN` de `LeaseDetail`). Sans numéro joignable, « Relancer » d'un
+ * Les lignes de l'index ne portent pas de capacités : Renouveler et Restituer passent par la fiche, qui
+ * les juge (`GESTES_PAR_LIEN` de `LeaseDetail`). TCK-2912 — « Réviser » lit au toucher ce que la feuille
+ * exige (le bail de la fiche : capacités, plafond, locataire ; ses échéances) et la juge comme la fiche
+ * (`gestesSecondaires`) : permise, elle s'ouvre sans quitter la liste ; refusée, la fiche la dit. Sans numéro joignable, « Relancer » d'un
  * loyer cède la place à « Copier le lien de paiement », avec la raison (AC6).
  */
 export interface GesteDuBailProps {
@@ -55,7 +61,6 @@ export interface GesteDuBailProps {
 }
 
 const GESTES_DE_LA_FICHE: Partial<Record<MotifDAttention, string>> = {
-  rent_review_open: 'reviser',
   ending_soon: 'renouveler',
   deposit_to_refund: 'restituer',
 };
@@ -83,6 +88,7 @@ export function GesteDuBail({ bail, entree, lecture, manquants, forme }: GesteDu
   // TCK-2778 — la pénalité restée due sur une échéance PAYÉE se relance comme un loyer : la feuille de
   // TCK-2660, le message de la pénalité, son lien s'il est permis, et la relance notée (`late_fee`).
   if (motif === 'late_fee_unpaid') return <RelancerLaPenalite bail={bail} entree={entree} libelle={libelle} classes={classes} forme={forme} />;
+  if (motif === 'rent_review_open') return <ReviserSurLaListe bail={bail} libelle={libelle} classes={classes} />;
   const gesteDeLaFiche = GESTES_DE_LA_FICHE[motif];
   if (gesteDeLaFiche) {
     return (
@@ -94,6 +100,52 @@ export function GesteDuBail({ bail, entree, lecture, manquants, forme }: GesteDu
   if (motif === 'signature_pending') return <RelancerLaSignature bail={bail} libelle={libelle} classes={classes} />;
   if (motif === 'rent_late') return <RelancerLeLoyer bail={bail} entree={entree} libelle={libelle} classes={classes} forme={forme} />;
   return <RelancerParWhatsApp bail={bail} manquants={manquants} libelle={libelle} classes={classes} forme={forme} />;
+}
+
+/**
+ * TCK-2912 (AC9, maquette `app-baux` a-4 « Réviser » sur la liste) — la feuille de révision s'ouvre ici,
+ * sans changer de page. Le bail se lit comme la fiche le lit (`useLease(id, { avecLocataire })`, même clé :
+ * la fiche ouverte ensuite le trouve en cache), ses échéances aussi (la date d'effet proposée). Un bail que
+ * la fiche n'offrirait pas à réviser (capacité, statut) ou une lecture en échec : la fiche, qui le dit.
+ */
+function ReviserSurLaListe({ bail, libelle, classes }: { readonly bail: BailDeLaListe; readonly libelle: string; readonly classes: string }) {
+  const router = useRouter();
+  const [demande, setDemande] = useState(false);
+  const lecture = useLease(demande ? bail.id : null, { avecLocataire: true });
+  const echeances = useLeasePayments(demande ? bail.id : null);
+  const lease = demande ? (lecture.data?.data ?? null) : null;
+  const paiements = echeances.data?.data;
+  const pret = lease !== null && (echeances.data !== undefined || echeances.isError);
+  const permise = pret && gestesSecondaires(lease, paiements).includes('reviser');
+  const refusee = demande && (lecture.isError || (pret && !permise));
+
+  useEffect(() => {
+    if (refusee) router.push(`/app/leases/${bail.id}?geste=reviser`);
+  }, [refusee, router, bail.id]);
+
+  return (
+    <>
+      <Button
+        type="button"
+        className={classes}
+        data-slot="geste-du-bail"
+        aria-haspopup="dialog"
+        aria-busy={demande && !pret ? true : undefined}
+        onClick={() => setDemande(true)}
+      >
+        {libelle}
+      </Button>
+      {permise && lease ? (
+        <FeuilleDeRevision
+          lease={lease}
+          paiements={paiements}
+          ouverte
+          onFermer={() => setDemande(false)}
+          libelle={[nomCompletDe(lease.tenant), lease.property?.title].filter(Boolean).join(' · ') || (lease.reference_number ?? `#${lease.id}`)}
+        />
+      ) : null}
+    </>
+  );
 }
 
 function RelancerLaSignature({ bail, libelle, classes }: { readonly bail: BailDeLaListe; readonly libelle: string; readonly classes: string }) {

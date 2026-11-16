@@ -69,7 +69,11 @@ class SuggestedProvidersController extends Controller
             ->with('user:id,first_name,last_name,phone')
             ->withAvg(['reviews as average_rating' => fn (Builder $q) => $q->where('is_approved', true)], 'rating')
             ->withCount(['reviews as reviews_count' => fn (Builder $q) => $q->where('is_approved', true)])
-            ->addSelect(['completed_interventions_count' => ServiceProviderProfile::completedInterventionsSubquery($agency->id)])
+            ->addSelect([
+                'completed_interventions_count' => ServiceProviderProfile::completedInterventionsSubquery($agency->id),
+                // TCK-2917 (ADR-0118 § 4) — « 1 créneau dépassé » : l'agence choisit en le voyant.
+                'overdue_slots_count' => ServiceProviderProfile::overdueSlotsSubquery($agency->id),
+            ])
             ->get();
 
         $ranked = $candidates
@@ -112,6 +116,7 @@ class SuggestedProvidersController extends Controller
             'average_rating' => $profile->average_rating !== null ? round((float) $profile->average_rating, 2) : null,
             'reviews_count' => (int) $profile->reviews_count,
             'completed_interventions_count' => (int) $profile->completed_interventions_count,
+            'overdue_slots_count' => (int) $profile->overdue_slots_count,
         ];
     }
 

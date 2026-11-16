@@ -15,6 +15,13 @@ import { DELAI_RELAIS_FICHIER_MS, relayerVersApi } from '@/lib/relais-api';
 const PUBLICATION_DU_RADAR = /^radar\/advertisers\/\d+\/publish(-mandate)?$/;
 
 /**
+ * TCK-2844 (ADR-0109) — l'import d'une photo de Wikimedia part en JSON (un titre), mais l'API relit le
+ * fichier sur Commons, le télécharge (10 Mo au plus) et encode sa conversion avant de répondre : même
+ * délai que l'envoi d'un fichier, que le relais accorde déjà au multipart.
+ */
+const IMPORT_DE_PHOTO_DE_QUARTIER = /^geo\/neighborhoods\/\d+\/cover\/import$/;
+
+/**
  * TCK-145 — Same-origin proxy for the super-admin namespace. Forwards every
  * request to the backend at `/api/admin/<path>` with the auth bearer pulled
  * from the httpOnly cookie. Lives behind the `/super-admin/*` URL space on
@@ -45,7 +52,9 @@ async function forward(request: NextRequest, segments: string[]): Promise<NextRe
     jeton: token,
     enTetes,
     accepteDeLaRequete: true,
-    ...(request.method === 'POST' && PUBLICATION_DU_RADAR.test(chemin) ? { delaiMs: DELAI_RELAIS_FICHIER_MS } : {}),
+    ...(request.method === 'POST' && (PUBLICATION_DU_RADAR.test(chemin) || IMPORT_DE_PHOTO_DE_QUARTIER.test(chemin))
+      ? { delaiMs: DELAI_RELAIS_FICHIER_MS }
+      : {}),
   });
 }
 

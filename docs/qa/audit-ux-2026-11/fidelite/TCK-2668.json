@@ -113,13 +113,6 @@
   },
   {
    "ecran": "a-3",
-   "element": "« Lien par WhatsApp » / « Par WhatsApp »",
-   "propriete": "absent du produit",
-   "exception": "règle métier",
-   "motif": "hors périmètre du ticket (« L'invitation envoyée par lien WhatsApp »)"
-  },
-  {
-   "ecran": "a-3",
    "element": "« La personne choisit son mot de passe en l'ouvrant. »",
    "propriete": "texte",
    "exception": "règle métier",
@@ -152,6 +145,13 @@
    "propriete": "taille de police, hauteur",
    "exception": "technique",
    "motif": "densité ×0,9 du bureau portée par les jetons (ADR-0107) ; la colonne du formulaire reprend les 400 px de la maquette en `w-[25rem]`, le dialogue ses 560 px en `sm:max-w-[35rem]`"
+  },
+  {
+   "ecran": "a-3",
+   "element": "« Par WhatsApp » / « Lien par WhatsApp » et « Repartager »",
+   "propriete": "absents quand la connexion par numéro est éteinte",
+   "exception": "règle métier",
+   "motif": "TCK-2928 : `delivery: share` est refusé par l'API sans le drapeau `phone_login` (ADR-0123) ; « Repartager » (absent de la maquette) n'est offert que sur une invitation d'équipe adressée au seul numéro"
   }
  ],
  "comparaisons": {

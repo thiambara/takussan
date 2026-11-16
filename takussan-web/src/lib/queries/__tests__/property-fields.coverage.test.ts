@@ -154,7 +154,9 @@ const APPELANTS: readonly Appelant[] = [
     // (`PropertyReassignmentKeepsOwnerTest::test_la_liste_sert_le_responsable_si_l_agence_est_demandee`).
     inconditionnelles: ['location', 'main_photo_url', 'owner', 'collaborators', 'primary_contact', 'primary_contact_source'],
     horsQueryFields: [],
-    minColonnesLues: 13,
+    // TCK-2908 — 11 (13 avant) : la carte d'annonce ne lit plus `views_count` ni `favorites_count`, ses
+    // chiffres sont ceux des 30 derniers jours (`stats_30d`, une inclusion calculée, hors colonnes).
+    minColonnesLues: 11,
   },
   // TCK-1067 (P60.03) — `fetchDashboardProperty` n'envoie plus de `fields[properties]` : un `show`
   // rend la ressource de détail entière, il n'y a plus de liste demandée à confronter.

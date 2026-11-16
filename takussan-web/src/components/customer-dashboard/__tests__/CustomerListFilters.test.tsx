@@ -25,11 +25,13 @@ describe('CustomerListFilters', () => {
     params = new URLSearchParams();
   });
 
-  it('renders without tag filter when no crmTags provided', () => {
+  it('TCK-2890 (AC8) — sans étiquette dans l’agence, le filtre reste là et dit « Aucune étiquette »', () => {
     render(withIntl(<CustomerListFilters />));
-    expect(screen.queryByRole('button', { name: /Étiquettes/ })).toBeNull();
     expect(screen.getByRole('button', { name: /Étape/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Statut/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Étiquettes' }));
+    expect(screen.getByText('Aucune étiquette')).toBeTruthy();
+    expect(screen.getByText(/depuis la fiche d’un client/)).toBeTruthy();
   });
 
   it('opens the tag menu and toggles a tag into the URL, back to page 1', () => {

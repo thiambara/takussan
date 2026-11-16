@@ -10,6 +10,7 @@ use App\Models\PayoutMethodVerification;
 use App\Models\User;
 use App\Services\Model\NotificationService;
 use App\Support\SegregationOfDuties;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -83,15 +84,37 @@ final class PayoutMethodService
             if ($method->is_default) {
                 $this->clearOtherDefaults((int) $method->user_id, (int) $method->id);
             }
+            if ($unverify) {
+                // TCK-2863 — le RIB envoyé était celui de l'ancien compte : il ne met plus en revue.
+                $method->bank_statement_submitted_at = null;
+            }
             $method->save();
             if ($unverify) {
                 $method->verifications()->delete();
+                $method->clearMediaCollection(PayoutMethod::BANK_STATEMENT_COLLECTION);
             }
         });
 
         $this->notifyHolder($method->user, NotificationCode::PayoutMethodUpdated, $method->refresh());
 
         return $method;
+    }
+
+    /**
+     * TCK-2863 — le relevé d'identité bancaire d'un compte bancaire « à confirmer » : rangé dans la
+     * collection privée, il met la destination « en revue ». Il ne vérifie rien : seule une agence
+     * vérifie (`verify`), et un compte déjà vérifié le reste.
+     */
+    public function attachBankStatement(PayoutMethod $method, UploadedFile $file): PayoutMethod
+    {
+        abort_code_if($method->kind !== PayoutMethodKind::BankTransfer, 422, 'payout.bank_statement_bank_only');
+
+        $method->addMedia($file)
+            ->usingFileName('rib-'.$method->id.'.'.strtolower($file->getClientOriginalExtension() ?: $file->extension()))
+            ->toMediaCollection(PayoutMethod::BANK_STATEMENT_COLLECTION);
+        $method->forceFill(['bank_statement_submitted_at' => now()])->save();
+
+        return $method->refresh()->load('verifications');
     }
 
     public function delete(PayoutMethod $method): void

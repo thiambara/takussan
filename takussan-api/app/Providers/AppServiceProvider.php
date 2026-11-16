@@ -98,6 +98,8 @@ use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\OtpPreview;
+use App\Services\Auth\Voice\VoiceCodeDrivers;
+use App\Services\Auth\Voice\VoiceCodeSender;
 use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Formatting\CurrencyFormatter;
@@ -201,6 +203,8 @@ class AppServiceProvider extends ServiceProvider
         $this->registerCdnServices();
         $this->registerSmsServices();
         $this->registerWhatsappServices();
+        // TCK-2940 (ADR-0126 § 2) — le pilote d'appel, relu de la configuration à chaque résolution.
+        $this->app->bind(VoiceCodeSender::class, fn ($app) => VoiceCodeDrivers::make($app));
 
         // TCK-383 — SINGLETON, et c'est la condition de la déduplication : le conteneur résout un
         // écouteur à chaque dispatch, et une même exécution en échec en déclenche deux.
@@ -700,6 +704,17 @@ class AppServiceProvider extends ServiceProvider
         }
     }
 
+    /**
+     * TCK-2939 (ADR-0094, amendement du 2026-11-15 § 5) — les essais que le limiteur `auth-phone-verify` laisse encore
+     * à ce numéro dans sa fenêtre (l'essai de la requête en cours déjà compté, avant elle). Lu, jamais écrit.
+     */
+    public static function phoneVerifyAttemptsLeft(Request $request): int
+    {
+        $key = ThrottleRequestsByNetwork::namedLimiterKey('auth-phone-verify', 'phone:'.self::phoneRateLimitKey($request));
+
+        return max(0, self::PHONE_VERIFY_PER_WINDOW - (int) RateLimiter::attempts($key));
+    }
+
     /** TCK-589 — la clé d'un limiteur par numéro : le numéro saisi, espaces retirés. */
     /**
      * Le numéro DESTINATAIRE : celui du corps, sinon (M3) celui du compte — `phone/send-otp`
@@ -722,11 +737,17 @@ class AppServiceProvider extends ServiceProvider
         // numéro saisi, comme `auth/phone/verify-code`. Un jeton inconnu a son propre seau, sans numéro.
         if ($request->routeIs('public.invitations.verify-code')) {
             $token = (string) $request->route('token');
-            $invitation = Invitation::query()->where('token', $token)->first(['email', 'phone']);
+            $invitation = Invitation::query()->where('token', $token)->first(['email', 'phone', 'metadata']);
             if ($invitation === null) {
                 return 'invitation-code:'.hash('sha256', $token);
             }
-            if ($invitation->email === null) {
+            // TCK-2939 (ADR-0094, amendement du 2026-11-15 § 4) — le numéro CORRIGÉ par l'invité, s'il en donne un : le
+            // seau est celui du numéro dont le code se vérifie (`SendInvitationCodeRequest::phone()`). Une invitation
+            // partagée refuse la correction : son seau reste celui de son numéro.
+            $corrige = is_string($request->input('phone')) && ! $invitation->estPartagee()
+                ? (preg_replace('/\s+/', '', $request->input('phone')) ?? '')
+                : '';
+            if ($invitation->email === null && $corrige === '') {
                 return preg_replace('/\s+/', '', (string) $invitation->phone) ?? '';
             }
         }

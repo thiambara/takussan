@@ -70,7 +70,6 @@ class PublicBookingWritesKindTest extends TestCase
         $this->postJson("/api/public/properties/{$monthly->slug}/booking-request", [
             'start_date' => '2026-12-01',
             'end_date' => '2027-12-01',
-            'guests' => 2,
         ])->assertCreated()->assertJsonPath('data.kind', 'application');
 
         $booking = Booking::query()->sole();

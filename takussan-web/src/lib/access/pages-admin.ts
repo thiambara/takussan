@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-import { isAdmin, isSuperAdmin } from '@/lib/roles';
+import { isAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import type { AgencyKind } from '@/types/agency';
 import type { UserRole } from '@/types/user';
 
@@ -52,6 +52,13 @@ export interface ExigenceAdmin {
    * ailleurs, l'API juge le profil, et la page ouverte ne rendrait que son état d'erreur.
    */
   readonly ouvertePar?: readonly string[];
+  /**
+   * TCK-2921 (ADR-0111) — la page s'ouvre aussi au PERSONNEL de l'agence (un profil `agent`), sans
+   * capacité : l'API juge la lecture par `PersonnelDeLAgence::personnelActifDe`, qui n'en est pas une.
+   * Une telle page n'est ni une entrée de l'administration ni un repli ({@link cheminsDEntree}) : un
+   * agent l'atteint par un lien, et ne reçoit pas pour autant « Administration » dans ses menus.
+   */
+  readonly personnel?: true;
 }
 
 export interface PageAdmin {
@@ -112,10 +119,12 @@ const TABLE = [
     menu: null,
   },
   // TCK-2832 — les réglages de bail de l'agence : atteinte par « Modifier » de l'encart du nouveau
-  // bail, pas une entrée de menu. L'API juge `AgencyPolicy::configure` (l'admin ET `agency.update`,
-  // l'admin PRINCIPAL passant sans elle) : comme `/app/agency`, la table n'exige que le rôle — une
-  // capacité ici fermerait la page à l'admin principal à qui l'encart montre « Modifier ».
-  { chemin: '/app/agency/lease-settings', exige: { role: 'admin' }, menu: null },
+  // bail, pas une entrée de menu. Aucune capacité ici : elle fermerait la page à l'admin principal
+  // à qui l'encart montre « Modifier ».
+  // TCK-2921 (ADR-0111) — la LECTURE s'ouvre au personnel actif de l'agence, agent compris
+  // (`AgencyPolicy::viewLeaseSettings`) ; l'écriture reste à qui configure (`can_edit`), et c'est
+  // `can_edit` seul qui choisit l'état « lecture seule » de la page.
+  { chemin: '/app/agency/lease-settings', exige: { role: 'admin', personnel: true }, menu: null },
   // TCK-597 (ADR-0043 §1) — l'admin d'agence `standard` modère les avis de SON agence.
   {
     chemin: '/app/agency/moderation',
@@ -170,8 +179,10 @@ export function pageAccessible(page: PageAdmin, ctx: ContexteAdmin): boolean {
   // TCK-1412 — sans rôle d'administration, seule une capacité qui ouvre la page la donne
   // (délégations comprises : `/api/me/capabilities` les rend).
   if (!isAdmin(ctx.roles)) {
+    // TCK-2921 — une page ouverte au personnel : un profil `agent` rattaché à une agence y entre.
+    const duPersonnel = page.exige.personnel === true && isAgent(ctx.roles) && ctx.agence !== null;
     const ouvrantes = page.exige.ouvertePar ?? [];
-    if (!ouvrantes.some((c) => (ctx.capacites ?? []).includes(c))) return false;
+    if (!duPersonnel && !ouvrantes.some((c) => (ctx.capacites ?? []).includes(c))) return false;
   }
   if (page.exige.agence === 'standard' && ctx.agence !== null && ctx.agence.kind !== 'standard') {
     return false;
@@ -204,9 +215,21 @@ export interface EntreeAdmin {
   readonly cle: 'sectionLabel' | 'mySpace';
 }
 
+/**
+ * TCK-2921 — les pages accessibles qui peuvent servir d'ENTRÉE ou de REPLI : toutes, sauf celles
+ * ouvertes au personnel (`personnel`) — atteintes par un lien de page, elles ne font pas d'un agent
+ * un administrateur (« Administration » au menu, repli d'une page refusée).
+ */
+export function cheminsDEntree(acces: AccesAdmin): CheminAdmin[] {
+  return acces.chemins.filter((c) => {
+    const page = pageAdmin(c);
+    return page?.exige.personnel !== true;
+  });
+}
+
 /** LE lien vers l'administration : la première page accessible, ou rien. */
 export function entreeAdmin(acces: AccesAdmin): EntreeAdmin | null {
-  const premier = acces.chemins[0];
+  const premier = cheminsDEntree(acces)[0];
   if (premier === undefined) return null;
   return { href: premier, cle: acces.espaceIndividuel ? 'mySpace' : 'sectionLabel' };
 }

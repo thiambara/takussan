@@ -8,6 +8,7 @@ use App\Http\Requests\Invitation\PurgeExpiredInvitationsRequest;
 use App\Http\Resources\InvitationResource;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Services\Invitation\AgentInvitationService;
 use App\Services\Invitation\ExpiredInvitationPurge;
 use App\Services\Invitation\InvitationService;
 use App\Services\Membership\MembershipCapabilityResolver;
@@ -108,6 +109,33 @@ class InvitationController extends Controller
         return $this->json([
             'data' => InvitationResource::make($invitation)->resolve($request),
         ]);
+    }
+
+    /**
+     * POST /api/invitations/{invitation}/share-link
+     *
+     * TCK-2927 (ADR-0123 § 2) — un lien neuf pour une invitation d'équipe que l'invitant partage
+     * lui-même (WhatsApp) : jeton renouvelé, rien n'est envoyé. Même règle d'accès que la relance ;
+     * step-up 2FA et limiteur `invitations-send` comme elle. `share_url` ne sort que d'ici et de la
+     * création, jamais de `InvitationResource` ; `no-store`. Un `POST` : refusé sous impersonation.
+     */
+    public function shareLink(Request $request, Invitation $invitation, AgentInvitationService $agents): JsonResponse
+    {
+        $user = $request->user();
+        abort_if($user === null, 401);
+
+        if (! $user->can('resend', $invitation)) {
+            throw new AuthorizationException(__('team.invite.errors.permission_denied'));
+        }
+
+        $invitation = $agents->renewShareLink($invitation, $user);
+
+        return $this->json([
+            'data' => [
+                ...InvitationResource::make($invitation)->resolve($request),
+                'share_url' => InvitationService::shareUrl($invitation->token),
+            ],
+        ], 200, ['Cache-Control' => 'no-store, private']);
     }
 
     /**

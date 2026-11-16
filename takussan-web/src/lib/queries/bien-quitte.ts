@@ -9,7 +9,7 @@ import { getProperty } from './public-property';
  * ⚠ **Lu par `getProperty`, la lecture PARTAGÉE de la fiche, et sans `fields[properties]`.**
  * `PublicPropertyController::show()` l'ignore, et l'y ajouter divergerait l'URL de celle de la fiche
  * (donc le cache) — cf. `public-property.ts`. La réduction se fait ICI, côté serveur : la page de
- * connexion ne sérialise vers le navigateur que ces huit champs, jamais le `PropertyDetail` entier.
+ * connexion ne sérialise vers le navigateur que ces neuf champs, jamais le `PropertyDetail` entier.
  *
  * `null` pour tout ce qui n'est pas un bien public trouvé : l'écran reprend alors sa forme directe.
  */
@@ -24,6 +24,11 @@ export interface BienQuitte {
   readonly periode: RentPeriod | null;
   /** L'agence qui publie le bien (« Avec Dakar Immo », « part chez Dakar Immo ») ; `null` sans agence. */
   readonly agence: string | null;
+  /**
+   * TCK-2936 — le délai de réponse médian de l'agence, en minutes (`agency.median_response_minutes`,
+   * TCK-2935 : la valeur même de la fiche publique d'agence). `null` : pas mesuré, ou clé omise.
+   */
+  readonly delaiMinutes: number | null;
 }
 
 export async function bienQuitte(slug: string, locale: string): Promise<BienQuitte | null> {
@@ -39,5 +44,6 @@ export async function bienQuitte(slug: string, locale: string): Promise<BienQuit
     devise: bien.currency ?? 'XOF',
     periode: bien.contract_type === 'rent' ? (bien.rent_period ?? 'monthly') : null,
     agence: bien.agency?.name?.trim() || null,
+    delaiMinutes: typeof bien.agency?.median_response_minutes === 'number' ? bien.agency.median_response_minutes : null,
   };
 }

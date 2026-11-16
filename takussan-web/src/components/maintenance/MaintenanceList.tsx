@@ -54,6 +54,11 @@ export interface MaintenanceListProps {
   readonly urgencesAPart?: boolean;
 }
 
+/** TCK-2919 — `filter[lease_id]` de l'URL : un entier positif, sinon `null`. */
+export function leaseIdDeLUrl(brut: string | null | undefined): number | null {
+  return brut && /^[1-9]\d{0,9}$/.test(brut) ? Number(brut) : null;
+}
+
 export function MaintenanceList({ urgencesAPart = true }: MaintenanceListProps = {}) {
   const locale = useLocale() as Locale;
   const t = useTranslations('maintenance.list');
@@ -76,6 +81,9 @@ export function MaintenanceList({ urgencesAPart = true }: MaintenanceListProps =
     ...(statuses.length > 1 ? [{ value: statusValue, label: statuses.map((s) => tStatus(s)).join(', ') }] : []),
     ...MAINTENANCE_STATUSES.map((s) => ({ value: s, label: tStatus(s) })),
   ];
+  // TCK-2919 — `?filter[lease_id]=` (la fiche du bail, TCK-2912) borne la liste aux interventions de ce
+  // bail, filtrées par l'API. Un identifiant illisible est ignoré.
+  const leaseId = leaseIdDeLUrl(searchParams?.get('filter[lease_id]'));
   const [priority, setPriority] = useState<'' | MaintenancePriority>('');
   // La liste annonçait « Page 1 / N » sans aucun moyen d'atteindre la page 2.
   const [page, setPage] = useState(1);
@@ -83,9 +91,10 @@ export function MaintenanceList({ urgencesAPart = true }: MaintenanceListProps =
   const params = useMemo<MaintenanceListParams>(() => ({
     ...(statuses.length ? { status: statuses } : {}),
     ...(priority ? { priority } : {}),
+    ...(leaseId !== null ? { lease_id: leaseId } : {}),
     ...(isProvider ? { sort: 'scheduled_at' } : {}),
     page,
-  }), [statuses, priority, page, isProvider]);
+  }), [statuses, priority, leaseId, page, isProvider]);
 
   const query = useMaintenanceRequests(params);
 

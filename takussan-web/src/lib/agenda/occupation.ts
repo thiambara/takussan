@@ -74,6 +74,8 @@ export function barresDeLaRangee(sejours: readonly CalendarEvent[], jours: reado
 export interface BienOccupe {
   readonly id: number;
   readonly titre: string;
+  /** TCK-2888 — le quartier du bien (« Ngor »), sous son titre ; `null` s'il n'est pas connu. */
+  readonly quartier?: string | null;
 }
 
 export interface LigneDOccupation {

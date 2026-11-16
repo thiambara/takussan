@@ -5,17 +5,23 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingSource;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
+use App\Models\Enums\OfferFinancing;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Booking\BookingDossierService;
 use App\Services\Booking\BookingSearch;
 use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class Booking extends AbstractModel
@@ -31,10 +37,34 @@ class Booking extends AbstractModel
         'cancellation_by', 'cancellation_reason', 'metadata',
         // TCK-2579 (ADR-0102) — la nature, et ce qu'une offre ou une candidature retient du bien.
         'kind', 'offer_expires_at', 'list_price_at_booking',
+        // TCK-2870 (ADR-0110 § 1) — les conditions de la candidature et de l'offre.
+        'term_months', 'renewable', 'security_deposit_months', 'security_deposit_amount',
+        'advance_months_at_booking', 'agency_fee_months_at_booking',
+        'financing', 'signature_within_days', 'conditions',
+        // TCK-2893 (ADR-0110 § 4) — le revenu déclaré du candidat, chiffré (`self::SENSITIVE`).
+        'declared_monthly_income',
+        // TCK-2874 (ADR-0110 § 6) — l'origine (`BookingSource`).
+        'source',
+        // TCK-2892 (ADR-0110 § 1) — le nombre de voyageurs d'un séjour.
+        'guests',
     ];
+
+    /**
+     * TCK-2893 (ADR-0110 § 4, ADR-0070 § 3) — le revenu mensuel déclaré du candidat : chiffré (cast
+     * `encrypted` simple, colonne `text`), absent de toute sérialisation (`$hidden`, donc de
+     * `toArray()` et de l'export du bailleur) et du journal d'activité
+     * ({@see self::getActivitylogOptions()}). Il ne sort que masqué et en rapport au loyer
+     * (`BookingGuarantorFacts`), et en clair par `GET /api/bookings/{booking}/sensitive` seul. Hors
+     * de `$queryFields` : `fields[bookings]=declared_monthly_income` rend 400.
+     */
+    public const SENSITIVE = ['declared_monthly_income'];
+
+    protected $hidden = self::SENSITIVE;
 
     protected $casts = [
         'status' => BookingStatus::class,
+        // TCK-2874
+        'source' => BookingSource::class,
         'currency' => Currency::class,
         'cancellation_by' => CancellationBy::class,
         'total_amount' => 'decimal:2',
@@ -49,7 +79,35 @@ class Booking extends AbstractModel
         'kind' => BookingKind::class,
         'offer_expires_at' => 'date',
         'list_price_at_booking' => 'decimal:2',
+        // TCK-2870
+        'term_months' => 'integer',
+        'renewable' => 'boolean',
+        'security_deposit_months' => 'integer',
+        'security_deposit_amount' => 'decimal:2',
+        'advance_months_at_booking' => 'integer',
+        'agency_fee_months_at_booking' => 'decimal:2',
+        'financing' => OfferFinancing::class,
+        'signature_within_days' => 'integer',
+        // TCK-2893
+        'declared_monthly_income' => 'encrypted',
+        // TCK-2892
+        'guests' => 'integer',
     ];
+
+    /**
+     * TCK-2893 — la règle d'`Auditable` (le `fillable`, colonnes changées seulement), SANS le revenu
+     * déclaré : le journal écrirait la valeur déchiffrée, et `PropertyRedactor` ne masque qu'à la
+     * lecture du journal, pas en base.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logExcept(self::SENSITIVE)
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->useLogName(class_basename(static::class));
+    }
 
     /**
      * TCK-1914 (P170.01, décision du porteur) — les statuts où le client paie sa réservation, à la
@@ -121,6 +179,14 @@ class Booking extends AbstractModel
         'created_at', 'updated_at',
         // TCK-2579
         'kind', 'offer_expires_at', 'list_price_at_booking',
+        // TCK-2870 (ADR-0110 § 1)
+        'term_months', 'renewable', 'security_deposit_months', 'security_deposit_amount',
+        'advance_months_at_booking', 'agency_fee_months_at_booking',
+        'financing', 'signature_within_days', 'conditions',
+        // TCK-2874 (ADR-0110 § 6)
+        'source',
+        // TCK-2892 (ADR-0110 § 1)
+        'guests',
     ];
 
     /**
@@ -138,7 +204,16 @@ class Booking extends AbstractModel
             }
         }
 
-        return parent::performInsert($query);
+        $inserted = parent::performInsert($query);
+
+        // TCK-2872 (ADR-0110 § 2) — le dossier d'une candidature ou d'une offre naît avec elle, par
+        // TOUS les chemins de création (saisie du personnel, tunnel public, seeders, fabrique) : ici
+        // et non dans un écouteur `created`, que `Booking::withoutEvents()` ferait taire.
+        if ($inserted !== false) {
+            app(BookingDossierService::class)->seed($this);
+        }
+
+        return $inserted;
     }
 
     /**
@@ -180,6 +255,30 @@ class Booking extends AbstractModel
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    /** TCK-2872 (ADR-0110 § 2) — les pièces du dossier ; aucune pour un séjour. */
+    public function dossierItems(): HasMany
+    {
+        return $this->hasMany(BookingDossierItem::class);
+    }
+
+    /** TCK-2893 (ADR-0110 § 3) — les garants de la candidature ou de l'offre, trois au plus. */
+    public function guarantors(): BelongsToMany
+    {
+        return $this->belongsToMany(Guarantor::class, 'booking_guarantor')->withTimestamps();
+    }
+
+    /** TCK-2873 (ADR-0110 § 5) — les contre-offres de l'agence sur une offre d'achat. */
+    public function counterOffers(): HasMany
+    {
+        return $this->hasMany(BookingCounterOffer::class);
+    }
+
+    /** TCK-2873 — la dernière contre-offre (`BookingResource::counter_offer`, `awaiting`), en une requête pour une page. */
+    public function latestCounterOffer(): HasOne
+    {
+        return $this->hasOne(BookingCounterOffer::class)->latestOfMany();
     }
 
     public function payments(): HasMany

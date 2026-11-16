@@ -365,6 +365,13 @@
       "propriete": "présence, couleur, marges, largeur",
       "exception": "hors périmètre",
       "motif": "entrées et état actif du menu de la coque (TCK-2617, TCK-2619), lues sur le compte relevé"
+    },
+    {
+      "ecran": "a-0, a-2 (téléphone et bureau)",
+      "element": "« Tout télécharger » / « Tout télécharger (.zip) » du titre « Historique » : états « Préparation de l’archive… », « Préparation en cours… », « Télécharger l’archive », « Réessayer » et la note sous le titre ; geste absent sans bail lu ou sans historique",
+      "propriete": "texte, présence",
+      "exception": "fonction",
+      "motif": "TCK-2916 : l'écart silencieux (le geste absent du produit et de cette fiche) est levé — le libellé de repos est celui de la maquette (bascule à `lg`, comme la table). Les états viennent du parcours de l'archive servie par l'API (`receipts:all`, directe puis préparée au-delà de 40 entrées ou du plafond d'octets, TCK-2812/2915) ; jamais un ZIP construit dans le navigateur. Sans bail lu ni historique, l'API refuserait (422) : pas de geste"
     }
   ],
   "ecarts_ouverts": [

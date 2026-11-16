@@ -39,7 +39,10 @@ import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
 import type { Booking } from '@/types/booking';
 
+import { expireBientot } from '@/lib/reservations/candidature';
+
 import { EntreeSaisieDemande } from './EntreeSaisieDemande';
+import { Completude } from './detail/dossier';
 import {
   InitialesDuClient,
   SegmenteDesNatures,
@@ -279,7 +282,7 @@ function CorpsDeLaListe({ nature, statut, filtres, comptes }: CorpsProps) {
           <div className="mt-4 rounded-xl border border-dashed border-border">{contenu}</div>
         ) : (
           <div className="mt-4">
-            <TableDesDemandes reservations={reservations} />
+            <TableDesDemandes reservations={reservations} nature={nature} />
             {lecture.data?.meta && lecture.data.meta.last_page > 1 ? (
               <Pagination page={lecture.data.meta.current_page} lastPage={lecture.data.meta.last_page} onChange={setPage} />
             ) : null}
@@ -329,8 +332,12 @@ function LigneDeLaDemande({ b }: { readonly b: Booking }) {
   const nom = useNomDuClient();
   const bienEtQuartier = useBienEtQuartier();
   const mots = useMotsDeLaNature();
-  const age = useAgeDeLaDemande(useMinuteCourante());
+  const t = useTranslations('bookings.liste');
+  const maintenant = useMinuteCourante();
+  const age = useAgeDeLaDemande(maintenant);
   const leNom = nom(b);
+  // TCK-2875 — « Expire demain » prend la place de l'âge (maquette `LigneDemande`, `alerte`).
+  const alerte = expireBientot(b, maintenant);
   return (
     <li data-slot="ligne-de-demande" className="relative flex min-h-19 items-start gap-3 px-4 py-3 md:px-0">
       <InitialesDuClient nom={leNom} taille={40} className="mt-0.5" />
@@ -339,7 +346,7 @@ function LigneDeLaDemande({ b }: { readonly b: Booking }) {
           <Link href={`/app/bookings/${b.id}`} className="min-w-0 flex-1 truncate text-corps font-semibold text-foreground outline-none after:absolute after:inset-0 focus-visible:underline">
             {leNom}
           </Link>
-          <span className="flex-none text-xs text-muted-foreground">{age(b.created_at)}</span>
+          <span className={cn('flex-none text-xs', alerte ? 'font-semibold text-destructive' : 'text-muted-foreground')}>{alerte ? t('expireDemain') : age(b.created_at)}</span>
         </div>
         <p className="truncate text-sm text-muted-foreground">{bienEtQuartier(b)}</p>
         <div className="mt-1 flex items-center gap-2">
@@ -359,13 +366,20 @@ function Th({ children, className }: { readonly children?: ReactNode; readonly c
   );
 }
 
-/** Le tableau du bureau : Client · Bien · Montant · Statut · Reçue ; sous `xl`, il défile dans sa carte. */
-function TableDesDemandes({ reservations }: { readonly reservations: readonly Booking[] }) {
+/**
+ * Le tableau du bureau : Client · Bien · Montant · (Dossier) · Statut · Reçue ; sous `xl`, il défile
+ * dans sa carte. TCK-2875 — « Dossier » (« 3/4 ») pour une candidature ; « Expire
+ * demain » en tête de « Reçue » quand l'échéance d'une demande en attente tombe dans moins de 48 h.
+ */
+function TableDesDemandes({ reservations, nature }: { readonly reservations: readonly Booking[]; readonly nature: NatureDeReservation }) {
   const t = useTranslations('bookings.liste');
   const nom = useNomDuClient();
   const bienEtQuartier = useBienEtQuartier();
   const mots = useMotsDeLaNature();
-  const age = useAgeDeLaDemande(useMinuteCourante());
+  const maintenant = useMinuteCourante();
+  const age = useAgeDeLaDemande(maintenant);
+  // TCK-2875 — la colonne « Dossier » des candidatures (maquette e0) ; l'offre est TCK-2876.
+  const avecDossier = nature === 'application';
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card">
       <table className="w-full border-collapse text-sm">
@@ -375,6 +389,7 @@ function TableDesDemandes({ reservations }: { readonly reservations: readonly Bo
             <Th className="pl-4">{t('colonnes.client')}</Th>
             <Th>{t('colonnes.bien')}</Th>
             <Th>{t('colonnes.montant')}</Th>
+            {avecDossier ? <Th>{t('colonnes.dossier')}</Th> : null}
             <Th>{t('colonnes.statut')}</Th>
             <Th>{t('colonnes.recue')}</Th>
             <Th className="w-10 pr-4" />
@@ -407,11 +422,21 @@ function TableDesDemandes({ reservations }: { readonly reservations: readonly Bo
                   <p className="font-medium whitespace-nowrap tabular-nums">{mots.montant(b)}</p>
                   {detail ? <p className="text-ui whitespace-normal text-muted-foreground min-[90rem]:whitespace-nowrap">{detail}</p> : null}
                 </td>
+                {avecDossier ? (
+                  <td className="px-3">{b.dossier && b.dossier.required > 0 ? <Completude recues={b.dossier.received} total={b.dossier.required} court /> : null}</td>
+                ) : null}
                 <td className="px-3">
                   <StatutDeLaDemande statut={b.status} />
                 </td>
                 <td className="px-3">
-                  <p className="whitespace-nowrap text-muted-foreground">{age(b.created_at)}</p>
+                  {expireBientot(b, maintenant) ? (
+                    <>
+                      <p className="whitespace-nowrap font-medium text-destructive">{t('expireDemain')}</p>
+                      <p className="text-ui whitespace-nowrap text-muted-foreground">{age(b.created_at)}</p>
+                    </>
+                  ) : (
+                    <p className="whitespace-nowrap text-muted-foreground">{age(b.created_at)}</p>
+                  )}
                 </td>
                 <td className="pr-4 text-right">
                   <ChevronRight className="inline size-4 text-muted-foreground" aria-hidden="true" />

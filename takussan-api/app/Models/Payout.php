@@ -7,6 +7,7 @@ use App\Models\Bases\Auditable;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentMethod;
+use App\Models\Enums\PayoutNature;
 use App\Models\Enums\PayoutStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -41,6 +42,8 @@ class Payout extends AbstractModel
         'refunded_payment_type', 'refunded_payment_id',
         // TCK-2151 (ADR-0039, amendement du 2026-10-24) — la reprise imputée à ce reversement.
         'clawback_amount',
+        // TCK-2909 — acompte, solde, restitution… écrite à la création ({@see PayoutNature}).
+        'nature',
     ];
 
     /** TCK-594 — le défaut de la colonne, lisible avant le premier `refresh()`. */
@@ -51,6 +54,8 @@ class Payout extends AbstractModel
     protected $casts = [
         'status' => PayoutStatus::class,
         'payee_role' => PayeeRole::class,
+        // TCK-2909
+        'nature' => PayoutNature::class,
         'currency' => Currency::class,
         'payment_method' => PaymentMethod::class,
         'period_start' => 'date',
@@ -102,10 +107,27 @@ class Payout extends AbstractModel
         'payment_method', 'payout_method_id', 'transaction_id', 'scheduled_at', 'processed_at',
         'failed_reason', 'notes', 'created_at', 'updated_at',
         'refunded_payment_type', 'refunded_payment_id',
+        // TCK-2909
+        'nature',
     ];
 
     protected static function booted(): void
     {
+        // TCK-2909 — la nature que les colonnes du reversement disent d'elles-mêmes, quand l'appelant
+        // n'en a pas écrit : remboursement constaté, restitution au locataire, facture de prestataire.
+        // Celle d'un reversement au bailleur (acompte ou solde) est écrite par `PayoutService`.
+        static::creating(function (self $payout): void {
+            if ($payout->nature !== null) {
+                return;
+            }
+            $payout->nature = match (true) {
+                $payout->refunded_payment_id !== null => PayoutNature::Refund,
+                $payout->payee_role === PayeeRole::Tenant => PayoutNature::DepositRefund,
+                $payout->payee_role === PayeeRole::ServiceProvider => PayoutNature::ProviderBill,
+                default => null,
+            };
+        });
+
         static::updating(function (self $payout): void {
             if (! $payout->isDirty('status')) {
                 return;

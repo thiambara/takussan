@@ -12,6 +12,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
+import { trancheDeReponse } from '@/lib/maintenance/mes-demandes';
 import { estTuileDuLocataire } from '@/lib/maintenance/signalement';
 import { useMaintenanceRequest } from '@/lib/queries/maintenance';
 import { useResumeDuLoyer } from '@/lib/queries/payments';
@@ -36,8 +37,11 @@ import { EtapesDeLaDemande } from './EtapesDeLaDemande';
  *    repli de `[id]/loading.tsx` et rendrait 200 avec le squelette (TCK-426, `etats-de-route.test.ts`).
  *    L'API sert la demande à ces lecteurs de toute façon : l'écran ne leur montre rien de plus.
  *
- * Écarts de donnée à la maquette : « l'agence répond d'ordinaire dans l'heure » (aucune mesure ne le
- * sert) et « 1 message vocal » (la note vocale est hors périmètre) ne sont pas rendus.
+ * TCK-2918 (e4) — « L'agence répond d'ordinaire dans l'heure » : formulé par tranche depuis la médiane
+ * servie (`maintenance_response_minutes`, ADR-0118 § 5), absent quand elle est nulle (moins de 5
+ * demandes).
+ *
+ * TCK-2902 (e4) — « 2 photos, 1 message vocal » : la note vocale se lit au détail (`media.voice_note`).
  */
 
 export function DemandeEnvoyee({ id }: { readonly id: number }) {
@@ -70,6 +74,7 @@ export function DemandeEnvoyee({ id }: { readonly id: number }) {
   const premiere = photos[0] ?? null;
   const categorie = estTuileDuLocataire(d.category) ? tTuiles(d.category) : tCategorie(d.category);
   const aujourdhui = f.date(d.created_at, DATE_COURTE) === f.date(new Date(), DATE_COURTE);
+  const tranche = trancheDeReponse(d.maintenance_response_minutes);
 
   return (
     <div className="md:flex md:justify-center md:pb-16 md:pt-4">
@@ -83,7 +88,11 @@ export function DemandeEnvoyee({ id }: { readonly id: number }) {
         <h2 className="mt-5 font-display text-affiche-22 font-semibold leading-tight tracking-titre text-foreground">
           {agence ? t('recue', { agence }) : t('recueSansNom')}
         </h2>
-        <p className="mt-2 text-corps leading-snug text-muted-foreground">{t('prevenu')}</p>
+        <p className="mt-2 text-corps leading-snug text-muted-foreground">
+          {t('prevenu')}
+          {/* TCK-2918 (e4) — la médiane de prise en charge de l'agence, par tranche ; rien quand elle n'est pas servie. */}
+          {tranche ? <span data-slot="delai-de-reponse"> {t('delai', { tranche: tranche.cle, n: tranche.cle === 'jours' ? tranche.n : 0 })}</span> : null}
+        </p>
 
         <div className="mt-6 w-full rounded-xl border border-border bg-card p-4 text-left">
           <div className="flex items-center gap-3">
@@ -97,7 +106,7 @@ export function DemandeEnvoyee({ id }: { readonly id: number }) {
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-corps font-semibold text-foreground">{d.title}</span>
               <span className="mt-0.5 block text-ui text-muted-foreground">
-                {t('resume', {
+                {t(d.media?.voice_note ? 'resumeAvecVocal' : 'resume', {
                   categorie,
                   urgence: t(d.priority === 'urgent' ? 'urgence.urgent' : 'urgence.normal'),
                   photos: photos.length,

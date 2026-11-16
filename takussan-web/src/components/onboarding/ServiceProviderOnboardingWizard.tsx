@@ -11,6 +11,7 @@ import { WizardReprenable, type WizardStep } from '@/components/wizard/WizardRep
 import { spOnboardCompleteAction } from '@/app/actions/service-provider-onboarding';
 import { INDICATIF_PAR_DEFAUT, recomposerTelephone, relireTelephoneBrouillon } from '@/lib/phone';
 import type { PieceDuProfil } from '@/lib/pieces/pieces';
+import type { ResumeDInvite } from '@/lib/resume-d-invite';
 import type { InterventionDOrigine, ReglagesDuPrestataire } from '@/lib/service-provider-onboarding';
 
 import { AssistantDInvite, etapeDInvite } from './invite/AssistantDInvite';
@@ -46,6 +47,10 @@ export type ServiceProviderOnboardingWizardProps = {
   reglages?: ReglagesDuPrestataire | null;
   /** Les pièces du profil (`GET /api/me/pieces`, `X-Profile-Id`) ; `null` si la lecture a échoué. */
   pieces?: readonly PieceDuProfil[] | null;
+  /** TCK-2946 (AC4) — les autres agences d'un prestataire déjà en poste ailleurs : la note de l'écran 2. */
+  autresAgences?: readonly string[];
+  /** TCK-2949 — le résumé chiffré du panneau de l'étape du numéro (`invite-summary`) ; `null` : sans chiffres. */
+  resume?: ResumeDInvite | null;
 };
 
 /** Le brouillon ne garde que le numéro : un brouillon de l'assistant à quatre écrans reprend à l'écran 2. */
@@ -72,6 +77,8 @@ export function ServiceProviderOnboardingWizard({
   categorie = null,
   reglages = null,
   pieces = null,
+  autresAgences = [],
+  resume = null,
 }: ServiceProviderOnboardingWizardProps) {
   const t = useTranslations('serviceProviders.onboarding');
   const router = useRouter();
@@ -146,7 +153,7 @@ export function ServiceProviderOnboardingWizard({
               numero={api.data.phone.number}
               onNumero={(number) => api.setData({ ...api.data, phone: { ...api.data.phone, number, verified: false } })}
               agence={agence}
-              panneau={<CeQuiVousAttend qui="prestataire" agence={agence} intervention={interventionMontree?.title ?? null} />}
+              panneau={<CeQuiVousAttend qui="prestataire" agence={agence} intervention={interventionMontree?.title ?? null} resume={resume} pieces={pieces} />}
               onVerifie={() => {
                 api.setData({ ...api.data, phone: { ...api.data.phone, code: '', verified: true } });
                 api.allerA(1);
@@ -160,6 +167,7 @@ export function ServiceProviderOnboardingWizard({
               categorie={categorieMontree}
               reglages={reglages}
               pieces={pieces}
+              autresAgences={autresAgences}
               enCours={api.enCours}
               finaliser={async () => {
                 if (finalise.current) return true;

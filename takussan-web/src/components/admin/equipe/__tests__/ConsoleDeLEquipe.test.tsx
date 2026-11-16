@@ -101,7 +101,18 @@ vi.mock('@/lib/queries/agent-crm', () => ({
     portfolio: (a: number, u: number) => ['agent-crm', a, 'portfolio', u],
   },
   fetchAbsences: vi.fn(async () => []),
-  fetchMemberPortfolio: vi.fn(async () => ({ user_id: 0, portfolio: { customers: 41, visits: 5 }, transferable: [], pending: [] })),
+}));
+// TCK-2928 — la fiche de l'API (TCK-2926) : portefeuille ventilé, clients et visites de la semaine.
+vi.mock('@/lib/queries/fiche-du-membre', async (original) => ({
+  ...(await original<typeof import('@/lib/queries/fiche-du-membre')>()),
+  fetchFicheDuMembre: vi.fn(async () => ({
+    user_id: 3,
+    portfolio: { properties: { rented: 9, available: 14 }, properties_total: 23, active_customers: 41, visits_this_week: 5 },
+    commissions_due: { amount: 0, leases: 0, oldest_due_at: null },
+    last_login: { at: null, device: null, city: null },
+    two_factor_enabled: true,
+    two_factor_enabled_at: null,
+  })),
 }));
 vi.mock('@/lib/queries/team-suspension', () => ({ postTeamSuspension: vi.fn(async () => ({ data: { user_id: 0, profiles: [] } })) }));
 vi.mock('../LesInvitations', () => ({
@@ -434,10 +445,11 @@ describe('la fiche d’un membre', () => {
     expect(await screen.findByTestId('taux')).toHaveTextContent('30');
   });
 
-  it('« Clients et visites » vient du portefeuille, servi sous `team.remove` (ou à l’admin)', async () => {
+  it('TCK-2928 — « Clients et visites » vient de la fiche de l’API et mène aux clients de la personne', async () => {
     params = new URLSearchParams('membre=3');
     monter();
-    expect(await screen.findByText(/41 clients actifs · 5 visites à venir/)).toBeInTheDocument();
+    expect(await screen.findByText(/41 clients actifs · 5 visites cette semaine/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Clients et visites/ })).toHaveAttribute('href', '/app/customers?referent=3');
   });
 });
 

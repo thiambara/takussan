@@ -1,4 +1,5 @@
 import type { AgencyKind } from './agency';
+import type { ResumeDesInterventions } from './lease';
 import type { TagStatus } from './tag';
 
 export type PropertyType =
@@ -51,6 +52,11 @@ export interface OccupationDuBien {
     currency: string | null;
     payment_frequency: 'monthly' | 'quarterly' | 'yearly' | null;
   } | null;
+  /**
+   * TCK-2915 — la date (`Y-m-d`) du prochain avis d'échéance (le rappel J-3 au locataire) ; `null`
+   * sans avis à venir. Absente, comme `lease`, pour qui ne lit pas le bail.
+   */
+  next_due_notice_date?: string | null;
   current_month: {
     /** `refunded` : échu, reçu puis remboursé (TCK-2651, décision 18 du porteur). */
     status: 'paid' | 'late' | 'partial' | 'due' | 'none' | 'refunded';
@@ -103,6 +109,11 @@ export interface PropertyListItem {
   visibility: string | null;
   views_count?: number;
   favorites_count?: number;
+  /**
+   * TCK-2905 (ADR-0117) / TCK-2908 — vues, contacts et visites des 30 derniers jours, servis sur
+   * `include=stats30d` seulement (clé ABSENTE sinon) : la ligne de chiffres de la carte d'annonce.
+   */
+  stats_30d?: { readonly views: number; readonly contacts: number; readonly visits: number };
   location: {
     quarter: string | null;
     city: string | null;
@@ -136,6 +147,8 @@ export interface PropertyListItem {
   occupancy?: OccupationDuBien | null;
   /** TCK-2637 (ADR-0097) — « En ligne », le prédicat du catalogue ; servi sur `include=online`. */
   is_online?: boolean;
+  /** TCK-2906 — `include=maintenanceSummary` (fiche seule) : les interventions du bien que le lecteur lit. */
+  maintenance_summary?: ResumeDesInterventions;
   /**
    * TCK-2678 (ADR-0097 § 5) — pourquoi le bien est hors ligne : des codes (`lib/biens/motifs-hors-ligne`),
    * dans l'ordre d'affichage ; `[]` pour un bien en ligne. Servi sur `include=offlineReasons` seulement.
@@ -216,6 +229,11 @@ export interface PropertyAgencyLite {
   rating: number | null;
   /** TCK-633 — un indépendant (`individual`) ne facture pas de frais d'agence (`PropertyResource`, tâche 13). */
   kind?: AgencyKind;
+  /**
+   * TCK-2935 — le délai de réponse médian de l'agence, en minutes (`null` sous le seuil de mesures),
+   * le même que la fiche publique d'agence. Absent quand la liste n'a pas chargé la colonne.
+   */
+  median_response_minutes?: number | null;
 }
 
 export interface PropertyTag {
@@ -301,6 +319,12 @@ export interface PropertyDetail extends PropertyListItem {
    * entière (P60.03).
    */
   available_from?: string | null;
+  /**
+   * TCK-2892 — `HH:MM`, l'heure d'arrivée (« à partir de ») et de départ (« avant ») d'un bien à la
+   * nuit ou à la semaine ; `null` quand le bien ne les dit pas (l'écran affiche alors 14:00 / 11:00).
+   */
+  check_in_from?: string | null;
+  check_out_before?: string | null;
   year_built: number | null;
   parking_spaces: number | null;
   views_count: number;

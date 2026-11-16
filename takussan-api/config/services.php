@@ -57,6 +57,30 @@ return [
         'revalidate_secret' => env('PUBLIC_CACHE_REVALIDATE_SECRET', ''),
     ],
 
+    // TCK-2940 (ADR-0126 § 1) — l'appel qui dicte un code (LAfricaMobile, API TTS « Push A TTS Call »). L'URL de base
+    // n'est pas publiée : LAM la donne à l'ouverture du compte voix. Une des trois premières clés vide : voie éteinte.
+    'lafricamobile_voice' => [
+        'base_url' => env('VOICE_LAM_BASE_URL'),
+        'login' => env('VOICE_LAM_LOGIN'),
+        'password' => env('VOICE_LAM_PASSWORD'),
+        'lang' => env('VOICE_LAM_LANG', 'fr'),
+    ],
+
+    /*
+    | TCK-2844 (ADR-0109 §2) — l'API publique de Wikimedia Commons, qui propose au super-admin des
+    | photos de quartier libres de toute attribution. Sans clé ; Commons demande un User-Agent qui
+    | identifie l'appelant, et il ne porte AUCUNE donnée d'utilisateur. Aucune clé d'environnement :
+    | une clé vide de `.env.example` (l'environnement de test de la CI) écraserait ces défauts.
+    | `timeout` borne une lecture de l'API (5 s, puis la console dit « indisponible ») ;
+    | `download_timeout` le téléchargement d'une image de 10 Mo au plus.
+    */
+    'wikimedia' => [
+        'endpoint' => 'https://commons.wikimedia.org/w/api.php',
+        'user_agent' => 'TakussanGeoCovers/1.0 (+https://www.takussan.com)',
+        'timeout' => 5,
+        'download_timeout' => 20,
+    ],
+
     'apple' => [
         'client_id' => env('APPLE_CLIENT_ID'),
         // Generated dynamically at runtime by AppleClientSecretGenerator from

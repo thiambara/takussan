@@ -21,6 +21,10 @@ class OwnerProfileDetailResource extends BaseResource
 
         $detail['joined_at'] = $this->iso($detail['joined_at'] ?? null);
         $detail['departed_at'] = $this->iso($detail['departed_at'] ?? null);
+        // TCK-2909 — la date de dépôt du mandat signé.
+        if (($detail['mandate_document'] ?? null) !== null) {
+            $detail['mandate_document']['created_at'] = $this->iso($detail['mandate_document']['created_at']);
+        }
         if ($detail['last_payout'] !== null) {
             $detail['last_payout']['processed_at'] = $this->iso($detail['last_payout']['processed_at']);
         }

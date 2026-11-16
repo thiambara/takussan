@@ -52,18 +52,63 @@ describe('TCK-2479 — etapesARendre', () => {
     });
   });
 
-  it('TCK-2614 (3a) — bailleur : son KYC se fait sur « Vos pièces », quel que soit le profil', () => {
+  it('TCK-2947 — `kyc` n’est plus une étape du bailleur : seule l’agence la fait (sa vérification)', () => {
     const kyc = [{ code: 'kyc', faite: false }];
-    expect(etapesARendre(kyc, 'bailleur').restantes[0]).toEqual({ code: 'kyc', href: '/app/pieces', cle: 'etapes.bailleur.kyc' });
+    expect(etapesARendre(kyc, 'bailleur')).toEqual({ restantes: [], faites: 0, total: 0 });
+    expect(etapesARendre(kyc, 'espace').restantes[0]).toEqual({ code: 'kyc', href: '/app/agency/kyc', cle: 'etapes.espace.kyc' });
   });
 
-  it('TCK-2614 (AC1, 2a) — l’étape « Pièces » de l’agent et du prestataire mène à « Vos pièces »', () => {
-    expect(etapesARendre([{ code: 'pieces', faite: false }], 'espace')).toEqual({
-      restantes: [{ code: 'pieces', href: '/app/pieces', cle: 'etapes.espace.pieces' }],
-      faites: 0,
-      total: 1,
+  it('TCK-2947 — l’ancienne étape unique `pieces` n’est plus connue : ni lien ni compte', () => {
+    expect(etapesARendre([{ code: 'pieces', faite: false }], 'espace')).toEqual({ restantes: [], faites: 0, total: 0 });
+  });
+
+  it('TCK-2947 (AC3) — bailleur sans RIB ni pièce d’identité : deux étapes, une par pièce, vers « Vos pièces »', () => {
+    const etapes = [
+      { code: 'premier_bien', faite: true },
+      { code: 'piece:cni', faite: false, etat: 'manquante' },
+      { code: 'piece:rib', faite: false, etat: 'manquante' },
+    ];
+    expect(etapesARendre(etapes, 'bailleur')).toEqual({
+      restantes: [
+        { code: 'piece:cni', href: '/app/pieces', cle: 'etapes.pieces.cni' },
+        { code: 'piece:rib', href: '/app/pieces', cle: 'etapes.pieces.rib' },
+      ],
+      faites: 1,
+      total: 3,
     });
-    expect(etapesARendre([{ code: 'pieces', faite: true }], 'espace')).toEqual({ restantes: [], faites: 1, total: 1 });
+  });
+
+  it('TCK-2947 (AC3) — le RIB envoyé : son étape passe à faite, sort du groupe et compte dans la progression', () => {
+    const { restantes, faites, total } = etapesARendre(
+      [
+        { code: 'piece:cni', faite: false, etat: 'manquante' },
+        { code: 'piece:rib', faite: true, etat: 'envoyee' },
+      ],
+      'bailleur',
+    );
+    expect(restantes.map((e) => e.code)).toEqual(['piece:cni']);
+    expect([faites, total]).toEqual([1, 2]);
+  });
+
+  it('TCK-2947 — agent et prestataire : chaque pièce de `GET /api/me/pieces` est une étape ; un code de pièce inconnu n’en est pas une', () => {
+    const { restantes } = etapesARendre(
+      ['piece:license', 'piece:cni', 'piece:photo', 'piece:insurance', 'piece:passeport'].map((code) => ({ code, faite: false })),
+      'espace',
+    );
+    expect(restantes.map((e) => [e.code, e.href, e.cle])).toEqual([
+      ['piece:license', '/app/pieces', 'etapes.pieces.license'],
+      ['piece:cni', '/app/pieces', 'etapes.pieces.cni'],
+      ['piece:photo', '/app/pieces', 'etapes.pieces.photo'],
+      ['piece:insurance', '/app/pieces', 'etapes.pieces.insurance'],
+    ]);
+  });
+
+  it('TCK-2947 — chaque code de pièce a son libellé dans le menu, en fr, en et wo', async () => {
+    const { CODES_DE_PIECE } = await import('@/lib/pieces/pieces');
+    for (const langue of ['fr', 'en', 'wo'] as const) {
+      const m = (await import(`@/messages/${langue}.json`)).default as { nav: { sidebar: { demarrer: { etapes: { pieces: Record<string, string> } } } } };
+      expect(Object.keys(m.nav.sidebar.demarrer.etapes.pieces).sort()).toEqual([...CODES_DE_PIECE].sort());
+    }
   });
 });
 
@@ -154,7 +199,7 @@ describe('Revue de TCK-2479 (M6) — une étape ne vise jamais une page que le c
   });
 
   it('bailleur : il PROPOSE un bien (`/app/properties/new`), et « Vos pièces » n’est pas une page du menu', () => {
-    expect(liens(BAILLEUR, null, [], 'bailleur', ['premier_bien', 'kyc']).hrefs).toEqual(['/app/properties/new', '/app/pieces']);
+    expect(liens(BAILLEUR, null, [], 'bailleur', ['premier_bien', 'piece:cni']).hrefs).toEqual(['/app/properties/new', '/app/pieces']);
   });
 
   it('cheminOuvert ignore la requête, et ne juge pas un chemin hors catalogue', () => {

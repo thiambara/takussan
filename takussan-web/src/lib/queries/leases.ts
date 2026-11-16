@@ -249,8 +249,13 @@ export function useLease(id: number | null | undefined, { avecLocataire = false 
     // TCK-2645 — les parties nommées de l'en-tête (TCK-2642 : `landlord` et `agent` lus à la main par
     // `show`). Ni `attention` (les motifs de la file, au personnel), ni `due_summary` : l'état du mois
     // se lit sur les échéances, qui portent l'identifiant que les gestes visent.
+    // TCK-2912 — la fiche seule demande aussi ce que TCK-2906 calcule pour elle : la ligne
+    // « Interventions (n) » du dossier et les comptes des onglets « Documents (n) » / « Historique (n) ».
     ...(avecLocataire
-      ? { include: ['property', 'landlord', 'agent', 'tenant'], fields: { customers: CHAMPS_DU_LOCATAIRE_DE_LA_FICHE } }
+      ? {
+          include: ['property', 'landlord', 'agent', 'tenant', 'maintenance_summary', 'documentsCount', 'historyCount'],
+          fields: { customers: CHAMPS_DU_LOCATAIRE_DE_LA_FICHE },
+        }
       : { include: ['property', 'landlord', 'agent'] }),
   };
 
@@ -370,6 +375,8 @@ export type CreateLeasePayload = {
   late_fee_percent?: number;
   late_fee_grace_days?: number;
   early_termination_penalty_months?: number;
+  // TCK-2912 — le préavis, en jours (1 à 365, TCK-2906).
+  notice_period_days?: number;
 };
 
 export function useCreateLease() {
@@ -478,6 +485,8 @@ export function useReviewLeaseRent(id: number) {
     {
       invalidate: [
         ['leases', 'list'],
+        // TCK-2912 — révisé depuis la file, le bail quitte le motif « Révision possible » : les comptes des onglets aussi.
+        ['leases', 'summary'],
         ['leases', 'detail', id],
         // TCK-2645 — l'API réécrit les loyers en attente à partir de la date d'effet
         // (`RentReviewService::rewriteUpcomingRentPayments`) : l'échéancier de la fiche se relit.

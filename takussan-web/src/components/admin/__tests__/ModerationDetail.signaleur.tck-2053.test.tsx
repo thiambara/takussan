@@ -19,6 +19,9 @@ vi.mock('@/lib/queries/reviews-moderation', () => ({
     meta: { total: 2 },
   })),
   moderateReview: vi.fn(),
+  // TCK-2931 — le résumé du sujet, lu à côté de l'avis : illisible ici, il ne rend rien.
+  fetchReviewSubjectSummary: vi.fn(() => Promise.reject(new Error('hors sujet'))),
+  reviewSubjectSummaryKey: (id: number) => ['reviews-moderation', 'subject-summary', id],
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton' }) }));
 
@@ -42,7 +45,7 @@ describe('<ModerationDetail> — signaleurs', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(withIntl(
       <QueryClientProvider client={client}>
-        <ModerationDetail review={AVIS} onModerated={vi.fn()} platform />
+        <ModerationDetail review={AVIS} onModerated={vi.fn()} />
       </QueryClientProvider>,
     ));
 

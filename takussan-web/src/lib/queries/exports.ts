@@ -31,6 +31,12 @@ export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 export const PLAFOND_LIGNES_EXPORT = 5000;
 export const PLAFOND_LIGNES_EXPORT_PDF = 200;
 
+/**
+ * TCK-2868 — combien de jours un export reste retéléchargeable par son auteur (`exports.retention_days`,
+ * ADR-0115) : recopié pour être dit à l'écran. La ligne elle-même dit si son fichier est encore là.
+ */
+export const JOURS_DE_CONSERVATION_D_UN_EXPORT = 7;
+
 export type ExportOptions = {
   entity: ExportEntity;
   format: ExportFormat;

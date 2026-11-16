@@ -198,20 +198,6 @@
     },
     {
       "ecran": "app-visites a-0-bureau-*",
-      "element": "contrôle « Liste · Semaine » de l'en-tête",
-      "propriete": "absent du produit",
-      "exception": "hors périmètre",
-      "motif": "la vue Semaine est TCK-2597 ; un contrôle segmenté à une seule option ne choisirait rien. Il arrive avec elle"
-    },
-    {
-      "ecran": "app-visites a-0-bureau-*",
-      "element": "filtre « Statut · Demandées »",
-      "propriete": "absent du produit",
-      "exception": "technique",
-      "motif": "la vue de l'onglet porte déjà le statut (À confirmer = demandées) : un filtre de statut sous un onglet de statut se contredirait ; la vue « par statut » garde ses onglets propres"
-    },
-    {
-      "ecran": "app-visites a-0-bureau-*",
       "element": "filtre « Période »",
       "propriete": "valeur (« 7 prochains jours », actif → « Toutes dates »)",
       "exception": "donnée",
@@ -386,13 +372,6 @@
       "motif": "aucune référence de visite dans l’API : l’identifiant"
     },
     {
-      "ecran": "app-visites a-1-bureau-*",
-      "element": "« Confirmer à 15:00 ▾ »",
-      "propriete": "chevron absent : bouton unique « Confirmer à 15:00 »",
-      "exception": "décision produit",
-      "motif": "réponse 5 du team-lead : un seul bouton de confirmation, puisque « Proposer une autre heure » est un autre chemin visible vers le choix de l’heure"
-    },
-    {
       "ecran": "app-visites a-{1,2,3}-bureau-*",
       "element": "vignettes des « Biens correspondants »",
       "propriete": "absentes",
@@ -412,13 +391,6 @@
       "propriete": "« commerce » contre « local commercial »",
       "exception": "décision produit",
       "motif": "une seule langue dans le produit (team-lead) : le type cherché prend le libellé du reste du produit (nav.categories, mot pour mot property.types) ; aucun libellé propre à la fiche"
-    },
-    {
-      "ecran": "app-visites a-3-bureau-*",
-      "element": "bulle « Bonjour…, je suis en route » dans la barre « En cours »",
-      "propriete": "absente",
-      "exception": "vérité des données",
-      "motif": "rien n’atteste que le message est parti ; la bulle reste en jour J, où elle est un aperçu"
     },
     {
       "ecran": "app-visites a-7-*",
@@ -510,11 +482,6 @@
       "element": "coque (barre latérale, en-tête, barre d'onglets)",
       "ticket": "TCK-2617",
       "motif": "TCK-2617/TCK-2618/TCK-2619 ; les relevés la gardent visible, ses écarts sont ceux de ces tickets"
-    },
-    {
-      "element": "vue « Semaine » et son contrôle « Liste · Semaine »",
-      "ticket": "TCK-2597",
-      "motif": "la vue de calendrier de la semaine est un ticket à part"
     },
     {
       "element": "feuille « Planifier une visite » (a-5, a-6)",

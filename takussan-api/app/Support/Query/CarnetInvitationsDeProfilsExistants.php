@@ -83,6 +83,23 @@ final class CarnetInvitationsDeProfilsExistants
             ->all();
     }
 
+    /**
+     * TCK-2917 (ADR-0118 § 4) — les métiers saisis sur ces invitations, une fois par invitation : ils
+     * rejoignent `meta.trade_counts`, comme `filter[specialty]` les retient ({@see self::lignes()}).
+     *
+     * @return list<string>
+     */
+    public static function trades(Agency $agency): array
+    {
+        return self::unParProfil(self::perimetre($agency))
+            ->flatMap(fn (Invitation $invitation): array => array_values(array_unique(array_filter(
+                (array) data_get($invitation->metadata, 'trades', []),
+                fn ($trade): bool => is_string($trade) && trim($trade) !== '',
+            ))))
+            ->values()
+            ->all();
+    }
+
     /** @return Builder<Invitation> */
     private static function perimetre(Agency $agency): Builder
     {
@@ -200,6 +217,8 @@ final class CarnetInvitationsDeProfilsExistants
             'insured' => false,
             'completed_interventions_count' => 0,
             'response_delay_minutes' => null,
+            // TCK-2917 — aucune intervention pour l'agence avant l'acceptation.
+            'overdue_slots_count' => 0,
         ];
 
         // `include=user` rend un compte nul : celui du profil maître n'est pas à l'agence avant l'acceptation.

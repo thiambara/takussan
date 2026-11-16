@@ -29,6 +29,8 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   apiRequest: vi.fn(async (path: string, options: { headers?: Record<string, string> } = {}) => {
     reponse.appels.push({ path, headers: options.headers });
     if (reponse.echec) throw new Error('réseau');
+    // TCK-2949 — le résumé chiffré du panneau de l'étape du numéro.
+    if (path.endsWith('/invite-summary')) return { data: { role: 'agent', properties_count: 12, titles: [], last_rent: null, missing_documents: 1 } };
     return { data: reponse.pieces };
   }),
 }));
@@ -57,15 +59,24 @@ describe('/onboarding/agent — l’agence, la spécialisation et les pièces pa
     const pieces = [{ code: 'license', required: true, kind: 'file', state: 'missing' }];
     reponse.pieces = pieces;
     const coque = await rendu();
-    expect(coque.props.children.props).toEqual({ agentProfileId: 11, agence: 'Dakar Immo', specialite: 'residential', pieces });
+    expect(coque.props.children.props).toEqual({
+      agentProfileId: 11,
+      agence: 'Dakar Immo',
+      specialite: 'residential',
+      pieces,
+      resume: { role: 'agent', properties_count: 12, titles: [], last_rent: null, missing_documents: 1 },
+    });
     expect(coque.props.sortie).toBe('quitter');
     expect(coque.props.largeur).toBe('assistant');
     expect(coque.props.brouillon).toBe(true);
-    expect(reponse.appels).toEqual([{ path: '/api/me/pieces', headers: { 'X-Profile-Id': 'agent:11' } }]);
+    expect(reponse.appels).toEqual([
+      { path: '/api/me/pieces', headers: { 'X-Profile-Id': 'agent:11' } },
+      { path: '/api/me/profiles/agent:11/invite-summary', headers: undefined },
+    ]);
   });
 
   it('la lecture des pièces échoue : aucun rappel, l’assistant s’ouvre quand même', async () => {
     reponse.echec = true;
-    expect((await rendu()).props.children.props).toEqual({ agentProfileId: 11, agence: 'Dakar Immo', specialite: 'residential', pieces: null });
+    expect((await rendu()).props.children.props).toEqual({ agentProfileId: 11, agence: 'Dakar Immo', specialite: 'residential', pieces: null, resume: null });
   });
 });

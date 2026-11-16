@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/console';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
+import { DepuisJanvier } from '@/components/maintenance/acteurs/DepuisJanvier';
 import { DecisionDuDevis } from '@/components/maintenance/acteurs/DecisionDuDevis';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -15,7 +16,7 @@ import { montantDUneLigne, plafondARappeler, sousLeSeuil, STATUTS_EN_COURS_DU_BA
 import { dureeDepuis, type InterventionEnFile } from '@/lib/maintenance/files';
 import { jourRelatif } from '@/lib/maintenance/mes-demandes';
 import { useMaintenanceRequest } from '@/lib/queries/maintenance';
-import { EN_COURS_DU_BAILLEUR_PAR_PAGE, useDevisAttendantLeBailleur, useEnCoursDuBailleur } from '@/lib/queries/maintenance-signalement';
+import { EN_COURS_DU_BAILLEUR_PAR_PAGE, useBilanDuBailleur, useDevisAttendantLeBailleur, useEnCoursDuBailleur } from '@/lib/queries/maintenance-signalement';
 
 /** « Tout voir » : la liste complète sur les mêmes statuts, avec sa recherche et ses filtres. */
 const LIEN_DE_LA_LISTE = `/app/maintenance?status=${STATUTS_EN_COURS_DU_BAILLEUR.join(',')}`;
@@ -35,17 +36,25 @@ const LIEN_DE_LA_LISTE = `/app/maintenance?status=${STATUTS_EN_COURS_DU_BAILLEUR
  *    « Devis approuvé le … » quand une décision est datée, et « Sous le seuil : sans accord » quand
  *    la fiche de la ligne sert un plafond que le devis ne dépasse pas (`sousLeSeuil`).
  *
+ *  · TCK-2919 — « Depuis janvier » (`DepuisJanvier`) : le bilan que l'API calcule
+ *    (`GET /api/owner/maintenance-summary`, ADR-0120 § 4), sous « En cours » ; « Par bien » (téléphone)
+ *    / « Historique par bien » (bureau) ouvre le détail par bien. Il compte aussi les interventions
+ *    closes : un bailleur sans devis ni intervention en cours mais avec un bilan n'a pas l'état vide.
+ *  · TCK-2919 — la mise en concurrence (« Dakar Immo a consulté deux autres artisans (…) ») suit le
+ *    rappel du plafond dans la carte du devis (`RappelDuSeuil`), depuis `quote_alternatives`.
+ *
  * Écarts de donnée à la maquette (décision 2 : rien d'inventé) : le métier, la note et le nombre
- * d'interventions de l'artisan, la consultation d'autres artisans par l'agence, le numéro du devis,
- * « l'agence vous proposera une autre solution » (remplacé par ce que la machine d'état garantit,
- * voir `DecisionDuDevis`), et le bloc « Depuis janvier » (aucune somme « à votre charge » ni aucun
- * filtre de date n'est servi).
+ * d'interventions de l'artisan, le numéro du devis, « l'agence vous proposera une autre solution »
+ * (remplacé par ce que la machine d'état garantit, voir `DecisionDuDevis`).
  */
 export function InterventionsDuBailleur() {
   const t = useTranslations('maintenance.bailleur');
   const tCommon = useTranslations('common');
   const devis = useDevisAttendantLeBailleur();
   const enCours = useEnCoursDuBailleur();
+  // TCK-2919 — le bilan a sa propre lecture : son échec ne masque ni le devis ni « En cours ».
+  const bilan = useBilanDuBailleur();
+  const bilanAMontrer = (bilan.data?.data?.total ?? 0) > 0 || bilan.isPending;
 
   const aDecider = devis.data?.data ?? [];
   const lignes = enCours.data?.data ?? [];
@@ -76,7 +85,7 @@ export function InterventionsDuBailleur() {
             }}
             retryLabel={tCommon('actions.retry')}
           />
-        ) : aDecider.length === 0 && lignes.length === 0 ? (
+        ) : aDecider.length === 0 && lignes.length === 0 && !bilanAMontrer ? (
           <EmptyState icon={<Wrench aria-hidden="true" />} title={t('vide.titre')} description={t('vide.texte')} />
         ) : (
           <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
@@ -87,25 +96,28 @@ export function InterventionsDuBailleur() {
                 ))}
               </div>
             ) : null}
-            {lignes.length > 0 ? (
-              <section aria-labelledby="bailleur-en-cours" className="min-w-0 space-y-3 xl:flex-[428.8_1_0%]">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 id="bailleur-en-cours" className="font-display text-lg font-semibold tracking-titre">
-                    {t('enCours.titre')}
-                  </h2>
-                  {nbEnCours > EN_COURS_DU_BAILLEUR_PAR_PAGE ? (
-                    <Link href={LIEN_DE_LA_LISTE} className="flex-none text-sm font-medium text-primary-deep hover:underline">
-                      {t('enCours.toutVoir')}
-                    </Link>
-                  ) : null}
-                </div>
-                <ul className="divide-y divide-border rounded-xl border border-border bg-card">
-                  {lignes.map((l) => (
-                    <LigneEnCours key={l.id} ligne={l} />
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+            <div className="min-w-0 space-y-6 xl:flex-[428.8_1_0%]">
+              {lignes.length > 0 ? (
+                <section aria-labelledby="bailleur-en-cours" className="space-y-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 id="bailleur-en-cours" className="font-display text-lg font-semibold tracking-titre">
+                      {t('enCours.titre')}
+                    </h2>
+                    {nbEnCours > EN_COURS_DU_BAILLEUR_PAR_PAGE ? (
+                      <Link href={LIEN_DE_LA_LISTE} className="flex-none text-sm font-medium text-primary-deep hover:underline">
+                        {t('enCours.toutVoir')}
+                      </Link>
+                    ) : null}
+                  </div>
+                  <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+                    {lignes.map((l) => (
+                      <LigneEnCours key={l.id} ligne={l} />
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+              <DepuisJanvier lecture={bilan} />
+            </div>
           </div>
         )}
       </div>

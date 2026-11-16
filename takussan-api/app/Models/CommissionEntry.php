@@ -113,11 +113,13 @@ class CommissionEntry extends AbstractModel
      * Déclaré ici et non dans `$requestLoadable`, qui ne nomme que des relations du modèle (et que
      * `RequestLoadableEmittedTest` confronte à la ressource) : celle-ci est celle du bail.
      *
+     * TCK-2867 — `include=lease.tenant` : le client du bail, `{id, name}` sous `lease` (« Détail par bail » de l'agent).
+     *
      * @return array<int, AllowedInclude>
      */
     protected static function getAllowedQueryIncludes(): array
     {
-        return [...parent::getAllowedQueryIncludes(), AllowedInclude::relationship('lease.property')];
+        return [...parent::getAllowedQueryIncludes(), AllowedInclude::relationship('lease.property'), AllowedInclude::relationship('lease.tenant')];
     }
 
     /**

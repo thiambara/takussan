@@ -43,6 +43,7 @@ describe('bienQuitte', () => {
       devise: 'XOF',
       periode: 'monthly',
       agence: 'Dakar Immo',
+      delaiMinutes: null,
     });
     expect(getPropertyMock).toHaveBeenCalledWith('studio-meuble-mermoz-a1b2c3', 'fr');
   });
@@ -52,6 +53,16 @@ describe('bienQuitte', () => {
     expect(await bienQuitte('x-a1b2c3', 'fr')).toMatchObject({ agence: null, prix: null, periode: null, photo: null, quartier: 'Dakar' });
     getPropertyMock.mockResolvedValue(fiche({ agency: { name: '   ' } }));
     expect((await bienQuitte('x-a1b2c3', 'fr'))?.agence).toBeNull();
+  });
+
+  // TCK-2936 — le délai de réponse de l'agence (TCK-2935), lu tel quel ; absent ou `null` : `null`.
+  it('le délai de réponse médian de l’agence, sans rien inventer', async () => {
+    getPropertyMock.mockResolvedValue(fiche({ agency: { name: 'Dakar Immo', median_response_minutes: 120 } }));
+    expect((await bienQuitte('x-a1b2c3', 'fr'))?.delaiMinutes).toBe(120);
+    getPropertyMock.mockResolvedValue(fiche({ agency: { name: 'Dakar Immo', median_response_minutes: null } }));
+    expect((await bienQuitte('x-a1b2c3', 'fr'))?.delaiMinutes).toBeNull();
+    getPropertyMock.mockResolvedValue(fiche({ agency: null }));
+    expect((await bienQuitte('x-a1b2c3', 'fr'))?.delaiMinutes).toBeNull();
   });
 
   it.each(['introuvable', 'indisponible'] as const)('« %s » : aucun bien, la forme directe', async (etat) => {

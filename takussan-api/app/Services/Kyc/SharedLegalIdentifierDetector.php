@@ -89,6 +89,34 @@ class SharedLegalIdentifierDetector
     }
 
     /**
+     * TCK-2937 (ADR-0125 § 3) — les agences qui portent déjà ce NINEA, pour une agence qui n'existe
+     * pas encore (l'ouverture depuis l'orientation). Mêmes sources et même forme comparée que la
+     * revue ; ici le résultat REFUSE l'ouverture, faute de revue humaine avant elle.
+     *
+     * Une agence ouverte en libre-service et jamais vérifiée ne compte pas comme porteuse : sans
+     * cela, quiconque saisit le NINEA (public) d'une société en bloquerait le vrai titulaire. Le
+     * doublon reste visible du super-admin à la vérification ({@see forAgency()}).
+     *
+     * @return list<array{id: int, name: string}>
+     */
+    public function nineaHolders(?string $ninea): array
+    {
+        $porteuses = $this->detect(0, ['ninea' => $ninea, 'rib_pro' => null])['ninea'];
+        if ($porteuses === []) {
+            return [];
+        }
+
+        $revues = Agency::query()
+            ->whereIn('id', array_column($porteuses, 'id'))
+            ->visibleInPublicDirectory()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_values(array_filter($porteuses, fn (array $p) => in_array($p['id'], $revues, true)));
+    }
+
+    /**
      * @param  array{ninea: ?string, rib_pro: ?string}  $values
      * @return array{ninea: list<array{id: int, name: string}>, rib_pro: list<array{id: int, name: string}>}
      */

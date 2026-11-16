@@ -271,6 +271,8 @@ export const PAYOUT_LIST_FIELDS = [
   'agency_id',
   'landlord_id',
   'payee_role',
+  // TCK-2910 — acompte ou solde (TCK-2909) : « Derniers reversements » de la fiche du bailleur.
+  'nature',
   'issued_by_id',
   'approved_by_id',
   'status',
@@ -429,12 +431,13 @@ export function usePayoutMarkFailed(payoutId: number) {
   );
 }
 
+/** TCK-2922 — `reason` : le motif du « Refuser » en ligne, gardé par l'API (`metadata.cancel_reason`). */
 export function usePayoutCancel(payoutId: number) {
-  return useApiMutation<ApiResponse<Payout>, void>(
+  return useApiMutation<ApiResponse<Payout>, { reason?: string } | void>(
     {
       path: cheminApi`/api/payouts/${payoutId}/cancel`,
       method: 'POST',
-      body: () => undefined,
+      body: (v) => v ?? undefined,
     },
     { relireSurErreur: true, invalidate: [['payouts']] },
   );
@@ -460,7 +463,9 @@ export function useOwnerStatement(period: string, landlordId?: number) {
  * prestataire). L'API ne rend jamais que le numéro MASQUÉ à l'agence ; l'écran ne montre que lui.
  */
 export function useMyPayoutMethods(enabled = true) {
-  return useApiQuery<ApiResponse<PayoutMethod[]>>(paymentsQueryKeys.myPayoutMethods, '/api/me/payout-methods', {
+  // TCK-2909 — `meta.payout_day` : le jour de versement du mandat du profil bailleur actif (1-28), `null` sinon.
+  // TCK-2915 — sinon celui de l'agence ; `payout_day_source` dit lequel (`mandate`, `agency`, `null`).
+  return useApiQuery<ApiResponse<PayoutMethod[]> & { meta?: { payout_day?: number | null; payout_day_source?: 'mandate' | 'agency' | null } }>(paymentsQueryKeys.myPayoutMethods, '/api/me/payout-methods', {
     enabled,
   });
 }
@@ -482,6 +487,28 @@ export function useCreateMyPayoutMethod() {
 export function useSetDefaultPayoutMethod() {
   return useApiMutation<ApiResponse<PayoutMethod>, { id: number }>(
     { path: ({ id }) => cheminApi`/api/me/payout-methods/${id}`, method: 'PATCH', body: () => ({ is_default: true }) },
+    { invalidate: [['payout-methods']] },
+  );
+}
+
+/**
+ * TCK-2864 — le RIB d'un compte bancaire « à confirmer » (`POST /api/me/payout-methods/{id}/bank-statement`,
+ * TCK-2863) : un PDF ou une image, sous step-up 2FA comme les autres écritures des destinations —
+ * `useApiMutation` résout le refus sur place (`GardeDoubleFacteur`) puis rejoue l'envoi. Succès : le
+ * compte passe « En revue ».
+ */
+export function useSendPayoutBankStatement() {
+  return useApiMutation<ApiResponse<PayoutMethod>, { id: number; file: File }>(
+    {
+      path: ({ id }) => cheminApi`/api/me/payout-methods/${id}/bank-statement`,
+      method: 'POST',
+      formData: true,
+      body: ({ file }) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        return fd;
+      },
+    },
     { invalidate: [['payout-methods']] },
   );
 }

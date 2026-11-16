@@ -116,6 +116,7 @@ function monter(s: Scenario) {
             agencyIsStandard={s.agencyIsStandard}
             hasPendingUpgrade={s.hasPendingUpgrade}
             typeProfilActif={s.typeProfilActif ?? null}
+            espaceActif="agent:3"
             onOuvrirPalette={() => {}}
           />
         </AccesAdminProvider>
@@ -172,7 +173,8 @@ describe('TCK-2490 (AC4) — chaque texte de la colonne tient 4,5:1 sur tous ses
     // en partie ; un chemin que le menu ne couvre pas est écarté de lui-même.
     window.localStorage.setItem(
       'takussan.pages-recentes.1',
-      JSON.stringify(['/app/visits', '/app/favorites', '/app/properties', '/app/leases', '/app/calendar']),
+      // TCK-2846 — la forme du magasin : par espace, des pages du menu.
+      JSON.stringify({ v: 2, espaces: { 'agent:3': ['/app/visits', '/app/favorites', '/app/properties', '/app/leases', '/app/calendar'].map((chemin) => ({ chemin })) } }),
     );
     const { container } = monter(SCENARIOS[nom]);
     if (nom === 'agent sur la messagerie') expect(container.querySelector('[data-slot="recents"] a')).not.toBeNull();

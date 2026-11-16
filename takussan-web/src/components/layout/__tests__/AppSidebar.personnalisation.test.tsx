@@ -785,11 +785,11 @@ describe('TCK-2619 — le mode « Modifier le menu » (tiroir et colonne)', () =
     const ordre = () => within(groupe('Épinglés')).getAllByRole('link').map((a) => a.textContent);
     expect(ordre()).toEqual(['Commissions', 'Baux']);
     entrerEnEdition();
-    // Une poignée par épingle, et aucune ailleurs.
-    expect([...document.querySelectorAll('[data-poignee]')].map((p) => p.getAttribute('data-poignee'))).toEqual([
-      'commissions',
-      'baux',
-    ]);
+    // Une poignée par épingle, dans leur ordre. TCK-2848 — les autres lignes épinglables en portent une
+    // aussi (la maquette en dessine sur chaque ligne), qui ÉPINGLE au lieu d'ordonner.
+    expect(
+      [...document.querySelectorAll('[data-groupe="epingles"] [data-poignee]')].map((p) => p.getAttribute('data-poignee')),
+    ).toEqual(['commissions', 'baux']);
     within(groupe('Épinglés')).getByRole('button', { name: /^Déplacer Baux/ }).focus();
     await user.keyboard('{ArrowUp}');
     expect(ordre()).toEqual(['Baux', 'Commissions']);
@@ -851,6 +851,94 @@ describe('TCK-2619 — le mode « Modifier le menu » (tiroir et colonne)', () =
     act(() => screen.getByRole('button', { name: 'Terminé' }).click());
     expect(document.querySelector('[data-slot="cloche"]')).not.toBeNull();
     expect(document.querySelector('[data-slot="bascule-icones"]')).not.toBeNull();
+  });
+});
+
+// TCK-2848 — « Réinitialiser le menu » dans la colonne, et une poignée sur chaque ligne épinglable.
+describe('TCK-2848 — la colonne en mode « Modifier le menu » : réinitialiser, et des poignées partout', () => {
+  const NAVIGATION = { v: 1, personas: { agent: { epingles: ['commissions', 'baux'] } } };
+  const ordre = () => within(groupe('Épinglés')).getAllByRole('link').map((a) => a.textContent);
+
+  it('AC4 — « Réinitialiser le menu » est dans la colonne en édition ; après confirmation, les épingles reviennent au défaut (une écriture)', async () => {
+    const { unmount } = render(element(['customer', 'agent'], 'agent'));
+    const parDefaut = (() => {
+      try {
+        return within(groupe('Épinglés')).getAllByRole('link').map((a) => a.textContent);
+      } catch {
+        return [];
+      }
+    })();
+    unmount();
+    render(element(['customer', 'agent'], 'agent', { navigation: NAVIGATION }));
+    expect(screen.queryByRole('button', { name: 'Réinitialiser le menu' })).toBeNull();
+    entrerEnEdition();
+    act(() => screen.getByRole('button', { name: 'Réinitialiser le menu' }).click());
+    const dialogue = await screen.findByRole('dialog', { name: 'Réinitialiser le menu ?' });
+    act(() => within(dialogue).getByRole('button', { name: 'Réinitialiser' }).click());
+    const apres = (() => {
+      try {
+        return within(groupe('Épinglés')).getAllByRole('link').map((a) => a.textContent);
+      } catch {
+        return [];
+      }
+    })();
+    expect(apres).toEqual(parDefaut);
+    expect(apres).not.toEqual(['Commissions', 'Baux']);
+    await attendreLEnvoi();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(corps())).not.toContain('commissions');
+  });
+
+  it('« Annuler » ne réinitialise rien et n’écrit rien', async () => {
+    render(element(['customer', 'agent'], 'agent', { navigation: NAVIGATION }));
+    entrerEnEdition();
+    act(() => screen.getByRole('button', { name: 'Réinitialiser le menu' }).click());
+    const dialogue = await screen.findByRole('dialog', { name: 'Réinitialiser le menu ?' });
+    act(() => within(dialogue).getByRole('button', { name: 'Annuler' }).click());
+    await attendreLEnvoi();
+    expect(ordre()).toEqual(['Commissions', 'Baux']);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('chaque ligne épinglable a sa poignée ; déposer une ligne non épinglée sur une épingle l’épingle à ce rang (une écriture)', async () => {
+    render(element(['customer', 'agent'], 'agent', { navigation: NAVIGATION }));
+    entrerEnEdition();
+    // Une poignée par punaise : chaque ligne qui s'épingle en a une, épinglée ou non.
+    const punaises = [...document.querySelectorAll('[data-slot="menu"] button[data-epingle]')].map((b) => b.getAttribute('data-epingle'));
+    const poignees = [...document.querySelectorAll('[data-slot="menu"] button[data-poignee]')].map((b) => b.getAttribute('data-poignee'));
+    expect(poignees.length).toBeGreaterThan(2);
+    expect([...poignees].sort()).toEqual([...punaises].sort());
+    const visites = screen.getByRole('button', { name: /^Glisser Visites vers les épingles/ });
+    expect(visites).toHaveAttribute('data-poignee', 'visites');
+    act(() => finDuGlisser.rappel!({ active: { id: 'visites' }, over: { id: 'commissions' } }));
+    expect(ordre()).toEqual(['Visites', 'Commissions', 'Baux']);
+    await attendreLEnvoi();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(corps()).toEqual({ navigation: { v: 1, personas: { agent: { epingles: ['visites', 'commissions', 'baux'] } } } });
+  });
+
+  it('au clavier, la flèche haut sur la poignée d’une ligne non épinglée l’épingle en dernier ; à cinq, refusée', async () => {
+    const user = utilisateur();
+    render(element(['customer', 'agent'], 'agent', { navigation: NAVIGATION }));
+    entrerEnEdition();
+    screen.getByRole('button', { name: /^Glisser Visites vers les épingles/ }).focus();
+    await user.keyboard('{ArrowUp}');
+    expect(ordre()).toEqual(['Commissions', 'Baux', 'Visites']);
+    expect(document.activeElement).toHaveAttribute('data-poignee', 'visites');
+    await attendreLEnvoi();
+    expect(corps()).toEqual({ navigation: { v: 1, personas: { agent: { epingles: ['commissions', 'baux', 'visites'] } } } });
+    // Jusqu'à cinq ; au-delà, la poignée d'une ligne non épinglée est refusée et n'écrit rien.
+    const aEpingler = () => [...document.querySelectorAll<HTMLButtonElement>('[data-slot="menu"] [data-groupe]:not([data-groupe="epingles"]) button[data-poignee]')];
+    for (let i = 0; i < 2; i++) {
+      aEpingler()[0]!.focus();
+      await user.keyboard('{ArrowUp}');
+    }
+    expect(ordre()).toHaveLength(5);
+    const refusee = aEpingler()[0]!;
+    expect(refusee).toHaveAttribute('aria-disabled', 'true');
+    refusee.focus();
+    await user.keyboard('{ArrowUp}');
+    expect(ordre()).toHaveLength(5);
   });
 });
 

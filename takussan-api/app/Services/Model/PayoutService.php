@@ -15,6 +15,7 @@ use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutMethodKind;
+use App\Models\Enums\PayoutNature;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\Invoice;
@@ -381,10 +382,11 @@ class PayoutService
         return $payout;
     }
 
-    public function cancel(Payout $payout, ?User $actor = null): Payout
+    /** TCK-2922 — `$reason` : le motif du refus (« Refuser » en ligne), gardé dans `metadata.cancel_reason`. */
+    public function cancel(Payout $payout, ?User $actor = null, ?string $reason = null): Payout
     {
         // VERIF-594 M-5 — jugé sous verrou, comme `markFailed`.
-        DB::transaction(function () use ($payout, $actor): void {
+        DB::transaction(function () use ($payout, $actor, $reason): void {
             /** @var Payout $locked */
             $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
 
@@ -395,7 +397,9 @@ class PayoutService
             );
 
             $previous = $locked->status;
-            $locked->update(['status' => PayoutStatus::Cancelled]);
+            $locked->update(['status' => PayoutStatus::Cancelled]
+                // TCK-2922 — le motif du refus, à côté des autres marques du reversement.
+                + ($reason !== null ? ['metadata' => array_merge($locked->metadata ?? [], ['cancel_reason' => $reason])] : []));
             $this->detachItems($locked);
             $this->releaseDeposit($locked, $previous, 'cancelled', $actor);
         });
@@ -499,6 +503,18 @@ class PayoutService
         $leaseOrigin = $bookingPayments->isEmpty() ? $leasePayments->pluck('lease_id')->concat($lateFees->pluck('lease_id'))->unique() : collect();
         $bookingOrigin = $leasePayments->isEmpty() && $lateFees->isEmpty() ? $bookingPayments->pluck('booking_id')->unique() : collect();
 
+        // TCK-2909 — acompte ou solde DU MOIS, jugé ici, sous les verrous des pièces : reste-t-il, après
+        // celles que ce reversement porte, un encaissement reversable de ce bailleur dans cette agence
+        // (la règle de la préparation, {@see PayoutCalculator}) encaissé au plus tard à la fin du mois
+        // de la période du reversement ? Un loyer d'octobre ne fait pas du reversement de septembre un
+        // acompte. Les pénalités de retard n'y comptent pas (comme `PiecesNonReversees`). Écrite une
+        // fois, jamais recalculée.
+        $periodEnd = $data['period_end'] ?? $this->dateOf($paidAt->max());
+        $monthEnd = $periodEnd !== null ? Carbon::parse($periodEnd)->endOfMonth() : null;
+        $nature = $this->calculator->leasePayments((int) $agency->id, (int) $landlord->id, null, $monthEnd)->whereNotIn('lease_payments.id', $leaseIds)->exists()
+            || $this->calculator->bookingPayments((int) $agency->id, (int) $landlord->id, null, $monthEnd)->whereNotIn('booking_payments.id', $bookingIds)->exists()
+            ? PayoutNature::Advance : PayoutNature::Balance;
+
         $payout = Payout::create([
             // L'origine : un seul bail (resp. réservation) → sa colonne ; sinon les pivots la portent.
             'lease_id' => $leaseOrigin->count() === 1 ? $leaseOrigin->first() : null,
@@ -506,11 +522,12 @@ class PayoutService
             'agency_id' => $agency->id,
             'landlord_id' => $landlord->id,
             'payee_role' => PayeeRole::Landlord->value,
+            'nature' => $nature->value,
             'issued_by_id' => $user->id,
             'reference_number' => ReferenceNumberGenerator::payout(),
             'status' => $this->initialStatus($agency, $net, $data['scheduled_at'] ?? null, PayeeRole::Landlord, (int) $landlord->id)->value,
             'period_start' => $data['period_start'] ?? $this->dateOf($paidAt->min()),
-            'period_end' => $data['period_end'] ?? $this->dateOf($paidAt->max()),
+            'period_end' => $periodEnd,
             'gross_amount' => $totals['gross'],
             'commission_amount' => $totals['commission'],
             'fees_amount' => $totals['fees'] > 0 ? $totals['fees'] : null,
@@ -653,7 +670,8 @@ class PayoutService
     private function billImputable(ServiceProviderBill $bill): bool
     {
         return $bill->rechargeable_to_landlord
-            && in_array($bill->status, [ServiceProviderBillStatus::Validated, ServiceProviderBillStatus::Paid], true)
+            // TCK-2911 (ADR-0120 § 4) — la liste posée une fois sur le modèle.
+            && in_array($bill->status, ServiceProviderBill::CHARGED_TO_LANDLORD_STATUSES, true)
             && $bill->requestIsBillable();
     }
 

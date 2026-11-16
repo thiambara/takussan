@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useEffectEvent } from 'react';
-import { retenirPage, type EntreeDuChemin } from '@/lib/navigation/pages-recentes';
+import { retenirPage } from '@/lib/navigation/pages-recentes';
 
 type ToucheDuRaccourci = Pick<
   KeyboardEvent,
@@ -68,14 +68,27 @@ export function useRaccourciDeLaPalette({ actif, ouverte, changer }: RaccourciDe
   }, [actif]);
 }
 
+/** Le chemin → le `href` de l'entrée du menu qui le couvre, ou `null` (`resolveurDesRecents`). */
+export type EntreeDuChemin = (chemin: string) => string | null;
+
 /**
  * TCK-2482 (A8) — la coque retient chaque page de `/app` visitée ; `null` : rien (plein écran).
- * Revue I3 — `entreeDe` (le menu rendu) dédoublonne par entrée. Lu au moment d'écrire, sans relancer
- * l'effet : seule une NAVIGATION écrit, pas un menu qui se recompose.
+ *
+ * TCK-2846 — seulement une page qui EST une entrée du menu (une liste, un tableau de bord : `entreeDe`
+ * la rend à l'identique). Une fiche (`/app/properties/42`) est retenue par la fiche, sous son nom
+ * (`RetenirLaFiche`) : retenue ici, elle redevenait « Biens ». Par espace : `espace` absent, rien.
+ * `entreeDe` est lu au moment d'écrire, sans relancer l'effet : seule une NAVIGATION écrit.
  */
-export function useRetenirLaPageRecente(compte: number, chemin: string | null, entreeDe?: EntreeDuChemin): void {
-  const retenir = useEffectEvent((c: number, p: string) => retenirPage(c, p, entreeDe));
+export function useRetenirLaPageRecente(
+  compte: number,
+  espace: string | null | undefined,
+  chemin: string | null,
+  entreeDe: EntreeDuChemin,
+): void {
+  const retenir = useEffectEvent((c: number, e: string | null | undefined, p: string) => {
+    if (entreeDe(p) === p) retenirPage(c, e, p);
+  });
   useEffect(() => {
-    if (chemin !== null) retenir(compte, chemin);
-  }, [compte, chemin]);
+    if (chemin !== null) retenir(compte, espace, chemin);
+  }, [compte, espace, chemin]);
 }

@@ -119,6 +119,10 @@ const RAPPORT = process.argv.includes('--report');
  * `StatusBadge` ne convient pas — « c'est historique » n'est pas cette phrase.
  */
 const TABLES_DE_TONS_CONNUES = new Map([
+  // TCK-2877 — les cases de la carte « Nuits du bien » d'un séjour (maquette `app-reservations` a, e5).
+  ['takussan-web/src/components/bookings/detail/nuits-du-bien.tsx',
+    "l'OCCUPATION d'une nuit d'un calendrier (ce séjour, un autre, bloquée, en attente), jamais un "
+    + 'statut : la case est un jour du mois, sa teinte y est le seul canal visible (doublé du nom accessible)'],
   ['takussan-web/src/components/inventory/labels.ts',
     "TYPES (`move_in`/`move_out`, deux opposés qui ne se rangent pas sur l'axe des cinq tons) et "
     + "ÉTATS D'ÉLÉMENT (quatre crans de dégradation pour un seul jeton d'avertissement)"],
@@ -148,6 +152,11 @@ const TABLES_DE_TONS_CONNUES = new Map([
     "trois tons de la PASTILLE D'ICÔNE d'une suite à donner (neutre, conseillée, WhatsApp) : une "
     + 'action proposée, jamais un statut — la pastille ne porte pas de texte, elle est doublée par '
     + 'le titre de la ligne'],
+  // TCK-2880 — « Avant cette visite » : les faits du fil d'avant la visite, au bureau.
+  ['takussan-web/src/components/visits/compte-rendu/AvantCetteVisite.tsx',
+    "la couleur d'un TYPE de fait du fil (demande, jalon de visite, geste de contact), comme "
+    + "`FilDuClient`, peinte sur la PASTILLE D'ICÔNE d'une ligne, jamais un statut — et le ton "
+    + 'WhatsApp est un aplat PLEIN (`bg-success text-success-foreground`), que `StatusBadge` ne rend pas'],
   // TCK-2654, lot 4 — la semaine du prestataire.
   ['takussan-web/src/components/maintenance/acteurs/InterventionsDuPrestataire.tsx',
     "trois GENRES d'un créneau (prévu, à accepter, fait) peints sur les BLOCS d'une grille de la "

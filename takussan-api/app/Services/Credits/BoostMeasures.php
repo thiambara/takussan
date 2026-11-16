@@ -39,9 +39,74 @@ final class BoostMeasures
     public function attachTo(Collection $boosts): void
     {
         $measures = $this->for($boosts);
+        // TCK-2923 — les vues de la fiche, datées (ADR-0117), comparées à la semaine d'avant.
+        $views = $this->viewsComparison($boosts);
         foreach ($boosts as $boost) {
             $boost->setAttribute('measures', $measures[$boost->getKey()]);
+            $boost->setAttribute('views_7d', $views[$boost->getKey()]['views_7d']);
+            $boost->setAttribute('views_prev_7d', $views[$boost->getKey()]['views_prev_7d']);
         }
+    }
+
+    /**
+     * TCK-2923 — « × plus de vues que la semaine d'avant » : les vues de la fiche (la seule série datée,
+     * `property_daily_views`, ADR-0117 — jamais une seconde définition de « vue ») sur deux fenêtres de
+     * sept jours calendaires (UTC, le jour de `PropertyViewCounter`) :
+     *
+     *  - `views_7d` : les sept derniers jours DE LA MISE EN AVANT — de `max(jour du début, jour de fin − 6)`
+     *    au jour de fin, la fin étant `ended_at`, ou aujourd'hui si elle court. Une Vedette 7 j terminée
+     *    garde donc sa semaine (la maquette compare aussi une mise en avant terminée) ; le jour du début
+     *    compte dans la mise en avant ;
+     *  - `views_prev_7d` : les sept jours qui PRÉCÈDENT le jour du début. 0 sans vue : le front n'affiche
+     *    alors pas de ratio.
+     *
+     * Une requête pour toute la page, quel que soit le nombre de boosts.
+     *
+     * @param  Collection<int, PropertyBoost>  $boosts
+     * @return array<int, array{views_7d: int, views_prev_7d: int}>
+     */
+    public function viewsComparison(Collection $boosts): array
+    {
+        $today = now()->utc()->startOfDay();
+        $windows = [];
+        $bindings = [];
+        foreach ($boosts as $boost) {
+            $start = $boost->starts_at->copy()->utc()->startOfDay();
+            $end = $boost->ended_at !== null ? $boost->ended_at->copy()->utc()->startOfDay() : $today;
+            $end = $end->lessThan($start) ? $start : $end;
+            $from = $start->greaterThan($end->copy()->subDays(6)) ? $start : $end->copy()->subDays(6);
+            $windows[] = '(?::bigint, ?::bigint, ?::date, ?::date, ?::date, ?::date)';
+            array_push(
+                $bindings,
+                $boost->getKey(),
+                $boost->property_id,
+                $start->copy()->subDays(7)->toDateString(),
+                $start->copy()->subDay()->toDateString(),
+                $from->toDateString(),
+                $end->toDateString(),
+            );
+        }
+
+        $sums = $windows === [] ? collect() : collect(DB::select(
+            'SELECT w.id,
+                    SUM(CASE WHEN v.day BETWEEN w.cur_from AND w.cur_to THEN v.views ELSE 0 END) AS cur,
+                    SUM(CASE WHEN v.day BETWEEN w.prev_from AND w.prev_to THEN v.views ELSE 0 END) AS prev
+             FROM (VALUES '.implode(', ', $windows).') AS w(id, property_id, prev_from, prev_to, cur_from, cur_to)
+             JOIN property_daily_views v ON v.property_id = w.property_id AND v.day BETWEEN w.prev_from AND w.cur_to
+             GROUP BY w.id',
+            $bindings,
+        ))->keyBy('id');
+
+        $views = [];
+        foreach ($boosts as $boost) {
+            $row = $sums[$boost->getKey()] ?? null;
+            $views[$boost->getKey()] = [
+                'views_7d' => (int) ($row->cur ?? 0),
+                'views_prev_7d' => (int) ($row->prev ?? 0),
+            ];
+        }
+
+        return $views;
     }
 
     /**

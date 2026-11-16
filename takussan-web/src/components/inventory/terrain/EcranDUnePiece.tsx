@@ -1,7 +1,7 @@
 'use client';
 
-import { useId, useState, type ReactNode } from 'react';
-import { Camera, Clock, CloudUpload, Ellipsis, ImagePlus, Info, Plus, X } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { Camera, Clock, CloudUpload, Ellipsis, ImagePlus, Info, Mic, Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { StatusBadge } from '@/components/console/StatusBadge';
@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useDictee } from '@/hooks/useDictee';
+import { ajouterALaNote } from '@/lib/dictee';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import {
@@ -142,14 +144,18 @@ export function EcranDUnePiece(props: EcranDUnePieceProps) {
       <label htmlFor={`note-${props.index}`} className="mb-1.5 block text-sm font-medium text-foreground">
         {t('note')} <span className="font-normal text-muted-foreground">{t('facultatif')}</span>
       </label>
-      <Textarea
-        id={`note-${props.index}`}
-        value={room.notes ?? ''}
-        maxLength={1000}
-        onChange={(e) => onChange({ ...room, notes: e.target.value || null })}
-        placeholder={t('notePlaceholder')}
-        className={bureau ? 'min-h-11' : 'min-h-18'}
-      />
+      {bureau ? (
+        <Textarea
+          id={`note-${props.index}`}
+          value={room.notes ?? ''}
+          maxLength={NOTE_DE_PIECE_MAX}
+          onChange={(e) => onChange({ ...room, notes: e.target.value || null })}
+          placeholder={t('notePlaceholder')}
+          className="min-h-11"
+        />
+      ) : (
+        <NoteDictee id={`note-${props.index}`} room={room} onChange={onChange} placeholder={t('notePlaceholder')} />
+      )}
     </div>
   );
 
@@ -206,6 +212,83 @@ export function EcranDUnePiece(props: EcranDUnePieceProps) {
       {note}
       {feuilles}
     </div>
+  );
+}
+
+/** La borne de la note de pièce (le champ, et le texte dicté qui s'y ajoute). */
+const NOTE_DE_PIECE_MAX = 1000;
+
+/**
+ * TCK-2903 — la note de la pièce au TÉLÉPHONE (maquette a-1 `MobileAPiece` : un micro dans le coin haut
+ * droit du champ). Le micro DICTE : la reconnaissance vocale du navigateur (`useDictee`, le mécanisme
+ * de TCK-2880) écrit du texte, ajouté à la fin de la note (`ajouterALaNote`) ; aucun son n'est envoyé à
+ * Takussan. La note dictée part avec le brouillon comme une note tapée. Sans l'API, pas de micro ; une
+ * erreur se dit sous le champ, la note reste. Au bureau, la maquette ne dessine pas de micro.
+ *
+ * Chaque pièce est un écran remonté (`key` du parcours) : la dictée s'arrête au démontage et n'écrit
+ * jamais dans la pièce suivante.
+ */
+function NoteDictee({
+  id,
+  room,
+  onChange,
+  placeholder,
+}: {
+  readonly id: string;
+  readonly room: InventoryRoom;
+  readonly onChange: (room: InventoryRoom) => void;
+  readonly placeholder: string;
+}) {
+  const t = useTranslations('inventory.terrain.piece.dictee');
+  const tErreur = useTranslations('dictee.erreurs');
+  // Plusieurs phrases peuvent arriver dans le même évènement : chacune s'ajoute à la DERNIÈRE note.
+  const derniere = useRef(room);
+  useEffect(() => {
+    derniere.current = room;
+  }, [room]);
+  const dictee = useDictee((texte) => {
+    const suite = { ...derniere.current, notes: ajouterALaNote(derniere.current.notes ?? '', texte, NOTE_DE_PIECE_MAX) || null };
+    derniere.current = suite;
+    onChange(suite);
+  });
+
+  return (
+    <>
+      <div className="relative">
+        <Textarea
+          id={id}
+          value={room.notes ?? ''}
+          maxLength={NOTE_DE_PIECE_MAX}
+          onChange={(e) => onChange({ ...room, notes: e.target.value || null })}
+          placeholder={placeholder}
+          className={cn('min-h-18', dictee.disponible && 'pr-12')}
+        />
+        {dictee.disponible ? (
+          <button
+            type="button"
+            onClick={dictee.basculer}
+            aria-pressed={dictee.ecoute}
+            aria-label={dictee.ecoute ? t('arreter') : t('dicter')}
+            className={cn(
+              'absolute top-0.5 right-0.5 inline-flex size-11 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring',
+              dictee.ecoute ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Mic className="size-5" strokeWidth={dictee.ecoute ? 2.25 : 1.75} aria-hidden />
+          </button>
+        ) : null}
+      </div>
+      {dictee.ecoute ? (
+        <p aria-live="polite" className="mt-1.5 text-ui font-medium text-primary">
+          {t('ecoute')}
+        </p>
+      ) : null}
+      {dictee.erreur ? (
+        <p role="alert" className="mt-1.5 text-ui text-destructive">
+          {tErreur(dictee.erreur)}
+        </p>
+      ) : null}
+    </>
   );
 }
 

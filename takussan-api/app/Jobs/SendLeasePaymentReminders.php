@@ -16,11 +16,13 @@ use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Payments\LeasePaymentLinkService;
+use App\Services\Payments\NextDueNotice;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Property\PrimaryPropertyContact;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -142,6 +144,25 @@ class SendLeasePaymentReminders implements ShouldQueue
     }
 
     /**
+     * TCK-2915 — les échéances que ce job relance, quel que soit le jalon : LA sélection, que lit aussi
+     * la date de l'avis d'échéance ({@see NextDueNotice}) — une échéance que le
+     * job ne relancerait pas n'a pas d'avis.
+     *
+     * TCK-594 (VERIF-594 passe 4, P4-7) — une caution rendue est due AU locataire : il n'en est pas
+     * relancé. TCK-2375 (P04.10) — l'échéance de caution non plus : aucun texte de relance de caution
+     * n'existe, et ceux du loyer lui annonceraient « Votre loyer de… ».
+     *
+     * @return Builder<LeasePayment>
+     */
+    public static function remindable(): Builder
+    {
+        return LeasePayment::query()
+            ->exceptDepositRefunds()
+            ->where('payment_type', '!=', LeasePaymentType::Deposit->value)
+            ->whereIn('status', self::OPEN_STATUSES);
+    }
+
+    /**
      * Les échéances ouvertes dont le jalon tombait aujourd'hui (`$dueDate`) ou dans les
      * `CATCH_UP_DAYS` jours précédents (TCK-739), et pas encore relancées pour ce jalon.
      *
@@ -158,14 +179,7 @@ class SendLeasePaymentReminders implements ShouldQueue
     private function claim(CarbonInterface $dueDate, string $milestone): \Generator
     {
         $key = "reminder_{$milestone}_sent_at";
-        // TCK-594 (VERIF-594 passe 4, P4-7) — une caution rendue est due AU locataire : il n'en est
-        // pas relancé.
-        // TCK-2375 (P04.10) — l'échéance de caution non plus : aucun texte de relance de caution
-        // n'existe, et ceux du loyer lui annonceraient « Votre loyer de… ».
-        $candidates = LeasePayment::query()
-            ->exceptDepositRefunds()
-            ->where('payment_type', '!=', LeasePaymentType::Deposit->value)
-            ->whereIn('status', self::OPEN_STATUSES)
+        $candidates = self::remindable()
             ->whereDate('due_date', '<=', $dueDate->toDateString())
             ->whereDate('due_date', '>=', $dueDate->copy()->subDays(self::CATCH_UP_DAYS)->toDateString())
             ->with([

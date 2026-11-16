@@ -13,10 +13,34 @@ import type { CalendarEvent } from '@/types/calendar';
 import { useDatesDeLAgenda } from './dates';
 import { HACHURE, traitsDeFond } from './pieces';
 
-/** Les nuits d'un séjour : la barre les dit (l'agenda ne sert pas le nom du client). */
+/** Les nuits d'un séjour : la barre les dit quand le nom du client n'est pas servi (le bailleur). */
 function nombreDeNuits(e: CalendarEvent): number {
   const { premiere, derniere } = nuitsOccupees(e);
   return Math.round((Date.parse(`${derniere}T12:00:00Z`) - Date.parse(`${premiere}T12:00:00Z`)) / 86_400_000) + 1;
+}
+
+/**
+ * TCK-2888 — le libellé de la barre d'un séjour : le client (« Awa Diop », « Bineta Ndoye · en
+ * attente »), servi au personnel de l'agence (TCK-2886) ; sinon les nuits et la référence.
+ */
+function useLibelleDuSejour() {
+  const t = useTranslations('agenda.occupation');
+  return (e: CalendarEvent) => {
+    const client = e.customer_name?.trim();
+    const attente = estEnAttente(e);
+    if (client) return t(attente ? 'sejourClientEnAttente' : 'sejourClient', { client });
+    return t(attente ? 'sejourEnAttente' : 'sejour', { nuits: nombreDeNuits(e), reference: e.reference ?? '' });
+  };
+}
+
+/**
+ * TCK-2888 — le quartier d'un bien : celui de son adresse (index des biens, `include=address`),
+ * sinon celui qu'un de ses événements porte (`neighborhood`).
+ */
+export function quartierDuBien(bien: BienDeLAgenda, evenements: readonly CalendarEvent[]): string | null {
+  const lu = bien.location?.quarter?.trim();
+  if (lu) return lu;
+  return evenements.find((e) => e.property_id === bien.id && e.neighborhood?.trim())?.neighborhood?.trim() ?? null;
 }
 
 /** Le libellé de la ligne d'un bien : son état vu d'aujourd'hui. */
@@ -53,12 +77,15 @@ function LegendeDeLOccupation({ className }: { readonly className?: string }) {
   );
 }
 
-/** Téléphone : quatorze cases par bien — nuits occupées en aplat, libres en blanc. */
+/** TCK-2888 — autant de colonnes que de jours (14 ou 30 au téléphone). */
+const colonnesDe = (n: number) => ({ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` });
+
+/** Téléphone : quatorze (ou trente) cases par bien — nuits occupées en aplat, libres en blanc. */
 function BandeDuBien({ ligne, jours }: { readonly ligne: LigneDOccupation; readonly jours: readonly string[] }) {
   const echeances = new Set(ligne.echeances.map(jourDe));
   const interventions = new Set(ligne.interventions.map(jourDe));
   return (
-    <div className="mt-2 grid grid-cols-14 gap-px" aria-hidden="true">
+    <div className="mt-2 grid gap-px" style={colonnesDe(jours.length)} aria-hidden="true">
       {jours.map((j) => {
         const s = sejourLaNuitDu(ligne, j);
         const { premiere, derniere } = s ? nuitsOccupees(s) : { premiere: '', derniere: '' };
@@ -112,7 +139,7 @@ export function useOccupationDesBiens({ jour, de, a, aujourdhui, evenements, bie
     return [...premiers, ...reste];
   })();
   const charge = bien !== null ? seul.isPending : (ids.length > 0 && concernes.isPending) || locatifs.isPending;
-  const lignes = lignesDOccupation(biens.map((b) => ({ id: b.id, titre: b.title })), evenements);
+  const lignes = lignesDOccupation(biens.map((b) => ({ id: b.id, titre: b.title, quartier: quartierDuBien(b, evenements) })), evenements);
   const resume = resumeDeLOccupation(lignes, aujourdhui >= de && aujourdhui <= a ? aujourdhui : reference);
   const enTete = [t('enCours', { n: resume.enCours }), t('libres', { n: resume.libres }), resume.enAttente > 0 ? t('enAttente', { n: resume.enAttente }) : null].filter(Boolean).join(' · ');
   return { lignes, charge, enTete, reference, voirPlus: locatifs.hasNextPage && bien === null ? { chargement: locatifs.isFetchingNextPage, suivante: () => void locatifs.fetchNextPage() } : null };
@@ -132,13 +159,14 @@ export interface OccupationDesBiensProps {
 /**
  * « Occupation des biens » : un bien par ligne. Au bureau, les jours du mois en colonnes, séjours en
  * barres, échéances de bail en losanges, interventions en points (le résumé est dans la tête de
- * page) ; au téléphone, quatorze cases par bien sous un résumé collant. Toucher une ligne ouvre le
+ * page) ; au téléphone, quatorze ou trente cases par bien (TCK-2888) sous un résumé collant. Toucher une ligne ouvre le
  * bien.
  */
 export function OccupationDesBiens({ de, a, aujourdhui, bureau, occupation, onOuvrir }: OccupationDesBiensProps) {
   const t = useTranslations('agenda.occupation');
   const d = useDatesDeLAgenda();
   const etatEnClair = useEtatEnClair();
+  const libelleDuSejour = useLibelleDuSejour();
   const { lignes, charge, enTete, reference, voirPlus } = occupation;
   const jours = joursEntre(de, a);
 
@@ -159,10 +187,11 @@ export function OccupationDesBiens({ de, a, aujourdhui, bureau, occupation, onOu
           <p className="text-sm" data-testid="occupation-resume">
             {enTete}
           </p>
-          <div className="mt-2 grid grid-cols-14 gap-px" aria-hidden="true">
-            {jours.map((j) => (
+          <div className="mt-2 grid gap-px" style={colonnesDe(jours.length)} aria-hidden="true">
+            {jours.map((j, i) => (
               <span key={j} className={cn('text-center text-legende tabular-nums', j === aujourdhui ? 'font-semibold text-primary-deep' : 'text-muted-foreground')}>
-                {Number(j.slice(8, 10))}
+                {/* TCK-2888 — à trente cases, un numéro sur trois (et aujourd'hui) : deux chiffres ne tiennent pas dans 11 px. */}
+                {jours.length <= 14 || i % 3 === 0 || j === aujourdhui ? Number(j.slice(8, 10)) : null}
               </span>
             ))}
           </div>
@@ -172,7 +201,7 @@ export function OccupationDesBiens({ de, a, aujourdhui, bureau, occupation, onOu
           {lignes.map((l) => (
             <li key={l.bien.id} data-testid={`occupation-bien-${l.bien.id}`}>
               <Link href={`/app/properties/${l.bien.id}`} className="block px-4 py-3 outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring">
-                <span className="block text-corps font-medium leading-snug">{l.bien.titre}</span>
+                <span className="block text-corps font-medium leading-snug">{l.bien.quartier ? `${l.bien.titre} · ${l.bien.quartier}` : l.bien.titre}</span>
                 <span className="mt-0.5 block text-ui text-muted-foreground">{etatEnClair(etatDuBien(l, reference))}</span>
                 <BandeDuBien ligne={l} jours={jours} />
               </Link>
@@ -215,7 +244,9 @@ export function OccupationDesBiens({ de, a, aujourdhui, bureau, occupation, onOu
             <div key={l.bien.id} data-testid={`occupation-bien-${l.bien.id}`} className="grid grid-cols-[calc(var(--spacing)*58)_minmax(0,1fr)] border-b border-border last:border-0 max-xl:min-w-220">
               <Link href={`/app/properties/${l.bien.id}`} className="min-w-0 px-4 py-2 outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring">
                 <span className="block truncate text-sm font-medium">{l.bien.titre}</span>
-                <span className="block truncate text-xs text-muted-foreground">{etatEnClair(etatDuBien(l, reference))}</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {[l.bien.quartier, etatEnClair(etatDuBien(l, reference))].filter(Boolean).join(' · ')}
+                </span>
               </Link>
               <div className="grid h-12" style={lignesDeFond}>
                 {indexDuJour >= 0 ? <span className="bg-primary/10" style={{ gridColumn: `${indexDuJour + 1} / ${indexDuJour + 2}`, gridRow: 1 }} /> : null}
@@ -233,7 +264,7 @@ export function OccupationDesBiens({ de, a, aujourdhui, bureau, occupation, onOu
                     )}
                     style={{ gridColumn: `${b.debut + 1} / ${b.fin + 2}`, gridRow: 1 }}
                   >
-                    <span className="truncate">{t(estEnAttente(b.evenement) ? 'sejourEnAttente' : 'sejour', { nuits: nombreDeNuits(b.evenement), reference: b.evenement.reference ?? '' })}</span>
+                    <span className="truncate">{libelleDuSejour(b.evenement)}</span>
                   </button>
                 ))}
                 {[...l.echeances, ...l.interventions].map((e) => {

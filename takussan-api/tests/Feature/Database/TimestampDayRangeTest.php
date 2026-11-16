@@ -129,7 +129,9 @@ class TimestampDayRangeTest extends ApiTestCase
 
         $requete = null;
         DB::listen(function (QueryExecuted $q) use (&$requete): void {
-            if ($requete === null && str_starts_with($q->sql, 'select * from "property_visits"')) {
+            // TCK-2886 — la requête des visites porte aussi le rang (`visit_rank`, sous-requête
+            // corrélée) : elle ne commence plus par `select *`.
+            if ($requete === null && str_starts_with($q->sql, 'select "property_visits".*')) {
                 $requete = [$q->sql, $q->bindings];
             }
         });

@@ -77,6 +77,12 @@ export interface ModerationReview {
   created_at: string;
   /** verif-597 m1 — jugé par la policy de l'API : ce que l'acteur peut trancher. */
   can_moderate?: boolean;
+  /**
+   * TCK-2931 (TCK-2930, ADR-0043 amendé le 2026-11-15) — supprimer et ignorer les signalements ont
+   * leur propre capacité, jugée par l'API : l'admin d'agence les tient aussi sur un avis publié.
+   */
+  can_delete?: boolean;
+  can_dismiss_reports?: boolean;
   /** TCK-2672 — le sujet ; absent quand l'API ne l'a pas chargé. */
   target?: ModerationReviewTarget | null;
   /** TCK-2672 — absent sur une ligne que le lecteur ne modère pas (même garde que `reported_count`). */
@@ -112,6 +118,8 @@ export interface FetchModerationQueueParams {
   readonly subjectType?: string;
   /** TCK-2672 — `filter[risk]`. */
   readonly risk?: ReviewRiskLevel;
+  /** TCK-2931 — `filter[search]` : bien (titre, référence), auteur, agent noté ; cherché par le serveur. */
+  readonly search?: string;
 }
 
 /**
@@ -127,12 +135,15 @@ export function buildQueueParams({
   reported,
   subjectType,
   risk,
+  search,
 }: FetchModerationQueueParams): SpatieQueryParams {
   const filter: Record<string, string> = {};
   if (status) filter.moderation_status = status;
   if (reported) filter.reported = '1';
   if (subjectType) filter.subject_type = subjectType;
   if (risk) filter.risk = risk;
+  // TCK-2931 — une recherche vide n'est pas envoyée : la file entière.
+  if (search && search.trim() !== '') filter.search = search.trim();
 
   return {
     // P100.05 (TCK-1186) — `fields` inerte : `ReviewController` lit ses filtres et son tri à la main, sans
@@ -228,4 +239,34 @@ export async function replyToReview(reviewId: number, replyContent: string, toke
     body: { reply_content: replyContent },
     token,
   });
+}
+
+/**
+ * TCK-2931 — `GET /api/reviews/{review}/subject-summary` (TCK-2930) : ce que le modérateur lit à côté
+ * d'un avis. La moyenne et le compte des avis PUBLIÉS du sujet, ses 3 derniers autres avis publiés,
+ * et le début du premier bail de l'auteur dans l'agence (« Locataire depuis … »), date calendaire.
+ */
+export interface ReviewSubjectSummary {
+  readonly review_id: number;
+  readonly subject: {
+    readonly type: string | null;
+    readonly id: number | null;
+    readonly average_rating: number | null;
+    readonly reviews_count: number;
+  };
+  readonly others: readonly {
+    readonly id: number;
+    readonly rating: number;
+    readonly excerpt: string;
+    readonly author_name: string | null;
+    readonly created_at: string | null;
+  }[];
+  readonly author: { readonly id: number | null; readonly tenant_since: string | null };
+}
+
+/** Sous `['reviews-moderation', …]` : une décision, qui invalide la file, relit aussi le résumé. */
+export const reviewSubjectSummaryKey = (reviewId: number) => ['reviews-moderation', 'subject-summary', reviewId] as const;
+
+export async function fetchReviewSubjectSummary(reviewId: number, token: string): Promise<ApiResponse<ReviewSubjectSummary>> {
+  return apiRequest<ApiResponse<ReviewSubjectSummary>>(cheminApi`/api/reviews/${reviewId}/subject-summary`, { token });
 }

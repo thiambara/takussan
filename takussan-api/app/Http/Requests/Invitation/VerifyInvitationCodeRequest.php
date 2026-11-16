@@ -6,7 +6,7 @@ namespace App\Http\Requests\Invitation;
  * TCK-2610 (ADR-0094 § 5) — `POST /api/public/invitations/{token}/verify` : le code reçu, le prénom et le nom (écrits
  * seulement sur un compte qui n'en a pas, TCK-2281), et les champs de `auth/phone/verify-code` — second facteur, nom de
  * l'appareil, version des conditions quand un compte du Radar doit les accepter (TCK-2404). `phone` comme à l'envoi :
- * requis pour une invitation par e-mail, ignoré par SMS.
+ * requis pour une invitation par e-mail ; par SMS, le numéro corrigé (TCK-2939), refusé sur une invitation partagée.
  */
 class VerifyInvitationCodeRequest extends SendInvitationCodeRequest
 {

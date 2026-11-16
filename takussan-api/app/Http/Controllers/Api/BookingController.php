@@ -9,13 +9,19 @@ use App\Http\Requests\Api\StoreBookingRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingPaymentType;
+use App\Models\Enums\BookingRejectionReason;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Booking\BookingCustomerFacts;
+use App\Services\Booking\BookingDossierService;
+use App\Services\Booking\BookingGuarantorFacts;
 use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\BookingService;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -32,16 +38,29 @@ class BookingController extends Controller
     {
         // TCK-2579 — `createdBy` (le nom de l'auteur, `created_by`), en une requête pour la page.
         $base = $this->visibleTo(
-            Booking::query()->with(['property.address', 'property.media', 'customer', 'agency', 'createdBy:'.self::AUTEUR]),
+            // TCK-2873 — `latestCounterOffer` : `counter_offer` et `awaiting`, en une requête pour la page.
+            Booking::query()->with(['property.address', 'property.media', 'customer', 'agency', 'createdBy:'.self::AUTEUR, 'latestCounterOffer']),
             $request->user(),
         );
 
         $paginator = Booking::buildQuery($base, $request)
             ->defaultSort('-created_at')
+            // TCK-2879 — `amount_paid` : ce que le client a déjà réglé, en une sous-requête pour la page,
+            // compté comme `BookingPaymentService::dueFromCustomer` (ni caution ni « autre ») — la carte
+            // de « Mes réservations » en dérive l'acompte ou le solde dû sans lire les paiements.
+            // Après `buildQuery` : un sparse fieldset remplace les colonnes, la somme s'y ajoute.
+            ->withSum(['payments as amount_paid' => fn (Builder $q) => $q
+                ->where('status', PaymentStatus::Paid->value)
+                ->whereNotIn('payment_type', [BookingPaymentType::SecurityDeposit->value, BookingPaymentType::Other->value]),
+            ], 'amount')
             ->paginate();
 
         // TCK-2593 — `visits_on_property` de la page, en une requête.
         BookingCustomerFacts::prime($request, $paginator->getCollection());
+        // TCK-2872 — la complétude du dossier de la page, en une requête.
+        app(BookingDossierService::class)->prime($request, $paginator->getCollection());
+        // TCK-2893 — garants et revenus de la page, au seul personnel.
+        BookingGuarantorFacts::prime($request, $paginator->getCollection());
 
         return $this->paginated($paginator, BookingResource::collection($paginator)->toArray($request));
     }
@@ -153,9 +172,52 @@ class BookingController extends Controller
 
         $data = $request->validated();
 
-        $booking = $this->bookings->reject($booking, $data['reason'] ?? null, $request->user());
+        // TCK-2874 (ADR-0110 § 7) — le motif codé et la précision partent au client.
+        $booking = $this->bookings->reject(
+            $booking,
+            $data['reason'] ?? null,
+            $request->user(),
+            isset($data['reason_code']) ? BookingRejectionReason::from($data['reason_code']) : null,
+            $data['message'] ?? null,
+        );
 
         return $this->json(['data' => $this->presenter($request, $booking)]);
+    }
+
+    /**
+     * TCK-2893 (ADR-0110 § 4, ADR-0070 § 5) — le revenu déclaré EN CLAIR, en nombre : l'admin de
+     * l'agence de la réservation seul (`BookingPolicy::viewSensitive`), sous step-up
+     * (`ProtectedActions::STEP_UP`, refusé sous impersonation), journalisé (surface
+     * `booking_sensitive`, rattachée à l'agence de la réservation).
+     */
+    public function sensitive(Request $request, Booking $booking, PersonalDataAccessLogger $accessLog): JsonResponse
+    {
+        $this->authorize('viewSensitive', $booking);
+
+        $accessLog->record(
+            $request->user(),
+            $booking,
+            PersonalDataAccessLogger::SURFACE_BOOKING_SENSITIVE,
+            $booking->agency_id !== null ? (int) $booking->agency_id : null,
+        );
+
+        return $this->json([
+            'data' => [
+                'id' => $booking->id,
+                'declared_monthly_income' => $booking->declared_monthly_income !== null ? (float) $booking->declared_monthly_income : null,
+            ],
+        ]);
+    }
+
+    /**
+     * TCK-2873 — la même présentation, pour les gestes de la contre-offre
+     * (`BookingCounterOfferController`) : une seule forme de réservation écrite.
+     *
+     * @return array<string, mixed>
+     */
+    public function presentFor(Request $request, Booking $booking): array
+    {
+        return $this->presenter($request, $booking);
     }
 
     /**
@@ -168,9 +230,14 @@ class BookingController extends Controller
      */
     private function presenter(Request $request, Booking $booking): array
     {
-        $booking->load(['property.address', 'customer', 'payments', 'createdBy:'.self::AUTEUR]);
+        // TCK-2873 — et la dernière contre-offre.
+        $booking->load(['property.address', 'customer', 'payments', 'createdBy:'.self::AUTEUR, 'latestCounterOffer']);
         // TCK-2593 — `visits_on_property`, comme à la liste.
         BookingCustomerFacts::prime($request, [$booking]);
+        // TCK-2872 — et la complétude du dossier.
+        app(BookingDossierService::class)->prime($request, [$booking]);
+        // TCK-2893 — et les garants et revenus.
+        BookingGuarantorFacts::prime($request, [$booking]);
         $data = BookingResource::make($booking)->resolve($request);
         // TCK-596 — le geste de remboursement ne s'affiche qu'à qui peut le faire aboutir.
         $data['can_refund'] = BookingMoneyAccess::canRefund($request->user(), $booking);

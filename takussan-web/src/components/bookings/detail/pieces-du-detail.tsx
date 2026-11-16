@@ -1,5 +1,7 @@
 'use client';
 
+// TCK-2878 — le nom d'un garant, par la règle du nom affichable.
+import { nomAffichable } from '@/lib/identite';
 import { useId, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -9,6 +11,7 @@ import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { buttonVariants } from '@/components/ui/button';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { formaterTelephone } from '@/lib/phone';
 import { cn } from '@/lib/utils';
 import type { Booking } from '@/types/booking';
@@ -26,30 +29,67 @@ import { InitialesDuClient, useNomDuClient, VignetteDuBien } from '../liste/piec
 export function SectionDuTelephone({
   titre,
   compte,
+  action,
   children,
   className,
+  id,
 }: {
   readonly titre: string;
   readonly compte?: number;
+  /** TCK-2875 — ce qui se lit à droite de l'intertitre (la complétude du dossier). */
+  readonly action?: ReactNode;
   readonly children: ReactNode;
   readonly className?: string;
+  /** TCK-2879 — l'ancre d'une section que la carte du client ouvre (`#dossier`). */
+  readonly id?: string;
 }) {
+  const intertitre = (
+    <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-surtitre text-muted-foreground">
+      {titre}
+      {compte !== undefined ? <span className="tabular-nums">{compte}</span> : null}
+    </h2>
+  );
   return (
-    <section className={cn('border-t border-border px-4 py-4', className)}>
-      <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-surtitre text-muted-foreground">
-        {titre}
-        {compte !== undefined ? <span className="tabular-nums">{compte}</span> : null}
-      </h2>
+    <section id={id} className={cn('scroll-mt-16 border-t border-border px-4 py-4', className)}>
+      {action ? (
+        <div className="flex items-center justify-between gap-3">
+          {intertitre}
+          {action}
+        </div>
+      ) : (
+        intertitre
+      )}
       <div className="mt-3">{children}</div>
     </section>
   );
 }
 
 /** Une carte titrée du bureau (`Carte` de la maquette). */
-export function CarteDuBureau({ titre, children, className }: { readonly titre: string; readonly children: ReactNode; readonly className?: string }) {
+export function CarteDuBureau({
+  titre,
+  action,
+  children,
+  className,
+  id,
+}: {
+  readonly titre: string;
+  /** TCK-2875 — à droite du titre (la complétude du dossier). */
+  readonly action?: ReactNode;
+  readonly children: ReactNode;
+  readonly className?: string;
+  /** TCK-2879 — l'ancre d'une carte que la carte du client ouvre (`#dossier`). */
+  readonly id?: string;
+}) {
   return (
-    <section className={cn('rounded-xl border border-border bg-card', className)}>
-      <h2 className="truncate border-b border-border px-4 py-3 text-corps font-semibold">{titre}</h2>
+    <section id={id} className={cn('scroll-mt-20 rounded-xl border border-border bg-card', className)}>
+      {action ? (
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <h2 className="truncate text-corps font-semibold">{titre}</h2>
+          {action}
+        </div>
+      ) : (
+        <h2 className="truncate border-b border-border px-4 py-3 text-corps font-semibold">{titre}</h2>
+      )}
       {children}
     </section>
   );
@@ -130,13 +170,53 @@ export function BlocQui({
   readonly large?: boolean;
 }) {
   const t = useTranslations('bookings.fiche');
+  const tVerdicts = useTranslations('compteRendu.verdicts');
+  const f = useFormatteurs();
   const nomDuClient = useNomDuClient();
   const nom = nomDuClient(b);
   const numero = b.customer?.phone ?? null;
   const joignable = isReachable(numero);
-  const faits = [b.customer?.occupation?.trim() || null, b.visits_on_property ? t('qui.visites', { n: b.visits_on_property }) : null].filter(
-    (f): f is string => !!f,
-  );
+  // TCK-2875 — une candidature dit ses revenus par leur RAPPORT au loyer (jamais le montant, ADR-0110
+  // § 4) et son garant ; la visite déjà faite se dit, datée, sous les gestes. Une clé non servie
+  // (le lecteur n'est pas du personnel de l'agence) ne dit rien.
+  const candidature = b.kind === 'application';
+  const derniere = b.last_visit_on_property ?? null;
+  const revenus =
+    candidature && b.income_to_rent_ratio !== undefined
+      ? b.income_to_rent_ratio === null
+        ? t('qui.revenusNonDeclares')
+        : t('qui.revenus', { rapport: f.nombre(b.income_to_rent_ratio, { maximumFractionDigits: 1 }) })
+      : null;
+  // TCK-2878 — maquette e6 : « Garant · Oui · Ibrahima Dieng, son frère » — le garant NOMMÉ quand l'API le sert.
+  const premierGarant = b.guarantors?.[0];
+  const nomDuGarant = premierGarant ? nomAffichable(premierGarant) : '';
+  const garant =
+    candidature && nomDuGarant
+      ? t('qui.garantNomme', { nom: nomDuGarant, lien: premierGarant?.relationship_to_tenant?.trim() || 'aucun', autres: (b.guarantors?.length ?? 1) - 1 })
+      : candidature && b.has_guarantor !== undefined
+        ? t('qui.garant', { oui: b.has_guarantor ? 'oui' : 'non' })
+        : null;
+  const faits = [
+    b.customer?.occupation?.trim() || null,
+    revenus,
+    garant,
+    // TCK-2876 — une offre dit comment l'acheteur paie (maquette e4 : « Achat comptant »).
+    b.kind === 'offer' && b.financing ? t(`qui.achat.${b.financing}`) : null,
+    b.visits_on_property && !(candidature && derniere?.scheduled_at) ? t('qui.visites', { n: b.visits_on_property }) : null,
+  ].filter((x): x is string => !!x);
+  const jourDeLaVisite = derniere?.scheduled_at
+    ? (() => {
+        const j = f.date(derniere.scheduled_at, { dateStyle: undefined, weekday: 'short', day: 'numeric', month: 'short' });
+        return j.charAt(0).toUpperCase() + j.slice(1);
+      })()
+    : null;
+  const visite = jourDeLaVisite
+    ? derniere?.report_verdict
+      ? t('qui.visiteLeAvecVerdict', { jour: jourDeLaVisite, verdict: tVerdicts(derniere.report_verdict) })
+      : t('qui.visiteLe', { jour: jourDeLaVisite })
+    : b.visits_on_property
+      ? t('qui.visitesEnregistrees', { n: b.visits_on_property })
+      : null;
   return (
     <div data-slot="bloc-qui">
       <div className="flex items-center gap-3">
@@ -182,10 +262,9 @@ export function BlocQui({
           ) : null}
         </div>
       ) : null}
-      {b.visits_on_property ? (
-        <p className="mt-3 rounded-lg bg-muted/60 px-3 py-2.5 text-sm leading-snug">
-          <span className="font-medium">{t('qui.dejaVisite')}</span>{' '}
-          <span className="text-muted-foreground">{t('qui.visitesEnregistrees', { n: b.visits_on_property })}</span>
+      {visite ? (
+        <p data-slot="deja-visite" className="mt-3 rounded-lg bg-muted/60 px-3 py-2.5 text-sm leading-snug">
+          <span className="font-medium">{t('qui.dejaVisite')}</span> <span className="text-muted-foreground">{visite}</span>
         </p>
       ) : null}
     </div>
@@ -237,22 +316,49 @@ export function ComparaisonDeLOffre({
   );
 }
 
-/** Arrivée et départ d'un séjour, puis ses nuits. */
-export function DatesDuSejour({ arrivee, depart, nuits, className }: { readonly arrivee: string; readonly depart: string; readonly nuits: number | null; readonly className?: string }) {
+/** TCK-2877 (ADR-0110 § 1) — les heures d'un bien qui ne les dit pas : dites, jamais écrites. */
+export const HEURE_D_ARRIVEE_PAR_DEFAUT = '14:00';
+export const HEURE_DE_DEPART_PAR_DEFAUT = '11:00';
+
+/**
+ * Arrivée et départ d'un séjour, puis ses nuits. TCK-2877 — sous chaque jour, l'heure du bien
+ * (« à partir de 14:00 », « avant 11:00 ») ; et les voyageurs à côté des nuits (« 3 nuits · 2 voyageurs »).
+ */
+export function DatesDuSejour({
+  arrivee,
+  depart,
+  nuits,
+  heureDArrivee,
+  heureDeDepart,
+  voyageurs,
+  className,
+}: {
+  readonly arrivee: string;
+  readonly depart: string;
+  readonly nuits: number | null;
+  readonly heureDArrivee?: string | null;
+  readonly heureDeDepart?: string | null;
+  readonly voyageurs?: number | null;
+  readonly className?: string;
+}) {
   const t = useTranslations('bookings.fiche.sejour');
+  const pied =
+    nuits !== null && voyageurs ? t('nuitsEtVoyageurs', { nuits, voyageurs }) : nuits !== null ? t('nuits', { n: nuits }) : null;
   return (
-    <div className={className}>
+    <div data-slot="dates-du-sejour" className={className}>
       <dl className="grid grid-cols-2 divide-x divide-border rounded-xl border border-border bg-card">
         <div className="p-3.5">
           <dt className="text-ui text-muted-foreground">{t('arrivee')}</dt>
           <dd className="mt-0.5 text-corps font-semibold">{arrivee}</dd>
+          <dd className="text-ui tabular-nums text-muted-foreground">{t('aPartirDe', { heure: heureDArrivee || HEURE_D_ARRIVEE_PAR_DEFAUT })}</dd>
         </div>
         <div className="p-3.5">
           <dt className="text-ui text-muted-foreground">{t('depart')}</dt>
           <dd className="mt-0.5 text-corps font-semibold">{depart}</dd>
+          <dd className="text-ui tabular-nums text-muted-foreground">{t('avant', { heure: heureDeDepart || HEURE_DE_DEPART_PAR_DEFAUT })}</dd>
         </div>
       </dl>
-      {nuits !== null ? <p className="mt-2 text-sm text-muted-foreground">{t('nuits', { n: nuits })}</p> : null}
+      {pied ? <p className="mt-2 text-sm text-muted-foreground">{pied}</p> : null}
     </div>
   );
 }
@@ -278,9 +384,9 @@ export function SuiteDuBail({ lignes, className }: { readonly lignes: readonly {
         <span className="inline-flex size-6 items-center justify-center rounded-full bg-success text-success-foreground">
           <Check className="size-4" aria-hidden="true" />
         </span>
-        {t('titre')}
+        {/* TCK-2878 — l'acceptation se dit dans son bandeau (maquette e7) : la carte est le bail prêt. */}
+        {t('pret')}
       </p>
-      <p className="mt-1.5 text-sm leading-snug text-foreground">{t('texte')}</p>
       <dl className="mt-3 divide-y divide-success/20 rounded-lg bg-card px-3">
         {lignes.map((l) => (
           <LigneCle key={l.cle} cle={l.cle}>
@@ -288,7 +394,7 @@ export function SuiteDuBail({ lignes, className }: { readonly lignes: readonly {
           </LigneCle>
         ))}
       </dl>
-      <p className="mt-2.5 text-ui text-muted-foreground">{t('modifiable')}</p>
+      <p className="mt-2.5 text-ui text-muted-foreground">{t('repris')}</p>
     </div>
   );
 }

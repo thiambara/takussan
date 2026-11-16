@@ -118,6 +118,18 @@ export interface ReceivedReviewsParams {
 
 export const RECEIVED_REVIEWS_PER_PAGE = 20;
 
+/**
+ * TCK-2863 / TCK-2864 — la boîte rend aussi, sur tout l'ensemble filtré (sujet, réponse ; jamais le
+ * statut) et quelle que soit la page : la répartition 5 → 1 des avis PUBLIÉS et le nombre d'avis qui
+ * attendent leur validation. Absents d'une API plus ancienne.
+ */
+export type ReceivedReviewsResponse = PaginatedResponse<Review> & {
+  meta: PaginatedResponse<Review>['meta'] & {
+    distribution?: Partial<Record<'1' | '2' | '3' | '4' | '5', number>>;
+    pending_count?: number;
+  };
+};
+
 /** `enabled` : TCK-2635 — le compte de l'onglet « Reçus » ne se demande qu'à qui peut en recevoir. */
 export function useReceivedReviews(params: ReceivedReviewsParams, options: { readonly enabled?: boolean } = {}) {
   const filter: Record<string, string> = {};
@@ -132,7 +144,7 @@ export function useReceivedReviews(params: ReceivedReviewsParams, options: { rea
     per_page: RECEIVED_REVIEWS_PER_PAGE,
   };
 
-  return useApiQuery<PaginatedResponse<Review>>(
+  return useApiQuery<ReceivedReviewsResponse>(
     ['received-reviews', params],
     '/api/reviews/received',
     { params: spatieParams, enabled: options.enabled },
@@ -154,8 +166,18 @@ export interface ReviewOpportunity {
   readonly context: { readonly type: ReviewContextType; readonly id: number };
 }
 
+/**
+ * TCK-2863 — un bail CLÔTURÉ depuis peu, à noter (`lease_closed`, clé sœur de `data`) : `target` est
+ * l'opportunité « bien » de ce bail, à poster telle quelle.
+ */
+export interface LeaseClosedOpportunity {
+  readonly kind: 'lease_closed';
+  readonly lease: { readonly id: number; readonly end_date: string; readonly property_title: string | null };
+  readonly target: ReviewOpportunity;
+}
+
 export function useReviewOpportunities() {
-  return useApiQuery<{ data: ReviewOpportunity[] }>(
+  return useApiQuery<{ data: ReviewOpportunity[]; lease_closed?: LeaseClosedOpportunity[] }>(
     ['profile-reviews', 'opportunities'],
     '/api/me/review-opportunities',
   );

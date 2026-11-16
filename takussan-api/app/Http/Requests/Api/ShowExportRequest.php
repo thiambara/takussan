@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
+use App\Models\User;
 use App\Rules\JourIso;
 use App\Services\Export\ExportDataService;
 use Illuminate\Validation\Rule;
@@ -65,11 +66,22 @@ class ShowExportRequest extends BaseFormRequest
         $user = $this->user();
         abort_unless($user, 401);
 
-        $entity = (string) $this->route('entity');
+        $this->ownLinesOnly = self::judge($user, (string) $this->route('entity'));
+
+        return true;
+    }
+
+    /**
+     * Le droit d'exporter `$entity` AUJOURD'HUI : 404 (entité inconnue) puis 403, sinon `true` quand
+     * l'appelant n'exporte que ses propres lignes de commission (TCK-2661). TCK-2866 (ADR-0115 § 2) —
+     * extrait d'`authorize()` pour que le retéléchargement d'un fichier gardé se juge par la MÊME règle.
+     */
+    public static function judge(User $user, string $entity): bool
+    {
         abort_code_unless(isset(self::CAPABILITY[$entity]), 404, 'export.entity_unknown', ['entity' => $entity]);
 
         if ($user->isSuperAdmin()) {
-            return true;
+            return false;
         }
 
         $staffAgencyId = $user->staffAgencyId();
@@ -77,16 +89,20 @@ class ShowExportRequest extends BaseFormRequest
             $allowed = $user->canActAt(self::CAPABILITY[$entity], Agency::query()->find($staffAgencyId));
             // TCK-2661 — sans `reports.export`, le bénéficiaire exporte encore SES commissions, et
             // elles seules (même s'il lit celles de l'agence au relevé).
-            $this->ownLinesOnly = ! $allowed && $entity === 'commissions';
-            abort_code_unless($allowed || $this->ownLinesOnly, 403, 'export.forbidden');
-        } elseif ($entity === 'customers' || in_array($entity, self::STAFF_ONLY, true)) {
+            $ownLinesOnly = ! $allowed && $entity === 'commissions';
+            abort_code_unless($allowed || $ownLinesOnly, 403, 'export.forbidden');
+
+            return $ownLinesOnly;
+        }
+        if ($entity === 'customers' || in_array($entity, self::STAFF_ONLY, true)) {
             abort_code(403, 'export.forbidden');
-        } elseif ($entity === 'properties'
+        }
+        if ($entity === 'properties'
             && ! ($user->agency_id !== null && $user->isOwnerAt((int) $user->agency_id))) {
             abort_code(403, 'export.forbidden');
         }
 
-        return true;
+        return false;
     }
 
     /** TCK-2661 — vrai quand l'appelant n'exporte que ses propres lignes de commission. */

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarClock, Check, Clock, MoreHorizontal, Phone, UserCheck, UserRound, Users, X } from 'lucide-react';
+import { CalendarClock, Check, ChevronDown, Clock, MoreHorizontal, Phone, UserCheck, UserRound, Users, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { StatusBadge } from '@/components/console';
@@ -25,6 +25,8 @@ import { VISIT_STATUS_LABEL_KEY, VISIT_STATUS_TONE, VISIT_TYPE_LABEL_KEY } from 
 import { useAuth } from '@/context/AuthContext';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { cheminApi } from '@/lib/chemin-api';
+import { useCreneauxDeVisite } from '@/lib/queries/visits';
+import { DELAI_DE_PREVENANCE_MINUTES } from '@/lib/visites/planification';
 import { ageDeLaDemande } from '@/lib/demandes/boite';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { AGENT_CRM_QUERY_KEY, fetchMatchingProperties } from '@/lib/queries/agent-crm';
@@ -36,6 +38,8 @@ import { jourEnClair, jourEnToutesLettres } from '@/lib/visites/planification';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type { CustomerDetail } from '@/types/customer';
 import type { PropertyVisit } from '@/types/visit';
+
+import { AvantCetteVisite } from '@/components/visits/compte-rendu/AvantCetteVisite';
 
 import { AutreHeure } from './AutreHeure';
 import { AdresseCourte, AutresGestes, CarteCreneau, CarteEnRoute, CarteLieu, CarteVisiteur, DeclencheurDeGeste, Etapes, Etiquette, Monogramme, PastilleDeStatut, PhotoDuBien, type AutreGeste } from './pieces';
@@ -622,7 +626,8 @@ function FicheTelephone(p: FicheDeLaVisiteProps) {
             gestes={g}
           />
         ) : null}
-        <CarteLieu v={v} detail={detail} itinerairePlein={etat === 'jour-j' || etat === 'en-cours'} />
+        {/* TCK-2882 — la vignette de carte au personnel qui lit l'adresse (la clé `address` n'est servie qu'à lui). */}
+        <CarteLieu v={v} detail={detail} itinerairePlein={etat === 'jour-j' || etat === 'en-cours'} vignette={personnel} />
         {!p.visiteur ? (
           <CarteVisiteur
             nom={l.nom}
@@ -709,6 +714,15 @@ function PlusDActions({ gestes }: { readonly gestes: readonly AutreGeste[] }) {
 }
 
 /**
+ * TCK-2880 — la fiche du bureau quand le compte rendu tient la droite (`colonne` faux : le personnel
+ * de l'agence, compte rendu à faire ou fait). UNE condition pour l'en-tête (« Voir le bien », « Ouvrir
+ * la fiche de … »), la ligne du visiteur (« 1ʳᵉ visite · Prospect ») et « Avant cette visite ».
+ */
+function apresLaVisite(p: FicheDeLaVisiteProps): boolean {
+  return p.personnel && !p.colonne;
+}
+
+/**
  * L'en-tête de page du bureau, et la barre du jour J dessous. Posé par le conteneur au-dessus de la
  * grille du compte rendu (TCK-2581) : le titre court sur toute la largeur.
  */
@@ -720,6 +734,11 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
   const l = useLecture(p);
   const { visite: v, etat, gestes: g, personnel } = p;
   const proposees = useHeuresProposees(v, (iso) => l.heureDe(iso), etat === 'a-confirmer' && g.confirmer !== null);
+  // TCK-2882 (AC7) — sous le chevron, les heures libres du JOUR : la lecture de « Proposer une autre
+  // heure » (`/slots`, même clé de cache que les heures proposées : aucune requête de plus).
+  const duJour = useCreneauxDeVisite(etat === 'a-confirmer' && g.confirmer && l.tranche ? v.property_id : null, etat === 'a-confirmer' && l.tranche ? l.jour : null, v.agent_id ?? null, v.duration_minutes ?? null);
+  const auPlusTot = duJour.dataUpdatedAt + DELAI_DE_PREVENANCE_MINUTES * 60_000;
+  const libresDuJour: HeureProposee[] = (duJour.data?.data.slots ?? []).filter((c) => c.available && Date.parse(c.start) >= auPlusTot).map((c) => ({ start: c.start, label: c.label }));
   const replanifierEnTete = personnel && etat !== 'a-confirmer' && ACTIVE.has(etat) && g.replanifier !== null;
   const autres = useAutresGestes(p, l, replanifierEnTete);
   const quartier = v.property?.address?.neighborhood?.trim();
@@ -748,6 +767,26 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
           .join(' · ');
 
   let actions: ReactNode = null;
+  const premiere = proposees.heures[0] ?? null;
+  const confirmer = g.confirmer;
+  // TCK-2869 (ADR-0112) — « Proposer une autre heure » et « Confirmer à … », pour le personnel ET pour
+  // le bailleur à qui l'agence confie ses visites (`abilities.confirm`, sans `manage`) : ce geste seul.
+  const gestesDeConfirmation =
+    etat === 'a-confirmer' && confirmer ? (
+      <>
+        <Button variant="outline" onClick={() => p.onAutreHeure(true)}>
+          {t('bureau.proposerAutreHeure')}
+        </Button>
+        {premiere ? (
+          // TCK-2882 (AC7) — « Confirmer à 15:00 ▾ », comme la maquette : le chevron ouvre les autres
+          // heures libres du jour (celles de « Proposer une autre heure ») ; aucune autre heure, aucun chevron.
+          <ConfirmerALHeure premiere={premiere} autres={libresDuJour.filter((h) => h.start !== premiere.start)} enCours={g.enCours} onConfirmer={(start) => void confirmer(start)} />
+        ) : personnel && proposees.etat === 'agent-indisponible' && g.attribuer ? (
+          // Suivi du lot A : l'agent de la visite est parti ou suspendu — le geste principal réattribue.
+          <AttribuerA agence={g.attribuer.agence} onChoisir={g.attribuer.onChoisir} disabled={g.enCours} declencheur={<Button>{tPlt('reattribuer')}</Button>} />
+        ) : null}
+      </>
+    ) : null;
   if (!personnel && (g.proposer || g.annuler)) {
     // Le visiteur n'a que deux gestes : écrits en clair, sans menu.
     actions = (
@@ -765,29 +804,23 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
       </>
     );
   } else if (personnel) {
-    const premiere = proposees.heures[0] ?? null;
-    const confirmer = g.confirmer;
+    // TCK-2880 — la visite terminée, compte rendu à droite (maquette `app-fil-commercial` a-4/a-5) :
+    // « Voir le bien » et « Ouvrir la fiche de {prénom} » dans l'en-tête.
+    const fiche = apresLaVisite(p) && v.customer?.id ? `/app/customers/${v.customer.id}` : null;
     actions = (
       <>
         <PlusDActions gestes={autres} />
-        {etat === 'a-confirmer' && confirmer ? (
-          <>
-            <Button variant="outline" onClick={() => p.onAutreHeure(true)}>
-              {t('bureau.proposerAutreHeure')}
-            </Button>
-            {premiere ? (
-              // Réponse 5 du team-lead : un bouton unique, comme la maquette — « Proposer une autre
-              // heure », à côté, choisit une autre heure. Sans chevron : aucun menu derrière lui.
-              <Button className="tabular-nums" disabled={g.enCours} onClick={() => void confirmer(premiere.start)}>
-                <Check className="size-4" aria-hidden="true" />
-                {premiere.start ? t('autreHeure.confirmer', { heure: premiere.label }) : t('autres.confirmer')}
-              </Button>
-            ) : proposees.etat === 'agent-indisponible' && g.attribuer ? (
-              // Suivi du lot A : l'agent de la visite est parti ou suspendu — le geste principal réattribue.
-              <AttribuerA agence={g.attribuer.agence} onChoisir={g.attribuer.onChoisir} disabled={g.enCours} declencheur={<Button>{tPlt('reattribuer')}</Button>} />
-            ) : null}
-          </>
+        {apresLaVisite(p) && v.property_id ? (
+          <Link href={`/app/properties/${v.property_id}`} className={buttonVariants({ variant: 'outline' })}>
+            {t('bureau.voirLeBien')}
+          </Link>
         ) : null}
+        {fiche ? (
+          <Link href={fiche} className={buttonVariants({ variant: 'outline' })}>
+            {l.prenom ? t('bureau.ouvrirLaFicheDe', { prenom: l.prenom }) : t('bureau.ouvrirLaFiche')}
+          </Link>
+        ) : null}
+        {gestesDeConfirmation}
         {replanifierEnTete && g.replanifier ? (
           <Button variant="outline" onClick={g.replanifier}>
             <CalendarClock className="size-4" strokeWidth={1.75} aria-hidden="true" />
@@ -796,6 +829,8 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
         ) : null}
       </>
     );
+  } else {
+    actions = gestesDeConfirmation;
   }
 
   return (
@@ -812,7 +847,59 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
   );
 }
 
-/** « Confirmer à 15:00 ▾ » : l'heure proposée, et les autres heures libres sous le chevron. */
+/** « Confirmer à 15:00 ▾ » : l'heure proposée, et les autres heures libres sous le chevron (TCK-2882). */
+function ConfirmerALHeure({
+  premiere,
+  autres,
+  enCours,
+  onConfirmer,
+}: {
+  readonly premiere: HeureProposee;
+  readonly autres: readonly HeureProposee[];
+  readonly enCours: boolean;
+  readonly onConfirmer: (start: string | null) => void;
+}) {
+  const t = useTranslations('visits.fiche');
+  const tPlt = useTranslations('visits.parLeTemps');
+  const [ouvert, setOuvert] = useState(false);
+  const libelle = premiere.start ? t('autreHeure.confirmer', { heure: premiere.label }) : t('autres.confirmer');
+  const principal = (
+    <Button className={cn('tabular-nums', autres.length > 0 && 'rounded-r-none pr-2.5')} disabled={enCours} onClick={() => onConfirmer(premiere.start)}>
+      <Check className="size-4" aria-hidden="true" />
+      {libelle}
+    </Button>
+  );
+  if (autres.length === 0) return principal;
+  return (
+    <span data-slot="confirmer-a-l-heure" className="inline-flex">
+      {principal}
+      <Popover open={ouvert} onOpenChange={setOuvert}>
+        <PopoverTrigger
+          render={<Button className="rounded-l-none border-l border-primary-foreground/25 px-2" disabled={enCours} aria-label={tPlt('autresHeures')} />}
+        >
+          <ChevronDown className="size-4 opacity-80" aria-hidden="true" />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-48 p-1">
+          <p className="px-2.5 py-1.5 text-ui text-muted-foreground">{tPlt('autresHeures')}</p>
+          {autres.map((h) => (
+            <button
+              key={h.label}
+              type="button"
+              onClick={() => {
+                setOuvert(false);
+                onConfirmer(h.start);
+              }}
+              className="flex min-h-9 w-full items-center rounded-md px-2.5 text-left text-sm tabular-nums outline-none hover:bg-muted focus-visible:bg-muted"
+            >
+              {tPlt('confirmerA', { heure: h.label })}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
+    </span>
+  );
+}
+
 /** Le jour J au bureau : le compte à rebours, le message prêt, et le geste du moment. */
 function BarreDuJourJ({ p, l }: { readonly p: FicheDeLaVisiteProps; readonly l: Lecture }) {
   const t = useTranslations('visits.fiche');
@@ -836,9 +923,28 @@ function BarreDuJourJ({ p, l }: { readonly p: FicheDeLaVisiteProps; readonly l: 
             {t('bureau.commencerPossibleA', { heure: f.heure(commencerDes) })}
           </p>
         ) : null}
+        {/* TCK-2882 — e3 : ce que fait « Absent » (TCK-2871 prévient le visiteur), comme au téléphone. */}
+        {etat !== 'jour-j' && g.absent && !absentDes ? (
+          <p data-slot="absent-previent" className="mt-0.5 text-sm text-encre-douce">
+            {t('enCours.absent', { prenom: l.prenom ?? l.nom })}
+          </p>
+        ) : null}
       </div>
       {etat === 'jour-j' && l.peutEcrire && l.messageEnRoute ? (
         <p className="max-w-[calc(var(--spacing)*92)] rounded-xl rounded-bl-sm bg-success/10 px-3.5 py-2 text-sm leading-relaxed text-encre-douce">{l.messageEnRoute}</p>
+      ) : etat === 'en-cours' && l.peutEcrire && l.numero && l.messageEnRoute ? (
+        // TCK-2882 (AC8) — la maquette e3 garde la bulle pendant la visite : le message reste prêt,
+        // et la bulle l'ouvre dans WhatsApp (aucun bouton « Je suis en route » en cours de visite).
+        <a
+          href={whatsappHref(l.numero, l.messageEnRoute)}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-slot="bulle-en-route"
+          aria-label={t('barre.enRouteBulle', { message: l.messageEnRoute })}
+          className="max-w-[calc(var(--spacing)*92)] rounded-xl rounded-bl-sm bg-success/10 px-3.5 py-2 text-sm leading-relaxed text-encre-douce outline-none hover:bg-success/15 focus-visible:ring-3 focus-visible:ring-ring"
+        >
+          {l.messageEnRoute}
+        </a>
       ) : null}
       <div className="ml-auto flex flex-none items-center gap-2">
         {etat === 'jour-j' ? (
@@ -971,7 +1077,8 @@ export function CorpsDeLaFiche(p: FicheDeLaVisiteProps) {
       slot="carte-bien"
       titre={t('bureau.bien')}
       action={
-        v.property?.slug ? (
+        // TCK-2880 — après la visite, « Voir le bien » est dans l'en-tête (maquette a-4/a-5).
+        v.property?.slug && !apresLaVisite(p) ? (
           <Link href={`/properties/${v.property.slug}`} className={LIEN_DE_CARTE}>
             {t('lieu.voirLeBien')}
           </Link>
@@ -996,6 +1103,9 @@ export function CorpsDeLaFiche(p: FicheDeLaVisiteProps) {
   );
 
   const visiteurCarte = !p.visiteur ? <CarteVisiteurBureau p={p} l={l} message={messageGenerique} /> : null;
+  // TCK-2880 — « Avant cette visite » : la demande, la réponse, la confirmation, sous le visiteur ;
+  // au seul personnel actif de l'agence (`ficheClient`), et seulement s'il y a une fiche client.
+  const avant = apresLaVisite(p) && p.ficheClient && v.customer?.id ? <AvantCetteVisite clientId={v.customer.id} visite={v} /> : null;
   const sesVisites = personnel && p.colonne && v.customer_id ? <SesVisites v={v} /> : null;
   const biens = p.ficheClient && p.colonne && v.customer?.id ? <BiensCorrespondants clientId={v.customer.id} prenom={l.prenom ?? l.nom} numero={l.numero} /> : null;
 
@@ -1011,6 +1121,7 @@ export function CorpsDeLaFiche(p: FicheDeLaVisiteProps) {
           {creneau}
           {bienCarte}
           {!p.colonne ? visiteurCarte : null}
+          {avant}
         </div>
         {p.colonne ? (
           <div className="min-w-0 space-y-6">
@@ -1067,6 +1178,8 @@ function CarteVisiteurBureau({ p, l, message }: { readonly p: FicheDeLaVisitePro
   const etape = client?.pipeline_stage && tCrm.has(client.pipeline_stage) ? tCrm(client.pipeline_stage) : null;
   const fiche = p.personnel && v.customer?.id ? `/app/customers/${v.customer.id}` : null;
   const affiche = l.numero ?? l.brut;
+  const apres = apresLaVisite(p);
+  const ligneApres = [affiche && formaterTelephone(affiche) !== l.nom ? formaterTelephone(affiche) : null, l.rang, etape].filter(Boolean).join(' · ');
   return (
     <CarteBureau
       slot="carte-visiteur"
@@ -1084,14 +1197,19 @@ function CarteVisiteurBureau({ p, l, message }: { readonly p: FicheDeLaVisitePro
           <Monogramme nom={l.nom} className="size-11 text-base" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-action font-semibold text-foreground">{l.nom}</p>
-            {affiche && formaterTelephone(affiche) !== l.nom ? <p className="text-sm tabular-nums text-muted-foreground">{formaterTelephone(affiche)}</p> : null}
+            {apres ? (
+              // TCK-2880 — « {téléphone} · 1ʳᵉ visite · Prospect » (maquette a-4/a-5, la carte « Le visiteur »).
+              ligneApres ? <p data-slot="ligne-du-visiteur" className="text-ui tabular-nums text-muted-foreground">{ligneApres}</p> : null
+            ) : affiche && formaterTelephone(affiche) !== l.nom ? (
+              <p className="text-sm tabular-nums text-muted-foreground">{formaterTelephone(affiche)}</p>
+            ) : null}
             {l.email ? (
               <a href={`mailto:${l.email}`} className="block truncate text-sm text-muted-foreground hover:text-foreground hover:underline">
                 {l.email}
               </a>
             ) : null}
           </div>
-          {p.personnel && l.rang ? <span className="inline-flex h-6 flex-none items-center rounded-full bg-secondary px-2.5 text-xs font-medium text-primary-deep">{l.rang}</span> : null}
+          {p.personnel && l.rang && !apres ? <span className="inline-flex h-6 flex-none items-center rounded-full bg-secondary px-2.5 text-xs font-medium text-primary-deep">{l.rang}</span> : null}
         </div>
         {l.numero || fiche ? (
           <div className="mt-4 flex gap-2">
@@ -1120,7 +1238,7 @@ function CarteVisiteurBureau({ p, l, message }: { readonly p: FicheDeLaVisitePro
             ) : null}
           </div>
         ) : null}
-        {cherche || etape ? (
+        {cherche || (etape && !apres) ? (
           <dl data-slot="cherche-etape" className="mt-4 space-y-3 border-t border-border pt-4">
             {cherche ? (
               <div>
@@ -1128,7 +1246,7 @@ function CarteVisiteurBureau({ p, l, message }: { readonly p: FicheDeLaVisitePro
                 <dd className="mt-0.5 text-sm text-foreground">{cherche}</dd>
               </div>
             ) : null}
-            {etape ? (
+            {etape && !apres ? (
               <div>
                 <dt className="text-ui text-muted-foreground">{t('etape')}</dt>
                 <dd className="mt-0.5 text-sm text-foreground">{etape}</dd>

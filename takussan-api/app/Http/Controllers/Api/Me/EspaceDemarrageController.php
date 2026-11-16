@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * TCK-2479 (ADR-0089 §5) — `GET /api/me/espace/demarrage` → `{ data: { etapes: [{ code, faite }] } }` :
+ * TCK-2479 (ADR-0089 §5) — `GET /api/me/espace/demarrage` → `{ data: { etapes: [{ code, faite, etat? }] } }` (`etat` sur les étapes `piece:<code>`, TCK-2944) :
  * les étapes du groupe « Démarrer » du menu, jugées sur le profil actif (`ResolveActiveProfile`).
  *
  * Toujours 200 : un profil sans étape rend `etapes: []`, et le menu n'affiche rien.

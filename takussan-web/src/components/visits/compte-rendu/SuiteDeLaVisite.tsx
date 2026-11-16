@@ -3,20 +3,22 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { Building2, ChevronRight, ClipboardPen } from 'lucide-react';
+import { Building2, ChevronRight, ClipboardPen, Undo2 } from 'lucide-react';
 
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
-import { useApiQuery } from '@/hooks/useApiQuery';
+import { ActionDuToast, useToast } from '@/components/ui/toast';
+import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { cheminApi } from '@/lib/chemin-api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
-import type { ReponseDuCompteRendu } from '@/lib/queries/visits';
+import { useUpdateVisitReport, type ReponseDuCompteRendu } from '@/lib/queries/visits';
 import { natureDuBien } from '@/lib/reservations/saisie-de-demande';
-import { closableParCompteRendu, type CompteRendu, type Verdict } from '@/lib/visites/compte-rendu';
+import { closableParCompteRendu, echeanceDeRelance, type CompteRendu, type Verdict } from '@/lib/visites/compte-rendu';
 import type { ApiResponse } from '@/types/api';
 import type { PropertyVisit } from '@/types/visit';
 import { cn } from '@/lib/utils';
@@ -78,6 +80,7 @@ export function SuiteDeLaVisite({ visite, principal, reste, masquee = false }: S
   const [reponse, setReponse] = useState<ReponseDuCompteRendu | null>(null);
   const [edition, setEdition] = useState(false);
   const [verdictEnCours, setVerdictEnCours] = useState<Verdict | null>(null);
+  const relanceDuLendemain = useRelanceDuLendemain(visite);
 
   // `include=online` : l'invitation WhatsApp mène à la fiche publique, qu'elle ne propose que si le
   // bien y est servi. Clé à part : `SaisirUneDemande` lit le même chemin sans `include`, et sa réponse
@@ -160,13 +163,15 @@ export function SuiteDeLaVisite({ visite, principal, reste, masquee = false }: S
           sousTitre={prenom ? tSuite('sousTitre', { prenom }) : undefined}
           repli={detail}
           droite={
-            <Link
-              href={detail}
+            // TCK-2880 — « Passer » sans suite choisie pose la relance de demain, puis rend le détail.
+            <button
+              type="button"
+              onClick={() => void relanceDuLendemain.passer(compteRendu, prenom, bien?.titre ?? visite.property?.title ?? '', () => router.push(detail))}
               // La boîte du texte (la maquette), la cible de 44 px par le pseudo-élément (patron de `ui/toast`).
               className="relative rounded-md px-1.5 text-sm font-medium text-muted-foreground outline-none after:absolute after:-inset-x-1 after:-inset-y-3 after:content-[''] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring"
             >
               {tSuite('passer')}
-            </Link>
+            </button>
           }
         />
         <EtMaintenant
@@ -176,7 +181,6 @@ export function SuiteDeLaVisite({ visite, principal, reste, masquee = false }: S
           etapeSuggeree={etapeSuggeree}
           densite="telephone"
           onModifier={() => allerA('compte-rendu')}
-          onTermine={() => router.push(detail)}
         />
       </PagePleineLargeur>
     );
@@ -300,4 +304,78 @@ function CarteDuBien({ titre, photo, nom, rang }: { readonly titre: string | nul
       </div>
     </div>
   );
+}
+
+/**
+ * TCK-2880 — « Passer » sans suite choisie : une tâche « Relancer {prénom} » échue DEMAIN (9:00 à
+ * Dakar), la seule mécanique qui fait paraître une relance dans « Aujourd'hui » (`CustomerFollowUpQuery`
+ * ne connaît pas de motif « proposée »), et le choix tracé (`follow_up = remind`) — c'est lui qui
+ * fait qu'un second « Passer » ne la pose pas deux fois. Le toast « Relance posée pour demain ·
+ * Annuler » la retire et efface le choix. Sans fiche client, ou une suite déjà choisie : le détail.
+ */
+function useRelanceDuLendemain(visite: PropertyVisit) {
+  const t = useTranslations('etMaintenant.relanceDuLendemain');
+  const toast = useToast();
+  const messageErreur = useMessageErreurApi();
+  const suite = useUpdateVisitReport(visite.id);
+  const creer = useApiMutation<ApiResponse<{ readonly id: number }>, Record<string, unknown>>({ path: '/api/tasks', method: 'POST' }, { invalidate: [['tasks'], ['agent-crm']] });
+  const retirer = useApiMutation<unknown, number>(
+    { path: (id) => cheminApi`/api/tasks/${id}`, method: 'DELETE', body: () => undefined },
+    { invalidate: [['tasks'], ['agent-crm']] },
+  );
+  const enVol = useRef(false);
+
+  async function annuler(tacheId: number, toastId: string) {
+    toast.close(toastId);
+    try {
+      await retirer.mutateAsync(tacheId);
+      await suite.mutateAsync({ follow_up: null });
+      toast.add({ title: t('retiree'), type: 'success' });
+    } catch (err) {
+      toast.add({ title: messageErreur(err), type: 'error' });
+    }
+  }
+
+  async function passer(compteRendu: CompteRendu, prenom: string | null, bien: string, ensuite: () => void) {
+    if (enVol.current) return;
+    const client = visite.customer ?? null;
+    const choisie = visite.report?.follow_up ?? compteRendu.follow_up ?? null;
+    if (!client || choisie) {
+      ensuite();
+      return;
+    }
+    enVol.current = true;
+    try {
+      const tache = await creer.mutateAsync({
+        title: t('tacheTitre', { prenom: prenom ?? nomAffichable(client) }),
+        description: t('tacheDescription', { bien }),
+        due_at: echeanceDeRelance(new Date(), 1),
+        taskable_id: client.id,
+        taskable_type: 'App\\Models\\Customer',
+      });
+      // Le choix tracé empêche un second « Passer » de reposer la tâche ; s'il échoue, la tâche reste
+      // posée et « Annuler » la retire quand même.
+      await suite.mutateAsync({ follow_up: 'remind' }).catch(() => undefined);
+      const id: string = toast.add({
+        title: t('posee'),
+        type: 'success',
+        timeout: 8000,
+        data: {
+          action: (
+            <ActionDuToast onClick={() => void annuler(tache.data.id, id)}>
+              <Undo2 aria-hidden="true" />
+              {t('annuler')}
+            </ActionDuToast>
+          ),
+        },
+      });
+      ensuite();
+    } catch (err) {
+      toast.add({ title: messageErreur(err), type: 'error' });
+    } finally {
+      enVol.current = false;
+    }
+  }
+
+  return { passer };
 }

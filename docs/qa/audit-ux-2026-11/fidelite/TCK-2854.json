@@ -1,0 +1,108 @@
+{
+  "ticket": "TCK-2854",
+  "ecrans": [
+    {
+      "page": "app-accueil",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Prestataire",
+      "references": {
+        "bureau-1440": "references/app-accueil/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-accueil/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "prestataire",
+        "etat": "prestataire avec un devis demandé (`quote_requested`, « Infiltration au plafond ») et un devis envoyé (`quote_submitted`, 85 000 F, `quote_submitted_at` le 8 novembre) : « Mes devis en attente » porte la rangée « Chiffrer » puis « Remplacement d’un chauffe-eau · 85 000 F · Envoyé le 8 nov. · en attente du bailleur », sans bouton",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 11,
+      "nom": "Prestataire (coque)",
+      "references": {
+        "bureau-1440": "references/app-coque/a-11-bureau-1440.json",
+        "bureau-1280": "references/app-coque/a-11-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "prestataire",
+        "etat": "même état que app-accueil a-4 (bureau jamais relevé)",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-accueil",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Chargement et erreur (admin)",
+      "references": {
+        "telephone": "references/app-accueil/a-7-telephone.json",
+        "bureau-1440": "references/app-accueil/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-accueil/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "admin",
+        "etat": "admin d’une agence standard ; `GET /api/dashboard/me` retardé (« Ce mois » en squelette `aria-busy`), files de « À faire » en attente (squelettes : cartes au téléphone, groupes à rangées 4 + 3 au bureau), `team-today` en panne (« Impossible de charger les visites de l’équipe » + « Réessayer »)",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app",
+    "persona": "voir `ecrans[].produit`",
+    "disposition": "accueil",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-accueil a-4-bureau-*, app-coque a-11-bureau-*",
+      "element": "« demandé hier par Dakar Immo » rendu « demandé hier » (sans le donneur d’ordre)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "la file du prestataire ne charge ni l’agence ni le demandeur (`include=property`) ; écart déjà porté par TCK-2625, rien d’inventé"
+    },
+    {
+      "ecran": "app-accueil a-4-bureau-*, app-coque a-11-bureau-*",
+      "element": "« en attente du bailleur » aussi sur un devis `quote_submitted`",
+      "propriete": "texte",
+      "exception": "décision du ticket",
+      "motif": "AC1 fixe la formule pour `quote_submitted` ; sous le plafond du bailleur, c’est l’agence qui valide (ADR-0037) — le prestataire attend dans les deux cas une décision du côté du bailleur"
+    },
+    {
+      "ecran": "app-accueil a-7-bureau-*",
+      "element": "le squelette de « Ce mois » AU-DESSUS d’« Équipe aujourd’hui » (la maquette e7 le dessine dessous)",
+      "propriete": "ordre",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "l’écran chargé de la même maquette (a-2, `AccueilAdminBureau`) met « Ce mois » au-dessus de l’équipe : le squelette occupe la place exacte du bloc qu’il annonce"
+    },
+    {
+      "ecran": "app-accueil a-7-*",
+      "element": "texte `sr-only` « Chargement des chiffres du mois » / « Chargement » dans les squelettes",
+      "propriete": "présence",
+      "exception": "accessibilité",
+      "motif": "une région `aria-busy` dont le dessin est `aria-hidden` doit dire ce qu’elle charge ; invisible à l’œil"
+    },
+    {
+      "ecran": "app-accueil a-7-bureau-*",
+      "element": "intertitre « Ce mois » au-dessus des tuiles du squelette (absent de la maquette e7 au bureau)",
+      "propriete": "présence",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "l’écran chargé (a-2) porte l’intertitre « Ce mois » au-dessus des tuiles : le squelette le garde, les tuiles ne descendent pas à la fin de la lecture"
+    }
+  ]
+}

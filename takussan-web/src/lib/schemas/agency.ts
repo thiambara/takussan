@@ -71,6 +71,8 @@ export const agencyFormSchema = z.object({
   require_team_two_factor: z.boolean(),
   /** TCK-593 — `settings.late_fee_online_collection`, désactivé par défaut. */
   late_fee_online_collection: z.boolean(),
+  /** TCK-2869 (ADR-0112) — `settings.owners_confirm_visits`, désactivé par défaut. */
+  owners_confirm_visits: z.boolean(),
   /** TCK-2483 — `settings.hidden_modules` : les modules retirés du menu de l'équipe (agence `standard`). */
   hidden_modules: z.array(z.enum(CODES_DE_MODULE)),
   // TCK-594 (ADR-0039 §7) — mêmes bornes que `AgencyUpdateRequest`.
@@ -103,6 +105,13 @@ export const agencyFormSchema = z.object({
   offline_payment_wave_number: z.string().default(''),
   offline_payment_orange_money_number: z.string().default(''),
   offline_payment_bank_details: z.string().default(''),
+  // TCK-2915 — `settings.payout_day` : le jour du mois (1-28) où partent les reversements aux bailleurs
+  // dont le mandat n'en fixe pas ; vide = aucun. Mêmes bornes que `AgencySettings`.
+  payout_day: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || (/^[0-9]{1,2}$/.test(v) && Number(v) >= 1 && Number(v) <= 28), msgValidation('agency.payoutDayRange'))
+    .default(''),
 });
 
 /** TCK-2536 — les trois clés de `settings` des moyens de paiement hors ligne (TCK-2504). */
@@ -122,11 +131,15 @@ export type AgencyFormValues = z.infer<typeof agencyFormSchema>;
 export interface ReglagesDeLaFiche {
   require_team_two_factor: boolean;
   late_fee_online_collection: boolean;
+  /** TCK-2869 */
+  owners_confirm_visits: boolean;
   hidden_modules: CodeDeModule[];
   /** TCK-2536 — tels que l'API les rend (E.164 pour les numéros), `''` quand la clé est absente. */
   offline_payment_wave_number: string;
   offline_payment_orange_money_number: string;
   offline_payment_bank_details: string;
+  /** TCK-2915 — `settings.payout_day` en texte de champ, `''` quand la clé est absente. */
+  payout_day: string;
 }
 
 /**
@@ -163,12 +176,17 @@ export function reglagesDeLaFiche(settings: unknown): ReglagesDeLaFiche {
     require_team_two_factor: lu.require_team_two_factor === true,
     // TCK-593 — `Agency::collectsLateFeesOnline()` → `AgencySettings::read` ; clé absente = désactivé.
     late_fee_online_collection: booleenCommeLApi(lu.late_fee_online_collection, false),
+    // TCK-2869 — `PropertyVisitPolicy::bailleurConfirmeDans` → `Agency::setting` (`AgencySettings::read`) ;
+    // clé absente = désactivé.
+    owners_confirm_visits: booleenCommeLApi(lu.owners_confirm_visits, false),
     // TCK-2483 — clé absente = rien de masqué ; un code inconnu est ignoré (et ne repart pas).
     hidden_modules: modulesMasquesDe(lu),
     // TCK-2536 — une chaîne telle quelle, sans reformatage : le numéro affiché est celui que l'API a rendu.
     offline_payment_wave_number: texteDuReglage(lu.offline_payment_wave_number),
     offline_payment_orange_money_number: texteDuReglage(lu.offline_payment_orange_money_number),
     offline_payment_bank_details: texteDuReglage(lu.offline_payment_bank_details),
+    // TCK-2915 — un entier 1-28 (`AgencySettings::read`) ; toute autre valeur se lit « aucun ».
+    payout_day: typeof lu.payout_day === 'number' && Number.isInteger(lu.payout_day) ? String(lu.payout_day) : '',
   };
 }
 
@@ -188,7 +206,9 @@ export function erreursDesReglagesSurLeurChamp(
   return Object.fromEntries(
     Object.entries(errors).map(([cle, messages]) => {
       const reglage = cle.startsWith('settings.') ? cle.slice('settings.'.length) : null;
-      return [reglage !== null && (CLES_PAIEMENT_HORS_LIGNE as readonly string[]).includes(reglage) ? reglage : cle, messages];
+      // TCK-2915 — `settings.payout_day` sous son champ, comme les moyens de paiement hors ligne.
+      const surSonChamp = reglage !== null && ([...CLES_PAIEMENT_HORS_LIGNE, 'payout_day'] as readonly string[]).includes(reglage);
+      return [surSonChamp ? reglage : cle, messages];
     }),
   );
 }
@@ -280,6 +300,12 @@ export function normaliseAgencyForm(
   if (values.late_fee_online_collection !== initial.late_fee_online_collection) {
     settings.late_fee_online_collection = values.late_fee_online_collection;
   }
+  // TCK-2869 — comme les autres booléens : ne part que modifié, `false` compris. Jamais pour une
+  // `individual` : sans bailleur hors de son équipe, l'interrupteur n'y a pas d'effet (l'hôte confirme
+  // déjà ses visites) et la fiche ne le montre pas.
+  if (!context.individual && values.owners_confirm_visits !== initial.owners_confirm_visits) {
+    settings.owners_confirm_visits = values.owners_confirm_visits;
+  }
   // TCK-2483 — pour une agence `standard`, et seulement si la section a changé (revue, M5) : alors la
   // liste entière, dans l'ordre des codes, `[]` compris (tout réafficher doit s'enregistrer). Jamais
   // pour une `individual` : l'API la refuse (422).
@@ -294,6 +320,9 @@ export function normaliseAgencyForm(
     const saisi = (values[cle] ?? '').trim();
     if (saisi !== initial[cle].trim()) settings[cle] = saisi === '' ? null : saisi;
   }
+  // TCK-2915 — ne part que modifié ; vidé, `null` retire la clé (plus de jour d'agence).
+  const jour = (values.payout_day ?? '').trim();
+  if (jour !== initial.payout_day) settings.payout_day = jour === '' ? null : Number(jour);
 
   const slug = (values.slug ?? '').trim();
 

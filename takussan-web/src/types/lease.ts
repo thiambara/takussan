@@ -133,14 +133,32 @@ export type Lease = {
   /** TCK-2642 / TCK-2645 — les parties nommées (`include=landlord,agent`) ; le téléphone, seulement quand l'API le sert. */
   landlord?: LeaseParty | null;
   agent?: LeaseParty | null;
+  /**
+   * TCK-2906 — le jour où la révision du loyer devient possible (la règle du motif `rent_review_open`) ;
+   * passé quand elle est ouverte, `null` sans révision possible. Détail seul.
+   */
+  next_revision_date?: string | null;
+  /** TCK-2906 — `include=maintenance_summary` : les interventions du bail que le lecteur lit. */
+  maintenance_summary?: ResumeDesInterventions;
+  /** TCK-2906 — `include=documentsCount` : les pièces déposées et les documents générés de l'onglet « Documents ». */
+  documents_count?: number;
+  /** TCK-2906 — `include=historyCount` : les entrées de l'onglet « Historique » ; absent pour qui ne le lit pas. */
+  history_count?: number;
   created_at: string;
   updated_at: string;
+};
+
+/** TCK-2906 — `maintenance_summary` du bail et du bien : total, ouvertes, la dernière ouverte (`status` : la valeur de l'enum). */
+export type ResumeDesInterventions = {
+  readonly total: number;
+  readonly open: number;
+  readonly latest_open: { readonly id: number; readonly title: string | null; readonly status: string | null } | null;
 };
 
 /**
  * TCK-2645 — une partie du bail telle que `LeaseResource::party()` la projette : des noms, et le
  * téléphone au seul lecteur à qui l'API le sert (bailleur : le personnel de l'agence du bail et le
- * bailleur lui-même ; agent : jamais).
+ * bailleur lui-même ; agent : le personnel de l'agence du bail — TCK-2906).
  */
 export type LeaseParty = {
   readonly id: number;
@@ -302,6 +320,8 @@ export type LeaseDefaults = {
   readonly late_fee_grace_days: DefautDuBail;
   readonly early_termination_penalty_months: DefautDuBail;
   readonly rent_review_max_pct: DefautDuBail;
+  /** TCK-2906 — le préavis de départ, en jours (aucun réglage : le défaut de la plateforme). */
+  readonly notice_period_days?: DefautDuBail;
   /** TCK-2734 — les candidatures ouvertes du bien, que la création du bail clôturera (ou complétera). */
   readonly open_applications: readonly { readonly id: number; readonly customer_id: number }[];
   /** Au personnel seul, en INFORMATION : jamais un terme du bail (le bail suit le taux de l'agence). */

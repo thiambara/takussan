@@ -40,5 +40,8 @@ class ExpireBookings implements ShouldQueue
                     $expirations->expire($booking, BookingExpirationService::REASON_DEADLINE);
                 }
             });
+
+        // TCK-2873 (ADR-0110 § 5) — et les contre-offres échues, sans toucher à leur offre.
+        $expirations->expireCounterOffers();
     }
 }

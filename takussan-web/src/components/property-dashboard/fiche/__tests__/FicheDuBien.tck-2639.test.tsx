@@ -383,7 +383,8 @@ describe('TCK-2639 (TCK-603) — l’agent responsable, sous le bailleur', () =>
   it('nomme l’agent désigné ; « Non désigné » quand le contact n’est que le bailleur ; rien sans la source', () => {
     const { unmount } = render(withIntl(<BlocResponsable property={bien(occupe({}), { primary_contact: { id: 8, name: 'Moussa Diallo', avatar_url: null, is_agent: true, member_since: null }, primary_contact_source: 'designated' })} />));
     expect(screen.getByText('Moussa Diallo')).toBeInTheDocument();
-    expect(screen.getByText('Agent responsable')).toBeInTheDocument();
+    // TCK-2908 — le libellé de la maquette a-2 : « Agent principal » (« Agent responsable » avant).
+    expect(screen.getByText('Agent principal')).toBeInTheDocument();
     unmount();
 
     const repli = render(withIntl(<BlocResponsable property={bien(occupe({}), { primary_contact: { id: 50, name: 'Mouhamed Sène', avatar_url: null, is_agent: false, member_since: null }, primary_contact_source: 'owner' })} />));

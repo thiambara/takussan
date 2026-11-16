@@ -47,6 +47,18 @@
       "conflict_of_interest": "Conflit d'intérêts",
       "off_topic": "Hors sujet",
       "other": "Autre motif"
+    },
+    "noteVocale": {
+      "enregistrer": "Enregistrer un message vocal",
+      "maintenir": "Gardez appuyé pour enregistrer un message vocal",
+      "arreter": "Arrêter l'enregistrement",
+      "relacher": "Relâchez pour terminer",
+      "supprimer": "Supprimer le message vocal",
+      "libelle": "Message vocal",
+      "ecouter": "Écouter le message vocal",
+      "pause": "Mettre le message vocal en pause",
+      "micRefuse": "Le micro n'est pas accessible. Autorisez-le dans votre navigateur.",
+      "lectureImpossible": "Ce message vocal ne peut pas être lu."
     }
   },
   "console": {
@@ -249,27 +261,6 @@
           "propertyModeration": "Biens à valider"
         }
       },
-      "aTraiter": {
-        "titre": "À traiter",
-        "pastilles": {
-          "unreadMessages": "{count, plural, one {# message} other {# messages}}",
-          "pendingVisits": "{count, plural, one {# visite} other {# visites}}",
-          "unhandledLeads": "{count, plural, one {# demande} other {# demandes}}",
-          "reviewModeration": "{count, plural, other {# avis}}",
-          "propertyModeration": "{count, plural, one {# bien} other {# biens}}"
-        },
-        "noms": {
-          "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",
-          "pendingVisits": "{count, plural, one {# visite en attente} other {# visites en attente}}",
-          "unhandledLeads": "{count, plural, one {# demande non traitée} other {# demandes non traitées}}",
-          "reviewModeration": "{count, plural, other {# avis à modérer}}",
-          "propertyModeration": "{count, plural, one {# bien à valider} other {# biens à valider}}"
-        },
-        "plusCourt": "+{count}",
-        "autres": "{count, plural, one {+# autre à traiter} other {+# autres à traiter}}",
-        "compact": "{count, plural, one {À traiter : # élément} other {À traiter : # éléments}}",
-        "totalCourt": "{count, plural, =100 {99+} other {#}}"
-      },
       "demarrer": {
         "titre": "Démarrer",
         "progression": "{faites} sur {total}",
@@ -279,13 +270,19 @@
           "espace": {
             "premier_bien": "Publier un premier bien",
             "kyc": "Faire vérifier l’agence",
-            "equipe": "Inviter un premier membre",
-            "pieces": "Envoyer vos pièces"
+            "equipe": "Inviter un premier membre"
           },
           "bailleur": {
             "premier_bien": "Proposer un premier bien",
-            "kyc": "Envoyer vos pièces d’identité",
             "equipe": "Inviter un premier membre"
+          },
+          "pieces": {
+            "cni": "Envoyer votre pièce d’identité",
+            "rib": "Envoyer votre RIB",
+            "ninea": "Envoyer votre NINEA",
+            "license": "Envoyer votre carte professionnelle",
+            "photo": "Envoyer votre photo de profil",
+            "insurance": "Envoyer votre assurance RC pro"
           }
         },
         "ecranPieces": "Vos pièces"
@@ -309,7 +306,15 @@
         "titre": "Épinglez jusqu’à {max} pages",
         "compte": "{nombre} sur {max} · glissez pour ordonner",
         "terminer": "Terminé",
-        "deplacer": "Déplacer {libelle} (flèches haut et bas)"
+        "deplacer": "Déplacer {libelle} (flèches haut et bas)",
+        "reinitialiser": "Réinitialiser le menu",
+        "confirmation": {
+          "titre": "Réinitialiser le menu ?",
+          "texte": "Vos épingles, groupes repliés et « Démarrer » masqué reviennent à la disposition par défaut de cet espace.",
+          "confirmer": "Réinitialiser",
+          "annuler": "Annuler"
+        },
+        "epingler": "Glisser {libelle} vers les épingles (flèche haut)"
       },
       "reports": "Rapports"
     },
@@ -487,7 +492,6 @@
         "generique": "Chercher un bien sur Takussan",
         "avecTexte": "Chercher « {q} » parmi les annonces"
       },
-      "passerA": "Passer à : {espace}",
       "aucun": "Aucune page pour « {q} »",
       "resultats": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
       "synonymesEspace": "espace, changer, basculer, passer",
@@ -528,6 +532,24 @@
         "agence-journal": "audit, historique, traces, journal",
         "agence-integrations": "api, webhooks, connecteurs",
         "rapports": "stats, statistiques, chiffres, performance, activité de l’agence, export, csv, excel, télécharger, indicateurs, kpi, objectifs, alertes, anomalies, signaux"
+      },
+      "basculerVers": "Basculer vers {espace}",
+      "aTraiterLignes": {
+        "unreadMessages": "Messages non lus",
+        "pendingVisits": "Visites à confirmer",
+        "unhandledLeads": "Demandes non traitées",
+        "reviewModeration": "Avis à modérer",
+        "propertyModeration": "Biens à valider"
+      },
+      "precisions": {
+        "sitePublic": "Site public",
+        "epinglee": "Épinglé"
+      },
+      "echap": "Échap",
+      "pied": {
+        "naviguer": "naviguer",
+        "ouvrir": "ouvrir",
+        "partout": "partout dans l’application"
       }
     },
     "coque": {
@@ -535,6 +557,18 @@
       "fermer": "Fermer",
       "plusDActions": "Plus d’actions",
       "etape": "Étape {n} sur {total}"
+    },
+    "recents": {
+      "types": {
+        "bien": "Bien",
+        "demande": "Demande",
+        "client": "Client",
+        "bail": "Bail",
+        "intervention": "Intervention",
+        "visite": "Visite",
+        "reservation": "Réservation",
+        "bailleur": "Bailleur"
+      }
     }
   },
   "footer": {
@@ -841,7 +875,8 @@
       },
       "dates": {
         "du": "Du {debut} au {fin}",
-        "aPartirDu": "À partir du {debut}"
+        "aPartirDu": "À partir du {debut}",
+        "visiteDemandee": "Visite demandée pour {debut}"
       },
       "actions": {
         "reservation": {
@@ -880,7 +915,16 @@
       },
       "aideIndicatif": "+221 est déjà posé. À l’étranger ? Commencez par +",
       "avecAgence": "Avec {agence}",
-      "exempleNumero": "77 000 00 00"
+      "exempleNumero": "77 000 00 00",
+      "avecAgenceEtDelai": {
+        "minutes": "Avec {agence} · réponse en {n} min environ",
+        "heures": "Avec {agence} · réponse en {n} h environ",
+        "jours": "Avec {agence} · réponse en {n, plural, one {# jour} other {# jours}} environ"
+      },
+      "accueil": {
+        "slogan": "Vos visites, vos favoris, vos annonces.",
+        "retour": "Retour au site"
+      }
     },
     "voieEmail": {
       "titre": "Avec votre e-mail",
@@ -1521,7 +1565,8 @@
         "titreDuPanneau": "Dernière étape : votre numéro",
         "assurances": {
           "motDePasse": "Pas de mot de passe à inventer",
-          "retirable": "Annonce retirable à tout moment"
+          "retirable": "Annonce retirable à tout moment",
+          "gratuit": "Gratuit, sans commission"
         },
         "mention": "En publiant, vous acceptez les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>.",
         "nomsAide": "Ils apparaissent sur votre annonce et dans vos messages.",
@@ -1727,7 +1772,6 @@
       "commissionsMonthMine": "Mes commissions du mois",
       "commissionsMonthAgency": "Commissions de l'agence du mois",
       "commissionsAgency": "Commissions de l'agence",
-      "commissionsDetail": "Détail par bail",
       "pipelineEmpty": "Aucun prospect par étape sur la période.",
       "pipelineOpen": "Ouvrir les étapes"
     },
@@ -1840,7 +1884,7 @@
       "downloading": "Téléchargement…",
       "download": "Télécharger",
       "scopeNotice": "Les exports respectent votre rôle (agence, bailleur ou agent).",
-      "rowCap": "Un fichier compte au plus {max} lignes, {pdf} en PDF.",
+      "rowCap": "{max} lignes au plus par export, {pdf} en PDF.",
       "truncated": "Le fichier s'arrête à {plafond} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
       "failed": "Le téléchargement a échoué. Réessayez.",
       "scopeNoticeFull": "Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de votre périmètre n'est incluse.",
@@ -1941,7 +1985,8 @@
       "maintenance": {
         "metaTitle": "Maintenance",
         "title": "Maintenance",
-        "subtitle": "Demandes et suivi d'interventions"
+        "subtitle": "Demandes et suivi d'interventions",
+        "subtitleDuBail": "Les interventions de ce bail"
       },
       "payments": {
         "title": "Paiements",
@@ -2133,7 +2178,13 @@
       "aide": "Vérifiez le lien, ou allez directement où vous vouliez aller.",
       "backHome": "Retour à l’accueil",
       "backToday": "Retour à Aujourd’hui",
-      "recent": "Récent"
+      "recent": "Récent",
+      "autreEspace": {
+        "titre": "{type, select, bien {Ce bien} client {Ce client} bail {Ce bail} intervention {Cette intervention} visite {Cette visite} reservation {Cette réservation} bailleur {Ce bailleur} other {Cet élément}} est dans l’espace {espace}",
+        "role": "Vous y êtes {role, select, agent {agent} owner {propriétaire} agency_admin {administrateur} service_provider {prestataire} other {membre}}.",
+        "actuel": "Vous travaillez en ce moment dans {espace}.",
+        "basculer": "Basculer vers {espace}"
+      }
     },
     "agencySetup": {
       "title": "Mise en service de l’agence",
@@ -2543,7 +2594,15 @@
         "aCorrigerBureau": "{n, plural, one {# valeur à corriger} other {# valeurs à corriger}} avant d’enregistrer"
       },
       "erreurLecture": "Les réglages n’ont pas pu être chargés.",
-      "erreurEcriture": "Le réglage n’a pas pu être enregistré."
+      "erreurEcriture": "Le réglage n’a pas pu être enregistré.",
+      "vide": "Votre agence n’a encore rien réglé : chaque nouveau bail reprend les valeurs de la plateforme. Changez une valeur pour qu’elle s’applique à tous vos prochains baux.",
+      "lectureSeule": "Vous pouvez consulter ces réglages, pas les modifier. Seule une personne qui administre l’agence peut les changer.",
+      "bail": {
+        "venu": "Vous venez du nouveau bail de <nom>{locataire}</nom>. Votre saisie est gardée en brouillon.",
+        "venuSansNom": "Vous venez d’un nouveau bail. Votre saisie est gardée en brouillon.",
+        "enregistre": "<fort>Réglages enregistrés.</fort> Vos prochains baux les reprennent.",
+        "reprendre": "Reprendre le bail"
+      }
     }
   },
   "compare": {
@@ -2920,7 +2979,9 @@
         "prochaine": "Prochaine action d’abord",
         "nom": "Par nom",
         "recents": "Les plus récents d’abord",
-        "pertinence": "Les plus pertinents d’abord"
+        "pertinence": "Les plus pertinents d’abord",
+        "etape": "Par étape",
+        "referent": "Par référent"
       },
       "trierPar": "Trier par {colonne}",
       "filtres": "Filtres",
@@ -2960,6 +3021,19 @@
         "designerAria": "Me désigner référent de {name}",
         "designe": "Vous êtes le référent de {name}",
         "erreur": "La désignation n’a pas abouti. Réessayez."
+      },
+      "cetteSemaine": "Relances prévues cette semaine",
+      "pied": {
+        "aRelancer": "{count, plural, one {# client à relancer} other {# clients à relancer}}",
+        "tous": "{count, plural, one {# client} other {# clients}}",
+        "voirPlus": "Voir plus",
+        "chargement": "Chargement…",
+        "erreur": "La suite n’a pas pu être chargée. Réessayez."
+      },
+      "referentFiltre": {
+        "libelle": "Référent :",
+        "choisi": "membre choisi",
+        "retirer": "Retirer le filtre du référent"
       }
     },
     "customerDetail": {
@@ -3076,7 +3150,9 @@
       "allStages": "Toutes les étapes",
       "allStatuses": "Tous les statuts",
       "stage": "Étape",
-      "activeStages": "Prospects actifs"
+      "activeStages": "Prospects actifs",
+      "aucuneEtiquette": "Aucune étiquette",
+      "creerEtiquetteDepuisLaFiche": "Ajoutez-en une depuis la fiche d’un client, avec « + Étiquette »."
     },
     "tags": {
       "sectionTitle": "Étiquettes",
@@ -3144,7 +3220,10 @@
       "plusTardDansModifier": "Profession, langue, pièce d’identité, chambres, étape, villes et budget minimum : dans « Modifier » de la fiche, quand vous aurez le temps.",
       "sondeEnPauseJusqua": "La vérification des doublons est en pause jusqu’à {heure} (heure de Dakar). Vous pouvez enregistrer la fiche.",
       "sondeEnPause": "La vérification des doublons est en pause pour le moment. Vous pouvez enregistrer la fiche.",
-      "sondeImpossible": "La vérification des doublons n’a pas pu se faire. Vous pouvez enregistrer la fiche."
+      "sondeImpossible": "La vérification des doublons n’a pas pu se faire. Vous pouvez enregistrer la fiche.",
+      "suiviPar": "suivi par {nom}",
+      "quartiersProches": "Quartiers proches",
+      "ajouterQuartierProche": "Ajouter {quartier}"
     },
     "fiche": {
       "referentCourt": "référent {nom}",
@@ -3268,6 +3347,13 @@
           "creeeSansTitre": "Tâche créée",
           "faite": "Tâche faite : {titre}",
           "faiteSansTitre": "Tâche faite"
+        },
+        "demandeSur": "Demande reçue sur {bien}",
+        "reservation": {
+          "created": "{nature, select, stay {Demande de séjour déposée} application {Candidature déposée} offer {Offre déposée} other {Réservation créée}}",
+          "confirmed": "{nature, select, stay {Séjour confirmé} application {Candidature acceptée} offer {Offre acceptée} other {Réservation confirmée}}",
+          "rejected": "{nature, select, stay {Demande de séjour refusée} application {Candidature refusée} offer {Offre refusée} other {Réservation refusée}}",
+          "counter_offer": "Contre-offre de {montant} envoyée"
         }
       },
       "dossier": {
@@ -3311,7 +3397,9 @@
         "sousTitre": "Fiche client"
       },
       "ecrire": "Écrire",
-      "ecrireA": "Écrire à {nom}"
+      "ecrireA": "Écrire à {nom}",
+      "nouvelleTache": "Nouvelle tâche",
+      "ecrireSansCompte": "{prenom} n’a pas encore de compte : invitez-le pour lui écrire ici."
     }
   },
   "agentCrm": {
@@ -3461,7 +3549,6 @@
       "feed": {
         "title": "S'abonner depuis un autre agenda",
         "intro": "Vos rendez-vous s’affichent dans l’agenda de votre téléphone, à jour sans rien faire.",
-        "onceOnly": "Copiez-le maintenant : il ne sera plus affiché. Qui a ce lien voit vos rendez-vous : ne le partagez pas.",
         "linkLabel": "Votre lien privé",
         "copy": "Copier",
         "copied": "Copié",
@@ -3477,7 +3564,8 @@
         "lastAccessLabel": "Dernier accès",
         "never": "Jamais",
         "contentLabel": "Contenu",
-        "content": "Vos rendez-vous de l’agenda"
+        "content": "Vos rendez-vous de l’agenda",
+        "secret": "Qui a ce lien voit vos rendez-vous : ne le partagez pas."
       }
     },
     "bulk": {
@@ -3644,27 +3732,34 @@
       "plusDActions": "Plus d’actions",
       "gesteNonConsigne": "Le contact n’a pas été noté sur la fiche du client.",
       "sourdineEchouee": "Les notifications n’ont pas pu être modifiées. Réessayez.",
-      "archivee": "Archivée"
+      "archivee": "Archivée",
+      "chargerPrecedents": "Charger les messages précédents",
+      "lu": "Lu",
+      "auteurEtRole": "{nom} · {role}",
+      "role": {
+        "tenant": "locataire",
+        "owner": "propriétaire",
+        "service_provider": "prestataire",
+        "agent": "agent",
+        "agency_admin": "administrateur de l’agence",
+        "customer": "client"
+      },
+      "marquerNonLue": "Marquer comme non lue",
+      "nonLueEchouee": "La conversation n’a pas été remise en non lue. Réessayez.",
+      "ajouterUnParticipant": "Ajouter un participant",
+      "signaler": "Signaler la conversation"
     },
     "group": {
       "create": {
         "title": "Nouveau groupe",
-        "step1Description": "Ajoutez 2 participants minimum (vous serez automatiquement inclus).",
-        "step2Description": "Donnez un sujet au groupe et associez-le optionnellement à un bien ou un bail.",
-        "participantsLabel": "Participants",
         "participantInputPlaceholder": "Rechercher par nom…",
         "participantsHint": "L’équipe de votre agence et les personnes avec qui vous avez déjà échangé.",
         "add": "Ajouter",
         "removeParticipant": "Retirer {name}",
         "minParticipants": "Minimum {min} participants au total (vous compris).",
         "maxParticipants": "Maximum {max} participants au total.",
-        "subjectLabel": "Sujet",
         "subjectRequired": "Le sujet est obligatoire.",
-        "propertyLabel": "Bien (optionnel)",
-        "leaseLabel": "Bail (optionnel)",
         "cancel": "Annuler",
-        "next": "Suivant",
-        "back": "Retour",
         "create": "Créer le groupe",
         "createFailed": "Impossible de créer le groupe.",
         "searching": "Recherche…",
@@ -3771,7 +3866,8 @@
       "ecrireAUnClient": "Écrire à un client",
       "videMetierAide": "Vos conversations naissent des interventions et des baux : elles apparaîtront ici.",
       "seRemplira": "La liste se remplira au premier message.",
-      "ouVoirLesDemandes": "ou <lien>voir les demandes de contact</lien>"
+      "ouVoirLesDemandes": "ou <lien>voir les demandes de contact</lien>",
+      "chargementPlusAnciennes": "Chargement des conversations plus anciennes…"
     },
     "propertyDraft": {
       "message": "Bonjour, je suis intéressé(e) par « {title} » (réf. {reference}). Est-il toujours disponible ?",
@@ -3788,8 +3884,9 @@
       "microphoneDenied": "Le micro n'est pas accessible. Autorisez-le dans votre navigateur.",
       "sendFailed": "La note vocale n'a pas été envoyée. Réessayez.",
       "label": "Note vocale",
-      "duration": "{seconds} s",
-      "borne": "Note vocale · {max} secondes au plus"
+      "borne": "Note vocale · {max} secondes au plus",
+      "lire": "Lire",
+      "pause": "Pause"
     },
     "maintenanceEvents": {
       "assigned": "Intervention confiée à {provider}.",
@@ -3878,7 +3975,12 @@
         },
         "roleEtAgence": "{role} · {agence}",
         "biensGeres": "{count, plural, =0 {Aucun bien géré} one {# bien géré} other {# biens gérés}}"
-      }
+      },
+      "aPrefixe": "À :",
+      "ajouter": "Ajouter…",
+      "ecrire": "Écrire",
+      "aideAutomatique": "Activé d’office à partir de deux destinataires.",
+      "pied": "Vous pouvez écrire aux clients, aux propriétaires et aux collègues de {agence}."
     },
     "contexte": {
       "titre": "Contexte de la conversation",
@@ -3894,13 +3996,60 @@
       "voirLaFiche": "Voir la fiche du client",
       "ficheDuClient": "Fiche du client",
       "nomEtEtape": "{nom} · étape {etape}",
-      "planifier": "Planifier une visite"
+      "planifier": "Planifier une visite",
+      "projet": "Projet",
+      "derniereVisite": "Dernière visite",
+      "aucuneVisite": "Aucune encore",
+      "premierContact": "Premier contact",
+      "dateEtOrigine": "{date}, {origine}",
+      "origine": {
+        "form": "par l’annonce",
+        "whatsapp": "par WhatsApp",
+        "call": "par téléphone"
+      },
+      "contrat": {
+        "sale": "Achat",
+        "rent": "Location"
+      },
+      "jusqua": "jusqu’à {montant}",
+      "aPartirDe": "à partir de {montant}",
+      "entre": "{min} à {max}",
+      "demandeDu": "Demande de contact du {date}",
+      "demandeLiee": "Demande de contact liée",
+      "surLAnnonce": "Par l’annonce « {titre} »"
     },
     "bureau": {
       "sousTitre": "{nonLues, plural, =0 {Tout est lu} one {# non lue} other {# non lues}} · {total, plural, one {# conversation} other {# conversations}}",
       "aucune": "Aucune conversation"
     },
-    "titreTelephone": "Messages"
+    "titreTelephone": "Messages",
+    "signaler": {
+      "titre": "Signaler la conversation",
+      "description": "L’équipe Takussan lira votre signalement. Les autres participants n’en sont pas avertis.",
+      "motif": "Motif",
+      "motifs": {
+        "spam": "Messages indésirables",
+        "harassment": "Harcèlement",
+        "fraud": "Fraude ou arnaque",
+        "inappropriate": "Contenu inapproprié",
+        "other": "Autre"
+      },
+      "commentaire": "Précisez (facultatif)",
+      "envoyer": "Signaler",
+      "choisirUnMotif": "Choisissez un motif.",
+      "fait": "Conversation signalée",
+      "faitDetail": "Merci. L’équipe Takussan va l’examiner.",
+      "deja": "Vous avez déjà signalé cette conversation.",
+      "echec": "Le signalement n’a pas été envoyé. Réessayez."
+    },
+    "elargir": {
+      "titre": "Ajouter un participant",
+      "explication": "Un nouveau groupe sera créé avec {nom}, vous et les personnes ajoutées. L’historique de cette conversation reste entre vous deux.",
+      "personnes": "Personnes à ajouter",
+      "creer": "Créer le groupe",
+      "choisirUnePersonne": "Choisissez au moins une personne.",
+      "echec": "Le groupe n’a pas été créé. Réessayez."
+    }
   },
   "payments": {
     "gateway": {
@@ -4197,7 +4346,10 @@
       "approveDestination": "Destination du paiement",
       "approveKeepDestination": "Garder la destination prévue ({masked})",
       "approveNoDestination": "Sans destination (espèces ou chèque)",
-      "approveDestinationOption": "{kind} · {masked} (vérifiée)"
+      "approveDestinationOption": "{kind} · {masked} (vérifiée)",
+      "avis": "Avis de versement (PDF)",
+      "echecAvis": "L’avis de versement n’a pas pu être téléchargé. Réessayez.",
+      "nomDeLAvis": "avis-de-versement-{reference}.pdf"
     },
     "customer": {
       "nextTitle": "Prochain paiement",
@@ -4271,7 +4423,8 @@
         "validated": "Validée",
         "rejected": "Rejetée",
         "paid": "Payée",
-        "cancelled": "Annulée"
+        "cancelled": "Annulée",
+        "draft": "À facturer"
       }
     },
     "retour": {
@@ -4411,6 +4564,27 @@
           "paye": "Payé",
           "montant": "Montant",
           "justificatif": "Justificatif"
+        },
+        "archive": {
+          "toutTelecharger": "Tout télécharger",
+          "toutTelechargerZip": "Tout télécharger (.zip)",
+          "aria": "Télécharger toutes vos quittances en une archive (.zip)",
+          "enCours": "Préparation de l’archive…",
+          "enPreparation": "Préparation en cours…",
+          "telechargerLArchive": "Télécharger l’archive",
+          "reessayer": "Réessayer",
+          "nomDuFichier": "quittances.zip",
+          "notes": {
+            "preparation": "Vos quittances sont nombreuses : l’archive se prépare. Nous vous préviendrons dès qu’elle sera prête, vous pouvez quitter cette page.",
+            "prete": "L’archive de vos quittances est prête. Elle reste disponible 24 heures.",
+            "echec": "L’archive de vos quittances n’a pas pu être préparée. Réessayez."
+          },
+          "errors": {
+            "vide": "Aucune quittance à réunir pour l’instant.",
+            "interdit": "Vous n’avez pas accès à ces quittances.",
+            "echec": "L’archive n’a pas pu être téléchargée. Réessayez.",
+            "demande": "La préparation de l’archive n’a pas pu être demandée. Réessayez."
+          }
         }
       },
       "agence": {
@@ -4472,7 +4646,8 @@
         "revenus": "Revenus",
         "versements": "Versements",
         "factures": "Factures",
-        "operations": "Opérations"
+        "operations": "Opérations",
+        "compteAria": "{libelle} ({n})"
       },
       "selecteur": {
         "choisir": "Période : {periode}. Choisir une autre période",
@@ -4486,7 +4661,17 @@
         "reste": "Reste à vous verser",
         "prochain": "Prochain versement prévu le <b>{date}</b> par {moyen}",
         "prochainSansMoyen": "Prochain versement prévu le <b>{date}</b>",
-        "enPreparation": "Un versement est en préparation."
+        "enPreparation": "Un versement est en préparation.",
+        "moyensCourts": {
+          "bank_transfer": "virement",
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "free_money": "Free Money",
+          "mobile_money": "Mobile Money",
+          "cash": "espèces",
+          "check": "chèque",
+          "card": "carte"
+        }
       },
       "ventilation": {
         "titre": "Ce qui vous revient en {mois}",
@@ -4539,7 +4724,8 @@
           "vacant": "Vacant",
           "refunded": "Reçu puis remboursé"
         },
-        "voirLesBaux": "Voir les baux"
+        "voirLesBaux": "Voir les baux",
+        "bail": "Bail {reference}"
       },
       "operations": {
         "toutes": "Toutes les opérations",
@@ -4550,13 +4736,35 @@
         "tous": "Tous les versements",
         "versementDe": "Versement de {mois}",
         "versement": "Versement",
-        "vide": "Aucun versement pour l'instant."
+        "vide": "Aucun versement pour l'instant.",
+        "avis": "Avis",
+        "avisAria": "Télécharger l’avis du versement du {date}",
+        "echecAvis": "L’avis de versement n’a pas pu être téléchargé. Réessayez.",
+        "nature": {
+          "advance": "Acompte {voyelle, select, oui {d’} other {de }}{mois}",
+          "balance": "Solde {voyelle, select, oui {d’} other {de }}{mois}",
+          "advanceSansMois": "Acompte",
+          "balanceSansMois": "Solde",
+          "deposit_refund": "Restitution de caution",
+          "refund": "Remboursement",
+          "provider_bill": "Facture de prestataire"
+        }
       },
       "filtres": {
         "bien": "Bien",
         "tousLesBiens": "Tous les biens",
         "locataire": "Locataire",
         "tousLesLocataires": "Tous les locataires"
+      },
+      "regle": "Le versement part le {jour, plural, =1 {1er} other {#}} de chaque mois pour ce qui est encaissé. Un loyer reçu après cette date rejoint le versement suivant.",
+      "relances": {
+        "telephone": "{bien} : relancé par {agence} le {date}",
+        "bureau": "{bien} : relancé par {agence} {liste}.",
+        "une": "le {date} ({canal})",
+        "canal": "{canal, select, whatsapp {WhatsApp} call {appel} other {relance}}",
+        "canalNomme": "{canal, select, whatsapp {WhatsApp} call {appel} other {relance}} {voyelle, select, oui {d’} other {de }}{nom}",
+        "suite": "Son loyer s’ajoutera à votre versement dès qu’il sera encaissé.",
+        "liste": "{debut} et {fin}"
       }
     }
   },
@@ -4838,7 +5046,8 @@
         "detail": "Échéance, pénalité de retard et indemnité de départ",
         "detailAvecCommission": "Échéance, pénalité de retard, commission et indemnité de départ",
         "modifier": "Modifier",
-        "nouvelOnglet": "les réglages de l’agence (s’ouvre dans un nouvel onglet)"
+        "cible": "les réglages de l’agence",
+        "brouillonEchec": "Votre saisie n’a pas pu être gardée en brouillon : restez sur ce bail et réessayez dans un instant."
       },
       "echeance": "Échéance",
       "echeanceAide": "Jour du mois, de 1 à 28",
@@ -4881,7 +5090,8 @@
         "echeance": "Échéance",
         "penalite": "Pénalité",
         "commission": "Commission",
-        "indemnite": "Indemnité de départ"
+        "indemnite": "Indemnité de départ",
+        "preavis": "Préavis"
       },
       "valeurs": {
         "penalite": "{taux} % après {jours} j",
@@ -4934,6 +5144,22 @@
         "loyerAnnonceMensuel": "loyer annoncé {montant} / mois",
         "loyerAnnoncePeriode": "loyer annoncé {montant} {periode}",
         "prixAnnonce": "prix annoncé {montant}"
+      },
+      "preavis": {
+        "titre": "Préavis",
+        "equivalent": "{mois, plural, one {# mois} other {# mois}}",
+        "jours": "{jours, plural, one {# jour} other {# jours}}"
+      },
+      "brouillon": {
+        "libelle": "Brouillon",
+        "enregistreA": "brouillon enregistré à {heure}"
+      },
+      "apercu": {
+        "titre": "Aperçu du contrat",
+        "cadre": "Aperçu du contrat de bail",
+        "ouvrir": "Voir le contrat en entier",
+        "incomplet": "L’aperçu s’affiche dès que le bien, le locataire, le début et le loyer sont renseignés.",
+        "indisponible": "Aperçu indisponible pour l’instant. Vérifiez les conditions saisies."
       }
     },
     "payment": {
@@ -5054,10 +5280,14 @@
       },
       "duree": {
         "titre": "Durée",
-        "titreIndemnite": "Durée · indemnité de départ : {mois} mois",
         "periode": "{debut} → {fin}",
         "sansFin": "Depuis le {debut}, sans terme",
-        "avancement": "{n, selectordinal, one {#ᵉʳ} other {#ᵉ}} mois sur {total}"
+        "avancement": "{n, selectordinal, one {#ᵉʳ} other {#ᵉ}} mois sur {total}",
+        "preavisMois": "préavis {n} mois",
+        "preavisJours": "préavis {n, plural, one {# jour} other {# jours}}",
+        "indemnite": "indemnité de départ : {mois} mois",
+        "revisionLe": "révision possible le {date}",
+        "revisionDepuis": "révision possible depuis le {date}"
       },
       "caution": {
         "titre": "Caution",
@@ -5126,7 +5356,8 @@
         "resilier": "Résilier le bail",
         "abandonner": "Abandonner le brouillon",
         "abandonEmpeche": "Ce brouillon porte une échéance saisie, comme une caution : il ne s'abandonne pas. Annulez ou remboursez-la d'abord.",
-        "abandonEmpecheEtatDesLieux": "Un état des lieux engagé — envoyé en signature, signé ou contesté — est établi sur ce brouillon : il ne s'abandonne pas, l'état des lieux ne disparaît pas avec lui."
+        "abandonEmpecheEtatDesLieux": "Un état des lieux engagé — envoyé en signature, signé ou contesté — est établi sur ce brouillon : il ne s'abandonne pas, l'état des lieux ne disparaît pas avec lui.",
+        "encaisserMontant": "Encaisser {montant}"
       },
       "dossier": {
         "titre": "Le dossier",
@@ -5143,14 +5374,19 @@
         "conditions": "Conditions et clauses",
         "documents": "Documents",
         "documentsDetail": "Contrat, états des lieux, pièces déposées",
-        "garants": "Garant ({n})"
+        "garants": "Garant ({n})",
+        "interventions": "Interventions ({n})",
+        "interventionsEnCours": "{n} en cours",
+        "interventionsAucuneEnCours": "Aucune en cours"
       },
       "onglets": {
         "libelle": "Vues du bail",
         "dossier": "Dossier",
         "documents": "Documents",
         "historique": "Historique",
-        "retour": "Retour au dossier"
+        "retour": "Retour au dossier",
+        "documentsCompte": "Documents ({n})",
+        "historiqueCompte": "Historique ({n})"
       },
       "documents": {
         "vide": "Aucun document pour ce bail.",
@@ -5728,6 +5964,26 @@
         "bienRecherche": "Chercher un bien…",
         "effacer": "Effacer",
         "appliquer": "Voir les interventions"
+      },
+      "kanban": {
+        "glissez": "Glissez une carte vers « En cours » pour choisir un prestataire",
+        "deposez": "Déposez une carte ici",
+        "saisir": "Déplacer « {titre} »",
+        "instructions": "Pour déplacer une demande, appuyez sur Espace ou Entrée, changez de colonne avec les flèches, puis appuyez sur Espace ou Entrée pour la reposer, ou sur Échap pour annuler. Seule « En cours » s’atteint ainsi, depuis « À dispatcher » ou « En retard » : le choix du prestataire s’ouvre.",
+        "refus": "« {titre} » ne va pas dans « {file} » en glissant : seule « En cours » s’atteint ainsi, en choisissant un prestataire. Ouvrez la fiche pour les autres gestes.",
+        "annonces": {
+          "saisie": "« {titre} » est saisie.",
+          "survol": "« {titre} » est au-dessus de « {file} ».",
+          "horsDesFiles": "« {titre} » n’est au-dessus d’aucune colonne.",
+          "lachee": "« {titre} » est lâchée sur « {file} ».",
+          "annulee": "Déplacement de « {titre} » annulé : elle reste à sa place."
+        },
+        "confier": {
+          "titre": "Confier « {titre} »",
+          "erreur": "La demande n’a pas pu être chargée.",
+          "interdit": "Vous ne pouvez pas confier cette demande à un prestataire.",
+          "voirLaFiche": "Voir la demande"
+        }
       }
     },
     "locataire": {
@@ -5771,7 +6027,9 @@
         "deuxMotsExemple": "Fuite sous l’évier…",
         "envoyer": "Envoyer à l’agence",
         "envoi": "Envoi…",
-        "erreur": "La demande n’a pas pu être envoyée. Réessayez."
+        "erreur": "La demande n’a pas pu être envoyée. Réessayez.",
+        "aideVocal": "Écrivez, ou gardez le micro appuyé pour un message vocal.",
+        "aideTexte": "Écrivez ce qui ne va pas, en quelques mots."
       },
       "envoyee": {
         "metaTitle": "Demande envoyée",
@@ -5794,7 +6052,9 @@
         },
         "voir": "Voir ma demande",
         "appeler": "Appeler l’agence",
-        "erreur": "La demande n’a pas pu être chargée."
+        "erreur": "La demande n’a pas pu être chargée.",
+        "delai": "L’agence répond d’ordinaire {tranche, select, heure {dans l’heure} journee {dans la journée} other {{n, plural, one {sous # jour} other {sous # jours}}}}.",
+        "resumeAvecVocal": "{categorie} · {urgence} · {photos, plural, =0 {1 message vocal} one {# photo, 1 message vocal} other {# photos, 1 message vocal}}"
       },
       "demandes": {
         "titre": "Interventions",
@@ -5827,6 +6087,24 @@
           "termineeLe": "{categorie} · terminée le {date}",
           "close": "{categorie} · close",
           "annulee": "{categorie} · annulée"
+        },
+        "noteDuBail": "Les réparations de votre logement sont prises en charge selon votre bail : aucun montant ne vous est demandé ici.",
+        "gestes": {
+          "ecrire": "Écrire à l’agence",
+          "changer": "Changer le créneau",
+          "enAttente": "Vous avez proposé {n, plural, one {un autre créneau} other {# autres créneaux}} le {date} : votre demande attend la réponse de l’agence.",
+          "creneau": {
+            "titre": "Proposer un autre créneau",
+            "texte": "Proposez jusqu’à trois créneaux. Le passage prévu ne change pas tant que l’agence n’a pas répondu.",
+            "creneauN": "Créneau {n}",
+            "ajouter": "Ajouter un créneau",
+            "passe": "Un créneau proposé est déjà passé : choisissez une date à venir.",
+            "note": "Un mot pour l’agence (facultatif)",
+            "exemple": "Par exemple : je travaille le matin",
+            "attente": "Votre demande attendra la réponse de l’agence.",
+            "envoyer": "Envoyer la demande",
+            "echec": "La demande n’a pas pu être envoyée. Réessayez."
+          }
         }
       }
     },
@@ -5850,7 +6128,9 @@
         "approuver": "Approuver {montant}",
         "refuser": "Refuser",
         "motif": "Un refus demande un motif ; un nouveau devis pourra vous être soumis.",
-        "echec": "Le devis n’a pas pu être approuvé."
+        "echec": "Le devis n’a pas pu être approuvé.",
+        "concurrents": "{agence} a consulté {n, plural, one {un autre artisan} =2 {deux autres artisans} =3 {trois autres artisans} other {# autres artisans}} ({montants}) et recommande ce devis.",
+        "concurrentsSansAgence": "L’agence a consulté {n, plural, one {un autre artisan} =2 {deux autres artisans} =3 {trois autres artisans} other {# autres artisans}} ({montants}) et recommande ce devis."
       },
       "enCours": {
         "titre": "En cours sur vos biens",
@@ -5858,11 +6138,24 @@
         "passage": "{jour, select, aujourdhui {Aujourd’hui à {heure}} demain {Demain à {heure}} hier {Hier à {heure}} other {Le {date} à {heure}}}",
         "approuve": "Devis approuvé le {date}",
         "sousLeSeuil": "Sous le seuil : sans accord"
+      },
+      "bilan": {
+        "titre": "Depuis {mois}",
+        "parBien": "Par bien",
+        "historiqueParBien": "Historique par bien",
+        "interventions": "Interventions",
+        "dontCloses": "{n, plural, =0 {aucune close} one {dont # close} other {dont # closes}}",
+        "aVotreCharge": "À votre charge",
+        "deduit": "déduit de vos revenus",
+        "detailTitre": "Interventions par bien depuis {mois}",
+        "compteDuBien": "{total, plural, one {# intervention} other {# interventions}} · {closes, plural, =0 {aucune close} one {# close} other {# closes}}",
+        "bienSansTitre": "Bien sans titre",
+        "erreur": "Le bilan de vos interventions n’a pas pu être chargé."
       }
     },
     "prestataire": {
       "titre": "Mes interventions",
-      "sousTitre": "Semaine du {debut} au {fin} — {aAccepter, plural, =0 {rien à accepter} one {# à accepter} other {# à accepter}}, {prevues, plural, =0 {aucune prévue} one {# prévue} other {# prévues}}",
+      "sousTitre": "Semaine du {debut} au {fin} — {aAccepter, plural, =0 {rien à accepter} one {# à accepter} other {# à accepter}}, {prevues, plural, =0 {aucune prévue} one {# prévue} other {# prévues}}, {aFacturer, plural, =0 {rien à facturer} one {# à facturer} other {# à facturer}}",
       "erreur": "Vos interventions n’ont pas pu être chargées.",
       "aAccepter": {
         "titre": "À accepter · {n}",
@@ -5885,7 +6178,8 @@
         "rienDePrevu": "{jours} : rien de prévu",
         "vide": "Rien de prévu d’ici la fin de la semaine",
         "itineraire": "Itinéraire",
-        "kit": "Kit d’accès"
+        "kit": "Kit d’accès",
+        "calendrier": "Calendrier"
       },
       "factures": {
         "titre": "Mes factures",
@@ -5894,10 +6188,41 @@
         "validee": "Validée le {date}",
         "aPercevoir": "À percevoir",
         "vide": "Aucune facture pour l’instant",
-        "videTexte": "Une intervention terminée avec son coût fait naître sa facture.",
+        "videTexte": "Une intervention terminée passe d’abord par « À facturer » ; une fois envoyée, sa facture s’affiche ici.",
         "registre": "Toutes mes factures",
         "erreur": "Vos factures n’ont pas pu être chargées.",
         "aPercevoirCompte": "{n, plural, one {# facture} other {# factures}}"
+      },
+      "aFacturer": {
+        "titre": "À facturer · {n}",
+        "facturer": "Facturer",
+        "facturerObjet": "Facturer « {objet} »",
+        "terminee": "{jour, select, aujourdhui {terminée aujourd’hui} hier {terminée hier} other {terminée le {date}}}",
+        "saisie": {
+          "titre": "Facturer « {objet} »",
+          "montant": "Montant final ({devise})",
+          "montantAide": "Prérempli du devis approuvé ou du coût inscrit. Corrigez-le si le travail a coûté autre chose.",
+          "reference": "Votre numéro de facture (facultatif)",
+          "piece": "Votre facture, PDF ou photo (facultatif)",
+          "envoyer": "Envoyer la facture",
+          "envoi": "Envoi…",
+          "echec": "La facture n’a pas pu être envoyée."
+        }
+      },
+      "releve": {
+        "bouton": "Relevé de mes factures",
+        "titre": "Relevé de mes factures",
+        "aide": "Choisissez la période : le relevé liste vos factures envoyées, leur statut et ce qui vous a été payé.",
+        "periode": "Période du relevé",
+        "moisEnCours": "{mois} (mois en cours)",
+        "annee": "Depuis janvier {annee}",
+        "telecharger": "Télécharger le relevé",
+        "enCours": "Téléchargement…",
+        "echec": {
+          "interdit": "Vous n’avez pas accès à ce relevé.",
+          "indisponible": "Ce relevé n’est pas disponible pour cette période.",
+          "echec": "Le relevé n’a pas pu être téléchargé. Réessayez."
+        }
       }
     },
     "fiche": {
@@ -5940,7 +6265,8 @@
         "couvre": "couvre {zone}",
         "choisir": "Choisir",
         "choisie": "Choisi",
-        "titreTelephone": "Prestataire suggéré"
+        "titreTelephone": "Prestataire suggéré",
+        "creneauxDepasses": "{count, plural, one {# créneau dépassé} other {# créneaux dépassés}}"
       },
       "geste": {
         "retard": {
@@ -6016,11 +6342,7 @@
         },
         "annuler": {
           "titre": "Annuler la demande",
-          "texte": "La demande est close sans intervention",
-          "confirmerTitre": "Annuler la demande ?",
-          "confirmerTexte": "« {titre} » sera annulée et quittera les files. Ce geste ne s’annule pas.",
-          "garder": "Garder la demande",
-          "confirmer": "Annuler la demande"
+          "texte": "Le locataire est prévenu, avec votre motif"
         }
       },
       "frise": {
@@ -6032,7 +6354,13 @@
         "a_confirmer": "À confirmer",
         "terminee": "Terminée",
         "sansObjet": "sans objet : aucun devis"
-      }
+      },
+      "joindre": {
+        "appeler": "Appeler {nom}",
+        "whatsapp": "Écrire à {nom} sur WhatsApp",
+        "message": "Bonjour {nom}, ici votre agence, au sujet de votre demande « {titre} »."
+      },
+      "motifDAnnulation": "Motif de l’annulation"
     },
     "relanceDuBailleur": {
       "relancer": "Relancer le bailleur",
@@ -6070,7 +6398,19 @@
         "owner_unavailable": "Relance impossible : bailleur parti, suspendu ou injoignable",
         "journal_before": "Avant le journal",
         "autre": "Étape"
-      }
+      },
+      "signaleePar": "Signalée par {nom}",
+      "pieces": "{photos, plural, =0 {{vocal, select, oui {un message vocal} other {}}} one {# photo{vocal, select, oui {, un message vocal} other {}}} other {# photos{vocal, select, oui {, un message vocal} other {}}}}"
+    },
+    "annulation": {
+      "titre": "Annuler la demande ?",
+      "texte": "« {titre} » sera annulée et quittera les files. Le locataire est prévenu, avec votre motif. Ce geste ne s’annule pas.",
+      "motif": "Motif de l’annulation",
+      "exemple": "Par exemple : le bailleur fait intervenir son artisan",
+      "aide": "Le locataire, le bailleur et le prestataire le liront.",
+      "garder": "Garder la demande",
+      "confirmer": "Annuler la demande",
+      "motifLu": "Motif : {motif}"
     }
   },
   "homepage": {
@@ -6899,7 +7239,6 @@
         "telephone": "{bailleurs, plural, one {# bailleur} other {# bailleurs}} · {biens, plural, =0 {aucun bien} one {# bien} other {# biens}}{argent, select, oui { · {montant} à verser} other {}}",
         "bureau": "{bailleurs, plural, one {# bailleur} other {# bailleurs}} · {biens, plural, =0 {aucun bien} one {# bien} other {# biens}}{argent, select, oui { · {montant} à verser à ce jour} other {}}"
       },
-      "triReste": "Tri : reste à verser",
       "mentionSensible": "RIB, NINEA et numéro de pièce se lisent sur la fiche du bailleur, masqués ; « Afficher » inscrit la consultation au journal.",
       "occupation": "{biens, plural, =0 {Aucun bien} one {# bien · {occupes, plural, =0 {vacant} other {occupé}}} other {# biens · {tous, select, oui {tous occupés} other {{occupes, plural, =0 {aucun occupé} one {# occupé} other {# occupés}}}}}}",
       "occupes": "{n, plural, =0 {aucun occupé} one {# occupé} other {# occupés}}",
@@ -6924,7 +7263,20 @@
         "appelerAria": "Appeler {nom}",
         "whatsappAria": "Écrire à {nom} sur WhatsApp",
         "message": "Bonjour {prenom},"
-      }
+      },
+      "filtres": {
+        "bouton": "Filtres et tri",
+        "titre": "Filtres et tri",
+        "tri": "Trier par",
+        "vues": "Afficher",
+        "fermer": "Voir les bailleurs"
+      },
+      "tris": {
+        "nom": "Nom",
+        "reste": "Reste à verser",
+        "versement": "Dernier versement"
+      },
+      "triCourant": "Tri : {tri, select, nom {nom} reste {reste à verser} other {dernier versement}}"
     },
     "fiche": {
       "depuis": "Bailleur depuis {date}",
@@ -6954,7 +7306,19 @@
         "commissionAgence": "Commission d’agence",
         "tauxDetail": "{taux} % des loyers",
         "leDate": "le {date}",
-        "duMois": "En {mois}"
+        "duMois": "En {mois}",
+        "encaissements": "{n, plural, one {# encaissement} other {# encaissements}}",
+        "leDateParMoyen": "le {date}, par {moyen}",
+        "moyens": {
+          "bank_transfer": "virement",
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "free_money": "Free Money",
+          "mobile_money": "Mobile Money",
+          "cash": "espèces",
+          "check": "chèque",
+          "card": "carte"
+        }
       },
       "reglages": {
         "titre": "Réglages du mandat",
@@ -6968,8 +7332,25 @@
         "tauxDesBaux": "Taux propres à certains baux : {taux}",
         "enregistrer": "Enregistrer",
         "annuler": "Annuler",
-        "enregistre": "Plafond enregistré",
-        "echec": "Le plafond n’a pas été enregistré"
+        "enregistre": "Réglages du mandat enregistrés",
+        "echec": "Les réglages du mandat n’ont pas été enregistrés",
+        "versement": "Versement",
+        "versementMoyenEtJour": "{moyen}, avant le {jour} du mois",
+        "versementJour": "Avant le {jour} du mois",
+        "mandat": "Mandat",
+        "datesDuMandat": "{debut} → {fin}",
+        "depuisLe": "Depuis le {date}",
+        "jusquAu": "Jusqu’au {date}",
+        "datesARenseigner": "Dates du mandat à renseigner",
+        "jourInvalide": "Choisissez un jour entre 1 et 28.",
+        "moyen": "Moyen de versement",
+        "jour": "Versé avant le (jour du mois)",
+        "jourExemple": "Par exemple : 10",
+        "debut": "Début du mandat",
+        "fin": "Fin du mandat",
+        "referent": "Suivi par",
+        "aucunReferent": "Aucun référent",
+        "nonPrecise": "Non précisé"
       },
       "biens": {
         "titre": "Ses biens ({n})",
@@ -6987,7 +7368,20 @@
         "historique": "Tout l’historique",
         "chargement": "Chargement…",
         "aucun": "Aucun reversement pour l’instant.",
-        "periode": "Reversement de {mois}"
+        "periode": "Reversement de {mois}",
+        "nature": {
+          "advance": "Acompte {voyelle, select, oui {d’} other {de }}{mois}",
+          "balance": "Solde {voyelle, select, oui {d’} other {de }}{mois}",
+          "advanceSansMois": "Acompte",
+          "balanceSansMois": "Solde",
+          "deposit_refund": "Restitution de caution",
+          "refund": "Remboursement",
+          "provider_bill": "Facture de prestataire"
+        },
+        "recu": "Reçu",
+        "recuAria": "Reçu du reversement du {date}",
+        "titreDuRecu": "Avis de versement du {date}",
+        "echecDuRecu": "Le reçu n’a pas pu être préparé"
       },
       "pieces": {
         "titre": "Documents et identifiants",
@@ -7000,7 +7394,9 @@
         "mention": "« Afficher » révèle la valeur et inscrit la consultation au journal de l’agence.",
         "erreurAffichage": "Les identifiants n’ont pas pu être affichés",
         "afficherAria": "Afficher en clair : {quoi}",
-        "masquerAria": "Masquer : {quoi}"
+        "masquerAria": "Masquer : {quoi}",
+        "ajouter": "Ajouter",
+        "mandat": "Mandat de gestion signé"
       },
       "acces": {
         "titre": "Accès et départ",
@@ -7040,6 +7436,22 @@
         "partiLe": "Parti le {date}",
         "parti": "A quitté l’agence",
         "partiEffet": "Il n’a plus accès à votre agence. Ses relevés et son historique restent consultables."
+      },
+      "menu": {
+        "modifierLeMandat": "Modifier le mandat",
+        "accesEtDepart": "Accès et départ"
+      },
+      "suiviPar": "suivi par {nom}",
+      "suiviParAncien": "suivi par {nom} (plus dans l’agence)",
+      "moyens": {
+        "bank_transfer": "Virement",
+        "wave": "Wave",
+        "orange_money": "Orange Money",
+        "free_money": "Free Money",
+        "mobile_money": "Mobile Money",
+        "cash": "Espèces",
+        "check": "Chèque",
+        "card": "Carte"
       }
     }
   },
@@ -7535,7 +7947,11 @@
         "placeholder": "Nom, téléphone, quartier",
         "label": "Rechercher un prestataire"
       },
-      "inviteLeDejaInscrit": "Invité le {date}"
+      "inviteLeDejaInscrit": "Invité le {date}",
+      "creneauxDepasses": "{count, plural, one {# créneau dépassé} other {# créneaux dépassés}}",
+      "menu": {
+        "ouvrir": "Plus d’actions pour {nom}"
+      }
     }
   },
   "onboarding": {
@@ -7800,7 +8216,53 @@
           "appeler": "Appeler",
           "whatsapp": "WhatsApp",
           "voirLaFiche": "Voir la fiche",
-          "erreur": "Votre premier prospect n’a pas pu être chargé. Vous le retrouverez dans votre espace."
+          "erreur": "Votre premier prospect n’a pas pu être chargé. Vous le retrouverez dans votre espace.",
+          "besoin": {
+            "cherche": "Cherche {quoi}",
+            "chercheA": "Cherche {quoi} à {lieu}",
+            "unBien": "un bien",
+            "chambres": "{compte, plural, one {# chambre min.} other {# chambres min.}}",
+            "nature": {
+              "rent": "en location",
+              "sale": "à l’achat"
+            }
+          },
+          "budget": {
+            "libelle": "Budget",
+            "entre": "{min} – {max}",
+            "jusqua": "jusqu’à {montant}",
+            "des": "dès {montant}",
+            "parMois": "{montant}/mois"
+          },
+          "dernierContact": "Dernier contact",
+          "dernierContactLe": "{jour}, {heure}",
+          "origine": {
+            "libelle": "Venu par",
+            "annonce": "Annonce {reference}",
+            "demande": "Une demande de contact"
+          },
+          "note": {
+            "signee": "« {note} » — {auteur}",
+            "seule": "« {note} »"
+          },
+          "types": {
+            "apartment": "appartement",
+            "house": "maison",
+            "villa": "villa",
+            "land": "terrain",
+            "shop": "commerce",
+            "office": "bureau",
+            "studio": "studio",
+            "room": "chambre",
+            "warehouse": "entrepôt",
+            "hotel": "hôtel",
+            "resort": "complexe",
+            "garage": "garage",
+            "parking": "parking",
+            "farm": "ferme",
+            "factory": "usine",
+            "other": "autre bien"
+          }
         },
         "sansProspect": {
           "titre": "Pas encore de prospect pour vous",
@@ -7825,7 +8287,8 @@
         "droits": {
           "titre": "Ce que vous pouvez faire dans l’agence",
           "compte": "{compte, plural, one {# droit donné par l’agence} other {# droits donnés par l’agence}}",
-          "pied": "Droits donnés par l’agence. Pour en changer, écrivez à son administrateur."
+          "pied": "Droits donnés par l’agence. Pour en changer, écrivez à son administrateur.",
+          "refuses": "Pas dans votre rôle"
         },
         "rappel": "<fort>{compte, plural, one {Il vous reste # pièce à ajouter} other {Il vous reste # pièces à ajouter}}</fort> : {liste}. Depuis votre espace, sous « À faire » ; rien ne vous bloque d’ici là.",
         "rappelBureau": "À ajouter ensuite, dans « Démarrer » : {liste}.",
@@ -7856,7 +8319,22 @@
           "devis": "Devis : {montant}",
           "demandeDe": "Demande de {agence}",
           "sansTitre": "Intervention",
-          "adresseApres": "L’adresse et le contact du locataire s’ouvrent quand vous acceptez."
+          "adresseApres": "L’adresse et le contact du locataire s’ouvrent quand vous acceptez.",
+          "echeance": {
+            "sous": "À traiter sous {heures} h",
+            "avant": "À traiter avant le {date}",
+            "depassee": "Délai de réponse dépassé"
+          },
+          "signalee": {
+            "tenant": "Signalée par le locataire le {date}",
+            "landlord": "Signalée par le bailleur le {date}",
+            "agency": "Signalée par l’agence le {date}",
+            "inconnu": "Signalée le {date}"
+          },
+          "reference": "réf. {reference}",
+          "citation": "« {texte} »",
+          "voirLeDetail": "Voir le détail",
+          "detailApres": "Détail après acceptation"
         },
         "accepter": "Accepter",
         "proposer": "Proposer un créneau",
@@ -7910,6 +8388,37 @@
             "fait": "Envoyée"
           },
           "fait": "Fait"
+        },
+        "reglages": {
+          "tarifs": "Tarifs",
+          "enFcfa": "en F CFA",
+          "devise": "F CFA",
+          "horaire": "Tarif horaire",
+          "visite": "Frais de visite",
+          "disponibilites": "Disponibilités",
+          "grille": "Vos créneaux de la semaine",
+          "moments": {
+            "morning": "Matin",
+            "afternoon": "Après-midi"
+          },
+          "jours": {
+            "monday": "Lun.",
+            "tuesday": "Mar.",
+            "wednesday": "Mer.",
+            "thursday": "Jeu.",
+            "friday": "Ven.",
+            "saturday": "Sam.",
+            "sunday": "Dim."
+          },
+          "creneau": "{jour}, {moment}",
+          "enregistrer": "Enregistrer mon profil",
+          "enregistrement": "Enregistrement…",
+          "enregistre": "Profil enregistré."
+        },
+        "multiAgences": {
+          "titre": "Vous travaillez déjà avec {agences}",
+          "texte": "Même compte, même profil : {agence} s’ajoute à vos agences. Vos métiers, vos tarifs et vos créneaux sont repris tels quels.",
+          "texteSans": "Même compte, même profil : cette agence s’ajoute aux vôtres. Vos métiers, vos tarifs et vos créneaux sont repris tels quels."
         }
       },
       "attente": {
@@ -7928,6 +8437,25 @@
           "titre": "Une intervention vous attend",
           "titreSans": "Vos prochaines interventions",
           "texteSans": "Les demandes de l’agence, dès votre profil complété"
+        },
+        "chiffres": {
+          "biens": "{n, plural, one {# bien suivi par l’agence} other {# biens suivis par l’agence}}",
+          "parc": "Le parc que vous suivrez, depuis votre espace",
+          "loyer": "Votre dernier loyer",
+          "loyerRecu": "{montant} reçus le {date}",
+          "loyerRecuSansDate": "{montant} reçus",
+          "pieces": "{n, plural, one {# pièce à envoyer} other {# pièces à envoyer}}",
+          "piecesDetail": "{liste} — quand vous voulez, depuis votre espace",
+          "piecesSansNoms": "Quand vous voulez, depuis votre espace",
+          "et": "{debut} et {fin}",
+          "noms": {
+            "rib": "RIB",
+            "cni": "pièce d’identité",
+            "ninea": "NINEA",
+            "license": "carte professionnelle",
+            "photo": "photo de profil",
+            "insurance": "assurance RC pro"
+          }
         }
       }
     },
@@ -7956,7 +8484,7 @@
         "pro": {
           "titre": "Je suis un professionnel",
           "sous": "Agent, agence, gestionnaire",
-          "promesse": "Votre espace d’agence s’ouvre tout de suite : vos biens, vos baux, vos encaissements.",
+          "promesse": "Votre espace d’agence s’ouvre tout de suite : équipe, bailleurs, mandats.",
           "court": "Votre espace pro, tout de suite"
         },
         "commencer": "Commencer"
@@ -7996,7 +8524,8 @@
           "partout": "Tous les quartiers",
           "budget": "{tranche} F CFA"
         },
-        "erreurAlerte": "Nous n’avons pas pu enregistrer votre alerte. Réessayez, ou passez cette étape."
+        "erreurAlerte": "Nous n’avons pas pu enregistrer votre alerte. Réessayez, ou passez cette étape.",
+        "nouveau": "Nouveau"
       },
       "pro": {
         "barre": "Votre espace professionnel",
@@ -8015,39 +8544,35 @@
         "nomRequis": "Indiquez le nom de l’agence.",
         "ville": "Ville principale",
         "telephone": "Téléphone de l’agence",
-        "telephoneAide": "Repris de votre compte. Un autre numéro se donne dans la demande de passage en agence.",
+        "telephoneAide": "Repris de votre compte. Vous pouvez en mettre un autre.",
         "deuxTemps": {
           "titre": "En deux temps",
           "maintenant": "Tout de suite",
-          "maintenantTexte": "Votre espace est prêt : vous ajoutez vos biens et publiez vos annonces.",
+          "maintenantTexte": "Votre espace est prêt : vous ajoutez vos biens et votre équipe.",
           "ensuite": "Ensuite",
-          "ensuiteTexte": "Takussan vérifie l’agence (NINEA, registre du commerce)."
+          "ensuiteTexte": "Notre équipe vérifie l’agence (NINEA, registre du commerce). D’ici là, vos biens ne sont pas en ligne et les loyers encaissés vous sont reversés après la vérification."
         },
         "creerBouton": "Créer mon espace pro",
         "cgu": "En créant votre espace, vous acceptez les <lien>conditions d’utilisation</lien>.",
         "ceQueVousAurez": "Ce que vous aurez",
         "avantages": {
-          "biens": {
-            "titre": "Vos biens et vos annonces",
-            "texte": "Publiez, suivez les demandes et les visites au même endroit."
+          "equipe": {
+            "titre": "Votre équipe",
+            "texte": "Invitez vos agents : chacun son accès, ses biens, ses rendez-vous."
           },
-          "baux": {
-            "titre": "Vos baux",
-            "texte": "Location, signature et échéances, suivies de bout en bout."
+          "bailleurs": {
+            "titre": "Vos bailleurs",
+            "texte": "Leurs biens, leurs loyers et leurs relevés, rangés par propriétaire."
           },
-          "encaissements": {
-            "titre": "Vos encaissements",
-            "texte": "Les loyers reçus, les quittances et ce qu’il reste à encaisser."
-          },
-          "credits": {
-            "titre": "Des crédits de mise en avant",
-            "texte": "Faites remonter une annonce le jour où vous le décidez."
+          "mandats": {
+            "titre": "Vos mandats",
+            "texte": "Location, vente, gestion : suivis de la signature à l’échéance."
           }
         },
         "erreur": "Nous n’avons pas pu ouvrir votre espace. Réessayez.",
         "lien": {
           "titre": "Demandez le lien à votre agence",
-          "texte": "Son administrateur vous l’envoie depuis son espace Takussan. Collez-le ici : votre accès s’ouvre aussitôt.",
+          "texte": "Son administrateur vous l’envoie depuis son espace (Équipe, puis « Inviter »). Collez-le ici : votre accès s’ouvre aussitôt.",
           "libelle": "Lien d’invitation",
           "coller": "Coller",
           "refuse": "Ce n’est pas un lien d’invitation Takussan. Collez le lien reçu de votre agence.",
@@ -8065,7 +8590,10 @@
           "libelle": "Votre numéro",
           "envoyer": "Recevoir le code",
           "code": "Code reçu par SMS"
-        }
+        },
+        "villeChoisir": "Choisissez une ville",
+        "villeAucune": "Aucune ville ne correspond.",
+        "numeroNonVerifie": "Votre numéro n’est pas encore vérifié. Vérifiez-le ci-dessous par SMS, puis créez votre espace."
       },
       "prenom": {
         "apercu": "Ce que les autres verront",
@@ -8307,7 +8835,12 @@
         "precedente": "Pièce précédente",
         "quitter": "Enregistrer et quitter",
         "photosNonEnvoyees": "{n, plural, one {# photo n’est pas encore envoyée} other {# photos ne sont pas encore envoyées}} : gardez cet écran ouvert, l’envoi reprend au retour du réseau.",
-        "photoRefusee": "Une photo a été refusée. Reprenez-la, puis réessayez."
+        "photoRefusee": "Une photo a été refusée. Reprenez-la, puis réessayez.",
+        "dictee": {
+          "dicter": "Dicter la note",
+          "arreter": "Arrêter la dictée",
+          "ecoute": "J’écoute… Touchez le micro pour arrêter."
+        }
       },
       "liste": {
         "titre": "Les pièces",
@@ -8363,7 +8896,7 @@
         "signaturesSurPlace": "Signatures sur place",
         "signatures": "Signatures",
         "revenirAuxPieces": "Revenir aux pièces",
-        "terminer": "Terminer",
+        "terminer": "Terminer et envoyer le PDF",
         "manque": {
           "aucun": "Les deux parties ont signé : l’état des lieux est figé.",
           "lesDeux": "Il manque {locataire} et la signature de l’agence",
@@ -8373,6 +8906,11 @@
           "codeDElide": "le code d’{prenom}",
           "signatureDe": "la signature de {prenom}",
           "signatureDElide": "la signature d’{prenom}"
+        },
+        "pdf": {
+          "aDeux": "Le PDF part à {a} et à {b}.",
+          "aUn": "Le PDF part à {a}.",
+          "aPersonne": "Aucune partie n’a de compte à aviser : le PDF se télécharge depuis la fiche."
         }
       },
       "signatures": {
@@ -8413,7 +8951,8 @@
           "effacer": "Effacer",
           "valider": "Valider"
         },
-        "reessayer": "Réessayer"
+        "reessayer": "Réessayer",
+        "signerAuTitreDuMandat": "Signer au titre du mandat"
       }
     }
   },
@@ -8482,7 +9021,8 @@
         "reasonCodeRequired": "Choisissez un motif.",
         "reasonLabelRequired": "Précisez le motif (obligatoire pour « Autre motif »)",
         "publishedPlatformOnly": "Avis déjà publié : seule la plateforme peut le retirer. Vous pouvez y répondre ou le signaler.",
-        "platformReserved": "Cet avis est modéré par la plateforme, pas par l'agence."
+        "platformReserved": "Cet avis est modéré par la plateforme, pas par l'agence.",
+        "reasonLabelDelete": "Quelques mots (obligatoires, consignés dans le journal d’audit)"
       },
       "file": {
         "sousTitre": "{avis, plural, one {# avis en attente} other {# avis en attente}}, dont {risque} à regarder de près · {biens, plural, =0 {aucun bien à valider} one {# bien à valider} other {# biens à valider}}",
@@ -8575,11 +9115,31 @@
         "reponseSansPublication": "Votre réponse est enregistrée, mais l’avis n’est pas encore publié : la publication n’a pas abouti. Réessayez « Publier ».",
         "reponseEchec": "La réponse n’a pas été enregistrée et rien n’a été publié. Vérifiez votre connexion, puis réessayez.",
         "decisionEchec": "La décision n’a pas été enregistrée. Vérifiez votre connexion, puis réessayez.",
-        "motifRappel": "Masquer ou supprimer demande un motif (hors sujet, propos injurieux, données personnelles, faux avis…), journalisé avec vos mots s’il y en a.",
+        "motifRappel": "Masquer ou supprimer demande un motif (hors sujet, propos injurieux, données personnelles, faux avis…) ; supprimer demande aussi quelques mots. Motif et mots sont journalisés.",
         "plusDActions": "Supprimer, ignorer les signalements",
         "retourALaFile": "Retour à la file",
         "videRisque": "Aucun avis à risque en attente.",
-        "videSansRisque": "Aucun avis sans risque en attente."
+        "videSansRisque": "Aucun avis sans risque en attente.",
+        "recherche": {
+          "placeholder": "Chercher un bien, un auteur, un agent",
+          "aria": "Chercher dans les avis : bien, référence, auteur ou agent",
+          "aucunResultat": "Aucun avis pour « {q} »",
+          "aucunResultatAide": "Essayez le titre ou la référence du bien, ou le nom de l’auteur ou de l’agent.",
+          "effacer": "Effacer la recherche",
+          "active": "Recherche : « {q} »"
+        },
+        "resume": {
+          "noteDuSujet": "{note} ★ sur {n, plural, one {# avis} other {# avis}}",
+          "locataireDepuis": "Locataire depuis {date}",
+          "publieEn": "publié en {mois}",
+          "autres": {
+            "property": "Autres avis sur ce bien",
+            "user": "Autres avis sur cet agent",
+            "agency": "Autres avis sur l’agence",
+            "service_provider": "Autres avis sur ce prestataire",
+            "inconnu": "Autres avis sur ce sujet"
+          }
+        }
       }
     },
     "finances": {
@@ -8677,7 +9237,24 @@
           "reversementSansReference": "Reversement sans référence",
           "preparePar": "préparé par {nom}",
           "examiner": "Examiner",
-          "joursDeRetardCourt": "{count} j de retard"
+          "joursDeRetardCourt": "{count} j de retard",
+          "relanceALInstant": "relancé à l’instant",
+          "approuver": "Approuver",
+          "approuverAria": "Approuver le reversement {reference}",
+          "refuser": "Refuser",
+          "refuserAria": "Refuser le reversement {reference}",
+          "examinerAria": "Examiner le reversement {reference}",
+          "approuveEchec": "L’approbation n’a pas abouti.",
+          "refus": {
+            "titre": "Refuser le reversement {reference}",
+            "detail": "Le reversement de {montant} est annulé : ses lignes pourront entrer dans un prochain reversement.",
+            "motif": "Motif du refus",
+            "motifAide": "Il reste noté sur le reversement.",
+            "motifExemple": "Ex. : montant à revoir avec le bailleur",
+            "confirmer": "Refuser le reversement",
+            "garder": "Garder",
+            "echec": "Le refus n’a pas abouti."
+          }
         },
         "tuiles": {
           "encaisse": "Encaissé",
@@ -8737,7 +9314,8 @@
             "deposit": "Réservation · arrhes",
             "advance": "Réservation · acompte",
             "fee": "Réservation · frais",
-            "autre": "Réservation"
+            "autre": "Réservation",
+            "security_deposit": "Réservation · caution"
           },
           "rentDuCourt": "Loyer {mois}",
           "chargesDuCourt": "Charges {mois}",
@@ -8770,11 +9348,12 @@
             "lignes": "{count, plural, one {# ligne} other {# lignes}}",
             "paye": "Payé",
             "paiements": "{count, plural, one {# paiement} other {# paiements}}",
-            "restant": "Restant dû",
-            "aEncaisser": "à encaisser",
             "echoue": "Échoué",
             "aReprendre": "{count, plural, =0 {rien à reprendre} one {# paiement à reprendre} other {# paiements à reprendre}}",
-            "dontCautions": "dont cautions {montant} ({count})"
+            "dontCautions": "dont cautions {montant} ({count})",
+            "enAttente": "En attente",
+            "virementsAnnonces": "{count, plural, one {# virement annoncé} other {# virements annoncés}}",
+            "paiementsEnAttente": "{count, plural, =0 {aucun paiement en attente} one {# paiement en attente} other {# paiements en attente}}"
           },
           "colonnes": {
             "payeur": "Payeur",
@@ -8826,7 +9405,10 @@
         "recherche": "Chercher un locataire, un bien",
         "bailleur": {
           "filtre": "Bailleur : {nom}",
-          "retirer": "Retirer le filtre du bailleur {nom}"
+          "retirer": "Retirer le filtre du bailleur {nom}",
+          "tous": "Tous les bailleurs",
+          "label": "Filtrer par bailleur",
+          "sansNom": "Bailleur sans nom"
         },
         "vide": {
           "titre": "Aucun impayé",
@@ -8862,7 +9444,9 @@
           "encaisser": "Encaisser un paiement",
           "ficheClient": "Fiche client",
           "ouvrirDossier": "Ouvrir le dossier de {nom}",
-          "retoucherWhatsApp": "Touchez encore pour ouvrir WhatsApp"
+          "retoucherWhatsApp": "Touchez encore pour ouvrir WhatsApp",
+          "plusDActions": "Plus d’actions — {nom}",
+          "voirLeBail": "Voir le bail"
         },
         "relancer": {
           "titre": "Relancer {nom}",
@@ -8975,7 +9559,14 @@
             "titre": "La file s’arrête aux 100 échéances les plus en retard",
             "detail": "Sélectionnez les autres dans la liste pour les relancer."
           }
-        }
+        },
+        "tri": {
+          "label": "Trier les impayés",
+          "retard": "Tri : retard",
+          "montant": "Tri : montant dû"
+        },
+        "balancePdf": "Balance âgée en PDF",
+        "enRetard": "{count, plural, one {# échéance en retard} other {# échéances en retard}}"
       }
     },
     "audit": {
@@ -9201,7 +9792,23 @@
         "review_moderated": "Avis publié (lot)",
         "booking_not_selected": "Candidature non retenue",
         "document_visibility_changed": "Visibilité d'un document changée",
-        "lease_draft_abandoned": "Brouillon de bail abandonné"
+        "lease_draft_abandoned": "Brouillon de bail abandonné",
+        "visit_confirmed_by_owner": "Visite confirmée par le bailleur",
+        "counter_offer_proposed": "Contre-proposition faite",
+        "counter_offer_accepted": "Contre-proposition acceptée",
+        "counter_offer_declined": "Contre-proposition déclinée",
+        "counter_offer_expired": "Contre-proposition expirée",
+        "lead_unhandled": "Demande remise à traiter",
+        "data_export_redownloaded": "Export retéléchargé",
+        "owner_mandate_terms_updated": "Mandat d'un bailleur modifié",
+        "inventory_pdf_sent": "PDF de l’état des lieux envoyé aux parties",
+        "invitation_share_link_issued": "Lien d'invitation renouvelé pour partage",
+        "review_removed": "Avis supprimé",
+        "review_reports_ignored": "Signalements d’un avis ignorés",
+        "agency_self_opened": "Agence ouverte depuis l'orientation",
+        "invitation_phone_corrected": "Numéro corrigé par l'invité",
+        "payment_ignored": "Paiement sorti du reste à rapprocher",
+        "payment_unignored": "Paiement remis dans le reste à rapprocher"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -9723,7 +10330,6 @@
           "biensSuivis": "Biens suivis",
           "nbBiens": "{n, plural, =0 {Aucun bien} one {# bien} other {# biens}}",
           "clientsEtVisites": "Clients et visites",
-          "nbClientsEtVisites": "{clients, plural, one {# client actif} other {# clients actifs}} · {visites, plural, =0 {aucune visite à venir} one {# visite à venir} other {# visites à venir}}",
           "commissionsDues": "Commissions dues",
           "duesMontant": "{montant} de commissions dues",
           "rienAPayer": "Rien à payer",
@@ -9753,7 +10359,16 @@
           "modifierLeTaux": "Modifier le taux de commission, actuellement {valeur}",
           "typeDeProfil": "Profil dans l’agence",
           "typeDeProfilDetail": "Agent, administrateur ou bailleur",
-          "enregistrer": "Enregistrer"
+          "enregistrer": "Enregistrer",
+          "biensVentiles": "{n, plural, one {# bien} other {# biens}} · {location} en location, {marche} à louer ou à vendre{autres, plural, =0 {} one {, # autre} other {, # autres}}",
+          "clientsEtVisitesSemaine": "{clients, plural, =0 {Aucun client actif} one {# client actif} other {# clients actifs}} · {visites, plural, =0 {aucune visite cette semaine} one {# visite cette semaine} other {# visites cette semaine}}",
+          "duesDetail": "{n, plural, one {# bail} other {# baux}} · la plus ancienne date du {date}",
+          "doubleAuthActiveeDepuis": "Activée depuis le {date}",
+          "rappeler": "Rappeler",
+          "rappelerAria": "Rappeler à {nom} d’activer la double authentification",
+          "rappelEnvoye": "Rappel envoyé à {nom}.",
+          "dejaRappele": "Déjà rappelé aujourd’hui : un seul rappel par 24 heures.",
+          "rappelEchec": "Le rappel n’a pas pu partir."
         },
         "absence": {
           "titre": "Couvrir une absence",
@@ -9833,8 +10448,17 @@
               "agency_admin": "Toute l’agence, l’argent, l’équipe."
             },
             "validite": "Le lien d’invitation reste valable 7 jours. En l’ouvrant, la personne crée son compte ou se connecte, puis rejoint l’agence.",
-            "envoyee": "Invitation envoyée à {email}."
-          }
+            "envoyee": "Invitation envoyée à {email}.",
+            "partagee": "Invitation créée pour le {telephone} : envoyez le message dans WhatsApp.",
+            "whatsappSansNumero": "Le numéro de téléphone est requis pour inviter par WhatsApp.",
+            "whatsappSansEmail": "Par WhatsApp, l’invitation est liée au seul numéro : laissez l’adresse e-mail vide."
+          },
+          "parWhatsApp": "Par WhatsApp",
+          "lienParWhatsApp": "Lien par WhatsApp",
+          "repartager": "Repartager",
+          "repartagerAria": "Repartager par WhatsApp l’invitation de {nom}",
+          "repartagee": "Nouveau lien créé pour {nom} : envoyez-le dans WhatsApp. L’ancien ne fonctionne plus.",
+          "messageWhatsApp": "Bonjour, je vous invite à rejoindre notre équipe sur Takussan. Ouvrez ce lien pour créer votre compte avec votre numéro (valable 7 jours) : {lien}"
         }
       }
     },
@@ -9933,7 +10557,12 @@
         "retourALaFile": "Retour à la file",
         "file": "File des biens à valider",
         "autresPhotos": "Autres photos du bien",
-        "carrousel": "carrousel"
+        "carrousel": "carrousel",
+        "ecrire": "Écrire",
+        "ecrireTitre": "Message à {nom}",
+        "apercuBandeau": "Aperçu — ce bien n’est pas encore publié",
+        "apercuMeta": "Aperçu d’un bien à valider",
+        "toutesLesPhotos": "Toutes les photos du bien"
       }
     },
     "agencyConfig": {
@@ -10050,7 +10679,9 @@
         "thresholdConfirm": "Confirmer",
         "thresholdConfirming": "Confirmation…",
         "thresholdConfirmed": "Le nouveau seuil s'applique.",
-        "thresholdPendingSaved": "Enregistré. Assouplir le seuil demande la confirmation d'un second approbateur : il a été prévenu."
+        "thresholdPendingSaved": "Enregistré. Assouplir le seuil demande la confirmation d'un second approbateur : il a été prévenu.",
+        "payoutDay": "Jour de versement aux bailleurs",
+        "payoutDayHint": "Le jour du mois (1 à 28) où partent les reversements, quand le mandat du bailleur n’en fixe pas. Vide : aucun jour annoncé."
       },
       "offlinePayment": {
         "title": "Paiement hors ligne",
@@ -10254,7 +10885,10 @@
           "ajouterCourt": "Ajouter",
           "nombreDeBiens": "{n, plural, one {# bien} other {# biens}}",
           "accrocheIci": "Votre accroche paraîtra ici.",
-          "prixParPeriode": "{montant} / {periode, select, daily {jour} weekly {semaine} yearly {an} other {mois}}"
+          "prixParPeriode": "{montant} / {periode, select, daily {jour} weekly {semaine} yearly {an} other {mois}}",
+          "autresBiens": "{n, plural, one {# autre bien publié.} other {# autres biens publiés.}}",
+          "suggestionPlusVus": "Suggestion : vos biens les plus vus ce mois.",
+          "utiliserLaSelection": "Utiliser cette sélection"
         },
         "facturation": {
           "titre": "Facturation et mentions légales",
@@ -10291,7 +10925,8 @@
           "membresSansDoubleFacteur": "{n, plural, one {# membre sur {total} ne l’a pas encore activée} other {# membres sur {total} ne l’ont pas encore activée}}",
           "membresSansDoubleFacteurAuMoins": "{n, plural, one {Au moins # membre sur {total} ne l’a pas encore activée} other {Au moins # membres sur {total} ne l’ont pas encore activée}}",
           "voirLEquipe": "Voir l’équipe",
-          "demandeeLe": "Demandée le {date}"
+          "demandeeLe": "Demandée le {date}",
+          "groupeVisites": "Visites"
         },
         "menu": {
           "titre": "Menu de l’équipe",
@@ -10301,6 +10936,10 @@
           "modulesAffiches": "Modules affichés",
           "compteAffiches": "{n} sur {total}"
         }
+      },
+      "ownersConfirmVisits": {
+        "label": "Les bailleurs confirment les visites de leurs biens",
+        "hint": "Activé : le bailleur confirme une visite à confirmer de son bien, ou propose un autre créneau, depuis son accueil ; l’agent attribué en est prévenu. Désactivé : seule l’agence confirme les visites."
       }
     },
     "users": {
@@ -10424,7 +11063,30 @@
         "accepted": "Relevé reçu : l’analyse est en cours.",
         "failed": "L’import du relevé a échoué.",
         "choisir": "Choisir un fichier",
-        "aucunFichier": "Aucun fichier choisi"
+        "aucunFichier": "Aucun fichier choisi",
+        "apercu": {
+          "lecture": "Lecture du fichier…",
+          "titre": "Ce que nous avons lu",
+          "lues": "{count, plural, =0 {Aucune ligne lue} one {# ligne lue} other {# lignes lues}}",
+          "nonLues": "{count, plural, =0 {aucune ligne écartée} one {# ligne non lue} other {# lignes non lues}}",
+          "periode": "Du {debut} au {fin}",
+          "raisons": {
+            "missing_value": "valeur manquante",
+            "invalid_date": "date illisible",
+            "invalid_amount": "montant illisible",
+            "invalid_direction": "sens illisible",
+            "invalid_currency": "devise non reconnue",
+            "unreadable": "ligne illisible",
+            "inconnue": "raison non précisée"
+          },
+          "ligneNonLue": "Ligne {line} : {raison}",
+          "etAutres": "{count, plural, one {et # autre ligne} other {et # autres lignes}}",
+          "premieres": "{count, plural, one {La première ligne} other {Les # premières lignes}}",
+          "dejaImporte": "Ce fichier a déjà été importé : l’importer de nouveau serait refusé.",
+          "aucuneLigne": "Aucune ligne lue : vérifiez le format ou les réglages de l’import.",
+          "changer": "Changer de fichier",
+          "echec": "Le relevé n’a pas pu être lu."
+        }
       },
       "list": {
         "title": "Relevés importés",
@@ -10596,7 +11258,10 @@
           "confirme": "Paiement rapproché.",
           "delie": "La ligne proposée est déliée.",
           "echecConfirmer": "Le rapprochement a échoué.",
-          "echecDelier": "La ligne n’a pas pu être déliée."
+          "echecDelier": "La ligne n’a pas pu être déliée.",
+          "ignorer": "Ignorer",
+          "ignorerPour": "Ignorer le paiement de {qui}",
+          "plusPour": "Autres gestes pour {qui}"
         },
         "plus": "{count, plural, one {Afficher l’autre} other {Afficher les # autres}}",
         "pied": "{affiches, plural, one {# ligne affichée} other {# lignes affichées}} sur {total} · les montants les plus élevés d’abord",
@@ -10644,6 +11309,33 @@
             "card": "cartes bancaires",
             "mobile_money": "mobile money"
           }
+        },
+        "ignorer": {
+          "titre": "Ignorer ce paiement",
+          "description": "Il sort du reste à rapprocher sans être rapproché. Vous pourrez le rétablir.",
+          "motif": "Pourquoi n’aura-t-il pas de ligne de banque ?",
+          "motifs": {
+            "cash_kept": "Espèces gardées à l’agence",
+            "other_account": "Versé sur un autre compte",
+            "other": "Autre"
+          },
+          "note": "Précisez le motif",
+          "noteRequise": "Précisez le motif pour « Autre ».",
+          "valider": "Ignorer le paiement",
+          "ignore": "Paiement ignoré.",
+          "echec": "Le paiement n’a pas pu être ignoré.",
+          "annuler": "Annuler",
+          "retabli": "Le paiement est de nouveau à rapprocher.",
+          "echecRetablir": "Le paiement n’a pas pu être rétabli."
+        },
+        "ignores": {
+          "resume": "{count, plural, one {# paiement ignoré ce mois-ci} other {# paiements ignorés ce mois-ci}}",
+          "voir": "Voir",
+          "masquer": "Masquer",
+          "retablir": "Rétablir",
+          "retablirPour": "Rétablir le paiement de {qui}",
+          "quand": "{motif} · le {date}",
+          "erreur": "Les paiements ignorés n’ont pas pu être lus."
         }
       },
       "vide": {
@@ -10651,7 +11343,8 @@
         "auto": "Tout ce qui est passé par {liste} est déjà rapproché.",
         "reste": "{count, plural, one {Pour le paiement qui reste, importez le relevé de votre banque.} other {Pour les # paiements qui restent, importez le relevé de votre banque.}}",
         "formats": "CSV ou OFX de votre banque",
-        "aucunReleve": "Aucun relevé pour l’instant."
+        "aucunReleve": "Aucun relevé pour l’instant.",
+        "formatsEtApercu": "CSV ou OFX · on vous montre ce qu’on a lu avant d’importer"
       },
       "releves": {
         "rubrique": "Relevés",
@@ -10671,6 +11364,14 @@
         "connecte": "Connecté",
         "confirmes": "{count, plural, =0 {aucun confirmé en {mois}} one {# confirmé en {mois}} other {# confirmés en {mois}}}",
         "aucune": "Aucun paiement en ligne n’est connecté."
+      },
+      "banques": {
+        "titre": "Banques prises en charge",
+        "parFormat": "L’import lit vos relevés par leur format, quelle que soit la banque :",
+        "formats": {
+          "csv": "CSV — colonnes réglables",
+          "ofx": "OFX"
+        }
       }
     },
     "agencyPublicProfile": {
@@ -10769,7 +11470,8 @@
       "photo": "Photo",
       "rib": "RIB",
       "ninea": "NINEA",
-      "other": "Autre"
+      "other": "Autre",
+      "management_mandate": "Mandat de gestion"
     },
     "entities": {
       "property": "Bien",
@@ -10778,7 +11480,8 @@
       "customer": "Client",
       "user": "Utilisateur",
       "agency": "Agence",
-      "inventory": "État des lieux"
+      "inventory": "État des lieux",
+      "owner_profile": "Bailleur"
     },
     "actions": {
       "add_document": "Ajouter un document"
@@ -10907,9 +11610,11 @@
         "bailDe": "Bail · {nom}",
         "quittances": "Quittances {annee}",
         "quittancesSansAnnee": "Quittances",
-        "releves": "Relevés et attestations",
+        "releves": "Relevés et factures",
         "factures": "Mes factures",
-        "mesPieces": "Mes pièces"
+        "devisEtRapports": "Devis et rapports",
+        "mesPieces": "Mes pièces",
+        "bailDuLocataire": "Bail de {nom}"
       },
       "ouvrirDossier": "Ouvrir le dossier {nom}",
       "vide": {
@@ -10917,8 +11622,9 @@
         "receipts": "Une quittance s’ajoute à chaque loyer payé.",
         "pieces": "Pièce d’identité, attestation de travail, assurance : ce que l’agence vous demande.",
         "property": "Titre foncier, assurance, mandat : ce que vous rangez pour ce bien.",
-        "statements": "Vos relevés mensuels arriveront ici.",
-        "bills": "Vos factures se rangent ici à chaque intervention terminée."
+        "statements": "Vos relevés mensuels et les factures d’intervention qui vous sont refacturées arriveront ici.",
+        "bills": "Vos factures se rangent ici à chaque intervention terminée.",
+        "quotes_reports": "Vos devis et vos rapports de fin d’intervention se rangent ici."
       },
       "accueil": {
         "titre": "Vos pièces, votre contrat et vos quittances",
@@ -10940,6 +11646,8 @@
         "releve": "Relevé {elision, select, oui {d’{mois}} other {de {mois}}}",
         "attestation": "Attestation annuelle {annee}",
         "facture": "Facture {reference}",
+        "devis": "Devis",
+        "rapport": "Rapport de fin d’intervention",
         "document": "Document"
       },
       "detail": {
@@ -10960,7 +11668,14 @@
         "nousPreviendronsSept": "Nous vous préviendrons 7 jours avant."
       },
       "resume": {
-        "caution": "caution"
+        "caution": "caution",
+        "devis": "{count, plural, one {# devis} other {# devis}}",
+        "rapports": "{count, plural, one {# rapport de fin d’intervention} other {# rapports de fin d’intervention}}",
+        "contrat": "contrat",
+        "edl": "état des lieux",
+        "piece": "pièces",
+        "documents": "{count, plural, one {# document} other {# documents}}",
+        "factures": "{count, plural, one {# facture} other {# factures}}"
       },
       "telecharger": "Télécharger",
       "telechargerNomme": "Télécharger : {nom}",
@@ -10974,7 +11689,6 @@
         "reference": "Référence"
       },
       "voirLesAutres": "{count, plural, one {Voir l’autre} other {Voir les # autres}}",
-      "biensSansDocument": "{count, plural, one {# bien sans document} other {# biens sans document}}",
       "lectureSeule": "Votre accès bailleur est suspendu : ces documents restent consultables, mais rien ne peut y être ajouté.",
       "recherche": {
         "champ": "Chercher un document",
@@ -10991,7 +11705,7 @@
         "titre": "Ajouter un document",
         "photo": {
           "titre": "Prendre une photo",
-          "texte": "Avec l’appareil photo du téléphone"
+          "texte": "Redressée et recadrée avant l’envoi"
         },
         "fichier": {
           "titre": "Choisir un fichier",
@@ -11025,7 +11739,29 @@
         "sansFichier": "Choisissez d’abord un fichier ou prenez une photo.",
         "tailleMo": "{n} Mo",
         "tailleKo": "{n} Ko",
-        "leBailNumero": "Le bail {reference} de ce bien"
+        "leBailNumero": "Le bail {reference} de ce bien",
+        "rangeImpose": "Le document sera rangé dans « {dossier} ».",
+        "luSurLaPhoto": "Lu sur la photo.",
+        "photoRecadree": "Photo recadrée",
+        "dansLeBienNumero": "{bien} · bail {reference}",
+        "recadrage": {
+          "titre": "Redresser et recadrer",
+          "aide": "Tournez la photo si besoin, puis faites glisser les coins pour cadrer le document.",
+          "tourner": "Tourner",
+          "reprendre": "Reprendre",
+          "valider": "Utiliser cette photo",
+          "enCours": "Recadrage…",
+          "coins": {
+            "hautGauche": "Coin en haut à gauche",
+            "hautDroit": "Coin en haut à droite",
+            "basGauche": "Coin en bas à gauche",
+            "basDroit": "Coin en bas à droite"
+          }
+        },
+        "remplace": {
+          "titre": "{categorie, select, id_card {Remplace la carte qui expire} passport {Remplace le passeport qui expire} other {Remplace la pièce qui expire}}",
+          "texte": "L’ancienne reste dans les versions."
+        }
       },
       "archive": {
         "toutTelecharger": "Tout télécharger",
@@ -11050,7 +11786,8 @@
           "echec": "L’archive « {nom} » n’a pas pu être préparée. Réessayez.",
           "demandeEchouee": "La préparation de l’archive n’a pas pu être demandée. Réessayez."
         }
-      }
+      },
+      "aucunDocument": "Aucun document"
     },
     "fiche": {
       "titreCourt": "Document",
@@ -11078,7 +11815,11 @@
         "verifieLe": "Vérifié le",
         "fichier": "Fichier",
         "precision": "Précision",
-        "quiLe": "{qui}, le {date}"
+        "quiLe": "{qui}, le {date}",
+        "rattacheA": "Rattaché à",
+        "bien": "Bien",
+        "bailRef": "Bail {reference}",
+        "bienEtQuartier": "{bien}, {quartier}"
       },
       "versions": {
         "titre": "Versions ({n})",
@@ -11172,6 +11913,64 @@
           "customer": "Le client"
         }
       }
+    },
+    "agence": {
+      "titre": "Documents",
+      "compte": {
+        "documents": "{n, plural, =0 {Aucun document} one {# document} other {# documents}}",
+        "expirent": "{n, plural, one {# expire bientôt} other {# expirent bientôt}}",
+        "aVerifier": "{n} à vérifier"
+      },
+      "recherche": "Chercher un document, un locataire, un bien",
+      "ajouter": "Ajouter un document",
+      "filtres": "Filtrer les documents",
+      "puces": {
+        "tous": "Tous",
+        "tout": "Tout",
+        "expire": "Expire bientôt",
+        "nonVerifies": "Non vérifiés",
+        "generes": "Générés"
+      },
+      "arbre": "Dossiers de l’agence",
+      "tousLesDocuments": "Tous les documents",
+      "dossiers": {
+        "property_pieces": "Pièces du bien",
+        "contract": "Contrat",
+        "inventories": "États des lieux",
+        "receipts": "Quittances",
+        "tenant_pieces": "Pièces du locataire",
+        "agency_pieces": "Pièces de l’agence"
+      },
+      "bailDe": "Bail {nom}",
+      "bailDetail": "{reference} · depuis le {date}",
+      "bienDetail": "{quartier} · {documents}",
+      "resume": {
+        "unBail": "Bail {locataire} · {documents}",
+        "baux": "{n, plural, one {# bail} other {# baux}} · {documents}"
+      },
+      "agenceDetail": "NINEA, registre de commerce, modèles · {documents}",
+      "alerte": {
+        "uneExpireDans": "1 expire dans {jours, plural, one {# jour} other {# jours}}",
+        "uneExpireAujourdhui": "1 expire aujourd’hui",
+        "expirent": "{n, plural, one {# expire bientôt} other {# expirent bientôt}}",
+        "aVerifier": "{n} à vérifier"
+      },
+      "memeBail": "Dans le même bail",
+      "tuileGeneres": "{n, plural, one {# · généré} other {# · générés}}",
+      "ouvrirDossier": "Ouvrir le dossier « {nom} »",
+      "vide": {
+        "dossier": "Aucun document dans ce dossier.",
+        "filtre": "Aucun document ne correspond à ce filtre.",
+        "recherche": "Aucun document de l’agence ne correspond à « {q} ».",
+        "agence": "Aucun document pour l’instant : ajoutez la première pièce d’un bien, d’un bail ou de l’agence."
+      },
+      "biensSansDocument": "{n, plural, one {# bien sans document} other {# biens sans document}}",
+      "chargement": "Chargement des documents de l’agence…",
+      "echec": "Les documents de l’agence n’ont pas pu être chargés.",
+      "reessayer": "Réessayer",
+      "partagerNomme": "Partager « {nom} »",
+      "apercu": "Aperçu du document",
+      "fil": "Dossier affiché"
     }
   },
   "bookings": {
@@ -11291,7 +12090,9 @@
     "paymentType": {
       "deposit": "Acompte",
       "advance": "Solde",
-      "fee": "Frais"
+      "fee": "Frais",
+      "security_deposit": "Caution",
+      "other": "Autre"
     },
     "paymentStatus": {
       "pending": "En attente",
@@ -11490,7 +12291,8 @@
       "detail": {
         "sejour": "{debut} → {fin}",
         "entree": "Entrée {date}",
-        "offre": "Affiché {affiche} · {ecart}"
+        "offre": "Affiché {affiche} · {ecart}",
+        "caution": "{n, plural, one {caution # mois} other {caution # mois}}"
       },
       "recue": {
         "min": "il y a {n} min",
@@ -11503,7 +12305,8 @@
         "bien": "Bien",
         "montant": "Montant",
         "statut": "Statut",
-        "recue": "Reçue"
+        "recue": "Reçue",
+        "dossier": "Dossier"
       },
       "caption": "Demandes de réservation",
       "recherche": "Client, bien, référence…",
@@ -11532,7 +12335,8 @@
         "filtre": "Aucune demande ne correspond à ces filtres."
       },
       "erreur": "Les réservations n’ont pas pu être chargées.",
-      "clientSansNom": "Client #{id}"
+      "clientSansNom": "Client #{id}",
+      "expireDemain": "Expire demain"
     },
     "client": {
       "titre": "Mes réservations",
@@ -11564,9 +12368,39 @@
       },
       "actions": {
         "voir": "Voir la réservation",
-        "avis": "Laisser un avis"
+        "avis": "Laisser un avis",
+        "payerAcompte": "Payer l’acompte",
+        "payerSolde": "Payer le solde",
+        "completerDossier": "Compléter mon dossier",
+        "accepter": "Accepter",
+        "decliner": "Décliner",
+        "annuler": "Annuler",
+        "annulerAria": "Annuler la réservation : {bien}"
       },
-      "erreur": "Vos réservations n’ont pas pu être chargées."
+      "erreur": "Vos réservations n’ont pas pu être chargées.",
+      "appel": {
+        "acompte": "Acompte de {montant} à payer {forme, select, semaine {avant {jour}} date {avant le {jour}} other {dès maintenant}}.",
+        "solde": "{acompte, select, oui {Acompte payé · solde de {montant} à l’arrivée} other {Solde de {montant} à régler à l’arrivée}}",
+        "dossier": "Dossier {recues}/{total} : il manque {piece}.",
+        "dossierComplet": "Dossier complet · {recues}/{total} pièces.",
+        "contreOffre": "L’agence vous propose {montant} jusqu’au {date}.",
+        "contreOffreSansDate": "L’agence vous propose {montant}.",
+        "pieces": {
+          "identity": "votre pièce d’identité",
+          "payslips": "vos bulletins de salaire",
+          "employment_certificate": "votre attestation de travail",
+          "guarantor_commitment": "l’engagement de votre garant",
+          "guarantor_identity": "la pièce d’identité de votre garant",
+          "proof_of_funds": "votre justificatif des fonds",
+          "other": "une autre pièce"
+        }
+      },
+      "toasts": {
+        "contreOffreAcceptee": "Contre-offre acceptée : votre offre est confirmée.",
+        "contreOffreDeclinee": "Contre-offre déclinée : l’agence en est prévenue.",
+        "annulee": "Réservation annulée."
+      },
+      "sousTitreAcompte": "{count, plural, one {# en cours} other {# en cours}}, dont {n, plural, one {un acompte à payer} other {# acomptes à payer}} {forme, select, semaine {avant {jour}} date {avant le {jour}} other {dès maintenant}}"
     },
     "fiche": {
       "enTete": {
@@ -11602,7 +12436,8 @@
         "paiements": "Paiements",
         "historique": "Historique",
         "autresGestes": "{n, plural, one {Autre geste} other {Autres gestes}}",
-        "decision": "Décision"
+        "decision": "Décision",
+        "dossier": "Dossier"
       },
       "qui": {
         "appeler": "Appeler",
@@ -11611,7 +12446,18 @@
         "dejaVisite": "A déjà visité ce bien.",
         "visitesEnregistrees": "{n, plural, one {# visite enregistrée.} other {# visites enregistrées.}}",
         "visites": "{n, plural, one {# visite} other {# visites}}",
-        "messageWhatsApp": "Bonjour {prenom}, je reviens vers vous au sujet de votre {nature, select, stay {demande de séjour} application {candidature} offer {offre} other {réservation}} pour {bien}."
+        "messageWhatsApp": "Bonjour {prenom}, je reviens vers vous au sujet de votre {nature, select, stay {demande de séjour} application {candidature} offer {offre} other {réservation}} pour {bien}.",
+        "revenus": "Revenus {rapport} × le loyer",
+        "revenusNonDeclares": "Revenus non déclarés",
+        "garant": "{oui, select, oui {Garant : oui} other {Garant : non}}",
+        "visiteLe": "{jour}.",
+        "visiteLeAvecVerdict": "{jour} : « {verdict} ».",
+        "achat": {
+          "cash": "Achat comptant",
+          "mortgage": "Achat à crédit",
+          "mixed": "Apport et crédit"
+        },
+        "garantNomme": "Garant : {nom}{lien, select, aucun {} other {, {lien}}}{autres, plural, =0 {} other { +#}}"
       },
       "quoi": {
         "loyerPropose": "Loyer proposé",
@@ -11621,21 +12467,42 @@
         "valable": "Valable jusqu’au",
         "acompte": "Acompte",
         "paye": "· payé",
-        "reference": "Référence"
+        "reference": "Référence",
+        "duree": "Durée",
+        "dureeValeur": "{n, plural, one {# mois} other {# mois}}{renouvelable, select, oui {, renouvelable} other {}}",
+        "caution": "Caution",
+        "cautionMois": "{n, plural, one {# mois} other {# mois}}",
+        "aVerser": "À verser à l’entrée",
+        "financement": "Financement",
+        "delaiDeSignature": "Délai de signature",
+        "conditions": "Conditions",
+        "jours": "{n, plural, one {# jour} other {# jours}}"
       },
       "offre": {
         "titre": "Offre d’achat",
         "prixAffiche": "Prix affiché",
         "ecart": "Écart",
         "ecartValeur": "{montant} · {pourcentage}",
-        "enVenteDepuis": "{n, plural, =0 {Mis en vente aujourd’hui.} one {En vente depuis # jour.} other {En vente depuis # jours.}}"
+        "enVenteDepuis": "{n, plural, =0 {Mis en vente aujourd’hui} one {En vente depuis # jour} other {En vente depuis # jours}}",
+        "faits": "{faits}.",
+        "visites": "{n, plural, =0 {aucune visite} one {# visite} other {# visites}}",
+        "rang": "{premiere, select, oui {première offre reçue} other {{rang}ᵉ offre reçue}}"
       },
       "decision": {
         "sous": "L’offre est à {pourcentage} sous le prix affiché.",
         "dessus": "L’offre est à {pourcentage} au-dessus du prix affiché.",
         "egale": "L’offre est au prix affiché.",
         "jusquA": "Elle tient jusqu’au {date}.",
-        "accepter": "Accepter {montant}"
+        "accepter": "Accepter {montant}",
+        "revenus": "Revenus de {rapport} fois le loyer",
+        "revenusNonDeclares": "Revenus non déclarés",
+        "garant": "{oui, select, oui {garant déclaré} other {sans garant}}",
+        "garantSeul": "{oui, select, oui {Garant déclaré} other {Sans garant}}",
+        "manque": "Il manque {piece, select, identity {la pièce d’identité} payslips {les bulletins de salaire} employment_certificate {l’attestation de travail} guarantor_commitment {l’engagement du garant} guarantor_identity {la pièce d’identité du garant} proof_of_funds {le justificatif des fonds} other {une pièce}}.",
+        "complet": "Le dossier est complet.",
+        "autres": "{n, plural, one {# autre candidature sur ce bien} other {# autres candidatures sur ce bien}}",
+        "autreDossier": "{nom} · dossier {recues}/{total}",
+        "comparer": "Comparer"
       },
       "sejour": {
         "arrivee": "Arrivée",
@@ -11646,16 +12513,21 @@
         "acompte": "Acompte ({pourcentage})",
         "solde": "Solde",
         "aLArrivee": "· à l’arrivée",
-        "recus": "{recu} reçus sur {total}"
+        "recus": "{recu} reçus sur {total}",
+        "aPartirDe": "à partir de {heure}",
+        "avant": "avant {heure}",
+        "nuitsEtVoyageurs": "{nuits, plural, one {# nuit} other {# nuits}} · {voyageurs, plural, one {# voyageur} other {# voyageurs}}"
       },
       "suiteBail": {
         "titre": "Candidature acceptée",
-        "texte": "Reste à créer le bail : il est déjà rempli avec ce que la candidature sait.",
         "locataire": "Locataire",
         "bien": "Bien",
         "loyer": "Loyer",
         "debut": "Début",
-        "modifiable": "Tout reste modifiable avant l’envoi en signature."
+        "caution": "Caution",
+        "pret": "Bail prêt à créer",
+        "repris": "Repris de la candidature. Tout reste modifiable dans le formulaire du bail.",
+        "garant": "Garant"
       },
       "paiement": {
         "ligne": "{type} · {montant}",
@@ -11663,11 +12535,145 @@
       },
       "gestes": {
         "annuler": "{nature, select, stay {Annuler le séjour} other {Annuler la réservation}}",
-        "annulerAide": "{nature, select, stay {Possible jusqu’à l’arrivée, {date}.} application {Avec un motif, tant que le bail n’a pas commencé.} other {Avec un motif.}}"
+        "annulerAide": "{nature, select, stay {Possible jusqu’à l’arrivée, {date}.} application {Avec un motif, tant que le bail n’a pas commencé.} other {Avec un motif.}}",
+        "rembourser": "Rembourser"
       },
       "historique": {
         "creee": "{nature, select, stay {Demande de séjour envoyée} application {Candidature déposée} offer {Offre déposée} other {Réservation créée}} par {nom}",
-        "saisie": "{nature, select, stay {Demande de séjour saisie} application {Candidature saisie} offer {Offre saisie} other {Réservation saisie}} par {nom}"
+        "saisie": "{nature, select, stay {Demande de séjour saisie} application {Candidature saisie} offer {Offre saisie} other {Réservation saisie}} par {nom}",
+        "visite": "{agent, select, aucun {Visite effectuée} other {Visite effectuée avec {agent}}}",
+        "citation": "{quoi} — « {texte} »",
+        "demande": "Demande de contact reçue"
+      },
+      "dossier": {
+        "completude": "{recues}/{total} pièces",
+        "completudeCourte": "{recues}/{total}",
+        "completudeAria": "{recues, plural, one {# pièce reçue} other {# pièces reçues}} sur {total}",
+        "pieces": {
+          "identity": "Pièce d’identité",
+          "payslips": "Bulletins de salaire",
+          "employment_certificate": "Attestation de travail",
+          "guarantor_commitment": "Engagement du garant",
+          "guarantor_identity": "Pièce d’identité du garant",
+          "proof_of_funds": "Justificatif des fonds",
+          "other": "Autre pièce"
+        },
+        "recue": "{document} · reçue le {date}",
+        "pasEncore": "Pas encore reçue",
+        "ouvrir": "Ouvrir",
+        "ouvrirAria": "Ouvrir : {piece}",
+        "demander": "Demander",
+        "demanderAria": "Demander : {piece}",
+        "demandeeInstant": "Demandée à l’instant",
+        "demandee": "Demandée {age}",
+        "demandeeMotif": "Une pièce se redemande 24 h après la demande précédente.",
+        "sansCompte": "Demande datée. Le client n’a pas de compte : prévenez-le vous-même.",
+        "erreurs": {
+          "throttled": "Cette pièce a déjà été demandée il y a moins de 24 h.",
+          "closed": "Cette demande est close : son dossier ne se complète plus."
+        },
+        "erreurLecture": "Le dossier n’a pas pu être lu.",
+        "deposer": "Déposer",
+        "deposerAria": "Déposer un fichier : {piece}",
+        "prendrePhoto": "Prendre une photo",
+        "prendrePhotoAria": "Prendre une photo : {piece}",
+        "envoyee": "Pièce envoyée.",
+        "tropLourde": "Ce fichier dépasse 10 Mo.",
+        "envoiEnCours": "Envoi…"
+      },
+      "financement": {
+        "cash": "Comptant",
+        "mortgage": "Crédit immobilier",
+        "mixed": "Apport et crédit"
+      },
+      "contreOffre": {
+        "geste": "{modifier, select, oui {Modifier la contre-offre} other {Contre-proposer}}",
+        "envoyee": "Contre-offre de {montant} envoyée",
+        "enAttente": "en attente {elision, select, oui {d’} other {de }}{prenom}",
+        "enAttenteJusquA": "en attente {elision, select, oui {d’} other {de }}{prenom} jusqu’au {date}",
+        "statut": {
+          "pending": "Contre-offre en attente",
+          "accepted": "Contre-offre acceptée",
+          "declined": "Contre-offre déclinée",
+          "superseded": "Contre-offre remplacée",
+          "expired": "Contre-offre expirée"
+        },
+        "toast": "Contre-offre envoyée à {prenom}",
+        "gesteCourt": "Modifier"
+      },
+      "nuitsDuBien": {
+        "titre": "Nuits du bien · {mois}",
+        "ceSejour": "Ce séjour",
+        "autres": "Autres séjours",
+        "enAttente": "En attente",
+        "libres": "{n, plural, =0 {Aucune nuit libre ce mois-ci.} one {# nuit libre ce mois-ci.} other {# nuits libres ce mois-ci.}}",
+        "erreur": "Les nuits du bien n’ont pas pu être lues.",
+        "jour": "{jour} : {etat, select, ceSejour {ce séjour} autres {un autre séjour} bloquee {bloquée} enAttente {une demande en attente} other {libre}}",
+        "bloquees": "Bloquées"
+      },
+      "origine": {
+        "depose": "{prenom} a déposé sa candidature",
+        "parLeLien": "par le lien envoyé après la visite",
+        "deposee": "Déposée {jour} à {heure}{invitation, select, oui { par le lien envoyé après la visite} other {}}"
+      },
+      "reponse": {
+        "heures": "réponse attendue sous {n} h",
+        "jours": "{n, plural, one {réponse attendue sous # jour} other {réponse attendue sous # jours}}",
+        "depassee": "délai de réponse dépassé"
+      },
+      "acceptee": {
+        "titre": "Candidature acceptée",
+        "prevenu": "{prenom} est prévenu"
+      },
+      "etape": {
+        "passe": "Passé en {etape}",
+        "detail": "{de} → {a}, proposé par la candidature",
+        "annuler": "Annuler",
+        "remise": "Étape remise en {etape}",
+        "echec": "L’étape n’a pas pu être remise."
+      },
+      "fil": {
+        "titre": "Le fil de {prenom}",
+        "ficheClient": "Fiche client",
+        "demandeAuBail": "De la demande au bail",
+        "jours": "{n, plural, one {# jour} other {# jours}}",
+        "vide": "Rien dans le fil pour l’instant.",
+        "chargement": "Chargement du fil…"
+      },
+      "bailRepris": {
+        "titre": "Nouveau bail · repris de la candidature",
+        "locataire": "Locataire",
+        "locataireAide": "Sa fiche client devient la fiche du locataire.",
+        "debut": "Début du bail",
+        "duree": "Durée",
+        "loyer": "Loyer mensuel",
+        "caution": "Caution",
+        "garant": "Garant",
+        "garantAide": "Pièce d’identité à recevoir avant la signature.",
+        "repris": "{n, plural, one {Un champ repris de la candidature.} other {# champs repris de la candidature.}} Une fois le bail signé, le bien est loué dès le début du bail et la fiche de {prenom} vous propose l’étape Gagné.",
+        "annuler": "Annuler",
+        "formulaire": "Ouvrir le formulaire complet",
+        "creer": "Créer le bail",
+        "echec": "Le bail n’a pas été créé."
+      },
+      "garants": {
+        "titre": "Garants",
+        "aucun": "Aucun garant pour l’instant.",
+        "ajouter": "Ajouter un garant",
+        "retirer": "Retirer {nom}",
+        "prenom": "Prénom",
+        "nom": "Nom",
+        "telephone": "Téléphone",
+        "lien": "Lien avec le candidat",
+        "enregistrer": "Ajouter le garant",
+        "echec": "Le garant n’a pas été enregistré.",
+        "codes": {
+          "pasPourCetteNature": "Seules une candidature et une offre peuvent avoir un garant.",
+          "dejaRattache": "Ce garant est déjà rattaché à cette demande.",
+          "pasRattache": "Ce garant n’est plus rattaché à cette demande.",
+          "troisAuPlus": "Une demande ne peut pas avoir plus de 3 garants.",
+          "dossierClos": "Cette demande est close : ses garants ne changent plus."
+        }
       }
     },
     "feuilles": {
@@ -11686,13 +12692,15 @@
         "referenceFacultative": "Facultative en espèces.",
         "notes": "Notes",
         "notesPlaceholder": "Facultatif.",
-        "recu": "Le reçu PDF se télécharge ensuite depuis les paiements de la fiche."
+        "recu": "Le reçu PDF se télécharge ensuite depuis les paiements de la fiche.",
+        "notesAutre": "Obligatoire : ce que règle ce paiement."
       },
       "rembourser": {
         "titre": "Rembourser {nom}",
         "montant": "Montant à rembourser",
         "montantAide": "Au plus {montant} : ce que {prenom} a payé.",
-        "rembourserMontant": "Rembourser {montant}"
+        "rembourserMontant": "Rembourser {montant}",
+        "paiement": "Paiement à rembourser"
       },
       "decision": {
         "refuser": {
@@ -11708,10 +12716,25 @@
             "bienIndisponible": "Bien indisponible",
             "autre": "Autre…"
           },
-          "precision": "Précision",
-          "aide": "Facultative, sauf pour « Autre ». Le motif reste sur la réservation ; {prenom} reçoit un avis de refus.",
-          "envoyer": "Refuser et prévenir {prenom}"
+          "aide": "Facultatif, sauf pour « Autre ». Le motif lui est transmis avec ce message.",
+          "envoyer": "Refuser et prévenir {prenom}",
+          "message": "Message à {prenom}"
         }
+      },
+      "contreOffre": {
+        "titre": "{modifier, select, oui {Modifier la contre-offre} other {Contre-proposer}}",
+        "montant": "Montant proposé",
+        "montantAide": "Prérempli du prix affiché.",
+        "montantAideEnCours": "Le montant de la contre-offre en cours : la nouvelle la remplace.",
+        "validite": "Valable",
+        "jours": "{n, plural, one {# jour} other {# jours}}",
+        "jusquAu": "Jusqu’au {date} inclus.",
+        "message": "Message (facultatif)",
+        "messagePlaceholder": "Ce qui justifie ce prix, ce qui reste négociable…",
+        "prevenu": "Le client sera prévenu et pourra accepter ou décliner votre contre-offre.",
+        "envoyer": "Contre-proposer",
+        "envoyerMontant": "Contre-proposer {montant}",
+        "envoi": "Envoi…"
       }
     }
   },
@@ -11731,7 +12754,9 @@
         "past": "Passées",
         "cancelled": "Annulées",
         "all": "Toutes"
-      }
+      },
+      "filtreType": "Type",
+      "typesTous": "Tous"
     },
     "detail": {
       "error": "Impossible de charger cette visite.",
@@ -11752,7 +12777,7 @@
         },
         "noShow": {
           "title": "Visite marquée absente",
-          "description": "Le visiteur ne s'est pas présenté : la visite n'est pas comptée parmi les visites effectuées."
+          "description": "Le visiteur en est prévenu, avec de quoi reprendre une visite. Elle n’est pas comptée parmi les visites effectuées."
         },
         "cancelled": {
           "title": "Visite annulée",
@@ -11932,7 +12957,16 @@
         "compte": "{n} sur {total}",
         "suivantes": "{n, plural, =1 {Afficher la suivante} other {Afficher les # suivantes}}",
         "ouvrir": "Ouvrir",
-        "lotResultat": "{ok, plural, =0 {Aucune visite traitée} =1 {1 visite traitée} other {# visites traitées}} · {failed, plural, =0 {aucun refus} =1 {1 refus} other {# refus}}"
+        "lotResultat": "{ok, plural, =0 {Aucune visite traitée} =1 {1 visite traitée} other {# visites traitées}} · {failed, plural, =0 {aucun refus} =1 {1 refus} other {# refus}}",
+        "statutFiltre": "Statut",
+        "statutFixe": "L’onglet fixe le statut",
+        "statuts": {
+          "tous": "Tous",
+          "requested": "Demandées",
+          "confirmed": "Confirmées",
+          "completed": "Terminées",
+          "cancelled": "Annulées"
+        }
       },
       "refus": {
         "http_forbidden": "Vous n’avez pas la main sur cette visite.",
@@ -11953,7 +12987,17 @@
         "evening": "soir"
       },
       "agentIndisponible": "L’agent de cette visite n’est plus disponible : réattribuez-la",
-      "reattribuer": "Réattribuer"
+      "reattribuer": "Réattribuer",
+      "absentPrevenu": "Le visiteur en est prévenu, avec de quoi reprendre une visite.",
+      "semaine": {
+        "compte": "{n, plural, =0 {Aucune visite cette semaine} one {# visite cette semaine} other {# visites cette semaine}}",
+        "tronquee": "Les {n} premières visites sur {total} : affinez par agent ou par bien pour voir les autres."
+      },
+      "affichage": {
+        "libelle": "Affichage",
+        "liste": "Liste",
+        "semaine": "Semaine"
+      }
     },
     "fiche": {
       "titre": "Visite",
@@ -11991,7 +13035,9 @@
       },
       "lieu": {
         "voirLeBien": "Voir le bien",
-        "ville": "{quartier}, {ville}"
+        "ville": "{quartier}, {ville}",
+        "vignette": "Carte du lieu — ouvrir l’itinéraire",
+        "attribution": "© OpenStreetMap"
       },
       "visiteur": {
         "voirSaFiche": "Voir sa fiche"
@@ -12012,7 +13058,7 @@
         "titre": "Visite en cours",
         "progression": "{n} min sur {total}",
         "terminer": "« Terminer la visite » ouvre le compte rendu : trois touches, trente secondes.",
-        "absent": "« Absent » enregistre que {prenom} n’est pas venu.",
+        "absent": "« Absent » prévient {prenom} et propose de replanifier.",
         "apres": "L’heure de fin prévue est passée",
         "apresDetail": "Terminez la visite pour faire le compte rendu, ou déclarez {prenom} absent.",
         "absentDes": "« Absent » est possible à partir de {heure}, l’heure de la visite."
@@ -12054,7 +13100,8 @@
         "commencer": "Commencer",
         "absent": "Absent",
         "terminer": "Terminer la visite",
-        "commencerDes": "« Commencer » est possible à partir de {heure}, 30 min avant la visite."
+        "commencerDes": "« Commencer » est possible à partir de {heure}, 30 min avant la visite.",
+        "enRouteBulle": "Envoyer sur WhatsApp : {message}"
       },
       "autreHeure": {
         "titre": "Choisir une autre heure",
@@ -12117,7 +13164,9 @@
           "rent": "Location",
           "sale": "Achat"
         },
-        "commencerPossibleA": "« Commencer » possible à partir de {heure}"
+        "commencerPossibleA": "« Commencer » possible à partir de {heure}",
+        "voirLeBien": "Voir le bien",
+        "ouvrirLaFicheDe": "Ouvrir la fiche de {prenom}"
       },
       "fil": "Visites",
       "attribuee": "Visite attribuée",
@@ -12177,7 +13226,14 @@
       "agentDe": "Agent · {agence}",
       "appelerAgent": "Appeler {nom}",
       "whatsappAgent": "Écrire à {nom} sur WhatsApp",
-      "messageAgent": "Bonjour {nom}, je vous écris au sujet de ma visite : {bien}."
+      "messageAgent": "Bonjour {nom}, je vous écris au sujet de ma visite : {bien}.",
+      "delaiDeReponse": "L’agence vous répond d’ordinaire en {heures} h",
+      "annulee": {
+        "parVous": "Annulée par vous",
+        "parVousMotif": "Annulée par vous : « {motif} »",
+        "parLAgence": "Annulée par l’agence",
+        "parLAgenceMotif": "Annulée par l’agence : « {motif} »"
+      }
     }
   },
   "superAdmin": {
@@ -15698,6 +16754,61 @@
         "submit": "Retirer",
         "failed": "La mise en avant n’a pas pu être retirée."
       }
+    },
+    "photosDeQuartier": {
+      "tabs": {
+        "proposals": "Propositions",
+        "approved": "Quartiers approuvés"
+      },
+      "title": "Photos des quartiers",
+      "description": "Les quartiers approuvés, les plus fournis en annonces d’abord. Leur photo s’affiche sur les tuiles de l’accueil, sans crédit.",
+      "city": "Ville",
+      "allCities": "Toutes les villes",
+      "noCity": "Aucune ville trouvée.",
+      "search": "Rechercher un quartier",
+      "searchSubmit": "Rechercher",
+      "error": "Erreur de chargement des quartiers.",
+      "retry": "Réessayer",
+      "emptyTitle": "Aucun quartier approuvé",
+      "emptyDescription": "Changez de ville ou de recherche.",
+      "addresses": "{count, plural, =0 {Aucune adresse} =1 {# adresse} other {# adresses}}",
+      "noPhoto": "Sans photo",
+      "source": {
+        "upload": "Photo envoyée",
+        "wikimedia": "Photo de Wikimedia Commons"
+      },
+      "upload": "Envoyer une photo",
+      "uploadLabel": "Photo de {name} (JPEG, PNG ou WebP, 10 Mo au plus)",
+      "remove": "Retirer",
+      "removeConfirmTitle": "Retirer la photo",
+      "removeConfirm": "Retirer la photo de {name} ? La tuile de l’accueil reprendra le motif.",
+      "removeConfirmAction": "Retirer la photo",
+      "cancel": "Annuler",
+      "unsplash": "Chercher sur Unsplash",
+      "newTab": "(nouvel onglet)",
+      "done": {
+        "uploaded": "Photo enregistrée.",
+        "imported": "Photo importée.",
+        "removed": "Photo retirée."
+      },
+      "suggestions": {
+        "toggle": "Propositions Wikimedia",
+        "loading": "Recherche des propositions…",
+        "error": "Les propositions n’ont pas pu être chargées.",
+        "unavailable": "Wikimedia ne répond pas pour le moment : envoyez une photo ou cherchez sur Unsplash.",
+        "empty": "Wikimedia ne propose aucune photo libre de crédit pour ce quartier.",
+        "hint": "Photos libres de toute attribution. Un clic importe la photo.",
+        "import": "Importer {title}"
+      },
+      "errors": {
+        "generic": "La photo n’a pas pu être enregistrée.",
+        "fileType": "Format refusé : choisissez une image JPEG, PNG ou WebP.",
+        "fileSize": "Fichier trop lourd : 10 Mo au plus.",
+        "notApproved": "Ce quartier n’est plus approuvé : sa photo ne peut pas être modifiée.",
+        "attributionRequired": "Cette photo exige désormais un crédit : elle ne peut pas être importée.",
+        "sourceNotFound": "Cette photo n’existe plus sur Wikimedia Commons.",
+        "sourceUnavailable": "Wikimedia Commons ne répond pas : réessayez plus tard ou envoyez un fichier."
+      }
     }
   },
   "adminSettings": {
@@ -15999,7 +17110,9 @@
       },
       "tete": {
         "moyenneAria": "Note moyenne : {moyenne} sur 5",
-        "nombre": "{nombre, plural, one {# avis reçu} other {# avis reçus}}"
+        "nombre": "{nombre, plural, one {# avis reçu} other {# avis reçus}}",
+        "repartitionAria": "Répartition des notes",
+        "ligneAria": "{note, plural, one {# étoile} other {# étoiles}} : {nombre, plural, one {# avis} other {# avis}}"
       },
       "filtres": {
         "titre": "Filtrer les avis reçus",
@@ -16007,7 +17120,13 @@
       },
       "opportunitySubmitOne": "Publier mon avis",
       "noteAria": "Note : {note} sur 5",
-      "pastilleEnAttente": "En attente de validation"
+      "pastilleEnAttente": "En attente de validation",
+      "enAttenteDeValidation": "{count, plural, one {# avis en attente de validation} other {# avis en attente de validation}}",
+      "bailClos": {
+        "titre": "Bail clôturé le {date} · {bien}",
+        "detail": "Votre avis sur votre ancien logement",
+        "noter": "Noter"
+      }
     },
     "contact": {
       "title": "Coordonnées",
@@ -16313,7 +17432,11 @@
         "tous": "{canaux} : pas d’envoi pour ces événements.",
         "autres": "{canaux} : pas d’envoi pour les autres événements de ce groupe."
       },
-      "enregistrementImmediat": "Chaque case s’enregistre dès qu’elle est cochée."
+      "enregistrementImmediat": "Chaque case s’enregistre dès qu’elle est cochée.",
+      "imposes": {
+        "identity_verification": "Vérification d’identité"
+      },
+      "imposeRaison": "Toujours envoyée : sécurité du compte."
     },
     "payoutMethods": {
       "title": "Où recevoir vos versements",
@@ -16332,7 +17455,16 @@
       "add": "Ajouter",
       "saveFailed": "La destination n'a pas pu être enregistrée.",
       "removeFailed": "La destination n'a pas pu être retirée.",
-      "ajouter": "Ajouter un moyen de versement"
+      "ajouter": "Ajouter un moyen de versement",
+      "aConfirmer": "À confirmer",
+      "enRevue": "En revue",
+      "ribAttendu": "un relevé d’identité bancaire est attendu",
+      "ribEnvoye": "RIB reçu, en cours de vérification",
+      "envoyerRib": "Envoyer le RIB",
+      "envoyerRibAria": "Envoyer le RIB du compte {masked}",
+      "ribEnvoyeToast": "RIB envoyé : votre compte est en revue.",
+      "ribEchec": "Le RIB n’a pas pu être envoyé.",
+      "jourDeVersement": "reversements du {jour} de chaque mois"
     },
     "serviceProvider": {
       "title": "Mon activité de prestataire",
@@ -16456,7 +17588,7 @@
       },
       "aides": {
         "coordonnees": "Comment l’agence et vos clients vous joignent.",
-        "fiche": "Votre carte de visite sur le site.",
+        "fiche": "Votre carte de visite sur le site : elle se met à jour sous vos yeux.",
         "pro": "Ce que vous exercez, et comment.",
         "recherche": "Ce que vous cherchez, pour des annonces qui vous correspondent.",
         "versement": "Là où vous recevez vos reversements.",
@@ -16486,7 +17618,19 @@
         "fiche": {
           "titre": "Compléter votre fiche publique",
           "detail": "Indiquez vos langues et vos quartiers.",
-          "action": "Compléter"
+          "action": "Compléter",
+          "detailPourcentage": "{pourcentage} % · il manque {reste}."
+        },
+        "pieces": {
+          "titre": "Envoyez vos pièces d’identité pour recevoir vos reversements.",
+          "detailCompte": "{envoyees} sur {requises} envoyées.",
+          "detail": "Pièce d’identité et justificatifs demandés par votre agence.",
+          "action": "Envoyer"
+        },
+        "rib": {
+          "titre": "Confirmez votre compte bancaire",
+          "detail": "Un relevé d’identité bancaire est attendu.",
+          "action": "Envoyer le RIB"
         }
       },
       "details": {
@@ -16496,7 +17640,8 @@
           "sansNumero": "Aucun numéro"
         },
         "fiche": {
-          "faits": "{langues, plural, =0 {Aucune langue} one {# langue} other {# langues}} · {quartiers, plural, =0 {aucun quartier} one {# quartier} other {# quartiers}}"
+          "faits": "{langues, plural, =0 {Aucune langue} one {# langue} other {# langues}} · {quartiers, plural, =0 {aucun quartier} one {# quartier} other {# quartiers}}",
+          "pourcentage": "{pourcentage} % complète"
         },
         "pro": {
           "carte": "Carte n° {numero}",
@@ -16512,7 +17657,8 @@
         "notifications": "Par événement et par canal",
         "securite": {
           "active": "Double authentification activée",
-          "inactive": "Double authentification désactivée"
+          "inactive": "Double authentification désactivée",
+          "piecesAEnvoyer": "Pièces d’identité à envoyer"
         },
         "espaces": {
           "un": "{agence} · {role}",
@@ -16525,7 +17671,8 @@
         },
         "avis": "Reçus, à laisser et publiés",
         "donnees": "Exporter mes données",
-        "avisNote": "{nombre, plural, one {# reçu} other {# reçus}} · {moyenne} sur 5"
+        "avisNote": "{nombre, plural, one {# reçu} other {# reçus}} · {moyenne} sur 5",
+        "versementAConfirmer": "{moyen} · un compte à confirmer"
       },
       "nonEnregistrees": "{n, plural, one {# modification non enregistrée} other {# modifications non enregistrées}}",
       "espaces": {
@@ -16533,6 +17680,52 @@
         "enCours": "Espace en cours",
         "carte": "carte professionnelle n° {numero}"
       }
+    },
+    "completude": {
+      "complete": "complète",
+      "pourcentage": "{pourcentage} %",
+      "barre": "Complétude de votre fiche publique",
+      "invitation": "Les fiches complètes reçoivent plus de demandes.",
+      "reste": "Il vous reste : {reste}.",
+      "faite": "Votre fiche est complète : les visiteurs y trouvent tout ce qui compte.",
+      "manque": {
+        "quartiers": "{count, plural, one {# quartier} other {# quartiers}}",
+        "telephone": "votre numéro vérifié",
+        "langue": "une langue",
+        "photo": "votre photo",
+        "presentation": "votre présentation"
+      }
+    },
+    "apercu": {
+      "titre": "Aperçu",
+      "aide": "Ce que voient les visiteurs du site.",
+      "enDirect": "Aperçu en direct",
+      "nonListee": "Visible après publication de votre fiche",
+      "agent": "Agent",
+      "langues": "Langues",
+      "quartiers": "Quartiers",
+      "reponse": "Réponse",
+      "annonces": "Annonces",
+      "note": "Note",
+      "avis": "· {count, plural, one {# avis} other {# avis}}",
+      "pasDAvis": "Pas encore d’avis",
+      "noteAria": "Note moyenne de {note} sur 5",
+      "delai": {
+        "minutes": "en {count, plural, one {# min} other {# min}} environ",
+        "heures": "en {count, plural, one {# h} other {# h}} environ",
+        "jours": "en {count, plural, one {# jour} other {# jours}} environ"
+      },
+      "pasDeDelai": "Pas encore mesurée",
+      "enLigne": "{count, plural, =0 {Aucun bien en ligne} one {# bien en ligne} other {# biens en ligne}}",
+      "whatsapp": "WhatsApp",
+      "voirSesBiens": "Voir ses biens"
+    },
+    "activite": {
+      "demandes": "{count, plural, one {# demande} other {# demandes}}",
+      "visitesAujourdhui": "{count, plural, one {# visite aujourd’hui} other {# visites aujourd’hui}}",
+      "biens": "{count, plural, one {# bien} other {# biens}}",
+      "loyersEnRetard": "{count, plural, one {# loyer en retard} other {# loyers en retard}}",
+      "interventionsAujourdhui": "{count, plural, one {# intervention aujourd’hui} other {# interventions aujourd’hui}}"
     }
   },
   "contact": {
@@ -16826,7 +18019,8 @@
       "thresholdInvalid": "Le seuil est un montant entier positif, sans décimales.",
       "legalNameTooLong": "La raison sociale ne doit pas dépasser 255 caractères.",
       "legalIdTooLong": "Ce numéro ne doit pas dépasser 30 caractères.",
-      "legalAddressTooLong": "L'adresse ne doit pas dépasser 1000 caractères."
+      "legalAddressTooLong": "L'adresse ne doit pas dépasser 1000 caractères.",
+      "payoutDayRange": "Le jour de versement est un nombre entre 1 et 28."
     },
     "common": {
       "emailTooLong": "L’adresse e-mail est trop longue.",
@@ -16859,7 +18053,8 @@
       "guestsMin": "Au moins 1 personne.",
       "guestsMax": "Maximum 20 personnes.",
       "notesTooLong": "Le message est trop long (1000 caractères max).",
-      "acceptTerms": "Vous devez accepter les conditions."
+      "acceptTerms": "Vous devez accepter les conditions.",
+      "notesRequiredForOther": "Dites ce que règle ce paiement."
     },
     "customer": {
       "occupationTooLong": "La profession est trop longue.",
@@ -16908,7 +18103,8 @@
       "chargesNonNegative": "Les charges doivent être ≥ 0.",
       "lateFeePercentInvalid": "Pénalité invalide (0 à 50 %).",
       "graceDaysInvalid": "Nombre de jours de grâce invalide (de 0 à 30).",
-      "earlyTerminationInvalid": "Indemnité invalide (0 à 12 mois)."
+      "earlyTerminationInvalid": "Indemnité invalide (0 à 12 mois).",
+      "noticePeriodInvalid": "Préavis invalide (1 à 365 jours)."
     },
     "maintenance": {
       "propertyRequired": "Sélectionnez un bien.",
@@ -17501,10 +18697,19 @@
         "lieu": "La ville suffit pour continuer : la rue et le repère sur la carte sont facultatifs.",
         "caracteristiques": "Seule la surface compte vraiment ; le reste aide votre annonce à ressortir dans les filtres.",
         "photos": "Étape facultative : « Plus tard » passe au titre, vous ajouterez des photos depuis votre espace."
+      },
+      "photos": {
+        "telephone": "Vos photos restent sur ce téléphone jusqu’à la publication : elles partent avec l’annonce.",
+        "navigateur": "Vos photos restent dans ce navigateur jusqu’à la publication : elles partent avec l’annonce."
+      },
+      "lieu": {
+        "quartierAide": "Introuvable ? Écrivez-le : il s’affiche tout de suite sur votre annonce, notre équipe le vérifie ensuite."
       }
     },
     "preuves": {
-      "recherches": "recherches à {ville} cette semaine"
+      "recherches": "recherches à {ville} cette semaine",
+      "commissionChiffre": "0 F",
+      "commission": "de commission"
     }
   },
   "layout": {
@@ -17722,7 +18927,8 @@
       "converted": "Fiche client créée.",
       "assigned": "Demande attribuée.",
       "error": "L’action n’a pas abouti.",
-      "handledShort": "Demande traitée."
+      "handledShort": "Demande traitée.",
+      "undo": "Annuler"
     },
     "shortTitle": "Demandes",
     "inbox": {
@@ -17840,6 +19046,20 @@
       "hoursMinutes": "{h} h {m}",
       "minutes": "{m} min",
       "none": "—"
+    },
+    "whatsapp": {
+      "intro": "Bonjour {name}, c’est {agent} de {agency}",
+      "introAlone": "Bonjour {name}, c’est {agent}",
+      "about": "{intro}, au sujet de « {title} ».",
+      "followUp": "{intro}, je fais suite à votre demande sur Takussan.",
+      "twoSlots": "Je vous propose {first} ou {second}.",
+      "oneSlot": "Je vous propose {first}."
+    },
+    "shortcuts": {
+      "label": "Raccourcis clavier",
+      "browse": "parcourir",
+      "visit": "visite",
+      "handle": "traiter"
     }
   },
   "visitPlanning": {
@@ -17925,7 +19145,22 @@
       "viewCustomer": "Voir la fiche",
       "alsoWhatsApp": "Envoyer aussi sur WhatsApp",
       "anotherVisit": "Planifier une autre visite",
-      "whatsAppMessage": "Bonjour {name}, votre visite de « {property} » est confirmée {when}. À bientôt !"
+      "whatsAppMessage": "Bonjour {name}, votre visite de « {property} » est confirmée {when}. À bientôt !",
+      "dayFromMessage": "{name} a écrit « {word} » : le jour est déjà choisi.",
+      "criteriaFromProperty": "Critères déduits du bien : {criteria}",
+      "budgetUpTo": "≤ {amount}",
+      "doneCriteria": "Bien d’intérêt et critères repris ({criteria})",
+      "smsSentAt": "SMS envoyé à {time}",
+      "nextLead": "Demande suivante",
+      "notified": {
+        "sms": "Un SMS a prévenu {name}.",
+        "smsEmail": "Un SMS et un e-mail ont prévenu {name}.",
+        "email": "Un e-mail a prévenu {name}.",
+        "whatsapp": "Un message WhatsApp a prévenu {name}.",
+        "whatsappEmail": "Un message WhatsApp et un e-mail ont prévenu {name}.",
+        "aucun": "Ni SMS ni e-mail n’est parti : prévenez {name} par un autre moyen.",
+        "leVisiteur": "le visiteur"
+      }
     },
     "propose": {
       "cta": "Proposer un autre créneau",
@@ -18070,6 +19305,18 @@
         "application_not_selected": {
           "title": "Candidature non retenue",
           "body": "Votre candidature {reference} pour {property} n'a pas été retenue : le logement a été attribué à un autre locataire."
+        },
+        "dossier_piece_requested": {
+          "title": "Pièce demandée pour votre dossier",
+          "body": "Pour votre demande {reference} ({property}), l'agence vous demande : {piece, select, identity {pièce d'identité} payslips {bulletins de salaire} employment_certificate {attestation de travail} guarantor_commitment {engagement du garant} guarantor_identity {pièce d'identité du garant} proof_of_funds {justificatif de fonds} other {une pièce}}. Déposez-la depuis votre réservation."
+        },
+        "counter_offer_received": {
+          "title": "Contre-proposition sur votre offre",
+          "body": "Pour votre offre {reference} ({property}), l'agence vous propose {amount}, jusqu'au {valid_until}. Acceptez-la ou déclinez-la depuis votre réservation."
+        },
+        "counter_offer_answered": {
+          "title": "Réponse à votre contre-proposition",
+          "body": "Offre {reference} ({property}) : le client a {answer, select, accepted {accepté} declined {décliné} other {répondu à}} votre contre-proposition à {amount}."
         }
       },
       "account": {
@@ -18084,6 +19331,10 @@
         "reactivated": {
           "title": "Votre compte est réactivé",
           "body": "Votre compte Takussan a été réactivé. Motif : {reason}. Vous pouvez vous reconnecter."
+        },
+        "two_factor_reminder": {
+          "title": "Activez la double authentification",
+          "body": "{agency} vous demande d'activer la double authentification sur votre compte. Activez-la depuis la sécurité de votre profil."
         }
       },
       "invitation": {
@@ -18142,6 +19393,14 @@
         "cancelled_window": {
           "title": "Votre visite de {property} est annulée",
           "body": "La visite demandée le {date}, {window, select, morning {le matin} afternoon {l'après-midi} other {en soirée}} est annulée."
+        },
+        "confirmed_by_owner": {
+          "title": "Visite confirmée par le bailleur : {property}",
+          "body": "{owner} a confirmé la visite du {scheduled_at}."
+        },
+        "no_show": {
+          "title": "Visite manquée : {property}",
+          "body": "La visite prévue le {date} n'a pas eu lieu. Vous pouvez en demander une autre."
         }
       },
       "message": {
@@ -18334,6 +19593,18 @@
         "owner_reminder": {
           "title": "Rappel : votre accord est requis pour « {request} »",
           "body": "Votre agence vous rappelle qu’un devis de {amount} pour « {request} » attend votre décision. Approuvez-le ou refusez-le."
+        },
+        "cancelled_with_reason": {
+          "title": "Intervention annulée : {request}",
+          "body": "L'intervention « {request} » a été annulée. Motif : {reason}"
+        },
+        "step_cancelled_with_reason": {
+          "title": "Votre demande « {request} » : annulée",
+          "body": "Votre demande d'intervention a été annulée. Motif : {reason}"
+        },
+        "reschedule_requested": {
+          "title": "Autre créneau demandé : « {request} »",
+          "body": "Le locataire propose {slots, plural, one {# autre créneau} other {# autres créneaux}} pour « {request} ». Le créneau actuel ne change pas tant que vous n'en posez pas un nouveau."
         }
       },
       "maintenance_quote": {
@@ -18547,11 +19818,17 @@
         },
         "archive_ready": {
           "title": "Votre archive est prête",
-          "body": "L’archive des documents que vous avez demandée est prête. Téléchargez-la depuis vos documents dans les 24 heures."
+          "body": "L’archive que vous avez demandée est prête. Ouvrez cet avis pour la télécharger dans les 24 heures."
         },
         "archive_failed": {
           "title": "Votre archive n’a pas pu être préparée",
-          "body": "L’archive des documents que vous avez demandée n’a pas pu être préparée. Réessayez depuis vos documents."
+          "body": "L’archive que vous avez demandée n’a pas pu être préparée. Ouvrez cet avis pour réessayer."
+        }
+      },
+      "inventory": {
+        "signed_pdf_available": {
+          "title": "État des lieux signé : bail {reference}",
+          "body": "Le locataire et le bailleur ont signé l’état des lieux du bail {reference} pour {property}. Téléchargez son PDF depuis la fiche de l’état des lieux."
         }
       }
     },
@@ -18590,7 +19867,9 @@
           "reminder": "Rappels de visite",
           "rescheduled_by_visitor": "Autres créneaux proposés",
           "cancelled_by_visitor": "Visites annulées par le visiteur",
-          "cancelled_by_visitor_window": "Visites annulées par le visiteur"
+          "cancelled_by_visitor_window": "Visites annulées par le visiteur",
+          "confirmed_by_owner": "Visites confirmées par le bailleur",
+          "no_show": "Visites manquées"
         },
         "lease_payment": {
           "overdue_landlord": "Loyers impayés",
@@ -18821,7 +20100,9 @@
       "toutVoir": "Tout voir",
       "derniere": "Dernière opération : {date} · {delta} {count, plural, one {crédit} other {crédits}}",
       "nbLots": "{count, plural, one {# lot} other {# lots}}",
-      "expireLe": "expire le {date}"
+      "expireLe": "expire le {date}",
+      "rapport": "Rapport des 30 derniers jours",
+      "lotsPasses": "Lots épuisés ou expirés"
     },
     "reserve": {
       "titre": "Cette page est réservée aux administrateurs de l’espace",
@@ -18885,7 +20166,9 @@
         "vues": "Vues",
         "contacts": "Contacts",
         "visites": "Visites"
-      }
+      },
+      "comparaison": "{ratio} × plus de vues que la semaine d’avant",
+      "comparaisonCourt": "{ratio} × la sem. d’avant"
     },
     "pousser": {
       "titre": "À pousser",
@@ -18933,6 +20216,30 @@
       "echecAchat": "La mise en avant n’a pas pu être enregistrée.",
       "fait": "« {bien} » est mis en avant : {offre}.",
       "bienEnEchec": "Impossible de lire les mises en avant de ce bien."
+    },
+    "rapport": {
+      "periode": "Du {debut} au {fin}",
+      "parMiseEnAvant": "Par mise en avant",
+      "parJour": "Jour par jour",
+      "aucune": "Aucune mise en avant sur ces 30 jours.",
+      "col": {
+        "jour": "Jour",
+        "affichages": "Affichages",
+        "vues": "Vues",
+        "consultations": "Consultations"
+      },
+      "legende": "Affichages : la carte du bien montrée dans les résultats. Vues : la fiche ouverte depuis une mise en avant. Consultations : toutes les ouvertures de la fiche pendant une mise en avant.",
+      "periodeBoost": "depuis le {date}",
+      "periodeBoostFinie": "du {debut} au {fin}"
+    },
+    "lotsPasses": {
+      "vide": "Aucun lot épuisé ou expiré.",
+      "etat": {
+        "spent": "Épuisé",
+        "expired": "Expiré"
+      },
+      "expireLe": "expiré le {date}",
+      "recus": "{count, plural, one {# crédit reçu} other {# crédits reçus}} le {date}"
     }
   },
   "commissions": {
@@ -19049,7 +20356,6 @@
       "solder": "Solder",
       "solderAria": "Solder {nom}",
       "solderMontant": "Solder {montant}",
-      "lignesDe": "Lignes de {nom}",
       "ouvrirAgent": "Ouvrir les lignes de {nom}",
       "total": "Total",
       "exporter": "Exporter",
@@ -19060,7 +20366,9 @@
       "beneficiaireTous": "Bénéficiaire : tous",
       "tous": "Tous les bénéficiaires",
       "dusLignes": "dus · {count, plural, one {# ligne} other {# lignes}} · payé cette année : {paye}",
-      "sansNom": "Bénéficiaire #{id}"
+      "sansNom": "Bénéficiaire #{id}",
+      "releveDe": "Relevé de l’agent — {nom}",
+      "releve": "Relevé de l’agent"
     },
     "menu": {
       "actions": "Marquer payée, annuler",
@@ -19144,7 +20452,9 @@
       "mauvaisCompte": "Cette invitation ne correspond pas au compte connecté. Changez de compte pour l’accepter.",
       "verrouille": "Trop d’essais : ce numéro est bloqué un moment. Réessayez plus tard.",
       "bloque": "Ce compte est suspendu.",
-      "codeInvalide": "Ce n’est pas le bon code. Vérifiez-le, ou demandez-en un autre."
+      "codeInvalide": "Ce n’est pas le bon code. Vérifiez-le, ou demandez-en un autre.",
+      "appelIndisponible": "L’appel n’est pas disponible pour le moment. Renvoyez le code par SMS.",
+      "codeInvalideEssais": "{n, plural, =0 {Ce n’est pas le bon code. Il ne vous reste plus d’essai : demandez un nouveau code.} one {Ce n’est pas le bon code. Il vous reste # essai avant d’en demander un autre.} other {Ce n’est pas le bon code. Il vous reste # essais avant d’en demander un autre.}}"
     },
     "rejoindre": "Rejoindre {agence}",
     "meConnecter": "Me connecter",
@@ -19187,7 +20497,8 @@
         "loyers": "Vos loyers et versements",
         "loyersDetail": "Ce qui est encaissé, ce qui vous est reversé, et quand",
         "quittances": "Vos quittances",
-        "quittancesDetail": "Chaque mois, sans les demander"
+        "quittancesDetail": "Chaque mois, sans les demander",
+        "vignettes": "Vos biens suivis par l’agence"
       },
       "tenant": {
         "bail": "Votre bail",
@@ -19227,7 +20538,10 @@
       "libelle": "Votre numéro",
       "aideSms": "Donné par {agence}. C’est avec lui que vous vous connecterez.",
       "aideSmsSans": "Donné par l’agence. C’est avec lui que vous vous connecterez.",
-      "aideEmail": "Vous vous connecterez avec ce numéro : le code y est envoyé."
+      "aideEmail": "Vous vous connecterez avec ce numéro : le code y est envoyé.",
+      "modifierLibelle": "Modifier le numéro",
+      "garder": "Garder le numéro donné par {agence}",
+      "garderSans": "Garder le numéro donné par l’agence"
     },
     "code": {
       "retour": "Retour",
@@ -19241,7 +20555,9 @@
       "renvoyerDans": "Renvoyer le code dans {temps}",
       "ensuite": "Ce code vérifie votre numéro et vous fait entrer d’un seul geste. Juste après : <fort>votre espace</fort>.",
       "ensuiteBiens": "Ce code vérifie votre numéro et vous fait entrer d’un seul geste. Juste après : <fort>{n, plural, one {votre bien} other {vos # biens}}</fort>.",
-      "verification": "Vérification…"
+      "verification": "Vérification…",
+      "ouParAppel": "<renvoi>{texte}</renvoi>, ou <appel>le recevoir par appel</appel>.",
+      "appelEnCours": "Un appel arrive : décrochez, le code vous est dicté."
     },
     "conditions": {
       "titre": "Conditions d’utilisation",
@@ -19268,7 +20584,8 @@
       "compte": "Compte connecté",
       "pasMoi": "Ce n’est pas moi — changer de compte",
       "changer": "Changer de compte",
-      "sansNom": "Votre compte n’a pas encore de nom : {agence} a proposé celui-ci. Confirmez-le ou corrigez-le."
+      "sansNom": "Votre compte n’a pas encore de nom : {agence} a proposé celui-ci. Confirmez-le ou corrigez-le.",
+      "barre": "Compte connecté : {nom}"
     },
     "motDePasse": {
       "afficher": "Afficher le mot de passe",
@@ -19284,7 +20601,9 @@
         "envoyee": "Demande envoyée. {agence} peut maintenant vous renvoyer une invitation.",
         "envoyeeSans": "Demande envoyée. L’agence peut maintenant vous renvoyer une invitation.",
         "trop": "Trop de demandes. Réessayez dans un moment.",
-        "echec": "La demande n’est pas partie. Réessayez."
+        "echec": "La demande n’est pas partie. Réessayez.",
+        "texteInvitant": "{prenom} vous avait invité chez {agence} le {date}. Les invitations restent valables 7 jours. Rien n’est perdu : l’agence peut vous en renvoyer une en un geste.",
+        "texteInvitantSans": "{prenom} vous avait invité le {date}. Les invitations restent valables 7 jours. Rien n’est perdu : l’agence peut vous en renvoyer une en un geste."
       },
       "annulee": {
         "titre": "Cette invitation a été annulée",
@@ -19317,6 +20636,15 @@
     },
     "sortie": {
       "reprise": "Rien n’est encore enregistré. Le lien de votre invitation vous ramènera ici tant qu’elle reste valable."
+    },
+    "aide": {
+      "court": "Aide",
+      "long": "Besoin d’aide ?",
+      "titre": "Besoin d’aide ?",
+      "texte": "{agence} répond à vos questions sur cette invitation.",
+      "appeler": "Appeler {agence}",
+      "whatsapp": "Écrire à {agence} sur WhatsApp",
+      "messageWhatsApp": "Bonjour {agence}, j’ai reçu votre invitation sur Takussan et j’ai une question."
     }
   },
   "radarClaim": {
@@ -19706,7 +21034,7 @@
     "facultatif": "Facultatif",
     "message": "Message",
     "messagePlaceholder": "Ce que le client vous a dit",
-    "prevenu": "Le client sera prévenu et pourra annuler.",
+    "prevenu": "Le client sera prévenu et pourra compléter son dossier.",
     "enregistrerCandidature": "Enregistrer la candidature",
     "enregistrerOffre": "Enregistrer l’offre",
     "enregistrer": "Enregistrer",
@@ -19726,7 +21054,8 @@
     "codes": {
       "booking": {
         "customer_required": "Choisissez le client : une demande saisie par l’agence est toujours à son nom.",
-        "kind_mismatch": "Cette nature ne correspond pas au bien : une candidature vise une location, une offre un bien à vendre."
+        "kind_mismatch": "Cette nature ne correspond pas au bien : une candidature vise une location, une offre un bien à vendre.",
+        "field_not_for_kind": "Un champ envoyé ne vaut pas pour cette nature de demande : vérifiez la nature choisie."
       }
     }
   },
@@ -19771,6 +21100,16 @@
         "report_not_closable": "Cette visite ne peut pas encore recevoir de compte rendu : elle n’a pas eu lieu.",
         "report_missing": "Aucun compte rendu à modifier pour cette visite."
       }
+    },
+    "dictee": {
+      "dicter": "Dicter",
+      "arreter": "Arrêter la dictée",
+      "ecoute": "J’écoute…",
+      "duree": "{duree} dictées · modifiable"
+    },
+    "avant": {
+      "titre": "Avant cette visite",
+      "parQui": "{geste} ({nom})"
     }
   },
   "etMaintenant": {
@@ -19831,13 +21170,24 @@
     "enregistre": "Enregistré à {heure}",
     "enregistreFiche": "Enregistré dans la fiche à {heure}",
     "modifier": "Modifier",
-    "qualifier": "Passer en « Qualifié »",
     "aujourdhui": "{etape} → Qualifié",
     "etapeAppliquee": "{prenom} passe en « Qualifié »",
-    "terminer": "Terminer",
     "fil": "Chaque choix s’écrit dans le fil de la fiche.",
     "sansFiche": "{nom} n’a pas encore de fiche client.",
-    "creerFiche": "Créer sa fiche"
+    "creerFiche": "Créer sa fiche",
+    "question": {
+      "titre": "Passer en Qualifié ?",
+      "plusTard": "Plus tard",
+      "oui": "Oui"
+    },
+    "filTelephone": "Chaque choix s’écrit dans le fil de la fiche. Sans choix, une relance est proposée demain dans « Aujourd’hui ».",
+    "relanceDuLendemain": {
+      "tacheTitre": "Relancer {prenom}",
+      "tacheDescription": "Après la visite de {bien}",
+      "posee": "Relance posée pour demain",
+      "annuler": "Annuler",
+      "retiree": "Relance retirée"
+    }
   },
   "coqueDEntree": {
     "retourAuSite": "Retour au site",
@@ -19918,7 +21268,9 @@
       "messageTache": "Bonjour {nom}, ",
       "libreJusqua": "Libre jusqu’à {heure}",
       "planifier": "Visite",
-      "rienCeJour": "Rien de prévu ce jour-là."
+      "rienCeJour": "Rien de prévu ce jour-là.",
+      "dansMinutes": "dans {n} min",
+      "dansHeures": "{minutes, plural, =0 {dans {h} h} other {dans {h} h {m}}}"
     },
     "chiffres": {
       "titre": "Mes chiffres",
@@ -19936,17 +21288,27 @@
         "taches": "Tâches",
         "commissions": "Commissions"
       },
-      "rapport": "Voir le rapport du mois"
+      "rapport": "Voir le rapport du mois",
+      "sansPhoto": "{n} sans photo",
+      "aVenir": "{montant} à venir"
     },
     "libre": {
       "titre": "Rien de prévu aujourd’hui.",
       "texte": "Ni visite, ni tâche, rien à régler. De quoi prendre de l’avance :",
       "relancer": "{n, plural, one {# prospect à relancer} other {# prospects à relancer}}",
-      "relancerDetail": "Vos clients qui attendent un signe",
       "planifier": "Planifier une visite",
       "planifierDetail": "Toute la journée est libre",
       "client": "Ajouter un client",
-      "clientDetail": "Un contact rencontré sur le terrain"
+      "clientDetail": "Un contact rencontré sur le terrain",
+      "relancerUn": "Relancer {nom}",
+      "relancerAttend": "{nom} attend depuis {n, plural, one {# jour} other {# jours}}",
+      "relancerNom": "{nom} attend un signe de vous",
+      "proposer": "{n, plural, one {# bien à proposer à {prenom}} other {# biens à proposer à {prenom}}}",
+      "proposerSansPrenom": "{n, plural, one {# bien à proposer à un client} other {# biens à proposer à un client}}",
+      "proposerQuartiers": "Biens {lieux}",
+      "aLieu": "à {lieu}",
+      "proposerDetail": "Qui correspondent à sa recherche",
+      "liste": "{debut} et {fin}"
     }
   },
   "agenda": {
@@ -19984,7 +21346,10 @@
     "periode": {
       "trenteJours": "30 jours",
       "quatorzeJours": "14 j",
-      "quatorzeJoursLong": "Quatorze jours"
+      "quatorzeJoursLong": "Quatorze jours",
+      "trenteJoursCourt": "30 j",
+      "trenteJoursLong": "Trente jours",
+      "dureeLibelle": "Durée affichée : {duree}"
     },
     "resume": {
       "cetteSemaine": "Cette semaine",
@@ -20054,7 +21419,9 @@
       "planifierCourt": "Planifier une visite",
       "planifierA": "Planifier une visite à {heure}",
       "planifierLe": "Planifier une visite le {jour}",
-      "planifierCreneau": "Planifier une visite {jour} à {heure}"
+      "planifierCreneau": "Planifier une visite {jour} à {heure}",
+      "dansMinutes": "dans {n} min",
+      "dansHeures": "{minutes, plural, =0 {dans {h} h} other {dans {h} h {m}}}"
     },
     "occupation": {
       "enCours": "{n, plural, =0 {Aucun séjour en cours} one {# séjour en cours} other {# séjours en cours}}",
@@ -20079,7 +21446,9 @@
         "echeance": "Échéance de bail",
         "intervention": "Intervention",
         "libre": "Libre"
-      }
+      },
+      "sejourClient": "{client}",
+      "sejourClientEnAttente": "{client} · en attente"
     },
     "fiche": {
       "titre": "Événement",
@@ -20099,12 +21468,14 @@
         "lease": "Ouvrir le bail",
         "lease_event": "Ouvrir le bail",
         "maintenance": "Ouvrir l’intervention"
-      }
+      },
+      "premiereVisite": "{nom} · 1ʳᵉ visite"
     },
     "mois": {
       "aujourdhui": "{n} · aujourd’hui",
       "sejour": "Séjour · {titre}",
-      "sejoursEnPlus": "{n, plural, one {+# séjour} other {+# séjours}}"
+      "sejoursEnPlus": "{n, plural, one {+# séjour} other {+# séjours}}",
+      "sejourClient": "Séjour · {titre} · {client}"
     },
     "vuesCourtes": {
       "day": "Jour",
@@ -20140,7 +21511,8 @@
       "semaine": "Cette semaine",
       "plusTard": "Plus tard",
       "sans": "Sans échéance",
-      "faites": "Faites"
+      "faites": "Faites",
+      "sansRattachement": "Sans rattachement"
     },
     "pastilles": {
       "libelle": "Échéance",
@@ -20250,7 +21622,30 @@
         "aujourdhui": "aujourd’hui",
         "demain": "demain",
         "lundi": "lundi"
-      }
+      },
+      "annuler": "Annuler"
+    },
+    "aideBalayage": "Balayer à droite : fait. À gauche : reporter (demain, lundi, choisir).",
+    "grouper": {
+      "libelle": "Grouper par",
+      "echeance": "Échéance",
+      "rattachement": "Rattachement"
+    },
+    "rattachement": {
+      "libelle": "Rattachée à",
+      "tout": "Tout",
+      "customer": "Clients",
+      "property": "Biens"
+    },
+    "tableau": {
+      "titre": "Tâche",
+      "rattachement": "Rattachée à",
+      "echeance": "Échéance",
+      "actions": "Actions",
+      "reporter": "Reporter",
+      "reporterAria": "Reporter « {titre} »",
+      "modifier": "Modifier",
+      "modifierAria": "Modifier « {titre} »"
     }
   },
   "accueil": {
@@ -20311,7 +21706,8 @@
         "louesLibres": "{n, plural, one {# loué} other {# loués}} · {libres, plural, one {# libre} other {# libres}}",
         "surAttendus": "sur {montant} attendus",
         "leJour": "le {jour}"
-      }
+      },
+      "chargement": "Chargement des chiffres du mois"
     },
     "blocs": {
       "erreur": "Impossible de charger {quoi}.",
@@ -20324,7 +21720,8 @@
         "equipe": "l’équipe du jour",
         "echeances": "les échéances à venir",
         "favoris": "vos favoris"
-      }
+      },
+      "chargement": "Chargement"
     },
     "toutEstAJour": {
       "titre": "Tout est à jour"
@@ -20482,7 +21879,9 @@
       },
       "visite": {
         "titre": "Visite à confirmer",
-        "detail": "{bien} · proposée par {agent}"
+        "detail": "{bien} · proposée par {agent}",
+        "proposeePar": "Proposée par {agent}",
+        "proposeeParAvecVisiteur": "Proposée par {agent} · visiteur : {visiteur}"
       },
       "visites": {
         "autres": "{n, plural, one {Voir l’autre visite à confirmer} other {Voir les # autres visites à confirmer}}"
@@ -20497,7 +21896,9 @@
         "detail": "{montant} · échu le {echeance}",
         "jours": "{n, plural, one {# jour} other {# jours}}",
         "sansLocataire": "Locataire",
-        "autres": "{n, plural, one {Voir l’autre loyer en retard} other {Voir les # autres loyers en retard}}"
+        "autres": "{n, plural, one {Voir l’autre loyer en retard} other {Voir les # autres loyers en retard}}",
+        "carte": "{n, plural, one {# loyer en retard} other {# loyers en retard}}",
+        "relance": "{montant} · relancé par l’agence le {date}"
       },
       "reservations": {
         "carte": "{n, plural, one {# réservation à traiter} other {# réservations à traiter}}",
@@ -20530,7 +21931,10 @@
         "passage": "{jour, select, aujourdhui {Passage aujourd’hui à {heure}} demain {Passage demain à {heure}} hier {Passage prévu hier à {heure}} passe {Passage prévu le {date} à {heure}} other {Passage le {date} à {heure}}}",
         "passageDe": "{jour, select, aujourdhui {{nom} intervient aujourd’hui à {heure}} demain {{nom} intervient demain à {heure}} hier {{nom} · passage prévu hier à {heure}} passe {{nom} · passage prévu le {date} à {heure}} other {{nom} intervient le {date} à {heure}}}",
         "aFixer": "Passage à fixer",
-        "aFixerAvec": "{nom} · passage à fixer"
+        "aFixerAvec": "{nom} · passage à fixer",
+        "reversement": "Prochain reversement",
+        "reversementLe": "Prochain reversement · {date}",
+        "apresCommission": "{montant} · après commission"
       },
       "resume": {
         "rien": "{jour} · rien n’attend votre réponse",
@@ -20538,6 +21942,28 @@
         "visites": "{n, plural, one {# visite à confirmer} other {# visites à confirmer}}",
         "separateurDate": " · ",
         "separateur": ", "
+      },
+      "demarrer": {
+        "titre": "Démarrer",
+        "compteLong": "{fait, plural, one {# étape} other {# étapes}} sur {total}",
+        "continuer": "Continuer",
+        "lien": "Démarrer, {fait} sur {total} : {etape}",
+        "etapes": {
+          "premier_bien": "Proposez un premier bien",
+          "pieces": {
+            "cni": "Envoyez votre pièce d’identité",
+            "rib": "Envoyez votre RIB",
+            "ninea": "Envoyez votre NINEA"
+          }
+        },
+        "enPhrase": {
+          "premier_bien": "Proposez un premier bien à votre agence.",
+          "pieces": {
+            "cni": "Envoyez votre pièce d’identité depuis « Vos pièces ».",
+            "rib": "Envoyez votre RIB depuis « Vos pièces ».",
+            "ninea": "Envoyez votre NINEA depuis « Vos pièces »."
+          }
+        }
       }
     },
     "prestataire": {
@@ -20557,7 +21983,10 @@
         "titre": "À chiffrer",
         "quoi": "les devis à chiffrer",
         "chiffrer": "Chiffrer",
-        "demande": "{aLieu, select, oui {{lieu} · } other {}}demandé {jour, select, aujourdhui {aujourd’hui} hier {hier} other {le {date}}}"
+        "demande": "{aLieu, select, oui {{lieu} · } other {}}demandé {jour, select, aujourdhui {aujourd’hui} hier {hier} other {le {date}}}",
+        "titreBureau": "Mes devis en attente",
+        "quoiBureau": "vos devis en attente",
+        "envoye": "{aDate, select, oui {Envoyé le {date}} other {Envoyé}} · en attente du bailleur"
       },
       "statut": {
         "aAccepter": "À accepter",
@@ -20580,7 +22009,10 @@
         "sansDate": "Visite à planifier",
         "confirmee": "Confirmée",
         "aConfirmer": "En attente de confirmation",
-        "voir": "Voir la visite"
+        "voir": "Voir la visite",
+        "deplacer": "Déplacer",
+        "itineraire": "Itinéraire",
+        "deplacerImpossible": "Impossible d’ouvrir les créneaux de cette visite. Réessayez depuis la visite."
       },
       "recherches": {
         "titre": "Vos recherches",
@@ -20604,6 +22036,16 @@
           "monthly": "/ mois",
           "yearly": "/ an"
         }
+      },
+      "reponse": {
+        "aRepondu": "{nom} vous a répondu",
+        "citation": "« {texte} »",
+        "lire": "Lire"
+      },
+      "chercher": "Chercher un bien",
+      "publier": {
+        "question": "Vous avez un bien à louer ?",
+        "suite": "Publiez-le en quelques minutes."
       }
     },
     "locataire": {
@@ -20630,11 +22072,40 @@
           "interdit": "Vous n’avez pas accès à cette quittance.",
           "indisponible": "Cette quittance n’est pas encore disponible.",
           "echec": "Le téléchargement a échoué. Réessayez."
-        }
+        },
+        "bailJusquau": "Bail jusqu’au {date}",
+        "agenceEtAgent": "{agence} · {agent}",
+        "bailEtLoyer": "Bail jusqu’au {date} · {loyer} par mois",
+        "votreAgent": "{agence} · votre agent",
+        "votreAgentSansAgence": "Votre agent",
+        "ecrire": "Écrire",
+        "messageA": "Message à {nom}",
+        "appeler": "Appeler"
       },
       "resume": {
         "du": "{jour} · {montant} à régler",
         "prochain": "{jour} · prochain loyer le {date}"
+      },
+      "paiements": {
+        "titre": "Derniers paiements",
+        "tous": "Tous les paiements",
+        "quoi": "vos derniers paiements",
+        "quittance": "Quittance",
+        "quittanceDe": "Quittance · {periode}",
+        "caution": "Caution",
+        "reservation": "Réservation"
+      },
+      "interventions": {
+        "titre": "Interventions en cours",
+        "vide": "Aucune intervention en cours dans votre logement.",
+        "signaler": "Signaler un problème",
+        "quoi": "vos interventions",
+        "toutes": "Voir les {n} interventions"
+      },
+      "entree": {
+        "titre": "Votre entrée dans les lieux",
+        "aFinir": "À finir",
+        "restantes": "{n, plural, one {# étape restante} other {# étapes restantes}}"
       }
     }
   },
@@ -20711,7 +22182,10 @@
       "ko": "{n} Ko",
       "mo": "{n} Mo"
     },
-    "facultatif": "Facultatif"
+    "facultatif": "Facultatif",
+    "debloque": {
+      "titre": "Ce que ça débloque"
+    }
   },
   "rapports": {
     "titre": "Rapports",
@@ -20785,19 +22259,27 @@
         "occupation": "Occupation · 12 derniers mois",
         "commissions": "Commissions · 12 derniers mois",
         "bauxSignes": "Baux signés · 12 derniers mois",
-        "cashflow": "Encaissé · 12 derniers mois"
+        "cashflow": "Encaissé · 12 derniers mois",
+        "impayes": "Impayés · 12 derniers mois",
+        "encaisseEtAttendu": "Encaissé et attendu · 12 derniers mois"
       },
       "courts": {
         "encaisse": "Encaissé",
         "occupation": "Occupation",
         "commissions": "Commissions",
         "bauxSignes": "Baux signés",
-        "cashflow": "Encaissé"
+        "cashflow": "Encaissé",
+        "impayes": "Impayés"
       },
       "choix": "Graphique affiché",
       "variationMois": "{mois} : {pourcent} % sur {precedent}",
       "variationPoints": "{ecart} points en un an",
-      "depuisJanvier": "dont {montant} depuis janvier"
+      "depuisJanvier": "dont {montant} depuis janvier",
+      "attendu": "Attendu",
+      "partDeLAttendu": "{pourcent} % de l’attendu",
+      "voirLeTableau": "Voir le tableau",
+      "voirLeGraphique": "Voir le graphique",
+      "serie": "Série"
     },
     "equipe": {
       "titre": "Équipe ce mois",
@@ -20826,7 +22308,10 @@
         "heuresMinutes": "{h} h {m}",
         "heures": "{h} h"
       },
-      "titreMoisDernier": "Équipe le mois dernier"
+      "titreMoisDernier": "Équipe le mois dernier",
+      "totalEquipe": "Équipe · {n, plural, one {# agent} other {# agents}}",
+      "totalMediane": "médiane {delai}",
+      "delaiInsuffisant": "Pas assez de conversations pour mesurer le délai de réponse."
     },
     "enChiffres": "En chiffres",
     "chiffresCles": "Chiffres clés · ce mois",
@@ -20846,7 +22331,9 @@
       "prereglages": {
         "moisDernier": "Mois dernier",
         "ceMois": "Ce mois",
-        "annee": "Année {annee}"
+        "annee": "Année {annee}",
+        "trimestre": "Trimestre",
+        "autre": "Autre…"
       },
       "telechargerAria": "Télécharger {titre} en {format}",
       "cartes": {
@@ -20883,8 +22370,14 @@
         "lignes": "Lignes",
         "gestes": "Actions"
       },
-      "pied": "Aucun fichier n’est conservé : « Refaire » relance l’export avec les mêmes paramètres. {max} lignes au plus, {pdf} en PDF.",
-      "telechargerLExport": "Télécharger l’export"
+      "pied": "Chaque fichier se retélécharge pendant {jours} jours ; ensuite, « Refaire » relance l’export avec les mêmes paramètres. {max} lignes au plus, {pdf} en PDF.",
+      "telechargerLExport": "Télécharger l’export",
+      "lignesAExporter": "{n, plural, =0 {Aucune ligne à exporter.} one {{lignes} ligne à exporter.} other {{lignes} lignes à exporter.}}",
+      "tropDeLignes": "{lignes} lignes à exporter : c’est plus que les {limite} qu’un export de ce format peut contenir. Réduisez la période ou choisissez un autre format.",
+      "retelecharger": "Retélécharger",
+      "retelechargerAria": "Retélécharger l’export {type}, {periode}",
+      "retelechargerExpire": "Ce fichier n’est plus disponible : utilisez « Refaire » pour relancer l’export.",
+      "retelechargerEchec": "Le téléchargement a échoué. Réessayez."
     },
     "alertes": {
       "declencheeLe": "Déclenchée le {date}",
@@ -20893,7 +22386,9 @@
       "destinatairesCompte": "{n, plural, =0 {Personne} one {# administrateur} other {# administrateurs}}",
       "canaux": {
         "email": "E-mail",
-        "inapp": "notification"
+        "inapp": "notification",
+        "whatsapp": "WhatsApp",
+        "both": "E-mail et WhatsApp"
       },
       "seuil": "seuil {valeur}",
       "delai": "{h} h",
@@ -20903,7 +22398,7 @@
       "nouvelle": "Nouvelle alerte",
       "resume": "{n, plural, =0 {Aucune alerte} one {# alerte} other {# alertes}} · {declenchees, plural, =0 {aucune franchie} one {# franchie} other {# franchies}} · mesures relues toutes les heures",
       "suppressionEchec": "La suppression a échoué. Réessayez.",
-      "videDescription": "Créez une alerte : les administrateurs seront prévenus quand l’indicateur franchit le seuil. Les mesures sont relues toutes les heures.",
+      "videDescription": "Créez une alerte : les personnes choisies (par défaut, les administrateurs) sont prévenues quand l’indicateur franchit le seuil. Les mesures sont relues toutes les heures.",
       "actuel": "Actuel",
       "previent": "Prévient {qui} · {canal}",
       "auPlusUne": "Au plus une alerte toutes les {delai}",
@@ -20921,12 +22416,21 @@
       "recents": "Déclenchements récents",
       "condition": "Condition",
       "quiEstPrevenu": "Qui est prévenu",
-      "quiEstPrevenuValeur": "Les administrateurs actifs de l’agence, par notification et par e-mail.",
       "relueToutesLesHeures": "La mesure est relue toutes les heures.",
       "modificationEchec": "La modification a échoué. Réessayez.",
       "enregistrer": "Enregistrer",
       "uniteHeures": "heures",
-      "valeurActuelle": "Valeur actuelle : {valeur}"
+      "valeurActuelle": "Valeur actuelle : {valeur}",
+      "canalChoix": {
+        "email": "E-mail",
+        "whatsapp": "WhatsApp",
+        "both": "Les deux"
+      },
+      "tousLesAdministrateurs": "Tous les administrateurs",
+      "quiEstPrevenuAide": "Sans choix, tous les administrateurs qui peuvent lire ce chiffre sont prévenus.",
+      "destinatairesChargement": "Lecture des destinataires possibles…",
+      "canalWhatsappAide": "WhatsApp ne parvient qu’aux personnes qui l’ont activé dans leurs préférences, avec un numéro vérifié.",
+      "suite": "{canal} · {n, plural, =0 {personne prévenue} one {# personne prévenue} other {# personnes prévenues}}"
     },
     "reglage": {
       "titre": "Personnaliser les chiffres",
@@ -20947,7 +22451,16 @@
       "enregistrer": "Enregistrer",
       "termine": "Terminé",
       "annuler": "Annuler",
-      "enregistre": "Enregistré."
+      "enregistre": "Enregistré.",
+      "modifierAria": "Modifier le libellé et le format de {libelle}",
+      "metrique": "Métrique : {metrique}",
+      "metriqueAvecValeur": "Métrique : {metrique} (aujourd’hui : {valeur})",
+      "libelleVide": "Chaque chiffre a besoin d’un libellé : complétez celui qui est vide.",
+      "formats": {
+        "number": "Nombre",
+        "currency": "Montant",
+        "percent": "Pourcentage"
+      }
     },
     "description": "{nom} · {periode}",
     "descriptionPeriode": "du {debut} au {fin}",
@@ -20957,9 +22470,38 @@
       "aria": "Période du rapport",
       "choisir": "Période : {periode}",
       "current_month": "Ce mois",
-      "last_month": "Mois dernier"
+      "last_month": "Mois dernier",
+      "last_12_months": "12 mois"
     },
-    "chiffresClesMoisDernier": "Chiffres clés · mois dernier"
+    "chiffresClesMoisDernier": "Chiffres clés · mois dernier",
+    "choisirLAgence": "Espace : {nom}. Changer d’espace",
+    "espaces": "Vos espaces",
+    "plusDActions": "Plus d’actions",
+    "chiffresClesDouzeMois": "Chiffres clés · 12 mois",
+    "detailParBail": {
+      "titre": "Détail par bail",
+      "ongletCommissions": "Onglet Commissions",
+      "toutLeReleve": "Tout le relevé",
+      "bailSansNom": "Bail sans bien",
+      "sansClient": "Client non renseigné",
+      "clientSigne": "{client} · signé le {date}",
+      "versee": "Versée",
+      "verseeLe": "Versée le {date}",
+      "aVenir": "À venir",
+      "annulee": "Annulée",
+      "erreur": "Impossible de charger le détail par bail.",
+      "vide": "Aucune commission pour l’instant : elles apparaissent à la signature d’un bail.",
+      "colonnes": {
+        "bail": "Bail",
+        "client": "Client",
+        "signeLe": "Signé le",
+        "loyer": "Loyer mensuel",
+        "commission": "Commission",
+        "versement": "Versement"
+      }
+    },
+    "demandesEnAttente": "Demandes en attente",
+    "commissionsDouzeMois": "Commissions · 12 mois"
   },
   "propertyDashboard": {
     "overview": {
@@ -21095,7 +22637,9 @@
         "priceMax": "Prix max",
         "createdFrom": "Créé après",
         "createdTo": "Créé avant",
-        "agent": "Agent"
+        "agent": "Agent",
+        "owner": "Bailleur",
+        "suiviPar": "Suivis par"
       },
       "mobile": {
         "button": "Filtres",
@@ -21117,9 +22661,12 @@
         "lieu": "Lieu",
         "agentEtPortee": "Agent et portée",
         "afficher": "Afficher",
-        "plus": "Plus de critères"
+        "plus": "Plus de critères",
+        "bailleurEtAgent": "Bailleur et agent"
       },
-      "total": "{count, plural, one {# bien} other {# biens}}"
+      "total": "{count, plural, one {# bien} other {# biens}}",
+      "ownerLabel": "Bailleur",
+      "ownerAll": "Tous les bailleurs"
     },
     "actions": {
       "error": "Action impossible. Réessayez.",
@@ -21363,7 +22910,10 @@
           "brouillon": "En préparation",
           "aucun": "Aucun état des lieux d’entrée",
           "echec": "L’état des lieux n’a pas pu être lu."
-        }
+        },
+        "avisDEcheance": "avis d’échéance le {date}",
+        "revision": "Révision possible le {date}",
+        "revisionDetail": "Clause d’indexation annuelle"
       },
       "bailleur": {
         "titre": "Bailleur",
@@ -21400,7 +22950,8 @@
         "vide": "Aucune échéance enregistrée.",
         "recuLe": "Reçu le {date}",
         "echeanceLe": "Échéance le {date}",
-        "echeanceEtPenalite": "Échéance le {date} · pénalité {montant} due"
+        "echeanceEtPenalite": "Échéance le {date} · pénalité {montant} due",
+        "recuLeParMoyen": "Reçu le {date} · {moyen}"
       },
       "carte": {
         "loyerDe": "Loyer de {mois}",
@@ -21447,11 +22998,16 @@
       "identite": {
         "surface": "{area} m²",
         "enLigne": "En ligne",
-        "horsLigne": "Hors ligne"
+        "horsLigne": "Hors ligne",
+        "valide": "Validé"
       },
       "responsable": {
-        "detail": "Agent responsable",
-        "aucun": "Non désigné"
+        "aucun": "Non désigné",
+        "principal": "Agent principal",
+        "collaborateurs": "{count, plural, one {# collaborateur} other {# collaborateurs}}"
+      },
+      "interventions": {
+        "enCours": "{count, plural, one {# intervention en cours} other {# interventions en cours}}"
       }
     },
     "annonces": {
@@ -21471,15 +23027,17 @@
         "brouillon": "Brouillon",
         "horsLigne": "Hors ligne"
       },
-      "chiffres": "{vues, plural, one {# vue} other {# vues}} · {favoris, plural, one {# favori} other {# favoris}}",
       "caption": "Annonces",
       "sousTitre": "{total, plural, one {# bien au portefeuille} other {# biens au portefeuille}} · {online, plural, =0 {aucun en ligne} other {# en ligne}}",
       "quota": {
         "texte": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit}",
         "aria": "Quota d’annonces de votre agence",
-        "definition": "Disponibles, validées ou en attente"
+        "definition": "Disponibles, validées ou en attente",
+        "offre": "Offre {nom}"
       },
-      "boostee": "Boostée jusqu’au {date}"
+      "boostee": "Boostée jusqu’au {date}",
+      "chiffres30j": "{vues, plural, one {# vue} other {# vues}} · {contacts, plural, one {# contact} other {# contacts}} · {visites, plural, one {# visite} other {# visites}}",
+      "fenetre30j": "(30 j)"
     },
     "horsLigne": {
       "phrase": {
@@ -21904,5 +23462,13 @@
     "resubmitError": "Erreur lors de la resoumission. Veuillez réessayer.",
     "approvedTitle": "Bien approuvé et publié",
     "approvedOn": "Approuvé le {date}"
+  },
+  "dictee": {
+    "erreurs": {
+      "refusee": "Le micro est refusé : autorisez-le dans votre navigateur. Votre texte est conservé.",
+      "reseau": "La dictée demande une connexion. Votre texte est conservé.",
+      "silence": "Rien n’a été entendu. Réessayez.",
+      "autre": "La dictée s’est interrompue. Votre texte est conservé."
+    }
   }
 }

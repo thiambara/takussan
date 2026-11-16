@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { ApiError } from '@/lib/api';
-import type { ModerationReview, ReviewRiskLevel } from '@/lib/queries/reviews-moderation';
+import { buildQueueParams, type ModerationReview, type ReviewRiskLevel } from '@/lib/queries/reviews-moderation';
 import { ModerationWorkspace } from '../ModerationWorkspace';
 
 /**
@@ -21,6 +21,7 @@ const mockFetchReports = vi.fn();
 const mockModerate = vi.fn();
 const mockBatch = vi.fn();
 const mockReply = vi.fn();
+const mockSummary = vi.fn();
 
 vi.mock('@/lib/queries/reviews-moderation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/queries/reviews-moderation')>()),
@@ -29,6 +30,7 @@ vi.mock('@/lib/queries/reviews-moderation', async (importOriginal) => ({
   moderateReview: (...args: unknown[]) => mockModerate(...args),
   moderateReviewBatch: (...args: unknown[]) => mockBatch(...args),
   replyToReview: (...args: unknown[]) => mockReply(...args),
+  fetchReviewSubjectSummary: (...args: unknown[]) => mockSummary(...args),
 }));
 
 vi.mock('@/lib/queries/agency-queues', async (importOriginal) => ({
@@ -94,6 +96,22 @@ function avis(id: number, o: Partial<Avis> & { niveau?: ReviewRiskLevel; sujet?:
     ...reste,
   } as Avis;
 }
+/** TCK-2931 — le résumé du sujet (TCK-2930), sans autre avis par défaut. */
+function resume(id: number, o: { moyenne?: number | null; n?: number; autres?: number; depuis?: string | null } = {}) {
+  const { moyenne = null, n = 0, autres = 0, depuis = null } = o;
+  return {
+    review_id: id,
+    subject: { type: 'App\\Models\\Property', id: 99, average_rating: moyenne, reviews_count: n },
+    others: Array.from({ length: autres }, (_, k) => ({
+      id: 900 + k,
+      rating: 5 - (k % 2),
+      excerpt: `Autre avis ${k + 1}`,
+      author_name: `Voisin ${k + 1}`,
+      created_at: '2026-10-05T10:00:00Z',
+    })),
+    author: { id: 100 + id, tenant_since: depuis },
+  };
+}
 const plage = (de: number, n: number, o: Parameters<typeof avis>[1] = {}) => Array.from({ length: n }, (_, k) => avis(de + k, o));
 
 function servir() {
@@ -145,6 +163,8 @@ beforeEach(() => {
   mockBatch.mockReset();
   mockReply.mockReset();
   mockFetchReports.mockResolvedValue({ data: [], meta: { total: 0 } });
+  mockSummary.mockReset();
+  mockSummary.mockImplementation(async (id: number) => ({ data: resume(id) }));
   serveur = { high: [avis(1, { niveau: 'high', sujet: 'Premier sujet' })], low: [avis(2, { sujet: 'Second sujet' })] };
   servir();
 });
@@ -201,7 +221,9 @@ describe('<ModerationWorkspace> — décisions', () => {
   });
 
   // TCK-597 (ADR-0043 §7) — le motif est un CODE choisi dans une liste traduite.
-  it('supprimer (plateforme) exige un motif codé, le texte libre est facultatif', async () => {
+  // TCK-2931 — supprimer suit `can_delete` (API) ; motif codé ET quelques mots, à l'écran pour tous.
+  it('supprimer exige un motif codé, puis quelques mots', async () => {
+    serveur = { high: [avis(1, { niveau: 'high', sujet: 'Premier sujet', can_delete: true })], low: [] };
     mockModerate.mockResolvedValue({ data: { id: 1, deleted: true } });
     const user = userEvent.setup();
     render(wrap(<ModerationWorkspace platform />));
@@ -218,9 +240,13 @@ describe('<ModerationWorkspace> — décisions', () => {
     expect(await screen.findAllByRole('option')).toHaveLength(9);
     await user.click(screen.getByRole('option', { name: 'Propos injurieux' }));
     await user.click(screen.getByRole('button', { name: /confirmer/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/raison est requise/i);
+    expect(mockModerate).not.toHaveBeenCalled();
 
+    await user.type(screen.getByLabelText(/quelques mots \(obligatoires/i), 'Insultes envers le gardien');
+    await user.click(screen.getByRole('button', { name: /confirmer/i }));
     await waitFor(() =>
-      expect(mockModerate).toHaveBeenCalledWith(1, { decision: 'delete', reason_code: 'offensive', reason: undefined }, 'fake-token'),
+      expect(mockModerate).toHaveBeenCalledWith(1, { decision: 'delete', reason_code: 'offensive', reason: 'Insultes envers le gardien' }, 'fake-token'),
     );
   });
 
@@ -648,5 +674,136 @@ describe('<ModerationWorkspace> — état d’URL (TCK-376)', () => {
 
     await user.click(screen.getByRole('option', { name: 'Agences' }));
     expect(derniereUrl().get('filter[subject_type]')).toBe('App\\Models\\Agency');
+  });
+});
+
+describe('<ModerationWorkspace> — chercher, juger dans son contexte, gestes de l’agence (TCK-2931)', () => {
+  it('AC1 — la recherche part en `filter[search]` au serveur, rognée ; vide, elle ne part pas', () => {
+    expect(buildQueueParams({ search: ' sacré ' }).filter).toEqual({ search: 'sacré' });
+    expect(buildQueueParams({ search: '   ' }).filter).toEqual({});
+    expect(buildQueueParams({}).filter).toEqual({});
+  });
+
+  it('AC1 — taper « sacré » envoie filter[search]=sacré ; la liste ne rend que les avis renvoyés ; vider rend la file entière', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(wrap(<ModerationWorkspace />));
+    await screen.findByTestId('moderation-queue-item-1');
+    const champ = screen.getByRole('searchbox', { name: /chercher dans les avis/i });
+    expect(champ).toHaveAttribute('placeholder', 'Chercher un bien, un auteur, un agent');
+
+    await user.type(champ, 'sacré');
+    // Saisie retardée : un seul envoi, la valeur entière, après la fenêtre.
+    await waitFor(() => expect(derniereUrl().get('filter[search]')).toBe('sacré'), { timeout: 2000 });
+    expect(replace.mock.calls.filter((c) => String(c[0]).includes('filter%5Bsearch%5D'))).toHaveLength(1);
+    unmount();
+
+    // Le serveur cherche : la page ne filtre rien elle-même.
+    mockFetchQueue.mockClear();
+    serveur = { high: [], low: [avis(7, { sujet: 'Villa Sacré-Cœur' })] };
+    urlCourante = 'filter[search]=sacr%C3%A9';
+    const vue = render(wrap(<ModerationWorkspace />));
+    await screen.findByTestId('moderation-queue-item-7');
+    expect(paramsDe('high').search).toBe('sacré');
+    expect(paramsDe('low').search).toBe('sacré');
+    expect(screen.queryByTestId('moderation-queue-item-1')).toBeNull();
+
+    await user.clear(screen.getByRole('searchbox', { name: /chercher dans les avis/i }));
+    await waitFor(() => expect(derniereUrl().has('filter[search]')).toBe(false), { timeout: 2000 });
+    vue.unmount();
+
+    urlCourante = '';
+    mockFetchQueue.mockClear();
+    render(wrap(<ModerationWorkspace />));
+    await screen.findByTestId('moderation-queue-item-7');
+    expect(paramsDe('low').search).toBeUndefined();
+  });
+
+  it('AC1 — aucun résultat : l’écran le dit avec le terme, et « Effacer la recherche » rend la file', async () => {
+    serveur = { high: [], low: [] };
+    urlCourante = 'filter[search]=zzz';
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+    expect(await screen.findByText('Aucun avis pour « zzz »')).toBeInTheDocument();
+    // Deux « Effacer la recherche » : la croix du champ, et le bouton de l'état vide — celui-ci.
+    const bouton = screen.getAllByRole('button', { name: 'Effacer la recherche' }).find((b) => b.dataset.testid !== 'console-search-clear');
+    await user.click(bouton as HTMLElement);
+    expect(derniereUrl().has('filter[search]')).toBe(false);
+  });
+
+  it('AC1 — « Tout cocher » sous une recherche ne lit que la liste cherchée', async () => {
+    urlCourante = 'filter[search]=mermoz';
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+    await screen.findByTestId('moderation-queue-item-2');
+    await user.click(screen.getByRole('button', { name: 'Tout cocher' }));
+    await waitFor(() => expect(mockFetchQueue.mock.calls.some((c) => c[1]?.perPage === 100)).toBe(true));
+    const lecture = mockFetchQueue.mock.calls.find((c) => c[1]?.perPage === 100)?.[1] as Record<string, unknown>;
+    expect(lecture.search).toBe('mermoz');
+  });
+
+  it('téléphone — la recherche est dans la feuille des filtres, et son terme reste lisible et effaçable depuis la liste', async () => {
+    ecran = 'telephone';
+    urlCourante = 'filter[search]=fatou';
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+    await screen.findByTestId('moderation-queue-item-1');
+    expect(screen.queryByRole('searchbox', { name: /chercher dans les avis/i })).toBeNull();
+    expect(screen.getByText('Recherche : « fatou »')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Effacer la recherche' }));
+    expect(derniereUrl().has('filter[search]')).toBe(false);
+    // Le bouton « Filtres » est monté par la coque (`DeclarerEnTete`), absente ici : la feuille ne s'ouvre pas.
+  });
+
+  it('AC2 — le sujet a 12 avis publiés de moyenne 4,2 : « 4,2 ★ sur 12 avis », 3 autres avis, et « Locataire depuis »', async () => {
+    mockSummary.mockImplementation(async (id: number) => ({ data: resume(id, { moyenne: 4.2, n: 12, autres: 3, depuis: '2025-03-14' }) }));
+    render(wrap(<ModerationWorkspace />));
+    const detail = await screen.findByTestId('moderation-detail');
+
+    const sujet = within(detail).getByRole('link', { name: /Ouvrir la fiche/ });
+    expect(await within(sujet).findByText(/4,2 ★ sur 12 avis/)).toBeInTheDocument();
+    const autres = within(detail).getByRole('region', { name: 'Autres avis sur ce bien' });
+    expect(within(autres).getAllByRole('listitem')).toHaveLength(3);
+    expect(autres).toHaveTextContent('Voisin 1 — Autre avis 1');
+    expect(within(detail).getByText(/Locataire depuis mars 2025/)).toBeInTheDocument();
+    expect(mockSummary).toHaveBeenCalledWith(1, 'fake-token');
+  });
+
+  it('AC2 — sans autre avis publié, le bloc n’est pas rendu ; sans moyenne, pas de note', async () => {
+    render(wrap(<ModerationWorkspace />));
+    const detail = await screen.findByTestId('moderation-detail');
+    await waitFor(() => expect(mockSummary).toHaveBeenCalled());
+    expect(within(detail).queryByRole('region', { name: /Autres avis/ })).toBeNull();
+    expect(detail).not.toHaveTextContent(/★ sur/);
+    expect(detail).not.toHaveTextContent(/Locataire depuis/);
+  });
+
+  it('AC5 — agence, avis publié de son périmètre : « Supprimer » et « Ignorer les signalements » selon l’API, et plus de « seule la plateforme »', async () => {
+    urlCourante = 'filter[moderation_status]=approved';
+    serveur = {
+      high: [avis(8, { niveau: 'high', status: 'approved', is_approved: true, can_moderate: false, can_delete: true, can_dismiss_reports: true, reported_count: 2 })],
+      low: [],
+    };
+    mockModerate.mockResolvedValue({ data: avis(8) });
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+    const detail = await screen.findByTestId('moderation-detail');
+    expect(within(detail).getByRole('button', { name: /supprimer/i })).toBeInTheDocument();
+    expect(within(detail).queryByRole('button', { name: /^masquer$/i })).toBeNull();
+    expect(screen.queryByTestId('moderation-platform-only')).toBeNull();
+
+    await user.click(within(detail).getByRole('button', { name: /ignorer les signalements/i }));
+    await user.click(screen.getByRole('combobox', { name: 'Motif' }));
+    await user.click(await screen.findByRole('option', { name: 'Propos injurieux' }));
+    await user.click(screen.getByRole('button', { name: /confirmer/i }));
+    await waitFor(() => expect(mockModerate).toHaveBeenCalledWith(8, { decision: 'ignore', reason_code: 'offensive', reason: undefined }, 'fake-token'));
+  });
+
+  it('AC5 — sans la capacité de l’API, ni « Supprimer » ni « Ignorer », même pour le super-admin', async () => {
+    serveur = { high: [avis(9, { niveau: 'high', reported_count: 3, can_delete: false, can_dismiss_reports: false })], low: [] };
+    render(wrap(<ModerationWorkspace platform />));
+    const detail = await screen.findByTestId('moderation-detail');
+    expect(within(detail).getByRole('button', { name: /^publier$/i })).toBeInTheDocument();
+    expect(within(detail).queryByRole('button', { name: /supprimer/i })).toBeNull();
+    expect(within(detail).queryByRole('button', { name: /ignorer/i })).toBeNull();
   });
 });

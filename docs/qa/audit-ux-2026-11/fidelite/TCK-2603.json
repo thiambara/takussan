@@ -88,13 +88,6 @@
   "coque": false,
   "ecarts_acceptes": [
     {
-      "ecran": "a-0 (téléphone, bureau)",
-      "element": "second chiffre « 0 F de commission » (icône lucide-tag)",
-      "propriete": "absent du produit ; la carte n’a qu’une colonne",
-      "exception": "donnée — contrainte du ticket",
-      "motif": "la commission dépend du plan de l'espace qui publie (ADR-0093 ; 3 % en pro) : le chiffre n'est écrit que s'il est vrai, ce que le départ sans compte ne sait pas. Accepté par la session le 2026-11-13 (« ne jamais afficher un chiffre que le plan pourrait démentir »)"
-    },
-    {
       "ecran": "a-0 (téléphone)",
       "element": "carte de preuves",
       "propriete": "hauteur 82,3 → 66 ; libellé sur une ligne au lieu de deux",
@@ -125,7 +118,7 @@
     {
       "ecran": "a-0 (768, 1024)",
       "element": "largeurs intermédiaires",
-      "motif": "la carte est d'une seule colonne et pleine largeur à toute largeur : aucune disposition propre à 768 ou à 1024 (règle de cadence 7) ; l'écran lui-même relève de TCK-2600 — relevé tout de même le 2026-11-14 (AC-F6, carte doublée au cache, arbre de travail de lot-4) : à 768, `scrollWidth − innerWidth` = 0, carte 704 px, pleine largeur de sa colonne ; à 1024, 0, carte 560 × 63,6, pleine largeur de sa colonne."
+      "motif": "la carte est pleine largeur de sa colonne à toute largeur (deux colonnes internes avec le chiffre des recherches, TCK-2934 ; une seule sans lui) : aucune disposition propre à 768 ou à 1024 (règle de cadence 7) ; l'écran lui-même relève de TCK-2600 — relevé tout de même le 2026-11-14 (AC-F6, carte doublée au cache, arbre de travail de lot-4) : à 768, `scrollWidth − innerWidth` = 0, carte 704 px, pleine largeur de sa colonne ; à 1024, 0, carte 560 × 63,6, pleine largeur de sa colonne."
     }
   ],
   "notes": [
@@ -133,5 +126,16 @@
     "Sans chiffre (sous le seuil, en échec, en attente), la carte n'est pas rendue et l'étape est celle de TCK-2600 au pixel : épinglé par PublierSansCompte.preuves.tck-2603.test.tsx et PreuvesDuDepart.tck-2603.test.tsx.",
     "2026-11-14 — sans doublure, la vraie API de la pile de dev rend {city: 'Dakar', searches_7d: null} (journal de démo sous le seuil) et la carte n'est pas rendue : l'état « sans chiffre » est celui de TCK-2600."
   ],
-  "ecarts_ouverts": []
+  "ecarts_ouverts": [],
+  "ecarts_resolus": [
+    {
+      "ecran": "a-0 (téléphone, bureau)",
+      "element": "second chiffre « 0 F de commission » (icône lucide-tag)",
+      "propriete": "absent du produit ; la carte n’a qu’une colonne",
+      "exception": "donnée — contrainte du ticket",
+      "motif": "la commission dépend du plan de l'espace qui publie (ADR-0093 ; 3 % en pro) : le chiffre n'est écrit que s'il est vrai, ce que le départ sans compte ne sait pas. Accepté par la session le 2026-11-13 (« ne jamais afficher un chiffre que le plan pourrait démentir »)",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2934 (AC1) : « 0 F de commission » (lucide-tag) en seconde colonne ; sans chiffre de recherches (sous le seuil, échec, attente), la carte garde cette preuve seule au lieu de disparaître. Promesse vérifiée dans le code (motif dans `PreuvesDuDepart`) : publier ne débite rien, l'espace où `/publish` publie est un particulier sans abonnement (0 % de commission). Tests : PreuvesDuDepart.tck-2603, PublierSansCompte.preuves.tck-2603."
+    }
+  ]
 }

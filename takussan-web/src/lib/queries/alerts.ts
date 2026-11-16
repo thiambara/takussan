@@ -2,44 +2,17 @@ import { apiRequest, buildQueryString } from '@/lib/api';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import type { PaginatedResponse } from '@/types/api';
+import type { ThresholdAlert } from '@/types/alert';
 import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 /**
  * Server wrappers around /api/threshold-alerts (TCK-032 P3).
  */
 
-export type ThresholdAlert = {
-  id: number;
-  agency_id: number;
-  metric: string;
-  operator: '>' | '<' | '>=' | '<=';
-  threshold: number | string;
-  severity: 'info' | 'warning' | 'critical';
-  is_enabled: boolean;
-  cooldown_hours: number;
-  last_triggered_at: string | null;
-  last_value: number | string | null;
-  /**
-   * TCK-2627 — la valeur ACTUELLE de la mesure (`ThresholdAlertReading`), `null` sans dénominateur ou
-   * pour un chiffre consolidé que le lecteur ne lit pas : jamais 0 à sa place.
-   */
-  current_value?: number | null;
-  /** TCK-2627/TCK-2723 — qui est prévenu : le compte, et les noms au seul lecteur qui peut modifier l'alerte. */
-  recipients?: { count: number; users: { id: number; name: string | null }[] };
-  /** TCK-2627 — les canaux de l'événement (`inapp`, `email`), sans les préférences de chacun. */
-  channels?: string[];
-  /** TCK-2627 — `include=triggers` : les dix derniers déclenchements, le plus récent d'abord. */
-  triggers?: { at: string | null; value: number | null }[];
-};
-
-export type ThresholdAlertInput = {
-  metric: string;
-  operator: ThresholdAlert['operator'];
-  threshold: number;
-  severity?: ThresholdAlert['severity'];
-  is_enabled?: boolean;
-  cooldown_hours?: number;
-};
+// TCK-2868 — types et `CANAUX_D_ALERTE` vivent dans `@/types/alert`, importable par un composant
+// client ; ce module serveur (il tire `lib/session.ts`) ne fait que les ré-exporter.
+export { CANAUX_D_ALERTE } from '@/types/alert';
+export type { AlertChannel, ThresholdAlert, ThresholdAlertInput } from '@/types/alert';
 
 export async function fetchThresholdAlerts(): Promise<{ data: ThresholdAlert[] } | null> {
   const token = await getToken();

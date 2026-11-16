@@ -33,8 +33,8 @@ describe('shortSubjectType', () => {
 describe('auditSubjectHref', () => {
   // La liste ENTIÈRE et à l'identique : amputer la table fait rougir ce test. La revue adverse
   // de TCK-363 a trouvé trois tables de filtres qui survivaient à leur propre amputation.
-  it('n’a d’écran que pour ces quatre types, et pas un de plus', () => {
-    expect([...AUDIT_SUBJECTS_AVEC_ECRAN]).toEqual(['Property', 'Booking', 'Lease', 'Customer']);
+  it('n’a d’écran que pour ces cinq types, et pas un de plus', () => {
+    expect([...AUDIT_SUBJECTS_AVEC_ECRAN]).toEqual(['Property', 'Booking', 'Lease', 'Customer', 'PropertyVisit']);
   });
 
   it.each([
@@ -42,6 +42,8 @@ describe('auditSubjectHref', () => {
     ['App\\Models\\Booking', 7, '/app/bookings/7'],
     ['App\\Models\\Lease', 3, '/app/leases/3'],
     ['App\\Models\\Customer', 88, '/app/customers/88'],
+    // TCK-2869 — la confirmation d'une visite par le bailleur (TCK-2849).
+    ['App\\Models\\PropertyVisit', 41, '/app/visits/41'],
   ])('%s #%i → %s', (type, id, attendu) => {
     expect(auditSubjectHref(type, id)).toBe(attendu);
   });

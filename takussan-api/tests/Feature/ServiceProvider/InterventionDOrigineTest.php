@@ -60,7 +60,17 @@ class InterventionDOrigineTest extends TestCase
                 'count' => 2,
             ],
             'quote' => null,
+            // TCK-2943 (ADR-0122) — les clés neuves. Ce demandeur n'a aucun bail du bien : un signalement de l'agence,
+            // sans citation (les mots du locataire seuls sortent, masqués — InterventionDOrigineProjectionTest).
+            'respond_by' => $reponse->json('data.respond_by'),
+            'reported_at' => $reponse->json('data.reported_at'),
+            'reference' => $mr->reference(),
+            'reported_by_role' => 'agency',
+            'tenant_quote' => null,
+            'detail_url' => "/app/maintenance/{$mr->id}",
         ]]);
+        $this->assertNotNull($reponse->json('data.respond_by'));
+        $this->assertNotNull($reponse->json('data.reported_at'));
         $this->assertStringContainsString('/media/', (string) $reponse->json('data.photo.url'));
         // Une balise `<img>` n'envoie aucun jeton : l'URL signée se sert sans session (le fichier, ou la redirection
         // vers l'URL présignée du disque, que le navigateur suit) — jamais 401 ni 403.

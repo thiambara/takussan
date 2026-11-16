@@ -4,7 +4,7 @@ import { Navigation } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { GestesDuVisiteur, lienItineraire } from '@/components/visits/par-le-temps/pieces';
-import { estEnAttente, heureDeMinutes, journeeDeLAgenda, minutesADakar, occupationDuJour, semaineDeLAgenda, type Bloc } from '@/lib/agenda/agenda';
+import { estEnAttente, heureDeMinutes, journeeDeLAgenda, minutesADakar, occupationDuJour, reboursDuProchain, semaineDeLAgenda, type Bloc } from '@/lib/agenda/agenda';
 import { heureMuraleADakar } from '@/lib/visites/heure-de-dakar';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/calendar';
@@ -12,7 +12,7 @@ import type { PropertyVisit } from '@/types/visit';
 import { paletteFor, paletteForType } from '@/components/calendar/event-colors';
 import { useDatesDeLAgenda } from './dates';
 import { sousTitreDeLEvenement, titreDeLEvenement } from './JourDeLAgenda';
-import { HACHURE, LienOccupation, TypeMot, traitsDeFond } from './pieces';
+import { HACHURE, LienOccupation, TypeMot, traitsDeFond, useTexteDuRebours } from './pieces';
 
 /** Une heure de la grille : 44 px (11 pas), 39,6 au bureau dense. */
 const HEURE = 'calc(var(--spacing) * 11)';
@@ -142,6 +142,9 @@ export function SemaineDeLAgenda({ jour, aujourdhui, maintenant, evenements, vis
   const duJour = [...journee.sansHeure, ...journee.lignes.flatMap((l) => (l.genre === 'evenement' ? [l.m.evenement] : []))];
   const sejours = sejoursDuJour ?? journee.sejours;
   const occupation = occupationDuJour(sejours, jour);
+  // TCK-2888 — « dans 45 min » dans la tête de la carte du jour (maquette e0 : `action` de la carte).
+  const texteDuRebours = useTexteDuRebours();
+  const prochain = reboursDuProchain(evenements, jour, maintenant);
 
   return (
     <div data-slot="semaine-de-l-agenda" className="grid grid-cols-1 items-start gap-5 min-[90rem]:grid-cols-[minmax(0,1fr)_calc(var(--spacing)*72)]">
@@ -221,7 +224,14 @@ export function SemaineDeLAgenda({ jour, aujourdhui, maintenant, evenements, vis
       </div>
       <div className="grid grid-cols-2 items-start gap-4 max-lg:grid-cols-1 min-[90rem]:block min-[90rem]:space-y-4">
         <section aria-label={d.long(jour)} className="rounded-xl border border-border bg-card" data-testid="calendar-selected-day">
-          <h3 className="border-b border-border px-4 py-3 font-display text-corps font-semibold tracking-titre">{d.long(jour)}</h3>
+          <div className="flex items-baseline justify-between gap-3 border-b border-border px-4 py-3">
+            <h3 className="min-w-0 font-display text-corps font-semibold tracking-titre">{d.long(jour)}</h3>
+            {prochain ? (
+              <span data-slot="rebours" className="flex-none text-ui font-semibold tabular-nums text-primary-deep">
+                {texteDuRebours(prochain)}
+              </span>
+            ) : null}
+          </div>
           {duJour.length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">{t('jour.rien')}</p>
           ) : (

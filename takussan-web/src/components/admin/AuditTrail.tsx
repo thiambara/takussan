@@ -67,6 +67,8 @@ const KNOWN_SUBJECT_TYPES: { key: string; value: string }[] = [
   { key: 'agencyAdminProfile', value: 'App\\Models\\Profiles\\AgencyAdminProfile' },
   { key: 'ownerProfile', value: 'App\\Models\\Profiles\\OwnerProfile' },
   { key: 'privacyRequest', value: 'App\\Models\\PrivacyRequest' },
+  // TCK-2869 — la visite (`visit.confirmed_by_owner`, TCK-2849) : le journal la filtre comme il la nomme.
+  { key: 'propertyVisit', value: 'App\\Models\\PropertyVisit' },
 ];
 
 /**

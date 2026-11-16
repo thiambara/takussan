@@ -62,7 +62,9 @@ export function useDemandesAAttribuer(enabled: boolean) {
 export function parametresDesVisitesAConfirmer(maintenant: Date): SpatieQueryParams {
   return {
     fields: {
-      property_visits: VISIT_TIME_FIELDS,
+      // TCK-2869 — `can_confirm` : l'accueil du bailleur n'offre « Confirmer » et « Autre créneau » que
+      // si l'API les permet (ADR-0112) ; en liste, l'API ne la sert que nommée ici.
+      property_visits: [...VISIT_TIME_FIELDS, 'can_confirm'],
       properties: ['id', 'title', 'slug'],
       users: ['id', 'first_name', 'last_name'],
       customers: ['id', 'first_name', 'last_name', 'phone'],

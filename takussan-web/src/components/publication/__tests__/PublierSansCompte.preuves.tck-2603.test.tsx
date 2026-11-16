@@ -1,6 +1,6 @@
 /**
  * TCK-2603 — la carte de preuves au départ de `/publish` sans compte : entre le sous-titre et la question du bien
- * (maquette a-0), lue sur `GET /api/public/publish/demand`, et absente quand l'API ne rend pas de chiffre. Les doublures
+ * (maquette a-0), lue sur `GET /api/public/publish/demand` ; sans chiffre, la seule preuve « 0 F de commission » (TCK-2934). Les doublures
  * sont celles de `PublierSansCompte.tck-2600.test.tsx` (l'assistant entier tourne) ; seule la réponse de l'API change.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -108,23 +108,24 @@ describe('la carte de preuves du départ (TCK-2603)', () => {
     expect(appelsDeLaDemande()[0]).toMatch(/\/api\/public\/publish\/demand$/);
   });
 
-  it('sous le seuil, rien ne paraît et le départ reste celui de TCK-2600', async () => {
+  it('TCK-2934 — sous le seuil, la carte reste avec la seule preuve « 0 F de commission »', async () => {
     demande = { city: 'Dakar', searches_7d: null };
     monter(moteurEnMemoire());
     await screen.findByRole('radio', { name: /^studio$/i });
     await waitFor(() => expect(appelsDeLaDemande()).toHaveLength(1));
     await new Promise((r) => setTimeout(r, 0));
-    expect(carte()).toBeNull();
+    expect(carte()).not.toBeNull();
+    expect(carte()!.textContent).toBe('0\u00a0Fde commission');
     expect(screen.queryByText(/cette semaine/)).toBeNull();
   });
 
-  it('AC3 — API injoignable : le départ s’affiche sans la case du chiffre, sans message d’erreur', async () => {
+  it('AC3 — API injoignable : la carte garde la preuve de la commission, sans case du chiffre ni message d’erreur', async () => {
     demande = 'panne';
     monter(moteurEnMemoire());
     await screen.findByRole('heading', { level: 1, name: 'Publiez votre bien gratuitement' });
     await waitFor(() => expect(appelsDeLaDemande()).toHaveLength(1));
     await new Promise((r) => setTimeout(r, 20));
-    expect(carte()).toBeNull();
+    expect(carte()!.textContent).toBe('0\u00a0Fde commission');
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByRole('radio', { name: /^studio$/i })).toBeInTheDocument();
   });

@@ -37,7 +37,11 @@ vi.mock('@/hooks/useProfiles', () => ({
 }));
 vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => 0 }));
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
-vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
+// TCK-2846 — les demandes non traitées, réglables : la ligne « À traiter » et sa pastille.
+const etat = vi.hoisted(() => ({ demandes: 0 }));
+vi.mock('@/lib/queries/contact-leads', () => ({
+  useUnhandledLeadsCount: (o: { enabled?: boolean } = {}) => (o.enabled ? { data: { meta: { total: etat.demandes } } } : {}),
+}));
 vi.mock('@/lib/queries/reviews-moderation', () => ({ fetchModerationQueue: () => Promise.resolve({ meta: { total: 0 } }) }));
 vi.mock('@/lib/queries/property-moderation', () => ({
   fetchPropertyModerationQueue: () => Promise.resolve({ meta: { total: 0 } }),
@@ -57,13 +61,17 @@ async function monter(roles: UserRole[], typeProfilActif: ProfileType | null = n
   return render(
     withIntl(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <ContexteDuMenuDeLaCoque.Provider value={{ user, agencyIsStandard: true, typeProfilActif, modulesMasques: [] }}>
+        <ContexteDuMenuDeLaCoque.Provider value={{ user, agencyIsStandard: true, typeProfilActif, modulesMasques: [], espaceActif: ESPACE }}>
           {page}
         </ContexteDuMenuDeLaCoque.Provider>
       </QueryClientProvider>,
     ),
   );
 }
+
+/** TCK-2846 — l'espace de la coque : les récents y sont rangés. */
+const ESPACE = 'agency_admin:9';
+const magasin = (pages: readonly object[]) => JSON.stringify({ v: 2, espaces: { [ESPACE]: pages } });
 
 const champ = () => screen.getByRole('searchbox', { name: 'Rechercher une page, une action ou un espace' });
 const secours = () => within(document.querySelector<HTMLElement>('[data-slot="secours-de-l-introuvable"]')!);
@@ -72,6 +80,7 @@ beforeEach(() => {
   chemin.courant = '/app/zzz';
   pousser.mockReset();
   window.localStorage.clear();
+  etat.demandes = 0;
 });
 
 describe('TCK-2619 — la page introuvable propose d’aller ailleurs', () => {
@@ -87,7 +96,7 @@ describe('TCK-2619 — la page introuvable propose d’aller ailleurs', () => {
   });
 
   it('à vide : les récents de l’appareil (« Récent »), puis quatre entrées du menu, sans l’accueil', async () => {
-    window.localStorage.setItem(clePagesRecentes(41), JSON.stringify(['/app/leases', '/app/customers/12']));
+    window.localStorage.setItem(clePagesRecentes(41), magasin([{ chemin: '/app/leases' }, { chemin: '/app/customers/12' }]));
     await monter(['customer', 'agency_admin']);
     const liens = secours().getAllByRole('link');
     const recents = liens.filter((l) => l.textContent?.endsWith('Récent'));
@@ -125,5 +134,51 @@ describe('TCK-2619 — la page introuvable propose d’aller ailleurs', () => {
     sousAgent.unmount();
     await monter(['customer', 'agency_admin', 'agent'], 'agency_admin');
     expect(screen.getByRole('link', { name: 'Retour à l’accueil' })).toBeInTheDocument();
+  });
+});
+
+describe('TCK-2846 — les récents de la page introuvable sont ceux de la palette', () => {
+  it('AC2 — une fiche ouverte y paraît par son nom, sous le champ, avant les entrées du menu', async () => {
+    window.localStorage.setItem(
+      clePagesRecentes(41),
+      magasin([
+        { chemin: '/app/leads?ouverte=9', type: 'demande', id: '9', titre: 'Moussa Diallo' },
+        { chemin: '/app/properties/42', type: 'bien', id: '42', titre: 'Villa 4 chambres à Ngor' },
+      ]),
+    );
+    await monter(['customer', 'agency_admin']);
+    const recents = secours().getAllByRole('link').filter((l) => l.textContent?.endsWith('Récent'));
+    expect(recents.map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
+      ['Moussa DialloRécent', '/app/leads?ouverte=9'],
+      ['Villa 4 chambres à NgorRécent', '/app/properties/42'],
+    ]);
+  });
+
+  it('une fiche devenue introuvable n’est pas proposée, et sort des récents de l’appareil', async () => {
+    chemin.courant = '/app/properties/42';
+    window.localStorage.setItem(
+      clePagesRecentes(41),
+      magasin([
+        { chemin: '/app/properties/42', type: 'bien', id: '42', titre: 'Villa disparue' },
+        { chemin: '/app/leases/3', type: 'bail', id: '3', titre: 'Bail de Awa' },
+      ]),
+    );
+    await monter(['customer', 'agency_admin']);
+    expect(secours().queryByRole('link', { name: /Villa disparue/ })).toBeNull();
+    expect(secours().getByRole('link', { name: /Bail de Awa/ })).toHaveAttribute('href', '/app/leases/3');
+    const garde = JSON.parse(window.localStorage.getItem(clePagesRecentes(41)) ?? 'null');
+    expect(garde.espaces[ESPACE].map((p: { chemin: string }) => p.chemin)).toEqual(['/app/leases/3']);
+  });
+
+  it('une ligne « À traiter » montre son nombre en pastille, comme la palette (TCK-2845)', async () => {
+    etat.demandes = 3;
+    await monter(['customer', 'agency_admin']);
+    await userEvent.setup().type(champ(), 'demandes');
+    const ligne = secours()
+      .getAllByRole('link')
+      .find((l) => l.querySelector('[data-slot="pastille"]'));
+    expect(ligne).toBeDefined();
+    expect(ligne!.querySelector('[data-slot="pastille"]')?.textContent).toBe('3');
+    expect(ligne!.textContent).toBe('Demandes non traitées3');
   });
 });

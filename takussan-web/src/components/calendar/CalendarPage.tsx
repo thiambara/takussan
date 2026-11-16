@@ -9,7 +9,7 @@ import { FiltresDeLAgenda } from '@/components/agenda/FiltresDeLAgenda';
 import { BandeDeLaSemaine, JourDeLAgenda } from '@/components/agenda/JourDeLAgenda';
 import { MoisCompact, MoisDeLAgenda } from '@/components/agenda/MoisDeLAgenda';
 import { OccupationDesBiens, useOccupationDesBiens } from '@/components/agenda/OccupationDesBiens';
-import { BarrePeriode, BasculeDeVue, DureeDeLOccupation, Filtre, Legende, MenuDeVue, NavPeriode, Segmente } from '@/components/agenda/pieces';
+import { BarrePeriode, BasculeDeVue, DUREES_DE_L_OCCUPATION, Filtre, Legende, MenuDeDuree, MenuDeVue, NavPeriode, Segmente } from '@/components/agenda/pieces';
 import { SemaineDeLAgenda } from '@/components/agenda/SemaineDeLAgenda';
 import { useDatesDeLAgenda } from '@/components/agenda/dates';
 import { PageHeader } from '@/components/console';
@@ -133,6 +133,9 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
   const mode: ModeDeLAgenda = (modes as readonly string[]).includes(requete.get('mode') ?? '') ? (requete.get('mode') as ModeDeLAgenda) : 'agenda';
   const vueLue = valeurBornee(requete, 'view', VIEWS);
   const view: CalendarView = vueLue ?? vueParDefaut(persona, ecran?.bureau ?? false);
+  // TCK-2888 — l'occupation du téléphone : quatorze jours, ou trente (`?duree=30`).
+  const duree = valeurBornee(requete, 'duree', DUREES_DE_L_OCCUPATION) ?? '14';
+  const joursDeLOccupation = Number(duree);
   const aujourdhui = jourADakar(maintenant);
   const jourParDefaut = initialFocus ? formatISODate(initialFocus) : aujourdhui;
   const jour = jourDeLUrl(requete.get('date')) ?? jourParDefaut;
@@ -155,7 +158,7 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
   // ── Les écritures ─────────────────────────────────────────────────────────────────────────────
   const setJour = (j: string) => remplacer({ date: j === jourParDefaut ? null : j });
   const setView = (v: CalendarView) => remplacer({ view: v });
-  const setMode = (m: ModeDeLAgenda) => remplacer({ mode: m === 'agenda' ? null : m, types: null, view: null });
+  const setMode = (m: ModeDeLAgenda) => remplacer({ mode: m === 'agenda' ? null : m, types: null, view: null, duree: null });
   const setMine = (m: boolean) => remplacer({ mine: m === defaultMine ? null : m ? '1' : '0' });
   const setBien = (b: { readonly id: number; readonly titre: string } | null) => {
     setTitreDuBien(b);
@@ -174,7 +177,7 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
         const dernier = decalerJour(`${decalerJour(premier, 32).slice(0, 8)}01`, -1);
         return { de: premier, a: dernier };
       }
-      return { de: jour, a: decalerJour(jour, 13) };
+      return { de: jour, a: decalerJour(jour, joursDeLOccupation - 1) };
     }
     if (view === 'day' || view === 'week') return { de: lundiDe(jour), a: decalerJour(lundiDe(jour), 6) };
     const r = visibleRange(view, focus);
@@ -213,14 +216,14 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
     return new Date(Date.UTC(a!, m! - 1 + sens, 1)).toISOString().slice(0, 10);
   };
   const pas = (sens: -1 | 1) => {
-    if (mode === 'occupation') return ecran?.bureau ? moisDecale(sens) : decalerJour(jour, sens * 14);
+    if (mode === 'occupation') return ecran?.bureau ? moisDecale(sens) : decalerJour(jour, sens * joursDeLOccupation);
     if (view === 'day') return decalerJour(jour, sens);
     if (view === 'week') return decalerJour(jour, sens * 7);
     if (view === 'list') return decalerJour(jour, sens * 30);
     return moisDecale(sens);
   };
   const periode = (() => {
-    if (mode === 'occupation') return ecran?.bureau ? d.mois(jour) : d.plage(jour, decalerJour(jour, 13));
+    if (mode === 'occupation') return ecran?.bureau ? d.mois(jour) : d.plage(jour, decalerJour(jour, joursDeLOccupation - 1));
     if (view === 'day') return ecran?.bureau ? d.long(jour) : d.moisCourt(jour);
     if (view === 'week') return (ecran?.bureau ? d.semaine : d.plage)(lundiDe(jour), decalerJour(lundiDe(jour), 6));
     if (view === 'list') return t('periode.trenteJours');
@@ -297,6 +300,7 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
         <div className={cn(ecran.bureau && 'rounded-xl border border-border bg-card')}>
           {ecran.bureau ? null : <BandeDeLaSemaine jour={jour} aujourdhui={aujourdhui} evenements={evenements} onChoisir={setJour} />}
           <JourDeLAgenda
+            maintenant={maintenant}
             jour={jour}
             aujourdhui={aujourdhui}
             evenements={evenements}
@@ -350,6 +354,7 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
       <>
         <MoisCompact jour={jour} aujourdhui={aujourdhui} evenements={evenements} onChoisirJour={setJour} />
         <JourDeLAgenda
+          maintenant={maintenant}
           occupationEnHaut
           jour={jour}
           aujourdhui={aujourdhui}
@@ -402,7 +407,7 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
             periode={periode}
             onPrecedent={() => setJour(pas(-1))}
             onSuivant={() => setJour(pas(1))}
-            vue={mode === 'agenda' ? <MenuDeVue vue={view} onChange={setView} /> : <DureeDeLOccupation />}
+            vue={mode === 'agenda' ? <MenuDeVue vue={view} onChange={setView} /> : <MenuDeDuree duree={duree} onChange={(v) => remplacer({ duree: v === '14' ? null : v })} />}
             filtres={nbFiltres}
             onFiltres={() => setFiltres(true)}
           />

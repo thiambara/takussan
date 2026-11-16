@@ -8,6 +8,8 @@ use App\Events\Booking\BookingRequested;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingRejectionReason;
+use App\Models\Enums\BookingSource;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
@@ -17,9 +19,12 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Policies\BookingPolicy;
+use App\Services\Booking\BookingConditions;
+use App\Services\Booking\BookingGuarantorService;
 use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
+use App\Services\Crm\AcceptanceStageChange;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\ContactDeLAgenceDuBien;
 use App\Support\FinInclusive;
@@ -73,6 +78,11 @@ class BookingService
         // `StoreBookingRequest::authorize()` lit aussi : une seule définition du « personnel ».
         $isStaff = app(BookingPolicy::class)->recordForCustomer($user, $property);
 
+        // TCK-2874 (ADR-0110 § 6) — l'origine : `staff` pour le personnel, quoi qu'il envoie ; sinon
+        // l'indice `via` du tunnel (`invitation`), qui ne donne aucun droit et ne change qu'un libellé.
+        $source = $isStaff ? BookingSource::Staff : BookingSource::fromVia($data['via'] ?? null);
+        unset($data['via']);
+
         // TCK-1066 (P62.02) — la visibilité AVANT l'état, pour qui n'est ni du personnel ni le
         // propriétaire : un brouillon tiers rendait 422 là où un bien privé rendait 403, et
         // l'appelant apprenait l'état d'un bien qu'il ne voit pas. Même réponse qu'un bien absent
@@ -104,6 +114,9 @@ class BookingService
         // `StoreBookingRequest::authorize()` l'a déjà refusé : défense pour un appelant hors HTTP.
         abort_unless(! $recorded || $isStaff, 403);
         abort_code_if($recorded && $asked !== $kind, 422, 'booking.kind_mismatch');
+        // TCK-2870 (ADR-0110 § 1) — une nature n'écrit que ses champs : un champ d'une autre nature
+        // est refusé, pas ignoré. Hors saisie du personnel, la règle du séjour (aucune condition).
+        BookingConditions::refuseForeignFields($recorded ? $kind : BookingKind::Stay, $data);
 
         // TCK-2579 (ADR-0102 §2) — une réservation saisie par le personnel a TOUJOURS un client :
         // sans `customer_id`, elle naissait sans client (l'ancienne branche « personnel » de
@@ -138,14 +151,23 @@ class BookingService
 
         abort_unless($isStaff || $isBookingForSelf, 403);
 
+        // TCK-2893 (ADR-0110 § 3) — le garant facultatif n'est pas une colonne : rattaché après la
+        // création, dans la même transaction (`refuseForeignFields` l'a déjà refusé à un séjour).
+        $garant = ! empty($data['guarantor']) ? (array) $data['guarantor'] : null;
+        unset($data['guarantor']);
+
         if ($recorded) {
             // TCK-2579 — ni devis ni nuits : le montant est celui du client.
             $data = array_merge($data, $this->recordedTerms($property, $kind, $data));
         } else {
-            // TCK-1065 (P80.02) — le nombre de voyageurs n'a pas de colonne : il va dans `metadata`,
-            // sous la forme qu'écrit déjà `PublicPropertyController::bookingRequest()`.
-            if (array_key_exists('guests', $data)) {
-                $data['metadata'] = ['guests' => (int) $data['guests']];
+            // TCK-1065 (P80.02) — le nombre de voyageurs, sous la forme qu'écrit aussi
+            // `PublicPropertyController::bookingRequest()`.
+            // TCK-2892 (ADR-0110 § 1) — en colonne (`guests`) ; `metadata.guests` reste écrit et n'est
+            // plus lu.
+            if (isset($data['guests'])) {
+                $data['guests'] = (int) $data['guests'];
+                $data['metadata'] = ['guests' => $data['guests']];
+            } else {
                 unset($data['guests']);
             }
 
@@ -156,7 +178,7 @@ class BookingService
 
         // TCK-596 — une demande sur des nuits déjà confirmées est refusée dès la demande, sous le
         // verrou de la ligne du bien que `confirm` prend aussi.
-        $booking = DB::transaction(function () use ($property, $user, $data, $resoudreLeClient, $recorded): Booking {
+        $booking = DB::transaction(function () use ($property, $user, $data, $resoudreLeClient, $recorded, $garant, $source): Booking {
             Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
             // TCK-2579 (ADR-0102 §3) — une candidature ou une offre ne bloque aucune nuit et ne
             // passe pas par la disponibilité : seul le séjour y est soumis.
@@ -169,13 +191,21 @@ class BookingService
                 $data['customer_id'] = $this->customers->findOrCreateFromUser($user, $property)->id;
             }
 
-            return Booking::create(array_merge($data, [
+            $booking = Booking::create(array_merge($data, [
                 'reference_number' => ReferenceNumberGenerator::booking(),
+                'source' => $source->value, // TCK-2874
                 'created_by_id' => $user->id,
                 'agency_id' => $property->agency_id,
                 'status' => BookingStatus::Pending->value,
                 'expires_at' => $data['expires_at'] ?? now()->addDays(7),
             ]));
+
+            // TCK-2893 — après tous les refus : un 422 ne laisse ni réservation ni fiche de garant.
+            if ($garant !== null) {
+                app(BookingGuarantorService::class)->attach($booking, $garant, $user);
+            }
+
+            return $booking;
         });
 
         // TCK-596 — prévenir qui doit traiter la demande (bailleur, personnel, agent du bien) est
@@ -256,7 +286,21 @@ class BookingService
             'end_date' => null,
             'offer_expires_at' => $offerExpiresAt,
             'expires_at' => $offerExpiresAt !== null ? FinInclusive::de($offerExpiresAt) : ($data['expires_at'] ?? null),
-        ];
+        ] + $this->conditionsFor($property, $kind, $data, $listPrice);
+    }
+
+    /**
+     * TCK-2870 (ADR-0110 § 1) — durée et renouvellement, ou financement, délai et conditions ; pour
+     * une candidature, l'instantané du bien calculé sur SON montant.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function conditionsFor(Property $property, BookingKind $kind, array $data, ?string $listPrice): array
+    {
+        $amount = isset($data['total_amount']) ? (string) $data['total_amount'] : ($listPrice ?? '0');
+
+        return BookingConditions::columnsFor($kind, $property, $amount, $data);
     }
 
     public function confirm(Booking $booking): Booking
@@ -295,6 +339,10 @@ class BookingService
                 'confirmed_at' => now(),
             ]);
 
+            // TCK-2874 (ADR-0110 § 8) — accepter une candidature ou une offre passe la fiche en
+            // Négociation (depuis Prospect ou Qualifié), journalisé, avec un retour possible 24 h.
+            AcceptanceStageChange::advance($booking);
+
             return $booking->refresh();
         });
 
@@ -306,11 +354,20 @@ class BookingService
         return $booking;
     }
 
-    public function reject(Booking $booking, ?string $reason = null, ?User $by = null): Booking
+    /**
+     * TCK-2874 (ADR-0110 § 7) — `$code` et `$message` partent au client dans `booking.rejected`,
+     * la précision telle quelle. `cancellation_reason` garde le motif en mots (`reason`, ce que la
+     * feuille de décision compose), ou à défaut la précision ; le code et la précision restent aussi
+     * dans `metadata.rejection`.
+     */
+    public function reject(Booking $booking, ?string $reason = null, ?User $by = null, ?BookingRejectionReason $code = null, ?string $message = null): Booking
     {
+        $message = is_string($message) && trim($message) !== '' ? trim($message) : null;
+        $reason = is_string($reason) && trim($reason) !== '' ? $reason : $message;
+
         // VERIF-596 m2 (même défaut que `cancel`) — sous le verrou de la ligne, relue : un refus lu
         // avant qu'une expiration ne valide écrasait `expired` et fermait la réservation deux fois.
-        $booking = DB::transaction(function () use ($booking, $reason): Booking {
+        $booking = DB::transaction(function () use ($booking, $reason, $code, $message): Booking {
             /** @var Booking $locked */
             $locked = Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
             abort_code_unless(
@@ -323,6 +380,11 @@ class BookingService
                 'status' => BookingStatus::Rejected,
                 'cancelled_at' => now(),
                 'cancellation_reason' => $reason,
+                // TCK-2874 — le motif codé reste écrit sur la réservation, même sans motif en mots.
+                ...($code !== null || $message !== null ? ['metadata' => array_merge($locked->metadata ?? [], ['rejection' => array_filter(
+                    ['reason_code' => $code?->value, 'message' => $message],
+                    fn ($v) => $v !== null,
+                )])] : []),
             ]);
             // TCK-2152 (P200.01) — un checkout encore ouvert ne soldera plus une réservation close.
             $locked->cancelPendingPayments();
@@ -332,7 +394,11 @@ class BookingService
 
         $customer = $booking->customer?->user;
         if ($customer) {
-            $this->notifyBooking($customer, NotificationCode::BookingRejected, $booking);
+            // TCK-2874 — le motif codé et la précision, en paramètres facultatifs du refus.
+            $this->notifyBooking($customer, NotificationCode::BookingRejected, $booking, array_filter([
+                'reason_code' => $code?->value,
+                'message' => $message,
+            ], fn ($v) => $v !== null));
         }
 
         // TCK-596 — un acompte encaissé sur une demande refusée devient une tâche.
@@ -488,8 +554,9 @@ class BookingService
     }
 
     /** TCK-588 (ADR-0032) — une notification de réservation, rendue dans la langue de son destinataire. */
-    private function notifyBooking(User $to, NotificationCode $code, Booking $booking): void
+    /** @param  array<string, mixed>  $extra  TCK-2874 — paramètres facultatifs du code (`optionalParams`). */
+    private function notifyBooking(User $to, NotificationCode $code, Booking $booking, array $extra = []): void
     {
-        $this->notifications->send($to, $code, BookingNotificationParams::for($booking, $code), BookingNotificationParams::target($booking));
+        $this->notifications->send($to, $code, BookingNotificationParams::for($booking, $code) + array_intersect_key($extra, $code->optionalParams()), BookingNotificationParams::target($booking));
     }
 }

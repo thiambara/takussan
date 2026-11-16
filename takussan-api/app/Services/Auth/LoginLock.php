@@ -152,6 +152,19 @@ class LoginLock
         }
     }
 
+    /**
+     * TCK-2939 (ADR-0094, amendement du 2026-11-15 § 5) — les échecs que le verrou du numéro tolère encore avant de
+     * fermer ; 0 s'il court. Lu, jamais écrit : le même compteur que `recordNumberFailure`.
+     */
+    public function numberFailuresLeft(string $phone): int
+    {
+        if ($this->isNumberLocked($phone)) {
+            return 0;
+        }
+
+        return max(0, self::MAX_FAILURES - (int) $this->cache->get($this->numberFailuresKey($phone), 0));
+    }
+
     public function clearNumber(string $phone): void
     {
         $this->cache->forget($this->numberFailuresKey($phone));

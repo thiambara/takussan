@@ -309,11 +309,12 @@ class CustomerTimelineTest extends ApiTestCase
 
     public function test_un_filtre_mal_forme_rend_422_au_lecteur_admis_et_403_au_lecteur_refuse(): void
     {
+        // TCK-2894 — `booking` est devenu un type du fil : l'inconnu est désormais `lease`.
         Sanctum::actingAs($this->admin);
-        $this->getJson("/api/customers/{$this->fiche->id}/timeline?filter[type]=note,booking")->assertUnprocessable();
+        $this->getJson("/api/customers/{$this->fiche->id}/timeline?filter[type]=note,lease")->assertUnprocessable();
 
         Sanctum::actingAs($this->bailleur($this->agence));
-        $this->getJson("/api/customers/{$this->fiche->id}/timeline?filter[type]=note,booking")->assertForbidden();
+        $this->getJson("/api/customers/{$this->fiche->id}/timeline?filter[type]=note,lease")->assertForbidden();
     }
 
     public function test_le_filtre_par_type_ne_rend_que_les_types_demandes(): void

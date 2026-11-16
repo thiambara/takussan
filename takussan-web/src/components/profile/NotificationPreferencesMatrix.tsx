@@ -14,6 +14,9 @@ import {
 import {
   EVENEMENTS_DE_PREFERENCE,
   GROUPES_DE_PREFERENCES,
+  GROUPE_DES_IMPOSES,
+  vueDuCatalogue,
+  type LigneDuCatalogue,
   type NotificationChannel,
   type NotificationPreferenceCell,
   type NotificationPreferencesResponse,
@@ -59,8 +62,6 @@ const REQUETE_MATRICE = '(min-width: 64rem)';
 /** Groupes ouverts au chargement, au téléphone (maquette `PrefsParEvenement`, `ouverts = 2`). */
 const GROUPES_OUVERTS = 2;
 
-type Groupe = (typeof GROUPES_DE_PREFERENCES)[number];
-
 function cellKey(event: string, channel: string): string {
   return `${event}|${channel}`;
 }
@@ -81,7 +82,30 @@ function normalizePreferencesResponse(
       typeof next.phone_verified === 'boolean'
         ? next.phone_verified
         : (previous?.phone_verified ?? false),
+    // TCK-2864 — le catalogue survit à la réponse d'un enregistrement qui ne le porterait pas.
+    catalog: Array.isArray(next.catalog) ? next.catalog : previous?.catalog,
   };
+}
+
+/**
+ * TCK-2864 — les groupes tels que la persona les voit : les événements qu'elle reçoit, et, en tête de
+ * leur groupe, les événements imposés (« Vérification d'identité »). Un groupe vide n'est pas rendu.
+ */
+type GroupeVisible = {
+  readonly cle: (typeof GROUPES_DE_PREFERENCES)[number]['cle'];
+  readonly evenements: readonly string[];
+  readonly imposes: readonly LigneDuCatalogue[];
+};
+
+function groupesVisibles(
+  reglables: ReadonlySet<string> | null,
+  imposes: readonly LigneDuCatalogue[],
+): readonly GroupeVisible[] {
+  return GROUPES_DE_PREFERENCES.map((g) => ({
+    cle: g.cle,
+    evenements: (g.evenements as readonly string[]).filter((e) => reglables === null || reglables.has(e)),
+    imposes: imposes.filter((i) => GROUPE_DES_IMPOSES[i.event_type] === g.cle),
+  })).filter((g) => g.evenements.length + g.imposes.length > 0);
 }
 
 /** Une cellule que l'utilisateur ne peut pas changer et qui n'est pas « toujours active ». */
@@ -89,7 +113,11 @@ function verrouAvecRaison(cell: NotificationPreferenceCell): boolean {
   return cell.locked && cell.reason !== RAISON_TOUJOURS_ACTIVE;
 }
 
-export function NotificationPreferencesMatrix() {
+/**
+ * TCK-2864 — `persona` : celle de la coque (le profil actif, `resoudrePersona`). L'écran ne montre que
+ * les événements qu'elle reçoit (catalogue de l'API) ; sans persona, tous.
+ */
+export function NotificationPreferencesMatrix({ persona = null }: { readonly persona?: string | null } = {}) {
   const t = useTranslations('profile.notifications');
   const tCommon = useTranslations('common.status');
   const locale = useLocale();
@@ -101,13 +129,17 @@ export function NotificationPreferencesMatrix() {
   // Les deux premiers groupes ouverts, les autres repliés sur leur résumé, comme la maquette
   // (arbitrage du 2026-11-11 : la fidélité au pixel). Le contenu replié reste MONTÉ (`hidden`) :
   // chaque événement reste atteignable, à un geste, et compté (AC3).
-  const [ouverts, setOuverts] = useState<ReadonlySet<string>>(
-    () => new Set(GROUPES_DE_PREFERENCES.slice(0, GROUPES_OUVERTS).map((g) => g.cle)),
-  );
+  // TCK-2864 — les deux premiers groupes VISIBLES (ceux de la persona) : `null` tant qu'aucun
+  // toucher ne l'a changé.
+  const [ouvertsChoisis, setOuverts] = useState<ReadonlySet<string> | null>(null);
 
   // Repli sur le jeton brut pour un événement que le back émettrait sans que le front ne le connaisse.
   const labelEvenement = (event: string) =>
-    (EVENEMENTS_DE_PREFERENCE as readonly string[]).includes(event) ? t(`events.${event}`) : event;
+    (EVENEMENTS_DE_PREFERENCE as readonly string[]).includes(event)
+      ? t(`events.${event}`)
+      : event in GROUPE_DES_IMPOSES
+        ? t(`imposes.${event}`)
+        : event;
 
   const query = useQuery<NotificationPreferencesResponse, Error>({
     queryKey: PREFS_KEY,
@@ -208,6 +240,9 @@ export function NotificationPreferencesMatrix() {
   }
 
   const channels = data.channels;
+  const { reglables, imposes } = vueDuCatalogue(data.catalog, persona);
+  const groupes = groupesVisibles(reglables, imposes);
+  const ouverts = ouvertsChoisis ?? new Set(groupes.slice(0, GROUPES_OUVERTS).map((g) => g.cle));
   // Un canal que l'API ajoute avant le dictionnaire (`whatsapp`, relevé le 2026-09-16) faisait
   // lever `MISSING_MESSAGE` et renvoyait TOUTE la page vers la frontière d'erreur du tableau de
   // bord. Le libellé retombe sur la valeur brute plutôt que de casser l'écran.
@@ -267,18 +302,19 @@ export function NotificationPreferencesMatrix() {
           raisonLongue={raisonLongue}
           onToggle={toggle}
           envoiEnCours={envoiEnCours}
-          pushIndisponible={pushToujoursIndisponible(EVENEMENTS_DE_PREFERENCE)}
+          pushIndisponible={pushToujoursIndisponible(groupes.flatMap((g) => g.evenements))}
+          groupes={groupes}
         />
       ) : (
         <div className="divide-y divide-border">
-          {GROUPES_DE_PREFERENCES.map((groupe) => (
+          {groupes.map((groupe) => (
             <GroupeEnRangees
               key={groupe.cle}
               groupe={groupe}
               ouvert={ouverts.has(groupe.cle)}
               onBasculer={() =>
-                setOuverts((avant) => {
-                  const apres = new Set(avant);
+                setOuverts(() => {
+                  const apres = new Set(ouverts);
                   if (apres.has(groupe.cle)) apres.delete(groupe.cle);
                   else apres.add(groupe.cle);
                   return apres;
@@ -315,7 +351,7 @@ interface RenduCommunProps {
 }
 
 interface GroupeEnRangeesProps extends RenduCommunProps {
-  readonly groupe: Groupe;
+  readonly groupe: GroupeVisible;
   readonly ouvert: boolean;
   readonly onBasculer: () => void;
   readonly liste: (canaux: readonly string[]) => string;
@@ -368,7 +404,7 @@ function GroupeEnRangees({
             <span className="block text-corps font-semibold text-foreground">{t(`groups.${groupe.cle}`)}</span>
             {ouvert ? null : (
               <span className="block truncate text-ui text-muted-foreground">
-                {t('resume', { nombre: evenements.length, canaux: actifs.map(channelLabel).join(', ') })}
+                {t('resume', { nombre: evenements.length + groupe.imposes.length, canaux: actifs.map(channelLabel).join(', ') })}
               </span>
             )}
           </span>
@@ -379,6 +415,9 @@ function GroupeEnRangees({
         </button>
       </h2>
       <ul id={idListe} hidden={!ouvert} className="pb-2">
+        {groupe.imposes.map((impose) => (
+          <RangeeImposee key={impose.event_type} impose={impose} label={labelEvenement(impose.event_type)} channelLabel={channelLabel} />
+        ))}
         {evenements.map((event) => {
           const cellules = channels
             .map((c) => cellMap.get(cellKey(event, c)))
@@ -511,6 +550,7 @@ function PuceDeCanal({ cell, nom, nomAccessible, onToggle, envoi }: PuceDeCanalP
 
 interface MatriceProps extends RenduCommunProps {
   readonly raisonLongue: (reason: string | undefined) => string | undefined;
+  readonly groupes: readonly GroupeVisible[];
 }
 
 /**
@@ -528,6 +568,7 @@ function Matrice({
   onToggle,
   envoiEnCours,
   pushIndisponible,
+  groupes,
 }: MatriceProps) {
   const t = useTranslations('profile.notifications');
   // Une colonne de 76 px par canal (sur l'échelle : la densité du bureau s'y applique), l'événement
@@ -550,7 +591,7 @@ function Matrice({
             </span>
           ))}
         </div>
-        {GROUPES_DE_PREFERENCES.map((groupe) => (
+        {groupes.map((groupe) => (
           <section key={groupe.cle} className="overflow-hidden rounded-xl border border-border bg-card">
             <h2 className="border-b border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground">
               {t(`groups.${groupe.cle}`)}
@@ -567,6 +608,34 @@ function Matrice({
                 </div>
               </div>
               <div role="rowgroup">
+                {groupe.imposes.map((impose) => (
+                  <div
+                    key={impose.event_type}
+                    role="row"
+                    data-evenement={impose.event_type}
+                    className={cn(rangee, 'min-h-12 border-b border-border/60 px-4 py-1 last:border-b-0')}
+                    style={colonnes}
+                  >
+                    <span role="rowheader" className="min-w-0 text-sm text-foreground">
+                      {labelEvenement(impose.event_type)}
+                      <span className="block text-xs text-muted-foreground">{t('imposeRaison')}</span>
+                    </span>
+                    {channels.map((channel) => (
+                      <span key={channel} role="cell" className="flex justify-center">
+                        {impose.channels?.includes(channel) ? (
+                          <CaseImposee
+                            nomAccessible={`${t('toggleAria', { event: labelEvenement(impose.event_type), channel: channelLabel(channel) })} (${t('imposeRaison')})`}
+                            canal={channel}
+                          />
+                        ) : (
+                          <span aria-hidden="true" className="text-muted-foreground">
+                            —
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                ))}
                 {groupe.evenements.map((event) => (
                   <div
                     key={event}
@@ -610,6 +679,67 @@ function Matrice({
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * TCK-2864 — la case d'un canal IMPOSÉ (maquette `MatricePrefs`, `Case verrou` active) : cochée, figée,
+ * en aplat `primary/35` ; elle n'envoie rien.
+ */
+function CaseImposee({ nomAccessible, canal }: { readonly nomAccessible: string; readonly canal: string }) {
+  return (
+    <span className="inline-flex size-10 cursor-not-allowed items-center justify-center rounded-md">
+      <span
+        role="checkbox"
+        aria-checked="true"
+        aria-disabled="true"
+        aria-label={nomAccessible}
+        data-canal={canal}
+        className="inline-flex size-icone items-center justify-center rounded-case bg-primary/35 text-primary-foreground"
+      >
+        <Check className="size-3.5 stroke-2" aria-hidden="true" />
+      </span>
+    </span>
+  );
+}
+
+/**
+ * TCK-2864 — au téléphone, la rangée d'un événement imposé (maquette `PrefsParEvenement`, `impose`) :
+ * ses canaux fixes en puces cochées, au cadenas, désactivées ; puis « Toujours envoyée : sécurité du
+ * compte. ». Les autres canaux ne sont pas proposés : aucun réglage ne les ouvrirait.
+ */
+function RangeeImposee({
+  impose,
+  label,
+  channelLabel,
+}: {
+  readonly impose: LigneDuCatalogue;
+  readonly label: string;
+  readonly channelLabel: (channel: string) => string;
+}) {
+  const t = useTranslations('profile.notifications');
+  return (
+    <li className="border-t border-border/60 py-3" data-evenement={impose.event_type}>
+      <p className="text-corps text-foreground">{label}</p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {(impose.channels ?? []).map((channel) => (
+          <button
+            key={channel}
+            type="button"
+            role="checkbox"
+            aria-checked="true"
+            aria-label={`${t('toggleAria', { event: label, channel: channelLabel(channel) })} (${t('imposeRaison')})`}
+            disabled
+            data-canal={channel}
+            className="relative inline-flex h-8 flex-none cursor-not-allowed items-center gap-1 whitespace-nowrap rounded-full border border-primary/40 bg-secondary px-2.5 text-ui font-medium text-primary-deep opacity-70"
+          >
+            <Lock className="size-3 stroke-2" aria-hidden="true" />
+            {channelLabel(channel)}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1.5 text-xs text-muted-foreground">{t('imposeRaison')}</p>
+    </li>
   );
 }
 

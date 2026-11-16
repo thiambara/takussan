@@ -116,4 +116,55 @@ describe('DemandeEnvoyee — TCK-2654', () => {
     const { container } = monter();
     expect(container.textContent).not.toMatch(/\bF\b|CFA|45\s?000|50\s?000/);
   });
+
+  // TCK-2918 (e4, AC7) — la médiane de prise en charge de l'agence, par tranche ; aucune phrase sans elle.
+  describe('le délai de réponse de l’agence (TCK-2918)', () => {
+    it.each([
+      [42, 'L’agence répond d’ordinaire dans l’heure.'],
+      [60, 'L’agence répond d’ordinaire dans l’heure.'],
+      [300, 'L’agence répond d’ordinaire dans la journée.'],
+      [2 * 1440 + 5, 'L’agence répond d’ordinaire sous 3 jours.'],
+    ])('%i min → « %s »', (minutes, phrase) => {
+      lecture.demande = demande({ maintenance_response_minutes: minutes });
+      monter();
+      expect(document.querySelector('[data-slot="delai-de-reponse"]')?.textContent?.trim()).toBe(phrase);
+    });
+
+    it('nul (moins de 5 demandes) : aucune phrase de délai', () => {
+      lecture.demande = demande({ maintenance_response_minutes: null });
+      const { container } = monter();
+      expect(container.querySelector('[data-slot="delai-de-reponse"]')).toBeNull();
+      expect(container.textContent).not.toMatch(/répond d’ordinaire/);
+    });
+  });
+});
+
+// TCK-2902 (e4, AC3) — le résumé compte la note vocale servie au détail (`media.voice_note`).
+describe('DemandeEnvoyee — le message vocal (TCK-2902)', () => {
+  const NOTE = { id: 3, url: 'https://api.test/voix', duration: 12, mime_type: 'audio/webm' };
+  beforeEach(() => {
+    lecture.resume = null;
+    lecture.moi = 78;
+  });
+
+  it('2 photos et une note : « Eau · urgent · 2 photos, 1 message vocal »', () => {
+    const base = demande();
+    lecture.demande = { ...base, media: { ...base.media!, voice_note: NOTE } };
+    monter();
+    expect(screen.getByText('Eau · urgent · 2 photos, 1 message vocal')).toBeInTheDocument();
+  });
+
+  it('une note sans photo : « 1 message vocal », jamais « sans photo »', () => {
+    lecture.demande = demande({ media: { photos: [], before_photos: [], completion_photos: [], voice_note: NOTE } as unknown as MaintenanceRequest['media'] });
+    monter();
+    expect(screen.getByText('Eau · urgent · 1 message vocal')).toBeInTheDocument();
+  });
+
+  it('sans note (`voice_note: null`) : le résumé ne parle d’aucun message vocal', () => {
+    const base = demande();
+    lecture.demande = { ...base, media: { ...base.media!, voice_note: null } };
+    monter();
+    expect(screen.getByText('Eau · urgent · 2 photos')).toBeInTheDocument();
+    expect(screen.queryByText(/message vocal/)).toBeNull();
+  });
 });

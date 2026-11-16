@@ -24,8 +24,8 @@ export function adresseAvecLaPeriode(chemin: string, parametres: URLSearchParams
  * TCK-2791 (fiche TCK-2628, O2 et puces de période) — « Ce mois · Mois dernier » de la vue d'ensemble : le mois
  * que les tableaux de bord résument (`?period=last_month`, filtré par l'API, jamais côté navigateur). Au bureau, le
  * sélecteur « Ce mois ▾ » de la tête (maquette `TeteRapports`) ; au téléphone, la rangée de puces au-dessus de la
- * période (maquette `PeriodeTel`). « 12 mois » n'y est pas : aucune lecture ne sert ce résumé (les séries de
- * 12 mois sont déjà sous les chiffres).
+ * période (maquette `PeriodeTel`). TCK-2867 — « 12 mois » (`?period=last_12_months`, servi par TCK-2865) : les
+ * douze mois glissants qui finissent au mois en cours.
  *
  * Rendu sur la vue d'ensemble SEULEMENT : les autres onglets ne lisent pas les tableaux de bord, un choix de
  * période y mentirait. La période se lit dans l'adresse côté navigateur : la tête vit dans le layout, qui ne se

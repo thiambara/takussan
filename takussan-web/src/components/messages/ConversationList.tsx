@@ -215,7 +215,7 @@ export function ConversationList({ selectedId, onSelect, dense = false, onNouvel
             className={cn('flex justify-center', hasNextPage ? 'py-3' : 'py-0')}
           >
             {isFetchingNextPage ? (
-              <span className="text-xs text-muted-foreground">{t('chat.loadingMore')}</span>
+              <span className="text-xs text-muted-foreground">{t('list.chargementPlusAnciennes')}</span>
             ) : null}
           </li>
         </ul>

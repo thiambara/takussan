@@ -29,6 +29,9 @@ const DESTINATIONS: Readonly<Record<string, string>> = {
   Booking: '/app/bookings',
   Lease: '/app/leases',
   Customer: '/app/customers',
+  // TCK-2869 — la visite (`visit.confirmed_by_owner`, TCK-2849) : la première entrée de sujet
+  // `PropertyVisit` du journal mène à sa fiche.
+  PropertyVisit: '/app/visits',
 };
 
 /**

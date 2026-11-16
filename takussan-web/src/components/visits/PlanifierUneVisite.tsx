@@ -2,7 +2,7 @@
 
 import { useRef, useState, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarPlus } from 'lucide-react';
+import { CalendarPlus, Info } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -12,6 +12,7 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { Textarea } from '@/components/ui/textarea';
 import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { usePersonnelActif } from '@/hooks/usePersonnelActif';
 import { useMyProfiles } from '@/hooks/useProfiles';
 import { ApiError } from '@/lib/api';
@@ -19,9 +20,12 @@ import { jourDeLApi, decalerJour } from '@/lib/jour-de-l-api';
 import { useCreneauxDeVisite, usePlanVisit, type PlanVisitPayload } from '@/lib/queries/visits';
 import { instantADakar } from '@/lib/visites/heure-de-dakar';
 import { creneauxProposes, etiquetteDuJour, joursProposes, jourEnClair } from '@/lib/visites/planification';
+import type { CriteresDuBien } from '@/lib/visites/criteres-du-bien';
+import { jourDuMessage } from '@/lib/visites/jour-du-message';
 import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { cn } from '@/lib/utils';
 import {
+  canauxRemis,
   CarteDeLaDemande,
   ChoixDuBien,
   ChoixDuClient,
@@ -33,6 +37,7 @@ import {
   TitreDeSection,
   type BienAPlanifier,
   type ClientAPlanifier,
+  type SmsRemis,
   type VisitePlanifiee,
 } from '@/components/visits/planification/PiecesDeLaPlanification';
 
@@ -46,6 +51,13 @@ export interface DemandeAPlanifier {
   readonly telephone?: string | null;
   /** La demande est déjà rattachée à une fiche : la case « Créer la fiche » n'a plus d'objet. */
   readonly ficheId?: number | null;
+  /** TCK-2881 — le message de la demande : le jour qu'il nomme est présélectionné (`jourDuMessage`). */
+  readonly message?: string | null;
+  /**
+   * TCK-2881 — les critères que la fiche née de la demande reprendra du bien de la DEMANDE
+   * (`criteresDuBien`), jamais du bien choisi dans la feuille : l'API les déduit de `lead.property_id`.
+   */
+  readonly criteres?: CriteresDuBien | null;
 }
 
 interface PreRemplissage {
@@ -161,7 +173,16 @@ export function PlanifierDialog({
   heure: heureInitiale,
   onClose,
   onPlanifiee,
-}: PreRemplissage & { readonly onClose: () => void; readonly onPlanifiee?: () => void }) {
+  onDemandeSuivante,
+}: PreRemplissage & {
+  readonly onClose: () => void;
+  readonly onPlanifiee?: () => void;
+  /**
+   * TCK-2881 — depuis une demande : « Demande suivante → » au succès, qui ouvre la demande non traitée
+   * suivante de la boîte. Absent (pas de suivante, ou hors de la boîte) : pas de bouton.
+   */
+  readonly onDemandeSuivante?: () => void;
+}) {
   const t = useTranslations('visitPlanning.plan');
   const tType = useTranslations('visits.type');
   const locale = useLocale();
@@ -172,15 +193,24 @@ export function PlanifierDialog({
   const [maintenant] = useState(() => new Date());
   const premierJour = jourDeLApi(maintenant);
   const jours = joursProposes(maintenant);
+  // TCK-2881 — le jour que le demandeur a écrit (« samedi »), quand l'appelant n'en pose pas un.
+  const [jourEcrit] = useState(() => (demande && jourInitial === undefined ? jourDuMessage(demande.message, maintenant) : null));
+  const criteres = useLibelleDesCriteres(demande?.criteres ?? null);
 
   const [bien, setBien] = useState<BienAPlanifier | null>(property ?? null);
   const [client, setClient] = useState<ClientAPlanifier | null>(customer ?? null);
   const [sansFiche, setSansFiche] = useState(false);
   const [nom, setNom] = useState('');
   const [telephone, setTelephone] = useState('');
-  const [jour, setJour] = useState<string | null>(jourInitial ?? null);
-  // Depuis une demande, quatre pastilles de jour (a-1) ; ailleurs, cinq (a-5).
-  const joursMontres = demande ? jours.slice(0, 4) : jours;
+  const [jour, setJour] = useState<string | null>(jourInitial ?? jourEcrit?.jour ?? null);
+  // Depuis une demande, quatre pastilles de jour (a-1) ; ailleurs, cinq (a-5). TCK-2881 — le jour écrit
+  // au-delà des quatre prend place en pastille (a-1 : « Aujourd'hui, Demain, Sam. 7 nov., Lun. 9 nov. ») :
+  // aujourd'hui, demain, le jour écrit et son lendemain.
+  const joursMontres = demande
+    ? jourEcrit && !jours.slice(0, 4).includes(jourEcrit.jour)
+      ? [jours[0], jours[1], jourEcrit.jour, decalerJour(jourEcrit.jour, 1)]
+      : jours.slice(0, 4)
+    : jours;
   const [autreDate, setAutreDate] = useState(jourInitial !== undefined && !joursMontres.includes(jourInitial));
   const [heure, setHeure] = useState<HeureChoisie | null>(heureInitiale ? { sorte: 'libre', label: heureInitiale } : null);
   const [autreHeure, setAutreHeure] = useState(false);
@@ -278,6 +308,9 @@ export function PlanifierDialog({
         smsRetenu: smsRetenu(reponse),
         ficheId: typeof ficheId === 'number' ? ficheId : null,
         ficheCreee: Boolean(demande && charge.create_customer),
+        criteres: demande && charge.create_customer ? criteres : null,
+        sms: smsRemis(reponse),
+        canaux: canauxRemis(reponse),
       });
       onPlanifiee?.();
     } catch (err) {
@@ -325,6 +358,14 @@ export function PlanifierDialog({
           when: `${jourEnClair(resultat.jour, locale)} ${resultat.heure}`,
         })}
         onFermer={onClose}
+        onDemandeSuivante={
+          onDemandeSuivante
+            ? () => {
+                onClose();
+                onDemandeSuivante();
+              }
+            : undefined
+        }
         onAutreVisite={() => {
           setResultat(null);
           setHeure(null);
@@ -482,6 +523,12 @@ export function PlanifierDialog({
               />
             </div>
           ) : null}
+          {jourEcrit && jour === jourEcrit.jour && !autreDate ? (
+            <p data-slot="jour-de-la-demande" className="mt-2 flex items-center gap-1.5 text-ui text-muted-foreground">
+              <Info className="size-3.5 flex-none" aria-hidden="true" />
+              {t('dayFromMessage', { name: prenomDuVisiteur ?? demande?.nom ?? '', word: jourEcrit.mot })}
+            </p>
+          ) : null}
           {erreurs.jour ? (
             <p role="alert" className="mt-1.5 text-sm text-destructive">
               {erreurs.jour}
@@ -568,7 +615,9 @@ export function PlanifierDialog({
             <Checkbox checked={creerFiche} onCheckedChange={(c) => setCreerFiche(c === true)} className="mt-0.5" />
             <span className="min-w-0 flex-1 text-corps leading-snug font-medium">
               {t('createCustomer')}
-              <span className="mt-0.5 block text-ui font-normal text-muted-foreground">{t('createCustomerHint')}</span>
+              <span className="mt-0.5 block text-ui font-normal text-muted-foreground">
+                {criteres ? t('criteriaFromProperty', { criteria: criteres }) : t('createCustomerHint')}
+              </span>
             </span>
           </label>
         ) : null}
@@ -608,6 +657,31 @@ export function PlanifierDialog({
       </form>
     </PanneauDroit>
   );
+}
+
+/**
+ * TCK-2881 — « Chambre · Ouakam · ≤ 120 000 F » : le type (libellés de `nav.categories`, comme
+ * `useCeQuIlCherche` de la fiche de la visite), le quartier, le plafond. `null` sans critère.
+ */
+function useLibelleDesCriteres(c: CriteresDuBien | null): string | null {
+  const t = useTranslations('visitPlanning.plan');
+  const tTypes = useTranslations('nav.categories');
+  const { montantCourt } = useFormatteurs();
+  if (!c) return null;
+  const parties = [
+    c.type ? (tTypes.has(c.type) ? tTypes(c.type) : c.type) : null,
+    c.quartier,
+    c.budgetMax !== null ? t('budgetUpTo', { amount: montantCourt(c.budgetMax) }) : null,
+  ].filter((x): x is string => Boolean(x));
+  return parties.length > 0 ? parties.join(' · ') : null;
+}
+
+/** TCK-2871 — le SMS remis au visiteur (`notification.sms`), absent hors d'une planification du personnel. */
+function smsRemis(reponse: unknown): SmsRemis | null {
+  const sms = (reponse as { notification?: { sms?: unknown } } | null)?.notification?.sms;
+  if (!sms || typeof sms !== 'object') return null;
+  const { queued_at, body } = sms as { queued_at?: unknown; body?: unknown };
+  return typeof queued_at === 'string' && typeof body === 'string' ? { queued_at, body } : null;
 }
 
 function capitaliser(texte: string): string {

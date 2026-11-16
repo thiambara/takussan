@@ -4,11 +4,16 @@ namespace App\Services\Payments;
 
 use App\Models\Customer;
 use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Property;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Dashboard\CollectedPayments;
+use App\Services\Media\PublicPhotoUrl;
+use App\Services\Messaging\MessagingReach;
 use App\Services\Model\LeaseService;
 use App\Services\Reporting\OverdueInstalment;
 use Illuminate\Database\Eloquent\Builder;
@@ -50,7 +55,8 @@ final class TenantRentSummary
 
         $leases = $customerIds === [] ? collect() : Lease::query()
             ->whereIn('tenant_id', $customerIds)
-            ->with(['agency', 'property:id,title'])
+            // TCK-2851 — la carte « Mon logement » : la photo (`media`), le lieu (`address`), l'agent.
+            ->with(['agency', 'property:id,title,agency_id', 'property.media', 'property.address', 'agent'])
             ->orderByDesc('start_date')
             ->orderByDesc('id')
             ->get();
@@ -99,7 +105,17 @@ final class TenantRentSummary
                 'monthly_rent' => $lease->monthly_rent !== null ? (float) $lease->monthly_rent : null,
                 'monthly_charges' => $lease->monthly_charges !== null ? (float) $lease->monthly_charges : null,
                 'currency' => $lease->currency?->value,
-                'property' => $lease->property ? ['id' => $lease->property->id, 'title' => $lease->property->title] : null,
+                // TCK-2851 — jusqu'à quand court le bail.
+                'end_date' => $lease->end_date?->toDateString(),
+                'property' => $lease->property ? [
+                    'id' => $lease->property->id,
+                    'title' => $lease->property->title,
+                    // TCK-2851 — la photo par le seul chemin des URL publiques (`ConversationContextResource`),
+                    // et le lieu en quartier et ville, jamais la rue.
+                    'cover_url' => self::coverUrl($lease->property),
+                    'address_line' => self::addressLine($lease->property),
+                ] : null,
+                'agent' => $this->agent($lease),
                 'agency' => $lease->agency ? [
                     'id' => $lease->agency->id,
                     'name' => $lease->agency->name,
@@ -107,7 +123,80 @@ final class TenantRentSummary
                 ] : null,
             ],
             'offline_payment' => OfflinePaymentMeans::of($lease?->agency),
+            // TCK-2851 — les moyens EN LIGNE ouverts pour l'agence et la devise du bail, par la règle de
+            // la passerelle (`availableProviders`), sans attendre une échéance due.
+            'online_means' => $this->onlineMeans($lease),
         ];
+    }
+
+    /**
+     * TCK-2851 — la photo de couverture d'un bien, comme la vignette de la messagerie
+     * (`ConversationContextResource`) : jamais l'original, filigrane respecté.
+     */
+    public static function coverUrl(Property $property): ?string
+    {
+        $media = $property->getFirstMedia('photos');
+
+        return $media !== null
+            ? PublicPhotoUrl::upTo($media, 'preview', fn () => $property->requiresWatermark())
+            : null;
+    }
+
+    /** TCK-2851 — « quartier, ville » : ce que l'annonce publique dit déjà du lieu, jamais la rue. */
+    public static function addressLine(Property $property): ?string
+    {
+        $address = $property->address;
+        if ($address === null) {
+            return null;
+        }
+        $line = implode(', ', array_filter(
+            [trim((string) $address->neighborhood), trim((string) $address->city)],
+            fn (string $part) => $part !== '',
+        ));
+
+        return $line !== '' ? $line : null;
+    }
+
+    /**
+     * TCK-2851 — l'agent du bail, s'il est encore personnel actif de l'agence du bail
+     * ({@see PersonnelDeLAgence::estPersonnel()}) : son nom et son avatar, JAMAIS son téléphone ni
+     * son courriel — le locataire lui écrit par la messagerie ({@see MessagingReach}, règle 5).
+     *
+     * @return array{user_id: int, name: string, avatar_url: ?string}|null
+     */
+    private function agent(Lease $lease): ?array
+    {
+        $agent = $lease->agent;
+        if ($agent === null || ! PersonnelDeLAgence::estPersonnel($agent, $lease->agency_id)) {
+            return null;
+        }
+
+        return [
+            'user_id' => (int) $agent->id,
+            'name' => $agent->full_name,
+            'avatar_url' => $agent->avatarUrl(),
+        ];
+    }
+
+    /**
+     * TCK-2851 — les fournisseurs que la passerelle accepterait pour une échéance de ce bail (agence et
+     * devise du bail) : la règle de {@see PaymentGatewayService::availableProviders()}, lue sur une
+     * échéance non enregistrée. Des codes (`wave`, `orange_money`…) ; sans bail, aucun.
+     *
+     * @return list<string>
+     */
+    private function onlineMeans(?Lease $lease): array
+    {
+        if ($lease === null) {
+            return [];
+        }
+        $probe = new LeasePayment(['currency' => $lease->currency]);
+        $probe->setRelation('lease', $lease);
+
+        return array_map(
+            static fn (PaymentProvider $provider): string => $provider->value,
+            $this->gateway->availableProviders($probe),
+        );
     }
 
     /**

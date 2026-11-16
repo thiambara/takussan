@@ -62,6 +62,7 @@ class CsvDriver implements StatementParserInterface
 
         foreach ($reader->getRecords() as $record) {
             $lineNumber++;
+            $cause = null;
 
             try {
                 $parsedLine = $this->parseSingleRecord($record, $mapping, $defaultCurrency);
@@ -75,12 +76,14 @@ class CsvDriver implements StatementParserInterface
                     'columns' => count($record),
                 ] + SafeExceptionContext::of($e));
                 $parsedLine = null;
+                $cause = $e;
             }
 
             // TCK-593 — toute ligne sautée est COMPTÉE, qu'elle soit illisible ou à date ou
             // montant vide (colonne absente comprise) : aucune perte silencieuse.
+            // TCK-2932 — avec son rang et sa raison, lus par l'aperçu d'un relevé.
             if ($parsedLine === null) {
-                $context->tally->skip();
+                $context->tally->skip($lineNumber, $cause);
 
                 continue;
             }

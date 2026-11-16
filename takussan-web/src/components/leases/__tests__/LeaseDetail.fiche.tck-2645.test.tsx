@@ -241,7 +241,8 @@ describe('le geste principal', () => {
   it('gestion, bail actif : « Encaisser » ouvre le paiement reçu sur l’échéance en retard', () => {
     etat.paiements = [echeance({ id: 9, status: 'paid' }), echeance({ id: 29, status: 'late', is_overdue: true, due_date: debutDeMois(-1) })];
     monter();
-    fireEvent.click(within(barre()!).getByText(fr.lease.fiche.gestes.encaisser));
+    // TCK-2912 — le geste nomme désormais le montant dû (« Encaisser 640 000 F ») : visé par son rôle.
+    fireEvent.click(within(barre()!).getByTestId('geste-principal'));
     expect(screen.getByText('paiement reçu, échéance 29')).toBeInTheDocument();
   });
 

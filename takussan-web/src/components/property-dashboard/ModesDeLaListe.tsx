@@ -269,17 +269,25 @@ export function OngletsAnnonces({ resume, className }: { readonly resume: Resume
 export function JaugeDuQuota({
   used,
   limit,
+  offre = null,
   presentation,
   className,
 }: {
   readonly used: number;
   readonly limit: number;
+  /** TCK-2908 — le nom de l'offre de l'agence (« Pro ») : « Offre Pro » à droite du texte ; rien sans lui. */
+  readonly offre?: string | null;
   readonly presentation: 'telephone' | 'bureau';
   readonly className?: string;
 }) {
   const t = useTranslations('propertyDashboard.annonces.quota');
   const texte = t('texte', { used, limit });
   const definition = t('definition');
+  const nomDeLOffre = offre ? (
+    <span data-testid="offre-du-quota" className="flex-none text-ui text-muted-foreground">
+      {t('offre', { nom: offre })}
+    </span>
+  ) : null;
   const jauge = (
     <Progress
       aria-label={t('aria')}
@@ -292,7 +300,10 @@ export function JaugeDuQuota({
   if (presentation === 'telephone') {
     return (
       <section aria-label={t('aria')} data-testid="jauge-du-quota" className={cn('rounded-xl bg-muted/60 p-4', className)}>
-        <p className="text-sm tabular-nums">{texte}</p>
+        <p className="flex items-baseline gap-2 text-sm tabular-nums">
+          <span className="min-w-0 flex-1">{texte}</span>
+          {nomDeLOffre}
+        </p>
         <p className="text-ui text-muted-foreground">{definition}</p>
         {jauge}
       </section>
@@ -300,7 +311,10 @@ export function JaugeDuQuota({
   }
   return (
     <section aria-label={t('aria')} data-testid="jauge-du-quota" title={definition} className={cn('w-60 flex-none pb-3', className)}>
-      <p className="text-ui tabular-nums">{texte}</p>
+      <p className="flex items-baseline gap-2 text-ui tabular-nums">
+        <span className="min-w-0 flex-1">{texte}</span>
+        {nomDeLOffre}
+      </p>
       {jauge}
     </section>
   );

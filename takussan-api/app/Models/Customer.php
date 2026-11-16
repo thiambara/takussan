@@ -19,8 +19,11 @@ use App\Sorts\CollatedNameSort;
 use App\Sorts\CustomerFollowUpSort;
 use App\Sorts\CustomerLastContactedSort;
 use App\Sorts\CustomerNextActionSort;
+use App\Sorts\CustomerPipelineStageSort;
+use App\Sorts\CustomerReferentSort;
 use App\Support\Query\CompteDansLAgenceDeLaFiche;
 use App\Support\Query\DepartageQueryBuilder;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -237,6 +240,9 @@ class Customer extends AbstractModel
                     AllowedSort::custom('first_name', new CollatedNameSort, 'customers.first_name'),
                     AllowedSort::custom('last_name', new CollatedNameSort, 'customers.last_name'),
                     AllowedSort::custom('next_action_at', new CustomerNextActionSort),
+                    // TCK-2889 — l'étape dans l'ordre du pipeline ; le référent par son nom affiché.
+                    AllowedSort::custom('pipeline_stage', new CustomerPipelineStageSort),
+                    AllowedSort::custom('referent', new CustomerReferentSort),
                     $internes
                         ? AllowedSort::custom('follow_up_days', new CustomerFollowUpSort)
                         : AllowedSort::field('follow_up_days', 'created_at'),
@@ -350,6 +356,29 @@ class Customer extends AbstractModel
         // même de l'attribut `follow_up` (`CustomerFollowUpQuery::sinceSql()`).
         $filters[] = AllowedFilter::callback('follow_up', function (Builder $q, mixed $value) {
             $viewer = request()->user();
+            // TCK-2890 — `=week` : les fiches à relancer ET celles, d'une étape vivante, dont la
+            // prochaine action tombe d'ici dimanche soir (heure de Dakar), sans être échue — la vue « À relancer » du
+            // téléphone (maquette `app-clients`, « Relances prévues cette semaine »). L'instant de
+            // la prochaine action est celui de `sort=next_action_at` (`CustomerNextActionQuery::atSql`).
+            if ($value === 'week') {
+                if ($viewer === null || ! static::readsAgencyInternals($viewer)) {
+                    $q->whereRaw('1 = 0');
+
+                    return;
+                }
+                [$dueSql, $dueBindings] = (new CustomerFollowUpQuery($viewer))->sinceSql();
+                [$atSql, $atBindings] = (new CustomerNextActionQuery($viewer))->atSql();
+                $now = now();
+                $sunday = $now->copy()->timezone('Africa/Dakar')->endOfWeek(CarbonInterface::SUNDAY)->utc();
+                // Comme la relance due : une fiche Gagnée ou Perdue n'est jamais « à relancer ».
+                $q->where(fn (Builder $w) => $w
+                    ->whereRaw("({$dueSql}) IS NOT NULL", $dueBindings)
+                    ->orWhere(fn (Builder $semaine) => $semaine
+                        ->whereIn('customers.pipeline_stage', CustomerFollowUpQuery::liveStageValues())
+                        ->whereRaw("({$atSql}) >= ? AND ({$atSql}) <= ?", [...$atBindings, $now, ...$atBindings, $sunday])));
+
+                return;
+            }
             $due = filter_var($value, FILTER_VALIDATE_BOOLEAN);
             // Vérification adverse de TCK-2588 — hors personnel, `follow_up` est toujours `null` (il
             // trahirait l'heure d'un compte rendu sur le bien d'un autre bailleur) : le filtre suit

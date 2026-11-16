@@ -166,7 +166,12 @@ export function MoisDeLAgenda({ jour, aujourdhui, evenements, onOuvrir, onChoisi
                 )}
                 style={{ gridColumn: `${premier + b.debut + 1} / ${premier + b.fin + 2}`, gridRow: b.piste + 2 }}
               >
-                <span className="truncate">{t('mois.sejour', { titre: b.evenement.title })}</span>
+                <span className="truncate">
+                  {/* TCK-2888 — « Séjour · F2 Grand Yoff · Rama Sy » : le client, servi au personnel de l'agence (TCK-2886). */}
+                  {b.evenement.customer_name?.trim()
+                    ? t('mois.sejourClient', { titre: b.evenement.title, client: b.evenement.customer_name.trim() })
+                    : t('mois.sejour', { titre: b.evenement.title })}
+                </span>
               </button>
             ))}
             {enPlus > 0 ? (

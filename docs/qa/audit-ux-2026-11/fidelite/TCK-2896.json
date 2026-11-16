@@ -1,0 +1,203 @@
+{
+  "ticket": "TCK-2896",
+  "ecrans": [
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Agence — par bien, par bail",
+      "references": {
+        "telephone": "references/app-documents/a-4-telephone.json",
+        "bureau-1440": "references/app-documents/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents (téléphone : arbre ; ?dossier=lease-{id}-tenant_pieces au bureau)",
+        "persona": "admin d'agence (personnel actif)",
+        "etat": "l'arbre de l'agence servi par GET /api/agency/document-vault (TCK-2895) : premier bien et son premier bail dépliés, autres biens repliés, dossier de l'agence ; au bureau, le dossier « Pièces du locataire » d'un bail choisi",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Fiche d'un document (rattachement)",
+      "references": {
+        "telephone": "references/app-documents/a-5-telephone.json",
+        "bureau-1440": "references/app-documents/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents/{id} d'une pièce rattachée à un bail",
+        "persona": "admin d'agence",
+        "etat": "« Rattaché à » (Bail LS-…, lien vers /app/leases/{id}) et « Bien » en tête des métadonnées ; fil « Documents › Bien › Bail … › Pièces du locataire › nom » au bureau ; « ⋯ » au téléphone (Ajouter une version, Supprimer)",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/documents",
+    "persona": "agency_admin",
+    "disposition": "agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "champ de recherche",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Chercher un document, un locataire, un bien",
+        "min": 340
+      },
+      "produit": {
+        "boiteDe": "Chercher un document, un locataire, un bien",
+        "min": 340
+      },
+      "contenu": false
+    },
+    {
+      "nom": "rangée de puces",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Tous",
+        "min": 350
+      },
+      "produit": {
+        "slot": "rangee-de-puces"
+      },
+      "contenu": false
+    },
+    {
+      "nom": "carte du bien dépliée",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Pièces du locataire",
+        "min": 340
+      },
+      "produit": {
+        "boiteDe": "Pièces du locataire",
+        "min": 340
+      },
+      "contenu": false
+    },
+    {
+      "nom": "arborescence",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Tous les documents",
+        "min": 200
+      },
+      "produit": {
+        "boiteDe": "Tous les documents",
+        "min": 200
+      },
+      "contenu": false
+    },
+    {
+      "nom": "aperçu",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Télécharger",
+        "min": 300
+      },
+      "produit": {
+        "boiteDe": "Télécharger",
+        "min": 300
+      },
+      "contenu": false
+    }
+  ],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-documents a-4-*",
+      "element": "biens, baux, comptes, noms, alertes",
+      "propriete": "libellés et nombres",
+      "exception": "donnée",
+      "motif": "rendus depuis l'arbre de l'agence de démo, pas les 100 documents dessinés ; les formes (« 1 expire dans 42 jours · 1 à vérifier », « 2 expirent bientôt », « Bail … · n documents », « n baux · n documents ») sont prouvées en vitest (DocumentsDeLAgence.tck-2896, AC1 et AC4)"
+    },
+    {
+      "ecran": "app-documents a-4-*",
+      "element": "alerte d'un bien replié « Assurance : expire dans 23 jours »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "l'arbre sert des comptes et la prochaine échéance, pas le nom de la pièce qui expire : l'alerte se dit en nombre (« 1 expire dans 23 jours »)"
+    },
+    {
+      "ecran": "app-documents a-4-telephone",
+      "element": "bouton « Partager » (icône) à droite d'une pièce téléversée, dans la liste d'un dossier ou d'une puce",
+      "propriete": "absent de la maquette",
+      "exception": "décision produit",
+      "motif": "AC7 de TCK-2896 : partager depuis la vue de l'agence ouvre la feuille du partage de la fiche ; la maquette ne dessine pas la liste d'un dossier au téléphone"
+    },
+    {
+      "ecran": "app-documents a-4-telephone",
+      "element": "liste d'un dossier ouvert (retour « Tous les documents », fil, puces locales)",
+      "propriete": "absent de la maquette",
+      "exception": "décision produit",
+      "motif": "la maquette dessine le chevron d'un sous-dossier sans l'écran qu'il ouvre : il reprend la liste du bureau (fil, puces locales, lignes du coffre)"
+    },
+    {
+      "ecran": "app-documents a-4-*",
+      "element": "« n biens sans document »",
+      "propriete": "absent de la maquette",
+      "exception": "donnée",
+      "motif": "l'agence de démo compte des biens sans aucun document : comptés, jamais listés (décision 1 (a) de TCK-2656)"
+    },
+    {
+      "ecran": "app-documents a-4-bureau-*",
+      "element": "ligne « Ousmane Niang · 28 juin · JPG »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "la liste ne sert ni format ni taille : « Ousmane Niang · Pièce d’identité · ajout du 28 juin » (locataire lu dans l'arbre, détail du coffre)"
+    },
+    {
+      "ecran": "app-documents a-4-bureau-*",
+      "element": "compte de « Tous les documents » / « Tous »",
+      "propriete": "valeur",
+      "exception": "donnée",
+      "motif": "`totals.documents` compte les générés ; la liste de « Tous » rend les téléversés (`filter[agency]=current`), les générés sous « Générés » (`filter[generated]=1`)"
+    },
+    {
+      "ecran": "app-documents a-5-*",
+      "element": "« ⋯ » du bureau : « renommer, supprimer »",
+      "propriete": "contenu",
+      "exception": "décision produit",
+      "motif": "aucun renommage n'est servi par l'API ; « ⋯ » porte « Supprimer » (décision L3-3 de TCK-2656)"
+    },
+    {
+      "ecran": "app-documents a-*",
+      "element": "marque « Généré »",
+      "propriete": "couleur, fond",
+      "exception": "règle du design system",
+      "motif": "ton `info` de `StatusBadge` (l'accent de marque est réservé aux badges featured, garde `aplat-accent`), comme TCK-2656"
+    },
+    {
+      "ecran": "app-documents a-4-*, a-5-*",
+      "element": "zones à contenu identique (coque, tête de page, barre de filtres)",
+      "propriete": "non déclarées",
+      "exception": "relevé",
+      "motif": "aucune zone {y,h} n'a été mesurée (pas de relevé au navigateur pour ce lot) : à déclarer au premier `fidelite compare`"
+    }
+  ],
+  "hors_perimetre": [
+    "écrans 6 et 7 (partage par lien) : TCK-2656, inchangés — le partage de la vue de l'agence les réutilise",
+    "le coffre du locataire, du bailleur et du prestataire (TCK-2656, TCK-2897, TCK-2898)"
+  ],
+  "decisions": {},
+  "mesures": {
+    "l1": {
+      "date": null,
+      "note": "non mesuré : le lot du 2026-11-15 n'a pas de relevé au navigateur (consigne du porteur : l'API et le front servis en local tournent sur un autre arbre). AC-F2 à AC-F6 restent à relever par la session."
+    }
+  }
+}

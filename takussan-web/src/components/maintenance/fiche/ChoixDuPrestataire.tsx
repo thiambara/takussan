@@ -206,7 +206,16 @@ function Suggestion({ p, choisi, onChoisir }: { readonly p: PrestataireSuggere; 
   const t = useTranslations('maintenance.fiche.choix');
   const tMetier = useTranslations('maintenance.category');
   const nom = p.name ?? '';
-  const raison = [tMetier.has(p.matching_trade as never) ? tMetier(p.matching_trade as never) : p.matching_trade, p.matching_zone ? t('couvre', { zone: p.matching_zone }) : null].filter(Boolean).join(' · ');
+  // TCK-2918 (e1) — « Plomberie · Hann, Patte d'Oie · 1 créneau dépassé » : les créneaux passés sans
+  // clôture chez cette agence (ADR-0118 § 4), dits seulement quand il y en a.
+  const depasses = p.overdue_slots_count ?? 0;
+  const raison = [
+    tMetier.has(p.matching_trade as never) ? tMetier(p.matching_trade as never) : p.matching_trade,
+    p.matching_zone ? t('couvre', { zone: p.matching_zone }) : null,
+    depasses > 0 ? t('creneauxDepasses', { count: depasses }) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <div data-slot="suggestion" data-user={p.user_id ?? ''} className={cn('flex items-center gap-3 rounded-xl border p-3', choisi ? 'border-primary bg-secondary/50' : 'border-border bg-card')}>
       <Avatar size="40">

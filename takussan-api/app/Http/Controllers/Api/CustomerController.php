@@ -9,6 +9,7 @@ use App\Http\Requests\Api\DismissSuggestedStageRequest;
 use App\Http\Requests\Api\PipelineStatsRequest;
 use App\Http\Requests\Api\SetPrimaryContactCustomerRequest;
 use App\Http\Requests\Api\StoreCustomerRequest;
+use App\Http\Requests\Api\UndoPipelineStageRequest;
 use App\Http\Requests\Api\UpdateCustomerRequest;
 use App\Http\Requests\Api\UpdatePipelineStageCustomerRequest;
 use App\Http\Resources\CustomerResource;
@@ -23,6 +24,7 @@ use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Policies\PropertyVisitPolicy;
+use App\Services\Crm\AcceptanceStageChange;
 use App\Services\Crm\CustomerActivityFeed;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerDuplicateDetector;
@@ -438,6 +440,20 @@ class CustomerController extends Controller
         CustomerSuggestedStageQuery::dismiss($customer, $request->user(), $current);
 
         return response()->noContent();
+    }
+
+    /**
+     * TCK-2874 (ADR-0110 § 8) — « Annuler » sous « Passé en Négociation » : la fiche revient à l'étape
+     * d'avant l'acceptation, dans les 24 h et si l'étape n'a pas changé depuis (409 sinon, 422 passé
+     * le délai). Journalisé comme tout changement d'étape.
+     */
+    public function undoPipelineStage(UndoPipelineStageRequest $request, Customer $customer): JsonResponse
+    {
+        $customer = AcceptanceStageChange::undo($customer);
+
+        return $this->json([
+            'data' => CustomerResource::make($customer)->resolve($request),
+        ]);
     }
 
     /** TCK-2591 — `scope=mine|agency` et les filtres de la liste ({@see PipelineStatsRequest}). */

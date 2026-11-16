@@ -16,6 +16,9 @@
 # fidélité au pixel (TCK-2684) : rapports, rideaux et images gelées des maquettes — jamais versionnés
 /.fidelite/
 
+# TCK-2899 : le moteur d'OCR du coffre, copié depuis node_modules par scripts/copier-moteur-ocr.mjs
+/public/ocr/
+
 # next.js
 /.next/
 /out/

@@ -30,6 +30,31 @@ class ConversationPolicy
             && $this->isActiveAdmin($user, $conversation);
     }
 
+    /**
+     * TCK-2859 (ADR-0114 § 3) — faire entrer quelqu'un dans un fil DIRECT : cela crée un groupe neuf
+     * (sans l'historique), que l'appelant administre. Il faut pouvoir ÉCRIRE dans la directe
+     * (`ConversationAccess::allowsWriting`) : qui la lit sans y écrire n'en ouvre pas de groupe.
+     */
+    public function addToDirect(User $user, Conversation $conversation): bool
+    {
+        return $conversation->type === ConversationType::Direct
+            && app(ConversationAccess::class)->allowsWriting($user, $conversation);
+    }
+
+    /**
+     * TCK-2859 (ADR-0114 § 2) — signaler le fil : un participant ACTIF, que la garde de lecture
+     * accepte. Appelée directement par `ReportConversationRequest`, hors `Gate` : le `Gate::before`
+     * du super-admin le laisserait signaler un fil dont il n'est pas partie.
+     */
+    public function report(User $user, Conversation $conversation): bool
+    {
+        return $conversation->participants()
+            ->where('users.id', $user->id)
+            ->wherePivotNull('left_at')
+            ->exists()
+            && app(ConversationAccess::class)->allows($user, $conversation);
+    }
+
     public function removeParticipant(User $user, Conversation $conversation, User $target): bool
     {
         // TCK-861 (P38.07) — seul un groupe se quitte : une directe « quittée » restait ouverte à

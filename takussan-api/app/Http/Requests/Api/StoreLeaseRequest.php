@@ -30,6 +30,11 @@ class StoreLeaseRequest extends BaseFormRequest
      */
     public const SPECIAL_CONDITIONS_MAX = 5000;
 
+    /** TCK-2906 — les bornes du préavis de départ, en jours (0 n'est pas un préavis ; un an au plus). */
+    public const NOTICE_PERIOD_DAYS_MIN = 1;
+
+    public const NOTICE_PERIOD_DAYS_MAX = 365;
+
     /** Le bien jugé par `authorize()`, relu par `propertyAgencyId()` sans seconde requête. */
     private ?Property $property = null;
 
@@ -78,6 +83,10 @@ class StoreLeaseRequest extends BaseFormRequest
             'late_fee_grace_days' => ['nullable', 'integer', 'between:0,30'],
             'early_termination_penalty_months' => ['nullable', 'integer', ...EditablePlatformSettings::reglesDeBornes(EarlyTerminationService::SETTING_KEY)], // TCK-2842
             'rent_review_max_pct' => ['nullable', 'numeric', 'between:0,100'],
+            // TCK-2906 — le préavis de départ, terme imprimé au contrat, saisi dès la création (prérempli
+            // par `GET /api/leases/defaults`). Il était rendu, jamais accepté. Bornes partagées avec la
+            // mise à jour.
+            'notice_period_days' => ['nullable', 'integer', 'between:'.self::NOTICE_PERIOD_DAYS_MIN.','.self::NOTICE_PERIOD_DAYS_MAX],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
             'deposit_amount' => ['nullable', 'numeric', 'min:0'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -95,6 +104,12 @@ class StoreLeaseRequest extends BaseFormRequest
             // l'écartait et le bail naissait sans ses conditions particulières. Borne du schéma du front.
             'special_conditions' => ['nullable', 'string', 'max:'.self::SPECIAL_CONDITIONS_MAX],
         ];
+    }
+
+    /** TCK-2906 — le bien que `authorize()` a jugé (lu par l'aperçu du contrat). */
+    protected function authorizedProperty(): ?Property
+    {
+        return $this->property;
     }
 
     private function propertyAgencyId(): ?int

@@ -5,9 +5,14 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CounterOfferStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Booking\BookingConditions;
 use App\Services\Booking\BookingCustomerFacts;
+use App\Services\Booking\BookingDossierService;
 use App\Services\Booking\BookingExpirationService;
+use App\Services\Booking\BookingGuarantorFacts;
+use App\Services\Crm\AcceptanceStageChange;
 use Illuminate\Http\Request;
 
 class BookingResource extends BaseResource
@@ -15,6 +20,13 @@ class BookingResource extends BaseResource
     public function toArray(Request $request): array
     {
         $visites = $this->resource instanceof Booking ? BookingCustomerFacts::visitsOnProperty($request, $this->resource) : null;
+        // TCK-2870 — au seul personnel, préparés pour la page par `BookingCustomerFacts::prime`.
+        [$derniereServie, $derniere] = $this->resource instanceof Booking ? BookingCustomerFacts::lastVisitOnProperty($request, $this->resource) : [false, null];
+        $faits = $this->resource instanceof Booking ? BookingCustomerFacts::propertyFacts($request, $this->resource) : null;
+        // TCK-2872 — la complétude du dossier, préparée pour la page par `BookingDossierService::prime`.
+        [$dossierServi, $dossier] = $this->resource instanceof Booking ? BookingDossierService::summaryFor($request, $this->resource) : [false, null];
+        // TCK-2893 — garants et revenus, au seul personnel, préparés par `BookingGuarantorFacts::prime`.
+        $garants = $this->resource instanceof Booking ? BookingGuarantorFacts::for($request, $this->resource) : null;
 
         return [
             'id' => $this->id,
@@ -57,6 +69,12 @@ class BookingResource extends BaseResource
             // TCK-596 — le détail les attendait (`booking_payments`) et ne les recevait jamais : la
             // liste des paiements restait vide, et rien ne désignait l'acompte à rembourser.
             'booking_payments' => $this->whenLoaded('payments', fn (): array => BookingPaymentResource::collection($this->payments)->toArray($request)),
+            // TCK-2879 — le réglé (ni caution ni « autre »), quand la page l'a sommé (`withSum` de l'index) :
+            // jamais une requête par ligne, omis ailleurs. Mêmes lecteurs que `booking_payments`.
+            'amount_paid' => $this->when(
+                $this->resource instanceof Booking && array_key_exists('amount_paid', $this->resource->getAttributes()),
+                fn (): float => (float) ($this->resource->getAttributes()['amount_paid'] ?? 0),
+            ),
             'notes' => $this->notes,
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
             // TCK-2593 — le téléphone et l'étape de la fiche ne sortent que vers le personnel de
@@ -65,8 +83,103 @@ class BookingResource extends BaseResource
             // TCK-2593 — les visites terminées de ce client sur ce bien, au seul personnel, en une
             // requête pour la page (`BookingCustomerFacts::prime`) ; omise sinon.
             'visits_on_property' => $this->when($visites !== null, $visites),
+            // TCK-2870 — la dernière de ces visites : sa date et le verdict de son compte rendu
+            // (ADR-0101 § 3), `null` sans visite ; mêmes lecteurs que `visits_on_property`, qui reste
+            // un nombre (le front le lit comme tel).
+            'last_visit_on_property' => $this->when($derniereServie, fn (): ?array => $derniere === null ? null : [
+                'scheduled_at' => $this->iso($derniere['scheduled_at']),
+                'report_verdict' => $derniere['report_verdict'],
+            ]),
+            // TCK-2870 (ADR-0110, maquette e4) — ce que le bien dit autour de la réservation, au seul
+            // personnel de l'agence ; `offer_rank` pour une offre seule.
+            'other_pending_on_property' => $this->when($faits !== null, fn (): int => $faits['other_pending_on_property']),
+            'property_visits_count' => $this->when($faits !== null, fn (): int => $faits['property_visits_count']),
+            'offer_rank' => $this->when(($faits['offer_rank'] ?? null) !== null, fn (): ?int => $faits['offer_rank']),
+            // TCK-2870 (ADR-0110 § 1) — les conditions : durée et renouvellement, instantané de la
+            // caution, de l'avance et des frais (candidature) ; financement, délai, conditions (offre).
+            // Nulles pour une nature qui ne les écrit pas ; omises sous un sparse fieldset qui ne les lit pas.
+            // TCK-2892 (ADR-0110 § 1) — le nombre de voyageurs d'un séjour, `null` pour une autre nature
+            // (et pour un séjour qui ne l'a pas dit) ; omis sous un sparse fieldset qui ne le lit pas.
+            'guests' => $this->when($this->lue('guests'), fn (): ?int => $this->guests),
+            'term_months' => $this->when($this->lue('term_months'), fn (): ?int => $this->term_months),
+            'renewable' => $this->when($this->lue('renewable'), fn (): ?bool => $this->renewable),
+            'security_deposit_months' => $this->when($this->lue('security_deposit_months'), fn (): ?int => $this->security_deposit_months),
+            'security_deposit_amount' => $this->when($this->lue('security_deposit_amount'), fn (): ?float => $this->security_deposit_amount !== null ? (float) $this->security_deposit_amount : null),
+            'advance_months_at_booking' => $this->when($this->lue('advance_months_at_booking'), fn (): ?int => $this->advance_months_at_booking),
+            'agency_fee_months_at_booking' => $this->when($this->lue('agency_fee_months_at_booking'), fn (): ?float => $this->agency_fee_months_at_booking !== null ? (float) $this->agency_fee_months_at_booking : null),
+            'financing' => $this->when($this->lue('financing'), fn (): ?string => $this->financing?->value),
+            'signature_within_days' => $this->when($this->lue('signature_within_days'), fn (): ?int => $this->signature_within_days),
+            'conditions' => $this->when($this->lue('conditions'), fn (): ?string => $this->conditions),
+            // « À verser à l'entrée », DÉRIVÉ, jamais écrit (`BookingConditions::entryAmount`) : seulement
+            // quand toutes les colonnes qu'il lit sont lues — sinon un montant faux plutôt qu'absent.
+            'entry_amount' => $this->when($this->toutesLues(BookingConditions::ENTRY_AMOUNT_COLUMNS), fn (): ?float => ($montant = BookingConditions::entryAmount($this->resource)) !== null ? (float) $montant : null),
+            // TCK-2872 (ADR-0110 § 2) — `{ received, required, missing }`, `null` pour un séjour (sans
+            // dossier) ; servi à qui lit la réservation (le client, le personnel de l'agence du bien, le
+            // bailleur — les lecteurs des pièces, ADR-0099), seulement quand la page l'a préparé.
+            'dossier' => $this->when($dossierServi, fn (): ?array => $dossier),
+            // TCK-2893 (ADR-0110 § 3 et 4) — au SEUL personnel de l'agence du bien : le garant (nom,
+            // lien), le revenu déclaré MASQUÉ et son rapport au loyer, arrondi au dixième. Le montant
+            // ne sort jamais en clair ici (lecture dédiée : `GET /api/bookings/{booking}/sensitive`).
+            'has_guarantor' => $this->when($garants !== null, fn (): bool => $garants['has_guarantor']),
+            'guarantors' => $this->when($garants !== null, fn (): array => $garants['guarantors']),
+            'declared_monthly_income_masked' => $this->when($garants !== null, fn (): ?string => $garants['declared_monthly_income_masked']),
+            'income_to_rent_ratio' => $this->when($garants !== null, fn (): ?float => $garants['income_to_rent_ratio']),
+            // TCK-2873 (ADR-0110 § 5) — la dernière contre-offre de l'agence (`null` sans contre-offre),
+            // et qui doit agir : `customer` quand elle attend sa réponse, `agency` sinon, `null` pour une
+            // réservation qui n'est plus en attente. Servies quand la page a chargé `latestCounterOffer`
+            // (index et présentation de `BookingController`) : jamais une requête par ligne.
+            'counter_offer' => $this->whenLoaded('latestCounterOffer', fn (): ?array => $this->counterOfferCard()),
+            'awaiting' => $this->whenLoaded('latestCounterOffer', fn (): ?string => $this->awaiting()),
+            // TCK-2874 (ADR-0110 § 6) — l'origine : `public`, `invitation` (« par le lien envoyé après la
+            // visite »), `staff` ; omise sous un sparse fieldset qui ne la lit pas.
+            'source' => $this->when($this->lue('source'), fn (): ?string => $this->source?->value ?? 'public'),
+            // TCK-2874 (ADR-0110 § 8) — le passage en Négociation fait à l'acceptation (`from`, `to`, `at`,
+            // `undoable_until`, `undone_at`), `null` sans changement. Il dit l'étape de la fiche : au SEUL
+            // personnel de l'agence (la règle de `customer.pipeline_stage`, TCK-2593), lu dans `metadata`
+            // (aucune requête par ligne).
+            'stage_change' => $this->when(
+                $this->resource instanceof Booking && $this->lue('metadata') && BookingCustomerFacts::servesStaff($request, $this->resource),
+                fn (): ?array => AcceptanceStageChange::forBooking($this->resource),
+            ),
             'created_at' => $this->iso($this->created_at),
         ];
+    }
+
+    /**
+     * TCK-2873 — la dernière contre-offre : montant, message, validité (un jour), état, et ses
+     * instants (l'historique de l'écran les lit).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function counterOfferCard(): ?array
+    {
+        $offre = $this->latestCounterOffer;
+        if ($offre === null) {
+            return null;
+        }
+
+        return [
+            'id' => $offre->id,
+            'amount' => (float) $offre->amount,
+            'message' => $offre->message,
+            'valid_until' => $this->calendarDate($offre->valid_until),
+            // `pending` échue avant le passage de la tâche : déjà `expired` pour le lecteur.
+            'status' => $offre->status === CounterOfferStatus::Pending && $offre->isOverdue()
+                ? CounterOfferStatus::Expired->value
+                : $offre->status?->value,
+            'created_at' => $this->iso($offre->created_at),
+            'responded_at' => $this->iso($offre->responded_at),
+        ];
+    }
+
+    /** TCK-2873 — `customer` | `agency` | `null` (réservation qui n'est plus en attente). */
+    private function awaiting(): ?string
+    {
+        if ($this->status !== BookingStatus::Pending) {
+            return null;
+        }
+
+        return $this->latestCounterOffer?->isOpen() === true ? 'customer' : 'agency';
     }
 
     /**
@@ -131,6 +244,22 @@ class BookingResource extends BaseResource
     {
         return $this->resource instanceof Booking
             && ($this->resource->wasRecentlyCreated || array_key_exists($colonne, $this->resource->getAttributes()));
+    }
+
+    /**
+     * TCK-2870 — toutes ces colonnes ont été lues (ou le modèle vient d'être créé).
+     *
+     * @param  list<string>  $colonnes
+     */
+    private function toutesLues(array $colonnes): bool
+    {
+        foreach ($colonnes as $colonne) {
+            if (! $this->lue($colonne)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** TCK-2579 — l'auteur chargé ET sa colonne lue : sinon `null` dirait « sans auteur » à tort. */

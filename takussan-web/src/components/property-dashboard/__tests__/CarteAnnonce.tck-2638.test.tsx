@@ -5,7 +5,7 @@
  *  - « En ligne » ne se dit que de `is_online` (ADR-0097) : la pastille d'état suit `is_online`, jamais
  *    le statut ni la visibilité ; AC2 — autant de pastilles « En ligne » que de lignes `is_online` ;
  *  - le mot « Publié » ne s'affiche plus (le statut `published` se dit « Validé ») ;
- *  - rien ne se perd : propriétaire et agent, référence, ancienneté, vues et favoris, le « ⋯ », le lien
+ *  - rien ne se perd : propriétaire et agent, référence, ancienneté, chiffres (TCK-2908), le « ⋯ », le lien
  *    vers le bien, et la case de sélection HORS de la photo, avec sa cible de 44 px.
  */
 import { render, screen, within } from '@testing-library/react';
@@ -158,13 +158,14 @@ describe('CarteAnnonce — l’état d’annonce (ADR-0097)', () => {
 });
 
 describe('CarteAnnonce — rien ne se perd', () => {
-  it('propriétaire, référence, ancienneté, vues et favoris, le « ⋯ » et le lien vers le bien', () => {
-    rendre([bien({ title: 'Villa Fann', reference_number: 'TK-2026-ZZ9' })]);
+  // TCK-2908 — les favoris quittent la carte pour les chiffres des 30 derniers jours (`stats_30d`).
+  it('propriétaire, référence, ancienneté, chiffres des 30 jours, le « ⋯ » et le lien vers le bien', () => {
+    rendre([bien({ title: 'Villa Fann', reference_number: 'TK-2026-ZZ9', stats_30d: { views: 1240, contacts: 18, visits: 2 } })]);
     const carte = cartes()[0]!;
     expect(carte).toHaveTextContent('Propriétaire : Fatou Bailleur');
     expect(carte).toHaveTextContent('Réf. TK-2026-ZZ9');
     expect(carte.querySelector('time')).toHaveAttribute('dateTime', '2026-09-01T00:00:00.000Z');
-    expect(carte).toHaveTextContent(/1\s240 vues · 18 favoris/);
+    expect(carte).toHaveTextContent(/1\s240 vues · 18 contacts · 2 visites \(30 j\)/);
     expect(within(carte).getByRole('button', { name: 'Plus d’actions — Villa Fann' })).toBeInTheDocument();
     expect(within(carte).getByRole('link', { name: 'Villa Fann · Mermoz' })).toHaveAttribute('href', `/app/properties/${prochainId - 1}`);
   });

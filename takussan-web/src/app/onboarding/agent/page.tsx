@@ -9,6 +9,7 @@ import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { profilAReprendre } from '@/lib/onboarding-reprise';
 import type { MesPiecesResponse } from '@/lib/pieces/pieces';
+import { fetchResumeDInvite } from '@/lib/resume-d-invite';
 
 /**
  * TCK-259 — Post-acceptance landing page for an invited Agent.
@@ -53,10 +54,14 @@ export default async function AgentOnboardingPage({
   // (`/api/me/agent-profiles/{id}/role-capabilities`) ; ils ne retombent plus sur une table écrite en dur.
   // TCK-2613 — les pièces de CE profil (`X-Profile-Id`) : l'écran 2 rappelle celles qui restent, sans en exiger
   // aucune. Un échec de lecture ne rappelle rien.
-  const pieces = await apiRequest<MesPiecesResponse>('/api/me/pieces', {
-    token,
-    headers: { 'X-Profile-Id': `agent:${agent.numeric_id}` },
-  }).catch(() => null);
+  // TCK-2949 — le résumé chiffré du panneau de l'étape du numéro ; 404 ou échec → `null`, le panneau sans chiffres.
+  const [pieces, resume] = await Promise.all([
+    apiRequest<MesPiecesResponse>('/api/me/pieces', {
+      token,
+      headers: { 'X-Profile-Id': `agent:${agent.numeric_id}` },
+    }).catch(() => null),
+    fetchResumeDInvite(token, 'agent', agent.numeric_id),
+  ]);
 
   // TCK-2613 — deux écrans dans la coque d'entrée : chaque écran porte son titre, la barre dit l'agence et l'étape.
   return (
@@ -66,6 +71,7 @@ export default async function AgentOnboardingPage({
         agence={agent.agency?.name ?? null}
         specialite={agent.specialty ?? null}
         pieces={pieces?.data ?? null}
+        resume={resume}
       />
     </OnboardingShell>
   );

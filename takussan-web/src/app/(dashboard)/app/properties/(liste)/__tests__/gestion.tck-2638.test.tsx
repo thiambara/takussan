@@ -92,6 +92,10 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
     return quota.valeur;
   },
 }));
+// TCK-2908 — le nom de l'offre et les bailleurs du filtre ont leurs propres lectures (éprouvées dans
+// `bailleur-et-offre.tck-2908.test.tsx`) : ici, elles ne comptent pas parmi les appels de la liste.
+vi.mock('@/lib/queries/offre', () => ({ fetchAbonnement: async () => null }));
+vi.mock('@/lib/biens/bailleurs-du-filtre', () => ({ fetchBailleursDuFiltre: async () => [] }));
 // L'action d'en-tête du téléphone (le « + » de la coque) est rendue en place, pour lire son libellé.
 vi.mock('@/components/layout/en-tete-de-la-coque', () => ({
   DeclarerEnTete: ({ action }: { action?: React.ReactNode }) => <div data-testid="en-tete-de-la-coque">{action}</div>,

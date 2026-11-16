@@ -232,6 +232,8 @@ export interface OwnerMonthFigures {
   readonly fees: number;
   readonly net: number;
   readonly paid_out: number;
+  /** TCK-2909 / TCK-2910 — les encaissements du mois (lignes de loyer et d'acompte du relevé, pénalités exclues). */
+  readonly collections_count?: number;
   readonly remaining_to_pay: number;
   readonly from_snapshot: boolean;
 }
@@ -244,6 +246,34 @@ export interface OwnerMonthFigures {
 export interface OwnerBalance {
   readonly remaining_to_pay: number;
   readonly as_of: string;
+}
+
+/**
+ * TCK-2909 / TCK-2910 — les termes du mandat de gestion, écrits par `PATCH /api/owners/{id}` sous
+ * `owners.update` : dates, moyen (`PaymentMethod` de l'API) et jour de versement (« avant le N du mois »,
+ * 1 à 28), référent (`is_active` faux quand il n'est plus du personnel actif de l'agence).
+ */
+export interface OwnerMandate {
+  readonly starts_on: string | null;
+  readonly ends_on: string | null;
+  readonly payout_method: string | null;
+  readonly payout_day: number | null;
+  readonly referent: {
+    readonly id: number;
+    readonly first_name: string | null;
+    readonly last_name: string | null;
+    readonly is_active: boolean;
+  } | null;
+}
+
+/** TCK-2909 / TCK-2910 — la pièce « mandat de gestion signé » : la taille, pas les pages (aucun comptage côté serveur). */
+export interface OwnerMandateDocument {
+  readonly id: number;
+  readonly name: string;
+  readonly created_at: string | null;
+  readonly file_size: number | null;
+  readonly mime_type: string | null;
+  readonly download_path: string;
 }
 
 export interface OwnerProfileDetail {
@@ -262,6 +292,8 @@ export interface OwnerProfileDetail {
     readonly full_name: string | null;
     readonly email: string | null;
     readonly phone: string | null;
+    /** TCK-2909 / TCK-2910 — la dernière adresse du compte, lisible ; `null` sans compte ni adresse. */
+    readonly address?: string | null;
   };
   readonly pending_invitation_id: number | null;
   readonly properties_count: number;
@@ -277,6 +309,10 @@ export interface OwnerProfileDetail {
   } | null;
   readonly next_payout: unknown;
   readonly works_approval_threshold: number | null;
+  /** TCK-2909 / TCK-2910 — les termes du mandat (dates en jours calendaires `Y-m-d`). */
+  readonly mandate?: OwnerMandate;
+  /** TCK-2909 / TCK-2910 — la dernière pièce « mandat de gestion » déposée sur le profil ; `null` sans elle. */
+  readonly mandate_document?: OwnerMandateDocument | null;
   readonly agency_commission_rate: number | null;
   readonly lease_commission_rates: readonly number[];
   /** TCK-2641 — les masques seulement (ADR-0044 § 1) ; la valeur passe par {@link fetchOwnerSensitive}. */
@@ -298,17 +334,28 @@ export async function fetchOwner(
 }
 
 /**
- * TCK-2640 — le plafond de travaux sans accord (`PATCH /api/owners/{id}`, capacité `owners.update`) :
- * un montant ≥ 0 en XOF, ou `null` (aucun accord exigé). Il vaut pour les devis approuvés ensuite.
+ * TCK-2910 — les réglages du mandat (`PATCH /api/owners/{id}`, `owners.update`) : le plafond de travaux
+ * (TCK-2640 : un montant ≥ 0 en XOF, ou `null` — aucun accord exigé) et les termes du mandat (TCK-2909). Seules les
+ * clés ENVOYÉES s'écrivent, `null` retire une valeur. L'appelant n'envoie que ce qui a changé ; un corps
+ * vide serait un 422 (il ne vaut pas « tout retirer »).
  */
-export async function updateOwnerWorksThreshold(
+export interface ReglagesDuMandatPayload {
+  readonly works_approval_threshold?: number | null;
+  readonly mandate_starts_on?: string | null;
+  readonly mandate_ends_on?: string | null;
+  readonly payout_method?: string | null;
+  readonly payout_day?: number | null;
+  readonly referent_agent_id?: number | null;
+}
+
+export async function updateOwnerMandate(
   token: string,
   ownerProfileId: number,
-  worksApprovalThreshold: number | null,
+  reglages: ReglagesDuMandatPayload,
 ): Promise<ApiResponse<OwnerProfileDetail>> {
   return apiRequest<ApiResponse<OwnerProfileDetail>>(
     cheminApi`/api/owners/${ownerProfileId}`,
-    { token, method: 'PATCH', body: { works_approval_threshold: worksApprovalThreshold } },
+    { token, method: 'PATCH', body: reglages },
   );
 }
 

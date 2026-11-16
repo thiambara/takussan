@@ -310,6 +310,8 @@ class InventoryOnsiteSignatureTest extends TestCase
     public function test_can_sign_as_rend_tenant_onsite_au_personnel_tant_que_le_locataire_n_a_pas_signe(): void
     {
         // L'agent détient aussi `leases.sign` : il signe pour le bailleur, et recueille le locataire.
+        // TCK-2913 (amendement A) — et la signature du bailleur lui-même, par son code.
+        // TCK-2914 — par son code seulement si son compte porte un numéro vérifié (ici, aucun).
         Sanctum::actingAs($this->agent);
         $this->getJson("/api/inventories/{$this->inventory->id}")->assertOk()
             ->assertJsonPath('data.can_sign_as', ['landlord', 'tenant_onsite']);
@@ -322,7 +324,7 @@ class InventoryOnsiteSignatureTest extends TestCase
 
         $this->inventory->forceFill(['tenant_signed' => true, 'tenant_signed_at' => now()])->save();
         Sanctum::actingAs($this->agent);
-        $this->getJson("/api/inventories/{$this->inventory->id}")->assertOk()->assertJsonPath('data.can_sign_as', ['landlord']);
+        $this->getJson("/api/inventories/{$this->inventory->id}")->assertOk()->assertJsonPath('data.can_sign_as', ['landlord']); // TCK-2914 — bailleur sans numéro vérifié
     }
 
     // ─── Portée du code ──────────────────────────────────────────────────────────────────────

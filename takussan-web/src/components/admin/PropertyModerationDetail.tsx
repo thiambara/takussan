@@ -1,9 +1,10 @@
 'use client';
 
 import { useId, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Bath, BedDouble, Check, ChevronLeft, ChevronRight, Images, Loader2, MapPin, Maximize2, TriangleAlert } from 'lucide-react';
+import { Bath, BedDouble, Check, ChevronLeft, ChevronRight, ExternalLink, Images, Loader2, MapPin, Maximize2, TriangleAlert } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
@@ -29,6 +30,7 @@ import { Radio, RadioGroup } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { ErreurDeLecture } from '@/components/feedback';
+import { EcrireA } from '@/components/messages/EcrireA';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
 import { propertyTypeValues } from '@/lib/enums/property';
@@ -45,6 +47,9 @@ interface PropertyModerationDetailProps {
   /** Au téléphone : plein écran, les gestes dans la barre collante, la correction dans une feuille. */
   readonly telephone?: boolean;
 }
+
+/** TCK-2931 — l'aperçu complet d'un bien à valider, sous `/app` (même garde que la file). */
+export const cheminDeLApercu = (id: number) => `/app/agency/moderation/properties/${id}`;
 
 /** TCK-2673 — l'écart à la médiane du quartier à partir duquel le prix est un « point à voir ». */
 export const ECART_DE_PRIX_A_VOIR = 25;
@@ -200,6 +205,15 @@ export function PropertyModerationDetail({ property, onModerated, telephone = fa
               ))}
             </ul>
           ) : null}
+          {/* TCK-2931 — maquette `:604` : la fiche entière, comme le public la verra. */}
+          <Link
+            href={cheminDeLApercu(bien.id)}
+            className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary focus-visible:outline-2 focus-visible:outline-ring"
+            data-slot="ouvrir-l-apercu"
+          >
+            <ExternalLink className="size-4" aria-hidden="true" />
+            {t('ouvrirApercu')}
+          </Link>
           <Soumission bien={bien} />
           <ListeDeControle bien={bien} />
           {erreur}
@@ -235,6 +249,15 @@ export function PropertyModerationDetail({ property, onModerated, telephone = fa
         <p className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
           <span className="inline-flex h-6 items-center rounded-full bg-card px-2.5">{t('apercu')}</span>
           {t('apercuTexte')}
+          {/* TCK-2931 — maquette `:625`. */}
+          <Link
+            href={cheminDeLApercu(bien.id)}
+            className="ml-auto inline-flex items-center gap-1 font-medium text-primary focus-visible:outline-2 focus-visible:outline-ring"
+            data-slot="ouvrir-en-grand"
+          >
+            <ExternalLink className="size-3.5" aria-hidden="true" />
+            {t('ouvrirEnGrand')}
+          </Link>
         </p>
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <Mosaique bien={bien} />
@@ -271,7 +294,7 @@ export function PropertyModerationDetail({ property, onModerated, telephone = fa
 
 /* ── Les pièces de l'aperçu ─────────────────────────────────────────────────────────────── */
 
-function Photo({ url, className }: { readonly url: string | null; readonly className?: string }) {
+export function Photo({ url, className }: { readonly url: string | null; readonly className?: string }) {
   return url ? (
     // eslint-disable-next-line @next/next/no-img-element -- conversion `preview` de l'API, déjà dimensionnée
     <img src={url} alt="" className={cn('size-full object-cover', className)} loading="lazy" />
@@ -281,7 +304,7 @@ function Photo({ url, className }: { readonly url: string | null; readonly class
 }
 
 /** Téléphone : une photo à la fois, ses points et son compte « 1 / 6 », flèches pour passer. */
-function Carrousel({ bien }: { readonly bien: DetailDuBien }) {
+export function Carrousel({ bien }: { readonly bien: DetailDuBien }) {
   const t = useTranslations('admin.propertyModeration.bien');
   const [i, setI] = useState(0);
   const n = bien.photos.length;
@@ -326,7 +349,7 @@ function Carrousel({ bien }: { readonly bien: DetailDuBien }) {
 }
 
 /** Bureau : la mosaïque de la fiche publique (une grande, quatre petites). */
-function Mosaique({ bien }: { readonly bien: DetailDuBien }) {
+export function Mosaique({ bien }: { readonly bien: DetailDuBien }) {
   const t = useTranslations('admin.propertyModeration.bien');
   if (bien.photos.length === 0) {
     return (
@@ -353,7 +376,7 @@ function Mosaique({ bien }: { readonly bien: DetailDuBien }) {
   );
 }
 
-function EnTeteDeLAnnonce({ bien, grand = false }: { readonly bien: DetailDuBien; readonly grand?: boolean }) {
+export function EnTeteDeLAnnonce({ bien, grand = false }: { readonly bien: DetailDuBien; readonly grand?: boolean }) {
   const t = useTranslations('admin.propertyModeration.bien');
   const { montant } = useFormatteurs();
   const lieu = [bien.address?.neighborhood, bien.address?.city].filter(Boolean).join(', ');
@@ -382,7 +405,7 @@ function EnTeteDeLAnnonce({ bien, grand = false }: { readonly bien: DetailDuBien
   );
 }
 
-function Caracteristiques({ bien }: { readonly bien: DetailDuBien }) {
+export function Caracteristiques({ bien }: { readonly bien: DetailDuBien }) {
   const t = useTranslations('admin.propertyModeration.bien');
   const tTypes = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
   const { nombre } = useFormatteurs();
@@ -404,7 +427,7 @@ function Caracteristiques({ bien }: { readonly bien: DetailDuBien }) {
   );
 }
 
-function Description({ bien }: { readonly bien: DetailDuBien }) {
+export function Description({ bien }: { readonly bien: DetailDuBien }) {
   const t = useTranslations('admin.propertyModeration.bien');
   return bien.description?.trim() ? (
     <p className="max-w-prose whitespace-pre-wrap text-corps leading-relaxed">{bien.description}</p>
@@ -413,7 +436,7 @@ function Description({ bien }: { readonly bien: DetailDuBien }) {
   );
 }
 
-function Soumission({ bien }: { readonly bien: DetailDuBien }) {
+export function Soumission({ bien }: { readonly bien: DetailDuBien }) {
   const t = useTranslations('admin.propertyModeration.bien');
   const { jourMois, heure } = useFormatteurs();
   const auteur = bien.submitted_by;
@@ -434,6 +457,16 @@ function Soumission({ bien }: { readonly bien: DetailDuBien }) {
         </p>
         {detail.length > 0 ? <p className="mt-0.5 text-ui text-muted-foreground">{detail.join(' · ')}</p> : null}
       </div>
+      {/* TCK-2931 — « Écrire » à qui l'a soumis (maquette `:352`) : le fil à deux qui existe, sinon un brouillon. */}
+      {auteur ? (
+        <EcrireA
+          personne={{ id: auteur.id, nom: auteur.name ?? t('auteurInconnu') }}
+          libelle={t('ecrire')}
+          titre={t('ecrireTitre', { nom: auteur.name ?? t('auteurInconnu') })}
+          data-slot="ecrire-a-l-auteur"
+          className="inline-flex min-h-11 flex-none items-center gap-1.5 text-sm font-medium text-primary focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50 md:min-h-0"
+        />
+      ) : null}
     </div>
   );
 }

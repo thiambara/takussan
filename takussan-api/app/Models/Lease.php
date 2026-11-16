@@ -284,13 +284,13 @@ class Lease extends AbstractModel implements HasMedia
         return $this->attention;
     }
 
-    /** @param  array{next_due: ?array<string, mixed>, overdue_count: int, overdue_amount: float}  $summary */
+    /** @param  array{next_due: ?array<string, mixed>, overdue_count: int, overdue_amount: float, next_due_notice_date?: ?\DateTimeInterface}  $summary */
     public function setDueSummary(array $summary): void
     {
         $this->dueSummary = $summary;
     }
 
-    /** @return array{next_due: ?array<string, mixed>, overdue_count: int, overdue_amount: float}|null */
+    /** @return array{next_due: ?array<string, mixed>, overdue_count: int, overdue_amount: float, next_due_notice_date?: ?\DateTimeInterface}|null */
     public function dueSummary(): ?array
     {
         return $this->dueSummary;

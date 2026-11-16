@@ -462,6 +462,8 @@ return [
             'rejected' => [
                 'title' => 'Booking declined',
                 'body' => 'Your booking :reference for :property was declined.',
+                // TCK-2874 (ADR-0110 § 7) — the reason and the staff's note, when there are any.
+                'body_link' => 'Your booking :reference for :property was declined. Reason: :reason_code',
                 'sms' => 'Takussan: booking :reference declined (:property).',
             ],
             'cancelled' => [
@@ -480,6 +482,24 @@ return [
                 'title' => 'Application not selected',
                 'body' => 'Your application :reference for :property was not selected: the property has been allocated to another tenant.',
                 'sms' => 'Takussan: application :reference not selected (:property).',
+            ],
+            // TCK-2872 — to the customer: the agency asks for a document of their file.
+            'dossier_piece_requested' => [
+                'title' => 'Document requested for your file',
+                'body' => 'For your request :reference (:property), the agency asks you for: :piece. Upload it from your booking.',
+                'sms' => 'Takussan: for your request :reference (:property), the agency asks you for: :piece.',
+            ],
+            // TCK-2873 — to the customer: the agency counters their offer with another price.
+            'counter_offer_received' => [
+                'title' => 'Counter-offer on your offer',
+                'body' => 'For your offer :reference (:property), the agency proposes :amount, until :valid_until. Accept or decline it from your booking.',
+                'sms' => 'Takussan: offer :reference, the agency proposes :amount until :valid_until.',
+            ],
+            // TCK-2873 — to the agency: the customer's answer to the counter-offer.
+            'counter_offer_answered' => [
+                'title' => 'Answer to your counter-offer',
+                'body' => 'Offer :reference (:property): the customer :answer your counter-offer of :amount.',
+                'sms' => 'Takussan: offer :reference (:property), the customer :answer your counter-offer of :amount.',
             ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
@@ -507,6 +527,13 @@ return [
                 'title' => 'Phone number replaced',
                 'body' => 'The verified phone number on your account was replaced. If this was not you, contact support.',
                 'sms' => 'Takussan: this number is no longer the one on your account. If you did not make this change, contact support.',
+            ],
+            // TCK-2926 (ADR-0124 § 6) — l'admin rappelle au membre d'activer la double authentification.
+            'two_factor_reminder' => [
+                'title' => 'Turn on two-factor authentication',
+                'body' => ':agency asks you to turn on two-factor authentication for your account. Turn it on from your profile security settings.',
+                'mail_body' => ":agency asks you to turn on two-factor authentication for your Takussan account.\nIt protects access to the agency's data: turn it on from the Security page of your profile.",
+                'sms' => 'Takussan: :agency asks you to turn on two-factor authentication for your account (Profile > Security).',
             ],
             'blocked' => [
                 'title' => 'Your account is blocked',
@@ -550,12 +577,29 @@ return [
                 'mail_body' => "The visitor has suggested another slot for :property. The visit awaits your confirmation.\nSuggested slot: :scheduled_at (time zone :timezone).",
                 'sms' => 'Takussan: the visitor suggests :scheduled_at (:timezone) for :property.',
             ],
+            // TCK-2849 (ADR-0112 § 4) — le bailleur a confirmé la visite : à l'agent attribué, avec son nom.
+            'confirmed_by_owner' => [
+                'title' => 'Visit confirmed by the landlord: :property',
+                'body' => ':owner confirmed the visit on :scheduled_at.',
+                'mail_body' => ":owner, the property's landlord, confirmed the visit of :property.\nTime: :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: :owner confirmed the visit of :property on :scheduled_at (:timezone).',
+            ],
             // TCK-2502 — cancellations of a visit requested by time of day, time never set.
             'cancelled_by_visitor_window' => [
                 'title' => 'Visit cancelled by the visitor: :property',
                 'body' => 'The visitor has cancelled the visit requested for :date, :window (time not set).',
                 'mail_body' => "The visitor has cancelled their visit request for :property.\nIt was requested for :date, :window; the time had not been set.",
                 'sms' => 'Takussan: the visitor cancelled the visit of :property requested for :date, :window.',
+            ],
+            // TCK-2871 — the agency marked the visitor "No-show": the day (no time), and the property's
+            // public link while it is still public (`_link` variants).
+            'no_show' => [
+                'title' => 'Missed visit: :property',
+                'body' => 'The visit planned on :date did not take place. You can request another one.',
+                'mail_body' => "The visit of :property planned on :date did not take place.\nContact the agency to arrange another one.",
+                'mail_body_link' => "The visit of :property planned on :date did not take place.\nTo request another one: :url",
+                'sms' => 'Takussan: visit of :date missed. Contact the agency to arrange another one.',
+                'sms_link' => 'Takussan: visit of :date missed. To request another one: :url',
             ],
             'cancelled_window' => [
                 'title' => 'Your visit of :property is cancelled',
@@ -650,15 +694,16 @@ return [
                 'sms' => 'Takussan: your document ":document_name" expires on :expires_at.',
             ],
             // TCK-2812 — l'archive préparée d'un dossier du coffre, au seul demandeur.
+            // TCK-2916 — l'avis ouvre le coffre, ou la page des paiements pour l'archive des quittances : le texte ne nomme aucun des deux.
             'archive_ready' => [
                 'title' => 'Your archive is ready',
-                'body' => 'The document archive you requested is ready. Download it from your documents within 24 hours.',
-                'sms' => 'Takussan: your document archive is ready in your documents, for 24 hours.',
+                'body' => 'The archive you requested is ready. Open this notification to download it within 24 hours.',
+                'sms' => 'Takussan: your archive is ready in your account, for 24 hours.',
             ],
             'archive_failed' => [
                 'title' => 'Your archive could not be prepared',
-                'body' => 'The document archive you requested could not be prepared. Try again from your documents.',
-                'sms' => 'Takussan: your document archive could not be prepared. Try again from your documents.',
+                'body' => 'The archive you requested could not be prepared. Open this notification to try again.',
+                'sms' => 'Takussan: your archive could not be prepared. Try again from your account.',
             ],
         ],
         'kyc' => [
@@ -849,6 +894,23 @@ return [
                 'body' => 'Your agency reminds you that a quote of :amount for ":request" is awaiting your decision. Approve or reject it.',
                 'sms' => 'Takussan: reminder, your approval is required for ":request".',
             ],
+            // TCK-2917 (ADR-0118) — cancellation with the canceller's reason (not in the SMS).
+            'cancelled_with_reason' => [
+                'title' => 'Maintenance cancelled: :request',
+                'body' => 'The maintenance ":request" has been cancelled. Reason: :reason',
+                'sms' => 'Takussan: Maintenance cancelled: :request',
+            ],
+            'step_cancelled_with_reason' => [
+                'title' => 'Your request ":request": cancelled',
+                'body' => 'Your maintenance request has been cancelled. Reason: :reason',
+                'sms' => 'Takussan: Your request ":request": cancelled',
+            ],
+            // TCK-2917 — to the agency and the provider: the tenant asks for another time slot.
+            'reschedule_requested' => [
+                'title' => 'Another time slot requested: ":request"',
+                'body' => 'The tenant asks for another time slot for ":request". Proposed slots: :slots. The current slot stays until you set a new one.',
+                'sms' => 'Takussan: the tenant asks for another time slot for ":request".',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [
@@ -899,6 +961,14 @@ return [
                 'title' => 'Rent reviewed: :reference',
                 'body' => 'The rent of lease :reference for :property changes from :old to :new from :effective_date.',
                 'sms' => 'Takussan: rent of lease :reference reviewed (:old -> :new) from :effective_date.',
+            ],
+        ],
+        // TCK-2913 (ADR-0098, amendement B) — l'état des lieux signé par les deux parties : son PDF.
+        'inventory' => [
+            'signed_pdf_available' => [
+                'title' => 'Inventory signed: lease :reference',
+                'body' => 'The tenant and the landlord have signed the inventory of lease :reference for :property. Download its PDF from the inventory page.',
+                'sms' => 'Takussan: the inventory of lease :reference is signed. Its PDF is in your account.',
             ],
         ],
         'prospect_match' => [

@@ -17,7 +17,8 @@ import { formaterTelephone, numeroComposable } from '@/lib/phone';
 import { AutresVoies } from './AutresVoies';
 import { BOUTON_D_ENTREE, BoutonCollant } from './BoutonCollant';
 import { CasesDuCode, LONGUEUR_DU_CODE } from './CasesDuCode';
-import { BarreDuBien, EnTeteDuBien, PanneauDeReprise, PanneauDuBien, avecBien, useTitreDeLaBarre, type IntentionAffichee } from './IntentionDEntree';
+import { EnTeteDAccueil, PanneauDAccueil } from './AccueilDeLaPorte';
+import { BarreDuBien, EnTeteDuBien, PanneauDeReprise, PanneauDuBien, avecBien, type IntentionAffichee } from './IntentionDEntree';
 import { RetourAuth } from './RetourAuth';
 import { useEntreeParTelephone } from './useEntreeParTelephone';
 
@@ -114,13 +115,12 @@ export function ConnexionParTelephone({ onConnecte, onEmail, intention = null, r
   const bien = avecBien(intention) ? intention : null;
   const retourALAnnonce = tPorte('retourALAnnonce');
   const titreDeLAction = intention ? tPorte(`actions.${intention.action}.titre`) : undefined;
-  const titreDeLaBarre = useTitreDeLaBarre(bien);
 
   // Ce que la coque montre autour : la photo du bien et sa pastille de retour à l'écran du numéro,
   // la barre du bien et la reprise ensuite. Une action sans bien : son nom dans la barre, rien de plus.
+  // TCK-2936 — le panneau paraît dès 1024 : la barre de 64 px ne sert plus, son titre non plus.
   const declaration = bien ? (
     <DeclarerEntree
-      titreDeBureau={titreDeLaBarre}
       enTete={
         etape === 'numero' ? (
           <EnTeteDuBien intention={bien} retour={<RetourAuth forme="fleche" surPhoto libelle={retourALAnnonce} />} />
@@ -133,7 +133,15 @@ export function ConnexionParTelephone({ onConnecte, onEmail, intention = null, r
     />
   ) : titreDeLAction ? (
     <DeclarerEntree titre={titreDeLAction} />
-  ) : null;
+  ) : (
+    // TCK-2936 — l'arrivée directe (aucune intention) : la photo de ville et la marque en clair, en tête
+    // du numéro au téléphone ; au bureau, le panneau de gauche, gardé au code et au second facteur
+    // pour que la mise en page ne saute pas d'un écran à l'autre.
+    <DeclarerEntree
+      enTete={etape === 'numero' ? <EnTeteDAccueil retour={<RetourAuth forme="fleche" surPhoto libelle={tPorte('accueil.retour')} />} /> : undefined}
+      panneau={<PanneauDAccueil />}
+    />
+  );
 
   const enTeteDeLEtape =
     etape === 'numero' ? (

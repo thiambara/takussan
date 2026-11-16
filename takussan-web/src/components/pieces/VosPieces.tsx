@@ -34,6 +34,7 @@ import {
   type PieceDuProfil,
   type PiecePreparee,
 } from '@/lib/pieces/pieces';
+import { lignesDeDeblocage, type LigneDeDeblocage } from '@/lib/pieces/ce-que-ca-debloque';
 import { CLE_DEMARRAGE } from '@/lib/queries/demarrage-espace';
 import { CLE_PIECES, EchecDEnvoi, enregistrerLeNinea, envoyerLaPiece, useMesPieces } from '@/lib/queries/pieces';
 import { cn } from '@/lib/utils';
@@ -293,7 +294,8 @@ export function VosPieces() {
               </div>
               <Legende className="mt-5 justify-center lg:hidden" />
             </div>
-            <aside className="max-lg:hidden">
+            <aside className="space-y-4 max-lg:hidden">
+              <CeQueCaDebloque lignes={lignesDeDeblocage(pieces.map((p) => p.code))} />
               <div className="rounded-xl border border-border bg-card p-4">
                 <p className="text-xs font-medium text-muted-foreground">{t('legende')}</p>
                 <Legende className="mt-2.5" />
@@ -319,6 +321,34 @@ function Annonces({ bilan, restent, rien }: { readonly bilan: { readonly envoyee
           {restent.length > 0 ? t('reste', { pieces: restent.join(', ') }) : t('tout')}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * TCK-2947 — « Ce que ça débloque » (maquette a-3, bureau) : les seules lignes qu'une règle de l'API tient
+ * (`CE_QUE_CA_DEBLOQUE`, chacune avec sa citation) ; aucune carte sans ligne. Aujourd'hui aucune règle ne les tient :
+ * la carte ne paraît pas, la légende des trois états reste.
+ */
+export function CeQueCaDebloque({ lignes }: { readonly lignes: readonly LigneDeDeblocage[] }) {
+  const t = useTranslations('pieces');
+  if (lignes.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-border bg-card p-4" data-slot="ce-que-ca-debloque">
+      <p className="text-corps font-semibold">{t('debloque.titre')}</p>
+      <ul className="mt-3 space-y-3 text-sm">
+        {lignes.map((l) => {
+          const Icone = ICONES[l.code];
+          return (
+            <li key={l.code} className="flex items-start gap-2.5" data-piece={l.code}>
+              <Icone className="mt-0.5 size-4 flex-none text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+              <span>
+                <span className="font-medium">{t(`noms.${l.code}`)}</span> — {t(`debloque.${l.code}`)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

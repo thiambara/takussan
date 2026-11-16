@@ -138,6 +138,7 @@ Certains de nos prestataires sont établis ou stockent des données hors du Sén
 - **Journal des recherches** : 13 mois pour les compteurs par jour ; moins de 48 heures pour l’empreinte du jour qui sert à compter les visiteurs distincts.
 - **Journaux d’accès des serveurs** : quelques jours, par rotation automatique.
 - **Archive d’export de vos données** : 7 jours, puis suppression automatique.
+- **Fichiers exportés par le personnel d’une agence** (listes de clients, baux, paiements) : 7 jours, retéléchargeables par leur seul auteur, puis suppression automatique.
 - **Brouillons d’annonce non publiés** : 90 jours sans modification.
 - **Annonces relevées ailleurs et jamais publiées** : 90 jours à compter du relevé, et effacées dès que vous demandez à ne plus être contacté. Ne subsiste alors qu’une empreinte chiffrée de votre numéro, qui sert seulement à ne jamais vous recontacter. La représentation numérique de leur texte s’efface avec elles.
 - **Preuve de votre accord à la publication** : tant que les annonces concernées sont en ligne, puis ⚠ 3 ans.
@@ -167,7 +168,7 @@ Nous n’utilisons **aucun cookie publicitaire ni de traceur de réseau social**
 - **active_profile_id** — mémoriser le profil sous lequel vous agissez (30 jours) ;
 - **NEXT_LOCALE** — mémoriser votre langue (1 an) ;
 - **menu_icones** — mémoriser, sur cet appareil, si le menu de votre espace s’affiche en entier ou réduit à ses icônes (1 an) ;
-- **stockage local du navigateur** — biens consultés récemment, dernières recherches de biens (barre de recherche), pages de votre espace ouvertes récemment (palette de commandes), favoris et comparateur hors connexion, dernier moyen de paiement choisi, localisation approximative (24 heures) ;
+- **stockage local du navigateur** — biens consultés récemment, dernières recherches de biens (barre de recherche), pages et fiches de votre espace ouvertes récemment, avec leur nom (palette de commandes), favoris et comparateur hors connexion, dernier moyen de paiement choisi, localisation approximative (24 heures) ;
 - **takussan.coordonnees** (stockage local) — vos nom et numéro de téléphone saisis dans le formulaire de contact sans compte ou dans une demande de visite faite sans être connecté, gardés sur cet appareil seulement, pour préremplir votre prochaine demande ; ils sont remplacés à chaque demande et restent jusqu’à ce que vous les effaciez ;
 - **takussan.arrivee** (stockage de session) — la source du lien partagé par lequel vous êtes arrivé sur le site (ses paramètres utm_source et utm_medium), transmise avec une demande de contact ou de visite et avec un clic sur WhatsApp ou Appeler ; effacée à la fermeture de l’onglet.
 
@@ -328,6 +329,7 @@ Some providers are established or store data outside Senegal, notably in the Eur
 - **Search log**: 13 months for the daily counters; less than 48 hours for the daily fingerprint used to count distinct visitors.
 - **Server access logs**: a few days, by automatic rotation.
 - **Data export archive**: 7 days, then automatically deleted.
+- **Files exported by an agency’s staff** (lists of clients, leases, payments): 7 days, downloadable again by their author only, then automatically deleted.
 - **Unpublished listing drafts**: 90 days without changes.
 - **Listings collected elsewhere and never published**: 90 days from collection, and erased as soon as you ask not to be contacted. All that remains is an encrypted fingerprint of your number, used only to never contact you again. The numerical representation of their text is deleted with them.
 - **Proof of your agreement to publication**: for as long as the listings concerned are online, then ⚠ 3 years.
@@ -347,7 +349,7 @@ We use **no advertising cookies or social-network trackers**. Items stored on yo
 - **active_profile_id** — remembers the profile you act under (30 days);
 - **NEXT_LOCALE** — remembers your language (1 year);
 - **menu_icones** — remembers, on this device, whether the menu of your space is shown in full or reduced to its icons (1 year);
-- **browser local storage** — recently viewed properties, latest property searches (search bar), recently opened pages of your space (command palette), offline favourites and comparison list, last payment method chosen, approximate location (24 hours);
+- **browser local storage** — recently viewed properties, latest property searches (search bar), recently opened pages and records of your space, with their name (command palette), offline favourites and comparison list, last payment method chosen, approximate location (24 hours);
 - **takussan.coordonnees** (local storage) — your name and phone number entered in the no-account contact form or in a visit request made while signed out, kept on this device only, to prefill your next request; they are replaced with each request and remain until you clear them;
 - **takussan.arrivee** (session storage) — the source of the shared link through which you arrived on the site (its utm_source and utm_medium parameters), sent with a contact or visit request and with a click on WhatsApp or Call; cleared when you close the tab.
 

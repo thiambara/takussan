@@ -47,10 +47,11 @@ describe('lireInvitation', () => {
         invitant: 'Aïssatou',
         destinataire: { canal: 'phone', masque: '77 ••• 45 67' },
         compteExistant: false,
+        codeSeul: false, // TCK-2927
         expireLe: '2026-11-17T10:00:00+00:00',
         inviteeLe: '2026-11-10T10:00:00+00:00',
         prerempli: { prenom: 'Moussa', nom: 'Ndiaye' },
-        attente: { biens: 3, intervention: null },
+        attente: { biens: 3, intervention: null, biensEnAttente: [] }, // TCK-2941 : aucun `pending_properties` servi
       },
     });
   });
@@ -60,7 +61,7 @@ describe('lireInvitation', () => {
       data: { ...APERCU, role: 'service_provider', awaiting: { maintenance_request: { title: 'Fuite sous évier', property_label: 'F4 Mermoz', reported_at: null } } },
     });
     const prestataire = await lireInvitation('j');
-    expect(prestataire.issue === 'valide' && prestataire.apercu.attente).toEqual({ biens: null, intervention: { titre: 'Fuite sous évier', bien: 'F4 Mermoz' } });
+    expect(prestataire.issue === 'valide' && prestataire.apercu.attente).toEqual({ biens: null, intervention: { titre: 'Fuite sous évier', bien: 'F4 Mermoz' }, biensEnAttente: [] });
 
     apiRequest.mockResolvedValueOnce({ data: { ...APERCU, role: 'agent', agency: null, inviter: null, awaiting: {} } });
     const agent = await lireInvitation('j');
@@ -82,13 +83,48 @@ describe('lireInvitation', () => {
     );
     await expect(lireInvitation('j')).resolves.toEqual({
       issue: 'fermee',
-      fermee: { etat, agence: { nom: 'Dakar Immo', logo: null, telephone: '+221338200000' }, inviteeLe: '2026-11-03T09:00:00+00:00' },
+      fermee: { etat, agence: { nom: 'Dakar Immo', logo: null, telephone: '+221338200000' }, inviteeLe: '2026-11-03T09:00:00+00:00', invitant: null },
     });
   });
 
   it('410 d’une agence supprimée : fermée, sans agence', async () => {
     apiRequest.mockRejectedValue(new ApiError(410, { code: 'invitation.token_revoked', message: 'x', agency: null, invited_at: null }));
-    await expect(lireInvitation('j')).resolves.toEqual({ issue: 'fermee', fermee: { etat: 'annulee', agence: null, inviteeLe: null } });
+    await expect(lireInvitation('j')).resolves.toEqual({ issue: 'fermee', fermee: { etat: 'annulee', agence: null, inviteeLe: null, invitant: null } });
+  });
+
+  // TCK-2941 (ADR-0094, amendement du 2026-11-15 § 2-3) — les biens du bailleur, et le prénom de qui invitait sur le 410.
+  it('TCK-2941 — `pending_properties` : titre, quartier, vignette ; trois au plus, un bien sans titre ignoré', async () => {
+    apiRequest.mockResolvedValue({
+      data: {
+        ...APERCU,
+        awaiting: {
+          properties_count: 5,
+          pending_properties: [
+            { title: 'Appartement F4', neighborhood: 'Mermoz', cover_url: 'https://cdn.test/1.jpg' },
+            { title: '', neighborhood: 'Fann', cover_url: null },
+            { title: 'Studio', neighborhood: null, cover_url: null },
+            'pas un objet',
+            { title: 'Villa', neighborhood: 'Ngor', cover_url: 42 },
+            { title: 'Quatrième', neighborhood: 'Point E', cover_url: null },
+          ],
+        },
+      },
+    });
+    const lecture = await lireInvitation('j');
+    expect(lecture.issue === 'valide' && lecture.apercu.attente).toEqual({
+      biens: 5,
+      intervention: null,
+      biensEnAttente: [
+        { titre: 'Appartement F4', quartier: 'Mermoz', vignette: 'https://cdn.test/1.jpg' },
+        { titre: 'Studio', quartier: null, vignette: null },
+        { titre: 'Villa', quartier: 'Ngor', vignette: null },
+      ],
+    });
+  });
+
+  it('TCK-2941 — 410 : `inviter_first_name` devient `invitant`', async () => {
+    apiRequest.mockRejectedValue(new ApiError(410, { code: 'invitation.token_expired', message: 'x', agency: null, invited_at: null, inviter_first_name: 'Awa' }));
+    await expect(lireInvitation('j')).resolves.toEqual({ issue: 'fermee', fermee: { etat: 'expiree', agence: null, inviteeLe: null, invitant: 'Awa' } });
   });
 
   it.each([

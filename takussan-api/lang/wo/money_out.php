@@ -50,4 +50,32 @@ return [
         'ninea' => 'NINEA',
         'rccm' => 'RCCM',
     ],
+
+    // TCK-2909 — l'avis de versement (`GET /api/payouts/{payout}/notice/pdf`).
+    'notice' => [
+        'title' => 'Avis de versement',
+        'nature' => 'Nature',
+        'paid_on' => 'Versé le',
+        'method' => 'Moyen',
+        'transaction' => 'Référence de l\'opération',
+        'net' => 'Montant versé',
+        'attestation' => 'Cet avis atteste du versement au bailleur du montant indiqué, net de la commission de gestion.',
+        'natures' => [
+            'advance' => 'Acompte',
+            'balance' => 'Solde',
+            'deposit_refund' => 'Restitution de caution',
+            'refund' => 'Remboursement',
+            'provider_bill' => 'Facture de prestataire',
+        ],
+        'methods' => [
+            'cash' => 'Espèces',
+            'bank_transfer' => 'Virement bancaire',
+            'mobile_money' => 'Mobile money',
+            'wave' => 'Wave',
+            'orange_money' => 'Orange Money',
+            'free_money' => 'Free Money',
+            'check' => 'Chèque',
+            'card' => 'Carte bancaire',
+        ],
+    ],
 ];

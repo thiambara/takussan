@@ -19,7 +19,9 @@ import { FRAICHEUR_DOMAINE_VILLES, replie, type ComptesParContrat } from '@/lib/
  * « À vendre », la rangée que lisait ce module depuis TCK-628, a quitté l'accueil : TCK-2495 réduit
  * les rangées à trois, sans doublon (`rangeesSansDoublon`).
  *
- * ⚠ **Aucune photo de quartier** : l'API n'en sert pas. Les tuiles sont typographiques.
+ * TCK-2844 (ADR-0109) — chaque ligne des quartiers porte `photo` : l'URL de la photo posée par le
+ * super-admin, ou `null`. Sans photo, la tuile reste typographique (motif bogolan). Mise en cache une
+ * heure comme le reste : une photo posée n'apparaît qu'à la relecture suivante.
  * ⚠ **Aucun chiffre de DEMANDE** (« N personnes ont cherché ») : aucun endpoint public ne compte les
  * recherches (ADR-0088 réserve le journal à l'administration). Le bloc dit l'OFFRE, qui est publique
  * et exacte — un chiffre de demande inventé serait exactement ce que l'audit interdit d'afficher.
@@ -31,6 +33,8 @@ import { FRAICHEUR_DOMAINE_VILLES, replie, type ComptesParContrat } from '@/lib/
 export interface QuartierDeLAccueil {
   readonly nom: string;
   readonly compte: number;
+  /** TCK-2844 — l'URL de la photo du quartier (conversion servie par l'API), ou `null`. */
+  readonly photo: string | null;
 }
 
 export interface OffreDeLaVille {
@@ -52,10 +56,21 @@ export const AUCUN_RACCOURCI: RaccourcisDeLAccueil = { ville: null, quartiers: n
 export const QUARTIERS_DE_L_ACCUEIL_MAX = 8;
 
 type Domaine = {
-  readonly data: readonly { readonly value: string; readonly count: number; readonly contracts?: ComptesParContrat }[];
+  readonly data: readonly {
+    readonly value: string;
+    readonly count: number;
+    readonly contracts?: ComptesParContrat;
+    /** TCK-2844 — servi par `/neighborhoods` seulement ; absent d'une réponse antérieure au champ. */
+    readonly photo?: string | null;
+  }[];
 };
 
 const PARTAGE = { next: { revalidate: FRAICHEUR_DOMAINE_VILLES } } as RequestInit;
+
+/** Une URL non vide, sinon `null` : une valeur inattendue de l'API retombe sur le motif. */
+function photoDe(brut: unknown): string | null {
+  return typeof brut === 'string' && brut.trim() !== '' ? brut : null;
+}
 
 async function quartiersDe(ville: string): Promise<readonly QuartierDeLAccueil[] | null> {
   try {
@@ -67,7 +82,7 @@ async function quartiersDe(ville: string): Promise<readonly QuartierDeLAccueil[]
     const quartiers = reponse.data
       .filter((q) => q.value && q.count > 0)
       .slice(0, QUARTIERS_DE_L_ACCUEIL_MAX)
-      .map((q) => ({ nom: q.value, compte: q.count }));
+      .map((q) => ({ nom: q.value, compte: q.count, photo: photoDe(q.photo) }));
     return quartiers.length > 0 ? quartiers : null;
   } catch (err: unknown) {
     console.error('[accueil] quartiers indisponibles : ', err);

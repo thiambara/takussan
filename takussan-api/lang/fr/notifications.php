@@ -467,6 +467,8 @@ return [
             'rejected' => [
                 'title' => 'Réservation refusée',
                 'body' => 'Votre réservation :reference pour :property a été refusée.',
+                // TCK-2874 (ADR-0110 § 7) — le motif et la précision du personnel, quand il y en a.
+                'body_link' => 'Votre réservation :reference pour :property a été refusée. Motif : :reason_code',
                 'sms' => 'Takussan : réservation :reference refusée (:property).',
             ],
             'cancelled' => [
@@ -485,6 +487,24 @@ return [
                 'title' => 'Candidature non retenue',
                 'body' => 'Votre candidature :reference pour :property n\'a pas été retenue : le logement a été attribué à un autre locataire.',
                 'sms' => 'Takussan : candidature :reference non retenue (:property).',
+            ],
+            // TCK-2872 — au client : l'agence lui demande une pièce de son dossier.
+            'dossier_piece_requested' => [
+                'title' => 'Pièce demandée pour votre dossier',
+                'body' => 'Pour votre demande :reference (:property), l\'agence vous demande : :piece. Déposez-la depuis votre réservation.',
+                'sms' => 'Takussan : pour votre demande :reference (:property), l\'agence vous demande : :piece.',
+            ],
+            // TCK-2873 — au client : l'agence contre-propose un prix sur son offre.
+            'counter_offer_received' => [
+                'title' => 'Contre-proposition sur votre offre',
+                'body' => 'Pour votre offre :reference (:property), l\'agence vous propose :amount, jusqu\'au :valid_until. Acceptez-la ou déclinez-la depuis votre réservation.',
+                'sms' => 'Takussan : offre :reference, l\'agence vous propose :amount jusqu\'au :valid_until.',
+            ],
+            // TCK-2873 — à l'agence : la réponse du client à la contre-offre.
+            'counter_offer_answered' => [
+                'title' => 'Réponse à votre contre-proposition',
+                'body' => 'Offre :reference (:property) : le client a :answer votre contre-proposition à :amount.',
+                'sms' => 'Takussan : offre :reference (:property), le client a :answer votre contre-proposition à :amount.',
             ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
@@ -512,6 +532,13 @@ return [
                 'title' => 'Numéro de téléphone remplacé',
                 'body' => 'Le numéro de téléphone vérifié de votre compte a été remplacé. Si ce n\'est pas vous, contactez le support.',
                 'sms' => 'Takussan : ce numéro n\'est plus celui de votre compte. Si vous n\'êtes pas à l\'origine de ce changement, contactez le support.',
+            ],
+            // TCK-2926 (ADR-0124 § 6) — l'admin rappelle au membre d'activer la double authentification.
+            'two_factor_reminder' => [
+                'title' => 'Activez la double authentification',
+                'body' => ':agency vous demande d\'activer la double authentification sur votre compte. Activez-la depuis la sécurité de votre profil.',
+                'mail_body' => ":agency vous demande d'activer la double authentification sur votre compte Takussan.\nElle protège l'accès aux données de l'agence : activez-la depuis la page Sécurité de votre profil.",
+                'sms' => 'Takussan : :agency vous demande d\'activer la double authentification de votre compte (Profil > Sécurité).',
             ],
             'blocked' => [
                 'title' => 'Votre compte est bloqué',
@@ -555,12 +582,30 @@ return [
                 'mail_body' => "Le visiteur a proposé un autre créneau pour :property. La visite attend votre confirmation.\nCréneau proposé : :scheduled_at (fuseau :timezone).",
                 'sms' => 'Takussan : le visiteur propose le :scheduled_at (:timezone) pour :property.',
             ],
+            // TCK-2849 (ADR-0112 § 4) — le bailleur a confirmé la visite : à l'agent attribué, avec son nom.
+            'confirmed_by_owner' => [
+                'title' => 'Visite confirmée par le bailleur : :property',
+                'body' => ':owner a confirmé la visite du :scheduled_at.',
+                'mail_body' => ":owner, bailleur du bien, a confirmé la visite de :property.\nCréneau : :scheduled_at (fuseau :timezone).",
+                'sms' => 'Takussan : :owner a confirmé la visite de :property le :scheduled_at (:timezone).',
+            ],
             // TCK-2502 — annulations d'une visite demandée par tranche, heure jamais fixée.
             'cancelled_by_visitor_window' => [
                 'title' => 'Visite annulée par le visiteur : :property',
                 'body' => 'Le visiteur a annulé la visite demandée le :date, :window (heure non fixée).',
                 'mail_body' => "Le visiteur a annulé sa demande de visite de :property.\nElle était demandée le :date, :window ; l'heure n'avait pas été fixée.",
                 'sms' => 'Takussan : le visiteur a annulé la visite de :property demandée le :date, :window.',
+            ],
+            // TCK-2871 — l'agence a marqué le visiteur « Absent » : le jour (pas d'heure), et le lien public
+            // du bien quand il l'est encore (variantes `_link`).
+            'no_show' => [
+                'title' => 'Visite manquée : :property',
+                'body' => "La visite prévue le :date n'a pas eu lieu. Vous pouvez en demander une autre.",
+                'mail_body' => "La visite de :property prévue le :date n'a pas eu lieu.\nContactez l'agence pour en convenir d'une autre.",
+                'mail_body_link' => "La visite de :property prévue le :date n'a pas eu lieu.\nPour en demander une autre : :url",
+                'sms' => "Takussan : visite du :date manquée. Contactez l'agence pour en reprendre une.",
+                // Sans accent hors de la date : en GSM-7, le lien réel (~95 caractères) tient en deux segments.
+                'sms_link' => "Takussan : votre visite du :date n'a pas eu lieu. Pour en demander une autre : :url",
             ],
             'cancelled_window' => [
                 'title' => 'Votre visite de :property est annulée',
@@ -655,15 +700,16 @@ return [
                 'sms' => 'Takussan : votre pièce « :document_name » expire le :expires_at.',
             ],
             // TCK-2812 — l'archive préparée d'un dossier du coffre, au seul demandeur.
+            // TCK-2916 — l'avis ouvre le coffre, ou la page des paiements pour l'archive des quittances : le texte ne nomme aucun des deux.
             'archive_ready' => [
                 'title' => 'Votre archive est prête',
-                'body' => 'L’archive des documents que vous avez demandée est prête. Téléchargez-la depuis vos documents dans les 24 heures.',
-                'sms' => 'Takussan : votre archive de documents est prête dans vos documents, pour 24 heures.',
+                'body' => 'L’archive que vous avez demandée est prête. Ouvrez cet avis pour la télécharger dans les 24 heures.',
+                'sms' => 'Takussan : votre archive est prête dans votre espace, pour 24 heures.',
             ],
             'archive_failed' => [
                 'title' => 'Votre archive n’a pas pu être préparée',
-                'body' => 'L’archive des documents que vous avez demandée n’a pas pu être préparée. Réessayez depuis vos documents.',
-                'sms' => 'Takussan : votre archive de documents n’a pas pu être préparée. Réessayez depuis vos documents.',
+                'body' => 'L’archive que vous avez demandée n’a pas pu être préparée. Ouvrez cet avis pour réessayer.',
+                'sms' => 'Takussan : votre archive n’a pas pu être préparée. Réessayez depuis votre espace.',
             ],
         ],
         'kyc' => [
@@ -854,6 +900,23 @@ return [
                 'body' => 'Votre agence vous rappelle qu\'un devis de :amount pour « :request » attend votre décision. Approuvez-le ou refusez-le.',
                 'sms' => 'Takussan : rappel, votre accord est requis pour « :request ».',
             ],
+            // TCK-2917 (ADR-0118) — l'annulation avec le motif de qui annule (le SMS ne le porte pas).
+            'cancelled_with_reason' => [
+                'title' => 'Intervention annulée : :request',
+                'body' => 'L\'intervention « :request » a été annulée. Motif : :reason',
+                'sms' => 'Takussan : Intervention annulée : :request',
+            ],
+            'step_cancelled_with_reason' => [
+                'title' => 'Votre demande « :request » : annulée',
+                'body' => 'Votre demande d\'intervention a été annulée. Motif : :reason',
+                'sms' => 'Takussan : Votre demande « :request » : annulée',
+            ],
+            // TCK-2917 — à l'agence et au prestataire : le locataire demande un autre créneau.
+            'reschedule_requested' => [
+                'title' => 'Autre créneau demandé : « :request »',
+                'body' => 'Le locataire demande un autre créneau pour « :request ». Créneaux proposés : :slots. Le créneau actuel ne change pas tant que vous n\'en posez pas un nouveau.',
+                'sms' => 'Takussan : le locataire demande un autre créneau pour « :request ».',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [
@@ -904,6 +967,14 @@ return [
                 'title' => 'Loyer révisé : :reference',
                 'body' => 'Le loyer du bail :reference pour :property passe de :old à :new à partir du :effective_date.',
                 'sms' => 'Takussan : loyer du bail :reference révisé (:old -> :new) au :effective_date.',
+            ],
+        ],
+        // TCK-2913 (ADR-0098, amendement B) — l'état des lieux signé par les deux parties : son PDF.
+        'inventory' => [
+            'signed_pdf_available' => [
+                'title' => 'État des lieux signé : bail :reference',
+                'body' => 'Le locataire et le bailleur ont signé l’état des lieux du bail :reference pour :property. Téléchargez son PDF depuis la fiche de l’état des lieux.',
+                'sms' => 'Takussan : l’état des lieux du bail :reference est signé. Son PDF est dans votre espace.',
             ],
         ],
         'prospect_match' => [

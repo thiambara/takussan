@@ -77,7 +77,7 @@
   },
   "alias_motifs": {
     "vouvoiement": "« tu » → « vous » : règle des libellés du produit (« Ton numéro » → « Votre numéro », « Tu reprends là où tu t’es arrêtée » → « Vous reprenez là où vous en étiez », sans accord au féminin)",
-    "donnée": "titre, prix et agence du bien : ceux du bien de démo relevé ; ils viennent de la fiche publique (`bienQuitte`), jamais d’un texte de l’URL. La date et le délai de réponse : cf. `ecarts_acceptes`"
+    "donnée": "titre, prix et agence du bien : ceux du bien de démo relevé ; ils viennent de la fiche publique (`bienQuitte`), jamais d’un texte de l’URL. TCK-2936 : la date (« · dimanche 15 nov. », « Visite demandée pour … ») n'est rendue que si la page à rouvrir porte `?debut=` ; le délai (« · réponse en 2 h environ ») que si l'agence a un `median_response_minutes` mesuré (TCK-2935) — le bien de démo relevé n'avait ni l'un ni l'autre, d'où les alias sans eux"
   },
   "ancres": [],
   "ignorer": [
@@ -95,18 +95,18 @@
   "zones_motif": "aucune zone n’a un contenu identique sur les trois écrans d’un appareil (la fiche ne déclare une zone que par appareil) : la photo, le titre et le prix sont une donnée, la colonne du formulaire porte les alias de vouvoiement. Mesure à part sur a-2 au bureau, par une fiche étendue de trois zones explicites : 0,01 %, 0 % et 3,54 % (le décompte) — cf. l’écart « Valable 5 minutes »",
   "ecarts_acceptes": [
     {
-      "ecran": "a-1-telephone",
-      "element": "en-tête d’accueil (photo de ville de 176 px, marque claire, « Tes visites, tes favoris, tes annonces. »)",
-      "propriete": "présence, hauteur",
+      "ecran": "a-1 (téléphone, bureau 1440 et 1024)",
+      "element": "photo de l'accueil (arrivée directe, en-tête de 176 px et panneau de 45 %)",
+      "propriete": "contenu de l'image",
       "exception": "donnée",
-      "motif": "le ticket : « sans intention, aucune villa ni slogan : la marque seule (une photo de Dakar libre de droits, fournie par le porteur ; sans elle, la marque seule) ». Aucune photo fournie : la barre de 56 px de la coque (TCK-2598, même écart dans TCK-2598.json). Le slogan va avec la photo ; conséquence : tout l’écran remonte de 116 à 118 px (titre à 76 au lieu de 192), et la flèche et la marque suivent la barre de la coque"
+      "motif": "TCK-2936 : la maquette pose une photo locale du porteur (`public/maquettes/maison-blanche.jpg`, hors git, droits inconnus) ; le produit montre la photo Unsplash que la connexion portait jusqu'à TCK-2598 (licence Unsplash), `PHOTO_D_ACCUEIL` dans `components/auth/AccueilDeLaPorte.tsx` — une constante à changer pour une photo de Dakar fournie. Disposition, hauteur, voile, marque claire et slogan : ceux de la maquette"
     },
     {
-      "ecran": "a-1-bureau-1440",
-      "element": "panneau photo de 45 % à gauche",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "même motif ; sans photo, le formulaire seul (colonne de 480 px de la coque, TCK-2598) ; conséquence : la colonne est centrée (x 480, 480 px) au lieu d’être à droite du panneau (x 844, 400 px), et « Retour au site » est la pastille de la coque à gauche"
+      "ecran": "a-0 (téléphone et bureau)",
+      "element": "« samedi 15 nov. »",
+      "propriete": "jour de la semaine",
+      "exception": "incohérence des maquettes",
+      "motif": "TCK-2936 : le 15 novembre 2026 est un dimanche ; le produit formate la date du geste (`?debut=2026-11-15`) et dit « dimanche 15 nov. ». La date n'est rendue que si la page à rouvrir porte `debut` (jamais inventée) ; sans elle, rien"
     },
     {
       "ecran": "a-0 et a-2, bureau",
@@ -114,20 +114,6 @@
       "propriete": "hauteur 39,6 au lieu de 32,4, y −3,6",
       "exception": "accessibilité",
       "motif": "le plancher de 44 px de `RetourAuth` (TCK-560, W3), gardé par RetourAuth.test.tsx ; même écart accepté dans TCK-2598.json (a-5)"
-    },
-    {
-      "ecran": "a-0 (téléphone et bureau)",
-      "element": "la date de la visite (« · samedi 15 nov. », « Visite demandée pour samedi 15 nov. »)",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "une demande de visite ne porte AUCUNE date avant la connexion : seul le retour du tunnel de réservation en porte (`?debut=&fin=`, TCK-589), et la connexion la dit alors (« Du … au … », éprouvé par porte-par-numero.tck-2604 « le tunnel de réservation … ses dates dites »)"
-    },
-    {
-      "ecran": "a-0-bureau-1440",
-      "element": "« · réponse en 2 h environ » après l’agence",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "aucun délai de réponse n’est mesuré ni exposé par l’API ; l’agence seule (« Avec Studio de Aminata »)"
     },
     {
       "ecran": "a-0 et a-1, téléphone",

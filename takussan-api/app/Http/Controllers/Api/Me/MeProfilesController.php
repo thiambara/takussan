@@ -14,7 +14,9 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Services\Profiles\ActiveProfileResolver;
+use App\Services\Profiles\ActiviteDesEspaces;
 use App\Services\Profiles\DernierEspaceRetenu;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +27,7 @@ class MeProfilesController extends Controller
     public function __construct(
         private readonly ActiveProfileResolver $resolver,
         private readonly DernierEspaceRetenu $dernierEspace,
+        private readonly ActiviteDesEspaces $activite,
     ) {}
 
     /**
@@ -57,8 +60,18 @@ class MeProfilesController extends Controller
         $active = $request->activeProfile();
         $activeId = $active !== null ? $this->resolver->compositeId($active) : null;
 
+        $data = ProfileResource::collection($profiles)->resolve($request);
+
+        // TCK-2847 (ADR-0116 § 5) — `include=activity` : les compteurs de l'« Aujourd'hui » de chaque
+        // espace, calculés sous ce profil ({@see ActiviteDesEspaces}). Absente sans l'inclusion.
+        $include = array_map('trim', explode(',', ParametreUnique::chaine($request, 'include') ?? ''));
+        if (in_array('activity', $include, true)) {
+            $activite = $this->activite->pour($user, $profiles);
+            $data = array_map(fn (array $ligne): array => [...$ligne, 'activity' => (object) ($activite[$ligne['id']] ?? [])], $data);
+        }
+
         return $this->json([
-            'data' => ProfileResource::collection($profiles)->resolve($request),
+            'data' => $data,
             'meta' => [
                 'active_profile_id' => $activeId,
                 'count' => $profiles->count(),

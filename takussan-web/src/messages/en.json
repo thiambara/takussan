@@ -47,6 +47,18 @@
       "conflict_of_interest": "Conflict of interest",
       "off_topic": "Off topic",
       "other": "Other reason"
+    },
+    "noteVocale": {
+      "enregistrer": "Record a voice message",
+      "maintenir": "Press and hold to record a voice message",
+      "arreter": "Stop recording",
+      "relacher": "Release to finish",
+      "supprimer": "Delete the voice message",
+      "libelle": "Voice message",
+      "ecouter": "Play the voice message",
+      "pause": "Pause the voice message",
+      "micRefuse": "The microphone isn't available. Allow it in your browser.",
+      "lectureImpossible": "This voice message can't be played."
     }
   },
   "console": {
@@ -249,27 +261,6 @@
           "propertyModeration": "Listings to review"
         }
       },
-      "aTraiter": {
-        "titre": "To do",
-        "pastilles": {
-          "unreadMessages": "{count, plural, one {# message} other {# messages}}",
-          "pendingVisits": "{count, plural, one {# visit} other {# visits}}",
-          "unhandledLeads": "{count, plural, one {# request} other {# requests}}",
-          "reviewModeration": "{count, plural, one {# review} other {# reviews}}",
-          "propertyModeration": "{count, plural, one {# listing} other {# listings}}"
-        },
-        "noms": {
-          "unreadMessages": "{count, plural, one {# message unread} other {# messages unread}}",
-          "pendingVisits": "{count, plural, one {# visit pending} other {# visits pending}}",
-          "unhandledLeads": "{count, plural, one {# request unhandled} other {# requests unhandled}}",
-          "reviewModeration": "{count, plural, one {# review to moderate} other {# reviews to moderate}}",
-          "propertyModeration": "{count, plural, one {# listing to review} other {# listings to review}}"
-        },
-        "plusCourt": "+{count}",
-        "autres": "{count, plural, other {+# more to do}}",
-        "compact": "{count, plural, one {To do: # item} other {To do: # items}}",
-        "totalCourt": "{count, plural, =100 {99+} other {#}}"
-      },
       "demarrer": {
         "titre": "Get started",
         "progression": "{faites} of {total}",
@@ -279,13 +270,19 @@
           "espace": {
             "premier_bien": "Publish a first property",
             "kyc": "Get the agency verified",
-            "equipe": "Invite a first member",
-            "pieces": "Send your documents"
+            "equipe": "Invite a first member"
           },
           "bailleur": {
             "premier_bien": "Propose a first property",
-            "kyc": "Send your ID documents",
             "equipe": "Invite a first member"
+          },
+          "pieces": {
+            "cni": "Send your ID document",
+            "rib": "Send your bank details (RIB)",
+            "ninea": "Send your NINEA",
+            "license": "Send your professional card",
+            "photo": "Send your profile photo",
+            "insurance": "Send your professional liability insurance"
           }
         },
         "ecranPieces": "Your documents"
@@ -309,7 +306,15 @@
         "titre": "Pin up to {max} pages",
         "compte": "{nombre} of {max} · drag to reorder",
         "terminer": "Done",
-        "deplacer": "Move {libelle} (up and down arrows)"
+        "deplacer": "Move {libelle} (up and down arrows)",
+        "reinitialiser": "Reset the menu",
+        "confirmation": {
+          "titre": "Reset the menu?",
+          "texte": "Your pins, collapsed groups and hidden “Get started” return to this space’s default layout.",
+          "confirmer": "Reset",
+          "annuler": "Cancel"
+        },
+        "epingler": "Drag {libelle} to the pins (up arrow)"
       },
       "reports": "Reports"
     },
@@ -487,7 +492,6 @@
         "generique": "Search properties on Takussan",
         "avecTexte": "Search “{q}” in listings"
       },
-      "passerA": "Switch to: {espace}",
       "aucun": "No page for “{q}”",
       "resultats": "{count, plural, =0 {No results} one {# result} other {# results}}",
       "synonymesEspace": "space, switch, change",
@@ -528,6 +532,24 @@
         "agence-journal": "audit, log, history",
         "agence-integrations": "api, webhooks, connectors",
         "rapports": "stats, statistics, figures, analytics, performance, export, csv, excel, download, indicators, metrics, kpi, alerts, anomalies, warnings"
+      },
+      "basculerVers": "Switch to {espace}",
+      "aTraiterLignes": {
+        "unreadMessages": "Unread messages",
+        "pendingVisits": "Visits to confirm",
+        "unhandledLeads": "Unhandled requests",
+        "reviewModeration": "Reviews to moderate",
+        "propertyModeration": "Properties to approve"
+      },
+      "precisions": {
+        "sitePublic": "Public site",
+        "epinglee": "Pinned"
+      },
+      "echap": "Esc",
+      "pied": {
+        "naviguer": "navigate",
+        "ouvrir": "open",
+        "partout": "anywhere in the app"
       }
     },
     "coque": {
@@ -535,6 +557,18 @@
       "fermer": "Close",
       "plusDActions": "More actions",
       "etape": "Step {n} of {total}"
+    },
+    "recents": {
+      "types": {
+        "bien": "Property",
+        "demande": "Request",
+        "client": "Client",
+        "bail": "Lease",
+        "intervention": "Maintenance",
+        "visite": "Viewing",
+        "reservation": "Booking",
+        "bailleur": "Landlord"
+      }
     }
   },
   "footer": {
@@ -884,7 +918,8 @@
       },
       "dates": {
         "du": "From {debut} to {fin}",
-        "aPartirDu": "From {debut}"
+        "aPartirDu": "From {debut}",
+        "visiteDemandee": "Visit requested for {debut}"
       },
       "actions": {
         "reservation": {
@@ -923,7 +958,16 @@
       },
       "aideIndicatif": "+221 is already set. Abroad? Start with +",
       "avecAgence": "With {agence}",
-      "exempleNumero": "77 000 00 00"
+      "exempleNumero": "77 000 00 00",
+      "avecAgenceEtDelai": {
+        "minutes": "With {agence} · replies in about {n} min",
+        "heures": "With {agence} · replies in about {n} h",
+        "jours": "With {agence} · replies in about {n, plural, one {# day} other {# days}}"
+      },
+      "accueil": {
+        "slogan": "Your visits, your favourites, your listings.",
+        "retour": "Back to the site"
+      }
     },
     "voieEmail": {
       "titre": "With your email",
@@ -1564,7 +1608,8 @@
         "titreDuPanneau": "Last step: your number",
         "assurances": {
           "motDePasse": "No password to make up",
-          "retirable": "You can take the listing down at any time"
+          "retirable": "You can take the listing down at any time",
+          "gratuit": "Free, no commission"
         },
         "mention": "By publishing, you accept the <terms>terms and conditions</terms> and the <privacy>privacy policy</privacy>.",
         "nomsAide": "They appear on your listing and in your messages.",
@@ -1770,7 +1815,6 @@
       "commissionsMonthMine": "My commissions this month",
       "commissionsMonthAgency": "Agency commissions this month",
       "commissionsAgency": "Agency commissions",
-      "commissionsDetail": "Breakdown by lease",
       "pipelineEmpty": "No prospects at any stage for this period.",
       "pipelineOpen": "Open the stages"
     },
@@ -1883,7 +1927,7 @@
       "downloading": "Downloading…",
       "download": "Download",
       "scopeNotice": "Exports respect your role (agency, landlord or agent).",
-      "rowCap": "A file holds at most {max} rows, {pdf} in PDF.",
+      "rowCap": "At most {max} rows per export, {pdf} as PDF.",
       "truncated": "The file stops at {plafond} rows: the period holds more. Narrow it to get everything.",
       "failed": "The download failed. Please try again.",
       "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included.",
@@ -1984,7 +2028,8 @@
       "maintenance": {
         "metaTitle": "Maintenance",
         "title": "Maintenance",
-        "subtitle": "Requests and intervention tracking"
+        "subtitle": "Requests and intervention tracking",
+        "subtitleDuBail": "Maintenance requests for this lease"
       },
       "payments": {
         "title": "Payments",
@@ -2176,7 +2221,13 @@
       "aide": "Check the link, or go straight to where you meant to go.",
       "backHome": "Back to home",
       "backToday": "Back to Today",
-      "recent": "Recent"
+      "recent": "Recent",
+      "autreEspace": {
+        "titre": "{type, select, bien {This property} client {This client} bail {This lease} intervention {This job} visite {This visit} reservation {This booking} bailleur {This landlord} other {This item}} is in the {espace} space",
+        "role": "You are {role, select, agent {an agent} owner {an owner} agency_admin {an administrator} service_provider {a service provider} other {a member}} there.",
+        "actuel": "You are currently working in {espace}.",
+        "basculer": "Switch to {espace}"
+      }
     },
     "agencySetup": {
       "title": "Agency setup",
@@ -2586,7 +2637,15 @@
         "aCorrigerBureau": "{n, plural, one {# value to fix} other {# values to fix}} before saving"
       },
       "erreurLecture": "The settings could not be loaded.",
-      "erreurEcriture": "The setting could not be saved."
+      "erreurEcriture": "The setting could not be saved.",
+      "vide": "Your agency hasn’t set anything yet: every new lease uses the platform values. Change a value to apply it to all your future leases.",
+      "lectureSeule": "You can view these settings, but not change them. Only someone who manages the agency can change them.",
+      "bail": {
+        "venu": "You came from the new lease for <nom>{locataire}</nom>. Your entries are kept as a draft.",
+        "venuSansNom": "You came from a new lease. Your entries are kept as a draft.",
+        "enregistre": "<fort>Settings saved.</fort> Your future leases will use them.",
+        "reprendre": "Resume the lease"
+      }
     }
   },
   "compare": {
@@ -2963,7 +3022,9 @@
         "prochaine": "Next action first",
         "nom": "By name",
         "recents": "Newest first",
-        "pertinence": "Most relevant first"
+        "pertinence": "Most relevant first",
+        "etape": "By stage",
+        "referent": "By referent"
       },
       "trierPar": "Sort by {colonne}",
       "filtres": "Filters",
@@ -3003,6 +3064,19 @@
         "designerAria": "Make me the account manager of {name}",
         "designe": "You are now the account manager of {name}",
         "erreur": "The assignment did not go through. Try again."
+      },
+      "cetteSemaine": "Follow-ups due this week",
+      "pied": {
+        "aRelancer": "{count, plural, one {# client to follow up} other {# clients to follow up}}",
+        "tous": "{count, plural, one {# client} other {# clients}}",
+        "voirPlus": "Show more",
+        "chargement": "Loading…",
+        "erreur": "The next clients could not be loaded. Please try again."
+      },
+      "referentFiltre": {
+        "libelle": "Lead agent:",
+        "choisi": "selected member",
+        "retirer": "Remove the lead agent filter"
       }
     },
     "customerDetail": {
@@ -3119,7 +3193,9 @@
       "allStages": "All stages",
       "allStatuses": "All statuses",
       "stage": "Stage",
-      "activeStages": "Active prospects"
+      "activeStages": "Active prospects",
+      "aucuneEtiquette": "No tags",
+      "creerEtiquetteDepuisLaFiche": "Add one from a client’s page, with “+ Tag”."
     },
     "tags": {
       "sectionTitle": "Tags",
@@ -3187,7 +3263,10 @@
       "plusTardDansModifier": "Occupation, language, ID document, bedrooms, stage, cities and minimum budget: under “Edit” on the record, whenever you have time.",
       "sondeEnPauseJusqua": "Duplicate checking is paused until {heure} (Dakar time). You can still save the record.",
       "sondeEnPause": "Duplicate checking is paused for now. You can still save the record.",
-      "sondeImpossible": "We couldn’t check for duplicates. You can still save the record."
+      "sondeImpossible": "We couldn’t check for duplicates. You can still save the record.",
+      "suiviPar": "followed by {nom}",
+      "quartiersProches": "Nearby neighbourhoods",
+      "ajouterQuartierProche": "Add {quartier}"
     },
     "fiche": {
       "referentCourt": "agent {nom}",
@@ -3311,6 +3390,13 @@
           "creeeSansTitre": "Task created",
           "faite": "Task done: {titre}",
           "faiteSansTitre": "Task done"
+        },
+        "demandeSur": "Enquiry received about {bien}",
+        "reservation": {
+          "created": "{nature, select, stay {Stay request submitted} application {Application submitted} offer {Offer submitted} other {Booking created}}",
+          "confirmed": "{nature, select, stay {Stay confirmed} application {Application accepted} offer {Offer accepted} other {Booking confirmed}}",
+          "rejected": "{nature, select, stay {Stay request declined} application {Application declined} offer {Offer declined} other {Booking declined}}",
+          "counter_offer": "Counter-offer of {montant} sent"
         }
       },
       "dossier": {
@@ -3354,7 +3440,9 @@
         "sousTitre": "Client record"
       },
       "ecrire": "Message",
-      "ecrireA": "Message {nom}"
+      "ecrireA": "Message {nom}",
+      "nouvelleTache": "New task",
+      "ecrireSansCompte": "{prenom} doesn’t have an account yet: invite them so you can write to them here."
     }
   },
   "agentCrm": {
@@ -3504,7 +3592,6 @@
       "feed": {
         "title": "Subscribe from another calendar",
         "intro": "Your appointments show up in your phone’s calendar and stay up to date on their own.",
-        "onceOnly": "Copy it now: it won’t be shown again. Anyone with this link sees your appointments: don’t share it.",
         "linkLabel": "Your private link",
         "copy": "Copy",
         "copied": "Copied",
@@ -3520,7 +3607,8 @@
         "lastAccessLabel": "Last access",
         "never": "Never",
         "contentLabel": "Content",
-        "content": "Your calendar appointments"
+        "content": "Your calendar appointments",
+        "secret": "Anyone with this link sees your appointments: don’t share it."
       }
     },
     "bulk": {
@@ -3687,27 +3775,34 @@
       "plusDActions": "More actions",
       "gesteNonConsigne": "The contact wasn’t logged on the customer record.",
       "sourdineEchouee": "Notifications couldn’t be changed. Try again.",
-      "archivee": "Archived"
+      "archivee": "Archived",
+      "chargerPrecedents": "Load earlier messages",
+      "lu": "Read",
+      "auteurEtRole": "{nom} · {role}",
+      "role": {
+        "tenant": "tenant",
+        "owner": "owner",
+        "service_provider": "service provider",
+        "agent": "agent",
+        "agency_admin": "agency admin",
+        "customer": "client"
+      },
+      "marquerNonLue": "Mark as unread",
+      "nonLueEchouee": "The conversation was not marked as unread. Please try again.",
+      "ajouterUnParticipant": "Add a participant",
+      "signaler": "Report the conversation"
     },
     "group": {
       "create": {
         "title": "New group",
-        "step1Description": "Add at least 2 participants (you'll be included automatically).",
-        "step2Description": "Give the group a subject and optionally link it to a property or lease.",
-        "participantsLabel": "Participants",
         "participantInputPlaceholder": "Search by name…",
         "participantsHint": "Your agency’s team and the people you have already exchanged messages with.",
         "add": "Add",
         "removeParticipant": "Remove {name}",
         "minParticipants": "At least {min} participants total (including you).",
         "maxParticipants": "At most {max} participants total.",
-        "subjectLabel": "Subject",
         "subjectRequired": "Subject is required.",
-        "propertyLabel": "Property (optional)",
-        "leaseLabel": "Lease (optional)",
         "cancel": "Cancel",
-        "next": "Next",
-        "back": "Back",
         "create": "Create group",
         "createFailed": "Failed to create the group.",
         "searching": "Searching…",
@@ -3814,7 +3909,8 @@
       "ecrireAUnClient": "Write to a client",
       "videMetierAide": "Your conversations start from service requests and leases: they will appear here.",
       "seRemplira": "The list will fill up with the first message.",
-      "ouVoirLesDemandes": "or <lien>see contact requests</lien>"
+      "ouVoirLesDemandes": "or <lien>see contact requests</lien>",
+      "chargementPlusAnciennes": "Loading older conversations…"
     },
     "propertyDraft": {
       "message": "Hello, I'm interested in “{title}” (ref. {reference}). Is it still available?",
@@ -3831,8 +3927,9 @@
       "microphoneDenied": "The microphone is not accessible. Allow it in your browser.",
       "sendFailed": "The voice note was not sent. Please try again.",
       "label": "Voice note",
-      "duration": "{seconds} s",
-      "borne": "Voice note · {max} seconds max"
+      "borne": "Voice note · {max} seconds max",
+      "lire": "Play",
+      "pause": "Pause"
     },
     "maintenanceEvents": {
       "assigned": "Job assigned to {provider}.",
@@ -3921,7 +4018,12 @@
         },
         "roleEtAgence": "{role} · {agence}",
         "biensGeres": "{count, plural, =0 {No managed property} one {# managed property} other {# managed properties}}"
-      }
+      },
+      "aPrefixe": "To:",
+      "ajouter": "Add…",
+      "ecrire": "Write",
+      "aideAutomatique": "Turned on automatically from two recipients.",
+      "pied": "You can write to clients, owners and colleagues at {agence}."
     },
     "contexte": {
       "titre": "Conversation context",
@@ -3937,13 +4039,60 @@
       "voirLaFiche": "View client record",
       "ficheDuClient": "Customer record",
       "nomEtEtape": "{nom} · {etape} stage",
-      "planifier": "Schedule a visit"
+      "planifier": "Schedule a visit",
+      "projet": "Project",
+      "derniereVisite": "Last visit",
+      "aucuneVisite": "None yet",
+      "premierContact": "First contact",
+      "dateEtOrigine": "{date}, {origine}",
+      "origine": {
+        "form": "via the listing",
+        "whatsapp": "via WhatsApp",
+        "call": "by phone"
+      },
+      "contrat": {
+        "sale": "Purchase",
+        "rent": "Rental"
+      },
+      "jusqua": "up to {montant}",
+      "aPartirDe": "from {montant}",
+      "entre": "{min} to {max}",
+      "demandeDu": "Contact request of {date}",
+      "demandeLiee": "Linked contact request",
+      "surLAnnonce": "Via the listing “{titre}”"
     },
     "bureau": {
       "sousTitre": "{nonLues, plural, =0 {All read} one {# unread} other {# unread}} · {total, plural, one {# conversation} other {# conversations}}",
       "aucune": "No conversations"
     },
-    "titreTelephone": "Messages"
+    "titreTelephone": "Messages",
+    "signaler": {
+      "titre": "Report the conversation",
+      "description": "The Takussan team will read your report. The other participants are not notified.",
+      "motif": "Reason",
+      "motifs": {
+        "spam": "Spam",
+        "harassment": "Harassment",
+        "fraud": "Fraud or scam",
+        "inappropriate": "Inappropriate content",
+        "other": "Other"
+      },
+      "commentaire": "Add details (optional)",
+      "envoyer": "Report",
+      "choisirUnMotif": "Choose a reason.",
+      "fait": "Conversation reported",
+      "faitDetail": "Thank you. The Takussan team will review it.",
+      "deja": "You have already reported this conversation.",
+      "echec": "The report was not sent. Please try again."
+    },
+    "elargir": {
+      "titre": "Add a participant",
+      "explication": "A new group will be created with {nom}, you and the people you add. The history of this conversation stays between the two of you.",
+      "personnes": "People to add",
+      "creer": "Create the group",
+      "choisirUnePersonne": "Choose at least one person.",
+      "echec": "The group was not created. Please try again."
+    }
   },
   "payments": {
     "gateway": {
@@ -4240,7 +4389,10 @@
       "approveDestination": "Payment destination",
       "approveKeepDestination": "Keep the planned destination ({masked})",
       "approveNoDestination": "No destination (cash or check)",
-      "approveDestinationOption": "{kind} · {masked} (verified)"
+      "approveDestinationOption": "{kind} · {masked} (verified)",
+      "avis": "Payout notice (PDF)",
+      "echecAvis": "The payout notice could not be downloaded. Please try again.",
+      "nomDeLAvis": "payout-notice-{reference}.pdf"
     },
     "customer": {
       "nextTitle": "Next payment",
@@ -4314,7 +4466,8 @@
         "validated": "Validated",
         "rejected": "Rejected",
         "paid": "Paid",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "draft": "To invoice"
       }
     },
     "retour": {
@@ -4454,6 +4607,27 @@
           "paye": "Paid",
           "montant": "Amount",
           "justificatif": "Proof"
+        },
+        "archive": {
+          "toutTelecharger": "Download all",
+          "toutTelechargerZip": "Download all (.zip)",
+          "aria": "Download all your receipts as one archive (.zip)",
+          "enCours": "Preparing the archive…",
+          "enPreparation": "Being prepared…",
+          "telechargerLArchive": "Download the archive",
+          "reessayer": "Try again",
+          "nomDuFichier": "receipts.zip",
+          "notes": {
+            "preparation": "You have many receipts, so the archive is being prepared. We will let you know as soon as it is ready; you can leave this page.",
+            "prete": "The archive of your receipts is ready. It stays available for 24 hours.",
+            "echec": "The archive of your receipts could not be prepared. Please try again."
+          },
+          "errors": {
+            "vide": "There are no receipts to gather yet.",
+            "interdit": "You do not have access to these receipts.",
+            "echec": "The archive could not be downloaded. Please try again.",
+            "demande": "The archive could not be requested. Please try again."
+          }
         }
       },
       "agence": {
@@ -4515,7 +4689,8 @@
         "revenus": "Income",
         "versements": "Payouts",
         "factures": "Invoices",
-        "operations": "Transactions"
+        "operations": "Transactions",
+        "compteAria": "{libelle} ({n})"
       },
       "selecteur": {
         "choisir": "Period: {periode}. Choose another period",
@@ -4529,7 +4704,17 @@
         "reste": "Still owed to you",
         "prochain": "Next payout scheduled on <b>{date}</b> by {moyen}",
         "prochainSansMoyen": "Next payout scheduled on <b>{date}</b>",
-        "enPreparation": "A payout is being prepared."
+        "enPreparation": "A payout is being prepared.",
+        "moyensCourts": {
+          "bank_transfer": "bank transfer",
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "free_money": "Free Money",
+          "mobile_money": "Mobile Money",
+          "cash": "cash",
+          "check": "cheque",
+          "card": "card"
+        }
       },
       "ventilation": {
         "titre": "What you earned in {mois}",
@@ -4582,7 +4767,8 @@
           "vacant": "Vacant",
           "refunded": "Received, then refunded"
         },
-        "voirLesBaux": "See leases"
+        "voirLesBaux": "See leases",
+        "bail": "Lease {reference}"
       },
       "operations": {
         "toutes": "All transactions",
@@ -4593,13 +4779,35 @@
         "tous": "All payouts",
         "versementDe": "{mois} payout",
         "versement": "Payout",
-        "vide": "No payout yet."
+        "vide": "No payout yet.",
+        "avis": "Notice",
+        "avisAria": "Download the notice of the payout of {date}",
+        "echecAvis": "The payout notice could not be downloaded. Please try again.",
+        "nature": {
+          "advance": "{mois} advance",
+          "balance": "{mois} balance",
+          "advanceSansMois": "Advance",
+          "balanceSansMois": "Balance",
+          "deposit_refund": "Deposit refund",
+          "refund": "Refund",
+          "provider_bill": "Service provider bill"
+        }
       },
       "filtres": {
         "bien": "Property",
         "tousLesBiens": "All properties",
         "locataire": "Tenant",
         "tousLesLocataires": "All tenants"
+      },
+      "regle": "Payouts go out on day {jour} of each month for what has been collected. Rent received after that date joins the next payout.",
+      "relances": {
+        "telephone": "{bien}: {agence} sent a reminder on {date}",
+        "bureau": "{bien}: {agence} sent reminders {liste}.",
+        "une": "on {date} ({canal})",
+        "canal": "{canal, select, whatsapp {WhatsApp} call {call} other {reminder}}",
+        "canalNomme": "{canal, select, whatsapp {WhatsApp} call {call} other {reminder}} from {nom}",
+        "suite": "The rent will be added to your payout as soon as it is collected.",
+        "liste": "{debut} and {fin}"
       }
     }
   },
@@ -4881,7 +5089,8 @@
         "detail": "Due day, late fee and early termination fee",
         "detailAvecCommission": "Due day, late fee, commission and early termination fee",
         "modifier": "Edit",
-        "nouvelOnglet": "agency settings (opens in a new tab)"
+        "cible": "the agency settings",
+        "brouillonEchec": "Your entries couldn’t be kept as a draft: stay on this lease and try again in a moment."
       },
       "echeance": "Due day",
       "echeanceAide": "Day of the month, 1 to 28",
@@ -4924,7 +5133,8 @@
         "echeance": "Due day",
         "penalite": "Late fee",
         "commission": "Commission",
-        "indemnite": "Early termination fee"
+        "indemnite": "Early termination fee",
+        "preavis": "Notice period"
       },
       "valeurs": {
         "penalite": "{taux}% after {jours} d",
@@ -4977,6 +5187,22 @@
         "loyerAnnonceMensuel": "advertised rent {montant} / month",
         "loyerAnnoncePeriode": "advertised rent {montant} {periode}",
         "prixAnnonce": "advertised price {montant}"
+      },
+      "preavis": {
+        "titre": "Notice period",
+        "equivalent": "{mois, plural, one {# month} other {# months}}",
+        "jours": "{jours, plural, one {# day} other {# days}}"
+      },
+      "brouillon": {
+        "libelle": "Draft",
+        "enregistreA": "draft saved at {heure}"
+      },
+      "apercu": {
+        "titre": "Contract preview",
+        "cadre": "Lease contract preview",
+        "ouvrir": "View the full contract",
+        "incomplet": "The preview appears once the property, tenant, start date and rent are filled in.",
+        "indisponible": "Preview unavailable for now. Check the terms you entered."
       }
     },
     "payment": {
@@ -5097,10 +5323,14 @@
       },
       "duree": {
         "titre": "Term",
-        "titreIndemnite": "Term · early exit fee: {mois} months",
         "periode": "{debut} → {fin}",
         "sansFin": "Since {debut}, open-ended",
-        "avancement": "Month {n} of {total}"
+        "avancement": "Month {n} of {total}",
+        "preavisMois": "{n, plural, one {# month’s notice} other {# months’ notice}}",
+        "preavisJours": "{n, plural, one {# day’s notice} other {# days’ notice}}",
+        "indemnite": "early exit fee: {mois} months",
+        "revisionLe": "rent review possible on {date}",
+        "revisionDepuis": "rent review open since {date}"
       },
       "caution": {
         "titre": "Deposit",
@@ -5169,7 +5399,8 @@
         "resilier": "Terminate the lease",
         "abandonner": "Abandon the draft",
         "abandonEmpeche": "This draft carries a recorded due, such as a deposit: it cannot be abandoned. Cancel or refund it first.",
-        "abandonEmpecheEtatDesLieux": "A committed inventory — sent for signature, signed or disputed — has been drawn up on this draft: it cannot be abandoned, as the inventory cannot disappear with it."
+        "abandonEmpecheEtatDesLieux": "A committed inventory — sent for signature, signed or disputed — has been drawn up on this draft: it cannot be abandoned, as the inventory cannot disappear with it.",
+        "encaisserMontant": "Record {montant}"
       },
       "dossier": {
         "titre": "The file",
@@ -5186,14 +5417,19 @@
         "conditions": "Terms and clauses",
         "documents": "Documents",
         "documentsDetail": "Contract, inspections, uploaded files",
-        "garants": "Guarantor ({n})"
+        "garants": "Guarantor ({n})",
+        "interventions": "Maintenance ({n})",
+        "interventionsEnCours": "{n} in progress",
+        "interventionsAucuneEnCours": "None in progress"
       },
       "onglets": {
         "libelle": "Lease views",
         "dossier": "File",
         "documents": "Documents",
         "historique": "History",
-        "retour": "Back to the file"
+        "retour": "Back to the file",
+        "documentsCompte": "Documents ({n})",
+        "historiqueCompte": "History ({n})"
       },
       "documents": {
         "vide": "No documents for this lease.",
@@ -5771,6 +6007,26 @@
         "bienRecherche": "Search a property…",
         "effacer": "Clear",
         "appliquer": "Show requests"
+      },
+      "kanban": {
+        "glissez": "Drag a card to “In progress” to choose a service provider",
+        "deposez": "Drop a card here",
+        "saisir": "Move “{titre}”",
+        "instructions": "To move a request, press Space or Enter, change column with the arrow keys, then press Space or Enter to drop it, or Escape to cancel. Only “In progress” can be reached this way, from “To dispatch” or “Overdue”: the service provider choice opens.",
+        "refus": "“{titre}” cannot be dragged into “{file}”: only “In progress” can be reached this way, by choosing a service provider. Open the request for other actions.",
+        "annonces": {
+          "saisie": "“{titre}” is picked up.",
+          "survol": "“{titre}” is over “{file}”.",
+          "horsDesFiles": "“{titre}” is not over any column.",
+          "lachee": "“{titre}” was dropped on “{file}”.",
+          "annulee": "Moving “{titre}” was cancelled: it stays where it was."
+        },
+        "confier": {
+          "titre": "Assign “{titre}”",
+          "erreur": "The request could not be loaded.",
+          "interdit": "You cannot assign this request to a service provider.",
+          "voirLaFiche": "View the request"
+        }
       }
     },
     "locataire": {
@@ -5814,7 +6070,9 @@
         "deuxMotsExemple": "Leak under the sink…",
         "envoyer": "Send to the agency",
         "envoi": "Sending…",
-        "erreur": "The request could not be sent. Please try again."
+        "erreur": "The request could not be sent. Please try again.",
+        "aideVocal": "Type, or hold the mic down to record a voice message.",
+        "aideTexte": "Type what is wrong, in a few words."
       },
       "envoyee": {
         "metaTitle": "Request sent",
@@ -5837,7 +6095,9 @@
         },
         "voir": "See my request",
         "appeler": "Call the agency",
-        "erreur": "The request could not be loaded."
+        "erreur": "The request could not be loaded.",
+        "delai": "The agency usually replies {tranche, select, heure {within the hour} journee {within the day} other {{n, plural, one {within # day} other {within # days}}}}.",
+        "resumeAvecVocal": "{categorie} · {urgence} · {photos, plural, =0 {1 voice message} one {# photo, 1 voice message} other {# photos, 1 voice message}}"
       },
       "demandes": {
         "titre": "Repairs",
@@ -5870,6 +6130,24 @@
           "termineeLe": "{categorie} · finished on {date}",
           "close": "{categorie} · closed",
           "annulee": "{categorie} · cancelled"
+        },
+        "noteDuBail": "Repairs to your home are covered according to your lease: no amount is asked of you here.",
+        "gestes": {
+          "ecrire": "Message the agency",
+          "changer": "Change the time slot",
+          "enAttente": "You suggested {n, plural, one {another time slot} other {# other time slots}} on {date}: your request is awaiting the agency’s reply.",
+          "creneau": {
+            "titre": "Suggest another time slot",
+            "texte": "Suggest up to three time slots. The planned visit does not change until the agency has replied.",
+            "creneauN": "Time slot {n}",
+            "ajouter": "Add a time slot",
+            "passe": "A suggested time slot has already passed: choose an upcoming date.",
+            "note": "A note for the agency (optional)",
+            "exemple": "For example: I work in the mornings",
+            "attente": "Your request will await the agency’s reply.",
+            "envoyer": "Send the request",
+            "echec": "The request could not be sent. Please try again."
+          }
         }
       }
     },
@@ -5893,7 +6171,9 @@
         "approuver": "Approve {montant}",
         "refuser": "Decline",
         "motif": "Declining requires a reason; a new quote may then be submitted to you.",
-        "echec": "The quote could not be approved."
+        "echec": "The quote could not be approved.",
+        "concurrents": "{agence} consulted {n, plural, one {another tradesperson} =2 {two other tradespeople} =3 {three other tradespeople} other {# other tradespeople}} ({montants}) and recommends this quote.",
+        "concurrentsSansAgence": "The agency consulted {n, plural, one {another tradesperson} =2 {two other tradespeople} =3 {three other tradespeople} other {# other tradespeople}} ({montants}) and recommends this quote."
       },
       "enCours": {
         "titre": "In progress on your properties",
@@ -5901,11 +6181,24 @@
         "passage": "{jour, select, aujourdhui {Today at {heure}} demain {Tomorrow at {heure}} hier {Yesterday at {heure}} other {On {date} at {heure}}}",
         "approuve": "Quote approved on {date}",
         "sousLeSeuil": "Below the threshold: no approval needed"
+      },
+      "bilan": {
+        "titre": "Since {mois}",
+        "parBien": "By property",
+        "historiqueParBien": "History by property",
+        "interventions": "Maintenance jobs",
+        "dontCloses": "{n, plural, =0 {none closed} other {# closed}}",
+        "aVotreCharge": "Charged to you",
+        "deduit": "deducted from your income",
+        "detailTitre": "Maintenance by property since {mois}",
+        "compteDuBien": "{total, plural, one {# job} other {# jobs}} · {closes} closed",
+        "bienSansTitre": "Untitled property",
+        "erreur": "Your maintenance summary could not be loaded."
       }
     },
     "prestataire": {
       "titre": "My jobs",
-      "sousTitre": "Week of {debut} to {fin} — {aAccepter, plural, =0 {nothing to accept} one {# to accept} other {# to accept}}, {prevues, plural, =0 {none scheduled} one {# scheduled} other {# scheduled}}",
+      "sousTitre": "Week of {debut} to {fin} — {aAccepter, plural, =0 {nothing to accept} one {# to accept} other {# to accept}}, {prevues, plural, =0 {none scheduled} one {# scheduled} other {# scheduled}}, {aFacturer, plural, =0 {nothing to invoice} other {# to invoice}}",
       "erreur": "Your jobs could not be loaded.",
       "aAccepter": {
         "titre": "To accept · {n}",
@@ -5928,7 +6221,8 @@
         "rienDePrevu": "{jours}: nothing scheduled",
         "vide": "Nothing scheduled for the rest of the week",
         "itineraire": "Directions",
-        "kit": "Access kit"
+        "kit": "Access kit",
+        "calendrier": "Calendar"
       },
       "factures": {
         "titre": "My invoices",
@@ -5937,10 +6231,41 @@
         "validee": "Approved on {date}",
         "aPercevoir": "To be received",
         "vide": "No invoices yet",
-        "videTexte": "A job completed with its cost creates its invoice.",
+        "videTexte": "A completed job first goes to “To invoice”; once sent, its invoice appears here.",
         "registre": "All my invoices",
         "erreur": "Your invoices could not be loaded.",
         "aPercevoirCompte": "{n, plural, one {# invoice} other {# invoices}}"
+      },
+      "aFacturer": {
+        "titre": "To invoice · {n}",
+        "facturer": "Invoice",
+        "facturerObjet": "Invoice “{objet}”",
+        "terminee": "{jour, select, aujourdhui {completed today} hier {completed yesterday} other {completed on {date}}}",
+        "saisie": {
+          "titre": "Invoice “{objet}”",
+          "montant": "Final amount ({devise})",
+          "montantAide": "Prefilled from the approved quote or the recorded cost. Correct it if the work cost something else.",
+          "reference": "Your invoice number (optional)",
+          "piece": "Your invoice, PDF or photo (optional)",
+          "envoyer": "Send the invoice",
+          "envoi": "Sending…",
+          "echec": "The invoice could not be sent."
+        }
+      },
+      "releve": {
+        "bouton": "My invoice statement",
+        "titre": "My invoice statement",
+        "aide": "Choose the period: the statement lists your sent invoices, their status and what you have been paid.",
+        "periode": "Statement period",
+        "moisEnCours": "{mois} (current month)",
+        "annee": "Since January {annee}",
+        "telecharger": "Download the statement",
+        "enCours": "Downloading…",
+        "echec": {
+          "interdit": "You do not have access to this statement.",
+          "indisponible": "This statement is not available for this period.",
+          "echec": "The statement could not be downloaded. Please try again."
+        }
       }
     },
     "fiche": {
@@ -5983,7 +6308,8 @@
         "couvre": "covers {zone}",
         "choisir": "Choose",
         "choisie": "Chosen",
-        "titreTelephone": "Suggested provider"
+        "titreTelephone": "Suggested provider",
+        "creneauxDepasses": "{count, plural, one {# missed time slot} other {# missed time slots}}"
       },
       "geste": {
         "retard": {
@@ -6059,11 +6385,7 @@
         },
         "annuler": {
           "titre": "Cancel the request",
-          "texte": "The request is closed without a job",
-          "confirmerTitre": "Cancel the request?",
-          "confirmerTexte": "“{titre}” will be cancelled and leave the queues. This cannot be undone.",
-          "garder": "Keep the request",
-          "confirmer": "Cancel the request"
+          "texte": "The tenant is notified, with your reason"
         }
       },
       "frise": {
@@ -6075,7 +6397,13 @@
         "a_confirmer": "To confirm",
         "terminee": "Done",
         "sansObjet": "not applicable: no quote"
-      }
+      },
+      "joindre": {
+        "appeler": "Call {nom}",
+        "whatsapp": "Message {nom} on WhatsApp",
+        "message": "Hello {nom}, this is your agency, about your request “{titre}”."
+      },
+      "motifDAnnulation": "Reason for cancelling"
     },
     "relanceDuBailleur": {
       "relancer": "Remind the owner",
@@ -6113,7 +6441,19 @@
         "owner_unavailable": "Reminder impossible: owner left, suspended or unreachable",
         "journal_before": "Before the log",
         "autre": "Step"
-      }
+      },
+      "signaleePar": "Reported by {nom}",
+      "pieces": "{photos, plural, =0 {{vocal, select, oui {a voice message} other {}}} one {# photo{vocal, select, oui {, a voice message} other {}}} other {# photos{vocal, select, oui {, a voice message} other {}}}}"
+    },
+    "annulation": {
+      "titre": "Cancel the request?",
+      "texte": "“{titre}” will be cancelled and leave the queues. The tenant is notified, with your reason. This cannot be undone.",
+      "motif": "Reason for cancelling",
+      "exemple": "For example: the landlord is sending his own tradesperson",
+      "aide": "The tenant, the landlord and the service provider will read it.",
+      "garder": "Keep the request",
+      "confirmer": "Cancel the request",
+      "motifLu": "Reason: {motif}"
     }
   },
   "recentlyViewed": {
@@ -6899,7 +7239,6 @@
         "telephone": "{bailleurs, plural, one {# landlord} other {# landlords}} · {biens, plural, =0 {no property} one {# property} other {# properties}}{argent, select, oui { · {montant} to pay out} other {}}",
         "bureau": "{bailleurs, plural, one {# landlord} other {# landlords}} · {biens, plural, =0 {no property} one {# property} other {# properties}}{argent, select, oui { · {montant} to pay out to date} other {}}"
       },
-      "triReste": "Sorted by balance to pay",
       "mentionSensible": "IBAN, tax ID and ID number are on the landlord's page, masked; “Show” records the access in the agency log.",
       "occupation": "{biens, plural, =0 {No properties} one {# property · {occupes, plural, =0 {vacant} other {occupied}}} other {# properties · {tous, select, oui {all occupied} other {{occupes, plural, =0 {none occupied} other {# occupied}}}}}}",
       "occupes": "{n, plural, =0 {none occupied} other {# occupied}}",
@@ -6924,7 +7263,20 @@
         "appelerAria": "Call {nom}",
         "whatsappAria": "Message {nom} on WhatsApp",
         "message": "Hello {prenom},"
-      }
+      },
+      "filtres": {
+        "bouton": "Filters and sorting",
+        "titre": "Filters and sorting",
+        "tri": "Sort by",
+        "vues": "Show",
+        "fermer": "Show landlords"
+      },
+      "tris": {
+        "nom": "Name",
+        "reste": "Balance to pay",
+        "versement": "Last payout"
+      },
+      "triCourant": "Sorted by {tri, select, nom {name} reste {balance to pay} other {last payout}}"
     },
     "fiche": {
       "depuis": "Landlord since {date}",
@@ -6954,7 +7306,19 @@
         "commissionAgence": "Agency commission",
         "tauxDetail": "{taux}% of rents",
         "leDate": "on {date}",
-        "duMois": "In {mois}"
+        "duMois": "In {mois}",
+        "encaissements": "{n, plural, one {# payment collected} other {# payments collected}}",
+        "leDateParMoyen": "on {date}, by {moyen}",
+        "moyens": {
+          "bank_transfer": "bank transfer",
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "free_money": "Free Money",
+          "mobile_money": "mobile money",
+          "cash": "cash",
+          "check": "cheque",
+          "card": "card"
+        }
       },
       "reglages": {
         "titre": "Mandate settings",
@@ -6968,8 +7332,25 @@
         "tauxDesBaux": "Rates specific to some leases: {taux}",
         "enregistrer": "Save",
         "annuler": "Cancel",
-        "enregistre": "Ceiling saved",
-        "echec": "The ceiling was not saved"
+        "enregistre": "Mandate settings saved",
+        "echec": "The mandate settings were not saved",
+        "versement": "Payout",
+        "versementMoyenEtJour": "{moyen}, before the {jour, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} of the month",
+        "versementJour": "Before the {jour, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} of the month",
+        "mandat": "Mandate",
+        "datesDuMandat": "{debut} → {fin}",
+        "depuisLe": "Since {date}",
+        "jusquAu": "Until {date}",
+        "datesARenseigner": "Mandate dates to fill in",
+        "jourInvalide": "Choose a day between 1 and 28.",
+        "moyen": "Payout method",
+        "jour": "Paid out before (day of the month)",
+        "jourExemple": "For example: 10",
+        "debut": "Mandate start",
+        "fin": "Mandate end",
+        "referent": "Handled by",
+        "aucunReferent": "No one assigned",
+        "nonPrecise": "Not specified"
       },
       "biens": {
         "titre": "Their properties ({n})",
@@ -6987,7 +7368,20 @@
         "historique": "Full history",
         "chargement": "Loading…",
         "aucun": "No payout yet.",
-        "periode": "{mois} payout"
+        "periode": "{mois} payout",
+        "nature": {
+          "advance": "{mois} advance",
+          "balance": "{mois} balance",
+          "advanceSansMois": "Advance",
+          "balanceSansMois": "Balance",
+          "deposit_refund": "Deposit refund",
+          "refund": "Refund",
+          "provider_bill": "Service provider bill"
+        },
+        "recu": "Receipt",
+        "recuAria": "Receipt for the payout of {date}",
+        "titreDuRecu": "Payout notice of {date}",
+        "echecDuRecu": "The receipt could not be prepared"
       },
       "pieces": {
         "titre": "Documents and identifiers",
@@ -7000,7 +7394,9 @@
         "mention": "“Show” reveals the value and records the access in the agency log.",
         "erreurAffichage": "The identifiers could not be shown",
         "afficherAria": "Show in full: {quoi}",
-        "masquerAria": "Hide: {quoi}"
+        "masquerAria": "Hide: {quoi}",
+        "ajouter": "Add",
+        "mandat": "Signed management mandate"
       },
       "acces": {
         "titre": "Access and departure",
@@ -7040,6 +7436,22 @@
         "partiLe": "Left on {date}",
         "parti": "Has left the agency",
         "partiEffet": "They no longer have access to your agency. Their statements and history remain available."
+      },
+      "menu": {
+        "modifierLeMandat": "Edit the mandate",
+        "accesEtDepart": "Access and departure"
+      },
+      "suiviPar": "handled by {nom}",
+      "suiviParAncien": "handled by {nom} (no longer with the agency)",
+      "moyens": {
+        "bank_transfer": "Bank transfer",
+        "wave": "Wave",
+        "orange_money": "Orange Money",
+        "free_money": "Free Money",
+        "mobile_money": "Mobile money",
+        "cash": "Cash",
+        "check": "Cheque",
+        "card": "Card"
       }
     }
   },
@@ -7535,7 +7947,11 @@
         "placeholder": "Name, phone, area",
         "label": "Search for a provider"
       },
-      "inviteLeDejaInscrit": "Invited on {date}"
+      "inviteLeDejaInscrit": "Invited on {date}",
+      "creneauxDepasses": "{count, plural, one {# missed time slot} other {# missed time slots}}",
+      "menu": {
+        "ouvrir": "More actions for {nom}"
+      }
     }
   },
   "onboarding": {
@@ -7800,7 +8216,53 @@
           "appeler": "Call",
           "whatsapp": "WhatsApp",
           "voirLaFiche": "View the file",
-          "erreur": "Your first lead could not be loaded. You will find it in your space."
+          "erreur": "Your first lead could not be loaded. You will find it in your space.",
+          "besoin": {
+            "cherche": "Looking for {quoi}",
+            "chercheA": "Looking for {quoi} in {lieu}",
+            "unBien": "a property",
+            "chambres": "{compte, plural, one {# bedroom min.} other {# bedrooms min.}}",
+            "nature": {
+              "rent": "to rent",
+              "sale": "to buy"
+            }
+          },
+          "budget": {
+            "libelle": "Budget",
+            "entre": "{min} – {max}",
+            "jusqua": "up to {montant}",
+            "des": "from {montant}",
+            "parMois": "{montant}/month"
+          },
+          "dernierContact": "Last contact",
+          "dernierContactLe": "{jour}, {heure}",
+          "origine": {
+            "libelle": "Came through",
+            "annonce": "Listing {reference}",
+            "demande": "A contact request"
+          },
+          "note": {
+            "signee": "“{note}” — {auteur}",
+            "seule": "“{note}”"
+          },
+          "types": {
+            "apartment": "apartment",
+            "house": "house",
+            "villa": "villa",
+            "land": "land",
+            "shop": "retail space",
+            "office": "office",
+            "studio": "studio",
+            "room": "room",
+            "warehouse": "warehouse",
+            "hotel": "hotel",
+            "resort": "complex",
+            "garage": "garage",
+            "parking": "parking space",
+            "farm": "farm",
+            "factory": "factory",
+            "other": "other property"
+          }
         },
         "sansProspect": {
           "titre": "No lead for you yet",
@@ -7825,7 +8287,8 @@
         "droits": {
           "titre": "What you can do in the agency",
           "compte": "{compte, plural, one {# right given by the agency} other {# rights given by the agency}}",
-          "pied": "Rights given by the agency. To change them, write to its administrator."
+          "pied": "Rights given by the agency. To change them, write to its administrator.",
+          "refuses": "Not in your role"
         },
         "rappel": "<fort>{compte, plural, one {# document left to add} other {# documents left to add}}</fort>: {liste}. From your space, under “To do”; nothing holds you back until then.",
         "rappelBureau": "To add next, in “Get started”: {liste}.",
@@ -7856,7 +8319,22 @@
           "devis": "Quote: {montant}",
           "demandeDe": "Request from {agence}",
           "sansTitre": "Job",
-          "adresseApres": "The address and the tenant’s contact open once you accept."
+          "adresseApres": "The address and the tenant’s contact open once you accept.",
+          "echeance": {
+            "sous": "To handle within {heures} h",
+            "avant": "To handle by {date}",
+            "depassee": "Response time has passed"
+          },
+          "signalee": {
+            "tenant": "Reported by the tenant on {date}",
+            "landlord": "Reported by the landlord on {date}",
+            "agency": "Reported by the agency on {date}",
+            "inconnu": "Reported on {date}"
+          },
+          "reference": "ref. {reference}",
+          "citation": "“{texte}”",
+          "voirLeDetail": "View details",
+          "detailApres": "Details once you accept"
         },
         "accepter": "Accept",
         "proposer": "Suggest a time slot",
@@ -7910,6 +8388,37 @@
             "fait": "Sent"
           },
           "fait": "Done"
+        },
+        "reglages": {
+          "tarifs": "Rates",
+          "enFcfa": "in F CFA",
+          "devise": "F CFA",
+          "horaire": "Hourly rate",
+          "visite": "Visit fee",
+          "disponibilites": "Availability",
+          "grille": "Your weekly slots",
+          "moments": {
+            "morning": "Morning",
+            "afternoon": "Afternoon"
+          },
+          "jours": {
+            "monday": "Mon",
+            "tuesday": "Tue",
+            "wednesday": "Wed",
+            "thursday": "Thu",
+            "friday": "Fri",
+            "saturday": "Sat",
+            "sunday": "Sun"
+          },
+          "creneau": "{jour}, {moment}",
+          "enregistrer": "Save my profile",
+          "enregistrement": "Saving…",
+          "enregistre": "Profile saved."
+        },
+        "multiAgences": {
+          "titre": "You already work with {agences}",
+          "texte": "Same account, same profile: {agence} joins your agencies. Your trades, rates and slots carry over as they are.",
+          "texteSans": "Same account, same profile: this agency joins yours. Your trades, rates and slots carry over as they are."
         }
       },
       "attente": {
@@ -7928,6 +8437,25 @@
           "titre": "A job is waiting for you",
           "titreSans": "Your next jobs",
           "texteSans": "The agency’s requests, once your profile is complete"
+        },
+        "chiffres": {
+          "biens": "{n, plural, one {# property managed by the agency} other {# properties managed by the agency}}",
+          "parc": "The portfolio you will follow, from your space",
+          "loyer": "Your last rent",
+          "loyerRecu": "{montant} received on {date}",
+          "loyerRecuSansDate": "{montant} received",
+          "pieces": "{n, plural, one {# document to send} other {# documents to send}}",
+          "piecesDetail": "{liste} — whenever you like, from your space",
+          "piecesSansNoms": "Whenever you like, from your space",
+          "et": "{debut} and {fin}",
+          "noms": {
+            "rib": "bank details (RIB)",
+            "cni": "ID document",
+            "ninea": "NINEA",
+            "license": "professional card",
+            "photo": "profile photo",
+            "insurance": "professional liability insurance"
+          }
         }
       }
     },
@@ -7956,7 +8484,7 @@
         "pro": {
           "titre": "I'm a professional",
           "sous": "Agent, agency, property manager",
-          "promesse": "Your agency space opens right away: your properties, your leases, your payments.",
+          "promesse": "Your agency space opens right away: team, landlords, mandates.",
           "court": "Your pro space, right away"
         },
         "commencer": "Start"
@@ -7996,7 +8524,8 @@
           "partout": "All neighbourhoods",
           "budget": "{tranche} CFA francs"
         },
-        "erreurAlerte": "We couldn't save your alert. Try again, or skip this step."
+        "erreurAlerte": "We couldn't save your alert. Try again, or skip this step.",
+        "nouveau": "New"
       },
       "pro": {
         "barre": "Your professional space",
@@ -8015,39 +8544,35 @@
         "nomRequis": "Enter the agency name.",
         "ville": "Main city",
         "telephone": "Agency phone",
-        "telephoneAide": "Taken from your account. Another number can be given in the agency upgrade request.",
+        "telephoneAide": "Taken from your account. You can enter another one.",
         "deuxTemps": {
           "titre": "In two steps",
           "maintenant": "Right away",
-          "maintenantTexte": "Your space is ready: you add your properties and publish your listings.",
+          "maintenantTexte": "Your space is ready: you add your properties and your team.",
           "ensuite": "Then",
-          "ensuiteTexte": "Takussan checks the agency (NINEA, trade register)."
+          "ensuiteTexte": "Our team checks the agency (NINEA, trade register). Until then, your properties aren’t online and the rent collected is paid out to you after the check."
         },
         "creerBouton": "Create my pro space",
         "cgu": "By creating your space, you accept the <lien>terms of use</lien>.",
         "ceQueVousAurez": "What you will get",
         "avantages": {
-          "biens": {
-            "titre": "Your properties and listings",
-            "texte": "Publish, and follow requests and viewings in one place."
+          "equipe": {
+            "titre": "Your team",
+            "texte": "Invite your agents: each with their own access, properties and appointments."
           },
-          "baux": {
-            "titre": "Your leases",
-            "texte": "Renting, signing and due dates, followed end to end."
+          "bailleurs": {
+            "titre": "Your landlords",
+            "texte": "Their properties, rents and statements, organised by owner."
           },
-          "encaissements": {
-            "titre": "Your payments",
-            "texte": "Rents received, receipts and what is still due."
-          },
-          "credits": {
-            "titre": "Promotion credits",
-            "texte": "Boost a listing on the day you choose."
+          "mandats": {
+            "titre": "Your mandates",
+            "texte": "Letting, sale, management: tracked from signature to expiry."
           }
         },
         "erreur": "We couldn't open your space. Try again.",
         "lien": {
           "titre": "Ask your agency for the link",
-          "texte": "Its administrator sends it from their Takussan space. Paste it here: your access opens straight away.",
+          "texte": "Its administrator sends it from their space (Team, then “Invite”). Paste it here: your access opens straight away.",
           "libelle": "Invitation link",
           "coller": "Paste",
           "refuse": "This is not a Takussan invitation link. Paste the link your agency sent you.",
@@ -8065,7 +8590,10 @@
           "libelle": "Your number",
           "envoyer": "Get the code",
           "code": "Code received by SMS"
-        }
+        },
+        "villeChoisir": "Choose a city",
+        "villeAucune": "No city matches.",
+        "numeroNonVerifie": "Your number isn’t verified yet. Verify it below by SMS, then create your space."
       },
       "prenom": {
         "apercu": "What others will see",
@@ -8307,7 +8835,12 @@
         "precedente": "Previous room",
         "quitter": "Save and exit",
         "photosNonEnvoyees": "{n, plural, one {# photo has not been sent yet} other {# photos have not been sent yet}}: keep this screen open, sending resumes when the network is back.",
-        "photoRefusee": "A photo was refused. Take it again, then try again."
+        "photoRefusee": "A photo was refused. Take it again, then try again.",
+        "dictee": {
+          "dicter": "Dictate the note",
+          "arreter": "Stop dictation",
+          "ecoute": "Listening… Tap the mic to stop."
+        }
       },
       "liste": {
         "titre": "Rooms",
@@ -8363,7 +8896,7 @@
         "signaturesSurPlace": "On-site signatures",
         "signatures": "Signatures",
         "revenirAuxPieces": "Back to the rooms",
-        "terminer": "Finish",
+        "terminer": "Finish and send the PDF",
         "manque": {
           "aucun": "Both parties have signed: the inventory is locked.",
           "lesDeux": "Still missing: {locataire} and the agency’s signature",
@@ -8373,6 +8906,11 @@
           "codeDElide": "{prenom}’s code",
           "signatureDe": "{prenom}’s signature",
           "signatureDElide": "{prenom}’s signature"
+        },
+        "pdf": {
+          "aDeux": "The PDF goes to {a} and {b}.",
+          "aUn": "The PDF goes to {a}.",
+          "aPersonne": "Neither party has an account to notify: download the PDF from the record."
         }
       },
       "signatures": {
@@ -8413,7 +8951,8 @@
           "effacer": "Clear",
           "valider": "Confirm"
         },
-        "reessayer": "Try again"
+        "reessayer": "Try again",
+        "signerAuTitreDuMandat": "Sign under the management mandate"
       }
     }
   },
@@ -8482,7 +9021,8 @@
         "reasonCodeRequired": "Choose a reason.",
         "reasonLabelRequired": "Describe the reason (required for “Other reason”)",
         "publishedPlatformOnly": "This review is already published: only the platform can take it down. You can reply to it or report it.",
-        "platformReserved": "This review is moderated by the platform, not by the agency."
+        "platformReserved": "This review is moderated by the platform, not by the agency.",
+        "reasonLabelDelete": "A few words (required, recorded in the audit log)"
       },
       "file": {
         "sousTitre": "{avis, plural, one {# review pending} other {# reviews pending}}, {risque} to look at closely · {biens, plural, =0 {no property to approve} one {# property to approve} other {# properties to approve}}",
@@ -8575,11 +9115,31 @@
         "reponseSansPublication": "Your reply is saved, but the review is not published yet: publishing failed. Try “Publish” again.",
         "reponseEchec": "The reply was not saved and nothing was published. Check your connection, then try again.",
         "decisionEchec": "The decision was not saved. Check your connection, then try again.",
-        "motifRappel": "Hiding or deleting requires a reason (off-topic, abusive, personal data, fake review…), logged with your words if any.",
+        "motifRappel": "Hiding or deleting requires a reason (off-topic, abusive, personal data, fake review…); deleting also requires a few words. Both are logged.",
         "plusDActions": "Delete, ignore reports",
         "retourALaFile": "Back to the queue",
         "videRisque": "No at-risk review pending.",
-        "videSansRisque": "No low-risk review pending."
+        "videSansRisque": "No low-risk review pending.",
+        "recherche": {
+          "placeholder": "Search a property, an author, an agent",
+          "aria": "Search reviews: property, reference, author or agent",
+          "aucunResultat": "No review for “{q}”",
+          "aucunResultatAide": "Try the property’s title or reference, or the author’s or agent’s name.",
+          "effacer": "Clear the search",
+          "active": "Search: “{q}”"
+        },
+        "resume": {
+          "noteDuSujet": "{note} ★ from {n, plural, one {# review} other {# reviews}}",
+          "locataireDepuis": "Tenant since {date}",
+          "publieEn": "published in {mois}",
+          "autres": {
+            "property": "Other reviews of this property",
+            "user": "Other reviews of this agent",
+            "agency": "Other reviews of the agency",
+            "service_provider": "Other reviews of this provider",
+            "inconnu": "Other reviews of this subject"
+          }
+        }
       }
     },
     "finances": {
@@ -8677,7 +9237,24 @@
           "reversementSansReference": "Payout without reference",
           "preparePar": "prepared by {nom}",
           "examiner": "Review",
-          "joursDeRetardCourt": "{count} d late"
+          "joursDeRetardCourt": "{count} d late",
+          "relanceALInstant": "reminded just now",
+          "approuver": "Approve",
+          "approuverAria": "Approve payout {reference}",
+          "refuser": "Decline",
+          "refuserAria": "Decline payout {reference}",
+          "examinerAria": "Review payout {reference}",
+          "approuveEchec": "The approval did not go through.",
+          "refus": {
+            "titre": "Decline payout {reference}",
+            "detail": "The {montant} payout is cancelled: its lines can go into a later payout.",
+            "motif": "Reason for declining",
+            "motifAide": "It stays recorded on the payout.",
+            "motifExemple": "E.g. amount to review with the landlord",
+            "confirmer": "Decline the payout",
+            "garder": "Keep",
+            "echec": "Declining did not go through."
+          }
         },
         "tuiles": {
           "encaisse": "Collected",
@@ -8737,7 +9314,8 @@
             "deposit": "Booking · deposit",
             "advance": "Booking · advance",
             "fee": "Booking · fee",
-            "autre": "Booking"
+            "autre": "Booking",
+            "security_deposit": "Booking · security deposit"
           },
           "rentDuCourt": "{mois} rent",
           "chargesDuCourt": "{mois} charges",
@@ -8770,11 +9348,12 @@
             "lignes": "{count, plural, one {# line} other {# lines}}",
             "paye": "Paid",
             "paiements": "{count, plural, one {# payment} other {# payments}}",
-            "restant": "Outstanding",
-            "aEncaisser": "to collect",
             "echoue": "Failed",
             "aReprendre": "{count, plural, =0 {nothing to retry} one {# payment to retry} other {# payments to retry}}",
-            "dontCautions": "incl. deposits {montant} ({count})"
+            "dontCautions": "incl. deposits {montant} ({count})",
+            "enAttente": "Pending",
+            "virementsAnnonces": "{count, plural, one {# transfer announced} other {# transfers announced}}",
+            "paiementsEnAttente": "{count, plural, =0 {no pending payment} one {# pending payment} other {# pending payments}}"
           },
           "colonnes": {
             "payeur": "Payer",
@@ -8826,7 +9405,10 @@
         "recherche": "Search a tenant or a property",
         "bailleur": {
           "filtre": "Landlord: {nom}",
-          "retirer": "Remove the landlord filter {nom}"
+          "retirer": "Remove the landlord filter {nom}",
+          "tous": "All landlords",
+          "label": "Filter by landlord",
+          "sansNom": "Unnamed landlord"
         },
         "vide": {
           "titre": "No unpaid rent",
@@ -8862,7 +9444,9 @@
           "encaisser": "Record a payment",
           "ficheClient": "Customer record",
           "ouvrirDossier": "Open {nom}’s file",
-          "retoucherWhatsApp": "Tap again to open WhatsApp"
+          "retoucherWhatsApp": "Tap again to open WhatsApp",
+          "plusDActions": "More actions — {nom}",
+          "voirLeBail": "View the lease"
         },
         "relancer": {
           "titre": "Remind {nom}",
@@ -8975,7 +9559,14 @@
             "titre": "The queue stops at the 100 most overdue instalments",
             "detail": "Select the others in the list to remind them."
           }
-        }
+        },
+        "tri": {
+          "label": "Sort unpaid items",
+          "retard": "Sort: days late",
+          "montant": "Sort: amount due"
+        },
+        "balancePdf": "Aged balance as PDF",
+        "enRetard": "{count, plural, one {# overdue instalment} other {# overdue instalments}}"
       }
     },
     "audit": {
@@ -9201,7 +9792,23 @@
         "review_moderated": "Review published (batch)",
         "booking_not_selected": "Application not selected",
         "document_visibility_changed": "Document visibility changed",
-        "lease_draft_abandoned": "Lease draft abandoned"
+        "lease_draft_abandoned": "Lease draft abandoned",
+        "visit_confirmed_by_owner": "Visit confirmed by the landlord",
+        "counter_offer_proposed": "Counter-offer made",
+        "counter_offer_accepted": "Counter-offer accepted",
+        "counter_offer_declined": "Counter-offer declined",
+        "counter_offer_expired": "Counter-offer expired",
+        "lead_unhandled": "Request reopened",
+        "data_export_redownloaded": "Export downloaded again",
+        "owner_mandate_terms_updated": "Landlord mandate updated",
+        "inventory_pdf_sent": "Inventory PDF sent to the parties",
+        "invitation_share_link_issued": "Invitation link renewed for sharing",
+        "review_removed": "Review deleted",
+        "review_reports_ignored": "Review reports dismissed",
+        "agency_self_opened": "Agency opened from onboarding",
+        "invitation_phone_corrected": "Phone number corrected by the invitee",
+        "payment_ignored": "Payment removed from the payments to reconcile",
+        "payment_unignored": "Payment put back into the payments to reconcile"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
@@ -9723,7 +10330,6 @@
           "biensSuivis": "Properties followed",
           "nbBiens": "{n, plural, =0 {No property} one {# property} other {# properties}}",
           "clientsEtVisites": "Clients and visits",
-          "nbClientsEtVisites": "{clients, plural, one {# active client} other {# active clients}} · {visites, plural, =0 {no upcoming visit} one {# upcoming visit} other {# upcoming visits}}",
           "commissionsDues": "Commissions due",
           "duesMontant": "{montant} in commissions due",
           "rienAPayer": "Nothing to pay",
@@ -9753,7 +10359,16 @@
           "modifierLeTaux": "Edit the commission rate, currently {valeur}",
           "typeDeProfil": "Profile in the agency",
           "typeDeProfilDetail": "Agent, administrator or landlord",
-          "enregistrer": "Save"
+          "enregistrer": "Save",
+          "biensVentiles": "{n, plural, one {# property} other {# properties}} · {location} rented, {marche} for rent or sale{autres, plural, =0 {} one {, # other} other {, # others}}",
+          "clientsEtVisitesSemaine": "{clients, plural, =0 {No active client} one {# active client} other {# active clients}} · {visites, plural, =0 {no visit this week} one {# visit this week} other {# visits this week}}",
+          "duesDetail": "{n, plural, one {# lease} other {# leases}} · the oldest dates from {date}",
+          "doubleAuthActiveeDepuis": "Enabled since {date}",
+          "rappeler": "Remind",
+          "rappelerAria": "Remind {nom} to enable two-factor authentication",
+          "rappelEnvoye": "Reminder sent to {nom}.",
+          "dejaRappele": "Already reminded today: one reminder per 24 hours.",
+          "rappelEchec": "The reminder could not be sent."
         },
         "absence": {
           "titre": "Cover an absence",
@@ -9833,8 +10448,17 @@
               "agency_admin": "The whole agency, the money, the team."
             },
             "validite": "The invitation link stays valid for 7 days. Opening it, the person creates an account or signs in, then joins the agency.",
-            "envoyee": "Invitation sent to {email}."
-          }
+            "envoyee": "Invitation sent to {email}.",
+            "partagee": "Invitation created for {telephone}: send the message in WhatsApp.",
+            "whatsappSansNumero": "A phone number is required to invite via WhatsApp.",
+            "whatsappSansEmail": "Via WhatsApp, the invitation is tied to the phone number only: leave the email address empty."
+          },
+          "parWhatsApp": "Via WhatsApp",
+          "lienParWhatsApp": "Link via WhatsApp",
+          "repartager": "Share again",
+          "repartagerAria": "Share {nom}’s invitation again via WhatsApp",
+          "repartagee": "New link created for {nom}: send it in WhatsApp. The previous one no longer works.",
+          "messageWhatsApp": "Hello, I am inviting you to join our team on Takussan. Open this link to create your account with your phone number (valid for 7 days): {lien}"
         }
       }
     },
@@ -9933,7 +10557,12 @@
         "retourALaFile": "Back to the queue",
         "file": "Properties to approve",
         "autresPhotos": "More photos of the property",
-        "carrousel": "carousel"
+        "carrousel": "carousel",
+        "ecrire": "Message",
+        "ecrireTitre": "Message to {nom}",
+        "apercuBandeau": "Preview — this property is not published yet",
+        "apercuMeta": "Preview of a property to review",
+        "toutesLesPhotos": "All photos of the property"
       }
     },
     "agencyConfig": {
@@ -10050,7 +10679,9 @@
         "thresholdConfirm": "Confirm",
         "thresholdConfirming": "Confirming…",
         "thresholdConfirmed": "The new threshold now applies.",
-        "thresholdPendingSaved": "Saved. Relaxing the threshold requires a second approver's confirmation: they have been notified."
+        "thresholdPendingSaved": "Saved. Relaxing the threshold requires a second approver's confirmation: they have been notified.",
+        "payoutDay": "Payout day for landlords",
+        "payoutDayHint": "The day of the month (1 to 28) payouts are sent, when the landlord’s mandate does not set one. Empty: no day announced."
       },
       "offlinePayment": {
         "title": "Offline payment",
@@ -10254,7 +10885,10 @@
           "ajouterCourt": "Add",
           "nombreDeBiens": "{n, plural, one {# property} other {# properties}}",
           "accrocheIci": "Your tagline will appear here.",
-          "prixParPeriode": "{montant} / {periode, select, daily {day} weekly {week} yearly {year} other {month}}"
+          "prixParPeriode": "{montant} / {periode, select, daily {day} weekly {week} yearly {year} other {month}}",
+          "autresBiens": "{n, plural, one {# other published property.} other {# other published properties.}}",
+          "suggestionPlusVus": "Suggestion: your most viewed properties this month.",
+          "utiliserLaSelection": "Use this selection"
         },
         "facturation": {
           "titre": "Billing and legal details",
@@ -10291,7 +10925,8 @@
           "membresSansDoubleFacteur": "{n, plural, one {# of {total} members has not turned it on yet} other {# of {total} members have not turned it on yet}}",
           "membresSansDoubleFacteurAuMoins": "{n, plural, one {At least # of {total} members has not turned it on yet} other {At least # of {total} members have not turned it on yet}}",
           "voirLEquipe": "View the team",
-          "demandeeLe": "Requested on {date}"
+          "demandeeLe": "Requested on {date}",
+          "groupeVisites": "Visits"
         },
         "menu": {
           "titre": "Team menu",
@@ -10301,6 +10936,10 @@
           "modulesAffiches": "Modules shown",
           "compteAffiches": "{n} of {total}"
         }
+      },
+      "ownersConfirmVisits": {
+        "label": "Landlords confirm visits to their properties",
+        "hint": "On: the landlord confirms a pending visit to their property, or proposes another time, from their home page; the assigned agent is notified. Off: only the agency confirms visits."
       }
     },
     "users": {
@@ -10424,7 +11063,30 @@
         "accepted": "Statement received: processing has started.",
         "failed": "The statement import failed.",
         "choisir": "Choose a file",
-        "aucunFichier": "No file chosen"
+        "aucunFichier": "No file chosen",
+        "apercu": {
+          "lecture": "Reading the file…",
+          "titre": "What we read",
+          "lues": "{count, plural, =0 {No line read} one {# line read} other {# lines read}}",
+          "nonLues": "{count, plural, =0 {no line skipped} one {# line not read} other {# lines not read}}",
+          "periode": "From {debut} to {fin}",
+          "raisons": {
+            "missing_value": "missing value",
+            "invalid_date": "unreadable date",
+            "invalid_amount": "unreadable amount",
+            "invalid_direction": "unreadable direction",
+            "invalid_currency": "unrecognised currency",
+            "unreadable": "unreadable line",
+            "inconnue": "unspecified reason"
+          },
+          "ligneNonLue": "Line {line}: {raison}",
+          "etAutres": "{count, plural, one {and # more line} other {and # more lines}}",
+          "premieres": "{count, plural, one {The first line} other {The first # lines}}",
+          "dejaImporte": "This file has already been imported: importing it again would be refused.",
+          "aucuneLigne": "No line read: check the format or the import settings.",
+          "changer": "Change file",
+          "echec": "The statement could not be read."
+        }
       },
       "list": {
         "title": "Imported statements",
@@ -10596,7 +11258,10 @@
           "confirme": "Payment reconciled.",
           "delie": "The suggested line has been unlinked.",
           "echecConfirmer": "The reconciliation failed.",
-          "echecDelier": "The line could not be unlinked."
+          "echecDelier": "The line could not be unlinked.",
+          "ignorer": "Ignore",
+          "ignorerPour": "Ignore the payment from {qui}",
+          "plusPour": "More actions for {qui}"
         },
         "plus": "{count, plural, one {Show the other one} other {Show the # others}}",
         "pied": "{affiches, plural, one {# line shown} other {# lines shown}} of {total} · highest amounts first",
@@ -10644,6 +11309,33 @@
             "card": "card payments",
             "mobile_money": "mobile money"
           }
+        },
+        "ignorer": {
+          "titre": "Ignore this payment",
+          "description": "It leaves the payments to reconcile without being reconciled. You can restore it.",
+          "motif": "Why will it have no bank line?",
+          "motifs": {
+            "cash_kept": "Cash kept at the agency",
+            "other_account": "Paid into another account",
+            "other": "Other"
+          },
+          "note": "Specify the reason",
+          "noteRequise": "Specify the reason for “Other”.",
+          "valider": "Ignore the payment",
+          "ignore": "Payment ignored.",
+          "echec": "The payment could not be ignored.",
+          "annuler": "Undo",
+          "retabli": "The payment is back among those to reconcile.",
+          "echecRetablir": "The payment could not be restored."
+        },
+        "ignores": {
+          "resume": "{count, plural, one {# payment ignored this month} other {# payments ignored this month}}",
+          "voir": "Show",
+          "masquer": "Hide",
+          "retablir": "Restore",
+          "retablirPour": "Restore the payment from {qui}",
+          "quand": "{motif} · on {date}",
+          "erreur": "Ignored payments could not be loaded."
         }
       },
       "vide": {
@@ -10651,7 +11343,8 @@
         "auto": "Everything paid via {liste} is already reconciled.",
         "reste": "{count, plural, one {For the remaining payment, import your bank statement.} other {For the # remaining payments, import your bank statement.}}",
         "formats": "CSV or OFX from your bank",
-        "aucunReleve": "No statement yet."
+        "aucunReleve": "No statement yet.",
+        "formatsEtApercu": "CSV or OFX · we show you what we read before importing"
       },
       "releves": {
         "rubrique": "Statements",
@@ -10671,6 +11364,14 @@
         "connecte": "Connected",
         "confirmes": "{count, plural, =0 {none confirmed in {mois}} one {# confirmed in {mois}} other {# confirmed in {mois}}}",
         "aucune": "No online payment is connected."
+      },
+      "banques": {
+        "titre": "Supported banks",
+        "parFormat": "Statements are read by their format, whatever the bank:",
+        "formats": {
+          "csv": "CSV — adjustable columns",
+          "ofx": "OFX"
+        }
       }
     },
     "agencyPublicProfile": {
@@ -10769,7 +11470,8 @@
       "photo": "Photo",
       "rib": "Bank details (RIB)",
       "ninea": "NINEA",
-      "other": "Other"
+      "other": "Other",
+      "management_mandate": "Management mandate"
     },
     "entities": {
       "property": "Property",
@@ -10778,7 +11480,8 @@
       "customer": "Customer",
       "user": "User",
       "agency": "Agency",
-      "inventory": "Inventory report"
+      "inventory": "Inventory report",
+      "owner_profile": "Landlord"
     },
     "actions": {
       "add_document": "Add a document"
@@ -10907,9 +11610,11 @@
         "bailDe": "Lease · {nom}",
         "quittances": "Rent receipts {annee}",
         "quittancesSansAnnee": "Rent receipts",
-        "releves": "Statements and certificates",
+        "releves": "Statements and invoices",
         "factures": "My invoices",
-        "mesPieces": "My documents"
+        "devisEtRapports": "Quotes and reports",
+        "mesPieces": "My documents",
+        "bailDuLocataire": "Lease of {nom}"
       },
       "ouvrirDossier": "Open the {nom} folder",
       "vide": {
@@ -10917,8 +11622,9 @@
         "receipts": "A receipt is added for every rent paid.",
         "pieces": "ID, employment certificate, insurance: what the agency asks you for.",
         "property": "Land title, insurance, mandate: what you file for this property.",
-        "statements": "Your monthly statements will arrive here.",
-        "bills": "Your invoices are filed here after each completed job."
+        "statements": "Your monthly statements and the repair invoices charged to you will arrive here.",
+        "bills": "Your invoices are filed here after each completed job.",
+        "quotes_reports": "Your quotes and completion reports are filed here."
       },
       "accueil": {
         "titre": "Your documents, your lease and your receipts",
@@ -10940,6 +11646,8 @@
         "releve": "{mois} statement",
         "attestation": "{annee} annual certificate",
         "facture": "Invoice {reference}",
+        "devis": "Quote",
+        "rapport": "Job completion report",
         "document": "Document"
       },
       "detail": {
@@ -10960,7 +11668,14 @@
         "nousPreviendronsSept": "We will remind you 7 days before."
       },
       "resume": {
-        "caution": "deposit"
+        "caution": "deposit",
+        "devis": "{count, plural, one {# quote} other {# quotes}}",
+        "rapports": "{count, plural, one {# completion report} other {# completion reports}}",
+        "contrat": "contract",
+        "edl": "inventory",
+        "piece": "files",
+        "documents": "{count, plural, one {# document} other {# documents}}",
+        "factures": "{count, plural, one {# invoice} other {# invoices}}"
       },
       "telecharger": "Download",
       "telechargerNomme": "Download: {nom}",
@@ -10974,7 +11689,6 @@
         "reference": "Reference"
       },
       "voirLesAutres": "{count, plural, one {See the other one} other {See the other #}}",
-      "biensSansDocument": "{count, plural, one {# property without documents} other {# properties without documents}}",
       "lectureSeule": "Your landlord access is suspended: you can still view these documents, but nothing can be added.",
       "recherche": {
         "champ": "Find a document",
@@ -10991,7 +11705,7 @@
         "titre": "Add a document",
         "photo": {
           "titre": "Take a photo",
-          "texte": "With your phone’s camera"
+          "texte": "Straightened and cropped before sending"
         },
         "fichier": {
           "titre": "Choose a file",
@@ -11025,7 +11739,29 @@
         "sansFichier": "First choose a file or take a photo.",
         "tailleMo": "{n} MB",
         "tailleKo": "{n} KB",
-        "leBailNumero": "This property’s lease {reference}"
+        "leBailNumero": "This property’s lease {reference}",
+        "rangeImpose": "The document will be filed under “{dossier}”.",
+        "luSurLaPhoto": "Read from the photo.",
+        "photoRecadree": "Cropped photo",
+        "dansLeBienNumero": "{bien} · lease {reference}",
+        "recadrage": {
+          "titre": "Straighten and crop",
+          "aide": "Rotate the photo if needed, then drag the corners to frame the document.",
+          "tourner": "Rotate",
+          "reprendre": "Retake",
+          "valider": "Use this photo",
+          "enCours": "Cropping…",
+          "coins": {
+            "hautGauche": "Top-left corner",
+            "hautDroit": "Top-right corner",
+            "basGauche": "Bottom-left corner",
+            "basDroit": "Bottom-right corner"
+          }
+        },
+        "remplace": {
+          "titre": "{categorie, select, id_card {Replaces the expiring card} passport {Replaces the expiring passport} other {Replaces the expiring document}}",
+          "texte": "The old one stays in the versions."
+        }
       },
       "archive": {
         "toutTelecharger": "Download all",
@@ -11050,7 +11786,8 @@
           "echec": "The “{nom}” archive could not be prepared. Try again.",
           "demandeEchouee": "The archive could not be requested. Try again."
         }
-      }
+      },
+      "aucunDocument": "No documents"
     },
     "fiche": {
       "titreCourt": "Document",
@@ -11078,7 +11815,11 @@
         "verifieLe": "Verified on",
         "fichier": "File",
         "precision": "Details",
-        "quiLe": "{qui}, on {date}"
+        "quiLe": "{qui}, on {date}",
+        "rattacheA": "Attached to",
+        "bien": "Property",
+        "bailRef": "Lease {reference}",
+        "bienEtQuartier": "{bien}, {quartier}"
       },
       "versions": {
         "titre": "Versions ({n})",
@@ -11172,6 +11913,64 @@
           "customer": "The client"
         }
       }
+    },
+    "agence": {
+      "titre": "Documents",
+      "compte": {
+        "documents": "{n, plural, =0 {No documents} one {# document} other {# documents}}",
+        "expirent": "{n, plural, one {# expiring soon} other {# expiring soon}}",
+        "aVerifier": "{n} to verify"
+      },
+      "recherche": "Search a document, a tenant, a property",
+      "ajouter": "Add a document",
+      "filtres": "Filter documents",
+      "puces": {
+        "tous": "All",
+        "tout": "All",
+        "expire": "Expiring soon",
+        "nonVerifies": "Not verified",
+        "generes": "Generated"
+      },
+      "arbre": "Agency folders",
+      "tousLesDocuments": "All documents",
+      "dossiers": {
+        "property_pieces": "Property documents",
+        "contract": "Contract",
+        "inventories": "Inventories",
+        "receipts": "Receipts",
+        "tenant_pieces": "Tenant documents",
+        "agency_pieces": "Agency documents"
+      },
+      "bailDe": "Lease {nom}",
+      "bailDetail": "{reference} · since {date}",
+      "bienDetail": "{quartier} · {documents}",
+      "resume": {
+        "unBail": "Lease {locataire} · {documents}",
+        "baux": "{n, plural, one {# lease} other {# leases}} · {documents}"
+      },
+      "agenceDetail": "NINEA, trade register, templates · {documents}",
+      "alerte": {
+        "uneExpireDans": "1 expires in {jours, plural, one {# day} other {# days}}",
+        "uneExpireAujourdhui": "1 expires today",
+        "expirent": "{n, plural, one {# expiring soon} other {# expiring soon}}",
+        "aVerifier": "{n} to verify"
+      },
+      "memeBail": "In the same lease",
+      "tuileGeneres": "{n, plural, one {# · generated} other {# · generated}}",
+      "ouvrirDossier": "Open the “{nom}” folder",
+      "vide": {
+        "dossier": "No documents in this folder.",
+        "filtre": "No document matches this filter.",
+        "recherche": "No agency document matches “{q}”.",
+        "agence": "No documents yet: add the first document of a property, a lease or the agency."
+      },
+      "biensSansDocument": "{n, plural, one {# property without documents} other {# properties without documents}}",
+      "chargement": "Loading the agency’s documents…",
+      "echec": "The agency’s documents could not be loaded.",
+      "reessayer": "Retry",
+      "partagerNomme": "Share “{nom}”",
+      "apercu": "Document preview",
+      "fil": "Folder shown"
     }
   },
   "bookings": {
@@ -11291,7 +12090,9 @@
     "paymentType": {
       "deposit": "Deposit",
       "advance": "Balance",
-      "fee": "Fee"
+      "fee": "Fee",
+      "security_deposit": "Security deposit",
+      "other": "Other"
     },
     "paymentStatus": {
       "pending": "Pending",
@@ -11490,7 +12291,8 @@
       "detail": {
         "sejour": "{debut} → {fin}",
         "entree": "Move-in {date}",
-        "offre": "Listed {affiche} · {ecart}"
+        "offre": "Listed {affiche} · {ecart}",
+        "caution": "{n, plural, one {# month deposit} other {# months deposit}}"
       },
       "recue": {
         "min": "{n} min ago",
@@ -11503,7 +12305,8 @@
         "bien": "Property",
         "montant": "Amount",
         "statut": "Status",
-        "recue": "Received"
+        "recue": "Received",
+        "dossier": "File"
       },
       "caption": "Booking requests",
       "recherche": "Client, property, reference…",
@@ -11532,7 +12335,8 @@
         "filtre": "No request matches these filters."
       },
       "erreur": "Bookings could not be loaded.",
-      "clientSansNom": "Client #{id}"
+      "clientSansNom": "Client #{id}",
+      "expireDemain": "Expires tomorrow"
     },
     "client": {
       "titre": "My bookings",
@@ -11564,9 +12368,39 @@
       },
       "actions": {
         "voir": "View booking",
-        "avis": "Leave a review"
+        "avis": "Leave a review",
+        "payerAcompte": "Pay the deposit",
+        "payerSolde": "Pay the balance",
+        "completerDossier": "Complete my file",
+        "accepter": "Accept",
+        "decliner": "Decline",
+        "annuler": "Cancel",
+        "annulerAria": "Cancel the booking: {bien}"
       },
-      "erreur": "Your bookings could not be loaded."
+      "erreur": "Your bookings could not be loaded.",
+      "appel": {
+        "acompte": "Deposit of {montant} to pay {forme, select, semaine {before {jour}} date {before {jour}} other {now}}.",
+        "solde": "{acompte, select, oui {Deposit paid · balance of {montant} due on arrival} other {Balance of {montant} due on arrival}}",
+        "dossier": "File {recues}/{total}: {piece} is missing.",
+        "dossierComplet": "File complete · {recues}/{total} documents.",
+        "contreOffre": "The agency offers you {montant} until {date}.",
+        "contreOffreSansDate": "The agency offers you {montant}.",
+        "pieces": {
+          "identity": "your ID document",
+          "payslips": "your payslips",
+          "employment_certificate": "your employment certificate",
+          "guarantor_commitment": "your guarantor’s commitment",
+          "guarantor_identity": "your guarantor’s ID document",
+          "proof_of_funds": "your proof of funds",
+          "other": "another document"
+        }
+      },
+      "toasts": {
+        "contreOffreAcceptee": "Counter-offer accepted: your offer is confirmed.",
+        "contreOffreDeclinee": "Counter-offer declined: the agency has been notified.",
+        "annulee": "Booking cancelled."
+      },
+      "sousTitreAcompte": "{count, plural, one {# in progress} other {# in progress}}, including {n, plural, one {a deposit to pay} other {# deposits to pay}} {forme, select, semaine {before {jour}} date {before {jour}} other {now}}"
     },
     "fiche": {
       "enTete": {
@@ -11602,7 +12436,8 @@
         "paiements": "Payments",
         "historique": "History",
         "autresGestes": "{n, plural, one {Other action} other {Other actions}}",
-        "decision": "Decision"
+        "decision": "Decision",
+        "dossier": "Application file"
       },
       "qui": {
         "appeler": "Call",
@@ -11611,7 +12446,18 @@
         "dejaVisite": "Has already visited this property.",
         "visitesEnregistrees": "{n, plural, one {# visit recorded.} other {# visits recorded.}}",
         "visites": "{n, plural, one {# visit} other {# visits}}",
-        "messageWhatsApp": "Hello {prenom}, I am getting back to you about your {nature, select, stay {stay request} application {application} offer {offer} other {booking}} for {bien}."
+        "messageWhatsApp": "Hello {prenom}, I am getting back to you about your {nature, select, stay {stay request} application {application} offer {offer} other {booking}} for {bien}.",
+        "revenus": "Income {rapport} × the rent",
+        "revenusNonDeclares": "Income not declared",
+        "garant": "{oui, select, oui {Guarantor: yes} other {Guarantor: no}}",
+        "visiteLe": "{jour}.",
+        "visiteLeAvecVerdict": "{jour}: “{verdict}”.",
+        "achat": {
+          "cash": "Cash purchase",
+          "mortgage": "Mortgage purchase",
+          "mixed": "Down payment and mortgage"
+        },
+        "garantNomme": "Guarantor: {nom}{lien, select, aucun {} other {, {lien}}}{autres, plural, =0 {} other { +#}}"
       },
       "quoi": {
         "loyerPropose": "Proposed rent",
@@ -11621,21 +12467,42 @@
         "valable": "Valid until",
         "acompte": "Deposit",
         "paye": "· paid",
-        "reference": "Reference"
+        "reference": "Reference",
+        "duree": "Term",
+        "dureeValeur": "{n, plural, one {# month} other {# months}}{renouvelable, select, oui {, renewable} other {}}",
+        "caution": "Security deposit",
+        "cautionMois": "{n, plural, one {# month} other {# months}}",
+        "aVerser": "Due on move-in",
+        "financement": "Financing",
+        "delaiDeSignature": "Time to sign",
+        "conditions": "Conditions",
+        "jours": "{n, plural, one {# day} other {# days}}"
       },
       "offre": {
         "titre": "Purchase offer",
         "prixAffiche": "Listed price",
         "ecart": "Difference",
         "ecartValeur": "{montant} · {pourcentage}",
-        "enVenteDepuis": "{n, plural, =0 {Listed for sale today.} one {For sale for # day.} other {For sale for # days.}}"
+        "enVenteDepuis": "{n, plural, =0 {Listed for sale today} one {For sale for # day} other {For sale for # days}}",
+        "faits": "{faits}.",
+        "visites": "{n, plural, =0 {no visits} one {# visit} other {# visits}}",
+        "rang": "{premiere, select, oui {first offer received} other {offer no. {rang} received}}"
       },
       "decision": {
         "sous": "The offer is {pourcentage} below the listed price.",
         "dessus": "The offer is {pourcentage} above the listed price.",
         "egale": "The offer matches the listed price.",
         "jusquA": "It stands until {date}.",
-        "accepter": "Accept {montant}"
+        "accepter": "Accept {montant}",
+        "revenus": "Income of {rapport} times the rent",
+        "revenusNonDeclares": "Income not declared",
+        "garant": "{oui, select, oui {guarantor declared} other {no guarantor}}",
+        "garantSeul": "{oui, select, oui {Guarantor declared} other {No guarantor}}",
+        "manque": "{piece, select, identity {The proof of identity is} payslips {The payslips are} employment_certificate {The employment certificate is} guarantor_commitment {The guarantor’s commitment is} guarantor_identity {The guarantor’s proof of identity is} proof_of_funds {The proof of funds is} other {A document is}} missing.",
+        "complet": "The file is complete.",
+        "autres": "{n, plural, one {# other application for this property} other {# other applications for this property}}",
+        "autreDossier": "{nom} · file {recues}/{total}",
+        "comparer": "Compare"
       },
       "sejour": {
         "arrivee": "Arrival",
@@ -11646,16 +12513,21 @@
         "acompte": "Deposit ({pourcentage})",
         "solde": "Balance",
         "aLArrivee": "· on arrival",
-        "recus": "{recu} received of {total}"
+        "recus": "{recu} received of {total}",
+        "aPartirDe": "from {heure}",
+        "avant": "before {heure}",
+        "nuitsEtVoyageurs": "{nuits, plural, one {# night} other {# nights}} · {voyageurs, plural, one {# guest} other {# guests}}"
       },
       "suiteBail": {
         "titre": "Application accepted",
-        "texte": "All that remains is to create the lease: it is already filled in with what the application holds.",
         "locataire": "Tenant",
         "bien": "Property",
         "loyer": "Rent",
         "debut": "Start",
-        "modifiable": "Everything can still be changed before it is sent for signature."
+        "caution": "Security deposit",
+        "pret": "Lease ready to create",
+        "repris": "Taken from the application. Everything can still be changed in the lease form.",
+        "garant": "Guarantor"
       },
       "paiement": {
         "ligne": "{type} · {montant}",
@@ -11663,11 +12535,145 @@
       },
       "gestes": {
         "annuler": "{nature, select, stay {Cancel the stay} other {Cancel the booking}}",
-        "annulerAide": "{nature, select, stay {Possible until arrival, {date}.} application {With a reason, as long as the lease has not started.} other {With a reason.}}"
+        "annulerAide": "{nature, select, stay {Possible until arrival, {date}.} application {With a reason, as long as the lease has not started.} other {With a reason.}}",
+        "rembourser": "Refund"
       },
       "historique": {
         "creee": "{nature, select, stay {Stay request sent} application {Application submitted} offer {Offer submitted} other {Booking created}} by {nom}",
-        "saisie": "{nature, select, stay {Stay request recorded} application {Application recorded} offer {Offer recorded} other {Booking recorded}} by {nom}"
+        "saisie": "{nature, select, stay {Stay request recorded} application {Application recorded} offer {Offer recorded} other {Booking recorded}} by {nom}",
+        "visite": "{agent, select, aucun {Visit completed} other {Visit completed with {agent}}}",
+        "citation": "{quoi} — “{texte}”",
+        "demande": "Contact request received"
+      },
+      "dossier": {
+        "completude": "{recues}/{total} documents",
+        "completudeCourte": "{recues}/{total}",
+        "completudeAria": "{recues, plural, one {# document received} other {# documents received}} out of {total}",
+        "pieces": {
+          "identity": "Proof of identity",
+          "payslips": "Payslips",
+          "employment_certificate": "Employment certificate",
+          "guarantor_commitment": "Guarantor’s commitment",
+          "guarantor_identity": "Guarantor’s proof of identity",
+          "proof_of_funds": "Proof of funds",
+          "other": "Other document"
+        },
+        "recue": "{document} · received on {date}",
+        "pasEncore": "Not received yet",
+        "ouvrir": "Open",
+        "ouvrirAria": "Open: {piece}",
+        "demander": "Request",
+        "demanderAria": "Request: {piece}",
+        "demandeeInstant": "Requested just now",
+        "demandee": "Requested {age}",
+        "demandeeMotif": "A document can be requested again 24 h after the previous request.",
+        "sansCompte": "Request recorded. The client has no account: let them know yourself.",
+        "erreurs": {
+          "throttled": "This document was already requested less than 24 h ago.",
+          "closed": "This request is closed: its file can no longer be completed."
+        },
+        "erreurLecture": "The file could not be loaded.",
+        "deposer": "Upload",
+        "deposerAria": "Upload a file: {piece}",
+        "prendrePhoto": "Take a photo",
+        "prendrePhotoAria": "Take a photo: {piece}",
+        "envoyee": "Document sent.",
+        "tropLourde": "This file is larger than 10 MB.",
+        "envoiEnCours": "Uploading…"
+      },
+      "financement": {
+        "cash": "Cash",
+        "mortgage": "Mortgage",
+        "mixed": "Down payment and mortgage"
+      },
+      "contreOffre": {
+        "geste": "{modifier, select, oui {Edit the counter-offer} other {Counter-offer}}",
+        "envoyee": "Counter-offer of {montant} sent",
+        "enAttente": "awaiting {prenom}",
+        "enAttenteJusquA": "awaiting {prenom} until {date}",
+        "statut": {
+          "pending": "Counter-offer pending",
+          "accepted": "Counter-offer accepted",
+          "declined": "Counter-offer declined",
+          "superseded": "Counter-offer replaced",
+          "expired": "Counter-offer expired"
+        },
+        "toast": "Counter-offer sent to {prenom}",
+        "gesteCourt": "Edit"
+      },
+      "nuitsDuBien": {
+        "titre": "Property nights · {mois}",
+        "ceSejour": "This stay",
+        "autres": "Other stays",
+        "enAttente": "Pending",
+        "libres": "{n, plural, =0 {No free nights this month.} one {# free night this month.} other {# free nights this month.}}",
+        "erreur": "The property’s nights could not be loaded.",
+        "jour": "{jour}: {etat, select, ceSejour {this stay} autres {another stay} bloquee {blocked} enAttente {a pending request} other {free}}",
+        "bloquees": "Blocked"
+      },
+      "origine": {
+        "depose": "{prenom} submitted an application",
+        "parLeLien": "via the link sent after the viewing",
+        "deposee": "Submitted {jour} at {heure}{invitation, select, oui { via the link sent after the viewing} other {}}"
+      },
+      "reponse": {
+        "heures": "reply expected within {n} h",
+        "jours": "{n, plural, one {reply expected within # day} other {reply expected within # days}}",
+        "depassee": "reply deadline passed"
+      },
+      "acceptee": {
+        "titre": "Application accepted",
+        "prevenu": "{prenom} has been notified"
+      },
+      "etape": {
+        "passe": "Moved to {etape}",
+        "detail": "{de} → {a}, prompted by the application",
+        "annuler": "Undo",
+        "remise": "Stage set back to {etape}",
+        "echec": "The stage could not be set back."
+      },
+      "fil": {
+        "titre": "{prenom}’s timeline",
+        "ficheClient": "Client record",
+        "demandeAuBail": "From enquiry to lease",
+        "jours": "{n, plural, one {# day} other {# days}}",
+        "vide": "Nothing in the timeline yet.",
+        "chargement": "Loading the timeline…"
+      },
+      "bailRepris": {
+        "titre": "New lease · from the application",
+        "locataire": "Tenant",
+        "locataireAide": "Their client record becomes the tenant record.",
+        "debut": "Lease start",
+        "duree": "Term",
+        "loyer": "Monthly rent",
+        "caution": "Security deposit",
+        "garant": "Guarantor",
+        "garantAide": "ID document to receive before signing.",
+        "repris": "{n, plural, one {One field taken from the application.} other {# fields taken from the application.}} Once the lease is signed, the property is let from the lease start and {prenom}’s record suggests the Won stage.",
+        "annuler": "Cancel",
+        "formulaire": "Open the full form",
+        "creer": "Create the lease",
+        "echec": "The lease was not created."
+      },
+      "garants": {
+        "titre": "Guarantors",
+        "aucun": "No guarantor yet.",
+        "ajouter": "Add a guarantor",
+        "retirer": "Remove {nom}",
+        "prenom": "First name",
+        "nom": "Last name",
+        "telephone": "Phone",
+        "lien": "Relationship to the applicant",
+        "enregistrer": "Add the guarantor",
+        "echec": "The guarantor was not saved.",
+        "codes": {
+          "pasPourCetteNature": "Only an application or an offer can have a guarantor.",
+          "dejaRattache": "This guarantor is already attached to this request.",
+          "pasRattache": "This guarantor is no longer attached to this request.",
+          "troisAuPlus": "A request cannot have more than 3 guarantors.",
+          "dossierClos": "This request is closed: its guarantors can no longer change."
+        }
       }
     },
     "feuilles": {
@@ -11686,13 +12692,15 @@
         "referenceFacultative": "Optional for cash.",
         "notes": "Notes",
         "notesPlaceholder": "Optional.",
-        "recu": "The PDF receipt can then be downloaded from the booking’s payments."
+        "recu": "The PDF receipt can then be downloaded from the booking’s payments.",
+        "notesAutre": "Required: what this payment is for."
       },
       "rembourser": {
         "titre": "Refund {nom}",
         "montant": "Amount to refund",
         "montantAide": "At most {montant}: what {prenom} paid.",
-        "rembourserMontant": "Refund {montant}"
+        "rembourserMontant": "Refund {montant}",
+        "paiement": "Payment to refund"
       },
       "decision": {
         "refuser": {
@@ -11708,10 +12716,25 @@
             "bienIndisponible": "Property unavailable",
             "autre": "Other…"
           },
-          "precision": "Details",
-          "aide": "Optional, except for “Other”. The reason stays on the booking; {prenom} receives a decline notice.",
-          "envoyer": "Decline and notify {prenom}"
+          "aide": "Optional, except for “Other”. The reason is sent along with this message.",
+          "envoyer": "Decline and notify {prenom}",
+          "message": "Message to {prenom}"
         }
+      },
+      "contreOffre": {
+        "titre": "{modifier, select, oui {Edit the counter-offer} other {Counter-offer}}",
+        "montant": "Proposed amount",
+        "montantAide": "Prefilled with the listed price.",
+        "montantAideEnCours": "The amount of the current counter-offer: the new one replaces it.",
+        "validite": "Valid for",
+        "jours": "{n, plural, one {# day} other {# days}}",
+        "jusquAu": "Until {date}, inclusive.",
+        "message": "Message (optional)",
+        "messagePlaceholder": "What justifies this price, what remains negotiable…",
+        "prevenu": "The customer will be notified and can accept or decline your counter-offer.",
+        "envoyer": "Send counter-offer",
+        "envoyerMontant": "Counter-offer {montant}",
+        "envoi": "Sending…"
       }
     }
   },
@@ -11731,7 +12754,9 @@
         "past": "Past",
         "cancelled": "Cancelled",
         "all": "All"
-      }
+      },
+      "filtreType": "Type",
+      "typesTous": "All"
     },
     "detail": {
       "error": "This visit could not be loaded.",
@@ -11752,7 +12777,7 @@
         },
         "noShow": {
           "title": "Visit marked as no-show",
-          "description": "The visitor did not show up: the visit is not counted among completed visits."
+          "description": "The visitor has been notified, with a way to book another visit. It is not counted among completed visits."
         },
         "cancelled": {
           "title": "Visit cancelled",
@@ -11932,7 +12957,16 @@
         "compte": "{n} of {total}",
         "suivantes": "{n, plural, =1 {Show the next one} other {Show the next #}}",
         "ouvrir": "Open",
-        "lotResultat": "{ok, plural, =0 {No visit done} =1 {1 visit done} other {# visits done}} · {failed, plural, =0 {no refusal} =1 {1 refusal} other {# refusals}}"
+        "lotResultat": "{ok, plural, =0 {No visit done} =1 {1 visit done} other {# visits done}} · {failed, plural, =0 {no refusal} =1 {1 refusal} other {# refusals}}",
+        "statutFiltre": "Status",
+        "statutFixe": "The tab sets the status",
+        "statuts": {
+          "tous": "All",
+          "requested": "Requested",
+          "confirmed": "Confirmed",
+          "completed": "Completed",
+          "cancelled": "Cancelled"
+        }
       },
       "refus": {
         "http_forbidden": "You cannot act on this visit.",
@@ -11953,7 +12987,17 @@
         "evening": "evening"
       },
       "agentIndisponible": "This viewing’s agent is no longer available: reassign it",
-      "reattribuer": "Reassign"
+      "reattribuer": "Reassign",
+      "absentPrevenu": "The visitor has been notified, with a way to book another visit.",
+      "semaine": {
+        "compte": "{n, plural, =0 {No visits this week} one {# visit this week} other {# visits this week}}",
+        "tronquee": "The first {n} of {total} visits: narrow by agent or property to see the others."
+      },
+      "affichage": {
+        "libelle": "Display",
+        "liste": "List",
+        "semaine": "Week"
+      }
     },
     "fiche": {
       "titre": "Visit",
@@ -11991,7 +13035,9 @@
       },
       "lieu": {
         "voirLeBien": "View the property",
-        "ville": "{quartier}, {ville}"
+        "ville": "{quartier}, {ville}",
+        "vignette": "Map of the place — open directions",
+        "attribution": "© OpenStreetMap"
       },
       "visiteur": {
         "voirSaFiche": "View their record"
@@ -12012,7 +13058,7 @@
         "titre": "Visit in progress",
         "progression": "{n} min of {total}",
         "terminer": "“End the visit” opens the report: three taps, thirty seconds.",
-        "absent": "“No-show” records that {prenom} did not come.",
+        "absent": "“No-show” notifies {prenom} and offers to reschedule.",
         "apres": "The planned end time has passed",
         "apresDetail": "End the visit to write the report, or record {prenom} as a no-show.",
         "absentDes": "“No-show” is possible from {heure}, the visit time."
@@ -12054,7 +13100,8 @@
         "commencer": "Start",
         "absent": "No-show",
         "terminer": "End the visit",
-        "commencerDes": "“Start” is available from {heure}, 30 min before the visit."
+        "commencerDes": "“Start” is available from {heure}, 30 min before the visit.",
+        "enRouteBulle": "Send on WhatsApp: {message}"
       },
       "autreHeure": {
         "titre": "Choose another time",
@@ -12117,7 +13164,9 @@
           "rent": "Rent",
           "sale": "Purchase"
         },
-        "commencerPossibleA": "“Start” available from {heure}"
+        "commencerPossibleA": "“Start” available from {heure}",
+        "voirLeBien": "View property",
+        "ouvrirLaFicheDe": "Open {prenom}’s record"
       },
       "fil": "Visits",
       "attribuee": "Visit assigned",
@@ -12177,7 +13226,14 @@
       "agentDe": "Agent · {agence}",
       "appelerAgent": "Call {nom}",
       "whatsappAgent": "Message {nom} on WhatsApp",
-      "messageAgent": "Hello {nom}, I am writing about my visit: {bien}."
+      "messageAgent": "Hello {nom}, I am writing about my visit: {bien}.",
+      "delaiDeReponse": "The agency usually replies within {heures} h",
+      "annulee": {
+        "parVous": "Cancelled by you",
+        "parVousMotif": "Cancelled by you: “{motif}”",
+        "parLAgence": "Cancelled by the agency",
+        "parLAgenceMotif": "Cancelled by the agency: “{motif}”"
+      }
     }
   },
   "superAdmin": {
@@ -15698,6 +16754,61 @@
         "submit": "Remove",
         "failed": "The featured spot could not be removed."
       }
+    },
+    "photosDeQuartier": {
+      "tabs": {
+        "proposals": "Proposals",
+        "approved": "Approved neighbourhoods"
+      },
+      "title": "Neighbourhood photos",
+      "description": "Approved neighbourhoods, those with the most listings first. Their photo appears on the homepage tiles, without credit.",
+      "city": "City",
+      "allCities": "All cities",
+      "noCity": "No city found.",
+      "search": "Search a neighbourhood",
+      "searchSubmit": "Search",
+      "error": "Neighbourhoods could not be loaded.",
+      "retry": "Retry",
+      "emptyTitle": "No approved neighbourhood",
+      "emptyDescription": "Change the city or the search.",
+      "addresses": "{count, plural, =0 {No address} =1 {# address} other {# addresses}}",
+      "noPhoto": "No photo",
+      "source": {
+        "upload": "Uploaded photo",
+        "wikimedia": "Photo from Wikimedia Commons"
+      },
+      "upload": "Upload a photo",
+      "uploadLabel": "Photo of {name} (JPEG, PNG or WebP, 10 MB max)",
+      "remove": "Remove",
+      "removeConfirmTitle": "Remove the photo",
+      "removeConfirm": "Remove the photo of {name}? The homepage tile will show the pattern again.",
+      "removeConfirmAction": "Remove the photo",
+      "cancel": "Cancel",
+      "unsplash": "Search on Unsplash",
+      "newTab": "(new tab)",
+      "done": {
+        "uploaded": "Photo saved.",
+        "imported": "Photo imported.",
+        "removed": "Photo removed."
+      },
+      "suggestions": {
+        "toggle": "Wikimedia suggestions",
+        "loading": "Looking for suggestions…",
+        "error": "Suggestions could not be loaded.",
+        "unavailable": "Wikimedia is not responding right now: upload a photo or search on Unsplash.",
+        "empty": "Wikimedia has no credit-free photo for this neighbourhood.",
+        "hint": "Photos free of any attribution. One click imports the photo.",
+        "import": "Import {title}"
+      },
+      "errors": {
+        "generic": "The photo could not be saved.",
+        "fileType": "Format not accepted: choose a JPEG, PNG or WebP image.",
+        "fileSize": "File too large: 10 MB max.",
+        "notApproved": "This neighbourhood is no longer approved: its photo cannot be changed.",
+        "attributionRequired": "This photo now requires a credit: it cannot be imported.",
+        "sourceNotFound": "This photo no longer exists on Wikimedia Commons.",
+        "sourceUnavailable": "Wikimedia Commons is not responding: try again later or upload a file."
+      }
     }
   },
   "adminSettings": {
@@ -15999,7 +17110,9 @@
       },
       "tete": {
         "moyenneAria": "Average rating: {moyenne} out of 5",
-        "nombre": "{nombre, plural, one {# review received} other {# reviews received}}"
+        "nombre": "{nombre, plural, one {# review received} other {# reviews received}}",
+        "repartitionAria": "Rating breakdown",
+        "ligneAria": "{note, plural, one {# star} other {# stars}}: {nombre, plural, one {# review} other {# reviews}}"
       },
       "filtres": {
         "titre": "Filter received reviews",
@@ -16007,7 +17120,13 @@
       },
       "opportunitySubmitOne": "Publish my review",
       "noteAria": "Rating: {note} out of 5",
-      "pastilleEnAttente": "Awaiting approval"
+      "pastilleEnAttente": "Awaiting approval",
+      "enAttenteDeValidation": "{count, plural, one {# review awaiting approval} other {# reviews awaiting approval}}",
+      "bailClos": {
+        "titre": "Lease ended on {date} · {bien}",
+        "detail": "Your review of your former home",
+        "noter": "Rate"
+      }
     },
     "contact": {
       "title": "Contact details",
@@ -16313,7 +17432,11 @@
         "tous": "{canaux}: not sent for these events.",
         "autres": "{canaux}: not sent for the other events in this group."
       },
-      "enregistrementImmediat": "Each box is saved as soon as it is ticked."
+      "enregistrementImmediat": "Each box is saved as soon as it is ticked.",
+      "imposes": {
+        "identity_verification": "Identity verification"
+      },
+      "imposeRaison": "Always sent: account security."
     },
     "payoutMethods": {
       "title": "Where to receive your payouts",
@@ -16332,7 +17455,16 @@
       "add": "Add",
       "saveFailed": "The destination could not be saved.",
       "removeFailed": "The destination could not be removed.",
-      "ajouter": "Add a payout method"
+      "ajouter": "Add a payout method",
+      "aConfirmer": "To confirm",
+      "enRevue": "Under review",
+      "ribAttendu": "a bank account statement (RIB) is expected",
+      "ribEnvoye": "RIB received, being checked",
+      "envoyerRib": "Send the RIB",
+      "envoyerRibAria": "Send the RIB for account {masked}",
+      "ribEnvoyeToast": "RIB sent: your account is under review.",
+      "ribEchec": "The RIB could not be sent.",
+      "jourDeVersement": "paid out on the {jour} of each month"
     },
     "serviceProvider": {
       "title": "My provider activity",
@@ -16456,7 +17588,7 @@
       },
       "aides": {
         "coordonnees": "How the agency and your clients reach you.",
-        "fiche": "Your business card on the website.",
+        "fiche": "Your business card on the site: it updates as you edit.",
         "pro": "What you do, and how.",
         "recherche": "What you are looking for, for listings that suit you.",
         "versement": "Where you receive your payouts.",
@@ -16486,7 +17618,19 @@
         "fiche": {
           "titre": "Complete your public profile",
           "detail": "Add your languages and your neighbourhoods.",
-          "action": "Complete"
+          "action": "Complete",
+          "detailPourcentage": "{pourcentage}% · still missing {reste}."
+        },
+        "pieces": {
+          "titre": "Send your identity documents to receive your payouts.",
+          "detailCompte": "{envoyees} of {requises} sent.",
+          "detail": "Identity document and proofs your agency asks for.",
+          "action": "Send"
+        },
+        "rib": {
+          "titre": "Confirm your bank account",
+          "detail": "A bank account statement (RIB) is expected.",
+          "action": "Send the RIB"
         }
       },
       "details": {
@@ -16496,7 +17640,8 @@
           "sansNumero": "No phone number"
         },
         "fiche": {
-          "faits": "{langues, plural, =0 {No language} one {# language} other {# languages}} · {quartiers, plural, =0 {no neighbourhood} one {# neighbourhood} other {# neighbourhoods}}"
+          "faits": "{langues, plural, =0 {No language} one {# language} other {# languages}} · {quartiers, plural, =0 {no neighbourhood} one {# neighbourhood} other {# neighbourhoods}}",
+          "pourcentage": "{pourcentage}% complete"
         },
         "pro": {
           "carte": "Card no. {numero}",
@@ -16512,7 +17657,8 @@
         "notifications": "By event and by channel",
         "securite": {
           "active": "Two-factor authentication on",
-          "inactive": "Two-factor authentication off"
+          "inactive": "Two-factor authentication off",
+          "piecesAEnvoyer": "Identity documents to send"
         },
         "espaces": {
           "un": "{agence} · {role}",
@@ -16525,7 +17671,8 @@
         },
         "avis": "Received, to leave and published",
         "donnees": "Export my data",
-        "avisNote": "{nombre} received · {moyenne} out of 5"
+        "avisNote": "{nombre} received · {moyenne} out of 5",
+        "versementAConfirmer": "{moyen} · one account to confirm"
       },
       "nonEnregistrees": "{n, plural, one {# unsaved change} other {# unsaved changes}}",
       "espaces": {
@@ -16533,6 +17680,52 @@
         "enCours": "Current space",
         "carte": "professional card no. {numero}"
       }
+    },
+    "completude": {
+      "complete": "complete",
+      "pourcentage": "{pourcentage}%",
+      "barre": "How complete your public profile is",
+      "invitation": "Complete profiles receive more requests.",
+      "reste": "Still to add: {reste}.",
+      "faite": "Your profile is complete: visitors find everything that matters.",
+      "manque": {
+        "quartiers": "{count, plural, one {# neighbourhood} other {# neighbourhoods}}",
+        "telephone": "your verified number",
+        "langue": "a language",
+        "photo": "your photo",
+        "presentation": "your introduction"
+      }
+    },
+    "apercu": {
+      "titre": "Preview",
+      "aide": "What visitors to the site see.",
+      "enDirect": "Live preview",
+      "nonListee": "Visible once your profile is published",
+      "agent": "Agent",
+      "langues": "Languages",
+      "quartiers": "Neighbourhoods",
+      "reponse": "Response",
+      "annonces": "Listings",
+      "note": "Rating",
+      "avis": "· {count, plural, one {# review} other {# reviews}}",
+      "pasDAvis": "No reviews yet",
+      "noteAria": "Average rating of {note} out of 5",
+      "delai": {
+        "minutes": "in about {count, plural, one {# min} other {# min}}",
+        "heures": "in about {count, plural, one {# h} other {# h}}",
+        "jours": "in about {count, plural, one {# day} other {# days}}"
+      },
+      "pasDeDelai": "Not measured yet",
+      "enLigne": "{count, plural, =0 {No properties online} one {# property online} other {# properties online}}",
+      "whatsapp": "WhatsApp",
+      "voirSesBiens": "See their properties"
+    },
+    "activite": {
+      "demandes": "{count, plural, one {# request} other {# requests}}",
+      "visitesAujourdhui": "{count, plural, one {# visit today} other {# visits today}}",
+      "biens": "{count, plural, one {# property} other {# properties}}",
+      "loyersEnRetard": "{count, plural, one {# overdue rent} other {# overdue rents}}",
+      "interventionsAujourdhui": "{count, plural, one {# job today} other {# jobs today}}"
     }
   },
   "contact": {
@@ -16851,7 +18044,8 @@
       "thresholdInvalid": "The threshold is a positive whole amount, without decimals.",
       "legalNameTooLong": "The company name must not exceed 255 characters.",
       "legalIdTooLong": "This number must not exceed 30 characters.",
-      "legalAddressTooLong": "The address must not exceed 1000 characters."
+      "legalAddressTooLong": "The address must not exceed 1000 characters.",
+      "payoutDayRange": "The payout day is a number between 1 and 28."
     },
     "booking": {
       "guestsRequired": "The number of guests is required.",
@@ -16859,7 +18053,8 @@
       "guestsMin": "At least 1 guest.",
       "guestsMax": "20 guests maximum.",
       "notesTooLong": "The message is too long (1000 characters max).",
-      "acceptTerms": "You must accept the terms."
+      "acceptTerms": "You must accept the terms.",
+      "notesRequiredForOther": "Say what this payment is for."
     },
     "customer": {
       "occupationTooLong": "The occupation is too long.",
@@ -16908,7 +18103,8 @@
       "chargesNonNegative": "Charges must be ≥ 0.",
       "lateFeePercentInvalid": "Invalid late fee (0 to 50%).",
       "graceDaysInvalid": "Invalid number of grace days (0 to 30).",
-      "earlyTerminationInvalid": "Invalid penalty (0 to 12 months)."
+      "earlyTerminationInvalid": "Invalid penalty (0 to 12 months).",
+      "noticePeriodInvalid": "Invalid notice period (1 to 365 days)."
     },
     "maintenance": {
       "propertyRequired": "Select a property.",
@@ -17501,10 +18697,19 @@
         "lieu": "The city is enough to continue: the street and the pin on the map are optional.",
         "caracteristiques": "Only the floor area really matters; the rest helps your listing stand out in the filters.",
         "photos": "Optional step: “Later” moves on to the title, and you can add photos from your space."
+      },
+      "photos": {
+        "telephone": "Your photos stay on this phone until you publish: they go out with the listing.",
+        "navigateur": "Your photos stay in this browser until you publish: they go out with the listing."
+      },
+      "lieu": {
+        "quartierAide": "Not listed? Type it in: it shows on your listing right away, and our team checks it afterwards."
       }
     },
     "preuves": {
-      "recherches": "searches in {ville} this week"
+      "recherches": "searches in {ville} this week",
+      "commissionChiffre": "0 F",
+      "commission": "commission"
     }
   },
   "layout": {
@@ -17722,7 +18927,8 @@
       "converted": "Client record created.",
       "assigned": "Request assigned.",
       "error": "The action did not go through.",
-      "handledShort": "Request handled."
+      "handledShort": "Request handled.",
+      "undo": "Undo"
     },
     "shortTitle": "Requests",
     "inbox": {
@@ -17840,6 +19046,20 @@
       "hoursMinutes": "{h} h {m}",
       "minutes": "{m} min",
       "none": "—"
+    },
+    "whatsapp": {
+      "intro": "Hello {name}, this is {agent} from {agency}",
+      "introAlone": "Hello {name}, this is {agent}",
+      "about": "{intro}, about “{title}”.",
+      "followUp": "{intro}, following up on your request on Takussan.",
+      "twoSlots": "I can offer you {first} or {second}.",
+      "oneSlot": "I can offer you {first}."
+    },
+    "shortcuts": {
+      "label": "Keyboard shortcuts",
+      "browse": "browse",
+      "visit": "visit",
+      "handle": "mark handled"
     }
   },
   "visitPlanning": {
@@ -17925,7 +19145,22 @@
       "viewCustomer": "View the record",
       "alsoWhatsApp": "Also send on WhatsApp",
       "anotherVisit": "Schedule another visit",
-      "whatsAppMessage": "Hello {name}, your visit to “{property}” is confirmed for {when}. See you soon!"
+      "whatsAppMessage": "Hello {name}, your visit to “{property}” is confirmed for {when}. See you soon!",
+      "dayFromMessage": "{name} wrote “{word}”: the day is already chosen.",
+      "criteriaFromProperty": "Criteria taken from the property: {criteria}",
+      "budgetUpTo": "≤ {amount}",
+      "doneCriteria": "Property of interest and criteria saved ({criteria})",
+      "smsSentAt": "SMS sent at {time}",
+      "nextLead": "Next request",
+      "notified": {
+        "sms": "A text message notified {name}.",
+        "smsEmail": "A text message and an email notified {name}.",
+        "email": "An email notified {name}.",
+        "whatsapp": "A WhatsApp message notified {name}.",
+        "whatsappEmail": "A WhatsApp message and an email notified {name}.",
+        "aucun": "No text message or email was sent: let {name} know another way.",
+        "leVisiteur": "the visitor"
+      }
     },
     "propose": {
       "cta": "Propose another slot",
@@ -18070,6 +19305,18 @@
         "application_not_selected": {
           "title": "Application not selected",
           "body": "Your application {reference} for {property} was not selected: the property has been allocated to another tenant."
+        },
+        "dossier_piece_requested": {
+          "title": "Document requested for your file",
+          "body": "For your request {reference} ({property}), the agency asks you for: {piece, select, identity {identity document} payslips {salary slips} employment_certificate {employment certificate} guarantor_commitment {guarantor commitment} guarantor_identity {guarantor identity document} proof_of_funds {proof of funds} other {a document}}. Upload it from your booking."
+        },
+        "counter_offer_received": {
+          "title": "Counter-offer on your offer",
+          "body": "For your offer {reference} ({property}), the agency proposes {amount}, until {valid_until}. Accept or decline it from your booking."
+        },
+        "counter_offer_answered": {
+          "title": "Answer to your counter-offer",
+          "body": "Offer {reference} ({property}): the customer {answer, select, accepted {has accepted} declined {has declined} other {has answered}} your counter-offer of {amount}."
         }
       },
       "account": {
@@ -18084,6 +19331,10 @@
         "reactivated": {
           "title": "Your account is reactivated",
           "body": "Your Takussan account has been reactivated. Reason: {reason}. You can sign in again."
+        },
+        "two_factor_reminder": {
+          "title": "Turn on two-factor authentication",
+          "body": "{agency} asks you to turn on two-factor authentication for your account. Turn it on from your profile security settings."
         }
       },
       "invitation": {
@@ -18142,6 +19393,14 @@
         "cancelled_window": {
           "title": "Your visit of {property} is cancelled",
           "body": "The visit requested for {date}, {window, select, morning {in the morning} afternoon {in the afternoon} other {in the evening}} is cancelled."
+        },
+        "confirmed_by_owner": {
+          "title": "Visit confirmed by the landlord: {property}",
+          "body": "{owner} confirmed the visit on {scheduled_at}."
+        },
+        "no_show": {
+          "title": "Missed visit: {property}",
+          "body": "The visit planned on {date} did not take place. You can request another one."
         }
       },
       "message": {
@@ -18334,6 +19593,18 @@
         "owner_reminder": {
           "title": "Reminder: your approval is required for \"{request}\"",
           "body": "Your agency reminds you that a quote of {amount} for \"{request}\" is awaiting your decision. Approve or reject it."
+        },
+        "cancelled_with_reason": {
+          "title": "Maintenance cancelled: {request}",
+          "body": "The maintenance \"{request}\" has been cancelled. Reason: {reason}"
+        },
+        "step_cancelled_with_reason": {
+          "title": "Your request \"{request}\": cancelled",
+          "body": "Your maintenance request has been cancelled. Reason: {reason}"
+        },
+        "reschedule_requested": {
+          "title": "Another time slot requested: \"{request}\"",
+          "body": "The tenant proposes {slots, plural, one {# other time slot} other {# other time slots}} for \"{request}\". The current slot stays until you set a new one."
         }
       },
       "maintenance_quote": {
@@ -18547,11 +19818,17 @@
         },
         "archive_ready": {
           "title": "Your archive is ready",
-          "body": "The document archive you requested is ready. Download it from your documents within 24 hours."
+          "body": "The archive you requested is ready. Open this notification to download it within 24 hours."
         },
         "archive_failed": {
           "title": "Your archive could not be prepared",
-          "body": "The document archive you requested could not be prepared. Try again from your documents."
+          "body": "The archive you requested could not be prepared. Open this notification to try again."
+        }
+      },
+      "inventory": {
+        "signed_pdf_available": {
+          "title": "Inventory signed: lease {reference}",
+          "body": "The tenant and the landlord have signed the inventory of lease {reference} for {property}. Download its PDF from the inventory page."
         }
       }
     },
@@ -18590,7 +19867,9 @@
           "reminder": "Visit reminders",
           "rescheduled_by_visitor": "New times proposed",
           "cancelled_by_visitor": "Visits cancelled by the visitor",
-          "cancelled_by_visitor_window": "Visits cancelled by the visitor"
+          "cancelled_by_visitor_window": "Visits cancelled by the visitor",
+          "confirmed_by_owner": "Visits confirmed by the landlord",
+          "no_show": "Missed visits"
         },
         "lease_payment": {
           "overdue_landlord": "Unpaid rents",
@@ -18821,7 +20100,9 @@
       "toutVoir": "See all",
       "derniere": "Last operation: {date} · {delta} {count, plural, one {credit} other {credits}}",
       "nbLots": "{count, plural, one {# lot} other {# lots}}",
-      "expireLe": "expires on {date}"
+      "expireLe": "expires on {date}",
+      "rapport": "Last 30 days report",
+      "lotsPasses": "Spent or expired lots"
     },
     "reserve": {
       "titre": "This page is reserved for the space’s administrators",
@@ -18885,7 +20166,9 @@
         "vues": "Views",
         "contacts": "Contacts",
         "visites": "Visits"
-      }
+      },
+      "comparaison": "{ratio} × more views than the week before",
+      "comparaisonCourt": "{ratio} × the week before"
     },
     "pousser": {
       "titre": "To push",
@@ -18933,6 +20216,30 @@
       "echecAchat": "The promotion could not be saved.",
       "fait": "“{bien}” is promoted: {offre}.",
       "bienEnEchec": "This property's promotions could not be loaded."
+    },
+    "rapport": {
+      "periode": "From {debut} to {fin}",
+      "parMiseEnAvant": "By promotion",
+      "parJour": "Day by day",
+      "aucune": "No promotion over these 30 days.",
+      "col": {
+        "jour": "Day",
+        "affichages": "Impressions",
+        "vues": "Views",
+        "consultations": "Page visits"
+      },
+      "legende": "Impressions: the listing card shown in results. Views: the listing opened from a promotion. Page visits: every opening of the listing during a promotion.",
+      "periodeBoost": "since {date}",
+      "periodeBoostFinie": "from {debut} to {fin}"
+    },
+    "lotsPasses": {
+      "vide": "No spent or expired lot.",
+      "etat": {
+        "spent": "Spent",
+        "expired": "Expired"
+      },
+      "expireLe": "expired on {date}",
+      "recus": "{count, plural, one {# credit received} other {# credits received}} on {date}"
     }
   },
   "commissions": {
@@ -19049,7 +20356,6 @@
       "solder": "Settle",
       "solderAria": "Settle {nom}",
       "solderMontant": "Settle {montant}",
-      "lignesDe": "{nom}'s lines",
       "ouvrirAgent": "Open {nom}'s lines",
       "total": "Total",
       "exporter": "Export",
@@ -19060,7 +20366,9 @@
       "beneficiaireTous": "Beneficiary: all",
       "tous": "All beneficiaries",
       "dusLignes": "owed · {count, plural, one {# line} other {# lines}} · paid this year: {paye}",
-      "sansNom": "Beneficiary #{id}"
+      "sansNom": "Beneficiary #{id}",
+      "releveDe": "Agent statement — {nom}",
+      "releve": "Agent statement"
     },
     "menu": {
       "actions": "Mark as paid, cancel",
@@ -19144,7 +20452,9 @@
       "mauvaisCompte": "This invitation does not match the signed-in account. Switch account to accept it.",
       "verrouille": "Too many attempts: this number is blocked for a while. Try again later.",
       "bloque": "This account is suspended.",
-      "codeInvalide": "That is not the right code. Check it, or ask for another one."
+      "codeInvalide": "That is not the right code. Check it, or ask for another one.",
+      "appelIndisponible": "Calls are not available right now. Resend the code by text message.",
+      "codeInvalideEssais": "{n, plural, =0 {That’s not the right code. You have no attempts left: request a new code.} one {That’s not the right code. You have # attempt left before requesting another one.} other {That’s not the right code. You have # attempts left before requesting another one.}}"
     },
     "rejoindre": "Join {agence}",
     "meConnecter": "Sign in",
@@ -19187,7 +20497,8 @@
         "loyers": "Your rents and payouts",
         "loyersDetail": "What is collected, what is paid out to you, and when",
         "quittances": "Your rent receipts",
-        "quittancesDetail": "Every month, without asking"
+        "quittancesDetail": "Every month, without asking",
+        "vignettes": "Your properties managed by the agency"
       },
       "tenant": {
         "bail": "Your lease",
@@ -19227,7 +20538,10 @@
       "libelle": "Your number",
       "aideSms": "Given by {agence}. It is the number you will sign in with.",
       "aideSmsSans": "Given by the agency. It is the number you will sign in with.",
-      "aideEmail": "You will sign in with this number: the code is sent to it."
+      "aideEmail": "You will sign in with this number: the code is sent to it.",
+      "modifierLibelle": "Change the number",
+      "garder": "Keep the number given by {agence}",
+      "garderSans": "Keep the number given by the agency"
     },
     "code": {
       "retour": "Back",
@@ -19241,7 +20555,9 @@
       "renvoyerDans": "Resend the code in {temps}",
       "ensuite": "This code verifies your number and lets you in in one step. Right after: <fort>your space</fort>.",
       "ensuiteBiens": "This code verifies your number and lets you in in one step. Right after: <fort>{n, plural, one {your property} other {your # properties}}</fort>.",
-      "verification": "Checking…"
+      "verification": "Checking…",
+      "ouParAppel": "<renvoi>{texte}</renvoi>, or <appel>get it by phone call</appel>.",
+      "appelEnCours": "A call is on its way: answer it and the code will be read out to you."
     },
     "conditions": {
       "titre": "Terms of use",
@@ -19268,7 +20584,8 @@
       "compte": "Signed-in account",
       "pasMoi": "Not me — switch account",
       "changer": "Switch account",
-      "sansNom": "Your account has no name yet: {agence} suggested this one. Confirm or correct it."
+      "sansNom": "Your account has no name yet: {agence} suggested this one. Confirm or correct it.",
+      "barre": "Signed in as {nom}"
     },
     "motDePasse": {
       "afficher": "Show password",
@@ -19284,7 +20601,9 @@
         "envoyee": "Request sent. {agence} can now send you a new invitation.",
         "envoyeeSans": "Request sent. The agency can now send you a new invitation.",
         "trop": "Too many requests. Try again in a moment.",
-        "echec": "The request was not sent. Try again."
+        "echec": "The request was not sent. Try again.",
+        "texteInvitant": "{prenom} invited you to {agence} on {date}. Invitations stay valid for 7 days. Nothing is lost: the agency can send you a new one in one step.",
+        "texteInvitantSans": "{prenom} invited you on {date}. Invitations stay valid for 7 days. Nothing is lost: the agency can send you a new one in one step."
       },
       "annulee": {
         "titre": "This invitation was cancelled",
@@ -19317,6 +20636,15 @@
     },
     "sortie": {
       "reprise": "Nothing has been saved yet. Your invitation link will bring you back here for as long as it is valid."
+    },
+    "aide": {
+      "court": "Help",
+      "long": "Need help?",
+      "titre": "Need help?",
+      "texte": "{agence} can answer your questions about this invitation.",
+      "appeler": "Call {agence}",
+      "whatsapp": "Message {agence} on WhatsApp",
+      "messageWhatsApp": "Hello {agence}, I received your invitation on Takussan and I have a question."
     }
   },
   "radarClaim": {
@@ -19706,7 +21034,7 @@
     "facultatif": "Optional",
     "message": "Message",
     "messagePlaceholder": "What the client told you",
-    "prevenu": "The client will be notified and can cancel.",
+    "prevenu": "The client will be notified and can complete their file.",
     "enregistrerCandidature": "Save the application",
     "enregistrerOffre": "Save the offer",
     "enregistrer": "Save",
@@ -19726,7 +21054,8 @@
     "codes": {
       "booking": {
         "customer_required": "Choose the client: a request recorded by the agency is always in their name.",
-        "kind_mismatch": "This type does not match the property: an application is for a rental, an offer for a property for sale."
+        "kind_mismatch": "This type does not match the property: an application is for a rental, an offer for a property for sale.",
+        "field_not_for_kind": "A field sent does not apply to this kind of request: check the kind selected."
       }
     }
   },
@@ -19771,6 +21100,16 @@
         "report_not_closable": "This visit can't take a report yet: it hasn't taken place.",
         "report_missing": "There is no report to edit for this visit."
       }
+    },
+    "dictee": {
+      "dicter": "Dictate",
+      "arreter": "Stop dictation",
+      "ecoute": "Listening…",
+      "duree": "{duree} dictated · editable"
+    },
+    "avant": {
+      "titre": "Before this visit",
+      "parQui": "{geste} ({nom})"
     }
   },
   "etMaintenant": {
@@ -19831,13 +21170,24 @@
     "enregistre": "Saved at {heure}",
     "enregistreFiche": "Saved to the record at {heure}",
     "modifier": "Edit",
-    "qualifier": "Move to “Qualified”",
     "aujourdhui": "{etape} → Qualified",
     "etapeAppliquee": "{prenom} moves to “Qualified”",
-    "terminer": "Done",
     "fil": "Each choice is written to the record's timeline.",
     "sansFiche": "{nom} has no client record yet.",
-    "creerFiche": "Create their record"
+    "creerFiche": "Create their record",
+    "question": {
+      "titre": "Move to Qualified?",
+      "plusTard": "Later",
+      "oui": "Yes"
+    },
+    "filTelephone": "Each choice is written to the record’s timeline. With no choice, a follow-up is suggested tomorrow in “Today”.",
+    "relanceDuLendemain": {
+      "tacheTitre": "Follow up with {prenom}",
+      "tacheDescription": "After the visit of {bien}",
+      "posee": "Follow-up set for tomorrow",
+      "annuler": "Undo",
+      "retiree": "Follow-up removed"
+    }
   },
   "coqueDEntree": {
     "retourAuSite": "Back to site",
@@ -19918,7 +21268,9 @@
       "messageTache": "Hello {nom}, ",
       "libreJusqua": "Free until {heure}",
       "planifier": "Visit",
-      "rienCeJour": "Nothing planned that day."
+      "rienCeJour": "Nothing planned that day.",
+      "dansMinutes": "in {n} min",
+      "dansHeures": "{minutes, plural, =0 {in {h} h} other {in {h} h {m}}}"
     },
     "chiffres": {
       "titre": "My figures",
@@ -19936,17 +21288,27 @@
         "taches": "Tasks",
         "commissions": "Commissions"
       },
-      "rapport": "See this month’s report"
+      "rapport": "See this month’s report",
+      "sansPhoto": "{n} without a photo",
+      "aVenir": "{montant} upcoming"
     },
     "libre": {
       "titre": "Nothing planned today.",
       "texte": "No visit, no task, nothing to handle. A chance to get ahead:",
       "relancer": "{n, plural, one {# prospect to follow up} other {# prospects to follow up}}",
-      "relancerDetail": "Your clients waiting to hear from you",
       "planifier": "Schedule a visit",
       "planifierDetail": "The whole day is free",
       "client": "Add a client",
-      "clientDetail": "A contact met in the field"
+      "clientDetail": "A contact met in the field",
+      "relancerUn": "Follow up with {nom}",
+      "relancerAttend": "{nom} has been waiting {n, plural, one {# day} other {# days}}",
+      "relancerNom": "{nom} is waiting to hear from you",
+      "proposer": "{n, plural, one {# property to suggest to {prenom}} other {# properties to suggest to {prenom}}}",
+      "proposerSansPrenom": "{n, plural, one {# property to suggest to a client} other {# properties to suggest to a client}}",
+      "proposerQuartiers": "Properties {lieux}",
+      "aLieu": "in {lieu}",
+      "proposerDetail": "Matching their search",
+      "liste": "{debut} and {fin}"
     }
   },
   "agenda": {
@@ -19984,7 +21346,10 @@
     "periode": {
       "trenteJours": "30 days",
       "quatorzeJours": "14 d",
-      "quatorzeJoursLong": "Fourteen days"
+      "quatorzeJoursLong": "Fourteen days",
+      "trenteJoursCourt": "30 d",
+      "trenteJoursLong": "Thirty days",
+      "dureeLibelle": "Period shown: {duree}"
     },
     "resume": {
       "cetteSemaine": "This week",
@@ -20054,7 +21419,9 @@
       "planifierCourt": "Schedule a viewing",
       "planifierA": "Schedule a viewing at {heure}",
       "planifierLe": "Schedule a viewing on {jour}",
-      "planifierCreneau": "Schedule a viewing on {jour} at {heure}"
+      "planifierCreneau": "Schedule a viewing on {jour} at {heure}",
+      "dansMinutes": "in {n} min",
+      "dansHeures": "{minutes, plural, =0 {in {h} h} other {in {h} h {m}}}"
     },
     "occupation": {
       "enCours": "{n, plural, =0 {No stay in progress} one {# stay in progress} other {# stays in progress}}",
@@ -20079,7 +21446,9 @@
         "echeance": "Lease date",
         "intervention": "Maintenance",
         "libre": "Free"
-      }
+      },
+      "sejourClient": "{client}",
+      "sejourClientEnAttente": "{client} · pending"
     },
     "fiche": {
       "titre": "Event",
@@ -20099,12 +21468,14 @@
         "lease": "Open the lease",
         "lease_event": "Open the lease",
         "maintenance": "Open the maintenance request"
-      }
+      },
+      "premiereVisite": "{nom} · first visit"
     },
     "mois": {
       "aujourdhui": "{n} · today",
       "sejour": "Stay · {titre}",
-      "sejoursEnPlus": "{n, plural, one {+# stay} other {+# stays}}"
+      "sejoursEnPlus": "{n, plural, one {+# stay} other {+# stays}}",
+      "sejourClient": "Stay · {titre} · {client}"
     },
     "vuesCourtes": {
       "day": "Day",
@@ -20140,7 +21511,8 @@
       "semaine": "This week",
       "plusTard": "Later",
       "sans": "No due date",
-      "faites": "Done"
+      "faites": "Done",
+      "sansRattachement": "Not linked"
     },
     "pastilles": {
       "libelle": "Due date",
@@ -20250,7 +21622,30 @@
         "aujourdhui": "today",
         "demain": "tomorrow",
         "lundi": "Monday"
-      }
+      },
+      "annuler": "Cancel"
+    },
+    "aideBalayage": "Swipe right: done. Swipe left: postpone (tomorrow, Monday, choose).",
+    "grouper": {
+      "libelle": "Group by",
+      "echeance": "Due date",
+      "rattachement": "Linked record"
+    },
+    "rattachement": {
+      "libelle": "Linked to",
+      "tout": "All",
+      "customer": "Customers",
+      "property": "Properties"
+    },
+    "tableau": {
+      "titre": "Task",
+      "rattachement": "Linked to",
+      "echeance": "Due",
+      "actions": "Actions",
+      "reporter": "Postpone",
+      "reporterAria": "Postpone “{titre}”",
+      "modifier": "Edit",
+      "modifierAria": "Edit “{titre}”"
     }
   },
   "accueil": {
@@ -20311,7 +21706,8 @@
         "louesLibres": "{n} rented · {libres} vacant",
         "surAttendus": "of {montant} expected",
         "leJour": "on {jour}"
-      }
+      },
+      "chargement": "Loading this month’s figures"
     },
     "blocs": {
       "erreur": "Couldn’t load {quoi}.",
@@ -20324,7 +21720,8 @@
         "equipe": "today’s team",
         "echeances": "upcoming payments",
         "favoris": "your favourites"
-      }
+      },
+      "chargement": "Loading"
     },
     "toutEstAJour": {
       "titre": "All caught up"
@@ -20482,7 +21879,9 @@
       },
       "visite": {
         "titre": "Visit to confirm",
-        "detail": "{bien} · proposed by {agent}"
+        "detail": "{bien} · proposed by {agent}",
+        "proposeePar": "Proposed by {agent}",
+        "proposeeParAvecVisiteur": "Proposed by {agent} · visitor: {visiteur}"
       },
       "visites": {
         "autres": "{n, plural, one {See the other visit to confirm} other {See the # other visits to confirm}}"
@@ -20497,7 +21896,9 @@
         "detail": "{montant} · due {echeance}",
         "jours": "{n, plural, one {# day} other {# days}}",
         "sansLocataire": "Tenant",
-        "autres": "{n, plural, one {See the other late rent} other {See the # other late rents}}"
+        "autres": "{n, plural, one {See the other late rent} other {See the # other late rents}}",
+        "carte": "{n, plural, one {# overdue rent} other {# overdue rents}}",
+        "relance": "{montant} · reminded by the agency on {date}"
       },
       "reservations": {
         "carte": "{n, plural, one {# booking to handle} other {# bookings to handle}}",
@@ -20530,7 +21931,10 @@
         "passage": "{jour, select, aujourdhui {Visit today at {heure}} demain {Visit tomorrow at {heure}} hier {Visit planned yesterday at {heure}} passe {Visit planned on {date} at {heure}} other {Visit on {date} at {heure}}}",
         "passageDe": "{jour, select, aujourdhui {{nom} is coming today at {heure}} demain {{nom} is coming tomorrow at {heure}} hier {{nom} · visit planned yesterday at {heure}} passe {{nom} · visit planned on {date} at {heure}} other {{nom} is coming on {date} at {heure}}}",
         "aFixer": "Visit to be scheduled",
-        "aFixerAvec": "{nom} · visit to be scheduled"
+        "aFixerAvec": "{nom} · visit to be scheduled",
+        "reversement": "Next payout",
+        "reversementLe": "Next payout · {date}",
+        "apresCommission": "{montant} · after commission"
       },
       "resume": {
         "rien": "{jour} · nothing is waiting for your answer",
@@ -20538,6 +21942,28 @@
         "visites": "{n, plural, one {# visit to confirm} other {# visits to confirm}}",
         "separateurDate": " · ",
         "separateur": ", "
+      },
+      "demarrer": {
+        "titre": "Get started",
+        "compteLong": "{fait, plural, one {# step} other {# steps}} of {total}",
+        "continuer": "Continue",
+        "lien": "Get started, {fait} of {total}: {etape}",
+        "etapes": {
+          "premier_bien": "Propose a first property",
+          "pieces": {
+            "cni": "Send your ID document",
+            "rib": "Send your bank details (RIB)",
+            "ninea": "Send your NINEA"
+          }
+        },
+        "enPhrase": {
+          "premier_bien": "Propose a first property to your agency.",
+          "pieces": {
+            "cni": "Send your ID document from “Your documents”.",
+            "rib": "Send your bank details (RIB) from “Your documents”.",
+            "ninea": "Send your NINEA from “Your documents”."
+          }
+        }
       }
     },
     "prestataire": {
@@ -20557,7 +21983,10 @@
         "titre": "To quote",
         "quoi": "the quotes to prepare",
         "chiffrer": "Quote",
-        "demande": "{aLieu, select, oui {{lieu} · } other {}}requested {jour, select, aujourdhui {today} hier {yesterday} other {on {date}}}"
+        "demande": "{aLieu, select, oui {{lieu} · } other {}}requested {jour, select, aujourdhui {today} hier {yesterday} other {on {date}}}",
+        "titreBureau": "My pending quotes",
+        "quoiBureau": "your pending quotes",
+        "envoye": "{aDate, select, oui {Sent on {date}} other {Sent}} · awaiting the landlord"
       },
       "statut": {
         "aAccepter": "To accept",
@@ -20580,7 +22009,10 @@
         "sansDate": "Visit to be scheduled",
         "confirmee": "Confirmed",
         "aConfirmer": "Awaiting confirmation",
-        "voir": "View the visit"
+        "voir": "View the visit",
+        "deplacer": "Reschedule",
+        "itineraire": "Directions",
+        "deplacerImpossible": "Could not load the time slots for this visit. Try again from the visit."
       },
       "recherches": {
         "titre": "Your searches",
@@ -20604,6 +22036,16 @@
           "monthly": "/ month",
           "yearly": "/ year"
         }
+      },
+      "reponse": {
+        "aRepondu": "{nom} replied to you",
+        "citation": "“{texte}”",
+        "lire": "Read"
+      },
+      "chercher": "Find a property",
+      "publier": {
+        "question": "Have a property to rent out?",
+        "suite": "List it in a few minutes."
       }
     },
     "locataire": {
@@ -20630,11 +22072,40 @@
           "interdit": "You don’t have access to this receipt.",
           "indisponible": "This receipt isn’t available yet.",
           "echec": "The download failed. Try again."
-        }
+        },
+        "bailJusquau": "Lease until {date}",
+        "agenceEtAgent": "{agence} · {agent}",
+        "bailEtLoyer": "Lease until {date} · {loyer} per month",
+        "votreAgent": "{agence} · your agent",
+        "votreAgentSansAgence": "Your agent",
+        "ecrire": "Message",
+        "messageA": "Message to {nom}",
+        "appeler": "Call"
       },
       "resume": {
         "du": "{jour} · {montant} to pay",
         "prochain": "{jour} · next rent on {date}"
+      },
+      "paiements": {
+        "titre": "Recent payments",
+        "tous": "All payments",
+        "quoi": "your recent payments",
+        "quittance": "Receipt",
+        "quittanceDe": "Receipt · {periode}",
+        "caution": "Deposit",
+        "reservation": "Booking"
+      },
+      "interventions": {
+        "titre": "Ongoing repairs",
+        "vide": "No ongoing repairs in your home.",
+        "signaler": "Report a problem",
+        "quoi": "your repairs",
+        "toutes": "See all {n} repairs"
+      },
+      "entree": {
+        "titre": "Your move-in",
+        "aFinir": "To finish",
+        "restantes": "{n, plural, one {# step left} other {# steps left}}"
       }
     }
   },
@@ -20711,7 +22182,10 @@
       "ko": "{n} KB",
       "mo": "{n} MB"
     },
-    "facultatif": "Optional"
+    "facultatif": "Optional",
+    "debloque": {
+      "titre": "What it unlocks"
+    }
   },
   "rapports": {
     "titre": "Reports",
@@ -20785,19 +22259,27 @@
         "occupation": "Occupancy · last 12 months",
         "commissions": "Commissions · last 12 months",
         "bauxSignes": "Leases signed · last 12 months",
-        "cashflow": "Collected · last 12 months"
+        "cashflow": "Collected · last 12 months",
+        "impayes": "Unpaid · last 12 months",
+        "encaisseEtAttendu": "Collected and expected · last 12 months"
       },
       "courts": {
         "encaisse": "Collected",
         "occupation": "Occupancy",
         "commissions": "Commissions",
         "bauxSignes": "Leases signed",
-        "cashflow": "Collected"
+        "cashflow": "Collected",
+        "impayes": "Unpaid"
       },
       "choix": "Chart shown",
       "variationMois": "{mois}: {pourcent}% on {precedent}",
       "variationPoints": "{ecart} points over a year",
-      "depuisJanvier": "of which {montant} since January"
+      "depuisJanvier": "of which {montant} since January",
+      "attendu": "Expected",
+      "partDeLAttendu": "{pourcent}% of expected",
+      "voirLeTableau": "View table",
+      "voirLeGraphique": "View chart",
+      "serie": "Series"
     },
     "equipe": {
       "titre": "Team this month",
@@ -20826,7 +22308,10 @@
         "heuresMinutes": "{h} h {m}",
         "heures": "{h} h"
       },
-      "titreMoisDernier": "Team last month"
+      "titreMoisDernier": "Team last month",
+      "totalEquipe": "Team · {n, plural, one {# agent} other {# agents}}",
+      "totalMediane": "median {delai}",
+      "delaiInsuffisant": "Not enough conversations to measure the response time."
     },
     "enChiffres": "In figures",
     "chiffresCles": "Key figures · this month",
@@ -20846,7 +22331,9 @@
       "prereglages": {
         "moisDernier": "Last month",
         "ceMois": "This month",
-        "annee": "Year {annee}"
+        "annee": "Year {annee}",
+        "trimestre": "Quarter",
+        "autre": "Other…"
       },
       "telechargerAria": "Download {titre} as {format}",
       "cartes": {
@@ -20883,8 +22370,14 @@
         "lignes": "Rows",
         "gestes": "Actions"
       },
-      "pied": "No file is kept: “Redo” runs the export again with the same settings. At most {max} rows, {pdf} as PDF.",
-      "telechargerLExport": "Download the export"
+      "pied": "Each file can be downloaded again for {jours} days; after that, “Redo” runs the export again with the same settings. At most {max} rows, {pdf} as PDF.",
+      "telechargerLExport": "Download the export",
+      "lignesAExporter": "{n, plural, =0 {No rows to export.} one {{lignes} row to export.} other {{lignes} rows to export.}}",
+      "tropDeLignes": "{lignes} rows to export: more than the {limite} an export in this format can hold. Shorten the period or pick another format.",
+      "retelecharger": "Download again",
+      "retelechargerAria": "Download the {type} export again, {periode}",
+      "retelechargerExpire": "This file is no longer available: use “Redo” to run the export again.",
+      "retelechargerEchec": "The download failed. Please try again."
     },
     "alertes": {
       "declencheeLe": "Triggered on {date}",
@@ -20893,7 +22386,9 @@
       "destinatairesCompte": "{n, plural, =0 {Nobody} one {# administrator} other {# administrators}}",
       "canaux": {
         "email": "email",
-        "inapp": "notification"
+        "inapp": "notification",
+        "whatsapp": "WhatsApp",
+        "both": "Email and WhatsApp"
       },
       "seuil": "threshold {valeur}",
       "delai": "{h} h",
@@ -20903,7 +22398,7 @@
       "nouvelle": "New alert",
       "resume": "{n, plural, =0 {No alerts} one {# alert} other {# alerts}} · {declenchees, plural, =0 {none crossed} one {# crossed} other {# crossed}} · measures checked every hour",
       "suppressionEchec": "Deletion failed. Please try again.",
-      "videDescription": "Create an alert: administrators are notified when the indicator crosses the threshold. Measures are checked every hour.",
+      "videDescription": "Create an alert: the people you choose (by default, administrators) are notified when the indicator crosses the threshold. Measures are checked every hour.",
       "actuel": "Current",
       "previent": "Notifies {qui} · {canal}",
       "auPlusUne": "At most one alert every {delai}",
@@ -20921,12 +22416,21 @@
       "recents": "Recent triggers",
       "condition": "Condition",
       "quiEstPrevenu": "Who is notified",
-      "quiEstPrevenuValeur": "The agency’s active administrators, by notification and email.",
       "relueToutesLesHeures": "The measure is checked every hour.",
       "modificationEchec": "The change failed. Please try again.",
       "enregistrer": "Save",
       "uniteHeures": "hours",
-      "valeurActuelle": "Current value: {valeur}"
+      "valeurActuelle": "Current value: {valeur}",
+      "canalChoix": {
+        "email": "Email",
+        "whatsapp": "WhatsApp",
+        "both": "Both"
+      },
+      "tousLesAdministrateurs": "All administrators",
+      "quiEstPrevenuAide": "With no one chosen, every administrator who can read this figure is notified.",
+      "destinatairesChargement": "Loading possible recipients…",
+      "canalWhatsappAide": "WhatsApp only reaches people who turned it on in their preferences, with a verified number.",
+      "suite": "{canal} · {n, plural, =0 {nobody notified} one {# person notified} other {# people notified}}"
     },
     "reglage": {
       "titre": "Customise the figures",
@@ -20947,7 +22451,16 @@
       "enregistrer": "Save",
       "termine": "Done",
       "annuler": "Cancel",
-      "enregistre": "Saved."
+      "enregistre": "Saved.",
+      "modifierAria": "Edit the label and format of {libelle}",
+      "metrique": "Metric: {metrique}",
+      "metriqueAvecValeur": "Metric: {metrique} (today: {valeur})",
+      "libelleVide": "Every figure needs a label: fill in the empty one.",
+      "formats": {
+        "number": "Number",
+        "currency": "Amount",
+        "percent": "Percentage"
+      }
     },
     "description": "{nom} · {periode}",
     "descriptionPeriode": "from {debut} to {fin}",
@@ -20957,9 +22470,38 @@
       "aria": "Report period",
       "choisir": "Period: {periode}",
       "current_month": "This month",
-      "last_month": "Last month"
+      "last_month": "Last month",
+      "last_12_months": "12 months"
     },
-    "chiffresClesMoisDernier": "Key figures · last month"
+    "chiffresClesMoisDernier": "Key figures · last month",
+    "choisirLAgence": "Workspace: {nom}. Switch workspace",
+    "espaces": "Your workspaces",
+    "plusDActions": "More actions",
+    "chiffresClesDouzeMois": "Key figures · 12 months",
+    "detailParBail": {
+      "titre": "Breakdown by lease",
+      "ongletCommissions": "Commissions tab",
+      "toutLeReleve": "Full statement",
+      "bailSansNom": "Lease without a property",
+      "sansClient": "No client on file",
+      "clientSigne": "{client} · signed {date}",
+      "versee": "Paid",
+      "verseeLe": "Paid on {date}",
+      "aVenir": "Upcoming",
+      "annulee": "Cancelled",
+      "erreur": "Unable to load the breakdown by lease.",
+      "vide": "No commissions yet: they appear when a lease is signed.",
+      "colonnes": {
+        "bail": "Lease",
+        "client": "Client",
+        "signeLe": "Signed on",
+        "loyer": "Monthly rent",
+        "commission": "Commission",
+        "versement": "Payout"
+      }
+    },
+    "demandesEnAttente": "Pending requests",
+    "commissionsDouzeMois": "Commissions · 12 months"
   },
   "propertyDashboard": {
     "overview": {
@@ -21095,7 +22637,9 @@
         "priceMax": "Max price",
         "createdFrom": "Created after",
         "createdTo": "Created before",
-        "agent": "Agent"
+        "agent": "Agent",
+        "owner": "Landlord",
+        "suiviPar": "Managed by"
       },
       "mobile": {
         "button": "Filters",
@@ -21117,9 +22661,12 @@
         "lieu": "Location",
         "agentEtPortee": "Agent and scope",
         "afficher": "Show",
-        "plus": "More criteria"
+        "plus": "More criteria",
+        "bailleurEtAgent": "Landlord and agent"
       },
-      "total": "{count, plural, one {# property} other {# properties}}"
+      "total": "{count, plural, one {# property} other {# properties}}",
+      "ownerLabel": "Landlord",
+      "ownerAll": "All landlords"
     },
     "actions": {
       "error": "Action failed. Please try again.",
@@ -21363,7 +22910,10 @@
           "brouillon": "In preparation",
           "aucun": "No move-in inspection",
           "echec": "The inspection could not be loaded."
-        }
+        },
+        "avisDEcheance": "due notice on {date}",
+        "revision": "Rent review possible on {date}",
+        "revisionDetail": "Annual indexation clause"
       },
       "bailleur": {
         "titre": "Landlord",
@@ -21400,7 +22950,8 @@
         "vide": "No instalment recorded.",
         "recuLe": "Received on {date}",
         "echeanceLe": "Due on {date}",
-        "echeanceEtPenalite": "Due on {date} · late fee {montant} due"
+        "echeanceEtPenalite": "Due on {date} · late fee {montant} due",
+        "recuLeParMoyen": "Received on {date} · {moyen}"
       },
       "carte": {
         "loyerDe": "{mois} rent",
@@ -21447,11 +22998,16 @@
       "identite": {
         "surface": "{area} m²",
         "enLigne": "Online",
-        "horsLigne": "Offline"
+        "horsLigne": "Offline",
+        "valide": "Approved"
       },
       "responsable": {
-        "detail": "Responsible agent",
-        "aucun": "Not assigned"
+        "aucun": "Not assigned",
+        "principal": "Lead agent",
+        "collaborateurs": "{count, plural, one {# collaborator} other {# collaborators}}"
+      },
+      "interventions": {
+        "enCours": "{count, plural, one {# ongoing work order} other {# ongoing work orders}}"
       }
     },
     "annonces": {
@@ -21471,15 +23027,17 @@
         "brouillon": "Draft",
         "horsLigne": "Offline"
       },
-      "chiffres": "{vues, plural, one {# view} other {# views}} · {favoris, plural, one {# favourite} other {# favourites}}",
       "caption": "Listings",
       "sousTitre": "{total, plural, one {# property in the portfolio} other {# properties in the portfolio}} · {online, plural, =0 {none online} other {# online}}",
       "quota": {
         "texte": "{used, plural, one {# active listing} other {# active listings}} of {limit}",
         "aria": "Your agency’s listing quota",
-        "definition": "Available, approved or pending"
+        "definition": "Available, approved or pending",
+        "offre": "{nom} plan"
       },
-      "boostee": "Boosted until {date}"
+      "boostee": "Boosted until {date}",
+      "chiffres30j": "{vues, plural, one {# view} other {# views}} · {contacts, plural, one {# contact} other {# contacts}} · {visites, plural, one {# visit} other {# visits}}",
+      "fenetre30j": "(30 d)"
     },
     "horsLigne": {
       "phrase": {
@@ -21904,5 +23462,13 @@
     "resubmitError": "Resubmission failed. Please try again.",
     "approvedTitle": "Property approved and published",
     "approvedOn": "Approved on {date}"
+  },
+  "dictee": {
+    "erreurs": {
+      "refusee": "The microphone is blocked: allow it in your browser. Your text is kept.",
+      "reseau": "Dictation needs a connection. Your text is kept.",
+      "silence": "Nothing was heard. Please try again.",
+      "autre": "Dictation stopped. Your text is kept."
+    }
   }
 }

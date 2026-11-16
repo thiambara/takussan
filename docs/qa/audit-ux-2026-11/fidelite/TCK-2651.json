@@ -59,13 +59,6 @@
     },
     {
       "ecran": "a-4",
-      "element": "« Prochain versement prévu le 15 nov. par virement », lucide-calendar-clock, « CBAO ••• 4521 · le relevé PDF est joint à la notification »",
-      "propriete": "absent du produit",
-      "exception": "données de démo",
-      "motif": "aucun `next_payout` servi pour owner1 ; la phrase est rendue quand il l'est (test « AC1 »). Le compte bancaire et la notification jointe ne sont servis par aucune API"
-    },
-    {
-      "ecran": "a-4",
       "element": "ligne « Reste à vous verser » en pied de ventilation",
       "propriete": "absent du produit",
       "exception": "données",
@@ -77,27 +70,6 @@
       "propriete": "texte",
       "exception": "données de démo",
       "motif": "le libellé suit les versements de la période servis (`payouts[].paid_in_period`) ; la démo n'a pas d'acompte nommé"
-    },
-    {
-      "ecran": "a-4 (bureau)",
-      "element": "« Le versement part le 15 de chaque mois… », note de relance « Garage Ouest Foire : relancé… »",
-      "propriete": "absent du produit",
-      "exception": "données",
-      "motif": "aucune API ne sert la règle de versement de l'agence ni les relances d'un bien ; hors périmètre (versement programmé : ambition de l'audit)"
-    },
-    {
-      "ecran": "a-4 (bureau)",
-      "element": "« Bail LS-… » sous le bien, photos des biens",
-      "propriete": "absent du produit",
-      "exception": "données",
-      "motif": "`properties[]` ne sert ni la référence du bail ni de photo : tuile à icône lucide-house à la place"
-    },
-    {
-      "ecran": "a-4 (bureau)",
-      "element": "« Derniers versements » : « Avis », lucide-download, « Virement CBAO ••• 4521 · RVS-… », compteur « 3 » de l'onglet Versements",
-      "propriete": "absent du produit",
-      "exception": "données",
-      "motif": "aucun avis de versement téléchargeable ni moyen de versement servi par `GET /api/payouts` ; le bloc est sous la ligne de flottaison à 1280 avec 72 biens. Pas de compteur d'onglet : il demanderait une lecture de plus par onglet"
     },
     {
       "ecran": "a-4",
@@ -119,6 +91,41 @@
       "propriete": "collants sous l’en-tête au défilement ; la maquette les pose dans le contenu qui défile",
       "exception": "règle du gabarit (TCK-2804)",
       "motif": "décision 2a de team-lead (2026-11-14) : une seule règle pour toute page à onglets — le marqueur `ONGLETS_DE_PAGE` et l’enveloppe — et l’objectif du ticket (garder les onglets sous le pouce). Au repos, rien ne diffère de la maquette : rangée à y = 56, onglets à y = 70"
+    },
+    {
+      "ecran": "a-4",
+      "element": "« CBAO ••• 4521 · le relevé PDF est joint à la notification »",
+      "propriete": "texte",
+      "exception": "données",
+      "motif": "TCK-2916 : la ligne du compte rend `next_payout.payout_method_masked` tel que l'API le sert (« •••• 4521 », TCK-2915) — le nom de la banque n'est servi par aucune API ; un portefeuille se nomme (« Wave •••• 2018 »). « le relevé PDF est joint à la notification » n'est pas écrit : aucune notification de versement ne joint le relevé (aucun `attach` dans `app/Notifications`), le dire serait faux. La phrase et le compte ne se rendent qu'avec un `next_payout` servi (owner1 n'en a pas : AC7 non mesuré)"
+    },
+    {
+      "ecran": "a-4",
+      "element": "note de relance : « (SMS) »",
+      "propriete": "texte",
+      "exception": "données",
+      "motif": "TCK-2916 : `ReminderChannel` n'a que `whatsapp` et `call` (ADR-0105) — « (WhatsApp) », « (appel de Sokhna Sène) » ; l'auteur (`by_name`) s'écrit quand il est servi. Au téléphone, la DERNIÈRE relance (« relancé par Dakar Immo le 10 nov. ») quand il y en a plusieurs ; la maquette en montre une"
+    },
+    {
+      "ecran": "a-4 (téléphone)",
+      "element": "règle « Le versement part le … de chaque mois »",
+      "propriete": "absent au téléphone",
+      "exception": "maquette",
+      "motif": "TCK-2916 : comme la maquette, la règle n'est rendue qu'au bureau (`lg`), sous la ventilation ; le jour est `payout_rule.day` (mandat, sinon agence), absent sans règle"
+    },
+    {
+      "ecran": "a-4 (bureau)",
+      "element": "« Derniers versements » : « Virement CBAO ••• 4521 · RVS-… »",
+      "propriete": "texte",
+      "exception": "données",
+      "motif": "TCK-2916 : `GET /api/payouts` ne sert pas le compte masqué dans la liste : « Virement bancaire · RVS-… » (moyen et référence). « Avis » n'est rendu que pour un reversement AU BAILLEUR terminé (l'API refuse les autres, 422 `payout.notice_unavailable`) ; une ligne sans avis garde la place du bouton. L'avis est aussi au détail d'un versement (onglet Versements, « Avis de versement (PDF) »)"
+    },
+    {
+      "ecran": "a-4",
+      "element": "compteur « 3 » de l'onglet Versements",
+      "propriete": "valeur",
+      "exception": "données",
+      "motif": "TCK-2916 : `payouts_count` du relevé servi — les versements de la PÉRIODE choisie, alors que l'onglet liste tous les versements ; absent quand le relevé ne le sert pas. Rendu comme la maquette (chiffre discret, sans parenthèses), nom accessible « Versements (3) »"
     }
   ],
   "ecarts_ouverts": [

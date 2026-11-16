@@ -8,6 +8,7 @@ use App\Models\Enums\MessageType;
 use App\Rules\FichierNonVide;
 use App\Rules\PixelsAuPlus;
 use App\Services\Messaging\ConversationAccess;
+use App\Support\Media\VoiceNoteRules;
 use Illuminate\Validation\Rule;
 
 /**
@@ -69,21 +70,8 @@ class SendMessageConversationRequest extends BaseFormRequest
         'document' => ['mimetypes' => ['application/pdf'], 'max_kb' => 10240],
     ];
 
-    /**
-     * ADR-0038 — formats que produisent les navigateurs mobiles (`MediaRecorder`) et les lecteurs
-     * courants. `video/webm` : ce que `finfo` rend pour un enregistrement Chrome sans piste vidéo.
-     * `video/mp4` (TCK-2058, amendement du 2026-10-23) : ce que `finfo` rend pour un MP4 audio de
-     * marque générique (`isom`, `iso5`, `iso6`, `mp42`) — il juge la marque `ftyp`, pas la piste ;
-     * seule la marque `M4A ` est lue `audio/x-m4a`. La borne de 2 Mo reste ce qui protège.
-     */
-    public const AUDIO_MIMETYPES = [
-        'audio/webm', 'video/webm', 'audio/ogg', 'audio/mp4', 'video/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mpeg',
-    ];
-
-    /** ADR-0038 — la borne APPLIQUÉE (Ko). La durée, elle, est déclarée par le client. */
-    public const AUDIO_MAX_KB = 2048;
-
-    public const AUDIO_MAX_SECONDS = 60;
+    // TCK-2900 (ADR-0113 § 1) — formats, taille et durée de la note vocale : `VoiceNoteRules`, la
+    // règle partagée avec les porteurs d'une collection `voice_notes`. Plus aucune borne écrite ici.
 
     /** @return array<string, mixed> */
     public function rules(): array
@@ -99,11 +87,11 @@ class SendMessageConversationRequest extends BaseFormRequest
             'type' => ['nullable', Rule::in(array_map(static fn (MessageType $t): string => $t->value, self::PARTICIPANT_TYPES))],
             'audio' => [
                 'required_if:type,audio', 'prohibited_unless:type,audio',
-                'file', 'mimetypes:'.implode(',', self::AUDIO_MIMETYPES), 'max:'.self::AUDIO_MAX_KB,
+                ...VoiceNoteRules::file(),
             ],
             'duration' => [
                 'required_if:type,audio', 'prohibited_unless:type,audio',
-                'integer', 'min:1', 'max:'.self::AUDIO_MAX_SECONDS,
+                ...VoiceNoteRules::duration(),
             ],
             // TCK-2631 — un fichier, requis pour `image` et `document`, interdit ailleurs. Ses
             // pixels sont bornés sur l'EN-TÊTE (`PixelsAuPlus`) : le réencodage qui retire l'EXIF

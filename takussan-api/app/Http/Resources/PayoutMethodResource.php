@@ -41,6 +41,17 @@ class PayoutMethodResource extends BaseResource
             'is_default' => (bool) $this->is_default,
             'verified' => $verification !== null,
             'verified_at' => $this->iso($verification?->verified_at),
+            // TCK-2863 — `verified`, `in_review` (RIB envoyé, pas encore vérifié) ou `to_confirm`.
+            // « En revue » est informatif : seul `verified` permet de verser.
+            'verification_status' => match (true) {
+                $verification !== null => 'verified',
+                $this->bank_statement_submitted_at !== null => 'in_review',
+                default => 'to_confirm',
+            },
+            'bank_statement_submitted_at' => $this->iso($this->bank_statement_submitted_at),
+            // TCK-2863 — le média du RIB, à signer par `GET /api/media/{id}/sign` : le titulaire, et
+            // le personnel de l'agence qui le paie (celui qui vérifie, `MediaPolicy::sign`).
+            'bank_statement_media_id' => $this->resource->getFirstMedia(PayoutMethod::BANK_STATEMENT_COLLECTION)?->id,
             'created_at' => $this->iso($this->created_at),
         ];
     }

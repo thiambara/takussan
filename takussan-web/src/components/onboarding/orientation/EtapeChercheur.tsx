@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { Check } from 'lucide-react';
 
 import { BOUTON_D_ENTREE } from '@/components/auth/BoutonCollant';
+import { estNouveau } from '@/components/property/liste/nouveau';
 import { TitreDEntree } from '@/components/auth/PiecesDuCourriel';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { Button } from '@/components/ui/button';
@@ -163,7 +164,13 @@ export function EtapeChercheur({
                 ) : null}
               </span>
               <span className="min-w-0 flex-1 leading-snug">
-                <span className="block truncate text-corps font-semibold">{r.title}</span>
+                <span className="flex items-center gap-2">
+                  <span className="truncate text-corps font-semibold">{r.title}</span>
+                  {/* TCK-2938 — la règle de la liste des biens (TCK-2499), la même fonction et la même date. */}
+                  {estNouveau(r.published_at ?? r.created_at) ? (
+                    <span className="flex-none rounded-full bg-primary/10 px-2 py-0.5 text-[0.6875rem] font-semibold text-primary">{t('nouveau')}</span>
+                  ) : null}
+                </span>
                 <span className="mt-0.5 block text-ui text-muted-foreground">
                   {[r.location.quarter, r.area ? `${r.area} m²` : null].filter(Boolean).join(' · ')}
                 </span>

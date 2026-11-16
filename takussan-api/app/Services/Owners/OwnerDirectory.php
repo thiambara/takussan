@@ -2,8 +2,12 @@
 
 namespace App\Services\Owners;
 
+use App\Http\Requests\Api\Owners\UpdateOwnerProfileRequest;
+use App\Models\Address;
 use App\Models\Agency;
+use App\Models\Document;
 use App\Models\Enums\Capability;
+use App\Models\Enums\DocumentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PayeeRole;
@@ -14,11 +18,13 @@ use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Policies\OwnerStatementPolicy;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Invitation\InvitationService;
 use App\Services\Payout\OwnerStatementService;
 use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Property\Occupation;
 use App\Services\Reporting\OverdueInstalment;
+use App\Sorts\OwnerLastPayoutSort;
 use App\Support\Masking;
 use App\Support\Search\CleDeQuartier;
 use Illuminate\Database\Eloquent\Builder;
@@ -41,7 +47,8 @@ use Illuminate\Support\Str;
  * ({@see OwnerStatementService::balances()}), le même que celui du relevé : jamais le reste du mois.
  *
  * **Comptes** : un bien compte au bailleur quand il en est le titulaire (`properties.user_id`) dans
- * cette agence, non supprimé ni archivé ; « occupé » suit {@see Occupation}.
+ * cette agence, ou quand il a été saisi pour son profil encore sans compte (`pending_owner_profile_id`,
+ * TCK-2906 — la règle de `filter[owner_profile_id]`), non supprimé ni archivé ; « occupé » suit {@see Occupation}.
  */
 final class OwnerDirectory
 {
@@ -92,22 +99,23 @@ final class OwnerDirectory
      */
     public function addListColumns(Builder $query): void
     {
+        // TCK-2906 — les biens du profil au sens de `filter[owner_profile_id]` (TCK-2905) : ceux de son compte
+        // dans son agence, OU ceux saisis pour lui avant qu'il n'ait de compte (`pending_owner_profile_id`).
+        // Un bailleur invité comptait 0 bien quand la liste filtrée lui en rendait.
         $properties = fn (): QueryBuilder => DB::table('properties')
             ->selectRaw('COUNT(*)')
-            ->whereColumn('properties.user_id', 'owner_profiles.user_id')
-            ->whereColumn('properties.agency_id', 'owner_profiles.agency_id')
+            ->where(fn (QueryBuilder $siens) => $siens
+                ->whereColumn('properties.pending_owner_profile_id', 'owner_profiles.id')
+                ->orWhere(fn (QueryBuilder $compte) => $compte
+                    ->whereColumn('properties.user_id', 'owner_profiles.user_id')
+                    ->whereColumn('properties.agency_id', 'owner_profiles.agency_id')))
             ->whereNull('properties.deleted_at')
             ->whereNull('properties.archived_at');
 
         $query->addSelect([
             'properties_count' => $properties(),
             'occupied_properties_count' => Occupation::whereOccupied($properties(), 'properties.id'),
-            'last_payout_at' => DB::table('payouts')
-                ->selectRaw('MAX(payouts.processed_at)')
-                ->whereColumn('payouts.landlord_id', 'owner_profiles.user_id')
-                ->whereColumn('payouts.agency_id', 'owner_profiles.agency_id')
-                ->where('payouts.payee_role', PayeeRole::Landlord->value)
-                ->where('payouts.status', PayoutStatus::Completed->value),
+            'last_payout_at' => self::lastPayoutAt(),
             'contact_phone' => DB::table('users')
                 ->selectRaw("NULLIF(TRIM(users.phone), '')")
                 ->whereColumn('users.id', 'owner_profiles.user_id'),
@@ -115,6 +123,21 @@ final class OwnerDirectory
                 ->selectRaw("NULLIF(TRIM(users.email), '')")
                 ->whereColumn('users.id', 'owner_profiles.user_id'),
         ])->withCasts(['last_payout_at' => 'datetime', 'properties_count' => 'integer', 'occupied_properties_count' => 'integer']);
+    }
+
+    /**
+     * TCK-2910 — le dernier reversement AU BAILLEUR versé, dans l'agence du profil : la colonne
+     * `last_payout_at` de la ligne et le tri `sort=-last_payout_at` ({@see OwnerLastPayoutSort})
+     * lisent la même sous-requête.
+     */
+    public static function lastPayoutAt(): QueryBuilder
+    {
+        return DB::table('payouts')
+            ->selectRaw('MAX(payouts.processed_at)')
+            ->whereColumn('payouts.landlord_id', 'owner_profiles.user_id')
+            ->whereColumn('payouts.agency_id', 'owner_profiles.agency_id')
+            ->where('payouts.payee_role', PayeeRole::Landlord->value)
+            ->where('payouts.status', PayoutStatus::Completed->value);
     }
 
     /**
@@ -301,12 +324,16 @@ final class OwnerDirectory
         $holders = (clone $perimeter)->reorder()->toBase()
             ->select(['owner_profiles.user_id', 'owner_profiles.agency_id'])
             ->whereNotNull('owner_profiles.user_id');
+        // TCK-2906 — et les biens saisis pour un profil encore sans compte, comme `properties_count` de la ligne.
+        $profils = (clone $perimeter)->reorder()->toBase()->select('owner_profiles.id');
         $properties = DB::table('properties')
             ->whereNull('properties.deleted_at')
             ->whereNull('properties.archived_at')
-            ->whereExists(fn (QueryBuilder $q) => $q->fromSub($holders, 'holders')
-                ->whereColumn('holders.user_id', 'properties.user_id')
-                ->whereColumn('holders.agency_id', 'properties.agency_id'))
+            ->where(fn (QueryBuilder $siens) => $siens
+                ->whereExists(fn (QueryBuilder $q) => $q->fromSub($holders, 'holders')
+                    ->whereColumn('holders.user_id', 'properties.user_id')
+                    ->whereColumn('holders.agency_id', 'properties.agency_id'))
+                ->orWhereIn('properties.pending_owner_profile_id', $profils))
             ->count();
 
         $remaining = null;
@@ -472,6 +499,8 @@ final class OwnerDirectory
                 'full_name' => $profile->display_name !== '' ? $profile->display_name : null,
                 'email' => (is_string($landlord?->email) && trim($landlord->email) !== '' ? $landlord->email : null) ?? self::metadataString($profile, 'email'),
                 'phone' => (is_string($landlord?->phone) && trim($landlord->phone) !== '' ? $landlord->phone : null) ?? self::metadataString($profile, 'phone'),
+                // TCK-2909 — l'adresse du compte (sa dernière adresse), `null` sans compte ni adresse.
+                'address' => self::addressOf($landlord),
             ],
             'pending_invitation_id' => OwnerProfile::query()->whereKey($profile->id)
                 ->select(['pending_invitation_id' => Invitation::idEnvoyeePour(new OwnerProfile)
@@ -487,6 +516,9 @@ final class OwnerDirectory
                 'fees' => (float) ($totals['fees'] ?? 0),
                 'net' => (float) ($totals['net'] ?? 0),
                 'paid_out' => (float) ($totals['paid_out'] ?? 0),
+                // TCK-2909 — les encaissements du mois : les lignes de loyer et d'acompte du MÊME relevé
+                // que `collected` (les pénalités de retard, portées par une ligne de loyer, n'en sont pas).
+                'collections_count' => count($statement['lines']['lease_payments'] ?? []) + count($statement['lines']['booking_payments'] ?? []),
                 // L'écart DU MOIS (`net − paid_out` de la période) : le reste à verser est `balance`.
                 'remaining_to_pay' => (float) ($totals['remaining_to_pay'] ?? 0),
                 'from_snapshot' => ($statement['snapshot'] ?? null) !== null,
@@ -502,6 +534,9 @@ final class OwnerDirectory
             ],
             'next_payout' => $statement['next_payout'] ?? null,
             'works_approval_threshold' => $profile->works_approval_threshold !== null ? (float) $profile->works_approval_threshold : null,
+            // TCK-2909 — les termes du mandat, et la pièce « mandat de gestion » déposée sur le profil.
+            'mandate' => $this->mandateOf($profile),
+            'mandate_document' => self::mandateDocumentOf($profile),
             'agency_commission_rate' => $agencyRate,
             // TCK-2641 — les identifiants sensibles, MASQUÉS seulement (ADR-0044 § 1), comme sur une
             // ligne du carnet ({@see OwnerProfileResource}) : la fiche porte « Afficher », qui passe par
@@ -512,6 +547,77 @@ final class OwnerDirectory
             // Le taux d'un bail peut différer de celui de l'agence : les taux propres des baux en cours.
             'lease_commission_rates' => $leaseRates,
         ];
+    }
+
+    /**
+     * TCK-2909 — les termes du mandat ({@see UpdateOwnerProfileRequest}) :
+     * dates (jours calendaires), moyen et jour de versement, et le référent nommé ; `is_active` faux
+     * quand il n'est plus personnel actif de l'agence (la valeur reste écrite, l'écran le signale).
+     *
+     * @return array<string, mixed>
+     */
+    private function mandateOf(OwnerProfile $profile): array
+    {
+        $referent = $profile->referent_agent_id !== null ? User::withTrashed()->find($profile->referent_agent_id) : null;
+
+        return [
+            'starts_on' => $profile->mandate_starts_on?->toDateString(),
+            'ends_on' => $profile->mandate_ends_on?->toDateString(),
+            'payout_method' => $profile->payout_method?->value,
+            'payout_day' => $profile->payout_day,
+            'referent' => $referent === null ? null : [
+                'id' => $referent->id,
+                'first_name' => $referent->first_name,
+                'last_name' => $referent->last_name,
+                'is_active' => PersonnelDeLAgence::estPersonnel($referent, $profile->agency_id),
+            ],
+        ];
+    }
+
+    /**
+     * TCK-2909 — la dernière pièce `management_mandate` déposée sur le profil : nom, date, taille et
+     * type du fichier qui fait foi, et le chemin de sa fiche (`GET /api/documents/{id}`, qui juge la
+     * lecture). `null` sans pièce.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function mandateDocumentOf(OwnerProfile $profile): ?array
+    {
+        $document = Document::query()
+            ->where('documentable_type', OwnerProfile::class)
+            ->where('documentable_id', $profile->id)
+            ->where('type', DocumentType::ManagementMandate->value)
+            ->with('media')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+        if ($document === null) {
+            return null;
+        }
+        $file = $document->currentFile();
+
+        return [
+            'id' => $document->id,
+            'name' => $document->name,
+            'created_at' => $document->created_at,
+            'file_size' => $file?->size,
+            'mime_type' => $file?->mime_type,
+            'download_path' => route('documents.show', ['document' => $document->id], false),
+        ];
+    }
+
+    /** TCK-2909 — l'adresse lisible de la dernière adresse du compte. */
+    private static function addressOf(?User $landlord): ?string
+    {
+        if ($landlord === null) {
+            return null;
+        }
+
+        return Address::query()
+            ->where('addressable_type', $landlord->getMorphClass())
+            ->where('addressable_id', $landlord->id)
+            ->orderByDesc('id')
+            ->first()?->full_address;
     }
 
     /** @param  callable(string): string  $mask */

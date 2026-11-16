@@ -5,7 +5,9 @@ namespace App\Services\Booking;
 use App\Events\Booking\BookingClosed;
 use App\Models\Agency;
 use App\Models\Booking;
+use App\Models\BookingCounterOffer;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CounterOfferStatus;
 use App\Models\User;
 use App\Notifications\BookingExpiredNotification;
 use App\Services\Membership\AdminsDeLAgence;
@@ -210,6 +212,35 @@ class BookingExpirationService
 
             return true;
         });
+    }
+
+    /**
+     * TCK-2873 (ADR-0110 § 5) — passe `expired` les contre-offres encore `pending` dont la validité
+     * (`valid_until`, un jour inclus jusqu'à la fin de la journée de Dakar) est passée, une à une par
+     * {@see BookingCounterOfferService::expire()} (relue sous verrou, journalisée sur la réservation).
+     * L'offre elle-même n'est pas touchée : elle reste en attente, à son montant d'origine. Appelée
+     * par `ExpireBookings`, la tâche des échéances propres.
+     *
+     * @return int le nombre de contre-offres expirées
+     */
+    public function expireCounterOffers(): int
+    {
+        $count = 0;
+        $service = app(BookingCounterOfferService::class);
+
+        BookingCounterOffer::query()
+            ->where('status', CounterOfferStatus::Pending->value)
+            ->where('valid_until', '<', BookingCounterOfferService::today()->toDateString())
+            ->select('id')
+            ->chunkById(self::BATCH_SIZE, function ($rows) use ($service, &$count): void {
+                foreach (BookingCounterOffer::query()->whereKey($rows->pluck('id'))->get() as $counterOffer) {
+                    if ($service->expire($counterOffer)) {
+                        $count++;
+                    }
+                }
+            });
+
+        return $count;
     }
 
     /**

@@ -21,7 +21,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Lock, Plus, UserRound } from 'lucide-react';
+import { Check, Lock, Plus, SlidersHorizontal, UserRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { PageHeader } from '@/components/console';
@@ -34,6 +34,7 @@ import { PageAuDelaDeLaDerniere } from '@/components/payments/PageAuDelaDeLaDern
 import { estAuDelaDeLaDernierePage } from '@/components/payments/pagination-de-l-adresse';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { Button } from '@/components/ui/button';
+import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
@@ -43,7 +44,7 @@ import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
 import { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
-import { parametresDuCarnet, type EtatDuCarnet, type VueDuCarnet } from '@/lib/owners/carnet';
+import { parametresDuCarnet, triEffectif, triParDefaut, trisOfferts, type EtatDuCarnet, type TriDuCarnet, type VueDuCarnet } from '@/lib/owners/carnet';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { fetchOwners, resendInvitation, revokeInvitation, type OwnerProfileSummary, type PageDuCarnet } from '@/lib/queries/owners';
 import { cn } from '@/lib/utils';
@@ -93,10 +94,13 @@ export function OwnersList({
   const f = useFormatteurs();
   const { remplacer } = useVueDansLUrl();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [filtresOuverts, setFiltresOuverts] = useState(false);
+  const tri = triEffectif(etat, lectureArgent);
 
   const ownersQuery = useQuery({
     // TCK-2815 — la densité est dans la clé : sans elle, le cache de 20 lignes répondrait à 50.
-    queryKey: ['owners', agencyId, etat.vue, etat.recherche, etat.page, etat.parPage, lectureArgent],
+    // TCK-2910 — et le tri : sans lui, le cache d'un ordre répondrait à l'autre.
+    queryKey: ['owners', agencyId, etat.vue, etat.recherche, etat.page, etat.parPage, tri, lectureArgent],
     queryFn: () => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       return fetchOwners(token, parametresDuCarnet(agencyId, etat, lectureArgent));
@@ -210,6 +214,8 @@ export function OwnersList({
   const vues: readonly VueDuCarnet[] = lectureArgent ? ['tous', 'reste', 'invitations'] : ['tous', 'invitations'];
   const choisirVue = (vue: VueDuCarnet) => remplacer({ vue: vue === 'tous' ? null : vue, page: null });
   const rechercher = (q: string) => remplacer({ q: q.trim() || null, page: null });
+  // TCK-2910 — le tri par défaut du lecteur ne s'écrit pas dans l'URL.
+  const choisirTri = (choix: TriDuCarnet) => remplacer({ tri: choix === triParDefaut(lectureArgent) ? null : choix, page: null });
   const filtre = etat.vue !== 'tous' || etat.recherche !== '';
   // TCK-2815 — une page au-delà de la dernière (un lien gardé, une liste qui a diminué) n'est pas un
   // carnet vide : jugé sur `meta.total`, jamais sur le seul nombre de lignes.
@@ -264,11 +270,47 @@ export function OwnersList({
         />
       </div>
 
-      {/* Téléphone et tablette : la recherche, puis les vues en pastilles. */}
+      {/* Téléphone et tablette : la recherche et « Filtres et tri » (TCK-2910), puis les vues en pastilles. */}
       <div className="lg:hidden">
-        <div className="px-4 pt-3 pb-2 md:mt-5 md:px-0">{recherche()}</div>
+        <div className="flex items-center gap-2 px-4 pt-3 pb-2 md:mt-5 md:px-0">
+          <div className="min-w-0 flex-1">{recherche()}</div>
+          <button
+            type="button"
+            onClick={() => setFiltresOuverts(true)}
+            aria-label={t('filtres.bouton')}
+            data-slot="filtres-et-tri"
+            className="inline-flex size-11 flex-none items-center justify-center rounded-lg border border-border bg-card outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+          >
+            <SlidersHorizontal className="size-icone" strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        </div>
         {pastilles('md:px-0')}
       </div>
+
+      <FeuilleDuBas
+        open={filtresOuverts}
+        onOpenChange={setFiltresOuverts}
+        titre={t('filtres.titre')}
+        pied={
+          <Button className="w-full" onClick={() => setFiltresOuverts(false)}>
+            {t('filtres.fermer')}
+          </Button>
+        }
+      >
+        <ChoixDeLaFeuille
+          legende={t('filtres.tri')}
+          choix={trisOfferts(lectureArgent).map((v) => ({ valeur: v, libelle: t(`tris.${v}`) }))}
+          actif={tri}
+          onChoix={(v) => choisirTri(v as TriDuCarnet)}
+        />
+        <ChoixDeLaFeuille
+          className="mt-5"
+          legende={t('filtres.vues')}
+          choix={vues.map((v) => ({ valeur: v, libelle: t(`vues.${v}`), compte: comptes[v] }))}
+          actif={etat.vue}
+          onChoix={(v) => choisirVue(v as VueDuCarnet)}
+        />
+      </FeuilleDuBas>
 
       {auDela ? (
         <div className="px-4 pt-4 md:px-0 lg:pt-6">
@@ -302,7 +344,7 @@ export function OwnersList({
                   <span className="min-w-0 flex-1">
                     {(etat.vue === 'tous' && etat.recherche === '' ? ligneDuResume('telephone') : null) ?? t('nBailleurs', { n: bailleurs.length })}
                   </span>
-                  {lectureArgent ? <span className="font-normal">{t('triReste')}</span> : null}
+                  <span className="font-normal">{t('triCourant', { tri })}</span>
                 </h2>
                 {bailleurs.map((owner) => (
                   <CarteDuBailleur key={owner.id} owner={owner} lienVersLaFiche={lienVersLaFiche} />
@@ -341,3 +383,43 @@ export function OwnersList({
     </PagePleineLargeur>
   );
 }
+
+/**
+ * TCK-2910 — un groupe de choix de la feuille « Filtres et tri » (le tri, les vues) : des lignes de 48 px,
+ * la coche sur le choix courant ; un choix s'applique aussitôt (l'URL change, la liste se relit).
+ */
+function ChoixDeLaFeuille({
+  legende,
+  choix,
+  actif,
+  onChoix,
+  className,
+}: {
+  readonly legende: string;
+  readonly choix: readonly { readonly valeur: string; readonly libelle: string; readonly compte?: number }[];
+  readonly actif: string;
+  readonly onChoix: (valeur: string) => void;
+  readonly className?: string;
+}) {
+  return (
+    <fieldset className={className}>
+      <legend className="mb-1.5 text-ui font-semibold text-muted-foreground">{legende}</legend>
+      <div className="divide-y divide-border rounded-xl border border-border bg-card">
+        {choix.map((c) => (
+          <button
+            key={c.valeur}
+            type="button"
+            aria-pressed={c.valeur === actif}
+            onClick={() => onChoix(c.valeur)}
+            className="flex min-h-12 w-full items-center gap-3 px-4 text-left text-corps outline-none first:rounded-t-xl last:rounded-b-xl hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-inset"
+          >
+            <span className={cn('min-w-0 flex-1 truncate', c.valeur === actif && 'font-semibold')}>{c.libelle}</span>
+            {typeof c.compte === 'number' ? <span className="flex-none text-ui text-muted-foreground tabular-nums">{c.compte}</span> : null}
+            {c.valeur === actif ? <Check className="size-4 flex-none text-primary" strokeWidth={2.5} aria-hidden="true" /> : <span className="size-4 flex-none" aria-hidden="true" />}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+

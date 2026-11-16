@@ -145,6 +145,27 @@ class WhatsappChannel
     }
 
     /**
+     * TCK-2871 — ce canal, à cet instant, se replierait-il sur le SMS SANS rien tenter sur WhatsApp ?
+     * Vrai quand WhatsApp est inéligible ({@see resolveMessage()} rend `null` : désinscrit, sans
+     * consentement, hors fenêtre sans gabarit approuvé) et que la notification accepte le repli : le
+     * texte qui part est alors celui de `toSms()`. Faux pour un numéro absent ou invalide. À appeler
+     * sous la langue de l'envoi (le gabarit se cherche par langue). Ne dit rien d'un échec du
+     * fournisseur, qui se replie aussi, mais plus tard.
+     */
+    public function seReplieraitSurSms(object $notifiable, Notification $notification): bool
+    {
+        $phone = $this->resolvePhone($notifiable, $notification);
+        if (! $phone || ! PhoneNumber::isValid($phone)) {
+            return false;
+        }
+        if (method_exists($notification, 'smsFallbackAllowed') && ! $notification->smsFallbackAllowed()) {
+            return false;
+        }
+
+        return $this->resolveMessage($notifiable, $notification, $this->resolveContact($phone), $this->resolveEventType($notification)) === null;
+    }
+
+    /**
      * Decide the WhatsApp message to send, or null when WhatsApp is not a
      * viable channel for this recipient right now (→ SMS fallback).
      */

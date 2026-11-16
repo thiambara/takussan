@@ -3,8 +3,12 @@
 namespace App\Services\Crm;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Booking;
+use App\Models\BookingCounterOffer;
 use App\Models\Customer;
 use App\Models\CustomerNote;
+use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CounterOfferStatus;
 use App\Models\Enums\CustomerNoteKind;
 use App\Models\Enums\TaskStatus;
 use App\Models\PropertyContactLead;
@@ -41,12 +45,18 @@ use Spatie\Activitylog\Models\Activity;
  *    création d'une tâche et son passage à « faite ». Même lecture que `GET …/activity`
  *    (`CustomerActivityFeed`) : tout lecteur de la fiche, aucun geste de l'agence (TCK-2754) —
  *    seuls les événements `created`/`updated` entrent, jamais `contacted` ni « Plus tard ».
+ *  · TCK-2894 (ADR-0110 § 9) — les réservations de la fiche (candidature, offre, séjour) : leur
+ *    dépôt, leur acceptation et leur refus, au seul personnel de l'agence de la fiche, comme les
+ *    visites, et parmi elles les seules réservations DE CETTE AGENCE (une fiche homonyme d'une
+ *    autre agence ne prête rien) ; leur nature, leur statut courant, leur référence, leur montant
+ *    et le titre du bien — jamais le revenu déclaré, le dossier ni les garants.
  *
  * `$staff` est `CustomerPolicy::viewVisitReports` : le personnel de l'agence de la fiche.
  */
 final class CustomerTimeline
 {
-    public const TYPES = ['note', 'visit', 'contact', 'stage', 'record', 'task'];
+    // TCK-2894 — `booking` : la réservation entre au fil (ADR-0110 § 9). Lu par le front (`TYPES_DU_FIL`).
+    public const TYPES = ['note', 'visit', 'contact', 'stage', 'record', 'task', 'booking'];
 
     /**
      * Les champs dont la modification entre au fil (`record`) : ceux du journal
@@ -60,6 +70,12 @@ final class CustomerTimeline
 
     /** Les jalons d'une visite qui entrent au fil (TCK-2589, décision 7a). */
     public const JALONS = ['created', 'confirmed', 'cancelled'];
+
+    /**
+     * TCK-2894 (ADR-0110 § 9) — les jalons d'une réservation qui entrent au fil. TCK-2873 :
+     * `counter_offer`, une entrée par contre-offre de l'agence (`booking_counter_offers`).
+     */
+    public const JALONS_DE_RESERVATION = ['created', 'confirmed', 'rejected', 'counter_offer'];
 
     /**
      * Le départage d'un même instant : stable, et le même d'une page à l'autre. Les jalons d'une
@@ -76,6 +92,12 @@ final class CustomerTimeline
         'task.created' => 8,
         'record.updated' => 9,
         'record.created' => 10,
+        // TCK-2894 — du plus avancé au premier, comme les visites.
+        // TCK-2873 — la contre-offre : son `id` dans l'union est celui de la CONTRE-OFFRE.
+        'booking.counter_offer' => 11,
+        'booking.rejected' => 12,
+        'booking.confirmed' => 13,
+        'booking.created' => 14,
     ];
 
     /**
@@ -98,6 +120,7 @@ final class CustomerTimeline
             in_array('stage', $types, true) ? $this->stages($customer) : null,
             ...(in_array('record', $types, true) ? $this->records($customer) : []),
             ...(in_array('task', $types, true) ? $this->tasks($customer, $reader) : []),
+            ...(in_array('booking', $types, true) && $staff ? $this->bookings($customer) : []),
         ]));
 
         $perPage = min(max($perPage, 1), 100);
@@ -158,6 +181,59 @@ final class CustomerTimeline
                 ->orWhereRaw("property_visits.confirmed_at > property_visits.created_at + interval '".self::CREEE_CONFIRMEE_SECONDES." seconds'")),
             $jalon('confirmed', 'confirmed_at'),
             $jalon('cancelled', 'cancelled_at'),
+        ];
+    }
+
+    /**
+     * TCK-2894 (ADR-0110 § 9) — trois sélections, une par jalon : le dépôt (création), l'acceptation
+     * (`confirmed_at`) et le refus (`cancelled_at` d'une réservation `rejected` — une annulation
+     * écrit la même colonne, elle n'est pas un refus). Bornées à l'agence de la fiche : `$staff` dit
+     * que le lecteur est de son personnel, pas que toute réservation nommant ce `customer_id` est à
+     * elle. Une fiche sans agence n'a pas de personnel : rien n'entre.
+     *
+     * @return list<QueryBuilder>
+     */
+    private function bookings(Customer $customer): array
+    {
+        if ($customer->agency_id === null) {
+            return [];
+        }
+
+        $jalon = fn (string $nom, string $colonne) => Booking::query()
+            ->where('bookings.customer_id', $customer->id)
+            ->where('bookings.agency_id', (int) $customer->agency_id)
+            ->whereNotNull("bookings.{$colonne}")
+            ->toBase()
+            ->select([
+                DB::raw("'booking' as type"),
+                DB::raw(self::RANGS["booking.{$nom}"].' as rang'),
+                'bookings.id',
+                "bookings.{$colonne} as occurs_at",
+                DB::raw("'{$nom}' as jalon"),
+            ]);
+
+        // TCK-2873 — une entrée par contre-offre, à l'instant où l'agence l'a faite ; mêmes bornes
+        // (client, agence, réservation vivante). L'`id` de l'union est celui de la contre-offre :
+        // `hydrate()` relit la contre-offre, puis sa réservation.
+        $contreOffres = BookingCounterOffer::query()
+            ->join('bookings', 'bookings.id', '=', 'booking_counter_offers.booking_id')
+            ->where('bookings.customer_id', $customer->id)
+            ->where('bookings.agency_id', (int) $customer->agency_id)
+            ->whereNull('bookings.deleted_at')
+            ->toBase()
+            ->select([
+                DB::raw("'booking' as type"),
+                DB::raw(self::RANGS['booking.counter_offer'].' as rang'),
+                'booking_counter_offers.id',
+                'booking_counter_offers.created_at as occurs_at',
+                DB::raw("'counter_offer' as jalon"),
+            ]);
+
+        return [
+            $jalon('created', 'created_at'),
+            $jalon('confirmed', 'confirmed_at'),
+            $jalon('rejected', 'cancelled_at')->where('bookings.status', BookingStatus::Rejected->value),
+            $contreOffres,
         ];
     }
 
@@ -245,13 +321,29 @@ final class CustomerTimeline
      */
     private function hydrate(Collection $rows, bool $staff): Collection
     {
-        $ids = fn (string $type) => $rows->where('type', $type)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        // TCK-2873 — un jalon `counter_offer` porte l'id d'une CONTRE-OFFRE, jamais celui d'une réservation.
+        $ids = fn (string $type) => $rows->where('type', $type)
+            ->filter(fn (object $row) => $type !== 'booking' || ($row->jalon ?? null) !== 'counter_offer')
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $contreOffres = BookingCounterOffer::query()
+            ->whereKey($rows->where('type', 'booking')->where('jalon', 'counter_offer')->pluck('id')->map(fn ($id) => (int) $id)->all())
+            ->get(['id', 'booking_id', 'amount', 'status', 'valid_until', 'created_at', 'responded_at'])
+            ->keyBy('id');
 
-        $notes = CustomerNote::query()->with(['author', ...($staff ? ['visit'] : [])])->whereKey($ids('note'))->get()->keyBy('id');
+        // TCK-2878 — le bien de la demande d'une note `lead_message` (au personnel : hors de lui, la note ne sort pas).
+        $notes = CustomerNote::query()
+            ->with(['author', ...($staff ? ['visit', 'contactLead' => fn ($l) => $l->select(['id', 'property_id'])->with(['property' => fn ($p) => $p->withTrashed()->select(['id', 'title'])])] : [])])
+            ->whereKey($ids('note'))->get()->keyBy('id');
         $visits = PropertyVisit::query()
             ->with(['property' => fn ($p) => $p->withTrashed()->select(['id', 'title'])])
             ->whereKey($ids('visit'))
             ->get(['id', 'property_id', 'status', 'scheduled_at', 'created_at', 'confirmed_at', 'cancelled_at'])
+            ->keyBy('id');
+        // TCK-2894 — des colonnes NOMMÉES : ni le revenu déclaré (chiffré), ni le dossier, ni les garants.
+        $bookings = Booking::query()
+            ->with(['property' => fn ($p) => $p->withTrashed()->select(['id', 'title'])])
+            ->whereKey([...$ids('booking'), ...$contreOffres->pluck('booking_id')->map(fn ($id) => (int) $id)->all()])
+            ->get(['id', 'property_id', 'kind', 'status', 'reference_number', 'total_amount', 'currency', 'start_date', 'created_at', 'confirmed_at', 'cancelled_at'])
             ->keyBy('id');
         $logs = Activity::query()->with('causer')->whereKey([...$ids('contact'), ...$ids('stage'), ...$ids('record'), ...$ids('task')])->get()->keyBy('id');
         // Le titre COURANT de la tâche (celui du journal n'est écrit qu'à la création et au renommage).
@@ -260,7 +352,7 @@ final class CustomerTimeline
             ->get(['id', 'title'])
             ->keyBy('id');
 
-        return $rows->map(function (object $row) use ($notes, $visits, $logs, $taches, $staff): ?array {
+        return $rows->map(function (object $row) use ($notes, $visits, $bookings, $contreOffres, $logs, $taches, $staff): ?array {
             $id = (int) $row->id;
 
             return match ($row->type) {
@@ -270,6 +362,9 @@ final class CustomerTimeline
                 'stage' => isset($logs[$id]) ? $this->stage($logs[$id]) : null,
                 'record' => isset($logs[$id]) ? $this->record($logs[$id], (string) $row->jalon) : null,
                 'task' => isset($logs[$id]) ? $this->task($logs[$id], (string) $row->jalon, $taches) : null,
+                'booking' => $row->jalon === 'counter_offer'
+                    ? (isset($contreOffres[$id], $bookings[(int) $contreOffres[$id]->booking_id]) ? $this->counterOffer($contreOffres[$id], $bookings[(int) $contreOffres[$id]->booking_id]) : null)
+                    : (isset($bookings[$id]) ? $this->booking($bookings[$id], (string) $row->jalon) : null),
                 default => null,
             };
         })->filter()->values();
@@ -297,7 +392,17 @@ final class CustomerTimeline
                 'objections' => array_values($visit->report_objections ?? []),
                 'follow_up' => $visit->report_follow_up?->value,
             ]] : []),
+            // TCK-2878 (TCK-2875 AC6) — le bien demandé, sur le seul message d'une demande, au seul personnel.
+            ...($staff && $note->kind === CustomerNoteKind::LeadMessage ? ['property' => $this->bienDeLaDemande($note)] : []),
         ];
+    }
+
+    /** TCK-2878 — `{id, title}` du bien de la demande de la note, ou `null` (demande inconnue, sans bien). */
+    private function bienDeLaDemande(CustomerNote $note): ?array
+    {
+        $bien = $note->contactLead?->property;
+
+        return $bien !== null ? ['id' => $bien->id, 'title' => $bien->title] : null;
     }
 
     /** @return array<string, mixed> */
@@ -318,6 +423,58 @@ final class CustomerTimeline
             'status' => $visit->status?->value,
             'scheduled_at' => BaseResource::instantOnWire($visit->scheduled_at),
             'property' => $visit->property !== null ? ['id' => $visit->property->id, 'title' => $visit->property->title] : null,
+        ];
+    }
+
+    /**
+     * TCK-2894 — un jalon de réservation : sa nature (« candidature déposée », « offre acceptée »),
+     * son statut COURANT, sa référence, son montant et le bien.
+     *
+     * @return array<string, mixed>
+     */
+    private function booking(Booking $booking, string $jalon): array
+    {
+        $at = match ($jalon) {
+            'confirmed' => $booking->confirmed_at,
+            'rejected' => $booking->cancelled_at,
+            default => $booking->created_at,
+        };
+
+        return [
+            'type' => 'booking',
+            'id' => $booking->id,
+            'milestone' => $jalon,
+            'at' => BaseResource::instantOnWire($at),
+            'kind' => $booking->kind?->value,
+            'status' => $booking->status?->value,
+            'reference_number' => $booking->reference_number,
+            'amount' => $booking->total_amount !== null ? (string) $booking->total_amount : null,
+            'currency' => $booking->currency?->value,
+            'start_date' => $booking->start_date?->toDateString(),
+            'property' => $booking->property !== null ? ['id' => $booking->property->id, 'title' => $booking->property->title] : null,
+        ];
+    }
+
+    /**
+     * TCK-2873 — une contre-offre de l'agence : l'entrée de sa réservation (`id` = la réservation),
+     * à l'instant de la contre-offre, avec son prix, sa validité et son état COURANT.
+     *
+     * @return array<string, mixed>
+     */
+    private function counterOffer(BookingCounterOffer $offre, Booking $booking): array
+    {
+        return [
+            ...$this->booking($booking, 'counter_offer'),
+            'at' => BaseResource::instantOnWire($offre->created_at),
+            'counter_offer' => [
+                'id' => $offre->id,
+                'amount' => (string) $offre->amount,
+                'valid_until' => $offre->valid_until?->toDateString(),
+                // `pending` échue avant le passage de la tâche : déjà `expired`, comme dans la réservation.
+                'status' => $offre->status === CounterOfferStatus::Pending && $offre->isOverdue()
+                    ? CounterOfferStatus::Expired->value
+                    : $offre->status?->value,
+            ],
         ];
     }
 

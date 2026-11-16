@@ -40,4 +40,10 @@ class ServiceProviderBillFactory extends Factory
             'validated_at' => now(),
         ]);
     }
+
+    /** TCK-2911 (ADR-0120 § 1) — « À facturer » : née à la clôture, pas encore envoyée. */
+    public function draft(): static
+    {
+        return $this->state(['status' => ServiceProviderBillStatus::Draft]);
+    }
 }

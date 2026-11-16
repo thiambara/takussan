@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 describe('TCK-2791 — le choix de la période', () => {
-  it('au téléphone, deux puces ; « Mois dernier » mène à `?period=last_month` en gardant la portée', () => {
+  it('au téléphone, les puces ; « Mois dernier » mène à `?period=last_month` en gardant la portée', () => {
     navigation.requete = 'scope=agency';
     render(withIntl(<ChoixDeLaPeriode variante="puces" />));
     const groupe = screen.getByRole('group', { name: 'Période du rapport' });
@@ -33,6 +33,8 @@ describe('TCK-2791 — le choix de la période', () => {
     expect([...puces].map((b) => [b.textContent, b.getAttribute('aria-pressed')])).toEqual([
       ['Ce mois', 'true'],
       ['Mois dernier', 'false'],
+      // TCK-2867 — « 12 mois ».
+      ['12 mois', 'false'],
     ]);
     fireEvent.click(screen.getByRole('button', { name: 'Mois dernier' }));
     expect(navigation.pousses).toEqual(['/app/reports?scope=agency&period=last_month']);

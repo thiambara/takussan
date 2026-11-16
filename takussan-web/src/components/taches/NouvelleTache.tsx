@@ -157,7 +157,7 @@ export function NouvelleTache({ maintenant, moi, nomDeMoi, membres, rattachement
             )}
             <span className="min-w-0 flex-1">
               <span className="block truncate text-corps font-medium">{cible.label}</span>
-              <span className="block text-ui text-muted-foreground">{t(rattachement && rattachement.id === cible.id ? `prerempli.${genre}` : `genre.${genre}`)}</span>
+              <span className="block text-ui text-muted-foreground">{t(rattachement && rattachement.type === genre && rattachement.id === cible.id ? `prerempli.${genre}` : `genre.${genre}`)}</span>
             </span>
             <button
               type="button"
@@ -228,12 +228,24 @@ export function NouvelleTache({ maintenant, moi, nomDeMoi, membres, rattachement
   );
 }
 
-/** Le bouton d'envoi du pied : « Créer la tâche · demain ». */
-export function EnvoiDeNouvelleTache({ etat }: { readonly etat: EtatDEnvoi }) {
+/**
+ * Le pied : « Créer la tâche · demain » ; au bureau (le panneau droit, dès `xl`), « Annuler » à sa
+ * gauche (TCK-2857, maquette e2 l. 795), qui ferme sans créer. Au téléphone, la feuille se ferme d'un geste.
+ */
+export function EnvoiDeNouvelleTache({ etat, onAnnuler }: { readonly etat: EtatDEnvoi; readonly onAnnuler?: () => void }) {
   const t = useTranslations('taches.nouvelle');
-  return (
+  const envoi = (
     <Button type="submit" form={ID_FORMULAIRE_NOUVELLE_TACHE} size="lg" className="w-full xl:ml-auto xl:flex xl:w-auto" disabled={!etat.pret || etat.enCours}>
       {etat.echeance === 'date' ? t('creer') : t('creerPour', { jour: t(`pour.${etat.echeance}`) })}
     </Button>
+  );
+  if (!onAnnuler) return envoi;
+  return (
+    <div className="flex w-full items-center gap-2 xl:justify-end">
+      <Button type="button" variant="ghost" size="lg" className="max-xl:hidden" onClick={onAnnuler}>
+        {t('annuler')}
+      </Button>
+      {envoi}
+    </div>
   );
 }

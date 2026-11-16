@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import type { MaintenanceCategory } from '@/types/maintenance';
 
 import { EtapesDeLaDemande } from './EtapesDeLaDemande';
+import { GestesDeLaDemandeEnCours } from './GestesDeLaDemandeEnCours';
 
 /** Les bornes de `ContestMaintenanceResolutionRequest` (comme `MaintenanceResolutionResponse`). */
 const COMMENTAIRE_MIN = 3;
@@ -48,8 +49,12 @@ const LIEN_DES_CLOSES = '/app/maintenance?status=closed,cancelled';
  *  · Sans demande : un état vide qui parle du logement, jamais d'un filtre.
  *
  * Écarts de donnée à la maquette : le métier de l'artisan (« plombière ») et la fenêtre du créneau
- * (« entre 9 h et 11 h ») ne sont pas servis ; « Changer le créneau » n'a pas de route pour le
- * locataire ; « Écrire à l'agence » est le fil de la fiche (« Discuter »), servi au détail.
+ * (« entre 9 h et 11 h ») ne sont pas servis.
+ *
+ * TCK-2918 (e5) — « Écrire à l'agence » (le fil de l'intervention) et « Changer le créneau » (une
+ * demande de créneau, ADR-0118 § 3) sur chaque carte « En cours » (`GestesDeLaDemandeEnCours`, qui lit
+ * la fiche : ces données ne sont servies qu'au détail) ; la note « … selon votre bail … » sous les
+ * demandes.
  */
 export function MesDemandesDuLocataire() {
   const t = useTranslations('maintenance.locataire.demandes');
@@ -67,6 +72,13 @@ export function MesDemandesDuLocataire() {
   const enCoursRendues = peutRepondre ? [...aConfirmer.slice(1), ...enCours] : [...aConfirmer, ...enCours];
   const bien = demandes[0]?.property?.title ?? null;
   const total = lu.data?.meta?.total ?? demandes.length;
+
+  // TCK-2918 (e5) — sous les demandes, au téléphone comme au bureau : aucun montant n'est demandé ici.
+  const noteDuBail = (
+    <p data-slot="note-du-bail" className="px-1 text-ui leading-snug text-muted-foreground">
+      {t('noteDuBail')}
+    </p>
+  );
 
   const signaler = (
     <Link href="/app/maintenance/new" className={buttonVariants()}>
@@ -117,6 +129,7 @@ export function MesDemandesDuLocataire() {
                   ))}
                 </section>
               ) : null}
+              {closes.length === 0 ? noteDuBail : null}
             </div>
             {closes.length > 0 ? (
               <section aria-labelledby="demandes-closes" className="min-w-0 space-y-3 xl:flex-[448.8_1_0%]">
@@ -135,6 +148,7 @@ export function MesDemandesDuLocataire() {
                     <LigneClose key={d.id} demande={d} />
                   ))}
                 </ul>
+                {noteDuBail}
               </section>
             ) : null}
           </div>
@@ -302,6 +316,7 @@ function CarteEnCours({ demande }: { readonly demande: InterventionEnFile }) {
         </p>
       ) : null}
       <EtapesDeLaDemande statut={demande.status} className="mt-4" />
+      <GestesDeLaDemandeEnCours id={demande.id} />
     </article>
   );
 }

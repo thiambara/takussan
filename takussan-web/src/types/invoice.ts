@@ -57,6 +57,8 @@ export type Payout = {
   status: PayoutStatus;
   /** TCK-594 (ADR-0039 §2) — le bénéficiaire explicite ; une caution rendue est `tenant`. */
   payee_role?: PayeeRole | null;
+  /** TCK-2909 — acompte, solde, restitution, remboursement constaté, facture de prestataire ; `null` pour un reversement au bailleur antérieur. */
+  nature?: 'advance' | 'balance' | 'deposit_refund' | 'refund' | 'provider_bill' | null;
   service_provider_bill_id?: number | null;
   approved_by_id?: number | null;
   approved_at?: string | null;
@@ -178,6 +180,13 @@ export type PayoutMethod = {
   is_default: boolean;
   verified: boolean;
   verified_at?: string | null;
+  /**
+   * TCK-2863 / TCK-2864 — `in_review` : RIB envoyé, pas encore vérifié (informatif : seul `verified` permet de
+   * verser) ; `to_confirm` : rien d'envoyé. Absent d'une API plus ancienne.
+   */
+  verification_status?: 'verified' | 'in_review' | 'to_confirm';
+  bank_statement_submitted_at?: string | null;
+  bank_statement_media_id?: number | null;
 };
 
 type PreparationLine = {
@@ -272,7 +281,14 @@ export type OwnerStatement = {
     processed_at: string | null;
     /** TCK-2651 — versé DANS la période (le « Déjà versé » du mois), pas seulement porteur d'une pièce. */
     paid_in_period?: boolean;
+    /** TCK-2915 — le moyen du reversement, et sa nature (TCK-2909 ; `null` avant la colonne). */
+    payment_method?: string | null;
+    nature?: 'advance' | 'balance' | 'refund' | 'deposit_refund' | 'provider_bill' | string | null;
   }>;
+  /** TCK-2915 — le compteur de l'onglet « Versements » : la longueur de `payouts[]`. */
+  payouts_count?: number;
+  /** TCK-2915 — la règle de versement : le jour du mandat, sinon celui de l'agence ; `null` sans règle. */
+  payout_rule?: { day: number | null; source: 'mandate' | 'agency' | null };
   /**
    * TCK-2321 (P177.05) — le relevé envoyé : un mois qui en a un est servi depuis lui, et ce qui a
    * été écrit depuis vient en rectificatif. Nuls hors instantané (mois non envoyé, attestation).
@@ -293,6 +309,11 @@ export type OwnerStatement = {
     payment_method: string | null;
     status: PayoutStatus | null;
     net_amount: number;
+    /** TCK-2915 — le compte du versement, MASQUÉ (« •••• 4521 »), et sa nature (`wave`, `bank_transfer`…). */
+    payout_method_kind?: string | null;
+    payout_method_masked?: string | null;
+    /** `payout` : le compte du reversement ; `default` : le moyen par défaut vérifié pour l'agence. */
+    payout_method_source?: 'payout' | 'default' | null;
   } | null;
   /** TCK-2649 — une ligne par bien du bailleur dans l'agence, sur la période. */
   properties?: OwnerStatementProperty[];
@@ -315,6 +336,14 @@ export type OwnerStatementProperty = {
   /** `refunded` : loyer échu reçu puis remboursé (TCK-2651, décision 18 du porteur). */
   month_status: 'paid' | 'late' | 'partial' | 'due' | 'none' | 'vacant' | 'refunded' | string;
   days_late: number | null;
+  /** TCK-2915 — la référence du bail de la ligne, la vignette du bien (`null` sans photo). */
+  lease_reference?: string | null;
+  photo_url?: string | null;
+  /**
+   * TCK-2915 (ADR-0105, amendement du 2026-11-15) — les relances NOTÉES par l'agence des échéances en
+   * retard de la période, de la plus récente à la plus ancienne. Jamais la note interne.
+   */
+  reminders?: Array<{ at: string | null; channel: 'whatsapp' | 'call' | string | null; by_name: string | null }>;
 };
 
 export type OwnerStatementTotals = OwnerStatement['totals'] & { clawback?: number };
@@ -327,7 +356,8 @@ export type OwnerStatementRectification = {
 };
 
 /** TCK-594 (ADR-0039 §8) — la facture d'un prestataire pour une intervention terminée. */
-export type ServiceProviderBillStatus = 'pending_validation' | 'validated' | 'rejected' | 'paid' | 'cancelled';
+/** TCK-2911 (ADR-0120 § 1) — `draft` : « À facturer », lue du seul prestataire, envoyée par `POST …/submit`. */
+export type ServiceProviderBillStatus = 'draft' | 'pending_validation' | 'validated' | 'rejected' | 'paid' | 'cancelled';
 
 export type ServiceProviderBill = {
   id: number;
@@ -347,6 +377,10 @@ export type ServiceProviderBill = {
   rechargeable_to_landlord: boolean;
   imputed_payout_id: number | null;
   created_at: string | null;
+  /** TCK-2911 (ADR-0120 § 1) — l'instant de « Facturer » (nul pour un brouillon ou une facture antérieure). */
+  submitted_at?: string | null;
+  /** TCK-2911 — la pièce du prestataire, au détail seulement (URL d'API signée). */
+  invoice?: { id: number; name: string; mime_type: string | null; size: number; url: string } | null;
   /** TCK-2654 — servis par `include=maintenanceRequest,property`, réduits au titre. */
   maintenance_request?: { readonly id: number; readonly title: string } | null;
   property?: { readonly id: number; readonly title: string } | null;
@@ -406,8 +440,29 @@ export interface ResumeDuLoyer {
     readonly monthly_rent: number | null;
     readonly monthly_charges: number | null;
     readonly currency: string | null;
-    readonly property: { readonly id: number; readonly title: string } | null;
+    /** TCK-2852 (servi par TCK-2851) — jusqu'à quand court le bail (`AAAA-MM-JJ`). */
+    readonly end_date?: string | null;
+    /**
+     * TCK-2852 (servi par TCK-2851) — la photo du bien (`cover_url`) et son lieu en « quartier, ville »
+     * (`address_line`, jamais la rue).
+     */
+    readonly property: {
+      readonly id: number;
+      readonly title: string;
+      readonly cover_url?: string | null;
+      readonly address_line?: string | null;
+    } | null;
+    /**
+     * TCK-2852 (servi par TCK-2851) — l'agent du bail, `null` sans agent ou s'il n'est plus personnel
+     * actif de l'agence. Jamais de téléphone ni de courriel : le locataire lui écrit par la messagerie.
+     */
+    readonly agent?: { readonly user_id: number; readonly name: string; readonly avatar_url: string | null } | null;
     readonly agency: { readonly id: number; readonly name: string; readonly phone: string | null } | null;
   } | null;
   readonly offline_payment: MoyensHorsLigne | null;
+  /**
+   * TCK-2852 (servi par TCK-2851) — les fournisseurs EN LIGNE ouverts pour l'agence et la devise du bail
+   * (`wave`, `orange_money`…, codes de `PaymentProvider`) ; `[]` sans bail.
+   */
+  readonly online_means?: readonly string[];
 }

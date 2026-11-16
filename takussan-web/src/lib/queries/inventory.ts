@@ -165,12 +165,15 @@ export interface CodeSurPlaceEnvoye {
  * TCK-2648 (ADR-0098) — `POST /api/inventories/{id}/sign/onsite-code` : l'API envoie au locataire, par
  * SMS, le code qu'il dira à l'agent. 202 `{data: {channel, destination}}`. Rien à invalider : l'état
  * des lieux ne change pas.
+ *
+ * TCK-2914 (TCK-2913, ADR-0098 amendement A) — `{ party: 'landlord' }` : le code part au numéro du compte
+ * du BAILLEUR, qui signe lui-même. Sans argument, le corps reste vide (le locataire, comme avant).
  */
 export function useEnvoyerCodeSurPlace(id: number) {
-  return useApiMutation<ApiResponse<CodeSurPlaceEnvoye>, void>({
+  return useApiMutation<ApiResponse<CodeSurPlaceEnvoye>, { readonly party?: 'landlord' } | void>({
     path: cheminApi`/api/inventories/${id}/sign/onsite-code`,
     method: 'POST',
-    body: () => ({}),
+    body: (variables) => (variables && variables.party ? { party: variables.party } : {}),
   });
 }
 

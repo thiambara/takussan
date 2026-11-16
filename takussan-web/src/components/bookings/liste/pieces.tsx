@@ -34,7 +34,7 @@ export function useNomDuClient() {
 }
 
 /** L'avatar à initiales de la maquette (`Avatar`), 36 % de sa taille. */
-export function InitialesDuClient({ nom, taille, className }: { readonly nom: string; readonly taille: 34 | 40 | 44; readonly className?: string }) {
+export function InitialesDuClient({ nom, taille, className }: { readonly nom: string; readonly taille: 28 | 34 | 40 | 44; readonly className?: string }) {
   return (
     <span
       aria-hidden="true"
@@ -43,6 +43,8 @@ export function InitialesDuClient({ nom, taille, className }: { readonly nom: st
         // L'avatar de la maquette (`Math.round(taille × 0,36)`) sur les jetons de la primitive (rem fixes,
         // `size-avatar-N`, `text-avatar-N`) ; 34 px (le tableau du bureau) n'a pas de jeton : sa taille
         // sur l'échelle, son texte de 12 px.
+        // TCK-2875 — 28 px : l'autre candidate de la carte « Décision ».
+        taille === 28 && 'size-avatar-28 text-avatar-28',
         taille === 34 && 'size-[calc(var(--spacing)*8.5)] text-avatar-32',
         taille === 40 && 'size-avatar-40 text-avatar-40',
         taille === 44 && 'size-avatar-44 text-avatar-44',
@@ -104,7 +106,11 @@ export function useMotsDeLaNature() {
         : null;
     }
     if (b.kind === 'stay' && b.start_date && b.end_date) return t('detail.sejour', { debut: f.jourMois(b.start_date), fin: f.jourMois(b.end_date) });
-    if (b.kind === 'application' && b.start_date) return t('detail.entree', { date: f.jourMois(b.start_date) });
+    // TCK-2875 — « Entrée 1er déc. · caution 2 mois » : la caution, quand la liste l'a lue.
+    if (b.kind === 'application' && b.start_date) {
+      const entree = t('detail.entree', { date: f.jourMois(b.start_date) });
+      return b.security_deposit_months ? `${entree} · ${t('detail.caution', { n: b.security_deposit_months })}` : entree;
+    }
     return null;
   };
   return { montant, detail };

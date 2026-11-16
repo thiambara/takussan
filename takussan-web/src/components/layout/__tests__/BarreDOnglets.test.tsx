@@ -249,6 +249,13 @@ describe('TCK-2481 — l’onglet actif, lisible sans la couleur seule', () => {
     expect(barre().querySelectorAll('[data-slot="indicateur-onglet"]')).toHaveLength(1);
   });
 
+  // TCK-2891 — le pipeline (`/app/crm/pipeline`) est une page de « Clients » : son onglet s'allume, seul.
+  it('TCK-2891 — `/app/crm/pipeline` : l’onglet « Clients » porte aria-current, et lui seul', () => {
+    monter('agent', '/app/crm/pipeline');
+    expect(within(barre()).getByRole('link', { name: 'Clients' })).toHaveAttribute('aria-current', 'page');
+    expect(barre().querySelectorAll('[aria-current]')).toHaveLength(1);
+  });
+
   it('TCK-2618 — l’icône de l’onglet actif est en couleur primaire, celle des autres non', () => {
     monter('agent', '/app/leads/12');
     const icones = [...barre().querySelectorAll('a [data-slot="icone-onglet"]')];

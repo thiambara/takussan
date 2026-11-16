@@ -457,10 +457,13 @@ export function VueAdmin({ telephone }: { readonly telephone: boolean }) {
                               {t('admin.solder')}
                             </Button>
                           ) : null}
+                          {/* TCK-2922 — l'icône « Relevé de l'agent » de la maquette : elle ouvre le relevé de l'agent que la
+                              vue sert déjà, ses lignes (`?agent=`) — dû, payées, annulées, et « Solder ». */}
                           <Link
                             href={`?agent=${p.beneficiary.id}`}
                             scroll={false}
-                            aria-label={t('admin.lignesDe', { nom })}
+                            aria-label={t('admin.releveDe', { nom })}
+                            title={t('admin.releve')}
                             className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring"
                           >
                             <FileText className="size-4" strokeWidth={1.75} aria-hidden="true" />

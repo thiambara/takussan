@@ -3,8 +3,11 @@
 namespace App\Services\Messaging;
 
 use App\Models\Conversation;
+use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\UserStatus;
+use App\Models\Lease;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -60,6 +63,8 @@ use Illuminate\Support\Facades\DB;
  *     de son bail). C'était la règle propre d'`AddParticipantsRequest` ; elle vit ici pour que le
  *     sélecteur la LISTE aussi, au lieu que le serveur accepte des personnes qu'il ne montre pas.
  *     Resserrée comme la règle 3 : l'équipe, pas les autres clients de cette agence.
+ *  5. **l'agent de son bail** (TCK-2851) — l'agent attribué d'un bail en cours dont l'acteur est le
+ *     locataire, tant qu'il est de l'équipe active de l'agence du bail.
  *
  * **Seuls les profils ACTIFS comptent** (règles 3 et 4, des deux côtés) : un profil `draft` est une
  * invitation pas encore acceptée, un profil `suspended` ou `inactive` n'agit plus pour l'agence.
@@ -182,6 +187,12 @@ class MessagingReach
                 if ($contextAgencyId !== null && $contextAgencyId !== $agencyId && ! in_array($contextAgencyId, $fermees, true)) {
                     $this->orTeamOf($reach, $contextAgencyId);
                 }
+
+                // 5. TCK-2851 — l'agent de son bail : l'agent attribué (`leases.agent_id`) d'un bail EN
+                //    COURS dont l'acteur est le locataire (fiche non supprimée), tant qu'il est de
+                //    l'équipe ACTIVE de l'agence du bail. Un locataire n'a pas de profil dans l'agence :
+                //    la règle 3 ne lui ouvre rien, et la carte « Mon logement » lui propose d'écrire.
+                $reach->orWhereIn('users.id', fn (QueryBuilder $sub) => $this->agentsDesBauxDe($sub, $actor));
             });
     }
 
@@ -229,6 +240,36 @@ class MessagingReach
                 ->orWhereIn('fc.property_id', fn (QueryBuilder $p) => $p->select('fp.id')
                     ->from('properties as fp')
                     ->whereIn('fp.agency_id', $fermees)));
+    }
+
+    /**
+     * TCK-2851 — règle 5 : les agents attribués aux baux en cours dont `$actor` est le locataire, s'ils
+     * ont un profil agent ou administrateur ACTIF (non supprimé) dans l'agence du bail — l'équipe de
+     * {@see orTeamOf()}, jugée sur l'agence du bail.
+     */
+    private function agentsDesBauxDe(QueryBuilder $sub, User $actor): QueryBuilder
+    {
+        return $sub->select('l5.agent_id')
+            ->from('leases as l5')
+            ->join('customers as c5', 'c5.id', '=', 'l5.tenant_id')
+            ->whereNull('l5.deleted_at')
+            ->whereNull('c5.deleted_at')
+            ->where('c5.user_id', $actor->id)
+            ->whereIn('l5.status', Lease::ONGOING_STATUSES)
+            ->whereNotNull('l5.agent_id')
+            ->where(function (QueryBuilder $w) {
+                foreach ([
+                    'agent_profiles' => AgentProfileStatus::Active->value,
+                    'agency_admin_profiles' => AgencyAdminProfileStatus::Active->value,
+                ] as $table => $active) {
+                    $w->orWhereExists(fn (QueryBuilder $p) => $p->selectRaw('1')
+                        ->from($table)
+                        ->whereColumn($table.'.user_id', 'l5.agent_id')
+                        ->whereColumn($table.'.agency_id', 'l5.agency_id')
+                        ->where($table.'.status', $active)
+                        ->whereNull($table.'.deleted_at'));
+                }
+            });
     }
 
     /**

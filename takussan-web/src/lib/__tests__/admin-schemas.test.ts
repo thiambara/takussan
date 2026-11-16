@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   agencyFormSchema,
+  erreursDesReglagesSurLeurChamp,
   normaliseAgencyForm,
   reglagesDeLaFiche,
   validateAgencyLogoFile,
@@ -34,6 +35,8 @@ describe('agencyFormSchema', () => {
     require_team_two_factor: false,
     // TCK-593 — le réglage d'encaissement des pénalités en ligne.
     late_fee_online_collection: false,
+    // TCK-2869 — les bailleurs confirment les visites de leurs biens.
+    owners_confirm_visits: false,
     // TCK-2483 — les modules retirés du menu de l'équipe.
     hidden_modules: [] as CodeDeModule[],
     // TCK-594 — TVA par défaut, seuil des quatre yeux, mentions légales.
@@ -47,6 +50,7 @@ describe('agencyFormSchema', () => {
     offline_payment_wave_number: '',
     offline_payment_orange_money_number: '',
     offline_payment_bank_details: '',
+    payout_day: '', // TCK-2915
   };
 
   it('accepts minimal valid input', () => {
@@ -149,6 +153,28 @@ describe('agencyFormSchema', () => {
      * TCK-2487 — l'interrupteur n'a aucun effet sur une agence `individual` (l'hôte porte déjà la 2FA en
      * tant qu'admin d'agence, et il n'a pas d'équipe) : l'API le refuse (422, `prohibited`), même à `false`.
      */
+    it('TCK-2869 — `owners_confirm_visits` ne part que modifié, false compris, et jamais pour une agence individuelle', () => {
+      expect(normaliseAgencyForm({ ...base, owners_confirm_visits: true }, contexte(null)).settings).toEqual({ owners_confirm_visits: true });
+      expect(normaliseAgencyForm({ ...base, owners_confirm_visits: false }, contexte({ owners_confirm_visits: true })).settings).toEqual({ owners_confirm_visits: false });
+      expect(normaliseAgencyForm({ ...base, owners_confirm_visits: true }, contexte({ owners_confirm_visits: true })).settings ?? {}).not.toHaveProperty('owners_confirm_visits');
+      const hote = (initialSettings: Record<string, unknown> | null) => ({ individual: true, initialThreshold: '', initialSettings });
+      expect(normaliseAgencyForm({ ...base, owners_confirm_visits: true }, hote(null)).settings ?? {}).not.toHaveProperty('owners_confirm_visits');
+      // Lu comme l'API (`AgencySettings::read`) : un `1` stocké est vrai, l'illisible est le défaut.
+      expect(reglagesDeLaFiche({ owners_confirm_visits: '1' }).owners_confirm_visits).toBe(true);
+      expect(reglagesDeLaFiche({ owners_confirm_visits: 'oui' }).owners_confirm_visits).toBe(false);
+    });
+
+    it('TCK-2915 — `payout_day` ne part que modifié, en nombre ; vidé, `null` ; borné à 1-28', () => {
+      expect(normaliseAgencyForm({ ...base, payout_day: '15' }, contexte(null)).settings).toEqual({ payout_day: 15 });
+      expect(normaliseAgencyForm({ ...base, payout_day: '' }, contexte({ payout_day: 15 })).settings).toEqual({ payout_day: null });
+      expect(normaliseAgencyForm({ ...base, payout_day: '15' }, contexte({ payout_day: 15 })).settings ?? {}).not.toHaveProperty('payout_day');
+      expect(reglagesDeLaFiche({ payout_day: 5 }).payout_day).toBe('5');
+      expect(reglagesDeLaFiche({}).payout_day).toBe('');
+      expect(agencyFormSchema.safeParse({ ...base, payout_day: '29' }).success).toBe(false);
+      expect(agencyFormSchema.safeParse({ ...base, payout_day: '28' }).success).toBe(true);
+      expect(erreursDesReglagesSurLeurChamp({ 'settings.payout_day': ['x'] })).toEqual({ payout_day: ['x'] });
+    });
+
     it('TCK-2487 — `require_team_two_factor` ne part jamais pour une agence individuelle', () => {
       const hote = (initialSettings: Record<string, unknown> | null) => ({ individual: true, initialThreshold: '', initialSettings });
       expect(normaliseAgencyForm({ ...base, require_team_two_factor: true }, hote(null)).settings ?? {}).not.toHaveProperty('require_team_two_factor');
@@ -248,6 +274,7 @@ describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', (
     moderation_required: false,
     require_team_two_factor: false,
     late_fee_online_collection: false,
+    owners_confirm_visits: false,
     hidden_modules: [] as CodeDeModule[],
     default_tax_rate: '18',
     payout_approval_threshold: '500000',
@@ -258,6 +285,7 @@ describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', (
     offline_payment_wave_number: '',
     offline_payment_orange_money_number: '',
     offline_payment_bank_details: '',
+    payout_day: '', // TCK-2915
   };
 
   it('ne renvoie pas un seuil inchangé', () => {

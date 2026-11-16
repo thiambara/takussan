@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Console;
 
+use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Guarantor;
 use App\Models\PayoutMethod;
@@ -67,6 +68,17 @@ class BackupVerifyEncryptionTest extends TestCase
             ->expectsOutputToContain('customers.id_number : 1 lue(s), 0 illisible(s)')
             ->expectsOutputToContain('guarantors.id_number : 1 lue(s), 0 illisible(s)')
             ->expectsOutputToContain('guarantors.monthly_income : 1 lue(s), 0 illisible(s)')
+            ->assertExitCode(0);
+    }
+
+    /** TCK-2893 (ADR-0110 § 4) — le revenu déclaré du candidat entre par son cast `encrypted`. */
+    public function test_le_revenu_declare_du_candidat_est_verifie(): void
+    {
+        Booking::factory()->create(['declared_monthly_income' => '950000']);
+        Booking::factory()->create();
+
+        $this->artisan('backup:verify-encryption')
+            ->expectsOutputToContain('bookings.declared_monthly_income : 1 lue(s), 0 illisible(s)')
             ->assertExitCode(0);
     }
 

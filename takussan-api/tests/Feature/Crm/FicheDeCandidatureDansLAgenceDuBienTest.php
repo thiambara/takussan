@@ -75,7 +75,6 @@ class FicheDeCandidatureDansLAgenceDuBienTest extends ApiTestCase
             ->postJson("/api/public/properties/{$bien->slug}/booking-request", [
                 'start_date' => now()->addDay()->toDateString(),
                 'end_date' => now()->addYear()->toDateString(),
-                'guests' => 1,
             ])
             ->assertCreated()
             ->json('data.id');

@@ -28,6 +28,9 @@ import { GroupeDeChamps, InterrupteurAAide, TitreDeSection } from './pieces';
  * encaissées en ligne, seuil d'approbation des reversements (et le relèvement en attente d'un second
  * approbateur), double authentification obligatoire (et les membres qui ne l'ont pas). Une agence
  * individuelle n'a que les pénalités : ni file de modération (TCK-686), ni équipe (TCK-2487).
+ *
+ * TCK-2869 (ADR-0112) — « Les bailleurs confirment les visites de leurs biens », groupe « Visites » :
+ * agence `standard` seulement (l'hôte d'une individuelle confirme déjà les siennes).
  */
 export function SectionRegles() {
   const tFiche = useTranslations('admin.agencyConfig.fiche.regles');
@@ -42,11 +45,19 @@ export function SectionRegles() {
       <Penalites />
     </GroupeDeChamps>
   );
-  const reversements = peutRegler ? (
-    <GroupeDeChamps titre={tFiche('groupeReversements')}>
-      <Seuil />
+  const visites = individuelle ? null : (
+    <GroupeDeChamps titre={tFiche('groupeVisites')}>
+      <ConfirmationParLesBailleurs />
     </GroupeDeChamps>
-  ) : null;
+  );
+  // TCK-2915 — le jour de versement s'écrit par `PATCH /api/agencies/{id}` (`settings.payout_day`), comme
+  // les autres réglages : il ne dépend pas du droit d'approuver, contrairement au seuil.
+  const reversements = (
+    <GroupeDeChamps titre={tFiche('groupeReversements')}>
+      <JourDeVersement />
+      {peutRegler ? <Seuil /> : null}
+    </GroupeDeChamps>
+  );
   const securite = individuelle ? null : (
     <GroupeDeChamps titre={tFiche('groupeSecurite')}>
       <DoubleAuthentification />
@@ -57,7 +68,10 @@ export function SectionRegles() {
     <section aria-labelledby="titre-section-regles" data-section="regles">
       <TitreDeSection id="titre-section-regles" titre={tFiche('titre')} texte={tFiche('texte')} />
       <div className="flex flex-col gap-5 md:grid md:grid-cols-2 md:items-start">
-        <div className="space-y-5">{publication}</div>
+        <div className="space-y-5">
+          {publication}
+          {visites}
+        </div>
         {reversements || securite ? (
           <div className="space-y-5">
             {reversements}
@@ -125,6 +139,31 @@ function Penalites() {
         <InterrupteurAAide id="late_fee_online_collection" libelle={t('label')} aide={t('hint')} actif={field.value} onChange={field.onChange} />
       )}
     />
+  );
+}
+
+/** TCK-2869 — l'interrupteur de `settings.owners_confirm_visits`, la forme de « Pénalités ». */
+function ConfirmationParLesBailleurs() {
+  const t = useTranslations('admin.agencyConfig.ownersConfirmVisits');
+  const { control } = useFormContext<ValeursDeLaFiche>();
+  return (
+    <Controller
+      control={control}
+      name="owners_confirm_visits"
+      render={({ field }) => (
+        <InterrupteurAAide id="owners_confirm_visits" libelle={t('label')} aide={t('hint')} actif={field.value} onChange={field.onChange} />
+      )}
+    />
+  );
+}
+
+/** TCK-2915 — `settings.payout_day` : le jour de versement par défaut des bailleurs de l'agence. */
+function JourDeVersement() {
+  const tMoney = useTranslations('admin.agencyConfig.moneyOut');
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <ChampDeLaFiche name="payout_day" libelle={tMoney('payoutDay')} inputMode="numeric" aide={tMoney('payoutDayHint')} />
+    </div>
   );
 }
 

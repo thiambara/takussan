@@ -120,6 +120,8 @@ vi.mock('@/lib/api', async (original) => {
               ],
         };
       }
+      // TCK-2856 — la relance de « Journée libre » ne se rend que servie nominativement (`include=suggestions`).
+      if (route === '/api/dashboard/me') return { data: { suggestions: { follow_up: { customer: { id: 4, full_name: 'Yacine Diouf' }, waiting_days: 3 }, matches: null } } };
       return page([]);
     }),
   };
@@ -367,17 +369,18 @@ describe('le téléphone', () => {
     etat.vide = true;
     monter();
     await waitFor(() => expect(within(telephone()).getByText('Rien de prévu aujourd’hui.')).toBeInTheDocument());
-    expect(within(telephone()).getByRole('link', { name: /6 prospects à relancer/ })).toHaveAttribute('href', '/app/customers?vue=a-relancer');
+    // TCK-2856 — la ligne attend sa suggestion nominative (`include=suggestions`).
+    expect(await within(telephone()).findByRole('link', { name: /6 prospects à relancer/ })).toHaveAttribute('href', '/app/customers?vue=a-relancer');
   });
 });
 
 describe('le bureau', () => {
-  it('AC5 — la chronologie et « À régler » côte à côte dès xl ; le sous-titre compte la journée', async () => {
+  it('AC5 — la chronologie et « À régler » côte à côte dès lg (TCK-2856) ; le sous-titre compte la journée', async () => {
     monter();
     const b = bureau();
     await waitFor(() => expect(b.querySelector('[data-slot="a-regler"]')).not.toBeNull());
     const grille = b.querySelector('[data-slot="chronologie"]')!.closest('.grid')!;
-    expect(grille.className).toContain('xl:grid-cols-');
+    expect(grille.className).toContain('lg:grid-cols-');
     expect(within(b).getByText('2 visites · 1 tâche · 4 choses à régler')).toBeInTheDocument();
     // Un autre jour sans tâche : le compte nul se tait (« 1 tâche », pas « 0 visite »).
     fireEvent.click(within(b).getByRole('button', { name: /^Jeudi 12 novembre/ }));

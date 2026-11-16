@@ -160,16 +160,32 @@ export function EncaissementsAgence({
   const avecTotaux = !telephone && variante === 'registre' && !params.status;
   // TCK-2659 (contre-vérification, N1) — chaque lecture de la bande suit la règle de D2 pour SON statut :
   // « Échoué » borne par l'échéance (un paiement échoué n'a jamais de `paid_at` : en `paid_*`, la cellule
-  // valait 0 pour tout mois). « Restant dû » vient d'une lecture SANS statut bornée par l'échéance : le reste
-  // des échéances de la période (celles payées dans le mois ont un reste nul) ; en `paid_*`, il ne comptait
-  // jamais les impayés du mois. Total et Payé restent ceux du registre (`paid_*`).
+  // valait 0 pour tout mois). Total et Payé restent ceux du registre (`paid_*`).
+  // TCK-2922 — la 3ᵉ case est « En attente » (la maquette), plus « Restant dû » : `status=pending`, bornée par
+  // l'échéance comme « Échoué ». Le reste dû du mois se lit dans la tuile « Impayés » du point du mois.
+  // « N virement(s) annoncé(s) » quand TOUS les paiements en attente sont des virements — dit par une
+  // seconde lecture `payment_method=bank_transfer` aux mêmes filtres, jamais par la page reçue.
   const { page: _page, paid_from: duPaye, paid_to: auPaye, date_from: duEcheance, date_to: auEcheance, ...sansPage } = params;
   const du = duPaye ?? duEcheance;
   const au = auPaye ?? auEcheance;
   const bande = { ...sansPage, per_page: 1, include: undefined, enabled: avecTotaux };
   const payes = usePaymentsHistory({ ...bande, ...bornesSelonLeStatut(du, au, 'paid'), status: 'paid' });
   const echoues = usePaymentsHistory({ ...bande, ...bornesSelonLeStatut(du, au, 'failed'), status: 'failed' });
-  const echeances = usePaymentsHistory({ ...bande, date_from: du, date_to: au, status: undefined });
+  const enAttente = usePaymentsHistory({ ...bande, ...bornesSelonLeStatut(du, au, 'pending'), status: 'pending' });
+  // Un moyen déjà choisi dit seul si ce sont des virements : la lecture de plus n'a lieu que sans moyen.
+  const moyenChoisi = params.payment_method?.[0] ?? null;
+  const virementsEnAttente = usePaymentsHistory({
+    ...bande,
+    ...bornesSelonLeStatut(du, au, 'pending'),
+    status: 'pending',
+    payment_method: ['bank_transfer'],
+    enabled: avecTotaux && moyenChoisi === null,
+  });
+  const nombreEnAttente = enAttente.data?.meta.total;
+  const queDesVirements =
+    nombreEnAttente !== undefined &&
+    nombreEnAttente > 0 &&
+    (moyenChoisi !== null ? moyenChoisi === 'bank_transfer' : virementsEnAttente.data?.meta.total === nombreEnAttente);
 
   const rows = query.data?.data ?? [];
   const meta = query.data?.meta;
@@ -232,9 +248,15 @@ export function EncaissementsAgence({
             detail={payes.data ? t('totaux.paiements', { count: payes.data.meta.total }) : null}
           />
           <CelluleDeTotal
-            libelle={t('totaux.restant')}
-            valeur={echeances.data?.meta.totals ? f.montantCourt(echeances.data.meta.totals.remaining_amount) : '—'}
-            detail={t('totaux.aEncaisser')}
+            libelle={t('totaux.enAttente')}
+            valeur={enAttente.data?.meta.totals ? f.montantCourt(enAttente.data.meta.totals.amount) : '—'}
+            detail={
+              nombreEnAttente === undefined || (moyenChoisi === null && nombreEnAttente > 0 && !virementsEnAttente.data)
+                ? null
+                : queDesVirements
+                  ? t('totaux.virementsAnnonces', { count: nombreEnAttente })
+                  : t('totaux.paiementsEnAttente', { count: nombreEnAttente })
+            }
           />
           <CelluleDeTotal
             libelle={t('totaux.echoue')}

@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Loader2, Mail, RefreshCw } from 'lucide-react';
 
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
+import { useConnexionParTelephone } from '@/components/auth/useConnexionParTelephone';
 import { Pagination } from '@/components/console/Pagination';
+import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { ErrorState } from '@/components/feedback';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,7 @@ import { formaterTelephone } from '@/lib/phone';
 import {
   agencyInvitationKeys,
   fetchPendingAgencyInvitations,
+  partagerLeLienDeLInvitation,
   purgeExpiredAgencyInvitations,
   resendInvitation,
   revokeInvitation,
@@ -29,7 +32,8 @@ import {
 } from '@/lib/queries/agency-invitations';
 import { cn } from '@/lib/utils';
 
-import { FormulaireDInvitation } from './FormulaireDInvitation';
+import { FormulaireDInvitation, type PoigneeDInvitation } from './FormulaireDInvitation';
+import { lienWhatsAppDeLInvitation, ouvrirOngletWhatsApp, type OngletWhatsApp } from './partage-whatsapp';
 
 /**
  * TCK-2668 — l'écran des invitations de l'Équipe (maquette `app-equipe`, a, « Inviter et
@@ -45,6 +49,11 @@ import { FormulaireDInvitation } from './FormulaireDInvitation';
  *
  * Les invitations de locataires n'y sont plus (`ROLES_D_EQUIPE`) : elles se suivent sur la fiche du
  * client. Une invitation partie par SMS n'a pas d'adresse : son numéro la nomme.
+ *
+ * TCK-2928 (ADR-0123) — « Par WhatsApp » (téléphone, à gauche d'« Envoyer l'invitation » dans la barre du
+ * bas) et « Lien par WhatsApp » (bureau, à côté, sous le formulaire), quand la connexion par numéro est
+ * ouverte (`phone_login` : sinon l'API refuse `delivery`). « Repartager » sur une invitation d'équipe
+ * adressée au seul numéro : un lien neuf (`share-link`), envoyé par WhatsApp de la même façon.
  */
 const PAR_PAGE = 10;
 const EXPIREES_REPLIEES = { telephone: 3, bureau: 5 } as const;
@@ -71,6 +80,8 @@ export function LesInvitations({ agencyId, peutGerer, peutInviter, telephone, ap
   const garde = useGardeDoubleFacteur();
   const { jourMois } = useFormatteurs();
   const formulaireId = 'inviter-un-membre';
+  const formulaire = useRef<PoigneeDInvitation>(null);
+  const parWhatsApp = useConnexionParTelephone();
 
   const [pageEnCours, setPageEnCours] = useState(1);
   const [deplie, setDeplie] = useState(false);
@@ -140,8 +151,28 @@ export function LesInvitations({ agencyId, peutGerer, peutInviter, telephone, ap
     },
   });
 
+  // TCK-2928 — un lien neuf, ouvert aussitôt dans WhatsApp ; jamais gardé (voir `partage-whatsapp`).
+  const repartager = useMutation<Awaited<ReturnType<typeof partagerLeLienDeLInvitation>>, ApiError, { invitation: PendingAgencyInvitation; onglet: OngletWhatsApp }>({
+    mutationFn: ({ invitation }) => avecGardeDoubleFacteur(() => partagerLeLienDeLInvitation(token ?? '', invitation.id), garde),
+    onSuccess: (res, { invitation, onglet }) => {
+      const numero = res.phone ?? invitation.phone;
+      if (res.share_url && numero) onglet.partir(lienWhatsAppDeLInvitation(numero, t('messageWhatsApp', { lien: res.share_url })));
+      else onglet.fermer();
+      toast.add({ title: t('repartagee', { nom: nomme(invitation) }), type: 'success' });
+      void rafraichir();
+    },
+    onError: (e, { onglet }) => {
+      onglet.fermer();
+      echec(e);
+    },
+  });
+  /** `share-link` ne vaut que pour une invitation d'équipe adressée au seul numéro (TCK-2927). */
+  const partageable = (i: PendingAgencyInvitation) => !i.email && Boolean(i.phone) && (i.role === 'agent' || i.role === 'agency_admin');
+
   const occupe = (i: PendingAgencyInvitation) =>
-    (relancer.isPending && relancer.variables?.id === i.id) || (annuler.isPending && annuler.variables?.id === i.id);
+    (relancer.isPending && relancer.variables?.id === i.id) ||
+    (annuler.isPending && annuler.variables?.id === i.id) ||
+    (repartager.isPending && repartager.variables?.invitation.id === i.id);
 
   /* ── Les lignes ──────────────────────────────────────────────────────────────────────────── */
 
@@ -184,6 +215,19 @@ export function LesInvitations({ agencyId, peutGerer, peutInviter, telephone, ap
             )}
             {tI('actions.resend')}
           </Button>
+          {partageable(i) ? (
+            <Button
+              variant="outline"
+              size={telephone ? 'lg' : 'sm'}
+              className={cn(telephone && 'flex-1')}
+              disabled={occupe(i)}
+              aria-label={t('repartagerAria', { nom: nomme(i) })}
+              onClick={() => repartager.mutate({ invitation: i, onglet: ouvrirOngletWhatsApp() })}
+            >
+              <IconeWhatsApp className="size-4 text-success" />
+              {t('repartager')}
+            </Button>
+          ) : null}
           <Button
             variant="outline"
             size={telephone ? 'lg' : 'sm'}
@@ -333,7 +377,7 @@ export function LesInvitations({ agencyId, peutGerer, peutInviter, telephone, ap
           <div className="p-4">
             <CarteInvitations titre={t('inviterUnMembre')}>
               <div className="p-4">
-                <FormulaireDInvitation id={formulaireId} agencyId={agencyId} onEnvoyee={() => void rafraichir()} />
+                <FormulaireDInvitation ref={formulaire} id={formulaireId} agencyId={agencyId} onEnvoyee={() => void rafraichir()} />
               </div>
             </CarteInvitations>
           </div>
@@ -348,7 +392,13 @@ export function LesInvitations({ agencyId, peutGerer, peutInviter, telephone, ap
         ) : null}
         {note}
         {peutInviter ? (
-          <BarreDAction>
+          <BarreDAction secondaire={parWhatsApp ? 'premier' : undefined}>
+            {parWhatsApp ? (
+              <Button type="button" variant="outline" size="xl" className="px-4" onClick={() => formulaire.current?.parWhatsApp()}>
+                <IconeWhatsApp className="size-icone text-success" />
+                {t('parWhatsApp')}
+              </Button>
+            ) : null}
             <Button type="submit" form={formulaireId} size="xl" className="flex-1">
               {t('envoyer')}
             </Button>
@@ -376,12 +426,19 @@ export function LesInvitations({ agencyId, peutGerer, peutInviter, telephone, ap
         <CarteInvitations titre={t('inviterUnMembre')} className="w-[25rem] flex-none max-xl:w-full">
           <div className="p-4">
             <FormulaireDInvitation
+              ref={formulaire}
               id={formulaireId}
               agencyId={agencyId}
               onEnvoyee={() => void rafraichir()}
               envoi={(envoiEnCours) => (
-                <div className="pt-1">
-                  <Button type="submit" className="w-full" disabled={envoiEnCours}>
+                <div className="flex gap-2 pt-1">
+                  {parWhatsApp ? (
+                    <Button type="button" variant="outline" className="flex-1" disabled={envoiEnCours} onClick={() => formulaire.current?.parWhatsApp()}>
+                      <IconeWhatsApp className="size-4 text-success" />
+                      {t('lienParWhatsApp')}
+                    </Button>
+                  ) : null}
+                  <Button type="submit" className="flex-1" disabled={envoiEnCours}>
                     {envoiEnCours ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
                     {t('envoyer')}
                   </Button>

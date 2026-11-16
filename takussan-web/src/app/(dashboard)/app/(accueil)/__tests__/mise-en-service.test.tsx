@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -19,6 +19,8 @@ const { ETAT } = vi.hoisted(() => ({
 }));
 
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
+// TCK-2854 — « Ce mois » de l'admin se rend en flux une fois lu : son « Réessayer » tient le routeur.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }), usePathname: () => '/app' }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => ETAT.user }));
 vi.mock('@/app/actions/admin-agency', () => ({ fetchAgencyAction: async () => ETAT.agence }));
 vi.mock('@/lib/session', () => ({ getActiveProfileId: async () => null }));
@@ -51,8 +53,9 @@ vi.mock('@/components/accueil/admin/AFaireAdmin', () => ({ AFaireAdmin: () => <d
 vi.mock('@/components/accueil/admin/EquipeDuJour', () => ({ EquipeDuJour: () => <div data-testid="equipe-du-jour" /> }));
 vi.mock('@/components/accueil/admin/ResumeDuJour', () => ({ ResumeDuJour: ({ jour }: { jour: string }) => jour }));
 vi.mock('@/components/accueil/bailleur/AFaireBailleur', () => ({
-  AFaireBailleur: ({ confirmeLesVisites, hote }: { confirmeLesVisites: boolean; hote: unknown }) => (
-    <div data-testid="a-faire-bailleur" data-confirme={String(confirmeLesVisites)} data-hote={JSON.stringify(hote)} />
+  // TCK-2869 — plus de `confirmeLesVisites` : la capacité vient de chaque visite (`can_confirm`).
+  AFaireBailleur: ({ hote }: { hote: unknown }) => (
+    <div data-testid="a-faire-bailleur" data-hote={JSON.stringify(hote)} />
   ),
 }));
 vi.mock('@/components/accueil/bailleur/EnCoursSurVosBiens', () => ({ EnCoursSurVosBiens: () => <div data-testid="en-cours" /> }));
@@ -65,6 +68,12 @@ vi.mock('@/components/accueil/locataire/ResumeDuLocataire', () => ({ ResumeDuLoc
 vi.mock('@/components/accueil/client/VosVisites', () => ({ VosVisites: ({ visites }: { visites: unknown[] }) => <div data-testid="vos-visites" data-n={visites.length} /> }));
 vi.mock('@/components/accueil/client/VosRecherches', () => ({ VosRecherches: () => <div data-testid="vos-recherches" /> }));
 vi.mock('@/components/accueil/client/FavorisQuiBougent', () => ({ FavorisQuiBougent: () => <div data-testid="favoris-qui-bougent" /> }));
+// TCK-2853 — la rangée de réponse et le filtre « sans recherche » lisent react-query : doublés.
+vi.mock('@/components/accueil/client/ReponseRecue', () => ({ ReponseRecue: () => <div data-testid="reponse-recue" /> }));
+vi.mock('@/components/accueil/client/ChercherEtPublier', async (orig) => ({
+  ...(await orig<typeof import('@/components/accueil/client/ChercherEtPublier')>()),
+  SiAucuneRecherche: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 vi.mock('@/components/accueil/prestataire/AccueilDuPrestataire', () => ({
   JourneeDuPrestataire: () => <div data-testid="journee-du-prestataire" />,
   AChiffrer: () => <div data-testid="a-chiffrer" />,
@@ -99,7 +108,11 @@ describe('accueil — la mise en service, en une ligne', () => {
 
   it('admin d’une agence standard : montée aussi', async () => {
     ETAT.agence = { ok: true, data: { id: 7, kind: 'standard', logo_url: 'x.png' } };
-    render(await DashboardPage());
+    // TCK-2854 — l'admin d'une agence standard lit « Ce mois » en flux : son squelette lit ses libellés.
+    const page = await DashboardPage();
+    await act(async () => {
+      render(withIntl(page));
+    });
 
     expect(screen.getByTestId('mise-en-service')).toHaveAttribute('data-kind', 'standard');
   });

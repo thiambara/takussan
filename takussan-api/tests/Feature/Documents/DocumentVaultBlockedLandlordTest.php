@@ -83,22 +83,25 @@ class DocumentVaultBlockedLandlordTest extends TestCase
         $this->connecter($this->landlord);
         $vault = $this->coffre();
 
-        $this->assertSame(["property:{$this->otherProperty->id}", "property:{$this->property->id}", 'pieces'], array_column($vault['folders'], 'key'));
+        // TCK-2897 — sous chaque bien, le sous-dossier de son bail, en lecture seule lui aussi.
+        $this->assertSame(["property:{$this->otherProperty->id}", "lease:{$this->otherLease->id}", "property:{$this->property->id}", "lease:{$this->lease->id}", 'pieces'], array_column($vault['folders'], 'key'));
         foreach ([$this->property, $this->otherProperty] as $property) {
             $folder = $this->dossier($vault, $property);
             $this->assertTrue($folder['read_only']);
-            $this->assertNotSame([], $this->generesDuDossier($folder));
-            $this->assertSame($this->generesDeLEndpoint($property), $this->generesDuDossier($folder));
+            // Le dossier du bien et ses sous-dossiers de bail : les générés de l'endpoint du bien.
+            $famille = collect($vault['folders'])->filter(fn (array $f) => $f['key'] === "property:{$property->id}" || $f['parent'] === "property:{$property->id}");
+            $famille->each(fn (array $f) => $this->assertTrue($f['read_only'], $f['key']));
+            $generes = $famille->flatMap(fn (array $f) => $this->generesDuDossier($f))->sort()->values()->all();
+            $this->assertNotSame([], $generes);
+            $this->assertSame($this->generesDeLEndpoint($property), $generes);
         }
         $this->assertFalse(collect($vault['folders'])->firstWhere('key', 'pieces')['read_only']);
 
-        $villa = $this->dossier($vault, $this->property);
-        $this->assertContains("/api/leases/{$this->lease->id}/contract/pdf", array_column($villa['entries'], 'download_path'));
-        $this->assertContains("/api/inventories/{$this->signedInventory->id}/pdf", array_column($villa['entries'], 'download_path'));
-        $this->assertEqualsCanonicalizing(
-            [$this->adminDocOnLease->id, $this->adminDocOnProperty->id],
-            array_values(array_filter(array_column($villa['entries'], 'document_id'))),
-        );
+        $bail = collect($vault['folders'])->firstWhere('key', "lease:{$this->lease->id}");
+        $this->assertContains("/api/leases/{$this->lease->id}/contract/pdf", array_column($bail['entries'], 'download_path'));
+        $this->assertContains("/api/inventories/{$this->signedInventory->id}/pdf", array_column($bail['entries'], 'download_path'));
+        $this->assertSame([$this->adminDocOnLease->id], array_values(array_filter(array_column($bail['entries'], 'document_id'))));
+        $this->assertSame([$this->adminDocOnProperty->id], array_values(array_filter(array_column($this->dossier($vault, $this->property)['entries'], 'document_id'))));
     }
 
     public function test_ac2_every_entry_opens_and_no_statement_nor_attachable_target_is_offered(): void

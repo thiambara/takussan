@@ -1,0 +1,128 @@
+{
+ "ticket": "TCK-2882",
+ "ecrans": [
+  {
+   "page": "app-visites",
+   "approche": "a",
+   "ecran": 0,
+   "nom": "Liste",
+   "references": {
+    "telephone": "references/app-visites/a-0-telephone.json",
+    "bureau-1440": "references/app-visites/a-0-bureau-1440.json",
+    "bureau-1280": "references/app-visites/a-0-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/visits",
+    "persona": "admin",
+    "etat": "/app/visits — téléphone : « Aujourd'hui » (deux visites confirmées, une passée sans compte rendu : prochaine visite, « Libre de … à … », « À clore ») ; bureau : « À confirmer », « Liste · Semaine » dans l'en-tête, filtres Agent · Bien · Période · Statut (« Demandées », fixé par l'onglet) ; « Semaine » (`?affichage=semaine`) et « Toutes » (`?vue=status&tab=all`, filtre « Type »)."
+   }
+  },
+  {
+   "page": "app-visites",
+   "approche": "a",
+   "ecran": 1,
+   "nom": "Fiche — à confirmer",
+   "references": {
+    "telephone": "references/app-visites/a-1-telephone.json",
+    "bureau-1440": "references/app-visites/a-1-bureau-1440.json",
+    "bureau-1280": "references/app-visites/a-1-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/visits/{id}",
+    "persona": "admin",
+    "etat": "/app/visits/{id} d'une demande par tranche : téléphone, vignette de carte au-dessus de l'adresse (bien géolocalisé) ; bureau, « Confirmer à 15:00 ▾ » dont le chevron ouvre les autres heures libres."
+   }
+  },
+  {
+   "page": "app-visites",
+   "approche": "a",
+   "ecran": 2,
+   "nom": "Fiche — jour J",
+   "references": {
+    "telephone": "references/app-visites/a-2-telephone.json",
+    "bureau-1440": "references/app-visites/a-2-bureau-1440.json",
+    "bureau-1280": "references/app-visites/a-2-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/visits/{id}",
+    "persona": "admin",
+    "etat": "/app/visits/{id} confirmée aujourd'hui, à moins de 45 min : téléphone, vignette de carte ; bureau, barre du jour avec la bulle et « Je suis en route »."
+   }
+  },
+  {
+   "page": "app-visites",
+   "approche": "a",
+   "ecran": 3,
+   "nom": "Fiche — en cours",
+   "references": {
+    "telephone": "references/app-visites/a-3-telephone.json",
+    "bureau-1440": "references/app-visites/a-3-bureau-1440.json",
+    "bureau-1280": "references/app-visites/a-3-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/visits/{id}",
+    "persona": "admin",
+    "etat": "/app/visits/{id}?commencee=HH:MM (en cours) et une visite dont la fin prévue est passée : téléphone, vignette et « « Absent » prévient {prénom} et propose de replanifier. » ; bureau, la barre « En cours » garde la bulle (lien WhatsApp prérempli) et dit la même phrase sous la plage."
+   }
+  }
+ ],
+ "produit": {
+  "route": "/app/visits",
+  "persona": "admin",
+  "disposition": "admin-agence",
+  "etat": "voir `ecrans[].produit`",
+  "defiler": null,
+  "perturber": null
+ },
+ "zones": [],
+ "alias": {},
+ "ancres": [],
+ "ignorer": [],
+ "ecarts_acceptes": [
+  {
+   "ecran": "app-visites a-0-bureau-*",
+   "element": "vue « Semaine »",
+   "propriete": "aucun écran dessiné au-delà du segmenté",
+   "exception": "hors maquette",
+   "motif": "le ticket prescrit la semaine de l'Agenda (`SemaineDeLAgenda`, TCK-2597) réduite aux visites, aux filtres de la liste ; les onglets de vue s'effacent sous « Semaine » (une semaine n'est ni « À confirmer » ni « Plus tard »), le filtre « Période » aussi (la semaine EST la période)."
+  },
+  {
+   "ecran": "app-visites a-0-bureau-*",
+   "element": "filtre « Statut · Demandées »",
+   "propriete": "« Demandées » sans menu sous « À confirmer » (« Confirmées » sous « Plus tard », absent sous « À clore ») ; un menu Tous · Demandées · Confirmées · Terminées · Annulées sous « Aujourd'hui » et « Semaine »",
+   "exception": "vérité des données",
+   "motif": "un statut choisi sous un onglet qui fixe déjà le sien contredirait l'onglet et sa pastille (« pastille N = liste de N ») ; sous « Aujourd'hui » filtré, la pastille « Aujourd'hui » ne compte plus."
+  },
+  {
+   "ecran": "app-visites a-1-telephone, a-2-telephone, a-3-telephone",
+   "element": "vignette de carte (`CarteFictive`)",
+   "propriete": "tuiles OpenStreetMap réelles au zoom 16, épingle au centre, « © OpenStreetMap » en bas à droite",
+   "exception": "vérité des données",
+   "motif": "le fond de carte de la maquette est fictif ; le produit montre le lieu réel, avec l'attribution exigée par OSM. Aucune vignette sans coordonnées."
+  },
+  {
+   "ecran": "app-visites a-0-bureau-*",
+   "element": "option « En autonomie » du filtre « Type »",
+   "propriete": "« Autonome »",
+   "exception": "règle du design system",
+   "motif": "libellé du type déjà en usage dans le produit (`visits.type.self_guided`)."
+  }
+ ],
+ "hors_perimetre": [
+  {
+   "element": "app-visites e4 (compte rendu)",
+   "ticket": "TCK-2880",
+   "motif": "hors périmètre du ticket"
+  }
+ ],
+ "ecarts_ouverts": [
+  {
+   "element": "AC-F2 — compare à 390 et 1440 ; AC5, AC6 au navigateur",
+   "motif": "lot du 2026-11-15 : pas de relevé au navigateur (l'API et le front servis tournent sur un autre arbre) ; fidélité jugée à la lecture de `app-visites-a.tsx` (BureauListe, BarreJourJBureau, BureauADetail) et `app-visites-a-mobile.tsx` (CarteLieu, CarteEnCours), e0 à e3, téléphone et bureau."
+  }
+ ]
+}

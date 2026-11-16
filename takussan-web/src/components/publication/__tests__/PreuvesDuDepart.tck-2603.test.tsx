@@ -1,6 +1,7 @@
 /**
- * TCK-2603 — la carte de preuves du départ de `/publish` : le chiffre vrai de l'API, groupé par `useFormatteurs()`, et
- * RIEN quand il n'y a pas de chiffre (sous le seuil, en échec, en attente).
+ * TCK-2603 — la carte de preuves du départ de `/publish` : le chiffre vrai de l'API, groupé par `useFormatteurs()`.
+ * TCK-2934 — la carte n'est jamais absente : « 0 F de commission » toujours, le chiffre des recherches à côté quand
+ * l'API en rend un ; sous le seuil, en échec, en attente : la commission seule.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, type Matcher } from '@testing-library/react';
@@ -62,33 +63,55 @@ describe('PreuvesDuDepart', () => {
     expect(screen.getByText('1,240')).toBeTruthy();
   });
 
-  it('sous le seuil (`null`), la carte n’est pas rendue — ni zéro, ni libellé', async () => {
+  it('AC1 — au-dessus du seuil, les DEUX preuves, en deux colonnes : les recherches puis la commission', async () => {
+    apiRequest.mockResolvedValue({ data: { city: 'Dakar', searches_7d: 1240 } });
+    monter();
+
+    await chiffre('1\u00a0240');
+    const preuves = [...carte()!.querySelectorAll('[data-preuve]')].map((p) => p.getAttribute('data-preuve'));
+    expect(preuves).toEqual(['recherches', 'commission']);
+    expect(carte()).toHaveClass('grid', 'grid-cols-[1.25fr_1fr]', 'divide-x');
+    expect(carte()!.querySelector('[data-preuve="commission"]')!.textContent).toBe('0\u00a0Fde commission');
+  });
+
+  it('AC1 — sous le seuil (`null`), la carte reste : « 0 F de commission » seul, ni zéro ni libellé de recherches', async () => {
     apiRequest.mockResolvedValue({ data: { city: 'Dakar', searches_7d: null } });
     monter();
 
     await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(1));
     await new Promise((r) => setTimeout(r, 0));
-    expect(carte()).toBeNull();
+    expect(carte()).not.toBeNull();
+    expect(carte()!.textContent).toBe('0\u00a0Fde commission');
+    expect(carte()).not.toHaveClass('grid');
     expect(screen.queryByText(/cette semaine/)).toBeNull();
   });
 
-  it('AC3 — API injoignable : rien n’est rendu, aucun message, et aucune nouvelle tentative', async () => {
+  it('AC1 — API injoignable : la commission seule, aucun message, et aucune nouvelle tentative', async () => {
     apiRequest.mockRejectedValue(new TypeError('Failed to fetch'));
-    const { client, container } = monter();
+    const { client } = monter();
 
     // L'échec est définitif dès le premier appel : avec la nouvelle tentative du client par défaut, la requête resterait
     // « en attente » une seconde de plus.
     await waitFor(() => expect(client.getQueryState(demandeDePublicationQueryKeys.ville(null))?.status).toBe('error'), {
       timeout: 300,
     });
-    expect(container.textContent).toBe('');
+    expect(carte()!.textContent).toBe('0\u00a0Fde commission');
+    expect(screen.queryByRole('alert')).toBeNull();
     expect(apiRequest).toHaveBeenCalledTimes(1);
   });
 
-  it('en attente, rien n’est rendu (pas de squelette)', () => {
+  it('en attente, la commission seule (pas de squelette)', () => {
     apiRequest.mockReturnValue(new Promise(() => {}));
-    const { container } = monter();
+    monter();
 
-    expect(container.innerHTML).toBe('');
+    expect(carte()!.textContent).toBe('0\u00a0Fde commission');
+  });
+
+  it('la preuve de la commission se traduit', async () => {
+    apiRequest.mockResolvedValue({ data: { city: 'Dakar', searches_7d: null } });
+    monter(<PreuvesDuDepart />, 'en');
+
+    expect(await screen.findByText('commission', { exact: false })).toBeTruthy();
+    expect(carte()!.textContent).toBe('0\u00a0Fcommission');
   });
 });

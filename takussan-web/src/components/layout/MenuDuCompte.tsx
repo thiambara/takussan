@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
-import { BellRing, Check, ChevronDown, ChevronsUpDown, Coins, ExternalLink, LogOut, ShieldCheck, User as IconeProfil, UserRound } from 'lucide-react';
+import { BellRing, ChevronDown, ChevronsUpDown, Coins, ExternalLink, Languages, LogOut, ShieldCheck, User as IconeProfil, UserRound } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -61,8 +61,9 @@ interface MenuDuCompteProps {
  *   déborde sur le contenu (mesuré à 1280 : 230 px de large, entièrement dans l'écran). Il est en
  *   portail, au `z-[1100]` des panneaux (au-dessus du tiroir, TCK-2485), sur un `voile` qui reçoit
  *   l'appui « à côté » : dans le tiroir, il activait la ligne dessous (revue adverse, I2).
- * - La langue est un groupe de `menuitemradio` (`aria-checked`) : choisir referme le menu et suit le
- *   chemin unique du changement de langue (cookie, préférence de compte, rafraîchissement).
+ * - La langue est un groupe de `menuitemradio` (`aria-checked`), dessiné en segments FR · EN · WO
+ *   (TCK-2848) : choisir referme le menu et suit le chemin unique du changement de langue (cookie,
+ *   préférence de compte, rafraîchissement).
  * - Le solde ne paraît que connu (jamais un « 0 » qui ne serait pas un solde, comme `PastilleCredits`),
  *   et seulement pour qui voit le portefeuille.
  */
@@ -204,28 +205,30 @@ export function MenuDuCompte({ user, libelleRole, onNavigate, variante = 'pied' 
           <span>{tCompte('sitePublic')}</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <MenuPrimitive.Group>
-          <MenuPrimitive.GroupLabel className="px-3 pt-2 pb-1 text-xs font-semibold text-muted-foreground">
-            {tCompte('langue')}
-          </MenuPrimitive.GroupLabel>
-          <MenuPrimitive.RadioGroup value={locale} onValueChange={(code: Locale) => langue.choisir(code)} disabled={langue.enCours}>
+        {/* TCK-2848 — la langue en contrôle segmenté FR · EN · WO sur une ligne (maquette « Compte et
+            espaces », bureau), comme la feuille du téléphone. Les segments restent des `menuitemradio`
+            (`aria-checked`) : un bouton nu dans un `menu` sortirait de sa navigation au clavier. Le nom
+            accessible de chaque segment est la langue entière ; le texte, son code. */}
+        <MenuPrimitive.Group className="flex h-9 items-center gap-2 px-2 text-sm">
+          <Languages className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+          <MenuPrimitive.GroupLabel className="min-w-0 flex-1 truncate text-foreground">{tCompte('langue')}</MenuPrimitive.GroupLabel>
+          <MenuPrimitive.RadioGroup
+            value={locale}
+            onValueChange={(code: Locale) => langue.choisir(code)}
+            disabled={langue.enCours}
+            data-slot="segments-de-langue"
+            className="inline-flex shrink-0 items-center rounded-lg bg-muted p-0.5 text-legende font-medium"
+          >
             {LOCALES.map((code) => (
               <MenuPrimitive.RadioItem
                 key={code}
                 value={code}
                 lang={code}
+                aria-label={LOCALE_LABELS[code]}
                 closeOnClick
-                className="relative flex cursor-pointer select-none items-center gap-2 rounded-md px-3 py-2 text-sm outline-none data-highlighted:bg-muted data-highlighted:text-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
+                className="inline-flex h-6 w-8 cursor-pointer select-none items-center justify-center rounded-md text-muted-foreground outline-none data-checked:bg-card data-checked:text-foreground data-checked:shadow-sm data-highlighted:ring-2 data-highlighted:ring-ring data-disabled:pointer-events-none data-disabled:opacity-50"
               >
-                <span className="inline-flex size-4 items-center justify-center" aria-hidden>
-                  <MenuPrimitive.RadioItemIndicator>
-                    <Check className="size-4" />
-                  </MenuPrimitive.RadioItemIndicator>
-                </span>
-                <span className="flex-1">{LOCALE_LABELS[code]}</span>
-                <span className="text-xs text-muted-foreground" aria-hidden>
-                  {LOCALE_SHORT[code]}
-                </span>
+                {LOCALE_SHORT[code]}
               </MenuPrimitive.RadioItem>
             ))}
           </MenuPrimitive.RadioGroup>

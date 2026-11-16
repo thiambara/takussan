@@ -60,8 +60,11 @@ export interface CalendarFeedState {
   active: boolean;
   created_at?: string | null;
   last_accessed_at?: string | null;
-  /** Rendu UNE seule fois, à la création ou à la rotation. */
-  url?: string;
+  /**
+   * TCK-2887 (ADR-0121) — rendu à la création ET à la relecture (`GET`), au titulaire seul ;
+   * `null` pour un lien sans copie (antérieur) ; ABSENT sous impersonation.
+   */
+  url?: string | null;
 }
 
 export type BulkFailureReason =

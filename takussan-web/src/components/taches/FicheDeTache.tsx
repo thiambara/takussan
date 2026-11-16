@@ -41,6 +41,8 @@ interface FicheDeTacheProps {
   /** La tâche telle que l'API la rend après un geste (l'assigné peut être le remplaçant). */
   readonly onModifiee: (tache: TacheDeLaPage) => void;
   readonly onSupprimee: () => void;
+  /** TCK-2857 — « Modifier » du tableau « Plus tard » : la fiche s'ouvre, le titre en édition. */
+  readonly enEdition?: boolean;
 }
 
 /**
@@ -49,7 +51,7 @@ interface FicheDeTacheProps {
  * quand elle a été créée, Appeler et WhatsApp pour un client, « Supprimer » pour son créateur.
  * « Marquer faite » est le pied de la feuille (`PiedDeFicheDeTache`).
  */
-export function FicheDeTache({ tache, maintenant, moi, membres, onModifiee, onSupprimee }: FicheDeTacheProps) {
+export function FicheDeTache({ tache, maintenant, moi, membres, onModifiee, onSupprimee, enEdition = false }: FicheDeTacheProps) {
   const t = useTranslations('taches.fiche');
   const f = useFormatteurs();
   const messageErreur = useMessageErreurApi();
@@ -57,7 +59,7 @@ export function FicheDeTache({ tache, maintenant, moi, membres, onModifiee, onSu
   const idAssigne = useId();
   const modifier = useModifierTache();
   const supprimer = useSupprimerTache();
-  const [titre, setTitre] = useState<string | null>(null);
+  const [titre, setTitre] = useState<string | null>(enEdition && peutModifier(tache, moi) ? tache.title : null);
   const [choisir, setChoisir] = useState(false);
   const [date, setDate] = useState('');
   const [confirmer, setConfirmer] = useState(false);

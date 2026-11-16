@@ -14,7 +14,7 @@ import { ApiError } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { inventoryKeys, useEnvoyerCodeSurPlace, useSignInventory } from '@/lib/queries/inventory';
 import { cn } from '@/lib/utils';
-import type { Inventory } from '@/types/inventory';
+import type { Inventory, InventorySignatureRole } from '@/types/inventory';
 
 import { SignaturePad } from '../SignaturePad';
 
@@ -26,7 +26,9 @@ import { SignaturePad } from '../SignaturePad';
  *    (`POST …/sign/onsite-code`) ; le tracé et les six chiffres partent ensemble
  *    (`POST …/sign`, `role=tenant`, `code`, `signature`). Un code faux se dit sous les cases, le
  *    tracé reste ;
- *  · l'AGENCE signe pour le bailleur (`role=landlord`), au titre du mandat (`sign_on_behalf_of`).
+ *  · l'AGENCE signe pour le bailleur (`role=landlord`), au titre du mandat (`sign_on_behalf_of`) ;
+ *  · TCK-2914 — ou le BAILLEUR présent signe lui-même : « Lui envoyer un code par SMS » (`landlord_onsite`),
+ *    le même bloc que le locataire, le code parti à son numéro (`party=landlord`).
  *
  * Qui peut quoi, l'API le dit (`can_sign_as`) : `tenant_onsite` ouvre le bloc du locataire, `landlord`
  * celui de l'agence. Rien ne se déduit des rôles du compte.
@@ -149,6 +151,47 @@ export interface SignatureDuLocataireProps {
 export function SignatureDuLocataire({ inventory, nom, prenom, avantDeSigner, onEtat }: SignatureDuLocataireProps) {
   const t = useTranslations('inventory.terrain.signatures');
   const f = useFormatteurs();
+
+  if (inventory.tenant_signed) {
+    const heure = inventory.tenant_signed_at ? f.heure(inventory.tenant_signed_at) : null;
+    return (
+      <BlocDeSignature titre={t('locataire', { nom })} statut={<StatusBadge tone="success" label={t('statut.signe')} />}>
+        <p className="mt-1 text-ui text-muted-foreground">
+          {inventory.tenant_signature_method === 'onsite_otp'
+            ? t('signeSurPlace', { heure: heure ?? '' })
+            : heure
+              ? t('signeDepuisSonCompte', { heure })
+              : t('statut.signe')}
+        </p>
+      </BlocDeSignature>
+    );
+  }
+
+  return <SignatureParCode inventory={inventory} partie="tenant" titre={t('locataire', { nom })} nom={nom} prenom={prenom} avantDeSigner={avantDeSigner} onEtat={onEtat} />;
+}
+
+interface SignatureParCodeProps {
+  readonly inventory: Inventory;
+  /** TCK-2914 — la partie qui signe : le locataire (TCK-2648) ou le bailleur (TCK-2913). */
+  readonly partie: InventorySignatureRole;
+  readonly titre: string;
+  readonly nom: string;
+  readonly prenom: string;
+  readonly avantDeSigner: () => Promise<string | null>;
+  readonly onEtat?: (etat: { readonly codeEnvoye: boolean }) => void;
+  /** TCK-2914 — le code part dès l'apparition du bloc (le geste « Lui envoyer un code par SMS » l'a demandé). */
+  readonly envoyerDesLaVenue?: boolean;
+  /** Sous le bloc : « Signer au titre du mandat », pour revenir à la signature de l'agence. */
+  readonly pied?: ReactNode;
+}
+
+/**
+ * La signature d'une partie, sur place : son tracé, le code SMS reçu à SON numéro, les deux envoyés
+ * ensemble (`role`, `signature`, `code`). TCK-2914 — sortie du bloc du locataire pour servir aussi au
+ * bailleur (`party=landlord` à l'envoi du code), à l'identique : six cases, « Renvoyer le code », verrou.
+ */
+function SignatureParCode({ inventory, partie, titre, nom, prenom, avantDeSigner, onEtat, envoyerDesLaVenue, pied }: SignatureParCodeProps) {
+  const t = useTranslations('inventory.terrain.signatures');
   const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const envoyer = useEnvoyerCodeSurPlace(inventory.id);
@@ -185,7 +228,7 @@ export function SignatureDuLocataire({ inventory, nom, prenom, avantDeSigner, on
       return;
     }
     try {
-      const reponse = await envoyer.mutateAsync();
+      const reponse = await envoyer.mutateAsync(partie === 'landlord' ? { party: 'landlord' } : undefined);
       setEnvoi({ destination: reponse.data.destination, a: Date.now() });
       onEtat?.({ codeEnvoye: true });
       setMaintenant(Date.now());
@@ -215,7 +258,7 @@ export function SignatureDuLocataire({ inventory, nom, prenom, avantDeSigner, on
     setErreurCode(null);
     setEchecDeTransport(false);
     signer
-      .mutateAsync({ role: 'tenant', signature: traceGardee, code: codeSaisi })
+      .mutateAsync({ role: partie, signature: traceGardee, code: codeSaisi })
       .catch((erreur: unknown) => {
         const verdict = erreur instanceof ApiError && erreur.status >= 400 && erreur.status < 500 && ![401, 408, 429].includes(erreur.status);
         if (erreur instanceof ApiError && verdict) {
@@ -236,28 +279,24 @@ export function SignatureDuLocataire({ inventory, nom, prenom, avantDeSigner, on
       });
   };
 
-  if (inventory.tenant_signed) {
-    const heure = inventory.tenant_signed_at ? f.heure(inventory.tenant_signed_at) : null;
-    return (
-      <BlocDeSignature titre={t('locataire', { nom })} statut={<StatusBadge tone="success" label={t('statut.signe')} />}>
-        <p className="mt-1 text-ui text-muted-foreground">
-          {inventory.tenant_signature_method === 'onsite_otp'
-            ? t('signeSurPlace', { heure: heure ?? '' })
-            : heure
-              ? t('signeDepuisSonCompte', { heure })
-              : t('statut.signe')}
-        </p>
-      </BlocDeSignature>
-    );
-  }
+  // TCK-2914 — « Lui envoyer un code par SMS » touché dans la carte de l'agence : le code part tout de
+  // suite, une seule fois (le double montage du mode strict ne le renvoie pas).
+  const dejaEnvoye = useRef(false);
+  useEffect(() => {
+    if (!envoyerDesLaVenue || dejaEnvoye.current) return;
+    dejaEnvoye.current = true;
+    void demanderLeCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- au montage seulement
+  }, []);
 
-  const idCode = `code-sur-place-${inventory.id}`;
+  // TCK-2914 — un id par partie : les deux blocs peuvent porter leurs cases en même temps.
+  const idCode = `code-sur-place-${partie}-${inventory.id}`;
   const idErreur = `${idCode}-erreur`;
   const enAttenteDuCode = envoi !== null;
 
   return (
     <BlocDeSignature
-      titre={t('locataire', { nom })}
+      titre={titre}
       statut={enAttenteDuCode ? <StatusBadge tone="attention" label={t('statut.codeAttendu')} /> : <StatusBadge tone="neutral" label={t('statut.aSigner')} />}
     >
       {trace ? (
@@ -355,6 +394,7 @@ export function SignatureDuLocataire({ inventory, nom, prenom, avantDeSigner, on
           ) : null}
         </>
       )}
+      {pied}
     </BlocDeSignature>
   );
 }
@@ -364,22 +404,39 @@ export interface SignatureDeLAgenceProps {
   /** Qui signe (le lecteur) : « Sokhna Sène ». */
   readonly signataire: string;
   readonly avantDeSigner: () => Promise<string | null>;
+  /** `can_sign_as` contient `landlord` : le lecteur signe pour le bailleur (ou EST le bailleur). */
+  readonly pourLeCompte?: boolean;
+  /**
+   * TCK-2914 — `can_sign_as` contient `landlord_onsite` : le lecteur peut recueillir la signature DU
+   * bailleur par un code SMS envoyé au numéro de son compte (l'API ne l'offre que si ce numéro est vérifié).
+   */
+  readonly parCode?: boolean;
 }
 
-/** Le bloc « Agence, pour le bailleur · {nom} » (ou « Bailleur · {nom} » quand le lecteur EST le bailleur). */
-export function SignatureDeLAgence({ inventory, signataire, avantDeSigner }: SignatureDeLAgenceProps) {
+/**
+ * Le bloc « Agence, pour le bailleur · {nom} » (ou « Bailleur · {nom} » quand le lecteur EST le bailleur).
+ *
+ * TCK-2914 — sous « Signer ici », « Lui envoyer un code par SMS » (maquette `SignatureAgence`) : le code
+ * part au bailleur (`party=landlord`) et la carte bascule sur SA signature — tracé et six cases, le même
+ * bloc que le locataire. « Signer au titre du mandat » y ramène. Sans `landlord` mais avec
+ * `landlord_onsite`, la carte est d'emblée celle du bailleur.
+ */
+export function SignatureDeLAgence({ inventory, signataire, avantDeSigner, pourLeCompte = true, parCode = false }: SignatureDeLAgenceProps) {
   const t = useTranslations('inventory.terrain.signatures');
   const f = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const signer = useSignInventory(inventory.id);
   const [ouvert, setOuvert] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  // TCK-2914 — `null` : la carte de l'agence ; sinon le bloc du bailleur, le code déjà demandé ou non.
+  const [parLeBailleur, setParLeBailleur] = useState<{ readonly envoyer: boolean } | null>(() => (!pourLeCompte && parCode ? { envoyer: false } : null));
 
   const mandant = inventory.sign_on_behalf_of?.full_name ?? inventory.owner_signed_on_behalf_of?.full_name ?? null;
   const signePar = inventory.owner_signed_by?.full_name ?? null;
-  const pourLeCompte = mandant !== null || inventory.owner_signed_on_behalf_of_user_id != null;
+  const pourLeCompteDe = mandant !== null || inventory.owner_signed_on_behalf_of_user_id != null;
   const nom = inventory.owner_signed ? (signePar ?? signataire) : signataire;
-  const titre = pourLeCompte ? t('agencePourLeBailleur', { nom }) : t('bailleur', { nom });
+  const titre = pourLeCompteDe ? t('agencePourLeBailleur', { nom }) : t('bailleur', { nom });
+  const nomDuBailleur = inventory.landlord?.full_name ?? mandant ?? '';
 
   const valider = async (trace: string) => {
     setErreur(null);
@@ -397,11 +454,40 @@ export function SignatureDeLAgence({ inventory, signataire, avantDeSigner }: Sig
 
   if (inventory.owner_signed) {
     const heure = inventory.owner_signed_at ? f.heure(inventory.owner_signed_at) : null;
+    // TCK-2914 — recueillie sur place par code : c'est la signature DU bailleur, pas « pour son compte ».
+    if (inventory.owner_signature_method === 'onsite_otp') {
+      return (
+        <BlocDeSignature titre={t('bailleur', { nom: signePar ?? nomDuBailleur })} statut={<StatusBadge tone="success" label={t('statut.signe')} />}>
+          <p className="mt-1 text-ui text-muted-foreground">{t('signeSurPlace', { heure: heure ?? '' })}</p>
+        </BlocDeSignature>
+      );
+    }
     return (
       <BlocDeSignature titre={titre} statut={<StatusBadge tone="success" label={t('statut.signe')} />}>
         {mandant ? <p className="mt-1 text-ui text-muted-foreground">{t('mandat', { nom: mandant })}</p> : null}
         {heure ? <p className="mt-1 text-ui text-muted-foreground">{t('signeA', { heure })}</p> : null}
       </BlocDeSignature>
+    );
+  }
+
+  if (parLeBailleur !== null) {
+    return (
+      <SignatureParCode
+        inventory={inventory}
+        partie="landlord"
+        titre={nomDuBailleur ? t('bailleur', { nom: nomDuBailleur }) : t('bailleurSansNom')}
+        nom={nomDuBailleur}
+        prenom={nomDuBailleur}
+        avantDeSigner={avantDeSigner}
+        envoyerDesLaVenue={parLeBailleur.envoyer}
+        pied={
+          pourLeCompte ? (
+            <Button type="button" variant="link" className="mt-1 h-11 w-full text-sm font-medium" onClick={() => setParLeBailleur(null)}>
+              {t('signerAuTitreDuMandat')}
+            </Button>
+          ) : null
+        }
+      />
     );
   }
 
@@ -419,6 +505,11 @@ export function SignatureDeLAgence({ inventory, signataire, avantDeSigner }: Sig
         <p role="alert" className="mt-2 text-center text-ui text-destructive">
           {erreur}
         </p>
+      ) : null}
+      {parCode ? (
+        <Button type="button" variant="link" className="mt-3 h-11 w-full text-sm font-medium" disabled={signer.isPending} onClick={() => setParLeBailleur({ envoyer: true })}>
+          {t('envoyerCode')}
+        </Button>
       ) : null}
     </BlocDeSignature>
   );

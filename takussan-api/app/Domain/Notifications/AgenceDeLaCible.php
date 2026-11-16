@@ -52,6 +52,8 @@ final class AgenceDeLaCible
         'lead' => ['property_contact_leads', 'agency_id', false],
         'visit' => ['property_visits', null, false],
         'maintenance' => ['maintenance_requests', null, true],
+        // TCK-2913 — l'état des lieux signé : l'agence de son bien, comme `InventoryPolicy::view`.
+        'inventory' => ['inventories', null, true],
     ];
 
     /**
@@ -81,6 +83,11 @@ final class AgenceDeLaCible
         // TCK-2812 — le coffre de l'appelant (`/app/documents`), où l'archive préparée se télécharge : il
         // n'est d'aucune agence, et l'archive n'appartient qu'à son demandeur.
         'document_archive',
+        // TCK-2916 — l'archive préparée des quittances de l'appelant (`receipts:all`, `receipts:lease:{id}`) :
+        // comme `document_archive`, elle n'appartient qu'à son demandeur, quel que soit l'espace actif.
+        'receipts_archive',
+        // TCK-2926 — la sécurité du compte (rappel d'activer la double authentification) : page du compte.
+        'profile_security',
     ];
 
     /** @var array<string, array<int, ?int>> genre → id → agence (null : objet sans agence ou absent) */

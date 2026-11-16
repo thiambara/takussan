@@ -261,10 +261,46 @@ describe('la fiche', () => {
     });
     const lignes = [...journal.querySelectorAll('li')].map((li) => li.textContent);
     expect(lignes[0]).toContain(J.codes.created);
-    expect(lignes[0]).toContain('Par Ousmane Niang');
+    // TCK-2902 — le signalement se dit « Signalée par … » (maquette e1).
+    expect(lignes[0]).toContain('Signalée par Ousmane Niang');
     expect(lignes[1]).toContain(J.codes.status_quote_awaiting_owner);
     expect(lignes[2]).toContain(J.codes.owner_reminded);
     expect(lignes[3]).toContain(J.systeme);
+  });
+
+  // TCK-2902 (e1, AC5) — l'entrée du signalement compte ses pièces (`photos_count`, `has_voice_note`).
+  it('l’entrée du signalement dit « Signalée par … » puis « 2 photos, un message vocal »', async () => {
+    reseau.journal = [{ ...JOURNAL[0], photos_count: 2, has_voice_note: true }, ...JOURNAL.slice(1)];
+    rendre(<FicheDIntervention id={30} />);
+    const journal = await waitFor(() => {
+      const j = document.querySelector<HTMLElement>('[data-slot="journal"]');
+      if (!j?.querySelector('li')) throw new Error('pas encore de journal');
+      return j;
+    });
+    const [signalement, suivante] = [...journal.querySelectorAll('li')];
+    expect(signalement.textContent).toContain('Signalée par Ousmane Niang');
+    expect(signalement.textContent).toContain('2 photos, un message vocal');
+    expect(signalement.textContent).not.toContain('Par Ousmane Niang');
+    // Les autres entrées ne portent pas ces clés : rien n'y est ajouté.
+    expect(suivante.textContent).not.toMatch(/photo|message vocal/);
+  });
+
+  it('un signalement sans note ni photo ne dit aucune pièce', async () => {
+    reseau.journal = [{ ...JOURNAL[0], photos_count: 0, has_voice_note: false }];
+    rendre(<FicheDIntervention id={30} />);
+    const li = await waitFor(() => {
+      const l = document.querySelector<HTMLElement>('[data-slot="journal"] li');
+      if (!l) throw new Error('pas encore de journal');
+      return l;
+    });
+    expect(li.textContent).toContain('Signalée par Ousmane Niang');
+    expect(li.textContent).not.toMatch(/photo|message vocal/);
+  });
+
+  it('une note seule, sans photo : « un message vocal »', async () => {
+    reseau.journal = [{ ...JOURNAL[0], photos_count: 0, has_voice_note: true }];
+    rendre(<FicheDIntervention id={30} />);
+    await waitFor(() => expect(document.querySelector('[data-slot="journal"] li')?.textContent).toMatch(/Signalée par Ousmane Niang\s*un message vocal$/));
   });
 
   it('pas de journal pour qui ne peut pas le lire : aucune requête', async () => {

@@ -10,9 +10,10 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ToastProvider, Toaster } from '@/components/ui/toast';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { withIntl } from '@/test/intl';
-import type { BankStatement, PendingPayment, ReconciliationOverview } from '@/types/reconciliation';
+import type { BankStatement, FormatsPrisEnCharge, PaiementIgnore, PendingPayment, ReconciliationOverview } from '@/types/reconciliation';
 
 import { ResteARapprocher, lignesSures } from '../ResteARapprocher';
 
@@ -29,6 +30,16 @@ const APERCU: ReconciliationOverview = {
   confirmed_automatically: { total: 812, by_provider: { wave: 540, orange_money: 272 } },
   to_reconcile: { total: 34, by_method: { cash: 21, bank_transfer: 13 } },
   reconciled_manually: 0,
+  ignored: 0,
+};
+
+// TCK-2933 — les formats lus ; `banks` vide tant que D-67 tient (TCK-2932).
+const FORMATS: FormatsPrisEnCharge = {
+  formats: [
+    { code: 'csv', extensions: ['csv', 'txt'], configurable_columns: true },
+    { code: 'ofx', extensions: ['ofx', 'xml'], configurable_columns: false },
+  ],
+  banks: [],
 };
 
 const RELEVE: BankStatement = {
@@ -77,6 +88,12 @@ interface Etat {
   lireSuggestions?: (url: URL) => { data: PendingPayment[]; meta: { current_page: number; last_page: number; per_page: number; total: number } };
   avecSuggestion: number;
   lot: () => Response | Promise<Response>;
+  /** TCK-2933 — les réponses des gestes « Ignorer » / « Rétablir », des ignorés, des formats, de l'aperçu. */
+  ignorer?: (corps: unknown) => Response;
+  retablir?: (id: number) => Response;
+  ignores?: PaiementIgnore[];
+  formats?: FormatsPrisEnCharge;
+  apercuReleve?: () => Response;
 }
 
 let etat: Etat;
@@ -86,9 +103,21 @@ const json = (corps: unknown, statut = 200) => new Response(JSON.stringify(corps
 function repondre(entree: RequestInfo | URL, init?: RequestInit): Response | Promise<Response> {
   const url = new URL(String(entree));
   const methode = init?.method ?? 'GET';
-  appels.push({ methode, url, corps: init?.body ? JSON.parse(String(init.body)) : undefined });
+  // Un envoi de fichier (`FormData`) est gardé tel quel : il ne se lit pas en JSON.
+  const corps = init?.body instanceof FormData ? init.body : init?.body ? JSON.parse(String(init.body)) : undefined;
+  appels.push({ methode, url, corps });
   const chemin = url.pathname;
   if (methode === 'POST' && chemin.endsWith('/bank-statement-lines/confirm-batch')) return etat.lot();
+  // TCK-2933
+  if (methode === 'POST' && chemin.endsWith('/reconciliation/ignored-payments')) return etat.ignorer ? etat.ignorer(corps) : json({ data: { id: 55 } }, 201);
+  if (methode === 'DELETE' && /\/reconciliation\/ignored-payments\/\d+$/.test(chemin)) {
+    const id = Number(chemin.split('/').pop());
+    return etat.retablir ? etat.retablir(id) : new Response(null, { status: 204 });
+  }
+  if (methode === 'POST' && chemin.endsWith('/bank-statements/preview')) return etat.apercuReleve ? etat.apercuReleve() : json({ data: {} });
+  if (methode === 'POST' && chemin.endsWith('/bank-statements')) return json({ data: { ...RELEVE, id: 6, status: 'processing' } }, 202);
+  if (chemin.endsWith('/reconciliation/ignored-payments')) return json(page(etat.ignores ?? []));
+  if (chemin.endsWith('/reconciliation/supported-formats')) return json({ data: etat.formats ?? FORMATS });
   if (methode !== 'GET') return json({ data: {} });
   if (chemin.endsWith('/reconciliation/overview')) return json({ data: etat.apercu });
   if (chemin.endsWith('/bank-statements')) return json(page(etat.releves));
@@ -126,7 +155,11 @@ function monter(fournisseurs: string[] | null = ['wave', 'orange_money']) {
   render(
     withIntl(
       <QueryClientProvider client={client}>
-        <ResteARapprocher agencyId={1} fournisseursConnectes={fournisseurs} />
+        {/* TCK-2933 — « Ignorer » répond par un toast « Annuler » : la coque `/app` monte le fournisseur. */}
+        <ToastProvider>
+          <ResteARapprocher agencyId={1} fournisseursConnectes={fournisseurs} />
+          <Toaster />
+        </ToastProvider>
       </QueryClientProvider>,
     ),
   );
@@ -403,13 +436,17 @@ describe('ResteARapprocher — aucun relevé', () => {
     etat.releves = [];
   });
 
-  it('dit ce qui manque, d’après les données, sans rien promettre que le produit ne fait pas', async () => {
+  // TCK-2933 — l'aperçu avant import existe : la promesse de la maquette est tenue. Les banques, elles,
+  // ne se nomment que lues de l'API (D-67) : liste vide, aucun nom de banque n'est inventé.
+  it('dit ce qui manque, d’après les données, et ne promet que ce que le produit fait', async () => {
     monter();
     const vide = await screen.findByTestId('sans-releve');
     expect(within(vide).getByRole('heading', { name: 'Il ne manque que le relevé de la banque' })).toBeInTheDocument();
     expect(vide).toHaveTextContent('Tout ce qui est passé par Wave et Orange Money est déjà rapproché. Pour les 34 paiements qui restent, importez le relevé de votre banque.');
-    expect(vide).toHaveTextContent('CSV ou OFX de votre banque');
-    expect(document.body).not.toHaveTextContent(/prises en charge|on vous montre|avant d’importer/);
+    expect(vide).toHaveTextContent('CSV ou OFX · on vous montre ce qu’on a lu avant d’importer');
+    const banques = await screen.findByTestId('banques-prises-en-charge');
+    expect(document.body).not.toHaveTextContent(/CBAO|Ecobank|SGBS|Wave Business/);
+    expect(banques).toHaveTextContent('CSV — colonnes réglables');
     expect(screen.getByTestId('compteurs-du-reste')).toHaveTextContent('En attente d’un relevé');
     expect(screen.queryByTestId('reste-lease_payment-1')).toBeNull();
   });
@@ -435,5 +472,259 @@ describe('ResteARapprocher — aucun relevé', () => {
     const fenetre = await screen.findByRole('dialog');
     expect(within(fenetre).getByRole('button', { name: 'Choisir un fichier' })).toBeInTheDocument();
     expect(within(fenetre).getByText('Aucun fichier choisi')).toBeInTheDocument();
+  });
+});
+
+/* ─────────────── TCK-2933 — « Ignorer », « Banques prises en charge », l'aperçu avant import ─────────────── */
+
+describe('TCK-2933 — « Ignorer » un paiement sans ligne de banque', () => {
+  beforeEach(() => {
+    vi.mocked(useMatchesMedia).mockReturnValue(true);
+  });
+
+  // L'API sert l'état du serveur : après le POST, le paiement 4 sort du reste et « À rapprocher »
+  // passe à 33 ; après le DELETE, il revient.
+  function avecServeur() {
+    const tous = [paiement(1, 95), paiement(2, 95), paiement(3, 70), paiement(4, null)];
+    let ignore = false;
+    etat.liste = () => (ignore ? page(tous.slice(0, 3), 33) : page(tous, 34));
+    etat.ignorer = () => {
+      ignore = true;
+      etat.apercu = { ...APERCU, to_reconcile: { total: 33, by_method: { cash: 20, bank_transfer: 13 } }, ignored: 1 };
+      return json({ data: { id: 55, reason: 'cash_kept', note: null, ignored_at: '2026-11-12T10:00:00Z', ignored_by: null, payment: null } }, 201);
+    };
+    etat.retablir = () => {
+      ignore = false;
+      etat.apercu = APERCU;
+      return new Response(null, { status: 204 });
+    };
+  }
+
+  it('AC1 — « Espèces gardées à l’agence » envoie `cash_kept`, retire la rangée, décrémente ; « Annuler » du toast la remet', async () => {
+    avecServeur();
+    const user = userEvent.setup();
+    monter();
+    const rangee = await screen.findByTestId('reste-lease_payment-4');
+    // « Ignorer » n'est offert qu'au paiement sans ligne proposée.
+    expect(within(screen.getByTestId('reste-lease_payment-3')).queryByRole('button', { name: /Ignorer/ })).toBeNull();
+    await user.click(within(rangee).getByRole('button', { name: 'Ignorer le paiement de Payeur 4' }));
+
+    const fenetre = await screen.findByRole('dialog');
+    expect(within(fenetre).getByRole('button', { name: 'Ignorer le paiement' })).toBeDisabled();
+    await user.click(within(fenetre).getByRole('button', { name: 'Espèces gardées à l’agence' }));
+    await user.click(within(fenetre).getByRole('button', { name: 'Ignorer le paiement' }));
+
+    await waitFor(() => expect(requetes('/reconciliation/ignored-payments', 'POST')).toHaveLength(1));
+    expect(requetes('/reconciliation/ignored-payments', 'POST')[0]?.corps).toEqual({ payable_type: 'lease_payment', payable_id: 4, reason: 'cash_kept' });
+    await waitFor(() => expect(screen.queryByTestId('reste-lease_payment-4')).toBeNull());
+    expect(screen.getByTestId('compte-reste')).toHaveTextContent('33');
+    expect(await screen.findByText('Paiement ignoré.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Annuler' }));
+    await waitFor(() => expect(requetes('/reconciliation/ignored-payments/55', 'DELETE')).toHaveLength(1));
+    expect(await screen.findByTestId('reste-lease_payment-4')).toBeInTheDocument();
+    expect(screen.getByTestId('compte-reste')).toHaveTextContent('34');
+  });
+
+  it('« Autre » exige un texte, envoyé en `note`', async () => {
+    const user = userEvent.setup();
+    monter();
+    await user.click(within(await screen.findByTestId('reste-lease_payment-4')).getByRole('button', { name: 'Ignorer le paiement de Payeur 4' }));
+    const fenetre = await screen.findByRole('dialog');
+    await user.click(within(fenetre).getByRole('button', { name: 'Autre' }));
+    await user.click(within(fenetre).getByRole('button', { name: 'Ignorer le paiement' }));
+    expect(within(fenetre).getByRole('alert')).toHaveTextContent('Précisez le motif pour « Autre ».');
+    expect(requetes('/reconciliation/ignored-payments', 'POST')).toHaveLength(0);
+
+    await user.type(within(fenetre).getByLabelText('Précisez le motif'), 'Remis au bailleur en main propre');
+    await user.click(within(fenetre).getByRole('button', { name: 'Ignorer le paiement' }));
+    await waitFor(() => expect(requetes('/reconciliation/ignored-payments', 'POST')).toHaveLength(1));
+    expect(requetes('/reconciliation/ignored-payments', 'POST')[0]?.corps).toEqual({
+      payable_type: 'lease_payment',
+      payable_id: 4,
+      reason: 'other',
+      note: 'Remis au bailleur en main propre',
+    });
+  });
+
+  it('un refus (422) se dit dans la fenêtre, qui reste ouverte', async () => {
+    etat.ignorer = () => json({ code: 'reconciliation.payment_not_pending', message: 'Seul un paiement encaissé, hors passerelle et non rapproché peut être sorti du reste à rapprocher.' }, 422);
+    const user = userEvent.setup();
+    monter();
+    await user.click(within(await screen.findByTestId('reste-lease_payment-4')).getByRole('button', { name: 'Ignorer le paiement de Payeur 4' }));
+    const fenetre = await screen.findByRole('dialog');
+    await user.click(within(fenetre).getByRole('button', { name: 'Versé sur un autre compte' }));
+    await user.click(within(fenetre).getByRole('button', { name: 'Ignorer le paiement' }));
+    expect(await within(fenetre).findByRole('alert')).toHaveTextContent('Seul un paiement encaissé');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('au téléphone, « Ignorer » est dans le menu de la carte sans ligne', async () => {
+    vi.mocked(useMatchesMedia).mockReturnValue(false);
+    const user = userEvent.setup();
+    monter();
+    const carte = await screen.findByTestId('reste-lease_payment-4');
+    expect(within(screen.getByTestId('reste-lease_payment-3')).queryByRole('button', { name: /Autres gestes/ })).toBeNull();
+    await user.click(within(carte).getByRole('button', { name: 'Autres gestes pour Payeur 4' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Ignorer' }));
+    expect(await screen.findByRole('button', { name: 'Espèces gardées à l’agence' })).toBeInTheDocument();
+  });
+
+  it('les ignorés du mois se rouvrent et se rétablissent par l’`id` du geste (après le toast)', async () => {
+    etat.apercu = { ...APERCU, ignored: 1 };
+    etat.ignores = [{ id: 71, reason: 'cash_kept', note: null, ignored_at: '2026-11-12T10:00:00Z', ignored_by: null, payment: paiement(9, null) }];
+    const user = userEvent.setup();
+    monter();
+    const bloc = await screen.findByTestId('paiements-ignores');
+    expect(bloc).toHaveTextContent('1 paiement ignoré ce mois-ci');
+    expect(requetes('/reconciliation/ignored-payments')).toHaveLength(0);
+    await user.click(within(bloc).getByRole('button', { name: 'Voir' }));
+    const ligne = await within(bloc).findByTestId('ignore-71');
+    expect(ligne).toHaveTextContent('Payeur 9');
+    expect(ligne).toHaveTextContent('Espèces gardées à l’agence');
+    expect(requetes('/reconciliation/ignored-payments')[0]?.url.searchParams.get('period')).toBe('2026-11');
+    await user.click(within(ligne).getByRole('button', { name: 'Rétablir le paiement de Payeur 9' }));
+    await waitFor(() => expect(requetes('/reconciliation/ignored-payments/71', 'DELETE')).toHaveLength(1));
+  });
+
+  it('aucun ignoré : rien n’est rendu', async () => {
+    monter();
+    await screen.findByTestId('reste-lease_payment-4');
+    expect(screen.queryByTestId('paiements-ignores')).toBeNull();
+  });
+});
+
+describe('TCK-2933 — « Banques prises en charge »', () => {
+  beforeEach(() => {
+    etat.releves = [];
+  });
+
+  it('AC2 — une puce par banque de `supported-formats.banks`, et rien d’autre', async () => {
+    etat.formats = { ...FORMATS, banks: [{ code: 'cbao', name: 'CBAO', format: 'csv' }, { code: 'wave_business', name: 'Wave Business', format: 'csv' }] };
+    monter();
+    const banques = await screen.findByTestId('banques-prises-en-charge');
+    expect(within(banques).getByRole('heading', { name: 'Banques prises en charge' })).toBeInTheDocument();
+    expect(within(banques).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['CBAO', 'Wave Business']);
+    expect(banques).not.toHaveTextContent('colonnes réglables');
+  });
+
+  it('AC2 — liste vide : la ligne des formats lus, au bureau aussi', async () => {
+    vi.mocked(useMatchesMedia).mockReturnValue(true);
+    monter();
+    const banques = await screen.findByTestId('banques-prises-en-charge');
+    expect(within(banques).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['CSV — colonnes réglables', 'OFX']);
+    expect(banques).toHaveTextContent('L’import lit vos relevés par leur format, quelle que soit la banque :');
+  });
+
+  it('formats illisibles : la rubrique se tait', async () => {
+    let lus = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (entree: RequestInfo | URL, init?: RequestInit) => {
+        if (!new URL(String(entree)).pathname.endsWith('/supported-formats')) return repondre(entree, init);
+        lus++;
+        return json({ message: 'Panne' }, 500);
+      }),
+    );
+    monter();
+    await screen.findByTestId('sans-releve');
+    await waitFor(() => expect(lus).toBe(1));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByTestId('banques-prises-en-charge')).toBeNull();
+    expect(document.body).not.toHaveTextContent('colonnes réglables');
+  });
+});
+
+describe('TCK-2933 — l’aperçu avant import', () => {
+  const APERCU_LU = {
+    source_format: 'csv',
+    read: 38,
+    skipped: 7,
+    skipped_by_reason: { invalid_date: 6, missing_value: 1 },
+    skipped_lines: [2, 5, 9, 11, 14, 17].map((line) => ({ line, reason: 'invalid_date' })).concat([{ line: 20, reason: 'missing_value' }]),
+    period: { start: '2026-11-01', end: '2026-11-30' },
+    lines: Array.from({ length: 10 }, (_, i) => ({
+      date: `2026-11-${String(i + 1).padStart(2, '0')}`,
+      amount: `${(i + 1) * 1000}.00`,
+      direction: i % 2 === 0 ? 'credit' : 'debit',
+      currency: 'XOF',
+      label: `VIR LIGNE ${i + 1}`,
+      reference: null,
+      counterparty: null,
+    })),
+    already_imported: false,
+  };
+
+  async function ouvrirEtChoisir(user: ReturnType<typeof userEvent.setup>, nom = 'releve.csv') {
+    await user.click(within(await screen.findByTestId('sans-releve')).getByRole('button', { name: 'Importer un relevé' }));
+    const fenetre = await screen.findByRole('dialog');
+    const champ = fenetre.querySelector<HTMLInputElement>('#releve-fichier');
+    if (!champ) throw new Error('champ de fichier absent');
+    await user.upload(champ, new File(['date;montant\n'], nom, { type: 'text/csv' }));
+    return fenetre;
+  }
+
+  beforeEach(() => {
+    etat.releves = [];
+    etat.apercuReleve = () => json({ data: APERCU_LU });
+  });
+
+  it('AC3 — le fichier choisi est LU d’abord : comptes, raisons, période, 10 lignes ; aucun relevé créé', async () => {
+    const user = userEvent.setup();
+    monter();
+    const fenetre = await ouvrirEtChoisir(user);
+    const apercu = await within(fenetre).findByTestId('apercu-du-releve');
+
+    expect(requetes('/bank-statements/preview', 'POST')).toHaveLength(1);
+    const envoye = requetes('/bank-statements/preview', 'POST')[0]?.corps as FormData;
+    expect(envoye.get('source_format')).toBe('csv');
+    expect((envoye.get('file') as File).name).toBe('releve.csv');
+    expect(requetes('/bank-statements', 'POST')).toHaveLength(0);
+
+    expect(within(apercu).getByTestId('apercu-comptes')).toHaveTextContent('38 lignes lues · 7 lignes non lues · Du 1 nov. au 30 nov.');
+    expect(within(apercu).getByTestId('apercu-non-lues')).toHaveTextContent('Ligne 2 : date illisible');
+    expect(within(apercu).getByTestId('apercu-non-lues')).toHaveTextContent('et 2 autres lignes');
+    expect(within(within(apercu).getByTestId('apercu-lignes')).getAllByRole('listitem')).toHaveLength(10);
+    expect(apercu).toHaveTextContent('Les 10 premières lignes');
+  });
+
+  it('AC3 — « Changer de fichier » ne crée aucun relevé ; « Importer » crée le relevé', async () => {
+    const user = userEvent.setup();
+    monter();
+    const fenetre = await ouvrirEtChoisir(user);
+    await within(fenetre).findByTestId('apercu-du-releve');
+
+    await user.click(within(fenetre).getByRole('button', { name: 'Changer de fichier' }));
+    expect(within(fenetre).queryByTestId('apercu-du-releve')).toBeNull();
+    expect(within(fenetre).getByRole('button', { name: 'Importer' })).toBeDisabled();
+    expect(requetes('/bank-statements', 'POST')).toHaveLength(0);
+
+    const champ = fenetre.querySelector<HTMLInputElement>('#releve-fichier');
+    if (!champ) throw new Error('champ de fichier absent');
+    await user.upload(champ, new File(['x'], 'novembre.csv', { type: 'text/csv' }));
+    await within(fenetre).findByTestId('apercu-du-releve');
+    await user.click(within(fenetre).getByRole('button', { name: 'Importer' }));
+    await waitFor(() => expect(requetes('/bank-statements', 'POST')).toHaveLength(1));
+    expect(((requetes('/bank-statements', 'POST')[0]?.corps as FormData).get('file') as File).name).toBe('novembre.csv');
+    expect(await within(fenetre).findByText('Relevé reçu : l’analyse est en cours.')).toBeInTheDocument();
+  });
+
+  it('un fichier déjà importé : l’aperçu le dit, « Importer » est refusé d’avance', async () => {
+    etat.apercuReleve = () => json({ data: { ...APERCU_LU, already_imported: true } });
+    const user = userEvent.setup();
+    monter();
+    const fenetre = await ouvrirEtChoisir(user);
+    expect(await within(fenetre).findByText('Ce fichier a déjà été importé : l’importer de nouveau serait refusé.')).toBeInTheDocument();
+    expect(within(fenetre).getByRole('button', { name: 'Importer' })).toBeDisabled();
+  });
+
+  it('un fichier illisible (422) : la raison de l’API, rien d’importable', async () => {
+    etat.apercuReleve = () =>
+      json({ code: 'reconciliation.preview_unreadable', message: 'Le relevé n’a pas pu être lu : son en-tête ou son contenu ne correspond pas au format choisi.' }, 422);
+    const user = userEvent.setup();
+    monter();
+    const fenetre = await ouvrirEtChoisir(user);
+    expect(await within(fenetre).findByRole('alert')).toHaveTextContent('son en-tête ou son contenu ne correspond pas');
+    expect(within(fenetre).getByRole('button', { name: 'Importer' })).toBeDisabled();
   });
 });

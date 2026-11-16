@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Check, CircleAlert, Loader2, LogIn, UserCheck } from 'lucide-react';
 
@@ -28,6 +28,7 @@ import { formaterTelephone, numeroComposable } from '@/lib/phone';
 import { cn } from '@/lib/utils';
 
 import { AccepterInvitation } from './AccepterInvitation';
+import { useAideDeLAgence, useCompteDeLaBarre } from './BarreDeLInvitation';
 import { BOUTON_D_INVITATION, BlocAgence, CeQuiVousAttend, LogoDeLAgence, EncadreDeTest, PanneauDeLAgence, PhraseDInvitation, PourQui, cleDuRole } from './PiecesDeLInvitation';
 import { useEntreeParInvitation, type EntreeParInvitation } from './useEntreeParInvitation';
 
@@ -62,6 +63,9 @@ const LIEN_PRIMAIRE =
   'inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-primary underline decoration-1 underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
 const LIEN_DISCRET =
   'inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-muted-foreground underline decoration-1 underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
+/** TCK-2948 — les gestes de la ligne « Rien reçu ? » (renvoyer, le recevoir par appel). */
+const LIEN_DU_CODE =
+  'rounded-lg font-medium text-primary underline decoration-primary/40 underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
 const TITRE = 'font-display text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.02em] xl:text-[2rem] xl:leading-[1.12] xl:tracking-[-0.025em]';
 
 /** « 77 123 45 67 » : l'indicatif du Sénégal se tait ; un numéro étranger le garde. */
@@ -91,7 +95,14 @@ export function EntreeDInvitation({ jeton, connecte, apercu, prerempliDuCompte =
   const [prenom, setPrenom] = useState(apercu.prerempli.prenom);
   const [nom, setNom] = useState(apercu.prerempli.nom);
   const parSms = apercu.destinataire?.canal === 'phone';
-  const entree = useEntreeParInvitation({ jeton, parSms, noms: () => ({ prenom, nom }), onMotDePasse: () => setVoie('mot-de-passe') });
+  // TCK-2941 (ADR-0094, amendement § 4) — le numéro d'une invitation par SMS se corrige, sauf partagée (`code_only`).
+  const numeroModifiable = parSms && !apercu.codeSeul;
+  const entree = useEntreeParInvitation({ jeton, parSms, numeroModifiable, noms: () => ({ prenom, nom }), onMotDePasse: () => setVoie('mot-de-passe') });
+  // TCK-2941 — à droite de la barre : le compte connecté (e3), sinon l'aide de l'agence (son téléphone public),
+  // sinon rien de déclaré — la coque garde « Retour au site ».
+  const aide = useAideDeLAgence(apercu.agence);
+  const compte = useCompteDeLaBarre();
+  const aDroite = connecte ? compte : (aide ?? undefined);
 
   const agence = apercu.agence?.nom ?? null;
   const rejoindre = agence ? t('rejoindre', { agence }) : t('accept');
@@ -111,6 +122,7 @@ export function EntreeDInvitation({ jeton, connecte, apercu, prerempliDuCompte =
     <DeclarerEntree
       objet={<PanneauDeLAgence apercu={apercu} />}
       objetAGauche
+      aDroite={aDroite}
       saisie={saisie || undefined}
       reprise={t('sortie.reprise')}
     />
@@ -145,7 +157,13 @@ export function EntreeDInvitation({ jeton, connecte, apercu, prerempliDuCompte =
     );
   }
 
-  if (entree.etape === 'code') return <>{objet}<EcranDuCode apercu={apercu} entree={entree} parSms={parSms} rejoindre={rejoindre} /></>;
+  if (entree.etape === 'code')
+    return (
+      <>
+        {objet}
+        <EcranDuCode apercu={apercu} entree={entree} parSms={parSms} numeroModifiable={numeroModifiable} aide={aide?.telephone ?? null} rejoindre={rejoindre} />
+      </>
+    );
   if (entree.etape === 'conditions') return <>{objet}<EcranDesConditions entree={entree} /></>;
   if (entree.etape === 'double-facteur') return <>{objet}<EcranDuSecondFacteur entree={entree} /></>;
 
@@ -175,6 +193,7 @@ export function EntreeDInvitation({ jeton, connecte, apercu, prerempliDuCompte =
           apercu={apercu}
           entree={entree}
           parSms={parSms}
+          numeroModifiable={numeroModifiable}
           drapeauLu={drapeau !== null}
           prenom={prenom}
           nom={nom}
@@ -275,6 +294,7 @@ function FormulaireDuNumero({
   apercu,
   entree,
   parSms,
+  numeroModifiable,
   drapeauLu,
   prenom,
   nom,
@@ -286,6 +306,7 @@ function FormulaireDuNumero({
   readonly apercu: ApercuDInvitation;
   readonly entree: EntreeParInvitation;
   readonly parSms: boolean;
+  readonly numeroModifiable: boolean;
   readonly drapeauLu: boolean;
   readonly prenom: string;
   readonly nom: string;
@@ -297,7 +318,14 @@ function FormulaireDuNumero({
   const t = useTranslations('invitationAccept');
   const decalage = useDecalageDuClavier();
   const agence = apercu.agence?.nom ?? null;
-  const pret = parSms ? apercu.destinataire !== null : numeroComposable(entree.telephone);
+  // TCK-2941 — numéro de l'invitation gardé : prêt d'emblée ; corrigé (« Modifier ») ou à saisir : composable.
+  const numeroDeLInvitation = parSms && !entree.numeroCorrige;
+  // TCK-2941 — après « Modifier », le bouton disparaît : le focus passe au champ qui le remplace, jamais au `body`.
+  const corrige = parSms && entree.numeroCorrige;
+  useEffect(() => {
+    if (corrige) document.getElementById('invitation-telephone')?.focus();
+  }, [corrige]);
+  const pret = numeroDeLInvitation ? apercu.destinataire !== null : numeroComposable(entree.telephone);
 
   return (
     <form
@@ -312,18 +340,28 @@ function FormulaireDuNumero({
       <ChampsDuNom apercu={apercu} prenom={prenom} nom={nom} setPrenom={setPrenom} setNom={setNom} figes={entree.envoi} />
 
       <div className="mt-4">
-        {parSms && apercu.destinataire ? (
+        {numeroDeLInvitation && apercu.destinataire ? (
           <>
             <p id="invitation-numero-libelle" className="mb-1.5 text-sm font-medium">
               {t('numero.libelle')}
             </p>
-            <p
-              aria-labelledby="invitation-numero-libelle"
-              aria-describedby="invitation-numero-aide"
-              className="flex h-11 items-center rounded-lg border border-border bg-card px-3 text-[0.9375rem] tabular-nums"
-            >
-              {apercu.destinataire.masque}
-            </p>
+            <div className="flex h-11 items-center rounded-lg border border-border bg-card text-[0.9375rem]">
+              <p aria-labelledby="invitation-numero-libelle" aria-describedby="invitation-numero-aide" className="min-w-0 flex-1 truncate px-3 tabular-nums">
+                {apercu.destinataire.masque}
+              </p>
+              {/* TCK-2941 — « Modifier » : le numéro de l'agence peut être faux ou ancien ; jamais sur un lien partagé. */}
+              {numeroModifiable ? (
+                <button
+                  type="button"
+                  onClick={entree.modifierNumero}
+                  disabled={entree.envoi}
+                  aria-label={t('numero.modifierLibelle')}
+                  className="mr-1 inline-flex min-h-11 flex-none items-center rounded-lg px-2 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
+                >
+                  {t('code.modifier')}
+                </button>
+              ) : null}
+            </div>
             <p id="invitation-numero-aide" className="mt-1.5 text-[0.8125rem] text-muted-foreground">
               {agence ? t('numero.aideSms', { agence }) : t('numero.aideSmsSans')}
             </p>
@@ -346,6 +384,12 @@ function FormulaireDuNumero({
             <p id="invitation-numero-aide" className="mt-1.5 text-[0.8125rem] text-muted-foreground">
               {t('numero.aideEmail')}
             </p>
+            {/* TCK-2941 — le numéro corrigé se reprend : retour à celui que l'agence a donné. */}
+            {parSms && entree.numeroCorrige ? (
+              <button type="button" onClick={entree.garderNumeroDeLInvitation} className={cn(LIEN_DISCRET, 'min-h-9')}>
+                {agence ? t('numero.garder', { agence }) : t('numero.garderSans')}
+              </button>
+            ) : null}
           </>
         )}
       </div>
@@ -392,9 +436,12 @@ function FormulaireDuNumero({
       )}
 
       <div className="mt-4 flex flex-col items-center max-lg:order-1 lg:flex-row lg:justify-center lg:gap-6 lg:border-t lg:border-border lg:pt-3">
-        <button type="button" onClick={onMotDePasse} className={LIEN_PRIMAIRE}>
-          {t('voies.motDePasse')}
-        </button>
+        {/* TCK-2927 (ADR-0123 § 4) — un lien partagé par l'invitant ne s'accepte que par le code. */}
+        {apercu.codeSeul ? null : (
+          <button type="button" onClick={onMotDePasse} className={LIEN_PRIMAIRE}>
+            {t('voies.motDePasse')}
+          </button>
+        )}
         <Link href={lienConnexion} className={LIEN_DISCRET}>
           {t('haveAccount')}
         </Link>
@@ -407,11 +454,16 @@ function EcranDuCode({
   apercu,
   entree,
   parSms,
+  numeroModifiable,
+  aide,
   rejoindre,
 }: {
   readonly apercu: ApercuDInvitation;
   readonly entree: EntreeParInvitation;
   readonly parSms: boolean;
+  readonly numeroModifiable: boolean;
+  /** TCK-2941 — « Aide » de la barre du téléphone (celle-ci remplace la barre de la coque), ou rien. */
+  readonly aide: ReactNode;
   readonly rejoindre: string;
 }) {
   const t = useTranslations('invitationAccept');
@@ -420,7 +472,14 @@ function EcranDuCode({
   // TCK-2598 (r1) — la marque de cet en-tête remplace celle de la coque au téléphone : même garde.
   const clicDeSortie = useClicDeSortie();
   const agence = apercu.agence;
-  const numero = parSms ? (apercu.destinataire?.masque ?? '') : numeroAffiche(entree.telephone);
+  const numero = parSms && !entree.numeroCorrige ? (apercu.destinataire?.masque ?? '') : numeroAffiche(entree.telephone);
+  // TCK-2941 — « · Modifier » : un numéro saisi se reprend ; celui d'une invitation par SMS se corrige (non partagée).
+  const modifiable = !parSms || numeroModifiable;
+  function modifier() {
+    const corriger = parSms && !entree.numeroCorrige;
+    entree.revenirAuNumero();
+    if (corriger) entree.modifierNumero();
+  }
   const biens = cleDuRole(apercu.role) === 'owner' ? (apercu.attente.biens ?? 0) : 0;
   const fort = (morceaux: ReactNode) => <span className="font-semibold text-foreground">{morceaux}</span>;
 
@@ -441,6 +500,7 @@ function EcranDuCode({
             <Link href="/" onClick={clicDeSortie} className="inline-flex rounded-md py-1 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring">
               <Logo nom={tCommun('appName')} />
             </Link>
+            {aide ? <span className="ml-auto flex flex-none items-center pr-3">{aide}</span> : null}
           </header>
         }
       />
@@ -464,14 +524,14 @@ function EcranDuCode({
       <h1 className={cn(TITRE, 'mt-5 xl:mt-3')}>{t('code.titre')}</h1>
       <p className="mt-3 text-[0.9375rem] xl:mt-4 xl:text-base">
         {t.rich('code.envoye', { numero, fort: (m) => <span className="font-semibold tabular-nums">{m}</span> })}
-        {parSms ? null : (
+        {modifiable ? (
           <>
             {' · '}
-            <button type="button" onClick={entree.revenirAuNumero} className="rounded font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring">
+            <button type="button" onClick={modifier} className="rounded font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring">
               {t('code.modifier')}
             </button>
           </>
-        )}
+        ) : null}
       </p>
       <form
         className="mt-4 flex flex-col"
@@ -498,19 +558,45 @@ function EcranDuCode({
         ) : null}
         <p className="mt-3 flex flex-wrap items-center gap-x-1 text-[0.8125rem] text-muted-foreground">
           {t('code.rienRecu')}{' '}
-          {entree.attente > 0 ? (
+          {entree.voixDisponible ? (
+            // TCK-2948 — « Renvoyer le code dans 0:38, ou le recevoir par appel. » : l'appel partage le rebours
+            // du renvoi (inactif pendant), et n'est rendu que si la dernière réponse de `…/code` dit la voie active.
+            <span>
+              {t.rich('code.ouParAppel', {
+                texte: entree.attente > 0 ? t('code.renvoyerDans', { temps: minutes(entree.attente) }) : t('code.renvoyer'),
+                renvoi: (m) =>
+                  entree.attente > 0 ? (
+                    <span className="tabular-nums">{m}</span>
+                  ) : (
+                    <button type="button" disabled={entree.envoi} onClick={() => void entree.envoyerCode()} className={cn(LIEN_DU_CODE, '-my-3 min-h-11')}>
+                      {m}
+                    </button>
+                  ),
+                appel: (m) => (
+                  <button
+                    type="button"
+                    disabled={entree.envoi || entree.attente > 0}
+                    onClick={() => void entree.envoyerCode('voice')}
+                    className={cn(LIEN_DU_CODE, '-my-3 min-h-11 disabled:cursor-default disabled:text-muted-foreground disabled:no-underline')}
+                  >
+                    {m}
+                  </button>
+                ),
+              })}
+            </span>
+          ) : entree.attente > 0 ? (
             <span className="tabular-nums">{t('code.renvoyerDans', { temps: minutes(entree.attente) })}</span>
           ) : (
-            <button
-              type="button"
-              disabled={entree.envoi}
-              onClick={() => void entree.envoyerCode()}
-              className="-my-3 min-h-11 rounded-lg font-medium text-primary underline decoration-primary/40 underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
-            >
+            <button type="button" disabled={entree.envoi} onClick={() => void entree.envoyerCode()} className={cn(LIEN_DU_CODE, '-my-3 min-h-11')}>
               {t('code.renvoyer')}
             </button>
           )}
         </p>
+        {entree.appelDemande ? (
+          <p role="status" className="mt-2 text-[0.8125rem] text-foreground">
+            {t('code.appelEnCours')}
+          </p>
+        ) : null}
         <EncadreDeTest code={entree.apercu} className="mt-5" />
         <p className="mt-6 flex items-start gap-2.5 rounded-2xl bg-muted/70 p-3.5 text-[0.8125rem] leading-snug text-encre-douce xl:hidden">
           <UserCheck className="mt-0.5 size-4 flex-none text-muted-foreground" aria-hidden="true" />

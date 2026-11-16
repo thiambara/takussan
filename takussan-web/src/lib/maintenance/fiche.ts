@@ -52,7 +52,7 @@ export interface AutresActions {
   /** « Demander un devis d'abord » — `can_request_quote` (endpoint dédié, pas une transition). */
   readonly devis: boolean;
   /** Les transitions génériques permises, chacune avec sa phrase d'effet. */
-  readonly transitions: readonly MaintenanceStatus[];
+  readonly transitions: readonly SansAnnulation[];
   /** « Changer la priorité » — le donneur d'ordre (`can_assign`, PATCH `priority`). */
   readonly priorite: boolean;
   /** « Saisir le rapport de fin » — seulement quand un prestataire tient la demande. */
@@ -70,12 +70,15 @@ export interface AutresActions {
  */
 const HORS_DE_LA_LISTE: readonly MaintenanceStatus[] = ['completed', 'assigned', 'cancelled', 'quote_requested', 'quote_submitted', 'awaiting_owner', 'approved', 'rejected'];
 
+/** TCK-2918 — une cible de `PUT …/status` sans motif : tout statut sauf `cancelled`. */
+export type SansAnnulation = Exclude<MaintenanceStatus, 'cancelled'>;
+
 export function autresActions(r: Pick<InterventionEnFile, 'file' | 'abilities' | 'assigned_to' | 'status'>): AutresActions {
   const a = r.abilities;
   const permises = a?.transitions ?? [];
   return {
     devis: a?.can_request_quote === true,
-    transitions: permises.filter((s) => !HORS_DE_LA_LISTE.includes(s)),
+    transitions: permises.filter((s): s is SansAnnulation => !HORS_DE_LA_LISTE.includes(s)),
     priorite: a?.can_assign === true && r.status !== 'closed' && r.status !== 'cancelled',
     rapport: a?.can_complete === true && r.assigned_to !== null && (r.file === 'en_cours' || r.file === 'en_retard'),
     annuler: permises.includes('cancelled'),

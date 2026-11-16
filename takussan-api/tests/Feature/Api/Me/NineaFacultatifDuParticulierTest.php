@@ -13,8 +13,8 @@ use Tests\ApiTestCase;
 /**
  * TCK-2614 (décision 2b, porteur, 2026-11-13) — le NINEA n'est requis que d'un bailleur SOCIÉTÉ
  * (`metadata.owner_type = company`, la règle d'{@see OwnerProfile::companyName()}) ; pour une personne physique, il est
- * facultatif. Les deux lecteurs de « pièces complètes » le disent ensemble : `GET /api/me/pieces` (`required`) et l'étape
- * `kyc` du bailleur dans « Démarrer » (`PiecesDuProfil::requisesEnvoyees`). L'un sans l'autre ferait mentir l'écran.
+ * facultatif. Les deux lecteurs de « pièces complètes » le disent ensemble : `GET /api/me/pieces` (`required`) et les étapes
+ * `piece:*` du bailleur dans « Démarrer » (TCK-2944 : une par pièce requise). L'un sans l'autre ferait mentir l'écran.
  */
 class NineaFacultatifDuParticulierTest extends ApiTestCase
 {
@@ -82,10 +82,13 @@ class NineaFacultatifDuParticulierTest extends ApiTestCase
             ->firstWhere('code', $code)['required'];
     }
 
+    /** TCK-2944 — toutes les étapes `piece:*` de « Démarrer » sont faites (il y en a au moins une). */
     private function etapeKyc(OwnerProfile $profil): bool
     {
-        return (bool) collect($this->apiGet('/api/me/espace/demarrage', $this->entete($profil))->assertOk()->json('data.etapes'))
-            ->firstWhere('code', 'kyc')['faite'];
+        $pieces = collect($this->apiGet('/api/me/espace/demarrage', $this->entete($profil))->assertOk()->json('data.etapes'))
+            ->filter(fn (array $e) => str_starts_with($e['code'], 'piece:'));
+
+        return $pieces->isNotEmpty() && $pieces->every(fn (array $e) => $e['faite'] === true);
     }
 
     /** @return array<string, string> */

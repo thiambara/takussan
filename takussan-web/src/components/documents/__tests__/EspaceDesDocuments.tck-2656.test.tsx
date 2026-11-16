@@ -1,6 +1,7 @@
 /**
- * TCK-2656 — `/app/documents` selon le profil ACTIF : le personnel de l'agence garde la bibliothèque,
- * tout autre profil ouvre son coffre ; tant que les profils ne sont pas lus, ni l'un ni l'autre.
+ * TCK-2656 — `/app/documents` selon le profil ACTIF : le personnel de l'agence ouvre les documents de
+ * l'agence (TCK-2896 : par bien et par bail, la bibliothèque à plat est retirée), tout autre profil
+ * ouvre son coffre ; tant que les profils ne sont pas lus, ni l'un ni l'autre.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render as rendu, screen } from '@testing-library/react';
@@ -15,7 +16,7 @@ vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(e
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 1 } }) }));
 vi.mock('@/hooks/useProfiles', () => ({ useMyProfiles: () => ({ isPending: etat.enCours }) }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ useAgenceDuPersonnelActif: () => etat.agence }));
-vi.mock('../DocumentsLibrary', () => ({ DocumentsLibrary: () => <p>bibliothèque</p> }));
+vi.mock('../agence/DocumentsDeLAgence', () => ({ DocumentsDeLAgence: () => <p>bibliothèque</p> }));
 vi.mock('../coffre/CoffreDeDocuments', () => ({ CoffreDeDocuments: () => <p>coffre</p> }));
 
 import { EspaceDesDocuments } from '../EspaceDesDocuments';
@@ -27,24 +28,22 @@ beforeEach(() => {
 });
 
 describe('TCK-2656 — la bibliothèque ou le coffre', () => {
-  it('le personnel actif d’une agence garde la bibliothèque, sous son en-tête', () => {
+  it('le personnel actif d’une agence ouvre les documents de l’agence (TCK-2896)', () => {
     etat.agence = 3;
-    render(<EspaceDesDocuments enTeteDeLaBibliotheque={<h1>Bibliothèque de l’agence</h1>} />);
+    render(<EspaceDesDocuments />);
     expect(screen.getByText('bibliothèque')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Bibliothèque de l’agence' })).toBeInTheDocument();
     expect(screen.queryByText('coffre')).not.toBeInTheDocument();
   });
 
   it('le locataire, le bailleur et le prestataire ouvrent leur coffre', () => {
-    render(<EspaceDesDocuments enTeteDeLaBibliotheque={<h1>Bibliothèque de l’agence</h1>} />);
+    render(<EspaceDesDocuments />);
     expect(screen.getByText('coffre')).toBeInTheDocument();
     expect(screen.queryByText('bibliothèque')).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Bibliothèque de l’agence' })).not.toBeInTheDocument();
   });
 
   it('ni l’un ni l’autre tant que les profils se lisent', () => {
     etat.enCours = true;
-    render(<EspaceDesDocuments enTeteDeLaBibliotheque={<h1>Bibliothèque de l’agence</h1>} />);
+    render(<EspaceDesDocuments />);
     expect(screen.queryByText('coffre')).not.toBeInTheDocument();
     expect(screen.queryByText('bibliothèque')).not.toBeInTheDocument();
   });
@@ -53,16 +52,15 @@ describe('TCK-2656 — la bibliothèque ou le coffre', () => {
 describe('TCK-2769 — la recherche des profils du coffre est celle du coffre', () => {
   it('`?vue=recherche` (TCK-2656) ne détourne plus vers la liste des téléversements : le coffre, qui porte sa recherche', () => {
     etat.vue = 'recherche';
-    render(<EspaceDesDocuments enTeteDeLaBibliotheque={<h1>Bibliothèque de l’agence</h1>} />);
+    render(<EspaceDesDocuments />);
     expect(screen.getByText('coffre')).toBeInTheDocument();
     expect(screen.queryByText('bibliothèque')).not.toBeInTheDocument();
   });
 
-  it('le personnel garde sa bibliothèque sous son propre en-tête, même avec `?vue=recherche`', () => {
+  it('le personnel garde les documents de l’agence, même avec `?vue=recherche`', () => {
     etat.vue = 'recherche';
     etat.agence = 3;
-    render(<EspaceDesDocuments enTeteDeLaBibliotheque={<h1>Bibliothèque de l’agence</h1>} />);
-    expect(screen.getByRole('heading', { name: 'Bibliothèque de l’agence' })).toBeInTheDocument();
+    render(<EspaceDesDocuments />);
     expect(screen.getByText('bibliothèque')).toBeInTheDocument();
   });
 });

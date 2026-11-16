@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronRight, MapPin } from 'lucide-react';
+import { ChevronRight, MapPin, Phone } from 'lucide-react';
 
 import { PageHeader } from '@/components/console';
 import { StatusBadge } from '@/components/console/StatusBadge';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
+import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { MaintenanceCompleteForm } from '@/components/maintenance/MaintenanceCompleteForm';
 import { MaintenanceGallery } from '@/components/maintenance/MaintenanceGallery';
@@ -24,6 +26,7 @@ import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { formaterTelephone } from '@/lib/phone';
 import { gestePrincipal, type GestePrincipal } from '@/lib/maintenance/fiche';
 import { attenteDe, type InterventionEnFile } from '@/lib/maintenance/files';
 import { useMaintenanceRequest } from '@/lib/queries/maintenance';
@@ -34,6 +37,7 @@ import { AutreActionListe, AutreActionMenu, EchecDAutreAction, FeuillesDAutreAct
 import { ChoixDuPrestataire, useChoixDuPrestataire } from './ChoixDuPrestataire';
 import { FriseDesFiles } from './FriseDesFiles';
 import { JournalDeLaDemande } from './JournalDeLaDemande';
+import { NoteVocaleDeLaDemande } from '../NoteVocaleDeLaDemande';
 
 /**
  * TCK-2653 — la fiche d'une intervention pour l'agence (maquette `app-interventions`, approche a,
@@ -114,6 +118,8 @@ function Corps({ request }: { readonly request: InterventionEnFile }) {
       {/* Téléphone : « Autre action » est la feuille de « ⋯ » (maquette « Fiche — Autre action »). */}
       <DeclarerEnTete forme="detail" titre={t('titreCourt')} repli="/app/maintenance" actions={autre.present ? <AutreActionListe etat={autre} /> : undefined} />
       <FeuillesDAutreAction etat={autre} />
+      {/* TCK-2846 — la fiche entre dans les récents sous le titre de la demande, pas « Intervention ». */}
+      <RetenirLaFiche type="intervention" id={request.id} titre={request.title} chemin={`/app/maintenance/${request.id}`} />
 
       <div className="max-md:hidden">
         <PageHeader
@@ -155,7 +161,9 @@ function Corps({ request }: { readonly request: InterventionEnFile }) {
           {/* Au téléphone, la demande se lit sous le titre, sans cadre (maquette « Fiche — à dispatcher »). */}
           <section data-slot="la-demande" className="md:rounded-xl md:border md:border-border md:bg-card md:p-5">
             <p className="text-xs font-medium text-muted-foreground max-md:hidden">{t('laDemande')}</p>
-            <p className="max-w-prose text-base leading-relaxed whitespace-pre-wrap md:mt-2">{request.description}</p>
+            {request.description ? <p className="max-w-prose text-base leading-relaxed whitespace-pre-wrap md:mt-2">{request.description}</p> : null}
+            {/* TCK-2902 (e1) — le message vocal du locataire, sous sa description. */}
+            <NoteVocaleDeLaDemande request={request} className="mt-3" />
           </section>
           <BienEtDemandeur request={request} />
         </div>
@@ -209,6 +217,9 @@ function BienEtDemandeur({ request }: { readonly request: InterventionEnFile }) 
   const t = useTranslations('maintenance.fiche');
   const bien = request.property;
   const demandeur = personne(request.requester);
+  // TCK-2918 (e1) — servi au seul personnel de l'agence du bien, au détail (ADR-0118 § 2) : sans lui,
+  // ni numéro, ni « Appeler », ni « WhatsApp ».
+  const telephone = request.requester?.phone ?? null;
   const contenuDuBien = bien ? (
     <>
       <span className="min-w-0 flex-1 leading-tight">
@@ -238,9 +249,33 @@ function BienEtDemandeur({ request }: { readonly request: InterventionEnFile }) 
         <Avatar size="40">
           <AvatarFallback>{demandeur ? initiales(demandeur) : '?'}</AvatarFallback>
         </Avatar>
-        <span className="min-w-0 flex-1 truncate text-base font-medium">{demandeur ? t('demandeur', { nom: demandeur }) : t('demandeurAbsent')}</span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block truncate text-base font-medium">{demandeur ? t('demandeur', { nom: demandeur }) : t('demandeurAbsent')}</span>
+          {telephone ? (
+            <span data-slot="telephone-du-demandeur" className="block whitespace-nowrap text-ui tabular-nums text-muted-foreground">
+              {formaterTelephone(telephone)}
+            </span>
+          ) : null}
+        </span>
+        {isReachable(telephone) ? <JoindreLeDemandeur telephone={telephone} nom={demandeur ?? ''} titre={request.title} /> : null}
       </div>
     </section>
+  );
+}
+
+/** TCK-2918 (e1) — « Appeler » et « WhatsApp » du demandeur (maquette « Fiche — à dispatcher », `Joindre`). */
+function JoindreLeDemandeur({ telephone, nom, titre }: { readonly telephone: string; readonly nom: string; readonly titre: string }) {
+  const t = useTranslations('maintenance.fiche.joindre');
+  const rond = cn(buttonVariants({ variant: 'outline', size: 'icon' }), 'size-11 rounded-full');
+  return (
+    <span data-slot="joindre-le-demandeur" className="flex flex-none items-center gap-2">
+      <a href={telHref(telephone)} aria-label={t('appeler', { nom })} className={rond}>
+        <Phone className="size-icone" strokeWidth={1.75} aria-hidden="true" />
+      </a>
+      <a href={whatsappHref(telephone, t('message', { nom, titre }))} target="_blank" rel="noopener noreferrer" aria-label={t('whatsapp', { nom })} className={cn(rond, 'text-success')}>
+        <IconeWhatsApp className="size-icone" />
+      </a>
+    </span>
   );
 }
 
@@ -261,6 +296,13 @@ function Details({ request }: { readonly request: InterventionEnFile }) {
       {ligne(t('assignee'), personne(request.assignee) ?? t('unassigned'))}
       {ligne(t('scheduled_for'), request.scheduled_at ? f.dateTime(request.scheduled_at) : '—')}
       {ligne(t('actual_cost'), request.actual_cost !== null && request.actual_cost !== undefined ? f.montantCourt(request.actual_cost) : '—')}
+      {/* TCK-2918 — le motif de l'annulation (ADR-0118 § 1), relu ici par l'agence. */}
+      {request.status === 'cancelled' && request.cancellation_reason ? (
+        <div className="col-span-full min-w-0" data-slot="motif-de-l-annulation">
+          <dt className="text-xs font-medium text-muted-foreground">{tFiche('motifDAnnulation')}</dt>
+          <dd className="mt-0.5 text-sm whitespace-pre-wrap">{request.cancellation_reason}</dd>
+        </div>
+      ) : null}
     </dl>
   );
 }

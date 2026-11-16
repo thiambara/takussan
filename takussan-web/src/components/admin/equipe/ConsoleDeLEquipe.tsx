@@ -231,7 +231,6 @@ export function ConsoleDeLEquipe({ agencyId, currentUserId, agencyKind = null, p
       currentUserId={currentUserId}
       affectations={affectations.get(m.id) ?? []}
       peutAttribuerLeRole={peutAttribuerLeRole}
-      peutLireLePortefeuille={retraitOffert}
       suspension={suspensionDe(m)}
       onSuspension={(member, action) => setSuspension({ member, action })}
       onRetirer={retraitOffert ? setRetrait : undefined}

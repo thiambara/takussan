@@ -15,4 +15,10 @@ return [
             'not_owner' => "Vous n'avez pas accès à ce profil propriétaire.",
         ],
     ],
+    // TCK-2909 — les termes du mandat (`PATCH /api/owners/{id}`).
+    'mandate' => [
+        'nothing_to_update' => 'Indiquez au moins un réglage du mandat à modifier.',
+        'ends_before_start' => 'La fin du mandat ne peut pas précéder son début.',
+        'referent_not_staff' => "Le référent doit faire partie du personnel actif de l'agence du bailleur.",
+    ],
 ];

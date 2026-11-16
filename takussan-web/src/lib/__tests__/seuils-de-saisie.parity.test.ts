@@ -84,8 +84,10 @@ const PAIRES: ReadonlyArray<{ nom: string; front: () => number; api: () => numbe
   },
   {
     nom: 'durée d’une note vocale (s)',
-    front: () => constanteFront(`${WEB}/components/messages/VoiceNoteRecorder.tsx`, 'VOICE_NOTE_MAX_SECONDS'),
-    api: () => constantePhp(`${API}/Http/Requests/Api/SendMessageConversationRequest.php`, 'AUDIO_MAX_SECONDS'),
+    // TCK-2901 — la borne vit avec l'enregistreur partagé (`components/note-vocale/`), plus dans la messagerie.
+    front: () => constanteFront(`${WEB}/components/note-vocale/useEnregistreurDeNoteVocale.ts`, 'VOICE_NOTE_MAX_SECONDS'),
+    // TCK-2900 — côté API, la règle a quitté la messagerie pour `VoiceNoteRules` (messagerie, interventions).
+    api: () => constantePhp(`${API}/Support/Media/VoiceNoteRules.php`, 'MAX_SECONDS'),
   },
   ...(['Owner', 'Agent', 'ServiceProvider'] as const).map((profil) => ({
     nom: `pièce KYC du profil ${profil} (octets)`,

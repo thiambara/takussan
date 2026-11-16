@@ -140,6 +140,8 @@ GET /api/properties?per_page=10&page=2
 | `filter[listing]` | callback | TCK-2638 — l'état d'annonce, une partition : `online` (= `filter[public]=1`), `pending` (pas en ligne ; `pending` ou `pending_review`), `draft` (pas en ligne ; brouillon), `offline` (tout le reste, négation de `scopePublic`) ; autre valeur → 422 |
 | `filter[rent_late]` | callback | TCK-2637 — `1` : le loyer du mois en retard sur le bail courant que l'appelant peut lire |
 | `filter[tenant]` | callback | TCK-2637 — chaque mot dans le prénom ou le nom du locataire du bail EN COURS lisible par l'appelant (casse repliée, accents non) |
+| `filter[owner_profile_id]` | callback | TCK-2905 — les biens d'un profil bailleur : `user_id` du profil dans l'agence du profil, OU `pending_owner_profile_id` (bailleur invité sans compte). Borné à l'agence du personnel de l'appelant (ou à ses propres profils, super-admin sans borne) : un profil d'une autre agence ou inconnu rend une liste vide ; non entier → 400 ; une liste vaut un filtre absent |
+| `filter[agent]` | callback | TCK-2926 — les biens que ce membre gère (`Property::scopeManagedBy`, la règle de « Mes chiffres » : saisis par lui ou suivis en collaborateur `agent|manager`), dans l'agence du personnel de l'appelant ; un compte qui n'est pas membre de cette agence ou inconnu rend une liste vide (super-admin sans agence : toutes agences) ; non entier → 400 ; une liste vaut un filtre absent |
 | `sort` | `-price`, `price`, `-created_at`, `area`, `bedrooms`, `featured`, `retard` | `retard` (TCK-2637) : loyers du mois en retard d'abord, le plus ancien en tête, puis les autres |
 
 **`filter[id]`** (TCK-2524) — lire des biens par leurs ids, avec leurs `fields` : la vitrine de
@@ -191,6 +193,16 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
   `scopePublic`. Servi sur `GET /api/properties` et `GET /api/properties/{property}`, au seul personnel
   de l'agence du bien sous son profil actif, au bailleur du bien et au super-admin (`MotifsHorsLigne`) ;
   aucun autre lecteur ne reçoit la clé. Pas plus qu'`is_online`, ce n'est un champ de `fields[properties]`.
+- **`include=stats30d`** (TCK-2905, ADR-0117 § 4) → `stats_30d { views, contacts, visits }`, sur
+  `GET /api/properties` seulement : les 30 derniers jours, aujourd'hui compris. `views` : les vues datées
+  (`property_daily_views`) ; `contacts` : les pistes du bien (formulaire, WhatsApp, appel) et les fils directs
+  ouverts sur le bien par un autre que son titulaire ; `visits` : les visites demandées ou terminées dans la
+  fenêtre, hors annulées. Trois requêtes pour la page, quel que soit le nombre de biens. Pas un champ de
+  `fields[properties]` ; jamais sur la liste publique.
+- **`include=maintenanceSummary`** (TCK-2906, fiche `GET /api/properties/{id}` seulement) →
+  `maintenance_summary { total, open, latest_open { id, title, status } | null }` : les interventions du bien
+  que le lecteur lit (portée de `GET /api/maintenance-requests`), « ouvertes » hors terminées, closes,
+  annulées et refusées ; la dernière ouverte par date de création puis id. Une requête.
 - **`owner_profile_id`** (fiche seulement, appelant connu ; TCK-2639) : le profil de bailleur du
   titulaire dans l'agence du bien, rendu à qui la fiche de ce bailleur s'ouvrirait
   (`OwnerProfilePolicy::isInActorAgency` et `viewDetail`), `null` pour tout autre.
@@ -202,7 +214,11 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
 | `filter[pipeline_stage]` | exact | `lead`, `prospect`, `client`, ... |
 | `filter[agency_id]` | exact | ID de l'agence |
 | `filter[search]` | search | Recherche dans first_name, last_name, email, phone |
-| `sort` | `-created_at`, `first_name`, `last_name`, `status` | |
+| `sort` | `-created_at`, `first_name`, `last_name`, `status`, `next_action_at`, `follow_up_days`, `last_contacted_at` | `follow_up_days` et `last_contacted_at` retombent sur la date de création hors personnel de l'agence |
+| `sort=pipeline_stage` | calculé | TCK-2889 — par le RANG de l'étape dans le pipeline (l'ordre de `CustomerPipelineStage` : nouveau, prospect, qualifié, négociation, gagné, perdu), jamais l'ordre alphabétique des codes ; une valeur inconnue en dernier (`CustomerPipelineStageSort`) |
+| `sort=referent` | calculé | TCK-2889 — par le nom affiché du référent de la fiche (celui de l'attribut `referent` et de `filter[referent]`), en `COLLATE "und-x-icu"` ; sans référent en dernier dans les deux sens (`CustomerReferentSort`) |
+| `filter[referent]` | `me` \| `none` \| `{user_id}` | TCK-2588 — le référent (relation `agent_client` principale et active) ; `me` dans l'agence active ; autre forme → 422 |
+| `filter[follow_up]` | `1` \| `0` \| `week` | TCK-2588 — `1` : les fiches à relancer, `0` : les autres (`CustomerFollowUpQuery`). TCK-2890 — `week` : les fiches à relancer ET celles d'une étape vivante dont la prochaine action (l'instant de `sort=next_action_at`) tombe d'ici dimanche soir, heure de Dakar, sans être échue (« Relances prévues cette semaine »). Hors personnel de l'agence : `1` et `week` ne rendent rien, `0` ne retire rien |
 | `fields[customers]=…,suggested_stage` | calculé | TCK-2591 — `{to, reason, at}` ou `null` : l'étape que propose le dernier fait postérieur au dernier changement d'étape (ADR-0103 § 5) ; jamais une colonne |
 
 `GET /api/customers/pipeline-stats` (TCK-2591) accepte `scope=mine` (= `filter[referent]=me`, qu'aucun autre `filter[referent]` ne peut contredire : 422) ou `scope=agency` (CRM de l'agence active, 403 sans `crm.view_all`), et les MÊMES `filter[…]` que la liste des clients ; sans `scope`, la lecture de la fiche, comme avant. Rend aussi `median_days_in_stage` et `exits_last_30d` ; `conversion_rate` se lit dans le journal des étapes.
@@ -239,7 +255,13 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
 - **`include=due_summary`** → `next_due` (`{due_date, amount, status}` de la prochaine échéance à
   venir, reste dû ; `null` sinon), `overdue_count`, `overdue_amount` (au reste dû).
 - **`include=landlord`**, **`include=agent`** → `{id, first_name, last_name, full_name}` ; le
-  téléphone du bailleur pour le personnel de l'agence du bail et pour le bailleur lui-même.
+  téléphone du bailleur pour le personnel de l'agence du bail et pour le bailleur lui-même ; celui de
+  l'agent pour le seul personnel de l'agence du bail (TCK-2906).
+- Fiche `GET /api/leases/{id}` seulement (TCK-2906) : **`include=maintenance_summary`** (même forme que
+  celle du bien, bornée aux demandes du bail), **`include=documentsCount`** → `documents_count` (pièces
+  déposées sur `lease:{id}` + documents générés : ce que l'onglet « Documents » liste),
+  **`include=historyCount`** → `history_count` (entrées de `GET /api/audit-log/lease/{id}`, absent pour qui
+  ne le lit pas). `next_revision_date` est toujours rendu sur la fiche.
 - **`sort=attention`** : l'argent dû d'abord (`rent_late`, `late_fee_unpaid`), puis ce qui presse,
   puis l'information ; le plus ancien `since` en tête. **`sort=etat`** : en cours, en signature,
   brouillon, expiré, résilié, renouvelé.
@@ -273,7 +295,8 @@ Sous `fields[property_visits]`, la réponse ne porte que `id`, les clés nommée
 |---|---|---|
 | `visitor_display` | la carte du visiteur `{name, phone, kind, visits_on_property}` ou `null` | aucune (`VisitReadContext`) |
 | `report` | le compte rendu, `null` s'il n'est pas écrit ; clé absente hors du personnel de l'agence du bien | `reported_at`, `report_*`, `reported_by_id` |
-| `abilities` | `{manage, feedback_customer, create_customer}`, au détail seulement | aucune |
+| `abilities` | `{manage, confirm, feedback_customer, create_customer}`, au détail seulement (`confirm` : TCK-2849) | aucune |
+| `can_confirm` | TCK-2849 (ADR-0112) — le lecteur peut confirmer la visite ou en proposer un autre créneau (`PropertyVisitPolicy::peutConfirmer`, bailleur au titre de `settings.owners_confirm_visits` compris) ; en liste, seulement nommée | aucune (`VisitReadContext`) |
 
 Ces clés ne sortent que **nommées**. `PropertyVisit::buildQuery()` les retire avant spatie
 (`PropertyVisitResource::FIELDS`), et un autre nom inconnu rend toujours 400. Une clé demandée n'ouvre aucun
@@ -304,6 +327,21 @@ Même pattern : `filter[status]`, `filter[search]` (selon le model), `sort`.
 
 Chaque ligne de liste dont le porteur est un bail porte `lease: {id, reference_number, status}`, lu
 sur le porteur déjà chargé pour la page (TCK-2841).
+
+<!-- TCK-2895 -->
+`Document` ajoute la **cible agence** (TCK-2895, ADR-0099 amendé le 2026-11-15) — l'arbre compté de la
+même portée se lit par `GET /api/agency/document-vault` :
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[agency]` | `current` | les pièces des biens de l'agence du profil actif, de ses baux hors brouillon et de l'agence elle-même (`DocumentPolicy::listableOnAgency`), pour son personnel actif ; toute autre valeur, ou tout autre appelant, ne rend rien. Se combine avec `filter[documentable_type]` + `filter[documentable_id]` (un dossier de l'arbre) et les autres filtres ; la méta ajoute `generated` (le compte des générés) |
+| `filter[generated]` | `1` | avec `filter[agency]=current` seulement : les générés de l'agence (contrats, états des lieux signés, quittances) en entrées du coffre (`kind`, `category`, `title`, `date`, `download_path`, `context`), paginés par le serveur ; `filter[search]` y cherche le titre, le bien et le locataire. Sans la cible agence : rien |
+
+`filter[search]` trouve aussi une pièce par le **nom du locataire** de son bail et le **titre du bien** de
+son porteur (index `carrier_tenant_name`, `carrier_property_title`), dans toute liste de documents.
+La fiche d'un document (`GET /api/documents/{id}`, jamais une liste) porte `context: {property: {id,
+title, neighborhood}, lease: {id, reference_number, tenant_name}|null}` pour qui lit sa cible, sinon `null`.
+<!-- /TCK-2895 -->
 
 ### Conversations — `GET /api/conversations` (TCK-2630)
 
@@ -481,7 +519,7 @@ Périmètre : `CommissionEntry::visibleTo` (l'agent ses lignes, `reports.view_ag
 | `filter[status]`, `filter[beneficiary_id]`, `filter[lease_id]`, `filter[origin]` | exact | |
 | `filter[earned_from]` / `filter[earned_to]` | date | `YYYY-MM-DD`, heure de Dakar, bornes incluses ; illisible ou liste → 422 (TCK-2661) |
 | `filter[paid_from]` / `filter[paid_to]` | date | idem sur `paid_at` ; une ligne non payée n'entre dans aucune plage (TCK-2661) |
-| `include` | `lease`, `beneficiary`, `lease.property` | `lease.property` ajoute `lease.property {id, title, quarter}` (TCK-2661) |
+| `include` | `lease`, `beneficiary`, `lease.property`, `lease.tenant` | `lease.property` ajoute `lease.property {id, title, quarter}` (TCK-2661) ; `lease.tenant` ajoute `lease.tenant {id, name}`, le client du bail (TCK-2867) |
 | `sort` | `-earned_at` (défaut), `amount`, `paid_at`, `id` | |
 
 `GET /api/commissions/summary?month=YYYY-MM&year=YYYY` (défaut : le mois courant de Dakar et son
@@ -505,6 +543,34 @@ contacts, visits}`, mesurées de `starts_at` à `ended_at` (ou maintenant) : des
 du demandeur ; `contacts` compte tous les canaux (TCK-2663). `GET /api/credits/suggestions?limit=N`
 (1 à 10, défaut 10) : les biens publics de l'espace sans contact depuis 30 jours ni boost en cours,
 du moins vu au plus vu, `{…property, views_count, last_contact_at}` et `meta.total` (TCK-2663).
+
+Chaque ligne porte aussi `views_7d` et `views_prev_7d` : les vues de la fiche (`property_daily_views`,
+ADR-0117) des sept derniers jours de la mise en avant — de `max(jour du début, jour de fin − 6)` au jour
+de `ended_at`, ou à aujourd'hui si elle court — et des sept jours qui précèdent le jour du début ; jours
+UTC, `0` sans vue. `views_7d` couvre moins de 7 jours quand la mise en avant est plus courte (une
+Remontée : 1 jour) ; `views_prev_7d` en couvre toujours 7 (TCK-2923).
+
+`GET /api/agencies/{agency}/properties/most-viewed?limit=N` (1 à 12, défaut 6) : les biens publics
+(`publicPortfolio`) de l'agence vus ce mois civil, du plus vu au moins vu (égalité : le plus récent),
+`{id, title, reference_number, main_photo_url, price, currency, contract_type, rent_period,
+views_month}`. Forme fixe ; à qui peut écrire la vitrine (`AgencyPolicy::configure`, 403 avant 422)
+(TCK-2923).
+
+`GET /api/credits/lots` : les lots qu'on ne peut plus dépenser, de l'espace actif, le plus récent d'abord ; même
+autorisation que `GET /api/credits` (TCK-2924).
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[state]` | `spent` \| `expired` | `spent` : vidé sans mouvement `expire` ; `expired` : soldé par un mouvement `expire`, ou échu avec un reste pas encore balayé ; absent : les deux ; autre valeur → 422 (TCK-2924) |
+| `fields[credit_lots]` | liste | `id, origin, initial_amount, remaining_amount, expires_at, reason, created_at` ; chaque ligne porte aussi `state` (TCK-2924) |
+| `per_page` | 1 à 50 | défaut 20 (TCK-2924) |
+
+`GET /api/credits/boosts/report?days=7|30|90` (défaut 30 ; autre valeur → 422) : `data.days[]` — chaque jour UTC de la
+période, aujourd'hui compris, `{date, impressions, clicks, views}`, 0 sans mesure ; `views` = les vues de fiche d'un
+bien un jour où l'une de ses mises en avant courait, une fois par bien et par jour — et `data.boosts[]` : chaque mise
+en avant qui a couru dans la période, `{id, kind, variant, status, starts_at, ended_at, property, impressions, clicks,
+views}` totalisés sur la période ; `meta {days, from, to}`. Forme fixe ; même autorisation que `GET /api/credits`
+(TCK-2924).
 
 ### Équipe de l'agence — `GET /api/users`, chemin d'agence (TCK-2665)
 
@@ -533,6 +599,13 @@ Une invitation née d'une fiche client porte `abilities: {resend, revoke}` quand
 client la relance et l'annule sans `team.invite` (`InvitationPolicy`, vérification de TCK-2668, D1).
 
 ---
+
+### Carnet des bailleurs — `GET /api/owners` ; boîte des demandes de contact — `GET /api/contact-leads`
+
+| Param | Type | Description |
+|---|---|---|
+| `sort` (`/api/owners`) | `id`, `created_at`, `status`, `name`, `remaining_to_pay`, `last_payout_at` | TCK-2910 — `last_payout_at` : la date du dernier reversement versé au bailleur dans l'agence du profil (la colonne de la ligne), jamais payé en dernier dans les deux sens ; hors lecteur du relevé (`payouts.create`), range par id seulement (`OwnerLastPayoutSort`) |
+| `include` (`/api/contact-leads`) | `property`, `recipient`, `property.address` | TCK-2884 — `property.address` : le quartier du bien demandé ; la ressource n'en émet que `neighborhood` |
 
 ## Architecture interne
 

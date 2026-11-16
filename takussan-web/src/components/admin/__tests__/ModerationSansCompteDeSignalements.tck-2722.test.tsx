@@ -17,6 +17,9 @@ vi.mock('@/lib/queries/reviews-moderation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/queries/reviews-moderation')>()),
   fetchReviewReports: vi.fn(() => Promise.resolve({ data: [], meta: { total: 0 } })),
   moderateReview: vi.fn(),
+  // TCK-2931 — le résumé du sujet, lu à côté de l'avis : illisible ici, il ne rend rien.
+  fetchReviewSubjectSummary: vi.fn(() => Promise.reject(new Error('hors sujet'))),
+  reviewSubjectSummaryKey: (id: number) => ['reviews-moderation', 'subject-summary', id],
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton' }) }));
 
@@ -63,7 +66,7 @@ describe('TCK-2722 — une ligne de modération sans reported_count', () => {
 
     const { unmount } = render(withIntl(
       <QueryClientProvider client={client}>
-        <ModerationDetail review={avis(1)} onModerated={vi.fn()} platform />
+        <ModerationDetail review={avis(1)} onModerated={vi.fn()} />
       </QueryClientProvider>,
     ));
     expect(await screen.findByText('Équipe sérieuse.')).toBeInTheDocument();
@@ -74,7 +77,7 @@ describe('TCK-2722 — une ligne de modération sans reported_count', () => {
 
     render(withIntl(
       <QueryClientProvider client={client}>
-        <ModerationDetail review={avis(2, { reported_count: 2 })} onModerated={vi.fn()} platform />
+        <ModerationDetail review={avis(2, { reported_count: 2, can_dismiss_reports: true })} onModerated={vi.fn()} />
       </QueryClientProvider>,
     ));
     expect(await screen.findByRole('button', { name: /Ignorer les signalements/ })).toBeInTheDocument();

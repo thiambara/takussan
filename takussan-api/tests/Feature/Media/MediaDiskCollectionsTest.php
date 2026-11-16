@@ -5,15 +5,19 @@ namespace Tests\Feature\Media;
 use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\Document;
+use App\Models\GeoNeighborhood;
 use App\Models\Inventory;
 use App\Models\KycDossier;
 use App\Models\Lease;
+use App\Models\MaintenanceQuoteAlternative;
 use App\Models\MaintenanceRequest;
 use App\Models\Message;
+use App\Models\PayoutMethod;
 use App\Models\PrivacyRequest;
 use App\Models\Property;
 use App\Models\RadarConsent;
 use App\Models\RadarListing;
+use App\Models\ServiceProviderBill;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -55,20 +59,29 @@ class MediaDiskCollectionsTest extends TestCase
         Agency::class => ['logo' => 'public'],
         BankStatement::class => ['statement' => 'private'],
         Document::class => ['file' => 'private', 'versions' => 'private'],
+        // TCK-2844 (ADR-0109 §1) — la photo d'un quartier, servie sur les tuiles de l'accueil.
+        GeoNeighborhood::class => ['cover' => 'public'],
         Inventory::class => ['photos' => 'private', 'room_photos' => 'private'],
         KycDossier::class => ['documents' => 'private'],
         // TCK-596 §4B — `signed_contract` : le contrat figé que les parties signent (ADR-0042).
         Lease::class => ['lease_deposit_refund' => 'private', 'signed_contract' => 'private'],
         // TCK-592 — `before_photos` : l'intérieur du logement constaté avant intervention, privé comme
         // les trois autres.
-        MaintenanceRequest::class => ['photos' => 'private', 'completion_photos' => 'private', 'quotes' => 'private', 'before_photos' => 'private'],
+        // TCK-2900 (ADR-0113 § 2) — `voice_notes` : la note vocale du signalement, privée.
+        MaintenanceRequest::class => ['photos' => 'private', 'completion_photos' => 'private', 'quotes' => 'private', 'before_photos' => 'private', 'voice_notes' => 'private'],
+        // TCK-2911 (ADR-0120 § 3) — la pièce d'un devis concurrent consulté : privée, comme `quotes`.
+        MaintenanceQuoteAlternative::class => ['quote' => 'private'],
         Message::class => ['attachments' => 'private'],
+        // TCK-2863 — le relevé d'identité bancaire d'un compte de versement : privé.
+        PayoutMethod::class => ['bank_statement' => 'private'],
         // TCK-539 (D2) — l'original d'une photo est privé, ses conversions (filigranées) publiques.
         // TCK-601 — la preuve de réponse d'une demande de droits : document du demandeur, privé.
         PrivacyRequest::class => ['proof' => 'private'],
         Property::class => ['photos' => 'private, conversions public', 'videos' => 'public', 'plans' => 'public'],
         // TCK-2386 (ADR-0077 §9) — les captures d'écran d'une annonce collectée : données personnelles, privées.
         RadarConsent::class => ['radar_consent_captures' => 'private'],
+        // TCK-2911 (ADR-0120 § 1) — la pièce jointe à « Facturer » par le prestataire : privée.
+        ServiceProviderBill::class => ['invoice' => 'private'],
         RadarListing::class => ['radar_captures' => 'private', 'radar_photos' => 'private'],
         User::class => ['avatar' => 'public', 'avatars' => 'public', 'photos' => 'private', 'documents' => 'private'],
     ];

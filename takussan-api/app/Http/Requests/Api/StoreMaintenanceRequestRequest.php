@@ -8,6 +8,7 @@ use App\Models\Enums\MaintenancePriority;
 use App\Models\Property;
 use App\Policies\MaintenanceRequestPolicy;
 use App\Rules\AssignableProvider;
+use App\Support\Media\VoiceNoteRules;
 use Illuminate\Validation\Rule;
 
 /**
@@ -61,9 +62,15 @@ class StoreMaintenanceRequestRequest extends BaseFormRequest
             'title' => ['required', 'string', 'max:255'],
             // TCK-2652 — facultative pour le demandeur (le locataire signale d'un geste, le titre se
             // déduit de la catégorie) ; exigée du donneur d'ordre, dont le formulaire ne change pas.
-            'description' => [Rule::requiredIf(fn (): bool => $this->isPrincipal()), 'nullable', 'string'],
+            // TCK-2900 (ADR-0113 § 3) — une note vocale jointe tient lieu de description, pour tous.
+            'description' => [Rule::requiredIf(fn (): bool => $this->isPrincipal() && ! $this->hasFile('voice_note')), 'nullable', 'string'],
             'category' => ['required', Rule::enum(MaintenanceCategory::class)],
             'priority' => ['nullable', Rule::enum(MaintenancePriority::class)],
+            // TCK-2900 (ADR-0113 § 1 et § 3) — la note vocale du signalement, facultative, sous les
+            // bornes de la messagerie (`VoiceNoteRules`, une seule source). Sa durée déclarée l'exige,
+            // et n'est retenue qu'avec elle.
+            'voice_note' => ['nullable', ...VoiceNoteRules::file()],
+            'voice_note_duration' => ['exclude_without:voice_note', 'required_with:voice_note', ...VoiceNoteRules::duration()],
         ];
     }
 }

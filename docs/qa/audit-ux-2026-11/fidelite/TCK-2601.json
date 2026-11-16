@@ -256,13 +256,6 @@
     },
     {
       "ecran": "a-6, a-7 (bureau)",
-      "element": "assurances « Pas de mot de passe à inventer », « Annonce retirable à tout moment »",
-      "propriete": "deux au lieu de trois ; une ligne (19,5) au lieu de deux (39) ; x",
-      "exception": "décision de la session (team-lead, 2026-11-13)",
-      "motif": "« Gratuit, sans commission » retiré, ratifié : la commission dépend de l'abonnement de l'espace qui publiera, inconnu avant le code. À deux, chacune tient sur une ligne"
-    },
-    {
-      "ecran": "a-6, a-7 (bureau)",
       "element": "surtitre « Votre annonce est prête »",
       "propriete": "espacement des lettres 0,9 au lieu de 1,3",
       "exception": "règle du design system (jeton tracking-surtitre)",
@@ -312,5 +305,16 @@
     "« Revenir à l’annonce » est retiré au téléphone (décision de team-lead, 2026-11-13 : le ✕ de 44 px suffit) ; dès 768 px (panneau latéral et feuille de tablette) il reste au pied. Éprouvé par PropertyWizard.panneau.tck-2601.test.tsx, ablation rouge.",
     "Le cadre de l'assistant autour du panneau est celui de TCK-2600 (`cadreDEntree` de `WizardShell`) : `PanneauDeCompte` ne porte plus sa propre colonne, il prend celle du nœud qui le reçoit — 560 px dans le cadre d'entrée, la colonne plein écran de /app/properties/new sinon ; « Revenir à l’annonce » y remonte en haut de la colonne (`in-data-cadre-d-entree:-mt-3`)."
   ],
-  "ecarts_ouverts": []
+  "ecarts_ouverts": [],
+  "ecarts_resolus": [
+    {
+      "ecran": "a-6, a-7 (bureau)",
+      "element": "assurances « Pas de mot de passe à inventer », « Annonce retirable à tout moment »",
+      "propriete": "deux au lieu de trois ; une ligne (19,5) au lieu de deux (39) ; x",
+      "exception": "décision de la session (team-lead, 2026-11-13)",
+      "motif": "« Gratuit, sans commission » retiré, ratifié : la commission dépend de l'abonnement de l'espace qui publiera, inconnu avant le code. À deux, chacune tient sur une ligne",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2934 : les trois assurances de la maquette, « Gratuit, sans commission » au milieu. La promesse est tenue par le code : publier ne débite rien (seul le Booster débite des crédits), et `/publish` ne publie que dans un espace particulier, né sans abonnement, donc à 0 % de commission de plateforme (`QuotaResolver::effectivePlatformFeePctForAgency`). Une agence ou plusieurs espaces : l'annonce part vers l'assistant connecté, pas de publication d'ici. Et le panneau de compte dès 1024 dans le cadre d'entrée (maquette : « inchangé à 1280 et à 1024 »). Tests : PropertyWizard.panneau.tck-2601, CadreDeLaFeuille.seuil.tck-2934."
+    }
+  ]
 }

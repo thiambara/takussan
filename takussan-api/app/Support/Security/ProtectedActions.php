@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\Auth\TwoFactorController;
+use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\BookingPaymentController;
 use App\Http\Controllers\Api\CommissionEntryController;
 use App\Http\Controllers\Api\CustomerController;
@@ -194,6 +195,8 @@ final class ProtectedActions
         ServiceProviderInvitationController::class.'@__invoke',
         InvitationController::class.'@revoke',
         InvitationController::class.'@resend',
+        // TCK-2927 (ADR-0123 § 2) — renouveler le lien partagé d'une invitation, comme la relancer.
+        InvitationController::class.'@shareLink',
         // TCK-2665 — supprimer les invitations expirées de l'agence, comme renvoyer et révoquer.
         InvitationController::class.'@purgeExpired',
 
@@ -278,6 +281,8 @@ final class ProtectedActions
         MePayoutMethodController::class.'@store',
         MePayoutMethodController::class.'@update',
         MePayoutMethodController::class.'@destroy',
+        // TCK-2863 — envoyer le RIB d'un compte bancaire : une écriture de la destination comme les autres.
+        MePayoutMethodController::class.'@bankStatement',
         // VERIF-594 passe 4, P4-6 (décision de session, réversible) — qui vérifie une destination
         // décide où l'argent part ; un membre sans second facteur, agent compris, ne vérifie plus.
         PayoutMethodController::class.'@verify',
@@ -309,6 +314,8 @@ final class ProtectedActions
         // clair : même règle que celle du bailleur.
         CustomerController::class.'@sensitive',
         GuarantorController::class.'@sensitive',
+        // TCK-2893 (ADR-0110 § 4) — le revenu déclaré du candidat, en clair : même règle.
+        BookingController::class.'@sensitive',
     ];
 
     /**

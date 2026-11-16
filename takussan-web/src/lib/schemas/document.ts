@@ -18,6 +18,9 @@ export const documentTypeSchema = z.enum([
   'insurance',
   'inventory_report',
   'photo',
+  // TCK-2910 — offert au dépôt depuis TCK-2909 (`DOCUMENT_TYPE_UPLOAD_ORDER`) sans que le schéma le
+  // reçoive : le mandat choisi ne partait jamais.
+  'management_mandate',
   'other',
 ]);
 
@@ -29,6 +32,8 @@ export const documentableTypeSchema = z.enum([
   'user',
   'agency',
   'inventory',
+  // TCK-2910 — la fiche du bailleur dépose sur son profil.
+  'owner_profile',
 ]);
 
 export const documentUploadSchema = z.object({

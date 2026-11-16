@@ -1,8 +1,9 @@
 'use client';
 
 import type { MouseEvent } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, Phone } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, HandCoins, MoreHorizontal, Phone, UserRound } from 'lucide-react';
 
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { StatusBadge } from '@/components/console/StatusBadge';
@@ -10,6 +11,7 @@ import { isReachable, telHref } from '@/components/crm/contact';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { PaymentHistoryRow } from '@/types/invoice';
 
@@ -28,6 +30,9 @@ import { CLASSE_JAMAIS_EN_ALERTE, useJamaisRelanceEnAlerte } from './ton-de-la-r
  * toutes les échéances AFFICHÉES. Une rangée cochée prend le fond de la sélection, celle que la file
  * présente (`enCours`) un fond plus soutenu et `aria-current`. Pendant la file, ni coche ni dossier.
  * Sous 1440 px, le bailleur rejoint la ligne du bien (maquette `COLS_IMPAYES_ETROIT`).
+ *
+ * TCK-2922 — en bout de rangée, le menu ⋯ « Plus d'actions » de la maquette (`app-argent-a.tsx:545`) :
+ * « Fiche client », « Encaisser un paiement » (avec `onEncaisser`) et « Voir le bail » de CETTE échéance.
  */
 export function TableDesImpayes({
   rows,
@@ -37,6 +42,7 @@ export function TableDesImpayes({
   onOuvrir,
   selection,
   enCours = null,
+  onEncaisser,
 }: {
   readonly rows: readonly PaymentHistoryRow[];
   readonly meta: { readonly current_page: number; readonly last_page: number; readonly total: number; readonly per_page: number } | undefined;
@@ -52,6 +58,8 @@ export function TableDesImpayes({
   };
   /** TCK-2682 — l'échéance que la file présente. */
   readonly enCours?: number | null;
+  /** TCK-2922 — « Encaisser un paiement » du menu ⋯ ; absent : l'entrée n'est pas proposée. */
+  readonly onEncaisser?: (row: PaymentHistoryRow) => void;
 }) {
   const t = useTranslations('admin.finances.impayes');
   const tPagination = useTranslations('console.pagination');
@@ -174,7 +182,8 @@ export function TableDesImpayes({
       id: 'gestes',
       header: t('colonnes.gestes'),
       headerSrOnly: true,
-      className: 'align-middle w-[9.5rem]',
+      // TCK-2922 — 2,25 rem de plus pour le menu ⋯.
+      className: 'align-middle w-[11.75rem]',
       cell: (row) => {
         const telephone = row.payer?.phone ?? null;
         return (
@@ -193,6 +202,7 @@ export function TableDesImpayes({
                 <Phone className="size-4" aria-hidden="true" />
               </a>
             ) : null}
+            <MenuDeLImpaye row={row} onEncaisser={onEncaisser} />
           </span>
         );
       },
@@ -205,7 +215,8 @@ export function TableDesImpayes({
    */
   const clicDeLigne = (row: PaymentHistoryRow) => (event: MouseEvent<HTMLTableRowElement>) => {
     if (selection?.figee) return;
-    if ((event.target as HTMLElement).closest('a, button, label, input, [role="checkbox"]')) return;
+    // TCK-2922 — `[role="menuitem"]` : le menu ⋯ est dans un portail, mais son clic remonte quand même à la rangée (React).
+    if ((event.target as HTMLElement).closest('a, button, label, input, [role="checkbox"], [role="menuitem"], [role="menu"]')) return;
     onOuvrir(row, false);
   };
 
@@ -258,5 +269,45 @@ export function TableDesImpayes({
         </button>
       </div>
     </div>
+  );
+}
+
+/** TCK-2922 — le menu ⋯ d'une rangée : ce qui manque à la rangée pour aller plus loin sans ouvrir le dossier. */
+function MenuDeLImpaye({ row, onEncaisser }: { readonly row: PaymentHistoryRow; readonly onEncaisser?: (row: PaymentHistoryRow) => void }) {
+  const t = useTranslations('admin.finances.impayes');
+  const l = useLectureDImpaye();
+  const fiche = row.payer?.id ? `/app/customers/${row.payer.id}` : null;
+  const encaisser = onEncaisser && row.lease_id && row.status !== 'paid' ? () => onEncaisser(row) : null;
+  const bail = row.lease_id ? `/app/leases/${row.lease_id}` : null;
+  if (!fiche && !encaisser && !bail) return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={t('gestes.plusDActions', { nom: l.nom(row) })}
+        className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-muted-foreground aria-expanded:bg-muted aria-expanded:text-foreground')}
+      >
+        <MoreHorizontal className="size-4" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56 p-1.5">
+        {fiche ? (
+          <DropdownMenuItem render={<Link href={fiche} />} className="gap-2.5 px-2.5 py-2">
+            <UserRound className="size-4 flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+            {t('gestes.ficheClient')}
+          </DropdownMenuItem>
+        ) : null}
+        {encaisser ? (
+          <DropdownMenuItem onClick={encaisser} className="gap-2.5 px-2.5 py-2">
+            <HandCoins className="size-4 flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+            {t('gestes.encaisser')}
+          </DropdownMenuItem>
+        ) : null}
+        {bail ? (
+          <DropdownMenuItem render={<Link href={bail} />} className="gap-2.5 px-2.5 py-2">
+            <FileText className="size-4 flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+            {t('gestes.voirLeBail')}
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

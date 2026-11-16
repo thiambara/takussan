@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\AgencyMostViewedPropertiesController;
+use App\Http\Controllers\Api\Agency\AgencyResponseTimeController;
 use App\Http\Controllers\Api\Agency\AgencySetupStatusController;
 use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Agency\AgentInvitationController;
@@ -10,6 +12,7 @@ use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
 use App\Http\Controllers\Api\Agency\ServiceProviderInvitationController;
 use App\Http\Controllers\Api\Agency\TeamController;
+use App\Http\Controllers\Api\Agency\TeamMemberController;
 use App\Http\Controllers\Api\Agency\TeamMemberSuspensionController;
 use App\Http\Controllers\Api\Agency\TeamPerformanceController;
 use App\Http\Controllers\Api\Agency\TenantOnboardingPendingController;
@@ -28,6 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // la console (`AgencyProvisioningService`) ou par l'espace hôte (`HostIndividualOnboardingService`),
     // qui créent toutes deux le profil d'administrateur.
     Route::get('agencies/{agency}', [AgencyController::class, 'show'])->name('agencies.show');
+    // TCK-2871 — le délai de première réponse de l'agence, lu par ses clients (médiane sur 90 jours, 204 sous 10).
+    Route::get('agencies/{agency}/response-time', AgencyResponseTimeController::class)->name('agencies.response-time');
     Route::put('agencies/{agency}', [AgencyController::class, 'update'])->name('agencies.update');
     Route::patch('agencies/{agency}', [AgencyController::class, 'update']);
     // TCK-1499 (P129.06, ADR-0048 amendé le 2026-10-22) — une agence ne se supprime pas : elle sort
@@ -61,10 +66,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Agency stats (P1 — simple aggregates, no cache).
     Route::get('agencies/{agency}/stats', [AgencyStatsController::class, 'show'])->name('agencies.stats.show');
+    // TCK-2923 — les biens publics de l'agence les plus vus du mois, pour choisir sa vitrine.
+    Route::get('agencies/{agency}/properties/most-viewed', AgencyMostViewedPropertiesController::class)->name('agencies.properties.most-viewed');
 
     // TCK-595 (§6, §7) — pilotage : performance d'équipe (agences `standard`) et balance âgée.
     Route::get('agencies/{agency}/team-performance', [TeamPerformanceController::class, 'show'])->name('agencies.team-performance');
     Route::get('agencies/{agency}/finance/aging', [AgingBalanceController::class, 'show'])->name('agencies.finance.aging');
+    // TCK-2866 — la même balance âgée, imprimée (filtre bailleur compris), sous la même garde.
+    Route::get('agencies/{agency}/finance/aging.pdf', [AgingBalanceController::class, 'pdf'])->name('agencies.finance.aging.pdf');
     // TCK-2657 (ADR-0100 § 4) — le point de l'argent d'un mois, sous la même Policy que la balance âgée.
     Route::get('agencies/{agency}/finance/summary', [FinanceSummaryController::class, 'show'])->name('agencies.finance.summary');
 
@@ -98,6 +107,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // remove sont sur /api/profiles/{agent_profile} (routes/api/profiles.php).
     Route::get('agencies/{agency}/team', [TeamController::class, 'index'])
         ->name('agencies.team.index');
+    // TCK-2926 (ADR-0124) — la fiche d'un membre (portefeuille, commissions dues, dernière connexion, 2FA)
+    // et le rappel d'activer sa double authentification.
+    Route::get('agencies/{agency}/team/{user}', [TeamMemberController::class, 'show'])
+        ->name('agencies.team.show');
+    Route::post('agencies/{agency}/team/{user}/two-factor-reminder', [TeamMemberController::class, 'remindTwoFactor'])
+        ->name('agencies.team.two-factor-reminder');
     Route::post('agencies/{agency}/agents/invite', AgentInvitationController::class)
         ->middleware('throttle:invitations-send')
         ->name('agencies.agents.invite');

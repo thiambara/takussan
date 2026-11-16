@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
 import { CreateLeaseForm } from '@/components/leases/CreateLeaseForm';
+import { MentionDuBrouillon, SuiviDuBrouillon } from '@/components/leases/creation/BrouillonDuBail';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
@@ -58,25 +59,28 @@ export default async function Page({
   // au lieu des 24 px de l'enveloppe de la coque.
   return (
     <PagePleineLargeur className="space-y-6">
-      <PageHeader
-        className="max-md:hidden"
-        title={t('title')}
-        // Venu de la fiche du bien, le bail en reprend les valeurs (maquette : « Prérempli depuis la fiche du bien »).
-        description={propertyId ? t('subtitlePrerempli') : t('subtitle')}
-        fil={{ label: tConsole('breadcrumb'), etapes: [{ label: tListe('title'), href: '/app/leases' }, { label: t('title') }] }}
-        actions={
-          <Link href={retour} className={buttonVariants({ variant: 'ghost' })}>
-            {tCommon('actions.cancel')}
-          </Link>
-        }
-      />
-      <CreateLeaseForm
-        bookingId={bookingId}
-        propertyId={propertyId}
-        customerId={customerId}
-        personnel={personnel}
-        retour={retour}
-      />
+      {/* TCK-2912 — l'en-tête dit l'heure du brouillon que le formulaire enregistre (« brouillon enregistré à 10:42 »). */}
+      <SuiviDuBrouillon>
+        <PageHeader
+          className="max-md:hidden"
+          title={t('title')}
+          // Venu de la fiche du bien, le bail en reprend les valeurs (maquette : « Prérempli depuis la fiche du bien »).
+          description={<MentionDuBrouillon texte={propertyId ? t('subtitlePrerempli') : t('subtitle')} />}
+          fil={{ label: tConsole('breadcrumb'), etapes: [{ label: tListe('title'), href: '/app/leases' }, { label: t('title') }] }}
+          actions={
+            <Link href={retour} className={buttonVariants({ variant: 'ghost' })}>
+              {tCommon('actions.cancel')}
+            </Link>
+          }
+        />
+        <CreateLeaseForm
+          bookingId={bookingId}
+          propertyId={propertyId}
+          customerId={customerId}
+          personnel={personnel}
+          retour={retour}
+        />
+      </SuiviDuBrouillon>
     </PagePleineLargeur>
   );
 }

@@ -6,6 +6,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { cn } from '@/lib/utils';
+import { AutreEspaceDeLIntrouvable } from './AutreEspaceDeLIntrouvable';
 import { RetourVersLaListe } from './RetourVersLaListe';
 import { ListeDeSecours } from './SecoursDeLIntrouvable';
 
@@ -58,36 +59,41 @@ export function CorpsDeLIntrouvable({ aujourdhui }: { readonly aujourdhui: boole
           {t('aide')}
         </p>
       </div>
-      <div className="mt-5 md:mt-6 md:max-w-[480px]">
-        <form role="search" className="relative">
-          <Search
-            className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground"
-            strokeWidth={1.5}
-            aria-hidden
-          />
-          <Input
-            id={ID_CHAMP}
-            type="search"
-            data-slot="aller-a-dans-la-page"
-            aria-label={tPalette('champ')}
-            aria-controls={ID_LISTE}
-            placeholder={tPalette('placeholder')}
-            maxLength={80}
-            autoComplete="off"
-            className={STYLE_CHAMP}
-          />
-        </form>
-        <ListeDeSecours idChamp={ID_CHAMP} idListe={ID_LISTE} />
-        <div className="mt-5 flex flex-col gap-2 md:flex-row md:flex-wrap">
-          <RetourVersLaListe />
-          <Link
-            href="/app"
-            data-slot="retour-a-l-accueil"
-            className={cn(buttonVariants({ variant: 'outline' }), STYLE_RETOUR)}
-          >
-            {t(aujourdhui ? 'backToday' : 'backHome')}
-          </Link>
+      {/* TCK-2848 — à côté de « Aller à… » dès `xl`, la variante « autre espace » (maquette, bureau) ;
+          en deçà, empilée AVANT lui : c'est le geste qui répond à l'URL demandée. */}
+      <div className="mt-5 grid grid-cols-1 items-start gap-6 md:mt-6 xl:grid-cols-[480px_minmax(0,1fr)] xl:gap-10">
+        <div className="md:max-w-[480px]">
+          <form role="search" className="relative">
+            <Search
+              className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground"
+              strokeWidth={1.5}
+              aria-hidden
+            />
+            <Input
+              id={ID_CHAMP}
+              type="search"
+              data-slot="aller-a-dans-la-page"
+              aria-label={tPalette('champ')}
+              aria-controls={ID_LISTE}
+              placeholder={tPalette('placeholder')}
+              maxLength={80}
+              autoComplete="off"
+              className={STYLE_CHAMP}
+            />
+          </form>
+          <ListeDeSecours idChamp={ID_CHAMP} idListe={ID_LISTE} />
+          <div className="mt-5 flex flex-col gap-2 md:flex-row md:flex-wrap">
+            <RetourVersLaListe />
+            <Link
+              href="/app"
+              data-slot="retour-a-l-accueil"
+              className={cn(buttonVariants({ variant: 'outline' }), STYLE_RETOUR)}
+            >
+              {t(aujourdhui ? 'backToday' : 'backHome')}
+            </Link>
+          </div>
         </div>
+        <AutreEspaceDeLIntrouvable className="max-xl:-order-1" />
       </div>
     </div>
   );

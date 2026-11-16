@@ -117,6 +117,68 @@ class BookingPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2872 (ADR-0110 § 2) — déposer une pièce du dossier : le CLIENT de la réservation, ou le
+     * personnel de l'agence du bien (actif). Plus étroit que `DocumentPolicy::attachTo`, qui admet
+     * aussi le bailleur et l'auteur : le dossier se remplit par le candidat ou par l'agence.
+     */
+    public function uploadDossierPiece(User $user, Booking $booking): bool
+    {
+        return $user->isSuperAdmin()
+            || $this->isStaffOf($user, $booking->agency_id)
+            || ($booking->customer !== null && $booking->customer->user_id !== null
+                && (int) $booking->customer->user_id === (int) $user->id);
+    }
+
+    /** TCK-2872 (ADR-0110 § 2) — « Demander » une pièce : le personnel de l'agence du bien seul. */
+    public function requestDossierPiece(User $user, Booking $booking): bool
+    {
+        return $user->isSuperAdmin() || $this->isStaffOf($user, $booking->agency_id);
+    }
+
+    /**
+     * TCK-2893 (ADR-0110 § 3) — rattacher ou retirer un garant : les auteurs du dossier, comme le
+     * dépôt d'une pièce ({@see self::uploadDossierPiece()}) — le client de la réservation, qui le
+     * déclare, ou le personnel de l'agence du bien. Ni le bailleur, ni un autre candidat.
+     */
+    public function manageGuarantors(User $user, Booking $booking): bool
+    {
+        return $this->uploadDossierPiece($user, $booking);
+    }
+
+    /**
+     * TCK-2873 (ADR-0110 § 5) — contre-proposer un prix : le personnel de l'agence du bien tenant
+     * la capacité de décision des réservations (`bookings.validate`), comme accepter ou refuser.
+     * Le bailleur, que {@see self::validate()} admet aussi, ne négocie pas : le ticket nomme le
+     * personnel seul.
+     */
+    public function proposeCounterOffer(User $user, Booking $booking): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->isStaffOf($user, $booking->agency_id)
+            && $user->can(Capability::BookingsValidate->value, $booking);
+    }
+
+    /** TCK-2873 (ADR-0110 § 5) — accepter ou décliner une contre-offre : le CLIENT de la réservation seul. */
+    public function answerCounterOffer(User $user, Booking $booking): bool
+    {
+        return $booking->customer !== null && $booking->customer->user_id !== null
+            && (int) $booking->customer->user_id === (int) $user->id;
+    }
+
+    /**
+     * TCK-2893 (ADR-0110 § 4, ADR-0070 § 5) — le revenu déclaré EN CLAIR : un profil d'admin dans
+     * l'agence de la réservation, comme la pièce du client (`CustomerPolicy::viewSensitive`). Une
+     * réservation sans agence n'a pas de lecteur en clair ; le super-admin passe par `Gate::before`.
+     */
+    public function viewSensitive(User $user, Booking $booking): bool
+    {
+        return $booking->agency_id !== null && $user->isAgencyAdminAt((int) $booking->agency_id);
+    }
+
+    /**
      * TCK-596 (VERIF-596, hors diff fermé ici) — le propriétaire du bien confirme, refuse et annule,
      * sauf s'il est suspendu (`blocked`) dans l'agence de la réservation : la règle de 587
      * (`landlordWrites`) que le bail, l'état des lieux et le remboursement appliquaient déjà.

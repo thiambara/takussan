@@ -17,6 +17,7 @@ use App\Rules\HoteDeVisiteVirtuelle;
 use App\Rules\JourIso;
 use App\Services\Geo\GeoAddressRules;
 use App\Services\Property\CoutDEntree;
+use App\Services\Property\HeuresDuSejour;
 use App\Services\Property\HierarchyService;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -107,6 +108,8 @@ class UpdatePropertyRequest extends BaseFormRequest
                 partiel: true,
                 fraisAdmis: CoutDEntree::fraisDAgenceAdmis($this->agenceDuBien()),
             ),
+            // TCK-2892 — les heures d'un séjour : jugées sur le contrat et la période qui RÉSULTERONT.
+            ...HeuresDuSejour::regles($this->heuresDuSejourApplicables(), partiel: true),
         ];
     }
 
@@ -127,6 +130,18 @@ class UpdatePropertyRequest extends BaseFormRequest
         $bien = $this->route('property');
 
         return $bien?->agency;
+    }
+
+    /** TCK-2892 — même lecture que {@see self::coutDEntreeApplicable()}. */
+    private function heuresDuSejourApplicables(): bool
+    {
+        /** @var Property|null $bien */
+        $bien = $this->route('property');
+
+        return HeuresDuSejour::sApplique(
+            $this->exists('contract_type') ? $this->input('contract_type') : $bien?->contract_type,
+            $this->exists('rent_period') ? $this->input('rent_period') : $bien?->rent_period,
+        );
     }
 
     private function coutDEntreeApplicable(): bool

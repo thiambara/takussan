@@ -50,6 +50,9 @@ class PersonalDataAccessLogger
     /** TCK-955 (ADR-0070 § 5) — la pièce et le revenu d'une caution, lus en clair. */
     public const SURFACE_GUARANTOR_SENSITIVE = 'guarantor_sensitive';
 
+    /** TCK-2893 (ADR-0110 § 4) — le revenu déclaré d'un candidat, lu en clair. */
+    public const SURFACE_BOOKING_SENSITIVE = 'booking_sensitive';
+
     /** TCK-820 (P23.04) — une pièce (`Document::PIECE_TYPES`) lue par un profil plateforme. */
     public const SURFACE_DOCUMENT_PIECE = 'document_piece';
 

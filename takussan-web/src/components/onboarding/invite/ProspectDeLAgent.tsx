@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowRight, ChevronDown, ChevronRight, CircleDashed, Inbox, Loader2, MapPin, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ChevronRight, CircleDashed, Inbox, Loader2, MapPin, Phone, ShieldCheck, X } from 'lucide-react';
 
 import { BOUTON_D_ENTREE, BoutonCollant } from '@/components/auth/BoutonCollant';
 import { ZoneMultiSelect } from '@/components/agents/ZoneMultiSelect';
@@ -15,6 +15,7 @@ import { useAgentRoleCapabilities } from '@/hooks/useCan';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import type { AgentFirstLeadEntry, AgentSpecializationPayload } from '@/lib/agent-onboarding';
 import { aDonner, type PieceDuProfil } from '@/lib/pieces/pieces';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { formaterTelephone } from '@/lib/phone';
 import { cn } from '@/lib/utils';
 
@@ -228,6 +229,7 @@ function CarteProspect({ prospect, enCours, onFiche }: { readonly prospect: Agen
             <span className="inline-flex h-6 flex-none items-center whitespace-nowrap rounded-full bg-warning/20 px-2 text-xs font-medium text-foreground">{etape}</span>
           ) : null}
         </div>
+        <DetailsDuProspect prospect={prospect} />
       </div>
       {tel ? (
         <div className="flex items-center gap-2 border-t border-border bg-background/60 px-4 py-3 lg:px-6">
@@ -264,6 +266,104 @@ function CarteProspect({ prospect, enCours, onFiche }: { readonly prospect: Agen
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/** TCK-2945 — les types de bien que la carte sait nommer ; un type inconnu n'est pas rendu (jamais un code brut). */
+const TYPES_DE_BIEN = new Set(['apartment', 'house', 'villa', 'land', 'shop', 'office', 'studio', 'room', 'warehouse', 'hotel', 'resort', 'garage', 'parking', 'farm', 'factory', 'other']);
+
+function montantDecimal(valeur: string | null | undefined): number | null {
+  if (valeur === null || valeur === undefined || valeur === '') return null;
+  const n = Number(valeur);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * TCK-2945 — ce que l'agent doit savoir avant d'appeler (maquette `app-entree-assistants` a, e1) : le besoin en
+ * titre, puis budget, dernier contact, « Venu par », et la note de l'agence. Chaque ligne n'existe que si l'API
+ * rend sa donnée (TCK-2942) ; aucune valeur n'est inventée.
+ */
+function DetailsDuProspect({ prospect }: { readonly prospect: AgentFirstLeadEntry }) {
+  const t = useTranslations('onboarding.invite.agent.prospect');
+  const f = useFormatteurs();
+  const need = prospect.need ?? null;
+
+  // Le besoin : « Cherche appartement, 3 chambres min. à Sacré-Cœur ».
+  let besoin: string | null = null;
+  if (need) {
+    const types = need.property_types.filter((x) => TYPES_DE_BIEN.has(x)).map((x) => t(`types.${x}`));
+    const parties = [types.length > 0 ? types.join(', ') : null, need.min_bedrooms ? t('besoin.chambres', { compte: need.min_bedrooms }) : null].filter(
+      (x): x is string => x !== null,
+    );
+    const lieux = need.neighborhoods.length > 0 ? need.neighborhoods : need.cities;
+    const nature = need.contract_type === 'rent' || need.contract_type === 'sale' ? t(`besoin.nature.${need.contract_type}`) : null;
+    if (parties.length > 0 || lieux.length > 0 || nature) {
+      const quoi = [parties.length > 0 ? parties.join(', ') : t('besoin.unBien'), nature].filter(Boolean).join(' ');
+      besoin = lieux.length > 0 ? t('besoin.chercheA', { quoi, lieu: lieux.join(', ') }) : t('besoin.cherche', { quoi });
+    }
+  }
+
+  // Le budget : « 250 000 F – 300 000 F/mois », « jusqu'à 300 000 F », « dès 250 000 F ».
+  const min = montantDecimal(prospect.budget_min);
+  const max = montantDecimal(prospect.budget_max);
+  const fourchette =
+    min !== null && max !== null && min !== max
+      ? t('budget.entre', { min: f.montantCourt(min), max: f.montantCourt(max) })
+      : max !== null
+        ? min === max
+          ? f.montantCourt(max)
+          : t('budget.jusqua', { montant: f.montantCourt(max) })
+        : min !== null
+          ? t('budget.des', { montant: f.montantCourt(min) })
+          : null;
+  const budget = fourchette && need?.contract_type === 'rent' ? t('budget.parMois', { montant: fourchette }) : fourchette;
+
+  const contact = prospect.last_contacted_at
+    ? t('dernierContactLe', { jour: f.jourMois(prospect.last_contacted_at), heure: f.heure(prospect.last_contacted_at) })
+    : null;
+
+  // « Venu par » : l'annonce (référence, titre) ; une demande dont le bien n'est plus lisible se dit telle quelle.
+  const origine = prospect.origin
+    ? [prospect.origin.property_reference ? t('origine.annonce', { reference: prospect.origin.property_reference }) : null, prospect.origin.property_title]
+        .filter(Boolean)
+        .join(' · ') || (prospect.origin.kind === 'contact_lead' ? t('origine.demande') : null)
+    : null;
+
+  const note = prospect.agency_note && prospect.agency_note.body.trim() !== '' ? prospect.agency_note : null;
+
+  if (!besoin && !budget && !contact && !origine && !note) return null;
+
+  return (
+    <div data-testid="details-du-prospect">
+      {besoin ? <p className="mt-4 font-display text-lg font-semibold leading-snug tracking-[-0.01em] lg:text-[1.375rem]">{besoin}</p> : null}
+      {budget || contact || origine ? (
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm lg:grid-cols-3">
+          {budget ? (
+            <div>
+              <dt className="text-xs text-muted-foreground">{t('budget.libelle')}</dt>
+              <dd className="font-medium tabular-nums">{budget}</dd>
+            </div>
+          ) : null}
+          {contact ? (
+            <div>
+              <dt className="text-xs text-muted-foreground">{t('dernierContact')}</dt>
+              <dd className="font-medium tabular-nums">{contact}</dd>
+            </div>
+          ) : null}
+          {origine ? (
+            <div className="col-span-2 min-w-0 lg:col-span-1">
+              <dt className="text-xs text-muted-foreground">{t('origine.libelle')}</dt>
+              <dd className="truncate font-medium">{origine}</dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
+      {note ? (
+        <p className="mt-3 rounded-xl bg-muted/60 px-3 py-2.5 text-[0.8125rem] leading-snug text-foreground" data-testid="note-de-l-agence">
+          {note.author_name ? t('note.signee', { note: note.body, auteur: note.author_name }) : t('note.seule', { note: note.body })}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -411,6 +511,10 @@ function Droits({ agentProfileId, className }: { readonly agentProfileId: number
   const requete = useAgentRoleCapabilities(agentProfileId);
   const capacites = requete.data?.data.capabilities ?? [];
   const groupes = grouperCapacites(capacites);
+  // TCK-2945 — les droits que le rôle ne donne pas, lus de `denied` (TCK-2942) : jamais une liste écrite ici.
+  const refuses = grouperCapacites(requete.data?.data.denied ?? []);
+  const libelle = (capacite: string) => (tRoles.has(`capabilities.${capacite}`) ? tRoles(`capabilities.${capacite}`) : capacite);
+  const nomDuDomaine = (domaine: string) => (tRoles.has(`domains.${domaine}`) ? tRoles(`domains.${domaine}`) : domaine);
   // Repliés au téléphone, ouverts au bureau (maquette) — tant que la personne n'a pas choisi.
   const bureau = useMatchesMedia('(min-width: 64rem)');
   const [choix, setChoix] = useState<boolean | null>(null);
@@ -440,21 +544,22 @@ function Droits({ agentProfileId, className }: { readonly agentProfileId: number
           <p className="text-sm text-muted-foreground">…</p>
         ) : requete.isError ? (
           <p className="text-sm text-destructive">{tAccueil('capabilitiesError')}</p>
-        ) : groupes.length === 0 ? (
+        ) : groupes.length === 0 && refuses.length === 0 ? (
           <p className="text-sm text-muted-foreground">{tAccueil('capabilitiesEmpty')}</p>
         ) : (
           <>
+            {groupes.length === 0 ? <p className="text-sm text-muted-foreground">{tAccueil('capabilitiesEmpty')}</p> : null}
             <div className="flex flex-col gap-3">
               {groupes.map(([domaine, liste]) => {
-                const nom = tRoles.has(`domains.${domaine}`) ? tRoles(`domains.${domaine}`) : domaine;
+                const nom = nomDuDomaine(domaine);
                 return (
                   <section key={domaine} aria-label={nom}>
                     <h3 className="text-sm font-semibold text-foreground">{nom}</h3>
-                    <ul className="mt-1 space-y-1 text-sm text-muted-foreground">
+                    <ul className="mt-1 space-y-1 text-sm text-foreground">
                       {liste.map((capacite) => (
-                        <li key={capacite} className="flex items-start gap-2">
-                          <span className="mt-1.5 inline-block size-1.5 shrink-0 rounded-full bg-success" aria-hidden />
-                          <span>{tRoles.has(`capabilities.${capacite}`) ? tRoles(`capabilities.${capacite}`) : capacite}</span>
+                        <li key={capacite} className="flex items-start gap-2" data-droit="accorde">
+                          <Check className="mt-0.5 size-4 flex-none text-success" strokeWidth={2.25} aria-hidden="true" />
+                          <span>{libelle(capacite)}</span>
                         </li>
                       ))}
                     </ul>
@@ -462,6 +567,31 @@ function Droits({ agentProfileId, className }: { readonly agentProfileId: number
                 );
               })}
             </div>
+            {refuses.length > 0 ? (
+              <section aria-labelledby={`${id}-refuses`} className="mt-4 border-t border-border pt-3" data-testid="droits-refuses">
+                <h3 id={`${id}-refuses`} className="text-sm font-semibold text-foreground">
+                  {t('refuses')}
+                </h3>
+                <div className="mt-1 flex flex-col gap-2">
+                  {refuses.map(([domaine, liste]) => {
+                    const nom = nomDuDomaine(domaine);
+                    return (
+                      <div key={domaine}>
+                        <p className="text-xs font-medium text-muted-foreground">{nom}</p>
+                        <ul className="mt-0.5 space-y-1 text-sm text-muted-foreground">
+                          {liste.map((capacite) => (
+                            <li key={capacite} className="flex items-start gap-2" data-droit="refuse">
+                              <X className="mt-0.5 size-4 flex-none" aria-hidden="true" />
+                              <span>{libelle(capacite)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
             <p className="mt-4 border-t border-border pt-3 text-[0.8125rem] text-muted-foreground">{t('pied')}</p>
           </>
         )}

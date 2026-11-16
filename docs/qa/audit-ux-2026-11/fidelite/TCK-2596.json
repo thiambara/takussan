@@ -233,11 +233,6 @@
   ],
   "hors_perimetre": [
     {
-      "ecran": "a-0-*",
-      "element": "« 3 sans photo » sous Biens gérés et « 310 000 F à venir » sous Commissions",
-      "motif": "hors périmètre du ticket (sous-lignes sans donnée servie)"
-    },
-    {
       "ecran": "a-1-bureau-*",
       "element": "« Grouper par » et « Rattachée à » (filtres de la tête de page)",
       "motif": "sans filtre servi par l'API pour le rattachement ; le groupement par échéance est le seul rendu"

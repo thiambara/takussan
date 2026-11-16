@@ -78,6 +78,27 @@ class PropertyContactLeadPolicy extends BasePolicy
                     ->where(fn (Builder $a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $bailleurDe))));
     }
 
+    /**
+     * TCK-2847 — la portée de l'index des demandes, tirée de `ContactLeadController::index` pour que la
+     * ligne d'activité d'un espace (`ActiviteDesEspaces`) compte ce que la liste rendrait, sans la
+     * recopier : les demandes adressées à l'appelant, plus toute la boîte de l'agence qu'il lit en entier
+     * ({@see self::agencyScopeFor()}). Le super-admin lit tout.
+     */
+    public function scopeIndex(Builder $query, User $user): void
+    {
+        if ($user->isSuperAdmin()) {
+            return;
+        }
+
+        $agencyId = $this->agencyScopeFor($user);
+        $query->where(function (Builder $q) use ($user, $agencyId) {
+            $q->where(fn (Builder $d) => $this->scopeDestinataire($d, $user));
+            if ($agencyId !== null) {
+                $q->orWhere('agency_id', $agencyId);
+            }
+        });
+    }
+
     /** Marquer traitée, convertir : qui peut la lire peut la traiter. */
     public function handle(User $user, Model $model): bool
     {

@@ -20,6 +20,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('leases/summary', LeaseSummaryController::class)->name('leases.summary');
     // TCK-2643 — le préremplissage d'un bail neuf depuis le bien et les réglages ; littérale, donc avant `leases/{lease}`.
     Route::get('leases/defaults', LeaseDefaultsController::class)->name('leases.defaults');
+    // TCK-2906 — l'aperçu du contrat d'un bail neuf, depuis le formulaire, sans rien écrire ; littérale.
+    Route::post('leases/contract-preview', [DocumentPdfController::class, 'leaseContractPreview'])->name('leases.contract-preview');
     Route::get('leases/{lease}', [LeaseController::class, 'show'])->name('leases.show');
     Route::patch('leases/{lease}', [LeaseController::class, 'update'])->name('leases.update');
     // TCK-2764 — abandonner un brouillon jamais envoyé en signature (suppression douce).

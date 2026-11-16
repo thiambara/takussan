@@ -6,7 +6,10 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Inventory;
 use App\Models\Lease;
+use App\Models\Property;
+use App\Policies\DocumentPolicy;
 use App\Services\Document\DocumentVersionService;
 use App\Services\Documents\AuteurDuDocument;
 use App\Services\Documents\DocumentVisibility;
@@ -62,6 +65,41 @@ class DocumentResource extends BaseResource
         );
     }
 
+    /**
+     * TCK-2895 (ADR-0099, amendement du 2026-11-15, § 7) — le bien et, le cas échéant, le bail du porteur
+     * (un bien, un bail, un état des lieux), rendus seulement à qui LIT la cible
+     * (`DocumentPolicy::readsTarget`) : le téléverseur gardé qui ne lit plus le porteur n'en apprend
+     * pas plus que la pièce. Nul pour tout autre porteur.
+     *
+     * @return array{property: ?array{id: int, title: ?string, neighborhood: ?string}, lease: ?array{id: int, reference_number: ?string, tenant_name: ?string}}|null
+     */
+    private function contexte(Request $request): ?array
+    {
+        /** @var Document $document */
+        $document = $this->resource;
+        $porteur = $document->documentable;
+        [$bien, $bail] = match (true) {
+            $porteur instanceof Property => [$porteur, null],
+            $porteur instanceof Lease => [$porteur->property, $porteur],
+            $porteur instanceof Inventory => [$porteur->property, $porteur->lease],
+            default => [null, null],
+        };
+        $user = $request->user();
+        if (($bien === null && $bail === null) || $user === null || ! app(DocumentPolicy::class)->readsTarget($user, $porteur)) {
+            return null;
+        }
+        $locataire = $bail?->tenant?->full_name;
+
+        return [
+            'property' => $bien !== null ? ['id' => (int) $bien->id, 'title' => $bien->title, 'neighborhood' => $bien->address?->neighborhood] : null,
+            'lease' => $bail !== null ? [
+                'id' => (int) $bail->id,
+                'reference_number' => $bail->reference_number,
+                'tenant_name' => $locataire !== null && $locataire !== '' ? $locataire : null,
+            ] : null,
+        ];
+    }
+
     public function toArray(Request $request): array
     {
         /** @var Document $this */
@@ -97,6 +135,9 @@ class DocumentResource extends BaseResource
                     'status' => $this->enumValue($this->documentable->status),
                 ],
             ),
+            // TCK-2895 (ADR-0099, amendement du 2026-11-15, § 7) — « Rattaché à », « Bien » et le fil
+            // « Bien › Bail › dossier » de la fiche : sur un document seul, jamais sur une liste.
+            'context' => $this->when($this->avecAuteurs, fn (): ?array => $this->contexte($request)),
             'uploaded_by' => $this->uploaded_by,
             // TCK-2773 — le nom, un rôle ou rien, selon le lecteur ; absent d'une liste.
             'uploaded_by_person' => $this->when($juge !== null, fn () => $juge->de($this->uploaded_by)),

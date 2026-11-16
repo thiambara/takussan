@@ -12,7 +12,7 @@ import type { BienAPousser, MiseEnAvant } from '@/lib/queries/credits';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 
-import { familleDe, joursRestants } from './lecture';
+import { familleDe, joursRestants, rapportDeVues } from './lecture';
 import { Vignette } from './pieces';
 import { useLectureDesCredits } from './useLectureDesCredits';
 
@@ -22,7 +22,9 @@ import { useLectureDesCredits } from './useLectureDesCredits';
  *
  * · « Vues » = `measures.clicks` : une fiche ouverte depuis un emplacement de la mise en avant. Une
  *   impression (la carte affichée dans les résultats) n'est pas une vue (décision 1 a).
- * · Pas de « × la semaine d'avant » : aucune série de vues par jour n'existe (TCK-2663).
+ * · TCK-2925 — « 3,5 × plus de vues que la semaine d'avant » : `views_7d / views_prev_7d` (vues de la
+ *   FICHE, TCK-2923), rendu seulement à fenêtre égale et en hausse (`rapportDeVues`). La colonne
+ *   « Vues » reste `measures.clicks` : le rapport compare la fiche, pas l'emplacement.
  * · Mesures nulles (non mesurées) : « — », jamais des zéros inventés.
  * · « Relancer » rachète l'offre ACTIVE de même famille et de même durée, à son prix d'aujourd'hui ;
  *   sans offre active correspondante (une Vedette prolongée, une offre retirée), pas de « Relancer ».
@@ -93,9 +95,30 @@ function Mesures({ b }: { readonly b: MiseEnAvant }) {
   );
 }
 
+/** TCK-2925 — « 3,0 » : le rapport au dixième, virgule décimale de la locale. */
+function useRapportLisible() {
+  const f = useFormatteurs();
+  return (b: MiseEnAvant, maintenant: number) => {
+    const r = rapportDeVues(b, maintenant);
+    return r === null ? null : f.nombre(r, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  };
+}
+
 /** Une mise en avant au téléphone. */
-export function MiseEnAvantMobile({ b, produits, onRelancer }: { readonly b: MiseEnAvant; readonly produits: readonly BoostProduct[]; readonly onRelancer: Relance }) {
+export function MiseEnAvantMobile({
+  b,
+  produits,
+  onRelancer,
+  maintenant,
+}: {
+  readonly b: MiseEnAvant;
+  readonly produits: readonly BoostProduct[];
+  readonly onRelancer: Relance;
+  readonly maintenant: number;
+}) {
+  const t = useTranslations('credits.boosts');
   const l = useLectureDesCredits();
+  const ratio = useRapportLisible()(b, maintenant);
   const fin = useFin();
   const offre = enCours(b) ? null : offreDeRelance(b, produits);
   return (
@@ -110,6 +133,11 @@ export function MiseEnAvantMobile({ b, produits, onRelancer }: { readonly b: Mis
           {l.offre(b.kind, b.variant, b.duration_days)} · {fin(b)}
         </p>
         <Mesures b={b} />
+        {ratio ? (
+          <p data-slot="comparaison-de-vues" className="mt-1 text-ui text-success">
+            {t('comparaison', { ratio })}
+          </p>
+        ) : null}
         {offre ? (
           <p className="mt-2 text-sm">
             <BoutonRelancer b={b} offre={offre} onRelancer={onRelancer} />
@@ -157,6 +185,7 @@ export function TableDesMisesEnAvant({
   const t = useTranslations('credits.boosts');
   const l = useLectureDesCredits();
   const fin = useFin();
+  const rapport = useRapportLisible();
   return (
     <div className="max-xl:overflow-x-auto">
       <div role="table" aria-label={t('titre')} className="min-w-[37.5rem]">
@@ -178,6 +207,7 @@ export function TableDesMisesEnAvant({
         </Rangee>
         {boosts.map((b) => {
           const offre = enCours(b) ? null : offreDeRelance(b, produits);
+          const ratio = rapport(b, maintenant);
           const nom = l.offre(b.kind, b.variant, b.duration_days);
           const pastille = <StatusBadge tone={b.status === 'active' ? 'primary' : b.status === 'paused' ? 'attention' : 'neutral'} label={nom} />;
           return (
@@ -203,8 +233,13 @@ export function TableDesMisesEnAvant({
                   </span>
                 ) : null}
               </span>
-              <span role="cell" className="text-right font-semibold tabular-nums">
-                {mesure(b.measures?.clicks)}
+              <span role="cell" className="text-right leading-tight">
+                <span className="block font-semibold tabular-nums">{mesure(b.measures?.clicks)}</span>
+                {ratio ? (
+                  <span data-slot="comparaison-de-vues" className="mt-0.5 block text-ui text-success">
+                    {t('comparaisonCourt', { ratio })}
+                  </span>
+                ) : null}
               </span>
               <span role="cell" className="text-right font-semibold tabular-nums">
                 {mesure(b.measures?.contacts)}

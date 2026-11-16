@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { History, Layers, TrendingUp } from 'lucide-react';
 
@@ -24,6 +24,7 @@ import { useBiensAPousser, useCreditsJournal, useMisesEnAvant, type BienAPousser
 
 import { grilleDesOffres, prochaineExpiration } from './lecture';
 import { MettreEnAvant, type Preselection } from './MettreEnAvant';
+import { ListeDesLotsPasses, RapportDesTrenteJours } from './RapportEtLotsPasses';
 import { AucuneMiseEnAvant, BienAPousserLigne, MiseEnAvantMobile, TableDesMisesEnAvant } from './MisesEnAvant';
 import { Carte, Recharger, Rubrique, signe } from './pieces';
 import { CarteSolde, GrilleDesOffres, LigneDOperation, ListeDesLots, PiedDeTableau, TableDeLHistorique } from './sections';
@@ -36,9 +37,9 @@ import { CarteSolde, GrilleDesOffres, LigneDOperation, ListeDesLots, PiedDeTable
  * · L'accès se lit de `GET /api/credits` : un 403 rend l'état « réservé » (AC5), jamais une erreur
  *   générique, et aucune des autres lectures ne part tant que le solde n'est pas rendu.
  * · Le téléphone est l'écran de la barre d'onglets (`REQUETE_DE_LA_BARRE`, sous `md`).
- * · Écartés, et dits dans la fiche de fidélité : « Rapport des 30 derniers jours » (hors périmètre),
- *   « Lots épuisés ou expirés » (l'API ne rend que les lots dépensables), « × la semaine d'avant »
- *   (aucune série de vues par jour, TCK-2663).
+ * · TCK-2925 — « Rapport des 30 derniers jours » et « Lots épuisés ou expirés » : actions des cartes au
+ *   bureau, panneau droit (plein écran sous `xl`). Au téléphone, le panneau « Lots de crédits » porte les
+ *   lots passés sous les lots vivants ; le rapport n'a pas d'entrée (la maquette n'en dessine pas).
  */
 
 const BOOSTS_PAR_PAGE = 10;
@@ -46,7 +47,7 @@ const SUGGESTIONS = 3;
 const HISTORIQUE_BUREAU = 5;
 const HISTORIQUE_PANNEAU = 20;
 
-type Panneau = 'historique' | 'lots';
+type Panneau = 'historique' | 'lots' | 'rapport' | 'lotsPasses';
 
 const AUCUNE_PRESELECTION: Preselection = { bien: null, offreId: null };
 
@@ -64,7 +65,26 @@ function EtatReserve() {
   );
 }
 
-/** Le panneau « Historique » (toutes les opérations, 20 par page) ou « Lots de crédits ». */
+const TITRES: Readonly<Record<Panneau, 'page.historique' | 'page.lots' | 'page.rapport' | 'page.lotsPasses'>> = {
+  historique: 'page.historique',
+  lots: 'page.lots',
+  rapport: 'page.rapport',
+  lotsPasses: 'page.lotsPasses',
+};
+
+/** L'action d'en-tête d'une carte du bureau (« Tout voir », « Rapport des 30 derniers jours »…). */
+function ActionDeCarte({ children, onClick }: { readonly children: ReactNode; readonly onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="rounded-sm outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring">
+      {children}
+    </button>
+  );
+}
+
+/**
+ * Le panneau « Historique » (toutes les opérations, 20 par page), « Lots de crédits » (au téléphone :
+ * suivis des lots passés, TCK-2925), « Rapport des 30 derniers jours » ou « Lots épuisés ou expirés ».
+ */
 function PanneauDesCredits({
   panneau,
   lots,
@@ -80,15 +100,26 @@ function PanneauDesCredits({
   const [page, setPage] = useState(1);
   const journal = useCreditsJournal(page, HISTORIQUE_PANNEAU, panneau === 'historique');
   const mouvements = journal.data?.movements ?? [];
+  // Le dernier panneau ouvert garde son titre ET son contenu pendant la fermeture animée.
+  const [dernier, setDernier] = useState<Panneau>('historique');
+  if (panneau !== null && panneau !== dernier) setDernier(panneau);
+  const affiche = panneau ?? dernier;
   return (
-    <PanneauDroit
-      open={panneau !== null}
-      onOpenChange={(o) => (o ? undefined : onFermer())}
-      titre={panneau === 'lots' ? t('page.lots') : t('page.historique')}
-    >
+    <PanneauDroit open={panneau !== null} onOpenChange={(o) => (o ? undefined : onFermer())} titre={t(TITRES[affiche])}>
       <div className="-mx-5 -my-5">
-        {panneau === 'lots' ? (
-          <ListeDesLots lots={lots} maintenant={maintenant} />
+        {affiche === 'rapport' ? (
+          <RapportDesTrenteJours ouvert={panneau === 'rapport'} />
+        ) : affiche === 'lotsPasses' ? (
+          <ListeDesLotsPasses ouvert={panneau === 'lotsPasses'} />
+        ) : affiche === 'lots' ? (
+          <>
+            <ListeDesLots lots={lots} maintenant={maintenant} />
+            {/* TCK-2925 — au téléphone, la ligne « Lots » mène aussi aux lots passés. */}
+            <h3 id="credits-lots-passes" className="border-t border-border px-4 pt-5 pb-2 text-xs font-semibold tracking-surtitre text-muted-foreground uppercase">
+              {t('page.lotsPasses')}
+            </h3>
+            <ListeDesLotsPasses ouvert={panneau === 'lots'} />
+          </>
         ) : journal.isLoading ? (
           <RouteSkeleton variant="list" />
         ) : journal.isError ? (
@@ -210,7 +241,7 @@ export function PageCredits() {
               <>
                 <ul className="divide-y divide-border">
                   {listeBoosts.map((b) => (
-                    <MiseEnAvantMobile key={b.id} b={b} produits={offres} onRelancer={relancer} />
+                    <MiseEnAvantMobile key={b.id} b={b} produits={offres} onRelancer={relancer} maintenant={maintenant} />
                   ))}
                 </ul>
                 {(boosts.data?.meta.last_page ?? 1) > 1 ? <PiedDeTableau meta={boosts.data?.meta} onPage={setPageBoosts} /> : null}
@@ -300,7 +331,11 @@ export function PageCredits() {
           une seule colonne. */}
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_min(20rem,calc(100%-42.5rem))]">
         <div className="min-w-0 space-y-6">
-          <Carte titre={t('boosts.titre')} aria-labelledby="credits-en-avant">
+          <Carte
+            titre={t('boosts.titre')}
+            aria-labelledby="credits-en-avant"
+            action={<ActionDeCarte onClick={() => setPanneau('rapport')}>{t('page.rapport')}</ActionDeCarte>}
+          >
             {etatDesBoosts ?? (
               <>
                 <TableDesMisesEnAvant boosts={listeBoosts} produits={offres} onRelancer={relancer} maintenant={maintenant} />
@@ -325,18 +360,18 @@ export function PageCredits() {
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <Carte titre={t('page.lots')} aria-labelledby="credits-lots">
+        <Carte
+          titre={t('page.lots')}
+          aria-labelledby="credits-lots"
+          action={<ActionDeCarte onClick={() => setPanneau('lotsPasses')}>{t('page.lotsPasses')}</ActionDeCarte>}
+        >
           <ListeDesLots lots={lots} maintenant={maintenant} />
         </Carte>
         <Carte
           titre={t('page.historique')}
           aria-labelledby="credits-historique"
           action={
-            mouvements.length > 0 ? (
-              <button type="button" onClick={() => setPanneau('historique')} className="rounded-sm outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring">
-                {t('page.toutVoir')}
-              </button>
-            ) : undefined
+            mouvements.length > 0 ? <ActionDeCarte onClick={() => setPanneau('historique')}>{t('page.toutVoir')}</ActionDeCarte> : undefined
           }
         >
           {journal.isLoading ? (

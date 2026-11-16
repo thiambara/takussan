@@ -246,6 +246,8 @@ class PublicAgencyController extends Controller
         return Agency::query()
             ->where('agencies.status', AgencyStatus::Active)
             ->where('agencies.kind', AgencyKind::Standard)
+            // TCK-2937 (ADR-0125 § 5) — une agence ouverte en libre-service et pas encore vérifiée.
+            ->visibleInPublicDirectory()
             ->whereHas('properties', fn (Builder $q) => $q->publicPortfolio());
     }
 
@@ -306,6 +308,8 @@ class PublicAgencyController extends Controller
             ->where('slug', $slug)
             ->where('status', AgencyStatus::Active)
             ->where('kind', AgencyKind::Standard)
+            // TCK-2937 (ADR-0125 § 5) — pas de fiche publique avant la première vérification.
+            ->visibleInPublicDirectory()
             ->with('addresses')
             ->first();
 
@@ -402,7 +406,8 @@ class PublicAgencyController extends Controller
             : User::query()
                 ->whereIn('id', $teamUserIds)
                 ->where('status', UserStatus::Active)
-                ->with(['agentProfiles' => fn ($q) => $q->where('agency_id', $agency->id)])
+                // TCK-2863 — `media` : l'avatar de chaque membre, chargé une fois.
+                ->with(['media', 'agentProfiles' => fn ($q) => $q->where('agency_id', $agency->id)])
                 ->get()
                 ->map(function (User $u) use ($portfolioCounts, $roles, $professionnelsIci) {
                     $profile = $u->agentProfiles->first();
@@ -419,7 +424,8 @@ class PublicAgencyController extends Controller
                         // exposed on an unauthenticated, slug-enumerable endpoint —
                         // a turnkey harvesting vector. Contact happens via the agency
                         // business email/phone below, not individual agents.
-                        'avatar_url' => $u->avatar_url ?? null,
+                        // TCK-2863 — `avatarUrl()` : `$u->avatar_url` n'existe pas et rendait toujours null.
+                        'avatar_url' => $u->avatarUrl(),
                         'specialty' => $profile?->specialty,
                         'portfolio_count' => (int) ($portfolioCounts[$u->id] ?? 0),
                     ];
@@ -496,6 +502,8 @@ class PublicAgencyController extends Controller
             ->where('slug', $slug)
             ->where('status', AgencyStatus::Active)
             ->where('kind', AgencyKind::Standard)
+            // TCK-2937 (ADR-0125 § 5) — ni portefeuille public avant la première vérification.
+            ->visibleInPublicDirectory()
             ->first();
 
         abort_if($agency === null, 404);

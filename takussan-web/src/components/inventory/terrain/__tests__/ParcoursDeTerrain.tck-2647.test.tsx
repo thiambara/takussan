@@ -487,3 +487,124 @@ describe('TCK-2647 — au bureau, la liste des pièces à côté de la pièce', 
     expect(container.querySelector('[data-slot="parcours-de-terrain"]')).not.toBeNull();
   });
 });
+
+// ─── TCK-2903 ────────────────────────────────────────────────────────────────────────────────
+/** La reconnaissance vocale du navigateur, doublée : `entendre` rend une phrase finale. */
+class ReconnaissanceDoublee {
+  static derniere: ReconnaissanceDoublee | null = null;
+  lang = '';
+  continuous = false;
+  interimResults = true;
+  onresult: ((e: unknown) => void) | null = null;
+  onerror: ((e: { error: string }) => void) | null = null;
+  onend: (() => void) | null = null;
+  demarree = false;
+  arretee = false;
+  constructor() {
+    ReconnaissanceDoublee.derniere = this;
+  }
+  start() {
+    this.demarree = true;
+  }
+  stop() {
+    this.arretee = true;
+    this.onend?.();
+  }
+  abort() {
+    this.arretee = true;
+    this.onend?.();
+  }
+  entendre(...phrases: string[]) {
+    this.onresult?.({ resultIndex: 0, results: phrases.map((p) => ({ isFinal: true, 0: { transcript: p } })) });
+  }
+}
+
+const avecReconnaissance = () => {
+  (window as unknown as Record<string, unknown>).webkitSpeechRecognition = ReconnaissanceDoublee;
+};
+
+describe('TCK-2903 — dicter la note de la pièce au téléphone', () => {
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
+    ReconnaissanceDoublee.derniere = null;
+  });
+
+  it('AC1 — avec `webkitSpeechRecognition`, le champ porte « Dicter la note » ; sans l’API, pas de bouton', () => {
+    const { unmount } = ouvrir(brouillon());
+    expect(screen.queryByRole('button', { name: 'Dicter la note' })).toBeNull();
+    unmount();
+
+    avecReconnaissance();
+    ouvrir(brouillon());
+    const micro = screen.getByRole('button', { name: 'Dicter la note' });
+    // Dans la boîte du champ « Note de la pièce ».
+    expect(micro.parentElement?.querySelector('textarea')).toBe(screen.getByLabelText(/Note de la pièce/));
+  });
+
+  it('AC2 — « Mur fissuré » + la dictée « peinture refaite » = « Mur fissuré peinture refaite », et le brouillon envoyé la porte', async () => {
+    avecReconnaissance();
+    const user = userEvent.setup();
+    ouvrir(brouillon());
+    const note = screen.getByLabelText(/Note de la pièce/) as HTMLTextAreaElement;
+    await user.type(note, 'Mur fissuré');
+
+    await user.click(screen.getByRole('button', { name: 'Dicter la note' }));
+    const r = ReconnaissanceDoublee.derniere;
+    expect(r?.demarree).toBe(true);
+    expect(r?.lang).toBe('fr-FR');
+    expect(screen.getByText(/J’écoute/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Arrêter la dictée' })).toHaveAttribute('aria-pressed', 'true');
+
+    act(() => r?.entendre('peinture refaite'));
+    expect(note.value).toBe('Mur fissuré peinture refaite');
+
+    // Retoucher arrête.
+    await user.click(screen.getByRole('button', { name: 'Arrêter la dictée' }));
+    expect(r?.arretee).toBe(true);
+    expect(screen.queryByText(/J’écoute/)).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /Pièce suivante : Cuisine/ }));
+    await waitFor(() => expect(patch.mutateAsync).toHaveBeenCalled());
+    expect(dernierPatch().rooms[0].notes).toBe('Mur fissuré peinture refaite');
+  });
+
+  it('deux phrases dans le même évènement s’ajoutent toutes deux', () => {
+    avecReconnaissance();
+    ouvrir(brouillon());
+    act(() => screen.getByRole('button', { name: 'Dicter la note' }).click());
+    act(() => ReconnaissanceDoublee.derniere?.entendre('peinture refaite', 'en octobre'));
+    expect((screen.getByLabelText(/Note de la pièce/) as HTMLTextAreaElement).value).toBe('peinture refaite en octobre');
+  });
+
+  it('AC3 — un refus `not-allowed` se dit sous le champ, la note reste inchangée', async () => {
+    avecReconnaissance();
+    const user = userEvent.setup();
+    ouvrir(brouillon());
+    const note = screen.getByLabelText(/Note de la pièce/) as HTMLTextAreaElement;
+    await user.type(note, 'Mur fissuré');
+    await user.click(screen.getByRole('button', { name: 'Dicter la note' }));
+    act(() => ReconnaissanceDoublee.derniere?.onerror?.({ error: 'not-allowed' }));
+    act(() => ReconnaissanceDoublee.derniere?.onend?.());
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Le micro est refusé/);
+    expect(note.value).toBe('Mur fissuré');
+  });
+
+  it('la dictée s’arrête en quittant la pièce : rien n’arrive dans la suivante', async () => {
+    avecReconnaissance();
+    const user = userEvent.setup();
+    ouvrir(brouillon());
+    await user.click(screen.getByRole('button', { name: 'Dicter la note' }));
+    const r = ReconnaissanceDoublee.derniere;
+    await user.click(screen.getByRole('button', { name: /Pièce suivante : Cuisine/ }));
+    await waitFor(() => expect(titreDeLaPiece()).toBe('Cuisine'));
+    expect(r?.arretee).toBe(true);
+  });
+
+  it('AC4 — à 1440, aucun « Dicter la note »', () => {
+    avecReconnaissance();
+    etat.bureau = true;
+    ouvrir(brouillon());
+    expect(screen.getByLabelText(/Note de la pièce/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dicter la note' })).toBeNull();
+  });
+});

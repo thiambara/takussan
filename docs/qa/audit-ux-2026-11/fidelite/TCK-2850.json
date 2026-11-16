@@ -1,0 +1,103 @@
+{
+  "ticket": "TCK-2850",
+  "ecrans": [
+    {
+      "page": "app-accueil",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Bailleur",
+      "references": {
+        "telephone": "references/app-accueil/a-2-telephone.json",
+        "bureau-1440": "references/app-accueil/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-accueil/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "bailleur",
+        "etat": "bailleur (profil owner) dont l’étape « kyc » n’est pas faite (1 sur 2) ; un reversement `scheduled` au 15 novembre de 10 260 000 F net (`payee_role=landlord`) ; un loyer en retard (Seydou Camara · Villa blanche, Yoff, 1 400 000 F) relancé par l’agence le 8 novembre (relance NOTÉE, lue dans le relevé du mois) ; une visite à confirmer, un devis à valider, une intervention en cours",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-accueil",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Rien à faire (bailleur)",
+      "references": {
+        "telephone": "references/app-accueil/a-6-telephone.json",
+        "bureau-1440": "references/app-accueil/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-accueil/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "bailleur",
+        "etat": "bailleur sans file (aucune visite à confirmer, aucun devis, aucun loyer en retard), étapes de « Démarrer » toutes faites, aucun reversement à venir : « Loyers de novembre » dans la colonne de droite au-dessus de « Ce mois » dès `xl`, la gauche commence par « À faire maintenant »",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 9,
+      "nom": "Persona · bailleur",
+      "references": {
+        "telephone": "references/app-coque/a-9-telephone.json",
+        "bureau-1440": "references/app-coque/a-9-bureau-1440.json",
+        "bureau-1280": "references/app-coque/a-9-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "bailleur",
+        "etat": "même état que app-accueil a-2 (bureau jamais relevé)",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app",
+    "persona": "voir `ecrans[].produit`",
+    "disposition": "accueil",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-accueil a-2-*, app-coque a-9-*",
+      "element": "« Démarrer » : fond et encre `success` (la maquette dessine `accent`)",
+      "propriete": "couleur",
+      "exception": "cohérence du produit",
+      "motif": "la ligne de mise en service de l’admin (`BandeauMiseEnService`, TCK-2622), dessinée sur la même pièce `LigneDemarrage` de la maquette, est en `success` ; les deux lignes de démarrage gardent un seul dessin (anneau partagé)"
+    },
+    {
+      "ecran": "app-accueil a-2-bureau-*, app-coque a-9-bureau-*",
+      "element": "« Ce mois » AU-DESSUS de « En cours sur vos biens » dans la colonne de droite (la maquette e2 le dessine dessous)",
+      "propriete": "ordre",
+      "exception": "socle commun",
+      "motif": "le socle de l’accueil (TCK-2622) rend « Ce mois » puis la colonne du persona pour tous les personas ; ordre préexistant, non changé par ce ticket"
+    },
+    {
+      "ecran": "app-accueil a-2-bureau-*, app-coque a-9-bureau-*",
+      "element": "« relance prévue demain » et « paiement partiel reçu » sur les 2ᵉ et 3ᵉ rangées des loyers en retard",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "l’API ne sert au bailleur que les relances NOTÉES passées (relevé, ADR-0105 amendé) — ni la prochaine relance automatique, ni l’encaissement partiel dans la rangée : sans relance, la rangée garde « échu le … », rien d’inventé"
+    },
+    {
+      "ecran": "app-accueil a-2-*, app-coque a-9-*",
+      "element": "« Prochain reversement · 15 nov. » / « … · après commission » : rangée de « En cours sur vos biens »",
+      "propriete": "place",
+      "exception": "maquette suivie",
+      "motif": "la Direction UX du ticket la dit « dans le bloc des loyers » ; la maquette (qui fait foi, ADR-0106) la pose en 2ᵉ rangée de « En cours sur vos biens », au téléphone comme au bureau"
+    }
+  ]
+}

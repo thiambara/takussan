@@ -63,7 +63,11 @@ vi.mock('@/components/documents/DocumentUploadDialog', () => ({
     open ? <button type="button" onClick={onUploaded}>déposer le document</button> : null,
 }));
 vi.mock('@/components/customer-form', () => ({ CustomerForm: () => <p>formulaire de la fiche</p> }));
-vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null, useInvitationDuClient: () => ({ etat: 'aucune' }) }));
+// TCK-2890 — un repère, pour vérifier que « Écrire » sans compte ouvre bien l'invitation.
+vi.mock('@/components/crm/InviterACreerSonCompte', () => ({
+  InviterACreerSonCompte: ({ customerId }: { customerId: number }) => <p>invitation du client {customerId}</p>,
+  useInvitationDuClient: () => ({ etat: 'aucune' }),
+}));
 const etiquettes = vi.hoisted(() => ({ forme: undefined as string | undefined }));
 vi.mock('@/components/customer-dashboard/CustomerTagPicker', () => ({
   CustomerTagPicker: ({ forme }: { forme?: string }) => {
@@ -539,12 +543,40 @@ describe('TCK-2589 (lot « Écrire », maquette a-1) — le troisième geste', (
     expect(gestes().className).toMatch(/(^|\s)grid-cols-2(\s|$)/);
   });
 
-  it('sans compte : pas d’« Écrire », même si le lecteur joint tout le monde', () => {
-    messagerie.joignable = true;
+  it('TCK-2890 (AC6) — sans compte : « Écrire » est là, et ouvre l’invitation à créer son compte', async () => {
     rendu();
     expect(messagerie.demande.every((id) => id === null)).toBe(true);
+    const ecrire = within(gestes()).getByRole('button', { name: 'Écrire' });
+    expect(gestes().className).toMatch(/(^|\s)grid-cols-3(\s|$)/);
+    await userEvent.setup().click(ecrire);
+    const dialogue = await screen.findByRole('dialog');
+    expect(within(dialogue).getByText('Écrire à Mariama Fall')).toBeInTheDocument();
+    expect(within(dialogue).getByText('Mariama n’a pas encore de compte : invitez-le pour lui écrire ici.')).toBeInTheDocument();
+    expect(within(dialogue).getByText(`invitation du client ${MARIAMA.id}`)).toBeInTheDocument();
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it('TCK-2890 — sans compte, pour qui ne peut pas inviter : pas d’« Écrire » (un geste mort)', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      withIntl(
+        <QueryClientProvider client={client}>
+          <FicheDuClient customer={MARIAMA} relationships={[]} suggestionsDEtiquettes={[]} notes={[]} peutInviter={false} peutReveler={false} />
+        </QueryClientProvider>,
+      ),
+    );
     expect(screen.queryByRole('button', { name: 'Écrire' })).toBeNull();
     expect(gestes().className).toMatch(/(^|\s)grid-cols-2(\s|$)/);
+  });
+
+  it('TCK-2890 (AC5) — le dossier est hors du fil : sa propre case de grille, colonne gauche au bureau', () => {
+    rendu();
+    const dossier = document.querySelector('[data-slot="dossier-du-client"]') as HTMLElement;
+    expect(dossier.closest('[data-slot="fil-du-client"]')).toBeNull();
+    const caseDuDossier = dossier.closest('[data-slot="colonne-du-dossier"]') as HTMLElement;
+    expect(caseDuDossier.className).toMatch(/(^|\s)xl:col-start-1(\s|$)/);
+    expect(caseDuDossier.className).toMatch(/(^|\s)xl:row-start-2(\s|$)/);
+    expect((document.querySelector('[data-slot="resume-du-client"]') as HTMLElement).className).toMatch(/(^|\s)xl:col-start-1(\s|$)/);
   });
 
   it('sans numéro, « Écrire » reste, seul sur sa ligne', () => {

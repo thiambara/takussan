@@ -98,24 +98,10 @@
     },
     {
       "ecran": "app-entree-assistants a-0/a-1/a-2",
-      "element": "contenus (biens, prospect, intervention, numéro masqué, compteurs « n sur 5 »)",
-      "propriete": "texte, présence des états « Loué » / « En travaux », budget, dernier contact, origine du prospect",
+      "element": "contenus (biens, intervention, numéro masqué, compteurs « n sur 5 »)",
+      "propriete": "texte, présence des états « Loué » / « En travaux »",
       "exception": "donnée",
-      "motif": "relevé sur la démo : ses biens sont « Disponible », son prospect n'a ni budget ni dernier contact ni origine renseignés"
-    },
-    {
-      "ecran": "app-entree-assistants a-2-*",
-      "element": "photo, « signalée le… · réf. », citation du locataire, « Voir le détail »",
-      "propriete": "présence",
-      "exception": "donnée et contrat",
-      "motif": "demande 10 sans photo ; la route intervention-d-origine ne sert que des champs minimaux (titre, catégorie, quartier et ville, photo, devis) avant l'acceptation (contrat validé par team-lead) ; la phrase « L’adresse et le contact du locataire s’ouvrent quand vous acceptez. » le dit"
-    },
-    {
-      "ecran": "app-entree-assistants a-2-bureau-1280",
-      "element": "tarifs et disponibilités en ligne (« Tarif horaire », « Frais de visite », grille Matin / Après-midi, « Enregistrer mon profil »)",
-      "propriete": "présence",
-      "exception": "décision",
-      "motif": "le profil se complète par des lignes qui mènent à /app/profile/professional et /app/pieces (« n sur 5 »), décision de L3 relayée à team-lead"
+      "motif": "relevé sur la démo : ses biens sont « Disponible »"
     },
     {
       "ecran": "app-entree-assistants a-4-*",
@@ -137,20 +123,6 @@
       "propriete": "libellé",
       "exception": "règle du produit",
       "motif": "décision de team-lead (2026-11-14, 2a) : la coque d'entrée partagée (TCK-2598) dit « Quitter » sur toutes ses pages. L'assistant reprend pourtant réellement là où l'invité l'a laissé (brouillon serveur à chaque écran, reprise par ?owner=/?agent=/?sp= et par le bandeau de /app, écran imposé par le numéro vérifié) : « Reprendre plus tard » serait plus juste — piste notée au ticket pour toute la coque. « Étape N sur 2 » est désormais écrit (`avancementEcrit`)."
-    },
-    {
-      "ecran": "app-entree-assistants a-1-*",
-      "element": "droits refusés (✗) de la liste « Ce que vous pouvez faire dans l'agence »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "GET /api/me/agent-profiles/{id}/role-capabilities (TCK-589) ne sert que les droits que le rôle accorde ; la maquette en montre un extrait avec des refus. Servir les refus serait un delta d'API (ticket à part si le porteur le veut)"
-    },
-    {
-      "ecran": "app-entree-assistants a-4-bureau-1280",
-      "element": "« 3 biens suivis… », « Ton dernier loyer », « 2 pièces à envoyer » du panneau « {agence} t'attend »",
-      "propriete": "texte",
-      "exception": "donnée et décision",
-      "motif": "décision de team-lead (2026-11-14) : avant le code, le panneau (CeQuiVousAttend) ne montre rien que l'invité n'ait déjà vu — l'agence, le rôle, et le titre de l'intervention que la page d'invitation lui montrait (`awaiting.maintenance_request.title`) ; biens, loyer et pièces sont à l'écran 2"
     }
   ],
   "ecarts_ouverts": [],
@@ -178,6 +150,48 @@
       "element": "colonne de 1080 px sans panneau voisin (écart non listé en v1)",
       "resolu_le": "2026-11-14",
       "comment": "EtapeDuNumero : `xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]`, colonne de 480 px et CeQuiVousAttend à droite dès xl ; mesuré 480 + 542 px à 1280"
+    },
+    {
+      "ecran": "app-entree-assistants a-1-*",
+      "element": "carte du premier prospect : besoin, budget, dernier contact, « Venu par », note de l'agence (ex-écart accepté [1], part du prospect)",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2942 (projection `AgentFirstLead`) + TCK-2945 (`DetailsDuProspect` dans ProspectDeLAgent) : chaque ligne seulement si l'API la rend ; assistants.tck-2945 AC3"
+    },
+    {
+      "ecran": "app-entree-assistants a-1-*",
+      "element": "droits refusés (✗) de « Ce que vous pouvez faire dans l'agence » (ex-écart accepté [7])",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2942 : `denied` sur role-capabilities ; TCK-2945 : accordés (✓) puis « Pas dans votre rôle » (✗), lus de `denied` ; assistants.tck-2945 AC4"
+    },
+    {
+      "ecran": "app-entree-assistants a-0/a-4 bureau 1024-1279",
+      "element": "volet de droite caché sous 1280 (« À faire pour être payé », interlocuteur ; « {agence} vous attend »)",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2945 : `hidden lg:block` (était `xl:block`), une colonne et le volet DESSOUS de 1024 à 1279 (ADR-0106 § 4) ; colonne du numéro 480 px centrée dès lg ; assistants.tck-2945 AC1/AC2"
+    },
+    {
+      "ecran": "app-entree-assistants a-2-*",
+      "element": "pastille d'échéance, « Signalée par le locataire le … · réf. … », citation du locataire, « Voir le détail » (ex-écart accepté [2])",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2943 (projection étendue de intervention-d-origine, ADR-0122) + TCK-2946 (CarteIntervention) : pastille depuis respond_by (heures jusqu'à 72 h, puis date ; « Délai de réponse dépassé »), ligne du signalement par rôle, citation masquée par l'API, « Voir le détail » actif après l'acceptation seulement (avant : « Détail après acceptation ») ; la note d'adresse reste quand il n'y a pas de citation. InterventionDuPrestataire.tck-2946 AC1. Relevé au navigateur non fait (consigne du porteur du 2026-11-15)."
+    },
+    {
+      "ecran": "app-entree-assistants a-2-bureau",
+      "element": "« Tarifs » (tarif horaire, frais de visite, F CFA), « Disponibilités » (Matin / Après-midi × 7) et « Enregistrer mon profil » dans l'écran (ex-écart accepté [3])",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2946 (TarifsEtDisponibilites) : dès lg (sous la carte de 1024 à 1279, à droite dès xl, ADR-0106 § 4), mêmes écritures que /app/profile/professional (PATCH …/trades tarifs seuls, PATCH …/availability ; le soir déjà réglé est gardé), erreur sous le champ ; au téléphone, les lignes mènent toujours au profil. InterventionDuPrestataire.tck-2946 AC2/AC3. Relevé au navigateur non fait (consigne du porteur du 2026-11-15)."
+    },
+    {
+      "ecran": "app-entree-assistants a-2-*",
+      "element": "variante « déjà prestataire d'une autre agence »",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2946 (AC4) : avec le lien de l'invitation (?sp=), le prestataire qui a plus d'une collaboration passait au panneau multi-agences (TCK-262), sans la carte ni la fin d'onboarding ; il passe désormais par l'écran 2, avec la note « Vous travaillez déjà avec … » (MultiAgences). Sans lien de reprise, le panneau reste. page.tck-2613, InterventionDuPrestataire.tck-2946 AC4. Lu, non relevé au navigateur."
+    },
+    {
+      "ecran": "app-entree-assistants a-4-bureau-1280",
+      "element": "« 3 biens suivis… », « Ton dernier loyer », « 2 pièces à envoyer » du panneau « {agence} t'attend »",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2949 (ADR-0094 amendé le 2026-11-15 § 6) : `GET /api/me/profiles/{alias}:{id}/invite-summary` (TCK-2939), lu par la page (`fetchResumeDInvite`, 404 → null), chiffre `CeQuiVousAttend` : « N biens suivis par l'agence » + titres, « Votre dernier loyer · 350 000 F reçus le 5 nov. », « N pièces à envoyer · RIB et pièce d'identité — … ». Chaque ligne seulement si l'API la sert ; sans résumé, les lignes génériques. Vouvoiement (ADR-0095). CeQuiVousAttend.tck-2949. Relevé au navigateur non fait (consigne du lot 2026-11-15)."
     }
   ]
 }

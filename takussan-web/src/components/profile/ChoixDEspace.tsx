@@ -8,10 +8,12 @@ import { useTranslations } from 'next-intl';
 import { Logo } from '@/components/brand/Logo';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useActiviteDesEspaces } from '@/hooks/useActiviteDesEspaces';
 import { useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { COOKIE_CHOIX_CLIENT, sigleDAgence, sousLigneDEspace } from '@/lib/espaces';
 import { cn } from '@/lib/utils';
 import type { Profile } from '@/types/profile';
+import { LigneDActivite } from './LigneDActivite';
 import { profileTypeLabel } from './ProfileBadge';
 
 interface ChoixDEspaceProps {
@@ -45,6 +47,9 @@ export function ChoixDEspace({ espaces, prenom, userId }: ChoixDEspaceProps) {
   const tCommun = useTranslations('common');
   const router = useRouter();
   const bascule = useSwitchActiveProfile();
+  // TCK-2848 — ce qui attend dans chaque espace, sur sa carte (maquette « Choisir un espace ») ; rien tant
+  // que la lecture n'a pas abouti, et rien à zéro.
+  const activites = useActiviteDesEspaces(espaces.length > 0);
   const [choisi, setChoisi] = useState(espaces[0]?.id ?? '');
   const [retenir, setRetenir] = useState(true);
   const [clientEnCours, setClientEnCours] = useState(false);
@@ -111,6 +116,11 @@ export function ChoixDEspace({ espaces, prenom, userId }: ChoixDEspaceProps) {
                   <span className="block text-sm text-muted-foreground">
                     {sousLigneDEspace(profileTypeLabel(espace.type, tTypes), espace.agency?.city)}
                   </span>
+                  <LigneDActivite
+                    espace={espace}
+                    activites={activites}
+                    className="mt-1 text-ui text-encre-douce md:mt-2 md:whitespace-normal md:leading-snug"
+                  />
                 </span>
                 <IndicateurDeChoix actif={actif} reduite className="md:absolute md:right-4 md:top-4" />
               </label>

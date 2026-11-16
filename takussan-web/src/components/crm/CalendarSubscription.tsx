@@ -21,10 +21,11 @@ import {
 import type { CalendarFeedState } from '@/types/agent-crm';
 
 /**
- * TCK-591 §6 (ADR-0034) — s'abonner à son agenda depuis Google Agenda ou le calendrier du
- * téléphone. Le lien est un SECRET : l'API ne le rend qu'une fois, à la création ou à la rotation ;
- * ensuite la page ne sait plus que « un lien est actif ». Le perdre, c'est en générer un autre, ce
- * qui éteint l'ancien.
+ * TCK-591 §6 (ADR-0034, amendé par ADR-0121) — s'abonner à son agenda depuis Google Agenda ou le
+ * calendrier du téléphone. Le lien est un SECRET, mais son titulaire le relit : l'API le rend à la
+ * création, à la rotation ET à la relecture (`GET /api/me/calendar-feed`, TCK-2887). Un lien émis
+ * avant TCK-2887 n'a pas de copie (`url: null`) : la page ne sait alors que « un lien est actif »,
+ * et propose d'en générer un autre, qui éteint l'ancien.
  */
 /** Une ligne « clé · valeur » de la feuille. */
 function Ligne({ cle, children }: { readonly cle: string; readonly children: ReactNode }) {
@@ -37,9 +38,10 @@ function Ligne({ cle, children }: { readonly cle: string; readonly children: Rea
 }
 
 /**
- * TCK-2597 — la feuille « Abonnement iCal » de l'agenda (maquette `app-agenda` a-5) : le lien privé,
- * Copier, Google et Apple au moment où il est généré ; ensuite, sa date, sa dernière lecture et
- * « Révoquer le lien ».
+ * TCK-2597, TCK-2888 — la feuille « Abonnement iCal » de l'agenda (maquette `app-agenda` a-5) : le
+ * lien privé, Copier, Google et Apple — à la génération comme à la réouverture —, puis sa date, sa
+ * dernière lecture et « Révoquer le lien ». Sans lien relisible (lien ancien), « Générer un nouveau
+ * lien » à la place du lien.
  */
 export function CalendarSubscription() {
   const t = useTranslations('agentCrm.calendar.feed');
@@ -67,36 +69,40 @@ export function CalendarSubscription() {
     mutationFn: () => revokeCalendarFeed(token ?? ''),
     onSuccess: () => {
       setIssuedUrl(null);
+      // TCK-2888 — le lien relu (`url`) ne survit pas à la révocation le temps de la relecture.
+      queryClient.setQueryData<CalendarFeedState>(AGENT_CRM_QUERY_KEY.calendarFeed(), { active: false });
       void queryClient.invalidateQueries({ queryKey: AGENT_CRM_QUERY_KEY.calendarFeed() });
     },
   });
 
   const active = issuedUrl !== null || state.data?.active === true;
-  const webcal = issuedUrl?.replace(/^https?:/, 'webcal:') ?? null;
+  // TCK-2888 — le lien vient de la génération, sinon de la relecture (ADR-0121) ; `null` : lien ancien.
+  const lien = issuedUrl ?? (state.data?.active ? (state.data.url ?? null) : null);
+  const webcal = lien?.replace(/^https?:/, 'webcal:') ?? null;
   const failure = issue.error ?? revoke.error;
 
   return (
     <section aria-label={t('title')} className="space-y-4 pt-1">
       <p className="text-pretty text-sm leading-snug text-encre-douce">{t('intro')}</p>
 
-      {issuedUrl && webcal ? (
+      {lien && webcal ? (
         <>
           <div>
             <p className="mb-1.5 text-sm font-medium">{t('linkLabel')}</p>
             <div className="flex items-center gap-2">
-              <Input readOnly value={issuedUrl} aria-label={t('linkLabel')} className="bg-muted/50" onFocus={(e) => e.currentTarget.select()} />
+              <Input readOnly value={lien} aria-label={t('linkLabel')} className="bg-muted/50" onFocus={(e) => e.currentTarget.select()} />
               <Button
                 type="button"
                 className="h-auto shrink-0 gap-1.5 self-stretch bg-foreground text-background hover:bg-foreground/90"
                 onClick={() => {
-                  void navigator.clipboard?.writeText(issuedUrl).then(() => setCopied(true));
+                  void navigator.clipboard?.writeText(lien).then(() => setCopied(true));
                 }}
               >
                 {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" strokeWidth={1.75} aria-hidden="true" />}
                 {copied ? t('copied') : t('copy')}
               </Button>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">{t('onceOnly')}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('secret')}</p>
           </div>
           <div className="grid gap-2">
             <a className={cn(buttonVariants({ variant: 'outline' }), 'h-11 w-full')} href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`} target="_blank" rel="noopener noreferrer">
@@ -128,7 +134,7 @@ export function CalendarSubscription() {
               <span className="block text-ui text-muted-foreground">{t('revokeHint')}</span>
             </span>
           </button>
-          {issuedUrl ? null : (
+          {lien ? null : (
             <div>
               <Button type="button" variant="outline" disabled={issue.isPending || state.isPending} onClick={() => issue.mutate()}>
                 {t('rotate')}

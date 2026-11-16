@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  selectionSuggeree,
   basculerBien,
   chargeUtileVitrine,
   couvertureApercue,
@@ -150,5 +151,25 @@ describe('AC3 — la page qui porte le bloc ne s’ouvre pas à un agent sans r�
     expect(pageAccessible(page, agent)).toBe(false);
     const admin = { roles: ['agency_admin'] as UserRole[], agence: { kind: 'standard' as const }, capacites: ['agency.update'] };
     expect(pageAccessible(page, admin)).toBe(true);
+  });
+});
+
+// TCK-2929 — « Utiliser cette sélection » : l'ordre de l'API, six au plus, rien quand rien ne changerait.
+describe('selectionSuggeree (TCK-2929)', () => {
+  const b = (id: number) => ({ id, title: null, main_photo_url: null });
+
+  it('garde l’ordre de l’API (le plus vu d’abord), sans retrier', () => {
+    expect(selectionSuggeree([b(12), b(10), b(14)], [11])).toEqual([12, 10, 14]);
+  });
+
+  it('borne aux places de la vitrine et retire les doublons', () => {
+    expect(selectionSuggeree([1, 2, 2, 3, 4, 5, 6, 7].map(b), [])).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it('rien à suggérer : aucun bien vu ce mois, ou la vitrine est déjà cette sélection', () => {
+    expect(selectionSuggeree([], [1, 2])).toBeNull();
+    expect(selectionSuggeree([b(1), b(2)], [1, 2])).toBeNull();
+    // Le même ensemble dans un autre ordre se propose encore.
+    expect(selectionSuggeree([b(1), b(2)], [2, 1])).toEqual([1, 2]);
   });
 });

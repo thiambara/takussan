@@ -330,6 +330,7 @@ class InstantRecuConvertiTest extends TestCase
         'Http/Filters/DateBoundaryFilter.php' => 1,
         'Http/Filters/RangeFilter.php' => 1,
         'Models/PropertyVisit.php' => 1, // TCK-2768 r1 — `filter.day` en `date_format:Y-m-d`
+        'Services/Property/HeuresDuSejour.php' => 2, // TCK-2892 — deux heures du jour en `date_format:H:i` (cf. FORMATS_HORS_JOUR)
         'Support/SavedSearchCriteria.php' => 1,
     ];
 
@@ -343,6 +344,9 @@ class InstantRecuConvertiTest extends TestCase
     private const FORMATS_HORS_JOUR = [
         'Http/Requests/Api/Commissions/CommissionSummaryRequest.php' => ["'date_format:Y-m'"],
         'Http/Requests/Api/ShowTeamPerformanceRequest.php' => ["'date_format:Y-m'"],
+        // TCK-2892 — une HEURE du jour (arrivée « à partir de », départ « avant »), pas une date : colonne
+        // `time`. `H:i` est déjà bornée — `date_format` reformate et compare, « 25:00 » ou « 9:5 » rougissent.
+        'Services/Property/HeuresDuSejour.php' => ["'date_format:H:i'", "'date_format:H:i'"],
     ];
 
     /**

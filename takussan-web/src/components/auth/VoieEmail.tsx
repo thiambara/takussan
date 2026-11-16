@@ -25,7 +25,8 @@ import { cn } from '@/lib/utils';
 import { AutresVoies } from './AutresVoies';
 import { BOUTON_D_ENTREE, BoutonCollant } from './BoutonCollant';
 import { BASCULE_MOT_DE_PASSE } from './cibles';
-import { BarreDuBien, PanneauDuBien, avecBien, useTitreDeLaBarre, type IntentionAffichee } from './IntentionDEntree';
+import { PanneauDAccueil } from './AccueilDeLaPorte';
+import { BarreDuBien, PanneauDuBien, avecBien, type IntentionAffichee } from './IntentionDEntree';
 import type { ActionDEntree } from './lien-connexion';
 import { cheminDEntree } from './liens-de-l-entree';
 import { TitreDEntree } from './PiecesDuCourriel';
@@ -68,7 +69,6 @@ export function VoieEmail({ intention, redirect, action, ongletInitial, onTeleph
   const origine = { redirect, action };
 
   const bien = avecBien(intention) ? intention : null;
-  const titreDeLaBarre = useTitreDeLaBarre(bien);
   // « Utiliser plutôt mon numéro » : sous les champs au téléphone (le bouton est posé sur le clavier),
   // sous le bouton au bureau — d'où sa place DANS le formulaire, après le bouton (`BoutonCollant`
   // passe en dernier au téléphone). La cible de 44 px déborde la ligne (`-my-3`) : le texte reste où la
@@ -87,7 +87,6 @@ export function VoieEmail({ intention, redirect, action, ongletInitial, onTeleph
   ) : null;
   const declaration = bien ? (
     <DeclarerEntree
-      titreDeBureau={titreDeLaBarre}
       enTete={
         onTelephone ? (
           <BarreDuBien intention={bien} libelleRetour={t('versLeNumero')} onRetour={onTelephone} />
@@ -96,6 +95,10 @@ export function VoieEmail({ intention, redirect, action, ongletInitial, onTeleph
       panneau={<PanneauDuBien intention={bien} />}
       retourBureau={<RetourAuth libelle={tPorte('retourALAnnonce')} className="h-9 border border-border bg-card px-3.5 text-foreground hover:bg-muted" />}
     />
+  ) : intention === null ? (
+    // TCK-2936 — l'arrivée directe : au bureau, le panneau d'accueil de la porte, quelle que soit la voie
+    // (numéro fermé, ou e-mail choisi) ; au téléphone, la barre de la coque, comme la maquette des écrans e-mail.
+    <DeclarerEntree panneau={<PanneauDAccueil />} />
   ) : null;
 
   if (doubleFacteur) {

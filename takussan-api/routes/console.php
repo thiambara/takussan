@@ -129,6 +129,11 @@ Schedule::job(new PurgeExpiredReportExports)->dailyAt('02:40')->withoutOverlappi
 // TCK-1143 (P63.04) — les exports du journal d'activité ne survivent pas à leur lien (24 h).
 // Idempotent : la purge ne supprime que des fichiers échus, et rien ne les recrée.
 Schedule::job(new PurgeExpiredActivityLogExports)->hourly()->withoutOverlapping(60);
+// TCK-2866 (ADR-0115 § 3) — les fichiers d'export gardés pour « Retélécharger » s'effacent à leur
+// échéance (`exports.retention_days`, 7 j). Idempotent : une ligne effacée n'est plus relue.
+Schedule::command('exports:purge-files')->hourly()->withoutOverlapping(60);
+// TCK-2905 (ADR-0117 § 3) — les vues quotidiennes d'un bien se gardent 400 jours. Idempotente : une suppression par date.
+Schedule::command('properties:purge-daily-views')->dailyAt('04:20')->timezone('Africa/Dakar')->withoutOverlapping();
 // TCK-2812 (ADR-0099, amendement du 2026-11-14) — les archives préparées du coffre ne survivent pas à
 // leur lien (24 h) ; échouées ou perdues, elles s'effacent après 24 h. Idempotent : une ligne effacée
 // n'est plus relue, et effacer un fichier absent ne fait rien.

@@ -20,7 +20,7 @@ import type { UserPreferences } from '@/types/user';
  *
  * Composant serveur : la lecture se fait au rendu de la page, comme dans « Ma situation ».
  */
-type Invitation = {
+export type Invitation = {
   readonly ville: string | null;
   readonly contrat: 'rent' | 'sale';
   readonly biens: readonly PropertyListItem[];
@@ -35,12 +35,31 @@ export async function lireInvitationARechercher(preferences: UserPreferences | u
   return { ville, contrat, biens: resultat?.data ?? [] };
 }
 
-export function InvitationARechercher({ invitation, locale, className }: { readonly invitation: Invitation; readonly locale: Locale; readonly className?: string }) {
+/** La recherche publique selon l'intention et la ville du profil (« Voir les annonces », « Chercher un bien »). */
+export function lienDeLaRecherche(invitation: Pick<Invitation, 'ville' | 'contrat'>, locale: Locale): string {
+  const filtres = new URLSearchParams({ contract_type: invitation.contrat });
+  if (invitation.ville) filtres.set('city', invitation.ville);
+  return hrefLocalise(`/properties?${filtres.toString()}`, locale);
+}
+
+/**
+ * TCK-2853 — `bouton={false}` : l'accueil du client porte « Chercher un bien » (même lien) là où la
+ * maquette le place ; l'invitation n'y garde que sa rangée de biens.
+ */
+export function InvitationARechercher({
+  invitation,
+  locale,
+  className,
+  bouton = true,
+}: {
+  readonly invitation: Invitation;
+  readonly locale: Locale;
+  readonly className?: string;
+  readonly bouton?: boolean;
+}) {
   const t = useTranslations('dashboard.tenant');
   const { ville, contrat, biens } = invitation;
-  const filtres = new URLSearchParams({ contract_type: contrat });
-  if (ville) filtres.set('city', ville);
-  const recherche = hrefLocalise(`/properties?${filtres.toString()}`, locale);
+  const recherche = lienDeLaRecherche(invitation, locale);
   const titre = ville ? t(contrat === 'sale' ? 'inviteBuyIn' : 'inviteRentIn', { city: ville }) : t('inviteSearch');
   return (
     <section aria-labelledby="invitation-a-rechercher" className={cn('rounded-2xl border border-dashed border-border bg-card p-5', className)} data-slot="invitation-a-rechercher">
@@ -62,10 +81,12 @@ export function InvitationARechercher({ invitation, locale, className }: { reado
           ))}
         </ul>
       ) : null}
-      <Link href={recherche} className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'mt-4 w-full sm:w-auto')}>
-        <Search className="size-4" aria-hidden="true" />
-        {t('inviteCta')}
-      </Link>
+      {bouton ? (
+        <Link href={recherche} className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'mt-4 w-full sm:w-auto')}>
+          <Search className="size-4" aria-hidden="true" />
+          {t('inviteCta')}
+        </Link>
+      ) : null}
     </section>
   );
 }

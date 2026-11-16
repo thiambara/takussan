@@ -1,6 +1,6 @@
 # ADR-0103 — Le pilotage commercial se dérive des gestes et des faits : premier contact daté, relance due calculée, étape proposée et jamais imposée
 
-- **Statut** : Accepté le 2026-11-10 (décision n° 11 (a) : *Takussan propose l'étape suivante, l'agent confirme* ; décisions 3 (b) et 7 (a) de la famille 5, validées par le porteur) — modalités : décisions de la session, à revoir
+- **Statut** : Accepté le 2026-11-10 (décision n° 11 (a) : *Takussan propose l'étape suivante, l'agent confirme* ; décisions 3 (b) et 7 (a) de la famille 5, validées par le porteur) — modalités : décisions de la session, à revoir ; **précisé par [ADR-0110](0110-la-candidature-et-l-offre-portent-leurs-conditions-et-leur-dossier.md) § 8** (2026-11-15, TCK-2874) : l'acceptation d'une candidature ou d'une offre confirme l'étape « Négociation »
 - **Date** : 2026-11-10
 - **Tickets** : TCK-2583 (gestes de contact, première réponse, délai par agent), TCK-2584 (demandes en boîte de réception), TCK-2588 (prochaine action, relance due), TCK-2591 (pipeline : indicateurs justes, étape proposée), TCK-2592 (pipeline : relances, colonnes), TCK-2596 (« Aujourd'hui »)
 - **Va avec** : [ADR-0101](0101-le-fil-commercial-vit-dans-la-fiche-client.md) (le compte rendu, premier fait qui propose une étape)

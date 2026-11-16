@@ -133,8 +133,19 @@ export function CustomerListFilters({ crmTags = [], disposition = 'barre' }: Pro
   );
 
   // TCK-922 — l'option affiche l'étiquette traduite ; sa valeur reste le nom en base.
+  // TCK-2890 (AC8) — le filtre est là même quand l'agence n'a aucune étiquette : il le dit, et dit
+  // où en créer une (« + Étiquette » de la fiche), au lieu de disparaître de la barre.
   const etiquettes =
-    crmTags.length > 0 ? (
+    crmTags.length === 0 ? (
+      <Filtre libelle={t('tags')} valeur={null} actif={false} pleine={feuille}>
+        {() => (
+          <div data-slot="aucune-etiquette" className="px-2.5 py-2">
+            <p className="text-sm font-medium">{t('aucuneEtiquette')}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('creerEtiquetteDepuisLaFiche')}</p>
+          </div>
+        )}
+      </Filtre>
+    ) : (
       <Filtre libelle={t('tags')} valeur={f.tags.length > 0 ? String(f.tags.length) : null} actif={f.tags.length > 0} pleine={feuille}>
         {(fermer) => (
           <>
@@ -160,7 +171,7 @@ export function CustomerListFilters({ crmTags = [], disposition = 'barre' }: Pro
           </>
         )}
       </Filtre>
-    ) : null;
+    );
 
   if (feuille) {
     return (

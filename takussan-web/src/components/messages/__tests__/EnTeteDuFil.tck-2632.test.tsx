@@ -294,8 +294,9 @@ describe('<EnTeteDuFil> (TCK-2632)', () => {
     const bouton = screen.getByRole('button', { name: 'Replier le contexte' });
     expect(bouton).toHaveAttribute('aria-expanded', 'true');
     expect(bouton).toHaveAttribute('aria-controls', 'messagerie-contexte');
-    // Dès `xl` seulement : la colonne n'existe pas en dessous.
-    expect(bouton).toHaveClass('hidden', 'xl:inline-flex');
+    // TCK-2860 — attente changée, voulue : dès `lg` (et non plus `xl`), entre 1024 et 1279 il ouvre
+    // le panneau superposé ; la page ne passe `contexte` qu'au bureau.
+    expect(bouton).not.toHaveClass('hidden');
     await userEvent.click(bouton);
     expect(onBasculer).toHaveBeenCalledTimes(1);
 

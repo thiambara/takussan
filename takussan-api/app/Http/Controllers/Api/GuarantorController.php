@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Requests\Api\StoreGuarantorRequest;
 use App\Http\Requests\Api\UpdateGuarantorRequest;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use App\Models\Lease;
@@ -141,6 +142,19 @@ class GuarantorController extends Controller
                 || $guarantor->leases()->whereIn('status', $open)->exists(),
             422,
             'guarantor.attached_to_open_lease',
+        );
+
+        // TCK-2893 (ADR-0110 § 3) — même règle pour une candidature ou une offre OUVERTE (en attente
+        // ou confirmée) : la fiche supprimée laisserait au dossier les deux pièces attendues du
+        // garant (`DossierPiece::forGuarantor()`), sans garant pour les fournir. On le retire d'abord
+        // par la route de la réservation (`DELETE /api/bookings/{booking}/guarantors/{guarantor}`),
+        // qui reprend ses pièces non reçues. Une réservation close ne retient rien.
+        abort_code_if(
+            $guarantor->bookings()
+                ->whereIn('bookings.status', [BookingStatus::Pending->value, BookingStatus::Confirmed->value])
+                ->exists(),
+            422,
+            'guarantor.attached_to_open_booking',
         );
 
         $guarantor->delete();

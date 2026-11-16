@@ -103,7 +103,9 @@ class TeamPerformanceLeadsHandledTest extends ApiTestCase
             DB::flushQueryLog();
             DB::enableQueryLog();
             $this->rows();
-            $n = collect(DB::getQueryLog())->filter(fn (array $q): bool => str_contains($q['query'], 'property_contact_leads'))->count();
+            // TCK-2865 — `team-performance` lit aussi le délai de réponse dans `property_contact_leads` (deux requêtes
+            // constantes, `TeamPerformanceResponseTimeTest`) : seule la requête des demandes traitées est comptée ici.
+            $n = collect(DB::getQueryLog())->filter(fn (array $q): bool => str_contains($q['query'], 'property_contact_leads') && str_contains($q['query'], 'handled_by_id'))->count();
             DB::disableQueryLog();
 
             return $n;

@@ -45,6 +45,10 @@ class UpdateStatusMaintenanceRequestRequest extends BaseFormRequest
     {
         return [
             'status' => ['required', Rule::enum(MaintenanceStatus::class)],
+            // TCK-2917 (ADR-0118 § 1) — qui annule dit pourquoi : le demandeur, le bailleur et le
+            // prestataire le lisent (`cancellation_reason`, notifications `…_with_reason`). Seuls des
+            // donneurs d'ordre annulent par cette route (matrice de `MaintenanceStateMachine`).
+            'reason' => ['nullable', 'required_if:status,'.MaintenanceStatus::Cancelled->value, 'string', 'max:500'],
         ];
     }
 }

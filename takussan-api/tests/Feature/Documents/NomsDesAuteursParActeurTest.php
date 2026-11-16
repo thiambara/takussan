@@ -135,13 +135,14 @@ class NomsDesAuteursParActeurTest extends TestCase
         $fiche->assertJsonPath('data.uploaded_by_person', self::nom('Ousmane Niang'))
             ->assertJsonPath('data.verified_by_person', self::role('platform'));
         $this->assertSame(
-            [self::role('platform'), self::nom('Ousmane Niang')],
+            // TCK-2898 — le fichier d'origine de l'agent est la version 1.
+            [self::role('platform'), self::nom('Ousmane Niang'), self::nom('Ousmane Niang')],
             array_column($fiche->json('data.versions'), 'uploaded_by_person'),
         );
         $this->assertAucunNom($fiche, ['Awa', 'Diop']);
 
         $versions = $this->versions($this->agent, $this->surLeBail);
-        $this->assertSame([self::role('platform'), self::nom('Ousmane Niang')], array_column($versions->json('data'), 'uploaded_by_person'));
+        $this->assertSame([self::role('platform'), self::nom('Ousmane Niang'), self::nom('Ousmane Niang')], array_column($versions->json('data'), 'uploaded_by_person'));
         $this->assertAucunNom($versions, ['Awa', 'Diop']);
     }
 
@@ -159,11 +160,11 @@ class NomsDesAuteursParActeurTest extends TestCase
         $fiche = $this->fiche($this->tenant, $this->surLeBail);
         $fiche->assertJsonPath('data.uploaded_by_person', self::role('agency'))
             ->assertJsonPath('data.verified_by_person', self::role('platform'));
-        $this->assertSame([self::role('platform'), self::role('agency')], array_column($fiche->json('data.versions'), 'uploaded_by_person'));
+        $this->assertSame([self::role('platform'), self::role('agency'), self::role('agency')], array_column($fiche->json('data.versions'), 'uploaded_by_person'));
         $this->assertAucunNom($fiche, ['Ousmane', 'Niang', 'Awa', 'Diop']);
 
         $versions = $this->versions($this->tenant, $this->surLeBail);
-        $this->assertSame([self::role('platform'), self::role('agency')], array_column($versions->json('data'), 'uploaded_by_person'));
+        $this->assertSame([self::role('platform'), self::role('agency'), self::role('agency')], array_column($versions->json('data'), 'uploaded_by_person'));
         $this->assertAucunNom($versions, ['Ousmane', 'Niang', 'Awa', 'Diop']);
 
         // Le bailleur dépose sur le bail : le locataire lit `landlord`, le personnel lit son nom.

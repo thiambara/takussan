@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Notifications\PreferenceCatalog;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\ShowNotificationPreferencesRequest;
 use App\Http\Requests\Api\Me\UpdateNotificationPreferencesRequest;
 use App\Models\User;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * TCK-070 — event_type × channel matrix driven by
@@ -25,9 +26,10 @@ class NotificationPreferenceController extends Controller
 {
     public function __construct(private readonly PreferenceResolver $resolver) {}
 
-    public function show(Request $request): JsonResponse
+    /** TCK-2863 — `?persona=` filtre le catalogue sur ce que la persona active reçoit. */
+    public function show(ShowNotificationPreferencesRequest $request): JsonResponse
     {
-        return $this->json(['data' => $this->payloadFor($request->user())]);
+        return $this->json(['data' => $this->payloadFor($request->user(), $request->validated('persona'))]);
     }
 
     public function update(UpdateNotificationPreferencesRequest $request): JsonResponse
@@ -55,11 +57,14 @@ class NotificationPreferenceController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function payloadFor(User $user): array
+    private function payloadFor(User $user, ?string $persona = null): array
     {
         return [
             'preferences' => $this->resolver->matrixFor($user),
             'events' => PreferenceResolver::EVENTS,
+            // TCK-2863 — chaque événement avec les personas qui le reçoivent, et les événements
+            // imposés (`identity_verification`, `locked`, canaux fixes) que la matrice ne règle pas.
+            'catalog' => PreferenceCatalog::for($persona),
             'channels' => PreferenceResolver::CHANNELS,
             'phone_verified' => $user->phone_verified_at !== null,
 

@@ -28,7 +28,11 @@ vi.mock('@/lib/queries/agent-crm', async (original) => ({
   ...(await original<typeof import('@/lib/queries/agent-crm')>()),
   fetchAbsences: (...a: unknown[]) => fetchAbsences(...a),
   revokeAbsence: (...a: unknown[]) => revokeAbsence(...a),
-  fetchMemberPortfolio: vi.fn(),
+}));
+// TCK-2928 — la fiche de l'API n'est pas le sujet ici : refusée, les rangées retombent sur la ligne.
+vi.mock('@/lib/queries/fiche-du-membre', async (original) => ({
+  ...(await original<typeof import('@/lib/queries/fiche-du-membre')>()),
+  fetchFicheDuMembre: vi.fn(async () => Promise.reject(new Error('non servie'))),
 }));
 
 const PAPE: AdminAgencyUserRow = {
@@ -75,7 +79,6 @@ function monter(peutDeleguer = true, garde: GardeDoubleFacteurFn | null = null) 
           currentUserId={1}
           affectations={[]}
           peutAttribuerLeRole={false}
-          peutLireLePortefeuille={false}
           suspension={null}
           onSuspension={vi.fn()}
           peutDeleguer={peutDeleguer}

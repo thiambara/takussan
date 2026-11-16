@@ -19,10 +19,12 @@ import { useTelechargementApi } from '@/hooks/useTelechargementApi';
 import {
   archivePreparee,
   cheminDeLArchive,
+  nombreDeBauxDuLocataire,
   SEUIL_DE_L_ARCHIVE_DIRECTE,
   voirLeCoffre,
   voirLesTrouvees,
   type ArchivePreparee,
+  type DossierDuCoffre,
   type DossierVu,
   type EntreeVue,
 } from '@/lib/documents/coffre';
@@ -35,6 +37,7 @@ import { jourADakar } from '@/lib/visites/par-le-temps';
 import { ChampDeRecherche, useEcrireLaRecherche, useRechercheDansLURL } from './ChampDeRecherche';
 import { useLibellesDuCoffre } from './libelles';
 import { LigneDuCoffre, TuileDEntree, useMarques } from './LigneDuCoffre';
+import { useTelechargementDuCoffre } from './useTelechargementDuCoffre';
 
 /** TCK-1041, TCK-2656 (lot 2) — l'ajout en deux temps n'est chargé qu'à sa première ouverture. */
 const AjoutAuCoffre = dynamic(() => import('./ajout/AjoutAuCoffre').then((m) => m.AjoutAuCoffre));
@@ -65,6 +68,11 @@ const AjoutAuCoffre = dynamic(() => import('./ajout/AjoutAuCoffre').then((m) => 
  *
  * TCK-2729 — le dossier d'un bien d'un bailleur bloqué est en lecture seule : il se lit, rien ne s'y
  * ajoute ni ne s'y remplace, et le coffre le dit une fois.
+ *
+ * TCK-2898 — chez le bailleur, le dossier d'un bien porte, après ses documents, la ligne de dossier de
+ * chaque bail (« Bail de Fatou Kiné Diallo — Contrat, état des lieux · 2 documents »), qui s'ouvre sur
+ * ses documents ; chaque bien est listé, même vide (« Aucun document »). Chaque ligne finit par
+ * « Télécharger » (`LigneDuCoffre`).
  */
 
 const TOUT = 'tout';
@@ -87,7 +95,7 @@ export function CoffreDeDocuments() {
   const [choisie, setChoisie] = useState<string | null>(null);
   const [ajout, setAjout] = useState(false);
   const ajoutMonte = useDejaOuvert(ajout);
-  const { telecharger, enCours, echec } = useTelechargementApi();
+  const { telecharger, enCours, echec } = useTelechargementDuCoffre();
   const archive = useTelechargementApi();
   const { q, page } = useRechercheDansLURL();
   // TCK-2812 — l'état des archives préparées ne se lit que si un dossier dépasse le seuil direct.
@@ -129,16 +137,28 @@ export function CoffreDeDocuments() {
   // L'accueil du coffre vide est celui du locataire : un bailleur ou un prestataire a ses dossiers.
   const accueil = vide && coffre.folders.every((d) => d.kind === 'lease' || d.kind === 'receipts' || d.kind === 'pieces');
 
-  const visibles: readonly DossierVu[] = vu.dossiers
-    .map((d) => (filtre === EXPIRE ? { ...d, entrees: d.entrees.filter(expireBientot) } : d))
-    .filter((d) => (filtre === TOUT ? true : filtre === EXPIRE ? d.entrees.length > 0 : d.key === filtre));
+  // TCK-2898 — la liste reste plate (`parent`) : un sous-dossier de bail se rend DANS son bien ; ses
+  // documents comptent dans le bien, pour les puces, l'arborescence et le filtre « Expire bientôt ».
+  const parFiltre = (d: DossierVu): DossierVu => (filtre === EXPIRE ? { ...d, entrees: d.entrees.filter(expireBientot) } : d);
+  const enfantsDe = (d: DossierVu): readonly DossierVu[] =>
+    vu.dossiers
+      .filter((c) => c.parent === d.key)
+      .map(parFiltre)
+      .filter((c) => c.entrees.length > 0);
+  const compteDe = (d: DossierVu) => d.entrees.length + enfantsDe(d).reduce((somme, c) => somme + c.entrees.length, 0);
+  // Les puces et l'arborescence comptent le coffre entier, quel que soit le filtre actif.
+  const totalDe = (d: DossierVu) => d.entrees.length + vu.dossiers.filter((c) => c.parent === d.key).reduce((somme, c) => somme + c.entrees.length, 0);
+  const racines = vu.dossiers.filter((d) => d.parent === null);
+  const visibles: readonly DossierVu[] = racines
+    .map(parFiltre)
+    .filter((d) => (filtre === TOUT ? true : filtre === EXPIRE ? compteDe(d) > 0 : d.key === filtre));
 
   const toutes = vu.dossiers.flatMap((d) => d.entrees.map((vue) => ({ vue, dossier: d })));
   const enApercu = toutes.find((x) => x.vue.cle === choisie) ?? toutes[0] ?? null;
 
   const ouvert = (d: DossierVu) => bascules[d.key] ?? (!d.replieParDefaut || filtre === d.key || filtre === EXPIRE);
   const basculer = (d: DossierVu) => setBascules((b) => ({ ...b, [d.key]: !ouvert(d) }));
-  const surTelecharger = (chemin: string, nom: string) => void telecharger(chemin, `${nom}.pdf`);
+  const surTelecharger = (vue: EntreeVue, nom: string) => void telecharger(vue, nom);
   const preparationDe = (d: DossierVu): ArchivePreparee | null =>
     archivePreparee(d) ? (preparees.data?.data.find((a) => a.folder === d.key) ?? null) : null;
   const toutTelecharger = (d: DossierVu) => {
@@ -194,7 +214,7 @@ export function CoffreDeDocuments() {
 
   // Rien à chercher dans un coffre vide — sauf une recherche déjà dans l'URL, qu'on doit pouvoir effacer.
   const champ = !vide || q !== '' ? <ChampDeRecherche bureau={bureau} /> : null;
-  const nombreDeBaux = coffre.folders.filter((d) => d.kind === 'lease').length;
+  const nombreDeBaux = nombreDeBauxDuLocataire(coffre);
   const lectureSeuleVisible = vu.lectureSeule && (filtre === TOUT || visibles.some((d) => d.lectureSeule));
 
   return (
@@ -221,10 +241,10 @@ export function CoffreDeDocuments() {
           <PuceDeFiltre active={filtre === TOUT} compte={vu.total} onClick={() => setFiltre(TOUT)}>
             {t('tout')}
           </PuceDeFiltre>
-          {vu.dossiers
-            .filter((d) => d.entrees.length > 0)
+          {racines
+            .filter((d) => totalDe(d) > 0)
             .map((d) => (
-              <PuceDeFiltre key={d.key} active={filtre === d.key} compte={d.entrees.length} onClick={() => setFiltre(d.key)}>
+              <PuceDeFiltre key={d.key} active={filtre === d.key} compte={totalDe(d)} onClick={() => setFiltre(d.key)}>
                 {libelles.dossier(d.etiquette)}
               </PuceDeFiltre>
             ))}
@@ -258,7 +278,7 @@ export function CoffreDeDocuments() {
       ) : null}
 
       {q !== '' ? (
-        <Trouvees q={q} page={page} nombreDeBaux={nombreDeBaux} bureau={bureau} onTelecharger={surTelecharger} />
+        <Trouvees q={q} page={page} nombreDeBaux={nombreDeBaux} dossiersDuCoffre={coffre.folders} bureau={bureau} onTelecharger={surTelecharger} />
       ) : (
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         {/* L'arborescence : 220 px au bureau de la maquette (61 pas de 3,6 px). */}
@@ -267,8 +287,8 @@ export function CoffreDeDocuments() {
             <EntreeDArbre actif={filtre === TOUT} compte={vu.total} onClick={() => setFiltre(TOUT)}>
               {t('tousLesDocuments')}
             </EntreeDArbre>
-            {vu.dossiers.map((d) => (
-              <EntreeDArbre key={d.key} actif={filtre === d.key} compte={d.entrees.length} onClick={() => setFiltre(d.key)}>
+            {racines.map((d) => (
+              <EntreeDArbre key={d.key} actif={filtre === d.key} compte={totalDe(d)} onClick={() => setFiltre(d.key)}>
                 {libelles.dossier(d.etiquette)}
               </EntreeDArbre>
             ))}
@@ -299,37 +319,55 @@ export function CoffreDeDocuments() {
 
           {visibles.map((d) => {
             const nom = libelles.dossier(d.etiquette);
+            const enfants = enfantsDe(d);
+            const compte = compteDe(d);
             const entreesVisibles = bureau && d.entrees.length > APERCU_DU_DOSSIER + 1 && bascules[d.key] !== true ? d.entrees.slice(0, APERCU_DU_DOSSIER) : d.entrees;
+            const lignesDe = (entrees: readonly EntreeVue[]) =>
+              entrees.map((vue) => (
+                <LigneDuCoffre
+                  key={vue.cle}
+                  vue={vue}
+                  nom={libelles.entree(vue)}
+                  detail={libelles.detail(vue)}
+                  bureau={bureau}
+                  choisie={bureau && enApercu?.vue.cle === vue.cle}
+                  onChoisir={() => setChoisie(vue.cle)}
+                  onTelecharger={surTelecharger}
+                />
+              ));
             const lignes = (
               <ul className="divide-y divide-border">
-                {entreesVisibles.map((vue) => {
-                  const nomEntree = libelles.entree(vue);
+                {lignesDe(entreesVisibles)}
+                {enfants.map((c) => {
+                  // Replié par défaut, comme la ligne de dossier de la maquette ; ouvert sous « Expire bientôt ».
+                  const sousOuvert = bascules[c.key] ?? filtre === EXPIRE;
                   return (
-                    <LigneDuCoffre
-                      key={vue.cle}
-                      vue={vue}
-                      nom={nomEntree}
-                      detail={libelles.detail(vue)}
+                    <SousDossier
+                      key={c.key}
+                      nom={libelles.dossier(c.etiquette)}
+                      resume={libelles.resumeDuSousDossier(c)}
                       bureau={bureau}
-                      choisie={bureau && enApercu?.vue.cle === vue.cle}
-                      onChoisir={() => setChoisie(vue.cle)}
-                      onTelecharger={surTelecharger}
-                    />
+                      ouvert={sousOuvert}
+                      onBasculer={() => setBascules((b) => ({ ...b, [c.key]: !sousOuvert }))}
+                    >
+                      {lignesDe(c.entrees)}
+                    </SousDossier>
                   );
                 })}
               </ul>
             );
+            const videDuDossier = d.kind === 'property' ? t('aucunDocument') : t(`vide.${d.kind}`);
 
             if (bureau) {
               return (
                 <section key={d.key} aria-label={nom}>
                   <h2 className="flex items-baseline gap-2 px-1 text-corps font-semibold">
                     {nom}
-                    {d.entrees.length > 0 ? <span className="text-sm tabular-nums text-muted-foreground">{d.entrees.length}</span> : null}
+                    {compte > 0 ? <span className="text-sm tabular-nums text-muted-foreground">{compte}</span> : null}
                     {d.lectureSeule ? <MarqueLectureSeule /> : null}
                     {boutonArchive(d, nom, true)}
                   </h2>
-                  {d.entrees.length > 0 ? (
+                  {compte > 0 ? (
                     <div className="mt-2 overflow-hidden rounded-xl border border-border bg-card">
                       {lignes}
                       {entreesVisibles.length < d.entrees.length ? (
@@ -343,21 +381,21 @@ export function CoffreDeDocuments() {
                       ) : null}
                     </div>
                   ) : (
-                    <p className="mt-2 rounded-xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">{t(`vide.${d.kind}`)}</p>
+                    <p className="mt-2 rounded-xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">{videDuDossier}</p>
                   )}
                   {noteDArchive(d, nom)}
                 </section>
               );
             }
 
-            const estOuvert = ouvert(d) && d.entrees.length > 0;
+            const estOuvert = ouvert(d) && compte > 0;
             return (
               <section key={d.key} aria-label={nom}>
                 <h2 className="font-display text-lg font-semibold tracking-titre">
                   <button
                     type="button"
                     aria-expanded={estOuvert}
-                    disabled={d.entrees.length === 0}
+                    disabled={compte === 0}
                     onClick={() => basculer(d)}
                     className="flex h-11 w-full items-center gap-2 rounded-md px-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-default"
                   >
@@ -367,17 +405,17 @@ export function CoffreDeDocuments() {
                       <Folder className="size-5 flex-none text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
                     )}
                     <span className="min-w-0 truncate">{nom}</span>
-                    {d.entrees.length > 0 ? (
-                      <span className="font-sans text-sm font-semibold tracking-normal tabular-nums text-muted-foreground">{d.entrees.length}</span>
+                    {compte > 0 ? (
+                      <span className="font-sans text-sm font-semibold tracking-normal tabular-nums text-muted-foreground">{compte}</span>
                     ) : null}
                     {d.lectureSeule ? <MarqueLectureSeule /> : null}
-                    {d.entrees.length > 0 ? (
+                    {compte > 0 ? (
                       <ChevronDown className={cn('ml-auto size-5 flex-none text-muted-foreground', !estOuvert && '-rotate-90')} aria-hidden="true" />
                     ) : null}
                   </button>
                 </h2>
-                {d.entrees.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-border px-4 py-3.5 text-sm leading-snug text-muted-foreground">{t(`vide.${d.kind}`)}</p>
+                {compte === 0 ? (
+                  <p className="rounded-xl border border-dashed border-border px-4 py-3.5 text-sm leading-snug text-muted-foreground">{videDuDossier}</p>
                 ) : estOuvert ? (
                   <div className="overflow-hidden rounded-xl border border-border bg-card">{lignes}</div>
                 ) : (
@@ -399,11 +437,6 @@ export function CoffreDeDocuments() {
             );
           })}
 
-          {filtre === TOUT && vu.biensSansDocument > 0 ? (
-            <p data-testid="biens-sans-document" className="px-1 text-ui text-muted-foreground">
-              {t('biensSansDocument', { count: vu.biensSansDocument })}
-            </p>
-          ) : null}
         </div>
 
         {/* L'aperçu : 320 px au bureau de la maquette (89 pas de 3,6 px). */}
@@ -436,14 +469,16 @@ function Trouvees({
   q,
   page,
   nombreDeBaux,
+  dossiersDuCoffre,
   bureau,
   onTelecharger,
 }: {
   readonly q: string;
   readonly page: number;
   readonly nombreDeBaux: number;
+  readonly dossiersDuCoffre: readonly DossierDuCoffre[];
   readonly bureau: boolean;
-  readonly onTelecharger: (chemin: string, nom: string) => void;
+  readonly onTelecharger: (vue: EntreeVue, nom: string) => void;
 }) {
   const t = useTranslations('documents.coffre');
   const libelles = useLibellesDuCoffre();
@@ -466,7 +501,7 @@ function Trouvees({
   }
 
   const { meta } = requete.data;
-  const trouvees = voirLesTrouvees(requete.data.data, jourADakar(new Date()), nombreDeBaux);
+  const trouvees = voirLesTrouvees(requete.data.data, jourADakar(new Date()), nombreDeBaux, dossiersDuCoffre);
   const enApercu = trouvees.find((x) => x.vue.cle === choisie) ?? trouvees[0] ?? null;
 
   return (
@@ -510,6 +545,51 @@ function Trouvees({
         </aside>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * TCK-2898 — la ligne de dossier d'un bail dans le dossier de son bien (maquette `COFFRE_BAILLEUR` :
+ * tuile dossier, « Bail de Fatou Kiné Diallo », « Contrat, état des lieux · 2 documents ») ; au toucher,
+ * ses documents s'ouvrent dessous, en retrait.
+ */
+function SousDossier({
+  nom,
+  resume,
+  bureau,
+  ouvert,
+  onBasculer,
+  children,
+}: {
+  readonly nom: string;
+  readonly resume: string;
+  readonly bureau: boolean;
+  readonly ouvert: boolean;
+  readonly onBasculer: () => void;
+  readonly children: React.ReactNode;
+}) {
+  return (
+    <li data-testid="sous-dossier">
+      <button
+        type="button"
+        aria-expanded={ouvert}
+        onClick={onBasculer}
+        className={cn(
+          'flex w-full items-center gap-3 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring',
+          bureau ? 'px-4 py-2.5' : 'px-4 py-3',
+        )}
+      >
+        <span className={cn('inline-flex flex-none items-center justify-center rounded-lg bg-secondary text-primary-deep', bureau ? 'size-9' : 'size-10')}>
+          {ouvert ? <FolderOpen className="size-5" strokeWidth={1.5} aria-hidden="true" /> : <Folder className="size-5" strokeWidth={1.5} aria-hidden="true" />}
+        </span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className={cn('block truncate font-medium', bureau ? 'text-sm' : 'text-corps')}>{nom}</span>
+          <span className={cn('mt-0.5 block truncate text-muted-foreground', bureau ? 'text-xs' : 'text-ui')}>{resume}</span>
+        </span>
+        <ChevronDown className={cn('size-4 flex-none text-muted-foreground', !ouvert && '-rotate-90')} aria-hidden="true" />
+      </button>
+      {ouvert ? <ul className="ml-4 divide-y divide-border border-t border-l border-border">{children}</ul> : null}
+    </li>
   );
 }
 
@@ -675,7 +755,7 @@ function Apercu({
   readonly vue: EntreeVue;
   readonly nom: string;
   readonly dossier: string;
-  readonly onTelecharger: (chemin: string, nom: string) => void;
+  readonly onTelecharger: (vue: EntreeVue, nom: string) => void;
 }) {
   const t = useTranslations('documents.coffre');
   const f = useFormatteurs();
@@ -707,15 +787,21 @@ function Apercu({
         </dl>
         <div className="mt-4 flex gap-2">
           {geste.geste === 'telecharger' ? (
-            <Button type="button" className="flex-1" onClick={() => onTelecharger(geste.chemin, nom)}>
+            <Button type="button" className="flex-1" onClick={() => onTelecharger(vue, nom)}>
               <Download data-icon="inline-start" aria-hidden="true" />
               {t('telecharger')}
             </Button>
           ) : geste.geste === 'ouvrir' ? (
-            <Link href={`/app/documents/${geste.documentId}`} className={cn(buttonVariants(), 'flex-1')}>
-              <ExternalLink data-icon="inline-start" aria-hidden="true" />
-              {t('ouvrir')}
-            </Link>
+            <>
+              <Link href={`/app/documents/${geste.documentId}`} className={cn(buttonVariants(), 'flex-1')}>
+                <ExternalLink data-icon="inline-start" aria-hidden="true" />
+                {t('ouvrir')}
+              </Link>
+              {/* TCK-2898 — la pièce se télécharge aussi d'ici, sans passer par sa fiche. */}
+              <Button type="button" variant="outline" size="icon" aria-label={t('telechargerNomme', { nom })} onClick={() => onTelecharger(vue, nom)}>
+                <Download aria-hidden="true" />
+              </Button>
+            </>
           ) : null}
         </div>
       </div>

@@ -6,7 +6,7 @@
  * préfixes `lg:` (1024) et `xl:` (1280), sur l'élément ET ses ancêtres. Elle ne voit ni `sm:`/`md:`, ni
  * `style=`, ni les variantes composées (`lg:max-xl:`) : un élément qui en dépend se mesure au navigateur.
  *
- * Extraite de `CoqueDEntree.panneau-xl.tck-2604.test.tsx` quand un second fichier en a eu besoin
+ * Extraite de `CoqueDEntree.panneau-xl.tck-2604.test.tsx` (devenu `CoqueDEntree.panneau-lg.tck-2936.test.tsx`) quand un second fichier en a eu besoin
  * (le titre de la barre du bureau à 1024, TCK-2604).
  */
 const PALIERS: readonly (readonly [string, number])[] = [

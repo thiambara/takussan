@@ -25,6 +25,8 @@ return [
     // TCK-589 — entrée par téléphone, verrou, sessions, 2FA exigée (ajouts seulement).
     'phone' => [
         'sms_code' => 'Takussan : votre code est :code. Il expire dans :minutes min. Ne le communiquez à personne.',
+        // TCK-2940 (ADR-0126) — le texte que l'appel dicte.
+        'voice_code' => 'Bonjour. Votre code Takussan est : :digits. Je répète : :digits. Il expire dans :minutes minutes. Ne le communiquez à personne.',
         'taken' => 'Ce numéro est déjà vérifié sur un autre compte.',
         'code_invalid' => 'Code invalide ou expiré.',
         'already_verified' => 'Ce numéro est déjà vérifié.',
