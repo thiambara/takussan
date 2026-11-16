@@ -11,6 +11,10 @@
   la place « Mise en avant » de l'annuaire se vend en crédits ; tous ses paramètres sont des réglages.
   Amende aussi ADR-0092 § 4 et § 6. Voir
   [§ Amendement du 2026-11-16](#amendement-du-2026-11-16-tck-2525--la-mise-en-avant-dune-agence-se-vend-en-crédits).
+- **Amendement du 2026-11-16** ([TCK-2569](../backlog/tickets/todo/TCK-2569-impressions-des-emplacements-non-affiches.md)) :
+  une impression se compte quand le navigateur déclare avoir **affiché** l'emplacement, plus quand
+  l'API le sert. Amende § 10 et l'amendement du 2026-11-09. Voir
+  [§ Amendement du 2026-11-16 (TCK-2569)](#amendement-du-2026-11-16-tck-2569--limpression-est-déclarée-par-laffichage).
 
 ## Contexte
 
@@ -412,3 +416,45 @@ contrainte rencontrée sans débit, crédits insuffisants sans écriture, refus 
 capacité, idempotence, remboursement à la suspension sous les trois règles et son idempotence, place
 offerte qui cède, statistiques) et `AgencySpotlightConcurrentPurchaseTest.php` (deux achats
 simultanés de la même ville par deux connexions : un seul réussit, un seul débit).
+
+## Amendement du 2026-11-16 (TCK-2569) — l'impression est déclarée par l'affichage
+
+**Décision du porteur du 2026-11-16, option (a).** L'amendement du 2026-11-09 laissait un écart
+connu : le front n'insère pas tous les emplacements que l'API sert (tête de la première page sous
+des places réservées, doublon de la suite continue), et l'impression se comptait au service. Ce
+paragraphe le ferme ; il remplace, dans § 10 et dans l'amendement du 2026-11-09, « une impression
+est comptée pour chaque emplacement **servi** ».
+
+- **C'est le front qui déclare.** Une cellule d'emplacement rendue — dans la liste de `/properties`
+  comme dans la rangée vedette de l'accueil — déclare son bien quand la moitié de la carte entre
+  dans l'écran (`IntersectionObserver`, seuil 0,5), une fois par bien et par document. Les
+  déclarations partent groupées, sans bloquer l'affichage : un lot une seconde après la première
+  carte vue, ou à la sortie de la page (`keepalive`, sans identifiants, corps de formulaire pour
+  rester une requête « simple » sans pré-vérification CORS). Code :
+  `takussan-web/src/components/boost/impressions-affichees.ts`. Un emplacement que le front ne
+  monte pas n'a pas de cellule, et ne peut donc rien déclarer.
+- **L'API ne compte plus au service.** Ni la recherche (`PropertySearchService`) ni l'accueil
+  (`HomepageDiscoveryService`) n'appellent plus le compteur ; le middleware `boost.impressions`
+  (TCK-708) est retiré. Elle reçoit `POST /api/public/properties/sponsored-impressions`
+  (`slugs[]`, au plus 24, limiteur `public-sponsored-impressions`) et rend **204 toujours** : un
+  slug inconnu, un bien qui n'est pas public, un bien sans vedette active ne comptent rien et ne se
+  distinguent pas. Restent en place la déduplication par visiteur et par bien sur 30 minutes
+  (TCK-708) et l'exclusion des robots déclarés (TCK-792), désormais à la déclaration.
+- **Limite assumée** : l'API croit la déclaration. Un appelant peut déclarer un emplacement qu'il
+  n'a pas vu ; l'écart est borné par la déduplication (une impression par visiteur et par bien sur
+  30 minutes), le limiteur, et le filtre « public + vedette active ». Les impressions ne sont pas
+  facturées : elles mesurent, elles ne débitent rien.
+- **Les statistiques passées sont gardées telles quelles**, sans réécriture. La **bascule** est le
+  déploiement de TCK-2569 : avant, `property_boost_daily_stats.impressions` compte des
+  emplacements **servis** ; après, des emplacements **affichés**. Les deux séries ne se comparent
+  pas de part et d'autre de cette date : le taux de clic d'après la bascule est mécaniquement plus
+  haut. La date réelle est celle du déploiement en préproduction, puis en production (phase F), à
+  relever au moment de la promotion.
+
+**Gardes** : `tests/Feature/Boost/SponsoredImpressionsTest.php` (servir ne compte rien — rouge si
+l'on recompte à l'émission, vérifié par ablation ; un emplacement déclaré compte une fois par
+visiteur sur 30 minutes ; un bien non public ou inconnu ne compte rien et rend le même 204 —
+ablation du filtre `public()`), `RobotImpressionsTest.php` (ablation de l'exclusion des robots),
+`takussan-web/src/components/property/__tests__/PropertiesDiscoveryPage.impressions.test.tsx`
+(emplacement de tête et doublon retirés : aucune déclaration — rouge si la déclaration part de la
+réponse au lieu de la cellule) et `takussan-web/src/components/property/cards/__tests__/PropertyRow.impressions.test.tsx`.
