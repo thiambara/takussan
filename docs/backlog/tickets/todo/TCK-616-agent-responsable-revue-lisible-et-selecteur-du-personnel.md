@@ -103,11 +103,11 @@ signé par celui qui l'a signé étant défendable.
 
 ## Delta à produire
 
-- [ ] `RepairReassignedOwners` : `chain=X>B5>Y` sur chaque ligne de revue et de restauration ;
+- [x] `RepairReassignedOwners` : `chain=X>B5>Y` sur chaque ligne de revue et de restauration ;
       `designated_after` au seul journal ; `leases_fixed_ids=` sur la ligne, `leases_fixed=` (compte)
       au bilan.
 - [ ] ~~`PropertyBulkAssignService` : cible supprimée → refus `invalid_target` par ligne.~~ — caduc depuis TCK-817 (422 `user.not_in_active_agency` pour le lot, à dessein).
-- [ ] Front : le sélecteur « Changer l'agent responsable » (liste ; la fiche n'en a pas) se remplit du personnel
+- [x] Front : le sélecteur « Changer l'agent responsable » (liste ; la fiche n'en a pas) se remplit du personnel
       actif de l'agence (endpoint existant de l'équipe, champs `id,name`) ; libellés inchangés.
 - [ ] Passation (décision) : baux `draft` du partant transmis, autres listés au bilan ;
       ~~`LeasePolicy::view` resserré~~ — caduc depuis TCK-1926.
@@ -116,17 +116,17 @@ signé par celui qui l'a signé étant défendable.
 
 ## Critères d'acceptation
 
-- [ ] **AC1 (rouge sur `839be671`).** FN1 et FN3 de verif-603 passe 2 : plus de `designated_after` ;
+- [x] **AC1 (rouge sur `839be671`).** FN1 et FN3 de verif-603 passe 2 : plus de `designated_after` ;
       une désignation réelle après la réattribution : `designated_after`.
-- [ ] **AC2.** FN2 : la ligne imprime `chain=X>B5>Y`, le bailleur B5 y est lisible.
-- [ ] **AC3.** La ligne `restore` porte `leases_fixed_ids=…` ; le bilan porte `leases_fixed=<compte>`.
-- [ ] **AC4 (rouge sur `839be671`).** Le sélecteur de la liste propose un agent actif de l'agence sans
+- [x] **AC2.** FN2 : la ligne imprime `chain=X>B5>Y`, le bailleur B5 y est lisible.
+- [x] **AC3.** La ligne `restore` porte `leases_fixed_ids=…` ; le bilan porte `leases_fixed=<compte>`.
+- [x] **AC4 (rouge sur `839be671`).** Le sélecteur de la liste propose un agent actif de l'agence sans
       aucun bien sur la page, et ne propose aucun bailleur.
 - [ ] ~~**AC5.** `bulk-assign` de 3 biens vers un utilisateur supprimé : 200, 3 refus `invalid_target`.~~ — caduc depuis TCK-817 (422 `user.not_in_active_agency` pour le lot, anti-oracle).
 - [ ] **AC6 (décision).** Après la passation d'un bien dont un bail actif a `landlord_id` = le partant :
       le bail figure au bilan ; `GET /api/leases/{id}` par le partant → 403 (cette moitié est déjà
       vraie depuis TCK-1926 : à garder au plus comme test de non-régression).
-- [ ] Ablations consignées : second critère `is_primary` remis → AC1 rouge ; sélecteur rendu à
+- [x] Ablations consignées : second critère `is_primary` remis → AC1 rouge ; sélecteur rendu à
       `buildAgentOptions` → AC4 rouge.
 
 ## Hors périmètre
@@ -138,3 +138,30 @@ signé par celui qui l'a signé étant défendable.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Réparation** (`RepairReassignedOwners`, ADR-0059 amendé §7) : `designated_after` au seul journal
+  `property.primary_agent_designated` ; `chain=X>B5>Y` en fin de chaque ligne `review`/`restore` ; sur la ligne
+  `leases_fixed_ids=` **et** `leases_to_review_ids=` (même double sens corrigé), comptes `leases_fixed=` /
+  `leases_to_review=` au bilan. La trace `property.owner_restored` garde ses clés : aucune écriture nouvelle.
+  `test_une_marque_posee_apres_sans_journal_compte_aussi` (TCK-603 m2) est **renversé** à dessein.
+  Preuves : `RepairReassignedOwnersOutputTest` (AC1 FN1/FN3 + désignation réelle, AC2 FN2, AC3), temps posé par
+  `travelTo` ; ablation « second critère `is_primary` remis » → FN1 et FN3 rouges.
+- **Sélecteur du lot** (AC4) : `fetchResponsablesDuLot` lit `GET /api/agencies/{agency}/members?filter[assignable]=1`
+  (`fields[users]=id,first_name,last_name`, toutes les pages) — **et non `…/team`**, qui ne lit que les profils
+  d'agent de tout statut (omet l'admin, propose le suspendu) ; `assignable` est la règle d'`isStaffAt` que le lot
+  applique. Seule la barre du lot change : le filtre d'agent garde `buildAgentOptions` (`filter[user_id]` vise
+  aussi un titulaire bailleur). Un 403 (agent sans `crm.assign`) ou une panne laissent « moi » seul ; sans agence
+  (super-admin), aucun choix, le sélecteur ne s'affiche pas ; **un bailleur seul non plus** (il voyait la liste
+  tirée de la page ; sa porte est la fiche, TCK-504, hors périmètre). Preuves : `selecteur-du-lot.tck-616.test.tsx`,
+  et `ResponsablesDuLotListeTest` (la requête exacte acceptée par l'API, admin et agent : admin actif et agent
+  sans bien rendus, bailleur et suspendu jamais) ;
+  ablation « `PropertyList` rendu à `buildAgentOptions` » → 4 rouges. Libellés inchangés, aucune clé i18n.
+- **AC6** : seule la non-régression de lecture est livrée (`AgentHandoverLeaseTest` : passation avec retrait,
+  `GET /api/leases/{id}` du partant → 403 ; ablation de la branche `BailleurDuBien` de `LeasePolicy::view` → 200,
+  rouge). La moitié « passation » n'est **pas** implémentée : **au porteur** — à la passation, les baux `draft`
+  du partant passent-ils au repreneur et les autres sont-ils listés au bilan : (a) oui, (b) non, on retire ce
+  point ? AC6 reste ouvert jusqu'à cette réponse.
+- La commande se joue ensuite une fois en préproduction, `--dry-run` d'abord : son format de sortie a changé.
+

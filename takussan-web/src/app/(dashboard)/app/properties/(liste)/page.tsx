@@ -15,6 +15,7 @@ import {
 } from '@/lib/biens/mode-de-liste';
 import { modeMemoriseDesBiens } from '@/lib/biens/mode-memorise';
 import { fetchBailleursDuFiltre, type BailleurDuFiltre } from '@/lib/biens/bailleurs-du-filtre';
+import { fetchResponsablesDuLot, type ResponsableDuLot } from '@/lib/biens/responsables-du-lot';
 import { fetchAbonnement } from '@/lib/queries/offre';
 import { nomAffichable } from '@/lib/identite';
 import { getToken } from '@/lib/session';
@@ -193,7 +194,7 @@ export default async function Page({
         };
 
   const agence = estDeLAgence(user.roles);
-  const [premiere, resume, quota, offre, bailleurs] = await Promise.all([
+  const [premiere, resume, quota, offre, bailleurs, responsables] = await Promise.all([
     listeDansLesBornes(token, listeDuMode(modeDemande)),
     fetchPortfolioSummary(token, { user_id: filters.user_id, agent: filters.agent, include_archived: filters.include_archived }),
     // Le quota est celui de l'AGENCE (`GET /api/me/quota`) : le bailleur ne le consomme pas (TCK-627).
@@ -203,6 +204,8 @@ export default async function Page({
     agence ? nomDeLOffre(token) : Promise.resolve(null),
     // TCK-2908 — « Tous les bailleurs » (panneau du bureau, mode Gestion) : sans lecture possible, pas de liste.
     agence && user.agency_id ? fetchBailleursDuFiltre(token, user.agency_id).catch(() => null) : Promise.resolve(null),
+    // TCK-616 — « Changer l'agent responsable » : le personnel actif de l'agence, lu au serveur.
+    agence ? fetchResponsablesDuLot(token, user.agency_id, { id: user.id, name: nomAffichable(user) }) : Promise.resolve([]),
   ]);
 
   // Décision 4 a — le sélecteur n'est proposé qu'à un compte qui a des biens à louer. Sous une portée
@@ -221,6 +224,7 @@ export default async function Page({
     sousTitre: t('subtitle'),
     // « Proposer un bien à mon agence » pour le bailleur, en-tête comme barre (TCK-587, TCK-2638).
     publier: proposeAuBailleur(user.roles) ? tNav('proposeProperty') : t('publish'),
+    responsables,
   };
 
   if (mode === 'gestion') return pageGestion({ ...contexte, bailleurs });
@@ -309,6 +313,12 @@ type ContexteDeLaPage = {
   readonly titre: string;
   readonly sousTitre: string;
   readonly publier: string;
+  /**
+   * TCK-616 — les choix de « Changer l'agent responsable » (barre du lot) : le personnel actif de
+   * l'agence (`fetchResponsablesDuLot`). Le filtre d'agent garde `buildAgentOptions` : `filter[user_id]`
+   * vise aussi un titulaire bailleur.
+   */
+  readonly responsables: readonly ResponsableDuLot[];
 };
 
 /**
@@ -354,7 +364,7 @@ function CoqueDeLaListe({
  * des pastilles et des tuiles en UN appel `portfolio-summary` — aucune liste `per_page=1` (AC3).
  */
 function pageGestion(contexte: ContexteDeLaPage & { readonly bailleurs: readonly BailleurDuFiltre[] | null }) {
-  const { user, response, resume, bailleurs } = contexte;
+  const { user, response, resume, bailleurs, responsables } = contexte;
   const agentOptions = buildAgentOptions(response.data, user);
   // TCK-2638 (lot B2) — au bureau, le panneau de filtres et UNE carte : barre, table, pagination en pied.
   return (
@@ -371,7 +381,7 @@ function pageGestion(contexte: ContexteDeLaPage & { readonly bailleurs: readonly
         sousLaBarre={<PastillesGestion resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />}
         pied={<Pagination meta={response.meta} dansLaCarte />}
       >
-        <PropertyList page={response} currentUserId={user.id} agentOptions={agentOptions} presentation="gestion" />
+        <PropertyList page={response} currentUserId={user.id} agentOptions={responsables} presentation="gestion" />
       </PropertyListFilters>
     </CoqueDeLaListe>
   );
@@ -390,7 +400,7 @@ function pageAnnonces(
     readonly bailleurs: readonly BailleurDuFiltre[] | null;
   },
 ) {
-  const { user, response, resume, quota, bailleurs } = contexte;
+  const { user, response, resume, quota, bailleurs, responsables } = contexte;
   const agentOptions = buildAgentOptions(response.data, user);
   return (
     <CoqueDeLaListe {...contexte} mode="annonces">
@@ -407,7 +417,7 @@ function pageAnnonces(
         sousLaBarre={<PastillesAnnonces resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />}
         pied={<Pagination meta={response.meta} />}
       >
-        <PropertyList page={response} currentUserId={user.id} agentOptions={agentOptions} presentation="annonces" />
+        <PropertyList page={response} currentUserId={user.id} agentOptions={responsables} presentation="annonces" />
       </PropertyListFilters>
       {quota ? (
         <div className="px-4 md:px-0 lg:hidden">
@@ -441,6 +451,10 @@ function Pagination({
   );
 }
 
+/**
+ * Les choix du FILTRE d'agent (`filter[user_id]`) : l'utilisateur, les titulaires et collaborateurs de la
+ * page. TCK-616 — jamais ceux de « Changer l'agent responsable », qui viennent du serveur (`responsables`).
+ */
 function buildAgentOptions(
   properties: Awaited<ReturnType<typeof fetchDashboardProperties>>['data'],
   user: Utilisateur,
