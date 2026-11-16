@@ -444,7 +444,7 @@ function BandeauDEdition({ nombre, onTerminer }: { readonly nombre: number; read
         data-slot="terminer-l-edition"
         onClick={onTerminer}
         className={cn(
-          'inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-ui font-medium text-primary-foreground hover:bg-primary/90 max-md:h-10',
+          'inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-ui font-medium text-primary-foreground hover:bg-primary-deep max-md:h-10',
           FOCUS_RING,
         )}
       >

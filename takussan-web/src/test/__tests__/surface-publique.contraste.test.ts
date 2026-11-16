@@ -101,6 +101,7 @@ const SURFACE = clotureDImport(ENTREES).filter((f) => f.endsWith('.tsx'));
  *     sans avoir regardé où le composant est réellement posé.
  *  2. **Boutons primaires au survol** — `hover:bg-primary/80` sous `text-primary-foreground`
  *     tombe à 3,45:1 : l'alpha du survol mange la marge. Défaut réel, hors de ce ticket.
+ *     *(Fermée le 2026-11-16 par TCK-487 : survol opaque `hover:bg-primary-deep`.)*
  *  3. **`text-border` en séparateur ou en étoile vide** — 1,20 à 1,26:1, au seuil non textuel de
  *     3:1. Défaut réel et de faible gravité.
  *  4. **Aplats de `--primary` sous de l'encre `--primary`** — le même motif que TCK-444 relève sur
@@ -113,12 +114,11 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['components/search/SearchAutocomplete.tsx · text-primary-foreground/80 sur bg-card/10 sur un sous-jacent inconnu (pire pixel 249)', 1.00, 'variante `navbar`, posée sur la barre `bg-foreground` de `AppTopbar` — un ancêtre d’un autre fichier'],
   ['components/search/SearchAutocomplete.tsx · text-primary-foreground/80 sur hover:bg-card/20 sur un sous-jacent inconnu (pire pixel 248)', 1.00, 'idem, état survolé'],
   // ── 2. Boutons primaires au survol ────────────────────────────────────────────────────────────
-  ['app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'idem'],
-  ['app/[locale]/(public)/properties/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur un sous-jacent inconnu (pire pixel 255)', 4.18, 'idem, alpha 90 %'],
-  ['components/compare/CompareFloatingBar.tsx · text-primary-foreground sur hover:bg-primary/90 sur #ffffff', 4.18, 'idem, sur un ancêtre `--card` connu'],
-  ['components/compare/CompareFloatingBar.tsx · text-primary-foreground sur hover:bg-primary/90 sur #fffffe', 4.18, 'idem, sur `--background` (l’ancêtre `bg-card/95` compose à un octet près)'],
-  ['app/[locale]/(public)/agencies/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur #fcf9f3', 4.21, 'idem'],
-  ['app/[locale]/(public)/agents/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur #fcf9f3', 4.21, 'idem'],
+  // VIDE depuis le 2026-11-16 (TCK-487, option b) : les six entrées (`PropertyReservationDialog`
+  // `hover:bg-primary/80` à 3,45:1, les trois `not-found` et `CompareFloatingBar` en
+  // `hover:bg-primary/90` à 4,18-4,21:1) survolent désormais en `hover:bg-primary-deep` OPAQUE,
+  // comme `ui/button.tsx` depuis TCK-2597 : 7,64:1 en clair, 6,78:1 en sombre. Le jeton `--primary`
+  // n'a pas changé ; seuls les sites qui échouaient ont bougé.
   // ── 3. `text-border` non textuel ──────────────────────────────────────────────────────────────
   // Les six entrées des cartes (`PropertyCard{Compact,Standard,Listing}`) sont sorties le
   // 2026-09-16 : leur séparateur « • » est désormais posé par `cards/CardMeta.tsx`, en
@@ -126,6 +126,8 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['components/public/profile/ReviewsSection.tsx · text-border sur #ffffff (ancêtre) sur --card', 1.26, 'étoile VIDE d’une note ; seuil non textuel 3:1'],
   ['components/public/profile/ReviewsSection.tsx · text-border sur #ffffff (ancêtre) sur --background', 1.26, 'idem'],
   // ── 4. Aplats de --primary sous encre --primary ───────────────────────────────────────────────
+  // Laissée le 2026-11-16 (TCK-487, option b) : le pire cas statique est un artefact du lecteur ;
+  // sur son fond réel (`--background` de la page de recherche) le couple rend 4,55:1, conforme.
   ['components/search/SearchToolbar.tsx · text-primary sur bg-primary/8 sur un sous-jacent inconnu (pire pixel 108)', 1.00, 'texte sur un aplat de sa propre couleur — motif de TCK-444'],
   // `SearchAutocomplete.tsx · text-primary sur bg-primary/15` est sortie le 2026-10-15 (TCK-657) :
   // le `<mark>` porte `text-[var(--primary-deep)]` sur `bg-primary/10`. La valeur arbitraire échappe

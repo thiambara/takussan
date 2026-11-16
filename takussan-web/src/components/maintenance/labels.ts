@@ -63,10 +63,10 @@ import type { MaintenanceRequest, MaintenanceStatus } from '@/types/maintenance'
 const STATUS_TONE: Record<MaintenanceStatus, string> = {
   open: 'bg-info/10 text-info',
   acknowledged: 'bg-info/10 text-info',
-  quote_requested: 'bg-primary/12 text-primary',
-  quote_submitted: 'bg-primary/12 text-primary',
+  quote_requested: 'bg-primary/8 text-primary-deep',
+  quote_submitted: 'bg-primary/8 text-primary-deep',
   // TCK-592 (ADR-0037) — la même parenthèse de devis : la balle est chez le bailleur.
-  awaiting_owner: 'bg-primary/12 text-primary',
+  awaiting_owner: 'bg-primary/8 text-primary-deep',
   approved: 'bg-success/10 text-success',
   rejected: 'bg-destructive/10 text-destructive',
   assigned: 'bg-info/10 text-info',

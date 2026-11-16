@@ -158,7 +158,7 @@ export function BandeauSuggestion({ suggestion, prenom, onOui, onPlusTard, enCou
     >
       <span className="min-w-0 flex-1 font-medium">{t(`suggestion.${suggestion.reason}`, { prenom, stage: tStage(suggestion.to) })}</span>
       <span className="flex gap-1">
-        <button type="button" disabled={enCours} onClick={() => onOui(suggestion.to)} className="h-6 rounded bg-primary px-2 font-semibold text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-60">
+        <button type="button" disabled={enCours} onClick={() => onOui(suggestion.to)} className="h-6 rounded bg-primary px-2 font-semibold text-primary-foreground outline-none hover:bg-primary-deep focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-60">
           {t('suggestion.oui')}
         </button>
         <button type="button" disabled={enCours} onClick={onPlusTard} className="h-6 rounded px-2 font-medium outline-none hover:bg-card focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-60">

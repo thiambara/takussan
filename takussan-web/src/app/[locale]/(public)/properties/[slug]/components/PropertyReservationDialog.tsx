@@ -98,7 +98,7 @@ export function PropertyReservationDialog({
             </LienLocalise>
             <LienLocalise
               href={href}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 text-sm font-medium hover:bg-primary/80 transition-colors sm:min-h-8"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 text-sm font-medium hover:bg-primary-deep transition-colors sm:min-h-8"
             >
               {t('signIn')}
             </LienLocalise>

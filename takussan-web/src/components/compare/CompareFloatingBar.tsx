@@ -462,7 +462,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
                 'transition-[background-color,color,scale] duration-150',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
                 canCompare
-                  ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]'
+                  ? 'bg-primary text-primary-foreground hover:bg-primary-deep active:scale-[0.98]'
                   : 'pointer-events-none bg-muted text-muted-foreground',
               )}
             >

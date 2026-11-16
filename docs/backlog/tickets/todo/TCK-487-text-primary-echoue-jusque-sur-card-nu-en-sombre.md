@@ -1,6 +1,6 @@
 ---
 id: TCK-487
-title: "`text-primary` échoue jusque sur `--card` NU en thème sombre : 3,39 à 4,51:1, troisième jeton du même motif"
+title: "`text-primary` échoue sous 4,5:1 sur ses fonds réels (aplats `primary/12`, survols) — troisième jeton du même motif"
 status: todo
 phase: P1
 family: front
@@ -35,7 +35,12 @@ text-foreground`, TCK-2597) ; le bouton primaire survole en opaque (`ui/button.t
   4,31:1, rendu à chaque page `/super-admin` ;
 - `hover:bg-primary/80` de `ui/badge.tsx:12` et `PropertyReservationDialog.tsx:105` : 3,50 / 3,85:1.
 
-**Décision attendue du porteur :** (a) basculer l'encre de ces sites en `text-primary-deep` (≥ 5,09:1
+**Décision du porteur (2026-11-16) : option (b).** On ne change PAS le jeton `--primary` ; on
+corrige **seulement les sites qui échouent**, relevés par la mesure, un par un, avec une encre
+existante de la charte (`--primary-deep`). Décision voisine (TCK-452, option B) : pas de thème
+sombre global — le sombre ne compte que sous une portée `.dark` (`fichiersSousPorteeSombre()`).
+
+*Options qui étaient posées :* (a) basculer l'encre de ces sites en `text-primary-deep` (≥ 5,09:1
 partout ; changement visible sur des centaines de sites si on généralise) ; (b) restreindre à la
 liste ci-dessus ; (c) changer la valeur de `--primary` (décision de palette, plus visible encore).
 
@@ -90,11 +95,11 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Recenser par littéraux (`text-primary`, `bg-primary`, `border-primary`, `ring-primary`, les
+- [x] Recenser par littéraux (`text-primary`, `bg-primary`, `border-primary`, `ring-primary`, les
       recettes de variantes de `ui/button.tsx`, `ui/badge.tsx`, `ui/tabs.tsx`) — avec le compte.
       *(Premier relevé du 2026-11-16, hors tests et maquettes : `text-primary` 484 / 294 fichiers,
       `bg-primary` 287 / 174 ; reste à isoler ceux posés sur `--muted` ou sous aplat.)*
-- [ ] Trancher : ajuster le jeton, ou dissocier une encre (`--primary-deep` **existe déjà** :
+- [x] Trancher : ajuster le jeton, ou dissocier une encre (`--primary-deep` **existe déjà** :
       `#823c20` en clair — vérifier ce qu'il vaut sous `.dark` et pourquoi il n'est pas employé
       ici). *(2026-11-16 : vaut `#d6916b` sous `.dark`, `globals.css:816`, et est employé 176 fois ;
       sur card/bg/muted : 8,03/7,64/6,81 en clair, 6,16/6,78/5,09 en sombre.)*
@@ -103,20 +108,20 @@ Aucun.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — tout texte peint avec `--primary` atteint 4,5:1 sur la surface où il est réellement
+- [x] **AC1** — tout texte peint avec `--primary` atteint 4,5:1 sur la surface où il est réellement
       posé, dans les **deux** thèmes, mesuré par calcul sur les couleurs RENDUES.
-- [ ] **AC2** — le recensement part des littéraux et des recettes, **jamais des importateurs**.
-- [ ] **AC3** — une garde refuse le retour sous seuil. `scripts/check-destructive-contrast.mjs`
+- [x] **AC2** — le recensement part des littéraux et des recettes, **jamais des importateurs**.
+- [x] **AC3** — une garde refuse le retour sous seuil. `scripts/check-destructive-contrast.mjs`
       porte le patron exact (jeu d'aplats DÉRIVÉ du code et séparé par thème, surfaces
       `--background`/`--card`/`--muted`, cliquet, auto-épreuve) et `scripts/lib/contraste.mjs` la
       formule : **la généraliser plutôt que d'en écrire une troisième**, ou dire pourquoi non.
-- [ ] **AC4** — le ratio du bouton primaire au SURVOL est mesuré : `hover:bg-primary/80` tombe à
+- [x] **AC4** — le ratio du bouton primaire au SURVOL est mesuré : `hover:bg-primary/80` tombe à
       3,45:1 sur la surface publique, dette déjà consignée dans
       `src/test/__tests__/surface-publique.contraste.test.ts` (famille 2). Ce ticket la ferme ou
       dit pourquoi il ne la ferme pas. *(2026-11-16 : le bouton `ui/button.tsx` est fermé — survol
       opaque `primary-deep`, 7,64:1 ; restent `ui/badge.tsx:12` et `PropertyReservationDialog.tsx:105`,
       3,50:1, et la dette toujours consignée en `surface-publique.contraste.test.ts:102-116`.)*
-- [ ] **AC5** — ablation : rétablir les valeurs d'aujourd'hui fait rougir AC1 et AC3, changement
+- [x] **AC5** — ablation : rétablir les valeurs d'aujourd'hui fait rougir AC1 et AC3, changement
       prouvé par `md5` **avant** lecture du résultat.
 - [ ] **AC6** — vérification à l'écran, les deux thèmes, sur un lien, un onglet actif et une
       pastille. *Un ratio seul n'a pas vu le bouton invisible de TCK-471.*
@@ -134,3 +139,41 @@ que contourné** : substituer un autre jeton à la visite du calendrier aurait r
 supprimant la contrainte qu'on mesurait. Troisième occurrence du même motif après `--destructive`
 (TCK-480) et le blanc sur aplat plein (TCK-485) — *trois tickets sur trois jetons, trouvés chacun
 en cherchant autre chose : c'est la palette qui n'a jamais été mesurée, pas les écrans.*
+
+## Livré (2026-11-16)
+
+- **Option (b), le jeton ne bouge pas.** Recensement par littéraux (`bg-primary/N` + `text-primary`,
+  `hover:bg-primary/(80|90)`, hors tests et maquettes) croisé avec un relevé `couplesDesFichiers` des
+  deux thèmes ; le sombre n'est retenu que sous une portée `.dark` (TCK-452), et chaque site est jugé
+  sur son fond RÉEL. Encre `text-primary-deep` : `maintenance/labels.ts` (`quote_requested`,
+  `quote_submitted`, `awaiting_owner`), `inventory/labels.ts` (`move_out`), badge « console » de
+  `SuperAdminTopbar` (5,51:1 sous `.dark`), `AvailabilityGrid`, `GeoSuggestionChip`,
+  `WizardReprenable` (étape faite), et trois liens sur un aplat de signal (`VerificationDeLAgence`,
+  `DemandeOuverte`, `reconciliation/reste/pieces`, 4,41 à 4,47:1 avant).
+- **Pastilles : alpha 12 → 8.** `primary-deep` sur `bg-primary/12` au-dessus de `--muted` sombre ne
+  rendait que 4,32:1 ; à `/8`, 4,57:1 (6,16:1 en clair). Moins d'opacité = plus de contraste (TCK-484).
+- **AC4 — survols** : les pleins `bg-primary` à TEXTE survolés en `hover:bg-primary/80|90` (14
+  fichiers, `ui/badge.tsx` et `PropertyReservationDialog` compris) passent en `hover:bg-primary-deep`
+  opaque comme `ui/button.tsx` : 7,64 / 6,78:1. Famille 2 de l'ardoise de
+  `surface-publique.contraste.test.ts` vidée. Les boutons ICÔNE seuls (`Navbar` recherche,
+  `VoiceNoteRecorder`, `EnTeteMobile`) gardent `/90` : seuil 3:1, 4,18:1 tient.
+- **Sélecteurs** (`ParticipantPicker`, `GroupContextPicker`, `AgencyCombobox`) : `text-primary` survolé
+  en `hover:bg-accent` (vert olive) rendait 1,04:1 → survol `hover:bg-muted` (4,51:1). Choix de fond,
+  pas d'encre : le survol shadcn « accent » visait un gris.
+- **Non corrigés, conformes sur leur fond réel :** `SearchToolbar` (`bg-primary/8` sur `--background`,
+  4,55:1 — l'entrée d'ardoise reste, pire cas statique), `Navbar` catégorie active et `EtapeChercheur`
+  (`--card`, 4,64:1), `UserMenu` (variante claire jamais montée), les pictogrammes et la case de
+  `NotificationPreferencesMatrix` (non textuels, `aria-disabled`).
+- **AC3 — garde neuve `src/test/__tests__/encre-primary.contraste.test.ts`** plutôt que généraliser
+  `check-destructive-contrast.mjs` : l'option (b) corrige des sites, pas un jeton, et une garde de
+  jeton ne les voit pas. Elle mesure tout couple `primary` à fond connu de `src/`, en clair partout et
+  en sombre sous portée `.dark`, avec auto-épreuve. Cliquets descendus : `TONS_SOUS_AA_DECLARES` de
+  `familles-de-tons-tck-484.test.tsx` vidé (et `awaiting_owner` ajouté aux statuts mesurés),
+  `FICHIERS_HORS_JETONS` 5 / `ENCRES_INVERSES` 437 inchangés (mesurés sans maquettes).
+- **AC5 — ablations** sur une copie sans maquettes, md5 vérifiés avant lecture et après
+  restauration : (1) les 30 fichiers d'avant → `familles-de-tons` + `surface-publique` rouges (ton non
+  déclaré, couple neuf, ardoise morte) ; (2) `SuperAdminTopbar`, `VerificationDeLAgence`,
+  `ParticipantPicker`, `pipeline/pieces`, `AppSidebar` seuls → `encre-primary` rouge sur les cinq.
+  Limite : `WizardReprenable` (classe conditionnelle) n'est pas vu par le lecteur statique.
+- **AC6 non fait** : à regarder à l'écran — une pastille « devis demandé » (`/app/maintenance`), le
+  lien « Changer » d'un dépôt KYC, le survol d'un bouton plein sur une page `not-found` publique.
