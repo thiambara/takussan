@@ -198,6 +198,9 @@ export default async function Page({ params, searchParams }: Props) {
   // qu'à `phone_verified === true` — un champ absent vaut « non ». TCK-2523 (1b) — et JAMAIS celui
   // d'un propriétaire : sa fiche ne porte aucun numéro personnel, vérifié ou non.
   const telephone = estAgent && agent.phone_verified === true ? agent.phone : null;
+  // TCK-2576 — WhatsApp au premier rang, sur CE numéro publié et seulement si l'API le dit sur WhatsApp
+  // (`phone_whatsapp`, servi avec `phone` seulement) : jamais pour un propriétaire, jamais sans numéro.
+  const whatsapp = telephone && agent.phone_whatsapp === true ? telephone : null;
   const delai = delaiDeReponse(agent.median_response_minutes);
   const texteDelai = delai ? tProfil(`delai.${delai.unite}`, { n: delai.valeur }) : null;
   const langues = nomsDesLangues(agent.languages ?? [], locale);
@@ -447,6 +450,7 @@ export default async function Page({ params, searchParams }: Props) {
             <ContactDeFiche
               nom={nom}
               telephone={telephone}
+              whatsapp={whatsapp}
               message={message}
               sousTitre={texteDelai}
               fiche={{ genre: 'personne', id: agent.id, role: estAgent ? 'agent' : 'owner' }}

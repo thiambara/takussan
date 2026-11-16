@@ -41,6 +41,17 @@ export const agencyFormSchema = z.object({
       (v) => v === '' || /^\+?[0-9\s().-]{8,20}$/.test(v),
       msgValidation('common.phoneInvalid'),
     ),
+  /**
+   * TCK-2576 — le numéro WhatsApp de l'agence (`agencies.phone_whatsapp`), que sa fiche publique offre
+   * au premier rang. Même forme que le téléphone ; l'API le normalise en E.164 et le juge joignable.
+   */
+  phone_whatsapp: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === '' || /^\+?[0-9\s().-]{8,20}$/.test(v),
+      msgValidation('common.phoneInvalid'),
+    ),
   website: z
     .string()
     .trim()
@@ -221,6 +232,8 @@ export interface AgencyFormPayload {
   description?: string | null;
   email?: string | null;
   phone?: string | null;
+  /** TCK-2576 — le numéro WhatsApp de l'agence ; vidé, `null` le retire de la fiche publique. */
+  phone_whatsapp?: string | null;
   website?: string | null;
   commission_rate?: number | null;
   /** TCK-084 — first-class column, not nested under `settings`. */
@@ -333,6 +346,7 @@ export function normaliseAgencyForm(
     description: emptyToNull(values.description),
     email: emptyToNull(values.email)?.toLowerCase() ?? null,
     phone: emptyToNull(values.phone),
+    phone_whatsapp: emptyToNull(values.phone_whatsapp),
     website: emptyToNull(values.website),
     commission_rate: commission,
     ...(currency !== null ? { currency: currency.toUpperCase() } : {}),

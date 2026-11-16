@@ -409,6 +409,14 @@ describe('TCK-2522 — la vitrine à onglets', () => {
     expect(props.telephone).toBe('+221 33 000 00 00');
     expect(props.message).toMatchObject({ genre: 'courriel', adresse: 'contact@dakar-immo.sn' });
   });
+
+  it('TCK-2576 · AC3 — WhatsApp : le numéro DÉCLARÉ par l’agence ; absent, aucun — jamais son téléphone', async () => {
+    await rendre(agence({ phone_whatsapp: '+221781234567' }));
+    expect((contactProps.mock.calls.at(-1)?.[0] as { whatsapp: unknown }).whatsapp).toBe('+221781234567');
+
+    await rendre(agence());
+    expect((contactProps.mock.calls.at(-1)?.[0] as { whatsapp: unknown }).whatsapp).toBeNull();
+  });
 });
 
 describe('TCK-2568 — le haut de l’écran au téléphone, branché par la fiche d’agence', () => {

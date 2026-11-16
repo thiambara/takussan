@@ -133,6 +133,15 @@ describe('corpsDeLaFiche — un seul PATCH, les seules clés modifiées', () => 
     expect(corps).toEqual({ phone: '+221770000000' });
   });
 
+  it('TCK-2576 — le WhatsApp de l’agence part seul quand il change ; vidé, `null` le retire', () => {
+    const a = agence({ phone_whatsapp: '+221781234567' });
+    const initiales = valeursDeLAgence(a);
+    expect(initiales.phone_whatsapp).toBe('+221781234567');
+    expect(corpsDeLaFiche(initiales, a, avec()).corps).toEqual({});
+    expect(corpsDeLaFiche({ ...initiales, phone_whatsapp: '77 000 11 22' }, a, avec()).corps).toEqual({ phone_whatsapp: '77 000 11 22' });
+    expect(corpsDeLaFiche({ ...initiales, phone_whatsapp: '' }, a, avec()).corps).toEqual({ phone_whatsapp: null });
+  });
+
   it('le seuil remis à sa valeur ne part pas ; modifié, il part seul', () => {
     const a = agence({ payout_approval_threshold: 500000 });
     const initiales = valeursDeLAgence(a);

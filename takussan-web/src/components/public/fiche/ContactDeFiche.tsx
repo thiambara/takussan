@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { telephonePublie } from '@/lib/phone';
 import { submitAgentContactLead } from '@/app/actions/property';
 import { AnonymousLeadDialog } from '@/components/public/AnonymousLeadDialog';
+import { LienWhatsApp } from '@/components/contact/LienWhatsApp';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useFicheDeSoi, type FicheIdentifiee } from '@/components/public/fiche/useFicheDeSoi';
 
@@ -29,6 +30,12 @@ export interface ContactDeFicheProps {
   readonly nom: string;
   /** Le numéro PUBLIABLE (vérifié pour une personne), ou `null` : pas de bouton d'appel. */
   readonly telephone: string | null;
+  /**
+   * TCK-2576 — le numéro à joindre sur WhatsApp, ou `null` : SEULEMENT un numéro que l'API dit sur
+   * WhatsApp (agent : le numéro publié avec `phone_whatsapp: true` ; agence : son `phone_whatsapp`
+   * déclaré). Sans lui, pas de bouton — un bouton qui viserait un numéro hors WhatsApp mentirait.
+   */
+  readonly whatsapp?: string | null;
   readonly message: CanalDeMessage | null;
   /** Le sous-titre de la carte de bureau (« Répond en ~1 h »), ou `null`. */
   readonly sousTitre?: string | null;
@@ -52,25 +59,27 @@ function ecranDeModification(fiche: FicheIdentifiee): string {
  * TCK-2522 / TCK-2523 — la barre d'actions d'une fiche, au téléphone (fixée en bas : elle remplace
  * la barre d'onglets, ADR-0091 § 4), et sa carte de contact dans la colonne d'identité en bureau.
  *
- * ⚠ **Pas de WhatsApp.** La maquette le met au premier rang « quand l'agence l'a » ; l'API ne dit
- * ni d'une agence ni d'une personne si son numéro est sur WhatsApp. Un bouton qui viserait un
- * numéro sans WhatsApp mentirait (TCK-633, lot C) : il viendra avec la donnée.
+ * TCK-2576 — l'ordre de la maquette D : **WhatsApp, puis Appeler, puis Message**. WhatsApp n'est là
+ * que si l'API l'a dit du numéro publié ({@link ContactDeFicheProps.whatsapp}) ; il prend alors
+ * l'action principale. Au téléphone, trois canaux : WhatsApp garde son libellé, Appeler et Message
+ * deviennent des boutons carrés à nom accessible — trois libellés ne tiennent pas en 360 px.
  */
-export function ContactDeFiche({ nom, telephone, message, sousTitre = null, fiche }: ContactDeFicheProps) {
+export function ContactDeFiche({ nom, telephone, whatsapp = null, message, sousTitre = null, fiche }: ContactDeFicheProps) {
   const t = useTranslations('publicProfile.contact');
   const [formulaireOuvert, setFormulaireOuvert] = useState(false);
   const deSoi = useFicheDeSoi(fiche);
   const telHref = telephone ? `tel:${telephonePublie(telephone)}` : null;
 
   if (deSoi && fiche) return <VotreFiche fiche={fiche} />;
-  if (!telHref && !message) return null;
+  if (!telHref && !message && !whatsapp) return null;
 
-  const boutonMessage = (classe: string) => {
+  const boutonMessage = (classe: string, iconeSeule = false) => {
     if (!message) return null;
+    const libelle = message.genre === 'agence' ? t('ecrireALAgence') : t('message');
     const contenu = (
       <>
         {message.genre === 'agence' ? <Building2 className="size-[18px]" aria-hidden /> : message.genre === 'courriel' ? <Mail className="size-[18px]" aria-hidden /> : <MessageCircle className="size-[18px]" aria-hidden />}
-        <span>{message.genre === 'agence' ? t('ecrireALAgence') : t('message')}</span>
+        <span className={cn(iconeSeule && 'sr-only')}>{libelle}</span>
       </>
     );
     if (message.genre === 'agence') {
@@ -95,13 +104,40 @@ export function ContactDeFiche({ nom, telephone, message, sousTitre = null, fich
     );
   };
 
+  const boutonAppel = (classe: string, iconeSeule = false) =>
+    telHref ? (
+      <a data-canal="appel" href={telHref} className={classe}>
+        <Phone className="size-[18px]" aria-hidden />
+        <span className={cn(iconeSeule && 'sr-only')}>{t('call')}</span>
+      </a>
+    ) : null;
+
+  const boutonWhatsApp = (classe: string) =>
+    whatsapp ? (
+      <LienWhatsApp
+        data-canal="whatsapp"
+        numero={whatsapp}
+        texte={t('whatsappPrefill', { nom })}
+        aria-label={t('whatsappAria', { nom })}
+        className={classe}
+      >
+        {t('whatsapp')}
+      </LienWhatsApp>
+    ) : null;
+
   const principal =
     'inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[0.9375rem] font-semibold text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
   const secondaire =
     'inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-[0.9375rem] font-semibold text-foreground transition-[border-color,scale] hover:border-primary active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
-  // L'appel est l'action principale quand il existe ; sinon le message prend sa place.
-  const classeAppel = principal;
-  const classeMessage = telHref ? secondaire : principal;
+  // TCK-2576 — WhatsApp, la couleur de WhatsApp (celle du bouton d'un bien), action principale quand
+  // il existe ; sinon l'appel ; sinon le message.
+  const classeWhatsApp =
+    'inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-success px-4 text-[0.9375rem] font-semibold text-success-foreground transition-[background-color,scale] hover:bg-success/90 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+  const classeAppel = whatsapp ? secondaire : principal;
+  const classeMessage = whatsapp || telHref ? secondaire : principal;
+  // Au téléphone, trois canaux ne tiennent pas avec leurs libellés : les deux suivants passent en carré.
+  const troisCanaux = Boolean(whatsapp && telHref && message);
+  const carre = 'w-12 flex-none px-0';
 
   return (
     <>
@@ -110,12 +146,8 @@ export function ContactDeFiche({ nom, telephone, message, sousTitre = null, fich
         <p className="font-display text-lg font-semibold tracking-tight text-foreground">{t('contacterNom', { nom })}</p>
         {sousTitre ? <p className="mt-0.5 text-sm text-muted-foreground">{sousTitre}</p> : null}
         <div className="mt-4 flex flex-col gap-2">
-          {telHref ? (
-            <a data-canal="appel" href={telHref} className={classeAppel}>
-              <Phone className="size-[18px]" aria-hidden />
-              {t('call')}
-            </a>
-          ) : null}
+          {boutonWhatsApp(classeWhatsApp)}
+          {boutonAppel(classeAppel)}
           {boutonMessage(classeMessage)}
         </div>
       </div>
@@ -125,13 +157,9 @@ export function ContactDeFiche({ nom, telephone, message, sousTitre = null, fich
         data-contact-fiche="barre"
         className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-card px-4 pb-[max(var(--spacing)*4,env(safe-area-inset-bottom))] pt-3 lg:hidden"
       >
-        {telHref ? (
-          <a data-canal="appel" href={telHref} className={cn(classeAppel, 'flex-1')}>
-            <Phone className="size-[18px]" aria-hidden />
-            {t('call')}
-          </a>
-        ) : null}
-        {boutonMessage(cn(classeMessage, 'flex-1'))}
+        {boutonWhatsApp(cn(classeWhatsApp, 'flex-1'))}
+        {boutonAppel(cn(classeAppel, troisCanaux ? carre : 'flex-1'), troisCanaux)}
+        {boutonMessage(cn(classeMessage, troisCanaux ? carre : 'flex-1'), troisCanaux)}
       </div>
 
       {message?.genre === 'formulaire' ? (

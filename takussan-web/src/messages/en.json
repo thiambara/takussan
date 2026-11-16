@@ -10629,7 +10629,9 @@
         "website": "Website",
         "commission": "Default commission (%)",
         "emptyRateIsZero": "Left empty, this rate counts as 0%.",
-        "websitePlaceholder": "https://your-agency.sn"
+        "websitePlaceholder": "https://your-agency.sn",
+        "phoneWhatsapp": "Agency WhatsApp",
+        "phoneWhatsappHint": "The number visitors reach on WhatsApp from your public page. Empty: no WhatsApp button."
       },
       "moderation": {
         "label": "Moderation required before publishing",
@@ -18590,7 +18592,10 @@
       "votreFicheAgence": "This is your agency's public page",
       "votreFicheAide": "Visitors see it like this, with the buttons to reach you.",
       "modifierMaFiche": "Edit my profile",
-      "modifierLaFicheDeLAgence": "Edit the agency's page"
+      "modifierLaFicheDeLAgence": "Edit the agency's page",
+      "whatsapp": "WhatsApp",
+      "whatsappAria": "Message {nom} on WhatsApp",
+      "whatsappPrefill": "Hello {nom}, I'm reaching out from your Takussan page."
     },
     "portfolio": {
       "filterAria": "Filter the portfolio",

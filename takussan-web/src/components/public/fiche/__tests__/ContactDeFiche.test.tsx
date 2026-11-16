@@ -185,3 +185,66 @@ describe('TCK-2575 — la fiche d’agence : à la capacité, dans l’agence AC
     expect(canaux()).toHaveLength(4);
   });
 });
+
+/**
+ * TCK-2576 — WhatsApp au premier rang, puis Appeler, puis Message ; et seulement sur le numéro que
+ * l'API a dit sur WhatsApp (`whatsapp`), jamais déduit de `telephone`.
+ */
+describe('TCK-2576 — WhatsApp au premier rang des fiches', () => {
+  function avecWhatsApp(whatsapp: string | null, telephone: string | null = '+221770000000') {
+    return (
+      <ContactDeFiche
+        nom="Moustapha Fall"
+        telephone={telephone}
+        whatsapp={whatsapp}
+        message={{ genre: 'formulaire', slug: 'moustapha-fall', role: 'agent' }}
+        fiche={MOUSTAPHA}
+      />
+    );
+  }
+
+  it('AC1 — la barre commence par WhatsApp, lien `wa.me` sur ce numéro ; puis Appeler, puis Message', () => {
+    render(withIntl(avecWhatsApp('+221770000000')));
+
+    expect([...canaux()].map((c) => c.getAttribute('data-canal'))).toEqual([
+      'whatsapp', 'appel', 'formulaire', // carte de bureau
+      'whatsapp', 'appel', 'formulaire', // barre du téléphone
+    ]);
+    const liens = screen.getAllByRole('link', { name: 'Écrire à Moustapha Fall sur WhatsApp' });
+    expect(liens).toHaveLength(2);
+    for (const lien of liens) {
+      const href = new URL(lien.getAttribute('href') ?? '');
+      expect(`${href.origin}${href.pathname}`).toBe('https://wa.me/221770000000');
+      expect(href.searchParams.get('text')).toContain('Moustapha Fall');
+      expect(lien).toHaveAttribute('target', '_blank');
+      expect(lien).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+    // Au téléphone, trois canaux : Appeler et Message gardent leur nom accessible, en carré.
+    const barre = document.querySelector('[data-contact-fiche="barre"]');
+    expect(barre?.querySelector('[data-canal="appel"]')).toHaveAccessibleName('Appeler');
+    expect(barre?.querySelector('[data-canal="formulaire"]')).toHaveAccessibleName('Message');
+  });
+
+  it('AC2 — sans numéro WhatsApp : aucun bouton WhatsApp, l’ordre d’avant', () => {
+    render(withIntl(avecWhatsApp(null)));
+
+    expect(document.querySelector('[data-canal="whatsapp"]')).toBeNull();
+    expect(screen.queryByRole('link', { name: /WhatsApp/ })).not.toBeInTheDocument();
+    expect([...canaux()].map((c) => c.getAttribute('data-canal'))).toEqual(['appel', 'formulaire', 'appel', 'formulaire']);
+  });
+
+  it('WhatsApp seul suffit à montrer la carte (une agence sans téléphone ni e-mail)', () => {
+    render(
+      withIntl(<ContactDeFiche nom="Dakar Immo" telephone={null} whatsapp="+221781234567" message={null} fiche={AGENCE} />),
+    );
+
+    expect([...canaux()].map((c) => c.getAttribute('data-canal'))).toEqual(['whatsapp', 'whatsapp']);
+  });
+
+  it('sur sa propre fiche, pas plus de WhatsApp que d’autres canaux', () => {
+    etat.user = { id: 12, roles: ['agent'] };
+    render(withIntl(avecWhatsApp('+221770000000')));
+
+    expect(canaux()).toHaveLength(0);
+  });
+});

@@ -122,8 +122,9 @@ vi.mock('@/components/public/profile/PortfolioTabs', () => ({
 // bureau). Le double rend le CANAL de message reçu (formulaire de qui, ou renvoi à l'agence) et le
 // numéro reçu : c'est la page qui décide des deux (TCK-573, TCK-633, décision 1b).
 vi.mock('@/components/public/fiche/ContactDeFiche', () => ({
-  ContactDeFiche: ({ telephone, message, nom, fiche }: { telephone: string | null; nom: string; message: { genre: string; role?: string; slug: string } | null; fiche?: unknown }) => (
+  ContactDeFiche: ({ telephone, whatsapp, message, nom, fiche }: { telephone: string | null; whatsapp?: string | null; nom: string; message: { genre: string; role?: string; slug: string } | null; fiche?: unknown }) => (
     <div
+      data-whatsapp={whatsapp ?? ''}
       data-testid="contact"
       data-fiche={JSON.stringify(fiche ?? null)}
       data-nom={nom}
@@ -681,5 +682,44 @@ describe('TCK-2568 — le haut de l’écran au téléphone, branché par la fic
   it('la personne inconnue (404) ouvre sur la barre de marque', () => {
     render(withIntl(<NotFound />));
     expect(surcharges()).toEqual(['marque', 'marque']);
+  });
+});
+
+/**
+ * TCK-2576 — WhatsApp au premier rang, sur le numéro PUBLIÉ et seulement si l'API le dit
+ * (`phone_whatsapp`) ; jamais pour un propriétaire, jamais pour un numéro non vérifié.
+ */
+describe('TCK-2576 — WhatsApp de la fiche d’agent', () => {
+  beforeEach(() => {
+    getAgentMock.mockReset();
+    notFoundMock.mockClear();
+  });
+
+  it('AC1 — numéro vérifié et déclaré WhatsApp : le contact reçoit ce numéro pour WhatsApp', async () => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: agent({ phone_verified: true, phone_whatsapp: true }) });
+    render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-whatsapp', '+221 77 000 00 00');
+  });
+
+  it.each([
+    ['vérifié, non déclaré WhatsApp', { phone_verified: true, phone_whatsapp: false }],
+    ['vérifié, champ absent', { phone_verified: true }],
+    ['non vérifié (champ servi par erreur)', { phone_verified: false, phone_whatsapp: true }],
+  ] as const)('AC2 — %s : pas de WhatsApp', async (_cas, champs) => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: agent({ ...champs }) });
+    render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-whatsapp', '');
+  });
+
+  it('un propriétaire : jamais de WhatsApp, même déclaré', async () => {
+    getAgentMock.mockResolvedValue({
+      etat: 'trouve',
+      agent: agent({ public_role: 'owner', phone_verified: true, phone_whatsapp: true, managing_agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' } }),
+    });
+    render(withIntl(await Page({ params: params() })));
+
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-whatsapp', '');
   });
 });

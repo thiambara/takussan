@@ -41,6 +41,11 @@ export interface AgentDto {
    * vérifié (D10) ; la page ne le publie qu'à `true`, et un champ absent vaut « non ».
    */
   phone_verified?: boolean;
+  /**
+   * TCK-2576 — le numéro publié est-il déclaré WhatsApp ? Servi AVEC `phone` seulement (absent pour un
+   * numéro non vérifié) ; un champ absent vaut « non ».
+   */
+  phone_whatsapp?: boolean;
   city?: string | null;
   preferred_language?: string | null;
   specialty?: string | null;

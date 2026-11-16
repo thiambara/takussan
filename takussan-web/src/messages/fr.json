@@ -10629,7 +10629,9 @@
         "website": "Site internet",
         "commission": "Commission par défaut (%)",
         "emptyRateIsZero": "Laissé vide, ce taux vaut 0 %.",
-        "websitePlaceholder": "https://votre-agence.sn"
+        "websitePlaceholder": "https://votre-agence.sn",
+        "phoneWhatsapp": "WhatsApp de l'agence",
+        "phoneWhatsappHint": "Le numéro que vos visiteurs joignent sur WhatsApp depuis la fiche publique. Vide : pas de bouton WhatsApp."
       },
       "moderation": {
         "label": "Modération obligatoire avant publication",
@@ -18590,7 +18592,10 @@
       "votreFicheAgence": "C'est la fiche publique de votre agence",
       "votreFicheAide": "Vos visiteurs la voient ainsi, avec les boutons pour vous joindre.",
       "modifierMaFiche": "Modifier ma fiche",
-      "modifierLaFicheDeLAgence": "Modifier la fiche de l'agence"
+      "modifierLaFicheDeLAgence": "Modifier la fiche de l'agence",
+      "whatsapp": "WhatsApp",
+      "whatsappAria": "Écrire à {nom} sur WhatsApp",
+      "whatsappPrefill": "Bonjour {nom}, je vous contacte depuis votre fiche Takussan."
     },
     "portfolio": {
       "filterAria": "Filtrer le portefeuille",

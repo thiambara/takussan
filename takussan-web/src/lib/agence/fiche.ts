@@ -83,6 +83,7 @@ const SECTION_DE_LA_CLE: Readonly<Record<string, SectionDeLaFiche>> = {
   description: 'identite',
   email: 'identite',
   phone: 'identite',
+  phone_whatsapp: 'identite',
   website: 'identite',
   logo: 'identite',
   tagline: 'publique',
@@ -326,6 +327,7 @@ export function valeursDeLAgence(agence: Agency): ValeursDeLaFiche {
     description: agence.description ?? '',
     email: agence.email ?? '',
     phone: agence.phone ?? '',
+    phone_whatsapp: agence.phone_whatsapp ?? '',
     website: agence.website ?? '',
     // TCK-962 — la commission et la devise se lisent sur leurs colonnes.
     commission_rate: nombre(agence.commission_rate),

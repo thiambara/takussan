@@ -328,6 +328,10 @@ class PublicAgentController extends Controller
                 // booléen que `primary_contact.phone_verified` de la fiche du bien.
                 'phone' => $agent->numeroPrincipalPublic(),
                 'phone_verified' => $agent->phone_verified_at !== null,
+                // TCK-2576 — WhatsApp au premier rang de la fiche : servi AVEC le numéro publié, et
+                // seulement alors (aucune clé pour un numéro non vérifié). Une seule règle, celle de la
+                // fiche d'un bien (`PropertyContactNumbers::hasWhatsApp()`).
+                ...($agent->numeroPrincipalPublic() !== null ? ['phone_whatsapp' => $agent->principalPublicSurWhatsApp()] : []),
                 // TCK-2863 — `avatarUrl()`, la miniature : `$agent->avatar_url` n'existe pas sur `User`
                 // et rendait toujours null — la fiche n'affichait jamais la photo.
                 'avatar_url' => $agent->avatarUrl(),

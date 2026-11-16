@@ -22,13 +22,13 @@ import { EtiquetteDuChamp, LogoDeLAgence, TitreDeSection } from './pieces';
 
 /**
  * TCK-2670 — « Identité et contact » : nom, adresse de la fiche publique (l'identifiant, en lecture
- * seule sauf la fois où il s'édite, TCK-1004), licence, description, e-mail, téléphone, site ; le
+ * seule sauf la fois où il s'édite, TCK-1004), licence, description, e-mail, téléphone, WhatsApp (TCK-2576), site ; le
  * logo (déposé sur-le-champ, hors de l'enregistrement) et les filigranes.
  */
 export function SectionIdentite() {
   const t = useTranslations('admin.agencyConfig');
   const tFiche = useTranslations('admin.agencyConfig.fiche.identite');
-  const { agence, filigranes, adressePublique } = useFiche();
+  const { agence, filigranes, adressePublique, individuelle } = useFiche();
   const slugEditable = agence.slug_editable === true;
 
   // Un seul ordre dans le DOM, celui du téléphone (logo, identité, contact, filigranes) ; au bureau, la
@@ -70,6 +70,18 @@ export function SectionIdentite() {
         <EnTeteDeGroupe titre={t('contact.title')} texte={t('contact.description')} separe />
         <ChampDeLaFiche name="email" libelle={t('fields.email')} type="email" className="md:order-4" />
         <ChampDeLaFiche name="phone" libelle={t('fields.phone')} type="tel" placeholder="+221 77 123 45 67" className="md:order-5" />
+        {/* TCK-2576 — le numéro que la fiche publique offre en WhatsApp, au premier rang ; vide, pas de bouton.
+            Pas pour une agence `individual` : elle n'a pas de fiche publique d'agence (annuaire `standard`). */}
+        {individuelle ? null : (
+          <ChampDeLaFiche
+            name="phone_whatsapp"
+            libelle={t('fields.phoneWhatsapp')}
+            type="tel"
+            placeholder="+221 77 123 45 67"
+            aide={t('fields.phoneWhatsappHint')}
+            className="md:order-5"
+          />
+        )}
         <ChampDeLaFiche
           name="website"
           libelle={t('fields.website')}
