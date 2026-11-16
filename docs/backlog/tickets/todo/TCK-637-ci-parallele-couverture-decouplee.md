@@ -78,9 +78,9 @@ ADR-0063) — ce ticket est le principal levier du temps de livraison.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Durée du check requis « API / lint-and-test » sur une PR vers `dev` relevée avant et
+- [x] AC1 — Durée du check requis « API / lint-and-test » sur une PR vers `dev` relevée avant et
       après, sur trois exécutions chacune.
-- [ ] AC2 — Le cliquet rougit toujours par ablation (une ligne couverte retirée sous le seuil).
+- [x] AC2 — Le cliquet rougit toujours par ablation (une ligne couverte retirée sous le seuil).
 
 ## Hors périmètre
 
@@ -104,4 +104,17 @@ ADR-0063) — ce ticket est le principal levier du temps de livraison.
   (point d'accès additif `…/required_status_checks/contexts`, nom relevé sur une vraie promotion d'abord).
 - ⚠ `couverture` reste le chemin critique de la PR (J-12) : le verdict des tests arrive plus tôt, le
   « tout vert » non — dit dans l'amendement.
-- AC1 et AC2 ne se mesurent qu'en CI : à relever sur la PR après push (non tenus à cette date).
+- **AC1, relevé le 2026-11-16 sur la PR #1688** (`startedAt` → `completedAt` du job, API GitHub) :
+  - *avant* (un seul job, PCOV séquentiel), quatre runs verts de PR vers `dev` : 54,2 min (43674090498),
+    79,6 (43734501786), 89,9 (43799491209), 64,7 (43895170629) ;
+  - *après* (`--parallel`, `nproc` = 4 sur le runner) : 18,1 min (43916471496, suite entière jouée,
+    5 rouges du lot corrigés depuis) et 19,6 min (43921607382, vert, 17 498 tests). **Deux runs et non
+    trois** : les pushes suivants n'ont touché que le front, l'attestation (ADR-0063) a sauté le job.
+    L'écart (×3 à ×4,5) ne laisse pas de doute ; le troisième se relèvera sur la prochaine PR qui touche l'API.
+  - `couverture` sur le même run : 77,1 min, `Total: 96.9 % (74260 / 76633 lignes exécutables)`. C'est
+    lui le chemin critique du « tout vert », comme annoncé (J-12).
+  - Aucune `MeilisearchNotIdleException` dans les journaux des deux jobs.
+- **AC2, ablation sur le clover réel** (artefact `couverture-api-clover` du run 43921607382) :
+  `bin/coverage-gate.php … --min=92` → 0, `--min=96.9` → 0, `--min=97` → **1**. L'étape qui le joue n'a
+  pas de `continue-on-error`, et les deux étapes d'attestation (`if:` sans fonction de statut, donc
+  `success()` implicite) ne tournent pas sur un job rouge : un cliquet rouge ne dépose aucune attestation.
