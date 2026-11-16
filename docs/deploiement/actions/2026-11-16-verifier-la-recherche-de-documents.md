@@ -4,7 +4,7 @@ type: verification
 tickets: [TCK-2895]
 cles: []
 creee: 2026-11-16
-preview: a-faire
+preview: fait
 production: a-faire
 ---
 
@@ -25,3 +25,4 @@ n'arrête pas le déploiement.
    d'un locataire ou d'un bien : ses documents apparaissent.
 
 ## Historique
+- 2026-11-16 · preview · fait · Claude (session de la promotion #1685) · déploiement de 9fe34d92a : journal de `release` sans AVERTISSEMENT ni ERREUR, 767 documents réimportés ; `search:verify-indexes --documents` en 0 ; un document de bail ressort en cherchant le nom de son locataire (table 767)
