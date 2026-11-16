@@ -80,7 +80,7 @@ runner `ubuntu-latest` à `nproc` 4, une seule variable — la commande du step 
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sur la PR de ce ticket, le job `couverture` **a tourné** (pas sauté sur une attestation :
+- [x] AC1 — Sur la PR de ce ticket, le job `couverture` **a tourné** (pas sauté sur une attestation :
       `api-ci.yml` est dans la clé, toute attestation existante est invalidée), son journal porte
       `Processus ParaTest : 4` (ou le `nproc` du runner), une ligne `Durée de la suite AVEC couverture
       --parallel`, et une ligne `Total:` de `coverage-gate.php` ; la durée du **job** est relevée et
@@ -89,7 +89,7 @@ runner `ubuntu-latest` à `nproc` 4, une seule variable — la commande du step 
       (`5b5e5c98f`, runs 43942819541 et 43956403876 : 74260 contre 74265 / 76633, clovers comparés
       ligne par ligne, aucune ligne du séquentiel perdue). Un `Total:` relevé sur un autre arbre ne
       coche pas cet AC.
-- [ ] AC3 — Le cliquet rougit toujours : sur le `couverture-api-clover` **téléchargé de la PR**,
+- [x] AC3 — Le cliquet rougit toujours : sur le `couverture-api-clover` **téléchargé de la PR**,
       `php bin/coverage-gate.php clover.xml --min=<Total + 0,1>` sort en 1 et `--min=92` en 0 (un
       clover vide ou absent le ferait aussi sortir en 1 : les deux appels sont requis).
 - [ ] AC4 — La nuit (ou par `workflow_dispatch` sur `dev`) après la fusion, `cov.php` est produit par
@@ -131,3 +131,15 @@ runner `ubuntu-latest` à `nproc` 4, une seule variable — la commande du step 
   Une option en double est prise en silence (la dernière gagne) — d'où l'interdiction de `--coverage`.
 - Hors nuit, `"${COV_PHP[@]}"` est vide et ne produit aucun argument (`bash -e`, sans `-u`) : la ligne
   de la PR est exactement celle du run mesuré 43956403876.
+
+## Relevé sur la PR #1689 (2026-11-16)
+
+- **AC1** — run 43968059763, job `couverture` : **37 min 21 s** (suite seule 2186 s), `Processus ParaTest : 4`,
+  `Tests: 17498`, `Total: 96.9 % (74263 / 76633 lignes exécutables)`. Contre 77 min en séquentiel sur le même
+  dépôt (run 43942819541). Le chiffre couvert (74 263) tombe entre les deux mesures précédentes (74 260 et
+  74 265) : c'est le non-déterminisme des chemins d'attente Meilisearch décrit plus haut, pas une dérive.
+- **AC3** — `bin/coverage-gate.php` sur le clover de ce run : `--min=92` → 0, `--min=96.9` → 0, `--min=97` →
+  **1**. Le cliquet rougit toujours au-dessus de la mesure ; l'attestation `ci-vert-api-couverture-*` n'est
+  déposée que par un job vert.
+- **AC4** — reste à relever la première nuit après la fusion (`cov.php` produit en parallèle, carte
+  d'impact régénérée).
