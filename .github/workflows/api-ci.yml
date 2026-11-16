@@ -56,8 +56,8 @@ jobs:
   # est sauté — un job sauté par `if:` compte comme réussi pour un check requis.
   #
   # ⚠ DEUX ATTESTATIONS, UNE PAR JOB LOURD (amendement d'ADR-0063 §4, TCK-637) : `lint-and-test`
-  # (les tests, en `--parallel`) dépose `ci-vert-api-<clé>`, `couverture` (PCOV séquentiel + le
-  # cliquet) dépose `ci-vert-api-couverture-<clé>`, et CHACUN n'est sauté que sur SON artefact.
+  # (les tests, en `--parallel`) dépose `ci-vert-api-<clé>`, `couverture` (PCOV, en `--parallel` lui
+  # aussi depuis TCK-2951, + le cliquet) dépose `ci-vert-api-couverture-<clé>`, et CHACUN n'est sauté que sur SON artefact.
   # Une attestation commune déposée par les tests attesterait un arbre aux tests verts et au
   # cliquet rouge : le push sur `dev` et la promotion sauteraient alors la couverture, et un job
   # sauté passe un check requis.
@@ -105,11 +105,12 @@ jobs:
   # ─── LES TESTS, EN `--parallel` : ILS JUGENT ET ILS ATTESTENT (TCK-637, ADR-0063 §4) ─────────
   #
   # Jusqu'au 2026-11-16, UNE exécution séquentielle sous PCOV portait les tests ET le cliquet de
-  # couverture : 54 à 90 min par PR (relevé du ticket). PCOV agrège mal entre processus (J-12),
-  # d'où le découplage décidé par le porteur, option (a) : ce job-ci joue la suite en `--parallel`
-  # SANS couverture, et c'est lui qui dit si les tests passent ; `couverture`, plus bas, rejoue la
-  # suite séquentiellement sous PCOV, À CÔTÉ (les deux ne dépendent que d'`attestation`), et tient
-  # le cliquet. Pint et la garde Spatie vivent ici seulement : ils jugent, ils ne mesurent rien.
+  # couverture : 54 à 90 min par PR (relevé du ticket). On croyait alors que PCOV agrégeait mal
+  # entre processus (J-12), d'où le découplage décidé par le porteur, option (a) : ce job-ci joue la
+  # suite en `--parallel` SANS couverture, et c'est lui qui dit si les tests passent ; `couverture`,
+  # plus bas, rejoue la suite sous PCOV, À CÔTÉ (les deux ne dépendent que d'`attestation`), et tient
+  # le cliquet. Ce `couverture` était séquentiel jusqu'à TCK-2951, qui l'a passé en `--parallel` lui
+  # aussi : la croyance n'avait jamais été mesurée, et la mesure l'a démentie (J-12). Pint et la garde Spatie vivent ici seulement : ils jugent, ils ne mesurent rien.
   lint-and-test:
     # Même anti-boucle qu'en tête de `couverture` (TCK-479, expliquée là-bas, où vit le step qui
     # pousse la carte) : ce job ne pousse rien, mais le commit du bot ne change que la carte, et
@@ -301,8 +302,9 @@ jobs:
       #
       # ⚠ `php artisan test`, et rien d'autre sur la ligne que `--parallel --processes` : Collision
       # appelle `ignoreValidationErrors()`, et la première option qu'il ne connaît pas fait
-      # disparaître EN SILENCE toutes les suivantes (TCK-331, cf. `couverture`). C'est aussi
-      # pourquoi la couverture n'est PAS demandée ici.
+      # disparaître EN SILENCE toutes les suivantes (TCK-331, cf. `couverture`). La couverture n'est
+      # PAS demandée ici parce que ce job JUGE (`coverage: none`) ; `couverture` la mesure, en
+      # `--parallel` lui aussi depuis TCK-2951, avec `--parallel` en PREMIER sur sa ligne.
       - name: Run tests (--parallel, sans couverture — TCK-637)
         env:
           DB_CONNECTION: pgsql
@@ -572,8 +574,10 @@ jobs:
       # **1 sans imprimer un chiffre** — sur une suite verte à 86,33 %.
       #
       # TCK-637 — ce step ne JUGE plus seul les tests : `lint-and-test` les joue en `--parallel` et
-      # dépose leur attestation. Il les rejoue ici en un seul processus parce que c'est le prix d'un
-      # clover complet ; un test rouge le rougit aussi, et le cliquet n'est alors pas évalué.
+      # dépose leur attestation. Il les rejoue ici pour la couverture ; un test rouge le rougit aussi,
+      # et le cliquet n'est alors pas évalué. TCK-637 les y rejouait en un seul processus, « prix d'un
+      # clover complet » ; TCK-2951 a mesuré que ce prix n'existait pas (cf. plus bas) et passé ce
+      # step en `--parallel`.
       - name: Run tests (avec couverture — cliquet TCK-302)
         env:
           DB_CONNECTION: pgsql
@@ -600,6 +604,35 @@ jobs:
           # Sous la limite de 50 % que TCK-302 s'était fixée (AC4). Le chrono reste affiché :
           # une mesure prise une fois est une mesure qui vieillit, et c'est l'historique du job
           # qui dira si ce +36 % dérive.
+          #
+          # ─── `artisan test --parallel`, LES TROIS SORTIES, ET LA MESURE (TCK-2951) ──────────
+          #
+          # Depuis le 2026-11-16, la suite tourne ici sous ParaTest, un processus par cœur. La
+          # mesure qui l'a décidé, même arbre (`5b5e5c98f`), PCOV, `nproc` 4 :
+          #     séquentiel (run 43942819541)  job 77 min    Total: 96.9 % (74260 / 76633)
+          #     --parallel (run 43956403876)  job 42,5 min  Total: 96.9 % (74265 / 76633)
+          # Clovers comparés ligne par ligne : mêmes fichiers, mêmes lignes exécutables, et le
+          # parallèle couvre TOUTES celles du séquentiel, plus 5 qui dépendent de l'état d'un
+          # Meilisearch partagé (`SearchVerifyIndexes`, `HealthcheckService`). « PCOV agrège mal
+          # entre processus » (J-12) n'avait jamais été mesuré : ParaTest fusionne lui-même les
+          # couvertures de ses workers (`CoverageMerger`) et écrit clover, HTML et PHP depuis
+          # l'objet fusionné.
+          #
+          # ⚠ DEUX RÈGLES DE LA LIGNE DE COMMANDE, qui sont les deux pièges de TCK-331 ci-dessous :
+          #   1. `--parallel --processes=…` EN PREMIER. Collision appelle `ignoreValidationErrors()` :
+          #      la première option qu'il ne connaît pas (ici `--processes`) arrête SON analyse. Un
+          #      `--parallel` placé après une option de couverture n'est pas vu : Collision lance
+          #      alors PHPUnit seul, avec `--parallel` sur sa ligne, que PHPUnit refuse — un rouge
+          #      bruyant, pas un vert séquentiel (lu dans le code de Collision et de PHPUnit, non
+          #      mesuré). Ce qui suit `--processes` est passé TEL QUEL à ParaTest, qui, lui aussi,
+          #      REFUSE une option inconnue (sortie ≠ 0, message nommé).
+          #   2. JAMAIS le drapeau `--coverage` de Collision : il ajoute son propre
+          #      `--coverage-php` (`commonArguments()`), et l'option en double est le défaut de
+          #      TCK-331. Les trois sorties sont demandées à ParaTest directement.
+          # `scripts/check-ci-attestation.mjs` tient la règle 1 et refuse le retour au séquentiel.
+          #
+          # Le récit ci-dessous est l'HISTOIRE de la forme précédente (PHPUnit direct, TCK-331).
+          # Il reste parce qu'il explique les deux règles ; il ne décrit plus la commande.
           #
           # ─── POURQUOI PHPUNIT DIRECTEMENT, ET PAS `artisan test --coverage` (TCK-331) ────
           #
@@ -650,6 +683,10 @@ jobs:
               echo "carte d'impact : cov.php n'est PAS produit (la nuit ou à la demande, sur dev seulement)." ;;
           esac
 
+          # Un processus par cœur, et le nombre ÉCRIT dans le journal, comme dans `lint-and-test` :
+          # une durée sans le nombre de cœurs qui l'a produite ne se compare à rien (J-09).
+          processus=$(nproc)
+          echo "Processus ParaTest : $processus (nproc du runner)"
           debut=$(date +%s)
           # `set +e` : le shell par défaut d'un step est `bash -e`, qui interromprait le step
           # à l'échec de la commande — donc AVANT que la durée ne soit affichée. Or c'est
@@ -661,19 +698,28 @@ jobs:
           # le `WARN` invisible pendant deux exécutions : un `| tail` rend le code de `tail`.
           set +e
           set -o pipefail
-          php vendor/phpunit/phpunit/phpunit \
+          php artisan test --parallel --processes="$processus" \
             "${COV_PHP[@]}" \
             --coverage-clover=storage/coverage/clover.xml \
             --coverage-html=storage/coverage/html \
             2>&1 | tee storage/coverage/phpunit.log
           code=$?
           set -e
-          echo "Durée de la suite AVEC couverture : $(( $(date +%s) - debut )) s"
+          echo "Durée de la suite AVEC couverture --parallel ($processus processus) : $(( $(date +%s) - debut )) s"
 
           # Un avertissement du lanceur PHPUnit — option inconnue, option en double, fichier
           # de configuration ignoré — ne se perd plus dans le défilement : il est REMONTÉ en
           # annotation, là où on le lit. PHPUnit sort déjà en 1 dans ce cas ; l'annotation
           # dit POURQUOI, ce qui est précisément ce qui manquait.
+          #
+          # Sous ParaTest (TCK-2951), le grep garde son sens, pour une partie de ce qu'il visait :
+          # ParaTest additionne les `testRunnerTriggeredWarningEvents` de ses workers
+          # (`WrapperRunner`) et les imprime par le `ResultPrinter` de PHPUnit, avertissements
+          # du lanceur affichés — même en-tête « PHPUnit test runner warning ». Une option de LIGNE
+          # DE COMMANDE inconnue n'y arrive plus : ParaTest (Symfony Console, sans
+          # `ignoreValidationErrors`) la refuse avant de lancer un test, sortie ≠ 0 et message
+          # « The "--…" option does not exist. » dans le journal. Une option en double, elle, est
+          # prise en silence (la dernière gagne) : c'est la règle 2 plus haut qui l'empêche.
           if grep -q 'PHPUnit test runner warning' storage/coverage/phpunit.log; then
             echo "::error::PHPUnit a émis des avertissements de lanceur — voir le journal ci-dessus."
             sed -n '/PHPUnit test runner warning/,/^$/p' storage/coverage/phpunit.log
@@ -796,8 +842,12 @@ jobs:
       # ⚠ TCK-331 — RÉACTIVÉ le 2026-08-20, après avoir été désactivé quelques heures.
       #
       # Il consomme `storage/coverage/cov.php`, que le step de test produit de nouveau — la
-      # nuit sur `dev` uniquement depuis ADR-0063 (sur push vers `dev` avant), et via une
-      # invocation DIRECTE de PHPUnit, la seule qui accepte les trois sorties de couverture.
+      # nuit sur `dev` uniquement depuis ADR-0063 (sur push vers `dev` avant). Il a été produit
+      # par une invocation DIRECTE de PHPUnit jusqu'à TCK-2951, puis par `artisan test --parallel`,
+      # dont ParaTest écrit `cov.php` depuis la couverture FUSIONNÉE de ses workers — attribution
+      # test → lignes comprise (mesuré en local sur `tests/Feature/Auth` : aucun test perdu par
+      # ligne, quelques-uns de PLUS là où une ligne jouée une fois par worker est attribuée au
+      # premier test de chacun ; la carte relance donc un sur-ensemble, ce qui est sûr).
       #
       # ⚠ CE QU'IL FAUT SAVOIR EN LISANT L'HISTORIQUE DU JOB : ce step n'avait JAMAIS tourné
       # avec succès avant cette date. Les deux seules exécutions qui ont produit `cov.php`

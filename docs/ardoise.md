@@ -2046,7 +2046,7 @@ charge, intersection non vide mais ensembles distincts) · `tests/Concerns/Inter
 > pour ce qui est mergé sur `dev` » est juste ; elle n'a de valeur que si l'on va **regarder** ce
 > qui est mergé sur `dev`.
 
-### D-30 — Aucune mesure de couverture, aucune parallélisation ✅ *couverture SOLDÉE le 2026-08-16 ; parallélisation MESURÉE SUR LE RUNNER le 2026-08-18 (TCK-324) — gain réel ×2,48, décision de NE PAS activer, motivée ; `--parallel` ACTIVÉ en CI le 2026-11-16, la couverture dans un job à part* → [TCK-302](backlog/tickets/done/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) · [TCK-324](backlog/tickets/done/TCK-324-mesurer-parallel-sur-le-runner-ci.md) · [TCK-637](backlog/tickets/done/TCK-637-ci-parallele-couverture-decouplee.md)
+### D-30 — Aucune mesure de couverture, aucune parallélisation ✅ *couverture SOLDÉE le 2026-08-16 ; parallélisation MESURÉE SUR LE RUNNER le 2026-08-18 (TCK-324) — gain réel ×2,48, décision de NE PAS activer, motivée ; `--parallel` ACTIVÉ en CI le 2026-11-16, la couverture dans un job à part, en `--parallel` elle aussi (TCK-2951)* → [TCK-302](backlog/tickets/done/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) · [TCK-324](backlog/tickets/done/TCK-324-mesurer-parallel-sur-le-runner-ci.md) · [TCK-637](backlog/tickets/done/TCK-637-ci-parallele-couverture-decouplee.md)
 
 > **Confirmé le 2026-08-16** : `coverage: none` apparaît **deux fois** dans `api-ci.yml` (lignes 42
 > et 192), et `--parallel` n'est configuré nulle part. Le temps de référence à retenir est
@@ -2251,6 +2251,14 @@ D-44 et TCK-314.
 > le job `couverture` la rejoue en un seul processus sous PCOV, à côté, et tient le cliquet `--min=92`.
 > Relevé sur la PR #1688 (runner à 4 processus) : `lint-and-test` 18 à 20 min au lieu de 54 à 90,
 > `couverture` 77 min, `Total: 96.9 %` ([J-12](journal-des-corrections.md#j-12)).
+>
+> **Et le même jour, la raison qui gardait la couverture séquentielle tombe** (TCK-2951) : « PCOV agrège
+> mal entre processus », écrit ci-dessous à deux reprises, **n'avait jamais été mesuré**. Même arbre
+> (`5b5e5c98f`), PCOV, `nproc` 4 : séquentiel 77 min, `Total: 96.9 % (74260 / 76633)` (run 43942819541) ;
+> `--parallel` 42,5 min, `Total: 96.9 % (74265 / 76633)` (run 43956403876) — le parallèle couvre toutes
+> les lignes du séquentiel, plus 5 qui dépendent d'un Meilisearch partagé. `couverture` tourne en
+> `--parallel` depuis ; les deux mentions ci-dessous sont gardées comme l'histoire de la décision, pas
+> comme un fait.
 
 **Décision du 2026-08-17 : `--parallel` reste NON activé en CI — mais pour une raison différente de
 celle du 2026-08-16.** Le critère de fond (gain net, cinq exécutions à 0 échec) est désormais rempli
@@ -2294,7 +2302,8 @@ n'est pas prise, l'activation en CI reste une option ouverte, pas une décision 
 > **DÉCISION : NE PAS ACTIVER — et le gain n'y est pour rien.** ×2,48 est bien au-dessus de la
 > barre de ~1,5× que le ticket posait. L'obstacle est ailleurs, et la mesure seule ne le montrait
 > pas : **une seule exécution de la suite porte à la fois les tests ET le cliquet `--min=86`**.
-> PCOV agrège mal entre processus, donc paralléliser cette exécution-là revient à abandonner le
+> PCOV agrège mal entre processus *(jamais mesuré, et démenti le 2026-11-16 — TCK-2951, cf. le
+> bloc « Levé » plus haut)*, donc paralléliser cette exécution-là revient à abandonner le
 > cliquet. Et l'ajouter en second passage coûterait 83 s de plus, pas 123 s de moins : la
 > couverture reste le chemin critique du job.
 >

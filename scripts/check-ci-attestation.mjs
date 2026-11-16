@@ -26,6 +26,12 @@
  *      suite ; une matrice qui n'est pas exactement 1..N, ou un dénominateur recopié qui en diverge,
  *      laisse des fichiers sans runner — en vert. Et le nom de l'agrégateur est celui que la
  *      protection de `preview`/`master` exige, au caractère près.
+ *   7. La couverture de l'API (TCK-2951) repasse en un seul processus par `phpunit` direct : le job
+ *      reste vert, au même `Total:`, et redure 77 min au lieu de 42 sans un rouge. Deux voisins,
+ *      bruyants ceux-là mais qu'il vaut mieux refuser avant la CI : un `--parallel` placé APRÈS une
+ *      option de couverture, que Collision ne voit pas (`ignoreValidationErrors()` arrête son
+ *      analyse à la première option inconnue) et que PHPUnit refuse alors ; le drapeau `--coverage`
+ *      de Collision, qui ajoute un second `--coverage-php` (TCK-331).
  *
  * Ce qu'elle ne vérifie PAS : qu'un job sauté compte bien comme réussi pour la protection de
  * branche — c'est une propriété de GitHub, mesurée sur une promotion (TCK-636, AC3), pas un texte.
@@ -48,7 +54,7 @@ const notes = [];
  * suffixe de ses sorties dans le job `attestation` (`deja-vert<sfx>`, `artefact<sfx>`).
  *
  * TCK-637 — l'API a DEUX jobs lourds, chacun son volet : `lint-and-test` (tests en `--parallel`) et
- * `couverture` (PCOV séquentiel + le cliquet). Chacun doit lire SON `deja-vert` et déposer SON
+ * `couverture` (PCOV + le cliquet, en `--parallel` lui aussi depuis TCK-2951 — tenu plus bas). Chacun doit lire SON `deja-vert` et déposer SON
  * artefact : un job de couverture qui lirait celui des tests serait sauté sur un cliquet rouge.
  */
 const SUITES = [
@@ -183,6 +189,35 @@ for (const { suite, fichier, job, preuve, sfx } of SUITES) {
     erreurs.push(`${fichier} : le dépôt de l'attestation tourne aussi sur une suite rouge`);
   }
   if (REPORT) notes.push(`${fichier} : attestation → « ${job} » (needs, !cancelled(), deja-vert${sfx}), dépôt au step ${iDepot + 1}/${ss.length}`);
+}
+
+// ── La couverture de l'API en `--parallel`, `--parallel` en premier (TCK-2951, ADR-0063 §4) ─────
+{
+  const fichier = 'api-ci.yml';
+  const ss = steps(jobs(lireWorkflow(fichier)).couverture ?? []);
+  const iCmd = ss.findIndex((s) => /--coverage-clover=/.test(s));
+  if (iCmd < 0) {
+    erreurs.push(`${fichier} : « couverture » ne demande plus de \`--coverage-clover=\` — le cliquet n'a plus rien à lire`);
+  } else {
+    const cmd = ss[iCmd];
+    if (!/php artisan test --parallel --processes=\S+/.test(cmd)) {
+      erreurs.push(
+        `${fichier} : la commande de « couverture » qui écrit le clover n'est pas \`php artisan test --parallel --processes=…\`,\n` +
+          `      \`--parallel\` EN PREMIER (TCK-2951) — sans lui, la suite tourne en un seul processus, verte, en\n` +
+          `      77 min au lieu de 42 ; placé après une option inconnue de Collision, il n'est pas vu.`,
+      );
+    }
+    if (/vendor\/(phpunit\/phpunit\/phpunit|bin\/(phpunit|paratest))\b/.test(ss.join('\n'))) {
+      erreurs.push(`${fichier} : « couverture » invoque PHPUnit ou ParaTest directement — la forme séquentielle d'avant TCK-2951`);
+    }
+    if (/php artisan test\b[^\n]*(?:\\\n[^\n]*)*\s--coverage(?![-\w=])/.test(cmd)) {
+      erreurs.push(`${fichier} : « couverture » passe \`--coverage\` à Collision — il ajoute un second \`--coverage-php\` (TCK-331)`);
+    }
+    if (!/bin\/coverage-gate\.php/.test(cmd.slice(cmd.indexOf('--coverage-clover=')))) {
+      erreurs.push(`${fichier} : le cliquet \`bin/coverage-gate.php\` ne suit plus, dans le même step, l'exécution qui écrit le clover`);
+    }
+  }
+  if (REPORT) notes.push(`${fichier} : « couverture » en \`php artisan test --parallel\` (step ${iCmd + 1}/${ss.length}), cliquet à la suite`);
 }
 
 // ── Le front : deux jobs lourds en parallèle, un agrégateur qui juge et atteste (TCK-2950) ────

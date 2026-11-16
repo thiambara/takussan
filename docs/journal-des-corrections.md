@@ -314,8 +314,8 @@ distincts, tous Meilisearch, qui relancés seuls passaient 22/22.
 barrière lève désormais, compte les tâches en attente index par index, et nomme elle-même la cause
 probable. **Le diagnostic était dans l'erreur.**
 
-*En CI, la question de `--parallel` est tranchée depuis le 2026-11-16 par TCK-637 : cf. la fin de
-[J-12](#j-12).*
+*En CI, la question de `--parallel` est tranchée depuis le 2026-11-16 par TCK-637 (les tests) et
+TCK-2951 (la couverture) : cf. la fin de [J-12](#j-12).*
 
 ### <a id="j-12"></a>J-12 — `--parallel` en CI : un gain réel et inutilisable
 
@@ -343,6 +343,26 @@ du job qui juge les tests. `lint-and-test` joue la suite en `--parallel` sans co
 PR #1688 (4 processus) : `lint-and-test` **18 à 20 min** au lieu de 54 à 90, `couverture` **77 min**,
 `Total: 96.9 %`. Le dernier mot de ce paragraphe reste juste : la couverture est toujours le chemin
 critique du « tout vert ».
+
+**Démenti le même jour : « PCOV agrège mal entre processus » n'avait jamais été mesuré** (TCK-2951,
+[ADR-0063](adr/0063-attestation-de-ci-par-arbre.md) § 4, second amendement). La phrase a décidé deux
+fois — ne pas activer `--parallel` (2026-08-18), puis garder `couverture` séquentiel (TCK-637) — et
+n'avait aucune mesure derrière elle. Mesurée sur le même arbre (`5b5e5c98f`), PCOV, `nproc` 4, une
+seule variable, la commande :
+
+| `couverture` | run | durée du job | `Total:` |
+|---|---|---|---|
+| séquentiel | 43942819541 | **77 min** | `96.9 % (74260 / 76633)` |
+| `--parallel`, 4 processus | 43956403876 | **42,5 min** | `96.9 % (74265 / 76633)` |
+
+Les clovers comparés ligne par ligne : le parallèle couvre **toutes** les lignes du séquentiel, plus 5
+qui dépendent de l'état d'un Meilisearch partagé — un chemin, pas une fusion. ParaTest fusionne lui-même
+les couvertures de ses workers. `couverture` tourne donc en `--parallel` depuis TCK-2951 ; il reste le
+chemin critique, à ~42 min au lieu de ~77.
+
+> *Une raison qu'on n'a jamais mesurée n'est pas une raison, c'est une hypothèse qui a gagné par
+> ancienneté.* Elle a survécu trois mois parce qu'elle était écrite à côté d'une mesure vraie (le ×2,48),
+> et qu'on relisait la mesure.
 
 ### <a id="j-13"></a>J-13 — Le seed, les médias, et les séquences PostgreSQL
 
