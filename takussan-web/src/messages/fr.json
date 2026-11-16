@@ -261,27 +261,6 @@
           "propertyModeration": "Biens à valider"
         }
       },
-      "aTraiter": {
-        "titre": "À traiter",
-        "pastilles": {
-          "unreadMessages": "{count, plural, one {# message} other {# messages}}",
-          "pendingVisits": "{count, plural, one {# visite} other {# visites}}",
-          "unhandledLeads": "{count, plural, one {# demande} other {# demandes}}",
-          "reviewModeration": "{count, plural, other {# avis}}",
-          "propertyModeration": "{count, plural, one {# bien} other {# biens}}"
-        },
-        "noms": {
-          "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",
-          "pendingVisits": "{count, plural, one {# visite en attente} other {# visites en attente}}",
-          "unhandledLeads": "{count, plural, one {# demande non traitée} other {# demandes non traitées}}",
-          "reviewModeration": "{count, plural, other {# avis à modérer}}",
-          "propertyModeration": "{count, plural, one {# bien à valider} other {# biens à valider}}"
-        },
-        "plusCourt": "+{count}",
-        "autres": "{count, plural, one {+# autre à traiter} other {+# autres à traiter}}",
-        "compact": "{count, plural, one {À traiter : # élément} other {À traiter : # éléments}}",
-        "totalCourt": "{count, plural, =100 {99+} other {#}}"
-      },
       "demarrer": {
         "titre": "Démarrer",
         "progression": "{faites} sur {total}",

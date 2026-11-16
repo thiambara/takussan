@@ -113,3 +113,5 @@ Tests : `CustomerTimelineLeadPropertyTest` (3) ; `candidature-et-bail.tck-2878` 
 
 Fidélité : fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2878.json` (écarts motivés) ; AC-F2 non mesuré (pas de navigateur dans ce lot).
 
+
+**Re-mesure des restes (ECARTS-2, 2026-11-16)** — le reste « le formulaire écrase loyer et caution » est fermé par TCK-2878 (1520bb305) : `CreateLeaseForm.tsx:243` prend `termesDuBailRepris(reservation)` (loyer, caution, début, fin de la candidature) et `:539-563` n'applique ni défaut ni caution recalculée sur une clé reprise (test `CreateLeaseForm.bail-repris.tck-2878`). Clés du fil : `cleDeLEntree` (`fil-du-client.ts:51`, type-id-jalon-contre-offre, TCK-2876) sert de `key` (`FilDuClient.tsx:510`) ; le cas `booking` est rendu (`:278`). Rien à corriger.

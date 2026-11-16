@@ -114,3 +114,5 @@ Le lecteur réutilisable de note vocale est extrait par **TCK-2901** (famille 4,
 - `docs/qa/audit-ux-2026-11/fidelite/TCK-2632.json` porte des écarts acceptés que ce ticket lève (l. 336 « forme d'onde », l. 402 « la rangée mène à NewGroupDialog », l. 547 catégorie « forme d'onde, bulle de note vocale ») : à retirer au relevé (AC-F2). → l. 336 (« forme d'onde ») reste à ce ticket ; les écarts lus par TCK-2860 (coche, rôle, contexte, menu) sont retirés par lui.
 - AC5, AC-F1, AC-F2 : non mesurés au navigateur (lot sans navigateur). Fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2861.json` écrite à la lecture, `releve_le: null`.
 
+
+**Re-mesure des restes (ECARTS-2, 2026-11-16)** — fermé par TCK-2860 (bfeba8d5b) : `NewGroupDialog` n'existe plus (`MessagesPage.tsx:463`), `MessagesPage.test.tsx:615-624` ouvre la vraie `NouvelleConversation` et y trouve l'interrupteur « Créer un groupe » ; `messaging.voiceNote.duration` absente des dictionnaires. Rien à corriger.

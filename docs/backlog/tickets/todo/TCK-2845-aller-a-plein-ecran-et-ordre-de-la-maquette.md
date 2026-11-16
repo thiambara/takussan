@@ -108,3 +108,5 @@ Relevé (RAPPORT.md, section « Aller à », vérifié par la session le 2026-11
   depuis la page introuvable n'y montre plus son nombre (`compte`) ; les clés `nav.sidebar.aTraiter.noms.*`
   n'ont plus de lecteur.
 
+
+**Re-mesure des restes (ECARTS-2, 2026-11-16)** — la pastille du nombre est déjà rendue dans la page introuvable (`SecoursDeLIntrouvable.tsx`, `o.compte`, TCK-2846). Tout l'espace `nav.sidebar.aTraiter` (`titre`, `pastilles`, `noms`, `plusCourt`, `autres`, `compact`, `totalCourt`) n'avait plus aucun lecteur depuis TCK-2490 (la bande lit `nav.sidebar.aujourdhui`, la palette `nav.palette.aTraiterLignes`) : retiré de fr/en/wo.
