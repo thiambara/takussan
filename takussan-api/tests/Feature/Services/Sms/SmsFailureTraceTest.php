@@ -120,6 +120,15 @@ class SmsFailureTraceTest extends TestCase
             {
                 return $this->critical;
             }
+
+            /**
+             * TCK-2464 — le canal est fermé sans événement : un événement dont le SMS est activé par
+             * défaut (`MOBILE_DEFAULT_EVENTS`) laisse ce test ne juger que les seaux.
+             */
+            public function smsEventType(): string
+            {
+                return 'visit_reminder';
+            }
         };
     }
 }

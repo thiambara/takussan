@@ -25,7 +25,9 @@ use Illuminate\Support\Facades\RateLimiter;
  *      `shouldSendSms()=true` (covers AC10 — non-critical opt-out).
  *   2. Recipient must have a phone number.
  *   3. User opt-in via PreferenceResolver — bypassed when the
- *      Notification is `isCriticalSms()=true`.
+ *      Notification is `isCriticalSms()=true`. TCK-2464 : sans événement
+ *      déclaré, un non critique est REFUSÉ (fermé par défaut) ; un
+ *      destinataire non-`User` est l'exception écrite d'`isOptedIn()`.
  *   4. Rate limit: 5 SMS / hour / user (configurable). Counted before
  *      any provider is touched (AC13). Critical SMS count in a bucket of
  *      their own, same bound (TCK-799).
@@ -178,14 +180,31 @@ class SmsChannel
         return is_int($id) ? $id : null;
     }
 
+    /**
+     * TCK-2464 — FERMÉ par défaut. Le consentement d'un utilisateur se lit par événement : une
+     * notification non critique qui n'en déclare aucun (`smsEventType()` absent ou vide) n'a rien à
+     * lire, et ne part pas — le refus se journalise. Jusqu'au ticket, elle partait.
+     *
+     * Exception MOTIVÉE (option (a) du ticket, en attendant que le porteur tranche) : un
+     * destinataire qui n'est pas un `User` — abonné d'alerte sans compte, contact routé
+     * (`AnonymousNotifiable`) — n'a aucune ligne de préférence à lire (`PreferenceResolver` ne
+     * prend qu'un `User`). Il passe, événement déclaré ou non, comme avant le ticket ; son
+     * consentement relève de l'émetteur (pour l'abonné d'alerte : la double confirmation
+     * d'ADR-0050). Le fermer couperait les SMS de tous les destinataires sans compte.
+     */
     private function isOptedIn(object $notifiable, Notification $notification): bool
     {
-        $eventType = $this->resolveEventType($notification);
-        if (! $eventType || ! method_exists($notifiable, 'getKey')) {
-            return true;
-        }
         if (! $notifiable instanceof User) {
             return true;
+        }
+        $eventType = $this->resolveEventType($notification);
+        if ($eventType === null || $eventType === '') {
+            Log::warning('[sms-channel] non-critical notification without a preference event — refused', [
+                'notification' => $notification::class,
+                'user_id' => $notifiable->getKey(),
+            ]);
+
+            return false;
         }
 
         return $this->preferences->shouldSend($notifiable, $eventType, PreferenceResolver::CHANNEL_SMS);

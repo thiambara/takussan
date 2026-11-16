@@ -17,6 +17,10 @@ use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
  * template to use outside the window — null means "no template, fall back
  * to SMS". `isCriticalWhatsapp()` bypasses the per-event opt-in and the
  * rate limit.
+ *
+ * TCK-2464 — même règle que {@see SupportsSms} : sans `whatsappEventType()` ni `smsEventType()`,
+ * une notification non critique adressée à un `User` est refusée par le canal (et son repli SMS
+ * avec elle).
  */
 interface SupportsWhatsapp
 {

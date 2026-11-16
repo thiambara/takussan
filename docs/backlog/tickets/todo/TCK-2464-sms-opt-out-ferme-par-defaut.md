@@ -69,18 +69,18 @@ notification la franchisse.
 
 ## Delta à produire
 
-- [ ] `SupportsSms` exige `smsEventType(): string` (ou `SmsChannel` refuse et journalise quand il manque)
-- [ ] `SmsChannel::isOptedIn()` : événement absent ⇒ `false` pour un non critique
-- [ ] Test : une notification non critique sans événement n'est pas envoyée, et le refus est journalisé ;
+- [x] `SupportsSms` exige `smsEventType(): string` (ou `SmsChannel` refuse et journalise quand il manque)
+- [x] `SmsChannel::isOptedIn()` : événement absent ⇒ `false` pour un non critique
+- [x] Test : une notification non critique sans événement n'est pas envoyée, et le refus est journalisé ;
       une critique sans événement l'est toujours
-- [ ] Relire le pendant WhatsApp (`WhatsappChannel`) : même question, même réponse, ou une ligne
+- [x] Relire le pendant WhatsApp (`WhatsappChannel`) : même question, même réponse, ou une ligne
       qui dit pourquoi il diffère
 
 ## Critères d'acceptation
 
-- [ ] AC1 — une notification de test non critique, sans `smsEventType()`, n'atteint pas le driver SMS (fake)
-- [ ] AC2 — **ablation** : remettre `return true;` dans la branche « pas d'événement » fait rougir AC1
-- [ ] AC3 — les cinq classes SMS existantes (« sept » jusqu'au 2026-11-16) envoient exactement comme avant (leurs tests inchangés et verts)
+- [x] AC1 — une notification de test non critique, sans `smsEventType()`, n'atteint pas le driver SMS (fake)
+- [x] AC2 — **ablation** : remettre `return true;` dans la branche « pas d'événement » fait rougir AC1
+- [x] AC3 — les cinq classes SMS existantes (« sept » jusqu'au 2026-11-16) envoient exactement comme avant (leurs tests inchangés et verts)
 
 ## Hors périmètre
 
@@ -90,3 +90,31 @@ notification la franchisse.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Livré (2026-11-16)
+
+- **Branche « refuse et journalise » du premier delta**, pas l'interface : `SupportsSms` n'exige
+  pas `smsEventType()`, parce que le critique `LeaseSignatureCodeNotification` n'en a pas et que
+  lui en inventer un changerait l'`event_type` de ses tentatives (AC3). Le contrat est écrit dans
+  le docblock de `SupportsSms`, et tenu par `SmsChannel::isOptedIn()` : sans événement, un non
+  critique adressé à un `User` rend `false` et écrit `Log::warning('[sms-channel] non-critical
+  notification without a preference event — refused')`.
+- **Non-`User` : option (a) appliquée, le porteur n'a pas encore tranché.** L'exception est écrite
+  en tête d'`isOptedIn()` (un non-`User` n'a aucune préférence à lire, son consentement relève de
+  l'émetteur, ADR-0050 pour l'abonné d'alerte) et épinglée par
+  `test_tck2464_non_user_recipient_is_an_explicit_exception` : c'est le comportement d'avant le
+  ticket, préservé. Choisir (b) = retourner ce test et cette branche.
+- **WhatsApp : même réponse**, et plus nécessaire encore — son repli SMS ne relit pas le
+  consentement SMS, la porte ouverte de WhatsApp l'était donc aussi pour le SMS. Même journal
+  (`[whatsapp-channel] …`), même exception non-`User` (doublée de l'exigence `opted_in` de TCK-588).
+- AC1 — `SmsChannelTest::test_tck2464_non_critical_without_event_is_refused_and_logged` (rien
+  envoyé, même avec le SMS activé sur un autre événement ; refus journalisé une fois) ; la critique
+  sans événement part (`test_tck2464_critical_without_event_is_still_sent`). Pendant WhatsApp :
+  les deux mêmes tests dans `WhatsappChannelTest`.
+- AC2 — ablation : `return true;` remis dans la branche « pas d'événement » rougit le test AC1,
+  au SMS comme au WhatsApp ; restauré par copie, md5 vérifié.
+- AC3 — tests des cinq classes inchangés et verts (`LeaseSignatureCodeNotificationTest`,
+  `LeaseSignatureTest`, `AccountDeletion*Test`, `AvisSansEmailTest`, …), et les 63 classes de test
+  que la carte d'impact rattache aux deux canaux : 546 verts. Seul le double de
+  `SmsFailureTraceTest` (non critique sans événement, qui vivait de la porte ouverte) déclare
+  désormais `visit_reminder`, événement à SMS activé par défaut.
