@@ -1,6 +1,6 @@
 # ADR-0042 — Un bail se signe par un code à usage unique sur un PDF figé et haché ; la preuve garde le signataire, l'empreinte, l'heure, l'IP et le canal ; `activate` devient la voie « papier »
 
-- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — les charges sont un terme du bail*) et **le 2026-11-14**, deux fois (cf. § *Amendement du 2026-11-14 — « le bailleur » qui signe est celui de `BailleurDuBien`* et § *Amendement du 2026-11-14 (bis) — le personnel signe depuis le profil actif*)
+- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — les charges sont un terme du bail*) et **le 2026-11-14**, deux fois (cf. § *Amendement du 2026-11-14 — « le bailleur » qui signe est celui de `BailleurDuBien`* et § *Amendement du 2026-11-14 (bis) — le personnel signe depuis le profil actif*) et **le 2026-11-16** (cf. § *Amendement du 2026-11-16 (TCK-607) — les garants d'un bail signé sont figés*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail), [TCK-2803](../backlog/tickets/done/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md) (le bailleur qui signe), [TCK-2810](../backlog/tickets/done/TCK-2810-signature-du-personnel-au-profil-actif.md) (le personnel signe depuis le profil actif)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (qui signe pour
@@ -288,3 +288,43 @@ et restent voulus. Aucune bascule automatique de profil depuis l'écran de signa
 **Application.** `app/Services/Lease/LandlordSignatory.php::isMandatedStaff()` ; la confrontation de
 toutes les portes à `view` (`BailLocataireDeLaListeEtDesGestesTest::test_ac1_chaque_porte_de_geste_est_incluse_dans_view`,
 qui attend désormais `[]`, état des lieux compris) et `tests/Feature/Lease/SignatureAuProfilActifTest.php`.
+
+## Amendement du 2026-11-16 (TCK-607) — les garants d'un bail signé sont figés
+
+- **Ticket** : [TCK-607](../backlog/tickets/todo/TCK-607-bail-renouvele-ou-resilie-ne-paie-ni-ne-rend-deux-fois.md)
+  (n3, verif-596 passe 2, `test_l4`). **Décision du porteur du 2026-11-16, option (b).**
+
+**Constat.** Le § 1 imprime les garants au contrat, mais `POST leases/{lease}/guarantors` et
+`DELETE leases/{lease}/guarantors/{g}` ne lisaient pas le statut : sur un bail **actif**, rattacher un
+garant rendait 201. `unfreezeContract()` n'agit que sur un bail `pending_signature` : sur un bail
+actif, la liste des garants divergeait du contrat signé sans que rien ne le dise. L'amendement du
+2026-10-25 affirmait que rattacher un garant à l'enfant d'un renouvellement « défige son contrat » :
+c'est faux pour un enfant né `active` : `unfreezeContract()` ne le touche pas, son `contract_sha256`
+reste inchangé après le rattachement (épinglé, sur un enfant construit par fabrique, par
+`LeaseGuarantorFreezeTest::test_le_garant_de_l_enfant_ne_touche_pas_l_empreinte_de_son_contrat`).
+
+**Décision.**
+
+1. **Rattacher ou retirer un garant se fait sur un bail `draft` ou `pending_signature`**, où le contrat
+   n'est pas figé ou se défige (§ 1, inchangé).
+2. **Sur un bail `active`, une seule exception : l'enfant d'un renouvellement
+   (`renewed_from_lease_id` posé) qui n'a encore AUCUN garant en reçoit un.** Il naît sans garant
+   (amendement du 2026-10-25) ; le garant se rattache après coup, une fois. Le geste est **à usage
+   unique** : dès qu'il a un garant, l'enfant est figé comme les autres — ni second garant, ni retrait.
+3. **Partout ailleurs** — retrait sur un bail actif, tout geste sur un bail `terminating`,
+   `terminated`, `expired` ou `renewed` — **409 `lease.guarantors_frozen`**, sans rien écrire (ni
+   pivot, ni fiche de garant neuve).
+4. Le statut, l'exception et le compte des garants se jugent sur la ligne `leases` **verrouillée** et
+   le pivot relu sous ce verrou, dans la transaction du geste : un bail activé entre la liaison de
+   route et le verrou est jugé `active`.
+
+**Ce que la décision ne fait pas.** Le contrat figé de l'enfant n'est ni défigé ni re-figé (l'avenant
+tracé était l'option (c), non retenue) : l'empreinte du contrat figé de l'enfant ne change pas, et ce
+contrat a été rendu avant le rattachement — il ne peut donc pas imprimer ce garant (non re-mesuré sur
+le PDF lui-même). La fiche du bail peut encore proposer « Ajouter un garant » sur un bail
+actif (elle lit `abilities.update`) ; l'API refuse alors avec le libellé de `lease.guarantors_frozen`.
+
+**Application.** `LeaseController::abortUnlessGuarantorsEditable()`, appelée par `attachGuarantor` et
+`detachGuarantor` sous le verrou ; `lang/{fr,en,wo}/errors.php` (`lease.guarantors_frozen`, wo = fr) ;
+`tests/Feature/Lease/LeaseGuarantorFreezeTest.php` et `LeaseContractTermsTest` (course avec une
+activation : 409 jugé sous verrou).
