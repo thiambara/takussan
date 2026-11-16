@@ -1272,3 +1272,9 @@ jobs:
         # `VERSION_DOCUMENTS` de `takussan-web/src/content/legal/editeur.ts` (`takussan-web/src/**`).
         # Mesuré le 2026-10-27 : l'API inscrivait `2026-09-17` sous des textes plus récents.
         run: node scripts/check-terms-version.mjs --report
+      - name: Chaque action humaine du déploiement est écrite, et son état prouvé
+        # ADR-0127 — une clé neuve des gabarits `deploy/takussan/env.*.production.example` doit être
+        # nommée par une action de `docs/deploiement/actions/` ; un état `fait` exige sa ligne datée.
+        # Avant, ces actions ne vivaient que dans la description d'une PR, que personne ne relit.
+        # ⚠ Elle ne voit pas une action qui n'est pas une clé (gabarit, donnée, vérification).
+        run: node scripts/check-actions-de-deploiement.mjs
