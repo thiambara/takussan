@@ -1,7 +1,7 @@
 ---
 id: TCK-609
 title: "Un pouvoir de la plateforme exige le second facteur où qu'il s'exerce : réponses d'avis, gestes du bail et tout ce que `Gate::before` ouvre hors de `/api/admin` (suites de TCK-597 passes 3-4 et TCK-596 passe 4)"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M

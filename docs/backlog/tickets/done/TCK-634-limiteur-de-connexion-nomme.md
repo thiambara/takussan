@@ -1,7 +1,7 @@
 ---
 id: TCK-634
 title: "Se connecter : la page de connexion épuise elle-même le quota de connexion (429 à la première tentative)"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -101,10 +101,13 @@ Sans objet : ticket backend.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Après l'affichage de la page de connexion (autant d'appels à `oauth/providers` qu'elle
+- [x] AC1 — Après l'affichage de la page de connexion (autant d'appels à `oauth/providers` qu'elle
       en fait), une première connexion au mauvais mot de passe rend **401** (« 422 » jusqu'au
       2026-11-16, faux : cf. Notes), et au bon mot de passe 200.
       Prouvé au navigateur **en préproduction** (« en local » jusqu'au 2026-11-16), compteurs vidés au départ.
+      *Coché le 2026-11-16 sur décision du porteur (« ferme-le ») : le relevé de l'API en préproduction
+      (8 × `oauth/providers` puis 401, § « Reste sur dev ») tient lieu de preuve ; l'écran derrière
+      l'authentification basique n'a pas été rejoué.*
 - [x] AC2 — La sixième tentative de connexion en 10 minutes depuis une même IP rend 429, quel que
       soit le nombre d'appels OAuth intercalés.
 - [x] AC3 — `oauth/*` rend 429 au-delà de 60 appels par minute, quel que soit le nombre de

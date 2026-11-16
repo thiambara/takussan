@@ -1,7 +1,7 @@
 ---
 id: TCK-618
 title: "Site public, après TCK-598 : un titre sans lettre latine garde un slug lisible, un quartier n'est compté qu'une fois, une vue se compte par visiteur et sur un bien visible, un marquage en masse invalide le cache (suites de verif-598)"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S

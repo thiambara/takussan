@@ -1,7 +1,7 @@
 ---
 id: TCK-617
 title: "Tableau de bord et agenda de l'agent : les visites d'une autre agence n'y passent plus, le lien d'agenda meurt avec la session volée, le pipeline compte enfin ses changements d'étape (suites de TCK-590, TCK-591 et TCK-595)"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M

@@ -146,7 +146,7 @@ Aucune bannière ni fenêtre de suggestion de langue : une redirection automatiq
 
 - La complétion du dictionnaire wolof — suivie par [TCK-339](../doing/TCK-339-vocabulaire-wolof-de-recherche.md)
   et [TCK-342](../todo/TCK-342-libelles-wolof-divergents-back-front.md).
-- Le formatage localisé des nombres et des dates — [TCK-347](../todo/TCK-347-formatage-nombres-et-dates-suit-la-locale.md).
+- Le formatage localisé des nombres et des dates — [TCK-347](TCK-347-formatage-nombres-et-dates-suit-la-locale.md).
 - La traduction des contenus saisis par les utilisateurs (P3 dans la spec).
 
 ## Notes d'implémentation

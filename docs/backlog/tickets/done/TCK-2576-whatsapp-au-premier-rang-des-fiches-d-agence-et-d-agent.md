@@ -1,7 +1,7 @@
 ---
 id: TCK-2576
 title: WhatsApp au premier rang des fiches d'agence et d'agent — l'API publique le sert
-status: todo
+status: done
 phase: P1
 family: full
 estimate: S

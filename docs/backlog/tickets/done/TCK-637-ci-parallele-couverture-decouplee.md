@@ -1,7 +1,7 @@
 ---
 id: TCK-637
 title: "CI — la suite de l'API en `--parallel`, la couverture découplée de l'exécution qui juge les tests"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: M
@@ -71,7 +71,7 @@ ADR-0063) — ce ticket est le principal levier du temps de livraison.
 
 ## Delta à produire
 
-- [ ] Mesurer en CI : suite `--parallel` sans couverture, et couverture seule, sur le même arbre.
+- [x] Mesurer en CI : suite `--parallel` sans couverture, et couverture seule, sur le même arbre.
 - [x] Choisir entre deux jobs (tests parallèles + couverture séquentielle en parallèle d'eux) et
       une couverture fusionnée (`phpcov merge`) ; écrire la décision en amendement d'ADR-0063.
 - [x] Le job qui dépose l'attestation (TCK-636) reste celui qui juge les tests.

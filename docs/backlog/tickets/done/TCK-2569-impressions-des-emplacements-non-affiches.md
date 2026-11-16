@@ -1,7 +1,7 @@
 ---
 id: TCK-2569
 title: Un emplacement sponsorisé servi mais non affiché compte encore une impression
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-613
 title: "ADR-0044 tenu au-delà du SQL : aucune exception ni pilote de journal n'écrit une donnée personnelle, et l'export du journal d'audit n'est plus un droit au porteur (suites de TCK-601 m2 et m4, TCK-602 passe 2)"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M

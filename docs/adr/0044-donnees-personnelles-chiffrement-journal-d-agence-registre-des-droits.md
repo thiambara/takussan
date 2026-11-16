@@ -474,7 +474,7 @@ Décision du porteur du 2026-10-25, sur la piste P19.04 (angle 19 du fichier de 
 `docs/plans/2026-10-15-pistes-d-amelioration.md`). Elle étend la ligne *Conservation* du § 4. Relu
 sur `pre-dev` f10a94ff3. Ticket :
 [TCK-2342](../backlog/tickets/done/TCK-2342-purge-du-journal-d-activite-par-famille.md), qui fait la
-partie « purge du journal » de [TCK-537](../backlog/tickets/todo/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md).
+partie « purge du journal » de [TCK-537](../backlog/tickets/done/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md).
 
 ### Constat
 

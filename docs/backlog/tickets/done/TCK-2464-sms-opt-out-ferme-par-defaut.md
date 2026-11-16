@@ -1,7 +1,7 @@
 ---
 id: TCK-2464
 title: "Le canal SMS est ouvert par défaut : une notification non critique sans smsEventType() passerait outre l'opt-out"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S

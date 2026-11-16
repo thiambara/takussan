@@ -1,7 +1,7 @@
 ---
 id: TCK-2463
 title: "Retirer l'intégration CDN de TCK-105 (Bunny/Cloudflare, signature, purge), hors du chemin depuis ADR-0029"
-status: todo
+status: done
 phase: P3
 family: technique
 estimate: M

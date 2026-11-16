@@ -438,7 +438,7 @@ amendement, pas d'ajouter un plafond.
 
 ## Amendement du 2026-11-16 (TCK-611) — une annonce réécrite repasse par la file
 
-Décision du **porteur** (2026-11-16) sur [TCK-611](../backlog/tickets/todo/TCK-611-une-annonce-reecrite-repasse-par-la-file.md),
+Décision du **porteur** (2026-11-16) sur [TCK-611](../backlog/tickets/done/TCK-611-une-annonce-reecrite-repasse-par-la-file.md),
 après verif-597 passes 2 et 3. Elle amende le § 5, qui ne modérait que l'**activation** : un bien
 approuvé, ou déjà en ligne, changeait ensuite librement de contenu. Une agence
 `moderation_required` voyait donc en ligne un texte, un prix ou des photos qu'elle n'avait pas

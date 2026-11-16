@@ -1,7 +1,7 @@
 ---
 id: TCK-485
 title: "Le badge du chat pose du blanc sur `--destructive` plein : 2,45:1 en thème sombre"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S

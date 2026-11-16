@@ -1,7 +1,7 @@
 ---
 id: TCK-616
 title: "Agent responsable, après TCK-603 : une revue de réparation qui se lit sans `activity_log`, un sélecteur alimenté par le personnel actif, et le bail d'un agent parti (suites de verif-603 passes 1 et 2)"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: S

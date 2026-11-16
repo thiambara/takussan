@@ -1476,7 +1476,7 @@ cent fois trop peu. Classé P0 malgré son apparence documentaire.
 implémentations restent d'accord.** Une règle d'autorisation rendue à deux endroits et tenue à un
 seul est le motif le plus tenace de ce genre de duplication.
 
-### D-24 — La règle « le front possède le texte affiché » est une intention 🟢 *quasi soldée le 2026-08-22 — 0 occurrence non justifiée ; restent une décision produit et une relecture wolof* → [TCK-286](backlog/tickets/done/TCK-286-i18n-textes-en-dur.md) · [TCK-292](backlog/tickets/done/TCK-292-i18n-reste-du-parc.md) · [TCK-347](backlog/tickets/todo/TCK-347-formatage-nombres-et-dates-suit-la-locale.md)
+### D-24 — La règle « le front possède le texte affiché » est une intention 🟢 *quasi soldée le 2026-08-22 — 0 occurrence non justifiée ; restent une décision produit et une relecture wolof* → [TCK-286](backlog/tickets/done/TCK-286-i18n-textes-en-dur.md) · [TCK-292](backlog/tickets/done/TCK-292-i18n-reste-du-parc.md) · [TCK-347](backlog/tickets/done/TCK-347-formatage-nombres-et-dates-suit-la-locale.md)
 
 > ## État au 2026-08-22 — la règle est devenue un état, à deux réserves près
 >

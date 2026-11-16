@@ -1,7 +1,7 @@
 ---
 id: TCK-619
 title: "Gardes de test qu'une mutation traverse encore : l'amorce `staff` d'un admin d'agence, le verrou et l'écriture de `mark-paid` dans la même transaction, le verrou d'`initiate` (suites de TCK-593, TCK-595 et TCK-596)"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S

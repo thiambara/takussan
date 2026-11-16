@@ -1,7 +1,7 @@
 ---
 id: TCK-615
 title: "Alertes de recherche : un e-mail parti ne repart pas, le premier envoi ne vend pas l'historique comme nouveau, et un tiers n'épuise pas l'abonnement d'un contact (suites de TCK-599)"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M

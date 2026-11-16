@@ -1,7 +1,7 @@
 ---
 id: TCK-2575
 title: Sa propre fiche publique ne propose pas de se contacter soi-même
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S

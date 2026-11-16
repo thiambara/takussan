@@ -79,14 +79,14 @@ Relevés du 2026-11-09 (agent « fiches », vague 3), pile `./dev.sh`, base de d
   données structurées : « Sokhna G. ») et retombe sur le formulaire anonyme du propriétaire quand
   l'agence est inconnue : → TCK-2574.
 - **Pas de WhatsApp** : `users.phone_whatsapp` existe (TCK-633), mais `GET /api/public/agents/{slug}`
-  ne le sert pas ; aucun bouton → [TCK-2576](../todo/TCK-2576-whatsapp-au-premier-rang-des-fiches-d-agence-et-d-agent.md).
+  ne le sert pas ; aucun bouton → [TCK-2576](TCK-2576-whatsapp-au-premier-rang-des-fiches-d-agence-et-d-agent.md).
 - **Contexte des avis (« Visiteur · visite », « Locataire · bail »)** — livré avec TCK-2522
   (`ReviewResource::context_kind`, `ReviewsSection`) et tenu ici par le chemin de production
   (2026-11-09) : `storeForAgent` écrit la preuve au dépôt. `tests/Feature/Public/ReviewContextKindParLaRouteTest.php`
   dépose l'avis par `POST /api/agents/{user}/reviews`, l'approuve par la route et lit
   `GET /api/public/agents/{slug}` : `visit` après une visite terminée, `lease` après un bail ; retirer
   l'écriture de `context_*` dans `storeForAgent` fait rougir les deux. L'avis d'agence ne l'écrit pas
-  encore → [TCK-2577](../todo/TCK-2577-un-avis-d-agence-ecrit-son-contexte.md).
+  encore → [TCK-2577](TCK-2577-un-avis-d-agence-ecrit-son-contexte.md).
 - Numéro : seulement pour un agent, et seulement vérifié (`phone_verified`) ; jamais pour un
   propriétaire, même vérifié (balayage du HTML dans le test).
 - Langues : `Intl.DisplayNames` dans la langue de la page (« Français », « Wolof »), capitalisées.

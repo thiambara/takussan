@@ -291,7 +291,7 @@ qui attend désormais `[]`, état des lieux compris) et `tests/Feature/Lease/Sig
 
 ## Amendement du 2026-11-16 (TCK-607) — les garants d'un bail signé sont figés
 
-- **Ticket** : [TCK-607](../backlog/tickets/todo/TCK-607-bail-renouvele-ou-resilie-ne-paie-ni-ne-rend-deux-fois.md)
+- **Ticket** : [TCK-607](../backlog/tickets/done/TCK-607-bail-renouvele-ou-resilie-ne-paie-ni-ne-rend-deux-fois.md)
   (n3, verif-596 passe 2, `test_l4`). **Décision du porteur du 2026-11-16, option (b).**
 
 **Constat.** Le § 1 imprime les garants au contrat, mais `POST leases/{lease}/guarantors` et

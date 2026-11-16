@@ -1,7 +1,7 @@
 ---
 id: TCK-608
 title: "Une échéance dit ce qui a été versé et ce qui reste à rembourser : la part versée s'enregistre et se solde, `refund_pending` voit tous les doublons et retombe une fois remboursé (suites de TCK-595 passe 3 et TCK-596 m-p)"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M

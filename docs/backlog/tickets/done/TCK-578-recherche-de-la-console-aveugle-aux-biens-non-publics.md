@@ -1,7 +1,7 @@
 ---
 id: TCK-578
 title: "La recherche de la console ne trouve ni un brouillon ni un bien privé : l'index Meilisearch ne contient que les biens publics"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M

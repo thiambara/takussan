@@ -1,7 +1,7 @@
 ---
 id: TCK-605
 title: "Une saisie reste du texte dans TOUS les e-mails : fermer le relais d'hameçonnage anonyme de `lead.received`, puis chaque notification qui rend une saisie en Markdown (suite de TCK-599, B1)"
-status: todo
+status: done
 phase: P0
 family: bug
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-351
 title: "Deux sources de libellés de bien s'affichent dans le même parcours — 44 divergences mesurées"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: M
@@ -66,7 +66,7 @@ Le décompte réel de `DIVERGENCES_CONNUES` est **16 fr/en + 28 wo** (et non 20 
 | `type.en.shop` | « Shop » | **« Retail »** | idem ; « Shop » reste un terme de recherche. |
 | `contract_type.fr.{sale,rent}`, `.en.{sale,rent}` | « À vendre / À louer », « For Sale / For Rent » | **« Vente / Location »** (ligne « Contrat »), **« En vente / En location »** (pastille et carte de réservation) | la pastille de la fiche reprend le mot de `ContractTypeChip`, celui de la carte qui y mène. |
 | `rent_period.fr.*`, `.en.*` (8) | « par jour… », « per day… » | **« Journalier / Hebdo / Mensuel / Annuel »**, « Daily… » | la ligne « Période » attend un adjectif ; le suffixe du prix a sa propre table (`rentPeriodsShort`), inchangée. |
-| 28 entrées `*.wo.*` | wolof de l'API (dont `farm` « Jën », `land` « Dëkk ») | la valeur du front, telle quelle | **aucune n'est tranchée ici** : wolof en pause depuis le 2026-10-16. **Reportées à [TCK-342](TCK-342-libelles-wolof-divergents-back-front.md)** pour relecture par un locuteur ; les tables wolof `type`/`contract_type` de l'API restent du vocabulaire de recherche (TCK-339). |
+| 28 entrées `*.wo.*` | wolof de l'API (dont `farm` « Jën », `land` « Dëkk ») | la valeur du front, telle quelle | **aucune n'est tranchée ici** : wolof en pause depuis le 2026-10-16. **Reportées à [TCK-342](../todo/TCK-342-libelles-wolof-divergents-back-front.md)** pour relecture par un locuteur ; les tables wolof `type`/`contract_type` de l'API restent du vocabulaire de recherche (TCK-339). |
 
 ## Objectif utilisateur
 
@@ -128,7 +128,7 @@ properties.status        ↔ property.status             fr 1/9 · en 1/9 · wo 
 > passent par next-intl. »
 
 `PropertyResource` le viole, et pas à la marge : cinq champs de libellé, traduits côté serveur.
-[TCK-292](../done/TCK-292-i18n-reste-du-parc.md) avait nommé ce risque et l'avait mis **hors périmètre**,
+[TCK-292](TCK-292-i18n-reste-du-parc.md) avait nommé ce risque et l'avait mis **hors périmètre**,
 en écrivant qu'il n'avait pas été mesuré : *« Si l'API renvoie des phrases françaises, traduire le
 front ne suffira pas : ce sera un ticket backend, pas celui-ci. »* **La mesure est faite ; ce
 ticket est celui-là.**
@@ -145,7 +145,7 @@ Trois issues, et aucune n'est neutre :
 
 ⚠ **Quelle que soit l'issue, les 44 valeurs doivent être arbitrées une par une**, et les 24 wolof
 exigent un locuteur *(wolof en pause depuis le 2026-10-16 : AC4 se coche par un report explicite vers
-TCK-342)* — c'est le même besoin que [TCK-342](TCK-342-libelles-wolof-divergents-back-front.md)
+TCK-342)* — c'est le même besoin que [TCK-342](../todo/TCK-342-libelles-wolof-divergents-back-front.md)
 et [TCK-339](TCK-339-vocabulaire-wolof-recherche.md). Ne pas choisir « celle de l'API » ou « celle
 du front » en bloc : `farm` montre que la bonne réponse change d'une clé à l'autre.
 

@@ -1,7 +1,7 @@
 ---
 id: TCK-2577
 title: Un avis d'agence écrit son contexte d'éligibilité, comme un avis d'agent
-status: todo
+status: done
 phase: P1
 family: full
 estimate: S

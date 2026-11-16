@@ -18,7 +18,7 @@ spec_refs:
   adr:
     - "docs/adr/0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md"
   tickets:
-    - "docs/backlog/tickets/todo/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md"
+    - "docs/backlog/tickets/done/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md"
   pistes:
     - "docs/plans/2026-10-15-pistes-d-amelioration.md#angle-19--rétention-des-tables-qui-grossissent"
 tags: [back, front, légal, données-personnelles, conformité, audit, pistes]

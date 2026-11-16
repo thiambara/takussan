@@ -1,7 +1,7 @@
 ---
 id: TCK-537
 title: "La politique de confidentialité promet quatre choses que le code ne fait pas encore (preuve du consentement, effacement des profils, purges, auteur des avis)"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: L

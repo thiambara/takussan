@@ -1,7 +1,7 @@
 ---
 id: TCK-614
 title: "`APP_KEY` se tourne sans rien perdre : clé d'empreinte distincte pour les recherches HMAC, commande de ré-chiffrement, sauvegarde et procédure écrites (ADR-0044, suites de TCK-599 et TCK-601)"
-status: todo
+status: done
 phase: P1
 family: technique
 estimate: M
@@ -87,7 +87,7 @@ donc aucune clé ne peut jamais quitter `APP_PREVIOUS_KEYS`. Aucune commande n'e
 *(2026-11-16 : `backup:verify-encryption` (TCK-882) lit et compte, aucune commande n'**écrit** ;
 `hebergement.md` porte la sauvegarde hors VPS (`:125`) et la rotation sans retrait (`:332-347`).)*
 
-**Mise à jour du 2026-10-30 ([TCK-2430](../done/TCK-2430-empreintes-sous-app-key-hors-radar.md),
+**Mise à jour du 2026-10-30 ([TCK-2430](TCK-2430-empreintes-sous-app-key-hors-radar.md),
 [ADR-0084](../../../adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md))** — les empreintes sous
 `APP_KEY` passent toutes par `App\Support\AppKeyHmac` (le point unique de la contrainte 2), et les lectures qui
 décident d'un droit cherchent aussi sous `APP_PREVIOUS_KEYS` : alertes (désinscription, rattachement, suppression de

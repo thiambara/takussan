@@ -1,7 +1,7 @@
 ---
 id: TCK-452
 title: "Aucune BASCULE de thème sombre n'existe : le bloc `.dark` sert de surface locale à deux composants et n'est atteignable par aucun utilisateur"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: M
@@ -116,7 +116,7 @@ même façon, et c'est là que le coût se joue.
 
 ### Comment on l'a découvert
 
-Par [TCK-440](../done/TCK-440-chrome-publique-en-palette-brute.md), dont l'AC4 demandait qu'« un test
+Par [TCK-440](TCK-440-chrome-publique-en-palette-brute.md), dont l'AC4 demandait qu'« un test
 éprouve la bascule `.dark` sur les valeurs calculées ». En cherchant comment l'éprouver, on a
 trouvé qu'il n'y a rien à basculer. Le § Contexte de TCK-440 disait « `.dark` n'a aucune prise »
 et l'attribuait aux couleurs figées de la navbar — c'était vrai, et c'était la moitié la moins
@@ -231,11 +231,11 @@ Ce qui se retire, si le produit ne veut pas de bascule utilisateur :
 ## Hors périmètre
 
 - La palette elle-même et la conversion de la chrome publique —
-  [TCK-440](../done/TCK-440-chrome-publique-en-palette-brute.md).
+  [TCK-440](TCK-440-chrome-publique-en-palette-brute.md).
 - Le stockage d'une préférence de thème côté profil utilisateur : préférence locale d'abord, le
   reste est un ticket distinct.
 - Les primitives de la console et leur couleur brute —
-  [TCK-384](../done/TCK-384-primitives-partagees-couleur-brute.md).
+  [TCK-384](TCK-384-primitives-partagees-couleur-brute.md).
 
 ## Notes d'implémentation
 

@@ -1,7 +1,7 @@
 ---
 id: TCK-607
 title: "Un bail renouvelé ou résilié ne rend pas deux fois la caution et ne facture plus : caution héritée, échéancier d'un bail résilié, loyer créé après la fin, garants d'un bail en vigueur (suites de TCK-594 H-1 et TCK-596 E11, m-n, n3)"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M

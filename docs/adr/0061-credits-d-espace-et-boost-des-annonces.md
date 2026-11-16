@@ -11,7 +11,7 @@
   la place « Mise en avant » de l'annuaire se vend en crédits ; tous ses paramètres sont des réglages.
   Amende aussi ADR-0092 § 4 et § 6. Voir
   [§ Amendement du 2026-11-16](#amendement-du-2026-11-16-tck-2525--la-mise-en-avant-dune-agence-se-vend-en-crédits).
-- **Amendement du 2026-11-16** ([TCK-2569](../backlog/tickets/todo/TCK-2569-impressions-des-emplacements-non-affiches.md)) :
+- **Amendement du 2026-11-16** ([TCK-2569](../backlog/tickets/done/TCK-2569-impressions-des-emplacements-non-affiches.md)) :
   une impression se compte quand le navigateur déclare avoir **affiché** l'emplacement, plus quand
   l'API le sert. Amende § 10 et l'amendement du 2026-11-09. Voir
   [§ Amendement du 2026-11-16 (TCK-2569)](#amendement-du-2026-11-16-tck-2569--limpression-est-déclarée-par-laffichage).

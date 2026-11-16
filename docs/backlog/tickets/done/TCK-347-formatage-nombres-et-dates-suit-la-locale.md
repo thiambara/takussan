@@ -1,7 +1,7 @@
 ---
 id: TCK-347
 title: "Le formatage des nombres et des dates est figé en français, quelle que soit la langue"
-status: todo
+status: done
 phase: P3
 family: front
 estimate: L
@@ -173,7 +173,7 @@ mériter son propre ticket.
 
 **Pourquoi aucun ticket ne couvrait déjà ça** — vérifié le 2026-08-22 :
 
-- [TCK-153](../done/TCK-153-formats-devise-date-harmonises.md) (« Formats devise & date —
+- [TCK-153](TCK-153-formats-devise-date-harmonises.md) (« Formats devise & date —
   harmonisation FR site-wide », `done`, 2026-05-05) fait l'**inverse** : il a figé le français
   partout, ce qui était le bon geste avant que `en` et `wo` existent réellement à l'écran. C'est
   précisément son résultat qu'il faut maintenant paramétrer — pas défaire.

@@ -1,7 +1,7 @@
 ---
 id: TCK-612
 title: "Ce qui transite par le BFF garde sa forme : une écriture lit le corps seul (`BaseFormRequest`), et chaque route handler transmet l'IP du visiteur par l'adresse interne — volet front fermé par TCK-893/TCK-894 (suites de TCK-600 passe 2 et du rapport de TCK-600)"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-611
 title: "Une annonce réécrite, ou rendue publique après un passage en privé, repasse par la file de modération de son agence (suite de TCK-597, verif-597 passes 2 et 3 — décision du porteur)"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S

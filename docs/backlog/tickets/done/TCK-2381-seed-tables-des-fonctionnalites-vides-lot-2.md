@@ -1,7 +1,7 @@
 ---
 id: TCK-2381
 title: "Le seed remplit les tables restantes : relevés bancaires, reprises, relevés bailleur, métriques plateforme, annonces, alertes"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: M

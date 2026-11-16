@@ -1,7 +1,7 @@
 ---
 id: TCK-610
 title: "Les pages d'entrée que les liens promettent : renouveler l'appareil de second facteur, et l'entrée de console des opérateurs `viewer` / `support` (suites de TCK-589 §3 et TCK-600)"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
