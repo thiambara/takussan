@@ -45,6 +45,7 @@ import { messageErreurApi } from '@/lib/api';
 import { totalALEntreeDuBail } from '@/lib/cout-d-entree';
 import { formatCurrency } from '@/lib/format';
 import type { FormatDateOptions } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
 import type { Booking } from '@/types/booking';
@@ -894,7 +895,7 @@ function FormulaireDuBail({
                     placeholder={propertiesQuery.isLoading ? t('loadingProperties') : t('selectProperty')}
                     options={properties.map((property) => ({
                       value: property.id,
-                      label: formatPropertyLabel(property),
+                      label: formatPropertyLabel(property, f.locale),
                     }))}
                     onChoisi={(id) => {
                       setChangerLeBien(false);
@@ -1376,6 +1377,7 @@ function PartiesDeLaReservation({
   readonly titulaire: PropertyListItem['owner'] | null;
 }) {
   const t = useTranslations('lease.form');
+  const f = useFormatteurs();
   const bien = reservation.property;
   const client = reservation.customer;
   return (
@@ -1389,7 +1391,7 @@ function PartiesDeLaReservation({
           value={bien?.title ?? `#${reservation.property_id}`}
           detail={
             bien && typeof bien.price === 'number'
-              ? formatCurrency(bien.price, 'fr', { currency: bien.currency ?? 'XOF' })
+              ? f.montant(bien.price, bien.currency ?? 'XOF')
               : undefined
           }
         />
@@ -1508,11 +1510,11 @@ function SummaryBlock({
   );
 }
 
-function formatPropertyLabel(property: PropertyListItem): string {
+function formatPropertyLabel(property: PropertyListItem, locale: Locale): string {
   const ref = property.reference_number ? `${property.reference_number} · ` : '';
   const price =
     typeof property.price === 'number'
-      ? ` · ${formatCurrency(property.price, 'fr', { currency: property.currency ?? 'XOF' })}`
+      ? ` · ${formatCurrency(property.price, locale, { currency: property.currency ?? 'XOF' })}`
       : '';
   return `${ref}${property.title}${price}`;
 }

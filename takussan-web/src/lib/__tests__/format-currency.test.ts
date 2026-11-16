@@ -70,9 +70,9 @@ describe('formatMontant (TCK-084 multi-currency)', () => {
     expect(normalize(formatPriceShort(1_200_000, 'fr-SN'))).toBe('1,2 M');
     expect(normalize(formatPriceShort(120_000_000, 'fr-SN'))).toBe('120 M');
     expect(normalize(formatPriceShort(1_500_000_000, 'fr-SN'))).toBe('1,5 Md');
-    expect(formatPriceShort(null)).toBe('');
-    expect(formatPriceShort(undefined)).toBe('');
-    expect(formatPriceShort(Number.NaN)).toBe('');
+    expect(formatPriceShort(null, 'fr-SN')).toBe('');
+    expect(formatPriceShort(undefined, 'fr-SN')).toBe('');
+    expect(formatPriceShort(Number.NaN, 'fr-SN')).toBe('');
   });
 
   it('formats compact prices in en-US with B suffix for billions', () => {

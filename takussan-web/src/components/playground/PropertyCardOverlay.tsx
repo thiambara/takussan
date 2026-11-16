@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { PropertyListItem, RentPeriod } from '@/types/property';
 import { getCardPhotoUrl } from './photoFallback';
 import { staggerDelay } from '@/components/property/card-stagger';
@@ -24,6 +25,7 @@ const RENT_PERIOD_SHORT: Record<RentPeriod, string> = {
  * Image full ratio 3/4, gradient bas, titre + prix superposés en blanc.
  */
 export function PropertyCardOverlay({ property, priority, index = 0 }: PropertyCardOverlayProps) {
+  const { locale } = useFormatteurs();
   const [favorited, setFavorited] = useState(false);
 
   const quarter = property.location.quarter || property.location.city || null;
@@ -87,7 +89,7 @@ export function PropertyCardOverlay({ property, priority, index = 0 }: PropertyC
               {property.title}
             </h3>
             <p className="text-[0.9375rem] font-bold pg-tabular">
-              {formatPrice(property.price, property.currency ?? 'XOF')}
+              {formatPrice(property.price, property.currency ?? 'XOF', locale)}
               {property.contract_type === 'rent' && property.rent_period && (
                 <span className="text-[0.75rem] font-medium opacity-80 ml-0.5">
                   /{RENT_PERIOD_SHORT[property.rent_period]}

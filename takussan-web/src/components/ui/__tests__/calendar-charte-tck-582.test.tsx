@@ -6,6 +6,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import { Calendar } from '@/components/ui/calendar';
+import { withIntl } from '@/test/intl';
 
 /**
  * TCK-582 · **le calendrier rendu à la charte.**
@@ -172,7 +173,8 @@ describe('la feuille de react-day-picker passe sous les utilitaires', () => {
 
 describe('ce que le calendrier pose réellement dans le DOM', () => {
   const rendu = () =>
-    render(<Calendar mode="single" selected={new Date(2026, 8, 12)} month={new Date(2026, 8, 1)} />);
+    // TCK-347 — le calendrier lit la locale de next-intl : il se monte sous son fournisseur.
+    render(withIntl(<Calendar mode="single" selected={new Date(2026, 8, 12)} month={new Date(2026, 8, 1)} />));
   const utilitaires = (css: string) =>
     reglesParCouche(css).filter((r) => r.couche === 'utilities').map((r) => r.corps).join('\n');
 

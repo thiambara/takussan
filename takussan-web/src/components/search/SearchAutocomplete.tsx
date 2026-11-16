@@ -962,7 +962,7 @@ export function SearchAutocomplete({
               <span className="flex min-w-0 gap-1 text-xs">
                 {bien.price !== null ? (
                   <span className="shrink-0 font-semibold tabular-nums">
-                    {formatPrice(bien.price, 'XOF')}
+                    {formatPrice(bien.price, 'XOF', locale)}
                     {bien.contract_type === 'rent' && bien.rent_period ? `/${tPeriodes(bien.rent_period)}` : ''}
                   </span>
                 ) : null}

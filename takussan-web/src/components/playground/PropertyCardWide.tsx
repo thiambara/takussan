@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, MapPin } from 'lucide-react';
 import { formatPrice, formatRelativeDate } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { PropertyListItem, RentPeriod } from '@/types/property';
 import { getCardPhotoUrl } from './photoFallback';
 import { staggerDelay } from '@/components/property/card-stagger';
@@ -24,6 +25,7 @@ const RENT_PERIOD_SHORT: Record<RentPeriod, string> = {
  * Format adapté aux rangées géolocalisées (rythme list-like).
  */
 export function PropertyCardWide({ property, priority, index = 0 }: PropertyCardWideProps) {
+  const { locale } = useFormatteurs();
   const [favorited, setFavorited] = useState(false);
 
   const isSale = property.contract_type === 'sale';
@@ -97,7 +99,7 @@ export function PropertyCardWide({ property, priority, index = 0 }: PropertyCard
           <div className="flex items-end justify-between gap-3">
             <div>
               <p className="text-[1rem] font-bold text-[var(--pg-accent)] pg-tabular leading-tight">
-                {formatPrice(property.price, property.currency ?? 'XOF')}
+                {formatPrice(property.price, property.currency ?? 'XOF', locale)}
                 {property.contract_type === 'rent' && property.rent_period && (
                   <span className="text-[0.6875rem] font-semibold text-[var(--pg-ink-muted)] ml-0.5">
                     /{RENT_PERIOD_SHORT[property.rent_period]}

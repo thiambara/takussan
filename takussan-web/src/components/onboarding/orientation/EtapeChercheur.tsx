@@ -27,6 +27,7 @@ import {
 import { useCreateSavedSearchMutation, useSavedSearchesQuery } from '@/lib/queries/saved-searches';
 import { parametresDeRecherche } from '@/lib/recherche-publique';
 import { cn, formatPrice } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { ContractType, SearchResult } from '@/types/search';
 
 import { DeclarerBarreDOrientation } from './BarreDOrientation';
@@ -65,6 +66,7 @@ export function EtapeChercheur({
   readonly onRetour: () => void;
 }) {
   const t = useTranslations('onboarding.orientation.chercheur');
+  const { locale } = useFormatteurs();
   const tO = useTranslations('onboarding.orientation');
   const router = useRouter();
   const { token } = useAuth();
@@ -175,7 +177,7 @@ export function EtapeChercheur({
                   {[r.location.quarter, r.area ? `${r.area} m²` : null].filter(Boolean).join(' · ')}
                 </span>
                 <span className="mt-1 block text-sm font-semibold tabular-nums">
-                  {formatPrice(r.price)} {r.rent_period === 'monthly' ? <span className="font-normal text-muted-foreground">{t('parMois')}</span> : null}
+                  {formatPrice(r.price, 'XOF', locale)} {r.rent_period === 'monthly' ? <span className="font-normal text-muted-foreground">{t('parMois')}</span> : null}
                 </span>
               </span>
             </li>

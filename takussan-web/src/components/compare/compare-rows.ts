@@ -1,5 +1,6 @@
 import type { PropertyDetail, PropertyTag } from '@/types/property';
 import { type CompareRow, highlightDivergent, type HighlightedRow } from '@/lib/compare';
+import type { Locale } from '@/i18n/config';
 import { formatPrice } from '@/lib/utils';
 
 /**
@@ -81,6 +82,7 @@ function otherTagNames(tags: PropertyTag[] | undefined, libelle: LibelleDEquipem
 export function buildCell(
   def: CompareRowDef,
   property: PropertyDetail | null,
+  locale: Locale,
   libelleEquipement: LibelleDEquipement = NOM_EN_BASE,
 ): CompareCell {
   if (!property) return null;
@@ -93,7 +95,7 @@ export function buildCell(
       // with the wrong symbol. Pre-formatted strings also give
       // `highlightDivergent` the correct divergence signal across mixed
       // currencies.
-      return formatPrice(property.price, property.currency || 'XOF');
+      return formatPrice(property.price, property.currency || 'XOF', locale);
     case 'contract_type':
       return property.contract_type_label ?? property.contract_type ?? null;
     case 'type':
@@ -102,7 +104,7 @@ export function buildCell(
       return property.rent_period_label ?? property.rent_period ?? null;
     case 'entry_cost':
       return property.entry_cost
-        ? formatPrice(property.entry_cost.total, property.currency || 'XOF')
+        ? formatPrice(property.entry_cost.total, property.currency || 'XOF', locale)
         : null;
     // Le libellé vient de l'API, dans la langue négociée — le même que celui de la fiche. Aucun
     // second vocabulaire côté front : `DIVERGENCES_CONNUES` de la garde de parité ne grossit pas.
@@ -116,7 +118,7 @@ export function buildCell(
       return property.area ?? null;
     case 'price_per_m2': {
       const parM2 = prixAuM2(property);
-      return parM2 === null ? null : formatPrice(parM2, property.currency || 'XOF');
+      return parM2 === null ? null : formatPrice(parM2, property.currency || 'XOF', locale);
     }
     case 'bedrooms':
       return property.bedrooms ?? null;
@@ -145,11 +147,12 @@ export function buildCell(
  */
 export function buildCompareRows(
   properties: readonly (PropertyDetail | null)[],
+  locale: Locale,
   libelleEquipement: LibelleDEquipement = NOM_EN_BASE,
 ): LigneComparee[] {
   const rows: CompareRow<CompareCell>[] = COMPARE_ROW_DEFS.map((def) => ({
     id: def.id,
-    values: properties.map((property) => buildCell(def, property, libelleEquipement)),
+    values: properties.map((property) => buildCell(def, property, locale, libelleEquipement)),
   })).filter((row) => row.values.some(porteUneValeur));
   return highlightDivergent<CompareCell>(rows).map((row) => ({
     ...row,

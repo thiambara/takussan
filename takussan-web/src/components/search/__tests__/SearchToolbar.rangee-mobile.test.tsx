@@ -162,8 +162,8 @@ describe('TCK-552 — les puces (P8, AC7)', () => {
       .map((b) => normalise(b.textContent ?? ''))
       .filter((t) => t.startsWith('≥') || t.startsWith('≤'));
     expect(textes).toEqual([
-      `≥ ${normalise(formatPrice(150_000, 'XOF'))}`,
-      `≤ ${normalise(formatPrice(2_000_000, 'XOF'))}`,
+      `≥ ${normalise(formatPrice(150_000, 'XOF', 'fr'))}`,
+      `≤ ${normalise(formatPrice(2_000_000, 'XOF', 'fr'))}`,
     ]);
     for (const t of textes) expect(t).not.toContain('FCFA');
   });

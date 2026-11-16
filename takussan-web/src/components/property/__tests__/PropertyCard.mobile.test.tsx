@@ -248,7 +248,7 @@ describe('TCK-555 — le prix', () => {
     const prixVente = vente.querySelector('[data-prix]')?.textContent;
 
     // Témoin : une vente affiche le montant nu — sinon l'inégalité ci-dessous ne dirait rien.
-    expect(prixVente).toBe(formatPrice(950000, 'XOF'));
+    expect(prixVente).toBe(formatPrice(950000, 'XOF', 'fr'));
     expect(prixLoyer).not.toBe(prixVente);
     expect(prixLoyer).toMatch(/loyer/);
   });

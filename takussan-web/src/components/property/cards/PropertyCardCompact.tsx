@@ -3,6 +3,7 @@
 import { useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ContractTypeChip } from './ContractTypeChip';
 import { NewBuildChip } from './NewBuildChip';
 import { CardMeta } from './CardMeta';
@@ -28,6 +29,7 @@ export function PropertyCardCompact({
   allegee = false,
 }: PropertyCardCommonProps) {
   const t = useTranslations('property.cards');
+  const { locale } = useFormatteurs();
   const tPeriods = useTranslations('property.rentPeriodsShort');
   const quarter = property.location.quarter || property.location.city || null;
   const idTitre = useId();
@@ -85,7 +87,7 @@ export function PropertyCardCompact({
           ]}
         />
         <p className="pt-0.5 text-[0.875rem] leading-5 font-semibold text-foreground tabular-nums truncate">
-          {formatPrice(property.price, property.currency ?? 'XOF')}
+          {formatPrice(property.price, property.currency ?? 'XOF', locale)}
           {property.contract_type === 'rent' && property.rent_period && (
             <span className="ml-0.5 font-normal text-muted-foreground">
               /{tPeriods(property.rent_period)}

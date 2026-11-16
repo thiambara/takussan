@@ -8,6 +8,7 @@ import { PropertyPhoto } from '@/components/property/cards/PropertyPhoto';
 import { LienDeCarte, TITRE_REACTIF, VoileDInteraction } from '@/components/property/cards/LienDeCarte';
 import { useDateRelative } from '@/components/property/cards/useDateRelative';
 import { formatPrice, cn } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { PropertyListItem } from '@/types/property';
 import { estNouveau } from './nouveau';
 
@@ -39,6 +40,7 @@ export interface LigneDeResultatProps {
 
 export function LigneDeResultat({ property, place, badge = null, priority = false, className }: LigneDeResultatProps) {
   const t = useTranslations('property');
+  const { locale } = useFormatteurs();
   const tCards = useTranslations('property.cards');
   const tListe = useTranslations('search.results.ligne');
   const idTitre = useId();
@@ -51,7 +53,7 @@ export function LigneDeResultat({ property, place, badge = null, priority = fals
     property.bedrooms != null && property.bedrooms > 0 ? tCards('bedroomsShort', { count: property.bedrooms }) : null,
     property.area ? `${property.area} m²` : null,
   ].filter(Boolean);
-  const prix = formatPrice(property.price, property.currency ?? 'XOF');
+  const prix = formatPrice(property.price, property.currency ?? 'XOF', locale);
 
   return (
     <article

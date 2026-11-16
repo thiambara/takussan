@@ -128,13 +128,13 @@ mériter son propre ticket.
 - [x] Trancher `'fr-FR'` vs `'fr-SN'` pour la locale `fr`, et l'écrire une fois — dans
       `toIntlLocale`, pas dans 38 fichiers. (tenu par TCK-721, relevé 2026-11-16 : `ETIQUETTES_INTL`,
       `fr: 'fr-SN'`)
-- [ ] Remplacer les 86 occurrences (27 lignes au 2026-11-16, restes listés en tête) par les helpers de `src/lib/format.ts` (`formatDate`,
+- [x] Remplacer les 86 occurrences (27 lignes au 2026-11-16, restes listés en tête) par les helpers de `src/lib/format.ts` (`formatDate`,
       `formatNumber`, `formatCurrency`) et de `src/lib/format/dateFnsLocale.ts`, en passant la
       locale active (`useLocale()` côté client, `getLocale()` côté serveur).
-- [ ] `src/components/ui/calendar.tsx:34` — `locale={fr}` → `locale={localeDateFns(useLocale())}`.
+- [x] `src/components/ui/calendar.tsx:34` — `locale={fr}` → `locale={localeDateFns(useLocale())}`.
 - [ ] `src/i18n/config.ts:51-55` — écrire la colonne `LOCALE_DISPLAY_LABELS.wo` en wolof. — reporté :
       wolof en pause depuis le 2026-10-16.
-- [ ] **Une garde**, sans quoi les 86 reviennent : refuser tout littéral BCP-47 (`'fr-FR'`,
+- [x] **Une garde**, sans quoi les 86 reviennent : refuser tout littéral BCP-47 (`'fr-FR'`,
       `'fr-SN'`, `'en-GB'`, …) hors de `src/lib/format*`, et refuser `from 'date-fns/locale'` hors
       de `src/lib/format/dateFnsLocale.ts`. Le patron maison est
       `scripts/i18n-exceptions.mjs` : exception par SITE, avec sa raison écrite, et une exception
@@ -145,18 +145,18 @@ mériter son propre ticket.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — la garde ci-dessus existe, sort en **0** sur `dev`, et sort en **1** quand on
+- [x] AC1 — la garde ci-dessus existe, sort en **0** sur `dev`, et sort en **1** quand on
       réintroduit un `toLocaleDateString('fr-FR')` dans un composant. Les deux sorties sont
       consignées dans le ticket. *(2026-11-16 : tenu pour `toLocale*`/`Intl` par
       `check-locale-figee.mjs` ; reste le volet `date-fns/locale`.)*
-- [ ] AC2 — un test de rendu monte le MÊME composant sous `fr`, `en` et `wo`, et **assère trois
+- [x] AC2 — un test de rendu monte le MÊME composant sous `fr`, `en` et `wo`, et **assère trois
       chaînes différentes** pour la même date et le même montant. ⚠ Ce critère est écrit ainsi
       exprès : « la locale est passée au helper » se coche aussi avec un helper qui ignore son
       argument.
       *Réécrit le 2026-11-16 : trois chaînes différentes sont inatteignables, `wo` formatant comme
       `fr` (`ETIQUETTES_INTL`). Le critère devient : **deux chaînes différentes `fr`/`en`, et `wo`
       identique à `fr`**.*
-- [ ] AC3 — le rendu **français** est inchangé, caractère pour caractère, sur les surfaces
+- [x] AC3 — le rendu **français** est inchangé, caractère pour caractère, sur les surfaces
       touchées. Toute divergence est nommée comme dérogation, à la manière de TCK-292 — jamais
       cochée en silence.
 - [ ] AC4 — `npx tsc --noEmit`, `npm run lint`, `npm run test` et `npm run build` verts.
@@ -179,3 +179,39 @@ mériter son propre ticket.
   précisément son résultat qu'il faut maintenant paramétrer — pas défaire.
 - TCK-327 porte la sérialisation des dates **côté backend** (ADR-0018) : la forme sur le fil, pas
   la forme à l'écran.
+
+## Livré (2026-11-16)
+
+- **`formatPrice` (`lib/utils.ts`) prend une `Locale` OBLIGATOIRE** (`fr`/`en`/`wo`, pas une étiquette
+  BCP-47) et délègue à `formatCurrency` : `tsc` a listé les 30 appelants (cartes, liste, carte,
+  comparateur, favoris, recherche, puces de prix, orientation, playground), tous passés sur
+  `useFormatteurs().locale` — ou sur `t.locale` (`TraducteursDeFiltre`) et un paramètre `locale`
+  (`buildCell`/`buildCompareRows`) pour les modules sans hook. Les quatre `formatCurrency(…, 'fr', …)`
+  (`CreateLeaseForm`, `PropertyPriceHistoryList`) et les deux homonymes locaux
+  (`PropertyReservationDialog` → `fmt.montant`, `PropertyPriceHistory`) suivent la locale active.
+- **`ui/calendar.tsx`** : `locale={localeDateFns(useLocale())}` ; un `locale` passé par l'appelant
+  l'emporte toujours (`{...props}` après).
+- **Garde** : `scripts/check-locale-figee.mjs` gagne les contrôles **F** (`date-fns/locale` hors de
+  `lib/format/dateFnsLocale.ts` — guillemets, sous-chemins, `import()`, `require`, `export from`) et
+  **G** (locale littérale passée à `formatDate|DateTime|Number|Currency|Percent|Price`,
+  `localeDateFns`, `formatteursPour`), exigés à **0** sur tout `src/`, hors des deux cliquets, avec
+  leur auto-épreuve. AC1 par mutation : sur l'arbre (sans les maquettes non suivies) **sortie 0** ;
+  `import { fr } from "date-fns/locale"` remis dans `calendar.tsx` → **sortie 1** (F) ;
+  `formatCurrency(entry.old_price, 'fr', …)` → **sortie 1** (G) ;
+  `toLocaleDateString('fr-FR')` dans `PropertyPriceHistoryList.tsx` → **sortie 1** (cliquet du reste).
+- **AC2** : `src/lib/__tests__/locale-active.tck-347.test.tsx` monte `PropertyPriceHistoryList` et
+  `Calendar` sous `fr`/`en`/`wo` — `fr ≠ en`, `wo = fr`. Ablation : `'fr'` remis dans l'historique
+  et `localeDateFns('fr')` dans le calendrier → 2 rouges ; `formatPrice` qui ignore sa locale → rouge.
+- **AC3** : `formatPrice(x, devise, 'fr')` = l'ancien `formatMontant(x, devise, { locale: 'fr-SN' })`
+  sur XOF, XAF, EUR, USD (même test). **Dérogation nommée** : `PropertyReservationDialog` et
+  `PropertyPriceHistory` (site public) passaient par la locale de la DEVISE ; un montant **USD** y
+  rendait `$1,250.50` sur une page `fr`, il rend désormais `$1 250,50`, comme les cartes. XOF, XAF et
+  EUR sont inchangés — mesuré par le même test (`formatCurrency(x, 'fr')` = `formatMontant(x, devise)`).
+- **AC4** non coché : `tsc --noEmit` propre et `eslint` des fichiers touchés à 0, 101 fichiers de
+  tests liés verts (966 tests) ; `npm run test` et `npm run build` sont laissés à la CI.
+- `formatPriceShort` (`lib/format/currency.ts`, défaut `'fr-SN'`, trou T3 de la garde) : locale
+  OBLIGATOIRE ; le marqueur de carte passe `toIntlLocale(locale)` (exporté de `lib/format.ts`) —
+  l'abrégé « 1,2 M » suivait le français sous un `aria-label` déjà anglais. Rendu `fr` inchangé.
+- Reste, hors des restes listés : `formatDate`/`formatRelativeDate` de `lib/utils.ts` (le premier
+  sans appelant, le second compté par le cliquet console).
+

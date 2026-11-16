@@ -8,6 +8,7 @@ import { LienLocalise } from '@/components/shared/LienLocalise';
 import { PropertyPhoto } from '@/components/property/cards/PropertyPhoto';
 import { buttonVariants } from '@/components/ui/button';
 import { cn, formatPrice } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { COMPARE_MAX_IDS } from '@/lib/compare';
 import type { PropertyDetail } from '@/types/property';
 import {
@@ -141,14 +142,15 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
   const t = useTranslations('compare');
   const tRows = useTranslations('compare.rows');
   const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
+  const { locale } = useFormatteurs();
   const idBascule = useId();
   const [seulementCeQuiDiffere, setSeulementCeQuiDiffere] = useState(true);
   const [pareilDeplie, setPareilDeplie] = useState(false);
 
   const properties = useMemo(() => columns.map((col) => col.property), [columns]);
   const lignes = useMemo(
-    () => buildCompareRows(properties, (tag) => libelleEquipement(tag, tCatalogue)),
-    [properties, tCatalogue],
+    () => buildCompareRows(properties, locale, (tag) => libelleEquipement(tag, tCatalogue)),
+    [properties, locale, tCatalogue],
   );
 
   const n = columns.length;
@@ -343,6 +345,7 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
 function EnTeteDeBien({ column, onRemove }: { readonly column: CompareColumn; readonly onRemove: (id: number) => void }) {
   const t = useTranslations('compare');
   const tPeriodes = useTranslations('property.rentPeriodsShort');
+  const { locale } = useFormatteurs();
   const { property } = column;
   const lien = `/properties/${property.slug}`;
   const retirer = `${t('actions.remove')} ${property.title}`;
@@ -389,7 +392,7 @@ function EnTeteDeBien({ column, onRemove }: { readonly column: CompareColumn; re
           (« 2 240 000 F… », « Villa avec jard… ») ; le prix se lit en entier dans la ligne Prix.
           Au bureau, le prix et le titre. Le lien porte le titre entier comme nom accessible. */}
       <p className="mt-1.5 hidden truncate text-base font-semibold tabular-nums text-foreground md:block">
-        {formatPrice(property.price, property.currency || 'XOF')}
+        {formatPrice(property.price, property.currency || 'XOF', locale)}
         {property.contract_type === 'rent' && property.rent_period && (
           <span className="font-normal text-muted-foreground">/{tPeriodes(property.rent_period)}</span>
         )}

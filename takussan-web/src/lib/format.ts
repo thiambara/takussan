@@ -90,7 +90,7 @@ const ETIQUETTE_PAR_DEFAUT = 'fr-SN';
  * `undefined` et suivrait la locale de la MACHINE, ce qui est le défaut que
  * `scripts/check-locale-figee.mjs` refuse partout ailleurs.
  */
-function toIntlLocale(locale: Locale): string {
+export function toIntlLocale(locale: Locale): string {
   return ETIQUETTES_INTL[locale] ?? ETIQUETTE_PAR_DEFAUT;
 }
 

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, MapPin, Clock } from 'lucide-react';
 import { formatPrice, formatRelativeDate } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { PropertyListItem, RentPeriod } from '@/types/property';
 import { getCardPhotoUrl } from './photoFallback';
 import { staggerDelay } from '@/components/property/card-stagger';
@@ -28,6 +29,7 @@ const RENT_PERIOD_SHORT: Record<RentPeriod, string> = {
  * Différence : palette Ancrage Local + typo Bricolage / DM Sans.
  */
 export function PropertyCardLocal({ property, priority, index = 0 }: PropertyCardLocalProps) {
+  const { locale } = useFormatteurs();
   const [favorited, setFavorited] = useState(false);
   const [pulse, setPulse] = useState(false);
 
@@ -99,7 +101,7 @@ export function PropertyCardLocal({ property, priority, index = 0 }: PropertyCar
         {/* Body — ordre prix → titre → location → méta (alignement app). */}
         <div className="pg-card-meta mt-4 space-y-1">
           <p className="text-[var(--pg-accent)] font-bold text-[0.9375rem] pg-tabular truncate">
-            {formatPrice(property.price, property.currency ?? 'XOF')}
+            {formatPrice(property.price, property.currency ?? 'XOF', locale)}
             {property.contract_type === 'rent' && property.rent_period && (
               <span className="text-[0.75rem] font-semibold text-[var(--pg-ink-muted)] ml-0.5">
                 /{RENT_PERIOD_SHORT[property.rent_period]}

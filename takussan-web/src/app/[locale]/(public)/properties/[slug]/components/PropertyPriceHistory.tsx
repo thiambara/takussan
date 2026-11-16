@@ -1,9 +1,8 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
-import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
+import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/config';
 import { isNamedPriceChangeReason } from '@/lib/enums/property';
-import { formatDate } from '@/lib/format';
-import { formatMontant } from '@/lib/format/currency';
+import { formatCurrency, formatDate } from '@/lib/format';
 import type { PropertyPriceHistoryItem } from '@/types/property';
 
 interface PropertyPriceHistoryProps {
@@ -11,8 +10,10 @@ interface PropertyPriceHistoryProps {
 }
 
 // TCK-078 — shared helper, XOF default (TCK-084 will swap for multi-currency).
-function formatPrice(price: number, currency: string): string {
-  return formatMontant(price, currency || 'XOF');
+// TCK-347 — dans la langue de la page, comme la date : la locale de la DEVISE n'est plus celle de
+// l'affichage (`formatMontant` sans `locale` rendait un montant USD en `en-US` sur une page `fr`).
+function formatPrice(price: number, currency: string, locale: Locale): string {
+  return formatCurrency(price, locale, { currency: currency || 'XOF' });
 }
 
 /**
@@ -56,14 +57,14 @@ export function PropertyPriceHistory({ history }: PropertyPriceHistoryProps) {
                 <time className="text-sm text-muted-foreground">{formatDate(item.changed_at, locale, DATE_DU_CHANGEMENT)}</time>
                 <div className={`flex items-center gap-1 text-sm font-medium ${trendClass}`}>
                   <Trend className="size-4" aria-hidden />
-                  {formatPrice(Math.abs(diff), item.currency)}
+                  {formatPrice(Math.abs(diff), item.currency, locale)}
                 </div>
               </div>
               <p className="text-sm text-foreground">
                 <span className="line-through text-muted-foreground">
-                  {formatPrice(item.old_price, item.currency)}
+                  {formatPrice(item.old_price, item.currency, locale)}
                 </span>{' '}
-                → <span className="font-semibold">{formatPrice(item.new_price, item.currency)}</span>
+                → <span className="font-semibold">{formatPrice(item.new_price, item.currency, locale)}</span>
               </p>
               {item.reason && (
                 <p className="text-xs text-muted-foreground mt-0.5">
