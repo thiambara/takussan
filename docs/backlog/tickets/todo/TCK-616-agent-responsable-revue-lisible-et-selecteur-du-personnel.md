@@ -40,8 +40,8 @@ Reste à faire : `RepairReassignedOwners` (AC1-AC3) ; sélecteur de la liste sur
 (attention : `agentOptions` sert aussi au filtre agent de `PropertyListFilters`) ; la passation des
 baux si le porteur la confirme. La commande se joue ensuite une fois en préproduction (`--dry-run` d'abord).
 
-**Décision attendue du porteur** : à la passation, les baux `draft` du partant passent-ils au
-repreneur et les autres sont-ils listés au bilan — (a) oui, (b) non, on retire ce point du ticket ?
+**Décision du porteur (2026-11-16) : (a) oui** — à la passation, les baux `draft` du partant passent
+à son successeur, comme le reste de son portefeuille ; les autres sont listés au bilan.
 
 ## Objectif utilisateur
 
@@ -85,6 +85,10 @@ Suites de **TCK-603** (verif-603 passe 1, m6 et observations ; passe 2, « Faux 
 
 ## Décision du porteur
 
+**Tranchée le 2026-11-16 : oui** — à la passation, les baux `draft` de l'agent qui part vont à son
+successeur, comme le reste de son portefeuille ; tout autre statut est listé au bilan, jamais réécrit
+(ADR-0059, amendement §7). La recommandation ci-dessous est retenue, moins `LeasePolicy::view` (caduc).
+
 **Le bail d'un bien transmis à la passation** (point 5) : *recommandation de la session* — comme la
 réparation de 603 : un bail `draft` dont `landlord_id` = le partant passe au repreneur ; tout autre
 statut est **listé** dans le bilan de la passation, jamais réécrit (un bail signé est un document
@@ -109,9 +113,9 @@ signé par celui qui l'a signé étant défendable.
 - [ ] ~~`PropertyBulkAssignService` : cible supprimée → refus `invalid_target` par ligne.~~ — caduc depuis TCK-817 (422 `user.not_in_active_agency` pour le lot, à dessein).
 - [x] Front : le sélecteur « Changer l'agent responsable » (liste ; la fiche n'en a pas) se remplit du personnel
       actif de l'agence (endpoint existant de l'équipe, champs `id,name`) ; libellés inchangés.
-- [ ] Passation (décision) : baux `draft` du partant transmis, autres listés au bilan ;
+- [x] Passation (décision) : baux `draft` du partant transmis, autres listés au bilan ;
       ~~`LeasePolicy::view` resserré~~ — caduc depuis TCK-1926.
-- [ ] Tests : `RepairReassignedOwnersOutputTest` (FN1, FN2, FN3), ~~`PropertyBulkAssignTest` (cible
+- [x] Tests : `RepairReassignedOwnersOutputTest` (FN1, FN2, FN3), ~~`PropertyBulkAssignTest` (cible
       supprimée)~~ (caduc depuis TCK-817), test front du sélecteur, `AgentHandoverLeaseTest`.
 
 ## Critères d'acceptation
@@ -123,7 +127,7 @@ signé par celui qui l'a signé étant défendable.
 - [x] **AC4 (rouge sur `839be671`).** Le sélecteur de la liste propose un agent actif de l'agence sans
       aucun bien sur la page, et ne propose aucun bailleur.
 - [ ] ~~**AC5.** `bulk-assign` de 3 biens vers un utilisateur supprimé : 200, 3 refus `invalid_target`.~~ — caduc depuis TCK-817 (422 `user.not_in_active_agency` pour le lot, anti-oracle).
-- [ ] **AC6 (décision).** Après la passation d'un bien dont un bail actif a `landlord_id` = le partant :
+- [x] **AC6 (décision).** Après la passation d'un bien dont un bail actif a `landlord_id` = le partant :
       le bail figure au bilan ; `GET /api/leases/{id}` par le partant → 403 (cette moitié est déjà
       vraie depuis TCK-1926 : à garder au plus comme test de non-régression).
 - [x] Ablations consignées : second critère `is_primary` remis → AC1 rouge ; sélecteur rendu à
@@ -158,10 +162,16 @@ _(à remplir par implementing-specs)_
   et `ResponsablesDuLotListeTest` (la requête exacte acceptée par l'API, admin et agent : admin actif et agent
   sans bien rendus, bailleur et suspendu jamais) ;
   ablation « `PropertyList` rendu à `buildAgentOptions` » → 4 rouges. Libellés inchangés, aucune clé i18n.
-- **AC6** : seule la non-régression de lecture est livrée (`AgentHandoverLeaseTest` : passation avec retrait,
-  `GET /api/leases/{id}` du partant → 403 ; ablation de la branche `BailleurDuBien` de `LeasePolicy::view` → 200,
-  rouge). La moitié « passation » n'est **pas** implémentée : **au porteur** — à la passation, les baux `draft`
-  du partant passent-ils au repreneur et les autres sont-ils listés au bilan : (a) oui, (b) non, on retire ce
-  point ? AC6 reste ouvert jusqu'à cette réponse.
+- **AC6** (décision du porteur du 2026-11-16, ADR-0059 amendé §7) : `AgentHandoverService::moveDraftLeases()`,
+  appelé après `held_properties` — sur les seuls biens saisis **réellement transmis**, un bail `draft` dont le
+  partant est le bailleur passe au repreneur de cette catégorie ; tout autre statut garde son bailleur et sort au
+  bilan (`data.leases.to_review`, identifiants ; `data.leases.moved`, compte), journal `AgentHandover`/`leases`.
+  Aucune catégorie de portefeuille neuve (inventaire et garde du retrait inchangés). Verrous bien → bail : biens
+  tenus depuis `lockProperties()`, brouillons verrouillés ensuite (`orderBy('id')->lockForUpdate()`), statut jugé
+  sous verrou ; écriture de masse comme la réparation. Preuves : `AgentHandoverLeaseTest` — brouillon passé,
+  actif et en signature listés et inchangés, brouillon d'un autre agent intact, bien laissé au partant (repreneur
+  bailleur) qui garde son brouillon ; non-régression de lecture (partant → 403, ablation `BailleurDuBien` → 200).
+  Ablations : écriture retirée → rouge ; filtre `landlord_id` retiré → rouge ; filtre `draft` retiré → 2 rouges.
+  L'assistant du front n'affiche pas encore `leases` (la réponse le porte).
 - La commande se joue ensuite une fois en préproduction, `--dry-run` d'abord : son format de sortie a changé.
 
