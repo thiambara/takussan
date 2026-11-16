@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Support\CaseInsensitive;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
-class RegisterRequest extends FormRequest
+class RegisterRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

@@ -177,3 +177,5 @@ par contrat : **exemptées** par `$queryKeysAcceptedOnWrite`, motif dans la clas
   Ablations (copie + md5) : `LoginRequest` sans `authorize()` → garde d'autorisation + test de
   connexion + `AuthLoginCaseInsensitiveTest` rouges ; `LoginRequest` remis à `extends FormRequest`
   → garde d'héritage, parcours AC1 et connexion par la query (200 au lieu de 422) rouges.
+- 2026-11-16 (session, après TCK-537) : `RegisterRequest` étend à son tour `BaseFormRequest` — son
+  `authorize()` (`true`) et son `prepareForValidation()` propre sont gardés ; `EXEMPTIONS` est vide.

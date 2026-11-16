@@ -17,6 +17,7 @@ use App\Http\Requests\Api\Admin\UpdatePlanRequest;
 use App\Http\Requests\Api\Me\UpdateMeRequest;
 use App\Http\Requests\AttachCustomerTagsRequest;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\RequestPhoneLoginCodeRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Requests\InitiatePaymentRequest;
@@ -65,7 +66,6 @@ class FormRequestEtendBaseFormRequestTest extends TestCase
      * @var array<string, string>
      */
     public const EXEMPTIONS = [
-        'Auth/RegisterRequest.php' => "TCK-537 la modifie dans le même lot (2026-11-16) : à converger après sa fusion, puis à retirer d'ici",
     ];
 
     /**
@@ -76,6 +76,7 @@ class FormRequestEtendBaseFormRequestTest extends TestCase
      * @var list<class-string>
      */
     private const CONVERTIES_TCK_612 = [
+        RegisterRequest::class,
         MatchBankStatementLineRequest::class,
         StoreBankStatementRequest::class,
         UpdateBankCsvMappingRequest::class,
