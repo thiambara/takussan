@@ -20419,7 +20419,8 @@
       "verrouille": "Trop d’essais : ce numéro est bloqué un moment. Réessayez plus tard.",
       "bloque": "Ce compte est suspendu.",
       "codeInvalide": "Ce n’est pas le bon code. Vérifiez-le, ou demandez-en un autre.",
-      "appelIndisponible": "L’appel n’est pas disponible pour le moment. Renvoyez le code par SMS."
+      "appelIndisponible": "L’appel n’est pas disponible pour le moment. Renvoyez le code par SMS.",
+      "codeInvalideEssais": "{n, plural, =0 {Ce n’est pas le bon code. Il ne vous reste plus d’essai : demandez un nouveau code.} one {Ce n’est pas le bon code. Il vous reste # essai avant d’en demander un autre.} other {Ce n’est pas le bon code. Il vous reste # essais avant d’en demander un autre.}}"
     },
     "rejoindre": "Rejoindre {agence}",
     "meConnecter": "Me connecter",
@@ -20462,7 +20463,8 @@
         "loyers": "Vos loyers et versements",
         "loyersDetail": "Ce qui est encaissé, ce qui vous est reversé, et quand",
         "quittances": "Vos quittances",
-        "quittancesDetail": "Chaque mois, sans les demander"
+        "quittancesDetail": "Chaque mois, sans les demander",
+        "vignettes": "Vos biens suivis par l’agence"
       },
       "tenant": {
         "bail": "Votre bail",
@@ -20502,7 +20504,10 @@
       "libelle": "Votre numéro",
       "aideSms": "Donné par {agence}. C’est avec lui que vous vous connecterez.",
       "aideSmsSans": "Donné par l’agence. C’est avec lui que vous vous connecterez.",
-      "aideEmail": "Vous vous connecterez avec ce numéro : le code y est envoyé."
+      "aideEmail": "Vous vous connecterez avec ce numéro : le code y est envoyé.",
+      "modifierLibelle": "Modifier le numéro",
+      "garder": "Garder le numéro donné par {agence}",
+      "garderSans": "Garder le numéro donné par l’agence"
     },
     "code": {
       "retour": "Retour",
@@ -20545,7 +20550,8 @@
       "compte": "Compte connecté",
       "pasMoi": "Ce n’est pas moi — changer de compte",
       "changer": "Changer de compte",
-      "sansNom": "Votre compte n’a pas encore de nom : {agence} a proposé celui-ci. Confirmez-le ou corrigez-le."
+      "sansNom": "Votre compte n’a pas encore de nom : {agence} a proposé celui-ci. Confirmez-le ou corrigez-le.",
+      "barre": "Compte connecté : {nom}"
     },
     "motDePasse": {
       "afficher": "Afficher le mot de passe",
@@ -20561,7 +20567,9 @@
         "envoyee": "Demande envoyée. {agence} peut maintenant vous renvoyer une invitation.",
         "envoyeeSans": "Demande envoyée. L’agence peut maintenant vous renvoyer une invitation.",
         "trop": "Trop de demandes. Réessayez dans un moment.",
-        "echec": "La demande n’est pas partie. Réessayez."
+        "echec": "La demande n’est pas partie. Réessayez.",
+        "texteInvitant": "{prenom} vous avait invité chez {agence} le {date}. Les invitations restent valables 7 jours. Rien n’est perdu : l’agence peut vous en renvoyer une en un geste.",
+        "texteInvitantSans": "{prenom} vous avait invité le {date}. Les invitations restent valables 7 jours. Rien n’est perdu : l’agence peut vous en renvoyer une en un geste."
       },
       "annulee": {
         "titre": "Cette invitation a été annulée",
@@ -20594,6 +20602,15 @@
     },
     "sortie": {
       "reprise": "Rien n’est encore enregistré. Le lien de votre invitation vous ramènera ici tant qu’elle reste valable."
+    },
+    "aide": {
+      "court": "Aide",
+      "long": "Besoin d’aide ?",
+      "titre": "Besoin d’aide ?",
+      "texte": "{agence} répond à vos questions sur cette invitation.",
+      "appeler": "Appeler {agence}",
+      "whatsapp": "Écrire à {agence} sur WhatsApp",
+      "messageWhatsApp": "Bonjour {agence}, j’ai reçu votre invitation sur Takussan et j’ai une question."
     }
   },
   "radarClaim": {

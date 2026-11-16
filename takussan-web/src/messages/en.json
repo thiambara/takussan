@@ -20419,7 +20419,8 @@
       "verrouille": "Too many attempts: this number is blocked for a while. Try again later.",
       "bloque": "This account is suspended.",
       "codeInvalide": "That is not the right code. Check it, or ask for another one.",
-      "appelIndisponible": "Calls are not available right now. Resend the code by text message."
+      "appelIndisponible": "Calls are not available right now. Resend the code by text message.",
+      "codeInvalideEssais": "{n, plural, =0 {That’s not the right code. You have no attempts left: request a new code.} one {That’s not the right code. You have # attempt left before requesting another one.} other {That’s not the right code. You have # attempts left before requesting another one.}}"
     },
     "rejoindre": "Join {agence}",
     "meConnecter": "Sign in",
@@ -20462,7 +20463,8 @@
         "loyers": "Your rents and payouts",
         "loyersDetail": "What is collected, what is paid out to you, and when",
         "quittances": "Your rent receipts",
-        "quittancesDetail": "Every month, without asking"
+        "quittancesDetail": "Every month, without asking",
+        "vignettes": "Your properties managed by the agency"
       },
       "tenant": {
         "bail": "Your lease",
@@ -20502,7 +20504,10 @@
       "libelle": "Your number",
       "aideSms": "Given by {agence}. It is the number you will sign in with.",
       "aideSmsSans": "Given by the agency. It is the number you will sign in with.",
-      "aideEmail": "You will sign in with this number: the code is sent to it."
+      "aideEmail": "You will sign in with this number: the code is sent to it.",
+      "modifierLibelle": "Change the number",
+      "garder": "Keep the number given by {agence}",
+      "garderSans": "Keep the number given by the agency"
     },
     "code": {
       "retour": "Back",
@@ -20545,7 +20550,8 @@
       "compte": "Signed-in account",
       "pasMoi": "Not me — switch account",
       "changer": "Switch account",
-      "sansNom": "Your account has no name yet: {agence} suggested this one. Confirm or correct it."
+      "sansNom": "Your account has no name yet: {agence} suggested this one. Confirm or correct it.",
+      "barre": "Signed in as {nom}"
     },
     "motDePasse": {
       "afficher": "Show password",
@@ -20561,7 +20567,9 @@
         "envoyee": "Request sent. {agence} can now send you a new invitation.",
         "envoyeeSans": "Request sent. The agency can now send you a new invitation.",
         "trop": "Too many requests. Try again in a moment.",
-        "echec": "The request was not sent. Try again."
+        "echec": "The request was not sent. Try again.",
+        "texteInvitant": "{prenom} invited you to {agence} on {date}. Invitations stay valid for 7 days. Nothing is lost: the agency can send you a new one in one step.",
+        "texteInvitantSans": "{prenom} invited you on {date}. Invitations stay valid for 7 days. Nothing is lost: the agency can send you a new one in one step."
       },
       "annulee": {
         "titre": "This invitation was cancelled",
@@ -20594,6 +20602,15 @@
     },
     "sortie": {
       "reprise": "Nothing has been saved yet. Your invitation link will bring you back here for as long as it is valid."
+    },
+    "aide": {
+      "court": "Help",
+      "long": "Need help?",
+      "titre": "Need help?",
+      "texte": "{agence} can answer your questions about this invitation.",
+      "appeler": "Call {agence}",
+      "whatsapp": "Message {agence} on WhatsApp",
+      "messageWhatsApp": "Hello {agence}, I received your invitation on Takussan and I have a question."
     }
   },
   "radarClaim": {

@@ -5,14 +5,18 @@ import { useAuth } from '@/context/AuthContext';
 import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type {
+  ApercuDuReleve,
   BankLineDirection,
   BankLineMatchStatus,
   BankStatement,
   BankStatementLine,
   CsvMapping,
   FiltreDuReste,
+  FormatsPrisEnCharge,
   MatchCandidate,
   MatchedPaymentType,
+  MotifDIgnorer,
+  PaiementIgnore,
   PendingPayment,
   ReconciliationOverview,
 } from '@/types/reconciliation';
@@ -50,6 +54,10 @@ export const reconciliationKeys = {
     ['reconciliation', 'pending-with-suggestion', agencyId, period] as const,
   lineSearch: (agencyId: number, amount: number | null, dateFrom: string | null) =>
     ['reconciliation', 'line-search', agencyId, amount, dateFrom] as const,
+  // TCK-2933 — les paiements ignorés du mois (sous la racine : « Ignorer » et « Rétablir » la relisent).
+  ignored: (agencyId: number, period: string) => ['reconciliation', 'ignored', agencyId, period] as const,
+  // Hors de la racine : les formats ne changent pas avec un geste du rapprochement.
+  formats: (agencyId: number) => ['reconciliation-formats', agencyId] as const,
 };
 
 /**
@@ -347,5 +355,63 @@ export function useDelierLigne() {
   return useApiMutation<ApiResponse<BankStatementLine>, number>(
     { path: (lineId) => cheminApi`/api/bank-statement-lines/${lineId}/match`, method: 'DELETE', body: () => undefined },
     { invalidate: INVALIDER_LE_RAPPROCHEMENT, relireSurErreur: true },
+  );
+}
+
+
+/* ─────────────── TCK-2933 — ignorer un paiement, aperçu avant import, formats lus (TCK-2932) ─────────────── */
+
+export interface IgnorerPayload {
+  payable_type: PendingPayment['type'];
+  payable_id: number;
+  reason: MotifDIgnorer;
+  /** Exigée pour `other` (500 caractères au plus) ; jamais envoyée sinon. */
+  note?: string;
+}
+
+/** « Ignorer » : sort le paiement du reste à rapprocher. Le `data.id` rendu est celui que « Annuler » défait. */
+export function useIgnorerPaiement(agencyId: number) {
+  return useApiMutation<ApiResponse<PaiementIgnore>, IgnorerPayload>(
+    { path: cheminApi`/api/agencies/${agencyId}/reconciliation/ignored-payments`, method: 'POST' },
+    { invalidate: INVALIDER_LE_RAPPROCHEMENT, relireSurErreur: true },
+  );
+}
+
+/** « Annuler » (toast) ou « Rétablir » : le paiement revient au reste à rapprocher (204). */
+export function useRetablirPaiement(agencyId: number) {
+  return useApiMutation<null, number>(
+    {
+      path: (id) => cheminApi`/api/agencies/${agencyId}/reconciliation/ignored-payments/${id}`,
+      method: 'DELETE',
+      body: () => undefined,
+    },
+    { invalidate: INVALIDER_LE_RAPPROCHEMENT, relireSurErreur: true },
+  );
+}
+
+/** Les gestes « Ignorer » encore en effet sur le mois : la seule voie vers l'`id` après un rechargement. */
+export function usePaiementsIgnores(agencyId: number, period: string, enabled: boolean) {
+  return useApiQuery<PaginatedResponse<PaiementIgnore>>(
+    reconciliationKeys.ignored(agencyId, period),
+    cheminApi`/api/agencies/${agencyId}/reconciliation/ignored-payments`,
+    { params: { per_page: 100, extra: { period } }, enabled },
+  );
+}
+
+/** Ce que l'import lirait du fichier, sans rien écrire : aucune invalidation. */
+export function useApercuDuReleve(agencyId: number) {
+  return useApiMutation<ApiResponse<ApercuDuReleve>, FormData>({
+    path: cheminApi`/api/agencies/${agencyId}/bank-statements/preview`,
+    method: 'POST',
+    formData: true,
+  });
+}
+
+/** Les formats que l'import lit et les banques à préréglage éprouvé (liste vide tant que D-67 tient). */
+export function useFormatsPrisEnCharge(agencyId: number) {
+  return useApiQuery<ApiResponse<FormatsPrisEnCharge>>(
+    reconciliationKeys.formats(agencyId),
+    cheminApi`/api/agencies/${agencyId}/reconciliation/supported-formats`,
+    { staleTime: 60 * 60 * 1000 },
   );
 }
