@@ -253,33 +253,54 @@ class BankStatementSeeder extends Seeder
      * Ce qui n'arrivera jamais sur ce compte, sorti du reste à rapprocher par l'agence : un loyer payé en
      * espèces au bureau, et un loyer encaissé sur le compte Free Money de l'agence — le plus récent des
      * trois mois de relevés, pour chacun.
+     *
+     * TCK-2381 (CI de #1688) — ces deux moyens pèsent 15 % des loyers, tirés à des dates relatives au jour
+     * du seed : sur trois mois d'une petite agence, il arrive qu'aucun ne tombe (mesuré en CI, agence 1524),
+     * et la table restait vide pour elle. Repli déterministe : le plus récent loyer encaissé AVANT le premier
+     * relevé importé n'aura jamais de ligne non plus (il est arrivé sur l'ancien compte) ; l'agence le sort.
+     * Une agence qui n'a encaissé aucun loyer n'a rien à sortir.
      */
     private function horsDuCompte(Agency $agency, User $admin): void
     {
         $courant = CarbonImmutable::now()->startOfMonth();
-        foreach (self::HORS_DU_COMPTE as $moyen => [$motif, $note]) {
-            $paiement = LeasePayment::query()->awaitingBankCredit((int) $agency->id)
-                ->where('status', PaymentStatus::Paid->value)
-                ->where('payment_method', $moyen)
-                ->whereBetween('paid_at', [$courant->subMonths(self::MOIS), $courant])
-                ->orderByDesc('paid_at')
-                ->orderByDesc('id')
-                ->first();
-            if ($paiement === null
-                || ReconciliationIgnoredPayment::query()->where('payable_type', LeasePayment::class)->where('payable_id', $paiement->id)->exists()) {
-                continue;
-            }
+        $premierReleve = $courant->subMonths(self::MOIS);
+        $aRapprocher = fn () => LeasePayment::query()->awaitingBankCredit((int) $agency->id)
+            ->where('status', PaymentStatus::Paid->value)
+            ->whereNotNull('paid_at')
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('reconciliation_ignored_payments as r')
+                ->where('r.payable_type', LeasePayment::class)
+                ->whereColumn('r.payable_id', 'lease_payments.id'))
+            ->orderByDesc('paid_at')
+            ->orderByDesc('id');
 
-            $le = CarbonImmutable::parse($paiement->paid_at)->endOfMonth()->addDays(6)->setTime(11, 0)->min(CarbonImmutable::now()->subHour());
-            Timeline::aLaDate($le, fn () => $this->ignored->ignore(
-                $agency,
-                (string) array_search(LeasePayment::class, ReconciliationOverviewService::PAYMENT_TYPES, true),
-                (int) $paiement->id,
-                $motif,
-                $note,
-                $admin,
-            ));
+        $sortis = 0;
+        foreach (self::HORS_DU_COMPTE as $moyen => [$motif, $note]) {
+            $paiement = $aRapprocher()->where('payment_method', $moyen)->whereBetween('paid_at', [$premierReleve, $courant])->first();
+            if ($paiement !== null) {
+                $this->sortir($agency, $admin, $paiement, $motif, $note, CarbonImmutable::parse($paiement->paid_at)->endOfMonth()->addDays(6));
+                $sortis++;
+            }
         }
+        if ($sortis > 0 || ReconciliationIgnoredPayment::query()->where('agency_id', $agency->id)->exists()) {
+            return;
+        }
+
+        $ancien = $aRapprocher()->where('paid_at', '<', $premierReleve)->first();
+        if ($ancien !== null) {
+            $this->sortir($agency, $admin, $ancien, IgnoredPaymentReason::OtherAccount, 'Encaissé sur l\'ancien compte, avant le premier relevé importé', $premierReleve->endOfMonth()->addDays(6));
+        }
+    }
+
+    private function sortir(Agency $agency, User $admin, LeasePayment $paiement, IgnoredPaymentReason $motif, string $note, CarbonImmutable $le): void
+    {
+        Timeline::aLaDate($le->setTime(11, 0)->min(CarbonImmutable::now()->subHour()), fn () => $this->ignored->ignore(
+            $agency,
+            (string) array_search(LeasePayment::class, ReconciliationOverviewService::PAYMENT_TYPES, true),
+            (int) $paiement->id,
+            $motif,
+            $note,
+            $admin,
+        ));
     }
 
     private function champ(string $valeur): string

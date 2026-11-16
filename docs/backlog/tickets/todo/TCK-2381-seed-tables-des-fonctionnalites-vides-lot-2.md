@@ -116,7 +116,9 @@ _(à remplir par implementing-specs)_
   apparié par le matcher, tous deux joués en ligne (`handle()`) : la file `sync` diffère ses jobs à la validation
   de la transaction englobante, et la revue qui suit trouvait un relevé encore `processing`. Lignes = encaissements reçus sur le compte (`expectedBankAmount()`, référence du paiement)
   + reversements émis (net) + frais bancaires ignorés ; espèces et Free Money sortis du reste à rapprocher
-  (`reconciliation_ignored_payments`). Deux mois clôturés, le dernier en revue avec un tiers des propositions.
+  (`reconciliation_ignored_payments`) ; à défaut sur les trois mois (CI de #1688 : agence sans espèces ni Free
+  Money, ces moyens tirés à des dates relatives au jour du seed), le dernier loyer encaissé avant le premier relevé
+  importé, qui n'aura jamais de ligne. Deux mois clôturés, le dernier en revue avec un tiers des propositions.
 - `PayoutSeeder` pose désormais la copie de ligne au pivot (TCK-2017) : sans elle `recordRefund()` n'écrit
   aucune reprise. La commission d'un reversement semé est la somme de celles des lignes. Le remboursement suit le
   dernier reversement du bailleur : la reprise reste due, aucun reversement semé ne l'impute.
