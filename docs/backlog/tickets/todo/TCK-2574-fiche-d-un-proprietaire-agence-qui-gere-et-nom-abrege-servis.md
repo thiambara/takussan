@@ -55,26 +55,29 @@ n'y est jamais exposée au-delà d'un nom abrégé (« Sokhna G. »).
 
 ## Delta à produire
 
-- [ ] Sur la fiche d'un propriétaire, servir l'agence qui gère ses biens publics (`id`, `name`,
-  `slug`) — sous une clé distincte de `agency` (qui reste le rattachement de la personne), ou
-  `null` quand ses biens publics relèvent de plusieurs agences ou d'aucune. La règle de choix
-  s'écrit dans le ticket au moment de l'implémenter, pas dans le front.
-- [ ] Pour un propriétaire, ne plus servir `last_name` ni le nom complet : `full_name` abrégé
+- [x] Sur la fiche d'un propriétaire, servir l'agence qui gère ses biens publics (`id`, `name`,
+  `slug`) — sous une clé distincte de `agency` (qui reste le rattachement de la personne) :
+  `managing_agency`. La règle de choix (réécrite le 2026-11-16, cf. AC2) est celle que l'annuaire
+  servait déjà : l'agence la plus fréquente, `null` s'il n'y en a aucune.
+- [x] Pour un propriétaire, ne plus servir `last_name` ni le nom complet : `full_name` abrégé
   (« Sokhna G. »), `last_name` absent ou réduit à l'initiale. L'agent (`public_role: agent`) garde
   son nom complet.
-- [ ] Même règle sur la liste `GET /api/public/agents` (ligne d'annuaire d'un propriétaire listé) —
+- [x] Même règle sur la liste `GET /api/public/agents` (ligne d'annuaire d'un propriétaire listé) —
   y compris dire s'il faut **remplacer** la règle majoritaire actuelle de la liste
   (`PublicProfileFacts::agences()`) par celle de l'AC2 (`null` si plusieurs agences), ou la garder.
-- [ ] Front : lire la nouvelle clé dans `agents/[slug]/page.tsx` (aujourd'hui
+- [x] Front : lire la nouvelle clé dans `agents/[slug]/page.tsx` (aujourd'hui
   `agenceDuProprietaire = !estAgent ? agent.agency : null`).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un propriétaire dont tous les biens publics sont gérés par Dakar Immo : la réponse porte
+- [x] AC1 — Un propriétaire dont tous les biens publics sont gérés par Dakar Immo : la réponse porte
   Dakar Immo comme agence de gestion, et la fiche rend « Écrire à l'agence » vers `/agencies/dakar-immo`.
-- [ ] AC2 — Biens publics de deux agences, ou d'aucune : la clé vaut `null`, et la fiche garde le
-  formulaire anonyme du propriétaire.
-- [ ] AC3 — Le JSON de la fiche et de la liste d'un propriétaire ne contient pas son nom de famille
+- [x] AC2 — *(réécrit le 2026-11-16 : la règle de la liste fait foi, cf. « Livré »)* La clé
+  `managing_agency` vaut, sur la fiche ET sur la liste, la même agence : parmi ses biens publics qui
+  ont une agence, l'agence active et `standard` la plus fréquente, à égalité la plus petite `id`.
+  Les biens sans agence ne comptent pas. Aucune agence (ou seulement un espace `individual`) :
+  `null`, et la fiche garde le formulaire anonyme du propriétaire.
+- [x] AC3 — Le JSON de la fiche et de la liste d'un propriétaire ne contient pas son nom de famille
   (balayage de la réponse) ; celui d'un agent le contient.
 - [ ] AC4 — (front + API) La fiche d'un propriétaire géré par une agence propose de contacter l'agence :
   sur la vraie API, « Écrire à l'agence » mène à `/agencies/<slug>` de l'agence qui gère ses biens.
@@ -92,3 +95,25 @@ n'y est jamais exposée au-delà d'un nom abrégé (« Sokhna G. »).
   propriétaire. TCK-2523 est livré sans lui : la fiche d'un propriétaire garde son formulaire. Le
   front sait déjà rendre le renvoi (`agenceDuProprietaire`, `agents/[slug]/page.tsx`) ; il suffit d'y
   brancher la nouvelle clé.
+
+## Livré (2026-11-16)
+
+- **AC2 réécrit — la règle majoritaire de la liste est gardée** (décision de la session : cohérence
+  liste ↔ fiche). « `null` si plusieurs » aurait retiré à la liste une agence qu'elle sert depuis
+  TCK-436 et privé de renvoi un propriétaire dont une agence gère presque tout ; la majoritaire gère
+  bien ses biens, ce qui tient l'objectif. Une seule source, `PublicProfileFacts::agences()`, lue par
+  la fiche (`managing_agency`) et la liste (`agency`, inchangée, et `managing_agency`, même valeur).
+  Conséquence assumée : 7 biens sans agence + 1 sous Dakar Immo → Dakar Immo.
+- **`agences()` exclut désormais les espaces `individual`** : leur page `/agencies/…` rend 404, et le
+  renvoi aurait remplacé le formulaire par un lien mort. Vaut aussi pour la liste.
+- **Nom** : `PublicProfileFacts::nomPublic()` — propriétaire `last_name: "Z."`, `full_name: "Sokhna Z."` ;
+  agent inchangé. L'initiale plutôt que l'absence : `nomAbrege` côté front la garde.
+- **Recherche de l'annuaire** : `users.last_name` n'est plus cherchable que chez un agent en exercice
+  (même prédicat que `rolesPublics()`) — sinon une recherche préfixe reconstituait le nom.
+- Preuves : `tests/Feature/Public/FicheProprietaireAgenceDeGestionTest.php` (AC1, AC2 ×3, AC3 ×2,
+  chaque cas lu sur les deux surfaces) ; ablations rouges : abréviation, `kind`, recherche, nom de la
+  fiche seul, nom de la liste seul, `managing_agency` de la fiche. Front :
+  `agents/[slug]/__tests__/page.server.test.tsx` (renvoi par `managing_agency`, pas par `agency` —
+  ablation rouge).
+- **AC4 non coché** : la partie API et la partie front sont prouvées séparément, mais « sur la vraie
+  API » n'a pas été mesuré (API locale éteinte au moment de livrer).

@@ -274,6 +274,7 @@ describe('fiche d’un propriétaire sous /agents — TCK-573', () => {
       years_of_experience: null,
       // Un propriétaire rattaché à une agence ne devient pas pour autant « Agent chez » elle.
       agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' },
+      managing_agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' },
     });
 
   beforeEach(() => {
@@ -584,7 +585,8 @@ describe('TCK-2523 · AC3 — la fiche d’un propriétaire sur option (décisio
   });
 
   it('l’agence qui gère ses biens connue : le contact vise l’agence, et l’encart y mène', async () => {
-    await rendreFiche(sokhna({ agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' } }));
+    // TCK-2574 — la clé que l'API sert pour l'agence de gestion, distincte de `agency`.
+    await rendreFiche(sokhna({ managing_agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' } }));
 
     expect(screen.getByTestId('contact')).toHaveAttribute('data-role', 'agence:dakar-immo');
     expect(screen.getAllByText(/Ses biens sont gérés par Dakar Immo/).length).toBeGreaterThan(0);
@@ -596,11 +598,24 @@ describe('TCK-2523 · AC3 — la fiche d’un propriétaire sur option (décisio
     expect(JSON.parse(screen.getByTestId('contact').getAttribute('data-fiche') ?? 'null')).toEqual({ genre: 'personne', id: 42, role: 'owner' });
   });
 
-  it('agence inconnue (l’API ne la sert pas encore, TCK-2574) : le formulaire anonyme du propriétaire, sans encart', async () => {
-    await rendreFiche(sokhna());
+  it('aucune agence de gestion (`managing_agency: null`) : le formulaire anonyme du propriétaire, sans encart', async () => {
+    await rendreFiche(sokhna({ managing_agency: null }));
 
     expect(screen.getByTestId('contact')).toHaveAttribute('data-role', 'owner');
     expect(screen.queryByText(/Ses biens sont gérés par/)).not.toBeInTheDocument();
+  });
+
+  it('TCK-2574 — `agency` (le rattachement de la personne) ne suffit pas : seule `managing_agency` renvoie à l’agence', async () => {
+    await rendreFiche(sokhna({ agency: { id: 3, name: 'Dakar Immo', slug: 'dakar-immo' }, managing_agency: null }));
+
+    expect(screen.getByTestId('contact')).toHaveAttribute('data-role', 'owner');
+    expect(screen.queryByText(/Ses biens sont gérés par/)).not.toBeInTheDocument();
+  });
+
+  it('TCK-2574 — la forme que l’API sert désormais (« G. », « Sokhna G. ») s’affiche « Sokhna G. »', async () => {
+    await rendreFiche(sokhna({ last_name: 'G.', full_name: 'Sokhna G.' }));
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Sokhna G.' })).toBeInTheDocument();
   });
 
   it('le contrôle : un agent garde son nom entier et son numéro vérifié', async () => {
