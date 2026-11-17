@@ -1,6 +1,6 @@
 # ADR-0128 — Le fil est l'interface des objets : un fil rattaché à son objet, des cartes relues pour chaque lecteur, un seul chemin d'écriture
 
-- **Statut** : Accepté le 2026-11-17 (décisions du porteur : architecture A, salles du bail et de la réservation, apartés d'équipe — « je valide toutes tes recommandations »)
+- **Statut** : Accepté le 2026-11-17 (décisions du porteur : architecture A, salles du bail et de la réservation, apartés d'équipe — « je valide toutes tes recommandations ») — modalités : décisions de la session, à revoir au choix des maquettes
 - **Date** : 2026-11-17
 - **Tickets** : à écrire par lot, d'après le [plan « Le Fil »](../plans/2026-11-17-le-fil.md)
 - **Va avec** : [ADR-0129](0129-le-socle-temps-reel-signale-et-l-api-sert.md) (le socle temps réel)
@@ -56,14 +56,20 @@ de l'objet, jamais par une route de la messagerie.**
 - **Un bail** a une salle (`type = lease`, sujet = le bail), dont les membres sont le compte du
   locataire (s'il en a un), le bailleur désigné (`landlord_id`) et l'agent attribué (`agent_id`).
 - **Une réservation** a une salle (`type = booking`, sujet = la réservation), dont les membres sont
-  le candidat et l'agent qui la suit.
+  le compte du candidat (`bookings.customer_id` → `customers.user_id`) et le **contact principal du
+  bien** (`PrimaryPropertyContact`, ADR-0053) : une réservation n'a pas de colonne d'agent, et la
+  salle suit le contact principal comme le fil d'un prospect (ADR-0068).
 - Une salle est **unique par sujet** (index unique partiel sur `subject_type`, `subject_id` pour
   ces types) et se crée par `insertOrIgnore` (une violation d'unicité abandonnerait la transaction
   PostgreSQL).
 - Les membres sont **synchronisés** à chaque changement des parties, sur le patron de
   `SyncMaintenanceConversation`. L'accès est jugé comme pour un fil d'intervention :
   `ConversationAccess` gagne une branche par sujet, *participation active **et** lecture de
-  l'objet*. Un bail fini garde la lecture et perd l'écriture (règle de TCK-2374).
+  l'objet*. Un bail fini garde la lecture et perd l'écriture (règle de TCK-2374). Un bailleur parti
+  ou suspendu reste membre en lecture seule, selon la règle des contextes fermés
+  (`ConversationAccess::contexteFerme`, `contextAllowsWriting`, TCK-2753).
+- La visite et l'état des lieux n'ont **pas** de salle : ils parlent dans la salle de leur bail ou de
+  leur réservation, ou dans le fil du prospect. Leur en donner une est une décision à part.
 - Une salle ne remplace pas la fiche client comme dossier commercial (ADR-0101) : c'est le canal de
   coordination entre les parties.
 
@@ -75,8 +81,8 @@ de l'objet, jamais par une route de la messagerie.**
   - **`event`** : la plateforme écrit qu'un objet a changé (échéance, paiement reçu, devis soumis,
     état des lieux à signer). `system` reste pour les événements du fil lui-même.
 - Le `metadata` d'une carte ou d'un événement est **fermé** :
-  `{objet: {type, id}, code, donnees}`. `type` est un type du registre, `code` un code d'événement
-  connu, et `donnees` ne porte **que** ce que tout participant peut lire. Un montant, un coût, un
+  `{object: {type, id}, code, data}`. `type` est un type du registre, `code` un code d'événement
+  connu, et `data` ne porte **que** ce que tout participant peut lire. Un montant, un coût, un
   téléphone ou une adresse n'y sont jamais.
 - **Le contenu est relu à l'affichage** : la ressource du message résout l'objet par le registre,
   applique sa politique (`view`) pour **le lecteur**, et rend la projection de l'objet que ce
@@ -97,22 +103,23 @@ de l'objet, jamais par une route de la messagerie.**
 
 ### 5. Un événement ne compte comme non lu que pour qui doit agir
 
-- Un événement porte `geste_pour` : la liste des comptes dont l'objet attend un geste, calculée à
+- Un événement porte `action_for` : la liste des comptes dont l'objet attend un geste, calculée à
   l'émission (le donneur d'ordre pour un devis soumis, le locataire pour un loyer dû).
 - Le compte des non-lus (`ConversationController::index`, `$nonLus`) compte un message `event`
-  seulement si le lecteur figure dans `geste_pour`. Tout autre événement s'affiche replié et ne
+  seulement si le lecteur figure dans `action_for`. Tout autre événement s'affiche replié et ne
   compte jamais. La règle actuelle (message d'un autre, hors avis système, hors message supprimé)
   ne change pas pour les autres types.
 
 ### 6. Les apartés d'équipe : un message que seul le personnel du fil lit
 
-- `messages` gagne `visibilite` : `tous` (défaut) ou `equipe`.
-- Un message `equipe` n'est lu, écrit, compté, notifié et retrouvé par la recherche **que** par les
+- `messages` gagne `visibility` : `all` (défaut) ou `team`.
+- Un message `team` n'est lu, écrit, compté, notifié et retrouvé par la recherche **que** par les
   participants qui sont personnel actif de l'agence du fil (l'agence de son sujet, sinon de son bien
   ou de son bail). Pour tout autre lecteur, il n'existe pas : ni dans la liste des messages, ni dans
   les non-lus, ni dans les accusés de lecture, ni dans l'index de recherche (filtre Meilisearch
   sur la visibilité), ni dans les notifications, ni sur le pont WhatsApp ou SMS, ni dans le
-  copilote.
+  copilote, ni dans l'indicateur « en train d'écrire » : écrire une note d'équipe n'émet aucun
+  message éphémère sur le canal de présence du fil (ADR-0129 § 2).
 - **Un aparté ne met jamais à jour l'aperçu commun de la liste** (`last_message_*`).
 - Le filtre vit **dans** `ConversationAccess` (requête des messages), pas dans chaque contrôleur.
   Un test par chemin de lecture, vérifié par ablation, garde la non-fuite.
@@ -125,8 +132,8 @@ de l'objet, jamais par une route de la messagerie.**
   à la lecture, à partir du dernier message compté et des engagements. Il n'y a aucune colonne
   d'état.
 - Deux colonnes seulement :
-  - `conversation_participants.rappel_le` : « Rappelez-le-moi », un état propre au lecteur ;
-  - `conversations.attribue_a` : la personne de l'agence qui suit le fil.
+  - `conversation_participants.snoozed_until` : « Rappelez-le-moi », un état propre au lecteur ;
+  - `conversations.assigned_to_id` : la personne de l'agence qui suit le fil.
 - **L'attribution vaut pour les salles et les groupes, pas pour le fil d'un prospect.** Ce
   dernier suit le contact principal du bien (ADR-0068) : pour le confier à quelqu'un d'autre, on
   change le contact principal.
@@ -170,9 +177,9 @@ de l'objet, jamais par une route de la messagerie.**
 ## Application
 
 - Registre `App\Services\Messaging\SujetsDuFil`, projections par type, branches de
-  `ConversationAccess`, `MessageType::Card` et `MessageType::Event`, colonne `messages.visibilite`.
+  `ConversationAccess`, `MessageType::Card` et `MessageType::Event`, colonne `messages.visibility`.
 - Gardes :
   - un test d'architecture : tout `metadata` de carte ou d'événement respecte la forme fermée, et
-    `donnees` ne contient aucune clé interdite (montant, coût, téléphone, adresse) ;
+    `data` ne contient aucune clé interdite (montant, coût, téléphone, adresse) ;
   - un test par type du registre : un non-lecteur reçoit `indisponible` ;
   - une matrice de non-fuite des apartés, un test par chemin de lecture, vérifiée par ablation.

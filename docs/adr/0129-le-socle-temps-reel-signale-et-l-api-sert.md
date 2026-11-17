@@ -1,6 +1,6 @@
 # ADR-0129 — Le socle temps réel signale, l'API sert : Reverb sur le VPS, des signaux sans donnée, des canaux par objet tenus par un registre
 
-- **Statut** : Accepté le 2026-11-17 (décisions du porteur : Reverb hébergé sur le VPS (1a), le signal seul (2a) ; « poser des bases solides qui facilitent la réutilisabilité »)
+- **Statut** : Accepté le 2026-11-17 (décisions du porteur : Reverb hébergé sur le VPS (1a), le signal seul (2a) ; « poser des bases solides qui facilitent la réutilisabilité ») — modalités : décisions de la session, à revoir
 - **Date** : 2026-11-17
 - **Tickets** : lot 0 du [plan « Le Fil »](../plans/2026-11-17-le-fil.md)
 - **Va avec** : [ADR-0128](0128-le-fil-est-l-interface-des-objets.md) (le fil est l'interface des objets)
@@ -27,7 +27,11 @@ Relevé sur `dev` (`54adc70f5`) le 2026-11-17 :
   que `api/*`. Un appel du navigateur y finirait en `net::ERR_FAILED`, le piège du préfixe que
   `CLAUDE.md` décrit déjà.
 - **Le navigateur tient déjà le jeton Sanctum** (`AuthContext`, `token`) pour ses appels directs à
-  l'API. Il le tient aussi pendant une impersonation, où c'est le jeton de la cible.
+  l'API. **Pas pendant une impersonation** : ce jeton-là ne quitte jamais le serveur du front
+  (cookie httpOnly), et le navigateur passe par le relais `/api/impersonation/proxy`, en lecture
+  seule (`lib/impersonation.ts`, TCK-600).
+- `phpunit.xml` force `BROADCAST_CONNECTION=null` pour la suite, par-dessus le `log` de
+  `.env.example` que la CI utilise comme environnement de test.
 - **La file est en base, avec un seul worker par file** (ADR-0078). Un signal mis en file attend
   le prochain tour de ce worker, derrière les jobs qui le précèdent.
 
@@ -45,13 +49,13 @@ VPS, et le front retombe sur la relecture périodique quand il est absent.**
 ### 1. Un signal ne porte aucune donnée
 
 - Un événement diffusé a **une seule forme** :
-  `{sujet: "<type>:<id>", quoi: "<code>", curseur: "<horodatage ou version>"}`.
-  - `quoi` est un code connu (`message.cree`, `carte.modifiee`, `participants.modifies`…) ;
-  - `curseur` permet au front d'ignorer un signal plus ancien que ce qu'il a déjà lu.
+  `{subject: "<type>:<id>", event: "<code>", cursor: "<horodatage ou version>"}`.
+  - `event` est un code connu (`message.created`, `card.updated`, `participants.updated`…) ;
+  - `cursor` permet au front d'ignorer un signal plus ancien que ce qu'il a déjà lu.
 - Aucun contenu, montant, nom ou aperçu.
-- **Pourquoi c'est la règle centrale** : le protocole de Pusher, que parle Reverb, ne permet pas
-  au serveur de désabonner quelqu'un. Un participant qui perd ses droits garde son abonnement
-  jusqu'à sa déconnexion (changement de contact principal, ADR-0068 ; bail fini ; retrait d'un
+- **Pourquoi c'est la règle centrale** : l'autorisation d'un canal est jugée **à l'abonnement**,
+  et le socle ne compte sur aucun désabonnement forcé par le serveur. Un participant qui perd ses
+  droits peut donc garder son abonnement jusqu'à sa déconnexion (changement de contact principal, ADR-0068 ; bail fini ; retrait d'un
   groupe). Avec des signaux sans donnée, il n'apprend au pire que « le fil 123 a changé ». Sa
   relecture, elle, est refusée par l'API.
 
@@ -68,12 +72,13 @@ VPS, et le front retombe sur la relecture périodique quand il est absent.**
 - **Rendre un objet « en direct » = une ligne de registre**, et des appels à l'émetteur.
 - Les canaux de **présence** (`presence-sujet.{type}.{id}`) servent la présence et l'indicateur
   « en train d'écrire ». Ce dernier passe par des messages éphémères entre navigateurs
-  (*whispers*) : le serveur ne les stocke ni ne les journalise.
+  (*whispers*) : le serveur ne les stocke ni ne les journalise. Un message éphémère atteint **tous**
+  les abonnés du canal : écrire une note d'équipe (ADR-0128 § 6) n'en émet donc aucun.
 - `App.Models.User.{id}` est remplacé par `utilisateur.{id}`, et `NewMessage` est supprimé.
 
 ### 3. Un seul émetteur, après le COMMIT, sans jamais faire échouer la requête
 
-- Tout signal part par `TempsReel::signaler($modele, 'quoi')`, ou par le trait `EmetDesSignaux`
+- Tout signal part par `TempsReel::signaler($modele, 'event')`, ou par le trait `EmetDesSignaux`
   d'un modèle. Aucun autre code ne diffuse.
 - **L'émission attend le COMMIT** (`afterCommit`) : un signal ne précède jamais la donnée qu'il
   annonce, et une transaction annulée n'en émet aucun.
@@ -91,11 +96,13 @@ VPS, et le front retombe sur la relecture périodique quand il est absent.**
   Pusher, vers Reverb).
 - L'autorisation des canaux passe par **`POST /api/broadcasting/auth`**, sous `auth:sanctum` et la
   résolution du profil actif, avec le jeton de `AuthContext`. Les routes de diffusion quittent le
-  groupe `web` pour le préfixe `api` (piège du préfixe). Pendant une impersonation, c'est le jeton
-  de la cible : on écoute ce qu'elle lit.
+  groupe `web` pour le préfixe `api` (piège du préfixe).
+- **Pendant une impersonation, le temps réel est coupé** : le navigateur n'a pas de jeton à
+  présenter, l'opérateur ne doit ni paraître présent ni « écrire » chez la cible, et la session est
+  en lecture seule. L'écran tourne en mode dégradé (relecture par le relais).
 - Deux hooks seulement, que tout écran réutilise :
-  - `useSignal(sujet, rappel)`, la primitive ;
-  - `useSujetEnDirect(sujet, clésDeRequêtes)`, qui invalide les requêtes React Query nommées à
+  - `useSignal(subject, rappel)`, la primitive ;
+  - `useSujetEnDirect(subject, clésDeRequêtes)`, qui invalide les requêtes React Query nommées à
     chaque signal.
 - **Mode dégradé** : la relecture périodique actuelle reste le filet.
   - Connexion tenue : une relecture de sécurité toutes les 60 s.
@@ -168,7 +175,8 @@ VPS, et le front retombe sur la relecture périodique quand il est absent.**
 - Front : `TempsReelProvider`, `useSignal` et `useSujetEnDirect` sous `src/lib/temps-reel/`.
 - Gardes :
   - un test d'architecture : toute classe qui implémente `ShouldBroadcast` ou `ShouldBroadcastNow`
-    est `SignalTempsReel`, et son `broadcastWith` n'a que les trois clés ;
+    est `SignalTempsReel`, et son `broadcastWith` n'a que les trois clés (`subject`, `event`,
+    `cursor`) ;
   - un test par type du registre : un non-lecteur reçoit 403 à l'autorisation de son canal, vérifié
     par ablation ;
   - côté front, des tests des hooks avec un faux Echo : signal reçu, mode dégradé, reconnexion.
