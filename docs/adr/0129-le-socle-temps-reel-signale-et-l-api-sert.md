@@ -108,7 +108,7 @@ VPS, et le front retombe sur la relecture périodique quand il est absent.**
   - Connexion tenue : une relecture de sécurité toutes les 60 s.
   - Connexion perdue : les intervalles d'aujourd'hui (3 s, 10 s), jusqu'au retour.
   - À la reconnexion : une relecture immédiate de tous les sujets ouverts.
-- Sans Reverb (`NEXT_PUBLIC_TEMPS_REEL` absent), le front se comporte exactement comme aujourd'hui.
+- Sans Reverb (clés d'exécution `TEMPS_REEL_*` absentes), le front se comporte exactement comme aujourd'hui.
 
 ### 5. L'infrastructure : un service de plus dans la pile, Redis pour plusieurs instances
 
@@ -120,9 +120,18 @@ VPS, et le front retombe sur la relecture périodique quand il est absent.**
   fait l'objet d'un fichier sous `docs/deploiement/actions/` (ADR-0127).
 - **Plusieurs instances** : la diffusion entre instances passe par le Redis déjà présent dans la
   pile (`REVERB_SCALING_ENABLED`). Une seule instance suffit au départ.
-- **Clés** : `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, `REVERB_HOST`, `REVERB_PORT`,
-  `REVERB_SCHEME` côté API, `NEXT_PUBLIC_TEMPS_REEL_*` côté front. Elles entrent dans
-  `.env.example` et `.env.docker`, gardées par `check-env-parity`.
+- **Clés côté API** : `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, `REVERB_HOST`,
+  `REVERB_PORT`, `REVERB_SCHEME`, dans `.env.example` et `.env.docker` (`check-env-parity`). Elles
+  quittent la liste des « résidus » de `scripts/check-env-production.mjs`, entrent dans le gabarit
+  de l'API, et la règle qui exige `BROADCAST_CONNECTION=null` en production est amendée en le
+  sachant : elle vaut `reverb` là où le service tourne.
+- **Clés côté front** : **aucune `NEXT_PUBLIC_*`** (ADR-0069 § 3, `scripts/check-front-env-keys.mjs`) —
+  l'image du front ne porte aucun environnement. L'adresse et la clé publique de Reverb sont des
+  **clés d'exécution** (`TEMPS_REEL_URL`, `TEMPS_REEL_CLE`), lues par `src/lib/config-publique.ts`
+  et ajoutées à la liste fermée `ConfigPublique`, garde amendée en le sachant : la clé publique de
+  Reverb n'est pas un secret (le secret reste côté API). Elles entrent dans
+  `takussan-web/.env.example` et dans le gabarit du front, avec leur fichier d'action (ADR-0127).
+  Relevé par l'agent des tickets du lot 0, le 2026-11-17.
 - **Tests** : `BROADCAST_CONNECTION=null` reste la valeur de la suite. Les tests affirment les
   signaux par un faux émetteur, jamais par un serveur réel.
 
