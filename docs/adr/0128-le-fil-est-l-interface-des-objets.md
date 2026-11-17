@@ -1,6 +1,6 @@
 # ADR-0128 — Le fil est l'interface des objets : un fil rattaché à son objet, des cartes relues pour chaque lecteur, un seul chemin d'écriture
 
-- **Statut** : Accepté le 2026-11-17 (décisions du porteur : architecture A, salles du bail et de la réservation, apartés d'équipe — « je valide toutes tes recommandations ») — modalités : décisions de la session, à revoir au choix des maquettes
+- **Statut** : Accepté le 2026-11-17 (décisions du porteur : architecture A, salles du bail et de la réservation, notes d'équipe — « je valide toutes tes recommandations » ; le 2026-11-17 au soir : décisions 2a, 3a, 4a, 5a sur les maquettes) — modalités : décisions de la session, à revoir au choix des maquettes
 - **Date** : 2026-11-17
 - **Tickets** : à écrire par lot, d'après le [plan « Le Fil »](../plans/2026-11-17-le-fil.md)
 - **Va avec** : [ADR-0129](0129-le-socle-temps-reel-signale-et-l-api-sert.md) (le socle temps réel)
@@ -110,7 +110,9 @@ de l'objet, jamais par une route de la messagerie.**
   compte jamais. La règle actuelle (message d'un autre, hors avis système, hors message supprimé)
   ne change pas pour les autres types.
 
-### 6. Les apartés d'équipe : un message que seul le personnel du fil lit
+### 6. Les notes d'équipe : un message que seul le personnel du fil lit
+
+Le nom affiché est « Note d'équipe », pas « aparté » (décision 5a) : il dit qui la lira.
 
 - `messages` gagne `visibility` : `all` (défaut) ou `team`.
 - Un message `team` n'est lu, écrit, compté, notifié et retrouvé par la recherche **que** par les
@@ -120,20 +122,26 @@ de l'objet, jamais par une route de la messagerie.**
   sur la visibilité), ni dans les notifications, ni sur le pont WhatsApp ou SMS, ni dans le
   copilote, ni dans l'indicateur « en train d'écrire » : écrire une note d'équipe n'émet aucun
   message éphémère sur le canal de présence du fil (ADR-0129 § 2).
-- **Un aparté ne met jamais à jour l'aperçu commun de la liste** (`last_message_*`).
+- **Une note d'équipe ne met jamais à jour l'aperçu commun de la liste** (`last_message_*`).
 - Le filtre vit **dans** `ConversationAccess` (requête des messages), pas dans chaque contrôleur.
   Un test par chemin de lecture, vérifié par ablation, garde la non-fuite.
 - Les **@mentions** sont des identifiants de compte dans le `metadata` du message. Une mention ne
   notifie que si la personne mentionnée lit ce message.
 
-### 7. La boîte de pilotage se dérive, elle ne se stocke pas
+### 7. La boîte de pilotage se dérive ; seuls trois gestes se stockent
 
-- « À vous de répondre », « En attente de l'autre » et « Engagements en retard » sont **calculés**
-  à la lecture, à partir du dernier message compté et des engagements. Il n'y a aucune colonne
-  d'état.
-- Deux colonnes seulement :
+- « À vous de répondre », « En attente de l'autre », « Engagements en retard » et « À jour » sont
+  **calculés** à la lecture, à partir du dernier message compté, des engagements et des trois
+  colonnes ci-dessous. Il n'y a aucune colonne de file.
+- Trois colonnes seulement :
   - `conversation_participants.snoozed_until` : « Rappelez-le-moi », un état propre au lecteur ;
+  - `conversation_participants.handled_at` : « Marquer comme traité », un état propre au lecteur
+    (décision du porteur du 2026-11-17, 2a). Le fil sort de « À vous » et passe à « À jour »
+    jusqu'au prochain message compté postérieur à `handled_at` ;
   - `conversations.assigned_to_id` : la personne de l'agence qui suit le fil.
+- **La pastille de l'onglet Messages compte les gestes attendus** : « À vous » plus les engagements
+  en retard (décision 4a). C'est la même valeur que les puces « À vous » et « Retard » de la boîte.
+  Le non-lu du § 5 reste l'état d'un message ; la pastille, elle, dit ce qu'on attend du lecteur.
 - **L'attribution vaut pour les salles et les groupes, pas pour le fil d'un prospect.** Ce
   dernier suit le contact principal du bien (ADR-0068) : pour le confier à quelqu'un d'autre, on
   change le contact principal.
@@ -150,7 +158,7 @@ de l'objet, jamais par une route de la messagerie.**
 - **Ce que ça interdit** :
   - qu'un message porte une donnée qui dépend du lecteur ;
   - qu'un geste contourne la machine d'état d'un objet ;
-  - qu'un aparté atteigne un client par un chemin oublié.
+  - qu'une note d'équipe atteigne un client par un chemin oublié.
 - **Ce que ça rend possible** :
   - tout nouvel objet entre dans le fil par une ligne de registre et une projection ;
   - le copilote et le pont WhatsApp lisent les mêmes cartes, avec les mêmes droits ;
@@ -182,4 +190,4 @@ de l'objet, jamais par une route de la messagerie.**
   - un test d'architecture : tout `metadata` de carte ou d'événement respecte la forme fermée, et
     `data` ne contient aucune clé interdite (montant, coût, téléphone, adresse) ;
   - un test par type du registre : un non-lecteur reçoit `indisponible` ;
-  - une matrice de non-fuite des apartés, un test par chemin de lecture, vérifiée par ablation.
+  - une matrice de non-fuite des notes d'équipe, un test par chemin de lecture, vérifiée par ablation.
