@@ -34,6 +34,10 @@ Le même onglet sert l'API, qui signe, et `temps-reel`, qui vérifie : rien d'au
 
 - ⚠ **Ne PAS poser `REVERB_HOST`, `REVERB_PORT` ni `REVERB_SCHEME`** : `compose.api.yml` les écrit (l'alias
   `${API_ALIAS}-temps-reel`, le Reverb de CETTE pile), et l'onglet ne peut pas les changer.
+- ⚠ **`BROADCAST_CONNECTION=reverb` seulement une fois déployé un commit qui porte TCK-2956** — le signe : un
+  conteneur `temps-reel` existe dans la pile (`docker ps -a --filter name=temps-reel`). Sur un commit antérieur,
+  `compose.api.yml` n'écrit pas `REVERB_HOST` et l'API ne sait pas joindre le serveur. Les trois `REVERB_APP_*`, elles,
+  peuvent être posées avant : sans le pilote, rien ne les lit.
 - ⚠ **Jamais `BROADCAST_CONNECTION=reverb` sans les trois `REVERB_APP_*`.** Mesuré le 2026-11-18 : sur une image
   antérieure à TCK-2956, des clés ABSENTES font tomber toute commande et toute requête de l'API (`TypeError` du
   client Pusher au démarrage) — le `migrate` du release compris. Les trois ensemble, ou rien.

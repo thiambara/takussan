@@ -278,6 +278,11 @@ export type LeasePayment = {
    * gestion le constate par « Doublon remboursé ». Optionnel : une réponse antérieure ne le porte pas.
    */
   duplicate_refund_pending?: boolean;
+  /**
+   * TCK-2958 (ADR-0128 § 4) — les gestes du lecteur sur l'échéance, jugés par l'API ; rendus par
+   * l'échéancier du bail et repris par la carte du fil. Optionnel : une réponse antérieure ne les porte pas.
+   */
+  abilities?: { pay: boolean; remind: boolean; record_payment: boolean };
   notes: string | null;
   created_at: string;
 };

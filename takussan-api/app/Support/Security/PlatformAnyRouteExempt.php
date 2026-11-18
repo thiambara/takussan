@@ -105,6 +105,7 @@ use App\Http\Controllers\Webhook\WhatsappStatusController;
 use App\Http\Controllers\WelcomeViewController;
 use App\Http\Controllers\WizardDraftController;
 use App\Http\Middleware\RequireTwoFactor;
+use Illuminate\Broadcasting\BroadcastController;
 
 /**
  * TCK-609 (ADR-0033 §8, amendement du 2026-11-16 ; option (b) du porteur) — le REGISTRE de chaque
@@ -394,5 +395,7 @@ final class PlatformAnyRouteExempt
         WelcomeViewController::class.'@store' => self::SOI,
         WizardDraftController::class.'@destroy' => self::NON_GARDE,
         WizardDraftController::class.'@upsert' => self::NON_GARDE,
+        // TCK-2952 (ADR-0129) — signe l'abonnement à un canal de temps réel déjà jugé par `CanauxTempsReel` : aucune écriture.
+        BroadcastController::class.'@authenticate' => self::SANS_ECRITURE,
     ];
 }

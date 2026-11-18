@@ -68,7 +68,9 @@ class MaintenanceConversationTest extends TestCase
             $this->assertNull($m->sender_id);
             // `jsonb` ordonne ses clés à sa façon : on compare des ensembles.
             $this->assertEquals(['type' => 'maintenance_request', 'id' => $mr->id], $m->metadata['object']);
-            $this->assertEqualsCanonicalizing(['object', 'code', 'data'], array_keys($m->metadata));
+            // TCK-2959 : `action_for` est toujours écrit, vide quand aucun geste n'est attendu.
+            $this->assertEqualsCanonicalizing(['object', 'code', 'data', 'action_for'], array_keys($m->metadata));
+            $this->assertSame([], $m->metadata['action_for']);
         }
         $this->assertSame(trim($provider->first_name.' '.$provider->last_name) ?: $provider->username, $avis[0]->metadata['data']['provider_name']);
         $this->assertSame(0, Message::query()->where('type', MessageType::System->value)->whereJsonContains('metadata->event', 'maintenance')->count());

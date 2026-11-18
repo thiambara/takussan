@@ -64,7 +64,7 @@ const RESIDUS = [
     // 8080 est la cible de l'onglet Domains (`temps-reel:8080`), et une seule instance tourne (pas de scaling).
     motif: 'réglages du serveur WebSocket (service `temps-reel` de compose.api.yml, `reverb` de docker-compose.yml), à leurs défauts : port 8080, une instance',
     cles: [
-      'REDIS_TIMEOUT', 'REVERB_APP_ACCEPT_CLIENT_EVENTS_FROM', 'REVERB_APP_ACTIVITY_TIMEOUT',
+      'REDIS_TIMEOUT', 'REVERB_APP_ACTIVITY_TIMEOUT',
       'REVERB_APP_MAX_CHANNELS_PER_CONNECTION', 'REVERB_APP_MAX_CONNECTIONS', 'REVERB_APP_MAX_MESSAGE_SIZE',
       'REVERB_APP_PING_INTERVAL', 'REVERB_APP_RATE_LIMITING_ENABLED', 'REVERB_APP_RATE_LIMIT_DECAY_SECONDS',
       'REVERB_APP_RATE_LIMIT_MAX_ATTEMPTS', 'REVERB_APP_RATE_LIMIT_TERMINATE', 'REVERB_MAX_REQUEST_SIZE',

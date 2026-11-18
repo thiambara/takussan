@@ -97,7 +97,10 @@ return [
                 'max_connections' => env('REVERB_APP_MAX_CONNECTIONS'),
                 'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 10_000),
                 'max_channels_per_connection' => env('REVERB_APP_MAX_CHANNELS_PER_CONNECTION', 1000),
-                'accept_client_events_from' => env('REVERB_APP_ACCEPT_CLIENT_EVENTS_FROM', 'members'),
+                // TCK-2955 (ADR-0129) — figé, jamais lu de l'environnement : « en train d'écrire » passe par un
+                // message client sur presence-sujet.*, et seule cette valeur garantit que son auteur est membre du
+                // canal (Reverb réécrit alors user_id). 'all' ouvrirait l'usurpation de l'auteur.
+                'accept_client_events_from' => 'members',
                 'rate_limiting' => [
                     'enabled' => env('REVERB_APP_RATE_LIMITING_ENABLED', false),
                     'max_attempts' => env('REVERB_APP_RATE_LIMIT_MAX_ATTEMPTS', 60),

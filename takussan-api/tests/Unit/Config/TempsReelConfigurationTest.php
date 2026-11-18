@@ -67,6 +67,16 @@ class TempsReelConfigurationTest extends TestCase
         }
     }
 
+    /** TCK-2955 — l'auteur d'un message client (« en train d'écrire ») n'est sûr que si seuls les membres en émettent. */
+    public function test_seuls_les_membres_emettent_des_messages_clients_quoi_que_dise_l_environnement(): void
+    {
+        $this->remplacer('REVERB_APP_ACCEPT_CLIENT_EVENTS_FROM', 'all');
+
+        $application = (require config_path('reverb.php'))['apps']['apps'][0];
+
+        $this->assertSame('members', $application['accept_client_events_from']);
+    }
+
     public function test_des_cles_reverb_absentes_ne_font_pas_tomber_le_diffuseur(): void
     {
         foreach (['REVERB_APP_KEY', 'REVERB_APP_SECRET', 'REVERB_APP_ID'] as $cle) {
