@@ -161,6 +161,11 @@ Les pushes vers `dev` ne produisent pas `cov.php` et restent verts : le défaut 
 repousse la limite d'une suite qui grandit) et laisser la carte vieillir. Le prix : une seconde
 exécution de la suite, la nuit seulement. ADR-0063 §4 amendé.
 
+**Premier `workflow_dispatch` après #1696 (run 44322162205, 2026-11-18)** : cliquet vert en `--parallel`
+(17 714 tests, 1 662 s, `Total: 96.9 %`), puis « Produire cov.php » **rouge, 682 tests en `cURL error 7 …
+port 7701`** — le step n'avait pas l'`env:` de « Run tests », la suite visait le Meilisearch du poste.
+Pas la mémoire : la suite séquentielle est allée au bout (3 748 s). Corrigé en recopiant l'`env:`.
+
 ## Reste sur dev
 
 Le code est fusionné (#1689, `1575eea77`) ; AC1, AC2, AC3 et AC5 sont relevés. **Reste l'AC4**, réécrit :
