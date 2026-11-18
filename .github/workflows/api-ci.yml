@@ -816,6 +816,19 @@ jobs:
           ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
           && github.ref == 'refs/heads/dev'
           && !contains(github.event.head_commit.message, '[carte-impact]') }}
+        # ⚠ LE MÊME `env:` QUE « Run tests », clé pour clé. Sans lui, la suite lit les défauts de
+        # `phpunit.xml`, qui visent le POSTE (Meilisearch sur 7701) et non le service du job
+        # (7700) : la première exécution de ce step (run 44322162205) a rendu 682 rouges,
+        # tous `cURL error 7 … port 7701`. Une clé ajoutée là-haut s'ajoute ici.
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5433
+          DB_USERNAME: takussan
+          DB_PASSWORD: takussan
+          SCOUT_DRIVER: meilisearch
+          MEILISEARCH_HOST: http://127.0.0.1:7700
+          MEILISEARCH_KEY: masterKey
         run: |
           debut=$(date +%s)
           set +e
