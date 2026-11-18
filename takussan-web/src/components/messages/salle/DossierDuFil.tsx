@@ -27,7 +27,7 @@ import { membresActuels, objetDeLaSalle, qualiteDansLaReservation, qualiteDansLe
  * - **aucune coordonnée** : les membres viennent de la SALLE (nom seul, `ConversationResource`) et leur
  *   qualité des identifiants des parties ; la lecture du bail ne demande ni `landlord` ni `agent` (qui
  *   portent un téléphone pour le personnel, TCK-2906), et le locataire n'y est demandé que par son compte ;
- * - **rien de masqué ici** : honoraires et net reversé ne s'écrivent que si la lecture du bail rend
+ * - **rien de masqué ici** : la commission d'agence ne s'écrit que si la lecture du bail rend
  *   `commission_amount`, que l'API retire pour qui n'est pas du personnel de l'agence (`LeaseResource`).
  *   Le taux (`commission_rate`, retiré de même hors du personnel depuis le 2026-11-18) n'est jamais lu.
  *
@@ -87,7 +87,7 @@ function Section({ titre, action, children, testId }: { readonly titre: string; 
 function Ligne({ cle, valeur }: { readonly cle: ReactNode; readonly valeur: ReactNode }) {
   return (
     <p className="flex items-baseline justify-between gap-3 py-2 text-ui">
-      <span className="min-w-0 truncate text-muted-foreground">{cle}</span>
+      <span className="shrink-0 text-muted-foreground">{cle}</span>
       <span className="min-w-0 text-right font-medium tabular-nums text-foreground">{valeur}</span>
     </p>
   );
@@ -194,7 +194,10 @@ function DossierDuBail({ id, conversation }: { readonly id: number; readonly con
 
   const devise = bail.currency ?? 'XOF';
   const montant = (v: number | null | undefined) => f.montantCourt(v, devise);
-  // Le personnel de l'agence du bail est le seul lecteur à qui l'API rend `commission_amount`.
+  // Le personnel de l'agence du bail est le seul lecteur à qui l'API rend `commission_amount` : la
+  // commission d'agence du bail, figée à son activation (§ commission_entries) — pas un honoraire
+  // mensuel. Aucun « net reversé » ne s'en déduit : le reversement retient un taux sur chaque
+  // encaissement (`PayoutService`), et l'API ne rend ce net à aucun lecteur.
   const honoraires = typeof bail.commission_amount === 'number' ? bail.commission_amount : null;
 
   return (
@@ -212,7 +215,6 @@ function DossierDuBail({ id, conversation }: { readonly id: number; readonly con
         {bail.deposit_amount != null ? <Ligne cle={t('caution')} valeur={montant(bail.deposit_amount)} /> : null}
         {bail.late_fee_percent ? <Ligne cle={t('penalite')} valeur={f.pourcentage(bail.late_fee_percent / 100)} /> : null}
         {honoraires !== null ? <Ligne cle={t('honoraires')} valeur={montant(honoraires)} /> : null}
-        {honoraires !== null && bail.monthly_rent != null ? <Ligne cle={t('netReverse')} valeur={montant(bail.monthly_rent - honoraires)} /> : null}
       </Section>
       <Membres conversation={conversation} qualite={(userId) => qualiteDansLeBail(bail, userId)} />
       <LienVersLaFiche href={`/app/leases/${bail.id}`}>{t('ouvrirLeBail')}</LienVersLaFiche>

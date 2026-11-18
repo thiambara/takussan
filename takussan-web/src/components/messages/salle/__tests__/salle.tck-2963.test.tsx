@@ -1,6 +1,6 @@
 /**
  * TCK-2963 — la salle à l'écran : le bandeau relu pour son lecteur, le dossier sans coordonnée du bailleur
- * (AC2) ni honoraires pour le locataire, la raison de la lecture seule (AC3).
+ * (AC2) ni commission d’agence pour le locataire, la raison de la lecture seule (AC3).
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -124,22 +124,24 @@ describe('<DossierDuFil> — aucune coordonnée du bailleur (AC2), rien que la l
     expect(texte).not.toMatch(/\+221/);
   });
 
-  it('le personnel lit honoraires et net reversé quand l’API rend `commission_amount`', async () => {
+  it('le personnel lit la commission d’agence quand l’API rend `commission_amount`, sans en déduire de net', async () => {
     reponseDuBail = bail({ commission_amount: 47000 });
     monter(<DossierDuFil conversation={salleDuBail()} forme="feuille" />);
     const montants = await screen.findByTestId('montants-de-la-salle');
-    expect(within(montants).getByText('Honoraires de gestion')).toBeInTheDocument();
-    expect(within(montants).getByText('Net reversé au bailleur')).toBeInTheDocument();
-    expect(within(montants).getByText(/423[\s  ,.]?000/)).toBeInTheDocument();
+    expect(within(montants).getByText('Commission d’agence')).toBeInTheDocument();
+    expect(within(montants).getByText(/47[\s  ,.]?000/)).toBeInTheDocument();
+    // La commission est figée une fois pour le bail, pas retenue chaque mois : loyer − commission n'est
+    // le net de personne, et l'API ne rend aucun net reversé.
+    expect(within(montants).queryByText(/net revers/i)).toBeNull();
+    expect(within(montants).queryByText(/423[\s  ,.]?000/)).toBeNull();
   });
 
-  it('le locataire ne lit ni honoraires ni net reversé, même quand le taux est dans la réponse', async () => {
+  it('le locataire ne lit pas la commission d’agence, même quand le taux est dans la réponse', async () => {
     lecteur = LOCATAIRE;
     monter(<DossierDuFil conversation={salleDuBail()} forme="feuille" />);
     const montants = await screen.findByTestId('montants-de-la-salle');
     expect(within(montants).getByText('Loyer')).toBeInTheDocument();
-    expect(within(montants).queryByText('Honoraires de gestion')).toBeNull();
-    expect(within(montants).queryByText('Net reversé au bailleur')).toBeNull();
+    expect(within(montants).queryByText('Commission d’agence')).toBeNull();
     expect(within(screen.getByTestId('membres-de-la-salle')).getByText('Vous · Locataire')).toBeInTheDocument();
   });
 
