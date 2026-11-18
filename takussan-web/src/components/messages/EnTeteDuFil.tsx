@@ -60,6 +60,23 @@ interface EnTeteDuFilProps {
    * flottant), le menu garde la sourdine et les infos du groupe.
    */
   readonly gestes?: GestesDuFil;
+  /**
+   * TCK-2955 — les AUTRES participants actifs présents dans le fil ouvert (canal de présence), déjà filtrés
+   * par `ChatView`. Un point sur l'avatar, jamais une liste à part ; vide, l'en-tête est celui d'aujourd'hui.
+   */
+  readonly presents?: readonly number[];
+}
+
+/** TCK-2955 — le point de présence, posé sur le coin bas droit d'un avatar. */
+function PointDePresence({ libelle }: { readonly libelle: string }) {
+  return (
+    <span
+      role="img"
+      aria-label={libelle}
+      data-testid="presence-du-fil"
+      className="absolute right-0 bottom-0 size-2.5 rounded-full bg-accent ring-2 ring-background"
+    />
+  );
 }
 
 /**
@@ -94,6 +111,7 @@ export function EnTeteDuFil({
   contexte,
   onPlusDActions,
   gestes,
+  presents = [],
 }: EnTeteDuFilProps) {
   const t = useTranslations('messaging');
   const tWidget = useTranslations('messaging.widget');
@@ -151,17 +169,21 @@ export function EnTeteDuFil({
         {isGroup ? (
           <span
             className={cn(
-              'inline-flex flex-none items-center justify-center rounded-full bg-fond-avatar text-accent',
+              'relative inline-flex flex-none items-center justify-center rounded-full bg-fond-avatar text-accent',
               compact ? 'size-avatar-36' : 'size-avatar-40',
             )}
           >
             {intervention ? <Wrench className="size-5 stroke-[1.75]" aria-hidden /> : <Users className="size-5 stroke-[1.75]" aria-hidden />}
+            {presents.length > 0 ? <PointDePresence libelle={t('chat.presentsDansLeGroupe', { n: presents.length })} /> : null}
           </span>
         ) : autre ? (
-          <Avatar size={String(taille) as '36' | '40'}>
-            {autre.avatar_url ? <AvatarImage src={autre.avatar_url} alt="" /> : null}
-            <AvatarFallback>{autre.full_name ? initiales(autre.full_name) : null}</AvatarFallback>
-          </Avatar>
+          <span className="relative inline-flex flex-none">
+            <Avatar size={String(taille) as '36' | '40'}>
+              {autre.avatar_url ? <AvatarImage src={autre.avatar_url} alt="" /> : null}
+              <AvatarFallback>{autre.full_name ? initiales(autre.full_name) : null}</AvatarFallback>
+            </Avatar>
+            {presents.includes(autre.id) ? <PointDePresence libelle={t('chat.presentDansLeFil', { nom: autre.full_name })} /> : null}
+          </span>
         ) : (
           <span className={cn('inline-flex flex-none items-center justify-center rounded-full bg-muted text-muted-foreground', compact ? 'size-avatar-36' : 'size-avatar-40')}>
             <Building2 className="size-5" aria-hidden />

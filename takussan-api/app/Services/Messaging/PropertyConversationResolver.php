@@ -3,6 +3,7 @@
 namespace App\Services\Messaging;
 
 use App\Models\Conversation;
+use App\Models\ConversationParticipant;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Property;
@@ -157,26 +158,32 @@ class PropertyConversationResolver
             return;
         }
 
-        $rows = DB::table('conversation_participants')->where('conversation_id', $conversation->id);
+        // TCK-2955 (ADR-0129 § 2) — par le MODÈLE, plus par `DB::table()` : un retour et un départ changent
+        // la composition du fil, et `ConversationParticipant` (`EmetDesSignaux`) le signale au fil
+        // (`participants.updated`) et à la boîte de la personne concernée. Une écriture de masse ne
+        // déclenchait aucun événement.
+        $rows = ConversationParticipant::query()->where('conversation_id', $conversation->id);
         $current = (clone $rows)->where('user_id', $responder->id)->first();
         $now = now();
 
         if ($current === null) {
             $conversation->participants()->attach($responder->id, ['joined_at' => $now]);
         } elseif ($current->left_at !== null) {
-            (clone $rows)->where('user_id', $responder->id)->update([
+            $current->forceFill([
                 'joined_at' => $now,
                 'left_at' => null,
                 'is_muted' => false,
                 'archived_at' => null,
                 'last_read_at' => null,
-            ]);
+            ])->save();
         }
 
         (clone $rows)
             ->whereNotIn('user_id', [$responder->id, $conversation->created_by])
             ->whereNull('left_at')
-            ->update(['left_at' => $now]);
+            ->orderBy('id')
+            ->get()
+            ->each(fn (ConversationParticipant $p) => $p->forceFill(['left_at' => $now])->save());
     }
 
     /**

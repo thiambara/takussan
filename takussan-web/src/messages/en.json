@@ -3800,7 +3800,11 @@
       "nonLueEchouee": "The conversation was not marked as unread. Please try again.",
       "ajouterUnParticipant": "Add a participant",
       "signaler": "Report the conversation",
-      "carteNeutre": "An item was shared."
+      "carteNeutre": "An item was shared.",
+      "ecrit": "{nom} is typing…",
+      "plusieursEcrivent": "Several people are typing…",
+      "presentDansLeFil": "{nom} is in the conversation",
+      "presentsDansLeGroupe": "{n, plural, one {# person is in the conversation} other {# people are in the conversation}}"
     },
     "group": {
       "create": {

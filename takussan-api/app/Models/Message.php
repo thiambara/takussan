@@ -4,6 +4,9 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\MessageType;
+use App\Services\Messaging\ConversationAccess;
+use App\Support\TempsReel\CodeDeSignal;
+use App\Support\TempsReel\EmetDesSignaux;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,7 +18,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Message extends AbstractModel implements HasMedia
 {
-    use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
+    use EmetDesSignaux, HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
 
     /** TCK-2631 — largeur de la vignette d'une photo jointe (celle des photos d'intervention). */
     public const THUMBNAIL_WIDTH = 400;
@@ -28,6 +31,30 @@ class Message extends AbstractModel implements HasMedia
         'type' => MessageType::class,
         'metadata' => 'array',
     ];
+
+    /**
+     * TCK-2955 (ADR-0129 § 2) — un message écrit, modifié, supprimé ou restauré le signale sur le fil
+     * (`sujet.conversation.{id}`), et à la boîte de chaque participant ACTIF du fil, en un seul envoi
+     * ({@see ConversationAccess::idsDesParticipantsActifs()}). Au niveau du modèle : les trois écrivains
+     * (`ConversationWriter`, le contact public d'une annonce, `SystemMessageFactory`) et `EvenementsDuFil`
+     * émettent sans y penser.
+     */
+    protected static function signauxTempsReel(): array
+    {
+        // Le sujet n'a besoin que de sa classe et de sa clé (`CanauxTempsReel`) : aucune requête, et aucune
+        // relation posée sur le modèle (qu'une sérialisation emporterait).
+        $fil = fn (self $m): ?Conversation => $m->conversation_id === null ? null
+            : (new Conversation)->setRawAttributes(['id' => (int) $m->conversation_id], true);
+        $actifs = fn (self $m): array => ConversationAccess::idsDesParticipantsActifs((int) $m->conversation_id);
+        $modifie = [[CodeDeSignal::MessageUpdated, $fil], [CodeDeSignal::BoiteUpdated, $fil, 'a' => $actifs]];
+
+        return [
+            'created' => [[CodeDeSignal::MessageCreated, $fil], [CodeDeSignal::BoiteUpdated, $fil, 'a' => $actifs]],
+            'updated' => $modifie,
+            'deleted' => $modifie,
+            'restored' => $modifie,
+        ];
+    }
 
     public function toSearchableArray(): array
     {

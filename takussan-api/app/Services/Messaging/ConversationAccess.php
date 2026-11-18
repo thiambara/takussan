@@ -391,6 +391,28 @@ class ConversationAccess
     }
 
     /**
+     * TCK-2955 (ADR-0129 § 2) — les destinataires de `boite.updated` pour un fil : ses participants
+     * ACTIFS (`left_at` nul, la participation de {@see self::participatingQuery()}), en une requête.
+     * Un ancien participant n'en est pas : il ne reçoit rien des messages suivants.
+     *
+     * Les branches de lecture (intervention, prospect, contexte) ne sont PAS rejugées ici, une par
+     * personne : le signal ne porte aucune donnée (ADR-0129 § 1), et la relecture de la liste par
+     * `GET /api/conversations` applique, elle, `constrainListing()`.
+     *
+     * @return list<int>
+     */
+    public static function idsDesParticipantsActifs(int $conversationId): array
+    {
+        return ConversationParticipant::query()
+            ->where('conversation_id', $conversationId)
+            ->whereNull('left_at')
+            ->orderBy('user_id')
+            ->pluck('user_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+    }
+
+    /**
      * Les fils dont `$user` est participant ET qu'il peut lire, par la règle de la liste.
      *
      * @param  bool  $activeOnly  false : compte aussi les fils quittés (`left_at`), pour les

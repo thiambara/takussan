@@ -16,6 +16,10 @@ import {
   useSendAttachment,
   useSendMessage,
 } from '@/lib/queries/conversations';
+import { sujetDuFil } from '@/lib/queries/conversations-cles';
+import { useIntervalleDeRelecture, usePresenceDuSujet } from '@/lib/temps-reel/hooks';
+import { useEcritureDuSujet } from '@/lib/temps-reel/ecriture';
+import { useFilEnDirect } from './useFilEnDirect';
 import { messageErreurApi } from '@/lib/api';
 import { isAgencyAdmin, isAgent } from '@/lib/roles';
 import { typeDuProfilActif } from '@/lib/navigation/personas';
@@ -154,13 +158,20 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
     dernier !== undefined &&
     dernier.sender_id === user?.id &&
     (dernier.read_by_recipient === false || dernier.read_count === 0);
+  // TCK-2955 — la coche arrive par `conversation.read` (`useFilEnDirect`) ; les 15 s ne sont plus que le
+  // filet du mode dégradé (60 s quand le canal du fil est tenu).
+  const sujet = sujetDuFil(conversationId);
+  const intervalleDeLaCoche = useIntervalleDeRelecture(RELECTURE_DE_LA_COCHE_MS, sujet);
   useEffect(() => {
-    if (!cocheEnAttente || !isVisible) return;
+    if (!cocheEnAttente || !isVisible || intervalleDeLaCoche === false) return;
     const minuterie = setInterval(() => {
       void refetch();
-    }, RELECTURE_DE_LA_COCHE_MS);
+    }, intervalleDeLaCoche);
     return () => clearInterval(minuterie);
-  }, [cocheEnAttente, isVisible, refetch]);
+  }, [cocheEnAttente, isVisible, refetch, intervalleDeLaCoche]);
+
+  // TCK-2955 (ADR-0129 § 2) — le fil en direct : ses signaux relisent ce qu'ils disent changé.
+  useFilEnDirect({ conversationId, sansAncre: anchorId == null, cocheEnAttente });
 
   const sendMessage = useSendMessage(conversationId);
   const sendAttachment = useSendAttachment(conversationId);
@@ -194,6 +205,26 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
     (p) => p.user_id === user?.id && !p.left_at,
   );
   const isMuted = Boolean(myParticipant?.is_muted);
+  /**
+   * TCK-2955 — la présence et « en train d'écrire », pendant que le fil est ouvert seulement (le canal de
+   * présence est quitté au démontage). Un identifiant ne compte que s'il est un AUTRE participant actif que
+   * le fil a déjà lu : son nom vient de là, jamais du canal (qui ne publie que `{id}`).
+   */
+  const autresActifs = new Map(
+    (conversation?.participants ?? [])
+      .filter((p) => !p.left_at && p.user_id !== user?.id)
+      .map((p) => [p.user_id, p.user?.full_name ?? null] as const),
+  );
+  const presents = usePresenceDuSujet(sujet).filter((id) => autresActifs.has(id));
+  const ecriture = useEcritureDuSujet(sujet);
+  const ecrivent = ecriture.auteurs.filter((id) => autresActifs.has(id));
+  const nomQuiEcrit = ecrivent.length === 1 ? autresActifs.get(ecrivent[0]!) : null;
+  const ligneDEcriture =
+    ecrivent.length > 1
+      ? t('chat.plusieursEcrivent')
+      : nomQuiEcrit
+        ? t('chat.ecrit', { nom: nomQuiEcrit })
+        : null;
   // TCK-2374 (P248.01) — l'API refuserait l'envoi : la saisie laisse place à une note. Absent (liste,
   // cache d'avant la réponse), le drapeau ne cache rien.
   const canSend = conversation?.abilities?.can_send_message !== false;
@@ -428,6 +459,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
           contexte={contexte}
           onPlusDActions={onPlusDActions}
           gestes={gestes}
+          presents={presents}
         />
       )}
       {isGroup && !isWidget && (
@@ -507,6 +539,15 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
         )}
       </div>
 
+      {/* TCK-2955 — « en train d'écrire » : une ligne courte au-dessus du champ, qui s'efface seule. */}
+      <p
+        aria-live="polite"
+        data-testid="ecriture-du-fil"
+        className={cn('bg-muted/50 px-4 text-xs text-muted-foreground', ligneDEcriture && 'pb-1.5')}
+      >
+        {ligneDEcriture}
+      </p>
+
       {canSend ? (
         <ChatComposerShell
           // TCK-316 — `handleSubmit(onSubmit)` était APPELÉ pendant le rendu pour
@@ -562,7 +603,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
           }
         >
           <Textarea
-            {...form.register('content')}
+            {...form.register('content', { onChange: () => ecriture.signalerFrappe() })}
             rows={1}
             placeholder={t('chat.placeholder')}
             className={

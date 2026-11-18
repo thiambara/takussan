@@ -29,8 +29,17 @@ export type ConnexionTempsReel = {
   ): void;
   /** Quitte le canal privé `canal`. */
   quitter(canal: string): void;
-  /** Rejoint le canal de présence `canal` (sans préfixe) ; `surMembres` reçoit les identifiants présents. */
-  rejoindre(canal: string, surMembres: (ids: readonly number[]) => void): void;
+  /**
+   * Rejoint le canal de présence `canal` (sans préfixe) ; `surMembres` reçoit les identifiants présents.
+   * TCK-2955 — `surEcriture` reçoit l'identifiant de qui « écrit » (message éphémère `client-ecrit`), tel que
+   * le SERVEUR l'a posé (`user_id`, ADR-0129 § 2), jamais tel que l'émetteur le prétend.
+   */
+  rejoindre(canal: string, surMembres: (ids: readonly number[]) => void, surEcriture?: (id: number) => void): void;
+  /**
+   * TCK-2955 — émet le message éphémère « écrit » sur le canal de présence `canal` (déjà rejoint), de
+   * navigateur à navigateur : aucune route de l'API ne le reçoit, le serveur ne le stocke pas.
+   */
+  chuchoter(canal: string): void;
   /** Quitte le canal de présence `canal`. */
   quitterPresence(canal: string): void;
   /** Suit l'état de la connexion ; rend la fonction qui cesse de le suivre. */
@@ -57,6 +66,19 @@ export function optionsDHote(url: string): { wsHost: string; wsPort: number; wss
   const chiffre = analysee.protocol === 'wss:';
   const port = analysee.port ? Number(analysee.port) : chiffre ? 443 : 80;
   return { wsHost: analysee.hostname, wsPort: port, wssPort: port, forceTLS: chiffre };
+}
+
+/**
+ * TCK-2955 — le nom du message éphémère « en train d'écrire » (`client-ecrit` sur le fil). Sa charge est vide :
+ * l'auteur se lit dans `user_id`, que Reverb pose depuis la donnée de présence du serveur.
+ */
+export const EVENEMENT_D_ECRITURE = 'ecrit';
+
+/** TCK-2955 — l'auteur d'un message éphémère : `user_id` des métadonnées de Pusher (chaîne ou nombre). */
+export function auteurDuChuchotement(metadonnees: unknown): number | null {
+  const brut = typeof metadonnees === 'object' && metadonnees !== null ? (metadonnees as { user_id?: unknown }).user_id : undefined;
+  const id = typeof brut === 'string' && /^[1-9][0-9]{0,17}$/.test(brut) ? Number(brut) : brut;
+  return typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
 /** L'identifiant d'un membre de présence : l'API ne publie que `{id}` (TCK-2952). */
@@ -111,11 +133,18 @@ export function ouvrirConnexion({ url, cle, jeton }: ParametresDeConnexion): Con
     quitter(canal) {
       echo.leaveChannel(`private-${canal}`);
     },
-    rejoindre(canal, surMembres) {
+    rejoindre(canal, surMembres, surEcriture) {
       const presents = new Set<number>();
       const publier = () => surMembres([...presents].sort((a, b) => a - b));
-      echo
-        .join(canal)
+      const presence = echo.join(canal);
+      // TCK-2955 — le second argument de Pusher porte `user_id` sur un événement client d'un canal de présence.
+      if (surEcriture) {
+        presence.listenForWhisper(EVENEMENT_D_ECRITURE, (_charge: unknown, metadonnees?: unknown) => {
+          const auteur = auteurDuChuchotement(metadonnees);
+          if (auteur !== null) surEcriture(auteur);
+        });
+      }
+      presence
         .here((membres: unknown[]) => {
           presents.clear();
           for (const membre of membres) {
@@ -134,6 +163,9 @@ export function ouvrirConnexion({ url, cle, jeton }: ParametresDeConnexion): Con
           if (id !== null) presents.delete(id);
           publier();
         });
+    },
+    chuchoter(canal) {
+      echo.join(canal).whisper(EVENEMENT_D_ECRITURE, {});
     },
     quitterPresence(canal) {
       echo.leaveChannel(`presence-${canal}`);

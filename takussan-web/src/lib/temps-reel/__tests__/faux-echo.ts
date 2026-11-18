@@ -8,6 +8,9 @@
  * · l'autorisation d'un canal par `channelAuthorization.customHandler` de Pusher, au premier accès ;
  * · `connector.onConnectionChange(…)` (statuts d'Echo : `connected`, `connecting`, `failed`…) ;
  * · `leaveChannel`, `leaveAllChannels`, `disconnect`.
+ * · TCK-2955 — les messages éphémères : `whisper(nom, charge)` (enregistré dans `chuchotements`) et
+ *   `listenForWhisper(nom, …)`, qui écoute `.client-{nom}` comme Echo ; le rappel reçoit `(charge, métadonnées)`,
+ *   `user_id` posé par le serveur dans les métadonnées (`chuchotementRecu`).
  *
  * Aucun serveur, aucune socket.
  */
@@ -64,8 +67,22 @@ export class FauxCanal {
   }
 
   /** Simule l'arrivée d'un événement serveur. */
-  emettre(evenement: string, charge: unknown) {
-    for (const r of this.ecouteurs.get(evenement) ?? []) r(charge);
+  emettre(evenement: string, charge: unknown, metadonnees?: unknown) {
+    for (const r of this.ecouteurs.get(evenement) ?? []) r(charge, metadonnees);
+  }
+
+  /** TCK-2955 — les messages éphémères émis par CE navigateur, dans l'ordre. */
+  readonly chuchotements: { evenement: string; charge: unknown }[] = [];
+  listenForWhisper(evenement: string, rappel: Rappel) {
+    return this.listen(`.client-${evenement}`, rappel);
+  }
+  whisper(evenement: string, charge: unknown) {
+    this.chuchotements.push({ evenement, charge });
+    return this;
+  }
+  /** TCK-2955 — un message éphémère d'un autre navigateur, `user_id` posé par le serveur (Reverb, `members`). */
+  chuchotementRecu(evenement: string, userId: number | string) {
+    this.emettre(`.client-${evenement}`, {}, { user_id: userId });
   }
 
   membres(ids: number[]) {

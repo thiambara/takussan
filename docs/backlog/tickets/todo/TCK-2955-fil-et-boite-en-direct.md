@@ -195,4 +195,113 @@ d'aujourd'hui sinon.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure de la prémisse (2026-11-18)
+
+- **Aucune route ne modifie ni ne supprime un message** (`routes/api/conversations.php` : envoi seulement ;
+  `grep '$message->update\|->delete' app` ne rend rien sur `Message`). `message.updated` est donc déclaré sur les
+  événements `updated`, `deleted` et `restored` du modèle, et éprouvé au niveau du modèle : il partira le jour où
+  une route l'écrira.
+- **Le trait de TCK-2952 ne savait viser que le canal du sujet** (`TempsReel::signaler`). Il gagne deux clés
+  facultatives, marquées TCK-2955 : `'a'` (des destinataires → `signalerA`, un seul envoi pour tous) et
+  `'attributs'` (sur `updated`, rien ne part si aucune de ces colonnes n'a changé, `wasChanged`).
+- `ConversationAccess::participatingQuery` va d'une personne vers ses fils ; la liste inverse (un fil → ses
+  participants actifs) n'existait pas. Ajoutée : `ConversationAccess::idsDesParticipantsActifs()` (une requête,
+  `left_at` nul). Les branches de lecture (intervention, prospect, contexte) n'y sont **pas** rejugées par
+  personne : le signal ne porte rien (ADR-0129 § 1), et la relecture de la liste applique `constrainListing()`.
+- **Inventaire des écritures de participants qui contournaient les événements** (relevé du 2026-11-18) :
+  - `GroupConversationService::addParticipants`, retour d'un ancien membre : `ConversationParticipant::query()->update()`
+    → passé par le modèle (`forceFill()->save()`) ;
+  - `PropertyConversationResolver::transmitLocked` : retour du répondant ET départ des autres par `DB::table()`
+    → passés par le modèle ;
+  - `RadarClaims::absorbOrphan` : `DB::table()->delete()` et réécriture de `user_id` en masse (fusion d'un compte
+    orphelin) → émission explicite (`participants.updated` sur chaque fil de l'orphelin, `boite.updated` au
+    compte qui le reprend). **Non éprouvé par un test** : fixture de réclamation radar lourde, hors du coût du lot ;
+  - `AgencyMemberRemovalService` sauvait déjà par le modèle (`forceFill()->save()`) : couvert sans changement ;
+  - `ConversationWriter` et `PublicPropertyController` écrivent `archived_at` des autres par `DB::table()` : pas de
+    composition, et le `message.created` qui l'accompagne porte déjà `boite.updated` à tous les actifs.
+  - Restent sans signal, délibérément : les suppressions en cascade de la base (fil ou compte supprimé).
+- **Le sujet d'un signal est construit sans requête** (`new Conversation` + clé) : `CanauxTempsReel` n'en lit que la
+  classe et la clé, et `$message->conversation` aurait posé une relation sur le modèle.
+- **Reverb n'accepte les événements client que des membres** : `config/reverb.php` lit
+  `REVERB_APP_ACCEPT_CLIENT_EVENTS_FROM` avec le défaut `members` ; aucun `.env*` du dépôt ni gabarit de `deploy/`
+  ne la pose (relevé `grep -rn REVERB_APP_ACCEPT`). `ClientEvent::handle` (vendor, laravel/reverb) refuse alors un
+  `client-*` d'une connexion absente du canal (4009) et réécrit `user_id` depuis la donnée de présence du serveur.
+  Le fichier est tenu par TCK-2956 : non modifié ici.
+
+### Décisions (2026-11-18)
+
+- `participants.updated` : `created`, `deleted`, et `updated` si `left_at` ou `role` a changé ; `boite.updated` à
+  la personne concernée sur `created`, `deleted` et un changement de `left_at` (un changement de rôle ne change pas
+  sa boîte).
+- `conversation.read` + `boite.updated` au lecteur : `markAsRead` toujours ; `markAsUnread` seulement si
+  `last_read_at` a reculé (sinon rien n'a changé).
+- `notifications.updated` : lire et rendre non lue toujours ; « tout lire » seulement si au moins une ligne a changé.
+- **Création d'un groupe de N** : N `boite.updated` d'une personne chacun (un par pivot créé), puis l'envoi groupé du
+  premier message dédoublonné par l'unité de travail. AC3 vise un message dans un groupe existant, pas la création ;
+  noté, non corrigé (il faudrait regrouper dans l'émetteur, fichier de TCK-2952).
+
+### Ablations back (2026-11-18, une à une, `--filter`, restauration par `cp` vérifiée par `md5`)
+
+- `EmetDesSignaux` retiré de `Message` → les trois `test_ac1_*` rougissent.
+- `whereNull('left_at')` retiré de `idsDesParticipantsActifs` → les deux `test_ac2_*` rougissent.
+- Filtre des attributs du trait neutralisé → `test_ac4_bis_*` (4 envois au lieu de 2) et
+  `test_archiver_ou_mettre_en_sourdine_*` rougissent.
+- Signal retiré de `markAsRead`, puis de `markAsUnread` → le test de chacun rougit.
+- Un `signalerA` par destinataire dans le trait → `test_ac3_*` rougit (30 envois).
+- `EmetDesSignaux` retiré du pivot → les 5 tests « par la route » et « par une synchronisation » rougissent.
+- Retour d'un ancien membre remis en écriture de masse → `test_le_retour_*` rouge ; départs de la transmission remis
+  en écriture de masse → `test_la_transmission_*` rouge.
+- Chaque `signalerA` de `NotificationController` retiré, un à la fois → le test de chacun rougit.
+
+
+### Front (2026-11-18)
+
+- **Fil** (`ChatView`) : `useFilEnDirect` s'abonne à `conversation:{id}` et relit ce que le signal dit changé —
+  `message.created` → la relecture `after_id` (le fil entier s'il est vide), fusionnée comme aujourd'hui, donc la
+  position de lecture n'est pas volée ; `message.updated` → les pages chargées ; `conversation.read` → les pages
+  seulement si une coche « Lu » est en attente (un message reçu fait marquer le fil lu : pas de boucle) ;
+  `participants.updated` → le fil, son contexte, ses correspondants ; reconnexion → tout. La relecture `after_id`
+  (3 s) et celle de la coche (15 s, TCK-2860) passent par `useIntervalleDeRelecture` : 60 s quand le canal est tenu.
+- **Liste, compteur de non-lus** : `useBoiteEnDirect` (`conversations-list.ts`) sur `boite.updated`, avec
+  `cancelRefetch: false` (plusieurs écrans abonnés à une clé ne font qu'une requête) ; 10 s et les cadences
+  `CADENCE_NON_LUS_*` deviennent le filet. L'observateur passif (`enabled: false`) n'abonne rien.
+- **Cloche** : `notifications.updated` relit tout `['notifications']` ; 30 s devient le filet.
+- **Présence** : `usePresenceDuSujet` dans `ChatView`, filtré aux AUTRES participants actifs que le fil a lus ; un
+  point sur l'avatar de l'en-tête (`EnTeteDuFil`, prop `presents`), libellé accessible ; pour un groupe, un compte.
+- **« En train d'écrire »** : whisper `ecrit` sur `presence-sujet.*` (`connexion.ts` `chuchoter` /
+  `listenForWhisper`, `moteur.ts` `signalerEcriture` / `ecouterEcriture`, hook `ecriture.ts`). Au plus une émission
+  par 3 s, effacement 6 s après le dernier signe ; l'auteur est le `user_id` que le serveur pose dans les
+  métadonnées (Reverb réécrit ce champ, `ClientEvent::handle`), jamais la charge, qui est vide. Rien sans connexion
+  tenue ni canal de présence rejoint. Reverb n'accepte les messages client que des **membres** du canal
+  (`accept_client_events_from`, défaut `members` de `config/reverb.php`, non posé ailleurs — fichier de TCK-2956, non
+  modifié ici).
+- **Clés du fil** déplacées dans `lib/queries/conversations-cles.ts` (sans hook), réexportées par
+  `conversations.ts` : les tests de `ChatView` remplacent `conversations.ts` en entier.
+- Le widget public (`ChatWidget`) n'est pas monté sous `/app` et reste hors du fournisseur : inchangé.
+- `parametres-ignores.tck-1286.test.ts` appelle `useConversations` hors rendu : ses nouveaux hooks y sont doublés.
+
+### Ablations front (2026-11-18, une à une, `-t`, restauration par `cp` vérifiée par `md5`)
+
+- `useFilEnDirect` retiré de `ChatView` → le test AC5 de `ChatView.en-direct` rougit.
+- Intervalle du fil remis à 3 s en dur → « 3 s à 60 s » et « fenêtre de 10 s » (`en-direct.tck-2955`) rougissent.
+- Filtre « autres participants actifs » de la présence retiré → « un participant parti » rougit.
+- Filtre des auteurs de l'écriture retiré → « un autre écrit » rougit (moi + inconnu → « Plusieurs… »).
+- Cadence d'émission retirée → « un seul message éphémère par intervalle » rougit (3 émissions).
+- Exigence de connexion tenue retirée du moteur → « connexion perdue : écrire n'émet rien » rougit.
+- Minuterie d'effacement retirée → « s'efface seule » rougit.
+- Coupure sous impersonation du fournisseur retirée → le test AC8 rougit.
+- Abonnement `boite.updated` retiré → les tests de la liste et du compteur rougissent ; abonnement de la cloche
+  retiré → le test de la cloche rougit.
+
+### Non mesuré
+
+- **AC10 (deux navigateurs sous `./dev.sh`)** : non mesuré par l'agent — le brief interdit `./dev.sh` et le
+  redémarrage de services. À mesurer par la session.
+- `RadarClaims::absorbOrphan` émet `participants.updated` + `boite.updated` pour chaque fil réattribué : non testé
+  (écriture de masse, fichier hors des tests du ticket).
+- `MaintenanceConversationTest::test_each_status_change_posts_a_coded_system_message` est rouge **avant** ce
+  ticket : la métadonnée porte `action_for` (TCK-2959). Non corrigé ici.
+- Gardes back (2026-11-18) : `DiffusionParLeSignalSeulTest` (architecture de TCK-2952) vert ; sous-ensemble messagerie de
+  `php bin/impacted-tests.php --connus` — 65 classes sur ~190 — vert (552 tests, 195 s, load 2,3 sur 8 cœurs) ; la
+  sélection entière est laissée à la CI de la PR. La création d'une notification est tenue par
+  `EmetteurTest::test_notification_service_signale_notifications_updated_*` (TCK-2952).

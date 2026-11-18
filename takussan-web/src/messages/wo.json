@@ -2561,7 +2561,11 @@
       "nonLueEchouee": "La conversation n’a pas été remise en non lue. Réessayez.",
       "ajouterUnParticipant": "Ajouter un participant",
       "signaler": "Signaler la conversation",
-      "carteNeutre": "Un objet a été partagé."
+      "carteNeutre": "Un objet a été partagé.",
+      "ecrit": "{nom} écrit…",
+      "plusieursEcrivent": "Plusieurs personnes écrivent…",
+      "presentDansLeFil": "{nom} est dans la conversation",
+      "presentsDansLeGroupe": "{n, plural, one {# personne est dans la conversation} other {# personnes sont dans la conversation}}"
     },
     "group": {
       "create": {

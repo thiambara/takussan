@@ -33,6 +33,8 @@ export const ETAT_INACTIF: EtatDuTempsReel = Object.freeze({ connexion: 'inactif
 export class MoteurTempsReel {
   private readonly abonnes = new Map<string, Set<RappelDuSignal>>();
   private readonly presences = new Map<string, { abonnes: Set<(ids: readonly number[]) => void>; ids: readonly number[] }>();
+  /** TCK-2955 — qui écoute les messages éphémères « écrit » d'un canal de présence. */
+  private readonly ecritures = new Map<string, Set<(id: number) => void>>();
   private connexion: ConnexionTempsReel | null = null;
   private cesserDeSuivre: (() => void) | null = null;
   private curseurs = new Curseurs();
@@ -136,12 +138,21 @@ export class MoteurTempsReel {
   }
 
   private rejoindreSur(connexion: ConnexionTempsReel, canal: string): void {
-    connexion.rejoindre(canal, (ids) => {
-      const presence = this.presences.get(canal);
-      if (this.connexion !== connexion || !presence) return;
-      presence.ids = ids;
-      for (const abonne of [...presence.abonnes]) abonne(ids);
-    });
+    connexion.rejoindre(
+      canal,
+      (ids) => {
+        const presence = this.presences.get(canal);
+        if (this.connexion !== connexion || !presence) return;
+        presence.ids = ids;
+        for (const abonne of [...presence.abonnes]) abonne(ids);
+      },
+      // TCK-2955 — un message éphémère « écrit » : seulement sur la connexion courante, et tant que le canal
+      // de présence est rejoint.
+      (id) => {
+        if (this.connexion !== connexion || !this.presences.has(canal)) return;
+        for (const rappel of [...(this.ecritures.get(canal) ?? [])]) rappel(id);
+      },
+    );
   }
 
   private publierPresences(): void {
@@ -175,6 +186,30 @@ export class MoteurTempsReel {
   /** Les identifiants présents sur le canal de présence `canal` ; `[]` sans connexion. */
   presents(canal: string): readonly number[] {
     return this.presences.get(canal)?.ids ?? [];
+  }
+
+  /**
+   * TCK-2955 — écoute les messages éphémères « écrit » du canal de présence `canal` (que l'écran rejoint par
+   * {@link MoteurTempsReel.rejoindre}) ; rend la fonction qui cesse d'écouter.
+   */
+  ecouterEcriture(canal: string, rappel: (id: number) => void): () => void {
+    let rappels = this.ecritures.get(canal);
+    if (!rappels) this.ecritures.set(canal, (rappels = new Set()));
+    rappels.add(rappel);
+    return () => {
+      const courants = this.ecritures.get(canal);
+      if (courants?.delete(rappel) && courants.size === 0) this.ecritures.delete(canal);
+    };
+  }
+
+  /**
+   * TCK-2955 — émet « écrit » sur le canal de présence `canal`, s'il est rejoint sur une connexion TENUE ;
+   * `false` sinon (sans connexion — sans clé, sous impersonation —, perdue, ou canal quitté) : rien ne part.
+   */
+  signalerEcriture(canal: string): boolean {
+    if (!this.connexion || this.etat.connexion !== 'tenue' || !this.presences.has(canal)) return false;
+    this.connexion.chuchoter(canal);
+    return true;
   }
 
   /** Rejoint le canal de présence `canal` (sans préfixe) ; rend la fonction qui le quitte. */

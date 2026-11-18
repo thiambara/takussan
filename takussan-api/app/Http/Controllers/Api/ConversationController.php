@@ -29,6 +29,8 @@ use App\Services\Messaging\GroupConversationService;
 use App\Services\Messaging\NonLus;
 use App\Services\Messaging\ObjetsDesMessages;
 use App\Support\CaseInsensitive;
+use App\Support\TempsReel\CodeDeSignal;
+use App\Support\TempsReel\TempsReel;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -515,6 +517,7 @@ class ConversationController extends Controller
         $conversation->participants()->updateExistingPivot($user->id, [
             'last_read_at' => now(),
         ]);
+        $this->signalerLaLecture($conversation, $user);
 
         return $this->json([
             'data' => [
@@ -551,6 +554,7 @@ class ConversationController extends Controller
             if ($lecture !== null && $lecture->greaterThan($avant)) {
                 $conversation->participants()->updateExistingPivot($user->id, ['last_read_at' => $avant]);
                 $lecture = $avant;
+                $this->signalerLaLecture($conversation, $user);
             }
         }
 
@@ -560,6 +564,18 @@ class ConversationController extends Controller
                 'last_read_at' => $this->instant($lecture),
             ],
         ]);
+    }
+
+    /**
+     * TCK-2955 (ADR-0129 § 2) — une lecture (ou son retrait) change les accusés de lecture que voient les
+     * autres (TCK-2858) : `conversation.read` sur le fil ; et la liste et le compteur du lecteur :
+     * `boite.updated` à lui seul. Rien d'autre — `last_read_at` n'est pas la composition du fil, et le
+     * pivot n'émet pas `participants.updated` pour lui (`ConversationParticipant::signauxTempsReel()`).
+     */
+    private function signalerLaLecture(Conversation $conversation, User $lecteur): void
+    {
+        TempsReel::signaler($conversation, CodeDeSignal::ConversationRead);
+        TempsReel::signalerA($lecteur, CodeDeSignal::BoiteUpdated, $conversation);
     }
 
     public function archive(Request $request, Conversation $conversation): JsonResponse

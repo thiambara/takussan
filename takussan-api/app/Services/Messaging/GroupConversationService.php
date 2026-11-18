@@ -200,24 +200,23 @@ class GroupConversationService
                 }
 
                 // Re-invite path: previously-left participant rejoins.
-                $hasLeftRow = ConversationParticipant::query()
+                // TCK-2955 (ADR-0129 § 2) — par le MODÈLE, plus par une écriture de masse : le retour
+                // change la composition du fil, et `ConversationParticipant` (`EmetDesSignaux`) le signale.
+                $leftRow = ConversationParticipant::query()
                     ->where('conversation_id', $conversation->id)
                     ->where('user_id', $uid)
-                    ->exists();
+                    ->first();
 
-                if ($hasLeftRow) {
-                    ConversationParticipant::query()
-                        ->where('conversation_id', $conversation->id)
-                        ->where('user_id', $uid)
-                        ->update([
-                            'role' => ParticipantRole::Member->value,
-                            'joined_at' => now(),
-                            'left_at' => null,
-                            'archived_at' => null,
-                            // TCK-861 (P38.07) — ce qui s'est écrit pendant l'absence n'est pas
-                            // « non lu » : le ré-invité n'était pas là pour le lire.
-                            'last_read_at' => now(),
-                        ]);
+                if ($leftRow !== null) {
+                    $leftRow->forceFill([
+                        'role' => ParticipantRole::Member->value,
+                        'joined_at' => now(),
+                        'left_at' => null,
+                        'archived_at' => null,
+                        // TCK-861 (P38.07) — ce qui s'est écrit pendant l'absence n'est pas
+                        // « non lu » : le ré-invité n'était pas là pour le lire.
+                        'last_read_at' => now(),
+                    ])->save();
                 } else {
                     $conversation->participants()->attach($uid, [
                         'role' => ParticipantRole::Member->value,
