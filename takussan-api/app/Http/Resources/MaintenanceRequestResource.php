@@ -41,6 +41,20 @@ class MaintenanceRequestResource extends BaseResource
      */
     private const COST_FIELDS = ['estimated_cost', 'actual_cost'];
 
+    /**
+     * TCK-2958 (ADR-0128 § 3) — la carte du fil relit la demande pour son lecteur, hors de la route de
+     * la demande : `abilities` seul y est rendu (pas le détail entier — médias, fil, créneau, mise en
+     * concurrence —, une batterie de requêtes par carte que la carte ne montre pas).
+     */
+    private bool $gestes = false;
+
+    public function avecGestes(): static
+    {
+        $this->gestes = true;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         $data = [
@@ -133,6 +147,9 @@ class MaintenanceRequestResource extends BaseResource
             $data['pending_reschedule_request'] = $this->pendingRescheduleBlock();
             // TCK-2917 (ADR-0118 § 5) — le délai de prise en charge médian de l'agence du bien.
             $data['maintenance_response_minutes'] = app(AgencyResponseTime::class)->minutesFor($this->property?->agency_id);
+        } elseif ($user !== null && $this->gestes) {
+            // TCK-2958 — la carte du fil : les gestes de CE lecteur, le même bloc que le détail.
+            $data['abilities'] = $this->abilitiesBlock($user);
         }
 
         return $data;

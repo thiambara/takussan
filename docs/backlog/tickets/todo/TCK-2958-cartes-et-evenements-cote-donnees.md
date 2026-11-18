@@ -209,4 +209,83 @@ tags: [back, front, messagerie, le-fil, cartes, i18n, securite, non-fuite, adr-0
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure (2026-11-18, arbre `feat/le-fil`, après TCK-2957)
+
+- **« encaisser : `update` »** : la route `POST lease-payments/{payment}/mark-paid` juge
+  `LeasePolicy::recordPayment` sur le BAIL (`MarkPaidLeasePaymentRequest::authorize`), pas
+  `LeasePaymentPolicy::update`, qui admet aussi le locataire (il aurait reçu un bouton refusé en 403).
+  `abilities.record_payment` suit la route.
+- **« payer »** : `initiate` juge `LeasePaymentPolicy::update` (personnel, bailleur, locataire) ; le
+  ticket le réserve au locataire : `abilities.pay` = compte du locataire du bail ET `update` ET un reste dû.
+- **`lease_payment` n'a pas de `show`** : la référence d'AC3 est la ligne de ce paiement dans
+  `GET /api/leases/{lease}/payments` pour le même lecteur.
+- **`BasePolicy::view` refuse un `LeasePayment`** (aucune capacité de lecture : super-admin seul) :
+  le registre lit `view` sur le bail de l'échéance (`via: lease`).
+- **`MaintenanceRequestResource` et `PropertyVisitResource` ne rendent `abilities` que sur LEUR route**
+  (`isDetailRequest`) : sur `GET …/messages`, la clé est absente. Une option `avecGestes()` les rend
+  hors de la route, `abilities` seul (pas le détail entier : médias, fil, créneau, concurrence).
+- `maintenance.system.*` et `maintenance.status.*` (`lang/{fr,en,wo}/maintenance.php`) n'avaient
+  pour seul lecteur que `SystemMessageFactory::humanise` : retirés avec lui, et la ligne
+  `maintenance.status` de `LabelKeysCoverValuesTest`.
+- `EcritureDeMessageUniqueTest` (TCK-2782) ferme la liste des écrivains de `Message` : `EvenementsDuFil`
+  y entre (un `event` n'a pas d'auteur ; ses cartes passent par `ConversationWriter`).
+- `SyncMaintenanceConversationTest` n'existe pas (déjà relevé par TCK-2957) : c'est
+  `tests/Feature/Maintenance/MaintenanceConversationTest.php` qui porte l'avis d'étape.
+
+
+### Choix et mesures (2026-11-18)
+
+- **Migration** `2026_11_18_295801_convert_maintenance_notices_to_events` (SQL pur) : l'objet est
+  `metadata.maintenance_request_id` s'il est numérique, sinon le sujet du fil (TCK-2957), sinon
+  `conversations.maintenance_request_id`, sinon `id` nul (la carte se relit « indisponible ») ; une
+  cause absente ou hors des 14 `CAUSE_*` du jour devient `maintenance.transition`. `data` réduit aux
+  quatre clés du catalogue : `actor_id` est perdu, et `down()` le rend nul. Rejouée, elle ne change rien
+  (testé). `ConvertMaintenanceNoticesMigrationTest` couvre les lignes bizarres (cause inconnue, id non
+  numérique, fil sans demande, message supprimé, avis sans `metadata`).
+- **Index de recherche** : `Message::shouldBeSearchable` refuse `system`/`event`/`card`, mais
+  `scout:import` filtre sans retirer, et `release.sh` ne réimporte que sur un écart de forme. D'où la
+  commande `messages:unindex-coded` (idempotente, synchrone), prouvée contre Meilisearch réel
+  (`tests/Feature/Search/MessagesUnindexCodedTest.php`, témoin : avant elle, la recherche rend encore
+  les avis). L'action `docs/deploiement/actions/2026-11-18-sauvegarder-avant-la-conversion-des-avis.md`
+  demande la sauvegarde manuelle AVANT, puis la commande APRÈS (garde `check-actions-de-deploiement` verte).
+- **Gestes de `booking` et `lease_payment`** : `BookingResource` et `LeasePaymentResource` n'avaient pas
+  d'`abilities` ; ajoutés sur demande (`avecGestes($lecteur)`), rendus par le `show` de la réservation
+  et l'échéancier du bail (référence d'AC3). `cancel` d'une réservation suit `BookingService::cancel`
+  (séjour confirmé commencé : non, TCK-1301) — `BookingGestesDuLecteurTest`.
+- **`DateInventoryByValueTest`** : trois clés que le parcours n'atteint pas inscrites avec leur raison
+  (`BookingResource::abilities`, `LeasePaymentResource::abilities`, `MessageResource::object`).
+- **AC5.** Dix événements sur la MÊME demande coûtent autant qu'un. Sur dix demandes DISTINCTES, le
+  premier relevé croissait : **40 requêtes pour 1, 238 pour 10** (2026-11-18, `load average` ~2) —
+  tracé par pile d'appels : `MaintenanceRequestPolicy` → `User::staffAgencyId()` →
+  `MembershipCapabilityResolver::isStaffAt()`, ~17 `exists(agent_profiles…)` par demande, et une
+  requête de médias par demande (`has_voice_note`). Corrigé par le chargement groupé que le résolveur
+  documente déjà (`MembershipCapabilityResolver::primed()`, pour la page : le lecteur × les agences des
+  objets, de leur bien, de leur bail et de son profil actif — pas une mémoïsation de verdict, TCK-457)
+  et `media` au chargement des demandes : **21 et 21**. Les deux tests d'AC5 sont des égalités strictes ;
+  ablations : sans l'amorce, rouge ; sans `media`, rouge.
+- **Route d'envoi** : `SendMessageConversationRequest::PARTICIPANT_TYPES` n'admet ni `card` ni `event`
+  (inchangé) ; épinglé par `EvenementsDuFilTest::test_la_route_d_envoi_refuse_une_carte_et_un_evenement`
+  (422 sur `type`, témoin : un texte passe en 201). Les autres lectures de `system` dans `app/`
+  (`MessagingReach::removedByAdmin`, `Message::neutralPreview`) ne concernent pas `card`/`event` ; tout
+  compte de non-lus passe par `$nonLus` (liste, `unread_total`, `meta.counts`, `filter[unread]`).
+- **Front** : `useTexteMessageSysteme` rend toujours une chaîne (code inconnu → `messaging.system.inconnu`),
+  jamais `content` ni `last_message_preview` ; `event` passe par la ligne d'avis, `card` par une ligne
+  neutre (`messaging.chat.carteNeutre`, aperçu `messaging.list.apercu.card`) ; `ReponseRecue` ne cite
+  ni `event` ni `card`. La forme `event: 'maintenance'` d'avant quitte le typage (plus émise).
+- `npx tsc --noEmit` : quatre erreurs `Cannot find module 'tesseract.js'`
+  (`src/lib/documents/lecture-mrz/moteur.ts`, c4c023396) — dépendance déclarée et absente du
+  `node_modules` local, hors de ce ticket ; aucune autre erreur.
+
+### Ablations (une à la fois, restauration prouvée par md5)
+
+| AC | Mutation | Résultat |
+|---|---|---|
+| AC1 | `SujetsDuFil::peutLire` → `true` dans `ObjetsDesMessages` | 6/6 lignes du jeu de données rouges |
+| AC2 | `MaintenanceRequestResource::seesQuote` → `true` | `le_locataire_demandeur_ne_lit_ni_devis_ni_cout` rouge |
+| AC3 bis | projeter `landlord` entier (bail) | ligne `lease` du jeu de données + témoin du téléphone rouges |
+| AC4 | `amount` ajouté à `DONNEES_INTERVENTION` | `CodesDuFilArchitectureTest` rouge (et `EvenementsDuFil` refuse `amount` : jeu `montant dans data`) |
+| AC5 | `media` retiré du chargement des demandes | `dix_objets_d_un_meme_type_se_chargent_en_une_requete` rouge |
+| AC5 | amorce `primed()` vidée (aucun utilisateur) | `dix_objets_d_un_meme_type_se_chargent_en_une_requete` rouge |
+| AC7 | `Event` retiré de l'exclusion de `$nonLus` | 2 tests de la liste rouges |
+| AC7 | `Event` retiré de l'exclusion de `markAsUnread` | `marquer_non_lu_ignore_l_evenement` rouge |
+| AC8 | repli du texte sur `meta.code` (front) | 3 tests vitest rouges (bulle et liste) |

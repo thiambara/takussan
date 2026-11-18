@@ -2520,7 +2520,8 @@
       "participantAdded": "{actor} dafa yokk {target} ci kuréel gi.",
       "participantRemoved": "{actor} dafa génn {target} ci kuréel gi.",
       "roleChanged": "{actor} soppil na ndëgg {target} ci {role}.",
-      "renamed": "{actor} tudd waaye kuréel gi « {subject} »."
+      "renamed": "{actor} tudd waaye kuréel gi « {subject} ».",
+      "inconnu": "Le fil a été mis à jour."
     },
     "chat": {
       "dateSeparator": {
@@ -2559,7 +2560,8 @@
       "marquerNonLue": "Marquer comme non lue",
       "nonLueEchouee": "La conversation n’a pas été remise en non lue. Réessayez.",
       "ajouterUnParticipant": "Ajouter un participant",
-      "signaler": "Signaler la conversation"
+      "signaler": "Signaler la conversation",
+      "carteNeutre": "Un objet a été partagé."
     },
     "group": {
       "create": {
@@ -2667,7 +2669,8 @@
       "apercu": {
         "image": "Photo",
         "document": "Document",
-        "audio": "Note vocale"
+        "audio": "Note vocale",
+        "card": "Objet partagé"
       },
       "nonLusAria": "{n, plural, one {# message non lu} other {# messages non lus}}",
       "aucunResultat": "Aucune conversation ne correspond.",

@@ -5,7 +5,6 @@ namespace Tests\Unit\Lang;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\ContractType;
-use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\ServiceProviderBillStatus;
@@ -45,8 +44,8 @@ class LabelKeysCoverValuesTest extends TestCase
             // BankStatementResource, BankStatementLineResource : `__()` sans repli.
             'reconciliation.status' => ['reconciliation.php', 'status', $this->cases(BankStatementStatus::class)],
             'reconciliation.line_status' => ['reconciliation.php', 'line_status', $this->cases(BankStatementLineMatchStatus::class)],
-            // SystemMessageFactory : `__()` sans repli.
-            'maintenance.status' => ['maintenance.php', 'status', $this->cases(MaintenanceStatus::class)],
+            // TCK-2958 : `maintenance.status` a quitté `lang/` avec son dernier lecteur
+            // (`SystemMessageFactory::humanise`) ; le front compose l'avis depuis son code.
             // notification-digest.blade.php : `__()` sans repli.
             'notifications.types' => ['notifications.php', 'types', $this->cases(NotificationType::class)],
             // ThresholdAlertTriggered::libelle : repli sur le code.

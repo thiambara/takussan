@@ -36,7 +36,10 @@ export function ReponseRecue({ className }: { readonly className?: string }) {
   if (user && fil.last_message?.sender_id === user.id) return null;
   const nom = nomDeLAutre(fil, user?.id ?? null);
   if (!nom) return null;
-  const apercu = fil.last_message?.type !== 'system' ? fil.last_message_preview?.trim() || null : null;
+  // TCK-2958 — l'aperçu d'un avis, d'un événement ou d'une carte n'est qu'un code : jamais cité.
+  const typeDernier = fil.last_message?.type;
+  const cite = typeDernier !== 'system' && typeDernier !== 'event' && typeDernier !== 'card';
+  const apercu = cite ? fil.last_message_preview?.trim() || null : null;
   const age = fil.last_message_at ? anciennete(fil.last_message_at, maintenant) : null;
   const quand = age ? tAge(`ilYa.${age.unite}`, { n: age.unite === 'hier' ? 1 : age.n }) : null;
   const ligne = [apercu ? t('citation', { texte: apercu }) : null, quand].filter(Boolean).join(' · ');

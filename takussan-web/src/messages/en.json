@@ -3759,7 +3759,8 @@
       "participantAdded": "{actor} added {target} to the group.",
       "participantRemoved": "{actor} removed {target} from the group.",
       "roleChanged": "{actor} changed {target}'s role to {role}.",
-      "renamed": "{actor} renamed the group to \"{subject}\"."
+      "renamed": "{actor} renamed the group to \"{subject}\".",
+      "inconnu": "The thread was updated."
     },
     "chat": {
       "dateSeparator": {
@@ -3798,7 +3799,8 @@
       "marquerNonLue": "Mark as unread",
       "nonLueEchouee": "The conversation was not marked as unread. Please try again.",
       "ajouterUnParticipant": "Add a participant",
-      "signaler": "Report the conversation"
+      "signaler": "Report the conversation",
+      "carteNeutre": "An item was shared."
     },
     "group": {
       "create": {
@@ -3906,7 +3908,8 @@
       "apercu": {
         "image": "Photo",
         "document": "Document",
-        "audio": "Voice note"
+        "audio": "Voice note",
+        "card": "Shared item"
       },
       "nonLusAria": "{n, plural, one {# unread message} other {# unread messages}}",
       "aucunResultat": "No conversation matches.",

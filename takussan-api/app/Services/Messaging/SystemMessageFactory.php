@@ -19,6 +19,10 @@ use App\Models\User;
  *  - renamed
  *
  * `sender_id` is null for system messages — these have no human author.
+ *
+ * TCK-2958 (ADR-0128 § 3) — `content` = le code de l'avis (`participant_added`…), plus jamais une
+ * phrase française (`humanise` est retiré). Les avis d'intervention ne sont plus des avis système :
+ * ce sont des messages `event` sur la demande, écrits par `EvenementsDuFil`.
  * The frontend renders them inline as neutral lines (see
  * `<SystemMessageBubble>`).
  */
@@ -32,15 +36,11 @@ class SystemMessageFactory
 
     public const EVENT_RENAMED = 'renamed';
 
-    /** TCK-592 — une étape de l'intervention que porte la conversation (`maintenance_request_id`). */
-    public const EVENT_MAINTENANCE = 'maintenance';
-
     public const EVENTS = [
         self::EVENT_PARTICIPANT_ADDED,
         self::EVENT_PARTICIPANT_REMOVED,
         self::EVENT_ROLE_CHANGED,
         self::EVENT_RENAMED,
-        self::EVENT_MAINTENANCE,
     ];
 
     public function participantAdded(Conversation $conversation, User $actor, User $target): Message
@@ -87,21 +87,6 @@ class SystemMessageFactory
     }
 
     /**
-     * TCK-592 — l'avis d'étape du fil d'une intervention. Le CODE (`cause`, `status`) est la donnée ;
-     * le front rend le texte dans la langue du lecteur. `content` est la repli, en clé
-     * `maintenance.system.*` dans la langue par défaut.
-     *
-     * @param  array<string, mixed>  $metadata  `cause`, `status`, `from`, `provider_name`…
-     */
-    public function maintenance(Conversation $conversation, ?User $actor, array $metadata): Message
-    {
-        return $this->emit($conversation, self::EVENT_MAINTENANCE, array_merge([
-            'actor_id' => $actor?->id,
-            'actor_name' => $actor ? $this->displayName($actor) : null,
-        ], $metadata));
-    }
-
-    /**
      * @param  array<string, mixed>  $metadata
      */
     protected function emit(Conversation $conversation, string $event, array $metadata): Message
@@ -110,45 +95,12 @@ class SystemMessageFactory
             'conversation_id' => $conversation->id,
             'sender_id' => null,
             'type' => MessageType::System->value,
-            'content' => $this->humanise($event, $metadata),
+            // TCK-2958 (ADR-0128 § 3, principe n° 5) — `content` est le CODE de l'avis, jamais un texte :
+            // le front compose le libellé dans la langue du lecteur, et l'aperçu commun de la liste
+            // (`MessageObserver::created`) ne porte plus de français.
+            'content' => $event,
             'metadata' => array_merge(['event' => $event], $metadata),
         ]);
-    }
-
-    /**
-     * Plain-text fallback rendered server-side. The frontend overrides
-     * this with locale-aware text from `messaging.system.*`, but the API
-     * still ships a sensible default for non-rich consumers.
-     *
-     * @param  array<string, mixed>  $m
-     */
-    protected function humanise(string $event, array $m): string
-    {
-        return match ($event) {
-            self::EVENT_PARTICIPANT_ADDED => sprintf(
-                '%s a ajouté %s au groupe',
-                $m['actor_name'] ?? '—',
-                $m['target_name'] ?? '—',
-            ),
-            self::EVENT_PARTICIPANT_REMOVED => ($m['self_leave'] ?? false)
-                ? sprintf('%s a quitté le groupe', $m['target_name'] ?? '—')
-                : sprintf('%s a retiré %s du groupe', $m['actor_name'] ?? '—', $m['target_name'] ?? '—'),
-            self::EVENT_ROLE_CHANGED => sprintf(
-                '%s a changé le rôle de %s en %s',
-                $m['actor_name'] ?? '—',
-                $m['target_name'] ?? '—',
-                $m['role'] ?? '—',
-            ),
-            self::EVENT_RENAMED => sprintf(
-                '%s a renommé le groupe en « %s »',
-                $m['actor_name'] ?? '—',
-                $m['new_subject'] ?? '—',
-            ),
-            self::EVENT_MAINTENANCE => in_array($m['cause'] ?? null, ['assigned', 'unassigned', 'accepted', 'declined'], true)
-                ? __('maintenance.system.'.$m['cause'], ['provider' => $m['provider_name'] ?? '—'])
-                : __('maintenance.system.status', ['status' => __('maintenance.status.'.($m['status'] ?? 'open'))]),
-            default => $event,
-        };
     }
 
     /**

@@ -26,6 +26,7 @@ use App\Services\Messaging\ConversationWriter;
 use App\Services\Messaging\DirectConversationService;
 use App\Services\Messaging\FaitsDesMessages;
 use App\Services\Messaging\GroupConversationService;
+use App\Services\Messaging\ObjetsDesMessages;
 use App\Support\CaseInsensitive;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -54,8 +55,10 @@ class ConversationController extends Controller
         // TCK-671 (P06.02) — `lastMessage` : le front dérive l'aperçu d'un avis système de son `metadata.event`.
         // TCK-861 (P38.07) — les membres ACTUELS seuls, comme `show()` : le nom et l'avatar d'un
         // ancien membre partaient dans la liste de chacun.
+        // TCK-2958 (ADR-0128 § 5) — un `event` ne compte pour PERSONNE (sans auteur, il compterait chez
+        // tous ; TCK-2959 le comptera pour qui doit agir). Une `card` compte comme un message d'un autre.
         $nonLus = function ($q) use ($user) {
-            $q->where('messages.type', '!=', MessageType::System->value)
+            $q->whereNotIn('messages.type', [MessageType::System->value, MessageType::Event->value])
                 ->where(fn ($w) => $w->whereNull('messages.sender_id')->orWhere('messages.sender_id', '!=', $user->id))
                 ->whereExists(fn ($p) => $p->selectRaw('1')
                     ->from('conversation_participants as lecteur')
@@ -398,7 +401,8 @@ class ConversationController extends Controller
             return $this->json([
                 // TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page ; rien à
                 // calculer quand le relevé ne rapporte aucun message (le cas de presque chaque tic).
-                'data' => $messages->isEmpty() ? [] : MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request),
+                // TCK-2958 — et les objets des cartes et événements, relus pour le lecteur en lot.
+                'data' => $messages->isEmpty() ? [] : MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request, ObjetsDesMessages::pour($request->user(), $messages, $request)),
                 'meta' => ['has_more' => false],
             ]);
         }
@@ -418,7 +422,9 @@ class ConversationController extends Controller
 
         return $this->json([
             // TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page.
-            'data' => MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request),
+            // TCK-2958 (ADR-0128 § 3) — et les objets des cartes et événements, relus pour le lecteur :
+            // une requête par type d'objet pour la page, jamais une par message.
+            'data' => MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request, ObjetsDesMessages::pour($request->user(), $messages, $request)),
             'meta' => ['has_more' => $messages->count() === $perPage],
         ]);
     }
@@ -531,7 +537,8 @@ class ConversationController extends Controller
         $user = $request->user();
         $dernier = Message::query()
             ->where('conversation_id', $conversation->id)
-            ->where('type', '!=', MessageType::System->value)
+            // TCK-2958 — la copie de `$nonLus` : ni avis système, ni `event`.
+            ->whereNotIn('type', [MessageType::System->value, MessageType::Event->value])
             ->where(fn ($w) => $w->whereNull('sender_id')->orWhere('sender_id', '!=', $user->id))
             ->max('created_at');
 

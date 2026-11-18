@@ -7,8 +7,12 @@ export type ConversationType = 'direct' | 'group' | 'support';
 
 export type ConversationStatus = 'active' | 'archived' | 'closed';
 
-/** TCK-592 (ADR-0038) — `audio` : une note vocale, son fichier dans `attachments`. */
-export type MessageType = 'text' | 'image' | 'document' | 'system' | 'audio';
+/**
+ * TCK-592 (ADR-0038) — `audio` : une note vocale, son fichier dans `attachments`.
+ * TCK-2958 (ADR-0128) — `event` : un avis sur un objet (sans auteur), rendu comme un avis système ;
+ * `card` : une carte qui désigne un objet (rendu riche : TCK-2962). Leur `content` est un CODE.
+ */
+export type MessageType = 'text' | 'image' | 'document' | 'system' | 'audio' | 'card' | 'event';
 
 export type ConversationParticipant = {
   id: number;
@@ -35,9 +39,7 @@ export type SystemMessageEvent =
   | 'participant_added'
   | 'participant_removed'
   | 'role_changed'
-  | 'renamed'
-  /** TCK-592 — une étape de l'intervention que porte le fil. */
-  | 'maintenance';
+  | 'renamed';
 
 export type MessageMetadata = {
   event?: SystemMessageEvent;
@@ -49,12 +51,14 @@ export type MessageMetadata = {
   role?: 'member' | 'admin';
   old_subject?: string;
   new_subject?: string;
-  /** TCK-592 — `event: 'maintenance'` : la cause et le statut, en CODES rendus par le front. */
-  maintenance_request_id?: number;
-  cause?: string;
-  from?: string | null;
-  status?: string;
-  provider_name?: string | null;
+  /**
+   * TCK-2958 (ADR-0128) — `card` et `event` : l'objet désigné, le code (`maintenance.<cause>`…) et
+   * des données que TOUT participant peut lire (jamais un montant ni une coordonnée). Les avis
+   * d'intervention (`event: 'maintenance'` jusqu'ici) sont des `event` : leur cause est dans le code.
+   */
+  object?: { type: string; id: number | null };
+  code?: string;
+  data?: Record<string, string | number | boolean | null>;
   /** TCK-592 (ADR-0038) — durée DÉCLARÉE d'une note vocale, en secondes : affichage seulement. */
   duration?: number;
 };
@@ -100,7 +104,17 @@ export type Message = {
   read_by_recipient?: boolean | null;
   /** TCK-2858 — groupe, message de l'appelant : combien des autres membres actuels l'ont lu. `null` ailleurs. */
   read_count?: number | null;
+  /**
+   * TCK-2958 (ADR-0128 § 3) — `card` et `event` : l'objet RELU pour l'appelant (sa projection et ses
+   * `abilities`), ou `{ indisponible: true }` s'il ne le lit pas ou s'il n'existe plus.
+   */
+  object?: ObjetDuMessage;
 };
+
+/** TCK-2958 — l'objet d'une carte ou d'un événement, tel que l'appelant le lit. */
+export type ObjetDuMessage =
+  | { indisponible: true }
+  | ({ id: number; abilities?: Record<string, boolean> } & Record<string, unknown>);
 
 /** TCK-2858 — `sender.role_label_code` (`FaitsDesMessages::ROLES` + `agency_admin`, `customer`). */
 export type RoleDeLAuteur = 'tenant' | 'owner' | 'service_provider' | 'agent' | 'agency_admin' | 'customer';
@@ -129,6 +143,7 @@ export type Conversation = {
   /**
    * TCK-671 — rendu par la liste (`ConversationController::index`) : le type du dernier message, et la
    * `metadata` d'un avis système seulement (`null` sinon), d'où le front dérive l'aperçu.
+   * TCK-2958 — et d'un `event` ou d'une `card` : `last_message_preview` n'est plus que leur code.
    */
   last_message?: (Pick<Message, 'id' | 'type' | 'metadata'> & {
     /**

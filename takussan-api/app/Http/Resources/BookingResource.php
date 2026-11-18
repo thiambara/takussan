@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CounterOfferStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Models\User;
 use App\Services\Booking\BookingConditions;
 use App\Services\Booking\BookingCustomerFacts;
 use App\Services\Booking\BookingDossierService;
@@ -17,6 +18,20 @@ use Illuminate\Http\Request;
 
 class BookingResource extends BaseResource
 {
+    /**
+     * TCK-2958 (ADR-0128 § 4) — le lecteur dont la ressource dit les gestes (`abilities`) : posé par la
+     * fiche (`BookingController::presenter`) et par la carte du fil, jamais par une liste (trois
+     * politiques par ligne).
+     */
+    private ?User $lecteurDesGestes = null;
+
+    public function avecGestes(?User $lecteur): static
+    {
+        $this->lecteurDesGestes = $lecteur;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         $visites = $this->resource instanceof Booking ? BookingCustomerFacts::visitsOnProperty($request, $this->resource) : null;
@@ -142,6 +157,33 @@ class BookingResource extends BaseResource
                 fn (): ?array => AcceptanceStageChange::forBooking($this->resource),
             ),
             'created_at' => $this->iso($this->created_at),
+            // TCK-2958 — les gestes de CE lecteur, jugés par `BookingPolicy` et par l'état que le
+            // service exige (`BookingService::confirm`, `reject`, `cancel`) : le front ne refait pas la règle.
+            'abilities' => $this->when($this->lecteurDesGestes !== null && $this->resource instanceof Booking, fn (): array => $this->gestes($this->lecteurDesGestes)),
+        ];
+    }
+
+    /**
+     * TCK-2958 — confirmer et rejeter : `validate`, sur une réservation en attente ; annuler :
+     * `cancel`, hors des états terminaux, et pas un séjour confirmé déjà commencé (TCK-1301).
+     *
+     * @return array{confirm: bool, reject: bool, cancel: bool}
+     */
+    private function gestes(User $lecteur): array
+    {
+        $booking = $this->resource;
+        $enAttente = $booking->status === BookingStatus::Pending;
+        $valider = $enAttente && $lecteur->can('validate', $booking);
+        $commence = $booking->status === BookingStatus::Confirmed
+            && $booking->start_date !== null
+            // Le premier jour est arrivé (`BookingService::cancel`, TCK-1301) : `start_date` est casté `date`.
+            && $booking->start_date->copy()->startOfDay()->lte(now());
+        $annulable = in_array($booking->status, [BookingStatus::Pending, BookingStatus::Confirmed], true) && ! $commence;
+
+        return [
+            'confirm' => $valider,
+            'reject' => $valider,
+            'cancel' => $annulable && $lecteur->can('cancel', $booking),
         ];
     }
 

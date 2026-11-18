@@ -40,9 +40,14 @@ class Message extends AbstractModel implements HasMedia
         ];
     }
 
+    /**
+     * TCK-2958 (ADR-0128 § 3) — un `system`, un `event` ou une `card` n'est pas indexé : son `content`
+     * est un code, pas un texte. Ceux déjà indexés avec leur texte français sont retirés par
+     * `messages:unindex-coded` (une réimportation filtre, elle ne retire pas).
+     */
     public function shouldBeSearchable(): bool
     {
-        return ! $this->trashed();
+        return ! $this->trashed() && ! in_array($this->type, MessageType::aContenuCode(), true);
     }
 
     public function registerMediaCollections(): void

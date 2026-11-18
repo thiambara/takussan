@@ -31,7 +31,7 @@ import { ErrorState } from '@/components/feedback';
 import { formatDateTime } from '@/lib/format';
 import { sendMessageSchema, type SendMessageFormValues } from '@/lib/schemas/message';
 import { cn } from '@/lib/utils';
-import { SystemMessageBubble } from './SystemMessageBubble';
+import { CarteNeutreBubble, SystemMessageBubble } from './SystemMessageBubble';
 import { ConversationInfoSheet } from './ConversationInfoSheet';
 import { EnTeteDuFil } from './EnTeteDuFil';
 import { MessageDateSeparator } from './MessageDateSeparator';
@@ -487,8 +487,11 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                 return <MessageDateSeparator key={item.key} date={item.date} />;
               }
               const m = item.message;
-              return m.type === 'system' ? (
+              // TCK-2958 — un `event` est un avis ; une `card`, une ligne neutre (rendu riche : TCK-2962).
+              return m.type === 'system' || m.type === 'event' ? (
                 <SystemMessageBubble key={m.id} message={m} />
+              ) : m.type === 'card' ? (
+                <CarteNeutreBubble key={m.id} />
               ) : (
                 <MessageBubble
                   key={m.id}

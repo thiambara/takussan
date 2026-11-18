@@ -3716,7 +3716,8 @@
       "participantAdded": "{actor} a ajouté {target} au groupe.",
       "participantRemoved": "{actor} a retiré {target} du groupe.",
       "roleChanged": "{actor} a changé le rôle de {target} en {role}.",
-      "renamed": "{actor} a renommé le groupe en « {subject} »."
+      "renamed": "{actor} a renommé le groupe en « {subject} ».",
+      "inconnu": "Le fil a été mis à jour."
     },
     "chat": {
       "dateSeparator": {
@@ -3755,7 +3756,8 @@
       "marquerNonLue": "Marquer comme non lue",
       "nonLueEchouee": "La conversation n’a pas été remise en non lue. Réessayez.",
       "ajouterUnParticipant": "Ajouter un participant",
-      "signaler": "Signaler la conversation"
+      "signaler": "Signaler la conversation",
+      "carteNeutre": "Un objet a été partagé."
     },
     "group": {
       "create": {
@@ -3863,7 +3865,8 @@
       "apercu": {
         "image": "Photo",
         "document": "Document",
-        "audio": "Note vocale"
+        "audio": "Note vocale",
+        "card": "Objet partagé"
       },
       "nonLusAria": "{n, plural, one {# message non lu} other {# messages non lus}}",
       "aucunResultat": "Aucune conversation ne correspond.",

@@ -51,7 +51,11 @@ class LeasePaymentController extends Controller
         // une fois pour toute la page plutôt qu'une fois par échéance.
         $payments->getCollection()->each->setRelation('lease', $lease->loadMissing('agency'));
 
-        return $this->paginated($payments, LeasePaymentResource::collection($payments)->toArray($request));
+        // TCK-2958 — et les gestes du lecteur sur chaque échéance (`abilities`), que la carte du fil relit.
+        return $this->paginated($payments, $payments->getCollection()
+            ->map(fn ($payment) => LeasePaymentResource::make($payment)->avecGestes($request->user())->resolve($request))
+            ->values()
+            ->all());
     }
 
     public function store(StoreLeasePaymentRequest $request, Lease $lease): JsonResponse

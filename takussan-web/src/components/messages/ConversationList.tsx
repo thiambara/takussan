@@ -280,12 +280,14 @@ function ConversationRow({
   // « Document ») : `last_message_preview` est écrit dans la langue de l'EXPÉDITEUR.
   const texteSysteme = useTexteMessageSysteme();
   const typeDernier = conversation.last_message?.type;
+  // TCK-2958 — un avis (`system`, `event`) et une carte (`card`) n'ont pour aperçu serveur qu'un CODE :
+  // jamais de repli sur `last_message_preview` pour eux.
   const apercu =
-    (typeDernier === 'system' ? texteSysteme(conversation.last_message?.metadata) : null) ??
-    (typeDernier === 'image' || typeDernier === 'document' || typeDernier === 'audio'
-      ? t(`list.apercu.${typeDernier}`)
-      : null) ??
-    conversation.last_message_preview;
+    typeDernier === 'system' || typeDernier === 'event'
+      ? texteSysteme(conversation.last_message?.metadata)
+      : typeDernier === 'card' || typeDernier === 'image' || typeDernier === 'document' || typeDernier === 'audio'
+        ? t(`list.apercu.${typeDernier}`)
+        : conversation.last_message_preview;
   const bien = conversation.property?.title ?? null;
   const sousLigne = intervention
     ? bien

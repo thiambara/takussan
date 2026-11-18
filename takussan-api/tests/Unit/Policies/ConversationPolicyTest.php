@@ -120,6 +120,16 @@ class ConversationPolicyTest extends TestCase
         }
     }
 
+    /** TCK-2958 (ADR-0128 § 3) — un `event` est immuable comme un avis système ; une `card` suit la règle d'un message. */
+    public function test_an_event_is_immutable_and_a_card_follows_the_author_rule(): void
+    {
+        $evenement = Message::factory()->create(['type' => MessageType::Event, 'sender_id' => null]);
+        $this->assertFalse($this->policy->modifyMessage(User::factory()->create(), $evenement));
+
+        $carte = Message::factory()->create(['type' => MessageType::Card]);
+        $this->assertTrue($this->policy->modifyMessage(User::factory()->create(), $carte));
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────
 
     /** @return array{0: Conversation, 1: User} */
