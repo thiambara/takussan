@@ -41,7 +41,8 @@ tags: [back, messagerie, le-fil, note-d-equipe, securite, non-fuite, adr-0128]
   - être personnel actif de cette agence (`PersonnelDeLAgence::personnelActifDe`).
 
   Un agent qui quitte l'agence ne lit plus les notes, même les siennes. Le super-admin hors
-  impersonation suit la règle de l'ADR (les participants seulement).
+  impersonation suit la règle de l'ADR : il ne lit pas les notes, puisque seuls les participants les lisent
+  (décision du porteur du 2026-11-18, 3a ; le précédent du document interne d'ADR-0099 est écarté).
 - **L'écriture** passe par la route existante `POST /api/conversations/{conversation}/messages`, avec
   un champ `visibility` (`all` par défaut). `team` est refusé en 422, avec un code d'erreur sous
   `LangGroupParity`, quand :

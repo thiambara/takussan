@@ -56,7 +56,7 @@ Sparse fieldsets : les champs ajoutés entrent dans la constante `*_FIELDS` de l
 
   Une note envoyée se lit au premier regard (aplat ocre, cadenas, « Note d'équipe »).
 - **La file se lit sans légende** : délai « depuis 25 min » sur un fil « À vous », dépassé au-delà
-  de **4 h** (une constante nommée du front) ; motif court sur un fil « En attente » (« Bineta Sarr
+  de **4 h** (une constante nommée du front, décision du porteur du 2026-11-18, 2a) ; motif court sur un fil « En attente » (« Bineta Sarr
   doit signer », « confié à Ibrahima Fall »), composé depuis `en_attente_de` et les participants.
 - **« Traité »** : un geste au survol au bureau et au glissement au téléphone, suivi d'un toast avec
   « Annuler ». **« Rappelez-le-moi »** propose des choix courts (dans 1 h, ce soir, demain matin,

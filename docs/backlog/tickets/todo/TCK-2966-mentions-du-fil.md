@@ -40,7 +40,8 @@ tags: [back, messagerie, le-fil, mentions, notifications, non-fuite, adr-0128]
   à l'auteur qu'il a prévenu quelqu'un.
 - **Notification** : un code `NotificationCode::MessageMention`. Il remplace, pour la personne
   mentionnée, le `MessageReceived` du même message (une seule notification, pas deux). Il part
-  **même quand le fil est en sourdine** pour elle, puisque c'est le sens d'une mention.
+  **même quand le fil est en sourdine** pour elle, puisque c'est le sens d'une mention (décision du
+  porteur du 2026-11-18, 1a).
 - **`MessageResource`** rend `metadata.mentions`, seulement à qui lit le message (le filtre de
   TCK-2965 s'en charge).
 
