@@ -256,6 +256,11 @@ Relevé sur l'arbre du 2026-11-17 :
   et un `.env` vide (copie dans le scratchpad) ; `api` et `temps-reel` reçoivent `REVERB_HOST:
   takussan-api-preview-temps-reel`, `REVERB_PORT: "8080"`, `REVERB_SCHEME: http`.
 
+- **La sonde de santé de `temps-reel`** (la ligne `php -r file_get_contents('http://127.0.0.1:8080/up')` de
+  `compose.api.yml`) jouée dans un `reverb:start` jetable : code 0 ; témoin sur un port fermé : code 1.
+- `APP_ENV=local` relu dans `takussan-api/.env.example`, `.env.docker` et le `.env` du poste : le Reverb de
+  développement est bien en `*`.
+
 ### Écarts au ticket
 
 - **`REVERB_APP_ID` a une valeur au gabarit** (`takussan`), pas un vide : ce n'est pas un secret (l'identifiant
@@ -284,3 +289,18 @@ Relevé sur l'arbre du 2026-11-17 :
   `TEMPS_REEL_URL`) : TCK-2954.
 - **`mem_limit`** à relever dans l'image de l'API, sur la préproduction (action, « Comment vérifier », point 1).
 
+
+### Mesure de la session (2026-11-18, 09:19 → 09:29) : AC1, AC3 (pile) et AC6 (image)
+
+Image construite depuis `a64d88657` (`--target runtime` et `--target seed`, `BUILD_SHA=smoke`), machine peu chargée :
+
+- `deploy/takussan/smoke-api.sh image` → **sortie 0**, dont « ✓ BROADCAST_CONNECTION=reverb sans aucune clé REVERB_APP_* : l'API démarre (l'émission échouera, avalée) » (AC6) ;
+- `deploy/takussan/smoke-api.sh pile` → **sortie 0**, dont :
+  - « ✓ temps-reel sain (GET /up du serveur Reverb) » ;
+  - « ✓ l'API vise takussan-api-smoke-temps-reel (écrit par la pile, malgré le .env), qui répond sur dokploy-network » ;
+  - « ✓ origines : http://localhost:3000 admise, https://autre.example refusée en 4009 » ;
+  - « ✓ un signal émis par l'API arrive au client WebSocket abonné, de l'intérieur de la pile » ;
+  - « ✓ aucun service ne redémarre » ;
+  - mémoire `takussan-smoke-temps-reel-1` à 57,42 Mio sur 384 Mio.
+
+Reste, hors de portée locale : la moitié `./dev.sh` d'AC3, et tout ce que l'action de déploiement confie à une personne (DNS, Dokploy, clés).
