@@ -1,7 +1,7 @@
 ---
 id: TCK-2968
 title: "La boîte de pilotage et la note d'équipe à l'écran : filtres de pilotage, Traité, Rappelez-le-moi, fil confié, pastille des gestes, interrupteur Équipe et @mention"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: L
@@ -84,16 +84,16 @@ Sparse fieldsets : les champs ajoutés entrent dans la constante `*_FIELDS` de l
 
 ## Delta à produire
 
-- [ ] La rangée de filtres de pilotage de la liste et ses états vides par filtre.
-- [ ] Sur chaque ligne : délai, motif d'attente, « confié à », et les gestes « Traité » et
+- [x] La rangée de filtres de pilotage de la liste et ses états vides par filtre.
+- [x] Sur chaque ligne : délai, motif d'attente, « confié à », et les gestes « Traité » et
   « Rappelez-le-moi » avec leur annulation.
-- [ ] La pastille des gestes dans la barre du téléphone et la colonne du bureau.
-- [ ] Le composeur : interrupteur « Équipe » pour le personnel, saisie `@` et liste des mentionnables,
+- [x] La pastille des gestes dans la barre du téléphone et la colonne du bureau.
+- [x] Le composeur : interrupteur « Équipe » pour le personnel, saisie `@` et liste des mentionnables,
   aucun message éphémère en mode « Équipe ».
-- [ ] La bulle de note d'équipe et l'affichage d'une mention.
-- [ ] Le geste « Confier » pour les salles et les groupes.
-- [ ] Clés i18n `fr`, `en` et `wo` (texte français).
-- [ ] Tests :
+- [x] La bulle de note d'équipe et l'affichage d'une mention.
+- [x] Le geste « Confier » pour les salles et les groupes.
+- [x] Clés i18n `fr`, `en` et `wo` (texte français).
+- [x] Tests :
   - les filtres envoient `filter[file]` ;
   - la pastille lit `meta.gestes` ;
   - « Traité » puis « Annuler » ;
@@ -104,16 +104,16 @@ Sparse fieldsets : les champs ajoutés entrent dans la constante `*_FIELDS` de l
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px : chaque écran de `fil-boite`
+- [x] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px : chaque écran de `fil-boite`
   D (sans « Retard ») et l'écran « Note d'équipe et @mention » de `fil-cartes` D est fidèle à sa
   maquette. Chaque écart est nommé dans le ticket.
-- [ ] **AC2** — Un locataire connecté ne voit ni l'interrupteur, ni une note, ni le mot « équipe » dans
+- [x] **AC2** — Un locataire connecté ne voit ni l'interrupteur, ni une note, ni le mot « équipe » dans
   son fil. Relevé au navigateur, avec un agent qui écrit une note dans la même salle.
-- [ ] **AC3** — Écrire en mode « Équipe » n'affiche pas « en train d'écrire » chez le locataire
+- [x] **AC3** — Écrire en mode « Équipe » n'affiche pas « en train d'écrire » chez le locataire
   abonné au même fil. Relevé au navigateur, deux sessions.
-- [ ] **AC4** — « Traité » fait sortir le fil de « À vous » et baisser la pastille d'une unité ;
+- [x] **AC4** — « Traité » fait sortir le fil de « À vous » et baisser la pastille d'une unité ;
   « Annuler » rétablit les deux.
-- [ ] **AC5** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests des
+- [x] **AC5** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests des
   fichiers touchés verts.
 
 ## Hors périmètre
@@ -222,5 +222,30 @@ est générique, « En attente de {noms} ».
   `surface-publique`), écarts tous dans `playground/maquettes` — les deux fichiers irrésolvables de plus de
   `surface-publique` sont `maquettes/pages/accueil.tsx` et `navigation.tsx` (sondé). Les tests qui importent les
   composants touchés hors de `messages/` et `chat-widget/` (23 fichiers) : verts.
-- AC1 à AC4 : non mesurés (relevés au navigateur hors de la portée de cette passe).
-
+- **Relevé au navigateur de la session (2026-11-18, `./dev.sh`, base de dev migrée)** — agent `agent3@dakarimmo.sn`
+  (Pape Cissé), locataire Fatou Wade, salle du bail 178 :
+  - **AC1** — 1280 px et 360 px (émulation mobile, `innerWidth` 360, aucun défilement du document ; la rangée de
+    puces défile dans son conteneur). Comparé à `fil-boite` D écran 0 et à `fil-cartes` D « Note d'équipe et
+    @mention », au téléphone. **Écarts nommés** :
+    - la ligne ne porte ni la puce d'objet (« Devis 145 000 F à approuver », « Pièces du dossier demandées »), ni
+      l'étiquette « Note d'équipe », ni « 2 événements », ni « en train d'écrire… », ni le canal WhatsApp : hors du
+      delta de ce ticket (engagements au lot 3, pont hors périmètre) ;
+    - le bouton « Filtrer » et « Groupes » : écart déjà nommé plus haut ;
+    - les données de dev n'ont que des attentes anciennes : toutes les lignes « À vous » rendent l'état dépassé
+      (« depuis 304 j · au-delà de 4 h », ocre), la maquette montre l'état dans le délai (« depuis 25 min ») ;
+    - le composeur en mode « Équipe » dit « Lu par l'équipe seulement — pas par Mamadou ou Fatou » : la maquette nomme
+      l'agence (« l'équipe Dakar Immo ») et écrit « ni » ; l'interrupteur n'a pas de cadenas dans le bouton ;
+    - la bulle de note (cadenas, « Note d'équipe · vous », « Invisible pour Mamadou et Fatou », fond ocre) et la feuille
+      « Rappelez-le-moi » au téléphone (Dans 1 heure, Demain matin, Lundi prochain, la règle) sont fidèles. La
+      liste des mentionnables n'a pas pu être relevée : le fil 178 n'a qu'un membre du personnel, l'appelant.
+  - **AC2** — après une note de l'agent dans 178 : chez la locataire, ni note, ni interrupteur, ni le mot « Équipe »
+    (`document.body.innerText`) ; `/context` rend `can_write_team_note: false`, `team_note_reader_ids: []`, tous
+    les `reads_team_notes` faux ; la liste garde l'aperçu « Une relance a été faite… » (l'aperçu ne porte pas la note).
+  - **AC3** — deux sessions sur 178, observateur de mutations chez la locataire : saisie en mode « Équipe » → aucun
+    « écrit… » ; témoin, la même saisie en mode « Fil » → « Pape Cissé écrit… » relevé. Le composeur revient à
+    « Fil » après l'envoi d'une note.
+  - **AC4** — « Traité » sur une ligne de « À vous » : `PUT …/handled` 200, toast « « Photos à refaire » est traité. »
+    à 3,3 s (latence de l'API de dev), « À vous » 7 → 6 ; « Annuler » : 6 → 7. La pastille de la colonne
+    (« Conversations à traiter ») suit le compte. « À vous » est trié par attente la plus ancienne (API).
+  - **AC5** — `tsc`, `check:i18n`, `check:vouvoiement`, ESLint des fichiers touchés et 5038 tests (422 fichiers) verts
+    par la vérification de la session ; `npm run lint` entier et la suite web par la CI.

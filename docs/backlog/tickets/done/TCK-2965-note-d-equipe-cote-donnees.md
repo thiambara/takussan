@@ -1,7 +1,7 @@
 ---
 id: TCK-2965
 title: "La note d'équipe côté données : messages.visibility, un filtre dans ConversationAccess, une matrice de non-fuite par chemin de lecture"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: L
@@ -95,22 +95,22 @@ tags: [back, messagerie, le-fil, note-d-equipe, securite, non-fuite, adr-0128]
 
 ## Delta à produire
 
-- [ ] Migration `add_visibility_to_messages` : `string('visibility')->default('all')`, plus un index
+- [x] Migration `add_visibility_to_messages` : `string('visibility')->default('all')`, plus un index
   qui sert le filtre de la page (`(conversation_id, visibility, id)` ou ce que la mesure justifie) ;
   `down()` retire l'index puis la colonne.
-- [ ] `MessageVisibility` (enum), son cast dans `Message` et `fillable`.
-- [ ] `EquipeDuFil` : `agence(Conversation)` et `litLesNotes(User, Conversation)`.
-- [ ] `ConversationAccess::messagesLisiblesPar`, branché sur tous les chemins de la liste.
-- [ ] `SendMessageConversationRequest` et `ConversationWriter` : champ `visibility`, refus en 422.
-- [ ] `Message::toSearchableArray` (`visibility`), `config/scout.php` (filtrable),
+- [x] `MessageVisibility` (enum), son cast dans `Message` et `fillable`.
+- [x] `EquipeDuFil` : `agence(Conversation)` et `litLesNotes(User, Conversation)`.
+- [x] `ConversationAccess::messagesLisiblesPar`, branché sur tous les chemins de la liste.
+- [x] `SendMessageConversationRequest` et `ConversationWriter` : champ `visibility`, refus en 422.
+- [x] `Message::toSearchableArray` (`visibility`), `config/scout.php` (filtrable),
   `MessageSearchService`.
-- [ ] `MessageObserver::created`, `NotifyNewMessageJob`, `Message::signauxTempsReel`,
+- [x] `MessageObserver::created`, `NotifyNewMessageJob`, `Message::signauxTempsReel`,
   `FaitsDesMessages`, `DataExportBuilder`.
-- [ ] `MessageResource` : `visibility`.
-- [ ] `docs/deploiement/actions/` : la réimportation de l'index des messages porte la nouvelle clé.
+- [x] `MessageResource` : `visibility`.
+- [x] `docs/deploiement/actions/` : la réimportation de l'index des messages porte la nouvelle clé.
   Relire d'abord `takussan-api/docker/release.sh`, qui la joue peut-être déjà ; si c'est le cas,
   aucun fichier n'est à créer.
-- [ ] Tests :
+- [x] Tests :
   - `NoteDEquipeNonFuiteTest` : **un test par chemin de la liste**, avec trois lecteurs (le locataire
     participant, le bailleur participant, un agent d'une autre agence participant d'un groupe) et un
     lecteur témoin (le personnel actif, qui lit la note) ;
@@ -121,27 +121,27 @@ tags: [back, messagerie, le-fil, note-d-equipe, securite, non-fuite, adr-0128]
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Pour **chaque** chemin de la liste, un lecteur qui n'est pas personnel actif de
+- [x] **AC1** — Pour **chaque** chemin de la liste, un lecteur qui n'est pas personnel actif de
   l'agence du fil ne reçoit ni la note, ni son texte, ni son compte, ni sa notification, ni son
   signal. Le personnel actif la reçoit. *Ablation : retirer le filtre d'un chemin, l'un après
   l'autre, rend rouge le test de ce chemin, et celui-là seulement.*
-- [ ] **AC2** — La recherche filtre dans Meilisearch : une recherche du texte exact de la note, par le
+- [x] **AC2** — La recherche filtre dans Meilisearch : une recherche du texte exact de la note, par le
   locataire, rend `total = 0`. *Ablation : filtrer après la pagination laisse `total = 1`, et le test
   doit le voir.*
-- [ ] **AC3** — Après une note, `last_message_preview`, `last_message_at` et l'ordre de la liste sont
+- [x] **AC3** — Après une note, `last_message_preview`, `last_message_at` et l'ordre de la liste sont
   ceux d'avant, pour tous les lecteurs.
-- [ ] **AC4** — Une note émet un signal vers le seul `utilisateur.{id}` du personnel qui la lit, et
+- [x] **AC4** — Une note émet un signal vers le seul `utilisateur.{id}` du personnel qui la lit, et
   aucun sur `sujet.conversation.{id}` (`FauxTransport`). *Ablation : émettre sur le canal du sujet
   rend ce test rouge.*
-- [ ] **AC5** — `visibility = team` est refusé en 422 pour un client, pour un agent d'une autre agence,
+- [x] **AC5** — `visibility = team` est refusé en 422 pour un client, pour un agent d'une autre agence,
   dans un fil sans agence, et pour un type autre que `text`, `voice` ou `attachment`.
-- [ ] **AC6** — Un agent devenu inactif dans l'agence ne lit plus les notes du fil, ni les siennes.
-- [ ] **AC6 bis** — Le super-admin hors impersonation lit la note par `GET …/messages` et par la
+- [x] **AC6** — Un agent devenu inactif dans l'agence ne lit plus les notes du fil, ni les siennes.
+- [x] **AC6 bis** — Le super-admin hors impersonation lit la note par `GET …/messages` et par la
   recherche. Sous l'impersonation du locataire, il ne la lit par aucun chemin. *Ablation : juger
   l'opérateur au lieu de la cible pendant l'impersonation rend ce test rouge.*
-- [ ] **AC7** — Avec 30 notes entre deux messages, le locataire lit les deux messages en pages de
+- [x] **AC7** — Avec 30 notes entre deux messages, le locataire lit les deux messages en pages de
   20, sans page vide ni `has_more` faux.
-- [ ] Pint propre ; tests des fichiers touchés verts.
+- [x] Pint propre ; tests des fichiers touchés verts.
 
 ## Hors périmètre
 

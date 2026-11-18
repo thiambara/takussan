@@ -1,7 +1,7 @@
 ---
 id: TCK-2967
 title: "La boîte de pilotage côté données : la file de chaque fil dérivée à la lecture, « Traité », « Rappelez-le-moi », le fil confié et la pastille des gestes"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: L
@@ -102,18 +102,18 @@ tags: [back, messagerie, le-fil, boite, adr-0128, adr-0068]
 
 ## Delta à produire
 
-- [ ] Migration `add_pilotage_columns_to_conversations` : les trois colonnes, avec un index sur
+- [x] Migration `add_pilotage_columns_to_conversations` : les trois colonnes, avec un index sur
   `assigned_to_id`. `down()` les retire.
-- [ ] `App\Services\Messaging\FileDuFil` (nom libre) : les sous-requêtes SQL de la dérivation, partagées
+- [x] `App\Services\Messaging\FileDuFil` (nom libre) : les sous-requêtes SQL de la dérivation, partagées
   par la page, les comptes et le filtre.
-- [ ] `ConversationController::index` et `ListConversationsRequest` : `filter[file]`, champs par fil,
+- [x] `ConversationController::index` et `ListConversationsRequest` : `filter[file]`, champs par fil,
   `meta.counts`, `meta.gestes`. `ConversationResource` rend ces champs.
-- [ ] `LastExchangeSort` : le rappel échu revient en tête.
-- [ ] Routes et contrôleur des trois gestes (`ConversationPilotageController` ou équivalent), leurs
+- [x] `LastExchangeSort` : le rappel échu revient en tête.
+- [x] Routes et contrôleur des trois gestes (`ConversationPilotageController` ou équivalent), leurs
   requêtes, leurs codes d'erreur sous `LangGroupParity`, et `ProtectedActionsCoverageTest` /
   `PlatformAnyRouteExempt` selon la règle des routes neuves.
-- [ ] `docs/models-spec.md` : rien, `/sync-specs` le reporte après fusion.
-- [ ] Tests :
+- [x] `docs/models-spec.md` : rien, `/sync-specs` le reporte après fusion.
+- [x] Tests :
   - `FileDuFilTest`, un jeu de données par règle :
     - client qui écrit en dernier ;
     - collègue qui répond ;
@@ -130,18 +130,18 @@ tags: [back, messagerie, le-fil, boite, adr-0128, adr-0068]
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Chaque règle de la dérivation a son test, et chacune rougit par ablation de sa clause :
+- [x] **AC1** — Chaque règle de la dérivation a son test, et chacune rougit par ablation de sa clause :
   - retirer `handled_at` laisse un fil traité en `vous` ;
   - retirer le côté « équipe » met en `vous` un fil auquel un collègue a répondu ;
   - retirer l'exception du fil confié le met en `vous` chez le collègue.
-- [ ] **AC2** — Une note d'équipe écrite en dernier ne change la file d'aucun lecteur.
-- [ ] **AC3** — `meta.gestes` est égal au nombre de fils `vous` hors sourdine, et reste le même quel que
+- [x] **AC2** — Une note d'équipe écrite en dernier ne change la file d'aucun lecteur.
+- [x] **AC3** — `meta.gestes` est égal au nombre de fils `vous` hors sourdine, et reste le même quel que
   soit `filter[…]`.
-- [ ] **AC4** — Un rappel échu remonte en tête de la liste triée par dernier échange.
-- [ ] **AC5** — Le nombre de requêtes de la liste ne croît pas de 1 à 30 fils.
-- [ ] **AC6** — Confier le fil d'un prospect, ou confier à une personne qui n'est pas personnel actif
+- [x] **AC4** — Un rappel échu remonte en tête de la liste triée par dernier échange.
+- [x] **AC5** — Le nombre de requêtes de la liste ne croît pas de 1 à 30 fils.
+- [x] **AC6** — Confier le fil d'un prospect, ou confier à une personne qui n'est pas personnel actif
   et participante, est refusé en 422. Un geste sous impersonation est refusé.
-- [ ] Pint propre ; tests des fichiers touchés verts.
+- [x] Pint propre ; tests des fichiers touchés verts.
 
 ## Hors périmètre
 

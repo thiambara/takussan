@@ -1,7 +1,7 @@
 ---
 id: TCK-2966
 title: "Les @mentions d'un fil : des identifiants de compte dans metadata, refusées si la personne ne lit pas le message, notifiées à qui le lit"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M
@@ -61,14 +61,14 @@ tags: [back, messagerie, le-fil, mentions, notifications, non-fuite, adr-0128]
 
 ## Delta à produire
 
-- [ ] `SendMessageConversationRequest` : `mentions` (`array`, 10 au plus, entiers distincts) et la
+- [x] `SendMessageConversationRequest` : `mentions` (`array`, 10 au plus, entiers distincts) et la
   règle « lit ce message ». Pour une note, elle dépend de `visibility`.
-- [ ] `ConversationWriter` : `metadata.mentions` à l'écriture.
-- [ ] `NotificationCode::MessageMention`, avec ses libellés `fr`/`en` côté API s'il en faut pour le
+- [x] `ConversationWriter` : `metadata.mentions` à l'écriture.
+- [x] `NotificationCode::MessageMention`, avec ses libellés `fr`/`en` côté API s'il en faut pour le
   courriel (codes, pas texte, à la frontière du front) et ses préférences par canal.
-- [ ] `NotifyNewMessageJob` : les mentionnés qui lisent le message reçoivent `MessageMention`, sourdine
+- [x] `NotifyNewMessageJob` : les mentionnés qui lisent le message reçoivent `MessageMention`, sourdine
   comprise, et pas de `MessageReceived` en plus ; les autres destinataires ne changent pas.
-- [ ] Tests :
+- [x] Tests :
   - `MentionsDuFilTest` : forme et dédoublonnage ;
   - les refus en 422 (non-participant, client mentionné dans une note, plus de 10 mentions,
     mention sur une carte) ;
@@ -77,15 +77,15 @@ tags: [back, messagerie, le-fil, mentions, notifications, non-fuite, adr-0128]
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Mentionner le locataire dans une note d'équipe est refusé en 422, et aucune
+- [x] **AC1** — Mentionner le locataire dans une note d'équipe est refusé en 422, et aucune
   notification ne part. *Ablation : retirer la règle « lit ce message » de la requête rend ce test
   rouge ; la retirer du job aussi rend rouge le test du départ.*
-- [ ] **AC2** — Un agent mentionné dans un fil qu'il a mis en sourdine reçoit `MessageMention`, une
+- [x] **AC2** — Un agent mentionné dans un fil qu'il a mis en sourdine reçoit `MessageMention`, une
   seule fois ; un participant non mentionné du même fil, en sourdine, ne reçoit rien.
-- [ ] **AC3** — Un mentionné qui quitte le fil avant le passage du job n'est pas prévenu.
-- [ ] **AC4** — `metadata.mentions` n'apparaît dans aucune réponse lue par un lecteur qui ne lit pas
+- [x] **AC3** — Un mentionné qui quitte le fil avant le passage du job n'est pas prévenu.
+- [x] **AC4** — `metadata.mentions` n'apparaît dans aucune réponse lue par un lecteur qui ne lit pas
   le message (couvert par la matrice de TCK-2965, plus un cas ici).
-- [ ] Pint propre ; tests des fichiers touchés verts.
+- [x] Pint propre ; tests des fichiers touchés verts.
 
 ## Hors périmètre
 
