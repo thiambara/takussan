@@ -18,6 +18,7 @@
 | Hôte | Service Dokploy | Image | Relevé le |
 |---|---|---|---|
 | `preview.api.takussan.com` | Compose `takussan-api-preview`, service `api:8080` — A en DNS seul | `ghcr.io/thiambara/takussan-api:preview` | 2026-09-14 : `/up` → `200`, `X-Build-Sha` = `preview`, Let's Encrypt |
+| `preview.ws.takussan.com` — le temps réel, en `wss` (TCK-2956, ADR-0129 § 5 ; `ws.takussan.com` en phase F) | Compose `takussan-api-preview`, service **`temps-reel:8080`** (Reverb, `php artisan reverb:start`) — A en DNS seul, comme `preview.api` | `ghcr.io/thiambara/takussan-api:preview` | **à relever** : ni l'enregistrement DNS ni le domaine Dokploy ne sont posés au 2026-11-18 ; les gestes et leur vérification sont dans [`docs/deploiement/actions/2026-11-17-poser-le-temps-reel.md`](../deploiement/actions/2026-11-17-poser-le-temps-reel.md) |
 | `preview.takussan.com` | Application `takussan-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/takussan-web:preview` | 2026-09-14 : `401` sans authentification, `200` avec (la racine rend `307` vers `/fr`) ; `cf-ray`, aucun `x-vercel-id` ; plafond **512 Mio** depuis le 2026-09-14 (TCK-520 : pic 327 Mio mesuré sous charge d'images sur l'ancien plafond de 384) |
 | `deploy.takussan.com` | l'interface de Dokploy — A proxifié, certificat d'origine Let's Encrypt | — | 2026-09-14 : `200`, `http` → `301` |
 | `api.takussan.com` — le nom de l'API de production (le front public qui l'appelait a disparu avec Vercel, voir ci-dessous) | **aucun service** jusqu'à la phase F (TCK-517) : A `178.18.247.62` en DNS seul, hérité de l'ancien serveur ; Traefik y présente `CN=TRAEFIK DEFAULT CERT` (auto-signé, réémis à chaque redémarrage de Traefik — `notAfter` 2027-09-14 20:46 Z, celui du redémarrage de TCK-518) et rend `404` derrière. Au 2026-09-14, l'appel du front de `www.takussan.com` **échouait sur la poignée de main TLS**, plus sur un 404 (TCK-332, D-04). **Depuis le 2026-10-15, plus aucun front public ne l'appelle** : `www.takussan.com` n'a plus d'enregistrement DNS (relevé du 2026-10-18, tableau suivant). TCK-332 est `obsolete` depuis le 2026-11-03 (son objectif est l'AC2 de TCK-517). ⚠ Pas dans `certificats.sh` : il rougirait chaque jour ; le nom y entre en F3, étape 3. Décision de ne pas servir de `503` avant F : TCK-523 | — | 2026-09-14, 22:42 Z (TCK-523) : `curl -sS -o /dev/null -w '%{http_code} %{ssl_verify_result}' https://api.takussan.com/up` → `000 20` ; avec `-k` → `404` ; `openssl s_client -connect 178.18.247.62:443 -servername api.takussan.com </dev/null \| openssl x509 -noout -subject -enddate` |
@@ -191,6 +192,14 @@ son motif, et aucun secret dans un gabarit. Une clé neuve s'ajoute donc là, pa
      publique bute sur l'authentification basique de Traefik (`401` avant Next), et chaque changement de fiche finirait en
      `failed_jobs`. Posée le 2026-11-01 ; mesuré depuis le conteneur API : appel signé `200`, fausse signature `401`. La production garde son URL publique ;
    - front : `API_URL`, `SITE_URL`, `MEDIA_URL`, ceux des lignes ci-dessus, et `API_INTERNAL_URL=http://takussan-api-preview:8080`.
+   - le temps réel (TCK-2956, ADR-0129 § 5) — **le même onglet que l'API sert le service `temps-reel`** : l'API signe et
+     le serveur vérifie avec les mêmes `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET` (KEY et SECRET tirées
+     au hasard, propres à l'environnement), plus `BROADCAST_CONNECTION=reverb`. **Jamais `REVERB_HOST`, `REVERB_PORT`
+     ni `REVERB_SCHEME`** : `compose.api.yml` les écrit, vers l'alias `${API_ALIAS}-temps-reel` (le Reverb de la
+     pile ; `scripts/check-reseau-par-environnement.mjs`). Le serveur n'admet que l'origine de `FRONTEND_URL` (hors
+     `local`). Front : `TEMPS_REEL_URL=wss://preview.ws.takussan.com` et `TEMPS_REEL_CLE` = `REVERB_APP_KEY`, posées
+     **après** que le sous-domaine sert. L'ordre et les preuves : l'action
+     `docs/deploiement/actions/2026-11-17-poser-le-temps-reel.md`.
 3. Comparer **avant de poser**, dans le conteneur `api` de l'environnement. Le script n'imprime que des chemins de configuration et
    des noms de clés, jamais une valeur. Le fichier passe par un tube et non par `docker cp` : celui-ci le crée en `root:root`, le
    conteneur tourne en `www-data`, ne peut ni le lire ni l'effacer, et le fichier de secrets reste en place (mesuré le 2026-11-01).
@@ -836,6 +845,30 @@ aucun embedding ne part. L'ordre reste obligatoire pour la pose des clés, et po
    `pg_trgm` aux vecteurs. Le coût et les pannes se lisent dans la console IA, usage `radar.embedding`. Pour revenir en arrière
    sans retirer la clé : `RADAR_SIMILARITY_DRIVER=trigram`, ou `VOYAGE_TRAINING_OPT_OUT=false`. Une clé sans déclaration, pilote `embeddings`, écrit
    `radar.embeddings.training_opt_out_undeclared` au journal à chaque balayage.
+
+### Le temps réel : le service `temps-reel` (TCK-2956, ADR-0129 § 5)
+
+Le serveur WebSocket Reverb tourne dans la pile de l'API, service `temps-reel` de `compose.api.yml`, sur l'image de
+l'API (`php artisan reverb:start`, port `8080`). Deux chemins le joignent :
+
+- **le navigateur**, par le sous-domaine en `wss` (`preview.ws.takussan.com`, `ws.takussan.com` en phase F), que
+  Traefik publie sur `:443` vers `temps-reel:8080` (onglet *Domains* du Compose). Le serveur refuse en `4009 Origin not
+  allowed` toute origine autre que l'hôte de `FRONTEND_URL` (`config/reverb.php`, hors `APP_ENV=local`) — et une
+  connexion sans en-tête `Origin` ;
+- **l'API**, qui publie chaque signal de serveur à serveur sur `dokploy-network`, sous l'alias
+  `${API_ALIAS}-temps-reel` : le nom de service `temps-reel` y désignerait le Reverb des DEUX environnements, comme
+  `api`. L'émission est synchrone, bornée à 1 s, et son échec est avalé et compté (`temps-reel:echecs:<jour>`).
+
+Sans `REVERB_APP_KEY` dans l'onglet, le service refuse de démarrer et le dit à chaque tentative (« REVERB_APP_KEY
+absente ou vide ») : c'est l'état d'un environnement où l'action n'est pas faite, sans effet sur l'API. Le front sans
+`TEMPS_REEL_URL` reste en mode dégradé (relecture périodique) : rien ne casse. Redémarrer le serveur après un
+déploiement n'est pas nécessaire (`up` le recrée) ; `php artisan reverb:restart` depuis le conteneur `api` le fait
+sortir proprement — `Cache::forever('laravel:reverb:restart')`, que le serveur relit toutes les 5 s dans le même
+cache, le Redis de la pile (lu dans `StartServer`, non mesuré sur la pile) — et `restart: unless-stopped` le relance.
+
+Hors de ce paragraphe, et à ajouter quand le nom sert : la sonde UptimeRobot de `https://preview.ws.takussan.com/up`
+et le nom dans `deploy/server/certificats.sh`. Plusieurs instances (`REVERB_SCALING_ENABLED`, par le Redis de la pile)
+ne sont pas posées : une suffit.
 
 ### La santé : la route publique et la console (TCK-600, TCK-680)
 

@@ -82,7 +82,16 @@ return [
                     'scheme' => env('REVERB_SCHEME', 'https'),
                     'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
                 ],
-                'allowed_origins' => ['*'],
+                // TCK-2956 (ADR-0129 § 5) — seul le front de CET environnement se connecte : l'hôte de FRONTEND_URL,
+                // clé déjà posée partout. Reverb compare l'HÔTE de l'en-tête Origin (`parse_url(…, PHP_URL_HOST)`,
+                // `Str::is`), sans schéma ni port, et refuse en 4009 une connexion sans Origin dès que la liste
+                // n'est pas `*`. Hors `local` seulement : en développement, le front se sert sur `localhost:3000`
+                // ET `127.0.0.1:3000`, et la sonde de `./dev.sh doctor` (WebSocket natif de Node) n'envoie aucun
+                // Origin — un refus y serait muet, le front passant en mode dégradé sans rien dire. La préproduction
+                // tourne en `staging` : elle est donc restreinte. Un FRONTEND_URL sans hôte ne rouvre rien (`[]`).
+                'allowed_origins' => env('APP_ENV') === 'local'
+                    ? ['*']
+                    : array_values(array_filter([parse_url((string) env('FRONTEND_URL', ''), PHP_URL_HOST)])),
                 'ping_interval' => env('REVERB_APP_PING_INTERVAL', 60),
                 'activity_timeout' => env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
                 'max_connections' => env('REVERB_APP_MAX_CONNECTIONS'),
