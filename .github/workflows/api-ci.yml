@@ -669,19 +669,17 @@ jobs:
           # nulle part, et rien ne l'aurait signalé. PHPUnit, lui, refuse une option qu'il
           # ne connaît pas.
           #
-          # ─── `--coverage-php` N'EST PRODUIT QUE LÀ OÙ IL EST CONSOMMÉ ───────────────────
+          # ─── `--coverage-php` N'EST PAS PRODUIT ICI ──────────────────────────────────────
           #
-          # Il a exactement UN consommateur — `bin/build-impact-map.php`, au step
-          # « Régénérer la carte d'impact », qui ne tourne que la nuit (ou à la demande) sur
-          # `dev` (ADR-0063 §3). Ailleurs, ce fichier d'environ 100 Mo serait écrit pour personne.
-          COV_PHP=()
-          case "${{ github.event_name }}:${{ github.ref }}" in
-            schedule:refs/heads/dev | workflow_dispatch:refs/heads/dev)
-              COV_PHP=(--coverage-php=storage/coverage/cov.php)
-              echo "carte d'impact : cov.php sera produit (${{ github.event_name }} sur dev)." ;;
-            *)
-              echo "carte d'impact : cov.php n'est PAS produit (la nuit ou à la demande, sur dev seulement)." ;;
-          esac
+          # Il l'était la nuit sur `dev`, sur cette même ligne, depuis TCK-2951 — et il y est mort
+          # en mémoire, deux nuits sur deux (17 et 18 novembre 2026, runs 44069411083 et
+          # 44285658502) : suite VERTE, puis « Allowed memory size of 8589934592 bytes exhausted
+          # (tried to allocate 1823035392 bytes) » dans `Report/PHP.php`, sortie 255, cliquet non
+          # évalué, carte d'impact non régénérée. L'écrivain PHP sérialise l'attribution
+          # test → lignes de la couverture FUSIONNÉE des workers ; en séquentiel, sous la même limite,
+          # il passait (dernière nuit verte : 16 novembre). Il a donc son propre step, séquentiel,
+          # la nuit seulement : « Produire cov.php », plus bas. Ce step-ci ne fait plus que le
+          # cliquet, et rend son verdict à la même heure chaque nuit.
 
           # Un processus par cœur, et le nombre ÉCRIT dans le journal, comme dans `lint-and-test` :
           # une durée sans le nombre de cœurs qui l'a produite ne se compare à rien (J-09).
@@ -699,7 +697,6 @@ jobs:
           set +e
           set -o pipefail
           php artisan test --parallel --processes="$processus" \
-            "${COV_PHP[@]}" \
             --coverage-clover=storage/coverage/clover.xml \
             --coverage-html=storage/coverage/html \
             2>&1 | tee storage/coverage/phpunit.log
@@ -800,6 +797,37 @@ jobs:
           path: ${{ runner.temp }}/attestation.json
           retention-days: 7
           if-no-files-found: error
+
+      # ────────────────────────────────────────────────────────────────────────
+      # `cov.php` — le rapport de couverture PHP, que seule la carte d'impact consomme.
+      #
+      # SÉQUENTIEL, et c'est la raison d'être de ce step : sous `--parallel`, ParaTest l'écrit
+      # depuis la couverture fusionnée de ses workers, et cette écriture dépasse 8 Go sur la suite
+      # entière (cf. le commentaire du step « Run tests »). En séquentiel, PHPUnit l'écrit depuis
+      # une seule couverture : c'est la forme qui tournait jusqu'au 16 novembre 2026, sous la même
+      # `memory_limit=8G`. Le prix est une seconde exécution de la suite, LA NUIT seulement — le
+      # cliquet, lui, a déjà rendu son verdict.
+      #
+      # `php artisan test`, sans `--parallel` et sans `--coverage` : la forme documentée de
+      # `takussan-api/CLAUDE.md`, que `check-ci-attestation.mjs` laisse passer (ni PHPUnit ni
+      # ParaTest invoqués directement dans ce job, et pas de second `--coverage-php`, TCK-331).
+      - name: Produire cov.php (séquentiel, la nuit — la carte d'impact)
+        if: >-
+          ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+          && github.ref == 'refs/heads/dev'
+          && !contains(github.event.head_commit.message, '[carte-impact]') }}
+        run: |
+          debut=$(date +%s)
+          set +e
+          php artisan test --coverage-php=storage/coverage/cov.php 2>&1 | tail -n 40
+          code=${PIPESTATUS[0]}
+          set -e
+          echo "Durée de la suite séquentielle pour cov.php : $(( $(date +%s) - debut )) s"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::La suite séquentielle est sortie en $code — cov.php n'est pas produit, la carte d'impact ne sera pas régénérée."
+            exit "$code"
+          fi
+          ls -l storage/coverage/cov.php
 
       # ────────────────────────────────────────────────────────────────────────
       # La carte d'impact — régénérée LA NUIT sur `dev` (ou à la demande), JAMAIS sur
