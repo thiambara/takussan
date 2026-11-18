@@ -1,13 +1,13 @@
 ---
 id: TCK-2963
 title: "La salle à l'écran (fil-salle-bail A) : bandeau de l'objet, chronologie repliée, dossier du fil, et l'entrée depuis la fiche du bail et de la réservation"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 94
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2960, TCK-2962]
 blocks: []
 spec_refs:
@@ -136,3 +136,7 @@ en **slot** (`salle`) depuis `MessagesPage` : le widget flottant est sur la fron
 **Collision.** Le bloc de la salle lit React Query sans provider dans les tests des fiches : 21 fichiers de tests de
 `BookingDetail`/`LeaseDetail` reçoivent un `vi.mock` du bloc (une ligne marquée TCK-2963), comme ils le font déjà
 pour `LeaveReviewCta` ou `PayOnlineButton`.
+
+### Relevé de la session (2026-11-18)
+
+**AC5 relevé le 2026-11-18** (sous `./dev.sh`, 1280 agent et 360 locataire, salles 131 et 178) : bandeau relu pour son lecteur (« Votre bail » chez la locataire), dossier à droite au bureau et en feuille au téléphone, aucun montant de commission chez la locataire, aucun défilement horizontal. Deux défauts trouvés et corrigés (`786da9e63`) : le dossier étiquetait `commission_amount` « Honoraires de gestion » et en déduisait un « Net reversé » faux (loyer − commission) ; le libellé « Période » se tronquait. Reste visuel mineur : à 360, les sous-lignes du bandeau se tronquent (« 1 échéance en re… »).

@@ -1,13 +1,13 @@
 ---
 id: TCK-2962
 title: "Les cartes à l'écran (fil-cartes D) : rendu par lecteur, état indisponible, gestes par les routes des objets, événements repliés, carte rafraîchie par signal"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 94
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2958, TCK-2959, TCK-2955]
 blocks: [TCK-2963, TCK-2964]
 spec_refs:
@@ -251,3 +251,6 @@ nombre de pièces et de photos de l'état des lieux.
   `due_soon`, chaque jalon `overdue` et `reminded` — un loyer impayé empilera donc plusieurs cartes,
   chacune avec « Payer ». C'est la règle du ticket appliquée à la lettre ; le code ne la contourne pas.
 
+### Relevé de la session (2026-11-18)
+
+**AC6 relevé le 2026-11-18** (sous `./dev.sh`, salle 178, relance réelle par `POST /api/lease-payments/469/reminders`) : à 360 px côté locataire, la ligne « Une relance a été faite… » puis la carte de l'échéance (« Loyer · novembre 2026 », « En retard », 280 000 F, geste « Payer ») ; à 1280 px côté agent, la seule ligne d'événement (la carte n'attend que la locataire), et la boîte remonte la salle avec l'extrait de l'événement. Aucun défilement horizontal (scrollWidth = innerWidth = 360).

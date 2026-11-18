@@ -1,13 +1,13 @@
 ---
 id: TCK-2952
 title: "Le socle temps réel de l'API : Reverb, un émetteur unique, un registre des canaux, un signal sans donnée"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: 93
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: []
 blocks: [TCK-2953, TCK-2954, TCK-2955, TCK-2956]
 spec_refs:

@@ -1,13 +1,13 @@
 ---
 id: TCK-2959
 title: "Un événement ne compte comme non lu que pour qui doit agir : action_for et le compte des non-lus"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
 wave: 94
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2958]
 blocks: [TCK-2961, TCK-2962]
 spec_refs:

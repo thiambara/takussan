@@ -1,13 +1,13 @@
 ---
 id: TCK-2955
 title: "Le fil, la boîte et les notifications en direct ; présence et « en train d'écrire » dans un fil ouvert"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M
 wave: 93
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2952, TCK-2954]
 blocks: [TCK-2960, TCK-2961, TCK-2962]
 spec_refs:
@@ -305,3 +305,7 @@ d'aujourd'hui sinon.
   `php bin/impacted-tests.php --connus` — 65 classes sur ~190 — vert (552 tests, 195 s, load 2,3 sur 8 cœurs) ; la
   sélection entière est laissée à la CI de la PR. La création d'une notification est tenue par
   `EmetteurTest::test_notification_service_signale_notifications_updated_*` (TCK-2952).
+
+### Relevé de la session (2026-11-18)
+
+**AC10 mesuré le 2026-11-18** — deux contextes Chrome isolés sous `./dev.sh` (agent `agent5`, 1280 ; locataire, 360 émulé) dans la salle 131 : le message envoyé par l'agent apparaît chez la locataire **615 ms** après le clic, sans rechargement ; la présence de l'agent s'affiche sur l'avatar du fil.

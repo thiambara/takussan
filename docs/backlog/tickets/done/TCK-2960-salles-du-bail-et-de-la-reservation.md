@@ -1,13 +1,13 @@
 ---
 id: TCK-2960
 title: "Les salles du bail et de la réservation : un fil unique par objet, des membres synchronisés sur les parties, une branche d'accès par sujet"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: L
 wave: 94
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2957, TCK-2955]
 blocks: [TCK-2961, TCK-2963]
 spec_refs:

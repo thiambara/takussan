@@ -1,13 +1,13 @@
 ---
 id: TCK-2954
 title: "Le client temps réel du front : une connexion par session, deux hooks, et un mode dégradé qui garde la justesse"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 93
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2952, TCK-2953]
 blocks: [TCK-2955]
 spec_refs:
@@ -232,3 +232,7 @@ Relevé du 2026-11-17, ce que le mode dégradé doit retrouver :
 - **À reporter hors de ce ticket** : `takussan-web/CLAUDE.md` § Environnement parle encore de « trois valeurs »
   et d'une configuration du navigateur limitée à l'API et aux médias ; il ne nomme pas `TEMPS_REEL_URL` ni
   `TEMPS_REEL_CLE` (fichier hors du périmètre de l'agent).
+
+### Relevé de la session (2026-11-18)
+
+Mesuré au navigateur le 2026-11-18 sous `./dev.sh` : le client appelle `/api/broadcasting/auth` pour les canaux privés et de présence, et un message parvient à l'autre navigateur en 615 ms, sans relecture (intervalle à 60 s une fois connecté).

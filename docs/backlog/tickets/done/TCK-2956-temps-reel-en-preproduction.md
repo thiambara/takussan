@@ -1,13 +1,13 @@
 ---
 id: TCK-2956
 title: "Le temps réel en préproduction : un service temps-reel dans la pile de l'API, un sous-domaine en wss, ses clés et son action"
-status: todo
+status: done
 phase: P1
 family: technique
 estimate: S
 wave: 93
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2952, TCK-2953]
 blocks: []
 spec_refs:
@@ -304,3 +304,7 @@ Image construite depuis `a64d88657` (`--target runtime` et `--target seed`, `BUI
   - mémoire `takussan-smoke-temps-reel-1` à 57,42 Mio sur 384 Mio.
 
 Reste, hors de portée locale : la moitié `./dev.sh` d'AC3, et tout ce que l'action de déploiement confie à une personne (DNS, Dokploy, clés).
+
+### Relevé de la session (2026-11-18)
+
+**AC3, moitié `./dev.sh`, mesurée le 2026-11-18** : depuis `http://localhost:3000` et depuis `http://127.0.0.1:3000`, une connexion à `ws://127.0.0.1:8081` avec la clé du front rend `pusher:connection_established` ; une clé inconnue rend `pusher:error 4001`. Les gestes humains (DNS, Dokploy, clés) restent portés par l'action de déploiement, hors périmètre du ticket.

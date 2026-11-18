@@ -1,13 +1,13 @@
 ---
 id: TCK-2957
 title: "Le fil rattaché à son objet : subject_type / subject_id, le registre SujetsDuFil, la reprise des fils d'intervention, le fil fermé à la suppression de son objet"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: 94
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: []
 blocks: [TCK-2958, TCK-2960]
 spec_refs:

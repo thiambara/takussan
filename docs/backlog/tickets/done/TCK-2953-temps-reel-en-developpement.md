@@ -1,13 +1,13 @@
 ---
 id: TCK-2953
 title: "Le temps réel en développement : Reverb lancé par ./dev.sh, sondé par doctor, et les clés des deux applications"
-status: todo
+status: done
 phase: P1
 family: technique
 estimate: S
 wave: 93
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2952]
 blocks: [TCK-2954, TCK-2956]
 spec_refs:
@@ -259,3 +259,7 @@ Relevé sur l'arbre du 2026-11-17 :
   si le fichier manque ; `doctor` le nomme. À recopier à la main.
 - Documents qui disent encore « quatre services » hors de ce ticket : `CLAUDE.md` racine (§ Environnement de
   développement), `docs/adr/0011-environnement-de-dev-conteneurise.md`.
+
+### Relevé de la session (2026-11-18)
+
+Mesuré sous `./dev.sh` le 2026-11-18 : `./dev.sh doctor` signale `BROADCAST_CONNECTION=log` et le front sans `TEMPS_REEL_*` (mode dégradé) ; une fois les clés de `.env.docker` et `.env.example` recopiées, `docker compose up -d reverb` rend le service healthy et un message de l'agent parvient au locataire en 615 ms (TCK-2955 AC10).

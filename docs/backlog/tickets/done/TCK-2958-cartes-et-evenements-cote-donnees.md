@@ -1,13 +1,13 @@
 ---
 id: TCK-2958
 title: "Cartes et événements côté données : MessageType card/event, metadata fermé, relecture par lecteur, contenu en code neutre, avis d'intervention convertis"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: L
 wave: 94
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2957]
 blocks: [TCK-2959, TCK-2961, TCK-2962, TCK-2964]
 spec_refs:

@@ -1,13 +1,13 @@
 ---
 id: TCK-2964
 title: "Poser un objet dans un fil : partager un bien, proposer un créneau de visite, en carte relue pour chaque lecteur"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 94
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2958, TCK-2962]
 blocks: []
 spec_refs:
@@ -179,3 +179,6 @@ tags: [back, front, messagerie, le-fil, cartes, bien, visite, adr-0128]
 - La photo du bien est dans l'aplat (prop `media` de `CadreDeCarte`, TCK-2964), comme la maquette `BienD`.
 - `IdempotentRoutesTest`, `MessageTypeSpoofingTest` et `EcritureDeMessageUniqueTest` sont verts.
 
+### Relevé de la session (2026-11-18)
+
+**Relevé au navigateur le 2026-11-18** (sous `./dev.sh`, agent `agent3`, 1280, fil direct d'Ousmane Niang) : le trombone propose « Photo · Document PDF · Partager un bien · Proposer un créneau de visite » ; « Partager un bien » ouvre la feuille, liste le portefeuille, et pose la carte du bien (photo, lieu, surface, prix, « Voir le bien ») ; la boîte remonte le fil avec l'extrait « Objet partagé ». **AC5 n'est pas mesuré : sa prémisse est fausse** — une visite créée par le personnel naît `confirmed` (le client ne la confirme pas, il peut la déplacer) ; consigné dans les notes de l'agent, les règles des visites n'ont pas été changées.

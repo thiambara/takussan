@@ -1,13 +1,13 @@
 ---
 id: TCK-2961
 title: "Les objets parlent dans leur salle : échéance, relance, paiement, quittance, préavis, renouvellement, état des lieux, devis, créneau, réservation acceptée"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: L
 wave: 94
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 depends_on: [TCK-2958, TCK-2959, TCK-2960, TCK-2955]
 blocks: []
 spec_refs:
