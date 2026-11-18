@@ -29,7 +29,7 @@ import { membresActuels, objetDeLaSalle, qualiteDansLaReservation, qualiteDansLe
  *   portent un téléphone pour le personnel, TCK-2906), et le locataire n'y est demandé que par son compte ;
  * - **rien de masqué ici** : honoraires et net reversé ne s'écrivent que si la lecture du bail rend
  *   `commission_amount`, que l'API retire pour qui n'est pas du personnel de l'agence (`LeaseResource`).
- *   Le taux (`commission_rate`, rendu à tous) n'est jamais lu.
+ *   Le taux (`commission_rate`, retiré de même hors du personnel depuis le 2026-11-18) n'est jamais lu.
  *
  * « Engagements ouverts » : lot 3, hors de ce ticket.
  */

@@ -133,13 +133,13 @@ class DataExportBuilder
         // TCK-2275 (P232.02, précédent TCK-1017) — les baux dont il est le bailleur au sens de
         // `BailleurDuBien`, ou le locataire : pas ceux qu'il a saisis comme agent, actif compris.
         // Ils décrivent le locataire et le bailleur réel.
-        // TCK-2366 (P247.02) — sans `commission_amount`, que `LeaseResource` retire à qui n'est pas
-        // du personnel : un terme du mandat de l'agence, ni du locataire ni du bailleur.
+        // TCK-2366 (P247.02) — sans `commission_amount` ni `commission_rate`, que `LeaseResource` retire
+        // à qui n'est pas du personnel : des termes du mandat de l'agence, ni du locataire ni du bailleur.
         $leases = Lease::query()
             ->where(fn ($q) => BailleurDuBien::restreindre($q, $user, 'landlord_id'))
             ->orWhereIn('tenant_id', $customerIds)
             ->get()
-            ->each->makeHidden(['commission_amount']);
+            ->each->makeHidden(['commission_amount', 'commission_rate']);
         $propertyIds = BailleurDuBien::restreindre(Property::query(), $user)->pluck('id');
 
         return [
