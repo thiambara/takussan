@@ -40,9 +40,12 @@ tags: [back, messagerie, le-fil, note-d-equipe, securite, non-fuite, adr-0128]
   - être participant actif du fil (`left_at` nul) ;
   - être personnel actif de cette agence (`PersonnelDeLAgence::personnelActifDe`).
 
-  Un agent qui quitte l'agence ne lit plus les notes, même les siennes. Le super-admin hors
-  impersonation suit la règle de l'ADR : il ne lit pas les notes, puisque seuls les participants les lisent
-  (décision du porteur du 2026-11-18, 3a ; le précédent du document interne d'ADR-0099 est écarté).
+  Un agent qui quitte l'agence ne lit plus les notes, même les siennes.
+- **Le super-admin hors impersonation lit aussi les notes d'équipe** (décision du porteur du
+  2026-11-18, 3b, sur le précédent du document interne de la fiche client, ADR-0099). C'est
+  l'exception à la règle « les participants seulement » d'ADR-0128 § 6, amendé. Sous impersonation,
+  il lit ce que lit la cible, et rien de plus : un opérateur qui se présente comme le locataire ne
+  voit aucune note.
 - **L'écriture** passe par la route existante `POST /api/conversations/{conversation}/messages`, avec
   un champ `visibility` (`all` par défaut). `team` est refusé en 422, avec un code d'erreur sous
   `LangGroupParity`, quand :
@@ -133,6 +136,9 @@ tags: [back, messagerie, le-fil, note-d-equipe, securite, non-fuite, adr-0128]
 - [ ] **AC5** — `visibility = team` est refusé en 422 pour un client, pour un agent d'une autre agence,
   dans un fil sans agence, et pour un type autre que `text`, `voice` ou `attachment`.
 - [ ] **AC6** — Un agent devenu inactif dans l'agence ne lit plus les notes du fil, ni les siennes.
+- [ ] **AC6 bis** — Le super-admin hors impersonation lit la note par `GET …/messages` et par la
+  recherche. Sous l'impersonation du locataire, il ne la lit par aucun chemin. *Ablation : juger
+  l'opérateur au lieu de la cible pendant l'impersonation rend ce test rouge.*
 - [ ] **AC7** — Avec 30 notes entre deux messages, le locataire lit les deux messages en pages de
   20, sans page vide ni `has_more` faux.
 - [ ] Pint propre ; tests des fichiers touchés verts.
