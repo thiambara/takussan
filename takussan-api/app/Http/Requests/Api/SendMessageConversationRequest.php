@@ -9,6 +9,7 @@ use App\Models\Enums\MessageVisibility;
 use App\Rules\FichierNonVide;
 use App\Rules\PixelsAuPlus;
 use App\Services\Messaging\ConversationAccess;
+use App\Services\Messaging\MentionsDuFil;
 use App\Support\Media\VoiceNoteRules;
 use Illuminate\Validation\Rule;
 
@@ -89,6 +90,14 @@ class SendMessageConversationRequest extends BaseFormRequest
             // TCK-2965 (ADR-0128 § 6) — `team` : une note d'équipe. Qui peut l'écrire, et dans quel fil, se
             // juge dans `ConversationWriter` (422 `messaging.team_note_*`), le point d'écriture unique.
             'visibility' => ['nullable', Rule::enum(MessageVisibility::class)],
+            // TCK-2966 (ADR-0128 § 6) — les @mentions : des identifiants de compte, dix au plus, sur un
+            // texte ou une note vocale seulement (`MentionsDuFil::types()`). Un doublon est retiré, jamais
+            // refusé ; qui n'est pas lecteur du message est refusé dans `passedValidation()`.
+            'mentions' => [
+                'nullable', 'array', 'list', 'max:'.MentionsDuFil::MAX,
+                Rule::prohibitedIf(fn (): bool => ! MentionsDuFil::typePorteUneMention($type ?? MessageType::Text->value)),
+            ],
+            'mentions.*' => ['integer', 'min:1'],
             'audio' => [
                 'required_if:type,audio', 'prohibited_unless:type,audio',
                 ...VoiceNoteRules::file(),
@@ -110,6 +119,26 @@ class SendMessageConversationRequest extends BaseFormRequest
                 ...($type === MessageType::Image->value ? [new PixelsAuPlus] : []),
             ],
         ];
+    }
+
+    /**
+     * TCK-2966 (ADR-0128 § 6) — une mention n'est permise que vers qui LIT ce message : un participant
+     * actif du fil, dans ses branches, et pour une note d'équipe (`visibility=team`) un lecteur des notes
+     * ({@see MentionsDuFil::lecteursParmi()}). Toute autre est refusée en 422
+     * `messaging.mention_not_reader` : un rejet silencieux ferait croire à l'auteur qu'il a prévenu
+     * quelqu'un. Jugée ici, à l'envoi ; `NotifyNewMessageJob` la rejuge au départ de la notification.
+     */
+    protected function passedValidation(): void
+    {
+        $mentions = MentionsDuFil::normaliser($this->validated('mentions'));
+        if ($mentions === []) {
+            return;
+        }
+
+        $note = MessageVisibility::tryFrom((string) $this->validated('visibility')) === MessageVisibility::Team;
+        $lecteurs = MentionsDuFil::lecteursParmi($this->route('conversation'), $mentions, $note);
+
+        abort_code_if($lecteurs !== $mentions, 422, 'messaging.mention_not_reader');
     }
 
     /** TCK-2631 — le nom du champ dans un 422 (`messaging.attributes`). */

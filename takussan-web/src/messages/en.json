@@ -19831,6 +19831,10 @@
         "group_invite": {
           "title": "Group invite: {subject}",
           "body": "{inviter} has added you to the group \"{subject}\"."
+        },
+        "mention": {
+          "title": "{sender} mentioned you",
+          "body": "{sender}: {excerpt}"
         }
       },
       "lead": {

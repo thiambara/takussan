@@ -117,6 +117,9 @@ final class NotificationClassification
         // Un message se traite dans la messagerie, qui a ses propres non-lus.
         'message.received' => [self::D, false],
         'message.group_invite' => [self::S, false],
+        // TCK-2966 — une mention se traite dans le fil, comme le message ; ce qu'elle attend relève de la
+        // boîte de pilotage (TCK-2967), pas de « À traiter » de la cloche.
+        'message.mention' => [self::D, false],
         'lead.received' => [self::D, true],
         'lead.acknowledged' => [self::D, false],
 

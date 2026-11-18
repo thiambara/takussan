@@ -81,6 +81,11 @@ enum NotificationCode: string
     case MessageReceived = 'message.received';
     /** TCK-861 (P38.07) — un membre ajouté à un groupe : la cloche ouvre le groupe. */
     case MessageGroupInvite = 'message.group_invite';
+    /**
+     * TCK-2966 (ADR-0128 § 6) — une @mention dans un fil : à la personne mentionnée qui lit le message, à
+     * la place de son `MessageReceived`, même en sourdine (`NotifyNewMessageJob`). Mêmes paramètres.
+     */
+    case MessageMention = 'message.mention';
     case LeadReceived = 'lead.received';
 
     // ─── Visites et demandes de contact (TCK-590) ───────────────────────────────────────
@@ -386,6 +391,7 @@ enum NotificationCode: string
             self::VisitConfirmedByOwner /* TCK-2849 */,
             self::VisitNoShow /* TCK-2871 */ => NotificationType::Visit,
             self::MessageReceived, self::MessageGroupInvite, self::LeadReceived, self::LeadAcknowledged => NotificationType::Message,
+            self::MessageMention /* TCK-2966 */ => NotificationType::Message,
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator => NotificationType::RoleDelegated,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator => NotificationType::RoleDelegationExpired,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator => NotificationType::RoleDelegationRevoked,
@@ -460,6 +466,9 @@ enum NotificationCode: string
             self::VisitNoShow /* TCK-2871 */ => 'visit_reminder',
             self::ReviewToModerate, self::ReviewReceived => 'review_received',
             self::MessageReceived, self::MessageGroupInvite, self::LeadReceived => 'message_received',
+            // TCK-2966 — l'interrupteur des messages : une mention est un message, et la sourdine (propre au
+            // fil) n'est pas une préférence de canal.
+            self::MessageMention => 'message_received',
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
             self::LeadAcknowledged => null,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon => 'kyc_status_changed',
@@ -559,6 +568,8 @@ enum NotificationCode: string
             self::BookingCounterOfferAnswered => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'answer' => self::PARAM_COUNTER_OFFER_ANSWER],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
+            // TCK-2966 — ceux de `MessageReceived`, rien de plus : l'extrait borné et le nom sans contact.
+            self::MessageMention => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
             self::MessageGroupInvite => ['inviter' => self::PARAM_TEXT, 'subject' => self::PARAM_TEXT],
             // TCK-590 — de quoi RÉPONDRE : le message entier et le moyen de joindre (téléphone ·
             // e-mail). L'extrait de 80 caractères sans téléphone disait qu'on avait été contacté.

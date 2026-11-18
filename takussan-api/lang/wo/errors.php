@@ -517,6 +517,9 @@ return [
         'team_note_not_staff' => "Seul le personnel de l'agence de cette conversation peut écrire une note d'équipe.",
         'team_note_no_agency' => "Cette conversation n'est rattachée à aucune agence : elle ne peut pas porter de note d'équipe.",
         'team_note_type' => "Une note d'équipe ne peut être qu'un texte, une note vocale ou une pièce jointe.",
+        // TCK-2966 (ADR-0128 § 6) — une @mention refusée en 422.
+        'mention_not_reader' => 'Vous ne pouvez mentionner que les personnes qui liront ce message.',
+        'mention_type' => "Seuls un texte et une note vocale peuvent mentionner quelqu'un.",
     ],
     'moderation' => [
         'item_id_invalid' => 'Élément modération bi baaxul.',

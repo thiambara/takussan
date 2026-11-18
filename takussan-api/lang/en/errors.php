@@ -517,6 +517,9 @@ return [
         'team_note_not_staff' => 'Only the staff of this conversation\'s agency can write a team note.',
         'team_note_no_agency' => 'This conversation is not linked to any agency: it cannot hold a team note.',
         'team_note_type' => 'A team note can only be a text, a voice note or an attachment.',
+        // TCK-2966 (ADR-0128 § 6) — une @mention refusée en 422.
+        'mention_not_reader' => 'You can only mention people who will read this message.',
+        'mention_type' => 'Only a text or a voice note can mention someone.',
     ],
     'moderation' => [
         'item_id_invalid' => 'Invalid moderation item.',

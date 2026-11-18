@@ -50,7 +50,12 @@ class ConversationWriter
      * Une note ne touche pas l'aperçu commun du fil (`last_message_*`), et ne fait reparaître le fil
      * archivé que chez ceux qui la lisent.
      *
-     * @param  array{content: string, type: string, metadata?: array<string, mixed>|null, visibility?: string|null}  $attributes
+     * TCK-2966 (ADR-0128 § 6) — `mentions` : les comptes mentionnés, rangés dans `metadata.mentions`
+     * ({@see MentionsDuFil::normaliser()}). Refusées en 422 `messaging.mention_type` hors d'un texte ou
+     * d'une note vocale (une carte, un événement, un avis n'en portent pas). Qui peut être mentionné se
+     * juge à l'envoi (`SendMessageConversationRequest`) et au départ (`NotifyNewMessageJob`).
+     *
+     * @param  array{content: string, type: string, metadata?: array<string, mixed>|null, visibility?: string|null, mentions?: list<int>|null}  $attributes
      * @param  (Closure(Message): void)|null  $joindre  la pièce du message (note vocale, photo, PDF), rangée
      *                                                  dans la transaction, avant le pointeur du fil
      */
@@ -64,12 +69,20 @@ class ConversationWriter
             $this->refuserLaNote($author, $conversation, (string) $attributes['type']);
         }
 
-        $message = DB::transaction(function () use ($author, $conversation, $attributes, $joindre, $visibility, $note) {
+        // TCK-2966 — les mentions, dans le `metadata` du message, sur un texte ou une note vocale seulement.
+        $mentions = MentionsDuFil::normaliser($attributes['mentions'] ?? null);
+        abort_code_if($mentions !== [] && ! MentionsDuFil::typePorteUneMention((string) $attributes['type']), 422, 'messaging.mention_type');
+        $metadata = $attributes['metadata'] ?? null;
+        if ($mentions !== []) {
+            $metadata = array_merge($metadata ?? [], [MentionsDuFil::CLE => $mentions]);
+        }
+
+        $message = DB::transaction(function () use ($author, $conversation, $attributes, $joindre, $visibility, $note, $metadata) {
             $message = $conversation->messages()->create([
                 'sender_id' => $author->id,
                 'content' => $attributes['content'],
                 'type' => $attributes['type'],
-                'metadata' => $attributes['metadata'] ?? null,
+                'metadata' => $metadata,
                 'visibility' => $visibility->value,
             ]);
 

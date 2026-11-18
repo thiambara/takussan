@@ -467,6 +467,8 @@ class ConversationController extends Controller
             'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
             // TCK-2965 (ADR-0128 § 6) — `team` : une note d'équipe, jugée par le service.
             'visibility' => $data['visibility'] ?? null,
+            // TCK-2966 (ADR-0128 § 6) — les @mentions, rangées dans `metadata.mentions` par le service.
+            'mentions' => $data['mentions'] ?? [],
         ], function (Message $message) use ($audio, $piece): void {
             if ($audio !== null) {
                 $message->addMedia($audio)->toMediaCollection('attachments');

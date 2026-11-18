@@ -95,4 +95,52 @@ tags: [back, messagerie, le-fil, mentions, notifications, non-fuite, adr-0128]
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure de la prémisse (2026-11-18)
+
+- **Types** : le dépôt n'a ni `voice` ni `attachment`. « text ou voice » devient `text` ou `audio`
+  (`MentionsDuFil::types()`). Une photo ou un PDF (`image`, `document`) ne portent pas de mention : refus
+  par la règle `mentions` de la requête (`prohibited`). La route n'écrit pas de carte : la garde du type
+  vit aussi dans `ConversationWriter` (422 `messaging.mention_type`), seule façon d'éprouver « mention sur
+  une carte ».
+- **Qui peut être mentionné** : la personne mentionnée n'est pas l'appelant. Elle est donc jugée en
+  TIERS, comme un destinataire de notification : participant actif (`left_at` nul), plus
+  `ConversationAccess::branchesAllow`, plus, pour une note, `EquipeDuFil::tiersLitLesNotes`. Ce n'est
+  pas `EquipeDuFil::litLesNotes` comme le dit le ticket : cette fonction juge le profil actif de
+  l'appelant, et elle rend vrai pour un super-admin absent du fil (`ConversationAccess::allows` aussi).
+  Un test le couvre : un super-admin absent du fil ne peut pas être mentionné.
+- **Une seule règle pour les deux moments** : `MentionsDuFil::lecteursParmi()` à l'envoi. Au départ,
+  le job ne fait pas de requête à part pour les mentionnés : il les prend parmi ses destinataires, déjà
+  filtrés (participation active, branches, lecteurs de la note).
+- **La sourdine était filtrée en SQL** (`wherePivot('is_muted', false)`) dans `NotifyNewMessageJob`.
+  Elle se juge maintenant par destinataire, après tous les autres filtres : un mentionné passe outre, un
+  autre non. Rien d'autre dans `app/` ne lit `is_muted` pour taire une notification (relevé `grep`).
+- **Doublons** : retirés, pas refusés (le ticket dit « dédoublonnage »). Forme stockée : des entiers
+  uniques, triés, en liste. `max:10` se juge avant le retrait des doublons.
+- **Préférence par canal** : `MessageMention` suit l'interrupteur `message_received`, sans
+  interrupteur à part. Une mention est un message, et le ticket ne veut « aucun chemin à part ».
+  **Choix à confirmer par la session** : pour lui donner son propre interrupteur, il faut toucher
+  `PreferenceCatalog`, `PreferenceResolver` et l'écran des préférences.
+- **Cloche** : `message.mention` est rangé en `demande` sans « à traiter », comme `message.received`.
+  Ce que la mention attend relève de la boîte (TCK-2967).
+- **Textes** : `lang/{fr,en,wo}/notifications.php` (`codes.message.mention`, title/body/sms), plus
+  `notifications.codes.message.mention.{title,body}` côté front (outil `cle-i18n`, wo = fr). Les 422
+  `messaging.mention_not_reader` et `messaging.mention_type` sont dans `errors.php` ×3.
+- **Une mention de soi-même** est acceptée (l'auteur lit son message). Elle ne notifie pas : le job
+  exclut l'expéditeur.
+- **Contrôleur** : `ConversationController::sendMessage` passe `'mentions' => $data['mentions'] ?? []` au
+  service, et c'est le seul changement dans ce fichier, tenu par TCK-2967. La ligne a été posée sous
+  verrou, avec l'accord de la session. Sans elle, la route rend 201 et perd la mention : les deux tests de
+  route le montrent.
+
+### Ablations (2026-11-18, une à une, restauration par `cp`, md5 identique à l'original à chaque fois)
+
+| Ablation | Rouges |
+|---|---|
+| règle « lit ce message » retirée de la requête | AC1, non-participant, parti du fil, super-admin absent |
+| requête qui juge une note comme un message pour tous | AC1 |
+| garde du type retirée du writer | carte |
+| sourdine non contournée pour un mentionné | AC2, AC2 bis |
+| un mentionné reçoit `MessageReceived` | AC2, AC2 bis, AC3, AC3 bis, AC1 bis |
+| job : un mentionné d'une note n'est pas filtré par la lecture des notes | AC1 bis (règle retirée du job) |
+| job : `left_at` non rejugé | AC3 |
+| filtre de la page de TCK-2965 (`messagesLisiblesPar`) retiré | AC4 |
