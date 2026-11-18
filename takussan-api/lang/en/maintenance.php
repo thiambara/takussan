@@ -3,38 +3,17 @@
 /*
  * TCK-592 — maintenance domain strings. Since TCK-588 a notification is a code
  * (`notifications.php` → `codes.maintenance*`) and a refusal an error code (`errors.php` →
- * `maintenance.*`); this file keeps the status labels, the validation refusals, the thread's
- * system messages and the quote PDF.
+ * `maintenance.*`); this file keeps the validation refusals and the quote PDF. TCK-2958: the status
+ * labels and the thread's system messages left with their last reader
+ * (`SystemMessageFactory::humanise`) — the front composes the notice from its code.
  */
 return [
-    'status' => [
-        'open' => 'open',
-        'acknowledged' => 'acknowledged',
-        'quote_requested' => 'quote requested',
-        'quote_submitted' => 'quote submitted',
-        'awaiting_owner' => 'awaiting the landlord',
-        'approved' => 'quote approved',
-        'rejected' => 'quote rejected',
-        'assigned' => 'assigned',
-        'in_progress' => 'in progress',
-        'completed' => 'completed',
-        'closed' => 'closed',
-        'cancelled' => 'cancelled',
-    ],
 
     'errors' => [
         'not_assignable' => 'This account cannot receive the request: it must be an active service provider with an active collaboration with the property\'s agency, or a member of its team.',
         // TCK-2715 — la borne haute du passage (`MaintenanceRequest::SCHEDULING_HORIZON_MONTHS`).
         'beyond_scheduling_horizon' => 'The visit cannot be scheduled more than a year ahead.',
         'invitation_request_invalid' => 'The linked maintenance request must belong to this agency and be neither closed nor cancelled.',
-    ],
-
-    'system' => [
-        'assigned' => 'Job assigned to :provider.',
-        'unassigned' => 'The job is no longer assigned to :provider.',
-        'accepted' => ':provider accepted the job.',
-        'declined' => ':provider declined the job.',
-        'status' => 'Status: :status.',
     ],
 
     'quote_pdf' => [

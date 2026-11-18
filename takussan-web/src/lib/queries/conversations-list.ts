@@ -1,7 +1,9 @@
 'use client';
 
+import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/context/AuthContext';
+import { useIntervalleDeRelecture, useSignal } from '@/lib/temps-reel/hooks';
 import type { PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { Conversation } from '@/types/message';
 
@@ -62,6 +64,26 @@ export type ConversationListPage = PaginatedResponse<Conversation> & {
  * `filter[participant]` (les fils où cette personne est membre actuel — restreint la liste de
  * l'appelant, ne l'élargit jamais).
  */
+/**
+ * TCK-2955 (ADR-0129 § 2) — la boîte en direct : le canal personnel de la session, filtré sur
+ * `boite.updated` (la liste ou le compteur d'une personne a changé — un message, une lecture, un ajout ou
+ * un retrait). Chaque lecture de la boîte s'y abonne À CÔTÉ de sa requête : c'est ce qui la fait passer à
+ * la relecture de sécurité de 60 s quand le canal est tenu (`useIntervalleDeRelecture`).
+ */
+export const BOITE_EN_DIRECT = { personnel: ['boite.updated'] } as const;
+
+/**
+ * TCK-2955 — relit `cle` à chaque `boite.updated` (et à la reconnexion), sans annuler une lecture déjà en
+ * cours (`cancelRefetch: false`) : plusieurs écrans abonnés à la même clé ne font qu'une requête.
+ * `actif` faux : rien n'est abonné (un observateur passif, une lecture désactivée).
+ */
+export function useBoiteEnDirect(cle: QueryKey, actif: boolean): void {
+  const queryClient = useQueryClient();
+  useSignal(actif ? BOITE_EN_DIRECT : null, () => {
+    void queryClient.invalidateQueries({ queryKey: cle }, { cancelRefetch: false });
+  });
+}
+
 export type FiltresDeLaListe = {
   readonly recherche?: string;
   readonly nonLus?: boolean;
@@ -127,14 +149,18 @@ export function useConversations(
   const enabled = (options.enabled ?? true) && Boolean(user);
 
   const spatieParams = conversationListParams(params.page ?? 1, params.per_page ?? 30);
+  // TCK-2955 — relue sur `boite.updated` ; les 10 s ne sont plus que le filet du mode dégradé.
+  const cle: QueryKey = ['conversations', 'list', params];
+  useBoiteEnDirect(cle, enabled);
+  const intervalle = useIntervalleDeRelecture(options.refetchInterval ?? 10_000, enabled ? BOITE_EN_DIRECT : null);
 
   return useApiQuery<ConversationListPage>(
-    ['conversations', 'list', params],
+    cle,
     '/api/conversations',
     {
       params: spatieParams,
       enabled,
-      refetchInterval: options.refetchInterval ?? 10_000,
+      refetchInterval: intervalle,
       staleTime: 0,
     },
   );
@@ -162,11 +188,15 @@ export const CADENCE_NON_LUS_MESSAGERIE_MS = 10_000;
 export function useNonLusTotal(options: { enabled?: boolean; refetchInterval: number }) {
   const { user } = useAuth();
   const enabled = (options.enabled ?? true) && Boolean(user);
+  // TCK-2955 — le compteur suit `boite.updated` ; ses cadences (`CADENCE_NON_LUS_*`) ne sont plus que le
+  // filet du mode dégradé. L'observateur passif (`enabled: false`, `AnnonceDesNonLus`) n'abonne rien.
+  useBoiteEnDirect(NonLusQueryKeys.total, enabled);
+  const intervalle = useIntervalleDeRelecture(options.refetchInterval, enabled ? BOITE_EN_DIRECT : null);
 
   return useApiQuery<ConversationListPage>(NonLusQueryKeys.total, '/api/conversations', {
     params: { per_page: 1 },
     enabled,
-    refetchInterval: options.refetchInterval,
+    refetchInterval: intervalle,
     staleTime: 0,
   });
 }

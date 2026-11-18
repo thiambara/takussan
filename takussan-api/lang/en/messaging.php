@@ -43,4 +43,11 @@ return [
     // TCK-2631 — ADR-0038, amendement du 2026-11-10 : aperçu neutre d'une photo et d'un PDF, jamais le nom du fichier.
     'image_preview' => 'Photo',
     'document_preview' => 'Document',
+
+    // TCK-2964 — l'extrait de l'avis d'une carte posée dans un fil (`Message::cardPreview`) : une phrase
+    // générique, sans titre ni prix. Clé : le code de la carte, `.` remplacé par `_`.
+    'card_preview' => [
+        'property_shared' => 'Shared a property with you.',
+        'visit_proposed' => 'Suggested a viewing time.',
+    ],
 ];

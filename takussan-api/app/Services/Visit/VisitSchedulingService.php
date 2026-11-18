@@ -8,6 +8,8 @@ use App\Models\Enums\VisitWindow;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Policies\PropertyVisitPolicy;
+use App\Services\Messaging\FilDeLObjet;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -300,6 +302,10 @@ class VisitSchedulingService
                 ? ['status' => VisitStatus::Confirmed, 'scheduled_at' => $start, 'preferred_window' => null]
                 : ['status' => VisitStatus::Confirmed]);
 
+            // TCK-2961 (ADR-0128 § 3) — la visite confirmée parle dans le fil EXISTANT du prospect, après
+            // le COMMIT (le verrou est encore tenu ici) ; aucun fil n'est ouvert pour elle.
+            app(FilDeLObjet::class)->parler($fresh, 'visit.confirmed', ['scheduled_at' => $fresh->scheduled_at?->toIso8601String()]);
+
             return $fresh;
         });
     }
@@ -518,6 +524,12 @@ class VisitSchedulingService
                 'preferred_window' => null,
                 'status' => VisitStatus::Scheduled,
             ]);
+
+            // TCK-2961 (ADR-0128 § 3) — l'autre moment proposé par le visiteur parle dans son fil EXISTANT,
+            // après le COMMIT ; confirmer attend l'autre partie : qui administre la visite ET la confirme
+            // (la garde de `PropertyVisitController::confirm`).
+            app(FilDeLObjet::class)->parler($fresh, 'visit.rescheduled', ['scheduled_at' => $fresh->scheduled_at?->toIso8601String()],
+                fn (User $partie): bool => $partie->can('update', $fresh) && PropertyVisitPolicy::peutConfirmer($partie, $fresh));
 
             return $fresh;
         });

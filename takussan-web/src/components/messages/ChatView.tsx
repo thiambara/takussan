@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useForm, useWatch } from 'react-hook-form';
@@ -16,6 +16,10 @@ import {
   useSendAttachment,
   useSendMessage,
 } from '@/lib/queries/conversations';
+import { sujetDuFil } from '@/lib/queries/conversations-cles';
+import { useIntervalleDeRelecture, usePresenceDuSujet } from '@/lib/temps-reel/hooks';
+import { useEcritureDuSujet } from '@/lib/temps-reel/ecriture';
+import { useFilEnDirect } from './useFilEnDirect';
 import { messageErreurApi } from '@/lib/api';
 import { isAgencyAdmin, isAgent } from '@/lib/roles';
 import { typeDuProfilActif } from '@/lib/navigation/personas';
@@ -32,6 +36,16 @@ import { formatDateTime } from '@/lib/format';
 import { sendMessageSchema, type SendMessageFormValues } from '@/lib/schemas/message';
 import { cn } from '@/lib/utils';
 import { SystemMessageBubble } from './SystemMessageBubble';
+// TCK-2962 — les cartes, les événements repliés et la carte relue quand son objet bouge.
+import { CarteDuFil, EvenementsReplies } from './cartes/CarteDuFil';
+import { natureDuMessage, replierLesEvenements } from './cartes/replierLesEvenements';
+import { useCartesEnDirect } from './cartes/useCartesEnDirect';
+// TCK-2963 — la salle d'un bail ou d'une réservation : chronologie repliée par mois. Le bandeau, le dossier et
+// la raison de la lecture seule sont rendus par la PAGE (`MessagesPage`) et passés ici : le widget flottant
+// importe ce composant, et ils lisent l'objet (bail, réservation), qu'il n'a pas à charger.
+import { estUneSalle } from './salle/salle';
+import { chronologieDeLaSalle, type ElementDeLaSalle } from './salle/chronologieDeLaSalle';
+import { SeparateurDeMois } from './salle/SeparateurDeMois';
 import { ConversationInfoSheet } from './ConversationInfoSheet';
 import { EnTeteDuFil } from './EnTeteDuFil';
 import { MessageDateSeparator } from './MessageDateSeparator';
@@ -43,6 +57,7 @@ import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
 import type { GestesDuFil } from './GestesDuFil';
+import { usePoserDansLeFil } from './poser/PoserDansLeFil';
 
 interface ChatViewProps {
   readonly conversationId: number;
@@ -73,6 +88,16 @@ interface ChatViewProps {
   readonly onPlusDActions?: () => void;
   /** TCK-2860 — les gestes du menu « ⋯ » que la page monte (non lue, ajouter, signaler) ; absents du widget. */
   readonly gestes?: GestesDuFil;
+  /**
+   * TCK-2963 — une SALLE ouverte dans la page : le bandeau de l'objet (sous l'en-tête), la ligne qui dit
+   * pourquoi la saisie a disparu (`abilities.can_send_message` faux), et l'ouverture du dossier du fil
+   * (la sous-ligne de l'en-tête, sous `xl`).
+   */
+  readonly salle?: {
+    readonly bandeau: ReactNode;
+    readonly lectureSeule: ReactNode;
+    readonly onDossier: () => void;
+  };
 }
 
 /**
@@ -90,7 +115,7 @@ export const RELECTURE_DE_LA_COCHE_MS = 15_000;
  * so polling never re-downloads loaded history. Polling pauses while the tab
  * is hidden (visibility listener below). See TCK-045 / pagination plan.
  */
-export function ChatView({ conversationId, variant = 'page', onBack, contexte, onPlusDActions, gestes }: ChatViewProps) {
+export function ChatView({ conversationId, variant = 'page', onBack, contexte, onPlusDActions, gestes, salle }: ChatViewProps) {
   const isWidget = variant === 'widget';
   const t = useTranslations('messaging');
   const tRacine = useTranslations();
@@ -154,13 +179,23 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
     dernier !== undefined &&
     dernier.sender_id === user?.id &&
     (dernier.read_by_recipient === false || dernier.read_count === 0);
+  // TCK-2955 — la coche arrive par `conversation.read` (`useFilEnDirect`) ; les 15 s ne sont plus que le
+  // filet du mode dégradé (60 s quand le canal du fil est tenu).
+  const sujet = sujetDuFil(conversationId);
+  const intervalleDeLaCoche = useIntervalleDeRelecture(RELECTURE_DE_LA_COCHE_MS, sujet);
   useEffect(() => {
-    if (!cocheEnAttente || !isVisible) return;
+    if (!cocheEnAttente || !isVisible || intervalleDeLaCoche === false) return;
     const minuterie = setInterval(() => {
       void refetch();
-    }, RELECTURE_DE_LA_COCHE_MS);
+    }, intervalleDeLaCoche);
     return () => clearInterval(minuterie);
-  }, [cocheEnAttente, isVisible, refetch]);
+  }, [cocheEnAttente, isVisible, refetch, intervalleDeLaCoche]);
+
+  // TCK-2955 (ADR-0129 § 2) — le fil en direct : ses signaux relisent ce qu'ils disent changé.
+  useFilEnDirect({ conversationId, sansAncre: anchorId == null, cocheEnAttente });
+  // TCK-2962 — un `event` ou une `card` neuf (signal ou relecture périodique) relit les pages chargées :
+  // les cartes plus haut prennent la projection et les gestes neufs de leur objet.
+  useCartesEnDirect(conversationId, messages);
 
   const sendMessage = useSendMessage(conversationId);
   const sendAttachment = useSendAttachment(conversationId);
@@ -190,10 +225,32 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
 
   const conversation = conversationData?.data;
   const isGroup = conversation?.type === 'group';
+  /** TCK-2963 — une salle a trois membres ou plus : ses auteurs se nomment, comme dans un groupe. */
+  const estSalle = estUneSalle(conversation);
   const myParticipant = conversation?.participants?.find(
     (p) => p.user_id === user?.id && !p.left_at,
   );
   const isMuted = Boolean(myParticipant?.is_muted);
+  /**
+   * TCK-2955 — la présence et « en train d'écrire », pendant que le fil est ouvert seulement (le canal de
+   * présence est quitté au démontage). Un identifiant ne compte que s'il est un AUTRE participant actif que
+   * le fil a déjà lu : son nom vient de là, jamais du canal (qui ne publie que `{id}`).
+   */
+  const autresActifs = new Map(
+    (conversation?.participants ?? [])
+      .filter((p) => !p.left_at && p.user_id !== user?.id)
+      .map((p) => [p.user_id, p.user?.full_name ?? null] as const),
+  );
+  const presents = usePresenceDuSujet(sujet).filter((id) => autresActifs.has(id));
+  const ecriture = useEcritureDuSujet(sujet);
+  const ecrivent = ecriture.auteurs.filter((id) => autresActifs.has(id));
+  const nomQuiEcrit = ecrivent.length === 1 ? autresActifs.get(ecrivent[0]!) : null;
+  const ligneDEcriture =
+    ecrivent.length > 1
+      ? t('chat.plusieursEcrivent')
+      : nomQuiEcrit
+        ? t('chat.ecrit', { nom: nomQuiEcrit })
+        : null;
   // TCK-2374 (P248.01) — l'API refuserait l'envoi : la saisie laisse place à une note. Absent (liste,
   // cache d'avant la réponse), le drapeau ne cache rien.
   const canSend = conversation?.abilities?.can_send_message !== false;
@@ -205,7 +262,10 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
   const roles = user?.roles ?? [];
   const typeActif = typeDuProfilActif(activeProfileId ?? user?.active_profile_id);
   const duPersonnel = typeActif !== null ? typeActif === 'agent' || typeActif === 'agency_admin' : isAgent(roles) || isAgencyAdmin(roles);
-  const reponsesRapides = !isGroup && duPersonnel;
+  // TCK-2963 — pas dans une salle non plus : le locataire ET le bailleur y lisent.
+  const reponsesRapides = !isGroup && !estSalle && duPersonnel;
+  // TCK-2964 — partager un bien, proposer un créneau : le personnel, dans le fil d'un client.
+  const poser = usePoserDansLeFil({ conversationId, actif: !isWidget && reponsesRapides });
   // TCK-2632 — le micro cède la place à l'envoi dès qu'il y a quelque chose à envoyer (maquette) ;
   // pendant une note vocale, le champ et le trombone s'effacent devant elle.
   const contenu = useWatch({ control: form.control, name: 'content' }) ?? '';
@@ -309,7 +369,13 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
     void fetchNextPage();
   }
 
-  const renderItems = groupMessagesByDay(messages);
+  // TCK-2962 — les `event` consécutifs sans geste attendu se replient en une ligne.
+  // TCK-2963 — dans une salle, par MOIS : un mois passé sous un seul séparateur, ses événements repliés ;
+  // le mois courant jour par jour, ses événements dépliés. L'horloge est relevée une fois par montage.
+  const [maintenant] = useState(() => new Date());
+  const renderItems: readonly ElementDeLaSalle[] = estSalle
+    ? chronologieDeLaSalle(messages, maintenant)
+    : replierLesEvenements(groupMessagesByDay(messages));
 
   async function onSubmit(values: SendMessageFormValues) {
     try {
@@ -423,13 +489,17 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
           onInfosDuGroupe={() => {
             if (colonneDuBureau && contexte) {
               if (!contexte.ouvert) contexte.onBasculer();
-            } else setInfoOpen(true);
+            } else if (estSalle) salle?.onDossier();
+            else setInfoOpen(true);
           }}
           contexte={contexte}
           onPlusDActions={onPlusDActions}
           gestes={gestes}
+          presents={presents}
         />
       )}
+      {/* TCK-2963 — le bandeau de l'objet, collé sous l'en-tête (maquette `BandeauBail`). */}
+      {!isWidget && estSalle ? salle?.bandeau : null}
       {isGroup && !isWidget && (
         <ConversationInfoSheet
           open={infoOpen}
@@ -486,23 +556,43 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
               if (item.kind === 'separator') {
                 return <MessageDateSeparator key={item.key} date={item.date} />;
               }
+              if (item.kind === 'mois') {
+                return <SeparateurDeMois key={item.key} date={item.date} maintenant={maintenant} />;
+              }
+              if (item.kind === 'evenements') {
+                return <EvenementsReplies key={item.key} messages={item.messages} ouvertParDefaut={item.ouvert} jour={item.passe} />;
+              }
               const m = item.message;
-              return m.type === 'system' ? (
+              // TCK-2958 — un `event` est un avis. TCK-2962 — une `card`, et un `event` qui attend un geste
+              // de ce lecteur (`action_attendue`), sont des cartes rendues depuis leur objet.
+              return natureDuMessage(m) === 'carte' ? (
+                <CarteDuFil key={m.id} message={m} conversationId={conversationId} moi={m.sender_id != null && m.sender_id === user?.id} auteur={isGroup || estSalle} />
+              ) : m.type === 'system' || m.type === 'event' ? (
                 <SystemMessageBubble key={m.id} message={m} />
               ) : (
                 <MessageBubble
                   key={m.id}
                   message={m}
                   isOwn={m.sender_id === user?.id}
-                  auteur={isGroup}
+                  auteur={isGroup || estSalle}
                   locale={locale}
                   relirePiece={relirePiece}
+                  jour={item.kind === 'message' && item.passe === true}
                 />
               );
             })}
           </ul>
         )}
       </div>
+
+      {/* TCK-2955 — « en train d'écrire » : une ligne courte au-dessus du champ, qui s'efface seule. */}
+      <p
+        aria-live="polite"
+        data-testid="ecriture-du-fil"
+        className={cn('bg-muted/50 px-4 text-xs text-muted-foreground', ligneDEcriture && 'pb-1.5')}
+      >
+        {ligneDEcriture}
+      </p>
 
       {canSend ? (
         <ChatComposerShell
@@ -524,6 +614,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                 onChoisir={(f) => void pieceJointe.choisir(f)}
                 desactive={sendAttachment.isPending}
                 appareilPhoto={telephone}
+                entrees={poser.entrees}
               />
             )
           }
@@ -554,12 +645,13 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                   />
                 ) : null}
                 <ApercuDeLaPiece piece={pieceJointe.piece} preparation={pieceJointe.preparation} onRetirer={pieceJointe.retirer} />
+                {poser.feuilles}
               </>
             )
           }
         >
           <Textarea
-            {...form.register('content')}
+            {...form.register('content', { onChange: () => ecriture.signalerFrappe() })}
             rows={1}
             placeholder={t('chat.placeholder')}
             className={
@@ -578,6 +670,9 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
             }}
           />
         </ChatComposerShell>
+      ) : estSalle && salle ? (
+        // TCK-2963 — la salle dit POURQUOI (bail fini, réservation close, fil fermé), en code composé ici.
+        salle.lectureSeule
       ) : (
         <p role="status" className="border-t border-border bg-card p-3 text-sm text-muted-foreground">
           {t('chat.readOnly')}
@@ -604,12 +699,15 @@ function MessageBubble({
   auteur,
   locale,
   relirePiece,
+  jour = false,
 }: {
   message: Message;
   isOwn: boolean;
   auteur: boolean;
   locale: Locale;
   relirePiece: RelirePiece;
+  /** TCK-2963 — sous un séparateur de mois (salle), l'heure se lit avec son jour. */
+  jour?: boolean;
 }) {
   const t = useTranslations('messaging.chat');
   const role = message.sender?.role_label_code ?? null;
@@ -669,7 +767,7 @@ function MessageBubble({
             isOwn ? 'text-background/65' : 'text-muted-foreground',
           )}
         >
-          {formatDateTime(message.created_at, locale, { timeStyle: 'short', dateStyle: undefined })}
+          {formatDateTime(message.created_at, locale, jour ? { timeStyle: 'short', dateStyle: 'medium' } : { timeStyle: 'short', dateStyle: undefined })}
           {lu ? <CheckCheck className="size-3.5 flex-none" role="img" aria-label={t('lu')} data-testid="coche-lu" /> : null}
         </p>
       </div>

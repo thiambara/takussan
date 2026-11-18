@@ -18,7 +18,8 @@
  *   4. un résidu est encore lu ou déclaré quelque part, et n'est pas dans le gabarit ;
  *   5. aucune valeur de gabarit ne ressemble à un secret, et une clé de secret y est vide ;
  *   6. `APP_DEBUG` et `OTP_PREVIEW_ENABLED` valent `false`, `APP_ENV` `production`, `BROADCAST_CONNECTION`
- *      `null` ; `REDIS_HOST` et `REDIS_PORT` en sont absentes (écrites par `compose.api.yml`) ;
+ *      `reverb` (TCK-2956) ; `REDIS_HOST`, `REDIS_PORT` et `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME` en sont
+ *      absentes (écrites par `compose.api.yml`) ;
  *   7. mêmes sections, même ordre, chaque clé sous la même section dans tous les fichiers ;
  *   8. dans un gabarit, une seule occurrence d'une clé, sous la forme `CLE=valeur`, aucune clé commentée,
  *      et une ligne vide seulement pour un secret ou une clé de `VIDES_PERMISES`.
@@ -50,11 +51,25 @@ const REPORT = process.argv.includes('--report');
  */
 const RESIDUS = [
   {
-    motif: "pilote de diffusion non utilisé : `NewNotification` part à chaque notification, BROADCAST_CONNECTION=null la fait taire, et aucun canal temps réel ne l'écoute",
+    // TCK-2952 — `NewNotification` est supprimé : seul `SignalTempsReel` diffuse (ADR-0129), par Reverb.
+    motif: 'pilote de diffusion non utilisé : seul Reverb diffuse (ADR-0129)',
     cles: [
       'ABLY_KEY', 'PUSHER_APP_CLUSTER', 'PUSHER_APP_ID', 'PUSHER_APP_KEY', 'PUSHER_APP_SECRET', 'PUSHER_HOST',
-      'PUSHER_PORT', 'PUSHER_SCHEME', 'REVERB_APP_ID', 'REVERB_APP_KEY', 'REVERB_APP_SECRET', 'REVERB_HOST',
-      'REVERB_PORT', 'REVERB_SCHEME',
+      'PUSHER_PORT', 'PUSHER_SCHEME',
+    ],
+  },
+  {
+    // TCK-2952 — `config/reverb.php`, publiée avec `laravel/reverb` : les réglages du SERVEUR, lus par
+    // `reverb:start` seul. TCK-2956 — le service `temps-reel` les garde à leurs défauts : `REVERB_SERVER_PORT`
+    // 8080 est la cible de l'onglet Domains (`temps-reel:8080`), et une seule instance tourne (pas de scaling).
+    motif: 'réglages du serveur WebSocket (service `temps-reel` de compose.api.yml, `reverb` de docker-compose.yml), à leurs défauts : port 8080, une instance',
+    cles: [
+      'REDIS_TIMEOUT', 'REVERB_APP_ACTIVITY_TIMEOUT',
+      'REVERB_APP_MAX_CHANNELS_PER_CONNECTION', 'REVERB_APP_MAX_CONNECTIONS', 'REVERB_APP_MAX_MESSAGE_SIZE',
+      'REVERB_APP_PING_INTERVAL', 'REVERB_APP_RATE_LIMITING_ENABLED', 'REVERB_APP_RATE_LIMIT_DECAY_SECONDS',
+      'REVERB_APP_RATE_LIMIT_MAX_ATTEMPTS', 'REVERB_APP_RATE_LIMIT_TERMINATE', 'REVERB_MAX_REQUEST_SIZE',
+      'REVERB_PULSE_INGEST_INTERVAL', 'REVERB_SCALING_CHANNEL', 'REVERB_SCALING_ENABLED', 'REVERB_SERVER',
+      'REVERB_SERVER_HOST', 'REVERB_SERVER_PATH', 'REVERB_SERVER_PORT', 'REVERB_TELESCOPE_INGEST_INTERVAL',
     ],
   },
   {
@@ -117,8 +132,10 @@ const RESIDUS = [
     ],
   },
   {
-    motif: 'écrites par deploy/takussan/compose.api.yml, qui l\'emporte sur l\'onglet : un fait de la pile (TCK-880)',
-    cles: ['REDIS_HOST', 'REDIS_PORT'],
+    // TCK-2956 — `REVERB_HOST` est l'alias `${API_ALIAS}-temps-reel` : le Reverb de la pile, jamais celui de l'autre
+    // environnement (scripts/check-reseau-par-environnement.mjs).
+    motif: 'écrites par deploy/takussan/compose.api.yml, qui l\'emporte sur l\'onglet : un fait de la pile (TCK-880, TCK-2956)',
+    cles: ['REDIS_HOST', 'REDIS_PORT', 'REVERB_HOST', 'REVERB_PORT', 'REVERB_SCHEME'],
   },
   {
     motif: "ni l'API ni l'image ne les lisent à l'exécution de cet environnement : `artisan serve` et Vite du développement ; BUILD_SHA posée par l'image ; SEEDER_CLASS et APP_ROOT passées à l'appel d'un script",
@@ -130,15 +147,17 @@ const RESIDUS = [
 const RESIDUS_FRONT = ['NODE_ENV', 'BUILD_SHA'];
 
 /** Les clés qu'un gabarit ne doit jamais porter : le service les écrit lui-même. */
-const INTERDITES_API = ['REDIS_HOST', 'REDIS_PORT'];
+const INTERDITES_API = ['REDIS_HOST', 'REDIS_PORT', 'REVERB_HOST', 'REVERB_PORT', 'REVERB_SCHEME']; // TCK-2956 : les trois REVERB_
 
 /** Les valeurs dont dépend la sécurité de la production. */
 const VALEURS_IMPOSEES_API = {
   APP_ENV: 'production',
   APP_DEBUG: 'false',
   OTP_PREVIEW_ENABLED: 'false',
-  // `log` écrit le titre et le corps de chaque notification dans les journaux (TCK-2456).
-  BROADCAST_CONNECTION: 'null',
+  // TCK-2956 (ADR-0129 § 5) — était `null` (TCK-2456 : `log` écrivait le titre et le corps de chaque notification
+  // dans les journaux). Passée à `reverb` EN LE SACHANT : le service `temps-reel` tourne dans la pile, et seul
+  // `SignalTempsReel` diffuse — un signal sans donnée. `log` reste exclu ; `null` éteindrait le temps réel en silence.
+  BROADCAST_CONNECTION: 'reverb',
 };
 
 /**
@@ -154,6 +173,9 @@ const VIDES_PERMISES = [
   'RADAR_WHATSAPP_ACCORD_V4_TEMPLATE',
   // TCK-2940 (ADR-0126) — défaut vide (voie « par appel » éteinte) ; attend l'ouverture du compte voix LAfricaMobile.
   'PHONE_VOICE_CODE_DRIVER', 'VOICE_LAM_BASE_URL', 'VOICE_LAM_LOGIN',
+  // TCK-2953 (ADR-0129 § 5) — le temps réel du front. Vide = mode dégradé (relecture périodique), rien ne
+  // casse ; à poser seulement quand le service `temps-reel` de TCK-2956 répond.
+  'TEMPS_REEL_URL', 'TEMPS_REEL_CLE',
 ];
 
 const CLE_DE_SECRET = /(?:^|_)(?:KEY|KEYS|KEY_ID|SECRET|PASSWORD|TOKEN|ACCOUNT_ID)$/;

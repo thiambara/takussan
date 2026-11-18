@@ -106,6 +106,8 @@ if (REPORT) {
   for (const a of restent) {
     console.log(`  · [${a.type}] ${a.titre}`);
     console.log(`      ${a.ou}${a.tickets?.length ? ` — ${a.tickets.join(', ')}` : ''}`);
+    // TCK-2956 — les clés à poser se lisent dans le rapport, sans ouvrir le fichier.
+    if (Array.isArray(a.cles) && a.cles.length) console.log(`      clés : ${a.cles.join(', ')}`);
   }
 }
 

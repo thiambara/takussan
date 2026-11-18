@@ -175,6 +175,14 @@ describe('TCK-2853 — « … vous a répondu · Lire » (bureau)', () => {
     expect(document.body.textContent).not.toContain('X a renommé');
   });
 
+  // TCK-2958 — l'aperçu d'un événement ou d'une carte n'est qu'un code : jamais cité.
+  it.each(['event', 'card'])('TCK-2958 — un message « %s » n’est jamais cité', async (type) => {
+    reseau.fils = [{ ...FIL, last_message: { id: 903, type, metadata: { object: { type: 'lease', id: 1 }, code: 'lease.shared', data: {} } }, last_message_preview: 'lease.shared' }];
+    monter(<ReponseRecue />);
+    await screen.findByText('Sokhna Sène vous a répondu');
+    expect(document.body.textContent).not.toContain('lease.shared');
+  });
+
   // TCK-2860 — `last_message.sender_id` (TCK-2858) : le client qui a écrit le dernier mot n'a pas « reçu de réponse ».
   it('TCK-2860 — le dernier message est du client lui-même : aucune rangée ; d’un autre : la rangée', async () => {
     reseau.fils = [{ ...FIL, last_message: { id: 902, type: 'text', metadata: null, sender_id: 5 } }];

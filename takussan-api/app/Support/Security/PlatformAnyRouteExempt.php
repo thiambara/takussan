@@ -22,9 +22,11 @@ use App\Http\Controllers\Api\BookingPaymentController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\ContactGestureController;
 use App\Http\Controllers\Api\ContactLeadController;
+use App\Http\Controllers\Api\ConversationCardController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationParticipantController;
 use App\Http\Controllers\Api\ConversationReportController;
+use App\Http\Controllers\Api\ConversationRoomController;
 use App\Http\Controllers\Api\Credits\AgencySpotlightController;
 use App\Http\Controllers\Api\Credits\PropertyBoostController;
 use App\Http\Controllers\Api\CustomerController;
@@ -105,6 +107,7 @@ use App\Http\Controllers\Webhook\WhatsappStatusController;
 use App\Http\Controllers\WelcomeViewController;
 use App\Http\Controllers\WizardDraftController;
 use App\Http\Middleware\RequireTwoFactor;
+use Illuminate\Broadcasting\BroadcastController;
 
 /**
  * TCK-609 (ADR-0033 §8, amendement du 2026-11-16 ; option (b) du porteur) — le REGISTRE de chaque
@@ -184,6 +187,10 @@ final class PlatformAnyRouteExempt
         ConversationParticipantController::class.'@destroy' => self::NON_GARDE,
         ConversationParticipantController::class.'@store' => self::NON_GARDE,
         ConversationParticipantController::class.'@update' => self::NON_GARDE,
+        // TCK-2964 — pose une carte (un bien, une visite) dans un fil où l'auteur écrit déjà : même régime que l'envoi d'un message.
+        ConversationCardController::class.'@store' => self::NON_GARDE,
+        // TCK-2960 — ouvre (ou rend) la salle d'un objet que l'appelant lit déjà ; même régime que la création d'un fil.
+        ConversationRoomController::class.'@store' => self::NON_GARDE,
         ConversationReportController::class.'@store' => self::NON_GARDE,
         PropertyBoostController::class.'@store' => self::NON_GARDE,
         // TCK-2525 — la même dépense de crédits que l'achat d'un boost, rangée comme lui.
@@ -394,5 +401,7 @@ final class PlatformAnyRouteExempt
         WelcomeViewController::class.'@store' => self::SOI,
         WizardDraftController::class.'@destroy' => self::NON_GARDE,
         WizardDraftController::class.'@upsert' => self::NON_GARDE,
+        // TCK-2952 (ADR-0129) — signe l'abonnement à un canal de temps réel déjà jugé par `CanauxTempsReel` : aucune écriture.
+        BroadcastController::class.'@authenticate' => self::SANS_ECRITURE,
     ];
 }

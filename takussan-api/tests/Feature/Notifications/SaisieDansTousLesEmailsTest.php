@@ -273,9 +273,11 @@ class SaisieDansTousLesEmailsTest extends TestCase
             $this->assertStringNotContainsString('\\', $texteSms, "{$code->value} : SMS sans barre oblique");
             $sms += str_contains($texteSms, rtrim($prefixeSms)) ? 1 : 0;
 
-            $cloche = $notification->toBroadcast(new AnonymousNotifiable)->data;
-            $this->assertStringNotContainsString('\\', $cloche['title'].$cloche['body'], "{$code->value} : cloche sans barre oblique");
-            $cloches += str_contains($cloche['title'].$cloche['body'], self::P) ? 1 : 0;
+            // TCK-2952 — la cloche n'a plus de `toBroadcast()` : elle affiche le titre et le corps que
+            // `NotificationService::send()` rend par le même moteur, écrits sur la ligne `app_notifications`.
+            $cloche = $renderer->render($code, $params, 'fr', null, 'title').$renderer->render($code, $params, 'fr', null, 'body');
+            $this->assertStringNotContainsString('\\', $cloche, "{$code->value} : cloche sans barre oblique");
+            $cloches += str_contains($cloche, self::P) ? 1 : 0;
         }
 
         $this->assertGreaterThanOrEqual(20, $sujets, 'des sujets portent la saisie à l\'identique');

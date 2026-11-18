@@ -276,7 +276,8 @@ class ConversationTest extends TestCase
                 'lease_id' => $bail->id,
             ])->assertUnprocessable()->assertJsonValidationErrors(['type']);
         }
-        $this->assertSame(0, Conversation::query()->count(), 'aucun fil écrit avec un type hors usage');
+        // TCK-2960 — hors la salle que le bail a reçue à sa création (ADR-0128 § 2).
+        $this->assertSame(0, Conversation::query()->where('type', '!=', 'lease')->count(), 'aucun fil écrit avec un type hors usage');
 
         // Témoin : la même requête en `direct` passe, le refus vient donc du seul `type`.
         $this->postJson('/api/conversations', [
@@ -337,7 +338,8 @@ class ConversationTest extends TestCase
             $this->assertSame(__('messaging.errors.conversation_context_forbidden', [], 'fr'), $resp->json("errors.{$champ}.0"));
         }
 
-        $this->assertSame(0, Conversation::query()->count());
+        // TCK-2960 — hors la salle que le bail a reçue à sa création (ADR-0128 § 2).
+        $this->assertSame(0, Conversation::query()->where('type', '!=', 'lease')->count());
     }
 
     public function test_une_directe_se_rattache_a_son_propre_bail(): void
@@ -470,6 +472,7 @@ class ConversationTest extends TestCase
         Conversation::query()->findOrFail($premiere)->participants()->updateExistingPivot($other->id, ['left_at' => now()]);
         $this->assertNotSame($premiere, $this->postJson('/api/conversations', ['participants' => [$other->id]])->assertCreated()->json('data.id'));
 
-        $this->assertSame(4, Conversation::query()->count());
+        // TCK-2960 — hors la salle que le bail a reçue à sa création (ADR-0128 § 2).
+        $this->assertSame(4, Conversation::query()->where('type', '!=', 'lease')->count());
     }
 }

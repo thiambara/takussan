@@ -11,7 +11,6 @@ use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -60,9 +59,6 @@ class InvoiceOverdueReminderNotification extends Notification implements ShouldQ
         if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
             $channels[] = 'mail';
         }
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_PUSH)) {
-            $channels[] = 'broadcast';
-        }
 
         return $channels;
     }
@@ -105,15 +101,5 @@ class InvoiceOverdueReminderNotification extends Notification implements ShouldQ
                 'reference' => $this->invoice->reference_number ?? '#'.$this->invoice->id,
             ]),
         ];
-    }
-
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastType(): string
-    {
-        return 'invoice.reminder_sent';
     }
 }

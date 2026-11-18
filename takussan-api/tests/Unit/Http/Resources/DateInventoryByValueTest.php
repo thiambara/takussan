@@ -63,6 +63,9 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\Api\Admin\RadarAdvertiserResource::counts' => '`when()` sur des `withCount` aliasés (`reviewed_count`, '
             .'`contacted_count`, `consented_count`) que seul `RadarAdvertiserController::index` pose (TCK-2388) : trois '
             .'ENTIERS, jamais une date. Le sujet du parcours vient d\'une factory, pas de cette requête.',
+        // TCK-2958 — sur demande (`avecGestes`) : la page du show et la relecture d'une carte du fil.
+        'App\Http\Resources\BookingResource::abilities' => '`when()` sur un lecteur passé par `avecGestes()` (TCK-2958) : '
+            .'`confirm`, `reject`, `cancel`, trois booléens, jamais une date.',
         // TCK-2879
         'App\Http\Resources\BookingResource::amount_paid' => '`when()` sur une somme que seul le `withSum` de '
             .'`BookingController::index` pose (TCK-2879) : un MONTANT (float), jamais une date.',
@@ -164,6 +167,9 @@ class DateInventoryByValueTest extends TestCase
             .'d\'une fiche client (TCK-2668, D1) — le parcours n\'a ni l\'un ni l\'autre. Deux booléens (`resend`, '
             .'`revoke`), jamais une date.',
         'App\Http\Resources\KycDossierResource::shared_identifiers' => '`when(super-admin)` — même forme, même absence de date (TCK-601).',
+        // TCK-2958 — sur demande (`avecGestes`) : l'échéancier du bail et la relecture d'une carte du fil.
+        'App\Http\Resources\LeasePaymentResource::abilities' => '`when()` sur un lecteur passé par `avecGestes()` (TCK-2958) : '
+            .'`pay`, `remind`, `record_payment`, trois booléens, jamais une date.',
         'App\Http\Resources\LeaseResource::abilities' => '`when()` sur le lecteur de `forViewer()` (P152.02) : '
             .'quatre booléens, jamais une date.',
         'App\Http\Resources\LeaseResource::can_activate_on_paper' => '`when()` sur le même lecteur (VERIF-596 M1) : '
@@ -187,6 +193,13 @@ class DateInventoryByValueTest extends TestCase
             .'`BookingStatus`, ou `null` ; jamais une date.',
         'App\Http\Resources\LeaseResource::rent_review_cap_pct' => '`when()` sur le même lecteur posé par `forViewer()` '
             .'(TCK-2642) : un pourcentage (`RentReviewService::maxPctFor(): float`), jamais une date.',
+        // TCK-2959 — sur un événement : le lecteur figure-t-il dans `action_for` ?
+        'App\Http\Resources\MessageResource::action_attendue' => '`when()` sur un message `event` (TCK-2959) : un booléen '
+            .'(`EvenementsDuFil::actionAttenduePar(): bool`), jamais une date ; `NonLusDesEvenementsTest` le relit.',
+        // TCK-2958 — sur une carte ou un événement : l'objet relu par `ObjetsDesMessages`.
+        'App\Http\Resources\MessageResource::object' => '`when()` sur un message `card`/`event` (TCK-2958) : la projection '
+            .'d\'une ressource dont les dates sortent déjà par `iso()`/`calendarDate()` (tenues par leurs propres entrées), '
+            .'ou `{indisponible: true}` ; `RelectureDesObjetsTest` la compare au `show` valeur pour valeur.',
         'App\Http\Resources\PropertyCollaboratorResource::commission_share' => '`when()` sur `partsLisibles()` (P241.01, '
             .'TCK-2364) : réservée à qui peut fixer les conditions de commission, absente pour le bailleur. Le cast `decimal:2` '
             .'du modèle, une chaîne numérique, jamais une date.',

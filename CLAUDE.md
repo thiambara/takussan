@@ -208,7 +208,7 @@ lance elle-même, puis redonne l'artefact à l'agent.
 
 ## Environnement de développement
 
-`docker-compose.yml` sert **PostgreSQL 17 (avec pgvector), Meilisearch, Redis et Mailpit** — le
+`docker-compose.yml` sert **PostgreSQL 17 (avec pgvector), Meilisearch, Redis, Mailpit et Reverb** (temps réel, ADR-0129) — le
 pourquoi de chaque service est dans l'en-tête du fichier.
 
 > **PostgreSQL 17 partout depuis le 2026-08-21, suite de tests comprise**

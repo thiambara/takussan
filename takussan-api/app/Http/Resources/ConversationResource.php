@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\MessageType;
 use App\Models\User;
+use App\Services\Messaging\EvenementsDuFil;
 use Illuminate\Http\Request;
 
 class ConversationResource extends BaseResource
@@ -19,6 +20,9 @@ class ConversationResource extends BaseResource
             'property_id' => $this->property_id,
             'lease_id' => $this->lease_id,
             'maintenance_request_id' => $this->maintenance_request_id,
+            // TCK-2957 (ADR-0128 § 1) — l'objet auquel le fil appartient (clé du registre `SujetsDuFil`), nuls sans sujet.
+            'subject_type' => $this->subject_type,
+            'subject_id' => $this->subject_id,
             'created_by' => $this->created_by,
             'last_message_preview' => $this->last_message_preview,
             'last_message_at' => $this->iso($this->last_message_at),
@@ -28,16 +32,18 @@ class ConversationResource extends BaseResource
             'updated_at' => $this->iso($this->updated_at),
             // Calculé par la seule liste (`ConversationController::index`) : absent ailleurs.
             'unread_count' => $this->whenHas('unread_count', fn () => (int) $this->unread_count),
-            // TCK-671 (P06.02) — chargé par la liste. `last_message_preview` est écrit en français par
-            // `SystemMessageFactory::humanise()` : le front rend l'aperçu d'un avis système depuis son
-            // `metadata.event`, dans la langue du lecteur. Seule la metadata d'un avis système sort.
+            // TCK-671 (P06.02) — chargé par la liste. TCK-2958 (ADR-0128 § 3) : pour un `system`, un
+            // `event` ou une `card`, `last_message_preview` est un CODE ; le front compose l'aperçu depuis
+            // `metadata` (`event`, ou `code` et `data`), dans la langue du lecteur. La metadata d'un
+            // message de membre ne sort pas (durée d'une note vocale…).
             'last_message' => $this->whenLoaded('lastMessage', fn () => $this->lastMessage ? [
                 'id' => $this->lastMessage->id,
                 'type' => $this->enumValue($this->lastMessage->type),
                 // TCK-2858 — l'auteur du dernier message : l'accueil du client (TCK-2853) écrit « X vous a
                 // répondu » seulement si ce n'est pas le sien. `null` pour un avis système.
                 'sender_id' => $this->lastMessage->sender_id !== null ? (int) $this->lastMessage->sender_id : null,
-                'metadata' => $this->lastMessage->type === MessageType::System ? $this->lastMessage->metadata : null,
+                // TCK-2959 — sans `action_for` : la liste des comptes qui doivent agir ne sort pas par la liste.
+                'metadata' => in_array($this->lastMessage->type, MessageType::aContenuCode(), true) ? EvenementsDuFil::metadataRendu($this->lastMessage->metadata) : null,
             ] : null),
             // Relation is `BelongsTo` so `whenLoaded` can yield null when the
             // FK is null and the relation has been eager-loaded — guard

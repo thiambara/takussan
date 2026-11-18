@@ -26,7 +26,11 @@ use App\Services\Messaging\ConversationWriter;
 use App\Services\Messaging\DirectConversationService;
 use App\Services\Messaging\FaitsDesMessages;
 use App\Services\Messaging\GroupConversationService;
+use App\Services\Messaging\NonLus;
+use App\Services\Messaging\ObjetsDesMessages;
 use App\Support\CaseInsensitive;
+use App\Support\TempsReel\CodeDeSignal;
+use App\Support\TempsReel\TempsReel;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -54,9 +58,11 @@ class ConversationController extends Controller
         // TCK-671 (P06.02) — `lastMessage` : le front dérive l'aperçu d'un avis système de son `metadata.event`.
         // TCK-861 (P38.07) — les membres ACTUELS seuls, comme `show()` : le nom et l'avatar d'un
         // ancien membre partaient dans la liste de chacun.
+        // TCK-2959 (ADR-0128 § 5) — « quels messages comptent » est défini UNE fois, dans `NonLus`
+        // (que `markAsUnread` appelle aussi) : un `event` ne compte que pour qui figure dans son
+        // `action_for`. Le curseur de lecture, lui, reste ici.
         $nonLus = function ($q) use ($user) {
-            $q->where('messages.type', '!=', MessageType::System->value)
-                ->where(fn ($w) => $w->whereNull('messages.sender_id')->orWhere('messages.sender_id', '!=', $user->id))
+            NonLus::comptentPour($q, $user)
                 ->whereExists(fn ($p) => $p->selectRaw('1')
                     ->from('conversation_participants as lecteur')
                     ->whereColumn('lecteur.conversation_id', 'messages.conversation_id')
@@ -100,7 +106,9 @@ class ConversationController extends Controller
             ->withCount(['messages as unread_count' => $nonLus])
             // TCK-1389 (P135.06) — départage par `id` : deux fils de même horodatage changeaient de
             // page d'une requête à l'autre, ce que le défilement infini de la liste rend visible.
-            ->orderByDesc('last_message_at')
+            // TCK-2960 — NULLS LAST : un fil sans message (une salle pas encore ouverte à l'échange) vient
+            // après ceux qui ont parlé ; un ordre décroissant met les NULL en tête sous PostgreSQL.
+            ->orderByRaw('conversations.last_message_at DESC NULLS LAST')
             ->orderByDesc('conversations.id')
             ->paginate($this->tailleDePage($request, 20));
 
@@ -398,7 +406,8 @@ class ConversationController extends Controller
             return $this->json([
                 // TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page ; rien à
                 // calculer quand le relevé ne rapporte aucun message (le cas de presque chaque tic).
-                'data' => $messages->isEmpty() ? [] : MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request),
+                // TCK-2958 — et les objets des cartes et événements, relus pour le lecteur en lot.
+                'data' => $messages->isEmpty() ? [] : MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request, ObjetsDesMessages::pour($request->user(), $messages, $request)),
                 'meta' => ['has_more' => false],
             ]);
         }
@@ -418,7 +427,9 @@ class ConversationController extends Controller
 
         return $this->json([
             // TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page.
-            'data' => MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request),
+            // TCK-2958 (ADR-0128 § 3) — et les objets des cartes et événements, relus pour le lecteur :
+            // une requête par type d'objet pour la page, jamais une par message.
+            'data' => MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request, ObjetsDesMessages::pour($request->user(), $messages, $request)),
             'meta' => ['has_more' => $messages->count() === $perPage],
         ]);
     }
@@ -508,6 +519,7 @@ class ConversationController extends Controller
         $conversation->participants()->updateExistingPivot($user->id, [
             'last_read_at' => now(),
         ]);
+        $this->signalerLaLecture($conversation, $user);
 
         return $this->json([
             'data' => [
@@ -520,7 +532,8 @@ class ConversationController extends Controller
     /**
      * TCK-2859 (ADR-0114 § 1) — `PUT /conversations/{conversation}/unread` : le `last_read_at` du
      * lecteur passe une seconde avant le dernier message qui compte comme non lu — le prédicat de
-     * `index()` (`$nonLus`) : d'un autre, hors avis système, non supprimé. Idempotent (la valeur ne
+     * `index()` ({@see NonLus}, TCK-2959) : d'un autre, hors avis système, non supprimé ; un `event`
+     * seulement si le lecteur est dans son `action_for`. Idempotent (la valeur ne
      * dépend que de ce message) ; jamais AVANCÉ (un `last_read_at` nul ou plus ancien reste) ; sans
      * message d'un autre, rien ne change.
      */
@@ -531,9 +544,9 @@ class ConversationController extends Controller
         $user = $request->user();
         $dernier = Message::query()
             ->where('conversation_id', $conversation->id)
-            ->where('type', '!=', MessageType::System->value)
-            ->where(fn ($w) => $w->whereNull('sender_id')->orWhere('sender_id', '!=', $user->id))
-            ->max('created_at');
+            // TCK-2959 — la définition de `index()`, et non plus sa copie.
+            ->tap(fn ($q) => NonLus::comptentPour($q, $user))
+            ->max('messages.created_at');
 
         $lecture = $conversation->participants()->where('users.id', $user->id)->first()?->pivot?->last_read_at;
         $lecture = $lecture !== null ? Carbon::parse($lecture) : null;
@@ -543,6 +556,7 @@ class ConversationController extends Controller
             if ($lecture !== null && $lecture->greaterThan($avant)) {
                 $conversation->participants()->updateExistingPivot($user->id, ['last_read_at' => $avant]);
                 $lecture = $avant;
+                $this->signalerLaLecture($conversation, $user);
             }
         }
 
@@ -552,6 +566,18 @@ class ConversationController extends Controller
                 'last_read_at' => $this->instant($lecture),
             ],
         ]);
+    }
+
+    /**
+     * TCK-2955 (ADR-0129 § 2) — une lecture (ou son retrait) change les accusés de lecture que voient les
+     * autres (TCK-2858) : `conversation.read` sur le fil ; et la liste et le compteur du lecteur :
+     * `boite.updated` à lui seul. Rien d'autre — `last_read_at` n'est pas la composition du fil, et le
+     * pivot n'émet pas `participants.updated` pour lui (`ConversationParticipant::signauxTempsReel()`).
+     */
+    private function signalerLaLecture(Conversation $conversation, User $lecteur): void
+    {
+        TempsReel::signaler($conversation, CodeDeSignal::ConversationRead);
+        TempsReel::signalerA($lecteur, CodeDeSignal::BoiteUpdated, $conversation);
     }
 
     public function archive(Request $request, Conversation $conversation): JsonResponse

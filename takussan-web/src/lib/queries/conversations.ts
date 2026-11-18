@@ -20,9 +20,26 @@ import type {
   PropertyConversationResolution,
 } from '@/types/message';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import { useIntervalleDeRelecture } from '@/lib/temps-reel/hooks';
+// TCK-2955 — les clés d'un fil vivent dans un module sans hook ; réexportées pour les appelants d'avant.
 import {
+  conversationContextQueryKey,
+  messagesInfiniteQueryKey,
+  sujetDuFil,
+} from './conversations-cles';
+export {
+  contactsDuFilQueryKey,
+  conversationContextQueryKey,
+  conversationDetailQueryKey,
+  messagesInfiniteQueryKey,
+  nouveauxMessagesQueryKey,
+  sujetDuFil,
+} from './conversations-cles';
+import {
+  BOITE_EN_DIRECT,
   conversationListParams,
   filtresCanoniques,
+  useBoiteEnDirect,
   type ConversationListPage,
   type FiltresDeLaListe,
 } from './conversations-list';
@@ -59,13 +76,17 @@ export function useConversationsInfinite(
   // mutations (lu, envoi, sourdine) et la pastille visent ce préfixe. Pendant la frappe, la liste
   // précédente reste affichée (`placeholderData`) au lieu de retomber sur le squelette.
   const filtres = filtresCanoniques(options.filtres);
+  // TCK-2955 (ADR-0129 § 2) — la liste se relit sur `boite.updated` ; ses 10 s ne sont plus que le filet
+  // du mode dégradé (60 s quand le canal personnel est tenu).
+  useBoiteEnDirect(['conversations', 'list', 'infinite'], Boolean(user));
+  const intervalle = useIntervalleDeRelecture(options.refetchInterval ?? 10_000, user ? BOITE_EN_DIRECT : null);
 
   return useInfiniteQuery<ConversationListPage, ApiError, InfiniteData<ConversationListPage>, QueryKey, number>({
     queryKey: ['conversations', 'list', 'infinite', filtres],
     enabled: Boolean(user),
     initialPageParam: 1,
     staleTime: 0,
-    refetchInterval: options.refetchInterval ?? 10_000,
+    refetchInterval: intervalle,
     placeholderData: keepPreviousData,
     queryFn: async ({ pageParam, signal }) => {
       const qs = buildQueryString(conversationListParams(pageParam, CONVERSATIONS_PAGE_SIZE, filtres));
@@ -83,10 +104,10 @@ export function useConversationsInfinite(
 /**
  * React Query hooks for Conversations and Messages (TCK-045).
  *
- * Realtime: we rely on React Query's `refetchInterval` (3 s for the messages
- * of the currently open conversation, 10 s for the list) rather than
- * WebSockets. The stale time is pushed down so new messages surface fast
- * even when the user tabs back in. See ticket Notes d'implémentation.
+ * Temps réel (TCK-2955, ADR-0129) : le fil ouvert et la liste se relisent sur les SIGNAUX de leur sujet
+ * (`useFilEnDirect`, `useBoiteEnDirect`) ; le `refetchInterval` d'avant (3 s pour le fil, 10 s pour la
+ * liste) ne joue plus qu'en mode dégradé — 60 s quand le canal est tenu (`useIntervalleDeRelecture`).
+ * The stale time is pushed down so new messages surface fast even when the user tabs back in.
  */
 
 const MESSAGE_LIST_FIELDS: string[] = [
@@ -142,14 +163,7 @@ export function useConversation(id: number | null | undefined) {
   );
 }
 
-/**
- * TCK-2632 — la colonne de contexte d'un fil (TCK-2630) : le bien, le bail, l'intervention, et pour le
- * personnel de l'agence la fiche du client (étape, téléphone, agent). L'en-tête du fil y lit le
- * téléphone : pas de téléphone rendu, pas d'appel ni de WhatsApp.
- */
-export function conversationContextQueryKey(id: number | null | undefined): QueryKey {
-  return ['conversations', 'context', id];
-}
+// TCK-2632 — la clé de la colonne de contexte d'un fil : `conversations-cles.ts` (TCK-2955).
 
 export function useConversationContext(id: number | null | undefined, options: { enabled?: boolean } = {}) {
   return useApiQuery<ApiResponse<ConversationContext>>(
@@ -178,11 +192,7 @@ export type MessagesPage = {
   meta: { has_more: boolean };
 };
 
-export function messagesInfiniteQueryKey(
-  conversationId: number | null | undefined,
-): QueryKey {
-  return ['conversations', conversationId, 'messages-infinite'];
-}
+// La clé des pages chargées du fil : `messagesInfiniteQueryKey`, dans `conversations-cles.ts` (TCK-2955).
 
 export function useMessagesInfinite(conversationId: number | null | undefined) {
   const locale = useLocale();
@@ -263,8 +273,12 @@ export function useNewMessagesPolling(
 ) {
   const queryClient = useQueryClient();
   const enabled = (options.enabled ?? true) && Boolean(conversationId) && anchorId != null;
+  // TCK-2955 (ADR-0129 § 2) — le fil ouvert se relit sur `message.created` (`useFilEnDirect`) ; ses 3 s ne
+  // sont plus que le filet du mode dégradé (60 s quand le canal du fil est tenu).
+  const intervalle = useIntervalleDeRelecture(3_000, conversationId ? sujetDuFil(conversationId) : null);
 
   const query = useApiQuery<{ data: Message[] }>(
+    // `nouveauxMessagesQueryKey(id)` + l'ancre : la viser sans l'ancre relit les messages neufs (TCK-2955).
     ['conversations', conversationId, 'messages', 'live', anchorId],
     cheminApi`/api/conversations/${conversationId ?? 0}/messages`,
     {
@@ -276,7 +290,7 @@ export function useNewMessagesPolling(
         include: ['sender', 'attachments'],
         extra: anchorId != null ? { after_id: anchorId } : undefined,
       },
-      refetchInterval: enabled ? 3_000 : false,
+      refetchInterval: enabled ? intervalle : false,
       staleTime: 0,
     },
   );

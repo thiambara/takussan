@@ -539,20 +539,20 @@ class CommissionLedgerTest extends ApiTestCase
         $this->assertSame(300000.0, (float) $this->getJson('/api/dashboard/agency')->assertOk()->json('data.finance.commission_month'));
     }
 
-    /** verif-595 m6 — la commission d'agence n'est rendue qu'au personnel : ni au bailleur, ni au locataire. */
+    /** verif-595 m6 — la commission d'agence (montant et taux) n'est rendue qu'au personnel : ni au bailleur, ni au locataire. */
     public function test_m6_the_lease_commission_is_shown_to_agency_staff_only(): void
     {
         $tenantUser = User::factory()->create();
         $this->tenant->forceFill(['user_id' => $tenantUser->id])->save();
-        $lease = $this->createLease(['commission_amount' => 300000]);
+        $lease = $this->createLease(['commission_amount' => 300000, 'commission_rate' => 10]);
 
         $this->actingAsApi($this->admin);
-        $this->getJson("/api/leases/{$lease->id}")->assertOk()->assertJsonPath('data.commission_amount', 300000);
+        $this->getJson("/api/leases/{$lease->id}")->assertOk()->assertJsonPath('data.commission_amount', 300000)->assertJsonPath('data.commission_rate', 10);
         $this->assertSame(300000, $this->getJson('/api/leases')->assertOk()->json('data.0.commission_amount'));
 
         foreach ([$this->landlord(), $tenantUser] as $reader) {
             $this->actingAsApi($reader);
-            $this->getJson("/api/leases/{$lease->id}")->assertOk()->assertJsonMissingPath('data.commission_amount');
+            $this->getJson("/api/leases/{$lease->id}")->assertOk()->assertJsonMissingPath('data.commission_amount')->assertJsonMissingPath('data.commission_rate');
         }
     }
 

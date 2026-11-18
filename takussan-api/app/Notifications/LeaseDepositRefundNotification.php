@@ -11,7 +11,6 @@ use App\Services\Media\PrivateMediaAccess;
 use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -57,7 +56,7 @@ class LeaseDepositRefundNotification extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail', 'broadcast'];
+        return ['database', 'mail'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -106,16 +105,6 @@ class LeaseDepositRefundNotification extends Notification implements ShouldQueue
                 'reference' => $this->lease->reference_number ?? '#'.$this->lease->id,
             ]),
         ];
-    }
-
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastType(): string
-    {
-        return 'lease.deposit_refunded';
     }
 
     /**

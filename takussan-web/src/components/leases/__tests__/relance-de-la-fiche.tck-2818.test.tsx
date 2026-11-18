@@ -27,6 +27,8 @@ const etat = vi.hoisted(() => ({
 }));
 const lienCree = vi.hoisted(() => vi.fn(async () => ({ data: { url: 'https://www.takussan.com/pay/k7Qm2xR9', expires_at: null } })));
 
+// TCK-2963 — le bloc de la salle ouvre sa conversation (React Query) : hors du propos de ce test.
+vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () => null }));
 vi.mock('@/lib/queries/leases', () => ({
   useLease: () => ({ data: { data: etat.lease }, isLoading: false, isError: false, refetch: vi.fn() }),
   useLeasePayments: () => ({ data: { data: etat.paiements }, isLoading: false, isError: false }),

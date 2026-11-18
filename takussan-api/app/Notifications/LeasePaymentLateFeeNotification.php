@@ -9,7 +9,6 @@ use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Number;
@@ -49,9 +48,6 @@ class LeasePaymentLateFeeNotification extends Notification implements ShouldQueu
         }
         if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
             $channels[] = 'mail';
-        }
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_PUSH)) {
-            $channels[] = 'broadcast';
         }
 
         return $channels;
@@ -102,15 +98,5 @@ class LeasePaymentLateFeeNotification extends Notification implements ShouldQueu
         return $this->lateFeePayableOnline
             ? __('notifications.lease_late_fee_applied.pay_online')
             : __('notifications.lease_late_fee_applied.pay_at_agency');
-    }
-
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastType(): string
-    {
-        return 'lease_payment.late_fee_applied';
     }
 }

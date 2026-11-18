@@ -8,9 +8,11 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\MaintenanceRescheduleRequest;
 use App\Models\User;
+use App\Services\Messaging\FilDeLObjet;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -29,6 +31,7 @@ class RescheduleRequests
         private readonly MaintenanceParticipants $participants,
         private readonly ProviderEligibility $eligibility,
         private readonly NotificationService $notifications,
+        private readonly FilDeLObjet $fil, // TCK-2961
     ) {}
 
     /**
@@ -57,12 +60,38 @@ class RescheduleRequests
             ]);
         });
 
-        $this->notify($mr->refresh(), $requester, count($slots));
+        $mr->refresh();
+        $this->notify($mr, $requester, count($slots));
+
+        // TCK-2961 (ADR-0128 § 3) — la demande parle dans le fil de l'intervention ; poser un créneau
+        // attend les mêmes personnes que l'avis (donneurs d'ordre, prestataire encore assignable),
+        // jamais l'auteur. `slots` : le NOMBRE d'instants proposés (une valeur simple).
+        $attendus = $this->recipients($mr, $requester)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $this->fil->parler($mr, 'maintenance.slot_requested', ['slots' => count($slots)],
+            fn (User $participant): bool => in_array((int) $participant->getKey(), $attendus, true));
 
         return $created;
     }
 
     private function notify(MaintenanceRequest $mr, User $author, int $slots): void
+    {
+        foreach ($this->recipients($mr, $author) as $recipient) {
+            $this->notifications->send(
+                $recipient,
+                NotificationCode::MaintenanceRescheduleRequested,
+                ['request' => (string) $mr->title, 'slots' => $slots],
+                NotificationTarget::of('maintenance', $mr->id),
+            );
+        }
+    }
+
+    /**
+     * Qui doit poser le créneau : les donneurs d'ordre et le prestataire assigné (s'il est encore
+     * assignable), jamais l'auteur de la demande. Lu par l'avis et, depuis TCK-2961, par le fil.
+     *
+     * @return Collection<int, User>
+     */
+    private function recipients(MaintenanceRequest $mr, User $author): Collection
     {
         $mr->loadMissing(['property.agency', 'assignee']);
 
@@ -71,17 +100,9 @@ class RescheduleRequests
             $provider = null;
         }
 
-        $recipients = collect([$provider, ...$this->participants->principals($mr)])
+        return collect([$provider, ...$this->participants->principals($mr)])
             ->filter(fn (?User $user): bool => $user !== null && $user->id !== $author->id)
-            ->unique('id');
-
-        foreach ($recipients as $recipient) {
-            $this->notifications->send(
-                $recipient,
-                NotificationCode::MaintenanceRescheduleRequested,
-                ['request' => (string) $mr->title, 'slots' => $slots],
-                NotificationTarget::of('maintenance', $mr->id),
-            );
-        }
+            ->unique('id')
+            ->values();
     }
 }

@@ -25,6 +25,7 @@ use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
 use App\Services\Crm\AcceptanceStageChange;
+use App\Services\Messaging\FilDeLObjet;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\ContactDeLAgenceDuBien;
 use App\Support\FinInclusive;
@@ -345,6 +346,11 @@ class BookingService
 
             return $booking->refresh();
         });
+
+        // TCK-2961 (ADR-0128 § 3) — la réservation confirmée parle dans sa salle, transmise d'abord au
+        // contact principal actuel ; après le COMMIT (l'acceptation d'une contre-offre appelle ceci dans
+        // sa transaction). Aucun geste attendu.
+        app(FilDeLObjet::class)->parler($booking, 'booking.confirmed');
 
         $customer = $booking->customer?->user;
         if ($customer) {

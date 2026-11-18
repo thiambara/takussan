@@ -361,6 +361,7 @@ class ColonneDeBailleurAgentCreateurTest extends ApiTestCase
         $access = app(ConversationAccess::class);
         $this->assertTrue($access->allows($bloque, $filDuBail->fresh()));
         $this->assertTrue($access->allows($bloque, $filDuBien->fresh()));
-        $this->assertSame(2, $access->participatingQuery($bloque)->count());
+        // TCK-2960 — hors la salle de son bail (ADR-0128 § 2), qu'il garde aussi : ses deux GROUPES.
+        $this->assertSame(2, $access->participatingQuery($bloque)->where('conversations.type', ConversationType::Group->value)->count());
     }
 }

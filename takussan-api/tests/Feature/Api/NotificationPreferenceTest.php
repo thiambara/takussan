@@ -109,6 +109,27 @@ class NotificationPreferenceTest extends TestCase
         }
     }
 
+    /**
+     * TCK-2953 — le pilote `reverb` est posé en développement, mais il ne porte qu'un SIGNAL sans donnée
+     * (ADR-0129) : aucune notification ne part plus par le canal `broadcast` (TCK-2952), et le porteur a
+     * exclu la notification push. Le transport temps réel n'ouvre donc aucune case `push`.
+     */
+    public function test_le_pilote_reverb_n_ouvre_aucune_case_push(): void
+    {
+        config()->set('broadcasting.default', 'reverb');
+        Sanctum::actingAs(User::factory()->create(['phone_verified_at' => now()]));
+
+        $push = collect($this->getJson('/api/me/notification-preferences')->assertOk()->json('data.preferences'))
+            ->where('channel', 'push');
+
+        $this->assertNotEmpty($push);
+        foreach ($push as $cell) {
+            $this->assertTrue($cell['locked'], $cell['event_type']);
+            $this->assertFalse($cell['enabled'], $cell['event_type']);
+            $this->assertSame('channel_unavailable', $cell['reason'] ?? null, $cell['event_type']);
+        }
+    }
+
     public function test_ac16_les_cases_mobiles_suivent_les_envois_reels(): void
     {
         $matrix = $this->matrix(User::factory()->create(['phone_verified_at' => now()]));

@@ -95,6 +95,19 @@ class PropertyVisitResource extends BaseResource
         return $noms === [] ? null : $noms;
     }
 
+    /**
+     * TCK-2958 (ADR-0128 § 3) — la carte du fil relit la visite pour son lecteur, hors de la route de
+     * la visite : `abilities` et `can_confirm` y sont rendus comme au détail.
+     */
+    private bool $gestes = false;
+
+    public function avecGestes(): static
+    {
+        $this->gestes = true;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         $tout = $this->toutesLesCles($request);
@@ -230,10 +243,10 @@ class PropertyVisitResource extends BaseResource
             // n'y entre pas : `confirm` le refuse en 422). En liste, sur demande seulement
             // (`fields[property_visits]=…,can_confirm`) : l'accueil du bailleur n'offre le geste que là.
             'can_confirm' => $this->when(
-                $this->isDetailRequest($request) || in_array('can_confirm', self::requestedFields($request) ?? [], true),
+                $this->gestesRendus($request) || in_array('can_confirm', self::requestedFields($request) ?? [], true),
                 $peutConfirmer,
             ),
-            'abilities' => $this->when($this->isDetailRequest($request), fn (): array => [
+            'abilities' => $this->when($this->gestesRendus($request), fn (): array => [
                 'manage' => PropertyVisitPolicy::gere($request->user(), $this->resource),
                 // TCK-2849 — le prédicat de `confirm` : `manage`, ou le bailleur au titre du réglage.
                 'confirm' => $peutConfirmer(),
@@ -569,6 +582,12 @@ class PropertyVisitResource extends BaseResource
         }
 
         return $verdicts[$agencyId];
+    }
+
+    /** TCK-2958 — le détail de la visite, ou la carte du fil ({@see avecGestes()}) d'un lecteur connecté. */
+    private function gestesRendus(Request $request): bool
+    {
+        return $this->isDetailRequest($request) || ($this->gestes && $request->user() !== null);
     }
 
     private function isDetailRequest(Request $request): bool

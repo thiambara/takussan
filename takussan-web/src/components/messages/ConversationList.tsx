@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useLocale, useTranslations } from 'next-intl';
-import { BellOff, Search, Users, Wrench, X } from 'lucide-react';
+import { BellOff, CalendarCheck, FileText, Search, Users, Wrench, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,6 +20,9 @@ import type { Conversation } from '@/types/message';
 import { useTexteMessageSysteme } from './useTexteMessageSysteme';
 import { EtatVideDeLaMessagerie } from './EtatVideDeLaMessagerie';
 import { quandDansLaListe } from './quand';
+// TCK-2963 — la salle d'un bail ou d'une réservation : nommée depuis son objet, signée de ses membres.
+import { estUneSalle, membresActuels } from './salle/salle';
+import { useTitreDeLaSalle } from './salle/useTitreDeLaSalle';
 
 /** TCK-2632 — le délai de la recherche : une requête quand la frappe s'arrête, pas une par lettre. */
 export const DELAI_DE_RECHERCHE_MS = 300;
@@ -227,13 +230,16 @@ export function ConversationList({ selectedId, onSelect, dense = false, onNouvel
 /**
  * Le titre d'une rangée et de l'en-tête du fil : la PERSONNE d'une directe (l'autre membre actuel),
  * le nom d'un groupe ; à défaut, le sujet, le bien, puis « Conversation #id ».
+ *
+ * TCK-2963 — une SALLE n'est pas une directe : son titre se compose depuis l'objet
+ * (`useTitreDeLaSalle`), jamais depuis le nom d'un de ses membres.
  */
 export function titreDeConversation(
   conversation: Conversation,
   currentUserId: number | undefined,
   repli: string,
 ): string {
-  if (conversation.type !== 'group') {
+  if (conversation.type !== 'group' && !estUneSalle(conversation)) {
     const autre = autreParticipant(conversation, currentUserId);
     if (autre?.full_name) return autre.full_name;
   }
@@ -263,31 +269,43 @@ function ConversationRow({
   const t = useTranslations('messaging');
   const unread = conversation.unread_count ?? 0;
   const isGroup = conversation.type === 'group';
+  // TCK-2963 — une salle se dessine comme un groupe (l'objet en pastille), sans la marque « Groupe ».
+  const salle = estUneSalle(conversation);
+  const titreDeLaSalle = useTitreDeLaSalle();
   const intervention = conversation.maintenance_request_id != null;
   const myParticipant = conversation.participants?.find(
     (p) => p.user_id === currentUserId && !p.left_at,
   );
   const isMuted = Boolean(myParticipant?.is_muted);
   const membres = (conversation.participants ?? []).filter((p) => !p.left_at).length;
-  const autre = isGroup ? null : autreParticipant(conversation, currentUserId);
-  const titre = titreDeConversation(
-    conversation,
-    currentUserId,
-    t('conversationTitleFallback', { id: String(conversation.id) }),
-  );
+  const autre = isGroup || salle ? null : autreParticipant(conversation, currentUserId);
+  const titre = salle
+    ? titreDeLaSalle(conversation)
+    : titreDeConversation(conversation, currentUserId, t('conversationTitleFallback', { id: String(conversation.id) }));
   // TCK-671 (P06.02) — l'aperçu d'un avis système est écrit en français par l'API : il se dérive
   // de `metadata.event`, dans la langue du lecteur. TCK-2632 — une pièce jointe aussi (« Photo »,
   // « Document ») : `last_message_preview` est écrit dans la langue de l'EXPÉDITEUR.
   const texteSysteme = useTexteMessageSysteme();
   const typeDernier = conversation.last_message?.type;
+  // TCK-2958 — un avis (`system`, `event`) et une carte (`card`) n'ont pour aperçu serveur qu'un CODE :
+  // jamais de repli sur `last_message_preview` pour eux.
   const apercu =
-    (typeDernier === 'system' ? texteSysteme(conversation.last_message?.metadata) : null) ??
-    (typeDernier === 'image' || typeDernier === 'document' || typeDernier === 'audio'
-      ? t(`list.apercu.${typeDernier}`)
-      : null) ??
-    conversation.last_message_preview;
+    typeDernier === 'system' || typeDernier === 'event'
+      ? texteSysteme(conversation.last_message?.metadata)
+      : typeDernier === 'card' || typeDernier === 'image' || typeDernier === 'document' || typeDernier === 'audio'
+        ? t(`list.apercu.${typeDernier}`)
+        : conversation.last_message_preview;
   const bien = conversation.property?.title ?? null;
-  const sousLigne = intervention
+  // TCK-2963 (maquette `fil-salle-bail`, `FILS_LOCATAIRE`) — sous le nom d'une salle, les AUTRES membres.
+  const autresMembres = salle
+    ? membresActuels(conversation)
+        .filter((p) => p.user_id !== currentUserId && p.user?.full_name)
+        .map((p) => p.user!.full_name)
+        .join(', ')
+    : '';
+  const sousLigne = salle
+    ? autresMembres || t('list.personnes', { n: membres })
+    : intervention
     ? bien
       ? t('list.interventionDe', { bien })
       : t('list.intervention')
@@ -309,7 +327,22 @@ function ConversationRow({
           selected && 'bg-foreground/6 hover:bg-foreground/6',
         )}
       >
-        {isGroup ? (
+        {salle ? (
+          // TCK-2963 (maquette `IconeObjet`) — la pastille de l'objet, carrée aux coins doux : un bail, une réservation.
+          <span
+            className={cn(
+              'inline-flex flex-none items-center justify-center rounded-xl bg-fond-avatar text-accent',
+              dense ? 'size-avatar-44' : 'size-avatar-48',
+            )}
+            data-testid="pastille-de-la-salle"
+          >
+            {conversation.type === 'booking' ? (
+              <CalendarCheck className="size-5 stroke-[1.75]" aria-hidden />
+            ) : (
+              <FileText className="size-5 stroke-[1.75]" aria-hidden />
+            )}
+          </span>
+        ) : isGroup ? (
           <span
             className={cn(
               'relative inline-flex flex-none items-center justify-center rounded-full bg-fond-avatar text-accent',

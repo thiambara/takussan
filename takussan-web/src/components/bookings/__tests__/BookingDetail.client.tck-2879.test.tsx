@@ -13,6 +13,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useBooking } from '@/lib/queries/bookings';
 import { BookingDetail } from '../BookingDetail';
 
+// TCK-2963 — le bloc de la salle ouvre sa conversation (React Query) : hors du propos de ce test.
+vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () => null }));
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => true }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => false, useAgenceDuPersonnelActif: () => null }));
 vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => new Date('2026-11-15T10:00:00Z') }));

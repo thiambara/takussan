@@ -7,34 +7,12 @@
  * waxtaan wi ak devis PDF bi.
  */
 return [
-    'status' => [
-        'open' => 'ubbeeku',
-        'acknowledged' => 'jot nañu ko',
-        'quote_requested' => 'devis laaj nañu ko',
-        'quote_submitted' => 'devis yónnee nañu ko',
-        'awaiting_owner' => 'mungi xaar boroom kër gi',
-        'approved' => 'devis nangu nañu ko',
-        'rejected' => 'devis bañ nañu ko',
-        'assigned' => 'jox nañu ko ku koy def',
-        'in_progress' => 'liggéey bi dafa ndeyi',
-        'completed' => 'liggéey bi jeex na',
-        'closed' => 'tëj nañu ko',
-        'cancelled' => 'neenal nañu ko',
-    ],
 
     'errors' => [
         'not_assignable' => 'Compte bii mënul jot liggéey bii : war na doon prestataire bu dox te am collaboration bu dox ak agence bi moom kër gi, walla ku bokk ci équipe bi.',
         // TCK-2715 — la borne haute du passage (`MaintenanceRequest::SCHEDULING_HORIZON_MONTHS`).
         'beyond_scheduling_horizon' => 'Le passage ne peut pas être fixé à plus d\'un an d\'ici.',
         'invitation_request_invalid' => 'Laaj liggéey bi ñu boole ci war na bokk ci agence bii te bañ a doon lu ñu tëj walla neenal.',
-    ],
-
-    'system' => [
-        'assigned' => 'Liggéey bi jox nañu ko :provider.',
-        'unassigned' => 'Liggéey bi jotatul :provider.',
-        'accepted' => ':provider nangu na liggéey bi.',
-        'declined' => ':provider bañ na liggéey bi.',
-        'status' => 'Statut : :status.',
     ],
 
     'quote_pdf' => [

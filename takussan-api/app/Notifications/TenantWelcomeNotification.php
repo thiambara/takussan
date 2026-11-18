@@ -8,7 +8,6 @@ use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -77,15 +76,5 @@ class TenantWelcomeNotification extends Notification implements ShouldQueue
             'title' => __('notifications.tenant_welcome.subject', ['reference' => $reference]),
             'body' => __('notifications.tenant_welcome.intro', ['reference' => $reference]),
         ];
-    }
-
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastType(): string
-    {
-        return 'tenant.welcomed';
     }
 }

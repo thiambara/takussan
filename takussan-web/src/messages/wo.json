@@ -2520,7 +2520,8 @@
       "participantAdded": "{actor} dafa yokk {target} ci kuréel gi.",
       "participantRemoved": "{actor} dafa génn {target} ci kuréel gi.",
       "roleChanged": "{actor} soppil na ndëgg {target} ci {role}.",
-      "renamed": "{actor} tudd waaye kuréel gi « {subject} »."
+      "renamed": "{actor} tudd waaye kuréel gi « {subject} ».",
+      "inconnu": "Le fil a été mis à jour."
     },
     "chat": {
       "dateSeparator": {
@@ -2559,7 +2560,12 @@
       "marquerNonLue": "Marquer comme non lue",
       "nonLueEchouee": "La conversation n’a pas été remise en non lue. Réessayez.",
       "ajouterUnParticipant": "Ajouter un participant",
-      "signaler": "Signaler la conversation"
+      "signaler": "Signaler la conversation",
+      "carteNeutre": "Un objet a été partagé.",
+      "ecrit": "{nom} écrit…",
+      "plusieursEcrivent": "Plusieurs personnes écrivent…",
+      "presentDansLeFil": "{nom} est dans la conversation",
+      "presentsDansLeGroupe": "{n, plural, one {# personne est dans la conversation} other {# personnes sont dans la conversation}}"
     },
     "group": {
       "create": {
@@ -2667,7 +2673,8 @@
       "apercu": {
         "image": "Photo",
         "document": "Document",
-        "audio": "Note vocale"
+        "audio": "Note vocale",
+        "card": "Objet partagé"
       },
       "nonLusAria": "{n, plural, one {# message non lu} other {# messages non lus}}",
       "aucunResultat": "Aucune conversation ne correspond.",
@@ -2751,7 +2758,8 @@
           "libelle": "Le prix est ferme",
           "phrase": "Le prix affiché est ferme."
         }
-      }
+      },
+      "joindreOuPartager": "Joindre ou partager"
     },
     "bulle": {
       "ouvrirLaPhoto": "Ouvrir la photo",
@@ -2861,6 +2869,310 @@
       "creer": "Créer le groupe",
       "choisirUnePersonne": "Choisissez au moins une personne.",
       "echec": "Le groupe n’a pas été créé. Réessayez."
+    },
+    "cartes": {
+      "bail": {
+        "aSigner": "À signer",
+        "brouillon": "Brouillon",
+        "enCours": "En cours",
+        "expire": "Expiré",
+        "parMois": "par mois",
+        "periode": "Du {debut} au {fin}",
+        "preavis": "Préavis en cours",
+        "quoi": "Bail · {reference}",
+        "renouvele": "Renouvelé",
+        "resilie": "Résilié",
+        "voir": "Voir le bail"
+      },
+      "creneau": {
+        "ajouter": "Ajouter un moment",
+        "attente": "Votre demande attendra la réponse de l’agence.",
+        "creneauN": "Moment {n}",
+        "envoyer": "Envoyer la demande",
+        "exemple": "Par exemple : je travaille le matin",
+        "note": "Un mot pour l’agence (facultatif)",
+        "passe": "Un moment proposé est déjà passé : choisissez une date à venir.",
+        "texte": "Proposez jusqu’à trois moments. Le passage prévu ne change pas tant que l’agence n’a pas répondu.",
+        "titre": "Proposer un autre moment"
+      },
+      "echeance": {
+        "annule": "Annulé",
+        "avantLe": "Avant le {date}",
+        "enRetard": "En retard",
+        "encaisser": "Encaisser à la main",
+        "paye": "Payé",
+        "payeLe": "Payé le {date}.",
+        "payer": "Payer",
+        "quoi": "Échéance · {periode}",
+        "quoiCharges": "Charges · {periode}",
+        "quoiLoyer": "Loyer · {periode}",
+        "resteDu": "Reste à payer",
+        "sansPeriode": "à venir"
+      },
+      "echecDuGeste": "Le geste n’a pas abouti. Réessayez.",
+      "encaissement": {
+        "envoyer": "Encaisser",
+        "moyen": "Moyen de paiement",
+        "moyens": {
+          "bank_transfer": "Virement",
+          "card": "Carte",
+          "cash": "Espèces",
+          "check": "Chèque",
+          "mobile_money": "Mobile money"
+        },
+        "texte": "L’échéance sera réglée aujourd’hui pour {montant}.",
+        "titre": "Encaisser à la main"
+      },
+      "etatDesLieux": {
+        "aSigner": "À signer",
+        "bailleur": "Bailleur : {etat, select, oui {signé} other {en attente}}",
+        "conteste": "Contesté",
+        "enAttente": "En attente des signatures",
+        "enPreparation": "En préparation",
+        "locataire": "Locataire : {etat, select, oui {signé} other {en attente}}",
+        "quoi": "État des lieux",
+        "quoiEntree": "État des lieux d’entrée",
+        "quoiSortie": "État des lieux de sortie",
+        "realiseLe": "Réalisé le {date}",
+        "signe": "Signé",
+        "signer": "Relire et signer",
+        "voir": "Voir l’état des lieux"
+      },
+      "evenements": {
+        "compte": "{count, plural, one {# événement} other {# événements}}",
+        "deplier": "Afficher les événements",
+        "replier": "Masquer les événements"
+      },
+      "indisponible": "Cet élément n’est plus accessible.",
+      "intervention": {
+        "aFixer": "Moment à fixer",
+        "aVousDApprouver": "À vous d’approuver",
+        "approuver": "Approuver le devis",
+        "enPreparation": "En préparation",
+        "par": "Par {nom}",
+        "prevu": "Prévu",
+        "proposerUnAutreMoment": "Proposer un autre moment",
+        "quoi": "Intervention · {titre}",
+        "quoiDevis": "Devis · {titre}",
+        "quoiPassage": "Passage · {titre}",
+        "refuser": "Refuser",
+        "sansTitre": "intervention",
+        "titrePreparation": "L’agence prépare les travaux",
+        "titreValides": "Les travaux sont validés",
+        "valides": "Validés"
+      },
+      "parAuteur": "{auteur} · {heure}",
+      "refusDuDevis": {
+        "aide": "Au moins {min} caractères. Le prestataire et l’agence le liront.",
+        "envoyer": "Refuser le devis",
+        "motif": "Le motif du refus",
+        "titre": "Refuser le devis"
+      },
+      "refusDuGeste": "Ce geste ne vous est plus permis. La carte a été mise à jour.",
+      "reservation": {
+        "aConfirmer": "À confirmer",
+        "annulee": "Annulée",
+        "confirmee": "Confirmée",
+        "confirmer": "Confirmer la réservation",
+        "confirmerLeRefus": "Confirmer le refus",
+        "dates": "Du {debut} au {fin}",
+        "enAttente": "En attente",
+        "expiree": "Expirée",
+        "garder": "Garder la demande",
+        "quoi": "Réservation · {titre}",
+        "refusee": "Refusée",
+        "refuser": "Refuser",
+        "sansTitre": "bien",
+        "terminee": "Terminée"
+      },
+      "visite": {
+        "aConfirmer": "À confirmer",
+        "annulee": "Annulée",
+        "confirmee": "Confirmée",
+        "confirmer": "Confirmer ce moment",
+        "enAttente": "En attente de confirmation",
+        "heureAFixer": "Heure à fixer",
+        "manquee": "Manquée",
+        "quoi": "Visite · {titre}",
+        "terminee": "Faite"
+      },
+      "bien": {
+        "quoi": "Bien · {lieu}",
+        "quoiSansLieu": "Bien partagé",
+        "surface": "{surface} m²",
+        "libreLe": "Libre le {date}",
+        "periode": "{periode, select, daily {par nuit} weekly {par semaine} monthly {par mois} yearly {par an} other {}}",
+        "demanderUneVisite": "Demander une visite",
+        "voir": "Voir le bien"
+      }
+    },
+    "evenementsDuFil": {
+      "booking": {
+        "confirmed": "La réservation est confirmée."
+      },
+      "inventory": {
+        "awaiting_signature": "L’état des lieux attend les signatures."
+      },
+      "lease": {
+        "notice_given": "Un préavis a été donné, effectif le {date}.",
+        "renewed": "Le bail a été renouvelé à partir du {date}."
+      },
+      "lease_payment": {
+        "due_soon": "Le loyer arrive à échéance le {date}.",
+        "overdue": "Le loyer du {date} est en retard de {jours, plural, one {# jour} other {# jours}}.",
+        "paid": "Le loyer a été payé.",
+        "receipt_issued": "La quittance a été émise.",
+        "reminded": "Une relance a été faite pour le loyer du {date}."
+      },
+      "maintenance": {
+        "slot_requested": "Un autre moment a été proposé pour le passage.",
+        "slot_set": "Passage prévu le {date}."
+      },
+      "property": {
+        "shared": "Un bien a été partagé."
+      },
+      "visit": {
+        "confirmed": "Visite confirmée pour le {date}.",
+        "proposed": "Une visite est proposée le {date}.",
+        "rescheduled": "Un autre moment a été proposé pour la visite : le {date}."
+      }
+    },
+    "salle": {
+      "titre": {
+        "lease": "Bail · {bien}",
+        "leaseSansBien": "Bail",
+        "booking": "Réservation · {bien}",
+        "bookingSansBien": "Réservation"
+      },
+      "bandeau": {
+        "dossier": "Dossier",
+        "dossierAria": "Ouvrir le dossier du fil",
+        "votreBail": "Votre bail",
+        "libelle": "Où en est l’objet de ce fil"
+      },
+      "bail": {
+        "statut": {
+          "draft": "Brouillon",
+          "pending_signature": "En attente de signature",
+          "active": "Actif",
+          "expired": "Arrivé à terme",
+          "terminating": "En préavis",
+          "terminated": "Résilié",
+          "renewed": "Renouvelé"
+        },
+        "preavisSortie": "Préavis · sortie le {date}",
+        "type": {
+          "residential_rent": "habitation",
+          "commercial_rent": "commercial",
+          "seasonal_rent": "saisonnier",
+          "sale": "vente"
+        },
+        "prochainLoyer": "Prochain loyer",
+        "prochaineEcheance": "Prochaine échéance",
+        "echeanceLe": "le {date}",
+        "aucuneEcheance": "Aucune à venir",
+        "solde": "Solde",
+        "aJour": "À jour",
+        "rienARegler": "Rien à régler",
+        "enRetard": "{n, plural, one {# échéance en retard} other {# échéances en retard}}",
+        "finDePeriode": "Fin de période",
+        "sortie": "Sortie",
+        "revision": "Révision {date}"
+      },
+      "reservation": {
+        "statut": {
+          "pending": "En attente de réponse",
+          "confirmed": "Confirmée",
+          "rejected": "Refusée",
+          "cancelled": "Annulée",
+          "expired": "Expirée",
+          "completed": "Terminée"
+        },
+        "arrivee": "Arrivée",
+        "depart": "Départ",
+        "montant": "Montant",
+        "reponseAvant": "Réponse avant le {date}",
+        "demandeeLe": "Demandée le",
+        "acompte": "Acompte"
+      },
+      "dossier": {
+        "titre": "Dossier du fil",
+        "documents": "Documents",
+        "toutVoir": "Tout voir ({n})",
+        "aucunDocument": "Aucun document pour l’instant.",
+        "generes": {
+          "lease_contract": "Contrat de bail",
+          "inventory_move_in": "État des lieux d’entrée",
+          "inventory_move_out": "État des lieux de sortie",
+          "receipt_rent": "Quittance de loyer",
+          "autre": "Document généré"
+        },
+        "genereLe": "Généré le {date}",
+        "deposeLe": "Déposé le {date}",
+        "datesCles": "Dates clés",
+        "echeance": "Échéance",
+        "leJourDuMois": "le {jour} de chaque mois",
+        "periode": "Période",
+        "periodeValeur": "{debut} → {fin}",
+        "revisionPossible": "Révision possible",
+        "preavis": "Préavis",
+        "preavisJours": "{n, plural, one {# jour} other {# jours}}",
+        "montants": "Montants convenus",
+        "loyer": "Loyer",
+        "charges": "Charges",
+        "caution": "Caution",
+        "penalite": "Pénalité de retard",
+        "honoraires": "Commission d’agence",
+        "membres": "Dans ce fil",
+        "qualite": {
+          "locataire": "Locataire",
+          "bailleur": "Bailleur",
+          "agent": "Agent attribué",
+          "candidat": "Candidat",
+          "contact": "Contact du bien",
+          "membre": "Agence"
+        },
+        "vous": "Vous · {qualite}",
+        "ouvrirLeBail": "Ouvrir la fiche du bail",
+        "ouvrirLaReservation": "Ouvrir la réservation",
+        "chargement": "Lecture du dossier…",
+        "erreur": "Le dossier n’a pas pu être lu.",
+        "replier": "Replier le dossier",
+        "afficher": "Afficher le dossier"
+      },
+      "lectureSeule": {
+        "ferme": "Ce fil est fermé : il reste lisible, on n’y écrit plus.",
+        "bailFini": "Ce bail a pris fin : la salle reste lisible, on n’y écrit plus.",
+        "reservationClose": "Cette réservation est close : la salle reste lisible, on n’y écrit plus.",
+        "autre": "Cette salle est en lecture seule."
+      },
+      "bloc": {
+        "titreLease": "Salle du bail",
+        "titreBooking": "Salle de la réservation",
+        "ouvrir": "Ouvrir la salle",
+        "vous": "Vous",
+        "aucunMessage": "Aucun message pour l’instant : la salle réunit les parties."
+      }
+    },
+    "poser": {
+      "partagerUnBien": "Partager un bien",
+      "proposerUnCreneau": "Proposer un créneau de visite",
+      "echec": "Le partage n’a pas abouti. Réessayez.",
+      "bien": {
+        "texte": "Choisissez un bien de votre portefeuille : il apparaît en carte dans la conversation, avec sa photo et son prix.",
+        "champ": "Bien",
+        "envoyer": "Partager"
+      },
+      "creneau": {
+        "texte": "La visite est planifiée et confirmée au client, puis posée en carte dans la conversation. Il peut y proposer un autre moment.",
+        "moment": "Moment de la visite",
+        "passe": "Ce moment est déjà passé.",
+        "envoyer": "Proposer ce créneau",
+        "sansFiche": "Ce client n’a pas de fiche dans votre agence : une visite ne peut pas lui être proposée d’ici.",
+        "visiteCreee": "La visite est créée, mais sa carte n’a pas pu être posée.",
+        "reposer": "Poser la carte de la visite",
+        "horsAgence": "Ce bien n’est pas géré par votre agence : la visite n’a pas été proposée au client."
+      }
     }
   },
   "payments": {

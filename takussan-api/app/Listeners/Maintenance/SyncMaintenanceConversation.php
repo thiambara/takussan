@@ -6,8 +6,10 @@ use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Conversation;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
+use App\Services\Messaging\CodesDuFil;
+use App\Services\Messaging\EvenementsDuFil;
+use App\Services\Messaging\FilDeLObjet;
 use App\Services\Messaging\GroupConversationService;
-use App\Services\Messaging\SystemMessageFactory;
 
 /**
  * TCK-592 (P19) — le fil de discussion d'une intervention.
@@ -18,8 +20,9 @@ use App\Services\Messaging\SystemMessageFactory;
  *    donneur d'ordre qui assigne (à défaut, le bailleur du bien), le prestataire, le demandeur ;
  *  - **réassignation** : le prestataire précédent quitte le fil, le nouveau y entre — une seule
  *    conversation par intervention, jamais une seconde ;
- *  - **chaque `MaintenanceStatusChanged`** : un avis système portant le CODE de l'étape
- *    (`SystemMessageFactory::maintenance()`), que le front rend dans la langue du lecteur.
+ *  - **chaque `MaintenanceStatusChanged`** : un message `event` (TCK-2958, ADR-0128 § 3) dont l'objet
+ *    est la demande et le code `maintenance.<cause>` ({@see CodesDuFil}), écrit par `EvenementsDuFil` ;
+ *    le front rend le texte dans la langue du lecteur.
  *
  * Synchrone, à dessein : la fiche renvoyée par l'assignation doit pouvoir proposer « Discuter ».
  * L'événement est `ShouldDispatchAfterCommit` : la demande est écrite quand ceci s'exécute.
@@ -28,7 +31,7 @@ class SyncMaintenanceConversation
 {
     public function __construct(
         private readonly GroupConversationService $groups,
-        private readonly SystemMessageFactory $systemMessages,
+        private readonly EvenementsDuFil $evenements,
     ) {}
 
     public function handle(MaintenanceStatusChanged $event): void
@@ -53,15 +56,32 @@ class SyncMaintenanceConversation
             $this->swapProvider($conversation, $mr, $event);
         }
 
-        $this->systemMessages->maintenance($conversation, $event->actor, [
-            'maintenance_request_id' => $mr->id,
-            'cause' => $event->cause,
-            'from' => $event->from?->value,
+        // TCK-2958 (ADR-0128 § 3) — un `event` sur la demande, au code fermé ; `data` ne porte que des
+        // codes et des noms que tout participant lit déjà (jamais un montant), `content` = le code.
+        $this->evenements->ecrire($conversation, $mr, CodesDuFil::intervention($event->cause), [
             'status' => $event->to->value,
+            'from' => $event->from?->value,
             'provider_name' => $this->nameOf(in_array($event->cause, [MaintenanceStatusChanged::CAUSE_ASSIGNED, MaintenanceStatusChanged::CAUSE_ACCEPTED], true)
                 ? $mr->assignee
                 : User::query()->find($event->context['previous_assignee_id'] ?? $mr->assigned_to)),
-        ]);
+            'actor_name' => $event->actor?->nameWithoutContact(),
+        ], $this->gesteAttendu($conversation, $mr, $event->cause));
+    }
+
+    /**
+     * TCK-2961 (ADR-0128 § 5) — un devis soumis, ou remonté au bailleur, attend une décision : celle
+     * des participants actifs que `MaintenanceRequestPolicy::decideQuote` autorise, jugée sur la demande
+     * relue. Les autres avis gardent `action_for` vide (TCK-2958).
+     *
+     * @return list<User>
+     */
+    private function gesteAttendu(Conversation $conversation, MaintenanceRequest $mr, string $cause): array
+    {
+        if (! in_array($cause, [MaintenanceStatusChanged::CAUSE_QUOTE_SUBMITTED, MaintenanceStatusChanged::CAUSE_QUOTE_AWAITING_OWNER], true)) {
+            return [];
+        }
+
+        return FilDeLObjet::participantsQui($conversation, fn (User $participant): bool => $participant->can('decideQuote', $mr));
     }
 
     private function open(MaintenanceRequest $mr, ?User $actor): Conversation
@@ -78,6 +98,9 @@ class SyncMaintenanceConversation
             $mr->lease_id,
             $mr->id,
             sendInvites: false,
+            // TCK-2957 (ADR-0128 § 1) — un fil d'intervention neuf NAÎT avec son sujet ; la reprise de
+            // la migration ne couvre que ceux d'avant.
+            sujet: $mr,
         );
     }
 

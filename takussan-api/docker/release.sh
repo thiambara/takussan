@@ -47,6 +47,12 @@ SCOUT_QUEUE=false php artisan tags:sync-catalog \
 php artisan alerts:ensure-ops-rules \
   || echo "AVERTISSEMENT : alerts:ensure-ops-rules a échoué — les alertes d'exploitation sans règle ne partent nulle part." >&2
 
+# TCK-2960 (ADR-0128 § 2) — la salle des baux et des réservations d'avant les salles. APRÈS `migrate` (l'index
+# unique `conversations_salle_unique` la rend sûre contre une exécution simultanée). Idempotente : seuls les
+# objets sans salle sont examinés. Un échec n'arrête pas le déploiement : la salle s'ouvre aussi depuis la fiche.
+php artisan messaging:open-rooms \
+  || echo "AVERTISSEMENT : messaging:open-rooms a échoué — les baux et réservations sans salle l'ouvriront depuis leur fiche, ou au prochain déploiement." >&2
+
 if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
   # TCK-710 (P01.07) : un échec ARRÊTE le déploiement, et les services ne démarrent pas. Des
   # réglages périmés ne dégradent pas la recherche, ils la cassent : un attribut triable absent

@@ -3,9 +3,13 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Enums\MessageType;
 use App\Models\Message;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Messaging\EvenementsDuFil;
 use App\Services\Messaging\FaitsDesMessages;
+use App\Services\Messaging\NonLus;
+use App\Services\Messaging\ObjetsDesMessages;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -37,15 +41,54 @@ class MessageResource extends BaseResource
     }
 
     /**
+     * TCK-2958 (ADR-0128 § 3) — les objets des cartes et des événements de la page, relus pour le
+     * lecteur et chargés en lot ({@see ObjetsDesMessages}). Absents (recherche transverse, message
+     * envoyé) : l'objet d'une carte est `{indisponible: true}` — jamais une relecture par message.
+     */
+    private ?ObjetsDesMessages $objets = null;
+
+    public function avecObjets(?ObjetsDesMessages $objets): static
+    {
+        $this->objets = $objets;
+
+        return $this;
+    }
+
+    /**
+     * TCK-2961 — les `event` de la page qui attendent ENCORE le lecteur ({@see NonLus::attendusParmi()} :
+     * le dernier qui l'attend, par objet et par fil), calculés une fois pour la page. Absents (message
+     * rendu seul) : une requête pour ce message.
+     *
+     * @var array<int, true>|null
+     */
+    private ?array $attendus = null;
+
+    /** @param  array<int, true>|null  $attendus */
+    public function avecAttendus(?array $attendus): static
+    {
+        $this->attendus = $attendus;
+
+        return $this;
+    }
+
+    /**
      * TCK-2858 — une page de messages d'UN fil, avec les faits de ce fil.
+     * TCK-2958 — et les objets de ses cartes et événements, relus pour le lecteur.
      *
      * @param  Collection<int, Message>  $messages
      * @return list<array<string, mixed>>
      */
-    public static function page(Collection $messages, FaitsDesMessages $faits, Request $request): array
+    public static function page(Collection $messages, FaitsDesMessages $faits, Request $request, ?ObjetsDesMessages $objets = null): array
     {
+        // TCK-2961 — une requête pour les événements de la page, jamais une par message.
+        $lecteur = $request->user();
+        $attendus = $lecteur === null ? [] : NonLus::attendusParmi(
+            $messages->filter(fn (Message $m) => $m->type === MessageType::Event && EvenementsDuFil::actionAttenduePar($m, $lecteur))->map(fn (Message $m) => (int) $m->getKey()),
+            $lecteur,
+        );
+
         return $messages
-            ->map(fn (Message $message) => self::make($message)->avecFaits($faits)->resolve($request))
+            ->map(fn (Message $message) => self::make($message)->avecFaits($faits)->avecObjets($objets)->avecAttendus($attendus)->resolve($request))
             ->values()
             ->all();
     }
@@ -70,7 +113,21 @@ class MessageResource extends BaseResource
             // TCK-592 — `metadata` (événement d'un avis système, durée d'une note vocale) et
             // `attachments` étaient déclarés par le type front et jamais rendus : un avis système
             // retombait sur sa prose française, et une note vocale n'aurait pas eu de fichier.
-            'metadata' => $this->metadata,
+            // TCK-2959 (ADR-0128 § 5) — sans `action_for` : la liste des comptes dont un geste est attendu
+            // ne sort pas ; le lecteur reçoit son seul booléen, `action_attendue`, pour un `event`.
+            'metadata' => EvenementsDuFil::metadataRendu($this->metadata),
+            'action_attendue' => $this->when(
+                $this->resource->type === MessageType::Event,
+                // TCK-2961 — et pas dépassé par un événement postérieur du même objet qui l'attend aussi.
+                fn (): bool => EvenementsDuFil::actionAttenduePar($this->resource, $request->user())
+                    && isset(($this->attendus ?? NonLus::attendusParmi([(int) $this->resource->getKey()], $request->user()))[(int) $this->resource->getKey()]),
+            ),
+            // TCK-2958 (ADR-0128 § 3) — l'objet d'une carte ou d'un événement, RELU pour le lecteur : sa
+            // projection (avec ses `abilities`) s'il le lit, sinon `{indisponible: true}` sans autre clé.
+            'object' => $this->when(
+                ObjetsDesMessages::porteUnObjet($this->resource),
+                fn (): array => ($this->objets ?? ObjetsDesMessages::aucun())->objetDe($this->resource),
+            ),
             'attachments' => $this->attachments(),
             'created_at' => $this->iso($this->created_at),
             // TCK-2858 — « Lu » : direct, la coche d'un message de l'appelant ; groupe, ses lecteurs.

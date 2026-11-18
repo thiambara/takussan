@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import frMessages from '@/messages/fr.json';
-import { SystemMessageBubble } from '../SystemMessageBubble';
+import enMessages from '@/messages/en.json';
+import { CarteNeutreBubble, SystemMessageBubble } from '../SystemMessageBubble';
 import type { Message } from '@/types/message';
 
 function wrap(ui: React.ReactElement) {
@@ -58,19 +59,21 @@ describe('<SystemMessageBubble>', () => {
     expect(screen.getByText(/Visites avril/)).toBeInTheDocument();
   });
 
-  it('falls back to message content when no event metadata', () => {
+  // TCK-2958 — `content` n'est plus qu'un code : il n'est jamais montré.
+  it('renders the generic label, never the content, when there is no metadata', () => {
     render(
       wrap(
         <SystemMessageBubble
           message={{
             ...mkSys('participant_added', {}),
             metadata: null,
-            content: 'unknown event',
+            content: 'participant_added',
           }}
         />,
       ),
     );
-    expect(screen.getByText('unknown event')).toBeInTheDocument();
+    expect(screen.getByText('Le fil a été mis à jour.')).toBeInTheDocument();
+    expect(screen.queryByText('participant_added')).not.toBeInTheDocument();
   });
 
   // TCK-671 (P06.02) — l'API émet `metadata.role` ; le front lisait `new_role`, absent, et rendait
@@ -85,19 +88,53 @@ describe('<SystemMessageBubble>', () => {
     expect(screen.getByText('Alice a changé le rôle de Bob en Membre.')).toBeInTheDocument();
   });
 
-  // TCK-592 — l'avis d'étape du fil d'une intervention : des CODES, rendus dans la langue du lecteur.
-  it('renders a maintenance assignment from its cause', () => {
-    render(wrap(<SystemMessageBubble message={mkSys('maintenance', { cause: 'assigned', status: 'open', provider_name: 'Awa' })} />));
+  // TCK-592, TCK-2958 — l'avis d'étape d'une intervention est un `event` : son code et ses données,
+  // rendus dans la langue du lecteur.
+  function mkEvent(code: string, data: Record<string, unknown>, content = code): Message {
+    return {
+      ...mkSys('participant_added', {}),
+      type: 'event',
+      content,
+      metadata: { object: { type: 'maintenance_request', id: 9 }, code, data } as Message['metadata'],
+    };
+  }
+
+  it('renders a maintenance assignment from its code', () => {
+    render(wrap(<SystemMessageBubble message={mkEvent('maintenance.assigned', { status: 'open', provider_name: 'Awa' })} />));
     expect(screen.getByText('Intervention confiée à Awa.')).toBeInTheDocument();
   });
 
   it('renders a maintenance step from its status', () => {
-    render(wrap(<SystemMessageBubble message={mkSys('maintenance', { cause: 'quote_awaiting_owner', status: 'awaiting_owner' })} />));
+    render(wrap(<SystemMessageBubble message={mkEvent('maintenance.quote_awaiting_owner', { status: 'awaiting_owner' })} />));
     expect(screen.getByText('Statut : En attente du bailleur.')).toBeInTheDocument();
   });
 
-  it('falls back to the server text for an unknown maintenance code', () => {
-    render(wrap(<SystemMessageBubble message={{ ...mkSys('maintenance', { cause: 'x', status: 'y' }), content: 'Repli serveur' }} />));
-    expect(screen.getByText('Repli serveur')).toBeInTheDocument();
+  it('renders the step in the reader’s language', () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={enMessages}>
+        <ul>
+          <SystemMessageBubble message={mkEvent('maintenance.transition', { status: 'in_progress' })} />
+        </ul>
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText('Status: In progress.')).toBeInTheDocument();
+  });
+
+  it('never shows the raw code of an unknown event', () => {
+    render(wrap(<SystemMessageBubble message={mkEvent('lease.signed', { status: 'y' })} />));
+    expect(screen.getByText('Le fil a été mis à jour.')).toBeInTheDocument();
+    expect(screen.queryByText('lease.signed')).not.toBeInTheDocument();
+  });
+
+  it('renders an unknown maintenance status with the generic label', () => {
+    render(wrap(<SystemMessageBubble message={mkEvent('maintenance.transition', { status: 'y' })} />));
+    expect(screen.getByText('Le fil a été mis à jour.')).toBeInTheDocument();
+  });
+});
+
+describe('<CarteNeutreBubble>', () => {
+  it('renders a neutral line', () => {
+    render(wrap(<CarteNeutreBubble />));
+    expect(screen.getByText('Un objet a été partagé.')).toBeInTheDocument();
   });
 });

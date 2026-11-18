@@ -63,7 +63,12 @@ class NotifyNewMessageJob implements ShouldQueue
             $notifications->send($recipient, NotificationCode::MessageReceived, [
                 'sender' => $senderName,
                 // TCK-2631 — une photo ou un PDF sans légende : l'aperçu neutre, jamais un extrait vide.
-                'excerpt' => mb_strimwidth($message->content !== '' ? (string) $message->content : (string) $message->neutralPreview(), 0, 80, '…'),
+                // TCK-2964 — une carte posée : sa phrase dans la langue du DESTINATAIRE, jamais son code.
+                'excerpt' => mb_strimwidth(
+                    $message->cardPreview($recipient->preferredLocale() ?? (string) config('app.locale'))
+                        ?? ($message->content !== '' ? (string) $message->content : (string) $message->neutralPreview()),
+                    0, 80, '…',
+                ),
             ], NotificationTarget::of('conversation', $message->conversation_id));
         }
     }

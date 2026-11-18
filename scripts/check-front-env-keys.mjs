@@ -1,16 +1,22 @@
 #!/usr/bin/env node
 /**
- * Garde du CONFINEMENT de la configuration du front (ADR-0069 § 3 ; TCK-431, TCK-831, TCK-860).
+ * Garde du CONFINEMENT de la configuration du front (ADR-0069 § 3 ; TCK-431, TCK-831, TCK-860,
+ * TCK-2954).
  *
  * L'image du front ne porte aucun environnement : l'origine de l'API, celle du site et celle des
  * médias se lisent à l'exécution (`API_URL`, `SITE_URL`, `MEDIA_URL`), par un module unique,
- * `src/lib/config-publique.ts`, qui les transmet au navigateur. La garde refuse :
+ * `src/lib/config-publique.ts`, qui les transmet au navigateur. Depuis TCK-2954 (ADR-0129 § 5),
+ * deux clés de plus, ajoutées EN LE SACHANT : `TEMPS_REEL_URL`, l'origine WebSocket du serveur
+ * Reverb, et `TEMPS_REEL_CLE`, la clé PUBLIQUE de son application. Ni l'une ni l'autre n'est un
+ * secret : la clé voyage en clair dans l'URL de connexion de tout client Pusher, et le secret
+ * (`REVERB_APP_SECRET`) reste à l'API. Elles sont facultatives (vides = mode dégradé) :
+ * `docker/demarrer.mjs` ne les exige pas, et cette garde ne le lui demande pas. La garde refuse :
  *
  * · toute lecture de `process.env.NEXT_PUBLIC_*` dans `takussan-web/src` ou `next.config.ts`. Next
  *   la substitue À LA COMPILATION : une clé absente du build ne casse rien, elle devient `undefined`
  *   dans le JavaScript livré, et l'image redeviendrait propre à un environnement. Depuis TCK-860,
  *   le front n'en lit plus aucune ;
- * · une lecture de l'une des trois clés d'exécution HORS de ce module ;
+ * · une lecture de l'une des clés d'exécution HORS de ce module ;
  * · toute `NEXT_PUBLIC_*` dans le Dockerfile, ou passée par un workflow qui le construit ;
  * · une clé de plus dans la configuration transmise au navigateur (`ConfigPublique`), ou une
  *   variable d'environnement de plus lue par le module. Tout ce qu'il transmet est écrit en clair
@@ -18,11 +24,12 @@
  *   qu'on modifie une garde en le sachant ;
  * · une clé d'exécution absente de `takussan-web/.env.example`, le contrat des clés du front.
  *
- * Non-vacuité : le module doit LIRE les trois clés. Une garde qui ne trouve plus sa cible passe au
+ * Non-vacuité : le module doit LIRE toutes les clés d'exécution. Une garde qui ne trouve plus sa cible passe au
  * vert en ne gardant plus rien, et sa sortie ressemble à un succès (D-15, D-18, D-44).
  *
  * Elle ne prouve pas que la valeur posée dans Dokploy soit juste : `docker/demarrer.mjs` refuse de
- * démarrer sans les trois origines bien formées, et `images.yml` prouve ce qui est servi.
+ * démarrer sans les trois origines bien formées (les deux du temps réel exceptées), et `images.yml`
+ * prouve ce qui est servi.
  *
  * Usage :
  *   node scripts/check-front-env-keys.mjs            # sort en 1 au moindre écart
@@ -57,11 +64,14 @@ const WORKFLOWS_DU_FRONT = existsSync(WORKFLOWS_DIR)
 /** Le seul module qui lit la configuration publique. */
 const LECTEUR = join(WEB, 'src', 'lib', 'config-publique.ts');
 
-/** Les clés d'exécution de l'image (ADR-0069 § 3) — et tout ce que le module a le droit de lire. */
-const CLES_EXECUTION = ['API_URL', 'SITE_URL', 'MEDIA_URL'];
+/**
+ * Les clés d'exécution de l'image (ADR-0069 § 3) — et tout ce que le module a le droit de lire.
+ * TCK-2954 : les deux clés du temps réel (ADR-0129 § 5), publiques par nature (cf. l'en-tête).
+ */
+const CLES_EXECUTION = ['API_URL', 'SITE_URL', 'MEDIA_URL', 'TEMPS_REEL_URL', 'TEMPS_REEL_CLE'];
 
-/** Les clés de `ConfigPublique`, écrites en clair dans chaque page servie. */
-const CONFIG_DU_NAVIGATEUR = ['apiUrl', 'mediaUrl'];
+/** Les clés de `ConfigPublique`, écrites en clair dans chaque page servie. TCK-2954 : + le temps réel. */
+const CONFIG_DU_NAVIGATEUR = ['apiUrl', 'mediaUrl', 'tempsReelUrl', 'tempsReelCle'];
 
 const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs']);
 

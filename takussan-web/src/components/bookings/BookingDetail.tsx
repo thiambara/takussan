@@ -33,6 +33,8 @@ import { clientPeutAnnuler, contreOffreARepondre } from '@/lib/reservations/appe
 import { useFormatteurs, type Formatteurs } from '@/lib/format/useFormatteurs';
 import { montantDansLaNature, nuitsEntre } from '@/lib/reservations/liste-des-reservations';
 import { cn } from '@/lib/utils';
+// TCK-2963 — l'entrée dans la salle de la réservation (le candidat et le contact principal du bien).
+import { BlocDeLaSalle } from '@/components/messages/salle/BlocDeLaSalle';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment } from '@/types/booking';
 import { BOOKING_PAYMENT_STATUS_TONE } from './booking-status';
@@ -829,6 +831,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           </div>
           <div className="mt-3">{bien}</div>
         </div>
+        {/* TCK-2963 — la salle de la réservation, sous l'en-tête : absente pour qui n'en est pas partie. */}
+        <BlocDeLaSalle nature="booking" id={booking.id} className="mx-4 mb-4" />
         {/* TCK-2878 — maquette e7 : l'acceptation, puis le passage de la fiche en Négociation, avant le bail prêt. */}
         {bandeauAcceptee || etapeDuClient ? (
           <div className="space-y-4 px-4 pb-4">
@@ -1054,6 +1058,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           {remboursement}
         </div>
         <div className="min-w-0 space-y-5">
+          {/* TCK-2963 — la salle de la réservation, en tête de la colonne (maquette `fil-salle-bail` A, « fiche »). */}
+          <BlocDeLaSalle nature="booking" id={booking.id} />
           {/* TCK-2878 — maquette e7 bureau : l'acceptation et le passage en Négociation en tête de la colonne. */}
           {bandeauAcceptee}
           {etapeDuClient}

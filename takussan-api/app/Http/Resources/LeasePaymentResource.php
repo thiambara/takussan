@@ -5,15 +5,31 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
+use App\Models\LeasePayment;
+use App\Models\User;
 use App\Services\Payments\DuplicatePayments;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Http\Request;
 
 class LeasePaymentResource extends BaseResource
 {
+    /**
+     * TCK-2958 (ADR-0128 § 4) — le lecteur dont la ressource dit les gestes (`abilities`) : posé par
+     * l'échéancier du bail (`LeasePaymentController::index`) et par la carte du fil.
+     */
+    private ?User $lecteurDesGestes = null;
+
+    public function avecGestes(?User $lecteur): static
+    {
+        $this->lecteurDesGestes = $lecteur;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         $gateway = app(PaymentGatewayService::class);
+        $du = (float) ($gateway->amountDue($this->resource) ?? 0);
 
         return [
             'id' => $this->id,
@@ -47,7 +63,7 @@ class LeasePaymentResource extends BaseResource
             'late_fee_refund_amount' => $this->late_fee_refund_amount !== null ? (float) $this->late_fee_refund_amount : null,
             'late_fee_outstanding' => $this->resource->lateFeeOutstanding(),
             'late_fee_payable_online' => $gateway->lateFeeIncluded($this->resource),
-            'amount_due' => (float) ($gateway->amountDue($this->resource) ?? 0),
+            'amount_due' => $du,
             // TCK-2778 — les verdicts des deux gestes sur la pénalité de retard SEULE, restée due sur
             // un loyer payé : la relance notée (`subject: late_fee`), et le lien qui ne fait payer
             // qu'elle — seulement si l'agence encaisse ses pénalités en ligne. Le front ne refait
@@ -64,6 +80,30 @@ class LeasePaymentResource extends BaseResource
             'duplicate_refund_pending' => DuplicatePayments::anyRefundPending($this->metadata),
             'notes' => $this->notes,
             'created_at' => $this->iso($this->created_at),
+            // TCK-2958 — les gestes de CE lecteur, jugés comme leurs routes les jugent.
+            'abilities' => $this->when($this->lecteurDesGestes !== null && $this->resource instanceof LeasePayment, fn (): array => $this->gestes($this->lecteurDesGestes, $du)),
+        ];
+    }
+
+    /**
+     * TCK-2958 — payer : le compte du locataire du bail (la carte le lui offre), que
+     * `POST /api/payments/{paymentType}/{paymentId}/initiate` juge par `LeasePaymentPolicy::update`,
+     * tant qu'un reste est dû ; relancer : `LeasePaymentPolicy::remind` ; encaisser : la porte de
+     * `POST lease-payments/{payment}/mark-paid`, `LeasePolicy::recordPayment` sur le bail.
+     *
+     * @return array{pay: bool, remind: bool, record_payment: bool}
+     */
+    private function gestes(User $lecteur, float $du): array
+    {
+        $payment = $this->resource;
+        $lease = $payment->lease;
+        $ouvert = $du > 0 && $payment->status !== PaymentStatus::Paid;
+        $locataire = $lease?->tenant?->user_id !== null && (int) $lease->tenant->user_id === (int) $lecteur->id;
+
+        return [
+            'pay' => $ouvert && $locataire && $lecteur->can('update', $payment),
+            'remind' => $ouvert && $lecteur->can('remind', $payment),
+            'record_payment' => $ouvert && $lease !== null && $lecteur->can('recordPayment', $lease),
         ];
     }
 }
