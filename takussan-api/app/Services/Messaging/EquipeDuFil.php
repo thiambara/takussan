@@ -83,14 +83,16 @@ final class EquipeDuFil
     /**
      * Le LECTEUR (l'appelant) lit-il les notes d'équipe de ce fil ? Super-admin, ou participant actif ET
      * personnel actif de l'agence du fil sous son profil actif.
+     *
+     * @param  int|null  $agence  TCK-2967 — l'agence du fil, déjà calculée ({@see self::agence()})
      */
-    public static function litLesNotes(User $lecteur, Conversation $fil): bool
+    public static function litLesNotes(User $lecteur, Conversation $fil, ?int $agence = null): bool
     {
         if ($lecteur->isSuperAdmin()) {
             return true;
         }
 
-        $agence = self::agence($fil);
+        $agence ??= self::agence($fil);
         if ($agence === null || ! PersonnelDeLAgence::personnelActifDe($lecteur, $agence)) {
             return false;
         }

@@ -520,6 +520,10 @@ return [
         // TCK-2966 (ADR-0128 § 6) — une @mention refusée en 422.
         'mention_not_reader' => 'You can only mention people who will read this message.',
         'mention_type' => 'Only a text or a voice note can mention someone.',
+        // TCK-2967 (ADR-0128 § 7) — confier un fil, refusé en 422 (`ConversationPilotageController::assign`).
+        'assignee_thread_type' => "Only a room or a group can be assigned to someone at the agency. A prospect's thread follows the property's main contact.",
+        'assignee_author_not_staff' => "Only staff of this conversation's agency can assign it.",
+        'assignee_not_staff' => 'This conversation can only be assigned to a staff member of the agency who takes part in it.',
     ],
     'moderation' => [
         'item_id_invalid' => 'Invalid moderation item.',

@@ -25,6 +25,7 @@ use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Messaging\ConversationWriter;
 use App\Services\Messaging\DirectConversationService;
 use App\Services\Messaging\FaitsDesMessages;
+use App\Services\Messaging\FileDuFil;
 use App\Services\Messaging\GroupConversationService;
 use App\Services\Messaging\NonLus;
 use App\Services\Messaging\ObjetsDesMessages;
@@ -98,20 +99,30 @@ class ConversationController extends Controller
         // doublé. La page seule s'élargit ; `unread_total` et `meta.counts` gardent leur base.
         $page = $request->validated('filter.participant') !== null ? $ou(null) : $liste;
 
+        // TCK-2967 (ADR-0128 § 7) — la file de chaque fil pour le lecteur, dérivée en SQL (`FileDuFil`) :
+        // une jointure latérale partagée par la page, `filter[file]`, l'ordre et les comptes.
+        $boite = new FileDuFil($user);
+
         $paginator = (clone $page)
+            // TCK-2967 — la file, ses dates et ses attendus, sous des alias `boite_*`.
+            ->tap(fn ($q) => $boite->selectionner($q))
             // TCK-2630 — les filtres ne portent que sur la page : ni `unread_total` ni `meta.counts`.
-            ->tap(fn ($q) => $this->filtrerLaListe($q, $request, $user, $nonLus))
+            ->tap(fn ($q) => $this->filtrerLaListe($q, $request, $user, $nonLus, $boite))
             ->with([
                 'property.media',
                 'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
                 'lastMessage',
+                // TCK-2967 — `assigned_to` : `{id, name}`, sans contact.
+                'assignedTo',
             ])
             ->withCount(['messages as unread_count' => $nonLus])
             // TCK-1389 (P135.06) — départage par `id` : deux fils de même horodatage changeaient de
             // page d'une requête à l'autre, ce que le défilement infini de la liste rend visible.
             // TCK-2960 — NULLS LAST : un fil sans message (une salle pas encore ouverte à l'échange) vient
             // après ceux qui ont parlé ; un ordre décroissant met les NULL en tête sous PostgreSQL.
-            ->orderByRaw('conversations.last_message_at DESC NULLS LAST')
+            // TCK-2967 — un rappel échu compte comme un échange à son échéance : il revient en tête. Sous
+            // `filter[file]=vous`, celui qui attend depuis le plus longtemps d'abord (`attend_depuis` croissant).
+            ->tap(fn ($q) => $boite->ordonner($q, $request->validated('filter.file')))
             ->orderByDesc('conversations.id')
             ->paginate($this->tailleDePage($request, 20));
 
@@ -135,17 +146,26 @@ class ConversationController extends Controller
         $actifs = $ou(false);
         $parType = (clone $actifs)->toBase()
             ->selectRaw('count(*) as tous, count(*) filter (where conversations.type = ?) as groupes', [ConversationType::Group->value])
+            // TCK-2967 — `vous`, `attente`, `rappel` et `gestes` dans la même requête, sur la même base.
+            ->tap(fn ($q) => $boite->joindre($q))
+            ->tap(fn ($q) => $boite->selectionnerLesComptes($q))
             ->first();
         $counts = [
             'all' => (int) $parType->tous,
             'unread' => (clone $actifs)->whereHas('messages', $nonLus)->count(),
             'group' => (int) $parType->groupes,
+            // TCK-2967 (ADR-0128 § 7)
+            'vous' => (int) $parType->vous,
+            'attente' => (int) $parType->attente,
+            'rappel' => (int) $parType->rappel,
         ];
 
         return $this->paginated(
             $paginator,
             ConversationResource::collection($paginator)->toArray($request),
-            ['unread_total' => $unreadTotal, 'counts' => $counts],
+            // TCK-2967 — `gestes` : la pastille, les fils `vous` hors sourdine et hors archives (décision 4a ;
+            // le lot 3 y ajoutera les engagements en retard). Sans les filtres de la requête.
+            ['unread_total' => $unreadTotal, 'counts' => $counts, 'gestes' => (int) $parType->gestes],
         );
     }
 
@@ -163,9 +183,14 @@ class ConversationController extends Controller
      *
      * @param  Builder<Conversation>  $query
      */
-    private function filtrerLaListe(Builder $query, ListConversationsRequest $request, User $user, Closure $nonLus): void
+    private function filtrerLaListe(Builder $query, ListConversationsRequest $request, User $user, Closure $nonLus, FileDuFil $boite): void
     {
         $filtres = $request->validated('filter') ?? [];
+
+        // TCK-2967 (ADR-0128 § 7) — la file dérivée, jointe par `FileDuFil::selectionner()`.
+        if (($filtres['file'] ?? null) !== null) {
+            $boite->filtrer($query, $filtres['file']);
+        }
 
         if (($filtres['type'] ?? null) !== null) {
             $query->where('conversations.type', $filtres['type']);

@@ -520,6 +520,10 @@ return [
         // TCK-2966 (ADR-0128 § 6) — une @mention refusée en 422.
         'mention_not_reader' => 'Vous ne pouvez mentionner que les personnes qui liront ce message.',
         'mention_type' => "Seuls un texte et une note vocale peuvent mentionner quelqu'un.",
+        // TCK-2967 (ADR-0128 § 7) — confier un fil, refusé en 422 (`ConversationPilotageController::assign`).
+        'assignee_thread_type' => "Seule une salle ou un groupe se confie à une personne de l'agence. Le fil d'un prospect suit le contact principal du bien.",
+        'assignee_author_not_staff' => "Seul le personnel de l'agence de cette conversation peut la confier.",
+        'assignee_not_staff' => "Cette conversation ne se confie qu'à une personne du personnel de l'agence qui y participe.",
     ],
     'moderation' => [
         'item_id_invalid' => 'Élément modération bi baaxul.',

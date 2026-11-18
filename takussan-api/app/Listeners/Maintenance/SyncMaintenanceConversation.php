@@ -4,6 +4,7 @@ namespace App\Listeners\Maintenance;
 
 use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Conversation;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Services\Messaging\CodesDuFil;
@@ -58,7 +59,10 @@ class SyncMaintenanceConversation
 
         // TCK-2958 (ADR-0128 § 3) — un `event` sur la demande, au code fermé ; `data` ne porte que des
         // codes et des noms que tout participant lit déjà (jamais un montant), `content` = le code.
-        $this->evenements->ecrire($conversation, $mr, CodesDuFil::intervention($event->cause), [
+        // TCK-2967 — l'annulation a SON code (elle passe par `transition`, qui ne la dit pas) : il clôt tout ce
+        // que la demande attendait encore (`eteint` au catalogue). `data.status` reste `cancelled`.
+        $code = $event->to === MaintenanceStatus::Cancelled ? CodesDuFil::INTERVENTION_ANNULEE : CodesDuFil::intervention($event->cause);
+        $this->evenements->ecrire($conversation, $mr, $code, [
             'status' => $event->to->value,
             'from' => $event->from?->value,
             'provider_name' => $this->nameOf(in_array($event->cause, [MaintenanceStatusChanged::CAUSE_ASSIGNED, MaintenanceStatusChanged::CAUSE_ACCEPTED], true)

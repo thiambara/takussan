@@ -59,7 +59,14 @@ class ConversationContextResource extends BaseResource
             // TCK-2748 — la relation de chaque participant actuel au contexte du fil, jugée sur ce que
             // le lecteur peut lire ({@see \App\Services\Messaging\RelationsAuFil}) ; liste vide sans
             // objet lisible. Des codes : le front possède le libellé.
+            // TCK-2967 — `reads_team_notes` sur chaque ligne : ce participant lit-il les notes de ce fil ?
+            // Faux partout pour qui ne les lit pas lui-même ({@see ConversationThreadContext::for()}).
             'participants' => $context->participants,
+            // TCK-2967 — l'appelant peut-il écrire une note d'équipe ici (la règle du refus 422 de TCK-2965) ?
+            'can_write_team_note' => $context->canWriteTeamNote,
+            // TCK-2967 — chaque participant actif qui lit les notes, qu'il ait une ligne de relation ou non
+            // (même jugement que `participants[].reads_team_notes`) ; vide pour qui ne les lit pas.
+            'team_note_reader_ids' => $context->teamNoteReaderIds,
             'customer' => $this->when($context->customerShown, fn () => $customer === null ? null : [
                 'id' => $customer->id,
                 'full_name' => $customer->full_name,

@@ -23,6 +23,8 @@ class ConversationParticipant extends Pivot
     protected $fillable = [
         'conversation_id', 'user_id', 'role',
         'last_read_at', 'is_muted', 'joined_at', 'left_at', 'archived_at',
+        // TCK-2967 (ADR-0128 § 7) — « Rappelez-le-moi » et « Traité », propres au lecteur.
+        'snoozed_until', 'handled_at',
     ];
 
     protected $casts = [
@@ -32,6 +34,9 @@ class ConversationParticipant extends Pivot
         'joined_at' => 'datetime',
         'left_at' => 'datetime',
         'archived_at' => 'datetime',
+        // TCK-2967
+        'snoozed_until' => 'datetime',
+        'handled_at' => 'datetime',
     ];
 
     /**

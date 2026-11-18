@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ConversationCardController;
 use App\Http\Controllers\Api\ConversationContextController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationParticipantController;
+use App\Http\Controllers\Api\ConversationPilotageController;
 use App\Http\Controllers\Api\ConversationReportController;
 use App\Http\Controllers\Api\ConversationRoomController;
 use App\Http\Controllers\Api\MessagingContactController;
@@ -54,6 +55,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('conversations/{conversation}/read', [ConversationController::class, 'markAsRead'])->name('conversations.read');
     // TCK-2859 (ADR-0114 § 1) — remettre le fil en non lu pour le lecteur.
     Route::put('conversations/{conversation}/unread', [ConversationController::class, 'markAsUnread'])->name('conversations.unread');
+    // TCK-2967 (ADR-0128 § 7) — la boîte de pilotage : « Rappelez-le-moi », « Traité », confier le fil.
+    Route::put('conversations/{conversation}/snooze', [ConversationPilotageController::class, 'snooze'])->name('conversations.snooze');
+    Route::delete('conversations/{conversation}/snooze', [ConversationPilotageController::class, 'unsnooze'])->name('conversations.unsnooze');
+    Route::put('conversations/{conversation}/handled', [ConversationPilotageController::class, 'handle'])->name('conversations.handled');
+    Route::delete('conversations/{conversation}/handled', [ConversationPilotageController::class, 'unhandle'])->name('conversations.unhandled');
+    Route::put('conversations/{conversation}/assignee', [ConversationPilotageController::class, 'assign'])->name('conversations.assignee');
     Route::put('conversations/{conversation}/archive', [ConversationController::class, 'archive'])->name('conversations.archive');
     Route::put('conversations/{conversation}/unarchive', [ConversationController::class, 'unarchive'])->name('conversations.unarchive');
 

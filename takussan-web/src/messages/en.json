@@ -4250,7 +4250,9 @@
         "confirmed": "The booking is confirmed."
       },
       "inventory": {
-        "awaiting_signature": "The inspection is awaiting signatures."
+        "awaiting_signature": "The inspection is awaiting signatures.",
+        "signed_by_party": "{partie, select, tenant {The tenant signed the inspection.} landlord {The landlord signed the inspection.} other {A party signed the inspection.}}",
+        "signed": "The inspection is signed by all parties."
       },
       "lease": {
         "notice_given": "Notice was given, effective {date}.",
@@ -4273,7 +4275,8 @@
       "visit": {
         "confirmed": "Viewing confirmed for {date}.",
         "proposed": "A viewing is suggested for {date}.",
-        "rescheduled": "Another time was suggested for the viewing: {date}."
+        "rescheduled": "Another time was suggested for the viewing: {date}.",
+        "cancelled": "The viewing has been cancelled."
       }
     },
     "salle": {

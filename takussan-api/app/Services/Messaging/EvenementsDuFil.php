@@ -52,6 +52,11 @@ class EvenementsDuFil
     {
         $metadata = self::metadata($objet, $code, $data, CodesDuFil::NATURE_EVENEMENT);
         $metadata[self::ACTION_FOR] = self::participantsActifs($conversation, $actionFor);
+        // TCK-2967 — seul un code déclaré `attend` porte un geste attendu : c'est ce qui permet au catalogue
+        // de dire, pour chacun, ce qui le clôt (`CloturesDuFilArchitectureTest`).
+        if ($metadata[self::ACTION_FOR] !== [] && ! CodesDuFil::attend($code)) {
+            throw new LogicException("L'événement « {$code} » n'attend aucun geste au catalogue du fil.");
+        }
 
         // `Message::create` : `MessageObserver::created` écrit le pointeur et l'aperçu (= le code).
         return Message::create([

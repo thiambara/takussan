@@ -3011,7 +3011,9 @@
         "confirmed": "La réservation est confirmée."
       },
       "inventory": {
-        "awaiting_signature": "L’état des lieux attend les signatures."
+        "awaiting_signature": "L’état des lieux attend les signatures.",
+        "signed_by_party": "{partie, select, tenant {Le locataire a signé l’état des lieux.} landlord {Le bailleur a signé l’état des lieux.} other {Une partie a signé l’état des lieux.}}",
+        "signed": "L’état des lieux est signé par toutes les parties."
       },
       "lease": {
         "notice_given": "Un préavis a été donné, effectif le {date}.",
@@ -3034,7 +3036,8 @@
       "visit": {
         "confirmed": "Visite confirmée pour le {date}.",
         "proposed": "Une visite est proposée le {date}.",
-        "rescheduled": "Un autre moment a été proposé pour la visite : le {date}."
+        "rescheduled": "Un autre moment a été proposé pour la visite : le {date}.",
+        "cancelled": "La visite a été annulée."
       }
     },
     "salle": {
