@@ -2868,6 +2868,164 @@
       "creer": "Créer le groupe",
       "choisirUnePersonne": "Choisissez au moins une personne.",
       "echec": "Le groupe n’a pas été créé. Réessayez."
+    },
+    "cartes": {
+      "bail": {
+        "aSigner": "À signer",
+        "brouillon": "Brouillon",
+        "enCours": "En cours",
+        "expire": "Expiré",
+        "parMois": "par mois",
+        "periode": "Du {debut} au {fin}",
+        "preavis": "Préavis en cours",
+        "quoi": "Bail · {reference}",
+        "renouvele": "Renouvelé",
+        "resilie": "Résilié",
+        "voir": "Voir le bail"
+      },
+      "creneau": {
+        "ajouter": "Ajouter un moment",
+        "attente": "Votre demande attendra la réponse de l’agence.",
+        "creneauN": "Moment {n}",
+        "envoyer": "Envoyer la demande",
+        "exemple": "Par exemple : je travaille le matin",
+        "note": "Un mot pour l’agence (facultatif)",
+        "passe": "Un moment proposé est déjà passé : choisissez une date à venir.",
+        "texte": "Proposez jusqu’à trois moments. Le passage prévu ne change pas tant que l’agence n’a pas répondu.",
+        "titre": "Proposer un autre moment"
+      },
+      "echeance": {
+        "annule": "Annulé",
+        "avantLe": "Avant le {date}",
+        "enRetard": "En retard",
+        "encaisser": "Encaisser à la main",
+        "paye": "Payé",
+        "payeLe": "Payé le {date}.",
+        "payer": "Payer",
+        "quoi": "Échéance · {periode}",
+        "quoiCharges": "Charges · {periode}",
+        "quoiLoyer": "Loyer · {periode}",
+        "resteDu": "Reste à payer",
+        "sansPeriode": "à venir"
+      },
+      "echecDuGeste": "Le geste n’a pas abouti. Réessayez.",
+      "encaissement": {
+        "envoyer": "Encaisser",
+        "moyen": "Moyen de paiement",
+        "moyens": {
+          "bank_transfer": "Virement",
+          "card": "Carte",
+          "cash": "Espèces",
+          "check": "Chèque",
+          "mobile_money": "Mobile money"
+        },
+        "texte": "L’échéance sera réglée aujourd’hui pour {montant}.",
+        "titre": "Encaisser à la main"
+      },
+      "etatDesLieux": {
+        "aSigner": "À signer",
+        "bailleur": "Bailleur : {etat, select, oui {signé} other {en attente}}",
+        "conteste": "Contesté",
+        "enAttente": "En attente des signatures",
+        "enPreparation": "En préparation",
+        "locataire": "Locataire : {etat, select, oui {signé} other {en attente}}",
+        "quoi": "État des lieux",
+        "quoiEntree": "État des lieux d’entrée",
+        "quoiSortie": "État des lieux de sortie",
+        "realiseLe": "Réalisé le {date}",
+        "signe": "Signé",
+        "signer": "Relire et signer",
+        "voir": "Voir l’état des lieux"
+      },
+      "evenements": {
+        "compte": "{count, plural, one {# événement} other {# événements}}",
+        "deplier": "Afficher les événements",
+        "replier": "Masquer les événements"
+      },
+      "indisponible": "Cet élément n’est plus accessible.",
+      "intervention": {
+        "aFixer": "Moment à fixer",
+        "aVousDApprouver": "À vous d’approuver",
+        "approuver": "Approuver le devis",
+        "enPreparation": "En préparation",
+        "par": "Par {nom}",
+        "prevu": "Prévu",
+        "proposerUnAutreMoment": "Proposer un autre moment",
+        "quoi": "Intervention · {titre}",
+        "quoiDevis": "Devis · {titre}",
+        "quoiPassage": "Passage · {titre}",
+        "refuser": "Refuser",
+        "sansTitre": "intervention",
+        "titrePreparation": "L’agence prépare les travaux",
+        "titreValides": "Les travaux sont validés",
+        "valides": "Validés"
+      },
+      "parAuteur": "{auteur} · {heure}",
+      "refusDuDevis": {
+        "aide": "Au moins {min} caractères. Le prestataire et l’agence le liront.",
+        "envoyer": "Refuser le devis",
+        "motif": "Le motif du refus",
+        "titre": "Refuser le devis"
+      },
+      "refusDuGeste": "Ce geste ne vous est plus permis. La carte a été mise à jour.",
+      "reservation": {
+        "aConfirmer": "À confirmer",
+        "annulee": "Annulée",
+        "confirmee": "Confirmée",
+        "confirmer": "Confirmer la réservation",
+        "confirmerLeRefus": "Confirmer le refus",
+        "dates": "Du {debut} au {fin}",
+        "enAttente": "En attente",
+        "expiree": "Expirée",
+        "garder": "Garder la demande",
+        "quoi": "Réservation · {titre}",
+        "refusee": "Refusée",
+        "refuser": "Refuser",
+        "sansTitre": "bien",
+        "terminee": "Terminée"
+      },
+      "visite": {
+        "aConfirmer": "À confirmer",
+        "annulee": "Annulée",
+        "confirmee": "Confirmée",
+        "confirmer": "Confirmer ce moment",
+        "enAttente": "En attente de confirmation",
+        "heureAFixer": "Heure à fixer",
+        "manquee": "Manquée",
+        "quoi": "Visite · {titre}",
+        "terminee": "Faite"
+      }
+    },
+    "evenementsDuFil": {
+      "booking": {
+        "confirmed": "La réservation est confirmée."
+      },
+      "inventory": {
+        "awaiting_signature": "L’état des lieux attend les signatures."
+      },
+      "lease": {
+        "notice_given": "Un préavis a été donné, effectif le {date}.",
+        "renewed": "Le bail a été renouvelé à partir du {date}."
+      },
+      "lease_payment": {
+        "due_soon": "Le loyer arrive à échéance le {date}.",
+        "overdue": "Le loyer du {date} est en retard de {jours, plural, one {# jour} other {# jours}}.",
+        "paid": "Le loyer a été payé.",
+        "receipt_issued": "La quittance a été émise.",
+        "reminded": "Une relance a été faite pour le loyer du {date}."
+      },
+      "maintenance": {
+        "slot_requested": "Un autre moment a été proposé pour le passage.",
+        "slot_set": "Passage prévu le {date}."
+      },
+      "property": {
+        "shared": "Un bien a été partagé."
+      },
+      "visit": {
+        "confirmed": "Visite confirmée pour le {date}.",
+        "proposed": "Une visite est proposée le {date}.",
+        "rescheduled": "Un autre moment a été proposé pour la visite : le {date}."
+      }
     }
   },
   "payments": {

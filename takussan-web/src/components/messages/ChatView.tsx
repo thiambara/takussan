@@ -35,7 +35,11 @@ import { ErrorState } from '@/components/feedback';
 import { formatDateTime } from '@/lib/format';
 import { sendMessageSchema, type SendMessageFormValues } from '@/lib/schemas/message';
 import { cn } from '@/lib/utils';
-import { CarteNeutreBubble, SystemMessageBubble } from './SystemMessageBubble';
+import { SystemMessageBubble } from './SystemMessageBubble';
+// TCK-2962 — les cartes, les événements repliés et la carte relue quand son objet bouge.
+import { CarteDuFil, EvenementsReplies } from './cartes/CarteDuFil';
+import { natureDuMessage, replierLesEvenements } from './cartes/replierLesEvenements';
+import { useCartesEnDirect } from './cartes/useCartesEnDirect';
 import { ConversationInfoSheet } from './ConversationInfoSheet';
 import { EnTeteDuFil } from './EnTeteDuFil';
 import { MessageDateSeparator } from './MessageDateSeparator';
@@ -172,6 +176,9 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
 
   // TCK-2955 (ADR-0129 § 2) — le fil en direct : ses signaux relisent ce qu'ils disent changé.
   useFilEnDirect({ conversationId, sansAncre: anchorId == null, cocheEnAttente });
+  // TCK-2962 — un `event` ou une `card` neuf (signal ou relecture périodique) relit les pages chargées :
+  // les cartes plus haut prennent la projection et les gestes neufs de leur objet.
+  useCartesEnDirect(conversationId, messages);
 
   const sendMessage = useSendMessage(conversationId);
   const sendAttachment = useSendAttachment(conversationId);
@@ -340,7 +347,8 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
     void fetchNextPage();
   }
 
-  const renderItems = groupMessagesByDay(messages);
+  // TCK-2962 — les `event` consécutifs sans geste attendu se replient en une ligne.
+  const renderItems = replierLesEvenements(groupMessagesByDay(messages));
 
   async function onSubmit(values: SendMessageFormValues) {
     try {
@@ -518,12 +526,16 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
               if (item.kind === 'separator') {
                 return <MessageDateSeparator key={item.key} date={item.date} />;
               }
+              if (item.kind === 'evenements') {
+                return <EvenementsReplies key={item.key} messages={item.messages} />;
+              }
               const m = item.message;
-              // TCK-2958 — un `event` est un avis ; une `card`, une ligne neutre (rendu riche : TCK-2962).
-              return m.type === 'system' || m.type === 'event' ? (
+              // TCK-2958 — un `event` est un avis. TCK-2962 — une `card`, et un `event` qui attend un geste
+              // de ce lecteur (`action_attendue`), sont des cartes rendues depuis leur objet.
+              return natureDuMessage(m) === 'carte' ? (
+                <CarteDuFil key={m.id} message={m} conversationId={conversationId} moi={m.sender_id != null && m.sender_id === user?.id} auteur={isGroup} />
+              ) : m.type === 'system' || m.type === 'event' ? (
                 <SystemMessageBubble key={m.id} message={m} />
-              ) : m.type === 'card' ? (
-                <CarteNeutreBubble key={m.id} />
               ) : (
                 <MessageBubble
                   key={m.id}

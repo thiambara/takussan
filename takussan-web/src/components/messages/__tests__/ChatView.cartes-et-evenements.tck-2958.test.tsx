@@ -44,7 +44,8 @@ const base = (id: number, extra: Record<string, unknown>) => ({
 });
 
 describe('<ChatView> — cartes et événements (TCK-2958)', () => {
-  it('rend un événement d’intervention comme un avis, et une carte comme une ligne neutre', () => {
+  // TCK-2962 — la carte n'est plus une ligne neutre : son objet indisponible rend la carte indisponible.
+  it('rend un événement d’intervention comme un avis, et une carte indisponible sans rien de son objet', () => {
     messages = [
       base(1, {
         sender_id: null,
@@ -66,7 +67,7 @@ describe('<ChatView> — cartes et événements (TCK-2958)', () => {
     render(withIntl(<ChatView conversationId={7} />));
 
     expect(screen.getByText("Awa a accepté l'intervention.")).toBeInTheDocument();
-    expect(screen.getByText('Un objet a été partagé.')).toBeInTheDocument();
+    expect(screen.getByText('Cet élément n’est plus accessible.')).toBeInTheDocument();
     expect(screen.queryByText('maintenance.accepted')).toBeNull();
     expect(screen.queryByText('lease.shared')).toBeNull();
   });

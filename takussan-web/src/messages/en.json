@@ -4107,6 +4107,164 @@
       "creer": "Create the group",
       "choisirUnePersonne": "Choose at least one person.",
       "echec": "The group was not created. Please try again."
+    },
+    "cartes": {
+      "bail": {
+        "aSigner": "To sign",
+        "brouillon": "Draft",
+        "enCours": "Active",
+        "expire": "Expired",
+        "parMois": "per month",
+        "periode": "From {debut} to {fin}",
+        "preavis": "Notice given",
+        "quoi": "Lease · {reference}",
+        "renouvele": "Renewed",
+        "resilie": "Terminated",
+        "voir": "View the lease"
+      },
+      "creneau": {
+        "ajouter": "Add a time",
+        "attente": "Your request will wait for the agency’s reply.",
+        "creneauN": "Time {n}",
+        "envoyer": "Send the request",
+        "exemple": "For example: I work in the mornings",
+        "note": "A note for the agency (optional)",
+        "passe": "One of the suggested times has already passed: choose a future date.",
+        "texte": "Suggest up to three times. The scheduled visit stays as it is until the agency replies.",
+        "titre": "Suggest another time"
+      },
+      "echeance": {
+        "annule": "Cancelled",
+        "avantLe": "Due by {date}",
+        "enRetard": "Overdue",
+        "encaisser": "Record a payment",
+        "paye": "Paid",
+        "payeLe": "Paid on {date}.",
+        "payer": "Pay",
+        "quoi": "Payment · {periode}",
+        "quoiCharges": "Charges · {periode}",
+        "quoiLoyer": "Rent · {periode}",
+        "resteDu": "Left to pay",
+        "sansPeriode": "upcoming"
+      },
+      "echecDuGeste": "The action did not go through. Please try again.",
+      "encaissement": {
+        "envoyer": "Record",
+        "moyen": "Payment method",
+        "moyens": {
+          "bank_transfer": "Bank transfer",
+          "card": "Card",
+          "cash": "Cash",
+          "check": "Cheque",
+          "mobile_money": "Mobile money"
+        },
+        "texte": "The payment will be settled today for {montant}.",
+        "titre": "Record a payment"
+      },
+      "etatDesLieux": {
+        "aSigner": "To sign",
+        "bailleur": "Landlord: {etat, select, oui {signed} other {pending}}",
+        "conteste": "Disputed",
+        "enAttente": "Awaiting signatures",
+        "enPreparation": "Being prepared",
+        "locataire": "Tenant: {etat, select, oui {signed} other {pending}}",
+        "quoi": "Inspection",
+        "quoiEntree": "Move-in inspection",
+        "quoiSortie": "Move-out inspection",
+        "realiseLe": "Carried out on {date}",
+        "signe": "Signed",
+        "signer": "Review and sign",
+        "voir": "View the inspection"
+      },
+      "evenements": {
+        "compte": "{count, plural, one {# event} other {# events}}",
+        "deplier": "Show events",
+        "replier": "Hide events"
+      },
+      "indisponible": "This item is no longer available.",
+      "intervention": {
+        "aFixer": "Time to be set",
+        "aVousDApprouver": "Awaiting your approval",
+        "approuver": "Approve the quote",
+        "enPreparation": "Being prepared",
+        "par": "By {nom}",
+        "prevu": "Scheduled",
+        "proposerUnAutreMoment": "Suggest another time",
+        "quoi": "Repair · {titre}",
+        "quoiDevis": "Quote · {titre}",
+        "quoiPassage": "Visit · {titre}",
+        "refuser": "Decline",
+        "sansTitre": "repair",
+        "titrePreparation": "The agency is preparing the work",
+        "titreValides": "The work has been approved",
+        "valides": "Approved"
+      },
+      "parAuteur": "{auteur} · {heure}",
+      "refusDuDevis": {
+        "aide": "At least {min} characters. The provider and the agency will read it.",
+        "envoyer": "Decline the quote",
+        "motif": "Reason for declining",
+        "titre": "Decline the quote"
+      },
+      "refusDuGeste": "This action is no longer allowed. The card has been updated.",
+      "reservation": {
+        "aConfirmer": "To confirm",
+        "annulee": "Cancelled",
+        "confirmee": "Confirmed",
+        "confirmer": "Confirm the booking",
+        "confirmerLeRefus": "Confirm decline",
+        "dates": "From {debut} to {fin}",
+        "enAttente": "Pending",
+        "expiree": "Expired",
+        "garder": "Keep the request",
+        "quoi": "Booking · {titre}",
+        "refusee": "Declined",
+        "refuser": "Decline",
+        "sansTitre": "property",
+        "terminee": "Completed"
+      },
+      "visite": {
+        "aConfirmer": "To confirm",
+        "annulee": "Cancelled",
+        "confirmee": "Confirmed",
+        "confirmer": "Confirm this time",
+        "enAttente": "Awaiting confirmation",
+        "heureAFixer": "Time to be set",
+        "manquee": "Missed",
+        "quoi": "Viewing · {titre}",
+        "terminee": "Done"
+      }
+    },
+    "evenementsDuFil": {
+      "booking": {
+        "confirmed": "The booking is confirmed."
+      },
+      "inventory": {
+        "awaiting_signature": "The inspection is awaiting signatures."
+      },
+      "lease": {
+        "notice_given": "Notice was given, effective {date}.",
+        "renewed": "The lease was renewed from {date}."
+      },
+      "lease_payment": {
+        "due_soon": "Rent is due on {date}.",
+        "overdue": "Rent due on {date} is {jours, plural, one {# day} other {# days}} late.",
+        "paid": "Rent has been paid.",
+        "receipt_issued": "The rent receipt has been issued.",
+        "reminded": "A reminder was sent for rent due on {date}."
+      },
+      "maintenance": {
+        "slot_requested": "Another time was suggested for the visit.",
+        "slot_set": "Visit scheduled for {date}."
+      },
+      "property": {
+        "shared": "A property was shared."
+      },
+      "visit": {
+        "confirmed": "Viewing confirmed for {date}.",
+        "proposed": "A viewing is suggested for {date}.",
+        "rescheduled": "Another time was suggested for the viewing: {date}."
+      }
     }
   },
   "payments": {

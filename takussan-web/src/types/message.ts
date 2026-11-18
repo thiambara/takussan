@@ -109,12 +109,107 @@ export type Message = {
    * `abilities`), ou `{ indisponible: true }` s'il ne le lit pas ou s'il n'existe plus.
    */
   object?: ObjetDuMessage;
+  /**
+   * TCK-2959 — un `event` seulement : un geste de l'appelant est-il attendu (`action_for`) ? Absent ailleurs.
+   * TCK-2962 — vrai, l'événement se rend en carte (avec ses gestes) au lieu d'une ligne repliable. Il ne dit
+   * jamais que le geste est fait : c'est `object` qui le dit.
+   */
+  action_attendue?: boolean;
 };
 
 /** TCK-2958 — l'objet d'une carte ou d'un événement, tel que l'appelant le lit. */
 export type ObjetDuMessage =
   | { indisponible: true }
   | ({ id: number; abilities?: Record<string, boolean> } & Record<string, unknown>);
+
+/**
+ * TCK-2962 — les projections que `SujetsDuFil` déclare (API, TCK-2958), par type d'objet. Toute clé est
+ * FACULTATIVE : la ressource de l'objet n'en rend à un lecteur que ce qu'il lit (le demandeur d'une
+ * intervention ne reçoit ni `quote_amount` ni coût). L'écran ne lit un droit que dans `abilities`.
+ */
+export type TypeDObjetDuFil = 'maintenance_request' | 'lease' | 'booking' | 'lease_payment' | 'inventory' | 'property_visit';
+
+type Partie = { readonly id: number; readonly name?: string | null; readonly full_name?: string | null } | null;
+
+export type ProjectionIntervention = {
+  readonly id: number;
+  readonly title?: string | null;
+  readonly status?: string | null;
+  readonly category?: string | null;
+  readonly scheduled_at?: string | null;
+  readonly completed_at?: string | null;
+  readonly requester_id?: number | null;
+  readonly quote_amount?: number | null;
+  readonly quote_currency?: string | null;
+  readonly property?: { readonly id: number; readonly title?: string | null } | null;
+  readonly assignee?: Partie;
+  readonly abilities?: {
+    readonly can_decide_quote?: boolean;
+    readonly can_view_quote_pdf?: boolean;
+    readonly can_request_reschedule?: boolean;
+    readonly [geste: string]: unknown;
+  };
+};
+
+export type ProjectionEcheance = {
+  readonly id: number;
+  readonly lease_id?: number | null;
+  readonly payment_type?: string | null;
+  readonly status?: string | null;
+  readonly period_start?: string | null;
+  readonly due_date?: string | null;
+  readonly paid_at?: string | null;
+  readonly amount?: number | null;
+  readonly amount_due?: number | null;
+  readonly currency?: string | null;
+  readonly is_overdue?: boolean | null;
+  readonly abilities?: { readonly pay?: boolean; readonly remind?: boolean; readonly record_payment?: boolean };
+};
+
+export type ProjectionEtatDesLieux = {
+  readonly id: number;
+  readonly type?: string | null;
+  readonly status?: string | null;
+  readonly lease_id?: number | null;
+  readonly conducted_at?: string | null;
+  readonly tenant_signed?: boolean | null;
+  readonly owner_signed?: boolean | null;
+  readonly signed_at?: string | null;
+  readonly can_sign_as?: readonly string[] | null;
+};
+
+export type ProjectionReservation = {
+  readonly id: number;
+  readonly reference_number?: string | null;
+  readonly kind?: string | null;
+  readonly status?: string | null;
+  readonly start_date?: string | null;
+  readonly end_date?: string | null;
+  readonly property?: { readonly id: number; readonly title?: string | null } | null;
+  readonly customer?: { readonly id: number; readonly first_name?: string | null; readonly last_name?: string | null } | null;
+  readonly abilities?: { readonly confirm?: boolean; readonly reject?: boolean; readonly cancel?: boolean };
+};
+
+export type ProjectionVisite = {
+  readonly id: number;
+  readonly type?: string | null;
+  readonly status?: string | null;
+  readonly scheduled_at?: string | null;
+  readonly preferred_window?: string | null;
+  readonly property?: { readonly id: number; readonly title?: string | null } | null;
+  readonly abilities?: { readonly confirm?: boolean; readonly [geste: string]: unknown };
+};
+
+export type ProjectionBail = {
+  readonly id: number;
+  readonly reference_number?: string | null;
+  readonly status?: string | null;
+  readonly start_date?: string | null;
+  readonly end_date?: string | null;
+  readonly monthly_rent?: number | null;
+  readonly currency?: string | null;
+  readonly property?: { readonly id: number; readonly title?: string | null } | null;
+};
 
 /** TCK-2858 — `sender.role_label_code` (`FaitsDesMessages::ROLES` + `agency_admin`, `customer`). */
 export type RoleDeLAuteur = 'tenant' | 'owner' | 'service_provider' | 'agent' | 'agency_admin' | 'customer';
