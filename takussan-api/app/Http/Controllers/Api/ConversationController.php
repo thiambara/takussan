@@ -106,7 +106,9 @@ class ConversationController extends Controller
             ->withCount(['messages as unread_count' => $nonLus])
             // TCK-1389 (P135.06) — départage par `id` : deux fils de même horodatage changeaient de
             // page d'une requête à l'autre, ce que le défilement infini de la liste rend visible.
-            ->orderByDesc('last_message_at')
+            // TCK-2960 — NULLS LAST : un fil sans message (une salle pas encore ouverte à l'échange) vient
+            // après ceux qui ont parlé ; un ordre décroissant met les NULL en tête sous PostgreSQL.
+            ->orderByRaw('conversations.last_message_at DESC NULLS LAST')
             ->orderByDesc('conversations.id')
             ->paginate($this->tailleDePage($request, 20));
 
