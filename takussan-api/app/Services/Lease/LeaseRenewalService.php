@@ -15,6 +15,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
+use App\Services\Messaging\FilDeLObjet;
 use App\Services\Model\ReferenceNumberGenerator;
 use App\Services\Payments\PaymentGatewayService;
 use App\Support\ScopedSetting;
@@ -294,6 +295,16 @@ class LeaseRenewalService
         }
 
         $parent->forceFill($attributes)->save();
+
+        // TCK-2961 (ADR-0128 § 3) — le parent PASSE à `renewed` ici, et seulement ici : au renouvellement
+        // d'un enfant né en vigueur comme à l'activation d'un enfant né `pending_signature`. `LeaseRenewed`
+        // part aussi pour ce dernier, parent encore `active` : « renouvelé » y serait faux. Écrit dans la
+        // salle du PARENT, après le COMMIT (une transaction annulée n'écrit rien) ; le nouveau bail a la
+        // sienne (TCK-2960).
+        app(FilDeLObjet::class)->parler($parent, 'lease.renewed', [
+            'renewed_lease_id' => (int) $child->getKey(),
+            'start_date' => $startDate->toDateString(),
+        ]);
 
         if ($cancelled !== []) {
             activity('Lease')

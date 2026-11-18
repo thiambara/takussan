@@ -135,4 +135,109 @@ s'y brancher, ne pas créer d'événement Laravel là où il en existe un.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure (2026-11-18, arbre `feat/le-fil`, après TCK-2960 `48759ff99`)
+
+- **`maintenance.slot_requested`, clé `slots`** : le ticket demande « les instants proposés », une LISTE ;
+  `EvenementsDuFil` refuse toute valeur non scalaire (garde de TCK-2958, laissée telle quelle). `slots` porte
+  le NOMBRE d'instants (comme la notification `maintenance.reschedule_requested`) ; le front (TCK-2962) ne lit
+  pas la clé. Les instants restent dans la `MaintenanceRescheduleRequest`.
+- **`lease.renewed`** : `LeaseRenewed` part AUSSI pour un enfant né `pending_signature`, parent encore `active`
+  (VERIF-596 passe 5) ; la relève à l'activation (`completeHandOver`) n'émet rien. Un écouteur de
+  `LeaseRenewed` aurait écrit « renouvelé » à tort dans le premier cas et rien dans le second. L'écriture est
+  donc posée dans `LeaseRenewalService::handOver()`, le SEUL point où le parent passe à `renewed` (les deux
+  chemins), après le COMMIT. Pas d'écouteur de `LeaseRenewed`.
+- **Quittance en ligne** : `paid` et `receipt_issued` sont écrits par UN écouteur neuf
+  (`EcritLePaiementEnLigneDansLeFil`), dans cet ordre, et non `receipt_issued` dans
+  `SendRentReceiptAfterOnlinePayment` : deux écouteurs du même événement n'ont pas d'ordre garanti
+  (découverte automatique). La quittance est servie pour toute échéance `paid` hors `deposit_refund`
+  (`DocumentPdfController`, `PublicPaymentLinkController`), que `markPaid` refuse déjà.
+- **`LeasePaymentReminderController@store`** → écriture dans le contrôleur ; **`MaintenanceRescheduleRequestController@store`**
+  → écriture dans `RescheduleRequests::request()` (le contrôleur n'y fait qu'un appel), avec les MÊMES
+  destinataires que l'avis (méthode `recipients()` extraite, partagée).
+- **`visit.rescheduled`** : `rescheduleOrFail` n'a qu'un appelant, le report du VISITEUR
+  (`PropertyVisitController::reschedule`). Geste attendu = la garde de `confirm` : `update` ET
+  `PropertyVisitPolicy::peutConfirmer`. Pas de capacité `confirm` dans la politique.
+- **`quote_awaiting_owner`** : le fil d'intervention s'ouvre avec celui qui assigne, le prestataire et le
+  demandeur (`SyncMaintenanceConversation::open`). Quand l'AGENCE assigne, le bailleur n'est PAS participant :
+  `action_for` filtré est vide — **mesuré** par `test_devis_au_dela_du_plafond_sans_le_bailleur_au_fil_n_attend_personne`
+  (et `[bailleur]` quand c'est lui qui a assigné, test voisin). Non corrigé : ajouter le bailleur au fil sort
+  du ticket.
+- **`markPaid`** solde aussi caution et charges ; le texte front dit « Le loyer a été payé » (TCK-2962). Le code
+  reste `lease_payment.paid` (le catalogue est par type d'objet) ; `method` est l'enum `PaymentMethod`
+  (`Rule::enum`), jamais une saisie libre.
+- Transactions englobantes : `BookingService::confirm` est appelé DANS celle de
+  `BookingCounterOfferService::accept` ; `confirmOrFail`, `rescheduleOrFail`, `InventoryService::submit` et
+  `handOver` écrivent sous leur verrou. D'où `DB::afterCommit` dans l'unique point d'écriture.
+
+### Choix
+
+- **`App\Services\Messaging\FilDeLObjet`** : `filDe()` résout le fil SANS le créer (`SallesDuFil::salleDe`
+  pour échéance, état des lieux et bail ; salle de réservation puis `synchroniser` ; `MaintenanceRequest::conversation()` ;
+  `PropertyConversationResolver::findExisting` pour la visite, visiteur ou compte de la fiche client).
+  `parler()` refuse tout de suite un code ou une clé hors catalogue (erreur de programme), puis écrit dans
+  `DB::afterCommit` (immédiat hors transaction), sous `try` + `report()` : un fil absent ne fait rien, un échec
+  ne remonte jamais au geste, et une erreur SQL ne peut pas abandonner la transaction du geste (piège PostgreSQL n° 1).
+- **`action_for`** : un prédicat jugé, après le COMMIT, pour chaque participant actif du fil
+  (`FilDeLObjet::participantsQui`) — locataire du bail (payer), `canSignAs` + signature manquante (signer),
+  `decideQuote` (devis), destinataires de l'avis de report (créneau), `update` + `peutConfirmer` (visite).
+- Écouteurs `ShouldHandleEventsAfterCommit` : `EcritLePaiementEnLigneDansLeFil`, `EcritLePreavisDansLeFil`
+  (l'événement n'est pas `ShouldDispatchAfterCommit`), `EcritLeCreneauDansLeFil`. Le job de relance écrit sur
+  l'échéance de TÊTE de chaque groupe que `claim()` rend : le marqueur par jalon (sous verrou) garantit
+  l'écriture unique.
+- **Règle du dernier événement (consigne de la session)** : jugée à la lecture, `metadata` restant immuable.
+  `NonLus::gesteToujoursAttendu()` = un `event` dont `action_for` contient le lecteur ET sans `event`
+  POSTÉRIEUR (`id` plus grand : `created_at` est à la seconde), même fil, même `metadata->'object'` (égalité
+  `jsonb`), dont `action_for` contient CE MÊME lecteur. **Par lecteur**, pas « tout `action_for` non vide »
+  (écart à la lettre de la consigne, qui disait « le dernier événement porteur d'un geste ») : sinon le
+  prestataire attendu sur `slot_requested` perdrait ce geste dès qu'un `quote_submitted` postérieur n'attend
+  que qui décide du devis. Revers assumé : deux gestes DIFFÉRENTS d'un même objet attendus du même lecteur
+  se périment (le bailleur, attendu sur `slot_requested` puis sur `quote_submitted`, ne compte que le second). Branche `event` de `NonLus::comptentPour` (liste, `unread_total`, `markAsUnread`) ; et
+  `action_attendue` : `NonLus::attendusParmi()`, UNE requête par page (`MessageResource::page`), une par message
+  rendu seul. Conséquence assumée : un `paid` (sans geste) ne périme pas un `overdue` non lu.
+
+### Mesures (2026-11-18, `load average` 1,4 à 2,1 sur 8 cœurs)
+
+- `tests/Feature/Messaging/EvenementsDesObjetsTest.php` : **28 verts** — une ligne du tableau par test (code,
+  objet, fil, `data`, `action_for`), les deux chemins du paiement, la relance écrite une fois sur deux passages,
+  l'annulation (préavis, renouvellement) ET l'absence avant le COMMIT, le renouvellement `pending_signature`
+  (rien) puis activé (écrit), `quote_awaiting_owner` dans ses deux cas, l'état des lieux sans aucune signature
+  (locataire et bailleur attendus), les trois cas sans fil (AC5), la
+  transmission de la salle de réservation, la règle du dernier (par lecteur, par objet, et `action_attendue`).
+- Sans modification, verts : `EvenementsDuFilTest`, `CodesDuFilArchitectureTest` (AC7 : parcourt les codes
+  neufs sans retouche), `NonLusDesEvenementsTest`, `MaintenanceConversationTest`, `RelectureDesObjetsTest`
+  (comptes de requêtes stricts), `LeasePaymentReminderTest` — 56 ; `BookingConfirmedChannelsTest`,
+  `LeaseEarlyTerminationEndpointTest`, `LeaseRenewalEndpointTest`, `LeaseRenewalFrozenContractTest`,
+  `LeaseRenewalOverlapTest`, `PropertyVisitRescheduleTest`, `MaintenanceRescheduleRequestTest`,
+  `EarlyTerminationServiceTest`, `LeaseRenewalScheduleTest`, `LeaseRenewalServiceTest`,
+  `VisitConfirmedChannelsTest`, `MergedReminderPayLinkTest`, `RelanceLoyerSmsRefuseeTest`,
+  `NextDueNoticeDateTest` — 95 ; `InventoryTest`, `InventoryAbilitiesTest`, `BookingTest`,
+  `PaymentCheckoutOverrideTest`, `LeaseDuplicateRefundTest`, `FilDeLInterventionParLaRelationTest`,
+  `MessagerieEnDirectTest`, `GroupeDeBailParticipantsTest`, `GroupConversationCreationTest` — 94.
+- Gardes : `RessourceUniqueResolueTest`, `ExistsSurTableASuppressionDouceTest`, `AgencyIdIsIndexedTest`,
+  `EventListenerDuplicationTest`, `EcritureDeMessageUniqueTest`, `DateInventoryByValueTest` verts. Pint propre.
+  Gardes racine : seules les sept des maquettes du playground rougissent, et ne citent que `playground/maquettes`.
+
+### Ablations (une à une, `--filter`, restauration par `cp` prouvée par md5)
+
+| AC | Mutation | Résultat |
+|---|---|---|
+| AC2 | job : `parler` sans prédicat (`action_for` vide) | `echeance_a_j_moins_3…` et `retard…` rouges |
+| AC4 | `markPaid` sans `parlerDuPaiement` | chemin à la main rouge, chemin en ligne VERT |
+| AC1 | écouteur du paiement en ligne débranché | sa seule ligne rouge (1/22) |
+| AC1 | écouteur du préavis débranché | ses deux lignes rouges (2/22) |
+| AC1 | écouteur du créneau débranché | sa seule ligne rouge (1/22) |
+| AC6 | `DB::afterCommit` → appel immédiat | `renouvellement_n_ecrit_qu_apres_le_commit` rouge ; les deux « annulée » VERTES (un message écrit dans la transaction s'annule avec elle : d'où le test « avant le COMMIT ») ; le préavis reste vert, couvert par `ShouldHandleEventsAfterCommit` de son écouteur |
+| AC6 | écouteur du préavis sans `ShouldHandleEventsAfterCommit` | vert : couvert par `DB::afterCommit` — deux protections, chacune suffit |
+| dernier | `NOT EXISTS` neutralisé | `seul_le_dernier…` rouge |
+| dernier | `action_attendue` sans la règle (`\|\|`) | `seul_le_dernier…` rouge |
+| dernier | règle globale (`action_for` non vide) | `par_lecteur_et_par_objet` rouge |
+| dernier | sans l'égalité d'objet | `par_lecteur_et_par_objet` rouge |
+| AC3 | `gesteAttendu` → `[]` | `devis_soumis…` rouge |
+| salle | réservation sans `synchroniser` | `…transmet_d_abord_la_salle…` rouge |
+| état des lieux | signature du locataire ignorée | `…attend_les_signatures_manquantes` rouge, le cas nominal vert |
+| renouvellement | pas d'écriture dans `handOver` | les trois tests de renouvellement qui écrivent rouges (dont l'activation) |
+
+Paiement en ligne : `method` est le moyen ESTAMPILLÉ par la passerelle à l'ouverture du checkout
+(`PaymentGatewayService`, « Stamp the payment_method field »), relu après le COMMIT ; le test lit celui de la
+factory.
+

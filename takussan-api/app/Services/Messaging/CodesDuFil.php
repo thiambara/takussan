@@ -50,6 +50,24 @@ final class CodesDuFil
         'maintenance.confirmed' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
         'maintenance.contested' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
         'maintenance.auto_closed' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
+
+        // TCK-2961 (ADR-0128 § 3) — les objets parlent dans leur fil ({@see FilDeLObjet}). Des dates, des
+        // codes et des identifiants : le montant d'une échéance se relit par sa projection, pour le lecteur.
+        'lease_payment.due_soon' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['due_date']],
+        'lease_payment.overdue' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['due_date', 'days_late']],
+        'lease_payment.reminded' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['due_date']],
+        // `method` : le CODE du moyen (`PaymentMethod`), jamais un numéro ni un nom.
+        'lease_payment.paid' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['method']],
+        'lease_payment.receipt_issued' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => []],
+        'lease.notice_given' => ['objet' => 'lease', 'nature' => self::NATURE_EVENEMENT, 'data' => ['effective_date']],
+        'lease.renewed' => ['objet' => 'lease', 'nature' => self::NATURE_EVENEMENT, 'data' => ['renewed_lease_id', 'start_date']],
+        'inventory.awaiting_signature' => ['objet' => 'inventory', 'nature' => self::NATURE_EVENEMENT, 'data' => ['type']],
+        // `slots` : le NOMBRE d'instants proposés (une valeur simple ; la liste est dans la demande de report).
+        'maintenance.slot_requested' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => ['slots']],
+        'maintenance.slot_set' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at']],
+        'visit.confirmed' => ['objet' => 'property_visit', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at']],
+        'visit.rescheduled' => ['objet' => 'property_visit', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at']],
+        'booking.confirmed' => ['objet' => 'booking', 'nature' => self::NATURE_EVENEMENT, 'data' => []],
     ];
 
     /** @return array<string, array{objet: string, nature: string, data: list<string>}> le catalogue entier */

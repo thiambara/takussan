@@ -12,6 +12,8 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
+use App\Services\Messaging\FilDeLObjet;
+use App\Services\Model\LeasePaymentService;
 use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
@@ -78,6 +80,8 @@ class SendLeasePaymentReminders implements ShouldQueue
     {
         foreach ($this->claim(now()->addDays(self::DUE_SOON_DAYS), 'due_soon') as $dues) {
             $payment = $dues[0];
+            // TCK-2961 — l'échéance parle dans la salle du bail, sous le même marqueur que la relance.
+            self::parlerDansLeFil($payment, 'lease_payment.due_soon', ['due_date' => $payment->due_date?->toDateString()]);
             $this->notifyTenant($notifications, $dues, NotificationCode::LeasePaymentDueSoon, [
                 'amount' => $this->remaining($dues, $this->payableAmount(...)),
                 'due_date' => $payment->due_date?->toDateString(),
@@ -102,6 +106,8 @@ class SendLeasePaymentReminders implements ShouldQueue
                 // l'agence l'encaisse en ligne ; le bailleur et l'agent lisent le solde de l'échéance.
                 $amount = $this->remaining($dues, $this->dueAmount(...));
                 $detail = $this->detail($dues, $this->dueAmount(...));
+                // TCK-2961 — une fois par jalon : `claim()` ne rend l'échéance qu'à son premier passage.
+                self::parlerDansLeFil($payment, 'lease_payment.overdue', ['due_date' => $payment->due_date->toDateString(), 'days_late' => $days]);
 
                 $this->notifyTenant($notifications, $dues, NotificationCode::LeasePaymentOverdue, [
                     'amount' => $this->remaining($dues, $this->payableAmount(...)),
@@ -370,6 +376,17 @@ class SendLeasePaymentReminders implements ShouldQueue
             'lease_payment_id' => $payment->id,
             'code' => $code->value,
         ]);
+    }
+
+    /**
+     * TCK-2961 (ADR-0128 § 3) — l'échéance de tête du groupe parle dans la salle de son bail ; le geste
+     * attendu (payer) est celui du locataire. Rien sans salle ; un échec n'arrête pas la relance.
+     *
+     * @param  array<string, scalar|null>  $data
+     */
+    private static function parlerDansLeFil(LeasePayment $payment, string $code, array $data): void
+    {
+        app(FilDeLObjet::class)->parler($payment, $code, $data, LeasePaymentService::locataireDe($payment));
     }
 
     private static function agenceDuBail(?Lease $lease): ?int

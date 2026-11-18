@@ -8,6 +8,7 @@ use App\Models\Message;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Messaging\EvenementsDuFil;
 use App\Services\Messaging\FaitsDesMessages;
+use App\Services\Messaging\NonLus;
 use App\Services\Messaging\ObjetsDesMessages;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -54,6 +55,23 @@ class MessageResource extends BaseResource
     }
 
     /**
+     * TCK-2961 — les `event` de la page qui attendent ENCORE le lecteur ({@see NonLus::attendusParmi()} :
+     * le dernier qui l'attend, par objet et par fil), calculés une fois pour la page. Absents (message
+     * rendu seul) : une requête pour ce message.
+     *
+     * @var array<int, true>|null
+     */
+    private ?array $attendus = null;
+
+    /** @param  array<int, true>|null  $attendus */
+    public function avecAttendus(?array $attendus): static
+    {
+        $this->attendus = $attendus;
+
+        return $this;
+    }
+
+    /**
      * TCK-2858 — une page de messages d'UN fil, avec les faits de ce fil.
      * TCK-2958 — et les objets de ses cartes et événements, relus pour le lecteur.
      *
@@ -62,8 +80,15 @@ class MessageResource extends BaseResource
      */
     public static function page(Collection $messages, FaitsDesMessages $faits, Request $request, ?ObjetsDesMessages $objets = null): array
     {
+        // TCK-2961 — une requête pour les événements de la page, jamais une par message.
+        $lecteur = $request->user();
+        $attendus = $lecteur === null ? [] : NonLus::attendusParmi(
+            $messages->filter(fn (Message $m) => $m->type === MessageType::Event && EvenementsDuFil::actionAttenduePar($m, $lecteur))->map(fn (Message $m) => (int) $m->getKey()),
+            $lecteur,
+        );
+
         return $messages
-            ->map(fn (Message $message) => self::make($message)->avecFaits($faits)->avecObjets($objets)->resolve($request))
+            ->map(fn (Message $message) => self::make($message)->avecFaits($faits)->avecObjets($objets)->avecAttendus($attendus)->resolve($request))
             ->values()
             ->all();
     }
@@ -93,7 +118,9 @@ class MessageResource extends BaseResource
             'metadata' => EvenementsDuFil::metadataRendu($this->metadata),
             'action_attendue' => $this->when(
                 $this->resource->type === MessageType::Event,
-                fn (): bool => EvenementsDuFil::actionAttenduePar($this->resource, $request->user()),
+                // TCK-2961 — et pas dépassé par un événement postérieur du même objet qui l'attend aussi.
+                fn (): bool => EvenementsDuFil::actionAttenduePar($this->resource, $request->user())
+                    && isset(($this->attendus ?? NonLus::attendusParmi([(int) $this->resource->getKey()], $request->user()))[(int) $this->resource->getKey()]),
             ),
             // TCK-2958 (ADR-0128 § 3) — l'objet d'une carte ou d'un événement, RELU pour le lecteur : sa
             // projection (avec ses `abilities`) s'il le lit, sinon `{indisponible: true}` sans autre clé.

@@ -8,6 +8,7 @@ use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Services\Messaging\CodesDuFil;
 use App\Services\Messaging\EvenementsDuFil;
+use App\Services\Messaging\FilDeLObjet;
 use App\Services\Messaging\GroupConversationService;
 
 /**
@@ -64,7 +65,23 @@ class SyncMaintenanceConversation
                 ? $mr->assignee
                 : User::query()->find($event->context['previous_assignee_id'] ?? $mr->assigned_to)),
             'actor_name' => $event->actor?->nameWithoutContact(),
-        ]);
+        ], $this->gesteAttendu($conversation, $mr, $event->cause));
+    }
+
+    /**
+     * TCK-2961 (ADR-0128 § 5) — un devis soumis, ou remonté au bailleur, attend une décision : celle
+     * des participants actifs que `MaintenanceRequestPolicy::decideQuote` autorise, jugée sur la demande
+     * relue. Les autres avis gardent `action_for` vide (TCK-2958).
+     *
+     * @return list<User>
+     */
+    private function gesteAttendu(Conversation $conversation, MaintenanceRequest $mr, string $cause): array
+    {
+        if (! in_array($cause, [MaintenanceStatusChanged::CAUSE_QUOTE_SUBMITTED, MaintenanceStatusChanged::CAUSE_QUOTE_AWAITING_OWNER], true)) {
+            return [];
+        }
+
+        return FilDeLObjet::participantsQui($conversation, fn (User $participant): bool => $participant->can('decideQuote', $mr));
     }
 
     private function open(MaintenanceRequest $mr, ?User $actor): Conversation
