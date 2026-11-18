@@ -513,6 +513,10 @@ return [
     ],
     'messaging' => [
         'admin_only' => 'Only an admin can perform this action.',
+        // TCK-2965 (ADR-0128 § 6) — la note d'équipe refusée en 422 (`ConversationWriter`).
+        'team_note_not_staff' => 'Only the staff of this conversation\'s agency can write a team note.',
+        'team_note_no_agency' => 'This conversation is not linked to any agency: it cannot hold a team note.',
+        'team_note_type' => 'A team note can only be a text, a voice note or an attachment.',
     ],
     'moderation' => [
         'item_id_invalid' => 'Invalid moderation item.',

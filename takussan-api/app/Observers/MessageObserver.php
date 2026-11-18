@@ -15,6 +15,12 @@ class MessageObserver
      */
     public function created(Message $message): void
     {
+        // TCK-2965 (ADR-0128 § 6) — une note d'équipe ne touche jamais l'aperçu commun : ni
+        // `last_message_id`, ni `last_message_preview`, ni `last_message_at` (ni donc l'ordre de la liste).
+        if ($message->estUneNote()) {
+            return;
+        }
+
         $preview = mb_strimwidth(strip_tags((string) $message->content), 0, 120, '…');
 
         $message->conversation()->update([

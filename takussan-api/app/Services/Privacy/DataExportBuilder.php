@@ -192,9 +192,12 @@ class DataExportBuilder
             ],
             // TCK-2959 (ADR-0128 § 5) — sans `action_for` : la liste des AUTRES comptes dont un geste est
             // attendu ne sort pas plus par l'archive que par le fil.
+            // TCK-2965 (ADR-0128 § 6) — ses notes d'équipe à lui, jamais celles des autres : le client n'en
+            // reçoit aucune. La règle d'auteur est groupée sous le `where` de l'export
+            // (`ConversationAccess::messagesExportablesDe`).
             'messages.json' => Message::query()
-                ->where('sender_id', $user->id)
-                ->orWhereIn('conversation_id', $conversationIds)
+                ->where(fn ($q) => $q->where('sender_id', $user->id)->orWhereIn('conversation_id', $conversationIds))
+                ->tap(fn ($q) => app(ConversationAccess::class)->messagesExportablesDe($user, $q))
                 ->get()
                 ->map(fn (Message $message) => array_replace($message->toArray(), ['metadata' => EvenementsDuFil::metadataRendu($message->metadata)]))
                 ->all(),

@@ -513,6 +513,10 @@ return [
     ],
     'messaging' => [
         'admin_only' => 'Admin rekk moo mën def lii.',
+        // TCK-2965 (ADR-0128 § 6) — la note d'équipe refusée en 422 (`ConversationWriter`).
+        'team_note_not_staff' => "Seul le personnel de l'agence de cette conversation peut écrire une note d'équipe.",
+        'team_note_no_agency' => "Cette conversation n'est rattachée à aucune agence : elle ne peut pas porter de note d'équipe.",
+        'team_note_type' => "Une note d'équipe ne peut être qu'un texte, une note vocale ou une pièce jointe.",
     ],
     'moderation' => [
         'item_id_invalid' => 'Élément modération bi baaxul.',

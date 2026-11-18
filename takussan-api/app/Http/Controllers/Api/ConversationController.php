@@ -61,7 +61,10 @@ class ConversationController extends Controller
         // TCK-2959 (ADR-0128 § 5) — « quels messages comptent » est défini UNE fois, dans `NonLus`
         // (que `markAsUnread` appelle aussi) : un `event` ne compte que pour qui figure dans son
         // `action_for`. Le curseur de lecture, lui, reste ici.
+        // TCK-2965 (ADR-0128 § 6) — une note d'équipe ne compte que pour qui la lit
+        // (`ConversationAccess::messagesLisiblesPar`) : ni `unread_count`, ni `unread_total`, ni la puce.
         $nonLus = function ($q) use ($user) {
+            app(ConversationAccess::class)->messagesLisiblesPar($user, $q);
             NonLus::comptentPour($q, $user)
                 ->whereExists(fn ($p) => $p->selectRaw('1')
                     ->from('conversation_participants as lecteur')
@@ -389,9 +392,11 @@ class ConversationController extends Controller
         $data = $request->validated();
 
         $perPage = (int) ($data['per_page'] ?? 30);
+        $access = app(ConversationAccess::class);
 
         if (isset($data['after_id'])) {
-            $messages = $conversation->messages()
+            // TCK-2965 (ADR-0128 § 6) — les notes d'équipe, pour qui les lit seulement : dans la requête.
+            $messages = $access->messagesLisiblesPar($request->user(), $conversation->messages(), $conversation)
                 ->where('id', '>', (int) $data['after_id'])
                 ->oldest()
                 ->orderBy('id')
@@ -416,7 +421,9 @@ class ConversationController extends Controller
         // messages de la même seconde revenaient dans un ordre quelconque sous PostgreSQL — mesuré :
         // `ConversationMessagesPaginationTest::test_initial_load…` rouge, selon les classes jouées
         // avant lui. Le curseur (`before_id`, `after_id`) est un `id` : le départage suit le curseur.
-        $query = $conversation->messages()->latest()->orderByDesc('id');
+        // TCK-2965 (ADR-0128 § 6) — le filtre est dans la requête : une note sautée chez un client ne fait
+        // ni page courte ni `has_more` faux.
+        $query = $access->messagesLisiblesPar($request->user(), $conversation->messages(), $conversation)->latest()->orderByDesc('id');
         if (isset($data['before_id'])) {
             $query->where('id', '<', (int) $data['before_id']);
         }
@@ -458,6 +465,8 @@ class ConversationController extends Controller
             'content' => $isAudio ? __('messaging.audio_preview') : ($data['content'] ?? ''),
             'type' => $data['type'] ?? MessageType::Text->value,
             'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
+            // TCK-2965 (ADR-0128 § 6) — `team` : une note d'équipe, jugée par le service.
+            'visibility' => $data['visibility'] ?? null,
         ], function (Message $message) use ($audio, $piece): void {
             if ($audio !== null) {
                 $message->addMedia($audio)->toMediaCollection('attachments');
@@ -546,6 +555,8 @@ class ConversationController extends Controller
             ->where('conversation_id', $conversation->id)
             // TCK-2959 — la définition de `index()`, et non plus sa copie.
             ->tap(fn ($q) => NonLus::comptentPour($q, $user))
+            // TCK-2965 — le dernier message LISIBLE : une note ne recule pas la lecture d'un client.
+            ->tap(fn ($q) => app(ConversationAccess::class)->messagesLisiblesPar($user, $q, $conversation))
             ->max('messages.created_at');
 
         $lecture = $conversation->participants()->where('users.id', $user->id)->first()?->pivot?->last_read_at;

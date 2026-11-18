@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\AuthorizesTransitionally;
 use App\Models\Enums\MessageType;
+use App\Models\Enums\MessageVisibility;
 use App\Rules\FichierNonVide;
 use App\Rules\PixelsAuPlus;
 use App\Services\Messaging\ConversationAccess;
@@ -85,6 +86,9 @@ class SendMessageConversationRequest extends BaseFormRequest
         return [
             'content' => ['required_unless:type,audio,'.$attachmentTypes, 'nullable', 'string', 'max:5000'],
             'type' => ['nullable', Rule::in(array_map(static fn (MessageType $t): string => $t->value, self::PARTICIPANT_TYPES))],
+            // TCK-2965 (ADR-0128 § 6) — `team` : une note d'équipe. Qui peut l'écrire, et dans quel fil, se
+            // juge dans `ConversationWriter` (422 `messaging.team_note_*`), le point d'écriture unique.
+            'visibility' => ['nullable', Rule::enum(MessageVisibility::class)],
             'audio' => [
                 'required_if:type,audio', 'prohibited_unless:type,audio',
                 ...VoiceNoteRules::file(),

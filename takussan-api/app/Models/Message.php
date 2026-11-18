@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\MessageType;
+use App\Models\Enums\MessageVisibility;
 use App\Services\Messaging\ConversationAccess;
+use App\Services\Messaging\EquipeDuFil;
 use App\Support\TempsReel\CodeDeSignal;
 use App\Support\TempsReel\EmetDesSignaux;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,14 +25,30 @@ class Message extends AbstractModel implements HasMedia
     /** TCK-2631 — largeur de la vignette d'une photo jointe (celle des photos d'intervention). */
     public const THUMBNAIL_WIDTH = 400;
 
+    // TCK-2965 (ADR-0128 § 6) — `visibility` : `all` ou `team` (la note d'équipe).
     protected $fillable = [
-        'conversation_id', 'sender_id', 'content', 'type', 'metadata',
+        'conversation_id', 'sender_id', 'content', 'type', 'metadata', 'visibility',
     ];
 
     protected $casts = [
         'type' => MessageType::class,
         'metadata' => 'array',
+        'visibility' => MessageVisibility::class,
     ];
+
+    /**
+     * TCK-2965 — le défaut de la colonne, porté aussi par le modèle : un message créé ne relit pas sa
+     * ligne, et l'observateur, les signaux et la réponse de l'envoi liraient `null` sans lui.
+     */
+    protected $attributes = [
+        'visibility' => 'all',
+    ];
+
+    /** TCK-2965 — une note d'équipe, que seul le personnel du fil lit ({@see EquipeDuFil}). */
+    public function estUneNote(): bool
+    {
+        return $this->visibility === MessageVisibility::Team;
+    }
 
     /**
      * TCK-2955 (ADR-0129 § 2) — un message écrit, modifié, supprimé ou restauré le signale sur le fil
@@ -38,6 +56,11 @@ class Message extends AbstractModel implements HasMedia
      * ({@see ConversationAccess::idsDesParticipantsActifs()}). Au niveau du modèle : les trois écrivains
      * (`ConversationWriter`, le contact public d'une annonce, `SystemMessageFactory`) et `EvenementsDuFil`
      * émettent sans y penser.
+     *
+     * TCK-2965 (ADR-0128 § 6) — une NOTE D'ÉQUIPE n'émet RIEN sur le canal du fil, que tout abonné du fil
+     * reçoit : ses signaux partent vers le seul canal personnel (`utilisateur.{id}`) de ceux qui la lisent
+     * ({@see EquipeDuFil::idsDesLecteursDesNotes()}). Le sujet reste le fil (le `subject` du signal) ; seul
+     * le canal change. Un message `all` garde ses deux signaux d'avant.
      */
     protected static function signauxTempsReel(): array
     {
@@ -45,14 +68,25 @@ class Message extends AbstractModel implements HasMedia
         // relation posée sur le modèle (qu'une sérialisation emporterait).
         $fil = fn (self $m): ?Conversation => $m->conversation_id === null ? null
             : (new Conversation)->setRawAttributes(['id' => (int) $m->conversation_id], true);
-        $actifs = fn (self $m): array => ConversationAccess::idsDesParticipantsActifs((int) $m->conversation_id);
-        $modifie = [[CodeDeSignal::MessageUpdated, $fil], [CodeDeSignal::BoiteUpdated, $fil, 'a' => $actifs]];
+        // TCK-2965 — le canal du fil, pour un message `all` seulement.
+        $filPublic = fn (self $m): ?Conversation => $m->estUneNote() ? null : $fil($m);
+        $lecteursDeLaNote = fn (self $m): array => $m->estUneNote() && $m->conversation_id !== null
+            ? EquipeDuFil::idsDesLecteursDesNotes((int) $m->conversation_id)
+            : [];
+        $boites = fn (self $m): array => $m->estUneNote()
+            ? $lecteursDeLaNote($m)
+            : ConversationAccess::idsDesParticipantsActifs((int) $m->conversation_id);
+        $signaux = fn (CodeDeSignal $code): array => [
+            [$code, $filPublic],
+            [$code, $fil, 'a' => $lecteursDeLaNote],
+            [CodeDeSignal::BoiteUpdated, $fil, 'a' => $boites],
+        ];
 
         return [
-            'created' => [[CodeDeSignal::MessageCreated, $fil], [CodeDeSignal::BoiteUpdated, $fil, 'a' => $actifs]],
-            'updated' => $modifie,
-            'deleted' => $modifie,
-            'restored' => $modifie,
+            'created' => $signaux(CodeDeSignal::MessageCreated),
+            'updated' => $signaux(CodeDeSignal::MessageUpdated),
+            'deleted' => $signaux(CodeDeSignal::MessageUpdated),
+            'restored' => $signaux(CodeDeSignal::MessageUpdated),
         ];
     }
 
@@ -64,6 +98,11 @@ class Message extends AbstractModel implements HasMedia
             'sender_id' => $this->sender_id,
             'conversation_id' => $this->conversation_id,
             'created_at' => $this->created_at?->timestamp,
+            // TCK-2965 (ADR-0128 § 6) — filtrable : `MessageSearchService` écarte les notes d'équipe DANS le
+            // moteur. Un document indexé avant cette clé n'a pas de `visibility` : aucune branche du filtre
+            // ne le laisse passer (fermé par défaut) jusqu'à la réimportation que joue `docker/release.sh`. Sans
+            // repli : une valeur absente reste absente, jamais `all`.
+            'visibility' => $this->visibility?->value,
         ];
     }
 

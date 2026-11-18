@@ -6,6 +6,7 @@ use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Models\Message;
 use App\Services\Messaging\ConversationAccess;
+use App\Services\Messaging\EquipeDuFil;
 use App\Services\Model\NotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -49,6 +50,16 @@ class NotifyNewMessageJob implements ShouldQueue
             // à l'ancien répondant d'un fil de prospect, qui n'est plus le contact principal.
             ->filter(fn ($recipient) => app(ConversationAccess::class)->branchesAllow($recipient, $message->conversation))
             ->values();
+
+        // TCK-2965 (ADR-0128 § 6) — une note d'équipe ne notifie que ceux qui la lisent (personnel actif de
+        // l'agence du fil, jugé en tiers), par TOUS les canaux de `NotificationService` : le filtre est en
+        // amont de l'envoi, l'application, le courriel, WhatsApp et le SMS ne reçoivent que ces destinataires.
+        if ($message->estUneNote()) {
+            $agence = EquipeDuFil::agence($message->conversation);
+            $recipients = $recipients
+                ->filter(fn ($recipient) => EquipeDuFil::tiersLitLesNotes($recipient, $message->conversation, $agence))
+                ->values();
+        }
 
         if ($recipients->isEmpty()) {
             return;

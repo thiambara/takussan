@@ -27,6 +27,11 @@ use Carbon\CarbonInterface;
  *    `agent` devient `agency_admin` quand la personne est administratrice active d'une agence du fil ;
  *    sans relation, `customer` si l'appelant est du personnel d'une agence du fil où la personne a une
  *    fiche CRM, sinon `null`. Les anciens membres (partis du groupe) gardent le rôle de leurs messages.
+ *
+ * TCK-2965 (ADR-0128 § 6) — sur une NOTE D'ÉQUIPE, l'accusé ne compte que les autres participants qui
+ * la lisent ({@see EquipeDuFil::tiersLitLesNotes()}) : aucun fait n'est calculé sur la lecture d'un
+ * client, qui ne la voit pas. Une directe dont l'autre ne lit pas la note n'affirme rien (`null`). Le
+ * calcul se fait au premier message `team` de la page, une fois.
  */
 final class FaitsDesMessages
 {
@@ -38,14 +43,26 @@ final class FaitsDesMessages
     ];
 
     /**
+    /**
+     * TCK-2965 — les `last_read_at` des seuls autres participants retenus qui lisent les notes, calculés
+     * au premier message `team` ; `null` tant qu'aucun ne l'a demandé.
+     *
+     * @var list<CarbonInterface|null>|null
+     */
+    private ?array $lecturesDesLecteursDeNotes = null;
+
+    /**
      * @param  list<CarbonInterface|null>  $lecturesDesAutres  `last_read_at` des autres participants retenus
      * @param  array<int, string>  $roles  user_id → code
+     * @param  list<User>  $autresRetenus  TCK-2965 — les participants dont la lecture fait l'accusé
      */
     private function __construct(
         private readonly int $lecteurId,
         private readonly bool $direct,
         private readonly array $lecturesDesAutres,
         private readonly array $roles,
+        private readonly ?Conversation $fil = null,
+        private readonly array $autresRetenus = [],
     ) {}
 
     public static function pour(User $lecteur, Conversation $fil): self
@@ -69,7 +86,32 @@ final class FaitsDesMessages
             $direct,
             $lectures,
             $direct ? [] : self::roles($lecteur, $fil, $tous->all()),
+            $fil,
+            $lectures === [] ? [] : $autres->values()->all(),
         );
+    }
+
+    /**
+     * TCK-2965 — les lectures qui font l'accusé de `$message` : toutes pour un message `all`, celles des
+     * lecteurs de notes pour une note d'équipe.
+     *
+     * @return list<CarbonInterface|null>
+     */
+    private function lecturesPour(Message $message): array
+    {
+        if (! $message->estUneNote()) {
+            return $this->lecturesDesAutres;
+        }
+
+        if ($this->lecturesDesLecteursDeNotes === null) {
+            $agence = $this->fil === null ? null : EquipeDuFil::agence($this->fil);
+            $this->lecturesDesLecteursDeNotes = $agence === null ? [] : array_values(array_map(
+                fn (User $u) => $u->pivot->last_read_at,
+                array_filter($this->autresRetenus, fn (User $u) => EquipeDuFil::tiersLitLesNotes($u, $this->fil, $agence)),
+            ));
+        }
+
+        return $this->lecturesDesLecteursDeNotes;
     }
 
     public function luParLeDestinataire(Message $message): ?bool
@@ -77,7 +119,12 @@ final class FaitsDesMessages
         if (! $this->direct || (int) $message->sender_id !== $this->lecteurId) {
             return null;
         }
-        $lu = $this->lecturesDesAutres[0] ?? null;
+        // TCK-2965 — une note que l'autre ne lit pas n'a pas d'accusé.
+        $lectures = $this->lecturesPour($message);
+        if ($message->estUneNote() && $lectures === []) {
+            return null;
+        }
+        $lu = $lectures[0] ?? null;
 
         return $lu !== null && $message->created_at !== null && $lu->gte($message->created_at);
     }
@@ -89,7 +136,7 @@ final class FaitsDesMessages
         }
 
         return count(array_filter(
-            $this->lecturesDesAutres,
+            $this->lecturesPour($message),
             fn (?CarbonInterface $lu) => $lu !== null && $lu->gte($message->created_at),
         ));
     }
