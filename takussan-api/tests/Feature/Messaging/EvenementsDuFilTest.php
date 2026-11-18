@@ -87,7 +87,9 @@ class EvenementsDuFilTest extends TestCase
             $data = array_fill_keys($entree['data'], 'x');
             $metadata = $this->evenements()->ecrire($fil, $mr, $code, $data)->metadata;
 
-            $this->assertSame(['object', 'code', 'data'], array_keys($metadata), $code);
+            // TCK-2959 — `action_for` est la quatrième clé d'un événement, et la seule ajoutée (`[]` sans geste attendu).
+            $this->assertSame(['object', 'code', 'data', 'action_for'], array_keys($metadata), $code);
+            $this->assertSame([], $metadata['action_for'], $code);
             $this->assertSame(['type', 'id'], array_keys($metadata['object']), $code);
             $this->assertSame($data, $metadata['data'], $code);
         }

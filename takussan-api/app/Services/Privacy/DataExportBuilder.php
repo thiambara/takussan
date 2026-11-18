@@ -22,6 +22,7 @@ use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Messaging\ConversationAccess;
+use App\Services\Messaging\EvenementsDuFil;
 use App\Services\Property\BailleurDuBien;
 use App\Support\Audit\PropertyRedactor;
 use Illuminate\Support\Collection;
@@ -189,11 +190,14 @@ class DataExportBuilder
                         : self::project($payment->toArray(), self::LEASE_PAYMENT_ACT))
                     ->all(),
             ],
+            // TCK-2959 (ADR-0128 § 5) — sans `action_for` : la liste des AUTRES comptes dont un geste est
+            // attendu ne sort pas plus par l'archive que par le fil.
             'messages.json' => Message::query()
                 ->where('sender_id', $user->id)
                 ->orWhereIn('conversation_id', $conversationIds)
                 ->get()
-                ->toArray(),
+                ->map(fn (Message $message) => array_replace($message->toArray(), ['metadata' => EvenementsDuFil::metadataRendu($message->metadata)]))
+                ->all(),
             'reviews.json' => Review::query()
                 ->where('author_id', $user->id)
                 ->orWhere(fn ($query) => $query->where('reviewable_type', User::class)->where('reviewable_id', $user->id))

@@ -3,8 +3,10 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Enums\MessageType;
 use App\Models\Message;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Messaging\EvenementsDuFil;
 use App\Services\Messaging\FaitsDesMessages;
 use App\Services\Messaging\ObjetsDesMessages;
 use Illuminate\Http\Request;
@@ -86,7 +88,13 @@ class MessageResource extends BaseResource
             // TCK-592 — `metadata` (événement d'un avis système, durée d'une note vocale) et
             // `attachments` étaient déclarés par le type front et jamais rendus : un avis système
             // retombait sur sa prose française, et une note vocale n'aurait pas eu de fichier.
-            'metadata' => $this->metadata,
+            // TCK-2959 (ADR-0128 § 5) — sans `action_for` : la liste des comptes dont un geste est attendu
+            // ne sort pas ; le lecteur reçoit son seul booléen, `action_attendue`, pour un `event`.
+            'metadata' => EvenementsDuFil::metadataRendu($this->metadata),
+            'action_attendue' => $this->when(
+                $this->resource->type === MessageType::Event,
+                fn (): bool => EvenementsDuFil::actionAttenduePar($this->resource, $request->user()),
+            ),
             // TCK-2958 (ADR-0128 § 3) — l'objet d'une carte ou d'un événement, RELU pour le lecteur : sa
             // projection (avec ses `abilities`) s'il le lit, sinon `{indisponible: true}` sans autre clé.
             'object' => $this->when(

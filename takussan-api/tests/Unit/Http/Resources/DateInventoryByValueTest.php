@@ -193,6 +193,9 @@ class DateInventoryByValueTest extends TestCase
             .'`BookingStatus`, ou `null` ; jamais une date.',
         'App\Http\Resources\LeaseResource::rent_review_cap_pct' => '`when()` sur le même lecteur posé par `forViewer()` '
             .'(TCK-2642) : un pourcentage (`RentReviewService::maxPctFor(): float`), jamais une date.',
+        // TCK-2959 — sur un événement : le lecteur figure-t-il dans `action_for` ?
+        'App\Http\Resources\MessageResource::action_attendue' => '`when()` sur un message `event` (TCK-2959) : un booléen '
+            .'(`EvenementsDuFil::actionAttenduePar(): bool`), jamais une date ; `NonLusDesEvenementsTest` le relit.',
         // TCK-2958 — sur une carte ou un événement : l'objet relu par `ObjetsDesMessages`.
         'App\Http\Resources\MessageResource::object' => '`when()` sur un message `card`/`event` (TCK-2958) : la projection '
             .'d\'une ressource dont les dates sortent déjà par `iso()`/`calendarDate()` (tenues par leurs propres entrées), '

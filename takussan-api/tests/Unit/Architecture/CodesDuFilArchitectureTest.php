@@ -17,8 +17,8 @@ use ReflectionClass;
  *
  * La forme du `metadata` (`{object: {type, id}, code, data}`, pour chaque code du catalogue) est
  * tenue par `EvenementsDuFilTest::test_la_forme_du_metadata_est_fermee_pour_tout_le_catalogue` : il lui
- * faut l'application (un modèle). TCK-2959 y ajoutera `action_for`, et rien d'autre ne s'y ajoute sans
- * changer ce test.
+ * faut l'application (un modèle). TCK-2959 y a ajouté `action_for` (événements seulement), et rien
+ * d'autre ne s'y ajoute sans changer ce test.
  */
 class CodesDuFilArchitectureTest extends TestCase
 {

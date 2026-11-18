@@ -26,6 +26,7 @@ use App\Services\Messaging\ConversationWriter;
 use App\Services\Messaging\DirectConversationService;
 use App\Services\Messaging\FaitsDesMessages;
 use App\Services\Messaging\GroupConversationService;
+use App\Services\Messaging\NonLus;
 use App\Services\Messaging\ObjetsDesMessages;
 use App\Support\CaseInsensitive;
 use Closure;
@@ -55,11 +56,11 @@ class ConversationController extends Controller
         // TCK-671 (P06.02) — `lastMessage` : le front dérive l'aperçu d'un avis système de son `metadata.event`.
         // TCK-861 (P38.07) — les membres ACTUELS seuls, comme `show()` : le nom et l'avatar d'un
         // ancien membre partaient dans la liste de chacun.
-        // TCK-2958 (ADR-0128 § 5) — un `event` ne compte pour PERSONNE (sans auteur, il compterait chez
-        // tous ; TCK-2959 le comptera pour qui doit agir). Une `card` compte comme un message d'un autre.
+        // TCK-2959 (ADR-0128 § 5) — « quels messages comptent » est défini UNE fois, dans `NonLus`
+        // (que `markAsUnread` appelle aussi) : un `event` ne compte que pour qui figure dans son
+        // `action_for`. Le curseur de lecture, lui, reste ici.
         $nonLus = function ($q) use ($user) {
-            $q->whereNotIn('messages.type', [MessageType::System->value, MessageType::Event->value])
-                ->where(fn ($w) => $w->whereNull('messages.sender_id')->orWhere('messages.sender_id', '!=', $user->id))
+            NonLus::comptentPour($q, $user)
                 ->whereExists(fn ($p) => $p->selectRaw('1')
                     ->from('conversation_participants as lecteur')
                     ->whereColumn('lecteur.conversation_id', 'messages.conversation_id')
@@ -526,7 +527,8 @@ class ConversationController extends Controller
     /**
      * TCK-2859 (ADR-0114 § 1) — `PUT /conversations/{conversation}/unread` : le `last_read_at` du
      * lecteur passe une seconde avant le dernier message qui compte comme non lu — le prédicat de
-     * `index()` (`$nonLus`) : d'un autre, hors avis système, non supprimé. Idempotent (la valeur ne
+     * `index()` ({@see NonLus}, TCK-2959) : d'un autre, hors avis système, non supprimé ; un `event`
+     * seulement si le lecteur est dans son `action_for`. Idempotent (la valeur ne
      * dépend que de ce message) ; jamais AVANCÉ (un `last_read_at` nul ou plus ancien reste) ; sans
      * message d'un autre, rien ne change.
      */
@@ -537,10 +539,9 @@ class ConversationController extends Controller
         $user = $request->user();
         $dernier = Message::query()
             ->where('conversation_id', $conversation->id)
-            // TCK-2958 — la copie de `$nonLus` : ni avis système, ni `event`.
-            ->whereNotIn('type', [MessageType::System->value, MessageType::Event->value])
-            ->where(fn ($w) => $w->whereNull('sender_id')->orWhere('sender_id', '!=', $user->id))
-            ->max('created_at');
+            // TCK-2959 — la définition de `index()`, et non plus sa copie.
+            ->tap(fn ($q) => NonLus::comptentPour($q, $user))
+            ->max('messages.created_at');
 
         $lecture = $conversation->participants()->where('users.id', $user->id)->first()?->pivot?->last_read_at;
         $lecture = $lecture !== null ? Carbon::parse($lecture) : null;
