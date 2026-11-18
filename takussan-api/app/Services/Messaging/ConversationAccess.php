@@ -2,6 +2,7 @@
 
 namespace App\Services\Messaging;
 
+use App\Models\Booking;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Enums\ConversationStatus;
@@ -47,6 +48,10 @@ use Illuminate\Support\Facades\DB;
  * bien (propriétaire). Il n'en est pas retiré (`left_at` reste nul) : réactivé, il retrouve le fil.
  * TCK-2275 (P232.03) : « partie » se juge par `BailleurDuBien` ; l'agent qui a saisi le bien n'en
  * est pas le bailleur.
+ *
+ * TCK-2960 (ADR-0128 § 2) — cinquième branche, la **salle** d'un bail ou d'une réservation
+ * ({@see SallesDuFil}) : participation active ET lecture de l'objet vivant ; pour une réservation, le
+ * candidat ou le contact principal actuel. Lecture seule d'un bail fini ou d'une réservation close.
  */
 class ConversationAccess
 {
@@ -82,6 +87,13 @@ class ConversationAccess
             return false;
         }
 
+        // TCK-2960 (ADR-0128 § 2) — la salle d'un bail fini (`expired`, `terminated`, `renewed`) ou d'une
+        // réservation close sans avoir eu lieu (`rejected`, `cancelled`, `expired`) se lit, ne s'écrit plus,
+        // pour personne : `draft`, `pending_signature` et `completed` restent ouverts.
+        if (SallesDuFil::enLectureSeule($conversation)) {
+            return false;
+        }
+
         if ($user->isSuperAdmin()) {
             return true;
         }
@@ -109,7 +121,30 @@ class ConversationAccess
     {
         return $this->maintenanceAllows($user, $conversation)
             && $this->prospectAllows($user, $conversation)
-            && $this->contextAllows($user, $conversation);
+            && $this->contextAllows($user, $conversation)
+            // TCK-2960 — la branche « salle ».
+            && $this->salleAllows($user, $conversation);
+    }
+
+    /**
+     * TCK-2960 (ADR-0128 § 2) — la branche « salle » seule : vrai pour tout fil qui n'en est pas une.
+     * Une salle se lit si son objet est VIVANT (un bail ou une réservation supprimés la rendent
+     * illisible) et lisible par `$user` (`SujetsDuFil::peutLire`, la politique de l'objet) ; pour une
+     * réservation, il faut en plus être le candidat ou le contact principal ACTUEL du bien (la règle de
+     * {@see self::prospectAllows()}, étendue) : l'ancien contact perd la salle dès le changement.
+     */
+    public function salleAllows(User $user, Conversation $conversation): bool
+    {
+        if (! SallesDuFil::estUneSalle($conversation)) {
+            return true;
+        }
+
+        $objet = SallesDuFil::objetDeLaSalle($conversation);
+        if ($objet === null || ! SujetsDuFil::peutLire($user, $objet)) {
+            return false;
+        }
+
+        return ! $objet instanceof Booking || SallesDuFil::candidatOuContactActuel($user, $objet);
     }
 
     /** La branche « contexte » seule (P191.01) : vrai pour tout fil sans bail ni bien. */
@@ -324,7 +359,53 @@ class ConversationAccess
             ->orWhere('conversations.created_by', $user->id)
             ->orWhereIn('conversations.property_id', $answered));
 
+        // TCK-2960 (ADR-0128 § 2) — la branche « salle » : une salle de bail ne reste que si le bail est
+        // lisible (`Lease::scopeVisibleTo`, aligné sur `LeasePolicy::view`, supprimés exclus) ; une salle
+        // de réservation, que si la réservation l'est ET que `$user` en est le candidat ou le contact
+        // principal actuel — jugé en PHP, sur les seules salles où il participe (`answeredPropertyIds`).
+        $reservations = $this->reservationsLisiblesEnSalle($user);
+        $query->where(fn (Builder $q) => $q
+            ->whereNotIn('conversations.type', SallesDuFil::typesDeFil())
+            ->orWhere(fn (Builder $s) => $s
+                ->where('conversations.type', ConversationType::Lease->value)
+                ->where('conversations.subject_type', 'lease')
+                ->whereIn('conversations.subject_id', Lease::query()->visibleTo($user)->select('leases.id')))
+            ->orWhere(fn (Builder $s) => $s
+                ->where('conversations.type', ConversationType::Booking->value)
+                ->where('conversations.subject_type', 'booking')
+                ->whereIn('conversations.subject_id', $reservations)));
+
         return $this->constrainContext($query, $user);
+    }
+
+    /**
+     * TCK-2960 — les réservations dont `$user` lit la salle, parmi celles des salles où il participe
+     * (départs compris : la participation se juge à côté). Une requête de salles, puis, s'il y en a,
+     * une des réservations avec leur bien et ce que le contact principal lit.
+     *
+     * @return list<int>
+     */
+    private function reservationsLisiblesEnSalle(User $user): array
+    {
+        $ids = Conversation::query()
+            ->where('type', ConversationType::Booking->value)
+            ->where('subject_type', 'booking')
+            ->whereIn('id', ConversationParticipant::query()->where('user_id', $user->id)->select('conversation_id'))
+            ->distinct()
+            ->pluck('subject_id');
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        return Booking::query()
+            ->whereKey($ids->all())
+            ->with(['customer', 'property' => fn ($q) => $q->with(PrimaryPropertyContact::eagerLoads())])
+            ->get()
+            ->filter(fn (Booking $b) => SujetsDuFil::peutLire($user, $b) && SallesDuFil::candidatOuContactActuel($user, $b))
+            ->map(fn (Booking $b) => (int) $b->id)
+            ->values()
+            ->all();
     }
 
     /**

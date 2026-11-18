@@ -64,6 +64,7 @@ use App\Observers\PropertyPublicCacheObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\RadarListingTargetObserver;
 use App\Observers\ReviewObserver;
+use App\Observers\SallesDeLaFicheClient;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
 use App\Policies\AgencyIndicatorPolicy;
@@ -839,6 +840,8 @@ class AppServiceProvider extends ServiceProvider
         Favorite::observe(FavoriteObserver::class);
         Review::observe(ReviewObserver::class);
         Lease::observe(LeaseObserver::class);
+        // TCK-2960 (ADR-0128 § 2) — une fiche liée à un compte : les salles de ses baux et réservations.
+        Customer::observe(SallesDeLaFicheClient::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
         // TCK-594 (ADR-0039 §8) — l'intervention terminée produit sa facture d'intervention.
         MaintenanceRequest::observe(MaintenanceRequestObserver::class);

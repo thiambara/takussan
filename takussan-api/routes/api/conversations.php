@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ConversationContextController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationParticipantController;
 use App\Http\Controllers\Api\ConversationReportController;
+use App\Http\Controllers\Api\ConversationRoomController;
 use App\Http\Controllers\Api\MessagingContactController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +20,10 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('conversations.context.properties');
     Route::get('conversations/context/leases', [ConversationContextController::class, 'leases'])
         ->name('conversations.context.leases');
+    // TCK-2960 (ADR-0128 § 2) — ouvrir la salle d'un bail ou d'une réservation. Littérale : AVANT
+    // `conversations/{conversation}` (aucune route POST de deux segments ne la masque aujourd'hui, mais
+    // l'ordre des littérales est la règle du fichier).
+    Route::post('conversations/rooms', [ConversationRoomController::class, 'store'])->name('conversations.rooms.store');
     Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
     // TCK-2630 — la colonne de contexte d'un fil : bien, bail, intervention, fiche CRM (personnel).
     // Trois segments comme les littérales `conversations/context/…` de TCK-576, mais le troisième

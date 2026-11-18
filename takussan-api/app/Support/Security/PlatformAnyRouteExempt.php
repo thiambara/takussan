@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\ContactLeadController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationParticipantController;
 use App\Http\Controllers\Api\ConversationReportController;
+use App\Http\Controllers\Api\ConversationRoomController;
 use App\Http\Controllers\Api\Credits\AgencySpotlightController;
 use App\Http\Controllers\Api\Credits\PropertyBoostController;
 use App\Http\Controllers\Api\CustomerController;
@@ -185,6 +186,8 @@ final class PlatformAnyRouteExempt
         ConversationParticipantController::class.'@destroy' => self::NON_GARDE,
         ConversationParticipantController::class.'@store' => self::NON_GARDE,
         ConversationParticipantController::class.'@update' => self::NON_GARDE,
+        // TCK-2960 — ouvre (ou rend) la salle d'un objet que l'appelant lit déjà ; même régime que la création d'un fil.
+        ConversationRoomController::class.'@store' => self::NON_GARDE,
         ConversationReportController::class.'@store' => self::NON_GARDE,
         PropertyBoostController::class.'@store' => self::NON_GARDE,
         // TCK-2525 — la même dépense de crédits que l'achat d'un boost, rangée comme lui.

@@ -170,4 +170,118 @@ tags: [back, messagerie, le-fil, salles, bail, reservation, acces, migration, ad
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure (2026-11-18, arbre `feat/le-fil`, après TCK-2955 `344aa99a0`)
+
+- **Écriture des participations : par le MODÈLE, pas par `insertOrIgnore`** (consigne de la session, d'après
+  TCK-2955). Le ticket demandait `insertOrIgnore` sur `(conversation_id, user_id)` puis une émission à la main ;
+  les participations passent par `attach()` (pivot `ConversationParticipant`, `->using()`) et
+  `forceFill()->save()`, et c'est le trait `EmetDesSignaux` du pivot qui émet `participants.updated` et
+  `boite.updated` à la seule personne concernée, après le COMMIT. La course sur l'unicité est fermée par le
+  verrou de la ligne de la salle (`lockForUpdate`, patron de `GroupConversationService::addParticipants`) :
+  deux synchronisations simultanées se sérialisent, la seconde voit ce que la première a écrit. Aucune
+  émission manuelle (elle doublerait le trait).
+- **Index partiel** : `type IN ('lease','booking') AND subject_type IN ('lease','booking') AND deleted_at IS
+  NULL`. Le ticket disait `subject_type IS NOT NULL` : la reprise de TCK-2957 a posé `maintenance_request` sur
+  des DIRECTES, et `FilFermeEcritureTest` crée des GROUPES de sujet `booking` — aucun n'est une salle.
+- **Les gardes de groupe** : `ConversationPolicy::isActiveAdmin` et `removeParticipant` refusent hors `group` ;
+  `StoreConversationRequest` n'admet que `direct`/`group` : confirmés, inchangés. ⚠ Le `Gate::before` du
+  super-admin passe outre toute politique (comme pour tout fil) : « personne » vaut hors super-admin.
+- **Écrivains de `customers.user_id`** : `CustomerService::linkUser` (aussi appelé par `rattacherOuCreer`,
+  fiche orpheline) — par le modèle, donc vu par l'observateur ; `Customer::create` avec `user_id` (fiche neuve,
+  sans bail ni réservation) ; `AccountDeletionService` remet `user_id` à nul EN MASSE (compte effacé : non vu,
+  noté dans l'en-tête de l'observateur).
+- **`BookingRequested`** : dispatché par `BookingService::create` et `PublicPropertyController` (2 sites),
+  `ShouldDispatchAfterCommit` ; l'écouteur est découvert dans `app/Listeners/Booking/`.
+- **`LeaseObserver::updated`** sortait tôt sur `! wasChanged('status')` : la branche des parties est posée
+  AVANT ce retour.
+- **`PropertyConversationResolver`** et les recherches de fil de prospect filtrent `type = direct` : une salle
+  de réservation (qui porte `property_id`) n'est jamais prise pour un fil de prospect.
+- **`MessagingReach`, règle 1 (correspondants)** : dérivée de la co-participation, elle aurait fait de chaque
+  partie d'une salle un correspondant — le locataire d'un bail brouillon ou fini aurait joint l'agent, que la
+  règle 5 (TCK-2851) borne aux baux EN COURS. Les salles en sont exclues (marqué TCK-2960).
+- **Liste** : `Lease::scopeVisibleTo` existe (aligné sur `LeasePolicy::view`) et sert en SQL ; `Booking` n'a
+  pas de portée de lecture : jugée en PHP sur les seules salles de réservation où l'appelant participe (patron
+  d'`answeredPropertyIds`).
+
+### Choix
+
+- `SallesDuFil::ouvrir()` rend la salle avec `wasRecentlyCreated` = « CET appel l'a créée » (le nombre de
+  lignes d'`insertOrIgnore`), lu par le contrôleur (201/200) et par la commande.
+- Les déclencheurs (`LeaseObserver`, `SallesDeLaFicheClient`, `OpenBookingRoom`) passent par
+  `ouvrirApresLEcriture()` : après le COMMIT, objet relu, et un échec `report()`é — il ne transforme pas en 500
+  une écriture déjà validée. Ce n'est pas une garde d'unicité.
+- Lecture seule de la salle (bail fini, réservation close) jugée AVANT le passe-droit du super-admin, comme le
+  fil `closed` de TCK-2957 : personne n'y écrit.
+- `OpenRoomRequest::authorize()` : un type sans salle ou un identifiant mal formé passe à la validation (422) ;
+  une demande bien formée dont l'objet est ABSENT ou SUPPRIMÉ reçoit le refus d'un objet tiers (403, corps
+  identique) — pas d'oracle d'existence (règle de TCK-1070, `LeaseContextExistenceOracleTest`). 403 aussi,
+  dans le contrôleur, pour qui lit l'objet sans être partie (collègue de l'agence).
+- Un membre revenu : `left_at` nul, `last_read_at` = maintenant (règle de TCK-861) ; un membre neuf : sans
+  `last_read_at` (comme la création d'un groupe).
+- `release.sh` : `messaging:open-rooms` après `alerts:ensure-ops-rules`, un échec n'arrête pas le déploiement.
+
+### Mesures (2026-11-18, `load average` 1,4 à 3,7 sur 8 cœurs)
+
+- Classes du ticket, `tests/Feature/Messaging/Salles/` : `SalleDuBailTest`, `SalleDeLaReservationTest`,
+  `SalleSignauxTest`, `SalleUniqueTest`, `ConversationRoomControllerTest`, `SalleNonAdministrableTest`,
+  `OpenRoomsCommandTest`, `SalleNeFaitPasDeCorrespondantTest` — **49 verts, 250 assertions** (scènes partagées :
+  `tests/Support/ScenesDeSalles.php`).
+- Gardes : `RessourceUniqueResolueTest`, `ExistsSurTableASuppressionDouceTest`, `AgencyIdIsIndexedTest`,
+  `ImpersonationReadSweepTest`, `ValeursEnListeParcoursDesRoutesTest`, `DateInventoryByValueTest` — 37 verts.
+  Pint propre. Gardes racine : les sept des maquettes du playground, et `check-nom-affichable`, qui cite
+  `takussan-web/src/components/messages/cartes/CarteReservation.tsx` (fichier de TCK-2962, pas de ce ticket).
+- **Écrivains EN MASSE des parties d'un bail** (aucun observateur) : `PropertyOwnerTransfer` (l. 99,
+  `landlord_id` des baux transférés) et `AgentHandoverService` (l. 180, `landlord_id` des brouillons au
+  successeur). Les membres de ces salles restent les anciens jusqu'à la prochaine ouverture depuis la fiche ou
+  le prochain changement de partie ; l'accès, lui, est juste tout de suite (la branche relit la politique du
+  bail). Rien n'écrit `agent_id` ni `tenant_id` des baux en masse.
+- **Rayon d'effet** : chaque `Lease::factory()->create()` crée désormais sa salle et ses membres. Cinq classes
+  existantes comptaient les fils d'un bail ou d'un bailleur ; leurs assertions sont restreintes hors salle
+  (marquées TCK-2960) et rejouées vertes (67 tests) : `ConversationTest` (3), `GroupConversationCreationTest`,
+  `GroupeDeBailParticipantsTest`, `MembreSuspenduFilsDeContexteTest`, `ColonneDeBailleurAgentCreateurTest`. Deux
+  confirmées rouges avant la retouche (assertion d'origine remise : `ConversationTest::…directe_existante…` et
+  `ColonneDeBailleurAgentCreateurTest::…bailleur_bloque…`). Les autres classes qui créent des baux et lisent des
+  fils ont été lues, pas jouées (règle de charge) : la CI de la PR tranche.
+
+### Ablations (une à une, `--filter`, restauration par `cp` prouvée par md5)
+
+| AC | Mutation | Résultat |
+|---|---|---|
+| AC1 | branche des parties de `LeaseObserver::updated` neutralisée | `changer_d_agent…` rouge |
+| AC1 | `Customer::observe(SallesDeLaFicheClient)` retiré | `le_locataire_sans_compte_entre…` rouge |
+| AC2 | `salleAllows` retiré de `branchesAllow` | `le_membre_qui_ne_lit_plus_le_bail…` rouge |
+| AC2 | branche « salle » de `constrainListing` neutralisée | même test rouge (sur la liste) |
+| AC3 | condition du contact actuel → `true` | `l_ancien_contact_perd_la_salle…` rouge |
+| AC4 | liste explicite remplacée par « hors `ONGOING_STATUSES` » | `draft` et `pending_signature` rouges |
+| AC5 | index `conversations_salle_unique` non créé | `l_index_tient_la_course…` rouge |
+| — | `OpenBookingRoom` neutralisé | `la_reservation_demandee_a_sa_salle…` rouge |
+| — | `trashed()` retiré d'`objetDeLaSalle` | `un_bail_supprime_rend_sa_salle_illisible` rouge |
+| — | départ écrit en masse (hors modèle) | `SalleSignauxTest` (boîte de l'ancien agent) rouge |
+| reach | exclusion des salles de `MessagingReach` retirée | `le_locataire_d_un_bail_fini_ne_joint_pas_l_agent…` rouge |
+| 403 | `peutLire` retiré d'`OpenRoomRequest::authorize` | `un_inconnu_n_ouvre_pas_la_salle…` rouge (`403_pour_qui_ne_lit_pas` reste vert : le contrôleur refuse aussi — d'où le test qui part d'un bail SANS salle) |
+| 403 | `allows` retiré du contrôleur | `403_pour_qui_lit_le_bail_sans_en_etre_partie` rouge |
+| oracle | l'absent autorisé (`objet === null` → vrai) | `un_objet_absent_ou_supprime_recoit_le_refus_d_un_tiers` rouge |
+
+### Non mesuré / laissé à la CI
+
+- La suite entière : les classes qui créent des baux ou des réservations et comptent des fils, des
+  correspondants ou des signaux (lues : `OwnerDepartedReachTest`, `MaintenanceThreadAccessTest`,
+  `MessageInitialRegleDEcritureTest`, `MessagerieEnDirectTest`, `DirectConversationAddParticipantTest` — comptes
+  relatifs ou fils filtrés, jugés sûrs ; les autres, non lues une à une).
+- `EventListenerDuplicationTest` (écouteur neuf découvert) : non joué, règle de charge.
+- Le « dernier échange » de `MessagingRelation::filsVisibles()` compte les salles (sans message, `last_message_at`
+  nul) : effet sur l'étiquette du sélecteur non mesuré.
+- Une salle ne suit pas un changement de `property_id` du bail (rare) : son contexte garde le bien d'origine.
+- ⚠ **Salles vides en tête de la boîte** : la liste trie `orderByDesc('last_message_at')`, et PostgreSQL range
+  les `NULL` EN PREMIER sous `DESC`. Une salle sans message (toutes, après `messaging:open-rooms`) passe donc
+  devant les fils actifs — comme un groupe vide aujourd'hui, mais en nombre. Le « dernier échange » de
+  `MessagingRelation` écrit déjà `NULLS LAST`. À trancher avec TCK-2963 (la liste n'est pas de ce ticket).
+- `messaging:open-rooms` dans le conteneur `release` émet les signaux de chaque membre entré ; sans diffuseur
+  joignable, le disjoncteur coupe après le premier échec, mais chaque signal abandonné s'ajoute au compteur
+  `temps-reel:echecs:<jour>` (gonflé d'autant le jour du déploiement). `scripts/test-release-reindex.sh` : 32
+  vérifications vertes avec la ligne neuve.
+- Non relus pour le rayon d'effet : les baux créés par les fixtures de `tests/Support` (`FabriqueOccupation`,
+  `LeaseDueFixture`, `ReferencePortfolio`) ou par des routes ; les épingles d'ordre des verrous
+  (`OrdreDesVerrousDeLAcceptationTest` : `linkUser` finit désormais par une synchronisation de salle, après le
+  COMMIT) ; les tests qui posent `TempsReel::fake()` AVANT de créer un bail ou une réservation et comptent les
+  envois exacts.

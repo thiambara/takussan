@@ -89,7 +89,8 @@ class GroupeDeBailParticipantsTest extends TestCase
         ])->assertUnprocessable()
             ->assertJsonValidationErrors(['participants' => __('messaging.errors.participants_cannot_read_lease')]);
 
-        $this->assertSame(0, Conversation::query()->where('lease_id', $lease->id)->count());
+        // TCK-2960 — la salle du bail (ADR-0128 § 2) porte aussi `lease_id` : seul le groupe refusé compte.
+        $this->assertSame(0, Conversation::query()->where('lease_id', $lease->id)->where('type', '!=', 'lease')->count());
     }
 
     public function test_la_creation_admet_les_parties_et_le_personnel_et_un_tiers_sans_bail(): void

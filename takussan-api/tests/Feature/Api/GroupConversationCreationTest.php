@@ -586,7 +586,8 @@ class GroupConversationCreationTest extends TestCase
         ])->assertUnprocessable()
             ->assertJsonPath('errors.lease_id', [__('messaging.errors.conversation_context_forbidden')]);
 
-        $this->assertSame(0, Conversation::query()->where('lease_id', $bailAilleurs->id)->count());
+        // TCK-2960 — la salle du bail (ADR-0128 § 2) porte aussi `lease_id` : seuls les fils refusés comptent.
+        $this->assertSame(0, Conversation::query()->where('lease_id', $bailAilleurs->id)->where('type', '!=', 'lease')->count());
     }
 
     /**
