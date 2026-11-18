@@ -1,10 +1,11 @@
 # Environnement de développement Takussan.
 #
-#   docker compose up -d          # démarre les quatre services
+#   docker compose up -d          # démarre les cinq services
 #   ./dev.sh                      # les démarre PUIS lance l'API, la file, le scheduler et le front
 #
-# Pourquoi ces quatre-là, et pas un de plus ni un de moins : chacun couvre une
-# divergence dev↔prod qui coûtait cher tant qu'elle n'était pas provisionnée.
+# Pourquoi ces cinq-là, et pas un de plus ni un de moins : chacun couvre une
+# divergence dev↔prod qui coûtait cher tant qu'elle n'était pas provisionnée — ou,
+# pour le cinquième, une fonction qui n'existe pas sans lui.
 #
 #   postgres     LE MOTEUR, et il n'y en a plus qu'un : PostgreSQL 17 sur TOUS les
 #                environnements, suite de tests comprise (ADR-0020). Ce service n'est
@@ -35,7 +36,7 @@
 #                une collection Eloquent : il ne partage ni la tokenisation, ni le
 #                classement, ni le typo-tolerance du moteur réel. Une recherche qui
 #                « marche en local » n'a rien prouvé de celle qui tourne en prod.
-#   redis        LE SEUL des quatre que le développement n'utilise PAS, et il faut le
+#   redis        LE SEUL des cinq que le développement n'utilise PAS, et il faut le
 #                dire ici plutôt que de le laisser croire. `.env.example` pose
 #                `CACHE_STORE=redis` sans que rien ne fournisse Redis : l'application
 #                ne démarre pas sur une copie fidèle de son propre exemple. Ce service
@@ -51,16 +52,25 @@
 #                relances de facture, digests, invitations). En `MAIL_MAILER=log`
 #                elles partent dans un fichier que personne ne relit ; on ne voit
 #                jamais le rendu réel d'un e-mail avant la production.
+#   reverb       TCK-2953 (ADR-0129 § 5) — le serveur WebSocket du temps réel. L'API ne
+#                pousse qu'un SIGNAL sans donnée (`private-utilisateur.{id}`), le front
+#                relit par l'API. Sans ce service, `BROADCAST_CONNECTION=reverb` n'a
+#                personne à qui parler et le front reste en mode dégradé (relecture
+#                périodique) : rien ne casse, mais rien du temps réel ne s'éprouve en local.
+#                C'est le seul service qui fait tourner PHP — voir son bloc pour le pourquoi
+#                de l'image et du montage.
 #
 # Les volumes sont nommés : `docker compose down` garde les données, `down -v` les
 # efface. La bascule complète des variables d'environnement est dans
 # `takussan-api/.env.docker`.
 #
 # PORTS — pourquoi aucun n'est le port canonique. Chaque service est décalé d'un cran
-# (5433, 7701, 6380, 1026/8026 au lieu de 5432, 7700, 6379, 1025/8025). Ce n'est pas
+# (5433, 7701, 6380, 1026/8026, 8081 au lieu de 5432, 7700, 6379, 1025/8025, 8080). Ce n'est pas
 # une préférence : **les quatre ports canoniques étaient occupés sur la machine où ce
 # fichier a été écrit** — la base et Meilisearch installés nativement par brew, Redis et
-# Mailpit tenus par les conteneurs d'un projet voisin. Mesuré, pas supposé.
+# Mailpit tenus par les conteneurs d'un projet voisin. Mesuré, pas supposé. (8080 était
+# libre le 2026-11-18 ; Reverb suit la convention quand même : 8080 est le port de tout
+# serveur de développement, et le décalage coûte moins que le conflit.)
 #
 # Le coût du conflit n'est pas l'échec : c'est que `docker compose up` échoue APRÈS
 # avoir démarré une partie des services. On se retrouve avec un environnement à moitié
@@ -186,6 +196,62 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  reverb:
+    # TCK-2953 (ADR-0129 § 5) — `php artisan reverb:start` sur le code de l'API MONTÉ, pas
+    # copié : le serveur lit la même `config/reverb.php` et le même `takussan-api/.env` que
+    # l'API native. Les clés `REVERB_APP_*` ont donc UNE source — le `.env` — et ne peuvent
+    # pas diverger entre celui qui signe (l'API) et celui qui vérifie (ce serveur).
+    #
+    # ⚠ `serversideup/php`, et PAS l'image officielle `php:8.4-cli` : mesuré le 2026-11-18,
+    # `reverb:start` y meurt sur `Undefined constant SIGINT` — elle n'a pas `pcntl`, et l'y
+    # ajouter demande un Dockerfile, c'est-à-dire dupliquer l'environnement PHP du poste.
+    # Celle-ci porte `pcntl` et démarre telle quelle. ÉPINGLÉE comme les quatre autres, et
+    # pas sous PHP 8.4.27 (plancher PHP2Shell, cf. takussan-api/Dockerfile).
+    image: serversideup/php:8.4.27-cli-alpine-v5.1.3
+    working_dir: /var/www/html
+    # ⚠ Le repli sur les clés de développement n'est pas un confort. Mesuré le 2026-11-18 : sur un
+    # `.env` sans `REVERB_APP_KEY` — tout `.env` antérieur à TCK-2953, dont celui du poste où ce
+    # service a été écrit —, le serveur démarre, se déclare sain, puis SORT EN 0 SANS UN MOT vers
+    # 60 s (la minuterie qui parcourt les applications) ; avec les clés, il tient. Un service qui
+    # meurt en silence une minute après `./dev.sh` est pire qu'absent. Les clés manquantes sont donc
+    # posées dans l'environnement du PROCESSUS — jamais quand le `.env` les porte, qui reste la seule
+    # source (Dotenv immuable : une variable posée ici gagnerait). Mêmes valeurs que `.env.docker` :
+    # elles bougent ensemble. `./dev.sh doctor` nomme le `.env` à compléter.
+    command:
+      - sh
+      - -c
+      - |
+        if ! grep -qE '^REVERB_APP_KEY=.+' .env 2>/dev/null; then
+          echo "takussan-api/.env sans REVERB_APP_KEY : clés de développement de .env.docker. Les y recopier (./dev.sh doctor)." >&2
+          export REVERB_APP_ID=takussan-dev REVERB_APP_KEY=takussan-dev-cle REVERB_APP_SECRET=takussan-dev-secret
+        fi
+        exec php artisan reverb:start --host=0.0.0.0 --port=8080
+    volumes:
+      # LECTURE SEULE : ce conteneur n'a rien à écrire dans le dépôt. Mesuré : il démarre
+      # sur un `bootstrap/cache` vide, et tient au-delà de ses minuteries (5 s, 60 s).
+      - ./takussan-api:/var/www/html:ro
+    environment:
+      # Le `.env` monté vise la base et le cache sur 127.0.0.1 — c'est-à-dire, ici, le
+      # conteneur lui-même. Or `reverb:start` lit le cache au démarrage puis toutes les
+      # 5 s (le signal de `reverb:restart`) : sur `database`, il mourrait. Ces deux clés
+      # de l'environnement du conteneur l'emportent sur le `.env` (Dotenv immuable).
+      # Conséquence : `reverb:restart` est sans effet ici — `docker compose restart reverb`.
+      CACHE_STORE: array
+      # Montage en lecture seule : un journal fichier lèverait à la première ligne.
+      LOG_CHANNEL: stderr
+    ports:
+      # 8081 et non 8080 : cf. la note PORTS de l'en-tête. `REVERB_PORT` du `.env` de
+      # l'API et `TEMPS_REEL_URL` du front doivent le suivre — `./dev.sh doctor` compare.
+      - '127.0.0.1:${TAKUSSAN_REVERB_PORT:-8081}:8080'
+    healthcheck:
+      # `GET /up`, la route de santé du serveur lui-même — pas un `--help`, qui sort 0
+      # sans rien démarrer (cf. meilisearch). Elle ne dit rien de la clé : `doctor` la
+      # vérifie par une poignée de main WebSocket.
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8080/up']
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
 volumes:
   pgsql-data:

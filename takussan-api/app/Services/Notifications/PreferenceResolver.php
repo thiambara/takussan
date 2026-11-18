@@ -225,7 +225,9 @@ class PreferenceResolver
      * Les canaux qu'un envoi peut réellement honorer pour cet événement.
      *
      *   · `inapp` et `email` toujours ;
-     *   · `push` seulement si un transport existe — `log` ou `null` ne livrent rien (D-65) ;
+     *   · jamais `push` (TCK-2953) : aucune notification ne part plus par le canal `broadcast`
+     *     (TCK-2952), le pilote `reverb` ne porte qu'un signal sans donnée (ADR-0129), et le porteur
+     *     a exclu la notification push. La case reste dans la matrice, verrouillée ;
      *   · `sms`/`whatsapp` seulement si l'événement est mobile : un code `mobile()` l'a pour
      *     interrupteur, ou une classe `SupportsSms`/`SupportsWhatsapp` le porte.
      *
@@ -233,11 +235,9 @@ class PreferenceResolver
      */
     public function channelsFor(string $event): array
     {
+        // TCK-2953 — plus de case `push` selon `broadcasting.default` : le transport temps réel ne livre
+        // aucune notification (cf. docblock).
         $channels = [self::CHANNEL_INAPP, self::CHANNEL_EMAIL];
-
-        if (! in_array(config('broadcasting.default'), ['log', 'null', null], true)) {
-            $channels[] = self::CHANNEL_PUSH;
-        }
 
         $whatsappOnly = self::whatsappOnlyEvents();
         if (array_key_exists($event, $whatsappOnly)) {

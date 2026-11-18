@@ -50,14 +50,18 @@ const REPORT = process.argv.includes('--report');
  */
 const RESIDUS = [
   {
-    // TCK-2952 — `NewNotification` est supprimé : seul `SignalTempsReel` diffuse (ADR-0129). Les clés
-    // REVERB_APP_* / HOST / PORT / SCHEME quittent ce groupe quand TCK-2953 les pose dans .env.example.
-    motif: "pilote de diffusion pas encore posé : seul `SignalTempsReel` diffuse (ADR-0129), BROADCAST_CONNECTION=null le fait taire tant que le service Reverb n'est pas posé (TCK-2953, TCK-2956)",
+    // TCK-2952 — `NewNotification` est supprimé : seul `SignalTempsReel` diffuse (ADR-0129), par Reverb.
+    motif: 'pilote de diffusion non utilisé : seul Reverb diffuse (ADR-0129)',
     cles: [
       'ABLY_KEY', 'PUSHER_APP_CLUSTER', 'PUSHER_APP_ID', 'PUSHER_APP_KEY', 'PUSHER_APP_SECRET', 'PUSHER_HOST',
-      'PUSHER_PORT', 'PUSHER_SCHEME', 'REVERB_APP_ID', 'REVERB_APP_KEY', 'REVERB_APP_SECRET', 'REVERB_HOST',
-      'REVERB_PORT', 'REVERB_SCHEME',
+      'PUSHER_PORT', 'PUSHER_SCHEME',
     ],
+  },
+  {
+    // TCK-2953 — posées dans .env.example et .env.docker, aux valeurs de développement (service `reverb` de
+    // docker-compose.yml). Elles quittent ce groupe pour le gabarit de l'API avec TCK-2956.
+    motif: 'pilote actif en développement seulement ; la préproduction les reçoit par TCK-2956',
+    cles: ['REVERB_APP_ID', 'REVERB_APP_KEY', 'REVERB_APP_SECRET', 'REVERB_HOST', 'REVERB_PORT', 'REVERB_SCHEME'],
   },
   {
     // TCK-2952 — `config/reverb.php`, publiée avec `laravel/reverb` : les réglages du SERVEUR, lus par
@@ -169,6 +173,9 @@ const VIDES_PERMISES = [
   'RADAR_WHATSAPP_ACCORD_V4_TEMPLATE',
   // TCK-2940 (ADR-0126) — défaut vide (voie « par appel » éteinte) ; attend l'ouverture du compte voix LAfricaMobile.
   'PHONE_VOICE_CODE_DRIVER', 'VOICE_LAM_BASE_URL', 'VOICE_LAM_LOGIN',
+  // TCK-2953 (ADR-0129 § 5) — le temps réel du front. Vide = mode dégradé (relecture périodique), rien ne
+  // casse ; à poser seulement quand le service `temps-reel` de TCK-2956 répond.
+  'TEMPS_REEL_URL', 'TEMPS_REEL_CLE',
 ];
 
 const CLE_DE_SECRET = /(?:^|_)(?:KEY|KEYS|KEY_ID|SECRET|PASSWORD|TOKEN|ACCOUNT_ID)$/;
