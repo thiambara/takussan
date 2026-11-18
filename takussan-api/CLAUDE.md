@@ -802,8 +802,11 @@ passe déjà cette option en interne, et une seconde occurrence est écartée pa
 sort alors en 1 sans un mot (TCK-331). Sans le drapeau `--coverage`, `artisan test --coverage-php=…`
 fonctionne encore, mais en un seul processus il n'y a aucune raison de passer par lui.
 
-**La forme parallèle est équivalente, et c'est celle de la CI depuis TCK-2951** : ParaTest fusionne
-les couvertures de ses workers et écrit `cov.php` depuis l'objet fusionné.
+**La forme parallèle est équivalente en local** : ParaTest fusionne les couvertures de ses workers et
+écrit `cov.php` depuis l'objet fusionné. ⚠ **La CI ne l'emploie PAS pour `cov.php`** (ADR-0063 §4,
+amendement du 2026-11-18) : sur la suite entière, cette écriture dépasse 8 Go et meurt après une suite
+verte. La nuit, `cov.php` sort d'un step séquentiel à part (`php artisan test --coverage-php=…`) ; le
+clover du cliquet, lui, reste en `--parallel`.
 
 ```bash
 XDEBUG_MODE=coverage php artisan test --parallel --processes=8 --coverage-php=/tmp/cov.php

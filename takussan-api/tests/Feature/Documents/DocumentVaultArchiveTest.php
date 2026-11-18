@@ -107,19 +107,56 @@ class DocumentVaultArchiveTest extends TestCase
         }
     }
 
-    /** Un PDF de l'archive est celui de l'endpoint : le contrat figé est servi octet pour octet. */
+    /**
+     * Un PDF de l'archive est celui de l'endpoint : le même gabarit, nourri des mêmes données.
+     *
+     * La preuve porte sur le HTML que le moteur reçoit, plus sur la TAILLE du PDF. Ce test comparait les
+     * longueurs à 64 octets près, et il a rougi une fois en CI (run 44301547278, `--parallel`) sur 147 octets
+     * d'écart, sans qu'aucune donnée ne change : la sortie de dompdf n'est pas une mesure de « même
+     * document », et une tolérance en octets ne disait pas ce qu'elle prouvait. Le temps est figé : le pied
+     * de page imprime l'heure de génération.
+     */
     public function test_the_lease_folder_renders_its_generated_entries_like_their_endpoints(): void
     {
+        $this->freezeSecond();
+        $rendus = $this->piloteQuiNoteLesContrats();
         $this->connecter($this->tenant);
         $files = $this->contenu($this->archive("lease:{$this->lease->id}"));
+        $this->assertCount(1, $rendus->html, 'l\'archive rend le contrat une fois');
 
         $contrat = $this->get("/api/leases/{$this->lease->id}/contract/pdf")->assertOk()->getContent();
+        $this->assertCount(2, $rendus->html, 'l\'endpoint rend le contrat une fois');
+
         $nomDuContrat = collect(array_keys($files))->first(fn (string $n) => str_ends_with($n, 'Contrat de bail signé.pdf'));
         $this->assertNotNull($nomDuContrat);
-        // Le rendu à la volée porte sa date de génération : même gabarit, même longueur à quelques octets près.
         $this->assertStringStartsWith('%PDF', $files[$nomDuContrat]);
-        $this->assertEqualsWithDelta(strlen($contrat), strlen($files[$nomDuContrat]), 64);
+        $this->assertStringStartsWith('%PDF', $contrat);
+        $this->assertStringContainsString($this->lease->reference_number, $rendus->html[0]);
+        $this->assertSame($rendus->html[1], $rendus->html[0], 'le contrat de l\'archive n\'est pas celui de l\'endpoint');
         $this->assertNotNull(collect(array_keys($files))->first(fn (string $n) => str_ends_with($n, 'État des lieux d’entrée.pdf')));
+    }
+
+    /** Un `DocumentPdfService` qui rend normalement, et note le HTML de chaque contrat de bail qu'il rend. */
+    private function piloteQuiNoteLesContrats(): object
+    {
+        $double = new class(app(PdfImageEmbedder::class)) extends DocumentPdfService
+        {
+            /** @var list<string> */
+            public array $html = [];
+
+            public function render(string $template, array $data): string
+            {
+                if ($template === 'pdf.leases.contract') {
+                    // La langue de l'acte, comme `parent::render()` la pose (ACTES_EN_FRANCAIS).
+                    $this->html[] = $this->withLocale('fr', fn (): string => view($template, $this->prepareData($data))->render());
+                }
+
+                return parent::render($template, $data);
+            }
+        };
+        $this->app->instance(DocumentPdfService::class, $double);
+
+        return $double;
     }
 
     /** AC2 — le dossier d'un autre locataire rend 404, pas une archive vide ; une année absente aussi. */
