@@ -18,6 +18,8 @@ import { BookingDetail } from '../BookingDetail';
 
 const MAINTENANT = new Date('2026-11-12T10:00:00Z');
 const ecran = vi.hoisted(() => ({ telephone: false, personnel: true }));
+// TCK-2963 — le bloc de la salle ouvre sa conversation (React Query) : hors du propos de ce test.
+vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () => null }));
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => ecran.telephone }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => ecran.personnel, useAgenceDuPersonnelActif: () => 5 }));
 vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => new Date('2026-11-12T10:00:00Z') }));

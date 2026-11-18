@@ -54,6 +54,8 @@ import { initialesDe, nomCompletDe } from '@/lib/identite';
 import { useDocumentsGeneres } from '@/lib/queries/documents';
 import { useGenerateSchedule, useLease, useLeaseGuarantors, useLeasePayments, type LeaseGuarantor, type LeaseWithRelations } from '@/lib/queries/leases';
 import { cn } from '@/lib/utils';
+// TCK-2963 — l'entrée dans la salle du bail (ses parties et l'agent attribué) : absente pour qui n'en est pas partie.
+import { BlocDeLaSalle } from '@/components/messages/salle/BlocDeLaSalle';
 import type { LeasePayment, LeaseStatus } from '@/types/lease';
 
 import { DepositRefundBanner } from './DepositRefundBanner';
@@ -516,6 +518,8 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
           </div>
 
           <aside className="contents xl:sticky xl:top-6 xl:block xl:space-y-4">
+            {/* TCK-2963 (maquette `fil-salle-bail` A, « fiche ») — avant les parties, au téléphone comme au bureau. */}
+            <BlocDeLaSalle nature="lease" id={lease.id} className="order-2" />
             {parties.length > 0 || garants.length > 0 || peutGererLesGarants ? (
               <Carte
                 titre={t('parties.titre')}

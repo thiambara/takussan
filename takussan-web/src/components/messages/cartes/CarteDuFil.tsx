@@ -102,11 +102,21 @@ function CarteIndisponible() {
  * journal, sans bulle (maquette `fil-cartes`, `Evenements`). Rien de replié ne demande un geste : un
  * événement qui attend le lecteur est une carte, hors de la suite.
  */
-export function EvenementsReplies({ messages }: { readonly messages: readonly Message[] }) {
+export function EvenementsReplies({
+  messages,
+  ouvertParDefaut = false,
+  jour = false,
+}: {
+  readonly messages: readonly Message[];
+  /** TCK-2963 — dans une salle, les événements du mois courant arrivent dépliés (AC4) ; ceux d'un mois passé, repliés. */
+  readonly ouvertParDefaut?: boolean;
+  /** TCK-2963 — sous un séparateur de MOIS, l'heure seule ne dit pas quand : le jour la précède. */
+  readonly jour?: boolean;
+}) {
   const t = useTranslations('messaging.cartes.evenements');
   const f = useFormatteurs();
   const texteSysteme = useTexteMessageSysteme();
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvert, setOuvert] = useState(ouvertParDefaut);
   const textes = messages.map((m) => texteSysteme(m.metadata));
   const resume = textes.map((x) => x.replace(/[.。]\s*$/, '')).join(', ');
   const Chevron = ouvert ? ChevronUp : ChevronDown;
@@ -131,7 +141,9 @@ export function EvenementsReplies({ messages }: { readonly messages: readonly Me
             <li key={m.id} className="relative flex items-baseline gap-2 py-1 text-xs text-foreground">
               <span className="absolute top-2.5 -left-4 size-1.5 rounded-full bg-border" aria-hidden="true" />
               <span className="min-w-0 flex-1">{textes[i]}</span>
-              <span className="flex-none text-muted-foreground tabular-nums">{f.heure(m.created_at)}</span>
+              <span className="flex-none text-muted-foreground tabular-nums">
+                {jour ? `${f.jourMois(m.created_at)} · ${f.heure(m.created_at)}` : f.heure(m.created_at)}
+              </span>
             </li>
           ))}
         </ol>

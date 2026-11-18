@@ -3,7 +3,9 @@
  * Aligned with `docs/models-spec.md#18-conversation-`, `#19-conversationparticipant-`, `#20-message-`.
  */
 
-export type ConversationType = 'direct' | 'group' | 'support';
+// TCK-2963 (ADR-0128 § 2) — `lease` et `booking` : les SALLES d'un bail et d'une réservation (TCK-2960), un fil
+// unique par objet, nommé par le front depuis l'objet (`subject` y reste nul).
+export type ConversationType = 'direct' | 'group' | 'support' | 'lease' | 'booking';
 
 export type ConversationStatus = 'active' | 'archived' | 'closed';
 
@@ -220,6 +222,12 @@ export type Conversation = {
   property_id: number | null;
   lease_id: number | null;
   maintenance_request_id: number | null;
+  /**
+   * TCK-2963 — l'objet auquel le fil appartient (TCK-2957, clé du registre `SujetsDuFil`) : `lease:<id>` ou
+   * `booking:<id>` pour une salle. Nuls sans sujet ; absents d'une réponse d'avant.
+   */
+  subject_type?: string | null;
+  subject_id?: number | null;
   type: ConversationType;
   status: ConversationStatus;
   created_by: number;

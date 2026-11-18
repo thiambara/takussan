@@ -4265,6 +4265,124 @@
         "proposed": "A viewing is suggested for {date}.",
         "rescheduled": "Another time was suggested for the viewing: {date}."
       }
+    },
+    "salle": {
+      "titre": {
+        "lease": "Lease · {bien}",
+        "leaseSansBien": "Lease",
+        "booking": "Booking · {bien}",
+        "bookingSansBien": "Booking"
+      },
+      "bandeau": {
+        "dossier": "File",
+        "dossierAria": "Open the thread file",
+        "votreBail": "Your lease",
+        "libelle": "Where this thread’s subject stands"
+      },
+      "bail": {
+        "statut": {
+          "draft": "Draft",
+          "pending_signature": "Awaiting signature",
+          "active": "Active",
+          "expired": "Expired",
+          "terminating": "Under notice",
+          "terminated": "Terminated",
+          "renewed": "Renewed"
+        },
+        "preavisSortie": "Notice · move-out on {date}",
+        "type": {
+          "residential_rent": "residential",
+          "commercial_rent": "commercial",
+          "seasonal_rent": "seasonal",
+          "sale": "sale"
+        },
+        "prochainLoyer": "Next rent",
+        "prochaineEcheance": "Next payment",
+        "echeanceLe": "due {date}",
+        "aucuneEcheance": "None upcoming",
+        "solde": "Balance",
+        "aJour": "Up to date",
+        "rienARegler": "Nothing to pay",
+        "enRetard": "{n, plural, one {# payment overdue} other {# payments overdue}}",
+        "finDePeriode": "End of term",
+        "sortie": "Move-out",
+        "revision": "Rent review {date}"
+      },
+      "reservation": {
+        "statut": {
+          "pending": "Awaiting a reply",
+          "confirmed": "Confirmed",
+          "rejected": "Declined",
+          "cancelled": "Cancelled",
+          "expired": "Expired",
+          "completed": "Completed"
+        },
+        "arrivee": "Check-in",
+        "depart": "Check-out",
+        "montant": "Amount",
+        "reponseAvant": "Reply by {date}",
+        "demandeeLe": "Requested on",
+        "acompte": "Down payment"
+      },
+      "dossier": {
+        "titre": "Thread file",
+        "documents": "Documents",
+        "toutVoir": "See all ({n})",
+        "aucunDocument": "No documents yet.",
+        "generes": {
+          "lease_contract": "Lease contract",
+          "inventory_move_in": "Move-in inventory",
+          "inventory_move_out": "Move-out inventory",
+          "receipt_rent": "Rent receipt",
+          "autre": "Generated document"
+        },
+        "genereLe": "Generated on {date}",
+        "deposeLe": "Uploaded on {date}",
+        "datesCles": "Key dates",
+        "echeance": "Due date",
+        "leJourDuMois": "day {jour} of each month",
+        "periode": "Term",
+        "periodeValeur": "{debut} → {fin}",
+        "revisionPossible": "Rent review from",
+        "preavis": "Notice period",
+        "preavisJours": "{n, plural, one {# day} other {# days}}",
+        "montants": "Agreed amounts",
+        "loyer": "Rent",
+        "charges": "Service charges",
+        "caution": "Security deposit",
+        "penalite": "Late fee",
+        "honoraires": "Management fees",
+        "netReverse": "Net paid to the landlord",
+        "membres": "In this thread",
+        "qualite": {
+          "locataire": "Tenant",
+          "bailleur": "Landlord",
+          "agent": "Assigned agent",
+          "candidat": "Applicant",
+          "contact": "Property contact",
+          "membre": "Agency"
+        },
+        "vous": "You · {qualite}",
+        "ouvrirLeBail": "Open the lease",
+        "ouvrirLaReservation": "Open the booking",
+        "chargement": "Loading the file…",
+        "erreur": "The file could not be loaded.",
+        "replier": "Hide the file",
+        "afficher": "Show the file"
+      },
+      "lectureSeule": {
+        "ferme": "This thread is closed: you can still read it, but not write in it.",
+        "bailFini": "This lease has ended: the room stays readable, but no one writes in it any more.",
+        "reservationClose": "This booking is closed: the room stays readable, but no one writes in it any more.",
+        "autre": "This room is read-only."
+      },
+      "bloc": {
+        "titreLease": "Lease room",
+        "titreBooking": "Booking room",
+        "ouvrir": "Open the room",
+        "vous": "You",
+        "aucunMessage": "No messages yet: the room brings the parties together."
+      }
     }
   },
   "payments": {

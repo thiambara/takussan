@@ -8,6 +8,8 @@ process.env.TZ = 'Europe/Paris';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // TCK-2594 — la fiche lit le personnel actif (« Fiche » du client) : hors du sujet ici.
+// TCK-2963 — le bloc de la salle ouvre sa conversation (React Query) : hors du propos de ce test.
+vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () => null }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 1 }));
 
 import { withIntl } from '@/test/intl';

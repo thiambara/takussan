@@ -110,4 +110,29 @@ tags: [front, messagerie, le-fil, salles, bail, reservation, maquette, adr-0128]
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### 2026-11-18 — implémentation (front seul ; l'API est à TCK-2961)
+
+**Où vit quoi.** `takussan-web/src/components/messages/salle/` : `salle.ts` (lecteur et qualité des membres par
+identifiants, raison de la lecture seule), `chronologieDeLaSalle.ts` (pliage par mois, pur), `requetesDeLaSalle.ts`
+(lecture du bail, `POST /api/conversations/rooms`), `BandeauDeLaSalle`, `DossierDuFil`, `LectureSeuleDeLaSalle`,
+`BlocDeLaSalle`, `SeparateurDeMois`, `useTitreDeLaSalle`. `ChatView` reçoit bandeau, raison et ouverture du dossier
+en **slot** (`salle`) depuis `MessagesPage` : le widget flottant est sur la frontière i18n racine
+(`check-i18n-namespaces`) et ne doit lire ni bail ni réservation.
+
+**Prémisses re-mesurées, qui différaient du ticket.**
+- « avec leurs `fields[…]` » : un `show` ignore `fields` et la garde `show-sans-fields.garde.test.ts` le refuse ;
+  la lecture du bail ne porte donc que `fields[customers]=id,user_id` (seul admis, TCK-2780) et
+  `include=tenant,due_summary` — ni `landlord` ni `agent`, qui rendent un téléphone au personnel.
+- La qualité des membres se déduit des identifiants (`landlord_id`, `agent_id`, `tenant.user_id` ; réservation :
+  `customer.user_id`) : les participants de la salle ne portent aucun rôle.
+- `LeaseResource` rend `commission_rate` à **tout** lecteur (locataire compris) ; seul `commission_amount` est
+  retiré hors du personnel. Le dossier n'écrit honoraires et net reversé que sur `commission_amount` : le
+  bailleur ne voit donc pas son net reversé (non rendu par l'API) — à trancher côté API.
+- L'API ne rend que `abilities.can_send_message` : la RAISON de la lecture seule (bail fini, réservation close,
+  fil fermé) est composée au front depuis le statut de l'objet.
+
+**AC5 (fidélité 360/1280) non mesuré** : le 2026-11-18 à 11:10, `:3000` répond 500 et l'API locale ne répond pas.
+
+**Collision.** Le bloc de la salle lit React Query sans provider dans les tests des fiches : 21 fichiers de tests de
+`BookingDetail`/`LeaseDetail` reçoivent un `vi.mock` du bloc (une ligne marquée TCK-2963), comme ils le font déjà
+pour `LeaveReviewCta` ou `PayOnlineButton`.
