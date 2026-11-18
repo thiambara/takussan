@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Conversation;
 
+use App\Rules\InstantIso;
+
 /**
  * TCK-2967 (ADR-0128 § 7) — « Rappelez-le-moi » : `{until}`, un instant futur, à
  * {@see self::JOURS_MAX} jours au plus.
@@ -14,7 +16,7 @@ class SnoozeConversationRequest extends GesteDeLaBoiteRequest
     public function rules(): array
     {
         return [
-            'until' => ['required', 'date', 'after:now', 'before_or_equal:'.now()->addDays(self::JOURS_MAX)->toIso8601String()],
+            'until' => ['required', 'date', new InstantIso, 'after:now', 'before_or_equal:'.now()->addDays(self::JOURS_MAX)->toIso8601String()],
         ];
     }
 
