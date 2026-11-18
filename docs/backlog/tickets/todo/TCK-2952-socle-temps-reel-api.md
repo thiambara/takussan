@@ -247,4 +247,104 @@ Ce que le ticket crée, côté code :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure de la prémisse (2026-11-18)
+
+- `laravel/reverb` installé en `^1.14` (`composer require`, lock résolu sous `config.platform.php` 8.4.1) ; il
+  amène `pusher/pusher-php-server`, que le diffuseur `reverb` du framework utilise (`createReverbDriver` →
+  `createPusherDriver`). `config/reverb.php` publiée telle quelle (`vendor:publish --tag=reverb-config`).
+- `config/reverb.php` lit aussi **`REDIS_TIMEOUT`**, que le ticket ne nomme pas : il entre dans le groupe de
+  résidus « Reverb installé, serveur posé par TCK-2953 et TCK-2956 », avec les 19 clés `REVERB_SERVER*`,
+  `REVERB_SCALING_*`, `REVERB_APP_*` (réglages du serveur). Le motif du premier groupe, qui citait
+  `NewNotification`, est réécrit.
+- **`Broadcast::routes()` déclare `GET` ET `POST`** sur `broadcasting/auth` (`BroadcastManager::routes`,
+  `Route::match(['get', 'post'], …)`). Or `EnforceImpersonationReadOnly` ne refuse que les méthodes non sûres :
+  sous impersonation, un `GET /api/broadcasting/auth?channel_name=…&socket_id=…` passerait le middleware. La
+  vérification explicite `ImpersonationContext::active()` dans les fermetures de `routes/channels.php` est donc
+  **nécessaire**, pas une redondance : c'est elle qui refuse le `GET`, le middleware refuse le `POST`.
+- **Aucun `NotificationService*Test` n'existe** (AC8 le cite) : `find tests -name 'NotificationService*Test.php'`
+  ne rend rien. Le cas `NotificationService::send()` est couvert par `EmetteurTest`.
+- Tests existants qui lisent le canal retiré : `InvoiceOverdueReminderNotificationTest` (`via()` attendu avec
+  `'broadcast'`), `SaisieDansTousLesEmailsTest::test_ac3_sujet_sms_et_cloche_ne_sont_pas_echappes`
+  (`toBroadcast()`), `NotificationBroadcastTest` (l'événement supprimé et le canal `App.Models.User`).
+- `VisitNotifier::consignerOuLever` traduisait `'broadcast'` en `NotificationChannel::Push` dans le journal de
+  remise : le bras est retiré avec le canal.
+
+
+### Décisions et écarts (2026-11-18)
+
+- **Couture de test : le transport seul.** `TransportTempsReel` (`#[Bind(TransportParDiffusion::class)]`) est la
+  seule couche que `TempsReel::fake()` (un `FauxTransport` enregistreur) ou un transport qui lève remplacent :
+  COMMIT, dédoublonnage, paquets de 100 et disjoncteur restent réels au-dessus. Le transport réel passe par
+  `Broadcasting\Factory::queue()` (synchrone pour `ShouldBroadcastNow`), pas par le répartiteur d'événements :
+  un `Event::fake()` d'un autre test ne l'éteint pas.
+- **Paquets de 100 dans l'émetteur**, pas dans `PusherBroadcaster` (qui découpe aussi) : le compte des envois et
+  le disjoncteur sont les nôtres. Un seul `cursor` par appel, partagé par ses paquets.
+- **Dédoublonnage jugé à l'émission**, dans le rappel `afterCommit` : un signal d'une transaction annulée n'a
+  jamais été émis et n'empêche pas le suivant.
+- **Unité de travail** : `UniteDeTravail` porte `#[Scoped]`. Le worker la vide entre deux jobs
+  (`forgetScopedInstances()`). Rien ne la vide entre deux requêtes d'un même processus (tests, Octane) : un
+  écouteur découvert, `App\Listeners\TempsReel\FinDUniteDeTravail` (`RequestHandled`), l'oublie en fin de
+  requête. Sans lui, le second `POST` identique d'un test de TCK-2955 n'émettrait rien.
+- **Sous impersonation, la vérification explicite est nécessaire** (cf. re-mesure : `GET` servi). Le `POST` est
+  refusé par `EnforceImpersonationReadOnly` (403 `impersonation.read_only`), le `GET` par
+  `CanauxTempsReel::sousImpersonation()`. L'ablation de l'AC2 porte sur cette dernière, et le test couvre les
+  deux verbes.
+- **Identifiant de canal** : `^[1-9][0-9]{0,17}$` avant toute requête — `abc`, `0` ou un nombre qui déborde un
+  `bigint` rendent 403, pas une 500 PostgreSQL.
+- **`utilisateur.{id}`** rend aussi `['id' => …]` (et non `true`) : un abonnement `presence-utilisateur.*`
+  n'aurait sinon rien de défini à publier.
+- **`broadcastType()`** est retiré avec `toBroadcast()` : seul le canal `broadcast` le lisait (relevé :
+  `grep -rn broadcastType app` ne rend que ses définitions). L'assertion qui le lisait dans
+  `InvoiceOverdueReminderNotificationTest` est retirée.
+- **`SaisieDansTousLesEmailsTest`** : la vérification de la cloche lisait `toBroadcast()` ; elle lit
+  maintenant le titre et le corps rendus par `NotificationRenderer` (ce que `NotificationService::send()` écrit
+  sur la ligne `app_notifications`), seuil ≥ 50 inchangé.
+- `NotificationBroadcastTest` est supprimé : il testait l'événement et le canal supprimés.
+
+### Ablations (2026-11-18)
+
+- **AC1** (`DiffusionParLeSignalSeulTest`, une à une, restauration vérifiée par `md5`) :
+  (a) une 4ᵉ clé `title` dans `broadcastWith()` → `test_le_signal_n_a_que_trois_cles` rouge ;
+  (b) une classe neuve `App\Support\DiffuseurPirate implements ShouldBroadcastNow` → `test_seul_signal_…` rouge ;
+  (c) la version d'origine d'`InvoiceOverdueReminderNotification` (`'broadcast'` dans `via()`) →
+  `test_aucune_notification_ne_diffuse` rouge.
+- **AC2** : la fermeture de `sujet.{type}.{id}` remplacée par `fn () => true` → « 403 reçu 200 » sur le type
+  `conversation` (seul type du registre) ; `CanauxTempsReel::sousImpersonation()` ramenée à `false` → le cas
+  « sous impersonation » rougit (le `GET` rend 200 ; le `POST` reste 403 par le middleware).
+- **AC3** : la bascule de `setUp()` retirée (suite sous `null`) → 5 tests sur 8 rougissent, tous sur un 403
+  attendu qui rend 200 ; restent verts : la fixture, le 401 sans jeton et le 404 de l'ancienne route.
+- **AC4** : `DB::afterCommit(…)` remplacé par l'appel immédiat → `test_une_transaction_annulee_n_emet_rien` rouge.
+- **AC5, prémisse qui différait** : `client_options.timeout` ne suffit pas. Le client Pusher passe SON délai à
+  chaque requête (`Pusher::post()`, `'timeout' => $this->settings['timeout']`, 30 s par défaut), qui l'emporte
+  sur celui du client HTTP. `options.timeout = 1` est donc posé aussi. Éprouvé contre un serveur local qui
+  accepte la connexion et ne répond jamais (`stream_socket_server`) : 1,10 s avec, **30,02 s** sans (rouge).
+- **AC5** : le `catch (Throwable)` de l'émission restreint à `LogicException` → la requête rend 500 au lieu de 201.
+  Le cas « dépasse le délai » est éprouvé sur le transport RÉEL : Reverb visé sur `10.255.255.1:6001`, trois
+  destinataires → 1,13 s mesurées, compteur à 3 (un échec, deux abandons par le disjoncteur).
+- **AC5 bis** : le disjoncteur neutralisé → le transport est appelé 3 fois au lieu d'1 ; les paquets retirés
+  (`[$neufs]`) → `[150]` au lieu de `[100, 50]`.
+- **AC6** : `#[Scoped]` → `#[Singleton]` sur `UniteDeTravail` → « deux jobs » rend 1 envoi au lieu de 2.
+- Écouteur `FinDUniteDeTravail` vidé → « deux requêtes » rend 1 envoi au lieu de 2.
+
+### Vérification (2026-11-18) et reste
+
+- Joués : `AutorisationDesCanauxTest` (8), `EmetteurTest` (14), `DiffusionParLeSignalSeulTest` (4),
+  `InvoiceOverdueReminderNotificationTest`, `SaisieDansTousLesEmailsTest` — 39 verts ; les gardes
+  `RessourceUniqueResolueTest`, `ExistsSurTableASuppressionDouceTest`, `AgencyIdIsIndexedTest`,
+  `ImpersonationReadSweepTest`, `ValeursEnListeParcoursDesRoutesTest`, `DateInventoryByValueTest` — 37 verts.
+  `check-env-production` et `check-env-parity` verts ; Pint propre.
+- **AC8, `impacted-tests` : non mesuré localement.** `composer.lock`, `bootstrap/` et `config/` sont des
+  déclencheurs durs (suite entière), et la carte relie `NotificationService`/`CodedNotification` à ~1800
+  classes : c'est la CI de la PR qui la joue (règle de charge du lot). Idem `EventListenerDuplicationTest`,
+  qui verra l'écouteur neuf.
+- **Hors de ce ticket, à reprendre avec TCK-2953** : `PreferenceResolver::channelsFor()` ouvre la case
+  `push` dès que `broadcasting.default` n'est ni `log` ni `null`. Le jour où Reverb est posé, la matrice des
+  préférences offrira un canal « push » qu'aucun envoi n'honore plus (plus de canal `broadcast`). À fermer
+  là, ou à décider (la case pourrait devenir « signal de la cloche »).
+- **Pour TCK-2954** : `/api/broadcasting/auth` est un `POST` du groupe `api`, donc sous `EnsureAgencyWritable`
+  (qui refuse toute méthode non sûre hors de sa liste blanche sous un profil d'agence suspendue). Un membre d'une
+  agence suspendue reçoit donc 403 à l'autorisation et retombe en mode dégradé (relecture périodique) : juste,
+  mais à savoir. Non modifié ici (middleware hors périmètre).
+- La forme sur le fil est épinglée par `test_le_transport_reel_remet_le_signal_au_diffuseur` : canaux
+  `private-utilisateur.{id}`, événement `signal`, charge `{subject, event, cursor}` (+ `socket`, retiré par le
+  diffuseur Pusher).

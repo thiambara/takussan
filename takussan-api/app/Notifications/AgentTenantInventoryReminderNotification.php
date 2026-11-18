@@ -10,7 +10,6 @@ use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -98,15 +97,5 @@ class AgentTenantInventoryReminderNotification extends Notification implements S
                 ) ?: __('notifications.agent_tenant_inventory_reminder.unknown_tenant'),
             ]),
         ];
-    }
-
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastType(): string
-    {
-        return 'agent.tenant.inventory.reminder';
     }
 }

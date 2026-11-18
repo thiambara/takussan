@@ -22,7 +22,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\AnonymousNotifiable;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
@@ -181,13 +180,9 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
         if ($notifiable->email && ($event === null || $resolver->shouldSend($notifiable, $event, PreferenceResolver::CHANNEL_EMAIL))) {
             $channels[] = 'mail';
         }
-        if (
-            $event !== null
-            && in_array(PreferenceResolver::CHANNEL_PUSH, $resolver->channelsFor($event), true)
-            && $resolver->shouldSend($notifiable, $event, PreferenceResolver::CHANNEL_PUSH)
-        ) {
-            $channels[] = 'broadcast';
-        }
+        // TCK-2952 (ADR-0129) — la préférence « push » reste une préférence (`PreferenceResolver`), mais
+        // n'ouvre plus aucun canal : il n'y a pas de push hors application, et la cloche apprend la ligne
+        // neuve par le signal `notifications.updated` de `NotificationService::send()`, sans donnée.
         // Un seul canal mobile — WhatsApp s'il est permis, sinon SMS (TCK-282, AC5).
         if ($this->code->mobile() && $event !== null && $this->mobileBorne !== false) {
             $mobile = $resolver->resolveMobileChannel($notifiable, $event);
@@ -351,22 +346,5 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     public function appNotificationIdFor(object $notifiable): ?int
     {
         return $this->appNotificationId;
-    }
-
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage([
-            'id' => $this->appNotificationId,
-            'code' => $this->code->value,
-            'params' => $this->params,
-            'target' => $this->target,
-            'title' => $this->render($notifiable, 'title'),
-            'body' => $this->render($notifiable, 'body'),
-        ]);
-    }
-
-    public function broadcastType(): string
-    {
-        return $this->code->value;
     }
 }

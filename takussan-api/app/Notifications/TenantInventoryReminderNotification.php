@@ -9,7 +9,6 @@ use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -81,15 +80,5 @@ class TenantInventoryReminderNotification extends Notification implements Should
             'title' => __('notifications.tenant_inventory_reminder.subject', ['reference' => $reference]),
             'body' => __('notifications.tenant_inventory_reminder.intro', ['reference' => $reference]),
         ];
-    }
-
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastType(): string
-    {
-        return 'tenant.inventory.reminder';
     }
 }

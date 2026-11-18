@@ -50,11 +50,26 @@ const REPORT = process.argv.includes('--report');
  */
 const RESIDUS = [
   {
-    motif: "pilote de diffusion non utilisé : `NewNotification` part à chaque notification, BROADCAST_CONNECTION=null la fait taire, et aucun canal temps réel ne l'écoute",
+    // TCK-2952 — `NewNotification` est supprimé : seul `SignalTempsReel` diffuse (ADR-0129). Les clés
+    // REVERB_APP_* / HOST / PORT / SCHEME quittent ce groupe quand TCK-2953 les pose dans .env.example.
+    motif: "pilote de diffusion pas encore posé : seul `SignalTempsReel` diffuse (ADR-0129), BROADCAST_CONNECTION=null le fait taire tant que le service Reverb n'est pas posé (TCK-2953, TCK-2956)",
     cles: [
       'ABLY_KEY', 'PUSHER_APP_CLUSTER', 'PUSHER_APP_ID', 'PUSHER_APP_KEY', 'PUSHER_APP_SECRET', 'PUSHER_HOST',
       'PUSHER_PORT', 'PUSHER_SCHEME', 'REVERB_APP_ID', 'REVERB_APP_KEY', 'REVERB_APP_SECRET', 'REVERB_HOST',
       'REVERB_PORT', 'REVERB_SCHEME',
+    ],
+  },
+  {
+    // TCK-2952 — `config/reverb.php`, publiée avec `laravel/reverb` : les réglages du SERVEUR, lus par
+    // `reverb:start` seul. Ils gardent leurs défauts tant que le service n'est pas posé.
+    motif: 'Reverb installé, serveur posé par TCK-2953 (développement) et TCK-2956 (préproduction) : réglages du serveur WebSocket, à leurs défauts',
+    cles: [
+      'REDIS_TIMEOUT', 'REVERB_APP_ACCEPT_CLIENT_EVENTS_FROM', 'REVERB_APP_ACTIVITY_TIMEOUT',
+      'REVERB_APP_MAX_CHANNELS_PER_CONNECTION', 'REVERB_APP_MAX_CONNECTIONS', 'REVERB_APP_MAX_MESSAGE_SIZE',
+      'REVERB_APP_PING_INTERVAL', 'REVERB_APP_RATE_LIMITING_ENABLED', 'REVERB_APP_RATE_LIMIT_DECAY_SECONDS',
+      'REVERB_APP_RATE_LIMIT_MAX_ATTEMPTS', 'REVERB_APP_RATE_LIMIT_TERMINATE', 'REVERB_MAX_REQUEST_SIZE',
+      'REVERB_PULSE_INGEST_INTERVAL', 'REVERB_SCALING_CHANNEL', 'REVERB_SCALING_ENABLED', 'REVERB_SERVER',
+      'REVERB_SERVER_HOST', 'REVERB_SERVER_PATH', 'REVERB_SERVER_PORT', 'REVERB_TELESCOPE_INGEST_INTERVAL',
     ],
   },
   {
