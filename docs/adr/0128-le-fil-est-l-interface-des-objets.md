@@ -128,6 +128,13 @@ Le nom affiché est « Note d'équipe », pas « aparté » (décision 5a) : il 
 - Les **@mentions** sont des identifiants de compte dans le `metadata` du message. Une mention ne
   notifie que si la personne mentionnée lit ce message.
 
+#### Amendement du 2026-11-18 (TCK-2965) — le super-admin lit les notes d'équipe
+
+**Décision du porteur (2026-11-18, 3b)** : hors impersonation, le super-admin lit aussi les notes
+d'équipe, comme il lit le document interne de la fiche client (ADR-0099, amendement du 2026-11-12).
+C'est la seule exception à « les participants qui sont personnel actif ». Sous impersonation, il lit ce
+que lit la cible et rien de plus : un opérateur qui se présente comme le locataire ne voit aucune note.
+
 ### 7. La boîte de pilotage se dérive ; seuls trois gestes se stockent
 
 - « À vous de répondre », « En attente de l'autre », « Engagements en retard » et « À jour » sont

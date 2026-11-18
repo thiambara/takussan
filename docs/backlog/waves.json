@@ -88,6 +88,7 @@
     "91": "Préparation du terrain : fidélité au pixel des maquettes de la partie connectée — à faire AVANT les vagues 86 à 90 (TCK-2684 → TCK-2692)",
     "92": "Manques de l'audit des maquettes de /app (2026-11-15) : ce que les tickets des vagues 86 à 91 ont laissé de côté — écrans jamais relevés, manques rangés en « donnée » ou « renvoyés » sans suite (TCK-2845 →)",
     "93": "Le Fil, lot 0 — le socle temps réel (ADR-0129, plan docs/plans/2026-11-17-le-fil.md) : Reverb, émetteur et registre des canaux, client front et mode dégradé, premiers sujets, service en préproduction (TCK-2952 → TCK-2956)",
-    "94": "Le Fil, lot 1 — le fil rattaché à son objet, les cartes vivantes et les salles (ADR-0128 §§ 1-5 ; maquettes fil-cartes D et fil-salle-bail A, choisies le 2026-11-17) (TCK-2957 → TCK-2964)"
+    "94": "Le Fil, lot 1 — le fil rattaché à son objet, les cartes vivantes et les salles (ADR-0128 §§ 1-5 ; maquettes fil-cartes D et fil-salle-bail A, choisies le 2026-11-17) (TCK-2957 → TCK-2964)",
+    "95": "Le Fil, lot 2 — la note d'équipe, les @mentions et la boîte de pilotage (ADR-0128 §§ 6-7 ; maquettes fil-boite D et fil-cartes D, sans la puce « Retard », qui attend le lot 3) (TCK-2965 → TCK-2968)"
   }
 }
