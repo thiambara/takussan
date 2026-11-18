@@ -1,4 +1,5 @@
 /**
+ * TCK-2968 — la pastille de « Messagerie » compte les GESTES attendus (`meta.gestes`) : « à traiter », plus « non lus ».
  * TCK-2482 — la palette montée seule, ouverte : rôles ARIA, clavier, AC2 (« loyer » chez le locataire),
  * AC3 (« Plus » trouvé, l'inaccessible jamais), AC4 (« Basculer vers … » bascule, puis la palette suit le
  * persona que la coque rend), AC5 (axe). L'ouverture par ⌘K / Ctrl K et le retour du focus sont éprouvés
@@ -194,7 +195,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     // Le sondage des non-lus rend 3 pendant que la palette est ouverte : « À traiter » s'insère AVANT.
     etat.nonLus = 3;
     rerender(ui(LOCATAIRE));
-    expect(screen.getByRole('option', { name: /^Messages non lus/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^Conversations à traiter/ })).toBeInTheDocument();
     expect(active()).toBe('Mon bail');
     await u.keyboard('{Enter}');
     expect(etat.push).toHaveBeenCalledTimes(1);
@@ -208,13 +209,13 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     const champ = await screen.findByRole('combobox');
     await waitFor(() => expect(champ).toHaveFocus());
     const options = screen.getAllByRole('option');
-    const pastille = screen.getByRole('option', { name: /^Messages non lus/ });
+    const pastille = screen.getByRole('option', { name: /^Conversations à traiter/ });
     const rang = options.indexOf(pastille);
     for (let i = 0; i < rang; i++) await u.keyboard('{ArrowDown}');
     expect(champ).toHaveAttribute('aria-activedescendant', pastille.id);
     etat.nonLus = 0;
     rerender(ui(LOCATAIRE));
-    expect(screen.queryByRole('option', { name: /^Messages non lus/ })).toBeNull();
+    expect(screen.queryByRole('option', { name: /^Conversations à traiter/ })).toBeNull();
     const premiere = screen.getAllByRole('option')[0]!;
     expect(champ).toHaveAttribute('aria-activedescendant', premiere.id);
     expect(premiere).toHaveAttribute('aria-selected', 'true');
@@ -234,7 +235,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     const u = userEvent.setup();
     render(ui(LOCATAIRE));
     const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'À traiter' });
-    await u.click(within(groupe).getByRole('option', { name: /^Messages non lus/ }));
+    await u.click(within(groupe).getByRole('option', { name: /^Conversations à traiter/ }));
     expect(etat.push).toHaveBeenCalledWith('/app/messages');
   });
 

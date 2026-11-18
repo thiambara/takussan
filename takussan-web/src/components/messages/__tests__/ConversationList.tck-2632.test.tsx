@@ -1,6 +1,6 @@
 /**
  * TCK-2632 — la liste « les personnes d'abord » : la personne en titre (AC1), le bien en deuxième
- * ligne ; les puces « Tous · Non lus · Groupes » avec leurs comptes, et la recherche, filtrées par le
+ * ligne ; les puces « Tous · Non lus · … » (« Groupes » remplacé par les files, TCK-2968) avec leurs comptes, et la recherche, filtrées par le
  * SERVEUR (AC2) — la liste ne filtre jamais la page chargée ; « Photo » pour une photo (AC7).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -79,17 +79,21 @@ describe('<ConversationList> — les personnes d’abord (TCK-2632)', () => {
     expect(within(rangee).getByText('+3')).toBeInTheDocument();
   });
 
-  it('les puces portent leurs comptes, et « Groupes » demande `type: group` au serveur', () => {
+  // TCK-2968 — « Groupes » quitte la rangée (boîte de pilotage, maquette `fil-boite` D) : « À vous » demande
+  // `file: vous` au serveur, comme « Non lus » demande `nonLus`.
+  it('les puces portent leurs comptes, et « À vous » demande `file: vous` au serveur', () => {
+    pages = [page([directe(1, 'Malick Seck', 'Maison avec jardin')], { all: 10, unread: 2, group: 3, vous: 4 } as never)];
     render(withIntl(<ConversationList selectedId={null} onSelect={() => {}} />));
-    const groupes = screen.getByRole('button', { name: /Groupes/ });
-    expect(groupes).toHaveTextContent('3');
+    expect(screen.queryByRole('button', { name: /Groupes/ })).not.toBeInTheDocument();
+    const aVous = screen.getByRole('button', { name: /À vous/ });
+    expect(aVous).toHaveTextContent('4');
     expect(screen.getByRole('button', { name: /Non lus/ })).toHaveTextContent('2');
-    fireEvent.click(groupes);
-    expect(groupes).toHaveAttribute('aria-pressed', 'true');
-    expect(appels.at(-1)).toMatchObject({ type: 'group' });
+    fireEvent.click(aVous);
+    expect(aVous).toHaveAttribute('aria-pressed', 'true');
+    expect(appels.at(-1)).toMatchObject({ file: 'vous' });
     fireEvent.click(screen.getByRole('button', { name: /Non lus/ }));
     expect(appels.at(-1)).toMatchObject({ nonLus: true });
-    expect(appels.at(-1)).not.toHaveProperty('type');
+    expect(appels.at(-1)).not.toHaveProperty('file');
   });
 
   it('AC2 — la recherche part au serveur APRÈS le délai, et s’efface', () => {

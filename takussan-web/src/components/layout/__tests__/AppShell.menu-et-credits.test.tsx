@@ -1,4 +1,5 @@
 /**
+ * TCK-2968 — la pastille de « Messagerie » compte les GESTES attendus (`meta.gestes`) : « à traiter », plus « non lus ».
  * TCK-646 (AC4) et TCK-642 (AC2, AC3, AC5) — la coque `/app` montée en entier : la barre haute,
  * la barre latérale de bureau et le tiroir (le « menu mobile » de `/app`).
  *
@@ -156,12 +157,12 @@ describe('TCK-2479 / TCK-2490 — « Aujourd’hui » est aussi dans le tiroir',
         .map((l) => [l.textContent, l.getAttribute('href')]);
     // Lu AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
     const auBureau = duBloc(bureau);
-    expect(auBureau).toEqual([['Messages non lus, 3', '/app/messages']]);
+    expect(auBureau).toEqual([['Conversations à traiter, 3', '/app/messages']]);
 
     const tiroir = await ouvrirLeTiroir();
     expect(duBloc(tiroir)).toEqual(auBureau);
     const region = within(tiroir).getByRole('region', { name: 'Aujourd’hui' });
-    await userEvent.setup().click(within(region).getByRole('link', { name: /^Messages non lus,\s?3$/ }));
+    await userEvent.setup().click(within(region).getByRole('link', { name: /^Conversations à traiter,\s?3$/ }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

@@ -35,6 +35,11 @@ export type GestesDuFil = {
   /** Fil direct seulement : élargir le fil ouvre un NOUVEAU groupe (ADR-0114). */
   readonly onAjouterUnParticipant?: () => void;
   readonly onSignaler: () => void;
+  /**
+   * TCK-2968 (ADR-0128 § 7) — « Confier à un collègue » : une salle ou un groupe, par le personnel, hors
+   * impersonation. La page le décide ; absent, le menu ne l'offre pas.
+   */
+  readonly onConfier?: () => void;
 };
 
 /** Le plafond d'un groupe (`AddParticipantsRequest`, 20 membres) moins les deux membres de la directe. */

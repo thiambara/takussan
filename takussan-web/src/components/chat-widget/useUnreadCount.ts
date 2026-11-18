@@ -26,7 +26,15 @@ import { useAuth } from '@/context/AuthContext';
  * étant la même, la barre latérale ne coûte aucune requête supplémentaire : elle lit le cache que
  * le widget alimente.
  */
-export function useUnreadCount(options: { enabled?: boolean } = {}): number {
+/**
+ * TCK-2968 (ADR-0128 § 7) — `mesure: 'gestes'` : la pastille de l'onglet Messages (barre du téléphone,
+ * colonne du bureau) compte les fils qui ATTENDENT un geste du lecteur (`meta.gestes`, TCK-2967), et non
+ * ses messages non lus — un fil lu peut rester « À vous ». Même requête, même clé, même cadence : aucune
+ * lecture de plus. Le widget flottant garde `unread_total` (défaut).
+ */
+export type MesureDeLaPastille = 'nonLus' | 'gestes';
+
+export function useUnreadCount(options: { enabled?: boolean; mesure?: MesureDeLaPastille } = {}): number {
   const enabled = options.enabled ?? true;
   const { user } = useAuth();
   const dansLaMessagerie = (usePathname() ?? '').startsWith('/app/messages');
@@ -42,5 +50,7 @@ export function useUnreadCount(options: { enabled?: boolean } = {}): number {
   // react-query : sans `isError`, la pastille affichait un compte qu'on ne sait plus vrai. 0 vaut
   // « rien à traiter », comme pendant le chargement ; la relecture suivante (30 s) le rétablit.
   if (!enabled || isLoading || isError || !user) return 0;
+  // TCK-2968 — les gestes attendus, sous la même règle (0 en chargement, en erreur, hors session).
+  if (options.mesure === 'gestes') return data?.meta?.gestes ?? 0;
   return data?.meta?.unread_total ?? 0;
 }

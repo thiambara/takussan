@@ -124,4 +124,103 @@ Sparse fieldsets : les champs ajoutés entrent dans la constante `*_FIELDS` de l
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure de la prémisse (2026-11-18)
+
+- **Qui écrit et qui lit les notes : les drapeaux de l'API** (reprise du 2026-11-18, à la demande de la
+  session). Une première passe dérivait la règle de la relation `agent` du contexte, faute de drapeau ; elle
+  est retirée. `GET …/context` porte désormais `data.can_write_team_note` et
+  `data.participants[].reads_team_notes` (TCK-2967, `ConversationContextResource`) : l'interrupteur paraît
+  si et seulement si `can_write_team_note` ; les mentionnables d'une note, et les collègues proposés par
+  « Confier », sont les participants de `data.team_note_reader_ids` (ajouté ensuite par TCK-2967 : tout
+  participant actif qui lit les notes, AVEC ou SANS ligne de relation — `participants[]` n'en porte pas pour
+  qui n'a aucune relation lisible, TCK-2748). `reads_team_notes` est typé, pas lu. La `relation` ne sert
+  plus qu'au libellé « Lu par Awa Diop (agent) ». L'API reste juge (422 `messaging.team_note_*`,
+  `messaging.mention_not_reader`), et le composeur affiche l'échec d'un envoi (il était avalé).
+- **`en_attente_de` porte des identifiants seuls** : « Bineta Sarr doit signer » ne se compose pas (la
+  nature du geste attendu ne sort pas). Motif générique « En attente de {noms} », nommé d'après les
+  participants actifs ; un identifiant inconnu est ignoré, jamais affiché.
+- **Ordre de « À vous »** : l'API trie désormais `filter[file]=vous` par `attend_depuis` croissant (la plus
+  longue attente d'abord, comme la maquette ; TCK-2967) ; les autres files gardent l'ordre du dernier échange.
+  Le front ne retrie rien sur la page reçue.
+- **Pastille** : `meta.gestes` arrive sur la même requête étroite (`per_page=1`, clé
+  `['conversations','list','unread-total']`) ; `useUnreadCount({ mesure: 'gestes' })` la lit, sans lecture de
+  plus. Le widget flottant garde `unread_total`. Les libellés du compteur (`nav.sidebar.counters`,
+  `aujourdhui.lignes`, `palette.aTraiterLignes`, et l'annonce `AnnonceDesNonLus`) disent « à traiter » ; le
+  `wo` déjà traduit est conservé par l'outil de clés (ADR-0095 § 4) et dit encore « non lus » (wolof en pause).
+
+### Composeur (2026-11-18)
+
+- Destination liée au fil (`{fil, equipe}`) et remise à « Fil » pendant le rendu quand le fil change :
+  revenir au fil d'avant ne la rend pas « Équipe » (test). Retour à « Fil » après un envoi RÉUSSI ; un échec
+  la garde (le nouvel essai reste une note).
+- En mode « Équipe » : ni trombone, ni note vocale, ni réponses rapides, ni « poser » (ils partiraient au
+  fil entier) ; `@` remplace le trombone, « Noter » le rond d'envoi. L'interrupteur est désactivé pendant
+  une pièce en attente ou une note vocale.
+- Le nom accessible de l'interrupteur est « Équipe » (le `<label>` qui l'enveloppe l'emporte sur
+  `aria-label`), décrit par la ligne « Lu par… ».
+
+### Ablations (2026-11-18, une à une, `-t` sur le seul test visé, restauration par `cp`, md5 vérifié)
+
+| Ablation | Rouge |
+|---|---|
+| `signalerFrappe` sans la garde du mode « Équipe » | `écrire une note n’émet rien` |
+| pas de retour à « Fil » après l'envoi | `rendu à « Fil »` |
+| pas de remise à « Fil » au changement de fil | `changer de fil` |
+| `equipeLit` toujours vrai | `un client ne voit ni l’interrupteur` |
+| interrupteur dérivé de la relation `agent` (l'ancienne règle) | `un personnel aussi bailleur du fil l’a quand l’API le dit` |
+| interrupteur dès que le contexte est lu, sans `can_write_team_note` | `un agent dont l’API dit qu’il n’écrit pas de note` |
+| mentionnables d'une note dérivés de la relation `agent` | `les mentionnables d’une note suivent team_note_reader_ids` |
+| mentionnables d'une note lus sur `participants[].reads_team_notes` | `un lecteur des notes SANS ligne de relation reste mentionnable` |
+| collègues de « Confier » dérivés de la relation `agent` | `le dialogue « Confier » liste les participants…` |
+| mentionnables d'une note = tous les participants | `mentionnables d’une note` |
+| l'impersonation ne coupe plus les gestes (`actif: true`) | `sous impersonation, aucun geste` |
+| la puce ne pose plus `file` dans les filtres | `chaque puce de file part au serveur` |
+| `conversationListParams` n'envoie plus `filter[file]` | `` `file` part en `filter[file]` `` |
+| « Confier » offert à tout fil (direct, client) | `« Confier » : une salle ou un groupe` |
+| « Confié à » lisible de tous | `« Confié à » ne se lit que du personnel` |
+| la pastille du menu lit `nonLus` | `ne sonde que les compteurs` (`useCompteursDuMenu`) |
+| « Annuler » n'envoie plus `DELETE …/handled` | `« Traité » puis « Annuler »` |
+| « Confier » de l'en-tête sans la règle « personnel, salle ou groupe » | `un agent dans un groupe` et `un locataire dans un groupe` (`MessagesPage`) |
+| « Confier » de l'en-tête sans la condition « personnel » | `un locataire dans un groupe` |
+
+### La boîte (2026-11-18)
+
+Décisions acceptées par la session le 2026-11-18 : la puce « Groupes » quitte la rangée ; la feuille
+« Filtrer » est hors de ce delta ; la pastille de l'onglet lit `meta.gestes` ; le motif d'un fil « En attente »
+est générique, « En attente de {noms} ».
+
+- Puces Tous · Non lus · À vous · En attente · Rappels, comptes de `meta.counts`, file en `filter[file]` (et
+  dans la clé de requête). **« Groupes » quitte la rangée** (écart : la maquette le range dans « Filtrer »,
+  feuille hors de ce lot). Une ligne d'aide par puce, sous la rangée, page seule.
+- Rangée : étiquette de file (`StatusBadge`) sous « Tous » et « Non lus » ; signaux — délai d'un fil « À vous »
+  (« au-delà de 4 h » en encre d'alerte, `DELAI_DEPASSE_MS`), « En attente de {noms} », « Confié à » (personnel
+  seul), « Revient {quand} ». L'horloge des délais se relève chaque minute.
+- Gestes tenus par la PAGE (`pilotage`), jamais par le widget flottant ni sous impersonation (cookie témoin,
+  `relaisImpersonationActif`) : survol ou focus au bureau (Traité · Rappel · Confier), glissement au toucher
+  au téléphone (Rappel · Traité), « Ramener » sous « Rappels ». Le toast de « Traité » est dessiné par la
+  boîte (surface `.dark`, 6 s, « Annuler » → `DELETE …/handled`) : la liste est aussi montée hors des coques
+  qui portent un `ToastProvider`. Un échec de geste s'affiche (`role=alert`).
+- « Rappelez-le-moi » : choix courts seulement (dans 1 h, ce soir 18 h, demain 9 h, lundi 9 h ; heure de
+  Dakar). **Écarts** : pas de date libre, et la case « revenir plus tôt si quelqu'un écrit » devient une ligne
+  de règle (l'API ramène le fil sur tout message, elle ne prend pas d'option). « Dans 1 heure » est inscrit au
+  registre des promesses de délai (`promesses-de-delai.test.ts`), adossé à `pilotage.ts`.
+- « Confier » : au survol d'une salle ou d'un groupe (personnel), et dans le « ⋯ » de l'en-tête ; une feuille
+  (dialogue au bureau) liste les participants qui ont `reads_team_notes` et « Personne ». **Écart** : la
+  pastille « Suivi par » de la maquette n'est pas posée dans l'en-tête ; « Confié à » se lit sur la rangée.
+  La règle « personnel, salle ou groupe, hors impersonation » de l'en-tête vit dans `MessagesPage` (testée,
+  ablation).
+- États vides par file ; « À vous » vide : « Rien ne vous attend » et « Voir « En attente » (n) ».
+- Sous-titre du bureau : « {n} gestes attendus · {m} conversations » quand l'API rend `meta.gestes`.
+
+### Vérifications (2026-11-18)
+
+- `npx eslint` (fichiers touchés) : 0 ; `npx tsc --noEmit` : propre ; vitest, 65 fichiers touchés ou voisins :
+  831 verts ; `check-vouvoiement` vert ; `check-i18n` : 116 écarts, tous dans `playground/maquettes` (locales,
+  hors git). Gardes racine : rouges seulement sur la liste tolérée, chacune ne citant que les maquettes ;
+  `check-valeurs-arbitraires-app` a attrapé un `text-[0.6875rem]` de la note (→ `text-legende`), vert depuis.
+  `src/test/__tests__` (recensements) : 3 fichiers rouges (`encre-sans-alpha`, `focus-et-contour-des-champs`,
+  `surface-publique`), écarts tous dans `playground/maquettes` — les deux fichiers irrésolvables de plus de
+  `surface-publique` sont `maquettes/pages/accueil.tsx` et `navigation.tsx` (sondé). Les tests qui importent les
+  composants touchés hors de `messages/` et `chat-widget/` (23 fichiers) : verts.
+- AC1 à AC4 : non mesurés (relevés au navigateur hors de la portée de cette passe).
+

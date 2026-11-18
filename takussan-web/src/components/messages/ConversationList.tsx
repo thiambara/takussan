@@ -2,7 +2,8 @@
 
 import Image from 'next/image';
 import { useLocale, useTranslations } from 'next-intl';
-import { BellOff, CalendarCheck, FileText, Search, Users, Wrench, X } from 'lucide-react';
+import { BellOff, CalendarCheck, CheckCheck, FileText, Search, Users, Wrench, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,11 +24,23 @@ import { quandDansLaListe } from './quand';
 // TCK-2963 — la salle d'un bail ou d'une réservation : nommée depuis son objet, signée de ses membres.
 import { estUneSalle, membresActuels } from './salle/salle';
 import { useTitreDeLaSalle } from './salle/useTitreDeLaSalle';
+// TCK-2968 (ADR-0128 § 7) — la boîte de pilotage : puces de file, signaux et gestes d'une rangée.
+import { PUCES_DE_PILOTAGE, fileDeLaPuce, type PuceDePilotage } from './boite/pilotage';
+import {
+  BoutonRamener,
+  EtiquetteDeFile,
+  GestesAuSurvol,
+  RangeeGlissable,
+  SignauxDuFil,
+  type PilotageDeLaListe,
+} from './boite/RangeeDeLaBoite';
+import { isAgencyAdmin, isAgent } from '@/lib/roles';
+import { typeDuProfilActif } from '@/lib/navigation/personas';
 
 /** TCK-2632 — le délai de la recherche : une requête quand la frappe s'arrête, pas une par lettre. */
 export const DELAI_DE_RECHERCHE_MS = 300;
 
-type Puce = 'tous' | 'nonLus' | 'groupes';
+type Puce = PuceDePilotage;
 
 interface ConversationListProps {
   readonly selectedId: number | null;
@@ -36,6 +49,11 @@ interface ConversationListProps {
   readonly dense?: boolean;
   /** TCK-2632 — « Écrire à un client », l'action de l'état vide du personnel d'agence. */
   readonly onNouvelle?: () => void;
+  /**
+   * TCK-2968 — les gestes de la boîte (« Traité », « Rappelez-le-moi », « Ramener », « Confier »), tenus par
+   * la page. Absents (widget flottant, impersonation) : la liste se lit sans geste.
+   */
+  readonly pilotage?: PilotageDeLaListe;
 }
 
 /**
@@ -47,19 +65,32 @@ interface ConversationListProps {
  * comptes (`meta.counts`). Tout se filtre CÔTÉ SERVEUR (TCK-2630) : la recherche part après
  * {@link DELAI_DE_RECHERCHE_MS}, et rien n'est jamais filtré sur la page déjà chargée.
  */
-export function ConversationList({ selectedId, onSelect, dense = false, onNouvelle }: ConversationListProps) {
+export function ConversationList({ selectedId, onSelect, dense = false, onNouvelle, pilotage }: ConversationListProps) {
   const t = useTranslations('messaging');
   const tCommon = useTranslations('common.actions');
   const locale = useLocale() as Locale;
-  const { user } = useAuth();
+  const { user, activeProfileId } = useAuth();
+  const tBoite = useTranslations('messaging.boite');
+  // TCK-2968 — « Confié à » et « Confier » : le personnel d'agence seul (même jugement que `ChatView`).
+  const typeActif = typeDuProfilActif(activeProfileId ?? user?.active_profile_id);
+  const roles = user?.roles ?? [];
+  const duPersonnel = typeActif !== null ? typeActif === 'agent' || typeActif === 'agency_admin' : isAgent(roles) || isAgencyAdmin(roles);
+  // L'horloge des délais (« depuis 25 min ») : relevée au montage, puis chaque minute.
+  const [maintenant, setMaintenant] = useState(() => new Date());
+  useEffect(() => {
+    const minuterie = setInterval(() => setMaintenant(new Date()), 60_000);
+    return () => clearInterval(minuterie);
+  }, []);
   const idRecherche = useId();
   const [saisie, setSaisie] = useState('');
   const [puce, setPuce] = useState<Puce>('tous');
   const recherche = useDebouncedValue(saisie, DELAI_DE_RECHERCHE_MS);
+  // TCK-2968 — la puce de file part au SERVEUR (`filter[file]`), jamais sur la page reçue.
+  const fileDemandee = fileDeLaPuce(puce);
   const filtres: FiltresDeLaListe = {
     recherche,
     ...(puce === 'nonLus' ? { nonLus: true } : {}),
-    ...(puce === 'groupes' ? { type: 'group' as const } : {}),
+    ...(fileDemandee ? { file: fileDemandee } : {}),
   };
   const filtre = recherche.trim().length > 0 || puce !== 'tous';
   // List polls every 10 s to surface new conversations / unread badges.
@@ -156,13 +187,16 @@ export function ConversationList({ selectedId, onSelect, dense = false, onNouvel
         aria-label={t('list.filtres.label')}
         className={cn('sticky top-0 z-10 bg-background', dense && 'pt-3')}
       >
-        {(
-          [
-            ['tous', t('list.filtres.tous'), undefined],
-            ['nonLus', t('list.filtres.nonLus'), comptes?.unread],
-            ['groupes', t('list.filtres.groupes'), comptes?.group],
-          ] as const
-        ).map(([cle, libelle, compte]) => (
+        {/*
+          TCK-2968 (maquette `fil-boite` D) — Tous · Non lus · À vous · En attente · Rappels, une rangée qui
+          défile. Les comptes lisent `meta.counts` (toute la liste, sans filtre), jamais la page. « Groupes »
+          quitte la rangée (son filtre vivait dans « Filtrer », hors de ce lot).
+        */}
+        {PUCES_DE_PILOTAGE.map((cle) => [
+          cle,
+          t(`list.filtres.${cle}`),
+          cle === 'tous' ? undefined : cle === 'nonLus' ? comptes?.unread : comptes?.[cle],
+        ] as const).map(([cle, libelle, compte]) => (
           <PuceDeFiltre
             key={cle}
             active={puce === cle}
@@ -174,6 +208,11 @@ export function ConversationList({ selectedId, onSelect, dense = false, onNouvel
           </PuceDeFiltre>
         ))}
       </RangeeDePuces>
+      {pilotage ? (
+        <p className="px-4 pt-1 pb-2 text-ui text-muted-foreground" data-testid="aide-de-la-puce">
+          {tBoite(`aide.${puce}`)}
+        </p>
+      ) : null}
 
       {isLoading ? (
         // TCK-645 — le squelette a la forme d'une rangée (rond + deux lignes), pas d'une carte.
@@ -192,6 +231,27 @@ export function ConversationList({ selectedId, onSelect, dense = false, onNouvel
         <div className="p-3">
           <ErrorState message={t('list.loadError')} onRetry={() => void refetch()} retryLabel={tCommon('retry')} />
         </div>
+      ) : conversations.length === 0 && puce === 'vous' && recherche.trim().length === 0 ? (
+        // TCK-2968 (maquette D6) — « Rien ne vous attend », et le chemin vers ce qu'on attend des autres.
+        <div className="flex flex-col items-center px-6 py-12 text-center" data-testid="rien-ne-vous-attend">
+          <span className="inline-flex size-12 items-center justify-center rounded-full bg-success/10 text-success">
+            <CheckCheck className="size-6" aria-hidden />
+          </span>
+          <p className="mt-4 text-base font-semibold text-foreground">{tBoite('vide.vous')}</p>
+          <p className="mt-1 max-w-xs text-sm text-pretty text-muted-foreground">{tBoite('vide.vousAide')}</p>
+          {(comptes?.attente ?? 0) > 0 ? (
+            <Button variant="outline" className="mt-5" onClick={() => setPuce('attente')}>
+              {tBoite('vide.voirAttente', { n: comptes?.attente ?? 0 })}
+            </Button>
+          ) : null}
+        </div>
+      ) : conversations.length === 0 && puce !== 'tous' && recherche.trim().length === 0 ? (
+        <EmptyState
+          variant="nue"
+          data-testid="conversations-file-vide"
+          title={tBoite(`vide.${puce}`)}
+          description={tBoite(`vide.${puce}Aide`)}
+        />
       ) : conversations.length === 0 ? (
         <EmptyState
           variant="nue"
@@ -210,6 +270,10 @@ export function ConversationList({ selectedId, onSelect, dense = false, onNouvel
               locale={locale}
               currentUserId={user?.id}
               dense={dense}
+              puce={puce}
+              pilotage={pilotage}
+              duPersonnel={duPersonnel}
+              maintenant={maintenant}
             />
           ))}
           <li
@@ -258,6 +322,10 @@ function ConversationRow({
   locale,
   currentUserId,
   dense,
+  puce,
+  pilotage,
+  duPersonnel,
+  maintenant,
 }: {
   conversation: Conversation;
   selected: boolean;
@@ -265,6 +333,10 @@ function ConversationRow({
   locale: Locale;
   currentUserId?: number;
   dense: boolean;
+  puce: Puce;
+  pilotage: PilotageDeLaListe | undefined;
+  duPersonnel: boolean;
+  maintenant: Date;
 }) {
   const t = useTranslations('messaging');
   const unread = conversation.unread_count ?? 0;
@@ -315,8 +387,14 @@ function ConversationRow({
   const taille = dense ? 44 : 48;
   const quand = quandDansLaListe(conversation.last_message_at, locale, t('chat.dateSeparator.yesterday'));
 
+  // TCK-2968 — la boîte : l'étiquette de file (quand la puce ne la dit pas), les gestes, « Ramener ».
+  const montrerFile = puce === 'tous' || puce === 'nonLus';
+  // « Confier » : une salle ou un groupe (jamais le fil d'un prospect, ADR-0068), par le personnel.
+  const confiable = duPersonnel && (isGroup || salle);
+  const ramenable = pilotage !== undefined && conversation.file === 'rappel';
   return (
-    <li>
+    <li className="group/rangee relative">
+      <RangeeGlissable conversation={conversation} titre={titre} pilotage={pilotage}>
       <button
         type="button"
         onClick={() => onSelect(conversation.id)}
@@ -325,6 +403,7 @@ function ConversationRow({
           'flex w-full gap-3 px-4 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-muted',
           dense ? 'py-2.5' : 'py-3',
           selected && 'bg-foreground/6 hover:bg-foreground/6',
+          ramenable && 'pr-16 lg:pr-28',
         )}
       >
         {salle ? (
@@ -390,6 +469,7 @@ function ConversationRow({
             >
               {titre}
             </span>
+            {montrerFile ? <EtiquetteDeFile file={conversation.file} /> : null}
             {quand ? (
               <span
                 className={cn(
@@ -434,8 +514,12 @@ function ConversationRow({
               </span>
             ) : null}
           </span>
+          <SignauxDuFil conversation={conversation} maintenant={maintenant} moi={currentUserId} confieVisible={duPersonnel} />
         </span>
       </button>
+      </RangeeGlissable>
+      {pilotage && !ramenable ? <GestesAuSurvol conversation={conversation} titre={titre} pilotage={pilotage} confiable={confiable} /> : null}
+      {ramenable ? <BoutonRamener conversation={conversation} pilotage={pilotage} /> : null}
     </li>
   );
 }

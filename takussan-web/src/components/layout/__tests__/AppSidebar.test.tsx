@@ -1,4 +1,5 @@
 /**
+ * TCK-2968 — la pastille de « Messagerie » compte les GESTES attendus (`meta.gestes`) : « à traiter », plus « non lus ».
  * TCK-377 — La barre latérale de `/app`, éprouvée sur les quatre défauts que le ticket nomme ;
  * TCK-2478 — et sur le menu PAR PERSONA qui a remplacé le menu par rôle (ADR-0089).
  *
@@ -827,7 +828,7 @@ describe('AC5 — un compteur ne s’affiche ni à zéro ni en échec', () => {
     unreadMock.mockReturnValue(0);
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 0 } } });
     renderSidebar('admin-agence', '/app');
-    expect(screen.queryByLabelText(/message non lu|messages non lus/)).toBeNull();
+    expect(screen.queryByLabelText(/message non lu|messages non lus|conversations? à traiter/)).toBeNull();
     expect(screen.queryByLabelText(/demande de visite|demandes de visite/)).toBeNull();
   });
 
@@ -877,7 +878,7 @@ describe('M3 — chaque compte ne paraît qu’une fois', () => {
     );
     const nav = container.querySelector<HTMLElement>('[data-slot="menu"]')!;
     for (const [href, nom] of [
-      ['/app/messages', /^Messagerie\s?3 messages non lus$/],
+      ['/app/messages', /^Messagerie\s?3 conversations à traiter$/],
       ['/app/visits', /^Visites\s?7 demandes de visite en attente$/],
     ] as const) {
       const entree = lien(nav, href);
@@ -893,7 +894,7 @@ describe('M3 — chaque compte ne paraît qu’une fois', () => {
     const { container } = renderSidebar('client', '/app');
     const nav = container.querySelector<HTMLElement>('[data-slot="menu"]')!;
     expect(lien(nav, '/app/messages').querySelector('[data-slot="compteur-entree"]')).toBeNull();
-    expect(lien(nav, '/app/messages')).toHaveAccessibleName(/^Messagerie\s?3 messages non lus$/);
+    expect(lien(nav, '/app/messages')).toHaveAccessibleName(/^Messagerie\s?3 conversations à traiter$/);
     const visites = lien(nav, '/app/visits').querySelector('[data-slot="compteur-entree"]');
     expect(visites).toHaveTextContent('2');
     expect(visites).toHaveAttribute('aria-label', '2 demandes de visite en attente');
@@ -909,7 +910,7 @@ describe('AC6 — aucun sondage pour un persona qui ne voit pas l’entrée comp
 
   it('les compteurs sont armés quand leurs entrées sont là', () => {
     renderSidebar('admin-agence', '/app');
-    expect(unreadMock).toHaveBeenCalledWith({ enabled: true });
+    expect(unreadMock).toHaveBeenCalledWith({ enabled: true, mesure: 'gestes' });
     expect(pendingVisitsMock).toHaveBeenCalledWith({ enabled: true });
     expect(unhandledLeadsMock).toHaveBeenCalledWith({ enabled: true });
   });
@@ -943,7 +944,7 @@ describe('AC6 — aucun sondage pour un persona qui ne voit pas l’entrée comp
   it.each(PERSONAS)('la barre montée pour %s n’arme que les compteurs de ses entrées', (persona) => {
     const sondes = sondesAttendues(persona);
     renderSidebar(persona, '/app');
-    expect(unreadMock).toHaveBeenCalledWith({ enabled: sondes.has('unreadMessages') });
+    expect(unreadMock).toHaveBeenCalledWith({ enabled: sondes.has('unreadMessages'), mesure: 'gestes' });
     expect(pendingVisitsMock).toHaveBeenCalledWith({ enabled: sondes.has('pendingVisits') });
     expect(unhandledLeadsMock).toHaveBeenCalledWith({ enabled: sondes.has('unhandledLeads') });
   });
@@ -1106,7 +1107,7 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } } });
     const { container } = renderSidebar('agent', '/app');
 
-    expect(noms()).toEqual(['Visites à confirmer, 2', 'Messages non lus, 3']);
+    expect(noms()).toEqual(['Visites à confirmer, 2', 'Conversations à traiter, 3']);
     // La première (la plus prioritaire) porte son compte en puce primaire ; les autres en puce neutre.
     const puces = liensDeLaBande().map((l) => l.querySelector('[data-slot="compte-aujourdhui"]')!.className);
     expect(puces[0]).toContain('bg-primary');
@@ -1124,7 +1125,7 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
   it('AC1 — l’ordre est celui du persona : le locataire ne voit que ses messages', () => {
     chargerLesCompteurs();
     renderSidebar('locataire', '/app');
-    expect(noms()).toEqual(['Messages non lus, 3']);
+    expect(noms()).toEqual(['Conversations à traiter, 3']);
   });
 
   it('AC1 — à zéro partout (ou au chargement) : aucun bloc, aucun nœud, pas même son titre', () => {
@@ -1157,7 +1158,7 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
     const { unmount } = renderSidebar('plateforme', '/app');
     await waitFor(() =>
       // TCK-2490 — toutes les lignes non nulles : plus de coupe à quatre derrière « +N » (TCK-2489).
-      expect(noms()).toEqual(['Biens à valider, 4', 'Avis à modérer, 5', 'Demandes à traiter, 1', 'Visites à confirmer, 2', 'Messages non lus, 3']),
+      expect(noms()).toEqual(['Biens à valider, 4', 'Avis à modérer, 5', 'Demandes à traiter, 1', 'Visites à confirmer, 2', 'Conversations à traiter, 3']),
     );
     unmount();
     chargerLesCompteurs();
@@ -1184,20 +1185,20 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
   it('AC2 — l’épreuve n’est pas vide : avec les compteurs chargés, l’agent a bien ses lignes', () => {
     chargerLesCompteurs();
     renderSidebar('agent', '/app');
-    expect(noms()).toEqual(['Demandes à traiter, 1', 'Visites à confirmer, 2', 'Messages non lus, 3']);
+    expect(noms()).toEqual(['Demandes à traiter, 1', 'Visites à confirmer, 2', 'Conversations à traiter, 3']);
   });
 
   it.each([
     [
       'pendingVisits',
       () => pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } }, isError: true }),
-      ['Demandes à traiter, 1', 'Messages non lus, 3'],
+      ['Demandes à traiter, 1', 'Conversations à traiter, 3'],
       '2 demandes de visite en attente',
     ],
     [
       'unhandledLeads',
       () => unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 1 } }, isError: true }),
-      ['Visites à confirmer, 2', 'Messages non lus, 3'],
+      ['Visites à confirmer, 2', 'Conversations à traiter, 3'],
       '1 demande non traitée',
     ],
   ] as const)('AC3 — %s en échec (relecture ratée, ancien `data` gardé) : ni ligne ni compteur ; les autres restent', (_cle, enEchec, restent, badge) => {

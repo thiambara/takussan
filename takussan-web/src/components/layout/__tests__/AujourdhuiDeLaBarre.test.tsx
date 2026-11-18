@@ -1,4 +1,5 @@
 /**
+ * TCK-2968 — la pastille de « Messagerie » compte les GESTES attendus (`meta.gestes`) : « à traiter », plus « non lus ».
  * Revue adverse de TCK-2490 — « Aujourd'hui » rendu seul : le plafond des nombres (M1) et le rail (I1).
  * Les règles du bloc dans la colonne (ordre, liste blanche, zéro, menu immobile) sont dans
  * `AppSidebar.test.tsx`.
@@ -37,7 +38,7 @@ describe('M1 — « Aujourd’hui » plafonne à 99+, comme le menu, par la mêm
       '17',
       '99+',
     ]);
-    expect(screen.getByRole('link', { name: /^Messages non lus,\s?181$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Conversations à traiter,\s?181$/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Visites à confirmer,\s?17$/ })).toBeInTheDocument();
   });
 });

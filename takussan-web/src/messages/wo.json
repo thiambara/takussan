@@ -244,7 +244,7 @@
         "titre": "Aujourd’hui",
         "infobulle": "{libelle} · {nombre}",
         "lignes": {
-          "unreadMessages": "Messages non lus",
+          "unreadMessages": "Conversations à traiter",
           "pendingVisits": "Visites à confirmer",
           "unhandledLeads": "Demandes à traiter",
           "reviewModeration": "Avis à modérer",
@@ -535,7 +535,7 @@
       },
       "basculerVers": "Basculer vers {espace}",
       "aTraiterLignes": {
-        "unreadMessages": "Messages non lus",
+        "unreadMessages": "Conversations à traiter",
         "pendingVisits": "Visites à confirmer",
         "unhandledLeads": "Demandes non traitées",
         "reviewModeration": "Avis à modérer",
@@ -2514,7 +2514,8 @@
       "unreadInline": "{count, plural, one {# bu jëkku jàng} other {# yu jëkku jàng}}",
       "chatBack": "Dellu ci waxtaan yi",
       "manageGroup": "Jaaweel kuréel gi",
-      "launcherLabel": "Waxtaan"
+      "launcherLabel": "Waxtaan",
+      "aTraiterInline": "{count, plural, one {# à traiter} other {# à traiter}}"
     },
     "system": {
       "participantAdded": "{actor} dafa yokk {target} ci kuréel gi.",
@@ -2665,7 +2666,10 @@
         "label": "Filtrer les conversations",
         "tous": "Tous",
         "nonLus": "Non lus",
-        "groupes": "Groupes"
+        "groupes": "Groupes",
+        "vous": "À vous",
+        "attente": "En attente",
+        "rappel": "Rappels"
       },
       "personnes": "{n, plural, one {# personne} other {# personnes}}",
       "intervention": "Intervention",
@@ -2759,12 +2763,35 @@
           "phrase": "Le prix affiché est ferme."
         }
       },
-      "joindreOuPartager": "Joindre ou partager"
+      "joindreOuPartager": "Joindre ou partager",
+      "equipe": {
+        "interrupteur": "Équipe",
+        "indisponible": "Envoyez ou retirez d’abord la pièce jointe.",
+        "luPar": "Lu par {noms}",
+        "luParEquipe": "Lu par l’équipe seulement — pas par {exclus}",
+        "luParEquipeSeule": "Lu par l’équipe seulement",
+        "nomEtRelation": "{nom} ({relation})",
+        "placeholder": "Note d’équipe…",
+        "noter": "Noter"
+      },
+      "mentions": {
+        "bouton": "Mentionner un collègue",
+        "titre": "Mentionner — la personne sera prévenue",
+        "titreNote": "Mentionner un collègue — il sera prévenu",
+        "liste": "Personnes à mentionner"
+      },
+      "envoiEchoue": "Le message n’a pas été envoyé. Réessayez."
     },
     "bulle": {
       "ouvrirLaPhoto": "Ouvrir la photo",
       "pdf": "PDF",
-      "pdfPoids": "PDF · {poids}"
+      "pdfPoids": "PDF · {poids}",
+      "note": {
+        "titre": "Note d’équipe",
+        "vous": "vous",
+        "invisiblePour": "Invisible pour {noms}",
+        "equipeSeule": "Visible de l’équipe seulement"
+      }
     },
     "nouvelle": {
       "titre": "Nouvelle conversation",
@@ -3176,6 +3203,75 @@
         "reposer": "Poser la carte de la visite",
         "horsAgence": "Ce bien n’est pas géré par votre agence : la visite n’a pas été proposée au client."
       }
+    },
+    "boite": {
+      "aide": {
+        "tous": "Toutes les conversations, par date, avec la file de chacune.",
+        "nonLus": "Des messages que vous n’avez pas lus. Un fil lu peut rester « À vous ».",
+        "vous": "Un geste vous est demandé.",
+        "attente": "Vous avez répondu ; la balle est dans l’autre camp.",
+        "rappel": "Mis de côté : ils reviennent dans « À vous » à l’heure dite, ou dès que l’autre écrit."
+      },
+      "etiquette": {
+        "vous": "À vous",
+        "attente": "En attente",
+        "rappel": "Rappel"
+      },
+      "delai": {
+        "minutes": "depuis {n} min",
+        "heures": "depuis {h} h",
+        "heuresMinutes": "depuis {h} h {m}",
+        "jours": "depuis {n} j",
+        "depasse": "au-delà de {h} h"
+      },
+      "attenteDe": "En attente de {noms}",
+      "confieA": "Confié à {nom}",
+      "confieAVous": "Confié à vous",
+      "revient": "Revient {quand}",
+      "gestes": {
+        "label": "Gestes sur « {titre} »",
+        "traite": "Traité",
+        "rappel": "Rappelez-le-moi",
+        "rappelCourt": "Rappel",
+        "confier": "Confier à un collègue",
+        "ramener": "Ramener",
+        "ramenerAria": "Ramener maintenant",
+        "echec": "Le geste n’a pas abouti. Réessayez."
+      },
+      "toast": {
+        "traite": "« {titre} » est traité.",
+        "traiteAide": "Il revient dans « À vous » au prochain message.",
+        "annuler": "Annuler"
+      },
+      "rappel": {
+        "titre": "Rappelez-le-moi · {titre}",
+        "choix": {
+          "uneHeure": "Dans 1 heure",
+          "ceSoir": "Ce soir",
+          "demainMatin": "Demain matin",
+          "lundi": "Lundi prochain"
+        },
+        "regle": "Le fil quitte « À vous » et revient en tête à l’heure dite, ou plus tôt si quelqu’un écrit."
+      },
+      "confier": {
+        "titre": "Confier ce fil",
+        "aide": "Seul le personnel de l’agence qui participe à ce fil peut le suivre.",
+        "personne": "Personne",
+        "vous": "{nom} (vous)",
+        "aucun": "Aucun collègue ne participe à ce fil."
+      },
+      "vide": {
+        "vous": "Rien ne vous attend",
+        "vousAide": "Ce qui revient vers vous réapparaîtra ici.",
+        "voirAttente": "Voir « En attente » ({n})",
+        "attente": "Aucune conversation en attente",
+        "attenteAide": "Les fils où vous avez répondu apparaîtront ici.",
+        "rappel": "Aucun rappel",
+        "rappelAide": "« Rappelez-le-moi » met un fil de côté jusqu’à l’heure choisie.",
+        "nonLus": "Tout est lu",
+        "nonLusAide": "Les nouveaux messages apparaîtront ici."
+      },
+      "sousTitre": "{gestes, plural, one {# geste attendu} other {# gestes attendus}} · {n, plural, one {# conversation} other {# conversations}}"
     }
   },
   "payments": {

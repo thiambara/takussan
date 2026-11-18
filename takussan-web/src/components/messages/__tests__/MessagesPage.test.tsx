@@ -22,8 +22,11 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('../ConversationList', () => ({
-  ConversationList: ({ selectedId }: { selectedId: number | null }) => (
-    <div data-testid="conv-list">selected={String(selectedId)}</div>
+  // TCK-2968 — `data-pilotage` : la page donne-t-elle les gestes de la boîte à la liste ?
+  ConversationList: ({ selectedId, pilotage }: { selectedId: number | null; pilotage?: unknown }) => (
+    <div data-testid="conv-list" data-pilotage={String(pilotage !== undefined)}>
+      selected={String(selectedId)}
+    </div>
   ),
   // TCK-2860 — la page y lit l'autre partie d'un fil direct (« Ajouter un participant »).
   autreParticipant: (c: { type?: string }) => (c.type === 'direct' ? { id: 99, full_name: 'Malick Seck', avatar_url: null } : null),
@@ -57,7 +60,7 @@ vi.mock('../ChatView', () => ({
     onBack?: () => void;
     contexte?: { ouvert: boolean; onBasculer: () => void };
     onPlusDActions?: () => void;
-    gestes?: { onMarquerNonLue: (r: { onError: () => void }) => void; onAjouterUnParticipant?: () => void; onSignaler: () => void };
+    gestes?: { onMarquerNonLue: (r: { onError: () => void }) => void; onAjouterUnParticipant?: () => void; onSignaler: () => void; onConfier?: () => void };
   }) => (
     <div data-testid="chat-view">
       chat={conversationId}
@@ -74,6 +77,12 @@ vi.mock('../ChatView', () => ({
           <button type="button" onClick={gestes.onSignaler}>
             geste signaler
           </button>
+          {/* TCK-2968 — « Confier à un collègue » du « ⋯ ». */}
+          {gestes.onConfier && (
+            <button type="button" onClick={gestes.onConfier}>
+              geste confier
+            </button>
+          )}
         </>
       )}
       {onPlusDActions && (
@@ -182,6 +191,15 @@ function pageDeListe(fils: FilDeListe[], counts = { all: fils.length, unread: fi
 }
 /** TCK-2748 — le type de chaque fil (`direct` par défaut), lu par la page pour choisir sa colonne. */
 const typesDesFils = new Map<number, 'direct' | 'group'>();
+// TCK-2968 — l'utilisateur connecté, quand un test le pose (sinon, le `useAuth` sans fournisseur : `user` nul).
+let utilisateur: { id: number; roles: string[] } | null = null;
+vi.mock('@/context/AuthContext', async (importOriginal) => {
+  const actuel = await importOriginal<typeof import('@/context/AuthContext')>();
+  return {
+    ...actuel,
+    useAuth: () => (utilisateur ? { ...actuel.useAuth(), user: utilisateur, activeProfileId: null } : actuel.useAuth()),
+  };
+});
 
 vi.mock('@/lib/queries/conversations', () => ({
   usePropertyConversation: () => ({ data: resolution() }),
@@ -190,6 +208,12 @@ vi.mock('@/lib/queries/conversations', () => ({
   useConversation: (id: number | null | undefined) => ({
     data: id ? { data: { id, type: typesDesFils.get(id) ?? 'direct' } } : undefined,
   }),
+  // TCK-2968 — les gestes de la boîte, tenus par la page.
+  useGestesDeLaBoite: () => {
+    const m = { mutate: vi.fn() };
+    return { traiter: m, annulerTraite: m, rappeler: m, ramener: m, confier: m };
+  },
+  useConversationContext: () => ({ data: undefined }),
 }));
 
 vi.mock('../InfosDuGroupe', () => ({
@@ -1097,6 +1121,61 @@ describe('<MessagesPage> l’arrivée au bureau et le contexte (TCK-2632)', () =
       expect(screen.queryByRole('button', { name: 'geste ajouter' })).toBeNull();
     } finally {
       typesDesFils.delete(9);
+    }
+  });
+});
+
+// TCK-2968 — sous impersonation (lecture seule), la page ne donne aucun geste de la boîte à la liste.
+describe('<MessagesPage> boîte de pilotage (TCK-2968)', () => {
+  it('hors impersonation, la liste reçoit les gestes de la boîte', () => {
+    searchParamsGet.mockImplementation(() => null);
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+    expect(screen.getByTestId('conv-list')).toHaveAttribute('data-pilotage', 'true');
+  });
+
+  it('sous impersonation, aucun geste : la liste se lit sans « Traité » ni « Rappelez-le-moi »', () => {
+    searchParamsGet.mockImplementation(() => null);
+    document.cookie = 'impersonation_active=1; path=/';
+    try {
+      render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+      expect(screen.getByTestId('conv-list')).toHaveAttribute('data-pilotage', 'false');
+    } finally {
+      document.cookie = 'impersonation_active=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
+  });
+});
+
+// TCK-2968 — « Confier » : une salle ou un groupe, par le personnel ; jamais un fil direct, jamais un client.
+describe('<MessagesPage> « Confier » du fil ouvert (TCK-2968)', () => {
+  function ouvrir(id: number, roles: string[]) {
+    utilisateur = { id: 1, roles };
+    searchParamsGet.mockImplementation((key) => (key === 'conversation' ? String(id) : null));
+    return render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+  }
+
+  it('un agent dans un groupe : « Confier » est offert ; dans un fil direct, non', () => {
+    typesDesFils.set(31, 'group');
+    try {
+      const { unmount } = ouvrir(31, ['agent']);
+      expect(screen.getByRole('button', { name: 'geste confier' })).toBeInTheDocument();
+      unmount();
+      ouvrir(32, ['agent']);
+      expect(screen.queryByRole('button', { name: 'geste confier' })).not.toBeInTheDocument();
+    } finally {
+      typesDesFils.delete(31);
+      utilisateur = null;
+    }
+  });
+
+  it('un locataire dans un groupe : pas de « Confier »', () => {
+    typesDesFils.set(31, 'group');
+    try {
+      ouvrir(31, ['tenant']);
+      expect(screen.getByRole('button', { name: 'geste signaler' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'geste confier' })).not.toBeInTheDocument();
+    } finally {
+      typesDesFils.delete(31);
+      utilisateur = null;
     }
   });
 });
