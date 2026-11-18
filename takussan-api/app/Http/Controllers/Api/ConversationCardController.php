@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Conversation\StoreConversationCardRequest;
+use App\Http\Resources\Bases\BaseResource;
 use App\Http\Resources\MessageResource;
 use App\Models\Conversation;
 use App\Models\PropertyVisit;
@@ -55,7 +56,7 @@ class ConversationCardController extends Controller
     private static function donnees(Model $objet): array
     {
         return $objet instanceof PropertyVisit
-            ? ['scheduled_at' => $objet->scheduled_at?->toIso8601String()]
+            ? ['scheduled_at' => BaseResource::instantOnWire($objet->scheduled_at)]
             : [];
     }
 }
