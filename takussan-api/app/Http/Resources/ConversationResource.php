@@ -19,6 +19,9 @@ class ConversationResource extends BaseResource
             'property_id' => $this->property_id,
             'lease_id' => $this->lease_id,
             'maintenance_request_id' => $this->maintenance_request_id,
+            // TCK-2957 (ADR-0128 § 1) — l'objet auquel le fil appartient (clé du registre `SujetsDuFil`), nuls sans sujet.
+            'subject_type' => $this->subject_type,
+            'subject_id' => $this->subject_id,
             'created_by' => $this->created_by,
             'last_message_preview' => $this->last_message_preview,
             'last_message_at' => $this->iso($this->last_message_at),

@@ -4,6 +4,7 @@ namespace App\Services\Messaging;
 
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
+use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Lease;
@@ -72,6 +73,12 @@ class ConversationAccess
     public function allowsWriting(User $user, Conversation $conversation): bool
     {
         if (! $this->allows($user, $conversation)) {
+            return false;
+        }
+
+        // TCK-2957 (ADR-0128 § 1) — un fil `closed` (son objet est supprimé, `FermeLeFilDeSonObjet`)
+        // n'accepte plus d'écriture, de personne ; sa lecture ne change pas.
+        if ($conversation->status === ConversationStatus::Closed) {
             return false;
         }
 

@@ -85,6 +85,24 @@ class MaintenanceConversationTest extends TestCase
         $this->assertNotContains($provider->id, $this->activeIds(Conversation::query()->findOrFail($conversationId)));
     }
 
+    /**
+     * TCK-2957 (AC2, ADR-0128 § 1) — le fil ouvert à la première assignation NAÎT avec son sujet :
+     * la reprise de la migration ne couvre que les fils d'avant, celui-ci est créé après elle.
+     */
+    public function test_le_fil_ouvert_a_la_premiere_assignation_porte_son_sujet(): void
+    {
+        ['mr' => $mr, 'landlord' => $landlord, 'agency' => $agency] = $this->maintenanceScenario(attributes: ['assigned_to' => null]);
+        $provider = $this->providerFor($agency);
+
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $provider->id])->assertOk();
+
+        $conversation = Conversation::query()->where('maintenance_request_id', $mr->id)->sole();
+        $this->assertSame('maintenance_request', $conversation->subject_type);
+        $this->assertSame($mr->id, $conversation->subject_id);
+        $this->assertSame($conversation->id, Conversation::query()->deSujet($mr)->sole()->id);
+    }
+
     /** Sans assignation, aucun fil n'est ouvert : un changement de statut seul ne crée rien. */
     public function test_no_thread_without_assignment(): void
     {

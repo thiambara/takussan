@@ -29,7 +29,7 @@ class CasDEnumReservesTest extends TestCase
     {
         return [
             ConversationStatus::Archived,
-            ConversationStatus::Closed,
+            // TCK-2957 : `ConversationStatus::Closed` n'est plus réservé, `FermeLeFilDeSonObjet` le pose.
             BankStatementStatus::Archived,
             PayoutStatus::Processing,
             RelationshipStatus::Ended,

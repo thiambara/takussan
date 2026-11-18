@@ -134,4 +134,76 @@ tags: [back, messagerie, le-fil, registre, migration, adr-0128]
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure (2026-11-18, arbre `feat/le-fil`)
+
+- **`SyncMaintenanceConversationTest` n'existe pas.** Le test du fil d'intervention est
+  `tests/Feature/Maintenance/MaintenanceConversationTest.php` (TCK-592) : c'est lui qui est complété (AC2).
+- `ConversationStatus::Closed` était **gardé réservé** par `tests/Unit/Architecture/CasDEnumReservesTest.php`
+  (TCK-1307) : la réserve est levée (docblock du cas et liste du test), puisque `FermeLeFilDeSonObjet` le pose.
+- `conversations.lease_id` est `nullOnDelete`, `maintenance_request_id` aussi (FK de `2026_04_17_160033`) :
+  aucune cascade ne supprime un fil avant que l'observateur le ferme.
+- **Suppressions sans événement** : aucun chemin de `app/` ne supprime `Lease`, `Booking` ou
+  `MaintenanceRequest` par requête (grep des `->delete()` / `->forceDelete()` sur requête ou relation). En
+  revanche, `maintenance_requests.property_id` est `cascadeOnDelete` en base : la suppression DÉFINITIVE
+  d'un bien supprime ses demandes sans événement, et leurs fils ne seraient pas fermés. Hors périmètre (le
+  bien est en suppression douce dans l'application) ; noté dans l'en-tête de l'observateur.
+- AC1 dit « tout fil qui porte `maintenance_request_id` » : la reprise inclut les **directes** qui en
+  portent un (`FilDeLInterventionParLaRelationTest` en crée). À savoir pour l'index unique partiel de
+  TCK-2960 : il doit viser les types `lease`/`booking` (ou le type `group`), sinon une directe et un groupe
+  d'une même demande le violeraient.
+
+### Choix
+
+- `SujetsDuFil` est **statique, sur une constante** : les jeux de données de PHPUnit tournent avant le
+  démarrage de l'application, et AC3 tire ses lignes de `typesSujets()`. Seul `peutLire` lit la Gate.
+- `resoudre()` rend l'objet **supprimé en douceur compris** (`withTrashed`) ; `null` seulement pour une ligne
+  absente ; un type inconnu lève `LogicException`. Accesseur de plus que la liste du ticket :
+  `typeDuSujet(Model)`, qui refuse un type du registre qui ne peut pas être sujet (pour les types de cartes à
+  venir) — c'est lui qu'écrivent `GroupConversationService::create` et le scope `deSujet`.
+- Le registre est aussi fermé **à l'écriture du modèle** : `Conversation::booted()` refuse (`saving`) un
+  `subject_type` hors des types sujets, ou un type sans identifiant.
+- `Conversation::objetDuSujet()` est une méthode, pas une relation (l'attribut `subject` est le titre).
+- `GroupConversationService::create(sujet:)` est le **dernier** paramètre : aucun appelant positionnel ne bouge.
+- `allowsWriting` refuse un fil `closed` **avant** le passe-droit du super-admin : personne n'écrit dans le
+  fil d'un objet supprimé.
+- L'observateur ne ferme que les fils non `closed` et ne marque que ceux-là
+  (`metadata.ferme_par_suppression_de_son_objet = true`) ; `restored` ne rouvre que les fils marqués et
+  retire la marque.
+- `docs/models-spec.md` § 18 n'est pas touché : le delta ne le demande pas, c'est `/sync-specs` après fusion.
+
+### Mesures
+
+
+Classes de l'agent (2026-11-18, charge 2-5 sur 8 cœurs) : `SujetsDuFilTest`, `ConversationSubjectMigrationTest`,
+`FilFermeALaSuppressionTest`, `FilFermeEcritureTest`, `MaintenanceConversationTest`, `CasDEnumReservesTest` —
+**33 verts, 133 assertions**. Rouges avant le code : 15 sur 16 (le témoin actif de `FilFermeEcritureTest` était
+vert : il ne dépend pas du correctif). Gardes : `RessourceUniqueResolueTest`, `ExistsSurTableASuppressionDouceTest`,
+`AgencyIdIsIndexedTest`, `ImpersonationReadSweepTest`, `ValeursEnListeParcoursDesRoutesTest`,
+`DateInventoryByValueTest` — 37 verts. Pint propre.
+
+Ablations (une à une, restauration par `cp`, md5 vérifié) :
+
+| Retiré | Rouge |
+|---|---|
+| `sujet: $mr` dans `SyncMaintenanceConversation::open` (AC2) | `test_le_fil_ouvert_a_la_premiere_assignation_porte_son_sujet` |
+| `lease` sorti de la boucle de `bootObservers` (AC3) | les 3 lignes `lease` de `FilFermeALaSuppressionTest`, et elles seules (6 vertes) |
+| la condition `closed` de `allowsWriting` (AC4) | `FilFermeEcritureTest` (le témoin reste vert) ; les 7 tests de suppression, chaque type compris |
+| la lecture de la marque dans `restored` (AC6) | les 3 lignes de `test_la_restauration_ne_rouvre_que_ce_que_la_suppression_a_ferme` |
+| `resoudre` qui accepte un nom de classe (AC5) | `test_un_type_inconnu_est_refuse`, `test_aucun_nom_de_classe_n_est_accepte_comme_type` |
+| le `WHERE` de la reprise (AC1) | `test_tout_fil_d_intervention_recoit_son_sujet_et_aucun_autre` |
+| la garde `saving` de `Conversation` | `test_un_fil_ne_s_ecrit_pas_avec_un_sujet_hors_registre` |
+
+Non joué par l'agent (règle de charge) : les autres classes qui couvrent `ConversationAccess`,
+`GroupConversationService` et `ConversationResource` — c'est la CI de la PR.
+
+Contre-vérifications de fin :
+
+- **Chemins d'écriture d'un message** : l'envoi (`SendMessageConversationRequest`), le message initial
+  (`ConversationWriter::post`, qui rejoue `allowsWriting`) et l'ouverture d'un groupe depuis un fil
+  (`ConversationPolicy`, l. 41) lisent tous `allowsWriting`. Hors règle : le contact public d'une annonce
+  (directe de prospect, jamais de sujet) et les avis système (sans auteur).
+- **Suppressions sans événement**, re-mesurées sur des chaînes multi-lignes (`grep -A8`) : aucune dans `app/`.
+- **Autres écrivains de `conversations.maintenance_request_id`** : aucun. `SyncMaintenanceConversation::open`
+  est le seul appelant qui le passe ; `POST /api/conversations` le refuse (`prohibited`) ; `createFromDirect`
+  ne le recopie pas. Les seeders n'en écrivent pas.
+- `peutLire` a désormais un cas positif (le locataire lit son bail) ; ablation `return false` → rouge.

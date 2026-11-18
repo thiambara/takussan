@@ -78,6 +78,9 @@ class SyncMaintenanceConversation
             $mr->lease_id,
             $mr->id,
             sendInvites: false,
+            // TCK-2957 (ADR-0128 § 1) — un fil d'intervention neuf NAÎT avec son sujet ; la reprise de
+            // la migration ne couvre que ceux d'avant.
+            sujet: $mr,
         );
     }
 

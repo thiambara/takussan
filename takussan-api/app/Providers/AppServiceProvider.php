@@ -50,6 +50,7 @@ use App\Notifications\Channels\WhatsappChannel;
 use App\Observers\AgencyObserver;
 use App\Observers\DocumentsDuPorteurObserver;
 use App\Observers\FavoriteObserver;
+use App\Observers\FermeLeFilDeSonObjet;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
 use App\Observers\LeasePaymentOnboardingObserver;
@@ -104,6 +105,7 @@ use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Messaging\SujetsDuFil;
 use App\Services\Notifications\Sms\Dlr\LogDlrPuller;
 use App\Services\Notifications\Sms\Dlr\MtargetDlrPuller;
 use App\Services\Notifications\Sms\Dlr\SmsDlrPullerInterface;
@@ -846,6 +848,12 @@ class AppServiceProvider extends ServiceProvider
         RadarListing::observe(RadarListingTargetObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
+
+        // TCK-2957 (ADR-0128 § 1) — le fil d'un objet supprimé se ferme, restauré se rouvre. Une boucle
+        // sur le registre, pas une ligne par modèle : un type sujet ajouté à `SujetsDuFil` est couvert.
+        foreach (SujetsDuFil::typesSujets() as $type) {
+            SujetsDuFil::modele($type)::observe(FermeLeFilDeSonObjet::class);
+        }
 
         // TCK-2781 — l'index des documents recopie l'agence, la présence et le sujet de leur porteur :
         // ils se réindexent quand l'un change (`DocumentsDuPorteurObserver::COLONNES`).
