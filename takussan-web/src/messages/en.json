@@ -3997,7 +3997,8 @@
           "libelle": "The price is firm",
           "phrase": "The listed price is firm."
         }
-      }
+      },
+      "joindreOuPartager": "Attach or share"
     },
     "bulle": {
       "ouvrirLaPhoto": "Open the photo",
@@ -4233,6 +4234,15 @@
         "manquee": "Missed",
         "quoi": "Viewing · {titre}",
         "terminee": "Done"
+      },
+      "bien": {
+        "quoi": "Property · {lieu}",
+        "quoiSansLieu": "Shared property",
+        "surface": "{surface} m²",
+        "libreLe": "Available {date}",
+        "periode": "{periode, select, daily {per night} weekly {per week} monthly {per month} yearly {per year} other {}}",
+        "demanderUneVisite": "Request a viewing",
+        "voir": "View the property"
       }
     },
     "evenementsDuFil": {
@@ -4382,6 +4392,26 @@
         "ouvrir": "Open the room",
         "vous": "You",
         "aucunMessage": "No messages yet: the room brings the parties together."
+      }
+    },
+    "poser": {
+      "partagerUnBien": "Share a property",
+      "proposerUnCreneau": "Suggest a viewing time",
+      "echec": "Sharing didn’t go through. Try again.",
+      "bien": {
+        "texte": "Pick a property from your portfolio: it appears as a card in the conversation, with its photo and price.",
+        "champ": "Property",
+        "envoyer": "Share"
+      },
+      "creneau": {
+        "texte": "The viewing is scheduled and confirmed to the client, then posted as a card in the conversation. They can suggest another time from there.",
+        "moment": "Viewing time",
+        "passe": "This time has already passed.",
+        "envoyer": "Suggest this time",
+        "sansFiche": "This client has no record in your agency: a viewing can’t be suggested from here.",
+        "visiteCreee": "The viewing is created, but its card couldn’t be posted.",
+        "reposer": "Post the viewing card",
+        "horsAgence": "This property isn’t managed by your agency: the viewing wasn’t suggested to the client."
       }
     }
   },

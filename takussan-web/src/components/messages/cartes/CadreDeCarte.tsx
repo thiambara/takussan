@@ -31,11 +31,14 @@ export interface CadreDeCarteProps {
   /** Le refus ou l'échec du dernier geste. */
   readonly erreur?: ReactNode;
   readonly type?: string;
+  /** TCK-2964 — la photo en tête (le bien partagé, maquette `BienD`), DANS l'aplat : ses coins suivent ceux de la carte. */
+  readonly media?: ReactNode;
 }
 
-export function CadreDeCarte({ quoi, etat, ton = 'calme', children, geste, liens, trace, erreur, type }: CadreDeCarteProps) {
+export function CadreDeCarte({ quoi, etat, ton = 'calme', children, geste, liens, trace, erreur, type, media }: CadreDeCarteProps) {
   return (
     <article data-slot="carte-du-fil" data-type={type} data-ton={ton} className="overflow-hidden rounded-2xl bg-muted/80">
+      {media}
       <div className="px-4 pt-3.5 pb-4">
         <p className="flex items-baseline gap-3 text-ui">
           <span className="min-w-0 flex-1 truncate text-muted-foreground">{quoi}</span>

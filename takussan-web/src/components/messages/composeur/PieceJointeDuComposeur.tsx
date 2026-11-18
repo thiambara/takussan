@@ -98,6 +98,11 @@ interface BoutonDePieceJointeProps {
   readonly desactive?: boolean;
   /** Au téléphone, « Prendre une photo » ouvre l'appareil (`capture`). */
   readonly appareilPhoto: boolean;
+  /**
+   * TCK-2964 — les entrées de pose du personnel (« Partager un bien », « Proposer un créneau de
+   * visite », `usePoserDansLeFil`), sous les pièces. Le menu se nomme alors « Joindre ou partager ».
+   */
+  readonly entrees?: React.ReactNode;
 }
 
 /**
@@ -105,7 +110,7 @@ interface BoutonDePieceJointeProps {
  * entrée ouvre un sélecteur de fichiers qui n'accepte QUE ce que l'API reçoit : le refus de type
  * reste pour un fichier glissé ou un navigateur qui ignore `accept`.
  */
-export function BoutonDePieceJointe({ onChoisir, desactive, appareilPhoto }: BoutonDePieceJointeProps) {
+export function BoutonDePieceJointe({ onChoisir, desactive, appareilPhoto, entrees }: BoutonDePieceJointeProps) {
   const t = useTranslations('messaging.composer');
   const photo = useRef<HTMLInputElement>(null);
   const appareil = useRef<HTMLInputElement>(null);
@@ -121,13 +126,13 @@ export function BoutonDePieceJointe({ onChoisir, desactive, appareilPhoto }: Bou
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={desactive}
-          aria-label={t('joindre')}
+          aria-label={entrees ? t('joindreOuPartager') : t('joindre')}
           data-testid="joindre-une-piece"
           className="-ml-2 inline-flex size-11 flex-none items-center justify-center rounded-full text-encre-douce outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-50"
         >
           <Paperclip className="size-5 stroke-[1.75]" aria-hidden="true" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuContent align="start" className={entrees ? 'w-64' : 'w-56'}>
           <DropdownMenuItem onClick={() => photo.current?.click()}>
             <IconeImage className="size-4 text-muted-foreground stroke-[1.75]" aria-hidden="true" />
             {t('photo')}
@@ -142,6 +147,7 @@ export function BoutonDePieceJointe({ onChoisir, desactive, appareilPhoto }: Bou
             <FileText className="size-4 text-muted-foreground stroke-[1.75]" aria-hidden="true" />
             {t('pdf')}
           </DropdownMenuItem>
+          {entrees}
         </DropdownMenuContent>
       </DropdownMenu>
       <input ref={photo} type="file" accept={ACCEPTE_IMAGE} className="sr-only" tabIndex={-1} aria-hidden="true" onChange={recevoir} data-testid="champ-photo" />

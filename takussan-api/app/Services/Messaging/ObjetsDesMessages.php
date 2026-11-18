@@ -7,6 +7,7 @@ use App\Http\Resources\InventoryResource;
 use App\Http\Resources\LeasePaymentResource;
 use App\Http\Resources\LeaseResource;
 use App\Http\Resources\MaintenanceRequestResource;
+use App\Http\Resources\PropertyResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Models\Enums\MessageType;
 use App\Models\Message;
@@ -63,8 +64,11 @@ final class ObjetsDesMessages
         }
 
         $charges = [];
+        // TCK-2964 — les objets publiés de la page (le bien partagé), en une requête par type.
+        $publics = [];
         foreach ($ids as $type => $deCeType) {
             $charges[$type] = SujetsDuFil::charger($type, array_values($deCeType));
+            $publics[$type] = SujetsDuFil::publicsParmi($type, array_keys($charges[$type]->all()));
             self::preparer($type, $charges[$type], $request);
         }
 
@@ -72,11 +76,11 @@ final class ObjetsDesMessages
         // amorce pour toute la page (le chargement groupé que `MembershipCapabilityResolver::primed()`
         // documente, pas une mémoïsation de verdict), sans quoi ces jugements coûtent une requête par
         // objet et par geste (mesuré : 40 requêtes pour 1 événement, 238 pour 10, avant l'amorce).
-        return MembershipCapabilityResolver::primed([$lecteur->id], self::agencesDe($charges, $lecteur), function () use ($charges, $lecteur, $request): self {
+        return MembershipCapabilityResolver::primed([$lecteur->id], self::agencesDe($charges, $lecteur), function () use ($charges, $publics, $lecteur, $request): self {
             $projections = [];
             foreach ($charges as $type => $objets) {
                 foreach ($objets as $id => $objet) {
-                    if (SujetsDuFil::peutLire($lecteur, $objet)) {
+                    if (SujetsDuFil::peutLire($lecteur, $objet, $publics[$type])) {
                         $projections[$type.':'.$id] = self::filtrer(self::resoudre($type, $objet, $lecteur, $request), SujetsDuFil::projection($type));
                     }
                 }
@@ -201,6 +205,8 @@ final class ObjetsDesMessages
             'lease_payment' => LeasePaymentResource::make($objet)->avecGestes($lecteur),
             'inventory' => InventoryResource::make($objet)->forViewer($lecteur, app(InventorySignatureService::class)),
             'property_visit' => PropertyVisitResource::make($objet)->avecGestes(),
+            // TCK-2964 — le bien partagé : sa ressource, avec les gestes du lecteur (`request_visit`).
+            'property' => PropertyResource::make($objet)->avecGestes(),
             default => throw new LogicException("Type sans résolution de projection : « {$type} »."),
         };
 

@@ -116,6 +116,29 @@ class Message extends AbstractModel implements HasMedia
         };
     }
 
+    /**
+     * TCK-2964 — l'extrait d'une carte POSÉE par un participant, dans la langue `$locale` (l'avis de
+     * nouveau message, émis par l'API dans la langue du destinataire). Une phrase générique, du seul
+     * code : ni titre, ni prix, ni date — l'avis sort du fil, la projection n'y est pas relue.
+     * `null` pour tout autre message, ou un code sans phrase (l'appelant retombe sur le contenu).
+     *
+     * `content` reste le code : l'aperçu commun de la liste ne porte que lui, le front écrit le libellé.
+     */
+    public function cardPreview(string $locale): ?string
+    {
+        if ($this->type !== MessageType::Card) {
+            return null;
+        }
+        $code = $this->metadata['code'] ?? null;
+        if (! is_string($code) || $code === '') {
+            return null;
+        }
+        $cle = 'messaging.card_preview.'.str_replace('.', '_', $code);
+        $phrase = __($cle, [], $locale);
+
+        return is_string($phrase) && $phrase !== $cle ? $phrase : null;
+    }
+
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);

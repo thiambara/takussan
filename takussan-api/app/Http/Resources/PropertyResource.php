@@ -47,6 +47,19 @@ class PropertyResource extends BaseResource
     private ?array $maintenanceSummary = null;
 
     /**
+     * TCK-2964 (ADR-0128 § 3) — la carte du fil ({@see ObjetsDesMessages}) rend `abilities` comme la
+     * fiche, sur la route des messages : le geste de la carte se lit dans la projection.
+     */
+    private bool $gestes = false;
+
+    public function avecGestes(): static
+    {
+        $this->gestes = true;
+
+        return $this;
+    }
+
+    /**
      * TCK-2906 — le résumé des interventions du bien, à la portée du lecteur
      * ({@see MaintenanceSummary}).
      *
@@ -310,10 +323,15 @@ class PropertyResource extends BaseResource
             // permis (`PropertyPolicy::transferOwner`) sur un bien que le personnel tient encore : la
             // même règle que l'API applique au geste (`PropertyOwnerTransfer::refus`, hors cible).
             'abilities' => $this->when(
-                $isDetail && $appelantConnu,
+                // TCK-2964 — ou la carte du fil (`avecGestes()`), pour un lecteur connecté.
+                ($isDetail || $this->gestes) && $appelantConnu,
                 fn (): array => [
                     'transfer_owner' => $request->user()->can('transferOwner', $this->resource)
                         && ! TitulaireALaSaisie::tenuParUnBailleur($this->resource),
+                    // TCK-2964 — « Demander une visite » : au lecteur qui lit le bien sans le gérer (ni
+                    // personnel, ni bailleur — `PropertyPolicy::view` les retient), donc parce qu'il est
+                    // publié. Ceux-là planifient, ils ne demandent pas (`StorePropertyVisitRequest`).
+                    'request_visit' => ! $request->user()->can('view', $this->resource),
                 ],
             ),
             // TCK-1000 (P15.06, Q2) — « En attente de <nom> » : le bailleur invité pour qui le bien a

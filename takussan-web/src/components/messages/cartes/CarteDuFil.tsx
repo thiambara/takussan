@@ -18,6 +18,7 @@ import type {
 
 import { CarteNeutreBubble } from '../SystemMessageBubble';
 import { useTexteMessageSysteme } from '../useTexteMessageSysteme';
+import { CarteBien, type ProjectionBien } from '../poser/CarteBien';
 import { CarteBail } from './CarteBail';
 import { CarteEcheance } from './CarteEcheance';
 import { CarteEtatDesLieux } from './CarteEtatDesLieux';
@@ -81,8 +82,11 @@ function rendreLaCarte(message: Message, conversationId: number): React.ReactNod
       return <CarteVisite objet={objet as unknown as ProjectionVisite} conversationId={conversationId} />;
     case 'lease':
       return <CarteBail objet={objet as unknown as ProjectionBail} />;
+    // TCK-2964 — le bien partagé.
+    case 'property':
+      return <CarteBien objet={objet as unknown as ProjectionBien} />;
     default:
-      // Un type que ce front ne sait pas encore rendre (le bien partagé : TCK-2964) : la ligne neutre.
+      // Un type que ce front ne sait pas encore rendre : la ligne neutre.
       return null;
   }
 }

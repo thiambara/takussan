@@ -3954,7 +3954,8 @@
           "libelle": "Le prix est ferme",
           "phrase": "Le prix affiché est ferme."
         }
-      }
+      },
+      "joindreOuPartager": "Joindre ou partager"
     },
     "bulle": {
       "ouvrirLaPhoto": "Ouvrir la photo",
@@ -4190,6 +4191,15 @@
         "manquee": "Manquée",
         "quoi": "Visite · {titre}",
         "terminee": "Faite"
+      },
+      "bien": {
+        "quoi": "Bien · {lieu}",
+        "quoiSansLieu": "Bien partagé",
+        "surface": "{surface} m²",
+        "libreLe": "Libre le {date}",
+        "periode": "{periode, select, daily {par nuit} weekly {par semaine} monthly {par mois} yearly {par an} other {}}",
+        "demanderUneVisite": "Demander une visite",
+        "voir": "Voir le bien"
       }
     },
     "evenementsDuFil": {
@@ -4339,6 +4349,26 @@
         "ouvrir": "Ouvrir la salle",
         "vous": "Vous",
         "aucunMessage": "Aucun message pour l’instant : la salle réunit les parties."
+      }
+    },
+    "poser": {
+      "partagerUnBien": "Partager un bien",
+      "proposerUnCreneau": "Proposer un créneau de visite",
+      "echec": "Le partage n’a pas abouti. Réessayez.",
+      "bien": {
+        "texte": "Choisissez un bien de votre portefeuille : il apparaît en carte dans la conversation, avec sa photo et son prix.",
+        "champ": "Bien",
+        "envoyer": "Partager"
+      },
+      "creneau": {
+        "texte": "La visite est planifiée et confirmée au client, puis posée en carte dans la conversation. Il peut y proposer un autre moment.",
+        "moment": "Moment de la visite",
+        "passe": "Ce moment est déjà passé.",
+        "envoyer": "Proposer ce créneau",
+        "sansFiche": "Ce client n’a pas de fiche dans votre agence : une visite ne peut pas lui être proposée d’ici.",
+        "visiteCreee": "La visite est créée, mais sa carte n’a pas pu être posée.",
+        "reposer": "Poser la carte de la visite",
+        "horsAgence": "Ce bien n’est pas géré par votre agence : la visite n’a pas été proposée au client."
       }
     }
   },

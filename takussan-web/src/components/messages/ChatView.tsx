@@ -57,6 +57,7 @@ import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
 import type { GestesDuFil } from './GestesDuFil';
+import { usePoserDansLeFil } from './poser/PoserDansLeFil';
 
 interface ChatViewProps {
   readonly conversationId: number;
@@ -263,6 +264,8 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
   const duPersonnel = typeActif !== null ? typeActif === 'agent' || typeActif === 'agency_admin' : isAgent(roles) || isAgencyAdmin(roles);
   // TCK-2963 — pas dans une salle non plus : le locataire ET le bailleur y lisent.
   const reponsesRapides = !isGroup && !estSalle && duPersonnel;
+  // TCK-2964 — partager un bien, proposer un créneau : le personnel, dans le fil d'un client.
+  const poser = usePoserDansLeFil({ conversationId, actif: !isWidget && reponsesRapides });
   // TCK-2632 — le micro cède la place à l'envoi dès qu'il y a quelque chose à envoyer (maquette) ;
   // pendant une note vocale, le champ et le trombone s'effacent devant elle.
   const contenu = useWatch({ control: form.control, name: 'content' }) ?? '';
@@ -611,6 +614,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                 onChoisir={(f) => void pieceJointe.choisir(f)}
                 desactive={sendAttachment.isPending}
                 appareilPhoto={telephone}
+                entrees={poser.entrees}
               />
             )
           }
@@ -641,6 +645,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                   />
                 ) : null}
                 <ApercuDeLaPiece piece={pieceJointe.piece} preparation={pieceJointe.preparation} onRetirer={pieceJointe.retirer} />
+                {poser.feuilles}
               </>
             )
           }

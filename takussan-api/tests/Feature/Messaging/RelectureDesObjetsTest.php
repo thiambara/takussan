@@ -192,6 +192,21 @@ class RelectureDesObjetsTest extends TestCase
                     'show' => fn (): array => $this->getJson("/api/property-visits/{$visit->id}")->assertOk()->json('data'),
                 ];
             })(),
+            // TCK-2964 — le bien partagé, NON publié : seuls ceux qui le lisent par `view` le relisent
+            // (sa lecture en public est éprouvée par `ConversationCardTest`).
+            'property' => (function (): array {
+                $bien = Property::factory()->create([
+                    'user_id' => $this->property->user_id,
+                    'agency_id' => $this->agency->id,
+                    'published_at' => null,
+                ]);
+
+                return [
+                    'objet' => $bien,
+                    'lecteurs' => ['bailleur', 'personnel'],
+                    'show' => fn (): array => $this->getJson("/api/properties/{$bien->id}")->assertOk()->json('data'),
+                ];
+            })(),
         };
     }
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ConversationCardController;
 use App\Http\Controllers\Api\ConversationContextController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationParticipantController;
@@ -45,6 +46,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('conversations/{conversation}/messages', [ConversationController::class, 'sendMessage'])
         ->middleware(['throttle:conversation-message', 'idempotent'])
         ->name('conversations.messages.store');
+    // TCK-2964 (ADR-0128 § 4) — poser un objet (un bien, le créneau d'une visite) : `{object: {type, id}}`,
+    // le serveur pose le reste. Mêmes limiteur et rejeu que l'envoi d'un message.
+    Route::post('conversations/{conversation}/cards', [ConversationCardController::class, 'store'])
+        ->middleware(['throttle:conversation-message', 'idempotent'])
+        ->name('conversations.cards.store');
     Route::put('conversations/{conversation}/read', [ConversationController::class, 'markAsRead'])->name('conversations.read');
     // TCK-2859 (ADR-0114 § 1) — remettre le fil en non lu pour le lecteur.
     Route::put('conversations/{conversation}/unread', [ConversationController::class, 'markAsUnread'])->name('conversations.unread');

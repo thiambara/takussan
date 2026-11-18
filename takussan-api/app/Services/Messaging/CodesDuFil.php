@@ -68,6 +68,12 @@ final class CodesDuFil
         'visit.confirmed' => ['objet' => 'property_visit', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at']],
         'visit.rescheduled' => ['objet' => 'property_visit', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at']],
         'booking.confirmed' => ['objet' => 'booking', 'nature' => self::NATURE_EVENEMENT, 'data' => []],
+
+        // TCK-2964 (ADR-0128 § 4) — les cartes POSÉES par un participant (`POST …/cards`). Une seule carte
+        // par type posable ({@see self::carteDePose()}). Le bien partagé ne copie rien : prix, titre et
+        // photo se relisent par sa projection ; la visite proposée garde son instant (une date).
+        'property.shared' => ['objet' => 'property', 'nature' => self::NATURE_CARTE, 'data' => []],
+        'visit.proposed' => ['objet' => 'property_visit', 'nature' => self::NATURE_CARTE, 'data' => ['scheduled_at']],
     ];
 
     /** @return array<string, array{objet: string, nature: string, data: list<string>}> le catalogue entier */
@@ -95,6 +101,23 @@ final class CodesDuFil
         }
 
         return self::CATALOGUE[$code];
+    }
+
+    /**
+     * TCK-2964 — le code de la carte qu'un participant pose pour un objet de type `$type` : la SEULE carte
+     * du catalogue qui porte sur ce type. Un type sans carte, ou avec plusieurs, lève.
+     */
+    public static function carteDePose(string $type): string
+    {
+        $codes = array_keys(array_filter(
+            self::CATALOGUE,
+            fn (array $entree) => $entree['nature'] === self::NATURE_CARTE && $entree['objet'] === $type,
+        ));
+        if (count($codes) !== 1) {
+            throw new LogicException("Le type « {$type} » n'a pas exactement une carte au catalogue.");
+        }
+
+        return $codes[0];
     }
 
     /** Le code de l'avis d'étape d'une intervention (`MaintenanceStatusChanged::$cause`). */

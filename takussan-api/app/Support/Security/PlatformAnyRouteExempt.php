@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\BookingPaymentController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\ContactGestureController;
 use App\Http\Controllers\Api\ContactLeadController;
+use App\Http\Controllers\Api\ConversationCardController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationParticipantController;
 use App\Http\Controllers\Api\ConversationReportController;
@@ -186,6 +187,8 @@ final class PlatformAnyRouteExempt
         ConversationParticipantController::class.'@destroy' => self::NON_GARDE,
         ConversationParticipantController::class.'@store' => self::NON_GARDE,
         ConversationParticipantController::class.'@update' => self::NON_GARDE,
+        // TCK-2964 — pose une carte (un bien, une visite) dans un fil où l'auteur écrit déjà : même régime que l'envoi d'un message.
+        ConversationCardController::class.'@store' => self::NON_GARDE,
         // TCK-2960 — ouvre (ou rend) la salle d'un objet que l'appelant lit déjà ; même régime que la création d'un fil.
         ConversationRoomController::class.'@store' => self::NON_GARDE,
         ConversationReportController::class.'@store' => self::NON_GARDE,

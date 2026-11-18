@@ -114,4 +114,68 @@ tags: [back, front, messagerie, le-fil, cartes, bien, visite, adr-0128]
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Prémisses re-mesurées (2026-11-18)
+
+- **AC5 est faux dans le code, et le code est suivi.** Une visite créée par le personnel
+  (`POST /api/property-visits` → `PropertyVisitController::planForCustomer` →
+  `VisitSchedulingService::createConfirmedOrFail`) **naît `confirmed`** et son SMS part. Le client ne
+  peut pas la confirmer : `confirm` exige `PropertyVisitPolicy::peutConfirmer` (personnel, ou bailleur
+  au titre du réglage), sinon 403 `visit.staff_only`. Le client peut seulement la **déplacer**
+  (`reschedule`, au visiteur), ce qui la repasse `scheduled`. C'est alors l'agent qui la confirme depuis
+  sa carte (`abilities.confirm`, `CarteVisite` de TCK-2962). Ni la création ni la confirmation d'une
+  visite ne sont changées (contrainte 4, le SMS). AC5 n'est pas mesuré : aucun test ne simule ce
+  parcours.
+- « Proposer un créneau » exige du personnel un `customer_id`, ou un nom et un téléphone. Le front le
+  lit dans `GET /api/conversations/{id}/context` → `customer.id`, rendu au seul personnel. Sans fiche,
+  l'entrée le dit et ne crée rien. Sans fiche liée au compte, la visite n'aurait pas de `visitor_id`,
+  et le client ne la lirait pas.
+- `object.id` d'un objet absent : **403, pas 422**. C'est le patron d'`OpenRoomRequest` : la route ne
+  dit pas ce qui existe. Le ticket demandait « `object.id` existant ».
+- Le bien n'avait pas de geste dans `PropertyResource.abilities` (seulement `transfer_owner`, rendu à
+  la seule fiche). Ajout de `request_visit` = « lit le bien sans `PropertyPolicy::view` » : le lecteur
+  le lit donc parce qu'il est publié. Le personnel et le bailleur planifient, ils ne demandent pas.
+  `avecGestes()` rend `abilities` sur la route des messages.
+- L'extrait de `NotifyNewMessageJob` était `content` (le code brut d'une carte). Il est désormais composé
+  par destinataire, dans SA langue (`Message::cardPreview($locale)`, `lang/*/messaging.php`
+  `card_preview.*`). `last_message_preview` reste le code (l'aperçu commun ; le front écrit le libellé).
+
+### Mesures
+
+- `ConversationCardTest` : 10 verts. `RelectureDesObjetsTest` : le type `property` est ajouté (sinon
+  `UnhandledMatchError`), 12 verts.
+- Ablation AC2 : `peutLire` retiré de `StoreConversationCardRequest::authorize` → 403 attendu, 201 reçu
+  (rouge). Restauré par `cp`, md5 `70e7acf7…` identique.
+- Ablation AC1 : lecture publique forcée (`if (true)`) dans `SujetsDuFil::peutLire` → 2 rouges (bien
+  dépublié, brouillon). Restauré, md5 `255ea619…` identique.
+- Les classes de garde, `ImpersonationReadSweepTest`, `ValeursEnListeParcoursDesRoutesTest`,
+  `DateInventoryByValueTest`, `PropertyOwnerTransferTest` et `LangGroupParityTest` sont vertes.
+
+### Front (2026-11-18)
+
+- Les deux entrées vivent dans le menu du trombone : `BoutonDePieceJointe` reçoit une prop `entrees`, et
+  il se nomme alors « Joindre ou partager ». Les feuilles sont `usePoserDansLeFil`, dans
+  `components/messages/poser/`. Aucune feuille ne porte de `<form>` : montée dans le `dessus` du
+  composeur, un `submit` remonterait jusqu'au formulaire du message par l'arbre React.
+- Le choix du bien réutilise `GroupPropertyPicker`, qui appelle `GET /api/conversations/context/properties`
+  avec les champs `id,title,reference_number`, la règle de `PropertyPolicy::view`.
+- « Proposer un créneau » : `POST /api/property-visits` avec `{property_id, customer_id, scheduled_at}`,
+  puis `…/cards`. Si la pose de la carte échoue, la feuille garde l'identifiant de la visite et ne rejoue
+  que la pose (test).
+- « Demander une visite » mène à la fiche publique localisée (`hrefLocalise`), où vit le parcours de
+  demande. Le dialogue de visite de la fiche n'est pas importé dans le fil : ses espaces
+  (`propertyVisitDialog`, `propertyContact`) ne sont pas servis dans le widget. La fiche n'ouvre pas
+  ce dialogue toute seule, faute de paramètre : le client clique encore une fois.
+- La carte du bien (`poser/CarteBien.tsx`) attend son `case 'property'` dans `cartes/CarteDuFil.tsx`.
+  Ce fichier est tenu par TCK-2963 : c'est une collision, et le correctif exact est dans le rapport.
+  Il en va de même pour le branchement dans `ChatView.tsx`.
+- Ablation front : sans le test d'`abilities.request_visit`, 2 rouges dans `CarteBien.tck-2964`.
+  Restauré, md5 identique.
+- Parcours réel mesuré (`ConversationCardTest`, 11 verts) : dans une directe sans bien, le `…/context`
+  de l'agent rend `customer.id`, `POST /api/property-visits` rend la visite `confirmed` pour cette fiche,
+  la carte se pose et le client la relit.
+- Un bien lisible mais hors agence : l'API réserve au nom de l'agent (sans fiche). La feuille vérifie
+  `status = confirmed` et `customer_id` avant de poser la carte, sinon elle le dit (`creneau.horsAgence`)
+  et ne pose rien (test vitest).
+- La photo du bien est dans l'aplat (prop `media` de `CadreDeCarte`, TCK-2964), comme la maquette `BienD`.
+- `IdempotentRoutesTest`, `MessageTypeSpoofingTest` et `EcritureDeMessageUniqueTest` sont verts.
+

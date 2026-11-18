@@ -3,10 +3,12 @@
 namespace App\Services\Messaging;
 
 use App\Models\Booking;
+use App\Models\Enums\PropertyStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
+use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
@@ -32,6 +34,11 @@ use LogicException;
  * le couvre sans autre code (branché par une boucle dans `AppServiceProvider::bootObservers()`).
  * TCK-2958 y a ajouté trois types qui ne sont pas des sujets (`lease_payment`, `inventory`,
  * `property_visit`).
+ *
+ * TCK-2964 (ADR-0128 § 4) — `posable` : le type peut être POSÉ dans un fil par un participant
+ * (`POST /api/conversations/{c}/cards`), avec la seule carte de son type au catalogue
+ * ({@see CodesDuFil::carteDePose()}). `publique` : le type se lit AUSSI de tout lecteur quand l'objet
+ * est publié (le bien : la règle même de sa fiche publique, {@see self::publicsParmi()}).
  */
 final class SujetsDuFil
 {
@@ -47,7 +54,7 @@ final class SujetsDuFil
      * (`LeaseResource` rend le téléphone du bailleur au personnel de l'agence ; la carte, non).
      * `RelectureDesObjetsTest` le vérifie pour chaque type et chaque lecteur, à toute profondeur.
      *
-     * @var array<string, array{modele: class-string<Model>, lecture: string, via?: string, sujet: bool, projection: list<string>, charger: list<string>}>
+     * @var array<string, array{modele: class-string<Model>, lecture: string, via?: string, publique?: bool, sujet: bool, posable?: bool, projection: list<string>, charger: list<string>}>
      */
     private const TABLE = [
         'maintenance_request' => [
@@ -100,13 +107,27 @@ final class SujetsDuFil
             ],
             'charger' => ['lease.tenant', 'lease.landlord', 'tenant', 'property'],
         ],
+        // TCK-2964 — posable : « Proposer un créneau » pose la visite créée par sa route.
         'property_visit' => [
-            'modele' => PropertyVisit::class, 'lecture' => 'view', 'sujet' => false,
+            'modele' => PropertyVisit::class, 'lecture' => 'view', 'sujet' => false, 'posable' => true,
             'projection' => [
                 'id', 'type', 'status', 'scheduled_at', 'preferred_window', 'property_id',
                 'property.id', 'property.title', 'abilities', 'can_confirm',
             ],
             'charger' => ['property.address', 'property.media'],
+        ],
+        // TCK-2964 (ADR-0128 § 4) — le bien partagé. Publié, il se lit de TOUT lecteur, et la projection
+        // ne retient que des clés de sa fiche publique (`GET /api/public/properties/{slug}`), plus les
+        // gestes du lecteur (`abilities`) ; sinon `PropertyPolicy::view`. Ni adresse précise, ni
+        // coordonnées, ni contact : le quartier et la ville seulement.
+        'property' => [
+            'modele' => Property::class, 'lecture' => 'view', 'publique' => true, 'sujet' => false, 'posable' => true,
+            'projection' => [
+                'id', 'slug', 'title', 'price', 'currency', 'type', 'contract_type', 'rent_period', 'status',
+                'bedrooms', 'area', 'available_from', 'main_photo_url', 'location.quarter', 'location.city',
+                'abilities',
+            ],
+            'charger' => ['address', 'media'],
         ],
     ];
 
@@ -120,6 +141,37 @@ final class SujetsDuFil
     public static function typesSujets(): array
     {
         return array_keys(array_filter(self::TABLE, fn (array $entree) => $entree['sujet']));
+    }
+
+    /**
+     * TCK-2964 — les types qu'un participant peut POSER dans un fil.
+     *
+     * @return list<string>
+     */
+    public static function typesPosables(): array
+    {
+        return array_keys(array_filter(self::TABLE, fn (array $entree) => $entree['posable'] ?? false));
+    }
+
+    /**
+     * TCK-2964 — parmi `$ids`, ceux qui se lisent EN PUBLIC (type `publique`), en une requête : la
+     * règle de la fiche publique, `Property::public()` hors brouillon (`PublicPropertyController::show`).
+     * `[]` pour un type qui ne se lit jamais en public.
+     *
+     * @param  list<int>  $ids
+     * @return list<int>
+     */
+    public static function publicsParmi(string $type, array $ids): array
+    {
+        if (! (self::entree($type)['publique'] ?? false) || $ids === []) {
+            return [];
+        }
+
+        return match ($type) {
+            'property' => Property::query()->public()->whereNot('status', PropertyStatus::Draft)->whereKey($ids)
+                ->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            default => throw new LogicException("Type public sans règle de publication : « {$type} »."),
+        };
     }
 
     /** @return class-string<Model> */
@@ -168,10 +220,23 @@ final class SujetsDuFil
     /**
      * Le lecteur lit-il cet objet ? La politique de l'objet en décide (`view`) — ou celle de l'objet
      * qui le porte (`via`, TCK-2958 : une échéance se lit comme son bail ; sans lui, refus).
+     *
+     * TCK-2964 — un type `publique` se lit aussi de tout lecteur quand l'objet est publié.
+     * `$publics` : les identifiants publiés de la page, calculés une fois ({@see self::publicsParmi()}) ;
+     * sans eux, la règle est jugée pour ce seul objet.
+     *
+     * @param  list<int>|null  $publics
      */
-    public static function peutLire(User $lecteur, Model $objet): bool
+    public static function peutLire(User $lecteur, Model $objet, ?array $publics = null): bool
     {
-        $entree = self::TABLE[self::typeDe($objet)];
+        $type = self::typeDe($objet);
+        $entree = self::TABLE[$type];
+        if ($entree['publique'] ?? false) {
+            $publics ??= self::publicsParmi($type, [(int) $objet->getKey()]);
+            if (in_array((int) $objet->getKey(), $publics, true)) {
+                return true;
+            }
+        }
         if (isset($entree['via'])) {
             $porteur = $objet->{$entree['via']};
 
@@ -205,7 +270,7 @@ final class SujetsDuFil
         return $entree['modele']::query()->whereKey($ids)->with($entree['charger'])->get()->keyBy(fn (Model $m) => (int) $m->getKey());
     }
 
-    /** @return array{modele: class-string<Model>, lecture: string, via?: string, sujet: bool, projection: list<string>, charger: list<string>} */
+    /** @return array{modele: class-string<Model>, lecture: string, via?: string, publique?: bool, sujet: bool, posable?: bool, projection: list<string>, charger: list<string>} */
     private static function entree(string $type): array
     {
         if (! array_key_exists($type, self::TABLE)) {

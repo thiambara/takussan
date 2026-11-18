@@ -129,7 +129,7 @@ export type ObjetDuMessage =
  * FACULTATIVE : la ressource de l'objet n'en rend à un lecteur que ce qu'il lit (le demandeur d'une
  * intervention ne reçoit ni `quote_amount` ni coût). L'écran ne lit un droit que dans `abilities`.
  */
-export type TypeDObjetDuFil = 'maintenance_request' | 'lease' | 'booking' | 'lease_payment' | 'inventory' | 'property_visit';
+export type TypeDObjetDuFil = 'maintenance_request' | 'lease' | 'booking' | 'lease_payment' | 'inventory' | 'property_visit' | 'property';
 
 type Partie = { readonly id: number; readonly name?: string | null; readonly full_name?: string | null } | null;
 
