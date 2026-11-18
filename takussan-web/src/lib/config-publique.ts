@@ -27,6 +27,12 @@
  * ⚠ **Rien de secret ne passe par ici.** Tout ce que rend {@link configPubliqueDuNavigateur} est
  * écrit en clair dans chaque page servie. Le type est fermé pour cette raison : une clé de plus
  * doit être ajoutée ici, à la main, en sachant qu'elle devient publique.
+ *
+ * TCK-2954 (ADR-0129 § 5) — deux clés de plus, ajoutées en le sachant : `TEMPS_REEL_URL` (l'origine
+ * WebSocket du serveur Reverb) et `TEMPS_REEL_CLE` (la clé PUBLIQUE de son application, que tout
+ * client Pusher présente en clair dans l'URL de connexion ; le secret, `REVERB_APP_SECRET`, reste à
+ * l'API). Facultatives : sans elles, le front tourne en mode dégradé, exactement comme avant
+ * (`lib/temps-reel/`), et `docker/demarrer.mjs` ne les exige pas.
  */
 
 /** Le défaut de développement : `./dev.sh api` sert l'API sur ce port. */
@@ -46,6 +52,10 @@ export type ConfigPublique = {
   readonly apiUrl: string;
   /** L'origine du seau public de médias, ou `''` quand il n'y en a pas (développement). */
   readonly mediaUrl: string;
+  /** TCK-2954 — l'origine WebSocket du serveur temps réel (`ws://…`, `wss://…`), ou `''` : mode dégradé. */
+  readonly tempsReelUrl: string;
+  /** TCK-2954 — la clé PUBLIQUE de l'application Reverb (jamais son secret), ou `''`. */
+  readonly tempsReelCle: string;
 };
 
 declare global {
@@ -162,9 +172,49 @@ export function origineSite(): string {
   return resoudreOrigineSite({ siteUrl: process.env.SITE_URL });
 }
 
+/** TCK-2954 — ce dont le client temps réel a besoin pour ouvrir sa connexion. */
+export type ConfigTempsReel = {
+  /** L'origine WebSocket, telle que posée : `ws://127.0.0.1:8081`, `wss://temps-reel.exemple.test`. */
+  readonly url: string;
+  /** La clé publique de l'application Reverb. */
+  readonly cle: string;
+};
+
+/**
+ * TCK-2954 (ADR-0129 § 4) — la configuration du temps réel, ou `undefined` : MODE DÉGRADÉ.
+ *
+ * Les deux clés sont exigées ensemble, et l'URL doit être une ORIGINE `ws:` ou `wss:` (ni chemin, ni
+ * requête). Toute autre forme vaut absence, sans erreur : une valeur mal posée ne doit rien casser,
+ * l'écran garde ses relectures périodiques d'aujourd'hui. `./dev.sh doctor` nomme le mode dégradé.
+ */
+export function configTempsReel(): ConfigTempsReel | undefined {
+  const url = dansLeNavigateur()
+    ? nonVide(window.__TAKUSSAN_CONFIG__?.tempsReelUrl)
+    : nonVide(process.env.TEMPS_REEL_URL);
+  const cle = dansLeNavigateur()
+    ? nonVide(window.__TAKUSSAN_CONFIG__?.tempsReelCle)
+    : nonVide(process.env.TEMPS_REEL_CLE);
+  if (!url || !cle) return undefined;
+  let analysee: URL;
+  try {
+    analysee = new URL(url);
+  } catch {
+    return undefined;
+  }
+  if (analysee.protocol !== 'ws:' && analysee.protocol !== 'wss:') return undefined;
+  if (analysee.pathname !== '/' || analysee.search !== '' || analysee.hash !== '') return undefined;
+  return { url: url.replace(/\/+$/, ''), cle };
+}
+
 /** Ce que le layout racine transmet au navigateur. Serveur seulement. */
 export function configPubliqueDuNavigateur(): ConfigPublique {
-  return { apiUrl: origineApi(), mediaUrl: origineMedia() ?? '' };
+  return {
+    apiUrl: origineApi(),
+    mediaUrl: origineMedia() ?? '',
+    // TCK-2954 — `''` quand absentes : le navigateur tourne alors en mode dégradé.
+    tempsReelUrl: nonVide(process.env.TEMPS_REEL_URL) ?? '',
+    tempsReelCle: nonVide(process.env.TEMPS_REEL_CLE) ?? '',
+  };
 }
 
 /**

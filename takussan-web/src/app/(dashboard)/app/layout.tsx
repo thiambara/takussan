@@ -15,6 +15,7 @@ import { AmorceCapacites } from '@/components/providers/AmorceCapacites';
 import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
 import { espaceDesRecents } from '@/lib/navigation/pages-recentes';
 import { accesALaConsole } from '@/lib/navigation/acces-console';
+import { TempsReelProvider } from '@/lib/temps-reel/TempsReelProvider';
 
 
 /**
@@ -114,12 +115,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // et `support` compris) : une requête de plus pour tout compte qui n'a pas le rôle `super_admin`,
   // menée en même temps que les deux lectures d'accès (promesses `cache()`ées, sans ordre entre elles).
   // Sous impersonation, aucune lecture : l'API refuse `/api/admin/*` à ce jeton (`impersonation.read_only`).
+  // TCK-2954 — lu une fois : la console (ci-dessous) et le temps réel, coupé sous impersonation (ADR-0129 § 4).
+  const enImpersonation = await estEnImpersonation();
   const [acces, capacites, accesConsole] = await Promise.all([
     accesAdmin(user),
     capacitesAmorcees(user),
-    Promise.all([getToken(), estEnImpersonation()]).then(([token, impersonation]) =>
-      accesALaConsole(user, impersonation ? undefined : token),
-    ),
+    getToken().then((token) => accesALaConsole(user, enImpersonation ? undefined : token)),
   ]);
   // TCK-2477 (ADR-0089 §2) — le persona du menu se juge sur le profil ACTIF : le cookie, sinon (TCK-2621)
   // le profil que l'API a lié à la requête — dernier espace retenu, auto-bascule, ou celui de la cible
@@ -136,20 +137,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <IntlProvider messages={await messagesPour('(dashboard)/app')}>
       <AccesAdminProvider acces={acces}>
         <AmorceCapacites lecture={capacites}>
-          <AppShell
-            user={user}
-            agencyIsStandard={agencyIsStandard}
-            hasPendingUpgrade={hasPendingUpgrade}
-            agencySuspended={agencySuspended}
-            agencyStandardWelcome={agencyStandardWelcome}
-            typeProfilActif={typeProfilActif}
-            modeIcones={modeIcones}
-            modulesMasques={modulesMasques}
-            espaceActif={espaceDesRecents(espaceActif)}
-            accesConsole={accesConsole}
-          >
-            {children}
-          </AppShell>
+          {/* TCK-2954 (ADR-0129 § 4) — la seule connexion temps réel de l'onglet : la coque de `/app`. */}
+          <TempsReelProvider impersonation={enImpersonation}>
+            <AppShell
+              user={user}
+              agencyIsStandard={agencyIsStandard}
+              hasPendingUpgrade={hasPendingUpgrade}
+              agencySuspended={agencySuspended}
+              agencyStandardWelcome={agencyStandardWelcome}
+              typeProfilActif={typeProfilActif}
+              modeIcones={modeIcones}
+              modulesMasques={modulesMasques}
+              espaceActif={espaceDesRecents(espaceActif)}
+              accesConsole={accesConsole}
+            >
+              {children}
+            </AppShell>
+          </TempsReelProvider>
         </AmorceCapacites>
       </AccesAdminProvider>
     </IntlProvider>

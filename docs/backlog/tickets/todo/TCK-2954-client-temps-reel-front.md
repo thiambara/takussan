@@ -156,4 +156,79 @@ Relevé du 2026-11-17, ce que le mode dégradé doit retrouver :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure de la prémisse (2026-11-18)
+
+- `src/lib/temps-reel/` n'existait pas ; `laravel-echo` et `pusher-js` absents de `package.json`. Installés par
+  `npm install laravel-echo@2.6.3 pusher-js@8.6.0` (dernières publiées depuis plus de deux semaines) : le lock
+  n'ajoute que ces deux paquets et `tweetnacl` (dépendance de `pusher-js`). `socket.io-client`, pair facultatif
+  d'Echo, n'est pas installé.
+- La relecture de la **liste** à 10 s est dans `lib/queries/conversations.ts` (`useConversations`,
+  `refetchInterval ?? 10_000`), pas dans `conversations-list.ts`, qui porte les `CADENCE_NON_LUS_*` (30 s / 10 s).
+  Le fil à 3 s, `useNotifications` à 30 s : conformes. Aucun de ces fichiers n'est touché (TCK-2955).
+- Echo 2.6.3 expose `connector.onConnectionChange(statut)` (statuts `connected`, `connecting`, `failed` pour
+  `unavailable`/`failed` de Pusher, `disconnected`) : c'est l'API retenue, relevée dans `dist/echo.js`.
+  L'autorisation passe par l'option Pusher `channelAuthorization.customHandler` (Echo transmet ses options à
+  `new Pusher(key, options)`), vérifiée sur les vraies bibliothèques : `pusher.config.channelAuthorizer` est bien
+  notre fonction, `private()` nomme `private-…`, `join()` `presence-…`, et une origine injoignable remonte
+  `failed` (≈ 10 s, `unavailable` de Pusher).
+- L'événement s'écoute en **`.signal`** : `SignalTempsReel::broadcastAs()` rend `signal`, et sans le point Echo
+  préfixerait `App.Events.`.
+- Le signal ne part que sur des `PrivateChannel` (TCK-2952) : le canal de présence ne sert qu'aux membres.
+
+### Décisions (2026-11-18)
+
+- **Fichiers** : `signal.ts` (forme, canaux, curseurs), `connexion.ts` (le SEUL importateur d'Echo et de Pusher,
+  atteint par `import()`), `moteur.ts` (registre des abonnements, connexion courante, état ; hors React),
+  `TempsReelProvider.tsx`, `hooks.ts` (`useSignal`, `useSujetEnDirect`, `useIntervalleDeRelecture`,
+  `useEtatDuTempsReel`, `usePresenceDuSujet`).
+- **`useSignal(cible, rappel)`** : `cible` est un sujet (`conversation:42`) ou `{ personnel: [codes] }` ; le
+  rappel reçoit le signal, ou `null` à la reconnexion (« relisez »). `useSujetEnDirect(sujet, clés)` invalide les
+  clés dans les deux cas.
+- **« Tenue » se juge par canal**, pas seulement par la socket : `useIntervalleDeRelecture(intervalle, cible)`
+  ne passe à 60 s que si la connexion est tenue ET que le canal de la cible a été accepté. Un 403 à
+  l'autorisation (agence suspendue sous `EnsureAgencyWritable`, cf. TCK-2952) laisse l'écran à son intervalle
+  d'aujourd'hui, au lieu de 60 s sans signal. L'intervalle n'est jamais raccourci (`max(intervalle, 60 s)`),
+  `false` reste `false`, et hors du fournisseur l'intervalle passe tel quel.
+- **Curseurs par canal ET par `(subject, event)`** : une même émission atteint `sujet.*` et `utilisateur.*` avec
+  le même curseur ; une clé sans le canal ferait taire la seconde copie. Mémoire vidée à chaque connexion.
+- **Sur un canal `sujet.*`, un signal d'un autre `subject` est ignoré** (défense ; l'API ne l'émet pas).
+- **Reconnexion** : toute transition vers `connected` après la première ; la première connexion ne relit rien
+  (l'écran vient de lire). Les doublons d'état (`state_change` + `connected` d'Echo) sont ignorés.
+- **Impersonation** : coupé si le layout le dit (`estEnImpersonation()`, cookie `httpOnly`, passé en propriété)
+  OU si le témoin du relais est posé (`relaisImpersonationActif()`, lu dans l'effet). La condition ne repose pas
+  sur l'absence de jeton : le test pose un jeton ET le témoin.
+- **Session** : la connexion dépend du jeton et de l'identifiant du compte ; fermée à leur changement
+  (`logout()`), rouverte sous le suivant. Une connexion remplacée n'atteint plus aucun écran (garde
+  `this.connexion !== connexion` dans chaque rappel). L'autorisation passe le jeton de la connexion
+  explicitement à `apiRequest` (sans jeton, `apiRequest` partirait au relais d'impersonation).
+- **Présence** : `usePresenceDuSujet(sujet)` rend les identifiants présents (l'API ne publie que `{id}`), sans
+  interface. Aucun « message éphémère » (`whisper`) n'est exposé : c'est TCK-2955.
+- **Layout** : `TempsReelProvider` monté dans `(dashboard)/app/layout.tsx` autour d'`AppShell`, seulement là ;
+  `estEnImpersonation()` y est lu une fois, pour la console et pour le temps réel.
+- **Config** : `ConfigPublique` gagne `tempsReelUrl` et `tempsReelCle` (`''` sans clé) ; `configTempsReel()`
+  rend `undefined` (mode dégradé, sans erreur) si l'une manque, si l'URL n'est pas une origine `ws:`/`wss:`.
+  `check-front-env-keys.mjs` amendé (liste fermée + en-tête) ; `docker/demarrer.mjs` inchangé.
+
+### Mesures (2026-11-18)
+
+- `npx vitest run src/lib/temps-reel src/lib/__tests__/config-publique.test.ts` : 3 fichiers, 44 tests verts
+  (dont AC6 en deux formes : `logout()` puis `openSession()`, et `openSession()` seul — changement de jeton et de
+  compte en un seul rendu : l'ancienne connexion ne reçoit aucun canal du nouveau compte, aucune autorisation ne
+  part sous l'ancien jeton). `AuthContext.chemin-unique.test.ts` vert ; `check:i18n-namespaces`,
+  `check:vouvoiement` verts, `check:classes-emises` rouge seulement sur `playground/maquettes`.
+  Tests du layout de `/app` (6 fichiers, 32 tests) verts avec le fournisseur monté.
+- `npx eslint` (fichiers touchés) : 0 ; `npx tsc --noEmit` : propre ; `check-front-env-keys` vert ;
+  `check-i18n` : rouge seulement sur `playground/maquettes` (aucune clé touchée).
+- **Ablations** (une à une, `-t` sur le test visé, restauration par `cp` vérifiée par `md5`) — chacune rougit :
+  curseur retiré (AC2) ; condition d'impersonation retirée, puis chaque moitié seule (AC5, les deux tests) ;
+  filtre du sujet sur `sujet.*` (AC1) ; garde de connexion remplacée, puis fermeture de l'ancienne (AC6) ; état du
+  canal ignoré (AC3, canal refusé) ; état de connexion ignoré (AC3, perdue) ; 60 s retirée (AC3, tenue) ;
+  rejeu retiré, puis rejeu dès la première connexion (AC3, reconnexion) ; test de la clé retiré (AC4).
+- **AC7** : `process.env.NEXT_PUBLIC_TEMPS_REEL_URL` remis dans `config-publique.ts` → `check-front-env-keys`
+  sort en 1 avec deux écarts ; restauré, vert.
+- **Non mesuré** : le chargement paresseux dans le bundle de `next build` (build interdit au lot) — le
+  confinement est statique (seul `connexion.ts` importe Echo/Pusher, tout autre fichier n'en importe que des
+  types) ; une connexion réelle à Reverb (service de développement arrêté au moment de la mesure).
+- **À reporter hors de ce ticket** : `takussan-web/CLAUDE.md` § Environnement parle encore de « trois valeurs »
+  et d'une configuration du navigateur limitée à l'API et aux médias ; il ne nomme pas `TEMPS_REEL_URL` ni
+  `TEMPS_REEL_CLE` (fichier hors du périmètre de l'agent).
