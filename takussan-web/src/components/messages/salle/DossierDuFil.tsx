@@ -19,6 +19,8 @@ import { useBailDeLaSalle, type BailDeLaSalle } from './requetesDeLaSalle';
 import { membresActuels, objetDeLaSalle, qualiteDansLaReservation, qualiteDansLeBail, type QualiteDuMembre } from './salle';
 // TCK-2972 — les engagements du fil.
 import { EngagementsDuFil } from '../engagements/EngagementsDuFil';
+// TCK-2973 — la fiabilité des participants, pour le seul personnel.
+import { FiabiliteDuFil, personnesDuFil } from '../engagements/FiabiliteDuFil';
 import { ParticipantsEtCanauxDuFil } from '../pont/ElementsDuPont';
 import { participantsDuPont } from '../pont/pont';
 
@@ -78,6 +80,8 @@ function ContenuDuDossier({ conversation }: { readonly conversation: Conversatio
       ) : (
         <DossierDeLaReservation id={objet.id} conversation={conversation} />
       )}
+      {/* TCK-2973 — la fiabilité des participants d'une salle : rien sans `commitments_records` (personnel seul). */}
+      <FiabiliteDuFil contexte={contexte?.data} personnes={personnesDuFil(conversation)} />
       {/* TCK-2984 — le pont d'une salle : qui est joint par quoi, « Joindre par WhatsApp » ; rien sans bloc `pont`. */}
       <ParticipantsEtCanauxDuFil
         conversationId={conversation.id}
