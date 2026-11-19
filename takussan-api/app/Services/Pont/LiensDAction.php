@@ -188,8 +188,9 @@ class LiensDAction
             'user_id' => $destinataire->id,
             'phone' => $telephone,
         ];
-        // Les variables du gabarit : l'agence, le geste, puis le suffixe du bouton d'URL (le jeton).
-        $envoi = $this->relais->envoyer($telephone, $agence, $texte, self::GABARIT, $langue, [$nomDAgence, $libelle, $emis['jeton']]);
+        // Le corps du gabarit : l'agence, le geste ({{1}}, {{2}}). Le jeton est le suffixe du bouton d'URL (TCK-2981),
+        // jamais une variable du corps ; l'URL en clair ne part que dans le texte libre (fenêtre, SMS).
+        $envoi = $this->relais->envoyer($telephone, $agence, $texte, self::GABARIT, $langue, [$nomDAgence, $libelle], boutonUrl: $emis['jeton']);
         $relais = MessageRelay::query()->create($base + ['status' => $envoi === null ? MessageRelay::STATUS_NON_ENVOYE : MessageRelay::STATUS_ECHEC]);
         if ($envoi !== null) {
             $this->relais->tracer($relais, $envoi['canal'], $envoi['resultat']);

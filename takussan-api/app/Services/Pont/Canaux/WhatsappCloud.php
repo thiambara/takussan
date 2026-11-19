@@ -84,7 +84,13 @@ final class WhatsappCloud implements CanalDuPont
             return ResultatDEnvoi::indisponible('gabarit_non_approuve');
         }
         $bouton = $contexte['bouton_reponse'] ?? null;
-        $message = is_string($bouton) && $bouton !== '' ? WhatsappMessage::templateWithQuickReply($ref, $bouton) : WhatsappMessage::template($ref);
+        // TCK-2981 (pour TCK-2982) — `bouton_url` : le suffixe du bouton d'URL du gabarit (le jeton), hors du corps.
+        $suffixe = $contexte['bouton_url'] ?? null;
+        $message = match (true) {
+            is_string($suffixe) && $suffixe !== '' => WhatsappMessage::templateWithUrlButton($ref, $suffixe),
+            is_string($bouton) && $bouton !== '' => WhatsappMessage::templateWithQuickReply($ref, $bouton),
+            default => WhatsappMessage::template($ref),
+        };
 
         return $this->envoyer($destinataire, $message, $contexte);
     }

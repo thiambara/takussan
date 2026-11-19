@@ -174,6 +174,15 @@ export type TraceDuLienDAction = {
  * TCK-2984 — l'état du pont d'un participant : une ligne de `context.pont` (TCK-2981), indexée par `user_id`, pour
  * chaque participant actif sauf le lecteur. Personnel seul ; aucun numéro.
  */
+/** TCK-2984 — `context.pont_fiche` (TCK-2981). */
+export type PontDeLaFiche = {
+  customer_id: number;
+  full_name: string;
+  invitable: boolean;
+  invitation_en_attente: boolean;
+  opposition_at: string | null;
+};
+
 export type PontDuParticipant = {
   joint: boolean;
   invitation_en_attente?: boolean;
@@ -484,6 +493,11 @@ export type ConversationContext = {
   commitments_records?: Readonly<Record<string, { readonly kept: number; readonly late: number }>>;
   /** TCK-2984 (TCK-2981) — l'état du pont de chaque participant actif sauf le lecteur, par `user_id` ; personnel seul. */
   pont?: Readonly<Record<string, PontDuParticipant>>;
+  /**
+   * TCK-2984 (TCK-2981 AC6) — la fiche du locataire SANS COMPTE du bail de la salle, à joindre par le pont ; `null` sans
+   * bail ou quand le locataire a un compte (il est alors dans `pont`). Personnel seul ; aucun numéro.
+   */
+  pont_fiche?: PontDeLaFiche | null;
 };
 
 export type CodeDeRelationAuFil = 'prestataire' | 'locataire' | 'proprietaire' | 'agent';

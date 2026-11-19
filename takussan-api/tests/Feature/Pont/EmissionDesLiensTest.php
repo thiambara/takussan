@@ -12,7 +12,6 @@ use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Services\Messaging\EvenementsDuFil;
 use App\Services\Notifications\Sms\SmsDriverInterface;
-use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Pont\ResultatDEnvoi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -104,13 +103,14 @@ class EmissionDesLiensTest extends ApiTestCase
     {
         $this->joint($this->bailleur, self::TEL_BAILLEUR);
         FauxCanal::$resultats['text'] = new ResultatDEnvoi(ResultatDEnvoi::ECHEC, forme: 'text', motif: 'refus');
+        // Le pilote SMS RÉEL de l'environnement de test, enveloppé pour lire le texte qui part (rien d'autre ne le rend).
         $envoyes = [];
+        $reel = $this->app->make(SmsDriverInterface::class);
         $sms = \Mockery::mock(SmsDriverInterface::class);
-        $sms->shouldReceive('send')->andReturnUsing(function (array|string $to, string $message) use (&$envoyes): array {
+        $sms->shouldReceive('send')->andReturnUsing(function (array|string $to, string $message, array $contexte = []) use (&$envoyes, $reel): array {
             $envoyes[] = $message;
-            $numero = is_array($to) ? $to[0] : $to;
 
-            return [$numero => SmsResult::sent($numero, 'sms-1')];
+            return $reel->send($to, $message, $contexte);
         });
         $this->app->instance(SmsDriverInterface::class, $sms);
 
@@ -136,7 +136,10 @@ class EmissionDesLiensTest extends ApiTestCase
         app(EvenementsDuFil::class)->ecrire($this->fil, $this->visite(), 'visit.rescheduled', ['scheduled_at' => null], [$this->bailleur]);
 
         $this->assertSame('pont_lien_action', FauxCanal::$envois[0]['gabarit']);
-        $jeton = (string) FauxCanal::$envois[0]['variables'][2];
+        // Le corps n'a que {{1}} l'agence et {{2}} le geste ; le jeton est le suffixe du bouton d'URL, hors du corps.
+        $this->assertSame([$this->agence->name, __('pont.gestes.property_visit.confirm')], FauxCanal::$envois[0]['variables']);
+        $jeton = (string) FauxCanal::$envois[0]['contexte']['bouton_url'];
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/', $jeton);
         $this->assertSame(hash('sha256', $jeton), ActionLink::query()->value('token_hash'));
     }
 

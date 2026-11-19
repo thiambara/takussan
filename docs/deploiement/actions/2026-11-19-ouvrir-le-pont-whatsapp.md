@@ -44,7 +44,13 @@ pas les mélanger.
 d'ouvrir le relais sortant (TCK-2981, TCK-2982, TCK-2985) — l'entrée (ce ticket) n'en a pas besoin :
 - `pont_invitation` — l'invitation à recevoir les messages d'un fil, avec le bouton de réponse « Accepter les messages » ;
 - `pont_nouveau_message` — un message du fil hors fenêtre : `{{1}}` l'auteur, `{{2}}` l'agence, `{{3}}` l'extrait borné à 500 caractères (TCK-2981) ;
-- `pont_lien_action` — un geste attendu, avec un bouton d'URL vers le lien d'action ;
+- `pont_lien_action` — un geste attendu (TCK-2982). Corps : `{{1}}` l'agence, `{{2}}` le geste (« confirmer la
+  visite », « accepter l'intervention », « signer l'état des lieux »), puis le texte de `pont.lien_action_gabarit` (`lang/fr`,
+  `lang/en`). **Un bouton d'URL dynamique** (type *Visit website*, URL *Dynamic*) : préfixe
+  `https://<front de l'environnement>/fr/fil/a/` (`/en/fil/a/` pour le gabarit `en`), suffixe `{{1}}`, qui reçoit le
+  **jeton** du lien (43 caractères ; `RelaisSortant::envoyer(…, boutonUrl:)`, jamais une variable du corps — `meta_variables` = `agence`, `geste`). Exemple
+  demandé par Meta : un jeton fictif quelconque de 43 caractères `[A-Za-z0-9_-]`, jamais un jeton réel. Le préfixe
+  suit `FRONTEND_URL` : un gabarit approuvé pour la préproduction ne sert pas en production ;
 - `resume_hebdo_bailleur` — le résumé du lundi du bailleur.
 
 **F. La vérification** — envoyer « Bonjour » au numéro depuis un téléphone **inconnu** de l'environnement : une demande

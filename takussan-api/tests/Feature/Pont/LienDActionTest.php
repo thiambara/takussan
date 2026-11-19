@@ -188,6 +188,28 @@ class LienDActionTest extends ApiTestCase
         $this->assertSame($parLeLien->id, $reponse->json('data.object.id'));
     }
 
+    /** Après l'acceptation par lien, la réponse donne au prestataire l'adresse et le contact sur place (ADR-0122), comme le détail. */
+    public function test_apres_l_acceptation_par_lien_le_prestataire_recoit_l_adresse_et_le_contact_sur_place(): void
+    {
+        ['mr' => $mr, 'provider' => $prestataire] = $this->maintenanceScenario(MaintenanceStatus::Assigned);
+        $mr->property->address()->create(['street' => '7 avenue Peytavin', 'neighborhood' => 'Medina', 'city' => 'Dakar', 'country' => 'SN']);
+        $mr->forceFill(['access_instructions' => 'Code portail 4521'])->save();
+        $mr->requester->forceFill(['phone' => '+221770004455'])->save();
+        [$jeton] = $this->lien($prestataire, 'maintenance_request.accept', $mr);
+
+        $avant = $this->getJson("/api/a/{$jeton}")->assertOk();
+        $this->assertNull($avant->json('data.object.access'));
+
+        $reponse = $this->postJson("/api/a/{$jeton}", ['scheduled_at' => now()->addDays(3)->setTime(9, 0)->utc()->format('Y-m-d\TH:i:s\Z')])->assertOk();
+
+        $reponse->assertJsonPath('data.object.access.street', '7 avenue Peytavin')
+            ->assertJsonPath('data.object.access.quarter', 'Medina')
+            ->assertJsonPath('data.object.access.city', 'Dakar')
+            ->assertJsonPath('data.object.access.requester_phone', '+221770004455')
+            ->assertJsonPath('data.object.access.instructions', 'Code portail 4521');
+        $this->assertNotNull($reponse->json('data.object.property'));
+    }
+
     public function test_un_prestataire_qui_n_est_plus_assigne_est_refuse_sans_consommer(): void
     {
         ['mr' => $mr, 'provider' => $prestataire, 'agency' => $agence] = $this->maintenanceScenario(MaintenanceStatus::Assigned);

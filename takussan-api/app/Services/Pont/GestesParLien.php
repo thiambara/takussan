@@ -223,9 +223,11 @@ final class GestesParLien
         abort_code_if(! is_string($code) || $code === '', 422, 'action_link.code_required');
         $otp = app(SignatureOtpService::class);
         abort_code_if($otp->isLocked($inventaire, $acteur, self::PORTEE_DU_CODE.$role), 423, 'action_link.code_locked');
-        abort_code_if($otp->attempt($inventaire, $acteur, self::PORTEE_DU_CODE.$role, $code) === null, 422, 'action_link.code_invalid');
+        $preuve = $otp->attempt($inventaire, $acteur, self::PORTEE_DU_CODE.$role, $code);
+        abort_code_if($preuve === null, 422, 'action_link.code_invalid');
 
-        return $service->sign($inventaire, $acteur, $role, $signature, null, request());
+        // La preuve du code (canal, numéro masqué) est tracée dans les colonnes `*_otp_*`, méthode `link_otp`.
+        return $service->sign($inventaire, $acteur, $role, $signature, null, request(), $preuve);
     }
 
     /**

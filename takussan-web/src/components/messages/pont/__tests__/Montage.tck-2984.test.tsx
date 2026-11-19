@@ -38,6 +38,12 @@ describe('<ColonneDeContexte> — « Participants et canaux »', () => {
     expect(screen.getByRole('button', { name: 'Joindre par WhatsApp' })).toBeTruthy();
   });
 
+  it('la fiche sans compte (`pont_fiche`) seule suffit à monter le panneau', () => {
+    contexte = { data: { property: null, lease: null, maintenance: null, pont_fiche: { customer_id: 31, full_name: 'Fatou Wade', invitable: true, invitation_en_attente: false, opposition_at: null } } };
+    monter(<ColonneDeContexte conversationId={7} ouverte onOuvrir={() => {}} />);
+    expect(screen.getByTestId('ligne-fiche').textContent).toContain('Fatou Wade');
+  });
+
   it('le locataire (aucun bloc `pont`) : rien', () => {
     contexte = contexteAvec();
     monter(<ColonneDeContexte conversationId={7} ouverte onOuvrir={() => {}} />);

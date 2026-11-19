@@ -81,6 +81,15 @@ class ConversationContextResource extends BaseResource
                 'fenetre_jusqu_a' => $this->iso($l['fenetre_jusqu_a']),
                 'invitable' => $l['invitable'],
             ], $context->pont)),
+            // TCK-2981 (ADR-0132 § 2) — la fiche du locataire SANS COMPTE du bail de la salle, pour « Joindre » par
+            // `customer_id` : au seul personnel actif (clé absente sinon), `null` sans fiche à joindre. Sans numéro.
+            'pont_fiche' => $this->when($context->pontFiche !== false, fn () => $context->pontFiche === null ? null : [
+                'customer_id' => $context->pontFiche['customer_id'],
+                'full_name' => $context->pontFiche['full_name'],
+                'invitable' => $context->pontFiche['invitable'],
+                'invitation_en_attente' => $context->pontFiche['invitation_en_attente'],
+                'opposition_at' => $this->iso($context->pontFiche['opposition_at']),
+            ]),
             'customer' => $this->when($context->customerShown, fn () => $customer === null ? null : [
                 'id' => $customer->id,
                 'full_name' => $customer->full_name,

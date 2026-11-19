@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useConversation } from '@/lib/queries/conversations';
 import { cn } from '@/lib/utils';
-import type { Message } from '@/types/message';
+import type { Message, PontDeLaFiche } from '@/types/message';
 import {
   cleDeLEtat,
   cleDuCanal,
@@ -201,6 +201,8 @@ interface ParticipantsEtCanauxProps {
   readonly participants: ReadonlyArray<ParticipantDuPont> | undefined;
   readonly noms: Noms;
   readonly maintenant?: number;
+  /** TCK-2981 AC6 — la fiche du locataire sans compte du bail (`context.pont_fiche`) ; absente ou nulle : pas de ligne. */
+  readonly fiche?: PontDeLaFiche | null;
 }
 
 /**
@@ -208,13 +210,13 @@ interface ParticipantsEtCanauxProps {
  * l'opposition (STOP, sans bouton pour passer outre), la fenêtre ; « Joindre par WhatsApp » sur une personne
  * `invitable`. Rien sans au moins un bloc `pont` dans la réponse (lecteur qui n'est pas personnel).
  */
-export function ParticipantsEtCanaux({ conversationId, participants, noms, maintenant }: ParticipantsEtCanauxProps) {
+export function ParticipantsEtCanaux({ conversationId, participants, noms, maintenant, fiche }: ParticipantsEtCanauxProps) {
   const t = useTranslations('messaging.pont');
   const f = useFormatteurs();
   const avecPont = (participants ?? []).filter((p) => Boolean(p.pont));
   // eslint-disable-next-line react-hooks/purity -- l'instant du rendu ; les tests l'injectent.
   const instant = maintenant ?? Date.now();
-  if (avecPont.length === 0) return null;
+  if (avecPont.length === 0 && !fiche) return null;
   return (
     <section data-testid="participants-et-canaux" aria-label={t('panneau.titre')} className="mt-4 rounded-xl border border-border p-3">
       <h3 className="mb-2 text-sm font-semibold">{t('panneau.titre')}</h3>
@@ -222,6 +224,7 @@ export function ParticipantsEtCanaux({ conversationId, participants, noms, maint
         {avecPont.map((p) => (
           <LigneDuParticipant key={p.user_id} conversationId={conversationId} participant={p} nom={noms[p.user_id] ?? '—'} instant={instant} f={f} />
         ))}
+        {fiche ? <LigneDeLaFiche conversationId={conversationId} fiche={fiche} f={f} /> : null}
       </ul>
     </section>
   );
@@ -231,15 +234,70 @@ export function ParticipantsEtCanaux({ conversationId, participants, noms, maint
  * Le panneau monté dans la colonne de contexte : il ne lit les noms du fil (`useConversation`, en cache) que
  * lorsqu'au moins un participant porte un bloc `pont` — pour tout autre lecteur, rien n'est monté ni demandé.
  */
-export function ParticipantsEtCanauxDuFil({ conversationId, participants }: { readonly conversationId: number; readonly participants: ReadonlyArray<ParticipantDuPont> | undefined }) {
-  if (!(participants ?? []).some((p) => Boolean(p.pont))) return null;
-  return <PanneauAvecNoms conversationId={conversationId} participants={participants} />;
+interface ParticipantsEtCanauxDuFilProps {
+  readonly conversationId: number;
+  readonly participants: ReadonlyArray<ParticipantDuPont> | undefined;
+  readonly fiche?: PontDeLaFiche | null;
 }
 
-function PanneauAvecNoms({ conversationId, participants }: { readonly conversationId: number; readonly participants: ReadonlyArray<ParticipantDuPont> | undefined }) {
+export function ParticipantsEtCanauxDuFil({ conversationId, participants, fiche }: ParticipantsEtCanauxDuFilProps) {
+  if (!(participants ?? []).some((p) => Boolean(p.pont)) && !fiche) return null;
+  return <PanneauAvecNoms conversationId={conversationId} participants={participants} fiche={fiche} />;
+}
+
+function PanneauAvecNoms({ conversationId, participants, fiche }: ParticipantsEtCanauxDuFilProps) {
   const { data } = useConversation(conversationId);
   const noms: Noms = Object.fromEntries((data?.data?.participants ?? []).map((p) => [p.user_id, p.user?.full_name ?? '—']));
-  return <ParticipantsEtCanaux conversationId={conversationId} participants={participants} noms={noms} />;
+  return <ParticipantsEtCanaux conversationId={conversationId} participants={participants} noms={noms} fiche={fiche} />;
+}
+
+/**
+ * TCK-2981 AC6 — le locataire SANS COMPTE du bail : « Joindre par WhatsApp » part en `{customer_id}` ; son accord lui
+ * crée un compte, et il passe alors dans `context.pont` (la fiche devient nulle).
+ */
+function LigneDeLaFiche({ conversationId, fiche, f }: { readonly conversationId: number; readonly fiche: PontDeLaFiche; readonly f: ReturnType<typeof useFormatteurs> }) {
+  const t = useTranslations('messaging.pont');
+  const invitation = useInvitationAuPont(conversationId);
+  const enVol = useRef(false);
+  const enAttente = fiche.invitation_en_attente || invitation.isSuccess;
+  return (
+    <li className="flex flex-col gap-1 text-sm" data-testid="ligne-fiche" data-customer-id={fiche.customer_id}>
+      <span className="font-medium">{fiche.full_name}</span>
+      <span className="text-xs text-muted-foreground">
+        {fiche.opposition_at ? (
+          <span data-testid="etat-fiche" data-etat="opposition" className="text-destructive">
+            {t('panneau.opposition', { date: f.date(fiche.opposition_at, { dateStyle: 'medium' }) })}
+          </span>
+        ) : enAttente ? (
+          <span data-testid="etat-fiche" data-etat="invite">{t('panneau.invitationEnvoyee')}</span>
+        ) : (
+          <span data-testid="etat-fiche" data-etat="sans-compte">{t('panneau.sansCompte')}</span>
+        )}
+      </span>
+      {fiche.invitable && !enAttente && !fiche.opposition_at ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="self-start"
+          disabled={invitation.isPending}
+          onClick={() => {
+            if (enVol.current || invitation.isPending) return;
+            enVol.current = true;
+            invitation.mutate({ customer_id: fiche.customer_id }, { onSettled: () => { enVol.current = false; } });
+          }}
+        >
+          <Send className="size-3.5 stroke-[1.75]" aria-hidden="true" />
+          {t('panneau.joindre')}
+        </Button>
+      ) : null}
+      {invitation.isError ? (
+        <p role="alert" data-testid="refus-invitation" className="text-xs text-destructive">
+          {t(`refus.${cleDuRefus(invitation.error)}`)}
+        </p>
+      ) : null}
+    </li>
+  );
 }
 
 function LigneDuParticipant({

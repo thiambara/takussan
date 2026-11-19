@@ -4773,7 +4773,8 @@
         "fenetreFermee": "window closed: your messages will be sent as a template message",
         "opposition": "WhatsApp turned off by the person on {date}",
         "invitationEnvoyee": "Invitation sent, awaiting consent",
-        "joindre": "Reach via WhatsApp"
+        "joindre": "Reach via WhatsApp",
+        "sansCompte": "No Takussan account"
       },
       "refus": {
         "not_participant": "This person is no longer in this thread.",
@@ -9423,7 +9424,9 @@
       "surPlace": "Signed on site, with the code received by SMS",
       "surPlaceNumero": "Signed on site, with the code received at {numero}",
       "surPlaceParEtNumero": "Signed on site in front of {agent}, with the code received at {numero}",
-      "parAuTitreDuMandat": "Signed by {nom}, under the management mandate"
+      "parAuTitreDuMandat": "Signed by {nom}, under the management mandate",
+      "parLien": "Signed from a link, with the code received by SMS",
+      "parLienNumero": "Signed from a link, with the code received at {numero}"
     },
     "signaturePad": {
       "label": "Sign here",
@@ -9666,7 +9669,8 @@
           "valider": "Confirm"
         },
         "reessayer": "Try again",
-        "signerAuTitreDuMandat": "Sign under the management mandate"
+        "signerAuTitreDuMandat": "Sign under the management mandate",
+        "signeParLien": "Signed from a link at {heure}, with the code received by SMS"
       }
     }
   },
@@ -21938,6 +21942,15 @@
       "tropDeTentatives": {
         "titre": "Too many attempts",
         "texte": "Wait a few minutes, then try again."
+      },
+      "codes": {
+        "codeRequis": "Enter the 6-digit code you received by SMS.",
+        "codeFaux": "This code is not correct. Check it, then try again.",
+        "codeVerrouille": "Too many wrong codes: signing is blocked for now. Try again later.",
+        "renvoiTropTot": "A code was just sent. Wait a little before asking for another one.",
+        "rienASigner": "There is nothing left for you to sign.",
+        "sansNumero": "No number can receive the code. Reply to the agency on WhatsApp.",
+        "smsNonParti": "The SMS could not be sent. Try again in a moment."
       }
     }
   },

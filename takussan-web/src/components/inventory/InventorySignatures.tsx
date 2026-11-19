@@ -105,6 +105,11 @@ type Traducteur = ReturnType<typeof useTranslations<'inventory.signatures'>>;
 
 /** TCK-2648 — la voie de la signature du locataire : sur place (qui l'a recueillie, à quel numéro), ou rien. */
 function detailDuLocataire(inventory: Inventory, t: Traducteur): string | null {
+  // TCK-2984 (TCK-2982) — depuis un lien d'action, par son code : le numéro (masqué par l'API), jamais le code.
+  if (inventory.tenant_signature_method === 'link_otp') {
+    const numero = inventory.tenant_otp_destination;
+    return numero ? t('parLienNumero', { numero }) : t('parLien');
+  }
   if (inventory.tenant_signature_method !== 'onsite_otp') return null;
   const agent = inventory.tenant_signed_via?.full_name;
   const numero = inventory.tenant_otp_destination;
@@ -115,6 +120,11 @@ function detailDuLocataire(inventory: Inventory, t: Traducteur): string | null {
 
 /** TCK-2648 — qui a signé pour le bailleur (« par Sokhna Sène, au titre du mandat »), nommé. */
 function detailDuBailleur(inventory: Inventory, t: Traducteur): string | null {
+  // TCK-2984 (TCK-2982) — depuis un lien d'action, par son code.
+  if (inventory.owner_signature_method === 'link_otp') {
+    const numero = inventory.owner_otp_destination;
+    return numero ? t('parLienNumero', { numero }) : t('parLien');
+  }
   // TCK-2914 — recueillie sur place par son code (TCK-2913) : la voie se dit comme celle du locataire.
   if (inventory.owner_signature_method === 'onsite_otp') {
     const agent = inventory.owner_signed_via?.full_name;

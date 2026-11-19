@@ -8,10 +8,13 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\LeaseSignatureCodeNotification;
+use App\Services\Lease\LeaseSignatureService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Notification;
 use Tests\ApiTestCase;
+use Tests\Support\FakeSmsRouter;
 use Tests\Support\SceneDuLienDAction;
 
 /**
@@ -83,6 +86,24 @@ class SignatureParLienTest extends ApiTestCase
         $this->postJson("/api/a/{$jeton}", ['signature' => self::SIGNATURE, 'code' => $code])->assertStatus(410);
     }
 
+    /** La preuve du code est gardée comme sur place (ADR-0098 § 5) : méthode `link_otp`, canal, numéro masqué ; jamais le code. */
+    public function test_la_signature_par_lien_garde_la_preuve_du_code(): void
+    {
+        [$jeton] = $this->lien($this->locataire, 'inventory.sign', $this->inventaire, self::NUMERO_DU_LIEN);
+        $code = $this->demanderLeCode($jeton);
+
+        $this->postJson("/api/a/{$jeton}", ['signature' => self::SIGNATURE, 'code' => $code])->assertOk();
+
+        $signe = $this->inventaire->fresh();
+        $this->assertSame(Inventory::TENANT_METHOD_LINK_OTP, $signe->tenant_signature_method);
+        $this->assertSame('sms', $signe->tenant_otp_channel);
+        $this->assertSame(LeaseSignatureService::maskPhone(self::NUMERO_DU_LIEN), $signe->tenant_otp_destination);
+        $this->assertNotNull($signe->tenant_signed_ip);
+        $this->assertNull($signe->tenant_signed_via_user_id);
+        $this->assertStringNotContainsString($code, $signe->tenant_otp_channel.'|'.$signe->tenant_otp_destination);
+        $this->assertNotSame(self::NUMERO_DU_LIEN, $signe->tenant_otp_destination);
+    }
+
     public function test_un_code_juste_sans_signature_est_refuse_et_ne_consomme_ni_le_lien_ni_le_code(): void
     {
         [$jeton, $lien] = $this->lien($this->locataire, 'inventory.sign', $this->inventaire, self::NUMERO_DU_LIEN);
@@ -108,6 +129,24 @@ class SignatureParLienTest extends ApiTestCase
             fn ($n, array $canaux, AnonymousNotifiable $a) => ($a->routes['sms'] ?? null) === self::NUMERO_DU_LIEN,
         );
         Notification::assertNotSentTo($this->locataire, LeaseSignatureCodeNotification::class);
+    }
+
+    /** Sans `Notification::fake()` : le code passe par le VRAI `SmsChannel` et le pilote SMS de test, au numéro du lien. */
+    public function test_le_code_part_par_le_vrai_canal_sms_au_numero_du_lien(): void
+    {
+        Notification::swap(new ChannelManager($this->app));
+        // Le seul faux est le routeur des fournisseurs : `SmsChannel` est le vrai.
+        $sms = FakeSmsRouter::install();
+        [$jeton, $lien] = $this->lien($this->locataire, 'inventory.sign', $this->inventaire, self::NUMERO_DU_LIEN);
+
+        $this->postJson("/api/a/{$jeton}/code")->assertOk()->assertJsonPath('data.channel', 'sms');
+
+        $this->assertCount(1, $sms->sent);
+        $this->assertCount(1, $sms->sentTo(self::NUMERO_DU_LIEN));
+        $this->assertSame([], $sms->sentTo((string) $this->locataire->phone));
+        $this->assertSame(1, preg_match('/\b(\d{6})\b/', $sms->sent[0]['message'], $m));
+        $this->postJson("/api/a/{$jeton}", ['signature' => self::SIGNATURE, 'code' => $m[1]])->assertOk();
+        $this->assertNotNull($lien->fresh()->used_at);
     }
 
     public function test_le_code_n_est_envoye_que_pour_un_lien_de_signature(): void

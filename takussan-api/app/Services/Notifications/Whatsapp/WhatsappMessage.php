@@ -44,7 +44,16 @@ final class WhatsappMessage
     /** TCK-2981 — un gabarit dont le bouton `quick_reply` porte cette charge utile (revient en `button.payload`). */
     public static function templateWithQuickReply(WhatsappTemplateRef $ref, string $payload): self
     {
-        return new self(self::TYPE_TEMPLATE, null, $ref, [['id' => $payload]]);
+        return new self(self::TYPE_TEMPLATE, null, $ref, [['id' => $payload, 'type' => 'quick_reply']]);
+    }
+
+    /**
+     * TCK-2981 (pour TCK-2982) — un gabarit dont le bouton d'URL (déclaré chez Meta avec une base fixe et un suffixe
+     * `{{1}}`) reçoit ce suffixe : le jeton du lien d'action, jamais l'URL entière.
+     */
+    public static function templateWithUrlButton(WhatsappTemplateRef $ref, string $suffix): self
+    {
+        return new self(self::TYPE_TEMPLATE, null, $ref, [['id' => $suffix, 'type' => 'url']]);
     }
 
     public static function text(string $body): self

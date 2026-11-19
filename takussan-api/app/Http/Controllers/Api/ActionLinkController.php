@@ -175,7 +175,7 @@ class ActionLinkController extends Controller
 
         return match (true) {
             $objet instanceof PropertyVisit => PropertyVisitResource::make($objet->load('property', 'visitor'))->resolve($request),
-            $objet instanceof MaintenanceRequest => MaintenanceRequestResource::make($objet)->resolve($request),
+            $objet instanceof MaintenanceRequest => MaintenanceRequestResource::make($objet->load('property.address', 'requester'))->avecAcces()->resolve($request),
             $objet instanceof Inventory => InventoryResource::make($objet)->resolve($request),
             default => null,
         };

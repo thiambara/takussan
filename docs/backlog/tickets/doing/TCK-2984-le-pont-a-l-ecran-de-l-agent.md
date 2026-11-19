@@ -176,4 +176,9 @@ est la fiche du locataire sans compte du bail (`lease` ne porte que `tenant_name
 une clé (proposée : `pont_fiche {customer_id, full_name, invitable, invitation_en_attente, opposition_at}`) est demandée à
 impl-2980.
 
-Reste : le bouton de la fiche sans compte, dès que le contexte l'expose ; AC1 non mesuré.
+**`pont_fiche` posé par TCK-2981** (`{customer_id, full_name, invitable, invitation_en_attente, opposition_at}`, nul
+sans bail ou quand le locataire a un compte, absent pour qui n'est pas personnel) : `LigneDeLaFiche` dans « Participants
+et canaux » (« Sans compte Takussan », « Joindre par WhatsApp » en `{customer_id}` à un seul appel, « invitation
+envoyée », STOP sans bouton) ; la fiche seule suffit à monter le panneau.
+
+Reste : AC1 non mesuré.

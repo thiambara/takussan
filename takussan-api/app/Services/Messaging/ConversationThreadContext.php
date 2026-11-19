@@ -92,6 +92,13 @@ final class ConversationThreadContext
          * @var array<int, array<string, mixed>>|null
          */
         public readonly ?array $pont = null,
+        /**
+         * TCK-2981 (ADR-0132 § 2) — la fiche du locataire sans compte du bail de la salle ({@see PontDesParticipants::fiche()}) :
+         * `false` hors du personnel (clé absente), `null` sans fiche à joindre.
+         *
+         * @var array<string, mixed>|false|null
+         */
+        public readonly array|false|null $pontFiche = false,
     ) {}
 
     /**
@@ -164,6 +171,7 @@ final class ConversationThreadContext
             commitmentsRecords: FiabiliteDesEngagements::pour($reader, $conversation, $agenceDesNotes, $conversation->participants),
             // TCK-2981 — le bloc `pont`, même règle de lecteur.
             pont: app(PontDesParticipants::class)->pour($reader, $conversation, $agenceDesNotes, $conversation->participants),
+            pontFiche: app(PontDesParticipants::class)->fiche($reader, $conversation, $agenceDesNotes),
             lastVisit: $facts['lastVisit'] ?? null,
             contactLead: $facts['contactLead'] ?? null,
             firstContactAt: $facts['firstContactAt'] ?? null,

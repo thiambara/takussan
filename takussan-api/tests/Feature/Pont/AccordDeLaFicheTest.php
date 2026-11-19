@@ -77,6 +77,25 @@ class AccordDeLaFicheTest extends ApiTestCase
         $this->entrant(['bouton' => 'pont-invitation:'.$invitation->id]);
     }
 
+    public function test_le_contexte_nomme_la_fiche_au_seul_personnel_sans_numero(): void
+    {
+        Sanctum::actingAs($this->auteur);
+        $fiche = $this->getJson('/api/conversations/'.$this->salle->id.'/context')->assertOk();
+        $this->assertSame(['customer_id' => $this->fiche->id, 'full_name' => $this->fiche->full_name, 'invitable' => true, 'invitation_en_attente' => false, 'opposition_at' => null], $fiche->json('data.pont_fiche'));
+        $this->assertStringNotContainsString('776660000', (string) $fiche->getContent());
+
+        $this->inviterLaFiche()->assertCreated();
+        Sanctum::actingAs($this->auteur);
+        $this->assertTrue($this->getJson('/api/conversations/'.$this->salle->id.'/context')->json('data.pont_fiche.invitation_en_attente'));
+
+        Sanctum::actingAs($this->bailleur);
+        $this->assertArrayNotHasKey('pont_fiche', (array) $this->getJson('/api/conversations/'.$this->salle->id.'/context')->assertOk()->json('data'));
+
+        $this->accepter();
+        Sanctum::actingAs($this->auteur);
+        $this->assertNull($this->getJson('/api/conversations/'.$this->salle->id.'/context')->json('data.pont_fiche'));
+    }
+
     public function test_l_accord_de_la_fiche_en_fait_un_membre_de_sa_salle(): void
     {
         $this->inviterLaFiche()->assertCreated();

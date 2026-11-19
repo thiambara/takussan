@@ -3534,7 +3534,8 @@
         "fenetreFermee": "fenêtre fermée : vos messages partiront en message type",
         "opposition": "WhatsApp coupé par la personne le {date}",
         "invitationEnvoyee": "Invitation envoyée, en attente d'accord",
-        "joindre": "Joindre par WhatsApp"
+        "joindre": "Joindre par WhatsApp",
+        "sansCompte": "Sans compte Takussan"
       },
       "refus": {
         "not_participant": "Cette personne ne participe plus à ce fil.",
@@ -8184,7 +8185,9 @@
       "surPlace": "Signé sur place, avec le code reçu par SMS",
       "surPlaceNumero": "Signé sur place, avec le code reçu au {numero}",
       "surPlaceParEtNumero": "Signé sur place devant {agent}, avec le code reçu au {numero}",
-      "parAuTitreDuMandat": "Signé par {nom}, au titre du mandat de gestion"
+      "parAuTitreDuMandat": "Signé par {nom}, au titre du mandat de gestion",
+      "parLien": "Signé depuis un lien, avec le code reçu par SMS",
+      "parLienNumero": "Signé depuis un lien, avec le code reçu au {numero}"
     },
     "signaturePad": {
       "label": "Xaatimal fii",
@@ -8427,7 +8430,8 @@
           "valider": "Valider"
         },
         "reessayer": "Réessayer",
-        "signerAuTitreDuMandat": "Signer au titre du mandat"
+        "signerAuTitreDuMandat": "Signer au titre du mandat",
+        "signeParLien": "Signé depuis un lien à {heure}, avec le code reçu par SMS"
       }
     }
   },
@@ -21938,6 +21942,15 @@
       "tropDeTentatives": {
         "titre": "Trop de tentatives",
         "texte": "Patientez quelques minutes, puis réessayez."
+      },
+      "codes": {
+        "codeRequis": "Saisissez le code à 6 chiffres reçu par SMS.",
+        "codeFaux": "Ce code n’est pas le bon. Vérifiez-le, puis réessayez.",
+        "codeVerrouille": "Trop de codes erronés : la signature est bloquée pour le moment. Réessayez plus tard.",
+        "renvoiTropTot": "Un code vient de partir. Patientez un peu avant d’en demander un autre.",
+        "rienASigner": "Il ne reste rien à signer de votre côté.",
+        "sansNumero": "Aucun numéro ne peut recevoir le code. Répondez à l’agence sur WhatsApp.",
+        "smsNonParti": "Le SMS n’a pas pu partir. Réessayez dans un instant."
       }
     }
   },

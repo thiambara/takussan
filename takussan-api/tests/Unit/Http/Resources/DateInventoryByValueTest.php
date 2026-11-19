@@ -113,6 +113,8 @@ class DateInventoryByValueTest extends TestCase
         // TCK-2981 — au seul personnel actif de l'agence du fil (`PontDesParticipants`).
         'App\Http\Resources\ConversationContextResource::pont' => '`when()` sur un appelant personnel actif de l\'agence '
             .'du fil (TCK-2981) : par participant, ses instants (`accord_at`, `opposition_at`, `fenetre_jusqu_a`) passent par `iso()`.',
+        'App\Http\Resources\ConversationContextResource::pont_fiche' => '`when()` sur un appelant personnel actif de l\'agence '
+            .'du fil (TCK-2981) : la fiche sans compte du bail, son instant `opposition_at` passe par `iso()`.',
         'App\Http\Resources\ConversationResource::attend_depuis' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
             .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
             .'de cette requête. Une DATE, par `iso()` (cast `datetime` posé par `withCasts`) : '

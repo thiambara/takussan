@@ -233,3 +233,30 @@ it('TCK-2981 AC6 — l’invitation d’une fiche sans compte part en `{customer
   expect(apiRequest.mock.calls[0][0]).toBe('/api/conversations/3/pont/invitations');
   expect(apiRequest.mock.calls[0][1]).toMatchObject({ method: 'POST', body: { customer_id: 31 } });
 });
+
+describe('TCK-2981 AC6 — la fiche du locataire sans compte (`pont_fiche`)', () => {
+  const FICHE = { customer_id: 31, full_name: 'Fatou Wade', invitable: true, invitation_en_attente: false, opposition_at: null };
+
+  it('« Joindre par WhatsApp » part en `{customer_id}`, une fois, puis « invitation envoyée »', async () => {
+    apiRequest.mockReset();
+    apiRequest.mockResolvedValue({ data: { statut: 'ok' } });
+    monter(<ParticipantsEtCanaux conversationId={3} participants={SANS_PONT} noms={NOMS} fiche={FICHE} maintenant={MAINTENANT} />);
+    expect(screen.getByTestId('etat-fiche').dataset.etat).toBe('sans-compte');
+    const bouton = screen.getByRole('button', { name: 'Joindre par WhatsApp' });
+    fireEvent.click(bouton);
+    fireEvent.click(bouton);
+    await waitFor(() => expect(screen.getByTestId('etat-fiche').dataset.etat).toBe('invite'));
+    expect(apiRequest).toHaveBeenCalledTimes(1);
+    expect(apiRequest.mock.calls[0][1]).toMatchObject({ body: { customer_id: 31 } });
+  });
+
+  it('invitation déjà en attente ou STOP : aucun bouton', () => {
+    monter(<ParticipantsEtCanaux conversationId={3} participants={SANS_PONT} noms={NOMS} fiche={{ ...FICHE, invitation_en_attente: true }} maintenant={MAINTENANT} />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('`pont_fiche` nul (locataire avec compte) et pas de `pont` : rien', () => {
+    const { container } = monter(<ParticipantsEtCanaux conversationId={3} participants={SANS_PONT} noms={NOMS} fiche={null} maintenant={MAINTENANT} />);
+    expect(container.innerHTML).toBe('');
+  });
+});

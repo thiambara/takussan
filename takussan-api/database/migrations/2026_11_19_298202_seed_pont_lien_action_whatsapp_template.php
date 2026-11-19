@@ -31,7 +31,9 @@ return new class extends Migration
                 'meta_template_name' => self::GABARIT,
                 'meta_category' => NotificationTemplate::META_CATEGORY_UTILITY,
                 'meta_status' => NotificationTemplate::META_STATUS_PENDING,
-                'meta_variables' => json_encode(['agence', 'geste', 'jeton']),
+                // Le corps : {{1}} l'agence, {{2}} le geste. Le bouton d'URL porte le jeton en suffixe {{1}} : il n'est pas
+                // une variable du corps (`RelaisSortant::envoyer(…, boutonUrl:)`).
+                'meta_variables' => json_encode(['agence', 'geste']),
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

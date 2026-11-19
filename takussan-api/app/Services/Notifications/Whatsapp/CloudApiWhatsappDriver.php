@@ -134,11 +134,15 @@ class CloudApiWhatsappDriver implements WhatsappDriverInterface
 
             // TCK-2981 — le bouton `quick_reply` du gabarit, sa charge utile (documentation de l'API Cloud de Meta).
             if ($message->buttons !== []) {
+                // TCK-2981 — `url` : le suffixe dynamique du bouton d'URL (le jeton du lien d'action, TCK-2982).
+                $url = ($message->buttons[0]['type'] ?? 'quick_reply') === 'url';
                 $payload['template']['components'][] = [
                     'type' => 'button',
-                    'sub_type' => 'quick_reply',
+                    'sub_type' => $url ? 'url' : 'quick_reply',
                     'index' => '0',
-                    'parameters' => [['type' => 'payload', 'payload' => (string) $message->buttons[0]['id']]],
+                    'parameters' => [$url
+                        ? ['type' => 'text', 'text' => (string) $message->buttons[0]['id']]
+                        : ['type' => 'payload', 'payload' => (string) $message->buttons[0]['id']]],
                 ];
             }
 

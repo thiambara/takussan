@@ -3,6 +3,8 @@
 namespace App\Services\Pont;
 
 use App\Models\Conversation;
+use App\Models\Customer;
+use App\Models\Lease;
 use App\Models\MessageRelay;
 use App\Models\User;
 use App\Services\Messaging\EquipeDuFil;
@@ -57,5 +59,40 @@ final class PontDesParticipants
         }
 
         return $lignes;
+    }
+
+    /**
+     * TCK-2981 (ADR-0132 § 2) — la fiche du locataire SANS COMPTE du bail de cette salle, pour le bouton « Joindre »
+     * (`POST …/pont/invitations {customer_id}`). `false` : le lecteur n'est pas du personnel actif (la clé est absente) ;
+     * `null` : pas de bail, ou son locataire a un compte. Jamais un numéro.
+     *
+     * @return array{customer_id: int, full_name: string, invitable: bool, invitation_en_attente: bool, opposition_at: mixed}|false|null
+     */
+    public function fiche(User $lecteur, Conversation $fil, ?int $agence): array|false|null
+    {
+        if ($agence === null || ! EquipeDuFil::litLesNotes($lecteur, $fil, $agence)) {
+            return false;
+        }
+        $bail = $fil->lease_id === null ? null : Lease::query()->find($fil->lease_id);
+        $fiche = $bail?->tenant_id === null ? null : Customer::query()->find($bail->tenant_id);
+        if ($fiche === null || $fiche->user_id !== null) {
+            return null;
+        }
+        $recepteur = collect($this->relais->canaux())->first(fn (CanalDuPont $c) => $c->capacites()->recoit);
+        $telephone = InvitationsDuPont::normaliser((string) $fiche->phone);
+        $numero = $telephone === null || $recepteur === null ? new EtatDuNumero : $recepteur->etatDuNumero($telephone, $agence);
+        $enAttente = MessageRelay::query()
+            ->where('purpose', MessageRelay::PURPOSE_INVITATION)->where('conversation_id', $fil->id)->where('customer_id', $fiche->id)
+            ->whereIn('status', [MessageRelay::STATUS_ENVOYE, MessageRelay::STATUS_REMIS, MessageRelay::STATUS_LU])
+            ->exists();
+
+        return [
+            'customer_id' => (int) $fiche->id,
+            'full_name' => (string) $fiche->full_name,
+            'invitable' => $recepteur !== null && $telephone !== null && $numero->accord !== EtatDAccord::Oppose
+                && ! $this->relais->oppose($telephone) && ! InvitationsDuPont::numeroPorteParUnCompte($telephone),
+            'invitation_en_attente' => $enAttente,
+            'opposition_at' => $numero->accord === EtatDAccord::Oppose ? $numero->oppositionLe : null,
+        ];
     }
 }

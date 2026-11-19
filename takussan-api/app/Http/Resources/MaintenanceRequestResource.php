@@ -48,6 +48,16 @@ class MaintenanceRequestResource extends BaseResource
      */
     private bool $gestes = false;
 
+    /** TCK-2982 — le bloc `access` hors de la route de la demande (réponse d'un lien d'action). */
+    private bool $acces = false;
+
+    public function avecAcces(): static
+    {
+        $this->acces = true;
+
+        return $this;
+    }
+
     public function avecGestes(): static
     {
         $this->gestes = true;
@@ -150,6 +160,12 @@ class MaintenanceRequestResource extends BaseResource
         } elseif ($user !== null && $this->gestes) {
             // TCK-2958 — la carte du fil : les gestes de CE lecteur, le même bloc que le détail.
             $data['abilities'] = $this->abilitiesBlock($user);
+        }
+        // TCK-2982 (ADR-0132 § 5) — la réponse d'un lien d'action (`POST /api/a/{token}`) n'est pas la route de la
+        // demande : elle donne quand même au prestataire qui vient d'accepter l'adresse et le contact sur place,
+        // sous la MÊME condition que le détail (`opensAccess`).
+        if ($user !== null && $this->acces && ! array_key_exists('access', $data) && $this->opensAccess($user)) {
+            $data['access'] = $this->accessBlock();
         }
 
         return $data;

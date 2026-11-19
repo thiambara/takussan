@@ -130,7 +130,7 @@ export function ColonneDeContexte({ conversationId, ouverte, onOuvrir, superpose
         {/* TCK-2973 — la fiabilité des participants, pour le seul personnel (`commitments_records`). */}
         <FiabiliteDuFilOuvert conversationId={conversationId} contexte={contexte} />
         {/* TCK-2984 — qui est joint par quoi, la fenêtre, « Joindre par WhatsApp » ; rien sans bloc `pont`. */}
-        <ParticipantsEtCanauxDuFil conversationId={conversationId} participants={participantsDuPont(contexte)} />
+        <ParticipantsEtCanauxDuFil conversationId={conversationId} participants={participantsDuPont(contexte)} fiche={contexte?.pont_fiche} />
         {/* TCK-2972 — « Engagements de ce fil ». */}
         <EngagementsDuFil conversationId={conversationId} />
       </div>

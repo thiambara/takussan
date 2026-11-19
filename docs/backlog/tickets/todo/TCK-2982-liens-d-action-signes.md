@@ -204,7 +204,8 @@ doublon. Aucun gabarit du pont n'était inscrit à `notification_templates` (`po
 - `PlatformAnyRouteExempt` : `act` et `sendCode` y sont `PUBLIC`.
 - Les codes `action_link.*` dans `errors.php` (fr, en, wo = fr), le SMS `notifications.action_link_signature_code`,
   et `pont.lien_action`, `pont.gestes.*`, `pont.lien_action_gabarit`.
-- Le gabarit `pont_lien_action` (migration `298202`, `pending`, fr et en ; variables : agence, geste, jeton).
+- Le gabarit `pont_lien_action` (migration `298202`, `pending`, fr et en ; corps : agence, geste ; le jeton est le
+  suffixe du bouton d'URL, `RelaisSortant::envoyer(…, boutonUrl:)`).
 - `pont:effacer-numeros` efface `action_links.phone` 90 jours après `expires_at`.
 - `MessageResource.action_link` `{sent_at, opened_at, used_at, expires_at}`, en une requête par page, au seul
   personnel actif de l'agence du fil. Le super-admin ne le reçoit pas.
@@ -212,20 +213,20 @@ doublon. Aucun gabarit du pont n'était inscrit à `notification_templates` (`po
 **Écarts et choix**
 - Le code de signature par lien a sa propre portée dans `SignatureOtpService` (`lien:<rôle>`), distincte de la voie
   sur place d'ADR-0098. Il part au NUMÉRO DU LIEN (`Notification::route('sms', …)`), sinon au numéro vérifié du
-  compte. La signature est enregistrée « dessinée » par son signataire (`sign(…, code: null)`) : la preuve du code
-  n'est pas écrite dans les colonnes `*_otp_*` de l'état des lieux. À trancher si on veut la tracer.
+  compte. Décision du porteur (2026-11-19) : la preuve est tracée. La méthode vaut `link_otp`
+  (`Inventory::*_METHOD_LINK_OTP`), et le canal, le numéro masqué et l'IP vont dans les colonnes `*_otp_*`, jamais
+  le code (`InventorySignatureService::sign(…, $preuveDuLien)`).
 - Un code juste est consommé (cache) même si `sign()` refuse ensuite. Les refus prévisibles (rôle, déjà signé)
   sont jugés AVANT l'essai du code.
 - AC5 : le loyer n'a pas de geste dans la table. Retirer `CODES_COUVERTS` ne fait donc pas « deux envois », mais
   fait rougir le test du registre (code `attend` non rangé). Le test de comportement vérifie qu'une échéance due,
   en retard ou relancée n'émet aucun lien ni aucun envoi vers le locataire joint. Le départ de la relance de
   loyer elle-même n'est pas rejoué ici.
-- La « jonction d'emblée » (`InvitationsDuPont::joindre`, accord déjà donné) : ce fichier était en cours
-  d'édition par TCK-2981, et la ligne a été demandée à impl-2980. Seul l'accord par bouton (`AccordDuPont`) est
-  branché ici.
-- Pilote WhatsApp : le bouton `url` à suffixe variable et le `cta_url` dans la fenêtre ne sont pas posés
-  (`WhatsappCloud`, fichier de TCK-2981). Le 3e paramètre du gabarit est le jeton, et l'URL complète part dans le
-  texte libre et le SMS.
+- La « jonction d'emblée » (`InvitationsDuPont::joindre`, accord déjà donné) est branchée par TCK-2981 :
+  `EmettreLesLiensALaJonction::dispatch(…)->afterCommit()`, marquée TCK-2982. Seul l'accord par bouton
+  (`AccordDuPont`) est éprouvé par un test de ce ticket.
+- Pilote WhatsApp : le bouton d'URL porte le jeton (`WhatsappCloud`, posé par TCK-2981, branché ici). L'URL en
+  clair reste dans le texte libre (fenêtre, SMS). Ablation : sans `boutonUrl` (rouge).
 
 **Ablations** (chaque mutant a fait rougir sa cible ; chaque restauration a été vérifiée par md5) :
 - AC1 : sans `Gate update` ni `peutConfirmer` dans `ConfirmerUneVisite`.
@@ -237,4 +238,24 @@ doublon. Aucun gabarit du pont n'était inscrit à `notification_templates` (`po
 - AC6 : la projection remplacée par `MaintenanceRequestResource`.
 - Signature : le code non exigé (2 rouges).
 - Trace : sans la garde du personnel.
+- 404/410 avant 422 : sans la résolution du lien dans `GesteParLienRequest::authorize`, un lien mort ou inconnu
+  posté avec un corps invalide rend 422 (4 rouges).
 
+**Revue avant remise (2026-11-19)**
+- Le lien est résolu dans `GesteParLienRequest::authorize()` (`LiensDAction::lienVivant` et `objetVivant`), avant
+  la validation : un lien mort rend 410 et son seul code, un jeton inconnu rend 404, même avec un corps invalide
+  (piège 2 de `takussan-api/CLAUDE.md`). Le contrôleur rejuge le lien sous verrou de sa ligne.
+- Les règles suivent le geste. Pour `inventory.sign`, la `signature` est EXIGÉE : un code juste sans signature
+  rend 422, et ne consomme ni le lien ni le code. Avant, une signature vide atteignait `sign()`.
+- La requête lit `scheduled_at` par `ConvertitLesInstantsRecus` (TCK-2743).
+- Non-fuite sur le chemin réel : après un relais par le canal SMS (pilote SMS de test réel), aucune table de la
+  base ne contient le jeton en clair. Le test parcourt toutes les tables. Le journal des requêtes
+  (`ShareRequestLogContext`) ne range pas le chemin.
+- Le code de signature passe par le vrai `SmsChannel` (seul le routeur des fournisseurs est faux) et arrive au
+  numéro du lien. `AnonymousNotifiable` n'est pas rejeté.
+- Après l'acceptation d'une intervention par lien, la réponse porte `property` et le bloc `access` (adresse,
+  contact sur place, consignes). Il est rendu sous la même condition que le détail (`opensAccess`), par
+  `MaintenanceRequestResource::avecAcces()`.
+- Le bouton d'URL dynamique de `pont_lien_action` est décrit dans
+  `docs/deploiement/actions/2026-11-19-ouvrir-le-pont-whatsapp.md`.
+- Ablations ajoutées : la preuve non passée à `sign()` (rouge) ; sans `avecAcces()` (rouge).

@@ -62,11 +62,13 @@ final class RelaisSortant
         bool $exigeBoutons = false,
         // TCK-2981 — le repli tardif : seulement les canaux qui suivent celui-ci dans l'ordre de repli.
         ?string $apres = null,
+        // TCK-2981 (pour TCK-2982) — le suffixe du bouton d'URL du gabarit (le jeton du lien d'action).
+        ?string $boutonUrl = null,
     ): ?array {
         if ($this->oppose($telephone)) {
             return null;
         }
-        $contexte = ['agency_id' => $agence, 'bouton_reponse' => $boutonReponse];
+        $contexte = ['agency_id' => $agence, 'bouton_reponse' => $boutonReponse, 'bouton_url' => $boutonUrl];
         $dernier = null;
         $canaux = $this->canaux();
         if ($apres !== null) {
