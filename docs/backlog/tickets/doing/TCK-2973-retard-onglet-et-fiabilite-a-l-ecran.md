@@ -173,3 +173,15 @@ le tableau ; la colonne de la liste garde les puces et les groupes.
 - La ligne ouvre le fil, mais pas sur la carte de l'engagement : aucun défilement jusqu'à elle.
 
 AC1 à AC3 au navigateur : non mesurés.
+
+## Relevé partiel — 2026-11-19, `./dev.sh`, agent Pape Cissé
+
+- **Boîte, à 360 px** : puces Tous, Non lus 0, À vous 9, Retard 0, En attente 4, Rappels 0, sans
+  défilement horizontal. Sous « Retard », l'aide dit « Une promesse qu'on vous doit n'a pas été
+  tenue. ». L'engagement en retard que l'agent PORTE lui-même fait passer son fil sous « À vous »,
+  avec « Vous aviez prévu : … » et « Tenu ? » demandé ; il ne compte pas dans « Retard », conformément
+  à ADR-0130.
+- **Onglet « Engagements », à 360 px** : puces et groupes « Cette semaine » et « Clos », relevés avec
+  TCK-2972. Par défaut, c'est la puce « On me doit » qui est active.
+- **Non relevés** : un fil sous « Retard » (il faut une promesse due à l'agent, donc une seconde
+  session), la fiabilité au bureau, et AC2.

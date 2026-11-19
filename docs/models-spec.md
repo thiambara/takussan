@@ -783,6 +783,8 @@ dans son type, défaut compris quand la clé est absente.
 | Clé | Type | Défaut (clé absente) | Lecteur |
 |-----|------|----------------------|---------|
 | `watermark_enabled` | bool | `true` | `AgencyWatermarkContext` (filigrane des photos, TCK-539) |
+| `copilot_enabled` | bool | `true` | `ReglagesDuCopilote::etat()` — l'agence coupe le copilote du Fil pour toute son équipe (raison `agence`) ; elle ne peut qu'éteindre ce que la plateforme sert (`ai_usage_settings` des usages `fil.*`). L'écran lit `ai_platform` dans `AgencyResource`, pour qui peut mettre l'agence à jour (TCK-2979, [ADR-0131](adr/0131-le-copilote-du-fil-propose-au-personnel-et-n-envoie-rien.md) § 8) |
+| `voice_transcription_enabled` | bool | `true` | Idem pour la transcription des notes vocales (fonction `transcription`) (TCK-2979) |
 | `watermark_position` | `WatermarkPosition` | `WatermarkPosition::default()` | `AgencyWatermarkContext` |
 | `watermark_opacity` | int, 10-100 | 60 | `AgencyWatermarkContext` |
 | `require_team_two_factor` | bool | `false` | `TwoFactorRequirement`, `RequireTwoFactor`, `ProtectedActions` — 2FA exigée du personnel (TCK-589) |
@@ -5403,12 +5405,14 @@ ligne, la chaîne vient de `config/ai.php`
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| role | string(20) | | | `extraction`, `redaction`, `raisonnement`, `vision`, `embedding` — **unique** |
+| role | string(20) | | | `extraction`, `redaction`, `raisonnement`, `vision`, `embedding`, **`transcription`** (TCK-2976) — **unique** |
 | chain | jsonb | | | Liste ordonnée de `{provider, model, max_tokens}` ; ordre de bascule. `max_tokens` n'a pas de sens sur le rôle `embedding`, qui n'accepte qu'un fournisseur d'embeddings (`ai.provider_role_mismatch`, TCK-2423). Chaque maillon écrit nomme un fournisseur sélectionnable ; une ligne en base peut en nommer un devenu non sélectionnable, qui ne reçoit rien (TCK-2450) |
 | updated_by_id | FK users | oui | null | Dernier opérateur (`nullOnDelete`) |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** unique sur `role` (une chaîne par rôle).
+
+**Le rôle `transcription`** (TCK-2976, [ADR-0131](adr/0131-le-copilote-du-fil-propose-au-personnel-et-n-envoie-rien.md) § 7) transcrit une note vocale par `AiGateway::transcribe()` : aucun agent ni prompt, le fournisseur rend du texte. **Sa chaîne est vide par défaut** (`config('ai.roles.transcription') = []`) : tant qu'aucun fournisseur qui transcrit n'y est affecté, la fonction n'est pas servie (`ReglagesDuCopilote::etat()` rend `non_configuree`, aucun job, aucun appel, le fichier ne sort pas).
 
 ### 103. AiUsageSetting 🆕
 
@@ -5431,6 +5435,8 @@ catalogue `Flag` est fermé, et une clé hors catalogue y vaut faux.
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** unique sur `usage_key`.
+
+**Usages du copilote du Fil (`fil.*`, TCK-2974 à TCK-2979, [ADR-0131](adr/0131-le-copilote-du-fil-propose-au-personnel-et-n-envoie-rien.md)).** Cinq usages au catalogue `AiUsageRegistry`, tous de classe de donnée `personnelle`, sans cache, d'autorité la capacité d'agence `messaging.copilot` jugée pour l'agence du fil (`AiAuthority`) : `fil.resume` (rôle `redaction`), `fil.question` (`redaction`), `fil.brouillon` (`redaction`, entrée sans notes d'équipe), `fil.promesses` (`extraction`, entrée sans notes d'équipe), `fil.transcription` (rôle `transcription`, ni agent ni contenu externe). Les quatre premiers lisent du contenu externe (`ExternalContent::wrap()`). Plafond du jour par défaut 1,00 $ (0,50 $ pour la transcription), réglable ici. `ReglagesDuCopilote` est le seul point qui dit si une fonction est servie : l'interrupteur et le modèle forcé de la ligne `fil.*` (raison `plateforme`), le rôle `transcription` vide (`non_configuree`), puis les réglages `copilot_enabled` et `voice_transcription_enabled` de l'agence (`agence`).
 
 **Les autres plafonds ne sont pas en base.** Le plafond **global journalier** et le plafond **par
 agence** vivent en configuration (`ai.budgets.daily_global_usd`, lu de `AI_DAILY_BUDGET_USD`, 8.33 $
@@ -5501,6 +5507,8 @@ production ; les corrections deviennent des cas d'évaluation (`ai:export-eval-c
 | created_at / updated_at | timestamp | | auto | |
 
 **Index :** `ai_suggestions_usage_decision_idx (usage_key, decision)` — le taux d'acceptation par usage.
+
+**Usages `fil.*` (TCK-2974 à TCK-2976, aucune colonne ajoutée).** Écrite par `SuggestionRecorder::record()` : `fil.resume` (sujet = le fil, `input_snapshot` nul, la fenêtre résumée en `proposal`), `fil.question` et `fil.brouillon` (sujet = le fil), `fil.promesses` (**une ligne par promesse**, chacune décidée seule ; un message déjà source d'un engagement n'entre pas), `fil.transcription` (sujet = le message, `proposal = {texte, langue}`, **une par message, partagée par le personnel** ; sert d'état « prête » à `TranscriptionsDuFil`). Décision par `PUT /api/copilote/suggestions/{id}/decision` : `accepted`, `edited` (avec `final`, différentiel gardé) ou `rejected`, une fois, **par le seul demandeur** (`ai_calls.actor_id`) ; rien n'est écrit dans le fil par la décision. **Rétention** : `messaging:purge-copilot-proposals` (chaque nuit, 04:25 Dakar) vide à 30 jours les lignes `fil.%` — `proposal` remis à `[]`, `final_value`, `input_snapshot` et `correction_diff` à nul, la ligne gardée pour le taux d'acceptation (patron de `RadarPurger`) ; une proposition purgée ne se décide plus (410).
 
 ### 106. AiEvaluationRun 🆕
 
