@@ -4,7 +4,7 @@ type: donnee
 tickets: [TCK-2958]
 cles: []
 creee: 2026-11-18
-preview: a-faire
+preview: fait
 production: a-faire
 ---
 
@@ -33,3 +33,4 @@ leur phrase française. D'où deux gestes, par environnement :
   rend 0, et une recherche dans la messagerie sur « a ajouté » ne rend plus aucun avis.
 
 ## Historique
+- 2026-11-19 · preview · fait · Claude (session, pour le porteur) · sauvegarde manuelle `2026-11-19T09-38-39-071Z.sql.gz` (4 794 530 o, relue dans R2 sous `serveur-postgres-egr6ii/postgres/takussan_preview/`) AVANT la promotion #1703 (`6bf1deb37`, fusionnée 2026-11-19 10:02:23 Z, `images.yml` vert, `X-Build-Sha` relu sur l'API et le front) ; heure de fusion notée pour WAL-G. Après le déploiement : `messages:unindex-coded` → `retired=7` ; avis `system` d'intervention restants : 0.

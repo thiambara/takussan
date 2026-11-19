@@ -4,7 +4,7 @@ type: cle-env
 tickets: [TCK-2953, TCK-2956]
 cles: [REVERB_APP_ID, REVERB_APP_KEY, REVERB_APP_SECRET, BROADCAST_CONNECTION, TEMPS_REEL_URL, TEMPS_REEL_CLE]
 creee: 2026-11-17
-preview: a-faire
+preview: fait
 production: a-faire
 ---
 
@@ -103,3 +103,4 @@ l'état livré par TCK-2953, et le seul juste tant que le serveur n'existe pas.
 - Une notification créée pour l'utilisateur connecté fait bouger la cloche sans rechargement.
 
 ## Historique
+- 2026-11-19 · preview · fait · Claude (session, pour le porteur) · promotion #1703 (`6bf1deb37`, fusionnée 2026-11-19 10:02:23 Z, `images.yml` vert, `X-Build-Sha` relu sur l'API et le front). A : `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET` tirées par script (`~/Sauvegardes/reverb-preview-2026-11-19.env`, 600), posées AVANT la promotion ; `BROADCAST_CONNECTION=reverb` après, une fois `temps-reel` sain (`compose.update`, 310 lignes, seule la ligne du pilote changée ; environnement d'avant dans `~/Sauvegardes/env-takussan-api-preview-avant-fil-2026-11-19.env`). C : `A preview.ws` → `178.18.247.62`, DNS seul (API Cloudflare). D : domaine Dokploy `preview.ws.takussan.com` → `temps-reel:8080`, HTTPS Let's Encrypt (émetteur YR1, jusqu'au 2027-02-17), redéployé. Vérifications : 1. `temps-reel` `healthy`, `/up` interne `{"health":"OK"}`, aucune « REVERB_APP_KEY absente », 55 Mio / 384 Mio ; 2. `https://preview.ws.takussan.com/up` → `{"health":"OK"}` sans `-k` ; 3. origine `https://preview.takussan.com` → `pusher:connection_established`, `https://autre.example` → `4009 Origin not allowed` ; 4. `sonde-temps-reel.php signal` dans `api` → signal reçu sur `private-utilisateur.<id>`, code 0, 0 « signal non émis ». Front : `TEMPS_REEL_URL=wss://preview.ws.takussan.com`, `TEMPS_REEL_CLE` = `REVERB_APP_KEY` (`application.saveEnvironment`, 28 → 30 lignes, rien retiré), redéployé ; la page `/fr` (build `6bf1deb37`) porte l'URL `wss`.

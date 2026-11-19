@@ -90,11 +90,11 @@
           "note": "P14.08 (2026-10-25). `LOG_STACK=single` est aussi déclarée, sans effet tant que `LOG_CHANNEL` n'est pas `stack`."
         },
         "BROADCAST_CONNECTION": {
-          "valeur": "null",
+          "valeur": "reverb",
           "etat": "mesure",
-          "date": "2026-11-01",
-          "commande": "compose.one → env (Dokploy)",
-          "note": "TCK-2456 : `log` écrivait le titre et le corps de chaque notification dans les journaux."
+          "date": "2026-11-19",
+          "commande": "python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss BROADCAST_CONNECTION REVERB_APP_ID",
+          "note": "TCK-2956 (ADR-0129) : le temps réel de la préproduction, servi par le service `temps-reel` de la pile (Reverb), `wss://preview.ws.takussan.com`. Avant le 2026-11-19 : `null` (TCK-2456 : `log` écrivait le titre et le corps de chaque notification dans les journaux)."
         },
         "LARAVEL_PDF_DRIVER": {
           "valeur": "dompdf",

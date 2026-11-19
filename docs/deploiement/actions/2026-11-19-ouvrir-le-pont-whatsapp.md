@@ -60,3 +60,4 @@ Quand la nouvelle URL est vérifiée, l'alias peut être retiré par un ticket (
 `integration_webhook_logs`, `route_name = whatsapp.webhook.status`).
 
 ## Historique
+- 2026-11-19 · preview · a-faire · Claude (session, pour le porteur) · B fait après la promotion #1703 (`6bf1deb37`, fusionnée 2026-11-19 10:02:23 Z, `images.yml` vert, `X-Build-Sha` relu sur l'API et le front) : `WHATSAPP_WEBHOOK_URL_TOKEN` et `WHATSAPP_WEBHOOK_VERIFY_TOKEN` posés, le défi d'abonnement rend `42` sur `/api/webhooks/messagerie/whatsapp/{jeton}` et sur l'alias `/api/webhooks/whatsapp/status/{jeton}`. Restent A (`WHATSAPP_WEBHOOK_APP_SECRET`, vide dans Dokploy : secret de l'application Meta, à fournir par le porteur), C, D, E et F (console Meta).
