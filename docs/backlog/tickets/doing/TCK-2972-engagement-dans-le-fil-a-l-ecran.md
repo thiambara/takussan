@@ -131,8 +131,8 @@ Les gestes se montrent selon les seules `abilities` rendues : le front ne recalc
   partagé). Dans l'autre sens, le bénéficiaire déclare « C'est fait » et c'est le porteur qui voit
   « Ce n'est pas fait ». *Ablation : afficher le geste sans lire `abilities.reopen` fait rougir un
   test.*
-- [ ] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n` et `check:vouvoiement` sont verts, et
-  les tests des fichiers touchés aussi.
+- [x] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n` et `check:vouvoiement` sont verts, et
+  les tests des fichiers touchés aussi. — preuve : CI verte de #1700 sur 2cf49b37f : Web CI 44461750708 (ESLint, tsc, check:i18n, check:vouvoiement, Vitest en 4 shards).
 
 ## Hors périmètre
 
@@ -214,3 +214,10 @@ AC3, ablation : afficher « Ce n'est pas fait » sans lire `abilities.reopen` fa
   engagement, la carte d'origine et celle du retard, avec les mêmes gestes.
 - **Non relevé ici** : « Tenu ? » vu par un porteur non agent au téléphone, ainsi que AC2 et AC3, qui
   demandent deux sessions. Leur logique est couverte par les tests du ticket.
+
+## Reste sur dev
+
+Le code est sur `dev` (#1700, 83f651c16). Il reste :
+
+- AC1 : seuls `creer`, `carte` et `retard` ont été relevés le 2026-11-19 (voir « Relevé AC1 »). Manque `echeance` vu par un porteur qui n'est pas agent, au téléphone.
+- AC2, AC3 : relevés à deux sessions, non faits. La logique est couverte par les tests du ticket.

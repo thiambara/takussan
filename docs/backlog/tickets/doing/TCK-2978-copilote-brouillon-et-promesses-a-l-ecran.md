@@ -92,8 +92,8 @@ tags: [front, messagerie, le-fil, copilote, ia, engagements, i18n, adr-0131]
   « Envoyer » ou « Noter l'engagement ».
 - [ ] **AC3** — Le locataire de la même salle ne voit ni soulignement ni bloc « Repéré », relevé avec
   deux sessions.
-- [ ] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests
-  des fichiers touchés verts.
+- [x] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests
+  des fichiers touchés verts. — preuve : CI verte de #1700 sur 2cf49b37f : Web CI 44461750708 (ESLint, tsc, check:i18n, check:vouvoiement, Vitest en 4 shards).
 
 ## Hors périmètre
 
@@ -142,3 +142,10 @@ structurelle (branche `equipe` du `leading`), non ablatée.
 
 **Non mesuré** : AC1 à AC3 (navigateur, deux sessions). `check-front-routes` rouge sur la décision tant que
 TCK-2975 n'est pas fusionné.
+
+## Reste sur dev
+
+Le code est sur `dev` (#1700, 83f651c16). Il reste :
+
+- AC1 : relevé au navigateur des écrans `brouillon` et `extraction`, non fait. Il faut un fournisseur d'IA en local.
+- AC2 : relevé réseau, non fait. AC3 : relevé à deux sessions, non fait.

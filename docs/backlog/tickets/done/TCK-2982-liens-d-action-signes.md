@@ -1,7 +1,7 @@
 ---
 id: TCK-2982
 title: "Les liens d'action signés : un geste sur un objet, une fois, 7 jours, sans session, par le service et la politique de l'objet ; la carte relayée en lien"
-status: doing
+status: done
 phase: P2
 family: back
 estimate: L
@@ -141,23 +141,23 @@ jeton) :
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Confirmer une visite par lien passe par `PropertyVisitPolicy::peutConfirmer` rejugée : un bailleur
+- [x] **AC1** — Confirmer une visite par lien passe par `PropertyVisitPolicy::peutConfirmer` rejugée : un bailleur
   dont l'agence a retiré `owners_confirm_visits` après l'émission est refusé. *Ablation : appeler le service sans
-  la politique — rouge.*
-- [ ] **AC2** — Un lien utilisé, expiré ou révoqué rend 410 et un corps qui ne contient que son code. *Ablation :
-  rendre `object` avec l'erreur — rouge.*
-- [ ] **AC3** — Un lien ne fait qu'un geste : un second `POST` après un geste réussi rend 410. Un geste refusé ne
-  consomme pas. *Ablation : poser `used_at` avant le geste — rouge.*
-- [ ] **AC4** — La base ne contient que l'empreinte du jeton. *Ablation : stocker le clair — rouge (test qui
-  cherche le clair dans la table).*
-- [ ] **AC5** — Un locataire joint par le pont ne reçoit, pour une échéance relancée, que la relance de loyer et
+  la politique — rouge.* — preuve : tests/Feature/Pont/LienDActionTest.php::test_ac1_le_droit_retire_apres_l_emission_refuse_le_geste_sans_consommer_le_lien
+- [x] **AC2** — Un lien utilisé, expiré ou révoqué rend 410 et un corps qui ne contient que son code. *Ablation :
+  rendre `object` avec l'erreur — rouge.* — preuve : tests/Feature/Pont/LienDActionMortTest.php::test_ac2_un_lien_mort_rend_410_et_son_seul_code
+- [x] **AC3** — Un lien ne fait qu'un geste : un second `POST` après un geste réussi rend 410. Un geste refusé ne
+  consomme pas. *Ablation : poser `used_at` avant le geste — rouge.* — preuve : tests/Feature/Pont/LienDActionTest.php::test_ac3_un_lien_ne_fait_qu_un_geste (+ deux tests de geste refusé)
+- [x] **AC4** — La base ne contient que l'empreinte du jeton. *Ablation : stocker le clair — rouge (test qui
+  cherche le clair dans la table).* — preuve : tests/Feature/Pont/LienDActionTest.php::test_ac4_la_base_ne_contient_que_l_empreinte_du_jeton
+- [x] **AC5** — Un locataire joint par le pont ne reçoit, pour une échéance relancée, que la relance de loyer et
   son lien porteur : aucun lien du pont. *Ablation : retirer les codes couverts du registre — rouge (deux
-  envois).*
-- [ ] **AC5 bis** — Un prestataire joint après l'assignation reçoit le lien d'acceptation à la jonction.
-  *Ablation : n'émettre qu'à l'écriture de l'événement — rouge.*
-- [ ] **AC6** — La projection de la page ne porte ni adresse exacte, ni téléphone, ni montant d'un autre lecteur.
-  *Ablation : rendre la projection du personnel — rouge.*
-- [ ] **AC7** — Pint propre ; tests des fichiers touchés verts.
+  envois).* — preuve : tests/Feature/Pont/EmissionDesLiensTest.php::test_ac5_une_echeance_due_en_retard_ou_relancee_n_emet_aucun_lien_vers_le_locataire_joint
+- [x] **AC5 bis** — Un prestataire joint après l'assignation reçoit le lien d'acceptation à la jonction.
+  *Ablation : n'émettre qu'à l'écriture de l'événement — rouge.* — preuve : tests/Feature/Pont/EmissionDesLiensTest.php::test_ac5_bis_un_prestataire_joint_apres_l_assignation_recoit_le_lien_a_l_accord
+- [x] **AC6** — La projection de la page ne porte ni adresse exacte, ni téléphone, ni montant d'un autre lecteur.
+  *Ablation : rendre la projection du personnel — rouge.* — preuve : tests/Feature/Pont/LienDActionTest.php::test_ac6_la_projection_ne_porte_ni_adresse_exacte_ni_telephone_ni_montant
+- [x] **AC7** — Pint propre ; tests des fichiers touchés verts. — preuve : pint passed ; 48 tests verts (LienDAction, LienDActionMort, LienDActionSansSession, EmissionDesLiens, SignatureParLien), 2026-11-19
 
 ## Hors périmètre
 

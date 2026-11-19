@@ -1,7 +1,7 @@
 ---
 id: TCK-2985
 title: "Le résumé du lundi du bailleur : lundi 09:00 heure de Dakar, par agence, par WhatsApp en gabarit sinon par e-mail, seulement s'il gère un bien et l'a activé ; sa réponse revient dans un fil"
-status: doing
+status: done
 phase: P2
 family: back
 estimate: M
@@ -98,15 +98,15 @@ ajoute ce cas à `RoutageEntrant`.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Un bailleur de deux agences reçoit deux résumés ; chacun ne compte que les biens de son agence.
-  *Ablation : retirer le filtre d'agence — rouge.*
-- [ ] **AC2** — Un compte qui n'a pas activé l'événement ne reçoit rien, même par e-mail. *Ablation : défaut
-  allumé — rouge ; activation jugée par `shouldSend(…, inapp)` — rouge (tout le monde le reçoit).*
-- [ ] **AC3** — Sans WhatsApp possible, le résumé part par e-mail ; jamais par SMS. *Ablation : repli SMS
-  autorisé — rouge.*
-- [ ] **AC4** — Relancer la commande la même semaine n'envoie rien de plus.
-- [ ] **AC5** — Une réponse au résumé arrive dans un fil de l'agence du résumé, pas d'une autre.
-- [ ] **AC6** — Pint propre ; tests des fichiers touchés verts.
+- [x] **AC1** — Un bailleur de deux agences reçoit deux résumés ; chacun ne compte que les biens de son agence.
+  *Ablation : retirer le filtre d'agence — rouge.* — preuve : tests/Feature/Owners/ResumeDuLundiTest.php::test_ac1_deux_agences_deux_resumes_cloisonnes
+- [x] **AC2** — Un compte qui n'a pas activé l'événement ne reçoit rien, même par e-mail. *Ablation : défaut
+  allumé — rouge ; activation jugée par `shouldSend(…, inapp)` — rouge (tout le monde le reçoit).* — preuve : ResumeDuLundiTest.php::test_ac2_non_active_rien_meme_par_email
+- [x] **AC3** — Sans WhatsApp possible, le résumé part par e-mail ; jamais par SMS. *Ablation : repli SMS
+  autorisé — rouge.* — preuve : ResumeDuLundiTest.php::test_ac3_email_jamais_sms_ni_cloche (+ trois autres test_ac3_*)
+- [x] **AC4** — Relancer la commande la même semaine n'envoie rien de plus. — preuve : ResumeDuLundiTest.php::test_ac4_idempotente_par_semaine
+- [x] **AC5** — Une réponse au résumé arrive dans un fil de l'agence du résumé, pas d'une autre. — preuve : tests/Feature/Pont/ReponseAuResumeDuLundiTest.php::test_ac5_la_reponse_au_resume_reste_dans_son_agence
+- [x] **AC6** — Pint propre ; tests des fichiers touchés verts. — preuve : pint passed ; 17 tests verts (ResumeDuLundiTest, ReponseAuResumeDuLundiTest), 2026-11-19
 
 ## Hors périmètre
 

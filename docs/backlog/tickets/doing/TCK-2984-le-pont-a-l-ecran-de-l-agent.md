@@ -94,15 +94,15 @@ tags: [front, messagerie, le-fil, pont, whatsapp, non-fuite, i18n, maquette, adr
 
 - [ ] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px, contre la maquette `fil-pont` D : fil avec
   un participant joint par WhatsApp, fenêtre ouverte puis fermée, STOP, carte avec sa trace.
-- [ ] **AC2** — Le locataire connecté au même fil ne voit ni panneau des canaux, ni état des relais, ni trace de
+- [x] **AC2** — Le locataire connecté au même fil ne voit ni panneau des canaux, ni état des relais, ni trace de
   lien, ni bouton « Joindre ». *Ablation : afficher les relais sans tester leur présence dans la réponse, sur une
-  réponse de test qui les porte pour le locataire — rouge.*
-- [ ] **AC3** — Fenêtre fermée pour un destinataire joint, le composeur annonce que le message partira en message
+  réponse de test qui les porte pour le locataire — rouge.* — preuve : takussan-web/src/components/messages/pont/__tests__/ElementsDuPont.tck-2984.test.tsx + Montage.tck-2984.test.tsx (ablation consignée dans les notes)
+- [x] **AC3** — Fenêtre fermée pour un destinataire joint, le composeur annonce que le message partira en message
   type ; fenêtre ouverte, il ne l'annonce pas (jugé sur `fenetre_jusqu_a`). *Ablation : annoncer sans lire
-  `fenetre_jusqu_a` — rouge.*
+  `fenetre_jusqu_a` — rouge.* — preuve : takussan-web/src/components/messages/pont/__tests__/ElementsDuPont.tck-2984.test.tsx (annonce jugée sur fenetre_jusqu_a ; ablation consignée dans les notes)
 - [x] **AC4** — Aucun numéro de téléphone n'apparaît dans le DOM du fil (relevé et test).
-- [ ] **AC5** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests des fichiers
-  touchés verts.
+- [x] **AC5** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests des fichiers
+  touchés verts. — preuve : tsc --noEmit propre, eslint propre sur les fichiers touchés, check:vouvoiement vert, vitest 5 fichiers / 50 tests verts ; check:i18n ne rougit que sur playground/maquettes (exclu de git en local)
 
 ## Hors périmètre
 
@@ -199,3 +199,9 @@ Reste : AC1 non mesuré.
   exemples de format (dictionnaire) et le numéro du compte connecté (`initialUser`).
 - **Non relevés** : participant joint, fenêtre ouverte puis fermée, STOP, trace d'un lien, AC2 (vue
   du locataire). Ils demandent un accord reçu par le webhook ; leurs tests de composant existent.
+
+## Reste sur dev
+
+Le code est sur `dev` (#1700, 83f651c16). Il reste :
+
+- AC1 : relevé d'un participant joint (accord reçu par le webhook), de la fenêtre ouverte puis fermée, d'un STOP et de la trace d'un lien, non fait. Le panneau et l'invitation ont été relevés le 2026-11-19.

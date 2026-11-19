@@ -82,13 +82,13 @@ tags: [front, pont, liens-d-action, public, preferences, i18n, maquette, adr-013
 
 - [ ] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px, contre la maquette `fil-pont` D :
   chaque état (geste, fait, expiré, utilisé, signature par code) ; pas de défilement horizontal à 360.
-- [ ] **AC2** — Un lien mort n'affiche rien de l'objet. *Ablation : rendre `object` quand la réponse de test le
-  porte malgré le 410 — rouge.*
+- [x] **AC2** — Un lien mort n'affiche rien de l'objet. *Ablation : rendre `object` quand la réponse de test le
+  porte malgré le 410 — rouge.* — preuve : takussan-web/src/components/lien-d-action/__tests__/PageDuLienDAction.tck-2983.test.tsx (« 410 … rien de l’objet même si la réponse en glisse un (AC2) »)
 - [x] **AC3** — La page fonctionne sans session (fenêtre privée, relevé) et ne pose aucun cookie de session.
 - [ ] **AC4** — Le résumé du lundi s'active et se coupe depuis les préférences ; la valeur relue après
   rechargement est celle choisie.
-- [ ] **AC5** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests des fichiers
-  touchés verts.
+- [x] **AC5** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests des fichiers
+  touchés verts. — preuve : tsc --noEmit propre, eslint propre sur les fichiers touchés, check:vouvoiement vert, vitest 5 fichiers / 50 tests verts ; check:i18n ne rougit que sur playground/maquettes (exclu de git en local)
 
 ## Hors périmètre
 
@@ -147,3 +147,10 @@ Lien émis par `LiensDAction::emettre()` pour l'intervention 107, au prestataire
   `NEXT_LOCALE`. Il n'y a aucun cookie de session, ni avant ni après le geste.
 - **Non relevés** : l'état « expiré », la signature par code et AC4 (préférence du résumé du lundi).
   Leurs tests de composant existent.
+
+## Reste sur dev
+
+Le code est sur `dev` (#1700, 83f651c16). Il reste :
+
+- AC1 : les états « expiré » et « signature par code » n'ont pas été relevés au navigateur.
+- AC4 : le résumé du lundi, activé puis coupé depuis les préférences et relu après rechargement, n'a pas été relevé.
