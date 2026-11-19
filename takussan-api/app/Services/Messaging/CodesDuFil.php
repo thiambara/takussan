@@ -41,6 +41,12 @@ final class CodesDuFil
     /** TCK-2967 — tout geste attendu d'une intervention, clos quand le travail est fait, confirmé ou clos d'office. */
     private const GESTES_D_INTERVENTION = ['maintenance.slot_requested', 'maintenance.quote_submitted', 'maintenance.quote_awaiting_owner'];
 
+    /**
+     * TCK-2969 (ADR-0130 § 2) — ce qu'un engagement attend de son porteur : clos par le report, le « tenu » et
+     * l'annulation. TCK-2970 — et la question « Tenu ? » posée au bénéficiaire, close par les trois mêmes.
+     */
+    private const ENGAGEMENT_ATTENDU = ['commitment.due_soon', 'commitment.overdue', 'commitment.reminded', 'commitment.reopened', 'commitment.check_requested'];
+
     /** TCK-2967 — le code de l'avis d'une intervention annulée (au lieu de `maintenance.transition`). */
     public const INTERVENTION_ANNULEE = 'maintenance.cancelled';
 
@@ -113,6 +119,24 @@ final class CodesDuFil
         // photo se relisent par sa projection ; la visite proposée garde son instant (une date).
         'property.shared' => ['objet' => 'property', 'nature' => self::NATURE_CARTE, 'data' => []],
         'visit.proposed' => ['objet' => 'property_visit', 'nature' => self::NATURE_CARTE, 'data' => ['scheduled_at']],
+
+        // TCK-2969 (ADR-0130 § 2) — l'engagement. L'objet de chaque message est l'ENGAGEMENT, jamais le sujet du
+        // fil : deux engagements d'un même fil ne se périment pas l'un l'autre. `data` : des codes et des dates,
+        // jamais le titre ni le motif d'une réouverture (relus par la projection). `attend` : le porteur.
+        'commitment.noted' => ['objet' => 'commitment', 'nature' => self::NATURE_CARTE, 'data' => []],
+        'commitment.confirmed' => ['objet' => 'commitment', 'nature' => self::NATURE_EVENEMENT, 'data' => []],
+        'commitment.due_soon' => ['objet' => 'commitment', 'nature' => self::NATURE_EVENEMENT, 'data' => [], 'attend' => true],
+        'commitment.overdue' => ['objet' => 'commitment', 'nature' => self::NATURE_EVENEMENT, 'data' => [], 'attend' => true, 'eteint' => ['commitment.due_soon']],
+        'commitment.reminded' => ['objet' => 'commitment', 'nature' => self::NATURE_EVENEMENT, 'data' => [], 'attend' => true, 'eteint' => ['commitment.due_soon']],
+        'commitment.rescheduled' => ['objet' => 'commitment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['due_at'], 'eteint' => self::ENGAGEMENT_ATTENDU],
+        'commitment.kept' => ['objet' => 'commitment', 'nature' => self::NATURE_EVENEMENT, 'data' => [], 'eteint' => self::ENGAGEMENT_ATTENDU],
+        'commitment.reopened' => ['objet' => 'commitment', 'nature' => self::NATURE_EVENEMENT, 'data' => [], 'attend' => true, 'eteint' => ['commitment.due_soon']],
+        // `reason` : `by_author`, `by_staff` ou `object_closed` (un code).
+        'commitment.cancelled' => ['objet' => 'commitment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['reason'], 'eteint' => self::ENGAGEMENT_ATTENDU],
+        // TCK-2970 (ADR-0130 § 3) — « Tenu ? », posée au bénéficiaire une heure après l'échéance ; « Pas encore »
+        // la clôt et laisse l'engagement ouvert.
+        'commitment.check_requested' => ['objet' => 'commitment', 'nature' => self::NATURE_EVENEMENT, 'data' => [], 'attend' => true],
+        'commitment.not_kept_yet' => ['objet' => 'commitment', 'nature' => self::NATURE_EVENEMENT, 'data' => [], 'eteint' => ['commitment.check_requested']],
     ];
 
     /** @return array<string, array{objet: string, nature: string, data: list<string>, attend?: bool, eteint?: list<string>}> le catalogue entier */

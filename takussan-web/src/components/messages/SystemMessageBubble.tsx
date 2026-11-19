@@ -1,8 +1,10 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils';
 import type { Message } from '@/types/message';
 import { useTexteMessageSysteme } from './useTexteMessageSysteme';
+import { IconeDEvenement, natureDeLIcone } from './engagements/IconeDEvenement';
 
 interface SystemMessageBubbleProps {
   readonly message: Message;
@@ -20,10 +22,16 @@ const LIGNE = 'rounded-full bg-muted px-3 py-1 text-[0.6875rem] text-muted-foreg
  */
 export function SystemMessageBubble({ message }: SystemMessageBubbleProps) {
   const texteSysteme = useTexteMessageSysteme();
+  // TCK-2972 (ADR-0130) — un événement d'engagement : la poignée de main, ou la cloche d'un rappel.
+  const code = message.metadata?.code;
+  const avecIcone = natureDeLIcone(code) !== null;
 
   return (
     <li className="flex justify-center">
-      <span className={LIGNE}>{texteSysteme(message.metadata)}</span>
+      <span className={cn(LIGNE, avecIcone && 'inline-flex items-center gap-1.5')}>
+        <IconeDEvenement code={code} className="size-3 flex-none" testId="icone-d-engagement" />
+        {texteSysteme(message.metadata)}
+      </span>
     </li>
   );
 }

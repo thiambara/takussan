@@ -33,6 +33,8 @@ use Illuminate\Validation\Rule;
  * et `LeaseDefaults` pour `lease.late_fee_*` (TCK-2643, préremplissage d'un bail neuf).
  *
  * TCK-2394 (ADR-0079) — catégorie `radar` : `radar.mandate_agency_id` → `App\Services\Radar\RadarMandate`.
+ *
+ * TCK-2979 (ADR-0131 § 8) — catégorie `ai` : `ai.daily_budget_per_agency_usd` → `App\Services\Ai\AiBudget`.
  */
 class EditablePlatformSettings
 {
@@ -201,6 +203,14 @@ class EditablePlatformSettings
                 'category' => 'crm', 'type' => 'integer',
                 'default' => CustomerFollowUpQuery::DEFAULT_DAYS, 'public' => false,
                 'rules' => ['required', 'integer', 'min:1', 'max:90'],
+            ],
+            // TCK-2979 (ADR-0131 § 8) — le plafond IA du jour de CHAQUE agence, en dollars, chaîne décimale (ADR-0086), pour
+            // tout usage. Lu par `App\Services\Ai\AiBudget`. Défaut : `AI_DAILY_BUDGET_PER_AGENCY_USD` (`config/ai.php`) ;
+            // vide = pas de plafond. `gt:0` : un zéro refuserait tout appel IA de toutes les agences.
+            'ai.daily_budget_per_agency_usd' => [
+                'category' => 'ai', 'type' => 'decimal', 'nullable' => true,
+                'default' => config('ai.budgets.daily_per_agency_usd'), 'public' => false,
+                'rules' => ['present', 'nullable', 'numeric', 'gt:0', 'max:10000'],
             ],
         ];
     }

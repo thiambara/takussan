@@ -4,9 +4,11 @@ namespace Tests\Feature\Messaging;
 
 use App\Models\Agency;
 use App\Models\Booking;
+use App\Models\Commitment;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CommitmentStatus;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\LeaseStatus;
@@ -205,6 +207,37 @@ class RelectureDesObjetsTest extends TestCase
                     'objet' => $bien,
                     'lecteurs' => ['bailleur', 'personnel'],
                     'show' => fn (): array => $this->getJson("/api/properties/{$bien->id}")->assertOk()->json('data'),
+                ];
+            })(),
+            // TCK-2969 (ADR-0130 § 2) — l'engagement se lit comme SON fil : l'étranger, membre du fil de la carte
+            // mais pas de celui de l'engagement, ne le lit pas. Pas de `show` : sa ligne de `GET …/commitments`.
+            'commitment' => (function (): array {
+                $filDeLEngagement = Conversation::create([
+                    'type' => ConversationType::Group->value,
+                    'status' => ConversationStatus::Active->value,
+                    'subject' => 'Fuite',
+                    'created_by' => $this->acteurs['personnel']->id,
+                    'property_id' => $this->property->id,
+                ]);
+                foreach (['personnel', 'locataire', 'bailleur'] as $nom) {
+                    $filDeLEngagement->participants()->attach($this->acteurs[$nom]->id, ['role' => ParticipantRole::Member->value, 'joined_at' => now()]);
+                }
+                $engagement = Commitment::factory()->create([
+                    'conversation_id' => $filDeLEngagement->id,
+                    'agency_id' => $this->agency->id,
+                    'holder_id' => $this->acteurs['locataire']->id,
+                    'beneficiary_id' => $this->acteurs['bailleur']->id,
+                    'created_by_id' => $this->acteurs['personnel']->id,
+                    'status' => CommitmentStatus::Proposed,
+                    'object_type' => 'property',
+                    'object_id' => $this->property->id,
+                ]);
+
+                return [
+                    'objet' => $engagement,
+                    'lecteurs' => ['locataire', 'bailleur', 'personnel'],
+                    'show' => fn (): array => collect($this->getJson("/api/conversations/{$filDeLEngagement->id}/commitments")->assertOk()->json('data'))
+                        ->firstWhere('id', $engagement->id),
                 ];
             })(),
         };

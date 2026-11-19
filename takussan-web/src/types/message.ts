@@ -41,10 +41,19 @@ export type SystemMessageEvent =
   | 'participant_added'
   | 'participant_removed'
   | 'role_changed'
-  | 'renamed';
+  | 'renamed'
+  // TCK-2984 (ADR-0132 § 3) — les avis du pont (`SystemMessageFactory::AVIS_DU_PONT`), personnel seul.
+  | 'pont.stop'
+  | 'pont.start'
+  | 'pont.accord'
+  | 'pont.media_non_relaye'
+  | 'pont.numero_deja_a_un_compte';
 
 export type MessageMetadata = {
   event?: SystemMessageEvent;
+  /** TCK-2984 — un avis du pont : le canal (chaîne libre du pilote), le compte visé ; jamais un numéro. */
+  channel?: string;
+  user_id?: number;
   actor_id?: number;
   actor_name?: string;
   target_id?: number;
@@ -130,9 +139,80 @@ export type Message = {
    * jamais que le geste est fait : c'est `object` qui le dit.
    */
   action_attendue?: boolean;
+  /**
+   * TCK-2977 (ADR-0131 § 7, TCK-2976) — la transcription d'une note `audio`, rendue au SEUL personnel servi par
+   * le copilote ; clé absente pour tout autre lecteur.
+   */
+  transcription?: TranscriptionDeLaNote;
+  // TCK-2984 (ADR-0132 § 0, § 4, § 5) — le pont : clés ABSENTES pour qui n'est pas personnel de l'agence du fil
+  // (`channel` : aussi l'auteur). Le front ne les déduit d'aucun autre champ.
+  channel?: string;
+  relays?: ReadonlyArray<RelaisDuMessage>;
+  action_link?: TraceDuLienDAction;
+};
+
+/** TCK-2984 — un relais du message vers un participant (TCK-2981), sans numéro. */
+export type RelaisDuMessage = {
+  user_id: number;
+  channel: string;
+  /** `texte`, `gabarit`… (un code). */
+  form?: string | null;
+  /** `sent`, `delivered`, `read`, `failed`, `sms_fallback`… (un code ; inconnu : rendu générique). */
+  status?: string | null;
+  at?: string | null;
+};
+
+/** TCK-2984 — la trace du lien d'action d'une carte ou d'un événement (TCK-2982). */
+export type TraceDuLienDAction = {
+  sent_at?: string | null;
+  opened_at?: string | null;
+  used_at?: string | null;
+  expires_at?: string | null;
+};
+
+/**
+ * TCK-2984 — l'état du pont d'un participant : une ligne de `context.pont` (TCK-2981), indexée par `user_id`, pour
+ * chaque participant actif sauf le lecteur. Personnel seul ; aucun numéro.
+ */
+/** TCK-2984 — `context.pont_fiche` (TCK-2981). */
+export type PontDeLaFiche = {
+  customer_id: number;
+  full_name: string;
+  invitable: boolean;
+  invitation_en_attente: boolean;
+  opposition_at: string | null;
+};
+
+export type PontDuParticipant = {
+  joint: boolean;
+  invitation_en_attente?: boolean;
+  /** Le dernier canal de relais dans ce fil (chaîne libre du pilote) ; nul : aucun relais encore. */
+  canal?: string | null;
+  accord_at?: string | null;
+  opposition_at?: string | null;
+  /** Fin de la fenêtre de texte libre ; nul : fermée. */
+  fenetre_jusqu_a?: string | null;
+  invitable: boolean;
 };
 
 /** TCK-2958 — l'objet d'une carte ou d'un événement, tel que l'appelant le lit. */
+/** TCK-2977 — `{etat, texte?, langue?, code?}` de `MessageResource.transcription` (TCK-2976). */
+export type TranscriptionDeLaNote = {
+  etat: 'aucune' | 'en_cours' | 'prete' | 'indisponible';
+  texte?: string | null;
+  langue?: string | null;
+  code?: string | null;
+};
+
+/**
+ * TCK-2977 (TCK-2974) — `false` pour qui n'a pas droit au copilote ; pour le personnel autorisé, l'état de chaque
+ * fonction, même toutes coupées : `raison` dit pourquoi une fonction ne sert pas (`plateforme`, `agence`,
+ * `non_configuree`). `true` est accepté (forme d'avant).
+ */
+export type CopiloteDuFil =
+  | boolean
+  | { fonctions?: Record<string, { active: boolean; raison: 'plateforme' | 'agence' | 'non_configuree' | null } | undefined> };
+
 export type ObjetDuMessage =
   | { indisponible: true }
   | ({ id: number; abilities?: Record<string, boolean> } & Record<string, unknown>);
@@ -233,7 +313,8 @@ export type RoleDeLAuteur = 'tenant' | 'owner' | 'service_provider' | 'agent' | 
  * TCK-2967 (ADR-0128 § 7) — la file d'un fil POUR LE LECTEUR, dérivée par l'API (`FileDuFil`) : `vous` (un
  * geste vous est demandé), `attente` (la balle est dans l'autre camp), `rappel` (mis de côté), `ajour`.
  */
-export type FileDuFil = 'vous' | 'attente' | 'rappel' | 'ajour';
+// TCK-2973 (ADR-0130 § 5) — `retard` : une promesse due au lecteur n'a pas été tenue (TCK-2971).
+export type FileDuFil = 'vous' | 'retard' | 'attente' | 'rappel' | 'ajour';
 
 export type Conversation = {
   id: number;
@@ -265,6 +346,12 @@ export type Conversation = {
   en_attente_de?: number[];
   snoozed_until?: string | null;
   handled_at?: string | null;
+  /**
+   * TCK-2973 (TCK-2971) — l'engagement que la rangée signale (le plus en retard, sinon le prochain), et
+   * depuis quand le fil est en retard. `holder_id` se nomme d'après les participants, jamais à l'écran.
+   */
+  retard_depuis?: string | null;
+  engagement?: { id: number; title: string | null; holder_id: number; due_at: string | null; etat: 'proposed' | 'open' | 'late' | 'kept' | 'cancelled' } | null;
   /** TCK-2967 — la personne de l'agence qui suit le fil (salle ou groupe) : son nom, jamais ses coordonnées. */
   assigned_to?: { id: number; name: string } | null;
   participants?: ConversationParticipant[];
@@ -293,7 +380,11 @@ export type Conversation = {
    */
   abilities?: {
     can_send_message: boolean;
-  };
+  };  /**
+   * TCK-2977 (ADR-0131 § 1, TCK-2974) — le lecteur a-t-il le copilote dans ce fil ? Faux ou absent : le front
+   * n'émet AUCUNE requête `…/copilote` ni `…/transcription`, et n'affiche rien de l'assistant.
+   */
+  copilote?: CopiloteDuFil;
 };
 
 /**
@@ -395,6 +486,18 @@ export type ConversationContext = {
    * (trié ; vide pour un appelant qui ne les lit pas). La source des mentionnables d'une note.
    */
   team_note_reader_ids?: ReadonlyArray<number>;
+  /**
+   * TCK-2973 (TCK-2987, ADR-0130 § 6) — la fiabilité de chaque participant, par compte : deux entiers sur
+   * 90 jours. Clé ABSENTE pour qui n'est pas du personnel actif de l'agence : le front ne la déduit jamais.
+   */
+  commitments_records?: Readonly<Record<string, { readonly kept: number; readonly late: number }>>;
+  /** TCK-2984 (TCK-2981) — l'état du pont de chaque participant actif sauf le lecteur, par `user_id` ; personnel seul. */
+  pont?: Readonly<Record<string, PontDuParticipant>>;
+  /**
+   * TCK-2984 (TCK-2981 AC6) — la fiche du locataire SANS COMPTE du bail de la salle, à joindre par le pont ; `null` sans
+   * bail ou quand le locataire a un compte (il est alors dans `pont`). Personnel seul ; aucun numéro.
+   */
+  pont_fiche?: PontDeLaFiche | null;
 };
 
 export type CodeDeRelationAuFil = 'prestataire' | 'locataire' | 'proprietaire' | 'agent';

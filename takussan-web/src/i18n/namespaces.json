@@ -85,6 +85,10 @@
       "journee",
       "taches"
     ],
+    "[locale]/(public)/fil": [
+      "inventory",
+      "lienPublic"
+    ],
     "[locale]/(public)/pay": [
       "lienPublic",
       "payLink"
@@ -395,6 +399,7 @@
     "(dashboard)/app/crm": 31,
     "(dashboard)/app/leads": 31,
     "(dashboard)/app/tasks": 25,
+    "[locale]/(public)/fil": 22,
     "[locale]/(public)/pay": 19,
     "(dashboard)/app/agency": 54,
     "(dashboard)/app/leases": 33,

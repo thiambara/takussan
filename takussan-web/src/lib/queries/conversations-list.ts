@@ -30,6 +30,9 @@ export const CONVERSATION_LIST_FIELDS: string[] = [
   'snoozed_until',
   'handled_at',
   'assigned_to',
+  // TCK-2973 (TCK-2971) — la file « Retard » et la ligne d'engagement de la rangée.
+  'retard_depuis',
+  'engagement',
 ];
 
 /**
@@ -66,6 +69,8 @@ export type ConversationListPage = PaginatedResponse<Conversation> & {
       group: number;
       /** TCK-2967 (ADR-0128 § 7) — les comptes des puces de pilotage, sur la même base que `all`. */
       vous?: number;
+      /** TCK-2973 (TCK-2971) — la puce « Retard ». */
+      retard?: number;
       attente?: number;
       rappel?: number;
     };

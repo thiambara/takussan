@@ -8,6 +8,7 @@ use App\Services\Ai\AiUsage;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\EmbeddingUsage;
 use App\Services\Ai\PromptRepository;
+use App\Services\Ai\TranscriptionUsage;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -27,7 +28,8 @@ class AiUsageRegistryTest extends TestCase
             $this->assertMatchesRegularExpression('/^[a-z]+\.[a-z_]+$/', $key);
             $this->assertNotSame(AiDataClass::Sensible, $usage->maxDataClass(), $key);
             // TCK-2423 — un usage d'embeddings n'a ni agent ni prompt, et se joue par `AiGateway::embed()`.
-            if ($usage instanceof EmbeddingUsage) {
+            // TCK-2976 — un usage de transcription non plus : il se joue par `AiGateway::transcribe()`.
+            if ($usage instanceof EmbeddingUsage || $usage instanceof TranscriptionUsage) {
                 continue;
             }
             $this->assertTrue(is_subclass_of($usage->agentClass(), SocleAgent::class), $key);

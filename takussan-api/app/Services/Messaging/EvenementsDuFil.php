@@ -2,12 +2,16 @@
 
 namespace App\Services\Messaging;
 
+use App\Jobs\EmettreLesLiensDAction;
 use App\Models\Conversation;
 use App\Models\Enums\MessageType;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Pont\GestesParLien;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use LogicException;
+use Throwable;
 
 /**
  * TCK-2958 (ADR-0128 § 3) — le SEUL code qui crée un message `card` ou `event`.
@@ -59,13 +63,27 @@ class EvenementsDuFil
         }
 
         // `Message::create` : `MessageObserver::created` écrit le pointeur et l'aperçu (= le code).
-        return Message::create([
+        $evenement = Message::create([
             'conversation_id' => $conversation->id,
             'sender_id' => null,
             'type' => MessageType::Event->value,
             'content' => $code,
             'metadata' => $metadata,
         ]);
+        // TCK-2982 (ADR-0132 § 5) — un code émetteur d'un lien d'action : les liens partent après le COMMIT, et
+        // leur échec ne défait jamais l'événement.
+        if (GestesParLien::gesteDuCode($code) !== null) {
+            DB::afterCommit(function () use ($evenement): void {
+                try {
+                    EmettreLesLiensDAction::dispatch((int) $evenement->id);
+                } catch (Throwable $e) {
+                    report($e);
+                }
+            });
+        }
+        // /TCK-2982
+
+        return $evenement;
     }
 
     /**

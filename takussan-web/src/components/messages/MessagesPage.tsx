@@ -38,6 +38,9 @@ import { DossierDuFil } from './salle/DossierDuFil';
 import { LectureSeuleDeLaSalle } from './salle/LectureSeuleDeLaSalle';
 // TCK-2968 (ADR-0128 § 7) — les gestes de la boîte de pilotage, tenus par la page (jamais par le widget).
 import { usePilotageDeLaBoite } from './boite/PilotageDeLaBoite';
+// TCK-2973 — l'onglet « Engagements ».
+import { EngagementsDeLaMessagerie } from './engagements/EngagementsDeLaMessagerie';
+import { OngletsDeLaMessagerie, type OngletDeLaMessagerie } from './engagements/OngletsDeLaMessagerie';
 import { relaisImpersonationActif } from '@/lib/impersonation';
 import { isAgencyAdmin, isAgent } from '@/lib/roles';
 import { typeDuProfilActif } from '@/lib/navigation/personas';
@@ -249,6 +252,14 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
    * « lecture seule », le client corrige à l'hydratation.
    */
   const lectureSeule = useSyncExternalStore(AUCUN_ABONNEMENT, relaisImpersonationActif, () => true);
+  // TCK-2973 — l'onglet de la colonne de liste : les conversations, ou les engagements.
+  const [onglet, setOnglet] = useState<OngletDeLaMessagerie>('conversations');
+  // TCK-2973 — au bureau, l'onglet « Engagements » ouvre le tableau dans le panneau ; une ligne ouvre son fil.
+  const [tableauOuvert, setTableauOuvert] = useState(false);
+  const changerDOnglet = (o: OngletDeLaMessagerie) => {
+    setOnglet(o);
+    setTableauOuvert(o === 'engagements');
+  };
   const boite = usePilotageDeLaBoite({ actif: !lectureSeule });
   const typeActif = typeDuProfilActif(activeProfileId ?? user?.active_profile_id);
   const duPersonnel =
@@ -406,20 +417,36 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
                   </Button>
                 </div>
               </div>
+              {/* TCK-2973 — l'onglet « Engagements », à côté de « Conversations ». */}
+              <OngletsDeLaMessagerie onglet={onglet} onChange={changerDOnglet} />
               <div className="flex-1 overflow-y-auto">
-                <ConversationList
-                  selectedId={conversationAffichee}
-                  onSelect={ouvrirDepuisLaListe}
-                  dense={!compact}
-                  onNouvelle={ouvrirNouvelle}
-                  pilotage={boite.pilotage}
-                />
+                {onglet === 'engagements' && compact ? (
+                  <EngagementsDeLaMessagerie onOuvrir={ouvrirDepuisLaListe} dense={!compact} />
+                ) : (
+                  <ConversationList
+                    selectedId={conversationAffichee}
+                    onSelect={ouvrirDepuisLaListe}
+                    dense={!compact}
+                    onNouvelle={ouvrirNouvelle}
+                    pilotage={boite.pilotage}
+                  />
+                )}
               </div>
             </aside>
           )}
           {affichePanneau && (
             <section className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden lg:flex-1', entreePanneau)}>
-              {brouillonDirect ? (
+              {!compact && onglet === 'engagements' && tableauOuvert ? (
+                <div className="min-h-0 flex-1 overflow-y-auto pt-4">
+                  <EngagementsDeLaMessagerie
+                    forme="tableau"
+                    onOuvrir={(id) => {
+                      setTableauOuvert(false);
+                      ouvrirDepuisLaListe(id);
+                    }}
+                  />
+                </div>
+              ) : brouillonDirect ? (
                 <BrouillonDirect
                   key={brouillonDirect.id}
                   personne={brouillonDirect}

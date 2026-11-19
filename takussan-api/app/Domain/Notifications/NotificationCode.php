@@ -296,6 +296,8 @@ enum NotificationCode: string
     case MaintenanceUrgentEscalated = 'maintenance.urgent_escalated';
     /** Aux super-admins : une agence individuelle demande à passer en agence professionnelle (TCK-267). */
     case AgencyUpgradeRequested = 'agency.upgrade_requested';
+    /** TCK-2985 (ADR-0132 § 6) — au bailleur, lundi 09:00 heure de Dakar : sa semaine dans une agence (`ResumeDuLundi`). Jamais dans la cloche. */
+    case OwnerWeeklyDigest = 'owner.weekly_digest';
 
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
@@ -432,6 +434,7 @@ enum NotificationCode: string
             // TCK-2704 — le type que la classe écrivait déjà.
             self::BoostEnded, self::PropertyProposed, self::AgencyUpgradeRequested => NotificationType::System,
             self::MaintenanceUrgentCreated, self::MaintenanceUrgentEscalated => NotificationType::Maintenance,
+            self::OwnerWeeklyDigest /* TCK-2985 */ => NotificationType::System,
         };
     }
 
@@ -532,6 +535,8 @@ enum NotificationCode: string
             // celui de l'urgence « locked-on » dans `PreferenceResolver`) : elle n'en gagne pas.
             self::BoostEnded, self::PropertyProposed, self::AgencyUpgradeRequested,
             self::MaintenanceUrgentCreated, self::MaintenanceUrgentEscalated => null,
+            // TCK-2985 — éteint par défaut (`PreferenceResolver::OPT_IN_EVENTS`).
+            self::OwnerWeeklyDigest => 'owner_weekly_digest',
         };
     }
 
@@ -682,6 +687,14 @@ enum NotificationCode: string
             self::BoostEnded, self::PropertyProposed => ['property' => self::PARAM_TEXT],
             self::MaintenanceUrgentCreated, self::MaintenanceUrgentEscalated => ['title' => self::PARAM_TEXT],
             self::AgencyUpgradeRequested => ['agency' => self::PARAM_TEXT],
+            // TCK-2985 — des nombres et des totaux, rien de nominatif d'un locataire.
+            self::OwnerWeeklyDigest => [
+                'agency' => self::PARAM_TEXT,
+                'paid_count' => self::PARAM_COUNT, 'paid_total' => self::PARAM_MONEY,
+                'late_count' => self::PARAM_COUNT, 'late_total' => self::PARAM_MONEY,
+                'maintenance_opened' => self::PARAM_COUNT, 'maintenance_closed' => self::PARAM_COUNT,
+                'visits' => self::PARAM_COUNT,
+            ],
         };
     }
 

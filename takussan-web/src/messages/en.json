@@ -3908,7 +3908,8 @@
         "groupes": "Groups",
         "vous": "Your turn",
         "attente": "Waiting",
-        "rappel": "Reminders"
+        "rappel": "Reminders",
+        "retard": "Late"
       },
       "personnes": "{n, plural, one {# person} other {# people}}",
       "intervention": "Maintenance",
@@ -4304,6 +4305,19 @@
         "proposed": "A viewing is suggested for {date}.",
         "rescheduled": "Another time was suggested for the viewing: {date}.",
         "cancelled": "The viewing has been cancelled."
+      },
+      "commitment": {
+        "noted": "Commitment noted",
+        "confirmed": "Commitment confirmed",
+        "due_soon": "Reminder: the commitment is due soon",
+        "overdue": "The commitment is late",
+        "reminded": "Reminder: the commitment is late",
+        "rescheduled": "Commitment moved to {date}",
+        "kept": "Commitment kept",
+        "reopened": "Commitment reopened: it’s not done",
+        "cancelled": "{motif, select, object_closed {Commitment cancelled: the subject is closed} other {Commitment cancelled}}",
+        "check_requested": "“Kept?” asked",
+        "not_kept_yet": "Not kept yet"
       }
     },
     "salle": {
@@ -4449,12 +4463,14 @@
         "nonLus": "Messages you have not read. A read thread can still be your turn.",
         "vous": "Something is expected from you.",
         "attente": "You have replied; the ball is in their court.",
-        "rappel": "Set aside: they come back to “Your turn” at the set time, or as soon as someone writes."
+        "rappel": "Set aside: they come back to “Your turn” at the set time, or as soon as someone writes.",
+        "retard": "A promise owed to you has not been kept."
       },
       "etiquette": {
         "vous": "Your turn",
         "attente": "Waiting",
-        "rappel": "Reminder"
+        "rappel": "Reminder",
+        "retard": "Late"
       },
       "delai": {
         "minutes": "for {n} min",
@@ -4508,9 +4524,278 @@
         "rappel": "No reminders",
         "rappelAide": "“Remind me” sets a thread aside until the time you choose.",
         "nonLus": "Everything is read",
-        "nonLusAide": "New messages will appear here."
+        "nonLusAide": "New messages will appear here.",
+        "retard": "Nothing late",
+        "retardAide": "A promise made in the thread has not been kept."
       },
-      "sousTitre": "{gestes, plural, one {# action expected} other {# actions expected}} · {n, plural, one {# conversation} other {# conversations}}"
+      "sousTitre": "{gestes, plural, one {# action expected} other {# actions expected}} · {n, plural, one {# conversation} other {# conversations}}",
+      "engagement": {
+        "de": "{nom}: “{titre}”",
+        "sansNom": "“{titre}”",
+        "vous": "You planned: “{titre}”",
+        "enRetard": "{promesse} · {jours} d late"
+      }
+    },
+    "copilote": {
+      "assistant": "Assistant",
+      "ouvrir": "Ask the thread",
+      "indisponible": "Assistant unavailable",
+      "proposeParLAssistant": "Suggested by the assistant",
+      "pourVousSeul": "Visible only to you · nothing is sent",
+      "utile": "Helpful",
+      "pasUtile": "Not helpful",
+      "merci": "Thanks for your feedback",
+      "nouveaux": "{count, plural, one {# new message} other {# new messages}}",
+      "resume": {
+        "titre": "What you missed · assistant summary",
+        "enCours": "The assistant is summarising what you missed…",
+        "allerALaQuestion": "Go to the question",
+        "lire": "{count, plural, one {Read the message} other {Read the # messages}}",
+        "renvoi": "See the message from {heure}"
+      },
+      "demander": {
+        "titre": "Ask the thread",
+        "fermer": "Close",
+        "votreQuestion": "Your question",
+        "reponse": "Assistant’s answer",
+        "sources": "Sources",
+        "sourceMessage": "Message from {heure}",
+        "sourceObjet": "Thread item",
+        "versLeComposeur": "Put in the composer",
+        "perimetre": "The assistant only reads this thread and its items. Only you see the answer.",
+        "placeholder": "Ask a question about this thread…",
+        "autre": "Ask another question…",
+        "envoyer": "Ask",
+        "enCours": "The assistant is reading the thread…",
+        "echec": "The assistant could not answer. You can ask again."
+      },
+      "etat": {
+        "pause": {
+          "titre": "Assistant paused until tomorrow",
+          "texte": "The assistant’s daily limit has been reached. It will be back tomorrow at 00:00. Messages, commitments and reminders work as usual."
+        },
+        "coupeAgence": {
+          "titre": "Turned off by the agency",
+          "texte": "Your agency has turned off the messaging assistant. The rest of messaging is not affected."
+        },
+        "coupePlateforme": {
+          "titre": "Turned off",
+          "texte": "The messaging assistant is turned off. The rest of messaging is not affected."
+        }
+      },
+      "transcription": {
+        "prete": "Automatic transcription",
+        "avertissement": "May contain errors · the voice note is authoritative",
+        "enCours": "Transcribing…",
+        "indisponible": "Transcription unavailable",
+        "nonActivee": "Transcription is not turned on.",
+        "pause": "Paused until tomorrow.",
+        "desactivee": "Turned off.",
+        "francaisSeulement": "Only voice notes in French are transcribed.",
+        "echec": "Transcription failed."
+      },
+      "brouillon": {
+        "proposer": "Suggest a reply",
+        "titre": "Assistant draft · review before sending",
+        "enCours": "The assistant is preparing a draft…",
+        "appuyeSur": "Based on:",
+        "jeter": "Discard the draft",
+        "autre": "Suggest another draft",
+        "plusCourt": "Shorter",
+        "echec": "The assistant could not suggest a draft."
+      },
+      "appui": {
+        "lease": "Lease",
+        "lease_payment": "Payment",
+        "commitment": "Commitment",
+        "message": "Message",
+        "autre": "Thread item"
+      },
+      "promesses": {
+        "titre": "{count, plural, one {Spotted by the assistant · # item} other {Spotted by the assistant · # items}}",
+        "unePromesse": "A promise",
+        "porteurEtLibelle": "{porteur} · {libelle}",
+        "sansEcheance": "No due date",
+        "noter": "Record the commitment",
+        "ecarter": "Dismiss"
+      }
+    },
+    "engagements": {
+      "carte": {
+        "votre": "Your commitment",
+        "de": "Commitment from {nom}",
+        "sansTitre": "Commitment",
+        "echeance": "Due: {quand}",
+        "enRetard": "{jours, plural, one {# day late} other {# days late}}",
+        "envers": "Owed to {nom}",
+        "vous": "you",
+        "enversLAgence": "Owed to the agency",
+        "question": "A question for you: has {nom} kept this commitment?",
+        "ouiCEstFait": "Yes, it’s done",
+        "pasEncore": "Not yet",
+        "jeConfirme": "I confirm",
+        "proposerUneAutreDate": "Suggest another date",
+        "accorderUneNouvelleDate": "Grant a new date",
+        "cEstFait": "It’s done",
+        "marquerTenu": "Mark as kept",
+        "modifier": "Edit",
+        "relancer": "Send a reminder now",
+        "annuler": "Cancel the commitment",
+        "pasFait": "It’s not done",
+        "etat": {
+          "proposed": "To confirm",
+          "open": "Open",
+          "late": "Late",
+          "kept": "Kept",
+          "cancelled": "Cancelled",
+          "question": "Kept?"
+        }
+      },
+      "feuille": {
+        "enregistrer": "Save",
+        "aQuoi": "What",
+        "date": "Date",
+        "heure": "Time",
+        "heureFacultative": "Optional. Without a time, it is due at the end of the day."
+      },
+      "reouverture": {
+        "titre": "It’s not done",
+        "texte": "The commitment will be reopened. This can only be done once.",
+        "motif": "Reason",
+        "aide": "At least {min} characters.",
+        "envoyer": "Reopen the commitment"
+      },
+      "noter": {
+        "geste": "Note a commitment",
+        "gestesDuMessage": "This message",
+        "titre": "Note a commitment",
+        "envoyer": "Note the commitment",
+        "depuis": "From {nom}’s message · {heure}",
+        "porteur": "Who commits",
+        "moi": "You",
+        "aQuoi": "What",
+        "exemple": "Come back to replace the trap",
+        "date": "Due date",
+        "heure": "Time",
+        "heureFacultative": "The time is optional. Without a time, it is due at the end of the day.",
+        "envers": "Owed to",
+        "lAgence": "The agency",
+        "rattache": "Linked to this thread’s subject."
+      },
+      "liste": {
+        "titre": "Commitments in this thread",
+        "ouverts": "Open · {n}",
+        "tenus": "Kept · {n}",
+        "annules": "Cancelled · {n}",
+        "sansTitre": "Commitment"
+      },
+      "fiabilite": {
+        "titre": "Reliability",
+        "compte": "{tenus} kept · {retard} late · over 90 days",
+        "visible": "Visible to the agency team only"
+      },
+      "onglet": {
+        "onglets": "Conversations and commitments",
+        "conversations": "Conversations",
+        "engagements": "Commitments",
+        "filtres": "Filter commitments",
+        "puces": {
+          "tous": "All",
+          "owed": "Owed to me",
+          "mine": "Mine",
+          "tenus": "Kept",
+          "annules": "Cancelled"
+        },
+        "groupes": {
+          "retard": "Late · {n}",
+          "aujourdhui": "Today · {n}",
+          "semaine": "This week · {n}",
+          "plusTard": "Later · {n}",
+          "clos": "Closed · {n}"
+        },
+        "vide": "No commitments",
+        "videAide": "A promise noted in a thread will appear here.",
+        "sansTitre": "Commitment",
+        "depuisLeFil": "From the thread “{fil}”",
+        "colonnes": {
+          "qui": "Who commits",
+          "engagement": "Commitment",
+          "echeance": "Due",
+          "rattache": "Linked to",
+          "etat": "Status"
+        },
+        "objets": {
+          "maintenance_request": "Maintenance request",
+          "lease": "Lease",
+          "booking": "Booking",
+          "property": "Property",
+          "lease_payment": "Rent payment",
+          "property_visit": "Viewing",
+          "inventory": "Inventory"
+        }
+      }
+    },
+    "pont": {
+      "canal": {
+        "app": "in Takussan",
+        "whatsapp": "via WhatsApp",
+        "sms": "via SMS",
+        "autre": "via another messaging app"
+      },
+      "quelquUn": "a participant",
+      "relais": {
+        "messageType": "as a template message",
+        "etat": {
+          "autre": "in progress",
+          "en_attente_accord": "awaiting consent",
+          "envoye": "sent",
+          "remis": "delivered",
+          "lu": "read",
+          "echec": "failed",
+          "non_envoye": "not sent"
+        },
+        "destinataire": "{nom} {canal}"
+      },
+      "lien": {
+        "envoye": "Link sent at {heure}",
+        "ouvert": "opened at {heure}",
+        "fait": "done at {heure}"
+      },
+      "fenetre": {
+        "ouverte": "{nom} reads on WhatsApp, window open until {jusqua}.",
+        "fermee": "24-hour window closed for {noms}.",
+        "messageType": "Your message will be sent as a template message: an excerpt, with the agency's name. Their reply will reopen the window."
+      },
+      "panneau": {
+        "titre": "Participants and channels",
+        "litDansTakussan": "Reads in Takussan",
+        "fenetreOuverte": "window open until {jusqua}",
+        "fenetreFermee": "window closed: your messages will be sent as a template message",
+        "opposition": "WhatsApp turned off by the person on {date}",
+        "invitationEnvoyee": "Invitation sent, awaiting consent",
+        "joindre": "Reach via WhatsApp",
+        "sansCompte": "No Takussan account"
+      },
+      "refus": {
+        "not_participant": "This person is no longer in this thread.",
+        "no_phone": "No number is known for this person.",
+        "invalid_phone": "This person's number is not valid.",
+        "opted_out": "This person turned off WhatsApp: they cannot be reached this way.",
+        "already_joined": "This person is already reached.",
+        "customer_not_in_room": "This customer is not in this thread.",
+        "numero_deja_a_un_compte": "This number already belongs to another account.",
+        "inconnu": "The invitation could not be sent. Please try again."
+      },
+      "avis": {
+        "stop": "A person turned off the relay {canal}: nothing is relayed to them anymore.",
+        "start": "A person turned the relay {canal} back on.",
+        "accord": "A person agreed to be reached {canal}.",
+        "media_non_relaye": "A file received {canal} was not relayed into the thread.",
+        "numero_deja_a_un_compte": "This person's number already belongs to an account: nothing was linked."
+      },
+      "puce": {
+        "fenetreFermee": "24-hour window closed"
+      }
     }
   },
   "payments": {
@@ -9139,7 +9424,9 @@
       "surPlace": "Signed on site, with the code received by SMS",
       "surPlaceNumero": "Signed on site, with the code received at {numero}",
       "surPlaceParEtNumero": "Signed on site in front of {agent}, with the code received at {numero}",
-      "parAuTitreDuMandat": "Signed by {nom}, under the management mandate"
+      "parAuTitreDuMandat": "Signed by {nom}, under the management mandate",
+      "parLien": "Signed from a link, with the code received by SMS",
+      "parLienNumero": "Signed from a link, with the code received at {numero}"
     },
     "signaturePad": {
       "label": "Sign here",
@@ -9382,7 +9669,8 @@
           "valider": "Confirm"
         },
         "reessayer": "Try again",
-        "signerAuTitreDuMandat": "Sign under the management mandate"
+        "signerAuTitreDuMandat": "Sign under the management mandate",
+        "signeParLien": "Signed from a link at {heure}, with the code received by SMS"
       }
     }
   },
@@ -10446,7 +10734,8 @@
         },
         "messaging": {
           "broadcast": "Send a broadcast",
-          "archive": "Archive a conversation"
+          "archive": "Archive a conversation",
+          "copilot": "Use the messaging assistant"
         },
         "reports": {
           "view_global": "View platform reports",
@@ -11364,7 +11653,8 @@
           "membresSansDoubleFacteurAuMoins": "{n, plural, one {At least # of {total} members has not turned it on yet} other {At least # of {total} members have not turned it on yet}}",
           "voirLEquipe": "View the team",
           "demandeeLe": "Requested on {date}",
-          "groupeVisites": "Visits"
+          "groupeVisites": "Visits",
+          "groupeAssistant": "Messaging assistant"
         },
         "menu": {
           "titre": "Team menu",
@@ -11378,6 +11668,20 @@
       "ownersConfirmVisits": {
         "label": "Landlords confirm visits to their properties",
         "hint": "On: the landlord confirms a pending visit to their property, or proposes another time, from their home page; the assigned agent is notified. Off: only the agency confirms visits."
+      },
+      "assistant": {
+        "copilote": {
+          "label": "Assistant in conversations",
+          "hint": "Suggests summaries, replies and commitments to your team. Nothing is sent without them."
+        },
+        "transcription": {
+          "label": "Voice note transcription",
+          "hint": "Turns received voice notes into text, for your team only."
+        },
+        "raison": {
+          "plateforme": "Turned off by the platform for all agencies: you cannot turn it back on.",
+          "nonConfiguree": "No transcription service is configured on the platform yet."
+        }
       }
     },
     "users": {
@@ -14807,7 +15111,8 @@
             "redaction": "Writing",
             "raisonnement": "Reasoning",
             "vision": "Vision",
-            "embedding": "Semantic representation"
+            "embedding": "Semantic representation",
+            "transcription": "Voice note transcription"
           },
           "emptyChain": "No model"
         },
@@ -14870,7 +15175,16 @@
           "budgetNoDefaultHint": "No default ceiling — leave empty to set none.",
           "providersLoadError": "The available models could not be loaded: {message}",
           "budgetEquivalent": "≈ {xof}",
-          "budgetInvalid": "Enter an amount in dollars, in digits: 0.50 for example."
+          "budgetInvalid": "Enter an amount in dollars, in digits: 0.50 for example.",
+          "copilote": {
+            "fil": {
+              "resume": "Copilot · summary",
+              "question": "Copilot · Ask the thread",
+              "brouillon": "Copilot · draft",
+              "promesses": "Copilot · promises",
+              "transcription": "Copilot · transcription"
+            }
+          }
         },
         "providers": {
           "caption": "Allowed providers",
@@ -16662,7 +16976,8 @@
         "boost": "Credits and promotion",
         "rentals": "Rentals",
         "radar": "Radar",
-        "crm": "Customer relations"
+        "crm": "Customer relations",
+        "ai": "Artificial intelligence"
       },
       "keys": {
         "currency": {
@@ -16800,6 +17115,12 @@
           "sell_directory_wide": {
             "label": "Sell the directory-wide place",
             "description": "The place of the directory without a city filter, the most viewed. Closed, it stays offered by the team."
+          }
+        },
+        "ai": {
+          "daily_budget_per_agency_usd": {
+            "label": "Daily AI cap per agency (dollars)",
+            "description": "Maximum AI spend of each agency per day, across all uses, in US dollars. Empty: no per-agency cap."
           }
         }
       },
@@ -17908,7 +18229,8 @@
         "invoice_reminder_sent": "Invoice reminder",
         "tenant_inventory_reminder": "Move-in inventory reminder",
         "task_due_reminder": "Task reminder",
-        "document_expiring": "Expiry of my documents"
+        "document_expiring": "Expiry of my documents",
+        "owner_weekly_digest": "Monday summary of my properties"
       },
       "channels": {
         "inapp": "App",
@@ -20353,6 +20675,12 @@
           "title": "Inventory signed: lease {reference}",
           "body": "The tenant and the landlord have signed the inventory of lease {reference} for {property}. Download its PDF from the inventory page."
         }
+      },
+      "owner": {
+        "weekly_digest": {
+          "title": "Your week with {agency}",
+          "body": "{agency} — rent collected: {paid_count} ({paid_total}). Overdue: {late_count} ({late_total}). Maintenance opened: {maintenance_opened}, closed: {maintenance_closed}. Visits confirmed: {visits}."
+        }
       }
     },
     "history": {
@@ -21538,6 +21866,92 @@
       "uneFoisParSemaine": "Once a week instead",
       "hebdoFaitTitre": "Once a week it is",
       "hebdoFaitTexte": "You will receive at most one message a week. Each one still has its unsubscribe link."
+    },
+    "action": {
+      "metaTitre": "An action is waiting for you",
+      "mention": "Personal link",
+      "pied": "This link works once, for a limited time. For anything else, reply to the agency in your WhatsApp conversation.",
+      "refus": "The action could not be completed. Your link is still valid: try again, or reply to the agency on WhatsApp.",
+      "erreur": "This link could not be opened. Check your connection, then try again.",
+      "recap": {
+        "motif": "Reason",
+        "quartier": "Area",
+        "adresse": "Address",
+        "surPlace": "On site",
+        "bien": "Property",
+        "contact": "Contact"
+      },
+      "gestes": {
+        "visite": {
+          "surtitre": "Viewing",
+          "titre": "Do you confirm this viewing?",
+          "bouton": "Confirm the viewing",
+          "fait": "The viewing is confirmed: the agency has been notified."
+        },
+        "intervention": {
+          "surtitre": "Maintenance",
+          "titre": "Do you accept this job?",
+          "bouton": "Accept the job",
+          "fait": "The job is accepted: the agency has been notified.",
+          "adresseApres": "The exact address and the person to ask for on site appear once you accept the job."
+        },
+        "etatDesLieux": {
+          "surtitre": "Inventory",
+          "titre": "Sign the inventory",
+          "bouton": "Sign the inventory",
+          "fait": "The inventory is signed: the agency has been notified."
+        }
+      },
+      "signature": {
+        "codeTitre": "Signing code",
+        "codeAide": "A signature is confirmed with a 6-digit code, sent to the number that received this link.",
+        "recevoirLeCode": "Send me my code",
+        "codeEnvoye": "Code sent to the number that received this link.",
+        "codeAria": "6-digit code",
+        "codeNonEnvoye": "The code could not be sent. Try again in a moment.",
+        "traceTitre": "Your signature",
+        "traceAide": "Sign with your finger in the box, then confirm.",
+        "signer": "Sign the inventory",
+        "effacer": "Clear"
+      },
+      "fait": {
+        "titre": "Done",
+        "compteTitre": "Everything in one place",
+        "compteTexte": "A Takussan account keeps your appointments and your exchanges with agencies. Create your password in a minute.",
+        "compteBouton": "Create my password",
+        "pied": "This link has been used: it allows no further action. For anything else, reply to the agency in your WhatsApp conversation."
+      },
+      "mort": {
+        "expired": {
+          "titre": "This link has expired",
+          "texte": "Ask for a new link by replying to the agency on WhatsApp."
+        },
+        "used": {
+          "titre": "This link has already been used",
+          "texte": "If it wasn’t you, let the agency know."
+        },
+        "revoked": {
+          "titre": "This link is no longer valid",
+          "texte": "A newer link has replaced it: use the latest one you received, or reply to the agency on WhatsApp."
+        },
+        "notFound": {
+          "titre": "This link cannot be found",
+          "texte": "Check that it is complete, or reply to the agency on WhatsApp."
+        }
+      },
+      "tropDeTentatives": {
+        "titre": "Too many attempts",
+        "texte": "Wait a few minutes, then try again."
+      },
+      "codes": {
+        "codeRequis": "Enter the 6-digit code you received by SMS.",
+        "codeFaux": "This code is not correct. Check it, then try again.",
+        "codeVerrouille": "Too many wrong codes: signing is blocked for now. Try again later.",
+        "renvoiTropTot": "A code was just sent. Wait a little before asking for another one.",
+        "rienASigner": "There is nothing left for you to sign.",
+        "sansNumero": "No number can receive the code. Reply to the agency on WhatsApp.",
+        "smsNonParti": "The SMS could not be sent. Try again in a moment."
+      }
     }
   },
   "saisieDemande": {

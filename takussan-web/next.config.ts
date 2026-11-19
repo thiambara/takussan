@@ -193,6 +193,12 @@ const nextConfig: NextConfig = {
         source,
         headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
       })),
+      // TCK-2983 (ADR-0132 § 5) — même nature : le jeton d'un lien d'action du pont EST le droit de
+      // faire son geste (confirmer, accepter, signer).
+      ...['/fil/a/:path*', '/:locale/fil/a/:path*'].map((source) => ({
+        source,
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      })),
       // TCK-2611 (ADR-0094 § 3) — même nature : le jeton d'invitation est un secret porteur, qui lit
       // l'aperçu et accepte l'invitation.
       {

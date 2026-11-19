@@ -102,6 +102,9 @@ const SECTION_DE_LA_CLE: Readonly<Record<string, SectionDeLaFiche>> = {
   moderation_required: 'regles',
   late_fee_online_collection: 'regles',
   owners_confirm_visits: 'regles',
+  // TCK-2979
+  copilot_enabled: 'regles',
+  voice_transcription_enabled: 'regles',
   payout_approval_threshold: 'regles',
   // TCK-2915
   payout_day: 'regles',

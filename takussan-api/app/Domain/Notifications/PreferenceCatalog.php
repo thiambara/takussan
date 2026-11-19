@@ -52,6 +52,8 @@ final class PreferenceCatalog
         'favorite_unavailable' => ['client', 'locataire'],
         'property_availability_check' => self::GESTION,
         'document_expiring' => ['client', 'locataire', 'bailleur', 'agent', 'admin-agence', 'hote', 'prestataire'],
+        // TCK-2985 — le résumé du lundi : au seul bailleur d'un bien d'agence.
+        'owner_weekly_digest' => ['bailleur'],
     ];
 
     /**

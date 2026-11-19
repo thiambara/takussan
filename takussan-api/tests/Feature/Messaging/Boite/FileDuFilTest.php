@@ -455,7 +455,9 @@ class FileDuFilTest extends ApiTestCase
         $this->assertSame([$this->fil->id], array_column($this->getJson('/api/conversations?filter[file]=vous')->assertOk()->json('data'), 'id'));
         $this->assertSame([$autre->id], array_column($this->getJson('/api/conversations?filter[file]=attente')->assertOk()->json('data'), 'id'));
         $this->assertSame([], $this->getJson('/api/conversations?filter[file]=rappel')->assertOk()->json('data'));
-        $this->getJson('/api/conversations?filter[file]=retard')->assertUnprocessable();
+        // TCK-2971 — `retard` est désormais une file (ADR-0130 § 5) ; une valeur hors des files reste refusée.
+        $this->assertSame([], $this->getJson('/api/conversations?filter[file]=retard')->assertOk()->json('data'));
+        $this->getJson('/api/conversations?filter[file]=inconnue')->assertUnprocessable();
     }
 
     /**

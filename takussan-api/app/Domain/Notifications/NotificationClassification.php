@@ -233,6 +233,8 @@ final class NotificationClassification
         'payout_threshold.relax_requested' => [self::P, true],
         'service_provider_bill.kept_on_reopen' => [self::P, false],
         'owner_statement.available' => [self::P, false],
+        // TCK-2985 — le résumé du lundi : jamais dans la cloche, rien à traiter.
+        'owner.weekly_digest' => [self::P, false],
 
         // ─── Avis et modération ───────────────────────────────────────────────────────────
         'review.to_moderate' => [self::A, true],

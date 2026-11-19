@@ -48,6 +48,15 @@ class Inventory extends AbstractModel implements HasMedia
     public const OWNER_METHOD_ONSITE_OTP = 'onsite_otp';
 
     /**
+     * TCK-2982 (ADR-0132 § 5, ADR-0098 § 5) — la signature dessinée par la partie ELLE-MÊME, depuis un lien
+     * d'action, sans session, et prouvée par un code à 6 chiffres envoyé par SMS au numéro du lien : canal et
+     * numéro masqué dans `*_otp_*`, comme la voie sur place ; jamais le code.
+     */
+    public const TENANT_METHOD_LINK_OTP = 'link_otp';
+
+    public const OWNER_METHOD_LINK_OTP = 'link_otp';
+
+    /**
      * Raw signature payloads stay on the model for template rendering but are
      * never serialised in JSON responses — only the SHA-256 hash + timestamp
      * travel over the wire. Access them explicitly via `$inventory->getAttributes()`

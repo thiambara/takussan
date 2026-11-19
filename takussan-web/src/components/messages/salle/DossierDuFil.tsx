@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useBooking } from '@/lib/queries/bookings';
+import { useConversationContext } from '@/lib/queries/conversations';
 import { useDocuments, useDocumentsGeneres, type DocumentGenere } from '@/lib/queries/documents';
 import { cn } from '@/lib/utils';
 import type { Conversation } from '@/types/message';
@@ -16,6 +17,10 @@ import type { Conversation } from '@/types/message';
 import { ID_COLONNE_DE_CONTEXTE } from '../EnTeteDuFil';
 import { useBailDeLaSalle, type BailDeLaSalle } from './requetesDeLaSalle';
 import { membresActuels, objetDeLaSalle, qualiteDansLaReservation, qualiteDansLeBail, type QualiteDuMembre } from './salle';
+// TCK-2972 — les engagements du fil.
+import { EngagementsDuFil } from '../engagements/EngagementsDuFil';
+import { ParticipantsEtCanauxDuFil } from '../pont/ElementsDuPont';
+import { participantsDuPont } from '../pont/pont';
 
 /**
  * TCK-2963 (maquette `fil-salle-bail` A, `ContenuDossier` et `PanneauDossier`) — le DOSSIER du fil : ce qu'on
@@ -64,11 +69,24 @@ export function DossierDuFil({ conversation, forme }: DossierDuFilProps) {
 
 function ContenuDuDossier({ conversation }: { readonly conversation: Conversation }) {
   const objet = objetDeLaSalle(conversation);
+  const { data: contexte } = useConversationContext(objet ? conversation.id : null);
   if (!objet) return null;
-  return objet.nature === 'lease' ? (
-    <DossierDuBail id={objet.id} conversation={conversation} />
-  ) : (
-    <DossierDeLaReservation id={objet.id} conversation={conversation} />
+  return (
+    <>
+      {objet.nature === 'lease' ? (
+        <DossierDuBail id={objet.id} conversation={conversation} />
+      ) : (
+        <DossierDeLaReservation id={objet.id} conversation={conversation} />
+      )}
+      {/* TCK-2984 — le pont d'une salle : qui est joint par quoi, « Joindre par WhatsApp » ; rien sans bloc `pont`. */}
+      <ParticipantsEtCanauxDuFil
+        conversationId={conversation.id}
+        participants={participantsDuPont(contexte?.data)}
+        fiche={contexte?.data?.pont_fiche}
+      />
+      {/* TCK-2972 — « Engagements de ce fil », au bureau comme dans la feuille du téléphone. */}
+      <EngagementsDuFil conversationId={conversation.id} />
+    </>
   );
 }
 

@@ -31,6 +31,10 @@ function repondre(chemin: string) {
   if (chemin.startsWith('/api/bookings/7')) return Promise.resolve({ data: reservation() });
   if (chemin.startsWith('/api/documents/generated')) return Promise.resolve({ data: [{ kind: 'generated', category: 'lease_contract', title: null, date: '2026-11-28', download_path: '/x.pdf' }] });
   if (chemin.startsWith('/api/documents')) return Promise.resolve({ data: [], meta: { current_page: 1, last_page: 1, per_page: 5, total: 0 } });
+  // TCK-2972 — « Engagements de ce fil », à la fin du dossier.
+  if (/^\/api\/conversations\/\d+\/commitments/.test(chemin)) {
+    return Promise.resolve({ data: [{ id: 1, title: 'Laisser la clé au gardien', etat: 'open', due_at: '2099-11-19T10:00:00+00:00', holder: { id: 9, name: 'Fatou Wade' }, beneficiary: null, abilities: {} }] });
+  }
   return Promise.reject(new Error(`inattendu : ${chemin}`));
 }
 
@@ -110,6 +114,14 @@ describe('<BandeauDeLaSalle> — relu pour son lecteur', () => {
 });
 
 describe('<DossierDuFil> — aucune coordonnée du bailleur (AC2), rien que la lecture rend', () => {
+  it('TCK-2972 — le dossier porte « Engagements de ce fil », lu sur le fil de la salle', async () => {
+    const salle = salleDuBail();
+    monter(<DossierDuFil conversation={salle} forme="feuille" />);
+    const section = await screen.findByTestId('engagements-du-fil');
+    expect(within(section).getByText('Laisser la clé au gardien')).toBeInTheDocument();
+    expect(apiRequest).toHaveBeenCalledWith(`/api/conversations/${salle.id}/commitments`, expect.anything());
+  });
+
   it('le personnel ne lit ni le téléphone ni l’e-mail du bailleur, même quand la réponse les porte', async () => {
     reponseDuBail = bail({ commission_amount: 47000 });
     monter(<DossierDuFil conversation={salleDuBail()} forme="feuille" />);

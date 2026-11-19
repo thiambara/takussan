@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\Capability;
 use App\Models\User;
 use App\Services\Media\AgencyWatermarkContext;
+use App\Services\Messaging\Copilote\ReglagesDuCopilote;
 use App\Services\Payout\PayoutApprovalThreshold;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -84,9 +85,31 @@ class AgencyResource extends BaseResource
             // défaut) ? La configuration d'agence ne propose « Regénérer les filigranes » que s'il
             // l'est. Un booléen d'état, pas le drapeau : il reste hors de `feature-flags/me`.
             'watermark_available' => AgencyWatermarkContext::globallyEnabled(),
+            // TCK-2979 (ADR-0131 § 8) — ce que la plateforme laisse aux deux interrupteurs de l'agence (`copilot_enabled`,
+            // `voice_transcription_enabled`) : l'écran les grise et dit pourquoi. Pour qui peut mettre l'agence à jour
+            // seulement — un étalement, pas `when()` (cf. VERIF-594 plus haut) —, et les listes ne paient aucune requête.
+            ...($this->peutMettreAJour($request) ? ['ai_platform' => self::etatDeLaPlateforme($request)] : []),
             'primary_admin_id' => $this->primary_admin_id,
             'created_at' => $this->iso($this->created_at),
         ];
+    }
+
+    /** TCK-2979 — l'état de la plateforme ne dépend pas de l'agence : lu une fois par requête, même pour une liste. */
+    private static function etatDeLaPlateforme(Request $request): array
+    {
+        if (! $request->attributes->has('ai_platform')) {
+            $request->attributes->set('ai_platform', app(ReglagesDuCopilote::class)->etatDeLaPlateforme());
+        }
+
+        return $request->attributes->get('ai_platform');
+    }
+
+    /** TCK-2979 — `AgencyPolicy::update` : l'administrateur de l'agence (ou le super-admin). */
+    private function peutMettreAJour(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user instanceof User && $user->can('update', $this->resource);
     }
 
     /** VERIF-594 m-2 — détenteur de `payouts.approve` ou de `payouts.create` DANS cette agence. */

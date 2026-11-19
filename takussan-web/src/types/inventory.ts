@@ -155,7 +155,8 @@ export interface Inventory {
   readonly owner_signed_by?: InventoryPersonne | null;
   readonly owner_signed_on_behalf_of?: InventoryPersonne | null;
   /** TCK-2646 (ADR-0098 §5) — `drawn` depuis son compte, `onsite_otp` sur le téléphone du personnel. */
-  readonly tenant_signature_method?: 'drawn' | 'onsite_otp' | null;
+  // TCK-2984 (TCK-2982) — `link_otp` : signée par la partie depuis un lien d'action, prouvée par un code SMS.
+  readonly tenant_signature_method?: 'drawn' | 'onsite_otp' | 'link_otp' | null;
   readonly tenant_signed_via_user_id?: number | null;
   readonly tenant_otp_channel?: string | null;
   /** Le numéro masqué auquel le code est parti (« +221 77 ••• 18 90 »). */
@@ -163,7 +164,7 @@ export interface Inventory {
   /** Le bailleur pour le compte duquel l'utilisateur courant signerait, ou `null` s'il est le bailleur. */
   readonly sign_on_behalf_of?: { readonly id: number; readonly full_name: string } | null;
   /** TCK-2913 (ADR-0098, amendement A) — la voie de la signature du bailleur, comme celle du locataire. */
-  readonly owner_signature_method?: 'drawn' | 'onsite_otp' | null;
+  readonly owner_signature_method?: 'drawn' | 'onsite_otp' | 'link_otp' | null; // TCK-2984 (TCK-2982)
   readonly owner_signed_via_user_id?: number | null;
   readonly owner_otp_channel?: string | null;
   readonly owner_otp_destination?: string | null;

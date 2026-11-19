@@ -53,6 +53,9 @@ export interface AgencySettings {
    * = non : seule l'agence confirme (TCK-590).
    */
   owners_confirm_visits?: boolean;
+  /** TCK-2979 (ADR-0131) — l'assistant de la messagerie et la transcription des notes vocales ; vrais par défaut. */
+  copilot_enabled?: boolean;
+  voice_transcription_enabled?: boolean;
   /**
    * TCK-2915 — le jour du mois (1-28) où partent les reversements aux bailleurs dont le mandat n'en
    * fixe pas ; absent = aucune règle d'agence.
@@ -115,6 +118,12 @@ export interface Agency {
    * d'agence ne propose « Regénérer les filigranes » que s'il l'est. Absent = non.
    */
   watermark_available?: boolean;
+  /**
+   * TCK-2979 (ADR-0131 § 8) — ce que la plateforme laisse aux deux interrupteurs de l'assistant, rendu à qui peut
+   * mettre l'agence à jour : `copilot` (au moins une fonction servie), `transcription` (pas coupée),
+   * `transcription_configured` (un fournisseur qui transcrit est affecté). Absent : rien n'est grisé.
+   */
+  ai_platform?: { copilot: boolean; transcription: boolean; transcription_configured: boolean };
   /**
    * TCK-2518 / TCK-2524 — la vitrine de la fiche publique : accroche (≤ 120), « Pourquoi nous »
    * (trois chaînes ≤ 80, `[]` sans), sélection (six biens de l'agence au plus, dans l'ordre choisi).

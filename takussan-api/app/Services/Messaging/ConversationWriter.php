@@ -9,6 +9,7 @@ use App\Models\Enums\MessageVisibility;
 use App\Models\Message;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Pont\RegistreDesCanaux;
 use Closure;
 use Illuminate\Support\Facades\DB;
 
@@ -55,7 +56,10 @@ class ConversationWriter
      * d'une note vocale (une carte, un événement, un avis n'en portent pas). Qui peut être mentionné se
      * juge à l'envoi (`SendMessageConversationRequest`) et au départ (`NotifyNewMessageJob`).
      *
-     * @param  array{content: string, type: string, metadata?: array<string, mixed>|null, visibility?: string|null, mentions?: list<int>|null}  $attributes
+     * TCK-2980 (ADR-0132 § 0) — `channel` : le canal du pont par lequel le message est arrivé, posé par
+     * `App\Services\Pont\PontEntrant` seul ; jamais lu d'une requête.
+     *
+     * @param  array{content: string, type: string, metadata?: array<string, mixed>|null, visibility?: string|null, mentions?: list<int>|null, channel?: string}  $attributes
      * @param  (Closure(Message): void)|null  $joindre  la pièce du message (note vocale, photo, PDF), rangée
      *                                                  dans la transaction, avant le pointeur du fil
      */
@@ -84,6 +88,9 @@ class ConversationWriter
                 'type' => $attributes['type'],
                 'metadata' => $metadata,
                 'visibility' => $visibility->value,
+                // TCK-2980 (ADR-0132 § 0) — attribut INTERNE : seul le pont le pose (`PontEntrant`), aucune
+                // `FormRequest` ne le valide ni ne le transmet. `app` par défaut.
+                'channel' => (string) ($attributes['channel'] ?? RegistreDesCanaux::APP),
             ]);
 
             if ($joindre !== null) {

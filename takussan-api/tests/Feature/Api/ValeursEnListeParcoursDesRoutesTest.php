@@ -101,6 +101,8 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/me/wizard-drafts/{key}' => '{key} : sans liaison de modèle',
         'api/media/{media}/file' => '{media} : Media sans fabrique',
         'api/pay/{token}' => '{token} : sans liaison de modèle',
+        // TCK-2982 — le lien d'action, par l'empreinte de son jeton.
+        'api/a/{token}' => '{token} : sans liaison de modèle',
         'api/pay/{token}/receipt' => '{token} : sans liaison de modèle',
         'api/{paymentType}/{paymentId}/verify' => '{paymentType} : sans liaison de modèle',
         'api/{paymentType}/{paymentId}/providers' => '{paymentType} : sans liaison de modèle',
@@ -129,6 +131,8 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/webhooks/sms/lafricamobile/status/{token}/{notification}' => '{token} : sans liaison de modèle',
         'api/webhooks/whatsapp/status/{token}' => '{token} : sans liaison de modèle',
         'api/webhooks/whatsapp/radar/{token}' => '{token} : sans liaison de modèle',
+        // TCK-2980 (ADR-0132 § 0) — le webhook générique de la messagerie : `{canal}` est un nom de la config.
+        'api/webhooks/messagerie/{canal}/{token}' => '{canal} : sans liaison de modèle',
     ];
 
     public function test_aucune_route_get_ne_rend_5xx_sur_une_valeur_en_liste(): void

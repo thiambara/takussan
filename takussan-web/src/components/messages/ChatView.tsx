@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { QueryClientContext } from '@tanstack/react-query';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useForm, useWatch } from 'react-hook-form';
@@ -64,6 +65,9 @@ import { ConversationInfoSheet } from './ConversationInfoSheet';
 import { EnTeteDuFil } from './EnTeteDuFil';
 import { MessageDateSeparator } from './MessageDateSeparator';
 import { ChatComposerShell } from './ChatComposerShell';
+// TCK-2984 (ADR-0132) — le pont : la trace du canal sous la bulle, le bandeau de la fenêtre au-dessus du composeur.
+import { BandeauDeLaFenetre, PontDuMessage, PucesDuPont } from './pont/ElementsDuPont';
+import { participantsDuPont } from './pont/pont';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
 import { urlDeLaPiece, type RelirePiece } from './PieceJointeDuFil';
 import { LecteurDeNoteVocale } from './NoteVocale';
@@ -72,6 +76,23 @@ import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
 import type { GestesDuFil } from './GestesDuFil';
 import { usePoserDansLeFil } from './poser/PoserDansLeFil';
+// TCK-2977 (ADR-0131) — le copilote à l'écran : « Ce que vous avez manqué », ✦ et « Demander au fil », la
+// transcription sous la note vocale. Rien n'est monté, et aucune requête ne part, si `copilote` n'est pas vrai.
+import { copiloteDuFil, coupureDeLaFonction, deciderLaSuggestion, demanderUnBrouillon, etatDuCopiloteQueryKey, lireEtatDuCopilote } from '@/lib/queries/copilote';
+// TCK-2978 — le brouillon dans le composeur, les promesses sous les messages.
+import { BrouillonDuComposeur, type AttenteDuBrouillon, type BrouillonRecu } from './copilote/BrouillonDuComposeur';
+import { DemandeDesPromesses, PromessesDuMessage } from './copilote/PromessesDuMessage';
+import { Sparkles } from 'lucide-react';
+import { CeQueVousAvezManque } from './copilote/CeQueVousAvezManque';
+import { BoutonDeLAssistant, EcouteDesTranscriptions } from './copilote/CopiloteDuFil';
+import { DemanderAuFil } from './copilote/DemanderAuFil';
+import { TranscriptionDeLaNote } from './copilote/TranscriptionDeLaNote';
+import { fenetreDesNonLus, nonLusDeLaListe, type FenetreDesNonLus } from './copilote/fenetreDesNonLus';
+// TCK-2972 — noter un engagement depuis un message.
+import { NoterUnEngagement } from './engagements/NoterUnEngagement';
+import { BoutonNoter, GestesDuMessage, useAppuiLong } from './engagements/OutilsDuMessage';
+import { useLectureSeule } from './engagements/useLectureSeule';
+import { filAvecAgence } from './engagements/engagement';
 
 interface ChatViewProps {
   readonly conversationId: number;
@@ -246,6 +267,59 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
   );
   const isMuted = Boolean(myParticipant?.is_muted);
   /**
+   * TCK-2977 (ADR-0131 § 3) — le copilote : pour le seul personnel servi (`copilote`), jamais dans le widget ni
+   * sous impersonation. La fenêtre « N nouveaux messages » est relevée UNE FOIS par ouverture, au premier rendu
+   * qui a des messages — avant que l'effet de `useMarkConversationRead` marque le fil lu et que la liste, relue,
+   * remette `unread_count` à 0.
+   */
+  const copilote = !isWidget && copiloteDuFil(conversation);
+  const clientDeRequetes = useContext(QueryClientContext);
+  const [ouverture, setOuverture] = useState<{ readonly fil: number; readonly fenetre: FenetreDesNonLus } | null>(null);
+  const nonLusConnus = messages.length > 0 && ouverture?.fil !== conversationId ? nonLusDeLaListe(clientDeRequetes, conversationId) : null;
+  // Relevée quand un compte est connu : la liste, ou le fil chargé (son `last_read_at`). Sinon on attend ; et un
+  // compte inconnu ne fait jamais une fenêtre (`fenetreDesNonLus`).
+  if (messages.length > 0 && ouverture?.fil !== conversationId && (nonLusConnus !== null || conversation !== undefined)) {
+    setOuverture({
+      fil: conversationId,
+      fenetre: fenetreDesNonLus(messages, user?.id, nonLusConnus, myParticipant ? myParticipant.last_read_at : undefined),
+    });
+  }
+  const fenetre = copilote && ouverture?.fil === conversationId && ouverture.fenetre.premierNonLuId !== null ? ouverture.fenetre : null;
+  const [demanderOuvert, setDemanderOuvert] = useState(false);
+  /**
+   * TCK-2978 (ADR-0131 § 5) — le brouillon : la demande en cours et le brouillon reçu, LIÉS au fil. Il est mis dans
+   * le champ, jamais envoyé : seul « Envoyer » publie, puis la suggestion est décidée (`accepted` tel quel,
+   * `edited` retouché) ; « Jeter le brouillon » la rejette.
+   */
+  const [brouillonDuFil, setBrouillonDuFil] = useState<{ readonly fil: number; readonly attente: AttenteDuBrouillon | null; readonly recu: BrouillonRecu | null }>({
+    fil: conversationId,
+    attente: null,
+    recu: null,
+  });
+  if (brouillonDuFil.fil !== conversationId) setBrouillonDuFil({ fil: conversationId, attente: null, recu: null });
+  const attenteDuBrouillon = brouillonDuFil.fil === conversationId ? brouillonDuFil.attente : null;
+  const brouillonRecu = brouillonDuFil.fil === conversationId ? brouillonDuFil.recu : null;
+  const { token: jeton } = useAuth();
+  const contexteDAppel = { token: jeton, locale };
+  const relireLeCopilote = () => void clientDeRequetes?.invalidateQueries({ queryKey: etatDuCopiloteQueryKey(conversationId, user?.id) });
+  function demanderLeBrouillon(ton: 'court' | 'normal') {
+    const connu = lireEtatDuCopilote(clientDeRequetes?.getQueryData(etatDuCopiloteQueryKey(conversationId, user?.id)));
+    setBrouillonDuFil((b) => ({ ...b, fil: conversationId, attente: { n: (b.attente?.n ?? 0) + 1, avant: brouillonRecu?.suggestionId ?? connu.brouillon.suggestionId } }));
+    void demanderUnBrouillon(conversationId, ton, contexteDAppel).then(relireLeCopilote, relireLeCopilote);
+  }
+  const heureDuMessage = (id: number): string | null => {
+    const m = messages.find((x) => x.id === id);
+    return m ? formatDateTime(m.created_at, locale, { timeStyle: 'short', dateStyle: undefined }) : null;
+  };
+  /** TCK-2977 — un renvoi du résumé ou une source : défile jusqu'au message et le surligne un instant. */
+  const allerAuMessage = (id: number) => {
+    const el = scrollRef.current?.querySelector<HTMLElement>(`[data-message-id="${id}"]`);
+    if (!el) return;
+    el.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    el.setAttribute('data-surligne', '');
+    setTimeout(() => el.removeAttribute('data-surligne'), 2_000);
+  };
+  /**
    * TCK-2955 — la présence et « en train d'écrire », pendant que le fil est ouvert seulement (le canal de
    * présence est quitté au démontage). Un identifiant ne compte que s'il est un AUTRE participant actif que
    * le fil a déjà lu : son nom vient de là, jamais du canal (qui ne publie que `{id}`).
@@ -295,6 +369,14 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
   const invisiblePour = lecteurs.autres.length > 0 ? format.list(lecteurs.autres.map((p) => p.nom.split(' ')[0] ?? p.nom), { type: 'conjunction' }) : null;
   /** TCK-2968 — les noms des participants, par compte : une mention se lit en nom, jamais en identifiant. */
   const nomsDesParticipants = new Map((conversation?.participants ?? []).map((p) => [p.user_id, p.user?.full_name ?? ''] as const));
+  // TCK-2984 — les noms que le pont affiche (relais, fenêtre) ; jamais un numéro.
+  const nomsDuPont: Readonly<Record<number, string>> = Object.fromEntries((conversation?.participants ?? []).map((p) => [p.user_id, p.user?.full_name ?? '—']));
+  // TCK-2972 (ADR-0130 § 2) — noter un engagement depuis un message : jamais dans le widget, ni sous
+  // impersonation, ni sans droit d'écrire. Le personnel (`can_write_team_note` du contexte, jugé par l'API)
+  // note pour tout participant ; tout autre, sa seule promesse. L'API reste juge.
+  const lectureSeuleDesEngagements = useLectureSeule();
+  const peutNoter = !isWidget && !lectureSeuleDesEngagements && canSend && user?.id != null && filAvecAgence(contexteData?.data);
+  const [engagement, setEngagement] = useState<{ readonly message: Message; readonly etape: 'gestes' | 'formulaire' } | null>(null);
   /**
    * TCK-2968 — la mention en cours de saisie (après `@`), la ligne active de la liste, et les personnes
    * choisies dans CE fil : seules celles dont `@Nom` reste dans le texte partent (`mentionsDuTexte`).
@@ -431,6 +513,15 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
         ...(equipe ? { visibility: 'team' as const } : {}),
         ...(mentions.length > 0 ? { mentions } : {}),
       });
+      // TCK-2978 — un brouillon envoyé : `accepted` tel quel, `edited` avec le texte envoyé s'il a été retouché.
+      if (brouillonRecu && !equipe) {
+        const tel = values.content === brouillonRecu.texte;
+        void deciderLaSuggestion(
+          tel ? { suggestionId: brouillonRecu.suggestionId, decision: 'accepted' } : { suggestionId: brouillonRecu.suggestionId, decision: 'edited', final: { texte: values.content } },
+          contexteDAppel,
+        ).then(relireLeCopilote, relireLeCopilote);
+        setBrouillonDuFil({ fil: conversationId, attente: null, recu: null });
+      }
       form.reset({ content: '' });
       // TCK-2968 — après CHAQUE envoi, la destination revient à « Fil » : aucune note ne part ensuite à
       // l'insu de son auteur.
@@ -601,8 +692,11 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
           onPlusDActions={onPlusDActions}
           gestes={gestes}
           presents={presents}
+          assistant={copilote ? <BoutonDeLAssistant conversationId={conversationId} onOuvrir={() => setDemanderOuvert(true)} /> : undefined}
         />
       )}
+      {/* TCK-2984 — au téléphone, les puces des participants joints par le pont ; rien sans bloc `pont`. */}
+      {!isWidget ? <PucesDuPont participants={participantsDuPont(contexteData?.data)} noms={nomsDuPont} moi={user?.id} /> : null}
       {/* TCK-2963 — le bandeau de l'objet, collé sous l'en-tête (maquette `BandeauBail`). */}
       {!isWidget && estSalle ? salle?.bandeau : null}
       {isGroup && !isWidget && (
@@ -613,6 +707,47 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
           currentMute={isMuted}
         />
       )}
+
+      {/* TCK-2977 — « Demander au fil » (feuille au téléphone, panneau droit au bureau), et les transcriptions. */}
+      {copilote ? (
+        <>
+          <DemanderAuFil
+            conversationId={conversationId}
+            ouvert={demanderOuvert}
+            onOuvertChange={setDemanderOuvert}
+            onVersLeComposeur={(texte) => {
+              // Rien ne s'envoie : le texte va dans le composeur, l'envoi reste le geste de la personne.
+              form.setValue('content', texte, { shouldDirty: true });
+              setDemanderOuvert(false);
+              form.setFocus('content');
+            }}
+            heureDe={heureDuMessage}
+            onAllerAuMessage={allerAuMessage}
+          />
+        </>
+      ) : null}
+      {/* TCK-2978 — les promesses, demandées à l'ouverture du fil. */}
+      {copilote && anchorId !== null ? <DemandeDesPromesses conversationId={conversationId} dernierMessageId={anchorId} /> : null}
+      {/* TCK-2977 — la transcription a son propre interrupteur (ADR-0131 § 8) : on l'écoute dès qu'une note la porte. */}
+      {!isWidget && messages.some((m) => m.transcription !== undefined) ? <EcouteDesTranscriptions conversationId={conversationId} /> : null}
+
+      {/* TCK-2972 — les gestes d'un message (appui long) et le formulaire « Noter un engagement ». */}
+      {engagement && user?.id != null ? (
+        engagement.etape === 'gestes' ? (
+          <GestesDuMessage open onOpenChange={(o) => !o && setEngagement(null)} onNoter={() => setEngagement({ message: engagement.message, etape: 'formulaire' })} />
+        ) : (
+          <NoterUnEngagement
+            key={engagement.message.id}
+            conversationId={conversationId}
+            message={engagement.message}
+            participants={(conversation?.participants ?? []).filter((p) => !p.left_at).map((p) => ({ id: p.user_id, nom: p.user?.full_name ?? '—' }))}
+            moi={user.id}
+            duPersonnel={lecteurs.equipeLit}
+            open
+            onOpenChange={(o) => !o && setEngagement(null)}
+          />
+        )
+      ) : null}
 
       <div
         ref={scrollRef}
@@ -658,6 +793,14 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
               </li>
             ) : null}
             {renderItems.map((item) => {
+              // TCK-2977 — « N nouveaux messages » et « Ce que vous avez manqué », avant le premier non-lu relevé.
+              const avant =
+                fenetre &&
+                ((item.kind === 'message' && item.message.id === fenetre.premierNonLuId) ||
+                  (item.kind === 'evenements' && item.messages.some((x) => x.id === fenetre.premierNonLuId))) ? (
+                  <CeQueVousAvezManque conversationId={conversationId} fenetre={fenetre} heureDe={heureDuMessage} onAllerAuMessage={allerAuMessage} coupure={coupureDeLaFonction(conversation, 'resume')} />
+                ) : null;
+              const element = ((): ReactNode => {
               if (item.kind === 'separator') {
                 return <MessageDateSeparator key={item.key} date={item.date} />;
               }
@@ -688,8 +831,30 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                     return nom ? [nom] : [];
                   })}
                   invisiblePour={invisiblePour}
+                  onNoter={peutNoter ? (etape) => setEngagement({ message: m, etape }) : undefined}
+                  nomsDuPont={nomsDuPont} // TCK-2984
                 />
               );
+              })();
+              // TCK-2978 — sous un message au fil (jamais une note d'équipe), le bloc « Repéré par l'assistant ».
+              const apres =
+                copilote && item.kind === 'message' && item.message.visibility !== 'team' && natureDuMessage(item.message) !== 'carte' && item.message.type !== 'system' && item.message.type !== 'event' ? (
+                  <PromessesDuMessage
+                    conversationId={conversationId}
+                    message={item.message}
+                    participants={(conversation?.participants ?? []).filter((p) => !p.left_at).map((p) => ({ id: p.user_id, nom: p.user?.full_name ?? '—' }))}
+                  />
+                ) : null;
+              if (avant || apres) {
+                return (
+                  <Fragment key={`copilote-${item.kind === 'message' ? item.message.id : fenetre?.premierNonLuId}`}>
+                    {avant}
+                    {element}
+                    {apres}
+                  </Fragment>
+                );
+              }
+              return element;
             })}
           </ul>
         )}
@@ -704,6 +869,8 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
         {ligneDEcriture}
       </p>
 
+      {/* TCK-2984 — la fenêtre de 24 h des destinataires joints par le pont ; rien sans bloc `pont` dans le contexte. */}
+      {canSend && !isWidget ? <BandeauDeLaFenetre participants={participantsDuPont(contexteData?.data)} noms={nomsDuPont} moi={user?.id} /> : null}
       {canSend ? (
         <ChatComposerShell
           // TCK-316 — `handleSubmit(onSubmit)` était APPELÉ pendant le rendu pour
@@ -730,12 +897,26 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                 <AtSign className="size-5 stroke-[1.75]" aria-hidden />
               </button>
             ) : noteEnCours ? null : (
+              <>
+              {/* TCK-2978 — ✦ « Proposer une réponse » : en mode Fil seulement, pour le personnel servi. */}
+              {copilote ? (
+                <button
+                  type="button"
+                  onClick={() => demanderLeBrouillon('normal')}
+                  aria-label={t('copilote.brouillon.proposer')}
+                  data-testid="bouton-brouillon"
+                  className="-ml-1 inline-flex size-11 flex-none items-center justify-center rounded-full text-primary-deep outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+                >
+                  <Sparkles className="size-5" strokeWidth={1.75} aria-hidden="true" />
+                </button>
+              ) : null}
               <BoutonDePieceJointe
                 onChoisir={(f) => void pieceJointe.choisir(f)}
                 desactive={sendAttachment.isPending}
                 appareilPhoto={telephone}
                 entrees={poser.entrees}
               />
+              </>
             )
           }
           messagerie={
@@ -782,6 +963,25 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                       form.setValue('content', insererLaReponse(form.getValues('content') ?? '', phrase), { shouldDirty: true });
                       form.setFocus('content');
                     }}
+                  />
+                ) : null}
+                {/* TCK-2978 — le brouillon de l'assistant, au-dessus du champ (mode Fil). */}
+                {copilote && !equipe ? (
+                  <BrouillonDuComposeur
+                    conversationId={conversationId}
+                    attente={attenteDuBrouillon}
+                    brouillon={brouillonRecu}
+                    intact={brouillonRecu !== null && contenu === brouillonRecu.texte}
+                    onArrive={(b) => {
+                      setBrouillonDuFil({ fil: conversationId, attente: null, recu: b });
+                      form.setValue('content', b.texte, { shouldDirty: true });
+                    }}
+                    onJeter={() => {
+                      if (brouillonRecu) void deciderLaSuggestion({ suggestionId: brouillonRecu.suggestionId, decision: 'rejected' }, contexteDAppel).then(relireLeCopilote, relireLeCopilote);
+                      setBrouillonDuFil({ fil: conversationId, attente: null, recu: null });
+                      form.setValue('content', '', { shouldDirty: true });
+                    }}
+                    onRedemander={demanderLeBrouillon}
                   />
                 ) : null}
                 {equipe ? null : (
@@ -886,6 +1086,8 @@ function MessageBubble({
   jour = false,
   nomsDesMentions = [],
   invisiblePour = null,
+  onNoter,
+  nomsDuPont = {},
 }: {
   message: Message;
   isOwn: boolean;
@@ -898,8 +1100,13 @@ function MessageBubble({
   nomsDesMentions?: readonly string[];
   /** TCK-2968 — une note d'équipe : les prénoms de qui ne la lit pas (`null` : inconnu). */
   invisiblePour?: string | null;
+  /** TCK-2972 — « Noter un engagement » : la barre du survol (bureau), l'appui long (téléphone). Absent : aucun geste. */
+  onNoter?: (etape: 'gestes' | 'formulaire') => void;
+  /** TCK-2984 — les noms des participants, pour l'état des relais du pont. */
+  nomsDuPont?: Readonly<Record<number, string>>;
 }) {
   const t = useTranslations('messaging.chat');
+  const appuiLong = useAppuiLong(onNoter ? () => onNoter('gestes') : undefined);
   const role = message.sender?.role_label_code ?? null;
   const cleDuRole = role ? `role.${role}` : null;
   const signature =
@@ -923,16 +1130,30 @@ function MessageBubble({
         rendreAudio={({ ref, ...attributs }) => <audio ref={ref} {...attributs} />}
       />
     ) : null;
+  // TCK-2977 (TCK-2976) — sous le lecteur, la transcription : la clé n'arrive qu'au personnel servi ; absente, rien.
+  const noteEtTranscription = lecteurAudio ? (
+    <>
+      {lecteurAudio}
+      <TranscriptionDeLaNote conversationId={message.conversation_id} messageId={message.id} transcription={message.transcription} />
+    </>
+  ) : null;
   if (note) {
     return (
       <NoteDEquipe mienne={isOwn} auteur={message.sender?.full_name ?? null} invisiblePour={invisiblePour} heure={heure}>
-        {lecteurAudio ?? <TexteAvecMentions texte={message.content ?? ''} noms={nomsDesMentions} />}
+        {noteEtTranscription ?? <TexteAvecMentions texte={message.content ?? ''} noms={nomsDesMentions} />}
       </NoteDEquipe>
     );
   }
   return (
-    <li className={cn('flex', isOwn ? 'justify-end' : 'justify-start')}>
+    // TCK-2972 — `group/bulle` : le survol de la bulle montre « Noter un engagement » (jamais sur une note d'équipe : elle rend plus haut).
+    // TCK-2977 — `data-message-id` : le renvoi du résumé y défile, et `data-surligne` le marque un instant.
+    <li
+      data-message-id={message.id}
+      className={cn('group/bulle flex items-center gap-1.5 rounded-2xl transition-colors data-surligne:bg-primary/10', isOwn ? 'justify-end' : 'justify-start')}
+    >
+      {onNoter && isOwn ? <BoutonNoter onNoter={() => onNoter('formulaire')} /> : null}
       <div
+        {...appuiLong}
         className={cn(
           'max-w-[80%] rounded-2xl px-3.5 py-2 text-corps leading-snug',
           isOwn
@@ -945,8 +1166,8 @@ function MessageBubble({
             {signature}
           </p>
         )}
-        {lecteurAudio ? (
-          lecteurAudio
+        {noteEtTranscription ? (
+          noteEtTranscription
         ) : message.type === 'image' || message.type === 'document' ? (
           // TCK-2632 — la pièce d'abord, la légende dessous ; une pièce sans légende rend
           // `content = ''` (TCK-2631) : pas de paragraphe vide.
@@ -980,7 +1201,10 @@ function MessageBubble({
           {heure}
           {lu ? <CheckCheck className="size-3.5 flex-none" role="img" aria-label={t('lu')} data-testid="coche-lu" /> : null}
         </p>
+        {/* TCK-2984 — le canal et l'état des relais : seulement si la réponse les porte (personnel, auteur). */}
+        <PontDuMessage message={message} noms={nomsDuPont} className={cn(isOwn && 'text-background/65')} />
       </div>
+      {onNoter && !isOwn ? <BoutonNoter onNoter={() => onNoter('formulaire')} /> : null}
     </li>
   );
 }

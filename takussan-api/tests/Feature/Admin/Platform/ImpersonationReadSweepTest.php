@@ -95,6 +95,8 @@ class ImpersonationReadSweepTest extends TestCase
      */
     private const PARAMETRES_NON_REMPLIS = [
         'slug', 'token', 'id', 'integration', 'entity', 'key', 'media', 'payout', 'provider',
+        // TCK-2980 — `{canal}` du webhook de la messagerie (jeton d'URL, hors session : rien à lire en impersonation).
+        'canal',
         'statement', 'payment', 'inventory', 'invoice', 'agent_profile', 'paymentType', 'paymentId',
         'upgradeRequest', 'dossier', 'event', 'channel', 'report', 'webhookLog', 'role', 'hash',
         'lead', 'dataExport', 'versionId', 'invitation', 'sp_profile', 'visit', 'city',

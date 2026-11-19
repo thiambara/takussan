@@ -49,6 +49,7 @@ use App\Notifications\LeasePaymentLateFeeNotification;
 use App\Notifications\LeaseRenewedNotification;
 use App\Notifications\LeaseRentReviewedNotification;
 use App\Notifications\LeaseSignatureCodeNotification;
+use App\Notifications\OwnerWeeklyDigestNotification;
 use App\Notifications\PropertyApprovedNotification;
 use App\Notifications\PropertyRejectedNotification;
 use App\Notifications\RegistrationConfirmationNotification;
@@ -329,6 +330,16 @@ class RenduDesCourrielsTest extends TestCase
             ],
             SuperAdminInvitedBroadcast::class => fn (string $l) => [
                 new SuperAdminInvitedBroadcast(Invitation::factory()->create(), User::factory()->create()),
+                $destinataire($l),
+            ],
+            // TCK-2985 — le résumé du lundi, ses paramètres bruts tels que `ResumeDuLundi::contenu()` les rend.
+            OwnerWeeklyDigestNotification::class => fn (string $l) => [
+                new OwnerWeeklyDigestNotification([
+                    'agency' => 'Agence Almadies',
+                    'paid_count' => 2, 'paid_total' => NotificationRenderer::money(300000, 'XOF'),
+                    'late_count' => 1, 'late_total' => NotificationRenderer::money(150000, 'XOF'),
+                    'maintenance_opened' => 1, 'maintenance_closed' => 0, 'visits' => 3,
+                ]),
                 $destinataire($l),
             ],
             TaskDueReminderNotification::class => fn (string $l) => [

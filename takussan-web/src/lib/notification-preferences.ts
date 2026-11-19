@@ -68,7 +68,8 @@ export const GROUPES_DE_PREFERENCES = [
     ],
   },
   // TCK-2432 — la source d'un bien publié par le Radar a disparu : son titulaire est questionné.
-  { cle: 'properties', evenements: ['property_availability_check'] },
+  // TCK-2983 (TCK-2985, ADR-0132 § 6) — le résumé du lundi du bailleur : e-mail et WhatsApp, éteints par défaut.
+  { cle: 'properties', evenements: ['property_availability_check', 'owner_weekly_digest'] },
 ] as const satisfies readonly { readonly cle: string; readonly evenements: readonly string[] }[];
 
 export type EvenementDePreference = (typeof GROUPES_DE_PREFERENCES)[number]['evenements'][number];

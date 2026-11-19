@@ -401,8 +401,141 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 130. [MaintenanceRescheduleRequest](#130-maintenancereschedulerequest-) 🆕
 131. [MaintenanceQuoteAlternative](#131-maintenancequotealternative-) 🆕
 132. [ConsentProof](#132-consentproof-) 🆕 (TCK-537)
+133. [Commitment](#133-commitment-) 🆕 (TCK-2969, ADR-0130)
+134. [MessageRelay](#134-messagerelay-) 🆕 (TCK-2980, ADR-0132)
+135. [OwnerWeeklyDigest](#135-ownerweeklydigest-) 🆕 (TCK-2985, ADR-0132)
+136. [ActionLink](#136-actionlink-) 🆕 (TCK-2982, ADR-0132)
 
-### Enums
+#### 133. Commitment 🆕
+
+**Table :** `commitments` (`2026_11_19_296901`, TCK-2969 ; `2026_11_19_297001`, TCK-2970)
+**Modèle :** `App\Models\Commitment` (`AbstractModel`, `Auditable`, `HasFactory`) — statut casté en `CommitmentStatus`
+**Description :** L'engagement : la promesse d'un participant d'un fil (« je repasse jeudi à 10 h »), un objet du fil inscrit au registre `SujetsDuFil` sous le type `commitment`. Une table à lui, **jamais une ligne de `tasks`** : aucun lecteur de `tasks` ne le voit ([ADR-0130](adr/0130-l-engagement-est-un-objet-du-fil.md) § 1). Le journal d'audit (`AUDIT_ONLY`) ne retient ni `title` ni `reopen_reason`, textes libres d'un participant.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| conversation_id | FK conversations | | | Le fil où il est né (`cascadeOnDelete`) |
+| source_message_id | FK messages | oui | null | Le message d'où il a été noté (`nullOnDelete`) |
+| object_type | string(40) | oui | null | Clé du registre `SujetsDuFil` — lien générique, sans clé étrangère |
+| object_id | unsigned bigint | oui | null | Identifiant de l'objet visé (casté `integer`) |
+| agency_id | FK agencies | | | L'agence du fil à la création (`cascadeOnDelete`) |
+| holder_id | FK users | | | Le porteur de la promesse (`cascadeOnDelete`) |
+| beneficiary_id | FK users | oui | null | Envers qui ; nul = l'agence (`nullOnDelete`) |
+| created_by_id | FK users | oui | null | Qui l'a noté (`nullOnDelete`) |
+| title | string(160) | | | Ce qui est promis |
+| due_at | timestamp | | | L'échéance |
+| status | string(20) | | | `CommitmentStatus` : `proposed` (noté par le personnel pour un autre, attend le porteur), `open`, `kept`, `cancelled` |
+| confirmed_at | timestamp | oui | null | Confirmation par le porteur |
+| kept_at / kept_by_id | timestamp / FK users | oui | null | Tenu, et par qui (`nullOnDelete`) |
+| cancelled_at / cancelled_by_id | timestamp / FK users | oui | null | Annulé, et par qui (`nullOnDelete`) |
+| cancel_reason | string(40) | oui | null | Un CODE : `by_author`, `by_staff`, `object_closed` |
+| reopened_at / reopened_by_id | timestamp / FK users | oui | null | Réouverture, et par qui (`nullOnDelete`) |
+| reopen_reason | string(500) | oui | null | Texte libre de la réouverture |
+| party_reopened_at | timestamp | oui | null | Réouverture par la partie bénéficiaire |
+| overdue_at | timestamp | oui | null | L'historique du retard, lu par la fiabilité (TCK-2971) ; **ne tombe jamais** |
+| due_soon_sent_at | timestamp | oui | null | Marqueur du signal planifié (`commitments:signal`) : rappel d'approche envoyé |
+| overdue_signalled_at | timestamp | oui | null | Marqueur : retard signalé |
+| relances | unsigned smallint | | 0 | Marqueur : nombre de relances |
+| last_relance_at | timestamp | oui | null | Marqueur : dernière relance |
+| check_requested_at | timestamp | oui | null | Marqueur de la question « Tenu ? » (TCK-2970, `2026_11_19_297001`) : posée une heure après l'échéance d'un engagement `open` qui a un bénéficiaire, une fois par échéance |
+| created_at / updated_at | timestamp | | auto | |
+
+**Casts :** `status` → `CommitmentStatus` ; `object_id`, `relances` → `integer` ; tous les instants → `datetime`.
+**Index :** `commitments_conversation_status_due_idx` `(conversation_id, status, due_at)` ; `commitments_holder_agency_due_idx` `(holder_id, agency_id, due_at)` ; `commitments_object_idx` `(object_type, object_id)` ; `commitments_agency_status_idx` `(agency_id, status)` (`agency_id` en tête : `AgencyIdIsIndexedTest`). Index et clés étrangères nommés explicitement.
+
+**État dérivé (`etat()`).** « En retard » n'est pas un statut : `proposed`, `open`, `late` (`status = open` et `due_at` passé, jugé à l'instant), `kept`, `cancelled` — ce que lisent la carte, la liste, la boîte et la fiabilité.
+**Marqueurs du signal (`MARQUEURS_DU_SIGNAL`).** Un changement de `due_at` les remet à zéro (`booted`, comme `Task`) ; `overdue_at` n'y est pas.
+**Question « Tenu ? » (`questionTenuOuverte()`).** Ouverte quand `status = open`, `check_requested_at` posé et que la dernière trace de l'engagement au fil est la question `commitment.check_requested`, pas un code qui la clôt.
+
+**Relations :** `conversation()`, `sourceMessage()` (via `source_message_id`), `agency()` → belongsTo ; `holder()`, `beneficiary()`, `createdBy()` → belongsTo User.
+
+---
+
+### 134. MessageRelay 🆕
+
+**Table :** `message_relays` (`2026_11_19_298001`, TCK-2980)
+**Modèle :** `App\Models\MessageRelay` (`AbstractModel`) — `phone` dans `$hidden` ; les quatre instants en `datetime`
+**Description :** La trace de chaque passage par le pont de messagerie ([ADR-0132](adr/0132-le-pont-whatsapp-et-sms-relaie-le-fil-et-les-liens-d-action-font-un-geste.md) § 1, § 4) : un message reçu (`direction = in`) ou envoyé (`out`) sur un canal. Écrit par le pont seul ; aucune route ne le crée ni ne le lit dans TCK-2980.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| purpose | string(20) | | | `message` (un message du fil, reçu ou relayé), `invitation` (TCK-2981), `action_link` (TCK-2982), `digest` (TCK-2985) |
+| direction | string(3) | | | `in` ou `out` |
+| message_id | FK messages | oui | null | `cascadeOnDelete` |
+| conversation_id | FK conversations | oui | null | `nullOnDelete` |
+| agency_id | FK agencies | oui | null | `nullOnDelete`, indexé (`AgencyIdIsIndexedTest`) |
+| user_id | FK users | oui | null | `nullOnDelete` |
+| customer_id | FK customers | oui | null | `nullOnDelete` |
+| property_contact_lead_id | FK property_contact_leads | oui | null | `nullOnDelete` |
+| channel | string(20) | oui | null | Identifiant du pilote (`whatsapp`, `sms`…), chaîne libre (ADR-0007) ; **nul quand rien n'a pu partir** (aucun canal, TCK-2981) |
+| form | string(20) | oui | null | |
+| template | string(100) | oui | null | |
+| phone | string(20) | oui | null | E.164, **effacé 90 jours après l'envoi** (`pont:effacer-numeros`, la ligne reste) ; **rendu par aucune ressource** |
+| business_number_id | string(64) | oui | null | Numéro d'entreprise utilisé |
+| provider_message_id | string(128) | oui | null | Identifiant chez le fournisseur : clé d'idempotence du webhook et cible de `context.id` |
+| status | string(20) | | | Constantes `STATUS_*` : `recu` (message reçu) ; TCK-2981 : `envoye`, `remis`, `lu`, `echec`, `en_attente_accord` (message du personnel écrit avant l'accord), `repris` (repris à l'accord, son envoi a son propre relais), `accepte` (invitation acceptée par le bouton), `non_envoye` (aucun canal disponible) |
+| failure_reason | string(255) | oui | null | |
+| sent_at / delivered_at / read_at / failed_at | timestamp | oui | null | |
+| created_at / updated_at | timestamp | | auto | |
+
+**Index :** unique partiel `message_relays_provider_message_unique` `(channel, provider_message_id) WHERE provider_message_id IS NOT NULL` (idempotence quand le fournisseur rejoue ; index SQL brut) ; `message_relays_phone_business_idx` `(phone, business_number_id, direction, created_at)` (dernier relais vers un numéro, fenêtre de 24 h) ; `message_relays_conversation_user_idx` `(conversation_id, user_id)` ; `message_relays_message_idx` `(message_id)` ; `message_relays_lead_idx` `(property_contact_lead_id)`.
+
+**Relations :** `message()`, `conversation()`, `user()` → belongsTo ; `lead()` → belongsTo PropertyContactLead (via `property_contact_lead_id`).
+
+---
+
+### 135. OwnerWeeklyDigest 🆕
+
+**Table :** `owner_weekly_digests` (`2026_11_19_298500`, TCK-2985)
+**Modèle :** `App\Models\OwnerWeeklyDigest` (`AbstractModel`) — `sent_at` en `datetime`
+**Description :** La trace du résumé du lundi envoyé à un bailleur : une ligne par (bailleur, agence, semaine ISO) ([ADR-0132](adr/0132-le-pont-whatsapp-et-sms-relaie-le-fil-et-les-liens-d-action-font-un-geste.md) § 6). Écrite par `App\Services\Owners\ResumeDuLundi` seul ; aucune route ne la lit. L'index unique est l'idempotence de `owners:weekly-digest` : relancée la même semaine, la commande n'envoie rien de plus.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Le bailleur (`cascadeOnDelete`) |
+| agency_id | FK agencies | | | L'agence (`cascadeOnDelete`) |
+| week | string(8) | | | La semaine résumée, `o-\WW` (ISO), lundi 00:00 → dimanche 23:59 heure de Dakar |
+| channel | string(32) | oui | null | Le canal effectif : l'identifiant d'un pilote du pont, ou `mail` |
+| sent_at | timestamp | oui | null | |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contrainte :** unique `(user_id, agency_id, week)`.
+**Index :** `(agency_id)` (`AgencyIdIsIndexedTest`).
+**Relations :** aucune déclarée sur le modèle.
+
+---
+
+### 136. ActionLink 🆕
+
+**Table :** `action_links` (`2026_11_19_298201`, TCK-2982)
+**Modèle :** `App\Models\ActionLink` (`AbstractModel`, `HasFactory`) — **pas** `Auditable` : rien de ce qui touche au jeton n'entre dans `activity_log` ; `token_hash` et `phone` dans `$hidden`
+**Description :** Le lien d'action signé ([ADR-0132](adr/0132-le-pont-whatsapp-et-sms-relaie-le-fil-et-les-liens-d-action-font-un-geste.md) § 5) : un geste, sur un objet, pour un compte, une fois, 7 jours. Seule l'empreinte du jeton est en base (`LiensDAction::empreinte()`, SHA-256 hexadécimal) : le clair n'existe que dans le message envoyé.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| token_hash | char(64) | | | Empreinte du jeton, unique (`action_links_token_hash_unique`) |
+| gesture | string(40) | | | Le geste que le lien accomplit |
+| subject_type | string(40) | | | Clé du registre `SujetsDuFil`, sans clé étrangère (lien générique) |
+| subject_id | unsigned bigint | | | Identifiant de l'objet (casté `integer`) |
+| user_id | FK users | | | Le compte pour qui le lien est émis (`cascadeOnDelete`) |
+| phone | string(20) | oui | null | Le numéro qui l'a reçu ; effacé 90 jours après l'expiration (`pont:effacer-numeros`) |
+| message_id | FK messages | oui | null | `nullOnDelete` |
+| message_relay_id | FK message_relays | oui | null | `nullOnDelete` |
+| expires_at | timestamp | | | |
+| opened_at / used_at / revoked_at | timestamp | oui | null | Ouverture, usage, révocation |
+| created_at / updated_at | timestamp | | auto | |
+
+**Index :** unique `token_hash` ; `action_links_subject_idx` `(subject_type, subject_id)` ; `action_links_user_gesture_idx` `(user_id, gesture)` ; `action_links_message_id_idx` `(message_id)`.
+**État (`mort()`).** `null` pour un lien vivant ; sinon `used`, `revoked` ou `expired`, dans cet ordre (constantes `ETAT_*`, dont `done` pour la page).
+**Relations :** `user()`, `message()` → belongsTo (pas de relation déclarée vers `message_relays`).
+
+---
+
+## Enums
 
 - [Enums](#enums-1)
 
@@ -650,6 +783,8 @@ dans son type, défaut compris quand la clé est absente.
 | Clé | Type | Défaut (clé absente) | Lecteur |
 |-----|------|----------------------|---------|
 | `watermark_enabled` | bool | `true` | `AgencyWatermarkContext` (filigrane des photos, TCK-539) |
+| `copilot_enabled` | bool | `true` | `ReglagesDuCopilote::etat()` — l'agence coupe le copilote du Fil pour toute son équipe (raison `agence`) ; elle ne peut qu'éteindre ce que la plateforme sert (`ai_usage_settings` des usages `fil.*`). L'écran lit `ai_platform` dans `AgencyResource`, pour qui peut mettre l'agence à jour (TCK-2979, [ADR-0131](adr/0131-le-copilote-du-fil-propose-au-personnel-et-n-envoie-rien.md) § 8) |
+| `voice_transcription_enabled` | bool | `true` | Idem pour la transcription des notes vocales (fonction `transcription`) (TCK-2979) |
 | `watermark_position` | `WatermarkPosition` | `WatermarkPosition::default()` | `AgencyWatermarkContext` |
 | `watermark_opacity` | int, 10-100 | 60 | `AgencyWatermarkContext` |
 | `require_team_two_factor` | bool | `false` | `TwoFactorRequirement`, `RequireTwoFactor`, `ProtectedActions` — 2FA exigée du personnel (TCK-589) |
@@ -1832,6 +1967,9 @@ voies peut n'identifier personne.
 | property_id | FK properties | oui | null | Bien lié à la discussion (`nullOnDelete`) |
 | lease_id | FK leases | oui | null | Bail lié à la discussion (`nullOnDelete`) |
 | maintenance_request_id | FK maintenance_requests | oui | null | Demande de maintenance liée (`nullOnDelete`, FK posée par `2026_04_17_160033`) (remplace le morphOne côté MaintenanceRequest) |
+| subject_type | string(40) | oui | null | **Le sujet du fil** (TCK-2957, ADR-0128 § 1) : une CLÉ du registre fermé `App\Services\Messaging\SujetsDuFil` (`maintenance_request`, `lease`, `booking`), jamais un nom de classe. ⚠ À ne pas confondre avec `subject` (le titre). Les trois clés `property_id`, `lease_id`, `maintenance_request_id` restent et gardent leur sens de contexte. La reprise (`2026_11_18_295701`) a donné à tout fil portant `maintenance_request_id` le sujet de cette demande, directes comprises |
+| subject_id | unsigned bigint | oui | null | Identifiant de l'objet sujet. **Sans clé étrangère** (lien générique) : l'observateur `FermeLeFilDeSonObjet` ferme le fil d'un objet supprimé |
+| assigned_to_id | FK users | oui | null | **Fil confié** (TCK-2967, ADR-0128 § 7) : la personne de l'agence qui suit une salle ou un groupe (`conversations_assigned_to_id_fk`, `nullOnDelete`). Jamais posée sur le fil d'un prospect, qui suit le contact principal du bien (ADR-0068). Ne vaut que tant que la personne confiée est personnel actif de l'agence du fil et participante active |
 | type | ConversationType | | 'direct' | Type — les six valeurs de `app/Models/Enums/ConversationType.php` : direct, group, booking, lease, property, support |
 | status | ConversationStatus | | 'active' | Statut (active, archived, closed) |
 | created_by | FK users | | | Initiateur de la conversation (FK sans `onDelete` : la suppression physique d'un utilisateur qui a ouvert une conversation est refusée) — ⚠ sans suffixe `_id` |
@@ -1853,8 +1991,13 @@ voies peut n'identifier personne.
   `joined_at`, `left_at`, `archived_at`
 - `messages()` → hasMany Message
 - `lastMessage()` → belongsTo Message (via last_message_id) 🆕
+- `assignedTo()` → belongsTo User (via assigned_to_id) 🆕 (TCK-2967)
 
-**Index :** `conversations_parent_index` `(property_id, lease_id, maintenance_request_id)`.
+**Index :** `conversations_parent_index` `(property_id, lease_id, maintenance_request_id)` ; `conversations_subject_idx` `(subject_type, subject_id)` (TCK-2957) ; `conversations_assigned_to_id_idx` `(assigned_to_id)` (TCK-2967) ; **`conversations_salle_unique`**, unique partiel sur `(subject_type, subject_id)` `WHERE type IN ('lease','booking') AND subject_type IN ('lease','booking') AND deleted_at IS NULL` (TCK-2960, `2026_11_18_296001`) : **une seule salle par bail et par réservation**. Il ne vise pas « tout fil qui porte un sujet » : une directe ou un groupe d'une même intervention, ou un groupe au sujet `booking`, n'est pas une salle. La création passe par `insertOrIgnore` puis relecture (jamais de `try/catch` sur la violation, piège PostgreSQL n° 1).
+
+**Salles (TCK-2960, ADR-0128 § 2).** `SallesDuFil` tient un fil par bail (`type = lease`, sujet `lease:<id>`, membres : le compte du locataire, le bailleur désigné, l'agent attribué) et par réservation (`type = booking`, sujet `booking:<id>`, membres : le compte du candidat et le contact principal actuel du bien). Les membres se synchronisent à l'ouverture, sous verrou de ligne, par le modèle de pivot (donc avec les signaux temps réel) ; `title` (`subject`) reste nul, le front nomme la salle depuis son objet. Un bail fini garde la lecture et perd l'écriture.
+
+**Fermeture :** la suppression de l'objet sujet ferme le fil (`ConversationStatus::Closed`, observateur `FermeLeFilDeSonObjet`, branché sur les trois types sujets) ; la restauration de l'objet le rouvre (`Active`).
 
 ---
 
@@ -1874,11 +2017,15 @@ voies peut n'identifier personne.
 | joined_at | datetime | | now | Date d'ajout à la conversation (distinct de `created_at` : utile si un participant quitte puis est réajouté) |
 | left_at | datetime | oui | null | Date de départ (si quitté) |
 | archived_at | timestamp | oui | null | Conversation archivée **pour ce participant** (`2026_04_22_000002`) ; lue en pivot par `Conversation::participants()` |
+| snoozed_until | timestamp | oui | null | « Rappelez-le-moi » : jusqu'à quand le fil sort des files du lecteur (TCK-2967, `2026_11_18_296700`). Propre à la ligne du participant ; dans le futur, la file `rappel` prime sur toute autre |
+| handled_at | timestamp | oui | null | « Traité » : le fil quitte « À vous » jusqu'au prochain message compté ou événement attendu, **strictement postérieur** à cet instant (TCK-2967). Propre au participant |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
 **Contrainte :** unique(conversation_id, user_id)
 **Index :** `conversation_participants_user_archived_index (user_id, archived_at)` (`2026_04_22_000002`).
+
+**Signaux temps réel (TCK-2955, trait `EmetDesSignaux`).** Un changement de participation (ajout, retour, départ `left_at`, `role`) émet `participants.updated` sur le fil et `boite.updated` à la seule personne concernée, après le COMMIT.
 
 **Relations :**
 - `conversation()` → belongsTo Conversation
@@ -1897,17 +2044,24 @@ voies peut n'identifier personne.
 | conversation_id | FK conversations | | | Conversation parente (`cascadeOnDelete`) |
 | sender_id | FK users | oui | null | Expéditeur — **nullable** depuis `2026_04_24_120000_make_messages_sender_id_nullable_for_system` : un avis `system` n'a pas d'expéditeur ; `nullOnDelete` |
 | content | text | | | Contenu du message (NOT NULL). Pour une note vocale, un aperçu neutre traduit (`messaging.audio_preview`) qui sert à la liste des conversations |
-| type | MessageType | | 'text' | Type — les cinq valeurs de `app/Models/Enums/MessageType.php` : text, image, document, system, **audio** (note vocale, TCK-592, [ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)). Un participant n'écrit que `text` ou `audio` (`SendMessageConversationRequest::PARTICIPANT_TYPES`) ; **TCK-2631 lui ouvre aussi `image` et `document` : une pièce par message dans la collection privée `attachments` (photo jpeg, png ou webp ≤ 8 Mo, métadonnées EXIF retirées ; PDF ≤ 10 Mo), servie par URL signée aux seuls participants actuels** ; `system` est réservé à `SystemMessageFactory` |
-| metadata | jsonb | oui | null | Métadonnées — pour `audio` : `{"duration": <secondes déclarées>}` |
+| type | MessageType | | 'text' | Type — les sept valeurs de `app/Models/Enums/MessageType.php` : text, image, document, system, **audio**, **card**, **event** (TCK-2958, voir ci-dessous) (note vocale, TCK-592, [ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)). Un participant n'écrit que `text` ou `audio` (`SendMessageConversationRequest::PARTICIPANT_TYPES`) ; **TCK-2631 lui ouvre aussi `image` et `document` : une pièce par message dans la collection privée `attachments` (photo jpeg, png ou webp ≤ 8 Mo, métadonnées EXIF retirées ; PDF ≤ 10 Mo), servie par URL signée aux seuls participants actuels** ; `system` est réservé à `SystemMessageFactory` |
+| visibility | string(10) | | 'all' | **`all` ou `team`** (`App\Models\Enums\MessageVisibility`, TCK-2965, `2026_11_18_296500`). `team` = la **note d'équipe** : lue des seuls participants actifs qui sont du personnel de l'agence du fil (et d'un super-admin) ; ni liste, ni non-lu, ni file de pilotage, ni recherche, ni notification (hors @mention), ni aperçu. Chaîne et non `enum()` SQL (ADR-0007) |
+| metadata | jsonb | oui | null | Métadonnées — pour `audio` : `{"duration": <secondes déclarées>}` ; pour `card` et `event` : forme fermée `{object: {type, id}, code, data}` (+ `action_for`, liste des comptes dont un geste est attendu, jamais rendue au lecteur) ; **`mentions`** : identifiants de compte mentionnés, dix au plus (TCK-2966) |
+| channel | string(20) | | 'app' | Par où le message est arrivé : `app` (défaut, valeur de tout message d'avant le pont) ou l'identifiant d'un pilote du pont (`whatsapp`…, `config/pont.php`). **Chaîne libre** contrôlée par l'application (ADR-0007), jamais un `enum()` SQL : un canal neuf est une entrée de config, pas une migration. Jamais lue d'une requête : seul le pont la pose (`ConversationWriter::post`). Hors du document de recherche (`2026_11_19_298000`, TCK-2980, [ADR-0132](adr/0132-le-pont-whatsapp-et-sms-relaie-le-fil-et-les-liens-d-action-font-un-geste.md) § 0, § 1) |
 | deleted_at | timestamp | oui | null | Soft delete |
 | created_at | timestamp | | auto | |
 | updated_at | timestamp | | auto | |
 
-**Index :** `(conversation_id, created_at)`.
+**Index :** `(conversation_id, created_at)` ; `messages_conversation_visibility_idx` `(conversation_id, visibility, id)` (TCK-2965, sert le filtre de la page des messages).
+
+**Cartes et événements (TCK-2958, ADR-0128 § 3).** `card` : un participant pose un objet (bien partagé `property.shared`, visite proposée `visit.proposed`) par `POST /api/conversations/{c}/cards` (`object.type` parmi les types « posables » de `SujetsDuFil`, `object.id`). `event` : la plateforme écrit qu'un objet a changé (sans auteur, immuable comme un avis système). `content` de tout `system`, `event` et `card` est un **CODE neutre** (`MessageType::aContenuCode()`), jamais un texte : le front compose le libellé (principe n° 5). Les codes et leur forme se lisent dans `CodesDuFil::catalogue()` (intervention, `lease_payment.*`, `lease.*`, `inventory.*`, `visit.*`, `booking.confirmed`…). `EvenementsDuFil` est le seul à les écrire ; `FilDeLObjet` les adresse au fil de l'objet, après le COMMIT. La carte est relue pour chaque lecteur par sa projection (`ObjetsDesMessages`) ; un objet qu'il ne lit pas rend « indisponible ». Un `event` ne compte comme non lu que pour les comptes de son `action_for` (`NonLus`).
+
+**Reprise des avis d'intervention (`2026_11_18_295801`).** Tout message `system` d'événement `maintenance` devient un `event` (`maintenance.<cause>`, `maintenance.transition` à défaut), `content` = son code, `last_message_preview` recalculé. ⚠ **Cette migration efface le texte français des avis et `down()` ne le rend pas** : sauvegarde manuelle avant déploiement (`docs/deploiement/actions/2026-11-18-sauvegarder-avant-la-conversion-des-avis.md`), puis `php artisan messages:unindex-coded` (ces messages ne sont plus indexables).
 
 **Traits :**
 - `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `attachments` (pièces jointes ; le fichier d'une note vocale y est rangé, collection privée — ADR-0038 : formats, 2 Mo et 60 s au plus dans `App\Support\Media\VoiceNoteRules`, règle partagée avec les autres porteurs depuis TCK-2900, ADR-0113)
-- `Searchable` (Scout) — indexe `content` sous la clé `body` ; un message supprimé n'est pas indexé
+- `Searchable` (Scout) — indexe `content` sous la clé `body` ; un message supprimé, ou dont le type porte un code (`system`, `event`, `card`), n'est pas indexé ; la colonne `visibility` entre dans le document (`.search-shape` change, `release.sh` réimporte les index)
+- `EmetDesSignaux` — après le COMMIT : `message.created` / `message.updated` sur le fil, `boite.updated` aux seuls comptes concernés (TCK-2955, ADR-0129)
 
 **Note :** Le statut de lecture est déterminé en comparant `message.created_at` avec `conversation_participant.last_read_at`. Pas de colonne `read_at` sur le message lui-même.
 
@@ -5251,12 +5405,14 @@ ligne, la chaîne vient de `config/ai.php`
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| role | string(20) | | | `extraction`, `redaction`, `raisonnement`, `vision`, `embedding` — **unique** |
+| role | string(20) | | | `extraction`, `redaction`, `raisonnement`, `vision`, `embedding`, **`transcription`** (TCK-2976) — **unique** |
 | chain | jsonb | | | Liste ordonnée de `{provider, model, max_tokens}` ; ordre de bascule. `max_tokens` n'a pas de sens sur le rôle `embedding`, qui n'accepte qu'un fournisseur d'embeddings (`ai.provider_role_mismatch`, TCK-2423). Chaque maillon écrit nomme un fournisseur sélectionnable ; une ligne en base peut en nommer un devenu non sélectionnable, qui ne reçoit rien (TCK-2450) |
 | updated_by_id | FK users | oui | null | Dernier opérateur (`nullOnDelete`) |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** unique sur `role` (une chaîne par rôle).
+
+**Le rôle `transcription`** (TCK-2976, [ADR-0131](adr/0131-le-copilote-du-fil-propose-au-personnel-et-n-envoie-rien.md) § 7) transcrit une note vocale par `AiGateway::transcribe()` : aucun agent ni prompt, le fournisseur rend du texte. **Sa chaîne est vide par défaut** (`config('ai.roles.transcription') = []`) : tant qu'aucun fournisseur qui transcrit n'y est affecté, la fonction n'est pas servie (`ReglagesDuCopilote::etat()` rend `non_configuree`, aucun job, aucun appel, le fichier ne sort pas).
 
 ### 103. AiUsageSetting 🆕
 
@@ -5279,6 +5435,8 @@ catalogue `Flag` est fermé, et une clé hors catalogue y vaut faux.
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** unique sur `usage_key`.
+
+**Usages du copilote du Fil (`fil.*`, TCK-2974 à TCK-2979, [ADR-0131](adr/0131-le-copilote-du-fil-propose-au-personnel-et-n-envoie-rien.md)).** Cinq usages au catalogue `AiUsageRegistry`, tous de classe de donnée `personnelle`, sans cache, d'autorité la capacité d'agence `messaging.copilot` jugée pour l'agence du fil (`AiAuthority`) : `fil.resume` (rôle `redaction`), `fil.question` (`redaction`), `fil.brouillon` (`redaction`, entrée sans notes d'équipe), `fil.promesses` (`extraction`, entrée sans notes d'équipe), `fil.transcription` (rôle `transcription`, ni agent ni contenu externe). Les quatre premiers lisent du contenu externe (`ExternalContent::wrap()`). Plafond du jour par défaut 1,00 $ (0,50 $ pour la transcription), réglable ici. `ReglagesDuCopilote` est le seul point qui dit si une fonction est servie : l'interrupteur et le modèle forcé de la ligne `fil.*` (raison `plateforme`), le rôle `transcription` vide (`non_configuree`), puis les réglages `copilot_enabled` et `voice_transcription_enabled` de l'agence (`agence`).
 
 **Les autres plafonds ne sont pas en base.** Le plafond **global journalier** et le plafond **par
 agence** vivent en configuration (`ai.budgets.daily_global_usd`, lu de `AI_DAILY_BUDGET_USD`, 8.33 $
@@ -5349,6 +5507,8 @@ production ; les corrections deviennent des cas d'évaluation (`ai:export-eval-c
 | created_at / updated_at | timestamp | | auto | |
 
 **Index :** `ai_suggestions_usage_decision_idx (usage_key, decision)` — le taux d'acceptation par usage.
+
+**Usages `fil.*` (TCK-2974 à TCK-2976, aucune colonne ajoutée).** Écrite par `SuggestionRecorder::record()` : `fil.resume` (sujet = le fil, `input_snapshot` nul, la fenêtre résumée en `proposal`), `fil.question` et `fil.brouillon` (sujet = le fil), `fil.promesses` (**une ligne par promesse**, chacune décidée seule ; un message déjà source d'un engagement n'entre pas), `fil.transcription` (sujet = le message, `proposal = {texte, langue}`, **une par message, partagée par le personnel** ; sert d'état « prête » à `TranscriptionsDuFil`). Décision par `PUT /api/copilote/suggestions/{id}/decision` : `accepted`, `edited` (avec `final`, différentiel gardé) ou `rejected`, une fois, **par le seul demandeur** (`ai_calls.actor_id`) ; rien n'est écrit dans le fil par la décision. **Rétention** : `messaging:purge-copilot-proposals` (chaque nuit, 04:25 Dakar) vide à 30 jours les lignes `fil.%` — `proposal` remis à `[]`, `final_value`, `input_snapshot` et `correction_diff` à nul, la ligne gardée pour le taux d'acceptation (patron de `RadarPurger`) ; une proposition purgée ne se décide plus (410).
 
 ### 106. AiEvaluationRun 🆕
 
@@ -6558,7 +6718,9 @@ Index : `(user_id, document)`.
 | **CommissionCancelReason** 🆕 (TCK-2661) | lease_terminated_before_move_in, wrong_beneficiary, wrong_rate_or_base, other | [CommissionEntry.cancel_reason_code](#85-commissionentry-) |
 | **ConversationType** | direct, group, booking, lease, property, **support** | Conversation.type — *aligné sur `app/Models/Enums/ConversationType.php`, mesuré le 2026-08-16 (R7 de la passe 009)* |
 | **ConversationStatus** | active, archived, closed | Conversation.status |
-| **MessageType** | text, image, document, system, **audio** | Message.type — `audio` : note vocale, fichier dans la collection privée `attachments` (TCK-592, ADR-0038) |
+| **MessageType** | text, image, document, system, **audio**, **card**, **event** | Message.type — `audio` : note vocale, fichier dans la collection privée `attachments` (TCK-592, ADR-0038) ; `card` : objet posé dans un fil ; `event` : ce qui arrive à un objet, écrit par la plateforme (TCK-2958, ADR-0128 § 3) |
+| **MessageVisibility** | all, team | Message.visibility — `team` : note d'équipe (TCK-2965, ADR-0128 § 6) |
+| **CommitmentStatus** 🆕 | proposed, open, kept, cancelled | [Commitment.status](#133-commitment-) — statut STOCKÉ ; « en retard » n'en est pas un, `Commitment::etat()` le dérive (TCK-2969, ADR-0130 § 1) |
 | **MaintenanceCategory** | plumbing, electrical, structural, appliance, painting, cleaning, pest_control, locksmith, other | MaintenanceRequest.category |
 | **MaintenancePriority** | low, **normal**, high, urgent | MaintenanceRequest.priority — `medium` renommé `normal`, données et défaut (`2026_04_26_013446`) |
 | **MaintenanceStatus** | open, acknowledged, **quote_requested, quote_submitted, awaiting_owner, approved, rejected**, assigned, in_progress, completed, closed, cancelled | MaintenanceRequest.status — circuit du devis (TCK-592, ADR-0037) |

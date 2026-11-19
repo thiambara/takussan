@@ -3,11 +3,16 @@
 use App\Http\Controllers\Api\ConversationCardController;
 use App\Http\Controllers\Api\ConversationContextController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\ConversationCopiloteController;
 use App\Http\Controllers\Api\ConversationParticipantController;
 use App\Http\Controllers\Api\ConversationPilotageController;
 use App\Http\Controllers\Api\ConversationReportController;
 use App\Http\Controllers\Api\ConversationRoomController;
+use App\Http\Controllers\Api\CopiloteSuggestionController;
+use App\Http\Controllers\Api\MessageTranscriptionController;
 use App\Http\Controllers\Api\MessagingContactController;
+use App\Http\Controllers\Api\PontInvitationController;
+use App\Services\Messaging\Copilote\SortesDuCopilote;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -27,6 +32,29 @@ Route::middleware('auth:sanctum')->group(function () {
     // l'ordre des littérales est la règle du fichier).
     Route::post('conversations/rooms', [ConversationRoomController::class, 'store'])->name('conversations.rooms.store');
     Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
+    // TCK-2974 (ADR-0131 § 3) — le copilote du fil : l'état du lecteur par sorte, et une demande (`202`, job de
+    // la file `ai`). Troisième segment `copilote` : aucune littérale `conversations/…/…` ne la masque. `{sorte}`
+    // est la liste fermée de `SortesDuCopilote`.
+    // TCK-2981 (ADR-0132 § 3) — « Joindre par WhatsApp » : l'invitation (ou le joint d'emblée). Troisième segment
+    // littéral `pont` ; aucune route « relayer ».
+    Route::post('conversations/{conversation}/pont/invitations', [PontInvitationController::class, 'store'])
+        ->middleware('throttle:pont-invitation')
+        ->name('conversations.pont.invitations.store');
+    Route::get('conversations/{conversation}/copilote', [ConversationCopiloteController::class, 'etat'])
+        ->name('conversations.copilote.show');
+    Route::post('conversations/{conversation}/copilote/{sorte}', [ConversationCopiloteController::class, 'demander'])
+        ->whereIn('sorte', SortesDuCopilote::sortes())
+        ->middleware('throttle:conversation-message')
+        ->name('conversations.copilote.store');
+    // TCK-2975 (ADR-0131 § 3) — la décision du DEMANDEUR sur une proposition du copilote (sinon 404 ; purgée : 410).
+    Route::put('copilote/suggestions/{suggestion}/decision', [CopiloteSuggestionController::class, 'decider'])
+        ->where('suggestion', '[0-9]{1,18}') // un bigint, jamais au-delà (IdentifiantsDeRouteHorsBigintTest)
+        ->name('copilote.suggestions.decision');
+    // TCK-2976 (ADR-0131 § 7) — la transcription d'une note vocale (personnel servi par le copilote ; sinon 404).
+    Route::post('conversations/{conversation}/messages/{message}/transcription', [MessageTranscriptionController::class, 'store'])
+        ->where('message', '[0-9]{1,18}') // TCK-2976 — un bigint, jamais au-delà
+        ->middleware('throttle:conversation-message')
+        ->name('conversations.messages.transcription.store');
     // TCK-2630 — la colonne de contexte d'un fil : bien, bail, intervention, fiche CRM (personnel).
     // Trois segments comme les littérales `conversations/context/…` de TCK-576, mais le troisième
     // est `context` : aucune ne la masque, et elle n'en masque aucune.

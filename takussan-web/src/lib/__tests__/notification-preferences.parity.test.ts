@@ -30,7 +30,15 @@ function evenementsDuBack(php: string): string[] {
   const sansCommentaires = php.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
   const bloc = /public const EVENTS = \[([\s\S]*?)\];/.exec(sansCommentaires);
   expect(bloc, `« public const EVENTS = [ … ]; » introuvable dans ${RESOLVER}`).not.toBeNull();
-  const evenements = [...(bloc as RegExpExecArray)[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+  // TCK-2983 — un événement peut s'écrire par sa constante (`self::OWNER_WEEKLY_DIGEST`, TCK-2985) :
+  // lue entre quotes seulement, la liste le perdait, et la garde restait verte sur un écart.
+  const constantes = new Map([...sansCommentaires.matchAll(/const ([A-Z_]+) = '([a-z_]+)';/g)].map((m) => [m[1], m[2]] as const));
+  const evenements = [...(bloc as RegExpExecArray)[1].matchAll(/'([a-z_]+)'|self::([A-Z_]+)/g)].map((m) => {
+    if (m[1]) return m[1];
+    const valeur = constantes.get(m[2]);
+    expect(valeur, `constante self::${m[2]} introuvable dans ${RESOLVER}`).toBeDefined();
+    return valeur as string;
+  });
   expect(evenements.length, 'aucun événement extrait — la garde n’aurait rien vérifié').toBeGreaterThan(0);
   return evenements;
 }
@@ -53,6 +61,11 @@ describe('parité des événements ↔ PreferenceResolver::EVENTS', () => {
       expect(groupeDe(e), e).toBe('leases');
     }
     expect(groupeDe('task_due_reminder')).toBe('alerts');
+  });
+
+  it('TCK-2983 — l’extraction lit les constantes (`self::…`) : le résumé du lundi en est, dans « Biens »', () => {
+    expect(evenementsDuBack(php)).toContain('owner_weekly_digest');
+    expect(GROUPES_DE_PREFERENCES.find((g) => (g.evenements as readonly string[]).includes('owner_weekly_digest'))?.cle).toBe('properties');
   });
 
   it('l’extraction ne prend ni CRITICAL_EVENTS ni les listes mobiles', () => {

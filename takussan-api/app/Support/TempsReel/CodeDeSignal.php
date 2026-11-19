@@ -16,4 +16,6 @@ enum CodeDeSignal: string
     case ParticipantsUpdated = 'participants.updated';
     case BoiteUpdated = 'boite.updated';
     case NotificationsUpdated = 'notifications.updated';
+    // TCK-2974 (ADR-0131 § 3) — une proposition du copilote est prête, refusée ou en échec : au SEUL demandeur.
+    case CopiloteUpdated = 'copilote.updated';
 }

@@ -3865,7 +3865,8 @@
         "groupes": "Groupes",
         "vous": "À vous",
         "attente": "En attente",
-        "rappel": "Rappels"
+        "rappel": "Rappels",
+        "retard": "Retard"
       },
       "personnes": "{n, plural, one {# personne} other {# personnes}}",
       "intervention": "Intervention",
@@ -4261,6 +4262,19 @@
         "proposed": "Une visite est proposée le {date}.",
         "rescheduled": "Un autre moment a été proposé pour la visite : le {date}.",
         "cancelled": "La visite a été annulée."
+      },
+      "commitment": {
+        "noted": "Engagement noté",
+        "confirmed": "Engagement confirmé",
+        "due_soon": "Rappel : l’échéance de l’engagement approche",
+        "overdue": "L’engagement est en retard",
+        "reminded": "Relance : l’engagement est en retard",
+        "rescheduled": "Engagement reporté au {date}",
+        "kept": "Engagement tenu",
+        "reopened": "Engagement rouvert : ce n’est pas fait",
+        "cancelled": "{motif, select, object_closed {Engagement annulé : l’objet est clos} other {Engagement annulé}}",
+        "check_requested": "« Tenu ? » demandé",
+        "not_kept_yet": "Pas encore tenu"
       }
     },
     "salle": {
@@ -4406,12 +4420,14 @@
         "nonLus": "Des messages que vous n’avez pas lus. Un fil lu peut rester « À vous ».",
         "vous": "Un geste vous est demandé.",
         "attente": "Vous avez répondu ; la balle est dans l’autre camp.",
-        "rappel": "Mis de côté : ils reviennent dans « À vous » à l’heure dite, ou dès que l’autre écrit."
+        "rappel": "Mis de côté : ils reviennent dans « À vous » à l’heure dite, ou dès que l’autre écrit.",
+        "retard": "Une promesse qu’on vous doit n’a pas été tenue."
       },
       "etiquette": {
         "vous": "À vous",
         "attente": "En attente",
-        "rappel": "Rappel"
+        "rappel": "Rappel",
+        "retard": "Retard"
       },
       "delai": {
         "minutes": "depuis {n} min",
@@ -4465,9 +4481,278 @@
         "rappel": "Aucun rappel",
         "rappelAide": "« Rappelez-le-moi » met un fil de côté jusqu’à l’heure choisie.",
         "nonLus": "Tout est lu",
-        "nonLusAide": "Les nouveaux messages apparaîtront ici."
+        "nonLusAide": "Les nouveaux messages apparaîtront ici.",
+        "retard": "Aucun retard",
+        "retardAide": "Une promesse prise dans le fil n’a pas été tenue."
       },
-      "sousTitre": "{gestes, plural, one {# geste attendu} other {# gestes attendus}} · {n, plural, one {# conversation} other {# conversations}}"
+      "sousTitre": "{gestes, plural, one {# geste attendu} other {# gestes attendus}} · {n, plural, one {# conversation} other {# conversations}}",
+      "engagement": {
+        "de": "{nom} : « {titre} »",
+        "sansNom": "« {titre} »",
+        "vous": "Vous aviez prévu : « {titre} »",
+        "enRetard": "{promesse} · {jours} j de retard"
+      }
+    },
+    "copilote": {
+      "assistant": "Assistant",
+      "ouvrir": "Demander au fil",
+      "indisponible": "Assistant indisponible",
+      "proposeParLAssistant": "Proposé par l’assistant",
+      "pourVousSeul": "Visible par vous seulement · rien n’est envoyé",
+      "utile": "Utile",
+      "pasUtile": "Pas utile",
+      "merci": "Merci pour votre avis",
+      "nouveaux": "{count, plural, one {# nouveau message} other {# nouveaux messages}}",
+      "resume": {
+        "titre": "Ce que vous avez manqué · résumé de l’assistant",
+        "enCours": "L’assistant résume ce que vous avez manqué…",
+        "allerALaQuestion": "Aller à la question",
+        "lire": "{count, plural, one {Lire le message} other {Lire les # messages}}",
+        "renvoi": "Voir le message de {heure}"
+      },
+      "demander": {
+        "titre": "Demander au fil",
+        "fermer": "Fermer",
+        "votreQuestion": "Votre question",
+        "reponse": "Réponse de l’assistant",
+        "sources": "Sources",
+        "sourceMessage": "Message de {heure}",
+        "sourceObjet": "Objet du fil",
+        "versLeComposeur": "Mettre dans le composeur",
+        "perimetre": "L’assistant ne lit que ce fil et ses objets. La réponse n’est vue que par vous.",
+        "placeholder": "Posez une question sur ce fil…",
+        "autre": "Posez une autre question…",
+        "envoyer": "Demander",
+        "enCours": "L’assistant lit le fil…",
+        "echec": "L’assistant n’a pas pu répondre. Vous pouvez reposer la question."
+      },
+      "etat": {
+        "pause": {
+          "titre": "Assistant en pause jusqu’à demain",
+          "texte": "La limite du jour de l’assistant est atteinte. Il revient demain à 00:00. Messages, engagements et rappels fonctionnent normalement."
+        },
+        "coupeAgence": {
+          "titre": "Désactivé par l’agence",
+          "texte": "Votre agence a coupé l’assistant de la messagerie. Le reste de la messagerie n’est pas touché."
+        },
+        "coupePlateforme": {
+          "titre": "Désactivé",
+          "texte": "L’assistant de la messagerie est désactivé. Le reste de la messagerie n’est pas touché."
+        }
+      },
+      "transcription": {
+        "prete": "Transcription automatique",
+        "avertissement": "Peut contenir des erreurs · la note fait foi",
+        "enCours": "Transcription en cours…",
+        "indisponible": "Transcription indisponible",
+        "nonActivee": "La transcription n’est pas activée.",
+        "pause": "En pause jusqu’à demain.",
+        "desactivee": "Désactivée.",
+        "francaisSeulement": "Seules les notes en français sont transcrites.",
+        "echec": "La transcription a échoué."
+      },
+      "brouillon": {
+        "proposer": "Proposer une réponse",
+        "titre": "Brouillon de l’assistant · relisez avant d’envoyer",
+        "enCours": "L’assistant prépare un brouillon…",
+        "appuyeSur": "Appuyé sur :",
+        "jeter": "Jeter le brouillon",
+        "autre": "Proposer un autre brouillon",
+        "plusCourt": "Plus court",
+        "echec": "L’assistant n’a pas pu proposer de brouillon."
+      },
+      "appui": {
+        "lease": "Bail",
+        "lease_payment": "Paiement",
+        "commitment": "Engagement",
+        "message": "Message",
+        "autre": "Objet du fil"
+      },
+      "promesses": {
+        "titre": "{count, plural, one {Repéré par l’assistant · # élément} other {Repéré par l’assistant · # éléments}}",
+        "unePromesse": "Une promesse",
+        "porteurEtLibelle": "{porteur} · {libelle}",
+        "sansEcheance": "Sans échéance",
+        "noter": "Noter l’engagement",
+        "ecarter": "Écarter"
+      }
+    },
+    "engagements": {
+      "carte": {
+        "votre": "Votre engagement",
+        "de": "Engagement de {nom}",
+        "sansTitre": "Engagement",
+        "echeance": "Échéance : {quand}",
+        "enRetard": "{jours, plural, one {En retard de # jour} other {En retard de # jours}}",
+        "envers": "Envers {nom}",
+        "vous": "vous",
+        "enversLAgence": "Envers l’agence",
+        "question": "Une question pour vous : l’engagement de {nom} est-il tenu ?",
+        "ouiCEstFait": "Oui, c’est fait",
+        "pasEncore": "Pas encore",
+        "jeConfirme": "Je confirme",
+        "proposerUneAutreDate": "Proposer une autre date",
+        "accorderUneNouvelleDate": "Accorder une nouvelle date",
+        "cEstFait": "C’est fait",
+        "marquerTenu": "Marquer comme tenu",
+        "modifier": "Modifier",
+        "relancer": "Relancer maintenant",
+        "annuler": "Annuler l’engagement",
+        "pasFait": "Ce n’est pas fait",
+        "etat": {
+          "proposed": "À confirmer",
+          "open": "Ouvert",
+          "late": "En retard",
+          "kept": "Tenu",
+          "cancelled": "Annulé",
+          "question": "Tenu ?"
+        }
+      },
+      "feuille": {
+        "enregistrer": "Enregistrer",
+        "aQuoi": "À quoi",
+        "date": "Date",
+        "heure": "Heure",
+        "heureFacultative": "Facultative. Sans heure, l’échéance est la fin de la journée."
+      },
+      "reouverture": {
+        "titre": "Ce n’est pas fait",
+        "texte": "L’engagement sera rouvert. Ce droit ne sert qu’une fois.",
+        "motif": "Motif",
+        "aide": "Au moins {min} caractères.",
+        "envoyer": "Rouvrir l’engagement"
+      },
+      "noter": {
+        "geste": "Noter un engagement",
+        "gestesDuMessage": "Ce message",
+        "titre": "Noter un engagement",
+        "envoyer": "Noter l’engagement",
+        "depuis": "Depuis le message de {nom} · {heure}",
+        "porteur": "Qui s’engage",
+        "moi": "Vous",
+        "aQuoi": "À quoi",
+        "exemple": "Repasser changer le siphon",
+        "date": "Échéance",
+        "heure": "Heure",
+        "heureFacultative": "L’heure est facultative. Sans heure, l’échéance est la fin de la journée.",
+        "envers": "Envers",
+        "lAgence": "L’agence",
+        "rattache": "Rattaché à l’objet de ce fil."
+      },
+      "liste": {
+        "titre": "Engagements de ce fil",
+        "ouverts": "Ouverts · {n}",
+        "tenus": "Tenus · {n}",
+        "annules": "Annulés · {n}",
+        "sansTitre": "Engagement"
+      },
+      "fiabilite": {
+        "titre": "Fiabilité",
+        "compte": "{tenus, plural, one {# tenu} other {# tenus}} · {retard} en retard · sur 90 jours",
+        "visible": "Visible par l’équipe de l’agence seulement"
+      },
+      "onglet": {
+        "onglets": "Conversations et engagements",
+        "conversations": "Conversations",
+        "engagements": "Engagements",
+        "filtres": "Filtrer les engagements",
+        "puces": {
+          "tous": "Tous",
+          "owed": "On me doit",
+          "mine": "Les miens",
+          "tenus": "Tenus",
+          "annules": "Annulés"
+        },
+        "groupes": {
+          "retard": "En retard · {n}",
+          "aujourdhui": "Aujourd’hui · {n}",
+          "semaine": "Cette semaine · {n}",
+          "plusTard": "Plus tard · {n}",
+          "clos": "Clos · {n}"
+        },
+        "vide": "Aucun engagement",
+        "videAide": "Une promesse notée dans un fil apparaîtra ici.",
+        "sansTitre": "Engagement",
+        "depuisLeFil": "Depuis le fil « {fil} »",
+        "colonnes": {
+          "qui": "Qui s’engage",
+          "engagement": "Engagement",
+          "echeance": "Échéance",
+          "rattache": "Rattaché à",
+          "etat": "État"
+        },
+        "objets": {
+          "maintenance_request": "Intervention",
+          "lease": "Bail",
+          "booking": "Réservation",
+          "property": "Bien",
+          "lease_payment": "Échéance de loyer",
+          "property_visit": "Visite",
+          "inventory": "État des lieux"
+        }
+      }
+    },
+    "pont": {
+      "canal": {
+        "app": "dans Takussan",
+        "whatsapp": "par WhatsApp",
+        "sms": "par SMS",
+        "autre": "par une autre messagerie"
+      },
+      "quelquUn": "un participant",
+      "relais": {
+        "messageType": "en message type",
+        "etat": {
+          "autre": "en cours",
+          "en_attente_accord": "en attente d'accord",
+          "envoye": "envoyé",
+          "remis": "remis",
+          "lu": "lu",
+          "echec": "échec",
+          "non_envoye": "non envoyé"
+        },
+        "destinataire": "{nom} {canal}"
+      },
+      "lien": {
+        "envoye": "Lien envoyé à {heure}",
+        "ouvert": "ouvert à {heure}",
+        "fait": "fait à {heure}"
+      },
+      "fenetre": {
+        "ouverte": "{nom} lit sur WhatsApp, fenêtre ouverte jusqu'à {jusqua}.",
+        "fermee": "Fenêtre de 24 h fermée pour {noms}.",
+        "messageType": "Votre message partira en message type : un extrait, avec le nom de l'agence. Sa réponse rouvrira la fenêtre."
+      },
+      "panneau": {
+        "titre": "Participants et canaux",
+        "litDansTakussan": "Lit dans Takussan",
+        "fenetreOuverte": "fenêtre ouverte jusqu'à {jusqua}",
+        "fenetreFermee": "fenêtre fermée : vos messages partiront en message type",
+        "opposition": "WhatsApp coupé par la personne le {date}",
+        "invitationEnvoyee": "Invitation envoyée, en attente d'accord",
+        "joindre": "Joindre par WhatsApp",
+        "sansCompte": "Sans compte Takussan"
+      },
+      "refus": {
+        "not_participant": "Cette personne ne participe plus à ce fil.",
+        "no_phone": "Aucun numéro n'est connu pour cette personne.",
+        "invalid_phone": "Le numéro de cette personne n'est pas valide.",
+        "opted_out": "Cette personne a coupé WhatsApp : elle ne peut pas être jointe ainsi.",
+        "already_joined": "Cette personne est déjà jointe.",
+        "customer_not_in_room": "Ce client n'est pas dans ce fil.",
+        "numero_deja_a_un_compte": "Ce numéro appartient déjà à un autre compte.",
+        "inconnu": "L'invitation n'a pas pu partir. Réessayez."
+      },
+      "avis": {
+        "stop": "Une personne a coupé le relais {canal} : plus rien ne lui est relayé.",
+        "start": "Une personne a réactivé le relais {canal}.",
+        "accord": "Une personne a accepté d'être jointe {canal}.",
+        "media_non_relaye": "Une pièce reçue {canal} n'a pas été relayée dans le fil.",
+        "numero_deja_a_un_compte": "Le numéro de cette personne appartient déjà à un compte : rien n'a été joint."
+      },
+      "puce": {
+        "fenetreFermee": "fenêtre de 24 h fermée"
+      }
     }
   },
   "payments": {
@@ -9139,7 +9424,9 @@
       "surPlace": "Signé sur place, avec le code reçu par SMS",
       "surPlaceNumero": "Signé sur place, avec le code reçu au {numero}",
       "surPlaceParEtNumero": "Signé sur place devant {agent}, avec le code reçu au {numero}",
-      "parAuTitreDuMandat": "Signé par {nom}, au titre du mandat de gestion"
+      "parAuTitreDuMandat": "Signé par {nom}, au titre du mandat de gestion",
+      "parLien": "Signé depuis un lien, avec le code reçu par SMS",
+      "parLienNumero": "Signé depuis un lien, avec le code reçu au {numero}"
     },
     "signaturePad": {
       "label": "Signez ici",
@@ -9382,7 +9669,8 @@
           "valider": "Valider"
         },
         "reessayer": "Réessayer",
-        "signerAuTitreDuMandat": "Signer au titre du mandat"
+        "signerAuTitreDuMandat": "Signer au titre du mandat",
+        "signeParLien": "Signé depuis un lien à {heure}, avec le code reçu par SMS"
       }
     }
   },
@@ -10446,7 +10734,8 @@
         },
         "messaging": {
           "broadcast": "Envoyer une diffusion",
-          "archive": "Archiver une conversation"
+          "archive": "Archiver une conversation",
+          "copilot": "Se servir de l’assistant de la messagerie"
         },
         "reports": {
           "view_global": "Consulter les rapports plateforme",
@@ -11364,7 +11653,8 @@
           "membresSansDoubleFacteurAuMoins": "{n, plural, one {Au moins # membre sur {total} ne l’a pas encore activée} other {Au moins # membres sur {total} ne l’ont pas encore activée}}",
           "voirLEquipe": "Voir l’équipe",
           "demandeeLe": "Demandée le {date}",
-          "groupeVisites": "Visites"
+          "groupeVisites": "Visites",
+          "groupeAssistant": "Assistant de la messagerie"
         },
         "menu": {
           "titre": "Menu de l’équipe",
@@ -11378,6 +11668,20 @@
       "ownersConfirmVisits": {
         "label": "Les bailleurs confirment les visites de leurs biens",
         "hint": "Activé : le bailleur confirme une visite à confirmer de son bien, ou propose un autre créneau, depuis son accueil ; l’agent attribué en est prévenu. Désactivé : seule l’agence confirme les visites."
+      },
+      "assistant": {
+        "copilote": {
+          "label": "Assistant dans les conversations",
+          "hint": "Propose des résumés, des réponses et des engagements à votre équipe. Rien n'est envoyé sans elle."
+        },
+        "transcription": {
+          "label": "Transcription des notes vocales",
+          "hint": "Transcrit en texte les notes vocales reçues, pour votre équipe seulement."
+        },
+        "raison": {
+          "plateforme": "Coupé par la plateforme pour toutes les agences : vous ne pouvez pas le rallumer.",
+          "nonConfiguree": "Aucun service de transcription n'est encore configuré sur la plateforme."
+        }
       }
     },
     "users": {
@@ -14807,7 +15111,8 @@
             "redaction": "Rédaction",
             "raisonnement": "Raisonnement",
             "vision": "Vision",
-            "embedding": "Représentation sémantique"
+            "embedding": "Représentation sémantique",
+            "transcription": "Transcription des notes vocales"
           },
           "emptyChain": "Aucun modèle"
         },
@@ -14870,7 +15175,16 @@
           "budgetNoDefaultHint": "Aucun plafond par défaut — laisser vide pour ne pas en fixer.",
           "providersLoadError": "Les modèles disponibles n’ont pas pu être chargés : {message}",
           "budgetEquivalent": "≈ {xof}",
-          "budgetInvalid": "Saisissez un montant en dollars, en chiffres : 0,50 par exemple."
+          "budgetInvalid": "Saisissez un montant en dollars, en chiffres : 0,50 par exemple.",
+          "copilote": {
+            "fil": {
+              "resume": "Copilote · résumé",
+              "question": "Copilote · Demander au fil",
+              "brouillon": "Copilote · brouillon",
+              "promesses": "Copilote · promesses",
+              "transcription": "Copilote · transcription"
+            }
+          }
         },
         "providers": {
           "caption": "Fournisseurs autorisés",
@@ -16662,7 +16976,8 @@
         "boost": "Crédits et mise en avant",
         "rentals": "Location",
         "radar": "Radar",
-        "crm": "Relation client"
+        "crm": "Relation client",
+        "ai": "Intelligence artificielle"
       },
       "keys": {
         "currency": {
@@ -16800,6 +17115,12 @@
           "sell_directory_wide": {
             "label": "Vendre la place de l’annuaire sans ville",
             "description": "La place de l’annuaire sans filtre de ville, la plus vue. Fermée, elle reste offerte par l’équipe."
+          }
+        },
+        "ai": {
+          "daily_budget_per_agency_usd": {
+            "label": "Plafond IA du jour par agence (dollars)",
+            "description": "Dépense IA maximale de chaque agence par jour, tous usages confondus, en dollars US. Vide : aucun plafond par agence."
           }
         }
       },
@@ -17908,7 +18229,8 @@
         "invoice_reminder_sent": "Relance de facture",
         "tenant_inventory_reminder": "Rappel d’état des lieux d’entrée",
         "task_due_reminder": "Rappel de tâche",
-        "document_expiring": "Expiration de mes pièces"
+        "document_expiring": "Expiration de mes pièces",
+        "owner_weekly_digest": "Résumé du lundi de mes biens"
       },
       "channels": {
         "inapp": "Appli",
@@ -20353,6 +20675,12 @@
           "title": "État des lieux signé : bail {reference}",
           "body": "Le locataire et le bailleur ont signé l’état des lieux du bail {reference} pour {property}. Téléchargez son PDF depuis la fiche de l’état des lieux."
         }
+      },
+      "owner": {
+        "weekly_digest": {
+          "title": "Votre semaine avec {agency}",
+          "body": "{agency} — loyers encaissés : {paid_count} ({paid_total}). En retard : {late_count} ({late_total}). Interventions ouvertes : {maintenance_opened}, closes : {maintenance_closed}. Visites confirmées : {visits}."
+        }
       }
     },
     "history": {
@@ -21538,6 +21866,92 @@
       "uneFoisParSemaine": "Plutôt une fois par semaine",
       "hebdoFaitTitre": "Une fois par semaine, c’est noté",
       "hebdoFaitTexte": "Vous recevrez au plus un message par semaine. Chacun garde son lien de désinscription."
+    },
+    "action": {
+      "metaTitre": "Une action vous attend",
+      "mention": "Lien personnel",
+      "pied": "Ce lien ne sert qu’une fois, et pour un temps limité. Pour tout le reste, répondez à l’agence dans votre conversation WhatsApp.",
+      "refus": "Le geste n’a pas pu être fait. Votre lien reste valable : réessayez, ou répondez à l’agence sur WhatsApp.",
+      "erreur": "Ce lien n’a pas pu être ouvert. Vérifiez votre connexion, puis réessayez.",
+      "recap": {
+        "motif": "Motif",
+        "quartier": "Lieu",
+        "adresse": "Adresse",
+        "surPlace": "Sur place",
+        "bien": "Bien",
+        "contact": "Contact"
+      },
+      "gestes": {
+        "visite": {
+          "surtitre": "Visite",
+          "titre": "Confirmez-vous cette visite ?",
+          "bouton": "Confirmer la visite",
+          "fait": "La visite est confirmée : l’agence est prévenue."
+        },
+        "intervention": {
+          "surtitre": "Intervention",
+          "titre": "Acceptez-vous cette intervention ?",
+          "bouton": "Accepter l’intervention",
+          "fait": "L’intervention est acceptée : l’agence est prévenue.",
+          "adresseApres": "L’adresse exacte et la personne à demander sur place s’affichent une fois l’intervention acceptée."
+        },
+        "etatDesLieux": {
+          "surtitre": "État des lieux",
+          "titre": "Signez l’état des lieux",
+          "bouton": "Signer l’état des lieux",
+          "fait": "L’état des lieux est signé : l’agence est prévenue."
+        }
+      },
+      "signature": {
+        "codeTitre": "Code de signature",
+        "codeAide": "Une signature se confirme par un code à 6 chiffres, envoyé au numéro qui a reçu ce lien.",
+        "recevoirLeCode": "Recevoir mon code",
+        "codeEnvoye": "Code envoyé au numéro qui a reçu ce lien.",
+        "codeAria": "Code à 6 chiffres",
+        "codeNonEnvoye": "Le code n’a pas pu être envoyé. Réessayez dans un instant.",
+        "traceTitre": "Votre signature",
+        "traceAide": "Signez du doigt dans le cadre, puis validez.",
+        "signer": "Signer l’état des lieux",
+        "effacer": "Effacer"
+      },
+      "fait": {
+        "titre": "C’est fait",
+        "compteTitre": "Tout au même endroit",
+        "compteTexte": "Un compte Takussan garde vos rendez-vous et vos échanges avec les agences. Créez votre mot de passe en une minute.",
+        "compteBouton": "Créer mon mot de passe",
+        "pied": "Ce lien a servi : il ne permet plus aucun geste. Pour tout le reste, répondez à l’agence dans votre conversation WhatsApp."
+      },
+      "mort": {
+        "expired": {
+          "titre": "Ce lien a expiré",
+          "texte": "Demandez un nouveau lien en répondant à l’agence sur WhatsApp."
+        },
+        "used": {
+          "titre": "Ce lien a déjà servi",
+          "texte": "Si ce n’était pas vous, prévenez l’agence."
+        },
+        "revoked": {
+          "titre": "Ce lien n’est plus valable",
+          "texte": "Un lien plus récent l’a remplacé : utilisez le dernier reçu, ou répondez à l’agence sur WhatsApp."
+        },
+        "notFound": {
+          "titre": "Ce lien est introuvable",
+          "texte": "Vérifiez qu’il est complet, ou répondez à l’agence sur WhatsApp."
+        }
+      },
+      "tropDeTentatives": {
+        "titre": "Trop de tentatives",
+        "texte": "Patientez quelques minutes, puis réessayez."
+      },
+      "codes": {
+        "codeRequis": "Saisissez le code à 6 chiffres reçu par SMS.",
+        "codeFaux": "Ce code n’est pas le bon. Vérifiez-le, puis réessayez.",
+        "codeVerrouille": "Trop de codes erronés : la signature est bloquée pour le moment. Réessayez plus tard.",
+        "renvoiTropTot": "Un code vient de partir. Patientez un peu avant d’en demander un autre.",
+        "rienASigner": "Il ne reste rien à signer de votre côté.",
+        "sansNumero": "Aucun numéro ne peut recevoir le code. Répondez à l’agence sur WhatsApp.",
+        "smsNonParti": "Le SMS n’a pas pu partir. Réessayez dans un instant."
+      }
     }
   },
   "saisieDemande": {

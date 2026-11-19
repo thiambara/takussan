@@ -43,6 +43,16 @@ final class AgencySettings
                 'type' => self::BOOL, 'default' => true,
                 'rules' => ['sometimes', 'boolean'],
             ],
+            // TCK-2979 (ADR-0131 § 8) — l'assistant de la messagerie, coupé pour toute l'équipe par l'agence. Vrai par
+            // défaut (décision du porteur du 2026-11-19) ; l'agence ne peut qu'éteindre ce que la plateforme sert.
+            'copilot_enabled' => [
+                'type' => self::BOOL, 'default' => true,
+                'rules' => ['sometimes', 'boolean'],
+            ],
+            'voice_transcription_enabled' => [
+                'type' => self::BOOL, 'default' => true,
+                'rules' => ['sometimes', 'boolean'],
+            ],
             'watermark_position' => [
                 'type' => self::STRING, 'default' => WatermarkPosition::default()->value,
                 'rules' => ['sometimes', Rule::enum(WatermarkPosition::class)],

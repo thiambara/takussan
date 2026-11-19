@@ -35,6 +35,8 @@ class PlatformSettingsCatalogueTest extends TestCase
                 'radar.mandate_agency_id',
                 // TCK-2588 (ADR-0103 § 4) — le seuil de la relance sans contact.
                 'crm.follow_up_days',
+                // TCK-2979 (ADR-0131 § 8) — le plafond IA du jour par agence.
+                'ai.daily_budget_per_agency_usd',
             ],
             array_keys(EditablePlatformSettings::all()),
         );
@@ -75,6 +77,8 @@ class PlatformSettingsCatalogueTest extends TestCase
                 'radar.mandate_agency_id',
                 // TCK-2588 (ADR-0103 § 4) — le seuil de la relance sans contact.
                 'crm.follow_up_days',
+                // TCK-2979 (ADR-0131 § 8) — le plafond IA du jour par agence.
+                'ai.daily_budget_per_agency_usd',
             ],
             $entrees->pluck('key')->all(),
         );

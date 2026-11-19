@@ -95,7 +95,7 @@ return [
         'provider_host_not_allowed' => 'The address of this provider is not on an accepted host.',
         'provider_key_missing' => 'No key is configured for this provider.',
         'provider_redirected' => 'This provider answered with a redirect: the request was not sent again.',
-        'provider_role_mismatch' => 'This provider does not serve this role: embeddings and text do not mix.',
+        'provider_role_mismatch' => 'This provider does not serve this role: embeddings, transcription and text do not mix, and only a provider that transcribes serves transcription.',
         'provider_unreachable' => 'Nothing is sent to this provider: training opt-out not declared, or address not accepted.',
         'provider_unknown' => 'Unknown AI provider.',
         'role_unknown' => 'Unknown AI role.',
@@ -1044,5 +1044,55 @@ return [
     'pdf' => [
         'render_busy' => 'The service that produces PDF documents is overloaded: try again in a minute.',
         'render_failed' => 'The PDF document could not be produced. Try again in a moment.',
+    ],
+    // TCK-2969 (ADR-0130) — commitments in a thread.
+    'commitment' => [
+        'no_agency' => 'This conversation is not linked to any agency: it cannot hold a commitment.',
+        'team_note_source' => 'A commitment cannot be noted from a team note.',
+        'source_elsewhere' => 'This message does not belong to this conversation.',
+        'holder_not_participant' => 'The person making the commitment must take part in the conversation.',
+        'beneficiary_not_participant' => 'The person the commitment is made to must take part in the conversation.',
+        'not_yours' => 'You can only note your own commitment.',
+        'due_in_past' => 'A commitment must be due in the future.',
+        'invalid_state' => 'This action is not possible in the current state of the commitment.',
+        // TCK-2970 (ADR-0130 §§ 3 et 4)
+        'already_reopened' => 'This commitment has already been reopened once by one of the two parties: only the agency can reopen it again.',
+        'reminded_recently' => 'A reminder was already sent less than 24 hours ago.',
+    ],
+    // TCK-2974 (ADR-0131) — le copilote du fil
+    'copilote' => [
+        'indisponible' => 'The assistant is not available to you in this conversation.',
+        'resume_inutile' => 'There are not enough new messages to summarise.',
+        'coupe' => 'The assistant is turned off for now.',
+        'budget_epuise' => 'The assistant has reached its limit for today. Please try again tomorrow.',
+        'echec' => 'The assistant could not answer. Please try again in a moment.',
+        // TCK-2975 — la décision sur une proposition.
+        'suggestion_introuvable' => 'This suggestion could not be found.',
+        'suggestion_purgee' => 'This suggestion has expired and can no longer be decided.',
+        'deja_decidee' => 'You have already decided on this suggestion.',
+    ],
+    // TCK-2981 (ADR-0132) — « Joindre par WhatsApp ».
+    'pont' => [
+        'not_allowed' => 'You cannot reach someone by WhatsApp in this conversation.',
+        'not_participant' => 'This person is not an active participant in this conversation.',
+        'no_phone' => 'This person has no phone number.',
+        'invalid_phone' => "This person's phone number is not valid.",
+        'opted_out' => 'This person has refused messages on this number.',
+        'already_joined' => 'This person is already reached in this conversation.',
+        'customer_not_in_room' => "This record does not belong to this conversation's lease.",
+        'numero_deja_a_un_compte' => 'This number already belongs to another account.',
+    ],
+    // TCK-2982 (ADR-0132 § 5) — le lien d'action signé.
+    'action_link' => [
+        'expired' => 'This link has expired.',
+        'used' => 'This link has already been used.',
+        'revoked' => 'This link is no longer valid.',
+        'code_required' => 'Enter the code you received by SMS.',
+        'code_invalid' => 'This code is not correct.',
+        'code_locked' => 'Too many attempts: try again later.',
+        'resend_too_soon' => 'Please wait before requesting a new code.',
+        'no_phone' => 'No number can receive the code.',
+        'sms_not_sent' => 'The code could not be sent. Please try again.',
+        'nothing_to_sign' => 'There is nothing left for you to sign.',
     ],
 ];

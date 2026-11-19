@@ -28,7 +28,15 @@ class Message extends AbstractModel implements HasMedia
     // TCK-2965 (ADR-0128 § 6) — `visibility` : `all` ou `team` (la note d'équipe).
     protected $fillable = [
         'conversation_id', 'sender_id', 'content', 'type', 'metadata', 'visibility',
+        // TCK-2980 (ADR-0132 § 0) — le canal du pont (`app` par défaut) ; posé par `ConversationWriter::post` seul.
+        'channel',
     ];
+
+    /**
+     * TCK-2980 (ADR-0132 § 4) — le canal ne sort jamais par une sérialisation brute (l'export des données d'un
+     * lecteur rend aussi les messages des autres) : seule `MessageResource` le rend, au personnel et à l'auteur.
+     */
+    protected $hidden = ['channel'];
 
     protected $casts = [
         'type' => MessageType::class,
@@ -42,6 +50,8 @@ class Message extends AbstractModel implements HasMedia
      */
     protected $attributes = [
         'visibility' => 'all',
+        // TCK-2980 — le défaut de `messages.channel`.
+        'channel' => 'app',
     ];
 
     /** TCK-2965 — une note d'équipe, que seul le personnel du fil lit ({@see EquipeDuFil}). */

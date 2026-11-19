@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Crm\CustomerCommercialAttributes;
+use App\Services\Pont\PontDesParticipants;
 use Carbon\CarbonInterface;
 
 /**
@@ -76,6 +77,28 @@ final class ConversationThreadContext
          * @var list<int>
          */
         public readonly array $teamNoteReaderIds = [],
+        /**
+         * TCK-2987 (ADR-0130 § 6) — la fiabilité de chaque participant actif autre que l'appelant
+         * (`{user_id: {kept, late}}`), ou `null` (la clé est alors ABSENTE) pour qui n'est pas personnel actif
+         * de l'agence du fil ({@see FiabiliteDesEngagements}).
+         *
+         * @var array<int, array{kept: int, late: int}>|null
+         */
+        public readonly ?array $commitmentsRecords = null,
+        /**
+         * TCK-2981 (ADR-0132 § 3) — le pont, par participant actif (le lecteur exclu), au SEUL personnel actif de
+         * l'agence du fil ({@see PontDesParticipants}) ; `null` pour tout autre lecteur.
+         *
+         * @var array<int, array<string, mixed>>|null
+         */
+        public readonly ?array $pont = null,
+        /**
+         * TCK-2981 (ADR-0132 § 2) — la fiche du locataire sans compte du bail de la salle ({@see PontDesParticipants::fiche()}) :
+         * `false` hors du personnel (clé absente), `null` sans fiche à joindre.
+         *
+         * @var array<string, mixed>|false|null
+         */
+        public readonly array|false|null $pontFiche = false,
     ) {}
 
     /**
@@ -144,6 +167,11 @@ final class ConversationThreadContext
             participants: $participants,
             canWriteTeamNote: $agenceDesNotes !== null && PersonnelDeLAgence::personnelActifDe($reader, $agenceDesNotes),
             teamNoteReaderIds: $lecteursParmiLesParticipants,
+            // TCK-2987 — la fiabilité, au seul personnel actif de l'agence du fil ; une requête pour tous.
+            commitmentsRecords: FiabiliteDesEngagements::pour($reader, $conversation, $agenceDesNotes, $conversation->participants),
+            // TCK-2981 — le bloc `pont`, même règle de lecteur.
+            pont: app(PontDesParticipants::class)->pour($reader, $conversation, $agenceDesNotes, $conversation->participants),
+            pontFiche: app(PontDesParticipants::class)->fiche($reader, $conversation, $agenceDesNotes),
             lastVisit: $facts['lastVisit'] ?? null,
             contactLead: $facts['contactLead'] ?? null,
             firstContactAt: $facts['firstContactAt'] ?? null,

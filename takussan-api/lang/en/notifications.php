@@ -137,6 +137,10 @@ return [
     ],
     // TCK-2646 (ADR-0098) — the code authenticating the tenant who signs the inventory on the
     // agent's phone. SMS only: no e-mail version.
+    // TCK-2982 (ADR-0132 § 5) — le code de signature par lien d'action, au numéro du lien.
+    'action_link_signature_code' => [
+        'sms' => 'Takussan: code to sign the inventory (lease :reference): :code, valid for :minutes min. Do not share it with anyone.',
+    ],
     'inventory_signature_code' => [
         'sms' => 'Takussan: inventory signing code (lease :reference): :code, valid :minutes min. Type it yourself, in front of the agent.',
     ],
@@ -1093,6 +1097,17 @@ return [
                 'title' => 'Maintenance bill kept: :reference',
                 'body' => 'The maintenance request “:request” was contested or cancelled, but its bill :reference for :amount is already paid, recharged to the landlord or being paid: it is not cancelled. Check it and settle it manually.',
                 'sms' => 'Takussan: bill :reference kept, maintenance contested or cancelled. To be settled.',
+            ],
+        ],
+        // TCK-2985 (ADR-0132 § 6) — le résumé du lundi du bailleur.
+        'owner' => [
+            'weekly_digest' => [
+                'title' => 'Your week with :agency',
+                'body' => ':agency — rent collected: :paid_count (:paid_total). Overdue: :late_count (:late_total). Maintenance opened: :maintenance_opened, closed: :maintenance_closed. Visits confirmed: :visits.',
+                // Exigée par la parité des surfaces : le résumé ne part JAMAIS par SMS.
+                'sms' => 'Takussan — :agency, your week: :paid_count rent(s) collected, :late_count overdue.',
+                'mail_subject' => 'Your weekly summary — :agency',
+                'mail_body' => "Here is last week on your properties managed by :agency.\nRent collected: :paid_count (:paid_total).\nRent overdue: :late_count (:late_total).\nMaintenance opened: :maintenance_opened; closed: :maintenance_closed.\nVisits confirmed: :visits.",
             ],
         ],
         'owner_statement' => [

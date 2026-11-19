@@ -3,6 +3,7 @@
 namespace App\Services\Messaging;
 
 use App\Models\Booking;
+use App\Models\Commitment;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
@@ -128,6 +129,17 @@ final class SujetsDuFil
                 'abilities',
             ],
             'charger' => ['address', 'media'],
+        ],
+        // TCK-2969 (ADR-0130 § 2) — l'engagement : il se lit comme son fil (`CommitmentPolicy::view`), n'est
+        // ni sujet ni posable (il naît par sa route). Porteur et bénéficiaire : `id` et nom, sans contact.
+        'commitment' => [
+            'modele' => Commitment::class, 'lecture' => 'view', 'sujet' => false,
+            'projection' => [
+                'id', 'title', 'status', 'etat', 'due_at', 'confirmed_at', 'kept_at', 'reopened_at', 'reopen_reason',
+                'holder.id', 'holder.name', 'beneficiary.id', 'beneficiary.name', 'object.type', 'object.id',
+                'abilities',
+            ],
+            'charger' => ['conversation', 'holder', 'beneficiary'],
         ],
     ];
 
