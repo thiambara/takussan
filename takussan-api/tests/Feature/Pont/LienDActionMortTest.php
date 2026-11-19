@@ -23,6 +23,10 @@ class LienDActionMortTest extends ApiTestCase
         parent::setUp();
         Notification::fake();
         $this->monterLaSceneDuLien();
+        // La langue de la réponse est celle de la requête (`SetLocaleMiddleware` : `Accept-Language`, que le front pose
+        // d'après le segment de l'URL du lien). Sans en-tête, Symfony envoie `en-us,en;q=0.5` : la réponse sortait en
+        // anglais, et l'attendu, calculé dans la langue par défaut du processus (`APP_LOCALE=fr` en CI), en français.
+        $this->withHeader('Accept-Language', 'fr');
     }
 
     /** @return array<string, array{0: string}> */
@@ -36,7 +40,7 @@ class LienDActionMortTest extends ApiTestCase
     {
         [$jeton, $lien] = $this->lien($this->bailleur, 'property_visit.confirm', $this->visiteAConfirmer());
         $this->tuer($lien, $mort);
-        $attendu = ['code' => 'action_link.'.$mort, 'message' => __('errors.action_link.'.$mort)];
+        $attendu = ['code' => 'action_link.'.$mort, 'message' => __('errors.action_link.'.$mort, [], 'fr')];
 
         foreach ([$this->getJson("/api/a/{$jeton}"), $this->postJson("/api/a/{$jeton}"), $this->postJson("/api/a/{$jeton}/code")] as $reponse) {
             $reponse->assertStatus(410)->assertExactJson($attendu);
@@ -45,6 +49,17 @@ class LienDActionMortTest extends ApiTestCase
                 $this->assertStringNotContainsString($interdit, $corps);
             }
         }
+    }
+
+    public function test_un_lien_mort_parle_la_langue_de_la_requete(): void
+    {
+        [$jeton, $lien] = $this->lien($this->bailleur, 'property_visit.confirm', $this->visiteAConfirmer());
+        $this->tuer($lien, 'used');
+
+        $this->getJson("/api/a/{$jeton}", ['Accept-Language' => 'en'])
+            ->assertStatus(410)
+            ->assertExactJson(['code' => 'action_link.used', 'message' => __('errors.action_link.used', [], 'en')]);
+        $this->assertNotSame(__('errors.action_link.used', [], 'en'), __('errors.action_link.used', [], 'fr'));
     }
 
     public function test_les_trois_morts_ne_different_que_par_le_code(): void
@@ -69,7 +84,7 @@ class LienDActionMortTest extends ApiTestCase
 
         $this->postJson("/api/a/{$jeton}", ['scheduled_at' => '2001-01-01T10:00:00Z', 'signature' => 'x'])
             ->assertStatus(410)
-            ->assertExactJson(['code' => 'action_link.'.$mort, 'message' => __('errors.action_link.'.$mort)]);
+            ->assertExactJson(['code' => 'action_link.'.$mort, 'message' => __('errors.action_link.'.$mort, [], 'fr')]);
     }
 
     public function test_un_jeton_inconnu_rend_404_avant_toute_validation_du_corps(): void

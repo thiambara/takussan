@@ -123,6 +123,10 @@ class DrapeauxDeLaNoteTest extends ApiTestCase
     public function test_les_drapeaux_ne_coutent_pas_une_requete_par_participant(): void
     {
         $compter = function (): int {
+            // Chaque mesure part à froid, comme une requête réelle : les instances `scoped()` (le cache de
+            // `IntegrationLocator`, lu par le bloc `pont`) vivent une requête, mais deux appels d'un même test
+            // partagent le conteneur — la seconde mesure en aurait hérité deux requêtes de moins.
+            $this->app->forgetScopedInstances();
             DB::flushQueryLog();
             DB::enableQueryLog();
             $this->drapeaux($this->auteur);

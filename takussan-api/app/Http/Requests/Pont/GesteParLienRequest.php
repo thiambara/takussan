@@ -50,10 +50,15 @@ class GesteParLienRequest extends BaseFormRequest
         return $this->lien ?? throw new LogicException('Le lien est résolu par authorize().');
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Par le geste du lien. Hors contexte (sans `authorize()`, ce que fait le recensement des règles), aucun lien,
+     * donc aucune règle : sur la route, `authorize()` passe toujours avant `rules()`.
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
-        return match ($this->lien()->gesture) {
+        return match ($this->lien?->gesture) {
             // Les règles de `ConfirmPropertyVisitRequest` et `AcceptMaintenanceRequestRequest`.
             'property_visit.confirm', 'maintenance_request.accept' => [
                 'scheduled_at' => ['sometimes', 'nullable', 'date', new InstantIso, 'after:now', new DansLHorizonDuPassage],

@@ -78,6 +78,11 @@ final class Sms implements CanalDuPont
         return new EtatDuNumero;
     }
 
+    public function etatsDesNumeros(array $telephones, ?int $agence = null): array
+    {
+        return array_fill_keys($telephones, new EtatDuNumero);
+    }
+
     public function jetonDuWebhook(): string
     {
         return '';
@@ -116,6 +121,11 @@ final class Sms implements CanalDuPont
     public function accord(string $telephone): EtatDAccord
     {
         return EtatDAccord::Inconnu;
+    }
+
+    public function accords(array $telephones): array
+    {
+        return array_fill_keys($telephones, EtatDAccord::Inconnu);
     }
 
     public function opposer(string $telephone, string $source): void {}

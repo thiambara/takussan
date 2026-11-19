@@ -46,6 +46,27 @@ final class RelaisSortant
     }
 
     /**
+     * {@see self::oppose()} pour plusieurs numéros : une lecture par canal, pas une par numéro.
+     *
+     * @param  list<string>  $telephones
+     * @return array<string, bool> numéro => opposé
+     */
+    public function opposes(array $telephones): array
+    {
+        $opposes = array_fill_keys($telephones, false);
+        if ($telephones === []) {
+            return $opposes;
+        }
+        foreach ($this->canaux() as $canal) {
+            foreach ($canal->accords($telephones) as $telephone => $accord) {
+                $opposes[$telephone] = $opposes[$telephone] || $accord === EtatDAccord::Oppose;
+            }
+        }
+
+        return $opposes;
+    }
+
+    /**
      * L'envoi. `null` : rien n'est parti et rien n'a été tenté (opposition, aucun canal disponible).
      *
      * @param  list<string>  $variables  les variables du gabarit

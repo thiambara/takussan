@@ -74,6 +74,11 @@ final class CopilotePromessesTest extends TestCase
     public function test_aucun_appel_sans_rien_de_neuf_puis_un_appel_au_message_suivant(): void
     {
         $this->ecrireUnMessage('Je passe demain.', $this->locataire);
+        // `created_at` est à la seconde, et `premierNouveau()` relit (`>=`) une fois le message de la même seconde que
+        // l'extraction : sans ce pas, le message et l'appel tombent ou non dans la même seconde selon l'horloge, et la
+        // deuxième demande rend 202 au lieu de 200 (rouge intermittent de la CI de #1700). Le cas de la même seconde
+        // est épinglé à part, ci-dessous.
+        $this->travel(1)->seconds();
         $this->demander()->assertStatus(202);
         $this->assertCount(1, $this->entreesRecues);
 
@@ -85,6 +90,25 @@ final class CopilotePromessesTest extends TestCase
         $this->demander()->assertStatus(202);
         $this->assertCount(2, $this->entreesRecues);
         $this->assertStringContainsString('Finalement après-demain.', $this->entreesRecues[1]);
+    }
+
+    /**
+     * `created_at` est à la seconde : un message de la même seconde que l'extraction est relu (`>=` de
+     * `premierNouveau()`), jamais manqué — jusqu'à une extraction d'une seconde postérieure, qui le laisse derrière elle.
+     */
+    public function test_un_message_de_la_meme_seconde_que_l_extraction_est_relu_puis_laisse(): void
+    {
+        $this->freezeSecond();
+        $this->ecrireUnMessage('Je passe demain.', $this->locataire);
+        $this->demander()->assertStatus(202);
+
+        $this->travel(1)->seconds();
+        $this->demander()->assertStatus(202);
+        $this->assertCount(2, $this->entreesRecues);
+
+        $this->travel(1)->minutes();
+        $this->demander()->assertOk();
+        $this->assertCount(2, $this->entreesRecues);
     }
 
     public function test_un_message_deja_source_est_exclu_et_une_promesse_notee_par_un_collegue_masquee(): void

@@ -23,21 +23,54 @@ final class JointsParLePont
 
     public function etat(Conversation|int $fil, int $userId): ?string
     {
+        return $this->etats($fil, [$userId])[$userId];
+    }
+
+    /**
+     * {@see self::etat()} pour plusieurs comptes du même fil, en deux requêtes quel que soit leur nombre : la dernière
+     * invitation de chacun, puis son dernier message.
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, ?string> compte => état
+     */
+    public function etats(Conversation|int $fil, array $userIds): array
+    {
         $filId = $fil instanceof Conversation ? (int) $fil->id : $fil;
-        $invitation = MessageRelay::query()
-            ->where('purpose', MessageRelay::PURPOSE_INVITATION)
-            ->where('conversation_id', $filId)
-            ->where('user_id', $userId)
-            ->whereIn('status', [MessageRelay::STATUS_ACCEPTE, MessageRelay::STATUS_ENVOYE, MessageRelay::STATUS_REMIS, MessageRelay::STATUS_LU])
-            ->orderByDesc('id')
-            ->first();
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+        if ($userIds === []) {
+            return [];
+        }
+        $invitations = MessageRelay::query()
+            ->whereIn('id', MessageRelay::query()
+                ->selectRaw('max(id)')
+                ->where('purpose', MessageRelay::PURPOSE_INVITATION)
+                ->where('conversation_id', $filId)
+                ->whereIn('user_id', $userIds)
+                ->whereIn('status', [MessageRelay::STATUS_ACCEPTE, MessageRelay::STATUS_ENVOYE, MessageRelay::STATUS_REMIS, MessageRelay::STATUS_LU])
+                ->groupBy('user_id'))
+            ->get()
+            ->keyBy(fn (MessageRelay $r) => (int) $r->user_id);
 
         // Son dernier message dans ce fil dit d'où il écrit.
-        $dernier = Message::query()
-            ->where('conversation_id', $filId)
-            ->where('sender_id', $userId)
-            ->orderByDesc('id')
-            ->first(['id', 'channel', 'created_at']);
+        $derniers = Message::query()
+            ->whereIn('id', Message::query()
+                ->selectRaw('max(id)')
+                ->where('conversation_id', $filId)
+                ->whereIn('sender_id', $userIds)
+                ->groupBy('sender_id'))
+            ->get(['id', 'sender_id', 'channel', 'created_at'])
+            ->keyBy(fn (Message $m) => (int) $m->sender_id);
+
+        $etats = [];
+        foreach ($userIds as $userId) {
+            $etats[$userId] = self::juger($invitations->get($userId), $derniers->get($userId));
+        }
+
+        return $etats;
+    }
+
+    private static function juger(?MessageRelay $invitation, ?Message $dernier): ?string
+    {
         $depuisLePont = $dernier !== null && $dernier->getAttribute('channel') !== RegistreDesCanaux::APP;
 
         if ($invitation?->status === MessageRelay::STATUS_ACCEPTE) {

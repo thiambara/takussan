@@ -101,6 +101,11 @@ final class FauxCanal implements CanalDuPont
         );
     }
 
+    public function etatsDesNumeros(array $telephones, ?int $agence = null): array
+    {
+        return array_combine($telephones, array_map(fn (string $t) => $this->etatDuNumero($t, $agence), $telephones));
+    }
+
     /** @param  list<string>  $variables  @param  array<string, mixed>  $contexte */
     private function noterEnvoi(string $forme, string $telephone, ?string $texte, ?string $gabarit, array $variables, array $contexte): ResultatDEnvoi
     {
@@ -179,6 +184,11 @@ final class FauxCanal implements CanalDuPont
     public function accord(string $telephone): EtatDAccord
     {
         return self::$accords[$telephone] ?? EtatDAccord::Inconnu;
+    }
+
+    public function accords(array $telephones): array
+    {
+        return array_combine($telephones, array_map(fn (string $t) => $this->accord($t), $telephones));
     }
 
     public function opposer(string $telephone, string $source): void

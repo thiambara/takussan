@@ -102,21 +102,40 @@ final class WhatsappCloud implements CanalDuPont
 
     public function etatDuNumero(string $telephone, ?int $agence = null): EtatDuNumero
     {
-        $contact = WhatsappContact::query()->where('phone', $telephone)->first(['opt_in_status', 'opt_in_at', 'opted_out_at']);
+        return $this->etatsDesNumeros([$telephone], $agence)[$telephone];
+    }
+
+    /** Deux requêtes au plus pour tous les numéros : le registre `whatsapp_contacts`, puis le dernier entrant de chacun. */
+    public function etatsDesNumeros(array $telephones, ?int $agence = null): array
+    {
+        $telephones = array_values(array_unique($telephones));
+        if ($telephones === []) {
+            return [];
+        }
+        $contacts = WhatsappContact::query()->whereIn('phone', $telephones)
+            ->get(['phone', 'opt_in_status', 'opt_in_at', 'opted_out_at'])->keyBy('phone');
         $heures = (int) config('whatsapp.service_window_hours', 24);
         $numero = $this->numeroDEntreprise($agence);
-        $dernier = $numero === null ? null : MessageRelay::query()
+        $derniers = $numero === null ? [] : MessageRelay::query()
             ->where('channel', self::NOM)->where('direction', MessageRelay::DIRECTION_IN)
-            ->where('phone', $telephone)->where('business_number_id', $numero)
-            ->max('created_at');
-        $fin = $dernier === null ? null : Carbon::parse($dernier)->addHours($heures);
+            ->whereIn('phone', $telephones)->where('business_number_id', $numero)
+            ->groupBy('phone')->selectRaw('phone, max(created_at) as dernier')
+            ->pluck('dernier', 'phone')->all();
 
-        return new EtatDuNumero(
-            accord: EtatDAccord::tryFrom((string) $contact?->opt_in_status) ?? EtatDAccord::Inconnu,
-            accordLe: $contact?->opt_in_at,
-            oppositionLe: $contact?->opted_out_at,
-            fenetreJusquA: $fin !== null && $fin->isFuture() ? $fin : null,
-        );
+        $etats = [];
+        foreach ($telephones as $telephone) {
+            $contact = $contacts->get($telephone);
+            $dernier = $derniers[$telephone] ?? null;
+            $fin = $dernier === null ? null : Carbon::parse($dernier)->addHours($heures);
+            $etats[$telephone] = new EtatDuNumero(
+                accord: EtatDAccord::tryFrom((string) $contact?->opt_in_status) ?? EtatDAccord::Inconnu,
+                accordLe: $contact?->opt_in_at,
+                oppositionLe: $contact?->opted_out_at,
+                fenetreJusquA: $fin !== null && $fin->isFuture() ? $fin : null,
+            );
+        }
+
+        return $etats;
     }
 
     /** Le `phone_number_id` de l'intégration qu'un envoi pour cette agence consommera (celle de la plateforme à défaut). */
@@ -344,9 +363,18 @@ final class WhatsappCloud implements CanalDuPont
 
     public function accord(string $telephone): EtatDAccord
     {
-        $statut = WhatsappContact::query()->where('phone', $telephone)->value('opt_in_status');
+        return $this->accords([$telephone])[$telephone];
+    }
 
-        return EtatDAccord::tryFrom((string) $statut) ?? EtatDAccord::Inconnu;
+    public function accords(array $telephones): array
+    {
+        $telephones = array_values(array_unique($telephones));
+        $statuts = $telephones === [] ? [] : WhatsappContact::query()->whereIn('phone', $telephones)->pluck('opt_in_status', 'phone')->all();
+
+        return array_combine($telephones, array_map(
+            fn (string $t) => EtatDAccord::tryFrom((string) ($statuts[$t] ?? '')) ?? EtatDAccord::Inconnu,
+            $telephones,
+        ));
     }
 
     public function opposer(string $telephone, string $source): void

@@ -167,4 +167,34 @@ final class InvitationsDuPont
                 ->orWhere(fn ($w) => $w->where('secondary_phone', $telephone)->whereNotNull('secondary_phone_verified_at')))
             ->exists();
     }
+
+    /**
+     * {@see self::numeroPorteAilleurs()} pour plusieurs comptes, en une requête : les comptes qui portent l'un de ces
+     * numéros vérifié, puis, pour chaque compte, s'il en est un AUTRE que lui.
+     *
+     * @param  array<int, string>  $telephoneParCompte  compte => numéro
+     * @return array<int, bool> compte => porté ailleurs
+     */
+    public static function numerosPortesAilleurs(array $telephoneParCompte): array
+    {
+        if ($telephoneParCompte === []) {
+            return [];
+        }
+        $telephones = array_values(array_unique($telephoneParCompte));
+        $porteurs = User::query()
+            ->where(fn ($q) => $q
+                ->where(fn ($w) => $w->whereIn('phone', $telephones)->whereNotNull('phone_verified_at'))
+                ->orWhere(fn ($w) => $w->whereIn('secondary_phone', $telephones)->whereNotNull('secondary_phone_verified_at')))
+            ->get(['id', 'phone', 'phone_verified_at', 'secondary_phone', 'secondary_phone_verified_at']);
+
+        $portes = [];
+        foreach ($telephoneParCompte as $compte => $telephone) {
+            $portes[$compte] = $porteurs->contains(fn (User $u) => (int) $u->id !== (int) $compte && (
+                ($u->phone === $telephone && $u->phone_verified_at !== null)
+                || ($u->secondary_phone === $telephone && $u->secondary_phone_verified_at !== null)
+            ));
+        }
+
+        return $portes;
+    }
 }

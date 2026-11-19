@@ -53,6 +53,15 @@ interface CanalDuPont
     /** TCK-2981 — l'accord de ce numéro sur ce canal, ses dates, et la fin de sa fenêtre (écran du personnel). */
     public function etatDuNumero(string $telephone, ?int $agence = null): EtatDuNumero;
 
+    /**
+     * {@see self::etatDuNumero()} pour plusieurs numéros, en un nombre de requêtes qui ne dépend pas de leur nombre
+     * (le bloc `pont` de `GET …/context`, un numéro par participant).
+     *
+     * @param  list<string>  $telephones
+     * @return array<string, EtatDuNumero> numéro => état, une entrée par numéro demandé
+     */
+    public function etatsDesNumeros(array $telephones, ?int $agence = null): array;
+
     // ── Le webhook ─────────────────────────────────────────────────────────────────────────────────────
 
     /** Le jeton d'URL du webhook de ce canal (`{token}`) ; vide : le webhook est fermé (404). */
@@ -94,6 +103,14 @@ interface CanalDuPont
 
     /** L'état de l'accord de ce numéro SUR CE CANAL. */
     public function accord(string $telephone): EtatDAccord;
+
+    /**
+     * {@see self::accord()} pour plusieurs numéros, en un nombre de requêtes qui ne dépend pas de leur nombre.
+     *
+     * @param  list<string>  $telephones
+     * @return array<string, EtatDAccord> numéro => accord, une entrée par numéro demandé
+     */
+    public function accords(array $telephones): array;
 
     /** Le numéro s'oppose (STOP) : plus rien ne lui part SUR CE CANAL. */
     public function opposer(string $telephone, string $source): void;

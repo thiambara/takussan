@@ -121,6 +121,11 @@ class AucunGuardTokenTest extends TestCase
         'GET api/search/suggest' => self::PUBLIQUE,
         'GET api/settings/public' => self::PUBLIQUE,
         // Un jeton de capacité dans l'URL (lien de paiement, partage, invitation, réclamation, alerte, agenda).
+        // TCK-2982 (ADR-0132 § 5) — le lien d'action : jeton signé à usage unique, 7 jours, haché en base ; borné par
+        // le limiteur nommé `action-link` (par réseau ET par empreinte du jeton), le code sous `throttle:5,10`.
+        'GET api/a/{token}' => self::JETON,
+        'POST api/a/{token}' => self::JETON,
+        'POST api/a/{token}/code' => self::JETON,
         'GET api/calendar-feed/{token}.ics' => self::JETON,
         'POST api/invitations/{token}/accept' => self::JETON,
         'GET api/pay/{token}' => self::JETON,

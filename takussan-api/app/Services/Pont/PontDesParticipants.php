@@ -37,24 +37,31 @@ final class PontDesParticipants
             ->where('conversation_id', $fil->id)->where('direction', MessageRelay::DIRECTION_OUT)->whereNotNull('channel')
             ->orderBy('id')->pluck('channel', 'user_id')->all();
 
+        // Tout se lit par lot : un nombre de requêtes qui ne dépend pas du nombre de participants.
+        $autres = $participants->reject(fn (User $p) => (int) $p->id === (int) $lecteur->id);
+        $telephones = $autres->mapWithKeys(fn (User $p) => [(int) $p->id => InvitationsDuPont::telephone($p)])->all();
+        $numeros = array_values(array_unique(array_filter($telephones, fn (?string $t) => $t !== null)));
+        $etats = $this->joints->etats($fil, array_keys($telephones));
+        $etatsDesNumeros = $recepteur === null ? [] : $recepteur->etatsDesNumeros($numeros, $agence);
+        $opposes = $recepteur === null ? [] : $this->relais->opposes($numeros);
+        $portesAilleurs = $recepteur === null ? [] : InvitationsDuPont::numerosPortesAilleurs(array_filter($telephones, fn (?string $t) => $t !== null));
+
         $lignes = [];
-        foreach ($participants as $participant) {
-            if ((int) $participant->id === (int) $lecteur->id) {
-                continue;
-            }
-            $telephone = InvitationsDuPont::telephone($participant);
-            $etat = $this->joints->etat($fil, (int) $participant->id);
-            $numero = $telephone === null || $recepteur === null ? new EtatDuNumero : $recepteur->etatDuNumero($telephone, $agence);
-            $lignes[(int) $participant->id] = [
+        foreach ($autres as $participant) {
+            $id = (int) $participant->id;
+            $telephone = $telephones[$id];
+            $etat = $etats[$id];
+            $numero = $telephone === null || $recepteur === null ? new EtatDuNumero : $etatsDesNumeros[$telephone];
+            $lignes[$id] = [
                 'joint' => $etat === JointsParLePont::JOINT,
                 'invitation_en_attente' => $etat === JointsParLePont::EN_ATTENTE,
-                'canal' => $dernierCanal[(int) $participant->id] ?? null,
+                'canal' => $dernierCanal[$id] ?? null,
                 'accord_at' => $numero->accord === EtatDAccord::Accorde ? $numero->accordLe : null,
                 'opposition_at' => $numero->accord === EtatDAccord::Oppose ? $numero->oppositionLe : null,
                 'fenetre_jusqu_a' => $numero->fenetreJusquA,
                 'invitable' => $recepteur !== null && $telephone !== null && $etat !== JointsParLePont::JOINT
-                    && $numero->accord !== EtatDAccord::Oppose && ! $this->relais->oppose($telephone)
-                    && ! InvitationsDuPont::numeroPorteAilleurs($telephone, (int) $participant->id),
+                    && $numero->accord !== EtatDAccord::Oppose && ! $opposes[$telephone]
+                    && ! $portesAilleurs[$id],
             ];
         }
 
