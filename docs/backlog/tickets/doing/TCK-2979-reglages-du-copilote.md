@@ -285,6 +285,8 @@ Au 2026-11-19 (agent impl-2977), **tout le delta est livré**, sauf le relevé a
 - `AiBudget` la lit par `getValue('ai.daily_budget_per_agency_usd')`, sous la garde des lecteurs du catalogue.
 - La clé d'environnement est ajoutée à `.env.example`, `.env.docker` et `deploy/takussan/env.api.production.example`.
 - L'action de déploiement est `docs/deploiement/actions/2026-11-19-plafond-ia-par-agence.md`.
+- La clé figure dans `VIDES_PERMISES` de `scripts/check-env-production.mjs` : son défaut est `null`, donc la ligne
+  vide du gabarit n'écrase rien.
 
 **Front** :
 - `SectionRegles.tsx` : le bloc « Assistant de la messagerie » (deux interrupteurs) est grisé selon `ai_platform`, avec

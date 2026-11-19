@@ -404,6 +404,7 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 133. [Commitment](#133-commitment-) 🆕 (TCK-2969, ADR-0130)
 134. [MessageRelay](#134-messagerelay-) 🆕 (TCK-2980, ADR-0132)
 135. [OwnerWeeklyDigest](#135-ownerweeklydigest-) 🆕 (TCK-2985, ADR-0132)
+136. [ActionLink](#136-actionlink-) 🆕 (TCK-2982, ADR-0132)
 
 #### 133. Commitment 🆕
 
@@ -468,13 +469,13 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 | user_id | FK users | oui | null | `nullOnDelete` |
 | customer_id | FK customers | oui | null | `nullOnDelete` |
 | property_contact_lead_id | FK property_contact_leads | oui | null | `nullOnDelete` |
-| channel | string(20) | | | Identifiant du pilote (`whatsapp`, `sms`…), chaîne libre (ADR-0007) |
+| channel | string(20) | oui | null | Identifiant du pilote (`whatsapp`, `sms`…), chaîne libre (ADR-0007) ; **nul quand rien n'a pu partir** (aucun canal, TCK-2981) |
 | form | string(20) | oui | null | |
 | template | string(100) | oui | null | |
 | phone | string(20) | oui | null | E.164, **effacé 90 jours après l'envoi** (`pont:effacer-numeros`, la ligne reste) ; **rendu par aucune ressource** |
 | business_number_id | string(64) | oui | null | Numéro d'entreprise utilisé |
 | provider_message_id | string(128) | oui | null | Identifiant chez le fournisseur : clé d'idempotence du webhook et cible de `context.id` |
-| status | string(20) | | | `recu` pour un message reçu (les statuts d'envoi `envoye`, `remis`, `lu`, `echec` sont ceux de TCK-2981) |
+| status | string(20) | | | Constantes `STATUS_*` : `recu` (message reçu) ; TCK-2981 : `envoye`, `remis`, `lu`, `echec`, `en_attente_accord` (message du personnel écrit avant l'accord), `repris` (repris à l'accord, son envoi a son propre relais), `accepte` (invitation acceptée par le bouton), `non_envoye` (aucun canal disponible) |
 | failure_reason | string(255) | oui | null | |
 | sent_at / delivered_at / read_at / failed_at | timestamp | oui | null | |
 | created_at / updated_at | timestamp | | auto | |
@@ -504,6 +505,33 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 **Contrainte :** unique `(user_id, agency_id, week)`.
 **Index :** `(agency_id)` (`AgencyIdIsIndexedTest`).
 **Relations :** aucune déclarée sur le modèle.
+
+---
+
+### 136. ActionLink 🆕
+
+**Table :** `action_links` (`2026_11_19_298201`, TCK-2982)
+**Modèle :** `App\Models\ActionLink` (`AbstractModel`, `HasFactory`) — **pas** `Auditable` : rien de ce qui touche au jeton n'entre dans `activity_log` ; `token_hash` et `phone` dans `$hidden`
+**Description :** Le lien d'action signé ([ADR-0132](adr/0132-le-pont-whatsapp-et-sms-relaie-le-fil-et-les-liens-d-action-font-un-geste.md) § 5) : un geste, sur un objet, pour un compte, une fois, 7 jours. Seule l'empreinte du jeton est en base (`LiensDAction::empreinte()`, SHA-256 hexadécimal) : le clair n'existe que dans le message envoyé.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| token_hash | char(64) | | | Empreinte du jeton, unique (`action_links_token_hash_unique`) |
+| gesture | string(40) | | | Le geste que le lien accomplit |
+| subject_type | string(40) | | | Clé du registre `SujetsDuFil`, sans clé étrangère (lien générique) |
+| subject_id | unsigned bigint | | | Identifiant de l'objet (casté `integer`) |
+| user_id | FK users | | | Le compte pour qui le lien est émis (`cascadeOnDelete`) |
+| phone | string(20) | oui | null | Le numéro qui l'a reçu ; effacé 90 jours après l'expiration (`pont:effacer-numeros`) |
+| message_id | FK messages | oui | null | `nullOnDelete` |
+| message_relay_id | FK message_relays | oui | null | `nullOnDelete` |
+| expires_at | timestamp | | | |
+| opened_at / used_at / revoked_at | timestamp | oui | null | Ouverture, usage, révocation |
+| created_at / updated_at | timestamp | | auto | |
+
+**Index :** unique `token_hash` ; `action_links_subject_idx` `(subject_type, subject_id)` ; `action_links_user_gesture_idx` `(user_id, gesture)` ; `action_links_message_id_idx` `(message_id)`.
+**État (`mort()`).** `null` pour un lien vivant ; sinon `used`, `revoked` ou `expired`, dans cet ordre (constantes `ETAT_*`, dont `done` pour la page).
+**Relations :** `user()`, `message()` → belongsTo (pas de relation déclarée vers `message_relays`).
 
 ---
 

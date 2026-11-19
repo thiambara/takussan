@@ -43,7 +43,7 @@ pas les mélanger.
 **E. Les quatre gabarits du pont, en `fr` et en `en`** (catégorie *Utility*), à faire approuver par Meta avant
 d'ouvrir le relais sortant (TCK-2981, TCK-2982, TCK-2985) — l'entrée (ce ticket) n'en a pas besoin :
 - `pont_invitation` — l'invitation à recevoir les messages d'un fil, avec le bouton de réponse « Accepter les messages » ;
-- `pont_nouveau_message` — un message du fil hors fenêtre (extrait borné, nom de l'agence, objet du fil) ;
+- `pont_nouveau_message` — un message du fil hors fenêtre : `{{1}}` l'auteur, `{{2}}` l'agence, `{{3}}` l'extrait borné à 500 caractères (TCK-2981) ;
 - `pont_lien_action` — un geste attendu, avec un bouton d'URL vers le lien d'action ;
 - `resume_hebdo_bailleur` — le résumé du lundi du bailleur.
 

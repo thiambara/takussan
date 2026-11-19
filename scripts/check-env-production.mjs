@@ -176,6 +176,9 @@ const VIDES_PERMISES = [
   // TCK-2953 (ADR-0129 § 5) — le temps réel du front. Vide = mode dégradé (relecture périodique), rien ne
   // casse ; à poser seulement quand le service `temps-reel` de TCK-2956 répond.
   'TEMPS_REEL_URL', 'TEMPS_REEL_CLE',
+  // TCK-2979 (ADR-0131 § 8) — défaut `null` dans `config/ai.php` (vide, nul ou illisible = pas de plafond IA par
+  // agence) : la ligne vide n'écrase rien. Le plafond se règle ensuite dans les Paramètres plateforme.
+  'AI_DAILY_BUDGET_PER_AGENCY_USD',
 ];
 
 const CLE_DE_SECRET = /(?:^|_)(?:KEY|KEYS|KEY_ID|SECRET|PASSWORD|TOKEN|ACCOUNT_ID)$/;
