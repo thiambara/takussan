@@ -9,7 +9,7 @@ return [
     // TCK-2982 (ADR-0132 § 5) — le lien d'action relayé : l'URL dans le texte (un canal sans bouton la lit là).
     'lien_action' => 'The link below lets you :geste without signing in. It is valid for 7 days and works only once: :url',
     // Le corps du gabarit `pont_lien_action` ({{1}} l'agence, {{2}} le geste ; le bouton porte l'URL).
-    'lien_action_gabarit' => '{{1}} invites you to {{2}}. Open the link to do it without signing in; it is valid for 7 days and works only once.',
+    'lien_action_gabarit' => 'Hello, {{1}} invites you to {{2}}. Open the link to do it without signing in; it is valid for 7 days and works only once.',
     'gestes' => [
         'property_visit.confirm' => 'confirm the visit',
         'maintenance_request.accept' => 'accept the job',

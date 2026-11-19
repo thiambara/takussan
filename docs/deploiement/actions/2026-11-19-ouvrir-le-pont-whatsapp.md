@@ -53,6 +53,23 @@ d'ouvrir le relais sortant (TCK-2981, TCK-2982, TCK-2985) — l'entrée (ce tick
   suit `FRONTEND_URL` : un gabarit approuvé pour la préproduction ne sert pas en production ;
 - `resume_hebdo_bailleur` — le résumé du lundi du bailleur.
 
+**E bis. Un compte WhatsApp par environnement, les mêmes noms de gabarits** (décidé le 2026-11-19 avec le porteur).
+Un numéro n'a qu'une URL de rappel : la préproduction et la production ne peuvent pas partager un numéro, donc chacune
+a son compte WhatsApp (et son intégration `whatsapp_cloud` dans l'administration), et l'API cherche ses gabarits par nom.
+Seul `pont_lien_action` diffère d'un environnement à l'autre, par le préfixe de son bouton d'URL.
+- **Production** : le compte de messagerie **Takussan** (entreprise Meta Takussan), avec le numéro de production à
+  ajouter en phase F. Les trois gabarits neutres y sont soumis dès maintenant ; `pont_lien_action` y est créé en
+  phase F, bouton `https://<front de production>/fr/fil/a/{{1}}` (et `/en/`). **Ne jamais y créer un
+  `pont_lien_action` qui vise la préproduction** : le nom serait pris, et un nom supprimé ne se réutilise pas tout de suite.
+- **Préproduction** : le numéro de test de Meta (compte de test, il n'atteint que sa liste de destinataires autorisés,
+  ce qui suffit aux testeurs) ou un second numéro réel. Les huit gabarits s'y créent dans WhatsApp Manager (l'outil
+  connecté ne voit pas les comptes de test), bouton de `pont_lien_action` vers `https://preview.takussan.com/fr/fil/a/{{1}}`.
+  Puis l'intégration `whatsapp_cloud` de la préproduction reçoit le `phone_number_id` et le jeton de ce numéro.
+- **Les textes** sont ceux de `notification_templates.body` après la migration `2026_11_19_298600` (règles de format
+  de Meta : ni début ni fin sur une variable, jamais deux variables séparées d'une ponctuation seule, au plus une
+  variable pour trois mots ; `GabaritsDuPontConformesAMetaTest` les garde). Boutons : `pont_invitation`, réponse rapide
+  « Accepter les messages » / « Accept messages » ; `pont_lien_action`, URL « Ouvrir le lien » / « Open the link ».
+
 **F. La vérification** — envoyer « Bonjour » au numéro depuis un téléphone **inconnu** de l'environnement : une demande
 `whatsapp_inbound` apparaît dans la boîte des demandes de l'agence du numéro (sans agence : visible du seul
 super-admin). Puis « STOP » : `whatsapp_contacts.opt_in_status = opted_out`, source `pont_stop`. Puis « START ».
@@ -60,3 +77,5 @@ Quand la nouvelle URL est vérifiée, l'alias peut être retiré par un ticket (
 `integration_webhook_logs`, `route_name = whatsapp.webhook.status`).
 
 ## Historique
+- 2026-11-19 · preview · a-faire · Claude (session, pour le porteur) · B fait après la promotion #1703 (`6bf1deb37`, fusionnée 2026-11-19 10:02:23 Z, `images.yml` vert, `X-Build-Sha` relu sur l'API et le front) : `WHATSAPP_WEBHOOK_URL_TOKEN` et `WHATSAPP_WEBHOOK_VERIFY_TOKEN` posés, le défi d'abonnement rend `42` sur `/api/webhooks/messagerie/whatsapp/{jeton}` et sur l'alias `/api/webhooks/whatsapp/status/{jeton}`. Restent A (`WHATSAPP_WEBHOOK_APP_SECRET`, vide dans Dokploy : secret de l'application Meta, à fournir par le porteur), C, D, E et F (console Meta).
+- 2026-11-19 · production · a-faire · Claude (session, pour le porteur) · E en partie : six gabarits neutres soumis à Meta sur le compte de messagerie Takussan (entreprise Takussan), catégorie UTILITY, statut PENDING à la soumission, textes de la migration 298600 : `pont_invitation` fr (1140128002097682) et en (1627820292366082), `resume_hebdo_bailleur` fr (4066898586940261) et en (1129200113230302), `pont_nouveau_message` fr (4651972678348230) et en (1402763861670524). Restent : `pont_lien_action` (phase F, bouton vers le front de production), le numéro de production, A, C, D, F.

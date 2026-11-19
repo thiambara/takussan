@@ -4,7 +4,7 @@ type: cle-env
 tickets: [TCK-2979]
 cles: [AI_DAILY_BUDGET_PER_AGENCY_USD]
 creee: 2026-11-19
-preview: a-faire
+preview: fait
 production: a-faire
 ---
 
@@ -33,3 +33,4 @@ Laisser la clé vide est un choix valable : l'action se marque alors `fait` avec
   et une autre agence non.
 
 ## Historique
+- 2026-11-19 · preview · fait · Claude (session, pour le porteur) · sans plafond, choix du porteur : `AI_DAILY_BUDGET_PER_AGENCY_USD` non posée ; le plafond global `AI_DAILY_BUDGET_USD` (8.33) reste seul.
