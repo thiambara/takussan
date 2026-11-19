@@ -98,8 +98,14 @@ export function cleDuRefus(err: unknown): string {
  * « Joindre par WhatsApp » : un seul appel (le bouton se désactive pendant l'envoi), puis la relecture du
  * contexte, dont `pont.joint` dit « jointe » (déjà d'accord sur ce numéro) ou non (« invitation envoyée »).
  */
+export type CibleDInvitation = { readonly user_id: number } | { readonly customer_id: number };
+
+/**
+ * TCK-2981 (AC6) — la cible : un participant (`user_id`), ou la fiche du locataire SANS COMPTE du bail de la salle
+ * (`customer_id`), qui n'est pas un participant du fil.
+ */
 export function useInvitationAuPont(conversationId: number) {
-  return useApiMutation<unknown, { user_id: number }>(
+  return useApiMutation<unknown, CibleDInvitation>(
     { path: cheminApi`/api/conversations/${conversationId}/pont/invitations`, method: 'POST' },
     { invalidate: [conversationContextQueryKey(conversationId)] },
   );

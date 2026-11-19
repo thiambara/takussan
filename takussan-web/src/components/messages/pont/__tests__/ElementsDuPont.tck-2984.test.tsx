@@ -17,6 +17,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
 }));
 const { BandeauDeLaFenetre, ParticipantsEtCanaux, PontDuMessage, PucesDuPont, TraceDuLien } = await import('../ElementsDuPont');
 const { useTexteMessageSysteme } = await import('../../useTexteMessageSysteme');
+const { useInvitationAuPont } = await import('../pont');
 
 const MAINTENANT = Date.parse('2026-11-19T10:00:00Z');
 const NOMS = { 7: 'Awa Diop', 9: 'Moussa Fall' };
@@ -220,4 +221,15 @@ describe('participantsDuPont — `context.pont` (TCK-2981) en liste', () => {
       { user_id: 9, pont: { joint: true, invitable: false, canal: 'sms' } },
     ]);
   });
+});
+
+it('TCK-2981 AC6 — l’invitation d’une fiche sans compte part en `{customer_id}`', async () => {
+  apiRequest.mockReset();
+  apiRequest.mockResolvedValue({ data: { statut: 'ok' } });
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  const wrapper = ({ children }: { children: ReactNode }) => withIntl(<QueryClientProvider client={client}>{children}</QueryClientProvider>);
+  const { result } = renderHook(() => useInvitationAuPont(3), { wrapper });
+  await result.current.mutateAsync({ customer_id: 31 });
+  expect(apiRequest.mock.calls[0][0]).toBe('/api/conversations/3/pont/invitations');
+  expect(apiRequest.mock.calls[0][1]).toMatchObject({ method: 'POST', body: { customer_id: 31 } });
 });

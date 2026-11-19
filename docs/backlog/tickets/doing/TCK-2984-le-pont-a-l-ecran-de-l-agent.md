@@ -170,4 +170,10 @@ retiré ; « invitation envoyée » se lit aussi de `invitation_en_attente`.
 en_attente_accord|non_envoye` (codes français de l'API, pas ceux supposés) : `ETATS_DE_RELAIS`, `TON_DU_RELAIS` et les
 clés `messaging.pont.relais.etat.*` alignés ; `template` dit « en message type ».
 
-Reste : invitation `{customer_id}` (l'API ne la porte pas) ; AC1 non mesuré.
+**Invitation `{customer_id}` (TCK-2981 AC6)** : `useInvitationAuPont` accepte `{user_id}` ou `{customer_id}` (testé :
+le corps part en `{customer_id}`). Le BOUTON pour la fiche sans compte n'est pas monté : `GET …/context` ne dit pas qui
+est la fiche du locataire sans compte du bail (`lease` ne porte que `tenant_name`, `customer` est la fiche CRM du fil) ;
+une clé (proposée : `pont_fiche {customer_id, full_name, invitable, invitation_en_attente, opposition_at}`) est demandée à
+impl-2980.
+
+Reste : le bouton de la fiche sans compte, dès que le contexte l'expose ; AC1 non mesuré.

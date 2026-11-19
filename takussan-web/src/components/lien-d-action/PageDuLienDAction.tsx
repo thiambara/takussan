@@ -356,7 +356,7 @@ function Signature({ jeton, envoi, onSigner }: { readonly jeton: string; readonl
         {codeEnvoye ? (
           <>
             <Input
-              className="mt-2 h-12 text-center text-xl font-semibold tracking-[0.4em] tabular-nums"
+              className="mt-2 text-center text-xl font-semibold tracking-[0.4em] tabular-nums"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               inputMode="numeric"
