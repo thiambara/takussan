@@ -53,6 +53,23 @@ d'ouvrir le relais sortant (TCK-2981, TCK-2982, TCK-2985) — l'entrée (ce tick
   suit `FRONTEND_URL` : un gabarit approuvé pour la préproduction ne sert pas en production ;
 - `resume_hebdo_bailleur` — le résumé du lundi du bailleur.
 
+**E bis. Un compte WhatsApp par environnement, les mêmes noms de gabarits** (décidé le 2026-11-19 avec le porteur).
+Un numéro n'a qu'une URL de rappel : la préproduction et la production ne peuvent pas partager un numéro, donc chacune
+a son compte WhatsApp (et son intégration `whatsapp_cloud` dans l'administration), et l'API cherche ses gabarits par nom.
+Seul `pont_lien_action` diffère d'un environnement à l'autre, par le préfixe de son bouton d'URL.
+- **Production** : le compte de messagerie **Takussan** (entreprise Meta Takussan), avec le numéro de production à
+  ajouter en phase F. Les trois gabarits neutres y sont soumis dès maintenant ; `pont_lien_action` y est créé en
+  phase F, bouton `https://<front de production>/fr/fil/a/{{1}}` (et `/en/`). **Ne jamais y créer un
+  `pont_lien_action` qui vise la préproduction** : le nom serait pris, et un nom supprimé ne se réutilise pas tout de suite.
+- **Préproduction** : le numéro de test de Meta (compte de test, il n'atteint que sa liste de destinataires autorisés,
+  ce qui suffit aux testeurs) ou un second numéro réel. Les huit gabarits s'y créent dans WhatsApp Manager (l'outil
+  connecté ne voit pas les comptes de test), bouton de `pont_lien_action` vers `https://preview.takussan.com/fr/fil/a/{{1}}`.
+  Puis l'intégration `whatsapp_cloud` de la préproduction reçoit le `phone_number_id` et le jeton de ce numéro.
+- **Les textes** sont ceux de `notification_templates.body` après la migration `2026_11_19_298600` (règles de format
+  de Meta : ni début ni fin sur une variable, jamais deux variables séparées d'une ponctuation seule, au plus une
+  variable pour trois mots ; `GabaritsDuPontConformesAMetaTest` les garde). Boutons : `pont_invitation`, réponse rapide
+  « Accepter les messages » / « Accept messages » ; `pont_lien_action`, URL « Ouvrir le lien » / « Open the link ».
+
 **F. La vérification** — envoyer « Bonjour » au numéro depuis un téléphone **inconnu** de l'environnement : une demande
 `whatsapp_inbound` apparaît dans la boîte des demandes de l'agence du numéro (sans agence : visible du seul
 super-admin). Puis « STOP » : `whatsapp_contacts.opt_in_status = opted_out`, source `pont_stop`. Puis « START ».
