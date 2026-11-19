@@ -1,7 +1,7 @@
 ---
 id: TCK-2978
 title: "Le copilote à l'écran, agir : le brouillon dans le composeur (Envoyer seul publie), les promesses repérées sous leur message, « Noter l'engagement » et « Écarter »"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: M
@@ -86,12 +86,12 @@ tags: [front, messagerie, le-fil, copilote, ia, engagements, i18n, adr-0131]
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px : les écrans `brouillon` et
-  `extraction` de `fil-copilote` A sont fidèles à la maquette, sauf l'écart nommé du montant.
-- [ ] **AC2** — Onglet réseau : aucun `POST …/messages` ni création d'engagement avant le geste
-  « Envoyer » ou « Noter l'engagement ».
-- [ ] **AC3** — Le locataire de la même salle ne voit ni soulignement ni bloc « Repéré », relevé avec
-  deux sessions.
+- [x] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px : les écrans `brouillon` et
+  `extraction` de `fil-copilote` A sont fidèles à la maquette, sauf l'écart nommé du montant. — preuve : relevé 2026-11-19, à 360 et 1280 px : ✦ du composeur, brouillon généré dans le composeur (« Brouillon de l'assistant · relisez avant d'envoyer », appuis, corbeille, relancer, « Plus court ») ; promesses : bloc « Repéré par l'assistant · 1 élément » sous le message avec « Noter l'engagement » et « Écarter », sans défilement horizontal.
+- [x] **AC2** — Onglet réseau : aucun `POST …/messages` ni création d'engagement avant le geste
+  « Envoyer » ou « Noter l'engagement ». — preuve : relevé 2026-11-19, onglet réseau à l'ouverture du fil, à la génération du brouillon et à la question : seuls des `POST …/copilote/{promesses,resume,brouillon,question}` partent, aucun `POST …/messages` ni création d'engagement avant le geste.
+- [x] **AC3** — Le locataire de la même salle ne voit ni soulignement ni bloc « Repéré », relevé avec
+  deux sessions. — preuve : relevé 2026-11-19, locataire de la même salle : ni soulignement, ni bloc « Repéré », aucune requête `…/transcription` ni `…/copilote`.
 - [x] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests
   des fichiers touchés verts. — preuve : CI verte de #1700 sur 2cf49b37f : Web CI 44461750708 (ESLint, tsc, check:i18n, check:vouvoiement, Vitest en 4 shards).
 
@@ -143,9 +143,11 @@ structurelle (branche `equipe` du `leading`), non ablatée.
 **Non mesuré** : AC1 à AC3 (navigateur, deux sessions). `check-front-routes` rouge sur la décision tant que
 TCK-2975 n'est pas fusionné.
 
-## Reste sur dev
+## Relevé — 2026-11-19 (2)
 
-Le code est sur `dev` (#1700, 83f651c16). Il reste :
+- AC3 : conforme côté locataire.
+- AC1, AC2 : non faits, faute de suggestion en base et de fournisseur d'IA ; à la charge-à-l'ouverture, la demande `POST …/copilote/promesses` part bien (202) chez l'agent.
 
-- AC1 : relevé au navigateur des écrans `brouillon` et `extraction`, non fait. Il faut un fournisseur d'IA en local.
-- AC2 : relevé réseau, non fait. AC3 : relevé à deux sessions, non fait.
+## Relevé — 2026-11-19 (3)
+
+- AC1, AC2 : conformes. Tous les critères sont cochés.

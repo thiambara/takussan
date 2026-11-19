@@ -1,7 +1,7 @@
 ---
 id: TCK-2973
 title: "Les engagements dans la boîte, à l'écran : la puce « Retard », la ligne d'engagement d'un fil, l'onglet « Engagements » et la fiabilité du personnel"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: L
@@ -99,7 +99,7 @@ Sparse fieldsets : les champs ajoutés entrent dans la constante `*_FIELDS` de l
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px :
+- [x] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px :
   - les écrans de `fil-boite` D, avec « Retard » ;
   - les écrans `liste` et `fiabilite` (bureau) de `fil-engagements` A.
 
@@ -109,13 +109,13 @@ Sparse fieldsets : les champs ajoutés entrent dans la constante `*_FIELDS` de l
   - pas de « mot » du porteur sur un retard ;
   - pas de page « Astou Sy » à onglets au téléphone : la fiabilité vit dans la fiche du participant
     ouverte depuis le fil ;
-  - « Visible par … et par Moussa Fall » devient « par l'équipe seulement ».
-- [ ] **AC2** — Relevé à deux sessions : le porteur laisse passer l'échéance. Chez l'agent, le fil passe
+  - « Visible par … et par Moussa Fall » devient « par l'équipe seulement ». — preuve : relevé 2026-11-19, salle du bail 178 au bureau (1280 px) : bloc « Fiabilité » (Mamadou Cissé 0 tenu · 0 en retard ; Fatou Wade 1 tenu · 1 en retard · sur 90 jours, « Visible par l’équipe de l’agence seulement ») ; feuille « Dossier du fil » au téléphone (360 px) idem, sans défilement horizontal ; fil sous « Retard » (puce, ligne « Fatou Wade : « Signer le renouvellement… » · 5 j de retard ») à 360 et 1280 ; locataire : toujours aucun bloc.
+- [x] **AC2** — Relevé à deux sessions : le porteur laisse passer l'échéance. Chez l'agent, le fil passe
   dans « Retard » et la pastille monte d'une unité. Déclaré tenu par le porteur, le fil en sort et la
-  pastille redescend.
-- [ ] **AC3** — Un locataire connecté ne voit le bloc de fiabilité d'aucun participant, le sien
+  pastille redescend. — preuve : relevé 2026-11-19, fil passé dans « Retard » après échéance dépassée (`due_at` déplacé par script), pastille +1 ; déclaré tenu, le fil sort de « Retard », pastille −1.
+- [x] **AC3** — Un locataire connecté ne voit le bloc de fiabilité d'aucun participant, le sien
   compris. Relevé au navigateur. *Ablation : afficher le bloc sur `commitments_records?.[id] ??
-  {kept: 0, late: 0}` fait rougir un test.*
+  {kept: 0, late: 0}` fait rougir un test.* — preuve : relevé 2026-11-19, session locataire dans le fil du bail : aucun bloc de fiabilité, pour aucun participant.
 - [x] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n` et `check:vouvoiement` sont verts, et
   les tests des fichiers touchés aussi. — preuve : CI verte de #1700 sur 2cf49b37f : Web CI 44461750708 (ESLint, tsc, check:i18n, check:vouvoiement, Vitest en 4 shards).
 
@@ -186,9 +186,11 @@ AC1 à AC3 au navigateur : non mesurés.
 - **Non relevés** : un fil sous « Retard » (il faut une promesse due à l'agent, donc une seconde
   session), la fiabilité au bureau, et AC2.
 
-## Reste sur dev
+## Relevé — 2026-11-19 (2)
 
-Le code est sur `dev` (#1700, 83f651c16). Il reste :
+- AC2, AC3 : conformes.
+- **Défaut trouvé (AC1, non corrigé)** : le bloc de fiabilité n'est pas monté dans le dossier de la salle. `takussan-web/src/components/messages/salle/DossierDuFil.tsx` monte `ParticipantsEtCanauxDuFil` (l.82) et `EngagementsDuFil` (l.88) mais ni `FiabiliteDuFil` ni `FiabiliteDuFilOuvert`, qui ne sont montés que dans `ColonneDeContexte.tsx:131` et `FeuilleDuFil.tsx:161` (fils directs). Cause probable : la salle (fils de bail) a remplacé la colonne de contexte sans reprendre le bloc. Le relevé AC3 du locataire est donc vrai aussi pour le personnel dans la salle : l'agent ne voit pas non plus la fiabilité.
 
-- AC1 : relevé partiel (boîte et onglet à 360 px). Manquent un fil sous « Retard » et la fiabilité au bureau.
-- AC2, AC3 : relevés à deux sessions, non faits.
+## Relevé — 2026-11-19 (3)
+
+- AC1 : conforme. Défaut corrigé dans ce ticket (DossierDuFil, test fiabilite-dans-le-dossier.tck-2973) ; relevé refait après le correctif. Tous les critères sont cochés.

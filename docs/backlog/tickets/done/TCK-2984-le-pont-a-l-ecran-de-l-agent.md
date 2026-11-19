@@ -1,7 +1,7 @@
 ---
 id: TCK-2984
 title: "Le pont à l'écran de l'agent (fil-pont D) : qui est joint par quoi, la fenêtre de 24 h et le message type, « Joindre par WhatsApp », l'état des relais, la trace du lien sur la carte"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: L
@@ -92,8 +92,8 @@ tags: [front, messagerie, le-fil, pont, whatsapp, non-fuite, i18n, maquette, adr
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px, contre la maquette `fil-pont` D : fil avec
-  un participant joint par WhatsApp, fenêtre ouverte puis fermée, STOP, carte avec sa trace.
+- [x] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px, contre la maquette `fil-pont` D : fil avec
+  un participant joint par WhatsApp, fenêtre ouverte puis fermée, STOP, carte avec sa trace. — preuve : relevé 2026-11-19, participant joint (relais d'invitation accepté), fenêtre ouverte puis fermée, STOP (opposition), carte avec la trace du lien, à 360 et 1280.
 - [x] **AC2** — Le locataire connecté au même fil ne voit ni panneau des canaux, ni état des relais, ni trace de
   lien, ni bouton « Joindre ». *Ablation : afficher les relais sans tester leur présence dans la réponse, sur une
   réponse de test qui les porte pour le locataire — rouge.* — preuve : takussan-web/src/components/messages/pont/__tests__/ElementsDuPont.tck-2984.test.tsx + Montage.tck-2984.test.tsx (ablation consignée dans les notes)
@@ -200,8 +200,6 @@ Reste : AC1 non mesuré.
 - **Non relevés** : participant joint, fenêtre ouverte puis fermée, STOP, trace d'un lien, AC2 (vue
   du locataire). Ils demandent un accord reçu par le webhook ; leurs tests de composant existent.
 
-## Reste sur dev
+## Relevé — 2026-11-19 (2)
 
-Le code est sur `dev` (#1700, 83f651c16). Il reste :
-
-- AC1 : relevé d'un participant joint (accord reçu par le webhook), de la fenêtre ouverte puis fermée, d'un STOP et de la trace d'un lien, non fait. Le panneau et l'invitation ont été relevés le 2026-11-19.
+- AC1 : conforme. Tous les critères sont cochés.

@@ -1,7 +1,7 @@
 ---
 id: TCK-2972
 title: "L'engagement dans le fil, à l'écran : noter d'un geste sur un message, la carte de chaque lecteur, ses gestes, et les engagements du fil"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: L
@@ -112,7 +112,7 @@ Les gestes se montrent selon les seules `abilities` rendues : le front ne recalc
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px, des écrans `creer`, `carte`,
+- [x] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px, des écrans `creer`, `carte`,
   `echeance` (« Tenu ? », téléphone ; carte de l'agent, bureau) et `retard` de `fil-engagements` A. Chaque écart est nommé dans le ticket. Écarts attendus, à ne pas
   combler :
   - pas de rappels réglables dans le formulaire (« La veille, 18:00 », « 1 h avant ») ;
@@ -122,15 +122,15 @@ Les gestes se montrent selon les seules `abilities` rendues : le front ne recalc
     l'échéance ;
   - pas d'interrupteur « Rappels automatiques » ;
   - pas de colonne « Vie de l'engagement » ;
-  - pas de proposition de l'assistant (lot 4).
-- [ ] **AC2** — Relevé à deux sessions : l'agent note un engagement pour le prestataire, et la carte
+  - pas de proposition de l'assistant (lot 4). — preuve : relevé 2026-11-19, `echeance` : porteur non agent (propriétaire Mamadou Cissé) à 360 px, carte « Votre engagement · En retard », « C'est fait », « Proposer une autre date », ligne « « Tenu ? » demandé », sans défilement horizontal ; côté bénéficiaire (Fatou Wade) la question « Tenu ? » avec « Oui, c'est fait » et « Pas encore ».
+- [x] **AC2** — Relevé à deux sessions : l'agent note un engagement pour le prestataire, et la carte
   apparaît chez le prestataire avec « Je confirme ». Confirmé, la carte change chez l'agent sans
-  recharger l'écran.
-- [ ] **AC3** — Le prestataire porteur déclare tenu. Le locataire bénéficiaire rouvre avec un motif,
+  recharger l'écran. — preuve : relevé 2026-11-19, deux sessions (agent Pape Cissé, porteur), la carte arrive chez le porteur avec « Je confirme » ; confirmée, la carte de l'agent change sans rechargement.
+- [x] **AC3** — Le prestataire porteur déclare tenu. Le locataire bénéficiaire rouvre avec un motif,
   puis ne voit plus « Ce n'est pas fait », et le porteur ne le voit pas non plus (le droit est
   partagé). Dans l'autre sens, le bénéficiaire déclare « C'est fait » et c'est le porteur qui voit
   « Ce n'est pas fait ». *Ablation : afficher le geste sans lire `abilities.reopen` fait rougir un
-  test.*
+  test.* — preuve : relevé 2026-11-19, porteur Mamadou Cissé déclare tenu, le bénéficiaire Fatou Wade voit « Ce n'est pas fait », rouvre avec le motif « Quittance non reçue » ; ensuite le bouton a disparu chez les deux (droit partagé) et la carte repasse « En retard ». Dans l'autre sens (droit remis à zéro par script) Fatou déclare « C'est fait » et Mamadou voit « Ce n'est pas fait », elle ne le voit pas.
 - [x] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n` et `check:vouvoiement` sont verts, et
   les tests des fichiers touchés aussi. — preuve : CI verte de #1700 sur 2cf49b37f : Web CI 44461750708 (ESLint, tsc, check:i18n, check:vouvoiement, Vitest en 4 shards).
 
@@ -215,9 +215,12 @@ AC3, ablation : afficher « Ce n'est pas fait » sans lire `abilities.reopen` fa
 - **Non relevé ici** : « Tenu ? » vu par un porteur non agent au téléphone, ainsi que AC2 et AC3, qui
   demandent deux sessions. Leur logique est couverte par les tests du ticket.
 
-## Reste sur dev
+## Relevé — 2026-11-19 (2)
 
-Le code est sur `dev` (#1700, 83f651c16). Il reste :
+- AC2 : conforme, relevé à deux sessions.
+- AC3 : non coché. Le sens agent (personnel rouvre toujours) a été vu ; la paire « porteur non membre du personnel déclare tenu, bénéficiaire rouvre, plus personne ne voit « Ce n'est pas fait » » n'a pas été jouée de bout en bout.
+- Manque encore AC1 `echeance` vu par un porteur non agent, au téléphone.
 
-- AC1 : seuls `creer`, `carte` et `retard` ont été relevés le 2026-11-19 (voir « Relevé AC1 »). Manque `echeance` vu par un porteur qui n'est pas agent, au téléphone.
-- AC2, AC3 : relevés à deux sessions, non faits. La logique est couverte par les tests du ticket.
+## Relevé — 2026-11-19 (3)
+
+- AC1 (`echeance`) et AC3 : conformes, relevés à trois sessions (agent, propriétaire à 360 px, locataire). Pour rejouer le sens inverse, `party_reopened_at` de l'engagement 7 a été remis à null par script. Tous les critères sont cochés.

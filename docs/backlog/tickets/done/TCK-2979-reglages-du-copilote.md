@@ -1,7 +1,7 @@
 ---
 id: TCK-2979
 title: "Les réglages du copilote : le résolveur ReglagesDuCopilote branché sur la base, interrupteur et modèle par fonction à la plateforme (ai_usage_settings), interrupteur de l'agence (AgencySettings), plafond IA par agence réglable ; console IA et réglages de l'agence à l'écran"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: L
@@ -227,9 +227,9 @@ final class ReglagesDuCopilote
 - [x] **AC4** — Plafond par agence : sans valeur, pas de refus ; avec une valeur atteinte, l'agence
   concernée est refusée et une autre ne l'est pas. **Ablation** : retirer le filtre `agency_id` de
   la somme fait rougir le second cas. — preuve : tests/Feature/Messaging/Copilote/ReglagesDuCopiloteBrancheTest.php::test_le_plafond_par_agence_des_parametres_plateforme
-- [ ] **AC5** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px : le bloc des réglages de
+- [x] **AC5** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px : le bloc des réglages de
   l'agence (allumé, coupé par l'agence, coupé par la plateforme), la console (usages `fil.*`, rôle
-  `transcription`) et le plafond par agence dans les Paramètres plateforme.
+  `transcription`) et le plafond par agence dans les Paramètres plateforme. — preuve : relevé 2026-11-19, agence : bloc « Assistant de la messagerie » allumé, coupé par l'agence, coupé par la plateforme (cartes grisées, « Coupé par la plateforme… »), à 360 et 1280 ; console : usages `fil.*` et rôle `transcription` ; plafond « Plafond IA du jour par agence » dans Paramètres plateforme, à 360 et 1280, sans défilement horizontal.
 - [x] **AC6** — Vérifications vertes :
   - `check-ai-usages.mjs`, `check-platform-catalogue-readers.mjs`, `check-env-parity.mjs` et la
     garde des actions de déploiement ;
@@ -344,11 +344,8 @@ Disponibilité, Garde, Promesses, Résumé et Transcription.
 - `transcription_configured` vaut `false` quand la plateforme coupe la transcription : l'écran dit alors la raison
   `plateforme`, qui prime.
 
-**Reste** :
-- AC5, le relevé au navigateur.
+**Reste** : rien (AC5 relevé le 2026-11-19, ci-dessous).
 
-## Reste sur dev
+## Relevé — 2026-11-19 (2)
 
-Le code est sur `dev` (#1700, 83f651c16). Il reste :
-
-- AC5 : relevé au navigateur des réglages de l'agence (il faut un compte admin d'agence avec double facteur), de la console IA et du plafond, non fait.
+- AC5 : conforme. Admin d'agence enrôlé en double facteur pour l'occasion (annulé ensuite) ; l'enregistrement du réglage d'agence a été posé par script après le modal de double facteur.

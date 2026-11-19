@@ -1,7 +1,7 @@
 ---
 id: TCK-2977
 title: "Le copilote à l'écran, lire : grammaire « proposé, non envoyé », « Ce que vous avez manqué » au premier non-lu, « Demander au fil », transcription sous la note vocale, états en pause, coupé et indisponible"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: L
@@ -135,15 +135,15 @@ tags: [front, messagerie, le-fil, copilote, ia, note-vocale, i18n, adr-0131]
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px : les écrans `manque`,
+- [x] **AC1** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px : les écrans `manque`,
   `demander`, `vocal` et `limites` de `fil-copilote` A sont fidèles à la maquette (le faux modèle du SDK, ou
   une suggestion insérée en base de développement, fournit le contenu). Chaque écart est nommé dans
-  le ticket.
-- [ ] **AC2** — Connecté en locataire dans la même salle, aucune requête `…/copilote` ni
+  le ticket. — preuve : relevé 2026-11-19, écrans du copilote avec une vraie suggestion (modèle claude-haiku-5-5 en dev) à 360 et 1280 px, sans défilement horizontal : « Ce que vous avez manqué · résumé de l'assistant » (12 nouveaux messages, puces citées avec heure, « Visible par vous seulement · rien n'est envoyé », « Lire les 12 messages »), ✦ dans l'en-tête, « Demander au fil » (question, réponse avec sources, « Mettre dans le composeur », avis).
+- [x] **AC2** — Connecté en locataire dans la même salle, aucune requête `…/copilote` ni
   `…/transcription` dans l'onglet réseau, et ni ✦, ni le mot « assistant », ni bloc sous une note
-  vocale à l'écran.
-- [ ] **AC3** — Le résumé d'un agent n'apparaît pas chez son collègue du même fil, relevé avec deux
-  sessions.
+  vocale à l'écran. — preuve : relevé 2026-11-19, locataire dans la même salle : aucune requête `…/copilote`, ni ✦, ni « assistant ».
+- [x] **AC3** — Le résumé d'un agent n'apparaît pas chez son collègue du même fil, relevé avec deux
+  sessions. — preuve : relevé 2026-11-19, deux sessions de personnel sur le fil 178 : l'agent a résumé, réponse et brouillon prêts ; le collègue (Admin Dakar Immo) a les siens à zéro (résumé et brouillon vides, ses promesses propres, ids distincts).
 - [x] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests
   des fichiers touchés verts. — preuve : CI verte de #1700 sur 2cf49b37f : Web CI 44461750708 (ESLint, tsc, check:i18n, check:vouvoiement, Vitest en 4 shards).
 
@@ -212,9 +212,12 @@ résumé, clé par utilisateur, fenêtre du résumé — toutes rouges sans le c
 `check-front-routes` rougit sur `POST …/messages/{m}/transcription` et `PUT /api/copilote/suggestions/{s}/decision`
 tant que TCK-2976 et TCK-2975 ne sont pas fusionnés.
 
-## Reste sur dev
+## Relevé — 2026-11-19 (2)
 
-Le code est sur `dev` (#1700, 83f651c16). Il reste :
+- AC2 : conforme (`copilote: false` dans la réponse du fil du locataire, aucun appel).
+- Constat d'environnement : la capacité `messaging.copilot` manquait aux rôles de la base de dev (`copilote` restait faux pour l'agent) ; `php artisan membership:reconcile-system-roles` l'a ajoutée (8 rôles). Après quoi ✦ et « Demander au fil » apparaissent chez l'agent, et la feuille s'ouvre.
+- AC1, AC3 : non faits. Aucun `AiSuggestion` n'a été inséré (pas de fournisseur d'IA en local, et l'état `en_cours` de la file de promesses persiste) ; AC3 demande deux sessions d'agents.
 
-- AC1 : relevé au navigateur des écrans du copilote, non fait. Il faut un fournisseur d'IA en local, ou le faux modèle du SDK.
-- AC2 : relevé réseau d'un locataire, non fait. AC3 : relevé à deux sessions, non fait.
+## Relevé — 2026-11-19 (3)
+
+- AC1, AC3 : conformes. Le fournisseur d'IA est bien disponible en dev (appels réels, aucune `AiSuggestion` insérée à la main). Tous les critères sont cochés.
