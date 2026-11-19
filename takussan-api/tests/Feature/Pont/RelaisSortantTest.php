@@ -246,4 +246,53 @@ class RelaisSortantTest extends ApiTestCase
         $this->assertArrayNotHasKey((string) $this->collegue->id, $pont);
         $this->assertStringNotContainsString(ltrim(self::TEL_BAILLEUR, '+'), (string) $contexte->getContent());
     }
+
+    /** @param  list<array{id: string, statut: string}>  $accuses */
+    private function accuses(array $accuses): void
+    {
+        $this->withHeaders(['X-Faux-Signature' => 'ok'])->postJson('/api/webhooks/messagerie/faux/'.FauxCanal::JETON, ['accuses' => $accuses])->assertOk();
+    }
+
+    public function test_les_accuses_font_avancer_le_relais_sans_jamais_reculer(): void
+    {
+        $this->joindre();
+        $m = $this->ecrireUnMessage('Suivi.');
+        $id = (string) $this->relaisDe($m->id)[0]['provider_message_id'];
+
+        $this->accuses([['id' => $id, 'statut' => 'delivered'], ['id' => $id, 'statut' => 'read'], ['id' => $id, 'statut' => 'delivered']]);
+
+        $relais = $this->relaisDe($m->id)[0];
+        $this->assertSame('lu', $relais['status']);
+        $this->assertNotNull($relais['delivered_at']);
+        $this->assertNotNull($relais['read_at']);
+    }
+
+    public function test_un_echec_tardif_repart_une_fois_par_le_canal_suivant(): void
+    {
+        $this->joindre();
+        $m = $this->ecrireUnMessage('Tardif.');
+        $id = (string) $this->relaisDe($m->id)[0]['provider_message_id'];
+
+        $this->accuses([['id' => $id, 'statut' => 'failed']]);
+        $this->accuses([['id' => $id, 'statut' => 'failed']]);
+
+        $relais = $this->relaisDe($m->id);
+        $this->assertCount(2, $relais);
+        $this->assertSame(['faux', 'echec'], [$relais[0]['channel'], $relais[0]['status']]);
+        $this->assertSame(['sms', 'envoye'], [$relais[1]['channel'], $relais[1]['status']]);
+    }
+
+    public function test_un_echec_tardif_apres_stop_ne_repart_pas(): void
+    {
+        $this->joindre();
+        $m = $this->ecrireUnMessage('Tardif.');
+        $id = (string) $this->relaisDe($m->id)[0]['provider_message_id'];
+        FauxCanal::$accords[self::TEL_BAILLEUR] = EtatDAccord::Oppose;
+
+        $this->accuses([['id' => $id, 'statut' => 'failed']]);
+
+        $relais = $this->relaisDe($m->id);
+        $this->assertSame(['echec', 'non_envoye'], array_column($relais, 'status'));
+        $this->assertNull($relais[1]['channel']);
+    }
 }

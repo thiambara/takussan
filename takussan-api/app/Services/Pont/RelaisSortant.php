@@ -60,13 +60,20 @@ final class RelaisSortant
         array $variables,
         ?string $boutonReponse = null,
         bool $exigeBoutons = false,
+        // TCK-2981 — le repli tardif : seulement les canaux qui suivent celui-ci dans l'ordre de repli.
+        ?string $apres = null,
     ): ?array {
         if ($this->oppose($telephone)) {
             return null;
         }
         $contexte = ['agency_id' => $agence, 'bouton_reponse' => $boutonReponse];
         $dernier = null;
-        foreach ($this->canaux() as $canal) {
+        $canaux = $this->canaux();
+        if ($apres !== null) {
+            $rang = array_search($apres, array_map(fn (CanalDuPont $c) => $c->nom(), $canaux), true);
+            $canaux = $rang === false ? [] : array_slice($canaux, $rang + 1);
+        }
+        foreach ($canaux as $canal) {
             $capacites = $canal->capacites();
             if ($exigeBoutons && ! $capacites->boutons) {
                 continue;

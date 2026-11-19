@@ -11,7 +11,11 @@ use App\Models\MessageRelay;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Services\Messaging\EvenementsDuFil;
+use App\Services\Notifications\Sms\SmsDriverInterface;
+use App\Services\Notifications\Sms\SmsResult;
+use App\Services\Pont\ResultatDEnvoi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
@@ -89,6 +93,38 @@ class EmissionDesLiensTest extends ApiTestCase
         $this->assertMatchesRegularExpression('#/(fr|en|wo)/fil/a/([A-Za-z0-9_-]{43})#', (string) FauxCanal::$envois[0]['texte']);
         preg_match('#/fil/a/([A-Za-z0-9_-]{43})#', (string) FauxCanal::$envois[0]['texte'], $m);
         $this->assertSame(hash('sha256', $m[1]), ActionLink::query()->value('token_hash'));
+    }
+
+    /**
+     * AC4, sur le chemin RÉEL du relais : le texte part par le canal SMS (le faux pilote échoue sûrement), et aucune
+     * table de la base ne contient le jeton en clair après l'envoi — ni `action_links`, ni `message_relays`, ni
+     * `activity_log`, ni un journal d'envoi.
+     */
+    public function test_ac4_apres_un_relais_par_sms_aucune_table_ne_contient_le_jeton_en_clair(): void
+    {
+        $this->joint($this->bailleur, self::TEL_BAILLEUR);
+        FauxCanal::$resultats['text'] = new ResultatDEnvoi(ResultatDEnvoi::ECHEC, forme: 'text', motif: 'refus');
+        $envoyes = [];
+        $sms = \Mockery::mock(SmsDriverInterface::class);
+        $sms->shouldReceive('send')->andReturnUsing(function (array|string $to, string $message) use (&$envoyes): array {
+            $envoyes[] = $message;
+            $numero = is_array($to) ? $to[0] : $to;
+
+            return [$numero => SmsResult::sent($numero, 'sms-1')];
+        });
+        $this->app->instance(SmsDriverInterface::class, $sms);
+
+        app(EvenementsDuFil::class)->ecrire($this->fil, $this->visite(), 'visit.rescheduled', ['scheduled_at' => null], [$this->bailleur]);
+
+        $this->assertSame('sms', MessageRelay::query()->where('purpose', MessageRelay::PURPOSE_ACTION_LINK)->value('channel'));
+        $this->assertCount(1, $envoyes);
+        $this->assertSame(1, preg_match('#/fil/a/([A-Za-z0-9_-]{43})#', $envoyes[0], $m));
+        $jeton = $m[1];
+        $this->assertSame(hash('sha256', $jeton), ActionLink::query()->value('token_hash'));
+
+        $tables = array_column(DB::select("select tablename from pg_tables where schemaname = current_schema() and tablename not in ('migrations')"), 'tablename');
+        $porteuses = array_values(array_filter($tables, fn (string $t): bool => DB::table($t)->whereRaw('"'.$t.'"::text like ?', ['%'.$jeton.'%'])->exists()));
+        $this->assertSame([], $porteuses, 'le jeton en clair est rangé en base');
     }
 
     public function test_hors_fenetre_le_gabarit_porte_le_jeton_en_suffixe_du_bouton(): void

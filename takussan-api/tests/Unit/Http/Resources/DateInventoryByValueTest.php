@@ -110,6 +110,9 @@ class DateInventoryByValueTest extends TestCase
         // TCK-2987 — au seul personnel actif de l'agence du fil (`FiabiliteDesEngagements`).
         'App\Http\Resources\ConversationContextResource::commitments_records' => '`when()` sur un appelant personnel actif '
             .'de l\'agence du fil (TCK-2987) : `{user_id: {kept, late}}`, deux ENTIERS par participant, jamais une date.',
+        // TCK-2981 — au seul personnel actif de l'agence du fil (`PontDesParticipants`).
+        'App\Http\Resources\ConversationContextResource::pont' => '`when()` sur un appelant personnel actif de l\'agence '
+            .'du fil (TCK-2981) : par participant, ses instants (`accord_at`, `opposition_at`, `fenetre_jusqu_a`) passent par `iso()`.',
         'App\Http\Resources\ConversationResource::attend_depuis' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
             .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
             .'de cette requête. Une DATE, par `iso()` (cast `datetime` posé par `withCasts`) : '
@@ -245,6 +248,9 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\MessageResource::object' => '`when()` sur un message `card`/`event` (TCK-2958) : la projection '
             .'d\'une ressource dont les dates sortent déjà par `iso()`/`calendarDate()` (tenues par leurs propres entrées), '
             .'ou `{indisponible: true}` ; `RelectureDesObjetsTest` la compare au `show` valeur pour valeur.',
+        // TCK-2981
+        'App\Http\Resources\MessageResource::relays' => '`when()` sur une page de messages lue par le personnel actif du fil '
+            .'(TCK-2981) : par destinataire, son instant `at` passe par `instantOnWire`.',
         // TCK-2976
         'App\Http\Resources\MessageResource::transcription' => '`when()` sur un message `audio` lu par le personnel servi par le copilote (TCK-2976) : '
             .'`{etat, texte?, langue?, code?}`, aucune date.',

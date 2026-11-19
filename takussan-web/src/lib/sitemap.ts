@@ -103,6 +103,12 @@ export const ROUTES_DYNAMIQUES_PUBLIQUES: Readonly<
     source: null,
     exclue: 'TCK-2390',
   },
+  // TCK-2983 (ADR-0132 § 5) — le lien d'action du pont : le jeton est le droit de faire un geste sur un
+  // objet (confirmer, accepter, signer), propre à une personne ; `noindex` et `no-referrer`.
+  '/fil/a/[token]': {
+    source: null,
+    exclue: 'TCK-2983',
+  },
 };
 
 /**

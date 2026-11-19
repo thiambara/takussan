@@ -167,4 +167,74 @@ jeton) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Prémisse re-mesurée (2026-11-19, arbre partagé de `feat/le-fil-lots-3-5`)** — conforme. Les trois gestes sont
+derrière `auth:sanctum`. `confirm` portait sa garde (`update` dans la FormRequest, puis `peutConfirmer`) et la suite
+du bailleur (journal, avis) dans le contrôleur. `accept` est déjà dans `MaintenanceRequestService::accept` (verrou,
+assignation relue). `sign` est déjà dans `InventorySignatureService::sign`. `VisitRescheduled` (`mobile()`) va au
+VISITEUR, alors que `visit.rescheduled` attend le personnel ou le bailleur qui confirme (`action_for`) : pas de
+doublon. Aucun gabarit du pont n'était inscrit à `notification_templates` (`pont_invitation`,
+`pont_nouveau_message` non plus).
+
+**Livré**
+- `action_links` (migration `298201`, `down()`), `ActionLink` (non journalisé, `token_hash` et `phone` cachés).
+- `GestesParLien`, registre fermé de trois gestes :
+  - `property_visit.confirm` ← `visit.rescheduled` ;
+  - `maintenance_request.accept` ← `maintenance.assigned` (règle du registre : le prestataire assigné, tant que ce
+    n'est pas accepté) ;
+  - `inventory.sign` ← `awaiting_signature` et `signed_by_party`, avec un code exigé.
+  Avec ses projections (quartier, ville, créneau, titre, catégorie, priorité, type ; ni rue, ni téléphone, ni
+  montant), `CODES_COUVERTS` (loyer) et `SANS_LIEN` (devis, créneau à choisir, engagements, chacun motivé).
+- `RegistreDesGestesParLienTest` : chaque code `attend` du catalogue est rangé une seule fois.
+- `ConfirmerUneVisite` : le cœur de `confirm` sort du contrôleur, et la route comme le lien l'appellent.
+- `LiensDAction` :
+  - le jeton : 32 octets aléatoires en base64 d'URL (43 caractères) ; seul le SHA-256 est en base ;
+  - 7 jours ;
+  - un nouveau lien révoque le précédent pour le même (compte, objet, geste) ;
+  - l'URL suit le format `{frontend_url}/{langue}/fil/a/{jeton}` ;
+  - `apresEvenement` et `aLaJonction`.
+- `ActionLinkController` :
+  - `GET` et `POST /api/a/{token}`, puis `POST /api/a/{token}/code` ;
+  - le geste et `used_at` sont faits dans une transaction, sous verrou de la ligne ;
+  - le compte du lien est posé sur la seule requête (`Auth::setUser`, sans `login`) ;
+  - un lien mort rend 410 avec son seul code, un jeton inconnu rend 404 ;
+  - un objet supprimé rend 410 `revoked`.
+- Les jobs `EmettreLesLiensDAction` (après le commit d'`EvenementsDuFil::ecrire`, seulement pour un code émetteur)
+  et `EmettreLesLiensALaJonction` (`AccordDuPont::lire`, à l'accord).
+- Le limiteur `action-link` (IP et empreinte du jeton). Le code est limité à `throttle:5,10`.
+- `PlatformAnyRouteExempt` : `act` et `sendCode` y sont `PUBLIC`.
+- Les codes `action_link.*` dans `errors.php` (fr, en, wo = fr), le SMS `notifications.action_link_signature_code`,
+  et `pont.lien_action`, `pont.gestes.*`, `pont.lien_action_gabarit`.
+- Le gabarit `pont_lien_action` (migration `298202`, `pending`, fr et en ; variables : agence, geste, jeton).
+- `pont:effacer-numeros` efface `action_links.phone` 90 jours après `expires_at`.
+- `MessageResource.action_link` `{sent_at, opened_at, used_at, expires_at}`, en une requête par page, au seul
+  personnel actif de l'agence du fil. Le super-admin ne le reçoit pas.
+
+**Écarts et choix**
+- Le code de signature par lien a sa propre portée dans `SignatureOtpService` (`lien:<rôle>`), distincte de la voie
+  sur place d'ADR-0098. Il part au NUMÉRO DU LIEN (`Notification::route('sms', …)`), sinon au numéro vérifié du
+  compte. La signature est enregistrée « dessinée » par son signataire (`sign(…, code: null)`) : la preuve du code
+  n'est pas écrite dans les colonnes `*_otp_*` de l'état des lieux. À trancher si on veut la tracer.
+- Un code juste est consommé (cache) même si `sign()` refuse ensuite. Les refus prévisibles (rôle, déjà signé)
+  sont jugés AVANT l'essai du code.
+- AC5 : le loyer n'a pas de geste dans la table. Retirer `CODES_COUVERTS` ne fait donc pas « deux envois », mais
+  fait rougir le test du registre (code `attend` non rangé). Le test de comportement vérifie qu'une échéance due,
+  en retard ou relancée n'émet aucun lien ni aucun envoi vers le locataire joint. Le départ de la relance de
+  loyer elle-même n'est pas rejoué ici.
+- La « jonction d'emblée » (`InvitationsDuPont::joindre`, accord déjà donné) : ce fichier était en cours
+  d'édition par TCK-2981, et la ligne a été demandée à impl-2980. Seul l'accord par bouton (`AccordDuPont`) est
+  branché ici.
+- Pilote WhatsApp : le bouton `url` à suffixe variable et le `cta_url` dans la fenêtre ne sont pas posés
+  (`WhatsappCloud`, fichier de TCK-2981). Le 3e paramètre du gabarit est le jeton, et l'URL complète part dans le
+  texte libre et le SMS.
+
+**Ablations** (chaque mutant a fait rougir sa cible ; chaque restauration a été vérifiée par md5) :
+- AC1 : sans `Gate update` ni `peutConfirmer` dans `ConfirmerUneVisite`.
+- AC2 : `gesture` et `object` ajoutés à l'erreur 410 (4 tests rouges).
+- AC3 : `used_at` posé avant la transaction (2 rouges).
+- AC4 : le jeton stocké en clair.
+- AC5 : `CODES_COUVERTS = []` (2 rouges).
+- AC5 bis : la ligne de `AccordDuPont` retirée.
+- AC6 : la projection remplacée par `MaintenanceRequestResource`.
+- Signature : le code non exigé (2 rouges).
+- Trace : sans la garde du personnel.
+

@@ -100,11 +100,11 @@ class MessageResource extends BaseResource
      * message : `{sent_at, opened_at, used_at, expires_at}`. `null` (clé absente) sauf pour le personnel actif de
      * l'agence du fil.
      *
-     * @var array<int, array<string, string|null>>|null
+     * @var array<int, list<\DateTimeInterface|null>>|null
      */
     private ?array $liens = null;
 
-    /** @param  array<int, array<string, string|null>>|null  $liens */
+    /** @param  array<int, list<\DateTimeInterface|null>>|null  $liens */
     public function avecLiens(?array $liens): static
     {
         $this->liens = $liens;
@@ -212,7 +212,12 @@ class MessageResource extends BaseResource
             // Au SEUL personnel actif de l'agence du fil ; absente pour tout autre lecteur.
             'action_link' => $this->when(
                 $this->liens !== null && isset($this->liens[(int) $this->resource->getKey()]),
-                fn (): array => $this->liens[(int) $this->resource->getKey()],
+                fn (): array => [
+                    'sent_at' => $this->iso($this->liens[(int) $this->resource->getKey()][0]),
+                    'opened_at' => $this->iso($this->liens[(int) $this->resource->getKey()][1]),
+                    'used_at' => $this->iso($this->liens[(int) $this->resource->getKey()][2]),
+                    'expires_at' => $this->iso($this->liens[(int) $this->resource->getKey()][3]),
+                ],
             ),
             // TCK-2981 (ADR-0132 § 4) — par où le message est parti, destinataire par destinataire : au SEUL personnel
             // actif de l'agence du fil (page de messages) ; absente pour tout autre lecteur. Sans numéro.
@@ -255,7 +260,7 @@ class MessageResource extends BaseResource
      * personnel actif de l'agence du fil (le super-admin n'est pas du personnel : il ne la reçoit pas).
      *
      * @param  Collection<int, Message>  $messages
-     * @return array<int, array<string, string|null>>|null
+     * @return array<int, list<\DateTimeInterface|null>>|null
      */
     private static function liensDeLaPage(Collection $messages, Request $request): ?array
     {
@@ -276,12 +281,8 @@ class MessageResource extends BaseResource
             ->orderBy('action_links.id')
             ->get(['action_links.message_id', 'action_links.opened_at', 'action_links.used_at', 'action_links.expires_at', 'message_relays.sent_at as relais_envoye_le'])
             ->each(function (ActionLink $lien) use (&$liens): void {
-                $liens[(int) $lien->message_id] = [
-                    'sent_at' => self::instantOnWire($lien->getAttribute('relais_envoye_le') === null ? null : Carbon::parse($lien->getAttribute('relais_envoye_le'))),
-                    'opened_at' => self::instantOnWire($lien->opened_at),
-                    'used_at' => self::instantOnWire($lien->used_at),
-                    'expires_at' => self::instantOnWire($lien->expires_at),
-                ];
+                $envoye = $lien->getAttribute('relais_envoye_le');
+                $liens[(int) $lien->message_id] = [$envoye === null ? null : Carbon::parse($envoye), $lien->opened_at, $lien->used_at, $lien->expires_at];
             });
 
         return $liens;

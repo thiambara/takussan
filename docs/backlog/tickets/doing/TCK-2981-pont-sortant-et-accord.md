@@ -176,7 +176,7 @@ destinataire, dans l'ordre.
 
 ## Notes d'implémentation
 
-**Livraison partielle (2026-11-19, budget de 30 min)** — l'accord et le relais, avec leur non-fuite ; le locataire
+**Première livraison (2026-11-19, budget de 30 min, PR #1700)** — l'accord et le relais, avec leur non-fuite ; le locataire
 sans compte et la lecture (`relays`, `pont`) restent.
 
 Livré :
@@ -199,7 +199,26 @@ Livré :
 - Avis déclarés : `pont.accord`, `pont.numero_deja_a_un_compte`. Textes API : `lang/{fr,en,wo}/pont.php`.
 - `message_relays.channel` devient nullable (relais qui n'a pu partir : `non_envoye`), dans la migration de TCK-2980.
 
-Reste (non livré) : la fiche sans compte (`customer_id`, création du compte à l'accord, refus
-`pont.numero_deja_a_un_compte` côté accord) ; `MessageResource.relays` et le bloc `pont` du contexte ;
-`UpdateWhatsappDeliveryStatusJob` sur les relais et le repli SMS tardif ; les seeders `pont_invitation` /
-`pont_nouveau_message` ; un joint en sourdine n'est pas relayé (la sourdine filtre les destinataires en amont).
+**Complété après la PR #1700 (2026-11-19)** :
+- **Bloc `pont` de `GET …/context`** (`PontDesParticipants`, `EtatDuNumero`, `CanalDuPont::etatDuNumero()` posé sur les
+  trois pilotes dans la même passe) : une clé À PART de `participants[]`, sur le modèle de `commitments_records` — un
+  objet indexé par `user_id`, une ligne pour CHAQUE participant actif sauf le lecteur (une ligne de relation n'existe
+  que pour une relation lisible, TCK-2748). `{joint, invitation_en_attente, canal, accord_at, opposition_at,
+  fenetre_jusqu_a, invitable}`, au seul personnel actif de l'agence du fil ; absente sinon. Écart au ticket : deux
+  champs de plus (`invitation_en_attente`, `canal`), demandés pour l'écran (TCK-2984).
+- **`MessageResource.relays`** (`[{user_id, channel, form, status, at}]`, le dernier relais par destinataire), au seul
+  personnel actif ; `channel` reste servi à l'auteur et au personnel seulement, comme TCK-2980 l'a posé (le ticket
+  disait « pour tous » : la règle plus étroite de TCK-2980, gardée par son AC7, est conservée).
+- **Fiche sans compte (AC6)** : `POST …/pont/invitations {customer_id}` (la fiche locataire du bail de la salle, sinon
+  `pont.customer_not_in_room` ; une fiche qui a un compte suit le chemin du compte) ; seule la réponse au bouton de
+  SON invitation, venue de son numéro, crée le compte sans mot de passe (`PhoneVerificationService::markVerified`, le
+  seul écrivain de `phone_verified_at`), le rattache, synchronise la salle. Numéro porté par un compte, même non
+  vérifié : rien, accord non posé, avis `pont.numero_deja_a_un_compte`.
+- **Accusés** (`AccusesDuPont`, appelé par `MessagerieWebhookController::traiter`, donc aussi au rejeu) : `envoye` →
+  `remis` → `lu`, jamais de recul ; un `echec` tardif d'un relais de message repart une fois par les canaux qui suivent
+  dans l'ordre de repli (`RelaisSortant::envoyer(apres:)`), jamais après une opposition. Écart au ticket : branché sur
+  le contrôleur générique plutôt que dans `UpdateWhatsappDeliveryStatusJob`, pour rester sans canal nommé.
+- **Gabarits** : migration `2026_11_19_298100_…` (`pont_invitation`, `pont_nouveau_message`, `fr`/`en`, `pending`).
+
+Reste : un joint en sourdine n'est pas relayé (la sourdine filtre les destinataires en amont de
+`NotifyNewMessageJob`) ; le bouton d'URL de gabarit (TCK-2982).

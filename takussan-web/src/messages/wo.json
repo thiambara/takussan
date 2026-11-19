@@ -21866,7 +21866,7 @@
     "action": {
       "metaTitre": "Une action vous attend",
       "mention": "Lien personnel",
-      "pied": "Ce lien ne sert qu’une fois et ne vaut que 7 jours. Pour tout le reste, répondez à l’agence dans votre conversation WhatsApp.",
+      "pied": "Ce lien ne sert qu’une fois, et pour un temps limité. Pour tout le reste, répondez à l’agence dans votre conversation WhatsApp.",
       "refus": "Le geste n’a pas pu être fait. Votre lien reste valable : réessayez, ou répondez à l’agence sur WhatsApp.",
       "erreur": "Ce lien n’a pas pu être ouvert. Vérifiez votre connexion, puis réessayez.",
       "recap": {

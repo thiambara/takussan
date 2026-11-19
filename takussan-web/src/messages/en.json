@@ -21866,7 +21866,7 @@
     "action": {
       "metaTitre": "An action is waiting for you",
       "mention": "Personal link",
-      "pied": "This link works once and is valid for 7 days. For anything else, reply to the agency in your WhatsApp conversation.",
+      "pied": "This link works once, for a limited time. For anything else, reply to the agency in your WhatsApp conversation.",
       "refus": "The action could not be completed. Your link is still valid: try again, or reply to the agency on WhatsApp.",
       "erreur": "This link could not be opened. Check your connection, then try again.",
       "recap": {

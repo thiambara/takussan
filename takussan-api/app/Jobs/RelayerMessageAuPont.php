@@ -34,7 +34,12 @@ class RelayerMessageAuPont implements ShouldQueue
 
     public int $tries = 1;
 
-    public function __construct(public readonly int $messageId, public readonly int $userId) {}
+    public function __construct(
+        public readonly int $messageId,
+        public readonly int $userId,
+        // TCK-2981 — le repli tardif d'un relais échoué après coup : les canaux qui suivent celui-ci, une fois.
+        public readonly ?string $apres = null,
+    ) {}
 
     public static function relayable(Message $message): bool
     {
@@ -59,9 +64,10 @@ class RelayerMessageAuPont implements ShouldQueue
             return;
         }
         // Un seul relais par (message, destinataire) : un rejeu de la file ne renvoie rien.
+        // Le repli tardif part une fois : seulement si le relais échoué est encore le seul.
         $deja = MessageRelay::query()->where('message_id', $message->id)->where('user_id', $destinataire->id)
-            ->where('direction', MessageRelay::DIRECTION_OUT)->where('status', '!=', MessageRelay::STATUS_REPRIS)->exists();
-        if ($deja) {
+            ->where('direction', MessageRelay::DIRECTION_OUT)->where('status', '!=', MessageRelay::STATUS_REPRIS)->count();
+        if ($deja > ($this->apres === null ? 0 : 1)) {
             return;
         }
         $agence = EquipeDuFil::agence($message->conversation);
@@ -88,7 +94,7 @@ class RelayerMessageAuPont implements ShouldQueue
         $nomDAgence = $agence === null ? 'Takussan' : (string) (Agency::query()->whereKey($agence)->value('name') ?? 'Takussan');
         $texte = __('pont.relais', ['nom' => $nom, 'agence' => $nomDAgence, 'texte' => (string) $message->content], $langue);
 
-        $envoi = $relais->envoyer((string) $destinataire->phone, $agence, $texte, 'pont_nouveau_message', $langue, [$nom, $nomDAgence, mb_strimwidth((string) $message->content, 0, 500, '…')]);
+        $envoi = $relais->envoyer((string) $destinataire->phone, $agence, $texte, 'pont_nouveau_message', $langue, [$nom, $nomDAgence, mb_strimwidth((string) $message->content, 0, 500, '…')], apres: $this->apres);
         if ($envoi === null) {
             // Opposition, ou aucun canal : rien ne part, et la trace le dit sans numéro de plus.
             MessageRelay::query()->create($base + ['status' => MessageRelay::STATUS_NON_ENVOYE]);

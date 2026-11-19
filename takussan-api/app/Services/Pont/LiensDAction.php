@@ -14,6 +14,7 @@ use App\Services\Messaging\EvenementsDuFil;
 use App\Services\Messaging\NonLus;
 use App\Services\Messaging\SujetsDuFil;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -231,6 +232,29 @@ class LiensDAction
         }
 
         return ActionLink::query()->where('token_hash', self::empreinte($jeton))->first();
+    }
+
+    /**
+     * Le lien vivant d'un jeton présenté, ou l'échec qui ne dit rien de plus : 404 (jeton inconnu), 410 et son seul
+     * code (utilisé, révoqué, expiré). Lu AVANT toute validation du corps (`GesteParLienRequest::authorize`).
+     */
+    public function lienVivant(?ActionLink $lien): ActionLink
+    {
+        abort_if($lien === null, 404);
+        $mort = $lien->mort();
+        abort_code_if($mort !== null, 410, 'action_link.'.$mort);
+
+        return $lien;
+    }
+
+    /** L'objet du lien ; supprimé ou absent, le lien est mort (410 `revoked`), sans rien dire de plus. */
+    public function objetVivant(ActionLink $lien): Model
+    {
+        $objet = SujetsDuFil::resoudre($lien->subject_type, (int) $lien->subject_id);
+        $supprime = $objet !== null && in_array(SoftDeletes::class, class_uses_recursive($objet), true) && $objet->trashed();
+        abort_code_if($objet === null || $supprime, 410, 'action_link.'.ActionLink::ETAT_REVOQUE);
+
+        return $objet;
     }
 
     public static function url(string $jeton, ?string $langue = null): string

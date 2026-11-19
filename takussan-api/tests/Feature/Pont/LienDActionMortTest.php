@@ -61,6 +61,22 @@ class LienDActionMortTest extends ApiTestCase
         }
     }
 
+    #[DataProvider('morts')]
+    public function test_un_lien_mort_rend_410_avant_toute_validation_du_corps(string $mort): void
+    {
+        [$jeton, $lien] = $this->lien($this->bailleur, 'property_visit.confirm', $this->visiteAConfirmer());
+        $this->tuer($lien, $mort);
+
+        $this->postJson("/api/a/{$jeton}", ['scheduled_at' => '2001-01-01T10:00:00Z', 'signature' => 'x'])
+            ->assertStatus(410)
+            ->assertExactJson(['code' => 'action_link.'.$mort, 'message' => __('errors.action_link.'.$mort)]);
+    }
+
+    public function test_un_jeton_inconnu_rend_404_avant_toute_validation_du_corps(): void
+    {
+        $this->postJson('/api/a/'.str_repeat('x', 43), ['scheduled_at' => '2001-01-01T10:00:00Z'])->assertNotFound();
+    }
+
     public function test_un_jeton_inconnu_ou_mal_forme_rend_404(): void
     {
         $this->getJson('/api/a/'.str_repeat('x', 43))->assertNotFound();

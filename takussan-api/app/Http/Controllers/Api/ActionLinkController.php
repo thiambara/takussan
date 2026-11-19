@@ -20,7 +20,6 @@ use App\Services\Pont\GestesParLien;
 use App\Services\Pont\LiensDAction;
 use App\Services\Signature\SignatureOtpService;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -71,8 +70,9 @@ class ActionLinkController extends Controller
 
     public function act(GesteParLienRequest $request, string $token): JsonResponse
     {
-        $trouve = $this->liens->trouver($token);
-        abort_if($trouve === null, 404);
+        // Le lien est déjà jugé vivant par `GesteParLienRequest::authorize` (404/410 AVANT tout 422) ; il est
+        // rejugé ici sous verrou de sa ligne.
+        $trouve = $request->lien();
 
         [$acteur, $objet] = DB::transaction(function () use ($trouve, $request): array {
             /** @var ActionLink|null $lien */
@@ -152,21 +152,12 @@ class ActionLinkController extends Controller
     /** Le lien vivant, ou 404 (inconnu) / 410 avec son seul code (mort). */
     private function vivant(?ActionLink $lien): ActionLink
     {
-        abort_if($lien === null, 404);
-        $mort = $lien->mort();
-        abort_code_if($mort !== null, 410, 'action_link.'.$mort);
-
-        return $lien;
+        return $this->liens->lienVivant($lien);
     }
 
-    /** L'objet du lien ; supprimé ou absent, le lien est mort (révoqué), sans rien dire de plus. */
     private function objetVivant(ActionLink $lien): Model
     {
-        $objet = SujetsDuFil::resoudre($lien->subject_type, (int) $lien->subject_id);
-        $supprime = $objet !== null && in_array(SoftDeletes::class, class_uses_recursive($objet), true) && $objet->trashed();
-        abort_code_if($objet === null || $supprime, 410, 'action_link.'.ActionLink::ETAT_REVOQUE);
-
-        return $objet;
+        return $this->liens->objetVivant($lien);
     }
 
     /**

@@ -101,6 +101,8 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/me/wizard-drafts/{key}' => '{key} : sans liaison de modèle',
         'api/media/{media}/file' => '{media} : Media sans fabrique',
         'api/pay/{token}' => '{token} : sans liaison de modèle',
+        // TCK-2982 — le lien d'action, par l'empreinte de son jeton.
+        'api/a/{token}' => '{token} : sans liaison de modèle',
         'api/pay/{token}/receipt' => '{token} : sans liaison de modèle',
         'api/{paymentType}/{paymentId}/verify' => '{paymentType} : sans liaison de modèle',
         'api/{paymentType}/{paymentId}/providers' => '{paymentType} : sans liaison de modèle',

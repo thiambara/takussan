@@ -298,7 +298,7 @@ function Geste({
         ) : null}
         {lien.gesture === 'inventory.sign' ? <Signature jeton={jeton} envoi={envoi} onSigner={(signature, code) => void agir({ signature, code })} /> : null}
         {erreur ? (
-          <p role="alert" className="mt-4 rounded-lg bg-destructive/10 px-3 py-2.5 text-sm text-destructive" data-testid="refus-du-geste">
+          <p role="alert" className="mt-4 rounded-lg border border-destructive px-3 py-2.5 text-sm text-destructive" data-testid="refus-du-geste">
             {erreur}
           </p>
         ) : null}

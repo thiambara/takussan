@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
+use App\Services\Pont\AccusesDuPont;
 use App\Services\Pont\CanalDuPont;
 use App\Services\Pont\PontEntrant;
 use App\Services\Pont\RegistreDesCanaux;
@@ -29,7 +30,12 @@ use Illuminate\Http\Response;
  */
 class MessagerieWebhookController extends Controller
 {
-    public function __construct(private readonly RegistreDesCanaux $registre, private readonly PontEntrant $pont) {}
+    public function __construct(
+        private readonly RegistreDesCanaux $registre,
+        private readonly PontEntrant $pont,
+        // TCK-2981
+        private readonly AccusesDuPont $accuses,
+    ) {}
 
     public function __invoke(Request $request, WebhookJournal $journal, string $canal, string $token): JsonResponse
     {
@@ -68,6 +74,8 @@ class MessagerieWebhookController extends Controller
 
         $lecture = $canal->lireWebhook($request);
         $appliques = $canal->appliquerAccuses($lecture->accuses);
+        // TCK-2981 — les mêmes accusés sur les relais du pont (et le repli tardif d'un relais échoué).
+        $this->accuses->appliquer($canal, $lecture->accuses);
         $premierAccuse = $lecture->accuses[0]->identifiant ?? null;
         $recus = $this->pont->recevoir($canal, $lecture->entrants);
 

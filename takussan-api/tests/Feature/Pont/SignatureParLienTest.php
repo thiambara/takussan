@@ -83,6 +83,20 @@ class SignatureParLienTest extends ApiTestCase
         $this->postJson("/api/a/{$jeton}", ['signature' => self::SIGNATURE, 'code' => $code])->assertStatus(410);
     }
 
+    public function test_un_code_juste_sans_signature_est_refuse_et_ne_consomme_ni_le_lien_ni_le_code(): void
+    {
+        [$jeton, $lien] = $this->lien($this->locataire, 'inventory.sign', $this->inventaire, self::NUMERO_DU_LIEN);
+        $code = $this->demanderLeCode($jeton);
+
+        $this->postJson("/api/a/{$jeton}", ['code' => $code])->assertUnprocessable()->assertJsonValidationErrors(['signature']);
+        $this->postJson("/api/a/{$jeton}", ['code' => $code, 'signature' => ''])->assertUnprocessable();
+
+        $this->assertFalse((bool) $this->inventaire->fresh()->tenant_signed);
+        $this->assertNull($lien->fresh()->used_at);
+        // Le code n'a pas été essayé : il sert encore.
+        $this->postJson("/api/a/{$jeton}", ['signature' => self::SIGNATURE, 'code' => $code])->assertOk();
+    }
+
     public function test_le_code_part_au_numero_du_lien_et_pas_au_compte(): void
     {
         [$jeton] = $this->lien($this->locataire, 'inventory.sign', $this->inventaire, self::NUMERO_DU_LIEN);
