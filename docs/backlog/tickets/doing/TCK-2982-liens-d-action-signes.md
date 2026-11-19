@@ -1,7 +1,7 @@
 ---
 id: TCK-2982
 title: "Les liens d'action signés : un geste sur un objet, une fois, 7 jours, sans session, par le service et la politique de l'objet ; la carte relayée en lien"
-status: todo
+status: doing
 phase: P2
 family: back
 estimate: L

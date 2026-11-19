@@ -193,3 +193,24 @@ d'équipe, et le geste dans un fil sans agence.
 **AC1, AC2, AC3 (relevés au navigateur)** : non mesurés — à faire par la session une fois l'API fusionnée.
 AC3, ablation : afficher « Ce n'est pas fait » sans lire `abilities.reopen` fait rougir
 `CarteEngagement.tck-2972.test.tsx` (« replié (tenu), le geste n'apparaît qu'avec abilities.reopen »).
+
+## Relevé AC1 — 2026-11-19, `./dev.sh`, agent Pape Cissé, fil du bail LS-GZD7PKJ2
+
+- **360 px** : l'appui long sur un message ouvre la feuille « Ce message → Noter un engagement ». Le
+  formulaire est prérempli depuis le message (citation, heure). Porteur par défaut « Vous »,
+  bénéficiaire par défaut « L'agence », calendrier, heure facultative. La carte « Votre engagement ·
+  Ouvert » porte « C'est fait », « Proposer une autre date » et « Annuler l'engagement ».
+  L'annulation replie la carte en « Annulé », sans confirmation, avec le toast « Engagement annulé ».
+  L'onglet « Engagements » : puces Tous, On me doit (0), Les miens (2), Tenus, Annulés ; groupes
+  « Cette semaine » et « Clos ».
+- **1280 px** : « Noter un engagement » apparaît au survol et au focus de la bulle. Le fil annulé est
+  barré, avec l'aperçu « Engagement annulé » dans la liste. La section « Engagements de ce fil » est
+  dans le dossier.
+- **Retard** (échéance mise dans le passé, puis `commitments:signal`) : badge « En retard », ligne
+  « En retard de 1 jour » en rouge, « Relancer maintenant », ligne repliée « Tenu ? demandé »,
+  ligne système « L'engagement est en retard ». Dans la liste, le fil passe « À vous », avec
+  « Vous aviez prévu : … ».
+- **Écart nommé** : après le signal de retard, le fil montre deux cartes vivantes du même
+  engagement, la carte d'origine et celle du retard, avec les mêmes gestes.
+- **Non relevé ici** : « Tenu ? » vu par un porteur non agent au téléphone, ainsi que AC2 et AC3, qui
+  demandent deux sessions. Leur logique est couverte par les tests du ticket.

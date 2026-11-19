@@ -100,7 +100,7 @@ tags: [front, messagerie, le-fil, pont, whatsapp, non-fuite, i18n, maquette, adr
 - [ ] **AC3** — Fenêtre fermée pour un destinataire joint, le composeur annonce que le message partira en message
   type ; fenêtre ouverte, il ne l'annonce pas (jugé sur `fenetre_jusqu_a`). *Ablation : annoncer sans lire
   `fenetre_jusqu_a` — rouge.*
-- [ ] **AC4** — Aucun numéro de téléphone n'apparaît dans le DOM du fil (relevé et test).
+- [x] **AC4** — Aucun numéro de téléphone n'apparaît dans le DOM du fil (relevé et test).
 - [ ] **AC5** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests des fichiers
   touchés verts.
 
@@ -182,3 +182,20 @@ et canaux » (« Sans compte Takussan », « Joindre par WhatsApp » en `{custom
 envoyée », STOP sans bouton) ; la fiche seule suffit à monter le panneau.
 
 Reste : AC1 non mesuré.
+## Relevé — 2026-11-19, `./dev.sh`, agent Pape Cissé, salle du bail 178
+
+- **Défaut trouvé et corrigé dans ce ticket.** Le panneau « Participants et canaux » n'était monté que
+  dans `ColonneDeContexte`. Or une salle (bail, réservation) prend `DossierDuFil`, au bureau comme
+  dans la feuille du téléphone, et un fil direct au téléphone prend `FeuilleDuFil`. Le bouton
+  « Joindre par WhatsApp » n'apparaissait donc jamais dans une salle de bail, bien que `/context` rende
+  le bloc `pont` (`invitable: true` pour le bailleur et la locataire, relu sur la route réelle). Le
+  panneau est désormais monté dans les deux, à partir des mêmes `pont` et `pont_fiche`. Le test
+  `pont/__tests__/panneau-dans-les-dossiers.tck-2984.test.tsx` passe à 4 verts ; l'ablation du
+  montage dans `DossierDuFil` donne 3 rouges.
+- **360 px**, après le correctif : « Participants et canaux », puis Mamadou Cissé et Fatou Wade, chacun
+  « Lit dans Takussan · Joindre par WhatsApp ». Le clic sur Fatou Wade affiche « Invitation envoyée,
+  en attente d'accord » (canal WhatsApp local).
+- **AC4** : aucun numéro de participant dans le DOM rendu du fil. Le flux du serveur n'en porte que deux
+  exemples de format (dictionnaire) et le numéro du compte connecté (`initialUser`).
+- **Non relevés** : participant joint, fenêtre ouverte puis fermée, STOP, trace d'un lien, AC2 (vue
+  du locataire). Ils demandent un accord reçu par le webhook ; leurs tests de composant existent.
