@@ -7,6 +7,8 @@ use App\Http\Requests\Api\Payments\StoreLeasePaymentReminderRequest;
 use App\Models\Enums\PaymentLinkSubject;
 use App\Models\LeasePayment;
 use App\Models\LeasePaymentReminder;
+use App\Services\Messaging\FilDeLObjet;
+use App\Services\Model\LeasePaymentService;
 use App\Services\Payments\LeasePaymentReminderReader;
 use App\Services\Reporting\OverdueInstalment;
 use Illuminate\Http\JsonResponse;
@@ -24,7 +26,10 @@ use Illuminate\Http\JsonResponse;
  */
 class LeasePaymentReminderController extends Controller
 {
-    public function __construct(private readonly LeasePaymentReminderReader $reader) {}
+    public function __construct(
+        private readonly LeasePaymentReminderReader $reader,
+        private readonly FilDeLObjet $fil, // TCK-2961
+    ) {}
 
     public function index(LeasePayment $payment): JsonResponse
     {
@@ -54,6 +59,12 @@ class LeasePaymentReminderController extends Controller
             'note' => $request->validated('note'),
         ]);
         $reminder->setRelation('createdBy', $request->user());
+
+        // TCK-2961 (ADR-0128 § 3) — la relance notée parle dans la salle du bail ; le geste attendu
+        // (payer) est celui du locataire. Rien sans salle ; jamais d'échec remonté à la route.
+        $this->fil->parler($payment, 'lease_payment.reminded', [
+            'due_date' => $payment->due_date?->toDateString(),
+        ], LeasePaymentService::locataireDe($payment));
 
         return $this->json(['data' => [
             'id' => $reminder->id,

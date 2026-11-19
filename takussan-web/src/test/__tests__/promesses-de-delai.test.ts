@@ -31,6 +31,10 @@ import wo from '@/messages/wo.json';
  * de 72 et les nombres wolof en lettres passent aussi — écrit dans TCK-575.
  */
 const REGISTRE: Readonly<Record<string, string>> = {
+  // TCK-2968 — « Rappelez-le-moi · Dans 1 heure » : l'instant envoyé (`PUT …/snooze`, `until`) est maintenant
+  // + 1 h, et l'API ramène le fil à cette heure (`snoozed_until`, `FileDuFil`, TCK-2967).
+  'messaging.boite.rappel.choix.uneHeure':
+    'takussan-web/src/components/messages/boite/pilotage.ts:83 — `maintenant + HEURE_MS` (:67), envoyé en `until`',
   // TCK-2668 — la validité du lien d'invitation d'équipe (`agents/invite` → AgentInvitationService.php:121
   // → InvitationService::send) et celle du lien qu'une relance renvoie (InvitationService::resend).
   'admin.team.equipe.invitations.formulaire.validite':

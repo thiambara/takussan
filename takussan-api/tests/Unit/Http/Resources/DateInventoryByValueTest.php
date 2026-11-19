@@ -63,6 +63,9 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\Api\Admin\RadarAdvertiserResource::counts' => '`when()` sur des `withCount` aliasés (`reviewed_count`, '
             .'`contacted_count`, `consented_count`) que seul `RadarAdvertiserController::index` pose (TCK-2388) : trois '
             .'ENTIERS, jamais une date. Le sujet du parcours vient d\'une factory, pas de cette requête.',
+        // TCK-2958 — sur demande (`avecGestes`) : la page du show et la relecture d'une carte du fil.
+        'App\Http\Resources\BookingResource::abilities' => '`when()` sur un lecteur passé par `avecGestes()` (TCK-2958) : '
+            .'`confirm`, `reject`, `cancel`, trois booléens, jamais une date.',
         // TCK-2879
         'App\Http\Resources\BookingResource::amount_paid' => '`when()` sur une somme que seul le `withSum` de '
             .'`BookingController::index` pose (TCK-2879) : un MONTANT (float), jamais une date.',
@@ -100,6 +103,50 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\BookingResource::visits_on_property' => '`when()` sur un compte que seul '
             .'`BookingCustomerFacts::prime()` pose (index et présentation de `BookingController`, TCK-2593) : un ENTIER '
             .'(`(int)`, visites terminées du client sur le bien), jamais une date. Le sujet vient d\'une factory.',
+        // TCK-2967 (ADR-0128 § 7) — les cinq clés de la boîte, toutes sous `whenHas('boite_file')`.
+        // TCK-2969 — sur demande (`forViewer`) : la liste des engagements d'un fil et la relecture de leur carte.
+        'App\Http\Resources\CommitmentResource::abilities' => '`when()` sur un lecteur passé par `forViewer()` (TCK-2969) : '
+            .'`confirm`, `cancel`, deux booléens, jamais une date.',
+        // TCK-2987 — au seul personnel actif de l'agence du fil (`FiabiliteDesEngagements`).
+        'App\Http\Resources\ConversationContextResource::commitments_records' => '`when()` sur un appelant personnel actif '
+            .'de l\'agence du fil (TCK-2987) : `{user_id: {kept, late}}`, deux ENTIERS par participant, jamais une date.',
+        // TCK-2981 — au seul personnel actif de l'agence du fil (`PontDesParticipants`).
+        'App\Http\Resources\ConversationContextResource::pont' => '`when()` sur un appelant personnel actif de l\'agence '
+            .'du fil (TCK-2981) : par participant, ses instants (`accord_at`, `opposition_at`, `fenetre_jusqu_a`) passent par `iso()`.',
+        'App\Http\Resources\ConversationContextResource::pont_fiche' => '`when()` sur un appelant personnel actif de l\'agence '
+            .'du fil (TCK-2981) : la fiche sans compte du bail, son instant `opposition_at` passe par `iso()`.',
+        'App\Http\Resources\ConversationResource::attend_depuis' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une DATE, par `iso()` (cast `datetime` posé par `withCasts`) : '
+            .'`ListeDeLaBoiteTest` et `FileDuFilTest` en assertent la forme `2026-11-18T10:01:00+00:00`.',
+        // TCK-2974 (ADR-0131 § 3) — le copilote, posé en lot par la liste et par `show`.
+        'App\Http\Resources\ConversationResource::copilote' => "`whenHas('copilote')` — posé par la seule liste et par `show` "
+            .'(`ConversationController::poserLeCopilote()`) ; le sujet vient d\'une factory, pas de cette requête. Un '
+            .'`false`, ou `{fonctions: {<fonction>: {active, raison}}}` : des booléens et des codes, jamais une date.',
+        'App\Http\Resources\ConversationResource::en_attente_de' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une liste d\'IDENTIFIANTS entiers, jamais une date.',
+        // TCK-2971 (ADR-0130 § 5) — l'engagement le plus pressant du fil.
+        'App\Http\Resources\ConversationResource::engagement' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()`) ; le sujet vient d\'une factory, pas de cette requête. `{id, title, holder_id, '
+            .'due_at, etat}` : `due_at` est une DATE, par `iso()` (`ConversationResource::engagementPressant()`), dont '
+            .'`FileRetardTest::test_le_beneficiaire_client_voit_retard` asserte la forme.',
+        'App\Http\Resources\ConversationResource::file' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une valeur de `FileDuFil::FILES`, jamais une date.',
+        'App\Http\Resources\ConversationResource::handled_at' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une DATE, par `iso()` (cast `datetime` posé par `withCasts`) : '
+            .'`FileDuFilTest::test_traite_puis_nouveau_message` en asserte la forme.',
+        // TCK-2971 (ADR-0130 § 5) — la file « Retard ».
+        'App\Http\Resources\ConversationResource::retard_depuis' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une DATE, par `iso()` (cast `datetime` posé par `withCasts`) : '
+            .'`FileRetardTest::test_le_beneficiaire_client_voit_retard` en asserte la forme.',
+        'App\Http\Resources\ConversationResource::snoozed_until' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une DATE, par `iso()` (cast `datetime` posé par `withCasts`) : '
+            .'`FileDuFilTest::test_rappel_futur_puis_echu` en asserte la forme.',
         'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
             .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',
@@ -164,6 +211,9 @@ class DateInventoryByValueTest extends TestCase
             .'d\'une fiche client (TCK-2668, D1) — le parcours n\'a ni l\'un ni l\'autre. Deux booléens (`resend`, '
             .'`revoke`), jamais une date.',
         'App\Http\Resources\KycDossierResource::shared_identifiers' => '`when(super-admin)` — même forme, même absence de date (TCK-601).',
+        // TCK-2958 — sur demande (`avecGestes`) : l'échéancier du bail et la relecture d'une carte du fil.
+        'App\Http\Resources\LeasePaymentResource::abilities' => '`when()` sur un lecteur passé par `avecGestes()` (TCK-2958) : '
+            .'`pay`, `remind`, `record_payment`, trois booléens, jamais une date.',
         'App\Http\Resources\LeaseResource::abilities' => '`when()` sur le lecteur de `forViewer()` (P152.02) : '
             .'quatre booléens, jamais une date.',
         'App\Http\Resources\LeaseResource::can_activate_on_paper' => '`when()` sur le même lecteur (VERIF-596 M1) : '
@@ -187,6 +237,25 @@ class DateInventoryByValueTest extends TestCase
             .'`BookingStatus`, ou `null` ; jamais une date.',
         'App\Http\Resources\LeaseResource::rent_review_cap_pct' => '`when()` sur le même lecteur posé par `forViewer()` '
             .'(TCK-2642) : un pourcentage (`RentReviewService::maxPctFor(): float`), jamais une date.',
+        // TCK-2959 — sur un événement : le lecteur figure-t-il dans `action_for` ?
+        'App\Http\Resources\MessageResource::action_attendue' => '`when()` sur un message `event` (TCK-2959) : un booléen '
+            .'(`EvenementsDuFil::actionAttenduePar(): bool`), jamais une date ; `NonLusDesEvenementsTest` le relit.',
+        // TCK-2958 — sur une carte ou un événement : l'objet relu par `ObjetsDesMessages`.
+        // TCK-2980 (ADR-0132 § 4) — rendu au seul personnel de l'agence du fil et à l'auteur, lecteur authentifié.
+        // TCK-2982
+        'App\Http\Resources\MessageResource::action_link' => '`when()` sur une page de messages lue par le personnel actif du fil, '
+            .'pour un porteur de lien d\'action (TCK-2982) : ses instants passent par `instantOnWire`.',
+        'App\Http\Resources\MessageResource::channel' => '`when()` sur le lecteur de la requête (TCK-2980) : le canal du message, '
+            .'une chaîne courte (`app`, `whatsapp`), jamais une date.',
+        'App\Http\Resources\MessageResource::object' => '`when()` sur un message `card`/`event` (TCK-2958) : la projection '
+            .'d\'une ressource dont les dates sortent déjà par `iso()`/`calendarDate()` (tenues par leurs propres entrées), '
+            .'ou `{indisponible: true}` ; `RelectureDesObjetsTest` la compare au `show` valeur pour valeur.',
+        // TCK-2981
+        'App\Http\Resources\MessageResource::relays' => '`when()` sur une page de messages lue par le personnel actif du fil '
+            .'(TCK-2981) : par destinataire, son instant `at` passe par `instantOnWire`.',
+        // TCK-2976
+        'App\Http\Resources\MessageResource::transcription' => '`when()` sur un message `audio` lu par le personnel servi par le copilote (TCK-2976) : '
+            .'`{etat, texte?, langue?, code?}`, aucune date.',
         'App\Http\Resources\PropertyCollaboratorResource::commission_share' => '`when()` sur `partsLisibles()` (P241.01, '
             .'TCK-2364) : réservée à qui peut fixer les conditions de commission, absente pour le bailleur. Le cast `decimal:2` '
             .'du modèle, une chaîne numérique, jamais une date.',

@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\Model\NotificationService;
 use App\Support\Logging\SafeExceptionContext;
 use Closure;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -49,6 +50,8 @@ class GroupConversationService
      *                                                                   {@see ConversationWriter::post()}), dans la même
      *                                                                   transaction : un refus (403) annule le groupe, et
      *                                                                   aucune invitation n'est partie.
+     * @param  Model|null  $sujet  TCK-2957 (ADR-0128 § 1) — l'objet auquel le fil appartient, écrit par le registre
+     *                             `SujetsDuFil` (sa clé, jamais sa classe) ; un objet hors des types sujets lève.
      */
     public function create(
         User $creator,
@@ -59,8 +62,11 @@ class GroupConversationService
         ?int $maintenanceRequestId = null,
         bool $sendInvites = true,
         ?Closure $avantLesInvitations = null,
+        ?Model $sujet = null,
     ): Conversation {
         $invited = [];
+        // TCK-2957 — résolu AVANT la transaction : un objet hors registre n'ouvre rien.
+        $subjectType = $sujet === null ? null : SujetsDuFil::typeDuSujet($sujet);
 
         $conversation = DB::transaction(function () use (
             &$invited,
@@ -71,6 +77,8 @@ class GroupConversationService
             $leaseId,
             $maintenanceRequestId,
             $avantLesInvitations,
+            $subjectType,
+            $sujet,
         ) {
             $conversation = Conversation::create([
                 'subject' => $subject,
@@ -80,6 +88,9 @@ class GroupConversationService
                 'property_id' => $propertyId,
                 'lease_id' => $leaseId,
                 'maintenance_request_id' => $maintenanceRequestId,
+                // TCK-2957 — le sujet du fil (ADR-0128 § 1).
+                'subject_type' => $subjectType,
+                'subject_id' => $sujet?->getKey(),
             ]);
 
             // Creator → admin
@@ -189,24 +200,23 @@ class GroupConversationService
                 }
 
                 // Re-invite path: previously-left participant rejoins.
-                $hasLeftRow = ConversationParticipant::query()
+                // TCK-2955 (ADR-0129 § 2) — par le MODÈLE, plus par une écriture de masse : le retour
+                // change la composition du fil, et `ConversationParticipant` (`EmetDesSignaux`) le signale.
+                $leftRow = ConversationParticipant::query()
                     ->where('conversation_id', $conversation->id)
                     ->where('user_id', $uid)
-                    ->exists();
+                    ->first();
 
-                if ($hasLeftRow) {
-                    ConversationParticipant::query()
-                        ->where('conversation_id', $conversation->id)
-                        ->where('user_id', $uid)
-                        ->update([
-                            'role' => ParticipantRole::Member->value,
-                            'joined_at' => now(),
-                            'left_at' => null,
-                            'archived_at' => null,
-                            // TCK-861 (P38.07) — ce qui s'est écrit pendant l'absence n'est pas
-                            // « non lu » : le ré-invité n'était pas là pour le lire.
-                            'last_read_at' => now(),
-                        ]);
+                if ($leftRow !== null) {
+                    $leftRow->forceFill([
+                        'role' => ParticipantRole::Member->value,
+                        'joined_at' => now(),
+                        'left_at' => null,
+                        'archived_at' => null,
+                        // TCK-861 (P38.07) — ce qui s'est écrit pendant l'absence n'est pas
+                        // « non lu » : le ré-invité n'était pas là pour le lire.
+                        'last_read_at' => now(),
+                    ])->save();
                 } else {
                     $conversation->participants()->attach($uid, [
                         'role' => ParticipantRole::Member->value,

@@ -26,6 +26,8 @@ vi.mock('@/components/visits/PlanifierUneVisite', () => ({
     </div>
   ),
 }));
+// TCK-2972 — « Engagements de ce fil » a sa propre requête (testée sous `engagements/__tests__`) : doublée ici.
+vi.mock('../engagements/EngagementsDuFil', () => ({ EngagementsDuFil: ({ conversationId }: { conversationId: number }) => <div data-testid="engagements-du-fil-double" data-fil={conversationId} /> }));
 vi.mock('@/lib/queries/conversations', () => ({
   useConversation: () => ({
     data: {
@@ -80,6 +82,11 @@ afterEach(async () => {
 });
 
 describe('<FeuilleDuFil> (TCK-2632, téléphone)', () => {
+  it('TCK-2972 — la feuille porte « Engagements de ce fil » du fil ouvert', async () => {
+    render(withIntl(<FeuilleDuFil conversationId={21} open onOpenChange={() => {}} />));
+    expect((await screen.findByTestId('engagements-du-fil-double')).getAttribute('data-fil')).toBe('21');
+  });
+
   it('au nom de la personne : le bien, la fiche « nom · étape », WhatsApp groupé, la sourdine', async () => {
     render(withIntl(<FeuilleDuFil conversationId={21} open onOpenChange={() => {}} />));
     const feuille = screen.getByRole('dialog', { name: 'Malick Seck' });

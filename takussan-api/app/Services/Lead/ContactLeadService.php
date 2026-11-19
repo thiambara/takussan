@@ -298,7 +298,8 @@ class ContactLeadService
                 abort_code(422, 'lead.without_agency');
             }
             // TCK-2582 — la règle de la route `convert`, tenue ici pour la visite qui naît d'une demande.
-            abort_code_unless($fresh->channel === ContactLeadChannel::Form, 422, 'lead.not_convertible');
+            // TCK-2980 — un prospect du pont (`whatsapp_inbound`) se convertit comme une demande du formulaire.
+            abort_code_unless($fresh->channel?->estUneDemande() === true, 422, 'lead.not_convertible');
 
             // TCK-2054 (ADR-0073) — après la ligne de la demande, le verrou consultatif de la fiche :
             // deux demandes du même visiteur converties en même temps ne passent plus toutes deux
@@ -343,7 +344,8 @@ class ContactLeadService
                 abort_code(422, 'lead.without_agency');
             }
             // Un clic WhatsApp / Appeler n'a ni identité ni message : il ne devient l'origine de rien.
-            abort_code_unless($fresh->channel === ContactLeadChannel::Form, 422, 'lead.not_convertible');
+            // TCK-2980 — un prospect du pont (`whatsapp_inbound`) se convertit comme une demande du formulaire.
+            abort_code_unless($fresh->channel?->estUneDemande() === true, 422, 'lead.not_convertible');
 
             $target = Customer::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
             // La fiche de l'agence de la demande, et une fiche que l'acteur LIT (`CustomerPolicy::view`) :

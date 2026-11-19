@@ -122,6 +122,11 @@ class MessagingReach
                         ->from('conversation_participants as cpb')
                         ->whereIn('cpb.conversation_id', app(ConversationAccess::class)
                             ->participatingQuery($actor, activeOnly: false)
+                            // TCK-2960 (ADR-0128 § 2) — une SALLE ne fait de personne un correspondant :
+                            // ses membres y sont mis par l'objet, pas choisis. Les parties d'un bail se
+                            // joignent par leurs propres règles (2 et 5 : la règle 5 borne l'agent aux
+                            // baux EN COURS, qu'une salle de bail fini ou brouillon contournerait).
+                            ->whereNotIn('conversations.type', SallesDuFil::typesDeFil())
                             ->select('conversations.id'))
                         ->when($fermees !== [], fn (QueryBuilder $q) => $q->whereNotIn(
                             'cpb.conversation_id',

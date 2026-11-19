@@ -284,7 +284,8 @@ class OwnerDepartureTest extends ApiTestCase
             'fils' => DB::table('conversation_participants')->where('user_id', $this->landlord->id)->count(),
         ];
         $avant = $compter();
-        $this->assertSame(['biens' => 1, 'baux' => 1, 'paiements' => 1, 'reversements' => 1, 'instantanes' => 1, 'documents' => 1, 'fils' => 1], $avant);
+        // TCK-2960 — deux fils : celui posé ici, et la salle que le bail ouvre à sa création (le bailleur en est membre).
+        $this->assertSame(['biens' => 1, 'baux' => 1, 'paiements' => 1, 'reversements' => 1, 'instantanes' => 1, 'documents' => 1, 'fils' => 2], $avant);
 
         $this->asAdmin();
         $this->deleteJson("/api/owners/{$this->profile->id}")->assertOk();

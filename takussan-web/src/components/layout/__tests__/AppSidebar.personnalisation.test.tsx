@@ -1,4 +1,5 @@
 /**
+ * TCK-2968 — la pastille de « Messagerie » compte les GESTES attendus (`meta.gestes`) : « à traiter », plus « non lus ».
  * TCK-2480 — la barre montée, avec le fournisseur des préférences : épingler au clavier, replier,
  * le rangement par persona, l'épingle périmée ignorée, l'échec rétabli, « Démarrer » masqué.
  *
@@ -541,7 +542,7 @@ describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la b
     // (jsdom n'applique pas le CSS : on lit les variantes du rail.)
     const bloc = screen.getByRole('region', { name: fr.nav.sidebar.aujourdhui.titre });
     expect(classes(bloc)).not.toContain('icones:hidden');
-    const ligne = within(bloc).getByRole('link', { name: /^Messages non lus,\s?3$/ });
+    const ligne = within(bloc).getByRole('link', { name: /^Conversations à traiter,\s?3$/ });
     expect(classes(ligne.querySelector('[data-slot="point-aujourdhui"]'))).toEqual(
       expect.arrayContaining(['hidden', 'icones:block', 'bg-primary', 'rounded-full']),
     );
@@ -552,7 +553,7 @@ describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la b
     // M3 — la messagerie ne porte ni nombre ni point : le compte ne paraît qu'une fois ; il reste lu.
     const messagerie = within(screen.getByRole('navigation')).getByRole('link', { name: /^Messagerie/ });
     expect(messagerie.querySelector('[data-slot="compteur-entree"]')).toBeNull();
-    expect(messagerie).toHaveAccessibleName(/^Messagerie\s?3 messages non lus$/);
+    expect(messagerie).toHaveAccessibleName(/^Messagerie\s?3 conversations à traiter$/);
     expect(screen.getAllByRole('link', { name: /Mettre un bien en location/ })).toHaveLength(1);
   });
 
@@ -561,11 +562,11 @@ describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la b
     const user = utilisateur();
     render(element(['customer'], 'client', { modeIcones: 'icones' }));
     const ligne = within(screen.getByRole('region', { name: fr.nav.sidebar.aujourdhui.titre })).getByRole('link');
-    expect(ligne).toHaveAccessibleName(/^Messages non lus,\s?250$/);
+    expect(ligne).toHaveAccessibleName(/^Conversations à traiter,\s?250$/);
     await user.hover(ligne);
     await waitFor(() =>
       expect([...document.querySelectorAll('[data-slot="tooltip-content"]')].map((b) => b.textContent)).toEqual([
-        'Messages non lus · 99+',
+        'Conversations à traiter · 99+',
       ]),
     );
   });

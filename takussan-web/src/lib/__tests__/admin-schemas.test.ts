@@ -38,6 +38,9 @@ describe('agencyFormSchema', () => {
     late_fee_online_collection: false,
     // TCK-2869 — les bailleurs confirment les visites de leurs biens.
     owners_confirm_visits: false,
+    // TCK-2979
+    copilot_enabled: true,
+    voice_transcription_enabled: true,
     // TCK-2483 — les modules retirés du menu de l'équipe.
     hidden_modules: [] as CodeDeModule[],
     // TCK-594 — TVA par défaut, seuil des quatre yeux, mentions légales.
@@ -165,6 +168,16 @@ describe('agencyFormSchema', () => {
       expect(reglagesDeLaFiche({ owners_confirm_visits: 'oui' }).owners_confirm_visits).toBe(false);
     });
 
+    it('TCK-2979 — les réglages de l\'assistant : vrais si absents, ne partent que modifiés, aussi pour une individuelle', () => {
+      expect(reglagesDeLaFiche({}).copilot_enabled).toBe(true);
+      expect(reglagesDeLaFiche({}).voice_transcription_enabled).toBe(true);
+      expect(reglagesDeLaFiche({ copilot_enabled: false }).copilot_enabled).toBe(false);
+      expect(normaliseAgencyForm({ ...base, copilot_enabled: false }, contexte(null)).settings).toEqual({ copilot_enabled: false });
+      const hote = (initialSettings: Record<string, unknown> | null) => ({ individual: true, initialThreshold: '', initialSettings });
+      expect(normaliseAgencyForm({ ...base, voice_transcription_enabled: false }, hote(null)).settings).toEqual({ voice_transcription_enabled: false });
+      expect(normaliseAgencyForm({ ...base }, contexte(null)).settings ?? {}).not.toHaveProperty('copilot_enabled');
+    });
+
     it('TCK-2915 — `payout_day` ne part que modifié, en nombre ; vidé, `null` ; borné à 1-28', () => {
       expect(normaliseAgencyForm({ ...base, payout_day: '15' }, contexte(null)).settings).toEqual({ payout_day: 15 });
       expect(normaliseAgencyForm({ ...base, payout_day: '' }, contexte({ payout_day: 15 })).settings).toEqual({ payout_day: null });
@@ -277,6 +290,9 @@ describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', (
     require_team_two_factor: false,
     late_fee_online_collection: false,
     owners_confirm_visits: false,
+    // TCK-2979
+    copilot_enabled: true,
+    voice_transcription_enabled: true,
     hidden_modules: [] as CodeDeModule[],
     default_tax_rate: '18',
     payout_approval_threshold: '500000',

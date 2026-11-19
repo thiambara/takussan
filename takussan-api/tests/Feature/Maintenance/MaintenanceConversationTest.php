@@ -6,7 +6,6 @@ use App\Models\Conversation;
 use App\Models\Enums\MessageType;
 use App\Models\MaintenanceRequest;
 use App\Models\Message;
-use App\Services\Messaging\SystemMessageFactory;
 use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -56,15 +55,25 @@ class MaintenanceConversationTest extends TestCase
         $this->postJson("/api/maintenance-requests/{$mr->id}/accept")->assertOk();
         $this->putJson("/api/maintenance-requests/{$mr->id}/status", ['status' => 'in_progress'])->assertOk();
 
-        $causes = Message::query()
-            ->where('type', MessageType::System->value)
-            ->whereJsonContains('metadata->event', SystemMessageFactory::EVENT_MAINTENANCE)
-            ->orderBy('id')
-            ->get()
-            ->map(fn (Message $m) => [$m->metadata['cause'], $m->metadata['status']])
-            ->all();
+        // TCK-2958 (ADR-0128 § 3) — l'avis d'étape est un `event` sur la demande, au code fermé ;
+        // `content` = le code, sans auteur, et aucun avis système d'intervention n'est plus écrit.
+        $avis = Message::query()->where('type', MessageType::Event->value)->orderBy('id')->get();
 
-        $this->assertSame([['assigned', 'open'], ['accepted', 'open'], ['transition', 'in_progress']], $causes);
+        $this->assertSame(
+            [['maintenance.assigned', 'open'], ['maintenance.accepted', 'open'], ['maintenance.transition', 'in_progress']],
+            $avis->map(fn (Message $m) => [$m->metadata['code'], $m->metadata['data']['status']])->all(),
+        );
+        foreach ($avis as $m) {
+            $this->assertSame($m->metadata['code'], $m->content);
+            $this->assertNull($m->sender_id);
+            // `jsonb` ordonne ses clés à sa façon : on compare des ensembles.
+            $this->assertEquals(['type' => 'maintenance_request', 'id' => $mr->id], $m->metadata['object']);
+            // TCK-2959 : `action_for` est toujours écrit, vide quand aucun geste n'est attendu.
+            $this->assertEqualsCanonicalizing(['object', 'code', 'data', 'action_for'], array_keys($m->metadata));
+            $this->assertSame([], $m->metadata['action_for']);
+        }
+        $this->assertSame(trim($provider->first_name.' '.$provider->last_name) ?: $provider->username, $avis[0]->metadata['data']['provider_name']);
+        $this->assertSame(0, Message::query()->where('type', MessageType::System->value)->whereJsonContains('metadata->event', 'maintenance')->count());
     }
 
     /** Le prestataire voit le fil depuis la fiche ; un refus l'en fait sortir. */
@@ -83,6 +92,24 @@ class MaintenanceConversationTest extends TestCase
 
         $this->postJson("/api/maintenance-requests/{$mr->id}/decline", ['reason' => 'Indisponible'])->assertOk();
         $this->assertNotContains($provider->id, $this->activeIds(Conversation::query()->findOrFail($conversationId)));
+    }
+
+    /**
+     * TCK-2957 (AC2, ADR-0128 § 1) — le fil ouvert à la première assignation NAÎT avec son sujet :
+     * la reprise de la migration ne couvre que les fils d'avant, celui-ci est créé après elle.
+     */
+    public function test_le_fil_ouvert_a_la_premiere_assignation_porte_son_sujet(): void
+    {
+        ['mr' => $mr, 'landlord' => $landlord, 'agency' => $agency] = $this->maintenanceScenario(attributes: ['assigned_to' => null]);
+        $provider = $this->providerFor($agency);
+
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $provider->id])->assertOk();
+
+        $conversation = Conversation::query()->where('maintenance_request_id', $mr->id)->sole();
+        $this->assertSame('maintenance_request', $conversation->subject_type);
+        $this->assertSame($mr->id, $conversation->subject_id);
+        $this->assertSame($conversation->id, Conversation::query()->deSujet($mr)->sole()->id);
     }
 
     /** Sans assignation, aucun fil n'est ouvert : un changement de statut seul ne crée rien. */
@@ -116,9 +143,10 @@ class MaintenanceConversationTest extends TestCase
         $conversation = Conversation::query()->where('maintenance_request_id', $mr->id)->sole();
         $this->assertEqualsCanonicalizing([$landlord->id, $second->id, $tenant->id], $this->activeIds($conversation));
         $dernier = Message::query()->where('conversation_id', $conversation->id)
-            ->where('type', MessageType::System->value)->latest('id')->firstOrFail();
-        $this->assertSame('assigned', $dernier->metadata['cause']);
-        $this->assertSame(trim($second->first_name.' '.$second->last_name) ?: $second->username, $dernier->metadata['provider_name']);
+            ->where('type', MessageType::Event->value)->latest('id')->firstOrFail();
+        // TCK-2958 — l'avis d'étape est un `event` au metadata fermé.
+        $this->assertSame('maintenance.assigned', $dernier->metadata['code']);
+        $this->assertSame(trim($second->first_name.' '.$second->last_name) ?: $second->username, $dernier->metadata['data']['provider_name']);
     }
 
     /** TCK-1756 (P154.01) — le prestataire qui refuse n'est pas remis dans le fil par la relation chargée. */

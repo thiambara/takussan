@@ -17,13 +17,14 @@ class InvoiceOverdueReminderNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_default_via_includes_all_three_channels(): void
+    /** TCK-2952 (ADR-0129) — plus de canal `broadcast` : la cloche apprend la ligne neuve par un signal sans donnée. */
+    public function test_default_via_includes_database_and_mail(): void
     {
         $user = User::factory()->create();
         $invoice = $this->makeInvoice($user);
         $notification = new InvoiceOverdueReminderNotification($invoice, 3);
 
-        $this->assertSame(['database', 'mail', 'broadcast'], $notification->via($user));
+        $this->assertSame(['database', 'mail'], $notification->via($user));
     }
 
     public function test_email_optout_drops_mail_channel(): void
@@ -83,7 +84,6 @@ class InvoiceOverdueReminderNotificationTest extends TestCase
         $this->assertSame('INV-X', $payload['reference_number']);
         $this->assertSame(3, $payload['offset_days']);
         $this->assertSame('XOF', $payload['currency']);
-        $this->assertSame('invoice.reminder_sent', (new InvoiceOverdueReminderNotification($invoice, 3))->broadcastType());
     }
 
     public function test_locale_renders_french_subject_when_user_locale_is_fr(): void

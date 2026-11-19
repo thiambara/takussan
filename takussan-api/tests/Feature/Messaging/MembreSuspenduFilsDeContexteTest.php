@@ -103,7 +103,8 @@ class MembreSuspenduFilsDeContexteTest extends TestCase
         $access = app(ConversationAccess::class);
         $this->assertTrue($access->allows($suspendu, $bail->fresh()));
         $this->assertTrue($access->allows($suspendu, $bien->fresh()));
-        $this->assertSame(2, $access->participatingQuery($suspendu)->count());
+        // TCK-2960 — hors la salle du bail (ADR-0128 § 2), dont le bailleur est membre : ses deux GROUPES.
+        $this->assertSame(2, $access->participatingQuery($suspendu)->where('conversations.type', ConversationType::Group->value)->count());
     }
 
     public function test_p191_03_l_agent_suspendu_administrateur_n_ajoute_plus_personne(): void

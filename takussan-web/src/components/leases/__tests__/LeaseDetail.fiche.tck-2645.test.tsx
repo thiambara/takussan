@@ -35,6 +35,8 @@ const toastAdd = vi.hoisted(() => vi.fn());
 // TCK-2780 — les options avec lesquelles la fiche lit son bail.
 const optionsDeLecture = vi.hoisted(() => [] as unknown[]);
 
+// TCK-2963 — le bloc de la salle ouvre sa conversation (React Query) : hors du propos de ce test.
+vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () => null }));
 vi.mock('@/lib/queries/leases', () => ({
   useLease: (_id: unknown, options?: unknown) => {
     optionsDeLecture.push(options);

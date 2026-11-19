@@ -23,16 +23,23 @@ use App\Services\Media\AvatarReencode;
 use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Messaging\ConversationWriter;
+use App\Services\Messaging\Copilote\GardeDuCopilote;
 use App\Services\Messaging\DirectConversationService;
 use App\Services\Messaging\FaitsDesMessages;
+use App\Services\Messaging\FileDuFil;
 use App\Services\Messaging\GroupConversationService;
+use App\Services\Messaging\NonLus;
+use App\Services\Messaging\ObjetsDesMessages;
 use App\Support\CaseInsensitive;
+use App\Support\TempsReel\CodeDeSignal;
+use App\Support\TempsReel\TempsReel;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\Image\Exceptions\CouldNotLoadImage;
 
@@ -54,9 +61,14 @@ class ConversationController extends Controller
         // TCK-671 (P06.02) — `lastMessage` : le front dérive l'aperçu d'un avis système de son `metadata.event`.
         // TCK-861 (P38.07) — les membres ACTUELS seuls, comme `show()` : le nom et l'avatar d'un
         // ancien membre partaient dans la liste de chacun.
+        // TCK-2959 (ADR-0128 § 5) — « quels messages comptent » est défini UNE fois, dans `NonLus`
+        // (que `markAsUnread` appelle aussi) : un `event` ne compte que pour qui figure dans son
+        // `action_for`. Le curseur de lecture, lui, reste ici.
+        // TCK-2965 (ADR-0128 § 6) — une note d'équipe ne compte que pour qui la lit
+        // (`ConversationAccess::messagesLisiblesPar`) : ni `unread_count`, ni `unread_total`, ni la puce.
         $nonLus = function ($q) use ($user) {
-            $q->where('messages.type', '!=', MessageType::System->value)
-                ->where(fn ($w) => $w->whereNull('messages.sender_id')->orWhere('messages.sender_id', '!=', $user->id))
+            app(ConversationAccess::class)->messagesLisiblesPar($user, $q);
+            NonLus::comptentPour($q, $user)
                 ->whereExists(fn ($p) => $p->selectRaw('1')
                     ->from('conversation_participants as lecteur')
                     ->whereColumn('lecteur.conversation_id', 'messages.conversation_id')
@@ -89,18 +101,30 @@ class ConversationController extends Controller
         // doublé. La page seule s'élargit ; `unread_total` et `meta.counts` gardent leur base.
         $page = $request->validated('filter.participant') !== null ? $ou(null) : $liste;
 
+        // TCK-2967 (ADR-0128 § 7) — la file de chaque fil pour le lecteur, dérivée en SQL (`FileDuFil`) :
+        // une jointure latérale partagée par la page, `filter[file]`, l'ordre et les comptes.
+        $boite = new FileDuFil($user);
+
         $paginator = (clone $page)
+            // TCK-2967 — la file, ses dates et ses attendus, sous des alias `boite_*`.
+            ->tap(fn ($q) => $boite->selectionner($q))
             // TCK-2630 — les filtres ne portent que sur la page : ni `unread_total` ni `meta.counts`.
-            ->tap(fn ($q) => $this->filtrerLaListe($q, $request, $user, $nonLus))
+            ->tap(fn ($q) => $this->filtrerLaListe($q, $request, $user, $nonLus, $boite))
             ->with([
                 'property.media',
                 'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
                 'lastMessage',
+                // TCK-2967 — `assigned_to` : `{id, name}`, sans contact.
+                'assignedTo',
             ])
             ->withCount(['messages as unread_count' => $nonLus])
             // TCK-1389 (P135.06) — départage par `id` : deux fils de même horodatage changeaient de
             // page d'une requête à l'autre, ce que le défilement infini de la liste rend visible.
-            ->orderByDesc('last_message_at')
+            // TCK-2960 — NULLS LAST : un fil sans message (une salle pas encore ouverte à l'échange) vient
+            // après ceux qui ont parlé ; un ordre décroissant met les NULL en tête sous PostgreSQL.
+            // TCK-2967 — un rappel échu compte comme un échange à son échéance : il revient en tête. Sous
+            // `filter[file]=vous`, celui qui attend depuis le plus longtemps d'abord (`attend_depuis` croissant).
+            ->tap(fn ($q) => $boite->ordonner($q, $request->validated('filter.file')))
             ->orderByDesc('conversations.id')
             ->paginate($this->tailleDePage($request, 20));
 
@@ -124,17 +148,30 @@ class ConversationController extends Controller
         $actifs = $ou(false);
         $parType = (clone $actifs)->toBase()
             ->selectRaw('count(*) as tous, count(*) filter (where conversations.type = ?) as groupes', [ConversationType::Group->value])
+            // TCK-2967 — `vous`, `attente`, `rappel` et `gestes` dans la même requête, sur la même base.
+            ->tap(fn ($q) => $boite->joindre($q))
+            ->tap(fn ($q) => $boite->selectionnerLesComptes($q))
             ->first();
         $counts = [
             'all' => (int) $parType->tous,
             'unread' => (clone $actifs)->whereHas('messages', $nonLus)->count(),
             'group' => (int) $parType->groupes,
+            // TCK-2967 (ADR-0128 § 7)
+            'vous' => (int) $parType->vous,
+            'attente' => (int) $parType->attente,
+            'rappel' => (int) $parType->rappel,
+            'retard' => (int) $parType->retard, // TCK-2971 (ADR-0130 § 5)
         ];
+
+        // TCK-2974 (ADR-0131 § 3) — `copilote`, en lot pour la page : une capacité jugée une fois, une requête.
+        $this->poserLeCopilote($user, $paginator->getCollection());
 
         return $this->paginated(
             $paginator,
             ConversationResource::collection($paginator)->toArray($request),
-            ['unread_total' => $unreadTotal, 'counts' => $counts],
+            // TCK-2967 — `gestes` : la pastille, les fils `vous` hors sourdine et hors archives (décision 4a).
+            // TCK-2971 — et les fils `retard` : chaque fil une fois. Sans les filtres de la requête.
+            ['unread_total' => $unreadTotal, 'counts' => $counts, 'gestes' => (int) $parType->gestes],
         );
     }
 
@@ -152,9 +189,14 @@ class ConversationController extends Controller
      *
      * @param  Builder<Conversation>  $query
      */
-    private function filtrerLaListe(Builder $query, ListConversationsRequest $request, User $user, Closure $nonLus): void
+    private function filtrerLaListe(Builder $query, ListConversationsRequest $request, User $user, Closure $nonLus, FileDuFil $boite): void
     {
         $filtres = $request->validated('filter') ?? [];
+
+        // TCK-2967 (ADR-0128 § 7) — la file dérivée, jointe par `FileDuFil::selectionner()`.
+        if (($filtres['file'] ?? null) !== null) {
+            $boite->filtrer($query, $filtres['file']);
+        }
 
         if (($filtres['type'] ?? null) !== null) {
             $query->where('conversations.type', $filtres['type']);
@@ -358,6 +400,8 @@ class ConversationController extends Controller
         // TCK-576 (restes de TCK-565) — les membres ACTUELS : la feuille d'infos d'un groupe en
         // dérive la liste, le rôle de l'utilisateur, et donc l'invitation par nom.
         $conversation->loadForDetail();
+        // TCK-2974 (ADR-0131 § 3) — `copilote`, par le même calcul en lot que la liste.
+        $this->poserLeCopilote($request->user(), collect([$conversation]));
 
         return $this->json([
             'data' => [
@@ -381,9 +425,11 @@ class ConversationController extends Controller
         $data = $request->validated();
 
         $perPage = (int) ($data['per_page'] ?? 30);
+        $access = app(ConversationAccess::class);
 
         if (isset($data['after_id'])) {
-            $messages = $conversation->messages()
+            // TCK-2965 (ADR-0128 § 6) — les notes d'équipe, pour qui les lit seulement : dans la requête.
+            $messages = $access->messagesLisiblesPar($request->user(), $conversation->messages(), $conversation)
                 ->where('id', '>', (int) $data['after_id'])
                 ->oldest()
                 ->orderBy('id')
@@ -398,7 +444,8 @@ class ConversationController extends Controller
             return $this->json([
                 // TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page ; rien à
                 // calculer quand le relevé ne rapporte aucun message (le cas de presque chaque tic).
-                'data' => $messages->isEmpty() ? [] : MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request),
+                // TCK-2958 — et les objets des cartes et événements, relus pour le lecteur en lot.
+                'data' => $messages->isEmpty() ? [] : MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request, ObjetsDesMessages::pour($request->user(), $messages, $request)),
                 'meta' => ['has_more' => false],
             ]);
         }
@@ -407,7 +454,9 @@ class ConversationController extends Controller
         // messages de la même seconde revenaient dans un ordre quelconque sous PostgreSQL — mesuré :
         // `ConversationMessagesPaginationTest::test_initial_load…` rouge, selon les classes jouées
         // avant lui. Le curseur (`before_id`, `after_id`) est un `id` : le départage suit le curseur.
-        $query = $conversation->messages()->latest()->orderByDesc('id');
+        // TCK-2965 (ADR-0128 § 6) — le filtre est dans la requête : une note sautée chez un client ne fait
+        // ni page courte ni `has_more` faux.
+        $query = $access->messagesLisiblesPar($request->user(), $conversation->messages(), $conversation)->latest()->orderByDesc('id');
         if (isset($data['before_id'])) {
             $query->where('id', '<', (int) $data['before_id']);
         }
@@ -418,7 +467,9 @@ class ConversationController extends Controller
 
         return $this->json([
             // TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page.
-            'data' => MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request),
+            // TCK-2958 (ADR-0128 § 3) — et les objets des cartes et événements, relus pour le lecteur :
+            // une requête par type d'objet pour la page, jamais une par message.
+            'data' => MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request, ObjetsDesMessages::pour($request->user(), $messages, $request)),
             'meta' => ['has_more' => $messages->count() === $perPage],
         ]);
     }
@@ -447,6 +498,10 @@ class ConversationController extends Controller
             'content' => $isAudio ? __('messaging.audio_preview') : ($data['content'] ?? ''),
             'type' => $data['type'] ?? MessageType::Text->value,
             'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
+            // TCK-2965 (ADR-0128 § 6) — `team` : une note d'équipe, jugée par le service.
+            'visibility' => $data['visibility'] ?? null,
+            // TCK-2966 (ADR-0128 § 6) — les @mentions, rangées dans `metadata.mentions` par le service.
+            'mentions' => $data['mentions'] ?? [],
         ], function (Message $message) use ($audio, $piece): void {
             if ($audio !== null) {
                 $message->addMedia($audio)->toMediaCollection('attachments');
@@ -508,6 +563,7 @@ class ConversationController extends Controller
         $conversation->participants()->updateExistingPivot($user->id, [
             'last_read_at' => now(),
         ]);
+        $this->signalerLaLecture($conversation, $user);
 
         return $this->json([
             'data' => [
@@ -520,7 +576,8 @@ class ConversationController extends Controller
     /**
      * TCK-2859 (ADR-0114 § 1) — `PUT /conversations/{conversation}/unread` : le `last_read_at` du
      * lecteur passe une seconde avant le dernier message qui compte comme non lu — le prédicat de
-     * `index()` (`$nonLus`) : d'un autre, hors avis système, non supprimé. Idempotent (la valeur ne
+     * `index()` ({@see NonLus}, TCK-2959) : d'un autre, hors avis système, non supprimé ; un `event`
+     * seulement si le lecteur est dans son `action_for`. Idempotent (la valeur ne
      * dépend que de ce message) ; jamais AVANCÉ (un `last_read_at` nul ou plus ancien reste) ; sans
      * message d'un autre, rien ne change.
      */
@@ -531,9 +588,11 @@ class ConversationController extends Controller
         $user = $request->user();
         $dernier = Message::query()
             ->where('conversation_id', $conversation->id)
-            ->where('type', '!=', MessageType::System->value)
-            ->where(fn ($w) => $w->whereNull('sender_id')->orWhere('sender_id', '!=', $user->id))
-            ->max('created_at');
+            // TCK-2959 — la définition de `index()`, et non plus sa copie.
+            ->tap(fn ($q) => NonLus::comptentPour($q, $user))
+            // TCK-2965 — le dernier message LISIBLE : une note ne recule pas la lecture d'un client.
+            ->tap(fn ($q) => app(ConversationAccess::class)->messagesLisiblesPar($user, $q, $conversation))
+            ->max('messages.created_at');
 
         $lecture = $conversation->participants()->where('users.id', $user->id)->first()?->pivot?->last_read_at;
         $lecture = $lecture !== null ? Carbon::parse($lecture) : null;
@@ -543,6 +602,7 @@ class ConversationController extends Controller
             if ($lecture !== null && $lecture->greaterThan($avant)) {
                 $conversation->participants()->updateExistingPivot($user->id, ['last_read_at' => $avant]);
                 $lecture = $avant;
+                $this->signalerLaLecture($conversation, $user);
             }
         }
 
@@ -552,6 +612,18 @@ class ConversationController extends Controller
                 'last_read_at' => $this->instant($lecture),
             ],
         ]);
+    }
+
+    /**
+     * TCK-2955 (ADR-0129 § 2) — une lecture (ou son retrait) change les accusés de lecture que voient les
+     * autres (TCK-2858) : `conversation.read` sur le fil ; et la liste et le compteur du lecteur :
+     * `boite.updated` à lui seul. Rien d'autre — `last_read_at` n'est pas la composition du fil, et le
+     * pivot n'émet pas `participants.updated` pour lui (`ConversationParticipant::signauxTempsReel()`).
+     */
+    private function signalerLaLecture(Conversation $conversation, User $lecteur): void
+    {
+        TempsReel::signaler($conversation, CodeDeSignal::ConversationRead);
+        TempsReel::signalerA($lecteur, CodeDeSignal::BoiteUpdated, $conversation);
     }
 
     public function archive(Request $request, Conversation $conversation): JsonResponse
@@ -593,5 +665,17 @@ class ConversationController extends Controller
         // TCK-085 (groupe quitté) et TCK-592 (fil d'intervention jugé par la demande) : une seule
         // garde, `ConversationAccess`.
         abort_unless(app(ConversationAccess::class)->allows($request->user(), $conversation), 403);
+    }
+
+    /**
+     * TCK-2974 (ADR-0131 § 3) — pose `copilote` sur chaque fil ({@see GardeDuCopilote::disponiblesParmi()}) : le
+     * front le lit avant toute requête au copilote ; la raison d'une indisponibilité n'est jamais rendue.
+     *
+     * @param  Collection<int, Conversation>  $fils
+     */
+    private function poserLeCopilote(User $user, Collection $fils): void
+    {
+        $dispos = app(GardeDuCopilote::class)->disponiblesParmi($user, $fils->map(fn (Conversation $c): int => (int) $c->id)->values()->all());
+        $fils->each(fn (Conversation $c) => $c->setAttribute('copilote', $dispos[(int) $c->id] ?? false));
     }
 }

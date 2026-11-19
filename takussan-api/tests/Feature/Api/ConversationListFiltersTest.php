@@ -182,7 +182,9 @@ class ConversationListFiltersTest extends TestCase
     public function test_meta_counts_porte_sur_tout_le_cloisonne_hors_archives(): void
     {
         Sanctum::actingAs($this->agent);
-        $attendu = ['all' => 3, 'unread' => 1, 'group' => 1];
+        // TCK-2967 — `vous`, `attente`, `rappel` : la même base que les autres comptes.
+        // TCK-2971 — et `retard` (ADR-0130 § 5).
+        $attendu = ['all' => 3, 'unread' => 1, 'group' => 1, 'vous' => 1, 'attente' => 0, 'rappel' => 0, 'retard' => 0];
 
         foreach (['', '?filter[search]='.urlencode('thiès'), '?filter[type]=group', '?filter[unread]=1', '?archived=1'] as $query) {
             $reponse = $this->getJson('/api/conversations'.$query)->assertOk();
@@ -196,7 +198,8 @@ class ConversationListFiltersTest extends TestCase
 
         // Archivé : il quitte les compteurs.
         $this->filAwa->participants()->updateExistingPivot($this->agent->id, ['archived_at' => now()]);
-        $this->assertSame(['all' => 2, 'unread' => 0, 'group' => 1], $this->getJson('/api/conversations')->json('meta.counts'));
+        // TCK-2967 — le fil `vous` archivé quitte aussi les comptes de la boîte.
+        $this->assertSame(['all' => 2, 'unread' => 0, 'group' => 1, 'vous' => 0, 'attente' => 0, 'rappel' => 0, 'retard' => 0], $this->getJson('/api/conversations')->json('meta.counts')); // TCK-2971
     }
 
     /** `counts.unread` compte les FILS (sourdine comprise), `unread_total` les messages hors sourdine. */
@@ -300,7 +303,9 @@ class ConversationListFiltersTest extends TestCase
 
         Sanctum::actingAs($this->agent);
         $reponse = $this->getJson('/api/conversations?filter[type]=direct&filter[participant]='.$this->malick->id)->assertOk();
-        $this->assertSame(['all' => 2, 'unread' => 1, 'group' => 1], $reponse->json('meta.counts'));
+        // TCK-2967 — avec les comptes de la boîte.
+        // TCK-2971 — et `retard`.
+        $this->assertSame(['all' => 2, 'unread' => 1, 'group' => 1, 'vous' => 1, 'attente' => 0, 'rappel' => 0, 'retard' => 0], $reponse->json('meta.counts'));
     }
 
     /**

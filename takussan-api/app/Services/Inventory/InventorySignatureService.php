@@ -15,6 +15,7 @@ use App\Services\Auth\OtpPreview;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Messaging\FilDeLObjet;
 use App\Services\Pdf\PrintedIdentity;
 use App\Services\Signature\SignatureOtpService;
 use Illuminate\Http\Request;
@@ -60,14 +61,20 @@ class InventorySignatureService
 
     public function __construct(private readonly SignatureOtpService $otp) {}
 
-    public function sign(Inventory $inventory, User $user, string $role, string $signature, ?string $code = null, ?Request $request = null): Inventory
+    /**
+     * TCK-2982 — `$preuveDuLien` : la preuve du code vérifié par un lien d'action (`SignatureOtpService::attempt`,
+     * canal et numéro masqué). La partie signe pour elle-même ; la voie est tracée (`link_otp`, colonnes `*_otp_*`).
+     *
+     * @param  array{channel: string, destination: string}|null  $preuveDuLien
+     */
+    public function sign(Inventory $inventory, User $user, string $role, string $signature, ?string $code = null, ?Request $request = null, ?array $preuveDuLien = null): Inventory
     {
         // VERIF-596 M3 — sous le verrou de la ligne, et TOUT est relu dessus : deux signatures
         // simultanées (un état des lieux fait ensemble, deux téléphones) voyaient chacune l'autre
         // « non signée », aucune ne passait `signed` ni ne figeait l'empreinte, et l'état restait
         // bloqué (chaque rôle déjà signé → 409). Patron de `LeaseSignatureService::sign`.
         $completed = false;
-        $signed = DB::transaction(function () use ($inventory, $user, $role, $signature, $code, $request, &$completed): Inventory {
+        $signed = DB::transaction(function () use ($inventory, $user, $role, $signature, $code, $request, $preuveDuLien, &$completed): Inventory {
             /** @var Inventory $locked */
             $locked = Inventory::query()->whereKey($inventory->getKey())->lockForUpdate()->firstOrFail();
 
@@ -103,6 +110,12 @@ class InventorySignatureService
                     $locked->tenant_otp_channel = $proof['channel'];
                     $locked->tenant_otp_destination = $proof['destination'];
                     $locked->tenant_signed_ip = $request?->ip();
+                } elseif ($preuveDuLien !== null) {
+                    // TCK-2982 — par lien d'action : le locataire lui-même, prouvé par le code envoyé au numéro du lien.
+                    $locked->tenant_signature_method = Inventory::TENANT_METHOD_LINK_OTP;
+                    $locked->tenant_otp_channel = $preuveDuLien['channel'];
+                    $locked->tenant_otp_destination = $preuveDuLien['destination'];
+                    $locked->tenant_signed_ip = $request?->ip();
                 }
             } else {
                 $locked->owner_signed = true;
@@ -122,6 +135,13 @@ class InventorySignatureService
                 } else {
                     $locked->owner_signed_by_user_id = $user->id;
                     $locked->owner_signed_on_behalf_of_user_id = LandlordSignatory::onBehalfOf($user, $locked->lease);
+                }
+                if ($proof === null && $preuveDuLien !== null) {
+                    // TCK-2982 — par lien d'action : le bailleur lui-même, prouvé par le code envoyé au numéro du lien.
+                    $locked->owner_signature_method = Inventory::OWNER_METHOD_LINK_OTP;
+                    $locked->owner_otp_channel = $preuveDuLien['channel'];
+                    $locked->owner_otp_destination = $preuveDuLien['destination'];
+                    $locked->owner_signed_ip = $request?->ip();
                 }
             }
 
@@ -162,7 +182,34 @@ class InventorySignatureService
             SendSignedInventoryPdf::dispatch((int) $signed->id)->afterCommit();
         }
 
+        // TCK-2967 (ADR-0128 § 3) — la signature parle dans la salle du bail, après le COMMIT. Signé par tous :
+        // `inventory.signed` clôt toute attente. Sinon `inventory.signed_by_party` clôt l'attente du
+        // signataire et attend les parties dont la signature manque encore, jugées sur la ligne relue.
+        $fil = app(FilDeLObjet::class);
+        if ($completed) {
+            $fil->parler($signed, 'inventory.signed', ['type' => $signed->type?->value]);
+        } else {
+            $relu = null;
+            $fil->parler($signed, 'inventory.signed_by_party', ['type' => $signed->type?->value, 'party' => $role],
+                function (User $partie) use ($signed, &$relu): bool {
+                    $relu ??= Inventory::query()->with('lease.tenant')->find($signed->getKey());
+
+                    return $relu !== null && $this->doitEncoreSigner($relu, $partie);
+                });
+        }
+
         return $signed;
+    }
+
+    /**
+     * TCK-2961, TCK-2967 — `$partie` doit-elle encore signer cet état des lieux : un rôle dont la signature
+     * manque, et qu'elle peut signer ({@see self::canSignAs()}) ? Le geste attendu des événements de
+     * signature du fil (`inventory.awaiting_signature`, `inventory.signed_by_party`).
+     */
+    public function doitEncoreSigner(Inventory $inventaire, User $partie): bool
+    {
+        return (! $inventaire->tenant_signed && $this->canSignAs($inventaire, $partie, InventorySignRequest::ROLE_TENANT))
+            || (! $inventaire->owner_signed && $this->canSignAs($inventaire, $partie, InventorySignRequest::ROLE_LANDLORD));
     }
 
     /**

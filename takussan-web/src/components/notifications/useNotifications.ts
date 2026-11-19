@@ -11,6 +11,7 @@ import {
   markNotificationUnreadAction,
 } from '@/app/actions/notifications';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useIntervalleDeRelecture, useSignal } from '@/lib/temps-reel/hooks';
 import type { AppNotification, FamilleDeNotification, NotificationsQuery, NotificationsResponse } from '@/lib/notifications';
 
 import { familleDe } from './familles';
@@ -30,6 +31,9 @@ export const CLES_NOTIFICATIONS = {
   historiques: ['notifications', 'historique'] as const,
 };
 
+/** TCK-2955 — le canal personnel de la session, filtré sur `notifications.updated`. */
+export const NOTIFICATIONS_EN_DIRECT = { personnel: ['notifications.updated'] } as const;
+
 /** La cloche charge 20 lignes (10 avant TCK-2634) : de quoi voir un repli de plusieurs lignes. */
 export const LIGNES_DE_LA_CLOCHE = 20;
 
@@ -45,10 +49,19 @@ async function lire(query: NotificationsQuery): Promise<NotificationsResponse> {
  * puce « À traiter » le temps de la requête — le squelette dit la vérité (relevé du 2026-11-12).
  */
 export function useNotificationsDeLaCloche(aTraiter: boolean) {
+  // TCK-2955 (ADR-0129 § 2) — la cloche se relit sur `notifications.updated` (une notification créée, lue,
+  // rendue non lue, ou toutes lues), l'historique ouvert avec elle ; ses 30 s ne sont plus que le filet du
+  // mode dégradé (60 s quand le canal personnel est tenu). Une lecture en cours n'est pas annulée : la
+  // cloche et son contenu, montés ensemble, ne font qu'une requête par clé.
+  const client = useQueryClient();
+  useSignal(NOTIFICATIONS_EN_DIRECT, () => {
+    void client.invalidateQueries({ queryKey: CLES_NOTIFICATIONS.tout }, { cancelRefetch: false });
+  });
+  const intervalle = useIntervalleDeRelecture(30_000, NOTIFICATIONS_EN_DIRECT);
   return useQuery<NotificationsResponse, Error>({
     queryKey: CLES_NOTIFICATIONS.cloche(aTraiter),
     queryFn: () => lire({ perPage: LIGNES_DE_LA_CLOCHE, aTraiter }),
-    refetchInterval: 30_000,
+    refetchInterval: intervalle,
   });
 }
 

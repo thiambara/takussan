@@ -8,7 +8,6 @@ use App\Services\Notifications\PreferenceResolver;
 use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -58,9 +57,6 @@ class BookingExpiredNotification extends Notification implements ShouldQueue
             if ($resolver->shouldSend($notifiable, $eventType, PreferenceResolver::CHANNEL_EMAIL)) {
                 $channels[] = 'mail';
             }
-            if ($resolver->shouldSend($notifiable, $eventType, PreferenceResolver::CHANNEL_PUSH)) {
-                $channels[] = 'broadcast';
-            }
         }
 
         return $channels;
@@ -106,17 +102,5 @@ class BookingExpiredNotification extends Notification implements ShouldQueue
                 'property' => $propertyTitle,
             ]),
         ];
-    }
-
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastType(): string
-    {
-        return $this->recipientType === 'agent'
-            ? 'booking.expired.agent'
-            : 'booking.expired';
     }
 }

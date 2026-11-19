@@ -47,7 +47,8 @@ export function AnnonceDesNonLus({ compte, actif }: AnnonceDesNonLusProps) {
   }
   return (
     <p aria-live="polite" className="sr-only" data-slot="annonce-non-lus">
-      {suivi.annonce === null ? null : t('unreadInline', { count: suivi.annonce })}
+      {/* TCK-2968 — le compte de l'onglet est celui des GESTES attendus (`meta.gestes`) : « à traiter ». */}
+      {suivi.annonce === null ? null : t('aTraiterInline', { count: suivi.annonce })}
     </p>
   );
 }

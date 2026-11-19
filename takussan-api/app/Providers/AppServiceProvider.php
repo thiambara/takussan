@@ -14,6 +14,7 @@ use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Booking;
 use App\Models\BookingPayment;
+use App\Models\Commitment;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\DataExport;
@@ -48,8 +49,10 @@ use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Observers\AgencyObserver;
+use App\Observers\AnnuleLesEngagementsDeSonObjet;
 use App\Observers\DocumentsDuPorteurObserver;
 use App\Observers\FavoriteObserver;
+use App\Observers\FermeLeFilDeSonObjet;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
 use App\Observers\LeasePaymentOnboardingObserver;
@@ -63,6 +66,7 @@ use App\Observers\PropertyPublicCacheObserver;
 use App\Observers\PropertyVisitObserver;
 use App\Observers\RadarListingTargetObserver;
 use App\Observers\ReviewObserver;
+use App\Observers\SallesDeLaFicheClient;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
 use App\Policies\AgencyIndicatorPolicy;
@@ -72,6 +76,7 @@ use App\Policies\AgencyUpgradeRequestPolicy;
 use App\Policies\AgentProfilePolicy;
 use App\Policies\BookingPaymentPolicy;
 use App\Policies\BookingPolicy;
+use App\Policies\CommitmentPolicy;
 use App\Policies\ConversationPolicy;
 use App\Policies\CustomerPolicy;
 use App\Policies\DocumentPolicy;
@@ -104,6 +109,7 @@ use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Messaging\SujetsDuFil;
 use App\Services\Notifications\Sms\Dlr\LogDlrPuller;
 use App\Services\Notifications\Sms\Dlr\MtargetDlrPuller;
 use App\Services\Notifications\Sms\Dlr\SmsDlrPullerInterface;
@@ -553,7 +559,8 @@ class AppServiceProvider extends ServiceProvider
         // freine le forçage du jeton d'URL. Un refus se journalise ici, puisque le journal des
         // webhooks vient après le débit et n'en garde aucune ligne ; la réponse reste celle de
         // `ThrottleRequestsException`, que l'enveloppe globale rend en 429.
-        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp', 'webhook-whatsapp-radar'] as $limiter) {
+        // TCK-2980 — `webhook-messagerie` : le webhook générique de la messagerie (ADR-0132 § 0).
+        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp', 'webhook-whatsapp-radar', 'webhook-messagerie'] as $limiter) {
             RateLimiter::for($limiter, fn (Request $request) => Limit::perMinute(600)
                 ->by('ip:'.$this->clientNetwork($request))
                 ->response(function (Request $request, array $headers) use ($limiter): never {
@@ -578,6 +585,14 @@ class AppServiceProvider extends ServiceProvider
         ]);
         RateLimiter::for('payment-webhook-gone', fn (Request $request) => Limit::perMinute(60)
             ->by('payment-webhook-gone-ip:'.$this->clientNetwork($request)));
+
+        // TCK-2982 (ADR-0132 § 5) — le lien d'action, public : borné par IP ET par jeton (empreinte, jamais
+        // le clair), comme le lien de paiement.
+        RateLimiter::for('action-link', fn (Request $request) => [
+            Limit::perMinute(30)->by('action_link_ip:'.$this->clientNetwork($request)),
+            Limit::perMinute(20)->by('action_link:'.hash('sha256', (string) $request->route('token'))),
+        ]);
+        // /TCK-2982
 
         // TCK-606 (verif-602 m4) — le lien de paiement : `verify` déclenche un appel sortant chez le
         // fournisseur avec la clé de l'agence, `initiate` ouvre un checkout. Bornés par IP ET par
@@ -680,6 +695,9 @@ class AppServiceProvider extends ServiceProvider
             : Limit::none());
 
         RateLimiter::for('conversation-message', fn (Request $request) => Limit::perMinute(30)
+            ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
+        // TCK-2981 (ADR-0132 § 3) — « Joindre par WhatsApp » : par auteur ; chaque invitation coûte un envoi.
+        RateLimiter::for('pont-invitation', fn (Request $request) => Limit::perMinute(10)
             ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
     }
 
@@ -837,6 +855,8 @@ class AppServiceProvider extends ServiceProvider
         Favorite::observe(FavoriteObserver::class);
         Review::observe(ReviewObserver::class);
         Lease::observe(LeaseObserver::class);
+        // TCK-2960 (ADR-0128 § 2) — une fiche liée à un compte : les salles de ses baux et réservations.
+        Customer::observe(SallesDeLaFicheClient::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
         // TCK-594 (ADR-0039 §8) — l'intervention terminée produit sa facture d'intervention.
         MaintenanceRequest::observe(MaintenanceRequestObserver::class);
@@ -846,6 +866,18 @@ class AppServiceProvider extends ServiceProvider
         RadarListing::observe(RadarListingTargetObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
+
+        // TCK-2957 (ADR-0128 § 1) — le fil d'un objet supprimé se ferme, restauré se rouvre. Une boucle
+        // sur le registre, pas une ligne par modèle : un type sujet ajouté à `SujetsDuFil` est couvert.
+        foreach (SujetsDuFil::typesSujets() as $type) {
+            SujetsDuFil::modele($type)::observe(FermeLeFilDeSonObjet::class);
+        }
+
+        // TCK-2969 (ADR-0130 § 7) — un objet clos (ou supprimé) annule ses engagements en cours. Une boucle sur
+        // la table « type → clos » de l'observateur : une ligne ajoutée y est branchée sans autre code.
+        foreach (array_keys(AnnuleLesEngagementsDeSonObjet::CLOS) as $type) {
+            SujetsDuFil::modele($type)::observe(AnnuleLesEngagementsDeSonObjet::class);
+        }
 
         // TCK-2781 — l'index des documents recopie l'agence, la présence et le sujet de leur porteur :
         // ils se réindexent quand l'un change (`DocumentsDuPorteurObserver::COLONNES`).
@@ -941,6 +973,8 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-085 — group conversation gates (admin-only mutations + system-message immutability).
         Gate::policy(Conversation::class, ConversationPolicy::class);
+        // TCK-2969 (ADR-0130 § 2) — l'engagement se lit comme son fil.
+        Gate::policy(Commitment::class, CommitmentPolicy::class);
 
         // TCK-088 — explicit bind for `$user->can('refundDeposit', $lease)`.
         Gate::policy(Lease::class, LeasePolicy::class);

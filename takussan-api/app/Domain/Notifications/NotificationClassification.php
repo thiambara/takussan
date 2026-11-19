@@ -117,6 +117,9 @@ final class NotificationClassification
         // Un message se traite dans la messagerie, qui a ses propres non-lus.
         'message.received' => [self::D, false],
         'message.group_invite' => [self::S, false],
+        // TCK-2966 — une mention se traite dans le fil, comme le message ; ce qu'elle attend relève de la
+        // boîte de pilotage (TCK-2967), pas de « À traiter » de la cloche.
+        'message.mention' => [self::D, false],
         'lead.received' => [self::D, true],
         'lead.acknowledged' => [self::D, false],
 
@@ -230,6 +233,8 @@ final class NotificationClassification
         'payout_threshold.relax_requested' => [self::P, true],
         'service_provider_bill.kept_on_reopen' => [self::P, false],
         'owner_statement.available' => [self::P, false],
+        // TCK-2985 — le résumé du lundi : jamais dans la cloche, rien à traiter.
+        'owner.weekly_digest' => [self::P, false],
 
         // ─── Avis et modération ───────────────────────────────────────────────────────────
         'review.to_moderate' => [self::A, true],

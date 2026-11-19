@@ -236,8 +236,10 @@ class LeaseResource extends BaseResource
             'created_at' => $this->iso($this->created_at),
         ];
 
+        // Le taux et le montant de commission sont des termes du mandat de l'agence : ni le
+        // locataire ni le bailleur ne les lisent (le taux, décision du porteur du 2026-11-18).
         if (! $this->viewerIsAgencyStaff($request)) {
-            unset($data['commission_amount']);
+            unset($data['commission_amount'], $data['commission_rate']);
         }
 
         // TCK-2642 — les clés calculées pour la page par le contrôleur (`include=attention`,

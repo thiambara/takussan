@@ -1,10 +1,18 @@
 <?php
 
+use App\Http\Controllers\Api\ConversationCardController;
 use App\Http\Controllers\Api\ConversationContextController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\ConversationCopiloteController;
 use App\Http\Controllers\Api\ConversationParticipantController;
+use App\Http\Controllers\Api\ConversationPilotageController;
 use App\Http\Controllers\Api\ConversationReportController;
+use App\Http\Controllers\Api\ConversationRoomController;
+use App\Http\Controllers\Api\CopiloteSuggestionController;
+use App\Http\Controllers\Api\MessageTranscriptionController;
 use App\Http\Controllers\Api\MessagingContactController;
+use App\Http\Controllers\Api\PontInvitationController;
+use App\Services\Messaging\Copilote\SortesDuCopilote;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -19,7 +27,34 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('conversations.context.properties');
     Route::get('conversations/context/leases', [ConversationContextController::class, 'leases'])
         ->name('conversations.context.leases');
+    // TCK-2960 (ADR-0128 § 2) — ouvrir la salle d'un bail ou d'une réservation. Littérale : AVANT
+    // `conversations/{conversation}` (aucune route POST de deux segments ne la masque aujourd'hui, mais
+    // l'ordre des littérales est la règle du fichier).
+    Route::post('conversations/rooms', [ConversationRoomController::class, 'store'])->name('conversations.rooms.store');
     Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
+    // TCK-2974 (ADR-0131 § 3) — le copilote du fil : l'état du lecteur par sorte, et une demande (`202`, job de
+    // la file `ai`). Troisième segment `copilote` : aucune littérale `conversations/…/…` ne la masque. `{sorte}`
+    // est la liste fermée de `SortesDuCopilote`.
+    // TCK-2981 (ADR-0132 § 3) — « Joindre par WhatsApp » : l'invitation (ou le joint d'emblée). Troisième segment
+    // littéral `pont` ; aucune route « relayer ».
+    Route::post('conversations/{conversation}/pont/invitations', [PontInvitationController::class, 'store'])
+        ->middleware('throttle:pont-invitation')
+        ->name('conversations.pont.invitations.store');
+    Route::get('conversations/{conversation}/copilote', [ConversationCopiloteController::class, 'etat'])
+        ->name('conversations.copilote.show');
+    Route::post('conversations/{conversation}/copilote/{sorte}', [ConversationCopiloteController::class, 'demander'])
+        ->whereIn('sorte', SortesDuCopilote::sortes())
+        ->middleware('throttle:conversation-message')
+        ->name('conversations.copilote.store');
+    // TCK-2975 (ADR-0131 § 3) — la décision du DEMANDEUR sur une proposition du copilote (sinon 404 ; purgée : 410).
+    Route::put('copilote/suggestions/{suggestion}/decision', [CopiloteSuggestionController::class, 'decider'])
+        ->where('suggestion', '[0-9]{1,18}') // un bigint, jamais au-delà (IdentifiantsDeRouteHorsBigintTest)
+        ->name('copilote.suggestions.decision');
+    // TCK-2976 (ADR-0131 § 7) — la transcription d'une note vocale (personnel servi par le copilote ; sinon 404).
+    Route::post('conversations/{conversation}/messages/{message}/transcription', [MessageTranscriptionController::class, 'store'])
+        ->where('message', '[0-9]{1,18}') // TCK-2976 — un bigint, jamais au-delà
+        ->middleware('throttle:conversation-message')
+        ->name('conversations.messages.transcription.store');
     // TCK-2630 — la colonne de contexte d'un fil : bien, bail, intervention, fiche CRM (personnel).
     // Trois segments comme les littérales `conversations/context/…` de TCK-576, mais le troisième
     // est `context` : aucune ne la masque, et elle n'en masque aucune.
@@ -40,9 +75,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('conversations/{conversation}/messages', [ConversationController::class, 'sendMessage'])
         ->middleware(['throttle:conversation-message', 'idempotent'])
         ->name('conversations.messages.store');
+    // TCK-2964 (ADR-0128 § 4) — poser un objet (un bien, le créneau d'une visite) : `{object: {type, id}}`,
+    // le serveur pose le reste. Mêmes limiteur et rejeu que l'envoi d'un message.
+    Route::post('conversations/{conversation}/cards', [ConversationCardController::class, 'store'])
+        ->middleware(['throttle:conversation-message', 'idempotent'])
+        ->name('conversations.cards.store');
     Route::put('conversations/{conversation}/read', [ConversationController::class, 'markAsRead'])->name('conversations.read');
     // TCK-2859 (ADR-0114 § 1) — remettre le fil en non lu pour le lecteur.
     Route::put('conversations/{conversation}/unread', [ConversationController::class, 'markAsUnread'])->name('conversations.unread');
+    // TCK-2967 (ADR-0128 § 7) — la boîte de pilotage : « Rappelez-le-moi », « Traité », confier le fil.
+    Route::put('conversations/{conversation}/snooze', [ConversationPilotageController::class, 'snooze'])->name('conversations.snooze');
+    Route::delete('conversations/{conversation}/snooze', [ConversationPilotageController::class, 'unsnooze'])->name('conversations.unsnooze');
+    Route::put('conversations/{conversation}/handled', [ConversationPilotageController::class, 'handle'])->name('conversations.handled');
+    Route::delete('conversations/{conversation}/handled', [ConversationPilotageController::class, 'unhandle'])->name('conversations.unhandled');
+    Route::put('conversations/{conversation}/assignee', [ConversationPilotageController::class, 'assign'])->name('conversations.assignee');
     Route::put('conversations/{conversation}/archive', [ConversationController::class, 'archive'])->name('conversations.archive');
     Route::put('conversations/{conversation}/unarchive', [ConversationController::class, 'unarchive'])->name('conversations.unarchive');
 

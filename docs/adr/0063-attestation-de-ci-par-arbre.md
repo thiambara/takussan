@@ -212,6 +212,22 @@ generateCodeCoverageReports()`) ; seul l'écrivain PHP, ~100 Mo sous `memory_lim
 tourné. Un échec y est bruyant (le step rougit, la carte n'est pas poussée), jamais une carte
 silencieusement fausse.
 
+#### Amendement du 2026-11-18 (TCK-2951, AC4) — `cov.php` revient au séquentiel, dans son propre step, la nuit
+
+**Ce qui restait à observer a été observé, et c'est un échec.** L'écriture de `cov.php` depuis la
+couverture fusionnée de ParaTest dépasse `memory_limit=8G` sur la suite entière : les deux nuits qui ont
+suivi la fusion (runs 44069411083 et 44285658502) meurent dans `Report/PHP.php` (« tried to allocate
+1823035392 bytes ») après une suite verte, sortie 255 — cliquet non évalué, carte d'impact non
+régénérée. Le séquentiel tenait sous la même limite (dernière nuit verte : 16 novembre).
+
+**Décision du porteur (2026-11-18)** : le step « Run tests » de `couverture` ne produit plus jamais
+`cov.php` ; il ne porte que le clover, le HTML et le cliquet, en `--parallel`, à la même heure chaque
+nuit. Un step **séquentiel** à part, « Produire cov.php », ne tourne que la nuit ou à la demande sur
+`dev`, avant « Régénérer la carte d'impact » : `php artisan test --coverage-php=…`, sans `--parallel`
+ni `--coverage` (la forme que `check-ci-attestation.mjs` laisse passer). Prix : une seconde exécution
+de la suite, la nuit seulement. Écartés : 12 Go (repousse une limite qui grandit avec la suite), et
+laisser la carte vieillir.
+
 ### 5. Le front : Vitest en shards, un agrégateur qui juge et atteste
 
 #### Amendement du 2026-11-16 (TCK-2950) — quatre shards et un job statique en parallèle, le check requis devient l'agrégateur

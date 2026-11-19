@@ -35,6 +35,7 @@ const ATTENDU: ReadonlyArray<readonly [string, EnTeteAuTelephone]> = [
   ['/fr/agents/sokhna-gueye', 'en-tete-de-page'],
   // Les pages par lien : la coque nue.
   ['/fr/pay/jeton', 'en-tete-de-page'],
+  ['/fr/fil/a/jeton', 'en-tete-de-page'], // TCK-2983 — le lien d'action du pont
   ['/fr/claim/jeton', 'en-tete-de-page'],
   ['/fr/share/jeton', 'en-tete-de-page'],
   ['/fr/search-alerts/confirm', 'en-tete-de-page'],

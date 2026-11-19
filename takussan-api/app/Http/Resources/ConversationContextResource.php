@@ -59,7 +59,37 @@ class ConversationContextResource extends BaseResource
             // TCK-2748 — la relation de chaque participant actuel au contexte du fil, jugée sur ce que
             // le lecteur peut lire ({@see \App\Services\Messaging\RelationsAuFil}) ; liste vide sans
             // objet lisible. Des codes : le front possède le libellé.
+            // TCK-2967 — `reads_team_notes` sur chaque ligne : ce participant lit-il les notes de ce fil ?
+            // Faux partout pour qui ne les lit pas lui-même ({@see ConversationThreadContext::for()}).
             'participants' => $context->participants,
+            // TCK-2967 — l'appelant peut-il écrire une note d'équipe ici (la règle du refus 422 de TCK-2965) ?
+            'can_write_team_note' => $context->canWriteTeamNote,
+            // TCK-2967 — chaque participant actif qui lit les notes, qu'il ait une ligne de relation ou non
+            // (même jugement que `participants[].reads_team_notes`) ; vide pour qui ne les lit pas.
+            'team_note_reader_ids' => $context->teamNoteReaderIds,
+            // TCK-2987 (ADR-0130 § 6) — deux entiers par participant, au SEUL personnel actif de l'agence du fil :
+            // pour tout autre appelant la clé est absente (ni `null`, ni zéro). Un objet indexé par compte.
+            'commitments_records' => $this->when($context->commitmentsRecords !== null, fn () => (object) $context->commitmentsRecords),
+            // TCK-2981 (ADR-0132 § 3) — le pont par participant actif (lecteur exclu), indexé par compte, au SEUL
+            // personnel actif de l'agence du fil ; absent pour tout autre lecteur. Jamais un numéro.
+            'pont' => $this->when($context->pont !== null, fn () => (object) array_map(fn (array $l): array => [
+                'joint' => $l['joint'],
+                'invitation_en_attente' => $l['invitation_en_attente'],
+                'canal' => $l['canal'],
+                'accord_at' => $this->iso($l['accord_at']),
+                'opposition_at' => $this->iso($l['opposition_at']),
+                'fenetre_jusqu_a' => $this->iso($l['fenetre_jusqu_a']),
+                'invitable' => $l['invitable'],
+            ], $context->pont)),
+            // TCK-2981 (ADR-0132 § 2) — la fiche du locataire SANS COMPTE du bail de la salle, pour « Joindre » par
+            // `customer_id` : au seul personnel actif (clé absente sinon), `null` sans fiche à joindre. Sans numéro.
+            'pont_fiche' => $this->when($context->pontFiche !== false, fn () => $context->pontFiche === null ? null : [
+                'customer_id' => $context->pontFiche['customer_id'],
+                'full_name' => $context->pontFiche['full_name'],
+                'invitable' => $context->pontFiche['invitable'],
+                'invitation_en_attente' => $context->pontFiche['invitation_en_attente'],
+                'opposition_at' => $this->iso($context->pontFiche['opposition_at']),
+            ]),
             'customer' => $this->when($context->customerShown, fn () => $customer === null ? null : [
                 'id' => $customer->id,
                 'full_name' => $customer->full_name,

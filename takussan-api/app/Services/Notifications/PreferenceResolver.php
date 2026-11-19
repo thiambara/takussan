@@ -87,7 +87,24 @@ class PreferenceResolver
         'property_availability_check',
         // TCK-2783 — `documents:remind-expiring` : une pièce du coffre expire dans 60 puis 7 jours.
         'document_expiring',
+        // TCK-2985 (ADR-0132 § 6) — le résumé du lundi du bailleur : e-mail et WhatsApp seulement, éteints par défaut.
+        self::OWNER_WEEKLY_DIGEST,
     ];
+
+    /** TCK-2985 — le résumé du lundi du bailleur (`App\\Services\\Owners\\ResumeDuLundi`). */
+    public const OWNER_WEEKLY_DIGEST = 'owner_weekly_digest';
+
+    /**
+     * TCK-2985 (ADR-0132 § 6) — les événements qu'une personne doit ALLUMER : toutes leurs cases sont éteintes par
+     * défaut, e-mail compris, et l'activation se juge par {@see self::active()}, jamais par la case `inapp` (toujours
+     * vraie). Leurs canaux sont ceux de {@see self::OPT_IN_CHANNELS}, sans `inapp` : ils n'entrent pas dans la cloche.
+     *
+     * @var list<string>
+     */
+    public const OPT_IN_EVENTS = [self::OWNER_WEEKLY_DIGEST];
+
+    /** @var list<string> */
+    public const OPT_IN_CHANNELS = [self::CHANNEL_EMAIL, self::CHANNEL_WHATSAPP];
 
     /**
      * Events that ignore user preferences on inapp + email.
@@ -208,9 +225,37 @@ class PreferenceResolver
         return (bool) $pref;
     }
 
+    /**
+     * TCK-2985 (ADR-0132 § 6) — l'événement à allumer l'est-il ? Une de ses cases {@see self::OPT_IN_CHANNELS} est
+     * allumée, telle que la personne l'a choisie (ligne, sinon défaut éteint). Jamais `shouldSend(…, inapp)`, toujours
+     * vrai ; et indépendamment du téléphone : la case WhatsApp allumée sans numéro vérifié active le résumé, qui part
+     * alors par e-mail.
+     */
+    public function active(User $user, string $eventType): bool
+    {
+        $rows = NotificationPreference::query()
+            ->where('user_id', $user->id)
+            ->where('event_type', $eventType)
+            ->whereIn('channel', self::OPT_IN_CHANNELS)
+            ->pluck('enabled', 'channel');
+
+        foreach (self::OPT_IN_CHANNELS as $channel) {
+            if ($rows->has($channel) ? (bool) $rows->get($channel) : $this->defaultFor($eventType, $channel)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** L'état d'une case quand l'utilisateur n'a rien choisi. */
     public function defaultFor(string $event, string $channel): bool
     {
+        // TCK-2985 — un événement à allumer : rien par défaut, pas même l'e-mail.
+        if (in_array($event, self::OPT_IN_EVENTS, true)) {
+            return false;
+        }
+
         if (
             in_array($channel, [self::CHANNEL_SMS, self::CHANNEL_WHATSAPP], true)
             && in_array($event, self::MOBILE_DEFAULT_EVENTS, true)
@@ -225,7 +270,9 @@ class PreferenceResolver
      * Les canaux qu'un envoi peut réellement honorer pour cet événement.
      *
      *   · `inapp` et `email` toujours ;
-     *   · `push` seulement si un transport existe — `log` ou `null` ne livrent rien (D-65) ;
+     *   · jamais `push` (TCK-2953) : aucune notification ne part plus par le canal `broadcast`
+     *     (TCK-2952), le pilote `reverb` ne porte qu'un signal sans donnée (ADR-0129), et le porteur
+     *     a exclu la notification push. La case reste dans la matrice, verrouillée ;
      *   · `sms`/`whatsapp` seulement si l'événement est mobile : un code `mobile()` l'a pour
      *     interrupteur, ou une classe `SupportsSms`/`SupportsWhatsapp` le porte.
      *
@@ -233,11 +280,14 @@ class PreferenceResolver
      */
     public function channelsFor(string $event): array
     {
-        $channels = [self::CHANNEL_INAPP, self::CHANNEL_EMAIL];
-
-        if (! in_array(config('broadcasting.default'), ['log', 'null', null], true)) {
-            $channels[] = self::CHANNEL_PUSH;
+        // TCK-2985 — ses seuls canaux, sans `inapp` (cf. OPT_IN_EVENTS).
+        if (in_array($event, self::OPT_IN_EVENTS, true)) {
+            return self::OPT_IN_CHANNELS;
         }
+
+        // TCK-2953 — plus de case `push` selon `broadcasting.default` : le transport temps réel ne livre
+        // aucune notification (cf. docblock).
+        $channels = [self::CHANNEL_INAPP, self::CHANNEL_EMAIL];
 
         $whatsappOnly = self::whatsappOnlyEvents();
         if (array_key_exists($event, $whatsappOnly)) {

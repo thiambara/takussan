@@ -50,6 +50,13 @@ export function SectionRegles() {
       <ConfirmationParLesBailleurs />
     </GroupeDeChamps>
   );
+  // TCK-2979 — l'assistant de la messagerie (ADR-0131), pour toute agence.
+  const assistant = (
+    <GroupeDeChamps titre={tFiche('groupeAssistant')}>
+      <InterrupteurDuReglage name="copilot_enabled" cle="copilote" />
+      <InterrupteurDuReglage name="voice_transcription_enabled" cle="transcription" />
+    </GroupeDeChamps>
+  );
   // TCK-2915 — le jour de versement s'écrit par `PATCH /api/agencies/{id}` (`settings.payout_day`), comme
   // les autres réglages : il ne dépend pas du droit d'approuver, contrairement au seuil.
   const reversements = (
@@ -71,6 +78,7 @@ export function SectionRegles() {
         <div className="space-y-5">
           {publication}
           {visites}
+          {assistant}
         </div>
         {reversements || securite ? (
           <div className="space-y-5">
@@ -152,6 +160,47 @@ function ConfirmationParLesBailleurs() {
       name="owners_confirm_visits"
       render={({ field }) => (
         <InterrupteurAAide id="owners_confirm_visits" libelle={t('label')} aide={t('hint')} actif={field.value} onChange={field.onChange} />
+      )}
+    />
+  );
+}
+
+/** TCK-2979 — un interrupteur de l'assistant de la messagerie, la forme de « Pénalités ». */
+function InterrupteurDuReglage({
+  name,
+  cle,
+}: {
+  readonly name: 'copilot_enabled' | 'voice_transcription_enabled';
+  readonly cle: 'copilote' | 'transcription';
+}) {
+  const t = useTranslations('admin.agencyConfig.assistant');
+  const { control } = useFormContext<ValeursDeLaFiche>();
+  const { agence } = useFiche();
+  // L'agence ne rallume jamais ce que la plateforme coupe : grisé, avec sa raison. Sans `ai_platform`, rien n'est grisé.
+  const plateforme = agence.ai_platform;
+  const raison = !plateforme
+    ? null
+    : cle === 'copilote'
+      ? (plateforme.copilot ? null : 'plateforme')
+      : !plateforme.transcription
+        ? 'plateforme'
+        : plateforme.transcription_configured
+          ? null
+          : 'nonConfiguree';
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <InterrupteurAAide
+          id={name}
+          libelle={t(`${cle}.label`)}
+          aide={t(`${cle}.hint`)}
+          actif={field.value}
+          onChange={field.onChange}
+          desactive={raison !== null}
+          pied={raison ? <span className="text-muted-foreground" data-raison={raison}>{t(`raison.${raison}`)}</span> : undefined}
+        />
       )}
     />
   );

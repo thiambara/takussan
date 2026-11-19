@@ -8,6 +8,8 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\ListNotificationsRequest;
 use App\Http\Resources\AppNotificationResource;
 use App\Models\AppNotification;
+use App\Support\TempsReel\CodeDeSignal;
+use App\Support\TempsReel\TempsReel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -101,6 +103,8 @@ class NotificationController extends Controller
     {
         abort_unless($notification->user_id === $request->user()->id, 403);
         $notification->update(['read_at' => now(), 'is_read' => true]);
+        // TCK-2955 (ADR-0129 § 2) — la cloche des AUTRES onglets de la personne se relit.
+        TempsReel::signalerA($request->user(), CodeDeSignal::NotificationsUpdated);
 
         return $this->json(['data' => AppNotificationResource::make($notification)->resolve($request)]);
     }
@@ -109,15 +113,21 @@ class NotificationController extends Controller
     {
         abort_unless($notification->user_id === $request->user()->id, 403);
         $notification->update(['read_at' => null, 'is_read' => false]);
+        // TCK-2955 — idem.
+        TempsReel::signalerA($request->user(), CodeDeSignal::NotificationsUpdated);
 
         return $this->json(['data' => AppNotificationResource::make($notification)->resolve($request)]);
     }
 
     public function markAllRead(Request $request): JsonResponse
     {
-        AppNotification::where('user_id', $request->user()->id)
+        $lues = AppNotification::where('user_id', $request->user()->id)
             ->whereNull('read_at')
             ->update(['read_at' => now(), 'is_read' => true]);
+        // TCK-2955 — idem, si quelque chose a changé.
+        if ($lues > 0) {
+            TempsReel::signalerA($request->user(), CodeDeSignal::NotificationsUpdated);
+        }
 
         return $this->json(['message' => 'ok']);
     }

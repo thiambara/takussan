@@ -86,6 +86,12 @@
     "89": "Audit UX famille 5, commercial : la suite après une visite (P0 : compte rendu, candidature ou offre saisie par l'agent, bail prérempli), demandes, clients, pipeline, visites par le temps, réservations, « Aujourd'hui », agenda — maquettes choisies le 2026-11-10 (TCK-2578 → TCK-2597)",
     "90": "Audit UX famille 6, agence : Argent, commissions, crédits et offre, équipe, identité de l'agence en sommaire avec complétude, modération en lot, rapprochement du reste — maquettes choisies le 2026-11-10 (TCK-2657 → TCK-2677) ; ajoutés le 2026-11-10 après les retours du porteur : TCK-2681 (l'approbation pose l'abonnement), TCK-2682 (relance des impayés en lot)",
     "91": "Préparation du terrain : fidélité au pixel des maquettes de la partie connectée — à faire AVANT les vagues 86 à 90 (TCK-2684 → TCK-2692)",
-    "92": "Manques de l'audit des maquettes de /app (2026-11-15) : ce que les tickets des vagues 86 à 91 ont laissé de côté — écrans jamais relevés, manques rangés en « donnée » ou « renvoyés » sans suite (TCK-2845 →)"
+    "92": "Manques de l'audit des maquettes de /app (2026-11-15) : ce que les tickets des vagues 86 à 91 ont laissé de côté — écrans jamais relevés, manques rangés en « donnée » ou « renvoyés » sans suite (TCK-2845 →)",
+    "93": "Le Fil, lot 0 — le socle temps réel (ADR-0129, plan docs/plans/2026-11-17-le-fil.md) : Reverb, émetteur et registre des canaux, client front et mode dégradé, premiers sujets, service en préproduction (TCK-2952 → TCK-2956)",
+    "94": "Le Fil, lot 1 — le fil rattaché à son objet, les cartes vivantes et les salles (ADR-0128 §§ 1-5 ; maquettes fil-cartes D et fil-salle-bail A, choisies le 2026-11-17) (TCK-2957 → TCK-2964)",
+    "95": "Le Fil, lot 2 — la note d'équipe, les @mentions et la boîte de pilotage (ADR-0128 §§ 6-7 ; maquettes fil-boite D et fil-cartes D, sans la puce « Retard », qui attend le lot 3) (TCK-2965 → TCK-2968)",
+    "96": "Le Fil, lot 3 — les engagements : une promesse du fil devient un objet suivi (table commitments), sa carte, son cycle, la file « Retard » et la fiabilité lue par le personnel — ADR-0130 (TCK-2969 → TCK-2973)",
+    "97": "Le Fil, lot 4 — le copilote : résumé, « Demander au fil », brouillons, promesses proposées en engagements, transcription ; interrupteurs et modèles paramétrables — ADR-0131 (TCK-2974 → TCK-2979)",
+    "98": "Le Fil, lot 5 — le pont de messagerie par drivers (WhatsApp, SMS, puis d'autres), consentement et STOP, liens d'action signés, résumé du bailleur de la diaspora — ADR-0132 (TCK-2980 → TCK-2985)"
   }
 }

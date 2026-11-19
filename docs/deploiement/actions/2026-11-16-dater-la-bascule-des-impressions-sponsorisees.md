@@ -33,3 +33,9 @@ La requête du point 2 est visible et rend 204 ; la date de bascule de l'environ
 ADR-0061.
 
 ## Historique
+- 2026-11-16, préproduction — promotion #1691 (`ac2a32f66`, fusionnée 23:27:40 Z, `images.yml` 43979477538 vert à 23:34:49 Z) ; **en partie** : l'appel tel que le navigateur
+  le fait (`POST https://preview.api.takussan.com/api/public/properties/sponsored-impressions`, corps de formulaire
+  `slugs[]=…`, `Origin: https://preview.takussan.com`) rend **204** avec `access-control-allow-origin:
+  https://preview.takussan.com` : pas d'erreur CORS à attendre. Date de bascule écrite dans ADR-0061. **Reste** :
+  les points 1 à 4 au navigateur (aucun bien sponsorisé dans la première page de `/fr/properties` ce soir) —
+  `preview` reste `a-faire`.

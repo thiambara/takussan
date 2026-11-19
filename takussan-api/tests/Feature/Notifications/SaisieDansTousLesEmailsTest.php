@@ -25,6 +25,7 @@ use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
 use App\Notifications\LeaseDepositRefundNotification;
 use App\Notifications\LeaseRentReviewedNotification;
+use App\Notifications\OwnerWeeklyDigestNotification;
 use App\Notifications\PropertyApprovedNotification;
 use App\Notifications\PropertyRejectedNotification;
 use App\Notifications\SuperAdminAcceptedBroadcast;
@@ -273,9 +274,11 @@ class SaisieDansTousLesEmailsTest extends TestCase
             $this->assertStringNotContainsString('\\', $texteSms, "{$code->value} : SMS sans barre oblique");
             $sms += str_contains($texteSms, rtrim($prefixeSms)) ? 1 : 0;
 
-            $cloche = $notification->toBroadcast(new AnonymousNotifiable)->data;
-            $this->assertStringNotContainsString('\\', $cloche['title'].$cloche['body'], "{$code->value} : cloche sans barre oblique");
-            $cloches += str_contains($cloche['title'].$cloche['body'], self::P) ? 1 : 0;
+            // TCK-2952 — la cloche n'a plus de `toBroadcast()` : elle affiche le titre et le corps que
+            // `NotificationService::send()` rend par le même moteur, écrits sur la ligne `app_notifications`.
+            $cloche = $renderer->render($code, $params, 'fr', null, 'title').$renderer->render($code, $params, 'fr', null, 'body');
+            $this->assertStringNotContainsString('\\', $cloche, "{$code->value} : cloche sans barre oblique");
+            $cloches += str_contains($cloche, self::P) ? 1 : 0;
         }
 
         $this->assertGreaterThanOrEqual(20, $sujets, 'des sujets portent la saisie à l\'identique');
@@ -322,6 +325,12 @@ class SaisieDansTousLesEmailsTest extends TestCase
 
                 return [new BookingExpiredNotification($booking), false];
             },
+            // TCK-2985 — le nom de l'agence est la seule saisie du résumé du lundi.
+            'OwnerWeeklyDigestNotification' => fn () => [new OwnerWeeklyDigestNotification([
+                'agency' => self::P, 'paid_count' => 1, 'paid_total' => ['amount' => '1000.00', 'currency' => 'XOF'],
+                'late_count' => 0, 'late_total' => ['amount' => '0.00', 'currency' => 'XOF'],
+                'maintenance_opened' => 0, 'maintenance_closed' => 0, 'visits' => 0,
+            ]), true],
             'TaskDueReminderNotification' => fn () => [new TaskDueReminderNotification((new Task)->forceFill(['id' => 1, 'title' => self::P, 'due_at' => now()])), true],
             'UrgentMaintenanceCreatedNotification' => fn () => [new UrgentMaintenanceCreatedNotification((new MaintenanceRequest)->forceFill(['id' => 1, 'title' => self::P])), true],
             'UrgentMaintenanceCreatedNotification (escalade)' => fn () => [new UrgentMaintenanceCreatedNotification((new MaintenanceRequest)->forceFill(['id' => 1, 'title' => self::P]), isEscalation: true), true],

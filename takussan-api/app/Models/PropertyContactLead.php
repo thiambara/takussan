@@ -73,7 +73,8 @@ class PropertyContactLead extends AbstractModel
 
     /**
      * `filter[channel]` vaut `form` par défaut : la boîte ne montre que les demandes à traiter,
-     * jamais les clics WhatsApp / Appeler (option retenue du ticket). `filter[handled]=0|1` et
+     * jamais les clics WhatsApp / Appeler (option retenue du ticket). TCK-2980 — par défaut aussi le
+     * prospect du pont, `whatsapp_inbound` (`ContactLeadChannel::demandes()`). `filter[handled]=0|1` et
      * `filter[mine]=1` (destinataire, ou traitée par moi).
      *
      * @return array<int, AllowedFilter>
@@ -82,7 +83,8 @@ class PropertyContactLead extends AbstractModel
     {
         $filters = parent::getAllowedQueryFilters();
 
-        $filters[] = AllowedFilter::exact('channel')->default(ContactLeadChannel::Form->value);
+        // TCK-2980 — par défaut, les demandes à traiter : le formulaire ET le prospect du pont (`whatsapp_inbound`).
+        $filters[] = AllowedFilter::exact('channel')->default(ContactLeadChannel::valeursDesDemandes());
 
         $filters[] = AllowedFilter::callback('handled', function (Builder $q, mixed $value) {
             filter_var($value, FILTER_VALIDATE_BOOLEAN)
@@ -124,7 +126,8 @@ class PropertyContactLead extends AbstractModel
 
     public function scopeATraiter(Builder $query): Builder
     {
-        return $query->where($query->qualifyColumn('channel'), ContactLeadChannel::Form->value)
+        // TCK-2980 — le prospect du pont (`whatsapp_inbound`) est une demande à traiter.
+        return $query->whereIn($query->qualifyColumn('channel'), ContactLeadChannel::valeursDesDemandes())
             ->whereNull($query->qualifyColumn('handled_at'));
     }
 

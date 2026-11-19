@@ -11,7 +11,6 @@ use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -34,7 +33,7 @@ class PropertyRejectedNotification extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail', 'broadcast'];
+        return ['database', 'mail'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -89,15 +88,5 @@ class PropertyRejectedNotification extends Notification implements ShouldQueue
             $notifiable instanceof User ? $notifiable->timezone : null,
             $surface,
         );
-    }
-
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastType(): string
-    {
-        return 'property.rejected';
     }
 }

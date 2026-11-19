@@ -16,6 +16,8 @@ import type { EntreeDuFil } from '@/lib/queries/customer-timeline';
 import { BookingDetail } from '../BookingDetail';
 
 const ecran = vi.hoisted(() => ({ telephone: false, maintenant: new Date('2026-11-09T09:12:00Z') }));
+// TCK-2963 — le bloc de la salle ouvre sa conversation (React Query) : hors du propos de ce test.
+vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () => null }));
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: (q: string) => (q.includes('80rem') ? !ecran.telephone : ecran.telephone) }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 5 }));
 vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => ecran.maintenant }));

@@ -95,7 +95,7 @@ return [
         'provider_host_not_allowed' => 'The address of this provider is not on an accepted host.',
         'provider_key_missing' => 'No key is configured for this provider.',
         'provider_redirected' => 'This provider answered with a redirect: the request was not sent again.',
-        'provider_role_mismatch' => 'This provider does not serve this role: embeddings and text do not mix.',
+        'provider_role_mismatch' => 'This provider does not serve this role: embeddings, transcription and text do not mix, and only a provider that transcribes serves transcription.',
         'provider_unreachable' => 'Nothing is sent to this provider: training opt-out not declared, or address not accepted.',
         'provider_unknown' => 'Unknown AI provider.',
         'role_unknown' => 'Unknown AI role.',
@@ -513,6 +513,17 @@ return [
     ],
     'messaging' => [
         'admin_only' => 'Only an admin can perform this action.',
+        // TCK-2965 (ADR-0128 § 6) — la note d'équipe refusée en 422 (`ConversationWriter`).
+        'team_note_not_staff' => 'Only the staff of this conversation\'s agency can write a team note.',
+        'team_note_no_agency' => 'This conversation is not linked to any agency: it cannot hold a team note.',
+        'team_note_type' => 'A team note can only be a text, a voice note or an attachment.',
+        // TCK-2966 (ADR-0128 § 6) — une @mention refusée en 422.
+        'mention_not_reader' => 'You can only mention people who will read this message.',
+        'mention_type' => 'Only a text or a voice note can mention someone.',
+        // TCK-2967 (ADR-0128 § 7) — confier un fil, refusé en 422 (`ConversationPilotageController::assign`).
+        'assignee_thread_type' => "Only a room or a group can be assigned to someone at the agency. A prospect's thread follows the property's main contact.",
+        'assignee_author_not_staff' => "Only staff of this conversation's agency can assign it.",
+        'assignee_not_staff' => 'This conversation can only be assigned to a staff member of the agency who takes part in it.',
     ],
     'moderation' => [
         'item_id_invalid' => 'Invalid moderation item.',
@@ -1033,5 +1044,55 @@ return [
     'pdf' => [
         'render_busy' => 'The service that produces PDF documents is overloaded: try again in a minute.',
         'render_failed' => 'The PDF document could not be produced. Try again in a moment.',
+    ],
+    // TCK-2969 (ADR-0130) — commitments in a thread.
+    'commitment' => [
+        'no_agency' => 'This conversation is not linked to any agency: it cannot hold a commitment.',
+        'team_note_source' => 'A commitment cannot be noted from a team note.',
+        'source_elsewhere' => 'This message does not belong to this conversation.',
+        'holder_not_participant' => 'The person making the commitment must take part in the conversation.',
+        'beneficiary_not_participant' => 'The person the commitment is made to must take part in the conversation.',
+        'not_yours' => 'You can only note your own commitment.',
+        'due_in_past' => 'A commitment must be due in the future.',
+        'invalid_state' => 'This action is not possible in the current state of the commitment.',
+        // TCK-2970 (ADR-0130 §§ 3 et 4)
+        'already_reopened' => 'This commitment has already been reopened once by one of the two parties: only the agency can reopen it again.',
+        'reminded_recently' => 'A reminder was already sent less than 24 hours ago.',
+    ],
+    // TCK-2974 (ADR-0131) — le copilote du fil
+    'copilote' => [
+        'indisponible' => 'The assistant is not available to you in this conversation.',
+        'resume_inutile' => 'There are not enough new messages to summarise.',
+        'coupe' => 'The assistant is turned off for now.',
+        'budget_epuise' => 'The assistant has reached its limit for today. Please try again tomorrow.',
+        'echec' => 'The assistant could not answer. Please try again in a moment.',
+        // TCK-2975 — la décision sur une proposition.
+        'suggestion_introuvable' => 'This suggestion could not be found.',
+        'suggestion_purgee' => 'This suggestion has expired and can no longer be decided.',
+        'deja_decidee' => 'You have already decided on this suggestion.',
+    ],
+    // TCK-2981 (ADR-0132) — « Joindre par WhatsApp ».
+    'pont' => [
+        'not_allowed' => 'You cannot reach someone by WhatsApp in this conversation.',
+        'not_participant' => 'This person is not an active participant in this conversation.',
+        'no_phone' => 'This person has no phone number.',
+        'invalid_phone' => "This person's phone number is not valid.",
+        'opted_out' => 'This person has refused messages on this number.',
+        'already_joined' => 'This person is already reached in this conversation.',
+        'customer_not_in_room' => "This record does not belong to this conversation's lease.",
+        'numero_deja_a_un_compte' => 'This number already belongs to another account.',
+    ],
+    // TCK-2982 (ADR-0132 § 5) — le lien d'action signé.
+    'action_link' => [
+        'expired' => 'This link has expired.',
+        'used' => 'This link has already been used.',
+        'revoked' => 'This link is no longer valid.',
+        'code_required' => 'Enter the code you received by SMS.',
+        'code_invalid' => 'This code is not correct.',
+        'code_locked' => 'Too many attempts: try again later.',
+        'resend_too_soon' => 'Please wait before requesting a new code.',
+        'no_phone' => 'No number can receive the code.',
+        'sms_not_sent' => 'The code could not be sent. Please try again.',
+        'nothing_to_sign' => 'There is nothing left for you to sign.',
     ],
 ];

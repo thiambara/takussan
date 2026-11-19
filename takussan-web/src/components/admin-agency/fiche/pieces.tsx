@@ -127,6 +127,7 @@ export function InterrupteurAAide({
   actif,
   onChange,
   pied,
+  desactive = false,
 }: {
   readonly id: string;
   readonly libelle: string;
@@ -134,10 +135,12 @@ export function InterrupteurAAide({
   readonly actif: boolean;
   readonly onChange: (actif: boolean) => void;
   readonly pied?: ReactNode;
+  /** TCK-2979 — grisé : l'interrupteur ne change plus la valeur (la raison se dit dans `pied`). */
+  readonly desactive?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <label className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
+      <label className={`grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 ${desactive ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
         <span className="col-start-1 text-corps font-medium leading-snug">{libelle}</span>
         <span id={`${id}-aide`} className="col-start-1 row-start-2 mt-1 text-pretty text-ui leading-snug text-muted-foreground">
           {aide}
@@ -146,6 +149,7 @@ export function InterrupteurAAide({
           id={id}
           className="col-start-2 row-span-2 row-start-1 mt-0.5"
           checked={actif}
+          disabled={desactive}
           onCheckedChange={(valeur) => onChange(valeur)}
           aria-describedby={`${id}-aide`}
         />

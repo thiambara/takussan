@@ -6,8 +6,9 @@
 # les lit ligne à ligne. Une forme en tableau, ou repliée sur plusieurs lignes, la rendrait
 # aveugle.
 #
-# Le domaine n'est pas ici : Dokploy pose les labels Traefik du service `api` (port 8080) depuis
-# son onglet Domains. `container_name` est interdit : Dokploy nomme les conteneurs.
+# Le domaine n'est pas ici : Dokploy pose les labels Traefik du service `api` (port 8080) — et de
+# `temps-reel` (port 8080 aussi, TCK-2956) — depuis son onglet Domains. `container_name` est
+# interdit : Dokploy nomme les conteneurs.
 #
 # ── DEUX RÉSEAUX (ADR-0069 § 4, TCK-880) ─────────────────────────────────────────────────────────
 #
@@ -23,6 +24,20 @@
 # `REDIS_HOST` et `REDIS_PORT` sont écrits ICI, et non dans l'onglet Environment : ce sont des faits
 # de la pile, pas des réglages, et `environment` l'emporte sur `env_file`. Une valeur restée dans
 # Dokploy est donc sans effet — smoke-api.sh le prouve avec une valeur fausse dans son `.env`.
+#
+# ── LE TEMPS RÉEL : `temps-reel` (ADR-0129 § 5, TCK-2956) ─────────────────────────────────────────
+#
+# Le serveur WebSocket Reverb, sur l'image de l'API. Il est sur `dokploy-network` parce que Traefik
+# doit le joindre (le navigateur y arrive par un sous-domaine en wss, docs/infra/hebergement.md) — et
+# c'est ce qui rend son nom de service ambigu : sur ce réseau, `temps-reel` désigne le Reverb de
+# CHAQUE environnement, exactement comme `api`. L'API publie donc ses signaux sous l'alias
+# `${API_ALIAS}-temps-reel` (`takussan-api-preview-temps-reel`, `takussan-api-production-temps-reel`),
+# DÉRIVÉ d'API_ALIAS : aucune clé de plus à poser dans Dokploy, aucun déploiement qui échoue faute
+# d'elle. `REVERB_HOST`, `REVERB_PORT` et `REVERB_SCHEME` sont écrits ici, sur le patron de
+# `REDIS_HOST` : un fait de la pile, que l'onglet Environment ne peut pas détourner vers l'autre
+# environnement. scripts/check-reseau-par-environnement.mjs refuse `temps-reel` seul comme hôte et
+# exige l'alias. Les identifiants `REVERB_APP_*` viennent du MÊME `.env` pour l'API qui signe et le
+# serveur qui vérifie : ils ne peuvent pas diverger.
 
 x-api: &api
   image: ghcr.io/thiambara/takussan-api:${IMAGE_TAG:?IMAGE_TAG manquant}
@@ -31,6 +46,11 @@ x-api: &api
   environment:
     REDIS_HOST: redis
     REDIS_PORT: "6379"
+    # TCK-2956 — la publication de serveur à serveur, vers le Reverb de CETTE pile (cf. l'en-tête). Le
+    # navigateur, lui, passe par le sous-domaine en wss (TEMPS_REEL_URL du front).
+    REVERB_HOST: ${API_ALIAS:?API_ALIAS manquant — takussan-api-preview ou takussan-api-production}-temps-reel
+    REVERB_PORT: "8080"
+    REVERB_SCHEME: http
   restart: unless-stopped
   volumes:
     - storage:/app/storage/app
@@ -166,6 +186,45 @@ services:
     command: php artisan schedule:work
     # 192m : memory.events `max` 17 en 1 h 10 le 2026-11-01, autour de `memory_limit` 256M (le défaut que TCK-951 a corrigé sur les workers).
     mem_limit: 384m
+
+  # ── `temps-reel` : le serveur WebSocket (ADR-0129 § 5, TCK-2956) ─────────────────────────────
+  #
+  # `reverb:start` écoute 0.0.0.0:8080 (défaut de config/reverb.php) : la cible de l'onglet Domains,
+  # `temps-reel:8080`. Il lit le cache au démarrage puis toutes les 5 s (signal de `reverb:restart`) :
+  # c'est le Redis de la pile, d'où `apres-release`. Il n'accepte de connexion que de l'hôte de
+  # `FRONTEND_URL` (config/reverb.php, hors `local`) : 4009 « Origin not allowed » pour tout autre.
+  #
+  # Sans `REVERB_APP_KEY` dans le `.env`, le serveur démarre, se déclare sain, puis sort en 0 SANS UN
+  # MOT vers 60 s (mesuré par TCK-2953) — et `restart` le relance en boucle, muet. La commande refuse
+  # donc de démarrer, en le disant, tant que l'action docs/deploiement/actions/
+  # 2026-11-17-poser-le-temps-reel.md n'est pas faite : le service est alors « Restarting » avec une
+  # ligne qui nomme l'action, au lieu d'un service « Up » qui disparaît toutes les minutes.
+  #
+  # `mem_limit` (relevé le 2026-11-18, TCK-2956) : `reverb:start` sous PHP 8.4.27, code de l'API,
+  # `APP_ENV=staging` — RSS 72 Mio au repos, 81 Mio (pic `VmHWM`) avec 500 connexions tenues ; 57 puis
+  # 66 Mio au compte du cgroup (`docker stats`). Relevé sur `serversideup/php:8.4.27-cli-alpine` (le
+  # service de développement), PAS sur l'image de l'API : l'ordre de grandeur, pas le chiffre de la
+  # préproduction (à relever dans le conteneur, cf. l'action). La limite n'est pas dictée par cet usage
+  # mais par `memory_limit = 256M` (docker/php.ini), qui borne aussi ce processus : sous 288 Mio
+  # (256 + la marge hors tas mesurée par TCK-951), le noyau tuerait le serveur par SIGKILL avant
+  # l'erreur de PHP, sans rien au journal. D'où 384m, le raisonnement des workers, et non leur chiffre.
+  temps-reel:
+    <<: [*api, *apres-release]
+    command: sh -c 'test -n "$${REVERB_APP_KEY:-}" || { echo "temps-reel — REVERB_APP_KEY absente ou vide, serveur non démarré. Poser les clés — docs/deploiement/actions/2026-11-17-poser-le-temps-reel.md" >&2; exit 1; }; exec php artisan reverb:start'
+    networks:
+      dokploy-network:
+        aliases:
+          - ${API_ALIAS:?API_ALIAS manquant — takussan-api-preview ou takussan-api-production}-temps-reel
+      interne:
+    stop_grace_period: 30s
+    mem_limit: 384m
+    healthcheck:
+      # `GET /up`, la route de santé du serveur Reverb lui-même (`{"health":"OK"}`) — pas un `--help`.
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/up') === false ? 1 : 0);"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
 
   # Jamais démarré par `up` : `docker compose --profile seed run --rm seed`.
   seed:

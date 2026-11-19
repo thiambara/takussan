@@ -6,7 +6,10 @@ use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Models\Message;
 use App\Services\Messaging\ConversationAccess;
+use App\Services\Messaging\EquipeDuFil;
+use App\Services\Messaging\MentionsDuFil;
 use App\Services\Model\NotificationService;
+use App\Services\Pont\JointsParLePont;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -39,15 +42,35 @@ class NotifyNewMessageJob implements ShouldQueue
         //   - participants who muted this conversation (notif suppressed,
         //     message still persisted and visible in the thread)
         //   - participants who left the group (`left_at != null`)
+        // TCK-2966 — la sourdine n'est plus filtrée en SQL : elle se juge par destinataire, plus bas, parce
+        // qu'une mention passe outre (décision 1a du porteur). Tout autre filtre s'applique à TOUS, mentionnés
+        // compris : une mention ne crée aucun accès.
         $recipients = $message->conversation->participants()
             ->when($message->sender_id !== null, fn ($q) => $q->where('users.id', '!=', $message->sender_id))
-            ->wherePivot('is_muted', false)
             ->wherePivotNull('left_at')
             ->get()
             // TCK-592 (verif-592, B2) — l'aperçu du message ne part pas à qui n'a plus accès au fil
             // (prestataire en pause, en fin de collaboration, suspendu). TCK-886 (ADR-0068) — ni
             // à l'ancien répondant d'un fil de prospect, qui n'est plus le contact principal.
             ->filter(fn ($recipient) => app(ConversationAccess::class)->branchesAllow($recipient, $message->conversation))
+            ->values();
+
+        // TCK-2965 (ADR-0128 § 6) — une note d'équipe ne notifie que ceux qui la lisent (personnel actif de
+        // l'agence du fil, jugé en tiers), par TOUS les canaux de `NotificationService` : le filtre est en
+        // amont de l'envoi, l'application, le courriel, WhatsApp et le SMS ne reçoivent que ces destinataires.
+        if ($message->estUneNote()) {
+            $agence = EquipeDuFil::agence($message->conversation);
+            $recipients = $recipients
+                ->filter(fn ($recipient) => EquipeDuFil::tiersLitLesNotes($recipient, $message->conversation, $agence))
+                ->values();
+        }
+
+        // TCK-2966 (ADR-0128 § 6) — les mentionnés, parmi ces seuls destinataires (lecture rejugée au départ :
+        // qui a quitté le fil ou l'agence depuis l'envoi n'y est plus), reçoivent `MessageMention` même en
+        // sourdine, et pas de `MessageReceived` en plus ; les autres, `MessageReceived` hors sourdine.
+        $mentionnes = MentionsDuFil::de($message);
+        $recipients = $recipients
+            ->filter(fn ($recipient) => in_array((int) $recipient->id, $mentionnes, true) || ! $recipient->pivot->is_muted)
             ->values();
 
         if ($recipients->isEmpty()) {
@@ -59,12 +82,33 @@ class NotifyNewMessageJob implements ShouldQueue
         // jamais son e-mail : `nameWithoutContact()` se replie sur `username`, puis « — ».
         $senderName = $sender?->nameWithoutContact();
 
+        // TCK-2981 (ADR-0132 § 4) — le pont : un relais par destinataire joint (ou en attente d'accord), en file ; la
+        // garde de ce qui part est dans le job. Un joint ne reçoit plus `message.received` sur WhatsApp ni SMS.
+        $joints = app(JointsParLePont::class);
+        $relayable = RelayerMessageAuPont::relayable($message);
+        $parLePont = [];
         foreach ($recipients as $recipient) {
-            $notifications->send($recipient, NotificationCode::MessageReceived, [
+            $etat = $joints->etat($message->conversation, (int) $recipient->id);
+            if ($etat !== null && $relayable) {
+                RelayerMessageAuPont::dispatch((int) $message->id, (int) $recipient->id);
+            }
+            if ($etat === JointsParLePont::JOINT) {
+                $parLePont[(int) $recipient->id] = true;
+            }
+        }
+
+        foreach ($recipients as $recipient) {
+            $code = in_array((int) $recipient->id, $mentionnes, true) ? NotificationCode::MessageMention : NotificationCode::MessageReceived;
+            $notifications->send($recipient, $code, [
                 'sender' => $senderName,
                 // TCK-2631 — une photo ou un PDF sans légende : l'aperçu neutre, jamais un extrait vide.
-                'excerpt' => mb_strimwidth($message->content !== '' ? (string) $message->content : (string) $message->neutralPreview(), 0, 80, '…'),
-            ], NotificationTarget::of('conversation', $message->conversation_id));
+                // TCK-2964 — une carte posée : sa phrase dans la langue du DESTINATAIRE, jamais son code.
+                'excerpt' => mb_strimwidth(
+                    $message->cardPreview($recipient->preferredLocale() ?? (string) config('app.locale'))
+                        ?? ($message->content !== '' ? (string) $message->content : (string) $message->neutralPreview()),
+                    0, 80, '…',
+                ),
+            ], NotificationTarget::of('conversation', $message->conversation_id), mobileBorne: isset($parLePont[(int) $recipient->id]) ? false : null);
         }
     }
 }

@@ -78,6 +78,29 @@
         "pourquoi": "Sans objet en production : aucun conteneur mailpit n'est déclaré sur le serveur (ADR-0028). On l'ATTEND absent — mais attendre n'est pas mesurer, et la ligne reste ici pour que l'attente soit écrite là où on peut la démentir."
       }
     },
+    "reverb": {
+      "libelle": "Serveur WebSocket du temps réel (développement) — TCK-2953",
+      "sondes": [
+        {
+          "type": "image",
+          "depot": "serversideup/php"
+        }
+      ],
+      "dev": {
+        "valeur": "serversideup/php:8.4.27-cli-alpine-v5.1.3",
+        "note": "Service `reverb` de `docker-compose.yml` : `php artisan reverb:start` sur le code de l'API monté en lecture seule. Pas l'image officielle `php:8.4-cli` : sans `pcntl`, `reverb:start` y meurt sur `SIGINT` (mesuré le 2026-11-18). PHP 8.4.27, plancher PHP2Shell (cf. `takussan-api/Dockerfile`)."
+      },
+      "ci": {
+        "valeur": null,
+        "absence": "La CI ne lève aucun serveur Reverb : `.env.example` garde `BROADCAST_CONNECTION=log` et `phpunit.xml` force `null` (TCK-2953)."
+      },
+      "prod": {
+        "etat": "non_mesure",
+        "valeur": null,
+        "commande": "docker ps --format \"{{.Image}}\" | grep -i reverb || echo \"reverb absent\"",
+        "pourquoi": "Cette image ne sert que le développement. Le service `temps-reel` de la préproduction et de la production est l'affaire de TCK-2956. On l'ATTEND absent ici — attendre n'est pas mesurer."
+      }
+    },
     "php": {
       "libelle": "Runtime applicatif (API)",
       "sondes": [

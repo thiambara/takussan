@@ -3,6 +3,8 @@
 namespace Tests\Feature\Queue;
 
 use App\Jobs\Concerns\RunsOnAiQueue;
+use App\Jobs\Copilote\DemanderAuCopilote;
+use App\Jobs\Copilote\TranscrireLaNoteVocale;
 use App\Jobs\Radar\EmbedRadarListings;
 use App\Jobs\Radar\ExtractRadarListing;
 use App\Jobs\Radar\RefreshRadarDemandTargets;
@@ -37,6 +39,10 @@ class AiJobsQueueTest extends TestCase
             VerifyRadarConsentReply::class => fn () => new VerifyRadarConsentReply(1),
             RefreshRadarDemandTargets::class => fn () => new RefreshRadarDemandTargets,
             RefreshSearchAliases::class => fn () => new RefreshSearchAliases,
+            // TCK-2974 (ADR-0131 § 3) — une demande au copilote du fil.
+            DemanderAuCopilote::class => fn () => new DemanderAuCopilote(1, 1, 'resume', ['depuis_message_id' => 1, 'jusqu_a_message_id' => 1]),
+            // TCK-2976 (ADR-0131 § 7) — la transcription d'une note vocale.
+            TranscrireLaNoteVocale::class => fn () => new TranscrireLaNoteVocale(1, 1),
         ];
     }
 

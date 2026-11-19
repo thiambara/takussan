@@ -9,6 +9,8 @@ use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\User;
 use App\Services\Inventory\InventoryExitPrefill;
+use App\Services\Inventory\InventorySignatureService;
+use App\Services\Messaging\FilDeLObjet;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -108,6 +110,20 @@ class InventoryService
             abort_code_if(self::aDesElementsNonQualifies($locked->rooms), 422, 'inventory.unqualified_elements');
 
             $locked->update(['status' => InventoryStatus::PendingSignature]);
+
+            // TCK-2961 (ADR-0128 § 3) — l'état des lieux attend ses signatures, dans la salle du bail,
+            // après le COMMIT ; le geste (signer) attend chaque partie dont la signature manque.
+            // Relu une fois, après le COMMIT (la signature se juge sur la ligne écrite).
+            $signatures = app(InventorySignatureService::class);
+            $inventaire = null;
+            app(FilDeLObjet::class)->parler($locked, 'inventory.awaiting_signature', [
+                'type' => $locked->type?->value,
+            ], function (User $partie) use ($locked, $signatures, &$inventaire): bool {
+                $inventaire ??= Inventory::query()->with('lease.tenant')->find($locked->getKey());
+
+                // TCK-2967 — le prédicat, écrit une fois (aussi celui de `inventory.signed_by_party`).
+                return $inventaire !== null && $signatures->doitEncoreSigner($inventaire, $partie);
+            });
 
             return $locked->refresh();
         });

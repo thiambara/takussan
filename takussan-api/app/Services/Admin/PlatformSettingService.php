@@ -7,11 +7,14 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\SettingScope;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Ai\AiMoney;
 use App\Support\ReglesDElementBornees;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class PlatformSettingService
 {
@@ -86,26 +89,53 @@ class PlatformSettingService
      */
     private function cachedValues(): array
     {
-        return Cache::remember(self::CACHE_KEY, now()->addMinutes(10), function (): array {
-            return Setting::query()
-                ->with('updatedBy:id,first_name,last_name,email')
-                ->whereIn('key', array_keys(EditablePlatformSettings::all()))
-                ->where('scope', SettingScope::Global)
-                ->whereNull('scope_id')
-                ->get()
-                ->mapWithKeys(fn (Setting $setting) => [
-                    $setting->key => [
-                        'value' => self::unwrap($setting->value),
-                        'updated_at' => BaseResource::instantOnWire($setting->updated_at),
-                        'updated_by' => $setting->updatedBy ? [
-                            'id' => $setting->updatedBy->id,
-                            'name' => $setting->updatedBy->full_name,
-                            'email' => $setting->updatedBy->email,
-                        ] : null,
-                    ],
-                ])
-                ->all();
-        });
+        // Un cache indisponible est un cache vide : la lecture va en base, elle ne casse pas l'appelant (le plafond
+        // IA par agence, TCK-2979, est lu sur le chemin de chaque appel). Une erreur de la CHARGE, elle, remonte : la
+        // rejouer sur PostgreSQL ne rendrait qu'une transaction abandonnée qui masquerait la vraie.
+        $enCharge = false;
+        $charge = function () use (&$enCharge): array {
+            $enCharge = true;
+            $valeurs = $this->storedValues();
+            $enCharge = false;
+
+            return $valeurs;
+        };
+
+        try {
+            return Cache::remember(self::CACHE_KEY, now()->addMinutes(10), $charge);
+        } catch (Throwable $e) {
+            if ($enCharge) {
+                throw $e;
+            }
+            Log::warning('platform_settings.cache_unavailable', ['error' => class_basename($e)]);
+
+            return $this->storedValues();
+        }
+    }
+
+    /**
+     * @return array<string,array{value:mixed,updated_at:?string,updated_by:?array<string,mixed>}>
+     */
+    private function storedValues(): array
+    {
+        return Setting::query()
+            ->with('updatedBy:id,first_name,last_name,email')
+            ->whereIn('key', array_keys(EditablePlatformSettings::all()))
+            ->where('scope', SettingScope::Global)
+            ->whereNull('scope_id')
+            ->get()
+            ->mapWithKeys(fn (Setting $setting) => [
+                $setting->key => [
+                    'value' => self::unwrap($setting->value),
+                    'updated_at' => BaseResource::instantOnWire($setting->updated_at),
+                    'updated_by' => $setting->updatedBy ? [
+                        'id' => $setting->updatedBy->id,
+                        'name' => $setting->updatedBy->full_name,
+                        'email' => $setting->updatedBy->email,
+                    ] : null,
+                ],
+            ])
+            ->all();
     }
 
     /**
@@ -160,6 +190,8 @@ class PlatformSettingService
     {
         return match ($key) {
             'currency.default' => strtoupper((string) $value),
+            // TCK-2979 — un montant en dollars reste une chaîne décimale (ADR-0086) : jamais un `float`.
+            'ai.daily_budget_per_agency_usd' => $value === null || $value === '' ? null : AiMoney::canonical((string) $value),
             'currency.supported' => collect($value)
                 ->map(fn (string $currency) => strtoupper($currency))
                 ->unique()

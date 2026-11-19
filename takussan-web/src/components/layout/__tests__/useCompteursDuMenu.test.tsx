@@ -1,4 +1,5 @@
 /**
+ * TCK-2968 — la pastille de « Messagerie » compte les GESTES attendus (`meta.gestes`) : « à traiter », plus « non lus ».
  * TCK-2481 (ADR-0089 §5) — les compteurs du menu, sortis d'`AppSidebar` pour être lus aussi par la
  * barre d'onglets mobile : UNE règle de sondage, armée par les entrées rendues et non cadenassées
  * (TCK-377), et éteinte d'un drapeau (`actif`) là où la barre ne se voit pas.
@@ -64,7 +65,7 @@ beforeEach(() => {
 describe('TCK-2481 — useCompteursDuMenu, la règle de sondage du menu partagée avec la barre d’onglets', () => {
   it('ne sonde que les compteurs des entrées rendues et non cadenassées (TCK-377)', () => {
     const { result } = renderHook(() => useCompteursDuMenu(ENTREES), { wrapper: enveloppe });
-    expect(appels.messages.at(-1)).toEqual({ enabled: true });
+    expect(appels.messages.at(-1)).toEqual({ enabled: true, mesure: 'gestes' });
     expect(appels.visites.at(-1)).toEqual({ enabled: true });
     expect(appels.demandes.at(-1)).toEqual({ enabled: false });
     expect(result.current.unreadMessages).toBe(3);
@@ -73,7 +74,7 @@ describe('TCK-2481 — useCompteursDuMenu, la règle de sondage du menu partagé
 
   it('`actif: false` (la barre d’onglets, masquée dès md) : aucun sondage', () => {
     renderHook(() => useCompteursDuMenu(ENTREES, { actif: false }), { wrapper: enveloppe });
-    expect(appels.messages.at(-1)).toEqual({ enabled: false });
+    expect(appels.messages.at(-1)).toEqual({ enabled: false, mesure: 'gestes' });
     expect(appels.visites.at(-1)).toEqual({ enabled: false });
     expect(appels.demandes.at(-1)).toEqual({ enabled: false });
   });

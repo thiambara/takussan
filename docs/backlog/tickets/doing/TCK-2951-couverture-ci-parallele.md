@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: null
 created: 2026-11-16
-updated: 2026-11-16
+updated: 2026-11-18
 depends_on: []
 blocks: []
 spec_refs:
@@ -92,8 +92,9 @@ runner `ubuntu-latest` à `nproc` 4, une seule variable — la commande du step 
 - [x] AC3 — Le cliquet rougit toujours : sur le `couverture-api-clover` **téléchargé de la PR**,
       `php bin/coverage-gate.php clover.xml --min=<Total + 0,1>` sort en 1 et `--min=92` en 0 (un
       clover vide ou absent le ferait aussi sortir en 1 : les deux appels sont requis).
-- [ ] AC4 — La nuit (ou par `workflow_dispatch` sur `dev`) après la fusion, `cov.php` est produit par
-      la forme parallèle, le step « Régénérer la carte d'impact » passe et pousse
+- [ ] AC4 — *(réécrit le 2026-11-18, décision du porteur — voir « Relevé des nuits du 17 et 18 novembre »)*
+      La nuit (ou par `workflow_dispatch` sur `dev`) après la fusion, `cov.php` est produit par
+      le step séquentiel « Produire cov.php » (et non plus par la forme parallèle), le step « Régénérer la carte d'impact » passe et pousse
       `tests/impact-map.json`, **et** la carte ne perd aucune classe de test par fichier face à la
       dernière carte issue d'un `cov.php` séquentiel (comparaison fichier par fichier des classes
       listées), **sauf** les pertes que le diff entre les deux commits explique (test supprimé ou
@@ -144,9 +145,31 @@ runner `ubuntu-latest` à `nproc` 4, une seule variable — la commande du step 
 - **AC4** — reste à relever la première nuit après la fusion (`cov.php` produit en parallèle, carte
   d'impact régénérée).
 
+## Relevé des nuits du 17 et 18 novembre (2026-11-18)
+
+**La forme parallèle ne produit pas `cov.php` : elle meurt en mémoire, deux nuits sur deux.** Runs
+44069411083 (17 novembre, `54adc70f5`) et 44285658502 (18 novembre) : suite **verte** (17 498 tests),
+puis `Generating code coverage report in PHP format ... PHP Fatal error: Allowed memory size of
+8589934592 bytes exhausted (tried to allocate 1823035392 bytes)` dans
+`vendor/phpunit/php-code-coverage/src/Report/PHP.php`, sortie 255, cliquet non évalué, carte non
+régénérée. La dernière nuit verte (16 novembre) était encore séquentielle, sous la même `memory_limit=8G`.
+Les pushes vers `dev` ne produisent pas `cov.php` et restent verts : le défaut ne se voyait que la nuit.
+
+**Décision du porteur (2026-11-18)** : `cov.php` revient au **séquentiel**, dans son propre step
+(« Produire cov.php », la nuit ou à la demande sur `dev` seulement), après le cliquet ; le step
+« Run tests » ne le produit plus jamais. Écartés : monter `memory_limit` (12 Go sur un runner de 16 —
+repousse la limite d'une suite qui grandit) et laisser la carte vieillir. Le prix : une seconde
+exécution de la suite, la nuit seulement. ADR-0063 §4 amendé.
+
+**Premier `workflow_dispatch` après #1696 (run 44322162205, 2026-11-18)** : cliquet vert en `--parallel`
+(17 714 tests, 1 662 s, `Total: 96.9 %`), puis « Produire cov.php » **rouge, 682 tests en `cURL error 7 …
+port 7701`** — le step n'avait pas l'`env:` de « Run tests », la suite visait le Meilisearch du poste.
+Pas la mémoire : la suite séquentielle est allée au bout (3 748 s). Corrigé en recopiant l'`env:`.
+
 ## Reste sur dev
 
-Le code est fusionné (#1689, `1575eea77`) ; AC1 et AC3 sont relevés. **Reste l'AC4** : la première nuit
-après la fusion (ou un `workflow_dispatch` d'`api-ci.yml` sur `dev`), vérifier que le job `couverture`
-produit `cov.php` en `--parallel` et que le step « Régénérer la carte d'impact » pousse un
-`tests/impact-map.json` sans perte inexpliquée de tests. Puis passer le ticket à `done`.
+Le code est fusionné (#1689, `1575eea77`) ; AC1, AC2, AC3 et AC5 sont relevés. **Reste l'AC4**, réécrit :
+la première nuit après la fusion du step séquentiel (ou un `workflow_dispatch` d'`api-ci.yml` sur `dev`),
+vérifier que « Produire cov.php » passe, que « Régénérer la carte d'impact » pousse un
+`tests/impact-map.json`, et qu'il ne perd aucune classe de test inexpliquée face à la carte du 16 novembre.
+Puis passer le ticket à `done`.

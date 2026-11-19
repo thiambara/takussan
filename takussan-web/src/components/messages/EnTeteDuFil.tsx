@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type MouseEvent } from 'react';
+import { useState, type MouseEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { BellOff, Bell, Building2, ChevronRight, Flag, Info, MessageSquare, MoreHorizontal, PanelRightClose, PanelRightOpen, Phone, UserPlus, Users, Wrench } from 'lucide-react';
+import { BellOff, Bell, Building2, CalendarCheck, ChevronRight, FileText, Flag, Info, MessageSquare, MoreHorizontal, PanelRightClose, PanelRightOpen, Phone, UserPlus, UserRoundPlus, Users, Wrench } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { buttonVariants } from '@/components/ui/button';
 import {
@@ -26,6 +26,9 @@ import { cn } from '@/lib/utils';
 import type { Conversation } from '@/types/message';
 import { autreParticipant, titreDeConversation } from './ConversationList';
 import { useGesteDuClient } from './useGesteDuClient';
+// TCK-2963 — l'en-tête d'une salle : l'objet en pastille, son nom composé, ses membres en sous-ligne.
+import { estUneSalle } from './salle/salle';
+import { useTitreDeLaSalle } from './salle/useTitreDeLaSalle';
 // Type seul (effacé à la compilation) : les dialogues restent hors du graphe du widget flottant.
 import type { GestesDuFil } from './GestesDuFil';
 
@@ -55,11 +58,34 @@ interface EnTeteDuFilProps {
   /** Au téléphone, pour un fil direct : « ⋯ » ouvre la feuille du fil que la page rend (maquette a/2). */
   readonly onPlusDActions?: () => void;
   /**
+   * TCK-2977 (ADR-0131) — le bouton ✦ de l'assistant, rendu par `ChatView` pour le seul personnel servi par le
+   * copilote. Un emplacement, et non un import : le graphe d'imports de l'en-tête décide des dictionnaires du
+   * widget flottant. Absent : rien, et le client n'apprend pas qu'un assistant existe.
+   */
+  readonly assistant?: ReactNode;
+  /**
    * TCK-2860 — les gestes du menu « ⋯ » de la page (maquette a/2, l. 487-498) : « Marquer comme non
    * lue », « Ajouter un participant » (fil direct), « Signaler la conversation ». Absents (widget
    * flottant), le menu garde la sourdine et les infos du groupe.
    */
   readonly gestes?: GestesDuFil;
+  /**
+   * TCK-2955 — les AUTRES participants actifs présents dans le fil ouvert (canal de présence), déjà filtrés
+   * par `ChatView`. Un point sur l'avatar, jamais une liste à part ; vide, l'en-tête est celui d'aujourd'hui.
+   */
+  readonly presents?: readonly number[];
+}
+
+/** TCK-2955 — le point de présence, posé sur le coin bas droit d'un avatar. */
+function PointDePresence({ libelle }: { readonly libelle: string }) {
+  return (
+    <span
+      role="img"
+      aria-label={libelle}
+      data-testid="presence-du-fil"
+      className="absolute right-0 bottom-0 size-2.5 rounded-full bg-accent ring-2 ring-background"
+    />
+  );
 }
 
 /**
@@ -94,6 +120,8 @@ export function EnTeteDuFil({
   contexte,
   onPlusDActions,
   gestes,
+  presents = [],
+  assistant,
 }: EnTeteDuFilProps) {
   const t = useTranslations('messaging');
   const tWidget = useTranslations('messaging.widget');
@@ -113,10 +141,16 @@ export function EnTeteDuFil({
   const [erreur, setErreur] = useState<string | null>(null);
 
   const isGroup = conversation?.type === 'group';
+  // TCK-2963 — une salle (bail, réservation) n'est ni une directe ni un groupe : pas d'« autre » à nommer,
+  // et sa sous-ligne ouvre le dossier du fil (`onInfosDuGroupe`, que `ChatView` route vers lui).
+  const salle = estUneSalle(conversation);
+  const titreDeLaSalle = useTitreDeLaSalle();
   const intervention = conversation?.maintenance_request_id != null;
-  const autre = conversation && !isGroup ? autreParticipant(conversation, user?.id) : null;
+  const autre = conversation && !isGroup && !salle ? autreParticipant(conversation, user?.id) : null;
   const titre = conversation
-    ? titreDeConversation(conversation, user?.id, t('conversationTitleFallback', { id: String(conversationId) }))
+    ? salle
+      ? titreDeLaSalle(conversation)
+      : titreDeConversation(conversation, user?.id, t('conversationTitleFallback', { id: String(conversationId) }))
     : t('conversationTitleFallback', { id: String(conversationId) });
   const client = contexteData?.data?.customer ?? null;
   const telephone = client && isReachable(client.phone) ? client.phone : null;
@@ -148,20 +182,35 @@ export function EnTeteDuFil({
           // TCK-2617 — la flèche unique (`BoutonFlecheDeRetour`) : 20 px dans 44, à toute largeur.
           <BoutonFlecheDeRetour libelle={tWidget('chatBack')} onClick={onBack} data-testid="chat-back-button" />
         ) : null}
-        {isGroup ? (
+        {salle ? (
+          <span
+            data-testid="pastille-de-la-salle"
+            className={cn(
+              'relative inline-flex flex-none items-center justify-center rounded-xl bg-fond-avatar text-accent',
+              compact ? 'size-avatar-36' : 'size-avatar-40',
+            )}
+          >
+            {conversation?.type === 'booking' ? <CalendarCheck className="size-5 stroke-[1.75]" aria-hidden /> : <FileText className="size-5 stroke-[1.75]" aria-hidden />}
+            {presents.length > 0 ? <PointDePresence libelle={t('chat.presentsDansLeGroupe', { n: presents.length })} /> : null}
+          </span>
+        ) : isGroup ? (
           <span
             className={cn(
-              'inline-flex flex-none items-center justify-center rounded-full bg-fond-avatar text-accent',
+              'relative inline-flex flex-none items-center justify-center rounded-full bg-fond-avatar text-accent',
               compact ? 'size-avatar-36' : 'size-avatar-40',
             )}
           >
             {intervention ? <Wrench className="size-5 stroke-[1.75]" aria-hidden /> : <Users className="size-5 stroke-[1.75]" aria-hidden />}
+            {presents.length > 0 ? <PointDePresence libelle={t('chat.presentsDansLeGroupe', { n: presents.length })} /> : null}
           </span>
         ) : autre ? (
-          <Avatar size={String(taille) as '36' | '40'}>
-            {autre.avatar_url ? <AvatarImage src={autre.avatar_url} alt="" /> : null}
-            <AvatarFallback>{autre.full_name ? initiales(autre.full_name) : null}</AvatarFallback>
-          </Avatar>
+          <span className="relative inline-flex flex-none">
+            <Avatar size={String(taille) as '36' | '40'}>
+              {autre.avatar_url ? <AvatarImage src={autre.avatar_url} alt="" /> : null}
+              <AvatarFallback>{autre.full_name ? initiales(autre.full_name) : null}</AvatarFallback>
+            </Avatar>
+            {presents.includes(autre.id) ? <PointDePresence libelle={t('chat.presentDansLeFil', { nom: autre.full_name })} /> : null}
+          </span>
         ) : (
           <span className={cn('inline-flex flex-none items-center justify-center rounded-full bg-muted text-muted-foreground', compact ? 'size-avatar-36' : 'size-avatar-40')}>
             <Building2 className="size-5" aria-hidden />
@@ -181,8 +230,9 @@ export function EnTeteDuFil({
               </span>
             ) : null}
           </div>
-          {isGroup ? (
+          {isGroup || salle ? (
             // TCK-2632 (maquette a/5) — la sous-ligne d'un groupe mène à ses infos, comme celle d'un
+            // TCK-2963 — celle d'une salle, à son dossier (membres, documents, dates, montants).
             // fil direct mène au bien : « 4 personnes › ».
             <button
               type="button"
@@ -192,7 +242,7 @@ export function EnTeteDuFil({
                 compact ? 'text-xs' : 'text-ui',
               )}
             >
-              <span className="sr-only">{t('chat.groupInfoAria')} : </span>
+              <span className="sr-only">{salle ? t('salle.bandeau.dossierAria') : t('chat.groupInfoAria')} : </span>
               <span className="truncate">{t('list.personnes', { n: membres })}</span>
               <ChevronRight className="size-3.5 flex-none" aria-hidden="true" />
               {sourdine ? <BellOff className="ml-1 size-3.5 flex-none" role="img" aria-label={t('list.muted')} /> : null}
@@ -291,6 +341,9 @@ export function EnTeteDuFil({
           )
         ) : null}
 
+        {/* TCK-2977 — ✦ de l'assistant (« Demander au fil »), avant « ⋯ ». */}
+        {assistant ?? null}
+
         {compact && !isGroup && onPlusDActions ? (
           <button
             type="button"
@@ -347,6 +400,13 @@ export function EnTeteDuFil({
                     {t('chat.ajouterUnParticipant')}
                   </DropdownMenuItem>
                 ) : null}
+                {/* TCK-2968 — confier une salle ou un groupe à un collègue (la page ne l'offre qu'au personnel). */}
+                {gestes.onConfier ? (
+                  <DropdownMenuItem data-testid="confier-le-fil" onClick={gestes.onConfier}>
+                    <UserRoundPlus className="size-4 text-muted-foreground stroke-[1.75]" aria-hidden="true" />
+                    {t('boite.gestes.confier')}
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={gestes.onSignaler} className="text-destructive focus:text-destructive">
                   <Flag className="size-4 stroke-[1.75]" aria-hidden="true" />
@@ -382,7 +442,9 @@ export function EnTeteDuFil({
             aria-label={
               isGroup
                 ? contexte.ouvert ? t('group.info.replier') : t('group.info.afficher')
-                : contexte.ouvert ? t('contexte.replier') : t('contexte.afficher')
+                : salle // TCK-2963 — pour une salle, la colonne est son dossier.
+                  ? contexte.ouvert ? t('salle.dossier.replier') : t('salle.dossier.afficher')
+                  : contexte.ouvert ? t('contexte.replier') : t('contexte.afficher')
             }
             aria-expanded={contexte.ouvert}
             aria-controls={ID_COLONNE_DE_CONTEXTE}

@@ -22,6 +22,7 @@ use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Messaging\ConversationAccess;
+use App\Services\Messaging\EvenementsDuFil;
 use App\Services\Property\BailleurDuBien;
 use App\Support\Audit\PropertyRedactor;
 use Illuminate\Support\Collection;
@@ -132,13 +133,13 @@ class DataExportBuilder
         // TCK-2275 (P232.02, précédent TCK-1017) — les baux dont il est le bailleur au sens de
         // `BailleurDuBien`, ou le locataire : pas ceux qu'il a saisis comme agent, actif compris.
         // Ils décrivent le locataire et le bailleur réel.
-        // TCK-2366 (P247.02) — sans `commission_amount`, que `LeaseResource` retire à qui n'est pas
-        // du personnel : un terme du mandat de l'agence, ni du locataire ni du bailleur.
+        // TCK-2366 (P247.02) — sans `commission_amount` ni `commission_rate`, que `LeaseResource` retire
+        // à qui n'est pas du personnel : des termes du mandat de l'agence, ni du locataire ni du bailleur.
         $leases = Lease::query()
             ->where(fn ($q) => BailleurDuBien::restreindre($q, $user, 'landlord_id'))
             ->orWhereIn('tenant_id', $customerIds)
             ->get()
-            ->each->makeHidden(['commission_amount']);
+            ->each->makeHidden(['commission_amount', 'commission_rate']);
         $propertyIds = BailleurDuBien::restreindre(Property::query(), $user)->pluck('id');
 
         return [
@@ -189,11 +190,17 @@ class DataExportBuilder
                         : self::project($payment->toArray(), self::LEASE_PAYMENT_ACT))
                     ->all(),
             ],
+            // TCK-2959 (ADR-0128 § 5) — sans `action_for` : la liste des AUTRES comptes dont un geste est
+            // attendu ne sort pas plus par l'archive que par le fil.
+            // TCK-2965 (ADR-0128 § 6) — ses notes d'équipe à lui, jamais celles des autres : le client n'en
+            // reçoit aucune. La règle d'auteur est groupée sous le `where` de l'export
+            // (`ConversationAccess::messagesExportablesDe`).
             'messages.json' => Message::query()
-                ->where('sender_id', $user->id)
-                ->orWhereIn('conversation_id', $conversationIds)
+                ->where(fn ($q) => $q->where('sender_id', $user->id)->orWhereIn('conversation_id', $conversationIds))
+                ->tap(fn ($q) => app(ConversationAccess::class)->messagesExportablesDe($user, $q))
                 ->get()
-                ->toArray(),
+                ->map(fn (Message $message) => array_replace($message->toArray(), ['metadata' => EvenementsDuFil::metadataRendu($message->metadata)]))
+                ->all(),
             'reviews.json' => Review::query()
                 ->where('author_id', $user->id)
                 ->orWhere(fn ($query) => $query->where('reviewable_type', User::class)->where('reviewable_id', $user->id))

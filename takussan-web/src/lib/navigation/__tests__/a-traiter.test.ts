@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+// TCK-2968 — la pastille de « Messagerie » compte les GESTES attendus (`meta.gestes`) : « à traiter », plus « non lus ».
 import en from '@/messages/en.json';
 import fr from '@/messages/fr.json';
 import wo from '@/messages/wo.json';
@@ -134,7 +135,7 @@ describe('TCK-2489 — lignesAujourdhui (ADR-0090 §3)', () => {
     // TCK-2619 : « Demandes de contact » était le nom de l'entrée du menu ; la ligne dit le verbe,
     // pour que la même file ne paraisse plus deux fois sous le même nom (docs/features.md, P1).
     expect(fr.nav.sidebar.aujourdhui.lignes).toEqual({
-      unreadMessages: 'Messages non lus',
+      unreadMessages: 'Conversations à traiter',
       pendingVisits: 'Visites à confirmer',
       unhandledLeads: 'Demandes à traiter',
       reviewModeration: 'Avis à modérer',

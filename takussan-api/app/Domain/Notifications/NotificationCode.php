@@ -81,6 +81,11 @@ enum NotificationCode: string
     case MessageReceived = 'message.received';
     /** TCK-861 (P38.07) — un membre ajouté à un groupe : la cloche ouvre le groupe. */
     case MessageGroupInvite = 'message.group_invite';
+    /**
+     * TCK-2966 (ADR-0128 § 6) — une @mention dans un fil : à la personne mentionnée qui lit le message, à
+     * la place de son `MessageReceived`, même en sourdine (`NotifyNewMessageJob`). Mêmes paramètres.
+     */
+    case MessageMention = 'message.mention';
     case LeadReceived = 'lead.received';
 
     // ─── Visites et demandes de contact (TCK-590) ───────────────────────────────────────
@@ -291,6 +296,8 @@ enum NotificationCode: string
     case MaintenanceUrgentEscalated = 'maintenance.urgent_escalated';
     /** Aux super-admins : une agence individuelle demande à passer en agence professionnelle (TCK-267). */
     case AgencyUpgradeRequested = 'agency.upgrade_requested';
+    /** TCK-2985 (ADR-0132 § 6) — au bailleur, lundi 09:00 heure de Dakar : sa semaine dans une agence (`ResumeDuLundi`). Jamais dans la cloche. */
+    case OwnerWeeklyDigest = 'owner.weekly_digest';
 
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
@@ -386,6 +393,7 @@ enum NotificationCode: string
             self::VisitConfirmedByOwner /* TCK-2849 */,
             self::VisitNoShow /* TCK-2871 */ => NotificationType::Visit,
             self::MessageReceived, self::MessageGroupInvite, self::LeadReceived, self::LeadAcknowledged => NotificationType::Message,
+            self::MessageMention /* TCK-2966 */ => NotificationType::Message,
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator => NotificationType::RoleDelegated,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator => NotificationType::RoleDelegationExpired,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator => NotificationType::RoleDelegationRevoked,
@@ -426,6 +434,7 @@ enum NotificationCode: string
             // TCK-2704 — le type que la classe écrivait déjà.
             self::BoostEnded, self::PropertyProposed, self::AgencyUpgradeRequested => NotificationType::System,
             self::MaintenanceUrgentCreated, self::MaintenanceUrgentEscalated => NotificationType::Maintenance,
+            self::OwnerWeeklyDigest /* TCK-2985 */ => NotificationType::System,
         };
     }
 
@@ -460,6 +469,9 @@ enum NotificationCode: string
             self::VisitNoShow /* TCK-2871 */ => 'visit_reminder',
             self::ReviewToModerate, self::ReviewReceived => 'review_received',
             self::MessageReceived, self::MessageGroupInvite, self::LeadReceived => 'message_received',
+            // TCK-2966 — l'interrupteur des messages : une mention est un message, et la sourdine (propre au
+            // fil) n'est pas une préférence de canal.
+            self::MessageMention => 'message_received',
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
             self::LeadAcknowledged => null,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon => 'kyc_status_changed',
@@ -523,6 +535,8 @@ enum NotificationCode: string
             // celui de l'urgence « locked-on » dans `PreferenceResolver`) : elle n'en gagne pas.
             self::BoostEnded, self::PropertyProposed, self::AgencyUpgradeRequested,
             self::MaintenanceUrgentCreated, self::MaintenanceUrgentEscalated => null,
+            // TCK-2985 — éteint par défaut (`PreferenceResolver::OPT_IN_EVENTS`).
+            self::OwnerWeeklyDigest => 'owner_weekly_digest',
         };
     }
 
@@ -559,6 +573,8 @@ enum NotificationCode: string
             self::BookingCounterOfferAnswered => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'answer' => self::PARAM_COUNTER_OFFER_ANSWER],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
+            // TCK-2966 — ceux de `MessageReceived`, rien de plus : l'extrait borné et le nom sans contact.
+            self::MessageMention => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
             self::MessageGroupInvite => ['inviter' => self::PARAM_TEXT, 'subject' => self::PARAM_TEXT],
             // TCK-590 — de quoi RÉPONDRE : le message entier et le moyen de joindre (téléphone ·
             // e-mail). L'extrait de 80 caractères sans téléphone disait qu'on avait été contacté.
@@ -671,6 +687,14 @@ enum NotificationCode: string
             self::BoostEnded, self::PropertyProposed => ['property' => self::PARAM_TEXT],
             self::MaintenanceUrgentCreated, self::MaintenanceUrgentEscalated => ['title' => self::PARAM_TEXT],
             self::AgencyUpgradeRequested => ['agency' => self::PARAM_TEXT],
+            // TCK-2985 — des nombres et des totaux, rien de nominatif d'un locataire.
+            self::OwnerWeeklyDigest => [
+                'agency' => self::PARAM_TEXT,
+                'paid_count' => self::PARAM_COUNT, 'paid_total' => self::PARAM_MONEY,
+                'late_count' => self::PARAM_COUNT, 'late_total' => self::PARAM_MONEY,
+                'maintenance_opened' => self::PARAM_COUNT, 'maintenance_closed' => self::PARAM_COUNT,
+                'visits' => self::PARAM_COUNT,
+            ],
         };
     }
 

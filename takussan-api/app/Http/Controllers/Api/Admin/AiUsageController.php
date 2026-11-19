@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Admin\UpdateAiUsageRequest;
 use App\Models\AiUsageSetting;
+use App\Models\Enums\AiModelRole;
 use App\Services\Ai\AiBudget;
 use App\Services\Ai\AiMoney;
 use App\Services\Ai\AiProviderCatalogue;
@@ -13,6 +14,7 @@ use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\EmbeddingUsage;
 use App\Services\Ai\ModelLink;
 use App\Services\Ai\ModelResolver;
+use App\Services\Ai\TranscriptionUsage;
 use Illuminate\Http\JsonResponse;
 
 /** TCK-2385 (ADR-0076 §4, §12) — coupe-circuit, modèle forcé et plafond des usages. */
@@ -63,7 +65,14 @@ class AiUsageController extends Controller
         }
         if (filled($data['forced_model'] ?? null) && ! $request->keepsTheForcing()) {
             abort_code_unless((new ModelLink($data['forced_provider'], $data['forced_model']))->isPriced(), 422, 'ai.model_unpriced');
-            abort_code_unless($this->providers->servesEmbeddings($data['forced_provider']) === ($this->registry->get($usage) instanceof EmbeddingUsage), 422, 'ai.provider_role_mismatch');
+            // TCK-2979 — le rôle que joue l'usage : embeddings, transcription, ou texte (le juge ne distingue pas les rôles de texte).
+            $usageJoue = $this->registry->get($usage);
+            $role = match (true) {
+                $usageJoue instanceof EmbeddingUsage => AiModelRole::Embedding,
+                $usageJoue instanceof TranscriptionUsage => AiModelRole::Transcription,
+                default => AiModelRole::Redaction,
+            };
+            abort_code_unless($this->providers->servesRole($data['forced_provider'], $role), 422, 'ai.provider_role_mismatch');
         }
 
         $setting = AiUsageSetting::query()->firstOrNew(['usage_key' => $usage]);

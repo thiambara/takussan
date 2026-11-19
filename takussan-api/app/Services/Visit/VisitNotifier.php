@@ -427,7 +427,7 @@ class VisitNotifier
         foreach ($via as $canal) {
             $canaux[] = match ($canal) {
                 'mail' => NotificationChannel::Email->value,
-                'broadcast' => NotificationChannel::Push->value,
+                // TCK-2952 — plus de bras `'broadcast'` → `Push` : `CodedNotification::via()` ne rend plus ce canal.
                 default => $canal,
             };
         }

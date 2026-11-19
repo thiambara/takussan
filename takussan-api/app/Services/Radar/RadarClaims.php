@@ -8,6 +8,7 @@ use App\Jobs\Radar\PublishClaimedRadarListings;
 use App\Jobs\Radar\TransmitTakenBackConversations;
 use App\Models\Agency;
 use App\Models\Booking;
+use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\RadarConsentProof;
@@ -34,6 +35,8 @@ use App\Services\Privacy\ConsentLedger;
 use App\Services\Property\PublishReadiness;
 use App\Support\CanonicalPhone;
 use App\Support\PhoneMasker;
+use App\Support\TempsReel\CodeDeSignal;
+use App\Support\TempsReel\TempsReel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
@@ -531,9 +534,19 @@ final class RadarClaims
         DB::table('property_collaborators')->whereIn('property_id', $ids)->where('user_id', $orphan->id)->update(['user_id' => $user->id]);
 
         // Une conversation où B est déjà : A s'en retire ; ailleurs, B prend sa place (unique par conversation et compte).
+        // TCK-2955 (ADR-0129 § 2) — la composition de ces fils change par une écriture de masse, qui ne déclenche
+        // pas les événements du pivot : le signal part ici (après le COMMIT, comme tout signal).
+        $filsDeA = Conversation::query()
+            ->whereIn('id', DB::table('conversation_participants')->where('user_id', $orphan->id)->select('conversation_id'))
+            ->orderBy('id')
+            ->get(['id']);
         $joined = DB::table('conversation_participants')->where('user_id', $user->id)->select('conversation_id');
         DB::table('conversation_participants')->where('user_id', $orphan->id)->whereIn('conversation_id', $joined)->delete();
         DB::table('conversation_participants')->where('user_id', $orphan->id)->update(['user_id' => $user->id]);
+        foreach ($filsDeA as $fil) {
+            TempsReel::signaler($fil, CodeDeSignal::ParticipantsUpdated);
+            TempsReel::signalerA($user, CodeDeSignal::BoiteUpdated, $fil);
+        }
 
         foreach ([AgencyAdminProfile::class, OwnerProfile::class, AgentProfile::class] as $profile) {
             $profile::query()->where('user_id', $orphan->id)->get()->each->delete();

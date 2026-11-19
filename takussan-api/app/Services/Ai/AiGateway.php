@@ -15,6 +15,7 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Laravel\Ai\Contracts\Files\TranscribableAudio;
 use Laravel\Ai\Embeddings;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Exceptions\AiException;
@@ -23,6 +24,8 @@ use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\Data\TextUsage;
 use Laravel\Ai\Responses\Data\Usage;
 use Laravel\Ai\Responses\StructuredAgentResponse;
+use Laravel\Ai\Transcription;
+use LogicException;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
@@ -43,6 +46,12 @@ final class AiGateway
 
     /** Délai d'un appel d'embeddings : un lot tient sous le `$timeout` du job (`EmbedRadarListings`). */
     private const EMBEDDING_TIMEOUT_SECONDS = 30;
+
+    /** TCK-2976 — délai d'un appel de transcription (60 s d'audio au plus, ADR-0038) : la chaîne tient sous le `$timeout` du job. */
+    private const TRANSCRIPTION_TIMEOUT_SECONDS = 30;
+
+    /** TCK-2976 — la langue imposée à toute transcription : le français (le wolof est en pause). */
+    public const TRANSCRIPTION_LANGUAGE = 'fr';
 
     /** `ai_calls.warning` du maillon refusé puis basculé ({@see self::rejectionFailsOver()}), ou qui a répondu par une redirection. */
     public const WARNING_PROVIDER_REJECTED = 'provider_rejected';
@@ -67,6 +76,10 @@ final class AiGateway
     public function run(AiRequest $request): AiResult
     {
         $usage = $this->registry->get($request->usageKey);
+        // TCK-2976 — un usage de transcription se joue par `transcribe()`, jamais ici : refusé avant tout journal.
+        if ($usage instanceof TranscriptionUsage) {
+            throw new LogicException("L'usage « {$usage->key()} » se joue par AiGateway::transcribe().");
+        }
         $setting = AiUsageSetting::query()->where('usage_key', $usage->key())->first();
 
         $this->admit($usage, $setting, $request);
@@ -322,6 +335,98 @@ final class AiGateway
             }
 
             return new AiEmbeddingResult(array_values($response->embeddings), $link, $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::Success]));
+        }
+
+        throw new AiUnavailable('ai.providers_unavailable', $last);
+    }
+
+    /**
+     * TCK-2976 (ADR-0131 § 7) — le texte d'un fichier audio, dans le même ordre que {@see self::run()} : autorité,
+     * coupe-circuit, budget, données ; puis la chaîne du rôle `transcription`, maillon par maillon avec la même bascule,
+     * un fournisseur non sélectionnable refusé sans appel, sans suivre de redirection ; journal. Rôle vide :
+     * `ai.role_unassigned`, rien ne part. La langue est imposée ({@see self::TRANSCRIPTION_LANGUAGE}). Le coût s'estime sur
+     * les jetons rendus ; sans jetons, il vaut zéro avec `usage_missing`. Seul un {@see TranscriptionUsage} y entre.
+     */
+    public function transcribe(AiRequest $request, TranscribableAudio $audio): AiTranscriptionResult
+    {
+        $usage = $this->registry->get($request->usageKey);
+        if (! $usage instanceof TranscriptionUsage) {
+            throw new LogicException("L'usage « {$usage->key()} » ne transcrit pas.");
+        }
+        $setting = AiUsageSetting::query()->where('usage_key', $usage->key())->first();
+
+        $this->admit($usage, $setting, $request);
+
+        $chain = $request->link !== null ? [$request->link] : $this->resolver->chainFor($usage, $setting, $usage->role());
+        if ($chain === []) {
+            $this->journal($usage, $request, ['outcome' => AiCallOutcome::Error, 'error_code' => 'ai.role_unassigned']);
+
+            throw new AiUnavailable('ai.role_unassigned');
+        }
+
+        $last = null;
+        foreach ($chain as $rank => $link) {
+            $refusal = $this->providers->refusalCode($link->provider);
+            if ($refusal !== null) {
+                $this->journal($usage, $request, $this->linkColumns($link) + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => $refusal]);
+                $last = new AiUnavailable($refusal);
+
+                continue;
+            }
+
+            $started = hrtime(true);
+            try {
+                $response = $this->withoutFollowingRedirects(fn () => Transcription::of($audio)
+                    ->language(self::TRANSCRIPTION_LANGUAGE)
+                    ->timeout(self::TRANSCRIPTION_TIMEOUT_SECONDS)
+                    ->generate($link->provider, $link->model));
+            } catch (AiUnavailable $e) {
+                $this->journal($usage, $request, $this->linkColumns($link) + [
+                    'outcome' => AiCallOutcome::FailedOver, 'error_code' => $e->getMessage(), 'duration_ms' => $this->elapsed($started),
+                    'warning' => self::WARNING_PROVIDER_REJECTED,
+                ]);
+                $last = $e;
+
+                continue;
+            } catch (FailoverableException $e) {
+                $this->journal($usage, $request, $this->linkColumns($link) + [
+                    'outcome' => AiCallOutcome::FailedOver, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
+                ]);
+                $last = $e;
+
+                continue;
+            } catch (Throwable $e) {
+                $failsOver = $rank < array_key_last($chain) && $this->rejectionFailsOver($e, $this->driverOf($link));
+                $this->journal($usage, $request, $this->linkColumns($link) + [
+                    'outcome' => $failsOver ? AiCallOutcome::FailedOver : AiCallOutcome::Error, 'error_code' => AiErrorCode::fromThrowable($e), 'duration_ms' => $this->elapsed($started),
+                    'warning' => $failsOver ? self::WARNING_PROVIDER_REJECTED : null,
+                ]);
+                if (! $failsOver) {
+                    throw $e;
+                }
+                $last = $e;
+
+                continue;
+            }
+
+            $cost = $this->costs->estimate($link->provider, $link->model, $response->usage);
+            $spent = $this->linkColumns($link) + [
+                'input_tokens' => $response->usage->inputTokens,
+                'output_tokens' => $response->usage->outputTokens,
+                'cost_estimate_usd' => $cost,
+                'warning' => $this->spendWarning($response->usage, $cost),
+                'duration_ms' => $this->elapsed($started),
+            ];
+            // Payée, mais inexploitable : un texte vide ne dit rien de la note, le maillon a échoué.
+            if (trim($response->text) === '') {
+                $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::FailedOver, 'error_code' => 'ai.response_invalid']);
+                $last = new AiUnavailable('ai.response_invalid');
+
+                continue;
+            }
+
+            // Le SDK ne rend pas la langue détectée : la langue imposée à l'appel en tient lieu.
+            return new AiTranscriptionResult(trim($response->text), self::TRANSCRIPTION_LANGUAGE, $link, $this->journal($usage, $request, $spent + ['outcome' => AiCallOutcome::Success]));
         }
 
         throw new AiUnavailable('ai.providers_unavailable', $last);

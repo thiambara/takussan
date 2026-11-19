@@ -41,9 +41,12 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
-        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
+    // TCK-2952 (ADR-0129 § 4) — l'autorisation des canaux quitte le groupe `web` pour le préfixe `api` :
+    // `POST /api/broadcasting/auth`, sous `auth:sanctum` et le groupe `api` (donc `ResolveActiveProfile` et
+    // `EnforceImpersonationReadOnly`). Hors de `api/*`, le CORS de Laravel la rendait injoignable du navigateur.
+    ->withBroadcasting(__DIR__.'/../routes/channels.php', ['prefix' => 'api', 'middleware' => ['api', 'auth:sanctum']])
     ->withMiddleware(function (Middleware $middleware): void {
         // Trust the upstream proxy that fronts the API (Next.js server actions,
         // load balancer, reverse proxy). Without this, every request appears to

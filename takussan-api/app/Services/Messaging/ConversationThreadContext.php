@@ -13,7 +13,9 @@ use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Crm\CustomerCommercialAttributes;
+use App\Services\Pont\PontDesParticipants;
 use Carbon\CarbonInterface;
 
 /**
@@ -52,7 +54,9 @@ final class ConversationThreadContext
          * TCK-2748 — la relation de chaque participant au contexte du fil ({@see RelationsAuFil}),
          * jugée relation par relation sur ce que le lecteur peut lire.
          *
-         * @var list<array{user_id: int, relation: string, category?: string|null}>
+         * TCK-2967 — chaque ligne porte `reads_team_notes`.
+         *
+         * @var list<array{user_id: int, relation: string, category?: string|null, reads_team_notes: bool}>
          */
         public readonly array $participants = [],
         /**
@@ -64,6 +68,37 @@ final class ConversationThreadContext
         public readonly ?PropertyContactLead $contactLead = null,
         public readonly ?CarbonInterface $firstContactAt = null,
         public readonly ?string $origin = null,
+        /** TCK-2967 — l'appelant peut-il écrire une note d'équipe dans ce fil ? */
+        public readonly bool $canWriteTeamNote = false,
+        /**
+         * TCK-2967 — les participants ACTIFS qui lisent les notes de ce fil (règle du tiers), ligne de relation
+         * ou non ; vide pour un appelant qui ne les lit pas.
+         *
+         * @var list<int>
+         */
+        public readonly array $teamNoteReaderIds = [],
+        /**
+         * TCK-2987 (ADR-0130 § 6) — la fiabilité de chaque participant actif autre que l'appelant
+         * (`{user_id: {kept, late}}`), ou `null` (la clé est alors ABSENTE) pour qui n'est pas personnel actif
+         * de l'agence du fil ({@see FiabiliteDesEngagements}).
+         *
+         * @var array<int, array{kept: int, late: int}>|null
+         */
+        public readonly ?array $commitmentsRecords = null,
+        /**
+         * TCK-2981 (ADR-0132 § 3) — le pont, par participant actif (le lecteur exclu), au SEUL personnel actif de
+         * l'agence du fil ({@see PontDesParticipants}) ; `null` pour tout autre lecteur.
+         *
+         * @var array<int, array<string, mixed>>|null
+         */
+        public readonly ?array $pont = null,
+        /**
+         * TCK-2981 (ADR-0132 § 2) — la fiche du locataire sans compte du bail de la salle ({@see PontDesParticipants::fiche()}) :
+         * `false` hors du personnel (clé absente), `null` sans fiche à joindre.
+         *
+         * @var array<string, mixed>|false|null
+         */
+        public readonly array|false|null $pontFiche = false,
     ) {}
 
     /**
@@ -98,6 +133,29 @@ final class ConversationThreadContext
 
         $facts = $customerReadable ? self::customerFacts($reader, $conversation, $customer, (int) $agencyId) : [];
 
+        // TCK-2967 (pour TCK-2968) — la note d'équipe, jugée pour l'appelant (sous impersonation : la cible).
+        // Écrire : la règle du refus 422 de `ConversationWriter` (agence du fil, personnel actif sous le
+        // profil actif). Lire, pour chaque participant : la règle du tiers des mentions
+        // (`EquipeDuFil::tiersLitLesNotes`, participant actif ET personnel de l'agence du fil), en lot — la
+        // liste du personnel de l'agence, une requête. Rendue au seul lecteur des notes : pour tout autre,
+        // `reads_team_notes` est faux partout (un client n'apprend rien des notes).
+        $agenceDesNotes = EquipeDuFil::agence($conversation);
+        $lecteursDesNotes = $agenceDesNotes !== null && EquipeDuFil::litLesNotes($reader, $conversation, $agenceDesNotes)
+            ? FileDuFil::personnelDe($agenceDesNotes)
+            : [];
+        $participants = array_map(
+            fn (array $ligne): array => [...$ligne, 'reads_team_notes' => in_array((int) $ligne['user_id'], $lecteursDesNotes, true)],
+            RelationsAuFil::pour($reader, $conversation, $lease, $maintenance),
+        );
+        // Tout participant actif, qu'il ait une ligne de relation ou non (une ligne n'existe que pour une
+        // relation lisible, TCK-2748) : la liste de ceux qui lisent les notes, même jugement.
+        $lecteursParmiLesParticipants = $conversation->participants
+            ->map(fn (User $u): int => (int) $u->id)
+            ->filter(fn (int $id): bool => in_array($id, $lecteursDesNotes, true))
+            ->sort()
+            ->values()
+            ->all();
+
         return new self(
             property: $conversation->property,
             lease: $lease,
@@ -106,7 +164,14 @@ final class ConversationThreadContext
             customer: $customer,
             customerReadable: $customerReadable,
             referent: $customerReadable ? self::referentOf($customer) : null,
-            participants: RelationsAuFil::pour($reader, $conversation, $lease, $maintenance),
+            participants: $participants,
+            canWriteTeamNote: $agenceDesNotes !== null && PersonnelDeLAgence::personnelActifDe($reader, $agenceDesNotes),
+            teamNoteReaderIds: $lecteursParmiLesParticipants,
+            // TCK-2987 — la fiabilité, au seul personnel actif de l'agence du fil ; une requête pour tous.
+            commitmentsRecords: FiabiliteDesEngagements::pour($reader, $conversation, $agenceDesNotes, $conversation->participants),
+            // TCK-2981 — le bloc `pont`, même règle de lecteur.
+            pont: app(PontDesParticipants::class)->pour($reader, $conversation, $agenceDesNotes, $conversation->participants),
+            pontFiche: app(PontDesParticipants::class)->fiche($reader, $conversation, $agenceDesNotes),
             lastVisit: $facts['lastVisit'] ?? null,
             contactLead: $facts['contactLead'] ?? null,
             firstContactAt: $facts['firstContactAt'] ?? null,

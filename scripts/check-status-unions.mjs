@@ -117,6 +117,7 @@ const SANS_UNION = {
   AgentProfileStatus: 'aucune union nommée au front',
   BoostStatus: 'aucune union nommée au front',
   CollaborationStatus: 'aucune union nommée au front',
+  CommitmentStatus: 'TCK-2969 : l\'API seule — l\'union du front naît avec l\'écran de l\'engagement (TCK-2972)',
   InvitationStatus: 'unions anonymes seulement (`lib/queries/owners.ts`, `lib/queries/service-providers.ts`)',
   RelationshipStatus: 'union anonyme ouverte seulement (`types/customer.ts`, `… | string`)',
   SearchAliasStatus: 'TCK-2476 : aucun écran — la console des variantes d\'écriture est hors périmètre (l\'API suffit pour l\'instant)',

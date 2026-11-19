@@ -2,9 +2,12 @@
 
 namespace App\Services\Messaging;
 
+use App\Models\Booking;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
+use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
+use App\Models\Enums\MessageVisibility;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
@@ -15,6 +18,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\PrimaryPropertyContact;
+use Illuminate\Contracts\Database\Query\Builder as QueryBuilderContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -46,6 +50,10 @@ use Illuminate\Support\Facades\DB;
  * bien (propriétaire). Il n'en est pas retiré (`left_at` reste nul) : réactivé, il retrouve le fil.
  * TCK-2275 (P232.03) : « partie » se juge par `BailleurDuBien` ; l'agent qui a saisi le bien n'en
  * est pas le bailleur.
+ *
+ * TCK-2960 (ADR-0128 § 2) — cinquième branche, la **salle** d'un bail ou d'une réservation
+ * ({@see SallesDuFil}) : participation active ET lecture de l'objet vivant ; pour une réservation, le
+ * candidat ou le contact principal actuel. Lecture seule d'un bail fini ou d'une réservation close.
  */
 class ConversationAccess
 {
@@ -65,6 +73,60 @@ class ConversationAccess
     }
 
     /**
+     * TCK-2965 (ADR-0128 § 6) — LE point de filtre des notes d'équipe : restreint une requête sur
+     * `messages` à ce que `$lecteur` lit, `visibility = all OR <il lit les notes de ce fil>`
+     * ({@see EquipeDuFil}). Tout chemin qui lit des messages pour un lecteur passe par ici : la page du
+     * fil (`before_id`, `after_id`), les non-lus de la liste, `markAsUnread`, la recherche (défense en
+     * profondeur derrière le filtre du moteur). Dans la requête SQL, jamais sur la collection : une page
+     * garde sa taille et son `has_more`.
+     *
+     * `$fil` : la requête ne porte que ce fil, et la règle se juge une fois en PHP
+     * ({@see EquipeDuFil::litLesNotes()}). Sans lui, elle se pose par fil, en SQL. Colonnes qualifiées
+     * `messages.` dans UN `where` groupé, comme {@see NonLus} : elle tient sous `withCount`, `whereHas`
+     * et `Message::query()`.
+     *
+     * @template T of QueryBuilderContract
+     *
+     * @param  T  $messages
+     * @return T
+     */
+    public function messagesLisiblesPar(User $lecteur, QueryBuilderContract $messages, ?Conversation $fil = null): QueryBuilderContract
+    {
+        if ($fil !== null) {
+            return EquipeDuFil::litLesNotes($lecteur, $fil)
+                ? $messages
+                : $messages->where('messages.visibility', MessageVisibility::All->value);
+        }
+
+        $fils = EquipeDuFil::filsOuLesNotesSeLisent($lecteur);
+        if ($fils === null) {
+            return $messages;
+        }
+
+        return $messages->where(fn ($q) => $q
+            ->where('messages.visibility', MessageVisibility::All->value)
+            ->orWhereIn('messages.conversation_id', $fils));
+    }
+
+    /**
+     * TCK-2965 — l'archive des données d'un titulaire (`DataExportBuilder`) : ses notes d'équipe à lui
+     * (il en est l'auteur), jamais celle d'un autre. Un client n'en a écrit aucune, son export n'en porte
+     * donc aucune. Hors requête HTTP du titulaire (job), sans profil actif à juger : la seule règle
+     * d'auteur.
+     *
+     * @template T of QueryBuilderContract
+     *
+     * @param  T  $messages
+     * @return T
+     */
+    public function messagesExportablesDe(User $titulaire, QueryBuilderContract $messages): QueryBuilderContract
+    {
+        return $messages->where(fn ($q) => $q
+            ->where('messages.visibility', MessageVisibility::All->value)
+            ->orWhere('messages.sender_id', $titulaire->id));
+    }
+
+    /**
      * P248.01 (TCK-2374) — ÉCRIRE dans le fil : la garde de lecture, et, pour un fil d'intervention,
      * `MaintenanceRequestPolicy::contribute`. Le demandeur dont le bail du bien a pris fin lit encore
      * le fil et n'y écrit plus (ADR-0031, amendement du 2026-10-25, P248.01).
@@ -72,6 +134,19 @@ class ConversationAccess
     public function allowsWriting(User $user, Conversation $conversation): bool
     {
         if (! $this->allows($user, $conversation)) {
+            return false;
+        }
+
+        // TCK-2957 (ADR-0128 § 1) — un fil `closed` (son objet est supprimé, `FermeLeFilDeSonObjet`)
+        // n'accepte plus d'écriture, de personne ; sa lecture ne change pas.
+        if ($conversation->status === ConversationStatus::Closed) {
+            return false;
+        }
+
+        // TCK-2960 (ADR-0128 § 2) — la salle d'un bail fini (`expired`, `terminated`, `renewed`) ou d'une
+        // réservation close sans avoir eu lieu (`rejected`, `cancelled`, `expired`) se lit, ne s'écrit plus,
+        // pour personne : `draft`, `pending_signature` et `completed` restent ouverts.
+        if (SallesDuFil::enLectureSeule($conversation)) {
             return false;
         }
 
@@ -102,7 +177,30 @@ class ConversationAccess
     {
         return $this->maintenanceAllows($user, $conversation)
             && $this->prospectAllows($user, $conversation)
-            && $this->contextAllows($user, $conversation);
+            && $this->contextAllows($user, $conversation)
+            // TCK-2960 — la branche « salle ».
+            && $this->salleAllows($user, $conversation);
+    }
+
+    /**
+     * TCK-2960 (ADR-0128 § 2) — la branche « salle » seule : vrai pour tout fil qui n'en est pas une.
+     * Une salle se lit si son objet est VIVANT (un bail ou une réservation supprimés la rendent
+     * illisible) et lisible par `$user` (`SujetsDuFil::peutLire`, la politique de l'objet) ; pour une
+     * réservation, il faut en plus être le candidat ou le contact principal ACTUEL du bien (la règle de
+     * {@see self::prospectAllows()}, étendue) : l'ancien contact perd la salle dès le changement.
+     */
+    public function salleAllows(User $user, Conversation $conversation): bool
+    {
+        if (! SallesDuFil::estUneSalle($conversation)) {
+            return true;
+        }
+
+        $objet = SallesDuFil::objetDeLaSalle($conversation);
+        if ($objet === null || ! SujetsDuFil::peutLire($user, $objet)) {
+            return false;
+        }
+
+        return ! $objet instanceof Booking || SallesDuFil::candidatOuContactActuel($user, $objet);
     }
 
     /** La branche « contexte » seule (P191.01) : vrai pour tout fil sans bail ni bien. */
@@ -317,7 +415,53 @@ class ConversationAccess
             ->orWhere('conversations.created_by', $user->id)
             ->orWhereIn('conversations.property_id', $answered));
 
+        // TCK-2960 (ADR-0128 § 2) — la branche « salle » : une salle de bail ne reste que si le bail est
+        // lisible (`Lease::scopeVisibleTo`, aligné sur `LeasePolicy::view`, supprimés exclus) ; une salle
+        // de réservation, que si la réservation l'est ET que `$user` en est le candidat ou le contact
+        // principal actuel — jugé en PHP, sur les seules salles où il participe (`answeredPropertyIds`).
+        $reservations = $this->reservationsLisiblesEnSalle($user);
+        $query->where(fn (Builder $q) => $q
+            ->whereNotIn('conversations.type', SallesDuFil::typesDeFil())
+            ->orWhere(fn (Builder $s) => $s
+                ->where('conversations.type', ConversationType::Lease->value)
+                ->where('conversations.subject_type', 'lease')
+                ->whereIn('conversations.subject_id', Lease::query()->visibleTo($user)->select('leases.id')))
+            ->orWhere(fn (Builder $s) => $s
+                ->where('conversations.type', ConversationType::Booking->value)
+                ->where('conversations.subject_type', 'booking')
+                ->whereIn('conversations.subject_id', $reservations)));
+
         return $this->constrainContext($query, $user);
+    }
+
+    /**
+     * TCK-2960 — les réservations dont `$user` lit la salle, parmi celles des salles où il participe
+     * (départs compris : la participation se juge à côté). Une requête de salles, puis, s'il y en a,
+     * une des réservations avec leur bien et ce que le contact principal lit.
+     *
+     * @return list<int>
+     */
+    private function reservationsLisiblesEnSalle(User $user): array
+    {
+        $ids = Conversation::query()
+            ->where('type', ConversationType::Booking->value)
+            ->where('subject_type', 'booking')
+            ->whereIn('id', ConversationParticipant::query()->where('user_id', $user->id)->select('conversation_id'))
+            ->distinct()
+            ->pluck('subject_id');
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        return Booking::query()
+            ->whereKey($ids->all())
+            ->with(['customer', 'property' => fn ($q) => $q->with(PrimaryPropertyContact::eagerLoads())])
+            ->get()
+            ->filter(fn (Booking $b) => SujetsDuFil::peutLire($user, $b) && SallesDuFil::candidatOuContactActuel($user, $b))
+            ->map(fn (Booking $b) => (int) $b->id)
+            ->values()
+            ->all();
     }
 
     /**
@@ -380,6 +524,28 @@ class ConversationAccess
             ->filter(fn (Property $property) => PrimaryPropertyContact::for($property)?->id === $user->id)
             ->map(fn (Property $property) => (int) $property->id)
             ->values()
+            ->all();
+    }
+
+    /**
+     * TCK-2955 (ADR-0129 § 2) — les destinataires de `boite.updated` pour un fil : ses participants
+     * ACTIFS (`left_at` nul, la participation de {@see self::participatingQuery()}), en une requête.
+     * Un ancien participant n'en est pas : il ne reçoit rien des messages suivants.
+     *
+     * Les branches de lecture (intervention, prospect, contexte) ne sont PAS rejugées ici, une par
+     * personne : le signal ne porte aucune donnée (ADR-0129 § 1), et la relecture de la liste par
+     * `GET /api/conversations` applique, elle, `constrainListing()`.
+     *
+     * @return list<int>
+     */
+    public static function idsDesParticipantsActifs(int $conversationId): array
+    {
+        return ConversationParticipant::query()
+            ->where('conversation_id', $conversationId)
+            ->whereNull('left_at')
+            ->orderBy('user_id')
+            ->pluck('user_id')
+            ->map(fn ($id): int => (int) $id)
             ->all();
     }
 

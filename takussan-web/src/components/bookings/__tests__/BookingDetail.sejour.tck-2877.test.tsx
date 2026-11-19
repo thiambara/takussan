@@ -18,6 +18,8 @@ import { nuitsDuMois } from '../detail/nuits-du-bien';
 const ecran = vi.hoisted(() => ({ telephone: true }));
 const appels = vi.hoisted(() => ({ refus: vi.fn(), remboursement: vi.fn() }));
 const nuits = vi.hoisted(() => ({ sejours: [] as unknown[], bloquees: [] as unknown[] }));
+// TCK-2963 — le bloc de la salle ouvre sa conversation (React Query) : hors du propos de ce test.
+vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () => null }));
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => ecran.telephone }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 5 }));
 vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => new Date('2026-11-10T10:00:00Z') }));

@@ -12,10 +12,11 @@ use RecursiveIteratorIterator;
  * s'écrivait à côté, jugé par les seules gardes de création, et toute règle ajoutée à `allowsWriting` y était
  * contournée.
  *
- * Deux exceptions, chacune pour sa raison :
+ * Trois exceptions, chacune pour sa raison :
  * - `PublicPropertyController` — le contact public d'une annonce, la porte du VISITEUR, jugée par son propre
  *   formulaire ; un bailleur suspendu y écrit à sa propre annonce comme tout visiteur (décision y q2 du 2026-11-13) ;
- * - `SystemMessageFactory` — un avis système n'a pas d'auteur.
+ * - `SystemMessageFactory` — un avis système n'a pas d'auteur ;
+ * - `EvenementsDuFil` (TCK-2958) — un événement d'objet n'a pas d'auteur ; une carte, elle, passe par le point d'écriture.
  *
  * Balayé : `app/`. La garde lit les jetons PHP (`token_get_all`), sans commentaires ni espaces, et refuse :
  * `messages()->create(`, `->createQuietly(`, `->forceCreate(`, `->save(`, `->saveQuietly(`, `->createMany(`,
@@ -37,6 +38,8 @@ class EcritureDeMessageUniqueTest extends TestCase
         'Services/Messaging/ConversationWriter.php' => 'le point d’écriture : allowsWriting, puis le message',
         'Http/Controllers/Public/PublicPropertyController.php' => 'contact public d’une annonce : la porte du visiteur (décision y q2)',
         'Services/Messaging/SystemMessageFactory.php' => 'avis système : sans auteur',
+        // TCK-2958 (ADR-0128 § 3) — le seul écrivain d'un `event` (sans auteur) ; ses cartes passent par ConversationWriter.
+        'Services/Messaging/EvenementsDuFil.php' => 'événement d’un objet : sans auteur, metadata fermé',
     ];
 
     private const ECRITURES = 'create|createQuietly|forceCreate|forceCreateQuietly|save|saveQuietly|createMany|saveMany|createManyQuietly|insert|insertOrIgnore|insertGetId|upsert|firstOrCreate|updateOrCreate';

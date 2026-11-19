@@ -528,7 +528,7 @@ export type NotificationTemplatePreviewResponse = {
 };
 
 /** TCK-600 — le catalogue se réduit aux clés qu'un code lit : `format.*` et `transaction.*` sont partis. */
-export type PlatformSettingCategory = 'currency' | 'limits' | 'boost' | 'rentals' | 'crm' | 'radar';
+export type PlatformSettingCategory = 'currency' | 'limits' | 'boost' | 'rentals' | 'crm' | 'radar' | 'ai'; // TCK-2979
 /** TCK-651 (ADR-0065) — `boolean`, `decimal` et `integer_list` servent les réglages métier `rentals`. */
 export type PlatformSettingType = 'select' | 'multi_select' | 'integer' | 'decimal' | 'boolean' | 'integer_list';
 export type PlatformSettingValue = string | number | boolean | null | string[] | number[];
@@ -1060,7 +1060,7 @@ export type WebhookLogsResponse = {
 };
 
 // TCK-2385 (ADR-0076 §12) — la console IA.
-export type AiModelRole = 'extraction' | 'redaction' | 'raisonnement' | 'vision' | 'embedding';
+export type AiModelRole = 'extraction' | 'redaction' | 'raisonnement' | 'vision' | 'embedding' | 'transcription'; // TCK-2976
 export type AiEvaluationStatus = 'queued' | 'running' | 'done' | 'failed';
 export type AiModelLink = { provider: string; model: string; max_tokens: number | null };
 /** TCK-2450 (ADR-0085 §4) — sélectionnable : déclaré, une clé, une adresse sur un hôte accepté. `host` : jamais l'adresse entière. */

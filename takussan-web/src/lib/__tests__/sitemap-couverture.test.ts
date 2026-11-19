@@ -354,7 +354,7 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     ).toBe('jamais');
   });
 
-  it('les VINGT-TROIS pages publiques déclarent leur métadonnée sur place', () => {
+  it('les VINGT-QUATRE pages publiques déclarent leur métadonnée sur place', () => {
     // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
     // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
     // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
@@ -385,7 +385,9 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // 22 → 23 : TCK-2685 ajoute `/playground/vitrine`, STATIQUE et `jamais` — la vitrine des jetons
     // et primitives de la partie connectée (ADR-0106 § 5), `noindex` et 404 en production comme le
     // POC du playground.
-    expect(ROUTES.length).toBe(23);
+    // 23 → 24 : TCK-2983 ajoute `/fil/a/[token]`, `jamais` — le lien d'action du pont, lien porteur
+    // (tranchée `exclue` dans ROUTES_DYNAMIQUES_PUBLIQUES).
+    expect(ROUTES.length).toBe(24);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }
@@ -488,13 +490,15 @@ describe('TCK-431 · AC4 — /playground n’est plus servi indexable', () => {
 describe('TCK-431 — le point d’extension des routes dynamiques (TCK-436)', () => {
   const dynamiques = ROUTES.filter((r) => r.dynamique);
 
-  it('trouve les six routes dynamiques publiques', () => {
+  it('trouve les sept routes dynamiques publiques', () => {
     // 4 → 5 : TCK-602 ajoute `/pay/[token]`, le lien porteur de paiement, exclu du sitemap.
     // 5 → 6 : TCK-2390 ajoute `/claim/[token]`, le lien signé de réclamation du Radar, exclu de même.
+    // 6 → 7 : TCK-2983 ajoute `/fil/a/[token]`, le lien d'action du pont, exclu de même.
     expect(dynamiques.map((r) => r.chemin).sort()).toEqual([
       '/agencies/[slug]',
       '/agents/[slug]',
       '/claim/[token]',
+      '/fil/a/[token]',
       '/pay/[token]',
       '/properties/[slug]',
       '/share/[token]',

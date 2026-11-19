@@ -33,6 +33,8 @@ class LogWhatsappDriver implements WhatsappDriverInterface
                 'type' => $message->type,
                 'text_length' => $message->text === null ? null : mb_strlen($message->text),
                 'template' => $message->template?->name,
+                // TCK-2981 — le nombre de boutons (réponse, `quick_reply`), jamais leur charge utile.
+                'buttons' => count($message->buttons),
                 'context' => $context,
                 'provider_message_id' => $providerMessageId,
             ]);

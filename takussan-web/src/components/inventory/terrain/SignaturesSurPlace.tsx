@@ -159,7 +159,9 @@ export function SignatureDuLocataire({ inventory, nom, prenom, avantDeSigner, on
         <p className="mt-1 text-ui text-muted-foreground">
           {inventory.tenant_signature_method === 'onsite_otp'
             ? t('signeSurPlace', { heure: heure ?? '' })
-            : heure
+            : inventory.tenant_signature_method === 'link_otp' // TCK-2984 (TCK-2982)
+              ? t('signeParLien', { heure: heure ?? '' })
+              : heure
               ? t('signeDepuisSonCompte', { heure })
               : t('statut.signe')}
         </p>
@@ -455,10 +457,13 @@ export function SignatureDeLAgence({ inventory, signataire, avantDeSigner, pourL
   if (inventory.owner_signed) {
     const heure = inventory.owner_signed_at ? f.heure(inventory.owner_signed_at) : null;
     // TCK-2914 — recueillie sur place par code : c'est la signature DU bailleur, pas « pour son compte ».
-    if (inventory.owner_signature_method === 'onsite_otp') {
+    // TCK-2984 (TCK-2982) — par lien d'action et code : c'est aussi la signature DU bailleur.
+    if (inventory.owner_signature_method === 'onsite_otp' || inventory.owner_signature_method === 'link_otp') {
       return (
         <BlocDeSignature titre={t('bailleur', { nom: signePar ?? nomDuBailleur })} statut={<StatusBadge tone="success" label={t('statut.signe')} />}>
-          <p className="mt-1 text-ui text-muted-foreground">{t('signeSurPlace', { heure: heure ?? '' })}</p>
+          <p className="mt-1 text-ui text-muted-foreground">
+            {inventory.owner_signature_method === 'link_otp' ? t('signeParLien', { heure: heure ?? '' }) : t('signeSurPlace', { heure: heure ?? '' })}
+          </p>
         </BlocDeSignature>
       );
     }

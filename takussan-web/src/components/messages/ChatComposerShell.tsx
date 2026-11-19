@@ -33,7 +33,15 @@ interface ChatComposerShellProps {
    * pilule, envoi rond, et à droite le micro (`apresLeChamp`) qui cède la place à l'envoi dès
    * qu'il y a quelque chose à envoyer (`envoiVisible`). Sans elle, l'habillage d'avant.
    */
-  readonly messagerie?: { readonly apresLeChamp: React.ReactNode; readonly envoiVisible: boolean };
+  readonly messagerie?: {
+    readonly apresLeChamp: React.ReactNode;
+    readonly envoiVisible: boolean;
+    /**
+     * TCK-2968 — un bouton d'envoi À LA PLACE du rond (« Noter » d'une note d'équipe) : la destination se
+     * lit aussi sur le bouton. Il doit être `type="submit"`.
+     */
+    readonly envoi?: React.ReactNode;
+  };
 }
 
 export function ChatComposerShell({
@@ -65,7 +73,9 @@ export function ChatComposerShell({
           {leading}
           {children}
           {messagerie.apresLeChamp}
-          {messagerie.envoiVisible ? (
+          {messagerie.envoi ? (
+            messagerie.envoi
+          ) : messagerie.envoiVisible ? (
             <Button
               type="submit"
               size="icon"

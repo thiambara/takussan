@@ -162,10 +162,12 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
 
   return (
     <div className={grand ? 'flex h-full min-h-0 flex-col gap-3' : 'space-y-3'}>
-      <div>
+      {/* TCK-2983 — l'en-tête du tracé porte son propre fond (carte) : le composant entre dans la surface
+          publique (page du lien d'action), où une encre sans fond déclaré n'est pas mesurable. */}
+      <div className="rounded-lg bg-card px-3 py-2">
         <p className="text-sm font-semibold text-foreground">{label}</p>
         {helperText ? (
-          <p className="mt-0.5 text-xs text-muted-foreground">{helperText}</p>
+          <p className="mt-0.5 bg-card text-xs text-muted-foreground">{helperText}</p>
         ) : null}
       </div>
       <div className={cn('rounded-xl border border-dashed border-border bg-card p-1', grand && 'min-h-0 flex-1')}>

@@ -180,6 +180,7 @@ const PREMIERS_SEGMENTS_SANS_BARRE: ReadonlySet<string> = new Set([
   'share',
   'search-alerts',
   'notifications',
+  'fil', // TCK-2983 — la page du lien d'action porte son geste en bas.
   'playground',
   'compare', // TCK-2509 — la barre « Ajouter un bien · Partager » du comparateur tient le bas.
 ]);
@@ -190,7 +191,8 @@ const PREMIERS_SEGMENTS_SANS_BARRE: ReadonlySet<string> = new Set([
  * (sous `lg`), ni le dock du comparateur (en bureau), qui se monte pourtant sur tout le groupe
  * `(public)`. La fiche et la réservation ne sont pas des pages de lien : le dock y reste en bureau.
  */
-const PREMIERS_SEGMENTS_DE_LIEN: ReadonlySet<string> = new Set(['pay', 'claim', 'share', 'search-alerts', 'notifications']);
+// TCK-2983 — `fil` : la page du lien d'action du pont (`/fil/a/{jeton}`).
+const PREMIERS_SEGMENTS_DE_LIEN: ReadonlySet<string> = new Set(['pay', 'claim', 'share', 'search-alerts', 'notifications', 'fil']);
 
 /** TCK-2505 — le chemin est-il une page par lien (coque nue) ? */
 export function estPageDeLien(pathname: string | null | undefined): boolean {

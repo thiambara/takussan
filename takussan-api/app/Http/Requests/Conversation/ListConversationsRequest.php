@@ -5,6 +5,7 @@ namespace App\Http\Requests\Conversation;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\ConversationType;
+use App\Services\Messaging\FileDuFil;
 use Closure;
 use Illuminate\Validation\Rule;
 
@@ -57,6 +58,8 @@ class ListConversationsRequest extends BaseFormRequest
             // Jamais l'appelant (vérification adverse) : membre de tous ses fils, il rendrait sa liste
             // entière, archives comprises (le filtre les ouvre) — 422, comme toute saisie sans objet.
             'filter.participant' => ['sometimes', 'nullable', 'integer', 'min:1', Rule::notIn(array_filter([$this->user()?->id]))],
+            // TCK-2967 (ADR-0128 § 7) — la file dérivée du fil pour le lecteur (`FileDuFil`).
+            'filter.file' => ['sometimes', 'nullable', Rule::in(FileDuFil::FILES)],
         ];
     }
 
@@ -69,6 +72,8 @@ class ListConversationsRequest extends BaseFormRequest
             'filter.unread' => __('messaging.attributes.unread_filter'),
             'filter.type' => __('messaging.attributes.type_filter'),
             'filter.participant' => __('messaging.attributes.participant_filter'),
+            // TCK-2967
+            'filter.file' => __('messaging.attributes.file_filter'),
         ];
     }
 }

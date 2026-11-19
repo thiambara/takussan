@@ -34,6 +34,7 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Visit\ConfirmerUneVisite;
 use App\Services\Visit\RemiseAuVisiteur;
 use App\Services\Visit\VisitesLisibles;
 use App\Services\Visit\VisitNotifier;
@@ -702,29 +703,15 @@ class PropertyVisitController extends Controller
 
     public function confirm(ConfirmPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorize('update', $visit);
         // Vérification adverse, passe 3 (B2″) — confirmer, c'est le geste qui fait partir le SMS au
         // visiteur (contrainte 4) : la même garde que `update` et `cancel`. Sur un bien d'agence,
         // le bailleur, l'agent parti et l'agent suspendu encore assigné confirmaient (200 + SMS).
         // TCK-2849 (ADR-0112) — ou le bailleur actif du bien, quand l'agence le lui confie
         // (`owners_confirm_visits`) : ce geste seul, jamais `update`, `complete` ni `cancel`.
-        $user = $request->user();
-        abort_code_unless(PropertyVisitPolicy::peutConfirmer($user, $visit), 403, 'visit.staff_only');
-        $parLeBailleur = ! $this->agitPourLeBien($user, $visit);
-        $avant = $visit->scheduled_at;
-
-        // TCK-075 AC2 — source-state check, overlap guard and status
-        // flip happen inside a single DB transaction with row-level
-        // locks so two concurrent confirm calls cannot both pass the
-        // overlap check and both win.
+        // TCK-075 AC2 — source, chevauchement et statut sous verrou de ligne (`confirmOrFail`).
         // TCK-2502 — l'heure fixée en confirmant ; exigée pour une visite demandée par tranche.
-        $visit = $this->scheduling->confirmOrFail($visit, $request->scheduledAt());
-        $visit->load('property', 'visitor');
-
-        $sms = $this->notifier->confirmed($visit, $user);
-        if ($parLeBailleur) {
-            $this->confirmeeParLeBailleur($visit, $user, $avant);
-        }
+        // TCK-2982 — le cœur du geste est sorti dans `ConfirmerUneVisite`, que le lien d'action appelle aussi.
+        [$visit, $sms] = app(ConfirmerUneVisite::class)->executer($request->user(), $visit, $request->scheduledAt());
 
         return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit)->resolve($request)], $sms));
     }
@@ -964,27 +951,8 @@ class PropertyVisitController extends Controller
      */
     private function confirmeeParLeBailleur(PropertyVisit $visit, User $bailleur, ?\DateTimeInterface $avant): void
     {
-        $nouveauCreneau = $avant !== null && $visit->scheduled_at !== null
-            && ! $visit->scheduled_at->equalTo($avant);
-
-        activity()
-            ->performedOn($visit)
-            ->causedBy($bailleur)
-            ->withProperties([
-                // L'agence du bien : `PropertyVisit` ne porte pas d'`agency_id` (AuditAgencyResolver).
-                'agency_id' => $visit->property?->agency_id,
-                // TCK-2943 — la forme d'ADR-0018 (`ControllerInstantFormTest` rougissait sur `toIso8601String`).
-                'scheduled_at' => $this->instant($visit->scheduled_at),
-                'previous_scheduled_at' => $nouveauCreneau ? $avant?->format(DATE_ATOM) : null,
-            ])
-            ->event('visit.confirmed_by_owner')
-            ->log('visit.confirmed_by_owner');
-
-        try {
-            $this->notifier->confirmedByOwner($visit, $bailleur);
-        } catch (Throwable $e) {
-            Log::warning('visit.confirmed_by_owner.notify_failed', ['visit_id' => $visit->id] + SafeExceptionContext::of($e));
-        }
+        // TCK-2982 — la règle vit dans `ConfirmerUneVisite`, que la route et le lien d'action partagent.
+        app(ConfirmerUneVisite::class)->confirmeeParLeBailleur($visit, $bailleur, $avant);
     }
 
     /** P152.04 — la règle vit dans {@see PropertyVisitPolicy::agitPourLeBien}, que la ressource lit aussi. */

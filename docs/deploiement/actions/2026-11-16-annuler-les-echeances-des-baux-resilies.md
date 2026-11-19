@@ -4,7 +4,7 @@ type: donnee
 tickets: [TCK-607]
 cles: []
 creee: 2026-11-16
-preview: a-faire
+preview: fait
 production: a-faire
 ---
 
@@ -36,3 +36,7 @@ annulée(s) ». Seules les échéances engagées restent listées à chaque pass
 alors parmi les « bail(s) touché(s) »).
 
 ## Historique
+- 2026-11-16 · preview · fait · Claude (session, pour le porteur) · 0 bail touché, 0 échéance annulée (4 baux sans date de sortie ignorés)
+- 2026-11-16, préproduction — promotion #1691 (`ac2a32f66`, fusionnée 23:27:40 Z, `images.yml` 43979477538 vert à 23:34:49 Z) ; `lease:cancel-dues-after-exit --dry-run` puis réel :
+  « 0 bail(s) touché(s), 0 échéance(s) annulée(s), 0 caution(s) due(s) annulée(s), 0 échéance(s) engagée(s) laissée(s),
+  4 bail(s) sans date de sortie » (#212, #246, #280, #314 : résiliés sans date de sortie, ignorés). Rien à reprendre.
