@@ -8,6 +8,7 @@ use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Pont\CanalDuPont;
 use App\Services\Pont\CapacitesDuCanal;
 use App\Services\Pont\EtatDAccord;
+use App\Services\Pont\EtatDuNumero;
 use App\Services\Pont\LectureDuWebhook;
 use App\Services\Pont\MessageEntrant;
 use App\Services\Pont\ResultatDEnvoi;
@@ -54,7 +55,8 @@ final class Sms implements CanalDuPont
         return match (true) {
             $resultat === null => new ResultatDEnvoi(ResultatDEnvoi::ECHEC, forme: 'sms', motif: 'sms_no_result'),
             $resultat->isTerminalSuccess() => new ResultatDEnvoi(ResultatDEnvoi::ENVOYE, $resultat->providerMessageId, 'sms'),
-            $resultat->status === SmsResult::STATUS_DEFERRED_TO_FALLBACK => ResultatDEnvoi::indisponible((string) $resultat->failureReason),
+            // Les heures calmes (ARTP) : le routeur le programme à leur fin ; il partira, sans identifiant encore.
+            $resultat->status === SmsResult::STATUS_DEFERRED_TO_FALLBACK => new ResultatDEnvoi(ResultatDEnvoi::ENVOYE, null, 'sms', motif: (string) $resultat->failureReason),
             default => new ResultatDEnvoi(ResultatDEnvoi::ECHEC, forme: 'sms', ambigu: $resultat->ambiguous, motif: $resultat->failureReason),
         };
     }
@@ -68,6 +70,12 @@ final class Sms implements CanalDuPont
     public function fenetreOuverte(string $destinataire, ?int $agence = null): bool
     {
         return true;
+    }
+
+    /** Le SMS ne tient ni accord ni fenêtre : l'état se lit sur le canal qui reçoit. */
+    public function etatDuNumero(string $telephone, ?int $agence = null): EtatDuNumero
+    {
+        return new EtatDuNumero;
     }
 
     public function jetonDuWebhook(): string

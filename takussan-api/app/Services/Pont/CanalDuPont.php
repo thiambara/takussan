@@ -50,6 +50,9 @@ interface CanalDuPont
      */
     public function fenetreOuverte(string $destinataire, ?int $agence = null): bool;
 
+    /** TCK-2981 — l'accord de ce numéro sur ce canal, ses dates, et la fin de sa fenêtre (écran du personnel). */
+    public function etatDuNumero(string $telephone, ?int $agence = null): EtatDuNumero;
+
     // ── Le webhook ─────────────────────────────────────────────────────────────────────────────────────
 
     /** Le jeton d'URL du webhook de ce canal (`{token}`) ; vide : le webhook est fermé (404). */

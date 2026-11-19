@@ -26,7 +26,6 @@ use App\Services\Messaging\EquipeDuFil;
 use App\Services\Messaging\EvenementsDuFil;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -69,7 +68,7 @@ class CommitmentController extends Controller
     public function store(StoreCommitmentRequest $request, Conversation $conversation, EvenementsDuFil $evenements): JsonResponse
     {
         $auteur = $request->user();
-        $donnees = $request->validated();
+        $donnees = $request->validatedAvecInstants();
 
         $agence = EquipeDuFil::agence($conversation);
         abort_code_if($agence === null, 422, 'commitment.no_agency');
@@ -93,7 +92,7 @@ class CommitmentController extends Controller
         $pourSoi = $porteurId === (int) $auteur->id;
         abort_code_unless($pourSoi || PersonnelDeLAgence::personnelActifDe($auteur, $agence), 422, 'commitment.not_yours');
 
-        $echeance = Carbon::parse($donnees['due_at'])->utc();
+        $echeance = $donnees['due_at'];
         abort_code_unless($echeance->isFuture(), 422, 'commitment.due_in_past');
 
         [$objetType, $objetId] = self::objetDuFil($conversation);
@@ -124,8 +123,7 @@ class CommitmentController extends Controller
 
     public function confirm(ConfirmCommitmentRequest $request, Commitment $commitment, EvenementsDuFil $evenements): JsonResponse
     {
-        $autreDate = $request->validated('due_at');
-        $echeance = $autreDate === null ? null : Carbon::parse($autreDate)->utc();
+        $echeance = $request->validatedAvecInstants()['due_at'] ?? null;
         abort_code_if($echeance !== null && ! $echeance->isFuture(), 422, 'commitment.due_in_past');
 
         $engagement = DB::transaction(function () use ($commitment, $echeance, $evenements): Commitment {
@@ -180,8 +178,8 @@ class CommitmentController extends Controller
      */
     public function update(UpdateCommitmentRequest $request, Commitment $commitment, EvenementsDuFil $evenements): JsonResponse
     {
-        $donnees = $request->validated();
-        $echeance = isset($donnees['due_at']) ? Carbon::parse($donnees['due_at'])->utc() : null;
+        $donnees = $request->validatedAvecInstants();
+        $echeance = $donnees['due_at'] ?? null;
         abort_code_if($echeance !== null && ! $echeance->isFuture(), 422, 'commitment.due_in_past');
 
         $engagement = DB::transaction(function () use ($commitment, $donnees, $echeance, $evenements): Commitment {
@@ -203,7 +201,7 @@ class CommitmentController extends Controller
             $engagement->save();
 
             if ($reporte) {
-                $evenements->ecrire($engagement->conversation, $engagement, 'commitment.rescheduled', ['due_at' => $echeance->toIso8601String()]);
+                $evenements->ecrire($engagement->conversation, $engagement, 'commitment.rescheduled', ['due_at' => $this->instant($echeance)]);
             }
 
             return $engagement;

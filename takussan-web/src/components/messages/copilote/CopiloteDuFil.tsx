@@ -31,7 +31,7 @@ export function BoutonDeLAssistant({ conversationId, onOuvrir }: { readonly conv
       data-eteint={eteint || undefined}
       className={cn(
         'inline-flex size-11 flex-none items-center justify-center rounded-full outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring lg:size-9 lg:rounded-lg',
-        eteint ? 'text-muted-foreground/60' : 'text-primary-deep',
+        eteint ? 'text-muted-foreground' : 'text-primary-deep',
       )}
     >
       <Sparkles className="size-5 lg:size-4.5" strokeWidth={1.75} aria-hidden="true" />

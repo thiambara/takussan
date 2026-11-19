@@ -4,6 +4,7 @@ namespace App\Services\Ai;
 
 use App\Ai\Usages\ConnectionTestUsage;
 use App\Ai\Usages\FilBrouillonUsage;
+use App\Ai\Usages\FilPromessesUsage;
 use App\Ai\Usages\FilQuestionUsage;
 use App\Ai\Usages\FilResumeUsage;
 use App\Ai\Usages\FilTranscriptionUsage;
@@ -38,6 +39,7 @@ final class AiUsageRegistry
         // TCK-2975 (ADR-0131 § 3) — « Demander au fil » et le brouillon d'une réponse.
         FilQuestionUsage::class,
         FilBrouillonUsage::class,
+        FilPromessesUsage::class,
         // TCK-2976 (ADR-0131 § 7) — la transcription d'une note vocale, par AiGateway::transcribe().
         FilTranscriptionUsage::class,
     ];

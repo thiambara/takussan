@@ -145,7 +145,10 @@ return [
     // plafond d'un usage se règle dans la console (`ai_usage_settings`), à défaut celui que l'usage déclare.
     'budgets' => [
         'daily_global_usd' => $montant('AI_DAILY_BUDGET_USD', '8.33'),
-        'daily_per_agency_usd' => null,
+        // TCK-2979 (ADR-0131 § 8) — le DÉFAUT de la clé `ai.daily_budget_per_agency_usd` des Paramètres plateforme, qui
+        // l'emporte (`AiBudget`). Vide, illisible ou nul : pas de plafond par agence (un zéro refuserait tout appel).
+        'daily_per_agency_usd' => preg_match('/^\d+(\.\d+)?$/', (string) env('AI_DAILY_BUDGET_PER_AGENCY_USD')) === 1
+            && (float) env('AI_DAILY_BUDGET_PER_AGENCY_USD') > 0 ? (string) env('AI_DAILY_BUDGET_PER_AGENCY_USD') : null,
     ],
 
     // TCK-2974 (ADR-0131) — le copilote du fil, lu par le SEUL `App\Services\Messaging\Copilote\ReglagesDuCopilote`.

@@ -97,10 +97,14 @@ class QuestionTenuTest extends TestCase
         $this->assertEquals(['type' => 'commitment', 'id' => $engagement->id], $questions[0]->metadata['object']);
         $this->assertNotNull($engagement->refresh()->check_requested_at);
 
+        // La question attend le bénéficiaire : elle compte en non-lu pour lui. Sa FILE est `retard` (TCK-2971 : il
+        // suit une promesse échue, et `retard` prime sur `vous`).
         $ligne = $this->ligne($this->voisin);
-        $this->assertSame(FileDuFil::VOUS, $ligne['file']);
+        $this->assertSame(FileDuFil::RETARD, $ligne['file']);
         $this->assertGreaterThanOrEqual(1, $ligne['unread_count']);
-        $this->assertNotSame(FileDuFil::VOUS, $this->ligne($this->agent)['file'], 'Le personnel n\'est pas attendu par la question.');
+        $agent = $this->ligne($this->agent);
+        $this->assertNotSame(FileDuFil::VOUS, $agent['file'], 'Le personnel n\'est pas attendu par la question.');
+        $this->assertSame(0, $agent['unread_count'], 'Le personnel n\'est pas attendu par la question.');
 
         // Le bénéficiaire voit ses deux réponses offertes.
         Sanctum::actingAs($this->voisin);
@@ -114,12 +118,13 @@ class QuestionTenuTest extends TestCase
     {
         $engagement = $this->ouvert();
         $this->passerA($this->echeance->copy()->addHour());
-        $this->assertSame(FileDuFil::VOUS, $this->ligne($this->voisin)['file']);
+        $this->assertGreaterThanOrEqual(1, $this->ligne($this->voisin)['unread_count']);
 
         $this->geste($engagement, $this->voisin, 'kept')->assertOk();
 
         $ligne = $this->ligne($this->voisin);
         $this->assertNotSame(FileDuFil::VOUS, $ligne['file']);
+        $this->assertNotSame(FileDuFil::RETARD, $ligne['file'], 'Tenu : la promesse sort aussi de « Retard ».');
         $this->assertSame(0, $ligne['unread_count']);
     }
 

@@ -138,6 +138,10 @@ return [
     ],
     // TCK-2646 (ADR-0098) — le code qui authentifie le locataire signant l'état des lieux sur le
     // téléphone de l'agent. SMS seulement : pas de version e-mail.
+    // TCK-2982 (ADR-0132 § 5) — le code de signature par lien d'action, au numéro du lien.
+    'action_link_signature_code' => [
+        'sms' => "Takussan : code pour signer l'état des lieux (bail :reference) : :code, valable :minutes min. Ne le communiquez à personne.",
+    ],
     'inventory_signature_code' => [
         'sms' => 'Takussan : code de signature de l\'état des lieux (bail :reference) : :code, valable :minutes min. Saisissez-le vous-même, devant l\'agent.',
     ],

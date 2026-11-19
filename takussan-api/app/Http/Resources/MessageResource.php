@@ -3,9 +3,11 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\ActionLink;
 use App\Models\Conversation;
 use App\Models\Enums\MessageType;
 use App\Models\Message;
+use App\Models\MessageRelay;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Messaging\Copilote\TranscriptionsDuFil;
 use App\Services\Messaging\EquipeDuFil;
@@ -15,6 +17,7 @@ use App\Services\Messaging\NonLus;
 use App\Services\Messaging\ObjetsDesMessages;
 use App\Services\Pont\RegistreDesCanaux;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -93,6 +96,40 @@ class MessageResource extends BaseResource
     }
 
     /**
+     * TCK-2982 (ADR-0132 § 5) — la trace des liens d'action portés par les cartes et événements de la page, par
+     * message : `{sent_at, opened_at, used_at, expires_at}`. `null` (clé absente) sauf pour le personnel actif de
+     * l'agence du fil.
+     *
+     * @var array<int, array<string, string|null>>|null
+     */
+    private ?array $liens = null;
+
+    /** @param  array<int, array<string, string|null>>|null  $liens */
+    public function avecLiens(?array $liens): static
+    {
+        $this->liens = $liens;
+
+        return $this;
+    }
+    // /TCK-2982
+
+    /**
+     * TCK-2981 (ADR-0132 § 4) — les relais du pont de chaque message de la page (`[{user_id, channel, form, status,
+     * at}]`, jamais un numéro), pour le SEUL personnel actif de l'agence du fil ; `null` (clé absente) sinon.
+     *
+     * @var array<int, list<array<string, mixed>>>|null
+     */
+    private ?array $relais = null;
+
+    /** @param  array<int, list<array<string, mixed>>>|null  $relais */
+    public function avecRelais(?array $relais): static
+    {
+        $this->relais = $relais;
+
+        return $this;
+    }
+
+    /**
      * TCK-2858 — une page de messages d'UN fil, avec les faits de ce fil.
      * TCK-2958 — et les objets de ses cartes et événements, relus pour le lecteur.
      *
@@ -110,9 +147,13 @@ class MessageResource extends BaseResource
 
         // TCK-2976 — les transcriptions des notes vocales, pour le seul lecteur servi par la garde du copilote.
         $transcriptions = self::transcriptionsDeLaPage($messages, $request);
+        // TCK-2982 — la trace des liens d'action, pour le seul personnel actif de l'agence du fil.
+        $liens = self::liensDeLaPage($messages, $request);
+        // TCK-2981 — les relais du pont, pour le même seul lecteur.
+        $relais = self::relaisDeLaPage($messages, $request);
 
         return $messages
-            ->map(fn (Message $message) => self::make($message)->avecFaits($faits)->avecObjets($objets)->avecAttendus($attendus)->avecTranscriptions($transcriptions)->resolve($request))
+            ->map(fn (Message $message) => self::make($message)->avecFaits($faits)->avecObjets($objets)->avecAttendus($attendus)->avecTranscriptions($transcriptions)->avecLiens($liens)->avecRelais($relais)->resolve($request))
             ->values()
             ->all();
     }
@@ -167,6 +208,18 @@ class MessageResource extends BaseResource
                 $this->transcriptions !== null && $this->resource->type === MessageType::Audio,
                 fn (): array => $this->transcriptions[(int) $this->resource->getKey()] ?? ['etat' => TranscriptionsDuFil::AUCUNE],
             ),
+            // TCK-2982 (ADR-0132 § 5) — le lien d'action que la carte ou l'événement a porté : envoyé, ouvert, utilisé.
+            // Au SEUL personnel actif de l'agence du fil ; absente pour tout autre lecteur.
+            'action_link' => $this->when(
+                $this->liens !== null && isset($this->liens[(int) $this->resource->getKey()]),
+                fn (): array => $this->liens[(int) $this->resource->getKey()],
+            ),
+            // TCK-2981 (ADR-0132 § 4) — par où le message est parti, destinataire par destinataire : au SEUL personnel
+            // actif de l'agence du fil (page de messages) ; absente pour tout autre lecteur. Sans numéro.
+            'relays' => $this->when(
+                $this->relais !== null && $this->resource->type === MessageType::Text,
+                fn (): array => $this->relais[(int) $this->resource->getKey()] ?? [],
+            ),
             'attachments' => $this->attachments(),
             'created_at' => $this->iso($this->created_at),
             // TCK-2858 — « Lu » : direct, la coche d'un message de l'appelant ; groupe, ses lecteurs.
@@ -195,6 +248,84 @@ class MessageResource extends BaseResource
         }
 
         return $service->etats($fil, $notes->map(fn (Message $m) => (int) $m->getKey())->values()->all());
+    }
+
+    /**
+     * TCK-2982 — la trace des liens d'action des cartes et événements de la page, en une requête ; `null` hors du
+     * personnel actif de l'agence du fil (le super-admin n'est pas du personnel : il ne la reçoit pas).
+     *
+     * @param  Collection<int, Message>  $messages
+     * @return array<int, array<string, string|null>>|null
+     */
+    private static function liensDeLaPage(Collection $messages, Request $request): ?array
+    {
+        $porteurs = $messages->filter(fn (Message $m) => in_array($m->type, [MessageType::Event, MessageType::Card], true));
+        $lecteur = $request->user();
+        if ($porteurs->isEmpty() || $lecteur === null || $lecteur->isSuperAdmin()) {
+            return null;
+        }
+        $fil = (new Conversation)->setRawAttributes(['id' => (int) $porteurs->first()->conversation_id], true);
+        if (! EquipeDuFil::litLesNotes($lecteur, $fil)) {
+            return null;
+        }
+
+        $liens = [];
+        ActionLink::query()
+            ->leftJoin('message_relays', 'message_relays.id', '=', 'action_links.message_relay_id')
+            ->whereIn('action_links.message_id', $porteurs->map(fn (Message $m) => (int) $m->getKey())->values()->all())
+            ->orderBy('action_links.id')
+            ->get(['action_links.message_id', 'action_links.opened_at', 'action_links.used_at', 'action_links.expires_at', 'message_relays.sent_at as relais_envoye_le'])
+            ->each(function (ActionLink $lien) use (&$liens): void {
+                $liens[(int) $lien->message_id] = [
+                    'sent_at' => self::instantOnWire($lien->getAttribute('relais_envoye_le') === null ? null : Carbon::parse($lien->getAttribute('relais_envoye_le'))),
+                    'opened_at' => self::instantOnWire($lien->opened_at),
+                    'used_at' => self::instantOnWire($lien->used_at),
+                    'expires_at' => self::instantOnWire($lien->expires_at),
+                ];
+            });
+
+        return $liens;
+    }
+    // /TCK-2982
+
+    /**
+     * TCK-2981 — les relais sortants des messages texte de la page, en une requête, pour le seul personnel actif de
+     * l'agence du fil (le super-admin n'est pas du personnel). Le dernier relais par (message, destinataire).
+     *
+     * @param  Collection<int, Message>  $messages
+     * @return array<int, list<array<string, mixed>>>|null
+     */
+    private static function relaisDeLaPage(Collection $messages, Request $request): ?array
+    {
+        $textes = $messages->filter(fn (Message $m) => $m->type === MessageType::Text);
+        $lecteur = $request->user();
+        if ($textes->isEmpty() || $lecteur === null || $lecteur->isSuperAdmin()) {
+            return null;
+        }
+        $fil = (new Conversation)->setRawAttributes(['id' => (int) $textes->first()->conversation_id], true);
+        if (! EquipeDuFil::litLesNotes($lecteur, $fil)) {
+            return null;
+        }
+
+        $parMessage = [];
+        MessageRelay::query()
+            ->where('direction', MessageRelay::DIRECTION_OUT)
+            ->where('purpose', MessageRelay::PURPOSE_MESSAGE)
+            ->where('status', '!=', MessageRelay::STATUS_REPRIS)
+            ->whereIn('message_id', $textes->map(fn (Message $m) => (int) $m->getKey())->values()->all())
+            ->orderBy('id')
+            ->get(['message_id', 'user_id', 'channel', 'form', 'status', 'sent_at', 'delivered_at', 'read_at', 'failed_at', 'created_at'])
+            ->each(function (MessageRelay $r) use (&$parMessage): void {
+                $parMessage[(int) $r->message_id][(int) $r->user_id] = [
+                    'user_id' => (int) $r->user_id,
+                    'channel' => $r->channel,
+                    'form' => $r->form,
+                    'status' => $r->status,
+                    'at' => self::instantOnWire($r->read_at ?? $r->delivered_at ?? $r->failed_at ?? $r->sent_at ?? $r->created_at),
+                ];
+            });
+
+        return array_map(fn (array $parDestinataire): array => array_values($parDestinataire), $parMessage);
     }
 
     /**

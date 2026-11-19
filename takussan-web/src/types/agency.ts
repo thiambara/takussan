@@ -119,6 +119,12 @@ export interface Agency {
    */
   watermark_available?: boolean;
   /**
+   * TCK-2979 (ADR-0131 § 8) — ce que la plateforme laisse aux deux interrupteurs de l'assistant, rendu à qui peut
+   * mettre l'agence à jour : `copilot` (au moins une fonction servie), `transcription` (pas coupée),
+   * `transcription_configured` (un fournisseur qui transcrit est affecté). Absent : rien n'est grisé.
+   */
+  ai_platform?: { copilot: boolean; transcription: boolean; transcription_configured: boolean };
+  /**
    * TCK-2518 / TCK-2524 — la vitrine de la fiche publique : accroche (≤ 120), « Pourquoi nous »
    * (trois chaînes ≤ 80, `[]` sans), sélection (six biens de l'agence au plus, dans l'ordre choisi).
    */

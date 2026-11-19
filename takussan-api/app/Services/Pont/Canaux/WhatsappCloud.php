@@ -5,6 +5,7 @@ namespace App\Services\Pont\Canaux;
 use App\Jobs\UpdateWhatsappDeliveryStatusJob;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\Integration;
+use App\Models\MessageRelay;
 use App\Models\WhatsappContact;
 use App\Services\Notifications\Sms\IntegrationLocator;
 use App\Services\Notifications\Sms\PhoneNumber;
@@ -17,10 +18,12 @@ use App\Services\Pont\AccuseEntrant;
 use App\Services\Pont\CanalDuPont;
 use App\Services\Pont\CapacitesDuCanal;
 use App\Services\Pont\EtatDAccord;
+use App\Services\Pont\EtatDuNumero;
 use App\Services\Pont\LectureDuWebhook;
 use App\Services\Pont\MessageEntrant;
 use App\Services\Pont\ResultatDEnvoi;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
@@ -89,6 +92,25 @@ final class WhatsappCloud implements CanalDuPont
     public function fenetreOuverte(string $destinataire, ?int $agence = null): bool
     {
         return $this->fenetre->isOpenFor($destinataire, $this->numeroDEntreprise($agence));
+    }
+
+    public function etatDuNumero(string $telephone, ?int $agence = null): EtatDuNumero
+    {
+        $contact = WhatsappContact::query()->where('phone', $telephone)->first(['opt_in_status', 'opt_in_at', 'opted_out_at']);
+        $heures = (int) config('whatsapp.service_window_hours', 24);
+        $numero = $this->numeroDEntreprise($agence);
+        $dernier = $numero === null ? null : MessageRelay::query()
+            ->where('channel', self::NOM)->where('direction', MessageRelay::DIRECTION_IN)
+            ->where('phone', $telephone)->where('business_number_id', $numero)
+            ->max('created_at');
+        $fin = $dernier === null ? null : Carbon::parse($dernier)->addHours($heures);
+
+        return new EtatDuNumero(
+            accord: EtatDAccord::tryFrom((string) $contact?->opt_in_status) ?? EtatDAccord::Inconnu,
+            accordLe: $contact?->opt_in_at,
+            oppositionLe: $contact?->opted_out_at,
+            fenetreJusquA: $fin !== null && $fin->isFuture() ? $fin : null,
+        );
     }
 
     /** Le `phone_number_id` de l'intégration qu'un envoi pour cette agence consommera (celle de la plateforme à défaut). */

@@ -95,7 +95,7 @@ return [
         'provider_host_not_allowed' => 'The address of this provider is not on an accepted host.',
         'provider_key_missing' => 'No key is configured for this provider.',
         'provider_redirected' => 'This provider answered with a redirect: the request was not sent again.',
-        'provider_role_mismatch' => 'This provider does not serve this role: embeddings and text do not mix.',
+        'provider_role_mismatch' => 'This provider does not serve this role: embeddings, transcription and text do not mix, and only a provider that transcribes serves transcription.',
         'provider_unreachable' => 'Nothing is sent to this provider: training opt-out not declared, or address not accepted.',
         'provider_unknown' => 'Unknown AI provider.',
         'role_unknown' => 'Unknown AI role.',
@@ -1081,5 +1081,18 @@ return [
         'already_joined' => 'This person is already reached in this conversation.',
         'customer_not_in_room' => "This record does not belong to this conversation's lease.",
         'numero_deja_a_un_compte' => 'This number already belongs to another account.',
+    ],
+    // TCK-2982 (ADR-0132 § 5) — le lien d'action signé.
+    'action_link' => [
+        'expired' => 'This link has expired.',
+        'used' => 'This link has already been used.',
+        'revoked' => 'This link is no longer valid.',
+        'code_required' => 'Enter the code you received by SMS.',
+        'code_invalid' => 'This code is not correct.',
+        'code_locked' => 'Too many attempts: try again later.',
+        'resend_too_soon' => 'Please wait before requesting a new code.',
+        'no_phone' => 'No number can receive the code.',
+        'sms_not_sent' => 'The code could not be sent. Please try again.',
+        'nothing_to_sign' => 'There is nothing left for you to sign.',
     ],
 ];

@@ -2,14 +2,14 @@
 
 namespace App\Http\Requests\Conversation;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\BaseFormRequest;
 
 /**
  * TCK-2975 (ADR-0131 § 3) — `PUT /api/copilote/suggestions/{suggestion}/decision`. `final` (pour `edited`) : le
  * texte envoyé (brouillon) ou les champs de l'engagement créé (promesse). Le droit se juge dans le contrôleur, en
  * 404 : la décision d'un autre ne dit pas que la suggestion existe.
  */
-class DeciderUneSuggestionRequest extends FormRequest
+class DeciderUneSuggestionRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

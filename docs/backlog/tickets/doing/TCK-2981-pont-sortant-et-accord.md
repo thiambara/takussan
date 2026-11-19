@@ -176,4 +176,30 @@ destinataire, dans l'ordre.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Livraison partielle (2026-11-19, budget de 30 min)** — l'accord et le relais, avec leur non-fuite ; le locataire
+sans compte et la lecture (`relays`, `pont`) restent.
+
+Livré :
+- **Contrat d'envoi** (`CanalDuPont`) : `envoyerTexte()`, `envoyerGabarit(destinataire, evenement, langue, variables,
+  contexte)`, `fenetreOuverte()`, au résultat neutre `ResultatDEnvoi` (`envoye` / `echec` / `indisponible`, `ambigu`,
+  `peutSeReplier()`). Pilotes : `WhatsappCloud` (par le pilote lié, gabarit par `TemplateResolver`, bouton de réponse en
+  `interactive` dans la fenêtre et en `quick_reply` dans le gabarit) et **`Sms`** (sortant, sans « reçoit », inscrit à
+  `config/messagerie.php`). Un SMS reporté par les heures calmes compte pour envoyé (le routeur le programme).
+- **`RelaisSortant`** : l'ordre de `config('messagerie.repli')`, les capacités de chaque pilote (texte dans sa fenêtre,
+  gabarit s'il en a), repli seulement sur un échec SÛR ; **une opposition sur un canal du repli arrête tout, SMS
+  compris**. Aucun canal nommé (`PontSansCanalEnDurTest` reste vert : le cœur ne normalise plus par le module SMS).
+- **`JointsParLePont`** (invitation acceptée dans le fil, ou dernier message venu du pont ; cesse s'il écrit depuis
+  l'application ; invitation envoyée = en attente), **`InvitationsDuPont`** + `POST …/pont/invitations` `{user_id}`
+  (personnel actif ET participant, pas d'impersonation, limiteur `pont-invitation` par auteur, codes `pont.*`),
+  **`AccordDuPont`** branché dans `PontEntrant` (charge `pont-invitation:<id>`, numéro et canal de l'invitation ; STOP
+  n'est pas levé par une vieille invitation ; avis `pont.accord` en `team` ; attente vidée dans l'ordre).
+- **`RelayerMessageAuPont`** : garde AU DÉPART (texte, `visibility = all`, auteur personnel actif) ; en attente →
+  `en_attente_accord` ; un seul relais par (message, destinataire) ; `NotifyNewMessageJob` le met en file et passe
+  `mobileBorne: false` aux joints (application et courriel inchangés).
+- Avis déclarés : `pont.accord`, `pont.numero_deja_a_un_compte`. Textes API : `lang/{fr,en,wo}/pont.php`.
+- `message_relays.channel` devient nullable (relais qui n'a pu partir : `non_envoye`), dans la migration de TCK-2980.
+
+Reste (non livré) : la fiche sans compte (`customer_id`, création du compte à l'accord, refus
+`pont.numero_deja_a_un_compte` côté accord) ; `MessageResource.relays` et le bloc `pont` du contexte ;
+`UpdateWhatsappDeliveryStatusJob` sur les relais et le repli SMS tardif ; les seeders `pont_invitation` /
+`pont_nouveau_message` ; un joint en sourdine n'est pas relayé (la sourdine filtre les destinataires en amont).

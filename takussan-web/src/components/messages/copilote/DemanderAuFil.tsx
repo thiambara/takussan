@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { useAuth } from '@/context/AuthContext';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { LONGUEUR_MAX_DE_LA_QUESTION, useDeciderLaSuggestion, useEtatDuCopilote, usePoserUneQuestion } from '@/lib/queries/copilote';
 import { AvisSurLaProposition, CadreDeLAssistant, MarqueDeLAssistant, PourVousSeulement } from './GrammaireDeLAssistant';
 import { EtatDeLAssistant, raisonDuSilence } from './EtatDeLAssistant';
@@ -36,6 +37,8 @@ export function DemanderAuFil({ conversationId, ouvert, onOuvertChange, onVersLe
   const decider = useDeciderLaSuggestion(conversationId, userId);
   const [question, setQuestion] = useState('');
   const [avisDonnePour, setAvisDonnePour] = useState<number | null>(null);
+  // P228.06 (ADR-0019) — un avis refusé se dit, et se redonne.
+  const messageErreur = useMessageErreurApi();
 
   const sorte = etat?.question ?? null;
   const reponse = sorte?.etat === 'prete' ? sorte.proposition : null;
@@ -102,9 +105,14 @@ export function DemanderAuFil({ conversationId, ouvert, onOuvertChange, onVersLe
                       enCours={decider.isPending}
                       onAvis={(decision) => {
                         setAvisDonnePour(sorte.suggestionId);
-                        decider.mutate({ suggestionId: sorte.suggestionId!, decision });
+                        decider.mutate({ suggestionId: sorte.suggestionId!, decision }, { onError: () => setAvisDonnePour(null) });
                       }}
                     />
+                  ) : null}
+                  {decider.isError ? (
+                    <p role="alert" className="w-full text-xs text-destructive">
+                      {messageErreur(decider.error)}
+                    </p>
                   ) : null}
                 </>
               }
@@ -135,7 +143,7 @@ export function DemanderAuFil({ conversationId, ouvert, onOuvertChange, onVersLe
                               <ArrowUpRight className="size-3.5 flex-none" aria-hidden="true" />
                             </button>
                           ) : (
-                            <span className="flex items-center gap-2 text-ui font-medium text-foreground/85">
+                            <span className="flex items-center gap-2 text-ui font-medium text-foreground">
                               <Icone className="size-4 flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
                               <span className="min-w-0 flex-1 truncate">{libelle}</span>
                             </span>

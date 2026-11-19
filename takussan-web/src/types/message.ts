@@ -143,7 +143,8 @@ export type Message = {
    * TCK-2977 (ADR-0131 § 7, TCK-2976) — la transcription d'une note `audio`, rendue au SEUL personnel servi par
    * le copilote ; clé absente pour tout autre lecteur.
    */
-  transcription?: TranscriptionDeLaNote;  // TCK-2984 (ADR-0132 § 0, § 4, § 5) — le pont : clés ABSENTES pour qui n'est pas personnel de l'agence du fil
+  transcription?: TranscriptionDeLaNote;
+  // TCK-2984 (ADR-0132 § 0, § 4, § 5) — le pont : clés ABSENTES pour qui n'est pas personnel de l'agence du fil
   // (`channel` : aussi l'auteur). Le front ne les déduit d'aucun autre champ.
   channel?: string;
   relays?: ReadonlyArray<RelaisDuMessage>;
@@ -169,13 +170,18 @@ export type TraceDuLienDAction = {
   expires_at?: string | null;
 };
 
-/** TCK-2984 — l'état du pont d'un participant, dans `context.participants[]` (TCK-2981), personnel seul. */
+/**
+ * TCK-2984 — l'état du pont d'un participant : une ligne de `context.pont` (TCK-2981), indexée par `user_id`, pour
+ * chaque participant actif sauf le lecteur. Personnel seul ; aucun numéro.
+ */
 export type PontDuParticipant = {
   joint: boolean;
-  /** Canal joint (chaîne libre du pilote) ; absent : le front ne le devine pas. */
-  channel?: string | null;
+  invitation_en_attente?: boolean;
+  /** Le dernier canal de relais dans ce fil (chaîne libre du pilote) ; nul : aucun relais encore. */
+  canal?: string | null;
   accord_at?: string | null;
   opposition_at?: string | null;
+  /** Fin de la fenêtre de texte libre ; nul : fermée. */
   fenetre_jusqu_a?: string | null;
   invitable: boolean;
 };
@@ -476,6 +482,8 @@ export type ConversationContext = {
    * 90 jours. Clé ABSENTE pour qui n'est pas du personnel actif de l'agence : le front ne la déduit jamais.
    */
   commitments_records?: Readonly<Record<string, { readonly kept: number; readonly late: number }>>;
+  /** TCK-2984 (TCK-2981) — l'état du pont de chaque participant actif sauf le lecteur, par `user_id` ; personnel seul. */
+  pont?: Readonly<Record<string, PontDuParticipant>>;
 };
 
 export type CodeDeRelationAuFil = 'prestataire' | 'locataire' | 'proprietaire' | 'agent';
@@ -488,6 +496,5 @@ export type RelationAuFil = {
    * TCK-2967 / TCK-2968 — ce participant lit-il les notes d'équipe de ce fil ? Faux partout pour un appelant
    * qui ne les lit pas lui-même ; une ligne absente vaut faux.
    */
-  reads_team_notes?: boolean;  /** TCK-2984 — l'état du pont de ce participant ; clé absente pour qui n'est pas personnel. */
-  pont?: PontDuParticipant;
+  reads_team_notes?: boolean;
 };

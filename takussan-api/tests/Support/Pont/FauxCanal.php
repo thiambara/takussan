@@ -6,6 +6,7 @@ use App\Services\Pont\AccuseEntrant;
 use App\Services\Pont\CanalDuPont;
 use App\Services\Pont\CapacitesDuCanal;
 use App\Services\Pont\EtatDAccord;
+use App\Services\Pont\EtatDuNumero;
 use App\Services\Pont\LectureDuWebhook;
 use App\Services\Pont\MessageEntrant;
 use App\Services\Pont\ResultatDEnvoi;
@@ -86,6 +87,18 @@ final class FauxCanal implements CanalDuPont
     public function fenetreOuverte(string $destinataire, ?int $agence = null): bool
     {
         return self::$fenetre;
+    }
+
+    public function etatDuNumero(string $telephone, ?int $agence = null): EtatDuNumero
+    {
+        $accord = self::$accords[$telephone] ?? EtatDAccord::Inconnu;
+
+        return new EtatDuNumero(
+            accord: $accord,
+            accordLe: $accord === EtatDAccord::Accorde ? now() : null,
+            oppositionLe: $accord === EtatDAccord::Oppose ? now() : null,
+            fenetreJusquA: self::$fenetre ? now()->addHours(24) : null,
+        );
     }
 
     /** @param  list<string>  $variables  @param  array<string, mixed>  $contexte */

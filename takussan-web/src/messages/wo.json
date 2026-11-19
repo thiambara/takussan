@@ -3507,13 +3507,13 @@
       "relais": {
         "messageType": "en message type",
         "etat": {
-          "queued": "en attente",
-          "sent": "envoyé",
-          "delivered": "remis",
-          "read": "lu",
-          "failed": "échec",
-          "sms_fallback": "renvoyé par SMS",
-          "autre": "en cours"
+          "autre": "en cours",
+          "en_attente_accord": "en attente d'accord",
+          "envoye": "envoyé",
+          "remis": "remis",
+          "lu": "lu",
+          "echec": "échec",
+          "non_envoye": "non envoyé"
         },
         "destinataire": "{nom} {canal}"
       },
@@ -10434,6 +10434,10 @@
         "transcription": {
           "label": "Transcription des notes vocales",
           "hint": "Transcrit en texte les notes vocales reçues, pour votre équipe seulement."
+        },
+        "raison": {
+          "plateforme": "Coupé par la plateforme pour toutes les agences : vous ne pouvez pas le rallumer.",
+          "nonConfiguree": "Aucun service de transcription n'est encore configuré sur la plateforme."
         }
       }
     },
@@ -14588,7 +14592,16 @@
           "budgetNoDefaultHint": "Aucun plafond par défaut — laisser vide pour ne pas en fixer.",
           "providersLoadError": "Les modèles disponibles n’ont pas pu être chargés : {message}",
           "budgetEquivalent": "≈ {xof}",
-          "budgetInvalid": "Saisissez un montant en dollars, en chiffres : 0,50 par exemple."
+          "budgetInvalid": "Saisissez un montant en dollars, en chiffres : 0,50 par exemple.",
+          "copilote": {
+            "fil": {
+              "resume": "Copilote · résumé",
+              "question": "Copilote · Demander au fil",
+              "brouillon": "Copilote · brouillon",
+              "promesses": "Copilote · promesses",
+              "transcription": "Copilote · transcription"
+            }
+          }
         },
         "providers": {
           "caption": "Fournisseurs autorisés",
@@ -16380,7 +16393,8 @@
         "boost": "Kredi ak yokk gis-gis",
         "rentals": "Luwaas",
         "radar": "Radar",
-        "crm": "Relation client"
+        "crm": "Relation client",
+        "ai": "Intelligence artificielle"
       },
       "keys": {
         "currency": {
@@ -16518,6 +16532,12 @@
           "sell_directory_wide": {
             "label": "Vendre la place de l’annuaire sans ville",
             "description": "La place de l’annuaire sans filtre de ville, la plus vue. Fermée, elle reste offerte par l’équipe."
+          }
+        },
+        "ai": {
+          "daily_budget_per_agency_usd": {
+            "label": "Plafond IA du jour par agence (dollars)",
+            "description": "Dépense IA maximale de chaque agence par jour, tous usages confondus, en dollars US. Vide : aucun plafond par agence."
           }
         }
       },
@@ -17626,7 +17646,8 @@
         "invoice_reminder_sent": "Relance de facture",
         "tenant_inventory_reminder": "Rappel d’état des lieux d’entrée",
         "task_due_reminder": "Rappel de tâche",
-        "document_expiring": "Expiration de mes pièces"
+        "document_expiring": "Expiration de mes pièces",
+        "owner_weekly_digest": "Résumé du lundi de mes biens"
       },
       "channels": {
         "inapp": "Ci appli bi",
@@ -21841,6 +21862,83 @@
       "uneFoisParSemaine": "Plutôt une fois par semaine",
       "hebdoFaitTitre": "Une fois par semaine, c’est noté",
       "hebdoFaitTexte": "Vous recevrez au plus un message par semaine. Chacun garde son lien de désinscription."
+    },
+    "action": {
+      "metaTitre": "Une action vous attend",
+      "mention": "Lien personnel",
+      "pied": "Ce lien ne sert qu’une fois et ne vaut que 7 jours. Pour tout le reste, répondez à l’agence dans votre conversation WhatsApp.",
+      "refus": "Le geste n’a pas pu être fait. Votre lien reste valable : réessayez, ou répondez à l’agence sur WhatsApp.",
+      "erreur": "Ce lien n’a pas pu être ouvert. Vérifiez votre connexion, puis réessayez.",
+      "recap": {
+        "motif": "Motif",
+        "quartier": "Lieu",
+        "adresse": "Adresse",
+        "surPlace": "Sur place",
+        "bien": "Bien",
+        "contact": "Contact"
+      },
+      "gestes": {
+        "visite": {
+          "surtitre": "Visite",
+          "titre": "Confirmez-vous cette visite ?",
+          "bouton": "Confirmer la visite",
+          "fait": "La visite est confirmée : l’agence est prévenue."
+        },
+        "intervention": {
+          "surtitre": "Intervention",
+          "titre": "Acceptez-vous cette intervention ?",
+          "bouton": "Accepter l’intervention",
+          "fait": "L’intervention est acceptée : l’agence est prévenue.",
+          "adresseApres": "L’adresse exacte et la personne à demander sur place s’affichent une fois l’intervention acceptée."
+        },
+        "etatDesLieux": {
+          "surtitre": "État des lieux",
+          "titre": "Signez l’état des lieux",
+          "bouton": "Signer l’état des lieux",
+          "fait": "L’état des lieux est signé : l’agence est prévenue."
+        }
+      },
+      "signature": {
+        "codeTitre": "Code de signature",
+        "codeAide": "Une signature se confirme par un code à 6 chiffres, envoyé au numéro qui a reçu ce lien.",
+        "recevoirLeCode": "Recevoir mon code",
+        "codeEnvoye": "Code envoyé au numéro qui a reçu ce lien.",
+        "codeAria": "Code à 6 chiffres",
+        "codeNonEnvoye": "Le code n’a pas pu être envoyé. Réessayez dans un instant.",
+        "traceTitre": "Votre signature",
+        "traceAide": "Signez du doigt dans le cadre, puis validez.",
+        "signer": "Signer l’état des lieux",
+        "effacer": "Effacer"
+      },
+      "fait": {
+        "titre": "C’est fait",
+        "compteTitre": "Tout au même endroit",
+        "compteTexte": "Un compte Takussan garde vos rendez-vous et vos échanges avec les agences. Créez votre mot de passe en une minute.",
+        "compteBouton": "Créer mon mot de passe",
+        "pied": "Ce lien a servi : il ne permet plus aucun geste. Pour tout le reste, répondez à l’agence dans votre conversation WhatsApp."
+      },
+      "mort": {
+        "expired": {
+          "titre": "Ce lien a expiré",
+          "texte": "Demandez un nouveau lien en répondant à l’agence sur WhatsApp."
+        },
+        "used": {
+          "titre": "Ce lien a déjà servi",
+          "texte": "Si ce n’était pas vous, prévenez l’agence."
+        },
+        "revoked": {
+          "titre": "Ce lien n’est plus valable",
+          "texte": "Un lien plus récent l’a remplacé : utilisez le dernier reçu, ou répondez à l’agence sur WhatsApp."
+        },
+        "notFound": {
+          "titre": "Ce lien est introuvable",
+          "texte": "Vérifiez qu’il est complet, ou répondez à l’agence sur WhatsApp."
+        }
+      },
+      "tropDeTentatives": {
+        "titre": "Trop de tentatives",
+        "texte": "Patientez quelques minutes, puis réessayez."
+      }
     }
   },
   "saisieDemande": {

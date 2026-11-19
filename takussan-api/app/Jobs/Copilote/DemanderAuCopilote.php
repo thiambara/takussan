@@ -16,6 +16,7 @@ use App\Services\Messaging\Copilote\AppuisDuFil;
 use App\Services\Messaging\Copilote\EtatDuCopilote;
 use App\Services\Messaging\Copilote\GardeDuCopilote;
 use App\Services\Messaging\Copilote\LectureDuFilPourIa;
+use App\Services\Messaging\Copilote\PromessesDuFil;
 use App\Services\Messaging\Copilote\SortesDuCopilote;
 use App\Services\Messaging\EquipeDuFil;
 use App\Support\TempsReel\CodeDeSignal;
@@ -105,6 +106,14 @@ final class DemanderAuCopilote implements ShouldQueue
                     return;
                 }
 
+                if ($this->sorte === SortesDuCopilote::PROMESSES) {
+                    // Une suggestion PAR promesse, pour qu'elle se décide seule.
+                    foreach (app(PromessesDuFil::class)->garder($resultat->structured['promesses'] ?? [], $entree['ids'], $fil, $lecteur) as $promesse) {
+                        $suggestions->record($resultat, $fil, proposal: $promesse);
+                    }
+
+                    return;
+                }
                 $suggestions->record($resultat, $fil, proposal: $this->proposition($resultat->structured ?? [], $entree));
             });
         } finally {
@@ -125,14 +134,20 @@ final class DemanderAuCopilote implements ShouldQueue
             SortesDuCopilote::RESUME => $lecture->lire($lecteur, $fil, $requete, $this->fenetre['depuis_message_id'], $this->fenetre['jusqu_a_message_id'], avecNotes: true),
             SortesDuCopilote::QUESTION => $lecture->lire($lecteur, $fil, $requete, 1, PHP_INT_MAX, avecNotes: true, max: 300, contexte: 0),
             SortesDuCopilote::BROUILLON => $lecture->lire($lecteur, $fil, $requete, 1, PHP_INT_MAX, avecNotes: false, max: 50, contexte: 0),
+            SortesDuCopilote::PROMESSES => $lecture->lire($lecteur, $fil, $requete, (int) $this->fenetre['depuis_message_id'], PHP_INT_MAX, avecNotes: false, max: 200, contexte: 10, horsSourcesDEngagement: true),
         };
+        $engagements = $this->sorte === SortesDuCopilote::BROUILLON ? $lecture->engagementsEnCours($lecteur, $fil) : null;
         $prompt = match ($this->sorte) {
             SortesDuCopilote::QUESTION => ExternalContent::wrap('question', (string) ($this->demande['question'] ?? ''))."\n\n".$lu['texte'],
-            SortesDuCopilote::BROUILLON => 'ton : '.(($this->demande['ton'] ?? 'normal') === 'court' ? 'court' : 'normal')."\n\n".$lu['texte'],
+            SortesDuCopilote::BROUILLON => 'ton : '.(($this->demande['ton'] ?? 'normal') === 'court' ? 'court' : 'normal')."\n\n".$lu['texte']."\n\n".$engagements['texte'],
+            SortesDuCopilote::PROMESSES => ExternalContent::wrap('participants', json_encode(
+                $fil->participants()->wherePivotNull('left_at')->get()->map(fn (User $u) => ['id' => (int) $u->id, 'nom' => $u->nameWithoutContact()])->values()->all(),
+                JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
+            ))."\n\n".$lu['texte'],
             default => $lu['texte'],
         };
 
-        return ['prompt' => $prompt, 'ids' => $lu['ids'], 'objets' => $lu['objets']];
+        return ['prompt' => $prompt, 'ids' => $lu['ids'], 'objets' => array_merge($lu['objets'], $engagements['objets'] ?? [])];
     }
 
     /**

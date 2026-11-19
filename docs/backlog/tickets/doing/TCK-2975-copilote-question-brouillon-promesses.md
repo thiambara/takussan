@@ -139,7 +139,7 @@ tags: [back, messagerie, le-fil, copilote, ia, engagements, adr-0131, adr-0076]
 
 ## Notes d'implémentation
 
-**2026-11-19 — partiel (temps imparti de 30 min) : brouillon, décision, question livrés ; promesses NON faites.**
+**2026-11-19 — fait en deux passes : brouillon, décision, question (1re), puis promesses et engagements du brouillon (2de).**
 
 - `fil.brouillon` et `fil.question` (`FilBrouillonUsage`, `FilQuestionUsage`, agents `FilBrouillon` / `FilQuestion`,
   prompts v1 + `versions.lock.json`, `AiUsageRegistry`), sortes `brouillon` et `question` de `SortesDuCopilote`.
@@ -166,6 +166,20 @@ tags: [back, messagerie, le-fil, copilote, ia, engagements, adr-0131, adr-0076]
   check-front-routes : la route de décision attendue par le front existe, seul écart restant
   `pont/invitations` (TCK-2984). `AiUsageRegistryTest` et `AiJobsQueueTest` rougissent sur
   `FilTranscriptionUsage` / `TranscrireLaNoteVocale` (TCK-2976), pas sur ce ticket.
-- **Reste** : `fil.promesses` en entier (usage `extraction`, une suggestion par promesse, exclusion des messages
-  déjà source d'un engagement, promesse masquée une fois notée par un collègue, 200 sans appel sans nouveau
-  message) ; l'entrée du brouillon n'inclut pas encore les engagements ouverts ou en retard du fil (lot 3).
+- **Promesses** (`fil.promesses`, rôle `extraction`, `FilPromessesUsage`, agent `FilPromesses`, prompt v1) :
+  `App\Services\Messaging\Copilote\PromessesDuFil`.
+  - `premierNouveau()` : premier message `all` lisible, non source d'un engagement, écrit depuis la dernière
+    extraction réussie du lecteur (`ai_calls.created_at`, `>=` car à la seconde ; le doublon est écarté par
+    `garder()`, qui refuse un message dont le lecteur a déjà une promesse proposée). Nul → `200` et l'état, sans appel.
+  - Entrée : `lire(avecNotes: false, contexte: 10, horsSourcesDEngagement: true)` + un bloc `participants` délimité.
+  - `garder()` : message hors de l'entrée ou porteur non participant actif écartés ; échéance passée/illisible → null.
+    Une suggestion par promesse.
+  - État : `sortes.promesses = {statut: aucun|prete|…, promesses: [{suggestion_id, proposition: {message_id,
+    porteur_id, libelle, echeance}}]}` (forme lue par `takussan-web/src/lib/queries/copilote.ts`), sans les
+    promesses dont le message est devenu source d'un engagement.
+- **Brouillon** : `LectureDuFilPourIa::engagementsEnCours()` — engagements `proposed`/`open` du fil vus par
+  `CommitmentPolicy::view`, `en_retard` signalé, bloc `engagements` délimité ; appui `objet` `commitment` admis.
+- Tests : `CopilotePromessesTest` (4). Ablations rouges puis restaurées (md5) : promesses lues avec notes ;
+  contrôle du porteur retiré ; `horsSourcesDEngagement` faux ; masquage des promesses notées retiré ;
+  « rien de neuf » neutralisé. Run de confirmation : 73 verts sur 74 ; le seul rouge,
+  `NamespaceAccessGuardTest` sur `pont/invitations`, est de TCK-2984. Gardes node vertes (check-front-routes compris).

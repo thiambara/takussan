@@ -237,6 +237,9 @@ class DateInventoryByValueTest extends TestCase
             .'(`EvenementsDuFil::actionAttenduePar(): bool`), jamais une date ; `NonLusDesEvenementsTest` le relit.',
         // TCK-2958 — sur une carte ou un événement : l'objet relu par `ObjetsDesMessages`.
         // TCK-2980 (ADR-0132 § 4) — rendu au seul personnel de l'agence du fil et à l'auteur, lecteur authentifié.
+        // TCK-2982
+        'App\Http\Resources\MessageResource::action_link' => '`when()` sur une page de messages lue par le personnel actif du fil, '
+            .'pour un porteur de lien d\'action (TCK-2982) : ses instants passent par `instantOnWire`.',
         'App\Http\Resources\MessageResource::channel' => '`when()` sur le lecteur de la requête (TCK-2980) : le canal du message, '
             .'une chaîne courte (`app`, `whatsapp`), jamais une date.',
         'App\Http\Resources\MessageResource::object' => '`when()` sur un message `card`/`event` (TCK-2958) : la projection '

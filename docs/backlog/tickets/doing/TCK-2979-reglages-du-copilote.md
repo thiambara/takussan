@@ -246,40 +246,101 @@ final class ReglagesDuCopilote
 
 ## Notes d'implémentation
 
-**Partiel** au 2026-11-19 (agent impl-2977, 20 minutes imparties) : l'interrupteur de l'agence côté API est livré, testé et
-vérifié par ablation, et son écran dans la fiche de l'agence. La console IA et le plafond par agence ne sont pas faits.
+Au 2026-11-19 (agent impl-2977), **tout le delta est livré**, sauf le relevé au navigateur (AC5).
 
-**Livré** :
-- `AgencySettings` : `copilot_enabled` et `voice_transcription_enabled`, booléens, `true` par défaut (bloc TCK-2979),
-  écrits par `PATCH /api/agencies/{id}` comme `watermark_enabled`.
-- `ReglagesDuCopilote` (fichier de TCK-2974, blocs TCK-2979) : `etat()` rend `agence` quand le réglage de l'agence du
-  fil est faux, APRÈS `plateforme` et `non_configuree` (l'agence ne peut qu'éteindre) ; `agencesQuiCoupent($ids,
-  $fonction = 'resume')` en une requête ; `reglageDAgence($fonction)` : `voice_transcription_enabled` pour la
-  transcription, `copilot_enabled` pour le reste.
-- `tests/Feature/Messaging/Copilote/ReglagesDAgenceDuCopiloteTest.php` (6 tests verts) : défauts vrais ; coupure
-  par agence sans toucher une autre agence ; la transcription a son réglage propre ; la plateforme prime ; route
-  `409 copilote.coupe` sans ligne `ai_calls` et `copilote.fonctions.resume = {active: false, raison: agence}` ;
-  écriture par l'administrateur. Ablations (une à une, restaurées par md5) : la ligne `agence` d'`etat()` retirée →
-  rouge ; le filtre d'`agencesQuiCoupent()` retiré → rouge.
+**Le résolveur et la console (API)** :
+- `ReglagesDuCopilote` (fichier de TCK-2974, blocs TCK-2979) est branché sur la console. `etat()` rend `plateforme`
+  dans trois cas : `ai.copilote.actif` faux, `fonctions.<f>` faux, ou `ai_usage_settings.enabled` faux pour l'usage
+  `fil.*`. Puis viennent `non_configuree` et `agence`.
+  - Les lignes de la console se lisent en UNE requête pour toutes les fonctions (`fonctions()`, testé).
+  - La transcription est « configurée » si un maillon (modèle forcé de l'usage, sinon chaîne du rôle) vient d'un
+    fournisseur sélectionnable qui transcrit.
+  - `modele()` suit désormais le modèle forcé, comme `AiGateway::transcribe()`.
+  - La signature et les raisons n'ont pas changé.
+- `AiProviderCatalogue::transcribes()` lit le type que rend `AiManager::create<Pilote>Driver`, sans instancier le
+  fournisseur. Seuls `openai` et `openrouter` transcrivent.
+- `AiProviderCatalogue::servesRole()` est le seul juge de `ai.provider_role_mismatch`, appelé par
+  `AiRoleController::update` et `AiUsageController::update` :
+  - le prédicat des embeddings reste inchangé ;
+  - le rôle `transcription` (ou un usage de transcription) exige un fournisseur qui transcrit ;
+  - un fournisseur `serves: transcription` ne joue aucun autre rôle.
+- Le message de `errors.ai.provider_role_mismatch` couvre aussi la transcription (fr, en, wo).
+- `AgencyResource.ai_platform` vaut `{copilot, transcription, transcription_configured}`. Il est rendu par
+  étalement, seulement si `can('update')` est vrai, et lu une fois par requête (attribut de la requête). Il se dérive
+  de `etat(…, null)` :
+  - `copilot` est vrai si au moins une des fonctions que couvre `copilot_enabled` est servie par la plateforme ;
+  - l'écran grise l'interrupteur seulement quand aucune ne l'est.
 
-- Écran (blocs TCK-2979) : groupe « Assistant de la messagerie » de `SectionRegles.tsx`, deux interrupteurs
-  (`copilot_enabled`, `voice_transcription_enabled`) pour toute agence, individuelle comprise ; `schemas/agency.ts` lit
-  une clé absente comme `true` (défaut de l'API) et n'écrit le réglage que modifié, `false` compris ;
-  `agence/fiche.ts` les range sous `regles` ; libellés de la barre des modifications dans `FicheDeLAgence.tsx` ;
-  `types/agency.ts`. Test : `admin-schemas.test.ts` (TCK-2979). Clés i18n `admin.agencyConfig.assistant.*` et
-  `fiche.regles.groupeAssistant`.
+**L'interrupteur de l'agence (livré plus tôt)** :
+- `AgencySettings` porte `copilot_enabled` et `voice_transcription_enabled`, `true` par défaut.
+- `etat()` rend `agence` APRÈS la plateforme.
+- `agencesQuiCoupent()` lit les agences en une requête.
+
+**Le plafond par agence** :
+- La clé `ai.daily_budget_per_agency_usd` entre au catalogue, dans la catégorie neuve `ai` :
+  - type `decimal`, `nullable`, règle `gt:0` (un zéro refuserait tout appel IA) ;
+  - normalisée en chaîne décimale par `PlatformSettingService`, jamais en `float` (ADR-0086).
+- Son défaut est `config('ai.budgets.daily_per_agency_usd')`, qui lit `AI_DAILY_BUDGET_PER_AGENCY_USD`. Vide, nul ou
+  illisible : `null`, donc pas de plafond.
+- `AiBudget` la lit par `getValue('ai.daily_budget_per_agency_usd')`, sous la garde des lecteurs du catalogue.
+- La clé d'environnement est ajoutée à `.env.example`, `.env.docker` et `deploy/takussan/env.api.production.example`.
+- L'action de déploiement est `docs/deploiement/actions/2026-11-19-plafond-ia-par-agence.md`.
+
+**Front** :
+- `SectionRegles.tsx` : le bloc « Assistant de la messagerie » (deux interrupteurs) est grisé selon `ai_platform`, avec
+  sa raison :
+  - « coupé par la plateforme » ;
+  - « aucun service de transcription configuré ».
+
+  Sans `ai_platform`, rien n'est grisé.
+- `InterrupteurAAide` reçoit `desactive` : l'interrupteur grisé ne change plus la valeur.
+- Le schéma de la fiche lit une clé absente comme `true` et n'envoie que ce qui a changé.
+- `AiUsagesPanel` affiche les libellés des cinq usages `fil.*` à côté de la clé.
+- Le libellé du rôle `transcription` existait déjà (TCK-2976).
+- La catégorie `ai` est ajoutée à `PlatformSettingCategory` et à `categoryOrder`, avec ses libellés.
+- Sous le champ du plafond par agence, `platform-settings.tsx` affiche l'équivalent en XOF. Il réutilise le taux de la
+  console (`meta.usd_to_xof` des usages, même clé de cache) et `equivalentXofIa`. Test dans
+  `console-copilote.tck-2979.test.tsx` ; retirer la ligne le fait rougir.
+
+**Tests** :
+- `tests/Feature/Messaging/Copilote/ReglagesDuCopiloteBrancheTest.php` (11 tests) :
+  - la matrice console × fonction (les cinq) ;
+  - AC1 dans les deux ordres ;
+  - une requête pour la console ;
+  - transcription non configurée, puis servie par un modèle forcé `openai` ;
+  - `transcribes()` ;
+  - 422 pour `anthropic` sur `fil.transcription` et sur le rôle `transcription`, et pour un fournisseur
+    « transcription seule » sur `redaction` ;
+  - 403 pour l'agent sur `copilot_enabled` ;
+  - `ai_platform` pour l'administrateur et pas pour l'agent ;
+  - AC4 (plafond absent, posé et atteint pour cette agence seule, vidé) ;
+  - défaut par la configuration, et `0` refusé.
+- `tests/Feature/Messaging/Copilote/ReglagesDAgenceDuCopiloteTest.php` (6 tests).
+- Vitest :
+  - `FicheDeLAgence.assistant.tck-2979.test.tsx` (4) ;
+  - `console-copilote.tck-2979.test.tsx` (2) ;
+  - `admin-schemas.test.ts`.
+
+**Ablations** (une à une, chaque fois restaurée et vérifiée par md5) — chacune a fait rougir son test :
+- la ligne de la console placée APRÈS `agence` (AC1) ;
+- le filtre `agency_id` retiré de la somme (AC4) ;
+- `servesRole()` qui accepte tout pour la transcription ;
+- `AiBudget` qui relit la configuration au lieu du catalogue ;
+- le grisé retiré de `SectionRegles` ;
+- les libellés `fil.*` retirés ;
+- le défaut de lecture de `copilot_enabled` mis à faux ;
+- la ligne `agence` d'`etat()` retirée ;
+- le filtre d'`agencesQuiCoupent()` retiré.
+
+**AC3** : les fichiers de TCK-2974 à TCK-2978 passent un par un, sans retouche : Brouillon/Question, Décision,
+Disponibilité, Garde, Promesses, Résumé et Transcription.
 
 **Écarts à la prémisse** :
-- Le résolveur réel n'a pas la signature du ticket : `etat(string $fonction, ?Agency $agence)` (une agence, pas un
-  identifiant), fonctions nommées par sorte (`resume`, `transcription`), `agencesQuiCoupent()` sans fonction. Le
-  paramètre `$fonction` est ajouté EN DERNIER, avec un défaut, pour ne casser aucun appelant.
-- `copilote` de `ConversationResource` n'est plus un booléen (TCK-2974) : l'agence qui coupe le rend
-  `{fonctions: {resume: {active: false, raison: agence}}}`, pas `false`. Le front de TCK-2977 lit cette forme.
+- Le résolveur réel a la signature `etat(string $fonction, ?Agency $agence)`, et ses fonctions sont nommées par sorte.
+  `agencesQuiCoupent()` a reçu `$fonction` EN DERNIER, avec un défaut.
+- `copilote` de `ConversationResource` est un objet `{fonctions: …}`, pas un booléen (TCK-2974).
+- `transcription_configured` vaut `false` quand la plateforme coupe la transcription : l'écran dit alors la raison
+  `plateforme`, qui prime.
 
-**Constaté hors de ce ticket** : `CopiloteDisponibiliteTest` (TCK-2974) a 2 tests rouges, qui attendent
-`fonctions` réduit à `resume` alors que TCK-2975 a ajouté `question` et `brouillon` à `SortesDuCopilote`. Cela ne vient
-pas de ce ticket : l'écart est le même avec la ligne `agence` retirée.
-
-**Reste** : griser les deux interrupteurs selon l'état de la plateforme (il faut `AgencyResource.ai_platform`, absent) ; les libellés
-`fil.*` et le rôle `transcription` de la console ; le contrôle `ai.provider_role_mismatch` ; la clé
-`ai.daily_budget_per_agency_usd` (catalogue, environnement, action de déploiement) ; AC au navigateur.
+**Reste** :
+- AC5, le relevé au navigateur.

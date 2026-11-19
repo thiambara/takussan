@@ -52,7 +52,17 @@ export function AiUsagesPanel() {
   const taux = query.data?.meta.usd_to_xof;
   const options = (providers.data?.data ?? []).filter((p) => p.selectable).flatMap((p) => p.models.map((m) => ({ value: `${p.key}/${m}`, label: `${p.legal_name} · ${m}` })));
   const columns: DataTableColumn<AiUsageRow>[] = [
-    { id: 'key', header: t('key'), cell: (row) => <code className="text-sm">{row.key}</code> },
+    {
+      id: 'key',
+      header: t('key'),
+      cell: (row) => (
+        <span className="flex flex-col">
+          {/* TCK-2979 — les usages du copilote ont un libellé à côté de leur clé. */}
+          {t.has(`copilote.${row.key}`) ? <span className="font-medium">{t(`copilote.${row.key}`)}</span> : null}
+          <code className="text-sm">{row.key}</code>
+        </span>
+      ),
+    },
     {
       id: 'model',
       header: t('model'),

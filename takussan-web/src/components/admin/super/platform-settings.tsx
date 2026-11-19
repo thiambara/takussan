@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, RotateCcw, Save, TriangleAlert } from 'lucide-react';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { ErrorState } from '@/components/feedback';
@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { patchPlatformSettings } from '@/lib/queries/super-admin';
+import { fetchAdminAiUsages, patchPlatformSettings } from '@/lib/queries/super-admin';
+import { equivalentXofIa, lireSaisieMontantIa } from '@/lib/format/montant-ia';
 import type { PlatformSetting, PlatformSettingCategory, PlatformSettingValue } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
@@ -27,7 +28,8 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 type SettingValue = PlatformSettingValue;
 type Draft = Record<string, SettingValue>;
 
-export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits', 'boost', 'rentals', 'crm', 'radar'];
+// TCK-2979 — `ai` : le plafond IA du jour par agence.
+export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits', 'boost', 'rentals', 'crm', 'radar', 'ai'];
 
 /**
  * TCK-292 — la donnée porte la CLÉ, le rendu la résout.
@@ -37,6 +39,21 @@ export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits', '
  * via `useTranslations(CATEGORY_TITLE_NAMESPACE)`. Ici ne reste que le nom de l'espace de noms —
  * la clé de chaque catégorie est la catégorie elle-même.
  */
+/** TCK-2979 — la clé en dollars du catalogue, affichée avec son équivalent en XOF. */
+const CLE_DU_PLAFOND_IA_PAR_AGENCE = 'ai.daily_budget_per_agency_usd';
+
+/**
+ * TCK-2979 — l'équivalent en XOF d'un montant IA saisi en dollars : le taux et le formatage de la console IA
+ * (`meta.usd_to_xof` des usages, `equivalentXofIa`), sous la même clé de cache. Sans taux lu, rien ne s'affiche.
+ */
+function EquivalentXofDuPlafondIa({ valeur }: { readonly valeur: PlatformSettingValue | undefined }) {
+  const t = useTranslations('superAdmin.pages.ai.usages');
+  const usages = useQuery({ queryKey: ['super-admin', 'ai', 'usages'], queryFn: fetchAdminAiUsages });
+  const saisie = valeur === null || valeur === undefined ? '' : String(valeur);
+  const equivalent = equivalentXofIa(saisie === '' ? null : lireSaisieMontantIa(saisie), usages.data?.meta.usd_to_xof);
+  return equivalent === null ? null : <p className="mt-1 text-xs text-muted-foreground">{t('budgetEquivalent', { xof: equivalent })}</p>;
+}
+
 export const CATEGORY_TITLE_NAMESPACE = 'superAdmin.platformSettings.categories' as const;
 
 export function SettingsSection({
@@ -226,6 +243,8 @@ export function SettingField({
             onChange={(event) => onChange(event.target.value === '' && setting.nullable ? null : event.target.value)}
           />
         ) : null}
+        {/* TCK-2979 — le plafond IA par agence est en dollars : son équivalent en XOF, comme dans la console IA. */}
+        {setting.key === CLE_DU_PLAFOND_IA_PAR_AGENCE ? <EquivalentXofDuPlafondIa valeur={value} /> : null}
 
         {setting.type === 'boolean' ? (
           <div className="flex items-center gap-3">

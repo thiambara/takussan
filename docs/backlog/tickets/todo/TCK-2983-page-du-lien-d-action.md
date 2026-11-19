@@ -98,4 +98,38 @@ tags: [front, pont, liens-d-action, public, preferences, i18n, maquette, adr-013
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**La page** — `src/app/[locale]/(public)/fil/a/[token]/page.tsx` (coque de lien nue, titre fixe, `noindex`,
+`no-referrer` en balise et en en-tête dans `next.config.ts`), sa frontière de dictionnaire `fil/layout.tsx`
+(`lienPublic`, `inventory` pour le tracé de signature : plafond 22 %), et l'écran
+`src/components/lien-d-action/PageDuLienDAction.tsx`. `fil` rejoint les pages par lien de
+`barre-publique.ts` : ni barre d'onglets ni dock du comparateur.
+
+**Le contrat** est lu dans un seul module, `src/lib/queries/lien-d-action.ts`, aligné sur le code de TCK-2982
+(`ActionLinkController`, `GestesParLien::projection`) : enveloppe `{data}`, `state: open` à la lecture,
+`{state: done, object}` après le geste, 410 `{code: action_link.expired|used|revoked}`, 404. Les appels passent
+par `apiFetch` : ni jeton d'API ni cookie (autre origine). La lecture part du navigateur, jamais du rendu
+serveur : l'aperçu d'un lien par WhatsApp ne l'« ouvre » pas.
+
+**Les états** : le geste (visite, intervention, signature : code par SMS puis tracé), fait, expiré, déjà servi,
+révoqué, introuvable, trop de tentatives (429, « Réessayer »), erreur de lecture, et le refus de l'objet (son
+message localisé par l'API, le geste reste possible). Un lien mort ne porte que sa cause dans son état : la
+non-fuite tient au type. Le geste se verrouille par une référence en plus de `disabled` : deux clics du même
+instant n'envoient qu'une requête.
+
+**Le récapitulatif n'affiche que ce que la réponse porte.** Avant le geste : créneau, motif, bien, quartier et
+ville. Après : l'adresse et le contact sur place que la ressource de l'objet ouvre à ce compte (bloc `access`
+d'une intervention), jamais avant. L'invitation à créer son mot de passe mène à `/auth/forgot-password`, sans
+le jeton.
+
+**Préférences** : `owner_weekly_digest` dans le groupe « Biens », libellé « Résumé du lundi de mes biens ». La
+garde de parité lisait `PreferenceResolver::EVENTS` entre quotes seulement : `self::OWNER_WEEKLY_DIGEST` lui
+échappait, et elle serait restée verte sur l'écart. Elle résout désormais les constantes.
+
+Écarts avec la maquette et le ticket :
+- Pas de « Demandé par … » ni du nom de l'agence en tête : la projection ne les porte pas.
+- Le surtitre ne nomme pas la catégorie (« Intervention · Plomberie ») ni le type d'état des lieux : la
+  projection porte `category` et `type` en valeurs brutes, et leurs libellés vivent dans des espaces de
+  `/app` que la page ne charge pas.
+- Pas de « Plus tard » sous l'invitation au compte, ni d'« Ajouter à mon agenda ».
+
+AC1, AC3 et AC4 (relevés au navigateur et après rechargement) : non mesurés.

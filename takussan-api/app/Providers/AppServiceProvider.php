@@ -586,6 +586,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('payment-webhook-gone', fn (Request $request) => Limit::perMinute(60)
             ->by('payment-webhook-gone-ip:'.$this->clientNetwork($request)));
 
+        // TCK-2982 (ADR-0132 § 5) — le lien d'action, public : borné par IP ET par jeton (empreinte, jamais
+        // le clair), comme le lien de paiement.
+        RateLimiter::for('action-link', fn (Request $request) => [
+            Limit::perMinute(30)->by('action_link_ip:'.$this->clientNetwork($request)),
+            Limit::perMinute(20)->by('action_link:'.hash('sha256', (string) $request->route('token'))),
+        ]);
+        // /TCK-2982
+
         // TCK-606 (verif-602 m4) — le lien de paiement : `verify` déclenche un appel sortant chez le
         // fournisseur avec la clé de l'agence, `initiate` ouvre un checkout. Bornés par IP ET par
         // JETON (empreinte `sha256`, jamais en clair) : un lien qui fuit ne se martèle plus depuis N IP.

@@ -76,7 +76,7 @@ export function BrouillonDuComposeur({ conversationId, attente, brouillon, intac
   if (!brouillon || !intact) return null;
 
   const geste =
-    'inline-flex size-11 flex-none items-center justify-center rounded-full text-foreground/70 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring';
+    'inline-flex size-11 flex-none items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring';
   return (
     <div className="pb-2" data-testid="brouillon-de-l-assistant">
       <CadreDeLAssistant className="rounded-2xl">
@@ -116,7 +116,7 @@ function PuceDAppui({ appui }: { readonly appui: AppuiDuBrouillon }) {
   const Icone = ICONE_DE_L_APPUI[appui.type] ?? FileText;
   const cle = appui.type in ICONE_DE_L_APPUI ? appui.type : 'autre';
   return (
-    <li className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs font-medium text-foreground/85">
+    <li className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs font-medium text-foreground">
       <Icone className="size-3.5 flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
       <span className="truncate">{t(cle)}</span>
     </li>

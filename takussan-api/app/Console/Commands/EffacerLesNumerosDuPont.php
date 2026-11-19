@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\ActionLink;
 use App\Models\MessageRelay;
 use Illuminate\Console\Command;
 
@@ -27,6 +28,14 @@ class EffacerLesNumerosDuPont extends Command
             ->update(['phone' => null, 'updated_at' => now()]);
 
         $this->info("Relais du pont : {$effaces} numéro(s) effacé(s).");
+
+        // TCK-2982 (ADR-0132 § 5) — le numéro qui a reçu un lien d'action s'efface 90 jours après l'EXPIRATION du lien.
+        $liens = ActionLink::query()
+            ->whereNotNull('phone')
+            ->where('expires_at', '<', $limite)
+            ->update(['phone' => null, 'updated_at' => now()]);
+        $this->info("Liens d'action : {$liens} numéro(s) effacé(s).");
+        // /TCK-2982
 
         return self::SUCCESS;
     }

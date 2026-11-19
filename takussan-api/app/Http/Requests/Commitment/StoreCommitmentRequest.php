@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Commitment;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Conversation;
 use App\Rules\InstantIso;
 use App\Services\Messaging\ConversationAccess;
@@ -21,6 +22,8 @@ use App\Services\Messaging\ConversationAccess;
  */
 class StoreCommitmentRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     public const TITRE_MAX = 160;
 
     public function authorize(): bool
@@ -44,5 +47,11 @@ class StoreCommitmentRequest extends BaseFormRequest
             'title' => ['required', 'string', 'max:'.self::TITRE_MAX],
             'due_at' => ['required', 'date', new InstantIso],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus} : l'échéance est un instant, ramené en UTC par `InstantRecu`. */
+    protected function instantsRecus(): array
+    {
+        return ['due_at'];
     }
 }

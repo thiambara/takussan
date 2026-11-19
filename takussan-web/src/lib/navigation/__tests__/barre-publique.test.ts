@@ -151,6 +151,7 @@ describe('ADR-0091 §4 — une seule couche d’action en bas : où la barre vit
     ['/en/compare', false],
     // Les tunnels et les pages par lien.
     ['/fr/pay/abc', false],
+    ['/fr/fil/a/abc', false], // TCK-2983
     ['/fr/claim/abc', false],
     ['/fr/bookings', false],
     ['/fr/share/abc', false],
@@ -173,6 +174,7 @@ describe('ADR-0091 §4 — une seule couche d’action en bas : où la barre vit
 describe('TCK-2505 — les pages par lien (coque nue)', () => {
   it.each([
     ['/fr/pay/abc', true],
+    ['/fr/fil/a/abc', true], // TCK-2983
     ['/fr/claim/abc', true],
     ['/en/share/abc', true],
     ['/fr/search-alerts/confirm', true],

@@ -4,7 +4,9 @@ namespace App\Services\Messaging\Copilote;
 
 use App\Ai\Usages\FilTranscriptionUsage;
 use App\Models\AiSuggestion;
+use App\Models\Commitment;
 use App\Models\Conversation;
+use App\Models\Enums\CommitmentStatus;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\MessageVisibility;
 use App\Models\Message;
@@ -18,6 +20,7 @@ use App\Services\Messaging\ObjetsDesMessages;
 use App\Support\PhoneMasker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 
 /**
@@ -60,11 +63,12 @@ final class LectureDuFilPourIa
         bool $avecNotes = true,
         int $max = 200,
         int $contexte = 5,
+        bool $horsSourcesDEngagement = false,
     ): array {
-        $fenetre = $this->lisibles($lecteur, $fil, $avecNotes)
+        $fenetre = $this->lisibles($lecteur, $fil, $avecNotes, $horsSourcesDEngagement)
             ->whereBetween('messages.id', [$depuisId, $jusquaId])
             ->orderByDesc('messages.id')->limit($max)->get()->reverse()->values();
-        $avant = $this->lisibles($lecteur, $fil, $avecNotes)
+        $avant = $this->lisibles($lecteur, $fil, $avecNotes, $horsSourcesDEngagement)
             ->where('messages.id', '<', $depuisId)
             ->orderByDesc('messages.id')->limit($contexte)->get()->reverse()->values();
 
@@ -145,12 +149,51 @@ final class LectureDuFilPourIa
             ->all();
     }
 
-    private function lisibles(User $lecteur, Conversation $fil, bool $avecNotes)
+    private function lisibles(User $lecteur, Conversation $fil, bool $avecNotes, bool $horsSourcesDEngagement = false)
     {
         $requete = Message::query()->where('messages.conversation_id', $fil->id)->with('sender');
         $requete = $this->acces->messagesLisiblesPar($lecteur, $requete, $fil);
+        if ($horsSourcesDEngagement) {
+            // TCK-2975 — un message déjà source d'un engagement (noté par un collègue) n'entre plus.
+            $requete->whereNotExists(fn ($q) => $q->selectRaw('1')->from('commitments')->whereColumn('commitments.source_message_id', 'messages.id'));
+        }
 
         return $avecNotes ? $requete : $requete->where('messages.visibility', MessageVisibility::All->value);
+    }
+
+    /**
+     * TCK-2975 — les engagements en cours du fil (proposés ou ouverts, en retard signalé) que le lecteur voit par
+     * leur politique (`CommitmentPolicy::view`), pour l'entrée d'un brouillon : un bloc à part, masqué, et la liste
+     * des appuis `objet` (`commitment`) qu'ils autorisent.
+     *
+     * @return array{texte: string, objets: list<array{type: string, id: int}>}
+     */
+    public function engagementsEnCours(User $lecteur, Conversation $fil): array
+    {
+        $gate = Gate::forUser($lecteur);
+        $engagements = Commitment::query()
+            ->where('conversation_id', $fil->id)
+            ->whereIn('status', [CommitmentStatus::Proposed->value, CommitmentStatus::Open->value])
+            ->with('holder')
+            ->orderBy('due_at')->orderBy('id')
+            ->limit(20)->get()
+            ->filter(fn (Commitment $e) => $gate->allows('view', $e))->values();
+
+        $lignes = $engagements->map(fn (Commitment $e) => array_filter([
+            'id' => (int) $e->id,
+            'libelle' => $e->title,
+            'porteur' => $e->holder?->nameWithoutContact(),
+            'echeance' => $e->due_at?->toAtomString(),
+            'statut' => $e->status?->value,
+            'en_retard' => $e->status === CommitmentStatus::Open && $e->due_at !== null && $e->due_at->isPast() ? true : null,
+        ], fn ($v) => $v !== null))->all();
+
+        $json = json_encode(self::masquer(['engagements' => $lignes]), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+
+        return [
+            'texte' => ExternalContent::wrap('engagements', $json),
+            'objets' => $engagements->map(fn (Commitment $e) => ['type' => 'commitment', 'id' => (int) $e->id])->all(),
+        ];
     }
 
     /**

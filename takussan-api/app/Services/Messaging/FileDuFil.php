@@ -279,7 +279,11 @@ final class FileDuFil
             ->selectRaw("({$dernierApresTraite} AND ".$this->deMonCote('f.dernier_auteur', 'f').') as msg_moi')
             ->selectRaw('(f.equipe AND f.confie) as confie_autre')
             // TCK-2971 — l'échéance dépassée la plus ancienne d'un engagement en retard que le lecteur suit.
-            ->selectSub($this->retardQueJeSuis(), 'retard_depuis');
+            ->selectSub($this->retardQueJeSuis(), 'retard_depuis')
+            // TCK-2971 — barrière d'optimisation, comme sur `f` : sans elle, PostgreSQL aplatit `g` dans le niveau
+            // de la file et recalcule `retard_depuis` à chaque emploi (le `CASE`, le filtre, l'ordre) — trois
+            // SubPlans par fil, mesurés par `EXPLAIN ANALYZE` sur la base de développement.
+            ->offset(0);
 
         if ($details) {
             $jugement->selectSub($this->premierSansReponse(), 'msg_depuis');

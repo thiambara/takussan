@@ -3,6 +3,7 @@
 namespace App\Services\Messaging\Copilote;
 
 use App\Ai\Usages\FilBrouillonUsage;
+use App\Ai\Usages\FilPromessesUsage;
 use App\Ai\Usages\FilQuestionUsage;
 use App\Ai\Usages\FilResumeUsage;
 use InvalidArgumentException;
@@ -21,11 +22,15 @@ final class SortesDuCopilote
     /** TCK-2975 — le brouillon d'une réponse (SANS notes d'équipe). */
     public const BROUILLON = 'brouillon';
 
+    /** TCK-2975 — les promesses du fil, une suggestion par promesse (SANS notes d'équipe). */
+    public const PROMESSES = 'promesses';
+
     /** @var array<string, string> sorte => usage */
     private const USAGES = [
         self::RESUME => FilResumeUsage::KEY,
         self::QUESTION => FilQuestionUsage::KEY,
         self::BROUILLON => FilBrouillonUsage::KEY,
+        self::PROMESSES => FilPromessesUsage::KEY,
     ];
 
     /** @return list<string> */

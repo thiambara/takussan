@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Pont;
 
+use App\Jobs\RelayerMessageAuPont;
 use App\Models\MessageRelay;
 use App\Models\NotificationDeliveryAttempt;
 use App\Notifications\CodedNotification;
@@ -150,6 +151,13 @@ class RelaisSortantTest extends ApiTestCase
         $this->assertSame([], FauxCanal::$envois);
         $this->assertSame([], $this->relaisDe($note->id));
         $this->assertSame([], $this->relaisDe($duLocataire->id));
+
+        // AC1 — la garde est AU DÉPART du relais, pas seulement chez l'appelant : un job mis en file pour une note
+        // (la file d'attente d'accord, un appelant futur) ne l'envoie pas davantage.
+        RelayerMessageAuPont::dispatchSync($note->id, $this->bailleur->id);
+        RelayerMessageAuPont::dispatchSync($duLocataire->id, $this->bailleur->id);
+        $this->assertSame([], FauxCanal::$envois);
+        $this->assertSame([], $this->relaisDe($note->id));
     }
 
     public function test_un_joint_ne_recoit_pas_message_received_sur_le_mobile(): void
@@ -176,12 +184,10 @@ class RelaisSortantTest extends ApiTestCase
         $this->assertDatabaseHas('message_relays', ['conversation_id' => $second->id, 'purpose' => 'invitation', 'status' => 'accepte']);
 
         // Un `opted_in` sans compte du pont (alerte de recherche) : l'invitation part.
-        $autre = $this->agentDeLAgence($this->agence);
         $this->collegue->forceFill(['phone' => '+221775550000', 'phone_verified_at' => now()])->save();
         FauxCanal::$accords['+221775550000'] = EtatDAccord::Accorde;
         $this->postJson('/api/conversations/'.$this->fil->id.'/pont/invitations', ['user_id' => $this->collegue->id])->assertCreated();
         $this->assertCount(1, FauxCanal::$envois);
-        unset($autre);
     }
 
     public function test_droits_et_codes_de_l_invitation(): void
@@ -212,5 +218,32 @@ class RelaisSortantTest extends ApiTestCase
         $this->assertStringNotContainsString(self::TEL_BAILLEUR, (string) $corps);
         $this->assertStringNotContainsString(ltrim(self::TEL_BAILLEUR, '+'), (string) $corps);
         $this->assertStringNotContainsString('"relays"', (string) $corps);
+        $contexte = $this->getJson('/api/conversations/'.$this->fil->id.'/context')->assertOk();
+        $this->assertArrayNotHasKey('pont', (array) $contexte->json('data'));
+        $this->assertStringNotContainsString(ltrim(self::TEL_BAILLEUR, '+'), (string) $contexte->getContent());
+    }
+
+    public function test_le_personnel_lit_les_relais_et_le_pont_sans_numero(): void
+    {
+        $this->joindre();
+        $m = $this->ecrireUnMessage('Visible.');
+
+        Sanctum::actingAs($this->collegue);
+        $page = $this->getJson('/api/conversations/'.$this->fil->id.'/messages')->assertOk();
+        $ligne = collect($page->json('data'))->firstWhere('id', $m->id);
+        $this->assertSame([['user_id' => $this->bailleur->id, 'channel' => 'faux', 'form' => 'text', 'status' => 'envoye']],
+            array_map(fn (array $r) => array_diff_key($r, ['at' => 1]), $ligne['relays']));
+        $this->assertNotNull($ligne['relays'][0]['at']);
+        $this->assertStringNotContainsString(ltrim(self::TEL_BAILLEUR, '+'), (string) $page->getContent());
+
+        $contexte = $this->getJson('/api/conversations/'.$this->fil->id.'/context')->assertOk();
+        $pont = $contexte->json('data.pont');
+        $this->assertTrue($pont[(string) $this->bailleur->id]['joint']);
+        $this->assertSame('faux', $pont[(string) $this->bailleur->id]['canal']);
+        $this->assertNotNull($pont[(string) $this->bailleur->id]['accord_at']);
+        $this->assertNotNull($pont[(string) $this->bailleur->id]['fenetre_jusqu_a']);
+        $this->assertFalse($pont[(string) $this->bailleur->id]['invitable']);
+        $this->assertArrayNotHasKey((string) $this->collegue->id, $pont);
+        $this->assertStringNotContainsString(ltrim(self::TEL_BAILLEUR, '+'), (string) $contexte->getContent());
     }
 }

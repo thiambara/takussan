@@ -11,6 +11,7 @@ use App\Models\MessageRelay;
 use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\WhatsappContact;
+use App\Services\Messaging\SallesDuFil;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
@@ -139,12 +140,19 @@ class PontEntrantTest extends ApiTestCase
 
     public function test_un_fil_ferme_a_l_ecriture_est_saute(): void
     {
+        // TCK-2985 (cause de l'intermittence) — seule une SALLE (`type = lease`) se ferme avec son bail
+        // (`SallesDuFil::enLectureSeule`) : un groupe qui porte `subject_type = lease` reste ouvert, et le test ne
+        // passait que quand les deux messages tombaient dans la même seconde (`last_message_at` à la seconde, égalité
+        // tranchée par l'identifiant). Le fil plus récent est donc la salle du bail, et il l'est d'une minute.
+        $salle = app(SallesDuFil::class)->ouvrir($this->bail);
+        $this->assertNotNull($salle);
+        $this->assertTrue($salle->participants()->where('users.id', $this->bailleur->id)->wherePivotNull('left_at')->exists());
         $autre = $this->groupe([$this->auteur, $this->bailleur], ['property_id' => $this->bien->id]);
         $this->ecrireUnMessage('Ancien', fil: $autre);
-        $this->ecrireUnMessage('Plus récent', fil: $this->fil);
+        $this->travel(1)->minutes();
+        $this->ecrireUnMessage('Plus récent', fil: $salle);
         // TCK-2960 — la salle d'un bail fini se lit, ne s'écrit plus.
         $this->bail->forceFill(['status' => LeaseStatus::Terminated])->save();
-        $this->fil->forceFill(['subject_type' => 'lease', 'subject_id' => $this->bail->id])->save();
 
         $this->recevoir([$this->texte('wamid.E4', self::TEL_BAILLEUR, 'Toujours là ?')])->assertOk();
 

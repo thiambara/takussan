@@ -1,6 +1,10 @@
 'use client';
 
-import type { PontDuParticipant, RelationAuFil } from '@/types/message';
+import { useApiMutation } from '@/hooks/useApiQuery';
+import { ApiError } from '@/lib/api';
+import { cheminApi } from '@/lib/chemin-api';
+import { conversationContextQueryKey } from '@/lib/queries/conversations-cles';
+import type { ConversationContext, PontDuParticipant } from '@/types/message';
 
 /**
  * TCK-2984 (ADR-0132 § 0) — le pont à l'écran de l'agent.
@@ -21,9 +25,23 @@ export function cleDuCanal(canal: string | null | undefined): CanalConnu | 'autr
 }
 
 /** Les états de relais que ce front sait dire ; un autre rend `autre`. */
-export const ETATS_DE_RELAIS = ['queued', 'sent', 'delivered', 'read', 'failed', 'sms_fallback'] as const;
+/** TCK-2981 — `relays[].status`, des codes de l'API. */
+export const ETATS_DE_RELAIS = ['en_attente_accord', 'envoye', 'remis', 'lu', 'echec', 'non_envoye'] as const;
 export function cleDeLEtat(etat: string | null | undefined): (typeof ETATS_DE_RELAIS)[number] | 'autre' {
   return (ETATS_DE_RELAIS as readonly string[]).includes(etat ?? '') ? (etat as (typeof ETATS_DE_RELAIS)[number]) : 'autre';
+}
+
+/** Un participant et l'état de son pont (une ligne de `context.pont`). */
+export type ParticipantDuPont = { readonly user_id: number; readonly pont: PontDuParticipant };
+
+/**
+ * `context.pont` (TCK-2981) en liste : `undefined` quand la clé est absente (lecteur qui n'est pas personnel). Seule
+ * entrée des éléments du pont : ils ne lisent rien d'autre du contexte.
+ */
+export function participantsDuPont(contexte: Pick<ConversationContext, 'pont'> | null | undefined): ParticipantDuPont[] | undefined {
+  const pont = contexte?.pont;
+  if (!pont || typeof pont !== 'object') return undefined;
+  return Object.entries(pont).flatMap(([id, ligne]) => (Number.isFinite(Number(id)) && ligne ? [{ user_id: Number(id), pont: ligne }] : []));
 }
 
 /** La fenêtre de 24 h d'un participant joint est-elle ouverte à `maintenant` ? Jugé sur `fenetre_jusqu_a` seul. */
@@ -34,7 +52,7 @@ export function fenetreOuverte(pont: PontDuParticipant, maintenant: number): boo
 }
 
 /** Un participant joint, sans opposition : le pont lui relaie ce qui s'écrit. */
-export function relaye(pont: PontDuParticipant | undefined): pont is PontDuParticipant {
+export function relaye(pont: PontDuParticipant | undefined): boolean {
   return Boolean(pont?.joint) && !pont?.opposition_at;
 }
 
@@ -43,21 +61,46 @@ export function relaye(pont: PontDuParticipant | undefined): pont is PontDuParti
  * (le seul gabarit `pont_nouveau_message`, ADR-0132 § 4). Vide : le composeur n'annonce rien.
  */
 export function destinatairesEnMessageType(
-  participants: ReadonlyArray<RelationAuFil> | undefined,
+  participants: ReadonlyArray<ParticipantDuPont> | undefined,
   maintenant: number,
   moi?: number | null,
-): RelationAuFil[] {
+): ParticipantDuPont[] {
   return (participants ?? []).filter((p) => p.user_id !== moi && relaye(p.pont) && !fenetreOuverte(p.pont, maintenant));
 }
 
 /** Les destinataires joints dont la fenêtre est OUVERTE. */
 export function destinatairesFenetreOuverte(
-  participants: ReadonlyArray<RelationAuFil> | undefined,
+  participants: ReadonlyArray<ParticipantDuPont> | undefined,
   maintenant: number,
   moi?: number | null,
-): RelationAuFil[] {
+): ParticipantDuPont[] {
   return (participants ?? []).filter((p) => p.user_id !== moi && relaye(p.pont) && fenetreOuverte(p.pont, maintenant));
 }
 
-// « Joindre par WhatsApp » (POST `…/pont/invitations`, refus à code) reviendra avec la route de TCK-2981 : retiré
-// de cette PR pour que `check-front-routes` ne rougisse pas sur une route qui n'existe pas encore.
+/** Les refus à code de `POST …/pont/invitations` (TCK-2981) ; un autre rend `inconnu`. */
+export const REFUS_D_INVITATION = [
+  'pont.not_participant',
+  'pont.no_phone',
+  'pont.invalid_phone',
+  'pont.opted_out',
+  'pont.already_joined',
+  'pont.customer_not_in_room',
+  'pont.numero_deja_a_un_compte',
+] as const;
+
+export function cleDuRefus(err: unknown): string {
+  if (!(err instanceof ApiError) || !err.data || typeof err.data !== 'object') return 'inconnu';
+  const code = (err.data as { code?: unknown }).code;
+  return typeof code === 'string' && (REFUS_D_INVITATION as readonly string[]).includes(code) ? code.slice('pont.'.length) : 'inconnu';
+}
+
+/**
+ * « Joindre par WhatsApp » : un seul appel (le bouton se désactive pendant l'envoi), puis la relecture du
+ * contexte, dont `pont.joint` dit « jointe » (déjà d'accord sur ce numéro) ou non (« invitation envoyée »).
+ */
+export function useInvitationAuPont(conversationId: number) {
+  return useApiMutation<unknown, { user_id: number }>(
+    { path: cheminApi`/api/conversations/${conversationId}/pont/invitations`, method: 'POST' },
+    { invalidate: [conversationContextQueryKey(conversationId)] },
+  );
+}

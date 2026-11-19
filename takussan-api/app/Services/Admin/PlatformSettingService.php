@@ -7,6 +7,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\SettingScope;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Ai\AiMoney;
 use App\Support\ReglesDElementBornees;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
@@ -160,6 +161,8 @@ class PlatformSettingService
     {
         return match ($key) {
             'currency.default' => strtoupper((string) $value),
+            // TCK-2979 — un montant en dollars reste une chaîne décimale (ADR-0086) : jamais un `float`.
+            'ai.daily_budget_per_agency_usd' => $value === null || $value === '' ? null : AiMoney::canonical((string) $value),
             'currency.supported' => collect($value)
                 ->map(fn (string $currency) => strtoupper($currency))
                 ->unique()

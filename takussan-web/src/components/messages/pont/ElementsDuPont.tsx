@@ -1,24 +1,29 @@
 'use client';
 
+import { useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, Clock, Link2, MessageCircle } from 'lucide-react';
+import { AlertTriangle, Clock, Link2, MessageCircle, Send } from 'lucide-react';
 import { StatusBadge, type StatusTone } from '@/components/console';
+import { Button } from '@/components/ui/button';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useConversation } from '@/lib/queries/conversations';
 import { cn } from '@/lib/utils';
-import type { Message, RelationAuFil } from '@/types/message';
+import type { Message } from '@/types/message';
 import {
   cleDeLEtat,
   cleDuCanal,
+  cleDuRefus,
   destinatairesEnMessageType,
   destinatairesFenetreOuverte,
   fenetreOuverte,
   relaye,
+  useInvitationAuPont,
+  type ParticipantDuPont,
 } from './pont';
 
 /**
  * TCK-2984 (ADR-0132, maquette `fil-pont` D) — ce que l'agent voit du pont. Chaque élément ne se rend QUE si la
- * réponse de l'API porte sa clé (`channel`, `relays`, `action_link`, `participants[].pont`) : l'API les réserve
+ * réponse de l'API porte sa clé (`channel`, `relays`, `action_link`, `context.pont`) : l'API les réserve
  * au personnel de l'agence du fil ; un locataire, un bailleur, un prestataire n'en reçoivent rien, et ces
  * éléments ne rendent alors rien. Aucun numéro de téléphone n'est lu ni écrit ici.
  */
@@ -35,12 +40,12 @@ const TON_DE_LA_PUCE: Readonly<Record<'opposition' | 'ouverte' | 'fermee' | 'app
 
 /** Le ton de l'état d'un relais : la couleur se décide dans `StatusBadge`, jamais ici. */
 const TON_DU_RELAIS: Readonly<Record<ReturnType<typeof cleDeLEtat>, StatusTone>> = {
-  queued: 'neutral',
-  sent: 'neutral',
-  delivered: 'info',
-  read: 'success',
-  failed: 'danger',
-  sms_fallback: 'attention',
+  en_attente_accord: 'attention',
+  envoye: 'neutral',
+  remis: 'info',
+  lu: 'success',
+  echec: 'danger',
+  non_envoye: 'danger',
   autre: 'neutral',
 };
 
@@ -78,7 +83,7 @@ export function PontDuMessage({ message, noms, className }: { readonly message: 
           <span key={`${r.user_id}-${r.channel}`} data-testid="relais" data-etat={etat} className="inline-flex items-center gap-1">
             {t('relais.destinataire', { nom: noms[r.user_id] ?? t('quelquUn'), canal: t(`canal.${cleDuCanal(r.channel)}`) })}
             <StatusBadge label={t(`relais.etat.${etat}`)} tone={TON_DU_RELAIS[etat]} data-testid="etat-du-relais" />
-            {r.form === 'gabarit' || r.form === 'template' ? <span className="opacity-80">· {t('relais.messageType')}</span> : null}
+            {r.form === 'template' ? <span className="opacity-80">· {t('relais.messageType')}</span> : null}
             {r.at ? <span className="opacity-80">· {f.heure(r.at)}</span> : null}
           </span>
         );
@@ -115,7 +120,7 @@ export function TraceDuLien({ message }: { readonly message: Message }) {
 }
 
 interface BandeauDeLaFenetreProps {
-  readonly participants: ReadonlyArray<RelationAuFil> | undefined;
+  readonly participants: ReadonlyArray<ParticipantDuPont> | undefined;
   readonly noms: Noms;
   readonly moi?: number | null;
   /** Injecté par les tests ; sinon l'instant du rendu. */
@@ -134,7 +139,7 @@ export function BandeauDeLaFenetre({ participants, noms, moi, maintenant }: Band
   const instant = maintenant ?? Date.now();
   const fermees = destinatairesEnMessageType(participants, instant, moi);
   const ouvertes = destinatairesFenetreOuverte(participants, instant, moi);
-  const nom = (p: RelationAuFil) => noms[p.user_id] ?? '—';
+  const nom = (p: ParticipantDuPont) => noms[p.user_id] ?? '—';
   if (fermees.length > 0) {
     return (
       <div role="status" data-testid="bandeau-fenetre" data-etat="fermee" className="flex items-start gap-2 border-t border-warning/40 bg-warning/10 px-4 py-2 text-sm">
@@ -167,13 +172,13 @@ export function PucesDuPont({ participants, noms, moi, maintenant }: BandeauDeLa
   const t = useTranslations('messaging.pont');
   // eslint-disable-next-line react-hooks/purity -- l'instant du rendu ; les tests l'injectent.
   const instant = maintenant ?? Date.now();
-  const avecPont = (participants ?? []).filter((p) => p.user_id !== moi && p.pont !== undefined && p.pont !== null);
+  const avecPont = (participants ?? []).filter((p) => p.user_id !== moi && Boolean(p.pont));
   if (avecPont.length === 0) return null;
   return (
     <ul data-testid="puces-du-pont" aria-label={t('panneau.titre')} className="flex gap-1.5 overflow-x-auto border-b border-border px-4 py-1.5 xl:hidden">
       {avecPont.map((p) => {
-        const pont = p.pont!;
-        const canal = t(`canal.${cleDuCanal(pont.channel ?? 'whatsapp')}`);
+        const pont = p.pont;
+        const canal = t(`canal.${cleDuCanal(pont.canal ?? 'whatsapp')}`);
         const etat: keyof typeof TON_DE_LA_PUCE = pont.opposition_at ? 'opposition' : relaye(pont) ? (fenetreOuverte(pont, instant) ? 'ouverte' : 'fermee') : 'app';
         return (
           <li key={p.user_id} data-testid="puce-du-pont" data-etat={etat} className="inline-flex flex-none items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs">
@@ -192,9 +197,8 @@ export function PucesDuPont({ participants, noms, moi, maintenant }: BandeauDeLa
 }
 
 interface ParticipantsEtCanauxProps {
-  /** Le fil : l'invitation « Joindre par WhatsApp » s'y appellera (TCK-2981). */
   readonly conversationId: number;
-  readonly participants: ReadonlyArray<RelationAuFil> | undefined;
+  readonly participants: ReadonlyArray<ParticipantDuPont> | undefined;
   readonly noms: Noms;
   readonly maintenant?: number;
 }
@@ -204,10 +208,10 @@ interface ParticipantsEtCanauxProps {
  * l'opposition (STOP, sans bouton pour passer outre), la fenêtre ; « Joindre par WhatsApp » sur une personne
  * `invitable`. Rien sans au moins un bloc `pont` dans la réponse (lecteur qui n'est pas personnel).
  */
-export function ParticipantsEtCanaux({ participants, noms, maintenant }: ParticipantsEtCanauxProps) {
+export function ParticipantsEtCanaux({ conversationId, participants, noms, maintenant }: ParticipantsEtCanauxProps) {
   const t = useTranslations('messaging.pont');
   const f = useFormatteurs();
-  const avecPont = (participants ?? []).filter((p) => p.pont !== undefined && p.pont !== null);
+  const avecPont = (participants ?? []).filter((p) => Boolean(p.pont));
   // eslint-disable-next-line react-hooks/purity -- l'instant du rendu ; les tests l'injectent.
   const instant = maintenant ?? Date.now();
   if (avecPont.length === 0) return null;
@@ -216,7 +220,7 @@ export function ParticipantsEtCanaux({ participants, noms, maintenant }: Partici
       <h3 className="mb-2 text-sm font-semibold">{t('panneau.titre')}</h3>
       <ul className="space-y-2">
         {avecPont.map((p) => (
-          <LigneDuParticipant key={p.user_id} participant={p} nom={noms[p.user_id] ?? '—'} instant={instant} f={f} />
+          <LigneDuParticipant key={p.user_id} conversationId={conversationId} participant={p} nom={noms[p.user_id] ?? '—'} instant={instant} f={f} />
         ))}
       </ul>
     </section>
@@ -227,31 +231,36 @@ export function ParticipantsEtCanaux({ participants, noms, maintenant }: Partici
  * Le panneau monté dans la colonne de contexte : il ne lit les noms du fil (`useConversation`, en cache) que
  * lorsqu'au moins un participant porte un bloc `pont` — pour tout autre lecteur, rien n'est monté ni demandé.
  */
-export function ParticipantsEtCanauxDuFil({ conversationId, participants }: { readonly conversationId: number; readonly participants: ReadonlyArray<RelationAuFil> | undefined }) {
-  if (!(participants ?? []).some((p) => p.pont !== undefined && p.pont !== null)) return null;
+export function ParticipantsEtCanauxDuFil({ conversationId, participants }: { readonly conversationId: number; readonly participants: ReadonlyArray<ParticipantDuPont> | undefined }) {
+  if (!(participants ?? []).some((p) => Boolean(p.pont))) return null;
   return <PanneauAvecNoms conversationId={conversationId} participants={participants} />;
 }
 
-function PanneauAvecNoms({ conversationId, participants }: { readonly conversationId: number; readonly participants: ReadonlyArray<RelationAuFil> | undefined }) {
+function PanneauAvecNoms({ conversationId, participants }: { readonly conversationId: number; readonly participants: ReadonlyArray<ParticipantDuPont> | undefined }) {
   const { data } = useConversation(conversationId);
   const noms: Noms = Object.fromEntries((data?.data?.participants ?? []).map((p) => [p.user_id, p.user?.full_name ?? '—']));
   return <ParticipantsEtCanaux conversationId={conversationId} participants={participants} noms={noms} />;
 }
 
 function LigneDuParticipant({
+  conversationId,
   participant,
   nom,
   instant,
   f,
 }: {
-  readonly participant: RelationAuFil;
+  readonly conversationId: number;
+  readonly participant: ParticipantDuPont;
   readonly nom: string;
   readonly instant: number;
   readonly f: ReturnType<typeof useFormatteurs>;
 }) {
   const t = useTranslations('messaging.pont');
-  const pont = participant.pont!;
-  const canal = pont.channel ?? 'whatsapp';
+  const invitation = useInvitationAuPont(conversationId);
+  // Un seul appel, même sur deux clics avant que `isPending` ne désactive le bouton.
+  const enVol = useRef(false);
+  const pont = participant.pont;
+  const canal = pont.canal ?? 'whatsapp';
   let etat: React.ReactNode;
   if (pont.opposition_at) {
     etat = (
@@ -268,6 +277,8 @@ function LigneDuParticipant({
           : t('panneau.fenetreFermee')}
       </span>
     );
+  } else if (invitation.isSuccess || pont.invitation_en_attente) {
+    etat = <span data-testid="etat-pont" data-etat="invite">{t('panneau.invitationEnvoyee')}</span>;
   } else {
     etat = <span data-testid="etat-pont" data-etat="app">{t('panneau.litDansTakussan')}</span>;
   }
@@ -275,7 +286,28 @@ function LigneDuParticipant({
     <li className="flex flex-col gap-1 text-sm" data-testid="ligne-pont" data-user-id={participant.user_id}>
       <span className="font-medium">{nom}</span>
       <span className="text-xs text-muted-foreground">{etat}</span>
-      {/* « Joindre par WhatsApp » (`pont.invitable`) revient avec la route de TCK-2981. */}
+      {pont.invitable && !pont.joint && !pont.opposition_at && !invitation.isSuccess && !pont.invitation_en_attente ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="self-start"
+          disabled={invitation.isPending}
+          onClick={() => {
+            if (enVol.current || invitation.isPending) return;
+            enVol.current = true;
+            invitation.mutate({ user_id: participant.user_id }, { onSettled: () => { enVol.current = false; } });
+          }}
+        >
+          <Send className="size-3.5 stroke-[1.75]" aria-hidden="true" />
+          {t('panneau.joindre')}
+        </Button>
+      ) : null}
+      {invitation.isError ? (
+        <p role="alert" data-testid="refus-invitation" className="text-xs text-destructive">
+          {t(`refus.${cleDuRefus(invitation.error)}`)}
+        </p>
+      ) : null}
     </li>
   );
 }

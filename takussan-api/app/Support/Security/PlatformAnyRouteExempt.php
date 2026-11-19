@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Accounting\BankStatementLineController;
 use App\Http\Controllers\Api\Accounting\BankStatementPreviewController;
 use App\Http\Controllers\Api\Accounting\FinalizeBankStatementController;
 use App\Http\Controllers\Api\Accounting\ReconciliationIgnoredPaymentController;
+use App\Http\Controllers\Api\ActionLinkController;
 use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Agency\KycController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
@@ -72,6 +73,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
 use App\Http\Controllers\Api\OwnerProfileController;
 use App\Http\Controllers\Api\PaymentGatewayController;
+use App\Http\Controllers\Api\PontInvitationController;
 use App\Http\Controllers\Api\PropertyAvailabilityCheckController;
 use App\Http\Controllers\Api\PropertyCalendarFeedController;
 use App\Http\Controllers\Api\PropertyCollaboratorController;
@@ -218,6 +220,9 @@ final class PlatformAnyRouteExempt
         ConversationPilotageController::class.'@assign' => self::NON_GARDE,
         // TCK-2974 (ADR-0131) — le lecteur demande une proposition pour lui seul ; le super-admin est refusé (403).
         ConversationCopiloteController::class.'@demander' => self::SOI,
+        // TCK-2981 (ADR-0132 § 3) — « Joindre par WhatsApp » : le personnel actif de l'agence du fil, participant, et
+        // jamais sous impersonation ; le super-admin, qui n'est pas personnel de l'agence, est refusé (403).
+        PontInvitationController::class.'@store' => self::SOI,
         // TCK-2975 — le demandeur décide de SA proposition ; tout autre (super-admin compris) : 404.
         CopiloteSuggestionController::class.'@decider' => self::SOI,
         // TCK-2976 (ADR-0131 § 7) — la transcription d'une note vocale, pour le personnel servi ; le super-admin : 404.
@@ -373,6 +378,9 @@ final class PlatformAnyRouteExempt
         PropertyVisitController::class.'@reschedule' => self::NON_GARDE,
         PropertyVisitController::class.'@store' => self::NON_GARDE,
         PropertyVisitController::class.'@update' => self::NON_GARDE,
+        // TCK-2982 — le lien d'action : public, le jeton est l'autorisation (aucun profil plateforme).
+        ActionLinkController::class.'@act' => self::PUBLIC,
+        ActionLinkController::class.'@sendCode' => self::PUBLIC,
         PublicPaymentLinkController::class.'@initiate' => self::PUBLIC,
         PublicPaymentLinkController::class.'@verify' => self::PUBLIC,
         PublicSearchAlertController::class.'@confirm' => self::PUBLIC,

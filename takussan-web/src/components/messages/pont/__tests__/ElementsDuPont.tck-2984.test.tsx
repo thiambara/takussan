@@ -1,12 +1,14 @@
 /** TCK-2984 (ADR-0132) — le pont à l'écran de l'agent : rien pour le locataire, la fenêtre, l'invitation, les avis. */
-import { render, renderHook, screen } from '@testing-library/react';
+import { fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/test/intl';
+import { ApiError } from '@/lib/api';
 import fr from '@/messages/fr.json';
-import type { Message, RelationAuFil } from '@/types/message';
+import type { Message, PontDuParticipant } from '@/types/message';
+import { participantsDuPont } from '../pont';
 
 const apiRequest = vi.fn();
 vi.mock('@/lib/api', async (importOriginal) => ({
@@ -36,7 +38,7 @@ const messageDuPersonnel = (): Message => ({
   created_at: '2026-11-19T09:00:00Z',
   updated_at: '2026-11-19T09:00:00Z',
   channel: 'app',
-  relays: [{ user_id: 7, channel: 'whatsapp', form: 'texte', status: 'delivered', at: '2026-11-19T09:01:00Z' }],
+  relays: [{ user_id: 7, channel: 'whatsapp', form: 'text', status: 'remis', at: '2026-11-19T09:01:00Z' }],
   action_link: { sent_at: '2026-11-19T09:01:00Z', opened_at: '2026-11-19T09:05:00Z', used_at: null, expires_at: '2026-11-20T09:01:00Z' },
 } as Message);
 
@@ -46,7 +48,9 @@ const pourLeLocataire = (m: Message): Message => {
   return reste as Message;
 };
 
-const participant = (user_id: number, pont?: RelationAuFil['pont']): RelationAuFil => ({ user_id, relation: 'locataire', ...(pont ? { pont } : {}) });
+const participant = (user_id: number, pont: PontDuParticipant) => ({ user_id, pont });
+/** Le contexte tel que l'API le rend au locataire : sans clé `pont`. */
+const SANS_PONT = participantsDuPont({});
 
 describe('AC2 — rien du pont pour qui ne le reçoit pas', () => {
   it('le personnel voit l’état du relais et la trace du lien', () => {
@@ -62,8 +66,8 @@ describe('AC2 — rien du pont pour qui ne le reçoit pas', () => {
       <>
         <PontDuMessage message={pourLeLocataire(messageDuPersonnel())} noms={NOMS} />
         <TraceDuLien message={pourLeLocataire(messageDuPersonnel())} />
-        <ParticipantsEtCanaux conversationId={3} participants={[participant(7)]} noms={NOMS} maintenant={MAINTENANT} />
-        <BandeauDeLaFenetre participants={[participant(7)]} noms={NOMS} maintenant={MAINTENANT} />
+        <ParticipantsEtCanaux conversationId={3} participants={SANS_PONT} noms={NOMS} maintenant={MAINTENANT} />
+        <BandeauDeLaFenetre participants={SANS_PONT} noms={NOMS} maintenant={MAINTENANT} />
       </>,
     );
     expect(container.innerHTML).toBe('');
@@ -105,7 +109,44 @@ describe('AC3 — l’annonce du message type, jugée sur `fenetre_jusqu_a`', ()
   });
 });
 
-describe('STOP dans le panneau', () => {
+describe('« Joindre par WhatsApp »', () => {
+  beforeEach(() => {
+    apiRequest.mockReset();
+  });
+
+  it('un seul appel, puis « invitation envoyée »', async () => {
+    let resoudre: (v: unknown) => void = () => {};
+    apiRequest.mockReturnValue(new Promise((r) => { resoudre = r; }));
+    monter(<ParticipantsEtCanaux conversationId={3} participants={[participant(9, { joint: false, invitable: true })]} noms={NOMS} maintenant={MAINTENANT} />);
+    const bouton = screen.getByRole('button', { name: 'Joindre par WhatsApp' });
+    fireEvent.click(bouton);
+    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
+    fireEvent.click(bouton);
+    expect(apiRequest).toHaveBeenCalledTimes(1);
+    expect((bouton as HTMLButtonElement).disabled).toBe(true);
+    expect(apiRequest.mock.calls[0][0]).toBe('/api/conversations/3/pont/invitations');
+    resoudre({ data: {} });
+    await waitFor(() => expect(screen.getByTestId('etat-pont').dataset.etat).toBe('invite'));
+  });
+
+  it.each([
+    ['pont.opted_out', 'Cette personne a coupé WhatsApp'],
+    ['pont.no_phone', 'Aucun numéro'],
+    ['pont.numero_deja_a_un_compte', 'appartient déjà à un autre compte'],
+    ['pont.nouveau_code', 'n’a pas pu partir'.replace('’', "'")],
+  ])('le refus %s se dit par son code', async (code, texte) => {
+    apiRequest.mockRejectedValue(new ApiError(422, { code }));
+    monter(<ParticipantsEtCanaux conversationId={3} participants={[participant(9, { joint: false, invitable: true })]} noms={NOMS} maintenant={MAINTENANT} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Joindre par WhatsApp' }));
+    expect((await screen.findByTestId('refus-invitation')).textContent).toContain(texte);
+  });
+
+  it('`invitation_en_attente` (relu du contexte) : « invitation envoyée », sans bouton', () => {
+    monter(<ParticipantsEtCanaux conversationId={3} participants={[participant(9, { joint: false, invitable: true, invitation_en_attente: true })]} noms={NOMS} maintenant={MAINTENANT} />);
+    expect(screen.getByTestId('etat-pont').dataset.etat).toBe('invite');
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('STOP : la puce barrée, la date, aucun bouton pour passer outre', () => {
     monter(<ParticipantsEtCanaux conversationId={3} participants={[participant(7, { joint: true, invitable: true, opposition_at: '2026-11-18T08:00:00Z' })]} noms={NOMS} maintenant={MAINTENANT} />);
     expect(screen.getByTestId('etat-pont').textContent).toContain('WhatsApp coupé par la personne le');
@@ -166,7 +207,17 @@ describe('puces du pont au téléphone', () => {
   });
 
   it('le locataire (aucun bloc `pont`) : rien', () => {
-    const { container } = monter(<PucesDuPont participants={[participant(7)]} noms={NOMS} maintenant={MAINTENANT} />);
+    const { container } = monter(<PucesDuPont participants={SANS_PONT} noms={NOMS} maintenant={MAINTENANT} />);
     expect(container.innerHTML).toBe('');
+  });
+});
+
+describe('participantsDuPont — `context.pont` (TCK-2981) en liste', () => {
+  it('clé absente : undefined ; présente : une ligne par user_id', () => {
+    expect(participantsDuPont({})).toBeUndefined();
+    expect(participantsDuPont(null)).toBeUndefined();
+    expect(participantsDuPont({ pont: { '9': { joint: true, invitable: false, canal: 'sms' } } })).toEqual([
+      { user_id: 9, pont: { joint: true, invitable: false, canal: 'sms' } },
+    ]);
   });
 });

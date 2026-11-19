@@ -3,6 +3,7 @@
 namespace Tests\Support;
 
 use App\Ai\Agents\FilBrouillon;
+use App\Ai\Agents\FilPromesses;
 use App\Ai\Agents\FilQuestion;
 use App\Ai\Agents\FilResume;
 use App\Models\Conversation;
@@ -55,11 +56,17 @@ trait SceneDuCopilote
     /** TCK-2975 — les faux de `fil.question` et `fil.brouillon` : même entrée relevée, sortie par défaut citant le dernier message. */
     protected function installerLesAutresSortes(): void
     {
-        $appui = fn () => [['type' => 'message', 'id' => (int) Message::query()->max('id'), 'objet_type' => '']];
+        $appui = fn () => [['nature' => 'message', 'id' => (int) Message::query()->max('id'), 'objet_type' => '']];
         FilQuestion::fake(function ($prompt) use ($appui) {
             $this->entreesRecues[] = is_string($prompt) ? $prompt : (string) ($prompt->prompt ?? '');
 
             return $this->sortieDuModele ?? ['reponse' => 'Oui, il a confirmé.', 'sources' => $appui()];
+        });
+        config(['ai.roles.extraction' => [['provider' => 'anthropic', 'model' => 'modele-a', 'max_tokens' => 1000]]]);
+        FilPromesses::fake(function ($prompt) {
+            $this->entreesRecues[] = is_string($prompt) ? $prompt : (string) ($prompt->prompt ?? '');
+
+            return $this->sortieDuModele ?? ['promesses' => []];
         });
         FilBrouillon::fake(function ($prompt) use ($appui) {
             $this->entreesRecues[] = is_string($prompt) ? $prompt : (string) ($prompt->prompt ?? '');

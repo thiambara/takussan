@@ -5,26 +5,24 @@ namespace Tests\Feature\Owners;
 use App\Models\Agency;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Integration;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\MessageRelay;
 use App\Models\NotificationPreference;
+use App\Models\NotificationTemplate;
 use App\Models\OwnerWeeklyDigest;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\OwnerWeeklyDigestNotification;
 use App\Services\Notifications\PreferenceResolver;
-use App\Services\Pont\CanalDuPont;
-use App\Services\Pont\CapacitesDuCanal;
-use App\Services\Pont\EtatDAccord;
-use App\Services\Pont\ResultatDEnvoi;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
-use Mockery;
 use Tests\ApiTestCase;
+use Tests\Support\Pont\FauxCanal;
 
 /**
  * TCK-2985 (ADR-0132 § 6) — le résumé du lundi du bailleur : un par (bailleur, agence), cloisonné ; seulement à qui
@@ -189,54 +187,97 @@ class ResumeDuLundiTest extends ApiTestCase
     }
 
     /**
-     * Un pilote du pont, nommé `whatsapp` dans `config('messagerie.canaux')` : un double du CONTRAT, jamais du code
-     * propre à WhatsApp. `$resultat` : ce que rend `envoyerGabarit()`.
+     * Le FAUX pilote du pont (`Tests\\Support\\Pont\\FauxCanal`), branché par la configuration comme tout pilote
+     * (`messagerie.canaux`, `messagerie.repli`), et résolu par le vrai registre : aucune doublure du contrat.
      */
-    private function piloteDouble(ResultatDEnvoi|array $resultat, int $envois): void
+    private function brancherLeFauxPilote(bool $gabarits): void
     {
-        $canal = Mockery::mock(CanalDuPont::class);
-        $canal->shouldReceive('nom')->andReturn('whatsapp');
-        $canal->shouldReceive('capacites')->andReturn(new CapacitesDuCanal(recoit: true, gabarits: true, medias: false, accuses: true, boutons: false, fenetreHeures: 24));
-        $canal->shouldReceive('accord')->andReturn(EtatDAccord::Inconnu);
-        $canal->shouldReceive('envoyerGabarit')->times($envois)
-            ->withArgs(fn (string $tel, string $evenement) => $tel === '+221770000001' && $evenement === 'owner.weekly_digest')
-            ->andReturn(...(is_array($resultat) ? $resultat : [$resultat]));
-        $canal->shouldNotReceive('envoyerTexte');
-        config()->set('messagerie.canaux.whatsapp', ['actif' => true, 'pilote' => 'tck2985.faux-whatsapp']);
-        $this->app->instance('tck2985.faux-whatsapp', $canal);
+        FauxCanal::remettreAZero();
+        FauxCanal::$gabarits = $gabarits;
+        config()->set('messagerie.canaux.'.FauxCanal::NOM, ['actif' => true, 'pilote' => FauxCanal::class]);
+        config()->set('messagerie.repli', [FauxCanal::NOM, 'sms']);
         $this->bailleur->forceFill(['phone' => '+221770000001', 'phone_verified_at' => now()])->save();
     }
 
-    /** AC3 — WhatsApp quand c'est possible : le gabarit par le pilote, un relais `digest` par agence, pas d'e-mail. */
-    public function test_ac3_whatsapp_quand_possible_avec_relais_digest(): void
+    /**
+     * AC3 — WhatsApp quand c'est possible : le gabarit part par le pilote de l'ordre de repli, un relais `digest` par
+     * agence, pas d'e-mail ; jamais un texte libre. La clé demandée au pilote est CELLE du registre des gabarits : une
+     * clé qui diverge de `notification_templates.event` rougit ici.
+     */
+    public function test_ac3_le_gabarit_part_par_le_pilote_configure_sous_la_cle_du_registre(): void
     {
         $this->activer($this->bailleur, PreferenceResolver::CHANNEL_WHATSAPP);
         $this->activer($this->bailleur, PreferenceResolver::CHANNEL_EMAIL);
-        $this->piloteDouble([
-            new ResultatDEnvoi(ResultatDEnvoi::ENVOYE, 'wamid.D1', 'template', 'resume_hebdo_bailleur', 'PNID'),
-            new ResultatDEnvoi(ResultatDEnvoi::ENVOYE, 'wamid.D2', 'template', 'resume_hebdo_bailleur', 'PNID'),
-        ], 2);
+        $this->brancherLeFauxPilote(gabarits: true);
 
         $this->artisan('owners:weekly-digest')->assertSuccessful();
 
         Notification::assertNothingSent();
-        $relais = MessageRelay::query()->where('purpose', MessageRelay::PURPOSE_DIGEST)->orderBy('agency_id')->get();
+        $this->assertCount(2, FauxCanal::$envois);
+        foreach (FauxCanal::$envois as $envoi) {
+            $this->assertSame('template', $envoi['forme']);
+            $this->assertSame('+221770000001', $envoi['telephone']);
+            // La clé du pilote désigne une ligne du registre, dans les deux langues, avec autant de variables.
+            foreach (['fr', 'en'] as $langue) {
+                $gabarit = NotificationTemplate::query()->where('channel', 'whatsapp')->where('event', $envoi['gabarit'])->where('locale', $langue)->first();
+                $this->assertNotNull($gabarit, "aucun gabarit « {$envoi['gabarit']} » ({$langue}) au registre");
+                $this->assertCount(count($gabarit->meta_variables), $envoi['variables']);
+            }
+        }
+        $relais = MessageRelay::query()->where('purpose', MessageRelay::PURPOSE_DIGEST)->get();
         $this->assertSame([$this->agenceA->id, $this->agenceB->id], $relais->pluck('agency_id')->map(fn ($a) => (int) $a)->sort()->values()->all());
+        $this->assertSame([FauxCanal::NOM], $relais->pluck('channel')->unique()->values()->all());
         $this->assertSame([$this->bailleur->id], $relais->pluck('user_id')->map(fn ($u) => (int) $u)->unique()->values()->all());
         $this->assertNull($relais->first()->conversation_id);
     }
 
-    /** AC3 — sans gabarit approuvé (indisponible) : l'e-mail, jamais le SMS. */
+    /** AC3 — sans gabarit (pilote sans la capacité, puis le SMS qui n'en porte aucun) : l'e-mail, jamais le SMS. */
     public function test_ac3_sans_gabarit_l_email_jamais_le_sms(): void
     {
         $this->activer($this->bailleur, PreferenceResolver::CHANNEL_WHATSAPP);
-        $this->piloteDouble(ResultatDEnvoi::indisponible('gabarit_non_approuve'), 2);
+        $this->brancherLeFauxPilote(gabarits: false);
 
         $this->artisan('owners:weekly-digest')->assertSuccessful();
 
         $this->assertCount(2, $this->resumes());
         Notification::assertSentTo($this->bailleur, OwnerWeeklyDigestNotification::class, fn ($n, array $canaux) => $canaux === ['mail']);
+        $this->assertSame([], FauxCanal::$envois);
         $this->assertSame(0, MessageRelay::query()->count());
+    }
+
+    /**
+     * De bout en bout, par le VRAI pilote du pont (`config('messagerie.canaux')`, transport `log`) : le gabarit du
+     * registre, une fois approuvé, part ; non approuvé (l'état de la migration), l'e-mail suit.
+     */
+    public function test_ac3_par_le_pilote_configure_gabarit_approuve_sinon_email(): void
+    {
+        config()->set('whatsapp.default_driver', 'log');
+        Integration::factory()->create([
+            'provider' => 'whatsapp_cloud', 'agency_id' => null, 'is_active' => true,
+            'credentials' => ['phone_number_id' => 'PNID-PLATEFORME', 'access_token' => 'jeton-de-test'],
+        ]);
+        $this->bailleur->forceFill(['phone' => '+221770000001', 'phone_verified_at' => now()])->save();
+        $this->activer($this->bailleur, PreferenceResolver::CHANNEL_WHATSAPP);
+        $this->assertSame(2, NotificationTemplate::query()->where('meta_template_name', 'resume_hebdo_bailleur')->where('meta_status', NotificationTemplate::META_STATUS_PENDING)->count());
+
+        // Non approuvé : l'e-mail.
+        $this->artisan('owners:weekly-digest')->assertSuccessful();
+        $this->assertCount(2, $this->resumes());
+        $this->assertSame(0, MessageRelay::query()->count());
+
+        // Approuvé, la semaine suivante : le gabarit, par le pilote, et ses relais `digest`.
+        NotificationTemplate::query()->where('meta_template_name', 'resume_hebdo_bailleur')->update(['meta_status' => NotificationTemplate::META_STATUS_APPROVED]);
+        Notification::fake();
+        Carbon::setTestNow(Carbon::parse('2026-11-30 09:00:00', 'Africa/Dakar'));
+        $this->artisan('owners:weekly-digest')->assertSuccessful();
+
+        Notification::assertNothingSent();
+        $relais = MessageRelay::query()->where('purpose', MessageRelay::PURPOSE_DIGEST)->get();
+        $this->assertCount(2, $relais);
+        $this->assertSame(['whatsapp'], $relais->pluck('channel')->unique()->values()->all());
+        $this->assertSame(['resume_hebdo_bailleur'], $relais->pluck('template')->unique()->values()->all());
+        $this->assertTrue($relais->every(fn (MessageRelay $r) => str_starts_with((string) $r->provider_message_id, 'wamid.log_')));
+        $this->assertSame(['whatsapp'], OwnerWeeklyDigest::query()->where('week', '2026-W48')->pluck('channel')->unique()->values()->all());
     }
 
     /** AC4 — relancée la même semaine, la commande n'envoie rien de plus. */

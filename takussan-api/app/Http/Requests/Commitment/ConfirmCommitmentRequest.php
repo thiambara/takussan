@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Commitment;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Commitment;
 use App\Policies\CommitmentPolicy;
 use App\Rules\InstantIso;
@@ -15,6 +16,8 @@ use App\Rules\InstantIso;
  */
 class ConfirmCommitmentRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     public function authorize(): bool
     {
         $engagement = $this->route('commitment');
@@ -30,5 +33,11 @@ class ConfirmCommitmentRequest extends BaseFormRequest
         return [
             'due_at' => ['nullable', 'date', new InstantIso],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus} : l'échéance est un instant, ramené en UTC par `InstantRecu`. */
+    protected function instantsRecus(): array
+    {
+        return ['due_at'];
     }
 }

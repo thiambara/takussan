@@ -34,7 +34,10 @@ class StorePontInvitationRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        // La fiche sans compte (`customer_id`) : hors de ce lot (TCK-2981, partiel).
-        return ['user_id' => ['required', 'integer', 'min:1']];
+        // Un participant (`user_id`), ou la fiche du locataire sans compte du bail de cette salle (`customer_id`).
+        return [
+            'user_id' => ['required_without:customer_id', 'prohibits:customer_id', 'integer', 'min:1'],
+            'customer_id' => ['required_without:user_id', 'integer', 'min:1'],
+        ];
     }
 }

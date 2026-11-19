@@ -129,14 +129,20 @@ ajoute ce cas à `RoutageEntrant`.
   `insertOrIgnore` avant l'envoi (une violation abandonnerait la transaction sous PostgreSQL).
 - **« En retard »** : échéance `late`, `pending` ou `partially_paid` dont `due_date` < lundi du résumé ; « visites
   confirmées » : `confirmed_at` dans la semaine ; « closes » : `completed_at` dans la semaine, statut `completed`/`closed`.
-- **Canal du pont** : le pilote dont le NOM est une case de l'événement allumée (`channelsFor()`, jamais `sms`), déclaré
-  et actif dans `config/messagerie.php`, avec la capacité « gabarits », accord non `opted_out` ; `envoyerGabarit()`
+- **Canal du pont** : le premier pilote de `config('messagerie.repli')` déclaré, actif, avec la capacité « gabarits »,
+  accord non `opted_out`, si la case WhatsApp est allumée ; `envoyerGabarit()`
   (contrat de TCK-2981, arrivé pendant l'implémentation). Envoyé : relais `digest` (agence, bailleur, identifiant) ;
   indisponible ou échec sûr : e-mail ; ambigu : pas d'e-mail.
 - **La réponse** : `RoutageEntrant::agenceDuResume()` — le relais `digest` cité, ou le dernier relais récent s'il est un
   résumé, ADRESSÉ À CE COMPTE ; l'étape 3 se restreint à son agence, et sans fil le prospect va à cette agence
   (`PontEntrant`).
 - Gabarit `resume_hebdo_bailleur` : migration `2026_11_19_298501` (fr, en, `pending`).
+  **Clé alignée sur la convention du pont** (TCK-2981 : `pont_invitation`, `pont_nouveau_message`) :
+  `ResumeDuLundi::GABARIT` = `resume_hebdo_bailleur` = `notification_templates.event` = `meta_template_name`. Le canal se
+  choisit dans `config('messagerie.repli')` (premier pilote déclaré, actif, avec « gabarits »), plus par le nom d'une
+  case de préférence ; la case WhatsApp allumée et le numéro joignable restent la condition. Testé par le faux pilote
+  branché par la configuration (clé présente au registre, fr et en, autant de variables) et par le vrai pilote (`log`) ;
+  ablation : une clé divergente rougit les deux.
 - Gardes mises à jour : `NotificationClassification`, `PreferenceCatalog::EVENT_PERSONAS` (bailleur),
   `RienPourUnCompteNonJoignableTest::COUPEES`, `SaisieDansTousLesEmailsTest` (cas d'injection), surface `sms` exigée
   par la parité (jamais envoyée).

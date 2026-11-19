@@ -42,7 +42,8 @@ final class FilQuestion extends SocleAgent implements HasStructuredOutput
             'reponse' => $schema->string()->description('La réponse à la question, en français, au vouvoiement.')->required(),
             'sources' => $schema->array()
                 ->items($schema->object([
-                    'type' => $schema->string()->enum(['message', 'objet'])->required(),
+                    // `nature`, pas `type` : une propriété nommée `type` se confond avec le mot-clé du schéma.
+                    'nature' => $schema->string()->enum(['message', 'objet'])->required(),
                     'id' => $schema->integer()->description('L\'identifiant du message, ou celui de l\'objet.')->required(),
                     'objet_type' => $schema->string()->description('Pour un objet : son type (lease, payment…), sinon vide.')->required(),
                 ]))

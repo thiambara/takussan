@@ -4,6 +4,7 @@ namespace App\Services\Ai;
 
 use App\Models\AiCall;
 use App\Models\AiUsageSetting;
+use App\Services\Admin\PlatformSettingService;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -28,10 +29,19 @@ final class AiBudget
             return true;
         }
 
-        $perAgency = config('ai.budgets.daily_per_agency_usd');
+        // TCK-2979 (ADR-0131 § 8) — réglable dans les Paramètres plateforme ; défaut `AI_DAILY_BUDGET_PER_AGENCY_USD`.
+        $perAgency = $this->plafondParAgence();
 
         return $agencyId !== null && $perAgency !== null
             && AiMoney::compare($this->spent(fn (Builder $query) => $query->where('agency_id', $agencyId)), (string) $perAgency) >= 0;
+    }
+
+    /** TCK-2979 — une chaîne décimale (ADR-0086), ou `null` : pas de plafond par agence. */
+    private function plafondParAgence(): ?string
+    {
+        $valeur = app(PlatformSettingService::class)->getValue('ai.daily_budget_per_agency_usd');
+
+        return $valeur === null || $valeur === '' ? null : (is_string($valeur) ? $valeur : AiMoney::canonical((string) $valeur));
     }
 
     public function spentToday(?string $usageKey = null): string

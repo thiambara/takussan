@@ -4746,13 +4746,13 @@
       "relais": {
         "messageType": "as a template message",
         "etat": {
-          "queued": "queued",
-          "sent": "sent",
-          "delivered": "delivered",
-          "read": "read",
-          "failed": "failed",
-          "sms_fallback": "resent by SMS",
-          "autre": "in progress"
+          "autre": "in progress",
+          "en_attente_accord": "awaiting consent",
+          "envoye": "sent",
+          "remis": "delivered",
+          "lu": "read",
+          "echec": "failed",
+          "non_envoye": "not sent"
         },
         "destinataire": "{nom} {canal}"
       },
@@ -11673,6 +11673,10 @@
         "transcription": {
           "label": "Voice note transcription",
           "hint": "Turns received voice notes into text, for your team only."
+        },
+        "raison": {
+          "plateforme": "Turned off by the platform for all agencies: you cannot turn it back on.",
+          "nonConfiguree": "No transcription service is configured on the platform yet."
         }
       }
     },
@@ -15167,7 +15171,16 @@
           "budgetNoDefaultHint": "No default ceiling — leave empty to set none.",
           "providersLoadError": "The available models could not be loaded: {message}",
           "budgetEquivalent": "≈ {xof}",
-          "budgetInvalid": "Enter an amount in dollars, in digits: 0.50 for example."
+          "budgetInvalid": "Enter an amount in dollars, in digits: 0.50 for example.",
+          "copilote": {
+            "fil": {
+              "resume": "Copilot · summary",
+              "question": "Copilot · Ask the thread",
+              "brouillon": "Copilot · draft",
+              "promesses": "Copilot · promises",
+              "transcription": "Copilot · transcription"
+            }
+          }
         },
         "providers": {
           "caption": "Allowed providers",
@@ -16959,7 +16972,8 @@
         "boost": "Credits and promotion",
         "rentals": "Rentals",
         "radar": "Radar",
-        "crm": "Customer relations"
+        "crm": "Customer relations",
+        "ai": "Artificial intelligence"
       },
       "keys": {
         "currency": {
@@ -17097,6 +17111,12 @@
           "sell_directory_wide": {
             "label": "Sell the directory-wide place",
             "description": "The place of the directory without a city filter, the most viewed. Closed, it stays offered by the team."
+          }
+        },
+        "ai": {
+          "daily_budget_per_agency_usd": {
+            "label": "Daily AI cap per agency (dollars)",
+            "description": "Maximum AI spend of each agency per day, across all uses, in US dollars. Empty: no per-agency cap."
           }
         }
       },
@@ -18205,7 +18225,8 @@
         "invoice_reminder_sent": "Invoice reminder",
         "tenant_inventory_reminder": "Move-in inventory reminder",
         "task_due_reminder": "Task reminder",
-        "document_expiring": "Expiry of my documents"
+        "document_expiring": "Expiry of my documents",
+        "owner_weekly_digest": "Monday summary of my properties"
       },
       "channels": {
         "inapp": "App",
@@ -21841,6 +21862,83 @@
       "uneFoisParSemaine": "Once a week instead",
       "hebdoFaitTitre": "Once a week it is",
       "hebdoFaitTexte": "You will receive at most one message a week. Each one still has its unsubscribe link."
+    },
+    "action": {
+      "metaTitre": "An action is waiting for you",
+      "mention": "Personal link",
+      "pied": "This link works once and is valid for 7 days. For anything else, reply to the agency in your WhatsApp conversation.",
+      "refus": "The action could not be completed. Your link is still valid: try again, or reply to the agency on WhatsApp.",
+      "erreur": "This link could not be opened. Check your connection, then try again.",
+      "recap": {
+        "motif": "Reason",
+        "quartier": "Area",
+        "adresse": "Address",
+        "surPlace": "On site",
+        "bien": "Property",
+        "contact": "Contact"
+      },
+      "gestes": {
+        "visite": {
+          "surtitre": "Viewing",
+          "titre": "Do you confirm this viewing?",
+          "bouton": "Confirm the viewing",
+          "fait": "The viewing is confirmed: the agency has been notified."
+        },
+        "intervention": {
+          "surtitre": "Maintenance",
+          "titre": "Do you accept this job?",
+          "bouton": "Accept the job",
+          "fait": "The job is accepted: the agency has been notified.",
+          "adresseApres": "The exact address and the person to ask for on site appear once you accept the job."
+        },
+        "etatDesLieux": {
+          "surtitre": "Inventory",
+          "titre": "Sign the inventory",
+          "bouton": "Sign the inventory",
+          "fait": "The inventory is signed: the agency has been notified."
+        }
+      },
+      "signature": {
+        "codeTitre": "Signing code",
+        "codeAide": "A signature is confirmed with a 6-digit code, sent to the number that received this link.",
+        "recevoirLeCode": "Send me my code",
+        "codeEnvoye": "Code sent to the number that received this link.",
+        "codeAria": "6-digit code",
+        "codeNonEnvoye": "The code could not be sent. Try again in a moment.",
+        "traceTitre": "Your signature",
+        "traceAide": "Sign with your finger in the box, then confirm.",
+        "signer": "Sign the inventory",
+        "effacer": "Clear"
+      },
+      "fait": {
+        "titre": "Done",
+        "compteTitre": "Everything in one place",
+        "compteTexte": "A Takussan account keeps your appointments and your exchanges with agencies. Create your password in a minute.",
+        "compteBouton": "Create my password",
+        "pied": "This link has been used: it allows no further action. For anything else, reply to the agency in your WhatsApp conversation."
+      },
+      "mort": {
+        "expired": {
+          "titre": "This link has expired",
+          "texte": "Ask for a new link by replying to the agency on WhatsApp."
+        },
+        "used": {
+          "titre": "This link has already been used",
+          "texte": "If it wasn’t you, let the agency know."
+        },
+        "revoked": {
+          "titre": "This link is no longer valid",
+          "texte": "A newer link has replaced it: use the latest one you received, or reply to the agency on WhatsApp."
+        },
+        "notFound": {
+          "titre": "This link cannot be found",
+          "texte": "Check that it is complete, or reply to the agency on WhatsApp."
+        }
+      },
+      "tropDeTentatives": {
+        "titre": "Too many attempts",
+        "texte": "Wait a few minutes, then try again."
+      }
     }
   },
   "saisieDemande": {

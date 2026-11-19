@@ -33,7 +33,8 @@ final class AppuisDuFil
                 continue;
             }
             $id = (int) $id;
-            $type = $appui['type'] ?? null;
+            // Le modèle écrit `nature` (son schéma) ; la proposition enregistrée garde `type`.
+            $type = $appui['nature'] ?? null;
             if ($type === 'message' && isset($connus[$id])) {
                 $gardes[] = ['type' => 'message', 'id' => $id];
             } elseif ($type === 'objet' && is_string($appui['objet_type'] ?? null) && isset($lisibles[$appui['objet_type'].':'.$id])) {

@@ -95,7 +95,7 @@ return [
         'provider_host_not_allowed' => "L'adresse de ce fournisseur n'est pas sur un hôte accepté.",
         'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
         'provider_redirected' => "Ce fournisseur a répondu par une redirection : la demande n'a pas été renvoyée.",
-        'provider_role_mismatch' => 'Ce fournisseur ne sert pas ce rôle : les embeddings et le texte ne se mélangent pas.',
+        'provider_role_mismatch' => 'Ce fournisseur ne sert pas ce rôle : les embeddings, la transcription et le texte ne se mélangent pas, et seul un fournisseur qui transcrit sert la transcription.',
         'provider_unreachable' => "Rien n'est envoyé à ce fournisseur : refus de l'entraînement non déclaré, ou adresse non acceptée.",
         'provider_unknown' => 'Fournisseur IA inconnu.',
         'role_unknown' => 'Rôle IA inconnu.',
@@ -1081,5 +1081,18 @@ return [
         'already_joined' => 'Cette personne est déjà jointe dans cette conversation.',
         'customer_not_in_room' => "Cette fiche n'appartient pas au bail de cette conversation.",
         'numero_deja_a_un_compte' => 'Ce numéro est déjà porté par un autre compte.',
+    ],
+    // TCK-2982 (ADR-0132 § 5) — le lien d'action signé.
+    'action_link' => [
+        'expired' => 'Ce lien a expiré.',
+        'used' => 'Ce lien a déjà servi.',
+        'revoked' => "Ce lien n'est plus valable.",
+        'code_required' => 'Saisissez le code reçu par SMS.',
+        'code_invalid' => "Ce code n'est pas le bon.",
+        'code_locked' => "Trop d'essais : réessayez plus tard.",
+        'resend_too_soon' => 'Patientez avant de demander un nouveau code.',
+        'no_phone' => 'Aucun numéro ne peut recevoir le code.',
+        'sms_not_sent' => "Le code n'a pas pu être envoyé. Réessayez.",
+        'nothing_to_sign' => 'Il ne vous reste rien à signer.',
     ],
 ];

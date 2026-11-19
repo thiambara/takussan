@@ -4,6 +4,8 @@ namespace App\Services\Messaging\Copilote;
 
 use App\Ai\Usages\FilTranscriptionUsage;
 use App\Models\Agency;
+use App\Models\AiUsageSetting;
+use App\Services\Ai\AiProviderCatalogue;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\ModelLink;
 use App\Services\Ai\ModelResolver;
@@ -19,8 +21,9 @@ use App\Services\Ai\ModelResolver;
  *    (1,00 $, 0,50 $ pour la transcription) ;
  *  - {@see self::modele()} : le premier maillon de la fonction, par `ModelResolver` (le rôle de son usage).
  *
- * Ici (TCK-2974), il ne lit que `config('ai.copilote')`. La route, l'état et `copilote` de
- * `ConversationResource` passent tous par lui : rien d'autre n'est à rebrancher.
+ * TCK-2974 l'a écrit sur `config('ai.copilote')` ; TCK-2979 le branche sur la console IA (`ai_usage_settings` :
+ * interrupteur et modèle forcé de chaque usage `fil.*`) et sur les deux réglages de l'agence, sans changer ni ses
+ * méthodes ni ses raisons. La route, l'état et `copilote` de `ConversationResource` passent tous par lui.
  */
 final class ReglagesDuCopilote
 {
@@ -36,16 +39,32 @@ final class ReglagesDuCopilote
     public function __construct(
         private readonly AiUsageRegistry $registre,
         private readonly ModelResolver $modeles,
+        private readonly AiProviderCatalogue $fournisseurs,
     ) {}
 
     /** @return array{active: bool, raison: string|null} */
     public function etat(string $fonction, ?Agency $agence): array
     {
+        return $this->etatSelon($fonction, $agence, $this->reglagesDeLaConsole());
+    }
+
+    /**
+     * @param  array<string, AiUsageSetting>  $console  les lignes `ai_usage_settings` des usages du copilote
+     * @return array{active: bool, raison: string|null}
+     */
+    private function etatSelon(string $fonction, ?Agency $agence, array $console): array
+    {
+        $usage = self::usageDe($fonction);
         $raison = match (true) {
             ! (bool) config('ai.copilote.actif', true) => self::PLATEFORME,
             config("ai.copilote.fonctions.{$fonction}", true) === false => self::PLATEFORME,
+            // TCK-2979 (ADR-0131 § 8) — l'interrupteur de l'usage dans la console IA (`ai_usage_settings.enabled`). La
+            // passerelle juge toujours son coupe-circuit : ceci évite seulement de déposer un job voué au refus.
+            ($console[$usage] ?? null)?->enabled === false => self::PLATEFORME,
             // TCK-2976 (ADR-0131 § 7, décision 5a) — la transcription sans modèle (rôle `transcription` vide) n'est pas servie.
-            $fonction === self::TRANSCRIPTION && $this->modele($fonction) === null => self::NON_CONFIGUREE,
+            // TCK-2979 — « configurée » : un maillon d'un fournisseur sélectionnable qui transcrit, par le rôle ou par le
+            // modèle forcé de l'usage dans la console.
+            $fonction === self::TRANSCRIPTION && ! $this->transcriptionConfiguree($console[$usage] ?? null) => self::NON_CONFIGUREE,
             // TCK-2979 (ADR-0131 § 8) — l'agence ne peut qu'éteindre : lue APRÈS la plateforme et la configuration.
             $agence !== null && $agence->setting(self::reglageDAgence($fonction)) === false => self::AGENCE,
             default => null,
@@ -104,10 +123,73 @@ final class ReglagesDuCopilote
     /** Le premier maillon que jouerait la fonction : la chaîne du rôle de son usage (`ModelResolver`). */
     public function modele(string $fonction): ?ModelLink
     {
-        // TCK-2976 — la transcription a son usage hors des sortes.
-        $usage = $fonction === self::TRANSCRIPTION ? FilTranscriptionUsage::KEY : SortesDuCopilote::usageDe($fonction);
+        return $this->chaine($fonction, AiUsageSetting::query()->where('usage_key', self::usageDe($fonction))->first())[0] ?? null;
+    }
 
-        return $this->modeles->chainFor($this->registre->get($usage))[0] ?? null;
+    /**
+     * TCK-2979 — ce que la passerelle jouerait : le modèle forcé de l'usage dans la console, sinon la chaîne de son rôle.
+     *
+     * @return list<ModelLink>
+     */
+    private function chaine(string $fonction, ?AiUsageSetting $reglage): array
+    {
+        return $this->modeles->chainFor($this->registre->get(self::usageDe($fonction)), $reglage);
+    }
+
+    private function transcriptionConfiguree(?AiUsageSetting $reglage): bool
+    {
+        foreach ($this->chaine(self::TRANSCRIPTION, $reglage) as $maillon) {
+            if ($this->fournisseurs->selectable($maillon->provider) && $this->fournisseurs->transcribes($maillon->provider)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** TCK-2976 — la transcription a son usage hors des sortes. */
+    private static function usageDe(string $fonction): string
+    {
+        return $fonction === self::TRANSCRIPTION ? FilTranscriptionUsage::KEY : SortesDuCopilote::usageDe($fonction);
+    }
+
+    /**
+     * TCK-2979 — les lignes de la console des usages du copilote, en UNE requête, indexées par usage.
+     *
+     * @return array<string, AiUsageSetting>
+     */
+    private function reglagesDeLaConsole(): array
+    {
+        return AiUsageSetting::query()
+            ->whereIn('usage_key', [...SortesDuCopilote::usages(), FilTranscriptionUsage::KEY])
+            ->get()
+            ->keyBy('usage_key')
+            ->all();
+    }
+
+    /**
+     * TCK-2979 (ADR-0131 § 8) — ce que la plateforme laisse à l'agence, pour griser ses deux interrupteurs
+     * (`AgencyResource::ai_platform`). Dérivé de {@see self::etat()} sans agence, jamais redéfini :
+     *  - `copilot` : au moins une fonction couverte par `copilot_enabled` est servie par la plateforme ;
+     *  - `transcription` : la transcription n'est pas coupée par la plateforme ;
+     *  - `transcription_configured` : un fournisseur qui transcrit est affecté.
+     *
+     * @return array{copilot: bool, transcription: bool, transcription_configured: bool}
+     */
+    public function etatDeLaPlateforme(): array
+    {
+        $console = $this->reglagesDeLaConsole();
+        $copilote = false;
+        foreach (SortesDuCopilote::sortes() as $fonction) {
+            $copilote = $copilote || $this->etatSelon($fonction, null, $console)['active'];
+        }
+        $transcription = $this->etatSelon(self::TRANSCRIPTION, null, $console)['raison'];
+
+        return [
+            'copilot' => $copilote,
+            'transcription' => $transcription !== self::PLATEFORME,
+            'transcription_configured' => $transcription === null,
+        ];
     }
 
     /**
@@ -119,8 +201,9 @@ final class ReglagesDuCopilote
     public function fonctions(?Agency $agence): array
     {
         $etats = [];
+        $console = $this->reglagesDeLaConsole();
         foreach (SortesDuCopilote::sortes() as $fonction) {
-            $etats[$fonction] = $this->etat($fonction, $agence);
+            $etats[$fonction] = $this->etatSelon($fonction, $agence, $console);
         }
 
         return $etats;

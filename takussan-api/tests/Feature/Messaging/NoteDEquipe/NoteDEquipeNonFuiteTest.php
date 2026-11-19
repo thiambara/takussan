@@ -346,13 +346,28 @@ class NoteDEquipeNonFuiteTest extends ApiTestCase
     public function test_chemin_9_aucune_route_ne_recoit_un_message(): void
     {
         $routes = collect(Route::getRoutes()->getRoutes())
-            ->filter(fn ($r) => preg_match('/\{(message|messages|message_id|messageId)\??\}/', $r->uri()) === 1)
-            ->map(fn ($r) => $r->uri())
-            ->values()
-            ->all();
+            ->filter(fn ($r) => preg_match('/\{(message|messages|message_id|messageId)\??\}/', $r->uri()) === 1);
 
-        $this->assertSame([], $routes);
+        $this->assertSame(array_keys(self::ROUTES_QUI_JUGENT_LA_LECTURE), $routes->map(fn ($r) => $r->uri())->values()->all());
+
+        // Chaque route admise résout son message par `messagesLisiblesPar` dans l'action même qu'elle appelle.
+        foreach ($routes as $route) {
+            [$classe, $methode] = explode('@', (string) $route->getActionName());
+            $action = new \ReflectionMethod($classe, $methode);
+            $source = implode('', array_slice((array) file((string) $action->getFileName()), $action->getStartLine() - 1, $action->getEndLine() - $action->getStartLine() + 1));
+            $this->assertStringContainsString('messagesLisiblesPar(', $source, "{$route->uri()} ne juge pas la lecture du message");
+        }
     }
+
+    /**
+     * TCK-2985 (rouge CI de #1700) — les routes qui reçoivent un message, chacune jugée par `messagesLisiblesPar`
+     * (contrôlé ci-dessus dans la source de son action) et sa preuve de non-fuite.
+     *
+     * @var array<string, string>
+     */
+    private const ROUTES_QUI_JUGENT_LA_LECTURE = [
+        'api/conversations/{conversation}/messages/{message}/transcription' => 'TCK-2976 : MessageTranscriptionController::store, 404 hors lecture — TranscriptionDuFilTest::test_un_non_personnel_recoit_404_et_rien_ne_part',
+    ];
 
     // ── AC6 — l'agent devenu inactif ne lit plus, même ses notes ─────────────────────────────────────
 

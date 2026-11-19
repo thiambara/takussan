@@ -74,6 +74,14 @@ final class EtatDuCopilote
                 : ['statut' => self::ECHEC, 'code' => 'copilote.echec'];
         }
 
+        if ($sorte === SortesDuCopilote::PROMESSES) {
+            // TCK-2975 — une suggestion par promesse : la liste des promesses en attente du lecteur, sans celles
+            // qu'un collègue a notées depuis (`PromessesDuFil::enAttente()`).
+            $promesses = app(PromessesDuFil::class)->enAttente($lecteur, $fil);
+
+            return ['statut' => $promesses === [] ? self::AUCUN : self::PRETE, 'promesses' => $promesses];
+        }
+
         if ($suggestion !== null && $suggestion->proposal !== []) {
             return ['statut' => self::PRETE, 'suggestion_id' => (int) $suggestion->id, 'proposition' => $suggestion->proposal];
         }

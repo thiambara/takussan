@@ -25,6 +25,7 @@ import type { ConversationContext } from '@/types/message';
 import { ID_COLONNE_DE_CONTEXTE } from './EnTeteDuFil';
 // TCK-2984 — « Participants et canaux » : le pont, pour le seul personnel (bloc `pont` du contexte).
 import { ParticipantsEtCanauxDuFil } from './pont/ElementsDuPont';
+import { participantsDuPont } from './pont/pont';
 // TCK-2972 — les engagements du fil.
 import { EngagementsDuFil } from './engagements/EngagementsDuFil';
 // TCK-2973 — la fiabilité des participants.
@@ -129,7 +130,7 @@ export function ColonneDeContexte({ conversationId, ouverte, onOuvrir, superpose
         {/* TCK-2973 — la fiabilité des participants, pour le seul personnel (`commitments_records`). */}
         <FiabiliteDuFilOuvert conversationId={conversationId} contexte={contexte} />
         {/* TCK-2984 — qui est joint par quoi, la fenêtre, « Joindre par WhatsApp » ; rien sans bloc `pont`. */}
-        <ParticipantsEtCanauxDuFil conversationId={conversationId} participants={contexte?.participants} />
+        <ParticipantsEtCanauxDuFil conversationId={conversationId} participants={participantsDuPont(contexte)} />
         {/* TCK-2972 — « Engagements de ce fil ». */}
         <EngagementsDuFil conversationId={conversationId} />
       </div>

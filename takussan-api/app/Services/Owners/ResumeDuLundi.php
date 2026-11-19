@@ -37,6 +37,13 @@ final class ResumeDuLundi
 {
     public const TIMEZONE = 'Africa/Dakar';
 
+    /**
+     * La clé du gabarit du résumé : `notification_templates.event` (migration `2026_11_19_298501`) et le nom chez Meta,
+     * la convention des gabarits du pont (`pont_invitation`, `pont_nouveau_message`, TCK-2981). Le pilote le cherche
+     * par (événement, canal, langue).
+     */
+    public const GABARIT = 'resume_hebdo_bailleur';
+
     public function __construct(
         private readonly PreferenceResolver $preferences,
         private readonly RegistreDesCanaux $registre,
@@ -182,11 +189,15 @@ final class ResumeDuLundi
     }
 
     /**
-     * La voie du pont : le gabarit du code (`resume_hebdo_bailleur` au registre) par le PILOTE dont le nom est une case
-     * mobile de l'événement allumée ({@see PreferenceResolver::channelsFor()} : `whatsapp`, jamais `sms`) ; jamais
-     * un texte libre. Envoyé : un relais `purpose = digest` (agence du résumé, bailleur, identifiant du fournisseur),
-     * cible de la réponse ({@see RoutageEntrant::agenceDuResume()}). Indisponible ou échec sûr :
-     * `null`, l'e-mail suit. Ambigu : le canal, et pas d'e-mail (règle de TCK-766).
+     * La voie du pont : le gabarit {@see self::GABARIT}, par le premier pilote de l'ordre de repli
+     * (`config('messagerie.repli')`, résolu par {@see RegistreDesCanaux}) qui est déclaré, actif et porte la capacité
+     * « gabarits » ; jamais un texte libre, donc jamais le SMS (sans gabarit). Seulement si la case mobile de
+     * l'événement est allumée et le numéro joignable ({@see PreferenceResolver::shouldSend()} : vérifié, WhatsApp non
+     * refusé), et le numéro non opposé sur ce canal.
+     *
+     * Envoyé : un relais `purpose = digest` (agence du résumé, bailleur, identifiant du fournisseur), cible de la réponse
+     * ({@see RoutageEntrant::agenceDuResume()}). Indisponible ou échec sûr : le pilote suivant, puis `null` (l'e-mail).
+     * Ambigu : le canal, et pas d'e-mail (règle de TCK-766).
      *
      * @param  array<string, mixed>  $params
      * @return string|null le canal effectif, ou `null` : à l'e-mail
@@ -195,43 +206,46 @@ final class ResumeDuLundi
     {
         $code = NotificationCode::OwnerWeeklyDigest;
         $event = (string) $code->preferenceEvent();
+        if (blank($user->phone) || ! $this->preferences->shouldSend($user, $event, PreferenceResolver::CHANNEL_WHATSAPP)) {
+            return null;
+        }
+        $telephone = (string) $user->phone;
         $locale = $user->preferredLocale() ?? (string) config('app.locale');
+        $formatted = $this->renderer->format($code, $params, $locale, $user->timezone ?: NotificationRenderer::DEFAULT_TIMEZONE);
+        // Les variables du corps, dans l'ordre de `NotificationCode::params()` : celui des `meta_variables` du gabarit.
+        $variables = array_map(fn (string $nom): string => (string) ($formatted[$nom] ?? '—'), array_keys($code->params()));
 
-        foreach ($this->preferences->channelsFor($event) as $nom) {
-            if (! in_array($nom, RegistreDesCanaux::noms(), true)
-                || ! (bool) config('messagerie.canaux.'.$nom.'.actif', false)
-                || ! $this->preferences->shouldSend($user, $event, $nom)
-                || blank($user->phone)) {
+        foreach ((array) config('messagerie.repli', []) as $nom) {
+            $nom = (string) $nom;
+            if (! in_array($nom, RegistreDesCanaux::noms(), true) || ! (bool) config('messagerie.canaux.'.$nom.'.actif', false)) {
                 continue;
             }
             $canal = $this->registre->canal($nom);
-            if (! $canal->capacites()->gabarits
-                || $canal->accord((string) $user->phone) === EtatDAccord::Oppose) {
+            if (! $canal->capacites()->gabarits || $canal->accord($telephone) === EtatDAccord::Oppose) {
                 continue;
             }
 
-            $formatted = $this->renderer->format($code, $params, $locale, $user->timezone ?: NotificationRenderer::DEFAULT_TIMEZONE);
-            $variables = array_map(fn (string $nomParam): string => (string) ($formatted[$nomParam] ?? '—'), array_keys($code->params()));
-            $resultat = $canal->envoyerGabarit((string) $user->phone, $code->value, $locale, $variables, ['agency_id' => null]);
-
-            if ($resultat->envoye() || $resultat->ambigu) {
-                MessageRelay::query()->create([
-                    'purpose' => MessageRelay::PURPOSE_DIGEST,
-                    'direction' => MessageRelay::DIRECTION_OUT,
-                    'agency_id' => $agence->id,
-                    'user_id' => $user->id,
-                    'channel' => $canal->nom(),
-                    'form' => $resultat->forme,
-                    'template' => $resultat->gabarit,
-                    'phone' => (string) $user->phone,
-                    'business_number_id' => $resultat->numeroDEntreprise,
-                    'provider_message_id' => $resultat->identifiantExterne,
-                    'status' => $resultat->envoye() ? 'envoye' : 'echec',
-                    'sent_at' => now(),
-                ]);
-
-                return $canal->nom();
+            $resultat = $canal->envoyerGabarit($telephone, self::GABARIT, $locale, $variables, ['agency_id' => null]);
+            if (! $resultat->envoye() && ! $resultat->ambigu) {
+                continue;
             }
+
+            MessageRelay::query()->create([
+                'purpose' => MessageRelay::PURPOSE_DIGEST,
+                'direction' => MessageRelay::DIRECTION_OUT,
+                'agency_id' => $agence->id,
+                'user_id' => $user->id,
+                'channel' => $canal->nom(),
+                'form' => $resultat->forme,
+                'template' => $resultat->gabarit ?? self::GABARIT,
+                'phone' => $telephone,
+                'business_number_id' => $resultat->numeroDEntreprise,
+                'provider_message_id' => $resultat->identifiantExterne,
+                'status' => $resultat->envoye() ? 'envoye' : 'echec',
+                'sent_at' => now(),
+            ]);
+
+            return $canal->nom();
         }
 
         return null;

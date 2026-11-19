@@ -70,6 +70,17 @@ class ConversationContextResource extends BaseResource
             // TCK-2987 (ADR-0130 § 6) — deux entiers par participant, au SEUL personnel actif de l'agence du fil :
             // pour tout autre appelant la clé est absente (ni `null`, ni zéro). Un objet indexé par compte.
             'commitments_records' => $this->when($context->commitmentsRecords !== null, fn () => (object) $context->commitmentsRecords),
+            // TCK-2981 (ADR-0132 § 3) — le pont par participant actif (lecteur exclu), indexé par compte, au SEUL
+            // personnel actif de l'agence du fil ; absent pour tout autre lecteur. Jamais un numéro.
+            'pont' => $this->when($context->pont !== null, fn () => (object) array_map(fn (array $l): array => [
+                'joint' => $l['joint'],
+                'invitation_en_attente' => $l['invitation_en_attente'],
+                'canal' => $l['canal'],
+                'accord_at' => $this->iso($l['accord_at']),
+                'opposition_at' => $this->iso($l['opposition_at']),
+                'fenetre_jusqu_a' => $this->iso($l['fenetre_jusqu_a']),
+                'invitable' => $l['invitable'],
+            ], $context->pont)),
             'customer' => $this->when($context->customerShown, fn () => $customer === null ? null : [
                 'id' => $customer->id,
                 'full_name' => $customer->full_name,

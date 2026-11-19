@@ -126,10 +126,10 @@ final class CopiloteBrouillonQuestionTest extends TestCase
     private function appuis(Message $ici, Message $ailleurs): array
     {
         return [
-            ['type' => 'message', 'id' => (int) $ici->id, 'objet_type' => ''],
-            ['type' => 'message', 'id' => (int) $ailleurs->id, 'objet_type' => ''],
-            ['type' => 'message', 'id' => 999999, 'objet_type' => ''],
-            ['type' => 'objet', 'id' => (int) $this->bail->id + 1000, 'objet_type' => 'lease'],
+            ['nature' => 'message', 'id' => (int) $ici->id, 'objet_type' => ''],
+            ['nature' => 'message', 'id' => (int) $ailleurs->id, 'objet_type' => ''],
+            ['nature' => 'message', 'id' => 999999, 'objet_type' => ''],
+            ['nature' => 'objet', 'id' => (int) $this->bail->id + 1000, 'objet_type' => 'lease'],
         ];
     }
 }

@@ -48,11 +48,11 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('conversations.copilote.store');
     // TCK-2975 (ADR-0131 § 3) — la décision du DEMANDEUR sur une proposition du copilote (sinon 404 ; purgée : 410).
     Route::put('copilote/suggestions/{suggestion}/decision', [CopiloteSuggestionController::class, 'decider'])
-        ->whereNumber('suggestion')
+        ->where('suggestion', '[0-9]{1,18}') // un bigint, jamais au-delà (IdentifiantsDeRouteHorsBigintTest)
         ->name('copilote.suggestions.decision');
     // TCK-2976 (ADR-0131 § 7) — la transcription d'une note vocale (personnel servi par le copilote ; sinon 404).
     Route::post('conversations/{conversation}/messages/{message}/transcription', [MessageTranscriptionController::class, 'store'])
-        ->whereNumber('message')
+        ->where('message', '[0-9]{1,18}') // TCK-2976 — un bigint, jamais au-delà
         ->middleware('throttle:conversation-message')
         ->name('conversations.messages.transcription.store');
     // TCK-2630 — la colonne de contexte d'un fil : bien, bail, intervention, fiche CRM (personnel).

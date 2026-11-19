@@ -43,7 +43,8 @@ class AiRoleController extends Controller
         $chain = array_map(ModelLink::fromArray(...), array_values($request->validated('chain')));
         foreach ($chain as $link) {
             abort_code_unless($link->isPriced(), 422, 'ai.model_unpriced');
-            abort_code_unless($this->providers->servesEmbeddings($link->provider) === ($aiRole === AiModelRole::Embedding), 422, 'ai.provider_role_mismatch');
+            // TCK-2979 — embeddings, transcription et texte : un seul juge.
+            abort_code_unless($this->providers->servesRole($link->provider, $aiRole), 422, 'ai.provider_role_mismatch');
         }
 
         $before = $this->resolver->chainForRole($aiRole);

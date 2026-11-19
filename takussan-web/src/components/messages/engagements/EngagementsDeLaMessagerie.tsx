@@ -114,7 +114,7 @@ export function EngagementsDeLaMessagerie({
       ) : (
         groupes.map(({ g, lignes: ls }) => (
           <section key={g} data-testid={`groupe-${g}`}>
-            <p className={cn('px-4 pt-3 pb-1 text-ui font-semibold', g === 'retard' ? 'text-destructive' : 'text-foreground/80')}>
+            <p className={cn('px-4 pt-3 pb-1 text-ui font-semibold', g === 'retard' ? 'text-destructive' : 'text-foreground')}>
               {t(`groupes.${g}`, { n: ls.length })}
             </p>
             <ul className="divide-y divide-border/70 border-y border-border/70">

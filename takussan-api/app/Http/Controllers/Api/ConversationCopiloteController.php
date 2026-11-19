@@ -12,6 +12,7 @@ use App\Models\Message;
 use App\Models\User;
 use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\Copilote\EtatDuCopilote;
+use App\Services\Messaging\Copilote\PromessesDuFil;
 use App\Services\Messaging\Copilote\ReglagesDuCopilote;
 use App\Services\Messaging\Copilote\SortesDuCopilote;
 use App\Services\Messaging\EquipeDuFil;
@@ -40,6 +41,17 @@ class ConversationCopiloteController extends Controller
         $user = $request->user();
         $agence = Agency::query()->find(EquipeDuFil::agence($conversation));
         abort_code_unless($reglages->etat($sorte, $agence)['active'], 409, 'copilote.coupe');
+
+        if ($sorte === SortesDuCopilote::PROMESSES) {
+            // TCK-2975 — rien de neuf depuis la dernière extraction du lecteur : l'état courant, sans appel.
+            $depuis = app(PromessesDuFil::class)->premierNouveau($user, $conversation);
+            if ($depuis === null) {
+                return $this->json(['data' => $etat->de($user, $conversation, $sorte, $agence)]);
+            }
+            $this->lancer($request, $conversation, $sorte, ['depuis_message_id' => $depuis], []);
+
+            return $this->json(['data' => $etat->de($user, $conversation, $sorte, $agence)], 202);
+        }
 
         if ($sorte !== SortesDuCopilote::RESUME) {
             // TCK-2975 — une question, un brouillon : chaque demande est une demande à elle (pas d'idempotence) ;

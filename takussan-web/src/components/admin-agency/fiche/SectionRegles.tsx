@@ -175,12 +175,32 @@ function InterrupteurDuReglage({
 }) {
   const t = useTranslations('admin.agencyConfig.assistant');
   const { control } = useFormContext<ValeursDeLaFiche>();
+  const { agence } = useFiche();
+  // L'agence ne rallume jamais ce que la plateforme coupe : grisé, avec sa raison. Sans `ai_platform`, rien n'est grisé.
+  const plateforme = agence.ai_platform;
+  const raison = !plateforme
+    ? null
+    : cle === 'copilote'
+      ? (plateforme.copilot ? null : 'plateforme')
+      : !plateforme.transcription
+        ? 'plateforme'
+        : plateforme.transcription_configured
+          ? null
+          : 'nonConfiguree';
   return (
     <Controller
       control={control}
       name={name}
       render={({ field }) => (
-        <InterrupteurAAide id={name} libelle={t(`${cle}.label`)} aide={t(`${cle}.hint`)} actif={field.value} onChange={field.onChange} />
+        <InterrupteurAAide
+          id={name}
+          libelle={t(`${cle}.label`)}
+          aide={t(`${cle}.hint`)}
+          actif={field.value}
+          onChange={field.onChange}
+          desactive={raison !== null}
+          pied={raison ? <span className="text-muted-foreground" data-raison={raison}>{t(`raison.${raison}`)}</span> : undefined}
+        />
       )}
     />
   );

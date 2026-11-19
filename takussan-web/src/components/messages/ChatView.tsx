@@ -67,6 +67,7 @@ import { MessageDateSeparator } from './MessageDateSeparator';
 import { ChatComposerShell } from './ChatComposerShell';
 // TCK-2984 (ADR-0132) — le pont : la trace du canal sous la bulle, le bandeau de la fenêtre au-dessus du composeur.
 import { BandeauDeLaFenetre, PontDuMessage, PucesDuPont } from './pont/ElementsDuPont';
+import { participantsDuPont } from './pont/pont';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
 import { urlDeLaPiece, type RelirePiece } from './PieceJointeDuFil';
 import { LecteurDeNoteVocale } from './NoteVocale';
@@ -695,7 +696,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
         />
       )}
       {/* TCK-2984 — au téléphone, les puces des participants joints par le pont ; rien sans bloc `pont`. */}
-      {!isWidget ? <PucesDuPont participants={contexteData?.data?.participants} noms={nomsDuPont} moi={user?.id} /> : null}
+      {!isWidget ? <PucesDuPont participants={participantsDuPont(contexteData?.data)} noms={nomsDuPont} moi={user?.id} /> : null}
       {/* TCK-2963 — le bandeau de l'objet, collé sous l'en-tête (maquette `BandeauBail`). */}
       {!isWidget && estSalle ? salle?.bandeau : null}
       {isGroup && !isWidget && (
@@ -869,7 +870,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
       </p>
 
       {/* TCK-2984 — la fenêtre de 24 h des destinataires joints par le pont ; rien sans bloc `pont` dans le contexte. */}
-      {canSend && !isWidget ? <BandeauDeLaFenetre participants={contexteData?.data?.participants} noms={nomsDuPont} moi={user?.id} /> : null}
+      {canSend && !isWidget ? <BandeauDeLaFenetre participants={participantsDuPont(contexteData?.data)} noms={nomsDuPont} moi={user?.id} /> : null}
       {canSend ? (
         <ChatComposerShell
           // TCK-316 — `handleSubmit(onSubmit)` était APPELÉ pendant le rendu pour

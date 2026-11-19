@@ -103,8 +103,8 @@ const MESSAGE: Partial<Message> = { id: 501, conversation_id: 7, sender_id: 7, c
 /** TCK-2984 — la bulle porte l'état des relais et la fenêtre fermée s'annonce, pour le personnel seul. */
 describe('<ChatView> — le pont monté (TCK-2984)', () => {
   it('le personnel : l’état du relais sous sa bulle, et l’annonce du message type au-dessus du composeur', () => {
-    contexte = { participants: [{ user_id: 9, relation: 'locataire', pont: { joint: true, invitable: false, fenetre_jusqu_a: FERMEE } }] };
-    messages = [{ ...MESSAGE, channel: 'app', relays: [{ user_id: 9, channel: 'whatsapp', form: 'texte', status: 'read', at: '2026-11-18T09:01:00Z' }] } as Partial<Message>];
+    contexte = { participants: [{ user_id: 9, relation: 'locataire' }], pont: { '9': { joint: true, invitable: false, canal: 'whatsapp', fenetre_jusqu_a: FERMEE } } };
+    messages = [{ ...MESSAGE, channel: 'app', relays: [{ user_id: 9, channel: 'whatsapp', form: 'text', status: 'lu', at: '2026-11-18T09:01:00Z' }] } as Partial<Message>];
     monter(AGENT);
     expect(screen.getByTestId('relais').textContent).toContain('Ousmane Ndiaye par WhatsApp');
     expect(screen.getByTestId('etat-du-relais').textContent).toBe('lu');

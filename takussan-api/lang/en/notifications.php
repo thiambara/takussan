@@ -137,6 +137,10 @@ return [
     ],
     // TCK-2646 (ADR-0098) — the code authenticating the tenant who signs the inventory on the
     // agent's phone. SMS only: no e-mail version.
+    // TCK-2982 (ADR-0132 § 5) — le code de signature par lien d'action, au numéro du lien.
+    'action_link_signature_code' => [
+        'sms' => 'Takussan: code to sign the inventory (lease :reference): :code, valid for :minutes min. Do not share it with anyone.',
+    ],
     'inventory_signature_code' => [
         'sms' => 'Takussan: inventory signing code (lease :reference): :code, valid :minutes min. Type it yourself, in front of the agent.',
     ],

@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Crm\CustomerCommercialAttributes;
+use App\Services\Pont\PontDesParticipants;
 use Carbon\CarbonInterface;
 
 /**
@@ -84,6 +85,13 @@ final class ConversationThreadContext
          * @var array<int, array{kept: int, late: int}>|null
          */
         public readonly ?array $commitmentsRecords = null,
+        /**
+         * TCK-2981 (ADR-0132 § 3) — le pont, par participant actif (le lecteur exclu), au SEUL personnel actif de
+         * l'agence du fil ({@see PontDesParticipants}) ; `null` pour tout autre lecteur.
+         *
+         * @var array<int, array<string, mixed>>|null
+         */
+        public readonly ?array $pont = null,
     ) {}
 
     /**
@@ -154,6 +162,8 @@ final class ConversationThreadContext
             teamNoteReaderIds: $lecteursParmiLesParticipants,
             // TCK-2987 — la fiabilité, au seul personnel actif de l'agence du fil ; une requête pour tous.
             commitmentsRecords: FiabiliteDesEngagements::pour($reader, $conversation, $agenceDesNotes, $conversation->participants),
+            // TCK-2981 — le bloc `pont`, même règle de lecteur.
+            pont: app(PontDesParticipants::class)->pour($reader, $conversation, $agenceDesNotes, $conversation->participants),
             lastVisit: $facts['lastVisit'] ?? null,
             contactLead: $facts['contactLead'] ?? null,
             firstContactAt: $facts['firstContactAt'] ?? null,

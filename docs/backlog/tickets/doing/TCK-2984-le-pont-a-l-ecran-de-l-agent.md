@@ -153,4 +153,21 @@ n'arrive qu'avec TCK-2981, et `check-front-routes` rougissait sur l'appel. Retir
 `messaging.pont.panneau.joindre|invitationEnvoyee` et `messaging.pont.refus.*` restent, prêtes. Le code et ses tests
 sont gardés hors du dépôt, dans le scratchpad de la session (`tck2984-invitation-a-reprendre/`).
 
-Reste : « Joindre par WhatsApp » (`{user_id}` et `{customer_id}`) avec TCK-2981 ; AC1 (relevé navigateur) non mesuré.
+**« Joindre par WhatsApp » remis** dès la route posée par TCK-2981 (`PontInvitationController::store`, `{user_id}`,
+201 `{data:{statut:'ok'}}`, 422 à code `pont.*`) : le code retiré est revenu à l'identique, `check-front-routes` ne cite
+plus `pont/`. Écart : l'API n'accepte que `user_id` (pas `customer_id`), et le bloc `pont` de `GET …/context` n'est pas
+encore rendu (aucun `fenetre_jusqu_a` dans `app/` au relevé) : le panneau, les puces et le bandeau restent vides
+jusque-là.
+
+**Forme du bloc `pont` confirmée par TCK-2981 (impl-2980), différente de la supposition** : ce n'est pas
+`participants[].pont` mais une clé à part, `context.pont`, indexée par `user_id` (modèle de `commitments_records`), une
+ligne pour chaque participant actif sauf le lecteur, relation ou non : `{joint, invitation_en_attente, canal, accord_at,
+opposition_at, fenetre_jusqu_a (nul : fermée), invitable}`. Le front suit : `PontDuParticipant` (`canal`,
+`invitation_en_attente`), `ConversationContext.pont`, `participantsDuPont()` (clé absente → rien), `RelationAuFil.pont`
+retiré ; « invitation envoyée » se lit aussi de `invitation_en_attente`.
+
+**`relays` posé par TCK-2981** : `form` ∈ `text|template|interactive|sms`, `status` ∈ `envoye|remis|lu|echec|
+en_attente_accord|non_envoye` (codes français de l'API, pas ceux supposés) : `ETATS_DE_RELAIS`, `TON_DU_RELAIS` et les
+clés `messaging.pont.relais.etat.*` alignés ; `template` dit « en message type ».
+
+Reste : invitation `{customer_id}` (l'API ne la porte pas) ; AC1 non mesuré.

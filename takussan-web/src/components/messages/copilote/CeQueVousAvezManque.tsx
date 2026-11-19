@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import {
   SEUIL_DU_RESUME,
   demanderLeResume,
@@ -51,6 +52,8 @@ export function CeQueVousAvezManque({ conversationId, fenetre, heureDe, onAllerA
   const decider = useDeciderLaSuggestion(conversationId, userId);
   const [replie, setReplie] = useState(false);
   const [avisDonne, setAvisDonne] = useState(false);
+  // P228.06 (ADR-0019) — un avis refusé se dit, et se redonne.
+  const messageErreur = useMessageErreurApi();
 
   useEffect(() => {
     if (!charge || userId === null || fenetre.premierNonLuId === null) return;
@@ -105,9 +108,14 @@ export function CeQueVousAvezManque({ conversationId, fenetre, heureDe, onAllerA
                 enCours={decider.isPending}
                 onAvis={(decision) => {
                   setAvisDonne(true);
-                  decider.mutate({ suggestionId: resume.suggestionId!, decision });
+                  decider.mutate({ suggestionId: resume.suggestionId!, decision }, { onError: () => setAvisDonne(false) });
                 }}
               />
+            ) : null}
+            {decider.isError ? (
+              <p role="alert" className="w-full text-xs text-destructive">
+                {messageErreur(decider.error)}
+              </p>
             ) : null}
           </>
         }

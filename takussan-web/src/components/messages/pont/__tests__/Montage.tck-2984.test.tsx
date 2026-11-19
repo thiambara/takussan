@@ -23,23 +23,23 @@ const monter = (ui: React.ReactNode) => {
   return render(withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>));
 };
 
-const contexteAvec = (participants: unknown[]) => ({ data: { property: null, lease: null, maintenance: null, participants } });
+const contexteAvec = (pont?: Record<string, unknown>) => ({ data: { property: null, lease: null, maintenance: null, participants: [{ user_id: 9, relation: 'locataire' }], ...(pont ? { pont } : {}) } });
 
 describe('<ColonneDeContexte> — « Participants et canaux »', () => {
   beforeEach(() => {
     contexte = undefined;
   });
 
-  it('le personnel (bloc `pont` présent) : le panneau, nommé (l’invitation revient avec TCK-2981)', () => {
-    contexte = contexteAvec([{ user_id: 9, relation: 'locataire', pont: { joint: false, invitable: true } }]);
+  it('le personnel (bloc `pont` présent) : le panneau, nommé, et « Joindre par WhatsApp »', () => {
+    contexte = contexteAvec({ '9': { joint: false, invitable: true, invitation_en_attente: false, canal: null } });
     monter(<ColonneDeContexte conversationId={7} ouverte onOuvrir={() => {}} />);
     const panneau = screen.getByTestId('participants-et-canaux');
     expect(panneau.textContent).toContain('Ousmane Ndiaye');
-    expect(screen.queryByRole('button', { name: 'Joindre par WhatsApp' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Joindre par WhatsApp' })).toBeTruthy();
   });
 
   it('le locataire (aucun bloc `pont`) : rien', () => {
-    contexte = contexteAvec([{ user_id: 9, relation: 'locataire' }]);
+    contexte = contexteAvec();
     monter(<ColonneDeContexte conversationId={7} ouverte onOuvrir={() => {}} />);
     expect(screen.queryByTestId('participants-et-canaux')).toBeNull();
   });

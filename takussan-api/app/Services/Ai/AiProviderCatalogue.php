@@ -2,6 +2,13 @@
 
 namespace App\Services\Ai;
 
+use App\Models\Enums\AiModelRole;
+use Illuminate\Support\Str;
+use Laravel\Ai\AiManager;
+use Laravel\Ai\Contracts\Providers\TranscriptionProvider;
+use ReflectionMethod;
+use ReflectionNamedType;
+
 /**
  * TCK-2385 (ADR-0076 §3), TCK-2450 (ADR-0085 §3, §4) — ce que la console peut savoir d'un fournisseur : son nom
  * légal, si une clé est présente (un booléen, jamais la valeur), s'il est sélectionnable et pourquoi il ne l'est
@@ -122,6 +129,40 @@ final class AiProviderCatalogue
     public function servesEmbeddings(string $provider): bool
     {
         return (config('ai.providers')[$provider]['serves'] ?? null) === 'embeddings';
+    }
+
+    /**
+     * TCK-2979 (ADR-0131 § 8) — le pilote du SDK derrière ce fournisseur sait-il transcrire ? Lu sur le type que rend
+     * la fabrique du pilote (`AiManager::create<Pilote>Driver`), sans instancier le fournisseur : `openai` et
+     * `openrouter` transcrivent, `anthropic` et `voyageai` non.
+     */
+    public function transcribes(string $provider): bool
+    {
+        $driver = self::declared()[$provider]['driver'] ?? null;
+        $method = is_string($driver) ? 'create'.Str::studly($driver).'Driver' : null;
+        if ($method === null || ! method_exists(AiManager::class, $method)) {
+            return false;
+        }
+        $type = (new ReflectionMethod(AiManager::class, $method))->getReturnType();
+
+        return $type instanceof ReflectionNamedType && is_subclass_of($type->getName(), TranscriptionProvider::class);
+    }
+
+    /**
+     * TCK-2979 — le fournisseur peut-il jouer ce rôle ? Les embeddings et le texte ne se mélangent pas (TCK-2423) ; le rôle
+     * `transcription` exige un fournisseur qui transcrit, et un fournisseur qui ne fait que transcrire (`serves`) ne joue
+     * aucun autre rôle. Le SEUL juge de `ai.provider_role_mismatch`, pour les rôles comme pour les usages.
+     */
+    public function servesRole(string $provider, AiModelRole $role): bool
+    {
+        if ($this->servesEmbeddings($provider) !== ($role === AiModelRole::Embedding)) {
+            return false;
+        }
+        if ($role === AiModelRole::Transcription) {
+            return $this->transcribes($provider);
+        }
+
+        return (config('ai.providers')[$provider]['serves'] ?? null) !== 'transcription';
     }
 
     /** Sans requête : aucune clé d'embeddings, et l'appariement du Radar ne change pas d'une ligne. */

@@ -85,11 +85,13 @@ class GesteAttenduDuPorteurTest extends TestCase
         $this->assertGreaterThanOrEqual(1, $porteur['ligne']['unread_count']);
         $this->assertSame(1, $porteur['gestes']);
 
+        // Le bénéficiaire et le personnel ne sont pas ATTENDUS par l'événement (aucun non-lu) : ils SUIVENT la
+        // promesse, et le fil est pour eux `retard` (TCK-2971, qui prime sur `vous`), compté une fois dans `gestes`.
         foreach ([$this->voisin, $this->agent] as $autre) {
             $boite = $this->boite($autre);
-            $this->assertNotSame(FileDuFil::VOUS, $boite['ligne']['file'], "{$autre->id} n'est pas attendu par le retard d'autrui.");
-            $this->assertSame(0, $boite['ligne']['unread_count']);
-            $this->assertSame(0, $boite['gestes']);
+            $this->assertSame(FileDuFil::RETARD, $boite['ligne']['file'], "{$autre->id} suit le retard d'autrui, il n'y est pas attendu.");
+            $this->assertSame(0, $boite['ligne']['unread_count'], "{$autre->id} n'est pas attendu par `commitment.overdue`.");
+            $this->assertSame(1, $boite['gestes']);
         }
     }
 
