@@ -1,7 +1,7 @@
 ---
 id: TCK-2971
 title: "La file « Retard » de la boîte et sa part de la pastille des gestes"
-status: doing
+status: done
 phase: P2
 family: back
 estimate: L
@@ -83,16 +83,16 @@ définitions de TCK-2967 (côté, message compté, `handled_at`, `snoozed_until`
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Chaque règle de `retard` a son test, rouge par ablation de sa clause :
+- [x] **AC1** — Chaque règle de `retard` a son test, rouge par ablation de sa clause :
   - retirer le côté met le collègue en `retard` sur l'engagement d'un collègue ;
   - retirer « que L suit » met en `retard` un client non bénéficiaire ;
   - inverser la préséance avec `vous` fait rougir le test de préséance ;
-  - laisser `handled_at` s'appliquer fait rougir « Traité ne sort pas de retard ».
-- [ ] **AC2** — `meta.gestes` compte chaque fil une fois. *Ablation : `vous` + `retard` comptés sur deux
-  expressions qui se recouvrent → rouge.*
-- [ ] **AC3** — Le nombre de requêtes de `GET /api/conversations` ne croît pas de 1 à 30 fils, filtre
-  `retard` compris. Le plan d'exécution est joint.
-- [ ] Pint propre ; tests des fichiers touchés verts, `FileDuFilTest` et `ListeDeLaBoiteTest` compris.
+  - laisser `handled_at` s'appliquer fait rougir « Traité ne sort pas de retard ». — preuve : takussan-api/tests/Feature/Messaging/Engagements/FileRetardTest.php (10 tests verts, un par règle) ; ablations rouges relevées dans les notes du ticket
+- [x] **AC2** — `meta.gestes` compte chaque fil une fois. *Ablation : `vous` + `retard` comptés sur deux
+  expressions qui se recouvrent → rouge.* — preuve : takussan-api/tests/Feature/Messaging/Engagements/GestesEtRetardTest.php::test_gestes_compte_vous_et_retard_hors_sourdine_chaque_fil_une_fois ; ablation relevée dans les notes
+- [x] **AC3** — Le nombre de requêtes de `GET /api/conversations` ne croît pas de 1 à 30 fils, filtre
+  `retard` compris. Le plan d'exécution est joint. — preuve : takussan-api/tests/Feature/Messaging/Engagements/GestesEtRetardTest.php::test_le_nombre_de_requetes_ne_croit_pas_avec_les_fils (47 requêtes à 1 et 30 fils) ; EXPLAIN joint (§ Plan d'exécution)
+- [x] Pint propre ; tests des fichiers touchés verts, `FileDuFilTest` et `ListeDeLaBoiteTest` compris. — preuve : Pint passed ; FileDuFilTest, ListeDeLaBoiteTest, DateInventoryByValueTest : 54 verts
 
 ## Hors périmètre
 

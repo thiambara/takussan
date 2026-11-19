@@ -116,8 +116,8 @@ Sparse fieldsets : les champs ajoutés entrent dans la constante `*_FIELDS` de l
 - [ ] **AC3** — Un locataire connecté ne voit le bloc de fiabilité d'aucun participant, le sien
   compris. Relevé au navigateur. *Ablation : afficher le bloc sur `commitments_records?.[id] ??
   {kept: 0, late: 0}` fait rougir un test.*
-- [ ] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n` et `check:vouvoiement` sont verts, et
-  les tests des fichiers touchés aussi.
+- [x] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n` et `check:vouvoiement` sont verts, et
+  les tests des fichiers touchés aussi. — preuve : CI verte de #1700 sur 2cf49b37f : Web CI 44461750708 (ESLint, tsc, check:i18n, check:vouvoiement, Vitest en 4 shards).
 
 ## Hors périmètre
 
@@ -185,3 +185,10 @@ AC1 à AC3 au navigateur : non mesurés.
   TCK-2972. Par défaut, c'est la puce « On me doit » qui est active.
 - **Non relevés** : un fil sous « Retard » (il faut une promesse due à l'agent, donc une seconde
   session), la fiabilité au bureau, et AC2.
+
+## Reste sur dev
+
+Le code est sur `dev` (#1700, 83f651c16). Il reste :
+
+- AC1 : relevé partiel (boîte et onglet à 360 px). Manquent un fil sous « Retard » et la fiabilité au bureau.
+- AC2, AC3 : relevés à deux sessions, non faits.

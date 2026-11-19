@@ -1,7 +1,7 @@
 ---
 id: TCK-2981
 title: "Le pont sortant et l'accord : « Joindre par WhatsApp », le relais par destinataire (texte dans la fenêtre, gabarit, SMS), la trace du canal, et le locataire sans compte dans sa salle"
-status: doing
+status: done
 phase: P2
 family: back
 estimate: L
@@ -149,23 +149,23 @@ destinataire, dans l'ordre.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Une note d'équipe écrite dans un fil où un participant est joint par le pont ne crée aucun
-  relais. *Ablation : retirer le filtre `visibility` du relais — rouge.*
-- [ ] **AC2** — Avant l'accord, aucun envoi ; à l'accord, les messages en attente partent dans l'ordre.
-  *Ablation : relayer sans regarder l'accord — rouge.*
-- [ ] **AC3** — Fenêtre ouverte → texte ; fermée → gabarit ; sans gabarit → SMS ; après STOP → rien, pas de SMS.
-  *Ablation : retirer la garde `opted_out` du repli SMS — rouge.*
-- [ ] **AC4** — Le locataire, lecteur du même fil, ne reçoit ni `relays` ni `pont`, et aucune réponse ne
-  contient un numéro de téléphone. *Ablation : rendre `relays` à tout lecteur — rouge.*
-- [ ] **AC5** — Un destinataire joint par le pont ne reçoit pas `message.received` sur WhatsApp ni SMS. *Ablation :
-  ne pas retirer les canaux mobiles — rouge (deux envois).*
-- [ ] **AC6** — L'accord d'une fiche sans compte en fait un membre de sa salle ; un message libre du même numéro
+- [x] **AC1** — Une note d'équipe écrite dans un fil où un participant est joint par le pont ne crée aucun
+  relais. *Ablation : retirer le filtre `visibility` du relais — rouge.* — preuve : tests/Feature/Pont/RelaisSortantTest.php::test_note_d_equipe_avis_et_message_d_un_non_personnel_ne_partent_jamais
+- [x] **AC2** — Avant l'accord, aucun envoi ; à l'accord, les messages en attente partent dans l'ordre.
+  *Ablation : relayer sans regarder l'accord — rouge.* — preuve : tests/Feature/Pont/RelaisSortantTest.php::test_a_l_accord_les_messages_en_attente_partent_dans_l_ordre
+- [x] **AC3** — Fenêtre ouverte → texte ; fermée → gabarit ; sans gabarit → SMS ; après STOP → rien, pas de SMS.
+  *Ablation : retirer la garde `opted_out` du repli SMS — rouge.* — preuve : tests/Feature/Pont/RelaisSortantTest.php::test_fenetre_ouverte_texte_fermee_gabarit_sans_gabarit_sms et test_apres_stop_rien_ne_part_pas_meme_un_sms
+- [x] **AC4** — Le locataire, lecteur du même fil, ne reçoit ni `relays` ni `pont`, et aucune réponse ne
+  contient un numéro de téléphone. *Ablation : rendre `relays` à tout lecteur — rouge.* — preuve : tests/Feature/Pont/RelaisSortantTest.php::test_relays_et_numero_absents_des_reponses_du_fil
+- [x] **AC5** — Un destinataire joint par le pont ne reçoit pas `message.received` sur WhatsApp ni SMS. *Ablation :
+  ne pas retirer les canaux mobiles — rouge (deux envois).* — preuve : tests/Feature/Pont/RelaisSortantTest.php::test_un_joint_ne_recoit_pas_message_received_sur_le_mobile
+- [x] **AC6** — L'accord d'une fiche sans compte en fait un membre de sa salle ; un message libre du même numéro
   n'en crée aucun ; un numéro porté par un autre compte ne crée rien. *Ablation : créer le compte sur tout message
-  entrant — rouge ; créer sans vérifier les numéros des autres comptes — rouge.*
-- [ ] **AC7** — Joindre dans un second fil une personne qui a accepté dans un premier ne lui envoie pas de seconde
+  entrant — rouge ; créer sans vérifier les numéros des autres comptes — rouge.* — preuve : tests/Feature/Pont/AccordDeLaFicheTest.php::test_l_accord_de_la_fiche_en_fait_un_membre_de_sa_salle, test_un_message_libre_du_numero_de_la_fiche_ne_cree_aucun_compte, test_un_numero_porte_par_un_autre_compte_ne_cree_rien
+- [x] **AC7** — Joindre dans un second fil une personne qui a accepté dans un premier ne lui envoie pas de seconde
   invitation ; une personne `opted_in` par l'alerte de recherche reçoit l'invitation. *Ablation : exiger une
-  invitation par fil — rouge ; accepter toute source d'`opted_in` — rouge.*
-- [ ] **AC8** — Pint propre ; tests des fichiers touchés verts.
+  invitation par fil — rouge ; accepter toute source d'`opted_in` — rouge.* — preuve : tests/Feature/Pont/RelaisSortantTest.php::test_joindre_dans_un_second_fil_ne_reinvite_pas_mais_une_autre_source_d_accord_si
+- [x] **AC8** — Pint propre ; tests des fichiers touchés verts. — preuve : Pint propre sur tests/Feature/Pont et Messaging/Copilote ; 36 tests verts (2026-11-19)
 
 ## Hors périmètre
 

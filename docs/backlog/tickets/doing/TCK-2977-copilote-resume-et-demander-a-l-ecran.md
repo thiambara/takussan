@@ -144,8 +144,8 @@ tags: [front, messagerie, le-fil, copilote, ia, note-vocale, i18n, adr-0131]
   vocale à l'écran.
 - [ ] **AC3** — Le résumé d'un agent n'apparaît pas chez son collègue du même fil, relevé avec deux
   sessions.
-- [ ] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests
-  des fichiers touchés verts.
+- [x] **AC4** — `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` verts ; tests
+  des fichiers touchés verts. — preuve : CI verte de #1700 sur 2cf49b37f : Web CI 44461750708 (ESLint, tsc, check:i18n, check:vouvoiement, Vitest en 4 shards).
 
 ## Hors périmètre
 
@@ -211,3 +211,10 @@ résumé, clé par utilisateur, fenêtre du résumé — toutes rouges sans le c
 **Non mesuré** : AC1 (relevé au navigateur, 360 et 1280), AC2 et AC3 (deux sessions) — à la session.
 `check-front-routes` rougit sur `POST …/messages/{m}/transcription` et `PUT /api/copilote/suggestions/{s}/decision`
 tant que TCK-2976 et TCK-2975 ne sont pas fusionnés.
+
+## Reste sur dev
+
+Le code est sur `dev` (#1700, 83f651c16). Il reste :
+
+- AC1 : relevé au navigateur des écrans du copilote, non fait. Il faut un fournisseur d'IA en local, ou le faux modèle du SDK.
+- AC2 : relevé réseau d'un locataire, non fait. AC3 : relevé à deux sessions, non fait.

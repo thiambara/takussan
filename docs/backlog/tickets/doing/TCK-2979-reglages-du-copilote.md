@@ -216,26 +216,26 @@ final class ReglagesDuCopilote
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Une fonction coupée à la plateforme reste refusée quel que soit le réglage de
+- [x] **AC1** — Une fonction coupée à la plateforme reste refusée quel que soit le réglage de
   l'agence. **Ablation** : inverser la priorité `plateforme` / `agence` dans `etat()` fait rougir le
-  cas « agence à `true`, plateforme coupée ».
-- [ ] **AC2** — L'agence qui coupe `copilot_enabled` fait passer `copilote` à faux pour son
+  cas « agence à `true`, plateforme coupée ». — preuve : tests/Feature/Messaging/Copilote/ReglagesDAgenceDuCopiloteTest.php::test_la_plateforme_prime_sur_l_agence et ReglagesDuCopiloteBrancheTest.php::test_l_agence_a_vrai_ne_rallume_pas_une_fonction_coupee_a_la_console
+- [x] **AC2** — L'agence qui coupe `copilot_enabled` fait passer `copilote` à faux pour son
   personnel, et aucune demande n'atteint la passerelle (compte de `ai_calls`). **Ablation** :
-  retirer la lecture du réglage d'agence fait rougir le test.
-- [ ] **AC3** — Les tests de TCK-2974 à TCK-2978 passent sans retouche (le contrat du résolveur n'a
-  pas bougé).
-- [ ] **AC4** — Plafond par agence : sans valeur, pas de refus ; avec une valeur atteinte, l'agence
+  retirer la lecture du réglage d'agence fait rougir le test. — preuve : tests/Feature/Messaging/Copilote/ReglagesDAgenceDuCopiloteTest.php::test_coupe_par_l_agence_la_route_refuse_sans_appel_et_le_fil_le_dit ; ablations consignées au ticket
+- [x] **AC3** — Les tests de TCK-2974 à TCK-2978 passent sans retouche (le contrat du résolveur n'a
+  pas bougé). — preuve : tests/Feature/Messaging/Copilote/ (72 tests verts, 2026-11-19)
+- [x] **AC4** — Plafond par agence : sans valeur, pas de refus ; avec une valeur atteinte, l'agence
   concernée est refusée et une autre ne l'est pas. **Ablation** : retirer le filtre `agency_id` de
-  la somme fait rougir le second cas.
+  la somme fait rougir le second cas. — preuve : tests/Feature/Messaging/Copilote/ReglagesDuCopiloteBrancheTest.php::test_le_plafond_par_agence_des_parametres_plateforme
 - [ ] **AC5** — Relevé au navigateur sous `./dev.sh`, à 360 et 1280 px : le bloc des réglages de
   l'agence (allumé, coupé par l'agence, coupé par la plateforme), la console (usages `fil.*`, rôle
   `transcription`) et le plafond par agence dans les Paramètres plateforme.
-- [ ] **AC6** — Vérifications vertes :
+- [x] **AC6** — Vérifications vertes :
   - `check-ai-usages.mjs`, `check-platform-catalogue-readers.mjs`, `check-env-parity.mjs` et la
     garde des actions de déploiement ;
   - `LangGroupParity`, Pint ;
   - `npm run lint`, `npx tsc --noEmit`, `check:i18n`, `check:vouvoiement` ;
-  - tests des fichiers touchés.
+  - tests des fichiers touchés. — preuve : CI verte de #1700 sur 2cf49b37f : Repo CI 44461750702 (gardes check-*.mjs), API CI 44461750864 (Pint, LangGroupParity, suite entière), Web CI 44461750708.
 
 ## Hors périmètre
 
@@ -346,3 +346,9 @@ Disponibilité, Garde, Promesses, Résumé et Transcription.
 
 **Reste** :
 - AC5, le relevé au navigateur.
+
+## Reste sur dev
+
+Le code est sur `dev` (#1700, 83f651c16). Il reste :
+
+- AC5 : relevé au navigateur des réglages de l'agence (il faut un compte admin d'agence avec double facteur), de la console IA et du plafond, non fait.

@@ -1,7 +1,7 @@
 ---
 id: TCK-2975
 title: "Le copilote côté données, les trois propositions : « Demander au fil », le brouillon de réponse sans notes d'équipe, les promesses proposées en engagements, et la décision de chaque suggestion"
-status: doing
+status: done
 phase: P2
 family: back
 estimate: L
@@ -118,17 +118,17 @@ tags: [back, messagerie, le-fil, copilote, ia, engagements, adr-0131, adr-0076]
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Pour `brouillon` et `promesses`, une note d'équipe n'est pas dans l'entrée du faux
+- [x] **AC1** — Pour `brouillon` et `promesses`, une note d'équipe n'est pas dans l'entrée du faux
   modèle. **Ablation** : passer la lecture du fil avec notes pour ces usages fait rougir les deux
-  tests.
-- [ ] **AC2** — Une source, un appui ou une promesse hors du fil est retiré avant écriture.
-  **Ablation** : retirer le filtrage fait rougir les trois cas.
-- [ ] **AC3** — Aucun message ni engagement n'est créé par une route du copilote : le nombre de lignes
-  `messages` et des engagements est inchangé après chaque sorte et après une décision `accepted`.
-- [ ] **AC4** — Un collègue du même fil ne lit pas la réponse de l'autre (`GET …/copilote`) et ne
-  peut pas la décider (404).
-- [ ] **AC5** — `check-ai-usages.mjs` et `check-queues.mjs` verts ; `LangGroupParity` vert ; Pint
-  propre ; tests des fichiers touchés verts.
+  tests. — preuve : takussan-api/tests/Feature/Messaging/Copilote/CopiloteBrouillonQuestionTest::test_ac1_… et CopilotePromessesTest::test_ac1_ac2_… ; ablation relevée dans les notes
+- [x] **AC2** — Une source, un appui ou une promesse hors du fil est retiré avant écriture.
+  **Ablation** : retirer le filtrage fait rougir les trois cas. — preuve : takussan-api/tests/Feature/Messaging/Copilote/CopiloteBrouillonQuestionTest::test_ac2_… et CopilotePromessesTest::test_ac1_ac2_… ; ablation relevée dans les notes
+- [x] **AC3** — Aucun message ni engagement n'est créé par une route du copilote : le nombre de lignes
+  `messages` et des engagements est inchangé après chaque sorte et après une décision `accepted`. — preuve : takussan-api/tests/Feature/Messaging/Copilote/CopiloteBrouillonQuestionTest::test_ac3_… (compte messages et commitments) ; CopiloteDecisionTest::test_le_demandeur_accepte_une_seule_fois_sans_ecrire_de_message
+- [x] **AC4** — Un collègue du même fil ne lit pas la réponse de l'autre (`GET …/copilote`) et ne
+  peut pas la décider (404). — preuve : takussan-api/tests/Feature/Messaging/Copilote/CopiloteBrouillonQuestionTest::test_ac3_… (GET état : collègue voit « aucun ») ; CopiloteDecisionTest::test_un_collegue_du_meme_fil_… (404)
+- [x] **AC5** — `check-ai-usages.mjs` et `check-queues.mjs` verts ; `LangGroupParity` vert ; Pint
+  propre ; tests des fichiers touchés verts. — preuve : check-ai-usages.mjs et check-queues.mjs ok, LangGroupParity 4 verts, Pint passed, 27 tests copilote/engagements verts
 
 ## Hors périmètre
 
