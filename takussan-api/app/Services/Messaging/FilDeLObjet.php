@@ -74,6 +74,11 @@ class FilDeLObjet
         if ($entree['objet'] !== SujetsDuFil::typeDe($objet) || array_diff(array_keys($data), $entree['data']) !== []) {
             throw new LogicException("L'événement « {$code} » ne va pas avec cet objet ou ces clés de data.");
         }
+        // TCK-2967 — un geste attendu sur un code qui n'en déclare pas : refusé ICI, avant `afterCommit`, dont
+        // l'échec n'est que rapporté (l'événement se perdrait sans bruit).
+        if ($gesteAttendu !== null && ! CodesDuFil::attend($code)) {
+            throw new LogicException("L'événement « {$code} » n'attend aucun geste au catalogue du fil.");
+        }
 
         DB::afterCommit(function () use ($objet, $code, $data, $gesteAttendu): void {
             try {

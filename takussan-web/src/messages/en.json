@@ -168,7 +168,7 @@
       "proLocked": "Pro accounts only",
       "navLabel": "Dashboard navigation",
       "counters": {
-        "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
+        "unreadMessages": "{count, plural, one {# conversation to handle} other {# conversations to handle}}",
         "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}",
         "unhandledLeads": "{count, plural, one {# unhandled request} other {# unhandled requests}}"
       },
@@ -254,7 +254,7 @@
         "titre": "Today",
         "infobulle": "{libelle} · {nombre}",
         "lignes": {
-          "unreadMessages": "Unread messages",
+          "unreadMessages": "Conversations to handle",
           "pendingVisits": "Visits to confirm",
           "unhandledLeads": "Requests to handle",
           "reviewModeration": "Reviews to moderate",
@@ -535,7 +535,7 @@
       },
       "basculerVers": "Switch to {espace}",
       "aTraiterLignes": {
-        "unreadMessages": "Unread messages",
+        "unreadMessages": "Conversations to handle",
         "pendingVisits": "Visits to confirm",
         "unhandledLeads": "Unhandled requests",
         "reviewModeration": "Reviews to moderate",
@@ -3753,7 +3753,8 @@
       "unreadInline": "{count, plural, one {# unread} other {# unread}}",
       "chatBack": "Back to conversations",
       "manageGroup": "Manage group",
-      "launcherLabel": "Messaging"
+      "launcherLabel": "Messaging",
+      "aTraiterInline": "{count, plural, one {# to handle} other {# to handle}}"
     },
     "system": {
       "participantAdded": "{actor} added {target} to the group.",
@@ -3904,7 +3905,10 @@
         "label": "Filter conversations",
         "tous": "All",
         "nonLus": "Unread",
-        "groupes": "Groups"
+        "groupes": "Groups",
+        "vous": "Your turn",
+        "attente": "Waiting",
+        "rappel": "Reminders"
       },
       "personnes": "{n, plural, one {# person} other {# people}}",
       "intervention": "Maintenance",
@@ -3998,12 +4002,35 @@
           "phrase": "The listed price is firm."
         }
       },
-      "joindreOuPartager": "Attach or share"
+      "joindreOuPartager": "Attach or share",
+      "equipe": {
+        "interrupteur": "Team",
+        "indisponible": "Send or remove the attachment first.",
+        "luPar": "Read by {noms}",
+        "luParEquipe": "Read by the team only — not by {exclus}",
+        "luParEquipeSeule": "Read by the team only",
+        "nomEtRelation": "{nom} ({relation})",
+        "placeholder": "Team note…",
+        "noter": "Post note"
+      },
+      "mentions": {
+        "bouton": "Mention a colleague",
+        "titre": "Mention — they will be notified",
+        "titreNote": "Mention a colleague — they will be notified",
+        "liste": "People to mention"
+      },
+      "envoiEchoue": "The message was not sent. Please try again."
     },
     "bulle": {
       "ouvrirLaPhoto": "Open the photo",
       "pdf": "PDF",
-      "pdfPoids": "PDF · {poids}"
+      "pdfPoids": "PDF · {poids}",
+      "note": {
+        "titre": "Team note",
+        "vous": "you",
+        "invisiblePour": "Hidden from {noms}",
+        "equipeSeule": "Visible to the team only"
+      }
     },
     "nouvelle": {
       "titre": "New conversation",
@@ -4250,7 +4277,9 @@
         "confirmed": "The booking is confirmed."
       },
       "inventory": {
-        "awaiting_signature": "The inspection is awaiting signatures."
+        "awaiting_signature": "The inspection is awaiting signatures.",
+        "signed_by_party": "{partie, select, tenant {The tenant signed the inspection.} landlord {The landlord signed the inspection.} other {A party signed the inspection.}}",
+        "signed": "The inspection is signed by all parties."
       },
       "lease": {
         "notice_given": "Notice was given, effective {date}.",
@@ -4273,7 +4302,8 @@
       "visit": {
         "confirmed": "Viewing confirmed for {date}.",
         "proposed": "A viewing is suggested for {date}.",
-        "rescheduled": "Another time was suggested for the viewing: {date}."
+        "rescheduled": "Another time was suggested for the viewing: {date}.",
+        "cancelled": "The viewing has been cancelled."
       }
     },
     "salle": {
@@ -4412,6 +4442,75 @@
         "reposer": "Post the viewing card",
         "horsAgence": "This property isn’t managed by your agency: the viewing wasn’t suggested to the client."
       }
+    },
+    "boite": {
+      "aide": {
+        "tous": "All conversations, by date, each with its queue.",
+        "nonLus": "Messages you have not read. A read thread can still be your turn.",
+        "vous": "Something is expected from you.",
+        "attente": "You have replied; the ball is in their court.",
+        "rappel": "Set aside: they come back to “Your turn” at the set time, or as soon as someone writes."
+      },
+      "etiquette": {
+        "vous": "Your turn",
+        "attente": "Waiting",
+        "rappel": "Reminder"
+      },
+      "delai": {
+        "minutes": "for {n} min",
+        "heures": "for {h} h",
+        "heuresMinutes": "for {h} h {m}",
+        "jours": "for {n} d",
+        "depasse": "over {h} h"
+      },
+      "attenteDe": "Waiting for {noms}",
+      "confieA": "Assigned to {nom}",
+      "confieAVous": "Assigned to you",
+      "revient": "Back {quand}",
+      "gestes": {
+        "label": "Actions on “{titre}”",
+        "traite": "Done",
+        "rappel": "Remind me",
+        "rappelCourt": "Remind",
+        "confier": "Assign to a colleague",
+        "ramener": "Bring back",
+        "ramenerAria": "Bring back now",
+        "echec": "That did not go through. Please try again."
+      },
+      "toast": {
+        "traite": "“{titre}” is done.",
+        "traiteAide": "It comes back to “Your turn” with the next message.",
+        "annuler": "Undo"
+      },
+      "rappel": {
+        "titre": "Remind me · {titre}",
+        "choix": {
+          "uneHeure": "In 1 hour",
+          "ceSoir": "This evening",
+          "demainMatin": "Tomorrow morning",
+          "lundi": "Next Monday"
+        },
+        "regle": "The thread leaves “Your turn” and comes back to the top at the set time, or sooner if someone writes."
+      },
+      "confier": {
+        "titre": "Assign this thread",
+        "aide": "Only agency staff taking part in this thread can follow it.",
+        "personne": "Nobody",
+        "vous": "{nom} (you)",
+        "aucun": "No colleague takes part in this thread."
+      },
+      "vide": {
+        "vous": "Nothing is waiting for you",
+        "vousAide": "Whatever comes back to you will reappear here.",
+        "voirAttente": "See “Waiting” ({n})",
+        "attente": "No conversation is waiting",
+        "attenteAide": "Threads where you have replied will appear here.",
+        "rappel": "No reminders",
+        "rappelAide": "“Remind me” sets a thread aside until the time you choose.",
+        "nonLus": "Everything is read",
+        "nonLusAide": "New messages will appear here."
+      },
+      "sousTitre": "{gestes, plural, one {# action expected} other {# actions expected}} · {n, plural, one {# conversation} other {# conversations}}"
     }
   },
   "payments": {
@@ -19831,6 +19930,10 @@
         "group_invite": {
           "title": "Group invite: {subject}",
           "body": "{inviter} has added you to the group \"{subject}\"."
+        },
+        "mention": {
+          "title": "{sender} mentioned you",
+          "body": "{sender}: {excerpt}"
         }
       },
       "lead": {

@@ -17,6 +17,7 @@ import type {
   Conversation,
   ConversationContext,
   Message,
+  MessageVisibility,
   PropertyConversationResolution,
 } from '@/types/message';
 import { cheminApi, requete } from '@/lib/chemin-api';
@@ -343,6 +344,13 @@ export function useMarkConversationRead(
 
 export type SendMessagePayload = {
   content: string;
+  /**
+   * TCK-2968 — `team` : une note d'équipe (TCK-2965), que seul le personnel de l'agence du fil lit. Absente,
+   * le message part au fil entier (`all`).
+   */
+  visibility?: MessageVisibility;
+  /** TCK-2968 — les comptes mentionnés (TCK-2966), dix au plus ; la mention s'écrit `@Prénom Nom` dans `content`. */
+  mentions?: number[];
 };
 
 export function useSendMessage(conversationId: number) {
@@ -620,6 +628,44 @@ export function useMarkConversationUnread(conversationId: number) {
       ],
     },
   );
+}
+
+/**
+ * TCK-2968 (ADR-0128 § 7) — les gestes de la boîte de pilotage (TCK-2967), sur un fil désigné par les
+ * variables (une rangée de la liste n'a pas de hook à elle) :
+ *  - « Traité » (`PUT|DELETE …/handled`) et « Rappelez-le-moi » (`PUT|DELETE …/snooze`, `until` futur) :
+ *    propres au lecteur ;
+ *  - « Confier » (`PUT …/assignee`, `user_id` ou `null`) : une salle ou un groupe, par le personnel.
+ *
+ * Chacun relit la liste (`['conversations', 'list']`) : la file, les comptes des puces et la pastille
+ * (`meta.gestes`, sous la même clé) suivent sans attendre le signal `boite.updated`.
+ */
+export function useGestesDeLaBoite() {
+  const invalidate = [['conversations', 'list']] as const;
+  const traiter = useApiMutation<ApiResponse<{ conversation_id: number; handled_at: string | null }>, { id: number }>(
+    { path: ({ id }) => cheminApi`/api/conversations/${id}/handled`, method: 'PUT', body: () => undefined },
+    { invalidate: [...invalidate] },
+  );
+  const annulerTraite = useApiMutation<ApiResponse<{ conversation_id: number; handled_at: null }>, { id: number }>(
+    { path: ({ id }) => cheminApi`/api/conversations/${id}/handled`, method: 'DELETE', body: () => undefined },
+    { invalidate: [...invalidate] },
+  );
+  const rappeler = useApiMutation<ApiResponse<{ conversation_id: number; snoozed_until: string }>, { id: number; until: string }>(
+    { path: ({ id }) => cheminApi`/api/conversations/${id}/snooze`, method: 'PUT', body: ({ until }) => ({ until }) },
+    { invalidate: [...invalidate] },
+  );
+  const ramener = useApiMutation<ApiResponse<{ conversation_id: number; snoozed_until: null }>, { id: number }>(
+    { path: ({ id }) => cheminApi`/api/conversations/${id}/snooze`, method: 'DELETE', body: () => undefined },
+    { invalidate: [...invalidate] },
+  );
+  const confier = useApiMutation<
+    ApiResponse<{ conversation_id: number; assigned_to: { id: number; name: string } | null }>,
+    { id: number; userId: number | null }
+  >(
+    { path: ({ id }) => cheminApi`/api/conversations/${id}/assignee`, method: 'PUT', body: ({ userId }) => ({ user_id: userId }) },
+    { invalidate: ({ variables }) => [[...invalidate[0]], ['conversations', 'detail', variables.id]] },
+  );
+  return { traiter, annulerTraite, rappeler, ramener, confier };
 }
 
 /** TCK-2859 — les motifs d'un signalement (`ReportConversationRequest`). */

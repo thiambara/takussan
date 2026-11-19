@@ -55,6 +55,20 @@ class ConversationPolicy
             && app(ConversationAccess::class)->allows($user, $conversation);
     }
 
+    /**
+     * TCK-2967 (ADR-0128 § 7) — les gestes de la boîte de pilotage (« Rappelez-le-moi », « Traité »,
+     * confier le fil) : un participant ACTIF, que la garde de lecture accepte. Appelée directement par
+     * `GesteDeLaBoiteRequest`, hors `Gate` : le super-admin n'a pas de ligne de participation à écrire.
+     */
+    public function piloter(User $user, Conversation $conversation): bool
+    {
+        return $conversation->participants()
+            ->where('users.id', $user->id)
+            ->wherePivotNull('left_at')
+            ->exists()
+            && app(ConversationAccess::class)->allows($user, $conversation);
+    }
+
     public function removeParticipant(User $user, Conversation $conversation, User $target): bool
     {
         // TCK-861 (P38.07) — seul un groupe se quitte : une directe « quittée » restait ouverte à

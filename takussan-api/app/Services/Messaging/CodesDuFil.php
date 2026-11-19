@@ -32,41 +32,80 @@ final class CodesDuFil
      */
     private const DONNEES_INTERVENTION = ['status', 'from', 'provider_name', 'actor_name'];
 
+    /** TCK-2967 — ce qu'un loyer attend du locataire (payer) : clos par le paiement et par son reçu. */
+    private const LOYER_ATTENDU = ['lease_payment.due_soon', 'lease_payment.overdue', 'lease_payment.reminded'];
+
+    /** TCK-2967 — un devis qui attend sa décision : clos quand il est approuvé ou refusé. */
+    private const DEVIS_EN_ATTENTE = ['maintenance.quote_submitted', 'maintenance.quote_awaiting_owner'];
+
+    /** TCK-2967 — tout geste attendu d'une intervention, clos quand le travail est fait, confirmé ou clos d'office. */
+    private const GESTES_D_INTERVENTION = ['maintenance.slot_requested', 'maintenance.quote_submitted', 'maintenance.quote_awaiting_owner'];
+
+    /** TCK-2967 — le code de l'avis d'une intervention annulée (au lieu de `maintenance.transition`). */
+    public const INTERVENTION_ANNULEE = 'maintenance.cancelled';
+
     /**
-     * @var array<string, array{objet: string, nature: string, data: list<string>}>
+     * TCK-2967 — les codes qui attendent un geste (`attend`) et qu'aucun code du catalogue ne clôt, chacun
+     * avec sa raison. `CloturesDuFilArchitectureTest` refuse un code attendu sans clôture absent d'ici, et
+     * une entrée d'ici qui aurait trouvé sa clôture.
+     *
+     * @var array<string, string>
+     */
+    private const SANS_CLOTURE = [];
+
+    /**
+     * TCK-2967 (ADR-0128 § 7) — deux clés facultatives disent le cycle de vie du geste attendu :
+     * - `attend` : le code peut porter un `action_for` non vide ({@see EvenementsDuFil::ecrire()} refuse
+     *   un `action_for` non vide à tout autre code) ;
+     * - `eteint` : les codes DU MÊME OBJET que ce code clôt. Un événement postérieur qui porte ce code
+     *   cesse d'attendre quiconque sur les codes listés ({@see NonLus::gesteToujoursAttendu()}).
+     *
+     * @var array<string, array{objet: string, nature: string, data: list<string>, attend?: bool, eteint?: list<string>}>
      */
     private const CATALOGUE = [
         'maintenance.transition' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
         'maintenance.assigned' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
-        'maintenance.unassigned' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
+        // TCK-2967 (décision du porteur) — un prestataire retiré, ou qui refuse, n'a plus de créneau à poser, et son
+        // devis n'attend plus personne : la réaffectation écrit ses propres événements.
+        'maintenance.unassigned' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION, 'eteint' => self::GESTES_D_INTERVENTION],
         'maintenance.accepted' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
-        'maintenance.declined' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
+        'maintenance.declined' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION, 'eteint' => self::GESTES_D_INTERVENTION],
         'maintenance.quote_requested' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
-        'maintenance.quote_submitted' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
-        'maintenance.quote_approved' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
-        'maintenance.quote_awaiting_owner' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
-        'maintenance.quote_rejected' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
-        'maintenance.completed' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
-        'maintenance.confirmed' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
+        'maintenance.quote_submitted' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION, 'attend' => true],
+        'maintenance.quote_approved' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION, 'eteint' => self::DEVIS_EN_ATTENTE],
+        'maintenance.quote_awaiting_owner' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION, 'attend' => true, 'eteint' => ['maintenance.quote_submitted']],
+        'maintenance.quote_rejected' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION, 'eteint' => self::DEVIS_EN_ATTENTE],
+        'maintenance.completed' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION, 'eteint' => self::GESTES_D_INTERVENTION],
+        'maintenance.confirmed' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION, 'eteint' => self::GESTES_D_INTERVENTION],
         'maintenance.contested' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
-        'maintenance.auto_closed' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION],
+        'maintenance.auto_closed' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION, 'eteint' => self::GESTES_D_INTERVENTION],
+        // TCK-2967 — une intervention annulée (une transition vers `cancelled`) : plus rien n'y est attendu.
+        'maintenance.cancelled' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => self::DONNEES_INTERVENTION, 'eteint' => self::GESTES_D_INTERVENTION],
 
         // TCK-2961 (ADR-0128 § 3) — les objets parlent dans leur fil ({@see FilDeLObjet}). Des dates, des
         // codes et des identifiants : le montant d'une échéance se relit par sa projection, pour le lecteur.
-        'lease_payment.due_soon' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['due_date']],
-        'lease_payment.overdue' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['due_date', 'days_late']],
-        'lease_payment.reminded' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['due_date']],
+        'lease_payment.due_soon' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['due_date'], 'attend' => true],
+        'lease_payment.overdue' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['due_date', 'days_late'], 'attend' => true],
+        'lease_payment.reminded' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['due_date'], 'attend' => true],
         // `method` : le CODE du moyen (`PaymentMethod`), jamais un numéro ni un nom.
-        'lease_payment.paid' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['method']],
-        'lease_payment.receipt_issued' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => []],
+        'lease_payment.paid' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => ['method'], 'eteint' => self::LOYER_ATTENDU],
+        // Un reçu ne s'émet que pour une échéance réglée.
+        'lease_payment.receipt_issued' => ['objet' => 'lease_payment', 'nature' => self::NATURE_EVENEMENT, 'data' => [], 'eteint' => self::LOYER_ATTENDU],
         'lease.notice_given' => ['objet' => 'lease', 'nature' => self::NATURE_EVENEMENT, 'data' => ['effective_date']],
         'lease.renewed' => ['objet' => 'lease', 'nature' => self::NATURE_EVENEMENT, 'data' => ['renewed_lease_id', 'start_date']],
-        'inventory.awaiting_signature' => ['objet' => 'inventory', 'nature' => self::NATURE_EVENEMENT, 'data' => ['type']],
+        'inventory.awaiting_signature' => ['objet' => 'inventory', 'nature' => self::NATURE_EVENEMENT, 'data' => ['type'], 'attend' => true],
+        // TCK-2967 — une partie a signé (`party` : le CODE du rôle, `tenant` ou `landlord`) : clôt l'attente
+        // de tous, et attend à son tour les parties qui doivent encore signer. Signé par tous : `signed`.
+        'inventory.signed_by_party' => ['objet' => 'inventory', 'nature' => self::NATURE_EVENEMENT, 'data' => ['type', 'party'], 'attend' => true, 'eteint' => ['inventory.awaiting_signature']],
+        'inventory.signed' => ['objet' => 'inventory', 'nature' => self::NATURE_EVENEMENT, 'data' => ['type'], 'eteint' => ['inventory.awaiting_signature', 'inventory.signed_by_party']],
         // `slots` : le NOMBRE d'instants proposés (une valeur simple ; la liste est dans la demande de report).
-        'maintenance.slot_requested' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => ['slots']],
-        'maintenance.slot_set' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at']],
-        'visit.confirmed' => ['objet' => 'property_visit', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at']],
-        'visit.rescheduled' => ['objet' => 'property_visit', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at']],
+        'maintenance.slot_requested' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => ['slots'], 'attend' => true],
+        'maintenance.slot_set' => ['objet' => 'maintenance_request', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at'], 'eteint' => ['maintenance.slot_requested']],
+        // La visite confirmée clôt l'autre moment proposé, qui attendait sa confirmation.
+        'visit.confirmed' => ['objet' => 'property_visit', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at'], 'eteint' => ['visit.rescheduled']],
+        'visit.rescheduled' => ['objet' => 'property_visit', 'nature' => self::NATURE_EVENEMENT, 'data' => ['scheduled_at'], 'attend' => true],
+        // TCK-2967 — la visite annulée : l'autre moment proposé n'attend plus de confirmation.
+        'visit.cancelled' => ['objet' => 'property_visit', 'nature' => self::NATURE_EVENEMENT, 'data' => [], 'eteint' => ['visit.rescheduled']],
         'booking.confirmed' => ['objet' => 'booking', 'nature' => self::NATURE_EVENEMENT, 'data' => []],
 
         // TCK-2964 (ADR-0128 § 4) — les cartes POSÉES par un participant (`POST …/cards`). Une seule carte
@@ -76,7 +115,7 @@ final class CodesDuFil
         'visit.proposed' => ['objet' => 'property_visit', 'nature' => self::NATURE_CARTE, 'data' => ['scheduled_at']],
     ];
 
-    /** @return array<string, array{objet: string, nature: string, data: list<string>}> le catalogue entier */
+    /** @return array<string, array{objet: string, nature: string, data: list<string>, attend?: bool, eteint?: list<string>}> le catalogue entier */
     public static function catalogue(): array
     {
         return self::CATALOGUE;
@@ -93,7 +132,7 @@ final class CodesDuFil
         return array_key_exists($code, self::CATALOGUE);
     }
 
-    /** @return array{objet: string, nature: string, data: list<string>} */
+    /** @return array{objet: string, nature: string, data: list<string>, attend?: bool, eteint?: list<string>} */
     public static function entree(string $code): array
     {
         if (! self::existe($code)) {
@@ -101,6 +140,36 @@ final class CodesDuFil
         }
 
         return self::CATALOGUE[$code];
+    }
+
+    /** TCK-2967 — le code peut-il porter un `action_for` non vide ? */
+    public static function attend(string $code): bool
+    {
+        return (self::entree($code)['attend'] ?? false) === true;
+    }
+
+    /**
+     * TCK-2967 — les couples (code éteint, code qui l'éteint) de tout le catalogue, dans l'ordre du
+     * catalogue : la clause de {@see NonLus} s'écrit d'eux.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    public static function clotures(): array
+    {
+        $couples = [];
+        foreach (self::CATALOGUE as $code => $entree) {
+            foreach ($entree['eteint'] ?? [] as $eteint) {
+                $couples[] = [$eteint, $code];
+            }
+        }
+
+        return $couples;
+    }
+
+    /** @return array<string, string> TCK-2967 — code attendu sans clôture → sa raison */
+    public static function sansCloture(): array
+    {
+        return self::SANS_CLOTURE;
     }
 
     /**

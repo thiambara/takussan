@@ -639,6 +639,12 @@ return [
                 'body' => ':sender : :excerpt',
                 'sms' => 'Takussan : bataaxal bu bees bu :sender.',
             ],
+            // TCK-2966 (ADR-0128 § 6) — en wo, le texte français tel quel (wolof en pause depuis le 2026-10-16).
+            'mention' => [
+                'title' => ':sender vous a mentionné',
+                'body' => ':sender : :excerpt',
+                'sms' => 'Takussan : :sender vous a mentionné dans un message.',
+            ],
             // TCK-861 (P38.07) — en wo, le texte français tel quel (wolof en pause depuis le 2026-10-16).
             'group_invite' => [
                 'title' => 'Invitation à un groupe : :subject',

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, type MouseEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { BellOff, Bell, Building2, CalendarCheck, ChevronRight, FileText, Flag, Info, MessageSquare, MoreHorizontal, PanelRightClose, PanelRightOpen, Phone, UserPlus, Users, Wrench } from 'lucide-react';
+import { BellOff, Bell, Building2, CalendarCheck, ChevronRight, FileText, Flag, Info, MessageSquare, MoreHorizontal, PanelRightClose, PanelRightOpen, Phone, UserPlus, UserRoundPlus, Users, Wrench } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { buttonVariants } from '@/components/ui/button';
 import {
@@ -388,6 +388,13 @@ export function EnTeteDuFil({
                   <DropdownMenuItem onClick={gestes.onAjouterUnParticipant}>
                     <UserPlus className="size-4 text-muted-foreground stroke-[1.75]" aria-hidden="true" />
                     {t('chat.ajouterUnParticipant')}
+                  </DropdownMenuItem>
+                ) : null}
+                {/* TCK-2968 — confier une salle ou un groupe à un collègue (la page ne l'offre qu'au personnel). */}
+                {gestes.onConfier ? (
+                  <DropdownMenuItem data-testid="confier-le-fil" onClick={gestes.onConfier}>
+                    <UserRoundPlus className="size-4 text-muted-foreground stroke-[1.75]" aria-hidden="true" />
+                    {t('boite.gestes.confier')}
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuSeparator />

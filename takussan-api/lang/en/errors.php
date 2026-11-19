@@ -513,6 +513,17 @@ return [
     ],
     'messaging' => [
         'admin_only' => 'Only an admin can perform this action.',
+        // TCK-2965 (ADR-0128 § 6) — la note d'équipe refusée en 422 (`ConversationWriter`).
+        'team_note_not_staff' => 'Only the staff of this conversation\'s agency can write a team note.',
+        'team_note_no_agency' => 'This conversation is not linked to any agency: it cannot hold a team note.',
+        'team_note_type' => 'A team note can only be a text, a voice note or an attachment.',
+        // TCK-2966 (ADR-0128 § 6) — une @mention refusée en 422.
+        'mention_not_reader' => 'You can only mention people who will read this message.',
+        'mention_type' => 'Only a text or a voice note can mention someone.',
+        // TCK-2967 (ADR-0128 § 7) — confier un fil, refusé en 422 (`ConversationPilotageController::assign`).
+        'assignee_thread_type' => "Only a room or a group can be assigned to someone at the agency. A prospect's thread follows the property's main contact.",
+        'assignee_author_not_staff' => "Only staff of this conversation's agency can assign it.",
+        'assignee_not_staff' => 'This conversation can only be assigned to a staff member of the agency who takes part in it.',
     ],
     'moderation' => [
         'item_id_invalid' => 'Invalid moderation item.',

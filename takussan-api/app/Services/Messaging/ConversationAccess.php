@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
+use App\Models\Enums\MessageVisibility;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
@@ -17,6 +18,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\PrimaryPropertyContact;
+use Illuminate\Contracts\Database\Query\Builder as QueryBuilderContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -68,6 +70,60 @@ class ConversationAccess
             ->exists();
 
         return $isParticipant && $this->branchesAllow($user, $conversation);
+    }
+
+    /**
+     * TCK-2965 (ADR-0128 § 6) — LE point de filtre des notes d'équipe : restreint une requête sur
+     * `messages` à ce que `$lecteur` lit, `visibility = all OR <il lit les notes de ce fil>`
+     * ({@see EquipeDuFil}). Tout chemin qui lit des messages pour un lecteur passe par ici : la page du
+     * fil (`before_id`, `after_id`), les non-lus de la liste, `markAsUnread`, la recherche (défense en
+     * profondeur derrière le filtre du moteur). Dans la requête SQL, jamais sur la collection : une page
+     * garde sa taille et son `has_more`.
+     *
+     * `$fil` : la requête ne porte que ce fil, et la règle se juge une fois en PHP
+     * ({@see EquipeDuFil::litLesNotes()}). Sans lui, elle se pose par fil, en SQL. Colonnes qualifiées
+     * `messages.` dans UN `where` groupé, comme {@see NonLus} : elle tient sous `withCount`, `whereHas`
+     * et `Message::query()`.
+     *
+     * @template T of QueryBuilderContract
+     *
+     * @param  T  $messages
+     * @return T
+     */
+    public function messagesLisiblesPar(User $lecteur, QueryBuilderContract $messages, ?Conversation $fil = null): QueryBuilderContract
+    {
+        if ($fil !== null) {
+            return EquipeDuFil::litLesNotes($lecteur, $fil)
+                ? $messages
+                : $messages->where('messages.visibility', MessageVisibility::All->value);
+        }
+
+        $fils = EquipeDuFil::filsOuLesNotesSeLisent($lecteur);
+        if ($fils === null) {
+            return $messages;
+        }
+
+        return $messages->where(fn ($q) => $q
+            ->where('messages.visibility', MessageVisibility::All->value)
+            ->orWhereIn('messages.conversation_id', $fils));
+    }
+
+    /**
+     * TCK-2965 — l'archive des données d'un titulaire (`DataExportBuilder`) : ses notes d'équipe à lui
+     * (il en est l'auteur), jamais celle d'un autre. Un client n'en a écrit aucune, son export n'en porte
+     * donc aucune. Hors requête HTTP du titulaire (job), sans profil actif à juger : la seule règle
+     * d'auteur.
+     *
+     * @template T of QueryBuilderContract
+     *
+     * @param  T  $messages
+     * @return T
+     */
+    public function messagesExportablesDe(User $titulaire, QueryBuilderContract $messages): QueryBuilderContract
+    {
+        return $messages->where(fn ($q) => $q
+            ->where('messages.visibility', MessageVisibility::All->value)
+            ->orWhere('messages.sender_id', $titulaire->id));
     }
 
     /**

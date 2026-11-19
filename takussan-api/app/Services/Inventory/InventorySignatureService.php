@@ -15,6 +15,7 @@ use App\Services\Auth\OtpPreview;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Messaging\FilDeLObjet;
 use App\Services\Pdf\PrintedIdentity;
 use App\Services\Signature\SignatureOtpService;
 use Illuminate\Http\Request;
@@ -162,7 +163,34 @@ class InventorySignatureService
             SendSignedInventoryPdf::dispatch((int) $signed->id)->afterCommit();
         }
 
+        // TCK-2967 (ADR-0128 § 3) — la signature parle dans la salle du bail, après le COMMIT. Signé par tous :
+        // `inventory.signed` clôt toute attente. Sinon `inventory.signed_by_party` clôt l'attente du
+        // signataire et attend les parties dont la signature manque encore, jugées sur la ligne relue.
+        $fil = app(FilDeLObjet::class);
+        if ($completed) {
+            $fil->parler($signed, 'inventory.signed', ['type' => $signed->type?->value]);
+        } else {
+            $relu = null;
+            $fil->parler($signed, 'inventory.signed_by_party', ['type' => $signed->type?->value, 'party' => $role],
+                function (User $partie) use ($signed, &$relu): bool {
+                    $relu ??= Inventory::query()->with('lease.tenant')->find($signed->getKey());
+
+                    return $relu !== null && $this->doitEncoreSigner($relu, $partie);
+                });
+        }
+
         return $signed;
+    }
+
+    /**
+     * TCK-2961, TCK-2967 — `$partie` doit-elle encore signer cet état des lieux : un rôle dont la signature
+     * manque, et qu'elle peut signer ({@see self::canSignAs()}) ? Le geste attendu des événements de
+     * signature du fil (`inventory.awaiting_signature`, `inventory.signed_by_party`).
+     */
+    public function doitEncoreSigner(Inventory $inventaire, User $partie): bool
+    {
+        return (! $inventaire->tenant_signed && $this->canSignAs($inventaire, $partie, InventorySignRequest::ROLE_TENANT))
+            || (! $inventaire->owner_signed && $this->canSignAs($inventaire, $partie, InventorySignRequest::ROLE_LANDLORD));
     }
 
     /**

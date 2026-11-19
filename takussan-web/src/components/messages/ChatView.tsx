@@ -6,10 +6,11 @@ import Link from 'next/link';
 import { useForm, useWatch } from 'react-hook-form';
 import type { ZodType } from 'zod';
 import { useResolveurValidation } from '@/hooks/useApiForm';
-import { useLocale, useTranslations } from 'next-intl';
-import { BellOff, Building2, CheckCheck, Settings, Users } from 'lucide-react';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { AtSign, BellOff, Building2, CheckCheck, Lock, Settings, Users } from 'lucide-react';
 import {
   useConversation,
+  useConversationContext,
   useMessagesInfinite,
   useNewMessagesPolling,
   useMarkConversationRead,
@@ -26,6 +27,19 @@ import { typeDuProfilActif } from '@/lib/navigation/personas';
 import { useMatchesMaxWidth, useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { ApercuDeLaPiece, BoutonDePieceJointe, usePieceEnAttente } from './composeur/PieceJointeDuComposeur';
 import { ReponsesRapides, insererLaReponse } from './composeur/ReponsesRapides';
+// TCK-2968 — la note d'équipe et les @mentions dans le composeur et dans le fil.
+import { LigneDesLecteurs, ListeDesMentions } from './composeur/ComposeurDEquipe';
+import {
+  filtrerLesMentionnables,
+  insererLaMention,
+  lecteursDuFil,
+  mentionEnCours,
+  mentionnables,
+  mentionsDuTexte,
+  type Personne,
+} from './composeur/equipe';
+import { NoteDEquipe, TexteAvecMentions } from './NoteDEquipe';
+import { Button } from '@/components/ui/button';
 import { PiecesDeLaBulle } from './PiecesDeLaBulle';
 import { useAuth } from '@/context/AuthContext';
 import { BoutonFlecheDeRetour } from '@/components/navigation-publique/FlecheDeRetour';
@@ -262,6 +276,37 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
   const roles = user?.roles ?? [];
   const typeActif = typeDuProfilActif(activeProfileId ?? user?.active_profile_id);
   const duPersonnel = typeActif !== null ? typeActif === 'agent' || typeActif === 'agency_admin' : isAgent(roles) || isAgencyAdmin(roles);
+  /**
+   * TCK-2968 (ADR-0128 § 6) — la destination du composeur : « Fil » (tous les participants) ou « Équipe » (la
+   * note, que seul le personnel lit). Elle est LIÉE au fil (`fil`) : `ChatView` survit au changement de fil
+   * (cf. plus bas), et la destination « Équipe » ne passe jamais d'un fil à l'autre. Elle revient à « Fil »
+   * après chaque envoi réussi (`onSubmit`) ; un échec la garde, pour que le nouvel essai reste une note.
+   * L'interrupteur n'existe que pour qui écrit des notes ici, selon l'API (`can_write_team_note` du contexte,
+   * `lecteursDuFil`) : jamais pour un client, jamais dans le widget flottant.
+   */
+  const { data: contexteData } = useConversationContext(conversationId, { enabled: !isWidget });
+  const lecteurs = lecteursDuFil(conversation, contexteData?.data, user?.id);
+  const [destination, setDestination] = useState<{ readonly fil: number; readonly equipe: boolean }>({ fil: conversationId, equipe: false });
+  // Un autre fil : la destination repart de « Fil » (ajustée pendant le rendu, patron « valeur précédente ») —
+  // revenir au fil d'avant ne la rend pas « Équipe ».
+  if (destination.fil !== conversationId) setDestination({ fil: conversationId, equipe: false });
+  const equipe = !isWidget && lecteurs.equipeLit && destination.fil === conversationId && destination.equipe;
+  const format = useFormatter();
+  const invisiblePour = lecteurs.autres.length > 0 ? format.list(lecteurs.autres.map((p) => p.nom.split(' ')[0] ?? p.nom), { type: 'conjunction' }) : null;
+  /** TCK-2968 — les noms des participants, par compte : une mention se lit en nom, jamais en identifiant. */
+  const nomsDesParticipants = new Map((conversation?.participants ?? []).map((p) => [p.user_id, p.user?.full_name ?? ''] as const));
+  /**
+   * TCK-2968 — la mention en cours de saisie (après `@`), la ligne active de la liste, et les personnes
+   * choisies dans CE fil : seules celles dont `@Nom` reste dans le texte partent (`mentionsDuTexte`).
+   */
+  const [mention, setMention] = useState<{ readonly debut: number; readonly fragment: string } | null>(null);
+  const [mentionActive, setMentionActive] = useState(0);
+  const [choisies, setChoisies] = useState<{ readonly fil: number; readonly liste: readonly Personne[] }>({ fil: conversationId, liste: [] });
+  if (choisies.fil !== conversationId) setChoisies({ fil: conversationId, liste: [] });
+  const choisiesDuFil = choisies.fil === conversationId ? choisies.liste : [];
+  const candidats = mention && !isWidget ? filtrerLesMentionnables(mentionnables(lecteurs, equipe), mention.fragment) : [];
+  const idListeDesMentions = `mentions-${conversationId}`;
+  const champRef = useRef<HTMLTextAreaElement | null>(null);
   // TCK-2963 — pas dans une salle non plus : le locataire ET le bailleur y lisent.
   const reponsesRapides = !isGroup && !estSalle && duPersonnel;
   // TCK-2964 — partager un bien, proposer un créneau : le personnel, dans le fil d'un client.
@@ -378,13 +423,73 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
     : replierLesEvenements(groupMessagesByDay(messages));
 
   async function onSubmit(values: SendMessageFormValues) {
+    // TCK-2968 — les mentions encore écrites, et la destination telle que l'interrupteur la montre.
+    const mentions = mentionsDuTexte(values.content, choisiesDuFil);
     try {
-      await sendMessage.mutateAsync({ content: values.content });
+      await sendMessage.mutateAsync({
+        content: values.content,
+        ...(equipe ? { visibility: 'team' as const } : {}),
+        ...(mentions.length > 0 ? { mentions } : {}),
+      });
       form.reset({ content: '' });
+      // TCK-2968 — après CHAQUE envoi, la destination revient à « Fil » : aucune note ne part ensuite à
+      // l'insu de son auteur.
+      setDestination({ fil: conversationId, equipe: false });
+      setChoisies({ fil: conversationId, liste: [] });
+      setMention(null);
     } catch {
-      // Global error is surfaced via the mutation state
+      // L'échec s'affiche sous le champ (`erreurDEnvoi`) ; la destination ne change pas.
     }
   }
+
+  /** TCK-2968 — la mention en cours, relue à chaque frappe ou déplacement du curseur. */
+  function suivreLaMention(champ: HTMLTextAreaElement) {
+    setMention(mentionEnCours(champ.value, champ.selectionStart ?? champ.value.length));
+    setMentionActive(0);
+  }
+
+  /** TCK-2968 — remplace `@fragment` par `@Prénom Nom ` et retient la personne pour l'envoi. */
+  function choisirLaMention(p: Personne) {
+    if (!mention) return;
+    const champ = champRef.current;
+    const texte = form.getValues('content') ?? '';
+    const curseur = champ?.selectionStart ?? texte.length;
+    const r = insererLaMention(texte, mention.debut, Math.max(curseur, mention.debut + 1 + mention.fragment.length), p.nom);
+    form.setValue('content', r.texte, { shouldDirty: true });
+    setChoisies({ fil: conversationId, liste: [...choisiesDuFil.filter((x) => x.id !== p.id), p] });
+    setMention(null);
+    requestAnimationFrame(() => {
+      champ?.focus();
+      champ?.setSelectionRange(r.curseur, r.curseur);
+    });
+  }
+
+  /** TCK-2968 — le bouton `@` du mode « Équipe » : pose `@` au curseur et ouvre la liste. */
+  function ouvrirLesMentions() {
+    const champ = champRef.current;
+    const texte = form.getValues('content') ?? '';
+    const curseur = champ?.selectionStart ?? texte.length;
+    const avant = texte.slice(0, curseur);
+    const pose = avant.length > 0 && !/\s$/.test(avant) ? ' @' : '@';
+    const position = curseur + pose.length;
+    form.setValue('content', avant + pose + texte.slice(curseur), { shouldDirty: true });
+    setMention({ debut: position - 1, fragment: '' });
+    setMentionActive(0);
+    requestAnimationFrame(() => {
+      champ?.focus();
+      champ?.setSelectionRange(position, position);
+    });
+  }
+
+  const erreurDEnvoi = sendMessage.error ? messageErreurApi(sendMessage.error, tRacine, t('composer.envoiEchoue')) : null;
+  const { ref: refDuChamp, ...champDuContenu } = form.register('content', {
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      // TCK-2968 (ADR-0129 § 2) — écrire une NOTE n'émet pas « en train d'écrire » : le message éphémère
+      // part sur le canal de présence du fil, que les clients écoutent aussi.
+      if (!equipe) ecriture.signalerFrappe();
+      suivreLaMention(e.target);
+    },
+  });
 
   // TCK-2632 — une pièce choisie part avec le prochain envoi, le texte du champ en légende
   // (facultative : le schéma du texte seul, qui exige un contenu, ne s'applique pas).
@@ -578,6 +683,11 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                   locale={locale}
                   relirePiece={relirePiece}
                   jour={item.kind === 'message' && item.passe === true}
+                  nomsDesMentions={(m.metadata?.mentions ?? []).flatMap((id) => {
+                    const nom = nomsDesParticipants.get(id);
+                    return nom ? [nom] : [];
+                  })}
+                  invisiblePour={invisiblePour}
                 />
               );
             })}
@@ -602,13 +712,23 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
           onSubmit={envoyer}
           sendDisabled={sendMessage.isPending || sendAttachment.isPending || pieceJointe.preparation}
           sendAriaLabel={t('chat.sendAria')}
-          error={pieceJointe.refus}
+          error={pieceJointe.refus ?? erreurDEnvoi}
           // TCK-683 (P13.03) avait retiré le trombone, qui postait sur `/messages/{m}/attachments`,
           // qu'aucune route ne sert. TCK-2632 le rend, sur la route du texte (TCK-2631) ; le widget
           // flottant n'en a pas : la photo s'envoie depuis la messagerie.
           leading={
             isWidget ? (
               <VoiceNoteRecorder conversationId={conversationId} />
+            ) : equipe ? (
+              // TCK-2968 — une note ne porte ni pièce ni partage (elles partiraient au fil entier) : `@` les remplace.
+              <button
+                type="button"
+                onClick={ouvrirLesMentions}
+                aria-label={t('composer.mentions.bouton')}
+                className="-ml-2 inline-flex size-11 flex-none items-center justify-center rounded-full text-warning outline-none hover:bg-warning/10 focus-visible:ring-3 focus-visible:ring-ring"
+              >
+                <AtSign className="size-5 stroke-[1.75]" aria-hidden />
+              </button>
             ) : noteEnCours ? null : (
               <BoutonDePieceJointe
                 onChoisir={(f) => void pieceJointe.choisir(f)}
@@ -622,7 +742,9 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
             isWidget
               ? undefined
               : {
-                  apresLeChamp: (
+                  // TCK-2968 — en mode « Équipe », ni note vocale (elle partirait au fil entier) ni rond
+                  // d'envoi : « Noter », la destination écrite sur le bouton.
+                  apresLeChamp: equipe ? null : (
                     <VoiceNoteRecorder
                       conversationId={conversationId}
                       auRepos={aEnvoyer ? 'masque' : 'visible'}
@@ -631,12 +753,30 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                     />
                   ),
                   envoiVisible: aEnvoyer && !noteEnCours,
+                  envoi: equipe ? (
+                    <Button
+                      type="submit"
+                      disabled={sendMessage.isPending}
+                      data-testid="bouton-noter"
+                      className="h-11 shrink-0 gap-1.5 rounded-full bg-foreground px-4 font-semibold text-background hover:bg-foreground/90"
+                    >
+                      <Lock className="size-3.5" strokeWidth={2.25} aria-hidden />
+                      {t('composer.equipe.noter')}
+                    </Button>
+                  ) : undefined,
                 }
           }
           dessus={
             isWidget ? null : (
               <>
-                {reponsesRapides ? (
+                <ListeDesMentions
+                  id={idListeDesMentions}
+                  personnes={candidats}
+                  active={Math.min(mentionActive, Math.max(0, candidats.length - 1))}
+                  note={equipe}
+                  onChoisir={choisirLaMention}
+                />
+                {equipe ? null : reponsesRapides ? (
                   <ReponsesRapides
                     onChoisir={(phrase) => {
                       form.setValue('content', insererLaReponse(form.getValues('content') ?? '', phrase), { shouldDirty: true });
@@ -644,25 +784,69 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                     }}
                   />
                 ) : null}
-                <ApercuDeLaPiece piece={pieceJointe.piece} preparation={pieceJointe.preparation} onRetirer={pieceJointe.retirer} />
-                {poser.feuilles}
+                {equipe ? null : (
+                  <>
+                    <ApercuDeLaPiece piece={pieceJointe.piece} preparation={pieceJointe.preparation} onRetirer={pieceJointe.retirer} />
+                    {poser.feuilles}
+                  </>
+                )}
+                <LigneDesLecteurs
+                  equipeLit={lecteurs.equipeLit}
+                  equipe={equipe}
+                  onEquipe={(actif) => setDestination({ fil: conversationId, equipe: actif })}
+                  personnel={lecteurs.personnel}
+                  autres={lecteurs.autres}
+                  indisponible={pieceJointe.piece !== null || pieceJointe.preparation || noteEnCours}
+                />
               </>
             )
           }
         >
           <Textarea
-            {...form.register('content', { onChange: () => ecriture.signalerFrappe() })}
+            {...champDuContenu}
+            ref={(el) => {
+              refDuChamp(el);
+              champRef.current = el;
+            }}
             rows={1}
-            placeholder={t('chat.placeholder')}
+            placeholder={equipe ? t('composer.equipe.placeholder') : t('chat.placeholder')}
+            data-destination={equipe ? 'equipe' : 'fil'}
+            // TCK-2968 — la liste des mentions se pilote depuis le champ (↑ ↓ Entrée Échap).
+            aria-autocomplete={isWidget ? undefined : 'list'}
+            aria-controls={candidats.length > 0 ? idListeDesMentions : undefined}
+            aria-activedescendant={
+              candidats.length > 0 ? `${idListeDesMentions}-${candidats[Math.min(mentionActive, candidats.length - 1)]!.id}` : undefined
+            }
+            onClick={(e) => (isWidget ? undefined : suivreLaMention(e.currentTarget))}
             className={
               isWidget
                 ? 'min-h-11 resize-none sm:min-h-9'
                 : cn(
                     'min-h-11 resize-none rounded-[1.375rem] bg-background px-4 py-2.5 text-corps',
+                    // TCK-2968 — la teinte ocre du champ : la note se voit avant d'être écrite.
+                    equipe && 'border-transparent bg-warning/12 placeholder:text-encre-douce',
                     noteEnCours && 'hidden',
                   )
             }
             onKeyDown={(e) => {
+              if (candidats.length > 0) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  const pas = e.key === 'ArrowDown' ? 1 : -1;
+                  setMentionActive((i) => (Math.min(i, candidats.length - 1) + pas + candidats.length) % candidats.length);
+                  return;
+                }
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                  e.preventDefault();
+                  choisirLaMention(candidats[Math.min(mentionActive, candidats.length - 1)]!);
+                  return;
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setMention(null);
+                  return;
+                }
+              }
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 envoyer();
@@ -700,6 +884,8 @@ function MessageBubble({
   locale,
   relirePiece,
   jour = false,
+  nomsDesMentions = [],
+  invisiblePour = null,
 }: {
   message: Message;
   isOwn: boolean;
@@ -708,6 +894,10 @@ function MessageBubble({
   relirePiece: RelirePiece;
   /** TCK-2963 — sous un séparateur de mois (salle), l'heure se lit avec son jour. */
   jour?: boolean;
+  /** TCK-2968 — les NOMS des personnes mentionnées (`metadata.mentions` nommés par l'appelant). */
+  nomsDesMentions?: readonly string[];
+  /** TCK-2968 — une note d'équipe : les prénoms de qui ne la lit pas (`null` : inconnu). */
+  invisiblePour?: string | null;
 }) {
   const t = useTranslations('messaging.chat');
   const role = message.sender?.role_label_code ?? null;
@@ -717,6 +907,29 @@ function MessageBubble({
       ? t('auteurEtRole', { nom: message.sender.full_name, role: t(cleDuRole) })
       : message.sender?.full_name;
   const lu = isOwn && (message.read_by_recipient === true || (message.read_count ?? 0) > 0);
+  const heure = formatDateTime(message.created_at, locale, jour ? { timeStyle: 'short', dateStyle: 'medium' } : { timeStyle: 'short', dateStyle: undefined });
+  // TCK-2968 (ADR-0128 § 6) — une note d'équipe : l'aplat ocre, le cadenas, qui ne la lit pas. Elle n'arrive
+  // qu'à qui la lit (TCK-2965) ; une réponse d'avant sans `visibility` est un message au fil.
+  const note = message.visibility === 'team';
+  // TCK-2861 — la note vocale dessinée (rond, onde, « 0:23 ») : `NoteVocale.tsx`, isolé pour TCK-2901.
+  const lecteurAudio =
+    message.type === 'audio' && message.attachments?.[0] ? (
+      <LecteurDeNoteVocale
+        piece={message.attachments[0]}
+        duree={message.metadata?.duration}
+        relirePiece={relirePiece}
+        mienne={isOwn && !note}
+        // L'élément reste écrit ICI : ses sous-titres absents sont gelés au nom de ce fichier.
+        rendreAudio={({ ref, ...attributs }) => <audio ref={ref} {...attributs} />}
+      />
+    ) : null;
+  if (note) {
+    return (
+      <NoteDEquipe mienne={isOwn} auteur={message.sender?.full_name ?? null} invisiblePour={invisiblePour} heure={heure}>
+        {lecteurAudio ?? <TexteAvecMentions texte={message.content ?? ''} noms={nomsDesMentions} />}
+      </NoteDEquipe>
+    );
+  }
   return (
     <li className={cn('flex', isOwn ? 'justify-end' : 'justify-start')}>
       <div
@@ -732,16 +945,8 @@ function MessageBubble({
             {signature}
           </p>
         )}
-        {message.type === 'audio' && message.attachments?.[0] ? (
-          // TCK-2861 — la note vocale dessinée (rond, onde, « 0:23 ») : `NoteVocale.tsx`, isolé pour TCK-2901.
-          <LecteurDeNoteVocale
-            piece={message.attachments[0]}
-            duree={message.metadata?.duration}
-            relirePiece={relirePiece}
-            mienne={isOwn}
-            // L'élément reste écrit ICI : ses sous-titres absents sont gelés au nom de ce fichier.
-            rendreAudio={({ ref, ...attributs }) => <audio ref={ref} {...attributs} />}
-          />
+        {lecteurAudio ? (
+          lecteurAudio
         ) : message.type === 'image' || message.type === 'document' ? (
           // TCK-2632 — la pièce d'abord, la légende dessous ; une pièce sans légende rend
           // `content = ''` (TCK-2631) : pas de paragraphe vide.
@@ -753,7 +958,12 @@ function MessageBubble({
           </>
         ) : (
           <>
-            <p className="whitespace-pre-line text-pretty break-words">{message.content}</p>
+            {/* TCK-2968 — `@Nom` des personnes mentionnées, en valeur ; jamais un identifiant. */}
+            <TexteAvecMentions
+              texte={message.content ?? ''}
+              noms={nomsDesMentions}
+              className={cn(isOwn && '[&_[data-testid=mention]]:text-background [&_[data-testid=mention]]:underline')}
+            />
             {message.attachments && message.attachments.length > 0 ? (
               <div className="mt-2">
                 <PiecesDeLaBulle pieces={message.attachments} isOwn={isOwn} relirePiece={relirePiece} />
@@ -767,7 +977,7 @@ function MessageBubble({
             isOwn ? 'text-background/65' : 'text-muted-foreground',
           )}
         >
-          {formatDateTime(message.created_at, locale, jour ? { timeStyle: 'short', dateStyle: 'medium' } : { timeStyle: 'short', dateStyle: undefined })}
+          {heure}
           {lu ? <CheckCheck className="size-3.5 flex-none" role="img" aria-label={t('lu')} data-testid="coche-lu" /> : null}
         </p>
       </div>

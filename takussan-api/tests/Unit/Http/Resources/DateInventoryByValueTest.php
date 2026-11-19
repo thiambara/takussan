@@ -103,6 +103,25 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\BookingResource::visits_on_property' => '`when()` sur un compte que seul '
             .'`BookingCustomerFacts::prime()` pose (index et présentation de `BookingController`, TCK-2593) : un ENTIER '
             .'(`(int)`, visites terminées du client sur le bien), jamais une date. Le sujet vient d\'une factory.',
+        // TCK-2967 (ADR-0128 § 7) — les cinq clés de la boîte, toutes sous `whenHas('boite_file')`.
+        'App\Http\Resources\ConversationResource::attend_depuis' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une DATE, par `iso()` (cast `datetime` posé par `withCasts`) : '
+            .'`ListeDeLaBoiteTest` et `FileDuFilTest` en assertent la forme `2026-11-18T10:01:00+00:00`.',
+        'App\Http\Resources\ConversationResource::en_attente_de' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une liste d\'IDENTIFIANTS entiers, jamais une date.',
+        'App\Http\Resources\ConversationResource::file' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une valeur de `FileDuFil::FILES`, jamais une date.',
+        'App\Http\Resources\ConversationResource::handled_at' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une DATE, par `iso()` (cast `datetime` posé par `withCasts`) : '
+            .'`FileDuFilTest::test_traite_puis_nouveau_message` en asserte la forme.',
+        'App\Http\Resources\ConversationResource::snoozed_until' => "`whenHas('boite_file')` — la boîte de pilotage, calculée par la seule liste "
+            .'(`FileDuFil::selectionner()` dans `ConversationController::index`) ; le sujet vient d\'une factory, pas '
+            .'de cette requête. Une DATE, par `iso()` (cast `datetime` posé par `withCasts`) : '
+            .'`FileDuFilTest::test_rappel_futur_puis_echu` en asserte la forme.',
         'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
             .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',

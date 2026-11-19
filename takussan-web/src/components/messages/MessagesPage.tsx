@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { MessagesSquare, SquarePen } from 'lucide-react';
@@ -36,6 +36,13 @@ import { estUneSalle } from './salle/salle';
 import { BandeauDeLaSalle } from './salle/BandeauDeLaSalle';
 import { DossierDuFil } from './salle/DossierDuFil';
 import { LectureSeuleDeLaSalle } from './salle/LectureSeuleDeLaSalle';
+// TCK-2968 (ADR-0128 § 7) — les gestes de la boîte de pilotage, tenus par la page (jamais par le widget).
+import { usePilotageDeLaBoite } from './boite/PilotageDeLaBoite';
+import { relaisImpersonationActif } from '@/lib/impersonation';
+import { isAgencyAdmin, isAgent } from '@/lib/roles';
+import { typeDuProfilActif } from '@/lib/navigation/personas';
+
+const AUCUN_ABONNEMENT = () => () => undefined;
 
 /**
  * Point de rupture `lg` de Tailwind (TCK-501, déplacé de `md` à `lg` par TCK-505 #4). La même
@@ -176,7 +183,7 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
     : { ouvert: panneauSuperpose, onBasculer: () => setPanneauSuperpose((o) => !o) };
   /** TCK-2860 — le dialogue d'un geste du « ⋯ » (signaler, ajouter un participant à un fil direct). */
   const [dialogue, setDialogue] = useState<'signaler' | 'elargir' | null>(null);
-  const { user } = useAuth();
+  const { user, activeProfileId } = useAuth();
   /**
    * TCK-2748 (AC2) — au bureau, la colonne de droite d'un fil de GROUPE est « Infos du groupe » ; celle
    * d'un fil direct reste la colonne de contexte. Le type se lit sur la conversation que `ChatView`
@@ -187,10 +194,14 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
   const { data: detailDuFil } = useConversation(filDuBureau);
   const typeDuFil = detailDuFil?.data?.id === filDuBureau ? detailDuFil?.data?.type : undefined;
   const comptes = premierePage?.meta.counts;
+  const gestesAttendus = premierePage?.meta.gestes;
+  // TCK-2968 (maquette D) — « 5 gestes attendus · 14 conversations » quand l'API rend `meta.gestes`.
   const sousTitreBureau = comptes
     ? comptes.all === 0
       ? t('bureau.aucune')
-      : t('bureau.sousTitre', { nonLues: comptes.unread, total: comptes.all })
+      : gestesAttendus !== undefined
+        ? t('boite.sousTitre', { gestes: gestesAttendus, n: comptes.all })
+        : t('bureau.sousTitre', { nonLues: comptes.unread, total: comptes.all })
     : sousTitre;
   const panneauOuvert = brouillonDirect !== null || brouillon !== null || conversationAffichee !== null;
   const afficheListe = !compact || !panneauOuvert;
@@ -232,10 +243,24 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
   const conversationOuverte = detailDuFilOuvert?.data?.id === filOuvert ? detailDuFilOuvert?.data : undefined;
   const autre = conversationOuverte?.type === 'direct' ? autreParticipant(conversationOuverte, user?.id) : null;
   const marquerNonLue = useMarkConversationUnread(filOuvert ?? 0);
+  /**
+   * TCK-2968 — sous impersonation, la messagerie est en lecture seule : aucun geste de la boîte (l'API les
+   * refuserait, `EnforceImpersonationReadOnly`). Le témoin est un cookie du navigateur : le serveur rend
+   * « lecture seule », le client corrige à l'hydratation.
+   */
+  const lectureSeule = useSyncExternalStore(AUCUN_ABONNEMENT, relaisImpersonationActif, () => true);
+  const boite = usePilotageDeLaBoite({ actif: !lectureSeule });
+  const typeActif = typeDuProfilActif(activeProfileId ?? user?.active_profile_id);
+  const duPersonnel =
+    typeActif !== null ? typeActif === 'agent' || typeActif === 'agency_admin' : isAgent(user?.roles ?? []) || isAgencyAdmin(user?.roles ?? []);
+  // « Confier » : une salle ou un groupe (jamais le fil d'un prospect), par le personnel, hors impersonation.
+  const confiable =
+    boite.pilotage?.onConfier !== undefined && duPersonnel && conversationOuverte !== undefined && (conversationOuverte.type === 'group' || estUneSalle(conversationOuverte));
   const gestes: GestesDuFil = {
     onMarquerNonLue: ({ onSuccess, onError }) => marquerNonLue.mutate(undefined, { onSuccess: () => onSuccess?.(), onError }),
     onSignaler: () => setDialogue('signaler'),
     ...(autre ? { onAjouterUnParticipant: () => setDialogue('elargir') } : {}),
+    ...(confiable && conversationOuverte ? { onConfier: () => boite.pilotage?.onConfier?.(conversationOuverte) } : {}),
   };
 
   /**
@@ -382,7 +407,13 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto">
-                <ConversationList selectedId={conversationAffichee} onSelect={ouvrirDepuisLaListe} dense={!compact} onNouvelle={ouvrirNouvelle} />
+                <ConversationList
+                  selectedId={conversationAffichee}
+                  onSelect={ouvrirDepuisLaListe}
+                  dense={!compact}
+                  onNouvelle={ouvrirNouvelle}
+                  pilotage={boite.pilotage}
+                />
               </div>
             </aside>
           )}
@@ -465,6 +496,8 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
           <DossierDuFil key={salleOuverte.id} conversation={salleOuverte} forme="feuille" />
         </FeuilleDuBas>
       ) : null}
+      {/* TCK-2968 — le toast de « Traité », la feuille « Rappelez-le-moi », « Confier » (absents sous impersonation). */}
+      {boite.rendu}
       {compact && conversationAffichee && !brouillonDirect && !brouillon && !salleOuverte ? (
         <FeuilleDuFil conversationId={conversationAffichee} open={feuilleDuFil} onOpenChange={setFeuilleDuFil} gestes={gestes} />
       ) : null}

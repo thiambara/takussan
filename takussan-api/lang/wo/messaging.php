@@ -32,6 +32,10 @@ return [
         'search_filter' => 'recherche',
         'unread_filter' => 'non lus',
         'participant_filter' => 'participant',
+        // TCK-2967 (ADR-0128 § 7)
+        'file_filter' => 'file',
+        'snooze_until' => 'date du rappel',
+        'assignee' => 'personne confiée',
         'type_filter' => 'type de conversation',
         // TCK-2631 — la pièce jointe d'un message (photo ou PDF).
         'file' => 'pièce jointe',

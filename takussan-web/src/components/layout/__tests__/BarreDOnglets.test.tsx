@@ -1,4 +1,5 @@
 /**
+ * TCK-2968 — la pastille de « Messagerie » compte les GESTES attendus (`meta.gestes`) : « à traiter », plus « non lus ».
  * TCK-2481 (ADR-0089 §3) — la barre d'onglets mobile de `/app`, montée seule, persona par persona.
  *
  * Ce qu'elle garde : les quatre onglets de chaque persona puis « Menu » (AC1), l'onglet actif lisible
@@ -319,7 +320,7 @@ describe('TCK-2481 — les compteurs, ceux du menu', () => {
     largeurDeFenetre(390);
     etat.nonLus = 3;
     monter('agent');
-    const messagerie = within(barre()).getByRole('link', { name: 'Messages, 3 messages non lus' });
+    const messagerie = within(barre()).getByRole('link', { name: 'Messages, 3 conversations à traiter' });
     const pastille = messagerie.querySelector('[data-slot="pastille-onglet"]');
     expect(pastille).toHaveTextContent('3');
     expect(pastille).toHaveAttribute('aria-hidden', 'true');
@@ -329,7 +330,7 @@ describe('TCK-2481 — les compteurs, ceux du menu', () => {
     largeurDeFenetre(390);
     etat.nonLus = 120;
     monter('agent');
-    const messagerie = within(barre()).getByRole('link', { name: 'Messages, 120 messages non lus' });
+    const messagerie = within(barre()).getByRole('link', { name: 'Messages, 120 conversations à traiter' });
     expect(messagerie.querySelector('[data-slot="pastille-onglet"]')).toHaveTextContent('99+');
   });
 
@@ -416,7 +417,7 @@ describe('TCK-2481 (revue, I1) — une région live annonce les nouveaux non-lus
     relire();
     etat.nonLus = 5;
     relire();
-    expect(region()).toHaveTextContent('5 non lus');
+    expect(region()).toHaveTextContent('5 à traiter');
   });
 
   it('le compte baisse : la région se vide — remonter au même compte s’annonce encore', () => {
@@ -432,7 +433,7 @@ describe('TCK-2481 (revue, I1) — une région live annonce les nouveaux non-lus
     expect(region()).toHaveTextContent(/^$/);
     etat.nonLus = 5;
     relire();
-    expect(region()).toHaveTextContent('5 non lus');
+    expect(region()).toHaveTextContent('5 à traiter');
   });
 
   it('premier chargement (0, puis le compte lu) : rien n’est annoncé ; la hausse suivante, si', () => {
@@ -447,7 +448,7 @@ describe('TCK-2481 (revue, I1) — une région live annonce les nouveaux non-lus
     expect(region()).toHaveTextContent(/^$/);
     etat.nonLus = 6;
     relire();
-    expect(region()).toHaveTextContent('6 non lus');
+    expect(region()).toHaveTextContent('6 à traiter');
   });
 
   it('dès md (barre masquée, aucun sondage) : la région n’annonce rien', () => {

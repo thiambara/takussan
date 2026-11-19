@@ -61,10 +61,13 @@ class NonLusDesEvenementsTest extends TestCase
         parent::tearDown();
     }
 
-    /** @param  list<User|int>  $actionFor  TCK-2959 */
+    /**
+     * @param  list<User|int>  $actionFor  TCK-2959 — TCK-2967 : un code qui peut attendre (`attend` au catalogue) ;
+     *                                     `EvenementsDuFil::ecrire` refuse un `action_for` à tout autre code.
+     */
     private function evenement(array $actionFor = []): Message
     {
-        return app(EvenementsDuFil::class)->ecrire($this->fil, MaintenanceRequest::factory()->create(), 'maintenance.transition', ['status' => 'in_progress'], $actionFor);
+        return app(EvenementsDuFil::class)->ecrire($this->fil, MaintenanceRequest::factory()->create(), 'maintenance.quote_submitted', ['status' => 'in_progress'], $actionFor);
     }
 
     private function message(MessageType $type): Message
@@ -222,19 +225,19 @@ class NonLusDesEvenementsTest extends TestCase
         Sanctum::actingAs($this->lecteur);
         $fil = $this->getJson("/api/conversations/{$this->fil->id}/messages")->assertOk();
         $this->assertSame('event', $fil->json('data.0.type'));
-        $this->assertSame('maintenance.transition', $fil->json('data.0.metadata.code'));
+        $this->assertSame('maintenance.quote_submitted', $fil->json('data.0.metadata.code'));
         $this->assertArrayNotHasKey('action_for', $fil->json('data.0.metadata'));
         $this->assertTrue($fil->json('data.0.action_attendue'));
 
         $liste = $this->getJson('/api/conversations')->assertOk();
-        $this->assertSame('maintenance.transition', $liste->json('data.0.last_message.metadata.code'));
+        $this->assertSame('maintenance.quote_submitted', $liste->json('data.0.last_message.metadata.code'));
         $this->assertArrayNotHasKey('action_for', $liste->json('data.0.last_message.metadata'));
 
         Sanctum::actingAs($this->autre);
         $this->assertFalse($this->getJson("/api/conversations/{$this->fil->id}/messages")->assertOk()->json('data.0.action_attendue'));
 
         $archive = collect(app(DataExportBuilder::class)->payloads($this->autre)['messages.json'])->firstWhere('type', 'event');
-        $this->assertSame('maintenance.transition', $archive['metadata']['code']);
+        $this->assertSame('maintenance.quote_submitted', $archive['metadata']['code']);
         $this->assertArrayNotHasKey('action_for', $archive['metadata']);
     }
 

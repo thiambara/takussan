@@ -25,6 +25,8 @@ class Conversation extends AbstractModel
         'subject_type', 'subject_id',
         'type', 'status', 'created_by',
         'last_message_id', 'last_message_preview', 'last_message_at', 'metadata',
+        // TCK-2967 (ADR-0128 § 7) — la personne de l'agence qui suit une salle ou un groupe.
+        'assigned_to_id',
     ];
 
     protected $casts = [
@@ -33,6 +35,8 @@ class Conversation extends AbstractModel
         'last_message_at' => 'datetime',
         'metadata' => 'array',
         'subject_id' => 'integer',
+        // TCK-2967
+        'assigned_to_id' => 'integer',
     ];
 
     /**
@@ -109,6 +113,12 @@ class Conversation extends AbstractModel
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** TCK-2967 (ADR-0128 § 7) — la personne de l'agence à qui la salle ou le groupe est confié. */
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to_id');
     }
 
     public function lastMessage(): BelongsTo

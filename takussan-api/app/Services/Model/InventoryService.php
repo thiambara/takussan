@@ -2,7 +2,6 @@
 
 namespace App\Services\Model;
 
-use App\Http\Requests\InventorySignRequest;
 use App\Models\Customer;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Enums\InventoryType;
@@ -122,9 +121,8 @@ class InventoryService
             ], function (User $partie) use ($locked, $signatures, &$inventaire): bool {
                 $inventaire ??= Inventory::query()->with('lease.tenant')->find($locked->getKey());
 
-                return $inventaire !== null
-                    && ((! $inventaire->tenant_signed && $signatures->canSignAs($inventaire, $partie, InventorySignRequest::ROLE_TENANT))
-                        || (! $inventaire->owner_signed && $signatures->canSignAs($inventaire, $partie, InventorySignRequest::ROLE_LANDLORD)));
+                // TCK-2967 — le prédicat, écrit une fois (aussi celui de `inventory.signed_by_party`).
+                return $inventaire !== null && $signatures->doitEncoreSigner($inventaire, $partie);
             });
 
             return $locked->refresh();

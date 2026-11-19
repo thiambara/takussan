@@ -63,7 +63,18 @@ export type MessageMetadata = {
   data?: Record<string, string | number | boolean | null>;
   /** TCK-592 (ADR-0038) — durée DÉCLARÉE d'une note vocale, en secondes : affichage seulement. */
   duration?: number;
+  /**
+   * TCK-2966 (ADR-0128 § 6) — les comptes mentionnés (`@Prénom Nom` dans `content`, écrit par le front) :
+   * des identifiants, que l'écran nomme d'après les participants — jamais affichés tels quels (TCK-2968).
+   */
+  mentions?: number[];
 };
+
+/**
+ * TCK-2965 (ADR-0128 § 6) — `team` : une note d'équipe, que seul le personnel de l'agence du fil lit.
+ * Absent d'une réponse d'avant : vaut `all` (TCK-2968).
+ */
+export type MessageVisibility = 'all' | 'team';
 
 export type MessageAttachment = {
   id: number;
@@ -84,6 +95,8 @@ export type Message = {
   sender_id: number | null;
   content: string;
   type: MessageType;
+  /** TCK-2965 — la destination du message ; absente (réponse d'avant), `all`. */
+  visibility?: MessageVisibility;
   attachments: MessageAttachment[];
   metadata?: MessageMetadata | null;
   created_at: string;
@@ -216,6 +229,12 @@ export type ProjectionBail = {
 /** TCK-2858 — `sender.role_label_code` (`FaitsDesMessages::ROLES` + `agency_admin`, `customer`). */
 export type RoleDeLAuteur = 'tenant' | 'owner' | 'service_provider' | 'agent' | 'agency_admin' | 'customer';
 
+/**
+ * TCK-2967 (ADR-0128 § 7) — la file d'un fil POUR LE LECTEUR, dérivée par l'API (`FileDuFil`) : `vous` (un
+ * geste vous est demandé), `attente` (la balle est dans l'autre camp), `rappel` (mis de côté), `ajour`.
+ */
+export type FileDuFil = 'vous' | 'attente' | 'rappel' | 'ajour';
+
 export type Conversation = {
   id: number;
   subject: string | null;
@@ -236,6 +255,18 @@ export type Conversation = {
   created_at: string;
   updated_at: string;
   unread_count?: number;
+  /**
+   * TCK-2967 — la boîte de pilotage, rendue par la seule liste. `attend_depuis` ne vaut que pour `vous` ;
+   * `en_attente_de` (identifiants des participants actifs attendus) que pour `attente`. `snoozed_until` et
+   * `handled_at` sont les gestes du lecteur (« Rappelez-le-moi », « Traité »).
+   */
+  file?: FileDuFil;
+  attend_depuis?: string | null;
+  en_attente_de?: number[];
+  snoozed_until?: string | null;
+  handled_at?: string | null;
+  /** TCK-2967 — la personne de l'agence qui suit le fil (salle ou groupe) : son nom, jamais ses coordonnées. */
+  assigned_to?: { id: number; name: string } | null;
   participants?: ConversationParticipant[];
   property?: {
     id: number;
@@ -357,6 +388,13 @@ export type ConversationContext = {
    * l'intervention, pour le prestataire seul. Facultatif : une réponse d'avant TCK-2748 n'en porte pas.
    */
   participants?: ReadonlyArray<RelationAuFil>;
+  /** TCK-2967 / TCK-2968 — l'appelant peut-il écrire une note d'équipe dans ce fil (la règle du 422 de TCK-2965) ? */
+  can_write_team_note?: boolean;
+  /**
+   * TCK-2967 / TCK-2968 — tout participant actif qui lit les notes de ce fil, AVEC ou SANS ligne de relation
+   * (trié ; vide pour un appelant qui ne les lit pas). La source des mentionnables d'une note.
+   */
+  team_note_reader_ids?: ReadonlyArray<number>;
 };
 
 export type CodeDeRelationAuFil = 'prestataire' | 'locataire' | 'proprietaire' | 'agent';
@@ -365,4 +403,9 @@ export type RelationAuFil = {
   user_id: number;
   relation: CodeDeRelationAuFil;
   category?: string | null;
+  /**
+   * TCK-2967 / TCK-2968 — ce participant lit-il les notes d'équipe de ce fil ? Faux partout pour un appelant
+   * qui ne les lit pas lui-même ; une ligne absente vaut faux.
+   */
+  reads_team_notes?: boolean;
 };

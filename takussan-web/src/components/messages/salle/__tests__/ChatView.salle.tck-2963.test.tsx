@@ -107,6 +107,7 @@ describe('<ChatView> — une salle (TCK-2963)', () => {
   it('nomme l’auteur d’une bulle, comme dans un groupe', () => {
     messages = [message('text', '2026-11-18T09:40:00Z', { content: 'Bonjour' })];
     monter();
-    expect(screen.getByText(/Ousmane Niang/)).toBeInTheDocument();
+    // TCK-2968 — le nom paraît aussi dans la ligne « Lu par… » du composeur : on le cherche DANS la bulle.
+    expect(within(screen.getByText('Bonjour').closest('li')!).getByText(/Ousmane Niang/)).toBeInTheDocument();
   });
 });

@@ -109,6 +109,8 @@ class MessageResource extends BaseResource
                 'role_label_code' => $this->faits?->roleDe($this->resource->sender_id !== null ? (int) $this->resource->sender_id : null),
             ]),
             'type' => $this->type?->value,
+            // TCK-2965 (ADR-0128 § 6) — `all` ou `team` (la note d'équipe) ; seul qui la lit la reçoit.
+            'visibility' => $this->enumValue($this->resource->visibility) ?? 'all',
             'content' => $this->content,
             // TCK-592 — `metadata` (événement d'un avis système, durée d'une note vocale) et
             // `attachments` étaient déclarés par le type front et jamais rendus : un avis système

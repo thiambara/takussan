@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\MessageType;
 use App\Models\User;
 use App\Services\Messaging\EvenementsDuFil;
+use App\Services\Messaging\FileDuFil;
 use Illuminate\Http\Request;
 
 class ConversationResource extends BaseResource
@@ -32,6 +33,22 @@ class ConversationResource extends BaseResource
             'updated_at' => $this->iso($this->updated_at),
             // Calculé par la seule liste (`ConversationController::index`) : absent ailleurs.
             'unread_count' => $this->whenHas('unread_count', fn () => (int) $this->unread_count),
+            // TCK-2967 (ADR-0128 § 7) — la boîte de pilotage, calculée par la seule liste (`FileDuFil`) pour
+            // le LECTEUR : sa file, et ses deux gestes à lui (« Rappelez-le-moi », « Traité »).
+            // `attend_depuis` ne vaut que pour `vous`, `en_attente_de` que pour `attente` : les identifiants
+            // des participants attendus, d'où le front compose « Bineta Sarr doit signer ».
+            'file' => $this->whenHas('boite_file', fn () => $this->boite_file),
+            'attend_depuis' => $this->whenHas('boite_file', fn () => $this->boite_file === FileDuFil::VOUS ? $this->iso($this->boite_attend_depuis) : null),
+            'en_attente_de' => $this->whenHas('boite_file', fn () => $this->boite_file === FileDuFil::ATTENTE
+                ? array_values(array_map('intval', (array) $this->boite_en_attente_de))
+                : []),
+            'snoozed_until' => $this->whenHas('boite_file', fn () => $this->iso($this->boite_snoozed_until)),
+            'handled_at' => $this->whenHas('boite_file', fn () => $this->iso($this->boite_handled_at)),
+            // TCK-2967 — la personne de l'agence qui suit le fil : son nom, jamais ses coordonnées.
+            'assigned_to' => $this->whenLoaded('assignedTo', fn () => $this->assignedTo ? [
+                'id' => (int) $this->assignedTo->id,
+                'name' => $this->assignedTo->nameWithoutContact(),
+            ] : null),
             // TCK-671 (P06.02) — chargé par la liste. TCK-2958 (ADR-0128 § 3) : pour un `system`, un
             // `event` ou une `card`, `last_message_preview` est un CODE ; le front compose l'aperçu depuis
             // `metadata` (`event`, ou `code` et `data`), dans la langue du lecteur. La metadata d'un

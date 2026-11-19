@@ -5,7 +5,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/context/AuthContext';
 import { useIntervalleDeRelecture, useSignal } from '@/lib/temps-reel/hooks';
 import type { PaginatedResponse, SpatieQueryParams } from '@/types/api';
-import type { Conversation } from '@/types/message';
+import type { Conversation, FileDuFil } from '@/types/message';
 
 /**
  * TCK-1042 (P70.07) — séparé de `conversations.ts`, qui le réexporte : la pastille de la
@@ -23,6 +23,13 @@ export const CONVERSATION_LIST_FIELDS: string[] = [
   'last_message_at',
   'last_message_preview',
   'updated_at',
+  // TCK-2968 — la boîte de pilotage (TCK-2967) : la file du lecteur, ses dates, ses attendus, et qui suit le fil.
+  'file',
+  'attend_depuis',
+  'en_attente_de',
+  'snoozed_until',
+  'handled_at',
+  'assigned_to',
 ];
 
 /**
@@ -53,7 +60,20 @@ export type ConversationListPage = PaginatedResponse<Conversation> & {
      * et SANS les filtres de la requête : ils ne bougent pas quand une puce ou la recherche filtre.
      * `unread` compte des FILS (sourdine comprise), là où `unread_total` compte des messages.
      */
-    counts?: { all: number; unread: number; group: number };
+    counts?: {
+      all: number;
+      unread: number;
+      group: number;
+      /** TCK-2967 (ADR-0128 § 7) — les comptes des puces de pilotage, sur la même base que `all`. */
+      vous?: number;
+      attente?: number;
+      rappel?: number;
+    };
+    /**
+     * TCK-2967 — la pastille de l'onglet Messages : les fils « À vous » hors sourdine et hors archives
+     * (TCK-2968 la lit à la place de `unread_total`). Le lot 3 y ajoutera les engagements en retard.
+     */
+    gestes?: number;
   };
 };
 
@@ -89,6 +109,8 @@ export type FiltresDeLaListe = {
   readonly nonLus?: boolean;
   readonly type?: 'direct' | 'group';
   readonly participant?: number;
+  /** TCK-2968 — la file de pilotage (`filter[file]`, TCK-2967), jugée par le SERVEUR. */
+  readonly file?: FileDuFil;
 };
 
 /** La forme canonique des filtres : celle de la clé de requête (une saisie vide n'est pas un filtre). */
@@ -99,6 +121,8 @@ export function filtresCanoniques(filtres: FiltresDeLaListe = {}): FiltresDeLaLi
     ...(filtres.nonLus ? { nonLus: true } : {}),
     ...(filtres.type ? { type: filtres.type } : {}),
     ...(filtres.participant ? { participant: filtres.participant } : {}),
+    // TCK-2968 — dans la clé de requête : sans lui, changer de puce rendrait la page d'une autre file.
+    ...(filtres.file ? { file: filtres.file } : {}),
   };
 }
 
@@ -114,6 +138,8 @@ export function conversationListParams(
     ...(f.nonLus ? { unread: '1' } : {}),
     ...(f.type ? { type: f.type } : {}),
     ...(f.participant ? { participant: String(f.participant) } : {}),
+    // TCK-2968 — la file part au serveur, jamais filtrée sur la page reçue.
+    ...(f.file ? { file: f.file } : {}),
   };
   return {
     ...(Object.keys(filter).length > 0 ? { filter } : {}),

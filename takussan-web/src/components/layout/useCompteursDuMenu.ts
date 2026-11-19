@@ -78,7 +78,9 @@ export function useCompteursDuMenu(
 ): Record<NavCounterKey, number> {
   const { token } = useAuth();
   const sondes = actif ? countersToPoll(entrees) : new Set<NavCounterKey>();
-  const unreadMessages = useUnreadCount({ enabled: sondes.has('unreadMessages') });
+  // TCK-2968 (ADR-0128 § 7) — la pastille de Messages compte les GESTES attendus (`meta.gestes`), pas les
+  // non-lus ; la clé `unreadMessages` reste celle de l'entrée (son libellé dit désormais « à traiter »).
+  const unreadMessages = useUnreadCount({ enabled: sondes.has('unreadMessages'), mesure: 'gestes' });
   const pendingVisits = usePendingVisitsCount({ enabled: sondes.has('pendingVisits') });
   const unhandledLeads = useUnhandledLeadsCount({ enabled: sondes.has('unhandledLeads') });
   // TCK-649 — les deux files de modération, reprises à l'identique de la barre de l'ancienne

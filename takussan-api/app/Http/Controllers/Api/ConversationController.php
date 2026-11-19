@@ -25,6 +25,7 @@ use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Messaging\ConversationWriter;
 use App\Services\Messaging\DirectConversationService;
 use App\Services\Messaging\FaitsDesMessages;
+use App\Services\Messaging\FileDuFil;
 use App\Services\Messaging\GroupConversationService;
 use App\Services\Messaging\NonLus;
 use App\Services\Messaging\ObjetsDesMessages;
@@ -61,7 +62,10 @@ class ConversationController extends Controller
         // TCK-2959 (ADR-0128 § 5) — « quels messages comptent » est défini UNE fois, dans `NonLus`
         // (que `markAsUnread` appelle aussi) : un `event` ne compte que pour qui figure dans son
         // `action_for`. Le curseur de lecture, lui, reste ici.
+        // TCK-2965 (ADR-0128 § 6) — une note d'équipe ne compte que pour qui la lit
+        // (`ConversationAccess::messagesLisiblesPar`) : ni `unread_count`, ni `unread_total`, ni la puce.
         $nonLus = function ($q) use ($user) {
+            app(ConversationAccess::class)->messagesLisiblesPar($user, $q);
             NonLus::comptentPour($q, $user)
                 ->whereExists(fn ($p) => $p->selectRaw('1')
                     ->from('conversation_participants as lecteur')
@@ -95,20 +99,30 @@ class ConversationController extends Controller
         // doublé. La page seule s'élargit ; `unread_total` et `meta.counts` gardent leur base.
         $page = $request->validated('filter.participant') !== null ? $ou(null) : $liste;
 
+        // TCK-2967 (ADR-0128 § 7) — la file de chaque fil pour le lecteur, dérivée en SQL (`FileDuFil`) :
+        // une jointure latérale partagée par la page, `filter[file]`, l'ordre et les comptes.
+        $boite = new FileDuFil($user);
+
         $paginator = (clone $page)
+            // TCK-2967 — la file, ses dates et ses attendus, sous des alias `boite_*`.
+            ->tap(fn ($q) => $boite->selectionner($q))
             // TCK-2630 — les filtres ne portent que sur la page : ni `unread_total` ni `meta.counts`.
-            ->tap(fn ($q) => $this->filtrerLaListe($q, $request, $user, $nonLus))
+            ->tap(fn ($q) => $this->filtrerLaListe($q, $request, $user, $nonLus, $boite))
             ->with([
                 'property.media',
                 'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
                 'lastMessage',
+                // TCK-2967 — `assigned_to` : `{id, name}`, sans contact.
+                'assignedTo',
             ])
             ->withCount(['messages as unread_count' => $nonLus])
             // TCK-1389 (P135.06) — départage par `id` : deux fils de même horodatage changeaient de
             // page d'une requête à l'autre, ce que le défilement infini de la liste rend visible.
             // TCK-2960 — NULLS LAST : un fil sans message (une salle pas encore ouverte à l'échange) vient
             // après ceux qui ont parlé ; un ordre décroissant met les NULL en tête sous PostgreSQL.
-            ->orderByRaw('conversations.last_message_at DESC NULLS LAST')
+            // TCK-2967 — un rappel échu compte comme un échange à son échéance : il revient en tête. Sous
+            // `filter[file]=vous`, celui qui attend depuis le plus longtemps d'abord (`attend_depuis` croissant).
+            ->tap(fn ($q) => $boite->ordonner($q, $request->validated('filter.file')))
             ->orderByDesc('conversations.id')
             ->paginate($this->tailleDePage($request, 20));
 
@@ -132,17 +146,26 @@ class ConversationController extends Controller
         $actifs = $ou(false);
         $parType = (clone $actifs)->toBase()
             ->selectRaw('count(*) as tous, count(*) filter (where conversations.type = ?) as groupes', [ConversationType::Group->value])
+            // TCK-2967 — `vous`, `attente`, `rappel` et `gestes` dans la même requête, sur la même base.
+            ->tap(fn ($q) => $boite->joindre($q))
+            ->tap(fn ($q) => $boite->selectionnerLesComptes($q))
             ->first();
         $counts = [
             'all' => (int) $parType->tous,
             'unread' => (clone $actifs)->whereHas('messages', $nonLus)->count(),
             'group' => (int) $parType->groupes,
+            // TCK-2967 (ADR-0128 § 7)
+            'vous' => (int) $parType->vous,
+            'attente' => (int) $parType->attente,
+            'rappel' => (int) $parType->rappel,
         ];
 
         return $this->paginated(
             $paginator,
             ConversationResource::collection($paginator)->toArray($request),
-            ['unread_total' => $unreadTotal, 'counts' => $counts],
+            // TCK-2967 — `gestes` : la pastille, les fils `vous` hors sourdine et hors archives (décision 4a ;
+            // le lot 3 y ajoutera les engagements en retard). Sans les filtres de la requête.
+            ['unread_total' => $unreadTotal, 'counts' => $counts, 'gestes' => (int) $parType->gestes],
         );
     }
 
@@ -160,9 +183,14 @@ class ConversationController extends Controller
      *
      * @param  Builder<Conversation>  $query
      */
-    private function filtrerLaListe(Builder $query, ListConversationsRequest $request, User $user, Closure $nonLus): void
+    private function filtrerLaListe(Builder $query, ListConversationsRequest $request, User $user, Closure $nonLus, FileDuFil $boite): void
     {
         $filtres = $request->validated('filter') ?? [];
+
+        // TCK-2967 (ADR-0128 § 7) — la file dérivée, jointe par `FileDuFil::selectionner()`.
+        if (($filtres['file'] ?? null) !== null) {
+            $boite->filtrer($query, $filtres['file']);
+        }
 
         if (($filtres['type'] ?? null) !== null) {
             $query->where('conversations.type', $filtres['type']);
@@ -389,9 +417,11 @@ class ConversationController extends Controller
         $data = $request->validated();
 
         $perPage = (int) ($data['per_page'] ?? 30);
+        $access = app(ConversationAccess::class);
 
         if (isset($data['after_id'])) {
-            $messages = $conversation->messages()
+            // TCK-2965 (ADR-0128 § 6) — les notes d'équipe, pour qui les lit seulement : dans la requête.
+            $messages = $access->messagesLisiblesPar($request->user(), $conversation->messages(), $conversation)
                 ->where('id', '>', (int) $data['after_id'])
                 ->oldest()
                 ->orderBy('id')
@@ -416,7 +446,9 @@ class ConversationController extends Controller
         // messages de la même seconde revenaient dans un ordre quelconque sous PostgreSQL — mesuré :
         // `ConversationMessagesPaginationTest::test_initial_load…` rouge, selon les classes jouées
         // avant lui. Le curseur (`before_id`, `after_id`) est un `id` : le départage suit le curseur.
-        $query = $conversation->messages()->latest()->orderByDesc('id');
+        // TCK-2965 (ADR-0128 § 6) — le filtre est dans la requête : une note sautée chez un client ne fait
+        // ni page courte ni `has_more` faux.
+        $query = $access->messagesLisiblesPar($request->user(), $conversation->messages(), $conversation)->latest()->orderByDesc('id');
         if (isset($data['before_id'])) {
             $query->where('id', '<', (int) $data['before_id']);
         }
@@ -458,6 +490,10 @@ class ConversationController extends Controller
             'content' => $isAudio ? __('messaging.audio_preview') : ($data['content'] ?? ''),
             'type' => $data['type'] ?? MessageType::Text->value,
             'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
+            // TCK-2965 (ADR-0128 § 6) — `team` : une note d'équipe, jugée par le service.
+            'visibility' => $data['visibility'] ?? null,
+            // TCK-2966 (ADR-0128 § 6) — les @mentions, rangées dans `metadata.mentions` par le service.
+            'mentions' => $data['mentions'] ?? [],
         ], function (Message $message) use ($audio, $piece): void {
             if ($audio !== null) {
                 $message->addMedia($audio)->toMediaCollection('attachments');
@@ -546,6 +582,8 @@ class ConversationController extends Controller
             ->where('conversation_id', $conversation->id)
             // TCK-2959 — la définition de `index()`, et non plus sa copie.
             ->tap(fn ($q) => NonLus::comptentPour($q, $user))
+            // TCK-2965 — le dernier message LISIBLE : une note ne recule pas la lecture d'un client.
+            ->tap(fn ($q) => app(ConversationAccess::class)->messagesLisiblesPar($user, $q, $conversation))
             ->max('messages.created_at');
 
         $lecture = $conversation->participants()->where('users.id', $user->id)->first()?->pivot?->last_read_at;

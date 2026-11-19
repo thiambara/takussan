@@ -339,6 +339,10 @@ class VisitSchedulingService
                 'cancelled_by' => $by, // TCK-2871
             ]);
 
+            // TCK-2967 — la visite annulée parle dans son fil EXISTANT, après le COMMIT : l'autre moment
+            // proposé (`visit.rescheduled`) n'attend plus personne.
+            app(FilDeLObjet::class)->parler($fresh, 'visit.cancelled');
+
             return $fresh;
         });
     }

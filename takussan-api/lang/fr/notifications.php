@@ -644,6 +644,12 @@ return [
                 'body' => ':sender : :excerpt',
                 'sms' => 'Takussan : nouveau message de :sender.',
             ],
+            // TCK-2966 (ADR-0128 § 6) — une @mention, à la personne mentionnée : l'extrait borné, le nom sans contact.
+            'mention' => [
+                'title' => ':sender vous a mentionné',
+                'body' => ':sender : :excerpt',
+                'sms' => 'Takussan : :sender vous a mentionné dans un message.',
+            ],
             // TCK-861 (P38.07) — l'invitation à un groupe, ouverte depuis la cloche.
             'group_invite' => [
                 'title' => 'Invitation à un groupe : :subject',

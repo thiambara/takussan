@@ -264,7 +264,8 @@ return [
             ],
             Message::class => [
                 'searchableAttributes' => ['body'],
-                'filterableAttributes' => ['sender_id', 'conversation_id', 'created_at'],
+                // TCK-2965 (ADR-0128 § 6) — `visibility` : la recherche écarte les notes d'équipe dans le moteur.
+                'filterableAttributes' => ['sender_id', 'conversation_id', 'created_at', 'visibility'],
                 'sortableAttributes' => ['created_at'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
                 'pagination' => $pagination,

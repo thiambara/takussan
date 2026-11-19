@@ -37,11 +37,15 @@ const CODES_D_OBJET: Readonly<Record<string, { readonly date?: string; readonly 
   'lease.notice_given': { date: 'effective_date' },
   'lease.renewed': { date: 'start_date' },
   'inventory.awaiting_signature': {},
+  // TCK-2967 — la signature d'une partie (`data.party` : `tenant`, `landlord`), puis celle de toutes.
+  'inventory.signed_by_party': {},
+  'inventory.signed': {},
   'maintenance.slot_requested': {},
   'maintenance.slot_set': { instant: 'scheduled_at' },
   'visit.confirmed': { instant: 'scheduled_at' },
   'visit.rescheduled': { instant: 'scheduled_at' },
   'visit.proposed': { instant: 'scheduled_at' },
+  'visit.cancelled': {}, // TCK-2967
   'booking.confirmed': {},
   'property.shared': {},
 };
@@ -88,7 +92,9 @@ export function useTexteMessageSysteme(): (meta: MessageMetadata | null | undefi
         ? f.dateTime(texte(meta.data?.[forme.instant]))
         : VALEUR_ABSENTE;
     const jours = typeof meta.data?.days_late === 'number' ? meta.data.days_late : 0;
-    return tObjet(meta.code, { date, jours });
+    // TCK-2967 — le rôle du signataire, un CODE ; inconnu ou absent : la branche `other` du libellé.
+    const partie = texte(meta.data?.party) ?? 'other';
+    return tObjet(meta.code, { date, jours, partie });
   };
 
   const avisDIntervention = (meta: MessageMetadata): string | null => {
