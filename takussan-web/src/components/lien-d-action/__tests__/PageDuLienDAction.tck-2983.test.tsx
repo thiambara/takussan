@@ -174,3 +174,27 @@ describe('<PageDuLienDAction> (TCK-2983)', () => {
     await screen.findByText('Confirmez-vous cette visite ?');
   });
 });
+
+describe('<PageDuLienDAction> — refus nommés par la page (TCK-2983, contrat TCK-2982)', () => {
+  it('un code faux (422 action_link.code_invalid) se dit en texte du front ; le geste reste possible', async () => {
+    bouchonner(
+      reponse(200, lien('inventory.sign', { type: 'entry', property_title: 'F3', quarter: 'Sacré-Cœur 3', city: 'Dakar' })),
+      reponse(200, { data: { channel: 'sms', destination: '+221 77 ••• •• 88' } }),
+      reponse(422, { code: 'action_link.code_invalid', message: 'server text' }),
+    );
+    render(withIntl(<PageDuLienDAction jeton={JETON} />));
+    fireEvent.click(await screen.findByRole('button', { name: 'Recevoir mon code' }));
+    fireEvent.change(await screen.findByTestId('code-de-signature'), { target: { value: '000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Signer l’état des lieux' }));
+    const refus = await screen.findByTestId('refus-du-geste');
+    expect(refus.textContent).toBe('Ce code n’est pas le bon. Vérifiez-le, puis réessayez.');
+    expect(screen.getByRole('button', { name: 'Signer l’état des lieux' })).not.toBeDisabled();
+  });
+
+  it('un renvoi trop tôt (429 action_link.resend_too_soon) se dit sous le bouton du code', async () => {
+    bouchonner(reponse(200, lien('inventory.sign', { type: 'entry' })), reponse(429, { code: 'action_link.resend_too_soon', message: 'server text' }));
+    render(withIntl(<PageDuLienDAction jeton={JETON} />));
+    fireEvent.click(await screen.findByRole('button', { name: 'Recevoir mon code' }));
+    expect(await screen.findByText('Un code vient de partir. Patientez un peu avant d’en demander un autre.')).toBeInTheDocument();
+  });
+});
