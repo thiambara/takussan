@@ -8,7 +8,6 @@ use App\Http\Requests\Api\ConvertContactLeadRequest;
 use App\Http\Requests\Api\HandleContactLeadRequest;
 use App\Http\Resources\PropertyContactLeadResource;
 use App\Models\Customer;
-use App\Models\Enums\ContactLeadChannel;
 use App\Models\PropertyContactLead;
 use App\Models\User;
 use App\Policies\PropertyContactLeadPolicy;
@@ -83,7 +82,8 @@ class ContactLeadController extends Controller
 
     public function convert(ConvertContactLeadRequest $request, PropertyContactLead $lead): JsonResponse
     {
-        abort_code_unless($lead->channel === ContactLeadChannel::Form, 422, 'lead.not_convertible');
+        // TCK-2980 — `form` ou `whatsapp_inbound` (un prospect du pont).
+        abort_code_unless($lead->channel?->estUneDemande() === true, 422, 'lead.not_convertible');
 
         // TCK-2582 — `customer_id` : la demande rejoint la fiche choisie au lieu d'en créer une.
         $existing = $request->validated('customer_id');

@@ -16,6 +16,8 @@ import type { Conversation } from '@/types/message';
 import { ID_COLONNE_DE_CONTEXTE } from '../EnTeteDuFil';
 import { useBailDeLaSalle, type BailDeLaSalle } from './requetesDeLaSalle';
 import { membresActuels, objetDeLaSalle, qualiteDansLaReservation, qualiteDansLeBail, type QualiteDuMembre } from './salle';
+// TCK-2972 — les engagements du fil.
+import { EngagementsDuFil } from '../engagements/EngagementsDuFil';
 
 /**
  * TCK-2963 (maquette `fil-salle-bail` A, `ContenuDossier` et `PanneauDossier`) — le DOSSIER du fil : ce qu'on
@@ -65,10 +67,16 @@ export function DossierDuFil({ conversation, forme }: DossierDuFilProps) {
 function ContenuDuDossier({ conversation }: { readonly conversation: Conversation }) {
   const objet = objetDeLaSalle(conversation);
   if (!objet) return null;
-  return objet.nature === 'lease' ? (
-    <DossierDuBail id={objet.id} conversation={conversation} />
-  ) : (
-    <DossierDeLaReservation id={objet.id} conversation={conversation} />
+  return (
+    <>
+      {objet.nature === 'lease' ? (
+        <DossierDuBail id={objet.id} conversation={conversation} />
+      ) : (
+        <DossierDeLaReservation id={objet.id} conversation={conversation} />
+      )}
+      {/* TCK-2972 — « Engagements de ce fil », au bureau comme dans la feuille du téléphone. */}
+      <EngagementsDuFil conversationId={conversation.id} />
+    </>
   );
 }
 

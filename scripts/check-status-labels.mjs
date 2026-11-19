@@ -129,6 +129,7 @@ const LIBELLES = {
 const SANS_LIBELLE = {
   AgencyAdminProfileStatus: 'aucun espace du dictionnaire ne porte ses trois cas (`archived` manque partout)',
   AgentProfileStatus: 'aucun écran relevé ne le traduit sous un espace complet',
+  CommitmentStatus: 'TCK-2969 : l\'API seule — l\'écran de l\'engagement (TCK-2972) lit l\'état DÉRIVÉ `etat` (`late` n\'est pas un statut), et y posera ses libellés',
   ConversationStatus: 'aucun espace du dictionnaire ne porte ses cas',
   DocumentVaultArchiveStatus: 'TCK-2812 : le coffre dit chaque état par une phrase sous le dossier (`documents.coffre.archive.preparee.preparation`, `.prete`, `.echec`) et par le libellé du bouton — pas par une table à un cas par clé',
   InvitationStatus: 'aucun espace du dictionnaire ne porte ses cas',

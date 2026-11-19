@@ -3,6 +3,10 @@
 namespace App\Services\Ai;
 
 use App\Ai\Usages\ConnectionTestUsage;
+use App\Ai\Usages\FilBrouillonUsage;
+use App\Ai\Usages\FilQuestionUsage;
+use App\Ai\Usages\FilResumeUsage;
+use App\Ai\Usages\FilTranscriptionUsage;
 use App\Ai\Usages\RadarConsentMessageUsage;
 use App\Ai\Usages\RadarConsentVerificationUsage;
 use App\Ai\Usages\RadarDemandTargetsUsage;
@@ -29,6 +33,13 @@ final class AiUsageRegistry
         RadarEmbeddingUsage::class,
         RadarDemandTargetsUsage::class,
         SearchAliasesUsage::class,
+        // TCK-2974 (ADR-0131) — le copilote du fil.
+        FilResumeUsage::class,
+        // TCK-2975 (ADR-0131 § 3) — « Demander au fil » et le brouillon d'une réponse.
+        FilQuestionUsage::class,
+        FilBrouillonUsage::class,
+        // TCK-2976 (ADR-0131 § 7) — la transcription d'une note vocale, par AiGateway::transcribe().
+        FilTranscriptionUsage::class,
     ];
 
     /** @var array<string, AiUsage> */

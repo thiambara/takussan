@@ -182,10 +182,10 @@ class WhatsappChannel
         if (! $notifiable instanceof User && $contact?->opt_in_status !== WhatsappContact::OPT_IN_OPTED_IN) {
             return null;
         }
-        // P203.05 (TCK-2326) — cette branche attend l'écrivain entrant : rien n'écrit encore
-        // `last_inbound_at` (aucune route ne reçoit les messages de Meta), la fenêtre reste donc
-        // fermée hors des tests. Elle est gardée : TCK-282 écrit le texte libre en fenêtre, et la
-        // fenêtre de Meta se compte par numéro d'entreprise, que le contact ne garde pas encore.
+        // P203.05 (TCK-2326) — TCK-2980 : le pont entrant écrit désormais `last_inbound_at` (tout message
+        // reçu sur le numéro des notifications). Cette lecture reste PAR CONTACT : la fenêtre de Meta se compte
+        // par numéro d'entreprise, que lit `ServiceWindow::isOpenFor()` (relais entrants) — à brancher ici
+        // quand le pilote dira quel numéro d'entreprise envoie (TCK-2981).
         if ($this->serviceWindow->isOpen($contact)) {
             return WhatsappMessage::text($notification->toWhatsapp($notifiable));
         }

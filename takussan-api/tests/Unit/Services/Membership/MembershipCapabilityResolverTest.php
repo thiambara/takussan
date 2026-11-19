@@ -386,8 +386,12 @@ class MembershipCapabilityResolverTest extends TestCase
      * **Décision du 2026-11-11 — TCK-2640, 46/48 → 47/49.** Le cas ajouté est `owners.update` :
      * régler le plafond de travaux d'un bailleur du carnet. Accordé à `agency_admin`, pas à l'agent
      * système (le plafond borne ce que l'équipe décide pour le bailleur).
+     *
+     * **Décision du 2026-11-19 — TCK-2974 (ADR-0131 § 1), 47/49 → 48/50.** Le cas ajouté est
+     * `messaging.copilot`, se servir du copilote du fil : accordé à `agency_admin` ET à l'agent système ;
+     * la garde du copilote exige en plus le personnel actif de l'agence du fil.
      */
-    public function test_agency_admin_breadth_is_pinned_to_47_of_49(): void
+    public function test_agency_admin_breadth_is_pinned_to_48_of_50(): void
     {
         $user = User::factory()->create();
         $agency = Agency::factory()->create();
@@ -399,13 +403,13 @@ class MembershipCapabilityResolverTest extends TestCase
         ));
 
         $this->assertCount(
-            47,
+            48,
             $granted,
             'La largeur de `agency_admin` a changé. Ce n’est pas un compte à '.
             'rafraîchir : c’est une décision à prendre, puis à reporter dans le '.
             'bloc « TABLE DE VÉRITÉ PHASE 1 » du resolver.',
         );
-        $this->assertCount(49, Capability::cases());
+        $this->assertCount(50, Capability::cases());
     }
 
     /**

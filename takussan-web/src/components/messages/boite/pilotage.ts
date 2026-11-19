@@ -13,13 +13,13 @@ import type { Conversation, FileDuFil } from '@/types/message';
  */
 export const DELAI_DEPASSE_MS = 4 * 60 * 60 * 1000;
 
-/** Les puces de pilotage, dans l'ordre de la maquette `fil-boite` D (sans « Retard » avant le lot 3). */
-export const PUCES_DE_PILOTAGE = ['tous', 'nonLus', 'vous', 'attente', 'rappel'] as const;
+/** Les puces de pilotage, dans l'ordre de la maquette `fil-boite` D. TCK-2973 — « Retard » après « À vous ». */
+export const PUCES_DE_PILOTAGE = ['tous', 'nonLus', 'vous', 'retard', 'attente', 'rappel'] as const;
 export type PuceDePilotage = (typeof PUCES_DE_PILOTAGE)[number];
 
 /** La file que la puce demande au SERVEUR (`filter[file]`), ou `null` (Tous, Non lus). */
 export function fileDeLaPuce(puce: PuceDePilotage): FileDuFil | null {
-  return puce === 'vous' || puce === 'attente' || puce === 'rappel' ? puce : null;
+  return puce === 'vous' || puce === 'retard' || puce === 'attente' || puce === 'rappel' ? puce : null;
 }
 
 export type DelaiDuFil = {

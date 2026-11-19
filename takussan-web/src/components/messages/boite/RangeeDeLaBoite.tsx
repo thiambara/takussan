@@ -2,7 +2,7 @@
 
 import { useRef, useState, type ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { AlarmClock, Check, Clock3, Hourglass, UserRoundPlus } from 'lucide-react';
+import { AlarmClock, Check, Clock3, Handshake, Hourglass, TriangleAlert, UserRoundPlus } from 'lucide-react';
 import { StatusBadge } from '@/components/console/StatusBadge';
 import { cn } from '@/lib/utils';
 import type { Conversation } from '@/types/message';
@@ -29,8 +29,44 @@ const HEURES_DEPASSE = DELAI_DEPASSE_MS / 3_600_000;
 /** L'étiquette de la file, quand la puce ne la dit pas (« Tous », « Non lus »). Rien pour « À jour ». */
 export function EtiquetteDeFile({ file }: { readonly file: Conversation['file'] }) {
   const t = useTranslations('messaging.boite.etiquette');
-  if (file !== 'vous' && file !== 'attente' && file !== 'rappel') return null;
-  return <StatusBadge tone={file === 'vous' ? 'primary' : 'neutral'} label={t(file)} className="h-5 flex-none px-1.5 text-legende" />;
+  if (file !== 'vous' && file !== 'retard' && file !== 'attente' && file !== 'rappel') return null;
+  // TCK-2973 — « Retard » : le ton d'attention (ocre), décidé ici par la table des tons.
+  return <StatusBadge tone={TON_DE_LA_FILE[file]} label={t(file)} className="h-5 flex-none px-1.5 text-legende" />;
+}
+
+const TON_DE_LA_FILE = { vous: 'primary', retard: 'attention', attente: 'neutral', rappel: 'neutral' } as const;
+
+/** TCK-2973 — les jours entiers depuis l'échéance (au moins 1 pour un engagement échu). */
+export function joursDepuis(dueAt: string | null | undefined, maintenant: Date): number {
+  const due = dueAt ? Date.parse(dueAt) : Number.NaN;
+  if (Number.isNaN(due) || maintenant.getTime() <= due) return 0;
+  return Math.max(1, Math.floor((maintenant.getTime() - due) / 86_400_000));
+}
+
+/**
+ * TCK-2973 (TCK-2971, maquette `fil-boite` D) — la ligne d'engagement d'une rangée : « Ousmane Ndiaye :
+ * « je paie le 5 » · 3 j de retard » en ocre pour un engagement en retard, en encre douce pour un engagement
+ * à venir ; « Vous aviez prévu : « … » » pour le porteur. Le nom vient des participants : un porteur sans nom
+ * connu n'est pas nommé, jamais un identifiant à l'écran. Un engagement clos ne dit rien.
+ */
+function LigneDEngagement({ conversation, maintenant, moi }: { readonly conversation: Conversation; readonly maintenant: Date; readonly moi: number | undefined }) {
+  const t = useTranslations('messaging.boite.engagement');
+  const e = conversation.engagement;
+  if (!e || (e.etat !== 'open' && e.etat !== 'late' && e.etat !== 'proposed')) return null;
+  const jours = e.etat === 'late' ? joursDepuis(e.due_at, maintenant) : 0;
+  const enRetard = e.etat === 'late';
+  const titre = e.title?.trim() ?? '';
+  const nom = (conversation.participants ?? []).find((p) => p.user_id === e.holder_id && !p.left_at)?.user?.full_name ?? null;
+  const promesse = e.holder_id === moi ? t('vous', { titre }) : nom ? t('de', { nom, titre }) : t('sansNom', { titre });
+  const ic = 'size-3.5 flex-none';
+  return (
+    <Signal
+      className={enRetard ? 'font-semibold text-warning' : 'text-encre-douce'}
+      icone={enRetard ? <TriangleAlert className={ic} aria-hidden /> : <Handshake className={ic} aria-hidden />}
+    >
+      <span data-testid="ligne-d-engagement">{enRetard ? t('enRetard', { promesse, jours: Math.max(1, jours) }) : promesse}</span>
+    </Signal>
+  );
 }
 
 function Signal({ icone, children, className }: { readonly icone: ReactNode; readonly children: ReactNode; readonly className?: string }) {
@@ -62,6 +98,8 @@ export function SignauxDuFil({
   const format = useFormatter();
   const ic = 'size-3.5 flex-none';
   const items: ReactNode[] = [];
+  // TCK-2973 — la promesse en cours ou en retard du fil, en tête des signaux.
+  if (conversation.engagement) items.push(<LigneDEngagement key="engagement" conversation={conversation} maintenant={maintenant} moi={moi} />);
   if (conversation.file === 'vous') {
     const delai = delaiDuFil(conversation.attend_depuis, maintenant);
     if (delai) {

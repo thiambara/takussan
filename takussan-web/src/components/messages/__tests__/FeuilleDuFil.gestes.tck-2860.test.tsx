@@ -14,6 +14,8 @@ let contexte: unknown;
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 1 } }) }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => false }));
 vi.mock('@/components/visits/PlanifierUneVisite', () => ({ PlanifierDialog: () => null }));
+// TCK-2972 — « Engagements de ce fil » a sa propre requête (testée sous `engagements/__tests__`) : doublée ici.
+vi.mock('../engagements/EngagementsDuFil', () => ({ EngagementsDuFil: ({ conversationId }: { conversationId: number }) => <div data-testid="engagements-du-fil-double" data-fil={conversationId} /> }));
 vi.mock('@/lib/queries/conversations', () => ({
   useConversation: () => ({ data: { data: { id: 21, type: 'direct', participants: [] } } }),
   useConversationContext: () => ({ data: contexte }),

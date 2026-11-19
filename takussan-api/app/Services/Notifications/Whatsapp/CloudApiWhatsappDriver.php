@@ -132,7 +132,32 @@ class CloudApiWhatsappDriver implements WhatsappDriverInterface
                 ]];
             }
 
+            // TCK-2981 — le bouton `quick_reply` du gabarit, sa charge utile (documentation de l'API Cloud de Meta).
+            if ($message->buttons !== []) {
+                $payload['template']['components'][] = [
+                    'type' => 'button',
+                    'sub_type' => 'quick_reply',
+                    'index' => '0',
+                    'parameters' => [['type' => 'payload', 'payload' => (string) $message->buttons[0]['id']]],
+                ];
+            }
+
             return $payload;
+        }
+
+        // TCK-2981 — un message interactif à boutons de réponse.
+        if ($message->type === WhatsappMessage::TYPE_INTERACTIVE) {
+            return $base + [
+                'type' => 'interactive',
+                'interactive' => [
+                    'type' => 'button',
+                    'body' => ['text' => (string) $message->text],
+                    'action' => ['buttons' => array_map(
+                        fn (array $b) => ['type' => 'reply', 'reply' => ['id' => mb_substr((string) $b['id'], 0, 256), 'title' => mb_substr((string) ($b['title'] ?? ''), 0, 20)]],
+                        $message->buttons,
+                    )],
+                ],
+            ];
         }
 
         return $base + [

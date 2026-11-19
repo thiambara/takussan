@@ -401,8 +401,113 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 130. [MaintenanceRescheduleRequest](#130-maintenancereschedulerequest-) 🆕
 131. [MaintenanceQuoteAlternative](#131-maintenancequotealternative-) 🆕
 132. [ConsentProof](#132-consentproof-) 🆕 (TCK-537)
+133. [Commitment](#133-commitment-) 🆕 (TCK-2969, ADR-0130)
+134. [MessageRelay](#134-messagerelay-) 🆕 (TCK-2980, ADR-0132)
+135. [OwnerWeeklyDigest](#135-ownerweeklydigest-) 🆕 (TCK-2985, ADR-0132)
 
-### Enums
+#### 133. Commitment 🆕
+
+**Table :** `commitments` (`2026_11_19_296901`, TCK-2969 ; `2026_11_19_297001`, TCK-2970)
+**Modèle :** `App\Models\Commitment` (`AbstractModel`, `Auditable`, `HasFactory`) — statut casté en `CommitmentStatus`
+**Description :** L'engagement : la promesse d'un participant d'un fil (« je repasse jeudi à 10 h »), un objet du fil inscrit au registre `SujetsDuFil` sous le type `commitment`. Une table à lui, **jamais une ligne de `tasks`** : aucun lecteur de `tasks` ne le voit ([ADR-0130](adr/0130-l-engagement-est-un-objet-du-fil.md) § 1). Le journal d'audit (`AUDIT_ONLY`) ne retient ni `title` ni `reopen_reason`, textes libres d'un participant.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| conversation_id | FK conversations | | | Le fil où il est né (`cascadeOnDelete`) |
+| source_message_id | FK messages | oui | null | Le message d'où il a été noté (`nullOnDelete`) |
+| object_type | string(40) | oui | null | Clé du registre `SujetsDuFil` — lien générique, sans clé étrangère |
+| object_id | unsigned bigint | oui | null | Identifiant de l'objet visé (casté `integer`) |
+| agency_id | FK agencies | | | L'agence du fil à la création (`cascadeOnDelete`) |
+| holder_id | FK users | | | Le porteur de la promesse (`cascadeOnDelete`) |
+| beneficiary_id | FK users | oui | null | Envers qui ; nul = l'agence (`nullOnDelete`) |
+| created_by_id | FK users | oui | null | Qui l'a noté (`nullOnDelete`) |
+| title | string(160) | | | Ce qui est promis |
+| due_at | timestamp | | | L'échéance |
+| status | string(20) | | | `CommitmentStatus` : `proposed` (noté par le personnel pour un autre, attend le porteur), `open`, `kept`, `cancelled` |
+| confirmed_at | timestamp | oui | null | Confirmation par le porteur |
+| kept_at / kept_by_id | timestamp / FK users | oui | null | Tenu, et par qui (`nullOnDelete`) |
+| cancelled_at / cancelled_by_id | timestamp / FK users | oui | null | Annulé, et par qui (`nullOnDelete`) |
+| cancel_reason | string(40) | oui | null | Un CODE : `by_author`, `by_staff`, `object_closed` |
+| reopened_at / reopened_by_id | timestamp / FK users | oui | null | Réouverture, et par qui (`nullOnDelete`) |
+| reopen_reason | string(500) | oui | null | Texte libre de la réouverture |
+| party_reopened_at | timestamp | oui | null | Réouverture par la partie bénéficiaire |
+| overdue_at | timestamp | oui | null | L'historique du retard, lu par la fiabilité (TCK-2971) ; **ne tombe jamais** |
+| due_soon_sent_at | timestamp | oui | null | Marqueur du signal planifié (`commitments:signal`) : rappel d'approche envoyé |
+| overdue_signalled_at | timestamp | oui | null | Marqueur : retard signalé |
+| relances | unsigned smallint | | 0 | Marqueur : nombre de relances |
+| last_relance_at | timestamp | oui | null | Marqueur : dernière relance |
+| check_requested_at | timestamp | oui | null | Marqueur de la question « Tenu ? » (TCK-2970, `2026_11_19_297001`) : posée une heure après l'échéance d'un engagement `open` qui a un bénéficiaire, une fois par échéance |
+| created_at / updated_at | timestamp | | auto | |
+
+**Casts :** `status` → `CommitmentStatus` ; `object_id`, `relances` → `integer` ; tous les instants → `datetime`.
+**Index :** `commitments_conversation_status_due_idx` `(conversation_id, status, due_at)` ; `commitments_holder_agency_due_idx` `(holder_id, agency_id, due_at)` ; `commitments_object_idx` `(object_type, object_id)` ; `commitments_agency_status_idx` `(agency_id, status)` (`agency_id` en tête : `AgencyIdIsIndexedTest`). Index et clés étrangères nommés explicitement.
+
+**État dérivé (`etat()`).** « En retard » n'est pas un statut : `proposed`, `open`, `late` (`status = open` et `due_at` passé, jugé à l'instant), `kept`, `cancelled` — ce que lisent la carte, la liste, la boîte et la fiabilité.
+**Marqueurs du signal (`MARQUEURS_DU_SIGNAL`).** Un changement de `due_at` les remet à zéro (`booted`, comme `Task`) ; `overdue_at` n'y est pas.
+**Question « Tenu ? » (`questionTenuOuverte()`).** Ouverte quand `status = open`, `check_requested_at` posé et que la dernière trace de l'engagement au fil est la question `commitment.check_requested`, pas un code qui la clôt.
+
+**Relations :** `conversation()`, `sourceMessage()` (via `source_message_id`), `agency()` → belongsTo ; `holder()`, `beneficiary()`, `createdBy()` → belongsTo User.
+
+---
+
+### 134. MessageRelay 🆕
+
+**Table :** `message_relays` (`2026_11_19_298001`, TCK-2980)
+**Modèle :** `App\Models\MessageRelay` (`AbstractModel`) — `phone` dans `$hidden` ; les quatre instants en `datetime`
+**Description :** La trace de chaque passage par le pont de messagerie ([ADR-0132](adr/0132-le-pont-whatsapp-et-sms-relaie-le-fil-et-les-liens-d-action-font-un-geste.md) § 1, § 4) : un message reçu (`direction = in`) ou envoyé (`out`) sur un canal. Écrit par le pont seul ; aucune route ne le crée ni ne le lit dans TCK-2980.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| purpose | string(20) | | | `message` (un message du fil, reçu ou relayé), `invitation` (TCK-2981), `action_link` (TCK-2982), `digest` (TCK-2985) |
+| direction | string(3) | | | `in` ou `out` |
+| message_id | FK messages | oui | null | `cascadeOnDelete` |
+| conversation_id | FK conversations | oui | null | `nullOnDelete` |
+| agency_id | FK agencies | oui | null | `nullOnDelete`, indexé (`AgencyIdIsIndexedTest`) |
+| user_id | FK users | oui | null | `nullOnDelete` |
+| customer_id | FK customers | oui | null | `nullOnDelete` |
+| property_contact_lead_id | FK property_contact_leads | oui | null | `nullOnDelete` |
+| channel | string(20) | | | Identifiant du pilote (`whatsapp`, `sms`…), chaîne libre (ADR-0007) |
+| form | string(20) | oui | null | |
+| template | string(100) | oui | null | |
+| phone | string(20) | oui | null | E.164, **effacé 90 jours après l'envoi** (`pont:effacer-numeros`, la ligne reste) ; **rendu par aucune ressource** |
+| business_number_id | string(64) | oui | null | Numéro d'entreprise utilisé |
+| provider_message_id | string(128) | oui | null | Identifiant chez le fournisseur : clé d'idempotence du webhook et cible de `context.id` |
+| status | string(20) | | | `recu` pour un message reçu (les statuts d'envoi `envoye`, `remis`, `lu`, `echec` sont ceux de TCK-2981) |
+| failure_reason | string(255) | oui | null | |
+| sent_at / delivered_at / read_at / failed_at | timestamp | oui | null | |
+| created_at / updated_at | timestamp | | auto | |
+
+**Index :** unique partiel `message_relays_provider_message_unique` `(channel, provider_message_id) WHERE provider_message_id IS NOT NULL` (idempotence quand le fournisseur rejoue ; index SQL brut) ; `message_relays_phone_business_idx` `(phone, business_number_id, direction, created_at)` (dernier relais vers un numéro, fenêtre de 24 h) ; `message_relays_conversation_user_idx` `(conversation_id, user_id)` ; `message_relays_message_idx` `(message_id)` ; `message_relays_lead_idx` `(property_contact_lead_id)`.
+
+**Relations :** `message()`, `conversation()`, `user()` → belongsTo ; `lead()` → belongsTo PropertyContactLead (via `property_contact_lead_id`).
+
+---
+
+### 135. OwnerWeeklyDigest 🆕
+
+**Table :** `owner_weekly_digests` (`2026_11_19_298500`, TCK-2985)
+**Modèle :** `App\Models\OwnerWeeklyDigest` (`AbstractModel`) — `sent_at` en `datetime`
+**Description :** La trace du résumé du lundi envoyé à un bailleur : une ligne par (bailleur, agence, semaine ISO) ([ADR-0132](adr/0132-le-pont-whatsapp-et-sms-relaie-le-fil-et-les-liens-d-action-font-un-geste.md) § 6). Écrite par `App\Services\Owners\ResumeDuLundi` seul ; aucune route ne la lit. L'index unique est l'idempotence de `owners:weekly-digest` : relancée la même semaine, la commande n'envoie rien de plus.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| user_id | FK users | | | Le bailleur (`cascadeOnDelete`) |
+| agency_id | FK agencies | | | L'agence (`cascadeOnDelete`) |
+| week | string(8) | | | La semaine résumée, `o-\WW` (ISO), lundi 00:00 → dimanche 23:59 heure de Dakar |
+| channel | string(32) | oui | null | Le canal effectif : l'identifiant d'un pilote du pont, ou `mail` |
+| sent_at | timestamp | oui | null | |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contrainte :** unique `(user_id, agency_id, week)`.
+**Index :** `(agency_id)` (`AgencyIdIsIndexedTest`).
+**Relations :** aucune déclarée sur le modèle.
+
+---
+
+## Enums
 
 - [Enums](#enums-1)
 
@@ -1912,6 +2017,7 @@ voies peut n'identifier personne.
 | type | MessageType | | 'text' | Type — les sept valeurs de `app/Models/Enums/MessageType.php` : text, image, document, system, **audio**, **card**, **event** (TCK-2958, voir ci-dessous) (note vocale, TCK-592, [ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)). Un participant n'écrit que `text` ou `audio` (`SendMessageConversationRequest::PARTICIPANT_TYPES`) ; **TCK-2631 lui ouvre aussi `image` et `document` : une pièce par message dans la collection privée `attachments` (photo jpeg, png ou webp ≤ 8 Mo, métadonnées EXIF retirées ; PDF ≤ 10 Mo), servie par URL signée aux seuls participants actuels** ; `system` est réservé à `SystemMessageFactory` |
 | visibility | string(10) | | 'all' | **`all` ou `team`** (`App\Models\Enums\MessageVisibility`, TCK-2965, `2026_11_18_296500`). `team` = la **note d'équipe** : lue des seuls participants actifs qui sont du personnel de l'agence du fil (et d'un super-admin) ; ni liste, ni non-lu, ni file de pilotage, ni recherche, ni notification (hors @mention), ni aperçu. Chaîne et non `enum()` SQL (ADR-0007) |
 | metadata | jsonb | oui | null | Métadonnées — pour `audio` : `{"duration": <secondes déclarées>}` ; pour `card` et `event` : forme fermée `{object: {type, id}, code, data}` (+ `action_for`, liste des comptes dont un geste est attendu, jamais rendue au lecteur) ; **`mentions`** : identifiants de compte mentionnés, dix au plus (TCK-2966) |
+| channel | string(20) | | 'app' | Par où le message est arrivé : `app` (défaut, valeur de tout message d'avant le pont) ou l'identifiant d'un pilote du pont (`whatsapp`…, `config/pont.php`). **Chaîne libre** contrôlée par l'application (ADR-0007), jamais un `enum()` SQL : un canal neuf est une entrée de config, pas une migration. Jamais lue d'une requête : seul le pont la pose (`ConversationWriter::post`). Hors du document de recherche (`2026_11_19_298000`, TCK-2980, [ADR-0132](adr/0132-le-pont-whatsapp-et-sms-relaie-le-fil-et-les-liens-d-action-font-un-geste.md) § 0, § 1) |
 | deleted_at | timestamp | oui | null | Soft delete |
 | created_at | timestamp | | auto | |
 | updated_at | timestamp | | auto | |
@@ -6578,6 +6684,7 @@ Index : `(user_id, document)`.
 | **ConversationStatus** | active, archived, closed | Conversation.status |
 | **MessageType** | text, image, document, system, **audio**, **card**, **event** | Message.type — `audio` : note vocale, fichier dans la collection privée `attachments` (TCK-592, ADR-0038) ; `card` : objet posé dans un fil ; `event` : ce qui arrive à un objet, écrit par la plateforme (TCK-2958, ADR-0128 § 3) |
 | **MessageVisibility** | all, team | Message.visibility — `team` : note d'équipe (TCK-2965, ADR-0128 § 6) |
+| **CommitmentStatus** 🆕 | proposed, open, kept, cancelled | [Commitment.status](#133-commitment-) — statut STOCKÉ ; « en retard » n'en est pas un, `Commitment::etat()` le dérive (TCK-2969, ADR-0130 § 1) |
 | **MaintenanceCategory** | plumbing, electrical, structural, appliance, painting, cleaning, pest_control, locksmith, other | MaintenanceRequest.category |
 | **MaintenancePriority** | low, **normal**, high, urgent | MaintenanceRequest.priority — `medium` renommé `normal`, données et défaut (`2026_04_26_013446`) |
 | **MaintenanceStatus** | open, acknowledged, **quote_requested, quote_submitted, awaiting_owner, approved, rejected**, assigned, in_progress, completed, closed, cancelled | MaintenanceRequest.status — circuit du devis (TCK-592, ADR-0037) |

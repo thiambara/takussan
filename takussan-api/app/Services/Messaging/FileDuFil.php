@@ -3,6 +3,7 @@
 namespace App\Services\Messaging;
 
 use App\Models\Enums\AgencyRoleBaseType;
+use App\Models\Enums\CommitmentStatus;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\MessageVisibility;
 use App\Models\Enums\UserStatus;
@@ -38,6 +39,13 @@ use Illuminate\Support\Facades\DB;
  *    participant actif, postérieur à `handled_at` ; ou le fil serait `vous` mais il est confié à un autre ;
  *  - **`ajour`** : tout le reste.
  *
+ * TCK-2971 (ADR-0130 § 5) — **`retard`**, entre `rappel` et `vous` : le fil porte un engagement `open` dont
+ * l'échéance est passée, dont le PORTEUR n'est pas du côté du lecteur (la même règle des côtés,
+ * {@see self::deMonCote()}), et que le lecteur SUIT (il en est le bénéficiaire, ou il est du personnel actif
+ * de l'agence du fil : `equipe`). « Traité » (`handled_at`) ne s'y applique pas : une promesse non tenue reste
+ * à suivre jusqu'à ce qu'elle soit tenue, annulée ou reportée. Le porteur, lui, est `vous` par l'événement
+ * `commitment.overdue` (TCK-2970). Préséance : `rappel` > `retard` > `vous` > `attente` > `ajour`.
+ *
  * Un fil confié ne vaut que tant que la personne confiée est personnel de l'agence et participante active :
  * confié à quelqu'un qui est parti, il redevient `vous` pour l'équipe.
  *
@@ -55,8 +63,11 @@ final class FileDuFil
 
     public const AJOUR = 'ajour';
 
+    /** TCK-2971 (ADR-0130 § 5) — une promesse faite au lecteur (ou suivie par lui) n'est pas tenue à temps. */
+    public const RETARD = 'retard';
+
     /** @var list<string> */
-    public const FILES = [self::VOUS, self::ATTENTE, self::RAPPEL, self::AJOUR];
+    public const FILES = [self::VOUS, self::ATTENTE, self::RAPPEL, self::AJOUR, self::RETARD];
 
     /** L'alias de la jointure latérale. */
     public const ALIAS = 'boite';
@@ -136,12 +147,17 @@ final class FileDuFil
                 "{$a}.handled_at as boite_handled_at",
                 "{$a}.attend_depuis as boite_attend_depuis",
                 "{$a}.en_attente_de as boite_en_attente_de",
+                // TCK-2971
+                "{$a}.retard_depuis as boite_retard_depuis",
+                "{$a}.engagement as boite_engagement",
             ])
             ->withCasts([
                 'boite_snoozed_until' => 'datetime',
                 'boite_handled_at' => 'datetime',
                 'boite_attend_depuis' => 'datetime',
                 'boite_en_attente_de' => 'array',
+                'boite_retard_depuis' => 'datetime', // TCK-2971
+                'boite_engagement' => 'array', // TCK-2971
             ]);
     }
 
@@ -158,12 +174,17 @@ final class FileDuFil
      * Sous `filter[file]=vous` (`$file`), d'abord `attend_depuis` CROISSANT : celui qui attend depuis le plus
      * longtemps en tête (maquette `fil-boite` D) ; l'ordre « dernier échange » départage. Exige la jointure
      * détaillée ({@see self::selectionner()}). Les autres filtres gardent l'ordre « dernier échange ».
+     * TCK-2971 — sous `filter[file]=retard`, d'abord `retard_depuis` CROISSANT (l'échéance dépassée la plus
+     * ancienne).
      */
     public function ordonner(EloquentBuilder $conversations, ?string $file = null): void
     {
         $a = self::ALIAS;
         if ($file === self::VOUS) {
             $conversations->orderByRaw("{$a}.attend_depuis ASC NULLS LAST");
+        }
+        if ($file === self::RETARD) {
+            $conversations->orderByRaw("{$a}.retard_depuis ASC NULLS LAST");
         }
         $conversations->orderByRaw(
             "GREATEST(conversations.last_message_at, CASE WHEN {$a}.snoozed_until <= ? THEN {$a}.snoozed_until END) DESC NULLS LAST",
@@ -173,7 +194,8 @@ final class FileDuFil
 
     /**
      * Les comptes d'une requête déjà jointe, en colonnes d'un seul `SELECT` : `vous`, `attente`, `rappel`,
-     * et `gestes` (les fils `vous` hors sourdine).
+     * `retard`, et `gestes` (les fils `vous` ou `retard` hors sourdine ; TCK-2971 : chaque fil une fois, les
+     * files étant exclusives — une seule colonne `file` par fil).
      */
     public function selectionnerLesComptes(QueryBuilder $conversations): void
     {
@@ -182,7 +204,8 @@ final class FileDuFil
             "count(*) filter (where {$a}.file = 'vous') as vous,"
             ." count(*) filter (where {$a}.file = 'attente') as attente,"
             ." count(*) filter (where {$a}.file = 'rappel') as rappel,"
-            ." count(*) filter (where {$a}.file = 'vous' and {$a}.is_muted = false) as gestes"
+            ." count(*) filter (where {$a}.file = 'retard') as retard,"
+            ." count(*) filter (where {$a}.file in ('vous', 'retard') and {$a}.is_muted = false) as gestes"
         );
     }
 
@@ -254,7 +277,9 @@ final class FileDuFil
             ->select('f.*')
             ->selectRaw("({$dernierApresTraite} AND NOT ".$this->deMonCote('f.dernier_auteur', 'f').') as msg_autre')
             ->selectRaw("({$dernierApresTraite} AND ".$this->deMonCote('f.dernier_auteur', 'f').') as msg_moi')
-            ->selectRaw('(f.equipe AND f.confie) as confie_autre');
+            ->selectRaw('(f.equipe AND f.confie) as confie_autre')
+            // TCK-2971 — l'échéance dépassée la plus ancienne d'un engagement en retard que le lecteur suit.
+            ->selectSub($this->retardQueJeSuis(), 'retard_depuis');
 
         if ($details) {
             $jugement->selectSub($this->premierSansReponse(), 'msg_depuis');
@@ -263,9 +288,11 @@ final class FileDuFil
         $vous = '(g.msg_autre OR g.evt_moi_depuis IS NOT NULL)';
 
         $file = DB::query()->fromSub($jugement, 'g')
-            ->select('g.snoozed_until', 'g.handled_at', 'g.is_muted')
+            ->select('g.snoozed_until', 'g.handled_at', 'g.is_muted', 'g.retard_depuis')
             ->selectRaw(
                 "CASE WHEN g.snoozed_until > ? THEN 'rappel'"
+                // TCK-2971 — `retard` prime sur `vous` ; « Traité » ne s'y applique pas.
+                ." WHEN g.retard_depuis IS NOT NULL THEN 'retard'"
                 ." WHEN {$vous} AND NOT g.confie_autre THEN 'vous'"
                 ." WHEN g.msg_moi OR g.evt_autre OR ({$vous} AND g.confie_autre) THEN 'attente'"
                 ." ELSE 'ajour' END as file",
@@ -280,9 +307,47 @@ final class FileDuFil
                 .' ELSE ('.$attendus->toSql().') END as en_attente_de',
                 $attendus->getBindings(),
             );
+            // TCK-2971 — le plus pressant des engagements `open` du fil (en retard d'abord : l'échéance la plus
+            // ancienne), pour tout lecteur du fil.
+            $pressant = $this->engagementLePlusPressant();
+            $file->selectRaw('('.$pressant->toSql().') as engagement', $pressant->getBindings());
         }
 
         return $file;
+    }
+
+    /**
+     * TCK-2971 (ADR-0130 § 5) — `retard_depuis` : la plus ancienne échéance dépassée parmi les engagements
+     * `open` du fil dont le porteur n'est PAS du côté du lecteur et que le lecteur SUIT (bénéficiaire, ou
+     * personnel de l'agence du fil, `f.equipe`). Lit `f`. Aucune lecture de `handled_at`.
+     */
+    private function retardQueJeSuis(): QueryBuilder
+    {
+        return DB::table('commitments as ce')
+            ->selectRaw('MIN(ce.due_at)')
+            ->whereColumn('ce.conversation_id', 'conversations.id')
+            ->where('ce.status', CommitmentStatus::Open->value)
+            ->where('ce.due_at', '<', $this->instant())
+            // Le côté : le porteur n'est pas du côté du lecteur (le porteur en retard est `vous`, TCK-2970).
+            ->whereRaw('NOT '.$this->deMonCote('ce.holder_id', 'f'))
+            // Que le lecteur suit : il en est le bénéficiaire, ou il est du personnel de l'agence du fil.
+            ->whereRaw("(ce.beneficiary_id = {$this->lecteur} OR f.equipe)");
+    }
+
+    /** TCK-2971 — `{id, title, holder_id, due_at, etat}` de l'engagement `open` le plus pressant, ou `null`. */
+    private function engagementLePlusPressant(): QueryBuilder
+    {
+        return DB::table('commitments as cp')
+            ->selectRaw(
+                "json_build_object('id', cp.id, 'title', cp.title, 'holder_id', cp.holder_id, 'due_at', cp.due_at,"
+                ." 'etat', CASE WHEN cp.due_at < ? THEN 'late' ELSE 'open' END)",
+                [$this->instant()],
+            )
+            ->whereColumn('cp.conversation_id', 'conversations.id')
+            ->where('cp.status', CommitmentStatus::Open->value)
+            ->orderBy('cp.due_at')
+            ->orderBy('cp.id')
+            ->limit(1);
     }
 
     /**

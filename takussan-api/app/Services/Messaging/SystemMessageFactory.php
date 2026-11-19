@@ -4,6 +4,7 @@ namespace App\Services\Messaging;
 
 use App\Models\Conversation;
 use App\Models\Enums\MessageType;
+use App\Models\Enums\MessageVisibility;
 use App\Models\Message;
 use App\Models\User;
 
@@ -42,6 +43,49 @@ class SystemMessageFactory
         self::EVENT_ROLE_CHANGED,
         self::EVENT_RENAMED,
     ];
+
+    /**
+     * TCK-2980 (ADR-0132 § 3) — les avis du pont, des CODES, écrits en `visibility = team` : seul le personnel de
+     * l'agence du fil les lit (un autre client du fil n'apprend rien du canal d'un participant). `metadata` ne porte
+     * que des identifiants et des codes (le compte, le type de média), jamais un numéro. TCK-2981 ajoute
+     * `pont.accord` et `pont.numero_deja_a_un_compte`.
+     */
+    public const AVIS_PONT_STOP = 'pont.stop';
+
+    public const AVIS_PONT_START = 'pont.start';
+
+    public const AVIS_PONT_MEDIA_NON_RELAYE = 'pont.media_non_relaye';
+
+    /** TCK-2981 (ADR-0132 § 3) — l'accord donné (équipe seule). */
+    public const AVIS_PONT_ACCORD = 'pont.accord';
+
+    /** TCK-2981 (ADR-0132 § 2) — l'accord d'une fiche refusé : son numéro est porté par un autre compte. */
+    public const AVIS_PONT_NUMERO_DEJA_A_UN_COMPTE = 'pont.numero_deja_a_un_compte';
+
+    public const AVIS_DU_PONT = [
+        self::AVIS_PONT_STOP => ['user_id', 'channel'],
+        self::AVIS_PONT_START => ['user_id', 'channel'],
+        self::AVIS_PONT_MEDIA_NON_RELAYE => ['user_id', 'channel', 'media'],
+        // TCK-2981 — l'accord, et le numéro déjà porté par un autre compte (fiche sans compte).
+        self::AVIS_PONT_ACCORD => ['user_id', 'channel'],
+        self::AVIS_PONT_NUMERO_DEJA_A_UN_COMPTE => ['channel'],
+    ];
+
+    /**
+     * TCK-2980 — un avis du pont dans `$conversation`, en note d'équipe. Les clés de `$metadata` hors du catalogue
+     * {@see self::AVIS_DU_PONT} sont refusées (un numéro ne s'y glisse pas).
+     *
+     * @param  array<string, int|string|null>  $metadata
+     */
+    public function avisDuPont(Conversation $conversation, string $code, array $metadata): Message
+    {
+        $admises = self::AVIS_DU_PONT[$code] ?? null;
+        if ($admises === null || array_diff(array_keys($metadata), $admises) !== []) {
+            throw new \LogicException("Avis du pont hors catalogue : {$code}.");
+        }
+
+        return $this->emit($conversation, $code, $metadata, MessageVisibility::Team);
+    }
 
     public function participantAdded(Conversation $conversation, User $actor, User $target): Message
     {
@@ -89,7 +133,7 @@ class SystemMessageFactory
     /**
      * @param  array<string, mixed>  $metadata
      */
-    protected function emit(Conversation $conversation, string $event, array $metadata): Message
+    protected function emit(Conversation $conversation, string $event, array $metadata, MessageVisibility $visibility = MessageVisibility::All): Message
     {
         return Message::create([
             'conversation_id' => $conversation->id,
@@ -100,6 +144,8 @@ class SystemMessageFactory
             // (`MessageObserver::created`) ne porte plus de français.
             'content' => $event,
             'metadata' => array_merge(['event' => $event], $metadata),
+            // TCK-2980 — `team` pour un avis du pont seulement ({@see self::avisDuPont()}).
+            'visibility' => $visibility->value,
         ]);
     }
 

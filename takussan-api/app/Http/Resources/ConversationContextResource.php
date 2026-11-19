@@ -67,6 +67,9 @@ class ConversationContextResource extends BaseResource
             // TCK-2967 — chaque participant actif qui lit les notes, qu'il ait une ligne de relation ou non
             // (même jugement que `participants[].reads_team_notes`) ; vide pour qui ne les lit pas.
             'team_note_reader_ids' => $context->teamNoteReaderIds,
+            // TCK-2987 (ADR-0130 § 6) — deux entiers par participant, au SEUL personnel actif de l'agence du fil :
+            // pour tout autre appelant la clé est absente (ni `null`, ni zéro). Un objet indexé par compte.
+            'commitments_records' => $this->when($context->commitmentsRecords !== null, fn () => (object) $context->commitmentsRecords),
             'customer' => $this->when($context->customerShown, fn () => $customer === null ? null : [
                 'id' => $customer->id,
                 'full_name' => $customer->full_name,

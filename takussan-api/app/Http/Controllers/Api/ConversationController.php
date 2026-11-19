@@ -23,6 +23,7 @@ use App\Services\Media\AvatarReencode;
 use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Messaging\ConversationWriter;
+use App\Services\Messaging\Copilote\GardeDuCopilote;
 use App\Services\Messaging\DirectConversationService;
 use App\Services\Messaging\FaitsDesMessages;
 use App\Services\Messaging\FileDuFil;
@@ -38,6 +39,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\Image\Exceptions\CouldNotLoadImage;
 
@@ -158,13 +160,17 @@ class ConversationController extends Controller
             'vous' => (int) $parType->vous,
             'attente' => (int) $parType->attente,
             'rappel' => (int) $parType->rappel,
+            'retard' => (int) $parType->retard, // TCK-2971 (ADR-0130 § 5)
         ];
+
+        // TCK-2974 (ADR-0131 § 3) — `copilote`, en lot pour la page : une capacité jugée une fois, une requête.
+        $this->poserLeCopilote($user, $paginator->getCollection());
 
         return $this->paginated(
             $paginator,
             ConversationResource::collection($paginator)->toArray($request),
-            // TCK-2967 — `gestes` : la pastille, les fils `vous` hors sourdine et hors archives (décision 4a ;
-            // le lot 3 y ajoutera les engagements en retard). Sans les filtres de la requête.
+            // TCK-2967 — `gestes` : la pastille, les fils `vous` hors sourdine et hors archives (décision 4a).
+            // TCK-2971 — et les fils `retard` : chaque fil une fois. Sans les filtres de la requête.
             ['unread_total' => $unreadTotal, 'counts' => $counts, 'gestes' => (int) $parType->gestes],
         );
     }
@@ -394,6 +400,8 @@ class ConversationController extends Controller
         // TCK-576 (restes de TCK-565) — les membres ACTUELS : la feuille d'infos d'un groupe en
         // dérive la liste, le rôle de l'utilisateur, et donc l'invitation par nom.
         $conversation->loadForDetail();
+        // TCK-2974 (ADR-0131 § 3) — `copilote`, par le même calcul en lot que la liste.
+        $this->poserLeCopilote($request->user(), collect([$conversation]));
 
         return $this->json([
             'data' => [
@@ -657,5 +665,17 @@ class ConversationController extends Controller
         // TCK-085 (groupe quitté) et TCK-592 (fil d'intervention jugé par la demande) : une seule
         // garde, `ConversationAccess`.
         abort_unless(app(ConversationAccess::class)->allows($request->user(), $conversation), 403);
+    }
+
+    /**
+     * TCK-2974 (ADR-0131 § 3) — pose `copilote` sur chaque fil ({@see GardeDuCopilote::disponiblesParmi()}) : le
+     * front le lit avant toute requête au copilote ; la raison d'une indisponibilité n'est jamais rendue.
+     *
+     * @param  Collection<int, Conversation>  $fils
+     */
+    private function poserLeCopilote(User $user, Collection $fils): void
+    {
+        $dispos = app(GardeDuCopilote::class)->disponiblesParmi($user, $fils->map(fn (Conversation $c): int => (int) $c->id)->values()->all());
+        $fils->each(fn (Conversation $c) => $c->setAttribute('copilote', $dispos[(int) $c->id] ?? false));
     }
 }

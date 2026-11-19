@@ -20,14 +20,17 @@ use App\Http\Controllers\Api\BookingDossierController;
 use App\Http\Controllers\Api\BookingGuarantorController;
 use App\Http\Controllers\Api\BookingPaymentController;
 use App\Http\Controllers\Api\CalendarFeedController;
+use App\Http\Controllers\Api\CommitmentController;
 use App\Http\Controllers\Api\ContactGestureController;
 use App\Http\Controllers\Api\ContactLeadController;
 use App\Http\Controllers\Api\ConversationCardController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\ConversationCopiloteController;
 use App\Http\Controllers\Api\ConversationParticipantController;
 use App\Http\Controllers\Api\ConversationPilotageController;
 use App\Http\Controllers\Api\ConversationReportController;
 use App\Http\Controllers\Api\ConversationRoomController;
+use App\Http\Controllers\Api\CopiloteSuggestionController;
 use App\Http\Controllers\Api\Credits\AgencySpotlightController;
 use App\Http\Controllers\Api\Credits\PropertyBoostController;
 use App\Http\Controllers\Api\CustomerController;
@@ -64,6 +67,7 @@ use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\ServiceProviderProfileController;
 use App\Http\Controllers\Api\Me\TenantOnboardingChecklistController;
 use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\MessageTranscriptionController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
 use App\Http\Controllers\Api\OwnerProfileController;
@@ -101,6 +105,7 @@ use App\Http\Controllers\Public\PublicReviewController;
 use App\Http\Controllers\Public\PublicSponsoredImpressionController;
 use App\Http\Controllers\Public\RadarClaimController;
 use App\Http\Controllers\ServiceProviderOnboardingController;
+use App\Http\Controllers\Webhook\MessagerieWebhookController;
 use App\Http\Controllers\Webhook\MtargetSmsStatusController;
 use App\Http\Controllers\Webhook\OrangeSmsStatusController;
 use App\Http\Controllers\Webhook\RadarWhatsappWebhookController;
@@ -188,6 +193,17 @@ final class PlatformAnyRouteExempt
         ConversationParticipantController::class.'@destroy' => self::NON_GARDE,
         ConversationParticipantController::class.'@store' => self::NON_GARDE,
         ConversationParticipantController::class.'@update' => self::NON_GARDE,
+        // TCK-2969 — le super-admin n'y fait aucun geste (403 par `CommitmentPolicy` et `StoreCommitmentRequest`) :
+        // rien de plateforme n'est ouvert, mais la route reste mutante et atteinte.
+        CommitmentController::class.'@store' => self::NON_GARDE,
+        CommitmentController::class.'@confirm' => self::NON_GARDE,
+        CommitmentController::class.'@cancel' => self::NON_GARDE,
+        // TCK-2970 — même régime : `CommitmentPolicy` refuse tout geste au super-admin (403).
+        CommitmentController::class.'@update' => self::NON_GARDE,
+        CommitmentController::class.'@kept' => self::NON_GARDE,
+        CommitmentController::class.'@reopen' => self::NON_GARDE,
+        CommitmentController::class.'@notYet' => self::NON_GARDE,
+        CommitmentController::class.'@remind' => self::NON_GARDE,
         // TCK-2964 — pose une carte (un bien, une visite) dans un fil où l'auteur écrit déjà : même régime que l'envoi d'un message.
         ConversationCardController::class.'@store' => self::NON_GARDE,
         // TCK-2960 — ouvre (ou rend) la salle d'un objet que l'appelant lit déjà ; même régime que la création d'un fil.
@@ -200,6 +216,12 @@ final class PlatformAnyRouteExempt
         ConversationPilotageController::class.'@handle' => self::SOI,
         ConversationPilotageController::class.'@unhandle' => self::SOI,
         ConversationPilotageController::class.'@assign' => self::NON_GARDE,
+        // TCK-2974 (ADR-0131) — le lecteur demande une proposition pour lui seul ; le super-admin est refusé (403).
+        ConversationCopiloteController::class.'@demander' => self::SOI,
+        // TCK-2975 — le demandeur décide de SA proposition ; tout autre (super-admin compris) : 404.
+        CopiloteSuggestionController::class.'@decider' => self::SOI,
+        // TCK-2976 (ADR-0131 § 7) — la transcription d'une note vocale, pour le personnel servi ; le super-admin : 404.
+        MessageTranscriptionController::class.'@store' => self::SOI,
         PropertyBoostController::class.'@store' => self::NON_GARDE,
         // TCK-2525 — la même dépense de crédits que l'achat d'un boost, rangée comme lui.
         AgencySpotlightController::class.'@store' => self::NON_GARDE,
@@ -406,6 +428,8 @@ final class PlatformAnyRouteExempt
         OrangeSmsStatusController::class.'@__invoke' => self::PUBLIC,
         RadarWhatsappWebhookController::class.'@__invoke' => self::PUBLIC,
         WhatsappStatusController::class.'@__invoke' => self::PUBLIC,
+        // TCK-2980 — le webhook générique de la messagerie : jeton d'URL et signature du pilote, comme l'alias.
+        MessagerieWebhookController::class.'@__invoke' => self::PUBLIC,
         WelcomeViewController::class.'@store' => self::SOI,
         WizardDraftController::class.'@destroy' => self::NON_GARDE,
         WizardDraftController::class.'@upsert' => self::NON_GARDE,

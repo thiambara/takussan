@@ -201,7 +201,8 @@ export function ConversationList({ selectedId, onSelect, dense = false, onNouvel
             key={cle}
             active={puce === cle}
             taille={dense ? 'sm' : 'default'}
-            compte={compte}
+            // TCK-2973 (maquette `fil-boite` D) — le compte de « Retard » en ocre gras, non nul et puce inactive.
+            compte={cle === 'retard' && puce !== 'retard' && typeof compte === 'number' && compte > 0 ? <span className="font-semibold text-warning" data-testid="compte-retard">{compte}</span> : compte}
             onClick={() => setPuce(cle)}
           >
             {libelle}

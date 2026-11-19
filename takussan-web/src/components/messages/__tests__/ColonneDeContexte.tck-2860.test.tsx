@@ -11,6 +11,10 @@ import { ColonneDeContexte, ligneDuProjet } from '../ColonneDeContexte';
 let reponse: unknown;
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true }));
 vi.mock('@/components/visits/PlanifierUneVisite', () => ({ PlanifierDialog: () => null }));
+// TCK-2972 — « Engagements de ce fil » a sa propre requête (et ses tests, `engagements/__tests__`) : hors de ce test.
+// TCK-2973 — la fiabilité lit le fil (`useConversation`) : testée sous `engagements/__tests__`.
+vi.mock('../engagements/FiabiliteDuFil', () => ({ FiabiliteDuFilOuvert: () => null }));
+vi.mock('../engagements/EngagementsDuFil', () => ({ EngagementsDuFil: ({ conversationId }: { conversationId: number }) => <div data-testid="engagements-du-fil-double" data-fil={conversationId} /> }));
 vi.mock('@/lib/queries/conversations', () => ({
   useConversationContext: () => ({ data: reponse, isLoading: false }),
 }));

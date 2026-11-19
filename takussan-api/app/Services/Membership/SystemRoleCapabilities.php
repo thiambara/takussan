@@ -83,6 +83,9 @@ class SystemRoleCapabilities
             Capability::CrmAssign,
             Capability::MaintenanceAssign,
             Capability::MaintenanceClose,
+            // TCK-2974 (ADR-0131 § 1) — le copilote du fil. Les agences existantes la reçoivent par
+            // `membership:reconcile-system-roles` (docker/release.sh).
+            Capability::MessagingCopilot,
         ];
     }
 

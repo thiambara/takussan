@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useFormatteurs, VALEUR_ABSENTE } from '@/lib/format/useFormatteurs';
 import type { MessageMetadata } from '@/types/message';
+import { cleDuCanal } from './pont/pont'; // TCK-2984
 
 /**
  * TCK-085, TCK-592, TCK-671 — le texte d'un avis, rendu depuis ses CODES dans la langue du lecteur.
@@ -48,6 +49,19 @@ const CODES_D_OBJET: Readonly<Record<string, { readonly date?: string; readonly 
   'visit.cancelled': {}, // TCK-2967
   'booking.confirmed': {},
   'property.shared': {},
+  // TCK-2972 (ADR-0130 § 2) — les onze codes de l'engagement ; `data` ne porte que `due_at` (report) et
+  // `reason` (annulation : `by_author`, `by_staff`, `object_closed`).
+  'commitment.noted': {},
+  'commitment.confirmed': {},
+  'commitment.due_soon': {},
+  'commitment.overdue': {},
+  'commitment.reminded': {},
+  'commitment.rescheduled': { instant: 'due_at' },
+  'commitment.kept': {},
+  'commitment.reopened': {},
+  'commitment.cancelled': {},
+  'commitment.check_requested': {},
+  'commitment.not_kept_yet': {},
 };
 
 function texte(valeur: unknown): string | null {
@@ -60,6 +74,7 @@ export function useTexteMessageSysteme(): (meta: MessageMetadata | null | undefi
   const tMaintenance = useTranslations('messaging.maintenanceEvents');
   const tStatus = useTranslations('messaging.maintenanceEvents.statuses');
   const tObjet = useTranslations('messaging.evenementsDuFil');
+  const tPont = useTranslations('messaging.pont'); // TCK-2984
   const f = useFormatteurs();
 
   const avisSysteme = (meta: MessageMetadata): string | null => {
@@ -78,6 +93,13 @@ export function useTexteMessageSysteme(): (meta: MessageMetadata | null | undefi
         return null;
       case 'renamed':
         return t('renamed', { actor, subject: meta.new_subject ?? '—' });
+      // TCK-2984 (ADR-0132 § 3) — les avis du pont (`visibility = team`) : le canal, connu ou générique.
+      case 'pont.stop':
+      case 'pont.start':
+      case 'pont.accord':
+      case 'pont.media_non_relaye':
+      case 'pont.numero_deja_a_un_compte':
+        return tPont(`avis.${meta.event.slice('pont.'.length)}`, { canal: tPont(`canal.${cleDuCanal(meta.channel)}`) });
       default:
         return null;
     }
@@ -94,7 +116,9 @@ export function useTexteMessageSysteme(): (meta: MessageMetadata | null | undefi
     const jours = typeof meta.data?.days_late === 'number' ? meta.data.days_late : 0;
     // TCK-2967 — le rôle du signataire, un CODE ; inconnu ou absent : la branche `other` du libellé.
     const partie = texte(meta.data?.party) ?? 'other';
-    return tObjet(meta.code, { date, jours, partie });
+    // TCK-2972 — le motif d'une annulation d'engagement, un CODE ; inconnu ou absent : la branche `other`.
+    const motif = texte(meta.data?.reason) ?? 'other';
+    return tObjet(meta.code, { date, jours, partie, motif });
   };
 
   const avisDIntervention = (meta: MessageMetadata): string | null => {

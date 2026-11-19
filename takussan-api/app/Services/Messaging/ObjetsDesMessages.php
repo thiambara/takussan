@@ -3,6 +3,7 @@
 namespace App\Services\Messaging;
 
 use App\Http\Resources\BookingResource;
+use App\Http\Resources\CommitmentResource;
 use App\Http\Resources\InventoryResource;
 use App\Http\Resources\LeasePaymentResource;
 use App\Http\Resources\LeaseResource;
@@ -207,6 +208,8 @@ final class ObjetsDesMessages
             'property_visit' => PropertyVisitResource::make($objet)->avecGestes(),
             // TCK-2964 — le bien partagé : sa ressource, avec les gestes du lecteur (`request_visit`).
             'property' => PropertyResource::make($objet)->avecGestes(),
+            // TCK-2969 — l'engagement : sa projection, avec les gestes du lecteur (`CommitmentPolicy`).
+            'commitment' => CommitmentResource::make($objet)->forViewer($lecteur),
             default => throw new LogicException("Type sans résolution de projection : « {$type} »."),
         };
 

@@ -101,6 +101,9 @@ enum Capability: string
     // messaging.*
     case MessagingBroadcast = 'messaging.broadcast';
     case MessagingArchive = 'messaging.archive';
+    // TCK-2974 (ADR-0131 § 1) — se servir du copilote du fil. Accordée à l'agent et à l'administrateur ;
+    // la garde du copilote exige EN PLUS le personnel actif de l'agence du fil (un bailleur délégataire reste refusé).
+    case MessagingCopilot = 'messaging.copilot';
 
     // reports.*
     case ReportsViewGlobal = 'reports.view_global';

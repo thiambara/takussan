@@ -159,6 +159,9 @@ class AucunGuardTokenTest extends TestCase
         'POST api/webhooks/whatsapp/radar/{token}' => self::WEBHOOK,
         'GET api/webhooks/whatsapp/status/{token}' => self::WEBHOOK,
         'POST api/webhooks/whatsapp/status/{token}' => self::WEBHOOK,
+        // TCK-2980 (ADR-0132 § 0) — le webhook générique de la messagerie : jeton d'URL du canal, signature du pilote.
+        'GET api/webhooks/messagerie/{canal}/{token}' => self::WEBHOOK,
+        'POST api/webhooks/messagerie/{canal}/{token}' => self::WEBHOOK,
     ];
 
     /** Ce que le code ne doit pas nommer : chacun ouvre un guard hors de Sanctum. */

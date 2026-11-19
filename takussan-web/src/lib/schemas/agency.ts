@@ -84,6 +84,9 @@ export const agencyFormSchema = z.object({
   late_fee_online_collection: z.boolean(),
   /** TCK-2869 (ADR-0112) — `settings.owners_confirm_visits`, désactivé par défaut. */
   owners_confirm_visits: z.boolean(),
+  /** TCK-2979 (ADR-0131) — `settings.copilot_enabled` / `voice_transcription_enabled`, vrais par défaut. */
+  copilot_enabled: z.boolean(),
+  voice_transcription_enabled: z.boolean(),
   /** TCK-2483 — `settings.hidden_modules` : les modules retirés du menu de l'équipe (agence `standard`). */
   hidden_modules: z.array(z.enum(CODES_DE_MODULE)),
   // TCK-594 (ADR-0039 §7) — mêmes bornes que `AgencyUpdateRequest`.
@@ -144,6 +147,9 @@ export interface ReglagesDeLaFiche {
   late_fee_online_collection: boolean;
   /** TCK-2869 */
   owners_confirm_visits: boolean;
+  /** TCK-2979 */
+  copilot_enabled: boolean;
+  voice_transcription_enabled: boolean;
   hidden_modules: CodeDeModule[];
   /** TCK-2536 — tels que l'API les rend (E.164 pour les numéros), `''` quand la clé est absente. */
   offline_payment_wave_number: string;
@@ -190,6 +196,9 @@ export function reglagesDeLaFiche(settings: unknown): ReglagesDeLaFiche {
     // TCK-2869 — `PropertyVisitPolicy::bailleurConfirmeDans` → `Agency::setting` (`AgencySettings::read`) ;
     // clé absente = désactivé.
     owners_confirm_visits: booleenCommeLApi(lu.owners_confirm_visits, false),
+    // TCK-2979 — `AgencySettings` : clé absente = activé (défaut `true` côté API).
+    copilot_enabled: booleenCommeLApi(lu.copilot_enabled, true),
+    voice_transcription_enabled: booleenCommeLApi(lu.voice_transcription_enabled, true),
     // TCK-2483 — clé absente = rien de masqué ; un code inconnu est ignoré (et ne repart pas).
     hidden_modules: modulesMasquesDe(lu),
     // TCK-2536 — une chaîne telle quelle, sans reformatage : le numéro affiché est celui que l'API a rendu.
@@ -318,6 +327,12 @@ export function normaliseAgencyForm(
   // déjà ses visites) et la fiche ne le montre pas.
   if (!context.individual && values.owners_confirm_visits !== initial.owners_confirm_visits) {
     settings.owners_confirm_visits = values.owners_confirm_visits;
+  }
+  // TCK-2979 — ne part que modifié, `false` compris ; vaut aussi pour une `individual` (l'assistant
+  // sert l'hôte comme une équipe).
+  if (values.copilot_enabled !== initial.copilot_enabled) settings.copilot_enabled = values.copilot_enabled;
+  if (values.voice_transcription_enabled !== initial.voice_transcription_enabled) {
+    settings.voice_transcription_enabled = values.voice_transcription_enabled;
   }
   // TCK-2483 — pour une agence `standard`, et seulement si la section a changé (revue, M5) : alors la
   // liste entière, dans l'ordre des codes, `[]` compris (tout réafficher doit s'enregistrer). Jamais

@@ -9,6 +9,7 @@ use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\EquipeDuFil;
 use App\Services\Messaging\MentionsDuFil;
 use App\Services\Model\NotificationService;
+use App\Services\Pont\JointsParLePont;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -81,6 +82,21 @@ class NotifyNewMessageJob implements ShouldQueue
         // jamais son e-mail : `nameWithoutContact()` se replie sur `username`, puis « — ».
         $senderName = $sender?->nameWithoutContact();
 
+        // TCK-2981 (ADR-0132 § 4) — le pont : un relais par destinataire joint (ou en attente d'accord), en file ; la
+        // garde de ce qui part est dans le job. Un joint ne reçoit plus `message.received` sur WhatsApp ni SMS.
+        $joints = app(JointsParLePont::class);
+        $relayable = RelayerMessageAuPont::relayable($message);
+        $parLePont = [];
+        foreach ($recipients as $recipient) {
+            $etat = $joints->etat($message->conversation, (int) $recipient->id);
+            if ($etat !== null && $relayable) {
+                RelayerMessageAuPont::dispatch((int) $message->id, (int) $recipient->id);
+            }
+            if ($etat === JointsParLePont::JOINT) {
+                $parLePont[(int) $recipient->id] = true;
+            }
+        }
+
         foreach ($recipients as $recipient) {
             $code = in_array((int) $recipient->id, $mentionnes, true) ? NotificationCode::MessageMention : NotificationCode::MessageReceived;
             $notifications->send($recipient, $code, [
@@ -92,7 +108,7 @@ class NotifyNewMessageJob implements ShouldQueue
                         ?? ($message->content !== '' ? (string) $message->content : (string) $message->neutralPreview()),
                     0, 80, '…',
                 ),
-            ], NotificationTarget::of('conversation', $message->conversation_id));
+            ], NotificationTarget::of('conversation', $message->conversation_id), mobileBorne: isset($parLePont[(int) $recipient->id]) ? false : null);
         }
     }
 }

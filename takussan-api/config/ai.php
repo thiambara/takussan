@@ -99,6 +99,10 @@ return [
         'embedding' => [
             ['provider' => 'voyageai', 'model' => 'voyage-4'],
         ],
+        // TCK-2976 (ADR-0131 § 7, décision 5a du porteur) — AUCUN fournisseur ni modèle par défaut : rôle vide = la
+        // transcription des notes vocales est désactivée proprement (aucun job, aucun appel, le fichier ne sort pas).
+        // Le porteur l'affecte dans la console le jour où il pose la clé d'un fournisseur qui transcrit.
+        'transcription' => [],
     ],
 
     // Tarifs publiés, en dollars US par million de tokens, relevés le 2026-10-31. Des chaînes, jamais des
@@ -142,6 +146,26 @@ return [
     'budgets' => [
         'daily_global_usd' => $montant('AI_DAILY_BUDGET_USD', '8.33'),
         'daily_per_agency_usd' => null,
+    ],
+
+    // TCK-2974 (ADR-0131) — le copilote du fil, lu par le SEUL `App\Services\Messaging\Copilote\ReglagesDuCopilote`.
+    // `actif` faux : aucune fonction n'est servie, aucun appel ne part. `fonctions.<fonction>` faux : cette fonction
+    // seule est coupée. TCK-2979 y ajoute `ai_usage_settings` (plateforme) et `AgencySettings` (agence) ; le modèle
+    // de chaque fonction suit `ModelResolver` (le rôle de son usage).
+    'copilote' => [
+        'actif' => true,
+        'fonctions' => [
+            'resume' => true,
+            'question' => true,
+            'brouillon' => true,
+            'promesses' => true,
+            // TCK-2976 — servie seulement si le rôle `transcription` a un modèle (vide par défaut).
+            'transcription' => true,
+        ],
+        'seuil_du_resume' => 10,
+        'retention_en_jours' => 30,
+        'plafond_du_jour_usd' => '1.00',
+        'plafond_transcription_usd' => '0.50',
     ],
 
 ];

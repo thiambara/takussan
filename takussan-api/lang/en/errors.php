@@ -1045,4 +1045,41 @@ return [
         'render_busy' => 'The service that produces PDF documents is overloaded: try again in a minute.',
         'render_failed' => 'The PDF document could not be produced. Try again in a moment.',
     ],
+    // TCK-2969 (ADR-0130) — commitments in a thread.
+    'commitment' => [
+        'no_agency' => 'This conversation is not linked to any agency: it cannot hold a commitment.',
+        'team_note_source' => 'A commitment cannot be noted from a team note.',
+        'source_elsewhere' => 'This message does not belong to this conversation.',
+        'holder_not_participant' => 'The person making the commitment must take part in the conversation.',
+        'beneficiary_not_participant' => 'The person the commitment is made to must take part in the conversation.',
+        'not_yours' => 'You can only note your own commitment.',
+        'due_in_past' => 'A commitment must be due in the future.',
+        'invalid_state' => 'This action is not possible in the current state of the commitment.',
+        // TCK-2970 (ADR-0130 §§ 3 et 4)
+        'already_reopened' => 'This commitment has already been reopened once by one of the two parties: only the agency can reopen it again.',
+        'reminded_recently' => 'A reminder was already sent less than 24 hours ago.',
+    ],
+    // TCK-2974 (ADR-0131) — le copilote du fil
+    'copilote' => [
+        'indisponible' => 'The assistant is not available to you in this conversation.',
+        'resume_inutile' => 'There are not enough new messages to summarise.',
+        'coupe' => 'The assistant is turned off for now.',
+        'budget_epuise' => 'The assistant has reached its limit for today. Please try again tomorrow.',
+        'echec' => 'The assistant could not answer. Please try again in a moment.',
+        // TCK-2975 — la décision sur une proposition.
+        'suggestion_introuvable' => 'This suggestion could not be found.',
+        'suggestion_purgee' => 'This suggestion has expired and can no longer be decided.',
+        'deja_decidee' => 'You have already decided on this suggestion.',
+    ],
+    // TCK-2981 (ADR-0132) — « Joindre par WhatsApp ».
+    'pont' => [
+        'not_allowed' => 'You cannot reach someone by WhatsApp in this conversation.',
+        'not_participant' => 'This person is not an active participant in this conversation.',
+        'no_phone' => 'This person has no phone number.',
+        'invalid_phone' => "This person's phone number is not valid.",
+        'opted_out' => 'This person has refused messages on this number.',
+        'already_joined' => 'This person is already reached in this conversation.',
+        'customer_not_in_room' => "This record does not belong to this conversation's lease.",
+        'numero_deja_a_un_compte' => 'This number already belongs to another account.',
+    ],
 ];

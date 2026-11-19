@@ -80,10 +80,14 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('<ConversationList> — la boîte de pilotage (TCK-2968)', () => {
-  it('les cinq puces, sans « Retard » ni « Groupes » ; les comptes lisent `meta.counts`, pas la page', () => {
+  // TCK-2973 — « Retard » rejoint la rangée (lot 3), après « À vous » ; son compte non nul est en ocre gras.
+  it('les six puces, avec « Retard » et sans « Groupes » ; les comptes lisent `meta.counts`, pas la page', () => {
+    pages = [page([], { ...COMPTES, retard: 2 })];
     render(withIntl(<ConversationList selectedId={null} onSelect={() => {}} />));
     const puces = within(screen.getByRole('group', { name: 'Filtrer les conversations' })).getAllByRole('button');
-    expect(puces.map((b) => b.textContent?.replace(/\d+$/, ''))).toEqual(['Tous', 'Non lus', 'À vous', 'En attente', 'Rappels']);
+    expect(puces.map((b) => b.textContent?.replace(/\d+$/, ''))).toEqual(['Tous', 'Non lus', 'À vous', 'Retard', 'En attente', 'Rappels']);
+    expect(screen.getByTestId('compte-retard')).toHaveTextContent('2');
+    expect(screen.getByTestId('compte-retard').className).toContain('text-warning');
     expect(puce(/À vous/)).toHaveTextContent('5');
     expect(puce(/En attente/)).toHaveTextContent('4');
     expect(puce(/Rappels/)).toHaveTextContent('1');
@@ -92,7 +96,7 @@ describe('<ConversationList> — la boîte de pilotage (TCK-2968)', () => {
   it('chaque puce de file part au serveur en `file` ; « Tous » n’en envoie aucune', () => {
     render(withIntl(<ConversationList selectedId={null} onSelect={() => {}} />));
     expect(appels.at(-1)).not.toHaveProperty('file');
-    for (const [nom, file] of [[/À vous/, 'vous'], [/En attente/, 'attente'], [/Rappels/, 'rappel']] as const) {
+    for (const [nom, file] of [[/À vous/, 'vous'], [/Retard/, 'retard'], [/En attente/, 'attente'], [/Rappels/, 'rappel']] as const) {
       fireEvent.click(puce(nom));
       expect(appels.at(-1)).toMatchObject({ file });
     }

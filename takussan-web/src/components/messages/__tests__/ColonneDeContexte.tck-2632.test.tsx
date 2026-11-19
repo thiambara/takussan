@@ -19,6 +19,10 @@ vi.mock('@/components/visits/PlanifierUneVisite', () => ({
     </div>
   ),
 }));
+// TCK-2972 — « Engagements de ce fil » a sa propre requête (et ses tests, `engagements/__tests__`) : hors de ce test.
+// TCK-2973 — la fiabilité lit le fil (`useConversation`) : testée sous `engagements/__tests__`.
+vi.mock('../engagements/FiabiliteDuFil', () => ({ FiabiliteDuFilOuvert: () => null }));
+vi.mock('../engagements/EngagementsDuFil', () => ({ EngagementsDuFil: ({ conversationId }: { conversationId: number }) => <div data-testid="engagements-du-fil-double" data-fil={conversationId} /> }));
 vi.mock('@/lib/queries/conversations', () => ({
   useConversationContext: () => ({ data: reponse, isLoading: false }),
 }));
@@ -46,6 +50,11 @@ beforeEach(() => {
 });
 
 describe('<ColonneDeContexte> (TCK-2632)', () => {
+  it('TCK-2972 — ouverte, la colonne porte « Engagements de ce fil » du fil', () => {
+    render(withIntl(<ColonneDeContexte conversationId={7} ouverte onOuvrir={() => {}} />));
+    expect(screen.getByTestId('engagements-du-fil-double').getAttribute('data-fil')).toBe('7');
+  });
+
   it('le bien : prix, statut, titre en lien, référence', () => {
     render(withIntl(<ColonneDeContexte conversationId={7} ouverte onOuvrir={() => {}} />));
     const bien = screen.getByTestId('contexte-bien');

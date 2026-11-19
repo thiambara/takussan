@@ -14,6 +14,7 @@ use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Booking;
 use App\Models\BookingPayment;
+use App\Models\Commitment;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\DataExport;
@@ -48,6 +49,7 @@ use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Observers\AgencyObserver;
+use App\Observers\AnnuleLesEngagementsDeSonObjet;
 use App\Observers\DocumentsDuPorteurObserver;
 use App\Observers\FavoriteObserver;
 use App\Observers\FermeLeFilDeSonObjet;
@@ -74,6 +76,7 @@ use App\Policies\AgencyUpgradeRequestPolicy;
 use App\Policies\AgentProfilePolicy;
 use App\Policies\BookingPaymentPolicy;
 use App\Policies\BookingPolicy;
+use App\Policies\CommitmentPolicy;
 use App\Policies\ConversationPolicy;
 use App\Policies\CustomerPolicy;
 use App\Policies\DocumentPolicy;
@@ -556,7 +559,8 @@ class AppServiceProvider extends ServiceProvider
         // freine le forçage du jeton d'URL. Un refus se journalise ici, puisque le journal des
         // webhooks vient après le débit et n'en garde aucune ligne ; la réponse reste celle de
         // `ThrottleRequestsException`, que l'enveloppe globale rend en 429.
-        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp', 'webhook-whatsapp-radar'] as $limiter) {
+        // TCK-2980 — `webhook-messagerie` : le webhook générique de la messagerie (ADR-0132 § 0).
+        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp', 'webhook-whatsapp-radar', 'webhook-messagerie'] as $limiter) {
             RateLimiter::for($limiter, fn (Request $request) => Limit::perMinute(600)
                 ->by('ip:'.$this->clientNetwork($request))
                 ->response(function (Request $request, array $headers) use ($limiter): never {
@@ -683,6 +687,9 @@ class AppServiceProvider extends ServiceProvider
             : Limit::none());
 
         RateLimiter::for('conversation-message', fn (Request $request) => Limit::perMinute(30)
+            ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
+        // TCK-2981 (ADR-0132 § 3) — « Joindre par WhatsApp » : par auteur ; chaque invitation coûte un envoi.
+        RateLimiter::for('pont-invitation', fn (Request $request) => Limit::perMinute(10)
             ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
     }
 
@@ -858,6 +865,12 @@ class AppServiceProvider extends ServiceProvider
             SujetsDuFil::modele($type)::observe(FermeLeFilDeSonObjet::class);
         }
 
+        // TCK-2969 (ADR-0130 § 7) — un objet clos (ou supprimé) annule ses engagements en cours. Une boucle sur
+        // la table « type → clos » de l'observateur : une ligne ajoutée y est branchée sans autre code.
+        foreach (array_keys(AnnuleLesEngagementsDeSonObjet::CLOS) as $type) {
+            SujetsDuFil::modele($type)::observe(AnnuleLesEngagementsDeSonObjet::class);
+        }
+
         // TCK-2781 — l'index des documents recopie l'agence, la présence et le sujet de leur porteur :
         // ils se réindexent quand l'un change (`DocumentsDuPorteurObserver::COLONNES`).
         foreach (array_keys(DocumentsDuPorteurObserver::COLONNES) as $porteur) {
@@ -952,6 +965,8 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-085 — group conversation gates (admin-only mutations + system-message immutability).
         Gate::policy(Conversation::class, ConversationPolicy::class);
+        // TCK-2969 (ADR-0130 § 2) — l'engagement se lit comme son fil.
+        Gate::policy(Commitment::class, CommitmentPolicy::class);
 
         // TCK-088 — explicit bind for `$user->can('refundDeposit', $lease)`.
         Gate::policy(Lease::class, LeasePolicy::class);

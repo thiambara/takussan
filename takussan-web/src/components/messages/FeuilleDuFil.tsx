@@ -24,6 +24,10 @@ import { cn } from '@/lib/utils';
 import { titreDeConversation } from './ConversationList';
 import { useGesteDuClient } from './useGesteDuClient';
 import type { GestesDuFil } from './GestesDuFil';
+// TCK-2972 — les engagements du fil.
+import { EngagementsDuFil } from './engagements/EngagementsDuFil';
+// TCK-2973 — la fiabilité des participants.
+import { FiabiliteDuFil, personnesDuFil } from './engagements/FiabiliteDuFil';
 
 interface FeuilleDuFilProps {
   readonly conversationId: number;
@@ -150,6 +154,11 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange, gestes }: Feu
             </span>
           </Link>
         ) : null}
+
+        {/* TCK-2973 — la fiabilité des participants, pour le seul personnel (`commitments_records`). */}
+        <FiabiliteDuFil contexte={contexteData?.data} personnes={personnesDuFil(conversation)} />
+        {/* TCK-2972 — « Engagements de ce fil », au téléphone (la colonne de contexte le porte au bureau). */}
+        <EngagementsDuFil conversationId={conversationId} />
 
         <div className="mt-2 divide-y divide-border/70">
           {client ? (

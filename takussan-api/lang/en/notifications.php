@@ -1095,6 +1095,17 @@ return [
                 'sms' => 'Takussan: bill :reference kept, maintenance contested or cancelled. To be settled.',
             ],
         ],
+        // TCK-2985 (ADR-0132 § 6) — le résumé du lundi du bailleur.
+        'owner' => [
+            'weekly_digest' => [
+                'title' => 'Your week with :agency',
+                'body' => ':agency — rent collected: :paid_count (:paid_total). Overdue: :late_count (:late_total). Maintenance opened: :maintenance_opened, closed: :maintenance_closed. Visits confirmed: :visits.',
+                // Exigée par la parité des surfaces : le résumé ne part JAMAIS par SMS.
+                'sms' => 'Takussan — :agency, your week: :paid_count rent(s) collected, :late_count overdue.',
+                'mail_subject' => 'Your weekly summary — :agency',
+                'mail_body' => "Here is last week on your properties managed by :agency.\nRent collected: :paid_count (:paid_total).\nRent overdue: :late_count (:late_total).\nMaintenance opened: :maintenance_opened; closed: :maintenance_closed.\nVisits confirmed: :visits.",
+            ],
+        ],
         'owner_statement' => [
             'available' => [
                 'title' => 'Your :period management statement is available',

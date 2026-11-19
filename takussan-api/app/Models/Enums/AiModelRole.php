@@ -14,4 +14,7 @@ enum AiModelRole: string
     case Raisonnement = 'raisonnement';
     case Vision = 'vision';
     case Embedding = 'embedding';
+
+    /** TCK-2976 (ADR-0131 § 7) — la transcription d'une note vocale ; aucune chaîne par défaut (`config/ai.php`). */
+    case Transcription = 'transcription';
 }

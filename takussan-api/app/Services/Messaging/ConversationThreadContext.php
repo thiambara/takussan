@@ -76,6 +76,14 @@ final class ConversationThreadContext
          * @var list<int>
          */
         public readonly array $teamNoteReaderIds = [],
+        /**
+         * TCK-2987 (ADR-0130 § 6) — la fiabilité de chaque participant actif autre que l'appelant
+         * (`{user_id: {kept, late}}`), ou `null` (la clé est alors ABSENTE) pour qui n'est pas personnel actif
+         * de l'agence du fil ({@see FiabiliteDesEngagements}).
+         *
+         * @var array<int, array{kept: int, late: int}>|null
+         */
+        public readonly ?array $commitmentsRecords = null,
     ) {}
 
     /**
@@ -144,6 +152,8 @@ final class ConversationThreadContext
             participants: $participants,
             canWriteTeamNote: $agenceDesNotes !== null && PersonnelDeLAgence::personnelActifDe($reader, $agenceDesNotes),
             teamNoteReaderIds: $lecteursParmiLesParticipants,
+            // TCK-2987 — la fiabilité, au seul personnel actif de l'agence du fil ; une requête pour tous.
+            commitmentsRecords: FiabiliteDesEngagements::pour($reader, $conversation, $agenceDesNotes, $conversation->participants),
             lastVisit: $facts['lastVisit'] ?? null,
             contactLead: $facts['contactLead'] ?? null,
             firstContactAt: $facts['firstContactAt'] ?? null,

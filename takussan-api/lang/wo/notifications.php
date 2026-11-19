@@ -1096,6 +1096,17 @@ return [
                 'sms' => 'Takussan : facture :reference maintenue, intervention contestée ou annulée. À régulariser.',
             ],
         ],
+        // TCK-2985 (ADR-0132 § 6) — le résumé du lundi du bailleur.
+        'owner' => [
+            'weekly_digest' => [
+                'title' => 'Votre semaine avec :agency',
+                'body' => ':agency — loyers encaissés : :paid_count (:paid_total). En retard : :late_count (:late_total). Interventions ouvertes : :maintenance_opened, closes : :maintenance_closed. Visites confirmées : :visits.',
+                // Exigée par la parité des surfaces : le résumé ne part JAMAIS par SMS.
+                'sms' => 'Takussan — :agency, votre semaine : :paid_count loyer(s) encaissé(s), :late_count en retard.',
+                'mail_subject' => 'Votre résumé de la semaine — :agency',
+                'mail_body' => "Voici la semaine écoulée sur vos biens gérés par :agency.\nLoyers encaissés : :paid_count (:paid_total).\nLoyers en retard : :late_count (:late_total).\nInterventions ouvertes : :maintenance_opened ; closes : :maintenance_closed.\nVisites confirmées : :visits.",
+            ],
+        ],
         'owner_statement' => [
             'available' => [
                 'title' => 'Sa relevé de gérance :period am na',

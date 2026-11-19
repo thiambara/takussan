@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Messaging\EvenementsDuFil;
 use App\Services\Messaging\FileDuFil;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class ConversationResource extends BaseResource
 {
@@ -44,6 +45,14 @@ class ConversationResource extends BaseResource
                 : []),
             'snoozed_until' => $this->whenHas('boite_file', fn () => $this->iso($this->boite_snoozed_until)),
             'handled_at' => $this->whenHas('boite_file', fn () => $this->iso($this->boite_handled_at)),
+            // TCK-2971 (ADR-0130 § 5) — depuis quand une promesse suivie n'est pas tenue, et l'engagement le plus
+            // pressant du fil (le front nomme le porteur d'après les participants).
+            'retard_depuis' => $this->whenHas('boite_file', fn () => $this->boite_file === FileDuFil::RETARD ? $this->iso($this->boite_retard_depuis) : null),
+            'engagement' => $this->whenHas('boite_file', fn () => $this->engagementPressant()),
+            // TCK-2974 (ADR-0131 § 3) — le copilote du lecteur dans ce fil, calculé en lot par la liste et par `show`
+            // (`GardeDuCopilote::disponiblesParmi`) ; absent ailleurs. `false` pour qui ne l'a pas (jamais la raison
+            // d'un refus de droits) ; pour le personnel, `{fonctions: {<fonction>: {active, raison}}}`.
+            'copilote' => $this->whenHas('copilote', fn () => $this->copilote),
             // TCK-2967 — la personne de l'agence qui suit le fil : son nom, jamais ses coordonnées.
             'assigned_to' => $this->whenLoaded('assignedTo', fn () => $this->assignedTo ? [
                 'id' => (int) $this->assignedTo->id,
@@ -116,5 +125,27 @@ class ConversationResource extends BaseResource
     private function estLeLecteur(User $user, Request $request): bool
     {
         return (int) $user->id === (int) $request->user()?->id;
+    }
+
+    /**
+     * TCK-2971 — `{id, title, holder_id, due_at, etat}` de l'engagement `open` le plus pressant (jointure
+     * `boite.engagement`), ou `null`. `due_at` sort en ISO 8601, comme toute date de ressource (ADR-0018).
+     *
+     * @return array{id: int, title: string, holder_id: int, due_at: string|null, etat: string}|null
+     */
+    private function engagementPressant(): ?array
+    {
+        $brut = $this->boite_engagement;
+        if (! is_array($brut) || ! isset($brut['id'])) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $brut['id'],
+            'title' => (string) $brut['title'],
+            'holder_id' => (int) $brut['holder_id'],
+            'due_at' => $this->iso(isset($brut['due_at']) ? Carbon::parse($brut['due_at'], 'UTC') : null),
+            'etat' => (string) $brut['etat'],
+        ];
     }
 }

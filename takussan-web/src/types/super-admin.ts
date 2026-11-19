@@ -1060,7 +1060,7 @@ export type WebhookLogsResponse = {
 };
 
 // TCK-2385 (ADR-0076 §12) — la console IA.
-export type AiModelRole = 'extraction' | 'redaction' | 'raisonnement' | 'vision' | 'embedding';
+export type AiModelRole = 'extraction' | 'redaction' | 'raisonnement' | 'vision' | 'embedding' | 'transcription'; // TCK-2976
 export type AiEvaluationStatus = 'queued' | 'running' | 'done' | 'failed';
 export type AiModelLink = { provider: string; model: string; max_tokens: number | null };
 /** TCK-2450 (ADR-0085 §4) — sélectionnable : déclaré, une clé, une adresse sur un hôte accepté. `host` : jamais l'adresse entière. */

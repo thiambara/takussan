@@ -53,6 +53,9 @@ export interface AgencySettings {
    * = non : seule l'agence confirme (TCK-590).
    */
   owners_confirm_visits?: boolean;
+  /** TCK-2979 (ADR-0131) — l'assistant de la messagerie et la transcription des notes vocales ; vrais par défaut. */
+  copilot_enabled?: boolean;
+  voice_transcription_enabled?: boolean;
   /**
    * TCK-2915 — le jour du mois (1-28) où partent les reversements aux bailleurs dont le mandat n'en
    * fixe pas ; absent = aucune règle d'agence.

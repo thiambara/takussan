@@ -25,6 +25,11 @@ import { CarteEtatDesLieux } from './CarteEtatDesLieux';
 import { CarteIntervention, varianteDIntervention } from './CarteIntervention';
 import { CarteReservation } from './CarteReservation';
 import { CarteVisite } from './CarteVisite';
+// TCK-2972 — l'engagement.
+import { CarteEngagement } from '../engagements/CarteEngagement';
+import type { ProjectionEngagement } from '../engagements/engagement';
+import { IconeDEvenement, natureDeLIcone } from '../engagements/IconeDEvenement';
+import { TraceDuLien } from '../pont/ElementsDuPont'; // TCK-2984
 
 interface CarteDuFilProps {
   readonly message: Message;
@@ -61,7 +66,11 @@ export function CarteDuFil({ message, conversationId, moi, auteur }: CarteDuFilP
   return (
     <li data-slot="place-de-la-carte" className={cn('flex flex-col', moi ? 'items-end' : 'items-start')}>
       <p className="mb-1 px-1 text-legende text-muted-foreground">{entete}</p>
-      <div className="w-[88%] max-w-[calc(var(--spacing)*100)]">{carte}</div>
+      <div className="w-[88%] max-w-[calc(var(--spacing)*100)]">
+        {carte}
+        {/* TCK-2984 — la trace du lien d'action (envoyé · ouvert · fait), personnel seul : clé `action_link`. */}
+        <TraceDuLien message={message} />
+      </div>
     </li>
   );
 }
@@ -85,6 +94,9 @@ function rendreLaCarte(message: Message, conversationId: number): React.ReactNod
     // TCK-2964 — le bien partagé.
     case 'property':
       return <CarteBien objet={objet as unknown as ProjectionBien} />;
+    // TCK-2972 (ADR-0130) — l'engagement : la carte `commitment.noted`, et un événement qui attend CE lecteur.
+    case 'commitment':
+      return <CarteEngagement objet={objet as unknown as ProjectionEngagement} conversationId={conversationId} code={message.metadata?.code} />;
     default:
       // Un type que ce front ne sait pas encore rendre : la ligne neutre.
       return null;
@@ -124,6 +136,8 @@ export function EvenementsReplies({
   const textes = messages.map((m) => texteSysteme(m.metadata));
   const resume = textes.map((x) => x.replace(/[.。]\s*$/, '')).join(', ');
   const Chevron = ouvert ? ChevronUp : ChevronDown;
+  // TCK-2972 — une suite d'événements d'engagement porte l'icône de son premier (poignée de main ou cloche).
+  const codeDeLIcone = messages.map((m) => m.metadata?.code).find((c) => natureDeLIcone(c) !== null);
 
   return (
     <li data-slot="evenements-replies" className="mx-auto w-full max-w-[94%]">
@@ -133,6 +147,7 @@ export function EvenementsReplies({
         onClick={() => setOuvert((o) => !o)}
         className="flex min-h-10 w-full items-center gap-2 rounded-xl bg-muted/60 px-3 py-1.5 text-left text-xs text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
       >
+        <IconeDEvenement code={codeDeLIcone} className="size-3.5 flex-none" testId="icone-d-engagement" />
         <span className="min-w-0 flex-1 truncate">
           <span className="font-semibold text-foreground tabular-nums">{t('compte', { count: messages.length })}</span> · {resume}
         </span>
@@ -144,7 +159,7 @@ export function EvenementsReplies({
           {messages.map((m, i) => (
             <li key={m.id} className="relative flex items-baseline gap-2 py-1 text-xs text-foreground">
               <span className="absolute top-2.5 -left-4 size-1.5 rounded-full bg-border" aria-hidden="true" />
-              <span className="min-w-0 flex-1">{textes[i]}</span>
+              <LigneDuJournal code={m.metadata?.code} texte={textes[i]} />
               <span className="flex-none text-muted-foreground tabular-nums">
                 {jour ? `${f.jourMois(m.created_at)} · ${f.heure(m.created_at)}` : f.heure(m.created_at)}
               </span>
@@ -153,5 +168,15 @@ export function EvenementsReplies({
         </ol>
       ) : null}
     </li>
+  );
+}
+
+/** TCK-2972 — une ligne du journal déplié : l'icône d'un événement d'engagement devant son texte. */
+function LigneDuJournal({ code, texte }: { readonly code: string | undefined; readonly texte: string | undefined }) {
+  return (
+    <span className="min-w-0 flex-1">
+      <IconeDEvenement code={code} className="mr-1 inline size-3 align-[-0.125em]" />
+      {texte}
+    </span>
   );
 }

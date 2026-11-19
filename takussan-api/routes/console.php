@@ -96,6 +96,10 @@ Schedule::job(new SendOverdueRemindersJob)->dailyAt('09:00')->withoutOverlapping
 // pre-visit windows. Dedup happens through `PropertyVisit.metadata` markers
 // so re-runs are idempotent even if the job overlaps with a prior tick.
 Schedule::job(new SendPropertyVisitReminders)->everyFiveMinutes()->withoutOverlapping(5);
+// TCK-2970 (ADR-0130 § 4) — rappel, retard, relances et « Tenu ? » des engagements, écrits au fil. Idempotente :
+// chaque signal est rejugé sous verrou de ligne, marqueur compris (`due_soon_sent_at`, `overdue_signalled_at`,
+// `relances`/`last_relance_at`, `check_requested_at`) ; deux passages n'écrivent qu'un événement par marqueur.
+Schedule::command('commitments:signal')->everyFiveMinutes()->withoutOverlapping(5);
 // TCK-103 — Hourly digest orchestrator: checks users whose local time matches
 // their digest_send_at and dispatches per-user BuildUserDigestJob sub-jobs.
 Schedule::job(new SendNotificationDigestJob)->hourly()->withoutOverlapping(60);
@@ -256,6 +260,10 @@ Schedule::command('notifications:prune-read')->dailyAt('04:05')->timezone('Afric
 // étape ne choisit que ce qui est encore dû, relu sous verrou. Le job `PurgeRadarAdvertiser` la rejoue aussitôt après un STOP.
 Schedule::command('radar:purge')->dailyAt('04:15')->timezone('Africa/Dakar')->withoutOverlapping();
 
+// TCK-2974 (ADR-0131 § 6) — les propositions du copilote du fil (`fil.*`) vidées à 30 jours, la ligne gardée.
+// Idempotente : un UPDATE qui ne choisit que les lignes encore pleines et assez anciennes.
+Schedule::command('messaging:purge-copilot-proposals')->dailyAt('04:25')->timezone('Africa/Dakar')->withoutOverlapping();
+
 // TCK-2431 (ADR-0077 §9, ADR-0083) — le compteur anonyme du jour des annonceurs par nature, AVANT la purge de 04:15 (qui remet
 // la nature à `unknown`) : le jour, la nature, deux nombres. Idempotent (`insertOrIgnore` sur jour et nature) ; la purge le
 // pose elle-même en premier si ce passage a manqué.
@@ -304,3 +312,11 @@ Schedule::command('radar:refresh-demand-targets')->dailyAt('03:40')->timezone('A
 // (jusque-là résolue par `username`, puis redirigée en 301), et recalcule celui d'un compte qui a changé de rôle. Idempotente :
 // un slug déjà juste n'est pas réécrit (`PublicSlugService::appliquer`), et une collision est tranchée par suffixe sur la ligne.
 Schedule::command('users:public-slugs')->hourlyAt(25)->withoutOverlapping(60);
+
+// TCK-2980 (ADR-0132 § 4, « Rétention ») — le numéro des relais du pont s'efface 90 jours après leur dernier envoi ; la ligne
+// reste. Idempotente : un numéro déjà effacé n'est plus visé.
+Schedule::command('pont:effacer-numeros')->dailyAt('03:55')->timezone('Africa/Dakar')->withoutOverlapping();
+
+// TCK-2985 (ADR-0132 § 6) — le résumé du lundi du bailleur, 09:00 heure de Dakar : un par (bailleur, agence), à qui l'a activé.
+// Idempotente par semaine ISO (`owner_weekly_digests`, unique) : relancée la même semaine, elle n'envoie rien de plus.
+Schedule::command('owners:weekly-digest')->weeklyOn(1, '09:00')->timezone('Africa/Dakar')->withoutOverlapping();

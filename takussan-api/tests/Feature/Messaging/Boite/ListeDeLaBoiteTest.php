@@ -171,6 +171,9 @@ class ListeDeLaBoiteTest extends ApiTestCase
         // Le fil seul est confié : sans aucun fil confié, le chargement d'`assignedTo` ne fait pas sa requête
         // (aucune clé), et la différence d'UNE requête ne dirait rien du nombre de fils.
         $this->peupler($this->fil, 3);
+        // TCK-2974 — l'amorce : `copilote` juge une capacité, et les capacités d'un rôle se gardent en mémoire
+        // d'une requête à l'autre DANS le même processus de test. Le premier appel n'est pas compté.
+        $compter('?per_page=50');
         $un = $compter('?per_page=50');
         // Filtré sur `attente`, où le fil confié (à un collègue) se trouve pour l'auteur : la page n'est pas vide.
         $unFiltre = $compter('?per_page=50&filter[file]=attente');

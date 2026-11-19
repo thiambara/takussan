@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type MouseEvent } from 'react';
+import { useState, type MouseEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { BellOff, Bell, Building2, CalendarCheck, ChevronRight, FileText, Flag, Info, MessageSquare, MoreHorizontal, PanelRightClose, PanelRightOpen, Phone, UserPlus, UserRoundPlus, Users, Wrench } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -57,6 +57,12 @@ interface EnTeteDuFilProps {
   readonly contexte?: { readonly ouvert: boolean; readonly onBasculer: () => void };
   /** Au téléphone, pour un fil direct : « ⋯ » ouvre la feuille du fil que la page rend (maquette a/2). */
   readonly onPlusDActions?: () => void;
+  /**
+   * TCK-2977 (ADR-0131) — le bouton ✦ de l'assistant, rendu par `ChatView` pour le seul personnel servi par le
+   * copilote. Un emplacement, et non un import : le graphe d'imports de l'en-tête décide des dictionnaires du
+   * widget flottant. Absent : rien, et le client n'apprend pas qu'un assistant existe.
+   */
+  readonly assistant?: ReactNode;
   /**
    * TCK-2860 — les gestes du menu « ⋯ » de la page (maquette a/2, l. 487-498) : « Marquer comme non
    * lue », « Ajouter un participant » (fil direct), « Signaler la conversation ». Absents (widget
@@ -115,6 +121,7 @@ export function EnTeteDuFil({
   onPlusDActions,
   gestes,
   presents = [],
+  assistant,
 }: EnTeteDuFilProps) {
   const t = useTranslations('messaging');
   const tWidget = useTranslations('messaging.widget');
@@ -333,6 +340,9 @@ export function EnTeteDuFil({
             </div>
           )
         ) : null}
+
+        {/* TCK-2977 — ✦ de l'assistant (« Demander au fil »), avant « ⋯ ». */}
+        {assistant ?? null}
 
         {compact && !isGroup && onPlusDActions ? (
           <button
