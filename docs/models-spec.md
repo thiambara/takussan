@@ -1832,6 +1832,9 @@ voies peut n'identifier personne.
 | property_id | FK properties | oui | null | Bien lié à la discussion (`nullOnDelete`) |
 | lease_id | FK leases | oui | null | Bail lié à la discussion (`nullOnDelete`) |
 | maintenance_request_id | FK maintenance_requests | oui | null | Demande de maintenance liée (`nullOnDelete`, FK posée par `2026_04_17_160033`) (remplace le morphOne côté MaintenanceRequest) |
+| subject_type | string(40) | oui | null | **Le sujet du fil** (TCK-2957, ADR-0128 § 1) : une CLÉ du registre fermé `App\Services\Messaging\SujetsDuFil` (`maintenance_request`, `lease`, `booking`), jamais un nom de classe. ⚠ À ne pas confondre avec `subject` (le titre). Les trois clés `property_id`, `lease_id`, `maintenance_request_id` restent et gardent leur sens de contexte. La reprise (`2026_11_18_295701`) a donné à tout fil portant `maintenance_request_id` le sujet de cette demande, directes comprises |
+| subject_id | unsigned bigint | oui | null | Identifiant de l'objet sujet. **Sans clé étrangère** (lien générique) : l'observateur `FermeLeFilDeSonObjet` ferme le fil d'un objet supprimé |
+| assigned_to_id | FK users | oui | null | **Fil confié** (TCK-2967, ADR-0128 § 7) : la personne de l'agence qui suit une salle ou un groupe (`conversations_assigned_to_id_fk`, `nullOnDelete`). Jamais posée sur le fil d'un prospect, qui suit le contact principal du bien (ADR-0068). Ne vaut que tant que la personne confiée est personnel actif de l'agence du fil et participante active |
 | type | ConversationType | | 'direct' | Type — les six valeurs de `app/Models/Enums/ConversationType.php` : direct, group, booking, lease, property, support |
 | status | ConversationStatus | | 'active' | Statut (active, archived, closed) |
 | created_by | FK users | | | Initiateur de la conversation (FK sans `onDelete` : la suppression physique d'un utilisateur qui a ouvert une conversation est refusée) — ⚠ sans suffixe `_id` |
@@ -1853,8 +1856,13 @@ voies peut n'identifier personne.
   `joined_at`, `left_at`, `archived_at`
 - `messages()` → hasMany Message
 - `lastMessage()` → belongsTo Message (via last_message_id) 🆕
+- `assignedTo()` → belongsTo User (via assigned_to_id) 🆕 (TCK-2967)
 
-**Index :** `conversations_parent_index` `(property_id, lease_id, maintenance_request_id)`.
+**Index :** `conversations_parent_index` `(property_id, lease_id, maintenance_request_id)` ; `conversations_subject_idx` `(subject_type, subject_id)` (TCK-2957) ; `conversations_assigned_to_id_idx` `(assigned_to_id)` (TCK-2967) ; **`conversations_salle_unique`**, unique partiel sur `(subject_type, subject_id)` `WHERE type IN ('lease','booking') AND subject_type IN ('lease','booking') AND deleted_at IS NULL` (TCK-2960, `2026_11_18_296001`) : **une seule salle par bail et par réservation**. Il ne vise pas « tout fil qui porte un sujet » : une directe ou un groupe d'une même intervention, ou un groupe au sujet `booking`, n'est pas une salle. La création passe par `insertOrIgnore` puis relecture (jamais de `try/catch` sur la violation, piège PostgreSQL n° 1).
+
+**Salles (TCK-2960, ADR-0128 § 2).** `SallesDuFil` tient un fil par bail (`type = lease`, sujet `lease:<id>`, membres : le compte du locataire, le bailleur désigné, l'agent attribué) et par réservation (`type = booking`, sujet `booking:<id>`, membres : le compte du candidat et le contact principal actuel du bien). Les membres se synchronisent à l'ouverture, sous verrou de ligne, par le modèle de pivot (donc avec les signaux temps réel) ; `title` (`subject`) reste nul, le front nomme la salle depuis son objet. Un bail fini garde la lecture et perd l'écriture.
+
+**Fermeture :** la suppression de l'objet sujet ferme le fil (`ConversationStatus::Closed`, observateur `FermeLeFilDeSonObjet`, branché sur les trois types sujets) ; la restauration de l'objet le rouvre (`Active`).
 
 ---
 
@@ -1874,11 +1882,15 @@ voies peut n'identifier personne.
 | joined_at | datetime | | now | Date d'ajout à la conversation (distinct de `created_at` : utile si un participant quitte puis est réajouté) |
 | left_at | datetime | oui | null | Date de départ (si quitté) |
 | archived_at | timestamp | oui | null | Conversation archivée **pour ce participant** (`2026_04_22_000002`) ; lue en pivot par `Conversation::participants()` |
+| snoozed_until | timestamp | oui | null | « Rappelez-le-moi » : jusqu'à quand le fil sort des files du lecteur (TCK-2967, `2026_11_18_296700`). Propre à la ligne du participant ; dans le futur, la file `rappel` prime sur toute autre |
+| handled_at | timestamp | oui | null | « Traité » : le fil quitte « À vous » jusqu'au prochain message compté ou événement attendu, **strictement postérieur** à cet instant (TCK-2967). Propre au participant |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
 **Contrainte :** unique(conversation_id, user_id)
 **Index :** `conversation_participants_user_archived_index (user_id, archived_at)` (`2026_04_22_000002`).
+
+**Signaux temps réel (TCK-2955, trait `EmetDesSignaux`).** Un changement de participation (ajout, retour, départ `left_at`, `role`) émet `participants.updated` sur le fil et `boite.updated` à la seule personne concernée, après le COMMIT.
 
 **Relations :**
 - `conversation()` → belongsTo Conversation
@@ -1897,17 +1909,23 @@ voies peut n'identifier personne.
 | conversation_id | FK conversations | | | Conversation parente (`cascadeOnDelete`) |
 | sender_id | FK users | oui | null | Expéditeur — **nullable** depuis `2026_04_24_120000_make_messages_sender_id_nullable_for_system` : un avis `system` n'a pas d'expéditeur ; `nullOnDelete` |
 | content | text | | | Contenu du message (NOT NULL). Pour une note vocale, un aperçu neutre traduit (`messaging.audio_preview`) qui sert à la liste des conversations |
-| type | MessageType | | 'text' | Type — les cinq valeurs de `app/Models/Enums/MessageType.php` : text, image, document, system, **audio** (note vocale, TCK-592, [ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)). Un participant n'écrit que `text` ou `audio` (`SendMessageConversationRequest::PARTICIPANT_TYPES`) ; **TCK-2631 lui ouvre aussi `image` et `document` : une pièce par message dans la collection privée `attachments` (photo jpeg, png ou webp ≤ 8 Mo, métadonnées EXIF retirées ; PDF ≤ 10 Mo), servie par URL signée aux seuls participants actuels** ; `system` est réservé à `SystemMessageFactory` |
-| metadata | jsonb | oui | null | Métadonnées — pour `audio` : `{"duration": <secondes déclarées>}` |
+| type | MessageType | | 'text' | Type — les sept valeurs de `app/Models/Enums/MessageType.php` : text, image, document, system, **audio**, **card**, **event** (TCK-2958, voir ci-dessous) (note vocale, TCK-592, [ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)). Un participant n'écrit que `text` ou `audio` (`SendMessageConversationRequest::PARTICIPANT_TYPES`) ; **TCK-2631 lui ouvre aussi `image` et `document` : une pièce par message dans la collection privée `attachments` (photo jpeg, png ou webp ≤ 8 Mo, métadonnées EXIF retirées ; PDF ≤ 10 Mo), servie par URL signée aux seuls participants actuels** ; `system` est réservé à `SystemMessageFactory` |
+| visibility | string(10) | | 'all' | **`all` ou `team`** (`App\Models\Enums\MessageVisibility`, TCK-2965, `2026_11_18_296500`). `team` = la **note d'équipe** : lue des seuls participants actifs qui sont du personnel de l'agence du fil (et d'un super-admin) ; ni liste, ni non-lu, ni file de pilotage, ni recherche, ni notification (hors @mention), ni aperçu. Chaîne et non `enum()` SQL (ADR-0007) |
+| metadata | jsonb | oui | null | Métadonnées — pour `audio` : `{"duration": <secondes déclarées>}` ; pour `card` et `event` : forme fermée `{object: {type, id}, code, data}` (+ `action_for`, liste des comptes dont un geste est attendu, jamais rendue au lecteur) ; **`mentions`** : identifiants de compte mentionnés, dix au plus (TCK-2966) |
 | deleted_at | timestamp | oui | null | Soft delete |
 | created_at | timestamp | | auto | |
 | updated_at | timestamp | | auto | |
 
-**Index :** `(conversation_id, created_at)`.
+**Index :** `(conversation_id, created_at)` ; `messages_conversation_visibility_idx` `(conversation_id, visibility, id)` (TCK-2965, sert le filtre de la page des messages).
+
+**Cartes et événements (TCK-2958, ADR-0128 § 3).** `card` : un participant pose un objet (bien partagé `property.shared`, visite proposée `visit.proposed`) par `POST /api/conversations/{c}/cards` (`object.type` parmi les types « posables » de `SujetsDuFil`, `object.id`). `event` : la plateforme écrit qu'un objet a changé (sans auteur, immuable comme un avis système). `content` de tout `system`, `event` et `card` est un **CODE neutre** (`MessageType::aContenuCode()`), jamais un texte : le front compose le libellé (principe n° 5). Les codes et leur forme se lisent dans `CodesDuFil::catalogue()` (intervention, `lease_payment.*`, `lease.*`, `inventory.*`, `visit.*`, `booking.confirmed`…). `EvenementsDuFil` est le seul à les écrire ; `FilDeLObjet` les adresse au fil de l'objet, après le COMMIT. La carte est relue pour chaque lecteur par sa projection (`ObjetsDesMessages`) ; un objet qu'il ne lit pas rend « indisponible ». Un `event` ne compte comme non lu que pour les comptes de son `action_for` (`NonLus`).
+
+**Reprise des avis d'intervention (`2026_11_18_295801`).** Tout message `system` d'événement `maintenance` devient un `event` (`maintenance.<cause>`, `maintenance.transition` à défaut), `content` = son code, `last_message_preview` recalculé. ⚠ **Cette migration efface le texte français des avis et `down()` ne le rend pas** : sauvegarde manuelle avant déploiement (`docs/deploiement/actions/2026-11-18-sauvegarder-avant-la-conversion-des-avis.md`), puis `php artisan messages:unindex-coded` (ces messages ne sont plus indexables).
 
 **Traits :**
 - `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `attachments` (pièces jointes ; le fichier d'une note vocale y est rangé, collection privée — ADR-0038 : formats, 2 Mo et 60 s au plus dans `App\Support\Media\VoiceNoteRules`, règle partagée avec les autres porteurs depuis TCK-2900, ADR-0113)
-- `Searchable` (Scout) — indexe `content` sous la clé `body` ; un message supprimé n'est pas indexé
+- `Searchable` (Scout) — indexe `content` sous la clé `body` ; un message supprimé, ou dont le type porte un code (`system`, `event`, `card`), n'est pas indexé ; la colonne `visibility` entre dans le document (`.search-shape` change, `release.sh` réimporte les index)
+- `EmetDesSignaux` — après le COMMIT : `message.created` / `message.updated` sur le fil, `boite.updated` aux seuls comptes concernés (TCK-2955, ADR-0129)
 
 **Note :** Le statut de lecture est déterminé en comparant `message.created_at` avec `conversation_participant.last_read_at`. Pas de colonne `read_at` sur le message lui-même.
 
@@ -6558,7 +6576,8 @@ Index : `(user_id, document)`.
 | **CommissionCancelReason** 🆕 (TCK-2661) | lease_terminated_before_move_in, wrong_beneficiary, wrong_rate_or_base, other | [CommissionEntry.cancel_reason_code](#85-commissionentry-) |
 | **ConversationType** | direct, group, booking, lease, property, **support** | Conversation.type — *aligné sur `app/Models/Enums/ConversationType.php`, mesuré le 2026-08-16 (R7 de la passe 009)* |
 | **ConversationStatus** | active, archived, closed | Conversation.status |
-| **MessageType** | text, image, document, system, **audio** | Message.type — `audio` : note vocale, fichier dans la collection privée `attachments` (TCK-592, ADR-0038) |
+| **MessageType** | text, image, document, system, **audio**, **card**, **event** | Message.type — `audio` : note vocale, fichier dans la collection privée `attachments` (TCK-592, ADR-0038) ; `card` : objet posé dans un fil ; `event` : ce qui arrive à un objet, écrit par la plateforme (TCK-2958, ADR-0128 § 3) |
+| **MessageVisibility** | all, team | Message.visibility — `team` : note d'équipe (TCK-2965, ADR-0128 § 6) |
 | **MaintenanceCategory** | plumbing, electrical, structural, appliance, painting, cleaning, pest_control, locksmith, other | MaintenanceRequest.category |
 | **MaintenancePriority** | low, **normal**, high, urgent | MaintenanceRequest.priority — `medium` renommé `normal`, données et défaut (`2026_04_26_013446`) |
 | **MaintenanceStatus** | open, acknowledged, **quote_requested, quote_submitted, awaiting_owner, approved, rejected**, assigned, in_progress, completed, closed, cancelled | MaintenanceRequest.status — circuit du devis (TCK-592, ADR-0037) |
