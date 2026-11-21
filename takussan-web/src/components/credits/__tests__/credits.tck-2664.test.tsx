@@ -322,12 +322,14 @@ describe('TCK-2664 — la page Crédits', () => {
   });
 
   it('l’effet sur la Vedette en place est dit avant de confirmer, avec les phrases de la fenêtre d’achat', async () => {
-    routeur({ enPlace: [{ id: 5, kind: 'featured', variant: null, status: 'active', ends_at: '2026-11-20T00:00:00Z' }] });
+    // Une Vedette qui court encore : sa fin est loin dans le futur. Fixée au 2026-11-20, elle était passée dès le
+    // 2026-11-21, et la prolongation partait d'aujourd'hui, non de sa fin (le test rougissait chaque jour qui passe).
+    routeur({ enPlace: [{ id: 5, kind: 'featured', variant: null, status: 'active', ends_at: '2099-11-20T00:00:00Z' }] });
     const u = userEvent.setup();
     rendre();
     await u.click(await screen.findByRole('button', { name: 'Relancer la mise en avant de « Villa · Kaolack » pour 20 crédits' }));
     const dialogue = await screen.findByRole('dialog');
-    expect(await within(dialogue).findByText(/^Prolonge la Vedette en cours jusqu’au/)).toHaveTextContent('Prolonge la Vedette en cours jusqu’au 27 nov. 2026.'); // 20 nov. + 7 jours
+    expect(await within(dialogue).findByText(/^Prolonge la Vedette en cours jusqu’au/)).toHaveTextContent('Prolonge la Vedette en cours jusqu’au 27 nov. 2099.'); // 20 nov. + 7 jours
   });
 
   it('la recherche porte sur les biens EN LIGNE côté serveur, et le bien choisi reste à l’écran quand on efface', async () => {
