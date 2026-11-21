@@ -111,7 +111,7 @@ describe.each([
     const barre = screen.getByRole('progressbar');
     expect(barre).toHaveClass('gap-0.5', 'lg:gap-1.5');
     expect(barre.className).not.toMatch(/(^|\s)px-/);
-    expect(barre.firstElementChild).toHaveClass('h-[3px]', 'lg:h-1', 'lg:rounded-full');
+    expect(barre.firstElementChild).toHaveClass('h-[calc(var(--spacing)*0.75)]', 'lg:h-1', 'lg:rounded-full');
     const libelles = pied.querySelector('[aria-hidden="true"].grid, [aria-hidden="true"].lg\\:grid') as HTMLElement;
     expect(libelles).toHaveClass('hidden', 'lg:grid');
   });

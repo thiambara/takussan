@@ -340,6 +340,7 @@ export function PublierSansCompte({
     // qui le disait sous la barre a quitté l'écran (maquette « L'écran économe »).
     noteDeReprise: (
       <p
+        role="status"
         data-brouillon-repris=""
         className="flex items-center gap-2 rounded-lg bg-muted/70 px-3 text-ui text-muted-foreground"
       >

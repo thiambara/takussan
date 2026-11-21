@@ -362,7 +362,7 @@ export function WizardShell({
                 {segments.map((_, partie) => (
                   // Sous `lg` (maquette « L'écran économe ») : 3 px, à angles droits ; le rail en `border`, chaque
                   // partie atteinte en `primary`.
-                  <div key={partie} className="h-[3px] overflow-hidden bg-border lg:h-1 lg:rounded-full lg:bg-muted">
+                  <div key={partie} className="h-[calc(var(--spacing)*0.75)] overflow-hidden bg-border lg:h-1 lg:rounded-full lg:bg-muted">
                     {/*
                       420 ms : PLUS LENT que la transition d'étape (300 ms), délibérément. La barre
                       finit après, donc on la voit avancer — si elle finissait avant, l'œil serait

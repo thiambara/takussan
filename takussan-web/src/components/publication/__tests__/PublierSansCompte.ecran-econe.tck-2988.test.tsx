@@ -156,10 +156,10 @@ describe('TCK-2988 — le brouillon au téléphone', () => {
     await waitFor(async () => expect(await moteur.lire('valeurs')).toBeUndefined());
   });
 
-  it('avec un brouillon, ✕ demande ; « Effacer le brouillon » le vide, puis part', async () => {
+  it('avec un brouillon, ✕ demande ; « Effacer le brouillon » le vide, puis part — et il le reste', async () => {
     const user = userEvent.setup();
     const moteur = moteurEnMemoire();
-    monter(moteur);
+    const vue = monter(moteur);
     await premiereEtape(user);
     await waitFor(async () => expect(await moteur.lire('valeurs')).toBeDefined());
 
@@ -171,5 +171,14 @@ describe('TCK-2988 — le brouillon au téléphone', () => {
     });
     expect(await moteur.lire('valeurs')).toBeUndefined();
     expect(clics.at(-1)).toEqual({ href: '/', annule: false });
+    // Ni l'écriture différée (400 ms), ni celle du démontage (la page quittée) ne remettent le brouillon (TCK-2600).
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 600));
+    });
+    vue.unmount();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(await moteur.lire('valeurs')).toBeUndefined();
   });
 });

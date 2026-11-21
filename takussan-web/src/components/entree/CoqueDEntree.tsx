@@ -457,7 +457,7 @@ export function CoqueDEntree({
                 <span className="flex-1" />
               )}
               {avancementAuTelephone || retourAuSite || aDroite ? (
-                <span className={cn('flex flex-none items-center gap-2', avancementAuTelephone || !aDroite ? 'pr-3' : 'pr-1')}>
+                <span className={cn('flex flex-none items-center gap-2', declaree.avancementAuPied === true && aDroite ? 'pr-1' : 'pr-3')}>
                   {avancementAuTelephone}
                   {aDroite ? aDroite.telephone : retourAuSite}
                 </span>

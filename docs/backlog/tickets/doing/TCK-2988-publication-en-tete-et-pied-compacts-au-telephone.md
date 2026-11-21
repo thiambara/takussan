@@ -85,7 +85,10 @@ bandeaux passent de 158 à 56 px, le pied de 117 à 71 px.
 
 - [x] AC1 — À 390 px sur `/publish`, étape « caractéristiques », l'en-tête fait 56 px. Aucune barre
       d'aperçu ni ligne d'état du brouillon ne s'intercale entre l'en-tête et la question.
-- [x] AC2 — À 390 px, le pied mesure au plus 72 px hors zone de sécurité, sur les deux entrées.
+- [ ] AC2 — À 390 px, le pied mesure au plus 72 px hors zone de sécurité, sur les deux entrées. *Mesuré
+      sur `/publish` (71 px). `/app/properties/new` n'a pas été affiché, faute de session et d'API : son pied
+      est le même composant, dont les classes du cadre d'entrée ne jouent que dès `lg`. À relever en
+      préproduction.*
 - [x] AC3 — « Aperçu » dans l'en-tête ouvre le tiroir existant (carte, liste « Pour publier »).
 - [x] AC4 — Avec un brouillon, ✕ ouvre une confirmation qui propose de partir, de rester et d'effacer
       puis partir. Effacer vide réellement le brouillon local.
@@ -120,6 +123,11 @@ Relevés au navigateur le 2026-11-21 (`next dev`, émulation, `/publish`) :
 
 La confirmation de sortie de `/publish` apparaît désormais aussi au bureau (« Quitter », la marque) dès qu'un
 brouillon existe. Avant, le lien partait sans rien demander.
+
+La barre du téléphone ne passe à `pr-1` que si la page porte l'avancement au pied ET déclare `aDroite`.
+Les écrans d'invitation (`aDroite` seul) gardent leur `pr-3`. La hauteur des segments s'écrit sur l'échelle,
+`calc(var(--spacing)*0.75)` (ADR-0107). « Effacer le brouillon » en sortant a été relevé au navigateur :
+`/publish` rouvert repart de l'accueil, sans brouillon repris.
 
 Tests : `CoqueDEntree.ecran-econe.tck-2988`, `PublierSansCompte.ecran-econe.tck-2988` et
 `WizardShell.pied-du-telephone.tck-2819` (réécrit sur cette décision). Chaque changement a été vérifié par
