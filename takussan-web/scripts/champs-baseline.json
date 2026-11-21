@@ -1,0 +1,1214 @@
+{
+  "src/app/(auth)/auth/reset-password/page.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/app/(dashboard)/app/CorpsDeLIntrouvable.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/app/[locale]/(public)/properties/[slug]/components/PropertyContactMessageDialog.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx": {
+    "sansProfil": 4,
+    "sansPlaceholder": 1,
+    "nombre": 2,
+    "reglage": 0
+  },
+  "src/app/[locale]/(public)/properties/[slug]/components/PropertyReviewForm.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/app/[locale]/(public)/properties/[slug]/components/PropertyReviewReplyForm.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/app/invitations/accept/AccepterInvitation.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/app/invitations/accept/EntreeDInvitation.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/app/not-found.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin-agency/fiche/champs.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin-agency/fiche/SectionFichePublique.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin-agency/reglages-de-bail/ReglagesDeBail.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin-settings/IntegrationsManager.tsx": {
+    "sansProfil": 11,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin-tags/TagsManager.tsx": {
+    "sansProfil": 4,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/equipe/CouvrirUneAbsence.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/equipe/FormulaireDInvitation.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/finances/argent/choix.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/finances/argent/ReversementsAApprouver.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/finances/impayes/Impayes.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/finances/impayes/RelanceDUnImpaye.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/ModerationDetail.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/PropertyModerationDetail.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/reconciliation/CsvMappingForm.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/reconciliation/ImportStatementForm.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/reconciliation/PaymentSearchDialog.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/reconciliation/reste/ChercherUneLigne.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/reconciliation/reste/Ignorer.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/roles/AgencyRoleEditor.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/roles/AgentCommissionRateField.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 2,
+    "reglage": 0
+  },
+  "src/components/admin/roles/CreateDelegationDialog.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/roles/CreateRoleDialog.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/AgencyOnboardingDialog.tsx": {
+    "sansProfil": 9,
+    "sansPlaceholder": 8,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/ai/AiChainDialog.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/admin/super/ai/AiModelsPanel.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/ai/AiUsagesPanel.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/alerts.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/announcements.tsx": {
+    "sansProfil": 4,
+    "sansPlaceholder": 1,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/admin/super/ConfirmActionDialog.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/CreatePrivacyRequestForm.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/admin/super/CrossTenantAuditTable.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/admin/super/feature-flags.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 1,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/admin/super/FileDePropositions.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/GlobalSearch.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/ImpersonationStartDialog.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/integrations.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/kyc-queue.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/maintenance.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/moderation.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/notification-templates.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/PhotosDeQuartiers.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/platform-settings.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 1,
+    "nombre": 2,
+    "reglage": 0
+  },
+  "src/components/admin/super/PrivacyRequestsConsole.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/radar/annonceur/ApercuMessage.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/radar/annonceur/DelierCompte.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/radar/annonceur/DialogueIssue.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/radar/cibles/PanneauCible.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/admin/super/radar/collecte/RadarCollecte.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 2,
+    "nombre": 2,
+    "reglage": 0
+  },
+  "src/components/admin/super/radar/fiche/controles.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/admin/super/radar/fiche/DialoguesFiche.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/admin/super/radar/fiche/FormulaireFiche.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/radar/RadarIntakeSheet.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/admin/super/user-detail.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/agency/UpgradeRequestForm.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/agents/ZoneMultiSelect.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/auth/CasesDuCode.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/auth/ConnexionParTelephone.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/auth/DefiSecondFacteur.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/auth/GardeDoubleFacteur.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/auth/MotDePasseOublie.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/auth/TotpEnrollment.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/auth/VerifierLAdresse.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/auth/VoieEmail.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/billing/AdminAgencySubscriptionPanel.tsx": {
+    "sansProfil": 4,
+    "sansPlaceholder": 0,
+    "nombre": 4,
+    "reglage": 0
+  },
+  "src/components/billing/AdminPlansClient.tsx": {
+    "sansProfil": 8,
+    "sansPlaceholder": 4,
+    "nombre": 4,
+    "reglage": 0
+  },
+  "src/components/billing/PayoutDetailPanel.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/bookings/BookingTunnel.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/bookings/detail/garants.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/bookings/feuilles/FeuilleDeDecision.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/bookings/SaisirUneDemande.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/boost/admin/AdminAgencySpotlights.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/boost/admin/AdminBoostCatalogue.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/boost/admin/AdminBoosts.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/boost/admin/AdminCreditWalletDetail.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/boost/admin/AdminCreditWallets.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/commissions/gestes.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/console/DebouncedSearchInput.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/contact/ContactsSurPlace.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/contact/CoordonneesPublication.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/crm/CustomerTasksPanel.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/customer-dashboard/CustomerTagPicker.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/customer-dashboard/fiche/FilDuClient.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/customer-form/creation/ChampsDeLaRecherche.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/customer-form/creation/CreationDuClient.tsx": {
+    "sansProfil": 8,
+    "sansPlaceholder": 4,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/customer-form/CustomerForm.tsx": {
+    "sansProfil": 17,
+    "sansPlaceholder": 11,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/customer/CustomerMinimalProfileSheet.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/documents/coffre/ChampDeRecherche.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/documents/fiche/PartageDuDocument.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/documents/fiche/VersionsDuDocument.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/favorites/FavoriteNote.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/favorites/PublicSearchAlertForm.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/favorites/SaveSearchDialog.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/inventory/InventoryDetail.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/inventory/terrain/Demarrer.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/inventory/terrain/EcranDUnePiece.tsx": {
+    "sansProfil": 9,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/inventory/terrain/ParcoursDeTerrain.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/inventory/terrain/RecapEtSignatures.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/kyc/kyc-components.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/kyc/VerificationDeLAgence.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/layout/PaletteDeCommandes.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/leases/CreateLeaseForm.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/leases/creation/CreationRapideDuLocataire.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/leases/DepositRefundModal.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 1,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/leases/EarlyTerminationDialog.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/leases/fiche/AbandonnerLeBrouillon.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/leases/fiche/FeuilleDeRevision.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/leases/fiche/FeuilleDesGarants.tsx": {
+    "sansProfil": 9,
+    "sansPlaceholder": 8,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/leases/LeaseRenewalDialog.tsx": {
+    "sansProfil": 5,
+    "sansPlaceholder": 5,
+    "nombre": 4,
+    "reglage": 0
+  },
+  "src/components/leases/LeaseSignaturePanel.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/leases/PasserOutreDialog.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/lien-d-action/PageDuLienDAction.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/acteurs/AFacturer.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/acteurs/GestesDeLaDemandeEnCours.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/acteurs/InterventionsDuPrestataire.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/acteurs/MesDemandesDuLocataire.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/acteurs/SignalementDuLocataire.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/MaintenanceCompleteForm.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/maintenance/MaintenanceForm.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/MaintenanceProviderResponse.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/MaintenanceResolutionResponse.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/MotifDAnnulation.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/QuoteRejectionModal.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/maintenance/QuoteSubmitForm.tsx": {
+    "sansProfil": 4,
+    "sansPlaceholder": 4,
+    "nombre": 3,
+    "reglage": 0
+  },
+  "src/components/messages/BrouillonDirect.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/cartes/FeuillesDesGestes.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/cartes/ProposerUnAutreMoment.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/ChatView.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/ConversationInfoSheet.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/ConversationList.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/copilote/DemanderAuFil.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/engagements/FeuillesDEngagement.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/engagements/NoterUnEngagement.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/GestesDuFil.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/InfosDuGroupe.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/NouvelleConversation.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/messages/PropertyDraftChatView.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/onboarding/EtapePrenom.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/onboarding/HostIndividualWizard.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/onboarding/invite/TarifsEtDisponibilites.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/onboarding/orientation/EtapeChercheur.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/onboarding/orientation/EtapePro.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/owners/InviteOwnerSheet.tsx": {
+    "sansProfil": 5,
+    "sansPlaceholder": 4,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/payments/CreatePayoutDialog.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/payments/PaymentsHistoryFilters.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/payments/PayoutDetailDialog.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/payments/ServiceProviderBillsTable.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/pieces/VosPieces.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/pipeline/MotifDuPipeline.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/pipeline/ReasonDialog.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/profile/PayoutMethodsSection.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/profile/ProfileContactSection.tsx": {
+    "sansProfil": 5,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/profile/ProfileHeader.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/profile/ProfileOwnerSection.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/profile/ProfileReviewsList.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/profile/ProfileServiceProviderSection.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 2,
+    "nombre": 2,
+    "reglage": 0
+  },
+  "src/components/profile/SearchPreferencesForm.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/profile/security/AccountDeletionDialog.tsx": {
+    "sansProfil": 4,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/profile/security/PhoneVerificationSection.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/profile/security/SecondaryPhoneSection.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/profile/security/TwoFactorSection.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/property-dashboard/PropertyCalendarPanel.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/property-dashboard/PropertyListFilters.tsx": {
+    "sansProfil": 4,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/property-form/ChampsPosition.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 1,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/property-form/PropertyForm.tsx": {
+    "sansProfil": 6,
+    "sansPlaceholder": 1,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/property-form/wizard/steps/StepCaracteristiques.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 1,
+    "reglage": 0
+  },
+  "src/components/property-form/wizard/steps/StepFinition.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/property-form/wizard/steps/StepLieu.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/property-form/wizard/steps/StepPrix.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 3,
+    "reglage": 0
+  },
+  "src/components/public/AnonymousLeadDialog.tsx": {
+    "sansProfil": 4,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/public/fiche/RechercheDuPortefeuille.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/public/index/ProfileFilters.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/publication/FeuilleDePublication.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/publication/FeuilleSansCompte.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/radar-claim/ClaimListingCard.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/radar-claim/RadarClaimReception.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/rapports/alertes/AlertList.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 2,
+    "nombre": 2,
+    "reglage": 0
+  },
+  "src/components/rapports/indicateurs/ReglageDesChiffres.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/reports/ReportDialog.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/search/FilterSidebar.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 2,
+    "reglage": 0
+  },
+  "src/components/search/SearchAutocomplete.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/service-providers/InviteServiceProviderSheet.tsx": {
+    "sansProfil": 4,
+    "sansPlaceholder": 3,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/share/ShareReception.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/super-admin/InviteSuperAdminModal.tsx": {
+    "sansProfil": 3,
+    "sansPlaceholder": 2,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/super-admin/ReviewActionsModal.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/super-admin/SuperAdminOnboardingWizard.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/taches/FicheDeTache.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/taches/NouvelleTache.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/visits/client/AvisDuClient.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/visits/compte-rendu/FormulaireDuCompteRendu.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/visits/dialogues-de-la-visite.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/visits/PlanifierUneVisite.tsx": {
+    "sansProfil": 2,
+    "sansPlaceholder": 1,
+    "nombre": 0,
+    "reglage": 0
+  },
+  "src/components/visits/VisitFeedbackForm.tsx": {
+    "sansProfil": 1,
+    "sansPlaceholder": 0,
+    "nombre": 0,
+    "reglage": 0
+  }
+}

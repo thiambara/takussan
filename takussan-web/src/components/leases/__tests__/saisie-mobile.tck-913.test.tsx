@@ -62,7 +62,8 @@ describe('FeuilleDesGarants — téléphone du garant (TCK-913, la carte « Gara
 
     const champ = await screen.findByLabelText(/Téléphone/);
     expect(champ).toHaveAttribute('type', 'tel');
-    expect(champ).toHaveAttribute('autocomplete', 'tel');
+    // ADR-0135 — l'indicatif est affiché à part : la saisie automatique propose le numéro NATIONAL.
+    expect(champ).toHaveAttribute('autocomplete', 'tel-national');
     expect(screen.getByText('+221')).toBeInTheDocument();
   });
 });

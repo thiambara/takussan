@@ -8,7 +8,7 @@ import {
   type FieldValues,
 } from 'react-hook-form';
 
-import { Textarea } from '@/components/ui/textarea';
+import { Textarea, type ProfilDeZone } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { FormError } from './FormError';
 
@@ -22,6 +22,8 @@ export type FormTextareaProps<TFieldValues extends FieldValues> = NativeTextarea
   readonly control: ControllerProps<TFieldValues>['control'];
   readonly label?: React.ReactNode;
   readonly containerClassName?: string;
+  /** ADR-0135 — le profil de clavier : `texte-long` ou `message`. Transmis à `Textarea`. */
+  readonly profil?: ProfilDeZone;
 };
 
 export function FormTextarea<TFieldValues extends FieldValues>({

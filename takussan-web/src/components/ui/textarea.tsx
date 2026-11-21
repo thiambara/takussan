@@ -1,10 +1,15 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { profil as attributsDuProfil } from "@/lib/clavier"
 
-function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
+/** ADR-0135 — une zone de texte : `texte-long` (Entrée va à la ligne) ou `message` (Entrée affiche « Envoyer »). */
+type ProfilDeZone = "texte-long" | "message"
+
+function Textarea({ className, profil, ...props }: React.ComponentProps<"textarea"> & { readonly profil?: ProfilDeZone }) {
   return (
     <textarea
+      {...(profil ? attributsDuProfil(profil) : null)}
       data-slot="textarea"
       className={cn(
         // TCK-2686 — texte, fond, padding vertical et interligne par les jetons de l'échelle de
@@ -18,4 +23,4 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   )
 }
 
-export { Textarea }
+export { Textarea, type ProfilDeZone }

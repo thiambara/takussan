@@ -19058,7 +19058,9 @@
     },
     "phoneInput": {
       "hintNational": "The {indicatif} country code is already added: type the rest. Abroad? Start with +.",
-      "hintInternational": "Full international number, country code included."
+      "hintInternational": "Full international number, country code included.",
+      "placeholderNational": "77 123 45 67",
+      "placeholderInternational": "+33 6 12 34 56 78"
     },
     "filterChips": {
       "rowLabel": "Filters",

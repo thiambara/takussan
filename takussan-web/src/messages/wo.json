@@ -19058,7 +19058,9 @@
     },
     "phoneInput": {
       "hintNational": "Indicatif {indicatif} bi dugg na : bindal li ci des. Ci bitim-réew nga nekk ? Tàmbaleel ak +.",
-      "hintInternational": "Nimero bu mat, indicatif bi ci biir."
+      "hintInternational": "Nimero bu mat, indicatif bi ci biir.",
+      "placeholderNational": "77 123 45 67",
+      "placeholderInternational": "+33 6 12 34 56 78"
     },
     "filterChips": {
       "rowLabel": "Filtres",

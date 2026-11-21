@@ -19058,7 +19058,9 @@
     },
     "phoneInput": {
       "hintNational": "L'indicatif {indicatif} est déjà ajouté : saisissez la suite. À l'étranger ? Commencez par +.",
-      "hintInternational": "Numéro international complet, indicatif compris."
+      "hintInternational": "Numéro international complet, indicatif compris.",
+      "placeholderNational": "77 123 45 67",
+      "placeholderInternational": "+33 6 12 34 56 78"
     },
     "filterChips": {
       "rowLabel": "Filtres",
