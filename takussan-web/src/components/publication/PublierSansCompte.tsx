@@ -385,17 +385,23 @@ export function PublierSansCompte({
         sortieBloquee={verrouille}
         pas={pas}
         total={total}
-        // TCK-2988 — au téléphone, ✕ demande quoi faire du brouillon : la ligne qui le disait a quitté l'écran.
-        // En mémoire, rien n'est gardé : le texte par défaut de la coque (« ne sera pas enregistré ») dit vrai.
+        // TCK-2988 — ✕ demande quoi faire du brouillon (la ligne qui le disait a quitté l'écran du téléphone) : la
+        // feuille de la maquette, « Reprendre plus tard » en tête. En mémoire, rien n'est gardé : la confirmation
+        // par défaut de la coque (« ne sera pas enregistré ») dit vrai, et met « Rester » en avant.
         saisie={brouillon.aDuContenu}
-        reprise={memoire ? undefined : t('brouillon.sortie')}
-        effacerEnSortant={
+        sortieAvecBrouillon={
           memoire
             ? undefined
             : {
-                libelle: t('brouillon.effacerEnSortant'),
-                effacer: async () => {
-                  await brouillon.clear();
+                titre: t('brouillon.sortieTitre'),
+                texte: t('brouillon.sortie'),
+                partir: t('brouillon.sortiePartir'),
+                rester: t('brouillon.sortieRester'),
+                effacer: {
+                  libelle: t('brouillon.effacerEnSortant'),
+                  effacer: async () => {
+                    await brouillon.clear();
+                  },
                 },
               }
         }

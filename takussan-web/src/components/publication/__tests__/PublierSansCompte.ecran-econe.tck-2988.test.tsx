@@ -8,7 +8,8 @@
  * - la ligne d'état du brouillon ne paraît plus au téléphone (`hidden lg:flex`), sauf l'avertissement du
  *   navigateur qui ne garde rien ;
  * - un brouillon repris s'annonce en une ligne au téléphone, avec « Effacer », à la place de « Nous avons repris… » ;
- * - avec un brouillon, ✕ demande, et « Effacer le brouillon » le vide avant de partir.
+ * - avec un brouillon, ✕ ouvre la feuille « Quitter la publication ? », et « Effacer le brouillon » le vide avant de
+ *   partir.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
@@ -178,8 +179,10 @@ describe('TCK-2988 — le brouillon au téléphone', () => {
     await waitFor(async () => expect(await moteur.lire('valeurs')).toBeDefined());
 
     await user.click(within(barreDuTelephone()).getByRole('link', { name: C.fermer }));
-    const boite = await screen.findByRole('dialog');
+    // La feuille de la maquette : « Quitter la publication ? », « Reprendre plus tard » en tête.
+    const boite = await screen.findByRole('dialog', { name: B.sortieTitre });
     expect(within(boite).getByText(B.sortie)).toBeInTheDocument();
+    expect(within(boite).getAllByRole('button').map((b) => b.textContent)).toEqual([B.sortiePartir, B.sortieRester, B.effacerEnSortant]);
     await act(async () => {
       await user.click(within(boite).getByRole('button', { name: B.effacerEnSortant }));
     });

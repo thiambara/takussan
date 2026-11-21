@@ -5,12 +5,13 @@
  * - `sousTitre` : une ligne sous l'intention, dans la barre du téléphone ;
  * - `avancementAuPied` : la page porte l'avancement, la barre du téléphone n'a plus les pastilles (celle du bureau
  *   les garde) ;
- * - `effacerEnSortant` : un troisième geste dans la confirmation de sortie, qui efface PUIS part par le même lien ;
- *   le focus d'ouverture reste sur « Quitter ».
+ * - `sortieAvecBrouillon` : le brouillon est gardé, la confirmation de sortie devient la feuille du bas de la
+ *   maquette — « Reprendre plus tard » en tête (le focus y va), « Continuer la publication », puis « Effacer le
+ *   brouillon », qui efface PUIS part par le même lien.
  *
  * Harnais de `CoqueDEntree.sortie-gardee.tck-2598.test.tsx`.
  */
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import frMessages from '@/messages/fr.json';
@@ -93,25 +94,54 @@ describe('TCK-2988 — la barre du téléphone', () => {
   });
 });
 
-describe('TCK-2988 — effacer en sortant', () => {
-  it('un troisième geste : efface, PUIS part par le même lien ; le focus d’ouverture reste sur « Quitter »', async () => {
+const SORTIE = {
+  titre: 'Quitter la publication ?',
+  texte: 'Votre brouillon reste gardé ici.',
+  partir: 'Reprendre plus tard',
+  rester: 'Continuer la publication',
+};
+
+describe('TCK-2988 — la sortie avec un brouillon gardé (feuille de la maquette)', () => {
+  it('au téléphone, une feuille du bas : partir en tête, rester, puis effacer — et le focus sur partir', async () => {
+    const { telephone } = monter({ saisie: true, sortieAvecBrouillon: { ...SORTIE, effacer: { libelle: 'Effacer le brouillon', effacer: vi.fn() } } });
+    fireEvent.click(within(telephone).getByRole('link', { name: C.fermer }));
+    expect(clics).toEqual([{ href: '/', annule: true }]);
+
+    const feuille = screen.getByRole('dialog', { name: SORTIE.titre });
+    expect(within(feuille).getByText(SORTIE.texte)).toBeInTheDocument();
+    expect(within(feuille).getAllByRole('button').map((b) => b.textContent)).toEqual([SORTIE.partir, SORTIE.rester, 'Effacer le brouillon']);
+    // Collée en bas, coins du haut arrondis, sans croix ; dialogue centré dès `sm`.
+    expect(feuille).toHaveClass('max-sm:bottom-0', 'max-sm:top-auto', 'max-sm:rounded-t-3xl', 'max-sm:translate-y-0');
+    expect(within(feuille).queryByRole('button', { name: /fermer|close/i })).toBeNull();
+    // Gestes pleine largeur empilés au téléphone ; dès `sm`, partir à droite et effacer à gauche.
+    expect(within(feuille).getByRole('button', { name: SORTIE.partir })).toHaveClass('max-sm:h-12', 'max-sm:rounded-full', 'sm:order-last');
+    expect(within(feuille).getByRole('button', { name: SORTIE.rester })).toHaveClass('max-sm:h-12');
+    expect(within(feuille).getByRole('button', { name: 'Effacer le brouillon' })).toHaveClass('text-destructive', 'sm:order-first', 'sm:mr-auto');
+    await waitFor(() => expect(within(feuille).getByRole('button', { name: SORTIE.partir })).toHaveFocus());
+  });
+
+  it('« Reprendre plus tard » part par le même lien ; « Continuer la publication » reste', () => {
+    const { telephone } = monter({ saisie: true, sortieAvecBrouillon: SORTIE });
+    fireEvent.click(within(telephone).getByRole('link', { name: C.fermer }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: SORTIE.rester }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(clics).toHaveLength(1);
+
+    fireEvent.click(within(telephone).getByRole('link', { name: C.fermer }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: SORTIE.partir }));
+    expect(clics.at(-1)).toEqual({ href: '/', annule: false });
+  });
+
+  it('« Effacer le brouillon » efface, PUIS part par le même lien', async () => {
     const ordre: string[] = [];
     const effacer = vi.fn(async () => {
       ordre.push('effacé');
     });
-    const { telephone } = monter({ saisie: true, reprise: 'Votre brouillon reste ici.', effacerEnSortant: { libelle: 'Effacer le brouillon', effacer } });
+    const { telephone } = monter({ saisie: true, sortieAvecBrouillon: { ...SORTIE, effacer: { libelle: 'Effacer le brouillon', effacer } } });
     fireEvent.click(within(telephone).getByRole('link', { name: C.fermer }));
-    expect(clics).toEqual([{ href: '/', annule: true }]);
-
-    const boite = screen.getByRole('dialog');
-    const gestes = within(boite).getAllByRole('button').map((b) => b.textContent);
-    // Dans l'ordre du document, « Effacer » vient après « Quitter » et « Rester » (vu en bas : `-order-1`).
-    expect(gestes.indexOf('Effacer le brouillon')).toBeGreaterThan(gestes.indexOf(C.sortie.rester));
-    expect(within(boite).getByRole('button', { name: 'Effacer le brouillon' })).toHaveClass('-order-1');
-
     window.addEventListener('click', () => ordre.push('parti'), { once: true });
     await act(async () => {
-      fireEvent.click(within(boite).getByRole('button', { name: 'Effacer le brouillon' }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Effacer le brouillon' }));
     });
     expect(effacer).toHaveBeenCalledTimes(1);
     expect(clics.at(-1)).toEqual({ href: '/', annule: false });
@@ -119,9 +149,12 @@ describe('TCK-2988 — effacer en sortant', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('sans `effacerEnSortant`, la confirmation garde ses deux gestes', () => {
+  it('sans brouillon gardé, la confirmation d’avant : « Rester » en avant, et rien à effacer', () => {
     const { telephone } = monter({ saisie: true });
     fireEvent.click(within(telephone).getByRole('link', { name: C.fermer }));
-    expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /effacer/i })).toBeNull();
+    const boite = screen.getByRole('dialog', { name: C.sortie.titre });
+    expect(boite).not.toHaveClass('max-sm:bottom-0');
+    expect(within(boite).queryByRole('button', { name: /effacer/i })).toBeNull();
+    expect(within(boite).getAllByRole('button').map((b) => b.textContent)).toEqual(expect.arrayContaining([C.sortie.partir, C.sortie.rester]));
   });
 });

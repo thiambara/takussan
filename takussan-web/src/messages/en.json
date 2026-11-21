@@ -19514,7 +19514,10 @@
         "repris": "Draft restored, kept on this phone.",
         "effacerCourt": "Delete",
         "sortie": "Your draft stays saved here: when you come back, you will pick up where you left off.",
-        "effacerEnSortant": "Delete the draft"
+        "effacerEnSortant": "Delete the draft",
+        "sortieTitre": "Leave publishing?",
+        "sortiePartir": "Resume later",
+        "sortieRester": "Continue publishing"
       },
       "numero": {
         "libelle": "Your number",

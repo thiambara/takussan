@@ -19514,7 +19514,10 @@
         "repris": "Brouillon repris, gardé sur ce téléphone.",
         "effacerCourt": "Effacer",
         "sortie": "Votre brouillon reste gardé ici : en revenant, vous reprendrez là où vous en êtes.",
-        "effacerEnSortant": "Effacer le brouillon"
+        "effacerEnSortant": "Effacer le brouillon",
+        "sortieTitre": "Quitter la publication ?",
+        "sortiePartir": "Reprendre plus tard",
+        "sortieRester": "Continuer la publication"
       },
       "numero": {
         "libelle": "Votre numéro",
