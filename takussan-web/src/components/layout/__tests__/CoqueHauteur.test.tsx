@@ -243,9 +243,22 @@ describe('ADR-0134 — au téléphone, la page de la console défile', () => {
     expect(coque.querySelector('main')!.parentElement).toHaveAttribute('data-rangee-du-contenu');
   });
 
-  it('la messagerie garde sa boîte : sa colonne a une hauteur bornée', () => {
+  it('la messagerie garde sa boîte : sa colonne a une hauteur bornée, et pas de pastille', () => {
     navigation.chemin = '/app/messages';
-    expect(monter(COQUES[0][1])).not.toHaveAttribute('data-defilement');
+    const coque = monter(COQUES[0][1]);
+    expect(coque).not.toHaveAttribute('data-defilement');
+    expect(coque.querySelector('[data-slot="pastille-des-barres"]')).toBeNull();
+  });
+
+  it('TCK-2990 — la pastille de rappel : un bouton nommé, du téléphone, inerte tant que les barres sont là', () => {
+    const coque = monter(COQUES[0][1]);
+    const pastille = coque.querySelector<HTMLButtonElement>('[data-slot="pastille-des-barres"]')!;
+    expect(pastille).not.toBeNull();
+    expect(pastille.tagName).toBe('BUTTON');
+    expect(pastille).toHaveAttribute('aria-label', 'Afficher la navigation');
+    expect(pastille).toHaveClass('pastille-des-barres', 'md:hidden');
+    expect(pastille).toHaveAttribute('inert');
+    expect(pastille).not.toHaveAttribute('data-visible');
   });
 
   it('les règles : la coque prend sa hauteur, rien ne défile dedans, l’en-tête colle et la barre est fixée', () => {

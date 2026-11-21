@@ -419,6 +419,113 @@
   }
 }
 
+/* ADR-0134 § 3 (TCK-2990) — LES BARRES S'EFFACENT AU DÉFILEMENT, en mode document, sous `md`. L'état est décidé
+   par `useEffacementDesBarres` (`data-barres-effacees` sur `<html>`) ; le mouvement est ici, joué par le
+   compositeur. La v4 de la maquette validée par le porteur : la barre part et revient D'UN SEUL BLOC (icônes et
+   fond ensemble), 340 ms ; le retour sur la courbe des feuilles d'iOS, le départ sur une courbe douce aux deux
+   bouts — ni l'un ni l'autre n'est brusque. Sous une barre d'action, rien ne s'efface. Ce qui colle en haut d'une
+   page suit l'en-tête (`--haut-colle` passe à 0), sur la même courbe. Gardé par `effacement-des-barres.tck-2990`. */
+:root {
+  --courbe-des-barres-retour: cubic-bezier(0.32, 0.72, 0, 1);
+  --courbe-des-barres-depart: cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (width < 48rem) {
+  [data-defilement="document"] > [data-slot="en-tete-mobile"],
+  [data-defilement="document"] [data-slot="barre-onglets"] {
+    transform: translateY(0);
+    transition: transform 340ms var(--courbe-des-barres-retour);
+  }
+  [data-defilement="document"] #contenu-principal [class*="top-(--haut-colle)"] {
+    transition: top 340ms var(--courbe-des-barres-retour);
+  }
+  html[data-barres-effacees]:not(:has(#emplacement-barre-d-action > *)) {
+    --haut-colle: 0px;
+  }
+  html[data-barres-effacees]:not(:has(#emplacement-barre-d-action > *)) [data-defilement="document"] > [data-slot="en-tete-mobile"] {
+    transform: translateY(-100%);
+    transition: transform 340ms var(--courbe-des-barres-depart);
+  }
+  html[data-barres-effacees]:not(:has(#emplacement-barre-d-action > *)) [data-defilement="document"] [data-slot="barre-onglets"] {
+    transform: translateY(100%);
+    transition: transform 340ms var(--courbe-des-barres-depart);
+  }
+  html[data-barres-effacees]:not(:has(#emplacement-barre-d-action > *)) [data-defilement="document"] #contenu-principal [class*="top-(--haut-colle)"] {
+    transition: top 340ms var(--courbe-des-barres-depart);
+  }
+  /* ADR-0133 — clavier ouvert, la barre d'onglets s'en va, toujours. */
+  html[data-saisie="ouvert"] [data-defilement="document"] [data-slot="barre-onglets"] {
+    transform: translateY(100%);
+    transition: transform 200ms var(--courbe-des-barres-retour);
+  }
+
+  /* La pastille : elle n'apparaît qu'une fois les barres parties, et disparaît à l'instant où elles reviennent.
+     Une barre de 40 × 5 px dans une zone de 96 × 32, au-dessus de la zone sûre. */
+  .pastille-des-barres {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom) + 2px);
+    z-index: 31;
+    translate: -50% 0;
+    display: grid;
+    place-items: center;
+    width: 96px;
+    height: 32px;
+    opacity: 0;
+    scale: 0.6 1;
+    pointer-events: none;
+    transition:
+      opacity 120ms ease,
+      scale 120ms ease;
+  }
+  .pastille-des-barres[data-visible] {
+    opacity: 1;
+    scale: 1 1;
+    pointer-events: auto;
+    transition:
+      opacity 260ms ease 240ms,
+      scale 420ms var(--courbe-des-barres-retour) 240ms;
+  }
+  .pastille-des-barres > span {
+    display: block;
+    width: 40px;
+    height: 5px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--foreground) 32%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--background) 70%, transparent);
+  }
+  .pastille-des-barres:active > span {
+    background: color-mix(in srgb, var(--primary) 70%, transparent);
+  }
+  .pastille-des-barres:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+    border-radius: 999px;
+  }
+  html[data-saisie="ouvert"] .pastille-des-barres {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+/* Mouvement réduit : un fondu, aucun déplacement. */
+@media (width < 48rem) and (prefers-reduced-motion: reduce) {
+  [data-defilement="document"] > [data-slot="en-tete-mobile"],
+  [data-defilement="document"] [data-slot="barre-onglets"] {
+    transition: opacity 160ms ease;
+  }
+  html[data-barres-effacees]:not(:has(#emplacement-barre-d-action > *)) [data-defilement="document"] > [data-slot="en-tete-mobile"],
+  html[data-barres-effacees]:not(:has(#emplacement-barre-d-action > *)) [data-defilement="document"] [data-slot="barre-onglets"] {
+    transform: none;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 160ms ease,
+      visibility 0s 160ms;
+  }
+  [data-defilement="document"] #contenu-principal [class*="top-(--haut-colle)"] {
+    transition: none;
+  }
+}
+
 /* TCK-2825 (ADR-0091 § 4) — la pastille du comparateur, sous `/app` (la page des favoris), se pose
    au-dessus de la barre d'onglets de la coque par la règle du dessus. Là où une page de la coque
    retire la barre (conversation ouverte, formulaire : `data-barre-onglets` absent), une autre couche

@@ -28,7 +28,10 @@ import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProf
 import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
 import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
-import { defileLeDocument, estPleinEcran, porteLaBarreDOnglets } from './plein-ecran';
+import { defileLeDocument, estPleinEcran, porteLaBarreDOnglets, REQUETE_DE_LA_BARRE } from './plein-ecran';
+import { useEffacementDesBarres } from './useEffacementDesBarres';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { useFenetre } from '@/lib/fenetre';
 import { EnveloppeDuContenu } from './PagePleineLargeur';
 import { PreferencesDuMenuProvider } from './PreferencesDuMenu';
 import { ContexteDuMenuDeLaCoque } from './contexte-du-menu-de-la-coque';
@@ -147,6 +150,10 @@ function CoqueDeLApp({
     }
     setPaletteOuverte(ouverte);
   };
+  // ADR-0134 § 3 (TCK-2990) — sous `md`, en mode document : l'en-tête et la barre d'onglets s'effacent au
+  // défilement. Jamais tiroir ou palette ouverts ; une navigation les rend (la clé est la route).
+  const sousMd = useMatchesMedia(REQUETE_DE_LA_BARRE);
+  const { effacees, rappeler } = useEffacementDesBarres(documentDefile && sousMd && !sidebarOpen && !paletteOuverte, pathname ?? '');
   // A6 — rien en plein écran : le parcours porte sa propre sortie, le navigateur garde son raccourci.
   useRaccourciDeLaPalette({ actif: !pleinEcran, ouverte: paletteOuverte, changer: changerPalette });
   // A17 — les mêmes arguments que ceux du menu de la barre (`AppSidebar`, `BarreDOnglets`), pour la
@@ -361,6 +368,23 @@ function CoqueDeLApp({
               refMenu={boutonMenu}
             />
           ) : null}
+          {/* ADR-0134 § 3 — la pastille : barres effacées, un toucher les rappelle. Toujours montée (sa venue
+              est une transition), inerte tant que les barres sont là. Et la mesure de la fenêtre (ADR-0133) :
+              clavier ouvert, la barre d'onglets part. */}
+          {documentDefile && barreDOnglets ? (
+            <button
+              type="button"
+              data-slot="pastille-des-barres"
+              data-visible={effacees ? '' : undefined}
+              inert={!effacees}
+              aria-label={t('onglets.afficherLaNavigation')}
+              onClick={rappeler}
+              className="pastille-des-barres md:hidden"
+            >
+              <span aria-hidden />
+            </button>
+          ) : null}
+          {documentDefile ? <AbonnementALaFenetre /> : null}
           {customerOnboardingActive ? (
             <CustomerWelcomeWizard onSettled={() => setCustomerWelcomeSettled(true)} />
           ) : null}
@@ -374,6 +398,16 @@ function CoqueDeLApp({
       </PreferencesDuMenuProvider>
     </MinimalProfileTriggerProvider>
   );
+}
+
+/**
+ * ADR-0133 / ADR-0134 — s'abonner à la mesure de la fenêtre suffit à publier `data-saisie` sur `<html>` : la barre
+ * d'onglets part quand le clavier s'ouvre. Un composant à part, qui ne rend rien : la mesure change à chaque
+ * repli des barres du navigateur, et seul lui se re-rend.
+ */
+function AbonnementALaFenetre() {
+  useFenetre();
+  return null;
 }
 
 /**
