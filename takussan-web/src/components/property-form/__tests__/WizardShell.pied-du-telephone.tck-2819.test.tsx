@@ -96,13 +96,12 @@ describe.each([
     expect(screen.getByText('résumé').parentElement).toHaveClass('lg:hidden');
   });
 
-  it('le pied : la carte et son ombre, sans bordure ni retrait du haut, 10 px ou la zone de sécurité en bas', () => {
+  it('le pied : la carte et son ombre, sans bordure ni retrait du haut, 16 px ou la zone de sécurité en bas', () => {
     const { pied } = monter(1, { cadreDEntree });
     expect(pied).toHaveClass('bg-card', 'max-lg:shadow-barre-collante', 'lg:border-t');
-    // Le retrait du bas : 10 px au téléphone, 16 au bureau, ou la zone de sécurité — déclaré au dock et appliqué
-    // par le même geste (TCK-477), d'où le style plutôt qu'une classe.
-    expect(pied).toHaveClass('[--retrait-du-pied:calc(var(--spacing)*2.5)]', 'lg:[--retrait-du-pied:calc(var(--spacing)*4)]');
-    expect(pied.style.paddingBottom).toBe('max(var(--retrait-du-pied), env(safe-area-inset-bottom))');
+    // Le retrait du bas : 16 px, ou la zone de sécurité (demande du porteur : de l'air sous « Continuer ») — déclaré
+    // au dock et appliqué par le même geste (TCK-477), d'où le style plutôt qu'une classe.
+    expect(pied.style.paddingBottom).toBe('max(calc(var(--spacing) * 4), env(safe-area-inset-bottom))');
     expect(pied.className).not.toMatch(/(^|\s)(border-t|pt-[\d.]+)(\s|$)/);
     expect(pied.className).not.toMatch(/(^|\s)(lg:)?shadow-/);
     const ligne = bouton(/^précédent$/i).parentElement!;

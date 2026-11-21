@@ -87,6 +87,8 @@ bandeaux passent de 158 à 56 px, le pied de 117 à 71 px.
       d'aperçu ni ligne d'état du brouillon ne s'intercale entre l'en-tête et la question.
 - [x] AC2 — À 390 px, le pied mesure au plus 72 px hors zone de sécurité, sur les deux entrées. *71 px
       sur `/publish` et sur `/app/properties/new` (relevé le 2026-11-21, API locale, compte propriétaire).*
+      *Puis 77 px, à la demande du porteur, pour mettre de l'air sous « Continuer » : 16 px en bas au lieu de 10,
+      ou la zone de sécurité. Les coins arrondis de Chrome iOS rognaient le bouton. Écart assumé avec ce critère.*
 - [x] AC3 — « Aperçu » dans l'en-tête ouvre le tiroir existant (carte, liste « Pour publier »).
 - [x] AC4 — Avec un brouillon, ✕ ouvre une confirmation qui propose de partir, de rester et d'effacer
       puis partir. Effacer vide réellement le brouillon local.
@@ -182,3 +184,9 @@ test.
 - **Non reproduit** : sur la capture du porteur, « Brouillon effacé. » chevauche le texte de l'assistant derrière
   la feuille. En émulation, effacer ramène à l'accueil, sans chevauchement.
 - **Rouge sans rapport** : `credits.tck-2664` attend le 27 novembre et reçoit le 28. Ce test dépend de l'heure.
+- **Diagnostic du 2026-11-21, 21 h 30, sur l'iPhone du porteur (journal temporaire affiché à l'écran)** : le mode
+  saisie se déclenchait bien (`data-saisie="ouvert"`, focus sur le numéro, clavier de 269 px mesuré). Mais la
+  feuille de style chargée ne contenait aucune règle `saisie:`. L'onglet n'avait reçu que des mises à jour à chaud :
+  le JS était arrivé, le CSS non. Dans un onglet neuf, la feuille du numéro et la feuille de sortie se comportent
+  comme prévu (confirmé par le porteur). Pour tout essai au téléphone, il faut un onglet rouvert, pas seulement les
+  mises à jour à chaud.

@@ -172,16 +172,16 @@ export function WizardShell({
 
   // Le pied tient le bas de l'écran pendant tout le parcours : il revendique le bord bas auprès
   // du dock, sans quoi un élément flottant se posait sur « Continuer » à 390 px (mesuré le
-  // 2026-09-16). TCK-2988 — au téléphone, le pied compact fait 71 px : segments (3) + `pt-2.5` + geste
-  // de 48 + `pb-2.5` (ou la zone de sécurité). Dès `lg`, 100 px (relevé à 1024 le 2026-11-21, avant et après ce
-  // ticket) : c'est la plus grande des deux qu'on réserve. Le retrait du bas diffère d'un côté de `lg` à l'autre (10 px
-  // au téléphone, 16 au bureau) : la déclaration lit `--retrait-du-pied`, posé par les classes du pied, et le pied
-  // applique ce qu'elle rend (TCK-477 : déclarer et appliquer sont le même geste).
+  // 2026-09-16). TCK-2988 — au téléphone, le pied compact fait 77 px : segments (3) + `pt-2.5` + geste
+  // de 48 + 16 px en bas, ou la zone de sécurité (10 px d'abord ; le porteur a demandé de l'air sous « Continuer »,
+  // que les coins arrondis de Chrome iOS rognaient). Dès `lg`, 100 px (relevé à 1024 le 2026-11-21) : c'est la plus
+  // grande des deux qu'on réserve. Le pied applique ce que la déclaration rend (TCK-477 : déclarer et appliquer sont le
+  // même geste).
   const pied = useFloatingDockSlot({
     id: 'property-wizard-footer',
     corner: 'bottom-full',
     height: 100,
-    safeAreaInset: 'max(var(--retrait-du-pied), env(safe-area-inset-bottom))',
+    safeAreaInset: 'max(calc(var(--spacing) * 4), env(safe-area-inset-bottom))',
   });
 
   // ADR-0133 (TCK-2988) — le mode saisie : le champ qui prend le focus est amené à sa place, ↑ ↓ passent d'un champ
@@ -348,9 +348,8 @@ export function WizardShell({
               // L'ombre (le jeton `--shadow-barre-collante`, celle du `Pied`) porte `max-lg:` : un
               // `lg:shadow-none` laisserait des ombres transparentes calculées.
               // TCK-2988 — sous `lg`, ni bordure ni retrait du haut : les segments de la progression SONT le bord
-              // du pied ; en bas, 10 px ou la zone de sécurité, la plus grande.
+              // du pied ; en bas, 16 px ou la zone de sécurité (`paddingBottom`, rendu par le dock).
               'shrink-0 bg-card max-lg:shadow-barre-collante',
-              '[--retrait-du-pied:calc(var(--spacing)*2.5)] lg:[--retrait-du-pied:calc(var(--spacing)*4)]',
               'lg:border-t lg:border-border',
               cadreDEntree
                 ? 'lg:bg-card'
