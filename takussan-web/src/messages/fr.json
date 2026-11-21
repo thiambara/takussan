@@ -1460,6 +1460,7 @@
       },
       "publish": "Publier l’annonce",
       "resumeLater": "Enregistrer et quitter",
+      "resumeLaterShort": "Quitter",
       "proposalFinish": "Proposer à mon agence",
       "proposalNotice": "Votre agence relira ce bien avant de le publier : il reste privé jusque-là.",
       "missingId": "Le bien a été créé, mais son identifiant n’a pas été renvoyé. Retrouvez-le dans la liste de vos biens.",
@@ -1652,6 +1653,11 @@
         "firstIsCover": "La première est la photo principale",
         "cover": "Couverture",
         "add": "Ajouter"
+      },
+      "saisie": {
+        "precedent": "Champ précédent",
+        "suivant": "Champ suivant",
+        "position": "{partie} · {current}/{total}"
       }
     },
     "titleTypes": {
@@ -19510,7 +19516,14 @@
         "quota": "Ce navigateur n’a plus de place pour le brouillon : votre annonce reste ici tant que l’onglet est ouvert.",
         "purge": "Un brouillon resté plus de 30 jours sans changement a été effacé.",
         "effacer": "Effacer ce brouillon",
-        "efface": "Brouillon effacé."
+        "efface": "Brouillon effacé.",
+        "repris": "Brouillon repris, gardé sur ce téléphone.",
+        "effacerCourt": "Effacer",
+        "sortie": "Votre brouillon reste gardé ici : en revenant, vous reprendrez là où vous en êtes.",
+        "effacerEnSortant": "Effacer le brouillon",
+        "sortieTitre": "Quitter la publication ?",
+        "sortiePartir": "Reprendre plus tard",
+        "sortieRester": "Continuer la publication"
       },
       "numero": {
         "libelle": "Votre numéro",

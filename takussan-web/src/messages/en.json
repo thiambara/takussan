@@ -1503,6 +1503,7 @@
       },
       "publish": "Publish listing",
       "resumeLater": "Save and exit",
+      "resumeLaterShort": "Exit",
       "proposalFinish": "Propose to my agency",
       "proposalNotice": "Your agency will review this property before publishing it: it stays private until then.",
       "missingId": "The property was created, but no identifier came back. Find it in your property list.",
@@ -1695,6 +1696,11 @@
         "firstIsCover": "The first one is the main photo",
         "cover": "Cover",
         "add": "Add"
+      },
+      "saisie": {
+        "precedent": "Previous field",
+        "suivant": "Next field",
+        "position": "{partie} · {current}/{total}"
       }
     },
     "titleTypes": {
@@ -19510,7 +19516,14 @@
         "quota": "This browser has no room left for the draft: your listing stays here while the tab is open.",
         "purge": "A draft left unchanged for more than 30 days was deleted.",
         "effacer": "Delete this draft",
-        "efface": "Draft deleted."
+        "efface": "Draft deleted.",
+        "repris": "Draft restored, kept on this phone.",
+        "effacerCourt": "Delete",
+        "sortie": "Your draft stays saved here: when you come back, you will pick up where you left off.",
+        "effacerEnSortant": "Delete the draft",
+        "sortieTitre": "Leave publishing?",
+        "sortiePartir": "Resume later",
+        "sortieRester": "Continue publishing"
       },
       "numero": {
         "libelle": "Your number",

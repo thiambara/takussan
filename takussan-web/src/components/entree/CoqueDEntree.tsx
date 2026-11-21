@@ -124,6 +124,36 @@ export interface DeclarationDEntree {
    * La marque reste la sortie, avec sa garde. Absent : « Retour au site ».
    */
   readonly aDroite?: { readonly telephone: ReactNode; readonly bureau: ReactNode };
+  /**
+   * TCK-2988 — une ligne sous l'intention, dans la barre du téléphone (le résumé de l'annonce de `/publish`,
+   * maquette « L'écran économe »). Elle prend la place de « Étape N sur M » écrit.
+   */
+  readonly sousTitre?: ReactNode;
+  /**
+   * TCK-2988 — la page porte l'avancement elle-même (le pied de l'assistant de publication) : la barre du
+   * téléphone ne montre pas les pastilles. Celle du bureau les garde.
+   */
+  readonly avancementAuPied?: boolean;
+  /**
+   * TCK-2988 — le brouillon est GARDÉ : partir ne perd rien. La confirmation de sortie devient la feuille du
+   * bas de la maquette « L'écran économe » (dialogue centré dès `sm`) : partir est le geste principal
+   * (« Reprendre plus tard »), rester le second, et `effacer` (le brouillon, puis partir) le troisième. Les
+   * libellés viennent de la page, comme tout ce que la coque affiche (aucun espace de libellés ici). Absent :
+   * la confirmation d'avant, qui met « Rester » en avant — partir y perdrait la saisie.
+   */
+  readonly sortieAvecBrouillon?: SortieAvecBrouillon;
+}
+
+export interface SortieAvecBrouillon {
+  /** « Quitter la publication ? » */
+  readonly titre: string;
+  /** « Votre brouillon reste sur ce téléphone : vous reprendrez là où vous en êtes. » */
+  readonly texte: string;
+  /** « Reprendre plus tard » — le geste principal : partir. */
+  readonly partir: string;
+  /** « Continuer la publication » — rester. */
+  readonly rester: string;
+  readonly effacer?: { readonly libelle: string; readonly effacer: () => void | Promise<void> };
 }
 
 /**
@@ -207,10 +237,11 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
   // TCK-2941 — `aDroite` déclaré comme les autres champs (oublié ici, il ne parviendrait jamais à la coque).
-  const { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite } = declaration;
+  // TCK-2988 — `sousTitre`, `avancementAuPied`, `sortieAvecBrouillon` : déclarés comme les autres (même raison).
+  const { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite, sousTitre, avancementAuPied, sortieAvecBrouillon } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite });
-  }, [declarer, id, titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite]);
+    declarer(id, { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite, sousTitre, avancementAuPied, sortieAvecBrouillon });
+  }, [declarer, id, titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite, sousTitre, avancementAuPied, sortieAvecBrouillon]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -320,6 +351,20 @@ export function CoqueDEntree({
     setEnAttente(evenement.currentTarget);
   }
 
+  // TCK-2988 — effacer (le brouillon), puis partir par le même lien. Pendant l'écriture, les gestes attendent.
+  const [enEffacement, setEnEffacement] = useState(false);
+  async function effacerPuisPartir() {
+    const effacer = sortieAvecBrouillon?.effacer;
+    if (!effacer) return;
+    setEnEffacement(true);
+    try {
+      await effacer.effacer();
+    } finally {
+      setEnEffacement(false);
+    }
+    partir();
+  }
+
   function partir() {
     const lien = enAttente;
     setEnAttente(null);
@@ -350,6 +395,10 @@ export function CoqueDEntree({
       : null;
   // TCK-2941 — la page peut poser autre chose à cette place (« Aide », le compte connecté).
   const aDroite = declaree.aDroite ?? parDefaut.aDroite ?? null;
+  const sousTitre = declaree.sousTitre ?? null;
+  // TCK-2988 — l'avancement porté par la page : rien dans la barre du téléphone.
+  const avancementAuTelephone = declaree.avancementAuPied === true ? null : avancement;
+  const sortieAvecBrouillon = declaree.sortieAvecBrouillon ?? null;
   const retourAuSite =
     sortie?.forme === 'retour-au-site' ? (
       <NextLink href={sortie.href} onClick={auClicDeSortie} {...inerte} className={cn(CLASSES_LIEN_TEXTE, CLASSES_INERTES)}>
@@ -360,7 +409,18 @@ export function CoqueDEntree({
   return (
     <ContexteDeclarer.Provider value={declarer}>
       <ContexteSortie.Provider value={gardePretee}>
-      <div className={cn('flex bg-background', pleinEcran ? 'h-dvh' : 'min-h-dvh')} data-coque-d-entree="">
+      <div
+        className={cn(
+          'flex bg-background',
+          pleinEcran ? 'h-dvh' : 'min-h-dvh',
+          // ADR-0133 (TCK-2988) — au téléphone, pendant la saisie seulement, le cadre se cale sur la fenêtre VISIBLE :
+          // le clavier d'iPhone ne réduit qu'elle, et le pied se retrouve au-dessus de lui sans un calcul. Hors saisie,
+          // il reste dans le flux : une hauteur mesurée restait figée quand Chrome iOS repliait ses barres.
+          pleinEcran &&
+            'max-lg:saisie:fixed max-lg:saisie:inset-x-0 max-lg:saisie:top-[var(--vue-top,0px)] max-lg:saisie:z-30 max-lg:saisie:h-[var(--vue-h,100dvh)]',
+        )}
+        data-coque-d-entree=""
+      >
         {panneau ? (
           <aside
             data-panneau-d-entree=""
@@ -376,7 +436,13 @@ export function CoqueDEntree({
             </div>
           ) : (
             /* Téléphone : 56 px — retour, « ✕ » ou la marque ; l'intention ; l'avancement, la sortie. */
-            <header className="sticky top-0 z-20 flex h-14 flex-none items-center gap-1 border-b border-border/70 bg-background px-1 lg:hidden">
+            <header
+              className={cn(
+                'sticky top-0 z-20 flex h-14 flex-none items-center gap-1 border-b border-border/70 bg-background px-1 lg:hidden',
+                // ADR-0133 — en saisie, 44 px, sans la ligne sous l'intention.
+                pleinEcran && 'saisie:h-11',
+              )}
+            >
               {retour ? (
                 retour.telephone
               ) : sortie?.forme === 'quitter' ? (
@@ -396,7 +462,15 @@ export function CoqueDEntree({
                   `BarreEntree`, `EnTeteFormulaire`) ; ouverte sur la marque, la barre n'a que la marque et
                   l'avancement (orientation a-0/a-1) — l'intention passe à la barre du bureau. */}
               {titre && (retour || sortie?.forme === 'quitter') ? (
-                etapeEcrite ? (
+                sousTitre ? (
+                  // TCK-2988 — maquette « L'écran économe » : l'intention, et dessous ce qu'on est en train d'en faire.
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="truncate text-action font-semibold">{titre}</p>
+                    <p data-sous-titre-d-entree="" className="truncate text-ui text-muted-foreground tabular-nums saisie:hidden">
+                      {sousTitre}
+                    </p>
+                  </div>
+                ) : etapeEcrite ? (
                   <div className="min-w-0 flex-1 leading-tight">
                     <p className="truncate text-action font-semibold">{titre}</p>
                     <p data-avancement-ecrit="" aria-hidden="true" className="text-ui text-muted-foreground">
@@ -415,9 +489,9 @@ export function CoqueDEntree({
               ) : (
                 <span className="flex-1" />
               )}
-              {avancement || retourAuSite || aDroite ? (
-                <span className="flex flex-none items-center gap-2 pr-3">
-                  {avancement}
+              {avancementAuTelephone || retourAuSite || aDroite ? (
+                <span className={cn('flex flex-none items-center gap-2', declaree.avancementAuPied === true && aDroite ? 'pr-1' : 'pr-3')}>
+                  {avancementAuTelephone}
                   {aDroite ? aDroite.telephone : retourAuSite}
                 </span>
               ) : null}
@@ -528,7 +602,9 @@ export function CoqueDEntree({
             // bureau, sous la colonne, dans le flux.
             <div
               data-pied-d-entree=""
-              style={{ bottom: decalage }}
+              // ADR-0133 — plein écran, le cadre se cale lui-même sur la fenêtre visible pendant la saisie : le décalage
+              // compterait le clavier deux fois.
+              style={{ bottom: pleinEcran ? undefined : decalage }}
               className="sticky z-20 flex-none border-t border-border bg-card px-4 pb-5 pt-3 shadow-barre-collante lg:static lg:mx-auto lg:w-full lg:max-w-[30rem] lg:border-0 lg:bg-transparent lg:px-0 lg:pb-16 lg:pt-0 lg:shadow-none"
             >
               {pied}
@@ -538,19 +614,55 @@ export function CoqueDEntree({
       </div>
 
       {enAttente ? (
+        // TCK-2988 — la sortie, au téléphone, est une feuille du bas (maquette « L'écran économe ») : gestes pleine
+        // largeur empilés, le geste sûr en tête et focalisé à l'ouverture. Dès `sm`, le dialogue centré.
+        //  - brouillon gardé : partir (« Reprendre plus tard ») ne perd rien, il est en tête ; effacer est à part ;
+        //  - sans brouillon : partir perd la saisie, c'est « Rester » qui est en tête, et partir se dit en rouge.
         <Dialog open onOpenChange={(ouvert) => (ouvert ? null : setEnAttente(null))}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{libelles.sortie.titre}</DialogTitle>
-              <DialogDescription>{declaree.reprise ?? libelles.sortie.texte}</DialogDescription>
+          <DialogContent
+            showCloseButton={false}
+            data-feuille-de-sortie=""
+            data-sortie-avec-brouillon={sortieAvecBrouillon ? '' : undefined}
+            className={cn(
+              'max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0',
+              'max-sm:gap-0 max-sm:rounded-none max-sm:rounded-t-3xl max-sm:bg-card max-sm:px-5 max-sm:pt-2 max-sm:pb-[max(calc(var(--spacing)*4),env(safe-area-inset-bottom))] max-sm:ring-0',
+              'max-sm:data-open:slide-in-from-bottom max-sm:data-closed:slide-out-to-bottom max-sm:duration-300',
+            )}
+          >
+            <span aria-hidden="true" className="mx-auto mb-4 block h-1 w-10 rounded-full bg-border sm:hidden" />
+            <DialogHeader className="max-sm:gap-1">
+              <DialogTitle className="max-sm:font-display max-sm:text-lg max-sm:font-semibold">
+                {sortieAvecBrouillon ? sortieAvecBrouillon.titre : libelles.sortie.titre}
+              </DialogTitle>
+              <DialogDescription className="max-sm:text-ui">
+                {sortieAvecBrouillon ? sortieAvecBrouillon.texte : (declaree.reprise ?? libelles.sortie.texte)}
+              </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={partir}>
-                {libelles.sortie.partir}
-              </Button>
-              <Button type="button" onClick={() => setEnAttente(null)}>
-                {libelles.sortie.rester}
-              </Button>
+            <DialogFooter className="max-sm:mx-0 max-sm:mb-0 max-sm:mt-5 max-sm:flex-col max-sm:rounded-none max-sm:border-0 max-sm:bg-transparent max-sm:p-0">
+              {sortieAvecBrouillon ? (
+                <>
+                  <Button type="button" disabled={enEffacement} onClick={partir} className="max-sm:h-12 max-sm:rounded-full max-sm:text-action max-sm:font-semibold sm:order-last">
+                    {sortieAvecBrouillon.partir}
+                  </Button>
+                  <Button type="button" variant="outline" disabled={enEffacement} onClick={() => setEnAttente(null)} className="max-sm:h-12 max-sm:rounded-full max-sm:border-input max-sm:text-action max-sm:font-semibold">
+                    {sortieAvecBrouillon.rester}
+                  </Button>
+                  {sortieAvecBrouillon.effacer ? (
+                    <Button type="button" variant="ghost" disabled={enEffacement} onClick={() => void effacerPuisPartir()} className="text-destructive max-sm:h-12 max-sm:rounded-full max-sm:text-action sm:order-first sm:mr-auto">
+                      {sortieAvecBrouillon.effacer.libelle}
+                    </Button>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <Button type="button" onClick={() => setEnAttente(null)} className="max-sm:h-12 max-sm:rounded-full max-sm:text-action max-sm:font-semibold sm:order-last">
+                    {libelles.sortie.rester}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={partir} className="max-sm:h-12 max-sm:rounded-full max-sm:border-0 max-sm:bg-transparent max-sm:text-action max-sm:text-destructive max-sm:shadow-none">
+                    {libelles.sortie.partir}
+                  </Button>
+                </>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

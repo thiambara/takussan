@@ -102,7 +102,7 @@ function barre() {
 }
 
 describe('TCK-2600 — la note du pied, sous l’aperçu', () => {
-  it('une note par étape ; « Brouillon gardé … » au prix ; la mention des conditions, avec ses deux liens, à la finition', async () => {
+  it('une note par étape ; « Brouillon gardé … » au prix ; rien à la finition (TCK-2988)', async () => {
     await monter();
     const note = (etape: string) => render(withIntl(<>{doublures.anonyme!.noteDuPied!(etape)}</>)).container;
 
@@ -112,12 +112,8 @@ describe('TCK-2600 — la note du pied, sous l’aperçu', () => {
     expect(note('prix')).toHaveTextContent('Brouillon gardé dans ce navigateur — il passera dans votre compte au moment de publier.');
     expect(note('photos')).toHaveTextContent('Étape facultative : « Plus tard » passe au titre');
 
-    // Maquette a-5 : la phrase des conditions en 12 px à 1,625 (`PhraseCGU`), pas en 13 px serré.
-    expect(note('finition').firstElementChild).toHaveClass('block', 'text-xs', 'leading-relaxed');
-    const finition = within(note('finition'));
-    expect(finition.getByRole('link', { name: 'conditions générales' })).toHaveAttribute('href', expect.stringContaining('/legal/terms'));
-    expect(finition.getByRole('link', { name: 'politique de confidentialité' })).toHaveAttribute('href', expect.stringContaining('/legal/privacy'));
-
+    // TCK-2988 — rien à la finition : les conditions se lisent dans la feuille du numéro, qui suit « Publier ».
+    expect(note('finition')).toBeEmptyDOMElement();
     expect(note('inconnue')).toBeEmptyDOMElement();
   });
 });

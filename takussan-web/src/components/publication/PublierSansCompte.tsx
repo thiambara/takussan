@@ -10,7 +10,6 @@ import { useTranslations } from 'next-intl';
 import { autoOnboardAction } from '@/app/actions/auto-onboard';
 import { useConnexionParTelephone } from '@/components/auth/useConnexionParTelephone';
 import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
-import { LienLocalise } from '@/components/shared/LienLocalise';
 import { ListeDesEspaces } from '@/components/publication/ListeDesEspaces';
 import { PreuvesDuDepart } from '@/components/publication/PreuvesDuDepart';
 import type { ContactSurPlace } from '@/components/contact/ContactsSurPlace';
@@ -19,13 +18,13 @@ import { useAuth } from '@/context/AuthContext';
 import { fetchProfilesViaProxy, profilesKeys, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { espacesDePublication, PUBLISH_TARGETS, type EspaceDePublication } from '@/hooks/usePublishIntent';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
-import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { useEquipementsApprouves } from '@/lib/queries/referentiel-public';
 import { CLE_BROUILLON_DE_PUBLICATION, LIEN_DE_REPRISE, verserAuBrouillonServeur } from '@/lib/publication/brouillon-de-publication';
 import { valeursDeLAnnonce, type BrouillonLocal } from '@/lib/publication/brouillon-local';
 import { lireRepriseDePublication, PARAMETRE_DE_REPRISE } from '@/lib/publication/reprise-oauth';
 import { useBrouillonLocal } from '@/lib/publication/useBrouillonLocal';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import type { PropertyFormPayload, PropertyFormValues } from '@/lib/schemas/property';
 import type { Tag } from '@/types/tag';
 
@@ -97,7 +96,6 @@ export function PublierSansCompte({
 }) {
   const t = useTranslations('publishRedirect.sansCompte');
   const tPage = useTranslations('publishRedirect');
-  const tFeuille = useTranslations('property.wizard.feuille');
   // TCK-2600 — dès 1280 px (maquette a-0 à a-5), « Effacer ce brouillon » passe dans la barre, à côté
   // de « Brouillon gardé dans ce navigateur » : la ligne d'état sous la barre, que la maquette n'a
   // pas, descendait la question de 40 px. Un seul bouton à la fois (jamais deux « Effacer »).
@@ -219,25 +217,6 @@ export function PublierSansCompte({
     }
   }
 
-  // Maquette a-5 : la phrase des conditions garde sa taille de partout (`PhraseCGU` : 12 px, 1,625) — note
-  // du pied au bureau (TCK-2600), ligne sous « Publier l’annonce » au téléphone (TCK-2819, lot 3).
-  const phraseDesConditions = (
-    <span className="block text-xs leading-relaxed text-muted-foreground">
-      {tFeuille.rich('mention', {
-        terms: (morceau) => (
-          <LienLocalise href={ROUTES_LEGALES.terms} target="_blank" rel="noopener" className="underline underline-offset-2">
-            {morceau}
-          </LienLocalise>
-        ),
-        privacy: (morceau) => (
-          <LienLocalise href={ROUTES_LEGALES.privacy} target="_blank" rel="noopener" className="underline underline-offset-2">
-            {morceau}
-          </LienLocalise>
-        ),
-      })}
-    </span>
-  );
-
   const anonyme: ModeAnonyme = {
     entreeParTelephone,
     preparerLEspace,
@@ -294,16 +273,14 @@ export function PublierSansCompte({
       ),
     },
     // TCK-2600 — la note du pied, sous l'aperçu (maquette a-0 à a-5, dès `lg`).
+    // TCK-2988 — rien à la finition : les conditions se lisent dans la feuille du numéro, qui suit « Publier »
+    // (« En continuant… » puis « En publiant… », TCK-624) ; celui qui a déjà un compte les a acceptées.
     noteDuPied: (etape) =>
-      etape === 'finition' ? (
-        phraseDesConditions
-      ) : etape === 'prix' ? (
+      etape === 'prix' ? (
         t('brouillon.pied')
       ) : etape === 'bien' || etape === 'lieu' || etape === 'caracteristiques' || etape === 'photos' ? (
         t(`pied.${etape}`)
       ) : null,
-    // TCK-2819 (lot 3) — au téléphone, la même phrase sous « Publier l’annonce » (maquette a-5, `PiedAssistant`).
-    sousLesGestes: (etape) => (etape === 'finition' ? phraseDesConditions : null),
     finition: (
       <>
         {/*
@@ -335,6 +312,26 @@ export function PublierSansCompte({
         <span className="hidden lg:inline">{t('photos.navigateur')}</span>
       </p>
     ),
+    // TCK-2988 — au téléphone, le brouillon repris s'annonce en une ligne, avec de quoi l'effacer : la ligne d'état
+    // qui le disait sous la barre a quitté l'écran (maquette « L'écran économe »).
+    noteDeReprise: (
+      <p
+        role="status"
+        data-brouillon-repris=""
+        className="flex items-center gap-2 rounded-lg bg-muted/70 px-3 text-ui text-muted-foreground"
+      >
+        <Smartphone className="size-4 flex-none" strokeWidth={1.5} aria-hidden="true" />
+        <span className="min-w-0 flex-1">{t('brouillon.repris')}</span>
+        <button
+          type="button"
+          disabled={verrouille}
+          onClick={() => void effacer()}
+          className="min-h-11 flex-none text-foreground underline underline-offset-4 disabled:pointer-events-none disabled:opacity-50"
+        >
+          {t('brouillon.effacerCourt')}
+        </button>
+      </p>
+    ),
     // TCK-2934 — maquette e1 : l'aide du quartier, visible avant toute saisie (écart TCK-2819 a-1, décision 4a rouverte).
     aideDuQuartier: t('lieu.quartierAide'),
   };
@@ -364,6 +361,26 @@ export function PublierSansCompte({
         sortieBloquee={verrouille}
         pas={pas}
         total={total}
+        // TCK-2988 — ✕ demande quoi faire du brouillon (la ligne qui le disait a quitté l'écran du téléphone) : la
+        // feuille de la maquette, « Reprendre plus tard » en tête. En mémoire, rien n'est gardé : la confirmation
+        // par défaut de la coque (« ne sera pas enregistré ») dit vrai, et met « Rester » en avant.
+        saisie={brouillon.aDuContenu}
+        sortieAvecBrouillon={
+          memoire
+            ? undefined
+            : {
+                titre: t('brouillon.sortieTitre'),
+                texte: t('brouillon.sortie'),
+                partir: t('brouillon.sortiePartir'),
+                rester: t('brouillon.sortieRester'),
+                effacer: {
+                  libelle: t('brouillon.effacerEnSortant'),
+                  effacer: async () => {
+                    await brouillon.clear();
+                  },
+                },
+              }
+        }
         noteDeBarre={
           <span className="hidden items-center gap-1.5 text-ui text-muted-foreground xl:flex">
             <Check className="size-3.5 text-accent" strokeWidth={2.5} aria-hidden="true" />
@@ -379,21 +396,26 @@ export function PublierSansCompte({
       />
       <div className="flex min-h-0 flex-1 flex-col" data-publier-sans-compte="">
         {/*
-          L'état du brouillon, sous la barre : au téléphone (« sur ce téléphone »), et jusqu'à 1280
-          (« dans ce navigateur ») — la note de la barre ne paraît qu'au bureau large. « Effacer ce
-          brouillon » s'y range à toute largeur : dans le flux, sous l'assistant, il remontait le
-          pied de 52 px dès la première photo (relevé à 390, TCK-2600).
+          L'état du brouillon, sous la barre, de 1024 à 1280 (« dans ce navigateur ») — la note de la barre ne
+          paraît qu'au bureau large. « Effacer ce brouillon » s'y range : dans le flux, sous l'assistant, il
+          remontait le pied de 52 px dès la première photo (relevé à 390, TCK-2600).
+          TCK-2988 — au téléphone, la ligne quitte l'écran (maquette « L'écran économe ») : ✕ demande quoi faire
+          du brouillon, et un brouillon repris s'annonce une fois, ci-dessous. Seul l'avertissement reste (le
+          navigateur ne garde rien) : il dit ce qu'on perdrait.
         */}
-        <div className="flex min-h-11 flex-none items-center gap-x-4 px-4 text-xs text-muted-foreground sm:px-8 xl:hidden">
-          <p className="flex min-w-0 items-center gap-1.5 xl:hidden">
+        <div
+          className={cn(
+            'min-h-11 flex-none items-center gap-x-4 px-4 text-xs text-muted-foreground sm:px-8 xl:hidden',
+            memoire ? 'flex max-lg:saisie:hidden' : 'hidden lg:flex',
+          )}
+        >
+          <p className="flex min-w-0 items-center gap-1.5">
             {memoire ? (
               etatDuBrouillon
             ) : (
               <>
-                <Smartphone className="size-3.5 flex-none lg:hidden" strokeWidth={1.75} aria-hidden="true" />
-                <Check className="hidden size-3.5 flex-none text-accent lg:block" strokeWidth={2.5} aria-hidden="true" />
-                <span className="lg:hidden">{t('brouillon.telephone')}</span>
-                <span className="hidden lg:inline">{t('brouillon.navigateur')}</span>
+                <Check className="size-3.5 flex-none text-accent" strokeWidth={2.5} aria-hidden="true" />
+                <span>{t('brouillon.navigateur')}</span>
               </>
             )}
           </p>

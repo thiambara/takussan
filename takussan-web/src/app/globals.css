@@ -45,6 +45,13 @@
 @custom-variant tactile (@media (hover: none));
 
 /*
+ * ADR-0133 (TCK-2988) — le mode saisie : un champ a le focus au toucher, ou un clavier est mesuré. Publié sur
+ * `<html>` par la mesure unique de la fenêtre (`src/lib/fenetre.ts`), qui pose aussi `--vue-h` et `--vue-top`
+ * (la fenêtre visible). Un écran y répond en CSS, sans re-rendu : `max-lg:saisie:hidden`.
+ */
+@custom-variant saisie (&:where([data-saisie="ouvert"] *));
+
+/*
  * Design system foundation — Ancrage Local Contemporain (Lin + Contemporain).
  * TCK-129 — fondation site-wide.
  * Les noms de CSS vars (--primary, --background, etc.) sont conservés pour que

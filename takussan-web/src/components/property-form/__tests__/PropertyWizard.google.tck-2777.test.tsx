@@ -225,6 +225,8 @@ describe('AC1 — « Continuer avec Google » selon le fournisseur', () => {
     const recevoir = within(feuille).getByRole('button', { name: 'Recevoir un code' });
     expect(recevoir.compareDocumentPosition(bouton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(bouton).toHaveClass('h-11', 'self-center', 'max-md:mt-1');
+    // TCK-2988 (ADR-0133) — en saisie, au téléphone, il se replie : « Recevoir un code » reste seul au pied.
+    expect(bouton).toHaveClass('max-md:saisie:hidden');
   });
 
   it('au bureau : dans le panneau de compte, dans la rangée du geste', async () => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { useWatch } from 'react-hook-form';
+import { useWatch, type UseFormReturn } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
 import { useTranslations } from 'next-intl';
@@ -39,7 +39,9 @@ import { StepCaracteristiques } from './wizard/steps/StepCaracteristiques';
 import { StepPrix } from './wizard/steps/StepPrix';
 import { StepPhotos } from './wizard/steps/StepPhotos';
 import { StepFinition } from './wizard/steps/StepFinition';
-import { BarreApercu, CarteApercu, ListePourPublier, RappelDeLAnnonce } from './wizard/ApercuAnnonce';
+import { BarreApercu, CarteApercu, ListePourPublier, RappelDeLAnnonce, useResumeDeLApercu } from './wizard/ApercuAnnonce';
+import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
+import { cn } from '@/lib/utils';
 import { EnTetePublication } from './wizard/EnTetePublication';
 import { reduirePhotos } from '@/lib/reduire-photo';
 import { publishPropertyAction } from '@/app/actions/publish-property';
@@ -246,6 +248,11 @@ export interface ModeAnonyme {
    * seulement : l'assistant connecté les envoie à la création du bien.
    */
   readonly notePhotos?: ReactNode;
+  /**
+   * TCK-2988 — au téléphone, à la place de « Nous avons repris votre brouillon… » : la ligne de la maquette
+   * « L'écran économe » (« Brouillon repris, gardé sur ce téléphone. Effacer »). Même vie : jusqu'au premier pas.
+   */
+  readonly noteDeReprise?: ReactNode;
   /** TCK-2934 — l'aide du quartier, visible d'emblée à l'étape du lieu (maquette e1). */
   readonly aideDuQuartier?: string;
   /**
@@ -253,8 +260,6 @@ export interface ModeAnonyme {
    * l'étape (`bien`, `lieu`, `caracteristiques`, `prix`, `photos`, `finition`).
    */
   readonly noteDuPied?: (etape: string) => ReactNode;
-  /** TCK-2819 (lot 3) — la ligne sous les gestes au téléphone, selon l'étape (la phrase des CGU à la finition). */
-  readonly sousLesGestes?: (etape: string) => ReactNode;
   /** La ligne de « Pour publier » qui suit les six étapes (« Votre numéro · à la fin »). */
   readonly pourPublierEnPlus: { readonly libelle: string; readonly note: string };
   /** L'étape courante, pour l'avancement de la barre de la coque. */
@@ -1041,6 +1046,24 @@ export function AssistantDePublication({
         if (index === etapes.length - 1) void publier();
       }}
     >
+      {/*
+        TCK-2988 — sans compte (`/publish`), au téléphone : la barre de la coque porte le résumé de l'annonce et
+        « Aperçu » (maquette « L'écran économe ») ; le pied porte l'avancement. Le départ n'a encore rien à résumer.
+        Hors de la coque d'entrée (`/app/properties/new`), la déclaration ne fait rien.
+      */}
+      {anonyme ? (
+        <DeclarerEntree avancementAuPied />
+      ) : null}
+      {anonyme && !etapes[index].accueil ? (
+        <ResumeDansLaBarre form={form} photos={photos}>
+          {(fermer) => (
+            <>
+              {listePourPublier(fermer)}
+              {noteDeQuota}
+            </>
+          )}
+        </ResumeDansLaBarre>
+      ) : null}
       <WizardShell
         steps={etapes}
         index={index}
@@ -1054,6 +1077,19 @@ export function AssistantDePublication({
           <EnTetePublication
             titre={proposition ? t('header.proposal') : t('header.publish')}
             enregistrement={enregistrement}
+            // TCK-2988 (2b) — au téléphone, l'en-tête compact de `/publish` : l'intention, le résumé dessous, « Aperçu »
+            // à droite ; la barre d'aperçu sous l'en-tête n'y est plus rendue (ci-dessous). Pas au départ : rien à résumer.
+            resume={etapes[index].accueil ? undefined : <LigneDuResume form={form} />}
+            apercu={etapes[index].accueil ? undefined : (
+              <BarreApercu form={form} photos={photos} forme="icone">
+                {(fermer) => (
+                  <>
+                    {listePourPublier(fermer)}
+                    {noteDeQuota}
+                  </>
+                )}
+              </BarreApercu>
+            )}
             action={
               <Button
                 type="button"
@@ -1061,8 +1097,16 @@ export function AssistantDePublication({
                 size="sm"
                 disabled={isSubmitting}
                 onClick={() => void reprendrePlusTard()}
+                // TCK-2988 (2b) — au téléphone, « Quitter », à côté de « Brouillon enregistré » : le libellé entier
+                // tronquait l'intention à 124 px (mesuré à 390). Le nom accessible reste « Enregistrer et quitter ».
+                aria-label={t('resumeLater')}
               >
-                {t('resumeLater')}
+                <span className="sm:hidden" aria-hidden="true">
+                  {t('resumeLaterShort')}
+                </span>
+                <span className="max-sm:hidden" aria-hidden="true">
+                  {t('resumeLater')}
+                </span>
               </Button>
             }
           />
@@ -1075,23 +1119,26 @@ export function AssistantDePublication({
             {noteDeQuota}
           </>
         }
-        barreApercu={
-          <BarreApercu form={form} photos={photos}>
-            {(fermer) => (
-              <>
-                {listePourPublier(fermer)}
-                {noteDeQuota}
-              </>
-            )}
-          </BarreApercu>
-        }
+        // TCK-2988 — sans compte, le résumé et « Aperçu » sont dans la barre de la coque (ci-dessus).
+        barreApercu={anonyme ? undefined : (
+          // TCK-2988 (2b) — sous `sm`, le résumé et « Aperçu » sont dans l'en-tête (ci-dessus).
+          <div className="max-sm:hidden">
+            <BarreApercu form={form} photos={photos}>
+              {(fermer) => (
+                <>
+                  {listePourPublier(fermer)}
+                  {noteDeQuota}
+                </>
+              )}
+            </BarreApercu>
+          </div>
+        )}
         // TCK-2601 (AC5) — dès 1280 px (1024 dans le cadre d'entrée, TCK-2934), la feuille de compte prend la place de l'étape.
         refDuPanneau={setCibleDuPanneau}
         panneauOuvert={!proposition && feuille.ouverte}
         // TCK-2600 — sans compte (`/publish`), le cadre des écrans d'entrée dès `lg` (maquette a-0 à a-5).
         cadreDEntree={anonyme !== undefined}
         noteDuPied={anonyme?.noteDuPied?.(etapes[index].id)}
-        sousLesGestes={anonyme?.sousLesGestes?.(etapes[index].id)}
         bandeau={aDesAlertes ? (
           <>
             {envoiPhotos ? (
@@ -1170,8 +1217,11 @@ export function AssistantDePublication({
               </p>
             ) : null}
 
+            {repriseAnnoncee && anonyme?.noteDeReprise ? (
+              <div className="lg:hidden">{anonyme.noteDeReprise}</div>
+            ) : null}
             {repriseAnnoncee ? (
-              <p role="status" className="mb-4 text-sm text-muted-foreground">
+              <p role="status" className={cn('mb-4 text-sm text-muted-foreground', anonyme?.noteDeReprise && 'hidden lg:block')}>
                 {t('draftResumed')}
               </p>
             ) : null}
@@ -1236,4 +1286,41 @@ export function AssistantDePublication({
       )}
     </form>
   );
+}
+
+/**
+ * TCK-2988 — déclare à la coque d'entrée le résumé de l'annonce (sous l'intention) et « Aperçu » (à droite), dans
+ * la barre du téléphone. Un composant à part : le résumé se lit par `useWatch`, que seul `/publish` paie.
+ */
+function ResumeDansLaBarre({
+  form,
+  photos,
+  children,
+}: {
+  readonly form: UseFormReturn<PropertyFormValues>;
+  readonly photos: readonly File[];
+  readonly children: (fermer: () => void) => ReactNode;
+}) {
+  const { ligne } = useResumeDeLApercu(form);
+  return (
+    <DeclarerEntree
+      sousTitre={ligne}
+      aDroite={{
+        telephone: (
+          <BarreApercu form={form} photos={photos} forme="bouton">
+            {children}
+          </BarreApercu>
+        ),
+        bureau: null,
+      }}
+    />
+  );
+}
+
+/**
+ * TCK-2988 (décision 2b du 2026-11-21) — la ligne du résumé sous l'intention, dans l'en-tête du téléphone de
+ * `/app/properties/new`. Un composant à part, pour la même raison que `ResumeDansLaBarre` : `useWatch`.
+ */
+function LigneDuResume({ form }: { readonly form: UseFormReturn<PropertyFormValues> }) {
+  return <>{useResumeDeLApercu(form).ligne}</>;
 }
