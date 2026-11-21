@@ -101,11 +101,6 @@ export type WizardShellProps = {
   readonly cadreDEntree?: boolean;
   /** Ce que le pied dit sous l'aperçu, dans le cadre d'entrée (dès `lg`). */
   readonly noteDuPied?: React.ReactNode;
-  /**
-   * TCK-2819 (lot 3) — une ligne SOUS les gestes, au téléphone seulement (`PiedAssistant`, `dessous`, de
-   * la maquette : la phrase des CGU sous « Publier »). Dès `lg`, c'est `noteDuPied` qui la porte.
-   */
-  readonly sousLesGestes?: React.ReactNode;
 };
 
 /**
@@ -167,7 +162,6 @@ function GrilleDEntree({
 export function WizardShell({
   steps, index, direction, onNavigate, onFinish, finishLabel, busy = false, parts,
   entete, apercu, barreApercu, bandeau, refDuPanneau, panneauOuvert = false, cadreDEntree = false, noteDuPied,
-  sousLesGestes,
 }: WizardShellProps) {
   const t = useTranslations('property.wizard');
   const etape = steps[index];
@@ -180,13 +174,14 @@ export function WizardShell({
   // du dock, sans quoi un élément flottant se posait sur « Continuer » à 390 px (mesuré le
   // 2026-09-16). TCK-2988 — au téléphone, le pied compact fait 71 px : segments (3) + `pt-2.5` + geste
   // de 48 + `pb-2.5` (ou la zone de sécurité). Dès `lg`, 100 px (relevé à 1024 le 2026-11-21, avant et après ce
-  // ticket) : c'est la plus grande des deux qu'on réserve. Le retrait du bas est posé par les classes du pied, pas
-  // par `paddingBottom` : il diffère d'un côté de `lg` à l'autre.
-  useFloatingDockSlot({
+  // ticket) : c'est la plus grande des deux qu'on réserve. Le retrait du bas diffère d'un côté de `lg` à l'autre (10 px
+  // au téléphone, 16 au bureau) : la déclaration lit `--retrait-du-pied`, posé par les classes du pied, et le pied
+  // applique ce qu'elle rend (TCK-477 : déclarer et appliquer sont le même geste).
+  const pied = useFloatingDockSlot({
     id: 'property-wizard-footer',
     corner: 'bottom-full',
     height: 100,
-    safeAreaInset: 'calc(var(--spacing) * 4 + env(safe-area-inset-bottom))',
+    safeAreaInset: 'max(var(--retrait-du-pied), env(safe-area-inset-bottom))',
   });
 
   // ADR-0133 (TCK-2988) — le mode saisie : le champ qui prend le focus est amené à sa place, ↑ ↓ passent d'un champ
@@ -355,8 +350,8 @@ export function WizardShell({
               // TCK-2988 — sous `lg`, ni bordure ni retrait du haut : les segments de la progression SONT le bord
               // du pied ; en bas, 10 px ou la zone de sécurité, la plus grande.
               'shrink-0 bg-card max-lg:shadow-barre-collante',
-              'pb-[max(calc(var(--spacing)*2.5),env(safe-area-inset-bottom))]',
-              'lg:border-t lg:border-border lg:pb-[calc(var(--spacing)*4+env(safe-area-inset-bottom))]',
+              '[--retrait-du-pied:calc(var(--spacing)*2.5)] lg:[--retrait-du-pied:calc(var(--spacing)*4)]',
+              'lg:border-t lg:border-border',
               cadreDEntree
                 ? 'lg:bg-card'
                 : 'lg:bg-background/95 lg:backdrop-blur lg:supports-[backdrop-filter]:bg-background/80',
@@ -364,6 +359,7 @@ export function WizardShell({
               // ADR-0133 — en saisie, au téléphone, la barre de saisie prend sa place (ci-dessous).
               'max-lg:saisie:hidden',
             )}
+            style={{ paddingBottom: pied.paddingBottom }}
           >
             <GrilleDEntree
               active={cadreDEntree}
@@ -488,12 +484,6 @@ export function WizardShell({
                   </Button>
                 </div>
               </div>
-              {/* Maquette a-5 (téléphone) : `mt-2.5` sous les gestes. */}
-              {sousLesGestes ? (
-                <div data-sous-les-gestes="" className="px-4 pt-2.5 sm:px-8 lg:hidden">
-                  {sousLesGestes}
-                </div>
-              ) : null}
             </GrilleDEntree>
           </div>
 

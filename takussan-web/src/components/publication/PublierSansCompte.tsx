@@ -10,7 +10,6 @@ import { useTranslations } from 'next-intl';
 import { autoOnboardAction } from '@/app/actions/auto-onboard';
 import { useConnexionParTelephone } from '@/components/auth/useConnexionParTelephone';
 import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
-import { LienLocalise } from '@/components/shared/LienLocalise';
 import { ListeDesEspaces } from '@/components/publication/ListeDesEspaces';
 import { PreuvesDuDepart } from '@/components/publication/PreuvesDuDepart';
 import type { ContactSurPlace } from '@/components/contact/ContactsSurPlace';
@@ -19,7 +18,6 @@ import { useAuth } from '@/context/AuthContext';
 import { fetchProfilesViaProxy, profilesKeys, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { espacesDePublication, PUBLISH_TARGETS, type EspaceDePublication } from '@/hooks/usePublishIntent';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
-import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { useEquipementsApprouves } from '@/lib/queries/referentiel-public';
 import { CLE_BROUILLON_DE_PUBLICATION, LIEN_DE_REPRISE, verserAuBrouillonServeur } from '@/lib/publication/brouillon-de-publication';
 import { valeursDeLAnnonce, type BrouillonLocal } from '@/lib/publication/brouillon-local';
@@ -98,7 +96,6 @@ export function PublierSansCompte({
 }) {
   const t = useTranslations('publishRedirect.sansCompte');
   const tPage = useTranslations('publishRedirect');
-  const tFeuille = useTranslations('property.wizard.feuille');
   // TCK-2600 — dès 1280 px (maquette a-0 à a-5), « Effacer ce brouillon » passe dans la barre, à côté
   // de « Brouillon gardé dans ce navigateur » : la ligne d'état sous la barre, que la maquette n'a
   // pas, descendait la question de 40 px. Un seul bouton à la fois (jamais deux « Effacer »).
@@ -220,25 +217,6 @@ export function PublierSansCompte({
     }
   }
 
-  // Maquette a-5 : la phrase des conditions garde sa taille de partout (`PhraseCGU` : 12 px, 1,625) — note
-  // du pied au bureau (TCK-2600), ligne sous « Publier l’annonce » au téléphone (TCK-2819, lot 3).
-  const phraseDesConditions = (
-    <span className="block text-xs leading-relaxed text-muted-foreground">
-      {tFeuille.rich('mention', {
-        terms: (morceau) => (
-          <LienLocalise href={ROUTES_LEGALES.terms} target="_blank" rel="noopener" className="underline underline-offset-2">
-            {morceau}
-          </LienLocalise>
-        ),
-        privacy: (morceau) => (
-          <LienLocalise href={ROUTES_LEGALES.privacy} target="_blank" rel="noopener" className="underline underline-offset-2">
-            {morceau}
-          </LienLocalise>
-        ),
-      })}
-    </span>
-  );
-
   const anonyme: ModeAnonyme = {
     entreeParTelephone,
     preparerLEspace,
@@ -295,16 +273,14 @@ export function PublierSansCompte({
       ),
     },
     // TCK-2600 — la note du pied, sous l'aperçu (maquette a-0 à a-5, dès `lg`).
+    // TCK-2988 — rien à la finition : les conditions se lisent dans la feuille du numéro, qui suit « Publier »
+    // (« En continuant… » puis « En publiant… », TCK-624) ; celui qui a déjà un compte les a acceptées.
     noteDuPied: (etape) =>
-      etape === 'finition' ? (
-        phraseDesConditions
-      ) : etape === 'prix' ? (
+      etape === 'prix' ? (
         t('brouillon.pied')
       ) : etape === 'bien' || etape === 'lieu' || etape === 'caracteristiques' || etape === 'photos' ? (
         t(`pied.${etape}`)
       ) : null,
-    // TCK-2819 (lot 3) — au téléphone, la même phrase sous « Publier l’annonce » (maquette a-5, `PiedAssistant`).
-    sousLesGestes: (etape) => (etape === 'finition' ? phraseDesConditions : null),
     finition: (
       <>
         {/*

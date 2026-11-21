@@ -1,15 +1,14 @@
 /**
  * TCK-2819 (lot 3) — la finition de `/publish` d'après la maquette `app-entree-publier` (écran a-5) :
  *
- * - au téléphone, la phrase des CGU sous « Publier l’annonce » (`PiedAssistant`, `dessous`) — et
- *   seulement à la finition : au bureau, c'est la note du pied qui la porte (TCK-2600) ;
+ * - TCK-2988 (décision du porteur, 2026-11-21) : plus de phrase des CGU sous « Publier l’annonce » — la feuille
+ *   du numéro, qui suit, la porte ; celui qui a déjà un compte les a acceptées ;
  * - « Contacts sur place » dans le dessin de l'assistant (`presentation="assistant"`), suivi de la
  *   note « C’est tout pour l’annonce ».
  *
  * | test | régression attrapée |
  * |---|---|
- * | CGU sous les gestes | la phrase absente du pied au téléphone, ou rendue aussi au bureau (doublon de la note) |
- * | pas avant la finition | la phrase sous « Continuer » à une étape où rien ne se publie |
+ * | rien sous les gestes | la phrase des CGU revenue sous « Publier l’annonce » (doublon de la feuille du numéro) |
  * | contacts | le dessin de la fiche du bien dans l'assistant |
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -116,28 +115,15 @@ async function remplir(user: ReturnType<typeof userEvent.setup>, { jusquAuTitre 
   if (jusquAuTitre) await user.click(suivant()); //            → le titre
 }
 
-const piedTelephone = () => document.querySelector('[data-wizard-footer] [data-sous-les-gestes]') as HTMLElement | null;
-
 describe('la finition de /publish (maquette a-5, TCK-2819 lot 3)', () => {
-  it('au téléphone, la phrase des CGU sous « Publier l’annonce », masquée dès lg', async () => {
+  it('TCK-2988 — rien sous « Publier l’annonce » : les conditions se lisent dans la feuille du numéro, qui suit', async () => {
     const user = userEvent.setup();
     monter(moteurEnMemoire());
     await remplir(user);
-    const dessous = piedTelephone();
-    expect(dessous).not.toBeNull();
-    expect(dessous).toHaveClass('lg:hidden');
-    expect(dessous).toHaveTextContent(/En publiant, vous acceptez les conditions générales et la politique de confidentialité/);
-    // Sous les gestes : après la rangée qui porte « Publier l’annonce ».
-    const publier = within(document.querySelector('[data-wizard-footer]') as HTMLElement).getByRole('button', { name: /^publier l’annonce$/i });
-    expect(publier.compareDocumentPosition(dessous!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(dessous!).getByRole('link', { name: 'conditions générales' })).toBeInTheDocument();
-  });
-
-  it('avant la finition, rien sous « Continuer »', async () => {
-    const user = userEvent.setup();
-    monter(moteurEnMemoire());
-    await remplir(user, { jusquAuTitre: false });
-    expect(piedTelephone()).toBeNull();
+    const pied = document.querySelector('[data-wizard-footer]') as HTMLElement;
+    expect(within(pied).getByRole('button', { name: /^publier l’annonce$/i })).toBeInTheDocument();
+    expect(pied).not.toHaveTextContent(/vous acceptez/);
+    expect(within(pied).queryByRole('link', { name: 'conditions générales' })).toBeNull();
   });
 
   it('« Contacts sur place » dans le dessin de l’assistant, puis « C’est tout pour l’annonce »', async () => {

@@ -149,13 +149,23 @@ describe('TCK-2988 — la sortie avec un brouillon gardé (feuille de la maquett
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('sans brouillon gardé, la confirmation d’avant : « Rester » en avant, et rien à effacer', () => {
+  it('sans brouillon gardé, la même feuille au téléphone : « Rester » en tête et focalisé, partir en rouge, rien à effacer', async () => {
     const { telephone } = monter({ saisie: true });
     fireEvent.click(within(telephone).getByRole('link', { name: C.fermer }));
     const boite = screen.getByRole('dialog', { name: C.sortie.titre });
-    expect(boite).not.toHaveClass('max-sm:bottom-0');
+    expect(boite).toHaveClass('max-sm:bottom-0', 'max-sm:rounded-t-3xl');
+    expect(boite).not.toHaveAttribute('data-sortie-avec-brouillon');
     expect(within(boite).queryByRole('button', { name: /effacer/i })).toBeNull();
-    expect(within(boite).getAllByRole('button').map((b) => b.textContent)).toEqual(expect.arrayContaining([C.sortie.partir, C.sortie.rester]));
+    // Pas de ✕ : « Rester » le dit, comme dans la feuille avec brouillon.
+    expect(within(boite).getAllByRole('button').map((b) => b.textContent)).toEqual([C.sortie.rester, C.sortie.partir]);
+    // « Rester » est le geste plein ; partir, qui perd la saisie, se dit en rouge.
+    expect(within(boite).getByRole('button', { name: C.sortie.rester })).toHaveClass('bg-primary');
+    const partirBouton = within(boite).getByRole('button', { name: C.sortie.partir });
+    expect(partirBouton).toHaveClass('max-sm:text-destructive');
+    expect(partirBouton).not.toHaveClass('bg-primary');
+    await waitFor(() => expect(within(boite).getByRole('button', { name: C.sortie.rester })).toHaveFocus());
+    fireEvent.click(within(boite).getByRole('button', { name: C.sortie.rester }));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
 

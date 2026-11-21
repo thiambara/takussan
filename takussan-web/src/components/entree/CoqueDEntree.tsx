@@ -613,14 +613,16 @@ export function CoqueDEntree({
         </div>
       </div>
 
-      {enAttente && sortieAvecBrouillon ? (
-        // TCK-2988 — le brouillon est gardé (maquette « L'écran économe ») : au téléphone, une feuille du bas, gestes
-        // pleine largeur empilés, partir en tête ; dès `sm`, le dialogue centré, partir à droite et effacer à gauche.
-        // Le focus d'ouverture va au premier geste, « Reprendre plus tard » : il ne perd rien.
+      {enAttente ? (
+        // TCK-2988 — la sortie, au téléphone, est une feuille du bas (maquette « L'écran économe ») : gestes pleine
+        // largeur empilés, le geste sûr en tête et focalisé à l'ouverture. Dès `sm`, le dialogue centré.
+        //  - brouillon gardé : partir (« Reprendre plus tard ») ne perd rien, il est en tête ; effacer est à part ;
+        //  - sans brouillon : partir perd la saisie, c'est « Rester » qui est en tête, et partir se dit en rouge.
         <Dialog open onOpenChange={(ouvert) => (ouvert ? null : setEnAttente(null))}>
           <DialogContent
             showCloseButton={false}
-            data-sortie-avec-brouillon=""
+            data-feuille-de-sortie=""
+            data-sortie-avec-brouillon={sortieAvecBrouillon ? '' : undefined}
             className={cn(
               'max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0',
               'max-sm:gap-0 max-sm:rounded-none max-sm:rounded-t-3xl max-sm:bg-card max-sm:px-5 max-sm:pt-2 max-sm:pb-[max(calc(var(--spacing)*4),env(safe-area-inset-bottom))] max-sm:ring-0',
@@ -629,38 +631,38 @@ export function CoqueDEntree({
           >
             <span aria-hidden="true" className="mx-auto mb-4 block h-1 w-10 rounded-full bg-border sm:hidden" />
             <DialogHeader className="max-sm:gap-1">
-              <DialogTitle className="max-sm:font-display max-sm:text-lg max-sm:font-semibold">{sortieAvecBrouillon.titre}</DialogTitle>
-              <DialogDescription className="max-sm:text-ui">{sortieAvecBrouillon.texte}</DialogDescription>
+              <DialogTitle className="max-sm:font-display max-sm:text-lg max-sm:font-semibold">
+                {sortieAvecBrouillon ? sortieAvecBrouillon.titre : libelles.sortie.titre}
+              </DialogTitle>
+              <DialogDescription className="max-sm:text-ui">
+                {sortieAvecBrouillon ? sortieAvecBrouillon.texte : (declaree.reprise ?? libelles.sortie.texte)}
+              </DialogDescription>
             </DialogHeader>
             <DialogFooter className="max-sm:mx-0 max-sm:mb-0 max-sm:mt-5 max-sm:flex-col max-sm:rounded-none max-sm:border-0 max-sm:bg-transparent max-sm:p-0">
-              <Button type="button" disabled={enEffacement} onClick={partir} className="max-sm:h-12 max-sm:rounded-full max-sm:text-action max-sm:font-semibold sm:order-last">
-                {sortieAvecBrouillon.partir}
-              </Button>
-              <Button type="button" variant="outline" disabled={enEffacement} onClick={() => setEnAttente(null)} className="max-sm:h-12 max-sm:rounded-full max-sm:border-input max-sm:text-action max-sm:font-semibold">
-                {sortieAvecBrouillon.rester}
-              </Button>
-              {sortieAvecBrouillon.effacer ? (
-                <Button type="button" variant="ghost" disabled={enEffacement} onClick={() => void effacerPuisPartir()} className="text-destructive max-sm:h-12 max-sm:rounded-full max-sm:text-action sm:order-first sm:mr-auto">
-                  {sortieAvecBrouillon.effacer.libelle}
-                </Button>
-              ) : null}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : enAttente ? (
-        <Dialog open onOpenChange={(ouvert) => (ouvert ? null : setEnAttente(null))}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{libelles.sortie.titre}</DialogTitle>
-              <DialogDescription>{declaree.reprise ?? libelles.sortie.texte}</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={partir}>
-                {libelles.sortie.partir}
-              </Button>
-              <Button type="button" onClick={() => setEnAttente(null)}>
-                {libelles.sortie.rester}
-              </Button>
+              {sortieAvecBrouillon ? (
+                <>
+                  <Button type="button" disabled={enEffacement} onClick={partir} className="max-sm:h-12 max-sm:rounded-full max-sm:text-action max-sm:font-semibold sm:order-last">
+                    {sortieAvecBrouillon.partir}
+                  </Button>
+                  <Button type="button" variant="outline" disabled={enEffacement} onClick={() => setEnAttente(null)} className="max-sm:h-12 max-sm:rounded-full max-sm:border-input max-sm:text-action max-sm:font-semibold">
+                    {sortieAvecBrouillon.rester}
+                  </Button>
+                  {sortieAvecBrouillon.effacer ? (
+                    <Button type="button" variant="ghost" disabled={enEffacement} onClick={() => void effacerPuisPartir()} className="text-destructive max-sm:h-12 max-sm:rounded-full max-sm:text-action sm:order-first sm:mr-auto">
+                      {sortieAvecBrouillon.effacer.libelle}
+                    </Button>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <Button type="button" onClick={() => setEnAttente(null)} className="max-sm:h-12 max-sm:rounded-full max-sm:text-action max-sm:font-semibold sm:order-last">
+                    {libelles.sortie.rester}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={partir} className="max-sm:h-12 max-sm:rounded-full max-sm:border-0 max-sm:bg-transparent max-sm:text-action max-sm:text-destructive max-sm:shadow-none">
+                    {libelles.sortie.partir}
+                  </Button>
+                </>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

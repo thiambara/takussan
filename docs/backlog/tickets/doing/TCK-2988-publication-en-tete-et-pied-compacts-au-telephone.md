@@ -107,6 +107,12 @@ bandeaux passent de 158 à 56 px, le pied de 117 à 71 px.
       44 px sans résumé, replie le bandeau, et remplace le pied par une barre de 52 px (↑ ↓, « Le bien · 2/6 »,
       Continuer) ; le champ qui ouvre une liste est amené en tête ; tout revient quand le focus part. Rien ne
       change dès `lg`.
+- [x] AC12 — Retour du porteur au téléphone (2026-11-21, soir) :
+      - la feuille « Dernière étape : votre numéro » en saisie prend la fenêtre visible ; le rappel de l'annonce,
+        l'introduction et « Continuer avec Google » s'y replient, le numéro et la phrase des conditions restent ;
+      - plus de phrase des conditions sous « Publier l'annonce » (téléphone et bureau) : la feuille du numéro, qui
+        suit, la porte (« En continuant… », puis « En publiant… », TCK-624) ; un compte existant les a acceptées ;
+      - quitter sans brouillon gardé ouvre la même feuille du bas, « Rester » en tête, « Quitter » en rouge.
 
 ## Hors périmètre
 
@@ -165,3 +171,14 @@ Tests ajoutés : `src/lib/__tests__/fenetre.tck-2988`, `WizardShell.mode-saisie.
 `PropertyWizard.en-tete-du-telephone.tck-2988`, et le mode saisie dans `CoqueDEntree.ecran-econe.tck-2988`.
 Douze ablations sur la mesure, la barre de saisie, le bandeau et la coque : chacune fait rougir au moins un
 test.
+
+### Relevés du retour au téléphone (2026-11-21, soir, émulation 390 × 664)
+
+- **Feuille du numéro, clavier simulé de 336 px** : feuille de 8 à 328 px (320 px de haut), champ à 98 px, phrase
+  des conditions à 217 px, « Recevoir un code » seul au pied. Clavier fermé : 531 px, Google revenu.
+- **Pied** : 71 px à 390 et 100 px à 1280, inchangés. Le retrait du bas passe par `--retrait-du-pied` et le
+  `paddingBottom` rendu par le dock : un commit antérieur de la branche l'avait retiré, et la garde TCK-477
+  (`safe-area-contract`) rougissait.
+- **Non reproduit** : sur la capture du porteur, « Brouillon effacé. » chevauche le texte de l'assistant derrière
+  la feuille. En émulation, effacer ramène à l'accueil, sans chevauchement.
+- **Rouge sans rapport** : `credits.tck-2664` attend le 27 novembre et reçoit le 28. Ce test dépend de l'heure.
