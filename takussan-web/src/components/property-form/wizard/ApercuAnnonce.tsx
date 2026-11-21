@@ -358,6 +358,11 @@ export function useResumeDeLApercu(form: UseFormReturn<PropertyFormValues>): {
   readonly secondeLigne: string;
   /** Le prix est donné : `secondeLigne` le dit (et non les chiffres ou « Prix à venir »). */
   readonly prixDonne: boolean;
+  /**
+   * TCK-2988 — le résumé en UNE ligne, celle de l'en-tête du téléphone : le prix d'abord une fois donné (décision
+   * du porteur du 2026-11-21, 1b) — tronquée, la ligne perdait ce qu'on cherche le plus.
+   */
+  readonly ligne: string;
 } {
   const t = useTranslations('property.wizard.preview');
   const tContrat = useTranslations('property.contractTypes');
@@ -376,7 +381,13 @@ export function useResumeDeLApercu(form: UseFormReturn<PropertyFormValues>): {
       : d.type
         ? t('priceLater')
         : t('emptyHint');
-  return { premiereLigne, secondeLigne, prixDonne: Boolean(d.prix) };
+  const prixDonne = Boolean(d.prix);
+  return {
+    premiereLigne,
+    secondeLigne,
+    prixDonne,
+    ligne: prixDonne ? `${secondeLigne} · ${premiereLigne}` : `${premiereLigne} · ${secondeLigne}`,
+  };
 }
 
 /**
@@ -394,7 +405,7 @@ export function BarreApercu({
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
   readonly photos: readonly File[];
-  readonly forme?: 'barre' | 'bouton';
+  readonly forme?: 'barre' | 'bouton' | 'icone';
   /**
    * Ce que le tiroir montre sous la carte — la liste « Pour publier ». Une fonction : un geste
    * dedans (rouvrir une étape) doit pouvoir REFERMER le tiroir, sans quoi l'étape rouverte se
@@ -408,7 +419,19 @@ export function BarreApercu({
 
   return (
     <>
-      {forme === 'bouton' ? (
+      {forme === 'icone' ? (
+        // TCK-2988 — l'en-tête du téléphone de `/app/properties/new`, où « Enregistrer et quitter » prend la place
+        // du libellé : l'œil seul, 44 px, le nom accessible reste « Ouvrir l'aperçu de l'annonce ».
+        <button
+          type="button"
+          onClick={() => setOuvert(true)}
+          aria-label={t('openLabel')}
+          data-testid="barre-apercu"
+          className="inline-flex size-11 flex-none items-center justify-center rounded-full text-primary transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <Eye className="size-5" aria-hidden="true" />
+        </button>
+      ) : forme === 'bouton' ? (
         <button
           type="button"
           onClick={() => setOuvert(true)}

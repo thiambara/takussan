@@ -1460,6 +1460,7 @@
       },
       "publish": "Publier l’annonce",
       "resumeLater": "Enregistrer et quitter",
+      "resumeLaterShort": "Quitter",
       "proposalFinish": "Proposer à mon agence",
       "proposalNotice": "Votre agence relira ce bien avant de le publier : il reste privé jusque-là.",
       "missingId": "Le bien a été créé, mais son identifiant n’a pas été renvoyé. Retrouvez-le dans la liste de vos biens.",

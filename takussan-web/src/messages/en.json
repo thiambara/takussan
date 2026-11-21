@@ -1503,6 +1503,7 @@
       },
       "publish": "Publish listing",
       "resumeLater": "Save and exit",
+      "resumeLaterShort": "Exit",
       "proposalFinish": "Propose to my agency",
       "proposalNotice": "Your agency will review this property before publishing it: it stays private until then.",
       "missingId": "The property was created, but no identifier came back. Find it in your property list.",

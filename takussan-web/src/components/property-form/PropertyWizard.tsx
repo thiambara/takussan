@@ -1079,6 +1079,19 @@ export function AssistantDePublication({
           <EnTetePublication
             titre={proposition ? t('header.proposal') : t('header.publish')}
             enregistrement={enregistrement}
+            // TCK-2988 (2b) — au téléphone, l'en-tête compact de `/publish` : l'intention, le résumé dessous, « Aperçu »
+            // à droite ; la barre d'aperçu sous l'en-tête n'y est plus rendue (ci-dessous). Pas au départ : rien à résumer.
+            resume={etapes[index].accueil ? undefined : <LigneDuResume form={form} />}
+            apercu={etapes[index].accueil ? undefined : (
+              <BarreApercu form={form} photos={photos} forme="icone">
+                {(fermer) => (
+                  <>
+                    {listePourPublier(fermer)}
+                    {noteDeQuota}
+                  </>
+                )}
+              </BarreApercu>
+            )}
             action={
               <Button
                 type="button"
@@ -1086,8 +1099,16 @@ export function AssistantDePublication({
                 size="sm"
                 disabled={isSubmitting}
                 onClick={() => void reprendrePlusTard()}
+                // TCK-2988 (2b) — au téléphone, « Quitter », à côté de « Brouillon enregistré » : le libellé entier
+                // tronquait l'intention à 124 px (mesuré à 390). Le nom accessible reste « Enregistrer et quitter ».
+                aria-label={t('resumeLater')}
               >
-                {t('resumeLater')}
+                <span className="sm:hidden" aria-hidden="true">
+                  {t('resumeLaterShort')}
+                </span>
+                <span className="max-sm:hidden" aria-hidden="true">
+                  {t('resumeLater')}
+                </span>
               </Button>
             }
           />
@@ -1102,14 +1123,17 @@ export function AssistantDePublication({
         }
         // TCK-2988 — sans compte, le résumé et « Aperçu » sont dans la barre de la coque (ci-dessus).
         barreApercu={anonyme ? undefined : (
-          <BarreApercu form={form} photos={photos}>
-            {(fermer) => (
-              <>
-                {listePourPublier(fermer)}
-                {noteDeQuota}
-              </>
-            )}
-          </BarreApercu>
+          // TCK-2988 (2b) — sous `sm`, le résumé et « Aperçu » sont dans l'en-tête (ci-dessus).
+          <div className="max-sm:hidden">
+            <BarreApercu form={form} photos={photos}>
+              {(fermer) => (
+                <>
+                  {listePourPublier(fermer)}
+                  {noteDeQuota}
+                </>
+              )}
+            </BarreApercu>
+          </div>
         )}
         // TCK-2601 (AC5) — dès 1280 px (1024 dans le cadre d'entrée, TCK-2934), la feuille de compte prend la place de l'étape.
         refDuPanneau={setCibleDuPanneau}
@@ -1280,12 +1304,10 @@ function ResumeDansLaBarre({
   readonly photos: readonly File[];
   readonly children: (fermer: () => void) => ReactNode;
 }) {
-  const { premiereLigne, secondeLigne, prixDonne } = useResumeDeLApercu(form);
-  // Décision du porteur (2026-11-21, 1b) : le prix d'abord, une fois donné — une ligne tronquée au téléphone
-  // perdait ce qu'on cherche le plus (« Appartement · En location · Dak… »).
+  const { ligne } = useResumeDeLApercu(form);
   return (
     <DeclarerEntree
-      sousTitre={prixDonne ? `${secondeLigne} · ${premiereLigne}` : `${premiereLigne} · ${secondeLigne}`}
+      sousTitre={ligne}
       aDroite={{
         telephone: (
           <BarreApercu form={form} photos={photos} forme="bouton">
@@ -1296,4 +1318,12 @@ function ResumeDansLaBarre({
       }}
     />
   );
+}
+
+/**
+ * TCK-2988 (décision 2b du 2026-11-21) — la ligne du résumé sous l'intention, dans l'en-tête du téléphone de
+ * `/app/properties/new`. Un composant à part, pour la même raison que `ResumeDansLaBarre` : `useWatch`.
+ */
+function LigneDuResume({ form }: { readonly form: UseFormReturn<PropertyFormValues> }) {
+  return <>{useResumeDeLApercu(form).ligne}</>;
 }
