@@ -85,10 +85,8 @@ bandeaux passent de 158 à 56 px, le pied de 117 à 71 px.
 
 - [x] AC1 — À 390 px sur `/publish`, étape « caractéristiques », l'en-tête fait 56 px. Aucune barre
       d'aperçu ni ligne d'état du brouillon ne s'intercale entre l'en-tête et la question.
-- [ ] AC2 — À 390 px, le pied mesure au plus 72 px hors zone de sécurité, sur les deux entrées. *Mesuré
-      sur `/publish` (71 px). `/app/properties/new` n'a pas été affiché, faute de session et d'API : son pied
-      est le même composant, dont les classes du cadre d'entrée ne jouent que dès `lg`. À relever en
-      préproduction.*
+- [x] AC2 — À 390 px, le pied mesure au plus 72 px hors zone de sécurité, sur les deux entrées. *71 px
+      sur `/publish` et sur `/app/properties/new` (relevé le 2026-11-21, API locale, compte propriétaire).*
 - [x] AC3 — « Aperçu » dans l'en-tête ouvre le tiroir existant (carte, liste « Pour publier »).
 - [x] AC4 — Avec un brouillon, ✕ ouvre une confirmation qui propose de partir, de rester et d'effacer
       puis partir. Effacer vide réellement le brouillon local.
@@ -96,13 +94,25 @@ bandeaux passent de 158 à 56 px, le pied de 117 à 71 px.
 - [x] AC6 — À 360 px, à l'étape des photos (« Plus tard » présent), les trois gestes tiennent sur une
       ligne sans déborder.
 - [ ] AC7 — À 1024 et 1280 px, `/publish` et `/app/properties/new` sont identiques à avant (relevé).
+      *`/publish` relevé identique. `/app/properties/new` : pas de relevé avant/après, voir les notes.*
+
+### Ajouts du 2026-11-21 (décisions « 1b », « 2b » et « 1a » du porteur)
+
+- [x] AC8 — Le résumé de la barre dit le prix d'abord, une fois donné (« 250 000 F/mois · Appartement · … »).
+- [x] AC9 — Avec un brouillon, ✕ ouvre la feuille du bas de la maquette : « Quitter la publication ? »,
+      « Reprendre plus tard » en tête et focalisé, « Continuer la publication », « Effacer le brouillon ».
+- [x] AC10 — `/app/properties/new` au téléphone : en-tête compact de `/publish` (titre et résumé, Aperçu en
+      œil, « Quitter » court), sans barre d'aperçu sous l'en-tête.
+- [x] AC11 — Mode saisie (ADR-0133) sur les deux entrées, au téléphone : un champ focalisé replie l'en-tête à
+      44 px sans résumé, replie le bandeau, et remplace le pied par une barre de 52 px (↑ ↓, « Le bien · 2/6 »,
+      Continuer) ; le champ qui ouvre une liste est amené en tête ; tout revient quand le focus part. Rien ne
+      change dès `lg`.
 
 ## Hors périmètre
 
-- Le « mode saisie » de la maquette (clavier ouvert : pied réduit à ↑ ↓, repli de l'en-tête) et le
-  socle de mesure de la fenêtre. C'est le chantier « L'écran économe », qui demande son ADR.
-- L'en-tête de `/app/properties/new`.
-- La barre d'onglets escamotable et le défilement du document.
+- La barre d'onglets escamotable et le défilement du document (ADR-0133, § 5).
+- *Le mode saisie et l'en-tête de `/app/properties/new`, d'abord hors périmètre, y sont entrés le
+  2026-11-21 sur décision du porteur (« 1a », « 2b ») : ADR-0133, AC8 à AC11.*
 
 ## Notes d'implémentation
 
@@ -132,3 +142,26 @@ Les écrans d'invitation (`aDroite` seul) gardent leur `pr-3`. La hauteur des se
 Tests : `CoqueDEntree.ecran-econe.tck-2988`, `PublierSansCompte.ecran-econe.tck-2988` et
 `WizardShell.pied-du-telephone.tck-2819` (réécrit sur cette décision). Chaque changement a été vérifié par
 ablation : retiré, il fait rougir au moins un test.
+
+### Relevés du 2026-11-21, seconde passe (émulation 390 × 664, API locale)
+
+- **`/app/properties/new`, en-tête (2b)** : la question passe de 378 à 439 px de haut. Le titre garde 208 px
+  à 390 et 178 px à 360 grâce au libellé court « Quitter » (nom accessible : « Enregistrer et quitter »),
+  écart assumé avec la maquette, qui n'a pas ce bouton. Rien ne déborde à 360. À 768, l'ancien en-tête et la
+  barre d'aperçu restent.
+- **Feuille de sortie** : 290 px au bas de l'écran, focus sur « Reprendre plus tard ».
+- **Mode saisie, `/publish`** : focus sur Quartier → cadre `fixed` sur la fenêtre visible, en-tête de 44 px
+  sans résumé, Aperçu en œil de 40 px, label de Quartier à 12 px sous l'en-tête, barre de saisie de 52 px.
+  Focus retiré → en-tête de 56 px, pied de 71 px, cadre dans le flux. ↑ ↓ passent Ville → Quartier →
+  Lien collé et retour, sans fermer la saisie.
+- **Mode saisie, bureau (1280)** : focus sur Quartier, aucun `data-saisie`, pied de 100 px inchangé.
+- **La géométrie du clavier n'est pas prouvée par l'émulation** (ADR-0133, Conséquences) : le juge est
+  le téléphone.
+- **Écart local sans rapport** : `sitemap-couverture` compte 26 pages publiques au lieu de 24 dans cet
+  arbre, à cause des deux pages de maquette locales et non suivies (`playground/maquettes`). En CI, l'arbre ne
+  les a pas. Même cause pour les 19 classes signalées par `check:classes-emises`.
+
+Tests ajoutés : `src/lib/__tests__/fenetre.tck-2988`, `WizardShell.mode-saisie.tck-2988`,
+`PropertyWizard.en-tete-du-telephone.tck-2988`, et le mode saisie dans `CoqueDEntree.ecran-econe.tck-2988`.
+Douze ablations sur la mesure, la barre de saisie, le bandeau et la coque : chacune fait rougir au moins un
+test.
