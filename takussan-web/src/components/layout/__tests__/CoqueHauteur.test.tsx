@@ -18,7 +18,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -31,8 +31,9 @@ import { AppShell } from '../AppShell';
 import { REQUETE_DE_LA_BARRE } from '../plein-ecran';
 import { SuperAdminShell } from '../SuperAdminShell';
 
+const navigation = vi.hoisted(() => ({ chemin: '/app' }));
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/app',
+  usePathname: () => navigation.chemin,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => ({ get: () => null, toString: () => '' }),
 }));
@@ -203,6 +204,72 @@ describe('TCK-2481 — la barre d’onglets réserve sa hauteur en sœur du cont
     expect(corps.trim()).toBe('--floating-dock-base: calc(16px + var(--barre-onglets-hauteur) + var(--barre-d-action-hauteur));');
     // `md` reste le défaut de Tailwind (48rem) : aucun `--breakpoint-md` ne le déplace.
     expect(css).not.toMatch(/--breakpoint-md\s*:/);
+  });
+});
+
+/**
+ * ADR-0134 (TCK-2989) — au téléphone, c'est le DOCUMENT qui défile sur une page de la barre d'onglets : le
+ * navigateur ne replie ses barres que sur ce défilement-là. La coque garde `h-dvh` (le bureau, la messagerie) ;
+ * c'est `globals.css` qui la libère sous `md`, en mode document. jsdom n'applique pas la feuille : on garde
+ * l'ATTRIBUT posé par la coque, et les RÈGLES écrites qui le lisent.
+ */
+describe('ADR-0134 — au téléphone, la page de la console défile', () => {
+  const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'app', 'globals.css'), 'utf8');
+  /** Le corps de la règle `selecteur { … }` dans le bloc `@media (width < 48rem)` du mode document. */
+  function regle(selecteur: string): string {
+    const debut = css.indexOf('@media (width < 48rem) {\n  :root:has([data-defilement="document"])');
+    expect(debut, 'le bloc du mode document').toBeGreaterThan(-1);
+    const bloc = css.slice(debut, css.indexOf('\n}\n', debut));
+    // Au DÉBUT d'une règle (après `{`, `}` ou un commentaire) : `… #contenu-principal {` termine aussi un
+    // sélecteur groupé.
+    let i = -1;
+    for (let j = bloc.indexOf(`\n  ${selecteur} {`); j > -1; j = bloc.indexOf(`\n  ${selecteur} {`, j + 1)) {
+      if ('{}/'.includes(bloc[j - 1] ?? '')) {
+        i = j;
+        break;
+      }
+    }
+    expect(i, selecteur).toBeGreaterThan(-1);
+    return bloc.slice(i, bloc.indexOf('}', i)).replace(/\s+/g, ' ');
+  }
+
+  afterEach(() => {
+    navigation.chemin = '/app';
+  });
+
+  it('la coque d’une page de la barre porte `data-defilement="document"`, et sa rangée est nommée', () => {
+    const coque = monter(COQUES[0][1]);
+    expect(coque).toHaveAttribute('data-defilement', 'document');
+    expect(coque.querySelector('main')!.parentElement).toHaveAttribute('data-rangee-du-contenu');
+  });
+
+  it('la messagerie garde sa boîte : sa colonne a une hauteur bornée', () => {
+    navigation.chemin = '/app/messages';
+    expect(monter(COQUES[0][1])).not.toHaveAttribute('data-defilement');
+  });
+
+  it('les règles : la coque prend sa hauteur, rien ne défile dedans, l’en-tête colle et la barre est fixée', () => {
+    expect(regle('[data-defilement="document"]')).toMatch(/height: auto; min-height: 100dvh;/);
+    // `clip` et non `hidden` : rogner sans créer de conteneur de défilement ; `min-width: 0` : le `<main>`
+    // ne s'élargit pas à son contenu (505 px relevés à 390).
+    expect(regle('[data-defilement="document"] > [data-rangee-du-contenu],\n  [data-defilement="document"] #contenu-principal')).toMatch(
+      /overflow: visible; overflow-x: clip; min-width: 0;/,
+    );
+    expect(regle('[data-defilement="document"] > [data-slot="en-tete-mobile"]')).toMatch(/position: sticky; top: 0;/);
+    expect(regle('[data-defilement="document"] [data-slot="barre-onglets"]')).toMatch(/position: fixed; inset-inline: 0; bottom: 0;/);
+    expect(regle('[data-defilement="document"] #emplacement-barre-d-action > *')).toMatch(/position: fixed; inset-inline: 0; bottom: var\(--reserve-des-onglets\);/);
+  });
+
+  it('TCK-503 tenu par une réserve : le `<main>` réserve en bas la barre d’onglets (si elle est là) et la barre d’action', () => {
+    expect(regle('[data-defilement="document"][data-barre-onglets]')).toMatch(/--reserve-des-onglets: var\(--barre-onglets-hauteur\);/);
+    expect(regle('[data-defilement="document"] #contenu-principal')).toMatch(
+      /padding-bottom: calc\(var\(--reserve-des-onglets\) \+ var\(--barre-d-action-hauteur\)\);/,
+    );
+  });
+
+  it('ce qui colle en haut d’une page colle sous l’en-tête (`--haut-colle`, 0 hors du mode document)', () => {
+    expect(css).toMatch(/:root \{\s*--haut-colle: 0px;/);
+    expect(regle(':root:has([data-defilement="document"])')).toMatch(/--haut-colle: 3\.5rem; scroll-padding-top: var\(--haut-colle\);/);
   });
 });
 

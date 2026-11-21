@@ -301,7 +301,7 @@ export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisib
         />
       </div>
 
-      <div className="z-10 border-b border-border/70 bg-background max-md:sticky max-md:top-0 md:mt-5 md:border-0">
+      <div className="z-10 border-b border-border/70 bg-background max-md:sticky max-md:top-(--haut-colle) md:mt-5 md:border-0">
         <div className="md:flex md:items-center md:gap-2">
           <RangeeDePuces aria-label={t('pastilles.libelle')} className="md:min-w-0 md:flex-1 md:px-0">
             {PASTILLES.map((p) => (

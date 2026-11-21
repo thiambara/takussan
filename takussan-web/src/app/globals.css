@@ -356,6 +356,69 @@
   }
 }
 
+/* ADR-0134 (TCK-2989) — AU TÉLÉPHONE, C'EST LA PAGE QUI DÉFILE. Sous `md`, sur une page de la console
+   qui porte la barre d'onglets (`data-defilement="document"`, décidé par la ROUTE, `defileLeDocument`) :
+   le document défile, pour que Safari et Chrome replient leurs barres — ils ne le font que sur un
+   défilement du document (TCK-503 l'avait relevé, la boîte `h-dvh` le leur interdisait).
+   - la coque prend sa hauteur (au moins l'écran) ; la rangée et le `<main>` ne sont plus des conteneurs
+     de défilement, sinon rien de ce qui colle ne collerait à l'écran ;
+   - l'en-tête colle en haut, la barre d'onglets est fixée en bas, et la barre d'action ou de sélection
+     au-dessus d'elle (en bas quand elle s'est retirée) ;
+   - le `<main>` réserve en bas la hauteur de ce qui y est fixé : le dernier focalisable reste atteignable
+     (le critère de TCK-503, tenu par une réserve et non plus par une boîte) ;
+   - `--haut-colle` : là où colle ce qui colle en haut d'une page (sous l'en-tête). 0 hors de ce mode.
+   Gardé par `CoqueHauteur.test.tsx`. */
+:root {
+  --haut-colle: 0px;
+  --reserve-des-onglets: 0px;
+}
+@media (width < 48rem) {
+  :root:has([data-defilement="document"]) {
+    --haut-colle: 3.5rem;
+    scroll-padding-top: var(--haut-colle);
+  }
+  /* TCK-2804 — des onglets de page collent sous l'en-tête : une ancre ou un focus s'arrête sous eux. */
+  :root:has([data-defilement="document"] [data-onglets-de-page]) {
+    scroll-padding-top: calc(var(--haut-colle) + 3rem);
+  }
+  [data-defilement="document"] {
+    height: auto;
+    min-height: 100dvh;
+  }
+  /* `clip` et non `hidden` : il rogne l'axe horizontal SANS créer de conteneur de défilement (ce qui colle
+     colle toujours). Et `min-width: 0` : un élément flex sans débordement prend la largeur minimale de son
+     contenu — relevé le 2026-11-21 sur `/app/payments` : un `<main>` de 505 px élargissait la page à 390. */
+  [data-defilement="document"] > [data-rangee-du-contenu],
+  [data-defilement="document"] #contenu-principal {
+    overflow: visible;
+    overflow-x: clip;
+    min-width: 0;
+  }
+  [data-defilement="document"][data-barre-onglets] {
+    --reserve-des-onglets: var(--barre-onglets-hauteur);
+  }
+  [data-defilement="document"] #contenu-principal {
+    padding-bottom: calc(var(--reserve-des-onglets) + var(--barre-d-action-hauteur));
+  }
+  [data-defilement="document"] > [data-slot="en-tete-mobile"] {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  [data-defilement="document"] [data-slot="barre-onglets"] {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 30;
+  }
+  [data-defilement="document"] #emplacement-barre-d-action > * {
+    position: fixed;
+    inset-inline: 0;
+    bottom: var(--reserve-des-onglets);
+    z-index: 30;
+  }
+}
+
 /* TCK-2825 (ADR-0091 § 4) — la pastille du comparateur, sous `/app` (la page des favoris), se pose
    au-dessus de la barre d'onglets de la coque par la règle du dessus. Là où une page de la coque
    retire la barre (conversation ouverte, formulaire : `data-barre-onglets` absent), une autre couche

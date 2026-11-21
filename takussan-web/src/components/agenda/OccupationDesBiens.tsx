@@ -183,7 +183,7 @@ export function OccupationDesBiens({ de, a, aujourdhui, bureau, occupation, onOu
   if (!bureau) {
     return (
       <div data-slot="occupation-des-biens">
-        <div className="sticky top-0 z-10 border-b border-border bg-background px-4 pb-2 pt-3">
+        <div className="sticky top-(--haut-colle) z-10 border-b border-border bg-background px-4 pb-2 pt-3">
           <p className="text-sm" data-testid="occupation-resume">
             {enTete}
           </p>

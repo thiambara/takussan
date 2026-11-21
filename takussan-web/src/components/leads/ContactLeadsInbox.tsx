@@ -431,7 +431,7 @@ export function ContactLeadsInbox() {
               `app-coque` e1, comme les puces de l'historique des notifications). */}
           <RangeeDePuces
             aria-label={t('filters.label')}
-            className="border-b border-border bg-background max-md:sticky max-md:top-0 max-md:z-10 md:mt-5 md:px-0"
+            className="border-b border-border bg-background max-md:sticky max-md:top-(--haut-colle) max-md:z-10 md:mt-5 md:px-0"
           >
             {vues.map((v) => (
               <PuceDeFiltre key={v} active={v === filtre} compte={comptesDesVues[v]?.compte} onClick={() => choisirVue(v)}>

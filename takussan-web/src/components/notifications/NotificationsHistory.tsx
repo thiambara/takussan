@@ -198,7 +198,7 @@ export function NotificationsHistory() {
           <div
             role="group"
             aria-label={t('filterLabel')}
-            className="sticky top-0 z-10 flex items-center gap-2 overflow-x-auto border-b border-border/70 bg-background px-4 py-2.5 md:static md:border-0 md:p-0"
+            className="sticky top-(--haut-colle) z-10 flex items-center gap-2 overflow-x-auto border-b border-border/70 bg-background px-4 py-2.5 md:static md:border-0 md:p-0"
           >
             <PuceDeFiltre className="md:h-8 md:px-3 md:text-ui" active={mode === 'tout'} onClick={() => choisirMode('tout')}>
               {tCloche('tout')}

@@ -28,7 +28,7 @@ import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProf
 import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
 import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
-import { estPleinEcran, porteLaBarreDOnglets } from './plein-ecran';
+import { defileLeDocument, estPleinEcran, porteLaBarreDOnglets } from './plein-ecran';
 import { EnveloppeDuContenu } from './PagePleineLargeur';
 import { PreferencesDuMenuProvider } from './PreferencesDuMenu';
 import { ContexteDuMenuDeLaCoque } from './contexte-du-menu-de-la-coque';
@@ -118,6 +118,9 @@ function CoqueDeLApp({
     forme === 'plein-ecran' || declaration.conversation === true || declaration.formulaire === true || declaration.selection === true;
   // TCK-2481 — sous `md`, la barre d'onglets ; « Menu » y ouvre le tiroir, qui lui rend le focus.
   const barreDOnglets = porteLaBarreDOnglets(pathname) && !sansOnglets;
+  // ADR-0134 (TCK-2989) — sous `md`, le document défile (le navigateur replie ses barres). Par la route :
+  // une sélection ou une section à enregistrer retire la barre, pas le mode (`defileLeDocument`).
+  const documentDefile = defileLeDocument(pathname);
   const boutonMenu = useRef<HTMLButtonElement>(null);
   // TCK-2481 (revue, M1) — le tiroir se referme-t-il sur une NAVIGATION ? Posé par `onNavigate`, lu
   // par `finalFocus` : « Menu » est le dernier focalisable du document, y rendre le focus après le
@@ -219,6 +222,7 @@ function CoqueDeLApp({
         <div
           className="flex h-dvh flex-col bg-background"
           data-barre-onglets={barreDOnglets ? '' : undefined}
+          data-defilement={documentDefile ? 'document' : undefined}
           data-forme-en-tete={pleinEcran ? undefined : forme}
           data-portee-app=""
         >
@@ -238,7 +242,9 @@ function CoqueDeLApp({
               onOuvrirPalette={(depuis) => changerPalette(true, depuis)}
             />
           )}
-          <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* ADR-0134 — `data-rangee-du-contenu` : sous `md`, en mode document, elle cesse d'être un conteneur de
+              défilement (`globals.css`), sinon rien de ce qui colle ne collerait à l'écran. */}
+          <div className="flex min-h-0 flex-1 overflow-hidden" data-rangee-du-contenu="">
             {pleinEcran ? null : (
               <>
                 <div className="hidden md:block md:h-full md:shrink-0">
