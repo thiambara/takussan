@@ -1,7 +1,7 @@
 ---
 id: TCK-2989
 title: Au téléphone, c'est la page de /app qui défile — le navigateur replie ses barres
-status: doing
+status: done
 phase: P2
 family: front
 estimate: M
@@ -53,7 +53,7 @@ locale, jamais versionnée. Les barres restent visibles dans ce ticket : leur ef
       collent à 56 px, sous l'en-tête.
 - [x] AC3 — Aucune page ne dépasse 390 px de large.
 - [x] AC4 — Au bas de `/app/payments`, le dernier focalisable finit au-dessus de la barre (736 contre 780).
-- [ ] AC5 — Sur l'iPhone du porteur : les barres de Chrome se replient au défilement ; le tiroir, la feuille du
+- [x] AC5 — Sur l'iPhone du porteur : les barres de Chrome se replient au défilement ; le tiroir, la feuille du
       compte et la palette s'ouvrent et se ferment sans faire sauter la page.
 
 ## Relevé avant (2026-11-21, 390 × 844, `dev` à 7e32a8f7c, compte propriétaire)
@@ -68,3 +68,5 @@ locale, jamais versionnée. Les barres restent visibles dans ce ticket : leur ef
 Mode document sur 23 pages, boîte sur la messagerie ; en-tête à 0, barre à 780, collés à 56, largeur 390
 partout. Premier essai : `/app/payments` élargissait la page à 505 px (le `<main>` prenait la largeur de son
 contenu une fois sorti de son conteneur de défilement) — corrigé par `min-width: 0` et `overflow-x: clip`.
+
+AC5 constaté par le porteur sur son iPhone le 2026-11-21 (« ça marche »).

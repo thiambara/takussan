@@ -1,7 +1,7 @@
 ---
 id: TCK-2990
 title: Au téléphone, l'en-tête et la barre d'onglets de /app s'effacent au défilement
-status: doing
+status: done
 phase: P2
 family: front
 estimate: M
@@ -51,7 +51,7 @@ et retour doux, d'un seul bloc, départ automatique après 2,5 s).
 - [x] AC2 — Rappelées, elles repartent 2,5 s après le dernier défilement, jamais en haut ni en bas de page.
 - [x] AC3 — Les éléments collés d'une page suivent l'en-tête (56 → 0 px).
 - [x] AC4 — La pastille n'existe à l'écran que barres effacées ; la toucher les rappelle.
-- [ ] AC5 — Sur l'iPhone du porteur : le mouvement est celui de la maquette.
+- [x] AC5 — Sur l'iPhone du porteur : le mouvement est celui de la maquette.
 
 ## Relevé (2026-11-21, 390 × 844 en émulation, `/app/payments`)
 
@@ -76,3 +76,4 @@ garde (vérifiée par ablation).
    liste suivent. Relevé en émulation sur `/fr/properties` : `Navbar` à -69, barre à 844, retour au défilement
    vers le haut, départ après 2,5 s.
 
+AC5 constaté par le porteur sur son iPhone le 2026-11-21 (« ça marche »).
