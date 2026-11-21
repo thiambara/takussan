@@ -64,3 +64,15 @@ En passant : `primitives-neuves-tck-2689` cherchait une règle par une expressio
 (`(?:\s*[^{}@]+\{[^{}]*\})*`), qui dépassait 20 s dès que la feuille gagnait des blocs ; rendue linéaire, même
 garde (vérifiée par ablation).
 
+## Retour du porteur (2026-11-21, iPhone)
+
+1. « Le point ne marche pas quand je remonte et m'arrête, ça ne part pas au bout de 2,5 s » — reproduit : à la
+   fermeture du tiroir (ou d'une feuille, de la palette), base-ui ramène le focus sur le bouton qui l'a ouvert,
+   dans la barre ; le crochet le prenait pour une navigation au clavier et retenait les barres pour toujours.
+   Corrigé : seul un focus `:focus-visible` retient ; un défilement relâche un doigt posé sur une barre ;
+   retenues à l'échéance, le compte reprend. Trois tests, chacun vérifié par ablation.
+2. « La même chose sur la partie publique où on affiche la barre du bas » — ADR-0134 § 4 : la barre publique
+   monte le crochet et la pastille ; la `Navbar` ou l'en-tête de page monte, la barre descend, les puces de la
+   liste suivent. Relevé en émulation sur `/fr/properties` : `Navbar` à -69, barre à 844, retour au défilement
+   vers le haut, départ après 2,5 s.
+

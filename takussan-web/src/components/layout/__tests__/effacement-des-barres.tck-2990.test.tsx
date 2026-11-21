@@ -121,6 +121,36 @@ describe('ADR-0134 § 3 — quand les barres s’effacent', () => {
     expect(effacees()).toBe(true);
   });
 
+  it('un doigt posé sur une barre puis qui fait défiler ne la retient plus (iOS ne rend pas toujours `pointercancel`)', () => {
+    const { container } = render(<Sonde />);
+    act(() => void container.querySelector('[data-slot="barre-onglets"] a')!.dispatchEvent(new Event('pointerdown', { bubbles: true })));
+    glisser(60);
+    expect(effacees()).toBe(true);
+  });
+
+  it('le focus RAMENÉ sur un bouton de la barre (tiroir, feuille ou palette refermés au doigt) ne la retient pas', () => {
+    const { container } = render(<Sonde />);
+    const bouton = container.querySelector('[data-slot="en-tete-mobile"] button') as HTMLElement;
+    act(() => bouton.focus());
+    // Un focus de programme après un geste du doigt n'est pas `:focus-visible` (jsdom ne le calcule pas : on le pose).
+    const matches = vi.spyOn(bouton, 'matches').mockImplementation((s) => s !== ':focus-visible');
+    glisser(60);
+    expect(effacees()).toBe(true);
+    act(() => void vi.advanceTimersByTime(FIN_DE_DEFILEMENT_MS));
+    act(() => releve.rappeler());
+    act(() => void vi.advanceTimersByTime(DELAI_DE_DEPART_MS));
+    expect(effacees()).toBe(true);
+
+    // Au clavier, il les retient ; l'échéance passée, le compte reprend.
+    matches.mockImplementation((s) => s === ':focus-visible');
+    act(() => releve.rappeler());
+    act(() => void vi.advanceTimersByTime(DELAI_DE_DEPART_MS * 2));
+    expect(effacees()).toBe(false);
+    matches.mockImplementation((s) => s !== ':focus-visible');
+    act(() => void vi.advanceTimersByTime(DELAI_DE_DEPART_MS));
+    expect(effacees()).toBe(true);
+  });
+
   it('le focus qui entre dans une barre effacée la rend', () => {
     const { container } = render(<Sonde />);
     glisser(60);
@@ -181,6 +211,27 @@ describe('ADR-0134 § 3 — le mouvement, écrit dans `globals.css`', () => {
   it('clavier ouvert, la barre d’onglets et la pastille s’en vont', () => {
     expect(css).toContain('html[data-saisie="ouvert"] [data-defilement="document"] [data-slot="barre-onglets"] { transform: translateY(100%);');
     expect(css).toContain('html[data-saisie="ouvert"] .pastille-des-barres { opacity: 0; pointer-events: none; }');
+  });
+
+  it('le site public, sous `lg` : la `Navbar` ou l’en-tête de page monte, la barre descend, les puces collées suivent', () => {
+    const i = css.indexOf('--nav-visible: 1;');
+    expect(i).toBeGreaterThan(-1);
+    const bloc = css.slice(i, i + 2400);
+    expect(bloc).toContain('@media (width < 64rem) {');
+    expect(bloc).toContain(
+      'html[data-barres-effacees] [data-en-tete-au-telephone], html[data-barres-effacees] [data-slot="en-tete-de-page"] { transform: translateY(-100%); transition: transform 340ms var(--courbe-des-barres-depart); }',
+    );
+    expect(bloc).toContain(
+      'html[data-barres-effacees] [data-barre-onglets-publique] { transform: translateY(100%); transition: transform 340ms var(--courbe-des-barres-depart); }',
+    );
+    expect(bloc).toContain('html[data-barres-effacees] { --nav-visible: 0; }');
+    expect(bloc).toContain('html[data-saisie="ouvert"] [data-barre-onglets-publique] { transform: translateY(100%);');
+  });
+
+  it('la pastille vit sous `lg` : les deux lecteurs (`/app` sous `md`, le site public sous `lg`) la trouvent', () => {
+    const i = css.indexOf('.pastille-des-barres {');
+    const media = css.lastIndexOf('@media', i);
+    expect(css.slice(media, media + 30)).toBe('@media (width < 64rem) { /* La');
   });
 
   it('mouvement réduit : un fondu, aucun déplacement', () => {

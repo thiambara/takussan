@@ -12,9 +12,10 @@ import { useEffect, useRef, useState } from 'react';
  * - **hystérésis** : 40 px vers le bas pour effacer, 24 px vers le haut pour rappeler — un frémissement du pouce
  *   ne fait rien ;
  * - **départ automatique** : rappelées, les barres repartent 2,5 s après le dernier défilement. Jamais en haut ni
- *   en bas de page, jamais pendant qu'un doigt les touche ou que le focus y est.
+ *   en bas de page, jamais pendant qu'un doigt les touche ou que le clavier y navigue.
  *
- * Publié sur `<html>` (`data-barres-effacees`) : les portails et `--haut-colle` le lisent.
+ * Publié sur `<html>` (`data-barres-effacees`) : les portails et `--haut-colle` le lisent. Deux lecteurs : la coque
+ * de `/app` (sous `md`) et la barre d'onglets du site public (sous `lg`) — jamais montés ensemble.
  */
 
 export const SEUIL_EFFACER = 40;
@@ -23,9 +24,32 @@ export const SEUIL_RAPPELER = 24;
 export const FIN_DE_DEFILEMENT_MS = 160;
 export const DELAI_DE_DEPART_MS = 2500;
 
-const BARRES = '[data-slot="en-tete-mobile"], [data-slot="barre-onglets"]';
+// `/app` (en-tête du téléphone, barre d'onglets) et le site public (sa `Navbar`, l'en-tête d'une page, sa barre).
+const BARRES = [
+  '[data-slot="en-tete-mobile"]',
+  '[data-slot="barre-onglets"]',
+  '[data-en-tete-au-telephone]',
+  '[data-slot="en-tete-de-page"]',
+  '[data-barre-onglets-publique]',
+].join(', ');
 /** Une barre d'action ou de sélection tient le bas : les barres ne s'effacent pas sous elle. */
 const BARRE_D_ACTION = '#emplacement-barre-d-action > *';
+
+/**
+ * Le clavier navigue-t-il dans une barre ? Le focus seul ne suffit pas : à la fermeture du tiroir, d'une feuille ou
+ * de la palette, base-ui RAMÈNE le focus sur le bouton qui l'a ouverte — « Menu » de la barre, recherche de
+ * l'en-tête. Retenu tel quel, il gardait les barres pour toujours (relevé le 2026-11-21 sur l'iPhone du porteur :
+ * « ça ne part pas au bout de 2,5 s »). Seul un focus VISIBLE (une navigation au clavier) les retient.
+ */
+function clavierDansUneBarre(): boolean {
+  const actif = document.activeElement;
+  if (!(actif instanceof Element) || actif.closest(BARRES) === null) return false;
+  try {
+    return actif.matches(':focus-visible');
+  } catch {
+    return true;
+  }
+}
 
 export interface EffacementDesBarres {
   readonly effacees: boolean;
@@ -53,7 +77,7 @@ export function useEffacementDesBarres(actif: boolean, cle: string): EffacementD
 
     const enHaut = () => window.scrollY <= 8;
     const enBas = () => window.scrollY + window.innerHeight >= racine.scrollHeight - 4;
-    const tenues = () => enContact || document.querySelector(BARRE_D_ACTION) !== null || document.activeElement?.closest(BARRES) != null;
+    const tenues = () => enContact || document.querySelector(BARRE_D_ACTION) !== null || clavierDansUneBarre();
 
     const montrer = () => {
       cachees = false;
@@ -72,7 +96,10 @@ export function useEffacementDesBarres(actif: boolean, cle: string): EffacementD
       window.clearTimeout(minuterie);
       if (!actif || cachees || enHaut() || enBas()) return;
       minuterie = window.setTimeout(() => {
-        if (!enHaut() && !enBas()) effacer();
+        if (enHaut() || enBas()) return;
+        // Retenues à l'échéance (un doigt, le clavier) : on reprend le compte, on ne l'abandonne pas.
+        if (tenues()) armer();
+        else effacer();
       }, DELAI_DE_DEPART_MS);
     };
     refRappeler.current = () => {
@@ -87,6 +114,8 @@ export function useEffacementDesBarres(actif: boolean, cle: string): EffacementD
       const y = window.scrollY;
       const d = y - dernierY;
       dernierY = y;
+      // Un doigt qui fait défiler ne tient pas une barre : il la traverse (iOS ne rend pas toujours `pointercancel`).
+      enContact = false;
       window.clearTimeout(minuterie);
       window.clearTimeout(finDeDefilement);
       finDeDefilement = window.setTimeout(armer, FIN_DE_DEFILEMENT_MS);
@@ -127,6 +156,7 @@ export function useEffacementDesBarres(actif: boolean, cle: string): EffacementD
     window.addEventListener('pointerdown', toucher, { passive: true });
     window.addEventListener('pointerup', lacher);
     window.addEventListener('pointercancel', lacher);
+    window.addEventListener('touchend', lacher, { passive: true });
     document.addEventListener('focusin', surFocus);
     return () => {
       window.clearTimeout(minuterie);
@@ -135,6 +165,7 @@ export function useEffacementDesBarres(actif: boolean, cle: string): EffacementD
       window.removeEventListener('pointerdown', toucher);
       window.removeEventListener('pointerup', lacher);
       window.removeEventListener('pointercancel', lacher);
+      window.removeEventListener('touchend', lacher);
       document.removeEventListener('focusin', surFocus);
       delete racine.dataset.barresEffacees;
     };

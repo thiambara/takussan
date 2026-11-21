@@ -100,6 +100,8 @@ describe('TCK-552 · TCK-635 — la sauvegarde n’existe sous lg que s’il y a
     // rangée d'outils (TCK-635 les en avait retirées).
     const puces = document.querySelector('[data-rangee="puces"]')!;
     expect(puces.closest('[data-puces-collees]')).not.toBeNull();
+    // ADR-0134 § 3 (TCK-2990) — la `Navbar` partie, elles remontent avec elle : sa hauteur × `--nav-visible`.
+    expect(classes(puces.closest('[data-puces-collees]')!)).toContain('max-lg:top-[calc(var(--bas-de-la-nav,69px)*var(--nav-visible,1))]');
     expect(puces.closest('[data-rangee-outils]')).toBeNull();
     expect(puces.closest('[data-entete-resultats]')).toBeNull();
   });

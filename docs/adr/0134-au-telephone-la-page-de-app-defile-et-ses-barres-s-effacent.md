@@ -72,12 +72,31 @@ table de routes « boîte » qui ont besoin d'une hauteur bornée (`ROUTES_EN_BO
   `cubic-bezier(0.4, 0, 0.2, 1)`. Mouvement réduit demandé : un fondu de 160 ms, sans déplacement.
 - **La pastille** : une barre de 40 × 5 px dans une zone de 96 × 32, au bas de l'écran, visible seulement quand
   les barres sont effacées ; un toucher les rappelle. C'est un bouton nommé.
-- **Jamais effacées** : tiroir ouvert, barre d'action ou de sélection présente, focus dans l'une des deux barres
-  (`:focus-within`, une barre déplacée par `transform` reste focalisable).
+- **Jamais effacées** : tiroir ouvert, barre d'action ou de sélection présente, navigation au CLAVIER dans l'une
+  des barres (focus `:focus-visible` : une barre déplacée par `transform` reste focalisable). Un focus de programme
+  ne compte pas : à la fermeture du tiroir, d'une feuille ou de la palette, base-ui ramène le focus sur le bouton
+  qui l'a ouvert, dans la barre — retenu, il gardait les barres pour toujours (relevé sur l'iPhone du porteur le
+  2026-11-21 : « ça ne part pas au bout de 2,5 s »). Retenues à l'échéance, le compte reprend au lieu de s'arrêter.
+- **Un doigt sur une barre la retient** jusqu'à ce qu'il se lève (`pointerup`, `pointercancel`, `touchend`) ou
+  qu'il fasse défiler : un geste qui défile ne tient pas une barre.
 - **Clavier ouvert** (`data-saisie`, ADR-0133) : la barre d'onglets s'en va, la pastille aussi.
 - Publié sur `<html>` : `data-barres-effacees`, pour que les portails et `--haut-colle` le lisent.
 - Le dock flottant, le toast et les annonces de la boîte (`PilotageDeLaBoite`) **restent où ils sont** quand les
   barres s'effacent : au-dessus de la place de la barre. Ils ne la suivent pas.
+
+### 4. Le site public aussi (retour du porteur, le 2026-11-21 : « ça doit être dans toute l'application »)
+
+Sous `lg`, là où le site public porte sa barre d'onglets (`porteLaBarrePublique`) : le même crochet, la même
+pastille, le même mouvement. Le document y défilait déjà : rien du § 2 n'est nécessaire.
+
+- C'est la barre publique qui monte le crochet et la pastille (`BarreDOngletsPublique`) : elle n'existe que là
+  où l'effacement a un sens. Elle s'abonne aussi à la mesure de la fenêtre : clavier ouvert, elle part.
+- Ce qui monte : la `Navbar` du site (`[data-en-tete-au-telephone]`, fixe) ou l'en-tête de la page
+  (`en-tete-de-page`, collé) ; ce qui descend : la barre (`[data-barre-onglets-publique]`).
+- Ce qui colle sous la `Navbar` la suit : les puces de la liste (`data-puces-collees`) multiplient sa hauteur par
+  `--nav-visible` (1, puis 0 quand les barres sont parties).
+- Les deux lecteurs (`/app` sous `md`, le site public sous `lg`) ne sont jamais montés ensemble : un seul
+  `data-barres-effacees` sur `<html>`.
 
 ## Options écartées
 
@@ -103,6 +122,8 @@ table de routes « boîte » qui ont besoin d'une hauteur bornée (`ROUTES_EN_BO
 - `src/components/layout/plein-ecran.ts` : `defileLeDocument`, `ROUTES_EN_BOITE`.
 - `src/components/layout/AppShell.tsx` : `data-defilement`, l'effacement, la pastille.
 - `src/components/layout/useEffacementDesBarres.ts` : l'état des barres.
+- `src/components/navigation-publique/BarreDOngletsPublique.tsx` : le site public (§ 4) ;
+  `PropertiesDiscoveryPage.tsx` : les puces collées.
 - `src/app/globals.css` : le mode document sous `md`, `--haut-colle`, le mouvement.
 - Les éléments collés relevés par TCK-2989.
 - Les gardes : `CoqueHauteur.test.tsx`, `AppShell.barre-d-onglets.test.tsx` et

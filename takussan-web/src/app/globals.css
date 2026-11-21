@@ -458,6 +458,9 @@
     transition: transform 200ms var(--courbe-des-barres-retour);
   }
 
+}
+/* La pastille (les deux lecteurs : `/app` sous `md`, le site public sous `lg` ; chacun la masque au-delà). */
+@media (width < 64rem) {
   /* La pastille : elle n'apparaît qu'une fois les barres parties, et disparaît à l'instant où elles reviennent.
      Une barre de 40 × 5 px dans une zone de 96 × 32, au-dessus de la zone sûre. */
   .pastille-des-barres {
@@ -506,6 +509,65 @@
     pointer-events: none;
   }
 }
+
+/* ADR-0134 § 3 (TCK-2990, retour du porteur : « dans toute l'application ») — LE SITE PUBLIC, sous `lg`, là où il
+   porte sa barre d'onglets : même état (`data-barres-effacees`, posé par la barre publique), même mouvement. La
+   `Navbar` (fixe) ou l'en-tête de la page (collé) monte, la barre descend. Ce qui colle sous la `Navbar` (les
+   puces de la liste) remonte avec elle : `--nav-visible` multiplie sa hauteur. */
+:root {
+  --nav-visible: 1;
+}
+@media (width < 64rem) {
+  [data-en-tete-au-telephone],
+  [data-slot="en-tete-de-page"],
+  [data-barre-onglets-publique] {
+    transform: translateY(0);
+    transition: transform 340ms var(--courbe-des-barres-retour);
+  }
+  [data-puces-collees] {
+    transition: top 340ms var(--courbe-des-barres-retour);
+  }
+  html[data-barres-effacees] {
+    --nav-visible: 0;
+  }
+  html[data-barres-effacees] [data-en-tete-au-telephone],
+  html[data-barres-effacees] [data-slot="en-tete-de-page"] {
+    transform: translateY(-100%);
+    transition: transform 340ms var(--courbe-des-barres-depart);
+  }
+  html[data-barres-effacees] [data-barre-onglets-publique] {
+    transform: translateY(100%);
+    transition: transform 340ms var(--courbe-des-barres-depart);
+  }
+  html[data-barres-effacees] [data-puces-collees] {
+    transition: top 340ms var(--courbe-des-barres-depart);
+  }
+  html[data-saisie="ouvert"] [data-barre-onglets-publique] {
+    transform: translateY(100%);
+    transition: transform 200ms var(--courbe-des-barres-retour);
+  }
+}
+@media (width < 64rem) and (prefers-reduced-motion: reduce) {
+  [data-en-tete-au-telephone],
+  [data-slot="en-tete-de-page"],
+  [data-barre-onglets-publique] {
+    transition: opacity 160ms ease;
+  }
+  html[data-barres-effacees] [data-en-tete-au-telephone],
+  html[data-barres-effacees] [data-slot="en-tete-de-page"],
+  html[data-barres-effacees] [data-barre-onglets-publique] {
+    transform: none;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 160ms ease,
+      visibility 0s 160ms;
+  }
+  [data-puces-collees] {
+    transition: none;
+  }
+}
+
 /* Mouvement réduit : un fondu, aucun déplacement. */
 @media (width < 48rem) and (prefers-reduced-motion: reduce) {
   [data-defilement="document"] > [data-slot="en-tete-mobile"],
