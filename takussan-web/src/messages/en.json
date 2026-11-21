@@ -1696,6 +1696,11 @@
         "firstIsCover": "The first one is the main photo",
         "cover": "Cover",
         "add": "Add"
+      },
+      "saisie": {
+        "precedent": "Previous field",
+        "suivant": "Next field",
+        "position": "{partie} · {current}/{total}"
       }
     },
     "titleTypes": {

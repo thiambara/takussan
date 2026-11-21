@@ -3,11 +3,13 @@
 import type React from 'react';
 import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+import { naviguerEntreChamps, useAmenerLeChamp } from './saisie';
 
 /**
  * TCK-464 — la coquille du parcours de publication : progression, transition, navigation.
@@ -187,6 +189,12 @@ export function WizardShell({
     safeAreaInset: 'calc(var(--spacing) * 4 + env(safe-area-inset-bottom))',
   });
 
+  // ADR-0133 (TCK-2988) — le mode saisie : le champ qui prend le focus est amené à sa place, ↑ ↓ passent d'un champ
+  // à l'autre. S'abonner à la mesure suffit à publier `data-saisie` sur `<html>`.
+  const refCorps = useRef<HTMLDivElement>(null);
+  const { saisie } = useAmenerLeChamp(refCorps);
+  const continuer = () => (derniere ? onFinish() : onNavigate(index + 1, 1));
+
   const titreRef = useRef<HTMLHeadingElement>(null);
   // Premier rendu excepté : le focus ne se déplace que sur un CHANGEMENT d'étape, jamais au
   // montage — sans quoi on arracherait l'utilisateur de là où il vient d'arriver sur la page.
@@ -218,17 +226,27 @@ export function WizardShell({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div
+      className={cn(
+        'flex h-full min-h-0 flex-col',
+        // ADR-0133 — hors du cadre d'entrée (`/app/properties/new`), c'est l'assistant lui-même qui se cale sur la
+        // fenêtre visible pendant la saisie, au téléphone : par-dessus la barre et les onglets de l'application.
+        // Dans le cadre d'entrée, c'est la coque (`CoqueDEntree`).
+        !cadreDEntree &&
+          'max-lg:saisie:fixed max-lg:saisie:inset-x-0 max-lg:saisie:top-[var(--vue-top,0px)] max-lg:saisie:z-40 max-lg:saisie:h-[var(--vue-h,100dvh)] max-lg:saisie:bg-background',
+      )}
+    >
       {entete}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/* Maquette a-0 (téléphone) : le départ n'a pas encore de résumé — rien n'a été dit. */}
-          {barreApercu && !etape.accueil ? <div className="shrink-0 lg:hidden">{barreApercu}</div> : null}
-          {bandeau ? <div className="shrink-0 px-4 pt-4 sm:px-8 lg:px-12 xl:px-14">{bandeau}</div> : null}
+          {barreApercu && !etape.accueil ? <div className="shrink-0 lg:hidden saisie:hidden">{barreApercu}</div> : null}
+          {/* ADR-0133 — en saisie, au téléphone, le bandeau se replie (notes, reprise du brouillon) : il revient avec le clavier fermé. */}
+          {bandeau ? <div className="shrink-0 px-4 pt-4 sm:px-8 lg:px-12 xl:px-14 max-lg:saisie:hidden">{bandeau}</div> : null}
 
           {/* ── Corps : LA SEULE zone défilante (AC9) ── */}
-          <div data-wizard-scroll className="min-h-0 flex-1 overflow-y-auto">
+          <div ref={refCorps} data-wizard-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <GrilleDEntree
               active={cadreDEntree}
               className="lg:pt-10 lg:pb-12"
@@ -323,6 +341,8 @@ export function WizardShell({
                 <div className="mt-7 space-y-7">{etape.body}</div>
               </div>
             </GrilleDEntree>
+            {/* ADR-0133 — en saisie, de quoi amener en tête du corps même le dernier champ. */}
+            <div aria-hidden="true" data-cale-de-saisie="" className="hidden h-[var(--vue-h,100dvh)] max-lg:saisie:block" />
           </div>
 
           {/* ── Pied : HORS de la zone défilante. Le moyen d'avancer ne sort jamais de l'écran. ── */}
@@ -341,6 +361,8 @@ export function WizardShell({
                 ? 'lg:bg-card'
                 : 'lg:bg-background/95 lg:backdrop-blur lg:supports-[backdrop-filter]:bg-background/80',
               panneauOuvert && (cadreDEntree ? 'lg:hidden' : 'xl:hidden'),
+              // ADR-0133 — en saisie, au téléphone, la barre de saisie prend sa place (ci-dessous).
+              'max-lg:saisie:hidden',
             )}
           >
             <GrilleDEntree
@@ -449,7 +471,7 @@ export function WizardShell({
                       cadreDEntree && [GESTE_D_ENTREE, 'lg:min-w-[11rem]'],
                     )}
                     disabled={busy || !peutAvancer}
-                    onClick={() => (derniere ? onFinish() : onNavigate(index + 1, 1))}
+                    onClick={continuer}
                   >
                     {busy ? (
                       <>
@@ -474,6 +496,51 @@ export function WizardShell({
               ) : null}
             </GrilleDEntree>
           </div>
+
+          {/*
+            ADR-0133 — la barre de saisie (maquette « L'écran économe ») : 52 px collés au clavier, au téléphone, pendant
+            la saisie seulement. ↑ ↓ empêchent leur `pointerdown` : le focus ne quitte jamais le champ, le clavier
+            reste ouvert. Puis la partie et le rang, et « Continuer ».
+          */}
+          {/* Rendue en saisie seulement : hors d'elle, un second « Continuer » n'a rien à faire dans la page. */}
+          {saisie ? (
+          <div
+            data-barre-de-saisie=""
+            className="hidden h-13 shrink-0 items-center gap-1 border-t border-border bg-card px-2 max-lg:saisie:flex"
+          >
+            <button
+              type="button"
+              aria-label={t('saisie.precedent')}
+              onPointerDown={(evenement) => evenement.preventDefault()}
+              onClick={() => naviguerEntreChamps(refCorps.current, -1)}
+              className="grid size-10 flex-none place-items-center rounded-full text-foreground transition-colors active:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <ChevronUp className="size-5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={t('saisie.suivant')}
+              onPointerDown={(evenement) => evenement.preventDefault()}
+              onClick={() => naviguerEntreChamps(refCorps.current, 1)}
+              className="grid size-10 flex-none place-items-center rounded-full text-foreground transition-colors active:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <ChevronDown className="size-5" aria-hidden="true" />
+            </button>
+            <span className="min-w-0 flex-1 truncate px-1 text-xs text-muted-foreground tabular-nums">
+              {parts
+                ? t('saisie.position', { partie: parts[partieCourante], current: index + 1, total: steps.length })
+                : t('position', { current: index + 1, total: steps.length })}
+            </span>
+            <Button
+              type="button"
+              disabled={busy || !peutAvancer}
+              onClick={continuer}
+              className="h-10 flex-none rounded-full px-5 text-sm font-semibold"
+            >
+              {derniere ? finishLabel : t('continue')}
+            </Button>
+          </div>
+          ) : null}
         </div>
 
         {apercu && !cadreDEntree ? (

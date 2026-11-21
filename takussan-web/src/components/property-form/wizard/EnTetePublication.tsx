@@ -51,13 +51,19 @@ export function EnTetePublication({
   const tCoque = useTranslations('nav.coque');
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4 sm:h-16 sm:px-8">
+    <header
+      className={cn(
+        'flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4 sm:h-16 sm:px-8',
+        // ADR-0133 (TCK-2988) — en saisie, au téléphone, 44 px, sans la ligne du résumé.
+        resume && 'max-sm:saisie:h-11',
+      )}
+    >
       {retour ? <LienFlecheDeRetour repli={retour} libelle={tCoque('retour')} className="-ml-3" /> : null}
       {resume ? (
         <>
           <div className="min-w-0 flex-1 leading-tight sm:hidden">
             <p className="truncate text-action font-semibold">{titre}</p>
-            <p data-sous-titre-d-entree="" className="truncate text-ui text-muted-foreground tabular-nums">
+            <p data-sous-titre-d-entree="" className="truncate text-ui text-muted-foreground tabular-nums saisie:hidden">
               {resume}
             </p>
           </div>

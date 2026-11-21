@@ -11550,6 +11550,11 @@
         "firstIsCover": "La première est la photo principale",
         "cover": "Couverture",
         "add": "Ajouter"
+      },
+      "saisie": {
+        "precedent": "Champ précédent",
+        "suivant": "Champ suivant",
+        "position": "{partie} · {current}/{total}"
       }
     },
     "titleTypes": {

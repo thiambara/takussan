@@ -430,7 +430,7 @@ export function PublierSansCompte({
         <div
           className={cn(
             'min-h-11 flex-none items-center gap-x-4 px-4 text-xs text-muted-foreground sm:px-8 xl:hidden',
-            memoire ? 'flex' : 'hidden lg:flex',
+            memoire ? 'flex max-lg:saisie:hidden' : 'hidden lg:flex',
           )}
         >
           <p className="flex min-w-0 items-center gap-1.5">

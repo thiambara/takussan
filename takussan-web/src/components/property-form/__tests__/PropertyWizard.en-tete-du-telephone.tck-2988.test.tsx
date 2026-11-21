@@ -70,6 +70,9 @@ describe('TCK-2988 (2b) — l’en-tête de /app/properties/new au téléphone',
     const bloc = ligne.parentElement!;
     expect(bloc).toHaveClass('sm:hidden', 'flex-1', 'min-w-0');
     expect(bloc.firstElementChild).toHaveTextContent(W.header.publish);
+    // ADR-0133 — en saisie, 44 px, sans la ligne du résumé.
+    expect(entete).toHaveClass('h-14', 'max-sm:saisie:h-11');
+    expect(ligne).toHaveClass('saisie:hidden');
     // La marque reste, au-delà du téléphone.
     expect(within(entete).getAllByText(frMessages.common.appName)[0]!.closest('.max-sm\\:hidden')).not.toBeNull();
   });

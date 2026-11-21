@@ -158,3 +158,25 @@ describe('TCK-2988 — la sortie avec un brouillon gardé (feuille de la maquett
     expect(within(boite).getAllByRole('button').map((b) => b.textContent)).toEqual(expect.arrayContaining([C.sortie.partir, C.sortie.rester]));
   });
 });
+
+describe('ADR-0133 — le mode saisie, plein écran au téléphone', () => {
+  it('le cadre se cale sur la fenêtre visible en saisie ; l’en-tête passe à 44 px, sans la ligne du résumé', () => {
+    const { telephone } = monter({ sousTitre: 'Studio · En location' });
+    const cadre = document.querySelector('[data-coque-d-entree]');
+    expect(cadre).toHaveClass('max-lg:saisie:fixed', 'max-lg:saisie:top-[var(--vue-top,0px)]', 'max-lg:saisie:h-[var(--vue-h,100dvh)]');
+    expect(telephone).toHaveClass('h-14', 'saisie:h-11');
+    expect(telephone.querySelector('[data-sous-titre-d-entree]')).toHaveClass('saisie:hidden');
+  });
+
+  it('hors du plein écran, rien ne change', () => {
+    render(
+      withIntl(
+        <CoqueDEntree libelles={LIBELLES} titre="Se connecter" sortie={{ href: '/', forme: 'quitter' }}>
+          <DeclarerEntree />
+        </CoqueDEntree>,
+      ),
+    );
+    expect(document.querySelector('[data-coque-d-entree]')!.className).not.toMatch(/saisie:/);
+    expect(screen.getAllByRole('banner')[0]!.className).not.toMatch(/saisie:/);
+  });
+});

@@ -440,7 +440,8 @@ export function BarreApercu({
           className="inline-flex h-11 flex-none items-center gap-1.5 rounded-full px-3 text-sm font-medium text-primary transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
         >
           <Eye className="size-4" aria-hidden="true" />
-          {t('open')}
+          {/* ADR-0133 — en saisie, l'en-tête passe à 44 px : l'œil seul. */}
+          <span className="saisie:hidden">{t('open')}</span>
         </button>
       ) : (
         <button

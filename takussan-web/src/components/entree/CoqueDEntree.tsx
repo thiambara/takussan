@@ -409,7 +409,18 @@ export function CoqueDEntree({
   return (
     <ContexteDeclarer.Provider value={declarer}>
       <ContexteSortie.Provider value={gardePretee}>
-      <div className={cn('flex bg-background', pleinEcran ? 'h-dvh' : 'min-h-dvh')} data-coque-d-entree="">
+      <div
+        className={cn(
+          'flex bg-background',
+          pleinEcran ? 'h-dvh' : 'min-h-dvh',
+          // ADR-0133 (TCK-2988) — au téléphone, pendant la saisie seulement, le cadre se cale sur la fenêtre VISIBLE :
+          // le clavier d'iPhone ne réduit qu'elle, et le pied se retrouve au-dessus de lui sans un calcul. Hors saisie,
+          // il reste dans le flux : une hauteur mesurée restait figée quand Chrome iOS repliait ses barres.
+          pleinEcran &&
+            'max-lg:saisie:fixed max-lg:saisie:inset-x-0 max-lg:saisie:top-[var(--vue-top,0px)] max-lg:saisie:z-30 max-lg:saisie:h-[var(--vue-h,100dvh)]',
+        )}
+        data-coque-d-entree=""
+      >
         {panneau ? (
           <aside
             data-panneau-d-entree=""
@@ -425,7 +436,13 @@ export function CoqueDEntree({
             </div>
           ) : (
             /* Téléphone : 56 px — retour, « ✕ » ou la marque ; l'intention ; l'avancement, la sortie. */
-            <header className="sticky top-0 z-20 flex h-14 flex-none items-center gap-1 border-b border-border/70 bg-background px-1 lg:hidden">
+            <header
+              className={cn(
+                'sticky top-0 z-20 flex h-14 flex-none items-center gap-1 border-b border-border/70 bg-background px-1 lg:hidden',
+                // ADR-0133 — en saisie, 44 px, sans la ligne sous l'intention.
+                pleinEcran && 'saisie:h-11',
+              )}
+            >
               {retour ? (
                 retour.telephone
               ) : sortie?.forme === 'quitter' ? (
@@ -449,7 +466,7 @@ export function CoqueDEntree({
                   // TCK-2988 — maquette « L'écran économe » : l'intention, et dessous ce qu'on est en train d'en faire.
                   <div className="min-w-0 flex-1 leading-tight">
                     <p className="truncate text-action font-semibold">{titre}</p>
-                    <p data-sous-titre-d-entree="" className="truncate text-ui text-muted-foreground tabular-nums">
+                    <p data-sous-titre-d-entree="" className="truncate text-ui text-muted-foreground tabular-nums saisie:hidden">
                       {sousTitre}
                     </p>
                   </div>
@@ -585,7 +602,9 @@ export function CoqueDEntree({
             // bureau, sous la colonne, dans le flux.
             <div
               data-pied-d-entree=""
-              style={{ bottom: decalage }}
+              // ADR-0133 — plein écran, le cadre se cale lui-même sur la fenêtre visible pendant la saisie : le décalage
+              // compterait le clavier deux fois.
+              style={{ bottom: pleinEcran ? undefined : decalage }}
               className="sticky z-20 flex-none border-t border-border bg-card px-4 pb-5 pt-3 shadow-barre-collante lg:static lg:mx-auto lg:w-full lg:max-w-[30rem] lg:border-0 lg:bg-transparent lg:px-0 lg:pb-16 lg:pt-0 lg:shadow-none"
             >
               {pied}

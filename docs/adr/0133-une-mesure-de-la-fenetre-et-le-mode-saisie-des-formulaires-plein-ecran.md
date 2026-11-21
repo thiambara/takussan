@@ -41,8 +41,9 @@ l'en-tête se compacte et le pied devient la barre de saisie.**
 
        caché = innerHeight − (visualViewport.offsetTop + visualViewport.height)
 
-   - Les écouteurs se posent au premier abonné et se retirent au dernier. La mesure est faite à chaque
-     image (`requestAnimationFrame`).
+   - Les écouteurs se posent au premier abonné et se retirent au dernier. La mesure est synchrone, comme
+     l'était `useDecalageDuClavier` : quelques lectures, et les abonnés ne sont prévenus que si une valeur
+     change.
    - Sur `<html>`, elle publie :
      - `data-saisie="ouvert"` quand un champ éditable a le focus sur un pointeur grossier, ou quand un
        clavier de plus de 120 px est mesuré. Le mode part avec le focus, sans attendre que le clavier
@@ -99,7 +100,7 @@ l'en-tête se compacte et le pied devient la barre de saisie.**
 - `src/components/entree/useDecalageDuClavier.ts` : lit le magasin.
 - `src/app/globals.css` : le variant `saisie:`.
 - `src/components/entree/CoqueDEntree.tsx` : le cadre et l'en-tête en saisie.
-- `src/components/property-form/wizard/WizardShell.tsx` : la barre de saisie, ↑ ↓, le champ amené, la
-  cale.
-- Les tests : `src/lib/__tests__/fenetre.tck-2988.test.ts`, et ceux du mode saisie de la coque et de
+- `src/components/property-form/wizard/WizardShell.tsx` et `wizard/saisie.ts` : la barre de saisie, ↑ ↓, le
+  champ amené, la cale ; `EnTetePublication.tsx` : l'en-tête de `/app/properties/new` en saisie.
+- Les tests : `src/lib/__tests__/fenetre.tck-2988.test.tsx`, et ceux du mode saisie de la coque et de
   `WizardShell`, chacun vérifié par ablation.

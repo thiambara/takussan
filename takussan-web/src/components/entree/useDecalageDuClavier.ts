@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useFenetre } from '@/lib/fenetre';
 
 /**
  * TCK-2598 — la hauteur que le clavier du téléphone cache en bas de la fenêtre, en px (0 sans clavier).
@@ -14,27 +14,11 @@ import { useEffect, useState } from 'react';
  * `offsetTop` compte : clavier ouvert, le navigateur fait défiler la fenêtre visuelle pour montrer le
  * champ, et le bas visible n'est plus à `visualViewport.height`.
  *
- * Sans `visualViewport` (navigateur ancien, jsdom), 0 : le pied reste en bas, comme avant.
+ * ADR-0133 (TCK-2988) — la mesure vit dans `src/lib/fenetre.ts`, la seule de l'application ; ce crochet en lit
+ * `cache`. Sans `visualViewport` (navigateur ancien, jsdom), 0 : le pied reste en bas, comme avant.
  */
 export function useDecalageDuClavier(): number {
-  const [decalage, setDecalage] = useState(0);
-
-  useEffect(() => {
-    const vue = window.visualViewport;
-    if (!vue) return;
-    const mesurer = () => {
-      const cache = Math.round(window.innerHeight - (vue.offsetTop + vue.height));
-      // Un ou deux px d'arrondi (barre d'adresse qui se replie) ne sont pas un clavier.
-      setDecalage(cache > 2 ? cache : 0);
-    };
-    mesurer();
-    vue.addEventListener('resize', mesurer);
-    vue.addEventListener('scroll', mesurer);
-    return () => {
-      vue.removeEventListener('resize', mesurer);
-      vue.removeEventListener('scroll', mesurer);
-    };
-  }, []);
-
-  return decalage;
+  const { cache } = useFenetre();
+  // Un ou deux px d'arrondi (barre d'adresse qui se replie) ne sont pas un clavier.
+  return cache > 2 ? cache : 0;
 }
