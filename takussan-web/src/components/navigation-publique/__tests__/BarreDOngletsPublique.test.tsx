@@ -176,3 +176,19 @@ describe('TCK-2493 — connecté : les cases suivent le profil actif', () => {
     expect(libelles().slice(1, 3)).toEqual(['Demandes', 'Visites']);
   });
 });
+
+describe('ADR-0134 § 3 (TCK-2990) — la barre publique s’efface au défilement, comme celle de `/app`', () => {
+  it('porte la pastille de rappel : nommée, inerte tant que les barres sont là, masquée dès `lg`', () => {
+    monter();
+    const pastille = screen.getByRole('button', { name: 'Afficher la navigation', hidden: true });
+    expect(pastille).toHaveAttribute('data-slot', 'pastille-des-barres');
+    expect(pastille).toHaveAttribute('inert');
+    expect(pastille).toHaveClass('pastille-des-barres', 'lg:hidden');
+  });
+
+  it('sans barre (la fiche d’un bien), pas de pastille', () => {
+    etat.chemin = '/fr/properties/villa-a-ngor';
+    monter();
+    expect(screen.queryByRole('button', { name: 'Afficher la navigation', hidden: true })).toBeNull();
+  });
+});

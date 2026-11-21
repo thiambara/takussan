@@ -612,7 +612,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
             {vue === 'list' && !etatVideRendu && !listeSansBien && activeCount > 0 ? (
               <div
                 data-puces-collees
-                className="max-lg:sticky max-lg:top-[var(--bas-de-la-nav,69px)] z-30 -mx-4 mb-1 bg-surface px-4 py-1.5 md:-mx-8 md:px-8 lg:mx-0 lg:mb-5 lg:px-0 lg:py-0"
+                className="max-lg:sticky max-lg:top-[calc(var(--bas-de-la-nav,69px)*var(--nav-visible,1))] z-30 -mx-4 mb-1 bg-surface px-4 py-1.5 md:-mx-8 md:px-8 lg:mx-0 lg:mb-5 lg:px-0 lg:py-0"
                 style={
                   basDeLaNav === null
                     ? undefined

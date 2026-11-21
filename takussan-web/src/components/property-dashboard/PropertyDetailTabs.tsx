@@ -163,7 +163,7 @@ export function PropertyDetailTabs({ property, tags, personnel = false, lienVers
       className="gap-4 lg:gap-5"
     >
       {/* Collants au téléphone, sous l'en-tête de la coque ; la liste défile dans sa boîte. */}
-      <div className="sticky top-0 z-10 -mx-4 bg-background px-4 pt-2 md:static md:mx-0 md:px-0 md:pt-0" data-slot="onglets-du-bien">
+      <div className="sticky top-(--haut-colle) z-10 -mx-4 bg-background px-4 pt-2 md:static md:mx-0 md:px-0 md:pt-0" data-slot="onglets-du-bien">
         {/* `flex` : la liste (inline-flex) n'ouvre pas de ligne de texte, dont l'interligne la décalait de 2 px. */}
         <div className="flex overflow-x-auto">
           <TabsList variant="line" aria-label={t('label')}>

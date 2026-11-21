@@ -36,7 +36,8 @@ const GLOBALS = join(SRC, 'app', 'globals.css');
 
 const COLLE = [
   'max-md:has-[[data-onglets-de-page]]:sticky',
-  'max-md:has-[[data-onglets-de-page]]:top-0',
+  // ADR-0134 — sous l'en-tête qui colle (`--haut-colle`, 0 hors du mode document) : la page défile au téléphone.
+  'max-md:has-[[data-onglets-de-page]]:top-(--haut-colle)',
   'max-md:has-[[data-onglets-de-page]]:z-20',
   'max-md:has-[[data-onglets-de-page]]:bg-background',
 ];
@@ -91,13 +92,13 @@ describe('TCK-2804 — la règle compilée : sous `md`, et seulement avec le mar
     ].join('\n');
     const compile = (await postcss([tailwind()]).process(source, { from: GLOBALS })).css;
     const regle = (classe: string) => {
-      const i = compile.indexOf(`.${classe.replace(/[[\]:&>-]/g, (c) => (c === '-' ? '-' : `\\${c}`))}`);
+      const i = compile.indexOf(`.${classe.replace(/[[\]:&>()-]/g, (c) => (c === '-' ? '-' : `\\${c}`))}`);
       expect(i, classe).toBeGreaterThan(-1);
       return compile.slice(i, compile.indexOf('}', compile.indexOf('}', i) + 1) + 1);
     };
     const attendus: [string, RegExp][] = [
       ['max-md:has-[[data-onglets-de-page]]:sticky', /position: sticky;/],
-      ['max-md:has-[[data-onglets-de-page]]:top-0', /top: calc\(var\(--spacing\) \* 0\);/],
+      ['max-md:has-[[data-onglets-de-page]]:top-(--haut-colle)', /top: var\(--haut-colle\);/],
       ['max-md:has-[[data-onglets-de-page]]:z-20', /z-index: 20;/],
       ['max-md:has-[[data-onglets-de-page]]:bg-background', /background-color: var\(--background\);/],
       ['max-md:has-[[data-onglets-de-page]]:mt-0', /margin-top: calc\(var\(--spacing\) \* 0\);/],
@@ -129,7 +130,7 @@ describe('TCK-2804 — les rangées d’onglets de page portent le marqueur, ave
     const nav = screen.getAllByRole('navigation')[0] as HTMLElement;
     expect(nav).toHaveAttribute('data-onglets-de-page', '');
     expect(nav.className.split(' ')).toEqual(expect.arrayContaining(['max-md:bg-background', 'max-md:pt-3.5']));
-    expect((nav.parentElement as HTMLElement).className.split(' ')).toEqual(expect.arrayContaining(['max-md:sticky', 'max-md:top-0', 'max-md:z-20']));
+    expect((nav.parentElement as HTMLElement).className.split(' ')).toEqual(expect.arrayContaining(['max-md:sticky', 'max-md:top-(--haut-colle)', 'max-md:z-20']));
     for (const lien of screen.getAllByRole('link')) {
       // 20 px de texte + `pb-3` = 32 visibles ; le `::before` remonte de 12 px (`-top-3`) dans le `pt-3.5` de la rangée.
       expect(lien.className.split(' ')).toEqual(

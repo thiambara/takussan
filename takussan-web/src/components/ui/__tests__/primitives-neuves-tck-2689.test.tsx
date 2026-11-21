@@ -329,8 +329,10 @@ describe('BarreDAction (TCK-2689)', () => {
       expect(css).toMatch(
         /@media \(width < 48rem\) \{\s*:root:has\(#emplacement-barre-d-action > \[data-slot="barre-d-action"\]\) \{\s*--barre-d-action-hauteur: calc\(var\(--spacing-controle\) \+ var\(--spacing\) \* 6 \+ 1px\);/,
       );
+      // ADR-0134 — un sélecteur commence par un caractère qui n'est pas un espace : sans quoi `\s*` et `[^{}@]+`
+      // se disputaient les mêmes espaces, et l'expression explosait (20 s) dès que la feuille gagnait des blocs.
       expect(css).toMatch(
-        /@media \(width < 48rem\) \{(?:\s*[^{}@]+\{[^{}]*\})*\s*:root:has\(#emplacement-barre-d-action\[data-bas-de-l-ecran\] > \[data-slot="barre-d-action"\]\) \{\s*--barre-d-action-hauteur: calc\(var\(--spacing-controle\) \+ var\(--spacing\) \* 6 \+ 1px \+ env\(safe-area-inset-bottom\)\);/,
+        /@media \(width < 48rem\) \{(?:\s*[^{}@\s][^{}@]*\{[^{}]*\})*\s*:root:has\(#emplacement-barre-d-action\[data-bas-de-l-ecran\] > \[data-slot="barre-d-action"\]\) \{\s*--barre-d-action-hauteur: calc\(var\(--spacing-controle\) \+ var\(--spacing\) \* 6 \+ 1px \+ env\(safe-area-inset-bottom\)\);/,
       );
       // L'`id` de la règle est celui de l'emplacement.
       expect(EMPLACEMENT_BARRE_D_ACTION).toBe('emplacement-barre-d-action');

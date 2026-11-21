@@ -180,6 +180,7 @@
         "visites": "Viewings",
         "demandes": "Requests",
         "reservations": "Bookings",
+        "afficherLaNavigation": "Show navigation",
         "nomAvecCompteur": "{libelle}, {compteur}",
         "plafond": "99+",
         "messages": "Messages",

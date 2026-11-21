@@ -53,7 +53,7 @@ export function OngletsDesLoyers({ actif, compteVersements }: { readonly actif: 
     // TCK-2804 — onglets de page (`ONGLETS_DE_PAGE`) hors de `PageHeader` : au téléphone, la rangée commence sous
     // l'en-tête (l'enveloppe y perd sa marge haute), à 14 px du haut comme la maquette (`OngletsSoulignes`, `pt-3.5`),
     // et colle sous l'en-tête au défilement, sur un fond plein. Son bloc conteneur est la page : elle colle jusqu'au bout.
-    <div className="relative max-md:sticky max-md:top-0 max-md:z-20" data-slot="onglets-des-loyers">
+    <div className="relative max-md:sticky max-md:top-(--haut-colle) max-md:z-20" data-slot="onglets-des-loyers">
       <nav
         ref={rangee}
         aria-label={t('aria')}
