@@ -1,7 +1,7 @@
 ---
 id: TCK-2988
 title: Publication au téléphone — un en-tête et un pied compacts, la place rendue à la question
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
@@ -95,8 +95,10 @@ bandeaux passent de 158 à 56 px, le pied de 117 à 71 px.
 - [x] AC5 — Stockage refusé : l'avertissement reste visible au téléphone.
 - [x] AC6 — À 360 px, à l'étape des photos (« Plus tard » présent), les trois gestes tiennent sur une
       ligne sans déborder.
-- [ ] AC7 — À 1024 et 1280 px, `/publish` et `/app/properties/new` sont identiques à avant (relevé).
-      *`/publish` relevé identique. `/app/properties/new` : pas de relevé avant/après, voir les notes.*
+- [x] AC7 — À 1024 et 1280 px, `/publish` et `/app/properties/new` sont identiques à avant (relevé).
+      *Les deux pages relevées identiques. `/app/properties/new` l'a été le 2026-11-21 au soir, fichiers de `dev`
+      remis en place puis ceux de la branche : en-tête de 58 px, titre, corps, pied de 88 px, retrait du bas de
+      14,4 px, progression, « Enregistrer et quitter », « Précédent » et « Continuer », aux mêmes positions.*
 
 ### Ajouts du 2026-11-21 (décisions « 1b », « 2b » et « 1a » du porteur)
 
