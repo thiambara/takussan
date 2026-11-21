@@ -124,6 +124,21 @@ export interface DeclarationDEntree {
    * La marque reste la sortie, avec sa garde. Absent : « Retour au site ».
    */
   readonly aDroite?: { readonly telephone: ReactNode; readonly bureau: ReactNode };
+  /**
+   * TCK-2988 — une ligne sous l'intention, dans la barre du téléphone (le résumé de l'annonce de `/publish`,
+   * maquette « L'écran économe »). Elle prend la place de « Étape N sur M » écrit.
+   */
+  readonly sousTitre?: ReactNode;
+  /**
+   * TCK-2988 — la page porte l'avancement elle-même (le pied de l'assistant de publication) : la barre du
+   * téléphone ne montre pas les pastilles. Celle du bureau les garde.
+   */
+  readonly avancementAuPied?: boolean;
+  /**
+   * TCK-2988 — un troisième geste dans la confirmation de sortie : `effacer` (le brouillon), puis partir. Le
+   * libellé vient de la page, comme tout ce que la coque affiche (aucun espace de libellés ici).
+   */
+  readonly effacerEnSortant?: { readonly libelle: string; readonly effacer: () => void | Promise<void> };
 }
 
 /**
@@ -207,10 +222,11 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
   // TCK-2941 — `aDroite` déclaré comme les autres champs (oublié ici, il ne parviendrait jamais à la coque).
-  const { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite } = declaration;
+  // TCK-2988 — `sousTitre`, `avancementAuPied`, `effacerEnSortant` : déclarés comme les autres (même raison).
+  const { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite, sousTitre, avancementAuPied, effacerEnSortant } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite });
-  }, [declarer, id, titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite]);
+    declarer(id, { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite, sousTitre, avancementAuPied, effacerEnSortant });
+  }, [declarer, id, titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur, aDroite, sousTitre, avancementAuPied, effacerEnSortant]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -320,6 +336,19 @@ export function CoqueDEntree({
     setEnAttente(evenement.currentTarget);
   }
 
+  // TCK-2988 — effacer (le brouillon), puis partir par le même lien. Pendant l'écriture, les gestes attendent.
+  const [enEffacement, setEnEffacement] = useState(false);
+  async function effacerPuisPartir() {
+    if (!effacerEnSortant) return;
+    setEnEffacement(true);
+    try {
+      await effacerEnSortant.effacer();
+    } finally {
+      setEnEffacement(false);
+    }
+    partir();
+  }
+
   function partir() {
     const lien = enAttente;
     setEnAttente(null);
@@ -350,6 +379,10 @@ export function CoqueDEntree({
       : null;
   // TCK-2941 — la page peut poser autre chose à cette place (« Aide », le compte connecté).
   const aDroite = declaree.aDroite ?? parDefaut.aDroite ?? null;
+  const sousTitre = declaree.sousTitre ?? null;
+  // TCK-2988 — l'avancement porté par la page : rien dans la barre du téléphone.
+  const avancementAuTelephone = declaree.avancementAuPied === true ? null : avancement;
+  const effacerEnSortant = declaree.effacerEnSortant ?? null;
   const retourAuSite =
     sortie?.forme === 'retour-au-site' ? (
       <NextLink href={sortie.href} onClick={auClicDeSortie} {...inerte} className={cn(CLASSES_LIEN_TEXTE, CLASSES_INERTES)}>
@@ -396,7 +429,15 @@ export function CoqueDEntree({
                   `BarreEntree`, `EnTeteFormulaire`) ; ouverte sur la marque, la barre n'a que la marque et
                   l'avancement (orientation a-0/a-1) — l'intention passe à la barre du bureau. */}
               {titre && (retour || sortie?.forme === 'quitter') ? (
-                etapeEcrite ? (
+                sousTitre ? (
+                  // TCK-2988 — maquette « L'écran économe » : l'intention, et dessous ce qu'on est en train d'en faire.
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="truncate text-action font-semibold">{titre}</p>
+                    <p data-sous-titre-d-entree="" className="truncate text-ui text-muted-foreground tabular-nums">
+                      {sousTitre}
+                    </p>
+                  </div>
+                ) : etapeEcrite ? (
                   <div className="min-w-0 flex-1 leading-tight">
                     <p className="truncate text-action font-semibold">{titre}</p>
                     <p data-avancement-ecrit="" aria-hidden="true" className="text-ui text-muted-foreground">
@@ -415,9 +456,9 @@ export function CoqueDEntree({
               ) : (
                 <span className="flex-1" />
               )}
-              {avancement || retourAuSite || aDroite ? (
-                <span className="flex flex-none items-center gap-2 pr-3">
-                  {avancement}
+              {avancementAuTelephone || retourAuSite || aDroite ? (
+                <span className={cn('flex flex-none items-center gap-2', avancementAuTelephone || !aDroite ? 'pr-3' : 'pr-1')}>
+                  {avancementAuTelephone}
                   {aDroite ? aDroite.telephone : retourAuSite}
                 </span>
               ) : null}
@@ -545,12 +586,19 @@ export function CoqueDEntree({
               <DialogDescription>{declaree.reprise ?? libelles.sortie.texte}</DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={partir}>
+              <Button type="button" variant="outline" disabled={enEffacement} onClick={partir}>
                 {libelles.sortie.partir}
               </Button>
-              <Button type="button" onClick={() => setEnAttente(null)}>
+              <Button type="button" disabled={enEffacement} onClick={() => setEnAttente(null)}>
                 {libelles.sortie.rester}
               </Button>
+              {/* Dernier dans l'ordre du document (le focus d'ouverture reste sur « Quitter ») ; vu en bas au
+                  téléphone, à gauche dès `sm` (`-order-1` dans une colonne inversée, puis une rangée). */}
+              {effacerEnSortant ? (
+                <Button type="button" variant="ghost" className="-order-1 text-destructive sm:mr-auto" disabled={enEffacement} onClick={() => void effacerPuisPartir()}>
+                  {effacerEnSortant.libelle}
+                </Button>
+              ) : null}
             </DialogFooter>
           </DialogContent>
         </Dialog>

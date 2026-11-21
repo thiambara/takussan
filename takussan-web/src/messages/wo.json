@@ -19510,7 +19510,11 @@
         "quota": "Ce navigateur n’a plus de place pour le brouillon : votre annonce reste ici tant que l’onglet est ouvert.",
         "purge": "Un brouillon resté plus de 30 jours sans changement a été effacé.",
         "effacer": "Effacer ce brouillon",
-        "efface": "Brouillon effacé."
+        "efface": "Brouillon effacé.",
+        "repris": "Brouillon repris, gardé sur ce téléphone.",
+        "effacerCourt": "Effacer",
+        "sortie": "Votre brouillon reste gardé ici : en revenant, vous reprendrez là où vous en êtes.",
+        "effacerEnSortant": "Effacer le brouillon"
       },
       "numero": {
         "libelle": "Votre numéro",

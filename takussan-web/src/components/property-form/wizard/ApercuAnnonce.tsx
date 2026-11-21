@@ -349,30 +349,14 @@ export function ListePourPublier({
 }
 
 /**
- * Sous `lg`, l'aperçu tient dans une barre sous l'en-tête — le type, le lieu, le prix — et
- * s'ouvre en entier dans un tiroir. Plus de colonne : la largeur va à la question.
+ * TCK-2819 — le `Resume` de la maquette : « Studio · En location · Mermoz » tant que l'annonce n'a pas de titre
+ * écrit, puis son titre ; dessous, le prix et sa période, sinon les chiffres déjà donnés. TCK-2988 — lu aussi par
+ * l'en-tête du téléphone de `/publish`, qui le dit en une ligne sous l'intention.
  */
-export function BarreApercu({
-  form,
-  photos,
-  children,
-}: {
-  readonly form: UseFormReturn<PropertyFormValues>;
-  readonly photos: readonly File[];
-  /**
-   * Ce que le tiroir montre sous la carte — la liste « Pour publier ». Une fonction : un geste
-   * dedans (rouvrir une étape) doit pouvoir REFERMER le tiroir, sans quoi l'étape rouverte se
-   * charge derrière lui.
-   */
-  readonly children?: (fermer: () => void) => React.ReactNode;
-}) {
+export function useResumeDeLApercu(form: UseFormReturn<PropertyFormValues>): { readonly premiereLigne: string; readonly secondeLigne: string } {
   const t = useTranslations('property.wizard.preview');
   const tContrat = useTranslations('property.contractTypes');
   const d = useDonneesApercu(form);
-  const [ouvert, setOuvert] = useState(false);
-
-  // TCK-2819 — le `Resume` de la maquette : « Studio · En location · Mermoz » tant que l'annonce n'a pas
-  // de titre écrit, puis son titre ; dessous, le prix et sa période, sinon les chiffres déjà donnés.
   const premiereLigne = d.titreSaisi
     ? d.titreSaisi
     : d.type
@@ -387,28 +371,70 @@ export function BarreApercu({
       : d.type
         ? t('priceLater')
         : t('emptyHint');
+  return { premiereLigne, secondeLigne };
+}
+
+/**
+ * Sous `lg`, l'aperçu tient dans une barre sous l'en-tête — le type, le lieu, le prix — et
+ * s'ouvre en entier dans un tiroir. Plus de colonne : la largeur va à la question.
+ *
+ * TCK-2988 — `forme="bouton"` : le seul « Aperçu », posé dans l'en-tête du téléphone de `/publish`, dont la
+ * ligne sous l'intention porte déjà le résumé (maquette « L'écran économe ») ; le tiroir est le même.
+ */
+export function BarreApercu({
+  form,
+  photos,
+  forme = 'barre',
+  children,
+}: {
+  readonly form: UseFormReturn<PropertyFormValues>;
+  readonly photos: readonly File[];
+  readonly forme?: 'barre' | 'bouton';
+  /**
+   * Ce que le tiroir montre sous la carte — la liste « Pour publier ». Une fonction : un geste
+   * dedans (rouvrir une étape) doit pouvoir REFERMER le tiroir, sans quoi l'étape rouverte se
+   * charge derrière lui.
+   */
+  readonly children?: (fermer: () => void) => React.ReactNode;
+}) {
+  const t = useTranslations('property.wizard.preview');
+  const { premiereLigne, secondeLigne } = useResumeDeLApercu(form);
+  const [ouvert, setOuvert] = useState(false);
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOuvert(true)}
-        aria-label={t('openLabel')}
-        data-testid="barre-apercu"
-        className="flex w-full shrink-0 items-center gap-3 border-b border-border bg-card py-2 pr-3 pl-4 text-left focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset sm:pr-5 sm:pl-6"
-      >
-        <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
-          {photos[0] ? <VignetteFichier fichier={photos[0]} /> : <ImageIcon className="size-5" strokeWidth={1.5} aria-hidden="true" />}
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col leading-tight">
-          <span className="truncate text-corps font-semibold text-foreground">{premiereLigne}</span>
-          <span className="mt-0.5 truncate text-ui text-muted-foreground tabular-nums">{secondeLigne}</span>
-        </span>
-        <span className="inline-flex h-11 shrink-0 items-center gap-1.5 px-1 text-sm font-medium text-primary">
+      {forme === 'bouton' ? (
+        <button
+          type="button"
+          onClick={() => setOuvert(true)}
+          aria-label={t('openLabel')}
+          data-testid="barre-apercu"
+          className="inline-flex h-11 flex-none items-center gap-1.5 rounded-full px-3 text-sm font-medium text-primary transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+        >
           <Eye className="size-4" aria-hidden="true" />
           {t('open')}
-        </span>
-      </button>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOuvert(true)}
+          aria-label={t('openLabel')}
+          data-testid="barre-apercu"
+          className="flex w-full shrink-0 items-center gap-3 border-b border-border bg-card py-2 pr-3 pl-4 text-left focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset sm:pr-5 sm:pl-6"
+        >
+          <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
+            {photos[0] ? <VignetteFichier fichier={photos[0]} /> : <ImageIcon className="size-5" strokeWidth={1.5} aria-hidden="true" />}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col leading-tight">
+            <span className="truncate text-corps font-semibold text-foreground">{premiereLigne}</span>
+            <span className="mt-0.5 truncate text-ui text-muted-foreground tabular-nums">{secondeLigne}</span>
+          </span>
+          <span className="inline-flex h-11 shrink-0 items-center gap-1.5 px-1 text-sm font-medium text-primary">
+            <Eye className="size-4" aria-hidden="true" />
+            {t('open')}
+          </span>
+        </button>
+      )}
       <Sheet open={ouvert} onOpenChange={setOuvert}>
         <SheetContent side="bottom" className="rounded-t-2xl">
           <SheetHeader className="px-4 pt-4 sm:px-6">

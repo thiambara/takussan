@@ -19510,7 +19510,11 @@
         "quota": "This browser has no room left for the draft: your listing stays here while the tab is open.",
         "purge": "A draft left unchanged for more than 30 days was deleted.",
         "effacer": "Delete this draft",
-        "efface": "Draft deleted."
+        "efface": "Draft deleted.",
+        "repris": "Draft restored, kept on this phone.",
+        "effacerCourt": "Delete",
+        "sortie": "Your draft stays saved here: when you come back, you will pick up where you left off.",
+        "effacerEnSortant": "Delete the draft"
       },
       "numero": {
         "libelle": "Your number",
