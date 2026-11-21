@@ -86,6 +86,43 @@ describe('ADR-0133 — la saisie', () => {
     expect(racine.dataset.saisie).toBeUndefined();
   });
 
+  it('le clavier rabaissé sans quitter le champ (bouton de Chrome iOS) ferme la saisie ; rouvert, elle reprend', () => {
+    render(<Sonde />);
+    act(() => champ('ville').focus());
+    expect(racine.dataset.saisie).toBe('ouvert');
+
+    act(() => {
+      vue.height = 844 - 336;
+      vue.dispatchEvent(new Event('resize'));
+    });
+    expect(racine.dataset.saisie).toBe('ouvert');
+
+    // Rabaissé : la fenêtre visible revient, le champ garde le focus.
+    act(() => {
+      vue.height = 844;
+      vue.dispatchEvent(new Event('resize'));
+    });
+    expect(document.activeElement).toBe(champ('ville'));
+    expect(racine.dataset.saisie).toBeUndefined();
+
+    // Le champ touché de nouveau : le clavier remonte, la saisie reprend.
+    act(() => {
+      vue.height = 844 - 336;
+      vue.dispatchEvent(new Event('resize'));
+    });
+    expect(racine.dataset.saisie).toBe('ouvert');
+
+    // Rabaissé de nouveau, puis un AUTRE champ touché : il repart optimiste, comme au premier focus.
+    act(() => {
+      vue.height = 844;
+      vue.dispatchEvent(new Event('resize'));
+    });
+    expect(racine.dataset.saisie).toBeUndefined();
+    act(() => champ('quartier').focus());
+    act(() => void vi.advanceTimersByTime(100));
+    expect(racine.dataset.saisie).toBe('ouvert');
+  });
+
   it('un bouton, une case, un champ en lecture seule n’ouvrent pas de clavier : pas de saisie', () => {
     render(<Sonde />);
     for (const nom of ['lecture', 'case']) {

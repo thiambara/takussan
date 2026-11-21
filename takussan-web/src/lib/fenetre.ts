@@ -85,6 +85,10 @@ function demarrer(): () => void {
   // quand le clavier s'ouvre.
   let innerMax = window.innerHeight;
   let sortie = 0;
+  // Un clavier a-t-il été mesuré depuis que ce champ a le focus ? Le bouton qui rabaisse le clavier (Chrome iOS,
+  // retour d'Android) le ferme SANS retirer le focus : sans ce témoin, le mode restait ouvert jusqu'au toucher
+  // suivant (relevé sur l'iPhone du porteur, 2026-11-21).
+  let clavierVu = false;
 
   // Synchrone, comme l'était `useDecalageDuClavier` : la mesure coûte quelques lectures, et le magasin ne prévient
   // ses abonnés que si une valeur change.
@@ -96,10 +100,15 @@ function demarrer(): () => void {
     if (!champ) innerMax = Math.max(innerMax, innerH);
     const cache = Math.max(0, Math.round(innerH - (vueTop + vueH)));
     const clavierMesure = cache > SEUIL_CLAVIER || innerMax - innerH > SEUIL_CLAVIER;
+    if (!champ) clavierVu = false;
+    else if (clavierMesure) clavierVu = true;
+    // Le clavier vu, puis plus mesuré, le champ gardant le focus : il a été rabaissé. Toucher le champ le rouvre,
+    // la mesure le revoit, et la saisie reprend.
+    const rabaisse = clavierVu && !clavierMesure;
     // Optimiste au toucher : le mode part AVEC le focus, pas quand le clavier a fini de monter — un seul
     // changement de mise en page au lieu de deux.
     publier({
-      saisie: champ !== null && (tactile || clavierMesure),
+      saisie: champ !== null && !rabaisse && (tactile || clavierMesure),
       clavier: cache > SEUIL_CLAVIER ? cache : 0,
       cache,
       vueH,
@@ -108,6 +117,8 @@ function demarrer(): () => void {
   };
   const surEntree = () => {
     window.clearTimeout(sortie);
+    // Un champ touché repart optimiste : si le clavier est (resté) ouvert, la mesure le revoit aussitôt.
+    clavierVu = false;
     mesurer();
   };
   const surSortie = () => {

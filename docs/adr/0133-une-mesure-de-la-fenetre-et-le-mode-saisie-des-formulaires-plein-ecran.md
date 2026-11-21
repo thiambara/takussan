@@ -52,6 +52,11 @@ l'en-tête se compacte et le pied devient la barre de saisie.**
      - `--clavier`, la hauteur cachée.
    - Une sortie de champ attend 80 ms avant de déclarer la saisie finie : passer d'un champ à l'autre
      ne replie pas tout.
+   - **Un clavier rabaissé sans quitter le champ ferme la saisie.** Le bouton de Chrome iOS, comme le
+     retour d'Android, ferme le clavier en laissant le focus au champ (relevé le 2026-11-21 sur l'iPhone du
+     porteur : « Continuer avec Google » ne revenait qu'au toucher suivant). Une fois qu'un clavier a été
+     mesuré pendant le focus, sa disparition met fin à la saisie. Toucher le champ rouvre le clavier, la
+     mesure le revoit, et la saisie reprend. Chaque nouveau focus repart optimiste.
    - `useDecalageDuClavier` lit cette mesure : il n'y a plus deux écouteurs de `visualViewport`.
    - **Pourquoi un magasin, et non un fournisseur** : `WizardShell` est monté sous la coque d'entrée
      (`/publish`) ET sous la coque de l'application (`/app/properties/new`), qui ne partagent aucun
