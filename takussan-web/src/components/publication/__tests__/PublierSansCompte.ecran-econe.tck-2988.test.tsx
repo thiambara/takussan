@@ -120,6 +120,20 @@ describe('TCK-2988 — la barre du téléphone de /publish', () => {
   });
 });
 
+describe('TCK-2988 — le résumé, le prix d’abord (décision 1b du 2026-11-21)', () => {
+  it('une fois le prix donné, il ouvre la ligne : une ligne tronquée au téléphone le garde', async () => {
+    const user = userEvent.setup();
+    monter(moteurEnMemoire());
+    await premiereEtape(user);
+    await user.type(screen.getByLabelText(/ville/i), 'Dakar');
+    await user.click(suivant()); //   → les caractéristiques
+    await user.click(suivant()); //   → le prix
+    await user.type(screen.getByLabelText(/^loyer|^prix/i), '250000');
+    const ligne = barreDuTelephone().querySelector('[data-sous-titre-d-entree]')!;
+    await waitFor(() => expect(ligne.textContent).toMatch(/^250\s?000.* · Studio · En location/));
+  });
+});
+
 describe('TCK-2988 — le brouillon au téléphone', () => {
   it('la ligne d’état ne paraît plus au téléphone (`hidden lg:flex`)', async () => {
     monter(moteurEnMemoire());

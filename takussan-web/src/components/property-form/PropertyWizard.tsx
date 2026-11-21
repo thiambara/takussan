@@ -1280,10 +1280,12 @@ function ResumeDansLaBarre({
   readonly photos: readonly File[];
   readonly children: (fermer: () => void) => ReactNode;
 }) {
-  const { premiereLigne, secondeLigne } = useResumeDeLApercu(form);
+  const { premiereLigne, secondeLigne, prixDonne } = useResumeDeLApercu(form);
+  // Décision du porteur (2026-11-21, 1b) : le prix d'abord, une fois donné — une ligne tronquée au téléphone
+  // perdait ce qu'on cherche le plus (« Appartement · En location · Dak… »).
   return (
     <DeclarerEntree
-      sousTitre={`${premiereLigne} · ${secondeLigne}`}
+      sousTitre={prixDonne ? `${secondeLigne} · ${premiereLigne}` : `${premiereLigne} · ${secondeLigne}`}
       aDroite={{
         telephone: (
           <BarreApercu form={form} photos={photos} forme="bouton">

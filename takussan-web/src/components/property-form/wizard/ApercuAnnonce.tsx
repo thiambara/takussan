@@ -353,7 +353,12 @@ export function ListePourPublier({
  * écrit, puis son titre ; dessous, le prix et sa période, sinon les chiffres déjà donnés. TCK-2988 — lu aussi par
  * l'en-tête du téléphone de `/publish`, qui le dit en une ligne sous l'intention.
  */
-export function useResumeDeLApercu(form: UseFormReturn<PropertyFormValues>): { readonly premiereLigne: string; readonly secondeLigne: string } {
+export function useResumeDeLApercu(form: UseFormReturn<PropertyFormValues>): {
+  readonly premiereLigne: string;
+  readonly secondeLigne: string;
+  /** Le prix est donné : `secondeLigne` le dit (et non les chiffres ou « Prix à venir »). */
+  readonly prixDonne: boolean;
+} {
   const t = useTranslations('property.wizard.preview');
   const tContrat = useTranslations('property.contractTypes');
   const d = useDonneesApercu(form);
@@ -371,7 +376,7 @@ export function useResumeDeLApercu(form: UseFormReturn<PropertyFormValues>): { r
       : d.type
         ? t('priceLater')
         : t('emptyHint');
-  return { premiereLigne, secondeLigne };
+  return { premiereLigne, secondeLigne, prixDonne: Boolean(d.prix) };
 }
 
 /**
