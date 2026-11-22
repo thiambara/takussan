@@ -174,6 +174,8 @@ function FormulaireIssue({ reponse, onConfirmer, onAnnuler }: FormulaireIssuePro
         <div className="space-y-1.5">
           <Label htmlFor={champMotif}>{t('reasonRequiredLabel')}</Label>
           <Textarea
+            profil="texte-long"
+            placeholder={t('reasonRequiredPlaceholder')}
             id={champMotif}
             ref={refMotif}
             value={motif}

@@ -149,9 +149,10 @@ export function DialogueDoublon({ open, onOpenChange, matches, prefill, pending,
               <div className="space-y-1.5">
                 <Label htmlFor={`${nom}-id`}>{t('dialogs.duplicate.manualId')}</Label>
                 <Input
+                  profil="entier"
+                  enterKeyHint="done"
+                  placeholder={t('dialogs.duplicate.manualIdPlaceholder')}
                   id={`${nom}-id`}
-                  type="number"
-                  inputMode="numeric"
                   min={1}
                   value={identifiant}
                   onChange={(event) => setIdentifiant(event.target.value)}

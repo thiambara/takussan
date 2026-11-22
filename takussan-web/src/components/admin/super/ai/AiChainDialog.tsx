@@ -18,6 +18,7 @@ import { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { fetchAdminAiEvaluation, postAdminAiEvaluation, putAdminAiRole } from '@/lib/queries/super-admin';
 import type { AiEvaluationStatus, AiModelLink, AiProvider, AiRoleRow } from '@/types/super-admin';
+import { lireNombre } from '@/components/forms/FormInput';
 import { ERREURS_APPEL_IA } from './codes-erreur-appel';
 import { useMontantIa } from './useMontantIa';
 
@@ -180,11 +181,15 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
                   <div className="space-y-1">
                     <Label htmlFor={`max-${index}`}>{t('maxTokens')}</Label>
                     <Input
+                      profil="entier"
                       id={`max-${index}`}
-                      type="number"
                       min={1}
+                      placeholder={t('maxTokensPlaceholder')}
                       value={link.max_tokens ?? ''}
-                      onChange={(e) => update(index, { max_tokens: e.target.value === '' ? null : Number(e.target.value) })}
+                      onChange={(e) => {
+                        const saisie = lireNombre(e.target.value);
+                        update(index, { max_tokens: typeof saisie === 'number' ? saisie : null });
+                      }}
                     />
                   </div>
                 </div>
@@ -275,7 +280,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
           {motifRequis ? (
             <div className="space-y-1">
               <Label htmlFor="override-reason">{t('overrideReason')}</Label>
-              <Textarea id="override-reason" value={overrideReason} maxLength={500} onChange={(e) => setOverrideReason(e.target.value)} />
+              <Textarea profil="texte-long" placeholder={t('overrideReasonPlaceholder')} id="override-reason" value={overrideReason} maxLength={500} onChange={(e) => setOverrideReason(e.target.value)} />
               <p className="text-xs text-muted-foreground">{t('overrideHint')}</p>
             </div>
           ) : null}

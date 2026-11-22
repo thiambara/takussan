@@ -70,7 +70,7 @@ export function DelierCompte({ annonceurId, parReclamation, onDelie }: DelierCom
           </DialogHeader>
           <div className="space-y-1.5">
             <Label htmlFor={champMotif}>{t('reasonLabel')}</Label>
-            <Textarea id={champMotif} value={motif} maxLength={RADAR_ACCOUNT_RELEASE_REASON_MAX} onChange={(event) => setMotif(event.target.value)} />
+            <Textarea profil="texte-long" placeholder={t('reasonPlaceholder')} id={champMotif} value={motif} maxLength={RADAR_ACCOUNT_RELEASE_REASON_MAX} onChange={(event) => setMotif(event.target.value)} />
           </div>
           {geste.isError ? (
             <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive" data-testid="radar-delier-erreur">

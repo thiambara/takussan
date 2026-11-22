@@ -221,10 +221,10 @@ export function SettingField({
 
         {setting.type === 'integer' ? (
           <Input
+            profil="entier"
             id={setting.key}
-            type="number"
             min={1}
-            step={1}
+            placeholder={t('integerPlaceholder')}
             value={String(value)}
             onChange={(event) => onChange(event.target.value)}
           />
@@ -233,14 +233,13 @@ export function SettingField({
         {/* TCK-651 — un décimal vide se lit « aucun plafond » quand la clé l'admet, jamais zéro. */}
         {setting.type === 'decimal' ? (
           <Input
+            profil="decimal"
             id={setting.key}
-            type="number"
             min={0}
-            step="any"
-            inputMode="decimal"
-            placeholder={setting.nullable ? t('noLimit') : undefined}
+            placeholder={setting.nullable ? t('noLimit') : t('decimalPlaceholder')}
             value={value === null || value === undefined ? '' : String(value)}
-            onChange={(event) => onChange(event.target.value === '' && setting.nullable ? null : event.target.value)}
+            // ADR-0135 — champ texte : la virgule du pavé décimal devient le point que l'API attend.
+            onChange={(event) => onChange(event.target.value === '' && setting.nullable ? null : event.target.value.replace(',', '.'))}
           />
         ) : null}
         {/* TCK-2979 — le plafond IA par agence est en dollars : son équivalent en XOF, comme dans la console IA. */}
@@ -307,9 +306,8 @@ function IntegerListInput({
 
   return (
     <Input
+      profil="entier"
       id={id}
-      type="text"
-      inputMode="numeric"
       placeholder={t('integerListPlaceholder')}
       value={shown}
       onChange={(event) => {

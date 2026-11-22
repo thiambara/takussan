@@ -8,6 +8,7 @@ import { Play, Radar, TriangleAlert } from 'lucide-react';
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { DataState, PageHeader, StatusBadge, type StatusTone } from '@/components/console';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { lireNombre } from '@/components/forms/FormInput';
 import { Pagination } from '@/components/console/Pagination';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
@@ -301,15 +302,15 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
           className="grid gap-3 sm:grid-cols-2 sm:items-start"
           onSubmit={(event) => {
             event.preventDefault();
-            regler.mutate({ frequency_minutes: Number(frequence), max_pages: Number(pages), start_urls: lignes(urls) });
+            regler.mutate({ frequency_minutes: Number(lireNombre(frequence)), max_pages: Number(lireNombre(pages)), start_urls: lignes(urls) });
           }}
         >
           <div className="space-y-1">
             <Label htmlFor={idFrequence}>{t('frequency')}</Label>
             <Input
+              profil="entier"
+              placeholder={t('frequencyPlaceholder')}
               id={idFrequence}
-              type="number"
-              inputMode="numeric"
               min={RADAR_CRAWL_FREQUENCY_MIN}
               max={RADAR_CRAWL_FREQUENCY_MAX}
               value={frequence}
@@ -323,9 +324,9 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
           <div className="space-y-1">
             <Label htmlFor={idPages}>{t('maxPages')}</Label>
             <Input
+              profil="entier"
+              placeholder={t('maxPagesPlaceholder')}
               id={idPages}
-              type="number"
-              inputMode="numeric"
               min={1}
               max={RADAR_CRAWL_MAX_PAGES_LIMIT}
               value={pages}
@@ -339,12 +340,9 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
           <div className="space-y-1 sm:col-span-2">
             <Label htmlFor={idUrls}>{t('startUrls')}</Label>
             <Textarea
+              profil="liens"
               id={idUrls}
               rows={3}
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-              inputMode="url"
               placeholder={source.default_start_url ?? undefined}
               value={urls}
               onChange={(event) => setUrls(event.target.value)}

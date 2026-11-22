@@ -169,7 +169,7 @@ export function AgencyOnboardingDialog() {
           {step === 0 ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label={t('fields.name')}>
-                <Input value={agency.name} onChange={(e) => setAgency({ ...agency, name: e.target.value })} />
+                <Input profil="nom" autoComplete="organization" placeholder={t('placeholders.name')} value={agency.name} onChange={(e) => setAgency({ ...agency, name: e.target.value })} />
               </Field>
               {/* TCK-270 — Devise positioned right after the name per the
                   ticket's UX direction: it's a step-1 decision (everything
@@ -192,19 +192,20 @@ export function AgencyOnboardingDialog() {
               </Field>
               <Field label={t('fields.slug')}>
                 <Input
+                  profil="identifiant"
                   value={agency.slug}
                   placeholder={suggestedSlug}
                   onChange={(e) => setAgency({ ...agency, slug: e.target.value })}
                 />
               </Field>
               <Field label={t('fields.contactEmail')}>
-                <Input type="email" value={agency.email} onChange={(e) => setAgency({ ...agency, email: e.target.value })} />
+                <Input profil="courriel" placeholder={t('placeholders.email')} value={agency.email} onChange={(e) => setAgency({ ...agency, email: e.target.value })} />
               </Field>
               <Field label={t('fields.phone')}>
-                <Input value={agency.phone} onChange={(e) => setAgency({ ...agency, phone: e.target.value })} />
+                <Input profil="telephone" placeholder={t('placeholders.phone')} value={agency.phone} onChange={(e) => setAgency({ ...agency, phone: e.target.value })} />
               </Field>
               <Field label={t('fields.address')}>
-                <Input value={agency.address} onChange={(e) => setAgency({ ...agency, address: e.target.value })} />
+                <Input profil="lieu" enterKeyHint="done" placeholder={t('placeholders.address')} value={agency.address} onChange={(e) => setAgency({ ...agency, address: e.target.value })} />
               </Field>
             </div>
           ) : null}
@@ -212,16 +213,16 @@ export function AgencyOnboardingDialog() {
           {step === 1 ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label={t('fields.firstName')}>
-                <Input value={admin.first_name} onChange={(e) => setAdmin({ ...admin, first_name: e.target.value })} />
+                <Input profil="nom" autoComplete="given-name" placeholder={t('placeholders.firstName')} value={admin.first_name} onChange={(e) => setAdmin({ ...admin, first_name: e.target.value })} />
               </Field>
               <Field label={t('fields.lastName')}>
-                <Input value={admin.last_name} onChange={(e) => setAdmin({ ...admin, last_name: e.target.value })} />
+                <Input profil="nom" autoComplete="family-name" placeholder={t('placeholders.lastName')} value={admin.last_name} onChange={(e) => setAdmin({ ...admin, last_name: e.target.value })} />
               </Field>
               <Field label={t('fields.adminEmail')}>
-                <Input type="email" value={admin.email} onChange={(e) => setAdmin({ ...admin, email: e.target.value })} />
+                <Input profil="courriel" placeholder={t('placeholders.email')} value={admin.email} onChange={(e) => setAdmin({ ...admin, email: e.target.value })} />
               </Field>
               <Field label={t('fields.adminPhone')}>
-                <Input type="tel" autoComplete="tel" value={admin.phone} onChange={(e) => setAdmin({ ...admin, phone: e.target.value })} />
+                <Input profil="telephone" autoComplete="tel" placeholder={t('placeholders.phone')} value={admin.phone} onChange={(e) => setAdmin({ ...admin, phone: e.target.value })} />
               </Field>
               <div className="space-y-2">
                 <Label>{t('fields.language')}</Label>

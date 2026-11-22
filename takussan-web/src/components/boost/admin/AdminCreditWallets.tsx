@@ -56,7 +56,7 @@ export function AdminCreditWallets() {
       >
         <div className="space-y-1">
           <Label htmlFor="credit-wallets-search">{t('search')}</Label>
-          <Input id="credit-wallets-search" value={saisie} onChange={(e) => setSaisie(e.target.value)} />
+          <Input profil="recherche" placeholder={t('searchPlaceholder')} id="credit-wallets-search" value={saisie} onChange={(e) => setSaisie(e.target.value)} />
         </div>
         <Button type="submit" variant="outline">{t('searchSubmit')}</Button>
       </form>

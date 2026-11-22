@@ -226,7 +226,7 @@ function ModelDialog({ entree, fournisseurs, pending, error, onClose, onSave }: 
               </div>
               <div className="space-y-1">
                 <Label htmlFor="model-identifier">{t('identifier')}</Label>
-                <Input id="model-identifier" value={model} maxLength={255} autoComplete="off" spellCheck={false} aria-describedby="model-identifier-hint" onChange={(e) => setModel(e.target.value)} />
+                <Input profil="identifiant" id="model-identifier" placeholder={t('identifierPlaceholder')} value={model} maxLength={255} aria-describedby="model-identifier-hint" onChange={(e) => setModel(e.target.value)} />
                 <p id="model-identifier-hint" className="text-xs text-muted-foreground">{t('identifierHint')}</p>
               </div>
             </>
@@ -236,9 +236,9 @@ function ModelDialog({ entree, fournisseurs, pending, error, onClose, onSave }: 
               <div key={tarif} className="space-y-1">
                 <Label htmlFor={`model-${tarif}`}>{t(`prices.${tarif}`)}</Label>
                 <Input
+                  profil="decimal"
                   id={`model-${tarif}`}
-                  inputMode="decimal"
-                  autoComplete="off"
+                  placeholder={t('pricePlaceholder')}
                   aria-describedby="model-prices-hint"
                   value={saisies[tarif]}
                   onChange={(e) => setSaisies((courant) => ({ ...courant, [tarif]: e.target.value }))}

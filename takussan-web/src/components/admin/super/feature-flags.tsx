@@ -148,11 +148,11 @@ export function FeatureFlagSegmentDialog({
           </Button>
           <label className="block space-y-1.5">
             <Label htmlFor="flag-roles">{t('targetRoles')}</Label>
-            <Input id="flag-roles" value={roles} onChange={(event) => setRoles(event.target.value)} placeholder={ROLE_SLUGS_PLACEHOLDER} />
+            <Input profil="identifiant" id="flag-roles" value={roles} onChange={(event) => setRoles(event.target.value)} placeholder={ROLE_SLUGS_PLACEHOLDER} />
           </label>
           <label className="block space-y-1.5">
             <Label htmlFor="flag-rollout">{t('rollout')}</Label>
-            <Input id="flag-rollout" type="number" min={0} max={100} value={rollout} onChange={(event) => setRollout(event.target.value)} />
+            <Input profil="entier" enterKeyHint="done" id="flag-rollout" placeholder={t('rolloutPlaceholder')} min={0} max={100} value={rollout} onChange={(event) => setRollout(event.target.value)} />
           </label>
         </div>
         {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}

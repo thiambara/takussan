@@ -178,8 +178,7 @@ export function CrossTenantAuditTable() {
           busy={isFetching}
         />
         <Input
-          type="number"
-          inputMode="numeric"
+          profil="entier"
           min={1}
           value={causerId}
           onChange={(e) => {

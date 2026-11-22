@@ -128,15 +128,15 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
         <div className="mt-4 grid grid-cols-1 gap-3">
           <label className="space-y-1.5">
             <Label htmlFor="maintenance-fr">{t('messageFr')}</Label>
-            <Textarea id="maintenance-fr" value={fr} onChange={(event) => setFr(event.target.value)} />
+            <Textarea profil="texte-long" placeholder={t('messagePlaceholderFr')} id="maintenance-fr" value={fr} onChange={(event) => setFr(event.target.value)} />
           </label>
           <label className="space-y-1.5">
             <Label htmlFor="maintenance-en">{t('messageEn')}</Label>
-            <Textarea id="maintenance-en" value={en} onChange={(event) => setEn(event.target.value)} />
+            <Textarea profil="texte-long" placeholder={t('messagePlaceholderEn')} id="maintenance-en" value={en} onChange={(event) => setEn(event.target.value)} />
           </label>
           <label className="space-y-1.5">
             <Label htmlFor="maintenance-wo">{t('messageWo')}</Label>
-            <Textarea id="maintenance-wo" value={wo} onChange={(event) => setWo(event.target.value)} />
+            <Textarea profil="texte-long" placeholder={t('messagePlaceholderWo')} id="maintenance-wo" value={wo} onChange={(event) => setWo(event.target.value)} />
           </label>
         </div>
         <WarningBanner
