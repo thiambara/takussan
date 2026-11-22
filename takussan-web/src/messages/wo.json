@@ -632,7 +632,8 @@
       "messageMax": "Sa bataaxal mënul weesu 2000 araf."
     },
     "descriptionOwner": "Sa ay xibaar ñoo leen jox boroom kër gi. Soxlaalo kont.",
-    "successBodyOwner": "Boroom kër gi dina la jokkoo ci lu gàtt."
+    "successBodyOwner": "Boroom kër gi dina la jokkoo ci lu gàtt.",
+    "companyPlaceholder": "Ex. : Teranga Immobilier"
   },
   "homepage": {
     "h1": "Kër yu Senegaal",
@@ -969,7 +970,8 @@
         "titre": "Vous avez un numéro sur votre compte ?",
         "texte": "Recevez plutôt un code par SMS — sans rien réinitialiser.",
         "lien": "Recevoir un code"
-      }
+      },
+      "emailPlaceholder": "nom@exemple.sn"
     },
     "verification": {
       "titre": "Vérifiez votre adresse",
@@ -989,7 +991,8 @@
       "correction": {
         "libelle": "Votre adresse e-mail",
         "envoyer": "Envoyer le lien ici",
-        "annuler": "Annuler"
+        "annuler": "Annuler",
+        "placeholder": "nom@exemple.sn"
       },
       "repriseAction": {
         "visite": "Vous reprenez votre demande",
@@ -1204,6 +1207,9 @@
           "submitted": "Demaande bi dem na.",
           "draft_not_cleared_title": "Brouillon non effacé",
           "draft_not_cleared_body": "Votre demande est bien envoyée, mais son brouillon n'a pas pu être effacé (connexion perdue ou session expirée). Il peut encore vous être proposé à la reprise : vous pouvez l'ignorer."
+        },
+        "placeholders": {
+          "planned_agents_count": "Ex. : 5"
         }
       },
       "status": {
@@ -1273,6 +1279,13 @@
         "suivi": "Notre équipe examine chaque demande ; sa décision vous parvient par e-mail et dans vos notifications. Tant qu’elle est en cours d’examen, vous pouvez la révoquer d’ici.",
         "erreurs": {
           "envoi": "La demande n’est pas partie. Vos réponses sont conservées : vérifiez votre connexion, puis renvoyez-la."
+        },
+        "exemples": {
+          "company_legal_name": "Ex. : Teranga Immobilier SARL",
+          "rc": "Ex. : SN-DKR-2024-B-12345",
+          "ninea": "Ex. : 012345678 2G3",
+          "rib_pro": "Ex. : SN012 01001 012345678901 23",
+          "address_fiscale": "Ex. : 12 rue Carnot, Dakar-Plateau"
         }
       }
     },
@@ -1407,7 +1420,8 @@
         "venuSansNom": "Vous venez d’un nouveau bail. Votre saisie est gardée en brouillon.",
         "enregistre": "<fort>Réglages enregistrés.</fort> Vos prochains baux les reprennent.",
         "reprendre": "Reprendre le bail"
-      }
+      },
+      "exemple": "Ex. : {valeur}"
     }
   },
   "compare": {
@@ -1745,7 +1759,8 @@
         "precision": "Précision",
         "facultative": "facultative",
         "note": "Le motif devient une note épinglée sur la fiche de {prenom} et compte dans la conversion du mois. Annuler remet la carte en {etape}.",
-        "enregistrer": "Enregistrer"
+        "enregistrer": "Enregistrer",
+        "precisionExemple": "Ex. : Le client a trouvé un logement moins cher à Ouakam"
       },
       "canal": {
         "call": "appel",
@@ -1940,7 +1955,10 @@
         "errorTitle": "Impossible d’afficher le numéro de pièce"
       },
       "saving": "Mu ngi denc…",
-      "create": "Sos kiliyaan bi"
+      "create": "Sos kiliyaan bi",
+      "firstNamePlaceholder": "Ex. : Awa",
+      "lastNamePlaceholder": "Ex. : Ndiaye",
+      "emailPlaceholder": "nom@exemple.sn"
     },
     "filters": {
       "searchLabel": "Seet benn kiliyaan",
@@ -2028,7 +2046,9 @@
       "sondeImpossible": "La vérification des doublons n’a pas pu se faire. Vous pouvez enregistrer la fiche.",
       "suiviPar": "suivi par {nom}",
       "quartiersProches": "Quartiers proches",
-      "ajouterQuartierProche": "Ajouter {quartier}"
+      "ajouterQuartierProche": "Ajouter {quartier}",
+      "prenomPlaceholder": "Ex. : Awa",
+      "nomPlaceholder": "Ex. : Ndiaye"
     },
     "fiche": {
       "referentCourt": "référent {nom}",
@@ -2260,7 +2280,10 @@
         "citiesPlaceholder": "Dakar, Thiès",
         "neighborhoods": "Gox yi",
         "neighborhoodsPlaceholder": "Almadies, Mermoz",
-        "help": "Xàjjale dëkk yi ak gox yi ak ay virgule. Bërëb bu amul dara dafay far critère bi."
+        "help": "Xàjjale dëkk yi ak gox yi ak ay virgule. Bërëb bu amul dara dafay far critère bi.",
+        "minBedroomsPlaceholder": "Ex. : 3",
+        "budgetMinPlaceholder": "Ex. : 150000",
+        "budgetMaxPlaceholder": "Ex. : 300000"
       }
     },
     "tabs": {
@@ -2650,7 +2673,8 @@
         "dernierAdminDepart": "Personne d’autre n’administre ce groupe : nommez un autre admin avant de partir.",
         "afficher": "Afficher les infos du groupe",
         "replier": "Replier les infos du groupe",
-        "gerer": "Gérer {nom}"
+        "gerer": "Gérer {nom}",
+        "renamePlaceholder": "Ex. : Villa Almadies — travaux"
       }
     },
     "conversationTitleFallback": "Waxtaan #{id}",
@@ -2829,7 +2853,8 @@
       "ajouter": "Ajouter…",
       "ecrire": "Écrire",
       "aideAutomatique": "Activé d’office à partir de deux destinataires.",
-      "pied": "Vous pouvez écrire aux clients, aux propriétaires et aux collègues de {agence}."
+      "pied": "Vous pouvez écrire aux clients, aux propriétaires et aux collègues de {agence}.",
+      "nomDuGroupePlaceholder": "Ex. : Villa Almadies — travaux"
     },
     "contexte": {
       "titre": "Contexte de la conversation",
@@ -2889,7 +2914,8 @@
       "fait": "Conversation signalée",
       "faitDetail": "Merci. L’équipe Takussan va l’examiner.",
       "deja": "Vous avez déjà signalé cette conversation.",
-      "echec": "Le signalement n’a pas été envoyé. Réessayez."
+      "echec": "Le signalement n’a pas été envoyé. Réessayez.",
+      "commentairePlaceholder": "Ex. : Messages insistants après un refus"
     },
     "elargir": {
       "titre": "Ajouter un participant",
@@ -2995,7 +3021,8 @@
         "aide": "Au moins {min} caractères. Le prestataire et l’agence le liront.",
         "envoyer": "Refuser le devis",
         "motif": "Le motif du refus",
-        "titre": "Refuser le devis"
+        "titre": "Refuser le devis",
+        "motifPlaceholder": "Ex. : Le montant dépasse le budget prévu pour cette réparation"
       },
       "refusDuGeste": "Ce geste ne vous est plus permis. La carte a été mise à jour.",
       "reservation": {
@@ -3418,14 +3445,16 @@
         "aQuoi": "À quoi",
         "date": "Date",
         "heure": "Heure",
-        "heureFacultative": "Facultative. Sans heure, l’échéance est la fin de la journée."
+        "heureFacultative": "Facultative. Sans heure, l’échéance est la fin de la journée.",
+        "exemple": "Ex. : Repasser changer le siphon"
       },
       "reouverture": {
         "titre": "Ce n’est pas fait",
         "texte": "L’engagement sera rouvert. Ce droit ne sert qu’une fois.",
         "motif": "Motif",
         "aide": "Au moins {min} caractères.",
-        "envoyer": "Rouvrir l’engagement"
+        "envoyer": "Rouvrir l’engagement",
+        "motifPlaceholder": "Ex. : La fuite sous l’évier est revenue"
       },
       "noter": {
         "geste": "Noter un engagement",
@@ -3812,7 +3841,8 @@
       "createFailed": "Reversement bi mënul woon a sosu.",
       "unverifiedHint": "Agence bi saytuagul fii ñuy fey.",
       "verifyDestination": "Saytu fii ñuy fey",
-      "verifyFailed": "Saytu bi antuwul."
+      "verifyFailed": "Saytu bi antuwul.",
+      "notesExemple": "Ex. : Reversement des loyers de mars, frais de gestion déduits"
     },
     "payoutDetail": {
       "title": "Peymaan {reference}",
@@ -3858,7 +3888,8 @@
       "approveDestinationOption": "{kind} · {masked} (seetlu nañu ko)",
       "avis": "Avis de versement (PDF)",
       "echecAvis": "L’avis de versement n’a pas pu être téléchargé. Réessayez.",
-      "nomDeLAvis": "avis-de-versement-{reference}.pdf"
+      "nomDeLAvis": "avis-de-versement-{reference}.pdf",
+      "cashNoteExemple": "Ex. : Reçu n° 0142 remis en main propre"
     },
     "customer": {
       "nextTitle": "Fey bi ci topp",
@@ -3934,7 +3965,8 @@
         "paid": "Fey nañu ko",
         "cancelled": "Neenal nañu ko",
         "draft": "À facturer"
-      }
+      },
+      "rejectionReasonExemple": "Ex. : Montant différent du devis accepté"
     },
     "retour": {
       "titre": "Paiement",
@@ -4309,7 +4341,8 @@
         "submitting": "Yónnee…",
         "file_too_large": "Fichier trop lourd ({max} Mo au plus) : {files}",
         "max_files": "Maximum {max} fichiers.",
-        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les."
+        "total_too_large": "Ces pièces dépassent {max} Mo à elles toutes : retirez-en ou allégez-les.",
+        "amount_placeholder": "Ex. : 150 000"
       },
       "error_generic": "Delloo gi am na njuumte, jeemal ndax."
     },
@@ -4341,7 +4374,12 @@
       "timeline_title": "Chaîne luwé",
       "timeline_root": "Luwé bu njëkk",
       "timeline_amendment": "Avenant {n}",
-      "timeline_current": "tey"
+      "timeline_current": "tey",
+      "placeholder_monthly_rent": "Ex. : 150 000",
+      "placeholder_deposit_amount": "Ex. : 300 000",
+      "placeholder_late_fee_percent": "Ex. : 2,5",
+      "placeholder_late_fee_grace_days": "Ex. : 5",
+      "placeholder_terms": "Ex. : Loyer révisé chaque année, peinture refaite par le bailleur…"
     },
     "early_termination": {
       "cta": "Tas luwé bi",
@@ -4649,7 +4687,9 @@
           "memeTelephone": "même téléphone",
           "memeEmail": "même e-mail",
           "creerQuandMeme": "Créer quand même"
-        }
+        },
+        "prenomExemple": "Ex. : Awa",
+        "nomExemple": "Ex. : Diop"
       },
       "ligne": {
         "changer": "Changer",
@@ -4734,7 +4774,15 @@
       "pieceGardee": "Enregistré : {masque}. Laissez vide pour le garder.",
       "revenuGarde": "Un revenu est enregistré. Laissez vide pour le garder.",
       "lecture": "Lecture du garant…",
-      "lectureEchouee": "Le garant n’a pas pu être lu."
+      "lectureEchouee": "Le garant n’a pas pu être lu.",
+      "firstNameExemple": "Ex. : Moussa",
+      "lastNameExemple": "Ex. : Ndiaye",
+      "emailExemple": "nom@exemple.sn",
+      "idNumberExemple": "Ex. : 1 751 1990 01234",
+      "occupationExemple": "Ex. : Comptable",
+      "employerExemple": "Ex. : Sonatel",
+      "monthlyIncomeExemple": "Ex. : 450 000",
+      "notesExemple": "Ex. : Joignable de préférence le soir"
     },
     "signature": {
       "title": "Xaatim bayle bi",
@@ -4764,7 +4812,8 @@
       "paperLabel": "Kontraa bu ñu xaatim ci kayit (PDF, JPG walla PNG, 10 Mo)",
       "paperSubmit": "Taal ci kontraa kayit",
       "genericError": "Jëf ji antuwul. Jéemaatal.",
-      "paperTooLarge": "Fichier trop lourd ({max} Mo au plus) : {files}"
+      "paperTooLarge": "Fichier trop lourd ({max} Mo au plus) : {files}",
+      "codePlaceholder": "Ex. : 482913"
     },
     "fiche": {
       "titre": "Bail de {nom}",
@@ -4999,7 +5048,8 @@
       "erreur": "Le brouillon n'a pas pu être abandonné.",
       "abandonne": "Brouillon abandonné.",
       "abandonneEtFerme": "Brouillon abandonné, et candidature fermée.",
-      "fermetureEchouee": "Brouillon abandonné, mais la candidature n'a pas pu être fermée. Fermez-la depuis sa fiche."
+      "fermetureEchouee": "Brouillon abandonné, mais la candidature n'a pas pu être fermée. Fermez-la depuis sa fiche.",
+      "motifExemple": "Ex. : Le locataire s’est désisté avant la signature"
     },
     "liste": {
       "titre": "Baux",
@@ -5383,7 +5433,10 @@
           "supply": "Jumtukaay"
         },
         "valid_until": "Baax na ba {date}",
-        "duration": "{days, plural, =1 {Diir bi : # fan} other {Diir bi : # fan}}"
+        "duration": "{days, plural, =1 {Diir bi : # fan} other {Diir bi : # fan}}",
+        "line_label_placeholder": "Ex. : Remplacement du chauffe-eau",
+        "line_quantity_placeholder": "Ex. : 1,5",
+        "line_unit_price_placeholder": "Ex. : 25 000"
       },
       "quote_form": {
         "title": "Yónne devi",
@@ -5403,7 +5456,8 @@
         "incomplete": "Bépp rëdd war na am tur, lim ak njëg, te devi bi war na am bés bu muy jeex.",
         "failed": "Devi bi yónneesu ko.",
         "submitting": "Mungiy yónne…",
-        "submit": "Yónne devi bi"
+        "submit": "Yónne devi bi",
+        "duration_placeholder": "Ex. : 3"
       },
       "list": {
         "agency": "Ajaas {name}"
@@ -5726,7 +5780,9 @@
           "piece": "Votre facture, PDF ou photo (facultatif)",
           "envoyer": "Envoyer la facture",
           "envoi": "Envoi…",
-          "echec": "La facture n’a pas pu être envoyée."
+          "echec": "La facture n’a pas pu être envoyée.",
+          "montantExemple": "Ex. : 45 000",
+          "referenceExemple": "Ex. : FAC-2026-014"
         }
       },
       "releve": {
@@ -5982,7 +6038,8 @@
         "save": "Denc",
         "cancel": "Neenal",
         "count": "{count}/{max}",
-        "error": "Mënuñu denc bind bi. Jéemaatal."
+        "error": "Mënuñu denc bind bi. Jéemaatal.",
+        "placeholder": "Ex. : Visite samedi, demander pour le parking"
       }
     },
     "suivi": {
@@ -6371,7 +6428,8 @@
       "confirmedTitle": "Dëggal nañu xamle bi",
       "confirmedBody": "Dinga jot kër yu bees yu ko méngoo benn yoon ci bés.",
       "close": "Tëj",
-      "loginInstead": "Am nga kont ? Duggal ngir denc seet gi."
+      "loginInstead": "Am nga kont ? Duggal ngir denc seet gi.",
+      "emailPlaceholder": "nom@exemple.sn"
     },
     "alertPages": {
       "confirm": {
@@ -6591,7 +6649,11 @@
         "last_name": "Sant",
         "phone": "Telefon (mënul am)",
         "owner_type": "Xeetu borom kër",
-        "company_name": "Tur sosete"
+        "company_name": "Tur sosete",
+        "emailPlaceholder": "nom@exemple.sn",
+        "firstNamePlaceholder": "Ex. : Awa",
+        "lastNamePlaceholder": "Ex. : Diop",
+        "companyNamePlaceholder": "Ex. : SCI Les Almadies"
       },
       "owner_types": {
         "individual": "Nit",
@@ -7216,7 +7278,10 @@
         "last_name": "Sant",
         "phone": "Telefoŋ (optionnel)",
         "trades": "Liggéey",
-        "intervention_zones": "Bérébi liggéey"
+        "intervention_zones": "Bérébi liggéey",
+        "emailPlaceholder": "nom@exemple.sn",
+        "firstNamePlaceholder": "Ex. : Moussa",
+        "lastNamePlaceholder": "Ex. : Ndiaye"
       },
       "trades": {
         "plumbing": "Plonbri",
@@ -7448,7 +7513,9 @@
         "error": "Mënunu woon denc sa tur. Jéemaatal.",
         "reprise": "Votre prénom n'est pas enregistré : il vous sera redemandé à votre prochaine connexion.",
         "nom": "Nom",
-        "facultatif": "(facultatif)"
+        "facultatif": "(facultatif)",
+        "prenomPlaceholder": "Ex. : Awa",
+        "nomPlaceholder": "Ex. : Diop"
       }
     },
     "host": {
@@ -7520,6 +7587,10 @@
             "XAF": "F CFA (Afrique centrale)",
             "EUR": "Euro",
             "USD": "Dollar américain"
+          },
+          "placeholders": {
+            "spaceName": "Ex. : Résidences Diop",
+            "primaryCity": "Ex. : Dakar"
           }
         },
         "firstProperty": {
@@ -7890,7 +7961,11 @@
           "creneau": "{jour}, {moment}",
           "enregistrer": "Enregistrer mon profil",
           "enregistrement": "Enregistrement…",
-          "enregistre": "Profil enregistré."
+          "enregistre": "Profil enregistré.",
+          "placeholders": {
+            "horaire": "Ex. : 5 000",
+            "visite": "Ex. : 2 000"
+          }
         },
         "multiAgences": {
           "titre": "Vous travaillez déjà avec {agences}",
@@ -8002,7 +8077,8 @@
           "budget": "{tranche} F CFA"
         },
         "erreurAlerte": "Nous n’avons pas pu enregistrer votre alerte. Réessayez, ou passez cette étape.",
-        "nouveau": "Nouveau"
+        "nouveau": "Nouveau",
+        "autrePlaceholder": "Ex. : Sacré-Cœur 3"
       },
       "pro": {
         "barre": "Votre espace professionnel",
@@ -8060,7 +8136,8 @@
           "pasEncore": "Pas encore de lien ?",
           "whatsapp": "Écrire à votre agence sur WhatsApp",
           "messageWhatsapp": "Bonjour, pouvez-vous m’envoyer le lien d’invitation pour rejoindre votre agence sur Takussan ?",
-          "envoyee": "{invitant, select, aucun {envoyée le {date}} other {envoyée par {invitant} le {date}}}"
+          "envoyee": "{invitant, select, aucun {envoyée le {date}} other {envoyée par {invitant} le {date}}}",
+          "placeholder": "https://takussan.com/invitations/accept?token=…"
         },
         "numero": {
           "aide": "Takussan vérifie le numéro de votre compte par SMS avant d’ouvrir votre espace.",
@@ -8070,7 +8147,8 @@
         },
         "villeChoisir": "Choisissez une ville",
         "villeAucune": "Aucune ville ne correspond.",
-        "numeroNonVerifie": "Votre numéro n’est pas encore vérifié. Vérifiez-le ci-dessous par SMS, puis créez votre espace."
+        "numeroNonVerifie": "Votre numéro n’est pas encore vérifié. Vérifiez-le ci-dessous par SMS, puis créez votre espace.",
+        "nomPlaceholder": "Ex. : Teranga Immobilier"
       },
       "prenom": {
         "apercu": "Ce que les autres verront",
@@ -8347,7 +8425,9 @@
         "manquant": "Manquant",
         "note": "Note",
         "retirer": "Retirer l’élément",
-        "fermer": "Fermer"
+        "fermer": "Fermer",
+        "nomExemple": "Ex. : Robinet de l’évier",
+        "noteExemple": "Ex. : Rayure légère sur la porte, joint à refaire…"
       },
       "feuillePiece": {
         "modifier": "Modifier la pièce",
@@ -8355,7 +8435,8 @@
         "etat": "État de la pièce",
         "nouvelle": "Ajouter une pièce",
         "ajouter": "Ajouter",
-        "retirer": "Retirer la pièce"
+        "retirer": "Retirer la pièce",
+        "nomExemple": "Ex. : Chambre 2"
       },
       "recap": {
         "titre": "Récapitulatif et signatures",
@@ -8947,7 +9028,8 @@
           "lienACreer": "Créé à l’envoi de la relance",
           "enTetePenalite": "Pénalité de retard",
           "lienPenalite": "Lien de paiement de la pénalité",
-          "penaliteSansLien": "Votre agence n’encaisse pas ses pénalités de retard en ligne : le message part sans lien, la pénalité se règle à l’agence."
+          "penaliteSansLien": "Votre agence n’encaisse pas ses pénalités de retard en ligne : le message part sans lien, la pénalité se règle à l’agence.",
+          "messageExemple": "Bonjour, le loyer de novembre reste à régler. Merci de nous contacter pour convenir du paiement."
         },
         "dossier": {
           "bailleur": "Bailleur : {nom}",
@@ -9411,7 +9493,8 @@
         "label": "Taux de commission de l'agent (%)",
         "hint": "Sa part de la commission de chaque bail qu'il négocie, versée à l'activation du bail. Vide : aucune part.",
         "submit": "Enregistrer le taux",
-        "submitting": "Enregistrement…"
+        "submitting": "Enregistrement…",
+        "exemple": "Ex. : 12,5"
       },
       "errors": {
         "load": "Mënunu yeb wàll yi. Seetal sa koneksioŋ, ba noppi jéemaat.",
@@ -9886,7 +9969,8 @@
           "motif": "Motif (facultatif)",
           "motifAide": "Visible des administrateurs seulement.",
           "echec": "L’absence n’a pas pu être enregistrée. Réessayez.",
-          "remplacantHorsListe": "{nom} reprend aujourd’hui ses nouvelles demandes, mais n’est plus parmi le personnel proposé : gardez ce choix, ou choisissez une autre personne."
+          "remplacantHorsListe": "{nom} reprend aujourd’hui ses nouvelles demandes, mais n’est plus parmi le personnel proposé : gardez ce choix, ou choisissez une autre personne.",
+          "motifExemple": "Ex. : Congé annuel, formation à Thiès"
         },
         "absences": {
           "titre": "Absences",
@@ -9938,7 +10022,10 @@
             "envoyee": "Invitation envoyée à {email}.",
             "partagee": "Invitation créée pour le {telephone} : envoyez le message dans WhatsApp.",
             "whatsappSansNumero": "Le numéro de téléphone est requis pour inviter par WhatsApp.",
-            "whatsappSansEmail": "Par WhatsApp, l’invitation est liée au seul numéro : laissez l’adresse e-mail vide."
+            "whatsappSansEmail": "Par WhatsApp, l’invitation est liée au seul numéro : laissez l’adresse e-mail vide.",
+            "exemplePrenom": "Ex. : Awa",
+            "exempleNom": "Ex. : Diop",
+            "exempleTelephone": "77 123 45 67"
           },
           "parWhatsApp": "Par WhatsApp",
           "lienParWhatsApp": "Lien par WhatsApp",
@@ -10444,6 +10531,19 @@
           "plateforme": "Coupé par la plateforme pour toutes les agences : vous ne pouvez pas le rallumer.",
           "nonConfiguree": "Aucun service de transcription n'est encore configuré sur la plateforme."
         }
+      },
+      "exemples": {
+        "taux": "Ex. : 18",
+        "commission": "Ex. : 8,5",
+        "raisonSociale": "Ex. : Teranga Immobilier SARL",
+        "ninea": "Ex. : 0012345672A2",
+        "rccm": "Ex. : SN-DKR-2024-B-12345",
+        "adresseLegale": "Ex. : 12, rue Carnot, Dakar-Plateau",
+        "nom": "Ex. : Teranga Immobilier",
+        "slug": "Ex. : teranga-immobilier",
+        "courriel": "contact@agence.sn",
+        "jourDeVersement": "Ex. : 10",
+        "seuil": "Ex. : 500 000"
       }
     },
     "users": {
@@ -10590,7 +10690,8 @@
           "aucuneLigne": "Aucune ligne lue : vérifiez le format ou les réglages de l’import.",
           "changer": "Changer de fichier",
           "echec": "Le relevé n’a pas pu être lu."
-        }
+        },
+        "bankNamePlaceholder": "Ex. : CBAO"
       },
       "list": {
         "title": "Relevé yi ñu yebal",
@@ -10715,7 +10816,9 @@
         "empty": "Amul fey bu ci mengoo.",
         "error": "Seet bi mënul.",
         "choose": "Méngale",
-        "matchFailed": "Méngale bi mënul."
+        "matchFailed": "Méngale bi mënul.",
+        "queryPlaceholder": "Ex. : WAVE-48213 ou Awa Diop",
+        "amountPlaceholder": "Ex. : 150 000"
       },
       "titreCourt": "Rapprochement",
       "sousTitre": "Ce qu’une passerelle de paiement a confirmé est déjà rapproché ; le reste se rapproche d’un relevé de banque.",
@@ -10793,7 +10896,8 @@
           "erreur": "La recherche a échoué.",
           "aucune": "Aucun encaissement de ce montant sur les relevés ouverts.",
           "resultats": "Lignes de banque trouvées",
-          "rapprocher": "Rapprocher"
+          "rapprocher": "Rapprocher",
+          "montantExemple": "Ex. : 150 000"
         },
         "moyens": {
           "court": {
@@ -10830,7 +10934,8 @@
           "echec": "Le paiement n’a pas pu être ignoré.",
           "annuler": "Annuler",
           "retabli": "Le paiement est de nouveau à rapprocher.",
-          "echecRetablir": "Le paiement n’a pas pu être rétabli."
+          "echecRetablir": "Le paiement n’a pas pu être rétabli.",
+          "noteExemple": "Ex. : Virement interne entre deux comptes de l'agence"
         },
         "ignores": {
           "resume": "{count, plural, one {# paiement ignoré ce mois-ci} other {# paiements ignorés ce mois-ci}}",
@@ -11048,7 +11153,8 @@
         "furnished": "Ame na meebal",
         "description": "Leeral",
         "descriptionPlaceholder": "Leeralal kër gi, li ko wër, ak li ko gën a rafetal.",
-        "availableFrom": "Jotna ci"
+        "availableFrom": "Jotna ci",
+        "areaPlaceholder": "Ex. : 120"
       },
       "price": {
         "title": "Njëg",
@@ -11091,7 +11197,9 @@
         "pasteNeedsCity": "Tànnal dëkk bi njëkk : Plus Code bu gàtt, ci moom lañu koy jànge.",
         "pasteUnknown": "Xamuñu format bii. Taqal lien Google Maps, Plus Code walla koordone.",
         "latitude": "Latitude",
-        "longitude": "Longitude"
+        "longitude": "Longitude",
+        "latitudePlaceholder": "Ex. : 14,6928",
+        "longitudePlaceholder": "Ex. : -17,4467"
       },
       "description": {
         "title": "Leeral",
@@ -11151,7 +11259,9 @@
         "whatsappYes": "Waaw",
         "whatsappNo": "Déedéet",
         "subtitleMany": "Ñi seetsi dinañu la woo ci nimero yii. Duñu feeñ lu dul ñu laaj ko.",
-        "numbersAria": "Say nimero yu wóor"
+        "numbersAria": "Say nimero yu wóor",
+        "firstNamePlaceholder": "Ex. : Awa",
+        "lastNamePlaceholder": "Ex. : Ndiaye"
       }
     },
     "contacts": {
@@ -11179,7 +11289,8 @@
           "secondary": "Ñaareelu nimero",
           "onSite": "Ci bérëb bi"
         }
-      }
+      },
+      "labelPlaceholder": "Ex. : Gardien"
     },
     "status": {
       "available": "Jot na",
@@ -11280,7 +11391,8 @@
         "yearBuilt": "2010",
         "parking": "2",
         "period": "Weer wu nekk",
-        "description": "Li nataal yi wonewul: gox bi, li ko wër, ak li ñu def bu yagul."
+        "description": "Li nataal yi wonewul: gox bi, li ko wër, ak li ñu def bu yagul.",
+        "title": "Ex. : Appartement F3 lumineux aux Almadies"
       },
       "geoSuggestFull": "Jëfandikoo {city}, {region}",
       "geoSuggestCity": "Jëfandikoo {city}",
@@ -11380,7 +11492,10 @@
         "decrease": "Retirer un mois",
         "increase": "Ajouter un mois",
         "decreaseHalf": "Retirer un demi-mois",
-        "increaseHalf": "Ajouter un demi-mois"
+        "increaseHalf": "Ajouter un demi-mois",
+        "advancePlaceholder": "Ex. : 2",
+        "depositPlaceholder": "Ex. : 1",
+        "agencyFeePlaceholder": "Ex. : 0,5"
       },
       "virtualTour": {
         "label": "Seetlu ci internet walla widewoo (lëkkalekaay)",
@@ -12843,6 +12958,12 @@
           "pasRattache": "Ce garant n’est plus rattaché à cette demande.",
           "troisAuPlus": "Une demande ne peut pas avoir plus de 3 garants.",
           "dossierClos": "Cette demande est close : ses garants ne changent plus."
+        },
+        "exemples": {
+          "first_name": "Ex. : Awa",
+          "last_name": "Ex. : Ndiaye",
+          "phone": "77 123 45 67",
+          "relationship_to_tenant": "Ex. : Père, employeur"
         }
       }
     },
@@ -13454,7 +13575,8 @@
         "reason": "Lu tax ñu neenal",
         "back": "Dellu",
         "submit": "Dëggal neenal gi",
-        "failed": "Mënuñu denc neenal gi."
+        "failed": "Mënuñu denc neenal gi.",
+        "reasonPlaceholder": "Ex. : le bien a été retiré par l'agence"
       },
       "offer": {
         "title": "May Vedette",
@@ -13464,7 +13586,9 @@
         "reason": "Lu tax",
         "submit": "May",
         "done": "Vedette bi may nañu ko.",
-        "failed": "Mënuñu may Vedette bi."
+        "failed": "Mënuñu may Vedette bi.",
+        "propertyPlaceholder": "Ex. : 1042",
+        "reasonPlaceholder": "Ex. : compensation après une panne d'affichage"
       },
       "catalogue": {
         "caption": "Jaayu yokk gis-gis",
@@ -13481,7 +13605,9 @@
         "variant": "Melo",
         "duration": "Diir (fan)",
         "price": "Njëg (kredi)",
-        "create": "Sos jaay bi"
+        "create": "Sos jaay bi",
+        "pricePlaceholder": "Ex. : 20",
+        "durationPlaceholder": "Ex. : 7"
       },
       "stats": {
         "from": "Ci",
@@ -13540,8 +13666,11 @@
         "colDate": "Bés",
         "colType": "Jëf",
         "colAmount": "Kredi",
-        "colReason": "Lu tax"
-      }
+        "colReason": "Lu tax",
+        "amountPlaceholder": "Ex. : 50 ou -20",
+        "reasonPlaceholder": "Ex. : crédits offerts après un double prélèvement"
+      },
+      "searchPlaceholder": "Ex. : Immobilière Teranga"
     },
     "agencies": {
       "empty_title": "Amul ajaas bu ñu wara wone",
@@ -13737,7 +13866,9 @@
       "subject": "Sujet",
       "body": "Biir bataaxal bi",
       "smsSegments": "{count} segment(s)",
-      "previewTitle": "Xool bu jëkk"
+      "previewTitle": "Xool bu jëkk",
+      "subjectPlaceholder": "Ex. : Votre visite est confirmée",
+      "bodyPlaceholder": "Ex. : Bonjour {{ first_name }}, votre visite du {{ date }} est confirmée."
     },
     "users": {
       "empty_title": "Gisuñu benn jëfandikukat",
@@ -13837,7 +13968,8 @@
       "agenciesLoading": "Ajaans yi ñungi yeg…",
       "agenciesNoMatch": "Amul benn ajaans bu mengoo.",
       "agencyUnknown": "Ajaans #{id}",
-      "agencyRemove": "Génne {name} ci tànneef bi"
+      "agencyRemove": "Génne {name} ci tànneef bi",
+      "rolloutPlaceholder": "Ex. : 50"
     },
     "scheduler": {
       "empty_title": "Amul benn dox bu ñu jàpp",
@@ -13992,7 +14124,8 @@
     },
     "confirmDialog": {
       "typePrompt": "Ngir dëgglu, bindal",
-      "pending": "Mu ngi dox…"
+      "pending": "Mu ngi dox…",
+      "reasonPlaceholder": "Décrivez ce qui motive ce geste…"
     },
     "agencyStatus": {
       "active": "Mu ngi dox",
@@ -14578,7 +14711,9 @@
           "global": "Global",
           "evaluationCost": "Coût de l’évaluation",
           "noBaseline": "Aucune référence enregistrée.",
-          "evaluatedCandidate": "Candidat évalué : {model}"
+          "evaluatedCandidate": "Candidat évalué : {model}",
+          "maxTokensPlaceholder": "Ex. : 4 000",
+          "overrideReasonPlaceholder": "Ex. : le modèle de référence est indisponible chez le fournisseur"
         },
         "usages": {
           "caption": "Usages déclarés",
@@ -14680,7 +14815,9 @@
           "inUse": "Ce modèle est encore employé : il ne peut pas être retiré.",
           "inUseRoles": "Chaînes réglées ici : {names}.",
           "inUseUsages": "Modèle forcé de : {names}.",
-          "inUseFallback": "Chaînes de repli de la configuration : {names}."
+          "inUseFallback": "Chaînes de repli de la configuration : {names}.",
+          "identifierPlaceholder": "Ex. : claude-sonnet-4-5",
+          "pricePlaceholder": "Ex. : 3,00"
         },
         "dashboard": {
           "from": "Du",
@@ -14914,7 +15051,9 @@
             "captureFileTooLarge": "Une des images dépasse 8 Mo. Rien n’a été envoyé.",
             "capturesTotalTooLarge": "Les images dépassent 24 Mo au total : envoyez-en moins à la fois. Rien n’a été envoyé.",
             "payloadTooLarge": "L’envoi est trop lourd pour le serveur : envoyez moins d’images à la fois (24 Mo au plus)."
-          }
+          },
+          "urlsPlaceholder": "https://www.exemple.sn/annonce/12345",
+          "textPlaceholder": "Ex. : Appartement F3 à louer aux Almadies, 350 000 FCFA/mois. Contact : 77 123 45 67"
         },
         "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
         "listing": {
@@ -15097,7 +15236,8 @@
               "kindProperty": "Bien du catalogue",
               "manualId": "Identifiant",
               "confirm": "Marquer comme doublon",
-              "alreadyDuplicate": "déjà un doublon"
+              "alreadyDuplicate": "déjà un doublon",
+              "manualIdPlaceholder": "Ex. : 1042"
             },
             "discard": {
               "title": "Écarter l’annonce",
@@ -15137,6 +15277,16 @@
             "source": "Voir la source",
             "unmerge": "Séparer",
             "unmergeHint": "L’annonce revient à relire, sans lien ; elle ne sera pas fusionnée de nouveau."
+          },
+          "placeholders": {
+            "title": "Ex. : Appartement F3 lumineux à Mermoz",
+            "city": "Ex. : Dakar",
+            "description": "Le texte de l'annonce, corrigé si l'extraction l'a abîmé…",
+            "price": "Ex. : 350 000",
+            "bedrooms": "Ex. : 3",
+            "bathrooms": "Ex. : 2",
+            "surface_m2": "Ex. : 85,5",
+            "amenities": "Ex. : climatisation, parking, gardiennage"
           }
         },
         "advertiser": {
@@ -15237,7 +15387,9 @@
             "demandSentence": "Ce message dit à l’annonceur que des personnes recherchent un bien comme le sien sur Takussan.",
             "demandReason": "Recherché : {targets}",
             "apiDemandManualOnly": "Ce message cite la demande : il part par WhatsApp à la main tant que le gabarit Meta v4 n’est pas approuvé.",
-            "apiTemplateManualOnly": "Ce message a été écrit avec un gabarit que Meta n’a pas approuvé : il part par WhatsApp à la main."
+            "apiTemplateManualOnly": "Ce message a été écrit avec un gabarit que Meta n’a pas approuvé : il part par WhatsApp à la main.",
+            "salutationPlaceholder": "Ex. : Bonjour Monsieur Diop,",
+            "resumePlaceholder": "Ex. : votre appartement F3 à louer aux Almadies, 350 000 FCFA par mois"
           },
           "history": {
             "heading": "Messages envoyés",
@@ -15425,7 +15577,8 @@
               "stop": "STOP",
               "question": "Question",
               "no_answer": "Sans réponse"
-            }
+            },
+            "reasonRequiredPlaceholder": "Ex. : l'annonceur a confirmé son accord par appel, la capture est floue"
           },
           "followUp": {
             "heading": "Relance",
@@ -15458,7 +15611,8 @@
             "reasonLabel": "Motif (facultatif)",
             "cancel": "Annuler",
             "confirm": "Délier",
-            "done": "Compte délié : l’annonceur peut de nouveau réclamer ses annonces."
+            "done": "Compte délié : l’annonceur peut de nouveau réclamer ses annonces.",
+            "reasonPlaceholder": "Ex. : l'annonceur a perdu l'accès à son ancien compte"
           },
           "activation": {
             "heading": "Relance d’activation",
@@ -15950,7 +16104,9 @@
               "sitemap": "Sitemap : tout l’inventaire du site est connu en quelques requêtes ; au plus {max} annonces neuves saisies par passage, les autres au passage suivant."
             },
             "unavailable": "Ce site ne propose pas de sitemap : il se lit par ses listes."
-          }
+          },
+          "frequencyPlaceholder": "Ex. : 60",
+          "maxPagesPlaceholder": "Ex. : 5"
         },
         "nav": {
           "aria": "Espaces du Radar",
@@ -16082,7 +16238,12 @@
             "previewEmpty": "Aucun critère pour l’instant : choisissez-en au moins un.",
             "cancel": "Annuler",
             "create": "Créer la cible",
-            "save": "Enregistrer"
+            "save": "Enregistrer",
+            "priceMinPlaceholder": "Ex. : 150 000",
+            "priceMaxPlaceholder": "Ex. : 500 000",
+            "bedroomsMinPlaceholder": "Ex. : 2",
+            "bedroomsMaxPlaceholder": "Ex. : 4",
+            "maxAgeDaysPlaceholder": "Ex. : 30"
           },
           "actions": {
             "edit": "Régler",
@@ -16257,7 +16418,8 @@
       "rollout": "Rollout %",
       "test": "Seetlu ko",
       "testing": "Yaa ngi ko seetlu",
-      "tableCaption": "Feature flag yu plateform bi"
+      "tableCaption": "Feature flag yu plateform bi",
+      "rolloutPlaceholder": "Ex. : 25"
     },
     "alerts": {
       "colEvent": "Xew-xew",
@@ -16325,7 +16487,9 @@
       "submit": "Yónnee woote bi",
       "toastTitle": "Woote bi dem na",
       "toastDescription": "Yónnee nañu ab woote ci {email}.",
-      "sendError": "Mënuñu yónnee woote bi."
+      "sendError": "Mënuñu yónnee woote bi.",
+      "firstNamePlaceholder": "Ex. : Awa",
+      "lastNamePlaceholder": "Ex. : Diop"
     },
     "reviewModal": {
       "approveTitle": "Nangul ñaan bi",
@@ -16385,7 +16549,10 @@
       "defaultMessages": {
         "fr": "Maintenance planifiée. Certaines actions peuvent être indisponibles.",
         "en": "Scheduled maintenance. Some actions may be unavailable."
-      }
+      },
+      "messagePlaceholderFr": "Ex. : Takussan sera indisponible le 12 décembre de 2 h à 4 h pour une mise à jour.",
+      "messagePlaceholderEn": "Ex. : Takussan will be unavailable on 12 December from 2 to 4 a.m. for an update.",
+      "messagePlaceholderWo": "La même annonce, traduite en wolof"
     },
     "platformSettings": {
       "restartWarning": "Soppi bu nekk mën na laaj ñu dellu tàmbali liiñ bi walla setal kaas bi.",
@@ -16555,7 +16722,9 @@
       "noLimit": "Amul dig",
       "enabled": "Dox na",
       "disabled": "Doxul",
-      "integerListPlaceholder": "3, 7, 15"
+      "integerListPlaceholder": "3, 7, 15",
+      "integerPlaceholder": "Ex. : 30",
+      "decimalPlaceholder": "Ex. : 12,5"
     },
     "agencyOnboarding": {
       "toastCreatedTitle": "Ajaans bi sos na",
@@ -16598,6 +16767,14 @@
         "XAF": "XAF — F CFA (CEMAC)",
         "EUR": "EUR — Euro",
         "USD": "USD — US Dollar"
+      },
+      "placeholders": {
+        "name": "Ex. : Immobilière Teranga",
+        "email": "contact@exemple.sn",
+        "phone": "77 123 45 67",
+        "address": "Ex. : Rue 10, Sacré-Cœur 3, Dakar",
+        "firstName": "Ex. : Awa",
+        "lastName": "Ex. : Diop"
       }
     },
     "userDetail": {
@@ -16842,6 +17019,12 @@
         "proofHint": "PDF walla nataal (JPG, PNG, WebP, HEIC).",
         "proofReplace": "Am na firnde bu ñu fi denc ba noppi ({name}) : fichier bu bees dina ko wuutu.",
         "proofTooLarge": "Fichier trop lourd ({max} Mo au plus) : {files}"
+      },
+      "placeholders": {
+        "requesterName": "Ex. : Fatou Ndiaye",
+        "requesterContact": "Ex. : fatou@exemple.sn ou 77 123 45 67",
+        "userId": "Ex. : 1042",
+        "responseSummary": "Ex. : Données exportées et envoyées par courriel le 3 novembre."
       }
     },
     "payments": {
@@ -16945,7 +17128,9 @@
       "retry": "Jéemaat",
       "done": "Dogal bi denc nañu ko.",
       "failed": "Mënuñu denc dogal bi.",
-      "noTarget": "Amul dara bu ànd ci yi ñu nangu."
+      "noTarget": "Amul dara bu ànd ci yi ñu nangu.",
+      "newNamePlaceholderGeo": "Ex. : Sacré-Cœur 3",
+      "newNamePlaceholderTags": "Ex. : Vue sur mer"
     },
     "miseEnAvantAgences": {
       "intro": "Une agence en tête de l’annuaire d’une ville, pendant une période, offerte par Takussan. Une seule par ville à la fois ; la liste garde son ordre, l’agence y reste à son rang.",
@@ -16985,7 +17170,8 @@
         "reason": "Motif (5 caractères au moins)",
         "submit": "Offrir",
         "done": "Mise en avant offerte.",
-        "failed": "La mise en avant n’a pas pu être offerte."
+        "failed": "La mise en avant n’a pas pu être offerte.",
+        "reasonPlaceholder": "Ex. : geste commercial après un incident de paiement"
       },
       "revoke": {
         "open": "Retirer",
@@ -17058,7 +17244,8 @@
         "attributionRequired": "Cette photo exige désormais un crédit : elle ne peut pas être importée.",
         "sourceNotFound": "Cette photo n’existe plus sur Wikimedia Commons.",
         "sourceUnavailable": "Wikimedia Commons ne répond pas : réessayez plus tard ou envoyez un fichier."
-      }
+      },
+      "searchPlaceholder": "Ex. : Almadies"
     }
   },
   "adminSettings": {
@@ -17107,7 +17294,8 @@
         "accountId": "Identifiant de compte",
         "senderIdLam": "Sender ID (≤ 11, warul tàmbali ak limeer)",
         "hostLam": "Host LAMPUSH (mënul am — mu wuutu bu ndogal bi)",
-        "webhookPlaceholder": "https://misaal.sn/webhook"
+        "webhookPlaceholder": "https://misaal.sn/webhook",
+        "serviceIdPlaceholder": "Ex. : 12345"
       },
       "confirmDelete": "Ndax dëgg la nga bëgg far entegrasyon « {provider} » ? Jëf bii mënatul dellu.",
       "webhookEndpoint": {
@@ -17377,7 +17565,9 @@
         "titre": "Bail clôturé le {date} · {bien}",
         "detail": "Votre avis sur votre ancien logement",
         "noter": "Noter"
-      }
+      },
+      "opportunityCommentPlaceholder": "Ex. : Logement propre, propriétaire joignable.",
+      "replyPlaceholder": "Ex. : Merci pour votre séjour, au plaisir de vous revoir."
     },
     "contact": {
       "title": "Jokkoo yi",
@@ -17592,7 +17782,10 @@
       "invalidImage": "Dencukaay bi war na doon nataal bu baax.",
       "imageTooLarge": "Nataal bi warul weesu 2 Mo.",
       "saveError": "Coppite yi ci profil bi antuwul.",
-      "voirMaFiche": "Voir ma fiche publique"
+      "voirMaFiche": "Voir ma fiche publique",
+      "firstNamePlaceholder": "Ex. : Awa",
+      "lastNamePlaceholder": "Ex. : Diop",
+      "bioPlaceholder": "Ex. : Propriétaire à Dakar depuis dix ans, je loue deux appartements aux Almadies."
     },
     "admin": {
       "title": "Njiiteef",
@@ -17725,7 +17918,10 @@
       "envoyerRibAria": "Envoyer le RIB du compte {masked}",
       "ribEnvoyeToast": "RIB envoyé : votre compte est en revue.",
       "ribEchec": "Le RIB n’a pas pu être envoyé.",
-      "jourDeVersement": "reversements du {jour} de chaque mois"
+      "jourDeVersement": "reversements du {jour} de chaque mois",
+      "ibanPlaceholder": "Ex. : SN08 SN010 15200 000123456789 12",
+      "phonePlaceholder": "Ex. : 77 123 45 67",
+      "holderPlaceholder": "Ex. : Awa Diop"
     },
     "serviceProvider": {
       "title": "Sama liggéeyu liggéeykat",
@@ -17739,7 +17935,9 @@
       "save": "Denc",
       "saving": "Mungiy denc…",
       "saved": "Denc nañu ko.",
-      "failed": "Ndigal bii deñu ko denc."
+      "failed": "Ndigal bii deñu ko denc.",
+      "hourlyRatePlaceholder": "Ex. : 5 000",
+      "visitFeePlaceholder": "Ex. : 2 000"
     },
     "timezone": {
       "title": "Fuseau horaire",
@@ -18167,7 +18365,8 @@
       },
       "emptyDescription": "Sosal benn artu ci kaw : ekip bi dina ko xam su màndarga bi weesoo digu bi.",
       "deleteAria": "Far artu {label}",
-      "cooldownHint": "Diir bu gëna néew diggante ñaari xibaar, ci waxtu."
+      "cooldownHint": "Diir bu gëna néew diggante ñaari xibaar, ci waxtu.",
+      "invalidCooldown": "Délai invalide : un nombre entier d'heures, de 1 à 720."
     },
     "kpis": {
       "validation": "Tànnal benn natt ak benn tur.",
@@ -18637,7 +18836,9 @@
         "branches": "Quota de succursales dérogé",
         "planValue": "Valeur du plan",
         "save": "Enregistrer les dérogations"
-      }
+      },
+      "exempleCommission": "Ex. : 5",
+      "exempleQuota": "Ex. : 50"
     },
     "plans": {
       "newPlan": "Plaan bu bees",
@@ -18661,6 +18862,12 @@
         "label": "Turu plan bi",
         "price": "Njëg ci weer wi (XOF)",
         "fee": "Komisiyoŋu platfoorm bi (%)"
+      },
+      "exemples": {
+        "code": "Ex. : pro",
+        "label": "Ex. : Agence Pro",
+        "price": "Ex. : 25 000",
+        "fee": "Ex. : 5"
       }
     },
     "platformPayouts": {
@@ -19303,7 +19510,11 @@
       "numero": {
         "rccm": "Numéro RCCM",
         "ninea": "Numéro NINEA",
-        "aide": "Sert aussi à vos mentions légales."
+        "aide": "Sert aussi à vos mentions légales.",
+        "placeholder": {
+          "rccm": "Ex. : SN-DKR-2024-B-12345",
+          "ninea": "Ex. : 005123456 2G3"
+        }
       },
       "pieces": {
         "titre": "Pièces du dossier",
@@ -19437,7 +19648,9 @@
         "chezLAgence": "Chez {agence}, son agence",
         "ailleurs": "Les mêmes critères, toutes agences"
       },
-      "compteBiens": "{count, plural, one {# bien} other {# biens}}"
+      "compteBiens": "{count, plural, one {# bien} other {# biens}}",
+      "budgetMinExemple": "Ex. : 100 000",
+      "budgetMaxExemple": "Ex. : 500 000"
     },
     "partager": {
       "libelle": "Partager la fiche de {nom}",
@@ -19717,7 +19930,9 @@
     "lead": {
       "phone": "Telefon",
       "contactRequired": "Joxal benn nimero telefon walla imeel ngir ñu mën la tontu.",
-      "phoneInvalid": "Nimero bii mati wul."
+      "phoneInvalid": "Nimero bii mati wul.",
+      "namePlaceholder": "Ex. : Awa Ndiaye",
+      "emailPlaceholder": "nom@exemple.sn"
     },
     "visit": {
       "nameLabel": "Sa tur",
@@ -19729,7 +19944,9 @@
       "done": {
         "title": "Laaj bi yónnee nañu ko",
         "bodyEmail": "Dinañu yónnee itam imeel ci {email}."
-      }
+      },
+      "namePlaceholder": "Ex. : Awa Ndiaye",
+      "emailPlaceholder": "nom@exemple.sn"
     }
   },
   "contactLeads": {
@@ -20017,7 +20234,8 @@
         "whatsappEmail": "Un message WhatsApp et un e-mail ont prévenu {name}.",
         "aucun": "Ni SMS ni e-mail n’est parti : prévenez {name} par un autre moyen.",
         "leVisiteur": "le visiteur"
-      }
+      },
+      "nameExemple": "Ex. : Fatou Sarr"
     },
     "propose": {
       "cta": "Digle beneen waxtu",
@@ -21477,7 +21695,8 @@
       "libelleSecours": "Code de secours",
       "verifier": "Vérifier",
       "utiliserApp": "Utiliser l’application",
-      "utiliserSecours": "Utiliser un code de secours"
+      "utiliserSecours": "Utiliser un code de secours",
+      "placeholderSecours": "XXXXX-XXXXX"
     },
     "test": {
       "titre": "Environnement de test.",
@@ -21549,6 +21768,10 @@
       "appeler": "Appeler {agence}",
       "whatsapp": "Écrire à {agence} sur WhatsApp",
       "messageWhatsApp": "Bonjour {agence}, j’ai reçu votre invitation sur Takussan et j’ai une question."
+    },
+    "placeholders": {
+      "prenom": "Ex. : Awa",
+      "nom": "Ex. : Diop"
     }
   },
   "radarClaim": {
@@ -21652,7 +21875,12 @@
     "confirmTakeBack": "{count, plural, =0 {Reprendre mes annonces} one {Reprendre mes annonces et publier la nouvelle} other {Reprendre mes annonces et publier les # nouvelles}}",
     "doneTakeBack": "{count, plural, one {Votre annonce est maintenant dans votre espace « {space} », toujours en ligne.} other {Vos # annonces sont maintenant dans votre espace « {space} », toujours en ligne.}}",
     "spaceUnavailableTitle": "Votre espace n'est pas actif",
-    "spaceUnavailableBody": "Vos annonces ne peuvent pas y être publiées pour l'instant. Écrivez-nous à {email} pour le réactiver."
+    "spaceUnavailableBody": "Vos annonces ne peuvent pas y être publiées pour l'instant. Écrivez-nous à {email} pour le réactiver.",
+    "fieldTitlePlaceholder": "Ex. : Appartement F3 lumineux à Sacré-Cœur",
+    "fieldPricePlaceholder": "Ex. : 150 000",
+    "fieldDescriptionPlaceholder": "Décrivez le logement, son état, le quartier…",
+    "fieldFirstNamePlaceholder": "Ex. : Awa",
+    "fieldSpaceNamePlaceholder": "Ex. : Teranga Immobilier"
   },
   "navigationPublique": {
     "barre": {
@@ -22577,7 +22805,8 @@
       "supprime": {
         "customer": "Client supprimé",
         "property": "Bien supprimé"
-      }
+      },
+      "titreExemple": "Ex. : Relancer Mariama après la visite"
     },
     "nouvelle": {
       "titreFeuille": "Nouvelle tâche",
@@ -23428,7 +23657,9 @@
       "quiEstPrevenuAide": "Sans choix, tous les administrateurs qui peuvent lire ce chiffre sont prévenus.",
       "destinatairesChargement": "Lecture des destinataires possibles…",
       "canalWhatsappAide": "WhatsApp ne parvient qu’aux personnes qui l’ont activé dans leurs préférences, avec un numéro vérifié.",
-      "suite": "{canal} · {n, plural, =0 {personne prévenue} one {# personne prévenue} other {# personnes prévenues}}"
+      "suite": "{canal} · {n, plural, =0 {personne prévenue} one {# personne prévenue} other {# personnes prévenues}}",
+      "exempleSeuil": "Ex. : 10",
+      "exempleDelai": "Ex. : 24"
     },
     "reglage": {
       "titre": "Personnaliser les chiffres",
@@ -23458,7 +23689,8 @@
         "number": "Nombre",
         "currency": "Montant",
         "percent": "Pourcentage"
-      }
+      },
+      "libelleExemple": "Ex. : Loyers encaissés"
     },
     "description": "{nom} · {periode}",
     "descriptionPeriode": "du {debut} au {fin}",
@@ -23733,7 +23965,9 @@
       "exportCopy": "Duppi",
       "exportCopied": "Duppi nañu ko",
       "exportOnce": "Lëkkalekaay bii benn yoon rekk lay feeñ. Defar bu bees dafay fey bu jëkk ba.",
-      "feedPending": "njëkk dëppale mi ngi dox"
+      "feedPending": "njëkk dëppale mi ngi dox",
+      "blockReasonExemple": "Ex. : Travaux de peinture",
+      "feedLabelExemple": "Ex. : Airbnb"
     },
     "collaborators": {
       "title": "Ajaa bu njëkk",
@@ -24316,7 +24550,8 @@
       "deposit": "Waar (30 %)",
       "rentLine": "Njëgu luwe",
       "rentNotice": "Sa candidature mi ngi aju ci benn njëgu luwe ; bail bi mooy taxawal xaalis bi.",
-      "occupiedHint": "Bés yi ñu fukkal, jël nañu leen ba noppi."
+      "occupiedHint": "Bés yi ñu fukkal, jël nañu leen ba noppi.",
+      "guestsPlaceholder": "Ex. : 2"
     },
     "offerForm": {
       "invalidAmount": "Waññi bu baaxul.",
@@ -24388,7 +24623,8 @@
     "thanks": "Jërëjëf, dinanu xool signalement bi.",
     "thanksNotified": "Dinanu la yégal li ci génn.",
     "close": "Tëj",
-    "honeypotLabel": "Entreprise"
+    "honeypotLabel": "Entreprise",
+    "honeypotPlaceholder": "Ex. : Société Diop SARL"
   },
   "propertyRetired": {
     "title": {

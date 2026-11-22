@@ -14,10 +14,17 @@
  *   les réglages que le profil décide.
  */
 
-/** Les balises jugées. `PhoneInput` n'y est pas : il pose son profil et son placeholder lui-même. */
-const BALISES = ['FormAmountInput', 'FormTextarea', 'FormInput', 'Textarea', 'textarea', 'Input', 'input'];
-/** Celles dont le profil est fixé par le composant : seul le placeholder s'y juge. */
-const PROFIL_FIXE = new Set(['FormAmountInput']);
+/**
+ * Les balises jugées : les primitives, et les composants PARTAGÉS qui enveloppent un champ et transmettent le
+ * profil et le placeholder de leur appelant (sans eux, leurs appels échapperaient à la garde). `PhoneInput` n'y
+ * est pas : il pose son profil et son placeholder lui-même.
+ */
+const BALISES = [
+  'FormAmountInput', 'FormTextarea', 'FormInput', 'ChampDeLaFiche', 'ZoneDeLaFiche', 'ChampChiffre',
+  'Textarea', 'textarea', 'Input', 'input',
+];
+/** Celles dont le profil est fixé (ou a un défaut) par le composant : seul le placeholder s'y juge. */
+const PROFIL_FIXE = new Set(['FormAmountInput', 'ZoneDeLaFiche']);
 
 const TYPES_SANS_CLAVIER = new Set([
   'file', 'checkbox', 'radio', 'hidden', 'range', 'color', 'date', 'time', 'datetime-local', 'month', 'week',

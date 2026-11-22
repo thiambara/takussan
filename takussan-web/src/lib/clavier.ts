@@ -57,6 +57,39 @@ export const PROFILS = {
     autoCapitalize: 'words',
     spellCheck: false,
   },
+  /**
+   * Un identifiant technique (slug, identifiant de modèle ou d'intégration, contact « courriel ou téléphone ») :
+   * ni majuscule, ni correction — le téléphone n'a rien à y deviner.
+   */
+  identifiant: {
+    type: 'text',
+    inputMode: 'text',
+    enterKeyHint: 'next',
+    autoComplete: 'off',
+    autoCorrect: 'off',
+    autoCapitalize: 'none',
+    spellCheck: false,
+  },
+  /** Une référence ou un code en capitales (NINEA, référence de paiement, code de plan, expéditeur SMS) : sans correction. */
+  reference: {
+    type: 'text',
+    inputMode: 'text',
+    enterKeyHint: 'next',
+    autoComplete: 'off',
+    autoCorrect: 'off',
+    autoCapitalize: 'characters',
+    spellCheck: false,
+  },
+  /** La phrase qu'on recopie pour confirmer un geste grave (« SUPPRIMER ») : en capitales, sans correction. */
+  confirmation: {
+    type: 'text',
+    inputMode: 'text',
+    enterKeyHint: 'done',
+    autoComplete: 'off',
+    autoCorrect: 'off',
+    autoCapitalize: 'characters',
+    spellCheck: false,
+  },
   /** Une phrase sur une ligne (titre d'annonce, objet) : correction gardée, majuscule de phrase. */
   phrase: {
     type: 'text',
@@ -83,6 +116,19 @@ export const PROFILS = {
     enterKeyHint: 'next',
     autoComplete: 'off',
     autoCorrect: 'off',
+    spellCheck: false,
+  },
+  /**
+   * Latitude, longitude : un nombre SIGNÉ à virgule. Le pavé décimal d'iOS n'a pas de signe moins, et la longitude
+   * du Sénégal est négative (−17,4) : le clavier complet, sa rangée de chiffres porte « − » et « , ».
+   */
+  coordonnee: {
+    type: 'text',
+    inputMode: 'text',
+    enterKeyHint: 'next',
+    autoComplete: 'off',
+    autoCorrect: 'off',
+    autoCapitalize: 'none',
     spellCheck: false,
   },
   /** Montant XOF : pavé numérique, jamais de décimales (le franc CFA n'en a pas). */
@@ -154,6 +200,15 @@ export const PROFILS = {
     autoCapitalize: 'sentences',
     spellCheck: true,
   },
+  /** Une zone où l'on colle des liens, un par ligne : clavier d'URL, ni majuscule, ni correction. */
+  liens: {
+    inputMode: 'url',
+    enterKeyHint: 'enter',
+    autoComplete: 'off',
+    autoCorrect: 'off',
+    autoCapitalize: 'none',
+    spellCheck: false,
+  },
   /** Le composeur de la messagerie : Entrée affiche « Envoyer ». */
   message: {
     enterKeyHint: 'send',
@@ -172,4 +227,20 @@ export const PROFILS_SANS_PLACEHOLDER: ReadonlySet<NomDuProfil> = new Set(['mot-
 /** Les attributs d'un profil, et son nom en `data-profil` — pour un `<input>` ou un `<textarea>` natif. */
 export function profil<N extends NomDuProfil>(nom: N): (typeof PROFILS)[N] & { readonly 'data-profil': N } {
   return { ...PROFILS[nom], 'data-profil': nom };
+}
+
+/**
+ * ADR-0135 — une saisie numérique lue en nombre : « 1 500 » → 1500, « 150,000 » (l'anglais) → 150000, « 12,5 » →
+ * 12.5 ; vide ou illisible : la chaîne telle quelle, que le schéma juge. Une virgule ou un point suivi d'EXACTEMENT
+ * trois chiffres sépare les milliers ; sinon c'est la virgule décimale. Pas pour une coordonnée ni un coût à trois
+ * décimales (« 14,692 » s'y lirait 14692) : ceux-là ont leur propre lecture.
+ */
+export function lireNombre(saisie: string): number | string {
+  const nettoyee = saisie
+    .replace(/[\s\u202f\u00a0]/g, '')
+    .replace(/[.,](?=\d{3}(?:[.,]|$))/g, '')
+    .replace(',', '.');
+  if (nettoyee === '') return saisie;
+  const nombre = Number(nettoyee);
+  return Number.isNaN(nombre) ? saisie : nombre;
 }

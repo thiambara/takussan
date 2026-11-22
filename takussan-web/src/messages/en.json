@@ -632,7 +632,8 @@
       "messageMax": "Your message cannot exceed 2000 characters."
     },
     "descriptionOwner": "Your details are forwarded to the property's owner. No account required.",
-    "successBodyOwner": "The owner will get back to you shortly."
+    "successBodyOwner": "The owner will get back to you shortly.",
+    "companyPlaceholder": "e.g. Teranga Immobilier"
   },
   "meta": {
     "home": {
@@ -1021,7 +1022,8 @@
         "titre": "Is there a number on your account?",
         "texte": "Get a code by text message instead — nothing to reset.",
         "lien": "Get a code"
-      }
+      },
+      "emailPlaceholder": "name@example.com"
     },
     "verification": {
       "titre": "Check your address",
@@ -1041,7 +1043,8 @@
       "correction": {
         "libelle": "Your email address",
         "envoyer": "Send the link here",
-        "annuler": "Cancel"
+        "annuler": "Cancel",
+        "placeholder": "name@example.com"
       },
       "repriseAction": {
         "visite": "Resuming your request",
@@ -1221,7 +1224,8 @@
         "furnished": "Furnished",
         "description": "Description",
         "descriptionPlaceholder": "Describe the property, its surroundings, its strengths.",
-        "availableFrom": "Available from"
+        "availableFrom": "Available from",
+        "areaPlaceholder": "e.g. 120"
       },
       "price": {
         "title": "Price",
@@ -1264,7 +1268,9 @@
         "pasteNeedsCity": "Choose the city first: a short Plus Code is read from it.",
         "pasteUnknown": "Unrecognised format. Paste a Google Maps link, a Plus Code or coordinates.",
         "latitude": "Latitude",
-        "longitude": "Longitude"
+        "longitude": "Longitude",
+        "latitudePlaceholder": "e.g. 14.6928",
+        "longitudePlaceholder": "e.g. -17.4467"
       },
       "description": {
         "title": "Description",
@@ -1324,7 +1330,9 @@
         "whatsappYes": "Yes",
         "whatsappNo": "No",
         "subtitleMany": "Visitors will reach you at these numbers. They are only revealed when they ask.",
-        "numbersAria": "Your verified numbers"
+        "numbersAria": "Your verified numbers",
+        "firstNamePlaceholder": "e.g. Awa",
+        "lastNamePlaceholder": "e.g. Ndiaye"
       }
     },
     "contacts": {
@@ -1352,7 +1360,8 @@
           "secondary": "Second number",
           "onSite": "On site"
         }
-      }
+      },
+      "labelPlaceholder": "e.g. Caretaker"
     },
     "visibility": {
       "public": "Published",
@@ -1426,7 +1435,8 @@
         "yearBuilt": "2010",
         "parking": "2",
         "period": "Monthly",
-        "description": "What the photos do not show: the neighbourhood, the surroundings, what has just been renovated."
+        "description": "What the photos do not show: the neighbourhood, the surroundings, what has just been renovated.",
+        "title": "e.g. Bright 2-bedroom flat in Almadies"
       },
       "geoSuggestFull": "Use {city}, {region}",
       "geoSuggestCity": "Use {city}",
@@ -1526,7 +1536,10 @@
         "decrease": "Remove a month",
         "increase": "Add a month",
         "decreaseHalf": "Remove half a month",
-        "increaseHalf": "Add half a month"
+        "increaseHalf": "Add half a month",
+        "advancePlaceholder": "e.g. 2",
+        "depositPlaceholder": "e.g. 1",
+        "agencyFeePlaceholder": "e.g. 0.5"
       },
       "virtualTour": {
         "label": "Virtual tour or video (link)",
@@ -1888,7 +1901,8 @@
       },
       "emptyDescription": "Create an alert above: the team will be notified when the indicator crosses the threshold.",
       "deleteAria": "Delete alert {label}",
-      "cooldownHint": "Minimum delay between two notifications, in hours."
+      "cooldownHint": "Minimum delay between two notifications, in hours.",
+      "invalidCooldown": "Invalid delay: a whole number of hours, from 1 to 720."
     },
     "kpis": {
       "validation": "Choose a metric and a label.",
@@ -2449,6 +2463,9 @@
           "submitted": "Your request has been sent.",
           "draft_not_cleared_title": "Draft not cleared",
           "draft_not_cleared_body": "Your request was sent, but its draft could not be cleared (connection lost or session expired). It may still be offered for you to resume: you can ignore it."
+        },
+        "placeholders": {
+          "planned_agents_count": "e.g. 5"
         }
       },
       "status": {
@@ -2518,6 +2535,13 @@
         "suivi": "Our team reviews every request; you will receive the decision by email and in your notifications. While it is under review, you can withdraw it from here.",
         "erreurs": {
           "envoi": "The request was not sent. Your answers are kept: check your connection, then send it again."
+        },
+        "exemples": {
+          "company_legal_name": "e.g. Teranga Immobilier SARL",
+          "rc": "e.g. SN-DKR-2024-B-12345",
+          "ninea": "e.g. 012345678 2G3",
+          "rib_pro": "e.g. SN012 01001 012345678901 23",
+          "address_fiscale": "e.g. 12 rue Carnot, Dakar-Plateau"
         }
       }
     },
@@ -2652,7 +2676,8 @@
         "venuSansNom": "You came from a new lease. Your entries are kept as a draft.",
         "enregistre": "<fort>Settings saved.</fort> Your future leases will use them.",
         "reprendre": "Resume the lease"
-      }
+      },
+      "exemple": "e.g. {valeur}"
     }
   },
   "compare": {
@@ -2990,7 +3015,8 @@
         "precision": "Details",
         "facultative": "optional",
         "note": "The reason becomes a pinned note on {prenom}’s record and counts in this month’s conversion. Cancel puts the card back in {etape}.",
-        "enregistrer": "Save"
+        "enregistrer": "Save",
+        "precisionExemple": "e.g. The client found a cheaper home in Ouakam"
       },
       "canal": {
         "call": "call",
@@ -3185,7 +3211,10 @@
         "errorTitle": "Unable to show the ID number"
       },
       "saving": "Saving…",
-      "create": "Create the customer"
+      "create": "Create the customer",
+      "firstNamePlaceholder": "e.g. Awa",
+      "lastNamePlaceholder": "e.g. Ndiaye",
+      "emailPlaceholder": "name@example.com"
     },
     "filters": {
       "searchLabel": "Search for a customer",
@@ -3273,7 +3302,9 @@
       "sondeImpossible": "We couldn’t check for duplicates. You can still save the record.",
       "suiviPar": "followed by {nom}",
       "quartiersProches": "Nearby neighbourhoods",
-      "ajouterQuartierProche": "Add {quartier}"
+      "ajouterQuartierProche": "Add {quartier}",
+      "prenomPlaceholder": "e.g. Awa",
+      "nomPlaceholder": "e.g. Ndiaye"
     },
     "fiche": {
       "referentCourt": "agent {nom}",
@@ -3505,7 +3536,10 @@
         "citiesPlaceholder": "Dakar, Thiès",
         "neighborhoods": "Neighbourhoods",
         "neighborhoodsPlaceholder": "Almadies, Mermoz",
-        "help": "Separate cities and neighbourhoods with commas. An empty field clears the criterion."
+        "help": "Separate cities and neighbourhoods with commas. An empty field clears the criterion.",
+        "minBedroomsPlaceholder": "e.g. 3",
+        "budgetMinPlaceholder": "e.g. 150000",
+        "budgetMaxPlaceholder": "e.g. 300000"
       }
     },
     "tabs": {
@@ -3895,7 +3929,8 @@
         "dernierAdminDepart": "No one else administers this group: name another admin before leaving.",
         "afficher": "Show group info",
         "replier": "Collapse group info",
-        "gerer": "Manage {nom}"
+        "gerer": "Manage {nom}",
+        "renamePlaceholder": "e.g. Villa Almadies — works"
       }
     },
     "conversationTitleFallback": "Conversation #{id}",
@@ -4074,7 +4109,8 @@
       "ajouter": "Add…",
       "ecrire": "Write",
       "aideAutomatique": "Turned on automatically from two recipients.",
-      "pied": "You can write to clients, owners and colleagues at {agence}."
+      "pied": "You can write to clients, owners and colleagues at {agence}.",
+      "nomDuGroupePlaceholder": "e.g. Villa Almadies — works"
     },
     "contexte": {
       "titre": "Conversation context",
@@ -4134,7 +4170,8 @@
       "fait": "Conversation reported",
       "faitDetail": "Thank you. The Takussan team will review it.",
       "deja": "You have already reported this conversation.",
-      "echec": "The report was not sent. Please try again."
+      "echec": "The report was not sent. Please try again.",
+      "commentairePlaceholder": "e.g. Repeated messages after a refusal"
     },
     "elargir": {
       "titre": "Add a participant",
@@ -4240,7 +4277,8 @@
         "aide": "At least {min} characters. The provider and the agency will read it.",
         "envoyer": "Decline the quote",
         "motif": "Reason for declining",
-        "titre": "Decline the quote"
+        "titre": "Decline the quote",
+        "motifPlaceholder": "e.g. The amount exceeds the budget planned for this repair"
       },
       "refusDuGeste": "This action is no longer allowed. The card has been updated.",
       "reservation": {
@@ -4663,14 +4701,16 @@
         "aQuoi": "What",
         "date": "Date",
         "heure": "Time",
-        "heureFacultative": "Optional. Without a time, it is due at the end of the day."
+        "heureFacultative": "Optional. Without a time, it is due at the end of the day.",
+        "exemple": "e.g. Come back to replace the trap"
       },
       "reouverture": {
         "titre": "It’s not done",
         "texte": "The commitment will be reopened. This can only be done once.",
         "motif": "Reason",
         "aide": "At least {min} characters.",
-        "envoyer": "Reopen the commitment"
+        "envoyer": "Reopen the commitment",
+        "motifPlaceholder": "e.g. The leak under the sink is back"
       },
       "noter": {
         "geste": "Note a commitment",
@@ -5057,7 +5097,8 @@
       "createFailed": "The payout could not be created.",
       "unverifiedHint": "This destination has not been verified by the agency yet.",
       "verifyDestination": "Verify this destination",
-      "verifyFailed": "Verification failed."
+      "verifyFailed": "Verification failed.",
+      "notesExemple": "e.g. March rent payout, management fees deducted"
     },
     "payoutDetail": {
       "title": "Payout {reference}",
@@ -5103,7 +5144,8 @@
       "approveDestinationOption": "{kind} · {masked} (verified)",
       "avis": "Payout notice (PDF)",
       "echecAvis": "The payout notice could not be downloaded. Please try again.",
-      "nomDeLAvis": "payout-notice-{reference}.pdf"
+      "nomDeLAvis": "payout-notice-{reference}.pdf",
+      "cashNoteExemple": "e.g. Receipt no. 0142 handed over in person"
     },
     "customer": {
       "nextTitle": "Next payment",
@@ -5179,7 +5221,8 @@
         "paid": "Paid",
         "cancelled": "Cancelled",
         "draft": "To invoice"
-      }
+      },
+      "rejectionReasonExemple": "e.g. Amount differs from the accepted quote"
     },
     "retour": {
       "titre": "Payment",
@@ -5554,7 +5597,8 @@
         "submitting": "Submitting…",
         "file_too_large": "File too large ({max} MB max): {files}",
         "max_files": "Maximum {max} files.",
-        "total_too_large": "Together, these files exceed {max} MB: remove some or use lighter files."
+        "total_too_large": "Together, these files exceed {max} MB: remove some or use lighter files.",
+        "amount_placeholder": "e.g. 150,000"
       },
       "error_generic": "Refund failed, please retry."
     },
@@ -5586,7 +5630,12 @@
       "timeline_title": "Lease chain",
       "timeline_root": "Root lease",
       "timeline_amendment": "Amendment {n}",
-      "timeline_current": "current"
+      "timeline_current": "current",
+      "placeholder_monthly_rent": "e.g. 150,000",
+      "placeholder_deposit_amount": "e.g. 300,000",
+      "placeholder_late_fee_percent": "e.g. 2.5",
+      "placeholder_late_fee_grace_days": "e.g. 5",
+      "placeholder_terms": "e.g. Rent reviewed yearly, repainting by the landlord…"
     },
     "early_termination": {
       "cta": "Terminate lease",
@@ -5894,7 +5943,9 @@
           "memeTelephone": "same phone",
           "memeEmail": "same email",
           "creerQuandMeme": "Create anyway"
-        }
+        },
+        "prenomExemple": "e.g. Awa",
+        "nomExemple": "e.g. Diop"
       },
       "ligne": {
         "changer": "Change",
@@ -5979,7 +6030,15 @@
       "pieceGardee": "On file: {masque}. Leave empty to keep it.",
       "revenuGarde": "An income is on file. Leave empty to keep it.",
       "lecture": "Loading guarantor…",
-      "lectureEchouee": "The guarantor could not be loaded."
+      "lectureEchouee": "The guarantor could not be loaded.",
+      "firstNameExemple": "e.g. Moussa",
+      "lastNameExemple": "e.g. Ndiaye",
+      "emailExemple": "name@example.com",
+      "idNumberExemple": "e.g. 1 751 1990 01234",
+      "occupationExemple": "e.g. Accountant",
+      "employerExemple": "e.g. Sonatel",
+      "monthlyIncomeExemple": "e.g. 450,000",
+      "notesExemple": "e.g. Best reached in the evening"
     },
     "signature": {
       "title": "Lease signature",
@@ -6009,7 +6068,8 @@
       "paperLabel": "Contract signed on paper (PDF, JPG or PNG, 10 MB)",
       "paperSubmit": "Activate on paper contract",
       "genericError": "The operation failed. Try again.",
-      "paperTooLarge": "File too large ({max} MB max): {files}"
+      "paperTooLarge": "File too large ({max} MB max): {files}",
+      "codePlaceholder": "e.g. 482913"
     },
     "fiche": {
       "titre": "{nom}'s lease",
@@ -6244,7 +6304,8 @@
       "erreur": "The draft could not be abandoned.",
       "abandonne": "Draft abandoned.",
       "abandonneEtFerme": "Draft abandoned, and application closed.",
-      "fermetureEchouee": "Draft abandoned, but the application could not be closed. Close it from its page."
+      "fermetureEchouee": "Draft abandoned, but the application could not be closed. Close it from its page.",
+      "motifExemple": "e.g. The tenant withdrew before signing"
     },
     "liste": {
       "titre": "Leases",
@@ -6628,7 +6689,10 @@
           "supply": "Supplies"
         },
         "valid_until": "Valid until {date}",
-        "duration": "{days, plural, =1 {Estimated duration: # day} other {Estimated duration: # days}}"
+        "duration": "{days, plural, =1 {Estimated duration: # day} other {Estimated duration: # days}}",
+        "line_label_placeholder": "e.g. Water heater replacement",
+        "line_quantity_placeholder": "e.g. 1.5",
+        "line_unit_price_placeholder": "e.g. 25,000"
       },
       "quote_form": {
         "title": "Submit a quote",
@@ -6648,7 +6712,8 @@
         "incomplete": "Each line needs a description, a quantity and a price, and the quote a validity date.",
         "failed": "The quote was not sent.",
         "submitting": "Sending…",
-        "submit": "Send the quote"
+        "submit": "Send the quote",
+        "duration_placeholder": "e.g. 3"
       },
       "list": {
         "agency": "Agency {name}"
@@ -6971,7 +7036,9 @@
           "piece": "Your invoice, PDF or photo (optional)",
           "envoyer": "Send the invoice",
           "envoi": "Sending…",
-          "echec": "The invoice could not be sent."
+          "echec": "The invoice could not be sent.",
+          "montantExemple": "e.g. 45,000",
+          "referenceExemple": "e.g. INV-2026-014"
         }
       },
       "releve": {
@@ -7227,7 +7294,8 @@
         "save": "Save",
         "cancel": "Cancel",
         "count": "{count}/{max}",
-        "error": "Could not save the note. Please try again."
+        "error": "Could not save the note. Please try again.",
+        "placeholder": "e.g. Visit on Saturday, ask about parking"
       }
     },
     "suivi": {
@@ -7616,7 +7684,8 @@
       "confirmedTitle": "Alert confirmed",
       "confirmedBody": "You will receive the new matching properties once a day.",
       "close": "Close",
-      "loginInstead": "Have an account? Log in to save the search."
+      "loginInstead": "Have an account? Log in to save the search.",
+      "emailPlaceholder": "name@example.com"
     },
     "alertPages": {
       "confirm": {
@@ -7836,7 +7905,11 @@
         "last_name": "Last name",
         "phone": "Phone (optional)",
         "owner_type": "Owner type",
-        "company_name": "Company name"
+        "company_name": "Company name",
+        "emailPlaceholder": "name@example.com",
+        "firstNamePlaceholder": "e.g. Awa",
+        "lastNamePlaceholder": "e.g. Diop",
+        "companyNamePlaceholder": "e.g. Les Almadies Property Co."
       },
       "owner_types": {
         "individual": "Individual",
@@ -8461,7 +8534,10 @@
         "last_name": "Last name",
         "phone": "Phone (optional)",
         "trades": "Trades",
-        "intervention_zones": "Service areas"
+        "intervention_zones": "Service areas",
+        "emailPlaceholder": "name@example.com",
+        "firstNamePlaceholder": "e.g. Moussa",
+        "lastNamePlaceholder": "e.g. Ndiaye"
       },
       "trades": {
         "plumbing": "Plumbing",
@@ -8693,7 +8769,9 @@
         "error": "We could not save your first name. Try again.",
         "reprise": "Your first name is not saved: we will ask for it again the next time you sign in.",
         "nom": "Last name",
-        "facultatif": "(optional)"
+        "facultatif": "(optional)",
+        "prenomPlaceholder": "e.g. Awa",
+        "nomPlaceholder": "e.g. Diop"
       }
     },
     "host": {
@@ -8765,6 +8843,10 @@
             "XAF": "CFA franc (Central Africa)",
             "EUR": "Euro",
             "USD": "US dollar"
+          },
+          "placeholders": {
+            "spaceName": "e.g. Diop Residences",
+            "primaryCity": "e.g. Dakar"
           }
         },
         "firstProperty": {
@@ -9135,7 +9217,11 @@
           "creneau": "{jour}, {moment}",
           "enregistrer": "Save my profile",
           "enregistrement": "Saving…",
-          "enregistre": "Profile saved."
+          "enregistre": "Profile saved.",
+          "placeholders": {
+            "horaire": "e.g. 5,000",
+            "visite": "e.g. 2,000"
+          }
         },
         "multiAgences": {
           "titre": "You already work with {agences}",
@@ -9247,7 +9333,8 @@
           "budget": "{tranche} CFA francs"
         },
         "erreurAlerte": "We couldn't save your alert. Try again, or skip this step.",
-        "nouveau": "New"
+        "nouveau": "New",
+        "autrePlaceholder": "e.g. Sacré-Cœur 3"
       },
       "pro": {
         "barre": "Your professional space",
@@ -9305,7 +9392,8 @@
           "pasEncore": "No link yet?",
           "whatsapp": "Message your agency on WhatsApp",
           "messageWhatsapp": "Hello, could you send me the invitation link to join your agency on Takussan?",
-          "envoyee": "{invitant, select, aucun {sent on {date}} other {sent by {invitant} on {date}}}"
+          "envoyee": "{invitant, select, aucun {sent on {date}} other {sent by {invitant} on {date}}}",
+          "placeholder": "https://takussan.com/invitations/accept?token=…"
         },
         "numero": {
           "aide": "Takussan checks your account number by SMS before opening your space.",
@@ -9315,7 +9403,8 @@
         },
         "villeChoisir": "Choose a city",
         "villeAucune": "No city matches.",
-        "numeroNonVerifie": "Your number isn’t verified yet. Verify it below by SMS, then create your space."
+        "numeroNonVerifie": "Your number isn’t verified yet. Verify it below by SMS, then create your space.",
+        "nomPlaceholder": "e.g. Teranga Real Estate"
       },
       "prenom": {
         "apercu": "What others will see",
@@ -9592,7 +9681,9 @@
         "manquant": "Missing",
         "note": "Note",
         "retirer": "Remove the item",
-        "fermer": "Close"
+        "fermer": "Close",
+        "nomExemple": "e.g. Sink tap",
+        "noteExemple": "e.g. Light scratch on the door, seal to redo…"
       },
       "feuillePiece": {
         "modifier": "Edit the room",
@@ -9600,7 +9691,8 @@
         "etat": "Room condition",
         "nouvelle": "Add a room",
         "ajouter": "Add",
-        "retirer": "Remove the room"
+        "retirer": "Remove the room",
+        "nomExemple": "e.g. Bedroom 2"
       },
       "recap": {
         "titre": "Summary and signatures",
@@ -10192,7 +10284,8 @@
           "lienACreer": "Created when the reminder is sent",
           "enTetePenalite": "Late fee",
           "lienPenalite": "Late fee payment link",
-          "penaliteSansLien": "Your agency doesn’t collect late fees online: the message goes without a link, and the fee is settled at the agency."
+          "penaliteSansLien": "Your agency doesn’t collect late fees online: the message goes without a link, and the fee is settled at the agency.",
+          "messageExemple": "Hello, November's rent is still due. Please contact us to arrange payment."
         },
         "dossier": {
           "bailleur": "Landlord: {nom}",
@@ -10656,7 +10749,8 @@
         "label": "Agent commission rate (%)",
         "hint": "Their share of the commission on each lease they negotiate, credited when the lease is activated. Empty: no share.",
         "submit": "Save the rate",
-        "submitting": "Saving…"
+        "submitting": "Saving…",
+        "exemple": "e.g. 12.5"
       },
       "errors": {
         "load": "Could not load the roles. Check your connection, then try again.",
@@ -11131,7 +11225,8 @@
           "motif": "Reason (optional)",
           "motifAide": "Visible to administrators only.",
           "echec": "The absence could not be saved. Try again.",
-          "remplacantHorsListe": "{nom} currently takes over their new requests but is no longer among the staff offered: keep this choice, or choose someone else."
+          "remplacantHorsListe": "{nom} currently takes over their new requests but is no longer among the staff offered: keep this choice, or choose someone else.",
+          "motifExemple": "e.g. Annual leave, training in Thiès"
         },
         "absences": {
           "titre": "Absences",
@@ -11183,7 +11278,10 @@
             "envoyee": "Invitation sent to {email}.",
             "partagee": "Invitation created for {telephone}: send the message in WhatsApp.",
             "whatsappSansNumero": "A phone number is required to invite via WhatsApp.",
-            "whatsappSansEmail": "Via WhatsApp, the invitation is tied to the phone number only: leave the email address empty."
+            "whatsappSansEmail": "Via WhatsApp, the invitation is tied to the phone number only: leave the email address empty.",
+            "exemplePrenom": "e.g. Awa",
+            "exempleNom": "e.g. Diop",
+            "exempleTelephone": "77 123 45 67"
           },
           "parWhatsApp": "Via WhatsApp",
           "lienParWhatsApp": "Link via WhatsApp",
@@ -11689,6 +11787,19 @@
           "plateforme": "Turned off by the platform for all agencies: you cannot turn it back on.",
           "nonConfiguree": "No transcription service is configured on the platform yet."
         }
+      },
+      "exemples": {
+        "taux": "e.g. 18",
+        "commission": "e.g. 8.5",
+        "raisonSociale": "e.g. Teranga Immobilier SARL",
+        "ninea": "e.g. 0012345672A2",
+        "rccm": "e.g. SN-DKR-2024-B-12345",
+        "adresseLegale": "e.g. 12 rue Carnot, Dakar-Plateau",
+        "nom": "e.g. Teranga Immobilier",
+        "slug": "e.g. teranga-immobilier",
+        "courriel": "contact@agency.sn",
+        "jourDeVersement": "e.g. 10",
+        "seuil": "e.g. 500,000"
       }
     },
     "users": {
@@ -11835,7 +11946,8 @@
           "aucuneLigne": "No line read: check the format or the import settings.",
           "changer": "Change file",
           "echec": "The statement could not be read."
-        }
+        },
+        "bankNamePlaceholder": "e.g. CBAO"
       },
       "list": {
         "title": "Imported statements",
@@ -11960,7 +12072,9 @@
         "empty": "No matching payment.",
         "error": "The search failed.",
         "choose": "Match",
-        "matchFailed": "Matching failed."
+        "matchFailed": "Matching failed.",
+        "queryPlaceholder": "e.g. WAVE-48213 or Awa Diop",
+        "amountPlaceholder": "e.g. 150,000"
       },
       "titreCourt": "Reconciliation",
       "sousTitre": "What a payment gateway confirmed is already reconciled; the rest is matched against a bank statement.",
@@ -12038,7 +12152,8 @@
           "erreur": "The search failed.",
           "aucune": "No credit of this amount on the open statements.",
           "resultats": "Bank lines found",
-          "rapprocher": "Match"
+          "rapprocher": "Match",
+          "montantExemple": "e.g. 150,000"
         },
         "moyens": {
           "court": {
@@ -12075,7 +12190,8 @@
           "echec": "The payment could not be ignored.",
           "annuler": "Undo",
           "retabli": "The payment is back among those to reconcile.",
-          "echecRetablir": "The payment could not be restored."
+          "echecRetablir": "The payment could not be restored.",
+          "noteExemple": "e.g. Internal transfer between two agency accounts"
         },
         "ignores": {
           "resume": "{count, plural, one {# payment ignored this month} other {# payments ignored this month}}",
@@ -13422,6 +13538,12 @@
           "pasRattache": "This guarantor is no longer attached to this request.",
           "troisAuPlus": "A request cannot have more than 3 guarantors.",
           "dossierClos": "This request is closed: its guarantors can no longer change."
+        },
+        "exemples": {
+          "first_name": "e.g. Awa",
+          "last_name": "e.g. Ndiaye",
+          "phone": "77 123 45 67",
+          "relationship_to_tenant": "e.g. Father, employer"
         }
       }
     },
@@ -14033,7 +14155,8 @@
         "reason": "Cancellation reason",
         "back": "Back",
         "submit": "Confirm cancellation",
-        "failed": "The cancellation could not be saved."
+        "failed": "The cancellation could not be saved.",
+        "reasonPlaceholder": "e.g. The agency withdrew the property"
       },
       "offer": {
         "title": "Offer a Featured promotion",
@@ -14043,7 +14166,9 @@
         "reason": "Reason",
         "submit": "Offer",
         "done": "Featured promotion offered.",
-        "failed": "The Featured promotion could not be offered."
+        "failed": "The Featured promotion could not be offered.",
+        "propertyPlaceholder": "e.g. 1042",
+        "reasonPlaceholder": "e.g. Compensation after a display outage"
       },
       "catalogue": {
         "caption": "Promotion offers",
@@ -14060,7 +14185,9 @@
         "variant": "Variant",
         "duration": "Duration (days)",
         "price": "Price (credits)",
-        "create": "Create offer"
+        "create": "Create offer",
+        "pricePlaceholder": "e.g. 20",
+        "durationPlaceholder": "e.g. 7"
       },
       "stats": {
         "from": "From",
@@ -14119,8 +14246,11 @@
         "colDate": "Date",
         "colType": "Operation",
         "colAmount": "Credits",
-        "colReason": "Reason"
-      }
+        "colReason": "Reason",
+        "amountPlaceholder": "e.g. 50 or -20",
+        "reasonPlaceholder": "e.g. Credits granted after a double charge"
+      },
+      "searchPlaceholder": "e.g. Teranga Realty"
     },
     "agencies": {
       "empty_title": "No agency to show",
@@ -14316,7 +14446,9 @@
       "subject": "Subject",
       "body": "Body",
       "smsSegments": "{count, plural, one {# segment} other {# segments}}",
-      "previewTitle": "Preview"
+      "previewTitle": "Preview",
+      "subjectPlaceholder": "e.g. Your visit is confirmed",
+      "bodyPlaceholder": "e.g. Hello {{ first_name }}, your visit on {{ date }} is confirmed."
     },
     "users": {
       "empty_title": "No user found",
@@ -14416,7 +14548,8 @@
       "agenciesLoading": "Loading agencies…",
       "agenciesNoMatch": "No agency matches.",
       "agencyUnknown": "Agency #{id}",
-      "agencyRemove": "Remove {name} from targeting"
+      "agencyRemove": "Remove {name} from targeting",
+      "rolloutPlaceholder": "e.g. 50"
     },
     "scheduler": {
       "empty_title": "No run captured",
@@ -14571,7 +14704,8 @@
     },
     "confirmDialog": {
       "typePrompt": "To confirm, type",
-      "pending": "In progress…"
+      "pending": "In progress…",
+      "reasonPlaceholder": "Describe what prompts this action…"
     },
     "agencyStatus": {
       "active": "Active",
@@ -15157,7 +15291,9 @@
           "global": "Global",
           "evaluationCost": "Evaluation cost",
           "noBaseline": "No baseline recorded.",
-          "evaluatedCandidate": "Evaluated candidate: {model}"
+          "evaluatedCandidate": "Evaluated candidate: {model}",
+          "maxTokensPlaceholder": "e.g. 4,000",
+          "overrideReasonPlaceholder": "e.g. The reference model is unavailable at the provider"
         },
         "usages": {
           "caption": "Declared usages",
@@ -15259,7 +15395,9 @@
           "inUse": "This model is still in use: it cannot be withdrawn.",
           "inUseRoles": "Chains set here: {names}.",
           "inUseUsages": "Forced model of: {names}.",
-          "inUseFallback": "Configuration fallback chains: {names}."
+          "inUseFallback": "Configuration fallback chains: {names}.",
+          "identifierPlaceholder": "e.g. claude-sonnet-4-5",
+          "pricePlaceholder": "e.g. 3.00"
         },
         "dashboard": {
           "from": "From",
@@ -15493,7 +15631,9 @@
             "captureFileTooLarge": "One of the images is over 8 MB. Nothing was sent.",
             "capturesTotalTooLarge": "The images exceed 24 MB in total: send fewer at a time. Nothing was sent.",
             "payloadTooLarge": "The submission is too heavy for the server: send fewer images at a time (24 MB at most)."
-          }
+          },
+          "urlsPlaceholder": "https://www.example.com/listing/12345",
+          "textPlaceholder": "e.g. 2-bedroom flat for rent in Almadies, 350,000 FCFA/month. Contact: 77 123 45 67"
         },
         "forbidden": "The Radar is reserved to support and super-admin operators.",
         "listing": {
@@ -15676,7 +15816,8 @@
               "kindProperty": "Catalogue property",
               "manualId": "Identifier",
               "confirm": "Mark as duplicate",
-              "alreadyDuplicate": "already a duplicate"
+              "alreadyDuplicate": "already a duplicate",
+              "manualIdPlaceholder": "e.g. 1042"
             },
             "discard": {
               "title": "Discard the listing",
@@ -15716,6 +15857,16 @@
             "source": "View source",
             "unmerge": "Split",
             "unmergeHint": "The listing goes back to review, unlinked; it will not be merged again."
+          },
+          "placeholders": {
+            "title": "e.g. Bright 2-bedroom flat in Mermoz",
+            "city": "e.g. Dakar",
+            "description": "The listing text, corrected if extraction damaged it…",
+            "price": "e.g. 350,000",
+            "bedrooms": "e.g. 3",
+            "bathrooms": "e.g. 2",
+            "surface_m2": "e.g. 85.5",
+            "amenities": "e.g. air conditioning, parking, security"
           }
         },
         "advertiser": {
@@ -15816,7 +15967,9 @@
             "demandSentence": "This message tells the advertiser that people are looking for a property like theirs on Takussan.",
             "demandReason": "Searched for: {targets}",
             "apiDemandManualOnly": "This message mentions the demand: it is sent manually through WhatsApp until the Meta v4 template is approved.",
-            "apiTemplateManualOnly": "This message was written with a template Meta has not approved: it is sent manually through WhatsApp."
+            "apiTemplateManualOnly": "This message was written with a template Meta has not approved: it is sent manually through WhatsApp.",
+            "salutationPlaceholder": "e.g. Bonjour Monsieur Diop,",
+            "resumePlaceholder": "e.g. votre appartement F3 à louer aux Almadies, 350 000 FCFA par mois"
           },
           "history": {
             "heading": "Sent messages",
@@ -16004,7 +16157,8 @@
               "stop": "STOP",
               "question": "Question",
               "no_answer": "No answer"
-            }
+            },
+            "reasonRequiredPlaceholder": "e.g. The advertiser confirmed by phone; the screenshot is blurry"
           },
           "followUp": {
             "heading": "Follow-up",
@@ -16037,7 +16191,8 @@
             "reasonLabel": "Reason (optional)",
             "cancel": "Cancel",
             "confirm": "Unlink",
-            "done": "Account unlinked: the advertiser can claim their listings again."
+            "done": "Account unlinked: the advertiser can claim their listings again.",
+            "reasonPlaceholder": "e.g. The advertiser lost access to their old account"
           },
           "activation": {
             "heading": "Activation reminder",
@@ -16529,7 +16684,9 @@
               "sitemap": "Sitemap: the site’s whole inventory is known in a few requests; at most {max} new listings captured per run, the rest on the next run."
             },
             "unavailable": "This site offers no sitemap: it is read through its lists."
-          }
+          },
+          "frequencyPlaceholder": "e.g. 60",
+          "maxPagesPlaceholder": "e.g. 5"
         },
         "nav": {
           "aria": "Radar sections",
@@ -16661,7 +16818,12 @@
             "previewEmpty": "No criterion yet: choose at least one.",
             "cancel": "Cancel",
             "create": "Create target",
-            "save": "Save"
+            "save": "Save",
+            "priceMinPlaceholder": "e.g. 150,000",
+            "priceMaxPlaceholder": "e.g. 500,000",
+            "bedroomsMinPlaceholder": "e.g. 2",
+            "bedroomsMaxPlaceholder": "e.g. 4",
+            "maxAgeDaysPlaceholder": "e.g. 30"
           },
           "actions": {
             "edit": "Adjust",
@@ -16836,7 +16998,8 @@
       "rollout": "Rollout %",
       "test": "Test",
       "testing": "You are testing",
-      "tableCaption": "Platform feature flags"
+      "tableCaption": "Platform feature flags",
+      "rolloutPlaceholder": "e.g. 25"
     },
     "alerts": {
       "colEvent": "Event",
@@ -16904,7 +17067,9 @@
       "submit": "Send the invitation",
       "toastTitle": "Invitation sent",
       "toastDescription": "An invitation was sent to {email}.",
-      "sendError": "Could not send the invitation."
+      "sendError": "Could not send the invitation.",
+      "firstNamePlaceholder": "e.g. Awa",
+      "lastNamePlaceholder": "e.g. Diop"
     },
     "reviewModal": {
       "approveTitle": "Approve the request",
@@ -16964,7 +17129,10 @@
       "defaultMessages": {
         "fr": "Maintenance planifiée. Certaines actions peuvent être indisponibles.",
         "en": "Scheduled maintenance. Some actions may be unavailable."
-      }
+      },
+      "messagePlaceholderFr": "e.g. Takussan sera indisponible le 12 décembre de 2 h à 4 h pour une mise à jour.",
+      "messagePlaceholderEn": "e.g. Takussan will be unavailable on 12 December from 2 to 4 a.m. for an update.",
+      "messagePlaceholderWo": "The same notice, translated into Wolof"
     },
     "platformSettings": {
       "restartWarning": "A change may require a queue restart or a cache flush.",
@@ -17134,7 +17302,9 @@
       "noLimit": "No cap",
       "enabled": "On",
       "disabled": "Off",
-      "integerListPlaceholder": "3, 7, 15"
+      "integerListPlaceholder": "3, 7, 15",
+      "integerPlaceholder": "e.g. 30",
+      "decimalPlaceholder": "e.g. 12.5"
     },
     "agencyOnboarding": {
       "toastCreatedTitle": "Agency created",
@@ -17177,6 +17347,14 @@
         "XAF": "XAF — F CFA (CEMAC)",
         "EUR": "EUR — Euro",
         "USD": "USD — US Dollar"
+      },
+      "placeholders": {
+        "name": "e.g. Teranga Realty",
+        "email": "contact@example.com",
+        "phone": "77 123 45 67",
+        "address": "e.g. Rue 10, Sacré-Cœur 3, Dakar",
+        "firstName": "e.g. Awa",
+        "lastName": "e.g. Diop"
       }
     },
     "userDetail": {
@@ -17421,6 +17599,12 @@
         "proofHint": "PDF or image (JPG, PNG, WebP, HEIC).",
         "proofReplace": "A proof is already on file ({name}): a new file replaces it.",
         "proofTooLarge": "File too large ({max} MB max): {files}"
+      },
+      "placeholders": {
+        "requesterName": "e.g. Fatou Ndiaye",
+        "requesterContact": "e.g. fatou@example.com or 77 123 45 67",
+        "userId": "e.g. 1042",
+        "responseSummary": "e.g. Data exported and sent by email on 3 November."
       }
     },
     "payments": {
@@ -17524,7 +17708,9 @@
       "retry": "Retry",
       "done": "Decision saved.",
       "failed": "The decision could not be saved.",
-      "noTarget": "No match among the approved entries."
+      "noTarget": "No match among the approved entries.",
+      "newNamePlaceholderGeo": "e.g. Sacré-Cœur 3",
+      "newNamePlaceholderTags": "e.g. Sea view"
     },
     "miseEnAvantAgences": {
       "intro": "One agency at the top of a city’s directory for a period, offered by Takussan. Only one per city at a time; the list keeps its order and the agency stays at its rank.",
@@ -17564,7 +17750,8 @@
         "reason": "Reason (at least 5 characters)",
         "submit": "Offer",
         "done": "Featured spot offered.",
-        "failed": "The featured spot could not be offered."
+        "failed": "The featured spot could not be offered.",
+        "reasonPlaceholder": "e.g. Goodwill gesture after a payment incident"
       },
       "revoke": {
         "open": "Remove",
@@ -17637,7 +17824,8 @@
         "attributionRequired": "This photo now requires a credit: it cannot be imported.",
         "sourceNotFound": "This photo no longer exists on Wikimedia Commons.",
         "sourceUnavailable": "Wikimedia Commons is not responding: try again later or upload a file."
-      }
+      },
+      "searchPlaceholder": "e.g. Almadies"
     }
   },
   "adminSettings": {
@@ -17686,7 +17874,8 @@
         "accountId": "Account ID",
         "senderIdLam": "Sender name (11 characters, not starting with a digit)",
         "hostLam": "LAfricaMobile server address (optional, replaces the default one)",
-        "webhookPlaceholder": "https://example.sn/webhook"
+        "webhookPlaceholder": "https://example.sn/webhook",
+        "serviceIdPlaceholder": "e.g. 12345"
       },
       "confirmDelete": "Delete the “{provider}” integration? This action cannot be undone.",
       "webhookEndpoint": {
@@ -17956,7 +18145,9 @@
         "titre": "Lease ended on {date} · {bien}",
         "detail": "Your review of your former home",
         "noter": "Rate"
-      }
+      },
+      "opportunityCommentPlaceholder": "e.g. Clean place, responsive landlord.",
+      "replyPlaceholder": "e.g. Thank you for your stay, hope to see you again."
     },
     "contact": {
       "title": "Contact details",
@@ -18171,7 +18362,10 @@
       "invalidImage": "The file must be a valid image.",
       "imageTooLarge": "The image must not exceed 2 MB.",
       "saveError": "Profile update failed.",
-      "voirMaFiche": "View my public profile"
+      "voirMaFiche": "View my public profile",
+      "firstNamePlaceholder": "e.g. Awa",
+      "lastNamePlaceholder": "e.g. Diop",
+      "bioPlaceholder": "e.g. Landlord in Dakar for ten years, I rent out two flats in Almadies."
     },
     "admin": {
       "title": "Administration",
@@ -18304,7 +18498,10 @@
       "envoyerRibAria": "Send the RIB for account {masked}",
       "ribEnvoyeToast": "RIB sent: your account is under review.",
       "ribEchec": "The RIB could not be sent.",
-      "jourDeVersement": "paid out on the {jour} of each month"
+      "jourDeVersement": "paid out on the {jour} of each month",
+      "ibanPlaceholder": "e.g. SN08 SN010 15200 000123456789 12",
+      "phonePlaceholder": "e.g. 77 123 45 67",
+      "holderPlaceholder": "e.g. Awa Diop"
     },
     "serviceProvider": {
       "title": "My provider activity",
@@ -18318,7 +18515,9 @@
       "save": "Save",
       "saving": "Saving…",
       "saved": "Saved.",
-      "failed": "This setting was not saved."
+      "failed": "This setting was not saved.",
+      "hourlyRatePlaceholder": "e.g. 5,000",
+      "visitFeePlaceholder": "e.g. 2,000"
     },
     "timezone": {
       "title": "Time zone",
@@ -18637,7 +18836,9 @@
         "branches": "Branches quota override",
         "planValue": "Plan value",
         "save": "Save overrides"
-      }
+      },
+      "exempleCommission": "e.g. 5",
+      "exempleQuota": "e.g. 50"
     },
     "plans": {
       "newPlan": "New plan",
@@ -18661,6 +18862,12 @@
         "label": "Plan name",
         "price": "Monthly price (XOF)",
         "fee": "Platform fee (%)"
+      },
+      "exemples": {
+        "code": "e.g. pro",
+        "label": "e.g. Agency Pro",
+        "price": "e.g. 25,000",
+        "fee": "e.g. 5"
       }
     },
     "platformPayouts": {
@@ -19303,7 +19510,11 @@
       "numero": {
         "rccm": "RCCM number",
         "ninea": "NINEA number",
-        "aide": "Also used for your legal notices."
+        "aide": "Also used for your legal notices.",
+        "placeholder": {
+          "rccm": "e.g. SN-DKR-2024-B-12345",
+          "ninea": "e.g. 005123456 2G3"
+        }
       },
       "pieces": {
         "titre": "File documents",
@@ -19437,7 +19648,9 @@
         "chezLAgence": "At {agence}, their agency",
         "ailleurs": "The same criteria, all agencies"
       },
-      "compteBiens": "{count, plural, one {# listing} other {# listings}}"
+      "compteBiens": "{count, plural, one {# listing} other {# listings}}",
+      "budgetMinExemple": "e.g. 100,000",
+      "budgetMaxExemple": "e.g. 500,000"
     },
     "partager": {
       "libelle": "Share {nom}'s page",
@@ -19717,7 +19930,9 @@
     "lead": {
       "phone": "Phone",
       "contactRequired": "Give a phone number or an email so we can reply.",
-      "phoneInvalid": "This number does not look complete."
+      "phoneInvalid": "This number does not look complete.",
+      "namePlaceholder": "e.g. Awa Ndiaye",
+      "emailPlaceholder": "name@example.com"
     },
     "visit": {
       "nameLabel": "Your name",
@@ -19729,7 +19944,9 @@
       "done": {
         "title": "Request sent",
         "bodyEmail": "An email will also be sent to {email}."
-      }
+      },
+      "namePlaceholder": "e.g. Awa Ndiaye",
+      "emailPlaceholder": "name@example.com"
     }
   },
   "contactLeads": {
@@ -20017,7 +20234,8 @@
         "whatsappEmail": "A WhatsApp message and an email notified {name}.",
         "aucun": "No text message or email was sent: let {name} know another way.",
         "leVisiteur": "the visitor"
-      }
+      },
+      "nameExemple": "e.g. Fatou Sarr"
     },
     "propose": {
       "cta": "Propose another slot",
@@ -21477,7 +21695,8 @@
       "libelleSecours": "Recovery code",
       "verifier": "Verify",
       "utiliserApp": "Use the app",
-      "utiliserSecours": "Use a recovery code"
+      "utiliserSecours": "Use a recovery code",
+      "placeholderSecours": "XXXXX-XXXXX"
     },
     "test": {
       "titre": "Test environment.",
@@ -21549,6 +21768,10 @@
       "appeler": "Call {agence}",
       "whatsapp": "Message {agence} on WhatsApp",
       "messageWhatsApp": "Hello {agence}, I received your invitation on Takussan and I have a question."
+    },
+    "placeholders": {
+      "prenom": "e.g. Awa",
+      "nom": "e.g. Diop"
     }
   },
   "radarClaim": {
@@ -21652,7 +21875,12 @@
     "confirmTakeBack": "{count, plural, =0 {Take back my listings} one {Take back my listings and publish the new one} other {Take back my listings and publish the # new ones}}",
     "doneTakeBack": "{count, plural, one {Your listing is now in your space “{space}”, still online.} other {Your # listings are now in your space “{space}”, still online.}}",
     "spaceUnavailableTitle": "Your space is not active",
-    "spaceUnavailableBody": "Your listings cannot be published there for now. Write to us at {email} to reactivate it."
+    "spaceUnavailableBody": "Your listings cannot be published there for now. Write to us at {email} to reactivate it.",
+    "fieldTitlePlaceholder": "e.g. Bright 2-bedroom flat in Sacré-Cœur",
+    "fieldPricePlaceholder": "e.g. 150,000",
+    "fieldDescriptionPlaceholder": "Describe the home, its condition, the neighbourhood…",
+    "fieldFirstNamePlaceholder": "e.g. Awa",
+    "fieldSpaceNamePlaceholder": "e.g. Teranga Immobilier"
   },
   "navigationPublique": {
     "barre": {
@@ -22577,7 +22805,8 @@
       "supprime": {
         "customer": "Deleted client",
         "property": "Deleted property"
-      }
+      },
+      "titreExemple": "e.g. Follow up with Mariama after the visit"
     },
     "nouvelle": {
       "titreFeuille": "New task",
@@ -23428,7 +23657,9 @@
       "quiEstPrevenuAide": "With no one chosen, every administrator who can read this figure is notified.",
       "destinatairesChargement": "Loading possible recipients…",
       "canalWhatsappAide": "WhatsApp only reaches people who turned it on in their preferences, with a verified number.",
-      "suite": "{canal} · {n, plural, =0 {nobody notified} one {# person notified} other {# people notified}}"
+      "suite": "{canal} · {n, plural, =0 {nobody notified} one {# person notified} other {# people notified}}",
+      "exempleSeuil": "e.g. 10",
+      "exempleDelai": "e.g. 24"
     },
     "reglage": {
       "titre": "Customise the figures",
@@ -23458,7 +23689,8 @@
         "number": "Number",
         "currency": "Amount",
         "percent": "Percentage"
-      }
+      },
+      "libelleExemple": "e.g. Rent collected"
     },
     "description": "{nom} · {periode}",
     "descriptionPeriode": "from {debut} to {fin}",
@@ -23733,7 +23965,9 @@
       "exportCopy": "Copy",
       "exportCopied": "Copied",
       "exportOnce": "This link is shown only once. Generating a new one disables the previous one.",
-      "feedPending": "first sync in progress"
+      "feedPending": "first sync in progress",
+      "blockReasonExemple": "e.g. Painting works",
+      "feedLabelExemple": "e.g. Airbnb"
     },
     "collaborators": {
       "title": "Primary agent",
@@ -24316,7 +24550,8 @@
       "deposit": "Deposit (30%)",
       "rentLine": "Rent",
       "rentNotice": "Your application is for one rent; the lease will set the final amount.",
-      "occupiedHint": "Greyed-out dates are already taken."
+      "occupiedHint": "Greyed-out dates are already taken.",
+      "guestsPlaceholder": "e.g. 2"
     },
     "offerForm": {
       "invalidAmount": "Invalid amount.",
@@ -24388,7 +24623,8 @@
     "thanks": "Thank you, we will review this report.",
     "thanksNotified": "You will be notified of the outcome.",
     "close": "Close",
-    "honeypotLabel": "Company"
+    "honeypotLabel": "Company",
+    "honeypotPlaceholder": "e.g. Diop Ltd"
   },
   "propertyRetired": {
     "title": {

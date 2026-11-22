@@ -1,7 +1,7 @@
 ---
 id: TCK-2991
 title: Les profils de clavier, la prop des primitives et la garde des champs
-status: doing
+status: done
 phase: P2
 family: front
 estimate: M
@@ -65,3 +65,12 @@ En route :
 Vérifié par ablation : 8 mutants (profil ignoré, surcharge perdue, frappe non gardée, profil non transmis
 par `FormInput` ou `PhoneInput`, cliquet à sens unique, commentaires et lecture seule comptés), tous rouges.
 
+## Complément pendant la migration (2026-11-21)
+
+Six profils ajoutés à la table sur ce que les lots ont rencontré (ADR-0135 § 1) : `identifiant` (slug, identifiant
+technique, « courriel ou téléphone »), `reference` (NINEA, référence de paiement, code de plan, en capitales),
+`confirmation` (phrase recopiée), `coordonnee` (le pavé décimal d'iOS n'a pas de signe moins, la longitude du
+Sénégal est négative), `liens` (zone de liens). `lireNombre` lit le séparateur de milliers de l'anglais
+(« 150,000 ») ; `FormInput` prend `garderLeTexte` pour un formulaire dont les valeurs sont du texte (la fiche
+d'agence). La garde juge aussi les appels de `ChampDeLaFiche`, `ZoneDeLaFiche` et `ChampChiffre`. La croix native
+d'un champ `type="search"` est masquée (`globals.css`) : elle doublait le bouton « Effacer » de l'application.

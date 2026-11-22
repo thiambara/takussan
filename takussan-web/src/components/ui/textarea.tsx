@@ -3,8 +3,8 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { profil as attributsDuProfil } from "@/lib/clavier"
 
-/** ADR-0135 — une zone de texte : `texte-long` (Entrée va à la ligne) ou `message` (Entrée affiche « Envoyer »). */
-type ProfilDeZone = "texte-long" | "message"
+/** ADR-0135 — une zone de texte : `texte-long` (Entrée va à la ligne), `message` (Entrée affiche « Envoyer ») ou `liens`. */
+type ProfilDeZone = "texte-long" | "message" | "liens"
 
 function Textarea({ className, profil, ...props }: React.ComponentProps<"textarea"> & { readonly profil?: ProfilDeZone }) {
   return (

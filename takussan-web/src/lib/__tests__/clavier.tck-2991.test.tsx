@@ -18,6 +18,8 @@ import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Textarea } from '@/components/ui/textarea';
 import { PROFILS, profil } from '@/lib/clavier';
+import { montantSaisiValide } from '@/lib/maintenance/semaine-du-prestataire';
+import { customerFormSchema } from '@/lib/schemas/customer';
 import { withIntl } from '@/test/intl';
 
 describe('ADR-0135 § 1 — la table des profils', () => {
@@ -57,8 +59,28 @@ describe('ADR-0135 § 1 — la table des profils', () => {
     expect(PROFILS.message.enterKeyHint).toBe('send');
   });
 
+  it('un identifiant n’a ni majuscule ni correction ; une confirmation est en capitales ; une liste de liens ouvre le clavier d’URL', () => {
+    expect(PROFILS.identifiant).toMatchObject({ autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false });
+    expect(PROFILS.reference).toMatchObject({ autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false });
+    expect(PROFILS.confirmation).toMatchObject({ autoCapitalize: 'characters', autoCorrect: 'off', enterKeyHint: 'done' });
+    // Le pavé décimal d'iOS n'a pas de signe moins : une longitude du Sénégal (−17,4) ne s'y tape pas.
+    expect(PROFILS.coordonnee.inputMode).toBe('text');
+    expect(PROFILS.liens).toMatchObject({ inputMode: 'url', autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false });
+  });
+
   it('`profil()` rend les attributs et le nom en `data-profil`, pour un champ natif', () => {
     expect(profil('code')).toEqual({ ...PROFILS.code, 'data-profil': 'code' });
+  });
+});
+
+describe('ADR-0135 — la croix native d’un champ de recherche', () => {
+  it('est masquée sur tout champ au profil `recherche` (`globals.css`) : le bouton « Effacer » de l’app suffit', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const css = readFileSync(join(process.cwd(), 'src', 'app', 'globals.css'), 'utf8').replace(/\s+/g, ' ');
+    expect(css).toContain(
+      'input[data-profil="recherche"]::-webkit-search-cancel-button, input[data-profil="recherche"]::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }',
+    );
   });
 });
 
@@ -163,5 +185,23 @@ describe('ADR-0135 § 1 — un profil numérique remet un NOMBRE au formulaire',
     expect(lireNombre('abc')).toBe('abc');
     expect(lireNombre('150 000')).toBe(150000);
     expect(lireNombre('0,75')).toBe(0.75);
+    // Le séparateur de milliers de l'anglais (les placeholders anglais l'écrivent : « e.g. 150,000 »).
+    expect(lireNombre('150,000')).toBe(150000);
+    expect(lireNombre('1,500,000')).toBe(1500000);
+    expect(lireNombre('1.500.000')).toBe(1500000);
+    expect(lireNombre('12,5')).toBe(12.5);
+    expect(lireNombre('12.50')).toBe(12.5);
+  });
+
+  it('les lectures de montant hors `FormInput` passent par `lireNombre` : « 150,000 » n’y vaut jamais 150', () => {
+    expect(montantSaisiValide('150,000')).toBe(150000);
+    expect(montantSaisiValide('150 000')).toBe(150000);
+    const budget = (v: string) =>
+      customerFormSchema.safeParse({ first_name: 'Awa', last_name: 'Ndiaye', budget_min: v }).error?.issues.some((i) => i.path[0] === 'budget_min') ?? false;
+    expect(budget('150 000')).toBe(false);
+    expect(budget('150,000')).toBe(false);
+    expect(budget('12,505')).toBe(false);
+    expect(budget('abc')).toBe(true);
+    expect(budget('12,5055')).toBe(true);
   });
 });

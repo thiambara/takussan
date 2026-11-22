@@ -30,6 +30,13 @@ describe('le relevé d’un fichier', () => {
     expect(defauts('<Input profil="entier" inputMode="decimal" placeholder="3" />')).toEqual([['reglage']]);
   });
 
+  it('les composants partagés qui enveloppent un champ sont jugés à leur appel (`ChampDeLaFiche`, `ZoneDeLaFiche`, `ChampChiffre`)', () => {
+    expect(defauts('<ChampDeLaFiche name="ninea" libelle={l} />')).toEqual([['sansProfil', 'sansPlaceholder']]);
+    // `ZoneDeLaFiche` a un profil par défaut (`texte-long`) : seul le placeholder s'y juge.
+    expect(defauts('<ZoneDeLaFiche name="adresse" libelle={l} />')).toEqual([['sansPlaceholder']]);
+    expect(defauts('<ChampChiffre control={c} name="budget" profil="montant" placeholder="150000" />')).toEqual([[]]);
+  });
+
   it('un champ sans clavier n’est pas un champ : case, fichier, date, champ caché, lecture seule', () => {
     for (const type of ['checkbox', 'radio', 'file', 'date', 'time', 'hidden', 'range']) {
       expect(defauts(`<input type="${type}" />`)).toEqual([]);

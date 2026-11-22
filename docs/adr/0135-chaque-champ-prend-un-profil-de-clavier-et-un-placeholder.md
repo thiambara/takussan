@@ -41,9 +41,13 @@ fichier l'impose et descend à zéro dans ce chantier.**
 | `lieu` | `text` | `text` | `next` | `off` | non | mots |
 | `nom` (personne, agence) | `text` | `text` | `next` | `name` | non | mots |
 | `mots` (repère, libellé court) | `text` | `text` | `next` | `off` | non | mots |
+| `identifiant` (slug, identifiant technique, « courriel ou téléphone ») | `text` | `text` | `next` | `off` | non | aucune |
+| `reference` (NINEA, référence de paiement, code de plan, expéditeur SMS) | `text` | `text` | `next` | `off` | non | capitales |
+| `confirmation` (phrase recopiée : « SUPPRIMER ») | `text` | `text` | `done` | `off` | non | capitales |
 | `phrase` (titre) | `text` | `text` | `next` | `off` | oui | phrase |
 | `entier` (surface, quantité) | `text` | `numeric` | `next` | `off` | non | — |
 | `decimal` (pourcentage, mesure) | `text` | `decimal` | `next` | `off` | non | — |
+| `coordonnee` (latitude, longitude) | `text` | `text` | `next` | `off` | non | aucune |
 | `montant` (XOF) | `text` | `numeric` | `next` | `off` | non | — |
 | `telephone` | `tel` | `tel` | `next` | `tel-national` | non | — |
 | `courriel` | `email` | `email` | `next` | `email` | non | aucune |
@@ -53,13 +57,23 @@ fichier l'impose et descend à zéro dans ce chantier.**
 | `nouveau-mot-de-passe` | `password` | — | `next` | `new-password` | non | aucune |
 | `texte-long` (zone de texte) | — | — | `enter` | `off` | oui | phrase |
 | `message` (messagerie) | — | — | `send` | `off` | oui | phrase |
+| `liens` (zone où l'on colle des liens) | — | `url` | `enter` | `off` | non | aucune |
+
+`coordonnee` aussi : le pavé décimal d'iOS n'a pas de signe moins, et la longitude du Sénégal est négative ; le
+clavier complet porte « − » et « , » sur sa rangée de chiffres. `identifiant`, `reference`, `confirmation` et `liens` ont été ajoutés pendant la migration (lot de la console d'exploitation, le
+2026-11-21) : `mots` forçait une majuscule sur les identifiants techniques, la phrase de confirmation perdait ses
+capitales, et une zone de liens retrouvait la correction automatique.
 
 - **Un profil donne des valeurs par défaut.** Un appelant peut encore poser `autoComplete` (un prénom :
   `given-name`) ou `enterKeyHint` (le dernier champ : `done`). Il ne pose jamais `type`, `inputMode`,
   `autoCorrect`, `autoCapitalize` ni `spellCheck` : ces réglages-là sont ce que le profil décide.
-- **La valeur d'un profil numérique reste une chaîne.** La conversion passe par le schéma
-  (`z.coerce.number()`), comme le fait déjà `FormAmountInput`. Chaque champ quittant `type="number"` est vérifié
-  dans son formulaire : bornes, valeur vide, envoi.
+- **Un profil numérique remet un nombre au formulaire, et l'écran garde ce qui a été tapé.** `FormInput` lit la
+  frappe par `lireNombre` (`src/lib/clavier.ts`) : « 1 500 » → 1500, « 150,000 » (l'anglais) → 150000,
+  « 12,5 » → 12.5 ; vide ou illisible, la chaîne part telle quelle et le schéma la juge. Un formulaire dont les
+  valeurs sont du texte (la fiche d'agence) pose `garderLeTexte`. Les lectures de montant hors `FormInput`
+  (schémas, recherches) passent par la même fonction, jamais par un `replace(',', '.')` qui lirait « 150,000 »
+  150. Une coordonnée garde sa propre lecture (« 14,692 » n'est pas un millier). Chaque champ quittant
+  `type="number"` est vérifié dans son formulaire : bornes, valeur vide, envoi.
 - Chaque champ profilé porte `data-profil` : la mesure (ADR-0133) et les tests le lisent.
 
 ### 2. La forme
@@ -82,7 +96,9 @@ fichier l'impose et descend à zéro dans ce chantier.**
 ### 4. La garde — `scripts/check-champs.mjs` (`npm run check:champs`, `web-ci.yml`)
 
 - **Elle relève chaque champ qui ouvre un clavier.** Ce sont `Input`, `input`, `Textarea`, `textarea`,
-  `FormInput` et `FormTextarea`, hors types sans clavier et hors des composants qui enveloppent les champs.
+  `FormInput`, `FormTextarea`, `FormAmountInput` et les composants partagés qui transmettent le profil de leur
+  appelant (`ChampDeLaFiche`, `ZoneDeLaFiche`, `ChampChiffre`), hors types sans clavier et hors des primitives
+  elles-mêmes.
   Pour chaque fichier, elle compte deux défauts : les champs **sans profil** et les champs **sans
   placeholder**.
 - **Le cliquet est exact par fichier**, dans `scripts/champs-baseline.json` :

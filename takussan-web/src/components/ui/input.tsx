@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { FIELD_DENSITY_HEIGHT } from "@/components/ui/field-density"
 import { profil as attributsDuProfil, type NomDuProfil } from "@/lib/clavier"
 
-type ProfilDeChamp = Exclude<NomDuProfil, "texte-long" | "message">
+type ProfilDeChamp = Exclude<NomDuProfil, "texte-long" | "message" | "liens">
 
 /**
  * ADR-0135 — `profil` règle le clavier (type, `inputMode`, touche Entrée, saisie automatique, correction,

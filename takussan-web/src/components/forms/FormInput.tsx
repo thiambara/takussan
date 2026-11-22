@@ -9,6 +9,7 @@ import {
 } from 'react-hook-form';
 
 import { Input, type ProfilDeChamp } from '@/components/ui/input';
+import { lireNombre } from '@/lib/clavier';
 import { cn } from '@/lib/utils';
 import { FormError } from './FormError';
 
@@ -30,18 +31,18 @@ export type FormInputProps<TFieldValues extends FieldValues> = NativeInputProps 
   readonly containerClassName?: string;
   /** ADR-0135 — le profil de clavier du champ. */
   readonly profil?: ProfilDeChamp;
+  /**
+   * Un profil numérique remet d'ordinaire un NOMBRE au formulaire ; `garderLeTexte` lui laisse la chaîne tapée,
+   * pour un formulaire dont les valeurs sont du texte (la fiche d'agence, `ValeursDeLaFiche`).
+   */
+  readonly garderLeTexte?: boolean;
 };
 
 /** ADR-0135 — les profils dont la frappe part en NOMBRE vers le formulaire (le champ reste un champ texte). */
 const PROFILS_NUMERIQUES: ReadonlySet<ProfilDeChamp> = new Set(['entier', 'decimal', 'montant']);
 
-/** « 1 500 » → 1500, « 12,5 » → 12.5 ; vide ou illisible : la chaîne telle quelle, que le schéma juge. */
-export function lireNombre(saisie: string): number | string {
-  const nettoyee = saisie.replace(/[\s\u202f\u00a0]/g, '').replace(',', '.');
-  if (nettoyee === '') return saisie;
-  const nombre = Number(nettoyee);
-  return Number.isNaN(nombre) ? saisie : nombre;
-}
+/** Déplacé dans `@/lib/clavier` (les schémas le lisent aussi) ; ré-exporté pour les appelants existants. */
+export { lireNombre };
 
 /**
  * `<input>` wired to react-hook-form via `Controller`. Shows the label,
@@ -59,12 +60,13 @@ export function FormInput<TFieldValues extends FieldValues>({
   containerClassName,
   required,
   profil,
+  garderLeTexte = false,
   ...inputProps
 }: FormInputProps<TFieldValues>) {
   const inputId = id ?? `field-${String(name)}`;
   const errorId = `${inputId}-error`;
   const numerique = inputProps.type === 'number';
-  const numeriqueParProfil = profil !== undefined && PROFILS_NUMERIQUES.has(profil);
+  const numeriqueParProfil = !garderLeTexte && profil !== undefined && PROFILS_NUMERIQUES.has(profil);
   // Ce que la personne a tapé (« 12, », « 1 500 ») : affiché tant qu'il se lit comme la valeur du formulaire,
   // sans quoi taper la virgule d'un décimal l'effacerait aussitôt. Une valeur posée par le code l'emporte.
   const [frappe, setFrappe] = React.useState<string | null>(null);

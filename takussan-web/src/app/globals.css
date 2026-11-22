@@ -1282,6 +1282,17 @@
 }
 /* jetons-de-l-app:fin */
 
+/* ADR-0135 — un champ au profil `recherche` est un `type="search"` (le clavier affiche « Rechercher ») ; WebKit et
+   Chrome y ajoutent leur croix d'effacement, qui doublerait le bouton « Effacer » des champs de l'application. */
+@layer base {
+  input[data-profil="recherche"]::-webkit-search-cancel-button,
+  input[data-profil="recherche"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+  }
+}
+
 /* densite-de-l-app:début
  * TCK-2686 (ADR-0106 § 2, AMENDE TCK-2460 « une seule hauteur de contrôle ») — L'ÉCHELLE DE DENSITÉ
  * DE `/app`. Dans la portée `/app`, boutons et champs ont la hauteur des maquettes retenues :
