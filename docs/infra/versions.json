@@ -232,11 +232,11 @@
       },
       "prod": {
         "etat": "mesure",
-        "valeur": "v0.30.10",
-        "date": "2026-11-01",
-        "source": "Audit du serveur du 2026-11-01 (M5) — mise à jour dans la soirée du 2026-10-31, relevé sur 178.18.247.62 (`dokploy/dokploy:v0.30.10@sha256:417cb052…`). Avant : v0.30.8 le 2026-10-08, après lecture des notes de v0.30.7 et du diff de v0.30.8 (retrait du widget HubSpot). Posée d'abord par TCK-526 en v0.30.6. Traefik v3.6.7 à côté, non redémarré, conteneur `dokploy-traefik` hors Swarm",
+        "valeur": "v0.31.4",
+        "date": "2026-11-22",
+        "source": "Mise à jour du 2026-11-22 par `docker service update --image dokploy/dokploy:v0.31.4 dokploy`, après lecture des notes de v0.31.0 à v0.31.4 (aucun changement cassant annoncé ; correctifs de sécurité : autorisation de `deployment.killProcess`/`readLogs`, chemin de domaine injecté dans la règle Traefik). Relevé sur 178.18.247.62 : `dokploy/dokploy:v0.31.4` (`sha256:f1deb424…`), migrations `Migration complete`, `traefik.yml` identique octet pour octet à la copie d'avant (`/root/sauvegardes/dokploy-avant-v0.31.4-20261122/`, avec la base de Dokploy). Traefik v3.6.7, non touché : Dokploy v0.31 propose sa propre mise à jour de Traefik (v3.7.x), geste à part. Avant : v0.30.10 (2026-10-31), v0.30.8 (2026-10-08), v0.30.6 (TCK-526)",
         "commande": "ssh root@178.18.247.62 \"docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'\"",
-        "pourquoi": "Le runbook « Reconstruire le serveur » (étape 6) pose `DOKPLOY_VERSION=v0.30.10` devant `install.sh` (R6) ; monter de version est le geste « Mettre Dokploy à jour », relevé ici ensuite."
+        "pourquoi": "Le runbook « Reconstruire le serveur » (étape 6) pose `DOKPLOY_VERSION=v0.31.4` devant `install.sh` (R6) ; monter de version est le geste « Mettre Dokploy à jour », relevé ici ensuite."
       }
     }
   }
