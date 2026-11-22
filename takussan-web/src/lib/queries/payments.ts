@@ -18,6 +18,7 @@ import type {
   PayoutMethodKind,
   PayoutPreparation,
   PayoutStatus,
+  ResumeDuLoyer,
   ServiceProviderBill,
 } from '@/types/invoice';
 import { cheminApi } from '@/lib/chemin-api';
@@ -47,9 +48,27 @@ export type UsePaymentsHistoryParams = {
   readonly entity_id?: number;
   readonly date_from?: string;
   readonly date_to?: string;
+  /** TCK-2659 (M1) — l'ENCAISSÉ : `filter[paid_from]` / `filter[paid_to]` bornent `paid_at` seul (jamais l'échéance). */
+  readonly paid_from?: string;
+  readonly paid_to?: string;
   readonly page?: number;
   readonly per_page?: number;
   readonly sort?: string;
+  /*
+   * TCK-2659 (contrat de TCK-2657) — l'encaissement nommé et ses filtres métier, tous SERVEUR :
+   * `include=payer,property,landlord` ; `filter[payer_id]` (la fiche client), `filter[landlord_id]`
+   * (le compte du bailleur), `filter[payment_method]` (une liste : `wave,cash`), `filter[search]`.
+   */
+  readonly include?: readonly ('payer' | 'property' | 'landlord' | 'reminders')[];
+  readonly payer_id?: number;
+  readonly landlord_id?: number;
+  readonly payment_method?: readonly string[];
+  readonly search?: string;
+  readonly days_late_min?: number;
+  /** TCK-2660 — la borne haute du retard (« 8–30 j », « Moins de 8 j »), en jours, bornes incluses. */
+  readonly days_late_max?: number;
+  /** `false` : la requête ne part pas (une file que le lecteur n'a pas le droit de lire). */
+  readonly enabled?: boolean;
 };
 
 export type PaymentHistoryMeta = PaginationMeta & {
@@ -81,27 +100,53 @@ export const paymentsQueryKeys = {
     ['payout-methods', 'beneficiary', userId] as const,
   ownerStatement: (period: string, landlordId?: number) => ['owner-statements', period, landlordId ?? null] as const,
   serviceProviderBills: (params: UseServiceProviderBillsParams) => ['service-provider-bills', params] as const,
+  resumeDuLoyer: ['me', 'rent-summary'] as const,
 };
 
-export function usePaymentsHistory(params: UsePaymentsHistoryParams = {}) {
+/** TCK-2650 — ce que doit le locataire connecté, total compris, tel que l'API le calcule (TCK-2649). */
+export function useResumeDuLoyer(options: { readonly enabled?: boolean } = {}) {
+  return useApiQuery<ApiResponse<ResumeDuLoyer>>(paymentsQueryKeys.resumeDuLoyer, '/api/me/rent-summary', {
+    enabled: options.enabled ?? true,
+  });
+}
+
+/**
+ * Les `filter[…]` de `GET /api/payments/history` pour ces paramètres. TCK-2721 — une seule écriture,
+ * lue par la liste ET par le lien d'export du registre ({@link lienDExportDuRegistre}) : le fichier
+ * part avec les filtres mêmes de l'écran.
+ */
+export function filtresDeLHistorique(params: UsePaymentsHistoryParams): Record<string, string | number> {
   const filter: Record<string, string | number> = {};
   if (params.status) filter.status = params.status;
   if (params.entity_type) filter.entity_type = params.entity_type;
   if (params.entity_id) filter.entity_id = params.entity_id;
   if (params.date_from) filter.date_from = params.date_from;
   if (params.date_to) filter.date_to = params.date_to;
+  if (params.paid_from) filter.paid_from = params.paid_from;
+  if (params.paid_to) filter.paid_to = params.paid_to;
+  if (params.payer_id) filter.payer_id = params.payer_id;
+  if (params.landlord_id) filter.landlord_id = params.landlord_id;
+  if (params.payment_method && params.payment_method.length > 0) filter.payment_method = params.payment_method.join(',');
+  if (params.search && params.search.trim() !== '') filter.search = params.search.trim();
+  if (params.days_late_min !== undefined) filter.days_late_min = params.days_late_min;
+  if (params.days_late_max !== undefined) filter.days_late_max = params.days_late_max;
+  return filter;
+}
 
+export function usePaymentsHistory(params: UsePaymentsHistoryParams = {}) {
   const query: SpatieQueryParams = {
-    filter,
+    filter: filtresDeLHistorique(params),
+    include: params.include && params.include.length > 0 ? params.include : undefined,
     page: params.page ?? 1,
     per_page: params.per_page ?? 20,
     sort: params.sort ?? '-date',
   };
 
+  const { enabled, ...cle } = params;
   return useApiQuery<PaymentHistoryResponse>(
-    paymentsQueryKeys.history(params),
+    paymentsQueryKeys.history(cle),
     '/api/payments/history',
-    { params: query },
+    { params: query, enabled: enabled ?? true },
   );
 }
 
@@ -226,6 +271,8 @@ export const PAYOUT_LIST_FIELDS = [
   'agency_id',
   'landlord_id',
   'payee_role',
+  // TCK-2910 — acompte ou solde (TCK-2909) : « Derniers reversements » de la fiche du bailleur.
+  'nature',
   'issued_by_id',
   'approved_by_id',
   'status',
@@ -247,6 +294,8 @@ export type UsePayoutsParams = {
   readonly landlord_id?: number;
   readonly page?: number;
   readonly per_page?: number;
+  /** TCK-2659 — `false` : la file ne se lit pas (« À approuver » sans `payouts.approve`, ou vide). */
+  readonly enabled?: boolean;
 };
 
 export function usePayouts(params: UsePayoutsParams = {}) {
@@ -262,10 +311,11 @@ export function usePayouts(params: UsePayoutsParams = {}) {
     per_page: params.per_page ?? 20,
   };
 
+  const { enabled, ...cle } = params;
   return useApiQuery<PaginatedResponse<Payout>>(
-    paymentsQueryKeys.payoutList(params),
+    paymentsQueryKeys.payoutList(cle),
     '/api/payouts',
-    { params: query },
+    { params: query, enabled: enabled ?? true },
   );
 }
 
@@ -381,12 +431,13 @@ export function usePayoutMarkFailed(payoutId: number) {
   );
 }
 
+/** TCK-2922 — `reason` : le motif du « Refuser » en ligne, gardé par l'API (`metadata.cancel_reason`). */
 export function usePayoutCancel(payoutId: number) {
-  return useApiMutation<ApiResponse<Payout>, void>(
+  return useApiMutation<ApiResponse<Payout>, { reason?: string } | void>(
     {
       path: cheminApi`/api/payouts/${payoutId}/cancel`,
       method: 'POST',
-      body: () => undefined,
+      body: (v) => v ?? undefined,
     },
     { relireSurErreur: true, invalidate: [['payouts']] },
   );
@@ -412,7 +463,9 @@ export function useOwnerStatement(period: string, landlordId?: number) {
  * prestataire). L'API ne rend jamais que le numéro MASQUÉ à l'agence ; l'écran ne montre que lui.
  */
 export function useMyPayoutMethods(enabled = true) {
-  return useApiQuery<ApiResponse<PayoutMethod[]>>(paymentsQueryKeys.myPayoutMethods, '/api/me/payout-methods', {
+  // TCK-2909 — `meta.payout_day` : le jour de versement du mandat du profil bailleur actif (1-28), `null` sinon.
+  // TCK-2915 — sinon celui de l'agence ; `payout_day_source` dit lequel (`mandate`, `agency`, `null`).
+  return useApiQuery<ApiResponse<PayoutMethod[]> & { meta?: { payout_day?: number | null; payout_day_source?: 'mandate' | 'agency' | null } }>(paymentsQueryKeys.myPayoutMethods, '/api/me/payout-methods', {
     enabled,
   });
 }
@@ -434,6 +487,28 @@ export function useCreateMyPayoutMethod() {
 export function useSetDefaultPayoutMethod() {
   return useApiMutation<ApiResponse<PayoutMethod>, { id: number }>(
     { path: ({ id }) => cheminApi`/api/me/payout-methods/${id}`, method: 'PATCH', body: () => ({ is_default: true }) },
+    { invalidate: [['payout-methods']] },
+  );
+}
+
+/**
+ * TCK-2864 — le RIB d'un compte bancaire « à confirmer » (`POST /api/me/payout-methods/{id}/bank-statement`,
+ * TCK-2863) : un PDF ou une image, sous step-up 2FA comme les autres écritures des destinations —
+ * `useApiMutation` résout le refus sur place (`GardeDoubleFacteur`) puis rejoue l'envoi. Succès : le
+ * compte passe « En revue ».
+ */
+export function useSendPayoutBankStatement() {
+  return useApiMutation<ApiResponse<PayoutMethod>, { id: number; file: File }>(
+    {
+      path: ({ id }) => cheminApi`/api/me/payout-methods/${id}/bank-statement`,
+      method: 'POST',
+      formData: true,
+      body: ({ file }) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        return fd;
+      },
+    },
     { invalidate: [['payout-methods']] },
   );
 }
@@ -473,6 +548,8 @@ export type UseServiceProviderBillsParams = {
   provider_id?: number;
   agency_id?: number;
   page?: number;
+  /** TCK-2750 — la densité du registre (10, 20 ou 50), 20 par défaut. */
+  per_page?: number;
 };
 
 export function useServiceProviderBills(params: UseServiceProviderBillsParams, enabled = true) {
@@ -488,7 +565,7 @@ export function useServiceProviderBills(params: UseServiceProviderBillsParams, e
         filter,
         sort: '-created_at',
         page: params.page ?? 1,
-        per_page: 20,
+        per_page: params.per_page ?? 20,
       },
       enabled,
     },

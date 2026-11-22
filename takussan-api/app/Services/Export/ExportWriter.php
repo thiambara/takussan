@@ -8,6 +8,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\LaravelPdf\Facades\Pdf;
 use Spatie\LaravelPdf\PdfBuilder;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -31,21 +32,10 @@ class ExportWriter
     public function csv(array $payload): StreamedResponse
     {
         $filename = ($payload['filename'] ?? 'export').'.csv';
-        $columns = $payload['columns'];
-        $rows = $payload['rows'];
 
-        return response()->stream(function () use ($columns, $rows) {
+        return response()->stream(function () use ($payload) {
             $out = fopen('php://output', 'wb');
-            // UTF-8 BOM so Excel on Windows recognises encoding
-            fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, $columns);
-            foreach ($rows as $row) {
-                $line = [];
-                foreach ($columns as $col) {
-                    $line[] = $row[$col] ?? '';
-                }
-                fputcsv($out, CsvCell::line($line));
-            }
+            $this->writeCsv($out, $payload);
             fclose($out);
         }, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -54,14 +44,95 @@ class ExportWriter
         ]);
     }
 
+    /**
+     * TCK-2866 (ADR-0115) — le fichier d'un export en OCTETS, une seule fois : servi tel quel
+     * ({@see self::serve()}) et gardé tel quel pour « Retélécharger ». Mêmes contenus que
+     * {@see self::respond()}.
+     *
+     * @return array{bytes: string, filename: string, mime: string}
+     */
+    public function render(string $format, array $payload): array
+    {
+        $base = $payload['filename'] ?? 'export';
+
+        return match (strtolower($format)) {
+            'csv' => ['bytes' => $this->csvBytes($payload), 'filename' => "{$base}.csv", 'mime' => self::MIME['csv']],
+            'xlsx', 'excel' => ['bytes' => Excel::raw($this->sheet($payload), \Maatwebsite\Excel\Excel::XLSX), 'filename' => "{$base}.xlsx", 'mime' => self::MIME['xlsx']],
+            'pdf' => ['bytes' => Pdf::html($this->renderPdfHtml($payload))->format('a4')->landscape()->generatePdfContent(), 'filename' => "{$base}.pdf", 'mime' => self::MIME['pdf']],
+            default => throw new \InvalidArgumentException("Unsupported export format: {$format}"),
+        };
+    }
+
+    /**
+     * TCK-2866 — la réponse d'un fichier rendu par {@see self::render()} (ou relu du disque) : les
+     * en-têtes de {@see self::respond()}. Le CSV reste une réponse diffusée.
+     */
+    public function serve(string $bytes, string $filename, string $mime): Response
+    {
+        $headers = [
+            'Content-Type' => $mime,
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control' => 'no-store, max-age=0',
+        ];
+
+        if ($mime === self::MIME['csv']) {
+            return response()->stream(function () use ($bytes): void {
+                echo $bytes;
+            }, 200, $headers);
+        }
+
+        return new Response($bytes, 200, $headers + ['Content-Length' => (string) strlen($bytes)]);
+    }
+
+    /** @var array<string, string> */
+    public const MIME = [
+        'csv' => 'text/csv; charset=UTF-8',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'pdf' => 'application/pdf',
+    ];
+
+    private function csvBytes(array $payload): string
+    {
+        $out = fopen('php://temp', 'w+b');
+        $this->writeCsv($out, $payload);
+        rewind($out);
+        $bytes = (string) stream_get_contents($out);
+        fclose($out);
+
+        return $bytes;
+    }
+
+    /** @param  resource  $out */
+    private function writeCsv($out, array $payload): void
+    {
+        $columns = $payload['columns'];
+        // UTF-8 BOM so Excel on Windows recognises encoding
+        fwrite($out, "\xEF\xBB\xBF");
+        fputcsv($out, $columns);
+        foreach ($payload['rows'] as $row) {
+            $line = [];
+            foreach ($columns as $col) {
+                $line[] = $row[$col] ?? '';
+            }
+            fputcsv($out, CsvCell::line($line));
+        }
+    }
+
     public function xlsx(array $payload): mixed
     {
         $filename = ($payload['filename'] ?? 'export').'.xlsx';
+
+        return Excel::download($this->sheet($payload), $filename);
+    }
+
+    /** La feuille d'un export (TCK-2866 : partagée par {@see self::xlsx()} et {@see self::render()}). */
+    private function sheet(array $payload): FromArray
+    {
         $columns = $payload['columns'];
         // TCK-601 (verif-601 n2) — PhpSpreadsheet type en formule toute chaîne qui commence par `=`.
         $rows = array_map(fn ($row) => CsvCell::line(array_map(fn ($col) => $row[$col] ?? '', $columns)), $payload['rows']);
 
-        return Excel::download(new class($columns, $rows) implements FromArray, WithHeadings
+        return new class($columns, $rows) implements FromArray, WithHeadings
         {
             public function __construct(private readonly array $columns, private readonly array $rows) {}
 
@@ -74,7 +145,7 @@ class ExportWriter
             {
                 return $this->columns;
             }
-        }, $filename);
+        };
     }
 
     public function pdf(array $payload): PdfBuilder

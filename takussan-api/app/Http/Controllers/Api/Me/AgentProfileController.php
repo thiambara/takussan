@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\UpdateDirectoryAgentProfileRequest;
 use App\Http\Requests\Api\Me\UpdateSpecializationAgentProfileRequest;
 use App\Http\Requests\Api\Me\UploadKycAgentProfileRequest;
-use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\Capability;
 use App\Models\Profiles\AgentProfile;
 use App\Services\Kyc\ProfilePieces;
+use App\Services\Onboarding\AgentFirstLead;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -187,6 +188,36 @@ class AgentProfileController extends Controller
     }
 
     /**
+     * PATCH /api/me/agent-profiles/{agent_profile}/directory — TCK-2518.
+     *
+     * Les langues et les quartiers que l'annuaire public montre. Clé absente : inchangée ; `null`
+     * ou `[]` : vidée (rangée `null`, la fiche s'en passe sans trou).
+     */
+    public function updateDirectory(UpdateDirectoryAgentProfileRequest $request, AgentProfile $agent_profile): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $patch = [];
+        foreach (['languages', 'neighborhood_ids'] as $cle) {
+            if (array_key_exists($cle, $validated)) {
+                $liste = array_values((array) ($validated[$cle] ?? []));
+                $patch[$cle] = $liste === [] ? null : ($cle === 'neighborhood_ids' ? array_map('intval', $liste) : $liste);
+            }
+        }
+        if ($patch !== []) {
+            $agent_profile->forceFill($patch)->save();
+        }
+
+        return $this->json([
+            'data' => [
+                'id' => $agent_profile->id,
+                'languages' => $agent_profile->languages ?? [],
+                'neighborhood_ids' => $agent_profile->neighborhood_ids ?? [],
+            ],
+        ]);
+    }
+
+    /**
      * GET /api/me/agent-profiles/{agent_profile}/first-lead
      *
      * Returns the first Customer pre-assigned to this agent. The current
@@ -195,33 +226,13 @@ class AgentProfileController extends Controller
      * by agency as a heuristic for "leads given to this agent".
      * Returns `{customer: null}` (200) when no lead exists.
      */
-    public function firstLead(Request $request, AgentProfile $agent_profile): JsonResponse
+    public function firstLead(Request $request, AgentProfile $agent_profile, AgentFirstLead $firstLead): JsonResponse
     {
         $this->assertOwner($request, $agent_profile);
 
-        $customer = Customer::query()
-            ->where('added_by_id', $agent_profile->user_id)
-            ->when($agent_profile->agency_id !== null, fn ($q) => $q->where('agency_id', $agent_profile->agency_id))
-            ->orderBy('id')
-            ->first(['id', 'first_name', 'last_name', 'email', 'phone', 'pipeline_stage', 'agency_id']);
-
-        if ($customer === null) {
-            return $this->json(['data' => ['customer' => null]]);
-        }
-
-        return $this->json([
-            'data' => [
-                'customer' => [
-                    'id' => $customer->id,
-                    'first_name' => $customer->first_name,
-                    'last_name' => $customer->last_name,
-                    'full_name' => trim((string) $customer->first_name.' '.(string) $customer->last_name),
-                    'email' => $customer->email,
-                    'phone' => $customer->phone,
-                    'pipeline_stage' => $customer->pipeline_stage?->value,
-                ],
-            ],
-        ]);
+        // TCK-2942 — besoin, budget, dernier contact, origine et note de l'agence : la projection est
+        // partagée avec `complete()` (`AgentOnboardingService`).
+        return $this->json(['data' => ['customer' => $firstLead->for($agent_profile)]]);
     }
 
     /**
@@ -240,10 +251,21 @@ class AgentProfileController extends Controller
             ->values()
             ->all() ?? [];
 
+        // TCK-2942 — `denied` : ce que le catalogue d'un rôle d'agence (`Capability::agencyAssignable()`,
+        // la même source que l'édition des rôles) offre et que CE rôle ne donne pas. `granted` vaut
+        // `capabilities` (gardée pour les lecteurs existants) : l'union des deux est le catalogue.
+        // `agency_role_id` est NOT NULL ; le cas « sans rôle » (défensif) n'accorde rien et refuse tout.
+        $denied = array_values(array_diff(
+            array_map(fn (Capability $capability): string => $capability->value, Capability::agencyAssignable()),
+            $capabilities,
+        ));
+
         return $this->json([
             'data' => [
                 'agency_id' => $agent_profile->agency_id,
                 'capabilities' => $capabilities,
+                'granted' => $capabilities,
+                'denied' => $denied,
             ],
         ]);
     }

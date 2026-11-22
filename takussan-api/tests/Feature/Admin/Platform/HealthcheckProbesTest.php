@@ -8,7 +8,6 @@ use App\Models\Integration;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Services\Admin\HealthcheckService;
-use App\Services\Media\Cdn\CdnProviderContract;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,7 +20,8 @@ use Tests\TestCase;
  * TCK-600 — AC17 : la page Santé mesure ce qu'elle affiche.
  *
  * Chaque sonde rendait `ok` sans rien sonder (courriel en `log`, SMS hors driver `broken`, médias
- * sondés sur `local`) ; la route publique appelait le CDN à chaque requête anonyme.
+ * sondés sur `local`) ; la route publique appelait le CDN à chaque requête anonyme (CDN retiré
+ * depuis, TCK-2463).
  */
 class HealthcheckProbesTest extends TestCase
 {
@@ -267,7 +267,7 @@ class HealthcheckProbesTest extends TestCase
     /** Toutes les sondes autres que `scheduler` à `ok` : seul le planificateur fait varier le statut. */
     private function sondesSaines(): void
     {
-        config(['mail.default' => 'ses', 'cdn.enabled' => false]);
+        config(['mail.default' => 'ses']);
         foreach (RecordQueueHeartbeat::QUEUES as $file) {
             (new RecordQueueHeartbeat($file))->handle();
         }
@@ -317,11 +317,14 @@ class HealthcheckProbesTest extends TestCase
         }
     }
 
-    public function test_la_route_publique_lit_le_cache_et_n_appelle_pas_le_cdn(): void
+    public function test_la_route_publique_lit_le_cache_et_ne_sonde_rien(): void
     {
-        config(['cdn.enabled' => true]);
-        $cdn = $this->mock(CdnProviderContract::class);
-        $cdn->shouldNotReceive('healthCheck');
+        // Elle appelait le CDN à chaque requête anonyme (TCK-600) ; le CDN est retiré (TCK-2463),
+        // la propriété reste : aucune sonde ne court derrière la route publique.
+        $this->partialMock(HealthcheckService::class, function ($mock): void {
+            $mock->shouldNotReceive('snapshot');
+            $mock->shouldNotReceive('refresh');
+        });
 
         $this->getJson('/api/health')->assertOk()->assertExactJson(['status' => 'unknown', 'checked_at' => null]);
 
@@ -333,8 +336,6 @@ class HealthcheckProbesTest extends TestCase
 
     public function test_la_commande_de_sonde_remplit_le_statut_public(): void
     {
-        config(['cdn.enabled' => false]);
-
         $this->artisan('health:probe')->assertSuccessful();
 
         $this->assertContains($this->getJson('/api/health')->json('status'), ['ok', 'degraded', 'failed']);

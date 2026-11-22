@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\JourIso;
+
 /**
  * TCK-090 — `POST /api/leases/{lease}/early-termination` payload validator.
  *
@@ -27,7 +29,7 @@ class RequestEarlyTerminationRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'effective_date' => ['required', 'date', 'after:today'],
+            'effective_date' => ['required', 'date', new JourIso, 'after:today'],
             'reason' => ['nullable', 'string', 'max:2000'],
             // The role recorded in the activity log: `tenant`, `agent`,
             // `landlord`, `agency_admin`, `admin`. Free-form so policy

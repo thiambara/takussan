@@ -1,6 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
+import { hrefConnexionPour, type ActionDEntree } from '@/components/auth/lien-connexion';
 import {
   Dialog,
   DialogContent,
@@ -18,13 +19,14 @@ import { usePropertyAvailability } from '@/hooks/usePropertyAvailability';
 import { isNightOccupied, isStayFree } from '@/lib/occupancy';
 import { submitPurchaseOffer } from '@/app/actions/property';
 import { useCleIdempotence } from '@/hooks/useCleIdempotence';
-import { formatMontant } from '@/lib/format/currency';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
 import { quoteBooking } from '@/lib/booking-quote';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import {
   cheminIntentionReservation,
+  lireIndiceInvitation,
   type IntentionReservation,
 } from '@/lib/property/intention-reservation';
 import { useTranslations } from 'next-intl';
@@ -44,9 +46,15 @@ interface PropertyReservationDialogProps {
   intention?: IntentionReservation | null;
 }
 
-function formatPrice(price: number, currency: string | null): string {
-  return formatMontant(price, currency ?? 'XOF');
-}
+/**
+ * TCK-2604 — le geste du bouton principal, dans la liste fermée de la connexion. Une offre d'achat
+ * n'y a pas de nom : la connexion montre alors la forme directe.
+ */
+const ACTION_D_ENTREE: Record<ReturnType<typeof getPrimaryCtaForProperty>['action'], ActionDEntree | null> = {
+  reserve: 'reservation',
+  apply: 'candidature',
+  offer: null,
+};
 
 export function PropertyReservationDialog({
   property,
@@ -55,7 +63,7 @@ export function PropertyReservationDialog({
   onSuccess,
   intention = null,
 }: PropertyReservationDialogProps) {
-  const t = useTranslations('property.reservation');
+  const t = useTranslations('propertyReservation');
   const { user } = useAuth();
   const action = getPrimaryCtaForProperty(property).action;
   const isOfferFlow = action === 'offer';
@@ -63,9 +71,14 @@ export function PropertyReservationDialog({
   if (!user) {
     // TCK-589 — la connexion ET l'inscription ramènent à la fiche, boîte rouverte : sans compte, le
     // visiteur n'avait qu'une porte, et l'inscription le perdait en route.
-    const retour = encodeURIComponent(
-      isOfferFlow ? `/properties/${property.slug}` : cheminIntentionReservation(property.slug, intention ?? {}),
-    );
+    // TCK-2874 — l'indice d'invitation (`via=invitation`) survit à la connexion.
+    const via = typeof window !== 'undefined' ? lireIndiceInvitation(window.location.search) : undefined;
+    const retour = isOfferFlow
+      ? `/properties/${property.slug}${via ? `?via=${via}` : ''}`
+      : cheminIntentionReservation(property.slug, intention ?? {}, via);
+    // TCK-2604 — une seule porte : la connexion par numéro crée le compte au premier code. Les deux
+    // liens y mènent, avec l'action interrompue — la connexion montre ce bien et dit ce geste.
+    const href = hrefConnexionPour(retour, ACTION_D_ENTREE[action]);
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
@@ -78,14 +91,14 @@ export function PropertyReservationDialog({
               {t('cancel')}
             </Button>
             <LienLocalise
-              href={`/auth/register?redirect=${retour}`}
+              href={href}
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted transition-colors sm:min-h-8"
             >
               {t('createAccount')}
             </LienLocalise>
             <LienLocalise
-              href={`/auth/login?redirect=${retour}`}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 text-sm font-medium hover:bg-primary/80 transition-colors sm:min-h-8"
+              href={href}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 text-sm font-medium hover:bg-primary-deep transition-colors sm:min-h-8"
             >
               {t('signIn')}
             </LienLocalise>
@@ -138,7 +151,9 @@ function ReservationForm({
   submitLabel,
   title,
 }: InnerFormProps & { intention: IntentionReservation | null }) {
-  const t = useTranslations('property.reservation');
+  const t = useTranslations('propertyReservation');
+  // TCK-347 — le montant dans la langue de l'écran (il passait par la locale de la devise).
+  const fmt = useFormatteurs();
   const { submit, submitting, error } = useBookingRequest(property.slug);
   // TCK-589 — dates rapportées par l'intention ; une date passée ne se pré-remplit pas.
   const aujourdhui = new Date().toISOString().slice(0, 10);
@@ -180,8 +195,12 @@ function ReservationForm({
       await submit({
         start_date: startDate,
         end_date: endDate,
-        guests,
+        // TCK-2892 — le nombre de voyageurs n'appartient qu'à un séjour : l'API le refuse à une
+        // candidature (422 `booking.field_not_for_kind`).
+        ...(isShortStay ? { guests } : {}),
         message: message || undefined,
+        // TCK-2874 (ADR-0110 § 6) — ouverte par le lien d'invitation : l'API écrit `source = invitation`.
+        via: lireIndiceInvitation(window.location.search),
       });
       onClose();
       onSuccess?.();
@@ -225,20 +244,24 @@ function ReservationForm({
             />
           </label>
         </div>
-        <label className="block space-y-1 text-sm">
-          <span className="text-foreground">{t('booking.guests')}</span>
-          <Input
-            type="number"
-            required
-            min={1}
-            max={20}
-            value={guests}
-            onChange={(e) => setGuests(Number(e.target.value) || 1)}
-          />
-        </label>
+        {isShortStay && (
+          <label className="block space-y-1 text-sm">
+            <span className="text-foreground">{t('booking.guests')}</span>
+            <Input
+              profil="entier"
+              required
+              min={1}
+              max={20}
+              placeholder={t('booking.guestsPlaceholder')}
+              value={guests}
+              onChange={(e) => setGuests(Math.min(20, Math.max(1, Math.trunc(Number(e.target.value)) || 1)))}
+            />
+          </label>
+        )}
         <label className="block space-y-1 text-sm">
           <span className="text-foreground">{t('booking.message')}</span>
           <Textarea
+            profil="texte-long"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t('booking.messagePlaceholder')}
@@ -252,21 +275,21 @@ function ReservationForm({
             <div className="flex justify-between gap-3">
               <span className="min-w-0 text-muted-foreground">
                 {t(quote.period === 'weekly' ? 'booking.weeklyLine' : 'booking.nightsLine', {
-                  price: formatPrice(property.price, property.currency),
+                  price: fmt.montant(property.price, property.currency),
                   count: quote.nights,
                 })}
               </span>
               <span className="shrink-0 whitespace-nowrap text-foreground">
-                {formatPrice(quote.total, property.currency)}
+                {fmt.montant(quote.total, property.currency)}
               </span>
             </div>
             <div className="flex justify-between gap-3 font-semibold pt-1 border-t border-border">
               <span>{t('booking.estimatedTotal')}</span>
-              <span className="shrink-0 whitespace-nowrap">{formatPrice(quote.total, property.currency)}</span>
+              <span className="shrink-0 whitespace-nowrap">{fmt.montant(quote.total, property.currency)}</span>
             </div>
             <div className="flex justify-between gap-3 text-xs text-muted-foreground">
               <span>{t('booking.deposit')}</span>
-              <span className="shrink-0 whitespace-nowrap">{formatPrice(quote.deposit, property.currency)}</span>
+              <span className="shrink-0 whitespace-nowrap">{fmt.montant(quote.deposit, property.currency)}</span>
             </div>
           </div>
         )}
@@ -275,7 +298,7 @@ function ReservationForm({
             <div className="flex justify-between gap-3 font-semibold">
               <span>{t('booking.rentLine')}</span>
               <span className="shrink-0 whitespace-nowrap">
-                {formatPrice(property.price, property.currency)} / {tPeriods(longTermPeriod)}
+                {fmt.montant(property.price, property.currency)} / {tPeriods(longTermPeriod)}
               </span>
             </div>
             <p className="text-pretty text-xs text-muted-foreground">{t('booking.rentNotice')}</p>
@@ -306,7 +329,9 @@ function ReservationForm({
 
 // ─── Offer form (sale) — TCK-176 ────────────────────────────────────────────
 function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFormProps) {
-  const t = useTranslations('property.reservation');
+  const t = useTranslations('propertyReservation');
+  // TCK-347 — le montant dans la langue de l'écran (il passait par la locale de la devise).
+  const fmt = useFormatteurs();
   const [offerAmount, setOfferAmount] = useState('');
   const [offerExpiresAt, setOfferExpiresAt] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -338,6 +363,8 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
           offer_expires_at: offerExpiresAt,
           terms_accepted: true,
           message: message || undefined,
+          // TCK-2874 (ADR-0110 § 6)
+          via: lireIndiceInvitation(window.location.search),
         },
         idempotence.cle(),
       );
@@ -359,7 +386,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>
           {t('offerForm.description', {
-            price: formatPrice(property.price, property.currency),
+            price: fmt.montant(property.price, property.currency),
           })}
         </DialogDescription>
       </DialogHeader>
@@ -369,10 +396,9 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
             {t('offerForm.amount', { currency: property.currency ?? 'XOF' })}
           </span>
           <Input
-            type="number"
+            profil="montant"
             required
             min={1}
-            inputMode="numeric"
             value={offerAmount}
             onChange={(e) => setOfferAmount(e.target.value)}
             placeholder={String(property.price)}
@@ -391,6 +417,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
         <label className="block space-y-1 text-sm">
           <span className="text-foreground">{t('offerForm.message')}</span>
           <Textarea
+            profil="texte-long"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t('offerForm.messagePlaceholder')}

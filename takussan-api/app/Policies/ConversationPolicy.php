@@ -30,6 +30,45 @@ class ConversationPolicy
             && $this->isActiveAdmin($user, $conversation);
     }
 
+    /**
+     * TCK-2859 (ADR-0114 § 3) — faire entrer quelqu'un dans un fil DIRECT : cela crée un groupe neuf
+     * (sans l'historique), que l'appelant administre. Il faut pouvoir ÉCRIRE dans la directe
+     * (`ConversationAccess::allowsWriting`) : qui la lit sans y écrire n'en ouvre pas de groupe.
+     */
+    public function addToDirect(User $user, Conversation $conversation): bool
+    {
+        return $conversation->type === ConversationType::Direct
+            && app(ConversationAccess::class)->allowsWriting($user, $conversation);
+    }
+
+    /**
+     * TCK-2859 (ADR-0114 § 2) — signaler le fil : un participant ACTIF, que la garde de lecture
+     * accepte. Appelée directement par `ReportConversationRequest`, hors `Gate` : le `Gate::before`
+     * du super-admin le laisserait signaler un fil dont il n'est pas partie.
+     */
+    public function report(User $user, Conversation $conversation): bool
+    {
+        return $conversation->participants()
+            ->where('users.id', $user->id)
+            ->wherePivotNull('left_at')
+            ->exists()
+            && app(ConversationAccess::class)->allows($user, $conversation);
+    }
+
+    /**
+     * TCK-2967 (ADR-0128 § 7) — les gestes de la boîte de pilotage (« Rappelez-le-moi », « Traité »,
+     * confier le fil) : un participant ACTIF, que la garde de lecture accepte. Appelée directement par
+     * `GesteDeLaBoiteRequest`, hors `Gate` : le super-admin n'a pas de ligne de participation à écrire.
+     */
+    public function piloter(User $user, Conversation $conversation): bool
+    {
+        return $conversation->participants()
+            ->where('users.id', $user->id)
+            ->wherePivotNull('left_at')
+            ->exists()
+            && app(ConversationAccess::class)->allows($user, $conversation);
+    }
+
     public function removeParticipant(User $user, Conversation $conversation, User $target): bool
     {
         // TCK-861 (P38.07) — seul un groupe se quitte : une directe « quittée » restait ouverte à
@@ -68,11 +107,14 @@ class ConversationPolicy
     /**
      * System messages are immutable. Even an admin cannot edit/delete
      * them — this guards against silent rewriting of the audit trail.
+     *
+     * TCK-2958 (ADR-0128 § 3) — un `event` non plus (sans auteur, comme un avis système). Une `card`
+     * reste modifiable AU SENS de cette règle — sa suppression suit celle d'un message de son
+     * auteur —, mais `MessageObserver::updating` en refuse toute édition.
      */
     public function modifyMessage(User $user, Message $message): bool
     {
-        return $message->type !== MessageType::System
-            && $message->type?->value !== 'system';
+        return ! in_array($message->type, [MessageType::System, MessageType::Event], true);
     }
 
     protected function isActiveAdmin(User $user, Conversation $conversation): bool

@@ -133,6 +133,8 @@ class StatementParserTest extends TestCase
 
         $this->assertCount(8, $result['lines']);
         $this->assertSame(2, $result['context']->tally->skipped);
+        // TCK-2932 — le rang et la raison de chaque ligne sautée, lus par l'aperçu.
+        $this->assertSame([['line' => 9, 'reason' => 'invalid_amount'], ['line' => 10, 'reason' => 'missing_value']], $result['context']->tally->lines);
     }
 
     public function test_des_colonnes_introuvables_font_sauter_et_compter_chaque_ligne(): void
@@ -148,6 +150,7 @@ class StatementParserTest extends TestCase
 
         $this->assertCount(0, $result['lines']);
         $this->assertSame(5, $result['context']->tally->skipped);
+        $this->assertSame(['missing_value' => 5], $result['context']->tally->byReason);
     }
 
     public function test_une_date_debordante_est_sautee_et_non_decalee(): void
@@ -158,6 +161,7 @@ class StatementParserTest extends TestCase
         $this->assertCount(1, $result['lines']);
         $this->assertSame('2026-04-15', $result['lines'][0]->postedAt->toDateString());
         $this->assertSame(2, $result['context']->tally->skipped);
+        $this->assertSame(['invalid_date' => 2], $result['context']->tally->byReason);
     }
 
     public function test_un_point_non_declare_n_est_pas_lu_comme_decimale(): void
@@ -198,6 +202,7 @@ class StatementParserTest extends TestCase
             $this->assertEqualsWithDelta(285000.0, $line->amount, 0.001);
         }
         $this->assertSame(2, $result['context']->tally->skipped);
+        $this->assertSame(['invalid_direction' => 2], $result['context']->tally->byReason);
     }
 
     /**
@@ -235,6 +240,7 @@ class StatementParserTest extends TestCase
 
         $this->assertSame(['XOF', 'XOF', 'XOF', 'EUR'], array_map(fn (ParsedLine $l): string => $l->currency, $result['lines']));
         $this->assertSame(3, $result['context']->tally->skipped);
+        $this->assertSame(['invalid_currency' => 3], $result['context']->tally->byReason);
     }
 
     public function test_un_code_csv_hors_des_devises_connues_fait_sauter_la_ligne(): void
@@ -350,6 +356,8 @@ class StatementParserTest extends TestCase
             collect($result['lines'])->mapWithKeys(fn (ParsedLine $l) => [$l->label => $l->amount])->all(),
         );
         $this->assertSame(3, $result['context']->tally->skipped);
+        $this->assertSame(['invalid_amount' => 3], $result['context']->tally->byReason);
+        $this->assertSame([1, 2, 3], array_column($result['context']->tally->lines, 'line'));
     }
 
     public function test_chaque_compte_ofx_garde_sa_devise(): void
@@ -394,6 +402,7 @@ class StatementParserTest extends TestCase
 
         $this->assertSame(['EUR'], array_map(fn (ParsedLine $l): string => $l->currency, $result['lines']));
         $this->assertSame(2, $result['context']->tally->skipped);
+        $this->assertSame(['invalid_currency' => 2], $result['context']->tally->byReason);
     }
 
     public function test_un_fitid_et_un_name_ofx_trop_longs_sont_tronques_a_255(): void

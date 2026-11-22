@@ -260,7 +260,7 @@ describe('RadarListingFiche — corrections (TCK-2387)', () => {
     await vi.waitFor(() => expect(fetchRadarMatches).toHaveBeenCalledTimes(2));
     // La fiche relue remplace la lecture : le champ est « corrigé », plus rien en attente.
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
-    expect(screen.getByLabelText('Prix (XOF)')).toHaveValue(400000);
+    expect(screen.getByLabelText('Prix (XOF)')).toHaveValue('400000');
   });
 
   it('revenir à la valeur lue retire la correction : rien n\'est envoyé pour un champ inchangé', async () => {
@@ -341,7 +341,7 @@ describe('RadarListingFiche — corrections (TCK-2387)', () => {
     expect(alerte).toHaveTextContent('Cette fiche a changé d’étape entre-temps ; rechargez-la.');
     expect(alerte).not.toHaveTextContent('prose');
     // La correction reste là : l'opérateur ne perd rien.
-    expect(screen.getByLabelText('Prix (XOF)')).toHaveValue(3500000);
+    expect(screen.getByLabelText('Prix (XOF)')).toHaveValue('3500000');
   });
 
   it('un 422 sans code lit les messages de validation', async () => {
@@ -425,14 +425,16 @@ describe('RadarListingFiche — correctifs de revue de la Task 7 (TCK-2387)', ()
     expect(document.querySelector('mark')).toBeNull();
   });
 
-  it('la surface accepte un décimal (`step="any"`), le prix commence à 1 comme l\'API, les entiers restent entiers', async () => {
+  it('la surface accepte un décimal (profil `decimal`), le prix commence à 1 comme l\'API, les entiers restent entiers (ADR-0135)', async () => {
     await rendre();
 
-    expect(screen.getByLabelText('Surface (m²)')).toHaveAttribute('step', 'any');
+    expect(screen.getByLabelText('Surface (m²)')).toHaveAttribute('data-profil', 'decimal');
     expect(screen.getByLabelText('Prix (XOF)')).toHaveAttribute('min', '1');
-    expect(screen.getByLabelText('Prix (XOF)')).toHaveAttribute('step', '1');
+    expect(screen.getByLabelText('Prix (XOF)')).toHaveAttribute('data-profil', 'montant');
     expect(screen.getByLabelText('Chambres')).toHaveAttribute('min', '0');
-    expect(screen.getByLabelText('Chambres')).toHaveAttribute('step', '1');
+    expect(screen.getByLabelText('Chambres')).toHaveAttribute('data-profil', 'entier');
+    // Champ texte : « 85,3 » se lit comme 85,3 m², jamais refusé par le navigateur.
+    expect(screen.getByLabelText('Surface (m²)')).toHaveAttribute('type', 'text');
   });
 
   it('un drapeau inconnu de ce front se lit par son code, jamais sous « Confiance faible »', async () => {
@@ -456,7 +458,7 @@ describe('RadarListingFiche — correctifs de revue de la Task 7 (TCK-2387)', ()
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     await vi.waitFor(() => expect(fetchRadarListing).toHaveBeenCalledTimes(2));
-    expect(screen.getByLabelText('Prix (XOF)')).toHaveValue(3500000);
+    expect(screen.getByLabelText('Prix (XOF)')).toHaveValue('3500000');
   });
 
   it('un autre refus ne relit pas la fiche', async () => {

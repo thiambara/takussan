@@ -8,9 +8,9 @@ use App\Models\Enums\Currency;
 use App\Models\User;
 use App\Services\Admin\NotificationTemplateService;
 use App\Services\Formatting\CurrencyFormatter;
+use App\Support\MarkdownText;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
-use NumberFormatter;
 
 /**
  * TCK-588 (ADR-0032) — rend une notification par code, pour UNE surface et UNE langue.
@@ -62,6 +62,10 @@ class NotificationRenderer
         }
 
         $formatted = $this->format($code, $params, $locale, $timezone ?: self::DEFAULT_TIMEZONE, $surface === 'sms' ? self::SMS_TEXT_MAX : null);
+        if ($surface === 'mail_body') {
+            $formatted = $this->escapeForMarkdown($code, $formatted);
+            $firstName = $firstName !== null ? MarkdownText::escape($firstName) : null;
+        }
 
         $fromTemplate = $this->fromTemplate($code, $params, $formatted, $locale, $surface, $firstName);
         if ($fromTemplate !== null) {
@@ -99,11 +103,51 @@ class NotificationRenderer
                 NotificationCode::PARAM_PROVIDER => $this->provider($value, $textMax),
                 NotificationCode::PARAM_MONTH => $this->month($value, $locale, $textMax),
                 NotificationCode::PARAM_PERSON => $this->person($value, $locale, $textMax),
+                NotificationCode::PARAM_VISIT_WINDOW => $this->visitWindow($value, $locale),
+                // TCK-2872
+                NotificationCode::PARAM_DOSSIER_PIECE => $this->dossierPiece($value, $locale),
+                // TCK-2873
+                NotificationCode::PARAM_COUNTER_OFFER_ANSWER => $this->counterOfferAnswer($value, $locale),
+                // TCK-2874
+                NotificationCode::PARAM_BOOKING_REJECTION_REASON => $this->bookingRejectionReason($value, $params['message'] ?? null, $locale, $textMax),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
 
         return $out;
+    }
+
+    /**
+     * TCK-605 — sur le corps d'un e-mail (`mail_body`), et sur lui seul, une saisie reste du TEXTE.
+     *
+     * Le corps passe par `->line()` ou par un gabarit de l'éditeur, puis par CommonMark : un nom de
+     * visiteur `[Payez ici](https://evil.example)` y devenait un lien signé Takussan, depuis la route
+     * ANONYME `contact-lead`. Tout paramètre qui peut porter du texte libre est échappé — `text`,
+     * `person`, le complément libre de `reason_code` et de `booking_rejection_reason`, et la valeur
+     * brute qu'un libellé inconnu laisse passer (`role`, `month`, pièce, créneau, réponse). Les
+     * valeurs que le formateur GÉNÈRE (montant, date, compte, URL) ne changent pas : une URL
+     * échappée casserait un lien voulu. Le sujet, le SMS, WhatsApp et la cloche ne passent jamais
+     * ici : ce ne sont pas du Markdown, une barre oblique y serait affichée.
+     *
+     * @param  array<string, string>  $formatted
+     * @return array<string, string>
+     */
+    private function escapeForMarkdown(NotificationCode $code, array $formatted): array
+    {
+        $generated = [
+            NotificationCode::PARAM_MONEY,
+            NotificationCode::PARAM_DATE,
+            NotificationCode::PARAM_DATETIME,
+            NotificationCode::PARAM_COUNT,
+            NotificationCode::PARAM_URL,
+        ];
+        foreach ($code->params() + $code->optionalParams() as $name => $type) {
+            if (isset($formatted[$name]) && ! in_array($type, $generated, true)) {
+                $formatted[$name] = MarkdownText::escape($formatted[$name]);
+            }
+        }
+
+        return $formatted;
     }
 
     /**
@@ -129,6 +173,17 @@ class NotificationRenderer
         };
 
         $candidates = [];
+        // TCK-2706 — la variante d'une relance fusionnée (loyer et charges, ou charges seules) passe
+        // avant tout : sans elle, le texte du loyer annoncerait les charges sous le mot « loyer ».
+        $variant = $code->variant($params);
+        if ($variant !== null) {
+            if ($this->hasOptional($code, $params)) {
+                $candidates[] = $base.$surface.'_'.$variant.'_link';
+                $candidates[] = $base.$fallback.'_'.$variant.'_link';
+            }
+            $candidates[] = $base.$surface.'_'.$variant;
+            $candidates[] = $base.$fallback.'_'.$variant;
+        }
         if ($this->lacksName($code, $params)) {
             $candidates[] = $base.$surface.'_unnamed';
             $candidates[] = $base.$fallback.'_unnamed';
@@ -195,6 +250,54 @@ class NotificationRenderer
         $key = 'invitations.roles.'.$code;
 
         return $this->text(trans()->has($key, $locale) ? __($key, [], $locale) : $code, $max);
+    }
+
+    /** TCK-2872 — le libellé de la pièce de dossier, jamais le code brut quand il est connu. */
+    private function dossierPiece(mixed $code, string $locale): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+        $key = 'bookings.dossier_pieces.'.$code;
+
+        return trans()->has($key, $locale) ? __($key, [], $locale) : $code;
+    }
+
+    /** TCK-2873 — la réponse du client à une contre-offre, jamais son code quand il est connu. */
+    private function counterOfferAnswer(mixed $code, string $locale): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+        $key = 'bookings.counter_offer_answers.'.$code;
+
+        return trans()->has($key, $locale) ? __($key, [], $locale) : $code;
+    }
+
+    /**
+     * TCK-2874 (ADR-0110 § 7) — « Dossier incomplet — Il manque l'engagement du garant » : le libellé
+     * du motif (jamais le code quand il est connu), puis la précision du personnel telle quelle ; la
+     * précision seule sans motif, « — » sans rien.
+     */
+    private function bookingRejectionReason(mixed $code, mixed $message, string $locale, ?int $max): string
+    {
+        $key = 'bookings.rejection_reasons.'.(is_string($code) ? $code : '');
+        $label = is_string($code) && $code !== '' ? (trans()->has($key, $locale) ? __($key, [], $locale) : $code) : null;
+        $detail = is_string($message) && trim($message) !== '' ? trim($message) : null;
+        $texte = implode(' — ', array_filter([$label, $detail], fn (?string $v) => $v !== null));
+
+        return $texte === '' ? '—' : $this->text($texte, $max);
+    }
+
+    /** TCK-2502 — la tranche de la journée dans la langue du destinataire, jamais son code. */
+    private function visitWindow(mixed $code, string $locale): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+        $key = 'visits.windows.'.$code;
+
+        return trans()->has($key, $locale) ? __($key, [], $locale) : $code;
     }
 
     /** P164.01 (TCK-1468) — le libellé du fournisseur d'intégration, jamais son code. */
@@ -358,10 +461,9 @@ class NotificationRenderer
         };
     }
 
+    /** TCK-2794 — le montant du gabarit historique, groupé comme tout montant rendu (U+00A0). */
     private function number(float $value, string $locale): string
     {
-        $formatter = new NumberFormatter($locale, NumberFormatter::DECIMAL);
-
-        return (string) $formatter->format($value);
+        return CurrencyFormatter::nombre($value, $locale);
     }
 }

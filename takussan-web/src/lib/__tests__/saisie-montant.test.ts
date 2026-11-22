@@ -11,15 +11,18 @@ import {
 /**
  * TCK-564 (W10) — la saisie d'un montant se RELIT, et le nombre qu'elle rend reste un nombre.
  *
- * `fr-SN` groupe par l'espace fine insécable (U+202F) : les attentes l'écrivent en clair, parce
- * qu'une espace ordinaire dans une assertion passerait pour juste à l'œil et rougirait au test.
+ * L'affichage groupe par l'insécable U+00A0 (TCK-2714 ; `Intl` en `fr-SN` rend l'espace fine U+202F,
+ * qu'on colle encore) : les attentes l'écrivent en clair, parce qu'une espace ordinaire dans une
+ * assertion passerait pour juste à l'œil et rougirait au test.
  */
 const FINE = '\u202f';
+/** TCK-2714 — le groupe AFFICHÉ : l'insécable de pleine largeur. FINE reste ce qu'on colle. */
+const GROUPE = '\u00a0';
 
 describe('lireSaisie — franc CFA (aucune décimale)', () => {
   it('le cas du testeur : « 49000000 » se lit « 49 000 000 », et vaut 49 000 000', () => {
     expect(lireSaisie('49000000', 0, 'fr')).toEqual({
-      affichage: `49${FINE}000${FINE}000`,
+      affichage: `49${GROUPE}000${GROUPE}000`,
       valeur: 49_000_000,
     });
   });
@@ -75,7 +78,7 @@ describe('lireSaisie — franc CFA (aucune décimale)', () => {
   });
 
   it('les zéros de tête tombent', () => {
-    expect(lireSaisie('0075000', 0, 'fr').affichage).toBe(`75${FINE}000`);
+    expect(lireSaisie('0075000', 0, 'fr').affichage).toBe(`75${GROUPE}000`);
     expect(lireSaisie('0', 0, 'fr').valeur).toBe(0);
   });
 
@@ -85,7 +88,7 @@ describe('lireSaisie — franc CFA (aucune décimale)', () => {
 
   it('suit la locale : l’anglais groupe par la virgule, le wolof comme le français du Sénégal', () => {
     expect(lireSaisie('49000000', 0, 'en').affichage).toBe('49,000,000');
-    expect(lireSaisie('49000000', 0, 'wo').affichage).toBe(`49${FINE}000${FINE}000`);
+    expect(lireSaisie('49000000', 0, 'wo').affichage).toBe(`49${GROUPE}000${GROUPE}000`);
   });
 });
 
@@ -107,7 +110,7 @@ describe('lireSaisie — un montant collé dans la convention de l’AUTRE langu
   it('en euro, un point suivi de TROIS chiffres groupe, là où la langue décimale est la virgule', () => {
     // « 1.500 » collé en français : 1 500 €, pas 1,50 € — un groupe de milliers compte trois
     // chiffres, et le point n'est pas le séparateur décimal du français.
-    expect(lireSaisie('1.500', 2, 'fr')).toEqual({ affichage: `1${FINE}500`, valeur: 1500 });
+    expect(lireSaisie('1.500', 2, 'fr')).toEqual({ affichage: `1${GROUPE}500`, valeur: 1500 });
     expect(lireSaisie('49.000.000', 2, 'fr').valeur).toBe(49_000_000);
     expect(lireSaisie('1,000,000', 2, 'fr').valeur).toBe(1_000_000);
   });
@@ -121,8 +124,8 @@ describe('lireSaisie — un montant collé dans la convention de l’AUTRE langu
     ['1.5', 1.5, '1.5'],
     ['1.50', 1.5, '1.50'],
     ['10.50', 10.5, '10.50'],
-    ['1500.', 1500, `1${FINE}500.`],
-    ['1500.5', 1500.5, `1${FINE}500.5`],
+    ['1500.', 1500, `1${GROUPE}500.`],
+    ['1500.5', 1500.5, `1${GROUPE}500.5`],
   ] as const)('en euro, le point AMBIGU de « %s » reste un point à l’écran (fr)', (brut, valeur, affichage) => {
     expect(lireSaisie(brut, 2, 'fr')).toEqual({ affichage, valeur });
   });
@@ -130,7 +133,7 @@ describe('lireSaisie — un montant collé dans la convention de l’AUTRE langu
   it('en euro, le point cesse d’être ambigu au troisième chiffre : la frappe « 1. » → « 1.500 » groupe', () => {
     const frappes = ['1', '1.', '1.5', '1.50', '1.500'];
     const lus = frappes.map((f) => lireSaisie(f, 2, 'fr'));
-    expect(lus.map((l) => l.affichage)).toEqual(['1', '1.', '1.5', '1.50', `1${FINE}500`]);
+    expect(lus.map((l) => l.affichage)).toEqual(['1', '1.', '1.5', '1.50', `1${GROUPE}500`]);
     expect(lus[4].valeur).toBe(1500);
     // Chaque affichage, relu, se relit à l'identique : le composant peut le garder sous le doigt.
     for (const l of lus) expect(lireSaisie(l.affichage, 2, 'fr')).toEqual(l);
@@ -149,7 +152,7 @@ describe('lireSaisie — un montant collé dans la convention de l’AUTRE langu
   it('en euro (fr), « 10.505 » tapé groupe comme « 1.500 » — arbitrage TCK-574', () => {
     const frappes = ['10', '10.', '10.5', '10.50', '10.505'];
     const lus = frappes.map((f) => lireSaisie(f, 2, 'fr'));
-    expect(lus.map((l) => l.affichage)).toEqual(['10', '10.', '10.5', '10.50', `10${FINE}505`]);
+    expect(lus.map((l) => l.affichage)).toEqual(['10', '10.', '10.5', '10.50', `10${GROUPE}505`]);
     expect(lus.map((l) => l.valeur)).toEqual([10, 10, 10.5, 10.5, 10_505]);
     // La virgule, elle, n'est jamais ambiguë en français : un 3ᵉ chiffre de centimes tombe.
     expect(lireSaisie('10,505', 2, 'fr')).toEqual({ affichage: '10,50', valeur: 10.5 });
@@ -213,9 +216,9 @@ describe('lireSaisie — un montant collé dans la convention de l’AUTRE langu
 
   it('le point n’est gardé que là où il est ambigu', () => {
     // Le séparateur décimal de la locale est TOUJOURS celui qu'on affiche.
-    expect(lireSaisie('1500,', 2, 'fr').affichage).toBe(`1${FINE}500,`);
+    expect(lireSaisie('1500,', 2, 'fr').affichage).toBe(`1${GROUPE}500,`);
     // Deux signes : rien d'ambigu, l'affichage suit la locale.
-    expect(lireSaisie('1,500.50', 2, 'fr').affichage).toBe(`1${FINE}500,50`);
+    expect(lireSaisie('1,500.50', 2, 'fr').affichage).toBe(`1${GROUPE}500,50`);
     // En anglais, le point EST le séparateur décimal.
     expect(lireSaisie('1500.5', 2, 'en').affichage).toBe('1,500.5');
     // En franc CFA, il n'y a pas de décimales à garder : le point est avalé.
@@ -229,7 +232,7 @@ describe('lireSaisie — une FRAPPE de trop ne change pas l’ordre de grandeur'
   // centimes faisait lire tout ce qui précède comme la partie entière — « 1 500,5 » + « , »
   // devenait 15 005. Le premier séparateur décimal reste celui qui compte.
   it.each([
-    [`1${FINE}500,5,`, 'fr', 1500.5, `1${FINE}500,5`],
+    [`1${FINE}500,5,`, 'fr', 1500.5, `1${GROUPE}500,5`],
     ['1,500.5.', 'en', 1500.5, '1,500.5'],
     ['1.5.', 'en', 1.5, '1.5'],
   ] as const)('%s (%s) garde %s', (brut, locale, attendu, affichage) => {
@@ -243,12 +246,12 @@ describe('lireSaisie — une FRAPPE de trop ne change pas l’ordre de grandeur'
   // côte) devenait « le dernier des deux » et faisait lire la vraie marque décimale comme un
   // groupe : « 1 500,5 » + « . » valait 15 005, « 1 500,50 » + « . » 150 050.
   it.each([
-    [`1${FINE}500,5.`, 'fr', 1500.5, `1${FINE}500,5`],
-    [`1${FINE}500,50.`, 'fr', 1500.5, `1${FINE}500,50`],
-    ['1500,5.', 'fr', 1500.5, `1${FINE}500,5`],
+    [`1${FINE}500,5.`, 'fr', 1500.5, `1${GROUPE}500,5`],
+    [`1${FINE}500,50.`, 'fr', 1500.5, `1${GROUPE}500,50`],
+    ['1500,5.', 'fr', 1500.5, `1${GROUPE}500,5`],
     ['1,500.5,', 'en', 1500.5, '1,500.5'],
     ['1500.5,', 'en', 1500.5, '1,500.5'],
-    [`1${FINE}500,5.`, 'wo', 1500.5, `1${FINE}500,5`],
+    [`1${FINE}500,5.`, 'wo', 1500.5, `1${GROUPE}500,5`],
   ] as const)('l’AUTRE signe tapé derrière des décimales ne décide rien : %s (%s) garde %s', (brut, locale, attendu, affichage) => {
     const lu = lireSaisie(brut, 2, locale);
     expect(lu.valeur).toBe(attendu);
@@ -258,7 +261,7 @@ describe('lireSaisie — une FRAPPE de trop ne change pas l’ordre de grandeur'
   it('un signe final ouvre encore les décimales quand RIEN ne les avait ouvertes', () => {
     // La frappe de trop n'est de trop que si une marque décimale la précède : « 1.500 » groupe en
     // français, la virgule tapée derrière ouvre donc les centimes — elle ne doit pas disparaître.
-    expect(lireSaisie('1.500,', 2, 'fr')).toEqual({ affichage: `1${FINE}500,`, valeur: 1500 });
+    expect(lireSaisie('1.500,', 2, 'fr')).toEqual({ affichage: `1${GROUPE}500,`, valeur: 1500 });
     expect(lireSaisie('1,500.', 2, 'en')).toEqual({ affichage: '1,500.', valeur: 1500 });
   });
 });
@@ -279,11 +282,11 @@ describe('lireSaisie — des signes ENTREMÊLÉS ne disent rien : la langue de l
 
 describe('lireSaisie — devise à décimales (euro)', () => {
   it('la virgule française ouvre la partie décimale, tronquée à deux chiffres', () => {
-    expect(lireSaisie('1500,509', 2, 'fr')).toEqual({ affichage: `1${FINE}500,50`, valeur: 1500.5 });
+    expect(lireSaisie('1500,509', 2, 'fr')).toEqual({ affichage: `1${GROUPE}500,50`, valeur: 1500.5 });
   });
 
   it('une virgule qu’on vient de taper RESTE à l’écran', () => {
-    expect(lireSaisie('1500,', 2, 'fr')).toEqual({ affichage: `1${FINE}500,`, valeur: 1500 });
+    expect(lireSaisie('1500,', 2, 'fr')).toEqual({ affichage: `1${GROUPE}500,`, valeur: 1500 });
   });
 
   it('un point unique vaut la virgule en français (clavier numérique des téléphones)', () => {
@@ -298,14 +301,14 @@ describe('lireSaisie — devise à décimales (euro)', () => {
 describe('les valeurs venues d’ailleurs', () => {
   it('un brouillon d’avant TCK-564 portait le prix en CHAÎNE : il se relit quand même', () => {
     expect(versMontant('7000000')).toBe(7_000_000);
-    expect(ecrireMontant('7000000', 0, 'fr')).toBe(`7${FINE}000${FINE}000`);
+    expect(ecrireMontant('7000000', 0, 'fr')).toBe(`7${GROUPE}000${GROUPE}000`);
   });
 
   it('une valeur à décimales s’affiche TELLE QU’ELLE PART, même en franc CFA — jamais arrondie', () => {
     // Un prix hérité (1500,5 en XOF), ou saisi en euros avant de repasser la devise en franc
     // CFA : arrondir l'affichage (« 1 501 ») montrerait une valeur que l'API ne recevra pas.
-    expect(ecrireMontant(1500.5, 0, 'fr')).toBe(`1${FINE}500,5`);
-    expect(ecrireMontant(1500, 2, 'fr')).toBe(`1${FINE}500`);
+    expect(ecrireMontant(1500.5, 0, 'fr')).toBe(`1${GROUPE}500,5`);
+    expect(ecrireMontant(1500, 2, 'fr')).toBe(`1${GROUPE}500`);
   });
 
   it('rien, ou n’importe quoi, s’affiche vide', () => {
@@ -326,7 +329,7 @@ describe('les valeurs venues d’ailleurs', () => {
 
 describe('positionApresReecriture — le curseur suit les chiffres, pas les caractères', () => {
   it('en fin de frappe, il reste en fin de champ malgré les séparateurs insérés', () => {
-    const affichage = `49${FINE}000${FINE}000`;
+    const affichage = `49${GROUPE}000${GROUPE}000`;
     expect(positionApresReecriture('49000000', 8, affichage, 'fr')).toBe(affichage.length);
   });
 
@@ -335,18 +338,18 @@ describe('positionApresReecriture — le curseur suit les chiffres, pas les cara
     // puis se regroupe en « 12 500 000 ». Le curseur doit rester entre « 2 » et l'espace.
     const brut = `12${FINE}500${FINE}000`;
     const lu = lireSaisie(brut, 0, 'fr');
-    expect(lu.affichage).toBe(`12${FINE}500${FINE}000`);
+    expect(lu.affichage).toBe(`12${GROUPE}500${GROUPE}000`);
     expect(positionApresReecriture(brut, 2, lu.affichage, 'fr')).toBe(2);
 
     // « 999 999 » + « 9 » en fin : un groupe naît, le curseur suit le dernier chiffre.
     const lu2 = lireSaisie(`999${FINE}9999`, 0, 'fr');
-    expect(lu2.affichage).toBe(`9${FINE}999${FINE}999`);
+    expect(lu2.affichage).toBe(`9${GROUPE}999${GROUPE}999`);
     expect(positionApresReecriture(`999${FINE}9999`, 8, lu2.affichage, 'fr')).toBe(lu2.affichage.length);
   });
 
   it('après un point ambigu fraîchement tapé (euro, fr), il reste APRÈS lui', () => {
     const lu = lireSaisie('1500.', 2, 'fr');
-    expect(lu.affichage).toBe(`1${FINE}500.`);
+    expect(lu.affichage).toBe(`1${GROUPE}500.`);
     expect(positionApresReecriture('1500.', 5, lu.affichage, 'fr')).toBe(lu.affichage.length);
   });
 

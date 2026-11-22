@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
+import { accesAdmin } from '@/lib/access/pages-admin-server';
 import { apiRequest } from '@/lib/api';
+import { exigerRessource } from '@/lib/detail/ressource-de-detail';
 import { getToken } from '@/lib/session';
 import { LeaseDetail } from '@/components/leases/LeaseDetail';
 
@@ -29,6 +31,8 @@ export async function generateMetadata({
   if (!Number.isFinite(leaseId) || leaseId <= 0) {
     return { title: t('metaTitleFallback') };
   }
+  // TCK-2831 — la sonde du layout (mémoïsée) : une fiche absente garde le titre de l'introuvable.
+  await exigerRessource('leases', id);
 
   // Resolve the lease reference best-effort. A 401/404 here just means we
   // fall back to the generic title — the actual page rendering owns the
@@ -58,9 +62,13 @@ export default async function Page({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await getMeAction();
+  const user = await getMeAction();
   const { id } = await params;
   const leaseId = Number(id);
+  // TCK-2645 (décision 11) — l'onglet « Historique » au seul lecteur à qui la piste d'audit s'ouvre :
+  // la même règle que l'API (`ActivityLogPolicy::viewAny`), lue comme la coque la lit (`accesAdmin`,
+  // mémoïsé par rendu) ; aux autres, l'onglet n'existe pas.
+  const historique = (await accesAdmin(user)).chemins.includes('/app/agency/audit');
 
   // TCK-442 — la validité de l'identifiant ET l'existence de la ressource sont tranchées par
   // `[id]/layout.tsx`, strictement au-dessus du `loading.tsx` de ce segment : un `notFound()`
@@ -68,5 +76,5 @@ export default async function Page({
   // changé de nature — un identifiant illisible reste un INTROUVABLE, jamais une panne — elle
   // a changé d'étage, et elle couvre désormais aussi le 404 de l'API.
 
-  return <LeaseDetail leaseId={leaseId} />;
+  return <LeaseDetail leaseId={leaseId} historique={historique} />;
 }

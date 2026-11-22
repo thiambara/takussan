@@ -114,8 +114,31 @@ class ReconciliationMatcher
                     'paid_at' => $row->{$dateColumn},
                     'payer_name' => null, // Loaded lazily only when needed
                     'model' => $row,
+                    'part' => null,
                 ]);
             }
+        }
+
+        // TCK-2793 (ADR-0039, amendement du 2026-11-14, point 5) — la pénalité payée SEULE et encaissée
+        // par l'intégration de l'agence arrive par son propre versement, à son montant figé, autour
+        // de `late_fee_paid_at`.
+        $lateFees = LeasePayment::query()
+            ->lateFeeAwaitingBankCredit($agencyId)
+            ->where('currency', $currency)
+            ->whereLateFeeAloneAmountNear($amount, 0.01)
+            ->whereBetween('late_fee_paid_at', [$windowStart, $windowEnd])
+            ->with('payer:id,first_name,last_name')
+            ->get(['id', 'currency', 'reference_number', 'late_fee_paid_at', 'payer_id']);
+        foreach ($lateFees as $row) {
+            $candidates->push((object) [
+                'type' => LeasePayment::class,
+                'id' => $row->id,
+                'reference_number' => $row->reference_number ?? null,
+                'paid_at' => $row->late_fee_paid_at,
+                'payer_name' => null,
+                'model' => $row,
+                'part' => LeasePayment::PART_LATE_FEE,
+            ]);
         }
 
         return $candidates;
@@ -206,6 +229,7 @@ class ReconciliationMatcher
             paymentType: $best->type,
             paymentId: $best->id,
             confidence: $bestScore,
+            part: $best->part ?? null,
         );
     }
 

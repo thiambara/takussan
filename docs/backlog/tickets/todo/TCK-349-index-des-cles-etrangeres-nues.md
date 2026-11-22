@@ -1,13 +1,13 @@
 ---
 id: TCK-349
-title: "Indexer les clés étrangères nues que la mesure justifie (85 restantes)"
+title: "Indexer les clés étrangères nues que la mesure justifie (~142 nues au 2026-11-16, à recompter à la reprise)"
 status: todo
 phase: P3
 family: technique
 estimate: M
 wave: 44
 created: 2026-08-22
-updated: 2026-08-29
+updated: 2026-11-16
 depends_on: [TCK-343]
 blocks: []
 spec_refs:
@@ -15,6 +15,25 @@ spec_refs:
     - docs/models-spec.md
 tags: [back, postgresql, performance]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : bloqué externe.** La condition de reprise écrite plus bas (« que l'API serve en
+production et que les tables portent des lignes », TCK-288) n'est pas remplie : l'API n'a jamais
+servi en production (phase F, TCK-517). Seul commit citant le ticket : `85df97ee7` (l'ajournement).
+
+**Nouveau recompte** (catalogue PostgreSQL de la base locale, même prédicat que
+`AgencyIdIsIndexedTest` généralisé à `pg_constraint contype='f'` : FK à une colonne, « utilisable » =
+`indkey[0]` est la colonne et `indpred IS NULL`) : **342 FK à une colonne, 136 nues** sur la base
+locale, plus les 12 migrations du 2026-11-15 en attente (+11 FK, dont +6 nues, toutes vers `users`)
+→ **~353 FK à une colonne, ~142 nues à la tête de `dev` : 124 vers un parent en soft delete
+(dont ~99 vers `users`), 18 vers un parent en suppression dure.** `forceDelete` : 0 occurrence dans
+`app/` — l'argument « soft delete = aucun contrôle de FK » tient toujours pour les 124.
+
+**Reste à faire** : rien avant la production. À la reprise : recompter, puis la démarche du ticket,
+en commençant par `pg_stat_user_indexes.idx_scan`. Facultatif dès maintenant : trier les 18 FK à
+parent en suppression dure qui ont un chemin de suppression réel dans `app/` (p. ex. `agency_roles`,
+`property_calendar_feeds`) — le seul tri qui ne dépend pas de la distribution.
 
 ## Contexte
 
@@ -27,6 +46,9 @@ sans index utilisable** (colonne FK en première position d'un index non partiel
 traité **3** — les colonnes `agency_id` de `payouts`, `integrations` et `invitations`, justifiées par
 la lecture et gardées par `AgencyIdIsIndexedTest`. **Il en reste 85.**
 
+> Recompté le 2026-11-16 : **353 FK à une colonne, 142 sans index utilisable**, dont 124 vers un
+> parent en soft delete et 18 vers un parent en suppression dure (voir la re-vérification en tête).
+
 ## ⚠ La conclusion à ne pas tirer : « il reste 85 index à créer »
 
 Le travail de TCK-343 a surtout établi **pourquoi la plupart ne méritent rien**, et ce raisonnement
@@ -37,6 +59,9 @@ est le point de départ ici :
   `UPDATE users SET deleted_at = now()` → 0,456 ms, plan **sans un seul nœud `Trigger`**. Leur
   `ON DELETE SET NULL` est du code mort tant que rien ne fait de suppression dure.
   *Indexer pour un `ON DELETE` qui ne se déclenche jamais, c'est payer l'écriture sans rien acheter.*
+- *(Au 2026-11-16 : 124 / 18. Les 18 ajoutent aux 10 d'origine `agency_roles` (×4, `ON DELETE
+  RESTRICT`), `plans`, `ai_calls`, `property_visits`, `account_deletion_requests`, `data_exports`,
+  `property_calendar_feeds` (`CASCADE`).)*
 - **10 ont un parent en suppression dure**, et là le coût est réel : supprimer une ligne de
   `bank_statement_lines` coûte 1,124 ms dont **1,064 ms de contrôles de FK** (3 nœuds `Trigger`
   scannant `lease_payments`, `invoices`, `booking_payments`), ramenés à 0,597 ms avec les index.

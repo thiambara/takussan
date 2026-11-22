@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
+import { exigerRessource } from '@/lib/detail/ressource-de-detail';
 
 import { InventoryDetail } from '@/components/inventory/InventoryDetail';
-import { buttonVariants } from '@/components/ui/button';
 import { getTranslations } from 'next-intl/server';
-import { PageHeader } from '@/components/console';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  // TCK-2831 — la sonde du layout (mémoïsée) : une fiche absente garde le titre de l'introuvable.
+  await exigerRessource('inventories', (await params).id);
   const t = await getTranslations('dashboard.inventoryDetail');
   return { title: t('metaTitle') };
 }
@@ -19,7 +18,6 @@ interface PageProps {
 }
 
 export default async function Page({ params }: PageProps) {
-  const t = await getTranslations('dashboard.inventoryDetail');
   await getMeAction();
   const { id } = await params;
   const numericId = Number(id);
@@ -29,20 +27,9 @@ export default async function Page({ params }: PageProps) {
   // écrit ici rendrait 200, avec l'écran introuvable affiché quand même. La décision n'a pas
   // changé de nature — un identifiant illisible reste un INTROUVABLE, jamais une panne — elle
   // a changé d'étage, et elle couvre désormais aussi le 404 de l'API.
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('title', { id: numericId })}
-        description={t('subtitle')}
-        actions={
-          <Link href="/app/inventories" className={buttonVariants({ variant: 'outline' })}>
-            <ArrowLeft aria-hidden="true" />
-            {t('back')}
-          </Link>
-        }
-      />
-      <InventoryDetail id={numericId} />
-    </div>
-  );
+  //
+  // TCK-2648 (AC4) — l'en-tête n'est plus écrit ici : son titre nomme le logement (« État des lieux
+  // d'entrée — Appartement F3 · Mermoz »), que seule la réponse de l'API connaît. Le serveur n'avait
+  // que l'identifiant, et titrait « État des lieux #25 ».
+  return <InventoryDetail id={numericId} />;
 }

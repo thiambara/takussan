@@ -329,4 +329,43 @@ describe('useApiForm', () => {
 
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it('TCK-2643 (r3) — deux envois dans la même tâche : un seul appel, le second empêche l’envoi natif', async () => {
+    let liberer: (v: unknown) => void = () => {};
+    const onSubmit = vi.fn(() => new Promise((r) => { liberer = r; }));
+
+    const { result } = renderHook(() =>
+      useApiForm<FormValues, unknown>({
+        schema,
+        defaultValues,
+        onSubmit,
+      }),
+      { wrapper },
+    );
+
+    act(() => {
+      result.current.form.setValue('email', 'jane@example.com');
+      result.current.form.setValue('password', 'secret');
+    });
+
+    const second = { preventDefault: vi.fn(), persist: vi.fn() };
+    await act(async () => {
+      const premier = result.current.handleSubmit();
+      void result.current.handleSubmit(second as unknown as React.BaseSyntheticEvent);
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      liberer({ ok: true });
+      await premier;
+    });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(second.preventDefault).toHaveBeenCalled();
+
+    // L'envoi fini, la garde se lève : un nouvel envoi repart.
+    await act(async () => {
+      const troisieme = result.current.handleSubmit();
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+      liberer({ ok: true });
+      await troisieme;
+    });
+  });
 });

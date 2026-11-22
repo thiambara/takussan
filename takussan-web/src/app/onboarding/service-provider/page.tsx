@@ -7,15 +7,21 @@ import { getSpAgenciesAction } from '@/app/actions/service-provider-onboarding';
 import { ServiceProviderMultiAgencyWelcome } from '@/components/onboarding/ServiceProviderMultiAgencyWelcome';
 import { ServiceProviderOnboardingWizard } from '@/components/onboarding/ServiceProviderOnboardingWizard';
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
+import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { profilAReprendre } from '@/lib/onboarding-reprise';
+import type { MesPiecesResponse } from '@/lib/pieces/pieces';
+import { fetchResumeDInvite } from '@/lib/resume-d-invite';
+import { fetchInterventionDOrigine, fetchReglagesDuPrestataire, fetchSpAgencies } from '@/lib/service-provider-onboarding';
+import { MAINTENANCE_CATEGORIES } from '@/types/maintenance';
 
 /**
  * TCK-261 / TCK-262 — Post-acceptance landing page for an invited Service
  * Provider.
  *
  * Two flows:
- *  1. **Nouveau SP** : profile en `draft` → wizard 4 étapes (TCK-261).
+ *  1. **Nouveau SP** (déjà `active` : l'acceptation l'active, cf. plus bas) → assistant à deux écrans (TCK-261, refait par TCK-2613 : le numéro,
+ *     puis l'intervention jointe à l'invitation et le profil à compléter).
  *  2. **SP existant rattaché à une nouvelle agence** (TCK-262) : profile
  *     déjà `active` avec ≥1 collab active → on saute le wizard et on
  *     affiche un panneau "Bienvenue chez {agence}" avec CTA vers la
@@ -65,8 +71,19 @@ export default async function ServiceProviderOnboardingPage({
   const isExistingSp = sp.status === 'active';
   const agenciesRes = isExistingSp ? await getSpAgenciesAction() : null;
   const collabs = agenciesRes?.ok ? agenciesRes.data.data : [];
+  // TCK-2613 — ⚠ l'acceptation de l'invitation passe DÉJÀ le profil à `active` et sa collaboration aussi
+  // (`InvitationService`, P208.02) : un invité tout neuf arrive ici, par `?sp=` (`destinationDInvitation`), actif
+  // avec la seule collaboration de son invitation. Il voyait le panneau multi-agences, jamais l'assistant — ni son
+  // numéro, ni la fin d'onboarding qui lui assigne la demande jointe. Le panneau reste au prestataire qui
+  // travaillait DÉJÀ avec une autre agence (plus d'une collaboration), ou qui arrive sans lien de reprise.
+  const dejaPrestataireAilleurs = collabs.length > 1;
 
-  if (isExistingSp && collabs.length > 0) {
+  // TCK-2946 (AC4) — avec le lien de l'invitation (`?sp=`), le prestataire déjà en poste ailleurs passe lui AUSSI
+  // par l'écran 2 (maquette `app-entree-assistants` a, e2, variante « déjà prestataire d'une autre agence ») :
+  // l'intervention jointe, et la note « Vous travaillez déjà avec… ». Le panneau le privait de la carte et de la fin
+  // d'onboarding qui lui assigne la demande (`complete()` se rejoue sans dommage sur un profil actif). Sans lien de
+  // reprise, le panneau de TCK-262 reste.
+  if (isExistingSp && collabs.length > 0 && !aReprendre) {
     return (
       <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
         <ServiceProviderMultiAgencyWelcome
@@ -83,11 +100,49 @@ export default async function ServiceProviderOnboardingPage({
     redirect('/app');
   }
 
+  // TCK-2613 — ce que l'écran 2 montre, lu ici : l'intervention jointe (projection minimale, titulaire seul), les
+  // réglages du profil et ses pièces (`X-Profile-Id`) pour « Complétez votre profil », l'agence qui invite. Une
+  // lecture en échec n'empêche pas d'entrer : l'écran montre ce qu'il a.
+  // TCK-2949 — le résumé chiffré du panneau de l'étape du numéro ; 404 ou échec → `null`, le panneau sans chiffres.
+  const [intervention, reglages, pieces, agences, resume] = await Promise.all([
+    fetchInterventionDOrigine(token, sp.numeric_id).catch(() => null),
+    fetchReglagesDuPrestataire(token, sp.numeric_id).catch(() => null),
+    apiRequest<MesPiecesResponse>('/api/me/pieces', {
+      token,
+      headers: { 'X-Profile-Id': `service_provider:${sp.numeric_id}` },
+    }).catch(() => null),
+    agenciesRes?.ok ? Promise.resolve(agenciesRes.data) : fetchSpAgencies(token).catch(() => null),
+    fetchResumeDInvite(token, 'service_provider', sp.numeric_id),
+  ]);
+  // L'agence qui invite : la collaboration la plus récente encore ouverte de CE profil (la liste est celle du
+  // premier profil prestataire du compte : un autre profil n'y prête pas son agence).
+  const collaborations =
+    agences && agences.meta?.service_provider_profile_id === sp.numeric_id
+      ? agences.data.filter((c) => c.status !== 'ended').sort((a, b) => b.collaboration_id - a.collaboration_id)
+      : [];
+  const agence = collaborations[0]?.agency.name ?? null;
+  // TCK-2946 — les AUTRES agences ouvertes du prestataire (la note multi-agences de l'écran 2).
+  const autresAgences = dejaPrestataireAilleurs
+    ? [...new Set(collaborations.slice(1).map((c) => c.agency.name).filter((nom) => nom !== agence))]
+    : [];
+  // Le libellé de la catégorie se traduit ICI : l'espace `maintenance` entier n'a pas à suivre l'onboarding
+  // (`src/i18n/namespaces.json`) pour un seul mot. Un code inconnu ne s'affiche pas.
+  const code = intervention?.data?.category ?? null;
+  const tCategorie = await getTranslations('maintenance.category');
+  const categorie = code !== null && (MAINTENANCE_CATEGORIES as readonly string[]).includes(code) ? tCategorie(code) : null;
+
+  // TCK-2613 — deux écrans dans la coque d'entrée : chaque écran porte son titre, la barre dit l'agence et l'étape.
   return (
-    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
+    <OnboardingShell brouillon sortie="quitter" largeur="assistant">
       <ServiceProviderOnboardingWizard
         spProfileId={sp.numeric_id}
-        fromMaintenanceRequestId={null}
+        agence={agence}
+        intervention={intervention?.data ?? null}
+        categorie={categorie}
+        reglages={reglages?.data ?? null}
+        pieces={pieces?.data ?? null}
+        resume={resume}
+        {...(autresAgences.length > 0 ? { autresAgences } : {})}
       />
     </OnboardingShell>
   );

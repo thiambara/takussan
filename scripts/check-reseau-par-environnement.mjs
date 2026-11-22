@@ -17,6 +17,15 @@
  *      - le service `redis` existe, n'est PAS sur `dokploy-network` et ne publie aucun port ;
  *      - `REDIS_HOST: redis` est écrit dans le fichier (et non laissé à l'onglet Environment, où
  *        une valeur oubliée viserait encore `redis-takussan`).
+ *   3. Le temps réel (TCK-2956, ADR-0129 § 5) — le même défaut que `api`, sur le serveur Reverb :
+ *      `temps-reel` est sur `dokploy-network` (Traefik le joint), donc ce nom y désigne le Reverb de
+ *      CHAQUE environnement, et l'API de la préproduction publierait au hasard dans celui de la
+ *      production. Elle exige :
+ *      - le service `temps-reel`, avec l'alias `${API_ALIAS…}-temps-reel` sur dokploy-network ;
+ *      - `REVERB_HOST` écrit dans le fichier, et égal à cet alias — jamais `temps-reel` seul, jamais
+ *        une valeur laissée à l'onglet Environment ;
+ *      - aucune URL (`http`, `ws`, `wss`) vers l'hôte `temps-reel`, ni `REVERB_HOST=temps-reel`, dans
+ *        les fichiers du point 1.
  *
  * Ce qu'elle ne voit pas : ce que Dokploy déploie réellement. `smoke-api.sh pile` le prouve sur
  * la pile locale (alias joignable, Redis injoignable depuis `dokploy-network`, cache écrit dans le
@@ -34,6 +43,8 @@ const COMPOSE = 'deploy/takussan/compose.api.yml';
 const DOSSIERS = ['deploy', 'docs/infra'];
 const FICHIERS = ['takussan-web/.env.example', 'takussan-api/.env.example'];
 const URL_API = /\bhttps?:\/\/api(?=[:/\s`'")]|$)/;
+// TCK-2956 — le Reverb de la pile, sous son nom de service : ambigu sur dokploy-network, comme `api`.
+const URL_TEMPS_REEL = /\b(?:https?|wss?):\/\/temps-reel(?=[:/\s`'")]|$)|\bREVERB_HOST\s*[:=]\s*["']?temps-reel["']?\s*$/;
 
 function sous(dir) {
   const out = [];
@@ -57,6 +68,9 @@ for (const rel of lus) {
   readFileSync(join(ROOT, rel), 'utf8').split('\n').forEach((ligne, i) => {
     if (URL_API.test(ligne)) {
       erreurs.push(`${rel}:${i + 1} — URL vers l'hôte \`api\` : sur dokploy-network, ce nom désigne l'API de CHAQUE environnement. Joindre l'API par l'alias de son environnement (\`takussan-api-preview\`, \`takussan-api-production\`, ADR-0069 § 4).`);
+    }
+    if (URL_TEMPS_REEL.test(ligne)) {
+      erreurs.push(`${rel}:${i + 1} — l'hôte \`temps-reel\` : sur dokploy-network, ce nom désigne le Reverb de CHAQUE environnement. Le joindre par \`\${API_ALIAS}-temps-reel\` (TCK-2956).`);
     }
   });
 }
@@ -136,9 +150,39 @@ if (!lignes.some((l) => /^\s+REDIS_HOST:\s*["']?redis["']?\s*$/.test(l))) {
   erreurs.push(`${COMPOSE} — \`REDIS_HOST: redis\` n'est pas écrit dans le fichier : laissé à l'onglet Environment de Dokploy, il peut viser un autre Redis (ADR-0069 § 4).`);
 }
 
+// 3. Le temps réel (TCK-2956) : l'API publie dans le Reverb de SA pile.
+const ALIAS_TEMPS_REEL = /^\$\{API_ALIAS[:?][^}]*\}-temps-reel$/;
+const tempsReel = service('temps-reel');
+let aliasTempsReel = null;
+if (!tempsReel) {
+  erreurs.push(`${COMPOSE} — aucun service \`temps-reel\` : le serveur WebSocket de l'environnement est dans sa pile (ADR-0129 § 5).`);
+} else {
+  const texte = tempsReel.join('\n');
+  const m = texte.match(/^ {6}dokploy-network:\s*\n {8}aliases:\s*\n((?: {10}- .*\n?)+)/m);
+  const aliases = m ? m[1].split('\n').map((l) => l.trim().replace(/^-\s*/, '').replace(/^["']|["']$/g, '')).filter(Boolean) : [];
+  aliasTempsReel = aliases.find((a) => ALIAS_TEMPS_REEL.test(a)) ?? null;
+  if (!aliasTempsReel) {
+    erreurs.push(`${COMPOSE} — le service \`temps-reel\` ne porte pas l'alias \`\${API_ALIAS}-temps-reel\` sur dokploy-network : l'API n'a plus de nom propre à son environnement pour y publier (TCK-2956).`);
+  }
+}
+const hotesReverb = lignes
+  .map((l) => l.match(/^\s+REVERB_HOST:\s*["']?(.*?)["']?\s*$/))
+  .filter(Boolean)
+  .map((m) => m[1]);
+if (hotesReverb.length === 0) {
+  erreurs.push(`${COMPOSE} — \`REVERB_HOST\` n'est pas écrit dans le fichier : laissé à l'onglet Environment de Dokploy, il peut viser le Reverb d'un autre environnement (TCK-2956).`);
+}
+for (const hote of hotesReverb) {
+  if (hote === 'temps-reel') {
+    erreurs.push(`${COMPOSE} — \`REVERB_HOST: temps-reel\` : sur dokploy-network, ce nom désigne le Reverb de CHAQUE environnement. Viser \`\${API_ALIAS}-temps-reel\` (TCK-2956).`);
+  } else if (!ALIAS_TEMPS_REEL.test(hote) || (aliasTempsReel && hote !== aliasTempsReel)) {
+    erreurs.push(`${COMPOSE} — \`REVERB_HOST: ${hote}\` n'est pas l'alias du service \`temps-reel\` (\`\${API_ALIAS}-temps-reel\`) : l'API publierait ailleurs que dans le Reverb de sa pile (TCK-2956).`);
+  }
+}
+
 if (REPORT) console.log(`${lus.length} fichier(s) lus sous ${[...DOSSIERS, ...FICHIERS].join(', ')} ; réseaux de \`redis\` : ${redis ? (reseaux(redis) ?? []).join(', ') || '—' : 'service absent'}`);
 if (erreurs.length) {
   for (const e of erreurs) console.error(`✗ ${e}`);
   process.exit(1);
 }
-console.log(`✓ aucune URL vers l'hôte \`api\` dans ${lus.length} fichier(s) de déploiement ; \`api\` joint par \`\${API_ALIAS}\`, Redis propre à la pile, hors de dokploy-network.`);
+console.log(`✓ aucune URL vers l'hôte \`api\` ni \`temps-reel\` dans ${lus.length} fichier(s) de déploiement ; \`api\` joint par \`\${API_ALIAS}\`, \`temps-reel\` par \`\${API_ALIAS}-temps-reel\`, Redis propre à la pile, hors de dokploy-network.`);

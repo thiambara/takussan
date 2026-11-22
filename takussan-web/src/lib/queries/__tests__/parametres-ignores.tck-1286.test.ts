@@ -11,6 +11,17 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 1 } }),
 }));
 
+// TCK-2955 — `useConversations` s'abonne au temps réel (`useBoiteEnDirect`) : ce test appelle le hook hors
+// rendu, donc ses autres hooks sont doublés comme `useApiQuery` l'est.
+vi.mock('@/lib/temps-reel/hooks', () => ({
+  useSignal: vi.fn(),
+  useIntervalleDeRelecture: (intervalle: unknown) => intervalle,
+}));
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueryClient: () => ({}),
+}));
+
 const { useConversations } = await import('@/lib/queries/conversations-list');
 const { useBooking } = await import('@/lib/queries/bookings');
 

@@ -162,6 +162,10 @@ class ReviewModerationScopeTest extends ApiTestCase
     /**
      * verif-597 M3 — l'admin d'agence ne tranche que l'avis AVANT publication. Avant : il masquait
      * un 1★ publié sur son propre bien, sans signalement, et sa moyenne publique passait de 3 à 5.
+     *
+     * TCK-2930 (ADR-0043, amendement du 2026-11-15) — SUPPRIMER et ignorer les signalements lui sont
+     * désormais ouverts, motif et texte journalisés : `ReviewAgencyAdminDeleteTest`. Ce test ne
+     * garde plus que masquer et refuser un avis publié.
      */
     public function test_an_agency_admin_cannot_take_down_a_published_review_and_the_average_holds(): void
     {
@@ -175,13 +179,8 @@ class ReviewModerationScopeTest extends ApiTestCase
         foreach ([$low, $reported] as $published) {
             $this->patchJson("/api/reviews/{$published->id}/moderate", ['decision' => 'hide', 'reason_code' => 'off_topic'])
                 ->assertForbidden();
-            $this->patchJson("/api/reviews/{$published->id}/moderate", ['decision' => 'delete', 'reason_code' => 'spam'])
-                ->assertForbidden();
             $this->postJson("/api/reviews/{$published->id}/reject")->assertForbidden();
         }
-        // Même en attente, retirer ou ignorer reste à la plateforme : approuver ou masquer.
-        $this->patchJson("/api/reviews/{$pending->id}/moderate", ['decision' => 'delete', 'reason_code' => 'spam'])
-            ->assertForbidden();
 
         $this->assertSame(ReviewStatus::Approved, $low->refresh()->status);
         $this->assertSame(ReviewStatus::Reported, $reported->refresh()->status);

@@ -1,13 +1,13 @@
 ---
 id: TCK-352
-title: "Le mailer `resend` est déclaré mais son paquet n'est pas une dépendance — aucun courriel n'est jamais parti"
+title: "Le transport `resend` : SDK ajouté (TCK-515) ; reste le domaine d'envoi et la garde config ↔ lock"
 status: todo
 phase: P1
 family: bug
 estimate: S
 wave: null
 created: 2026-08-24
-updated: 2026-10-04
+updated: 2026-11-16
 depends_on: []
 blocks: [TCK-288]
 spec_refs:
@@ -16,6 +16,26 @@ spec_refs:
   models: []
 tags: [infra, mail, notifications, dependances, dette]
 ---
+
+## Re-vérification du 2026-11-16 (sur dev @ 9112194ec)
+
+**Verdict : le volet code est caduc ; le reste relève du déploiement (phase F) et d'une garde.**
+
+- Fermé : le SDK manquant — **3ab1d44ea** (TCK-515, 2026-09-14) ajoute `resend/resend-php`
+  (`composer.json:26`, présent dans `composer.lock`) ; `ResendMailerTest` construit le transport.
+  Les échecs de la préproduction ont été vidés après le SDK (`queue:flush`, 36 → 0).
+- Changé de nature : la préproduction est en `MAIL_MAILER=log` **par décision du porteur**
+  (2026-09-14, mesuré le 2026-11-01) ; la production, inexistante, est prescrite en `resend`
+  (`env.api.production.example:131-137`, `MAIL_FROM_ADDRESS=contact@takussan.com`,
+  `RESEND_API_KEY` vide). `MAIL_CONTACT_ADDRESS` n'existe plus ; `.env.preview`/`.env.prod` et les
+  releases du serveur ont disparu (ADR-0028).
+- Reste à faire :
+  - **code** : garde `scripts/check-mail-transport.mjs` (`config/mail.php` ↔ `composer.lock`,
+    transports dérivés) + ablation — absente ;
+  - **déploiement (phase F, TCK-517)** : vérifier `takussan.com` chez Resend (SPF/DKIM), poser
+    `RESEND_API_KEY` dans Dokploy production ; prouver l'arrivée d'un courriel réel.
+- **Décision attendue du porteur** : où prouver l'arrivée — (a) en production à la phase F, ou
+  (b) préproduction basculée temporairement sur `resend` vers une boîte de test ?
 
 ## Objectif utilisateur
 
@@ -38,8 +58,8 @@ Les quatre faits qui composent le défaut :
 | Fait | Commande |
 |---|---|
 | `config/mail.php:64` déclare un mailer `resend` | `grep -n -A3 "'resend'" config/mail.php` |
-| `.env.preview` **et** `.env.prod` sélectionnent `MAIL_MAILER=resend` | relevé dans `docs/infra/prod-drivers.json` |
-| `resend/resend-php` est **absent de `composer.json` ET de `composer.lock`** | `grep -c '"name": "resend/' composer.lock` → `0` |
+| `.env.preview` **et** `.env.prod` sélectionnent `MAIL_MAILER=resend` — *au 2026-11-16 : préproduction `MAIL_MAILER=log` (Dokploy, mesuré le 2026-11-01, décision du porteur) ; production `resend`, prescrit, environnement inexistant* | relevé dans `docs/infra/prod-drivers.json` |
+| `resend/resend-php` est **absent de `composer.json` ET de `composer.lock`** — *présent depuis 3ab1d44ea (`composer.json:26`)* | `grep -c '"name": "resend/' composer.lock` → `0` (→ `1` au 2026-11-16) |
 | Le paquet est absent du `vendor` de la release en service **et de la précédente** | `ls -d .../releases/*/takussan-api/vendor/resend` |
 
 **Ce n'est pas une régression de la bascule.** L'ancienne release, du 2026-08-20, présentait
@@ -55,7 +75,9 @@ regarde `failed_jobs`.
 
 - **La correction ne se décide pas depuis `.env`.** Écrire `MAIL_MAILER=log` masquerait le symptôme
   et supprimerait la seule trace qui reste.
-- **Le domaine d'envoi est une seconde question, distincte.** `.env.preview` déclare
+- **Le domaine d'envoi est une seconde question, distincte.** *Relevé 2026-11-16 : le gabarit de
+  production déclare `MAIL_FROM_ADDRESS=contact@takussan.com` ; `MAIL_CONTACT_ADDRESS` n'existe
+  plus ; reste à vérifier `takussan.com` (ou un sous-domaine) chez Resend.* Constat d'origine : `.env.preview` déclare
   `MAIL_FROM_ADDRESS=no-reply@support.checkprintplus.com` et
   `MAIL_CONTACT_ADDRESS=contact@checkprintplus.com` — l'identité d'un **autre projet** hébergé sur le
   même serveur — **arrêté depuis le 2026-10-04** : son domaine n'est donc plus une option, même
@@ -68,27 +90,35 @@ regarde `failed_jobs`.
 
 ## Delta à produire
 
-- [ ] Ajouter `resend/resend-php` (ou `resend/resend-laravel`) aux dépendances de production et
-      régénérer `composer.lock`
+- [x] Ajouter `resend/resend-php` (ou `resend/resend-laravel`) aux dépendances de production et
+      régénérer `composer.lock` (tenu par TCK-515, 3ab1d44ea, relevé 2026-11-16)
 - [ ] Vérifier le domaine d'envoi réellement vérifié dans le compte Resend, et aligner
-      `MAIL_FROM_ADDRESS` / `MAIL_CONTACT_ADDRESS` des secrets `ENV_FILE_PREVIEW` et `ENV_FILE`
+      `MAIL_FROM_ADDRESS` ~~/ `MAIL_CONTACT_ADDRESS` des secrets `ENV_FILE_PREVIEW` et `ENV_FILE`~~
+      de l'onglet Environment Dokploy de la production (phase F, TCK-517) — les secrets `ENV_FILE*`
+      et `MAIL_CONTACT_ADDRESS` ont disparu (ADR-0028)
 - [ ] Garde `scripts/check-mail-transport.mjs` : tout transport nommé dans `config/mail.php` dont
       l'implémentation vit dans un paquet doit avoir ce paquet dans `composer.lock`. **La liste des
       transports est dérivée du fichier de configuration, jamais écrite à la main.**
 - [ ] Test : `MailTransportResolvableTest` — le mailer par défaut de chaque `.env` livré se résout
-      sans lever
-- [ ] Vider `failed_jobs` de la préproduction **après** correction, pas avant : les 22 lignes sont
-      la preuve
+      sans lever *(en partie tenu, pour `resend` seul, par `ResendMailerTest`)*
+- [x] Vider `failed_jobs` de la préproduction **après** correction, pas avant : les 22 lignes sont
+      la preuve (tenu : `queue:flush` 36 → 0 après le SDK, `docs/infra/hebergement.md`, relevé 2026-11-16)
 
 ## Critères d'acceptation
 
-- [ ] `composer.lock` contient le paquet du transport `resend`
-- [ ] Sur la préproduction, une notification de test **arrive** dans une boîte réelle — pas
+- [x] `composer.lock` contient le paquet du transport `resend` (tenu par TCK-515, relevé 2026-11-16)
+- [ ] Sur la ~~préproduction~~ **production** (phase F) — ou la préproduction basculée temporairement
+      sur `resend` vers une boîte de test, sur décision du porteur, puisqu'elle est en `log` par
+      décision —, une notification de test **arrive** dans une boîte réelle — pas
       « le job ne lève plus », mais un courriel reçu
 - [ ] `scripts/check-mail-transport.mjs` **échoue** si l'on retire le paquet du `composer.json`
       (vérification par ablation — un vert qui resterait vert ne prouverait rien)
-- [ ] L'adresse d'expédition ne porte plus le domaine d'un autre projet
-- [ ] `failed_jobs` est vide sur la préproduction, après qu'un rejeu ait réussi
+- [ ] L'adresse d'expédition ne porte plus le domaine d'un autre projet *(vrai pour le gabarit de
+      production, `contact@takussan.com`, relevé 2026-11-16 ; à revérifier dans Dokploy production
+      à sa création)*
+- [ ] `failed_jobs` est vide sur la préproduction, après qu'un rejeu ait réussi *(vidé 36 → 0 par
+      `queue:flush`, sans rejeu : la préproduction est en `log` — à rejouer sur l'environnement de
+      la preuve d'arrivée)*
 
 ## Hors périmètre
 

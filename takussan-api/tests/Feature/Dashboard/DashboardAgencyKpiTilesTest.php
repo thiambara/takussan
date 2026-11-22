@@ -71,7 +71,8 @@ class DashboardAgencyKpiTilesTest extends ApiTestCase
             array_column($response->json('data.kpis'), 'metric'),
         );
         $this->assertSame([
-            'metric' => 'properties_total', 'label' => 'Parc', 'format' => 'number', 'value' => 3,
+            // TCK-2791 — le parc est un état du jour : il ne suit pas `period`.
+            'metric' => 'properties_total', 'label' => 'Parc', 'format' => 'number', 'value' => 3, 'as_of_today' => true,
         ], $response->json('data.kpis.0'));
         $this->assertSame('Taux', $response->json('data.kpis.1.label'));
         $this->assertSame('percent', $response->json('data.kpis.1.format'));

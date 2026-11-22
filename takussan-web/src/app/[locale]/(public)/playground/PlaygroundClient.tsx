@@ -40,7 +40,7 @@ export function PlaygroundClient() {
       <header className="border-b border-[var(--pg-hairline)]/60 bg-[var(--pg-sand)] sticky top-0 z-30 backdrop-blur-md">
         <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-4 flex items-center justify-between gap-6">
           <div className="flex items-center gap-6 min-w-0">
-            <Link href="/" className="pg-display text-[22px] font-semibold tracking-tight text-[var(--pg-ink)] leading-none shrink-0">
+            <Link href="/" className="pg-display text-[1.375rem] font-semibold tracking-tight text-[var(--pg-ink)] leading-none shrink-0">
               Takussan
             </Link>
             <span className="pg-eyebrow hidden lg:inline-flex items-center gap-2 text-[var(--pg-ink-muted)] truncate">
@@ -56,13 +56,13 @@ export function PlaygroundClient() {
             <div className="hidden md:flex items-center gap-3 pl-3 border-l border-[var(--pg-hairline)]">
               <Link
                 href="/auth/login"
-                className="text-[14px] font-medium text-[var(--pg-ink)] hover:text-[var(--pg-accent)] transition-colors"
+                className="text-[0.875rem] font-medium text-[var(--pg-ink)] hover:text-[var(--pg-accent)] transition-colors"
               >
                 Connexion
               </Link>
               <Link
                 href="/auth/login?redirect=/app"
-                className="inline-flex items-center px-4 py-2 rounded-full bg-[var(--pg-ink)] text-[var(--pg-cream)] text-[14px] font-semibold hover:bg-[var(--pg-accent)] transition-colors"
+                className="inline-flex items-center px-4 py-2 rounded-full bg-[var(--pg-ink)] text-[var(--pg-cream)] text-[0.875rem] font-semibold hover:bg-[var(--pg-accent)] transition-colors"
               >
                 Publier
               </Link>
@@ -131,7 +131,7 @@ export function PlaygroundClient() {
 
       {/* ─── Pied minimal ───────────────────────────────────────────── */}
       <footer className="border-t border-[var(--pg-hairline)]/60 bg-[var(--pg-sand)]">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-8 flex items-center justify-between gap-4 text-[13px] text-[var(--pg-ink-muted)]">
+        <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-8 flex items-center justify-between gap-4 text-[0.8125rem] text-[var(--pg-ink-muted)]">
           <span>© Takussan — POC playground</span>
           <span className="pg-eyebrow text-[var(--pg-accent)] truncate">
             <span className="pg-eyebrow-mark" /> Palette {paletteName} · Typo {typo}

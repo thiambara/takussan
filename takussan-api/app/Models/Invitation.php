@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
+use Spatie\QueryBuilder\AllowedFilter;
 
 /**
  * TCK-249 — Pattern d'invitation unifié partagé par tous les parcours
@@ -93,6 +94,67 @@ class Invitation extends AbstractModel
 
     protected static array $requestSortable = ['id', 'created_at', 'expires_at', 'status'];
 
+    /**
+     * TCK-2665 — `filter[customer_id]=42` (ou `42,43`) : les invitations NÉES d'une fiche client
+     * (`POST /api/customers/{customer}/invite`, cible `Customer`). Une valeur qui n'est pas un
+     * identifiant ne rend aucune ligne (ADR-0075 § 2 : un client qui a mal formé un filtre ne reçoit
+     * pas toute la liste).
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        return [
+            AllowedFilter::callback('customer_id', function (Builder $query, mixed $value): void {
+                $ids = array_map(static fn ($id) => is_string($id) || is_int($id) ? trim((string) $id) : '', (array) $value);
+                if ($ids === [] || in_array(false, array_map(static fn (string $id) => ctype_digit($id), $ids), true)) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                $query->where($query->qualifyColumn('invitable_type'), (new Customer)->getMorphClass())
+                    ->whereIn($query->qualifyColumn('invitable_id'), array_map('intval', $ids));
+            }),
+            // Vérification de TCK-2668 (D6) — `filter[expired]=1` (ou `0`) : « expirée » au sens de
+            // `InvitationResource::isExpired()` et de la purge (`ExpiredInvitationPurge`), pas au sens
+            // de la seule colonne `status`. L'écran Équipe filtrait `status=expired` et annonçait donc
+            // moins que « Tout effacer » n'efface : les `sent` à l'échéance passée, que le balayage
+            // horaire n'a pas encore marquées, partaient aussi — depuis la liste « En cours ». Une
+            // valeur illisible ne rend aucune ligne (ADR-0075 § 2).
+            AllowedFilter::callback('expired', function (Builder $query, mixed $value): void {
+                $oui = in_array($value, [true, 1, '1', 'true'], true);
+                $non = in_array($value, [false, 0, '0', 'false'], true);
+                if (! $oui && ! $non) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                // Le contraire s'écrit en clair : `NOT (…)` rendrait NULL — donc écarterait — une
+                // invitation `sent` sans échéance.
+                $oui
+                    ? $query->where(fn (Builder $q) => static::expiree($q))
+                    : $query->where($query->qualifyColumn('status'), '!=', InvitationStatus::Expired->value)
+                        ->where(fn (Builder $q) => $q
+                            ->where($q->qualifyColumn('status'), '!=', InvitationStatus::Sent->value)
+                            ->orWhereNull($q->qualifyColumn('expires_at'))
+                            ->orWhere($q->qualifyColumn('expires_at'), '>', now()));
+            }),
+        ];
+    }
+
+    /**
+     * « Expirée » : marquée `expired` par le balayage horaire, ou encore `sent` mais dont `expires_at`
+     * est passé. UNE écriture pour la purge des expirées et `filter[expired]` : le nombre que l'écran
+     * annonce est ce que la purge efface.
+     */
+    public static function expiree(Builder $query): void
+    {
+        $query->where($query->qualifyColumn('status'), InvitationStatus::Expired->value)
+            ->orWhere(fn (Builder $sent) => $sent
+                ->where($sent->qualifyColumn('status'), InvitationStatus::Sent->value)
+                ->where($sent->qualifyColumn('expires_at'), '<=', now()));
+    }
+
     protected static array $requestLoadable = ['inviter', 'invitedUser', 'agency', 'invitable'];
 
     protected static array $requestSearchFields = ['email'];
@@ -153,6 +215,18 @@ class Invitation extends AbstractModel
     public function inviteeContact(): ?string
     {
         return $this->email ?? $this->phone;
+    }
+
+    /** TCK-2927 (ADR-0123) — la valeur de `metadata.delivery` d'une invitation partagée par l'invitant. */
+    public const DELIVERY_SHARE = 'share';
+
+    /**
+     * TCK-2927 (ADR-0123) — l'invitant a reçu le lien pour le partager lui-même : la plateforme n'a rien
+     * envoyé, le lien ne prouve donc pas le numéro (l'acceptation exige le code SMS).
+     */
+    public function estPartagee(): bool
+    {
+        return data_get($this->metadata, 'delivery') === self::DELIVERY_SHARE;
     }
 
     public function inviter(): BelongsTo

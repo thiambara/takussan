@@ -16,7 +16,7 @@ describe('<AvertissementNumeroNonVerifie> — TCK-633', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'Votre numéro n’est pas vérifié : il n’est pas affiché sur vos annonces.',
     );
-    expect(screen.getByRole('link', { name: 'Vérifier mon numéro' })).toHaveAttribute('href', '/app/profile#coordonnees');
+    expect(screen.getByRole('link', { name: 'Vérifier mon numéro' })).toHaveAttribute('href', '/app/profile/contact');
   });
 
   it('numéro vérifié : rien', () => {

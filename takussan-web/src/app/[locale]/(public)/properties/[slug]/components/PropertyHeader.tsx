@@ -8,7 +8,10 @@ import { porteUnBadgeNeuf } from '@/components/property/cards/NewBuildChip';
 import { MarquesDeBoost } from '@/components/boost/MarquesDeBoost';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { formatAddressShort } from '@/lib/format/address';
+import { ESPACES_DES_LIBELLES_DE_BIEN, libelleLongDuContrat } from '@/lib/biens/libelles-de-bien';
+import { statutPourLeVisiteur } from '@/lib/biens/statut-au-visiteur';
 import type { PropertyDetail } from '@/types/property';
+import { PropertyPrice } from './PropertyContactActions';
 
 interface PropertyHeaderProps {
   property: PropertyDetail;
@@ -18,13 +21,28 @@ interface PropertyHeaderProps {
 }
 
 export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite }: PropertyHeaderProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const tCondition = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
+  // TCK-351 — statut et contrat par le dictionnaire du front, jamais par un `*_label` de l'API.
+  const tStatut = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.status);
+  const tContrat = useTranslations(ESPACES_DES_LIBELLES_DE_BIEN.contract_type);
+  const statutDuBien = statutPourLeVisiteur(property, tStatut);
+  const contrat = libelleLongDuContrat(tContrat, property.contract_type);
 
   return (
     <header className="flex flex-col gap-3">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+      {/* TCK-2501 — sous `md`, les actions se posent au bout de la rangée des pastilles au lieu
+          d'occuper leur propre ligne : 52 px rendus au premier écran.
+          TCK-2503 — sous `md`, partager et favori sont sur la photo (`GestesSurPhoto`) : il ne reste
+          ici que le comparateur. */}
+      <div className="relative flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div className="space-y-2 min-w-0">
+          {/* TCK-2501 — le prix d'abord, sous `lg` : la carte de réservation le porte en bureau. */}
+          <PropertyPrice
+            property={property}
+            className="lg:hidden text-[1.75rem] leading-none tracking-tight"
+            periodeClassName="text-base tracking-normal"
+          />
           <h1 className="font-display text-2xl md:text-3xl font-semibold tracking-tight text-foreground leading-tight text-balance">
             {property.title}
           </h1>
@@ -48,8 +66,15 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
               <span className="text-muted-foreground text-xs">{t('reference', { value: property.reference_number })}</span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{property.status_label}</Badge>
+          <div className="flex min-h-10 flex-wrap items-center gap-2 pr-14 md:min-h-0 md:pr-0">
+            {/* TCK-2501 — « En location » / « En vente », que la carte de réservation porte sous le prix en
+                bureau : sous `lg`, une pastille de plus sur la rangée, qui ne coûte aucune ligne.
+                TCK-351 — le mot de la pastille des cartes (`ContractTypeChip`), pas celui de l'API. */}
+            {contrat && (
+              <Badge variant="outline" className="lg:hidden">{contrat}</Badge>
+            )}
+            {/* TCK-2638 — ni « Validé » ni « Disponible » au visiteur : seulement un statut qui l'informe. */}
+            {statutDuBien ? <Badge variant="outline">{statutDuBien}</Badge> : null}
             {/* TCK-633 lot F — « En vedette » et le badge acheté (« Urgent », « Baisse de prix »). */}
             <MarquesDeBoost featured={Boolean(property.featured)} badge={(property as { badge?: unknown }).badge} className="contents" />
             {/* TCK-508 — « Neuf » / « Sur plan » seulement ; l'état complet est dans les caractéristiques. */}
@@ -59,13 +84,13 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
           </div>
         </div>
 
-        <div className="-ml-2.5 flex items-center gap-1 shrink-0 md:ml-0">
+        <div className="absolute bottom-0 -right-2.5 flex items-center gap-1 shrink-0 md:static md:right-auto">
           <Button
             variant="ghost"
             size="sm"
             onClick={onShare}
             aria-label={t('shareAria')}
-            className="gap-2 min-h-10 min-w-10 md:min-h-0 md:min-w-0"
+            className="hidden gap-2 md:inline-flex"
           >
             <Share2 className="size-4" aria-hidden />
             <span className="hidden sm:inline">{t('share')}</span>
@@ -76,10 +101,11 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
             onClick={onToggleFavorite}
             aria-label={isFavorite ? t('removeFavorite') : t('addFavorite')}
             aria-pressed={isFavorite}
-            className="gap-2 min-h-10 min-w-10 md:min-h-0 md:min-w-0"
+            className="hidden gap-2 md:inline-flex"
           >
             <Heart
-              className={`size-4 ${isFavorite ? 'fill-destructive text-destructive' : ''}`}
+              // TCK-2503 — le cœur plein est terracotta (`--primary`) partout, comme `FavoriteButton`.
+              className={`size-4 ${isFavorite ? 'fill-current text-primary' : ''}`}
               aria-hidden
             />
             <span className="hidden sm:inline">{isFavorite ? t('favoriteSavedShort') : t('favoriteAddShort')}</span>

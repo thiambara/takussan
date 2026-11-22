@@ -143,7 +143,8 @@ class RepairReassignedOwnersCommandTest extends TestCase
 
         $this->assertStringContainsString(
             "[dry-run] restore property={$this->p->id} owner={$this->y->id}->{$this->b->id} responsible={$this->y->id} "
-            ."leases_fixed={$this->brouillon->id} leases_to_review={$this->actif->id}",
+            ."leases_fixed_ids={$this->brouillon->id} leases_to_review_ids={$this->actif->id} "
+            ."chain={$this->b->id}>{$this->x->id}>{$this->y->id}",
             $sortie,
         );
     }
@@ -252,15 +253,22 @@ class RepairReassignedOwnersCommandTest extends TestCase
         $this->assertSame($this->y->id, (int) $this->p->fresh()->user_id);
     }
 
-    /** m2, la date de la ligne : une marque posée hors du service (sans journal) compte aussi. */
-    public function test_une_marque_posee_apres_sans_journal_compte_aussi(): void
+    /**
+     * TCK-616 (ADR-0059, amendement du 2026-11-16) — RENVERSÉ : `designated_after` se lit au seul
+     * journal de désignation. Une marque posée hors du service, sans journal, n'est pas un choix de
+     * l'agence que la réparation saurait dater (FN1, FN3 : `RepairReassignedOwnersOutputTest`).
+     */
+    public function test_une_marque_posee_apres_sans_journal_ne_compte_plus(): void
     {
         $z = $this->personnel($this->agency);
         $ligne = $this->collaborateur($this->p, $z);
         $ligne->forceFill(['is_primary' => true])->save();
 
-        $this->assertStringContainsString("review property={$this->p->id} reason=designated_after", $this->repair());
-        $this->assertSame($this->y->id, (int) $this->p->fresh()->user_id);
+        $sortie = $this->repair();
+
+        $this->assertStringNotContainsString('reason=designated_after', $sortie);
+        $this->assertStringContainsString("restore property={$this->p->id}", $sortie);
+        $this->assertSame($this->b->id, (int) $this->p->fresh()->user_id);
     }
 
     /** verif-603 m5 (V4) — un bail créé AVANT la première réattribution n'est jamais réécrit, même au nom d'une cible. */

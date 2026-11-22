@@ -4,7 +4,9 @@ namespace Tests\Feature\Webhooks;
 
 use App\Domain\Alerts\AlertableEvents;
 use App\Events\Webhooks\WebhookProcessingFailed;
+use App\Jobs\SendAdminAlert;
 use App\Models\Agency;
+use App\Models\AlertRule;
 use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Customer;
@@ -17,6 +19,7 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -99,13 +102,12 @@ class WebhookReplayTest extends TestCase
 
     /**
      * Raccord TCK-600 — une ligne fermée sur `failed` émet `WebhookProcessingFailed`, sans corps ni
-     * en-tête ; un rejet et un traitement réussi (rejeu compris) n'émettent rien. L'événement n'a
-     * AUCUN écouteur et n'est pas une règle d'alerte : 600 l'y abonnera.
+     * en-tête ; un rejet et un traitement réussi (rejeu compris) n'émettent rien. TCK-606 l'abonne
+     * (`AlertOnWebhookProcessingFailed`, voir le test suivant).
      */
-    public function test_a_failed_row_emits_webhook_processing_failed_without_any_subscriber(): void
+    public function test_a_failed_row_emits_webhook_processing_failed(): void
     {
-        $this->assertFalse(Event::hasListeners(WebhookProcessingFailed::class), 'Aucun écouteur : l\'abonnement appartient à TCK-600.');
-        $this->assertSame([], array_filter(AlertableEvents::keys(), fn (string $key): bool => str_contains($key, 'webhook')));
+        $this->assertTrue(Event::hasListeners(WebhookProcessingFailed::class), 'TCK-606 : un écouteur alerte sur l\'échec.');
 
         [$payment, $integration] = $this->arrange();
         Event::fake([WebhookProcessingFailed::class]);
@@ -130,6 +132,47 @@ class WebhookReplayTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', IntegrationWebhookLog::STATUS_PROCESSED);
         Event::assertDispatchedTimes(WebhookProcessingFailed::class, 1);
+    }
+
+    /**
+     * TCK-606 (AC7) — une ligne fermée sur `failed` déclenche la règle d'alerte
+     * `webhook_processing_failed` ; la charge de l'alerte ne porte ni le corps ni un en-tête du
+     * webhook, seulement les champs de l'événement.
+     */
+    public function test_a_failed_row_triggers_the_webhook_processing_failed_alert_rule(): void
+    {
+        $this->assertTrue(AlertableEvents::has('webhook_processing_failed'));
+        Bus::fake([SendAdminAlert::class]);
+        AlertRule::create([
+            'event' => 'webhook_processing_failed',
+            'channels_json' => ['email'],
+            'recipients_json' => ['emails' => ['ops@example.test']],
+            'is_active' => true,
+        ]);
+        [$payment, $integration] = $this->arrange();
+
+        self::$explode = true;
+        $this->postWave($integration, $this->waveBody($payment->transaction_id))->assertStatus(500);
+        self::$explode = false;
+
+        $failed = IntegrationWebhookLog::query()->where('status', IntegrationWebhookLog::STATUS_FAILED)->sole();
+        $activity = Activity::query()->where('event', 'webhook_processing_failed')->sole();
+        // Ces cinq champs, et eux seuls (l'ordre des clés est celui de `jsonb`).
+        $expected = [
+            'webhook_log_id' => $failed->id,
+            'channel' => 'payment',
+            'provider' => 'wave',
+            'agency_id' => $integration->agency_id,
+            'error_code' => 'exception',
+        ];
+        $properties = $activity->properties->all();
+        ksort($expected);
+        ksort($properties);
+        $this->assertSame($expected, $properties);
+        $this->assertStringNotContainsString($payment->transaction_id, json_encode($activity->properties->all()));
+        Bus::assertDispatchedTimes(SendAdminAlert::class, 1);
+        Bus::assertDispatched(SendAdminAlert::class, fn (SendAdminAlert $job): bool => ! str_contains(json_encode((array) $job), $payment->transaction_id)
+            && ! str_contains(json_encode((array) $job), 'Wave-Signature'));
     }
 
     /**

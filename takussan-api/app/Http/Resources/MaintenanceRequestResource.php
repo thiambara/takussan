@@ -4,12 +4,18 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\MaintenanceQuoteAlternative;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Policies\MaintenanceRequestPolicy;
+use App\Services\Maintenance\AgencyResponseTime;
+use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\MaintenanceStateMachine;
+use App\Services\Maintenance\OwnerApprovalThreshold;
+use App\Services\Maintenance\OwnerReminder;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\MaintenanceRequestService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -27,6 +33,37 @@ class MaintenanceRequestResource extends BaseResource
         'quote_decision_by_id', 'quote_rejection_reason', 'quote_decision_by',
         'quote_lines', 'quote_valid_until', 'quote_estimated_duration_days',
     ];
+
+    /**
+     * TCK-2652 (décision famille 4 n° 6a, amendement de §1.8) — l'estimation et le coût réel suivent
+     * le devis : servis au donneur d'ordre, au bailleur du bien et au prestataire assigné, jamais au
+     * demandeur locataire. Clés absentes, comme {@see self::QUOTE_FIELDS}.
+     */
+    private const COST_FIELDS = ['estimated_cost', 'actual_cost'];
+
+    /**
+     * TCK-2958 (ADR-0128 § 3) — la carte du fil relit la demande pour son lecteur, hors de la route de
+     * la demande : `abilities` seul y est rendu (pas le détail entier — médias, fil, créneau, mise en
+     * concurrence —, une batterie de requêtes par carte que la carte ne montre pas).
+     */
+    private bool $gestes = false;
+
+    /** TCK-2982 — le bloc `access` hors de la route de la demande (réponse d'un lien d'action). */
+    private bool $acces = false;
+
+    public function avecAcces(): static
+    {
+        $this->acces = true;
+
+        return $this;
+    }
+
+    public function avecGestes(): static
+    {
+        $this->gestes = true;
+
+        return $this;
+    }
 
     public function toArray(Request $request): array
     {
@@ -57,35 +94,78 @@ class MaintenanceRequestResource extends BaseResource
             'completed_at' => $this->iso($this->completed_at),
             'resolution_notes' => $this->resolution_notes,
             'accepted_at' => $this->iso($this->accepted_at),
+            // TCK-2786 — la dernière relance du bailleur (« Relancé il y a … ») ; au donneur d'ordre seul.
+            'owner_reminded_at' => $this->iso($this->owner_reminded_at),
+            // TCK-2917 (ADR-0118 § 1) — le motif de qui a annulé : à tout lecteur de la demande.
+            'cancellation_reason' => $this->cancellation_reason,
             'access_instructions' => $this->access_instructions,
+            // TCK-2900 (ADR-0113 § 4) — la demande porte-t-elle une note vocale ? Le fichier, lui, n'est
+            // servi qu'au détail (`media.voice_note`). En liste : la sous-requête `withVoiceNoteFlag`.
+            'has_voice_note' => $this->resource->hasVoiceNote(),
             'property' => $this->whenLoaded('property', fn () => $this->propertySummary()),
-            'requester' => $this->whenLoaded('requester', fn () => $this->requesterSummary($request->user())),
+            'requester' => $this->whenLoaded('requester', fn () => $this->requesterSummary($request->user(), $this->isDetailRequest($request))),
             'assignee' => $this->whenLoaded('assignee', fn () => $this->userSummary($this->assignee)),
             'quote_decision_by' => $this->whenLoaded('quoteDecisionBy', fn () => $this->userSummary($this->quoteDecisionBy)),
             'created_at' => $this->iso($this->created_at),
         ];
+
+        // TCK-2652 — la file d'attente de la ligne, sans requête ({@see MaintenanceQueue::describe()}).
+        $queue = MaintenanceQueue::describe($this->resource);
+        $data['file'] = $queue['file'];
+        $data['waiting_on'] = $queue['waiting_on'];
+        $data['waiting_since'] = $this->iso($queue['waiting_since']);
+        $data['slot_overdue_days'] = $queue['slot_overdue_days'];
+        $data['auto_close_at'] = $this->iso($queue['auto_close_at']);
 
         $user = $request->user();
         // TCK-900 (P20.02) — une fois par ligne, et l'agence du personnel une fois par requête.
         $isPrincipal = $this->isPrincipal($user);
 
         if (! $this->seesQuote($user, $isPrincipal)) {
-            $data = array_diff_key($data, array_flip(self::QUOTE_FIELDS));
+            $data = array_diff_key($data, array_flip([...self::QUOTE_FIELDS, ...self::COST_FIELDS]));
         }
 
         // Les consignes d'accès s'écrivent par le donneur d'ordre et se lisent, par le prestataire,
         // dans le bloc `access` — jamais par le demandeur.
         if (! $isPrincipal) {
-            unset($data['access_instructions']);
+            unset($data['access_instructions'], $data['owner_reminded_at']);
         }
 
         if ($user !== null && $this->isDetailRequest($request)) {
             $data['media'] = $this->mediaBlock($user);
             $data['conversation_id'] = $this->conversationIdFor($user);
             $data['abilities'] = $this->abilitiesBlock($user);
+            // TCK-2654 (décision 1a) — le plafond de travaux du bailleur (ADR-0037), pour que l'écran du
+            // devis le rappelle : servi au seul donneur d'ordre (le bailleur du bien, le personnel de
+            // son agence), jamais au locataire, au prestataire, à un autre bailleur ni à une autre
+            // agence — clé ABSENTE. Au détail seulement : une lecture par demande.
+            if ($isPrincipal) {
+                $threshold = app(OwnerApprovalThreshold::class)->of($this->resource);
+                $data['owner_approval_threshold'] = $threshold !== null ? (float) $threshold : null;
+            }
+            // TCK-2911 (ADR-0120 § 3) — la mise en concurrence : aux seuls donneurs d'ordre (bailleur du
+            // bien, personnel de l'agence). Clé ABSENTE pour tout prestataire, l'assigné compris (le prix
+            // d'un concurrent n'est pas le sien), et pour le demandeur. Au détail : une requête.
+            if ($isPrincipal) {
+                $data['quote_alternatives'] = $this->quoteAlternativesBlock();
+            }
             if ($this->opensAccess($user)) {
                 $data['access'] = $this->accessBlock();
             }
+            // TCK-2917 (ADR-0118 § 3) — la demande de créneau en attente du demandeur, au demandeur, au
+            // prestataire assigné et aux donneurs d'ordre (tout lecteur de la demande).
+            $data['pending_reschedule_request'] = $this->pendingRescheduleBlock();
+            // TCK-2917 (ADR-0118 § 5) — le délai de prise en charge médian de l'agence du bien.
+            $data['maintenance_response_minutes'] = app(AgencyResponseTime::class)->minutesFor($this->property?->agency_id);
+        } elseif ($user !== null && $this->gestes) {
+            // TCK-2958 — la carte du fil : les gestes de CE lecteur, le même bloc que le détail.
+            $data['abilities'] = $this->abilitiesBlock($user);
+        }
+        // TCK-2982 (ADR-0132 § 5) — la réponse d'un lien d'action (`POST /api/a/{token}`) n'est pas la route de la
+        // demande : elle donne quand même au prestataire qui vient d'accepter l'adresse et le contact sur place,
+        // sous la MÊME condition que le détail (`opensAccess`).
+        if ($user !== null && $this->acces && ! array_key_exists('access', $data) && $this->opensAccess($user)) {
+            $data['access'] = $this->accessBlock();
         }
 
         return $data;
@@ -117,7 +197,7 @@ class MaintenanceRequestResource extends BaseResource
      * TCK-2088 (P180.02) — `thumbnail_url` sert la vignette des photos à la galerie, `url`
      * l'original au clic ; l'original tant que la file ne l'a pas produite, et toujours pour un devis.
      *
-     * @return array<string, list<array<string, mixed>>>
+     * @return array<string, mixed>
      */
     private function mediaBlock(User $user): array
     {
@@ -142,6 +222,10 @@ class MaintenanceRequestResource extends BaseResource
                 ->values()
                 ->all();
         }
+
+        // TCK-2900 (ADR-0113 § 4) — la note vocale du signalement : les lecteurs de `photos`, ni plus
+        // ni moins (ce bloc entier) ; un objet `{id, url, duration, mime_type}` ou `null`.
+        $block['voice_note'] = $this->resource->voiceNoteBlock();
 
         return $block;
     }
@@ -189,7 +273,10 @@ class MaintenanceRequestResource extends BaseResource
         $status = $mr->status ?? MaintenanceStatus::Open;
         $terminal = $machine->isTerminal($status);
         $isProvider = $user->can('actAsProvider', $mr);
-        $canRespond = ! $terminal && $user->can('respondToAssignment', $mr) && $mr->accepted_at === null;
+        // TCK-2652 — ni sur une demande rendue (`completed`) : « J'accepte » s'y affichait, le serveur
+        // refuse désormais ce geste (409). Même ensemble que la file `a_accepter`.
+        $canRespond = ! in_array($status, MaintenanceQueue::NOT_ACCEPTABLE, true)
+            && $user->can('respondToAssignment', $mr) && $mr->accepted_at === null;
 
         // Mêmes portes que `UpdateStatusMaintenanceRequestRequest::authorize()` : `update` PUIS
         // (acteur, cible). Le demandeur n'a pas `update` : il confirme par son propre geste.
@@ -219,6 +306,12 @@ class MaintenanceRequestResource extends BaseResource
             'can_upload_before_photos' => ! $terminal && $isProvider && $mr->accepted_at !== null,
             'can_confirm_resolution' => $user->can('respondToResolution', [$mr, MaintenanceStatus::Closed]),
             'can_contest_resolution' => $user->can('respondToResolution', [$mr, MaintenanceStatus::InProgress]),
+            // TCK-2786 — « Relancer le bailleur » : l'acteur (`remindOwner`), puis le statut, la cadence
+            // et le bailleur joignable, que `OwnerReminder::remind()` rejuge sous le verrou.
+            'can_remind_owner' => $user->can('remindOwner', $mr) && app(OwnerReminder::class)->possible($mr),
+            'can_view_journal' => $user->can('viewJournal', $mr),
+            // TCK-2917 (ADR-0118 § 3) — « Changer le créneau » du demandeur.
+            'can_request_reschedule' => $user->can('requestReschedule', $mr),
             'transitions' => $transitions,
         ];
     }
@@ -314,9 +407,17 @@ class MaintenanceRequestResource extends BaseResource
      * TCK-592 (verif-592, mineur 9) — l'e-mail du demandeur suit son téléphone (P6) : au prestataire
      * assigné, seulement APRÈS acceptation. `include=requester` le lui rendait avant.
      */
-    private function requesterSummary(?User $viewer): ?array
+    private function requesterSummary(?User $viewer, bool $detail = false): ?array
     {
         $summary = $this->userSummary($this->requester);
+
+        // TCK-2917 (ADR-0118 § 2) — « Appeler » / « WhatsApp » : le téléphone du demandeur au seul
+        // personnel actif de l'agence du bien (lecteur du bail à ce titre, règle de TCK-2637), au
+        // détail. Clé absente pour le bailleur, un prestataire, une autre agence, et sur une liste.
+        if ($summary !== null && $viewer !== null && $detail
+            && MaintenanceRequestPolicy::isTeamPrincipalFor($viewer, $this->property)) {
+            $summary['phone'] = $this->requester?->phone;
+        }
 
         if ($summary !== null && $viewer !== null
             && $this->assigned_to === $viewer->id
@@ -327,6 +428,69 @@ class MaintenanceRequestResource extends BaseResource
         }
 
         return $summary;
+    }
+
+    /**
+     * TCK-2917 (ADR-0118 § 3) — la demande de créneau en attente : les instants proposés, le mot, la date.
+     *
+     * @return array{id: int, proposed_slots: list<?string>, note: ?string, requested_at: ?string}|null
+     */
+    private function pendingRescheduleBlock(): ?array
+    {
+        // Une demande close, annulée ou rendue n'attend plus de créneau.
+        $status = $this->status ?? MaintenanceStatus::Open;
+        if ($status === MaintenanceStatus::Completed || app(MaintenanceStateMachine::class)->isTerminal($status)) {
+            return null;
+        }
+
+        $pending = $this->resource->pendingRescheduleRequest()->first();
+        if ($pending === null) {
+            return null;
+        }
+
+        return [
+            'id' => $pending->id,
+            'proposed_slots' => array_values(array_map(
+                fn (mixed $slot): ?string => is_string($slot) ? $this->iso(CarbonImmutable::parse($slot)) : null,
+                $pending->proposed_slots ?? [],
+            )),
+            'note' => $pending->note,
+            'requested_at' => $this->iso($pending->created_at),
+        ];
+    }
+
+    /**
+     * TCK-2911 (ADR-0120 § 3) — les devis consultés et non retenus, leur pièce en URL d'API signée.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function quoteAlternativesBlock(): array
+    {
+        $access = app(PrivateMediaAccess::class);
+
+        return $this->resource->quoteAlternatives()->with(['provider:id,first_name,last_name,username', 'media'])->get()
+            ->map(function (MaintenanceQuoteAlternative $alternative) use ($access): array {
+                $media = $alternative->getFirstMedia('quote');
+
+                return [
+                    'id' => $alternative->id,
+                    'provider_id' => $alternative->provider_id,
+                    'provider_name' => $alternative->provider !== null
+                        ? (trim($alternative->provider->first_name.' '.$alternative->provider->last_name) ?: $alternative->provider->username)
+                        : $alternative->provider_name,
+                    'amount' => (float) $alternative->amount,
+                    'currency' => $alternative->currency?->value ?? 'XOF',
+                    'file' => $media instanceof Media ? [
+                        'id' => $media->id,
+                        'name' => $media->file_name,
+                        'mime_type' => $media->mime_type,
+                        'url' => $access->signedUrl($media),
+                    ] : null,
+                    'created_at' => $this->iso($alternative->created_at),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function userSummary(?User $user): ?array

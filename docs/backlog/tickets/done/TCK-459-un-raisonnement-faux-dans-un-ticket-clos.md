@@ -76,7 +76,7 @@ Sans objet.
 ## Direction UX / Artistique
 
 Sans objet — sauf si l'issue retenue est de corriger le couple, auquel cas il rejoint l'arbitrage
-de [TCK-452](../todo/TCK-452-theme-sombre-inatteignable.md) sur le statut de `.dark`.
+de [TCK-452](TCK-452-theme-sombre-inatteignable.md) sur le statut de `.dark`.
 
 ## Contraintes strictes (métier)
 
@@ -111,7 +111,7 @@ de [TCK-452](../todo/TCK-452-theme-sombre-inatteignable.md) sur le statut de `.d
 
 ## Hors périmètre
 
-- Le sort général du thème sombre — [TCK-452](../todo/TCK-452-theme-sombre-inatteignable.md).
+- Le sort général du thème sombre — [TCK-452](TCK-452-theme-sombre-inatteignable.md).
 - Le contraste de la pastille de contrat — [TCK-458](TCK-458-contraste-de-la-pastille-de-contrat.md).
 - La double implémentation du calcul WCAG que TCK-371 signale par ailleurs (`src/test/contraste-wcag.ts`
   et son doublon) : réelle, mais c'est une autre dette.

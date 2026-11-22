@@ -1,22 +1,7 @@
 /**
- * TCK-591 — formes des réponses du CRM de l'agent (journal de la fiche, rapprochement, passation,
+ * TCK-591 — formes des réponses du CRM de l'agent (rapprochement, passation,
  * absences, flux d'agenda, actions en masse). Alignées sur les contrôleurs de `takussan-api`.
  */
-
-export type ActivitySubject = 'customer' | 'note' | 'task' | 'other';
-
-export interface CustomerActivityEntry {
-  id: number;
-  subject: ActivitySubject;
-  subject_id: number | null;
-  event: string | null;
-  changes: {
-    attributes: Record<string, unknown> | null;
-    old: Record<string, unknown> | null;
-  };
-  causer: { id: number; name: string } | null;
-  created_at: string;
-}
 
 export interface MatchingProperty {
   id: number;
@@ -65,14 +50,21 @@ export interface AgentAbsence {
   ends_at: string | null;
   status: 'scheduled' | 'active' | 'expired' | 'revoked';
   reason: string | null;
+  /** TCK-2666 — le remplaçant peut agir à la place de l'absent : une délégation liée EN COURS. */
+  substitute_can_act?: boolean;
+  /** TCK-2666 — la dernière délégation liée à l'absence, s'il y en a une. */
+  delegation_id?: number | null;
 }
 
 export interface CalendarFeedState {
   active: boolean;
   created_at?: string | null;
   last_accessed_at?: string | null;
-  /** Rendu UNE seule fois, à la création ou à la rotation. */
-  url?: string;
+  /**
+   * TCK-2887 (ADR-0121) — rendu à la création ET à la relecture (`GET`), au titulaire seul ;
+   * `null` pour un lien sans copie (antérieur) ; ABSENT sous impersonation.
+   */
+  url?: string | null;
 }
 
 export type BulkFailureReason =
@@ -117,6 +109,8 @@ export interface AgentTask {
   due_at: string | null;
   /** `label` et `phone` sont `null` pour qui ne passe pas le contrôle de rattachement. */
   taskable: { type: 'customer' | 'property'; id: number; label: string | null; phone: string | null } | null;
+  /** TCK-617 — le parent (bien, client) est supprimé : la tâche reste listée, marquée, sans lien. */
+  parent_deleted?: boolean;
   assignee: { id: number; name: string } | null;
 }
 

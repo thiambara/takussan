@@ -2,8 +2,13 @@
 
 use App\Http\Controllers\Api\Me\AgentProfileController as MeAgentProfileController;
 use App\Http\Controllers\Api\Me\DataExportController;
+use App\Http\Controllers\Api\Me\EspaceDemarrageController;
+use App\Http\Controllers\Api\Me\InviteSummaryController;
+use App\Http\Controllers\Api\Me\MeAgencyController;
 use App\Http\Controllers\Api\Me\MeCapabilityController;
 use App\Http\Controllers\Api\Me\MeController;
+use App\Http\Controllers\Api\Me\MeLocateController;
+use App\Http\Controllers\Api\Me\MePiecesController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\OwnerProfileController as MeOwnerProfileController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
@@ -12,6 +17,7 @@ use App\Http\Controllers\Api\Me\ServiceProviderAgenciesController;
 use App\Http\Controllers\Api\Me\ServiceProviderProfileController as MeServiceProviderProfileController;
 use App\Http\Controllers\Api\Me\SubscriptionController;
 use App\Http\Controllers\Api\Me\TenantOnboardingChecklistController;
+use App\Http\Controllers\Api\Me\TenantRentSummaryController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceProviderCollaborationController;
 use App\Http\Controllers\WelcomeViewController;
@@ -36,15 +42,34 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     // 403. ⚠️ C'est de l'AFFICHAGE, jamais une autorisation : la décision
     // reste entière dans les policies côté serveur.
     Route::get('capabilities', [MeCapabilityController::class, 'index'])->name('me.capabilities.index');
+    // TCK-2479 (ADR-0089 §5) — les étapes du groupe « Démarrer » du menu, jugées sur le profil actif.
+    Route::get('espace/demarrage', EspaceDemarrageController::class)->name('me.espace.demarrage');
+    // TCK-2612 — les pièces du profil actif (bailleur, agent, prestataire) et leur état, lues par l'étape « Pièces ».
+    Route::get('pieces', MePiecesController::class)->name('me.pieces');
     // TCK-597 — ce que l'acteur peut noter (bien, agent, agence, prestataire), avec la preuve.
     Route::get('review-opportunities', [ReviewController::class, 'opportunities'])->name('me.review-opportunities.index');
+    // TCK-2649 (ADR-0100) — ce que le locataire doit, pénalités et charges comprises, en un montant.
+    Route::get('rent-summary', TenantRentSummaryController::class)->name('me.rent-summary');
 
     Route::get('profiles', [MeProfilesController::class, 'index'])->name('me.profiles.index');
+    // TCK-2939 (ADR-0094, amendement du 2026-11-15 § 6) — le résumé chiffré de l'étape du numéro, au titulaire du profil.
+    Route::get('profiles/{profile}/invite-summary', InviteSummaryController::class)
+        ->where('profile', '[a-z_]{1,32}:[0-9]{1,18}')
+        ->name('me.profiles.invite-summary');
+    // TCK-2847 (ADR-0116) — l'espace de l'appelant sous lequel une fiche se lit, pour la page « introuvable ».
+    Route::get('locate', MeLocateController::class)->middleware('throttle:30,1')->name('me.locate');
     Route::patch('active-profile', [MeProfilesController::class, 'updateActive'])->name('me.active-profile.update');
     Route::get('data-exports', [DataExportController::class, 'index'])->name('me.data-exports.index');
     Route::post('data-exports', [DataExportController::class, 'store'])->name('me.data-exports.store');
     Route::get('subscription', [SubscriptionController::class, 'show'])->name('me.subscription.show');
     Route::get('quota', [SubscriptionController::class, 'quota'])->name('me.quota.show');
+    // TCK-2937 (ADR-0125) — « Créer mon espace pro » : l'agence `standard` ouverte tout de suite,
+    // vérifiée ensuite (admin principal actif, dossier KYC ouvert). 409 si déjà admin d'une agence.
+    Route::post('agencies', [MeAgencyController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('me.agencies.store');
+    // TCK-2669 (ADR-0104 § 6) — le prix du passage en pro, lu du plan en base.
+    Route::get('upgrade-offer', [SubscriptionController::class, 'upgradeOffer'])->name('me.upgrade-offer.show');
     Route::get('payouts', [MePlatformPayoutController::class, 'index'])->name('me.payouts.index');
     // TCK-1419 (P141.03) — ce qu'un reversement de la plateforme couvre.
     Route::get('payouts/{payout}', [MePlatformPayoutController::class, 'show'])->where('payout', '[0-9]{1,18}')->name('me.payouts.show');
@@ -55,6 +80,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::post('payout-methods', [MePayoutMethodController::class, 'store'])->name('me.payout-methods.store');
     Route::patch('payout-methods/{payoutMethod}', [MePayoutMethodController::class, 'update'])->name('me.payout-methods.update');
     Route::delete('payout-methods/{payoutMethod}', [MePayoutMethodController::class, 'destroy'])->name('me.payout-methods.destroy');
+    // TCK-2863 — le RIB d'un compte bancaire « à confirmer », sous step-up comme les écritures ci-dessus.
+    Route::post('payout-methods/{payoutMethod}/bank-statement', [MePayoutMethodController::class, 'bankStatement'])->name('me.payout-methods.bank-statement');
 
     // TCK-250 — Resumable wizard drafts. `{key}` is a logical identifier owned
     // by the consumer wizard (e.g. `host-individual-wizard`,
@@ -99,6 +126,10 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('profiles/{sp_profile}', [MeServiceProviderProfileController::class, 'show'])
         ->whereNumber('sp_profile')
         ->name('me.profiles.sp.show');
+    // TCK-2613 — la demande jointe à l'invitation, à l'écran 2 de l'assistant (titulaire seul, lien pas encore consommé).
+    Route::get('profiles/{sp_profile}/intervention-d-origine', [MeServiceProviderProfileController::class, 'originRequest'])
+        ->whereNumber('sp_profile')
+        ->name('me.profiles.sp.origin-request');
     Route::patch('profiles/{sp_profile}/trades', [MeServiceProviderProfileController::class, 'updateTrades'])
         ->whereNumber('sp_profile')
         ->name('me.profiles.sp.trades');
@@ -119,9 +150,18 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
         ->whereNumber('owner_profile')
         ->middleware('throttle:10,1')
         ->name('me.owner-profiles.kyc.submit');
+    // TCK-2612 — le NINEA tapé par le bailleur, au lieu d'une photo de la pièce (qui reste acceptée).
+    Route::patch('owner-profiles/{owner_profile}/tax-id', [MeOwnerProfileController::class, 'updateTaxId'])
+        ->whereNumber('owner_profile')
+        ->middleware('throttle:10,1')
+        ->name('me.owner-profiles.tax-id');
     Route::get('owner-profiles/{owner_profile}/properties', [MeOwnerProfileController::class, 'properties'])
         ->whereNumber('owner_profile')
         ->name('me.owner-profiles.properties');
+    // TCK-2838 — l'interlocuteur de l'agence, à l'écran 2 de l'assistant du bailleur invité (titulaire seul).
+    Route::get('owner-profiles/{owner_profile}/interlocuteur', [MeOwnerProfileController::class, 'interlocutor'])
+        ->whereNumber('owner_profile')
+        ->name('me.owner-profiles.interlocutor');
 
     // TCK-259 — wizard-side write endpoints on the freshly-claimed
     // AgentProfile. Mirror Owner / SP : mounted under
@@ -139,6 +179,10 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::patch('agent-profiles/{agent_profile}/specialization', [MeAgentProfileController::class, 'updateSpecialization'])
         ->whereNumber('agent_profile')
         ->name('me.agent-profiles.specialization');
+    // TCK-2518 — langues et quartiers de l'annuaire public.
+    Route::patch('agent-profiles/{agent_profile}/directory', [MeAgentProfileController::class, 'updateDirectory'])
+        ->whereNumber('agent_profile')
+        ->name('me.agent-profiles.directory');
     Route::get('agent-profiles/{agent_profile}/first-lead', [MeAgentProfileController::class, 'firstLead'])
         ->whereNumber('agent_profile')
         ->name('me.agent-profiles.first-lead');

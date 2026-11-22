@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\PaymentMethod;
+use App\Rules\InstantIso;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Validation\Rule;
 
@@ -12,6 +14,8 @@ use Illuminate\Validation\Rule;
  */
 class MarkLateFeePaidRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * Même autorisation que l'encaissement du loyer (`MarkPaidLeasePaymentRequest`) :
      * `LeasePolicy::recordPayment` (TCK-587) — le personnel titulaire de `payments.record`, ou le
@@ -53,11 +57,17 @@ class MarkLateFeePaidRequest extends BaseFormRequest
     {
         return [
             // TCK-593 (vérification adverse, V7) — un règlement ne se date pas dans le futur.
-            'paid_at' => ['nullable', 'date', 'before_or_equal:now'],
+            'paid_at' => ['nullable', 'date', new InstantIso, 'before_or_equal:now'],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             // Passe 2, M5 — passer outre au checkout ouvert, motif obligatoire.
             'override_open_checkout' => ['sometimes', 'boolean'],
             'override_reason' => ['nullable', 'string', 'max:500', 'required_if_accepted:override_open_checkout'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['paid_at'];
     }
 }

@@ -1,0 +1,72 @@
+{
+  "ticket": "TCK-2876",
+  "ecrans": [
+    {
+      "page": "app-reservations",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Offre",
+      "references": {
+        "telephone": "references/app-reservations/a-4-telephone.json",
+        "bureau-1440": "references/app-reservations/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-reservations/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings/{id}",
+        "persona": "agent",
+        "etat": "offre d'achat `pending` de 85 000 000 F sur un bien affiché 95 000 000 F, en vente depuis 47 jours, `financing = cash`, `signature_within_days = 30`, `conditions = \"Aucune\"`, `property_visits_count = 6`, `offer_rank = 1`, sans contre-offre (`counter_offer = null`, `awaiting = agency`)",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "voir `ecrans[].produit`",
+    "persona": "agent",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-reservations a-4-*",
+      "element": "feuille « Contre-proposer » (montant prérempli du prix affiché, validité 3/7/15/30 jours, message facultatif, « Contre-proposer {montant} ») et état « Contre-offre de … envoyée · en attente de {prénom} jusqu'au … » en tête du Quoi",
+      "propriete": "présence",
+      "exception": "hors maquette",
+      "motif": "la maquette ne dessine ni la feuille ni l'état en cours (ticket, Direction UX) : ils reprennent la grammaire des feuilles de la fiche (feuille du bas au téléphone et sous `xl`, panneau droit dès `xl`, comme « Refuser (motif) » et « Enregistrer un paiement ») et des lignes du Quoi"
+    },
+    {
+      "ecran": "app-reservations a-4-*",
+      "element": "« Contre-proposer » remplacé par « Modifier la contre-offre »",
+      "propriete": "texte",
+      "exception": "hors maquette",
+      "motif": "état non dessiné : une contre-offre ouverte (`counter_offer.status = pending`, `awaiting = customer`) est remplacée par la suivante (TCK-2873) — le geste dit ce qu'il fait"
+    },
+    {
+      "ecran": "app-reservations a-4-telephone",
+      "element": "« Modifier la contre-offre » dit « Modifier » dans la barre collante",
+      "propriete": "texte",
+      "exception": "hors maquette",
+      "motif": "état non dessiné ; trois gestes tiennent dans ~340 px à 390 (Refuser et Accepter à la largeur de leur libellé) : le libellé entier reste le nom accessible, et la tête du Quoi dit la contre-offre en cours"
+    },
+    {
+      "ecran": "app-reservations a-4-*",
+      "element": "phrase de visite du bloc Qui « Sam. 31 oct. sur place, puis jeu. 5 nov. en visite virtuelle. »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "`last_visit_on_property` (TCK-2870) ne sert que le jour et le verdict de la DERNIÈRE visite, pas la suite des visites ni leur mode : la fiche dit « Jeu. 5 nov. : « Intéressé ». » (règle de TCK-2875) ; les visites complètes sont dans l'historique"
+    }
+  ],
+  "hors_perimetre": [
+    "la réponse du client à la contre-offre (TCK-2879)",
+    "le fil commercial et le rendu des jalons `booking` / `counter_offer` dans la fiche client (TCK-2878)"
+  ],
+  "mesures": []
+}

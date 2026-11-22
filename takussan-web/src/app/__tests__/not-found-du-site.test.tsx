@@ -22,18 +22,42 @@ import NotFound from '../not-found';
  * chaque commit : l'écran appartient au site, il dit ce qui s'est passé, et il rend la main.
  */
 describe('404 du site', () => {
-  it("annonce l'erreur dans un <h1> et rend un chemin de retour vers le catalogue", () => {
+  it("annonce l'erreur dans un <h1>, sans sur-titre, et rend un chemin de retour", () => {
     render(withIntl(<NotFound />));
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent("Cette page n'existe pas");
-
-    const versCatalogue = screen.getByRole('link', { name: 'Voir les annonces' });
-    // ⚠ `/fr/properties` et non `/properties` : sur la surface publique la langue est un segment
-    // d'URL (ADR-0026), et `LienLocalise` la pose. Un lien nu partirait en 307 par le proxy — donc
-    // fonctionnerait, ce qui est exactement pourquoi l'assertion porte sur le chemin final.
-    expect(versCatalogue).toHaveAttribute('href', '/fr/properties');
+    // TCK-2515 — le titre dit déjà tout : plus de sur-titre « Erreur 404 ».
+    expect(screen.queryByText(/erreur 404/i)).toBeNull();
 
     expect(screen.getByRole('link', { name: "Retour à l'accueil" })).toHaveAttribute('href', '/fr');
+  });
+
+  it('TCK-2515 AC1 — une recherche en simple formulaire GET, qui mène à /fr/properties?q=…', () => {
+    render(withIntl(<NotFound />));
+
+    const formulaire = screen.getByRole('search', { name: 'Rechercher un bien' });
+    // ⚠ `getAttribute`, pas `.method` : jsdom normalise la propriété, l'attribut est ce que le
+    // navigateur lira. Sans JavaScript, c'est lui qui envoie la requête.
+    expect(formulaire.getAttribute('method')).toBe('get');
+    // `/fr/properties` et non `/properties` : la langue est un segment d'URL (ADR-0026) ; un
+    // chemin nu partirait en 307 par le proxy — donc fonctionnerait, ce qui est exactement
+    // pourquoi l'assertion porte sur le chemin final.
+    expect(formulaire.getAttribute('action')).toBe('/fr/properties');
+    const champ = screen.getByRole('searchbox', { name: 'Rechercher un bien' });
+    expect(champ).toHaveAttribute('name', 'q');
+    expect(formulaire).toContainElement(screen.getByRole('button', { name: 'Chercher' }));
+  });
+
+  it('TCK-2515 — trois raccourcis : Louer, Acheter, Les agences', () => {
+    render(withIntl(<NotFound />));
+
+    const raccourcis = screen.getByRole('navigation', { name: 'Raccourcis' });
+    const liens = Array.from(raccourcis.querySelectorAll('a')).map((a) => [a.textContent, a.getAttribute('href')]);
+    expect(liens).toEqual([
+      ['Louer', '/fr/properties?contract_type=rent'],
+      ['Acheter', '/fr/properties?contract_type=sale'],
+      ['Les agences', '/fr/agencies'],
+    ]);
   });
 
   it('porte la chrome du site — un en-tête de marque et un pied de page', () => {
@@ -46,13 +70,16 @@ describe('404 du site', () => {
 
   it('rend dans la langue active, et pas seulement en français', () => {
     // Non-vacuité de l'AC4 « dans la langue active » : sans ce cas, un écran écrit en dur en
-    // français passerait les deux tests précédents.
+    // français passerait les tests précédents — et un formulaire figé sur `/fr` aussi.
     render(withIntl(<NotFound />, 'en'));
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('This page does not exist');
-    expect(screen.getByRole('link', { name: 'Browse listings' })).toHaveAttribute(
-      'href',
+    expect(screen.getByRole('search', { name: 'Search for a property' }).getAttribute('action')).toBe(
       '/en/properties',
+    );
+    expect(screen.getByRole('link', { name: 'Rent' })).toHaveAttribute(
+      'href',
+      '/en/properties?contract_type=rent',
     );
   });
 });

@@ -25,4 +25,8 @@ return [
             'body_with_expired' => 'La mise en avant de « :property » a pris fin. Crédits remboursés : :credits. Crédits non remboursés, car déjà expirés : :expired.',
         ],
     ],
+    // TCK-2520 (ADR-0092) — une seule agence mise en avant par ville et par instant.
+    'spotlight' => [
+        'overlap' => 'Une place est déjà réservée pour cette ville sur cette période.',
+    ],
 ];

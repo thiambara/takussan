@@ -1,24 +1,140 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
+import { AFaireAdmin } from '@/components/accueil/admin/AFaireAdmin';
+import { EquipeDuJour } from '@/components/accueil/admin/EquipeDuJour';
+import { ResumeDuJour } from '@/components/accueil/admin/ResumeDuJour';
+import { AFaireBailleur, type FilesDeLHote } from '@/components/accueil/bailleur/AFaireBailleur';
+import { DemarrerDuBailleur } from '@/components/accueil/bailleur/DemarrerDuBailleur';
+import { EnCoursSurVosBiens } from '@/components/accueil/bailleur/EnCoursSurVosBiens';
+import { PlaceDesLoyers } from '@/components/accueil/bailleur/PlaceDesLoyers';
+import { ResumeDuBailleur } from '@/components/accueil/bailleur/ResumeDuBailleur';
+import { CeMois, CeMoisEnFlux, SqueletteDeCeMois } from '@/components/accueil/CeMois';
+import { FavorisQuiBougent } from '@/components/accueil/client/FavorisQuiBougent';
+import { ChercherUnBien, PublierUnBien, SiAucuneRecherche } from '@/components/accueil/client/ChercherEtPublier';
+import { InvitationARechercher, lienDeLaRecherche, lireInvitationARechercher } from '@/components/accueil/client/InvitationARechercher';
+import { ReponseRecue } from '@/components/accueil/client/ReponseRecue';
+import { VosRecherches } from '@/components/accueil/client/VosRecherches';
+import { VosVisites, type VisiteAVenir } from '@/components/accueil/client/VosVisites';
+import { CarteDuLogement } from '@/components/accueil/locataire/CarteDuLogement';
+import { CarteDuLoyer } from '@/components/accueil/locataire/CarteDuLoyer';
+import { DerniersPaiements } from '@/components/accueil/locataire/DerniersPaiements';
+import { EcheancesDes30Jours } from '@/components/accueil/locataire/EcheancesDes30Jours';
+import { EntreeDansLesLieux } from '@/components/accueil/locataire/EntreeDansLesLieux';
+import { ErreurDeLaSituation } from '@/components/accueil/locataire/ErreurDeLaSituation';
+import { InterventionsEnCours } from '@/components/accueil/locataire/InterventionsEnCours';
+import { CeQuiMAttend, DocumentsRecents } from '@/components/accueil/locataire/MaSituation';
+import { MonLogement } from '@/components/accueil/locataire/MonLogement';
+import { ResumeDuLocataire } from '@/components/accueil/locataire/ResumeDuLocataire';
+import { AChiffrer, JourneeDuPrestataire, ResumeDuPrestataire } from '@/components/accueil/prestataire/AccueilDuPrestataire';
+import { SocleDeLAccueil } from '@/components/accueil/SocleDeLAccueil';
 import { BrandingBanner } from '@/components/agency/BrandingBanner';
 import { DashboardEmpty } from '@/components/dashboard/DashboardEmpty';
-import { MiseEnService } from '@/components/dashboard/admin/MiseEnService';
-import { DashboardMeKpis } from '@/components/dashboard/DashboardMeKpis';
-import { DashboardShortcuts } from '@/components/dashboard/DashboardShortcuts';
-import { PageHeader } from '@/components/console';
+import { MaJournee } from '@/components/journee/MaJournee';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
-import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
 import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboardingChecklistWidget';
-import { isAgencyAdmin, isSuperAdmin, isTenant } from '@/lib/roles';
-import { aDesChiffres, fetchDashboardMe } from '@/lib/queries/dashboard-me';
-import { getTranslations } from 'next-intl/server';
+import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
+import { localeDeLaRequete } from '@/i18n/locale-serveur';
+import { chiffresDuMois, rapportDuMois, type ChiffreDuMois } from '@/lib/accueil/chiffres-du-mois';
+import { lireLoyersDuMois } from '@/lib/accueil/loyers-du-mois';
+import { vueBailleurOuverte } from '@/lib/access/tableau-du-bailleur';
+import { fetchOwnerDashboard } from '@/lib/queries/dashboard';
 import { prenomDe } from '@/lib/identite';
+import { jourEnClair } from '@/lib/journee/jour-en-clair';
+import { jourADakar } from '@/lib/journee/journee';
+import { accueilNommeAujourdhui } from '@/lib/navigation/accueil-nomme';
+import { profilLieDeLaCoque, resoudrePersona, typeDuProfilActif } from '@/lib/navigation/personas';
+import { aDesChiffres, fetchDashboardMe, type DashboardMePayload, type DashboardMeRecentDocument } from '@/lib/queries/dashboard-me';
+import { fetchKpisActifs } from '@/lib/queries/kpis';
+import { isAgencyAdmin, isSuperAdmin, isTenant } from '@/lib/roles';
+import { getActiveProfileId } from '@/lib/session';
 import type { AgencyKind } from '@/types/agency';
 
+/** TCK-2622 — « Accueil — Takussan » ; « Aujourd'hui — Takussan » chez l'agent (TCK-2596, TCK-2618). */
 export async function generateMetadata(): Promise<Metadata> {
+  // Un traducteur nommé `t`, ouvert sur l'espace du titre : la forme que lit la garde des titres
+  // d'onglet (titres-onglets.test.ts, TCK-382 / AC4).
   const t = await getTranslations('dashboard.pages.home');
-  return { title: t('metaTitle') };
+  const tAccueil = await getTranslations('accueil');
+  const user = await getMeAction();
+  const typeProfilActif = typeDuProfilActif(profilLieDeLaCoque(await getActiveProfileId(), user));
+  return { title: accueilNommeAujourdhui({ roles: user.roles, typeProfilActif }) ? tAccueil('metaAujourdhui') : t('metaTitle') };
+}
+
+/**
+ * La lecture de `/dashboard/me` : `null` sans chiffres (404 d'une API ancienne), `'echec'` sur toute
+ * autre panne. TCK-2622 — une panne n'éteint plus la page : « Ce mois » dit son erreur, le reste rend.
+ */
+async function lireLeTableau(): Promise<{ data: DashboardMePayload } | null | 'echec'> {
+  try {
+    return await fetchDashboardMe();
+  } catch {
+    return 'echec';
+  }
+}
+
+/**
+ * « Ce mois » d'après la lecture de `/dashboard/me` : `chiffres` à `null` = la lecture a échoué (le bloc
+ * le dit), `[]` = rien à compter pour ce persona. TCK-2854 — une fonction, pour que l'admin d'agence la
+ * lise EN FLUX (la page ne l'attend pas) ; elle ne rejette jamais.
+ */
+async function lireCeMois(
+  lecture: Promise<{ data: DashboardMePayload } | null | 'echec'>,
+  contexte: { persona: ReturnType<typeof resoudrePersona>; agenceStandard: boolean },
+): Promise<{ chiffres: ChiffreDuMois[] | null; rapport: string | null }> {
+  const lue = await lecture;
+  if (lue === 'echec') return { chiffres: null, rapport: null };
+  if (!aDesChiffres(lue)) return { chiffres: [], rapport: null };
+  try {
+    const chiffres = chiffresDuMois({
+      persona: contexte.persona,
+      role: lue.data.role,
+      metrics: lue.data.metrics,
+      kpis: lue.data.role === 'agency_admin' ? await fetchKpisActifs() : [],
+      agenceStandard: contexte.agenceStandard,
+    });
+    return { chiffres, rapport: rapportDuMois(lue.data.role) };
+  } catch {
+    return { chiffres: null, rapport: null };
+  }
+}
+
+/**
+ * TCK-2624 (lot 2) — « Réservations à traiter » et « Avis sans réponse » de l'hôte, lus comme la Vue
+ * bailleur les lisait (`GET /api/dashboard/owner`, ouvert à qui `vueBailleurOuverte` admet). Une vue
+ * fermée : les deux files ne s'appliquent pas ; une panne : elles le disent (le bloc ne dit pas « Tout
+ * est à jour »).
+ */
+async function lireLesFilesDeLHote(user: Awaited<ReturnType<typeof getMeAction>>): Promise<FilesDeLHote | null> {
+  if ((await vueBailleurOuverte(user)) !== true) return null;
+  try {
+    const lue = await fetchOwnerDashboard({ include: [] });
+    if (!lue) return null;
+    const { data } = lue;
+    return { reservations: { etat: 'pret', total: data.bookings?.pending ?? 0 }, avis: { etat: 'pret', total: data.reviews?.unanswered ?? 0 } };
+  } catch {
+    return { reservations: { etat: 'echec' }, avis: { etat: 'echec' } };
+  }
+}
+
+/**
+ * TCK-2625 — ce que « Ma situation » lisait de la vue `tenant` de `/dashboard/me` (`TenantMeMetrics`),
+ * typé une fois : les visites à venir, les échéances des 30 jours, les documents récents, les
+ * interventions ouvertes et les réservations en attente.
+ */
+function lireLaSituation(metrics: Record<string, unknown>) {
+  const liste = <T,>(v: unknown): readonly T[] => (Array.isArray(v) ? (v as T[]) : []);
+  const nombre = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  return {
+    aUneFiche: metrics.has_customer_profile === true,
+    visites: liste<VisiteAVenir>(metrics.visits_upcoming),
+    documents: liste<DashboardMeRecentDocument>(metrics.recent_documents),
+    interventionsOuvertes: nombre(metrics.maintenance_open),
+    reservationsEnAttente: nombre(metrics.bookings_pending),
+  };
 }
 
 export default async function DashboardPage() {
@@ -30,16 +146,12 @@ export default async function DashboardPage() {
     return <NoAgencyState title={t('noAgency')} />;
   }
 
-  const payload = await fetchDashboardMe();
-  const prenom = prenomDe(user);
+  // TCK-2854 — la lecture part tout de suite ; l'admin d'agence ne l'attend pas (« Ce mois » en flux).
+  const lectureDuTableau = lireLeTableau();
 
-  // TCK-270 — Surface a "Personnalisez votre agence" banner when the
-  // agency_admin lands on the dashboard right after activation and hasn't
-  // uploaded a logo yet. We swallow fetch errors here so a stale agency
-  // record never breaks the dashboard render — the banner just stays hidden.
+  // TCK-270 — le bandeau « Personnalisez votre agence » (logo manquant) ; TCK-777 — le `kind` filtre
+  // les étapes de la mise en service. Une agence illisible ne casse rien : bandeau caché, `kind` nul.
   let showBrandingBanner = false;
-  // TCK-777 (P15.08) — le `kind` filtre les étapes de la mise en service ; `null` si l'agence n'a
-  // pas pu être lue : la carte ne garde alors que les étapes ouvertes à tout admin.
   let kind: AgencyKind | null = null;
   const adminDAgence = isAgencyAdmin(user.roles) && !!user.agency_id;
   if (adminDAgence) {
@@ -50,40 +162,222 @@ export default async function DashboardPage() {
     }
   }
 
+  // TCK-2622 — les blocs se choisissent par PERSONA (ADR-0089), celui de la coque : le profil actif,
+  // jamais l'union des rôles (la cause des raccourcis faux du client).
+  const persona = resoudrePersona({
+    roles: user.roles,
+    typeProfilActif: typeDuProfilActif(profilLieDeLaCoque(await getActiveProfileId(), user)),
+    agenceIndividuelle: kind === 'individual',
+  });
+
+  // TCK-2624 — l'admin d'une agence (standard : l'agence individuelle est l'hôte) voit ce qui attend
+  // sa décision, et son équipe du jour. Les lectures sont bornées à l'agence active par l'API.
+  // TCK-2854 — son accueil ne lit `/dashboard/me` que pour « Ce mois » : la page ne l'attend pas, le bloc
+  // se dessine (squelette) pendant que « À faire » rend. Le persona `admin-agence` vient du profil actif
+  // ou, sans profil actif, de `TYPE_DOMINANT` (owner, agent, agency_admin…) : un compte qui a aussi le rôle
+  // `agent` y est donc l'agent. Côté API, `DashboardRoleResolver::resolve` juge `isAgencyAdminAt` AVANT
+  // `isAgentAt` : l'admin de l'agence active reçoit la vue `agency_admin`, jamais `agent` — la journée de
+  // l'agent ne se décide pas sur ce chemin.
+  const accueilAdmin = persona === 'admin-agence' && adminDAgence ? user.agency_id! : null;
+  const lecture = accueilAdmin !== null ? null : await lectureDuTableau;
+  const payload = lecture === 'echec' ? null : lecture;
+
+  // TCK-2596 (ADR-0096) — l'accueil de l'AGENT est sa journée : « À régler », la chronologie, ses
+  // chiffres en bas. Le rôle est celui du profil ACTIF (`dashboard/me`) ; si la lecture a échoué, le
+  // persona décide, et la journée montre ses chiffres en « — ».
+  if (payload ? payload.data.role === 'agent' : lecture === 'echec' && persona === 'agent') {
+    return <MaJournee chiffres={payload?.data.metrics ?? {}} bandeau={<WizardDraftsBanner />} />;
+  }
+
+  const prenom = prenomDe(user);
+  // TCK-2625 — typée `Locale` : les blocs du locataire et du client formatent dates et montants avec.
+  const locale = await localeDeLaRequete();
+
+  // « Ce mois » : `null` = la lecture a échoué (le bloc le dit), `[]` = rien à compter pour ce persona.
+  // TCK-2854 — l'admin le lit en flux (plus bas) : ses chiffres ne sont jamais vides (`chiffresDeLAgence`).
+  const ceMoisLu = accueilAdmin !== null ? null : await lireCeMois(lectureDuTableau, { persona, agenceStandard: kind === 'standard' });
+  const chiffres = ceMoisLu?.chiffres ?? null;
+  const aujourdhui = jourADakar(new Date());
+  const jour = jourEnClair(locale, aujourdhui);
+
+  // TCK-2624 (lot 2) — le bailleur et l'hôte voient ce qui attend LEUR réponse (visites, devis, loyers
+  // en retard), les loyers du mois et ce qui est en cours sur leurs biens. TCK-2869 — qui confirme une
+  // visite ne se déduit plus du persona : l'API le rend avec chaque visite (`can_confirm`, ADR-0112).
+  const accueilBailleur = persona === 'bailleur' || persona === 'hote';
+  const loyers = accueilBailleur && payload?.data.role === 'owner' ? lireLoyersDuMois(payload.data.metrics) : null;
+  const filesDeLHote = persona === 'hote' ? await lireLesFilesDeLHote(user) : null;
+
+  // TCK-2625 — le locataire et le client : « Ma situation » (`/app/overview/tenant`) est absorbée ici,
+  // rien ne s'y perd. Ses données sont celles de `/dashboard/me` (vue `tenant`), déjà lues ; le loyer
+  // vient du résumé de l'API (`CarteDuLoyer`). Le client reçoit l'invitation à chercher de TCK-595.
+  // Le prestataire arrive sur sa liste de travail (spec § 2.5 : ni tableau de bord ni rapports).
+  const accueilLocataire = persona === 'locataire';
+  const accueilClient = persona === 'client';
+  const accueilPrestataire = persona === 'prestataire';
+  const situation = (accueilLocataire || accueilClient) && payload?.data.role === 'tenant' ? lireLaSituation(payload.data.metrics) : null;
+  const invitation = accueilClient ? await lireInvitationARechercher(user.preferences, locale) : null;
+  // TCK-2853 — « Chercher un bien » (tête du bureau, pleine largeur au téléphone).
+  const rechercheDuClient = invitation ? lienDeLaRecherche(invitation, locale) : null;
+
+  const ceMoisRendu =
+    !accueilLocataire && ceMoisLu && (chiffres === null || chiffres.length > 0) ? (
+      <CeMois chiffres={chiffres} rapport={ceMoisLu.rapport} pleineLargeur={!accueilBailleur && !accueilLocataire && !accueilClient && !accueilPrestataire} />
+    ) : null;
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={prenom ? t('greeting', { name: prenom }) : t('greetingNoName')}
-        description={t('subtitle')}
-      />
-
-      {/* TCK-777 (P15.08) — la mise en service en tête, pour tout admin d'agence, individuelle
-          comprise : elle n'était montée que sur /app/overview/agency, réservé aux agences
-          standard. Elle y reste aussi. Elle disparaît une fois l'agence prête. */}
-      {adminDAgence ? <MiseEnService agencyId={user.agency_id ?? null} kind={kind} /> : null}
-
-      {showBrandingBanner ? <BrandingBanner /> : null}
-
-      {/* TCK-250 — Resumable wizard drafts banner. Renders nothing when no drafts. */}
-      <WizardDraftsBanner />
-
-      {/* TCK-266 — Tenant onboarding checklist widget. Renders nothing for
-          tenants whose active leases are all fully onboarded.
-          TCK-492 — la condition est passée de `isCustomer` à `isTenant`. Le
-          widget n'a jamais été monté depuis le cutover TCK-278 : `customer`
-          n'était plus émis, et un livrable P0 s'est éteint sans un rouge.
-          `tenant` est le prédicat JUSTE — c'est une check-list d'entrée dans
-          les lieux —, et il évite au passage d'aller chercher les baux de
-          quelqu'un qui n'en a aucun. */}
-      {isTenant(user.roles) ? <TenantOnboardingChecklistWidget /> : null}
-
-      {aDesChiffres(payload) ? (
-        <DashboardMeKpis role={payload.data.role} metrics={payload.data.metrics} />
-      ) : (
-        <DashboardEmpty roles={user.roles} />
-      )}
-
-      <DashboardShortcuts roles={user.roles} agencyId={user.agency_id} />
-    </div>
+    <SocleDeLAccueil
+      titre={prenom ? t('greeting', { name: prenom }) : t('greetingNoName')}
+      ligne={
+        accueilAdmin !== null ? (
+          <ResumeDuJour jour={jour} agencyId={accueilAdmin} />
+        ) : accueilBailleur ? (
+          <ResumeDuBailleur jour={jour} landlordId={user.id} loyers={loyers} />
+        ) : accueilLocataire ? (
+          <ResumeDuLocataire jour={jour} />
+        ) : accueilPrestataire ? (
+          <ResumeDuPrestataire jour={jour} />
+        ) : (
+          jour
+        )
+      }
+      // TCK-777 (P15.08) — la mise en service, pour tout admin d'agence, individuelle comprise ; elle
+      // disparaît une fois l'agence prête. TCK-2622 — repliée en une ligne.
+      miseEnService={adminDAgence ? { agencyId: user.agency_id!, kind } : null}
+      // TCK-2850 — « Démarrer » du bailleur (maquette e2) : la ligne au téléphone, le bandeau « Continuer » au
+      // bureau ; la même lecture et la même étape que le menu. L'hôte a la mise en service de son agence.
+      demarrage={persona === 'bailleur' ? { telephone: <DemarrerDuBailleur />, bureau: <DemarrerDuBailleur large /> } : null}
+      // TCK-2853 — au bureau, « Chercher un bien » dans la tête de page (maquette e5).
+      actions={rechercheDuClient ? <ChercherUnBien href={rechercheDuClient} pleineLargeur={false} /> : undefined}
+      bandeaux={
+        <>
+          {showBrandingBanner ? <BrandingBanner /> : null}
+          {/* TCK-250 — Resumable wizard drafts banner. Renders nothing when no drafts. */}
+          <WizardDraftsBanner />
+          {/* TCK-266 / TCK-492 — la check-list d'entrée dans les lieux. `tenant` est le prédicat JUSTE
+              (le persona ne l'est pas : un bailleur qui loue aussi un logement la perdrait). TCK-2852 — le
+              persona locataire la lit DANS ses blocs (« À finir » sous « Mon logement », « Votre entrée dans
+              les lieux » à gauche au bureau), plus en bandeau de tête ; les autres la gardent ici. */}
+          {isTenant(user.roles) && !accueilLocataire ? <TenantOnboardingChecklistWidget /> : null}
+        </>
+      }
+      // TCK-595 — un compte sans chiffres ni blocs de son persona garde son état vide (TCK-2625 : le
+      // locataire, le client et le prestataire ont désormais les leurs).
+      vide={chiffres !== null && chiffres.length === 0 && !accueilClient && !accueilPrestataire ? <DashboardEmpty roles={user.roles} /> : null}
+      blocs={
+        accueilAdmin !== null ? (
+          <AFaireAdmin agencyId={accueilAdmin} />
+        ) : accueilBailleur ? (
+          <>
+            {/* TCK-2850 — à gauche au-dessus de « À faire » ; à droite au bureau large quand rien n'attend (e6). */}
+            {loyers ? <PlaceDesLoyers place="blocs" loyers={loyers} jour={aujourdhui} landlordId={user.id} hote={filesDeLHote} className="max-md:mx-4 md:mb-5" /> : null}
+            <AFaireBailleur landlordId={user.id} hote={filesDeLHote} />
+          </>
+        ) : accueilLocataire ? (
+          // TCK-2852 (maquette a-3, bureau) — à gauche : la carte du loyer, « Derniers paiements », « Votre
+          // entrée dans les lieux ». Les deux derniers n'existent qu'au bureau (dès `md`) : au téléphone, la
+          // carte seule, puis la colonne.
+          <>
+            <CarteDuLoyer className="max-md:mx-4" />
+            <DerniersPaiements className="max-md:hidden" />
+            <EntreeDansLesLieux forme="bureau" className="max-md:hidden" />
+          </>
+        ) : accueilClient ? (
+          // TCK-2853 (maquette e5) — au téléphone : « Vos démarches », les favoris, « Vos recherches »,
+          // « Chercher un bien » pleine largeur, « Vous avez un bien à louer ? ». Au bureau, à gauche : la
+          // visite, « … vous a répondu · Lire », « Vos recherches », « Vous avez un bien à louer ? » ; les
+          // favoris passent à droite (`colonne`). L'invitation à chercher (TCK-595), que la maquette ne
+          // dessine pas, reste au client SANS recherche sauvegardée, sans son bouton (« Chercher un bien »
+          // porte le même lien). Les blocs du produit (documents) viennent après ceux de la maquette.
+          <>
+            <VosVisites visites={situation?.visites ?? []} />
+            <ReponseRecue className="max-md:hidden" />
+            <FavorisQuiBougent className="md:hidden" />
+            <VosRecherches />
+            {/* TCK-2853 — sans bien à montrer, l'invitation n'aurait qu'un titre : « Chercher un bien » suffit. */}
+            {invitation && invitation.biens.length > 0 ? (
+              <SiAucuneRecherche>
+                <InvitationARechercher invitation={invitation} locale={locale} bouton={false} className="max-md:mx-4" />
+              </SiAucuneRecherche>
+            ) : null}
+            {rechercheDuClient ? (
+              <div className="px-4 md:hidden">
+                <ChercherUnBien href={rechercheDuClient} />
+              </div>
+            ) : null}
+            <PublierUnBien className="max-md:mx-4" />
+            {situation?.aUneFiche ? <DocumentsRecents documents={situation.documents} className="max-md:mx-4" /> : null}
+          </>
+        ) : accueilPrestataire ? (
+          <JourneeDuPrestataire />
+        ) : undefined
+      }
+      colonne={
+        accueilAdmin !== null ? (
+          <EquipeDuJour agencyId={accueilAdmin} />
+        ) : accueilBailleur ? (
+          <EnCoursSurVosBiens landlordId={user.id} />
+        ) : accueilLocataire ? (
+          // TCK-2852 — au téléphone : « Mon logement » (photo, fin de bail, trois gestes), puis « À finir » ;
+          // au bureau, à droite : la carte du logement (l'agent et « Écrire »), puis « Interventions en
+          // cours ». Les blocs ajoutés par le produit viennent APRÈS ceux de la maquette, à chaque largeur.
+          <>
+            <MonLogement className="md:hidden" />
+            <EntreeDansLesLieux forme="telephone" className="md:hidden" />
+            <CarteDuLogement className="max-md:hidden" />
+            <InterventionsEnCours className="max-md:hidden" />
+            {/* Les échéances lisent les dus, pas `/dashboard/me` : elles rendent même quand celui-ci est en panne. */}
+            <EcheancesDes30Jours className="max-md:mx-4" />
+            {lecture === 'echec' ? <ErreurDeLaSituation className="max-md:mx-4" /> : null}
+            {situation ? (
+              <>
+                <CeQuiMAttend
+                  visites={situation.visites}
+                  interventionsOuvertes={situation.interventionsOuvertes}
+                  reservationsEnAttente={situation.reservationsEnAttente}
+                  locale={locale}
+                  className="max-md:mx-4"
+                />
+                <DocumentsRecents documents={situation.documents} className="max-md:mx-4" />
+              </>
+            ) : null}
+          </>
+        ) : accueilClient ? (
+          // TCK-2853 — au bureau, « Vos favoris · prix en baisse » dans la colonne de droite (maquette e5).
+          <>
+            <FavorisQuiBougent bureau className="max-md:hidden" />
+            {situation?.aUneFiche ? (
+              <CeQuiMAttend
+                visites={situation.visites}
+                interventionsOuvertes={situation.interventionsOuvertes}
+                reservationsEnAttente={situation.reservationsEnAttente}
+                locale={locale}
+                className="max-md:mx-4"
+              />
+            ) : null}
+          </>
+        ) : accueilPrestataire ? (
+          <AChiffrer />
+        ) : undefined
+      }
+      // TCK-2625 — pas de « Ce mois » pour le locataire : la maquette (a-3) n'en dessine pas, et ses chiffres
+      // (`overdue_amount` de `/dashboard/me`) contredisaient la carte du loyer — « En retard 0 F » à côté de
+      // « 338 250 F à régler » (relevé du 2026-11-13). Une seule vérité du montant : la carte.
+      // TCK-2854 — l'admin : « Ce mois » en flux, son squelette à sa place pendant la lecture.
+      ceMois={
+        accueilAdmin !== null ? (
+          <Suspense fallback={<SqueletteDeCeMois rapport={rapportDuMois('agency_admin')} />}>
+            <CeMoisEnFlux lecture={lireCeMois(lectureDuTableau, { persona, agenceStandard: kind === 'standard' })} />
+          </Suspense>
+        ) : loyers && accueilBailleur ? (
+          // TCK-2850 (maquette e6) — rien à faire : « Loyers du mois » au-dessus de « Ce mois », à droite.
+          <>
+            <PlaceDesLoyers place="colonne" loyers={loyers} jour={aujourdhui} landlordId={user.id} hote={filesDeLHote} />
+            {ceMoisRendu}
+          </>
+        ) : (
+          ceMoisRendu
+        )
+      }
+    />
   );
 }

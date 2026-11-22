@@ -83,23 +83,23 @@ const LIBELLES = {
     { chemin: 'admin.reconciliation.status', lu: 'components/admin/reconciliation/StatementDetail.tsx' },
   ],
   BookingStatus: [{ chemin: 'bookings.status', lu: 'components/crm/CustomerLinkedRecords.tsx' }],
+  // TCK-2876 — l'historique de la fiche d'une offre (la contre-offre de l'agence).
+  CounterOfferStatus: [{ chemin: 'bookings.fiche.contreOffre.statut', lu: 'components/bookings/detail/contre-offre.tsx' }],
   BoostStatus: [{ chemin: 'superAdmin.boosts.statuses', lu: 'components/boost/admin/AdminBoosts.tsx' }],
   CollaborationStatus: [{ chemin: 'serviceProviders.multiAgency.status', lu: 'components/onboarding/ServiceProviderMultiAgencyWelcome.tsx' }],
-  CommissionEntryStatus: [{ chemin: 'commissions.status', lu: 'components/commissions/CommissionsLedger.tsx' }],
+  CommissionEntryStatus: [{ chemin: 'commissions.status', lu: 'components/commissions/pieces.tsx' }],
   CustomerStatus: [{ chemin: 'crm.customerStatus', lu: 'components/customer-form/CustomerForm.tsx' }],
   DataExportStatus: [{ chemin: 'privacy.dataExports.status', lu: 'components/privacy/DataExportsPanel.tsx' }],
   InventoryStatus: [{ chemin: 'inventory.status', lu: 'components/inventory/InventoryBadges.tsx' }],
   InvoiceStatus: [{ chemin: 'payments.invoiceStatus', lu: 'components/admin/reconciliation/PayableStatusBadge.tsx' }],
-  KycDossierStatus: [
-    { chemin: 'kyc.status', lu: 'app/(super-admin)/super-admin/kyc/page.tsx' },
-    { chemin: 'dashboard.agencyQueues.kycStatus', lu: 'components/dashboard/admin/AgencyQueues.tsx' },
-  ],
+  // TCK-2799 — `dashboard.agencyQueues.kycStatus` est parti avec le bloc de files de l'ancienne vue d'agence.
+  KycDossierStatus: [{ chemin: 'kyc.status', lu: 'app/(super-admin)/super-admin/kyc/page.tsx' }],
   LeaseStatus: [{ chemin: 'lease.status', lu: 'components/leases/LeasesList.tsx' }],
   MaintenanceStatus: [
     { chemin: 'maintenance.status', lu: 'components/maintenance/MaintenanceStatusBadge.tsx' },
     { chemin: 'messaging.maintenanceEvents.statuses', lu: 'components/messages/useTexteMessageSysteme.ts' },
   ],
-  OwnerProfileStatus: [{ chemin: 'owners.page.status', lu: 'components/owners/OwnersList.tsx' }],
+  OwnerProfileStatus: [{ chemin: 'owners.page.status', lu: 'components/owners/carnet/pieces.tsx' }],
   PaymentStatus: [
     { chemin: 'payments.status', lu: 'components/admin/reconciliation/PayableStatusBadge.tsx' },
     { chemin: 'lease.schedule.status', lu: 'components/leases/LeaseSchedule.tsx' },
@@ -109,9 +109,14 @@ const LIBELLES = {
   PrivacyRequestStatus: [{ chemin: 'superAdmin.privacyRequests.status', lu: 'components/admin/super/PrivacyRequestsConsole.tsx' }],
   PropertyStatus: [{ chemin: 'property.status', lu: 'components/admin/super/SuperAdminPropertiesTable.tsx' }],
   RadarCrawlStatus: [{ chemin: 'superAdmin.pages.radar.crawl.status', lu: 'components/admin/super/radar/collecte/RadarCollecte.tsx' }],
+  // TCK-2469 — la console des cibles : la liste et la fiche lisent l'état sous le même espace.
+  RadarTargetStatus: [
+    { chemin: 'superAdmin.pages.radar.targets.status', lu: 'components/admin/super/radar/cibles/RadarCibles.tsx' },
+    { chemin: 'superAdmin.pages.radar.targets.status', lu: 'components/admin/super/radar/cibles/RadarCibleFiche.tsx' },
+  ],
   ReviewStatus: [
     { chemin: 'profile.reviews.status', lu: 'components/profile/ProfileReviewsList.tsx' },
-    { chemin: 'admin.moderation.status', lu: 'components/admin/ModerationQueueList.tsx' },
+    { chemin: 'admin.moderation.status', lu: 'components/admin/moderation/CarteDAvis.tsx' },
   ],
   RoleDelegationStatus: [{ chemin: 'admin.roles.role_delegations.statuses', lu: 'components/admin/roles/RoleDelegationsSection.tsx' }],
   ScheduledTaskRunStatus: [{ chemin: 'superAdmin.scheduler.status', lu: 'components/admin/super/scheduler.tsx' }],
@@ -124,11 +129,14 @@ const LIBELLES = {
 const SANS_LIBELLE = {
   AgencyAdminProfileStatus: 'aucun espace du dictionnaire ne porte ses trois cas (`archived` manque partout)',
   AgentProfileStatus: 'aucun écran relevé ne le traduit sous un espace complet',
+  CommitmentStatus: 'TCK-2969 : l\'API seule — l\'écran de l\'engagement (TCK-2972) lit l\'état DÉRIVÉ `etat` (`late` n\'est pas un statut), et y posera ses libellés',
   ConversationStatus: 'aucun espace du dictionnaire ne porte ses cas',
+  DocumentVaultArchiveStatus: 'TCK-2812 : le coffre dit chaque état par une phrase sous le dossier (`documents.coffre.archive.preparee.preparation`, `.prete`, `.echec`) et par le libellé du bouton — pas par une table à un cas par clé',
   InvitationStatus: 'aucun espace du dictionnaire ne porte ses cas',
   RadarVerificationStatus: 'TCK-2388 : `ReponseVerdict` le lit en comparaison (`pending`, `failed`) et dit chaque état par une phrase (`superAdmin.pages.radar.advertiser.reply.pending`, `.failed`) — pas par une table à un cas par clé que `LIBELLES` puisse relever',
   ReferentialStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   RelationshipStatus: 'aucun écran relevé ne le traduit (`billing.subscription.status` porte ses cas par coïncidence)',
+  SearchAliasStatus: 'TCK-2476 : aucun écran — la console des variantes d\'écriture est hors périmètre (l\'API `/api/admin/search/aliases` suffit pour l\'instant)',
   TaskStatus: 'aucun espace du dictionnaire ne porte ses quatre cas (`done` manque)',
   UserStatus: 'les espaces lus (`admin.users.status`, `superAdmin.pages.users.statuses`) n\'ont pas `deleted`, et l\'écran les lit derrière `t.has()` ou une liste connue',
 };

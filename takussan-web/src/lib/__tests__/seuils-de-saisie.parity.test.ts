@@ -84,14 +84,24 @@ const PAIRES: ReadonlyArray<{ nom: string; front: () => number; api: () => numbe
   },
   {
     nom: 'durée d’une note vocale (s)',
-    front: () => constanteFront(`${WEB}/components/messages/VoiceNoteRecorder.tsx`, 'VOICE_NOTE_MAX_SECONDS'),
-    api: () => constantePhp(`${API}/Http/Requests/Api/SendMessageConversationRequest.php`, 'AUDIO_MAX_SECONDS'),
+    // TCK-2901 — la borne vit avec l'enregistreur partagé (`components/note-vocale/`), plus dans la messagerie.
+    front: () => constanteFront(`${WEB}/components/note-vocale/useEnregistreurDeNoteVocale.ts`, 'VOICE_NOTE_MAX_SECONDS'),
+    // TCK-2900 — côté API, la règle a quitté la messagerie pour `VoiceNoteRules` (messagerie, interventions).
+    api: () => constantePhp(`${API}/Support/Media/VoiceNoteRules.php`, 'MAX_SECONDS'),
   },
   ...(['Owner', 'Agent', 'ServiceProvider'] as const).map((profil) => ({
     nom: `pièce KYC du profil ${profil} (octets)`,
-    front: () => constanteFront(`${WEB}/components/kyc/KycUploader.tsx`, 'MAX_BYTES'),
+    // TCK-2796 — « Vos pièces » envoie les pièces des trois profils (le téléverseur des assistants, et son `MAX_BYTES`,
+    // sont retirés).
+    front: () => constanteFront(`${WEB}/components/pieces/VosPieces.tsx`, 'TAILLE_MAX'),
     api: () => kycDeLaRegle(`${API}/Http/Requests/Api/Me/UploadKyc${profil}ProfileRequest.php`, 'file') * KO,
   })),
+  // TCK-2671 — la pièce du dossier de vérification de l'agence (RCCM, NINEA, dirigeant), refusée au choix.
+  {
+    nom: "pièce de la vérification de l'agence (octets)",
+    front: () => constanteFront(`${WEB}/components/kyc/VerificationDeLAgence.tsx`, 'PIECE_MAX_OCTETS'),
+    api: () => kycDeLaRegle(`${API}/Http/Requests/Kyc/UploadKycDocumentRequest.php`, 'document') * KO,
+  },
   {
     nom: "statuts d'une demande de surclassement (octets)",
     front: () => constanteFront(`${WEB}/components/agency/UpgradeRequestForm.tsx`, 'MAX_FILE_BYTES'),

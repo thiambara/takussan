@@ -11,6 +11,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('kpi-configs/metrics', [KpiConfigController::class, 'metrics'])->name('kpi-configs.metrics');
     Route::apiResource('kpi-configs', KpiConfigController::class)
         ->only(['index', 'store', 'update', 'destroy']);
+    // TCK-2866 — qui une alerte sur une mesure peut prévenir (avant l'alerte : avant la ressource).
+    Route::get('threshold-alerts/recipient-candidates', [ThresholdAlertController::class, 'candidates'])
+        ->name('threshold-alerts.recipient-candidates');
+    // TCK-2627 — `show` : une alerte avec sa valeur actuelle, ses destinataires et ses déclenchements.
     Route::apiResource('threshold-alerts', ThresholdAlertController::class)
-        ->only(['index', 'store', 'update', 'destroy']);
+        ->only(['index', 'show', 'store', 'update', 'destroy']);
 });

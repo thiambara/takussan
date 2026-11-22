@@ -11,6 +11,7 @@ use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\User;
 use App\Services\Property\PropertyPublication;
+use App\Services\Radar\Whatsapp\RadarWhatsappInbox;
 use App\Support\RadarPhone;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +23,11 @@ use Illuminate\Support\Facades\DB;
  * reste : le supprimer est un geste à part (`features.md` § 2.1), jamais le bloquer — un compte du Radar bloqué reste le
  * candidat que `PhoneLoginService` ouvre par code, et son titulaire reçoit 403 `account_blocked` à chaque essai.
  *
- * Deux entrées, un seul corps ({@see self::apply()}) : le geste de l'opérateur ({@see self::revoke()}, `super_admin`) et
- * le STOP d'un message ({@see RadarConsentWorkflow::recordOutcome()}), qui l'appelle sous ses propres verrous.
+ * Quatre entrées, un seul corps ({@see self::apply()}), chacune sous ses propres verrous :
+ *  - le geste de l'opérateur ({@see self::revoke()}, `super_admin`) ;
+ *  - le STOP posé par l'opérateur sur un message ({@see RadarConsentWorkflow::recordOutcome()}) ;
+ *  - le STOP reçu par l'API WhatsApp du Radar ({@see RadarWhatsappInbox}, TCK-2395) ;
+ *  - le refus de l'annonceur depuis le lien de réclamation ({@see ClaimDecline}, TCK-2511).
  * Ordre des verrous : annonces (par id) → annonceur → biens. La révocation ne demande PAS la prise en charge de l'annonceur :
  * un retrait n'attend pas qu'un autre opérateur libère la sienne.
  *

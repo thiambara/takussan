@@ -39,26 +39,31 @@ vi.mock('@/lib/queries/leases', () => ({
   useCreateLease: () => MUTATION,
   useLeasePropertyOptions: () => ({ data: BIENS, isLoading: false }),
   useLeaseCustomerOptions: () => ({ data: CLIENTS, isLoading: false }),
+  // TCK-2643 — les défauts du bien, le locataire lu par son id, et l'envoi à la signature.
+  useLeaseDefaults: () => ({ data: undefined }),
+  useLeaseCustomer: () => ({ data: undefined }),
+  useDemanderLaSignature: () => ({ mutateAsync: async () => ({ data: {} }) }),
 }));
 
-import { GuarantorSection } from '../GuarantorSection';
+import { FeuilleDesGarants } from '../fiche/FeuilleDesGarants';
 import { CreateLeaseForm } from '../CreateLeaseForm';
 
-describe('GuarantorSection — téléphone du garant (TCK-913)', () => {
+describe('FeuilleDesGarants — téléphone du garant (TCK-913, la carte « Garants » devenue feuille en TCK-2762)', () => {
   it('affiche le téléphone en lien tel:', () => {
-    render(withIntl(<GuarantorSection leaseId={42} canManage />));
+    render(withIntl(<FeuilleDesGarants leaseId={42} garants={GARANTS.data.data} peutGerer ouverte onFermer={() => {}} />));
     const lien = screen.getByRole('link', { name: '+221770000001' });
     expect(lien).toHaveAttribute('href', 'tel:+221770000001');
   });
 
   it('saisit le téléphone dans un champ tel, indicatif en préfixe', async () => {
     const user = userEvent.setup();
-    render(withIntl(<GuarantorSection leaseId={42} canManage />));
+    render(withIntl(<FeuilleDesGarants leaseId={42} garants={GARANTS.data.data} peutGerer ouverte onFermer={() => {}} />));
     await user.click(screen.getByRole('button', { name: 'Ajouter un garant' }));
 
     const champ = await screen.findByLabelText(/Téléphone/);
     expect(champ).toHaveAttribute('type', 'tel');
-    expect(champ).toHaveAttribute('autocomplete', 'tel');
+    // ADR-0135 — l'indicatif est affiché à part : la saisie automatique propose le numéro NATIONAL.
+    expect(champ).toHaveAttribute('autocomplete', 'tel-national');
     expect(screen.getByText('+221')).toBeInTheDocument();
   });
 });
@@ -68,18 +73,18 @@ describe('CreateLeaseForm — claviers numériques (TCK-913)', () => {
     const user = userEvent.setup();
     render(withIntl(<CreateLeaseForm />));
 
-    for (const libelle of [/Loyer mensuel/, /Caution/]) {
+    for (const libelle of [/^Loyer/, /Caution/]) {
       const champ = screen.getByLabelText(libelle);
       expect(champ).toHaveAttribute('inputmode', 'numeric');
       expect(champ).not.toHaveAttribute('type', 'number');
     }
-    await user.type(screen.getByLabelText(/Loyer mensuel/), '250000');
+    await user.type(screen.getByLabelText(/^Loyer/), '250000');
     // Espace fine insécable en français : `\s` la couvre.
-    expect((screen.getByLabelText(/Loyer mensuel/) as HTMLInputElement).value).toMatch(/^250\s000$/);
+    expect((screen.getByLabelText(/^Loyer/) as HTMLInputElement).value).toMatch(/^250\s000$/);
   });
 
   it('jour de paiement au clavier numérique', () => {
     render(withIntl(<CreateLeaseForm />));
-    expect(screen.getByLabelText(/Jour du paiement/)).toHaveAttribute('inputmode', 'numeric');
+    expect(screen.getByLabelText(/Échéance/)).toHaveAttribute('inputmode', 'numeric');
   });
 });

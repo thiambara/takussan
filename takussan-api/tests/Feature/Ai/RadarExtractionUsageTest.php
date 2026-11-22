@@ -109,7 +109,7 @@ class RadarExtractionUsageTest extends TestCase
         $this->assertInstanceOf(AttachmentsUseVision::class, $usage);
         $this->assertSame(AiModelRole::Extraction, $usage->role());
         $this->assertSame(RadarExtraction::class, $usage->agentClass());
-        $this->assertSame(3, $usage->promptVersion());
+        $this->assertSame(4, $usage->promptVersion()); // TCK-2466 : la liste « Déjà lu sur la page ».
         $this->assertSame(AiDataClass::Personnelle, $usage->maxDataClass());
         $this->assertSame(PlatformAbility::RadarOperate, $usage->authority());
         $this->assertSame('3.33', $usage->dailyBudgetUsd());

@@ -164,10 +164,10 @@ describe('SystemMetricsGrid (TCK-360)', () => {
     const texte = grille.textContent ?? '';
     expect(texte).toContain('Flux encaissé');
     expect(texte).not.toContain('Revenu plateforme');
-    expect(texte).toContain('300\u202F000\u00A0F\u00A0CFA');
+    expect(texte).toContain('300\u00A0000\u00A0F\u00A0CFA');
     expect(texte).toContain('8,33\u00A0%');
-    expect(texte).toContain('40\u202F000\u00A0F\u00A0CFA');
-    expect(texte).toContain('15\u202F000\u00A0F\u00A0CFA');
+    expect(texte).toContain('40\u00A0000\u00A0F\u00A0CFA');
+    expect(texte).toContain('15\u00A0000\u00A0F\u00A0CFA');
     expect(texte).toContain('3 abonnements payants');
     // 300 000 depuis 240 000 → +25 % : la tendance du flux encaissé lit `revenue_collected_total`.
     expect(screen.getByText('+25 % sur 30 jours')).toBeInTheDocument();

@@ -4,15 +4,14 @@
  *
  * `Navbar.deconnexion.test.tsx` (TCK-509) garde le nettoyage de la session, pas la destination :
  * il n'asserte que la PRÉSENCE d'un `router.push`. Une régression vers `/auth/login` y restait
- * verte (relevé du vérificateur du lot B). Ce fichier garde la destination sur les deux branches
- * de `Navbar.handleLogout` :
- *   - bureau (menu utilisateur) → `router.push(accueil)` ;
- *   - mobile (panneau) hors de l'accueil → `router.replace(accueil)` (la sentinelle d'historique
- *     est remplacée, TCK-551) ; depuis l'accueil même → `router.push(accueil)`.
+ * verte (relevé du vérificateur du lot B). Ce fichier garde la destination sur les deux surfaces :
+ *   - bureau (menu « Mon espace », TCK-2494) → `router.push(accueil)` ;
+ *   - mobile (écran « Moi », `/account`, TCK-2493 — le panneau du menu a quitté la barre) →
+ *     `router.replace(accueil)` : revenir en arrière sur « Moi » déconnecté n'a pas de sens.
  * Et l'ordre : la navigation n'a lieu qu'APRÈS la révocation (TCK-509).
  */
 import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -72,29 +71,29 @@ vi.mock('@/hooks/useSuggest', () => ({
 vi.mock('@/app/actions/locale', () => ({ setLocaleAction: vi.fn(async () => {}) }));
 
 const { Navbar } = await import('@/components/home/Navbar');
+const { EcranDuCompte } = await import('@/components/navigation-publique/EcranDuCompte');
 
-const LIBELLES: Record<'fr' | 'wo', { menuCompte: string; deconnexion: string; ouvrirMenu: string }> = {
-  fr: { menuCompte: 'Menu utilisateur', deconnexion: 'Déconnexion', ouvrirMenu: 'Ouvrir le menu' },
-  wo: { menuCompte: 'Menu jëfandikukat', deconnexion: 'Génn', ouvrirMenu: 'Ubbil menu bi' },
+/** Le wolof est en pause (2026-10-16) : les clés neuves portent en `wo` le texte français. */
+const LIBELLES: Record<'fr' | 'wo', { monEspace: RegExp; deconnexion: string }> = {
+  fr: { monEspace: /Mon espace/, deconnexion: 'Se déconnecter' },
+  wo: { monEspace: /Mon espace/, deconnexion: 'Se déconnecter' },
 };
 
-function monter(locale: LocaleDeTest) {
+function monter(ui: React.ReactElement, locale: LocaleDeTest) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}>{withIntl(<Navbar />, locale)}</QueryClientProvider>);
+  render(<QueryClientProvider client={client}>{withIntl(ui, locale)}</QueryClientProvider>);
   return userEvent.setup();
 }
 
 async function seDeconnecterAuBureau(locale: 'fr' | 'wo') {
-  const user = monter(locale);
-  await user.click(screen.getByRole('button', { name: LIBELLES[locale].menuCompte }));
-  await user.click(screen.getByRole('button', { name: LIBELLES[locale].deconnexion }));
+  const user = monter(<Navbar />, locale);
+  await user.click(screen.getByRole('button', { name: LIBELLES[locale].monEspace }));
+  await user.click(await screen.findByRole('menuitem', { name: LIBELLES[locale].deconnexion }));
 }
 
 async function seDeconnecterAuMobile(locale: 'fr' | 'wo') {
-  const user = monter(locale);
-  await user.click(screen.getByRole('button', { name: LIBELLES[locale].ouvrirMenu }));
-  const panneau = await screen.findByRole('dialog');
-  await user.click(within(panneau).getByRole('button', { name: LIBELLES[locale].deconnexion }));
+  const user = monter(<EcranDuCompte />, locale);
+  await user.click(screen.getByRole('button', { name: LIBELLES[locale].deconnexion }));
 }
 
 function navigations() {
@@ -118,7 +117,7 @@ describe('Navbar publique — destination de la déconnexion (TCK-633, AC3)', ()
     vi.unstubAllGlobals();
   });
 
-  describe('bureau (menu utilisateur)', () => {
+  describe('bureau (menu « Mon espace »)', () => {
     it.each([
       ['fr', '/fr/properties', '/fr'],
       ['wo', '/wo/properties', '/wo'],
@@ -133,29 +132,18 @@ describe('Navbar publique — destination de la déconnexion (TCK-633, AC3)', ()
     });
   });
 
-  describe('mobile (panneau)', () => {
+  describe('mobile (écran « Moi »)', () => {
     it.each([
-      ['fr', '/fr/properties', '/fr'],
-      ['wo', '/wo/properties', '/wo'],
-    ] as const)(
-      '%s, hors de l’accueil : remplace par l’accueil localisé, après la révocation',
-      async (locale, chemin, accueil) => {
-        etat.chemin = chemin;
-        await seDeconnecterAuMobile(locale);
-
-        await waitFor(() => expect(navigations()).toHaveLength(1));
-        expect(etat.evenements).toEqual(['logout:debut', 'logout:fin', `replace:${accueil}`]);
-        expect(router.push).not.toHaveBeenCalled();
-        expect(logout).toHaveBeenCalledTimes(1);
-      },
-    );
-
-    it('fr, depuis l’accueil même : pousse l’accueil localisé (rien à remplacer)', async () => {
-      etat.chemin = '/fr';
-      await seDeconnecterAuMobile('fr');
+      ['fr', '/fr/account', '/fr'],
+      ['wo', '/wo/account', '/wo'],
+    ] as const)('%s : remplace par l’accueil localisé, après la révocation', async (locale, chemin, accueil) => {
+      etat.chemin = chemin;
+      await seDeconnecterAuMobile(locale);
 
       await waitFor(() => expect(navigations()).toHaveLength(1));
-      expect(etat.evenements).toEqual(['logout:debut', 'logout:fin', 'push:/fr']);
+      expect(etat.evenements).toEqual(['logout:debut', 'logout:fin', `replace:${accueil}`]);
+      expect(router.push).not.toHaveBeenCalled();
+      expect(logout).toHaveBeenCalledTimes(1);
     });
   });
 });

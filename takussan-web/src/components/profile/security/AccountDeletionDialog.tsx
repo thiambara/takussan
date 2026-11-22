@@ -183,6 +183,7 @@ export function AccountDeletionDialog({
             </fieldset>
             {reasonCode === 'other' ? (
               <Textarea
+                profil="texte-long"
                 value={reasonText}
                 onChange={(e) => setReasonText(e.target.value)}
                 placeholder={t('reasonOtherPlaceholder')}
@@ -201,7 +202,7 @@ export function AccountDeletionDialog({
                 <Label htmlFor="account-deletion-password">{t('passwordLabel')}</Label>
                 <Input
                   id="account-deletion-password"
-                  type="password"
+                  profil="mot-de-passe"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
@@ -226,8 +227,8 @@ export function AccountDeletionDialog({
                 <Label htmlFor="account-deletion-code">{t('codeLabel')}</Label>
                 <Input
                   id="account-deletion-code"
-                  type="text"
-                  inputMode="numeric"
+                  profil="code"
+                  placeholder="123456"
                   pattern="\d{6}"
                   maxLength={6}
                   autoComplete="one-time-code"
@@ -242,8 +243,8 @@ export function AccountDeletionDialog({
                 <Label htmlFor="account-deletion-2fa">{t('twoFactorLabel')}</Label>
                 <Input
                   id="account-deletion-2fa"
-                  type="text"
-                  inputMode="numeric"
+                  profil="code"
+                  placeholder="123456"
                   pattern="\d{6}"
                   maxLength={6}
                   value={twoFactorCode}

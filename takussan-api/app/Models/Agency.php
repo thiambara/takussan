@@ -13,6 +13,7 @@ use App\Models\Enums\Currency;
 use App\Observers\AgencyBoostObserver;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -47,6 +48,10 @@ class Agency extends AbstractModel implements HasMedia
         'commission_rate', 'status', 'kind', 'is_verified',
         'moderation_required', 'bank_csv_mapping', 'primary_admin_id',
         'legal_name', 'ninea', 'rccm', 'legal_address', 'default_tax_rate',
+        // TCK-2504 (décision de la session, 2026-11-09) — les réglages, dont les moyens de paiement
+        // hors ligne que les locataires lisent sur leurs liens : les changer en silence est la
+        // fraude par détournement de paiement que le journal doit voir.
+        'settings',
     ];
 
     protected $fillable = [
@@ -60,6 +65,11 @@ class Agency extends AbstractModel implements HasMedia
         // par `PayoutApprovalThreshold` (capacité, deux approbateurs, trace).
         'default_tax_rate',
         'legal_name', 'ninea', 'rccm', 'legal_address',
+        // TCK-2518 — la vitrine de la fiche publique. `median_response_minutes` n'est PAS ici : son
+        // seul écrivain est le job nocturne `RefreshDirectoryResponseTimes`.
+        'tagline', 'highlights', 'showcase_property_ids',
+        // TCK-2576 — le numéro WhatsApp de l'agence (E.164, `TelephoneSaisi`), jamais celui de l'admin.
+        'phone_whatsapp',
     ];
 
     protected $casts = [
@@ -80,6 +90,13 @@ class Agency extends AbstractModel implements HasMedia
         // VERIF-594 M-2 — un relâchement du seuil en attente d'un second détenteur.
         'pending_payout_threshold' => 'decimal:2',
         'pending_payout_threshold_requested_at' => 'datetime',
+        // TCK-2518 — la vitrine de l'annuaire public.
+        'highlights' => 'array',
+        'showcase_property_ids' => 'array',
+        'median_response_minutes' => 'integer',
+        // TCK-2937 (ADR-0125) — l'ouverture en libre-service depuis l'orientation. Hors de
+        // `$fillable` : seul `OwnAgencyOpeningService` l'écrit (`forceFill`).
+        'self_opened_at' => 'datetime',
     ];
 
     protected $attributes = [
@@ -107,7 +124,23 @@ class Agency extends AbstractModel implements HasMedia
         'payout_approval_threshold', 'default_tax_rate', 'legal_name', 'ninea', 'rccm', 'legal_address',
         // TCK-987 (P58.02) — la clé de `primaryAdmin`, que `AgencyResource` rend déjà.
         'primary_admin_id',
+        // TCK-2518 — la vitrine de la fiche publique, que l'écran de saisie relit.
+        'tagline', 'highlights', 'showcase_property_ids', 'median_response_minutes',
+        // TCK-2576 — l'écran de saisie relit le numéro WhatsApp de l'agence.
+        'phone_whatsapp',
     ];
+
+    /**
+     * TCK-2576 — le numéro WhatsApp que la fiche publique de l'agence sert, ou `null` : seul un numéro
+     * DÉCLARÉ par l'agence (`phone_whatsapp`) sort. Ni `phone` (la ligne du bureau, peut-être un fixe),
+     * ni le numéro d'un membre : un bouton WhatsApp qui viserait un numéro hors WhatsApp mentirait.
+     */
+    public function numeroWhatsAppPublic(): ?string
+    {
+        return is_string($this->phone_whatsapp) && trim($this->phone_whatsapp) !== ''
+            ? $this->phone_whatsapp
+            : null;
+    }
 
     /**
      * TCK-593 — l'agence encaisse-t-elle la pénalité de retard avec le paiement en ligne ?
@@ -277,6 +310,33 @@ class Agency extends AbstractModel implements HasMedia
         return $this->kind === AgencyKind::Standard
             && filled(data_get($this->metadata, 'welcome.standard_unlocked_at'))
             && blank(data_get($this->metadata, self::SLUG_CHANGED_AT));
+    }
+
+    /**
+     * TCK-2937 (ADR-0125 § 5, § 6) — une agence ouverte en libre-service que personne de la
+     * plateforme n'a JAMAIS vérifiée : elle travaille en interne, mais ne met aucun bien en ligne et
+     * n'a pas de fiche publique. Les agences de la console et des passages en pro (`self_opened_at`
+     * nulle) n'y sont jamais. Une fois vérifiée, elle n'y revient pas : l'échéance de la pièce
+     * (`kyc:expire-dossiers`) retire `is_verified` mais garde `verified_at`, et suit la règle commune.
+     */
+    public function awaitsFirstVerification(): bool
+    {
+        return $this->self_opened_at !== null && ! $this->is_verified && $this->verified_at === null;
+    }
+
+    /**
+     * TCK-2937 (ADR-0125 § 5) — la négation de {@see awaitsFirstVerification()}, en requête : ce que
+     * la fiche et le portefeuille publics d'une agence peuvent montrer.
+     *
+     * @param  Builder<Agency>  $query
+     * @return Builder<Agency>
+     */
+    public function scopeVisibleInPublicDirectory(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereNull($q->qualifyColumn('self_opened_at'))
+            ->orWhere($q->qualifyColumn('is_verified'), true)
+            ->orWhereNotNull($q->qualifyColumn('verified_at')));
     }
 
     public function kycDossier(): MorphOne

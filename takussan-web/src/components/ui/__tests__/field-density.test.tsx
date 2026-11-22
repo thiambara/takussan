@@ -33,7 +33,8 @@ describe('les primitives de champ portent la variante de densité', () => {
     const champ = screen.getByLabelText('titre');
     // Les DEUX régimes, pas leur égalité : la hauteur de base reste 32 px pour le parc,
     // et 44 px n'arrive que sous une portée.
-    expect(champ.className).toContain('h-10');
+    // TCK-2686 — la hauteur de base est le jeton `h-controle` (`h-10` hors portée `/app`).
+    expect(champ.className.split(' ')).toContain('h-controle');
     expect(champ.className).toContain(FIELD_DENSITY_HEIGHT);
   });
 
@@ -48,15 +49,15 @@ describe('les primitives de champ portent la variante de densité', () => {
     const declencheur = screen.getByLabelText('devise');
     // Revue 2026-09-16 : la base est nue (`h-10` depuis TCK-2460), jamais `data-[size=default]:…`,
     // qui l'emporterait sur la portée de densité.
-    expect(declencheur.className.split(' ')).toContain('h-10');
-    expect(declencheur.className).not.toContain('data-[size=default]:h-10');
+    expect(declencheur.className.split(' ')).toContain('h-controle'); // TCK-2686 : jeton, `h-10` hors portée
+    expect(declencheur.className.split(' ')).not.toContain('data-[size=default]:h-controle');
     expect(declencheur.className).toContain(FIELD_DENSITY_HEIGHT_SIZED);
   });
 
   it('DatePicker', () => {
     render(withIntl(<DatePicker value="" onValueChange={() => {}} data-testid="dp" />));
     const bouton = screen.getByTestId('dp');
-    expect(bouton.className).toContain('h-10');
+    expect(bouton.className.split(' ')).toContain('h-controle'); // TCK-2686
     expect(bouton.className).toContain(FIELD_DENSITY_HEIGHT);
   });
 
@@ -117,9 +118,17 @@ describe('AC2 — `className` de DatePicker atteint la CIBLE CLIQUABLE', () => {
 
 // ── Ce que la feuille de style en fait ──────────────────────────────────────
 
-/** Compile le Tailwind DU DÉPÔT sur une liste de candidats. Mesuré : ~20 ms. */
+/**
+ * Compile le Tailwind DU DÉPÔT sur une liste de candidats. Mesuré : ~20 ms.
+ * TCK-2686 — avec le bloc `densite-de-l-app` de `globals.css` : les hauteurs sont des jetons
+ * (`h-controle`, `h-controle-confortable`) que le Tailwind nu ne connaît pas.
+ */
 async function feuille(candidats: readonly string[]): Promise<string> {
-  const compilateur = await compile('@import "tailwindcss";', {
+  const globals = await fs.readFile(path.join(process.cwd(), 'src/app/globals.css'), 'utf8');
+  const debut = globals.indexOf('/* densite-de-l-app:début');
+  const fin = globals.indexOf('/* densite-de-l-app:fin */');
+  expect(debut).toBeGreaterThan(-1);
+  const compilateur = await compile(`@import "tailwindcss";\n${globals.slice(debut, fin)}`, {
     base: process.cwd(),
     loadStylesheet: async () => {
       const p = path.join(process.cwd(), 'node_modules/tailwindcss/index.css');
@@ -131,10 +140,10 @@ async function feuille(candidats: readonly string[]): Promise<string> {
 
 describe('la variante l’emporte réellement sur la hauteur de base', () => {
   it('44 px sous portée, 40 px sans — et la règle de densité vient APRÈS', async () => {
-    const css = await feuille(['h-10', FIELD_DENSITY_HEIGHT]);
+    const css = await feuille(['h-controle', FIELD_DENSITY_HEIGHT]);
 
-    const base = css.indexOf('.h-10 {');
-    const densite = css.indexOf('.in-data-\\[field-density\\=comfortable\\]\\:h-11');
+    const base = css.indexOf('.h-controle {');
+    const densite = css.indexOf('.in-data-\\[field-density\\=comfortable\\]\\:h-controle-confortable');
     expect(base).toBeGreaterThan(-1);
 
     // L'ancêtre passe par `:where()` — spécificité NULLE. Les deux règles sont donc à égalité
@@ -145,11 +154,12 @@ describe('la variante l’emporte réellement sur la hauteur de base', () => {
     expect(densite).toBeGreaterThan(base);
 
     // Et les hauteurs elles-mêmes, en clair : 10 × 0.25rem = 2.5rem = 40 px ; 11 × 0.25rem = 44 px.
+    // TCK-2686 — par les jetons, dont la valeur hors portée est celle d'avant.
     expect(css).toMatch(/--spacing:\s*0\.25rem/);
-    expect(css.slice(base, base + 120)).toMatch(/height:\s*calc\(var\(--spacing\)\s*\*\s*10\)/);
-    expect(css.slice(densite, densite + 260)).toMatch(
-      /height:\s*calc\(var\(--spacing\)\s*\*\s*11\)/,
-    );
+    expect(css.slice(base, base + 120)).toMatch(/height:\s*var\(--spacing-controle\)/);
+    expect(css).toMatch(/--spacing-controle:\s*calc\(var\(--spacing\)\s*\*\s*10\)/);
+    expect(css.slice(densite, densite + 260)).toMatch(/height:\s*var\(--spacing-controle-confortable\)/);
+    expect(css).toMatch(/--spacing-controle-confortable:\s*calc\(var\(--spacing\)\s*\*\s*11\)/);
   });
 
   it('la forme EMPILÉE du Select retrouve la spécificité de sa hauteur de base', async () => {
@@ -158,7 +168,7 @@ describe('la variante l’emporte réellement sur la hauteur de base', () => {
     const css = await feuille(['data-[size=default]:h-8', FIELD_DENSITY_HEIGHT_SIZED]);
 
     const base = css.indexOf('.data-\\[size\\=default\\]\\:h-8');
-    const densite = css.indexOf('.in-data-\\[field-density\\=comfortable\\]\\:data-\\[size\\=default\\]\\:h-11');
+    const densite = css.indexOf('.in-data-\\[field-density\\=comfortable\\]\\:data-\\[size\\=default\\]\\:h-controle-confortable');
     expect(base).toBeGreaterThan(-1);
     expect(densite).toBeGreaterThan(base);
     // Le sélecteur d'attribut est bien REPRIS dans la règle de densité : sans lui, (0,1,0) contre

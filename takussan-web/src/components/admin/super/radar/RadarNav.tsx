@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Inbox, Satellite, TrendingUp, UsersRound } from 'lucide-react';
+import { Crosshair, Inbox, Satellite, TrendingUp, UsersRound } from 'lucide-react';
 
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import type { ApiError } from '@/lib/api';
@@ -15,6 +15,8 @@ import type { RadarDashboardResponse } from '@/types/radar';
 const ENTREES = [
   { href: '/super-admin/radar', cle: 'listings', icone: Inbox, testId: 'radar-lien-annonces' },
   { href: '/super-admin/radar/advertisers', cle: 'advertisers', icone: UsersRound, testId: 'radar-lien-annonceurs' },
+  // TCK-2469 — ce que la collecte cherche, juste avant la collecte qu'elles bornent.
+  { href: '/super-admin/radar/targets', cle: 'targets', icone: Crosshair, testId: 'radar-lien-cibles' },
   { href: '/super-admin/radar/collecte', cle: 'crawl', icone: Satellite, testId: 'radar-lien-collecte' },
   { href: '/super-admin/radar/observatory', cle: 'observatory', icone: TrendingUp, testId: 'radar-lien-observatoire' },
 ] as const;
@@ -26,7 +28,7 @@ function estCourante(chemin: string, href: string): boolean {
 }
 
 /**
- * TCK-2461 — la navigation du Radar. Les quatre espaces se rejoignaient par trois boutons posés sur la seule liste
+ * TCK-2461 — la navigation du Radar (cinq espaces depuis TCK-2469). Les quatre espaces se rejoignaient par trois boutons posés sur la seule liste
  * des annonces, puis par un « Retour » ; on se déplace désormais d'un clic, depuis n'importe lequel, et on voit où
  * l'on est. La pastille des relances dues garde la même lecture que les compteurs de la liste de travail.
  */

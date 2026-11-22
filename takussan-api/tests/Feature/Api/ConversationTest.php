@@ -276,7 +276,8 @@ class ConversationTest extends TestCase
                 'lease_id' => $bail->id,
             ])->assertUnprocessable()->assertJsonValidationErrors(['type']);
         }
-        $this->assertSame(0, Conversation::query()->count(), 'aucun fil écrit avec un type hors usage');
+        // TCK-2960 — hors la salle que le bail a reçue à sa création (ADR-0128 § 2).
+        $this->assertSame(0, Conversation::query()->where('type', '!=', 'lease')->count(), 'aucun fil écrit avec un type hors usage');
 
         // Témoin : la même requête en `direct` passe, le refus vient donc du seul `type`.
         $this->postJson('/api/conversations', [
@@ -337,7 +338,8 @@ class ConversationTest extends TestCase
             $this->assertSame(__('messaging.errors.conversation_context_forbidden', [], 'fr'), $resp->json("errors.{$champ}.0"));
         }
 
-        $this->assertSame(0, Conversation::query()->count());
+        // TCK-2960 — hors la salle que le bail a reçue à sa création (ADR-0128 § 2).
+        $this->assertSame(0, Conversation::query()->where('type', '!=', 'lease')->count());
     }
 
     public function test_une_directe_se_rattache_a_son_propre_bail(): void
@@ -426,5 +428,51 @@ class ConversationTest extends TestCase
         ])->assertCreated();
 
         Queue::assertNotPushed(NotifyNewMessageJob::class);
+    }
+
+    /**
+     * Contre-vérification de TCK-2632 — « Écrire » deux fois ne crée plus deux directes : la
+     * directe existante entre les deux mêmes personnes, dans le même contexte, est rendue avec un
+     * 200, et le message initial y est posté. Un autre bail, un autre interlocuteur ou une directe
+     * quittée par l'un des deux ouvrent un fil neuf. La course est gardée par
+     * `CreateDirectConversationRaceTest`.
+     */
+    public function test_la_directe_existante_entre_les_deux_memes_personnes_est_rendue(): void
+    {
+        Queue::fake();
+        $me = User::factory()->create();
+        $other = User::factory()->create();
+        $tiers = User::factory()->create();
+        $agency = $this->mettreEnContact($me, $other);
+        $this->materializeRoleProfile($tiers, 'agent', $agency);
+        $bail = Lease::factory()->create(['landlord_id' => $me->id]);
+
+        Sanctum::actingAs($me);
+        $premiere = $this->postJson('/api/conversations', ['participants' => [$other->id]])->assertCreated()->json('data.id');
+
+        // Même paire, même contexte : la même directe, en 200, le message y est posté.
+        $this->postJson('/api/conversations', ['participants' => [$other->id], 'initial_message' => 'Re-bonjour'])
+            ->assertOk()->assertJsonPath('data.id', $premiere);
+        $this->assertSame(['Re-bonjour'], Message::query()->where('conversation_id', $premiere)->pluck('content')->all());
+        Queue::assertPushed(NotifyNewMessageJob::class, 1);
+
+        // Dans l'autre sens aussi : la paire n'a pas d'ordre.
+        Sanctum::actingAs($other);
+        $this->postJson('/api/conversations', ['participants' => [$me->id]])->assertOk()->assertJsonPath('data.id', $premiere);
+
+        // Un autre contexte (un bail), un autre interlocuteur : des fils neufs, chacun repris ensuite.
+        Sanctum::actingAs($me);
+        $duBail = $this->postJson('/api/conversations', ['participants' => [$other->id], 'lease_id' => $bail->id])->assertCreated()->json('data.id');
+        $this->assertNotSame($premiere, $duBail);
+        $this->postJson('/api/conversations', ['participants' => [$other->id], 'lease_id' => $bail->id])->assertOk()->assertJsonPath('data.id', $duBail);
+        $avecTiers = $this->postJson('/api/conversations', ['participants' => [$tiers->id]])->assertCreated()->json('data.id');
+        $this->assertNotContains($avecTiers, [$premiere, $duBail]);
+
+        // Une directe quittée par l'un des deux n'est pas reprise.
+        Conversation::query()->findOrFail($premiere)->participants()->updateExistingPivot($other->id, ['left_at' => now()]);
+        $this->assertNotSame($premiere, $this->postJson('/api/conversations', ['participants' => [$other->id]])->assertCreated()->json('data.id'));
+
+        // TCK-2960 — hors la salle que le bail a reçue à sa création (ADR-0128 § 2).
+        $this->assertSame(4, Conversation::query()->where('type', '!=', 'lease')->count());
     }
 }

@@ -167,7 +167,11 @@ class AgentAbsenceTest extends ApiTestCase
         $this->travelTo(now()->addDays(6));
 
         $this->assertSame($this->absent->id, $availability->substituteFor($this->absent, $this->agency->id)->id);
-        $this->actingAsApi($this->substitute)->apiGet("/api/tasks/{$task->id}")->assertForbidden();
+        // L'absence finie, le remplaçant ne PREND plus part à la tâche : il ne la coche plus et elle
+        // quitte sa liste. Il la lit encore, en lecture seule, au titre de l'équipe — le rôle d'agent
+        // tient `crm.view_all` (TCK-2595, `TaskPolicy::readsAsTeam`), comme toute tâche d'un collègue.
+        $this->actingAsApi($this->substitute)->apiPut("/api/tasks/{$task->id}", ['status' => 'open'])->assertForbidden();
+        $this->actingAsApi($this->substitute)->apiGet("/api/tasks/{$task->id}")->assertOk();
         $this->assertNotContains(
             $task->id,
             collect($this->actingAsApi($this->substitute)->apiGet('/api/tasks')->assertOk()->json('data'))->pluck('id')->all(),
@@ -312,5 +316,32 @@ class AgentAbsenceTest extends ApiTestCase
         $this->assertSame($this->absent->id, app(AgentAvailability::class)->substituteFor($this->absent, $this->agency->id)->id);
         $this->assertSame(0, AppNotification::query()->count());
         $this->assertSame(RoleDelegation::ABSENCE_ROLE, RoleDelegation::query()->sole()->role);
+    }
+
+    /**
+     * TCK-2743 (lot 3) — une absence déclarée puis déplacée avec décalage : le début et la fin sont les
+     * instants désignés. `Carbon::parse` gardait le décalage, et le cast écrivait l'heure murale.
+     */
+    public function test_debut_et_fin_recus_avec_decalage_sont_les_instants_designes(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-20 10:00:00', 'UTC'));
+
+        $id = $this->declare($this->admin, [
+            'starts_at' => '2026-10-22T09:00:00+01:00',
+            'ends_at' => '2026-10-24T18:00:00+02:00',
+        ])->assertCreated()->json('data.id');
+
+        $absence = RoleDelegation::query()->findOrFail($id);
+        $this->assertSame('2026-10-22 08:00:00', $absence->getRawOriginal('starts_at'));
+        $this->assertSame('2026-10-24 16:00:00', $absence->getRawOriginal('ends_at'));
+
+        $this->actingAsApi($this->admin)->apiPatch("/api/agencies/{$this->agency->id}/absences/{$id}", [
+            'starts_at' => '2026-10-23T09:00:00-01:00',
+            'ends_at' => '2026-10-25T18:00:00+02:00',
+        ])->assertOk();
+
+        $absence->refresh();
+        $this->assertSame('2026-10-23 10:00:00', $absence->getRawOriginal('starts_at'));
+        $this->assertSame('2026-10-25 16:00:00', $absence->getRawOriginal('ends_at'));
     }
 }

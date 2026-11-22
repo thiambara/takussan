@@ -14,7 +14,7 @@ interface PropertyReviewFormProps {
 }
 
 export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormProps) {
-  const t = useTranslations('property.reviews.form');
+  const t = useTranslations('propertyReviews.form');
   const messageErreur = useMessageErreurApi();
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
@@ -86,7 +86,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
         })}
       </div>
       <Input
-        type="text"
+        profil="phrase"
         placeholder={t('titlePlaceholder')}
         aria-label={t('titlePlaceholder')}
         value={title}
@@ -95,6 +95,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
       />
       <div className="space-y-1">
         <Textarea
+          profil="texte-long"
           placeholder={t('contentOptionalPlaceholder')}
           aria-label={t('contentOptionalPlaceholder')}
           value={content}

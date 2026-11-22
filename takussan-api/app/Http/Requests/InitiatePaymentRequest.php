@@ -3,10 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Models\Enums\PaymentProvider;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class InitiatePaymentRequest extends FormRequest
+class InitiatePaymentRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

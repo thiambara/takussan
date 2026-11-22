@@ -1,0 +1,538 @@
+{
+ "ticket": "TCK-2643",
+ "objet": "AC-F3 — chaque élément « absent du produit » ou « absent de la maquette » des trois rapports, avec son motif (alias, écart accepté de la fiche, vérité des données ou coque).",
+ "methode": [
+  "Rapports : `node scripts/fidelite/fidelite.mjs compare --maquette docs/qa/audit-ux-2026-11/fidelite/references/app-baux/<écran>.json --produit .fidelite/TCK-2643/prod-<écran>-h --roles docs/qa/audit-ux-2026-11/fidelite/TCK-2643.json` (relevés locaux, `.fidelite/` non versionné).",
+  "Relevés en lecture seule : garde d’écriture (fetch/XHR refusent tout verbe autre que GET/HEAD/OPTIONS), « écritures refusées : 0 » sur chaque relevé ; route `/app/leases/new?property=13&customer=3`, persona admin.",
+  "Motif : par libellé ou icône, renvoyé à une ligne de `ecarts_acceptes` / `hors_perimetre` / `alias` de la fiche quand elle existe. Aucune ligne sans motif."
+ ],
+ "releves": {
+  "a-2-telephone": {
+   "produit_commit": "58c870a28e22",
+   "releve_le": "2026-11-14T14:56:46.164Z",
+   "compte": "24 conformes · 9 écarts · 21 absents (5 du produit, 16 de la maquette) · 4.79 % pixels"
+  },
+  "a-3-telephone": {
+   "produit_commit": "58c870a28e22",
+   "releve_le": "2026-11-14T14:56:55.558Z",
+   "compte": "57 conformes · 14 écarts · 7 absents (3 du produit, 4 de la maquette) · 3.05 % pixels"
+  },
+  "a-2-bureau-1280": {
+   "produit_commit": "58c870a28e22",
+   "releve_le": "2026-11-14T14:57:04.153Z",
+   "compte": "80 conformes · 147 écarts · 44 absents (10 du produit, 34 de la maquette) · 9.92 % pixels"
+  }
+ },
+ "absents": {
+  "a-2-telephone": [
+   {
+    "origine": "rôle",
+    "element": "coque · barre d'onglets",
+    "statut": "absent de la maquette",
+    "position": "—",
+    "motif": "masquée des deux côtés : l’écran de création remplace la barre d’onglets par sa barre d’action (`hors_perimetre`)"
+   },
+   {
+    "origine": "rôle (contenu)",
+    "element": "coque · en-tête › texte 3 (« Brouillon »)",
+    "statut": "absent du produit",
+    "position": "316.9,17.5 69.1×20",
+    "motif": "écart accepté « lien Brouillon de l’en-tête » (décision produit : pas d’enregistrement automatique)"
+   },
+   {
+    "origine": "rôle",
+    "element": "carte « Les conditions » (a-3, téléphone)",
+    "statut": "absent de la maquette",
+    "position": "—",
+    "motif": "rôle propre au a-3, sans objet au a-2 (`_roles`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Brouillon",
+    "statut": "absent du produit",
+    "position": "316.9,17.5 69.1×20",
+    "motif": "écart accepté « lien Brouillon de l’en-tête » (décision produit : pas d’enregistrement automatique)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Habitation",
+    "statut": "absent du produit",
+    "position": "16,224 358×44",
+    "motif": "alias de données : le type se choisit dans une liste (« Location résidentielle »), écart accepté « type de bail »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Modifier",
+    "statut": "absent du produit",
+    "position": "304.7,775.9 54.3×20",
+    "motif": "écart accepté « Modifier dans l’encart des réglages » (décision 7 : aucune page n’écrit un réglage d’agence)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Aller au contenu principal",
+    "statut": "absent de la maquette",
+    "position": "-1,-1 32×16",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Les conditions",
+    "statut": "absent de la maquette",
+    "position": "55,89.5 82.2×48",
+    "motif": "titre de région en lecture d’écran (sr-only), écart accepté « titres de section »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Location résidentielle",
+    "statut": "absent de la maquette",
+    "position": "29,234 312×24",
+    "motif": "même élément que « Habitation » de la maquette, écart accepté « type de bail »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Choisir une date",
+    "statut": "absent de la maquette",
+    "position": "214,316 121.4×24",
+    "motif": "vérité des données : la « Fin » est facultative et vide (la maquette la remplit) ; le sélecteur de date est le composant partagé `FormDatePicker`"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "3 mois",
+    "statut": "absent de la maquette",
+    "position": "61,654.3 50×22.5",
+    "motif": "a-2 : pas-à-pas en mois de la caution (bien 13 : 3 mois), la maquette en a 2 — vérité des données ; a-3 : « Préavis 3 mois » de la maquette, alias « Indemnité de départ » (décision 5) qui vaut 2 mois sur la démo"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Depuis l’annonce du bien",
+    "statut": "absent de la maquette",
+    "position": "16,691.5 358×16",
+    "motif": "mention de source sous une valeur préremplie : critère du ticket, écart accepté « mentions de source »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Échéance, pénalité de retard, commission et indemnité de départ",
+    "statut": "absent de la maquette",
+    "position": "79,778 280×55.8",
+    "motif": "texte de l’encart des réglages (alias de « Caution, pénalité, commission et préavis », décision 5) : le libellé dit l’indemnité au lieu du préavis"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-chevron-down",
+    "statut": "absent de la maquette",
+    "position": "347,238 16×16",
+    "motif": "composant partagé `Select` : écart accepté « champs du formulaire »"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-calendar",
+    "statut": "absent de la maquette",
+    "position": "160,320 16×16",
+    "motif": "composant partagé `FormDatePicker` : écart accepté « champs du formulaire »"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-calendar",
+    "statut": "absent de la maquette",
+    "position": "345,320 16×16",
+    "motif": "composant partagé `FormDatePicker` : écart accepté « champs du formulaire »"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Habitation",
+    "statut": "absent du produit",
+    "position": "16,224 358×44",
+    "motif": "alias de données : le type se choisit dans une liste (« Location résidentielle »), écart accepté « type de bail »"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Aller au contenu principal",
+    "statut": "absent de la maquette",
+    "position": "-1,-1 32×16",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Location résidentielle",
+    "statut": "absent de la maquette",
+    "position": "16,224 358×44",
+    "motif": "même élément que « Habitation » de la maquette, écart accepté « type de bail »"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Choisir une date",
+    "statut": "absent de la maquette",
+    "position": "201,306 173×44",
+    "motif": "vérité des données : la « Fin » est facultative et vide (la maquette la remplit) ; le sélecteur de date est le composant partagé `FormDatePicker`"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "3 mois",
+    "statut": "absent de la maquette",
+    "position": "16,643.5 140×44",
+    "motif": "a-2 : pas-à-pas en mois de la caution (bien 13 : 3 mois), la maquette en a 2 — vérité des données ; a-3 : « Préavis 3 mois » de la maquette, alias « Indemnité de départ » (décision 5) qui vaut 2 mois sur la démo"
+   }
+  ],
+  "a-3-telephone": [
+   {
+    "origine": "rôle",
+    "element": "coque · barre d'onglets",
+    "statut": "absent de la maquette",
+    "position": "—",
+    "motif": "masquée des deux côtés : l’écran de création remplace la barre d’onglets par sa barre d’action (`hors_perimetre`)"
+   },
+   {
+    "origine": "rôle (contenu)",
+    "element": "coque · en-tête › texte 3 (« Brouillon »)",
+    "statut": "absent du produit",
+    "position": "316.9,17.5 69.1×20",
+    "motif": "écart accepté « lien Brouillon de l’en-tête » (décision produit : pas d’enregistrement automatique)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Brouillon",
+    "statut": "absent du produit",
+    "position": "316.9,17.5 69.1×20",
+    "motif": "écart accepté « lien Brouillon de l’en-tête » (décision produit : pas d’enregistrement automatique)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "3 mois",
+    "statut": "absent du produit",
+    "position": "313.3,766.5 43.7×20",
+    "motif": "a-2 : pas-à-pas en mois de la caution (bien 13 : 3 mois), la maquette en a 2 — vérité des données ; a-3 : « Préavis 3 mois » de la maquette, alias « Indemnité de départ » (décision 5) qui vaut 2 mois sur la démo"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Aller au contenu principal",
+    "statut": "absent de la maquette",
+    "position": "-1,-1 32×16",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Pas de pénalité de retard",
+    "statut": "absent de la maquette",
+    "position": "191.8,694.5 165.2×20",
+    "motif": "vérité des données : la plateforme n’a pas de pénalité par défaut (décision 1, 0 = « Pas de pénalité de retard ») ; la maquette porte « 5 % après 5 j »"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Aller au contenu principal",
+    "statut": "absent de la maquette",
+    "position": "-1,-1 32×16",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   }
+  ],
+  "a-2-bureau-1280": [
+   {
+    "origine": "ancre texte",
+    "element": "Aujourd'hui",
+    "statut": "absent du produit",
+    "position": "7.2,126 256.6×18",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Demandes de contact",
+    "statut": "absent du produit",
+    "position": "41.4,403.1 130×18",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Habitation",
+    "statut": "absent du produit",
+    "position": "319.8,527.7 171.7×39.6",
+    "motif": "alias de données : le type se choisit dans une liste (« Location résidentielle »), écart accepté « type de bail »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Modifier",
+    "statut": "absent du produit",
+    "position": "801.3,721.2 48.9×18",
+    "motif": "écart accepté « Modifier dans l’encart des réglages » (décision 7 : aucune page n’écrit un réglage d’agence)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Abonnement",
+    "statut": "absent du produit",
+    "position": "41.4,849.3 75.9×18",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Agence",
+    "statut": "absent du produit",
+    "position": "7.2,885.3 256.6×18",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Les clauses",
+    "statut": "absent du produit",
+    "position": "355.8,893.2 80×21.6",
+    "motif": "écart accepté « Les clauses » : sous le bord de l’écran relevé, la colonne est plus haute (mentions de source)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Aller au contenu principal",
+    "statut": "absent de la maquette",
+    "position": "-1,-1 28.8×14.4",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Réduire la barre",
+    "statut": "absent de la maquette",
+    "position": "241.7,24.7 1×1",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Prérempli depuis la fiche du bien",
+    "statut": "absent de la maquette",
+    "position": "300.8,87.9 190.5×18",
+    "motif": "même sous-titre que la maquette, sans « · brouillon enregistré à 10:42 » (écart accepté « Brouillon » : aucun enregistrement automatique)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Aujourd’hui",
+    "statut": "absent de la maquette",
+    "position": "7.2,158.3 256.6×18",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Demandes à traiter",
+    "statut": "absent de la maquette",
+    "position": "14.4,181 215.3×19.5",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "99+",
+    "statut": "absent de la maquette",
+    "position": "231,211.3 20.2×16.5",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Démarrer",
+    "statut": "absent de la maquette",
+    "position": "16.2,314.9 168.8×14.4",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Faire vérifier l’agence",
+    "statut": "absent de la maquette",
+    "position": "41.4,344 215.3×17.3",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "À faire",
+    "statut": "absent de la maquette",
+    "position": "13.4,352.2 1×1",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Loyer et charges",
+    "statut": "absent de la maquette",
+    "position": "318.8,503.3 1×1",
+    "motif": "titre de région en lecture d’écran (sr-only, 1×1), écart accepté « titres de section »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Règles du bail",
+    "statut": "absent de la maquette",
+    "position": "318.8,503.3 1×1",
+    "motif": "titre de région en lecture d’écran (sr-only, 1×1), écart accepté « titres de section »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Location résidentielle",
+    "statut": "absent de la maquette",
+    "position": "331.6,534.9 130.1×18",
+    "motif": "même élément que « Habitation » de la maquette, écart accepté « type de bail »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Choisir une date",
+    "statut": "absent de la maquette",
+    "position": "703.8,534.9 95.6×18",
+    "motif": "vérité des données : la « Fin » est facultative et vide (la maquette la remplit) ; le sélecteur de date est le composant partagé `FormDatePicker`"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Loyer annoncé sur la fiche du bien",
+    "statut": "absent de la maquette",
+    "position": "319.8,651.8 171.7×14.4",
+    "motif": "mention de source sous une valeur préremplie : critère du ticket, écart accepté « mentions de source »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Depuis l’annonce du bien",
+    "statut": "absent de la maquette",
+    "position": "692,704 171.7×14.4",
+    "motif": "mention de source sous une valeur préremplie : critère du ticket, écart accepté « mentions de source »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Échéance, pénalité de retard, commission et indemnité de départ",
+    "statut": "absent de la maquette",
+    "position": "376.6,750 473.5×35.9",
+    "motif": "texte de l’encart des réglages (alias de « Caution, pénalité, commission et préavis », décision 5) : le libellé dit l’indemnité au lieu du préavis"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "mois",
+    "statut": "absent de la maquette",
+    "position": "828.5,844.4 28.1×18",
+    "motif": "unité du champ « Indemnité de départ » (décision 5)"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Réglage de la plateforme",
+    "statut": "absent de la maquette",
+    "position": "319.8,873.2 125.2×14.4",
+    "motif": "mention de source sous une valeur préremplie : critère du ticket, écart accepté « mentions de source »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Réglage de la plateforme",
+    "statut": "absent de la maquette",
+    "position": "459.4,873.2 125.2×14.4",
+    "motif": "mention de source sous une valeur préremplie : critère du ticket, écart accepté « mentions de source »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Réglage de la plateforme",
+    "statut": "absent de la maquette",
+    "position": "738.5,873.2 125.2×14.4",
+    "motif": "mention de source sous une valeur préremplie : critère du ticket, écart accepté « mentions de source »"
+   },
+   {
+    "origine": "ancre texte",
+    "element": "Taux de l’agence, appliqué aux reversements",
+    "statut": "absent de la maquette",
+    "position": "599,880.4 125.2×43.2",
+    "motif": "mention de source sous une valeur préremplie : critère du ticket, écart accepté « mentions de source »"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-clipboard-check",
+    "statut": "absent du produit",
+    "position": "14.4,691 18×18",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-credit-card",
+    "statut": "absent du produit",
+    "position": "14.4,849.3 18×18",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-info",
+    "statut": "absent de la maquette",
+    "position": "904.3,271.3 14.4×14.4",
+    "motif": "icône des avis près de l’envoi (candidatures que l’envoi clôturera, code SMS, garants), colonne de droite : écart accepté « avis près de Envoyer à la signature » (décisions 7b et 11)"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-info",
+    "statut": "absent de la maquette",
+    "position": "904.3,320.7 14.4×14.4",
+    "motif": "icône des avis près de l’envoi (candidatures que l’envoi clôturera, code SMS, garants), colonne de droite : écart accepté « avis près de Envoyer à la signature » (décisions 7b et 11)"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-info",
+    "statut": "absent de la maquette",
+    "position": "904.3,391.3 14.4×14.4",
+    "motif": "icône des avis près de l’envoi (candidatures que l’envoi clôturera, code SMS, garants), colonne de droite : écart accepté « avis près de Envoyer à la signature » (décisions 7b et 11)"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-x",
+    "statut": "absent de la maquette",
+    "position": "244.9,315.8 12.6×12.6",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-circle-dashed",
+    "statut": "absent de la maquette",
+    "position": "14.4,343.7 18×18",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-calendar",
+    "statut": "absent de la maquette",
+    "position": "651.4,536.7 14.4×14.4",
+    "motif": "composant partagé `FormDatePicker` : écart accepté « champs du formulaire »"
+   },
+   {
+    "origine": "ancre icone",
+    "element": "lucide-calendar",
+    "statut": "absent de la maquette",
+    "position": "837.5,536.7 14.4×14.4",
+    "motif": "composant partagé `FormDatePicker` : écart accepté « champs du formulaire »"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Habitation",
+    "statut": "absent du produit",
+    "position": "319.8,527.7 171.7×39.6",
+    "motif": "alias de données : le type se choisit dans une liste (« Location résidentielle »), écart accepté « type de bail »"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Aller au contenu principal",
+    "statut": "absent de la maquette",
+    "position": "-1,-1 28.8×14.4",
+    "motif": "coque (C-coque, TCK-2619) : barre latérale, en-tête et lien d’évitement — hors périmètre de la fiche (`hors_perimetre`)"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Annuler",
+    "statut": "absent de la maquette",
+    "position": "1178.2,55.5 73×32.4",
+    "motif": "même lien « Annuler » que la maquette (texte conforme) ; le produit le rend en bouton `ghost` (boîte), la maquette en texte seul — composant partagé `Button`"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Location résidentielle",
+    "statut": "absent de la maquette",
+    "position": "319.8,527.7 171.7×32.4",
+    "motif": "même élément que « Habitation » de la maquette, écart accepté « type de bail »"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Choisir une date",
+    "statut": "absent de la maquette",
+    "position": "692,527.7 171.7×32.4",
+    "motif": "vérité des données : la « Fin » est facultative et vide (la maquette la remplit) ; le sélecteur de date est le composant partagé `FormDatePicker`"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Taux de la pénalité de retard, en pourcentage",
+    "statut": "absent de la maquette",
+    "position": "459.4,837.2 59.9×32.4",
+    "motif": "critère du ticket « toute valeur préremplie se modifie » : la pénalité est saisie en deux champs, la maquette l’écrit « 5 % après 5 j »"
+   },
+   {
+    "origine": "ancre boite",
+    "element": "Délai de grâce, en jours",
+    "statut": "absent de la maquette",
+    "position": "524.7,837.2 59.9×32.4",
+    "motif": "critère du ticket « toute valeur préremplie se modifie » : la pénalité est saisie en deux champs, la maquette l’écrit « 5 % après 5 j »"
+   }
+  ]
+ }
+}

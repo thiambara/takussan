@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\MarkSavedSearchViewedRequest;
 use App\Http\Requests\Api\StoreSavedSearchRequest;
 use App\Http\Requests\Api\UpdateSavedSearchRequest;
 use App\Http\Resources\SavedSearchResource;
 use App\Models\AlertSubscriber;
 use App\Models\SavedSearch;
+use App\Services\Model\SearchService;
 use App\Services\Notifications\Sms\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+
+use function Illuminate\Support\defer;
 
 class SavedSearchController extends Controller
 {
@@ -24,26 +28,39 @@ class SavedSearchController extends Controller
         ]);
     }
 
-    public function store(StoreSavedSearchRequest $request): JsonResponse
+    public function store(StoreSavedSearchRequest $request, SearchService $searchService): JsonResponse
     {
         $data = $request->validated();
 
         $search = SavedSearch::create(array_merge($data, [
             'user_id' => $request->user()->id,
             'is_active' => true,
+            // TCK-615 (ADR-0050, amendement du 2026-11-16, B) — la première alerte ne porte que ce qui
+            // est publié après la création, jamais l'historique.
+            'last_notified_at' => now(),
         ]));
+        // TCK-2470 — compté tout de suite : à 0 jusqu'au passage des alertes, la recherche compterait comme une demande
+        // sans résultat pour le Radar. Un moteur indisponible ne fait pas échouer la création. Revue de code du 2026-11-04 :
+        // APRÈS la réponse (`defer`), hors de son chemin — la réponse porte le compte d'avant (`null` à la création : pas
+        // encore compté), que le front n'affiche pas.
+        defer(fn () => $searchService->refreshResultsCount($search));
 
         return $this->json([
             'data' => SavedSearchResource::make($search)->resolve($request),
         ], 201);
     }
 
-    public function update(UpdateSavedSearchRequest $request, SavedSearch $savedSearch): JsonResponse
+    public function update(UpdateSavedSearchRequest $request, SavedSearch $savedSearch, SearchService $searchService): JsonResponse
     {
 
         $data = $request->validated();
 
         $savedSearch->fill($data)->save();
+        // TCK-2470 — d'autres critères, un autre compte ; un nom ou une fréquence ne relancent rien. Après la réponse,
+        // comme à la création (revue de code du 2026-11-04).
+        if ($savedSearch->wasChanged('criteria')) {
+            defer(fn () => $searchService->refreshResultsCount($savedSearch));
+        }
 
         return $this->json([
             'data' => SavedSearchResource::make($savedSearch->refresh())->resolve($request),
@@ -106,6 +123,18 @@ class SavedSearchController extends Controller
         $savedSearch->forceFill(['notification_frequency' => 'off'])->save();
 
         return $this->json(['data' => ['notification_frequency' => 'off']]);
+    }
+
+    /**
+     * TCK-2507 — le titulaire a ouvert sa recherche ({@see MarkSavedSearchViewedRequest}, 404 pour un autre). Sans
+     * toucher `updated_at` : une ouverture n'est pas une modification de la recherche.
+     */
+    public function viewed(MarkSavedSearchViewedRequest $request, SavedSearch $savedSearch): JsonResponse
+    {
+        $savedSearch->timestamps = false;
+        $savedSearch->forceFill(['last_viewed_at' => now()])->save();
+
+        return $this->json(null, 204);
     }
 
     public function destroy(Request $request, SavedSearch $savedSearch): JsonResponse

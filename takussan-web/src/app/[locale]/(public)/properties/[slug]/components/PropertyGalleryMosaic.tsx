@@ -94,7 +94,7 @@ const TUILE_40 = '(max-width: 1279px) 39vw, 483px';
 const TUILE_PLEINE = '(max-width: 1279px) 95vw, 1216px';
 
 export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: PropertyGalleryMosaicProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
 
   if (photos.length === 0) {
     return (

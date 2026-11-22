@@ -7,10 +7,13 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Enums\Currency;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\ServiceProviderBillStatus;
+use App\Services\Payout\PayoutCalculator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * TCK-594 (ADR-0039 §8) — la facture d'intervention : pièce REÇUE d'un prestataire, quand `Invoice`
@@ -25,9 +28,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * s'impute que pour un travail rendu ({@see self::BILLABLE_REQUEST_STATUSES}) ; la contestation et
  * l'annulation de l'intervention l'annulent, ou la gardent si elle est déjà engagée.
  */
-class ServiceProviderBill extends AbstractModel
+class ServiceProviderBill extends AbstractModel implements HasMedia
 {
-    use HasFactory;
+    use HasFactory, InteractsWithMedia;
+
+    /**
+     * TCK-2911 (ADR-0120 § 4) — ce que le bailleur a à sa charge : une facture REFACTURABLE et dans
+     * l'un de ces statuts. Une source, lue par le relevé du bailleur ({@see PayoutCalculator}) et
+     * par son bilan des interventions.
+     */
+    public const CHARGED_TO_LANDLORD_STATUSES = [ServiceProviderBillStatus::Validated, ServiceProviderBillStatus::Paid];
 
     /** Les états d'une intervention dont le travail est rendu : seuls ils valident, paient et imputent sa facture. */
     public const BILLABLE_REQUEST_STATUSES = [MaintenanceStatus::Completed, MaintenanceStatus::Closed];
@@ -36,7 +46,7 @@ class ServiceProviderBill extends AbstractModel
         'maintenance_request_id', 'agency_id', 'property_id', 'provider_id',
         'reference_number', 'provider_reference', 'amount', 'currency', 'exceeds_quote', 'status',
         'validated_by_id', 'validated_at', 'rejection_reason', 'rechargeable_to_landlord',
-        'imputed_payout_id',
+        'imputed_payout_id', 'submitted_at',
     ];
 
     protected $casts = [
@@ -46,6 +56,7 @@ class ServiceProviderBill extends AbstractModel
         'status' => ServiceProviderBillStatus::class,
         'validated_at' => 'datetime',
         'rechargeable_to_landlord' => 'boolean',
+        'submitted_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['agency_id', 'property_id', 'provider_id', 'maintenance_request_id', 'status', 'rechargeable_to_landlord'];
@@ -61,8 +72,28 @@ class ServiceProviderBill extends AbstractModel
         'id', 'maintenance_request_id', 'agency_id', 'property_id', 'provider_id',
         'reference_number', 'provider_reference', 'amount', 'currency', 'exceeds_quote', 'status',
         'validated_by_id', 'validated_at', 'rejection_reason', 'rechargeable_to_landlord',
-        'imputed_payout_id', 'created_at', 'updated_at',
+        'imputed_payout_id', 'submitted_at', 'created_at', 'updated_at',
     ];
+
+    /** TCK-2911 (ADR-0120 § 1) — la pièce du prestataire, jointe à « Facturer » : privée. */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('invoice')->singleFile();
+    }
+
+    /**
+     * TCK-2911 (ADR-0120 § 4) — refacturable au bailleur et validée ou payée.
+     *
+     * @param  Builder<ServiceProviderBill>  $query
+     * @return Builder<ServiceProviderBill>
+     */
+    public function scopeChargedToLandlord(Builder $query): Builder
+    {
+        $table = $this->getTable();
+
+        return $query->where("{$table}.rechargeable_to_landlord", true)
+            ->whereIn("{$table}.status", array_map(fn (ServiceProviderBillStatus $s) => $s->value, self::CHARGED_TO_LANDLORD_STATUSES));
+    }
 
     /** L'intervention de la facture est-elle, À CET INSTANT, dans un état de travail rendu ? Relue en base. */
     public function requestIsBillable(): bool

@@ -48,6 +48,38 @@ final class SponsoredRotation
         return $picked;
     }
 
+    /**
+     * TCK-2500 — la tranche de {@see self::pick()} pour la page `$page`, les biens de `$exclus` SAUTÉS (le suivant dans le
+     * même ordre prend leur place), au plus `$take` biens. Même mélange, même début de tranche : sans exclusion et pour
+     * `$take = $slots`, le résultat est celui de `pick()` — la rotation et la graine ne changent pas.
+     *
+     * @param  list<int>  $ids
+     * @param  list<int>  $exclus
+     * @return list<int>
+     */
+    public static function pickExcluding(array $ids, string $seed, int $page, int $slots, array $exclus, int $take): array
+    {
+        $ordre = self::pick($ids, $seed, 1, count(array_unique(array_map('intval', $ids))));
+        $count = count($ordre);
+        if ($slots <= 0 || $take <= 0 || $count === 0) {
+            return [];
+        }
+        // `pick(…, 1, $count)` rend le mélange entier à partir de son premier élément : la tranche de la page `$page`
+        // commence au même rang que dans `pick($ids, $seed, $page, $slots)`.
+        $start = ((max(1, $page) - 1) * $slots) % $count;
+        $exclus = array_flip(array_map('intval', $exclus));
+
+        $picked = [];
+        for ($i = 0; $i < $count && count($picked) < $take; $i++) {
+            $id = $ordre[($start + $i) % $count];
+            if (! isset($exclus[$id])) {
+                $picked[] = $id;
+            }
+        }
+
+        return $picked;
+    }
+
     private static function normalize(mixed $value): mixed
     {
         if (! is_array($value)) {

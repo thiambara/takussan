@@ -8,13 +8,15 @@ vi.mock('@/hooks/useApiQuery', () => ({
 }));
 
 const { useLeases } = await import('@/lib/queries/leases');
-const { useBookings } = await import('@/lib/queries/bookings');
 const { useInvoices } = await import('@/lib/queries/payments');
 
 /**
- * P150.03 (TCK-1284) — `GET /api/leases`, `/api/bookings` et `/api/invoices` ne déclarent aucun
- * filtre `search` : un `filter[search]` y rend 400. Les trois hooks n'offrent plus ce paramètre,
- * ni dans leur type (les `@ts-expect-error`, que `tsc --noEmit` juge) ni dans la requête.
+ * P150.03 (TCK-1284) — `GET /api/leases` et `/api/invoices` ne déclarent aucun filtre `search` :
+ * un `filter[search]` y rend 400. Les deux hooks n'offrent plus ce paramètre, ni dans leur type
+ * (les `@ts-expect-error`, que `tsc --noEmit` juge) ni dans la requête.
+ *
+ * TCK-2594 — `/api/bookings` en sert un depuis TCK-2593 (référence, client, bien) : `useBookings`
+ * l'envoie (`bookings.trois-natures.tck-2594.test.ts`) et quitte ce fichier.
  */
 describe('hooks sans recherche que l’API ne sert pas', () => {
   beforeEach(() => mockUseApiQuery.mockReset());
@@ -28,12 +30,6 @@ describe('hooks sans recherche que l’API ne sert pas', () => {
     // @ts-expect-error — `search` ne fait plus partie de UseLeasesParams
     useLeases({ status: 'active', search: 'x' });
     expect(filtreEnvoye()).toEqual({ status: 'active' });
-  });
-
-  it('useBookings', () => {
-    // @ts-expect-error — `search` ne fait plus partie de UseBookingsParams
-    useBookings({ status: 'pending', search: 'x' });
-    expect(filtreEnvoye()).toEqual({ status: 'pending' });
   });
 
   it('useInvoices', () => {

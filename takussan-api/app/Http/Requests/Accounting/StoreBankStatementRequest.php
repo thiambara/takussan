@@ -2,13 +2,13 @@
 
 namespace App\Http\Requests\Accounting;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Models\BankStatement;
 use App\Models\Enums\BankStatementSourceFormat;
 use App\Models\Enums\BankStatementStatus;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
 
-class StoreBankStatementRequest extends FormRequest
+class StoreBankStatementRequest extends BaseFormRequest
 {
     /** TCK-818 (P22.04) — la policy que le contrôleur juge, invoquée avant la validation. */
     public function authorize(): bool
@@ -18,10 +18,21 @@ class StoreBankStatementRequest extends FormRequest
 
     public function rules(): array
     {
+        return self::bodyRules($this->input('source_format'));
+    }
+
+    /**
+     * TCK-2932 — le corps de l'import, partagé avec l'aperçu (`PreviewBankStatementRequest`) : le
+     * relevé lu en aperçu est celui que l'import recevra.
+     *
+     * @return array<string, mixed>
+     */
+    public static function bodyRules(mixed $sourceFormat): array
+    {
         return [
             // P157.05 (TCK-1445) — un OFX 2 commence par une déclaration XML : `finfo` y lit
             // `text/xml`. Admis pour le seul format `ofx`, que le pilote lit en 1.x comme en 2.x.
-            'file' => ['required', 'file', 'max:10240', $this->input('source_format') === 'ofx' ? 'mimes:csv,txt,ofx,xml' : 'mimes:csv,txt,ofx'],
+            'file' => ['required', 'file', 'max:10240', $sourceFormat === 'ofx' ? 'mimes:csv,txt,ofx,xml' : 'mimes:csv,txt,ofx'],
             // TCK-979 (P54.04) — colonne NOT NULL sans défaut : le format est déduit plus bas quand
             // il n'est pas fourni, il est donc toujours présent ici.
             'source_format' => ['required', new Enum(BankStatementSourceFormat::class)],

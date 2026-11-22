@@ -1,46 +1,15 @@
-import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
-
-import { getMeAction } from '@/app/actions/auth';
-import { PageHeader } from '@/components/console';
-import { NoAgencyState } from '@/components/shared/NoAgencyState';
-import { TenantOnboardingPendingList } from '@/components/leases/TenantOnboardingPendingList';
-import { isSuperAdmin } from '@/lib/roles';
-
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.onboardingPending');
-  return { title: t('metaTitle') };
-}
+import { redirect } from 'next/navigation';
 
 /**
- * TCK-266 — Console agence : liste des locataires dont la checklist
- * d'onboarding est encore ouverte > 7 j (l'EDL d'entrée est typiquement
- * en cause). Réservée aux membres `agency_admin` / `agent` et au
- * `super_admin` — le bailleur EXCLU. Les autres sont REDIRIGÉS vers `/app` par
- * `assertCanReachAgencyStaffArea`, appelée depuis le `layout.tsx` de ce segment et non plus
- * d'ici (TCK-426 — sous le `loading.tsx`, le refus rendait 200 au lieu de 307) :
- * `forbidden()` ne rendait pas un 403 mais un écran de panne, le drapeau
- * `experimental.authInterrupts` étant délibérément absent (TCK-378).
+ * TCK-2644 (décision famille 4 n° 3a) — `/app/leases/onboarding-pending` est devenu l'onglet « En
+ * attente du locataire » de la liste des baux. La route reste parce que des liens déjà envoyés la
+ * visent (notification et courriel `AgentTenantInventoryReminderNotification`).
+ *
+ * La redirection vit dans la PAGE, et c'est sûr ici : le segment n'a plus de `loading.tsx` (il ne
+ * rend aucun document), donc aucune frontière de suspension ne la précède et elle rend 307
+ * (TCK-426). Le `layout.tsx` garde le personnel avant elle, et reste transparent pour le
+ * dictionnaire (`return <>{children}</>`, check-i18n-namespaces).
  */
 export default async function Page() {
-  const t = await getTranslations('dashboard.onboardingPending');
-  const user = await getMeAction();
-
-  if (isSuperAdmin(user.roles) && !user.agency_id) {
-    return <NoAgencyState title={t('title')} />;
-  }
-
-  if (!user.agency_id) {
-    return <NoAgencyState title={t('title')} />;
-  }
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('title')}
-        description={t('subtitle')}
-      />
-      <TenantOnboardingPendingList agencyId={user.agency_id} />
-    </div>
-  );
+  redirect('/app/leases?vue=en_attente');
 }

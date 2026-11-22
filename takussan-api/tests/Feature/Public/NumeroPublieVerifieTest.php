@@ -4,14 +4,17 @@ namespace Tests\Feature\Public;
 
 use App\Models\Address;
 use App\Models\Agency;
+use App\Models\AlertSubscriber;
 use App\Models\Document;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
 use App\Models\GeoRegion;
+use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyContact;
 use App\Models\Review;
+use App\Models\SavedSearch;
 use App\Models\Tag;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -82,6 +85,10 @@ class NumeroPublieVerifieTest extends TestCase
             Property::factory()->published()->create(['user_id' => $user->id, 'agency_id' => $agence->id]);
         } elseif ($cas === 'particulier') {
             Property::factory()->published()->create(['user_id' => $user->id, 'agency_id' => null]);
+        } else {
+            // TCK-2506 — sans annonce ni profil d'agent, seule l'inscription à l'annuaire donne
+            // une fiche à ce compte.
+            $user->forceFill(['listed_in_public_directory' => true])->save();
         }
 
         return $user;
@@ -312,6 +319,10 @@ class NumeroPublieVerifieTest extends TestCase
             'api/public/properties/discovery' => ['appels' => ['api/public/properties/discovery?near_city='.self::VILLE], 'preuve' => 'bien-agence'],
             'api/public/properties/map' => ['appels' => ['api/public/properties/map?bounds=14,-18,15,-17'], 'preuve' => 'bien-agence'],
             'api/public/properties/neighborhoods' => ['appels' => ['api/public/properties/neighborhoods?city='.self::VILLE], 'preuve' => self::QUARTIER],
+            // TCK-2498 — l'histogramme ne sert que des bornes et des comptes : la preuve est une tranche non vide. La période
+            // du bien est demandée EXPLICITEMENT : la fabrique la tire au hasard, et sans `rent_period` l'histogramme d'une
+            // location ne compte que le loyer au mois — un bien à la nuit ou à l'année rendait la recette vide une fois sur deux.
+            'api/public/properties/price-distribution' => ['appels' => ['api/public/properties/price-distribution?contract_type=rent&rent_period='.$a->rent_period->value], 'preuve' => '"buckets":[{'],
             'api/public/properties/search' => ['appels' => ['api/public/properties/search'], 'preuve' => 'bien-agence'],
             'api/public/properties/sitemap' => ['appels' => ['api/public/properties/sitemap'], 'preuve' => 'bien-agence'],
             'api/public/properties/{property}/documents/{document}/file' => [
@@ -328,8 +339,63 @@ class NumeroPublieVerifieTest extends TestCase
             'api/public/properties/{slug}/status' => ['appels' => $parBien('/status'), 'preuve' => 'bien-particulier'],
             'api/public/properties/{slug}/visit-slots' => ['appels' => $parBien('/visit-slots', '?date='.$demain), 'preuve' => $demain],
             'api/public/property-types' => ['appels' => ['api/public/property-types'], 'preuve' => 'apartment'],
+            // TCK-2603 — un total de ville et rien d'autre : la preuve est la clé du chiffre.
+            'api/public/publish/demand' => ['appels' => ['api/public/publish/demand'], 'preuve' => 'searches_7d'],
             'api/public/search-alerts/capabilities' => ['appels' => ['api/public/search-alerts/capabilities'], 'preuve' => 'channels'],
+            // TCK-2513 — l'alerte sans compte lue par son jeton : l'abonné porte le numéro NON vérifié comme contact.
+            'api/public/search-alerts/by-token' => ['appels' => ['api/public/search-alerts/by-token?token='.$this->alerteParNumero()], 'preuve' => 'alerte-balayee'],
+            // TCK-2609 — l'aperçu d'une invitation par son jeton : envoyée PAR SMS au numéro non vérifié du jeu, par l'agent dont
+            // le numéro ne l'est pas non plus. Le destinataire sort masqué, l'invitant par son prénom seul.
+            'api/public/invitations/{token}' => ['appels' => ['api/public/invitations/'.$this->invitationParNumero($jeu)], 'preuve' => 'invite-balaye'],
         ];
+    }
+
+    /**
+     * TCK-2513 — une alerte sans compte dont le CONTACT est le numéro non vérifié du jeu, confirmée ; rend son jeton de
+     * désinscription, celui que lit `by-token`.
+     */
+    private function alerteParNumero(): string
+    {
+        $jeton = AlertSubscriber::newToken();
+        $abonne = AlertSubscriber::create([
+            'channel' => AlertSubscriber::CHANNEL_WHATSAPP,
+            'contact' => self::NUMERO,
+            'contact_hash' => AlertSubscriber::contactHash(AlertSubscriber::CHANNEL_WHATSAPP, self::NUMERO),
+            'locale' => 'fr',
+            'confirmed_at' => now(),
+            'unsubscribe_token' => $jeton,
+            'unsubscribe_token_hash' => AlertSubscriber::tokenHash($jeton),
+            'consent_at' => now(),
+            'consent_source' => 'public_search_alert',
+            'consent_version' => AlertSubscriber::CONSENT_VERSION,
+        ]);
+        SavedSearch::create([
+            'alert_subscriber_id' => $abonne->id,
+            'name' => 'alerte-balayee',
+            'criteria' => ['city' => self::VILLE],
+            'notification_frequency' => 'daily',
+            'is_active' => true,
+        ]);
+
+        return $jeton;
+    }
+
+    /**
+     * TCK-2609 — une invitation actionnable de l'agence du jeu, adressée PAR SMS au numéro non vérifié et émise par l'agent du
+     * jeu ; rend son jeton, celui que lit l'aperçu public.
+     *
+     * @param  array<string, mixed>  $jeu
+     */
+    private function invitationParNumero(array $jeu): string
+    {
+        return Invitation::factory()->create([
+            'email' => null,
+            'phone' => self::NUMERO,
+            'agency_id' => $jeu['agence']->id,
+            'invited_by' => $jeu['user']->id,
+            'role' => 'agent',
+            'metadata' => ['first_name' => 'invite-balaye', 'last_name' => 'Balayé'],
+        ])->token;
     }
 
     /** Le corps tel que le client le reçoit — un fichier servi en flux compris. */

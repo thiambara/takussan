@@ -242,8 +242,10 @@ export function InviteServiceProviderSheet({
             <Label htmlFor="invite-sp-email">{t('fields.email')}</Label>
             <Input
               id="invite-sp-email"
-              type="email"
+              profil="courriel"
+              // Une adresse d'un TIERS : la saisie automatique ne propose pas la sienne.
               autoComplete="off"
+              placeholder={t('fields.emailPlaceholder')}
               required
               value={form.email}
               onChange={(e) => update('email', e.target.value)}
@@ -260,6 +262,9 @@ export function InviteServiceProviderSheet({
               <Label htmlFor="invite-sp-first">{t('fields.first_name')}</Label>
               <Input
                 id="invite-sp-first"
+                profil="nom"
+                autoComplete="off"
+                placeholder={t('fields.firstNamePlaceholder')}
                 required
                 value={form.first_name}
                 onChange={(e) => update('first_name', e.target.value)}
@@ -274,6 +279,9 @@ export function InviteServiceProviderSheet({
               <Label htmlFor="invite-sp-last">{t('fields.last_name')}</Label>
               <Input
                 id="invite-sp-last"
+                profil="nom"
+                autoComplete="off"
+                placeholder={t('fields.lastNamePlaceholder')}
                 required
                 value={form.last_name}
                 onChange={(e) => update('last_name', e.target.value)}
@@ -290,7 +298,7 @@ export function InviteServiceProviderSheet({
             <Label htmlFor="invite-sp-phone">{t('fields.phone')}</Label>
             <Input
               id="invite-sp-phone"
-              type="tel"
+              profil="telephone"
               autoComplete="off"
               value={form.phone}
               onChange={(e) => update('phone', e.target.value)}

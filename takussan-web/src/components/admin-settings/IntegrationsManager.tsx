@@ -4,7 +4,7 @@ import { useCallback, useState, useTransition } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CheckCircle2, Loader2, Plug, Plus, Trash2, XCircle } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
-import { formatDate } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 
 import { Button } from '@/components/ui/button';
@@ -75,6 +75,15 @@ const PROVIDER_SUGGESTIONS = [
   { value: 'sms_mtarget', label: 'SMS — Mtarget' },
   { value: 'sms_lafricamobile', label: 'SMS — LAfricaMobile' },
 ];
+
+/**
+ * TCK-2676 — le nom d'un fournisseur tel que l'écran le montre : « Orange Money », jamais la valeur
+ * d'API `orange_money` (titre du dialogue, confirmation de suppression, nom accessible). Un
+ * fournisseur hors de la liste garde l'ancien rendu, tirets bas remplacés par des espaces.
+ */
+function nomDuFournisseur(provider: string): string {
+  return PROVIDER_SUGGESTIONS.find((p) => p.value === provider)?.label ?? provider.replace(/_/g, ' ');
+}
 
 function emptyForm(): IntegrationFormValues {
   return {
@@ -168,7 +177,7 @@ export function IntegrationsManager({
   }, [garde]);
 
   const handleDelete = useCallback((integration: Integration) => {
-    const ok = window.confirm(t('confirmDelete', { provider: integration.provider }));
+    const ok = window.confirm(t('confirmDelete', { provider: nomDuFournisseur(integration.provider) }));
     if (!ok) return;
     startTransition(async () => {
       const result = await avecGardeDoubleFacteurAction(() => deleteIntegrationAction(integration.id), garde);
@@ -272,7 +281,7 @@ export function IntegrationsManager({
                     <Plug className="size-5 shrink-0 text-primary" aria-hidden="true" />
                     <div>
                       <h3 className="text-sm font-semibold capitalize text-foreground">
-                        {integration.provider.replace(/_/g, ' ')}
+                        {nomDuFournisseur(integration.provider)}
                       </h3>
                       <p className="text-xs text-pretty tabular-nums text-muted-foreground">
                         {integration.is_active ? t('statusActive') : t('statusInactive')}
@@ -280,17 +289,8 @@ export function IntegrationsManager({
                           ? t('lastTest', {
                             // TCK-292 — la locale ACTIVE, plus `fr-FR` en dur : la date
                             // s'affichait en français quelle que soit la langue choisie.
-                            date: formatDate(integration.last_used_at, locale, {
-                              // `formatDate` pose `dateStyle: 'medium'` par défaut, et
-                              // Intl REFUSE `dateStyle` mêlé à des champs explicites.
-                              dateStyle: undefined,
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              second: '2-digit',
-                            }),
+                            // TCK-2676 — le format commun de l'application, sans les secondes.
+                            date: formatDateTime(integration.last_used_at, locale),
                           })
                           : null}
                       </p>
@@ -338,11 +338,6 @@ export function IntegrationsManager({
                     provider={integration.provider}
                     initialUrl={initialWebhookUrls[integration.id] ?? null}
                   />
-                ) : isPaymentProvider(integration.provider) ? (
-                  // Lemon Squeezy : pas d'adresse à coller, elle ne solderait rien (TCK-293, m-1).
-                  <p className="text-xs text-pretty text-muted-foreground">
-                    {t('webhookEndpoint.unsupported')}
-                  </p>
                 ) : null}
 
                 <div className="flex flex-wrap gap-2 pt-2">
@@ -368,12 +363,15 @@ export function IntegrationsManager({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    aria-label={t('deleteAria', { provider: integration.provider })}
-                    className="text-muted-foreground hover:text-destructive"
+                    // TCK-2676 — un libellé, plus une poubelle seule collée à « Configurer » : poussé
+                    // au bout de la rangée, le nom accessible commence par le texte visible.
+                    aria-label={t('deleteAria', { provider: nomDuFournisseur(integration.provider) })}
+                    className="ms-auto text-muted-foreground hover:text-destructive"
                     onClick={() => handleDelete(integration)}
                     disabled={isPending}
                   >
                     <Trash2 aria-hidden="true" />
+                    <span>{t('delete')}</span>
                   </Button>
                 </div>
               </article>
@@ -484,7 +482,7 @@ function IntegrationDialog({
           <DialogTitle>
             {mode === 'create'
               ? t('dialog.createTitle')
-              : t('dialog.editTitle', { provider: integration?.provider ?? '' })}
+              : t('dialog.editTitle', { provider: integration ? nomDuFournisseur(integration.provider) : '' })}
           </DialogTitle>
           <DialogDescription>{t('dialog.description')}</DialogDescription>
         </DialogHeader>
@@ -495,6 +493,7 @@ function IntegrationDialog({
             </label>
             <Input
               id="int-provider"
+              profil="identifiant"
               list="int-provider-suggestions"
               value={values.provider}
               onChange={(e) => setValues((v) => ({ ...v, provider: e.target.value }))}
@@ -558,7 +557,7 @@ function IntegrationDialog({
                 </label>
                 <Input
                   id="int-webhook"
-                  type="url"
+                  profil="url"
                   value={values.webhook_url}
                   onChange={(e) => setValues((v) => ({ ...v, webhook_url: e.target.value }))}
                   placeholder={t('fields.webhookPlaceholder')}
@@ -573,6 +572,7 @@ function IntegrationDialog({
             </label>
             <Textarea
               id="int-notes"
+              profil="texte-long"
               value={values.notes}
               onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
               rows={2}
@@ -675,6 +675,7 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-orange-sender-address"
+              profil="identifiant"
               value={values.sms_sender_address}
               onChange={(e) => onChange({ sms_sender_address: e.target.value })}
               placeholder="tel:+221771234567"
@@ -688,6 +689,7 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-orange-sender-name"
+              profil="reference"
               value={values.sms_sender_name}
               onChange={(e) => onChange({ sms_sender_name: e.target.value })}
               placeholder="TAKUSSAN"
@@ -723,6 +725,7 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-mtarget-sender-id"
+              profil="reference"
               value={values.sms_sender_id}
               onChange={(e) => onChange({ sms_sender_id: e.target.value })}
               placeholder="TAKUSSAN"
@@ -737,8 +740,10 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-mtarget-service-id"
+              profil="identifiant"
               value={values.sms_service_id}
               onChange={(e) => onChange({ sms_service_id: e.target.value })}
+              placeholder={t('fields.serviceIdPlaceholder')}
               autoComplete="off"
             />
             <FormError>{errors.sms_service_id?.[0]}</FormError>
@@ -770,6 +775,7 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-lam-sender-id"
+              profil="identifiant"
               value={values.sms_sender_id}
               onChange={(e) => onChange({ sms_sender_id: e.target.value })}
               placeholder="Takussan"
@@ -784,7 +790,7 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-lam-host"
-              type="url"
+              profil="url"
               value={values.sms_host}
               onChange={(e) => onChange({ sms_host: e.target.value })}
               placeholder="https://lampush-tls.lafricamobile.com"
@@ -837,6 +843,7 @@ function PaymentProviderFieldset({ schema, mode, values, errors, onChange }: Pay
             </label>
             <Input
               id={id}
+              profil="identifiant"
               value={values[field.name] ?? ''}
               onChange={(e) => onChange(field.name, e.target.value)}
               placeholder={mode === 'edit' ? t('fields.secretUnchanged') : ''}
@@ -875,6 +882,8 @@ function SecretInput({ id, label, value, onChange, placeholder, error }: SecretI
       <div className="relative">
         <Input
           id={id}
+          // ADR-0135 — `mot-de-passe` règle le clavier ; le `type` reste calculé (le bouton « Afficher »).
+          profil="mot-de-passe"
           type={reveal ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}

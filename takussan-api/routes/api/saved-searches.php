@@ -9,6 +9,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('saved-searches', [SavedSearchController::class, 'store'])->name('saved-searches.store');
     // TCK-599 — littérale, déclarée AVANT les routes à paramètre.
     Route::post('saved-searches/claim', [SavedSearchController::class, 'claim'])->name('saved-searches.claim');
+    // TCK-2507 — la recherche ouverte par son titulaire : le front compte les biens publiés depuis.
+    Route::post('saved-searches/{savedSearch}/viewed', [SavedSearchController::class, 'viewed'])->name('saved-searches.viewed');
     Route::put('saved-searches/{savedSearch}', [SavedSearchController::class, 'update'])->name('saved-searches.update');
     Route::patch('saved-searches/{savedSearch}', [SavedSearchController::class, 'update']);
     Route::delete('saved-searches/{savedSearch}', [SavedSearchController::class, 'destroy'])->name('saved-searches.destroy');
@@ -27,5 +29,13 @@ Route::prefix('public/search-alerts')->name('public.search-alerts.')->group(func
         Route::post('/', [PublicSearchAlertController::class, 'store'])->name('store');
         Route::post('confirm', [PublicSearchAlertController::class, 'confirm'])->name('confirm');
         Route::post('unsubscribe', [PublicSearchAlertController::class, 'unsubscribe'])->name('unsubscribe');
+        // TCK-2513 — la page d'un lien peut espacer l'alerte au lieu de la couper.
+        Route::post('frequency', [PublicSearchAlertController::class, 'frequency'])->name('frequency');
     });
+    // TCK-2513 — la page d'un lien LIT son alerte (sans rien consommer). TCK-2514 : sous son propre compteur par IP,
+    // comme `radar.claims.show` — dans le seau des actions (10 par 10 min), quelques rechargements de la page
+    // suffisaient à faire refuser le clic qui suit (429 mesuré).
+    Route::get('by-token', [PublicSearchAlertController::class, 'byToken'])
+        ->middleware('throttle:30,1,public_search_alert_read')
+        ->name('by-token');
 });

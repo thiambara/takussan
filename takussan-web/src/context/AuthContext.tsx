@@ -22,6 +22,7 @@ import {
   chargerAuPremierAbonne,
 } from '@/lib/favoritesStore';
 import { favoritesQueryKeys, fetchAllFavoritePropertyIds } from '@/lib/queries/favorites';
+import { oublierLesPagesRecentes } from '@/lib/navigation/pages-recentes';
 
 type AuthContextValue = {
   user: User | null;
@@ -43,7 +44,14 @@ type AuthContextValue = {
   setActiveProfileId: (id: string | null) => void;
   isLoading: boolean;
   setUser: (user: User | null) => void;
-  refreshUser: () => Promise<void>;
+  /**
+   * Relit `/api/auth/me`. Rend l'issue — les appelants qui l'ignorent n'ont rien à changer :
+   * `ouverte` (utilisateur posé), `fermee` (401 : la session est morte, l'utilisateur est retiré),
+   * `injoignable` (autre erreur, relais injoignable : l'utilisateur reste), `perimee` (une relecture
+   * plus récente, ou une déconnexion, l'a remplacée). TCK-2508 : sur `fermee`, la page Favoris
+   * appelle `logout()` pour purger le jeton, et passe à la vue de l'appareil.
+   */
+  refreshUser: () => Promise<IssueDeRelecture>;
   /**
    * Authenticate with email+password, persist the auth cookie via
    * `/api/auth/set-token`, and update the in-memory user. Returns the
@@ -78,6 +86,8 @@ type AuthContextValue = {
   logout: () => Promise<void>;
 };
 
+export type IssueDeRelecture = 'ouverte' | 'fermee' | 'injoignable' | 'perimee';
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({
@@ -85,11 +95,18 @@ export function AuthProvider({
   initialUser,
   initialToken,
   initialActiveProfileId,
+  impersonation = false,
 }: {
   children: React.ReactNode;
   initialUser?: User | null;
   initialToken?: string | null;
   initialActiveProfileId?: string | null;
+  /**
+   * TCK-2816 — le layout racine dit, par un booléen lu au serveur (cookie `httpOnly`), qu'une
+   * impersonation est en cours. Jamais le jeton : sous impersonation, `initialToken` vaut `null`
+   * (TCK-600, ADR-0055 §6). Il ne sert qu'à la règle de vidage ci-dessous.
+   */
+  impersonation?: boolean;
 }) {
   const [user, setUser] = useState<User | null>(initialUser ?? null);
   const [token, setToken] = useState<string | null>(initialToken ?? null);
@@ -99,17 +116,29 @@ export function AuthProvider({
   // que si le jeton disparaît aussi. Un `null` sous un jeton présent (échec ou délai de `/me`, cf.
   // `DELAI_ME_RACINE_MS`) garde le compte, comme TCK-1992. Tant que les propriétés ne changent
   // pas, ce que le client a posé (`setUser`, `openSession`, `logout`) reste.
+  //
+  // TCK-2816 — sous impersonation, le jeton est TOUJOURS nul : le signal du layout y tient lieu de
+  // jeton présent, et un `null` (délai de `/me`) garde la cible. Un signal qui CHANGE (entrée ou
+  // sortie d'impersonation) avec un `null` vide le compte : ni l'opérateur ne passe sous la cible,
+  // ni la cible sous le jeton revenu de l'opérateur. Hors impersonation, le signal reste faux et
+  // la règle de TCK-2158 s'applique telle quelle.
   const [compteDuLayout, setCompteDuLayout] = useState({
     user: initialUser ?? null,
     token: initialToken ?? null,
+    impersonation,
   });
-  if ((initialUser ?? null) !== compteDuLayout.user || (initialToken ?? null) !== compteDuLayout.token) {
+  if (
+    (initialUser ?? null) !== compteDuLayout.user ||
+    (initialToken ?? null) !== compteDuLayout.token ||
+    impersonation !== compteDuLayout.impersonation
+  ) {
     const nouvelUtilisateur = initialUser ?? null;
     const nouveauJeton = initialToken ?? null;
-    setCompteDuLayout({ user: nouvelUtilisateur, token: nouveauJeton });
+    const signalChange = impersonation !== compteDuLayout.impersonation;
+    setCompteDuLayout({ user: nouvelUtilisateur, token: nouveauJeton, impersonation });
     if (nouveauJeton !== compteDuLayout.token) setToken(nouveauJeton);
     if (nouvelUtilisateur !== null) setUser(nouvelUtilisateur);
-    else if (nouveauJeton === null) setUser(null);
+    else if (signalChange || (nouveauJeton === null && !impersonation)) setUser(null);
   }
   // TCK-2050 (P174.01) — écrit dans le module que lit `apiRequest` dès le premier rendu, avant que
   // les requêtes des enfants partent (elles partent à l'abonnement, après le rendu).
@@ -213,24 +242,32 @@ export function AuthProvider({
 
   const handleSetUser = useCallback((u: User | null) => setUser(u), []);
 
-  const refreshUser = useCallback(async () => {
+  const refreshUser = useCallback(async (): Promise<IssueDeRelecture> => {
     const rang = ++rangDemandeRef.current;
     const derniere = () => rang === rangDemandeRef.current;
     setIsLoading(true);
     try {
       const r = await fetch('/api/auth/me');
-      if (!derniere()) return;
+      if (!derniere()) return 'perimee';
       if (r.ok) {
         const u = await r.json();
-        if (derniere()) setUser(u);
-      } else if (r.status === 401) {
+        if (!derniere()) return 'perimee';
+        setUser(u);
+        return 'ouverte';
+      }
+      if (r.status === 401) {
         // TCK-1992 (P172.01) — seul un 401 dit la session morte. Toute autre erreur (API en
         // panne, lente, limitée, refus de second facteur) garde l'utilisateur en place.
         setUser(null);
+        // TCK-2846 — une session morte efface aussi les récents de la coque, comme « Se déconnecter ».
+        oublierLesPagesRecentes();
         fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+        return 'fermee';
       }
+      return 'injoignable';
     } catch {
       // Relais injoignable : rien ne dit que la session est close, l'utilisateur reste.
+      return 'injoignable';
     } finally {
       if (derniere()) setIsLoading(false);
     }
@@ -305,6 +342,8 @@ export function AuthProvider({
     // mise en cache sous celui-ci. Les favoris locaux, eux, sont vidés par l'effet d'amorçage
     // ci-dessus dès que `user` repasse à `null` — c'est apprendre la déconnexion qui manquait.
     queryClient.clear();
+    // TCK-2846 — les récents de la coque (noms des fiches ouvertes) ne survivent pas à la session.
+    oublierLesPagesRecentes();
     setActiveProfileId(null);
     setToken(null);
     setUser(null);
@@ -348,7 +387,7 @@ export function useAuth(): AuthContextValue {
       setActiveProfileId: noop,
       isLoading: false,
       setUser: noop,
-      refreshUser: noopAsync,
+      refreshUser: async () => 'injoignable' as const,
       login: noopThrow as AuthContextValue['login'],
       register: noopThrow as AuthContextValue['register'],
       openSession: noopThrow as AuthContextValue['openSession'],

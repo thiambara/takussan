@@ -10,6 +10,7 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Model\NotificationService;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyPublication;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * TCK-600 — **un compte effacé ne laisse aucun bien public sans contact.**
@@ -34,13 +35,26 @@ class ErasedAccountListings
         private readonly ContactLeadService $contacts,
     ) {}
 
+    /**
+     * Les biens que {@see handle()} relit, et peut donc ÉCRIRE : ceux dont le compte est propriétaire
+     * ou collaborateur. TCK-2744 (d3) — `AccountDeletionService::lockInGlobalOrder()` les verrouille
+     * par cette même requête, avant la ligne `users` : une écriture verrouille la ligne comme un
+     * `for update`, et dépublier un bien après le compte inverse l'ordre bien → … → utilisateur.
+     *
+     * @return Builder<Property>
+     */
+    public static function candidates(User $erased): Builder
+    {
+        return Property::query()
+            ->where(fn ($q) => $q
+                ->where('user_id', $erased->id)
+                ->orWhereHas('collaborators', fn ($c) => $c->where('user_id', $erased->id)));
+    }
+
     /** @return list<int> les biens dépubliés */
     public function handle(User $erased): array
     {
-        $biens = Property::query()
-            ->where(fn ($q) => $q
-                ->where('user_id', $erased->id)
-                ->orWhereHas('collaborators', fn ($c) => $c->where('user_id', $erased->id)))
+        $biens = self::candidates($erased)
             ->with([...PrimaryPropertyContact::eagerLoads(), 'agency'])
             ->get();
 

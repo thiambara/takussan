@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   type DefaultValues,
   type FieldValues,
@@ -316,9 +316,25 @@ export function useApiForm<
   // interne — le contrat de CE hook cesse de dépendre de l'inférence de
   // celui d'en dessous. Aucun appelant ne lit ce retour : `handleSubmit` est
   // branché sur `onSubmit` d'un `<form>`.
+  //
+  // TCK-2643 (r3) — la garde SYNCHRONE d'un second envoi. `isSubmitting` est un état : posé après la
+  // validation (asynchrone), il n'est pas encore rendu quand deux clics tombent dans la même tâche —
+  // et chacun envoyait son POST (deux baux, deux demandes de signature). La ref est lue et posée dans
+  // le même tour : le second appel s'arrête là. `preventDefault` d'abord : sans lui, le navigateur
+  // enverrait le formulaire lui-même (GET de la page).
+  const envoiEnCours = useRef(false);
   const handleSubmit = useCallback(
     async (e?: React.BaseSyntheticEvent): Promise<void> => {
-      await form.handleSubmit(submit)(e);
+      if (envoiEnCours.current) {
+        e?.preventDefault?.();
+        return;
+      }
+      envoiEnCours.current = true;
+      try {
+        await form.handleSubmit(submit)(e);
+      } finally {
+        envoiEnCours.current = false;
+      }
     },
     [form, submit],
   );

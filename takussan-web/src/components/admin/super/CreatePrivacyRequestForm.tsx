@@ -124,6 +124,8 @@ export function CreatePrivacyRequestForm({ onDone }: { readonly onDone: () => vo
 
         <Champ id="pr-name" label={t('fields.requesterName')} error={erreurDe(erreur, 'requester_name')}>
           <Input
+            profil="nom"
+            placeholder={t('placeholders.requesterName')}
             id="pr-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -141,6 +143,8 @@ export function CreatePrivacyRequestForm({ onDone }: { readonly onDone: () => vo
           error={erreurDe(erreur, 'requester_contact')}
         >
           <Input
+            profil="identifiant"
+            placeholder={t('placeholders.requesterContact')}
             id="pr-contact"
             value={contact}
             onChange={(e) => setContact(e.target.value)}
@@ -166,9 +170,9 @@ export function CreatePrivacyRequestForm({ onDone }: { readonly onDone: () => vo
           </div>
           <Champ id="pr-user" label={t('fields.userId')} error={erreurDe(erreur, 'user_id')}>
             <Input
+              profil="entier"
+              placeholder={t('placeholders.userId')}
               id="pr-user"
-              type="number"
-              inputMode="numeric"
               min={1}
               value={userId}
               onChange={(e) => setUserId(e.target.value)}

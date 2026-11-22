@@ -49,13 +49,7 @@ function bien(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
     main_photo_url: null,
     published_at: '2026-08-01T00:00:00.000Z',
     created_at: '2026-01-01T00:00:00.000Z',
-    type_label: 'Villa',
-    contract_type_label: 'Location',
-    rent_period_label: 'Mois',
-    status_label: 'Disponible',
     title_type: null,
-    title_type_label: null,
-    condition_label: null,
     floor_number: null,
     total_floors: null,
     year_built: 2020,
@@ -94,7 +88,7 @@ function balise(
       .split('.')
       .reduce<unknown>(
         (n, k) => (n && typeof n === 'object' ? (n as Record<string, unknown>)[k] : undefined),
-        (fr as { property: { detail: Record<string, unknown> } }).property.detail,
+        (fr as { propertyDetail: Record<string, unknown> }).propertyDetail,
       );
     return typeof valeur === 'string' ? valeur : cle;
   };

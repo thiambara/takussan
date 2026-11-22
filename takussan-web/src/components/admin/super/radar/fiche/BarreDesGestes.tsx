@@ -14,7 +14,7 @@ interface BarreDesGestesProps {
 
 function Raccourci({ children }: { readonly children: string }) {
   return (
-    <kbd className="ml-1.5 rounded border bg-muted px-1 font-sans text-[0.7rem] font-medium text-muted-foreground">
+    <kbd className="ml-1.5 rounded border bg-muted px-1 font-sans text-[calc(var(--spacing)*2.8)] font-medium text-muted-foreground">
       {children}
     </kbd>
   );

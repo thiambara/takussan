@@ -7,16 +7,21 @@ use App\Exceptions\ApiError;
 use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
+use App\Services\Messaging\FilDeLObjet;
 use App\Services\Model\ReferenceNumberGenerator;
 use App\Services\Payments\PaymentGatewayService;
 use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -79,6 +84,7 @@ class LeaseRenewalService
             $parent = Lease::query()->lock('for no key update')->findOrFail($parent->id);
 
             $this->guardParentStatus($parent);
+            $this->guardParties($parent);
             $this->guardNoActiveChild($parent);
             $this->guardMaxChainDepth($parent);
 
@@ -120,6 +126,9 @@ class LeaseRenewalService
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'monthly_rent' => $data['monthly_rent'] ?? $parent->monthly_rent,
+                // TCK-2679 — les charges, terme imprimé : héritées du parent, renégociables (0 les retire,
+                // comme `null` laisse hériter les autres termes).
+                'monthly_charges' => $data['monthly_charges'] ?? $parent->monthly_charges,
                 'sale_price' => $parent->sale_price,
                 'currency' => $parent->currency,
                 'deposit_amount' => $data['deposit_amount'] ?? $parent->deposit_amount,
@@ -134,6 +143,8 @@ class LeaseRenewalService
                 // du contrat signé. Un parent antérieur (colonnes nulles) donne un enfant nul.
                 'early_termination_penalty_months' => $data['early_termination_penalty_months'] ?? $parent->early_termination_penalty_months,
                 'rent_review_max_pct' => $data['rent_review_max_pct'] ?? $parent->rent_review_max_pct,
+                // TCK-2906 — le préavis saisi à la création passe à l'enfant comme les autres termes imprimés.
+                'notice_period_days' => $parent->notice_period_days,
                 'terms' => $data['terms'] ?? $parent->terms,
                 'special_conditions' => $data['special_conditions'] ?? $parent->special_conditions,
             ]);
@@ -285,6 +296,16 @@ class LeaseRenewalService
 
         $parent->forceFill($attributes)->save();
 
+        // TCK-2961 (ADR-0128 § 3) — le parent PASSE à `renewed` ici, et seulement ici : au renouvellement
+        // d'un enfant né en vigueur comme à l'activation d'un enfant né `pending_signature`. `LeaseRenewed`
+        // part aussi pour ce dernier, parent encore `active` : « renouvelé » y serait faux. Écrit dans la
+        // salle du PARENT, après le COMMIT (une transaction annulée n'écrit rien) ; le nouveau bail a la
+        // sienne (TCK-2960).
+        app(FilDeLObjet::class)->parler($parent, 'lease.renewed', [
+            'renewed_lease_id' => (int) $child->getKey(),
+            'start_date' => $startDate->toDateString(),
+        ]);
+
         if ($cancelled !== []) {
             activity('Lease')
                 ->performedOn($parent)
@@ -321,15 +342,27 @@ class LeaseRenewalService
     /**
      * Les échéances de loyer du parent dues à partir du début de l'enfant : celles que l'échéancier
      * de l'enfant (premier terme ≥ son début) facture à nouveau. Vaut pour un parent sans fin.
+     * TCK-2679 — et ses échéances de charges, que l'échéancier de l'enfant appelle aussi : jugées sur
+     * leur PÉRIODE (qui commence au début de l'enfant ou après), jamais sur leur date d'échéance —
+     * une régularisation saisie à la main pour une période passée, mais échue plus tard, reste due
+     * au parent (vérification adverse de TCK-2679). Sans période, une ligne de charges ne bouge pas.
      *
      * @return Collection<int, LeasePayment>
      */
     protected function overlappingRentDues(Lease $parent, CarbonInterface $startDate): Collection
     {
+        $start = $startDate->toDateString();
+
         return LeasePayment::query()
             ->where('lease_id', $parent->id)
-            ->where('payment_type', LeasePaymentType::Rent->value)
-            ->whereDate('due_date', '>=', $startDate->toDateString())
+            ->where(fn (Builder $q) => $q
+                ->where(fn (Builder $rent) => $rent
+                    ->where('payment_type', LeasePaymentType::Rent->value)
+                    ->whereDate('due_date', '>=', $start))
+                ->orWhere(fn (Builder $charges) => $charges
+                    ->where('payment_type', LeasePaymentType::Charges->value)
+                    ->whereNotNull('period_start')
+                    ->whereDate('period_start', '>=', $start)))
             ->orderBy('due_date')
             ->lockForUpdate()
             ->get();
@@ -417,6 +450,32 @@ class LeaseRenewalService
         return $depth;
     }
 
+    /**
+     * TCK-2753 (r0, ADR-0108) — un bail échu se renouvelle encore après le départ de son bailleur : sans
+     * cette garde, l'admin créait un bail au nom d'un propriétaire parti, sur un bien supprimé. Le bien
+     * supprimé (`lease.renewal_property_deleted`), puis le bailleur dont le profil de l'agence est sans
+     * écriture, parti ou bloqué (`lease.renewal_owner_departed`). Le profil est relu sous `FOR SHARE` (`sharedLock()`) :
+     * un départ concurrent (qui le prend `FOR UPDATE`) attend ce renouvellement, dont il voit ensuite le
+     * bail enfant ; ou ce renouvellement attend le départ, et lit le profil devenu inactif.
+     */
+    protected function guardParties(Lease $parent): void
+    {
+        $bien = Property::withTrashed()->find($parent->property_id);
+        abort_code_if($bien === null || $bien->trashed(), 422, 'lease.renewal_property_deleted');
+
+        if ($parent->agency_id === null || $parent->landlord_id === null) {
+            return;
+        }
+
+        $parti = OwnerProfile::query()
+            ->where('agency_id', $parent->agency_id)
+            ->where('user_id', $parent->landlord_id)
+            ->sharedLock()
+            ->get(['id', 'status'])
+            ->contains(fn (OwnerProfile $p): bool => in_array($p->status, OwnerProfileStatus::sansEcriture(), true));
+        abort_code_if($parti, 422, 'lease.renewal_owner_departed');
+    }
+
     protected function guardParentStatus(Lease $parent): void
     {
         if (! in_array($parent->status, self::RENEWABLE_PARENT_STATUSES, true)) {
@@ -474,7 +533,7 @@ class LeaseRenewalService
      * un renouvellement les change toujours, c'est son objet.
      */
     public const RENEGOTIABLE_SIGNED_TERMS = [
-        'monthly_rent', 'deposit_amount', 'late_fee_percent', 'late_fee_grace_days',
+        'monthly_rent', 'monthly_charges', 'deposit_amount', 'late_fee_percent', 'late_fee_grace_days',
         'early_termination_penalty_months', 'rent_review_max_pct', 'terms', 'special_conditions',
     ];
 
@@ -513,7 +572,7 @@ class LeaseRenewalService
     protected function diffChanges(Lease $parent, Lease $child): array
     {
         $tracked = [
-            'start_date', 'end_date', 'monthly_rent', 'deposit_amount',
+            'start_date', 'end_date', 'monthly_rent', 'monthly_charges', 'deposit_amount',
             'late_fee_percent', 'late_fee_grace_days', 'terms', 'special_conditions',
             'early_termination_penalty_months', 'rent_review_max_pct',
         ];

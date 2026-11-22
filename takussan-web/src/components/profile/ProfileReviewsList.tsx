@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useId, useState } from 'react';
-import { MessageSquareQuote, Star } from 'lucide-react';
+import { MessageSquareQuote, SlidersHorizontal, Star, UserRound } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Pagination } from '@/components/console/Pagination';
 import {
+  type LeaseClosedOpportunity,
   type ReceivedStatus,
   type ReceivedSubjectType,
   type Review,
@@ -24,11 +25,20 @@ import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
+import { initiales } from '@/lib/fiche-publique';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
+import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { moyenneLisible } from '@/components/profile/sommaire/details-du-sommaire';
+import type { NoteDeLaFiche } from '@/lib/profil/note-de-la-fiche';
+import { cn } from '@/lib/utils';
 import { isAgencyAdmin, isAgent, isOwner, isServiceProvider } from '@/lib/roles';
 import { formatDate } from '@/lib/format';
 import { REVIEW_CONTENT_MAX, REVIEW_REPLY_MAX } from '@/lib/review-limits';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { UserRole } from '@/types/user';
 import type { Locale } from '@/i18n/config';
@@ -44,33 +54,142 @@ function receivesReviews(roles: UserRole[]): boolean {
   return isOwner(roles) || isAgent(roles) || isAgencyAdmin(roles) || isServiceProvider(roles);
 }
 
-export function ProfileReviewsList({ roles }: { readonly roles: UserRole[] }) {
+/** Les onglets de « Mes avis », dans l'ordre de la maquette ; `recus` pour qui peut en recevoir. */
+const ONGLETS = ['recus', 'a-laisser', 'publies'] as const;
+type Onglet = (typeof ONGLETS)[number];
+
+/**
+ * TCK-2635 — « Mes avis » en trois onglets : « Reçus · À laisser · Publiés » (maquette `app-profil`,
+ * `ONGLETS_AVIS`). Qui reçoit des avis ouvre sur « Reçus », les autres sur « À laisser ». L'onglet
+ * suit l'adresse (`?onglet=`), sans recharger : un lien vers un onglet l'ouvre, et le retour arrière
+ * le garde. La note de l'agent, en tête des reçus, est celle de sa fiche publique (`note`, lue au
+ * serveur) ; sans elle, rien ne s'affiche plutôt qu'une moyenne calculée sur une page chargée.
+ */
+export function ProfileReviewsList({
+  roles,
+  note = null,
+}: {
+  readonly roles: UserRole[];
+  readonly note?: NoteDeLaFiche | null;
+}) {
   const t = useTranslations('profile.reviews');
   const locale = useLocale();
+  const searchParams = useSearchParams();
+  const recoit = receivesReviews(roles);
+  const ouverts: readonly Onglet[] = recoit ? ONGLETS : ONGLETS.filter((o) => o !== 'recus');
+  const demande = searchParams.get('onglet');
+  const [onglet, setOnglet] = useState<Onglet>(() =>
+    ouverts.includes(demande as Onglet) ? (demande as Onglet) : ouverts[0]!,
+  );
+
+  // Les comptes des onglets : les MÊMES requêtes que leurs listes (clés identiques, une seule
+  // requête chacune). « À laisser » compte les formulaires (un par visite, bail, séjour…).
+  const recus = useReceivedReviews({ page: 1 }, { enabled: recoit });
+  const opportunites = useReviewOpportunities();
+  const publies = useAuthoredReviews();
+  const comptes: Record<Onglet, number | undefined> = {
+    recus: recus.data?.meta?.total,
+    'a-laisser': opportunites.data ? groupesALaisser(opportunites.data).length : undefined,
+    publies: publies.data?.data.length,
+  };
+
+  function choisir(valeur: unknown) {
+    if (!ouverts.includes(valeur as Onglet)) return;
+    setOnglet(valeur as Onglet);
+    const params = new URLSearchParams(window.location.search);
+    params.set('onglet', valeur as Onglet);
+    window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+  }
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-3" aria-labelledby="posted-reviews-title">
-        <h2 id="posted-reviews-title" className="text-base font-semibold text-foreground">
-          {t('postedTitle')}
-        </h2>
-        <AuthoredReviewsList locale={locale} />
-      </section>
+    <Tabs value={onglet} onValueChange={choisir} className="gap-5">
+      {/* Au-dessus des onglets, comme la maquette (`AAvisMobile`, `AAvisBureau`) : la note se lit d'où
+          qu'on regarde ses avis. */}
+      {recoit ? <TeteDesAvis note={note} agent={isAgent(roles)} /> : null}
+      <TabsList variant="line" aria-label={t('onglets.titre')}>
+        {ouverts.map((o) => (
+          <TabsTrigger key={o} value={o}>
+            {t(`onglets.${o}`)}
+            {comptes[o] ? <TabsCount>{comptes[o]}</TabsCount> : null}
+          </TabsTrigger>
+        ))}
+      </TabsList>
 
-      <section className="space-y-3" aria-labelledby="review-opportunities-title">
-        <h2 id="review-opportunities-title" className="text-base font-semibold text-foreground">
-          {t('opportunitiesTitle')}
-        </h2>
-        <ReviewOpportunitiesList />
-      </section>
-
-      {receivesReviews(roles) ? (
-        <section className="space-y-3" aria-labelledby="received-reviews-title">
-          <h2 id="received-reviews-title" className="text-base font-semibold text-foreground">
-            {t('receivedTitle')}
-          </h2>
+      {recoit ? (
+        <TabsContent value="recus" className="space-y-4">
           <ReceivedReviewsInbox withPropertyFilter={isOwner(roles) || isAgent(roles) || isAgencyAdmin(roles)} />
-        </section>
+        </TabsContent>
+      ) : null}
+
+      <TabsContent value="a-laisser" className="space-y-3">
+        <ReviewOpportunitiesList />
+      </TabsContent>
+
+      <TabsContent value="publies" className="space-y-3">
+        <AuthoredReviewsList locale={locale} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+/**
+ * La tête des reçus (maquette `TeteAvis`) : la moyenne, ses étoiles, le nombre d'avis, et — TCK-2864 —
+ * la RÉPARTITION 5 → 1 des avis publiés (`meta.distribution`, TCK-2863), calculée par l'API sur toute
+ * la boîte, jamais sur une page chargée.
+ *
+ * La moyenne et le nombre se tirent de cette même répartition : les barres et « N avis reçus » se
+ * lisent alors sur le même ensemble. Pour l'agent, l'ensemble est celui des avis qui le visent
+ * (`subject_type=agent`), celui de sa fiche publique. Sans répartition (API plus ancienne, aucun avis
+ * publié), la note de la fiche (`note`) seule, comme avant ; sans elle non plus, rien.
+ */
+const NOTES = [5, 4, 3, 2, 1] as const;
+
+export function repartitionDesNotes(
+  distribution: Partial<Record<string, number>> | undefined,
+): { readonly lignes: readonly { readonly note: number; readonly nombre: number }[]; readonly total: number; readonly moyenne: number | null } {
+  const lignes = NOTES.map((note) => ({ note, nombre: Math.max(0, Number(distribution?.[String(note)] ?? 0) || 0) }));
+  const total = lignes.reduce((n, l) => n + l.nombre, 0);
+  const moyenne = total > 0 ? lignes.reduce((n, l) => n + l.note * l.nombre, 0) / total : null;
+  return { lignes, total, moyenne };
+}
+
+function TeteDesAvis({ note, agent }: { readonly note: NoteDeLaFiche | null; readonly agent: boolean }) {
+  const t = useTranslations('profile.reviews');
+  const locale = useLocale();
+  const boite = useReceivedReviews(agent ? { page: 1, subjectType: 'agent' } : { page: 1 });
+  const repartition = repartitionDesNotes(boite.data?.meta?.distribution);
+  const tete =
+    repartition.moyenne !== null ? { moyenne: repartition.moyenne, nombre: repartition.total } : note;
+  if (!tete) return null;
+  const moyenne = moyenneLisible(tete.moyenne, locale);
+  return (
+    <div data-slot="note-de-la-fiche" className="flex items-center gap-5 rounded-xl border border-border bg-card p-4 md:max-w-105">
+      <div className="flex-none text-center">
+        <p className="font-display text-4xl font-semibold tabular-nums tracking-titre">{moyenne}</p>
+        <div className="mt-1 flex justify-center gap-0.5" role="img" aria-label={t('tete.moyenneAria', { moyenne })}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Star
+              key={n}
+              aria-hidden="true"
+              className={cn('size-3.5', n <= Math.round(tete.moyenne) ? 'fill-primary text-primary' : 'text-border')}
+            />
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">{t('tete.nombre', { nombre: tete.nombre })}</p>
+      </div>
+      {repartition.total > 0 ? (
+        <ul data-slot="repartition-des-notes" aria-label={t('tete.repartitionAria')} className="min-w-0 flex-1 space-y-1">
+          {repartition.lignes.map((l) => (
+            <li key={l.note} data-note={l.note} className="flex items-center gap-2 text-xs tabular-nums text-muted-foreground">
+              <span aria-hidden="true" className="w-2">{l.note}</span>
+              <span aria-hidden="true" className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                <span className="block h-full rounded-full bg-primary" style={{ width: `${(l.nombre / repartition.total) * 100}%` }} />
+              </span>
+              <span aria-hidden="true" data-slot="compte" className="w-4 text-right">{l.nombre}</span>
+              <span className="sr-only">{t('tete.ligneAria', { note: l.note, nombre: l.nombre })}</span>
+            </li>
+          ))}
+        </ul>
       ) : null}
     </div>
   );
@@ -143,9 +262,38 @@ function groupByContext(items: readonly ReviewOpportunity[]): OpportunityGroup[]
   }));
 }
 
+/**
+ * TCK-2864 — un groupe « à laisser », et, s'il vient d'un bail CLÔTURÉ (`lease_closed`, TCK-2863), ce
+ * bail : le groupe se montre alors en carte compacte « Bail clôturé le … · Noter » (maquette
+ * `CarteAvisEnAttente`), et « Noter » ouvre son formulaire.
+ */
+type GroupeALaisser = OpportunityGroup & { readonly bailClos?: LeaseClosedOpportunity };
+
+/**
+ * Les groupes à laisser, bail clôturé compris, chacun UNE fois : l'invitation `lease_closed` vise le
+ * bien du bail, que `data` propose déjà (sous ce bail, ou sous une réservation du même bien). Elle
+ * marque alors ce groupe-là ; sinon elle en forme un, avec sa seule cible.
+ */
+export function groupesALaisser(reponse: {
+  readonly data: readonly ReviewOpportunity[];
+  readonly lease_closed?: readonly LeaseClosedOpportunity[];
+}): GroupeALaisser[] {
+  const groupes: GroupeALaisser[] = groupByContext(reponse.data);
+  for (const bail of reponse.lease_closed ?? []) {
+    const { target } = bail;
+    const i = groupes.findIndex((g) => g.items.some((it) => it.type === target.type && it.subject.id === target.subject.id));
+    if (i >= 0) groupes[i] = { ...groupes[i]!, bailClos: bail };
+    else groupes.push({ key: `${target.context.type}:${target.context.id}`, context: target.context, items: [target], bailClos: bail });
+  }
+  return groupes;
+}
+
 function ReviewOpportunitiesList() {
   const t = useTranslations('profile.reviews');
   const opportunitiesQuery = useReviewOpportunities();
+  // TCK-2864 — la carte compacte du bail clôturé est celle du BUREAU (`AAvisBureau`) : la maquette du
+  // téléphone ne la dessine pas, il garde le formulaire d'emblée.
+  const telephone = useMatchesMedia('(width < 48rem)');
 
   if (opportunitiesQuery.isLoading) {
     return (
@@ -161,7 +309,7 @@ function ReviewOpportunitiesList() {
     return <ErrorState message={t('opportunitiesError')} />;
   }
 
-  const groups = groupByContext(opportunitiesQuery.data?.data ?? []);
+  const groups = groupesALaisser(opportunitiesQuery.data ?? { data: [] });
 
   if (groups.length === 0) {
     return (
@@ -172,14 +320,41 @@ function ReviewOpportunitiesList() {
     );
   }
 
+  // TCK-2635 — côte à côte tant que chaque carte a ses 360 px (maquette `AAvisBureau`), l'une sous
+  // l'autre en dessous.
   return (
-    <ul className="space-y-3">
+    <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,calc(var(--spacing)*90)),1fr))] items-start gap-4">
       {groups.map((group) => (
         <li key={group.key}>
-          <OpportunityForm group={group} />
+          {group.bailClos && !telephone ? <CarteBailClos group={group} bail={group.bailClos} /> : <OpportunityForm group={group} />}
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * TCK-2864 — « Bail clôturé le 31 oct. · F3, Sacré-Cœur 3 » et « Noter » (maquette `CarteAvisEnAttente`) :
+ * la carte compacte d'un bail clôturé, qui s'ouvre sur le formulaire d'avis de ce bail.
+ */
+function CarteBailClos({ group, bail }: { readonly group: OpportunityGroup; readonly bail: LeaseClosedOpportunity }) {
+  const t = useTranslations('profile.reviews');
+  const locale = useLocale() as Locale;
+  const [ouvert, setOuvert] = useState(false);
+  if (ouvert) return <OpportunityForm group={group} />;
+  // `end_date` est un jour (`2026-10-31`) : lu à minuit UTC, il se dit en UTC, sinon la veille ailleurs.
+  const date = formatDate(bail.lease.end_date, locale, { dateStyle: undefined, day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const bien = bail.lease.property_title ?? bail.target.subject.title ?? t('targetFallback');
+  return (
+    <article data-slot="bail-clos" className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-corps font-semibold text-foreground">{t('bailClos.titre', { date, bien })}</p>
+        <p className="truncate text-ui text-muted-foreground">{t('bailClos.detail')}</p>
+      </div>
+      <Button type="button" variant="outline" size="sm" className="flex-none" onClick={() => setOuvert(true)}>
+        {t('bailClos.noter')}
+      </Button>
+    </article>
   );
 }
 
@@ -254,6 +429,8 @@ function OpportunityForm({ group }: { readonly group: OpportunityGroup }) {
             <label className="block text-xs text-muted-foreground">
               <span className="mb-1 block">{t('opportunityCommentLabel')}</span>
               <Textarea
+                profil="texte-long"
+                placeholder={t('opportunityCommentPlaceholder')}
                 value={contents[key] ?? ''}
                 onChange={(e) => setContents((c) => ({ ...c, [key]: e.target.value }))}
                 rows={2}
@@ -271,12 +448,10 @@ function OpportunityForm({ group }: { readonly group: OpportunityGroup }) {
           ) : null}
         </div>
       ) : null}
-      <div className="flex justify-end">
-        <Button type="submit" size="sm" disabled={postReview.isPending}>
-          <Star aria-hidden="true" />
-          {t('opportunitySubmit')}
-        </Button>
-      </div>
+      {/* TCK-2635 — pleine largeur, comme la maquette ; une seule cible : « Publier mon avis », au singulier. */}
+      <Button type="submit" size="lg" className="w-full" disabled={postReview.isPending}>
+        {group.items.length === 1 ? t('opportunitySubmitOne') : t('opportunitySubmit')}
+      </Button>
     </form>
   );
 }
@@ -293,9 +468,11 @@ function StarRatingInput({
 }) {
   const t = useTranslations('profile.reviews');
   return (
-    <div className="flex items-center gap-1">
+    // TCK-2635 — la maquette (`CarteAvisALaisser`) : des cibles de 44 px, des étoiles de 32. Les étoiles
+    // vides gardent l'encre douce (la maquette les dessine couleur de filet : 3:1 non tenu, ADR-0106 § 2).
+    <div className="-mx-1 flex items-center">
       {[1, 2, 3, 4, 5].map((n) => (
-        <label key={n} className="cursor-pointer rounded-sm p-0.5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
+        <label key={n} className="inline-flex size-11 cursor-pointer items-center justify-center rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
           <input
             type="radio"
             name={name}
@@ -305,7 +482,7 @@ function StarRatingInput({
             className="sr-only"
           />
           <span className="sr-only">{t('starsLabel', { count: n })}</span>
-          <Star aria-hidden="true" className={`size-5 ${value >= n ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
+          <Star aria-hidden="true" strokeWidth={1.25} className={cn('size-8', value >= n ? 'fill-primary text-primary' : 'text-muted-foreground')} />
         </label>
       ))}
     </div>
@@ -387,6 +564,7 @@ function ReceivedReviewsInbox({ withPropertyFilter }: { readonly withPropertyFil
   const [statusFilter, setStatusFilter] = useState(ALL);
   const [subjectFilter, setSubjectFilter] = useState(() => filtreDeLUrl(searchParams.get('subject'), SUBJECT_TYPES));
   const [page, setPage] = useState(1);
+  const telephone = useMatchesMedia('(width < 48rem)');
   const propertiesQuery = useOwnerReviewProperties();
   const properties = withPropertyFilter ? (propertiesQuery.data?.data ?? []) : [];
 
@@ -427,16 +605,52 @@ function ReceivedReviewsInbox({ withPropertyFilter }: { readonly withPropertyFil
     })),
   ];
 
+  const filtres = (
+    <>
+      {withPropertyFilter ? (
+        <FilterSelect label={t('filterByProperty')} value={propertyFilter} options={propertyOptions} onChange={poser(setPropertyFilter)} />
+      ) : null}
+      <FilterSelect label={t('filterByReply')} value={replyFilter} options={replyOptions} onChange={poser(setReplyFilter)} />
+      <FilterSelect label={t('filterByStatus')} value={statusFilter} options={statusOptions} onChange={poser(setStatusFilter)} />
+      <FilterSelect label={t('filterBySubject')} value={subjectFilter} options={subjectOptions} onChange={poser(setSubjectFilter)} />
+    </>
+  );
+  const filtresActifs = [propertyFilter, replyFilter, statusFilter, subjectFilter].filter((v) => v !== ALL).length;
+  // TCK-2864 — « 1 avis en attente de validation » (maquette `AAvisMobile`) : le compte de l'API, sur
+  // toute la boîte filtrée (sauf le statut) ; rien à zéro.
+  const enAttente = meta?.pending_count ?? 0;
+  const ligneEnAttente =
+    enAttente > 0 ? (
+      <p data-slot="avis-en-attente" className="min-w-0 flex-1 text-ui text-muted-foreground">
+        {t('enAttenteDeValidation', { count: enAttente })}
+      </p>
+    ) : null;
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">
-        {withPropertyFilter ? (
-          <FilterSelect label={t('filterByProperty')} value={propertyFilter} options={propertyOptions} onChange={poser(setPropertyFilter)} />
-        ) : null}
-        <FilterSelect label={t('filterByReply')} value={replyFilter} options={replyOptions} onChange={poser(setReplyFilter)} />
-        <FilterSelect label={t('filterByStatus')} value={statusFilter} options={statusOptions} onChange={poser(setStatusFilter)} />
-        <FilterSelect label={t('filterBySubject')} value={subjectFilter} options={subjectOptions} onChange={poser(setSubjectFilter)} />
-      </div>
+      {telephone ? (
+        // TCK-2635 — au téléphone, les filtres passent dans une feuille (maquette `BoutonFiltres`).
+        <div className="flex items-center justify-end gap-2">
+          {ligneEnAttente}
+          <FeuilleDuBas
+            titre={t('filtres.titre')}
+            declencheur={
+              <Button type="button" variant="outline" size="sm">
+                <SlidersHorizontal aria-hidden="true" />
+                {t('filtres.bouton')}
+                {filtresActifs > 0 ? <TabsCount>{filtresActifs}</TabsCount> : null}
+              </Button>
+            }
+          >
+            <div className="grid gap-3">{filtres}</div>
+          </FeuilleDuBas>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">{filtres}</div>
+          {ligneEnAttente}
+        </>
+      )}
 
       {reviewsQuery.isLoading ? (
         <div className="space-y-3" role="status" aria-label={t('loadingAria')}>
@@ -520,25 +734,40 @@ function ReceivedReviewCard({ review }: { readonly review: Review }) {
     }
   }
 
+  const auteur = review.author.name || t('anonymous');
+  const tonDuStatut = review.status ? TONS_DU_STATUT[review.status] : undefined;
+
+  // TCK-2635 — la carte de la maquette (`CarteAvisRecu`) : l'auteur et la cible, le signalement en
+  // icône à droite ; puis la note, la date et le statut quand il n'est pas « approuvé » (l'état
+  // ordinaire d'un avis publié) ; puis le texte.
   return (
     <li className="rounded-xl border border-border bg-card p-4" data-testid={`received-review-${review.id}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 basis-48">
-          <p className="truncate text-sm font-semibold text-foreground">{review.target?.title ?? t('targetFallback')}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {review.author.name || t('anonymous')} · {review.created_at ? formatDate(review.created_at, locale) : t('unknownDate')}
-          </p>
+      <div className="flex items-center gap-3">
+        <Avatar size="36">
+          {review.author.avatar_url ? <AvatarImage src={review.author.avatar_url} alt="" /> : null}
+          <AvatarFallback>{review.author.name ? initiales(review.author.name) : <UserRound className="size-4" aria-hidden="true" />}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1 leading-tight">
+          <p className="truncate text-sm font-semibold text-foreground">{auteur}</p>
+          <p className="truncate text-ui text-muted-foreground">{review.target?.title ?? t('targetFallback')}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Badge variant="outline" className="tabular-nums">{review.rating}/5</Badge>
-          {review.status ? <Badge variant={pending ? 'outline' : 'secondary'}>{statusLabel(review.status, t)}</Badge> : null}
-        </div>
+        {/* Un avis en attente n'est pas public : on ne le signale pas encore. */}
+        {pending ? null : <ReviewReportButton reviewId={review.id} compact />}
       </div>
-      {pending ? <p className="mt-2 text-xs text-muted-foreground">{t('pendingNotice')}</p> : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <NoteEnEtoiles note={review.rating} />
+        <span className="text-xs text-muted-foreground">
+          {review.created_at ? formatDate(review.created_at, locale) : t('unknownDate')}
+        </span>
+        {review.status && tonDuStatut ? (
+          <StatusBadge tone={tonDuStatut} label={pending ? t('pastilleEnAttente') : statusLabel(review.status, t)} />
+        ) : null}
+        {pending ? <span className="sr-only">{t('pendingNotice')}</span> : null}
+      </div>
       {review.title ? (
-        <p className="mt-3 text-sm font-medium text-foreground">{review.title}</p>
+        <p className="mt-2 text-sm font-medium text-foreground">{review.title}</p>
       ) : null}
-      <p className="mt-1 max-w-prose whitespace-pre-line text-sm text-pretty text-muted-foreground">
+      <p className={cn('max-w-prose whitespace-pre-line text-sm leading-relaxed text-pretty text-foreground', review.title ? 'mt-1' : 'mt-2')}>
         {review.content ?? t('noComment')}
       </p>
       {review.reply_content && !editing ? (
@@ -552,6 +781,8 @@ function ReceivedReviewCard({ review }: { readonly review: Review }) {
           <label htmlFor={fieldId} className="block text-xs font-medium text-foreground">{t('replyPrompt')}</label>
           <Textarea
             id={fieldId}
+            profil="texte-long"
+            placeholder={t('replyPlaceholder')}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={3}
@@ -581,18 +812,34 @@ function ReceivedReviewCard({ review }: { readonly review: Review }) {
         // Un avis en attente n'est pas public : on n'y répond pas, on ne le signale pas encore.
         // « Répondre » suit `can_reply`, jugé par la policy (verif-597 m1) : le collaborateur d'une
         // autre agence ou le publieur retiré voient l'avis, sans le geste que l'API refuserait.
-        pending ? null : (
+        pending || !review.can_reply ? null : (
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            {review.can_reply ? (
-              <Button type="button" size="sm" onClick={() => setEditing(true)}>
-                {review.reply_content ? t('editReply') : t('reply')}
-              </Button>
-            ) : null}
-            <ReviewReportButton reviewId={review.id} />
+            <Button type="button" size="sm" onClick={() => setEditing(true)}>
+              {review.reply_content ? t('editReply') : t('reply')}
+            </Button>
           </div>
         )
       )}
     </li>
+  );
+}
+
+/** Le ton de la pastille ; « approuvé » n'en a pas : c'est l'état ordinaire d'un avis publié. */
+const TONS_DU_STATUT: Partial<Record<string, StatusTone>> = {
+  pending: 'attention',
+  reported: 'danger',
+  rejected: 'neutral',
+};
+
+/** La note d'un avis en cinq étoiles, lue « Note : 4 sur 5 ». */
+function NoteEnEtoiles({ note }: { readonly note: number }) {
+  const t = useTranslations('profile.reviews');
+  return (
+    <span role="img" aria-label={t('noteAria', { note })} className="inline-flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star key={n} aria-hidden="true" className={cn('size-3.5', n <= note ? 'fill-primary text-primary' : 'text-border')} />
+      ))}
+    </span>
   );
 }
 

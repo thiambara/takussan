@@ -10,7 +10,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import frMessages from '@/messages/fr.json';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 // TCK-743 — le corps du widget porte toutes ses règles ; `ChatWidget` n'en est plus que la garde
 // « connecté », éprouvée par `ChatWidget.garde.test.tsx`.
 import { CorpsDuWidget as ChatWidget } from '../CorpsDuWidget';
@@ -28,8 +31,9 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => useAuthMock(),
 }));
 
+const nonLus = vi.hoisted(() => ({ compte: 0 }));
 vi.mock('../useUnreadCount', () => ({
-  useUnreadCount: () => 0,
+  useUnreadCount: () => nonLus.compte,
 }));
 
 vi.mock('@/components/messages/ConversationList', () => ({
@@ -104,6 +108,12 @@ describe('<ChatWidget> visibility', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('TCK-2611 — ne rend rien sur la page d’invitation, page d’entrée', () => {
+    usePathnameMock.mockReturnValue('/invitations/accept');
+    const { container } = render(wrap(<ChatWidget />));
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('renders nothing on /maintenance', () => {
     usePathnameMock.mockReturnValue('/maintenance');
     const { container } = render(wrap(<ChatWidget />));
@@ -134,11 +144,47 @@ describe('<ChatWidget> visibility', () => {
     expect(screen.getByTestId('chat-widget-launcher')).toBeInTheDocument();
   });
 
-  it('renders the launcher on /app dashboard pages when authenticated', () => {
-    usePathnameMock.mockReturnValue('/app/properties');
+  it.each(['/app', '/app/properties', '/app/leases', '/app/overview/agency', '/app/agency/finances'])(
+    'TCK-2619 — %s : rien ne se monte, à aucune largeur — la console porte la messagerie',
+    (chemin) => {
+      usePathnameMock.mockReturnValue(chemin);
+      nonLus.compte = 4;
+      try {
+        const { container } = render(wrap(<ChatWidget />));
+        expect(container).toBeEmptyDOMElement();
+        expect(screen.queryByTestId('chat-widget-launcher')).toBeNull();
+        expect(screen.queryByTestId('chat-widget-mobile-fab')).toBeNull();
+      } finally {
+        nonLus.compte = 0;
+      }
+    },
+  );
+
+  it('TCK-2619 — un chemin qui COMMENCE par « /app » sans en être (`/apply`) garde le lanceur', () => {
+    usePathnameMock.mockReturnValue('/apply');
     render(wrap(<ChatWidget />));
     expect(screen.getByTestId('chat-widget-launcher')).toBeInTheDocument();
   });
+
+  it('TCK-2481 — hors de /app et du site public, le bouton flottant mobile reste', () => {
+    usePathnameMock.mockReturnValue('/properties/villa-saly');
+    render(wrap(<ChatWidget />));
+    expect(screen.getByTestId('chat-widget-mobile-fab')).toBeInTheDocument();
+  });
+
+  it.each(['/fr', '/fr/properties', '/fr/properties/villa-saly', '/wo/agencies'])(
+    'TCK-2493 — %s : pas de bouton flottant mobile, et le lanceur de bureau attend `lg`',
+    (chemin) => {
+      // ADR-0091 §4 — une seule couche d'action en bas : la barre d'onglets publique porte « Messages »
+      // sous `lg`, et la fiche y a sa barre d'actions.
+      usePathnameMock.mockReturnValue(chemin);
+      render(wrap(<ChatWidget />));
+      expect(screen.queryByTestId('chat-widget-mobile-fab')).toBeNull();
+      const lanceur = screen.getByTestId('chat-widget-launcher');
+      const bouton = lanceur.querySelector('button') ?? lanceur;
+      expect(bouton.className.split(/\s+/)).toEqual(expect.arrayContaining(['hidden', 'lg:inline-flex']));
+    },
+  );
 });
 
 /**
@@ -353,5 +399,93 @@ describe('<ChatWidget> dit ce qu’il ouvre (M15)', () => {
   it('le bouton mobile mène à la messagerie pleine page', () => {
     render(wrap(<ChatWidget />));
     expect(screen.getByTestId('chat-widget-mobile-fab')).toHaveAttribute('href', '/app/messages');
+  });
+});
+
+/**
+ * TCK-2485 — le panneau ouvert ne passe plus au-dessus d'un dialogue modal.
+ *
+ * Il valait `z-[1000]` (TCK-275, 2026-05-16) pour passer au-dessus des calques de Leaflet (200-1000),
+ * qui se comparaient alors à ceux de la page. Depuis le 2026-10-05, `.leaflet-container` les enferme
+ * (`isolation: isolate`, `globals.css`, gardé par `carte-isolee.test.ts`) : le 1000 ne servait plus
+ * qu'à passer au-dessus de la palette ⌘K et de tout `Dialog` (`z-50`) — 121,6 × 274 px de la palette
+ * recouverts à 1024 px (relevé de TCK-2482, M4).
+ *
+ * Le panneau ouvert vaut désormais le z des dialogues, ni plus ni moins, et l'ÉGALITÉ se tranche par
+ * l'ordre du document : un dialogue est porté au bout de `<body>` à son ouverture (il passe dessus) ;
+ * la barre publique fixe (`Navbar`, `z-50`, 127 px de haut) est dans `{children}`, que le widget suit
+ * dans le layout racine (il passe dessus). En dessous de 50, la barre couvrait la croix du panneau
+ * à 1366 × 657 (relevé au navigateur, notes du ticket).
+ */
+describe('<ChatWidget> — empilement du panneau ouvert (TCK-2485)', () => {
+  const RACINE = process.cwd();
+  /** Le z sans variante d'un élément : `z-40` → 40, `z-[1000]` → 1000 ; `null` s'il n'en pose pas. */
+  const zDe = (el: Element | null): number | null => {
+    for (const c of Array.from(el?.classList ?? [])) {
+      const m = /^z-(?:(\d+)|\[(\d+)\])$/.exec(c);
+      if (m) return Number(m[1] ?? m[2]);
+    }
+    return null;
+  };
+  const conteneur = () => screen.getByTestId('chat-widget-launcher').parentElement;
+
+  beforeEach(() => {
+    // TCK-2619 — plus sous `/app`, où le widget ne se monte plus : une page hors du site public.
+    usePathnameMock.mockReturnValue('/properties/villa-saly');
+    useAuthMock.mockReturnValue({ user: { id: 1 } });
+    cibleMock.mockReturnValue(null);
+  });
+
+  it('ouvert, il ne dépasse pas un dialogue modal du design system — et le dialogue le suit dans le document', () => {
+    render(
+      wrap(
+        <>
+          <ChatWidget />
+          <Dialog open>
+            <DialogContent>
+              <DialogTitle>Palette</DialogTitle>
+            </DialogContent>
+          </Dialog>
+        </>,
+      ),
+    );
+    fireEvent.click(screen.getByTestId('chat-widget-launcher'));
+    expect(screen.getByTestId('chat-widget-panel')).toBeInTheDocument();
+
+    const voile = document.querySelector('[data-slot="dialog-overlay"]');
+    const popup = document.querySelector('[data-slot="dialog-content"]');
+    const zPanneau = zDe(conteneur());
+    expect(zPanneau, 'le conteneur du panneau ouvert ne pose aucun z').not.toBeNull();
+    for (const couche of [voile, popup]) {
+      expect(couche).not.toBeNull();
+      expect(zPanneau!, `panneau z-${zPanneau} contre ${couche!.getAttribute('data-slot')} z-${zDe(couche)}`)
+        .toBeLessThanOrEqual(zDe(couche)!);
+    }
+    // À égalité, le dernier dans le document est dessus : le dialogue est porté APRÈS le widget.
+    expect(conteneur()!.compareDocumentPosition(popup!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('ouvert, il reste au-dessus de ce qui flotte sur la page (z du lanceur fermé : pastille du comparateur, barres flottantes)', () => {
+    render(wrap(<ChatWidget />));
+    const zFerme = zDe(conteneur());
+    expect(zFerme).toBe(40);
+    fireEvent.click(screen.getByTestId('chat-widget-launcher'));
+    expect(zDe(conteneur())!).toBeGreaterThan(zFerme!);
+  });
+
+  it('ouvert, il est au z de la barre publique fixe, et le layout racine rend le widget APRÈS `{children}`', () => {
+    render(wrap(<ChatWidget />));
+    fireEvent.click(screen.getByTestId('chat-widget-launcher'));
+    const navbar = readFileSync(join(RACINE, 'src/components/home/Navbar.tsx'), 'utf8');
+    const zBarre = /<nav\s+className=\{`fixed top-0 w-full z-(\d+)\b/.exec(navbar);
+    expect(zBarre, 'la barre publique fixe n’a plus son z lisible ici : relire ce test').not.toBeNull();
+    expect(zDe(conteneur())).toBe(Number(zBarre![1]));
+
+    const layout = readFileSync(join(RACINE, 'src/app/layout.tsx'), 'utf8');
+    const widget = layout.indexOf('<ChatWidget />');
+    const enfants = layout.lastIndexOf('{children}');
+    expect(widget).toBeGreaterThan(-1);
+    expect(enfants).toBeGreaterThan(-1);
+    expect(widget, 'le widget doit suivre `{children}` : à z égal, c’est l’ordre qui le pose sur la barre').toBeGreaterThan(enfants);
   });
 });

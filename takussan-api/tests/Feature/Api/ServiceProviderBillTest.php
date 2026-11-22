@@ -56,6 +56,16 @@ class ServiceProviderBillTest extends TestCase
         ], $attributes));
     }
 
+    /**
+     * TCK-2911 (ADR-0120 § 1) — la facture naît `draft` ; ces tests portent sur la suite du cycle :
+     * le prestataire l'a envoyée (« Facturer »), elle attend la validation.
+     */
+    private function envoyee(MaintenanceRequest $request): void
+    {
+        ServiceProviderBill::query()->where('maintenance_request_id', $request->id)
+            ->where('status', 'draft')->update(['status' => 'pending_validation', 'submitted_at' => now()]);
+    }
+
     public function test_ac15_completion_creates_one_bill_at_the_approved_quote(): void
     {
         $agency = $this->moneyAgency();
@@ -74,7 +84,8 @@ class ServiceProviderBillTest extends TestCase
             ->where('status', '!=', 'cancelled')->sole();
         $this->assertSame(1, ServiceProviderBill::query()->where('maintenance_request_id', $request->id)->where('status', 'cancelled')->count());
         $this->assertEquals(50000, (float) $bill->amount);
-        $this->assertSame('pending_validation', $bill->status->value);
+        // TCK-2911 (ADR-0120 § 1) — elle naît « À facturer » : le prestataire l'envoie.
+        $this->assertSame('draft', $bill->status->value);
         $this->assertFalse($bill->exceeds_quote);
         $this->assertSame($agency->id, $bill->agency_id);
     }
@@ -109,6 +120,7 @@ class ServiceProviderBillTest extends TestCase
         $provider = $this->provider($agency);
         $request = $this->request($agency, $provider);
         $request->update(['status' => MaintenanceStatus::Completed]);
+        $this->envoyee($request);
         $bill = ServiceProviderBill::query()->sole();
         $issuer = $this->agencyAdmin($agency);
         $approver = $this->agencyAdmin($agency);
@@ -174,6 +186,7 @@ class ServiceProviderBillTest extends TestCase
             'actual_cost' => 60_000.6,
         ]);
         $request->update(['status' => MaintenanceStatus::Completed]);
+        $this->envoyee($request);
         $bill = ServiceProviderBill::query()->where('maintenance_request_id', $request->id)->sole();
         $this->assertEquals(60001, (float) $bill->amount);
 
@@ -190,6 +203,7 @@ class ServiceProviderBillTest extends TestCase
         // l'arrondit.
         $legacy = $this->request($agency, $this->provider($agency), ['actual_cost' => 70_000]);
         $legacy->update(['status' => MaintenanceStatus::Completed]);
+        $this->envoyee($legacy);
         $old = ServiceProviderBill::query()->where('maintenance_request_id', $legacy->id)->sole();
         $old->forceFill(['amount' => 70_000.6])->save();
         $this->postJson("/api/service-provider-bills/{$old->id}/validate")->assertOk();
@@ -214,6 +228,7 @@ class ServiceProviderBillTest extends TestCase
             ->create(['user_id' => $provider->id, 'is_default' => true]);
         $request = $this->request($agency, $provider, ['quote_amount' => 150_000]);
         $request->update(['status' => MaintenanceStatus::Completed]);
+        $this->envoyee($request);
         $bill = ServiceProviderBill::query()->where('maintenance_request_id', $request->id)->sole();
 
         $this->actingWithStepUp($issuer);
@@ -227,5 +242,23 @@ class ServiceProviderBillTest extends TestCase
         $this->actingWithStepUp($issuer);
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-N1', 'payout_method_id' => $destination->id])
             ->assertOk()->assertJsonPath('data.status', 'completed');
+    }
+
+    /** TCK-2743 (AC5) — le paiement programmé d'une facture, reçu avec décalage : l'instant désigné. */
+    public function test_le_paiement_programme_avec_decalage_est_l_instant_designe(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $request = $this->request($agency, $this->provider($agency));
+        $request->update(['status' => MaintenanceStatus::Completed]);
+        $this->envoyee($request);
+        $bill = ServiceProviderBill::query()->sole();
+        $this->actingWithStepUp($this->agencyAdmin($agency));
+        $this->postJson("/api/service-provider-bills/{$bill->id}/validate")->assertOk();
+
+        $id = $this->postJson("/api/service-provider-bills/{$bill->id}/pay", ['scheduled_at' => '2030-11-20T11:00:00+01:00'])
+            ->assertCreated()->json('data.id');
+
+        $this->assertSame('2030-11-20 10:00:00', Payout::query()->findOrFail($id)->getRawOriginal('scheduled_at'));
     }
 }

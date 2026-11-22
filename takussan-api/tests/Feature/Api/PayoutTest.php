@@ -275,6 +275,40 @@ class PayoutTest extends TestCase
             ->assertStatus(422);
     }
 
+    /** TCK-2922 — « Refuser » en ligne : l'annulation garde son motif ; sans motif, rien n'est écrit. */
+    public function test_cancel_keeps_the_refusal_reason(): void
+    {
+        $agency = Agency::factory()->create();
+        $agent = User::factory()->withAgentProfile($agency)->create();
+        $payout = Payout::factory()->create([
+            'issued_by_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'status' => 'awaiting_approval',
+            'metadata' => ['destination_masked' => '77 *** 12'],
+        ]);
+        $sansMotif = Payout::factory()->create([
+            'issued_by_id' => $agent->id,
+            'agency_id' => $agency->id,
+            'status' => 'awaiting_approval',
+        ]);
+
+        $this->actingWithStepUp($agent);
+
+        $this->postJson("/api/payouts/{$payout->id}/cancel", ['reason' => '  Montant à revoir  '])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled');
+        $this->postJson("/api/payouts/{$sansMotif->id}/cancel")->assertOk();
+
+        $payout->refresh();
+        $this->assertSame('Montant à revoir', $payout->metadata['cancel_reason'] ?? null);
+        // Les autres marques du reversement restent.
+        $this->assertSame('77 *** 12', $payout->metadata['destination_masked'] ?? null);
+        $this->assertArrayNotHasKey('cancel_reason', $sansMotif->refresh()->metadata ?? []);
+
+        $this->postJson("/api/payouts/{$sansMotif->id}/cancel", ['reason' => str_repeat('x', 501)])
+            ->assertStatus(422);
+    }
+
     public function test_list_is_scoped_to_landlord(): void
     {
         $landlord = User::factory()->create();
@@ -286,5 +320,40 @@ class PayoutTest extends TestCase
         $this->getJson('/api/payouts')
             ->assertOk()
             ->assertJsonPath('meta.total', 3);
+    }
+
+    /** TCK-2743 (AC5) — un reversement programmé avec décalage : l'instant désigné. */
+    public function test_scheduled_at_recu_avec_decalage_est_l_instant_designe(): void
+    {
+        $agency = $this->moneyAgency();
+        $agent = User::factory()->withAgentProfile($agency)->create();
+        $landlord = $this->landlordOf($agency);
+        $rent = $this->leasePayment($this->leaseOf($agency, $landlord), 500_000);
+        $this->actingWithStepUp($agent);
+
+        $id = $this->postJson('/api/payouts', [
+            'landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id], 'scheduled_at' => '2030-11-20T11:00:00+01:00',
+        ])->assertCreated()->json('data.id');
+
+        $this->assertSame('2030-11-20 10:00:00', Payout::query()->findOrFail($id)->getRawOriginal('scheduled_at'));
+    }
+
+    /**
+     * Vérification adverse de TCK-2743 (G13b) — sans décalage, l'heure reçue est celle de Dakar : 11:00
+     * s'écrit 11:00 (Africa/Dakar est à UTC+0). Lue dans un autre fuseau, elle glisserait d'autant.
+     */
+    public function test_scheduled_at_recu_sans_decalage_se_lit_a_l_heure_de_dakar(): void
+    {
+        $agency = $this->moneyAgency();
+        $agent = User::factory()->withAgentProfile($agency)->create();
+        $landlord = $this->landlordOf($agency);
+        $rent = $this->leasePayment($this->leaseOf($agency, $landlord), 500_000);
+        $this->actingWithStepUp($agent);
+
+        $id = $this->postJson('/api/payouts', [
+            'landlord_id' => $landlord->id, 'lease_payment_ids' => [$rent->id], 'scheduled_at' => '2030-11-20T11:00:00',
+        ])->assertCreated()->json('data.id');
+
+        $this->assertSame('2030-11-20 11:00:00', Payout::query()->findOrFail($id)->getRawOriginal('scheduled_at'));
     }
 }

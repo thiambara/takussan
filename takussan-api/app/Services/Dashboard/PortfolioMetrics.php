@@ -2,6 +2,7 @@
 
 namespace App\Services\Dashboard;
 
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\LeasePaymentType;
@@ -11,6 +12,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
+use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Services\Payout\PayoutClawbacks;
@@ -43,7 +45,8 @@ use Illuminate\Support\Facades\DB;
  *   l'exclusion par statut courant, et un bien resté vacant tout un mois passé puis archivé en sort.
  * - *Occupation longue durée* = jours-biens couverts par un bail hors `draft` et `pending_signature`
  *   ÷ (biens éligibles × jours du mois). Fin effective = la plus tôt de `end_date` et `terminated_at`,
- *   incluse. Un jour d'un bien ne compte qu'une fois, même sous deux baux.
+ *   incluse. Un jour d'un bien ne compte qu'une fois, même sous deux baux. *Aujourd'hui*, seuls les
+ *   baux `active | terminating` occupent (TCK-2626) : {@see self::longStayOccupancyToday()}.
  * - *Occupation courte durée* = nuitées des réservations `confirmed | completed` (`end_date` exclue)
  *   ÷ (biens éligibles × jours du mois). `null` sans bien éligible.
  * - *Encaissé*, *Impayé* : {@see CollectedPayments}.
@@ -142,6 +145,39 @@ class PortfolioMetrics
      */
     public function shortStayOccupancy(PortfolioScope $scope, CarbonInterface $from, CarbonInterface $to): array
     {
+        $out = [];
+        foreach ($this->shortStayRows($scope, $from, $to) as $mois => [$capacity, $nights]) {
+            $out[$mois] = $capacity > 0 ? round(($nights / $capacity) * 100, 2) : null;
+        }
+
+        return $out;
+    }
+
+    /**
+     * TCK-2865 — l'occupation courte durée d'une PÉRIODE de plusieurs mois, en une mesure : nuitées réservées de
+     * la période ÷ capacité de la période (Σ biens éligibles × jours, mois par mois). Jamais la moyenne des taux
+     * mensuels : un mois à un seul bien éligible pèserait autant qu'un mois à vingt. `null` sans aucune capacité
+     * sur la période. Même requête que {@see self::shortStayOccupancy()}.
+     */
+    public function shortStayOccupancyOver(PortfolioScope $scope, CarbonInterface $from, CarbonInterface $to): ?float
+    {
+        $capacity = 0;
+        $nights = 0;
+        foreach ($this->shortStayRows($scope, $from, $to) as [$c, $n]) {
+            $capacity += $c;
+            $nights += $n;
+        }
+
+        return $capacity > 0 ? round(($nights / $capacity) * 100, 2) : null;
+    }
+
+    /**
+     * La capacité (biens éligibles × jours du mois) et les nuitées réservées, mois par mois : UNE requête.
+     *
+     * @return array<string, array{0: int, 1: int}>
+     */
+    private function shortStayRows(PortfolioScope $scope, CarbonInterface $from, CarbonInterface $to): array
+    {
         [$start, $end] = $this->monthBounds($from, $to);
         [$eligibleSql, $eligibleBindings] = $this->eligibleSql($scope, [RentPeriod::Daily, RentPeriod::Weekly]);
 
@@ -160,6 +196,7 @@ class PortfolioMetrics
                     interval '1 day'
                 ) AS d
                 WHERE b.deleted_at IS NULL
+                  AND b.kind = ?
                   AND b.status IN (?, ?)
                   AND e.created_at < (date_trunc('month', d) + interval '1 month')
                   AND (e.is_current OR d < ?::date)
@@ -189,6 +226,8 @@ class PortfolioMetrics
             $eligibleBindings,
             [$start->toDateString(), $end->startOfMonth()->toDateString()],
             [$start->toDateString(), $end->toDateString()],
+            // TCK-2735 (ADR-0102 § 3) — seul un séjour occupe des nuits.
+            [BookingKind::Stay->value],
             array_map(static fn (BookingStatus $s): string => $s->value, self::OCCUPYING_BOOKING_STATUSES),
             [$this->currentMonthStart(), $this->currentMonthStart()],
         ));
@@ -196,22 +235,32 @@ class PortfolioMetrics
         $out = [];
         foreach ($rows as $row) {
             $month = CarbonImmutable::parse($row->m);
-            $capacity = (int) $row->n * $month->daysInMonth;
-            $out[$month->format('Y-m')] = $capacity > 0 ? round(((int) $row->nights / $capacity) * 100, 2) : null;
+            $out[$month->format('Y-m')] = [(int) $row->n * $month->daysInMonth, (int) $row->nights];
         }
 
         return $out;
     }
 
     /**
-     * Occupation longue durée AUJOURD'HUI : biens éligibles couverts par un bail ce jour-là.
-     * `null` sans bien éligible, comme l'occupation courte durée : « rien à occuper » n'est pas
-     * « tout est vacant » (TCK-1114).
+     * Occupation longue durée AUJOURD'HUI : biens éligibles couverts par un bail ce jour-là, rendue
+     * AVEC sa base (TCK-2626) — « 100 % » se lit « 2 sur 2 », pas à côté de « 54 disponibles » qui
+     * comptent la vente et la courte durée.
+     *
+     * Le taux est `null` sans bien éligible, comme l'occupation courte durée : « rien à occuper »
+     * n'est pas « tout est vacant » (TCK-1114).
+     *
+     * TCK-2626 — aujourd'hui, seul un bail EN COURS occupe (`Lease::ONGOING_STATUSES` : `active`,
+     * `terminating`), la règle de « Baux actifs » : un bail `terminated` sans `terminated_at`, ou
+     * `expired` avant son `end_date`, n'occupe plus son bien. La série mensuelle passée garde
+     * `NON_OCCUPYING_LEASE_STATUSES` : un bail fini a bien occupé les jours d'avant sa fin (TCK-1173).
+     *
+     * @return array{rate_percent: float|null, eligible_count: int, occupied_count: int}
      */
-    public function longStayOccupancyToday(PortfolioScope $scope): ?float
+    public function longStayOccupancyToday(PortfolioScope $scope): array
     {
         [$eligibleSql, $eligibleBindings] = $this->eligibleSql($scope, [RentPeriod::Monthly, RentPeriod::Yearly]);
         $today = now()->toDateString();
+        $ongoing = implode(', ', array_fill(0, count(Lease::ONGOING_STATUSES), '?'));
 
         $sql = <<<SQL
             WITH eligible AS ({$eligibleSql})
@@ -221,7 +270,7 @@ class PortfolioMetrics
                     SELECT 1 FROM leases l
                     WHERE l.property_id = e.id
                       AND l.deleted_at IS NULL
-                      AND l.status NOT IN (?, ?)
+                      AND l.status IN ({$ongoing})
                       AND l.start_date <= ?::date
                       AND COALESCE(LEAST(l.end_date, l.terminated_at::date), ?::date) >= ?::date
                 )) AS occupied
@@ -232,13 +281,18 @@ class PortfolioMetrics
 
         $row = DB::selectOne($sql, array_merge(
             $eligibleBindings,
-            array_map(static fn (LeaseStatus $s): string => $s->value, self::NON_OCCUPYING_LEASE_STATUSES),
+            Lease::ONGOING_STATUSES,
             [$today, $today, $today, now()],
         ));
 
         $n = (int) ($row->n ?? 0);
+        $occupied = (int) ($row->occupied ?? 0);
 
-        return $n > 0 ? round(((int) $row->occupied / $n) * 100, 2) : null;
+        return [
+            'rate_percent' => $n > 0 ? round(($occupied / $n) * 100, 2) : null,
+            'eligible_count' => $n,
+            'occupied_count' => $occupied,
+        ];
     }
 
     /**
@@ -378,6 +432,95 @@ class PortfolioMetrics
             'late_fees_count' => (int) ($rows['late_fees']->n ?? 0),
             'late_fees_amount' => round((float) ($rows['late_fees']->total ?? 0), 2),
         ];
+    }
+
+    /**
+     * TCK-2865 — l'*Impayé* EN FIN DE MOIS, mois par mois (`timeseries.overdue` de l'agence), au reste dû, sur la
+     * règle de {@see CollectedPayments::leaseOwed()} (jamais une restitution de caution) appliquée à la date de
+     * fin du mois, pas au statut d'aujourd'hui — un chiffre passé ne se reconstruit pas depuis un statut courant :
+     *
+     *  - une échéance compte pour le mois M si elle était ÉCHUE à la fin de M (`due_date` avant le 1er du mois
+     *    suivant ; pour le mois en cours, avant aujourd'hui, comme {@see self::overdue()}) ;
+     *  - et NON SOLDÉE à cette date : encore due aujourd'hui (`pending | partially_paid | late`, comptée au reste
+     *    dû), ou soldée APRÈS la fin de M (`paid | refunded` dont `paid_at` est postérieur, comptée au montant :
+     *    elle était due en entier). Un loyer soldé dans son mois ne compte jamais.
+     *
+     * Le point du mois en cours vaut donc `overdue()['amount']`. Limite connue : un versement partiel n'est pas
+     * daté (`metadata.paid_amount`) ; une échéance encore partiellement payée est comptée à son reste dû
+     * d'aujourd'hui dans tous les mois où elle était échue. Une requête, quel que soit le nombre de mois.
+     *
+     * @return array<string, float>
+     */
+    public function overdueByMonth(PortfolioScope $scope, CarbonInterface $from, CarbonInterface $to): array
+    {
+        [$start, $end] = $this->monthBounds($from, $to);
+        $owed = CollectedPayments::owedStatusValues();
+        $owedPlaceholders = implode(', ', array_fill(0, count($owed), '?'));
+        $soldees = [PaymentStatus::Paid->value, PaymentStatus::Refunded->value];
+
+        $payments = LeasePayment::query()
+            ->exceptDepositRefunds()
+            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->whereNull('leases.deleted_at')
+            ->where(fn (Builder $q) => $scope->leases($q))
+            ->where(fn (Builder $q) => $q
+                ->whereIn('lease_payments.status', $owed)
+                ->orWhere(fn (Builder $q) => $q
+                    ->whereIn('lease_payments.status', $soldees)
+                    ->where('lease_payments.paid_at', '>=', $start->addMonthNoOverflow()->startOfDay())))
+            ->whereDate('lease_payments.due_date', '<=', $end->toDateString())
+            ->toBase()
+            ->selectRaw('lease_payments.due_date, lease_payments.paid_at')
+            ->selectRaw("lease_payments.status IN ({$owedPlaceholders}) AS still_owed", $owed)
+            ->selectRaw(
+                "CASE WHEN lease_payments.status IN ({$owedPlaceholders}) THEN ".CollectedPayments::OWED_REMAINING_SQL.' ELSE lease_payments.amount END AS owed',
+                $owed,
+            );
+
+        $sql = <<<SQL
+            SELECT to_char(mois.m, 'YYYY-MM') AS m, COALESCE(SUM(p.owed), 0) AS total
+            FROM generate_series(?::date, ?::date, interval '1 month') AS mois(m)
+            JOIN ({$payments->toSql()}) p
+              ON p.due_date < LEAST((mois.m + interval '1 month')::date, ?::date)
+             AND (p.still_owed OR p.paid_at >= LEAST(mois.m + interval '1 month', ?::timestamp))
+            GROUP BY mois.m
+            SQL;
+
+        $rows = DB::select($sql, array_merge(
+            [$start->toDateString(), $end->startOfMonth()->toDateString()],
+            $payments->getBindings(),
+            [now()->toDateString(), now()->toDateTimeString()],
+        ));
+
+        $totals = [];
+        foreach ($rows as $row) {
+            $totals[$row->m] = $row->total;
+        }
+
+        return $this->fillMonths($start, $end, $totals);
+    }
+
+    /**
+     * TCK-2865 — les loyers ATTENDUS par mois (`timeseries.expected` du bailleur) : la somme des échéances de loyer
+     * dont `due_date` tombe dans le mois, au montant facial, sur la règle de « Loyers du mois »
+     * ({@see CollectedPayments::rentExpected()}, que `DashboardOwnerService::loyersDuMois()` lit aussi).
+     *
+     * @return array<string, float>
+     */
+    public function expectedRentByMonth(PortfolioScope $scope, CarbonInterface $from, CarbonInterface $to): array
+    {
+        [$start, $end] = $this->monthBounds($from, $to);
+
+        $rows = CollectedPayments::rentExpected()
+            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->whereNull('leases.deleted_at')
+            ->where(fn (Builder $q) => $scope->leases($q))
+            ->whereBetween('lease_payments.due_date', [$start->toDateString(), $end->toDateString()])
+            ->selectRaw("to_char(date_trunc('month', lease_payments.due_date), 'YYYY-MM') AS m, SUM(lease_payments.amount) AS total")
+            ->groupBy('m')
+            ->pluck('total', 'm');
+
+        return $this->fillMonths($start, $end, $rows->all());
     }
 
     /**

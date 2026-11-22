@@ -1,407 +1,592 @@
 'use client';
 
-import Link from 'next/link';
-import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useLocale, useTranslations } from 'next-intl';
-import { Inbox, Mail, MessageCircle, Phone } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { CircleAlert, Clock, Inbox, RotateCw } from 'lucide-react';
+
+import { PageHeader } from '@/components/console';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
+import { Pagination } from '@/components/console/Pagination';
+import { EmptyState } from '@/components/feedback';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
+import { RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
+import { BarreDAction } from '@/components/ui/barre-d-action';
+import { Button } from '@/components/ui/button';
+import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
+import { PlanifierDialog } from '@/components/visits/PlanifierUneVisite';
+import { criteresDuBien } from '@/lib/visites/criteres-du-bien';
+import { useAuth } from '@/context/AuthContext';
+import { useCan } from '@/hooks/useCan';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { requeteAvec, useVueDansLUrl } from '@/hooks/useVueDansLUrl';
+import { borneDuRetard, prenomDuDemandeur } from '@/lib/demandes/boite';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   type ContactLead,
   type FiltreDesDemandes,
-  useAssignLead,
-  useContactLeads,
+  useBienDeLaDemande,
+  useCompteDeLaVue,
   useContactLead,
-  useConvertLead,
-  useHandleLead,
+  useContactLeads,
+  useCreneauxLibresDuBien,
+  useDelaisDeReponse,
+  useDemandesEnRetard,
+  useUnhandledLeadsCount,
 } from '@/lib/queries/contact-leads';
-import { useApiQuery } from '@/hooks/useApiQuery';
-import { useCan } from '@/hooks/useCan';
-import { ApiError } from '@/lib/api';
-import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
-import { useAuth } from '@/context/AuthContext';
-import { formatDateTime } from '@/lib/format';
-import { nomAffichable } from '@/lib/identite';
-import { EmptyState, ErrorState } from '@/components/feedback';
-import { StatusBadge } from '@/components/console';
-import { Pagination } from '@/components/console/Pagination';
-import { Button, buttonVariants } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/components/ui/toast';
+import { isAdmin } from '@/lib/roles';
 import { cn } from '@/lib/utils';
-import type { Locale } from '@/i18n/config';
-import type { PaginatedResponse } from '@/types/api';
-import type { User } from '@/types/user';
 
-/** Valeur repère de « aucun membre choisi » : une valeur vide n'est pas une option du Select. */
-const AUCUN_MEMBRE = '__none__';
+import { BandeauDesDelais } from './boite/BandeauDesDelais';
+import { DemandeOuverte } from './boite/DemandeOuverte';
+import { FiltresDuBureau, VuesDuBureau, type VueDeLaBoite } from './boite/FiltresDuBureau';
+import { LigneDeDemande } from './boite/LigneDeDemande';
+import { useMessageWhatsApp } from './boite/message-whatsapp';
+import { PiedDesRaccourcis, useNomDeLaDemande } from './boite/pieces';
+import { useRaccourcisDeLaBoite } from './boite/raccourcis';
+import { useMinuteCourante } from '@/hooks/useMinuteCourante';
+import { BarreDeRetour, useRetourDeContact } from './boite/RetourDeContact';
+import { useTraiterLaDemande } from './boite/traiter';
+import { affinageDesDemandes, FILTRES_DES_DEMANDES, filtreDesDemandes, identifiantDeLUrl } from './filtre-des-demandes';
 
-const FILTRES: readonly FiltreDesDemandes[] = ['todo', 'handled', 'all'];
-
-/** `?lead={id}` (cible `lead`, TCK-590) : un entier positif, sinon rien n'est lu. */
-function demandeDesignee(brut: string | null | undefined): number | null {
-  if (!brut || !/^\d+$/.test(brut)) return null;
-  const id = Number(brut);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
-}
+/** Les vues « à traiter » : l'ordre des plus anciennes, l'âge en rouge, le compte en pied de liste. */
+const VUES_A_TRAITER: readonly FiltreDesDemandes[] = ['todo', 'unassigned', 'mine'];
 
 /**
- * TCK-590 — la boîte « Demandes ».
+ * TCK-2584 — la boîte « Demandes », une boîte de réception (maquette `app-demandes` a, et la boîte du
+ * bureau de `app-fil-commercial` a) :
  *
- * Chaque demande se lit EN ENTIER — message, téléphone, e-mail — et se traite en un geste :
- * répondre par WhatsApp, appeler, écrire, convertir en client, marquer traitée, attribuer. La
- * notification d'avant tronquait le message à 80 caractères et omettait le téléphone : l'agent
- * apprenait qu'on l'avait contacté, pas de quoi répondre.
+ *  · au téléphone, des lignes compactes à trois gestes (WhatsApp · Appeler · Visite ▸) ; la demande
+ *    s'ouvre en plein écran (`?ouverte=`), « ✕ » y revient ;
+ *  · dès `lg`, deux panneaux — la liste à gauche, la demande ouverte à droite ;
+ *  · le geste de contact est ENREGISTRÉ au toucher, et au retour la barre « Vous avez répondu ? »
+ *    (décision 3b) ; « Visite ▸ » ouvre la planification (TCK-2586) préremplie de la demande ;
+ *  · l'administrateur voit au bureau le délai de première réponse (TCK-2583).
+ *
+ * L'URL porte la vue (`?filtre=`), la recherche (`?q=`), les filtres du bureau (`?bien=`, `?agent=`,
+ * `?canal=`), la demande désignée par une notification (`?lead=`, en tête et encadrée) et la demande
+ * ouverte (`?ouverte=`). Désignée et ouverte sont deux clés : ouvrir une ligne ne la fait pas sauter
+ * en tête sous le doigt.
  */
 export function ContactLeadsInbox() {
   const t = useTranslations('contactLeads');
-  const [filtre, setFiltre] = useState<FiltreDesDemandes>('todo');
-  const [page, setPage] = useState(1);
-  const query = useContactLeads(filtre, page);
-  // P97.04 (TCK-1120) — la cible `lead` promet « la boîte ouverte sur la demande » : la demande
-  // désignée est rendue en tête, quel que soit l'onglet ou la page. Une lecture refusée ou
-  // introuvable n'affiche rien de plus que la boîte.
-  const searchParams = useSearchParams();
-  const designee = useContactLead(demandeDesignee(searchParams?.get('lead')));
+  const f = useFormatteurs();
+  const router = useRouter();
+  const { params, remplacer } = useVueDansLUrl();
+  const filtre = filtreDesDemandes(params);
+  const affinage = affinageDesDemandes(params);
+  const cleDeVue = JSON.stringify([filtre, affinage]);
+  // La page appartient à la vue qui l'a choisie : une vue qui change, par la puce COMME par l'URL (la
+  // pastille « À traiter » du menu change `?filtre=` sans démonter la page), ramène à la page 1.
+  // Remise à zéro PENDANT le rendu (patron React « état ajusté sur un changement de prop »).
+  const [pageChoisie, setPageChoisie] = useState({ cle: cleDeVue, page: 1 });
+  if (pageChoisie.cle !== cleDeVue) setPageChoisie({ cle: cleDeVue, page: 1 });
+  const page = pageChoisie.cle === cleDeVue ? pageChoisie.page : 1;
+  const setPage = (suivante: number) => setPageChoisie({ cle: cleDeVue, page: suivante });
+
+  const { user } = useAuth();
+  const roles = user?.roles ?? [];
+  const large = useMatchesMedia('(width >= 64rem)');
+  const maintenant = useMinuteCourante();
+  const nomDe = useNomDeLaDemande();
+  const query = useContactLeads(filtre, page, affinage);
+  // P97.04 (TCK-1120) — la cible `lead` : la demande désignée, en tête, quelle que soit la vue.
+  const designee = useContactLead(identifiantDeLUrl(params.get('lead')));
   const enTete = designee.isError ? null : (designee.data?.data ?? null);
+  // TCK-2885 — la demande rendue à la liste par « Annuler » revient EN TÊTE de la vue où on l'a
+  // traitée (l'ordre « plus anciennes d'abord » la remettrait à sa place chronologique, hors de vue).
+  const [remise, setRemise] = useState<{ cle: string; lead: ContactLead } | null>(null);
+  const remiseIci = remise?.cle === cleDeVue && filtre !== 'handled' ? remise.lead : null;
+  const idOuverte = identifiantDeLUrl(params.get('ouverte'));
+
+  // « Non attribuées » : au seul personnel qui attribue (P152.05 : la capacité, pas le rôle).
+  const { can: peutAttribuer } = useCan('crm.assign', user?.agency_id ?? undefined, user !== null);
+  const vues = FILTRES_DES_DEMANDES.filter((v) => v !== 'unassigned' || peutAttribuer);
+  // TCK-2885 — le filtre « Agent » à qui lit d'autres demandes que les siennes (`crm.view_all`,
+  // `ContactLeadController`) ; la règle d'accès ne bouge pas.
+  const { can: voitToutLaBoite } = useCan('crm.view_all', user?.agency_id ?? undefined, user !== null);
+  // Le compte « À traiter » est celui du menu (même clé, même requête : la pastille et la puce disent
+  // le même nombre).
+  const aTraiter = useUnhandledLeadsCount();
+  const nonAttribuees = useCompteDeLaVue('unassigned', { enabled: peutAttribuer });
+  const enRetard = useDemandesEnRetard(borneDuRetard(maintenant));
+  // Le bandeau des délais : à l'administrateur, au bureau. L'API l'ouvre à `crm.view_all`, que
+  // l'agent porte aussi — la décision de le montrer est le rôle.
+  const admin = isAdmin(roles);
+  const delais = useDelaisDeReponse({ enabled: admin && large });
+
+  const retour = useRetourDeContact();
+  // TCK-2881 — la demande à planifier, et la SUIVANTE de la boîte, prise à l'ouverture de la feuille :
+  // la planification traite la demande et relit la liste, d'où elle sort.
+  const [aPlanifier, setAPlanifierEtSuivante] = useState<{ lead: ContactLead; suivante: ContactLead | null } | null>(null);
+
+  const total = query.data?.meta.total ?? null;
+  const compteATraiter = aTraiter.data?.meta.total ?? null;
+  const compteEnRetard = enRetard.data?.meta.total ?? null;
+  const compteNonAttribuees = nonAttribuees.data?.meta.total ?? null;
+  const page_ = query.data?.data ?? [];
+  const prepose = [enTete, remiseIci].filter((l, i, tous): l is ContactLead => l !== null && tous.findIndex((m) => m?.id === l.id) === i);
+  const lignes = prepose.length ? [...prepose, ...page_.filter((l) => !prepose.some((p) => p.id === l.id))] : page_;
+  const ouverteDansLaListe = idOuverte !== null ? (lignes.find((l) => l.id === idOuverte) ?? null) : null;
+  const ouverteLue = useContactLead(idOuverte !== null && ouverteDansLaListe === null ? idOuverte : null);
+  // Au bureau, sans `?ouverte=`, la première ligne est ouverte : le panneau de droite n'est jamais vide.
+  const ouverte = ouverteDansLaListe ?? ouverteLue.data?.data ?? (large ? (lignes[0] ?? null) : null);
+
+  // TCK-2885 — le message prérempli : l'agent, l'agence, le bien et son quartier ; pour la demande
+  // OUVERTE seule, les deux premiers créneaux libres (une ligne de la liste n'en lit aucun).
+  const composer = useMessageWhatsApp();
+  const avecTelephone = Boolean(ouverte?.phone) && !ouverte?.handled_at;
+  const creneaux = useCreneauxLibresDuBien(ouverte?.property_id ?? null, { enabled: avecTelephone });
+  const gestes = (lead: ContactLead) => ({
+    lead,
+    nom: nomDe(lead),
+    messageWhatsApp: composer(lead, nomDe(lead), lead.id === ouverte?.id ? (creneaux.data ?? []) : []),
+    onContact: retour.signaler,
+    onVisite: setAPlanifier,
+  });
+
+  // TCK-2881 — « Demande suivante → » : la demande non traitée qui suit dans l'ordre de la vue, sinon
+  // la première non traitée qui la précède ; aucune autre → pas de bouton.
+  function setAPlanifier(lead: ContactLead) {
+    const autres = lignes.filter((l) => l.id !== lead.id && !l.handled_at);
+    const rang = lignes.findIndex((l) => l.id === lead.id);
+    const apres = rang >= 0 ? autres.find((l) => lignes.indexOf(l) > rang) : undefined;
+    setAPlanifierEtSuivante({ lead, suivante: apres ?? autres[0] ?? null });
+  }
+
+  // Ouvrir : au téléphone une entrée d'historique (le retour arrière ferme la demande) ; au bureau,
+  // un remplacement (cliquer dix lignes n'empile pas dix retours).
+  const ouvrir = (lead: ContactLead) => {
+    if (large) remplacer({ ouverte: lead.id });
+    else router.push(requeteAvec(params, { ouverte: lead.id }), { scroll: true });
+  };
+  const choisirVue = (v: FiltreDesDemandes) => remplacer({ filtre: v === 'todo' ? null : v, ouverte: null });
+
+  // TCK-2885 — traiter (bouton, T, « Oui, c'est traité ») : « Annuler » sur le toast pendant 6 s.
+  const { traiter, enCours: traitementEnCours } = useTraiterLaDemande({
+    onTraitee: (lead) => {
+      if (remise?.lead.id === lead.id) setRemise(null);
+    },
+    onAnnulee: (lead) => {
+      setRemise({ cle: cleDeVue, lead: { ...lead, handled_at: null, handled_by_id: null } });
+      if (large) remplacer({ ouverte: lead.id });
+    },
+  });
+  // Au bureau, une demande traitée dans une vue « à traiter » quitte la liste : le panneau passe à la
+  // suivante (sinon `?ouverte=` la garderait ouverte, et T suivant ne ferait rien).
+  const traiterDepuisLeBureau = async (lead: ContactLead) => {
+    const rang = lignes.findIndex((l) => l.id === lead.id);
+    const suivante = rang >= 0 ? (lignes[rang + 1] ?? lignes[rang - 1] ?? null) : null;
+    const fait = await traiter(lead);
+    if (fait && large && VUES_A_TRAITER.includes(filtre)) remplacer({ ouverte: suivante?.id ?? null });
+  };
+  const traiterDepuisLeRetour = (lead: ContactLead, options: { court: boolean }) => traiter(lead, options);
+
+  // TCK-2885 — J K parcourir · V visite · T traiter : au bureau, sur la liste, sans feuille ouverte.
+  const parcourir = (pas: 1 | -1) => {
+    const rang = ouverte ? lignes.findIndex((l) => l.id === ouverte.id) : -1;
+    const cible = rang < 0 ? lignes[0] : lignes[rang + pas];
+    if (cible) ouvrir(cible);
+  };
+  useRaccourcisDeLaBoite(large && aPlanifier === null && lignes.length > 0, {
+    j: () => parcourir(1),
+    k: () => parcourir(-1),
+    v: () => {
+      if (ouverte) setAPlanifier(ouverte);
+    },
+    t: () => {
+      if (ouverte && !ouverte.handled_at && !ouverte.customer_id && !traitementEnCours) void traiterDepuisLeBureau(ouverte);
+    },
+  });
+  // La ligne ouverte au clavier reste visible dans la liste qui défile.
+  const idOuverteAffichee = large ? (ouverte?.id ?? null) : null;
+  useEffect(() => {
+    if (idOuverteAffichee === null) return;
+    document.querySelector('[data-slot="ligne-de-demande"][data-ouverte]')?.scrollIntoView?.({ block: 'nearest' });
+  }, [idOuverteAffichee]);
+
+  const sousTitre = (() => {
+    if (query.isLoading) return t('inbox.loading');
+    const parties: string[] = [];
+    if (compteATraiter !== null) parties.push(compteATraiter === 0 ? t('inbox.allDone') : t('inbox.todoCount', { count: compteATraiter }));
+    if (admin && compteNonAttribuees) parties.push(t('inbox.unassignedCount', { count: compteNonAttribuees }));
+    else if (compteEnRetard) parties.push(t('inbox.lateCount', { count: compteEnRetard }));
+    const jour = f.date(maintenant, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Dakar' });
+    parties.push(jour.charAt(0).toUpperCase() + jour.slice(1));
+    return parties.join(' · ');
+  })();
+
+  const comptesDesVues: Partial<Record<FiltreDesDemandes, { compte: number | undefined; alerte?: boolean }>> = {
+    todo: { compte: compteATraiter ?? undefined, alerte: Boolean(compteATraiter) },
+    unassigned: { compte: compteNonAttribuees ?? undefined },
+  };
+  const vuesDuBureau: VueDeLaBoite[] = vues.map((v) => ({ filtre: v, ...comptesDesVues[v] }));
+
+  // TCK-2846 — une demande OUVERTE par l'utilisateur (`?ouverte=`, pas la première ligne ouverte d'office
+  // au bureau) entre dans les récents sous le nom du demandeur (« Moussa Diallo · Demande »). `name` seul :
+  // jamais le téléphone ni le courriel que `nomDe` prend en repli.
+  const ficheRetenue =
+    idOuverte !== null && ouverte?.id === idOuverte ? (
+      <RetenirLaFiche type="demande" id={ouverte.id} titre={ouverte.name} chemin={`/app/leads?ouverte=${ouverte.id}`} />
+    ) : null;
+  const suivanteAPlanifier = aPlanifier?.suivante ?? null;
+  const planification = aPlanifier ? (
+    <PlanifierDepuisLaDemande
+      lead={aPlanifier.lead}
+      nom={nomDe(aPlanifier.lead)}
+      onClose={() => setAPlanifierEtSuivante(null)}
+      onDemandeSuivante={suivanteAPlanifier ? () => ouvrir(suivanteAPlanifier) : undefined}
+    />
+  ) : null;
+
+  // ── Téléphone : la demande ouverte remplace la liste. ─────────────────────────────────────────
+  if (!large && ouverte) {
+    // Le rang se lit dans la page SERVIE (`page_`), jamais dans `lignes` : la désignée y est préposée
+    // à chaque page sans être comptée dans `meta.total` de la vue, ce qui décalait tous les rangs
+    // (« 2 sur 2 à traiter » pour une seule à traiter, « 41 sur 40 » en page 2 — vérification adverse
+    // de TCK-2584, d1).
+    const rang = page_.findIndex((l) => l.id === ouverte.id);
+    const rangLu = { n: (page - 1) * 20 + rang + 1, total: total ?? 0 };
+    const depuisLaNotification = enTete?.id === ouverte.id;
+    // Ouverte depuis une notification (`?lead=`, la demande désignée) : le sous-titre le dit, comme
+    // l'écran « La demande » de la maquette (app-fil-commercial a-0) — sans rang quand elle n'est pas
+    // de la page servie (traitée, d'une autre vue ou d'une autre page).
+    const position =
+      rang >= 0 && total !== null
+        ? depuisLaNotification
+          ? t('detail.fromNotification', rangLu)
+          : VUES_A_TRAITER.includes(filtre)
+            ? t('detail.position', rangLu)
+            : t('detail.positionAll', rangLu)
+        : depuisLaNotification
+          ? t('detail.fromNotificationAlone')
+          : undefined;
+    return (
+      <PagePleineLargeur data-slot="boite-des-demandes">
+        <DemandeOuverte
+          key={ouverte.id}
+          {...gestes(ouverte)}
+          maintenant={maintenant}
+          regime="telephone"
+          onTraiter={(lead) => void traiter(lead)}
+          traitementEnCours={traitementEnCours}
+          position={position}
+          repli={`/app/leads${requeteAvec(params, { ouverte: null })}`}
+          pied={
+            retour.retour ? <BarreDeRetour
+                retour={retour.retour}
+                regime="telephone"
+                maintenant={maintenant}
+                onFermer={retour.fermer}
+                onTraiter={traiterDepuisLeRetour}
+                traitementEnCours={traitementEnCours}
+              /> : undefined
+          }
+        />
+        {planification}
+        {ficheRetenue}
+      </PagePleineLargeur>
+    );
+  }
+
+  const rechercher = (
+    <DebouncedSearchInput
+      value={affinage.recherche ?? ''}
+      onCommit={(q) => remplacer({ q: q.trim() || null, ouverte: null })}
+      placeholder={t('desktop.search')}
+      aria-label={t('desktop.search')}
+      busy={query.isFetching}
+      className="lg:w-64 lg:flex-none"
+    />
+  );
+
+  const vide = (
+    <EmptyState
+      variant="nue"
+      // Au bureau, centré dans le panneau : `lg:pt-12` le pose où `app-demandes` a-3 le dessine.
+      className="pt-20 lg:pt-12"
+      icon={<Inbox className="size-6" strokeWidth={1.75} aria-hidden="true" />}
+      title={t(`empty.${filtre}`)}
+      description={t('empty.description')}
+      action={
+        filtre !== 'handled' ? (
+          <Button variant={large ? 'outline' : 'link'} onClick={() => choisirVue('handled')}>
+            {t('empty.seeHandled')}
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+
+  const erreur = (
+    <EmptyState
+      variant="nue"
+      className="pt-20"
+      role="alert"
+      icon={<CircleAlert className="size-6 text-destructive" strokeWidth={1.75} aria-hidden="true" />}
+      title={t('errorTitle')}
+      description={t('errorBody')}
+      action={
+        // `app-demandes` a-5 : au bureau aussi, le bouton au pouce (44 px ×0,9, rayon 14 ×0,9, sans filet).
+        <Button
+          variant="sombre"
+          onClick={() => void query.refetch()}
+          disabled={query.isFetching}
+          className="lg:h-11 lg:gap-2 lg:rounded-xl lg:border-0 lg:px-5 lg:text-corps lg:font-semibold"
+        >
+          <RotateCw className="lg:size-5" strokeWidth={1.75} aria-hidden="true" />
+          {t('retry')}
+        </Button>
+      }
+    />
+  );
+
+  const chargement = (
+    <div data-slot="squelettes" aria-hidden="true" className="divide-y divide-border">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="space-y-2.5 px-4 py-4">
+          <div className="flex items-center gap-3">
+            <span className="h-4 w-2/5 animate-pulse rounded bg-muted" />
+            <span className="ml-auto h-3 w-16 animate-pulse rounded bg-muted" />
+          </div>
+          <span className="block h-3 w-3/5 animate-pulse rounded bg-muted" />
+          <span className="block h-3 w-4/5 animate-pulse rounded bg-muted" />
+          <div className="grid grid-cols-3 gap-2 pt-1 lg:hidden">
+            <span className="h-11 animate-pulse rounded-xl bg-muted" />
+            <span className="h-11 animate-pulse rounded-xl bg-muted" />
+            <span className="h-11 animate-pulse rounded-xl bg-muted" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const etat: 'chargement' | 'erreur' | 'vide' | 'liste' = query.isLoading
+    ? 'chargement'
+    : query.isError || !query.data
+      ? 'erreur'
+      : lignes.length === 0
+        ? 'vide'
+        : 'liste';
+
+  const liste = (
+    <>
+      <ul aria-label={t('inbox.listLabel')} aria-keyshortcuts={large ? 'J K' : undefined} className="border-t border-border lg:border-t-0">
+        {lignes.map((lead) => (
+          <LigneDeDemande
+            key={lead.id}
+            {...gestes(lead)}
+            maintenant={maintenant}
+            ouverte={large && ouverte?.id === lead.id}
+            designee={enTete?.id === lead.id}
+            onOuvrir={ouvrir}
+          />
+        ))}
+      </ul>
+      {query.data && query.data.meta.last_page > 1 ? (
+        <div className="px-4 py-3">
+          <Pagination page={page} lastPage={query.data.meta.last_page} onChange={setPage} />
+        </div>
+      ) : null}
+      {VUES_A_TRAITER.includes(filtre) && total !== null ? (
+        <p className="px-4 py-5 text-center text-ui text-muted-foreground lg:hidden">{t('inbox.listFooter', { count: total })}</p>
+      ) : null}
+      {large && lignes.length ? <PiedDesRaccourcis /> : null}
+    </>
+  );
+
+  const rendu: Record<typeof etat, ReactNode> = { chargement, erreur, vide, liste };
 
   return (
-    <div className="space-y-4">
-      <Tabs
-        value={filtre}
-        onValueChange={(v) => {
-          setFiltre((v as FiltreDesDemandes) ?? 'todo');
-          setPage(1);
-        }}
-      >
-        <TabsList>
-          {FILTRES.map((f) => (
-            <TabsTrigger key={f} value={f}>
-              {t(`filters.${f}`)}
-              {f === filtre && typeof query.data?.meta?.total === 'number' && (
-                <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">{query.data.meta.total}</span>
-              )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      {enTete ? (
-        <ul className="space-y-3">
-          <DemandeDeContact key={enTete.id} lead={enTete} designee />
-        </ul>
-      ) : null}
-
-      {query.isLoading ? (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
-          ))}
-        </div>
-      ) : query.isError || !query.data ? (
-        <ErrorState message={t('error')} />
-      ) : query.data.data.length === 0 && !enTete ? (
-        <EmptyState
-          icon={<Inbox className="size-8" aria-hidden="true" />}
-          title={t(`empty.${filtre}`)}
-          description={t('empty.description')}
+    <PagePleineLargeur data-slot="boite-des-demandes" className="flex flex-col">
+      <DeclarerEnTete titre={t('shortTitle')} />
+      {ficheRetenue}
+      <div className="max-md:hidden">
+        <PageHeader
+          title={t('title')}
+          description={sousTitre}
+          bandeau={admin && large && delais.data?.data ? <BandeauDesDelais delais={delais.data.data} /> : undefined}
+          dessous={
+            large ? (
+              <div className="flex flex-wrap items-center gap-2 pb-4">
+                <VuesDuBureau vues={vuesDuBureau} active={filtre} onChoisir={choisirVue} />
+                <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+                <FiltresDuBureau
+                  affinage={affinage}
+                  onAffiner={(c) => remplacer({ ...c, ouverte: null })}
+                  agenceDesAgents={user?.agency_id && peutAttribuer ? user.agency_id : null}
+                  filtreAgent={peutAttribuer || voitToutLaBoite}
+                  agentsConnus={lignes.flatMap((l) => (l.recipient ? [l.recipient] : []))}
+                />
+                <div className="ml-auto">{rechercher}</div>
+              </div>
+            ) : undefined
+          }
         />
-      ) : (
+      </div>
+      {large ? null : (
         <>
-          <ul className="space-y-3">
-            {query.data.data
-              .filter((lead) => lead.id !== enTete?.id)
-              .map((lead) => (
-                <DemandeDeContact key={lead.id} lead={lead} />
-              ))}
-          </ul>
-          {query.data.meta.last_page > 1 && (
-            <Pagination page={page} lastPage={query.data.meta.last_page} onChange={setPage} />
-          )}
+          {/* TCK-2848 (AC6) — au téléphone, les puces restent collées en haut au défilement (maquette
+              `app-coque` e1, comme les puces de l'historique des notifications). */}
+          <RangeeDePuces
+            aria-label={t('filters.label')}
+            className="border-b border-border bg-background max-md:sticky max-md:top-(--haut-colle) max-md:z-10 md:mt-5 md:px-0"
+          >
+            {vues.map((v) => (
+              <PuceDeFiltre key={v} active={v === filtre} compte={comptesDesVues[v]?.compte} onClick={() => choisirVue(v)}>
+                {t(`filters.${v}`)}
+              </PuceDeFiltre>
+            ))}
+          </RangeeDePuces>
+          {/* `app-demandes` a-0 (téléphone) : l'en-tête ne porte que la loupe de la coque (« Aller à »),
+              aucune action de page. Une recherche arrivée par l'URL (`?q=`) reste lisible et effaçable. */}
+          {affinage.recherche ? <div className="border-b border-border px-4 py-2.5 md:px-0">{rechercher}</div> : null}
+          {VUES_A_TRAITER.includes(filtre) && etat === 'liste' ? (
+            <p className="flex items-center gap-1.5 px-4 py-2 text-xs text-muted-foreground md:px-0">
+              <Clock className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
+              {compteEnRetard ? `${t('inbox.oldestFirst')} · ${t('inbox.lateCount', { count: compteEnRetard })}` : t('inbox.oldestFirst')}
+            </p>
+          ) : null}
+          {rendu[etat]}
+          {/* `app-demandes` a-2 (téléphone) : de retour de WhatsApp ou d'un appel, la question se pose
+              au-dessus de la barre d'onglets, sur la liste ; de 768 à 1023 aussi (`md:flex`). */}
+          {retour.retour ? (
+            <BarreDAction className="md:flex">
+              <BarreDeRetour
+                retour={retour.retour}
+                regime="telephone"
+                maintenant={maintenant}
+                onFermer={retour.fermer}
+                onTraiter={traiterDepuisLeRetour}
+                traitementEnCours={traitementEnCours}
+              />
+            </BarreDAction>
+          ) : null}
         </>
       )}
+      {large ? (
+        <PanneauxDuBureau>
+          <div
+            className={cn(
+              'w-[calc(var(--spacing)*83.33)] flex-none overflow-y-auto border-r border-border bg-card xl:w-[min(calc(var(--spacing)*116.67),calc(50%-var(--spacing)*45.56))]',
+              etat !== 'liste' && etat !== 'chargement' && 'hidden',
+            )}
+          >
+            {etat === 'chargement' ? chargement : liste}
+          </div>
+          {etat === 'liste' && ouverte ? (
+            <DemandeOuverte
+              key={ouverte.id}
+              {...gestes(ouverte)}
+              maintenant={maintenant}
+              regime="bureau"
+              onTraiter={(lead) => void traiterDepuisLeBureau(lead)}
+              traitementEnCours={traitementEnCours}
+              pied={
+                retour.retour ? <BarreDeRetour
+                    retour={retour.retour}
+                    regime="bureau"
+                    maintenant={maintenant}
+                    onFermer={retour.fermer}
+                    onTraiter={traiterDepuisLeRetour}
+                    traitementEnCours={traitementEnCours}
+                  /> : undefined
+              }
+            />
+          ) : etat === 'chargement' ? (
+            <div className="flex-1 space-y-4 p-6" aria-hidden="true">
+              <span className="block h-6 w-64 animate-pulse rounded bg-muted" />
+              <span className="block h-24 w-full max-w-xl animate-pulse rounded-xl bg-muted" />
+              <span className="block h-16 w-full max-w-xl animate-pulse rounded-xl bg-muted" />
+            </div>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center justify-center bg-background">{rendu[etat]}</div>
+          )}
+        </PanneauxDuBureau>
+      ) : null}
+      {planification}
+    </PagePleineLargeur>
+  );
+}
+
+/**
+ * Les deux panneaux du bureau, bord à bord de la zone de contenu (la marge de l'enveloppe annulée) et
+ * jusqu'au bas de la fenêtre : chacun défile pour soi. La hauteur se mesure (le bandeau et le sous-titre
+ * font varier ce qui précède).
+ */
+function PanneauxDuBureau({ children }: { readonly children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [haut, setHaut] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const mesurer = () => {
+      const el = ref.current;
+      if (el) setHaut(Math.round(el.getBoundingClientRect().top + window.scrollY));
+    };
+    mesurer();
+    window.addEventListener('resize', mesurer);
+    return () => window.removeEventListener('resize', mesurer);
+  }, []);
+  return (
+    <div
+      ref={ref}
+      data-slot="panneaux-du-bureau"
+      style={haut !== null ? { height: `calc(100dvh - ${haut}px)` } : undefined}
+      className="-mx-8 -mb-8 flex min-h-96 border-t border-border"
+    >
+      {children}
     </div>
   );
 }
 
-/** TCK-1343 — les fiches existantes d'un 409 `customer.duplicate`, sinon `null`. */
-function doublonsDe(e: unknown): CustomerDuplicateMatch[] | null {
-  if (!(e instanceof ApiError) || e.status !== 409) return null;
-  const data = e.data as { code?: unknown; existing?: unknown } | null;
-  if (!data || data.code !== 'customer.duplicate' || !Array.isArray(data.existing)) return null;
-  return data.existing as CustomerDuplicateMatch[];
-}
-
-/** P182.03 (TCK-1824) — la fiche d'un 409 `lead.already_converted`, sinon `null`. */
-function ficheDejaCreeeDe(e: unknown): number | null {
-  if (!(e instanceof ApiError) || e.status !== 409) return null;
-  const data = e.data as { code?: unknown; customer?: { id?: unknown } | null } | null;
-  if (!data || data.code !== 'lead.already_converted' || typeof data.customer?.id !== 'number') return null;
-  return data.customer.id;
-}
-
-/** P220.05 — le nom d'un destinataire ou d'un collègue, jamais vide : `#<id>` faute de mieux. */
-function nomComplet(u: { id: number; first_name?: string | null; last_name?: string | null }): string {
-  return nomAffichable(u);
-}
-
-function DemandeDeContact({ lead, designee = false }: { readonly lead: ContactLead; readonly designee?: boolean }) {
+/**
+ * « Visite ▸ » : la planification de TCK-2586 préremplie de la demande — le demandeur (verrouillé),
+ * son bien (relu pour sa vignette et son prix), `contact_lead_id` à l'envoi ; la fiche de la demande,
+ * ou celle que la demande retrouve (« déjà client·e »), reçoit la visite. La feuille attend la lecture
+ * du bien : elle prend son préremplissage à l'ouverture.
+ */
+function PlanifierDepuisLaDemande({
+  lead,
+  nom,
+  onClose,
+  onDemandeSuivante,
+}: {
+  readonly lead: ContactLead;
+  readonly nom: string;
+  readonly onClose: () => void;
+  readonly onDemandeSuivante?: () => void;
+}) {
+  const lu = useBienDeLaDemande(lead.property_id);
+  const f = useFormatteurs();
   const t = useTranslations('contactLeads');
-  const tDoublon = useTranslations('agentCrm.form.duplicate');
-  const locale = useLocale() as Locale;
-  const toast = useToast();
-  const { user } = useAuth();
-  const handle = useHandleLead();
-  const convert = useConvertLead();
-  const [fichePosee, setFichePosee] = useState<number | null>(null);
-  // P182.03 (TCK-1824) — la carte n'est pas remontée quand `lead` est relu (`key={lead.id}`) :
-  // la fiche relue compte autant que celle que la conversion vient de poser.
-  const customerId = fichePosee ?? lead.customer_id;
-  const [attribuer, setAttribuer] = useState(false);
-  // TCK-1343 — un doublon n'est pas une erreur mais une aide, comme dans `CustomerForm` : on
-  // montre la fiche existante, et « Convertir quand même » renvoie avec `allow_duplicate`.
-  const [doublons, setDoublons] = useState<CustomerDuplicateMatch[] | null>(null);
-
-  const nom = lead.name?.trim() || t('anonymous');
-  const telephone = lead.phone?.replace(/\D/g, '') ?? '';
-  const reponse = lead.property
-    ? t('whatsappReplyProperty', { name: nom, title: lead.property.title })
-    : t('whatsappReply', { name: nom });
-  // P152.05 — `PropertyContactLeadPolicy::assign` exige `crm.assign` dans l'agence de la
-  // demande, sans branche d'admin : un admin dont le rôle ne la porte pas recevait 403.
-  // P120.05 (TCK-1530) — et la capacité suffit : l'agent qui la détient lit les cibles par
-  // `GET /agencies/{id}/members`, que l'API lui borne au personnel joignable, nom seul.
-  const { can: peutAttribuer } = useCan('crm.assign', lead.agency_id ?? undefined, user !== null);
-
-  async function marquerTraitee() {
-    try {
-      await handle.mutateAsync({ id: lead.id });
-      toast.add({ title: t('toasts.handled'), type: 'success' });
-    } catch {
-      toast.add({ title: t('toasts.error'), type: 'error' });
-    }
-  }
-
-  async function convertir(forcer = false) {
-    try {
-      const res = await convert.mutateAsync(forcer ? { id: lead.id, allow_duplicate: true } : { id: lead.id });
-      setDoublons(null);
-      setFichePosee(res.customer.id);
-      toast.add({ title: t('toasts.converted'), type: 'success' });
-    } catch (e) {
-      // P182.03 (TCK-1824) — déjà convertie (réponse perdue, autre onglet, autre membre) : la
-      // fiche existe, on la montre au lieu d'une erreur.
-      const dejaCreee = ficheDejaCreeeDe(e);
-      if (dejaCreee !== null) {
-        setDoublons(null);
-        setFichePosee(dejaCreee);
-        return;
-      }
-      const trouves = doublonsDe(e);
-      if (trouves) {
-        setDoublons(trouves);
-        return;
-      }
-      toast.add({ title: t('toasts.error'), type: 'error' });
-    }
-  }
-
+  if (lead.property_id !== null && lu.isPending) return null;
+  const bien = lu.data?.data ?? null;
+  const prix =
+    bien && bien.price !== null && bien.price !== undefined && bien.price !== ''
+      ? bien.contract_type === 'rent'
+        ? t('detail.rentPrice', { price: f.montantCourt(Number(bien.price), bien.currency) })
+        : f.montantCourt(Number(bien.price), bien.currency)
+      : null;
+  const property =
+    lead.property_id !== null && (bien || lead.property)
+      ? { id: lead.property_id, libelle: bien?.title ?? lead.property?.title ?? '', photo: bien?.main_photo_url ?? null, detail: prix }
+      : undefined;
+  const fiche = lead.customer_id ?? lead.known_customer?.id ?? null;
   return (
-    <li
-      aria-current={designee ? 'true' : undefined}
-      className={cn('space-y-3 rounded-xl border border-border bg-card p-4', designee && 'border-primary ring-2 ring-primary/30')}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 space-y-0.5">
-          <p className="font-semibold text-foreground">{nom}</p>
-          <p className="text-xs text-muted-foreground">
-            {lead.property ? (
-              <Link href={`/properties/${lead.property.slug}`} className="hover:underline">
-                {t('aboutProperty', { title: lead.property.title })}
-              </Link>
-            ) : (
-              t('aboutAgent')
-            )}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          {lead.handled_at ? (
-            <StatusBadge tone="success" label={t('handledAt', { date: formatDateTime(lead.handled_at, locale) })} />
-          ) : null}
-          <span className="tabular-nums">{t('receivedAt', { date: formatDateTime(lead.created_at, locale) })}</span>
-        </div>
-      </div>
-
-      {lead.message ? (
-        <p className="whitespace-pre-line text-pretty text-sm text-foreground">{lead.message}</p>
-      ) : null}
-
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        {lead.phone ? <span className="tabular-nums">{lead.phone}</span> : null}
-        {lead.email ? <span className="break-all">{lead.email}</span> : null}
-        {lead.recipient ? <span>{t('recipient', { name: nomComplet(lead.recipient) })}</span> : null}
-        {lead.source ? <span>{t('source', { source: lead.source })}</span> : null}
-      </div>
-
-      {doublons && !customerId ? (
-        <div role="status" className="space-y-2 rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm">
-          <p className="font-medium text-foreground">{tDoublon('title')}</p>
-          <ul className="space-y-1">
-            {doublons.map((d, i) => (
-              <li key={d.id ?? `hidden-${i}`} className="flex flex-wrap items-center gap-x-2">
-                <span>
-                  {d.name ?? tDoublon('hidden')}
-                  {' · '}
-                  {tDoublon(`matchedOn.${d.matched_on}`)}
-                </span>
-                {d.id !== null ? (
-                  <Link href={`/app/customers/${d.id}`} className="underline underline-offset-2">
-                    {tDoublon('open')}
-                  </Link>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          <Button variant="outline" size="sm" onClick={() => void convertir(true)} disabled={convert.isPending}>
-            {t('actions.convertAnyway')}
-          </Button>
-        </div>
-      ) : null}
-
-      <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:flex-wrap">
-        {telephone ? (
-          <a
-            href={`https://wa.me/${telephone}?text=${encodeURIComponent(reponse)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: 'outline' }), 'h-10 gap-2 sm:h-8')}
-          >
-            <MessageCircle className="size-4" aria-hidden />
-            {t('actions.whatsapp')}
-          </a>
-        ) : null}
-        {lead.phone ? (
-          <a href={`tel:${lead.phone.replace(/\s/g, '')}`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10 gap-2 sm:h-8')}>
-            <Phone className="size-4" aria-hidden />
-            {t('actions.call')}
-          </a>
-        ) : null}
-        {lead.email ? (
-          <a href={`mailto:${lead.email}`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10 gap-2 sm:h-8')}>
-            <Mail className="size-4" aria-hidden />
-            {t('actions.email')}
-          </a>
-        ) : null}
-        {customerId ? (
-          <Link href={`/app/customers/${customerId}`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10 sm:h-8')}>
-            {t('actions.openCustomer')}
-          </Link>
-        ) : (
-          <Button variant="outline" className="h-10 sm:h-8" onClick={() => void convertir()} disabled={convert.isPending}>
-            {t('actions.convert')}
-          </Button>
-        )}
-        {!lead.handled_at && !customerId ? (
-          <Button className="h-10 sm:h-8" onClick={() => void marquerTraitee()} disabled={handle.isPending}>
-            {t('actions.handle')}
-          </Button>
-        ) : null}
-        {peutAttribuer && !lead.handled_at ? (
-          <Button variant="ghost" className="h-10 sm:h-8" onClick={() => setAttribuer(true)}>
-            {t('actions.assign')}
-          </Button>
-        ) : null}
-      </div>
-
-      {attribuer && user?.agency_id ? (
-        <AttribuerDialog leadId={lead.id} agencyId={user.agency_id} onClose={() => setAttribuer(false)} />
-      ) : null}
-    </li>
-  );
-}
-
-function AttribuerDialog({ leadId, agencyId, onClose }: { leadId: number; agencyId: number; onClose: () => void }) {
-  const t = useTranslations('contactLeads');
-  const toast = useToast();
-  const assign = useAssignLead();
-  const [choisi, setChoisi] = useState<number | null>(null);
-  // P120.01 (TCK-1246) — `filter[assignable]=1` ne garde que le personnel joignable de l'agence,
-  // la règle de `PersonnelDeLAgence` qui juge la cible : sans lui, la liste offrait les bailleurs,
-  // les comptes bloqués et les agents suspendus, refusés ensuite en 422.
-  const membres = useApiQuery<PaginatedResponse<User>>(
-    ['agency-members', agencyId, 'assign'],
-    `/api/agencies/${agencyId}/members`,
-    { params: { fields: { users: ['id', 'first_name', 'last_name'] }, filter: { assignable: 1 }, sort: 'first_name', per_page: 100 } },
-  );
-
-  async function valider(e: React.FormEvent) {
-    e.preventDefault();
-    if (!choisi) return;
-    try {
-      await assign.mutateAsync({ id: leadId, user_id: choisi });
-      toast.add({ title: t('toasts.assigned'), type: 'success' });
-      onClose();
-    } catch {
-      toast.add({ title: t('toasts.error'), type: 'error' });
-    }
-  }
-
-  const optionsMembre = [
-    { value: AUCUN_MEMBRE, label: t('assign.placeholder') },
-    ...(membres.data?.data ?? []).map((m) => ({ value: String(m.id), label: nomComplet(m) })),
-  ];
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <form onSubmit={(e) => void valider(e)} className="space-y-4">
-          <DialogHeader>
-            <DialogTitle>{t('assign.title')}</DialogTitle>
-            <DialogDescription>{t('assign.description')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-1.5">
-            <label htmlFor={`lead-${leadId}-assignee`} className="block text-sm font-medium text-foreground">
-              {t('assign.label')}
-            </label>
-            <Select
-              value={choisi === null ? AUCUN_MEMBRE : String(choisi)}
-              onValueChange={(next) => {
-                if (next === null) return;
-                setChoisi(next === AUCUN_MEMBRE ? null : Number(next));
-              }}
-              items={optionsMembre}
-            >
-              <SelectTrigger id={`lead-${leadId}-assignee`} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {optionsMembre.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose}>
-              {t('assign.cancel')}
-            </Button>
-            <Button type="submit" disabled={!choisi || assign.isPending}>
-              {t('assign.submit')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <PlanifierDialog
+      demande={{
+        id: lead.id,
+        nom,
+        prenom: prenomDuDemandeur(lead.name),
+        telephone: lead.phone,
+        ficheId: fiche,
+        // TCK-2881 — le jour écrit, et les critères que la fiche reprendra du bien de la demande.
+        message: lead.message,
+        criteres: criteresDuBien(bien),
+      }}
+      property={property}
+      onClose={onClose}
+      onDemandeSuivante={onDemandeSuivante}
+    />
   );
 }

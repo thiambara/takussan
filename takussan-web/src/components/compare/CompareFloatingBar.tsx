@@ -13,6 +13,9 @@ import { useToast } from '@/components/ui/toast';
 import { COMPARE_MAX_IDS, idsToCsv, type ComparePreview } from '@/lib/compare';
 import { cn } from '@/lib/utils';
 import { fusionnerRestauration } from '@/components/compare/restauration';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { estPageDeLien, porteLaBarrePublique, REQUETE_BARRE_PUBLIQUE } from '@/lib/navigation/barre-publique';
+import { porteLaBarreDOnglets } from '@/components/layout/plein-ecran';
 
 /**
  * Logical height of the pill (px). Used by the FloatingDock to compute the
@@ -37,6 +40,12 @@ const COMPARE_PILL_HEIGHT_PX = 176;
  * de police que ci-dessus. Relevé au navigateur le 2026-09-23 : cf. le ticket.
  */
 const COMPARE_PILL_REDUITE_HEIGHT_PX = 52;
+
+/**
+ * TCK-2493 (ADR-0091 §4) — la pastille « Comparer N » du téléphone : `h-11` (44 px), plus la même
+ * marge de police que ci-dessus.
+ */
+const COMPARE_PASTILLE_HEIGHT_PX = 48;
 
 /**
  * TCK-561 — l'état « réduite » vit dans `sessionStorage`, par visiteur et par onglet : c'est une
@@ -116,6 +125,16 @@ export function CompareFloatingBar({ className }: { className?: string }) {
   // La liste publique (`/properties`, avec ou sans préfixe de langue) — PAS une fiche
   // (`/properties/<slug>`). C'est là que l'emplacement libre réduit la barre au lieu de naviguer.
   const surLaListe = /\/properties\/?$/.test(chemin);
+  // TCK-2493 (ADR-0091 §4, « une seule couche d'action en bas ») — sous `lg`, le comparateur n'est
+  // plus un dock de 170 px mais une PASTILLE repliée au-dessus de la barre d'onglets, qui mène au
+  // comparatif. Là où la barre cède la place à une autre couche (fiche, tunnels, pages par lien),
+  // la pastille s'efface avec elle. En bureau, le dock est inchangé.
+  // TCK-2825 — sous `/app` (la page des favoris, TCK-2618), la pastille se pose au-dessus de la barre
+  // d'onglets de la COQUE (`[data-barre-onglets]` relève `--floating-dock-base`, `globals.css`), et
+  // s'efface là où la coque n'en a pas : en plein écran (le chemin le dit), en conversation ou en
+  // formulaire (la page le déclare : `globals.css` la masque alors).
+  const sousLg = useMatchesMedia(REQUETE_BARRE_PUBLIQUE);
+  const effaceeParUneAutreCouche = sousLg && !porteLaBarrePublique(chemin) && !porteLaBarreDOnglets(chemin);
 
   const [reduite, setReduite] = useState(lireReduite);
   const idCorps = useId();
@@ -219,12 +238,14 @@ export function CompareFloatingBar({ className }: { className?: string }) {
   // Register with the FloatingDock orchestrator (TCK-275). The slot is only
   // “active” once we actually render content — otherwise the dock would
   // reserve vertical space for an invisible bar.
-  const isVisible = isHydrated && ids.length > 0 && !surLeComparatif;
+  // TCK-2505 — une page ouverte par un lien (paiement, réclamation, partage, alertes) est servie
+  // dans la coque NUE : le dock n'y paraît pas, même en bureau.
+  const isVisible = isHydrated && ids.length > 0 && !surLeComparatif && !effaceeParUneAutreCouche && !estPageDeLien(chemin);
   const { bottom } = useFloatingDockSlot({
     id: 'compare-floating-bar',
     corner: 'bottom-right',
     priority: 1, // sits above chat (priority 0)
-    height: reduite ? COMPARE_PILL_REDUITE_HEIGHT_PX : COMPARE_PILL_HEIGHT_PX,
+    height: sousLg ? COMPARE_PASTILLE_HEIGHT_PX : reduite ? COMPARE_PILL_REDUITE_HEIGHT_PX : COMPARE_PILL_HEIGHT_PX,
     enabled: isVisible,
   });
 
@@ -242,6 +263,17 @@ export function CompareFloatingBar({ className }: { className?: string }) {
 
   if (!isVisible) return null;
 
+  if (sousLg) {
+    return (
+      <PastilleDuComparateur
+        bottom={bottom}
+        href={ids.length >= 2 ? `/compare?ids=${idsToCsv(ids)}` : '/compare'}
+        nombre={ids.length}
+        className={className}
+      />
+    );
+  }
+
   if (reduite) {
     return (
       <aside
@@ -258,7 +290,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
           aria-label={t('expandAria', { count: ids.length })}
           className={cn(
             'flex h-12 items-center gap-2 rounded-full border border-border bg-card/95 py-1.5 pl-1.5 pr-3 backdrop-blur-md',
-            'shadow-[0_1px_2px_color-mix(in_srgb,var(--shadow-color)_6%,transparent),0_12px_32px_color-mix(in_srgb,var(--shadow-color)_14%,transparent)]',
+            'shadow-barre-flottante',
             'text-foreground hover:bg-muted',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
             'transition-[background-color,scale] duration-150 active:scale-[0.96]',
@@ -267,7 +299,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary" aria-hidden>
             <Scale className="size-4.5" />
           </span>
-          <span className="text-[13px] font-semibold">{t('title')}</span>
+          <span className="text-ui font-semibold">{t('title')}</span>
           <span
             className="rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground tabular-nums"
             aria-hidden
@@ -290,7 +322,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
       className={cn(
         // Ancrée aux DEUX bords sous `sm` : à `right-4` seul, quatre vignettes plus le
         // libellé débordaient l'écran d'un téléphone au lieu de s'y adapter.
-        'fixed inset-x-4 z-40 sm:inset-x-auto sm:right-6 sm:w-[19.5rem]',
+        'fixed inset-x-4 z-40 sm:inset-x-auto sm:right-6 sm:w-78',
         'animate-compare-dock-in',
         className,
       )}
@@ -308,7 +340,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
       <div
         className={cn(
           'rounded-2xl border border-border bg-card/95 p-2 backdrop-blur-md',
-          'shadow-[0_1px_2px_color-mix(in_srgb,var(--shadow-color)_6%,transparent),0_12px_32px_color-mix(in_srgb,var(--shadow-color)_14%,transparent)]',
+          'shadow-barre-flottante',
         )}
       >
         <div className="flex items-center gap-2.5">
@@ -319,7 +351,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
             <Scale className="size-4.5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold leading-tight text-foreground">{t('title')}</p>
+            <p className="text-ui font-semibold leading-tight text-foreground">{t('title')}</p>
             <p className="text-xs leading-tight text-muted-foreground tabular-nums">
               {t('count', { count: ids.length, max: COMPARE_MAX_IDS })}
             </p>
@@ -412,7 +444,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
               title={t('clearAria')}
               className={cn(
                 'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2.5',
-                'text-[13px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground',
+                'text-ui font-semibold text-muted-foreground hover:bg-muted hover:text-foreground',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                 'transition-[background-color,color,scale] duration-150 active:scale-[0.96]',
               )}
@@ -426,11 +458,11 @@ export function CompareFloatingBar({ className }: { className?: string }) {
               tabIndex={canCompare ? 0 : -1}
               className={cn(
                 'flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5',
-                'text-[13px] font-semibold',
+                'text-ui font-semibold',
                 'transition-[background-color,color,scale] duration-150',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
                 canCompare
-                  ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]'
+                  ? 'bg-primary text-primary-foreground hover:bg-primary-deep active:scale-[0.98]'
                   : 'pointer-events-none bg-muted text-muted-foreground',
               )}
             >
@@ -450,6 +482,48 @@ export function CompareFloatingBar({ className }: { className?: string }) {
           </div>
         </div>
       </div>
+    </aside>
+  );
+}
+
+/**
+ * TCK-2493 — la pastille du téléphone : « Comparer » et le nombre de biens, un lien vers le comparatif
+ * (qui dit lui-même ce qui manque sous deux biens). Retirer un bien se fait sur le comparatif ou sur sa
+ * carte : la pastille ne porte qu'une action, pour ne prendre que 44 px.
+ */
+function PastilleDuComparateur({
+  bottom,
+  href,
+  nombre,
+  className,
+}: {
+  readonly bottom: string;
+  readonly href: string;
+  readonly nombre: number;
+  readonly className?: string;
+}) {
+  const t = useTranslations('navigationPublique.comparateur');
+  return (
+    <aside aria-label={t('libelle')} style={{ bottom }} data-pastille-comparateur="" className={cn('fixed right-4 z-40', className)}>
+      <LienLocalise
+        href={href}
+        aria-label={t('aria', { count: nombre })}
+        className={cn(
+          'inline-flex h-11 items-center gap-2 rounded-full bg-foreground pl-3.5 pr-4 text-sm font-semibold text-background',
+          'shadow-pastille-flottante',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          'transition-[scale] duration-150 active:scale-[0.96]',
+        )}
+      >
+        <Scale className="size-4" aria-hidden />
+        {t('libelle')}
+        <span
+          aria-hidden
+          className="inline-flex size-5 items-center justify-center rounded-full bg-background text-legende tabular-nums text-foreground"
+        >
+          {nombre}
+        </span>
+      </LienLocalise>
     </aside>
   );
 }
@@ -502,8 +576,7 @@ function Vignette({
         // ⚠ Ne pas écrire la classe refusée EN TOUTES LETTRES ici, fût-ce pour l'expliquer :
         // cette garde ne dépouille pas les commentaires, délibérément, et la première
         // version de ce bloc l'a fait rougir sur sa propre justification.
-        'shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--scrim)_12%,transparent)]',
-        'dark:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--foreground)_14%,transparent)]',
+        'shadow-contour-vignette',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         'transition-[scale] duration-150 active:scale-[0.96]',
       )}
@@ -537,7 +610,7 @@ function Vignette({
         aria-hidden
         className={cn(
           'absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full',
-          'bg-card text-foreground shadow-[0_1px_3px_color-mix(in_srgb,var(--shadow-color)_28%,transparent)]',
+          'bg-card text-foreground shadow-pastille-retrait',
           'transition-[opacity,background-color,color] duration-150',
           // ⚠ La media query ne se répète PAS sur la ligne de révélation : Tailwind v4
           // enveloppe `group-hover:` dans `@media (hover: hover)` de lui-même — vérifié

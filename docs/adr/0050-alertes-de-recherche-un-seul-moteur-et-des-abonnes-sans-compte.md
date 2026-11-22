@@ -1,6 +1,7 @@
 # ADR-0050 — Une alerte de recherche rend ce que la liste aurait rendu, par le même moteur et le même vocabulaire fermé ; un visiteur s'abonne sans compte, par un contact chiffré et doublement confirmé
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-11-16** (cf. § *Amendement du 2026-11-16 (TCK-615)* : un e-mail parti ne
+  repart pas, le premier envoi ne vend pas l'historique, la borne par contact évince au lieu de refuser)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-599](../backlog/tickets/done/TCK-599-alertes-de-recherche-et-favoris-qui-previennent.md)
 - **Amende** : [ADR-0023](0023-recherche-geographique-par-distances-sans-postgis.md), chemin 3
@@ -156,6 +157,7 @@ Ajoutées pendant l'implémentation (2026-10-08), même règle :
 6. **Le premier passage d'une alerte n'a pas de borne basse** : il annonce les biens qui
    correspondent déjà (total réel, cinq décrits), puis la fenêtre ne porte que sur les nouveaux.
    Le borner à la création se fait en posant `last_notified_at` à la création.
+   *Révoquée le 2026-11-16 par décision du porteur — cf. amendement (TCK-615).*
 7. **Le rattachement ne prend que les abonnés confirmés**, et renomme `nom #id` une recherche dont
    le nom est déjà pris par le compte (`(user_id, name)` est unique) plutôt que de la refuser.
 8. **La cloche reste toujours active** (invariant de 588) : couper `saved_search_match` ou
@@ -224,6 +226,10 @@ Ajoutées après la contre-vérification (verif-599), même règle :
     pendant que le premier tourne. La réservation et le verrou empêchent tout doublon d'envoi,
     mais `failed_jobs` porterait une fausse ligne. Sans effet avec un seul worker : à régler
     (file dédiée, ou `retry_after` relevé) le jour où l'on en ajoute.
+
+    *Les deux derniers paragraphes sont amendés le 2026-11-16 (TCK-615) : « plutôt renvoyer que
+    perdre » est révoqué par le porteur, et le constat sur `retry_after` est périmé depuis
+    [ADR-0078](0078-une-connexion-de-file-pour-les-jobs-longs.md) — cf. amendement.*
 16. **Les plafonds d'un contact portent sur sa boîte, pas sur l'adresse saisie.**
     `awa+promo@exemple.sn` et `awa@exemple.sn` arrivent au même endroit. `mailbox_hash` (HMAC
     sans le suffixe `+…`) porte les deux plafonds et la borne par contact. `contact_hash` garde
@@ -238,11 +244,90 @@ Ajoutées après la contre-vérification (verif-599), même règle :
     un 429 propre au contact se distinguait encore du 429 par visiteur, et son `Retry-After`
     datait la première demande visant la boîte. La réponse est le même 202 que dans tous les
     autres cas, et le contrôleur ne lit plus rien qui dépende du contact.
+    *La borne des 5 alertes ouvertes (§4) est amendée le 2026-11-16 (TCK-615) : elle ne retient plus
+    que les demandes confirmées — cf. amendement.*
 18. **La désinscription WhatsApp retire le consentement que l'alerte avait posé, et celui-là
     seul.** Confirmer par code inscrit le numéro `opted_in` dans `whatsapp_contacts`, source
     `search_alert`, sauf s'il l'était déjà. À la désinscription, une ligne posée par l'alerte, sans
     compte et sans message entrant, est supprimée. Une ligne liée à un compte ou ayant reçu un
     message passe `opted_out`. Un consentement d'une autre source n'est pas touché.
+
+## Amendement du 2026-11-16 (TCK-615) — un e-mail parti ne repart pas, le premier envoi ne vend pas l'historique, un tiers n'épuise pas l'abonnement d'un contact
+
+Trois décisions **du porteur** (2026-11-16), qui remplacent des décisions de session réversibles.
+
+### A. Après un canal sortant parti, la réservation est gardée (remplace la fin de la décision 15)
+
+« Plutôt renvoyer que perdre » est **révoqué**. Un e-mail répété chaque matin se lit comme du spam et
+fait marquer l'expéditeur ; une cloche manquée se voit dans l'application.
+
+- Les deux jobs envoient **canal par canal**, dans l'ordre de `via()` (cloche toujours en dernier,
+  m11) : `notifyNow($notification, [$canal])`. Ils savent ainsi quels canaux sont partis.
+- Un canal **sortant** (`mail`, `whatsapp`) parti, l'annonce est faite : un échec ensuite (la cloche,
+  ou WhatsApp après l'e-mail) **garde** la réservation, se journalise, et l'alerte **perd** ce qui
+  restait — la cloche ne sera pas réécrite. Aucun canal sortant parti : la réservation est rendue,
+  le passage suivant renvoie (inchangé).
+- `SendFavoriteChangeAlerts` applique la même règle à chaque annonce (baisse, indisponibilité).
+
+Le dernier paragraphe de la décision 15 (`$timeout = 1800` contre `retry_after = 90`, « à régler le
+jour où l'on en ajoute ») est **périmé** : ADR-0078 a mis les deux jobs sur la connexion
+`database-long` (`retry_after` 1900 > 1800), consommée par `worker-long`, et
+`scripts/check-queues.mjs` compare chaque `$timeout` au `retry_after` de sa connexion. Sous
+plusieurs workers, la réservation conditionnelle et `WithoutOverlapping` empêchent toujours le
+double envoi.
+
+### B. Le premier envoi n'annonce pas l'historique (révoque la décision 6)
+
+`last_notified_at` est posé **à la création** de la recherche d'un compte
+(`SavedSearchController::store`, `SearchService::saveSearch()`) et **à la confirmation** de la
+demande d'un visiteur (lien ou code) — la date à laquelle l'alerte existe pour son destinataire. Le
+premier envoi ne porte que les biens publiés depuis (la fenêtre garde sa marge d'indexation) ;
+s'il n'y en a aucun, rien ne part. Les biens qui correspondaient déjà se voient par la liste de
+recherche, pas par l'alerte.
+
+- Une alerte `weekly` parle pour la première fois sept jours après sa création.
+- Les lignes existantes à `last_notified_at` nul reçoivent leur `created_at` (migration
+  `borne_les_alertes_jamais_envoyees`, sans retour) : sans elle, la décision ne vaudrait que pour
+  les recherches neuves.
+- `results_count` (TCK-2470) ne reprend plus le total d'un premier envoi : la recherche est comptée
+  par le moteur sans document, comme les autres.
+
+### C. La borne par contact évince la plus ancienne demande muette au lieu de refuser (amende §4 et décision 17)
+
+Avec des adresses IP tournantes, un tiers remplissait les 5 demandes ouvertes d'un contact pendant
+48 h, et le titulaire ne pouvait plus s'abonner — sans le savoir, la borne se taisant.
+
+- La borne de `max_open_per_contact` (5) ne retient plus que les demandes **confirmées** : à 5
+  confirmées, une demande neuve se tait (inchangé).
+- À 5 demandes **non confirmées**, la nouvelle demande **évince** la plus ancienne demande non
+  confirmée **dont aucun message de confirmation n'est parti depuis 24 h** (`confirmation_sent_at`
+  nul ou plus ancien), avec sa recherche — puis elle est créée. Une demande dont le message vient de
+  partir n'est jamais évincée : elle porte le plafond de 2 confirmations par 24 h, qui se compte
+  sur les lignes ; l'évincer rendrait ce plafond au tiers, qui ferait partir un e-mail par heure.
+  Il y en a au plus deux : il reste toujours une demande évinçable.
+- Compter, évincer et créer se font **sous un verrou par boîte** (`Cache::lock`, hors de la
+  requête) : deux workers qui traitent deux demandes du même contact ne dépassent pas la borne.
+- Le silence est gardé : la requête ne lit toujours rien qui dépende du contact, ni en base ni dans
+  le cache — la garde de la fuite temporelle journalise aussi les clés de cache lues et écrites.
+
+**Ce qui reste, et qui est à trancher par le porteur** : deux autres bornes par boîte, inchangées,
+protègent la boîte du titulaire contre l'arrosage et laissent encore un tiers le retarder.
+
+- Le limiteur horaire (`RecordPublicSearchAlert::PAR_CONTACT_PAR_HEURE`, 5 par heure) : cinq
+  demandes d'un tiers dans l'heure font taire celle du titulaire avant toute éviction.
+- Le plafond de 2 messages de confirmation par 24 h : épuisé par un tiers, il laisse la demande du
+  titulaire créée mais **sans message** — rien ne le renvoie ensuite ; elle reste muette jusqu'à sa
+  purge (48 h) ou son éviction, et le titulaire doit redemander après les 24 h.
+
+L'éviction ferme donc le déni de 48 h par les demandes ouvertes, pas celui de 24 h par le plafond
+de confirmations. Relever ou séparer ces bornes est un arbitrage entre l'arrosage d'une boîte et le
+délai de son titulaire.
+
+Application : `App\Jobs\SendSavedSearchAlerts`, `App\Jobs\SendFavoriteChangeAlerts`,
+`App\Jobs\Concerns\EnvoieCanalParCanal`, `App\Jobs\RecordPublicSearchAlert`,
+`PublicSearchAlertController` (confirmation) ; `tests/Feature/Search/AlertSendOnceTest.php`,
+`AlertFirstRunTest.php`, `AlertContactQuotaTest.php`, et la garde
+`PublicSearchAlertTest::test_la_requete_ne_fait_que_pousser_un_job_chiffre`.
 
 ## Conséquences
 

@@ -7,6 +7,7 @@ use App\Models\Concerns\HasMediaConversions;
 use App\Models\Concerns\HasProfiles;
 use App\Models\Concerns\HasQueryBuilder;
 use App\Models\Concerns\RefusesImpossibleRouteKeys;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\EmailFrequency;
 use App\Models\Enums\PlatformProfileLevel;
@@ -20,10 +21,14 @@ use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Profiles\ActiveProfileResolver;
+use App\Services\Property\PropertyContactNumbers;
+use App\Services\Public\PublicProfileFacts;
+use App\Services\Public\PublicSlugService;
 use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
 use App\Support\Http\ParametreUnique;
 use App\Support\Query\DepartageQueryBuilder;
+use App\Support\Query\InclusionLueParLeControleur;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -68,6 +73,8 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         'google_id', 'facebook_id', 'apple_id',
         'two_factor_enabled', 'two_factor_secret', 'two_factor_recovery_codes',
         'force_2fa_at_first_login',
+        // TCK-2926 (ADR-0124) — la dernière connexion (famille d'appareil, ville seule) et la date de la 2FA.
+        'last_login_device', 'last_login_city', 'two_factor_enabled_at',
         'phone_verified_at',
         // TCK-633 (lot C) — les cases WhatsApp seulement. `secondary_phone*` et `terms_*` ne sont
         // PAS assignables en masse : leurs écrivains (`PhoneVerificationService`,
@@ -115,6 +122,8 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'password' => 'hashed',
             'status' => UserStatus::class,
             'two_factor_enabled' => 'boolean',
+            // TCK-2926 (ADR-0124) — posée par `booted()` quand `two_factor_enabled` change.
+            'two_factor_enabled_at' => 'datetime',
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted',
             'force_2fa_at_first_login' => 'boolean',
@@ -124,6 +133,9 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'email_frequency' => EmailFrequency::class,
             'metadata' => 'array',
             'preferences' => 'array',
+            // TCK-2506 — HORS `$fillable` : seul le compte lui-même change sa préférence
+            // (`MeController::update`), ni l'agence ni la plateforme par un remplissage en masse.
+            'listed_in_public_directory' => 'boolean',
         ];
     }
 
@@ -217,6 +229,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      * à `$agencyId` : les profils inclus (`agentProfiles`, `ownerProfiles`, `agencyAdminProfiles`)
      * ne portent que ceux de l'agence ; `include=platformProfile` est refusé (400), être opérateur
      * de la plateforme ne se lit pas depuis une agence ; `filter[role]` juge le rôle DANS l'agence.
+     * TCK-2670 — et `filter[assignable]=1`, le personnel en exercice, comme la liste des membres.
      * Sans cela, la base bornée par le contrôleur laissait sortir, par la personne listée, ses
      * profils des autres agences — licence, commission, revenus, `metadata`.
      *
@@ -233,12 +246,46 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             fn (string $rel) => AllowedInclude::custom($rel, new AgencyScopedRelationship($agencyId)),
             ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles'],
         );
+        // TCK-2665 — `include=team_summary` : ce que chaque membre porte dans l'agence, lu par
+        // `UserAdminController` (`TeamMemberSummary`), en une requête par indicateur pour la page.
+        $includes[] = AllowedInclude::custom('team_summary', new InclusionLueParLeControleur);
 
         return DepartageQueryBuilder::for($base, $request)
-            ->allowedFilters(...[...array_values($filters), self::roleFilter($agencyId)])
+            ->allowedFilters(...[
+                ...array_values($filters),
+                self::teamRoleFilter($agencyId),
+                self::assignableFilter($agencyId),
+                // TCK-2667 — la pastille « Absents » : la liste des membres qu'une absence remplace.
+                AllowedFilter::callback('absent', function (Builder $q, mixed $value) use ($agencyId) {
+                    if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                        $q->absentDansLAgence($agencyId);
+                    }
+                }),
+            ])
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
             ->allowedIncludes(...$includes);
+    }
+
+    /**
+     * TCK-2506 — qui paraît dans l'annuaire public « Agents & propriétaires » : un agent EN
+     * EXERCICE, toujours, ou un compte qui l'a choisi (`listed_in_public_directory`). Un
+     * propriétaire particulier n'y est donc listé que sur option.
+     *
+     * « En exercice » est la règle de {@see PublicProfileFacts::rolesPublics()}, écrite en SQL :
+     * un `AgentProfile` actif, ou un `AgencyAdminProfile` actif d'une agence `standard` (l'admin
+     * d'un espace `individual` en est l'hôte, pas un agent — TCK-1077). Les deux doivent dire la
+     * même chose : un compte présenté `agent` par l'un est listé par l'autre.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeVisibleDansLAnnuairePublic(Builder $query): void
+    {
+        $query->where(fn (Builder $q) => $q
+            ->where('users.listed_in_public_directory', true)
+            ->orWhereHas('agentProfiles', fn (Builder $p) => $p->active())
+            ->orWhereHas('agencyAdminProfiles', fn (Builder $p) => $p->active()
+                ->whereHas('agency', fn (Builder $a) => $a->where('kind', AgencyKind::Standard->value))));
     }
 
     /**
@@ -257,6 +304,22 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             ->whereHas('agentProfiles', $inAgency)
             ->orWhereHas('ownerProfiles', $inAgency)
             ->orWhereHas('agencyAdminProfiles', $inAgency));
+    }
+
+    /**
+     * TCK-2665, TCK-2667 — le membre est ABSENT dans l'agence : une absence active l'y remplace
+     * (`RoleDelegation::absences()->active()`, la règle de `TeamTodayService`). Lu par la pastille
+     * « Absents » (`meta.counts.absent`) et par `filter[absent]=1` de la liste de l'équipe.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeAbsentDansLAgence(Builder $query, int $agencyId): void
+    {
+        $query->whereExists(fn ($q) => $q->selectRaw('1')
+            ->from('role_delegations')
+            ->whereColumn('role_delegations.replaces_user_id', 'users.id')
+            ->where('role_delegations.agency_id', $agencyId)
+            ->whereIn('role_delegations.id', RoleDelegation::query()->absences()->active()->select('id')));
     }
 
     /**
@@ -295,7 +358,28 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             }),
         );
 
-        $assignable = AllowedFilter::callback(
+        return DepartageQueryBuilder::for($base, $request)
+            ->allowedFilters(...[...array_values($filters), $role, self::assignableFilter($agencyId)])
+            ->allowedFields(...static::getAllAllowedQueryFields())
+            ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
+            ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
+
+    /**
+     * `filter[assignable]=1` — le personnel joignable de `$agencyId` : la règle de
+     * {@see PersonnelDeLAgence::estPersonnel()} écrite en SQL (profil d'agent ou d'admin ACTIF dans
+     * l'agence, ou délégation EN VIGUEUR de l'un de ces rôles — `enVigueur()`, celle
+     * d'`isStaffAt()` : active ET portée par un profil d'agence actif du délégué, sans quoi la liste
+     * proposait un délégué que l'écriture refuse par 422 (TCK-2589) ; compte ni bloqué ni supprimé). Partagé
+     * par la liste des membres (sélecteurs de cible, TCK-1096) et par celle de l'équipe (TCK-2670 :
+     * la fiche de l'agence compte, parmi eux, qui n'a pas activé la double authentification que
+     * l'agence leur exige — jamais un bailleur, `TwoFactorRequirement`).
+     */
+    private static function assignableFilter(int $agencyId): AllowedFilter
+    {
+        $inAgency = fn (Builder $p) => $p->where('agency_id', $agencyId);
+
+        return AllowedFilter::callback(
             'assignable',
             function (Builder $q, mixed $value) use ($inAgency) {
                 if (! filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
@@ -308,15 +392,9 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
                         ->orWhereHas('agencyAdminProfiles', $actif)
                         ->orWhereHas('roleDelegations', fn (Builder $d) => $inAgency($d)
                             ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
-                            ->active()));
+                            ->enVigueur()));
             },
         );
-
-        return DepartageQueryBuilder::for($base, $request)
-            ->allowedFilters(...[...array_values($filters), $role, $assignable])
-            ->allowedFields(...static::getAllAllowedQueryFields())
-            ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
-            ->allowedIncludes(...static::getAllowedQueryIncludes());
     }
 
     /**
@@ -326,27 +404,51 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      */
     private static function roleFilter(?int $agencyId): AllowedFilter
     {
-        $inAgency = fn (Builder $p) => $agencyId === null ? $p : $p->where('agency_id', $agencyId);
-
         return AllowedFilter::callback(
             'role',
             // P216.05 (TCK-2244, ADR-0075 § 2) — un rôle inconnu rend déjà aucune ligne : une liste,
             // lue absente, tombe dans le même `default`, au lieu d'un TypeError.
-            fn (Builder $q, mixed $value) => match (ParametreUnique::valeur($value)) {
-                'agent' => $q->whereHas('agentProfiles', $inAgency),
-                'agency_admin' => $q->whereHas('agencyAdminProfiles', $inAgency),
-                'owner' => $q->whereHas('ownerProfiles', $inAgency),
-                'service_provider' => $agencyId === null
-                    ? $q->whereHas('serviceProviderProfile')
-                    : $q->whereHas('serviceProviderProfile.agencyCollaborations', $inAgency),
-                'super_admin' => $agencyId === null
-                    ? $q->whereHas('platformProfile', fn (Builder $pp) => $pp
-                        ->whereNull('revoked_at')
-                        ->where('level', PlatformProfileLevel::SuperAdmin->value))
-                    : $q->whereRaw('1 = 0'),
-                default => $q->whereRaw('1 = 0'),
-            },
+            fn (Builder $q, mixed $value) => self::appliquerRole($q, ParametreUnique::valeur($value), $agencyId),
         );
+    }
+
+    /**
+     * TCK-2665 — `filter[role]` de l'équipe d'une agence : plusieurs rôles séparés par une virgule
+     * se lisent en OU (`agent,agency_admin` : les collaborateurs, sans les bailleurs), comme
+     * `filter[role]` des membres ({@see self::buildAgencyMembersQuery()}). Chaque rôle est jugé par
+     * {@see self::appliquerRole()} ; un rôle inconnu n'ajoute aucune ligne.
+     */
+    private static function teamRoleFilter(int $agencyId): AllowedFilter
+    {
+        return AllowedFilter::callback(
+            'role',
+            fn (Builder $q, mixed $value) => $q->where(function (Builder $w) use ($value, $agencyId) {
+                foreach ((array) $value as $role) {
+                    $w->orWhere(fn (Builder $un) => self::appliquerRole($un, is_string($role) ? $role : null, $agencyId));
+                }
+            }),
+        );
+    }
+
+    /** Un rôle lu sur les profils polymorphes (TCK-2665 : la règle de `roleFilter()`, extraite). */
+    private static function appliquerRole(Builder $q, ?string $role, ?int $agencyId): Builder
+    {
+        $inAgency = fn (Builder $p) => $agencyId === null ? $p : $p->where('agency_id', $agencyId);
+
+        return match ($role) {
+            'agent' => $q->whereHas('agentProfiles', $inAgency),
+            'agency_admin' => $q->whereHas('agencyAdminProfiles', $inAgency),
+            'owner' => $q->whereHas('ownerProfiles', $inAgency),
+            'service_provider' => $agencyId === null
+                ? $q->whereHas('serviceProviderProfile')
+                : $q->whereHas('serviceProviderProfile.agencyCollaborations', $inAgency),
+            'super_admin' => $agencyId === null
+                ? $q->whereHas('platformProfile', fn (Builder $pp) => $pp
+                    ->whereNull('revoked_at')
+                    ->where('level', PlatformProfileLevel::SuperAdmin->value))
+                : $q->whereRaw('1 = 0'),
+            default => $q->whereRaw('1 = 0'),
+        };
     }
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'username', 'phone'];
@@ -368,6 +470,18 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      * `username`, puis « — ». **Jamais l'adresse e-mail** : c'est une coordonnée, et la règle de
      * `ConversationResource` (le nom et l'avatar, jamais les coordonnées) vaut pour ces chemins.
      */
+    /**
+     * TCK-2519 — le segment de l'URL `/agents/{slug}` de cette personne : le slug au nom quand il
+     * est posé, le `username` sinon. TOUT émetteur de `owner.slug` / `agent.slug` passe par ici —
+     * aucun ne sert plus `username` quand `public_slug` existe.
+     */
+    public function slugDeFiche(): ?string
+    {
+        $slug = $this->public_slug ?? null;
+
+        return is_string($slug) && $slug !== '' ? $slug : $this->username;
+    }
+
     public function nameWithoutContact(): string
     {
         $full = trim(($this->first_name ?? '').' '.($this->last_name ?? ''));
@@ -420,6 +534,16 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             : null;
     }
 
+    /**
+     * TCK-2576 — le numéro principal PUBLIÉ est-il déclaré WhatsApp ? Même règle que la fiche d'un
+     * bien ({@see PropertyContactNumbers::hasWhatsApp()}, qui l'appelle) :
+     * un numéro non vérifié n'est jamais présenté comme WhatsApp.
+     */
+    public function principalPublicSurWhatsApp(): bool
+    {
+        return $this->numeroPrincipalPublic() !== null && (bool) $this->phone_whatsapp;
+    }
+
     /** Même règle pour le second numéro (TCK-633, lot C) : servi seulement s'il est vérifié. */
     public function numeroSecondairePublic(): ?string
     {
@@ -465,6 +589,9 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         //
         // TCK-587 (ADR-0031 §3) — profils ACTIFS seulement, même règle que l'auto-bascule du
         // middleware : un profil suspendu ne donne plus d'agence, donc plus de périmètre.
+        //
+        // TCK-2800 — le middleware lie aussi un prestataire seul (aucune agence) : ce repli n'a
+        // rien à mirer, il rend `null` pour lui comme avant.
         $profiles = $this->profiles()
             ->filter(fn ($p) => ActiveProfileResolver::isActiveProfile($p));
         $agencyIds = $profiles
@@ -541,6 +668,22 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             if ($user->isDirty('phone') && ! $user->isDirty('phone_whatsapp')) {
                 $user->phone_whatsapp = null;
             }
+
+            // TCK-2519 — le slug public suit le NOM, quel que soit l'écrivain : l'ancien reste dans
+            // `metadata.previous_public_slugs` et redirige en 301. Un compte sans fiche (`null`)
+            // n'en reçoit pas ici — `users:public-slugs` le pose à sa première fiche publique.
+            if ($user->public_slug !== null && $user->isDirty(['first_name', 'last_name'])) {
+                app(PublicSlugService::class)->appliquer($user);
+            }
+        });
+
+        // TCK-2926 (ADR-0124 § 4) — la date de la double authentification suit le drapeau, quel que soit
+        // l'écrivain (activation, renouvellement, support, effacement) : posée au passage à `true`,
+        // effacée au passage à `false`. Une écriture qui pose la date elle-même la garde.
+        static::saving(function (self $user): void {
+            if ($user->isDirty('two_factor_enabled') && ! $user->isDirty('two_factor_enabled_at')) {
+                $user->two_factor_enabled_at = $user->two_factor_enabled ? now() : null;
+            }
         });
 
         // TCK-142 — flush any legacy `agency_id` value stashed before save
@@ -584,6 +727,8 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
                 'password', 'password_set_at', 'remember_token',
                 'two_factor_secret', 'two_factor_recovery_codes',
                 'updated_at', 'last_login_at',
+                // TCK-2926 (ADR-0124) — la dernière connexion n'entre pas au journal.
+                'last_login_device', 'last_login_city',
             ])
             ->dontLogEmptyChanges();
     }

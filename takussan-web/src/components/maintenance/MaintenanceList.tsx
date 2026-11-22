@@ -45,7 +45,21 @@ import {
  * avec le quartier et l'agence du bien. « Nouvelle demande » ne s'affiche que si l'API dit qu'elle
  * mène quelque part (`meta.abilities.can_create`) : le prestataire prenait un 403 en la suivant.
  */
-export function MaintenanceList() {
+export interface MaintenanceListProps {
+  /**
+   * TCK-2653 — la section « Urgences prioritaires » à part (défaut). L'agence la retire : dans sa vue
+   * « Liste », la priorité se lit en pastille sur chaque ligne, et une demande terminée urgente n'y
+   * remonte plus en tête (P1 de l'audit).
+   */
+  readonly urgencesAPart?: boolean;
+}
+
+/** TCK-2919 — `filter[lease_id]` de l'URL : un entier positif, sinon `null`. */
+export function leaseIdDeLUrl(brut: string | null | undefined): number | null {
+  return brut && /^[1-9]\d{0,9}$/.test(brut) ? Number(brut) : null;
+}
+
+export function MaintenanceList({ urgencesAPart = true }: MaintenanceListProps = {}) {
   const locale = useLocale() as Locale;
   const t = useTranslations('maintenance.list');
   const tStatus = useTranslations('maintenance.status');
@@ -67,6 +81,9 @@ export function MaintenanceList() {
     ...(statuses.length > 1 ? [{ value: statusValue, label: statuses.map((s) => tStatus(s)).join(', ') }] : []),
     ...MAINTENANCE_STATUSES.map((s) => ({ value: s, label: tStatus(s) })),
   ];
+  // TCK-2919 — `?filter[lease_id]=` (la fiche du bail, TCK-2912) borne la liste aux interventions de ce
+  // bail, filtrées par l'API. Un identifiant illisible est ignoré.
+  const leaseId = leaseIdDeLUrl(searchParams?.get('filter[lease_id]'));
   const [priority, setPriority] = useState<'' | MaintenancePriority>('');
   // La liste annonçait « Page 1 / N » sans aucun moyen d'atteindre la page 2.
   const [page, setPage] = useState(1);
@@ -74,9 +91,10 @@ export function MaintenanceList() {
   const params = useMemo<MaintenanceListParams>(() => ({
     ...(statuses.length ? { status: statuses } : {}),
     ...(priority ? { priority } : {}),
+    ...(leaseId !== null ? { lease_id: leaseId } : {}),
     ...(isProvider ? { sort: 'scheduled_at' } : {}),
     page,
-  }), [statuses, priority, page, isProvider]);
+  }), [statuses, priority, leaseId, page, isProvider]);
 
   const query = useMaintenanceRequests(params);
 
@@ -166,7 +184,7 @@ export function MaintenanceList() {
           // tard est sur une autre page. La section des urgences ne se rend que quand la liste tient
           // sur une page ; sinon chaque urgence reste à sa place, avec son badge. Les autres rôles
           // reçoivent la liste triée par priorité (`-priority`, côté serveur) : inchangé.
-          const separerUrgences = !isProvider || data.meta.last_page <= 1;
+          const separerUrgences = urgencesAPart && (!isProvider || data.meta.last_page <= 1);
           const urgentRequests = separerUrgences ? data.data.filter((r) => r.priority === 'urgent') : [];
           const otherRequests = separerUrgences ? data.data.filter((r) => r.priority !== 'urgent') : data.data;
 

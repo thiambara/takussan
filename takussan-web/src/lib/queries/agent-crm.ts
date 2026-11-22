@@ -8,14 +8,13 @@ import type {
   AgentAbsence,
   BulkResult,
   CalendarFeedState,
-  CustomerActivityEntry,
   CustomerLinkedRecord,
   MatchingCustomer,
   MatchingProperty,
   MemberPortfolio,
   PortfolioCategory,
 } from '@/types/agent-crm';
-import { cheminApi, requete } from '@/lib/chemin-api';
+import { cheminApi } from '@/lib/chemin-api';
 import { nomAffichable } from '@/lib/identite';
 import { lireToutesLesPages, PAR_PAGE_MAX } from '@/lib/queries/toutes-les-pages';
 
@@ -134,18 +133,6 @@ export async function setCustomerPrimaryContact(token: string, customerId: numbe
   });
 }
 
-export async function fetchCustomerActivity(
-  token: string,
-  customerId: number,
-  page = 1,
-): Promise<PaginatedResponse<CustomerActivityEntry>> {
-  const qs = buildQueryString({ page, per_page: 20 });
-  return apiRequest<PaginatedResponse<CustomerActivityEntry>>(
-    cheminApi`/api/customers/${customerId}/activity${requete(qs)}`,
-    { token },
-  );
-}
-
 export async function fetchMatchingProperties(
   token: string,
   customerId: number,
@@ -231,13 +218,24 @@ export interface HandoverPayload {
   remove_after?: boolean;
 }
 
+/**
+ * Le bilan de la passation. `leases` (TCK-616 AC6) : les baux des biens saisis transmis — les
+ * brouillons passés au repreneur (compte), les autres restés au nom du partant (identifiants, à revoir).
+ */
+export interface HandoverResult {
+  moved: Record<string, number>;
+  unassigned: Record<string, number>;
+  removed: boolean;
+  leases: { moved: number; to_review: number[] };
+}
+
 export async function handOverPortfolio(
   token: string,
   agencyId: number,
   userId: number,
   payload: HandoverPayload,
-): Promise<{ moved: Record<string, number>; unassigned: Record<string, number>; removed: boolean }> {
-  const res = await apiRequest<ApiResponse<{ moved: Record<string, number>; unassigned: Record<string, number>; removed: boolean }>>(
+): Promise<HandoverResult> {
+  const res = await apiRequest<ApiResponse<HandoverResult>>(
     cheminApi`/api/agencies/${agencyId}/members/${userId}/handover`,
     { method: 'POST', body: payload, token },
   );
@@ -255,10 +253,37 @@ export async function fetchAbsences(token: string, agencyId: number): Promise<Ag
 export async function declareAbsence(
   token: string,
   agencyId: number,
-  payload: { user_id: number; substitute_id: number; starts_at?: string | null; ends_at: string; reason?: string | null },
+  payload: {
+    user_id: number;
+    substitute_id: number;
+    starts_at?: string | null;
+    ends_at: string;
+    reason?: string | null;
+    /** TCK-2666 — le remplaçant peut agir à sa place : une délégation liée, sur la même période. */
+    substitute_can_act?: boolean;
+  },
 ): Promise<AgentAbsence> {
   const res = await apiRequest<ApiResponse<AgentAbsence>>(cheminApi`/api/agencies/${agencyId}/absences`, {
     method: 'POST',
+    body: payload,
+    token,
+  });
+  return res.data;
+}
+
+/**
+ * TCK-2668 — modifier une absence en cours ou à venir (`PATCH`, TCK-2666). L'appelant n'envoie QUE
+ * les champs changés : la seule présence de `starts_at`, `ends_at`, `substitute_id` ou
+ * `substitute_can_act` fait juger le droit de déléguer (`UpdateAgentAbsenceRequest::touchesGrant`).
+ */
+export async function updateAbsence(
+  token: string,
+  agencyId: number,
+  absenceId: number,
+  payload: Partial<{ starts_at: string | null; ends_at: string; substitute_id: number; substitute_can_act: boolean; reason: string | null }>,
+): Promise<AgentAbsence> {
+  const res = await apiRequest<ApiResponse<AgentAbsence>>(cheminApi`/api/agencies/${agencyId}/absences/${absenceId}`, {
+    method: 'PATCH',
     body: payload,
     token,
   });

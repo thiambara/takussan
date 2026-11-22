@@ -3,11 +3,13 @@
 import type React from 'react';
 import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+import { naviguerEntreChamps, useAmenerLeChamp } from './saisie';
 
 /**
  * TCK-464 — la coquille du parcours de publication : progression, transition, navigation.
@@ -53,6 +55,11 @@ export type WizardStepDef = {
   readonly skippable?: boolean;
   /** TCK-631 — l'index de la PARTIE (dans `parts`) à laquelle l'étape appartient. */
   readonly part?: number;
+  /**
+   * TCK-2600 — l'écran d'accueil du parcours (« Publiez votre bien gratuitement ») : dans le cadre
+   * d'entrée, ni « Partie 1 sur 3 » au-dessus, et le titre de l'écran d'entrée (maquette a-0).
+   */
+  readonly accueil?: boolean;
 };
 
 export type WizardShellProps = {
@@ -75,11 +82,86 @@ export type WizardShellProps = {
   readonly barreApercu?: React.ReactNode;
   /** Les alertes du parcours (erreur globale, brouillon refusé…), au-dessus de la question. */
   readonly bandeau?: React.ReactNode;
+  /**
+   * TCK-2601 (AC5) — le nœud où la feuille de compte se rend en PANNEAU dès `xl` (1280 px) : à la
+   * place de l'étape et du pied, l'aperçu restant à droite. Le nœud est toujours monté (la feuille
+   * le lit pour son portail) ; il ne se montre, et l'étape et le pied ne se cachent, que dès `xl`
+   * quand `panneauOuvert` — sous 1280 px la feuille reste un dialogue, et rien ne change ici.
+   */
+  readonly refDuPanneau?: React.Ref<HTMLDivElement>;
+  readonly panneauOuvert?: boolean;
+  /**
+   * TCK-2600 — le cadre des écrans d'entrée (`/publish`, sans compte), dès `lg` : le `GabaritBureau`
+   * de la maquette `app-entree-publier`. Une grille centrée de 1 112 px, la question dans une colonne
+   * de 560 px, l'aperçu dans une colonne de 400 px qui reste en vue, et le pied aligné sur la même
+   * grille (la progression et les gestes sous la question, `noteDuPied` sous l'aperçu). Absent,
+   * rien ne change : `/app/properties/new` garde son cadre plein écran (aucune maquette ne le
+   * redessine, et la colonne de `/app` n'a pas la largeur de la grille).
+   */
+  readonly cadreDEntree?: boolean;
+  /** Ce que le pied dit sous l'aperçu, dans le cadre d'entrée (dès `lg`). */
+  readonly noteDuPied?: React.ReactNode;
 };
+
+/**
+ * Les gestes du pied dans le cadre d'entrée, dès `lg` : le `BoutonE` des écrans d'entrée (44 px, 15 px
+ * à 1,5, 600, ronds, écart de 8, sans le filet transparent de `Button`). Le fantôme de la maquette est
+ * en encre à 80 % : le produit garde l'encre pleine, une encre de texte ne s'atténue pas par l'opacité
+ * (TCK-658, `encre-sans-alpha.contraste.test.ts`).
+ */
+/**
+ * TCK-2819 — les gestes du pied SOUS `lg`, aux deux entrées (`/publish` et `/app/properties/new`) : le
+ * `PiedAssistant` de la maquette `app-entree-publier` (`BoutonE` « grand » : 48 px, 16 px / 600, ronds,
+ * sans le filet transparent de `Button`). Dès `lg`, rien ne change : le cadre d'entrée a ses gestes
+ * (`GESTE_D_ENTREE`), le cadre plein écran de `/app` garde les siens.
+ */
+const GESTE_DU_TELEPHONE = 'max-lg:h-12 max-lg:gap-2 max-lg:rounded-full max-lg:border-0 max-lg:text-action max-lg:leading-normal max-lg:font-semibold';
+
+/**
+ * TCK-2988 — « Précédent » SOUS `lg` (maquette « L'écran économe », validée le 2026-11-21) : un bouton rond de
+ * 48 px à flèche, cerné, à côté d'un « Continuer » qui prend le reste de la ligne. Le libellé reste dans le
+ * bouton, lu par les lecteurs d'écran (`max-lg:sr-only`) ; dès `lg`, rien ne change.
+ */
+const PRECEDENT_DU_TELEPHONE = 'max-lg:size-12 max-lg:rounded-full max-lg:border-input max-lg:bg-card max-lg:p-0';
+
+const GESTE_D_ENTREE = 'lg:h-11 lg:gap-2 lg:rounded-full lg:border-0 lg:px-5 lg:text-corps lg:leading-normal lg:font-semibold';
+
+/**
+ * TCK-2600 — la grille du `GabaritBureau` de la maquette, dès `lg`. Ses mesures sont des px FIXES
+ * dans la maquette (560, 400, 1 112), que la densité du bureau ne réduit pas : elles s'écrivent en
+ * `rem` (35, 25, 69,5), hors de l'échelle ; la marge `px-8` et les espacements, eux, suivent
+ * l'échelle comme dans la maquette.
+ */
+// `minmax(0,35rem)` : à 1024 px, la grille n'a que 6 px de marge ; une barre de défilement classique
+// (15 px, Windows) dans la zone défilante la ferait déborder — la colonne de la question cède alors
+// quelques pixels au lieu de faire défiler la page de côté.
+const GRILLE_D_ENTREE = 'lg:mx-auto lg:grid lg:w-full lg:max-w-[69.5rem] lg:grid-cols-[minmax(0,35rem)_25rem] lg:justify-between lg:px-8';
+
+/**
+ * Une rangée du cadre d'entrée (le corps, puis le pied) : la question — ou la progression et les
+ * gestes — dans la colonne de 560 px, l'aperçu — ou la note du pied — dans celle de 400 px. Hors du
+ * cadre d'entrée, rien n'enveloppe : le DOM de `/app/properties/new` reste celui d'avant TCK-2600.
+ */
+function GrilleDEntree({
+  active, className, apercu, children,
+}: {
+  readonly active: boolean;
+  readonly className: string;
+  readonly apercu: React.ReactNode;
+  readonly children: React.ReactNode;
+}) {
+  if (!active) return <>{children}</>;
+  return (
+    <div className={cn(GRILLE_D_ENTREE, className)}>
+      <div className="min-w-0">{children}</div>
+      {apercu}
+    </div>
+  );
+}
 
 export function WizardShell({
   steps, index, direction, onNavigate, onFinish, finishLabel, busy = false, parts,
-  entete, apercu, barreApercu, bandeau,
+  entete, apercu, barreApercu, bandeau, refDuPanneau, panneauOuvert = false, cadreDEntree = false, noteDuPied,
 }: WizardShellProps) {
   const t = useTranslations('property.wizard');
   const etape = steps[index];
@@ -90,14 +172,23 @@ export function WizardShell({
 
   // Le pied tient le bas de l'écran pendant tout le parcours : il revendique le bord bas auprès
   // du dock, sans quoi un élément flottant se posait sur « Continuer » à 390 px (mesuré le
-  // 2026-09-16). Hauteur : bordure + barre (4) + libellés des parties (22) + `pt-3` + bouton `lg`
-  // (40) + `pb-4`.
+  // 2026-09-16). TCK-2988 — au téléphone, le pied compact fait 77 px : segments (3) + `pt-2.5` + geste
+  // de 48 + 16 px en bas, ou la zone de sécurité (10 px d'abord ; le porteur a demandé de l'air sous « Continuer »,
+  // que les coins arrondis de Chrome iOS rognaient). Dès `lg`, 100 px (relevé à 1024 le 2026-11-21) : c'est la plus
+  // grande des deux qu'on réserve. Le pied applique ce que la déclaration rend (TCK-477 : déclarer et appliquer sont le
+  // même geste).
   const pied = useFloatingDockSlot({
     id: 'property-wizard-footer',
     corner: 'bottom-full',
-    height: 97,
-    safeAreaInset: 'calc(1rem + env(safe-area-inset-bottom))',
+    height: 100,
+    safeAreaInset: 'max(calc(var(--spacing) * 4), env(safe-area-inset-bottom))',
   });
+
+  // ADR-0133 (TCK-2988) — le mode saisie : le champ qui prend le focus est amené à sa place, ↑ ↓ passent d'un champ
+  // à l'autre. S'abonner à la mesure suffit à publier `data-saisie` sur `<html>`.
+  const refCorps = useRef<HTMLDivElement>(null);
+  const { saisie } = useAmenerLeChamp(refCorps);
+  const continuer = () => (derniere ? onFinish() : onNavigate(index + 1, 1));
 
   const titreRef = useRef<HTMLHeadingElement>(null);
   // Premier rendu excepté : le focus ne se déplace que sur un CHANGEMENT d'étape, jamais au
@@ -130,156 +221,325 @@ export function WizardShell({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div
+      className={cn(
+        'flex h-full min-h-0 flex-col',
+        // ADR-0133 — hors du cadre d'entrée (`/app/properties/new`), c'est l'assistant lui-même qui se cale sur la
+        // fenêtre visible pendant la saisie, au téléphone : par-dessus la barre et les onglets de l'application.
+        // Dans le cadre d'entrée, c'est la coque (`CoqueDEntree`).
+        !cadreDEntree &&
+          'max-lg:saisie:fixed max-lg:saisie:inset-x-0 max-lg:saisie:top-[var(--vue-top,0px)] max-lg:saisie:z-40 max-lg:saisie:h-[var(--vue-h,100dvh)] max-lg:saisie:bg-background',
+      )}
+    >
       {entete}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {barreApercu ? <div className="shrink-0 lg:hidden">{barreApercu}</div> : null}
-          {bandeau ? <div className="shrink-0 px-4 pt-4 sm:px-8 lg:px-12 xl:px-14">{bandeau}</div> : null}
+          {/* Maquette a-0 (téléphone) : le départ n'a pas encore de résumé — rien n'a été dit. */}
+          {barreApercu && !etape.accueil ? <div className="shrink-0 lg:hidden saisie:hidden">{barreApercu}</div> : null}
+          {/* ADR-0133 — en saisie, au téléphone, le bandeau se replie (notes, reprise du brouillon) : il revient avec le clavier fermé. */}
+          {bandeau ? <div className="shrink-0 px-4 pt-4 sm:px-8 lg:px-12 xl:px-14 max-lg:saisie:hidden">{bandeau}</div> : null}
 
           {/* ── Corps : LA SEULE zone défilante (AC9) ── */}
-          <div data-wizard-scroll className="min-h-0 flex-1 overflow-y-auto">
-            <div
-              key={etape.id}
-              className={cn(
-                'mx-auto w-full max-w-3xl px-4 pt-6 pb-10 sm:px-8 lg:pt-9 xl:px-14',
-                direction > 0 ? 'wizard-step-in-forward' : 'wizard-step-in-back',
-              )}
+          <div ref={refCorps} data-wizard-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <GrilleDEntree
+              active={cadreDEntree}
+              className="lg:pt-10 lg:pb-12"
+              apercu={
+                apercu ? (
+                  <aside aria-label={t('preview.label')} className="hidden lg:block">
+                    {/* Maquette : l'aperçu reste en vue à 104 px du haut de la page, sous la barre de 64. */}
+                    <div className="sticky top-[calc(6.5rem-var(--spacing)*16)] flex flex-col gap-4">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="text-xs font-semibold tracking-surtitre text-muted-foreground uppercase">{t('preview.label')}</p>
+                        <span className="text-ui text-muted-foreground">{t('preview.hint')}</span>
+                      </div>
+                      {apercu}
+                    </div>
+                  </aside>
+                ) : null
+              }
             >
-              {parts ? (
-                <p className="mb-2 text-[0.6875rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                  {t('partPosition', {
-                    current: partieCourante + 1,
-                    total: parts.length,
-                    label: parts[partieCourante],
-                  })}
-                </p>
-              ) : null}
-              <h1
-                ref={titreRef}
-                tabIndex={-1}
-                // ⚠ Pas de `focus:outline-none` nu (motif de `SuperAdminShell`) : là-bas la cible
-                // est une grande zone de contenu atteinte une fois par session via un lien
-                // d'évitement — ici c'est un titre atteint par une action clavier répétée (jusqu'à
-                // cinq fois dans un parcours), et retirer l'indicateur visuel priverait exactement
-                // le moment où quelqu'un au clavier veut confirmer où le focus est allé. `--ring`
-                // (#a85332) mesure ≈5,07:1 sur `--background` (#fcf9f3), au-dessus du seuil
-                // non-texte de 3:1 : pas de `ring-offset` nécessaire.
-                //
-                // TCK-631 — `h1` et non plus `h2` : la page ne porte plus de titre au-dessus du
-                // parcours (il disait « Publier un bien » une troisième fois). La question est le
-                // titre de la route.
-                className="font-display text-[1.625rem] leading-8 font-bold tracking-tight text-balance text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:text-4xl sm:leading-10"
+              <div
+                ref={refDuPanneau}
+                data-wizard-panneau=""
+                data-cadre-d-entree={cadreDEntree ? '' : undefined}
+                className={cn(
+                  // TCK-2934 — dans le cadre d'entrée, dès `lg` : le seuil de `usePanneauDeBureau` (`CadreDeLaFeuille`).
+                  panneauOuvert ? (cadreDEntree ? 'hidden lg:block' : 'hidden xl:block') : 'hidden',
+                  // Le panneau de compte (TCK-2601) se pose dans la colonne de la question : celle de la
+                  // grille d'entrée, ou celle du cadre plein écran.
+                  !cadreDEntree && 'mx-auto w-full max-w-3xl px-4 pt-6 pb-10 sm:px-8 lg:pt-9 xl:px-14',
+                )}
+              />
+              <div
+                key={etape.id}
+                className={cn(
+                  'mx-auto w-full max-w-3xl px-4 pt-6 pb-10 sm:px-8 lg:pt-9 xl:px-14',
+                  cadreDEntree && 'lg:mx-0 lg:max-w-none lg:p-0 xl:px-0',
+                  direction > 0 ? 'wizard-step-in-forward' : 'wizard-step-in-back',
+                  panneauOuvert && (cadreDEntree ? 'lg:hidden' : 'xl:hidden'),
+                )}
               >
-                {etape.title}
-              </h1>
-              <p className="mt-2 text-sm leading-relaxed text-pretty text-muted-foreground sm:text-base">
-                {etape.subtitle}
-              </p>
-              <div className="mt-7 space-y-7">{etape.body}</div>
-            </div>
+                {parts && !(cadreDEntree && etape.accueil) ? (
+                  <p
+                    className={cn(
+                      'mb-2 text-[calc(var(--spacing)*2.75)] font-semibold tracking-[0.12em] text-muted-foreground uppercase',
+                      cadreDEntree && 'lg:text-xs',
+                    )}
+                  >
+                    {t('partPosition', {
+                      current: partieCourante + 1,
+                      total: parts.length,
+                      label: parts[partieCourante],
+                    })}
+                  </p>
+                ) : null}
+                <h1
+                  ref={titreRef}
+                  tabIndex={-1}
+                  // ⚠ Pas de `focus:outline-none` nu (motif de `SuperAdminShell`) : là-bas la cible
+                  // est une grande zone de contenu atteinte une fois par session via un lien
+                  // d'évitement — ici c'est un titre atteint par une action clavier répétée (jusqu'à
+                  // cinq fois dans un parcours), et retirer l'indicateur visuel priverait exactement
+                  // le moment où quelqu'un au clavier veut confirmer où le focus est allé. `--ring`
+                  // (#a85332) mesure ≈5,07:1 sur `--background` (#fcf9f3), au-dessus du seuil
+                  // non-texte de 3:1 : pas de `ring-offset` nécessaire.
+                  //
+                  // TCK-631 — `h1` et non plus `h2` : la page ne porte plus de titre au-dessus du
+                  // parcours (il disait « Publier un bien » une troisième fois). La question est le
+                  // titre de la route.
+                  className={cn(
+                    'font-display font-semibold tracking-titre text-balance text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:text-4xl sm:leading-10',
+                    // TCK-2819 (lot 2) — maquette, téléphone : la question en 26 px, 600, interligne 1,15 ;
+                    // l'accueil (a-0) en 28 px. Aux deux entrées : un seul assistant.
+                    etape.accueil ? 'text-affiche-28 leading-[1.12]' : 'text-affiche-26 leading-[1.15]',
+                    // Maquette a-1 à a-5 : 32 px, 600, interligne 1,1 ; a-0 (l'accueil) : 36 px, 1,08.
+                    cadreDEntree &&
+                      (etape.accueil
+                        ? 'lg:text-affiche-32 lg:leading-[1.08] lg:font-semibold lg:tracking-titre'
+                        : 'lg:text-affiche-32 lg:leading-[1.1] lg:font-semibold lg:tracking-titre'),
+                  )}
+                >
+                  {etape.title}
+                </h1>
+                <p
+                  className={cn(
+                    // TCK-2819 (lot 2) — la phrase de la question, 15 px au téléphone (maquette `TitreQuestion`).
+                    'mt-1.5 text-corps leading-snug text-pretty text-muted-foreground sm:mt-2 sm:text-base sm:leading-relaxed',
+                    cadreDEntree &&
+                      (etape.accueil ? 'lg:mt-3 lg:text-titre-court lg:leading-normal' : 'lg:mt-1.5 lg:text-corps lg:leading-snug'),
+                  )}
+                >
+                  {etape.subtitle}
+                </p>
+                <div className="mt-7 space-y-7">{etape.body}</div>
+              </div>
+            </GrilleDEntree>
+            {/* ADR-0133 — en saisie, de quoi amener en tête du corps même le dernier champ. */}
+            <div aria-hidden="true" data-cale-de-saisie="" className="hidden h-[var(--vue-h,100dvh)] max-lg:saisie:block" />
           </div>
 
           {/* ── Pied : HORS de la zone défilante. Le moyen d'avancer ne sort jamais de l'écran. ── */}
           <div
             data-wizard-footer
+            className={cn(
+              // TCK-2819 — sous `lg`, le `Pied` de la maquette : carte, ombre portée vers le haut.
+              // L'ombre (le jeton `--shadow-barre-collante`, celle du `Pied`) porte `max-lg:` : un
+              // `lg:shadow-none` laisserait des ombres transparentes calculées.
+              // TCK-2988 — sous `lg`, ni bordure ni retrait du haut : les segments de la progression SONT le bord
+              // du pied ; en bas, 16 px ou la zone de sécurité (`paddingBottom`, rendu par le dock).
+              'shrink-0 bg-card max-lg:shadow-barre-collante',
+              'lg:border-t lg:border-border',
+              cadreDEntree
+                ? 'lg:bg-card'
+                : 'lg:bg-background/95 lg:backdrop-blur lg:supports-[backdrop-filter]:bg-background/80',
+              panneauOuvert && (cadreDEntree ? 'lg:hidden' : 'xl:hidden'),
+              // ADR-0133 — en saisie, au téléphone, la barre de saisie prend sa place (ci-dessous).
+              'max-lg:saisie:hidden',
+            )}
             style={{ paddingBottom: pied.paddingBottom }}
-            className="shrink-0 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
           >
-            <div
-              role="progressbar"
-              aria-valuenow={index + 1}
-              aria-valuemin={1}
-              aria-valuemax={steps.length}
-              aria-valuetext={t('position', { current: index + 1, total: steps.length })}
-              aria-label={t('progressLabel')}
-              className="-mt-px grid gap-1.5 px-4 sm:px-8 xl:px-14"
-              style={{ gridTemplateColumns: `repeat(${segments.length}, minmax(0, 1fr))` }}
+            <GrilleDEntree
+              active={cadreDEntree}
+              className="lg:items-center lg:pt-3"
+              apercu={<div className="hidden text-ui leading-snug text-pretty text-muted-foreground lg:block">{noteDuPied}</div>}
             >
-              {segments.map((_, partie) => (
-                <div key={partie} className="h-1 overflow-hidden rounded-full bg-muted">
-                  {/*
-                    420 ms : PLUS LENT que la transition d'étape (300 ms), délibérément. La barre
-                    finit après, donc on la voit avancer — si elle finissait avant, l'œil serait
-                    déjà parti.
-                  */}
-                  <div
-                    className={cn(
-                      'h-full rounded-full transition-[width] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
-                      partie < partieCourante ? 'bg-foreground' : 'bg-primary',
-                    )}
-                    style={{
-                      width: `${(parts ? remplissage(partie) : (index + 1) / steps.length) * 100}%`,
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-            {parts ? (
               <div
-                aria-hidden="true"
-                className="grid gap-1.5 px-4 pt-1.5 text-xs text-muted-foreground sm:px-8 xl:px-14"
-                style={{ gridTemplateColumns: `repeat(${parts.length}, minmax(0, 1fr))` }}
+                role="progressbar"
+                aria-valuenow={index + 1}
+                aria-valuemin={1}
+                aria-valuemax={steps.length}
+                aria-valuetext={t('position', { current: index + 1, total: steps.length })}
+                aria-label={t('progressLabel')}
+                // TCK-2988 — sous `lg`, les segments vont d'un bord à l'autre, séparés de 2 px.
+                className={cn('grid gap-0.5 lg:-mt-px lg:gap-1.5 lg:px-8 xl:px-14', cadreDEntree && 'lg:mt-0 lg:px-0 xl:px-0')}
+                style={{ gridTemplateColumns: `repeat(${segments.length}, minmax(0, 1fr))` }}
               >
-                {parts.map((libelle, partie) => (
-                  <span
-                    key={libelle}
-                    className={cn('truncate', partie === partieCourante && 'font-semibold text-foreground')}
-                  >
-                    {libelle}
-                  </span>
+                {segments.map((_, partie) => (
+                  // Sous `lg` (maquette « L'écran économe ») : 3 px, à angles droits ; le rail en `border`, chaque
+                  // partie atteinte en `primary`.
+                  <div key={partie} className="h-[calc(var(--spacing)*0.75)] overflow-hidden bg-border lg:h-1 lg:rounded-full lg:bg-muted">
+                    {/*
+                      420 ms : PLUS LENT que la transition d'étape (300 ms), délibérément. La barre
+                      finit après, donc on la voit avancer — si elle finissait avant, l'œil serait
+                      déjà parti.
+                    */}
+                    <div
+                      className={cn(
+                        'h-full transition-[width] lg:rounded-full duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
+                        partie < partieCourante ? 'bg-primary lg:bg-foreground' : 'bg-primary',
+                      )}
+                      style={{
+                        width: `${(parts ? remplissage(partie) : (index + 1) / steps.length) * 100}%`,
+                      }}
+                    />
+                  </div>
                 ))}
               </div>
-            ) : null}
-
-            <div className="flex items-center gap-2 px-4 pt-3 sm:px-8 xl:px-14">
-              <Button
-                type="button"
-                variant="ghost"
-                size="lg"
-                disabled={index === 0 || busy}
-                onClick={() => onNavigate(index - 1, -1)}
-                className="-ml-2.5"
-              >
-                {t('back')}
-              </Button>
-              <div className="ml-auto flex items-center gap-2">
-                {etape.skippable && !derniere ? (
-                  <Button type="button" variant="ghost" size="lg" disabled={busy}
-                    onClick={() => onNavigate(index + 1, 1)}>
-                    {t('skip')}
-                  </Button>
-                ) : null}
-                <Button
-                  type="button"
-                  size="lg"
-                  className="min-w-36 sm:min-w-44"
-                  disabled={busy || !peutAvancer}
-                  onClick={() => (derniere ? onFinish() : onNavigate(index + 1, 1))}
+              {parts ? (
+                <div
+                  aria-hidden="true"
+                  // TCK-2988 — sous `lg`, pas de libellés : le nom de la partie est écrit au-dessus de la question.
+                  className={cn('hidden gap-1.5 px-8 pt-1.5 text-xs text-muted-foreground lg:grid xl:px-14', cadreDEntree && 'lg:px-0 xl:px-0')}
+                  style={{ gridTemplateColumns: `repeat(${parts.length}, minmax(0, 1fr))` }}
                 >
-                  {busy ? (
-                    <>
-                      <Loader2 className="animate-spin" aria-hidden="true" />
-                      <span>{t('saving')}</span>
-                    </>
-                  ) : (
-                    <span>{derniere ? finishLabel : t('continue')}</span>
+                  {parts.map((libelle, partie) => (
+                    <span
+                      key={libelle}
+                      className={cn('truncate', partie === partieCourante && 'font-semibold text-foreground')}
+                    >
+                      {libelle}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Sous 390 px, l'écart passe de 12 à 8 : a-4 (trois gestes) finissait à 346 px sur 360, dans la marge. */}
+              <div className={cn('flex items-center gap-3 px-4 pt-2.5 max-[389px]:gap-2 sm:px-8 lg:gap-2 lg:pt-3 xl:px-14', cadreDEntree && 'lg:px-0 xl:px-0')}>
+                {/*
+                  Maquette a-0 : le départ n'a pas de « Précédent » (rien avant lui), plutôt qu'un geste
+                  éteint — au téléphone aux deux entrées (TCK-2819), dès `lg` dans le cadre d'entrée seul.
+                */}
+                {cadreDEntree && index === 0 ? null : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="lg"
+                    disabled={index === 0 || busy}
+                    onClick={() => onNavigate(index - 1, -1)}
+                    className={cn(
+                      PRECEDENT_DU_TELEPHONE,
+                      'lg:-ml-2.5',
+                      index === 0 && 'max-lg:hidden',
+                      cadreDEntree && [GESTE_D_ENTREE, 'lg:-ml-5'],
+                    )}
+                  >
+                    <ArrowLeft className="size-5 lg:hidden" strokeWidth={1.75} aria-hidden="true" />
+                    <span className="max-lg:sr-only">{t('back')}</span>
+                  </Button>
+                )}
+                {/* Maquette a-4 : « Plus tard » touche « Continuer » (aucun écart entre eux) dès `lg`. */}
+                <div
+                  className={cn(
+                    // TCK-2988 — sous `lg`, le reste de la ligne : « Plus tard » à sa largeur, « Continuer » au reste.
+                    'ml-auto flex items-center gap-3 max-lg:min-w-0 max-lg:flex-1 max-[389px]:gap-2 lg:gap-2',
+                    cadreDEntree && 'lg:gap-0',
                   )}
-                </Button>
+                >
+                  {etape.skippable && !derniere ? (
+                    <Button type="button" variant="ghost" size="lg" disabled={busy}
+                      className={cn(GESTE_DU_TELEPHONE, 'max-lg:px-2', cadreDEntree && GESTE_D_ENTREE)}
+                      onClick={() => onNavigate(index + 1, 1)}>
+                      {t('skip')}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="lg"
+                    className={cn(
+                      GESTE_DU_TELEPHONE,
+                      // TCK-2988 — sous `lg`, « Continuer » prend le reste de la ligne (maquette « L'écran économe ») ;
+                      // sous 390 px avec « Plus tard », son retrait cède (a-4 à 360, TCK-2819). Dès `lg`, 176 px au moins.
+                      'max-lg:min-w-0 max-lg:flex-1 max-lg:px-6 lg:min-w-44',
+                      etape.skippable && !derniere && 'max-[389px]:px-5',
+                      cadreDEntree && [GESTE_D_ENTREE, 'lg:min-w-[11rem]'],
+                    )}
+                    disabled={busy || !peutAvancer}
+                    onClick={continuer}
+                  >
+                    {busy ? (
+                      <>
+                        <Loader2 className="animate-spin" aria-hidden="true" />
+                        <span>{t('saving')}</span>
+                      </>
+                    ) : derniere ? (
+                      // Le libellé est le texte du bouton lui-même, sans enveloppe (le `BoutonE` de la
+                      // maquette) : le relevé apparie alors le texte au bouton entier.
+                      finishLabel
+                    ) : (
+                      t('continue')
+                    )}
+                  </Button>
+                </div>
               </div>
-            </div>
+            </GrilleDEntree>
           </div>
+
+          {/*
+            ADR-0133 — la barre de saisie (maquette « L'écran économe ») : 52 px collés au clavier, au téléphone, pendant
+            la saisie seulement. ↑ ↓ empêchent leur `pointerdown` : le focus ne quitte jamais le champ, le clavier
+            reste ouvert. Puis la partie et le rang, et « Continuer ».
+          */}
+          {/* Rendue en saisie seulement : hors d'elle, un second « Continuer » n'a rien à faire dans la page. */}
+          {saisie ? (
+          <div
+            data-barre-de-saisie=""
+            className="hidden h-13 shrink-0 items-center gap-1 border-t border-border bg-card px-2 max-lg:saisie:flex"
+          >
+            <button
+              type="button"
+              aria-label={t('saisie.precedent')}
+              onPointerDown={(evenement) => evenement.preventDefault()}
+              onClick={() => naviguerEntreChamps(refCorps.current, -1)}
+              className="grid size-10 flex-none place-items-center rounded-full text-foreground transition-colors active:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <ChevronUp className="size-5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={t('saisie.suivant')}
+              onPointerDown={(evenement) => evenement.preventDefault()}
+              onClick={() => naviguerEntreChamps(refCorps.current, 1)}
+              className="grid size-10 flex-none place-items-center rounded-full text-foreground transition-colors active:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <ChevronDown className="size-5" aria-hidden="true" />
+            </button>
+            <span className="min-w-0 flex-1 truncate px-1 text-xs text-muted-foreground tabular-nums">
+              {parts
+                ? t('saisie.position', { partie: parts[partieCourante], current: index + 1, total: steps.length })
+                : t('position', { current: index + 1, total: steps.length })}
+            </span>
+            <Button
+              type="button"
+              disabled={busy || !peutAvancer}
+              onClick={continuer}
+              className="h-10 flex-none rounded-full px-5 text-sm font-semibold"
+            >
+              {derniere ? finishLabel : t('continue')}
+            </Button>
+          </div>
+          ) : null}
         </div>
 
-        {apercu ? (
+        {apercu && !cadreDEntree ? (
           <aside
             aria-label={t('preview.label')}
-            className="hidden w-[22rem] shrink-0 overflow-y-auto border-l border-border bg-muted/40 lg:block xl:w-[25rem]"
+            className="hidden w-88 shrink-0 overflow-y-auto border-l border-border bg-muted/40 lg:block xl:w-100"
           >
             <div className="flex flex-col gap-4 p-6 xl:p-8">
               <div className="flex items-baseline justify-between gap-3">
-                <p className="text-[0.6875rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                <p className="text-[calc(var(--spacing)*2.75)] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                   {t('preview.label')}
                 </p>
                 <span className="text-xs text-muted-foreground">{t('preview.hint')}</span>

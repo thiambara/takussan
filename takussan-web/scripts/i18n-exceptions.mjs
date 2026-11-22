@@ -100,6 +100,16 @@ const R_POC_PLAYGROUND =
   + "false }`, ce qui était le vrai défaut. L'énoncé précédent concluait à la suppression du POC ; "
   + "la documentation qui fait autorité disait l'inverse.";
 
+// TCK-2685 — la vitrine de la partie connectée.
+const R_VITRINE_APP =
+  "Vitrine des jetons et des primitives de `/app` (`/playground/vitrine`, TCK-2685, ADR-0106 § 5) : "
+  + "un banc de MESURE pour l'outil de fidélité, et non une surface produit — elle rend 404 dans toute "
+  + "construction de production et déclare `noindex`, comme le POC voisin. Ses libellés nomment des "
+  + "jetons (`text-sm`, `montantCourt`) ou recopient le texte d'une maquette (« 2 biens libres ce "
+  + "soir ») pour en éprouver l'interligne : les traduire fixerait dans le dictionnaire des chaînes "
+  + "sans propriétaire produit, et changerait ce que la mesure compare. Le fichier ENTIER est visé : "
+  + "chaque ticket de primitive (TCK-2686 à TCK-2691) y ajoute ses états.";
+
 const R_JETON_SCHEMA_ORG =
   "Valeur normative de `query-input` dans une `SearchAction` de schema.org : la chaîne EST le "
   + "vocabulaire, au même titre que `@type` ou `https://schema.org`. Elle n'est pas rendue, elle est "
@@ -195,6 +205,16 @@ export const EXCEPTIONS_JUSTIFIEES = [
   },
 
   {
+    fichier: 'src/test/lien-etire.ts',
+    motif: /^(le lien porte son pseudo-élément absolu|un ancêtre positionné porte la zone|la zone est en `relative`|la zone est dans la carte)$/,
+    famille: 'TECHNIQUE',
+    raison:
+      "Messages d'ÉCHEC d'assertions vitest (`expect(…, message)`) de l'aide de test de TCK-2792 : ils "
+      + "ne s'affichent que dans la sortie d'un test rouge, jamais sur un écran. Même cas que "
+      + '`src/test/analyse-statique.ts` : exception nommée plutôt qu\'exclusion de `src/test/**`.',
+  },
+
+  {
     fichier: 'src/lib/access/server-guards.ts',
     litteral: 'fetch failed',
     famille: 'TECHNIQUE',
@@ -246,15 +266,6 @@ export const EXCEPTIONS_JUSTIFIEES = [
       + "d'icône lucide (le champ attend un nom d'icône, pas un libellé) et `#2563eb` une couleur "
       + "hexadécimale. Les deux sont identiques dans les trois langues ; les traduire les rendrait "
       + "faux.",
-  },
-  {
-    fichier: 'src/components/onboarding/AgentOnboardingWizard.tsx',
-    litteral: 'placeholder="AGT-2026-001"',
-    famille: 'TECHNIQUE',
-    raison:
-      "Exemple du FORMAT d'un numéro de carte d'agent immobilier, pas une phrase. Le libellé et "
-      + "l'aide du champ, eux, passent par `t('licenseNumberLabel')` et `t('licenseNumberHint')` "
-      + "juste au-dessus et juste en dessous.",
   },
   {
     fichier: 'src/components/admin-settings/IntegrationsManager.tsx',
@@ -383,6 +394,8 @@ export const EXCEPTIONS_JUSTIFIEES = [
   // la garde* — le noter ici évite qu'on en conclue un jour que l'autre était volontairement
   // traduisible.
   { fichier: 'src/lib/queries/public-discovery.ts', litteral: '[accueil] découverte indisponible :', famille: 'TECHNIQUE', raison: R_JOURNAL_RENDU_PUBLIC },
+  { fichier: 'src/lib/queries/raccourcis-de-l-accueil.ts', litteral: '[accueil] quartiers indisponibles :', famille: 'TECHNIQUE', raison: R_JOURNAL_RENDU_PUBLIC },
+  { fichier: 'src/lib/queries/raccourcis-de-l-accueil.ts', litteral: '[accueil] offre de la ville indisponible :', famille: 'TECHNIQUE', raison: R_JOURNAL_RENDU_PUBLIC },
 
   // ── TECHNIQUE — un JETON du vocabulaire schema.org (TCK-435) ───────────────────────────────────
   { fichier: 'src/lib/jsonld-site.ts', litteral: 'required name=search_term_string', famille: 'TECHNIQUE', raison: R_JETON_SCHEMA_ORG },
@@ -398,6 +411,7 @@ export const EXCEPTIONS_JUSTIFIEES = [
   { fichier: 'src/components/playground/PropertyRowLocal.tsx', motif: /^(Wide horizontal|Variante :|Tout voir|aria-label="(Précédent|Suivant)"|Pas encore de biens dans cette sélection\.)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PropertyCardLocal.tsx', motif: /^(En vente|En location|ch|sdb)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PropertyCardCompact.tsx', litteral: 'ch', famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
+  { fichier: 'src/app/[locale]/(public)/playground/vitrine/VitrineClient.tsx', motif: /^[\s\S]+$/, famille: 'PLAYGROUND', raison: R_VITRINE_APP },
   {
     fichier: 'src/app/[locale]/(public)/playground/page.tsx',
     litteral: 'Times New Roman',

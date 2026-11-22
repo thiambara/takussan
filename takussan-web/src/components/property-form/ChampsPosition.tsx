@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { LocationPickerMapLoader } from '@/components/map/LocationPickerMapLoader';
 import { horsDuSenegal, reconnaitrePosition, type Coordonnees } from '@/lib/geo/reconnaitre-position';
 import type { PropertyFormValues } from '@/lib/schemas/property';
+import { cn } from '@/lib/utils';
 import { useReferentielGeo, useResolutionDeLien } from './useReferentielGeo';
 
 type Identifiant = number | null | undefined;
@@ -38,13 +39,25 @@ function nombreOuNul(brut: string): number | string | null {
 export function ChampsPosition({
   form,
   indiceCarte,
+  presentation = 'edition',
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
   /** La consigne affichée sous la carte — propre à chaque écran. */
   readonly indiceCarte: string;
+  /**
+   * TCK-2819 — `assistant` : la mise en page de la maquette `app-entree-publier` (geste en pastille,
+   * collage et geste côte à côte dès le bureau). La page d'édition garde la sienne.
+   */
+  readonly presentation?: 'edition' | 'assistant';
 }) {
   const t = useTranslations('property.form.address');
+  const assistant = presentation === 'assistant';
   const { control, setValue } = form;
+  // ADR-0135 — latitude et longitude sont des champs TEXTE (profil `coordonnee` : le pavé décimal d'iOS n'a pas de
+  // signe moins, et la longitude du Sénégal est négative) : ce qui est tapé (« 14, »,
+  // « -17. ») reste affiché tant qu'il se lit comme la valeur du formulaire, sans quoi la virgule
+  // s'effacerait à la frappe. Une valeur posée par la carte ou le collage l'emporte.
+  const [frappes, setFrappes] = useState<Partial<Record<'latitude' | 'longitude', string>>>({});
   const [regionIdSuivi, villeIdSuivi, latSuivie, lngSuivie] = useWatch({
     control,
     name: ['geo_region_id', 'geo_city_id', 'latitude', 'longitude'],
@@ -117,22 +130,24 @@ export function ChampsPosition({
         <label htmlFor="champ-collage" className="mb-1.5 block text-sm font-medium">
           {t('pasteLabel')}
         </label>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className={cn('flex flex-col gap-2', assistant ? 'lg:flex-row' : 'sm:flex-row')}>
           <Input
             id="champ-collage"
             value={collage}
             onChange={(e) => setCollage(e.target.value)}
+            profil="recherche"
+            enterKeyHint="go"
             onPaste={surCollage}
             onKeyDown={surTouche}
             placeholder={t('pastePlaceholder')}
-            autoComplete="off"
             aria-describedby={retour ? 'champ-collage-retour' : undefined}
             className="min-h-11"
           />
           <Button
             type="button"
             variant="outline"
-            className="min-h-11 shrink-0"
+            // TCK-2819 — dans l'assistant, la pastille de la maquette (« Placer sur la carte »).
+            className={cn('min-h-11 shrink-0', assistant && 'rounded-full')}
             onClick={() => lire(collage)}
             disabled={resolution.isPending}
           >
@@ -164,13 +179,20 @@ export function ChampsPosition({
                 </label>
                 <Input
                   id={`champ-${nom}`}
-                  type="number"
-                  inputMode="decimal"
-                  step="any"
+                  profil="coordonnee"
+                  placeholder={t(`${nom}Placeholder`)}
                   ref={field.ref}
                   name={field.name}
-                  value={(field.value as number | string | null | undefined) ?? ''}
-                  onChange={(e) => field.onChange(nombreOuNul(e.target.value))}
+                  value={
+                    frappes[nom] !== undefined && nombreOuNul(frappes[nom] ?? '') === (field.value ?? null)
+                      ? frappes[nom]
+                      : ((field.value as number | string | null | undefined) ?? '')
+                  }
+                  onChange={(e) => {
+                    const saisie = e.target.value;
+                    setFrappes((f) => ({ ...f, [nom]: saisie }));
+                    field.onChange(nombreOuNul(saisie));
+                  }}
                   onBlur={field.onBlur}
                   aria-invalid={fieldState.error ? true : undefined}
                   aria-describedby={fieldState.error ? `champ-${nom}-error` : undefined}

@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\User;
 use App\Providers\AppServiceProvider;
+use App\Rules\PersonnelDeLAgence;
 
 /**
  * TCK-290 — « Qui administre cette agence ». UNE définition, ici.
@@ -72,6 +73,19 @@ class AgencyPolicy
 
         return $this->update($user, $agency)
             && $user->canActAt(Capability::AgencyUpdate, $agency);
+    }
+
+    /**
+     * TCK-2920 (ADR-0111 § 1) — LIRE les réglages de bail de l'agence (`GET /api/settings/lease`) :
+     * le personnel ACTIF de l'agence, sous un profil actif de cette agence (admin ou agent, compte
+     * joignable — {@see PersonnelDeLAgence::personnelActifDe()}, ADR-0031 § 1), et qui configure
+     * l'agence. Aucune capacité nouvelle. Jamais le bailleur, le prestataire, le locataire, un profil
+     * non actif ni le personnel d'une autre agence. L'écriture reste à {@see self::configure()}.
+     */
+    public function viewLeaseSettings(User $user, Agency $agency): bool
+    {
+        return PersonnelDeLAgence::personnelActifDe($user, $agency->id)
+            || $this->configure($user, $agency);
     }
 
     /**

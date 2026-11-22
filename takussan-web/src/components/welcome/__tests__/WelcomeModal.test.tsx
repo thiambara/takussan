@@ -142,7 +142,12 @@ describe('WelcomeModal — pas de bloc vide dans le carrousel (TCK-567, M10)', (
     // Dimensionnée sur téléphone par la HAUTEUR DE L'ÉCRAN (la modale y est plein écran) : sans
     // cette hauteur, la boîte se réduit à son icône et le vide revient — 241 px sans rien de
     // peint à 390 × 844 au lieu de 121.
-    const telephone = classes.map((c) => /^h-\[clamp\(([\d.]+)rem,(.+),([\d.]+)rem\)\]$/.exec(c)).find(Boolean);
+    // TCK-2692 — longueurs en pas d'espacement (`var(--spacing)*K`, ¼ rem sous `lg`, ADR-0107) :
+    // `rem()` les ramène en rem pour garder les bornes mesurées ci-dessous.
+    const LONGUEUR = String.raw`var\(--spacing\)\*([\d.]+)`;
+    const rem = (pas: string) => String(Number(pas) / 4);
+    const brut = classes.map((c) => new RegExp(String.raw`^h-\[clamp\(${LONGUEUR},(.+),${LONGUEUR}\)\]$`).exec(c)).find(Boolean);
+    const telephone = brut ? ([brut[0], rem(brut[1]), brut[2], rem(brut[3])] as const) : undefined;
     // ⚠ Messages d'assertion SANS syntaxe de classe : Tailwind scanne aussi les tests, et un
     // message qui en avait la forme générait une règle CSS invalide dans la CSS livrée.
     expect(telephone, 'hauteur téléphone bornée par clamp, en rem, portée par la hauteur d’écran').toBeTruthy();
@@ -155,10 +160,10 @@ describe('WelcomeModal — pas de bloc vide dans le carrousel (TCK-567, M10)', (
     // passe sous la ligne de flottaison dès que le terme s'applique ; au-delà de 27, chaque rem
     // soustrait en trop est retiré à l'illustration et rendu au vide : 44 la rabattait sur son
     // plancher, 209 px sans rien de peint à 390 × 844 au lieu de 121 (vérification adverse).
-    const soustrait = /^calc\(100dvh-([\d.]+)rem\)$/.exec(preferee);
-    expect(soustrait, 'terme préféré : 100dvh moins une longueur en rem').toBeTruthy();
-    expect(Number(soustrait![1])).toBeGreaterThanOrEqual(21);
-    expect(Number(soustrait![1])).toBeLessThanOrEqual(27);
+    const soustrait = new RegExp(String.raw`^calc\(100dvh-${LONGUEUR}\)$`).exec(preferee);
+    expect(soustrait, 'terme préféré : 100dvh moins une longueur en pas d’espacement').toBeTruthy();
+    expect(Number(rem(soustrait![1]))).toBeGreaterThanOrEqual(21);
+    expect(Number(rem(soustrait![1]))).toBeLessThanOrEqual(27);
     // …et fixée à partir de `sm`, où la modale redevient une carte centrée.
     expect(classes.some((c) => /^sm:h-(\d+|\[.+\])$/.test(c))).toBe(true);
     expect(classes).toContain('shrink-0');

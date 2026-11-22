@@ -1,0 +1,29 @@
+{
+  "ticket": "TCK-2812",
+  "ecrans": [
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Locataire — le coffre, « Tout télécharger » d'un dossier de 41 quittances : archive en préparation, puis prête",
+      "references": {
+        "telephone": "references/app-documents/a-0-telephone.json",
+        "bureau-1280": "references/app-documents/a-0-bureau-1280.json"
+      },
+      "produit": {
+        "route": "/app/documents",
+        "persona": "locataire",
+        "releve_le": "2026-11-14",
+        "etat": "coffre réel du locataire de démo, lu par l'API puis porté à 41 quittances dans la réponse (« Quittances 2026 »), et l'état des archives préparées doublé dans la réponse (en préparation, puis prête) : interception CDP des seules lectures, toute écriture d'API bloquée (aucune tentée), aucune écriture en base. La maquette ne dessine ni l'un ni l'autre état."
+      },
+      "mesures": {
+        "telephone": "en préparation : pastille « Préparation en cours… » 183,8 × 44 px à x = 173,3, rayon 10, bord #ebe5d5 sur fond blanc, 13 px graisse 500, désactivée, aria-busy ; prête : « Télécharger l’archive » 173,4 × 44 px à x = 183,6, même pastille. Note sous la carte : 358 px de large à x = 16, 13 px graisse 400, encre muted-foreground (110, 101, 90), role=status. scrollWidth 390 = innerWidth.",
+        "bureau-1280": "en préparation : « Préparation en cours… » à droite du titre, x = 769,9, 135,8 × 19,5 px, 13 px graisse 500, primary-deep (130, 60, 32), désactivée ; prête : « Télécharger l’archive (.zip) » x = 747,1, 158,5 × 19,5 px. Note sous la liste du dossier : 367,2 px à x = 542, 13 px graisse 400, muted-foreground. scrollWidth 1280 = innerWidth."
+      },
+      "ecarts": [
+        "États non dessinés par la maquette : le geste reprend la pastille (téléphone) et le lien d'accent (bureau) de TCK-2770 ; seul son libellé change (« Préparation en cours… », « Télécharger l’archive », « Réessayer »).",
+        "La note d'état est une ligne de texte sous le dossier (role=status, role=alert pour l'échec), au gabarit du texte d'aide du coffre : aucune boîte de plus."
+      ]
+    }
+  ]
+}

@@ -35,12 +35,13 @@ describe('pluriels ICU (TCK-752)', () => {
   it.each([
     ['fr', 'nav.propertiesCount', '1 bien', '2 biens'],
     ['en', 'nav.propertiesCount', '1 listing', '2 listings'],
-    ['fr', 'property.detail.viewsCount', '1 vue', '2 vues'],
-    ['en', 'property.detail.reviewsCount', '(1 review)', '(2 reviews)'],
+    ['fr', 'propertyDetail.viewsCount', '1 vue', '2 vues'],
+    ['en', 'propertyDetail.reviewsCount', '(1 review)', '(2 reviews)'],
     ['en', 'property.wizard.preview.entryDeposit', '1 month of deposit', '2 months of deposit'],
     ['fr', 'documents.library.count', '1 document', '2 documents'],
     ['en', 'documents.library.count', '1 document', '2 documents'],
-    ['fr', 'dashboard.agencyKpis.rentedHint', '1 bien loué', '2 biens loués'],
+    // TCK-2799 — à la place de `dashboard.agencyKpis.rentedHint`, retirée avec l'ancienne vue d'agence.
+    ['fr', 'superAdmin.properties.table.confirm.unpublishTitle', 'Dépublier 1 bien', 'Dépublier 2 biens'],
     ['fr', 'superAdmin.pages.upgradeRequests.plannedAgents', ' · 1 agent prévu', ' · 2 agents prévus'],
     ['en', 'serviceProviders.multiAgency.subtitle', 'You now collaborate with 1 agency.', 'You now collaborate with 2 agencies.'],
     ['fr', 'superAdmin.pages.radar.listing.matches.seeMore', 'Voir l’autre', 'Voir les 2 autres'],
@@ -51,8 +52,9 @@ describe('pluriels ICU (TCK-752)', () => {
   });
 
   it('accorde une variable autre que count', () => {
-    expect(rendre('fr', 'dashboard.pages.propertyNew.quotaUsage', { used: 1, limit: 5 }))
-      .toBe('1 annonce active sur 5 permises par votre offre.');
+    // TCK-2638 — la note du quota parle de l'offre de l'AGENCE (l'agent ne la tient pas).
+    expect(rendre('fr', 'dashboard.pages.propertyNew.quota.usage', { used: 1, limit: 5 }))
+      .toBe('Votre agence a 1 annonce active sur 5 permises par son offre.');
     expect(rendre('fr', 'superAdmin.moderation.batchResult', { ok: 2, failed: 0 }))
       .toBe('2 traités, 0 en échec.');
     expect(rendre('en', 'notifications.codes.prospect_match.digest.body', { properties: 1, prospects: 3 }))
@@ -60,7 +62,8 @@ describe('pluriels ICU (TCK-752)', () => {
   });
 
   it('formate le nombre selon la langue, au lieu de le recevoir déjà formaté', () => {
-    expect(rendre('fr', 'dashboard.agencyKpis.publishedHint', { count: 1500 })).toMatch(/^1\s500 publiés$/u);
+    // TCK-2799 — `dashboard.agencyKpis.publishedHint` est retirée : la même forme (« # publiées »), ailleurs.
+    expect(rendre('fr', 'superAdmin.pages.radar.observatory.ranking.published', { count: 1500 })).toMatch(/^1\s500 publiées$/u);
   });
 });
 

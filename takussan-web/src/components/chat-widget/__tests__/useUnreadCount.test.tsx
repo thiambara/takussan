@@ -17,7 +17,7 @@ import type { Conversation } from '@/types/message';
 
 type ListShape = { data: Conversation[]; meta?: { unread_total?: number } };
 
-const useConversationsMock = vi.fn<() => { data: ListShape | undefined; isLoading: boolean }>();
+const useConversationsMock = vi.fn<() => { data: ListShape | undefined; isLoading: boolean; isError?: boolean }>();
 
 // TCK-1768 — la pastille passe par sa lecture étroite, `useNonLusTotal`.
 vi.mock('@/lib/queries/conversations-list', async (importOriginal) => ({
@@ -99,6 +99,12 @@ describe('useUnreadCount', () => {
 
   it('returns 0 while the query is loading', () => {
     useConversationsMock.mockReturnValue({ data: undefined, isLoading: true });
+    const { result } = renderHook(() => useUnreadCount(), { wrapper: ({ children }) => wrap(children) });
+    expect(result.current).toBe(0);
+  });
+
+  it('TCK-2479 — une relecture en échec rend 0, même si le cache garde l’ancienne valeur', () => {
+    useConversationsMock.mockReturnValue({ data: { data: [], meta: { unread_total: 4 } }, isLoading: false, isError: true });
     const { result } = renderHook(() => useUnreadCount(), { wrapper: ({ children }) => wrap(children) });
     expect(result.current).toBe(0);
   });

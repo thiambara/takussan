@@ -8,8 +8,10 @@ use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Services\Dashboard\CollectedPayments;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
 use Tests\Concerns\BuildsMoneyOut;
@@ -42,11 +44,16 @@ class PenalitesARecouvrerTest extends ApiTestCase
         ], $attributes));
     }
 
-    /** Un loyer payé à pénalité due, une pénalité réglée, une échéance annulée à pénalité, une caution rendue à pénalité. */
+    /**
+     * Un loyer payé à pénalité due, une pénalité réglée, une échéance annulée à pénalité, une caution
+     * rendue à pénalité, et (TCK-2504, contre-vérification) une échéance REMBOURSÉE à pénalité non
+     * réglée : elle ne doit plus rien, sur sa ligne comme dans chaque agrégat.
+     */
     private function seedLines(Lease $lease, ?Customer $payer = null): void
     {
         $payer = $payer?->id ?? Customer::factory()->create()->id;
         $this->line($lease, ['payer_id' => $payer, 'late_fee_amount' => 5_000, 'late_fee_applied_at' => '2026-09-08 00:00:00']);
+        $this->line($lease, ['payer_id' => $payer, 'status' => PaymentStatus::Refunded, 'late_fee_amount' => 7_500, 'late_fee_applied_at' => '2026-09-08 00:00:00']);
         $this->line($lease, ['payer_id' => $payer, 'late_fee_amount' => 3_000, 'late_fee_applied_at' => '2026-09-08 00:00:00', 'late_fee_paid_at' => '2026-09-12 10:00:00']);
         $this->line($lease, ['payer_id' => $payer, 'status' => PaymentStatus::Cancelled, 'paid_at' => null, 'late_fee_amount' => 2_000]);
         $this->line($lease, ['payer_id' => $payer, 'payment_type' => LeasePaymentType::DepositRefund, 'late_fee_amount' => 1_000]);
@@ -98,5 +105,33 @@ class PenalitesARecouvrerTest extends ApiTestCase
         $this->assertSame(1, $payments['late_fees_outstanding_count']);
         $this->assertEquals(5_000, $payments['late_fees_outstanding_amount']);
         $this->assertSame(0, $payments['overdue_count']);
+    }
+
+    /**
+     * TCK-2504 (contre-vérification) — le miroir SQL `CollectedPayments::lateFeesOutstanding()` rend
+     * EXACTEMENT la règle de `LeasePayment::lateFeeOutstanding()` : mêmes lignes, même somme, sur
+     * chaque statut d'échéance. Une divergence laissait un « à recouvrer » fantôme (une remboursée
+     * comptée 7 500 par l'accueil, nulle sur sa ligne, et que le règlement refuse en 409).
+     */
+    public function test_le_miroir_sql_rend_la_regle_du_modele_sur_chaque_statut(): void
+    {
+        $lease = Lease::factory()->active()->create(['agency_id' => Agency::factory()->create()->id]);
+        $payer = Customer::factory()->create()->id;
+        foreach (PaymentStatus::cases() as $i => $status) {
+            $this->line($lease, ['payer_id' => $payer, 'status' => $status, 'late_fee_amount' => 1_000 + $i]);
+        }
+        $this->seedLines($lease);
+
+        $lines = LeasePayment::query()->where('lease_id', $lease->id)->get();
+        $model = $lines->filter(fn (LeasePayment $p) => $p->lateFeeOutstanding() > 0);
+        $sql = CollectedPayments::lateFeesOutstanding()->where('lease_payments.lease_id', $lease->id);
+
+        $this->assertEqualsCanonicalizing($model->pluck('id')->all(), $sql->pluck('lease_payments.id')->all());
+        $this->assertEquals(
+            $model->sum(fn (LeasePayment $p) => $p->lateFeeOutstanding()),
+            (float) $sql->sum(DB::raw(CollectedPayments::LATE_FEE_OUTSTANDING_SQL)),
+        );
+        $refunded = $lines->first(fn (LeasePayment $p) => $p->status === PaymentStatus::Refunded);
+        $this->assertSame(0.0, $refunded->lateFeeOutstanding());
     }
 }

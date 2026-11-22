@@ -20,8 +20,9 @@ vi.mock('@/app/actions/auth', () => ({
 vi.mock('next-intl/server', () => ({
   getTranslations: async () => (cle: string) => cle,
 }));
-vi.mock('@/components/inventory/InventoryForm', () => ({
-  InventoryForm: ({ leaseId }: { leaseId: number }) => (
+// TCK-2647 — le formulaire d'un bail est désormais l'écran « Démarrer » du parcours de terrain.
+vi.mock('@/components/inventory/terrain/Demarrer', () => ({
+  Demarrer: ({ leaseId }: { leaseId: number }) => (
     <div data-testid="formulaire">bail {leaseId}</div>
   ),
 }));

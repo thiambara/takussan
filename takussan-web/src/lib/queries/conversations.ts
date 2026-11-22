@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useQueryClient,
   type InfiniteData,
@@ -14,11 +15,35 @@ import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type {
   Conversation,
+  ConversationContext,
   Message,
+  MessageVisibility,
   PropertyConversationResolution,
 } from '@/types/message';
 import { cheminApi, requete } from '@/lib/chemin-api';
-import { conversationListParams, type ConversationListPage } from './conversations-list';
+import { useIntervalleDeRelecture } from '@/lib/temps-reel/hooks';
+// TCK-2955 — les clés d'un fil vivent dans un module sans hook ; réexportées pour les appelants d'avant.
+import {
+  conversationContextQueryKey,
+  messagesInfiniteQueryKey,
+  sujetDuFil,
+} from './conversations-cles';
+export {
+  contactsDuFilQueryKey,
+  conversationContextQueryKey,
+  conversationDetailQueryKey,
+  messagesInfiniteQueryKey,
+  nouveauxMessagesQueryKey,
+  sujetDuFil,
+} from './conversations-cles';
+import {
+  BOITE_EN_DIRECT,
+  conversationListParams,
+  filtresCanoniques,
+  useBoiteEnDirect,
+  type ConversationListPage,
+  type FiltresDeLaListe,
+} from './conversations-list';
 
 // TCK-1042 (P70.07) — la liste des conversations vit dans son propre fichier : la pastille de la
 // messagerie, montée par la coque de `/app`, l'importe de là sans embarquer les 37 exports de ce
@@ -27,6 +52,7 @@ export {
   CONVERSATION_PROPERTY_FIELDS,
   useConversations,
   type ConversationListPage,
+  type FiltresDeLaListe,
   type UseConversationsParams,
 } from './conversations-list';
 
@@ -42,18 +68,29 @@ export const CONVERSATIONS_PAGE_SIZE = 30;
  * archivage, sourdine…) la visent déjà. Elle garde la cadence de 10 s de la liste ; TanStack relit
  * alors chaque page chargée, dans l'ordre.
  */
-export function useConversationsInfinite(options: { refetchInterval?: number | false } = {}) {
+export function useConversationsInfinite(
+  options: { refetchInterval?: number | false; filtres?: FiltresDeLaListe } = {},
+) {
   const locale = useLocale();
   const { user, token } = useAuth();
+  // TCK-2632 — les filtres entrent dans la clé, SOUS `['conversations', 'list']` : l'invalidation des
+  // mutations (lu, envoi, sourdine) et la pastille visent ce préfixe. Pendant la frappe, la liste
+  // précédente reste affichée (`placeholderData`) au lieu de retomber sur le squelette.
+  const filtres = filtresCanoniques(options.filtres);
+  // TCK-2955 (ADR-0129 § 2) — la liste se relit sur `boite.updated` ; ses 10 s ne sont plus que le filet
+  // du mode dégradé (60 s quand le canal personnel est tenu).
+  useBoiteEnDirect(['conversations', 'list', 'infinite'], Boolean(user));
+  const intervalle = useIntervalleDeRelecture(options.refetchInterval ?? 10_000, user ? BOITE_EN_DIRECT : null);
 
   return useInfiniteQuery<ConversationListPage, ApiError, InfiniteData<ConversationListPage>, QueryKey, number>({
-    queryKey: ['conversations', 'list', 'infinite'],
+    queryKey: ['conversations', 'list', 'infinite', filtres],
     enabled: Boolean(user),
     initialPageParam: 1,
     staleTime: 0,
-    refetchInterval: options.refetchInterval ?? 10_000,
+    refetchInterval: intervalle,
+    placeholderData: keepPreviousData,
     queryFn: async ({ pageParam, signal }) => {
-      const qs = buildQueryString(conversationListParams(pageParam, CONVERSATIONS_PAGE_SIZE));
+      const qs = buildQueryString(conversationListParams(pageParam, CONVERSATIONS_PAGE_SIZE, filtres));
       return apiRequest<ConversationListPage>(cheminApi`/api/conversations${requete(qs)}`, {
         token: token ?? undefined,
         locale,
@@ -68,10 +105,10 @@ export function useConversationsInfinite(options: { refetchInterval?: number | f
 /**
  * React Query hooks for Conversations and Messages (TCK-045).
  *
- * Realtime: we rely on React Query's `refetchInterval` (3 s for the messages
- * of the currently open conversation, 10 s for the list) rather than
- * WebSockets. The stale time is pushed down so new messages surface fast
- * even when the user tabs back in. See ticket Notes d'implémentation.
+ * Temps réel (TCK-2955, ADR-0129) : le fil ouvert et la liste se relisent sur les SIGNAUX de leur sujet
+ * (`useFilEnDirect`, `useBoiteEnDirect`) ; le `refetchInterval` d'avant (3 s pour le fil, 10 s pour la
+ * liste) ne joue plus qu'en mode dégradé — 60 s quand le canal est tenu (`useIntervalleDeRelecture`).
+ * The stale time is pushed down so new messages surface fast even when the user tabs back in.
  */
 
 const MESSAGE_LIST_FIELDS: string[] = [
@@ -127,6 +164,16 @@ export function useConversation(id: number | null | undefined) {
   );
 }
 
+// TCK-2632 — la clé de la colonne de contexte d'un fil : `conversations-cles.ts` (TCK-2955).
+
+export function useConversationContext(id: number | null | undefined, options: { enabled?: boolean } = {}) {
+  return useApiQuery<ApiResponse<ConversationContext>>(
+    conversationContextQueryKey(id),
+    cheminApi`/api/conversations/${id ?? 0}/context`,
+    { enabled: (options.enabled ?? true) && Boolean(id), staleTime: 60_000 },
+  );
+}
+
 /**
  * Cursor-paginated history. The first page (no cursor) returns the newest
  * `MESSAGES_PAGE_SIZE` messages, and each subsequent `fetchNextPage` sends
@@ -146,11 +193,7 @@ export type MessagesPage = {
   meta: { has_more: boolean };
 };
 
-export function messagesInfiniteQueryKey(
-  conversationId: number | null | undefined,
-): QueryKey {
-  return ['conversations', conversationId, 'messages-infinite'];
-}
+// La clé des pages chargées du fil : `messagesInfiniteQueryKey`, dans `conversations-cles.ts` (TCK-2955).
 
 export function useMessagesInfinite(conversationId: number | null | undefined) {
   const locale = useLocale();
@@ -231,8 +274,12 @@ export function useNewMessagesPolling(
 ) {
   const queryClient = useQueryClient();
   const enabled = (options.enabled ?? true) && Boolean(conversationId) && anchorId != null;
+  // TCK-2955 (ADR-0129 § 2) — le fil ouvert se relit sur `message.created` (`useFilEnDirect`) ; ses 3 s ne
+  // sont plus que le filet du mode dégradé (60 s quand le canal du fil est tenu).
+  const intervalle = useIntervalleDeRelecture(3_000, conversationId ? sujetDuFil(conversationId) : null);
 
   const query = useApiQuery<{ data: Message[] }>(
+    // `nouveauxMessagesQueryKey(id)` + l'ancre : la viser sans l'ancre relit les messages neufs (TCK-2955).
     ['conversations', conversationId, 'messages', 'live', anchorId],
     cheminApi`/api/conversations/${conversationId ?? 0}/messages`,
     {
@@ -244,7 +291,7 @@ export function useNewMessagesPolling(
         include: ['sender', 'attachments'],
         extra: anchorId != null ? { after_id: anchorId } : undefined,
       },
-      refetchInterval: enabled ? 3_000 : false,
+      refetchInterval: enabled ? intervalle : false,
       staleTime: 0,
     },
   );
@@ -297,6 +344,13 @@ export function useMarkConversationRead(
 
 export type SendMessagePayload = {
   content: string;
+  /**
+   * TCK-2968 — `team` : une note d'équipe (TCK-2965), que seul le personnel de l'agence du fil lit. Absente,
+   * le message part au fil entier (`all`).
+   */
+  visibility?: MessageVisibility;
+  /** TCK-2968 — les comptes mentionnés (TCK-2966), dix au plus ; la mention s'écrit `@Prénom Nom` dans `content`. */
+  mentions?: number[];
 };
 
 export function useSendMessage(conversationId: number) {
@@ -367,7 +421,8 @@ export function useSendVoiceNote(conversationId: number) {
   );
 }
 
-function extensionAudio(mime: string): string {
+/** TCK-2902 — exportée : le signalement d'une intervention nomme sa note vocale de la même façon. */
+export function extensionAudio(mime: string): string {
   if (mime.includes('ogg')) return 'ogg';
   if (mime.includes('mp4') || mime.includes('aac') || mime.includes('m4a')) return 'm4a';
   if (mime.includes('mpeg')) return 'mp3';
@@ -405,6 +460,68 @@ export function useCreateGroupConversation() {
   );
 }
 
+/**
+ * TCK-2632 — une conversation à UNE personne, créée au premier envoi : `POST /api/conversations`
+ * sans `type` (directe), `participants` à une seule personne joignable (`MessagingReach`, la règle du
+ * sélecteur), et le premier message dans `initial_message` — une seule requête. Rien ne part à
+ * l'ouverture du brouillon.
+ */
+export type CreateDirectConversationPayload = {
+  participants: [number];
+  initial_message: string;
+};
+
+/**
+ * TCK-2632 (AC4) — le fil à deux qui existe déjà avec cette personne, ou `null`. L'API crée un fil
+ * NEUF à chaque `POST /api/conversations` directe, sans chercher l'existant : c'est au front de ne
+ * pas en ouvrir un second. Le plus récent l'emporte (la liste est triée par dernier message) ; la
+ * personne doit en être membre ACTUEL.
+ */
+export function filDirectAvec(conversations: readonly Conversation[], userId: number): number | null {
+  const fil = conversations.find(
+    (c) => c.type === 'direct' && (c.participants ?? []).some((p) => p.user_id === userId && !p.left_at),
+  );
+  return fil?.id ?? null;
+}
+
+/**
+ * La recherche part au serveur (`filter[type]=direct`, `filter[participant]=<id>`) : l'API rend
+ * les fils de l'appelant où cette personne est membre actuel, quelle que soit leur ancienneté — la
+ * page chargée de la liste, elle, n'en montre que trente. Un identifiant, jamais un nom : deux
+ * homonymes ne partagent pas un fil. `filDirectAvec` revérifie l'identifiant sur la réponse.
+ *
+ * Un fil que l'appelant a ARCHIVÉ est retrouvé aussi : sous `filter[participant]`, l'API rend les
+ * archivés avec les autres (TCK-2632, décision b) — on rouvre le fil, marqué « Archivée » dans son
+ * en-tête, au lieu d'en ouvrir un second.
+ */
+export function useTrouverLeFilDirect() {
+  const locale = useLocale();
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return async (personne: { id: number; name: string }): Promise<number | null> => {
+    const filtres = filtresCanoniques({ type: 'direct', participant: personne.id });
+    const qs = buildQueryString(conversationListParams(1, CONVERSATIONS_PAGE_SIZE, filtres));
+    const page = await queryClient.fetchQuery({
+      queryKey: ['conversations', 'list', 'fil-direct', personne.id],
+      staleTime: 0,
+      queryFn: ({ signal }) =>
+        apiRequest<ConversationListPage>(cheminApi`/api/conversations${requete(qs)}`, {
+          token: token ?? undefined,
+          locale,
+          signal,
+        }),
+    });
+    return filDirectAvec(page.data, personne.id);
+  };
+}
+
+export function useCreateDirectConversation() {
+  return useApiMutation<ApiResponse<Conversation>, CreateDirectConversationPayload>(
+    { path: '/api/conversations', method: 'POST' },
+    { invalidate: [['conversations', 'list']] },
+  );
+}
+
 export type AddParticipantsPayload = {
   user_ids: number[];
   role?: 'member' | 'admin';
@@ -422,6 +539,8 @@ export function useAddParticipants(conversationId: number) {
         ['conversations', conversationId, 'messages'],
         // La personne ajoutée n'est plus à proposer (TCK-565).
         ['conversations', conversationId, 'contacts'],
+        // TCK-2748 — sa relation au contexte du fil (« Infos du groupe »).
+        conversationContextQueryKey(conversationId),
       ],
     },
   );
@@ -441,6 +560,8 @@ export function useRemoveParticipant(conversationId: number) {
         // La personne retirée redevient à proposer (TCK-565).
         ['conversations', conversationId, 'contacts'],
         ['conversations', 'list'],
+        // TCK-2748 — les relations au contexte du fil (« Infos du groupe »).
+        conversationContextQueryKey(conversationId),
       ],
     },
   );
@@ -485,6 +606,103 @@ export function useRenameConversation(conversationId: number) {
   );
 }
 
+/**
+ * TCK-2860 — « Marquer comme non lue » (`PUT …/unread`, TCK-2859) : le lecteur recule son
+ * `last_read_at` juste avant le dernier message d'un autre. La liste (pastille, compteur « Non lus »)
+ * et la pastille globale suivent par l'invalidation de `['conversations', 'list']`.
+ *
+ * Le fil reste ouvert : `useMarkConversationRead` ne le remarque lu qu'au PROCHAIN message (un appel
+ * par couple fil/dernier message) — ouvrir à nouveau le fil, ou en recevoir un, le relit.
+ */
+export function useMarkConversationUnread(conversationId: number) {
+  return useApiMutation<ApiResponse<{ conversation_id: number; last_read_at: string | null }>, void>(
+    {
+      path: cheminApi`/api/conversations/${conversationId}/unread`,
+      method: 'PUT',
+      body: () => undefined,
+    },
+    {
+      invalidate: [
+        ['conversations', 'list'],
+        ['conversations', 'detail', conversationId],
+      ],
+    },
+  );
+}
+
+/**
+ * TCK-2968 (ADR-0128 § 7) — les gestes de la boîte de pilotage (TCK-2967), sur un fil désigné par les
+ * variables (une rangée de la liste n'a pas de hook à elle) :
+ *  - « Traité » (`PUT|DELETE …/handled`) et « Rappelez-le-moi » (`PUT|DELETE …/snooze`, `until` futur) :
+ *    propres au lecteur ;
+ *  - « Confier » (`PUT …/assignee`, `user_id` ou `null`) : une salle ou un groupe, par le personnel.
+ *
+ * Chacun relit la liste (`['conversations', 'list']`) : la file, les comptes des puces et la pastille
+ * (`meta.gestes`, sous la même clé) suivent sans attendre le signal `boite.updated`.
+ */
+export function useGestesDeLaBoite() {
+  const invalidate = [['conversations', 'list']] as const;
+  const traiter = useApiMutation<ApiResponse<{ conversation_id: number; handled_at: string | null }>, { id: number }>(
+    { path: ({ id }) => cheminApi`/api/conversations/${id}/handled`, method: 'PUT', body: () => undefined },
+    { invalidate: [...invalidate] },
+  );
+  const annulerTraite = useApiMutation<ApiResponse<{ conversation_id: number; handled_at: null }>, { id: number }>(
+    { path: ({ id }) => cheminApi`/api/conversations/${id}/handled`, method: 'DELETE', body: () => undefined },
+    { invalidate: [...invalidate] },
+  );
+  const rappeler = useApiMutation<ApiResponse<{ conversation_id: number; snoozed_until: string }>, { id: number; until: string }>(
+    { path: ({ id }) => cheminApi`/api/conversations/${id}/snooze`, method: 'PUT', body: ({ until }) => ({ until }) },
+    { invalidate: [...invalidate] },
+  );
+  const ramener = useApiMutation<ApiResponse<{ conversation_id: number; snoozed_until: null }>, { id: number }>(
+    { path: ({ id }) => cheminApi`/api/conversations/${id}/snooze`, method: 'DELETE', body: () => undefined },
+    { invalidate: [...invalidate] },
+  );
+  const confier = useApiMutation<
+    ApiResponse<{ conversation_id: number; assigned_to: { id: number; name: string } | null }>,
+    { id: number; userId: number | null }
+  >(
+    { path: ({ id }) => cheminApi`/api/conversations/${id}/assignee`, method: 'PUT', body: ({ userId }) => ({ user_id: userId }) },
+    { invalidate: ({ variables }) => [[...invalidate[0]], ['conversations', 'detail', variables.id]] },
+  );
+  return { traiter, annulerTraite, rappeler, ramener, confier };
+}
+
+/** TCK-2859 — les motifs d'un signalement (`ReportConversationRequest`). */
+export const MOTIFS_DE_SIGNALEMENT = ['spam', 'harassment', 'fraud', 'inappropriate', 'other'] as const;
+export type MotifDeSignalement = (typeof MOTIFS_DE_SIGNALEMENT)[number];
+
+/**
+ * TCK-2860 — « Signaler la conversation » (`POST …/reports`, TCK-2859) : 201, ou 409
+ * `conversation.already_reported` quand l'appelant l'a déjà signalée (l'appelant le dit).
+ */
+export function useReportConversation(conversationId: number) {
+  return useApiMutation<
+    ApiResponse<{ id: number; conversation_id: number; reason: MotifDeSignalement; comment: string | null; created_at: string }>,
+    { reason: MotifDeSignalement; comment?: string }
+  >({
+    path: cheminApi`/api/conversations/${conversationId}/reports`,
+    method: 'POST',
+  });
+}
+
+/**
+ * TCK-2860 — « Ajouter un participant » à un fil DIRECT (ADR-0114, TCK-2859) : la même route que
+ * l'ajout à un groupe, mais qui rend 201 avec le NOUVEAU groupe (l'appelant, l'autre partie, les
+ * ajoutés ; sans l'historique). Distinct de `useAddParticipants`, dont la réponse est
+ * `{conversation_id, added_user_ids}`. Un double envoi crée deux groupes : l'appelant désactive le
+ * bouton pendant l'envoi.
+ */
+export function useElargirLeFilDirect(conversationId: number) {
+  return useApiMutation<ApiResponse<Conversation>, { user_ids: number[] }>(
+    {
+      path: cheminApi`/api/conversations/${conversationId}/participants`,
+      method: 'POST',
+    },
+    { invalidate: [['conversations', 'list']] },
+  );
+}
+
 export function useToggleMute(conversationId: number) {
   return useApiMutation<ApiResponse<{ is_muted: boolean }>, { is_muted: boolean }>(
     {
@@ -500,18 +718,97 @@ export function useToggleMute(conversationId: number) {
   );
 }
 
+/**
+ * TCK-2632 — une photo ou un PDF (TCK-2631) : `type = image | document`, le fichier dans `file`
+ * (un seul par message), la légende dans `content`, facultative — absente, le champ ne part pas.
+ * La même route que le texte et la note vocale : `/conversations/{id}/messages`, JAMAIS
+ * `/messages/{m}/attachments`, qu'aucune route ne sert (TCK-683).
+ */
+export type SendAttachmentPayload = {
+  file: File;
+  type: 'image' | 'document';
+  content?: string;
+};
+
+export function useSendAttachment(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useApiMutation<ApiResponse<Message>, SendAttachmentPayload>(
+    {
+      path: cheminApi`/api/conversations/${conversationId}/messages`,
+      method: 'POST',
+      formData: true,
+      body: ({ file, type, content }) => {
+        const fd = new FormData();
+        fd.append('type', type);
+        fd.append('file', file, file.name);
+        const legende = content?.trim();
+        if (legende) fd.append('content', legende);
+        return fd;
+      },
+    },
+    {
+      invalidate: [
+        ['conversations', 'list'],
+        ['conversations', 'detail', conversationId],
+      ],
+      idempotence: true,
+      onSuccess: (response) => {
+        queryClient.setQueryData<InfiniteData<MessagesPage>>(
+          messagesInfiniteQueryKey(conversationId),
+          (cache) => mergeNewMessages(cache, [response.data]),
+        );
+      },
+    },
+  );
+}
+
+/**
+ * TCK-2632 — appeler ou ouvrir WhatsApp depuis l'en-tête d'un fil est un GESTE DE CONTACT de la fiche
+ * du client (famille 5, `POST /api/customers/{id}/contacts`) : il compte pour le délai de première
+ * réponse. Le geste part au clic ; son échec n'empêche ni l'appel ni WhatsApp, qui sont déjà ouverts.
+ */
+export function useConsignerGesteDuClient() {
+  return useApiMutation<void, { id: number; channel: 'call' | 'whatsapp' }>({
+    path: ({ id }) => cheminApi`/api/customers/${id}/contacts`,
+    method: 'POST',
+    body: ({ channel }) => ({ channel }),
+  });
+}
+
 // =============================================================================
 // TCK-565 — choisir les participants et le contexte d'un groupe PAR LEUR NOM
 // =============================================================================
 
 /**
+ * TCK-2745 / TCK-2830 — la relation d'une personne avec l'appelant, calculée par l'API
+ * (`MessagingRelation`) : le front ne la rejoue pas, il range et il nomme.
+ */
+export type MessagingRelation = 'client' | 'equipe' | 'proprietaire' | 'prestataire';
+
+/**
+ * Une section de « Nouvelle conversation », lue par `filter[relation]` côté serveur. `autre` est un
+ * code de FILTRE seulement (TCK-2830) : aucune relation forte, donc un prestataire ou personne.
+ */
+export type SectionDeContacts = 'client' | 'equipe' | 'proprietaire' | 'autre';
+
+/** La ligne de détail, en DONNÉES (jamais une phrase) : le texte se compose ici (principe 5). */
+export type MessagingContactDetail =
+  | { property: { title: string; city: string | null } | null }
+  | { role: 'agent' | 'admin' }
+  | { properties_count: number };
+
+/**
  * Une personne joignable, telle que `GET /api/conversations/contacts` la rend
- * (`MessagingContactResource` côté API : le nom et l'avatar, jamais les coordonnées).
+ * (`MessagingContactResource` côté API : le nom et l'avatar, jamais les coordonnées). `relation`
+ * et `detail` arrivent avec TCK-2745 ; facultatifs ici, parce qu'un contact choisi ailleurs (une
+ * puce, un brouillon) peut être construit sans eux.
  */
 export type MessagingContact = {
   id: number;
   name: string;
   avatar_url: string | null;
+  relation?: MessagingRelation | null;
+  detail?: MessagingContactDetail | null;
 };
 
 /**
@@ -539,27 +836,36 @@ export const MESSAGING_CONTACTS_PER_PAGE = 20;
  */
 export function useMessagingContacts(
   search: string,
-  options: { enabled?: boolean; conversationId?: number; exclude?: readonly number[] } = {},
+  options: {
+    enabled?: boolean;
+    conversationId?: number;
+    exclude?: readonly number[];
+    /** TCK-2830 — une section : `filter[relation]`, et pour les clients `sort=-last_exchange_at`. */
+    section?: SectionDeContacts;
+  } = {},
 ) {
   const { user } = useAuth();
   const terme = search.trim();
-  const { conversationId } = options;
+  const { conversationId, section } = options;
   // TCK-973 (P51.06) — les personnes déjà choisies, retirées par l'API AVANT la pagination : le
   // total et la page ne comptent plus qu'elles. Triées, pour qu'un même ensemble fasse une même clé.
   const exclus = [...new Set(options.exclude ?? [])].sort((a, b) => a - b);
   const filter: Record<string, string | number[]> = {};
   if (terme) filter.search = terme;
   if (exclus.length > 0) filter.exclude = exclus;
+  if (section) filter.relation = section;
   const params: SpatieQueryParams = {
     fields: { users: MESSAGING_CONTACT_FIELDS },
     filter,
     per_page: MESSAGING_CONTACTS_PER_PAGE,
+    // « Clients récents » : par dernier échange, tri du SERVEUR (`LastExchangeSort`, TCK-2745).
+    ...(section === 'client' ? { sort: '-last_exchange_at' } : {}),
   };
 
   return useApiQuery<PaginatedResponse<MessagingContact>>(
     conversationId
-      ? ['conversations', conversationId, 'contacts', terme, exclus]
-      : ['conversations', 'contacts', terme, exclus],
+      ? ['conversations', conversationId, 'contacts', terme, exclus, section ?? null]
+      : ['conversations', 'contacts', terme, exclus, section ?? null],
     conversationId
       ? cheminApi`/api/conversations/${conversationId}/contacts`
       : '/api/conversations/contacts',
@@ -655,4 +961,25 @@ export function useGroupLeaseOptions(
         requetePrecedente?.queryKey[3] === propertyId ? precedent : undefined,
     },
   );
+}
+
+/**
+ * TCK-2589 — « Écrire » sur la fiche client : le compte `userId` accepterait-il une directe du
+ * lecteur ? Le SERVEUR le dit (`filter[id]` de `GET /api/conversations/contacts`, la règle même
+ * de `StoreConversationRequest`, `MessagingReach`) : le personnel ne joint le compte d'un client que
+ * par un fil existant ou un lien CRM, et un geste qui finirait en 422 ne se montre pas. `false` tant
+ * que la réponse n'est pas là, et sans compte.
+ */
+export function useEstJoignable(userId: number | null): boolean {
+  const { user } = useAuth();
+  const { data } = useApiQuery<PaginatedResponse<MessagingContact>>(
+    ['conversations', 'contacts', 'joignable', userId],
+    '/api/conversations/contacts',
+    {
+      params: { fields: { users: ['id'] }, filter: { id: String(userId ?? '') }, per_page: 1 },
+      enabled: userId !== null && Boolean(user),
+      staleTime: 60_000,
+    },
+  );
+  return userId !== null && (data?.data ?? []).some((c) => c.id === userId);
 }

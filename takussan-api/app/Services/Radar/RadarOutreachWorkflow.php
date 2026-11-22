@@ -87,7 +87,8 @@ final class RadarOutreachWorkflow
             $outreach = RadarOutreach::query()->create([
                 'radar_advertiser_id' => $lockedAdvertiser->id,
                 'locale' => $locale,
-                'clauses_version' => ConsentMessageComposer::CLAUSES_VERSION,
+                // TCK-2471 — `accord.v4` (la phrase de la demande) quand une cible `demand` active couvre une annonce jugée.
+                'clauses_version' => $this->composer->versionFor($judged->pluck('id')->map(fn ($id) => (int) $id)->all()),
                 'salutation' => $generated['salutation'],
                 'summary' => $generated['summary'],
                 // Le texte se compose une fois le message créé : son lien de réclamation est émis à son `created_at`.

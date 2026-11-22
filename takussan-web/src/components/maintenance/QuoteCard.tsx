@@ -69,7 +69,7 @@ export function QuoteCard({ request }: { readonly request: MaintenanceRequest })
 
       {lines.length > 0 ? (
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[28rem] text-left text-sm tabular-nums">
+          <table className="w-full min-w-112 text-left text-sm tabular-nums">
             <thead className="text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th scope="col" className="py-1 pr-3 font-semibold">{tLines('line_label')}</th>

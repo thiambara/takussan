@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Models\User;
+use App\Services\Auth\AccountTokenRevoker;
 use App\Services\Auth\LoginLock;
 use App\Services\Auth\MetadataDuCompte;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,8 @@ class UserSupportService
             abort_code(502, 'mail.password_reset_not_sent');
         }
 
-        $target->tokens()->delete();
+        // TCK-617 — jetons et liens d'agenda, par le point commun.
+        app(AccountTokenRevoker::class)->revokeAll($target);
 
         return $this->log($actor, $target, 'super_admin_password_reset_forced', $reason, [
             'tokens_revoked' => true,
@@ -76,13 +78,9 @@ class UserSupportService
         $this->guardTarget($actor, $target);
         $currentId = $keepCurrentSession ? $this->currentTokenId($actor) : null;
 
-        $query = $target->tokens();
-        if ($currentId !== null) {
-            $query->where('id', '!=', $currentId);
-        }
-        $revoked = $query->delete();
-
-        abort_code_if($revoked === 0, 409, 'support.no_revocable_session');
+        // TCK-617 — jetons et liens d'agenda, par le point commun ; un refus (409) n'écrit rien.
+        abort_code_if(! $target->tokens()->when($currentId !== null, fn ($q) => $q->where('id', '!=', $currentId))->exists(), 409, 'support.no_revocable_session');
+        $revoked = app(AccountTokenRevoker::class)->revokeAll($target, $currentId);
 
         return $this->log($actor, $target, 'super_admin_sessions_revoked', $reason, [
             'revoked_count' => $revoked,
@@ -101,7 +99,8 @@ class UserSupportService
             ->where('tokenable_id', $target->id)
             ->whereKey($tokenId)
             ->firstOrFail();
-        $token->delete();
+        // TCK-617 — la session et les liens d'agenda, par le point commun.
+        app(AccountTokenRevoker::class)->revokeOne($target, (int) $token->id);
 
         return $this->log($actor, $target, 'super_admin_sessions_revoked', $reason, [
             'revoked_token_id' => $tokenId,

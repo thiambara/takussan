@@ -70,7 +70,8 @@ describe('StepBien', () => {
     render(withIntl(<Harnais />));
 
     const [premier] = screen.getAllByRole('radiogroup');
-    expect(premier).toHaveAccessibleName(/vente ou location/i);
+    // TCK-2819 (lot 2) — la question de la maquette, « Vous voulez… » (« Tu veux… » vouvoyé).
+    expect(premier).toHaveAccessibleName(/vous voulez/i);
     const vendre = screen.getByRole('radio', { name: 'Vendre' });
     expect(vendre).toHaveAccessibleDescription(/prix demandé/i);
   });
@@ -122,7 +123,7 @@ describe('StepBien', () => {
 
   it('affiche la note sur le pays déjà renseigné — et les prix en francs CFA (TCK-633)', () => {
     render(withIntl(<Harnais />));
-    expect(screen.getByText(/pays est déjà renseigné.*les prix sont en francs cfa/i)).toBeInTheDocument();
+    expect(screen.getByText(/situé au sénégal.*pays est déjà posé.*les prix sont en francs cfa/i)).toBeInTheDocument();
   });
 
   it('re-revue M-12 — une SEULE radio a tabIndex=0 dans chaque groupe, et c’est la sélectionnée', () => {
@@ -134,7 +135,7 @@ describe('StepBien', () => {
       expect(radio).toHaveAttribute('tabindex', radio === appartement ? '0' : '-1');
     }
 
-    const groupeContrat = screen.getByRole('radiogroup', { name: /vente ou location/i });
+    const groupeContrat = screen.getByRole('radiogroup', { name: /vous voulez/i });
     const louer = within(groupeContrat).getByRole('radio', { name: /louer/i });
     const vendre = within(groupeContrat).getByRole('radio', { name: /vendre/i });
     expect(louer).toHaveAttribute('tabindex', '0');

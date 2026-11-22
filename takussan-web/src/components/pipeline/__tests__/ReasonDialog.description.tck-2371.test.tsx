@@ -14,11 +14,11 @@ import { ReasonDialog } from '../ReasonDialog';
  */
 const ATTENDU = {
   fr: {
-    converted: 'Précisez pourquoi ce client est converti.',
+    converted: 'Précisez ce qui a décidé ce client.',
     lost: 'Précisez pourquoi ce client est perdu.',
   },
   en: {
-    converted: 'Explain why this customer converted.',
+    converted: 'Say what made this client decide.',
     lost: 'Explain why this customer was lost.',
   },
 } as const;

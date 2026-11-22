@@ -2,7 +2,10 @@
 
 namespace App\Domain\Settings;
 
+use App\Models\Enums\AgencyModule;
 use App\Models\Enums\WatermarkPosition;
+use App\Rules\TelephoneJoignable;
+use App\Support\TelephoneSaisi;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
@@ -25,13 +28,28 @@ final class AgencySettings
 
     private const STRING = 'string';
 
+    private const LIST = 'list';
+
+    /** TCK-2504 — les réglages qui portent un numéro de téléphone saisi, normalisé avant validation. */
+    public const PHONE_KEYS = ['offline_payment_wave_number', 'offline_payment_orange_money_number'];
+
     /**
-     * @return array<string, array{type: string, default: mixed, rules: array<int, mixed>}>
+     * @return array<string, array{type: string, default: mixed, rules: array<int, mixed>, enum?: class-string<\BackedEnum>}>
      */
     private static function catalog(): array
     {
         return [
             'watermark_enabled' => [
+                'type' => self::BOOL, 'default' => true,
+                'rules' => ['sometimes', 'boolean'],
+            ],
+            // TCK-2979 (ADR-0131 § 8) — l'assistant de la messagerie, coupé pour toute l'équipe par l'agence. Vrai par
+            // défaut (décision du porteur du 2026-11-19) ; l'agence ne peut qu'éteindre ce que la plateforme sert.
+            'copilot_enabled' => [
+                'type' => self::BOOL, 'default' => true,
+                'rules' => ['sometimes', 'boolean'],
+            ],
+            'voice_transcription_enabled' => [
                 'type' => self::BOOL, 'default' => true,
                 'rules' => ['sometimes', 'boolean'],
             ],
@@ -59,10 +77,56 @@ final class AgencySettings
                 'type' => self::INT, 'default' => 48,
                 'rules' => ['sometimes', 'nullable', 'integer', 'between:0,168'],
             ],
+            // TCK-2943 (ADR-0122 § 6) — le délai de réponse annoncé au prestataire invité sur l'intervention jointe,
+            // compté depuis l'invitation (`ServiceProviderOnboardingService::echeanceDeReponse`). Indicatif : aucun job
+            // ne le fait respecter. 0 = aucun délai annoncé ; `null` retire la clé, le défaut revient.
+            'maintenance_provider_response_hours' => [
+                'type' => self::INT, 'default' => 48,
+                'rules' => ['sometimes', 'nullable', 'integer', 'between:0,168'],
+            ],
             // TCK-963 — `TenantOnboardingService` ; `false` comme `0` coupent la checklist (TCK-970).
             'tenant_onboarding_enabled' => [
                 'type' => self::BOOL, 'default' => true,
                 'rules' => ['sometimes', 'nullable', 'boolean'],
+            ],
+            // TCK-2483 (ADR-0089, amendement « modules par agence ») — les modules que l'agence retire
+            // du menu de son personnel. AFFICHAGE : aucun droit, aucune garde n'en dépend.
+            // `AgencyUpdateRequest` la refuse à une agence `individual` (aucune équipe). Liste remplacée
+            // en bloc par la fusion de premier niveau du contrôleur ; `null` rend le défaut.
+            // TCK-2504 — les moyens de paiement HORS LIGNE que l'agence déclare, rendus au locataire
+            // sur ses liens de paiement (`GET /api/pay/{jeton}`, bloc `offline_payment`). Les numéros
+            // arrivent normalisés en E.164 (`AgencyUpdateRequest::prepareForValidation`, la
+            // normalisation de tout téléphone saisi) ; `null` retire la clé.
+            'offline_payment_wave_number' => [
+                'type' => self::STRING, 'default' => null,
+                'rules' => ['sometimes', 'nullable', 'string', 'max:30', new TelephoneJoignable, new TelephoneSaisi],
+            ],
+            'offline_payment_orange_money_number' => [
+                'type' => self::STRING, 'default' => null,
+                'rules' => ['sometimes', 'nullable', 'string', 'max:30', new TelephoneJoignable, new TelephoneSaisi],
+            ],
+            'offline_payment_bank_details' => [
+                'type' => self::STRING, 'default' => null,
+                'rules' => ['sometimes', 'nullable', 'string', 'max:500'],
+            ],
+            // TCK-2849 (ADR-0112 § 1) — « Les bailleurs confirment les visites de leurs biens » :
+            // faux par défaut, la règle de TCK-590 (le personnel seul) tient. Vrai, le bailleur ACTIF
+            // d'un bien confirme ou propose un autre créneau (`PropertyVisitPolicy::bailleurConfirme`).
+            'owners_confirm_visits' => [
+                'type' => self::BOOL, 'default' => false,
+                'rules' => ['sometimes', 'nullable', 'boolean'],
+            ],
+            // TCK-2915 — le jour du mois où partent les reversements aux bailleurs de l'agence, quand
+            // le mandat d'un bailleur n'en fixe pas (`owner_profiles.payout_day`, TCK-2909) :
+            // {@see \App\Services\Payout\PayoutDay}. Informatif : aucune préparation n'en dépend.
+            // `null` retire la clé.
+            'payout_day' => [
+                'type' => self::INT, 'default' => null,
+                'rules' => ['sometimes', 'nullable', 'integer', 'between:1,28'],
+            ],
+            'hidden_modules' => [
+                'type' => self::LIST, 'default' => [], 'enum' => AgencyModule::class,
+                'rules' => ['sometimes', 'nullable', 'array', 'list', 'max:'.count(AgencyModule::cases())],
             ],
         ];
     }
@@ -78,6 +142,11 @@ final class AgencySettings
     /**
      * Les règles de `AgencyUpdateRequest`, préfixées `settings.`.
      *
+     * Une liste qui dépasse sa borne ne fait pas valider ses éléments : c'est le mécanisme commun des
+     * FormRequest (`BorneLesReglesDElement`, TCK-2488) qui retire `settings.<clé>.*`, sur le `max:` de la
+     * liste (et sur le `prohibited` que la requête pose pour une agence `individual`). Il remplace le
+     * paramètre `$input` que TCK-2483 (revue, M1) avait posé ici pour cette seule clé.
+     *
      * @return array<string, array<int, mixed>>
      */
     public static function rules(): array
@@ -85,9 +154,42 @@ final class AgencySettings
         $rules = [];
         foreach (self::catalog() as $key => $entry) {
             $rules["settings.{$key}"] = $entry['rules'];
+            // TCK-2483 — une liste valide aussi chacun de ses éléments : un cas de son enum, une fois.
+            if ($entry['type'] === self::LIST) {
+                $rules["settings.{$key}.*"] = ['string', 'distinct', Rule::enum($entry['enum'])];
+            }
         }
 
         return $rules;
+    }
+
+    /**
+     * Revue de TCK-2487 — les `settings` VALIDÉS, tels qu'ils s'écrivent : une clé `bool` du catalogue
+     * part en vrai booléen JSON. La règle `boolean` accepte `1`, `"1"`, `0`, `"0"` ; stockés tels
+     * quels, ils étaient vrais pour {@see self::read()} mais pas pour un lecteur SQL strict
+     * (`TwoFactorRequirement` : `settings->require_team_two_factor = true`) — un `1` accepté
+     * n'exigeait pas la 2FA de l'équipe. La conversion est CELLE de {@see self::read()} : une valeur
+     * qu'elle ne reconnaît pas (et donc lue comme le défaut) reste telle quelle, de sorte que
+     * `read()` rend la même chose avant et après. `null` (retrait de la clé) et les autres types
+     * passent tels quels. Appelée à l'écriture (`AgencyController::update`) et par la migration
+     * `normalize_boolean_agency_settings`, pour l'existant.
+     *
+     * @param  array<string, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    public static function normalize(array $settings): array
+    {
+        foreach ($settings as $key => $value) {
+            if (! is_scalar($value) || is_bool($value) || (self::catalog()[$key]['type'] ?? null) !== self::BOOL) {
+                continue;
+            }
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool !== null) {
+                $settings[$key] = $bool;
+            }
+        }
+
+        return $settings;
     }
 
     public static function default(string $key): mixed
@@ -107,6 +209,14 @@ final class AgencySettings
         $entry = self::entry($key);
         $value = $settings[$key] ?? null;
 
+        // TCK-2483 — une liste se lit AVANT la garde des scalaires, qui la renverrait au défaut. Un code
+        // que l'enum ne connaît plus (module retiré) est ignoré, pas une erreur.
+        if ($entry['type'] === self::LIST) {
+            return is_array($value) && array_is_list($value)
+                ? self::knownCases($value, $entry['enum'])
+                : $entry['default'];
+        }
+
         // ⚠ Avant `filter_var` : il lit `null` comme `""`, donc `false`, et un réglage absent
         // vaudrait faux au lieu de son défaut.
         if (! is_scalar($value)) {
@@ -123,7 +233,22 @@ final class AgencySettings
     }
 
     /**
-     * @return array{type: string, default: mixed, rules: array<int, mixed>}
+     * TCK-2483 — les seules valeurs d'une liste qui sont des cas de son enum, sans doublon, dans
+     * l'ordre lu.
+     *
+     * @param  list<mixed>  $values
+     * @param  class-string<\BackedEnum>  $enum
+     * @return list<string>
+     */
+    private static function knownCases(array $values, string $enum): array
+    {
+        $known = array_filter($values, static fn (mixed $v): bool => is_string($v) && $enum::tryFrom($v) !== null);
+
+        return array_values(array_unique($known));
+    }
+
+    /**
+     * @return array{type: string, default: mixed, rules: array<int, mixed>, enum?: class-string<\BackedEnum>}
      */
     private static function entry(string $key): array
     {

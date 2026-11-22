@@ -11,17 +11,14 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import {
-  rememberProviderPreference,
   readProviderPreference,
-  useInitiatePayment,
   type GatewayPaymentType,
   type GatewayProvider,
 } from '@/hooks/useInitiatePayment';
 
-import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
-import { checkoutEnCours } from './checkout-en-cours';
+import { useLancerLePaiement } from './useLancerLePaiement';
 import type { DetailMontantDu } from './montant-du';
 
 interface ProviderOption {
@@ -75,7 +72,6 @@ export function PaymentProviderPicker({
   const t = useTranslations('payments.gateway');
   const locale = useLocale() as Locale;
   const enDevise = (valeur: number) => formatCurrency(valeur, locale, { currency });
-  const messageErreur = useMessageErreurApi();
   // Derive an initial preference from localStorage (set once at mount of the
   // component instance — the parent uses `open` to mount/unmount the modal,
   // so each open builds a fresh instance with the current preference).
@@ -89,9 +85,7 @@ export function PaymentProviderPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [selected, setSelected] = useState<GatewayProvider | null>(initialPreference);
-  const [error, setError] = useState<string | null>(null);
-
-  const initiate = useInitiatePayment(paymentType, paymentId);
+  const { lancer, erreur: error, enCours } = useLancerLePaiement(paymentType, paymentId);
 
   const isProviderAvailable = useMemo(() => {
     return (provider: GatewayProvider): boolean => {
@@ -104,37 +98,7 @@ export function PaymentProviderPicker({
 
   async function handleConfirm(): Promise<void> {
     if (!selected) return;
-    setError(null);
-    try {
-      // TCK-1291 (P131.01) — l'adresse d'annulation porte la même référence que celle de retour :
-      // sans elle, Wave et Orange Money retombent sur `…/return?status=failed` nu, que la page de
-      // retour rend en « Lien de retour incorrect ».
-      const retour = (statut: 'pending' | 'failed') =>
-        typeof window !== 'undefined'
-          ? `${window.location.origin}/app/payments/return?status=${statut}&payment_type=${paymentType}&payment_id=${paymentId}`
-          : undefined;
-      const result = await initiate.mutateAsync({
-        provider: selected,
-        returnUrl: retour('pending'),
-        cancelUrl: retour('failed'),
-      });
-      rememberProviderPreference(selected);
-      const url = result.data?.checkout_url;
-      if (url && typeof window !== 'undefined') {
-        window.location.href = url;
-      }
-    } catch (e) {
-      // Passe 2, N2 — un checkout vit déjà, à un autre montant : on dit lequel, et jusqu'à quand.
-      const enCours = checkoutEnCours(e);
-      setError(
-        enCours
-          ? t('error.checkoutInProgress', {
-              amount: formatCurrency(enCours.montant, locale, { currency: enCours.devise }),
-              time: formatDate(enCours.reessayerApres, locale, { dateStyle: undefined, timeStyle: 'short' }),
-            })
-          : messageErreur(e, t('error.generic')),
-      );
-    }
+    await lancer(selected);
   }
 
   return (
@@ -216,14 +180,14 @@ export function PaymentProviderPicker({
         )}
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={initiate.isPending}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={enCours}>
             {t('picker.cancel')}
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!selected || initiate.isPending || (selected !== null && !isProviderAvailable(selected))}
+            disabled={!selected || enCours || (selected !== null && !isProviderAvailable(selected))}
           >
-            {initiate.isPending ? t('picker.redirecting') : t('picker.confirm')}
+            {enCours ? t('picker.redirecting') : t('picker.confirm')}
           </Button>
         </div>
       </DialogContent>

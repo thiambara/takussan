@@ -4,6 +4,7 @@ namespace App\Services\Messaging;
 
 use App\Models\Conversation;
 use App\Models\Enums\MessageType;
+use App\Models\Enums\MessageVisibility;
 use App\Models\Message;
 use App\Models\User;
 
@@ -19,6 +20,10 @@ use App\Models\User;
  *  - renamed
  *
  * `sender_id` is null for system messages — these have no human author.
+ *
+ * TCK-2958 (ADR-0128 § 3) — `content` = le code de l'avis (`participant_added`…), plus jamais une
+ * phrase française (`humanise` est retiré). Les avis d'intervention ne sont plus des avis système :
+ * ce sont des messages `event` sur la demande, écrits par `EvenementsDuFil`.
  * The frontend renders them inline as neutral lines (see
  * `<SystemMessageBubble>`).
  */
@@ -32,16 +37,55 @@ class SystemMessageFactory
 
     public const EVENT_RENAMED = 'renamed';
 
-    /** TCK-592 — une étape de l'intervention que porte la conversation (`maintenance_request_id`). */
-    public const EVENT_MAINTENANCE = 'maintenance';
-
     public const EVENTS = [
         self::EVENT_PARTICIPANT_ADDED,
         self::EVENT_PARTICIPANT_REMOVED,
         self::EVENT_ROLE_CHANGED,
         self::EVENT_RENAMED,
-        self::EVENT_MAINTENANCE,
     ];
+
+    /**
+     * TCK-2980 (ADR-0132 § 3) — les avis du pont, des CODES, écrits en `visibility = team` : seul le personnel de
+     * l'agence du fil les lit (un autre client du fil n'apprend rien du canal d'un participant). `metadata` ne porte
+     * que des identifiants et des codes (le compte, le type de média), jamais un numéro. TCK-2981 ajoute
+     * `pont.accord` et `pont.numero_deja_a_un_compte`.
+     */
+    public const AVIS_PONT_STOP = 'pont.stop';
+
+    public const AVIS_PONT_START = 'pont.start';
+
+    public const AVIS_PONT_MEDIA_NON_RELAYE = 'pont.media_non_relaye';
+
+    /** TCK-2981 (ADR-0132 § 3) — l'accord donné (équipe seule). */
+    public const AVIS_PONT_ACCORD = 'pont.accord';
+
+    /** TCK-2981 (ADR-0132 § 2) — l'accord d'une fiche refusé : son numéro est porté par un autre compte. */
+    public const AVIS_PONT_NUMERO_DEJA_A_UN_COMPTE = 'pont.numero_deja_a_un_compte';
+
+    public const AVIS_DU_PONT = [
+        self::AVIS_PONT_STOP => ['user_id', 'channel'],
+        self::AVIS_PONT_START => ['user_id', 'channel'],
+        self::AVIS_PONT_MEDIA_NON_RELAYE => ['user_id', 'channel', 'media'],
+        // TCK-2981 — l'accord, et le numéro déjà porté par un autre compte (fiche sans compte).
+        self::AVIS_PONT_ACCORD => ['user_id', 'channel'],
+        self::AVIS_PONT_NUMERO_DEJA_A_UN_COMPTE => ['channel'],
+    ];
+
+    /**
+     * TCK-2980 — un avis du pont dans `$conversation`, en note d'équipe. Les clés de `$metadata` hors du catalogue
+     * {@see self::AVIS_DU_PONT} sont refusées (un numéro ne s'y glisse pas).
+     *
+     * @param  array<string, int|string|null>  $metadata
+     */
+    public function avisDuPont(Conversation $conversation, string $code, array $metadata): Message
+    {
+        $admises = self::AVIS_DU_PONT[$code] ?? null;
+        if ($admises === null || array_diff(array_keys($metadata), $admises) !== []) {
+            throw new \LogicException("Avis du pont hors catalogue : {$code}.");
+        }
+
+        return $this->emit($conversation, $code, $metadata, MessageVisibility::Team);
+    }
 
     public function participantAdded(Conversation $conversation, User $actor, User $target): Message
     {
@@ -87,68 +131,22 @@ class SystemMessageFactory
     }
 
     /**
-     * TCK-592 — l'avis d'étape du fil d'une intervention. Le CODE (`cause`, `status`) est la donnée ;
-     * le front rend le texte dans la langue du lecteur. `content` est la repli, en clé
-     * `maintenance.system.*` dans la langue par défaut.
-     *
-     * @param  array<string, mixed>  $metadata  `cause`, `status`, `from`, `provider_name`…
-     */
-    public function maintenance(Conversation $conversation, ?User $actor, array $metadata): Message
-    {
-        return $this->emit($conversation, self::EVENT_MAINTENANCE, array_merge([
-            'actor_id' => $actor?->id,
-            'actor_name' => $actor ? $this->displayName($actor) : null,
-        ], $metadata));
-    }
-
-    /**
      * @param  array<string, mixed>  $metadata
      */
-    protected function emit(Conversation $conversation, string $event, array $metadata): Message
+    protected function emit(Conversation $conversation, string $event, array $metadata, MessageVisibility $visibility = MessageVisibility::All): Message
     {
         return Message::create([
             'conversation_id' => $conversation->id,
             'sender_id' => null,
             'type' => MessageType::System->value,
-            'content' => $this->humanise($event, $metadata),
+            // TCK-2958 (ADR-0128 § 3, principe n° 5) — `content` est le CODE de l'avis, jamais un texte :
+            // le front compose le libellé dans la langue du lecteur, et l'aperçu commun de la liste
+            // (`MessageObserver::created`) ne porte plus de français.
+            'content' => $event,
             'metadata' => array_merge(['event' => $event], $metadata),
+            // TCK-2980 — `team` pour un avis du pont seulement ({@see self::avisDuPont()}).
+            'visibility' => $visibility->value,
         ]);
-    }
-
-    /**
-     * Plain-text fallback rendered server-side. The frontend overrides
-     * this with locale-aware text from `messaging.system.*`, but the API
-     * still ships a sensible default for non-rich consumers.
-     *
-     * @param  array<string, mixed>  $m
-     */
-    protected function humanise(string $event, array $m): string
-    {
-        return match ($event) {
-            self::EVENT_PARTICIPANT_ADDED => sprintf(
-                '%s a ajouté %s au groupe',
-                $m['actor_name'] ?? '—',
-                $m['target_name'] ?? '—',
-            ),
-            self::EVENT_PARTICIPANT_REMOVED => ($m['self_leave'] ?? false)
-                ? sprintf('%s a quitté le groupe', $m['target_name'] ?? '—')
-                : sprintf('%s a retiré %s du groupe', $m['actor_name'] ?? '—', $m['target_name'] ?? '—'),
-            self::EVENT_ROLE_CHANGED => sprintf(
-                '%s a changé le rôle de %s en %s',
-                $m['actor_name'] ?? '—',
-                $m['target_name'] ?? '—',
-                $m['role'] ?? '—',
-            ),
-            self::EVENT_RENAMED => sprintf(
-                '%s a renommé le groupe en « %s »',
-                $m['actor_name'] ?? '—',
-                $m['new_subject'] ?? '—',
-            ),
-            self::EVENT_MAINTENANCE => in_array($m['cause'] ?? null, ['assigned', 'unassigned', 'accepted', 'declined'], true)
-                ? __('maintenance.system.'.$m['cause'], ['provider' => $m['provider_name'] ?? '—'])
-                : __('maintenance.system.status', ['status' => __('maintenance.status.'.($m['status'] ?? 'open'))]),
-            default => $event,
-        };
     }
 
     /**

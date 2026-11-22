@@ -1,0 +1,343 @@
+{
+  "ticket": "TCK-2589",
+  "ecrans": [
+    {
+      "page": "app-clients",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Fiche",
+      "references": {
+        "telephone": "references/app-clients/a-1-telephone.json",
+        "bureau-1440": "references/app-clients/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-clients/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/customers/120",
+        "persona": "agent (les trois appareils, comme la maquette : « Sokhna Sène · Dakar Immo · Agent »)",
+        "etat": "les clients de la base de démo (décision Q8 b reconduite : rendu serveur gardé, aucune donnée bouchonnée — la fiche est lue AU SERVEUR, `lireClientDuRendu`, un bouchon dans la page ne l'atteindrait pas) ; fiche 120 choisie par ce qu'elle rend (étape Prospect, référent, visite « scheduled » à confirmer que l'agent gère, 5 notes dont une épinglée, sans compte) ; toute requête autre que GET/HEAD est refusée dans la page (`FID_AVANT=fid2589/garde.js`) ; `p-a1.js` attend la fiche et remonte en haut"
+      }
+    },
+    {
+      "page": "app-clients",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Modifier",
+      "references": {
+        "telephone": "references/app-clients/a-2-telephone.json",
+        "bureau-1440": "references/app-clients/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-clients/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/customers/120",
+        "persona": "agent (les trois appareils, comme la maquette : « Sokhna Sène · Dakar Immo · Agent »)",
+        "etat": "les clients de la base de démo (décision Q8 b reconduite : rendu serveur gardé, aucune donnée bouchonnée — la fiche est lue AU SERVEUR, `lireClientDuRendu`, un bouchon dans la page ne l'atteindrait pas) ; fiche 120 choisie par ce qu'elle rend (étape Prospect, référent, visite « scheduled » à confirmer que l'agent gère, 5 notes dont une épinglée, sans compte) ; toute requête autre que GET/HEAD est refusée dans la page (`FID_AVANT=fid2589/garde.js`) ; `p-modifier.js` ouvre « Modifier » (bouton au bureau ; « ⋯ » de l'en-tête puis « Modifier » au téléphone), choisit Louer et Studio, saisit Mermoz et Ouakam dans Quartiers ; n'enregistre jamais"
+      }
+    },
+    {
+      "page": "app-fil-commercial",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "La fiche, la veille",
+      "references": {
+        "telephone": "references/app-fil-commercial/a-3-telephone.json",
+        "bureau-1440": "references/app-fil-commercial/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-fil-commercial/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/customers/120",
+        "persona": "agent (les trois appareils, comme la maquette : « Sokhna Sène · Dakar Immo · Agent »)",
+        "etat": "la fiche 120 de la démo, comme a-1 (Q8 b : aucune donnée bouchonnée, écritures refusées par `garde.js`, `p-a1.js`). L'état « la veille » — une visite CONFIRMÉE le lendemain — n'existe pas sur la démo : 0 des 79 fiches de l'agence qui ont une visite à venir n'en a une confirmée (`sonde-veille.mjs`, lecture seule, 2026-11-12), et l'écrire en base démo est exclu. Le relevé montre donc l'état le plus proche (visite « scheduled », à confirmer) ; le rendu d'une visite confirmée est éprouvé en test de composant (FicheDuClient.tck-2589, « a-3 « la veille » », ablation v1 rouge). Relevés : `fid2589/releves-a3.sh` → prod-a3/, cmp-a3/ (2026-11-12 : téléphone 37 conformes · 14 écarts · 39 absents ; bureau 1440 et 1280 : 44 · 162 · 55, dont ~150 lignes du rôle de coque, cf. hors_perimetre)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/customers/120",
+    "persona": "agent",
+    "disposition": "agent",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad du lot 2, fid2589/ : garde.js (chargé AVANT la page par `FID_AVANT` : refuse et compte toute écriture, recueille les erreurs de console), commun.js + a1.js → p-a1.js, commun.js + modifier.js → p-modifier.js ; sondes de choix de la fiche (lecture seule, ids et comptes) : sonde-cles.mjs, sonde-choix.mjs ; relevés releves7.sh → prod5/, comparaison → cmp5/. Les deux requêtes refusées à chaque chargement sont `getNotificationsAction` (server action de lecture de la cloche de la coque, POST par nature)"
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [
+    {
+      "appareil": "bureau-1440",
+      "nom": "barre de filtres du fil (Tout · Notes · Visites · Appels · Étapes)",
+      "x": 1092,
+      "y": 250,
+      "w": 306,
+      "h": 31
+    },
+    {
+      "appareil": "bureau-1280",
+      "nom": "barre de filtres du fil (Tout · Notes · Visites · Appels · Étapes)",
+      "x": 932,
+      "y": 268,
+      "w": 306,
+      "h": 31
+    },
+    {
+      "appareil": "mobile",
+      "nom": "barre du bas de la fiche (+ Note · + Tâche · Visite)",
+      "x": 16,
+      "y": 722,
+      "w": 358,
+      "h": 48
+    }
+  ],
+  "alias": {
+    "Cherche": "Sa recherche",
+    "Ce qu’elle cherche": "Sa recherche"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-clients a-1-*",
+      "element": "blocs sans donnée sur la démo : « Relancer après la visite » (tâche suivante), contenu de CHERCHE et « 3 biens correspondent », ORIGINE et son message, étiquette « Meublé », lignes du dossier « Biens correspondants », « Documents », « Relations »",
+      "propriete": "absents du produit, et l'ordonnée de tout ce qui les suit",
+      "exception": "donnée",
+      "motif": "mesuré sur les 141 fiches de l'agence de démo (sonde-cles.mjs, lecture seule) : 0 avec un critère de recherche, 0 avec une origine, 0 avec un document, 0 avec une étiquette ; aucune tâche suivante ne paraît sur la fiche 120 (relevé). Chaque bloc est éprouvé en test de composant avec les données de la maquette : FicheDuClient.tck-2589 (« 3a » tâche suivante, « 4a » biens correspondants, « l’origine cite le message »), DossierDuClient.tck-2589 (lignes présentes seulement quand elles ont quelque chose à montrer, AC5). « Sa recherche · Pas encore de recherche. » est l'état vide de CHERCHE, garde son « Modifier ». Décision 1a (team-lead, 2026-11-12) : a-1 relevé PARTIEL sur ces blocs, couverts par les tests de composants."
+    },
+    {
+      "ecran": "app-clients a-1-*, app-fil-commercial a-3-*",
+      "element": "« Demandée par Mariama, à confirmer » ; prix de l'origine",
+      "propriete": "texte (« À confirmer »)",
+      "exception": "donnée",
+      "motif": "décisions 2a et 5a du lot B : l'auteur de la demande n'est pas servi ; le prix de l'origine est retiré"
+    },
+    {
+      "ecran": "app-clients a-1-bureau-*, app-fil-commercial a-3-bureau-*",
+      "element": "« Plus d’actions » (⋯) à droite de « Modifier »",
+      "propriete": "absent de la maquette",
+      "exception": "technique",
+      "motif": "le ticket pose « nom et menu ⋯ » et « Modifier » au menu ⋯ ; lot D1 (d062b67a4) : au bureau, « Modifier » reste un bouton et le ⋯ porte « Saisir une demande » (personnel actif) et « Ajouter un document », qui n'ont pas d'autre accès sur la fiche depuis le retrait des onglets"
+    },
+    {
+      "ecran": "app-clients a-1-*, app-fil-commercial a-3-*",
+      "element": "pastille d'étape « Prospect ▾ »",
+      "propriete": "téléphone : hauteur 28 → 36 px, et l'ordonnée de tout ce qui suit (+8 px) ; partout : boîte du texte (celle du déclencheur, 56,8 × 19,5) et taille du chevron (14 → 16 px au pouce, 12,6 → 14,4 au bureau)",
+      "exception": "accessibilité",
+      "motif": "`SelectTrigger` porte `plancher-tactile-9` (36 px sous le pouce) et la taille de son icône ; la boîte du texte est celle du déclencheur (comme les sélecteurs de TCK-2590)"
+    },
+    {
+      "ecran": "app-clients a-1-telephone, app-fil-commercial a-3-telephone",
+      "element": "filtre du fil (« Tout · Notes · Visites · Appels »)",
+      "propriete": "une ligne de texte dans la maquette → cinq pastilles de 32 px (avec « Étapes »)",
+      "exception": "accessibilité",
+      "motif": "chaque filtre est une cible du doigt, avec son état pressé ; la maquette bureau dessine les mêmes pastilles"
+    },
+    {
+      "ecran": "app-clients a-1-telephone, app-fil-commercial a-3-telephone",
+      "element": "carte « Référent » et champ d'étiquettes, entre le résumé et le fil",
+      "propriete": "absents de la maquette téléphone (elle dit « référente Khady D. » en tête seulement)",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "la maquette bureau dessine la carte ; au téléphone, la tête dit le référent et la carte reste le seul lieu de « Me désigner » / « Changer ». Décision 4a (team-lead, 2026-11-12) : la carte reste où elle est."
+    },
+    {
+      "ecran": "app-clients a-1-*, app-fil-commercial a-3-*",
+      "element": "le fil de la démo : « Épinglées », « Compte rendu », les entrées et leurs icônes (appel sortant, biens partagés, étape, demande reçue, compte rendu, note citée ; « Fiche créée » et les tâches, entrées au fil par la vérification C/C2, d1 a)",
+      "propriete": "absents de la maquette ou du produit, contenu, ordonnées ; appariements de hasard qui en découlent (« Documents » du dossier apparié au lien « Documents » de la coque, icône du compte rendu à celle d'« États des lieux »)",
+      "exception": "donnée",
+      "motif": "le fil de la fiche 120 sur la démo (une note épinglée, deux comptes rendus) ; le fil est éprouvé en test (FilDuClient.tck-2589)"
+    },
+    {
+      "ecran": "app-clients a-1-*, app-fil-commercial a-3-telephone",
+      "element": "« Appeler », « WhatsApp » au téléphone",
+      "propriete": "largeur (114 → 175 px) et abscisse",
+      "exception": "donnée",
+      "motif": "« Écrire » ne se rend que si le serveur accepterait la directe (`filter[id]` de `GET /api/conversations/contacts`, décision 1a) ; la fiche 120 de la démo n'a pas de compte : deux gestes, deux colonnes (décision 2, team-lead, 2026-11-12). Les trois colonnes sont éprouvées en test (FicheDuClient.tck-2589, lot « Écrire »)"
+    },
+    {
+      "ecran": "app-clients a-1-*, a-2-*, app-fil-commercial a-3-*",
+      "element": "encres à alpha de la maquette (pastilles du fil et de la saisie, « Annuler »)",
+      "propriete": "couleur (encre à 75–85 % → `text-encre-douce` opaque)",
+      "exception": "règle du design system",
+      "motif": "`check-heritage-encre` et encre-sans-alpha de la portée /app (même entrée que TCK-2590)"
+    },
+    {
+      "ecran": "app-clients a-*-*, app-fil-commercial a-3-*",
+      "element": "icônes lucide",
+      "propriete": "trait (2 ou 1,75 → 1,5 au bureau, 1,75 au pouce)",
+      "exception": "règle du design system",
+      "motif": "`globals.css`, `svg.lucide[stroke-width=\"2\"]` pour toutes les pages de /app (même entrée que TCK-2590)"
+    },
+    {
+      "ecran": "app-clients a-1-bureau-*, a-2-*, app-fil-commercial a-3-bureau-*",
+      "element": "« Modifier » de la tête, « Ajouter », « Enregistrer », « Confirmer »",
+      "propriete": "bordure (0 → 1 px), marges intérieures, écart (±2 px), largeur (±2 à 7 px) et, en conséquence, l'abscisse des boutons voisins ; interligne des libellés en `text-ui` (21,1 → 19,5 px), pastilles de la saisie et du fil comprises",
+      "exception": "règle du design system",
+      "motif": "`buttonVariants` porte une bordure de 1 px et le rembourrage de sa taille, pour tous les boutons ; `text-ui` porte son interligne de jeton (même entrée que TCK-2590)"
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "champs de saisie (Prénom, Nom, Profession, Langue, Quartiers)",
+      "propriete": "hauteur et taille du texte, et l'ordonnée de ce qui suit",
+      "exception": "accessibilité",
+      "motif": "primitives `Input`/`Select` : 16 px sous le pouce (zoom d'iOS, TCK-2460/TCK-2686) et la hauteur de `champs-uniformes` (même entrée que TCK-2590)"
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "astérisques de « Prénom » et « Nom »",
+      "propriete": "absents de la maquette",
+      "exception": "accessibilité",
+      "motif": "`FormInput` marque un champ requis d'un astérisque et de l'attribut `required`, dans tous les formulaires de /app"
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "« Statut » (Actif / Inactif) dans Identité",
+      "propriete": "absent de la maquette ; ce qui suit descend d'une rangée",
+      "exception": "technique",
+      "motif": "le formulaire d'édition est le seul lieu où une fiche passe inactive (`customerStatusOptions` n'est lu que par `CustomerForm`) (le ticket : « l'édition garde tous les champs du formulaire actuel ») ; posé seul sous la langue, qui garde sa ligne entière comme la maquette. Décision 2a (team-lead, 2026-11-12) : gardé, sur sa ligne."
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "« Langue des messages »",
+      "propriete": "« Français » dans un champ → « Par défaut (français) » dans un sélecteur",
+      "exception": "donnée",
+      "motif": "la fiche 120 n'a pas de langue (`locale` nul) ; c'est un choix dans une liste fermée (`customerLocaleValues`), d'où le chevron"
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "budget : « Budget min. » / « Budget max. » en champs",
+      "propriete": "le curseur « Budget par mois » de la création (« Sans plafond », « En milliers de F CFA, par paliers ») ; « Budget minimum » et « Chambres, au moins » descendent sous la ligne de flottaison",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "a-4 (création) dessine le curseur, a-2 deux champs ; décision 9a du lot D2 : la feuille reprend `ChampsDeLaRecherche` de la création, même DOM. « Chambres, au moins » est là, sous le budget"
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "suggestions de quartier (« + Sacré-Cœur · + Point E · + Liberté 6 ») et « Ajouter… »",
+      "propriete": "absents du produit",
+      "exception": "technique",
+      "motif": "aucune source ne sert des quartiers proches ; « Ajouter… » est le `placeholder` du champ (même entrée que TCK-2590)"
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "pastilles de type (Chambre, Studio…)",
+      "propriete": "largeur (+4 px), marges intérieures (14 → 16 px), « Appartement » non choisi",
+      "exception": "accessibilité",
+      "motif": "`ChampsDeLaRecherche` de la création (h-11, `px-4`, même entrée que TCK-2590 pour a-4) ; le perturbateur ne choisit que Studio (donnée)"
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "largeur des sections (−4 px) ; en-tête du panneau (rôle « coque · en-tête » au téléphone, 2 %)",
+      "propriete": "largeur, pixels",
+      "exception": "hors périmètre",
+      "motif": "`PanneauDroit` en régime formulaire (TCK-2586/TCK-2688), primitive partagée : son rembourrage et sa croix"
+    },
+    {
+      "ecran": "app-clients a-2-bureau-*",
+      "element": "voile sur la fiche derrière le panneau",
+      "propriete": "pixels de toute la page hors panneau (≈ 70 %)",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "décision du porteur du 2026-11-10 (2 a), portée par `PanneauDroit` : dès `xl`, 480 px, aucun voile, non modal (même entrée que TCK-2590)"
+    },
+    {
+      "ecran": "app-clients a-2-telephone",
+      "element": "la fiche et la coque sous le formulaire plein écran",
+      "propriete": "absents de la maquette",
+      "exception": "technique",
+      "motif": "sous `xl` le panneau couvre l'écran et rend la page inerte (`aria-modal`), la fiche reste montée sous lui (même entrée que TCK-2590)"
+    },
+    {
+      "ecran": "app-clients a-1-*, app-fil-commercial a-3-*",
+      "element": "« référente Khady D. », « Référente · Khady Diallo », « cliente depuis le 3 nov. »",
+      "propriete": "texte (« référent … », « Référent · Serigne Ndoye », « client depuis le … »), initiales (donnée)",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "le genre n'est saisi ni pour le référent ni pour le client : le produit ne le devine pas d'après le prénom (décision 2b du lead, comme « sa recherche ») ; les noms de la démo diffèrent, l'outil ne les apparie pas : noté à la main"
+    },
+    {
+      "ecran": "app-clients a-1-bureau-*, a-2-bureau-*, app-fil-commercial a-3-bureau-*",
+      "element": "« Me désigner », « Changer »",
+      "propriete": "interligne (19,5 → 18,6 px)",
+      "exception": "règle du design system",
+      "motif": "`CustomerReferent` (forme carte) partagé : `text-ui` et son interligne de jeton ; même texte, même place"
+    },
+    {
+      "ecran": "app-clients a-2-telephone",
+      "element": "barre collante d'« Enregistrer »",
+      "propriete": "ombre (même valeur, écrite en oklab dans la maquette et en sRGB dans le produit) ; écart (gap) 0 → 8 px",
+      "exception": "technique",
+      "motif": "`PanneauDroit` (régime formulaire) pose `gap-2` entre les actions du pied ; « Annuler » y est masqué sous `xl`, l'écart ne sépare donc rien. L'ombre est le jeton `shadow-barre-collante`"
+    },
+    {
+      "ecran": "app-clients a-2-telephone",
+      "element": "icône « + » de « Plus » (types de bien)",
+      "propriete": "couleur (encre douce → encre)",
+      "exception": "règle du design system",
+      "motif": "`ChampsDeLaRecherche` est celui de la création (même DOM, décision 9a) : la pastille « Plus » et son icône y sont rendues en encre ; la maquette a-2 la dessine en encre douce"
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "chevrons des sections (Identité, Contact, Sa recherche)",
+      "propriete": "lucide-chevron-up absent du produit",
+      "exception": "technique",
+      "motif": "`SectionDeLaFeuille` tourne un seul `ChevronDown` (`rotate-180`) quand la section est ouverte : l'inventaire lit « chevron-down », la maquette dessine deux icônes"
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "« Fermer »",
+      "propriete": "absent de la maquette",
+      "exception": "accessibilité",
+      "motif": "nom accessible de la croix du panneau (`aria-label`), relevé par l'inventaire, invisible"
+    },
+    {
+      "ecran": "app-clients a-2-telephone",
+      "element": "« Sa recherche » (titre de la section)",
+      "propriete": "casse, taille, couleur, interligne",
+      "exception": "technique",
+      "motif": "deux « Sa recherche » dans le relevé : le titre de la section du panneau et le surtitre de CHERCHE de la fiche, montée sous le panneau ; l'alias apparie le second. Le titre de section a le style de « Identité » et « Contact »"
+    },
+    {
+      "ecran": "app-fil-commercial a-3-*",
+      "element": "blocs sans donnée sur la démo : visite CONFIRMÉE (d'où « À confirmer » et « Confirmer » au produit au lieu de « Confirmée » et « Rappeler la visite », « Visite sam. … » au lieu de « Visite demain · … » — la visite de la démo n'est pas le lendemain —, et le titre de la visite sur deux lignes au téléphone), ORIGINE et son message cité, entrées du fil « Demande reçue sur … » (note `lead_message`) et « Réponse WhatsApp » (contact `on: lead`), contenu de CHERCHE et « 3 biens correspondent » (« Pas encore de recherche. » au produit), étiquettes « Garant » et « Fonctionnaire », « Écrire » (la fiche 120 n'a pas de compte : `user_id` nul)",
+      "propriete": "absents du produit ou de la maquette, et l'ordonnée et l'abscisse de ce qui les suit (« Sa recherche » −52 px, « Planifier une visite » −146 px au bureau)",
+      "exception": "donnée",
+      "motif": "mesuré : les 79 fiches de l'agence qui ont une visite à venir n'en ont que des `scheduled` (128 visites ; sonde-veille.mjs, lecture seule, statuts imprimés), alors que `upcoming_visits` sert aussi `confirmed` (CustomerNextActionQuery::VISIT_STATUSES) ; pour le reste, les comptes de l'entrée a-1 « blocs sans donnée » (0 critère, 0 origine, 0 étiquette sur 141 fiches). Tests : FicheDuClient.tck-2589 — « a-3 « la veille » — une visite confirmée se montre sans « À confirmer » ni « Confirmer » » (ablation v1 rouge), les cinq tests « TCK-2589 (a-3, groupe 2) — la fiche, la veille de la visite » (ablations g1–g6 rouges), « l’origine cite le message de la demande », « 4a — le nombre de biens correspondants vient de meta.total… », « compte joignable : Appeler, WhatsApp, Écrire… », « sans compte : pas d’« Écrire »… » ; FilDuClient.tck-2589 — « AC2 — demande, réponse WhatsApp de Sokhna, visite confirmée, compte rendu, dans l’ordre de lecture »."
+    },
+    {
+      "ecran": "app-fil-commercial a-3-*",
+      "element": "groupe 1, ce que l'API ne sert pas : dans « Prochaine action », l'adresse (« Rue OU-48 », lucide-map-pin), « SMS envoyé » et « Itinéraire » (lucide-navigation) ; dans CHERCHE, « Déduit du bien de sa demande, à confirmer avec lui. » ; dans le fil, la sous-ligne « SMS envoyé à Mouhamed · fiche créée, étape Prospect » de la visite confirmée et le texte cité sous « Réponse WhatsApp »",
+      "propriete": "absents du produit",
+      "exception": "décision a-3, groupe 1 (team-lead, 2026-11-12) — b : exclu, suivi TCK-2761",
+      "motif": "`upcoming_visits[]` porte id, property_id, status, scheduled_at, preferred_window, manage : ni adresse ni coordonnées du bien, ni trace d'un SMS ; la fiche ne sait pas que sa recherche a été déduite d'une demande ; une entrée de contact porte channel, on et causer, jamais un contenu. L'adresse, « Itinéraire », la trace du SMS et le marqueur « déduit » vont à TCK-2761 ; le texte cité d'une réponse WhatsApp est exclu pour de bon : l'échange se fait hors de Takussan, aucun texte n'existe à citer."
+    },
+    {
+      "ecran": "app-fil-commercial a-3-*",
+      "element": "conséquences du groupe 1 sur ce que le groupe 2 a livré : « Rappeler la visite » occupe seul toute la largeur du bloc (la maquette le met dans une grille 1fr / 1,4fr à droite d'« Itinéraire ») ; « Confirmée » se dit seul sur sa ligne (la maquette : « Rue OU-48 · confirmée, SMS envoyé », après lucide-map-pin)",
+      "propriete": "largeur et abscisse du geste ; texte, casse et icône de la ligne de statut",
+      "exception": "décision a-3, groupe 1 (team-lead, 2026-11-12) — b : exclu, suivi TCK-2761",
+      "motif": "le groupe 2 (décision a : « demain », « confirmée », « Rappeler la visite ») est implémenté dans ResumeDuClient (ProchaineActionDuClient) : jour de Dakar du lendemain tiré de scheduled_at, « Confirmée » tiré de status, WhatsApp pré-rédigé au numéro du client (prénom, bien, jour, heure ; noté comme geste WhatsApp pour le seul personnel). Ce qui reste dépend de l'adresse et de la trace du SMS, que l'API ne sert pas : TCK-2761 rend la grille et la ligne de la maquette."
+    },
+    {
+      "ecran": "app-fil-commercial a-3-bureau-*",
+      "element": "saisie du fil : « Note · Tâche · Appel passé » en onglets de texte dans la maquette a-3, pastilles « Note » (active) · « Tâche » · « Épingler » au produit",
+      "propriete": "graisse, couleur, largeur, abscisse ; « Tâche » et « Épingler » absents de la maquette, « Appel passé » absent du produit",
+      "exception": "maquette",
+      "motif": "la saisie est celle de la maquette app-clients a-1 (même fiche, écran plus détaillé ; Note · Tâche · Épingler, décisions C 2b et C 3a) ; « Appel passé » de a-3 est tenu par le geste « Appeler » de la tête, noté au toucher pour le personnel (TCK-2583)"
+    },
+    {
+      "ecran": "app-clients a-2-*",
+      "element": "zones « barre de filtres du fil » (bureau) et « barre du bas de la fiche » (téléphone)",
+      "propriete": "pixels (8,1 % à 1440, 9,3 % à 1280, 31 % au téléphone)",
+      "exception": "maquette",
+      "motif": "une zone vaut pour tous les écrans d'un appareil (comparer.mjs filtre sur `appareil` seul) ; sur a-2 la feuille « Modifier » couvre ces zones — panneau de 480 px et voile au bureau, formulaire plein écran au téléphone (écarts a-2 « voile » et « la fiche et la coque sous le formulaire » ci-dessus). Sur a-1 et a-3 : 0 % aux trois appareils (relevé cmp-zones, 2026-11-12)"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "element": "coque (barre latérale, en-tête, barre d'onglets)",
+      "ticket": "TCK-2617",
+      "motif": "TCK-2617/TCK-2618/TCK-2619 ; au bureau le rôle « coque · barre latérale » (zone y 0–900, wMin 200) apparie toute la page, d'où ~150 lignes de rôle par relevé : seules les ancres se lisent"
+    },
+    {
+      "element": "pipeline (« Étapes »)",
+      "ticket": "TCK-2592",
+      "motif": "la cible du bouton est un autre écran"
+    }
+  ]
+}

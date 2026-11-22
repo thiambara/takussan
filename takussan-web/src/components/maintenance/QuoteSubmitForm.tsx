@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Plus, Trash2 } from 'lucide-react';
 
+import { lireNombre } from '@/lib/clavier';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,16 @@ const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024;
 
 type LineDraft = { label: string; kind: MaintenanceQuoteLineKind; quantity: string; unit_price: string };
 
+/**
+ * ADR-0135 — les champs sont des champs texte : « 1 500 » et « 1,5 » se lisent en nombre. Vide : 0, illisible :
+ * NaN — ce que rendait `Number()` sur l'ancien `type="number"`.
+ */
+function nombreDe(saisie: string): number {
+  const n = lireNombre(saisie);
+  if (typeof n === 'number') return n;
+  return saisie.trim() === '' ? 0 : Number.NaN;
+}
+
 const emptyLine = (): LineDraft => ({ label: '', kind: 'labour', quantity: '1', unit_price: '' });
 
 /**
@@ -45,7 +56,7 @@ export function quotePreviewTotal(
 ): number {
   const scale = CURRENCY_METADATA[currency as CurrencyCode]?.decimalPlaces ?? 2;
   const unit = BigInt(10 ** (4 - scale));
-  const centiemes = (v: string) => BigInt(Math.round((Number(v) || 0) * 100));
+  const centiemes = (v: string) => BigInt(Math.round((nombreDe(v) || 0) * 100));
   const zero = BigInt(0);
   const demi = unit / BigInt(2);
   const total = lines.reduce((sum, l) => {
@@ -96,7 +107,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
     const typed = picked.filter(isAccepted);
     setRejectedFiles(picked.filter((f) => !isAccepted(f)).map((f) => f.name));
     // TCK-1907 (P195.07) — une pièce au-delà du plafond de l'API est écartée et nommée au choix,
-    // comme `KycUploader` et `DocumentUploadDialog`, au lieu d'un 422 après la saisie des lignes.
+    // comme « Vos pièces » et `DocumentUploadDialog`, au lieu d'un 422 après la saisie des lignes.
     const accepted = typed.filter((f) => f.size <= MAX_ATTACHMENT_BYTES);
     setTooLargeFiles(typed.filter((f) => f.size > MAX_ATTACHMENT_BYTES).map((f) => f.name));
     // TCK-1889 (P195.02) — une sélection qui porterait le total au-delà de la borne de l'API est
@@ -119,7 +130,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
   const submit = async () => {
     setLocalError(null);
     const complete = lines.every(
-      (l) => l.label.trim() !== '' && Number(l.quantity) > 0 && l.unit_price !== '' && Number(l.unit_price) >= 0,
+      (l) => l.label.trim() !== '' && nombreDe(l.quantity) > 0 && l.unit_price !== '' && nombreDe(l.unit_price) >= 0,
     );
     if (!complete || !validUntil) {
       setLocalError(t('incomplete'));
@@ -129,11 +140,11 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
       lines: lines.map((l) => ({
         label: l.label.trim(),
         kind: l.kind,
-        quantity: Number(l.quantity),
-        unit_price: Number(l.unit_price),
+        quantity: nombreDe(l.quantity),
+        unit_price: nombreDe(l.unit_price),
       })),
       valid_until: validUntil,
-      estimated_duration_days: duration ? Number(duration) : null,
+      estimated_duration_days: duration ? nombreDe(duration) : null,
       attachments,
     });
     setLines([emptyLine()]);
@@ -165,13 +176,15 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
       >
         <ol className="space-y-3">
           {lines.map((line, index) => (
-            <li key={index} className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_9rem_6rem_8rem_auto]">
+            <li key={index} className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_calc(var(--spacing)*36)_calc(var(--spacing)*24)_calc(var(--spacing)*32)_auto]">
               <div className="col-span-2 sm:col-span-1">
                 <label htmlFor={`quote-line-label-${index}`} className="mb-1 block text-xs font-medium">
                   {tQuote('line_label')}
                 </label>
                 <Input
                   id={`quote-line-label-${index}`}
+                  profil="phrase"
+                  placeholder={tQuote('line_label_placeholder')}
                   value={line.label}
                   onChange={(e) => updateLine(index, { label: e.target.value })}
                 />
@@ -201,10 +214,8 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
                 </label>
                 <Input
                   id={`quote-line-quantity-${index}`}
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  step="0.01"
+                  profil="decimal"
+                  placeholder={tQuote('line_quantity_placeholder')}
                   value={line.quantity}
                   onChange={(e) => updateLine(index, { quantity: e.target.value })}
                 />
@@ -215,10 +226,8 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
                 </label>
                 <Input
                   id={`quote-line-price-${index}`}
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  step="1"
+                  profil="montant"
+                  placeholder={tQuote('line_unit_price_placeholder')}
                   value={line.unit_price}
                   onChange={(e) => updateLine(index, { unit_price: e.target.value })}
                 />
@@ -269,8 +278,8 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
             </label>
             <Input
               id="quote-duration"
-              type="number"
-              inputMode="numeric"
+              profil="entier"
+              placeholder={t('duration_placeholder')}
               min={1}
               max={365}
               value={duration}

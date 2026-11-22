@@ -87,7 +87,8 @@ class InvitationAcceptTest extends TestCase
 
         $response->assertStatus(401)
             ->assertJsonPath('requires_login', true)
-            ->assertJsonPath('email', 'existing@example.com')
+            // TCK-2727 — l'adresse masquée, comme l'aperçu public : jamais en clair au porteur du jeton.
+            ->assertJsonPath('email', 'e•••@example.com')
             // TCK-588 — le relais porte le code et le message localisé de l'ApiError.
             ->assertJsonPath('code', 'invitation.requires_login')
             ->assertJsonPath('message', __('errors.invitation.requires_login'));
@@ -157,6 +158,11 @@ class InvitationAcceptTest extends TestCase
         $this->assertNotNull($log);
     }
 
+    /**
+     * TCK-2610 (ADR-0094 § 7) — sans compte qui porte l'e-mail de l'invitation, un appelant connecté accepte pour LUI,
+     * aux règles d'`acceptForAuthenticatedUser` : un autre e-mail est refusé. Ce test portait le défaut — titre « rejected »,
+     * assertion 200 : la branche « nouveau compte » créait un second compte sous la session d'un autre.
+     */
     public function test_authenticated_user_with_mismatched_email_is_rejected(): void
     {
         $other = User::factory()->create(['email' => 'other@example.com']);
@@ -169,14 +175,12 @@ class InvitationAcceptTest extends TestCase
 
         Sanctum::actingAs($other);
 
-        // Note: target email has no User row → service falls into branch A
-        // (create new user). Authenticated user only matters for the
-        // existing-user branch. So this is the new-user path; the
-        // explicit acceptForAuthenticatedUser surface is internal but
-        // exercised by the existing-user-can-accept test above.
         $this->postJson('/api/invitations/'.$invitation->token.'/accept', [
             'first_name' => 'New',
             'last_name' => 'Person',
-        ])->assertStatus(200);
+        ])->assertStatus(403)->assertJsonPath('code', 'invitation.email_mismatch');
+
+        $this->assertNull(User::query()->where('email', 'target@example.com')->first());
+        $this->assertSame(InvitationStatus::Sent, $invitation->fresh()->status);
     }
 }

@@ -21,6 +21,12 @@ import type { PropertyListItem, PropertyOwnerLite } from '@/types/property';
 
 const { refresh, bulkAssign } = vi.hoisted(() => ({ refresh: vi.fn(), bulkAssign: vi.fn() }));
 
+// Réserve de verif-patrimoine (2026-11-12) — les gestes de la ligne disent leur issue par un toast
+// (`useGestesRapides`) ; le `ToastProvider` vit dans la coque, pas dans ce rendu (Base UI #73).
+vi.mock('@/components/ui/toast', async (original) => ({
+  ...(await original<typeof import('@/components/ui/toast')>()),
+  useToast: () => ({ add: vi.fn() }),
+}));
 vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: true, isLoading: false }) }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh }),
@@ -133,11 +139,12 @@ describe('PropertyList — changer l’agent responsable (TCK-603)', () => {
       'Bien 2': 'Propriétaire : Fatou Bailleur · Agent responsable : aucun',
       'Bien 3': 'Propriétaire : Awa Diop · Agent responsable : Awa Diop',
     };
-    // Les deux surfaces de la liste : la ligne de la table et la carte mobile.
-    const lignes = screen.getAllByRole('row');
+    // TCK-2638 (lot B) — en mode Annonces, une seule surface : la carte, au téléphone comme au bureau.
     const cartes = screen.getAllByRole('listitem');
-    for (const surface of [lignes, cartes]) {
-      const de = (titre: string) => surface.find((r) => within(r).queryByText(titre) !== null)!;
+    for (const surface of [cartes]) {
+      // Le lien de la carte dit « titre · quartier ».
+      const de = (titre: string) =>
+        surface.find((r) => within(r).queryByRole('link', { name: new RegExp(`^${titre}( ·|$)`) }) !== null)!;
       for (const [titre, texte] of Object.entries(attendus)) expect(de(titre)).toHaveTextContent(texte);
       expect(de('Bien 4')).toHaveTextContent('Propriétaire : Fatou Bailleur');
       expect(de('Bien 4')).not.toHaveTextContent('Agent responsable');

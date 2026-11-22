@@ -73,6 +73,8 @@ vi.mock('next-intl/server', async () => {
 
 vi.mock('next/navigation', () => ({
   notFound: () => notFoundMock(),
+  // TCK-2493 — `NavbarSpacer` lit le chemin (cale des pages de découverte).
+  usePathname: () => '/fr/properties/villa',
 }));
 
 vi.mock('@/lib/queries/public-property', () => ({
@@ -99,6 +101,8 @@ vi.mock('../components/CompteurDeVue', () => ({
 
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => <nav data-testid="navbar" /> }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer data-testid="footer" /> }));
+// TCK-2568 — le bien retiré monte la barre d'onglets (composant client, session) : hors de propos ici.
+vi.mock('@/components/navigation-publique/BarreDOngletsPublique', () => ({ BarreDOngletsPublique: () => null }));
 vi.mock('../PropertyDetailContent', () => ({
   PropertyDetailContent: ({ property }: { property: PropertyDetail }) => (
     <h1 data-testid="fiche">{property.title}</h1>
@@ -126,13 +130,7 @@ function bien(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
     main_photo_url: null,
     published_at: '2026-08-01T00:00:00.000Z',
     created_at: '2026-07-01T00:00:00.000Z',
-    type_label: 'Studio',
-    contract_type_label: 'À louer',
-    rent_period_label: 'Mensuel',
-    status_label: 'Disponible',
     title_type: null,
-    title_type_label: null,
-    condition_label: null,
     floor_number: null,
     total_floors: null,
     year_built: null,

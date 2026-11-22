@@ -273,8 +273,8 @@ export function BarChart({ data, title, unit, className, orientation = 'vertical
                 data-chart-axis="x"
                 className={cn(
                   'absolute top-0 max-w-(--pas) -translate-x-1/2 truncate text-center text-xs leading-4 text-muted-foreground',
-                  eclaircir && groupIdx % 2 === 1 && '@max-[36rem]:hidden',
-                  eclaircir && '@max-[36rem]:max-w-[calc(var(--pas)*2)]',
+                  eclaircir && groupIdx % 2 === 1 && 'max-lg:@max-[36rem]:hidden lg:@max-[32.4rem]:hidden',
+                  eclaircir && 'max-lg:@max-[36rem]:max-w-[calc(var(--pas)*2)] lg:@max-[32.4rem]:max-w-[calc(var(--pas)*2)]',
                 )}
                 style={
                   {
@@ -409,7 +409,7 @@ function BarresHorizontales({ data, title, unit, className, aria, graduations: g
               className={cn(
                 'absolute top-0 whitespace-nowrap text-xs leading-4 tabular-nums text-muted-foreground',
                 g.p === 0 ? '' : g.p === 1 ? '-translate-x-full' : '-translate-x-1/2',
-                rang > 0 && g.p < 1 && '@max-[12rem]:hidden',
+                rang > 0 && g.p < 1 && 'max-lg:@max-[12rem]:hidden lg:@max-[10.8rem]:hidden',
               )}
               style={{ left: position(g.p) }}
             >

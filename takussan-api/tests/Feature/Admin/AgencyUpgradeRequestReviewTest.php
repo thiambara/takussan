@@ -20,6 +20,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\PlanDuPassage;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,7 @@ use Tests\TestCase;
  */
 class AgencyUpgradeRequestReviewTest extends TestCase
 {
+    use PlanDuPassage;
     use RefreshDatabase;
 
     private function asSuperAdmin(): User

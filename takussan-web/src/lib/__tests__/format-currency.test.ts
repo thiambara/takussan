@@ -9,8 +9,8 @@ import {
 
 /**
  * Helper — replace any non-ASCII space character with a regular ASCII space
- * so assertions stay deterministic across ICU/Intl builds (Node 22+ uses
- * U+202F as the grouping separator, older runtimes use U+00A0).
+ * so assertions stay deterministic across ICU/Intl builds. The exact characters are pinned once,
+ * below (TCK-2714: groups in U+00A0, never Intl's U+202F).
  */
 function normalize(value: string): string {
   return value.replace(/[   ]/gu, ' ');
@@ -19,6 +19,11 @@ function normalize(value: string): string {
 describe('formatMontant (TCK-084 multi-currency)', () => {
   it('formats XOF with NBSP grouping and trailing F CFA symbol (AC4)', () => {
     expect(normalize(formatMontant(150_000, 'XOF'))).toBe('150 000 F CFA');
+  });
+
+  it('TCK-2714 — les groupes et le symbole sortent en U+00A0, jamais en U+202F', () => {
+    expect(formatMontant(1_500_000, 'XOF')).toBe('1\u00a0500\u00a0000\u00a0F CFA');
+    expect(formatMontant(1_500_000.5, 'EUR')).toBe('1\u00a0500\u00a0000,50\u00a0€');
   });
 
   it('formats EUR with comma decimal and trailing € symbol (AC5)', () => {
@@ -65,9 +70,9 @@ describe('formatMontant (TCK-084 multi-currency)', () => {
     expect(normalize(formatPriceShort(1_200_000, 'fr-SN'))).toBe('1,2 M');
     expect(normalize(formatPriceShort(120_000_000, 'fr-SN'))).toBe('120 M');
     expect(normalize(formatPriceShort(1_500_000_000, 'fr-SN'))).toBe('1,5 Md');
-    expect(formatPriceShort(null)).toBe('');
-    expect(formatPriceShort(undefined)).toBe('');
-    expect(formatPriceShort(Number.NaN)).toBe('');
+    expect(formatPriceShort(null, 'fr-SN')).toBe('');
+    expect(formatPriceShort(undefined, 'fr-SN')).toBe('');
+    expect(formatPriceShort(Number.NaN, 'fr-SN')).toBe('');
   });
 
   it('formats compact prices in en-US with B suffix for billions', () => {

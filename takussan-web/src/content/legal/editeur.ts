@@ -57,8 +57,16 @@ export const HEBERGEURS = {
   },
 } as const;
 
-/** La date de la version en vigueur des trois documents — à changer à chaque révision. */
+/**
+ * La date de la version en vigueur des trois documents — à changer à chaque révision.
+ *
+ * TCK-537 (décision du porteur du 2026-11-16) — c'est LA source de la version : les trois textes la
+ * lisent, et la version que l'API inscrit à l'acceptation (`PublishReadiness::TERMS_VERSION`,
+ * renvoyée au front qui la présente) doit désigner le même jour. Une recopie de l'API qui
+ * divergerait fait rougir `scripts/check-terms-version.mjs` (Repo CI) ; elle n'est jamais suivie
+ * en silence.
+ */
 export const VERSION_DOCUMENTS = {
-  date: '31 octobre 2026',
-  dateEn: 'October 31, 2026',
+  date: '16 novembre 2026',
+  dateEn: 'November 16, 2026',
 } as const;

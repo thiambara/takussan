@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\Capability;
 use App\Models\User;
 use App\Services\Media\AgencyWatermarkContext;
+use App\Services\Messaging\Copilote\ReglagesDuCopilote;
 use App\Services\Payout\PayoutApprovalThreshold;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -52,6 +53,13 @@ class AgencyResource extends BaseResource
             'ninea' => $this->ninea,
             'rccm' => $this->rccm,
             'legal_address' => $this->legal_address,
+            // TCK-2518 — la vitrine de la fiche publique, relue par l'écran de saisie (TCK-2524).
+            'tagline' => $this->whenHas('tagline'),
+            'highlights' => $this->whenHas('highlights', fn ($valeur) => $valeur ?? []),
+            'showcase_property_ids' => $this->whenHas('showcase_property_ids', fn ($valeur) => $valeur ?? []),
+            'median_response_minutes' => $this->whenHas('median_response_minutes'),
+            // TCK-2576 — le numéro WhatsApp de l'agence, relu par l'écran de saisie.
+            'phone_whatsapp' => $this->whenHas('phone_whatsapp'),
             'is_verified' => (bool) $this->is_verified,
             'status' => $this->status?->value,
             'properties_count' => $this->properties_count,
@@ -77,9 +85,31 @@ class AgencyResource extends BaseResource
             // défaut) ? La configuration d'agence ne propose « Regénérer les filigranes » que s'il
             // l'est. Un booléen d'état, pas le drapeau : il reste hors de `feature-flags/me`.
             'watermark_available' => AgencyWatermarkContext::globallyEnabled(),
+            // TCK-2979 (ADR-0131 § 8) — ce que la plateforme laisse aux deux interrupteurs de l'agence (`copilot_enabled`,
+            // `voice_transcription_enabled`) : l'écran les grise et dit pourquoi. Pour qui peut mettre l'agence à jour
+            // seulement — un étalement, pas `when()` (cf. VERIF-594 plus haut) —, et les listes ne paient aucune requête.
+            ...($this->peutMettreAJour($request) ? ['ai_platform' => self::etatDeLaPlateforme($request)] : []),
             'primary_admin_id' => $this->primary_admin_id,
             'created_at' => $this->iso($this->created_at),
         ];
+    }
+
+    /** TCK-2979 — l'état de la plateforme ne dépend pas de l'agence : lu une fois par requête, même pour une liste. */
+    private static function etatDeLaPlateforme(Request $request): array
+    {
+        if (! $request->attributes->has('ai_platform')) {
+            $request->attributes->set('ai_platform', app(ReglagesDuCopilote::class)->etatDeLaPlateforme());
+        }
+
+        return $request->attributes->get('ai_platform');
+    }
+
+    /** TCK-2979 — `AgencyPolicy::update` : l'administrateur de l'agence (ou le super-admin). */
+    private function peutMettreAJour(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user instanceof User && $user->can('update', $this->resource);
     }
 
     /** VERIF-594 m-2 — détenteur de `payouts.approve` ou de `payouts.create` DANS cette agence. */

@@ -192,14 +192,15 @@ class SendLeasePaymentRemindersTest extends TestCase
         PropertyCollaborator::create(['property_id' => $quiet->id, 'user_id' => $idleAgent->id, 'role' => CollaboratorRole::Agent->value, 'invited_at' => now()]);
 
         // Trois retards sur deux baux du même agent.
-        $lease1 = $this->payment(['due_date' => '2026-09-29'], null, ['property_id' => $properties[0]->id, 'landlord_id' => $landlords[0]->id])->lease;
+        // TCK-2806 — le récapitulatif suit l'agence du BAIL (`leases.agency_id`, celle de `/app/payments`).
+        $lease1 = $this->payment(['due_date' => '2026-09-29'], null, ['property_id' => $properties[0]->id, 'landlord_id' => $landlords[0]->id, 'agency_id' => $agency->id])->lease;
         LeasePayment::factory()->create(['lease_id' => $lease1->id, 'amount' => 100000, 'status' => PaymentStatus::Pending, 'due_date' => '2026-09-29']);
-        $this->payment(['due_date' => '2026-09-23'], null, ['property_id' => $properties[1]->id, 'landlord_id' => $landlords[1]->id]);
+        $this->payment(['due_date' => '2026-09-23'], null, ['property_id' => $properties[1]->id, 'landlord_id' => $landlords[1]->id, 'agency_id' => $agency->id]);
 
         // Un retard dans une autre agence.
         $elsewhere = Property::factory()->create(['agency_id' => $ailleurs->id]);
         PropertyCollaborator::create(['property_id' => $elsewhere->id, 'user_id' => $otherAgent->id, 'role' => CollaboratorRole::Agent->value, 'invited_at' => now()]);
-        $this->payment(['due_date' => '2026-09-29'], null, ['property_id' => $elsewhere->id]);
+        $this->payment(['due_date' => '2026-09-29'], null, ['property_id' => $elsewhere->id, 'agency_id' => $ailleurs->id]);
 
         $this->run_();
 

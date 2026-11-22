@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -12,6 +12,7 @@ import { PropertyCardCompact } from './PropertyCardCompact';
 import type { CardVariant } from './types';
 import { EnTeteDeRangee } from './EnTeteDeRangee';
 import { ArriveeSponsorisee } from '@/components/boost/arrivee-sponsorisee';
+import { useEmplacementsDeLaRangee } from '@/components/boost/impressions-affichees';
 
 export type { CardVariant } from './types';
 
@@ -43,13 +44,20 @@ interface PropertyRowProps {
    */
   readonly robeVedette?: boolean;
   /**
-   * TCK-704 (ADR-0061 §7 et §10) — la rangée est un EMPLACEMENT : l'API compte une impression par
-   * bien qu'elle y sert, et le lien de chaque carte porte le marqueur d'arrivée `?src=sponsored`
+   * TCK-704 (ADR-0061 §7 et §10) — la rangée est un EMPLACEMENT : chaque carte affichée déclare son
+   * impression (TCK-2569, `useEmplacementsDeLaRangee` ; l'API ne compte plus au service), et le lien de chaque carte porte le marqueur d'arrivée `?src=sponsored`
    * (TCK-794) que le compteur de vue de la fiche consomme. Sans ce marqueur, ses impressions ne
    * deviennent jamais des clics.
    * Réservé à la rangée vedette de l'accueil.
    */
   readonly emplacementSponsorise?: boolean;
+  /**
+   * TCK-2495 — cartes d'ACCUEIL : une pastille et le favori sur la photo, sans comparateur
+   * (`PastilleEtFavoriDAccueil`). Sans effet sur la variante `listing`.
+   */
+  readonly allegee?: boolean;
+  /** TCK-2495 — un geste posé contre le titre (cf. `EnTeteDeRangee`). */
+  readonly apresLeTitre?: ReactNode;
 }
 
 interface VariantSpec {
@@ -58,6 +66,7 @@ interface VariantSpec {
     priority?: boolean;
     index?: number;
     robe?: 'vedette';
+    allegee?: boolean;
   }>;
   skeleton: 'image-1-1' | 'image-3-4' | 'horizontal';
   /** `deux-lignes` : la carte horizontale se range sur deux rangées qui défilent ensemble. */
@@ -94,9 +103,9 @@ interface VariantSpec {
 // source, et une classe assemblée à l'exécution n'y figure pas — elle ne serait jamais générée.
 const DISPOSITIONS: Record<VariantSpec['disposition'], string> = {
   rangee:
-    'flex [--colonnes:2.15] @lg:[--colonnes:3.2] @3xl:[--colonnes:4] @min-[60rem]:[--colonnes:5] @min-[68rem]:[--colonnes:6] @min-[76rem]:[--colonnes:7] [&>*]:w-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))]! [&>*]:shrink-0',
+    'flex [--colonnes:2.15] max-lg:@lg:[--colonnes:3.2] lg:@min-[28.8rem]:[--colonnes:3.2] max-lg:@3xl:[--colonnes:4] lg:@min-[43.2rem]:[--colonnes:4] max-lg:@min-[60rem]:[--colonnes:5] lg:@min-[54rem]:[--colonnes:5] max-lg:@min-[68rem]:[--colonnes:6] lg:@min-[61.2rem]:[--colonnes:6] max-lg:@min-[76rem]:[--colonnes:7] lg:@min-[68.4rem]:[--colonnes:7] [&>*]:w-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))]! [&>*]:shrink-0',
   'deux-lignes':
-    'grid grid-flow-col grid-rows-2 auto-cols-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))] [--colonnes:1.1] @lg:[--colonnes:1.6] @min-[40rem]:[--colonnes:2.1] @4xl:[--colonnes:3] @7xl:[--colonnes:4] @min-[105rem]:[--colonnes:5] [&>*]:w-auto!',
+    'grid grid-flow-col grid-rows-2 auto-cols-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))] [--colonnes:1.1] max-lg:@lg:[--colonnes:1.6] lg:@min-[28.8rem]:[--colonnes:1.6] max-lg:@min-[40rem]:[--colonnes:2.1] lg:@min-[36rem]:[--colonnes:2.1] max-lg:@4xl:[--colonnes:3] lg:@min-[50.4rem]:[--colonnes:3] max-lg:@7xl:[--colonnes:4] lg:@min-[72rem]:[--colonnes:4] max-lg:@min-[105rem]:[--colonnes:5] lg:@min-[94.5rem]:[--colonnes:5] [&>*]:w-auto!',
 };
 
 const VARIANTS: Record<CardVariant, VariantSpec> = {
@@ -155,10 +164,15 @@ export function PropertyRow({
   priorityCount = 0,
   robeVedette = false,
   emplacementSponsorise = false,
+  allegee = false,
+  apresLeTitre,
 }: PropertyRowProps) {
-  const t = useTranslations('property.row');
+  const t = useTranslations('propertyRow');
   const spec = VARIANTS[variant];
   const scrollerRef = useRef<HTMLDivElement>(null);
+  // TCK-2569 — une rangée d'emplacements (la vedette de l'accueil) déclare chaque carte AFFICHÉE :
+  // une carte hors champ du carrousel ne compte pas tant qu'on n'y a pas défilé.
+  useEmplacementsDeLaRangee(scrollerRef, emplacementSponsorise && !loading ? properties.map((p) => p.slug) : null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
 
@@ -201,12 +215,12 @@ export function PropertyRow({
 
   return (
     <section className="relative @container">
-      <EnTeteDeRangee eyebrow={eyebrow} title={title}>
+      <EnTeteDeRangee eyebrow={eyebrow} title={title} apresLeTitre={apresLeTitre}>
         {action ? (
           <button
             type="button"
             onClick={action.onClick}
-            className={`inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold transition-colors ${
+            className={`inline-flex min-h-11 items-center gap-1 text-[0.875rem] font-semibold transition-colors ${
               action.variant === 'destructive-link'
                 ? 'text-destructive hover:opacity-80'
                 : 'text-foreground hover:text-primary'
@@ -221,7 +235,7 @@ export function PropertyRow({
               // TCK-1086 (P69.02) — « Voir tout » mène à une liste rendue à la demande : préchargé,
               // il coûtait au serveur une recherche de 40 biens par rangée de l'accueil.
               prefetch={false}
-              className="inline-flex min-h-11 items-center gap-0.5 whitespace-nowrap text-[14px] font-semibold text-foreground underline-offset-4 hover:underline hover:text-primary transition-colors"
+              className="inline-flex min-h-11 items-center gap-0.5 whitespace-nowrap text-[0.875rem] font-semibold text-foreground underline-offset-4 hover:underline hover:text-primary transition-colors"
             >
               {viewAllLabel ?? t('viewAll')}
               <ChevronRight aria-hidden="true" className="size-4 text-primary" strokeWidth={2} />
@@ -267,7 +281,7 @@ export function PropertyRow({
         <ArriveeSponsorisee value={emplacementSponsorise}>
           <div
             ref={scrollerRef}
-            className={`${DISPOSITIONS[spec.disposition]} gap-3 [--gap:0.75rem] @lg:gap-4 @lg:[--gap:1rem] overflow-x-auto pb-2 scroll-smooth motion-reduce:scroll-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start`}
+            className={`${DISPOSITIONS[spec.disposition]} gap-3 [--gap:calc(var(--spacing)*3)] max-lg:@lg:gap-4 lg:@min-[28.8rem]:gap-4 max-lg:@lg:[--gap:calc(var(--spacing)*4)] lg:@min-[28.8rem]:[--gap:calc(var(--spacing)*4)] overflow-x-auto pb-2 scroll-smooth motion-reduce:scroll-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start`}
           >
             {loading
               ? Array.from({ length: spec.disposition === 'deux-lignes' ? 10 : 7 }).map((_, i) => (
@@ -280,6 +294,7 @@ export function PropertyRow({
                     priority={i < priorityCount}
                     index={i}
                     robe={robeVedette && property.featured ? 'vedette' : undefined}
+                    allegee={allegee || undefined}
                   />
                 ))}
           </div>

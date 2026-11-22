@@ -37,8 +37,11 @@ class BankStatementLineResource extends BaseResource
             'duplicate_of_line_id' => $this->duplicate_of_line_id,
             'match_status' => $this->match_status?->value,
             'match_status_label' => $this->match_status ? __("reconciliation.line_status.{$this->match_status->value}") : null,
+            // TCK-2793 — la pénalité payée seule d'une échéance se nomme à part : `lease_payment_late_fee`.
             'matched_payment_type' => $this->matched_payment_type
-                ? (self::PAYMENT_TYPE_MAP[$this->matched_payment_type] ?? $this->matched_payment_type)
+                ? ($this->matched_payment_type === LeasePayment::class && $this->matched_part === LeasePayment::PART_LATE_FEE
+                    ? 'lease_payment_late_fee'
+                    : (self::PAYMENT_TYPE_MAP[$this->matched_payment_type] ?? $this->matched_payment_type))
                 : null,
             'matched_payment_id' => $this->matched_payment_id,
             // TCK-1522 (P110.02) — le statut du payable rapproché ou suggéré, relu à chaque lecture :

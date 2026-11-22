@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\AssignAgentPropertyRequest;
 use App\Http\Requests\Api\StorePropertyRequest;
@@ -21,21 +22,30 @@ use App\Models\Property;
 use App\Models\User;
 use App\Notifications\PropertyProposedNotification;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Maintenance\MaintenanceSummary;
 use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\MotifsHorsLigne;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyBulkAssignService;
 use App\Services\Property\PropertyBulkVisibilityService;
 use App\Services\Property\PropertyDuplicationService;
+use App\Services\Property\PropertyListScope;
+use App\Services\Property\PropertyOccupancy;
 use App\Services\Property\PropertyPublication;
+use App\Services\Property\PropertyRewriteModeration;
+use App\Services\Property\PropertyStats30d;
 use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\PublishReadiness;
 use App\Services\Property\ResponsibleAgentAssigner;
 use App\Services\Property\TitulaireALaSaisie;
+use App\Support\Http\ParametreUnique;
 use App\Support\Logging\SafeExceptionContext;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -45,48 +55,18 @@ class PropertyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
-
         // TCK-595 (§4) — ce que `PropertyResource` lit pour une ligne : la photo principale (`media`) et
         // l'avatar du propriétaire. TCK-603 — `PrimaryPropertyContact::eagerLoads()` : la liste rend
         // l'agent responsable (`primary_contact`) à côté du propriétaire, sans une requête d'avatar par
         // ligne. `is_agent` se juge par l'amorce de la page (plus bas), jamais par une requête par ligne.
-        $base = Property::query()->with([
+        // TCK-2637 — la portée (biens visibles, archives exclues) vit dans `PropertyListScope`, que
+        // `portfolio-summary` compte à l'identique.
+        $base = PropertyListScope::of($request)->with([
             'address',
             'media',
             'owner.media',
             ...PrimaryPropertyContact::eagerLoads(),
         ]);
-
-        if (! $user->isSuperAdmin()) {
-            // TCK-1705 (P153.01) — ses biens sans agence, et ceux des agences où il est membre :
-            // l'agent retiré ne liste plus les biens d'agence qu'il avait saisis.
-            // TCK-2031 (P190.07, ADR-0031 § 3) — l'agent suspendu non plus : la clause suit
-            // `PropertyPolicy::view`, c'est-à-dire un profil propriétaire de tout statut
-            // (`BailleurDuBien`), ou un profil au statut actif dans l'agence du bien.
-            $memberAgencyIds = $user->ownerProfiles()->pluck('agency_id')
-                ->merge($user->activeAgencyIds())
-                ->map(fn ($id) => (int) $id)->unique()->values()->all();
-            $base->where(function ($q) use ($user, $memberAgencyIds) {
-                $q->where(fn ($own) => $own->where('user_id', $user->id)
-                    ->where(fn ($a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)));
-                // TCK-587 — « Mes biens » d'un bailleur sont les siens (`user_id`) ; le parc de
-                // l'agence est celui de son PERSONNEL (ADR-0031).
-                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
-                    $q->orWhere('agency_id', $staffAgencyId);
-                }
-            });
-        }
-
-        $statusFilter = $request->query('filter.status')
-            ?? data_get($request->query('filter', []), 'status');
-        $includeArchived = filter_var(
-            $request->query('include_archived', false),
-            FILTER_VALIDATE_BOOL,
-        );
-        if (! $includeArchived && ! $statusFilter) {
-            $base->where('status', '!=', PropertyStatus::Archived);
-        }
 
         // TCK-662 (P01.01) — `defaultSortsWithRelevance()` doit être évalué APRÈS `buildQuery()`,
         // qui interroge Meilisearch : sans recherche, ou avec un `sort=` explicite, rien ne change.
@@ -106,8 +86,14 @@ class PropertyController extends Controller
             )]);
         }
 
+        $this->primeOnlineAndOccupancy($biens, $request);
+
+        // TCK-2638 (lot B2, vérification adverse d1) — l'appelant est amorcé avec les titulaires : la fin
+        // d'un boost (`sponsored_until`) se juge sur SON appartenance au personnel de l'agence de chaque
+        // ligne, en mémoire plutôt qu'une requête par bien.
         return $this->paginated($paginator, MembershipCapabilityResolver::primed(
-            $biens->flatMap(fn (Property $p) => [$p->getAttributes()['user_id'] ?? null, ...$p->collaborators->pluck('user_id')]),
+            $biens->flatMap(fn (Property $p) => [$p->getAttributes()['user_id'] ?? null, ...$p->collaborators->pluck('user_id')])
+                ->push($request->user()?->id),
             $biens->map(fn (Property $p) => $p->getAttributes()['agency_id'] ?? null),
             fn () => PropertyResource::collection($paginator)->toArray($request),
         ));
@@ -163,12 +149,20 @@ class PropertyController extends Controller
         }
 
         try {
-            $property = DB::transaction(function () use ($data, $titulaire) {
+            $auteur = (int) $request->user()->id;
+            $property = DB::transaction(function () use ($data, $titulaire, $titulaires, $auteur, $isProposal) {
                 $property = Property::create(array_merge($data, [
                     'user_id' => $titulaire,
                     'status' => $data['status'] ?? PropertyStatus::Draft->value,
                     'visibility' => $data['visibility'] ?? PropertyVisibility::Private->value,
                 ]));
+
+                // TCK-2753 (r1) — un bien qui naît au nom d'un bailleur (désigné, celui du parent, ou
+                // l'auteur d'une proposition) : le bailleur est rejugé sous verrou APRÈS l'insertion,
+                // contre un départ concurrent ({@see TitulaireALaSaisie::exigerActifSousVerrou()}).
+                if ($property->agency_id !== null && ($titulaire !== $auteur || $isProposal)) {
+                    $titulaires->exigerActifSousVerrou($titulaire, (int) $property->agency_id);
+                }
 
                 if (! empty($data['address'])) {
                     $property->address()->create($data['address']);
@@ -199,6 +193,10 @@ class PropertyController extends Controller
                 201
             );
         } catch (\Throwable $e) {
+            // TCK-2753 (r1) — un refus rendu sous verrou (422 codé) n'est pas un échec de création.
+            if ($e instanceof ApiError) {
+                throw $e;
+            }
             // TCK-601 (ADR-0044 §2) — ni la saisie (`$request->all()`), ni le message, qui la
             // recopie pour une erreur SQL : les CLÉS de la saisie et la forme sûre de l'exception.
             Log::error('[PropertyController::store] Failed to create property', [
@@ -220,9 +218,82 @@ class PropertyController extends Controller
             }
         }
 
+        // TCK-2637 — `include=online` et `include=occupancy` se lisent à la main : la fiche ne passe
+        // pas par `buildQuery()`. Ni l'un ni l'autre n'est servi sans être demandé.
+        $includes = $this->requestedIncludes($request);
+        if (in_array('online', $includes, true)) {
+            $property->markOnline($property->isOnline());
+        }
+        // TCK-2678 — le motif d'un bien hors ligne, au seul personnel de son agence et à son bailleur
+        // (`MotifsHorsLigne`) ; jamais aux routes publiques.
+        if (in_array('offlineReasons', $includes, true)) {
+            $motifs = app(MotifsHorsLigne::class)->pour($request->user(), [(int) $property->getKey()]);
+            if (isset($motifs[(int) $property->getKey()])) {
+                $property->markOfflineReasons($motifs[(int) $property->getKey()]);
+            }
+        }
+        if (in_array('occupancy', $includes, true)) {
+            app(PropertyOccupancy::class)->attach(collect([$property]), $request->user());
+        }
+
+        // TCK-2906 — les interventions du bien que le lecteur lit (`include=maintenanceSummary`) : total, ouvertes,
+        // la dernière ouverte. Même portée que `GET /api/maintenance-requests`.
+        $interventions = in_array('maintenanceSummary', $includes, true)
+            ? MaintenanceSummary::byProperty($request->user(), [(int) $property->getKey()])[(int) $property->getKey()]
+            : null;
+
         return $this->json([
-            'data' => PropertyResource::make($property->load(['address', 'media', ...PrimaryPropertyContact::eagerLoads()]))->resolve($request),
+            'data' => PropertyResource::make($property->load(['address', 'media', ...PrimaryPropertyContact::eagerLoads()]))
+                ->avecResumeDesInterventions($interventions)
+                ->resolve($request),
         ]);
+    }
+
+    /**
+     * TCK-2637 — `is_online` (`include=online`) et le bloc `occupancy` (`include=occupancy`), posés
+     * pour la page entière : une requête pour l'un, un nombre constant pour l'autre.
+     *
+     * @param  Collection<int, Property>  $biens
+     */
+    private function primeOnlineAndOccupancy(Collection $biens, Request $request): void
+    {
+        if ($biens->isEmpty()) {
+            return;
+        }
+
+        $includes = $this->requestedIncludes($request);
+        if (in_array('online', $includes, true)) {
+            $online = array_flip(Property::onlineAmong($biens->map(fn (Property $p) => (int) $p->getKey())->all()));
+            $biens->each(fn (Property $p) => $p->markOnline(isset($online[(int) $p->getKey()])));
+        }
+
+        // TCK-2678 — une ligne que l'appelant ne lit pas en personnel ni en bailleur ne porte pas la clé.
+        if (in_array('offlineReasons', $includes, true)) {
+            $motifs = app(MotifsHorsLigne::class)->pour($request->user(), $biens->map(fn (Property $p) => (int) $p->getKey())->all());
+            $biens->each(function (Property $p) use ($motifs) {
+                if (isset($motifs[(int) $p->getKey()])) {
+                    $p->markOfflineReasons($motifs[(int) $p->getKey()]);
+                }
+            });
+        }
+
+        if (in_array('occupancy', $includes, true)) {
+            app(PropertyOccupancy::class)->attach($biens, $request->user());
+        }
+
+        // TCK-2905 (ADR-0117 § 4) — vues, contacts et visites des 30 derniers jours : trois agrégats pour la page.
+        if (in_array('stats30d', $includes, true)) {
+            $stats = app(PropertyStats30d::class)->for($biens->map(fn (Property $p) => (int) $p->getKey())->values()->all());
+            $biens->each(fn (Property $p) => $p->setStats30d($stats[(int) $p->getKey()]));
+        }
+    }
+
+    /** @return list<string> */
+    private function requestedIncludes(Request $request): array
+    {
+        $raw = ParametreUnique::chaine($request, 'include');
+
+        return $raw === null ? [] : array_map('trim', explode(',', $raw));
     }
 
     public function update(UpdatePropertyRequest $request, Property $property): JsonResponse
@@ -285,9 +356,18 @@ class PropertyController extends Controller
             $property->fill($data)->save();
 
             if ($addressData !== null) {
-                $property->address
-                    ? $property->address->update($addressData)
-                    : $property->address()->create($addressData);
+                $adresse = $property->address;
+                if ($adresse) {
+                    $adresse->update($addressData);
+                } else {
+                    $adresse = $property->address()->create($addressData);
+                }
+
+                // TCK-611 (ADR-0043, amendement du 2026-11-16) — l'adresse est affichée (`location`) :
+                // la changer réellement est une réécriture, qui repasse par la file de l'agence.
+                if ($adresse->wasRecentlyCreated || array_diff(array_keys($adresse->getChanges()), ['updated_at', 'created_at']) !== []) {
+                    app(PropertyRewriteModeration::class)->afterOffColumnRewrite($property);
+                }
             }
 
             // Dans la transaction : un refus de `publish()` annule le PATCH entier.
@@ -462,6 +542,13 @@ class PropertyController extends Controller
      */
     public function recordView(Request $request, Property $property, PropertyViewCounter $compteur): JsonResponse
     {
+        // TCK-618 (contrainte 4) — une vue ne se compte que sur un bien que l'appelant peut voir : en
+        // ligne, ou lisible par lui. Sinon le MÊME 404 qu'un bien inconnu : ni compte, ni
+        // `views_count` d'un bien privé lu, ni existence révélée.
+        if (! $property->isOnline() && ! $request->user()->can('view', $property)) {
+            throw (new ModelNotFoundException)->setModel(Property::class, [$property->getKey()]);
+        }
+
         $compteur->record($property, (string) $request->ip());
 
         return $this->json(['data' => ['views_count' => $property->refresh()->views_count]]);

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Credits;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\Credits\CreditLotResource;
 use App\Http\Resources\Credits\CreditMovementResource;
-use App\Models\Agency;
 use App\Models\CreditLot;
 use App\Models\CreditMovement;
 use App\Services\Credits\CreditLedger;
@@ -18,6 +17,9 @@ use Illuminate\Http\Request;
  */
 class CreditController extends Controller
 {
+    // TCK-2663 — l'espace actif et son autorisation, partagés avec `CreditBoostController`.
+    use ReadsWallet;
+
     public function show(Request $request, CreditLedger $ledger): JsonResponse
     {
         $agency = $this->walletAgency($request);
@@ -25,7 +27,7 @@ class CreditController extends Controller
         $lots = CreditLot::query()->where('agency_id', $agency->getKey())->spendable()->inConsumptionOrder()->get();
         $movements = CreditMovement::query()
             ->where('agency_id', $agency->getKey())
-            ->with(['boost:id,property_id,kind,variant', 'boost.property:id,title'])
+            ->with(['boost:id,property_id,kind,variant', 'boost.property:id,title', 'spotlight:id,geo_city_id,starts_at,ends_at', 'spotlight.city:id,name'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(min(100, max(1, (int) $request->input('per_page', 20))));
@@ -49,16 +51,5 @@ class CreditController extends Controller
         $agency = $this->walletAgency($request);
 
         return $this->json(['data' => ['balance' => $ledger->balance($agency)]]);
-    }
-
-    /** L'espace ACTIF dont on lit le portefeuille, autorisé — 422 nommé quand il n'y en a pas. */
-    private function walletAgency(Request $request): Agency
-    {
-        $agencyId = $request->activeProfile()?->agency_id ?? $request->user()->agency_id;
-        abort_code_if($agencyId === null, 422, 'credits.no_space');
-        $agency = Agency::query()->findOrFail($agencyId);
-        $this->authorize('viewAny', [CreditLot::class, $agency]);
-
-        return $agency;
     }
 }

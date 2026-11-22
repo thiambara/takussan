@@ -52,8 +52,9 @@ class CrossTenantAuditExportTest extends ApiTestCase
         $this->assertStringContainsString('[REDACTED]', $content);
 
         $sensitive = $this->apiGet('/api/admin/audit/export?filter[sensitive]=1')->assertOk();
-        // La consultation témoin, et le premier export : un export est lui-même un geste sensible.
-        $this->assertSame(2, $sensitive->json('data.count'));
+        // La consultation témoin, le premier export et son téléchargement (TCK-613) : l'un et l'autre
+        // sont des gestes sensibles.
+        $this->assertSame(3, $sensitive->json('data.count'));
         $content = $this->download($sensitive->json('data.url'));
         $this->assertStringContainsString('temoin-sensible', $content);
         $this->assertStringNotContainsString('temoin-ordinaire', $content);

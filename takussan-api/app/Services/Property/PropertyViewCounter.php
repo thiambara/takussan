@@ -3,7 +3,9 @@
 namespace App\Services\Property;
 
 use App\Models\Property;
+use App\Models\PropertyDailyView;
 use App\Support\VisitorFingerprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
@@ -45,6 +47,16 @@ class PropertyViewCounter
         }
 
         Property::query()->whereKey($property->getKey())->toBase()->increment('views_count');
+
+        // TCK-2905 (ADR-0117 § 2) — la même vue, datée : un upsert atomique sur `(property_id, day)`, jamais
+        // une lecture suivie d'une insertion (deux vues simultanées) ni une violation d'unicité rattrapée
+        // (PostgreSQL abandonne la transaction). Ni IP ni visiteur : seulement combien, et quel jour.
+        $maintenant = now();
+        PropertyDailyView::query()->toBase()->upsert(
+            [['property_id' => $property->getKey(), 'day' => $maintenant->toDateString(), 'views' => 1, 'created_at' => $maintenant, 'updated_at' => $maintenant]],
+            ['property_id', 'day'],
+            ['views' => DB::raw('property_daily_views.views + 1'), 'updated_at' => $maintenant],
+        );
     }
 
     public static function cle(Property $property, string $ip): string

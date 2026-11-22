@@ -19,6 +19,7 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
+use App\Services\Auth\PhoneLoginService;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SuperAdminCooptationService;
 use App\Services\Membership\ProfileMaterializer;
@@ -33,7 +34,9 @@ use App\Services\Property\TitulaireALaSaisie;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
 use App\Support\LienFront;
+use App\Support\Masking;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -196,6 +199,16 @@ class InvitationService
         // garde la priorité à l'envoi ({@see self::preferredLocale()}).
         $metadata = [...($payload['metadata'] ?? []), 'locale' => ContactSansCompte::DEFAULT_LOCALE];
 
+        // TCK-2927 (ADR-0123 § 1) — une invitation PARTAGÉE : rien ne part, l'invitant reçoit le lien.
+        // Adressée au seul numéro (le code SMS y prouvera le destinataire), jamais à un e-mail.
+        $partagee = ($payload['delivery'] ?? null) === Invitation::DELIVERY_SHARE;
+        if ($partagee) {
+            if ($email !== null || $phone === null) {
+                throw new \InvalidArgumentException('Une invitation partagée exige un numéro, sans e-mail.');
+            }
+            $metadata['delivery'] = Invitation::DELIVERY_SHARE;
+        }
+
         // TCK-455 — refus À L'ÉMISSION d'une invitation qui ne rattache à
         // rien. Le garde vit ICI : `send()` est le seul point que traversent
         // les services par rôle et la cooptation. (La FormRequest de la
@@ -224,12 +237,13 @@ class InvitationService
 
         $existingUser = $this->recipientAccount($email, $phone);
 
-        if ($email === null) {
+        // TCK-2927 — une invitation partagée n'envoie aucun SMS : elle ne consomme pas le plafond.
+        if ($email === null && ! $partagee) {
             $this->reserveAgencySms($agencyId);
         }
 
         $invitation = DB::transaction(function () use (
-            $email, $phone, $role, $invitableType, $invitableId, $agencyId, $metadata, $inviter, $existingUser
+            $email, $phone, $role, $invitableType, $invitableId, $agencyId, $metadata, $inviter, $existingUser, $partagee
         ): Invitation {
             $invitation = Invitation::query()->create([
                 'token' => $this->generateUniqueToken(),
@@ -253,6 +267,8 @@ class InvitationService
                     'email' => $email,
                     'role' => $role,
                     'agency_id' => $agencyId,
+                    // TCK-2927 (ADR-0123 § 6) — le canal, jamais le jeton ni le lien.
+                    'delivery' => $partagee ? Invitation::DELIVERY_SHARE : null,
                 ])
                 ->event('invitation_sent')
                 ->log('invitation_sent');
@@ -270,9 +286,74 @@ class InvitationService
         // les trois services par rôle appellent `send()` depuis la leur.
         // `afterCommit` attend le commit le plus externe (exécution immédiate
         // s'il n'y en a pas), et n'envoie rien si l'appelant échoue ensuite.
-        DB::afterCommit(fn () => $this->deliver($invitation, $existingUser));
+        // TCK-2927 (ADR-0123 § 1) — partagée : l'invitant envoie lui-même le lien ({@see self::shareUrl()}).
+        if (! $partagee) {
+            DB::afterCommit(fn () => $this->deliver($invitation, $existingUser));
+        }
 
         return $invitation;
+    }
+
+    /**
+     * TCK-2927 (ADR-0123 § 1) — le lien d'acceptation complet, celui du courriel et du SMS
+     * ({@see self::deliver()}) : un secret porteur, rendu à l'invitant d'une invitation partagée par
+     * les deux seules réponses qui l'émettent, jamais journalisé.
+     */
+    public static function shareUrl(string $token): string
+    {
+        return LienFront::vers('/invitations/accept?token='.$token);
+    }
+
+    /**
+     * TCK-2927 (ADR-0123 § 2) — renouveler le lien d'une invitation que l'invitant partage lui-même :
+     * jeton neuf (l'ancien lien rend 404), échéance repartie pour {@see self::DEFAULT_TTL_DAYS} jours,
+     * rappel remis à zéro, RIEN n'est envoyé. Recevable comme {@see self::resend()} sur `sent` et sur
+     * `expired` (résurrection gardée par {@see self::assertSlotIsFree()}), sous le même verrou. Une
+     * invitation par SMS renouvelée ainsi devient partagée : le lien ne prouve plus le numéro.
+     *
+     * La forme de l'invitation (équipe, numéro sans e-mail) est jugée par l'appelant
+     * ({@see AgentInvitationService::renewShareLink()}).
+     */
+    public function renewShareLink(Invitation $invitation, User $actor): Invitation
+    {
+        if (! in_array($invitation->status, [InvitationStatus::Sent, InvitationStatus::Expired], true)) {
+            throw ValidationException::withMessages([
+                'status' => [__('invitations.errors.cannot_resend')],
+            ])->status(422);
+        }
+
+        return DB::transaction(function () use ($invitation, $actor): Invitation {
+            /** @var Invitation $fraiche */
+            $fraiche = Invitation::query()
+                ->whereKey($invitation->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($fraiche->status === InvitationStatus::Expired) {
+                $this->assertSlotIsFree($fraiche);
+            } elseif ($fraiche->status !== InvitationStatus::Sent) {
+                throw ValidationException::withMessages([
+                    'status' => [__('invitations.errors.cannot_resend')],
+                ])->status(422);
+            }
+
+            $fraiche->forceFill([
+                'status' => InvitationStatus::Sent->value,
+                'token' => $this->generateUniqueToken(),
+                'expires_at' => now()->addDays(self::DEFAULT_TTL_DAYS),
+                'last_reminded_at' => null,
+                'reminder_attempts' => 0,
+                'metadata' => [...($fraiche->metadata ?? []), 'delivery' => Invitation::DELIVERY_SHARE],
+            ])->save();
+
+            activity('Invitation')
+                ->performedOn($fraiche)
+                ->causedBy($actor)
+                ->event('invitation_share_link_issued')
+                ->log('invitation_share_link_issued');
+
+            return $fraiche;
+        });
     }
 
     /**
@@ -307,10 +388,10 @@ class InvitationService
         if ($existingUser !== null) {
             // Branch B — caller must authenticate first.
             if ($authenticated === null || $authenticated->id !== $existingUser->id) {
-                // Surface the email back so the UI can pre-fill the login
-                // form and the wizard can resume on the right account.
+                // TCK-2727 — l'adresse MASQUÉE, comme l'aperçu public (`recipient.masked`) : la page dit
+                // à quel compte se connecter, sans montrer au porteur du jeton une adresse en clair.
                 abort_code(401, 'invitation.requires_login', [], [
-                    'X-Invitation-Email' => $invitation->email,
+                    'X-Invitation-Email' => self::emailMasque($invitation),
                     'X-Invitation-Requires-Login' => '1',
                 ]);
             }
@@ -318,8 +399,84 @@ class InvitationService
             return $this->acceptForUser($invitation, $existingUser, $payload);
         }
 
+        // TCK-2610 (ADR-0094 § 7) — un appelant CONNECTÉ n'est jamais doublé d'un nouveau compte : sans
+        // compte titulaire du destinataire, il accepte pour lui-même, aux règles d'`acceptForAuthenticatedUser`.
+        // Drapeau `auth.phone_login.enabled` éteint comme allumé.
+        if ($authenticated !== null) {
+            return $this->acceptForAccount($invitation, $authenticated, $payload);
+        }
+
         // Branch A — create the User as part of the accept transaction.
         return $this->acceptAsNewUser($invitation, $payload);
+    }
+
+    /**
+     * TCK-2727 — l'adresse de l'invitation telle que le 401 `invitation.requires_login` la rend (en-tête
+     * `X-Invitation-Email`, relayé dans le corps par les deux routes d'acceptation) : masquée par
+     * {@see Masking::email()}, la fonction de l'aperçu public — la même valeur que son `recipient.masked`.
+     */
+    public static function emailMasque(Invitation $invitation): ?string
+    {
+        return $invitation->email !== null ? Masking::email($invitation->email) : null;
+    }
+
+    /**
+     * TCK-2610 (ADR-0094 § 5) — l'acceptation par code SMS : `$user` est le compte dont le numéro vient d'être
+     * prouvé par le code (A), ouvert ou créé par {@see PhoneLoginService::authenticate()}. Si un AUTRE compte (E)
+     * porte l'e-mail de l'invitation, 401 `invitation.requires_login`, comme l'acceptation sans session ; sinon
+     * l'invitation est acceptée pour A, aux règles d'`acceptForAuthenticatedUser`, l'e-mail posé s'il n'en a pas.
+     *
+     * @param  array<string,mixed>  $payload  `first_name`, `last_name` : écrits seulement sur un compte sans nom
+     */
+    public function acceptByVerifiedPhone(Invitation $invitation, User $user, array $payload = []): Invitation
+    {
+        if ($invitation->email !== null) {
+            $holder = $this->recipientAccount($invitation->email, null);
+            if ($holder !== null && $holder->id !== $user->id) {
+                abort_code(401, 'invitation.requires_login', [], [
+                    'X-Invitation-Email' => self::emailMasque($invitation),
+                    'X-Invitation-Requires-Login' => '1',
+                ]);
+            }
+        }
+
+        return $this->acceptForAccount($invitation, $user, $payload);
+    }
+
+    /**
+     * TCK-2610 (ADR-0094 § 6-7) — les règles d'`acceptForAuthenticatedUser` pour un compte qui ne porte pas
+     * (encore) le destinataire : par SMS, il doit avoir VÉRIFIÉ ce numéro (forme canonique) ; par e-mail, il
+     * porte cette adresse, ou n'en porte aucune — elle est alors posée, VÉRIFIÉE (le lien est arrivé à cette
+     * adresse, décision du porteur du 2026-11-10). Dans la transaction de l'acceptation : un refus de
+     * `finalizeAccept` ne laisse pas l'e-mail posé.
+     *
+     * @param  array<string,mixed>  $payload
+     */
+    protected function acceptForAccount(Invitation $invitation, User $user, array $payload = []): Invitation
+    {
+        if ($invitation->email === null) {
+            $sameNumber = $user->phone !== null
+                && CanonicalPhone::fold((string) $user->phone) === CanonicalPhone::fold((string) $invitation->phone);
+            if (! $sameNumber || $user->phone_verified_at === null) {
+                abort_code(403, 'invitation.phone_mismatch');
+            }
+
+            return $this->acceptForUser($invitation, $user, $payload);
+        }
+
+        $email = trim((string) $user->email);
+        if ($email !== '' && CaseInsensitive::fold($email) !== CaseInsensitive::fold($invitation->email)) {
+            abort_code(403, 'invitation.email_mismatch');
+        }
+
+        return DB::transaction(function () use ($invitation, $user, $payload, $email): Invitation {
+            $this->verrouillerLesBiensLies($invitation);
+            if ($email === '') {
+                $user->forceFill(['email' => $invitation->email, 'email_verified_at' => now()])->save();
+            }
+
+            return $this->acceptForUser($invitation, $user, $payload);
+        });
     }
 
     /**
@@ -493,6 +650,8 @@ class InvitationService
                 'expires_at' => now()->addDays(self::DEFAULT_TTL_DAYS),
                 'last_reminded_at' => null,
                 'reminder_attempts' => 0,
+                // TCK-2927 (ADR-0123 § 5) — la relance ENVOIE le lien : l'invitation cesse d'être partagée.
+                'metadata' => Arr::except($fraiche->metadata ?? [], 'delivery'),
             ])->save();
 
             // Le courriel part DANS la transaction (TCK-367 : un échec la défait).
@@ -633,6 +792,8 @@ class InvitationService
             // docblock de `resend`. `created_at` faisait partir le rappel dans l'heure de la relance.
             ->where('expires_at', '<=', $threshold->copy()->addDays(self::DEFAULT_TTL_DAYS))
             ->where('expires_at', '>', $now)
+            // TCK-2927 (ADR-0123 § 5) — la plateforme n'envoie rien d'une invitation partagée.
+            ->where(fn ($q) => $q->whereNull('metadata->delivery')->orWhere('metadata->delivery', '!=', Invitation::DELIVERY_SHARE))
             // P179.01 (TCK-2155) — jamais rappelée, ou un essai refusé (compte entre 1 et le
             // plafond) daté de plus d'un jour. Un rappel posé épuise le compte ; une invitation
             // rappelée avant la colonne (compte 0, date posée) reste tenue pour rappelée.
@@ -677,7 +838,11 @@ class InvitationService
      * tokens, 410 for expired/revoked/accepted ones — discriminated so
      * the frontend can show a specific message.
      */
-    protected function lookupActiveInvitation(string $token): Invitation
+    /**
+     * TCK-2609 (ADR-0094 §3) — publique : l'aperçu et la demande de nouveau lien rendent le MÊME
+     * état du jeton que l'acceptation, sans seconde lecture de ses règles.
+     */
+    public function lookupActiveInvitation(string $token): Invitation
     {
         /** @var Invitation|null $invitation */
         $invitation = Invitation::query()->where('token', $token)->first();
@@ -715,6 +880,10 @@ class InvitationService
      */
     protected function acceptAsNewUser(Invitation $invitation, array $payload): Invitation
     {
+        // TCK-2927 (ADR-0123 § 4) — le lien d'une invitation partagée est passé par l'invitant : il ne
+        // prouve pas le numéro, que la branche ci-dessous poserait vérifié. Le code SMS seul le prouve.
+        abort_code_if($invitation->estPartagee(), 403, 'invitation.code_required');
+
         return DB::transaction(function () use ($invitation, $payload): Invitation {
             $user = User::query()->create([
                 'first_name' => $payload['first_name'] ?? '',
@@ -765,6 +934,22 @@ class InvitationService
     }
 
     /**
+     * TCK-2755 — l'ordre du dépôt, bien → visite → utilisateur (`takussan-api/CLAUDE.md`, piège 10) : les
+     * biens saisis pour le bailleur invité, que `aLAcceptation` déliera et transférera, sont verrouillés EN
+     * TÊTE de la transaction d'un compte existant, avant toute écriture de `users` — le prénom d'un compte
+     * sans nom, l'e-mail d'un compte qui n'en a pas, et la clé étrangère `owner_profiles.user_id`, qui prend
+     * un `KEY SHARE` sur `users`. Sans lui, contre la confirmation d'une visite d'un de ces biens (bien puis
+     * utilisateur), 4 à 9 interblocages sur 20 courses. Par la requête même qui les écrira
+     * ({@see TitulaireALaSaisie::biensLies()}), par identifiant croissant. Rien pour une autre invitation.
+     */
+    private function verrouillerLesBiensLies(Invitation $invitation): void
+    {
+        if ($invitation->invitable_type === OwnerProfile::class && $invitation->invitable_id !== null) {
+            TitulaireALaSaisie::biensLies([(int) $invitation->invitable_id])->orderBy('id')->lockForUpdate()->pluck('id');
+        }
+    }
+
+    /**
      * Branch B: shared finalize when the User already exists.
      *
      * P220.07 (TCK-2281, décision du porteur du 2026-10-25) — un compte SANS NOM (créé par
@@ -778,6 +963,7 @@ class InvitationService
     protected function acceptForUser(Invitation $invitation, User $user, array $payload = []): Invitation
     {
         return DB::transaction(function () use ($invitation, $user, $payload): Invitation {
+            $this->verrouillerLesBiensLies($invitation);
             $first = trim((string) ($payload['first_name'] ?? ''));
             $last = trim((string) ($payload['last_name'] ?? ''));
             if (self::isNameless($user) && ($first !== '' || $last !== '')) {
@@ -1306,7 +1492,7 @@ class InvitationService
         $params = [
             'agency' => self::smsAgencyName($invitation->agency?->name),
             // Même lien que le courriel (`InvitationMailable`).
-            'url' => LienFront::vers('/invitations/accept?token='.$invitation->token),
+            'url' => self::shareUrl($invitation->token),
         ];
         // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit l'invitation avant de partir.
         $guard = DeferredSmsGuard::forInvitation($invitation);

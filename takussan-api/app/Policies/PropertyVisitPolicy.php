@@ -3,9 +3,11 @@
 namespace App\Policies;
 
 use App\Http\Resources\PropertyVisitResource;
+use App\Models\Agency;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Database\Eloquent\Model;
 
@@ -87,6 +89,64 @@ class PropertyVisitPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2578 (ADR-0101 § 2) — écrire et lire le compte rendu d'une visite : le super-admin et le
+     * PERSONNEL ACTIF de l'agence du bien — la règle de `StorePropertyVisitRequest::managesProperty`.
+     * Ni le visiteur, ni le client, ni le bailleur hors personnel, ni l'agent parti ; un bien sans
+     * agence n'a pas de CRM d'agence, donc pas de compte rendu.
+     */
+    public function report(User $user, Model $model): bool
+    {
+        if (! $model instanceof PropertyVisit) {
+            return false;
+        }
+
+        return $user->isSuperAdmin()
+            || PersonnelDeLAgence::personnelActifDe($user, $model->property?->agency_id);
+    }
+
+    /**
+     * TCK-2716 (décision du porteur du 2026-11-11, option a) — « Créer sa fiche » depuis une visite :
+     * le SEUL prédicat, lu par `CustomerController::store` (`property_visit_id`) et par
+     * `PropertyVisitResource` (`abilities.create_customer`). La règle est celle de l'AGENCE DU BIEN,
+     * jamais du profil actif seul : le personnel actif de cette agence, dont la fiche naît dans cette
+     * même agence (`staffAgencyId()`), sur une visite sans fiche. Le bailleur d'un bien d'agence, le
+     * visiteur, le client, le compte à double casquette (personnel de B pour un bien de A) et le
+     * super-admin hors agence en sont exclus. Volontairement HORS de la Gate : `Gate::before` ouvrirait
+     * tout au super-admin, dont la fiche n'aurait pas d'agence.
+     *
+     * @return array{0: int, 1: string}|null le refus (statut, code), `null` quand la fiche peut naître
+     */
+    public static function refusDeLaFicheDepuisLaVisite(User $user, PropertyVisit $visit): ?array
+    {
+        $agencyId = $visit->property?->agency_id;
+        // Personnel actif de l'agence du bien, quel que soit l'espace ouvert : sinon, 403. Personnel
+        // de cette agence mais sous l'espace d'une autre, la fiche naîtrait ailleurs : 422.
+        if ($agencyId === null || ! PrimaryPropertyContact::joignable($user)
+            || ! app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agencyId)) {
+            return [403, 'visit.staff_only'];
+        }
+        if ($user->staffAgencyId() !== (int) $agencyId) {
+            return [422, 'visit.agency_mismatch'];
+        }
+        if ($visit->customer_id !== null) {
+            return [422, 'visit.customer_already_linked'];
+        }
+
+        return null;
+    }
+
+    /**
+     * P152.04 — GÉRER la visite : confirmer, clore, déclarer manquée, déplacer ou annuler au nom de
+     * ceux qui gèrent le bien, c'est `update` ET {@see agitPourLeBien()}, comme le contrôleur.
+     * TCK-2589 — la règle d'`abilities.manage` du show de visite ET de `upcoming_visits[].manage` de
+     * la fiche client : une seule méthode, pour que les deux ne divergent pas.
+     */
+    public static function gere(User $user, PropertyVisit $visit): bool
+    {
+        return $user->can('update', $visit) && self::agitPourLeBien($user, $visit);
+    }
+
+    /**
      * P152.04 — déplacée de `PropertyVisitController` pour que `PropertyVisitResource` la lise.
      *
      * L'appelant agit-il au nom de ceux qui gèrent le bien — et peut-il donc confirmer, clore,
@@ -121,5 +181,43 @@ class PropertyVisitPolicy extends BasePolicy
 
         return ($visit->agent_id === $user->id && PrimaryPropertyContact::joignable($user))
             || PrimaryPropertyContact::estProprietaire($user, $property);
+    }
+
+    /**
+     * TCK-2849 (ADR-0112) — CONFIRMER une visite, avec ou sans autre créneau (`scheduled_at`) : ceux
+     * qui agissent pour le bien ({@see agitPourLeBien()}), ou le bailleur d'un bien d'agence à qui
+     * l'agence le confie ({@see bailleurConfirme()}). Le seul geste ouvert au bailleur : `update`,
+     * `complete`, `no-show`, `cancel` et l'attribution restent à {@see agitPourLeBien()}. Lue par
+     * `confirm`, `bulk-confirm` et `abilities.confirm`.
+     */
+    public static function peutConfirmer(User $user, PropertyVisit $visit): bool
+    {
+        $property = $visit->property;
+
+        return self::agitPourLeBien($user, $visit)
+            || ($property !== null && self::bailleurConfirme($user, $property->agency_id, $property->user_id));
+    }
+
+    /**
+     * TCK-2849 (ADR-0112 § 2 et § 3) — le bailleur confirme-t-il au titre du réglage : bien d'AGENCE,
+     * désigné par `properties.user_id`, ET {@see bailleurConfirmeDans()} cette agence. Un bien sans
+     * agence n'en relève pas : son hôte confirme déjà par {@see agitPourLeBien()}.
+     */
+    public static function bailleurConfirme(User $user, mixed $agencyId, mixed $ownerId): bool
+    {
+        return $agencyId !== null && $ownerId !== null && (int) $ownerId === (int) $user->id
+            && self::bailleurConfirmeDans($user, (int) $agencyId);
+    }
+
+    /**
+     * TCK-2849 — la moitié « agence » de {@see bailleurConfirme()}, que la liste juge une fois par
+     * agence : l'utilisateur y est bailleur ACTIF et joignable (`PersonnelDeLAgence::estBailleur` —
+     * ni `blocked`, ni `inactive`, ni `draft`, ni compte bloqué), et l'agence a posé
+     * `owners_confirm_visits` (faux par défaut).
+     */
+    public static function bailleurConfirmeDans(User $user, int $agencyId): bool
+    {
+        return PersonnelDeLAgence::estBailleur($user, $agencyId)
+            && (bool) Agency::query()->find($agencyId)?->setting('owners_confirm_visits');
     }
 }

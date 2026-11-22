@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Accounting;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
-class MatchBankStatementLineRequest extends FormRequest
+class MatchBankStatementLineRequest extends BaseFormRequest
 {
     /** TCK-818 (P22.04) — la policy que le contrôleur juge, invoquée avant la validation. */
     public function authorize(): bool
@@ -16,7 +16,7 @@ class MatchBankStatementLineRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payment_type' => ['required', Rule::in(['booking_payment', 'lease_payment', 'invoice', 'payout', 'platform_payout'])],
+            'payment_type' => ['required', Rule::in(['booking_payment', 'lease_payment', 'lease_payment_late_fee', 'invoice', 'payout', 'platform_payout'])],
             'payment_id' => ['required', 'integer'],
         ];
     }

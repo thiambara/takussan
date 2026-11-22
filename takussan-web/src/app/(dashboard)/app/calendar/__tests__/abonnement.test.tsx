@@ -10,12 +10,14 @@ import type { UserRole } from '@/types/user';
 const roles = vi.hoisted(() => ({ current: [] as UserRole[] }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => ({ roles: roles.current }) }));
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
-vi.mock('@/components/console', () => ({ PageHeader: () => null }));
+// TCK-2597 — l'abonnement est une feuille de l'agenda : la page lui dit seulement s'il y a droit.
 vi.mock('@/components/calendar/CalendarPage', () => ({
-  CalendarPage: ({ audience }: { audience: string }) => <div data-testid="console">{audience}</div>,
-}));
-vi.mock('@/components/crm/CalendarSubscription', () => ({
-  CalendarSubscription: () => <div data-testid="abonnement" />,
+  CalendarPage: ({ audience, persona, abonnement }: { audience: string; persona: string; abonnement: boolean }) => (
+    <div data-testid="console" data-persona={persona}>
+      {audience}
+      {abonnement ? <div data-testid="abonnement" /> : null}
+    </div>
+  ),
 }));
 
 import Page from '../page';
@@ -40,5 +42,20 @@ describe('Agenda — abonnement', () => {
     await rendre(['super_admin']);
     expect(screen.queryByTestId('abonnement')).not.toBeInTheDocument();
     expect(screen.getByTestId('console')).toHaveTextContent('staff');
+  });
+
+  it("TCK-2597 — l'agent voit son agenda, l'admin celui de l'agence, le bailleur et le prestataire le leur", async () => {
+    await rendre(['agent']);
+    expect(screen.getByTestId('console')).toHaveAttribute('data-persona', 'agent');
+    document.body.innerHTML = '';
+    await rendre(['agency_admin']);
+    expect(screen.getByTestId('console')).toHaveAttribute('data-persona', 'admin');
+    document.body.innerHTML = '';
+    await rendre(['owner']);
+    expect(screen.getByTestId('console')).toHaveAttribute('data-persona', 'bailleur');
+    expect(screen.queryByTestId('abonnement')).not.toBeInTheDocument();
+    document.body.innerHTML = '';
+    await rendre(['service_provider']);
+    expect(screen.getByTestId('console')).toHaveAttribute('data-persona', 'prestataire');
   });
 });

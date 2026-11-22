@@ -1,0 +1,14 @@
+// Corps de fonction (le `return` final rend le compte rendu) : `.txt`, parce que ce n'est pas un module.
+// TCK-2635 — a-3 (Fiche publique, téléphone) relevé dans l'état de la maquette : « Français » et « Wolof »
+// cochés, NON enregistrés (aucun clic sur « Enregistrer », aucune écriture).
+//   node scripts/fidelite/fidelite.mjs releve --url /app/profile/public-profile --persona agent --device mobile \
+//     --perturber scripts/fidelite/fixtures/perturber-tck-2635-a-3-telephone.txt --out .fidelite/TCK-2635/prod-a-3-telephone-agent
+const faits = [];
+for (const n of ['Français', 'Wolof']) {
+  const l = [...document.querySelectorAll('label')].find((e) => e.textContent.trim() === n);
+  const c = l?.querySelector('input[type=checkbox]');
+  if (c && !c.checked) { c.click(); faits.push(n); }
+}
+await new Promise((r) => setTimeout(r, 600));
+window.scrollTo(0, 0);
+return faits.join(',') || 'aucune puce';

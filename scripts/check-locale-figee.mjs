@@ -95,18 +95,20 @@
  * PORTÉE — ce que cette garde NE prouve PAS
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
- * T1 · Elle ne voit qu'`Intl.*` et les méthodes `toLocale*`. Une date formatée à la main
- *      (`${j}/${m}/${a}`), un `date-fns` sans `locale:`, ou une chaîne assemblée côté serveur lui
- *      échappent — et le second cas a son propre précédent (`dateFnsLocale.ts`, TCK-292).
+ * T1 · Elle ne voit qu'`Intl.*`, les méthodes `toLocale*`, et — depuis TCK-347 — les imports de
+ *      `date-fns/locale` et les locales LITTÉRALES passées aux helpers du dépôt (contrôles F et G,
+ *      ci-dessous). Une date formatée à la main (`${j}/${m}/${a}`), un `date-fns` sans `locale:`,
+ *      ou une chaîne assemblée côté serveur lui échappent toujours.
  *
  * T2 · Elle ne juge pas du RÉSULTAT : `fmt.date()` appelé avec les mauvaises options rend une
  *      date juste dans un format inattendu, et cette garde reste verte.
  *
  * T3 · La locale figée dans un PARAMÈTRE PAR DÉFAUT (`function f(x, locale = 'fr-SN')`) n'est pas
- *      vue. Le contrôle E ne connaît que `const` / `let` / `var`. C'est un trou MESURÉ, pas
- *      supposé : `src/lib/format/currency.ts` (`formatPriceShort`) en porte un, rendu par les
- *      marqueurs de carte. Le fermer demande de décider ce que devient cette signature, ce qui
- *      est un delta de `@/lib/format`, pas de cette garde.
+ *      vue. Le contrôle E ne connaît que `const` / `let` / `var`. Les deux occurrences rendues —
+ *      `formatPriceShort` (`lib/format/currency.ts`, marqueurs de carte) et `formatPrice`
+ *      (`lib/utils.ts`, cartes de bien) — ont été fermées par TCK-347 en rendant leur locale
+ *      OBLIGATOIRE : c'est `tsc` qui tient cette moitié-là, pas cette garde. Reste `formatDate` de
+ *      `lib/utils.ts`, qui n'a aucun appelant.
  *
  * T4 · La clôture d'imports est une approximation, et elle l'est dans le sens PRUDENT : un import
  *      qu'elle ne résout pas (chemin calculé, `next/dynamic` avec une expression) sort de la
@@ -342,6 +344,35 @@ function constantesFigees(texte) {
   return out;
 }
 
+/**
+ * F · un import de `date-fns/locale` hors de `lib/format/dateFnsLocale.ts` — TCK-347.
+ *
+ * `ui/calendar.tsx` importait `fr` et passait `locale={fr}` à `<DayPicker>` : les noms de jours et
+ * de mois de TOUS les sélecteurs de date étaient français, sous un bouton qui formatait déjà en
+ * anglais. Le contrôle A ne pouvait pas le voir — aucun `Intl`, aucun `toLocale*`. La seule porte
+ * est `localeDateFns(locale)`, qui porte le repli explicite `wo → fr`.
+ *
+ * Couvre les deux guillemets, les sous-chemins (`date-fns/locale/fr`), l'`import()` dynamique, le
+ * `require()`, et l'`export … from`.
+ */
+const CONTROLE_F = /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)['"`]date-fns\/locale(?:\/[^'"`]*)?['"`]/g;
+const EXEMPTS_F = new Set(['lib/format/dateFnsLocale.ts']);
+
+/**
+ * G · une locale LITTÉRALE passée à un helper du dépôt — `formatCurrency(prix, 'fr', …)`,
+ * `formatPrice(x, 'XOF', 'fr')`, `localeDateFns('fr')`, `formatteursPour('en')` — TCK-347.
+ *
+ * Les helpers prennent la locale en argument ; le contrôle A ne voit que `Intl`/`toLocale*`, si
+ * bien que quatre `formatCurrency(…, 'fr', …)` ont survécu à TCK-364 et TCK-721. Le premier
+ * argument peut porter UN niveau de parenthèses (`Math.abs(diff)`) ; le motif ne franchit ni `;`
+ * ni une parenthèse non appariée, pour ne pas lire l'argument d'un AUTRE appel de la ligne.
+ */
+const HELPERS_A_LOCALE = 'formatDate|formatDateTime|formatNumber|formatCurrency|formatPercent|formatPrice';
+const CONTROLE_G = new RegExp(
+  String.raw`\b(?:(?:${HELPERS_A_LOCALE})\((?:[^;()]|\([^()]*\))*?,\s*|(?:localeDateFns|formatteursPour)\(\s*)['"\x60](?:fr|en|wo)(?:-[A-Za-z]{2,4})?['"\x60]`,
+  'g',
+);
+
 const CONTROLES = [
   [CONTROLE_A, 'locale figée'],
   [CONTROLE_B, 'formateur SANS locale — suit le NAVIGATEUR'],
@@ -437,6 +468,50 @@ function autoEpreuveRegex() {
     throw new Error('AUTO-ÉPREUVE ÉCHOUÉE — un `//` DANS une chaîne est pris pour un commentaire.');
   }
   for (const re of [CONTROLE_A, CONTROLE_B, CONTROLE_C, CONTROLE_D]) re.lastIndex = 0;
+
+  // TCK-347 — F et G, les deux sens.
+  const prend = (re, cas) => { re.lastIndex = 0; const ok = re.test(sansCommentaires(cas)); re.lastIndex = 0; return ok; };
+  for (const cas of [
+    'import { fr } from "date-fns/locale";',
+    "import { enUS } from 'date-fns/locale';",
+    "import fr from 'date-fns/locale/fr';",
+    "const { fr } = await import('date-fns/locale');",
+    "const l = require('date-fns/locale');",
+    "export { fr } from 'date-fns/locale';",
+    "import 'date-fns/locale';",
+    "import {\n  fr,\n} from 'date-fns/locale';",
+  ]) {
+    if (!prend(CONTROLE_F, cas)) throw new Error(`AUTO-ÉPREUVE ÉCHOUÉE — le contrôle F n'attrape plus : ${cas}`);
+  }
+  for (const cas of [
+    "import { format } from 'date-fns';",
+    "// import { fr } from 'date-fns/locale';",
+    "import { localeDateFns } from '@/lib/format/dateFnsLocale';",
+  ]) {
+    if (prend(CONTROLE_F, cas)) throw new Error(`AUTO-ÉPREUVE ÉCHOUÉE — le contrôle F refuse à tort : ${cas}`);
+  }
+  for (const cas of [
+    "formatCurrency(bien.price, 'fr', { currency: 'XOF' })",
+    'formatDate(d, "en")',
+    "formatDateTime(entry.at, 'fr-FR', { timeStyle: 'short' })",
+    "formatNumber(Math.abs(diff), 'wo')",
+    "formatPrice(property.price, property.currency ?? 'XOF', 'fr')",
+    "formatPercent(\n  ratio,\n  'fr',\n)",
+    "localeDateFns('fr')",
+    'formatteursPour("en")',
+  ]) {
+    if (!prend(CONTROLE_G, cas)) throw new Error(`AUTO-ÉPREUVE ÉCHOUÉE — le contrôle G n'attrape plus : ${cas}`);
+  }
+  for (const cas of [
+    "formatCurrency(bien.price, locale, { currency: 'XOF' })",
+    "formatPrice(property.price, 'XOF', locale)",
+    "formatDate(d, locale) + t('x', 'en')",
+    'localeDateFns(useLocale())',
+    "formatDate(item.changed_at, locale, DATE_DU_CHANGEMENT)",
+    "export function formatDate(date: string | Date, locale = 'fr-SN'): string {",
+  ]) {
+    if (prend(CONTROLE_G, cas)) throw new Error(`AUTO-ÉPREUVE ÉCHOUÉE — le contrôle G refuse à tort : ${cas}`);
+  }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -645,6 +720,35 @@ if (perimetre.total) {
   process.exit(1);
 }
 
+/**
+ * TCK-347 — F et G sur TOUT `src/` (hors tests), exigés à ZÉRO : ni cliquet ni plancher, il n'y
+ * a rien à tolérer. Compte séparé des deux cliquets ci-dessus, qui sont plancher ET plafond :
+ * les mélanger aurait fait bouger leurs chiffres.
+ */
+const portes = [];
+for (const f of tous) {
+  const rel = relative(SRC, f);
+  if (EXEMPTS.has(rel)) continue;
+  const texte = sansCommentaires(readFileSync(f, 'utf8'));
+  const ligneDe = (index) => texte.slice(0, index).split('\n').length;
+  if (!EXEMPTS_F.has(rel)) {
+    CONTROLE_F.lastIndex = 0;
+    for (const m of texte.matchAll(CONTROLE_F)) {
+      portes.push(`${rel}:${ligneDe(m.index)}  ${m[0].replace(/\s+/g, ' ')}   (date-fns/locale hors de lib/format/dateFnsLocale.ts — passe par localeDateFns)`);
+    }
+  }
+  CONTROLE_G.lastIndex = 0;
+  for (const m of texte.matchAll(CONTROLE_G)) {
+    portes.push(`${rel}:${ligneDe(m.index)}  ${m[0].replace(/\s+/g, ' ')}   (locale littérale passée à un helper — passe la locale active)`);
+  }
+}
+if (portes.length) {
+  console.error(`✗ locale figée aux portes des helpers : ${portes.length} occurrence(s), exigé 0 (TCK-347).`);
+  for (const p of portes) console.error(`  ${p}`);
+  console.error('  La forme juste : `useFormatteurs()` (sa `.locale`), ou la `Locale` reçue de l’appelant.');
+  process.exit(1);
+}
+
 let rouge = false;
 for (const [nom, compte, plafond, quoi] of [
   ['CONSOLE HORS PÉRIMÈTRE', consoleCompte, PLAFOND_CONSOLE, 'que la console super-admin REND'],
@@ -676,6 +780,7 @@ console.log(
   `  RESTE DU DÉPÔT : ${resteCompte.total} (cliquet ${PLAFOND_RESTE}) — /app, site public, baux, calendrier.`,
 );
 console.log('  Les deux chiffres sont des CLIQUETS : la garde échoue s’ils montent ET s’ils descendent.');
+console.log(`  PORTES DES HELPERS : 0 import de date-fns/locale hors dateFnsLocale.ts, 0 locale littérale passée à un helper (${tous.length} fichiers, exigé 0).`);
 if (rapport) {
   const par = (detail) => {
     const m = new Map();

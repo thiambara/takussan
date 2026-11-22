@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\PayoutMethod;
+use App\Services\Media\PrivateMediaAccess;
 use App\Support\ImpersonationContext;
 use Illuminate\Http\Request;
 
@@ -41,7 +42,37 @@ class PayoutMethodResource extends BaseResource
             'is_default' => (bool) $this->is_default,
             'verified' => $verification !== null,
             'verified_at' => $this->iso($verification?->verified_at),
+            // TCK-2863 — `verified`, `in_review` (RIB envoyé, pas encore vérifié) ou `to_confirm`.
+            // « En revue » est informatif : seul `verified` permet de verser.
+            'verification_status' => match (true) {
+                $verification !== null => 'verified',
+                $this->bank_statement_submitted_at !== null => 'in_review',
+                default => 'to_confirm',
+            },
+            'bank_statement_submitted_at' => $this->iso($this->bank_statement_submitted_at),
+            // TCK-2863 — le média du RIB : le titulaire, et le personnel de l'agence qui le paie
+            // (celui qui vérifie, `MediaPolicy::sign`).
+            'bank_statement_media_id' => $this->resource->getFirstMedia(PayoutMethod::BANK_STATEMENT_COLLECTION)?->id,
+            'bank_statement_url' => $this->bankStatementUrl($request),
             'created_at' => $this->iso($this->created_at),
         ];
+    }
+
+    /**
+     * TCK-2463 — l'URL d'API signée du RIB (`PrivateMediaAccess::signedUrl()`, route
+     * `media.private.show`), pour qui peut le lire, sinon `null`. Elle remplace
+     * `GET /api/media/{id}/sign`, qui signait pour un CDN jamais provisionné : la route rendait un
+     * chemin relatif que rien ne servait. Jamais sous impersonation : le RIB porte le numéro en
+     * clair, que `account_identifier` masque déjà pour l'opérateur (TCK-714).
+     */
+    private function bankStatementUrl(Request $request): ?string
+    {
+        $media = $this->resource->getFirstMedia(PayoutMethod::BANK_STATEMENT_COLLECTION);
+        if ($media === null || app(ImpersonationContext::class)->active()
+            || $request->user()?->can('sign', $media) !== true) {
+            return null;
+        }
+
+        return app(PrivateMediaAccess::class)->signedUrl($media);
     }
 }

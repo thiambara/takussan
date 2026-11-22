@@ -2,10 +2,13 @@
 
 namespace App\Policies;
 
+use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\Capability;
 use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Agency\AgentAvailability;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +24,8 @@ use Illuminate\Database\Eloquent\Model;
 class TaskPolicy extends BasePolicy
 {
     /**
-     * Lire une tâche : super-admin, créateur, ou assigné.
+     * Lire une tâche : super-admin, créateur, ou assigné — et, depuis TCK-2595, le lecteur de
+     * l'équipe (`readsAsTeam`).
      *
      * TCK-591 (verif-591 B1) — l'affectation ne vaut que tant qu'on est PERSONNEL de l'agence du
      * parent (Contraintes 1 : « la quitter éteint ce qu'elle ouvrait »). Un agent retiré lisait,
@@ -40,9 +44,52 @@ class TaskPolicy extends BasePolicy
             return false;
         }
 
-        return ($model->created_by_id === $user->id && $this->isMemberOfParent($user, $model))
-            || ($model->assigned_to_id === $user->id && $this->isStaffOfParent($user, $model))
-            || $this->coversAssignee($user, $model);
+        return $this->participates($user, $model) || $this->readsAsTeam($user, $model);
+    }
+
+    /**
+     * Créateur, assigné ou suppléant : qui prend part à la tâche — la règle de `update` (cocher,
+     * modifier), qui ne s'élargit pas à la lecture d'équipe (TCK-2595).
+     */
+    private function participates(User $user, Task $task): bool
+    {
+        return ($task->created_by_id === $user->id && $this->isMemberOfParent($user, $task))
+            || ($task->assigned_to_id === $user->id && $this->isStaffOfParent($user, $task))
+            || $this->coversAssignee($user, $task);
+    }
+
+    /**
+     * TCK-2595 (décision de la session) — une ligne qu'on liste doit s'ouvrir : qui tient
+     * `crm.view_all` dans l'agence active lit la tâche d'un collègue, exactement dans la portée de
+     * `filter[team]=1` — assignée au personnel actif de cette agence, parent dans cette agence.
+     * Lecture seule : `update`, `delete` et l'achèvement n'en héritent pas.
+     */
+    private function readsAsTeam(User $user, Task $task): bool
+    {
+        if ($task->assigned_to_id === null) {
+            return false;
+        }
+        $agency = self::teamAgencyOf($user);
+
+        return $agency !== null
+            && $task->parentAgencyId() === (int) $agency->id
+            && PersonnelDeLAgence::estPersonnel(User::query()->find($task->assigned_to_id), $agency->id);
+    }
+
+    /**
+     * TCK-2595 — l'agence dont l'appelant lit les tâches de l'équipe : celle de son profil actif, s'il
+     * y est personnel actif ET y tient `crm.view_all` ; sinon aucune. Seule définition, lue par
+     * `TaskController::index` (`filter[team]=1`) et par `view`.
+     */
+    public static function teamAgencyOf(User $user): ?Agency
+    {
+        $agencyId = $user->staffAgencyId();
+        if ($agencyId === null || ! PersonnelDeLAgence::personnelActifDe($user, $agencyId)) {
+            return null;
+        }
+        $agency = Agency::query()->find($agencyId);
+
+        return $agency !== null && $user->canActAt(Capability::CrmViewAll, $agency) ? $agency : null;
     }
 
     /**
@@ -84,7 +131,15 @@ class TaskPolicy extends BasePolicy
     /** `TaskController` employait la même règle pour lire et pour écrire. */
     public function update(User $user, Model $model): bool
     {
-        return $this->view($user, $model);
+        // TCK-2595 — `view` s'est élargie à la lecture d'équipe ; `update` garde la règle d'avant.
+        if (! $model instanceof Task) {
+            return false;
+        }
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return ! $model->parentIsMissing() && $this->participates($user, $model);
     }
 
     /**
@@ -105,8 +160,9 @@ class TaskPolicy extends BasePolicy
     }
 
     /**
-     * Rattacher une tâche à un bien ou à un client — et, par `TaskController::taskable()`, en lire
-     * le libellé.
+     * Rattacher une tâche à un bien ou à un client. TCK-2595 — le libellé du parent ne se lit plus
+     * par ici : `TaskController::taskable()` le juge sous `view` du parent (lire un bien n'exige pas
+     * de pouvoir le modifier).
      *
      * TCK-591 — la règle est celle du PARENT : voir le client (`CustomerPolicy::view`), modifier le
      * bien (`PropertyPolicy::update`). Elle jugeait l'agence par `$user->agency_id`, l'agence du

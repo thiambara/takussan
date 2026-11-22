@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, RotateCcw, Save, TriangleAlert } from 'lucide-react';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { ErrorState } from '@/components/feedback';
@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { patchPlatformSettings } from '@/lib/queries/super-admin';
+import { fetchAdminAiUsages, patchPlatformSettings } from '@/lib/queries/super-admin';
+import { equivalentXofIa, lireSaisieMontantIa } from '@/lib/format/montant-ia';
 import type { PlatformSetting, PlatformSettingCategory, PlatformSettingValue } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
@@ -27,7 +28,8 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 type SettingValue = PlatformSettingValue;
 type Draft = Record<string, SettingValue>;
 
-export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits', 'boost', 'rentals', 'radar'];
+// TCK-2979 — `ai` : le plafond IA du jour par agence.
+export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits', 'boost', 'rentals', 'crm', 'radar', 'ai'];
 
 /**
  * TCK-292 — la donnée porte la CLÉ, le rendu la résout.
@@ -37,6 +39,21 @@ export const categoryOrder: PlatformSettingCategory[] = ['currency', 'limits', '
  * via `useTranslations(CATEGORY_TITLE_NAMESPACE)`. Ici ne reste que le nom de l'espace de noms —
  * la clé de chaque catégorie est la catégorie elle-même.
  */
+/** TCK-2979 — la clé en dollars du catalogue, affichée avec son équivalent en XOF. */
+const CLE_DU_PLAFOND_IA_PAR_AGENCE = 'ai.daily_budget_per_agency_usd';
+
+/**
+ * TCK-2979 — l'équivalent en XOF d'un montant IA saisi en dollars : le taux et le formatage de la console IA
+ * (`meta.usd_to_xof` des usages, `equivalentXofIa`), sous la même clé de cache. Sans taux lu, rien ne s'affiche.
+ */
+function EquivalentXofDuPlafondIa({ valeur }: { readonly valeur: PlatformSettingValue | undefined }) {
+  const t = useTranslations('superAdmin.pages.ai.usages');
+  const usages = useQuery({ queryKey: ['super-admin', 'ai', 'usages'], queryFn: fetchAdminAiUsages });
+  const saisie = valeur === null || valeur === undefined ? '' : String(valeur);
+  const equivalent = equivalentXofIa(saisie === '' ? null : lireSaisieMontantIa(saisie), usages.data?.meta.usd_to_xof);
+  return equivalent === null ? null : <p className="mt-1 text-xs text-muted-foreground">{t('budgetEquivalent', { xof: equivalent })}</p>;
+}
+
 export const CATEGORY_TITLE_NAMESPACE = 'superAdmin.platformSettings.categories' as const;
 
 export function SettingsSection({
@@ -144,6 +161,10 @@ export function SettingField({
 }) {
   const t = useTranslations('superAdmin.platformSettings');
   const fmt = useFormatteurs();
+  // TCK-2525 — une liste fermée de comportements (`spotlight.when_taken`…) se lit traduite ; une
+  // option sans libellé (un code de devise) reste telle quelle.
+  const libelleOption = (option: string): string =>
+    t.has(`keys.${setting.key}.options.${option}`) ? t(`keys.${setting.key}.options.${option}`) : option;
   return (
     <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[minmax(200px,0.8fr)_minmax(0,1.2fr)_minmax(160px,0.7fr)] lg:items-center">
       <div className="min-w-0">
@@ -158,7 +179,7 @@ export function SettingField({
             onValueChange={(next) => {
               if (next !== null) onChange(next);
             }}
-            items={(setting.options ?? []).map((option) => ({ value: option, label: option }))}
+            items={(setting.options ?? []).map((option) => ({ value: option, label: libelleOption(option) }))}
           >
             <SelectTrigger id={setting.key} className="w-full bg-card">
               <SelectValue />
@@ -166,7 +187,7 @@ export function SettingField({
             <SelectContent>
               {(setting.options ?? []).map((option) => (
                 <SelectItem key={option} value={option}>
-                  {option}
+                  {libelleOption(option)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -200,10 +221,10 @@ export function SettingField({
 
         {setting.type === 'integer' ? (
           <Input
+            profil="entier"
             id={setting.key}
-            type="number"
             min={1}
-            step={1}
+            placeholder={t('integerPlaceholder')}
             value={String(value)}
             onChange={(event) => onChange(event.target.value)}
           />
@@ -212,16 +233,17 @@ export function SettingField({
         {/* TCK-651 — un décimal vide se lit « aucun plafond » quand la clé l'admet, jamais zéro. */}
         {setting.type === 'decimal' ? (
           <Input
+            profil="decimal"
             id={setting.key}
-            type="number"
             min={0}
-            step="any"
-            inputMode="decimal"
-            placeholder={setting.nullable ? t('noLimit') : undefined}
+            placeholder={setting.nullable ? t('noLimit') : t('decimalPlaceholder')}
             value={value === null || value === undefined ? '' : String(value)}
-            onChange={(event) => onChange(event.target.value === '' && setting.nullable ? null : event.target.value)}
+            // ADR-0135 — champ texte : la virgule du pavé décimal devient le point que l'API attend.
+            onChange={(event) => onChange(event.target.value === '' && setting.nullable ? null : event.target.value.replace(',', '.'))}
           />
         ) : null}
+        {/* TCK-2979 — le plafond IA par agence est en dollars : son équivalent en XOF, comme dans la console IA. */}
+        {setting.key === CLE_DU_PLAFOND_IA_PAR_AGENCE ? <EquivalentXofDuPlafondIa valeur={value} /> : null}
 
         {setting.type === 'boolean' ? (
           <div className="flex items-center gap-3">
@@ -284,9 +306,8 @@ function IntegerListInput({
 
   return (
     <Input
+      profil="entier"
       id={id}
-      type="text"
-      inputMode="numeric"
       placeholder={t('integerListPlaceholder')}
       value={shown}
       onChange={(event) => {

@@ -38,12 +38,17 @@ export function isTwoFactorChallenge(
   return (res as TwoFactorChallenge).requires_2fa === true;
 }
 
+/**
+ * TCK-2605/TCK-2606 — l'adresse et le mot de passe suffisent ; le nom est demandé après. Une
+ * confirmation ENVOYÉE serait encore vérifiée par l'API : le formulaire n'en envoie plus.
+ */
 export type RegisterPayload = {
-  first_name: string;
-  last_name: string;
   email: string;
   password: string;
-  password_confirmation: string;
+  /** TCK-537 (AC1) — la case des conditions et de la politique : exigée par l'API, qui en garde la preuve. */
+  terms_accepted: boolean;
+  first_name?: string;
+  last_name?: string;
 };
 
 export type LoginPayload = {

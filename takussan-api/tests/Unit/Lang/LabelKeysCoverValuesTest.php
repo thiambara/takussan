@@ -5,13 +5,9 @@ namespace Tests\Unit\Lang;
 use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\ContractType;
-use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\NotificationType;
-use App\Models\Enums\PropertyCondition;
-use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
-use App\Models\Enums\RentPeriod;
-use App\Models\Enums\TitleType;
+use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\ThresholdAlert;
 use BackedEnum;
 use PHPUnit\Framework\TestCase;
@@ -39,17 +35,17 @@ class LabelKeysCoverValuesTest extends TestCase
     private function table(): array
     {
         return [
+            // TCK-351 — `properties.type` et `properties.contract_type` ne sont plus lus par
+            // `PropertyResource` (le front rend ces codes) mais par la recherche, le radar et
+            // `SearchWolofReviewSheet`. Les groupes `rent_period`, `status`, `title_type` et
+            // `condition` ont quitté `lang/` avec leur dernier lecteur.
             'properties.type' => ['properties.php', 'type', $this->cases(PropertyType::class)],
             'properties.contract_type' => ['properties.php', 'contract_type', $this->cases(ContractType::class)],
-            'properties.rent_period' => ['properties.php', 'rent_period', $this->cases(RentPeriod::class)],
-            'properties.status' => ['properties.php', 'status', $this->cases(PropertyStatus::class)],
-            'properties.title_type' => ['properties.php', 'title_type', $this->cases(TitleType::class)],
-            'properties.condition' => ['properties.php', 'condition', $this->cases(PropertyCondition::class)],
             // BankStatementResource, BankStatementLineResource : `__()` sans repli.
             'reconciliation.status' => ['reconciliation.php', 'status', $this->cases(BankStatementStatus::class)],
             'reconciliation.line_status' => ['reconciliation.php', 'line_status', $this->cases(BankStatementLineMatchStatus::class)],
-            // SystemMessageFactory : `__()` sans repli.
-            'maintenance.status' => ['maintenance.php', 'status', $this->cases(MaintenanceStatus::class)],
+            // TCK-2958 : `maintenance.status` a quitté `lang/` avec son dernier lecteur
+            // (`SystemMessageFactory::humanise`) ; le front compose l'avis depuis son code.
             // notification-digest.blade.php : `__()` sans repli.
             'notifications.types' => ['notifications.php', 'types', $this->cases(NotificationType::class)],
             // ThresholdAlertTriggered::libelle : repli sur le code.
@@ -57,6 +53,8 @@ class LabelKeysCoverValuesTest extends TestCase
             'notifications.threshold_alert_mail.severities' => ['notifications.php', 'threshold_alert_mail.severities', ThresholdAlert::allowedSeverities()],
             // pdf/maintenance/quote.blade.php : `kinds.<kind>`, valeurs de la règle `in:` de la requête.
             'maintenance.quote_pdf.kinds' => ['maintenance.php', 'quote_pdf.kinds', $this->inRule('app/Http/Requests/Maintenance/SubmitQuoteRequest.php', 'lines.*.kind')],
+            // TCK-2911 — pdf/service-provider-bills/statement.blade.php : `statuses.<statut>`, sans repli.
+            'maintenance.bill_statement_pdf.statuses' => ['maintenance.php', 'bill_statement_pdf.statuses', $this->cases(ServiceProviderBillStatus::class)],
         ];
     }
 

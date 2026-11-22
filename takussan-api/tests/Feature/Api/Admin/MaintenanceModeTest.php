@@ -133,4 +133,23 @@ class MaintenanceModeTest extends TestCase
             'banner_lead_minutes' => 30,
         ]);
     }
+
+    /** TCK-2743 (lot 3) — une fenêtre de maintenance programmée avec décalage : les instants désignés. */
+    public function test_debut_et_fin_recus_avec_decalage_sont_les_instants_designes(): void
+    {
+        $this->travelTo('2026-11-12 10:00:00');
+        $this->actingAsRole('super_admin');
+
+        $this->postJson('/api/admin/maintenance', [
+            'starts_at' => '2026-11-12T12:00:00+01:00',
+            'ends_at' => '2026-11-12T14:30:00+01:00',
+            'mode' => 'banner',
+            'severity' => 'scheduled',
+            'messages' => ['fr' => 'Maintenance planifiée', 'en' => 'Scheduled maintenance'],
+        ])->assertCreated();
+
+        $fenetre = MaintenanceWindow::query()->sole();
+        $this->assertSame('2026-11-12 11:00:00', $fenetre->getRawOriginal('starts_at'));
+        $this->assertSame('2026-11-12 13:30:00', $fenetre->getRawOriginal('ends_at'));
+    }
 }

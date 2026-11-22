@@ -12,10 +12,12 @@ use App\Models\Enums\DocumentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use App\Models\ImpersonationSession;
+use App\Models\Invitation;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
+use App\Models\ThresholdAlert;
 use App\Models\User;
 use App\Services\Lease\DepositRefundService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,6 +66,12 @@ class ImpersonationReadSweepTest extends TestCase
 
     private const URL_SIGNEE_DURABLE = 'URL signée qui survit à la session';
 
+    /** TCK-2887 (ADR-0121) — le lien d'abonnement d'agenda : un secret sans expiration. */
+    private const LIEN_D_AGENDA = 'lien d\'abonnement d\'agenda';
+
+    /** TCK-2927 (ADR-0123) — le lien d'acceptation d'une invitation : un secret porteur, sept jours. */
+    private const LIEN_D_INVITATION = 'lien d\'invitation';
+
     /**
      * Les fuites connues, route par route. Chacune DOIT encore fuir : une fuite corrigée se retire
      * d'ici, sans quoi la garde rougit — la liste ne peut pas vieillir en silence.
@@ -87,6 +95,8 @@ class ImpersonationReadSweepTest extends TestCase
      */
     private const PARAMETRES_NON_REMPLIS = [
         'slug', 'token', 'id', 'integration', 'entity', 'key', 'media', 'payout', 'provider',
+        // TCK-2980 — `{canal}` du webhook de la messagerie (jeton d'URL, hors session : rien à lire en impersonation).
+        'canal',
         'statement', 'payment', 'inventory', 'invoice', 'agent_profile', 'paymentType', 'paymentId',
         'upgradeRequest', 'dossier', 'event', 'channel', 'report', 'webhookLog', 'role', 'hash',
         'lead', 'dataExport', 'versionId', 'invitation', 'sp_profile', 'visit', 'city',
@@ -100,6 +110,15 @@ class ImpersonationReadSweepTest extends TestCase
         'listing',
         // TCK-2388 — la fiche annonceur du Radar : même motif.
         'advertiser',
+        // TCK-2468 — les cibles du Radar : même motif.
+        'target',
+        // TCK-2812 — route signée, liée au demandeur, et dans `REFUSED_READS` : refusée sous session
+        // (`ArchiveAsynchroneDuCoffreTest`).
+        'archive',
+        // TCK-2844 — les propositions de photo d'un quartier : console super-admin (un opérateur
+        // n'est jamais une cible d'impersonation), et la route appelle Wikimedia Commons, que la
+        // suite ne doit jamais joindre.
+        'neighborhood',
     ];
 
     private User $cible;
@@ -175,9 +194,21 @@ class ImpersonationReadSweepTest extends TestCase
             ->assertJsonPath('data.id_number_masked', '•••• '.substr(self::NUMERO_DE_PIECE, -4))
             ->assertJsonPath('data.monthly_income_masked', '••••');
         $this->assertSame([self::REVENU], $this->marques('{"monthly_income":'.(float) self::REVENU_DE_GARDE.'}', $finDeSession));
+        // TCK-2893 — le revenu déclaré du candidat : la réservation en porte un (masque servi au
+        // personnel de l'agence, ici l'admin cible), jamais le montant.
+        $this->getJson("/api/bookings/{$this->valeurs['booking']}")->assertOk()
+            ->assertJsonPath('data.declared_monthly_income_masked', '••••')
+            ->assertJsonPath('data.has_guarantor', true);
         $this->assertContains(self::PIECE_DE_PROFIL, $this->marquesDe('/api/documents', $finDeSession));
         $this->assertContains(self::URL_SIGNEE_DURABLE, $this->marquesDe("/api/leases/{$this->valeurs['lease']}/deposit-refund", $finDeSession));
         $this->assertContains(self::URL_SIGNEE_DURABLE, $this->marquesDe('/api/notifications', $finDeSession));
+
+        // TCK-2887 (ADR-0121) — la cible relit son lien d'agenda ; sous impersonation, jamais.
+        $this->assertContains(self::LIEN_D_AGENDA, $this->marquesDe('/api/me/calendar-feed', $finDeSession));
+
+        // TCK-2927 (ADR-0123) — le lien d'une invitation partagée ne sort que des deux POST qui l'émettent.
+        $lien = '{"share_url":"https:\\/\\/x\\/invitations\\/accept?token='.str_repeat('a', 64).'"}';
+        $this->assertSame([self::LIEN_D_INVITATION], $this->marques($lien, $finDeSession));
 
         $this->assertSame([self::JETON], $this->marques('{"data":{"token":"abc123"}}', $finDeSession));
         $this->assertSame([], $this->marques('{"data":{"token":null}}', $finDeSession));
@@ -221,6 +252,14 @@ class ImpersonationReadSweepTest extends TestCase
         }
         if (preg_match('/"token"\s*:\s*"/', $corps)) {
             $marques[] = self::JETON;
+        }
+        // TCK-2887 — un lien `.ics` complet, où qu'il sorte.
+        if (preg_match('#/calendar-feed/[A-Za-z0-9]{40}\.ics#', $corps)) {
+            $marques[] = self::LIEN_D_AGENDA;
+        }
+        // TCK-2927 (ADR-0123) — un lien d'acceptation d'invitation complet, où qu'il sorte.
+        if (preg_match('#/invitations/accept\?token=[A-Za-z0-9]{64}#', $corps)) {
+            $marques[] = self::LIEN_D_INVITATION;
         }
         preg_match_all('/expires=(\d+)(?:&|&amp;|\\\\u0026)signature=/', $corps, $expirations);
         foreach ($expirations[1] as $expiration) {
@@ -299,6 +338,23 @@ class ImpersonationReadSweepTest extends TestCase
             'monthly_income' => self::REVENU_DE_GARDE,
         ]);
 
+        // TCK-2893 (ADR-0110 § 4) — la réservation porte le revenu déclaré du candidat (chiffré) et
+        // cette caution : `bookings` et `bookings/{booking}` ne doivent rendre que le masque.
+        $booking->forceFill(['declared_monthly_income' => self::REVENU_DE_GARDE])->save();
+        $booking->guarantors()->attach($caution->id);
+
+        // TCK-2887 (ADR-0121) — un lien d'agenda relisible : `me/calendar-feed` le rend à la cible.
+        $this->postJson('/api/me/calendar-feed')->assertCreated();
+
+        // TCK-2927 (ADR-0123) — une invitation partagée par la cible : `invitations` la liste, sans son lien.
+        Invitation::factory()->create([
+            'email' => null,
+            'phone' => '+221770009279',
+            'agency_id' => $agence->id,
+            'invited_by' => $this->cible->id,
+            'metadata' => ['delivery' => Invitation::DELIVERY_SHARE],
+        ]);
+
         $conversation = Conversation::factory()->create(['created_by' => $this->cible->id, 'property_id' => $property->id]);
         $conversation->participants()->attach($this->cible->id, ['joined_at' => now()]);
 
@@ -314,8 +370,15 @@ class ImpersonationReadSweepTest extends TestCase
             'notification' => (int) AppNotification::query()->where('user_id', $this->cible->id)->value('id'),
             'owner_profile' => $owner->id,
             'ownerProfile' => $owner->id,
+            // TCK-2939 — `me/profiles/{profile}/invite-summary` : l'identifiant composite du profil bailleur de la cible.
+            'profile' => 'owner:'.$owner->id,
             'conversation' => $conversation->id,
             'maintenanceRequest' => MaintenanceRequest::factory()->create(['property_id' => $property->id])->id,
+            // TCK-2627 — une alerte de seuil de l'agence de la cible : `threshold-alerts/{id}` est lue.
+            'threshold_alert' => ThresholdAlert::query()->create([
+                'agency_id' => $agence->id, 'metric' => 'overdue_count', 'operator' => '>',
+                'threshold' => 0, 'severity' => 'warning', 'is_enabled' => true, 'cooldown_hours' => 24,
+            ])->id,
         ];
     }
 

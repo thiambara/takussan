@@ -23,6 +23,7 @@ class AuthRegistrationTest extends TestCase
         Event::fake();
 
         $response = $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Amine',
             'last_name' => 'Thiam',
             'email' => 'amine@example.com',
@@ -45,6 +46,7 @@ class AuthRegistrationTest extends TestCase
     public function test_le_jeton_rendu_par_l_inscription_ouvre_la_session(): void
     {
         $response = $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Awa',
             'last_name' => 'Ndiaye',
             'email' => 'awa@example.com',
@@ -64,6 +66,7 @@ class AuthRegistrationTest extends TestCase
         User::factory()->create(['email' => 'amine@example.com']);
 
         $response = $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Amine',
             'last_name' => 'Thiam',
             'email' => 'amine@example.com',
@@ -78,6 +81,7 @@ class AuthRegistrationTest extends TestCase
     public function test_registration_fails_with_weak_password(): void
     {
         $response = $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Amine',
             'last_name' => 'Thiam',
             'email' => 'amine@example.com',
@@ -97,6 +101,7 @@ class AuthRegistrationTest extends TestCase
     public function test_le_mot_de_passe_suit_la_regle_du_formulaire(string $motDePasse): void
     {
         $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Awa',
             'last_name' => 'Diop',
             'email' => 'awa@example.com',
@@ -119,13 +124,17 @@ class AuthRegistrationTest extends TestCase
     {
         $response = $this->postJson('/api/auth/register', []);
 
+        // TCK-2605 — le prénom et le nom sont facultatifs : seuls l'adresse et le mot de passe
+        // manquent.
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['first_name', 'last_name', 'email', 'password']);
+            ->assertJsonValidationErrors(['email', 'password', 'terms_accepted'])
+            ->assertJsonMissingValidationErrors(['first_name', 'last_name']);
     }
 
     public function test_registration_fails_when_password_confirmation_does_not_match(): void
     {
         $response = $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Amine',
             'last_name' => 'Thiam',
             'email' => 'amine@example.com',
@@ -153,6 +162,7 @@ class AuthRegistrationTest extends TestCase
     public function test_l_inscription_ecrit_la_langue_negociee(string $locale): void
     {
         $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Awa',
             'last_name' => 'Ndiaye',
             'email' => 'awa@example.com',
@@ -169,6 +179,7 @@ class AuthRegistrationTest extends TestCase
         app()->setLocale('fr');
 
         $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Awa',
             'last_name' => 'Ndiaye',
             'email' => 'awa@example.com',

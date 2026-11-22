@@ -33,7 +33,8 @@ class ReorderPropertyMediaRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'order' => ['required', 'array'],
+            // TCK-2488 — borne technique : aucun plafond de photos par bien (lots de 20, 6 au plus dans le jeu de démo).
+            'order' => ['required', 'array', 'max:1000'],
             'order.*' => ['integer'],
         ];
     }

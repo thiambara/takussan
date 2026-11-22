@@ -2,13 +2,21 @@
 
 namespace App\Http\Controllers\Api\Me;
 
+use App\Domain\Notifications\NotificationTarget;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\ShowOriginRequestServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\ShowServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UpdateAvailabilityServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UpdateTradesServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UploadKycServiceProviderProfileRequest;
+use App\Models\Lease;
+use App\Models\MaintenanceRequest;
 use App\Models\Profiles\ServiceProviderProfile;
+use App\Models\User;
 use App\Services\Kyc\ProfilePieces;
+use App\Services\Media\PrivateMediaAccess;
+use App\Services\Onboarding\ServiceProviderOnboardingService;
+use App\Support\MotsDuSignalement;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
@@ -32,11 +40,18 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
  *  - **kyc**        → `App\Models\Document` polymorph attached to the
  *                     SP profile, with `type` mapped from the upload `kind`.
  *                     Files are stored via the medialibrary `file` collection
- *                     already configured on `Document`. **TCK-257 will
- *                     reuse the same `KycUploader` UI + this endpoint.**
+ *                     already configured on `Document`. Called by « Vos
+ *                     pièces » (`/app/pieces`, TCK-2614), the only screen
+ *                     that uploads a profile's pieces (TCK-2796).
  */
 class ServiceProviderProfileController extends Controller
 {
+    /** TCK-2943 (ADR-0122 § 3) */
+    private const AUTEUR_LOCATAIRE = 'tenant';
+
+    /** TCK-2943 — les valeurs connues d'une demande, lues une fois pour le titre et les mots : `[id, valeurs]`. */
+    private ?array $valeursConnues = null;
+
     /** Map upload `kind` to `App\Models\Enums\DocumentType`. */
     /**
      * POST /api/me/profiles/{sp_profile}/kyc/upload
@@ -106,6 +121,150 @@ class ServiceProviderProfileController extends Controller
     public function show(ShowServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
     {
         return $this->json(['data' => $this->presenter($sp_profile)]);
+    }
+
+    /**
+     * GET /api/me/profiles/{sp_profile}/intervention-d-origine
+     *
+     * TCK-2613 — la demande d'intervention que l'agence a jointe à l'invitation, montrée au prestataire AVANT la
+     * fin d'onboarding (encore non assignée : la policy de la demande la lui refuserait). `{data: null}` quand il
+     * n'y en a pas, ou plus — les raisons ne se distinguent pas ({@see ServiceProviderOnboardingService::demandeDOrigine()}).
+     *
+     * Une projection minimale, comme la demande que voit un prestataire avant d'accepter (TCK-592, P6) : le titre,
+     * la catégorie, le quartier et la ville du bien, une photo, un devis s'il y en a. **Jamais** la rue, les
+     * coordonnées, le demandeur ni son téléphone.
+     */
+    public function originRequest(ShowOriginRequestServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
+    {
+        $mr = app(ServiceProviderOnboardingService::class)->demandeDOrigine($sp_profile, $request->user());
+
+        return $this->json(['data' => $mr === null ? null : $this->projectionDOrigine($mr, $sp_profile, $request->champs())]);
+    }
+
+    /**
+     * @param  list<string>  $champs
+     * @return array<string, mixed>
+     */
+    private function projectionDOrigine(MaintenanceRequest $mr, ServiceProviderProfile $sp, array $champs): array
+    {
+        $projection = ['id' => $mr->id];
+        if (in_array('title', $champs, true)) {
+            // TCK-2943 (ADR-0122 § 1) — le titre est une écriture libre du même auteur : masqué comme ses mots.
+            $projection['title'] = MotsDuSignalement::citer($mr->title, $this->valeursConnues($mr));
+        }
+        if (in_array('category', $champs, true)) {
+            $projection['category'] = $mr->category?->value;
+        }
+        if (in_array('place', $champs, true)) {
+            $adresse = $mr->property?->address;
+            $projection['place'] = ['quarter' => $adresse?->neighborhood, 'city' => $adresse?->city];
+        }
+        if (in_array('photo', $champs, true)) {
+            $media = $mr->getFirstMedia('photos');
+            $acces = app(PrivateMediaAccess::class);
+            $projection['photo'] = $media === null ? null : [
+                'url' => $url = $acces->signedUrl($media),
+                'thumbnail_url' => $acces->signedConversionUrl($media, 'thumbnail') ?? $url,
+                'count' => $mr->getMedia('photos')->count(),
+            ];
+        }
+        if (in_array('quote', $champs, true)) {
+            $projection['quote'] = $mr->quote_submitted_at === null || $mr->quote_amount === null
+                ? null
+                : ['amount' => self::montant($mr->quote_amount), 'currency' => $mr->quote_currency];
+        }
+
+        // TCK-2943 (ADR-0122) — ce que le prestataire juge avant d'accepter : pour quand, signalée quand et par qui, et
+        // ce que le locataire en dit. Jamais une identité : un rôle, et des mots masqués.
+        if (in_array('respond_by', $champs, true)) {
+            $projection['respond_by'] = $this->instant(app(ServiceProviderOnboardingService::class)->echeanceDeReponse($sp));
+        }
+        if (in_array('reported_at', $champs, true)) {
+            $projection['reported_at'] = $this->instant($mr->created_at);
+        }
+        if (in_array('reference', $champs, true)) {
+            $projection['reference'] = $mr->reference();
+        }
+        $role = null;
+        if (in_array('reported_by_role', $champs, true) || in_array('tenant_quote', $champs, true)) {
+            $role = $this->roleDeLAuteur($mr);
+        }
+        if (in_array('reported_by_role', $champs, true)) {
+            $projection['reported_by_role'] = $role;
+        }
+        if (in_array('tenant_quote', $champs, true)) {
+            $projection['tenant_quote'] = $role === self::AUTEUR_LOCATAIRE ? $this->motsDuLocataire($mr) : null;
+        }
+        if (in_array('detail_url', $champs, true)) {
+            // La fiche reste gardée par sa policy : 403 avant l'acceptation, ce que le front sait (ADR-0122 § 7).
+            $projection['detail_url'] = NotificationTarget::of('maintenance', $mr->id)->path();
+        }
+
+        return $projection;
+    }
+
+    /**
+     * TCK-2943 (ADR-0122 § 3) — qui a signalé, en rôle : le locataire (titulaire du bail rattaché, à défaut d'un bail
+     * en cours du bien — la règle de la création), le bailleur du bien, sinon l'agence ; `null` sans demandeur.
+     */
+    private function roleDeLAuteur(MaintenanceRequest $mr): ?string
+    {
+        $demandeur = $mr->requester_id;
+        if ($demandeur === null) {
+            return null;
+        }
+
+        $baux = Lease::query()->whereHas('tenant', fn ($q) => $q->where('user_id', $demandeur));
+        $locataire = $mr->lease_id !== null
+            ? (clone $baux)->whereKey($mr->lease_id)->exists()
+            : false;
+        $locataire = $locataire || (clone $baux)
+            ->where('property_id', $mr->property_id)
+            ->whereIn('status', User::ACTIVE_TENANT_LEASE_STATUSES)
+            ->exists();
+        if ($locataire) {
+            return self::AUTEUR_LOCATAIRE;
+        }
+
+        return $mr->property !== null && (int) $mr->property->user_id === (int) $demandeur ? 'landlord' : 'agency';
+    }
+
+    /** TCK-2943 (ADR-0122 § 1) — la description, masquée des contacts et des valeurs connues du dossier, bornée. */
+    private function motsDuLocataire(MaintenanceRequest $mr): ?string
+    {
+        return MotsDuSignalement::citer($mr->description, $this->valeursConnues($mr));
+    }
+
+    /**
+     * TCK-2943 (ADR-0122 § 1) — ce que le dossier sait du demandeur et du logement, à remplacer dans ses mots : ses
+     * noms tels que son compte ET la fiche client du bail rattaché les portent (l'agence a pu les saisir autrement),
+     * entiers et mot à mot (« Mame Diarra » : « Diarra » seul aussi), et la rue du bien.
+     *
+     * @return array<string, list<string|null>>
+     */
+    private function valeursConnues(MaintenanceRequest $mr): array
+    {
+        if ($this->valeursConnues !== null && $this->valeursConnues[0] === $mr->id) {
+            return $this->valeursConnues[1];
+        }
+
+        $demandeur = User::query()->select(['id', 'first_name', 'last_name'])->find($mr->requester_id);
+        $client = $mr->lease_id === null ? null : Lease::query()->with('tenant:id,first_name,last_name')->find($mr->lease_id)?->tenant;
+        $noms = [];
+        foreach ([$demandeur?->first_name, $demandeur?->last_name, $client?->first_name, $client?->last_name] as $nom) {
+            $nom = trim((string) $nom);
+            if ($nom !== '') {
+                $noms = [...$noms, $nom, ...(preg_split('/[\s\-]+/u', $nom) ?: [])];
+            }
+        }
+
+        $valeurs = [
+            MotsDuSignalement::NOM => array_values(array_unique($noms)),
+            MotsDuSignalement::ADRESSE => [$mr->property?->address?->street],
+        ];
+        $this->valeursConnues = [$mr->id, $valeurs];
+
+        return $valeurs;
     }
 
     /**

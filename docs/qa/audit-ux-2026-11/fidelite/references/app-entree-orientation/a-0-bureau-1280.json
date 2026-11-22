@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "outil": "takussan-web/scripts/fidelite",
+  "version": 1,
+  "date": "2026-11-11T02:02:30.159Z",
+  "duree_ms": 4423,
+  "commit": "925795e2974a",
+  "base": "http://localhost:3000",
+  "via": "cadre",
+  "gel": {
+   "date": "2026-11-11",
+   "revue": "2026-11-11 — « je valide tout »"
+  }
+ },
+ "source": {
+  "type": "maquette",
+  "page": "app-entree-orientation",
+  "approche": "a",
+  "ecran": 0,
+  "nom": "Prénom"
+ },
+ "appareil": "bureau-1280",
+ "W": 1280,
+ "H": 900,
+ "DPR": 2,
+ "rem": 14.4,
+ "spacingPx": 3.6,
+ "densite": 0.9,
+ "noeuds": [
+  {"id":0,"type":"boite","dans":[],"cle":"TAKUSSAN Takussan Ton compte est créé Retour au site Comment tu t’appelles ? Ton","tag":"div","r":{"x":0,"y":0,"w":1280,"h":900},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":1,"type":"boite","dans":[0],"cle":"TAKUSSAN Takussan Ton compte est créé Retour au site","tag":"header","r":{"x":0,"y":0,"w":1280,"h":57.6},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,1,0],"couleurBord":[235,229,213,1],"rayon":[0,0,0,0],"ombre":null,"marges":[0,28.8,0,28.8],"ecart":0},
+  {"type":"icone","cle":"svg","r":{"x":28.8,"y":13.9,"w":34,"h":21.6},"dans":[1,0],"couleur":[31,24,18,1],"trait":"1px","texteParent":"TAKUSSAN Takussan"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":70,"y":17.5,"w":104.3,"h":25.2},"dans":[1,0],"police":"bricolageExt","taille":16.2,"graisse":600,"interligne":25.2,"espacement":2.3,"couleur":[31,24,18,1],"casse":"uppercase","chiffres":"normal"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":27.8,"y":12.9,"w":1,"h":1},"dans":[1,0],"police":"dmSansExt","taille":14.4,"graisse":400,"interligne":21.6,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Ton compte est créé","tag":"p","r":{"x":547.9,"y":17,"w":148.2,"h":22.5},"dans":[1,0],"police":"dmSansExt","taille":15,"graisse":600,"interligne":22.5,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":6,"type":"boite","dans":[1,0],"cle":"","tag":"span","r":{"x":708.7,"y":25.6,"w":14.4,"h":5.4},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":7,"type":"boite","dans":[1,0],"cle":"","tag":"span","r":{"x":726.7,"y":25.6,"w":5.4,"h":5.4},"slot":null,"fid":null,"fond":[34,27,20,0.15],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"Retour au site","tag":"span","r":{"x":1169.5,"y":19.3,"w":81.8,"h":18},"dans":[1,0],"police":"dmSansExt","taille":12.6,"graisse":500,"interligne":18,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Comment tu t’appelles ?","tag":"h1","r":{"x":400,"y":115.2,"w":480,"h":38.9},"dans":[0],"police":"bricolageExt","taille":36,"graisse":600,"interligne":38.9,"espacement":-0.9,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Ton prénom apparaît sur tes annonces et tes messages.","tag":"p","r":{"x":400,"y":164.9,"w":480,"h":25.5},"dans":[0],"police":"dmSansExt","taille":17,"graisse":400,"interligne":25.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Prénom","tag":"p","r":{"x":400,"y":219.2,"w":55.2,"h":18},"dans":[0],"police":"dmSansExt","taille":12.6,"graisse":500,"interligne":18,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"*","tag":"span","r":{"x":445.7,"y":219.2,"w":9.4,"h":16},"dans":[0],"police":"dmSansExt","taille":12.6,"graisse":500,"interligne":18,"espacement":0,"couleur":[183,1,16,1],"casse":"none","chiffres":"normal"},
+  {"id":13,"type":"boite","dans":[0],"cle":"Awa","tag":"div","r":{"x":400,"y":242.5,"w":232.8,"h":39.6},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[168,83,50,1],"rayon":[9,9,9,9],"ombre":"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklab(0.540443 0.0913644 0.0798483 / 0.15) 0px 0px 0px 3px, rgba(0, 0, 0, 0) 0px 0px 0px 0px","marges":[0,12.6,0,12.6],"ecart":9},
+  {"type":"texte","cle":"Awa","tag":"span","r":{"x":413.6,"y":249.8,"w":205.6,"h":25},"dans":[13,0],"police":"dmSansExt","taille":16,"graisse":400,"interligne":24,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":15,"type":"boite","dans":[13,0],"cle":"","tag":"span","r":{"x":445.2,"y":252.8,"w":1.5,"h":18},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"Nom","tag":"p","r":{"x":647.2,"y":219.2,"w":92.6,"h":18},"dans":[0],"police":"dmSansExt","taille":12.6,"graisse":500,"interligne":18,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"(facultatif)","tag":"span","r":{"x":675,"y":219.2,"w":64.8,"h":16},"dans":[0],"police":"dmSansExt","taille":12.6,"graisse":400,"interligne":18,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"id":18,"type":"boite","dans":[0],"cle":"Diop","tag":"div","r":{"x":647.2,"y":242.5,"w":232.8,"h":39.6},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[144,133,113,0.45],"rayon":[9,9,9,9],"ombre":null,"marges":[0,12.6,0,12.6],"ecart":9},
+  {"type":"texte","cle":"Diop","tag":"span","r":{"x":660.8,"y":250.3,"w":205.6,"h":24},"dans":[18,0],"police":"dmSansExt","taille":16,"graisse":400,"interligne":24,"espacement":0,"couleur":[110,101,90,0.8],"casse":"none","chiffres":"normal"},
+  {"id":20,"type":"boite","dans":[0],"cle":"CE QUE LES AUTRES VERRONT A Awa · à l’instant Bonjour, le studio de Mermoz est-i","tag":"div","r":{"x":400,"y":303.7,"w":480,"h":111.5},"slot":null,"fid":null,"fond":[240,235,225,0.4],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[12.6,12.6,12.6,12.6],"ombre":null,"marges":[12.6,12.6,12.6,12.6],"ecart":0},
+  {"type":"texte","cle":"Ce que les autres verront","tag":"p","r":{"x":413.6,"y":317.3,"w":452.8,"h":16.5},"dans":[20,0],"police":"dmSansExt","taille":11,"graisse":600,"interligne":16.5,"espacement":0.9,"couleur":[110,101,90,1],"casse":"uppercase","chiffres":"normal"},
+  {"type":"texte","cle":"A","tag":"span","r":{"x":413.6,"y":344.6,"w":32.4,"h":32.4},"dans":[20,0,23],"police":"dmSansExt","taille":12.6,"graisse":600,"interligne":18,"espacement":0,"couleur":[93,110,79,1],"casse":"none","chiffres":"normal"},
+  {"id":23,"type":"boite","dans":[20,0],"cle":"A","tag":"span","r":{"x":413.6,"y":344.6,"w":32.4,"h":32.4},"slot":null,"fid":null,"fond":[94,107,81,0.15],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"Awa","tag":"span","r":{"x":455,"y":344.6,"w":25.4,"h":16},"dans":[20,0],"police":"dmSansExt","taille":12.6,"graisse":600,"interligne":18,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"· à l’instant","tag":"span","r":{"x":483.7,"y":344.6,"w":61.8,"h":16},"dans":[20,0],"police":"dmSansExt","taille":12.6,"graisse":400,"interligne":18,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Bonjour, le studio de Mermoz est-il toujours libre ?","tag":"p","r":{"x":455,"y":368,"w":316.4,"h":33.7},"dans":[20,0,27],"police":"dmSansExt","taille":12.6,"graisse":400,"interligne":17.3,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":27,"type":"boite","dans":[20,0],"cle":"Bonjour, le studio de Mermoz est-il toujours libre ?","tag":"p","r":{"x":455,"y":368,"w":316.4,"h":33.7},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[7.2,16.2,16.2,16.2],"ombre":null,"marges":[7.2,10.8,7.2,10.8],"ecart":0},
+  {"type":"texte","cle":"Continuer","tag":"span","r":{"x":400,"y":444.1,"w":480,"h":43.2},"dans":[0,29],"police":"dmSansExt","taille":16,"graisse":600,"interligne":24,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"normal"},
+  {"id":29,"type":"boite","dans":[0],"cle":"Continuer","tag":"span","r":{"x":400,"y":444.1,"w":480,"h":43.2},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,21.6,0,21.6],"ecart":7.2}
+ ]
+}

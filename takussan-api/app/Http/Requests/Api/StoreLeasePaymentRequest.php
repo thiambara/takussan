@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentMethod;
+use App\Rules\JourIso;
 use App\Services\Maintenance\CurrencyUnit;
 use Illuminate\Validation\Rule;
 
@@ -47,9 +48,9 @@ class StoreLeasePaymentRequest extends BaseFormRequest
             'amount' => ['required', 'numeric', 'gt:0', 'max:'.CurrencyUnit::MAX_COLUMN],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'payment_type' => ['required', Rule::enum(LeasePaymentType::class)->except(LeasePaymentType::DepositRefund)],
-            'period_start' => ['required', 'date'],
-            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
-            'due_date' => ['nullable', 'date'],
+            'period_start' => ['required', 'date', new JourIso],
+            'period_end' => ['required', 'date', new JourIso, 'after_or_equal:period_start'],
+            'due_date' => ['nullable', 'date', new JourIso],
             'notes' => ['nullable', 'string'],
             // TCK-681 (P13.01) — la création n'écrit qu'une échéance en attente : un loyer reçu se
             // règle par `mark-paid`. Retiré en silence, `paid_at` laissait croire à l'écran qu'il

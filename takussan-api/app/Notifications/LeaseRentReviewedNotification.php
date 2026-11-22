@@ -8,9 +8,9 @@ use App\Notifications\Concerns\RetriesWithBackoff;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
+use App\Support\MarkdownText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -49,9 +49,6 @@ class LeaseRentReviewedNotification extends Notification implements ShouldQueue
         if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
             $channels[] = 'mail';
         }
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_PUSH)) {
-            $channels[] = 'broadcast';
-        }
 
         return $channels;
     }
@@ -73,7 +70,7 @@ class LeaseRentReviewedNotification extends Notification implements ShouldQueue
                 'date' => app(NotificationRenderer::class)->formatDate($this->effectiveDate, app()->getLocale()),
             ]))
             ->line(__('notifications.lease_rent_reviewed.reason', [
-                'reason' => $this->reason,
+                'reason' => MarkdownText::escape($this->reason),
             ]))
             ->salutation(__('notifications.salutation'));
     }
@@ -95,15 +92,5 @@ class LeaseRentReviewedNotification extends Notification implements ShouldQueue
                 'reference' => $this->lease->reference_number ?? '#'.$this->lease->id,
             ]),
         ];
-    }
-
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastType(): string
-    {
-        return 'lease.rent_reviewed';
     }
 }

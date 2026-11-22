@@ -14,6 +14,7 @@ import type { AdminPropertiesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader } from '@/components/console';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /**
  * TCK-132 — `/super-admin/properties` cross-tenant catalog. The server-side
@@ -77,11 +78,9 @@ export default function SuperAdminPropertiesPage() {
       {propertiesQuery.isLoading ? (
         <div className="space-y-2" data-testid="properties-loading">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-12 animate-pulse rounded-md bg-muted"
-              aria-hidden="true"
-            />
+            // TCK-2534 — `<Skeleton>`, jamais un `div` maison : posé sur le `main` `bg-muted` de la
+            // coque, un `bg-muted` maison avait la couleur du fond (rien à l'écran pendant le chargement).
+            <Skeleton key={i} className="h-12" aria-hidden="true" />
           ))}
         </div>
       ) : propertiesQuery.isError ? (

@@ -31,6 +31,8 @@ export const MOTIFS_RADAR: Record<string, string> = {
   'radar.fetch.http_error': 'fetchHttpError',
   'radar.fetch.timeout': 'fetchTimeout',
   'radar.fetch.unresolvable': 'fetchUnresolvable',
+  // TCK-2467 — un sitemap lu par `UrlFetcher::fetchXml()` qui n'est pas du XML.
+  'radar.fetch.not_xml': 'fetchNotXml',
   // Passerelle IA : refus et pauses
   'ai.budget': 'aiBudget',
   'ai.kill_switch': 'aiKillSwitch',
@@ -234,6 +236,8 @@ export const ERREURS_COLLECTE_RADAR: Record<string, string> = {
   'radar.crawl.start_url_invalid': 'startUrlInvalid',
   'radar.crawl.start_url_host': 'startUrlHost',
   'radar.crawl.start_url_duplicate': 'startUrlDuplicate',
+  // TCK-2467 — `discovery: sitemap` sur un site dont l'adaptateur ne déclare aucun sitemap.
+  'radar.crawl.discovery_unavailable': 'discoveryUnavailable',
 };
 
 /**
@@ -251,4 +255,89 @@ export const ARRETS_COLLECTE_RADAR: Record<string, string> = {
   'radar.crawl.lost': 'lost',
   'radar.crawl.loop': 'loop',
   'radar.crawl.no_start_url': 'noStartUrl',
+  // TCK-2467 — un sitemap illisible coupe la lecture (le passage ne déclare rien disparu).
+  'radar.crawl.sitemap_invalid': 'sitemapInvalid',
+};
+
+/**
+ * TCK-2469 — les refus des cibles (TCK-2468, `RadarTargetCriteria`, `RadarTargets`). Libellés sous
+ * `superAdmin.pages.radar.targets.errors` ; `params.field` (`criteria.<clé>…`) nomme le critère, `params.max` la borne,
+ * `params.target_id` la cible qui porte déjà ces critères.
+ */
+export const ERREURS_CIBLES_RADAR: Record<string, string> = {
+  'radar.targets.empty_criteria': 'emptyCriteria',
+  'radar.targets.unknown_criterion': 'unknownCriterion',
+  'radar.targets.invalid_criteria': 'invalidCriteria',
+  'radar.targets.too_many_items': 'tooManyItems',
+  'radar.targets.invalid_range': 'invalidRange',
+  'radar.targets.duplicate': 'duplicate',
+  'radar.targets.too_many': 'tooMany',
+  // Décision 2a (2026-11-04) — une cible retirée ne se modifie plus (`PATCH` refusé, `params.target_id`).
+  'radar.targets.retired': 'retired',
+};
+
+/**
+ * TCK-2470 — les refus de « défaire » une révision (`RadarDemandCurator::revert`, 409). Libellés sous
+ * `superAdmin.pages.radar.targets.revisions.errors` ; `superseded` se décline selon `params.revision_id` ou `params.target_id`
+ * (`RevisionsDemande.tsx`).
+ */
+export const REFUS_REVISION_RADAR: Record<string, string> = {
+  'radar.targets.revision_reverted': 'alreadyReverted',
+  'radar.targets.revision_superseded': 'superseded',
+};
+
+/**
+ * TCK-2470 — ce qui empêche un passage des cibles de la demande (`blocked_reason`, et le 409 de « rafraîchir
+ * maintenant »). Libellés sous `superAdmin.pages.radar.targets.demand.blocked`.
+ */
+export const BLOCAGES_DEMANDE_RADAR: Record<string, string> = {
+  'radar.demand.disabled': 'disabled',
+  'radar.demand.operator_missing': 'operatorMissing',
+};
+
+/**
+ * TCK-2470 — l'issue du dernier passage (`last_run_outcome`). Libellés sous
+ * `superAdmin.pages.radar.targets.demand.outcomes` ; un refus de la passerelle (`ai.*`) se lit par {@link MOTIFS_RADAR},
+ * et un code qu'aucune table ne nomme par le repli `other`, jamais brut.
+ */
+export const ISSUES_DEMANDE_RADAR: Record<string, string> = {
+  applied: 'applied',
+  unchanged: 'unchanged',
+  no_signals: 'noSignals',
+  // Revue du 2026-11-04 (D7) — aucun signal : les cibles tirées de la demande ont été retirées, sans IA.
+  no_signals_retired: 'noSignalsRetired',
+  'radar.demand.disabled': 'disabled',
+  'radar.demand.operator_missing': 'operatorMissing',
+  'radar.demand.invalid_output': 'invalidOutput',
+};
+
+/**
+ * TCK-2470 — pourquoi le code a écarté une opération proposée par l'IA (`discarded[].code`, `RadarDemandCurator`).
+ * Libellés sous `superAdmin.pages.radar.targets.revisions.discardReasons` ; repli `other`, jamais le code brut.
+ */
+export const ECARTS_DEMANDE_RADAR: Record<string, string> = {
+  'radar.demand.target_protected': 'targetProtected',
+  'radar.demand.unknown_target': 'unknownTarget',
+  'radar.demand.too_many': 'tooManyDemand',
+  'radar.demand.invalid_operation': 'invalidOperation',
+  'radar.demand.invalid_name': 'invalidName',
+  // Revue du 2026-11-04 (D3) — les critères ne couvrent aucun des signaux que l'opération cite.
+  'radar.demand.uncovered': 'uncovered',
+  'radar.targets.invalid_criteria': 'invalidCriteria',
+  'radar.targets.unknown_criterion': 'unknownCriterion',
+  'radar.targets.too_many_items': 'tooManyItems',
+  'radar.targets.invalid_range': 'invalidRange',
+  'radar.targets.empty_criteria': 'emptyCriteria',
+  'radar.targets.duplicate': 'duplicate',
+  'radar.targets.too_many': 'tooMany',
+  'radar.targets.retired': 'retired',
+};
+
+/**
+ * Revue du 2026-11-04 (D7) — le motif d'une opération que le CODE a faite seul, sans IA (`operations[].reason`,
+ * `RadarDemandCurator::REASON_*`). Libellés sous `superAdmin.pages.radar.targets.revisions.codeReasons` ; tout autre motif
+ * est celui que l'IA a écrit, cité tel quel.
+ */
+export const MOTIFS_REVISION_RADAR: Record<string, string> = {
+  'radar.demand.no_demand': 'noDemand',
 };

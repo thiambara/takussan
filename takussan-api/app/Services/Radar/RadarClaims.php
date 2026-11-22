@@ -7,6 +7,9 @@ use App\Jobs\Radar\PrepareRadarListingPhotos;
 use App\Jobs\Radar\PublishClaimedRadarListings;
 use App\Jobs\Radar\TransmitTakenBackConversations;
 use App\Models\Agency;
+use App\Models\Booking;
+use App\Models\Conversation;
+use App\Models\Customer;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
@@ -23,13 +26,17 @@ use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
 use App\Models\User;
+use App\Observers\DocumentsDuPorteurObserver;
 use App\Services\Auth\PhoneLoginService;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Onboarding\HostIndividualOnboardingService;
+use App\Services\Privacy\ConsentLedger;
 use App\Services\Property\PublishReadiness;
 use App\Support\CanonicalPhone;
 use App\Support\PhoneMasker;
+use App\Support\TempsReel\CodeDeSignal;
+use App\Support\TempsReel\TempsReel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
@@ -106,6 +113,7 @@ final class RadarClaims
         private readonly RadarPhotoReserve $reserve,
         private readonly RadarConsentCoverage $coverage,
         private readonly RadarMandateTakeBack $takeBack,
+        private readonly ClaimDemand $demand,
     ) {}
 
     /** Les deux portes de la publication pour lui (TCK-2389) : le code ouvre un compte, la réclamation en dépend autant. */
@@ -128,6 +136,7 @@ final class RadarClaims
         $isOwner = $state['state'] === self::STATE_EXISTING && $viewer !== null && $viewer->is($state['user']);
         // TCK-2413 — le job pose un code sur ce qu'il laisse à l'opérateur ; sans code, l'annonce l'attend encore.
         [$awaiting, $publishing] = $this->publishing($advertiser)->partition(fn (RadarListing $listing) => $listing->stage_reason !== null);
+        $claimable = $this->claimable($advertiser);
 
         return [
             'advertiser' => [
@@ -146,7 +155,7 @@ final class RadarClaims
                 // que ce refus, qui vient avant la connexion exigée : le porteur du lien l'apprend par lui de toute façon.
                 'space_unavailable' => ! $advertiser->underMandate() && $this->spaceInactive($state),
             ],
-            'listings' => $this->claimable($advertiser)->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
+            'listings' => $claimable->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
             // Réclamées, en attente du job : ni case ni bouton, une seconde confirmation ne les reprend pas.
             'publishing' => $publishing->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
             // TCK-2413 — réclamées, mais la publication les a laissées à l'équipe (photo, champ, refus) : la page le dit, sans
@@ -156,6 +165,9 @@ final class RadarClaims
             'terms_version' => PublishReadiness::TERMS_VERSION,
             // TCK-2421 — sous mandat : ses biens en ligne, que le code lui fera reprendre dans son espace ; `null` hors mandat.
             'mandate' => $this->takeBack->summary($advertiser),
+            // TCK-2511 — la demande du quartier de ses annonces (toutes celles que la page montre), `null` sous le seuil ou
+            // sans quartier commun : {@see ClaimDemand}.
+            'demand' => $this->demand->of($claimable->concat($publishing)->concat($awaiting)),
         ];
     }
 
@@ -292,7 +304,8 @@ final class RadarClaims
                 $user->forceFill(['first_name' => $firstName])->save();
             }
         }
-        $this->readiness->recordTerms($user, true);
+        // TCK-537 (AC1) — la case de la page de réclamation : la preuve le dit.
+        $this->readiness->recordTerms($user, true, ConsentLedger::CONTEXT_RADAR_CLAIM);
 
         $space = $this->onboarding->autoOnboard($user);
         $agency = $space['agency'];
@@ -507,17 +520,33 @@ final class RadarClaims
         (clone $leads)->update(['agency_id' => $agency->id]);
         (clone $leads)->where('recipient_user_id', $orphan->id)->update(['recipient_user_id' => $user->id]);
         (clone $leads)->where('handled_by_id', $orphan->id)->update(['handled_by_id' => $user->id]);
+        // TCK-2781 — l'index des documents recopie l'agence de leur fiche et de leur réservation, et ces
+        // deux écritures de masse ne passent pas par `DocumentsDuPorteurObserver` : réindexées après.
+        $fichesDeplacees = DB::table('customers')->whereIn('agency_id', $spaces)->pluck('id')->all();
+        $reservationsDeplacees = DB::table('bookings')->whereIn('agency_id', $spaces)->pluck('id')->all();
         DB::table('customers')->whereIn('agency_id', $spaces)->update(['agency_id' => $agency->id]);
         DB::table('customers')->where('added_by_id', $orphan->id)->update(['added_by_id' => $user->id]);
         DB::table('property_visits')->whereIn('property_id', $ids)->where('agent_id', $orphan->id)->update(['agent_id' => $user->id]);
         DB::table('bookings')->whereIn('agency_id', $spaces)->update(['agency_id' => $agency->id]);
+        DocumentsDuPorteurObserver::reindexer(Customer::class, $fichesDeplacees);
+        DocumentsDuPorteurObserver::reindexer(Booking::class, $reservationsDeplacees);
         DB::table('media_fingerprints')->whereIn('property_id', $ids)->update(['agency_id' => $agency->id]);
         DB::table('property_collaborators')->whereIn('property_id', $ids)->where('user_id', $orphan->id)->update(['user_id' => $user->id]);
 
         // Une conversation où B est déjà : A s'en retire ; ailleurs, B prend sa place (unique par conversation et compte).
+        // TCK-2955 (ADR-0129 § 2) — la composition de ces fils change par une écriture de masse, qui ne déclenche
+        // pas les événements du pivot : le signal part ici (après le COMMIT, comme tout signal).
+        $filsDeA = Conversation::query()
+            ->whereIn('id', DB::table('conversation_participants')->where('user_id', $orphan->id)->select('conversation_id'))
+            ->orderBy('id')
+            ->get(['id']);
         $joined = DB::table('conversation_participants')->where('user_id', $user->id)->select('conversation_id');
         DB::table('conversation_participants')->where('user_id', $orphan->id)->whereIn('conversation_id', $joined)->delete();
         DB::table('conversation_participants')->where('user_id', $orphan->id)->update(['user_id' => $user->id]);
+        foreach ($filsDeA as $fil) {
+            TempsReel::signaler($fil, CodeDeSignal::ParticipantsUpdated);
+            TempsReel::signalerA($user, CodeDeSignal::BoiteUpdated, $fil);
+        }
 
         foreach ([AgencyAdminProfile::class, OwnerProfile::class, AgentProfile::class] as $profile) {
             $profile::query()->where('user_id', $orphan->id)->get()->each->delete();

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
@@ -27,6 +27,7 @@ const donnees = {
   links: { first: null, last: null, prev: null, next: null },
 } as never;
 
+// TCK-2653 — la liste se rend aussi en cartes au téléphone (`carteMobile`) : les requêtes visent la table.
 describe('<ServiceProvidersList> — nom saisi à l’invitation', () => {
   it('un compte lié sans nom retombe sur le nom de l’invitation', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -36,6 +37,6 @@ describe('<ServiceProvidersList> — nom saisi à l’invitation', () => {
       </QueryClientProvider>,
     ));
 
-    expect(await screen.findByText('Ibrahima Fall')).toBeInTheDocument();
+    expect(await within(await screen.findByRole('table')).findByText('Ibrahima Fall')).toBeInTheDocument();
   });
 });

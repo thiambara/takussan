@@ -7,7 +7,7 @@ import { LANGUE_DE_SAISIE_DES_ANNONCES } from './langue-de-saisie';
 const COLLAPSED_LIMIT = 400;
 
 export function PropertyDescription({ description }: { description: string | null }) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const locale = useLocale();
   const [expanded, setExpanded] = useState(false);
   if (!description) return null;

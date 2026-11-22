@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Inventory;
+use App\Policies\InventoryPolicy;
 
 /**
  * TCK-305 — extrait de InventoryController::dispute(), où les règles étaient écrites en ligne.
@@ -23,10 +25,17 @@ class DisputeInventoryRequest extends BaseFormRequest
      *
      * **Simple DÉLÉGATION** : la règle vit dans sa policy, cette méthode ne fait que l'invoquer —
      * aucune règle d'autorisation n'a migré ici (AC4).
+     *
+     * TCK-2646 (ADR-0098 §7) — les deux parties seulement (`InventoryPolicy::dispute`), appelée EN
+     * DIRECT : par `can()`, `Gate::before` l'accorderait au super-admin, qui n'est pas une partie.
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('view', $this->route('inventory')) === true;
+        $user = $this->user();
+        $inventory = $this->route('inventory');
+
+        return $user !== null && $inventory instanceof Inventory
+            && app(InventoryPolicy::class)->dispute($user, $inventory);
     }
 
     /** @return array<string, mixed> */

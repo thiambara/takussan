@@ -73,6 +73,12 @@ class MeController extends Controller
             $user->timezone = $request->validated('timezone');
         }
 
+        // TCK-2506 — l'attribut, pas `fill()` : la colonne est hors `$fillable` pour que seul ce
+        // chemin, celui du compte lui-même, puisse l'écrire.
+        if ($request->has('listed_in_public_directory')) {
+            $user->listed_in_public_directory = (bool) $request->validated('listed_in_public_directory');
+        }
+
         $user->save();
         if ($remplace !== null) {
             $phoneChange->notifyReplaced($user, $remplace);

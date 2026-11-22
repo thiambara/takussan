@@ -1,9 +1,11 @@
 'use client';
 
+import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/context/AuthContext';
+import { useIntervalleDeRelecture, useSignal } from '@/lib/temps-reel/hooks';
 import type { PaginatedResponse, SpatieQueryParams } from '@/types/api';
-import type { Conversation } from '@/types/message';
+import type { Conversation, FileDuFil } from '@/types/message';
 
 /**
  * TCK-1042 (P70.07) — séparé de `conversations.ts`, qui le réexporte : la pastille de la
@@ -21,6 +23,16 @@ export const CONVERSATION_LIST_FIELDS: string[] = [
   'last_message_at',
   'last_message_preview',
   'updated_at',
+  // TCK-2968 — la boîte de pilotage (TCK-2967) : la file du lecteur, ses dates, ses attendus, et qui suit le fil.
+  'file',
+  'attend_depuis',
+  'en_attente_de',
+  'snoozed_until',
+  'handled_at',
+  'assigned_to',
+  // TCK-2973 (TCK-2971) — la file « Retard » et la ligne d'engagement de la rangée.
+  'retard_depuis',
+  'engagement',
 ];
 
 /**
@@ -44,12 +56,98 @@ export const CONVERSATION_PROPERTY_FIELDS: string[] = ['id', 'title', 'slug'];
  * page, qui ignoraient les fils au-delà des 30 premiers.
  */
 export type ConversationListPage = PaginatedResponse<Conversation> & {
-  meta: PaginatedResponse<Conversation>['meta'] & { unread_total?: number };
+  meta: PaginatedResponse<Conversation>['meta'] & {
+    unread_total?: number;
+    /**
+     * TCK-2630 — les comptes des puces « Tous · Non lus · Groupes », sur toute la liste hors archives
+     * et SANS les filtres de la requête : ils ne bougent pas quand une puce ou la recherche filtre.
+     * `unread` compte des FILS (sourdine comprise), là où `unread_total` compte des messages.
+     */
+    counts?: {
+      all: number;
+      unread: number;
+      group: number;
+      /** TCK-2967 (ADR-0128 § 7) — les comptes des puces de pilotage, sur la même base que `all`. */
+      vous?: number;
+      /** TCK-2973 (TCK-2971) — la puce « Retard ». */
+      retard?: number;
+      attente?: number;
+      rappel?: number;
+    };
+    /**
+     * TCK-2967 — la pastille de l'onglet Messages : les fils « À vous » hors sourdine et hors archives
+     * (TCK-2968 la lit à la place de `unread_total`). Le lot 3 y ajoutera les engagements en retard.
+     */
+    gestes?: number;
+  };
 };
 
-/** Les paramètres d'une page de la liste, partagés par la pastille et le défilement infini. */
-export function conversationListParams(page: number, perPage: number): SpatieQueryParams {
+/**
+ * TCK-2632 — les filtres de la liste, appliqués par le SERVEUR (TCK-2630), jamais sur la page
+ * chargée : `filter[search]` (nom d'un membre, titre ou référence du bien, sujet ; la casse se
+ * replie, pas les accents ; moins de 2 caractères : ignorée), `filter[unread]`, `filter[type]`,
+ * `filter[participant]` (les fils où cette personne est membre actuel — restreint la liste de
+ * l'appelant, ne l'élargit jamais).
+ */
+/**
+ * TCK-2955 (ADR-0129 § 2) — la boîte en direct : le canal personnel de la session, filtré sur
+ * `boite.updated` (la liste ou le compteur d'une personne a changé — un message, une lecture, un ajout ou
+ * un retrait). Chaque lecture de la boîte s'y abonne À CÔTÉ de sa requête : c'est ce qui la fait passer à
+ * la relecture de sécurité de 60 s quand le canal est tenu (`useIntervalleDeRelecture`).
+ */
+export const BOITE_EN_DIRECT = { personnel: ['boite.updated'] } as const;
+
+/**
+ * TCK-2955 — relit `cle` à chaque `boite.updated` (et à la reconnexion), sans annuler une lecture déjà en
+ * cours (`cancelRefetch: false`) : plusieurs écrans abonnés à la même clé ne font qu'une requête.
+ * `actif` faux : rien n'est abonné (un observateur passif, une lecture désactivée).
+ */
+export function useBoiteEnDirect(cle: QueryKey, actif: boolean): void {
+  const queryClient = useQueryClient();
+  useSignal(actif ? BOITE_EN_DIRECT : null, () => {
+    void queryClient.invalidateQueries({ queryKey: cle }, { cancelRefetch: false });
+  });
+}
+
+export type FiltresDeLaListe = {
+  readonly recherche?: string;
+  readonly nonLus?: boolean;
+  readonly type?: 'direct' | 'group';
+  readonly participant?: number;
+  /** TCK-2968 — la file de pilotage (`filter[file]`, TCK-2967), jugée par le SERVEUR. */
+  readonly file?: FileDuFil;
+};
+
+/** La forme canonique des filtres : celle de la clé de requête (une saisie vide n'est pas un filtre). */
+export function filtresCanoniques(filtres: FiltresDeLaListe = {}): FiltresDeLaListe {
+  const recherche = filtres.recherche?.trim() ?? '';
   return {
+    ...(recherche.length > 0 ? { recherche } : {}),
+    ...(filtres.nonLus ? { nonLus: true } : {}),
+    ...(filtres.type ? { type: filtres.type } : {}),
+    ...(filtres.participant ? { participant: filtres.participant } : {}),
+    // TCK-2968 — dans la clé de requête : sans lui, changer de puce rendrait la page d'une autre file.
+    ...(filtres.file ? { file: filtres.file } : {}),
+  };
+}
+
+/** Les paramètres d'une page de la liste, partagés par la pastille et le défilement infini. */
+export function conversationListParams(
+  page: number,
+  perPage: number,
+  filtres: FiltresDeLaListe = {},
+): SpatieQueryParams {
+  const f = filtresCanoniques(filtres);
+  const filter = {
+    ...(f.recherche ? { search: f.recherche } : {}),
+    ...(f.nonLus ? { unread: '1' } : {}),
+    ...(f.type ? { type: f.type } : {}),
+    ...(f.participant ? { participant: String(f.participant) } : {}),
+    // TCK-2968 — la file part au serveur, jamais filtrée sur la page reçue.
+    ...(f.file ? { file: f.file } : {}),
+  };
+  return {
+    ...(Object.keys(filter).length > 0 ? { filter } : {}),
     // P100.05 (TCK-1186) — `fields` inerte : `ConversationController::index` ne passe pas par `buildQuery`
     // (`Conversation::$queryFields` vide) ; il ne réduit pas la charge. Gardé pour déclarer ce que lit l'écran.
     fields: {
@@ -82,14 +180,18 @@ export function useConversations(
   const enabled = (options.enabled ?? true) && Boolean(user);
 
   const spatieParams = conversationListParams(params.page ?? 1, params.per_page ?? 30);
+  // TCK-2955 — relue sur `boite.updated` ; les 10 s ne sont plus que le filet du mode dégradé.
+  const cle: QueryKey = ['conversations', 'list', params];
+  useBoiteEnDirect(cle, enabled);
+  const intervalle = useIntervalleDeRelecture(options.refetchInterval ?? 10_000, enabled ? BOITE_EN_DIRECT : null);
 
   return useApiQuery<ConversationListPage>(
-    ['conversations', 'list', params],
+    cle,
     '/api/conversations',
     {
       params: spatieParams,
       enabled,
-      refetchInterval: options.refetchInterval ?? 10_000,
+      refetchInterval: intervalle,
       staleTime: 0,
     },
   );
@@ -117,11 +219,15 @@ export const CADENCE_NON_LUS_MESSAGERIE_MS = 10_000;
 export function useNonLusTotal(options: { enabled?: boolean; refetchInterval: number }) {
   const { user } = useAuth();
   const enabled = (options.enabled ?? true) && Boolean(user);
+  // TCK-2955 — le compteur suit `boite.updated` ; ses cadences (`CADENCE_NON_LUS_*`) ne sont plus que le
+  // filet du mode dégradé. L'observateur passif (`enabled: false`, `AnnonceDesNonLus`) n'abonne rien.
+  useBoiteEnDirect(NonLusQueryKeys.total, enabled);
+  const intervalle = useIntervalleDeRelecture(options.refetchInterval, enabled ? BOITE_EN_DIRECT : null);
 
   return useApiQuery<ConversationListPage>(NonLusQueryKeys.total, '/api/conversations', {
     params: { per_page: 1 },
     enabled,
-    refetchInterval: options.refetchInterval,
+    refetchInterval: intervalle,
     staleTime: 0,
   });
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\LeaseContractPreviewRequest;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
@@ -10,9 +11,14 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\User;
+use App\Services\Documents\ArchiveDuCoffre;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Model\LeaseService;
 use App\Services\Pdf\DocumentPdfService;
 use App\Services\Pdf\PrintedIdentity;
+use App\Services\Property\BailleurDuBien;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -21,6 +27,7 @@ use Symfony\Component\HttpFoundation\Response;
  *   - GET /api/leases/{lease}/receipts/{payment}/pdf
  *   - GET /api/invoices/{invoice}/pdf
  *   - GET /api/leases/{lease}/contract/pdf
+ *   - POST /api/leases/contract-preview (TCK-2906 — l'aperçu, avant création)
  *
  * Each endpoint authorises the caller against a distinct policy (receipt:
  * tenant + landlord + agency staff ; invoice: destinataire + issuer + admin ;
@@ -147,6 +154,16 @@ class DocumentPdfController extends Controller
         // TCK-587 — la règle de `LeasePolicy::view`, que l'ancien helper recopiait à l'identique.
         $this->authorize('view', $lease);
 
+        return self::renderLeaseContract($this->pdf, $lease);
+    }
+
+    /**
+     * TCK-2770 — le rendu du contrat, après l'autorisation : servi par {@see self::leaseContract()} et
+     * repris tel quel par l'archive du coffre ({@see ArchiveDuCoffre}), qui a
+     * jugé l'entrée par la même règle.
+     */
+    public static function renderLeaseContract(DocumentPdfService $pdf, Lease $lease): Response
+    {
         // TCK-596 §4B (ADR-0042 §1) — dès qu'un contrat est figé (signature demandée, ou scan de
         // la voie papier), c'est LUI qui est servi, octet pour octet : c'est son empreinte que les
         // parties signent. Le rendu à la volée ne reste que pour un contrat NON figé (brouillon, ou
@@ -172,8 +189,27 @@ class DocumentPdfController extends Controller
         }
         $lease->loadMissing(['property' => fn ($q) => $q->withTrashed(), 'property.address', 'tenant', 'landlord', 'agency', 'guarantors']);
 
-        return $this->pdf->stream('pdf.leases.contract', [
-            'title' => 'Contrat de bail '.($lease->reference_number ?? $lease->id),
+        return self::streamContract($pdf, $lease, 'Contrat de bail '.($lease->reference_number ?? $lease->id), sprintf('bail-%s.pdf', $lease->reference_number ?? $lease->id));
+    }
+
+    /**
+     * TCK-2906 — `POST /api/leases/contract-preview` : le contrat que la création écrirait, rendu depuis le
+     * formulaire, sans rien écrire en base. L'autorisation (`LeasePolicy::createOn` sur le bien) précède la
+     * validation, qui est celle de la création ({@see LeaseContractPreviewRequest}) ; les refus du locataire,
+     * du garant et de la réservation sont ceux de {@see LeaseService::preview()}.
+     */
+    public function leaseContractPreview(LeaseContractPreviewRequest $request, LeaseService $leases): Response
+    {
+        $lease = $leases->preview($request->property(), $request->user(), $request->validated());
+
+        return self::streamContract($this->pdf, $lease, 'Aperçu du contrat de bail', 'apercu-du-bail.pdf');
+    }
+
+    /** Le gabarit du contrat, ses relations déjà posées (bail lu, ou bail en mémoire de l'aperçu). */
+    private static function streamContract(DocumentPdfService $pdf, Lease $lease, string $title, string $filename): Response
+    {
+        return $pdf->stream('pdf.leases.contract', [
+            'title' => $title,
             'document_label' => 'Bail',
             'lease' => $lease,
             'tenant' => $lease->tenant,
@@ -182,38 +218,74 @@ class DocumentPdfController extends Controller
             'property' => $lease->property,
             'agency' => $lease->agency,
             'guarantors' => $lease->guarantors,
-            'filename' => sprintf('bail-%s.pdf', $lease->reference_number ?? $lease->id),
+            'filename' => $filename,
         ]);
     }
 
     /**
-     * Quittance : accessible au locataire, au bailleur, à l'agence propriétaire
-     * du bail et aux collaborateurs agents du bien, plus admins.
+     * Quittance : accessible au locataire, au bailleur au sens de `LeasePolicy::view`
+     * ({@see BailleurDuBien::est()}, TCK-2809), au personnel de l'agence du bail, aux
+     * collaborateurs `agent`/`manager` du bien encore personnel de l'agence, plus super-admin.
+     * La règle vit dans {@see self::mayReadReceipts()}.
      */
     protected function authorizeReceipt(Request $request, Lease $lease): void
     {
         $user = $request->user();
         abort_unless($user, 401);
 
+        abort_unless(self::mayReadReceipts($user, $lease), 403);
+    }
+
+    /**
+     * TCK-2655 (ADR-0099 §3) — LA règle de lecture des quittances d'un bail, extraite telle quelle
+     * de `authorizeReceipt()` : le coffre la lit pour lister, l'endpoint pour servir.
+     *
+     * TCK-2809 (P1, suite de TCK-2803) — le bailleur est celui de `LeasePolicy::view` :
+     * {@see BailleurDuBien::est()}, désigné par `landlord_id` ET bail sans agence ou profil
+     * propriétaire (de tout statut) dans son agence. `landlord_id` recopie le créateur du bien, sur un
+     * bien d'agence l'agent qui l'a saisi (TCK-1926) : lu tel quel, l'agent créateur PARTI de l'agence,
+     * à qui la fiche rend 403, téléchargeait la quittance (mesuré : 200). L'agent créateur en poste la
+     * lit par la branche du personnel ; le bailleur suspendu ou parti garde la sienne (ADR-0031 §2).
+     */
+    public static function mayReadReceipts(User $user, Lease $lease): bool
+    {
+        // TCK-2655 (vérification adverse) — la même disjonction, évaluée paresseusement : le coffre la
+        // juge pour chaque bail du locataire, et la branche collaborateur coûte une requête.
         $isTenant = $lease->tenant && $lease->tenant->user_id === $user->id;
-        $isLandlord = $lease->landlord_id === $user->id;
+        if ($user->isSuperAdmin() || $isTenant || BailleurDuBien::est($user, $lease->landlord_id, $lease->agency_id)) {
+            return true;
+        }
         // TCK-587 — le PERSONNEL de l'agence du bail (ADR-0031) : un autre bailleur de l'agence
         // téléchargeait la quittance. La branche collaborateur, propre à ce geste, reste.
         $staffAgencyId = $user->staffAgencyId();
-        $isAgency = $staffAgencyId !== null && $staffAgencyId === (int) $lease->agency_id;
+        if ($staffAgencyId !== null && $staffAgencyId === (int) $lease->agency_id) {
+            return true;
+        }
         // TCK-1154 (P86.04) — le collaborateur `agent` ou `manager` accepté, encore personnel de
         // l'agence du bail, comme `BookingStakeholders::collaboratorsOf`. Sans condition de rôle, un
         // `viewer` accepté téléchargeait la quittance d'un bien que `PropertyPolicy` lui refuse.
         $collabAgencyId = $lease->agency_id ?? $lease->property?->agency_id;
-        $isCollab = $collabAgencyId !== null
+
+        return $collabAgencyId !== null
             && (bool) $lease->property?->collaborators()
                 ->where('user_id', $user->id)
                 ->whereNotNull('accepted_at')
                 ->whereIn('role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])
                 ->exists()
             && app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $collabAgencyId);
-        $isAdmin = $user->isSuperAdmin();
+    }
 
-        abort_unless($isAdmin || $isTenant || $isLandlord || $isAgency || $isCollab, 403);
+    /**
+     * TCK-2655 — les échéances qui ont une quittance (ou un reçu) : payées, hors restitution de
+     * caution. Les deux refus de {@see self::receipt()} (`receipt_unpaid`, `receipt_not_a_payment`),
+     * sous forme de requête pour le coffre. Une échéance remboursée n'est plus payée (TCK-2505).
+     *
+     * @param  Builder<LeasePayment>  $query
+     * @return Builder<LeasePayment>
+     */
+    public static function receiptable(Builder $query): Builder
+    {
+        return $query->where('status', PaymentStatus::Paid->value)
+            ->where(fn (Builder $q) => $q->whereNull('payment_type')->orWhere('payment_type', '!=', LeasePaymentType::DepositRefund->value));
     }
 }

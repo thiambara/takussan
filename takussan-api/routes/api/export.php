@@ -13,4 +13,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('export/{entity}', [ExportController::class, 'show'])
         ->where('entity', '[a-z_-]+')
         ->name('export.show');
+    // TCK-2866 — le nombre de lignes avant l'export : mêmes filtres, même cloisonnement, même droit.
+    Route::get('export/{entity}/count', [ExportController::class, 'count'])
+        ->where('entity', '[a-z_-]+')
+        ->name('export.count');
 });

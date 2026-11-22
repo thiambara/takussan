@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { Download } from 'lucide-react';
 
 import { StatusBadge } from '@/components/console';
 import {
@@ -18,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 import { useAuth } from '@/context/AuthContext';
 import { useCan } from '@/hooks/useCan';
+import { useTelechargementApi } from '@/hooks/useTelechargementApi';
+import { cheminApi } from '@/lib/chemin-api';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   useBeneficiaryPayoutMethods,
@@ -30,18 +33,20 @@ import {
 import type { Locale } from '@/i18n/config';
 import type { PayoutStatus } from '@/types/invoice';
 
-import { DESTINATION_KINDS_BY_METHOD, PAYMENT_METHOD_VALUES, PAYOUT_STATUS_TONE } from './constants';
+import { aUnAvis, DESTINATION_KINDS_BY_METHOD, PAYMENT_METHOD_VALUES, PAYOUT_STATUS_TONE } from './constants';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface PayoutDetailDialogProps {
   readonly payoutId: number | null;
   readonly onClose: () => void;
+  /** TCK-2651 — le bailleur lit SON versement : ni « Bailleur #8 » (c'est lui), ni `#id` en repli de référence. */
+  readonly sansIdentifiants?: boolean;
 }
 
 /** Valeur repère de « aucune » : une valeur vide n'est pas une option du Select. */
 const AUCUN = '__none__';
 
-export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProps) {
+export function PayoutDetailDialog({ payoutId, onClose, sansIdentifiants = false }: PayoutDetailDialogProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.payoutDetail');
   const tStatus = useTranslations('payments.payoutStatus');
@@ -53,6 +58,8 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
   const markProcessed = usePayoutMarkProcessed(payoutId ?? 0);
   const markFailed = usePayoutMarkFailed(payoutId ?? 0);
   const cancel = usePayoutCancel(payoutId ?? 0);
+  // TCK-2916 — l'avis de versement (`GET /api/payouts/{id}/notice/pdf`, TCK-2909) d'un reversement au bailleur terminé.
+  const avis = useTelechargementApi();
 
   const [paymentMethod, setPaymentMethod] = useState('');
   const [transactionId, setTransactionId] = useState('');
@@ -156,7 +163,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {t('title', { reference: payout?.reference_number ?? `#${payoutId}` })}
+            {t('title', { reference: payout?.reference_number ?? (sansIdentifiants ? '—' : `#${payoutId}`) })}
           </DialogTitle>
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
@@ -179,10 +186,12 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
             </div>
 
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('landlord')}</dt>
-                <dd className="mt-0.5 text-foreground">#{payout.landlord_id}</dd>
-              </div>
+              {sansIdentifiants ? null : (
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('landlord')}</dt>
+                  <dd className="mt-0.5 text-foreground">#{payout.landlord_id}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('period')}</dt>
                 <dd className="mt-0.5 text-foreground">
@@ -382,6 +391,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                   </Label>
                   <Input
                     id="transaction-id"
+                    profil="mots"
                     value={transactionId}
                     onChange={(e) => setTransactionId(e.target.value)}
                     placeholder={t('transactionIdPlaceholder')}
@@ -392,7 +402,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                     <Label htmlFor="cash-note" className="mb-1.5 block text-xs font-medium">
                       {t('cashNote')}
                     </Label>
-                    <Input id="cash-note" value={cashNote} onChange={(e) => setCashNote(e.target.value)} />
+                    <Input profil="phrase" id="cash-note" placeholder={t('cashNoteExemple')} value={cashNote} onChange={(e) => setCashNote(e.target.value)} />
                   </div>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
@@ -420,6 +430,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                   </Label>
                   <Input
                     id="failed-reason"
+                    profil="phrase"
                     value={failedReason}
                     onChange={(e) => setFailedReason(e.target.value)}
                     placeholder={t('failedReasonPlaceholder')}
@@ -456,7 +467,29 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
               </p>
             ) : null}
 
-            <div className="flex justify-end">
+            {avis.echec ? (
+              <p role="alert" className="text-sm text-destructive">
+                {t('echecAvis')}
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap justify-end gap-2">
+              {payout && aUnAvis(payout) ? (
+                <Button
+                  variant="outline"
+                  type="button"
+                  disabled={avis.enCours}
+                  onClick={() =>
+                    void avis.telecharger(
+                      cheminApi`/api/payouts/${payout.id}/notice/pdf`,
+                      t('nomDeLAvis', { reference: payout.reference_number || String(payout.id) }),
+                    )
+                  }
+                >
+                  <Download aria-hidden="true" />
+                  {t('avis')}
+                </Button>
+              ) : null}
               <Button variant="ghost" type="button" onClick={onClose}>
                 {t('close')}
               </Button>

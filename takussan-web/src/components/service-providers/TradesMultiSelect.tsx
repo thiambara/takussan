@@ -3,10 +3,12 @@
 import { useTranslations } from 'next-intl';
 import {
   Brush,
+  Bug,
   Drill,
   Hammer,
   KeyRound,
   Snowflake,
+  Sparkles,
   Wrench,
   Zap,
 } from 'lucide-react';
@@ -27,6 +29,9 @@ export const TRADE_OPTIONS = [
   'locksmith',
   'painting',
   'masonry',
+  // TCK-2713 — les deux métiers qui servent les catégories `cleaning` et `pest_control`.
+  'cleaning',
+  'pest_control',
   'other',
 ] as const;
 
@@ -45,6 +50,8 @@ const TRADE_ICONS: Record<TradeOption, React.ComponentType<{ className?: string;
   locksmith: KeyRound,
   painting: Brush,
   masonry: Hammer,
+  cleaning: Sparkles,
+  pest_control: Bug,
   other: Drill,
 };
 

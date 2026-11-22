@@ -103,6 +103,24 @@ class AudioMessageTest extends TestCase
         return ['ogg' => ['ogg'], 'm4a' => ['m4a'], 'mp4 isom' => ['mp4Isom']];
     }
 
+    /**
+     * TCK-2900 (ADR-0113 § 1) — le type que `MediaRecorder` de Chrome DÉCLARE (`audio/webm`) : la
+     * messagerie le lit dans `VoiceNoteRules`, la règle partagée avec la note du signalement. Le faux
+     * fichier est voulu : `finfo` lit `video/webm` sur un vrai WebM (mesuré), l'entrée `audio/webm`
+     * ne se juge que par le type déclaré.
+     */
+    public function test_the_shared_rule_accepts_a_declared_audio_webm(): void
+    {
+        [$member, $conversation] = $this->conversation();
+
+        Sanctum::actingAs($member);
+        $this->post("/api/conversations/{$conversation->id}/messages", [
+            'type' => 'audio',
+            'duration' => 18,
+            'audio' => UploadedFile::fake()->create('note.webm', 300, 'audio/webm'),
+        ], ['Accept' => 'application/json'])->assertCreated();
+    }
+
     #[DataProvider('conteneurs')]
     public function test_a_real_voice_note_container_is_accepted(string $conteneur): void
     {

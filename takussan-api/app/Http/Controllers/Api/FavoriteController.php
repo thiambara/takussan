@@ -50,6 +50,14 @@ class FavoriteController extends Controller
             ->whereHas('property', fn (Builder $bien) => $bien->withTrashed()->where(fn (Builder $q) => $q
                 ->ofPublicAgency()
                 ->when($agenceDuPersonnel !== null, fn (Builder $q) => $q->orWhere('properties.agency_id', $agenceDuPersonnel)))))
+            // TCK-2625 — « vos favoris qui bougent » : ceux dont `price_change` est servi et non nul, donc un bien
+            // PUBLIC (`scopePublic()`, le même juge que `property_is_public` : un bien sorti du public ne dit
+            // aucun prix) dont le prix diffère de celui de l'ajout. Un favori antérieur à la colonne
+            // (`price_at_favorite` nul) n'a pas bougé : il n'a pas d'écart.
+            ->when($request->boolean('filter.price_changed'), fn (Builder $q) => $q
+                ->whereNotNull('favorites.price_at_favorite')
+                ->whereHas('property', fn (Builder $bien) => $bien->public()
+                    ->whereColumn('properties.price', '!=', 'favorites.price_at_favorite')))
             ->latest()
             ->latest('id')
             ->paginate((int) $request->validated('per_page', 20));

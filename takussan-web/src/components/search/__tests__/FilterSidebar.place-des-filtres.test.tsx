@@ -37,6 +37,9 @@ const EXEMPLES: Record<CleFiltrante, SearchFilters | typeof HORS_PANNEAU> = {
   // P185.02 (TCK-2061) — les villes du profil : aucun contrôle du panneau ne les écrit ; elles se
   // lisent et se retirent par leurs puces, une par ville.
   cities: HORS_PANNEAU,
+  // TCK-2607 — les quartiers de l'orientation : aucun contrôle du panneau ne les écrit ; ils se
+  // lisent et se retirent par leurs puces, une par quartier.
+  locations: HORS_PANNEAU,
   // TCK-635 — la région d'une ville homonyme se lit dans le champ Ville.
   region: { city: 'Dinguiraye', region: 'Kolda' },
   radius_km: POINT,

@@ -142,13 +142,21 @@ const APPELANTS: readonly Appelant[] = [
       ['src/components/property-dashboard/PropertyList.tsx', ['property']],
       ['src/components/property-dashboard/PropertyRowActions.tsx', ['property']],
       ['src/components/property-dashboard/ProprietaireEtResponsable.tsx', ['property']],
+      // TCK-2638 — les cellules et la carte d'annonce lisent les colonnes que la ligne d'avant lisait.
+      ['src/components/property-dashboard/CarteAnnonce.tsx', ['property']],
+      ['src/components/property-dashboard/GestionDuBien.tsx', ['property']],
+      ['src/lib/biens/etat-d-annonce.ts', ['property']],
+      // Le loyer et sa période (AC7), lus pour la carte comme pour la ligne (`loyerDuBien`, `estAVendre`).
+      ['src/lib/biens/etat-locatif.ts', ['p']],
     ],
     // `primary_contact` (TCK-603) : servie sur l'index dès que `agency_id` et `user_id` sont
     // demandés — les deux le sont, et `takussan-api` l'éprouve
     // (`PropertyReassignmentKeepsOwnerTest::test_la_liste_sert_le_responsable_si_l_agence_est_demandee`).
     inconditionnelles: ['location', 'main_photo_url', 'owner', 'collaborators', 'primary_contact', 'primary_contact_source'],
     horsQueryFields: [],
-    minColonnesLues: 13,
+    // TCK-2908 — 11 (13 avant) : la carte d'annonce ne lit plus `views_count` ni `favorites_count`, ses
+    // chiffres sont ceux des 30 derniers jours (`stats_30d`, une inclusion calculée, hors colonnes).
+    minColonnesLues: 11,
   },
   // TCK-1067 (P60.03) — `fetchDashboardProperty` n'envoie plus de `fields[properties]` : un `show`
   // rend la ressource de détail entière, il n'y a plus de liste demandée à confronter.
@@ -162,7 +170,8 @@ const APPELANTS: readonly Appelant[] = [
     // Pas de `main_photo_url` : mesuré le 2026-08-21, ce tableau n'a AUCUNE vignette
     // (ni `<img>`, ni `next/image`, ni `main_photo_url` dans le fichier). TCK-336 prétend
     // le contraire ; ne pas lui en ajouter une au prétexte de « rétablir » l'existant.
-    inconditionnelles: ['location', 'status_label', 'agency'],
+    // TCK-351 — `status_label` en est sorti : l'API ne l'émet plus, le statut se lit par son code.
+    inconditionnelles: ['location', 'agency'],
     horsQueryFields: [],
     minColonnesLues: 13,
   },

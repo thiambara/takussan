@@ -1,5 +1,5 @@
 /**
- * TCK-442 — **les huit layouts de détail, éprouvés un par un et dérivés de l'arbre.**
+ * TCK-442 — **les layouts de détail (neuf depuis TCK-2641), éprouvés un par un et dérivés de l'arbre.**
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  * CE QUE `etats-de-route.test.ts` NE PEUT PAS DIRE
@@ -10,7 +10,7 @@
  * l'arbre. Il ne peut pas voir qu'un layout **appelle réellement** la sonde, ni qu'il traduit un
  * 404 d'API plutôt qu'une panne.
  *
- * Ce fichier monte les huit layouts. Son inventaire est dérivé par `import.meta.glob` — aucune
+ * Ce fichier monte les layouts de détail. Son inventaire est dérivé par `import.meta.glob` — aucune
  * liste de segments n'y est écrite, et un neuvième segment de détail entre dans le périmètre sans
  * qu'on y pense (c'est le mode de défaillance que TCK-461 décrit ailleurs, et il vaut ici).
  *
@@ -34,6 +34,12 @@ vi.mock('@/lib/api', async (importOriginal) => ({
 }));
 
 vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
+
+// TCK-2641 — le layout de la fiche d'un bailleur juge d'abord l'appelant (`assertCanReachOwnerAccount` :
+// l'admin de l'agence) sur `getMeAction()`. Doublé ici en admin : ce fichier éprouve la traduction du
+// 404 de la SONDE, et une lecture réelle de `/me` passerait par `apiRequestMock` (compte d'appels faux).
+// Le refus d'un non-admin est éprouvé par `owners/[id]/__tests__`.
+vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => ({ roles: ['agency_admin'] }) }));
 
 vi.mock('next/navigation', () => ({
   notFound: () => {
@@ -77,6 +83,7 @@ describe('TCK-442 — inventaire', () => {
       'inventories',
       'leases',
       'maintenance',
+      'owners',
       'properties',
       'visits',
     ]);

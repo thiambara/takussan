@@ -76,7 +76,7 @@ describe('<AccepterInvitation>', () => {
   });
 
   it('un compte existe déjà : on le dit, et la connexion ramène ici', async () => {
-    accepter.mockResolvedValue({ ok: false, seConnecter: true, email: 'awa@x.sn', message: 'Connectez-vous.' });
+    accepter.mockResolvedValue({ ok: false, seConnecter: true, emailMasque: 'a•••@x.sn', message: 'Connectez-vous.' });
     const user = userEvent.setup();
     monter(false);
 
@@ -87,7 +87,7 @@ describe('<AccepterInvitation>', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Connectez-vous.');
     expect(screen.getByRole('link', { name: T.signIn })).toHaveAttribute(
       'href',
-      `/auth/login?redirect=${encodeURIComponent('/invitations/accept?token=jeton-abc')}`,
+      `/auth/login?redirect=${encodeURIComponent('/invitations/accept?token=jeton-abc')}&intention=invitation`,
     );
     expect(push).not.toHaveBeenCalled();
   });

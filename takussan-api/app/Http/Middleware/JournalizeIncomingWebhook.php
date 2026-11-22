@@ -23,7 +23,8 @@ class JournalizeIncomingWebhook
 
     public function handle(Request $request, Closure $next, string $channel, ?string $provider = null): Response
     {
-        $provider ??= (string) $request->route('provider');
+        // TCK-2980 — le webhook de la messagerie nomme son fournisseur `{canal}`.
+        $provider ??= (string) ($request->route('provider') ?? $request->route('canal') ?? '');
         $this->journal->open($request, $channel, $provider !== '' ? mb_substr($provider, 0, 60) : 'unknown');
 
         try {

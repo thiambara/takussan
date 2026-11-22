@@ -19,6 +19,7 @@ import {
   useRemoveFavoriteMutation,
 } from '@/lib/queries/favorites';
 import { formatPrice } from '@/lib/utils';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import { ZONE_TACTILE_44 } from '@/lib/zone-tactile';
 import type { PropertyListItem } from '@/types/property';
@@ -88,11 +89,11 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
               : 'size-9 text-foreground hover:text-primary hover:bg-muted',
           )}
         >
-          <Heart className={cn(isCompact ? 'w-5 h-5' : 'w-[18px] h-[18px]', showBadge && 'fill-destructive text-destructive')} />
+          <Heart className={cn(isCompact ? 'w-5 h-5' : 'w-[18px] h-[18px]', showBadge && 'fill-primary text-primary')} />
           {showBadge && (
             <span
               aria-hidden="true"
-              className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center"
+              className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[0.625rem] font-bold flex items-center justify-center"
             >
               {count > 99 ? '99+' : count}
             </span>
@@ -107,7 +108,7 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
           // voile, il tombait aussi sur la carte dessous et ouvrait sa fiche (mesuré à 320 px).
           voile
           aria-label={t('popover.title')}
-          className="w-80 sm:w-96 max-w-[calc(100vw-2rem)] p-0 overflow-hidden rounded-2xl shadow-xl ring-border"
+          className="w-80 sm:w-96 max-w-[calc(100vw-var(--spacing)*8)] p-0 overflow-hidden rounded-2xl shadow-xl ring-border"
         >
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">{t('popover.title')}</p>
@@ -149,6 +150,7 @@ interface PopoverBodyProps {
 
 function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps) {
   const t = useTranslations('favorites.popover');
+  const { locale } = useFormatteurs();
   const { user } = useAuth();
   const removeMutation = useRemoveFavoriteMutation();
 
@@ -217,7 +219,7 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
                 {[property.location.quarter, property.location.city].filter(Boolean).join(', ')}
               </p>
               <p className="text-xs font-semibold text-primary mt-0.5">
-                {formatPrice(property.price, property.currency ?? 'XOF')}
+                {formatPrice(property.price, property.currency ?? 'XOF', locale)}
               </p>
             </div>
           </LienLocalise>

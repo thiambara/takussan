@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PAYMENT_METHOD_VALUES } from '@/components/payments/constants';
 import { msgValidation } from './messages';
 
 /**
@@ -61,10 +62,16 @@ export const bookingRequestSchema = z
 
 export type BookingRequestFormValues = z.infer<typeof bookingRequestSchema>;
 
+/**
+ * TCK-2594 — les huit moyens de `PaymentMethod` (l'API les accepte tous, `StoreBookingPaymentRequest`) :
+ * la feuille « Enregistrer un paiement » propose Orange Money, Wave, Free Money… et plus seulement
+ * les quatre d'avant. Un montant vidé se dit comme un montant nul.
+ */
 export const bookingPaymentSchema = z.object({
-  amount: z.number().positive(msgValidation('common.amountPositive')),
-  payment_method: z.enum(['cash', 'bank_transfer', 'mobile_money', 'card']),
-  payment_type: z.enum(['deposit', 'advance', 'fee']),
+  amount: z.number({ error: msgValidation('common.amountPositive') }).positive(msgValidation('common.amountPositive')),
+  payment_method: z.enum(PAYMENT_METHOD_VALUES),
+  // TCK-2877 (TCK-2892) — la caution d'un séjour et un paiement « autre ».
+  payment_type: z.enum(['deposit', 'advance', 'fee', 'security_deposit', 'other']),
   transaction_id: z
     .string()
     .trim()
@@ -77,13 +84,18 @@ export const bookingPaymentSchema = z.object({
     .max(500)
     .optional()
     .or(z.literal('').transform(() => undefined)),
-});
+})
+  // TCK-2877 — « Autre » dit ce qu'il est : l'API exige `notes` (`required_if:payment_type,other`).
+  .refine((v) => v.payment_type !== 'other' || (v.notes ?? '').trim().length > 0, {
+    message: msgValidation('booking.notesRequiredForOther'),
+    path: ['notes'],
+  });
 
 export type BookingPaymentFormValues = z.infer<typeof bookingPaymentSchema>;
 
 /** TCK-596 — remboursement d'un paiement de réservation (`RefundBookingPaymentRequest`). */
 export const bookingRefundSchema = z.object({
-  refund_amount: z.number().positive(msgValidation('common.amountPositive')),
+  refund_amount: z.number({ error: msgValidation('common.amountPositive') }).positive(msgValidation('common.amountPositive')),
   refund_reason: z
     .string()
     .trim()
@@ -93,3 +105,23 @@ export const bookingRefundSchema = z.object({
 });
 
 export type BookingRefundFormValues = z.infer<typeof bookingRefundSchema>;
+
+/**
+ * TCK-2876 — « Contre-proposer » (`FeuilleDeContreOffre`) : le montant, le message facultatif et la
+ * validité en jours (l'API admet d'aujourd'hui à J+30 ; J+3 par défaut). TCK-2877 — déplacé ici
+ * depuis la feuille, pour que ses clés de message passent par le traducteur des schémas.
+ */
+export const VALIDITES_DE_CONTRE_OFFRE = ['3', '7', '15', '30'] as const;
+
+export const contreOffreSchema = z.object({
+  amount: z.number({ error: msgValidation('common.amountPositive') }).int().positive(msgValidation('common.amountPositive')),
+  message: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  validite: z.enum(VALIDITES_DE_CONTRE_OFFRE),
+});
+
+export type ContreOffreFormValues = z.infer<typeof contreOffreSchema>;

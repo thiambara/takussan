@@ -19,7 +19,7 @@ interface Props {
  *
  * Les deux listes étaient recopiées l'une de l'autre et rendaient la date en ISO brut
  * (`2026-09-02`) et la raison en CODE (`market_adjustment`) : l'API émet des codes, le front
- * possède le texte. Les montants restent en `fr`, comme dans la liste des biens ; chiffres en
+ * possède le texte. Dates et montants suivent la locale active (TCK-347) ; chiffres en
  * `tabular-nums` pour qu'ils s'alignent d'une ligne à l'autre.
  */
 export function PropertyPriceHistoryList({ entries, unknownDateLabel }: Props) {
@@ -39,12 +39,12 @@ export function PropertyPriceHistoryList({ entries, unknownDateLabel }: Props) {
           </span>
           <span className="inline-flex flex-wrap items-center justify-end gap-x-1.5 font-medium text-foreground tabular-nums">
             <span className="whitespace-nowrap text-muted-foreground">
-              {formatCurrency(entry.old_price, 'fr', { currency: entry.currency })}
+              {formatCurrency(entry.old_price, locale, { currency: entry.currency })}
             </span>
             <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="sr-only">→</span>
             <span className="whitespace-nowrap">
-              {formatCurrency(entry.new_price, 'fr', { currency: entry.currency })}
+              {formatCurrency(entry.new_price, locale, { currency: entry.currency })}
             </span>
           </span>
           {entry.reason ? (

@@ -45,6 +45,47 @@ class ReviewModerationService
     }
 
     /**
+     * TCK-2672 — publier un lot d'avis (au plus 100), TOUT OU RIEN : une transaction, les lignes
+     * verrouillées dans l'ordre des identifiants, et TOUTES les vérifications avant la première
+     * écriture — un identifiant inconnu ou retiré, un avis qui n'est plus en attente, ou que
+     * l'acteur ne peut pas trancher (une autre agence, un avis sur l'agence ou un prestataire)
+     * → 422 `review.batch_not_moderatable`, et aucun avis ne change. Chaque avis publié l'est par
+     * {@see self::approve()}, comme une décision unitaire (recompte et « Nouvel avis » par
+     * l'observateur), et reçoit SA ligne de journal `review.moderated`.
+     *
+     * @param  list<int>  $ids
+     * @return list<int> les identifiants publiés
+     */
+    public function approveBatch(array $ids, User $actor): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+
+        return DB::transaction(function () use ($ids, $actor): array {
+            $reviews = Review::query()->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
+            $scope = app(ReviewModerationScope::class);
+
+            $refused = $reviews->count() !== count($ids) || $reviews->contains(
+                fn (Review $review) => $review->status !== ReviewStatus::Pending
+                    || ! $scope->canModerate($actor, $review, 'approve'),
+            );
+            abort_code_if($refused, 422, 'review.batch_not_moderatable');
+
+            return $reviews->map(function (Review $review) use ($actor, $ids): int {
+                $this->approve($review, $actor);
+
+                activity('Review')
+                    ->performedOn($review)
+                    ->causedBy($actor)
+                    ->withProperties(['decision' => 'approve', 'batch' => true, 'batch_size' => count($ids)])
+                    ->event('review.moderated')
+                    ->log('Avis publié');
+
+                return (int) $review->id;
+            })->all();
+        });
+    }
+
+    /**
      * TCK-597 — la décision se prend SOUS VERROU de la ligne, relue fraîche : deux modérateurs qui
      * tranchent le même avis en même temps ne lisent plus tous deux « en attente ». Le second
      * trouve l'état terminal et reçoit le 422 de transition.
@@ -77,6 +118,7 @@ class ReviewModerationService
     private function remove(Review $review, User $actor, ?string $reason): array
     {
         $this->assertTransition($review, ReviewStatus::Rejected);
+        $before = $review->status;
 
         $review->update([
             'status' => ReviewStatus::Rejected,
@@ -84,6 +126,7 @@ class ReviewModerationService
             'metadata' => $this->moderationMetadata($review, $actor, $reason),
         ]);
         $review->delete();
+        $this->journal($review, $actor, 'delete', $before, $reason, 'review.removed', 'Avis supprimé');
 
         return ['review' => $review, 'deleted' => true];
     }
@@ -97,8 +140,32 @@ class ReviewModerationService
         $metadata['ignored_reason_code'] = $this->reasonCode;
 
         $review->update(['metadata' => $metadata]);
+        $this->journal($review, $actor, 'ignore', $review->status, $reason, 'review.reports_ignored', 'Signalements d’un avis ignorés');
 
         return $review->refresh();
+    }
+
+    /**
+     * TCK-2930 (ADR-0043, amendement du 2026-11-15) — supprimer un avis et en ignorer les
+     * signalements sont ouverts à l'admin d'agence sur son périmètre : chaque geste, de l'agence
+     * comme de la plateforme, laisse sa ligne au journal d'activité, avec le motif (code et texte)
+     * et le statut de l'avis AVANT le geste. C'est le contrepoids du « juge et partie ».
+     */
+    private function journal(Review $review, User $actor, string $decision, ?ReviewStatus $before, ?string $reason, string $event, string $description): void
+    {
+        activity('Review')
+            ->performedOn($review)
+            ->causedBy($actor)
+            ->withProperties([
+                'decision' => $decision,
+                'reason_code' => $this->reasonCode,
+                'reason' => $reason,
+                'status_before' => $before?->value,
+                'agency_id' => $review->agency_id,
+                'by_platform' => $actor->isSuperAdmin(),
+            ])
+            ->event($event)
+            ->log($description);
     }
 
     /**

@@ -73,7 +73,7 @@ const TAILLES = {
   /** Barre de navigation : symbole 34 × 24, nom en 18 px — la planche « Barre de navigation ». */
   barre: { conteneur: 'gap-2', symbole: 'h-6 w-[34px]', nom: 'text-lg' },
   /** Pied de page : symbole 50 × 35, nom en 26 px — `Accueil.dc.html`. */
-  pied: { conteneur: 'gap-3', symbole: 'h-[35px] w-[50px]', nom: 'text-[26px]' },
+  pied: { conteneur: 'gap-3', symbole: 'h-[35px] w-[50px]', nom: 'text-[1.625rem]' },
 } as const;
 
 export interface LogoProps {

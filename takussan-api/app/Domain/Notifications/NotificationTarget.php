@@ -44,6 +44,8 @@ final class NotificationTarget
         'payout_approvals' => '/app/payments?tab=approvals',
         // TCK-2270 (P224.01) — l'onglet des factures d'intervention, où se trouve la facture gardée.
         'service_provider_bills' => '/app/payments?tab=bills',
+        // TCK-2661 — le relevé des commissions, où le bénéficiaire lit sa ligne payée.
+        'commissions' => '/app/commissions',
         'booking' => '/app/bookings/{id}',
         'visit' => '/app/visits/{id}',
         'maintenance' => '/app/maintenance/{id}',
@@ -53,10 +55,16 @@ final class NotificationTarget
         'lead' => '/app/leads?lead={id}',
         'agency_kyc' => '/app/agency/kyc',
         'kyc_review' => '/super-admin/kyc',
+        // TCK-2704 — la revue d'une demande de passage en agence professionnelle, par le super-admin.
+        'agency_upgrade_request' => '/super-admin/agency-upgrade-requests/{id}',
         'finances' => '/app/agency/finances',
         // TCK-2320 (P39.07) — les reversements de la plateforme à l'agence (`agency.update_billing`).
         'agency_billing' => '/app/agency/billing',
         'team' => '/app/agency/team',
+        // TCK-2609 — le carnet des bailleurs et celui des prestataires, où l'invitant renvoie une
+        // invitation de leur rôle (`OwnersList`, `ServiceProvidersList`).
+        'owners' => '/app/owners',
+        'service_providers' => '/app/maintenance/providers',
         // TCK-1471 (P161.03) — les délégations de rôle vivent sous les rôles (`RoleDelegationsSection`,
         // TCK-369) : c'est là que le délégant retrouve celle dont l'avis parle.
         'role_delegations' => '/app/agency/roles',
@@ -76,6 +84,17 @@ final class NotificationTarget
         'favorites' => '/app/favorites',
         // TCK-633 lot F — une notification de crédits ouvre la page Crédits de l'espace.
         'credits' => '/app/credits',
+        // TCK-2783 — le rappel d'expiration d'une pièce ouvre sa fiche (`DocumentDetailClient`).
+        'document' => '/app/documents/{id}',
+        // TCK-2812 — l'archive préparée d'un dossier ouvre le coffre, où elle se télécharge.
+        'document_archive' => '/app/documents',
+        // TCK-2916 — l'archive préparée des quittances (`receipts:all`, `receipts:lease:{id}`), que le coffre ne
+        // liste pas : elle se télécharge depuis « Tout télécharger » de l'historique, sur la page des paiements.
+        'receipts_archive' => '/app/payments',
+        // TCK-2913 — la fiche d'un état des lieux signé, où son PDF se télécharge (`InventoryPdfButton`).
+        'inventory' => '/app/inventories/{id}',
+        // TCK-2926 — le rappel d'activer la double authentification ouvre la sécurité du compte.
+        'profile_security' => '/app/profile/security',
     ];
 
     /**
@@ -152,7 +171,18 @@ final class NotificationTarget
         return self::fromArray(is_array($row->target) ? $row->target : null) ?? self::derive($row);
     }
 
-    /** Déduction pour les lignes anciennes et les classes `Notification` sans cible. */
+    /**
+     * Déduction pour les lignes anciennes et les classes `Notification` sans cible.
+     *
+     * TCK-2813 — **jamais une cible de SECTION** ({@see AgenceDeLaCible::SECTIONS}) : une section
+     * lit l'agence du profil ACTIF, et la déduction ne connaît pas l'agence de l'objet. Une telle
+     * cible ouvrait les paiements, le KYC, les finances ou l'équipe d'une agence qui n'est peut-être
+     * pas la bonne ; un lien faux est pire que pas de lien. Les quatre cas (échéance disparue,
+     * `referenceable` `KycDossier`, `BankStatement`, `RoleDelegation`, que n'écrit plus aucun
+     * émetteur depuis TCK-588) rendent donc `null` : la ligne se lit, elle n'ouvre rien.
+     * `CiblesDeduitesDeSectionPortentLeurAgenceTest` rougit sur un genre de section qui
+     * réapparaîtrait ici sans `forAgency()`.
+     */
     public static function derive(AppNotification $row): ?self
     {
         $data = is_array($row->data) ? $row->data : [];
@@ -175,7 +205,7 @@ final class NotificationTarget
         if ($int('lease_payment_id') !== null) {
             $leaseId = LeasePayment::query()->whereKey($int('lease_payment_id'))->value('lease_id');
 
-            return $leaseId !== null ? new self('lease', (int) $leaseId) : new self('payments', null);
+            return $leaseId !== null ? new self('lease', (int) $leaseId) : null;
         }
 
         return self::fromReferenceable($row->referenceable_type, $row->referenceable_id);
@@ -192,13 +222,12 @@ final class NotificationTarget
             'lease', Lease::class => new self('lease', $id),
             'lease_payment', LeasePayment::class => ($leaseId = LeasePayment::query()->whereKey($id)->value('lease_id')) !== null
                 ? new self('lease', (int) $leaseId)
-                : new self('payments', null),
+                : null,
             'maintenance', MaintenanceRequest::class => new self('maintenance', $id),
             'property_visit', PropertyVisit::class => new self('visit', $id),
             'property', Property::class => new self('property', $id),
-            'kyc_dossier', KycDossier::class => new self('agency_kyc', null),
-            BankStatement::class => new self('finances', null),
-            RoleDelegation::class => new self('team', null),
+            // TCK-2813 — sans cible, et non une SECTION sans agence (voir le docblock de derive()).
+            'kyc_dossier', KycDossier::class, BankStatement::class, RoleDelegation::class => null,
             default => null,
         };
     }

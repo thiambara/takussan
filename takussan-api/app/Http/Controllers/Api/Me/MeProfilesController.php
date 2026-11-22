@@ -14,6 +14,9 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Services\Profiles\ActiveProfileResolver;
+use App\Services\Profiles\ActiviteDesEspaces;
+use App\Services\Profiles\DernierEspaceRetenu;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +24,11 @@ use Symfony\Component\HttpFoundation\Cookie;
 
 class MeProfilesController extends Controller
 {
-    public function __construct(private readonly ActiveProfileResolver $resolver) {}
+    public function __construct(
+        private readonly ActiveProfileResolver $resolver,
+        private readonly DernierEspaceRetenu $dernierEspace,
+        private readonly ActiviteDesEspaces $activite,
+    ) {}
 
     /**
      * `GET /api/me/profiles` — tous les profils COMMUTABLES du compte appelant,
@@ -37,10 +44,12 @@ class MeProfilesController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+        // TCK-2620 — la ville de l'agence (`agency.city`) vient de son adresse principale : chargée ICI
+        // avec l'agence, en une requête par relation, jamais une par profil.
         $user->load([
-            'ownerProfiles.agency',
-            'agentProfiles.agency',
-            'agencyAdminProfiles.agency',
+            'ownerProfiles.agency.addresses' => self::adressesPrincipalesDAbord(...),
+            'agentProfiles.agency.addresses' => self::adressesPrincipalesDAbord(...),
+            'agencyAdminProfiles.agency.addresses' => self::adressesPrincipalesDAbord(...),
             'serviceProviderProfile',
         ]);
         // Filter out non-Active profiles before exposing them to the client.
@@ -51,13 +60,33 @@ class MeProfilesController extends Controller
         $active = $request->activeProfile();
         $activeId = $active !== null ? $this->resolver->compositeId($active) : null;
 
+        $data = ProfileResource::collection($profiles)->resolve($request);
+
+        // TCK-2847 (ADR-0116 § 5) — `include=activity` : les compteurs de l'« Aujourd'hui » de chaque
+        // espace, calculés sous ce profil ({@see ActiviteDesEspaces}). Absente sans l'inclusion.
+        $include = array_map('trim', explode(',', ParametreUnique::chaine($request, 'include') ?? ''));
+        if (in_array('activity', $include, true)) {
+            $activite = $this->activite->pour($user, $profiles);
+            $data = array_map(fn (array $ligne): array => [...$ligne, 'activity' => (object) ($activite[$ligne['id']] ?? [])], $data);
+        }
+
         return $this->json([
-            'data' => ProfileResource::collection($profiles)->resolve($request),
+            'data' => $data,
             'meta' => [
                 'active_profile_id' => $activeId,
                 'count' => $profiles->count(),
             ],
         ]);
+    }
+
+    /**
+     * TCK-2620 — l'adresse « principale » d'une agence est sa PREMIÈRE (aucune colonne ne la désigne,
+     * `PublicAgencyController` et `AgencyDetailResource` lisent déjà `addresses->first()`) : l'ordre est
+     * posé ici pour qu'elle ne dépende pas du plan de requête.
+     */
+    private static function adressesPrincipalesDAbord($query): void
+    {
+        $query->orderBy('addresses.id');
     }
 
     private function isActive(Model $profile): bool
@@ -76,6 +105,11 @@ class MeProfilesController extends Controller
      * Persists an httpOnly cookie so subsequent requests inherit the choice
      * without re-sending the header. Returns 403 if the requested profile
      * isn't owned by the caller.
+     *
+     * TCK-2620 (ADR-0004, amendement du 2026-11-10) — sous `remember` (vrai par défaut), le choix est
+     * aussi RETENU sur le compte (`users.metadata.last_active_profile`), qui survit à la déconnexion ;
+     * `remember=false` l'efface. Sous impersonation, cette route n'est jamais atteinte
+     * (`EnforceImpersonationReadOnly` refuse toute écriture) : la consultation n'écrit rien.
      */
     public function updateActive(SelectActiveProfileRequest $request): JsonResponse
     {
@@ -85,6 +119,12 @@ class MeProfilesController extends Controller
         $profile = $this->resolver->resolve($composite, $user);
         if ($profile === null) {
             abort_code(403, 'profile.not_accessible');
+        }
+
+        if ($request->retenir()) {
+            $this->dernierEspace->retenir($user, $profile);
+        } else {
+            $this->dernierEspace->oublier($user);
         }
 
         $cookie = Cookie::create(
@@ -102,7 +142,7 @@ class MeProfilesController extends Controller
         if ($profile instanceof OwnerProfile
             || $profile instanceof AgentProfile
             || $profile instanceof AgencyAdminProfile) {
-            $profile->loadMissing('agency');
+            $profile->loadMissing(['agency.addresses' => self::adressesPrincipalesDAbord(...)]);
         }
 
         return $this->json([

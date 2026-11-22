@@ -9,11 +9,13 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Messaging\FilDeLObjet;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Payments\LeasePaymentLinkService;
 use App\Services\Payments\PaymentGatewayService;
+use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -64,8 +66,10 @@ class LeasePaymentService
             );
 
             abort_code_if($locked->status === PaymentStatus::Cancelled, 409, 'lease_payment.cancelled');
+            // TCK-608 (décision du porteur du 2026-11-16, option (b)) — aucune voie ne crée plus de
+            // `partially_paid` (TCK-1918) ; une ligne héritée se solde ici, au reste dû.
             abort_code_unless(
-                in_array($locked->status, [PaymentStatus::Pending, PaymentStatus::Late], true),
+                in_array($locked->status, [PaymentStatus::Pending, PaymentStatus::Late, PaymentStatus::PartiallyPaid], true),
                 422,
                 'lease_payment.cannot_mark_paid'
             );
@@ -84,8 +88,18 @@ class LeasePaymentService
             }
             $gateway->markManualSettlement($locked);
 
+            // TCK-608 — soldée, la ligne a reçu son montant entier : la part versée d'une `partially_paid`
+            // héritée, laissée telle quelle, ferait lire à l'accesseur d'une ligne `paid` le seul acompte
+            // (`metadata.paid_amount > 0`), et un reste dû. Relevée seulement : un trop-versé reste dit
+            // tel quel (l'accesseur ne rabote jamais un surplus).
+            $metadata = $locked->metadata;
+            if (is_array($metadata) && array_key_exists('paid_amount', $metadata)) {
+                $metadata['paid_amount'] = max((float) $metadata['paid_amount'], (float) $locked->amount);
+            }
+
             $locked->update([
                 'status' => PaymentStatus::Paid,
+                'metadata' => $metadata,
                 'paid_at' => $data['paid_at'] ?? now(),
                 // TCK-1342 (P132.01) — le moment de l'enregistrement : la quittance reste lisible
                 // 30 jours après lui, même si la date effective saisie est plus ancienne.
@@ -102,6 +116,10 @@ class LeasePaymentService
 
             return $locked;
         });
+
+        // TCK-2961 (ADR-0128 § 3) — le paiement à la main parle dans la salle du bail, comme le paiement
+        // en ligne (`EcritLePaiementEnLigneDansLeFil`) : payé, puis la quittance, servie dès qu'il l'est.
+        self::parlerDuPaiement($payment);
 
         // Notify tenant and landlord — TCK-588 : le reçu du bailleur nomme le bien et le locataire.
         $lease = $payment->lease;
@@ -138,5 +156,30 @@ class LeasePaymentService
         }
 
         return $payment;
+    }
+
+    /**
+     * TCK-2961 — `lease_payment.paid` (le CODE du moyen, jamais un numéro) puis
+     * `lease_payment.receipt_issued`, dans la salle du bail : les deux chemins du paiement (à la main,
+     * en ligne) passent par ici. Aucun geste attendu.
+     */
+    public static function parlerDuPaiement(LeasePayment $payment): void
+    {
+        $fil = app(FilDeLObjet::class);
+        $methode = $payment->payment_method instanceof \BackedEnum ? $payment->payment_method->value : $payment->payment_method;
+        $fil->parler($payment, 'lease_payment.paid', ['method' => $methode]);
+        $fil->parler($payment, 'lease_payment.receipt_issued');
+    }
+
+    /**
+     * TCK-2961 — le geste « payer » d'une échéance : le compte du locataire de son bail, et lui seul.
+     *
+     * @return Closure(User): bool
+     */
+    public static function locataireDe(LeasePayment $payment): Closure
+    {
+        $locataire = Lease::query()->whereKey($payment->lease_id)->first()?->tenant()->value('user_id');
+
+        return fn (User $participant): bool => $locataire !== null && (int) $participant->getKey() === (int) $locataire;
     }
 }

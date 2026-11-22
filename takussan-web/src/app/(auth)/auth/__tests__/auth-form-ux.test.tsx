@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import RegisterPage from '../register/page';
+import { VoieEmail } from '@/components/auth/VoieEmail';
 import ResetPasswordPage from '../reset-password/page';
 // TCK-286 — les deux pages passent par next-intl ; seules les enveloppes de rendu changent.
 import { withIntl } from '@/test/intl';
@@ -15,32 +15,33 @@ let searchParams = new URLSearchParams();
 vi.mock('@/lib/auth', () => ({
   register: (...args: unknown[]) => registerMock(...args),
   resetPassword: (...args: unknown[]) => resetPasswordMock(...args),
+  login: vi.fn(),
+  isTwoFactorChallenge: () => false,
+  // TCK-2606 — numéro fermé, la voie e-mail montre les autres voies sous le formulaire (`AutresVoies`).
+  oauthProviders: async () => [{ provider: 'google', configured: true }],
+  oauthRedirect: vi.fn(),
 }));
 
-vi.mock('@/components/auth/OAuthButtons', () => ({
-  // Le séparateur est désormais posé PAR `OAuthButtons` (revue design 2026-09-16) : le double
-  // le rend là où la page le demande, pour que l'ordre du document reste éprouvé.
-  OAuthButtons: ({
-    separator,
-    separatorLabel = 'ou continuer avec email',
-  }: {
-    separator?: 'before' | 'after';
-    separatorLabel?: string;
-  }) => (
-    <>
-      {separator === 'before' ? <p>{separatorLabel}</p> : null}
-      <div>
-        <button type="button">Continuer avec Google</button>
-      </div>
-      {separator === 'after' ? <p>{separatorLabel}</p> : null}
-    </>
-  ),
-}));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
   useSearchParams: () => searchParams,
 }));
+
+// TCK-2604 — `/auth/register` redirige vers la connexion ; TCK-2606 — l'inscription par e-mail est
+// l'onglet « Créer un compte » de la voie e-mail (`?voie=inscription`).
+function RegisterPage() {
+  return (
+    <VoieEmail
+      intention={null}
+      redirect={searchParams.get('redirect')}
+      action={null}
+      ongletInitial="creation"
+      erreurOAuth={null}
+      motDePasseModifie={false}
+    />
+  );
+}
 
 describe('auth form UX', () => {
   beforeEach(() => {
@@ -50,40 +51,36 @@ describe('auth form UX', () => {
     searchParams = new URLSearchParams();
   });
 
-  it('renders the register form before the OAuth section', () => {
+  it('renders the register form before the OAuth section', async () => {
     render(withIntl(<RegisterPage />));
 
     const submit = screen.getByRole('button', { name: 'Créer mon compte' });
-    const oauth = screen.getByRole('button', { name: 'Continuer avec Google' });
+    const oauth = await screen.findByRole('button', { name: /Google/ });
 
     expect(submit.compareDocumentPosition(oauth)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(screen.getByText('ou créer un compte avec')).toBeInTheDocument();
   });
 
-  it('keeps register password toggles independent and validates in French', async () => {
+  it('TCK-2606 — trois contrôles, l’œil à la place de la confirmation, validation en français', async () => {
     const user = userEvent.setup();
     render(withIntl(<RegisterPage />));
 
-    const password = screen.getByLabelText('Mot de passe*');
-    const confirmation = screen.getByLabelText('Confirmer le mot de passe*');
+    const password = screen.getByLabelText('Mot de passe');
+    expect(screen.queryByLabelText(/Confirmer le mot de passe/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Prénom/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Nom/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Afficher le mot de passe' }));
     expect(password).toHaveAttribute('type', 'text');
-    expect(confirmation).toHaveAttribute('type', 'password');
-
-    await user.click(
-      screen.getByRole('button', { name: 'Afficher la confirmation du mot de passe' }),
-    );
-    expect(confirmation).toHaveAttribute('type', 'text');
+    await user.click(screen.getByRole('button', { name: 'Masquer le mot de passe' }));
+    expect(password).toHaveAttribute('type', 'password');
 
     await user.click(screen.getByRole('button', { name: 'Créer mon compte' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Le prénom est requis.')).toBeInTheDocument();
-      expect(screen.getByText('Le nom est requis.')).toBeInTheDocument();
       expect(screen.getByText('Le mot de passe est requis.')).toBeInTheDocument();
       expect(screen.getByText('Vous devez accepter les conditions générales.')).toBeInTheDocument();
     });
+    expect(registerMock).not.toHaveBeenCalled();
   });
 
   it('keeps reset password toggles independent', async () => {
@@ -115,10 +112,10 @@ describe('auth form UX', () => {
     );
     unmount();
 
+    // TCK-2606 — à l'inscription, la règle est écrite SOUS le champ, plus en `placeholder`.
     render(withIntl(<RegisterPage />));
-    expect(screen.getByLabelText('Mot de passe*')).toHaveAttribute(
-      'placeholder',
-      '8 caractères minimum, avec une lettre et un chiffre.',
+    expect(screen.getByLabelText('Mot de passe')).toHaveAccessibleDescription(
+      expect.stringContaining('8 caractères minimum, avec une lettre et un chiffre.'),
     );
   });
 });

@@ -31,7 +31,8 @@ class SyncCapabilitiesRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'capabilities' => ['present', 'array'],
+            // TCK-2488 — au plus une fois chaque cas du catalogue : la borne vient de l'enum.
+            'capabilities' => ['present', 'array', 'max:'.count(Capability::cases())],
             'capabilities.*' => [
                 'string',
                 Rule::enum(Capability::class),

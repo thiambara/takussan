@@ -4,6 +4,7 @@ namespace App\Http\Resources\Messaging;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\User;
+use App\Services\Messaging\MessagingRelation;
 use Illuminate\Http\Request;
 
 /**
@@ -22,12 +23,34 @@ use Illuminate\Http\Request;
  */
 class MessagingContactResource extends BaseResource
 {
+    private ?string $relation = null;
+
+    /** @var array<string, mixed>|null */
+    private ?array $detail = null;
+
+    /**
+     * TCK-2745 — la relation avec l'appelant et sa ligne de détail, calculées pour la page entière
+     * par {@see MessagingRelation} (jamais par personne). Des DONNÉES, jamais une phrase : le rôle,
+     * un compte de biens, le titre et la ville d'un bien — aucune coordonnée.
+     *
+     * @param  array<string, mixed>|null  $detail
+     */
+    public function avecRelation(?string $relation, ?array $detail): static
+    {
+        $this->relation = $relation;
+        $this->detail = $detail;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         return [
             'id' => $this->id,
             'name' => $this->nameWithoutContact(),
             'avatar_url' => $this->avatarUrl(),
+            'relation' => $this->relation,
+            'detail' => $this->detail,
         ];
     }
 }

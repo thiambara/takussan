@@ -22,8 +22,10 @@ export default function NotFound() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-      <NavbarSpacer />
+      {/* TCK-2568 — au téléphone, la barre de MARQUE (écran « Page inconnue » de la maquette) : le
+          chemin de fiche n'a plus de barre du site, et cet écran n'a ni photo ni retour. */}
+      <Navbar auTelephone="marque" />
+      <NavbarSpacer auTelephone="marque" />
       <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="mx-auto max-w-3xl px-4 py-24 text-center sm:px-6 lg:px-8 focus:outline-none">
         <h1 className="mb-3 font-display text-3xl font-semibold text-foreground">
           {t('notFoundTitle')}
@@ -32,7 +34,7 @@ export default function NotFound() {
         <div className="flex flex-col justify-center gap-3 sm:flex-row">
           <LienLocalise
             href="/properties"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-deep"
           >
             {t('notFoundBrowse')}
           </LienLocalise>

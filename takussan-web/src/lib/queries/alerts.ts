@@ -2,33 +2,17 @@ import { apiRequest, buildQueryString } from '@/lib/api';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import type { PaginatedResponse } from '@/types/api';
+import type { ThresholdAlert } from '@/types/alert';
 import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 /**
  * Server wrappers around /api/threshold-alerts (TCK-032 P3).
  */
 
-export type ThresholdAlert = {
-  id: number;
-  agency_id: number;
-  metric: string;
-  operator: '>' | '<' | '>=' | '<=';
-  threshold: number | string;
-  severity: 'info' | 'warning' | 'critical';
-  is_enabled: boolean;
-  cooldown_hours: number;
-  last_triggered_at: string | null;
-  last_value: number | string | null;
-};
-
-export type ThresholdAlertInput = {
-  metric: string;
-  operator: ThresholdAlert['operator'];
-  threshold: number;
-  severity?: ThresholdAlert['severity'];
-  is_enabled?: boolean;
-  cooldown_hours?: number;
-};
+// TCK-2868 — types et `CANAUX_D_ALERTE` vivent dans `@/types/alert`, importable par un composant
+// client ; ce module serveur (il tire `lib/session.ts`) ne fait que les ré-exporter.
+export { CANAUX_D_ALERTE } from '@/types/alert';
+export type { AlertChannel, ThresholdAlert, ThresholdAlertInput } from '@/types/alert';
 
 export async function fetchThresholdAlerts(): Promise<{ data: ThresholdAlert[] } | null> {
   const token = await getToken();
@@ -37,7 +21,8 @@ export async function fetchThresholdAlerts(): Promise<{ data: ThresholdAlert[] }
   // agissait sans pouvoir être vue, modifiée ni supprimée depuis la page.
   return lireToutesLesPages((page) =>
     apiRequest<PaginatedResponse<ThresholdAlert>>(
-      cheminApi`/api/threshold-alerts${requete(buildQueryString({ page, per_page: PAR_PAGE_MAX }))}`,
+      // TCK-2629 — `include=triggers` : « Dernier déclenchement » et les déclenchements récents de l'onglet.
+      cheminApi`/api/threshold-alerts${requete(buildQueryString({ page, per_page: PAR_PAGE_MAX, include: ['triggers'] }))}`,
       { token },
     ),
   );
@@ -48,4 +33,4 @@ export async function fetchThresholdAlerts(): Promise<{ data: ThresholdAlert[] }
 // appelant (`grep -rnE '\bcreateThresholdAlert\b' src/` → la définition seule) : les vraies
 // écritures vivent dans `src/app/actions/alerts.ts`, qui refait l'appel lui-même et traduit son
 // message par `getTranslations('errors')`. Ne subsistent ici que la lecture, réellement appelée
-// par `app/(dashboard)/app/overview/alerts/page.tsx`, et les types que l'action importe.
+// par `components/rapports/vues/OngletAlertes.tsx` (TCK-2628), et les types que l'action importe.

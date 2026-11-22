@@ -1,11 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import { KycDecisionPanel } from '@/components/admin/super/kyc-queue';
-import { KycDocumentUploader } from '../kyc-components';
 import type { KycDocument, KycDossier } from '@/types/super-admin';
 
 /**
@@ -178,58 +176,5 @@ describe('Identifiants légaux partagés (TCK-601 · C)', () => {
   });
 });
 
-describe('Dépôt de la pièce du dirigeant — page KYC de l’agence (TCK-601 · C)', () => {
-  const fetchMock = vi.fn();
-
-  beforeEach(() => {
-    toastAdd.mockReset();
-    fetchMock.mockReset();
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: dossier({ status: 'pending' }) }), { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  function carteDirigeant(): HTMLElement {
-    return screen.getByText('Pièce dirigeant').closest('div.grid') as HTMLElement;
-  }
-
-  it('l’échéance est exigée avant d’ajouter la pièce, puis part en `expires_at`', async () => {
-    const user = userEvent.setup();
-    monter(<KycDocumentUploader agencyId={12} dossier={dossier({ status: 'pending', documents: [] })} />);
-
-    const carte = carteDirigeant();
-    const fichier = new File(['%PDF'], 'cni.pdf', { type: 'application/pdf' });
-    await user.upload(carte.querySelector('input[type="file"]') as HTMLInputElement, fichier);
-
-    const ajouter = within(carte).getByRole('button', { name: 'Ajouter' });
-    expect(ajouter).toBeDisabled();
-
-    const date = within(carte).getByLabelText('Date d\'expiration : Pièce dirigeant');
-    // Pas de date passée ni du jour : le premier jour recevable est demain.
-    expect(date).toHaveAttribute('min', dansJours(1));
-    await user.type(date, dansJours(400));
-    expect(ajouter).toBeEnabled();
-
-    await user.click(ajouter);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('/api/agencies/12/kyc/documents');
-    const corps = init.body as FormData;
-    expect(corps.get('document_type')).toBe('director_id');
-    expect(corps.get('expires_at')).toBe(dansJours(400));
-  });
-
-  it('les autres pièces ne demandent pas d’échéance', async () => {
-    monter(<KycDocumentUploader agencyId={12} dossier={dossier({ status: 'pending', documents: [] })} />);
-    const carteRccm = screen.getByText('RCCM').closest('div.grid') as HTMLElement;
-    expect(within(carteRccm).queryByLabelText(/Date d'expiration/)).not.toBeInTheDocument();
-  });
-
-  it('une pièce du dirigeant déposée affiche son échéance', () => {
-    monter(<KycDocumentUploader agencyId={12} dossier={avecDirigeant(dansJours(5))} />);
-    expect(within(carteDirigeant()).getByTestId('kyc-echeance-soon')).toBeInTheDocument();
-  });
-});
+// TCK-2671 — « Dépôt de la pièce du dirigeant — page KYC de l’agence » (TCK-601 · C) vit désormais dans
+// `VerificationDeLAgence.tck-2671.test.tsx` : l’envoi `KycDocumentUploader` a été remplacé.

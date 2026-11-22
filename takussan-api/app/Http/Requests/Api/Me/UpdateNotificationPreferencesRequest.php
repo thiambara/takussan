@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Me;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Services\Notifications\PreferenceResolver;
 
 /**
  * TCK-305 — extrait de `NotificationPreferenceController::update()`, où les règles étaient
@@ -54,7 +55,8 @@ class UpdateNotificationPreferencesRequest extends BaseFormRequest
         // aurait rendu 422 sur toute mise à jour du chemin historique.
         if ($this->has('preferences')) {
             $rules += [
-                'preferences' => ['required', 'array'],
+                // TCK-2488 — au plus une entrée par couple (événement, canal) : la borne vient du catalogue.
+                'preferences' => ['required', 'array', 'max:'.(count(PreferenceResolver::EVENTS) * count(PreferenceResolver::CHANNELS))],
                 'preferences.*.event_type' => ['required', 'string'],
                 'preferences.*.channel' => ['required', 'string'],
                 'preferences.*.enabled' => ['required', 'boolean'],

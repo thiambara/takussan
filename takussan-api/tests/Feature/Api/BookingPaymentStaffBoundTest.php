@@ -146,4 +146,14 @@ class BookingPaymentStaffBoundTest extends TestCase
 
         $this->assertSame(0, $booking->payments()->count());
     }
+
+    /** TCK-2743 (AC5) — l'encaissement d'une réservation, reçu avec décalage : l'instant désigné. */
+    public function test_l_encaissement_recu_avec_decalage_est_l_instant_designe(): void
+    {
+        $booking = $this->booking();
+
+        $this->record($booking, 30_000, extra: ['paid_at' => '2026-11-11T18:00:00+02:00'])->assertCreated();
+
+        $this->assertSame('2026-11-11 16:00:00', $booking->payments()->sole()->getRawOriginal('paid_at'));
+    }
 }

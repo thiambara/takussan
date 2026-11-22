@@ -1,5 +1,6 @@
 import type { Locale } from '@/i18n/config';
 import { formatDate } from '@/lib/format';
+import { estUnJourDeLApi } from '@/lib/jour-de-l-api';
 import { formatPrice } from '@/lib/utils';
 
 export type SuggestCity = {
@@ -21,16 +22,82 @@ export type SuggestPropertyType = {
   count: number;
 };
 
+export type ContractType = 'sale' | 'rent';
+export type RentPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+/**
+ * TCK-2474 / TCK-2475 — des critères de recherche tels que l'API les rend : les PARAMÈTRES D'URL de
+ * la liste (`type`, `bedrooms`, `city`, `location`…). Jamais lus tels quels : ils repassent par
+ * `SEARCH_FILTER_KEYS` (`@/lib/suggestions-de-recherche`). Aucun libellé : le front les traduit.
+ */
+export type CriteresDeSuggestion = Readonly<
+  Record<string, string | number | boolean | readonly (string | number)[] | null>
+>;
+
+/** La saisie comprise : ses critères, ses morceaux dans l'ordre tapé, le texte restant, son compte. */
+export type SuggestInterpretation = {
+  criteria: CriteresDeSuggestion;
+  parts: { key: string; value: unknown; from: number; to: number }[];
+  residue: string | null;
+  /**
+   * Le total EXACT de la liste sous ces paramètres. ⚠ Sous un résidu de plusieurs mots, la liste
+   * peut s'élargir (ADR-0024) et rendre des biens alors que ce compte vaut 0 : 0 n'est donc pas
+   * présenté comme une impasse (décision de la session, TCK-2475).
+   */
+  count: number;
+  /**
+   * Revue adverse du 2026-11-04 (défaut n° 9) — la liste s'élargira-t-elle sous ce compte nul (ADR-0024) ? Facultatif :
+   * absent, le front compte les mots distincts du résidu (`laListeSElargira`).
+   */
+  widens?: boolean;
+  /**
+   * TCK-2496 — sous un compte NUL seulement : au plus trois critères de la saisie dont le retrait rend
+   * des biens, `key` étant le paramètre de la liste (`type`, `location`…) ou `q` pour le texte
+   * incompris, triés par compte décroissant. Facultatif : une API antérieure ne le rend pas (TCK-2497).
+   */
+  relaxations?: { key: string; count: number }[];
+};
+
+/** Une recherche fréquente (`completions`, `popular`). `text` peut être vide : critères seuls. */
+export type SuggestRecherche = { text: string; criteria: CriteresDeSuggestion; count: number };
+
+export type SuggestPlace = {
+  kind: 'city' | 'neighborhood';
+  label: string;
+  city: string | null;
+  count: number;
+  criteria: CriteresDeSuggestion;
+};
+
+export type SuggestPreview = {
+  id: number;
+  slug: string;
+  title: string;
+  price: number | null;
+  rent_period: RentPeriod | null;
+  contract_type: ContractType | null;
+  neighborhood: string | null;
+  city: string | null;
+  photo_url: string | null;
+};
+
 export type SuggestResponse = {
   data: {
-    cities: SuggestCity[];
-    neighborhoods: SuggestNeighborhood[];
+    /**
+     * Les clés de TCK-2474 sont optionnelles : une API d'un déploiement antérieur ne les rend pas,
+     * et leur absence se lit « rien à proposer » (même raison que `BlocDeRecherche`).
+     */
+    interpretation?: SuggestInterpretation | null;
+    completions?: SuggestRecherche[];
+    popular?: SuggestRecherche[];
+    places?: SuggestPlace[];
+    previews?: SuggestPreview[];
+    /** Anciennes clés de `SuggestService` : le front ne lit plus que `property_types` (TCK-2475). */
+    cities?: SuggestCity[];
+    neighborhoods?: SuggestNeighborhood[];
     property_types: SuggestPropertyType[];
   };
 };
-
-export type ContractType = 'sale' | 'rent';
-export type RentPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 /**
  * ⚠ `distance` n'est PAS un tri comme les autres : il exige une origine (`lat` + `lng`), et le
  * serveur rend **422** s'il ne l'a pas (`SearchPublicPropertyRequest::rules()`, TCK-346). Ce
@@ -249,6 +316,23 @@ export const SEARCH_FILTER_KEYS = {
     eclater: (v: string[]) => v.map((x) => ({ sousCle: x, valeur: [x] })),
   },
   /**
+   * TCK-2607 — plusieurs quartiers, en OU côté serveur, chacun résolu comme `location`. Liste à
+   * virgules dans l'URL, comme `cities` ; une puce par quartier, retirable seule (l'URL accepte
+   * un seul quartier restant). Écrite par l'orientation du chercheur et le lien d'une alerte.
+   */
+  locations: {
+    role: 'filtre',
+    params: ['locations'],
+    lire: (sp: URLSearchParams) => {
+      const quartiers = (litTexte(sp, 'locations') ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+      return quartiers.length > 0 ? quartiers : undefined;
+    },
+    ecrire: (v: string[]) => v.join(','),
+    libelle: (v: string[], t: TraducteursDeFiltre) =>
+      v.map((x) => t.tags('tags.quarter', { value: x })).join(', '),
+    eclater: (v: string[]) => v.map((x) => ({ sousCle: x, valeur: [x] })),
+  },
+  /**
    * TCK-635 (ADR-0062 §8) — la région d'une ville HOMONYME : Dinguiraye est à Diourbel et à Kolda,
    * Missirah à Diourbel et à Tambacounda, Vélingara à Matam et à Kolda. Le sélecteur de ville ne
    * l'écrit que pour ces villes-là ; partout ailleurs l'URL reste `city=Thiès`.
@@ -331,14 +415,15 @@ export const SEARCH_FILTER_KEYS = {
     // TCK-552 — le montant passe par `formatPrice`, la fonction des CARTES : la puce écrivait
     // « 2 000 000 FCFA » quand chaque carte de la même page écrit « 2 000 000 F CFA ». La devise
     // n'est plus dans le gabarit (`≥ {value}`) : une seule fonction l'écrit, partout.
-    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMin', { value: formatPrice(Number(v), 'XOF') }),
+    // TCK-347 — et dans la langue de l'écran (`t.locale`), comme les cartes.
+    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMin', { value: formatPrice(Number(v), 'XOF', t.locale) }),
   },
   price_max: {
     role: 'filtre',
     params: ['price_max'],
     lire: (sp: URLSearchParams) => litNombre(sp, 'price_max'),
     ecrire: (v: number | boolean) => String(v),
-    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMax', { value: formatPrice(Number(v), 'XOF') }),
+    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMax', { value: formatPrice(Number(v), 'XOF', t.locale) }),
   },
   bedrooms: {
     role: 'filtre',
@@ -406,7 +491,12 @@ export const SEARCH_FILTER_KEYS = {
   available_from: {
     role: 'filtre',
     params: ['available_from'],
-    lire: (sp: URLSearchParams) => litTexte(sp, 'available_from'),
+    // TCK-2768 — un jour que l'API refuserait (422 : « 12/11/2026 », « 2026-02-30 »…) n'est pas lu : la
+    // recherche ne le porte pas, et une recherche sauvegardée ne l'enregistre pas.
+    lire: (sp: URLSearchParams) => {
+      const jour = litTexte(sp, 'available_from');
+      return jour !== undefined && estUnJourDeLApi(jour) ? jour : undefined;
+    },
     ecrire: (v: string) => v,
     libelle: (v: string, t: TraducteursDeFiltre) =>
       t.tags('tags.availableFrom', {
@@ -557,7 +647,8 @@ export type PuceDeFiltre = {
  * Les libellés des filtres actifs — **l'unique** endroit du front qui les calcule.
  *
  * Sert les puces de `SearchToolbar` ET le résumé d'une recherche sauvegardée
- * (`SavedSearchesList`), qui en tenait sa propre version : elle ne connaissait que six clés sur
+ * (`useResumeDeCriteres`). La liste d'avant (`SavedSearchesList`, retirée par TCK-2738) en tenait
+ * sa propre version : elle ne connaissait que six clés sur
  * dix-sept, rendait `furnished`, `featured`, `tags`, `location`, `rent_period`, `floor_number`
  * et `available_from` INVISIBLES dans le résumé, et écrivait « Vente » / « ch. » / « surface »
  * en français dur, hors next-intl (principe 5).
@@ -622,6 +713,12 @@ export interface BlocDeRecherche {
   widened_total: number | null;
 }
 
+/** TCK-2517 — une option d'une facette et son compte. */
+export interface FacetteDeRecherche {
+  readonly value: string | number;
+  readonly count: number;
+}
+
 export interface SearchResult {
   data: import('./property').PropertyListItem[];
   meta: {
@@ -629,6 +726,12 @@ export interface SearchResult {
     last_page: number;
     per_page: number;
     total: number;
+    /**
+     * TCK-2517 — les comptes par option, rendus seulement pour les clés demandées par `facets=`
+     * (`contract_type`, `type`, `bedrooms`, `neighborhood`). Chaque facette est calculée sous tous
+     * les filtres SAUF le sien ; `bedrooms` est cumulé (l'option 3 compte « 3 et plus »).
+     */
+    facets?: Partial<Record<'contract_type' | 'type' | 'bedrooms' | 'neighborhood', FacetteDeRecherche[]>>;
   };
   search?: BlocDeRecherche;
   /**

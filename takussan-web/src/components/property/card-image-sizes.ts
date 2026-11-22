@@ -95,17 +95,6 @@ export const CARD_SIZES_FAVORITES_PUBLIC =
   '(max-width: 639px) 92vw, (max-width: 1023px) 47vw, (max-width: 1279px) 32vw, 395px';
 
 /**
- * Tableau de bord `/app/favorites` — même grille, mais le conteneur d'`AppShell`
- * n'a **aucun** plafond (`flex-1` à côté du rail de navigation) : l'emplacement
- * croît avec le viewport, donc on reste en `vw` jusqu'au bout.
- *
- * Valeur volontairement majorante : le rail rétrécit la colonne de contenu d'une
- * quantité que ce module ne connaît pas. Sur-déclarer y est le bon côté de l'erreur.
- */
-export const CARD_SIZES_FAVORITES_DASHBOARD =
-  '(max-width: 639px) 92vw, (max-width: 1023px) 46vw, 28vw';
-
-/**
  * Carrousel « biens similaires » de la fiche — diapositives
  * `flex-[0_0_85%] sm:flex-[0_0_48%] lg:flex-[0_0_24%]` dans `max-w-7xl px-4 sm:px-6
  * lg:px-8`, soit 24 % de 1216 px = 292 px une fois le conteneur plafonné.

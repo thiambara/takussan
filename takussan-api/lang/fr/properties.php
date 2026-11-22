@@ -1,6 +1,11 @@
 <?php
 
 return [
+    // TCK-351 (option a du porteur, 2026-11-16) — le front possède le texte affiché : `PropertyResource`
+    // n'émet plus aucun `*_label`, et les groupes `rent_period`, `status`, `title_type` et `condition`,
+    // qui n'avaient pas d'autre lecteur, sont retirés. `type` et `contract_type` restent pour leurs
+    // seuls lecteurs serveur — vocabulaire de recherche (alias, suggestions, `SearchWolofReviewSheet`)
+    // et titre du radar —, jamais pour un écran du front, qui rend ces codes par next-intl.
     'type' => [
         'land' => 'Terrain',
         'house' => 'Maison',
@@ -22,38 +27,6 @@ return [
     'contract_type' => [
         'sale' => 'À vendre',
         'rent' => 'À louer',
-    ],
-    'rent_period' => [
-        'daily' => 'par jour',
-        'weekly' => 'par semaine',
-        'monthly' => 'par mois',
-        'yearly' => 'par an',
-    ],
-    'status' => [
-        'available' => 'Disponible',
-        'sold' => 'Vendu',
-        'rented' => 'Loué',
-        'under_maintenance' => 'En maintenance',
-        'unavailable' => 'Indisponible',
-        'pending' => 'Réservé',
-        'draft' => 'Brouillon',
-        'published' => 'Publié',
-        'archived' => 'Archivé',
-        'pending_review' => 'En revue',
-        'rejected' => 'Refusé',
-    ],
-    'title_type' => [
-        'bail' => 'Bail',
-        'titre_foncier' => 'Titre foncier',
-        'deliberation' => 'Délibération',
-        'autre' => 'Autre',
-    ],
-    'condition' => [
-        'off_plan' => 'Sur plan',
-        'new' => 'Neuf',
-        'renovated' => 'Rénové',
-        'good' => 'Bon état',
-        'to_renovate' => 'À rénover',
     ],
     // TCK-656 — messages de validation, rendus dans la langue de la requête.
     'validation' => [

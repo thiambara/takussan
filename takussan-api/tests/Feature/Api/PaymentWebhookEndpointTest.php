@@ -347,13 +347,18 @@ class PaymentWebhookEndpointTest extends ApiTestCase
     public function test_the_custom_data_path_stays_within_the_agency_authority(): void
     {
         $agencyA = Agency::factory()->create();
-        [$payment, $integrationA] = $this->arrange($agencyA);
-        // TCK-602 (ADR-0051, conséquence M-1) — le chemin `custom_data` n'apparie plus une ligne dont
-        // le checkout ouvert est d'un AUTRE fournisseur : ce test-ci éprouve la borne d'agence, sur
-        // une ligne sans checkout ouvert.
-        $payment->forceFill(['transaction_id' => null, 'metadata' => []])->save();
+        [$payment] = $this->arrange($agencyA);
+        // TCK-606 (ADR-0046, amendement du 2026-11-16) — le chemin `custom_data` n'apparie qu'un
+        // payable dont le checkout courant a été ouvert chez Lemon Squeezy par une intégration notée :
+        // ce test-ci éprouve la borne d'agence, sur une ligne initiée par l'intégration LS de A.
+        $lsA = Integration::factory()->create(['agency_id' => $agencyA->id, 'provider' => 'lemon_squeezy', 'is_active' => true]);
+        $payment->forceFill(['transaction_id' => 'chk_ls_a', 'metadata' => ['gateway' => [
+            'provider' => 'lemon_squeezy', 'transaction_id' => 'chk_ls_a', 'integration_id' => $lsA->id,
+            'transactions' => [['transaction_id' => 'chk_ls_a', 'provider' => 'lemon_squeezy', 'integration_id' => $lsA->id, 'amount' => 50000, 'currency' => 'XOF']],
+        ]]])->save();
         $integrationB = $this->waveIntegration(Agency::factory()->create());
         $event = new PaymentEvent('lemon_squeezy', PaymentEvent::TYPE_PAID, 'ord_custom', [
+            'amount' => 50000, 'currency' => 'XOF',
             'custom_data' => ['payment_id' => (string) $payment->id, 'payment_type' => BookingPayment::class],
         ]);
         $gateway = app(PaymentGatewayService::class);
@@ -361,7 +366,7 @@ class PaymentWebhookEndpointTest extends ApiTestCase
         $gateway->applyEventToMatchingPayment($event->authenticatedBy(WebhookAuthority::of($integrationB)));
         $this->assertSame(PaymentStatus::Pending, $payment->refresh()->status);
 
-        $gateway->applyEventToMatchingPayment($event->authenticatedBy(WebhookAuthority::of($integrationA)));
+        $gateway->applyEventToMatchingPayment($event->authenticatedBy(WebhookAuthority::of($lsA)));
         $this->assertSame(PaymentStatus::Paid, $payment->refresh()->status);
     }
 

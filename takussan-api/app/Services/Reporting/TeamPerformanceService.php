@@ -15,8 +15,10 @@ use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\Task;
+use App\Services\Crm\ContactLeadResponseStatsService;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -28,12 +30,28 @@ use Illuminate\Support\Facades\DB;
  *
  * Chaque indicateur est UNE requête groupée par agent, quel que soit l'effectif. Le nombre de
  * requêtes ne dépend donc pas de la taille de l'équipe. Les indicateurs de période (baux, ventes,
- * visites, clients, commissions) lisent le mois demandé. `properties_managed` et `tasks_overdue`
+ * visites, demandes traitées, clients, commissions) lisent le mois demandé. `properties_managed` et `tasks_overdue`
  * sont à date.
  */
 class TeamPerformanceService
 {
-    /** @return array{period: string, agents: list<array<string, mixed>>} */
+    /** TCK-2865 — les colonnes que `totals` additionne (les autres : `agents`, et le délai, une médiane). */
+    private const SUMMED = [
+        'leases_signed', 'sales_signed', 'visits_completed', 'leads_handled', 'customers_added',
+        'commissions_earned', 'properties_managed', 'tasks_overdue',
+    ];
+
+    public function __construct(private readonly ContactLeadResponseStatsService $responseStats) {}
+
+    /**
+     * TCK-2865 — chaque ligne porte `median_response_minutes`, le délai de première réponse de l'agent aux demandes
+     * du formulaire déposées dans le mois (la mesure de `contact-leads/response-stats` et de `response-time`,
+     * {@see ContactLeadResponseStatsService::minutesForTeam()}), `null` sous le seuil. `totals` : `agents` (le
+     * nombre de lignes), la somme de chaque colonne de compte ou de montant, et `median_response_minutes`, la
+     * médiane de l'équipe sur toutes les demandes de l'agence (jamais la médiane des médianes).
+     *
+     * @return array{period: string, agents: list<array<string, mixed>>, totals: array<string, mixed>}
+     */
     public function forPeriod(Agency $agency, CarbonInterface $month): array
     {
         $from = $month->copy()->startOfMonth();
@@ -80,6 +98,70 @@ class TeamPerformanceService
             ->groupBy('beneficiary_id')
             ->pluck('total', 'beneficiary_id');
 
+        // TCK-2626 — demandes traitées : celles que l'agent a marquées traitées (`handled_by_id`) dans
+        // le mois, sur l'agence. Même bornes que les autres colonnes de période.
+        $leadsHandled = $this->countBy(PropertyContactLead::query()
+            ->where('agency_id', $agencyId)
+            ->whereIn('handled_by_id', $ids)
+            ->whereBetween('handled_at', [$from, $to]), 'handled_by_id');
+
+        $managed = $this->propertiesManaged($agencyId, $ids);
+
+        // verif-595 m3 — `tasks` n'a pas d'agence : elle se lit sur le parent (client ou bien). Seules
+        // les tâches dont le parent est DANS l'agence comptent ; une tâche d'une autre agence, ou sans
+        // parent, n'est pas l'activité de cette équipe.
+        $overdue = $this->countBy(Task::query()
+            ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($parent) => $parent->where('agency_id', $agency->id))
+            ->whereIn('assigned_to_id', $ids)
+            // P198.01 (TCK-1910) — la règle de la liste : échue avant aujourd'hui.
+            ->overdue(), 'assigned_to_id');
+
+        $responseTimes = $this->responseStats->minutesForTeam($agencyId, $ids, $from, $to);
+
+        $rows = $agents->map(function (AgentProfile $profile) use ($signed, $visits, $customers, $commissions, $managed, $overdue, $leadsHandled, $responseTimes): array {
+            $id = (int) $profile->user_id;
+            $user = $profile->user;
+
+            return [
+                'user_id' => $id,
+                'name' => $user ? (trim($user->first_name.' '.$user->last_name) ?: $user->username) : null,
+                'leases_signed' => (int) ($signed[$id]->leases ?? 0),
+                'sales_signed' => (int) ($signed[$id]->sales ?? 0),
+                'visits_completed' => (int) ($visits[$id] ?? 0),
+                'leads_handled' => (int) ($leadsHandled[$id] ?? 0),
+                'customers_added' => (int) ($customers[$id] ?? 0),
+                'commissions_earned' => round((float) ($commissions[$id] ?? 0), 2),
+                'properties_managed' => (int) ($managed[$id] ?? 0),
+                'tasks_overdue' => (int) ($overdue[$id] ?? 0),
+                'median_response_minutes' => $responseTimes['agents'][$id] ?? null,
+            ];
+        })->values()->all();
+
+        $totals = ['agents' => count($rows)];
+        foreach (self::SUMMED as $column) {
+            $totals[$column] = array_sum(array_column($rows, $column));
+        }
+        $totals['commissions_earned'] = round((float) $totals['commissions_earned'], 2);
+        $totals['median_response_minutes'] = $responseTimes['team'];
+
+        return [
+            'period' => $from->format('Y-m'),
+            'agents' => $rows,
+            'totals' => $totals,
+        ];
+    }
+
+    /**
+     * Les biens qu'un membre suit dans l'agence, par membre : propriétaire OU collaborateur
+     * `agent|manager`, hors des biens sortis du portefeuille. TCK-2665 — extrait de
+     * {@see self::forPeriod()} pour que la colonne « Biens suivis » de l'équipe
+     * (`UserAdminController`, `include=team_summary`) lise la même définition.
+     *
+     * @param  list<int>  $ids
+     * @return Collection<int|string, mixed>
+     */
+    public function propertiesManaged(int $agencyId, array $ids): Collection
+    {
         // Propriétaire OU collaborateur `agent|manager` : l'UNION dédoublonne le bien que l'agent
         // possède et sur lequel il collabore aussi. P198.04 (TCK-1912) — hors des biens sortis du
         // portefeuille, comme les « Biens gérés » de l'accueil de l'agent (TCK-1359).
@@ -99,40 +181,12 @@ class TeamPerformanceService
             ->whereIn('property_collaborators.role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])
             ->toBase()
             ->select(['property_collaborators.property_id', 'property_collaborators.user_id']);
-        $managed = DB::query()
+
+        return DB::query()
             ->fromSub($owned->union($collaborated), 'managed')
             ->selectRaw('user_id, COUNT(*) AS n')
             ->groupBy('user_id')
             ->pluck('n', 'user_id');
-
-        // verif-595 m3 — `tasks` n'a pas d'agence : elle se lit sur le parent (client ou bien). Seules
-        // les tâches dont le parent est DANS l'agence comptent ; une tâche d'une autre agence, ou sans
-        // parent, n'est pas l'activité de cette équipe.
-        $overdue = $this->countBy(Task::query()
-            ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($parent) => $parent->where('agency_id', $agency->id))
-            ->whereIn('assigned_to_id', $ids)
-            // P198.01 (TCK-1910) — la règle de la liste : échue avant aujourd'hui.
-            ->overdue(), 'assigned_to_id');
-
-        return [
-            'period' => $from->format('Y-m'),
-            'agents' => $agents->map(function (AgentProfile $profile) use ($signed, $visits, $customers, $commissions, $managed, $overdue): array {
-                $id = (int) $profile->user_id;
-                $user = $profile->user;
-
-                return [
-                    'user_id' => $id,
-                    'name' => $user ? (trim($user->first_name.' '.$user->last_name) ?: $user->username) : null,
-                    'leases_signed' => (int) ($signed[$id]->leases ?? 0),
-                    'sales_signed' => (int) ($signed[$id]->sales ?? 0),
-                    'visits_completed' => (int) ($visits[$id] ?? 0),
-                    'customers_added' => (int) ($customers[$id] ?? 0),
-                    'commissions_earned' => round((float) ($commissions[$id] ?? 0), 2),
-                    'properties_managed' => (int) ($managed[$id] ?? 0),
-                    'tasks_overdue' => (int) ($overdue[$id] ?? 0),
-                ];
-            })->values()->all(),
-        ];
     }
 
     /**

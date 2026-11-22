@@ -2,6 +2,7 @@
 
 namespace App\Http\Filters;
 
+use App\Rules\InstantIso;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Validator;
@@ -16,6 +17,9 @@ use Spatie\QueryBuilder\Filters\Filter;
  * seule (sans heure) s'étend au début du jour pour une borne basse, à sa fin pour une borne haute ;
  * une date et heure passe telle quelle. Extrait d'`AuditLogController::normalizeRangeBoundary()`,
  * qui l'appliquait seul au journal de l'agence. Une valeur illisible rend 422 (P119.03, TCK-1273).
+ *
+ * TCK-2768 — la forme reçue est celle d'{@see InstantIso} : un jour `AAAA-MM-JJ` ou un instant ISO 8601
+ * (`T` ou espace). `date` seule relisait « 12/11/2026 » au 11 décembre et « 99999-01-01 » en 2009.
  */
 class DateBoundaryFilter implements Filter
 {
@@ -41,7 +45,7 @@ class DateBoundaryFilter implements Filter
      */
     public static function exiger(mixed $value, string $property): void
     {
-        Validator::make(['filter' => [$property => $value]], ["filter.{$property}" => ['string', 'date']])->validate();
+        Validator::make(['filter' => [$property => $value]], ["filter.{$property}" => ['string', 'date', new InstantIso]])->validate();
     }
 
     public static function normalize(string $value, bool $isUpperBound): string

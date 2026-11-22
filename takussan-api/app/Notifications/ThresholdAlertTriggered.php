@@ -4,20 +4,32 @@ namespace App\Notifications;
 
 use App\Models\Enums\NotificationType;
 use App\Models\ThresholdAlert;
+use App\Models\User;
 use App\Notifications\Channels\AppDatabaseChannel;
+use App\Notifications\Channels\WhatsappChannel;
+use App\Notifications\Concerns\SupportsWhatsapp;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
+use App\Services\Notifications\Whatsapp\WhatsappTemplateRef;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Lang;
-use Illuminate\Support\Number;
 
 /**
  * TCK-032 P3 — dispatched to agency admins when a metric crosses an alert
  * threshold. Uses the app's standard locale pipeline via HasLocalePreference.
+ *
+ * TCK-2866 — le canal est celui de l'ALERTE (`channel` : `email`, `whatsapp`, `both`), et c'est un
+ * plafond, pas une contrainte : chacun ne reçoit que ce que ses préférences laissent passer. La cloche
+ * part toujours. WhatsApp passe par le canal sortant ({@see WhatsappChannel}) et ses gardes : numéro
+ * vérifié, préférence `threshold_alert` / `whatsapp` cochée (désactivée par défaut), contact non
+ * désinscrit, limite de débit ; hors fenêtre de service, un gabarit Meta APPROUVÉ pour l'événement
+ * `threshold_alert` est exigé (registre `notification_templates`). Sans gabarit, rien ne part sur
+ * WhatsApp, et pas de repli SMS : l'admin a choisi WhatsApp, pas le SMS.
  */
-class ThresholdAlertTriggered extends Notification
+class ThresholdAlertTriggered extends Notification implements SupportsWhatsapp
 {
     use Queueable;
 
@@ -27,6 +39,31 @@ class ThresholdAlertTriggered extends Notification
     ) {}
 
     public const EVENT_TYPE = 'threshold_alert';
+
+    /**
+     * TCK-2627 — les canaux de l'événement, ceux que {@see self::via()} peut retenir selon les
+     * préférences de chacun. La lecture d'une alerte les rend tels quels.
+     *
+     * TCK-2866 — ceux d'une alerte : {@see self::channelsOf()}.
+     *
+     * @var list<string>
+     */
+    public const CHANNELS = [PreferenceResolver::CHANNEL_INAPP, PreferenceResolver::CHANNEL_EMAIL];
+
+    /**
+     * TCK-2866 — les canaux qu'une alerte peut prendre, selon son `channel` : la cloche toujours, puis le
+     * courriel et/ou WhatsApp. La lecture de l'alerte les rend tels quels.
+     *
+     * @return list<string>
+     */
+    public static function channelsOf(ThresholdAlert $alert): array
+    {
+        return array_values(array_filter([
+            PreferenceResolver::CHANNEL_INAPP,
+            $alert->sendsEmail() ? PreferenceResolver::CHANNEL_EMAIL : null,
+            $alert->sendsWhatsapp() ? PreferenceResolver::CHANNEL_WHATSAPP : null,
+        ]));
+    }
 
     /**
      * @return list<string>
@@ -39,8 +76,16 @@ class ThresholdAlertTriggered extends Notification
         if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_INAPP)) {
             $channels[] = 'database';
         }
-        if ($resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
+        if ($this->alert->sendsEmail()
+            && $resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_EMAIL)) {
             $channels[] = 'mail';
+        }
+        // TCK-2866 — WhatsApp sous la préférence du destinataire ; le canal juge le reste (consentement,
+        // numéro vérifié, fenêtre, gabarit).
+        if ($this->alert->sendsWhatsapp()
+            && $notifiable instanceof User
+            && $resolver->shouldSend($notifiable, self::EVENT_TYPE, PreferenceResolver::CHANNEL_WHATSAPP)) {
+            $channels[] = 'whatsapp';
         }
 
         return $channels;
@@ -64,8 +109,9 @@ class ThresholdAlertTriggered extends Notification
             ->line(__('notifications.threshold_alert_mail.intro'))
             ->line(__('notifications.threshold_alert_mail.'.$direction, [
                 'metric' => $metric,
-                'value' => Number::format($this->value, precision: 2, locale: $locale),
-                'threshold' => Number::format((float) $this->alert->threshold, precision: 2, locale: $locale),
+                // TCK-2794 — groupés comme tout nombre rendu (U+00A0), et non par l'U+202F d'ICU.
+                'value' => CurrencyFormatter::nombre($this->value, $locale, 2, 2),
+                'threshold' => CurrencyFormatter::nombre((float) $this->alert->threshold, $locale, 2, 2),
                 'severity' => self::libelle('notifications.threshold_alert_mail.severities', (string) $this->alert->severity),
             ]))
             ->action(__('notifications.threshold_alert_mail.action'), $frontend.'/app/overview')
@@ -115,5 +161,73 @@ class ThresholdAlertTriggered extends Notification
             'value' => $this->value,
             'severity' => $this->alert->severity,
         ];
+    }
+
+    /** TCK-2866 — le texte libre (fenêtre de service ouverte) : le titre de la cloche et la ligne du courriel. */
+    public function toWhatsapp(object $notifiable): string
+    {
+        return $this->titre()."\n".$this->ligne(app()->getLocale());
+    }
+
+    /** Hors fenêtre : le gabarit approuvé de l'événement `threshold_alert`, cherché par le canal. */
+    public function whatsappTemplate(object $notifiable): ?WhatsappTemplateRef
+    {
+        return null;
+    }
+
+    public function shouldSendWhatsapp(): bool
+    {
+        return $this->alert->sendsWhatsapp();
+    }
+
+    public function isCriticalWhatsapp(): bool
+    {
+        return false;
+    }
+
+    public function whatsappEventType(): string
+    {
+        return self::EVENT_TYPE;
+    }
+
+    /**
+     * Les paramètres du gabarit : la mesure nommée, la valeur et le seuil, groupés.
+     *
+     * @return list<string>
+     */
+    public function whatsappTemplateParams(object $notifiable): array
+    {
+        $locale = app()->getLocale();
+
+        return [
+            self::libelle('notifications.threshold_alert_mail.metrics', (string) $this->alert->metric),
+            CurrencyFormatter::nombre($this->value, $locale, 2, 2),
+            CurrencyFormatter::nombre((float) $this->alert->threshold, $locale, 2, 2),
+        ];
+    }
+
+    /** TCK-2866 — pas de repli SMS : l'admin a choisi WhatsApp, et le SMS a un coût. */
+    public function smsFallbackAllowed(): bool
+    {
+        return false;
+    }
+
+    private function titre(): string
+    {
+        return (string) __('notifications.threshold_alert.title', [
+            'metric' => self::libelle('notifications.threshold_alert_mail.metrics', (string) $this->alert->metric),
+        ]);
+    }
+
+    private function ligne(string $locale): string
+    {
+        $direction = in_array($this->alert->operator, ['>', '>='], true) ? 'above' : 'below';
+
+        return (string) __('notifications.threshold_alert_mail.'.$direction, [
+            'metric' => self::libelle('notifications.threshold_alert_mail.metrics', (string) $this->alert->metric),
+            'value' => CurrencyFormatter::nombre($this->value, $locale, 2, 2),
+            'threshold' => CurrencyFormatter::nombre((float) $this->alert->threshold, $locale, 2, 2),
+            'severity' => self::libelle('notifications.threshold_alert_mail.severities', (string) $this->alert->severity),
+        ]);
     }
 }

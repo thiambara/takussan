@@ -7,6 +7,7 @@ use App\Http\Controllers\Public\PublicPropertyController;
 use App\Http\Controllers\Public\PublicPropertyDocumentController;
 use App\Http\Controllers\Public\PublicPropertyTypeController;
 use App\Http\Controllers\Public\PublicReviewController;
+use App\Http\Controllers\Public\PublicSponsoredImpressionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('public')->name('public.')->middleware('throttle:public-read')->group(function () {
@@ -49,16 +50,23 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     // exactement ce que TCK-335 venait de retirer. `cache.headers` ne sait pas
     // émettre de `Vary` ; sans `public`, il n'y a rien à faire varier.
     //
-    // TCK-708 — `boost.impressions` AVANT `cache.headers` : il l'enveloppe, et voit donc le 304.
+    // TCK-2569 — plus aucun comptage d'impression au service (le middleware `boost.impressions` de TCK-708
+    // est retiré) : le navigateur déclare ce qu'il affiche, par `properties/sponsored-impressions`.
     Route::get('properties/search', [PublicPropertyController::class, 'search'])
-        ->middleware(['boost.impressions', 'cache.headers:etag'])
+        ->middleware('cache.headers:etag')
         ->name('properties.search');
 
     // TCK-247 — the whole homepage in one call. Literal segment: it MUST stay
     // above `properties/{slug}` or it is swallowed as a slug.
     Route::get('properties/discovery', [PublicPropertyController::class, 'discovery'])
-        ->middleware('boost.impressions')
         ->name('properties.discovery');
+
+    // TCK-2569 (amendement d'ADR-0061 du 2026-11-16) — le navigateur déclare les emplacements
+    // sponsorisés qu'il a réellement affichés (recherche et rangée vedette de l'accueil). Segment
+    // littéral, au-dessus de `properties/{slug}` ; 204 toujours, rien n'y fuit.
+    Route::post('properties/sponsored-impressions', PublicSponsoredImpressionController::class)
+        ->middleware('throttle:public-sponsored-impressions')
+        ->name('properties.sponsored-impressions');
 
     // TCK-431 — l'énumération du catalogue indexable pour `/sitemap.xml` du site public.
     // Segment littéral : elle DOIT rester au-dessus de `properties/{slug}`, sans quoi elle est
@@ -83,6 +91,12 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     // au-dessus de `properties/{slug}`.
     Route::get('properties/neighborhoods', [PublicPropertyController::class, 'neighborhoods'])
         ->name('properties.neighborhoods');
+
+    // TCK-2498 — la répartition des prix de la liste (histogramme du budget). Le limiteur du groupe, celui de la
+    // liste ; la réponse est en cache applicatif par jeu de filtres (`RepartitionDesPrix::TTL`). Segment littéral :
+    // au-dessus de `properties/{slug}`.
+    Route::get('properties/price-distribution', [PublicPropertyController::class, 'priceDistribution'])
+        ->name('properties.price-distribution');
 
     Route::get('properties/compare', [PublicPropertyController::class, 'compare'])
         ->middleware('throttle:30,1,public-compare')

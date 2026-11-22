@@ -65,6 +65,9 @@ class SendPropertyVisitReminders implements ShouldQueue
 
         PropertyVisit::query()
             ->where('status', VisitStatus::Confirmed)
+            // TCK-2502 — une visite à tranche n'a pas d'heure fixée : aucun rappel « 24 h » ni
+            // « 1 h avant » ne part pour un début de tranche. Confirmer fixe l'heure et lève la tranche.
+            ->whereNull('preferred_window')
             ->whereBetween('scheduled_at', [$from, $to])
             ->with(['property', 'visitor', 'agent', 'customer.user'])
             ->chunkById(100, function ($visits) use ($window, $metaKey) {

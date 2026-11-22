@@ -74,6 +74,11 @@ export type KycDocument = {
    * antérieure au ticket.
    */
   document_expires_at?: string | null;
+  /**
+   * TCK-2669 — le numéro que porte la pièce (RCCM, NINEA), saisi au dépôt ; nul quand il n'a pas été
+   * saisi. C'est lui que « Reprendre ces deux numéros » recopie dans les mentions légales (TCK-2670).
+   */
+  document_number?: string | null;
 };
 
 /**
@@ -118,6 +123,12 @@ export type KycDossier = {
    * n'expire.
    */
   expires_at?: string | null;
+  /**
+   * TCK-2671 — quand la pièce du dirigeant d'un dossier VÉRIFIÉ se remplace : `opens_on` est le
+   * premier jour civil (`AAAA-MM-JJ`) où l'API l'accepte (`KycWorkflowService::renewalOpensOn()`).
+   * Nul pour un dossier non vérifié ou sans échéance. Le front ne recalcule pas la fenêtre.
+   */
+  renewal?: { document_type: string; opens_on: string } | null;
   /** TCK-601 — super-admin seulement ; voir {@link SharedLegalIdentifiers}. */
   shared_identifiers?: SharedLegalIdentifiers;
   created_at: string | null;
@@ -517,7 +528,7 @@ export type NotificationTemplatePreviewResponse = {
 };
 
 /** TCK-600 — le catalogue se réduit aux clés qu'un code lit : `format.*` et `transaction.*` sont partis. */
-export type PlatformSettingCategory = 'currency' | 'limits' | 'boost' | 'rentals' | 'radar';
+export type PlatformSettingCategory = 'currency' | 'limits' | 'boost' | 'rentals' | 'crm' | 'radar' | 'ai'; // TCK-2979
 /** TCK-651 (ADR-0065) — `boolean`, `decimal` et `integer_list` servent les réglages métier `rentals`. */
 export type PlatformSettingType = 'select' | 'multi_select' | 'integer' | 'decimal' | 'boolean' | 'integer_list';
 export type PlatformSettingValue = string | number | boolean | null | string[] | number[];
@@ -784,7 +795,6 @@ export type PlatformHealth = {
   workers?: HealthcheckStatus & {
     queues?: Record<string, { status: HealthLevel; last_heartbeat_seconds: number | null }>;
   };
-  cdn?: HealthcheckStatus;
   /** TCK-2129 — `failed` quand aucune tâche n'a tourné depuis le seuil (`HealthcheckService::scheduler()`). */
   scheduler?: HealthcheckStatus & { last_run_at?: string | null };
   proxies?: HealthcheckStatus;
@@ -974,7 +984,6 @@ export type AdminPropertyRow = {
   slug: string;
   type: string | null;
   status: string | null;
-  status_label: string | null;
   visibility: string | null;
   contract_type: string | null;
   rent_period: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;
@@ -1051,7 +1060,7 @@ export type WebhookLogsResponse = {
 };
 
 // TCK-2385 (ADR-0076 §12) — la console IA.
-export type AiModelRole = 'extraction' | 'redaction' | 'raisonnement' | 'vision' | 'embedding';
+export type AiModelRole = 'extraction' | 'redaction' | 'raisonnement' | 'vision' | 'embedding' | 'transcription'; // TCK-2976
 export type AiEvaluationStatus = 'queued' | 'running' | 'done' | 'failed';
 export type AiModelLink = { provider: string; model: string; max_tokens: number | null };
 /** TCK-2450 (ADR-0085 §4) — sélectionnable : déclaré, une clé, une adresse sur un hôte accepté. `host` : jamais l'adresse entière. */

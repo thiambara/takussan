@@ -34,7 +34,7 @@ piloté par **7 propriétés statiques déclaratives** sur le modèle :
 | `$requestFilterable` | `filter[col]=` exact |
 | `$requestFilterablePartial` | `filter[col]=` partiel |
 | `$requestRangeFilters` | génère `filter[col_min]` / `filter[col_max]` |
-| `$requestSearchFields` | `filter[search]=` (route vers Scout si le modèle est `Searchable`, sinon LIKE) |
+| `$requestSearchFields` | `filter[search]=` (route vers Scout si le modèle est `Searchable`, sauf `rechercheParLaBase()` ; sinon LIKE) |
 | `$requestSortable` | `sort=-col` |
 | `$requestLoadable` | `include=relation` |
 | `$requestCountable` | `include=relationCount` |
@@ -145,7 +145,12 @@ encore. La Gate dérive l'agence dans l'ordre : 2ᵉ argument de `can()` → `re
 
 `app/Http/Middleware/ResolveActiveProfile.php` résout dans cet ordre : header `X-Profile-Id` ou
 `?profile_id` (403 si non possédé) → header `X-Active-Profile-Hint` (ignoré si invalide) → cookie
-`active_profile_id` → auto-bascule si l'utilisateur n'a de profils que dans **une** agence → rien.
+`active_profile_id` → **dernier espace retenu** sur le compte (`users.metadata.last_active_profile`,
+ignoré s'il n'est plus un profil actif du compte, jamais lu sous impersonation — TCK-2620) →
+auto-bascule si l'utilisateur n'a de profils que dans **une** agence, ou n'a qu'**un** profil (le
+prestataire, sans agence — TCK-2800) → rien. L'ordre et ses raisons :
+[ADR-0004](../docs/adr/0004-profil-actif-resolu-par-middleware.md), amendements du 2026-11-10 et du 2026-11-14.
+`/api/auth/me` rend le profil lié (`active_profile_id`).
 
 Le profil est stocké dans `$request->attributes['active_profile']` et lu par la macro
 `request()->activeProfile()` (`AppServiceProvider.php:260`). Le middleware est **append** sur le
@@ -203,7 +208,7 @@ Il n'y a plus de validation en ligne dans un contrôleur, et `scripts/check-inli
    Quand c'est un **404** qui doit primer, même principe : résoudre dans le FormRequest — c'est ce
    que fait `Public\PublicPropertySlugRequest`, qui garde le 404 avant le 422.
 
-`BaseFormRequest` apporte deux choses qu'on ne veut pas réécrire :
+`BaseFormRequest` apporte trois choses qu'on ne veut pas réécrire :
 
 - `authorize()` retourne **`false`** par défaut — *fail-closed*, chaque sous-classe doit surcharger.
   ⚠ **La RÈGLE d'autorisation ne migre pas ici, son INVOCATION oui** : la règle appartient aux
@@ -211,8 +216,17 @@ Il n'y a plus de validation en ligne dans un contrôleur, et `scripts/check-inli
   c'est ce qui rétablit l'ordre autorisation-puis-validation (cf. piège 2 ci-dessus). Un
   `authorize()` qui retourne `true` sec ne se justifie que sur un endpoint dont le contrôleur
   n'autorisait rien avant de valider ;
+- **une écriture se valide sur le corps seul** (TCK-612) : pour `POST`/`PUT`/`PATCH`/`DELETE`,
+  `validationData()` ne lit que le corps et les fichiers, et `getValidatorInstance()` retire de la
+  query toute clé réglée venue d'elle seule — ni `validated()` ni `input()` ne la voient ; les clés
+  sans règle (`include`, `fields`, `lang`) restent lisibles, et `authorize()` lit la requête entière.
+  Une exception se déclare dans `$queryKeysAcceptedOnWrite` (`token` de la désinscription d'alerte,
+  `filter` de la purge des invitations), recensées par
+  `tests/Feature/Validation/QueryNeverFeedsAWriteTest.php`. Que tout `app/Http/Requests` étende
+  `BaseFormRequest`, `Auth/` et `Admin/` compris et sans exemption, est gardé par
+  `tests/Unit/Architecture/FormRequestEtendBaseFormRequestTest.php` ;
 - `prepareForValidation()` normalise récursivement : trim de toutes les chaînes, chaîne vide →
-  `null`.
+  `null` — **le corps seul pour une écriture**, toute l'entrée pour une lecture (TCK-612).
 
   ⚠ **Ce n'est PAS un changement de comportement, et j'avais écrit le contraire ici.** Laravel monte
   `TrimStrings` et `ConvertEmptyStringsToNull` en middleware **global**
@@ -347,7 +361,7 @@ Le namespace `/api/admin/*` est gardé par le middleware alias `super-admin`
 (`app/Http/Middleware/EnsureSuperAdmin.php`) : 401 si non authentifié, 403 si non super-admin.
 
 **Il n'y a pas de `throttle:api` global.** Le rate limiting est nommé, défini dans
-`AppServiceProvider::bootRateLimiters()` (ligne 269) : `search-suggest` 60/min, `public-read` 90/min,
+`AppServiceProvider::bootRateLimiters()` (ligne 269) : `search-suggest` 300/min, `public-read` 90/min,
 `public-report` 5/h, `public-visit-request` 10/h, `public-contact-lead` 5/10min, `auth-register`
 10/min, `auth-password` 5/min. Le helper `visitorRateLimitKey()` résout le token Sanctum
 *directement* via `PersonalAccessToken::findToken()` — parce que le throttle tourne **avant**
@@ -381,8 +395,7 @@ explicite) et les huit helpers non événementiels.
 
 **Pattern driver/registry**, récurrent et systématique : une interface + N drivers + un binding
 conditionnel par config. Instances : SMS (`SmsDriverInterface` + Orange/Mtarget/LAfricaMobile/Log +
-`SmsRouterDriver`), WhatsApp (`WhatsappDriverInterface` + CloudApi/Log), CDN (`CdnProviderContract` +
-Bunny/Cloudflare), Paiements (`PaymentDriverContract` + LemonSqueezy/OrangeMoney/Wave), Parsing
+`SmsRouterDriver`), WhatsApp (`WhatsappDriverInterface` + CloudApi/Log), Paiements (`PaymentDriverContract` + LemonSqueezy/OrangeMoney/Wave), Parsing
 bancaire (`StatementParserInterface` + Csv/Ofx + factory), Intégrations (`IntegrationProvider` +
 registry). Un nouveau fournisseur suit ce patron, sans exception.
 
@@ -438,6 +451,15 @@ l'appelant classée au-delà de ce rang global disparaît sans message ni compte
 ⚠️ **Les consoles super-admin (`/api/admin/agencies`, `/api/admin/users`) n'empruntent aucun des deux
 chemins** : elles écrivent leur propre `LIKE` SQL. Elles restent strictes, par choix (TCK-281,
 « Hors périmètre ») — pas par oubli.
+
+⚠️ **`Property` cherche par la base, pas par Scout, sur `buildQuery()`** (TCK-578, ADR-0008 amendé le
+2026-11-16) : `Property::rechercheParLaBase()` rend `true`, et `filter[search]` prend alors le repli
+SQL de `HasQueryBuilder` bien que le modèle soit `Searchable`. Tous les appelants de `buildQuery()`
+sont des consoles qui listent brouillons, biens en attente, refusés et privés — que l'index
+**public** ne contient pas. Le prix est assumé : ni tolérance aux fautes ni pertinence du moteur ;
+la référence exacte passe en tête (`rangDeRechercheSql()`). La recherche publique reste au moteur
+(`PropertySearchService`). Un autre modèle dont l'index ne contient pas tout ce que sa console liste
+surcharge le même point (défaut : `false`).
 
 ⚠️ **Une migration qui réécrit une colonne indexée réimporte son modèle** — ou au moins les lignes
 qu'elle touche (P122.04, décision du porteur du 2026-10-23). Une colonne est indexée dès que
@@ -778,7 +800,27 @@ node ../scripts/check-impact-map.mjs --report
 ⚠ **PHPUnit directement, et pas `php artisan test --coverage-php=…`** : `artisan test --coverage`
 passe déjà cette option en interne, et une seconde occurrence est écartée par PHPUnit — la commande
 sort alors en 1 sans un mot (TCK-331). Sans le drapeau `--coverage`, `artisan test --coverage-php=…`
-fonctionne encore, mais il n'y a plus aucune raison de passer par lui.
+fonctionne encore, mais en un seul processus il n'y a aucune raison de passer par lui.
+
+**La forme parallèle est équivalente en local** : ParaTest fusionne les couvertures de ses workers et
+écrit `cov.php` depuis l'objet fusionné. ⚠ **La CI ne l'emploie PAS pour `cov.php`** (ADR-0063 §4,
+amendement du 2026-11-18) : sur la suite entière, cette écriture dépasse 8 Go et meurt après une suite
+verte. La nuit, `cov.php` sort d'un step séquentiel à part (`php artisan test --coverage-php=…`) ; le
+clover du cliquet, lui, reste en `--parallel`.
+
+```bash
+XDEBUG_MODE=coverage php artisan test --parallel --processes=8 --coverage-php=/tmp/cov.php
+```
+
+`--parallel` **en premier** (Collision arrête son analyse à la première option qu'il ne connaît pas ;
+un `--parallel` placé après n'est pas vu, et PHPUnit, lancé seul, le refuse), et **jamais**
+`--coverage`. Mesuré en local sur
+`tests/Feature/Auth` (586 tests, 8 processus) : 169 s → 58 s, aucune ligne couverte différente, et
+**aucun test perdu par ligne** pour la carte — quelques-uns de plus là où une ligne jouée une fois par
+worker est attribuée au premier test de chacun ; la carte relance donc un sur-ensemble.
+⚠ Sous Xdebug (3.4.2), `tests/Feature/Radar/RadarWhatsappReceiptGuardTest.php::test_i1_…` fait
+segfault (sortie 139) sous couverture, séquentiel comme parallèle : bug d'Xdebug, sans effet sur la
+CI (PCOV).
 
 ⚠ **Le clover ne peut PAS remplacer `cov.php` pour la carte.** La carte a besoin de l'attribution
 **test → lignes** ; le clover ne porte que des compteurs par fichier. Une carte dérivée du clover
@@ -890,6 +932,54 @@ rien attraper.*
    = ?` un `Seq Scan`. Index et requêtes bougent ensemble ou pas du tout.
 
    ⚠ Ça ne replie **pas** les accents, délibérément : `Café` ≠ `Cafe`, reconduction d'ADR-0020 §2.
+
+10. **Les verrous se prennent dans UN ordre : bien → visite → utilisateur → délégation** (TCK-2744,
+    TCK-2746). Deux écrivains qui verrouillent les mêmes lignes dans l'ordre inverse s'interbloquent,
+    et PostgreSQL en tue un (`SQLSTATE[40P01] deadlock detected`) — au hasard du tempo, donc jamais
+    dans un test séquentiel. Mesuré : deux `PATCH` simultanés sur un même bien, 19 interblocages sur
+    20 ; le retrait d'un agent contre la confirmation d'une de ses visites, 20 sur 20 ; l'effacement
+    d'un compte qui dépubliait ses biens après sa ligne `users`, 18 sur 20 ; la modification d'une
+    absence (délégation puis absent) contre l'effacement de l'absent, 14 sur 20. Les écrivains de
+    visites passent par `VisitSchedulingService::verrouillerBienPuisVisite()` ; le retrait d'un
+    membre (`AgencyMemberRemovalService::lockMarkedProperties()`) et l'effacement d'un compte
+    (`AccountDeletionService::lockInGlobalOrder()`) prennent leurs biens AVANT la ligne `users` ;
+    `AgentAbsenceService::update()` prend l'absent avant la délégation ; l'acceptation d'une invitation
+    de bailleur par un compte existant (`InvitationService::verrouillerLesBiensLies()`, TCK-2755) prend
+    les biens saisis pour lui avant toute écriture de `users` — contre la confirmation d'une visite d'un
+    de ces biens, 4 à 9 interblocages sur 20 sans lui. Plusieurs lignes d'une même table : par
+    identifiant croissant (`orderBy('id')`).
+
+    **Le bail, ses réservations et l'agence viennent après le bien** (TCK-2734, réserve r2 de la
+    vérification de d87e423e7) : l'envoi en signature et la signature sur papier prennent bien → bail →
+    réservations (`LeaseService::verrouillerLeBienPuisLeBail()`), puis touchent l'agence — par le journal
+    (`activity_log.agency_id` porte une clé étrangère : chaque ligne écrite prend un `KEY SHARE` sur
+    l'agence, qui heurte son `for update`) et par le compteur de `LeaseObserver`. Presque tout écrivain
+    journalise : **l'agence vient donc après le bien, même quand elle sert de point de sérialisation**.
+    L'achat de boost la prenait avant (`BoostPurchaseService::lock()`) : un cycle avec l'envoi sur un même
+    bien — mesuré le 2026-11-13 par une course à deux processus (`request()` contre `purchase()` réels) :
+    53 achats tués (`40P01`) sur 120 dans l'ancien ordre, 0 sur 2164 itérations dans le nouveau ;
+    il prend désormais le bien d'abord. Ne pas « corriger » un tel cycle en verrouillant
+    l'agence en tête de l'autre écrivain : on en ouvre un neuf avec tous ceux qui tiennent un bien et
+    journalisent ensuite. Reste ouvert, antérieur : `PayoutService` (agence → bail) contre `sign()`
+    (bail → agence par l'observateur).
+
+    ⚠ **Une ÉCRITURE verrouille sa ligne comme un `for update`.** Un `update()` ou un `delete()` — de
+    modèle ou de masse — sur un bien, après la ligne `users`, inverse l'ordre aussi sûrement qu'un
+    `lockForUpdate()`. (Un `UPDATE` qui ne touche pas de clé prend `FOR NO KEY UPDATE` : il ne heurte
+    pas le `KEY SHARE` d'une clé étrangère, mais heurte tout `for update` — celui d'une visite
+    compris.) D'où la règle : tout ce qu'un écrivain écrit APRÈS une ligne plus basse dans l'ordre est
+    verrouillé AVANT elle, **par la requête même qui l'écrira**
+    (`ErasedAccountListings::candidates()`, `TitulaireALaSaisie::biensLies()`), jamais par une copie.
+
+    ⚠ **L'épingle ne voit pas tout.** L'ordre est épinglé par `DB::listen` sur les `select … for
+    update` (`VisitAgentOverlapTest`, `OrdreDesVerrousDuRetraitTest`) : elle ne voit ni les verrous
+    implicites des `update`, ni ceux des clés étrangères — à l'insertion comme à un `update` qui POSE
+    la colonne : poser `owner_profiles.user_id` prend un `KEY SHARE` sur la ligne `users` visée, et
+    toucher une ligne qui référence `users` compte donc comme prendre `users` (TCK-2755, le témoin de
+    la course : 4 interblocages sur 20 sans aucune écriture de `users` ;
+    `OrdreDesVerrousDeLAcceptationTest` épingle donc aussi cet `update "owner_profiles"`). C'est
+    pourquoi le test de l'effacement affirme que chaque bien ÉCRIT figure dans la passe des biens, au
+    lieu de compter des verrous. Un écrivain neuf qui touche ces tables s'y ajoute — par discipline : rien ne le force.
 
 **Les pièges MySQL qui ont DISPARU** — ne plus les chercher : `DEFAULT` sur `JSON`/`TEXT` (accepté
 par PostgreSQL), `dropUnique`/`dropIndex` sur une colonne portant une FK (voir n°8), et la limite

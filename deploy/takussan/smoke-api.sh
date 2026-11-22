@@ -66,6 +66,7 @@ verifier_image() {
   ok "artisan tinker utilisable"
 
   verifier_masqueur_compile
+  verifier_diffuseur_sans_cles
   verifier_delai_d_execution
   verifier_exif_retire
   verifier_journal_des_exceptions
@@ -93,6 +94,20 @@ verifier_masqueur_compile() {
         fwrite(STDERR, "contact du Radar perdu\n"); exit(1);
     }' || echec "le masqueur ne compile pas avec le PCRE2 de l'image (ou masque faux) : PhoneMasker::mask lève, le Radar ne lit plus rien"
   ok "le masqueur et les étages du Radar compilent avec le PCRE2 de l'image"
+}
+
+# TCK-2956 — `BROADCAST_CONNECTION=reverb` sans AUCUNE `REVERB_APP_*` : l'API démarre quand même. Le client
+# Pusher type ses identifiants en `string`, et `routes/channels.php` construit le diffuseur au démarrage : mesuré
+# le 2026-11-18, une clé ABSENTE (`null`) faisait tomber toute commande — `migrate` du release compris — tant que
+# config/broadcasting.php ne la ramenait pas à `''`. C'est l'état d'un environnement où l'on a basculé le pilote
+# sans poser les clés (docs/deploiement/actions/2026-11-17-poser-le-temps-reel.md).
+verifier_diffuseur_sans_cles() {
+  local sortie
+  sortie=$(docker run --rm -e APP_KEY="base64:$(openssl rand -base64 32)" -e BROADCAST_CONNECTION=reverb \
+    -e LOG_CHANNEL=stderr -e CACHE_STORE=array --entrypoint php "$IMAGE:$TAG" artisan route:list --path=broadcasting 2>&1) \
+    || echec "BROADCAST_CONNECTION=reverb sans REVERB_APP_* : l'API ne démarre pas — $(grep -m1 -o 'Failed to create broadcaster[^.]*' <<<"$sortie")"
+  grep -q 'broadcasting/auth' <<<"$sortie" || echec "BROADCAST_CONNECTION=reverb sans REVERB_APP_* : la route d'autorisation des canaux manque"
+  ok "BROADCAST_CONNECTION=reverb sans aucune clé REVERB_APP_* : l'API démarre (l'émission échouera, avalée)"
 }
 
 # TCK-2370 (P236.01) — le 413 que Caddy rend avant `php_server` (corps de plus de 25 Mio) porte les
@@ -257,7 +272,11 @@ preparer_pile() {
     echo "$MARQUE"
     cat deploy/takussan/.env.smoke.example
     echo "APP_KEY=base64:$(openssl rand -base64 32)"
+    echo "APP_HMAC_KEY=$(openssl rand -base64 48)"   # TCK-614 : release.sh refuse sans elle
     echo "REDIS_PASSWORD=$(openssl rand -hex 24)"
+    # TCK-2956 : l'application Reverb de la pile, lue par `api` (qui signe) ET `temps-reel` (qui vérifie).
+    echo "REVERB_APP_KEY=$(openssl rand -hex 16)"
+    echo "REVERB_APP_SECRET=$(openssl rand -hex 32)"
   } > "$ENV_LOCAL"
   docker network inspect dokploy-network >/dev/null 2>&1 || docker network create dokploy-network >/dev/null
   # Pas de Redis ici : la pile porte le sien (ADR-0069 § 4).
@@ -344,7 +363,7 @@ verifier_release_en_echec() {
   [ "$(sonde -o /dev/null -w '%{http_code}' "$api/up")" = 200 ] || echec "release en échec : /up ne rend plus 200"
   grep -qix 'x-build-sha: smoke' <<<"$(sonde -D - -o /dev/null "$api/up" | tr -d '\r')" \
     || echec "release en échec : X-Build-Sha a changé"
-  for s in worker worker-long worker-ia worker-media scheduler; do
+  for s in worker worker-long worker-ia worker-media scheduler temps-reel; do
     [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
       || echec "release en échec : $s ne tourne plus"
   done
@@ -383,6 +402,51 @@ verifier_reseaux() {
   ok "le cache écrit dans le Redis de la pile"
 }
 
+# TCK-2956 (ADR-0129 § 5) — le temps réel de la pile. Chaque contrôle a son motif :
+#   · `temps-reel` sain : sa sonde interroge `GET /up` du serveur Reverb ;
+#   · `REVERB_HOST` de l'API vaut `${API_ALIAS}-temps-reel`, MALGRÉ la valeur fausse du `.env`
+#     (.env.smoke.example) : compose.api.yml l'emporte, comme pour `REDIS_HOST` ;
+#   · l'alias répond sur dokploy-network — c'est le seul nom qui y désigne le Reverb de CETTE pile ;
+#   · depuis le conteneur `api`, l'origine de FRONTEND_URL est admise, une autre refusée en 4009 ;
+#   · un signal émis par l'émetteur de l'API (`TempsReel::signalerA`, sa configuration en cache, sa clé, son
+#     secret, son hôte) arrive au client abonné : l'API et le serveur s'accordent de bout en bout.
+# La sonde (deploy/takussan/sonde-temps-reel.php) a été éprouvée le 2026-11-18 sur un Reverb du code du dépôt
+# (`serversideup/php`, alias `takussan-api-smoke-temps-reel`) : origine admise → 0, `https://autre.example` → 4009
+# et 1, signal → reçu et 0.
+verifier_temps_reel() {
+  local alias hote origine sortie
+  for _ in $(seq 30); do
+    [ "$(docker inspect -f '{{.State.Health.Status}}' "$PROJET-temps-reel-1")" = healthy ] && break; sleep 2
+  done
+  [ "$(docker inspect -f '{{.State.Health.Status}}' "$PROJET-temps-reel-1")" = healthy ] \
+    || { "${COMPOSE[@]}" logs temps-reel; echec "temps-reel n'est pas sain"; }
+  ok "temps-reel sain (GET /up du serveur Reverb)"
+
+  alias=$(sed -n 's/^API_ALIAS=//p' "$ENV_LOCAL")
+  hote=$("${COMPOSE[@]}" exec -T api printenv REVERB_HOST | tr -d '[:space:]')
+  [ "$hote" = "$alias-temps-reel" ] \
+    || echec "REVERB_HOST de l'API vaut « $hote », pas « $alias-temps-reel » : le .env l'emporte sur compose.api.yml"
+  grep -q '"health":"OK"' <<<"$(sonde "http://$alias-temps-reel:8080/up")" \
+    || echec "le Reverb de la pile ne répond pas sous son alias $alias-temps-reel sur dokploy-network"
+  ok "l'API vise $alias-temps-reel (écrit par la pile, malgré le .env), qui répond sur dokploy-network"
+
+  "${COMPOSE[@]}" exec -T api sh -c 'cat > /tmp/sonde-temps-reel.php' < deploy/takussan/sonde-temps-reel.php
+  origine=$(sed -n 's/^FRONTEND_URL=//p' "$ENV_LOCAL")
+  sortie=$("${COMPOSE[@]}" exec -T api php /tmp/sonde-temps-reel.php origine "$origine" 2>&1) \
+    || { echo "$sortie"; echec "l'origine du front ($origine) est refusée par le Reverb de la pile"; }
+  if sortie=$("${COMPOSE[@]}" exec -T api php /tmp/sonde-temps-reel.php origine https://autre.example 2>&1); then
+    echo "$sortie"; echec "une origine étrangère est ADMISE par le Reverb de la pile"
+  fi
+  grep -q '"code\\":4009' <<<"$sortie" || { echo "$sortie"; echec "une origine étrangère n'est pas refusée en 4009"; }
+  ok "origines : $origine admise, https://autre.example refusée en 4009"
+
+  sortie=$("${COMPOSE[@]}" exec -T api php /tmp/sonde-temps-reel.php signal "$origine" 2>&1) \
+    || { echo "$sortie"; echec "aucun signal de l'API n'arrive au client abonné au Reverb de la pile"; }
+  grep -q 'notifications.updated' <<<"$sortie" || { echo "$sortie"; echec "le signal reçu n'est pas celui émis"; }
+  echo "$sortie" | grep '^reçu'
+  ok "un signal émis par l'API arrive au client WebSocket abonné, de l'intérieur de la pile"
+}
+
 verifier_pile() {
   local api="http://$PROJET-api-1:8080" css n q
   prendre_verrou
@@ -397,7 +461,7 @@ verifier_pile() {
   [ "$(docker inspect -f '{{.State.ExitCode}}' "$PROJET-release-1")" = 0 ] \
     || { "${COMPOSE[@]}" logs release; echec "release a échoué"; }
   attendre_api_saine
-  for s in worker worker-long worker-ia worker-media scheduler; do
+  for s in worker worker-long worker-ia worker-media scheduler temps-reel; do
     [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
       || { "${COMPOSE[@]}" logs "$s"; echec "$s ne tourne pas"; }
   done
@@ -418,6 +482,7 @@ verifier_pile() {
   ok "/up à 200, X-Build-Sha: smoke"
 
   verifier_reseaux
+  verifier_temps_reel
 
   # Une sonde par file que la production doit consommer — les files de check-queues.mjs. Un job
   # SÉRIALISABLE : une closure écrite dans tinker ne l'est pas (laravel/serializable-closure relit
@@ -463,7 +528,7 @@ verifier_pile() {
   ok "limite de corps à 25 Mio, comme nginx"
 
   sleep 30
-  for s in api worker worker-long worker-ia worker-media scheduler; do
+  for s in api worker worker-long worker-ia worker-media scheduler temps-reel; do
     [ "$(docker inspect -f '{{.RestartCount}}' "$PROJET-$s-1")" = 0 ] || echec "$s redémarre en boucle"
   done
   ok "aucun service ne redémarre"

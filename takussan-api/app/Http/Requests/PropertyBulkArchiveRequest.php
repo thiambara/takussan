@@ -3,12 +3,11 @@
 namespace App\Http\Requests;
 
 use App\Models\Property;
-use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * TCK-074 — body schema for `POST /api/properties/bulk-archive`.
  */
-class PropertyBulkArchiveRequest extends FormRequest
+class PropertyBulkArchiveRequest extends BaseFormRequest
 {
     /** TCK-817 (P22.02) — la capacité de l'action unitaire à l'agence active, avant toute validation. */
     public function authorize(): bool

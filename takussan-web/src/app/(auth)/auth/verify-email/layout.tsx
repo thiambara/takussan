@@ -1,7 +1,8 @@
 import { metadonneesDePageAuth } from '../titre-d-onglet';
 
-// TCK-906 — la page est `'use client'` : son titre d'onglet se pose ici. Le rendu reste
-// `<>{children}</>`, sans API de traduction dans ce fichier : transparent pour
+// TCK-906 — le titre d'onglet se pose ici (la page était `'use client'`). TCK-2606 : la page est
+// désormais serveur et rend `VerifierLAdresse` ; le titre reste ici, avec ceux des autres pages d'entrée. Le
+// rendu reste `<>{children}</>`, sans API de traduction dans ce fichier : transparent pour
 // `check-i18n-namespaces`, il hérite du dictionnaire de `(auth)`.
 export const generateMetadata = metadonneesDePageAuth('verifyEmail');
 

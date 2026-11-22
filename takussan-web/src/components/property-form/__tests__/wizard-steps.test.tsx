@@ -56,11 +56,13 @@ describe('StepPrix', () => {
 
     const bloc = screen.getByTestId('bloc-location');
     expect(bloc).not.toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getByLabelText(/^prix/i)).toBeInTheDocument();
+    // TCK-2819 (lot 2) — en location, le montant s'appelle « Loyer » (maquette a-3).
+    expect(screen.getByLabelText(/^loyer/i)).toBeInTheDocument();
     // `getByRole` exclut par défaut ce qui est `aria-hidden` : un `StepPrix` qui rendrait un
     // `bloc-location` vide (mais sans `aria-hidden`) passerait un test qui ne vérifierait que
     // l'attribut du conteneur — c'est exactement le défaut que ce test corrige.
-    expect(screen.getByRole('combobox', { name: /fréquence/i })).toBeInTheDocument();
+    // TCK-2819 (lot 2) — la fréquence est un groupe de radios en pastilles, plus une liste.
+    expect(screen.getByRole('radiogroup', { name: /fréquence/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /disponible/i })).toBeInTheDocument();
   });
 
@@ -71,7 +73,7 @@ describe('StepPrix', () => {
     // d'écran ne doit pas annoncer deux champs invisibles, et `getByRole` s'en assure : un rôle
     // porté par un ancêtre `aria-hidden` n'est PAS résolu, contrairement à `getByLabelText`.
     expect(screen.getByTestId('bloc-location')).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.queryByRole('combobox', { name: /fréquence/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: /fréquence/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /disponible/i })).not.toBeInTheDocument();
   });
 

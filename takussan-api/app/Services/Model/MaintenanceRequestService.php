@@ -2,14 +2,17 @@
 
 namespace App\Services\Model;
 
+use App\Events\Maintenance\MaintenanceScheduleChanged;
 use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\MaintenanceRescheduleRequest;
 use App\Models\User;
 use App\Services\Maintenance\CurrencyUnit;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Media\PrivateMediaAccess;
+use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
@@ -51,11 +54,12 @@ class MaintenanceRequestService
         ?User $actor = null,
         string $cause = MaintenanceStatusChanged::CAUSE_TRANSITION,
         array $context = [],
+        ?string $cancellationReason = null,
     ): MaintenanceRequest {
         // P211.03 (TCK-2193) — le patron d'`accept` (TCK-1822) : la ligne relue sous verrou, la
         // table jugée sur elle, l'événement après le commit. Jugée sur le modèle reçu, la clôture
         // automatique écrasait une contestation faite pendant son passage.
-        $current = DB::transaction(function () use ($mr, $to, $actor): ?MaintenanceStatus {
+        $current = DB::transaction(function () use ($mr, $to, $actor, $cancellationReason): ?MaintenanceStatus {
             $fresh = $this->lockFresh($mr);
             $current = $fresh->status ?? MaintenanceStatus::Open;
 
@@ -81,6 +85,13 @@ class MaintenanceRequestService
 
             if ($to === MaintenanceStatus::Completed && $fresh->completed_at === null) {
                 $fresh->completed_at = now();
+            }
+
+            // TCK-2917 (ADR-0118 § 1) — le motif de qui annule, dans la même écriture que le statut.
+            // Une annulation du système (bien supprimé) n'en porte pas : son code reste à l'audit.
+            if ($to === MaintenanceStatus::Cancelled) {
+                $reason = $cancellationReason !== null ? trim($cancellationReason) : '';
+                $fresh->cancellation_reason = $reason !== '' ? $reason : null;
             }
 
             $fresh->save();
@@ -224,28 +235,55 @@ class MaintenanceRequestService
         }
     }
 
-    public function accept(MaintenanceRequest $mr, User $provider): MaintenanceRequest
+    public function accept(MaintenanceRequest $mr, User $provider, ?CarbonInterface $scheduledAt = null): MaintenanceRequest
     {
         // P182.07 (TCK-1822) — la ligne est relue sous verrou, et les gardes se jugent sur elle :
         // jugées sur le modèle reçu, deux acceptations simultanées passaient toutes deux et
         // émettaient deux événements. L'événement part après la transaction.
-        $mr = DB::transaction(function () use ($mr): MaintenanceRequest {
+        $scheduleChanged = false;
+        $mr = DB::transaction(function () use ($mr, $provider, $scheduledAt, &$scheduleChanged): MaintenanceRequest {
             $fresh = MaintenanceRequest::query()
                 ->whereKey($mr->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            // Vérification adverse de TCK-2680 — l'autorisation (`respondToAssignment`) se juge sur
+            // le modèle chargé AVANT le verrou : réassignée entre-temps, la demande s'acceptait au
+            // nom de l'ancien prestataire, avec son créneau. L'assignation se relit sous verrou.
+            abort_code_if($fresh->assigned_to !== $provider->id, 403, 'maintenance.no_longer_assigned');
             abort_code_if($this->machine->isTerminal($fresh->status), 422, 'maintenance.terminal_request');
+            // TCK-2652 — le travail rendu ne s'accepte plus : `completed` n'est pas terminal (le
+            // demandeur peut encore contester), et « J'accepte » y passait. Conflit avec l'état de la
+            // ressource, d'où 409 ; `closed` et `cancelled` gardent le 422 commun des terminaux.
+            abort_code_if($fresh->status === MaintenanceStatus::Completed, 409, 'maintenance.accept_after_completion');
             abort_code_if($fresh->accepted_at !== null, 422, 'maintenance.already_accepted');
 
             $fresh->accepted_at = now();
+            // TCK-2680 — le créneau proposé est posé dans la MÊME écriture que l'acceptation : les
+            // deux ou rien. Même règle d'annonce que le `PATCH` (TCK-2012) : la même heure renvoyée
+            // n'est pas un passage déplacé.
+            // TCK-2700 — l'instant est ramené au fuseau de l'application par la conversion partagée
+            // avec le `PATCH` : le cast `datetime` écrit l'heure murale reçue sans convertir son décalage.
+            if ($scheduledAt !== null) {
+                $fresh->scheduled_at = MaintenanceRequest::scheduledInstant($scheduledAt);
+                $scheduleChanged = $fresh->isDirty('scheduled_at');
+            }
             $fresh->save();
+
+            // TCK-2917 (ADR-0118 § 3) — le créneau proposé à l'acceptation répond à la demande en attente.
+            if ($scheduleChanged) {
+                MaintenanceRescheduleRequest::closeFor($fresh, $provider);
+            }
 
             return $fresh;
         });
 
         $status = $mr->status ?? MaintenanceStatus::Open;
         MaintenanceStatusChanged::dispatch($mr, $status, $status, $provider, MaintenanceStatusChanged::CAUSE_ACCEPTED);
+        // TCK-2680 — le créneau s'annonce à toutes les parties sauf l'auteur, par le chemin du `PATCH`.
+        if ($scheduleChanged) {
+            MaintenanceScheduleChanged::dispatch($mr, $provider);
+        }
 
         return $mr->refresh();
     }

@@ -19,7 +19,7 @@ class BankStatementLine extends AbstractModel implements HasAuditAgency
     protected $fillable = [
         'bank_statement_id', 'posted_at', 'amount', 'direction', 'currency',
         'label', 'reference', 'counterparty', 'raw_payload', 'duplicate_of_line_id',
-        'match_status', 'matched_payment_type', 'matched_payment_id',
+        'match_status', 'matched_payment_type', 'matched_payment_id', 'matched_part',
         'match_confidence', 'confirmed_at', 'confirmed_by',
     ];
 
@@ -45,7 +45,7 @@ class BankStatementLine extends AbstractModel implements HasAuditAgency
     protected static array $queryFields = [
         'id', 'bank_statement_id', 'posted_at', 'amount', 'direction', 'currency',
         'label', 'reference', 'counterparty', 'duplicate_of_line_id', 'match_status',
-        'matched_payment_type', 'matched_payment_id', 'match_confidence',
+        'matched_payment_type', 'matched_payment_id', 'matched_part', 'match_confidence',
         'confirmed_at', 'confirmed_by', 'created_at',
     ];
 

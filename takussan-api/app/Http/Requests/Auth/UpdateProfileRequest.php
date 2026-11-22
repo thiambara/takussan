@@ -2,15 +2,15 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Models\User;
 use App\Rules\PixelsAuPlus;
 use App\Rules\TelephoneJoignable;
 use App\Services\Auth\PhoneChangeGuard;
 use App\Support\CaseInsensitive;
 use Closure;
-use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateProfileRequest extends FormRequest
+class UpdateProfileRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {

@@ -41,6 +41,13 @@ export type FavoriteItem = {
   user_id: number;
   notes: string | null;
   created_at: string;
+  /**
+   * TCK-2507 — prix courant − prix à l'enregistrement du favori dans le compte. `null` pour un
+   * bien non disponible, un favori antérieur au 2026-11-09 ou posé sur un bien alors non public ;
+   * `0` : prix inchangé. ⚠ Un favori versé depuis l'appareil à la connexion a pris le prix de la
+   * connexion : « depuis l'ajout » s'y lit « depuis l'enregistrement dans le compte ».
+   */
+  price_change?: number | null;
 } & (
   | {
       availability: 'available';

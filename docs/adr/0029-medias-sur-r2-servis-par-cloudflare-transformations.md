@@ -6,7 +6,7 @@
 - **Amendement du 2026-10-04 (TCK-585)** : les **photos de biens** ne passent plus par Transformations. Leurs conversions sont produites en WebP et servies telles quelles ; le §4 ne vaut plus que pour les autres images du seau public (avatars, logos, plans). Voir [§ Amendement du 2026-10-04](#amendement-du-2026-10-04--les-photos-de-biens-ne-passent-plus-par-transformations-tck-585).
 - **Amendement du 2026-10-23 (P180.02)** : la route signée `media.private.show` sert aussi une **conversion nommée** dans l'URL signée et propre à la collection (d'abord la `preview` des `room_photos` de l'état des lieux, puis les photos de maintenance), pour que les vignettes privées ne chargent plus l'original. Voir le § *Amendement du 2026-10-23 — la route signée sert aussi une conversion nommée*.
 - **Amendement du 2026-10-30 (TCK-2407)** : la copie nocturne du seau privé n'est plus une copie unique qui ne supprime jamais, mais un **instantané daté par jour**, marqué complet par `.complet`, dont les 14 plus récents sont gardés, jamais le dernier complet retiré. Un objet effacé du seau privé quitte la sauvegarde 14 jours au plus après son effacement, tant que les passages réussissent ; un objet vivant est dans chaque instantané complet ; la liste des effacements garde une copie jamais tournée. Voir le § *Amendement du 2026-10-30 — la copie du seau privé est un instantané par jour, gardé 14 jours*.
-- **Complète** : [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) §6-7 (le volume de médias et sa sauvegarde) ; **rend caduc** le choix de Bunny comme CDN par défaut de [`docs/infra/cdn.md`](../infra/cdn.md) (TCK-105), jamais activé (`CDN_ENABLED=false` partout).
+- **Complète** : [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) §6-7 (le volume de médias et sa sauvegarde) ; **rend caduc** le choix de Bunny comme CDN par défaut de `docs/infra/cdn.md` (TCK-105 ; document supprimé avec l'intégration par TCK-2463), jamais activé (`CDN_ENABLED=false` partout). <!-- lien-mort-assumé -->
 
 ## Contexte
 
@@ -109,7 +109,9 @@ par Cloudflare Transformations depuis le domaine du seau public.**
   défaut, sans R2 ni MinIO. Le loader laisse passer telle quelle toute URL hors du domaine de médias.
   Le code distant est éprouvé par les tests sur un disque simulé, et en préproduction.
 - **L'intégration CDN de TCK-105** (Bunny, signature, purge) n'est plus sur le chemin. Elle reste
-  désactivée ; son retrait est un ticket à part.
+  désactivée ; son retrait est un ticket à part. **Retrait fait le 2026-11-16 : TCK-2463** (pilotes,
+  observateur de purge, route `GET /api/media/{id}/sign`, sonde `cdn`, `config/cdn.php`, clés
+  `CDN_*`/`BUNNY_*` ; `media-library.url_generator` revenu à `DefaultUrlGenerator`, URL inchangées).
 
 ## Application
 

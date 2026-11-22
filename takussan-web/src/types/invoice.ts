@@ -57,6 +57,8 @@ export type Payout = {
   status: PayoutStatus;
   /** TCK-594 (ADR-0039 §2) — le bénéficiaire explicite ; une caution rendue est `tenant`. */
   payee_role?: PayeeRole | null;
+  /** TCK-2909 — acompte, solde, restitution, remboursement constaté, facture de prestataire ; `null` pour un reversement au bailleur antérieur. */
+  nature?: 'advance' | 'balance' | 'deposit_refund' | 'refund' | 'provider_bill' | null;
   service_provider_bill_id?: number | null;
   approved_by_id?: number | null;
   approved_at?: string | null;
@@ -118,6 +120,35 @@ export type PaymentHistoryRow = {
   property_id: number | null;
   customer_id: number | null;
   created_at: string | null;
+  /**
+   * TCK-2657 / TCK-2659 — l'encaissement NOMMÉ, servi par `include=payer,property,landlord` : la
+   * fiche client qui paie (`payer.id` est celui de `filter[payer_id]`), le bien, le bailleur
+   * (`landlord.id` est celui de `filter[landlord_id]`). Absents sans l'`include`, nuls quand la
+   * relation manque.
+   */
+  payer?: {
+    readonly id: number;
+    readonly name: string | null;
+    readonly phone?: string | null;
+    /** TCK-2660 — le prénom et la langue du payeur, pour la relance (ADR-0105 § 1) ; `locale` nulle : l'écran choisit. */
+    readonly first_name?: string | null;
+    readonly locale?: string | null;
+  } | null;
+  property?: { readonly id: number; readonly title: string | null; readonly reference_number?: string | null } | null;
+  landlord?: { readonly id: number; readonly name: string | null } | null;
+  /** Jours de retard (≥ 1), nul sinon ; servi dès qu'un paramètre de TCK-2657 est passé. */
+  days_late?: number | null;
+  /** TCK-2658 — `include=reminders` : la dernière relance d'une ligne de bail (nulle sinon). */
+  last_reminder?: {
+    readonly at: string;
+    /** TCK-2660 — `manual` (notée par l'agence) ou `automatic` (rappel du job, sans canal ni auteur). */
+    readonly source?: 'manual' | 'automatic' | null;
+    readonly channel?: string | null;
+    /** TCK-2778 — ce que la relance relançait : le loyer (`rent`) ou la pénalité de retard seule (`late_fee`). */
+    readonly subject?: 'rent' | 'late_fee' | null;
+    readonly by?: { readonly id: number; readonly name: string | null } | null;
+  } | null;
+  reminders_count?: number;
 };
 
 export type PaymentHistoryTotals = {
@@ -125,6 +156,10 @@ export type PaymentHistoryTotals = {
   amount: number;
   paid_amount: number;
   remaining_amount: number;
+  /** TCK-2733 — les cautions (`deposit`) de la sélection, que la tuile « Encaissé » exclut ; la caution rendue n'en est pas. */
+  deposits_count?: number;
+  /** TCK-2733 — la somme de leur `paid_amount`, sur toute la sélection (pas la page). */
+  deposits_amount?: number;
 };
 
 export type PayeeRole = 'landlord' | 'tenant' | 'service_provider';
@@ -145,6 +180,13 @@ export type PayoutMethod = {
   is_default: boolean;
   verified: boolean;
   verified_at?: string | null;
+  /**
+   * TCK-2863 / TCK-2864 — `in_review` : RIB envoyé, pas encore vérifié (informatif : seul `verified` permet de
+   * verser) ; `to_confirm` : rien d'envoyé. Absent d'une API plus ancienne.
+   */
+  verification_status?: 'verified' | 'in_review' | 'to_confirm';
+  bank_statement_submitted_at?: string | null;
+  bank_statement_media_id?: number | null;
 };
 
 type PreparationLine = {
@@ -237,13 +279,71 @@ export type OwnerStatement = {
     net_amount: number;
     transaction_id: string | null;
     processed_at: string | null;
+    /** TCK-2651 — versé DANS la période (le « Déjà versé » du mois), pas seulement porteur d'une pièce. */
+    paid_in_period?: boolean;
+    /** TCK-2915 — le moyen du reversement, et sa nature (TCK-2909 ; `null` avant la colonne). */
+    payment_method?: string | null;
+    nature?: 'advance' | 'balance' | 'refund' | 'deposit_refund' | 'provider_bill' | string | null;
   }>;
+  /** TCK-2915 — le compteur de l'onglet « Versements » : la longueur de `payouts[]`. */
+  payouts_count?: number;
+  /** TCK-2915 — la règle de versement : le jour du mandat, sinon celui de l'agence ; `null` sans règle. */
+  payout_rule?: { day: number | null; source: 'mandate' | 'agency' | null };
   /**
    * TCK-2321 (P177.05) — le relevé envoyé : un mois qui en a un est servi depuis lui, et ce qui a
    * été écrit depuis vient en rectificatif. Nuls hors instantané (mois non envoyé, attestation).
    */
   snapshot?: { sent_at: string } | null;
   rectification?: OwnerStatementRectification | null;
+  /**
+   * TCK-2760 (ADR-0100, amendement du 2026-11-12) — le SOLDE cumulé au jour : ce que l'agence doit au
+   * bailleur aujourd'hui, quel que soit le mois demandé. C'est le seul « reste à verser » qu'un écran
+   * affiche (TCK-2651). L'écart du mois, `totals.remaining_to_pay`, n'est volontairement pas typé :
+   * aucun écran ne doit le lire sous ce libellé.
+   */
+  balance?: { remaining_to_pay: number; as_of: string } | null;
+  /** TCK-2649 — le prochain reversement programmé au bailleur, `null` s'il n'y en a pas. */
+  next_payout?: {
+    id: number;
+    scheduled_at: string | null;
+    payment_method: string | null;
+    status: PayoutStatus | null;
+    net_amount: number;
+    /** TCK-2915 — le compte du versement, MASQUÉ (« •••• 4521 »), et sa nature (`wave`, `bank_transfer`…). */
+    payout_method_kind?: string | null;
+    payout_method_masked?: string | null;
+    /** `payout` : le compte du reversement ; `default` : le moyen par défaut vérifié pour l'agence. */
+    payout_method_source?: 'payout' | 'default' | null;
+  } | null;
+  /** TCK-2649 — une ligne par bien du bailleur dans l'agence, sur la période. */
+  properties?: OwnerStatementProperty[];
+  /** Les pièces de la période ; seul le taux de commission de chacune est lu à l'écran (TCK-2651). */
+  lines?: Partial<Record<'lease_payments' | 'booking_payments' | 'late_fees', Array<{ commission_rate?: number | null }>>>;
+};
+
+/** TCK-2649 — `properties[]` du relevé : le bien, son locataire et l'état du loyer sur la période. */
+export type OwnerStatementProperty = {
+  property_id: number;
+  title: string | null;
+  tenant_name: string | null;
+  expected_rent: number;
+  collected: number;
+  commission: number;
+  fees: number;
+  net: number;
+  has_movements: boolean;
+  /** `paid`, `late`, `partial`, `due`, `none` (bail sans échéance émise) ou `vacant` (`RentMonthStatus`). */
+  /** `refunded` : loyer échu reçu puis remboursé (TCK-2651, décision 18 du porteur). */
+  month_status: 'paid' | 'late' | 'partial' | 'due' | 'none' | 'vacant' | 'refunded' | string;
+  days_late: number | null;
+  /** TCK-2915 — la référence du bail de la ligne, la vignette du bien (`null` sans photo). */
+  lease_reference?: string | null;
+  photo_url?: string | null;
+  /**
+   * TCK-2915 (ADR-0105, amendement du 2026-11-15) — les relances NOTÉES par l'agence des échéances en
+   * retard de la période, de la plus récente à la plus ancienne. Jamais la note interne.
+   */
+  reminders?: Array<{ at: string | null; channel: 'whatsapp' | 'call' | string | null; by_name: string | null }>;
 };
 
 export type OwnerStatementTotals = OwnerStatement['totals'] & { clawback?: number };
@@ -256,7 +356,8 @@ export type OwnerStatementRectification = {
 };
 
 /** TCK-594 (ADR-0039 §8) — la facture d'un prestataire pour une intervention terminée. */
-export type ServiceProviderBillStatus = 'pending_validation' | 'validated' | 'rejected' | 'paid' | 'cancelled';
+/** TCK-2911 (ADR-0120 § 1) — `draft` : « À facturer », lue du seul prestataire, envoyée par `POST …/submit`. */
+export type ServiceProviderBillStatus = 'draft' | 'pending_validation' | 'validated' | 'rejected' | 'paid' | 'cancelled';
 
 export type ServiceProviderBill = {
   id: number;
@@ -276,5 +377,92 @@ export type ServiceProviderBill = {
   rechargeable_to_landlord: boolean;
   imputed_payout_id: number | null;
   created_at: string | null;
+  /** TCK-2911 (ADR-0120 § 1) — l'instant de « Facturer » (nul pour un brouillon ou une facture antérieure). */
+  submitted_at?: string | null;
+  /** TCK-2911 — la pièce du prestataire, au détail seulement (URL d'API signée). */
+  invoice?: { id: number; name: string; mime_type: string | null; size: number; url: string } | null;
+  /** TCK-2654 — servis par `include=maintenanceRequest,property`, réduits au titre. */
+  maintenance_request?: { readonly id: number; readonly title: string } | null;
+  property?: { readonly id: number; readonly title: string } | null;
 };
 
+
+/**
+ * TCK-2649 / TCK-2650 (ADR-0100) — `GET /api/me/rent-summary` : ce que doit le locataire connecté, en
+ * un montant calculé par l'API (pénalités comprises), et ce qui le compose. La page n'additionne rien.
+ */
+export type EtatDeLEcheancier = 'due' | 'up_to_date' | 'none';
+
+export interface LigneDuDu {
+  /** `rent`, `charges` (TCK-2679) ou `late_fee` : une pénalité restant due, même sur un loyer payé. */
+  readonly kind: 'rent' | 'charges' | 'late_fee' | string;
+  readonly lease_payment_id: number;
+  readonly lease_id: number;
+  readonly payment_type: string | null;
+  readonly due_date: string | null;
+  readonly period_start: string | null;
+  readonly period_end: string | null;
+  readonly amount: number;
+  readonly currency: string | null;
+  readonly days_late: number | null;
+  readonly payable_online: boolean;
+}
+
+export interface ProchainLoyer {
+  readonly lease_id: number;
+  readonly lease_payment_id: number;
+  readonly due_date: string;
+  readonly amount: number;
+  readonly charges_amount: number;
+  readonly currency: string | null;
+  readonly payable_online: boolean;
+}
+
+export interface MoyensHorsLigne {
+  readonly wave_number?: string;
+  readonly orange_money_number?: string;
+  readonly bank_details?: string;
+  readonly agency_phone?: string;
+}
+
+export interface ResumeDuLoyer {
+  readonly currency: string | null;
+  readonly total_due: number;
+  readonly parts: { readonly payable_online: number; readonly payable_at_agency: number };
+  readonly items: readonly LigneDuDu[];
+  readonly next_rent: ProchainLoyer | null;
+  /** `null` : aucun bail (un client de réservation). */
+  readonly schedule_state: EtatDeLEcheancier | null;
+  readonly lease: {
+    readonly id: number;
+    readonly reference_number: string | null;
+    readonly status: string | null;
+    readonly monthly_rent: number | null;
+    readonly monthly_charges: number | null;
+    readonly currency: string | null;
+    /** TCK-2852 (servi par TCK-2851) — jusqu'à quand court le bail (`AAAA-MM-JJ`). */
+    readonly end_date?: string | null;
+    /**
+     * TCK-2852 (servi par TCK-2851) — la photo du bien (`cover_url`) et son lieu en « quartier, ville »
+     * (`address_line`, jamais la rue).
+     */
+    readonly property: {
+      readonly id: number;
+      readonly title: string;
+      readonly cover_url?: string | null;
+      readonly address_line?: string | null;
+    } | null;
+    /**
+     * TCK-2852 (servi par TCK-2851) — l'agent du bail, `null` sans agent ou s'il n'est plus personnel
+     * actif de l'agence. Jamais de téléphone ni de courriel : le locataire lui écrit par la messagerie.
+     */
+    readonly agent?: { readonly user_id: number; readonly name: string; readonly avatar_url: string | null } | null;
+    readonly agency: { readonly id: number; readonly name: string; readonly phone: string | null } | null;
+  } | null;
+  readonly offline_payment: MoyensHorsLigne | null;
+  /**
+   * TCK-2852 (servi par TCK-2851) — les fournisseurs EN LIGNE ouverts pour l'agence et la devise du bail
+   * (`wave`, `orange_money`…, codes de `PaymentProvider`) ; `[]` sans bail.
+   */
+  readonly online_means?: readonly string[];
+}

@@ -51,6 +51,12 @@ class AgentHandoverController extends Controller
             'unassigned' => array_map('count', $result['unassigned']),
             // TCK-1333 (P121.04) — ce que le partant garde, compté à part de ce qui n'est à personne.
             'left_to_member' => array_map('count', $result['left_to_member']),
+            // TCK-616 AC6 — les baux des biens saisis transmis : brouillons passés au repreneur
+            // (comptés), autres statuts LISTÉS, jamais réécrits — à reprendre par une personne.
+            'leases' => [
+                'moved' => count($result['leases']['moved']),
+                'to_review' => $result['leases']['to_review'],
+            ],
             'removed' => $result['removed_profiles'] !== null,
             'portfolio' => $this->handover->inventory($agency, $user),
         ]]);

@@ -4,8 +4,15 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Inventory;
+use App\Models\Lease;
+use App\Models\Property;
+use App\Policies\DocumentPolicy;
 use App\Services\Document\DocumentVersionService;
+use App\Services\Documents\AuteurDuDocument;
+use App\Services\Documents\DocumentVisibility;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Support\Http\ParametreUnique;
@@ -14,6 +21,21 @@ use Illuminate\Http\Request;
 
 class DocumentResource extends BaseResource
 {
+    /**
+     * TCK-2773 (ADR-0099, amendement du 2026-11-13, § 5) — les auteurs nommés selon le lecteur
+     * (`uploaded_by_person`, `verified_by_person`, `versions[].uploaded_by_person`) : sur un document
+     * seul, jamais sur une liste.
+     */
+    private bool $avecAuteurs = false;
+
+    /** TCK-2773 — la fiche d'un document : ses auteurs, jugés par {@see AuteurDuDocument}. */
+    public function avecAuteurs(): static
+    {
+        $this->avecAuteurs = true;
+
+        return $this;
+    }
+
     /**
      * P189.01 (TCK-1867) — une page de documents, avec ses `abilities` : le porteur est chargé une
      * fois pour la page, et les profils de l'appelant dans les agences des porteurs jugés une fois
@@ -29,6 +51,9 @@ class DocumentResource extends BaseResource
             return self::collection($paginator)->toArray($request);
         }
 
+        // Vérification de 416274da0 (r1, r2) — `abilities` se juge sur la ligne entière, quels que soient
+        // les `fields[documents]` : le porteur (ses deux clés), l'auteur et le drapeau interne.
+        DocumentVisibility::completerLesColonnes($documents, ['documentable_type', 'documentable_id', ...DocumentVisibility::COLONNES_DU_JUGEMENT]);
         $documents->loadMissing('documentable');
 
         return MembershipCapabilityResolver::primed(
@@ -38,6 +63,41 @@ class DocumentResource extends BaseResource
                 : ($document->documentable?->agency_id ?? null)),
             fn () => self::collection($paginator)->toArray($request),
         );
+    }
+
+    /**
+     * TCK-2895 (ADR-0099, amendement du 2026-11-15, § 7) — le bien et, le cas échéant, le bail du porteur
+     * (un bien, un bail, un état des lieux), rendus seulement à qui LIT la cible
+     * (`DocumentPolicy::readsTarget`) : le téléverseur gardé qui ne lit plus le porteur n'en apprend
+     * pas plus que la pièce. Nul pour tout autre porteur.
+     *
+     * @return array{property: ?array{id: int, title: ?string, neighborhood: ?string}, lease: ?array{id: int, reference_number: ?string, tenant_name: ?string}}|null
+     */
+    private function contexte(Request $request): ?array
+    {
+        /** @var Document $document */
+        $document = $this->resource;
+        $porteur = $document->documentable;
+        [$bien, $bail] = match (true) {
+            $porteur instanceof Property => [$porteur, null],
+            $porteur instanceof Lease => [$porteur->property, $porteur],
+            $porteur instanceof Inventory => [$porteur->property, $porteur->lease],
+            default => [null, null],
+        };
+        $user = $request->user();
+        if (($bien === null && $bail === null) || $user === null || ! app(DocumentPolicy::class)->readsTarget($user, $porteur)) {
+            return null;
+        }
+        $locataire = $bail?->tenant?->full_name;
+
+        return [
+            'property' => $bien !== null ? ['id' => (int) $bien->id, 'title' => $bien->title, 'neighborhood' => $bien->address?->neighborhood] : null,
+            'lease' => $bail !== null ? [
+                'id' => (int) $bail->id,
+                'reference_number' => $bail->reference_number,
+                'tenant_name' => $locataire !== null && $locataire !== '' ? $locataire : null,
+            ] : null,
+        ];
     }
 
     public function toArray(Request $request): array
@@ -58,16 +118,38 @@ class DocumentResource extends BaseResource
         $includes = array_filter(array_map('trim', explode(',', $include)));
         $includeVersions = in_array('versions', $includes, true);
 
+        // TCK-2773 — un juge pour la fiche : chaque auteur n'y est jugé qu'une fois.
+        $juge = $this->avecAuteurs ? AuteurDuDocument::pour($this->resource, $request->user()) : null;
+
         return [
             'id' => $this->id,
             'documentable_id' => $this->documentable_id,
             'documentable_type' => $this->documentable_type,
+            // TCK-2841 — le bail porteur, nommé à l'écran (l'onglet Documents d'un bien range ses pièces
+            // par bail) : lu sur le porteur que la page charge déjà, sans requête de plus.
+            'lease' => $this->when(
+                $this->documentable_type === Lease::class && $this->relationLoaded('documentable') && $this->documentable instanceof Lease,
+                fn (): array => [
+                    'id' => (int) $this->documentable->id,
+                    'reference_number' => $this->documentable->reference_number,
+                    'status' => $this->enumValue($this->documentable->status),
+                ],
+            ),
+            // TCK-2895 (ADR-0099, amendement du 2026-11-15, § 7) — « Rattaché à », « Bien » et le fil
+            // « Bien › Bail › dossier » de la fiche : sur un document seul, jamais sur une liste.
+            'context' => $this->when($this->avecAuteurs, fn (): ?array => $this->contexte($request)),
             'uploaded_by' => $this->uploaded_by,
+            // TCK-2773 — le nom, un rôle ou rien, selon le lecteur ; absent d'une liste.
+            'uploaded_by_person' => $this->when($juge !== null, fn () => $juge->de($this->uploaded_by)),
             'name' => $this->name,
             'type' => $this->type?->value,
             'description' => $this->description,
             'is_verified' => (bool) $this->is_verified,
+            // TCK-2759 — gardé pour l'agence : le sujet de la fiche ne le lit pas (seul le personnel le reçoit).
+            'is_internal' => (bool) $this->is_internal,
             'verified_by' => $this->verified_by,
+            // TCK-2773 — un opérateur de la plateforme : `platform` hors de la console.
+            'verified_by_person' => $this->when($juge !== null, fn () => $juge->de($this->verified_by)),
             'verified_at' => $this->iso($this->verified_at),
             'expiry_date' => $this->calendarDate($this->expiry_date),
             // Le fichier qui fait foi (TCK-2300). TCK-539 — URL d'API signée, plus l'URL du fichier :
@@ -78,14 +160,16 @@ class DocumentResource extends BaseResource
             'mime_type' => $file?->mime_type,
             // Active version from the `versions` collection (null if no version uploaded yet).
             'active_version' => $activeVersion
-                ? DocumentVersionResource::make($activeVersion)->toArray($request)
+                ? DocumentVersionResource::make($activeVersion)->avecJuge($juge)->toArray($request)
                 : null,
             // Versions list — only included when explicitly requested via include=versions.
             'versions' => $includeVersions
-                ? DocumentVersionResource::collection($this->getMedia(DocumentVersionService::COLLECTION)
+                ? $this->getMedia(DocumentVersionService::COLLECTION)
                     ->sortByDesc(fn ($m) => $m->getCustomProperty('version_number', 0))
                     ->values()
-                )->toArray($request)
+                    // TCK-2773 — chaque version avec le juge de la fiche (aucun sur une liste).
+                    ->map(fn ($m) => DocumentVersionResource::make($m)->avecJuge($juge)->toArray($request))
+                    ->all()
                 : null,
             'created_at' => $this->iso($this->created_at),
             // P189.01 (TCK-1867) — les gestes que `DocumentPolicy` accorde à l'appelant : la fiche et
@@ -93,8 +177,20 @@ class DocumentResource extends BaseResource
             // « Supprimer » par la seule identité du téléverseur (le bailleur suspendu les perd, TCK-587).
             'abilities' => $this->when($request->user() !== null, fn (): array => [
                 'update' => $request->user()->can('update', $this->resource),
-                'share' => $request->user()->can('share', $this->resource),
+                'share' => $partage = $request->user()->can('share', $this->resource),
                 'delete' => $request->user()->can('delete', $this->resource),
+                // TCK-2729 5a — le bailleur bloqué voit et révoque les liens qu'il a créés
+                // (`DocumentPolicy::manageOwnShareLinks`) : sur la fiche seule, et jugé seulement quand
+                // `share` est refusé — aucune requête de plus sur une liste ni pour qui partage.
+                'manage_own_share_links' => $this->avecAuteurs && ! $partage
+                    && $request->user()->can('manageOwnShareLinks', $this->resource),
+                // TCK-2759 — « Garder pour l'agence » / « Rendre visible au client » : sur une fiche
+                // client seulement (ailleurs, la bascule rend 422 et ne s'offre pas). Ni sur une pièce
+                // visible du sujet : la seule bascule y serait refusée (TCK-2759 r1, DocumentVisibility::basculeOfferte).
+                'set_visibility' => $this->documentable_type === Customer::class
+                    && $request->user()->can('setVisibility', $this->resource)
+                    && $this->documentable instanceof Customer
+                    && DocumentVisibility::basculeOfferte($this->resource, $this->documentable),
             ]),
         ];
     }

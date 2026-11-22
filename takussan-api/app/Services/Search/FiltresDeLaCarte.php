@@ -51,6 +51,13 @@ final class FiltresDeLaCarte
         if (! empty($p['location'])) {
             $this->quartier($query, (string) $p['location']);
         }
+        // TCK-2607 — `locations` : OU entre les quartiers, comme `buildFilter()`.
+        if (! empty($p['locations']) && is_array($p['locations'])) {
+            $quartiers = array_values(array_filter(array_map(fn ($q) => trim((string) $q), $p['locations'])));
+            if ($quartiers !== []) {
+                $this->quartiers($query, $quartiers);
+            }
+        }
         if (! empty($p['city'])) {
             $this->adresseEgale($query, 'city', (string) $p['city']);
         }
@@ -143,6 +150,26 @@ final class FiltresDeLaCarte
         $query->whereHas('address', fn (Builder $q) => $q->where(function (Builder $q) use ($ids, $textes) {
             $q->whereIn('geo_neighborhood_id', $ids)
                 ->orWhere(fn (Builder $q) => $q->whereNull('geo_neighborhood_id')->whereIn('neighborhood', $textes));
+        }));
+    }
+
+    /**
+     * TCK-2607 — plusieurs quartiers : UN `whereHas` sur l'adresse, un groupe OU par quartier (des
+     * `whereHas` successifs se combineraient en ET), chacun jugé par la règle de {@see self::quartier()}.
+     *
+     * @param  Builder<Property>  $query
+     * @param  list<string>  $saisies
+     */
+    private function quartiers(Builder $query, array $saisies): void
+    {
+        $filtre = app(QuartierDuFiltre::class);
+        $groupes = array_map(fn (string $saisie) => [$filtre->idsDuReferentiel($saisie), $filtre->textesLibres($saisie)], $saisies);
+
+        $query->whereHas('address', fn (Builder $q) => $q->where(function (Builder $q) use ($groupes) {
+            foreach ($groupes as [$ids, $textes]) {
+                $q->orWhere(fn (Builder $q) => $q->whereIn('geo_neighborhood_id', $ids)
+                    ->orWhere(fn (Builder $q) => $q->whereNull('geo_neighborhood_id')->whereIn('neighborhood', $textes)));
+            }
         }));
     }
 

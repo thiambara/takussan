@@ -11,15 +11,20 @@ use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
 /**
- * TCK-280 — `filter[search]` on the dashboard property listing is routed
- * through Scout/Meilisearch while staying agency-scoped.
+ * TCK-280 — `filter[search]` on the dashboard property listing stays agency-scoped.
+ * TCK-578 — it no longer goes through Scout/Meilisearch: the property index is public-only.
  */
 class PropertyDashboardSearchTest extends TestCase
 {
     use InteractsWithMeilisearch;
     use RefreshDatabase;
 
-    public function test_dashboard_search_is_typo_tolerant(): void
+    /**
+     * TCK-578 (ADR-0008, amendement du 2026-11-16) — la recherche des consoles passe par la base,
+     * pour trouver les biens que l'index PUBLIC ne contient pas. Le prix, assumé : plus de tolérance
+     * aux fautes. Ce test l'épingle, pour qu'un retour au moteur se décide et ne se glisse pas.
+     */
+    public function test_dashboard_search_is_strict_by_decision(): void
     {
         $agency = Agency::factory()->create();
         $agent = User::factory()->withAgentProfile($agency)->create();
@@ -33,6 +38,9 @@ class PropertyDashboardSearchTest extends TestCase
         Sanctum::actingAs($agent);
 
         $this->getJson('/api/properties?filter[search]=appartemnt')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+        $this->getJson('/api/properties?filter[search]=APPARTEMENT')
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.id', $property->id);
@@ -63,59 +71,7 @@ class PropertyDashboardSearchTest extends TestCase
             ->assertJsonPath('data.0.id', $mine->id);
     }
 
-    /**
-     * TCK-662 (P01.01) — sans `sort=`, une recherche de `/app` est classée par pertinence.
-     *
-     * Les trois biens sont créés dans l'ordre INVERSE de leur pertinence : le tri par date
-     * (`-created_at`) rendrait 2-fautes, 1-faute, exact.
-     */
-    public function test_dashboard_search_ranks_by_relevance_not_by_date(): void
-    {
-        [$agent, $exact, $oneTypo, $twoTypos] = $this->troisBiensDePertinenceDecroissante();
-
-        Sanctum::actingAs($agent);
-
-        $ids = $this->getJson('/api/properties?filter[search]=Ndiayefall&fields[properties]=id,title')
-            ->assertOk()
-            ->assertJsonPath('meta.total', 3)
-            ->json('data.*.id');
-
-        $this->assertSame([$exact->id, $oneTypo->id, $twoTypos->id], $ids);
-    }
-
-    /**
-     * TCK-662 — un `sort=` explicite reste souverain : la pertinence n'est qu'un tri par défaut.
-     */
-    public function test_explicit_sort_wins_over_relevance(): void
-    {
-        [$agent, $exact, $oneTypo, $twoTypos] = $this->troisBiensDePertinenceDecroissante();
-
-        Sanctum::actingAs($agent);
-
-        $ids = $this->getJson('/api/properties?filter[search]=Ndiayefall&sort=-created_at&fields[properties]=id,title,created_at')
-            ->assertOk()
-            ->json('data.*.id');
-
-        $this->assertSame([$twoTypos->id, $oneTypo->id, $exact->id], $ids);
-    }
-
-    /** @return array{0: User, 1: Property, 2: Property, 3: Property} */
-    private function troisBiensDePertinenceDecroissante(): array
-    {
-        $agency = Agency::factory()->create();
-        $agent = User::factory()->withAgentProfile($agency)->create();
-        $bien = fn (string $titre, int $jours) => Property::factory()->create([
-            'user_id' => $agent->id,
-            'agency_id' => $agency->id,
-            'title' => $titre,
-            'created_at' => now()->subDays($jours),
-        ]);
-
-        $exact = $bien('Villa Ndiayefall', 3);
-        $oneTypo = $bien('Villa Ndiayefalt', 2);
-        $twoTypos = $bien('Villa Ndiayefaxt', 1);
-        $this->indexProperties();
-
-        return [$agent, $exact, $oneTypo, $twoTypos];
-    }
+    // TCK-662 — le classement par pertinence du moteur n'a plus cours sur cette liste (TCK-578) :
+    // la référence exacte en tête et la souveraineté de `sort=` sont épinglées par
+    // `Tests\Feature\Search\RechercheConsoleDesBiensTest::test_la_reference_exacte_vient_en_tete`.
 }

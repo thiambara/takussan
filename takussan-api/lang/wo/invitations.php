@@ -39,6 +39,8 @@ return [
         'cannot_create' => 'Amul nga ndimbal ngir yónni invitation.',
         'cannot_view' => 'Amul nga ndimbal ngir gis invitation bi.',
         'cannot_revoke' => 'Amul nga ndimbal ngir indi invitation bi ci suuf.',
+        // TCK-2927 (ADR-0123 § 2)
+        'cannot_share' => 'Seule une invitation d\'équipe adressée à un numéro, sans e-mail, peut se partager par lien.',
         'cannot_resend' => 'Invitation bi mënuñu koo bañ a yónni.',
         'already_accepted' => 'Invitation bi nanguwoon nañu ko, mënuñu koo indi ci suuf.',
         'invalid_role' => 'Wàll bi laaj nga, du baax ngir invitation.',

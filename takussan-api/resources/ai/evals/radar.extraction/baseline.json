@@ -20,22 +20,22 @@
     ],
     "roles": {
         "extraction": {
-            "global": 0.945,
+            "global": 0.9349,
             "fields": {
-                "advertiser_nature": 0.9583,
-                "amenities": 0.7147,
-                "bathrooms": 0.9167,
-                "bedrooms": 1.0,
-                "city": 0.9167,
+                "advertiser_nature": 0.9167,
+                "amenities": 0.886,
+                "bathrooms": 0.875,
+                "bedrooms": 0.9583,
+                "city": 0.8333,
                 "contract": 1.0,
                 "furnished": 1.0,
-                "neighborhood": 0.875,
-                "price": 0.9583,
+                "neighborhood": 0.75,
+                "price": 1.0,
                 "property_type": 1.0,
                 "rent_period": 1.0,
                 "surface_m2": 1.0
             },
-            "model": "anthropic/claude-sonnet-5-5"
+            "model": "anthropic/claude-haiku-5-5"
         },
         "vision": {
             "global": 1.0,
@@ -56,6 +56,6 @@
             "model": "anthropic/claude-sonnet-5-5"
         }
     },
-    "prompt_version": 3,
-    "updated_at": "2026-10-30T02:45:27+00:00"
+    "prompt_version": 4,
+    "updated_at": "2026-11-04T16:37:48+00:00"
 }

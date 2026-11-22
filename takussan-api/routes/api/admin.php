@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityLogExportController;
 use App\Http\Controllers\Api\Admin\AgencyDetailController;
 use App\Http\Controllers\Api\Admin\AgencyModerationController;
 use App\Http\Controllers\Api\Admin\AgencyOnboardingController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Api\Admin\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Admin\AlertRuleController;
 use App\Http\Controllers\Api\Admin\AnnouncementController;
 use App\Http\Controllers\Api\Admin\BusinessEnumController;
+use App\Http\Controllers\Api\Admin\ConversationReportController;
 use App\Http\Controllers\Api\Admin\CrossTenantAuditController;
 use App\Http\Controllers\Api\Admin\DataExportController;
 use App\Http\Controllers\Api\Admin\FailedJobController;
@@ -200,6 +202,12 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     // TCK-601 (F) — même filtres que l'index (`filter[sensitive]=1` compris), CSV par lien signé.
     Route::get('audit/export', [CrossTenantAuditController::class, 'export'])
         ->name('admin.audit.export');
+    // TCK-613 — le fichier de cet export, au seul opérateur qui l'a demandé, par le relais de la console.
+    Route::get('audit/export/download', [ActivityLogExportController::class, 'download'])
+        ->name('admin.audit.export.download');
+
+    // TCK-2859 (ADR-0114 § 2) — les signalements de conversation, au seul `super_admin` (aucun geste).
+    Route::get('conversation-reports', [ConversationReportController::class, 'index'])->name('admin.conversation-reports.index');
 
     // TCK-601 (G, ADR-0044 §4) — registre des demandes de droits. `export` avant `{privacyRequest}`.
     Route::get('privacy-requests', [PrivacyRequestController::class, 'index'])->name('admin.privacy-requests.index');

@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Services\Documents\AuteurDuDocument;
 use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\Request;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -19,6 +20,17 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class DocumentVersionResource extends BaseResource
 {
+    /** TCK-2773 (ADR-0099, amendement du 2026-11-13) — le juge de la fiche, s'il y en a un. */
+    private ?AuteurDuDocument $juge = null;
+
+    /** TCK-2773 — l'auteur de la version nommé selon le lecteur (`uploaded_by_person`). */
+    public function avecJuge(?AuteurDuDocument $juge): static
+    {
+        $this->juge = $juge;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         /** @var Media $this */
@@ -37,6 +49,8 @@ class DocumentVersionResource extends BaseResource
             'size' => $this->size,
             'mime_type' => $this->mime_type,
             'uploaded_by_id' => $uploadedById,
+            // TCK-2773 — le nom, un rôle ou rien, selon le lecteur ; absent sans juge.
+            'uploaded_by_person' => $this->when($this->juge !== null, fn () => $this->juge->de($uploadedById)),
             'created_at' => $this->iso($this->created_at),
             'comment' => $comment,
             'is_active' => $isActive,

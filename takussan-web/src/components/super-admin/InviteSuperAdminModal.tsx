@@ -99,8 +99,8 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
           <div className="space-y-1">
             <Label htmlFor="super-admin-invite-email">{t('email')}</Label>
             <Input
+              profil="courriel"
               id="super-admin-invite-email"
-              type="email"
               required
               autoComplete="email"
               value={email}
@@ -112,6 +112,8 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
             <div className="space-y-1">
               <Label htmlFor="super-admin-invite-first-name">{t('firstName')}</Label>
               <Input
+                profil="nom"
+                placeholder={t('firstNamePlaceholder')}
                 id="super-admin-invite-first-name"
                 required
                 autoComplete="given-name"
@@ -122,6 +124,8 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
             <div className="space-y-1">
               <Label htmlFor="super-admin-invite-last-name">{t('lastName')}</Label>
               <Input
+                profil="nom"
+                placeholder={t('lastNamePlaceholder')}
                 id="super-admin-invite-last-name"
                 required
                 autoComplete="family-name"

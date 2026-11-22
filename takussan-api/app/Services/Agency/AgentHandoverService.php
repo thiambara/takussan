@@ -5,6 +5,8 @@ namespace App\Services\Agency;
 use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Enums\CollaboratorRole;
+use App\Models\Enums\LeaseStatus;
+use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
@@ -36,6 +38,9 @@ use Illuminate\Support\Facades\DB;
  *  - `held_properties` (TCK-603, ADR-0036 question 2) : `user_id` ← le repreneur, journal du modèle
  *    coupé (ADR-0059 §4 : la signature que lit la réparation n'appartient qu'à l'ancien geste) ;
  *    jamais vers un repreneur qui porte un profil propriétaire de l'agence — désassigné ;
+ *    les baux de ces biens dont le partant est le bailleur suivent (TCK-616, décision du porteur du
+ *    2026-11-16, ADR-0059 amendement §7) : un bail `draft` passe au repreneur, tout autre statut est
+ *    LISTÉ au bilan (`leases.to_review`), jamais réécrit — un bail signé est un document contractuel ;
  *  - `collaborations` : la ligne du partant passe au repreneur ; si le repreneur collabore déjà au
  *    bien (unicité `property_id, user_id`), sa ligne est conservée et celle du partant supprimée —
  *    la ligne du repreneur passe en `agent` et reprend la part de commission du partant (TCK-1331),
@@ -49,7 +54,10 @@ use Illuminate\Support\Facades\DB;
  * **Les verrous** (ADR-0059 §3) : les biens que touchent les trois catégories de biens sont
  * verrouillés d'abord, en une requête, par identifiant croissant ; les lignes de collaboration
  * ensuite. C'est l'ordre de `PrimaryAgentDesignator` (bien → lignes) : jamais lignes → bien, qui
- * interbloquerait avec une désignation concurrente (verif-504).
+ * interbloquerait avec une désignation concurrente (verif-504). Les baux brouillons des biens saisis
+ * viennent APRÈS leur bien (bien → bail, `takussan-api/CLAUDE.md` § Migrations n°10) : verrouillés
+ * par la requête même qui les réécrit, bornés aux biens déjà tenus. Tout écrivain d'un bail
+ * (`LeaseService::verrouillerLeBienPuisLeBail()`) prend le bien d'abord : il attend ici sur le bien.
  */
 class AgentHandoverService
 {
@@ -72,7 +80,7 @@ class AgentHandoverService
 
     /**
      * @param  array<string, User>  $successors  catégorie → repreneur ; une catégorie absente reste en place
-     * @return array{moved: array<string, list<int>>, unassigned: array<string, list<int>>, left_to_member: array<string, list<int>>, removed_profiles: ?list<string>}
+     * @return array{moved: array<string, list<int>>, unassigned: array<string, list<int>>, left_to_member: array<string, list<int>>, leases: array{moved: list<int>, to_review: list<int>}, removed_profiles: ?list<string>}
      */
     public function transfer(
         Agency $agency,
@@ -85,6 +93,7 @@ class AgentHandoverService
         return DB::transaction(function () use ($agency, $member, $successors, $actor, $removeAfter, $leaveUnassigned) {
             $moved = [];
             $unassigned = [];
+            $leases = ['moved' => [], 'to_review' => []];
 
             $locked = $this->lockProperties($agency, $member, $successors);
             // TCK-888 (ADR-0068 § 3) — les fils de prospect des biens touchés suivent leur contact
@@ -123,6 +132,10 @@ class AgentHandoverService
                     ])
                     ->event($category)
                     ->log('agent_handover.'.$category);
+
+                if ($category === 'held_properties' && $ids !== []) {
+                    $leases = $this->moveDraftLeases($agency, $member, $successor, $actor, $ids);
+                }
             }
 
             $removed = $removeAfter
@@ -131,8 +144,60 @@ class AgentHandoverService
 
             [$unassigned, $left] = $this->splitLeftToMember($unassigned, $member);
 
-            return ['moved' => $moved, 'unassigned' => $unassigned, 'left_to_member' => $left, 'removed_profiles' => $removed];
+            return ['moved' => $moved, 'unassigned' => $unassigned, 'left_to_member' => $left, 'leases' => $leases, 'removed_profiles' => $removed];
         });
+    }
+
+    /**
+     * TCK-616 AC6 (décision du porteur du 2026-11-16) — les baux des biens saisis transmis dont le
+     * partant est le bailleur : les brouillons passent au repreneur, comme le reste de son
+     * portefeuille ; les autres sont listés, jamais réécrits (même règle que la réparation,
+     * ADR-0059). Seuls les biens réellement transmis comptent : un bien laissé au partant garde ses baux.
+     *
+     * Bien → bail : les biens `$propertyIds` sont tenus depuis {@see self::lockProperties()} ; les
+     * brouillons se verrouillent ensuite, par identifiant croissant, et le statut se juge sous ce
+     * verrou. Les autres baux se lisent sans verrou : rien ne les écrit ici.
+     *
+     * @param  list<int>  $propertyIds  les biens saisis transmis au repreneur
+     * @return array{moved: list<int>, to_review: list<int>}
+     */
+    private function moveDraftLeases(Agency $agency, User $member, User $successor, User $actor, array $propertyIds): array
+    {
+        $ofMember = fn () => Lease::query()
+            ->whereIn('property_id', $propertyIds)
+            ->where('landlord_id', $member->id);
+
+        $drafts = $ofMember()->where('status', LeaseStatus::Draft)
+            ->orderBy('id')->lockForUpdate()
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $others = $ofMember()->where('status', '!=', LeaseStatus::Draft)
+            ->orderBy('id')
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        if ($drafts !== []) {
+            // Comme la réparation (ADR-0059) : écriture de masse, sans l'observateur ni le journal du
+            // modèle — la passation se journalise sous `AgentHandover`, ci-dessous.
+            Lease::query()->whereIn('id', $drafts)->toBase()
+                ->update(['landlord_id' => $successor->id, 'updated_at' => now()]);
+        }
+
+        if ($drafts !== [] || $others !== []) {
+            activity('AgentHandover')
+                ->causedBy($actor)
+                ->performedOn($member)
+                ->withProperties([
+                    'agency_id' => $agency->id,
+                    'member_id' => $member->id,
+                    'successor_id' => $successor->id,
+                    'category' => 'leases',
+                    'ids' => $drafts,
+                    'to_review_ids' => $others,
+                ])
+                ->event('leases')
+                ->log('agent_handover.leases');
+        }
+
+        return ['moved' => $drafts, 'to_review' => $others];
     }
 
     /**

@@ -32,6 +32,15 @@ export interface BoostStatsRow {
 export interface BoostStatsResponse {
   readonly data: readonly BoostStatsRow[];
   readonly totals: { readonly impressions: number; readonly clicks: number; readonly ctr: number };
+  /** TCK-2525 — les places « Mise en avant » créées sur la période, et les crédits mouvementés pour elles. */
+  readonly spotlights?: BoostStatsSpotlights;
+}
+
+export interface BoostStatsSpotlights {
+  readonly purchased: number;
+  readonly offered: number;
+  readonly credits_spent: number;
+  readonly credits_refunded: number;
 }
 
 export interface NewBoostProduct {
@@ -109,4 +118,67 @@ export function offerBoost(propertyId: number, body: { readonly product_id: numb
 
 export function fetchBoostStats(params: { readonly from: string; readonly to: string }): Promise<BoostStatsResponse> {
   return lire(cheminApi`/api/super-admin/boost-stats${new URLSearchParams(params)}`);
+}
+
+/** TCK-2520 (ADR-0092) — une place « Mise en avant » de l'annuaire des agences, offerte par la plateforme. */
+export interface AgencySpotlight {
+  readonly id: number;
+  readonly agency_id: number;
+  readonly agency: { readonly id: number; readonly name: string; readonly slug: string; readonly status: string | null } | null;
+  readonly geo_city_id: number | null;
+  readonly city: { readonly id: number; readonly name: string } | null;
+  readonly starts_at: string;
+  readonly ends_at: string;
+  readonly note: string | null;
+  readonly granted_by: { readonly id: number; readonly name: string } | null;
+  /** TCK-2525 — offerte par la plateforme, ou achetée en crédits par l'agence. */
+  readonly origin: AgencySpotlightOrigin;
+  /** Le prix figé à l'achat ; nul pour une place offerte. */
+  readonly price_credits: number | null;
+  readonly purchased_by: { readonly id: number; readonly name: string } | null;
+  /** La libération (suspension, retrait d'une place achetée) ; la place reste dans l'historique. */
+  readonly cancelled_at: string | null;
+  readonly refunded_credits: number | null;
+}
+
+export type AgencySpotlightOrigin = 'offered' | 'purchased';
+
+export type AgencySpotlightWhen = '' | 'current' | 'upcoming' | 'past';
+
+export interface NewAgencySpotlight {
+  readonly agency_id: number;
+  readonly geo_city_id: number | null;
+  readonly starts_at: string;
+  readonly ends_at: string;
+  readonly note: string;
+}
+
+export interface AgencyChoice {
+  readonly id: number;
+  readonly name: string;
+}
+
+export function fetchAgencySpotlights(params: { readonly when?: AgencySpotlightWhen; readonly page?: number }): Promise<{ readonly data: readonly AgencySpotlight[]; readonly meta: PaginationMeta }> {
+  const qs = new URLSearchParams();
+  if (params.when) qs.set('filter[when]', params.when);
+  qs.set('page', String(params.page ?? 1));
+  return lire(cheminApi`/api/super-admin/agency-spotlights${qs}`);
+}
+
+export function createAgencySpotlight(body: NewAgencySpotlight): Promise<{ readonly data: AgencySpotlight }> {
+  return ecrire('/api/super-admin/agency-spotlights', 'POST', body);
+}
+
+export function deleteAgencySpotlight(id: number): Promise<unknown> {
+  return fetch(cheminApi`/api/super-admin/agency-spotlights/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  }).then((res) => jsonOrThrow<unknown>(res));
+}
+
+/** Les agences actives dont le nom contient la saisie — le choix de l'agence à mettre en avant. */
+export function searchActiveAgencies(search: string): Promise<{ readonly data: readonly AgencyChoice[] }> {
+  const qs = new URLSearchParams({ 'filter[search]': search, 'filter[status]': 'active', per_page: '10' });
+  return lire(cheminApi`/api/super-admin/agencies${qs}`);
 }

@@ -48,7 +48,9 @@ export type MatchedPaymentType =
   | 'invoice'
   | 'payout'
   // TCK-1421 (P141.02) — le virement de clôture de la plateforme, rapproché d'un crédit.
-  | 'platform_payout';
+  | 'platform_payout'
+  // TCK-2793 — la pénalité de retard payée seule d'une échéance, rapprochée à part de son loyer.
+  | 'lease_payment_late_fee';
 
 export interface BankStatementLine {
   id: number;
@@ -108,4 +110,104 @@ export interface CsvMapping {
   direction_column: string | number | null;
   decimal_separator: DecimalSeparator | null;
   thousands_separator: ThousandsSeparator;
+}
+
+/**
+ * TCK-2674 / TCK-2675 — le rapprochement vu par paiement, sur un mois (`period=YYYY-MM`) :
+ * `GET /api/agencies/{a}/reconciliation/overview`. Une table vide arrive en objet (`{}`).
+ */
+export interface ReconciliationOverview {
+  period: string;
+  payments_total: number;
+  confirmed_automatically: { total: number; by_provider: Record<string, number> };
+  to_reconcile: { total: number; by_method: Record<string, number> };
+  reconciled_manually: number;
+  /**
+   * TCK-2932 / TCK-2933 — les paiements sortis du reste à rapprocher (« Ignorer » : espèces gardées,
+   * autre compte…). La somme des quatre classes reste `payments_total` ; ils ne sont PAS rapprochés.
+   */
+  ignored: number;
+}
+
+/** La ligne de banque que l'API propose pour un paiement (la meilleure, sur un relevé ouvert). */
+export interface SuggestedBankLine {
+  id: number;
+  statement_id: number;
+  date: string | null;
+  label: string | null;
+  amount: number | string;
+  confidence: number | string | null;
+}
+
+/** Un paiement encaissé sans passerelle et pas encore rapproché (`…/reconciliation/pending-payments`). */
+export interface PendingPayment {
+  type: 'lease_payment' | 'booking_payment';
+  id: number;
+  reference: string | null;
+  payer: { id: number; name: string | null } | null;
+  property: { id: number; title: string | null } | null;
+  amount: number | string;
+  /**
+   * Ce que la banque doit porter (la règle du matcher) : la pénalité réglée le même jour comprise, ou
+   * le montant figé d'un règlement en ligne. Absent d'une API antérieure : `amount`.
+   */
+  expected_bank_amount?: number | string | null;
+  currency: string | null;
+  paid_at: string | null;
+  payment_method: string | null;
+  suggested_line: SuggestedBankLine | null;
+}
+
+/** Le filtre de la liste : tout, avec ou sans ligne proposée, ou un moyen de paiement. */
+export type FiltreDuReste =
+  | { readonly type: 'tout' }
+  | { readonly type: 'suggestion' }
+  | { readonly type: 'sans' }
+  | { readonly type: 'moyen'; readonly moyen: string };
+
+/* ─────────────── TCK-2933 — ignorer un paiement, aperçu d'un relevé, formats lus (TCK-2932) ─────────────── */
+
+/** Pourquoi un paiement n'aura jamais de ligne de banque (`IgnoredPaymentReason`) ; `other` exige une note. */
+export type MotifDIgnorer = 'cash_kept' | 'other_account' | 'other';
+
+/** Un geste « Ignorer » encore en effet (`…/reconciliation/ignored-payments`) ; `id` est celui du geste. */
+export interface PaiementIgnore {
+  id: number;
+  reason: MotifDIgnorer | string | null;
+  note: string | null;
+  ignored_at: string | null;
+  ignored_by: { id: number; first_name: string | null; last_name: string | null } | null;
+  payment: PendingPayment | null;
+}
+
+/** Une ligne lue par l'aperçu (`POST …/bank-statements/preview`) : montant en chaîne décimale. */
+export interface LigneDApercu {
+  date: string;
+  amount: string;
+  direction: BankLineDirection;
+  currency: string | null;
+  label: string | null;
+  reference: string | null;
+  counterparty: string | null;
+}
+
+/** Ce que l'import LIRAIT du fichier — rien n'est écrit. */
+export interface ApercuDuReleve {
+  source_format: BankStatementSourceFormat;
+  read: number;
+  skipped: number;
+  /** Une table vide arrive en objet (`{}`). Codes : `missing_value`, `invalid_date`… */
+  skipped_by_reason: Record<string, number>;
+  /** Le rang de la ligne dans le fichier et sa raison (50 au plus). */
+  skipped_lines: { line: number; reason: string }[];
+  period: { start: string | null; end: string | null };
+  lines: LigneDApercu[];
+  /** Le même fichier a déjà été importé (hors relevé en échec) : l'import le refuserait. */
+  already_imported: boolean;
+}
+
+/** `GET …/reconciliation/supported-formats` — les banques ne sont listées qu'à préréglage éprouvé (D-67). */
+export interface FormatsPrisEnCharge {
+  formats: { code: BankStatementSourceFormat; extensions: string[]; configurable_columns: boolean }[];
+  banks: { code: string; name: string; format: BankStatementSourceFormat }[];
 }

@@ -60,6 +60,42 @@ final class Masking
         return $value === null || trim((string) $value) === '' ? null : str_repeat(self::BULLET, 4);
     }
 
+    /**
+     * TCK-2609 (ADR-0094 §2) — `awa.diop@gmail.com` → `a•••@gmail.com` : la première lettre et le
+     * domaine, assez pour que le destinataire s'y reconnaisse, jamais l'adresse entière. Sans `@`,
+     * rien n'est gardé.
+     */
+    public static function email(string $email): string
+    {
+        $clean = self::compact($email);
+        $at = mb_strrpos($clean, '@');
+
+        if ($at === false || $at === 0) {
+            return str_repeat(self::BULLET, 3);
+        }
+
+        return mb_substr($clean, 0, 1).str_repeat(self::BULLET, 3).mb_substr($clean, $at);
+    }
+
+    /**
+     * TCK-2609 (ADR-0094 §2) — `+221771234567` → `77 ••• 45 67` : l'indicatif de l'opérateur et les
+     * quatre derniers chiffres du numéro national (l'indicatif `221` retiré), le reste masqué. Moins
+     * de huit chiffres : tout est masqué, garder les bords les livrerait presque entiers.
+     */
+    public static function phone(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+        if (strlen($digits) === 12 && str_starts_with($digits, '221')) {
+            $digits = substr($digits, 3);
+        }
+
+        if (strlen($digits) < 8) {
+            return str_repeat(self::BULLET, 4);
+        }
+
+        return substr($digits, 0, 2).' '.str_repeat(self::BULLET, 3).' '.substr($digits, -4, 2).' '.substr($digits, -2);
+    }
+
     private static function compact(string $value): string
     {
         return preg_replace('/\s+/u', '', $value) ?? '';

@@ -71,7 +71,7 @@ export function DefiSecondFacteur({ onValider, onAnnuler }: DefiSecondFacteurPro
                   : e.target.value.replace(/\D/g, '').slice(0, 6),
               )
             }
-            inputMode={useRecovery ? 'text' : 'numeric'}
+            profil={useRecovery ? 'identifiant' : 'code'}
             pattern={useRecovery ? undefined : '\\d{6}'}
             autoComplete="one-time-code"
             placeholder={useRecovery ? t2fa('recoveryPlaceholder') : t2fa('codePlaceholder')}

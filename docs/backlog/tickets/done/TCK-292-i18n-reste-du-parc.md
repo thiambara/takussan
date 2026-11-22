@@ -598,7 +598,7 @@ masquer : les 41 exceptions cessent toutes de correspondre et la garde crie.
 ### La dette du formatage a son ticket
 
 Le § *Une dette trouvée, hors périmètre* disait « **Ça vaut un ticket.** » — c'est
-[TCK-347](../todo/TCK-347-formatage-nombres-et-dates-suit-la-locale.md), ouvert le 2026-08-22 avec son
+[TCK-347](TCK-347-formatage-nombres-et-dates-suit-la-locale.md), ouvert le 2026-08-22 avec son
 inventaire mesuré.
 
 ### AC2 et AC4 — fermés par la session principale, 2026-08-22
@@ -721,7 +721,7 @@ wolof sont fausses (`farm` = « Jën », le poisson, contre « Tool », le champ
 
 C'est exactement ce que ce ticket avait mis hors périmètre en écrivant : *« Si l'API renvoie des
 phrases françaises, traduire le front ne suffira pas : ce sera un ticket backend, pas celui-ci. »*
-**La mesure manquait ; elle est faite.** → [TCK-351](../todo/TCK-351-deux-sources-de-libelles-de-bien.md),
+**La mesure manquait ; elle est faite.** → [TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md),
 qui porte l'inventaire complet, l'arbitrage à rendre, et le cliquet
 `property-labels.parity.test.ts` qui empêche désormais la dette de croître (prouvé par deux
 mutations, dans les deux sens).
@@ -733,10 +733,10 @@ périmètre de ce ticket depuis son ouverture**, et elles ont leurs propres tick
 
 - **la qualité linguistique du wolof** — « une relecture par un locuteur est un autre travail » →
   [TCK-339](TCK-339-vocabulaire-wolof-recherche.md), [TCK-342](../todo/TCK-342-libelles-wolof-divergents-back-front.md),
-  et désormais [TCK-351](../todo/TCK-351-deux-sources-de-libelles-de-bien.md) AC4 ;
-- **le texte produit par l'API** → [TCK-351](../todo/TCK-351-deux-sources-de-libelles-de-bien.md) ;
+  et désormais [TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md) AC4 ;
+- **le texte produit par l'API** → [TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md) ;
 - **le formatage des nombres et des dates**, figé en `fr-SN` →
-  [TCK-347](../todo/TCK-347-formatage-nombres-et-dates-suit-la-locale.md).
+  [TCK-347](TCK-347-formatage-nombres-et-dates-suit-la-locale.md).
 
 *Un `done` ici ne ment plus : ni sur le volume, ni sur AC1, ni sur AC3. Ce qui reste n'appartient
 pas à ce ticket, et chaque morceau a désormais le sien.*

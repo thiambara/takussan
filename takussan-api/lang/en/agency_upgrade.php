@@ -6,6 +6,8 @@ return [
             'not_individual' => 'This agency is already professional — no upgrade request needed.',
             'permission_denied' => 'You do not have permission to submit an upgrade request for this agency.',
             'pending_exists' => 'A pending request already exists for this agency (#:request_id). Revoke it before submitting a new one.',
+            // TCK-2669 (ADR-0104 § 5) — reprendre une demande refusée.
+            'resubmit_not_allowed' => 'Only this agency\'s latest rejected request can be resubmitted.',
         ],
     ],
     'revoke' => [

@@ -20,8 +20,14 @@ export const CHAT_FAB_MOBILE_HEIGHT_PX = 48;
  *
  * | | lanceur (bas → haut) | coque + réserve | marge |
  * |---|---|---|---|
- * | < md | 16 (`--floating-dock-base`) + 48 = 64 | 24 + 56 = 80 | 16 |
+ * | < md | aucun sur `/app` (TCK-2481) | 24 + 0 | — |
  * | ≥ md | 24 + 56 = 80 | 32 + 64 = 96 | 16 |
+ *
+ * TCK-2481 (revue, M2) — sous `md`, le bouton flottant ne se rend plus sur `/app` : la barre
+ * d'onglets porte « Messagerie », et c'est la coque qui réserve SA hauteur (le `<main>` rétrécit).
+ * La réserve ne vaut donc que dès `md`, là où le lanceur de bureau est rendu ; `pb-14` laissait
+ * 56 px vides sous « Mes biens ». ⚠ Une page HORS de `/app`, où le bouton flottant reste, ne peut
+ * pas reprendre cette constante telle quelle.
  *
  * Éprouvé par `__tests__/reserve.test.ts`. Les classes sont écrites en toutes lettres pour que
  * Tailwind les émette (aucune classe calculée).
@@ -29,4 +35,4 @@ export const CHAT_FAB_MOBILE_HEIGHT_PX = 48;
  * Relevé du porteur, 2026-10-14 : sur « Mes biens » à 390 px, le bouton « Messagerie » recouvrait
  * la moitié de la dernière carte ; la coque ne réservait que ses 24 px de `py-6`.
  */
-export const RESERVE_SOUS_LANCEUR = 'pb-14 md:pb-16';
+export const RESERVE_SOUS_LANCEUR = 'md:pb-16';

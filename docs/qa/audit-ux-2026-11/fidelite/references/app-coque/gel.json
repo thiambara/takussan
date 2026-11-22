@@ -1,0 +1,71 @@
+{
+ "page": "app-coque",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Accueil (admin)",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Page racine (Demandes)",
+   "sansBureau": null
+  },
+  {
+   "e": 2,
+   "nom": "Page de détail",
+   "sansBureau": null
+  },
+  {
+   "e": 3,
+   "nom": "Menu (tiroir)",
+   "sansBureau": null
+  },
+  {
+   "e": 4,
+   "nom": "« Aller à… »",
+   "sansBureau": null
+  },
+  {
+   "e": 5,
+   "nom": "Compte et espaces",
+   "sansBureau": null
+  },
+  {
+   "e": 6,
+   "nom": "Choisir un espace (connexion)",
+   "sansBureau": null
+  },
+  {
+   "e": 7,
+   "nom": "Conversation ouverte",
+   "sansBureau": null
+  },
+  {
+   "e": 8,
+   "nom": "Page introuvable",
+   "sansBureau": null
+  },
+  {
+   "e": 9,
+   "nom": "Persona · bailleur",
+   "sansBureau": null
+  },
+  {
+   "e": 10,
+   "nom": "Persona · locataire",
+   "sansBureau": null
+  },
+  {
+   "e": 11,
+   "nom": "Persona · prestataire",
+   "sansBureau": null
+  }
+ ]
+}

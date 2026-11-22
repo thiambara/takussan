@@ -4,6 +4,7 @@ namespace App\Services\Media;
 
 use App\Models\Inventory;
 use App\Models\MaintenanceRequest;
+use App\Models\Message;
 use App\Support\RelativeSignedUrl;
 use DateTimeInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -24,8 +25,9 @@ use Symfony\Component\Mime\MimeTypes;
  * Tout passe par `Storage::disk($media->disk)` et le chemin RELATIF au disque. Jamais
  * `$media->getPath()` : sur `r2-private` il rend un chemin qui n'existe sur aucun système de
  * fichiers, et `response()->file()` / `file_get_contents()` meurent dessus. Jamais non plus
- * `getFullUrl()` / `getTemporaryUrl()` de Spatie : ils passent par `CdnUrlGenerator`, qui
- * réécrirait une URL privée vers le CDN si celui-ci était réactivé.
+ * `getFullUrl()` / `getTemporaryUrl()` de Spatie : ils rendent l'URL brute du disque, sans
+ * passer par l'autorisation ni par la route signée (le générateur est `DefaultUrlGenerator`
+ * depuis le retrait de l'intégration CDN, TCK-2463).
  *
  * Trois formes, choisies par l'appelant APRÈS sa décision d'autorisation :
  *   - `redirect()` : URL présignée de 5 minutes — les octets ne traversent pas le VPS ;
@@ -57,6 +59,8 @@ class PrivateMediaAccess
             'before_photos' => ['thumbnail'],
             'completion_photos' => ['thumbnail'],
         ],
+        // TCK-2631 — la vignette d'une photo jointe à un message (ADR-0038, amendement du 2026-11-10).
+        Message::class => ['attachments' => ['thumbnail']],
     ];
 
     /**
@@ -82,9 +86,9 @@ class PrivateMediaAccess
      * L'URL signée de la conversion si la route peut la servir, sinon `null` : l'appelant retombe
      * alors sur l'original, le temps que la file la produise.
      */
-    public function signedConversionUrl(Media $media, string $conversion): ?string
+    public function signedConversionUrl(Media $media, string $conversion, ?DateTimeInterface $expiresAt = null): ?string
     {
-        return $this->servesConversion($media, $conversion) ? $this->signedUrl($media, conversion: $conversion) : null;
+        return $this->servesConversion($media, $conversion) ? $this->signedUrl($media, $expiresAt, $conversion) : null;
     }
 
     /** La conversion figure dans la liste de la collection, et elle est produite. */
@@ -127,6 +131,25 @@ class PrivateMediaAccess
         [$disk, $path, $name, $mime] = $this->file($media, $conversion);
 
         return $disk->response($path, $name, ['Content-Type' => $mime], $disposition);
+    }
+
+    /**
+     * TCK-2770 — le flux de l'original, pour qui l'écrit ailleurs (l'archive du coffre). Par le disque
+     * et le chemin RELATIF, comme les trois formes ci-dessus : jamais `getPath()`. Le flux est à fermer
+     * par l'appelant.
+     *
+     * @return resource
+     */
+    public function readStream(Media $media)
+    {
+        [$disk, $path] = $this->file($media, null);
+        $stream = $disk->readStream($path);
+
+        if (! is_resource($stream)) {
+            throw new RuntimeException("Média #{$media->getKey()} illisible sur le disque « {$media->disk} ».");
+        }
+
+        return $stream;
     }
 
     /**

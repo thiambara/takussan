@@ -1,0 +1,396 @@
+{
+  "ticket": "TCK-2586",
+  "ecrans": [
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Planifier",
+      "references": {
+        "telephone": "references/app-visites/a-5-telephone.json",
+        "bureau-1440": "references/app-visites/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits",
+        "persona": "agent",
+        "etat": "la feuille ouverte par « Planifier une visite » de l'en-tête des Visites (`--perturber etat-a5.js`, scratchpad du lot 2) : « Fann » cherché (3 résultats), « Chambre à louer à Fann » coché, la fiche « Rokhaya Ndiaye » (prospect) choisie, « Demain » (jeudi 12 nov.) et 10:00 — sans confirmer. La page sous la feuille est retirée de la vue (cf. hors_perimetre)."
+      }
+    },
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Planifier — confirmée",
+      "references": {
+        "telephone": "references/app-visites/a-6-telephone.json",
+        "bureau-1440": "references/app-visites/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits",
+        "persona": "agent",
+        "etat": "l'état a-5, puis « Confirmer » contre une réponse SIMULÉE dans la page (`--perturber etat-a6.js` : 201, `sms_sent: true`) — aucune visite créée en base, aucun SMS"
+      }
+    },
+    {
+      "page": "app-fil-commercial",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Proposer une visite (depuis une demande)",
+      "references": {
+        "telephone": "references/app-fil-commercial/a-1-telephone.json",
+        "bureau-1440": "references/app-fil-commercial/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-fil-commercial/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": null,
+        "persona": "agent",
+        "etat": "NON MESURÉ — aucune route du produit n'ouvre encore la feuille depuis une demande : le geste « Visite ▸ » de la boîte des demandes est TCK-2584. La variante est livrée et testée au composant (`PlanifierDialog demande={…}`) ; le relevé se fait avec TCK-2584"
+      }
+    },
+    {
+      "page": "app-fil-commercial",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Visite confirmée (depuis une demande)",
+      "references": {
+        "telephone": "references/app-fil-commercial/a-2-telephone.json",
+        "bureau-1440": "references/app-fil-commercial/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-fil-commercial/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": null,
+        "persona": "agent",
+        "etat": "NON MESURÉ — même motif que a-1 (TCK-2584)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/visits",
+    "persona": "agent",
+    "disposition": "agent",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad du lot 2 : fid/etat-a5.js (ouvre la feuille, cherche et choisit bien et client, Demain, 10:00, puis rend invisible tout ce qui n'est pas le portail de la feuille) ; fid/etat-a6.js (idem, puis remplace `fetch` du seul POST /api/property-visits par une réponse 201 simulée)"
+  },
+  "coque": false,
+  "roles": [
+    {
+      "nom": "en-tête de la feuille",
+      "appareil": "mobile",
+      "maquette": {
+        "zone": {
+          "y": 0,
+          "h": 56,
+          "tol": 8,
+          "wMin": 380
+        }
+      },
+      "produit": {
+        "zone": {
+          "y": 0,
+          "h": 56,
+          "tol": 8,
+          "wMin": 380
+        }
+      }
+    },
+    {
+      "nom": "barre collante « Confirmer la visite »",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Confirmer la visite · jeu. 12 nov. 10:00",
+        "min": 70
+      },
+      "produit": {
+        "boiteDe": "Confirmer la visite · jeu. 12 nov. 10:00",
+        "min": 70
+      }
+    },
+    {
+      "nom": "panneau de 480 px",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Planifier une visite",
+        "rang": 1,
+        "min": 800
+      },
+      "produit": {
+        "boiteDe": "Planifier une visite",
+        "min": 800
+      },
+      "contenu": false
+    },
+    {
+      "nom": "pied du panneau",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Annuler",
+        "min": 50
+      },
+      "produit": {
+        "boiteDe": "Annuler",
+        "min": 50
+      }
+    },
+    {
+      "nom": "1er résultat du bien, coché",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Studio meublé · Mermoz",
+        "min": 50
+      },
+      "produit": {
+        "boiteDe": "Chambre à louer à Fann",
+        "min": 50
+      },
+      "contenu": false
+    },
+    {
+      "nom": "1er résultat du bien, coché",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Studio meublé · Mermoz",
+        "rang": 1,
+        "min": 50
+      },
+      "produit": {
+        "boiteDe": "Chambre à louer à Fann",
+        "min": 50
+      },
+      "contenu": false
+    },
+    {
+      "nom": "2e résultat du bien",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Studio neuf · Mermoz, VDN",
+        "min": 50
+      },
+      "produit": {
+        "boiteDe": "Espace commercial à Fann",
+        "min": 50
+      },
+      "contenu": false
+    },
+    {
+      "nom": "2e résultat du bien",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Studio neuf · Mermoz, VDN",
+        "min": 50
+      },
+      "produit": {
+        "boiteDe": "Espace commercial à Fann",
+        "min": 50
+      },
+      "contenu": false
+    },
+    {
+      "nom": "carte du client",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Mariama Fall",
+        "min": 50
+      },
+      "produit": {
+        "boiteDe": "Rokhaya Ndiaye",
+        "min": 50
+      },
+      "contenu": false
+    },
+    {
+      "nom": "carte du client",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Mariama Fall",
+        "rang": 1,
+        "min": 50
+      },
+      "produit": {
+        "boiteDe": "Rokhaya Ndiaye",
+        "min": 50
+      },
+      "contenu": false
+    },
+    {
+      "nom": "pastille du jour choisi",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Jeu. 12"
+      },
+      "produit": {
+        "boiteDe": "Demain"
+      },
+      "contenu": false
+    },
+    {
+      "nom": "pastille du jour choisi",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Jeu. 12",
+        "rang": 2
+      },
+      "produit": {
+        "boiteDe": "Demain"
+      },
+      "contenu": false
+    },
+    {
+      "nom": "carte de la visite confirmée",
+      "maquette": {
+        "boiteDe": "Jeu. 12 nov. · 10:00",
+        "min": 56
+      },
+      "produit": {
+        "boiteDe": "Jeu. 12 nov. · 10:00",
+        "min": 56
+      },
+      "contenu": false
+    }
+  ],
+  "zones": [
+    {
+      "appareil": "mobile",
+      "nom": "en-tête de la feuille",
+      "role": "en-tête de la feuille"
+    }
+  ],
+  "alias": {
+    "En autonomie": "Autonome"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-5-*, a-6-*",
+      "element": "✕ de la feuille / du panneau, coche du résultat et de la visite confirmée",
+      "propriete": "trait (2 → 1,75 au téléphone, 1,5 au bureau)",
+      "exception": "règle du design system",
+      "motif": "trait uniforme des icônes de la coque (TCK-2685, globals.css) ; même exception que TCK-2580 et TCK-2581"
+    },
+    {
+      "ecran": "a-5-*",
+      "element": "loupe de la recherche du bien",
+      "propriete": "taille (16 → 18 px ; 14,4 → 18 au bureau)",
+      "exception": "règle du design system",
+      "motif": "`DebouncedSearchInput` porte le jeton `size-icone` sous la portée /app (TCK-2688) ; primitive commune"
+    },
+    {
+      "ecran": "a-5-bureau-1440, a-5-bureau-1280",
+      "element": "champ de recherche du bien, et tout ce qui le suit dans le panneau",
+      "propriete": "hauteur (39,6 → 32,4) puis y (−7,2 px)",
+      "exception": "technique",
+      "motif": "la recherche suit l'échelle `h-controle` (44 / 36), décision écrite de TCK-2688 (ADR-0106 § 2) ; le décalage naît du champ et se propage, les éléments suivants sont conformes"
+    },
+    {
+      "ecran": "a-5-*",
+      "element": "pastille du jour choisi (« Jeu. 12 » → « Demain »), libellés des pastilles de jour",
+      "propriete": "x, largeur, texte, et les couleurs de « Demain » (choisi au produit, pas à la maquette)",
+      "exception": "vérité des données",
+      "motif": "la maquette est dessinée un mardi 10 : le jeudi 12 y est la 3ᵉ pastille. Le relevé est pris le mercredi 11 : le même jeudi 12 est « Demain ». Le bouton collant redit bien « jeu. 12 nov. 10:00 »"
+    },
+    {
+      "ecran": "a-5-bureau-*",
+      "element": "« Barrés : … », type de visite, note",
+      "propriete": "absents de la vue ou y (+59,7 px)",
+      "exception": "vérité des données",
+      "motif": "le bien relevé n'a aucun créneau pris ce jour-là : le produit rend les 20 créneaux libres de la grille (09:00 → 18:30) et « Autre heure… », quatre rangées au lieu de deux ; la phrase des créneaux barrés ne s'écrit que s'il y en a un (testée au composant)"
+    },
+    {
+      "ecran": "a-5-telephone",
+      "element": "barre collante « Confirmer la visite »",
+      "propriete": "ombre (même couleur, autre notation), écart interne d'un enfant seul",
+      "exception": "technique",
+      "motif": "même exception que la `BarreDAction` de TCK-2580 / TCK-2581 : invisible à l'œil"
+    },
+    {
+      "ecran": "a-5-bureau-*, a-6-bureau-*",
+      "element": "ombre du panneau de 480 px",
+      "propriete": "notation (oklab → color(srgb …), même valeur)",
+      "exception": "technique",
+      "motif": "le navigateur sérialise le même jeton `shadow-panneau` dans une autre notation"
+    },
+    {
+      "ecran": "a-5-bureau-*, a-6-*",
+      "element": "« Annuler », « Planifier une autre visite »",
+      "propriete": "couleur (rgba(31,24,17,0.8) → rgb(76,70,65))",
+      "exception": "technique",
+      "motif": "encre en alpha dans la maquette ; jeton opaque `encre-douce` imposé dans /app par `encre-sans-alpha.contraste.test.ts` — même exception que TCK-2580, TCK-2581, TCK-2617"
+    },
+    {
+      "ecran": "a-5-bureau-*, a-6-*",
+      "element": "« Annuler », « Voir la visite »",
+      "propriete": "bordure (0 → 1 transparente), x −4 / largeur +2 px",
+      "exception": "technique",
+      "motif": "la primitive `Button` porte une bordure transparente de 1 px à toutes ses variantes, comme TCK-2580"
+    },
+    {
+      "ecran": "a-5-*, a-6-*",
+      "element": "boîtes « Fermer » (✕) et « Rechercher un bien »",
+      "propriete": "absentes de la maquette",
+      "exception": "accessibilité mesurée",
+      "motif": "le produit nomme le ✕ (`aria-label`) et le champ de recherche (`aria-label`, vrai `input type=search`) ; la maquette les dessine en `span`/`div` sans nom"
+    },
+    {
+      "ecran": "a-5-*",
+      "element": "1er résultat coché",
+      "propriete": "fond `bg-secondary/60`",
+      "exception": "—",
+      "motif": "aligné sur la maquette pendant la mesure (le produit posait `bg-secondary` plein)"
+    },
+    {
+      "ecran": "a-6-bureau-*",
+      "element": "icône « svg » (logo de la coque ↔ logo WhatsApp)",
+      "propriete": "largeur, x, y, couleur",
+      "exception": "technique",
+      "motif": "appariement de l'outil : la maquette n'a qu'une icône `svg` sans nom, le logo de la coque (retirée de la vue, hors périmètre) ; le produit n'en a qu'une, le logo WhatsApp du bouton"
+    },
+    {
+      "ecran": "a-5-bureau-*",
+      "element": "ancres « Aujourd'hui », « En personne », « Virtuelle », « Hybride »",
+      "propriete": "x, y, taille",
+      "exception": "technique",
+      "motif": "appariement de l'outil : ces libellés existent aussi dans la page SOUS le panneau de la maquette (barre latérale, lignes de la liste), que le produit a retirée de la vue ; dans le panneau, les pastilles sont conformes"
+    },
+    {
+      "ecran": "a-5-bureau-*",
+      "element": "pastille « Autonome » (maquette « En autonomie »)",
+      "propriete": "largeur (−19,6 px) et y (+59,7 px, cf. la ligne des 20 créneaux)",
+      "exception": "alias",
+      "motif": "le libellé du type `self_guided` existe déjà dans le produit (`visits.type.self_guided`, « Autonome »), lu par la liste et la fiche des visites ; le renommer est une décision de libellé hors de ce ticket — alias déclaré"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "element": "la page sous la feuille et le panneau : coque (barre latérale, en-tête), liste des Visites (onglets, lignes, gestes « Confirmer » / « Attribuer »), guide d'accueil « Vos leads » du compte agent",
+      "ticket": "TCK-2587",
+      "motif": "la liste des Visites par le temps est TCK-2587, la coque TCK-2617/TCK-2618 ; ce ticket ne pose que la feuille. Les relevés la rendent invisible (`visibility: hidden` sur ce qui n'est pas le portail de la feuille) pour que l'outil, qui ne juge pas le recouvrement, ne l'apparie pas au panneau ; ses nœuds restent « absents du produit » dans les rapports de bureau"
+    },
+    {
+      "element": "app-fil-commercial a-1 / a-2 (feuille depuis une demande)",
+      "ticket": "TCK-2584",
+      "motif": "aucune route ne l'ouvre avant le geste « Visite ▸ » de la boîte des demandes ; livrée et testée au composant ici, relevée avec TCK-2584"
+    },
+    {
+      "element": "texte du SMS envoyé (« SMS envoyé à 09:21 » et sa bulle, a-2)",
+      "ticket": null,
+      "motif": "l'API ne rend pas le texte du SMS : il n'est pas inventé"
+    },
+    {
+      "element": "« Mouhamed a écrit « samedi » : le jour est déjà choisi » (a-1)",
+      "ticket": null,
+      "motif": "aucune extraction du jour souhaité depuis le message d'une demande n'existe ; le jour vient de l'agenda (`jour`) ou se choisit"
+    },
+    {
+      "element": "« Demande suivante » (a-2)",
+      "ticket": "TCK-2584",
+      "motif": "vit avec la boîte des demandes ; sa place porte « Voir la visite », qu'AC4 exige"
+    }
+  ]
+}

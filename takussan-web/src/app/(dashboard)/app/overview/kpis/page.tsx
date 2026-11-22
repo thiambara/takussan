@@ -1,41 +1,16 @@
-import type { Metadata } from 'next';
-import { fetchKpiConfigs, fetchKpiMetricsCatalog } from '@/lib/queries/kpis';
-import { KpiConfigList } from './KpiConfigList';
-import { getTranslations } from 'next-intl/server';
-import { PageHeader } from '@/components/console';
+import { redirect } from 'next/navigation';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.pages.kpis');
-  return { title: t('metaTitle') };
-}
+import { cibleServeurDeLAncienneAdresse } from '@/lib/rapports/gardes-serveur';
 
 /**
- * TCK-032 P3 — KPI customisation per agency.
+ * TCK-2628 (ADR-0096 § 4) — `/app/overview/kpis` est devenue un onglet de « Rapports » (`/app/reports`). L'adresse reste
+ * servie pour les signets, les e-mails et les notifications, et ne rend qu'une redirection : vers l'onglet
+ * équivalent, ou la vue d'ensemble quand cet onglet est masqué ou interdit, ou `/app`
+ * pour une persona sans « Rapports » (`cibleDeLAncienneAdresse`).
  *
- * TCK-284 — **pas de restriction `kind`.** Cette page a porté un
- * `redirect('/app')` sur les agences `individual` du 2026-05-12 au
- * 2026-08-15, introduit par un commit intitulé « gate standard-only
- * features » sans qu'aucun ticket ni aucune spec ne le demande :
- * `docs/features.md` §1.12 donne une liste FERMÉE des restrictions d'une
- * agence `individual`, les KPI n'y sont pas, et la clause résiduelle les
- * rend explicitement disponibles. Le back ne l'a d'ailleurs jamais appliquée
- * (`KpiConfigController` ne regarde pas le `kind`) : la restriction n'a
- * jamais été un comportement, seulement un écran refusé.
+ * ⚠ Ni `layout.tsx` ni `loading.tsx` dans ce segment : une frontière de suspension rendrait la
+ * redirection en 200 au lieu de 307 (TCK-426, `app/__tests__/etats-de-route.test.ts`).
  */
-export default async function KpisPage() {
-  const t = await getTranslations('dashboard.pages.kpis');
-  // TCK-426 — le refus de rôle est REMONTÉ dans le `layout.tsx` de ce segment : ici, sous le
-  // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la vue interdite.
-
-  const [configs, catalog] = await Promise.all([fetchKpiConfigs(), fetchKpiMetricsCatalog()]);
-
-  return (
-    <div className="space-y-6">
-      <PageHeader title={t('title')} description={t('subtitleFull')} />
-      <KpiConfigList
-        initialConfigs={configs?.data ?? []}
-        catalog={catalog?.data ?? []}
-      />
-    </div>
-  );
+export default async function AnciensIndicateurs(): Promise<never> {
+  redirect(await cibleServeurDeLAncienneAdresse('/app/overview/kpis'));
 }

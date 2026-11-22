@@ -68,6 +68,10 @@ const CORRESPONDANCES = {
   BankStatementLineMatchStatus: [{ fichier: 'src/types/reconciliation.ts', nom: 'BankLineMatchStatus' }],
   BankStatementStatus: [{ fichier: 'src/types/reconciliation.ts', nom: 'BankStatementStatus' }],
   BookingStatus: [{ fichier: 'src/types/booking.ts', nom: 'BookingStatus' }],
+  // TCK-2876 — l'union arrive avec l'écran du personnel.
+  CounterOfferStatus: [{ fichier: 'src/types/booking.ts', nom: 'CounterOfferStatus' }],
+  // TCK-2812 — l'archive préparée d'un dossier du coffre.
+  DocumentVaultArchiveStatus: [{ fichier: 'src/lib/documents/coffre.ts', nom: 'StatutDeLArchivePreparee' }],
   CommissionEntryStatus: [{ fichier: 'src/lib/queries/commissions.ts', nom: 'CommissionEntryStatus' }],
   ConversationStatus: [{ fichier: 'src/types/message.ts', nom: 'ConversationStatus' }],
   CustomerStatus: [{ fichier: 'src/types/customer.ts', nom: 'CustomerStatus' }],
@@ -93,6 +97,7 @@ const CORRESPONDANCES = {
   ],
   ReviewStatus: [{ fichier: 'src/lib/queries/reviews.ts', nom: 'ReviewStatus' }],
   RadarCrawlStatus: [{ fichier: 'src/types/radar.ts', nom: 'RadarCrawlStatus' }],
+  RadarTargetStatus: [{ fichier: 'src/types/radar.ts', nom: 'RadarTargetStatus' }],
   RadarVerificationStatus: [{ fichier: 'src/types/radar.ts', nom: 'RadarVerificationStatus' }],
   RoleDelegationStatus: [{ fichier: 'src/types/role-delegation.ts', nom: 'RoleDelegationStatus' }],
   ScheduledTaskRunStatus: [{ fichier: 'src/types/super-admin.ts', nom: 'ScheduledTaskStatus' }],
@@ -112,8 +117,10 @@ const SANS_UNION = {
   AgentProfileStatus: 'aucune union nommée au front',
   BoostStatus: 'aucune union nommée au front',
   CollaborationStatus: 'aucune union nommée au front',
+  CommitmentStatus: 'TCK-2969 : l\'API seule — l\'union du front naît avec l\'écran de l\'engagement (TCK-2972)',
   InvitationStatus: 'unions anonymes seulement (`lib/queries/owners.ts`, `lib/queries/service-providers.ts`)',
   RelationshipStatus: 'union anonyme ouverte seulement (`types/customer.ts`, `… | string`)',
+  SearchAliasStatus: 'TCK-2476 : aucun écran — la console des variantes d\'écriture est hors périmètre (l\'API suffit pour l\'instant)',
 };
 
 /**

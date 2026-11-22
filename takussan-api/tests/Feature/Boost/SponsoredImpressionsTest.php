@@ -4,6 +4,7 @@ namespace Tests\Feature\Boost;
 
 use App\Models\Agency;
 use App\Models\BoostProduct;
+use App\Models\Enums\BoostStatus;
 use App\Models\Enums\CreditLotOrigin;
 use App\Models\Property;
 use App\Models\PropertyBoost;
@@ -13,16 +14,18 @@ use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Credits\CreditLedger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
 /**
- * TCK-633 lot F (ADR-0061 §10) — un emplacement servi par la recherche compte une impression.
+ * TCK-2569 (amendement d'ADR-0061 du 2026-11-16, option (a) du porteur) — une impression se compte
+ * quand le NAVIGATEUR déclare avoir affiché l'emplacement, jamais quand l'API le sert : le front
+ * retire l'emplacement de tête sous des places réservées et les doublons de la suite continue
+ * (TCK-2500), et l'accueil comme la recherche servaient des impressions qui n'avaient pas eu lieu.
  *
- * TCK-708 (P01.04, décision du porteur) — une fois par visiteur et par bien sur 30 min, et jamais
- * sur un 304 : un changement de filtre lance deux recherches (rendu serveur puis client), et une
- * revalidation ETag rejoue toute la recherche avant de répondre 304.
+ * TCK-708 (P01.04, décision du porteur) — une fois par visiteur et par bien sur 30 min.
  */
 class SponsoredImpressionsTest extends TestCase
 {
@@ -36,7 +39,7 @@ class SponsoredImpressionsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        // Début d'heure : les 31 minutes d'AC3 et AC4 restent dans la même clé horaire du compteur.
+        // Début d'heure : les 31 minutes restent dans la même clé horaire du compteur.
         $this->travelTo(now()->utc()->startOfHour()->addMinute());
         $agency = Agency::factory()->create();
         $admin = $this->actingAsRole('agency_admin', ['agency' => $agency]);
@@ -48,86 +51,86 @@ class SponsoredImpressionsTest extends TestCase
         app(PlatformSettingService::class)->bulkUpdate(['boost.sponsored_slots_per_page' => 1, 'boost.reserved_top_results' => 0], $this->actingAsRole('super_admin'));
     }
 
-    public function test_la_recherche_compte_une_impression_par_visiteur_sur_30_minutes(): void
+    /** AC3 — servir n'est plus compter : une régression qui recompterait à l'émission rougit ici. */
+    public function test_la_recherche_qui_sert_un_emplacement_ne_compte_aucune_impression(): void
     {
-        $this->rechercher('198.51.100.1')->assertOk()->assertJsonPath('sponsored.0.id', $this->property->id);
-        $this->rechercher('198.51.100.1')->assertOk();
-        $this->assertSame(1, $this->impressions(), 'la même recherche du même visiteur ne compte qu’une fois');
-
-        $this->rechercher('198.51.100.2')->assertOk();
-        $this->assertSame(2, $this->impressions(), 'un autre visiteur compte');
-
-        $this->travel(31)->minutes();
-        $this->rechercher('198.51.100.1')->assertOk();
-        $this->assertSame(3, $this->impressions(), 'après 30 minutes, le même visiteur compte de nouveau');
-    }
-
-    public function test_une_revalidation_en_304_ne_compte_aucune_impression(): void
-    {
-        $etag = $this->rechercher('198.51.100.1')->assertOk()->headers->get('ETag');
-        $this->assertNotNull($etag);
-        $this->assertSame(1, $this->impressions());
-
-        $this->travel(31)->minutes();
-        $this->rechercher('198.51.100.1', ['If-None-Match' => $etag])->assertStatus(304);
-
-        $this->assertSame(1, $this->impressions());
-    }
-
-    public function test_l_accueil_dedoublonne_de_meme(): void
-    {
-        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])->getJson('/api/public/properties/discovery')->assertOk();
-        $premier = $this->impressions();
-        $this->assertSame(1, $premier, 'témoin : l’accueil sert la Vedette et compte une impression');
-
-        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])->getJson('/api/public/properties/discovery')->assertOk();
-        $this->assertSame(1, $this->impressions());
-    }
-
-    /**
-     * TCK-790 (P18.03, décision du porteur) — le rendu serveur appelle l'accueil sans ville, puis le
-     * client le rappelle avec `near_city` quand il devine la ville : la rangée vedette, affichée une
-     * fois, ne compte qu'une impression.
-     */
-    public function test_l_accueil_rappele_avec_near_city_ne_compte_qu_une_fois(): void
-    {
-        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])->getJson('/api/public/properties/discovery')->assertOk();
-        $this->assertSame(1, $this->impressions(), 'témoin : l’appel sans ville compte la Vedette');
-
+        // TCK-2500 — la page 2 d'une carte : le bien boosté est la carte de la page 1, et une vedette déjà parmi les
+        // cartes de la page n'est pas servie en emplacement ; ici, elle l'est.
         $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
-            ->getJson('/api/public/properties/discovery?near_city=Dakar')
+            ->getJson('/api/public/properties/search?per_page=1&page=2')
+            ->assertOk()
+            ->assertJsonPath('sponsored.0.id', $this->property->id);
+
+        $this->assertSame(0, $this->impressions(), 'servi, pas affiché : rien ne se compte');
+    }
+
+    public function test_l_accueil_qui_sert_la_rangee_vedette_ne_compte_aucune_impression(): void
+    {
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
+            ->getJson('/api/public/properties/discovery')
             ->assertOk()
             ->assertJsonFragment(['id' => $this->property->id]);
 
+        $this->assertSame(0, $this->impressions());
+    }
+
+    /** AC1/AC2 côté API — seul ce qui est déclaré compte, un par emplacement déclaré. */
+    public function test_un_emplacement_declare_compte_une_impression(): void
+    {
+        $this->declarer('198.51.100.1', [$this->property->slug])->assertNoContent();
+
         $this->assertSame(1, $this->impressions());
     }
 
-    /**
-     * TCK-983 (P55.02) — une page au-delà de la dernière ne montre aucun emplacement (le front rend
-     * la liste vide sans eux) : elle n'en sert pas et ne compte aucune impression.
-     */
-    public function test_une_page_au_dela_de_la_derniere_ne_sert_ni_ne_compte_d_emplacement(): void
+    public function test_la_declaration_compte_une_impression_par_visiteur_sur_30_minutes(): void
     {
-        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
-            ->getJson('/api/public/properties/search?per_page=1&page=3')
-            ->assertOk()
-            ->assertJsonPath('meta.last_page', 3)
-            ->assertJsonPath('sponsored.0.id', $this->property->id);
-        $this->assertSame(1, $this->impressions(), 'témoin : la dernière page sert l’emplacement et le compte');
+        $this->declarer('198.51.100.1', [$this->property->slug, $this->property->slug])->assertNoContent();
+        $this->declarer('198.51.100.1', [$this->property->slug])->assertNoContent();
+        $this->assertSame(1, $this->impressions(), 'le même visiteur ne compte qu’une fois');
 
-        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.2'])
-            ->getJson('/api/public/properties/search?per_page=1&page=4')
-            ->assertOk()
-            ->assertJsonPath('data', [])
-            ->assertJsonPath('sponsored', [])
-            ->assertJsonPath('meta.total', 3);
-        $this->assertSame(1, $this->impressions(), 'aucune impression pour un emplacement que l’écran ne montre pas');
+        $this->declarer('198.51.100.2', [$this->property->slug]);
+        $this->assertSame(2, $this->impressions(), 'un autre visiteur compte');
+
+        $this->travel(31)->minutes();
+        $this->declarer('198.51.100.1', [$this->property->slug]);
+        $this->assertSame(3, $this->impressions(), 'après 30 minutes, le même visiteur compte de nouveau');
     }
 
-    /** @param  array<string, string>  $headers */
-    private function rechercher(string $ip, array $headers = []): TestResponse
+    /**
+     * AC4 — un bien qui n'est pas public ne compte rien, et rien ne le distingue d'un slug inconnu :
+     * même 204, sans corps. Le boost reste actif : seul le filtre de publication du contrôleur le tient.
+     */
+    public function test_un_bien_non_public_ou_inconnu_ne_compte_rien_et_ne_fuit_pas(): void
     {
-        return $this->withServerVariables(['REMOTE_ADDR' => $ip])->getJson('/api/public/properties/search', $headers);
+        DB::table('properties')->where('id', $this->property->id)->update(['visibility' => 'private']);
+        $this->assertSame(BoostStatus::Active, $this->boost->fresh()->status, 'témoin : la vedette reste active');
+
+        $prive = $this->declarer('198.51.100.1', [$this->property->slug])->assertNoContent();
+        $inconnu = $this->declarer('198.51.100.2', ['aucun-bien-de-ce-nom'])->assertNoContent();
+
+        $this->assertSame('', $prive->getContent());
+        $this->assertSame($inconnu->getContent(), $prive->getContent());
+        $this->assertSame(0, $this->impressions());
+    }
+
+    public function test_un_bien_sans_vedette_ne_compte_rien_et_une_declaration_vide_rend_204(): void
+    {
+        $autre = Property::query()->whereKeyNot($this->property->id)->firstOrFail();
+
+        $this->declarer('198.51.100.1', [$autre->slug])->assertNoContent();
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])->post('/api/public/properties/sponsored-impressions', ['slugs' => 'pas-un-tableau'])->assertNoContent();
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])->post('/api/public/properties/sponsored-impressions')->assertNoContent();
+
+        $this->assertSame(0, $this->impressions());
+        $this->assertSame(0, (int) DB::table('property_boost_daily_stats')->count());
+    }
+
+    /** @param  list<string>  $slugs */
+    private function declarer(string $ip, array $slugs): TestResponse
+    {
+        // Un formulaire, comme l'envoie le navigateur : une requête « simple », sans pré-vérification CORS.
+        return $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->post('/api/public/properties/sponsored-impressions', ['slugs' => $slugs]);
     }
 
     private function impressions(): int

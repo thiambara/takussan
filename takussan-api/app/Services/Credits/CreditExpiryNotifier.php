@@ -39,7 +39,7 @@ final class CreditExpiryNotifier
             }
             $agency = Agency::withTrashed()->find($lot->agency_id);
             foreach ($this->contacts->agencyAdmins($lot->agency_id) as $admin) {
-                $admin->notify(new CreditsExpiringNotification($lot->remaining_amount, $lot->expires_at->toDateString(), (string) $agency?->name));
+                $admin->notify(new CreditsExpiringNotification($lot->remaining_amount, $lot->expires_at->toDateString(), (string) $agency?->name, (int) $lot->agency_id));
             }
             $count++;
         }

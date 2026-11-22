@@ -12,6 +12,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Policies\LeasePolicy;
 use App\Policies\PropertyPolicy;
+use App\Services\Messaging\ConversationAccess;
 use App\Services\Property\BailleurDuBien;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
@@ -67,6 +68,9 @@ class ConversationContextController extends Controller
 
         $base = Property::query()->where('properties.status', '!=', PropertyStatus::Archived->value);
         $this->visiblePropertiesOnly($base, $user);
+        // TCK-2753 (r1 de 8d4d0f5f9) — ni le bien d'une agence fermée au bailleur parti ou suspendu :
+        // la règle que la création applique (`GuardsConversationScope::guardContext()`).
+        app(ConversationAccess::class)->restreindreAuxContextesOuverts($base, $user);
 
         $paginator = QueryBuilder::for($base, $request)
             ->allowedFields('id', 'title', 'reference_number')
@@ -110,6 +114,10 @@ class ConversationContextController extends Controller
                 }
             });
         }
+
+        // TCK-2753 (r1 de 8d4d0f5f9) — ni le bail d'une agence fermée au bailleur parti ou suspendu,
+        // sauf celui dont il est le locataire : la règle que la création applique.
+        app(ConversationAccess::class)->restreindreAuxContextesOuverts($base, $user);
 
         $paginator = QueryBuilder::for($base, $request)
             ->allowedFields(

@@ -15,6 +15,11 @@ on:
   # protection de branche doit exister sur chaque PR, sinon GitHub attend un statut qui ne
   # viendra jamais — et une promotion qui ne touche que `docs/` ne fusionnerait plus.
   workflow_call:
+  # À la demande, sur n'importe quelle branche : une PR de plus de 300 fichiers ne déclenche pas les
+  # workflows filtrés par chemins (GitHub n'évalue `paths` que sur les 300 premiers fichiers du diff),
+  # et `takussan-web/**` vient après `takussan-api/**` dans l'ordre du diff. `api-ci.yml` avait déjà
+  # `workflow_dispatch` ; c'est le pendant du front (lot de l'audit UX de /app, 2026-11-11).
+  workflow_dispatch:
   pull_request:
     branches-ignore: [preview, master]
     paths:
@@ -38,13 +43,19 @@ on:
       # La garde le lit ; ce déclencheur doit donc le suivre, sinon elle dort quand le
       # contrat géographique bouge seul.
       - 'takussan-api/app/Http/Requests/Concerns/**'
-      # ⚠ `property-labels.parity.test.ts` compare les libellés que `PropertyResource` ÉMET
-      # (traduits par `enumLabel()` depuis ces fichiers) à ceux que le dictionnaire du front
-      # affiche. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle dort
-      # quand le back bouge seul — et c'est précisément ce qui a laissé 44 divergences
-      # s'installer sans que rien ne le signale (TCK-351).
+      # ⚠ `property-labels.parity.test.ts` (TCK-351, option a : le front possède le texte affiché)
+      # lit `PropertyResource` — qui ne doit plus émettre aucun `*_label` de bien — et les six
+      # enums dont le front traduit les codes : un cas ajouté côté API sans sa clé fr/en/wo doit
+      # réveiller la garde. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle
+      # dort quand le back bouge seul — c'est ce qui avait laissé 44 divergences s'installer.
       - 'takussan-api/lang/**'
       - 'takussan-api/app/Http/Resources/PropertyResource.php'
+      - 'takussan-api/app/Models/Enums/PropertyType.php'
+      - 'takussan-api/app/Models/Enums/ContractType.php'
+      - 'takussan-api/app/Models/Enums/RentPeriod.php'
+      - 'takussan-api/app/Models/Enums/PropertyStatus.php'
+      - 'takussan-api/app/Models/Enums/TitleType.php'
+      - 'takussan-api/app/Models/Enums/PropertyCondition.php'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
       # TCK-508 — `field-matrix.test.ts` lit la famille FONCIÈRE de `PropertyLabels::FAMILLES` :
       # les types sans « état du bien » côté front doivent être exactement ceux-là.
@@ -63,6 +74,22 @@ on:
       - 'takussan-api/app/Services/Tags/TagCatalog.php'
       - 'takussan-api/tests/fixtures/cout-d-entree.json'
       - 'takussan-api/tests/fixtures/liens-google-maps.json'
+      # TCK-2480 — `src/lib/navigation/__tests__/preferences.parite.test.ts` ↔ la fixture de la forme de
+      # `preferences.navigation`, jouée aussi par `NavigationPreferencesTest` ; et les règles qui lui
+      # répondent côté API : une PR qui ne touche qu'elles doit réveiller le côté front.
+      - 'takussan-api/tests/fixtures/preferences-navigation.json'
+      - 'takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php'
+      # TCK-2483 — `src/lib/navigation/__tests__/modules.parity.test.ts` compare `CODES_DE_MODULE` aux
+      # cas d'`AgencyModule` : un module ajouté côté back seul doit réveiller la garde.
+      - 'takussan-api/app/Models/Enums/AgencyModule.php'
+      # TCK-2636 — `src/lib/__tests__/notification-preferences.parity.test.ts` compare les événements
+      # de l'écran des préférences à `PreferenceResolver::EVENTS` : un événement ajouté côté back seul
+      # (six l'avaient été sans interrupteur) doit réveiller la garde.
+      - 'takussan-api/app/Services/Notifications/PreferenceResolver.php'
+      # TCK-2769 — `src/lib/documents/__tests__/vocabulaire-du-coffre.tck-2769.test.ts` compare le
+      # vocabulaire de la recherche du coffre, versionné dans l'API, aux libellés du front : une
+      # retouche du seul fichier de l'API doit la déclencher.
+      - 'takussan-api/resources/documents/vocabulaire-du-coffre.json'
   push:
     # pre-dev : amendement d'ADR-0066 du 2026-10-22 (voir api-ci.yml).
     branches: [dev, master, pre-dev]
@@ -77,19 +104,30 @@ on:
       # La garde le lit ; ce déclencheur doit donc le suivre, sinon elle dort quand le
       # contrat géographique bouge seul.
       - 'takussan-api/app/Http/Requests/Concerns/**'
-      # ⚠ `property-labels.parity.test.ts` compare les libellés que `PropertyResource` ÉMET
-      # (traduits par `enumLabel()` depuis ces fichiers) à ceux que le dictionnaire du front
-      # affiche. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle dort
-      # quand le back bouge seul — et c'est précisément ce qui a laissé 44 divergences
-      # s'installer sans que rien ne le signale (TCK-351).
+      # TCK-351 — la garde décrite au déclencheur `pull_request` (resource + six enums).
       - 'takussan-api/lang/**'
       - 'takussan-api/app/Http/Resources/PropertyResource.php'
+      - 'takussan-api/app/Models/Enums/PropertyType.php'
+      - 'takussan-api/app/Models/Enums/ContractType.php'
+      - 'takussan-api/app/Models/Enums/RentPeriod.php'
+      - 'takussan-api/app/Models/Enums/PropertyStatus.php'
+      - 'takussan-api/app/Models/Enums/TitleType.php'
+      - 'takussan-api/app/Models/Enums/PropertyCondition.php'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
       - 'takussan-api/app/Support/Search/PropertyLabels.php'
       # TCK-633 (lot D) — les trois gardes croisées décrites au déclencheur `pull_request`.
       - 'takussan-api/app/Services/Tags/TagCatalog.php'
       - 'takussan-api/tests/fixtures/cout-d-entree.json'
       - 'takussan-api/tests/fixtures/liens-google-maps.json'
+      # TCK-2480 — la garde décrite au déclencheur `pull_request`.
+      - 'takussan-api/tests/fixtures/preferences-navigation.json'
+      - 'takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php'
+      # TCK-2483 — la garde décrite au déclencheur `pull_request`.
+      - 'takussan-api/app/Models/Enums/AgencyModule.php'
+      # TCK-2636 — la garde décrite au déclencheur `pull_request`.
+      - 'takussan-api/app/Services/Notifications/PreferenceResolver.php'
+      # TCK-2769 — la garde décrite au déclencheur `pull_request`.
+      - 'takussan-api/resources/documents/vocabulaire-du-coffre.json'
 
 # Un run à la fois sur pre-dev, le plus récent en attente (voir api-ci.yml).
 concurrency:
@@ -97,12 +135,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ─── L'ATTESTATION PAR ARBRE (ADR-0063, TCK-636) ─────────────────────────────────────────
+  # ─── L'ATTESTATION PAR ARBRE (ADR-0063, TCK-636 ; agrégateur : TCK-2950) ───────────────────
   #
   # Même mécanisme qu'api-ci.yml : la clé est le `ls-tree` de ce que la suite LIT — ici TOUT
   # `takussan-api/` en plus du front, pas les `paths:` ci-dessus. Mesuré le 2026-10-13 : deux
   # tests du front lisent des fichiers de l'API que ces `paths` ignorent. S'il existe une
-  # attestation verte de cette clé, `quality` est sauté ; toute incertitude le fait tourner.
+  # attestation verte de cette clé, `statique` et les shards de `tests` sont sautés, et `quality`
+  # le constate ; toute incertitude les fait tourner.
   attestation:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -122,13 +161,27 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/ci-attestation.mjs web
 
-  quality:
-    name: Web (ESLint + tsc + Vitest + build)
-    # `!cancelled()` d'abord : un job `attestation` en échec ne doit pas faire SAUTER la suite —
-    # un job sauté passe un check requis.
+  # ─── TROIS JOBS, UN VERDICT (TCK-2950, amendement d'ADR-0063 du 2026-11-16) ──────────────────
+  #
+  # Avant : un seul job enchaînait lint, tsc, gardes, Vitest (18-26 min sur 4 cœurs : le coût est la
+  # mise en place de chacun des ~1 900 fichiers, pas les tests) et le build — ~30 min. Désormais :
+  #   · `statique` — ESLint, tsc, les gardes `check:*`, le build et le poids des routes ;
+  #   · `tests`    — Vitest en matrice de 4 shards, chacun sur son runner ;
+  # les deux ne dépendent que d'`attestation` et tournent EN MÊME TEMPS. Puis
+  #   · `quality`  — l'AGRÉGATEUR, qui porte le nom du check requis de `preview`/`master`
+  #     (« Front / Web (ESLint + tsc + Vitest + build) », au caractère près) et rend le verdict.
+  #
+  # ⚠ Le piège que `quality` existe pour fermer : un job dont une dépendance a échoué est SAUTÉ, et
+  # un job sauté passe un check requis. `quality` tourne donc sous `!cancelled()` quoi qu'il arrive,
+  # et ÉCHOUE lui-même sur tout autre résultat que « tout vert » ou « tout sauté sur une attestation
+  # trouvée ». `scripts/check-ci-attestation.mjs` tient cette forme.
+  statique:
+    name: Web (ESLint + tsc + gardes + build)
+    # `!cancelled()` d'abord : un job `attestation` en échec ne doit pas faire SAUTER la suite.
     needs: attestation
     if: ${{ !cancelled() && needs.attestation.outputs.deja-vert != 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: takussan-web
@@ -198,8 +251,20 @@ jobs:
         # autrement : « cette classe n'émet rien », pas « ce code est mal écrit ».
         run: npm run check:classes-emises
 
-      - name: Tests (Vitest)
-        run: npm run test
+      - name: Vouvoiement (TCK-2683, ADR-0095)
+        # Takussan vouvoie partout. Cette garde lit `src/messages/fr.json` et les chaînes de `src/`
+        # (hors tests et maquettes) et rougit sur tout tutoiement, plafond 0. Elle vit ici avec les
+        # trois autres gardes du front parce qu'elle lit `src/` du front ; elle n'a besoin d'aucune
+        # dépendance. Ce qu'elle garde n'est vu par aucune étape voisine : `check:i18n` ne juge que
+        # la parité des langues, et un texte au tutoiement est une chaîne valide pour tout le reste.
+        run: npm run check:vouvoiement
+
+      - name: Profils de clavier et placeholders (TCK-2991, ADR-0135)
+        # Tout champ qui ouvre un clavier prend un profil (`src/lib/clavier.ts`) et porte un placeholder ;
+        # aucun n'est en `type="number"`. Cliquet EXACT par fichier sur `scripts/champs-baseline.json` : un
+        # compte qui monte rougit, un compte qui descend aussi tant que la base n'est pas réécrite. Ce qu'elle
+        # garde n'est vu par rien d'autre : un champ sans profil est du JSX valide pour tsc, ESLint et les tests.
+        run: npm run check:champs
 
       - name: Build
         run: npm run build
@@ -213,16 +278,82 @@ jobs:
         # lu n'est pas un vert). Le chiffre se lit dans le journal de cette étape.
         run: node scripts/poids-des-routes.mjs
 
-      # ADR-0063 — lint, types, gardes, tests et build sont verts sur cet arbre : le nom de
-      # l'artefact en est la preuve, son contenu dit qui l'a déposé. Sans nom (attestation en
-      # échec), rien à déposer.
+  tests:
+    name: Vitest (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: attestation
+    if: ${{ !cancelled() && needs.attestation.outputs.deja-vert != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      # Un shard rouge n'arrête pas les autres : le run montre TOUS les tests en échec d'un coup.
+      fail-fast: false
+      matrix:
+        # Exactement 1..N : le dénominateur est `strategy.job-total`, pas un chiffre recopié — une
+        # liste et un `/4` qui divergent laisseraient un quart des fichiers sans runner, en vert.
+        # Le découpage est celui de Vitest (hachage des chemins) : ~480 fichiers par shard.
+        shard: [1, 2, 3, 4]
+    defaults:
+      run:
+        working-directory: takussan-web
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: takussan-web/package-lock.json
+
+      - run: npm ci
+
+      - name: Tests (Vitest, shard ${{ matrix.shard }}/${{ strategy.job-total }})
+        run: npx vitest run --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+
+  quality:
+    name: Web (ESLint + tsc + Vitest + build)
+    # ⚠ PAS de `deja-vert` ici : l'agrégateur tourne toujours, c'est lui qui rend le verdict. Et
+    # `!cancelled()` plutôt qu'un `if:` par défaut — qui vaut `success()` et le ferait SAUTER dès
+    # qu'un shard rougit : un check requis sauté est un check requis vert.
+    needs: [attestation, statique, tests]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verdict (statique + 4 shards)
+        env:
+          DEJA_VERT: ${{ needs.attestation.outputs.deja-vert }}
+          STATIQUE: ${{ needs.statique.result }}
+          TESTS: ${{ needs.tests.result }}
+        run: |
+          echo "attestation trouvée : ${DEJA_VERT:-non} · statique : $STATIQUE · tests : $TESTS"
+          if [ "$DEJA_VERT" = "true" ]; then
+            # Le seul vert sans exécution : tout a été sauté PARCE QU'une attestation existe.
+            if [ "$STATIQUE" = "skipped" ] && [ "$TESTS" = "skipped" ]; then
+              echo "Arbre déjà attesté vert (ADR-0063) : rien n'est rejoué."
+              exit 0
+            fi
+            echo "::error::Arbre attesté, mais statique=$STATIQUE et tests=$TESTS — incohérent."
+            exit 1
+          fi
+          if [ "$STATIQUE" = "success" ] && [ "$TESTS" = "success" ]; then
+            exit 0
+          fi
+          echo "::error::statique=$STATIQUE, tests=$TESTS — le check du front n'est vert que si TOUT l'est."
+          exit 1
+
+      # ADR-0063 — lint, types, gardes, build et les 4 shards sont verts sur cet arbre : le nom de
+      # l'artefact en est la preuve, son contenu dit qui l'a déposé. Sans nom (attestation en échec),
+      # rien à déposer ; sur un arbre déjà attesté, rien non plus — redéposer prolongerait sans fin
+      # la validité de 7 jours qui borne la dérive. `if:` sans fonction de statut = `success()` :
+      # un verdict rouge ne dépose rien.
       - name: Attester l'arbre (ADR-0063)
-        if: needs.attestation.outputs.artefact != ''
+        if: needs.attestation.outputs.artefact != '' && needs.attestation.outputs.deja-vert != 'true'
         run: |
           printf '{"sha":"%s","run":"%s","evenement":"%s"}\n' \
             "${{ github.sha }}" "${{ github.run_id }}" "${{ github.event_name }}" > "${{ runner.temp }}/attestation.json"
       - name: Déposer l'attestation
-        if: needs.attestation.outputs.artefact != ''
+        if: needs.attestation.outputs.artefact != '' && needs.attestation.outputs.deja-vert != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ needs.attestation.outputs.artefact }}

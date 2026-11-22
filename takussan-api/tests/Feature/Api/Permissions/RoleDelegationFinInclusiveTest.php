@@ -103,4 +103,25 @@ class RoleDelegationFinInclusiveTest extends ApiTestCase
     {
         (new ProcessRoleDelegationsJob)->handle(app(RoleDelegationService::class));
     }
+
+    /**
+     * TCK-2743 (lot 3) — un début et une fin envoyés avec décalage sont les instants qu'ils désignent.
+     * `FinInclusive` rendait la fin telle quelle, et le cast en écrivait l'heure murale.
+     */
+    public function test_un_instant_avec_decalage_est_l_instant_designe(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->postJson("/api/agencies/{$this->agency->id}/role-delegations", [
+            'user_id' => $this->beneficiary->id,
+            'role' => 'agency_admin',
+            'starts_at' => '2026-10-21T09:00:00+01:00',
+            'ends_at' => '2026-10-25T08:30:00+02:00',
+        ])->assertCreated();
+
+        $delegation = RoleDelegation::query()->where('user_id', $this->beneficiary->id)->sole();
+        $this->assertSame('2026-10-21 08:00:00', $delegation->getRawOriginal('starts_at'));
+        $this->assertSame('2026-10-25 06:30:00', $delegation->getRawOriginal('ends_at'));
+        $this->assertSame(RoleDelegationStatus::Scheduled, $delegation->status);
+    }
 }

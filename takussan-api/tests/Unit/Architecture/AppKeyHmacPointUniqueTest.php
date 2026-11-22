@@ -33,6 +33,11 @@ use RecursiveIteratorIterator;
  * **Faux positifs acceptés** : la chaîne `'APP_KEY'` dans une liste de noms (une garde d'environnement, par exemple),
  * et une méthode `getAllKeys()` sans rapport. Le cas échéant, le fichier s'ajoute à `PERMIS`, avec sa raison.
  *
+ * TCK-614 (ADR-0084, amendement du 2026-11-16) — les empreintes s'écrivent sous `APP_HMAC_KEY` : `app.hmac_key` et
+ * `APP_HMAC_KEY` ne se lisent que dans `AppKeyHmac` et `config/app.php`. `ClaimLinks` reste permis (décision du porteur :
+ * ses liens restent signés sous `APP_KEY`), le repli de `RadarPhone` aussi (ADR-0082) ; `security:reencrypt` lit les
+ * clés du chiffreur pour ré-chiffrer, jamais pour une empreinte.
+ *
  * Elle se garde elle-même : un balayage qui ne trouve plus `AppKeyHmac` ni `config/app.php` rougit.
  */
 class AppKeyHmacPointUniqueTest extends TestCase
@@ -44,10 +49,14 @@ class AppKeyHmacPointUniqueTest extends TestCase
         'app/Support/AppKeyHmac.php',
         'app/Support/RadarPhone.php',
         'app/Services/Radar/ClaimLinks.php',
+        // TCK-614 — juge « déjà sous la clé courante » en déchiffrant sous la seule clé courante, et refuse de tourner
+        // sans `APP_PREVIOUS_KEYS` : elle lit les clés du chiffreur, jamais pour une empreinte.
+        'app/Console/Commands/SecurityReencrypt.php',
         'config/app.php',
     ];
 
-    private const CHAINES_INTERDITES = ['app.key', 'app.previous_keys', 'APP_KEY', 'APP_PREVIOUS_KEYS'];
+    /** TCK-614 — `app.hmac_key` / `APP_HMAC_KEY` aussi : la clé des empreintes ne se lit que par `AppKeyHmac`. */
+    private const CHAINES_INTERDITES = ['app.key', 'app.previous_keys', 'APP_KEY', 'APP_PREVIOUS_KEYS', 'app.hmac_key', 'APP_HMAC_KEY'];
 
     private const METHODES_INTERDITES = ['getpreviouskeys', 'getallkeys'];
 
@@ -105,6 +114,9 @@ class AppKeyHmacPointUniqueTest extends TestCase
             '$k = app(\\Illuminate\\Contracts\\Encryption\\Encrypter::class)->getKey();',
             '$k = app(StringEncrypter::class)?->getKey();',
             '$k = Crypt::getFacadeRoot()->getKey();',
+            // TCK-614 — la clé des empreintes hors d'AppKeyHmac.
+            "hash_hmac('sha256', \$x, (string) config('app.hmac_key'));",
+            "\$k = env('APP_HMAC_KEY');",
         ];
 
         foreach ($temoins as $temoin) {

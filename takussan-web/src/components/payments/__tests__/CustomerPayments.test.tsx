@@ -15,9 +15,13 @@ import type { PaymentHistoryRow } from '@/types/invoice';
 import { CustomerPayments } from '../CustomerPayments';
 
 const usePaymentsHistory = vi.fn();
+// TCK-2650 — sans résumé lisible (`schedule_state` nul : un client de réservation, ou l'API en échec),
+// la page garde la tête d'avant. Les trois états du résumé sont éprouvés par `CustomerPayments.tck-2650`.
 vi.mock('@/lib/queries/payments', () => ({
   usePaymentsHistory: (...args: unknown[]) => usePaymentsHistory(...args),
+  useResumeDuLoyer: () => ({ data: undefined, isLoading: false, isError: true }),
 }));
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams('') }));
 vi.mock('@/hooks/useInitiatePayment', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/useInitiatePayment')>()),
   useInitiatePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -114,10 +118,11 @@ describe('CustomerPayments (TCK-593 Partie 2)', () => {
       params.status ? reponse([]) : reponse([payeAvecPenalite, ligne({ id: 11 })]),
     );
     rendre();
+    // TCK-2650 — la note de l'historique est celle de la maquette : « Pénalité 7 500 F … Due ».
     const cartes = within(screen.getByTestId('historique-client')).getAllByRole('listitem');
-    const rappel = within(cartes[0]).getByTestId('penalite-hors-ligne');
-    expect(texte(rappel.textContent)).toContain('7 500 F CFA');
-    expect(within(cartes[1]).queryByTestId('penalite-hors-ligne')).toBeNull();
+    const rappel = cartes[0].querySelector('[data-slot="penalite-due"]');
+    expect(texte(rappel?.textContent)).toContain('7 500 F');
+    expect(cartes[1].querySelector('[data-slot="penalite-due"]')).toBeNull();
   });
 
   it('affiche en tête amount_due tel que l’API le rend, et « Payer » de ce montant', () => {
@@ -131,7 +136,7 @@ describe('CustomerPayments (TCK-593 Partie 2)', () => {
   it('« Payer » vient AVANT l’historique dans la page', () => {
     rendre();
     const payer = screen.getByRole('button', { name: /^Payer / });
-    const historique = screen.getByRole('heading', { name: fr.payments.customer.historyTitle });
+    const historique = screen.getByRole('heading', { name: fr.payments.locataire.historique.titre });
     expect(payer.compareDocumentPosition(historique) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -144,10 +149,11 @@ describe('CustomerPayments (TCK-593 Partie 2)', () => {
 
   it('historique en cartes, quittance sur le loyer payé seulement', () => {
     rendre();
-    expect(screen.queryByRole('table')).toBeNull();
+    // TCK-2650 — des cartes au téléphone, une table au bureau (`lg`) : les deux portent les mêmes lignes.
     const cartes = within(screen.getByTestId('historique-client')).getAllByRole('listitem');
     expect(cartes).toHaveLength(3);
-    expect(screen.getAllByRole('button', { name: fr.payments.customer.receiptPdf })).toHaveLength(1);
+    expect(within(screen.getByTestId('historique-client')).getAllByRole('button', { name: fr.payments.locataire.historique.quittance })).toHaveLength(1);
+    expect(within(screen.getByTestId('historique-client-table')).getAllByRole('button', { name: fr.payments.locataire.historique.quittancePdf })).toHaveLength(1);
   });
 
   it('pas de quittance pour une caution rendue (VERIF-594 passe 5, P5-3)', () => {
@@ -155,7 +161,7 @@ describe('CustomerPayments (TCK-593 Partie 2)', () => {
       params.status ? reponse([]) : reponse([ligne({ id: 70, payment_type: 'deposit_refund' })]),
     );
     rendre();
-    expect(screen.queryByRole('button', { name: fr.payments.customer.receiptPdf })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Quittance|Reçu/ })).toBeNull();
   });
 
   it('à jour : aucun « Payer », un message clair', () => {

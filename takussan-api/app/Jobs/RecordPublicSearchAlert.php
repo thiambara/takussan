@@ -11,6 +11,7 @@ use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -29,6 +30,10 @@ use Throwable;
  * Chiffré (`ShouldBeEncrypted`) : la charge porte le contact en clair, et la table `jobs` le
  * garderait lisible jusqu'au passage du worker. Un échec est journalisé sans contact ni message,
  * et n'est pas rejoué : la demande reste en attente et la purge l'efface à 48 h.
+ *
+ * TCK-615 (ADR-0050, amendement du 2026-11-16, C) — la borne par contact ne compte que les demandes
+ * confirmées ; à la borne de demandes muettes, la nouvelle évince la plus ancienne. Le tout sous un
+ * verrou par boîte (magasin de cache partagé : Redis en préproduction et production).
  */
 class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
 {
@@ -38,6 +43,9 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
     public const SCOPE = 'search_alert:';
 
     public int $tries = 1;
+
+    /** Durée de vie du verrou par boîte : couvre l'envoi du message de confirmation. */
+    private const VERROU_SECONDES = 60;
 
     /** Demandes par boîte et par heure, toutes adresses IP confondues. */
     public const PAR_CONTACT_PAR_HEURE = 5;
@@ -70,14 +78,61 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
             // TCK-2430 — les plafonds comptent la boîte sous toutes les clés reconnues : une rotation d'`APP_KEY` ne
             // les remet pas à zéro. Le limiteur, lui, vit une heure dans le cache : il repart sous la clé courante.
             $boites = AlertSubscriber::mailboxHashes($this->channel, $this->contact);
-            $open = AlertSubscriber::query()->whereIn('mailbox_hash', $boites)->count();
-            if ($open < (int) config('search_alerts.max_open_per_contact', 5)) {
-                $this->createAndConfirm($codes, $hash, $boite, $boites);
-            }
+
+            // TCK-615 — compter, évincer, créer et compter les confirmations sous UN verrou par boîte : deux
+            // workers qui traitent deux demandes du même contact ne dépassent aucune borne. Le verrou vit hors
+            // de la requête (pas d'oracle) ; tenu trop longtemps par un autre worker, la demande se journalise.
+            Cache::lock(self::verrouDeLaBoite($boite), self::VERROU_SECONDES)
+                ->block((int) config('search_alerts.contact_lock_wait_seconds', 10), function () use ($codes, $hash, $boite, $boites): void {
+                    $max = (int) config('search_alerts.max_open_per_contact', 5);
+                    $parBoite = fn () => AlertSubscriber::query()->whereIn('mailbox_hash', $boites);
+
+                    // TCK-615 (décision du porteur du 2026-11-16) — la borne ne retient que les demandes
+                    // CONFIRMÉES : à elles seules, elles ferment le contact, en silence.
+                    if ($parBoite()->whereNotNull('confirmed_at')->count() >= $max) {
+                        return;
+                    }
+                    // Des demandes muettes à la borne : la plus ancienne cède la place, au lieu de refuser
+                    // la nouvelle — un tiers ne bloque plus le titulaire pendant 48 h.
+                    if ($parBoite()->whereNull('confirmed_at')->count() >= $max) {
+                        $this->evincerLaPlusAncienneDemandeMuette($boites);
+                    }
+
+                    $this->createAndConfirm($codes, $hash, $boite, $boites);
+                });
         } catch (Throwable $e) {
             Log::error('search_alert.request_failed', ['channel' => $this->channel]
                 + SafeExceptionContext::of($e));
         }
+    }
+
+    /** Le verrou qui sérialise les demandes d'une même boîte (TCK-615). */
+    public static function verrouDeLaBoite(string $boite): string
+    {
+        return 'public-search-alert:mailbox-lock:'.$boite;
+    }
+
+    /**
+     * TCK-615 (ADR-0050, amendement du 2026-11-16, C) — la plus ancienne demande NON CONFIRMÉE de la boîte,
+     * avec sa recherche (clé étrangère en cascade).
+     *
+     * ⚠ Jamais une demande dont le message de confirmation est parti depuis moins de 24 h : le plafond
+     * `max_confirmations_per_day` se compte sur les lignes, et l'évincer le rendrait au tiers — une demande
+     * par heure ferait partir un e-mail par heure. Elles sont au plus `max_confirmations_per_day` (2) sur
+     * `max_open_per_contact` (5) : il en reste toujours une à évincer.
+     *
+     * @param  list<string>  $boites
+     */
+    private function evincerLaPlusAncienneDemandeMuette(array $boites): void
+    {
+        AlertSubscriber::query()
+            ->whereIn('mailbox_hash', $boites)
+            ->whereNull('confirmed_at')
+            ->where(fn ($q) => $q->whereNull('confirmation_sent_at')->orWhere('confirmation_sent_at', '<', now()->subDay()))
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->first()
+            ?->delete();
     }
 
     /** @param  list<string>  $boites */

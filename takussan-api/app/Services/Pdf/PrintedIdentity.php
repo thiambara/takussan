@@ -13,7 +13,8 @@ use Illuminate\Database\Eloquent\Model;
  * {@see self::KEY}, et le rendu les rend sur des COPIES en mémoire des modèles qu'il passe au
  * gabarit : les gabarits ne changent pas, et rien n'est écrit sur les lignes courantes.
  *
- * Ce qui est figé est ce que les gabarits lisent, et lui seul : nom et courriel d'une personne,
+ * Ce qui est figé est ce que les gabarits lisent, et lui seul : nom et courriel d'une personne (et
+ * son téléphone là où le gabarit le lit, {@see self::RENT_RECEIPT_FIELDS}),
  * titre et adresse d'un bien, nom de l'agence. Le logo de l'agence reste recomposé (P109.04).
  * Un acte acquitté ou signé avant ce ticket n'a pas d'instantané : il imprime les valeurs
  * courantes, comme avant.
@@ -29,17 +30,30 @@ final class PrintedIdentity
      */
     public const LANDLORD_COMPANY = 'landlord_company_name';
 
-    /** Les attributs d'une personne (locataire, client, bailleur) que les gabarits impriment. */
+    /** Les attributs d'une personne (locataire, client, bailleur) que tous les gabarits impriment. */
     private const PERSON = ['first_name', 'last_name', 'name', 'email'];
+
+    /**
+     * TCK-2718 — les champs qu'un acte fige EN PLUS, par rôle : ceux que son seul gabarit lit. La
+     * quittance de loyer imprime le téléphone du locataire à défaut de nom et d'e-mail
+     * ({@see PrintedName}) ; ni l'état des lieux ni le reçu de réservation ne l'impriment, et ils ne
+     * le figent donc pas. L'instantané est un acte : il survit à l'effacement du compte
+     * (`AccountDeletionService`), d'où la minimisation. Un instantané antérieur n'a pas la clé : sa
+     * copie restaurée garde le téléphone courant, comme avant.
+     *
+     * @var array<string, list<string>>
+     */
+    public const RENT_RECEIPT_FIELDS = ['tenant' => ['phone']];
 
     /** Les composantes de `Address::full_address`, un accesseur : on fige ses parts. */
     private const ADDRESS = ['street', 'neighborhood', 'postal_code', 'city', 'region', 'country'];
 
     /**
      * @param  array<string, Model|null>  $roles  `tenant`, `customer`, `landlord`, `property`, `agency`
+     * @param  array<string, list<string>>  $extraFields  les champs d'une personne figés en plus, par rôle
      * @return array<string, array<string, mixed>|null>
      */
-    public static function capture(array $roles): array
+    public static function capture(array $roles, array $extraFields = []): array
     {
         $snapshot = [];
         foreach ($roles as $role => $model) {
@@ -50,7 +64,7 @@ final class PrintedIdentity
                     'address' => $model->address !== null ? self::raw($model->address, self::ADDRESS) : null,
                 ],
                 $role === 'agency' => ['name' => $model->getAttributes()['name'] ?? null],
-                default => self::raw($model, self::PERSON),
+                default => self::raw($model, [...self::PERSON, ...($extraFields[$role] ?? [])]),
             };
         }
 

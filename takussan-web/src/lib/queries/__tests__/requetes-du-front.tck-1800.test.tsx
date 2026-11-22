@@ -7,7 +7,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { fetchAdminUsers } from '../admin-users';
-import { useBookings } from '../bookings';
+import { useBookingCounts, useBookings } from '../bookings';
 import { fetchDashboardCustomers } from '../customers';
 import { useLeases } from '../leases';
 import { useInvoices } from '../payments';
@@ -85,6 +85,20 @@ const INVOCATIONS: readonly Invocation[] = [
   // P150.03 : les trois listes dont le type promettait une recherche que l'API refuse.
   { source: 'useLeases()', acteur: 'agence', appel: () => monter(() => useLeases()) },
   { source: 'useBookings()', acteur: 'agence', appel: () => monter(() => useBookings()) },
+  // TCK-2594 : la liste du personnel (une nature, un statut, le client inclus, les trois filtres du
+  // bureau), et ses compteurs nature × statut sous les mêmes filtres.
+  {
+    source: 'useBookings(offres à décider, client, filtres du bureau)',
+    acteur: 'agence',
+    appel: () =>
+      monter(() => useBookings({ kind: 'offer', status: 'pending', avecClient: true, search: 'Sarr', propertyId: 1, customerId: 1, onlyMine: true })),
+  },
+  { source: 'useBookings(Mes réservations, en cours)', acteur: 'agence', appel: () => monter(() => useBookings({ status: 'pending,confirmed', per_page: 30 })) },
+  {
+    source: 'useBookingCounts(filtres du bureau)',
+    acteur: 'agence',
+    appel: () => monter(() => useBookingCounts({ search: 'Sarr', propertyId: 1, customerId: 1, onlyMine: true })),
+  },
   { source: 'useInvoices()', acteur: 'agence', appel: () => monter(() => useInvoices()) },
   { source: 'fetchDashboardCustomers()', acteur: 'agence', appel: () => fetchDashboardCustomers(JETON) },
   { source: 'fetchDashboardProperties()', acteur: 'agence', appel: () => fetchDashboardProperties(JETON) },

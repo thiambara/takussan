@@ -44,10 +44,18 @@ const CLASSE_FLASH = cn('wizard-flash', 'rounded-lg');
 export function ChampsLieu({
   form,
   flash = [],
+  aideDuQuartier,
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
   /** Les champs que la suggestion de la géo-IP vient de remplir (`StepLieu`). */
   readonly flash?: readonly ('city' | 'region')[];
+  /**
+   * TCK-2934 — l'aide du quartier, visible d'emblée (`/publish`, maquette `app-entree-publier` e1 : « Introuvable ?
+   * Écrivez-le… »). Elle tient lieu de l'indice du quartier nouveau, qui dit la même chose, et cède la place à
+   * l'erreur du champ (la maquette rend l'une OU l'autre). Absente (`/app/properties/new`, la fiche) : l'indice
+   * d'avant, seulement pour un quartier hors du référentiel.
+   */
+  readonly aideDuQuartier?: string;
 }) {
   const t = useTranslations('property.form');
   const { control, setValue } = form;
@@ -243,16 +251,32 @@ export function ChampsLieu({
           aucunResultat={t('address.noResults')}
           chargement={chargement.quartiers}
           invalide={Boolean(quartier.fieldState.error)}
-          decritPar={quartierNouveau ? 'champ-quartier-indice' : quartier.fieldState.error ? 'champ-quartier-error' : undefined}
+          decritPar={
+            aideDuQuartier !== undefined
+              ? quartier.fieldState.error
+                ? 'champ-quartier-error'
+                : 'champ-quartier-indice'
+              : quartierNouveau
+                ? 'champ-quartier-indice'
+                : quartier.fieldState.error
+                  ? 'champ-quartier-error'
+                  : undefined
+          }
         />
-        {quartierNouveau ? (
+        {aideDuQuartier !== undefined ? (
+          quartier.fieldState.error ? null : (
+            <p id="champ-quartier-indice" className="mt-1.5 text-ui leading-snug text-muted-foreground" data-aide-du-quartier="">
+              {aideDuQuartier}
+            </p>
+          )
+        ) : quartierNouveau ? (
           <p id="champ-quartier-indice" className="mt-1 text-xs text-muted-foreground">
             {t('address.newNeighborhoodHint')}
           </p>
         ) : null}
         <FormError id="champ-quartier-error">{quartier.fieldState.error?.message}</FormError>
         {/* ADR-0062 §3 — la mention ODbL est due là où le référentiel est servi. */}
-        <p className="mt-1 text-[11px] text-muted-foreground">{t('address.osmCredit')}</p>
+        <p className="mt-1 text-[0.6875rem] text-muted-foreground">{t('address.osmCredit')}</p>
       </div>
     </>
   );

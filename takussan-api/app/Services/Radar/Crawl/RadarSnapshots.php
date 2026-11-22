@@ -33,12 +33,33 @@ final class RadarSnapshots
     /** Les colonnes dont un changement ouvre un instantané. */
     private const CHANGES = ['price', 'title_fingerprint'];
 
-    /** Vrai si l'observation a ouvert un instantané. */
-    public function observe(RadarListing $listing, ListCard $card, RadarCrawlRun $run, CarbonInterface $now): bool
+    /**
+     * Vrai si l'observation a ouvert un instantané.
+     *
+     * TCK-2467 — `$run` est nul pour une relecture dont le passage a été supprimé entre-temps (`RefreshRadarListing`).
+     */
+    public function observe(RadarListing $listing, ListCard $card, ?RadarCrawlRun $run, CarbonInterface $now): bool
+    {
+        return $this->record($listing, $card, $run, $now, compare: true);
+    }
+
+    /**
+     * TCK-2467 (ADR-0087 §4) — une PRÉSENCE : l'annonce est dans le sitemap du site, qui ne dit ni son prix ni son titre.
+     * Le dernier instantané est prolongé (et ses colonnes vides comblées), jamais comparé : sans cela, le prix relu de
+     * l'extraction, qui remplace un prix absent de la carte, rouvrirait un instantané contre le prix d'une relecture
+     * plus récente. Sans instantané, le premier est ouvert. Un changement ne s'ouvre que par une lecture de la page
+     * ({@see self::observe()}, `RefreshRadarListing`). Vrai si un instantané a été ouvert.
+     */
+    public function present(RadarListing $listing, ListCard $card, RadarCrawlRun $run, CarbonInterface $now): bool
+    {
+        return $this->record($listing, $card, $run, $now, compare: false);
+    }
+
+    private function record(RadarListing $listing, ListCard $card, ?RadarCrawlRun $run, CarbonInterface $now, bool $compare): bool
     {
         $observed = $this->observedState($listing, $card);
 
-        return DB::transaction(function () use ($listing, $observed, $run, $now): bool {
+        return DB::transaction(function () use ($listing, $observed, $run, $now, $compare): bool {
             // Le verrou de l'annonce sérialise deux observations simultanées (deux passages ne coexistent pas sur un même
             // site, mais une annonce peut être rendue par une autre URL d'un même site) : jamais deux instantanés ouverts.
             // Relue sous ce verrou : une purge (ou un STOP) validée entre la lecture de la carte et l'observation ne reçoit
@@ -52,7 +73,7 @@ final class RadarSnapshots
                 ->orderByDesc('first_seen_at')->orderByDesc('id')
                 ->first();
 
-            if ($latest !== null && ! $this->changed($latest, $observed)) {
+            if ($latest !== null && (! $compare || ! $this->changed($latest, $observed))) {
                 foreach ($observed as $column => $value) {
                     if ($latest->{$column} === null && $value !== null) {
                         $latest->{$column} = $value;
@@ -67,7 +88,7 @@ final class RadarSnapshots
 
             RadarListingSnapshot::query()->create($observed + [
                 'radar_listing_id' => $listing->id,
-                'crawl_run_id' => $run->id,
+                'crawl_run_id' => $run?->id,
                 'first_seen_at' => $now,
                 'last_seen_at' => $now,
                 'observations' => 1,

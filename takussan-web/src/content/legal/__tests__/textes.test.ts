@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { analyserTexteJuridique } from '@/components/legal/TexteJuridique';
 import { contenuLegal } from '@/lib/legal-content';
 import { DOCUMENTS_LEGAUX } from '@/lib/legal-routes';
-import { A_COMPLETER } from '@/content/legal/editeur';
+import { A_COMPLETER, VERSION_DOCUMENTS } from '@/content/legal/editeur';
 import * as notice from '@/content/legal/notice';
 import * as privacy from '@/content/legal/privacy';
 import * as terms from '@/content/legal/terms';
@@ -197,5 +197,242 @@ describe('Radar — l’article 6.3 et les ajouts de la politique de confidentia
     ]) {
       expect(privacy.en).toContain(fragment);
     }
+  });
+});
+
+/**
+ * TCK-2472 (ADR-0088 §6) — le journal anonyme et agrégé des recherches entre dans la politique avec le code qui l'écrit
+ * (`App\Services\Search\SearchJournal`) : ce qui est compté, ce qui ne l'est jamais, le seuil de cinq visiteurs, la
+ * finalité, et les deux durées que tient `search:purge-journal` (empreinte du jour avant 48 heures, compteurs 13 mois).
+ */
+describe('politique de confidentialité — le journal des recherches', () => {
+  it('dit les données, les exclusions, le seuil, la finalité et les deux durées, dans les deux langues', () => {
+    for (const fragment of [
+      '- **Recherches** : lorsque vous lancez une recherche sur la liste des biens',
+      // Revue adverse du 2026-11-04 (n° 7, n° 1, n° 8) : l'empreinte est propre à chaque recherche, un courriel écrit sans
+      // arobase n'est pas enregistré, et le seuil d'affichage compte les réseaux distincts.
+      'une empreinte chiffrée de votre adresse IP, recalculée chaque jour et propre à chaque recherche, si bien qu’elle ne relie pas vos recherches entre elles, effacée en moins de 48 heures',
+      'plus de 80 caractères, six chiffres ou plus, une arobase (@) ou ce qui ressemble à une adresse électronique écrite sans elle',
+      'un même jour par au moins cinq visiteurs distincts venus d’au moins cinq réseaux distincts',
+      '**Améliorer la recherche et l’offre de biens**',
+      '- **Journal des recherches** : 13 mois pour les compteurs par jour ; moins de 48 heures pour l’empreinte du jour qui sert à compter les visiteurs distincts.',
+    ]) {
+      expect(privacy.fr).toContain(fragment);
+    }
+    for (const fragment of [
+      '- **Searches**: when you run a search on the property list',
+      'an encrypted fingerprint of your IP address, recomputed every day and specific to each search, so that it does not link your searches together, deleted within 48 hours',
+      'more than 80 characters, six or more digits, an at sign (@) or what looks like an email address written without it',
+      'on the same day by at least five distinct visitors from at least five distinct networks',
+      '**Improving search and the range of properties**',
+      '- **Search log**: 13 months for the daily counters; less than 48 hours for the daily fingerprint used to count distinct visitors.',
+    ]) {
+      expect(privacy.en).toContain(fragment);
+    }
+  });
+
+  /**
+   * Revue adverse du 2026-11-04 (défaut n° 2) — la politique disait des recherches sous le seuil de cinq visiteurs qu'elles « ne
+   * servent qu'à nos statistiques », alors que les recherches SANS résultat d'au moins deux visiteurs partent chaque semaine à
+   * l'usage `search.variantes` (texte normalisé et nombre de visiteurs, `SearchAliasCurator::input()`) et chaque nuit à
+   * `radar.cibles` (critères et nombre de visiteurs, `RadarDemandSignals`), chez Anthropic, OpenAI ou OpenRouter.
+   */
+  it('dit l’envoi des recherches sans résultat au fournisseur d’IA, ses deux usages, et ne promet plus « nos statistiques » seules', () => {
+    for (const fragment of [
+      'les recherches sans résultat comptées pour au moins deux visiteurs sur les 30 derniers jours (un même visiteur compte une fois par jour) sont transmises, agrégées, à un fournisseur d’intelligence artificielle',
+      'le texte saisi, normalisé, et le nombre de visiteurs, pour tenir les variantes d’écriture que la recherche reconnaît',
+      'leurs seuls critères et le nombre de visiteurs, pour orienter le relevé de nouvelles annonces vers ce que les visiteurs cherchent',
+      'Ni votre compte, ni votre adresse IP, ni l’empreinte du jour ne leur sont transmis.',
+      'tenir les variantes d’écriture de la recherche et orienter le relevé de nouvelles annonces, à partir des recherches sans résultat agrégées décrites au § 2.2',
+    ]) {
+      expect(privacy.fr).toContain(fragment);
+    }
+    for (const fragment of [
+      'searches without results counted for at least two visitors over the last 30 days (the same visitor counts once a day) are sent, aggregated, to an artificial intelligence provider',
+      'the text entered, normalised, and the number of visitors, to maintain the alternative spellings that search recognises',
+      'their criteria alone and the number of visitors, to steer the collection of new listings towards what visitors are looking for',
+      'Neither your account, nor your IP address, nor the daily fingerprint is sent to it.',
+      'maintaining the alternative spellings recognised by search and steering the collection of new listings, from the aggregated searches without results described in § 2.2',
+    ]) {
+      expect(privacy.en).toContain(fragment);
+    }
+    expect(privacy.fr).not.toContain('les autres ne servent qu’à nos statistiques');
+    expect(privacy.en).not.toContain('the others are used only for our statistics');
+  });
+
+  it('la version des documents avance avec le journal', () => {
+    // Avancée par TCK-2482 (le journal y entrait le 4 novembre 2026), puis par TCK-2511, puis par TCK-2603.
+    expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
+  });
+});
+
+/**
+ * TCK-2511 (ADR-0088, amendement du 2026-11-09) — la page de réclamation du Radar montre à
+ * l'annonceur le total des recherches du quartier de ses annonces : une sortie neuve du journal,
+ * que la politique doit nommer, avec son seuil et ce qu'elle ne contient pas.
+ */
+describe('politique de confidentialité — la demande du quartier montrée à l’annonceur', () => {
+  it('dit le total, la période, le seuil et l’absence de recherche particulière, dans les deux langues', () => {
+    expect(privacy.fr).toContain('le nombre total de recherches faites sur les 30 derniers jours pour le quartier de ses annonces, et seulement à partir de 50 recherches');
+    expect(privacy.fr).toContain('ce total ne contient aucun texte saisi ni aucune recherche particulière');
+    expect(privacy.en).toContain('the total number of searches run over the last 30 days for the neighbourhood of their listings, and only from 50 searches upwards');
+    expect(privacy.en).toContain('this total contains no text entered and no individual search');
+  });
+
+  it('la version des documents avance avec elle', () => {
+    // Avancée depuis par TCK-2603.
+    expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
+  });
+});
+
+/**
+ * TCK-2603 (ADR-0088, amendement du 2026-11-10, cinquième sortie) — le départ de la publication montre à tout
+ * visiteur le total des recherches d'une ville sur 7 jours : une sortie PUBLIQUE du journal, que la politique doit
+ * nommer avec sa période, son seuil, son arrondi et ce qu'elle ne contient pas.
+ */
+describe('politique de confidentialité — la demande d’une ville montrée au départ de la publication', () => {
+  it('dit le total, la période, l’arrondi, le seuil et l’absence de quartier et de recherche particulière, dans les deux langues', () => {
+    expect(privacy.fr).toContain(
+      'au départ de la publication d’une annonce, nous pouvons montrer à tout visiteur le nombre total de recherches faites sur les 7 derniers jours pour une ville, arrondi à la dizaine inférieure et seulement à partir de 200 recherches',
+    );
+    expect(privacy.fr).toContain('ce total ne contient aucun texte saisi, aucun quartier ni aucune recherche particulière');
+    expect(privacy.en).toContain(
+      'when a listing is about to be published, we may show any visitor the total number of searches run over the last 7 days for a city, rounded down to the nearest ten and only from 200 searches upwards',
+    );
+    expect(privacy.en).toContain('this total contains no text entered, no neighbourhood and no individual search');
+  });
+
+  it('la version des documents avance avec elle', () => {
+    expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
+  });
+});
+
+/**
+ * TCK-2482 (A15) — la palette de commandes retient sur l'appareil les pages de l'espace ouvertes
+ * récemment (`src/lib/navigation/pages-recentes.ts`) : la politique les nomme dans le stockage local.
+ * Le même changement rattrape les dernières recherches de TCK-2475 (`src/lib/recherches-recentes.ts`,
+ * clé `takussan.recherches-recentes`), gardées sur l'appareil depuis sans que la liste les nomme.
+ */
+// TCK-2846 — les récents retiennent désormais le NOM des fiches ouvertes (« Villa 4 chambres à Ngor »,
+// « Moussa Diallo ») : la politique le dit.
+describe('politique de confidentialité — ce que le stockage local garde de la navigation', () => {
+  it('nomme les pages récentes de la palette, dans les deux langues', () => {
+    expect(privacy.fr).toContain('pages et fiches de votre espace ouvertes récemment, avec leur nom (palette de commandes)');
+    expect(privacy.en).toContain('recently opened pages and records of your space, with their name (command palette)');
+  });
+
+  it('nomme les dernières recherches de biens (TCK-2475), dans les deux langues', () => {
+    expect(privacy.fr).toContain('dernières recherches de biens (barre de recherche)');
+    expect(privacy.en).toContain('latest property searches (search bar)');
+  });
+
+  it('les range dans la ligne du stockage local du navigateur', () => {
+    expect(privacy.fr).toContain(
+      '- **stockage local du navigateur** — biens consultés récemment, dernières recherches de biens (barre de recherche), pages et fiches de votre espace ouvertes récemment, avec leur nom (palette de commandes), favoris',
+    );
+    expect(privacy.en).toContain(
+      '- **browser local storage** — recently viewed properties, latest property searches (search bar), recently opened pages and records of your space, with their name (command palette), offline favourites',
+    );
+  });
+
+  it('la version des documents avance avec elles', () => {
+    // Avancée depuis par TCK-2511, puis par TCK-2603.
+    expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
+  });
+});
+
+/**
+ * TCK-2482 (revue, I1) — la même avance de version rattrape les trois éléments que le front écrit sur
+ * l'appareil sans que la § 8 les nomme : les coordonnées d'un visiteur sans compte (TCK-590,
+ * `src/lib/coordonnees-retenues.ts`), le cookie du menu réduit aux icônes (TCK-2480,
+ * `src/lib/navigation/mode-icones.ts`) et la source d'arrivée (TCK-590, `src/lib/attribution.ts`).
+ * Compléter plus tard coûterait une seconde avance de version, donc une seconde réacceptation.
+ */
+describe('politique de confidentialité — tout ce que le front garde sur l’appareil', () => {
+  it('nomme les coordonnées retenues d’un visiteur sans compte, dans les deux langues', () => {
+    expect(privacy.fr).toContain('- **takussan.coordonnees** (stockage local) — ');
+    expect(privacy.fr).toContain('vos nom et numéro de téléphone');
+    expect(privacy.en).toContain('- **takussan.coordonnees** (local storage) — ');
+    expect(privacy.en).toContain('your name and phone number');
+  });
+
+  it('nomme le cookie du menu réduit aux icônes, avec sa durée, dans les deux langues', () => {
+    expect(privacy.fr).toContain('- **menu_icones** — ');
+    expect(privacy.fr).toMatch(/\*\*menu_icones\*\* — [^\n]*\(1 an\) ;/);
+    expect(privacy.en).toContain('- **menu_icones** — ');
+    expect(privacy.en).toMatch(/\*\*menu_icones\*\* — [^\n]*\(1 year\);/);
+  });
+
+  it('nomme la source d’arrivée gardée pour la session, et dit qu’elle est transmise, dans les deux langues', () => {
+    expect(privacy.fr).toContain('- **takussan.arrivee** (stockage de session) — ');
+    expect(privacy.fr).toMatch(/\*\*takussan\.arrivee\*\*[^\n]*transmise avec/);
+    expect(privacy.en).toContain('- **takussan.arrivee** (session storage) — ');
+    expect(privacy.en).toMatch(/\*\*takussan\.arrivee\*\*[^\n]*sent with/);
+  });
+
+  it('les range dans la § 8, avant le paragraphe qui dit comment les effacer', () => {
+    for (const [texte, titre, fin] of [
+      [privacy.fr, '# 8. Cookies et stockage local', 'Vous pouvez effacer ces éléments'],
+      [privacy.en, '# 8. Cookies and local storage', 'You can clear these items'],
+    ] as const) {
+      const section = texte.slice(texte.indexOf(titre), texte.indexOf(fin));
+      for (const nom of ['**takussan.coordonnees**', '**menu_icones**', '**takussan.arrivee**']) {
+        expect(section).toContain(nom);
+      }
+    }
+  });
+});
+
+/**
+ * TCK-537 (décisions du porteur du 2026-11-16) — la politique dit ce que le code fait devenu : l'auteur
+ * d'un avis public par son prénom et l'initiale de son nom (`NomPublic`, API), ipapi.co au premier
+ * geste seulement (`UserLocationProvider`), les jobs échoués (30 jours, TCK-803), l'archive face aux
+ * fiches clients (TCK-956, ADR-0070 § 7) et la dictée vocale du navigateur (TCK-2903).
+ */
+describe('politique de confidentialité — les écarts fermés par TCK-537', () => {
+  it('nomme l’auteur d’un avis par son prénom et l’initiale de son nom, plus par son nom', () => {
+    expect(privacy.fr).toContain('accompagnés de votre prénom, de l’initiale de votre nom et de votre photo de profil');
+    expect(privacy.en).toContain('together with your first name, the initial of your last name and your profile photo');
+    expect(privacy.fr).not.toContain('accompagnés de vos prénom, nom et photo de profil');
+    expect(privacy.en).not.toContain('your first name, last name and profile photo');
+  });
+
+  it('ne joint ipapi.co qu’après le premier geste, jamais au chargement', () => {
+    expect(privacy.fr).toContain('n’est demandée qu’après votre premier geste dans la page (un appui, un clic ou une touche du clavier), jamais au simple chargement d’une page');
+    expect(privacy.en).toContain('only requested after your first gesture on the page (a tap, a click or a key press), never on a mere page load');
+    expect(privacy.fr).toContain('ipapi.co, qui reçoit votre adresse IP pour en déduire votre ville, seulement après votre premier geste');
+    expect(privacy.en).toContain('ipapi.co, which receives your IP address to infer your city, only after your first gesture');
+  });
+
+  it('dit la durée des tâches en échec, la dictée et le contenu de l’archive', () => {
+    expect(privacy.fr).toContain('**Tâches techniques en échec**');
+    expect(privacy.fr).toContain('30 jours, puis suppression automatique');
+    expect(privacy.en).toContain('**Failed technical tasks**');
+    expect(privacy.fr).toContain('**Dictée vocale**');
+    expect(privacy.fr).toContain('aucun son ne nous parvient ni n’est conservé par nous');
+    expect(privacy.en).toContain('**Voice dictation**');
+    expect(privacy.fr).toContain('les notes, les critères de recherche et les autres informations de travail que l’agence y ajoute n’y figurent pas : ils vous sont communiqués sur demande');
+    expect(privacy.en).toContain('are provided on request to the agency concerned or to us');
+  });
+
+  it('la version des documents avance avec eux', () => {
+    expect(VERSION_DOCUMENTS).toEqual({ date: '16 novembre 2026', dateEn: 'November 16, 2026' });
+  });
+});
+
+/**
+ * TCK-537 (AC4) — les durées du § 6 dites comme le code les applique : la fin de la relation KYC, le
+ * dernier échange d'une demande de contact, la preuve du consentement et ce qu'elle contient.
+ */
+describe('politique de confidentialité — les durées tenues par les purges de TCK-537', () => {
+  it('dit les trois règles dans les deux langues', () => {
+    expect(privacy.fr).toContain('5 ans après sa fin (la fin du profil qui les porte, ou la suppression de l’agence pour son dossier de vérification)');
+    expect(privacy.fr).toContain('3 ans à compter du dernier échange (le dépôt de la demande, la réponse ou le traitement le plus récent)');
+    expect(privacy.fr).toContain('- **Consentements** : le temps du consentement, puis 5 ans pour pouvoir en justifier. Quand vous cochez une case d’acceptation');
+    expect(privacy.fr).toContain('(le document, sa version, la date et l’adresse IP) est conservée tant que votre compte existe, puis 5 ans après sa suppression');
+    expect(privacy.en).toContain('5 years after it ends (the end of the profile they belong to');
+    expect(privacy.en).toContain('3 years from the last exchange (the request itself, or its latest reply or handling)');
+    expect(privacy.en).toContain('is kept for as long as your account exists, then 5 years after its deletion');
+    expect(privacy.en).toContain('- **Consents**: for as long as the consent applies, then 5 years so that it can be evidenced.');
   });
 });

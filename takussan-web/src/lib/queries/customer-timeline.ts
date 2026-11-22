@@ -1,0 +1,161 @@
+import { apiRequest, buildQueryString } from '@/lib/api';
+import { cheminApi, requete } from '@/lib/chemin-api';
+import type { PaginatedResponse } from '@/types/api';
+import type { CounterOfferStatus } from '@/types/booking';
+import type { CustomerPipelineStage } from '@/types/customer';
+
+/**
+ * TCK-2589 — le fil d'une fiche client : `GET /api/customers/{id}/timeline`. L'API mêle notes,
+ * visites, gestes de contact, changements d'étape, et (vérification C/C2, d1 a) la vie de la fiche
+ * et de ses tâches, que l'onglet « Activité » retiré portait seul ; elle les trie (instant, puis type, puis id) et les
+ * pagine : le front ne trie rien et ne filtre rien lui-même — `filter[type]` part au serveur.
+ *
+ * Ce qu'un lecteur reçoit est jugé par l'API (`CustomerTimeline`) : les visites et les gestes de
+ * contact au seul personnel de l'agence de la fiche, le compte rendu détaillé au personnel.
+ */
+
+/** Les types du fil (`CustomerTimeline::TYPES`). */
+/** TCK-2894 — `booking` : la réservation entre au fil (ADR-0110 § 9) ; son rendu est TCK-2878. */
+export const TYPES_DU_FIL = ['note', 'visit', 'contact', 'stage', 'record', 'task', 'booking'] as const;
+export type TypeDuFil = (typeof TYPES_DU_FIL)[number];
+
+/** Une entrée par page : la taille d'une page du fil. */
+export const ENTREES_PAR_PAGE = 20;
+
+export interface PersonneDuFil {
+  readonly id: number;
+  readonly name: string;
+}
+
+export interface CompteRenduDuFil {
+  readonly visit_id: number;
+  readonly outcome: string | null;
+  readonly objections: readonly string[];
+  readonly follow_up: string | null;
+}
+
+export interface NoteDuFil {
+  readonly type: 'note';
+  readonly id: number;
+  readonly at: string;
+  readonly kind: string | null;
+  readonly body: string | null;
+  readonly pinned: boolean;
+  readonly property_visit_id: number | null;
+  readonly author: PersonneDuFil | null;
+  readonly report?: CompteRenduDuFil;
+  /**
+   * TCK-2878 (TCK-2875 AC6) — le bien de la demande dont une note `lead_message` reprend le message,
+   * au seul personnel ; `null` : demande inconnue ou sans bien. Absente des autres notes.
+   */
+  readonly property?: { readonly id: number; readonly title: string } | null;
+}
+
+/** Un jalon de visite : sa demande, sa confirmation ou son annulation (7a). */
+export type JalonDeVisite = 'created' | 'confirmed' | 'cancelled';
+
+export interface VisiteDuFil {
+  readonly type: 'visit';
+  readonly id: number;
+  /** L'instant du jalon. */
+  readonly at: string;
+  readonly milestone: JalonDeVisite;
+  /** Le statut COURANT de la visite, pas celui du jalon. */
+  readonly status: string;
+  readonly scheduled_at: string | null;
+  readonly property: { readonly id: number; readonly title: string } | null;
+}
+
+export interface ContactDuFil {
+  readonly type: 'contact';
+  readonly id: number;
+  readonly at: string;
+  readonly channel: string | null;
+  /** Où le geste a été posé : sur la demande d'où vient la fiche (une réponse), ou sur la fiche. */
+  readonly on: 'lead' | 'customer';
+  readonly causer: PersonneDuFil | null;
+}
+
+export interface EtapeDuFil {
+  readonly type: 'stage';
+  readonly id: number;
+  readonly at: string;
+  readonly from: CustomerPipelineStage | null;
+  readonly to: CustomerPipelineStage | null;
+  readonly causer: PersonneDuFil | null;
+}
+
+/**
+ * La création de la fiche, ou la modification de son identité et de son contact : les NOMS des
+ * champs (`CustomerTimeline::CHAMPS_DE_LA_FICHE`), jamais leurs valeurs ; vide à la création.
+ */
+export interface FicheDuFil {
+  readonly type: 'record';
+  readonly id: number;
+  readonly at: string;
+  readonly milestone: 'created' | 'updated';
+  readonly fields: readonly string[];
+  readonly causer: PersonneDuFil | null;
+}
+
+/** Une tâche de la fiche : sa création ou son passage à « faite », avec son titre COURANT. */
+export interface TacheDuFil {
+  readonly type: 'task';
+  readonly id: number;
+  readonly at: string;
+  readonly milestone: 'created' | 'done';
+  readonly task: { readonly id: number; readonly title: string } | null;
+  readonly causer: PersonneDuFil | null;
+}
+
+/**
+ * TCK-2894 (ADR-0110 § 9) — un jalon de réservation : son dépôt, son acceptation ou son refus, au
+ * seul personnel de l'agence de la fiche. Jamais le revenu déclaré, le dossier ni les garants.
+ */
+export interface ReservationDuFil {
+  readonly type: 'booking';
+  readonly id: number;
+  readonly at: string;
+  /** TCK-2876 — `counter_offer` (TCK-2873) : une entrée PAR contre-offre, sous l'`id` de sa réservation. */
+  readonly milestone: 'created' | 'confirmed' | 'rejected' | 'counter_offer';
+  readonly kind: 'stay' | 'application' | 'offer' | null;
+  /** Le statut COURANT de la réservation, pas celui du jalon. */
+  readonly status: string | null;
+  readonly reference_number: string | null;
+  readonly amount: string | null;
+  readonly currency: string | null;
+  readonly start_date: string | null;
+  readonly property: { readonly id: number; readonly title: string } | null;
+  /**
+   * TCK-2876 — le jalon `counter_offer` seul : la contre-offre (son prix en CHAÎNE décimale, sa validité,
+   * un jour, et son état COURANT). Son `id` distingue deux contre-offres d'une même réservation.
+   */
+  readonly counter_offer?: {
+    readonly id: number;
+    readonly amount: string;
+    readonly valid_until: string | null;
+    readonly status: CounterOfferStatus;
+  };
+}
+
+export type EntreeDuFil = NoteDuFil | VisiteDuFil | ContactDuFil | EtapeDuFil | FicheDuFil | TacheDuFil | ReservationDuFil;
+
+export const FIL_QUERY_KEY = {
+  tout: (customerId: number) => ['customer-timeline', customerId] as const,
+  filtre: (customerId: number, types: readonly TypeDuFil[] | null) =>
+    ['customer-timeline', customerId, types === null ? 'tout' : types.join(',')] as const,
+};
+
+/** Une page du fil ; `types` `null` : tous. */
+export async function fetchCustomerTimeline(
+  token: string,
+  customerId: number,
+  { types = null, page = 1 }: { readonly types?: readonly TypeDuFil[] | null; readonly page?: number } = {},
+): Promise<PaginatedResponse<EntreeDuFil>> {
+  const qs = buildQueryString({
+    page,
+    per_page: ENTREES_PAR_PAGE,
+    ...(types !== null && types.length > 0 ? { filter: { type: types } } : {}),
+  });
+  return apiRequest<PaginatedResponse<EntreeDuFil>>(cheminApi`/api/customers/${customerId}/timeline${requete(qs)}`, { token });
+}

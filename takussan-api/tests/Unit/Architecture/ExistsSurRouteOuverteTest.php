@@ -17,7 +17,8 @@ use RecursiveIteratorIterator;
  *
  * « Ne juge rien » : `return true;`, ou un test de la seule présence d'un compte, ou aucun
  * `authorize()` sur une classe qui étend `FormRequest` (Laravel autorise alors). Hors champ, comme
- * `FormRequestEtendBaseFormRequestTest` : `Auth/` (appelé sans compte) et `Admin/` (console).
+ * l'était `FormRequestEtendBaseFormRequestTest` jusqu'à TCK-612 : `Auth/` (appelé sans compte) et
+ * `Admin/` (console).
  */
 class ExistsSurRouteOuverteTest extends TestCase
 {

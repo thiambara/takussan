@@ -166,6 +166,7 @@ const MOTIFS_CLE_DATE = [
   [/^date$/, 'la clé nue `date`'],
   [/_on$/, '`created_on` — absent du dépôt aujourd\'hui, gardé pour la forme anglaise courante'],
   [/_since$/, '`member_since` (PropertyResource:219) — TROUVÉ APRÈS coup, cf. en-tête §1'],
+  [/_until$/, '`badge_until`, `sponsored_until` (PropertyResource) — une fin de validité ; TROUVÉ APRÈS coup (TCK-2638), cf. en-tête §1'],
   [/(^|_)period_(start|end)$/, '`period_start`, `current_period_end` — une période comptable'],
   [/deadline$/, 'une échéance'],
   [/timestamp$/, 'un horodatage nommé comme tel'],

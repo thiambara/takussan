@@ -215,6 +215,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
               aria-hidden="true"
             />
             <Input
+              profil="recherche"
               aria-label={t('searchLabel')}
               placeholder={t('searchPlaceholder')}
               value={searchQuery}
@@ -260,7 +261,10 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
                     <td className="min-w-40 px-4 py-3 font-medium text-foreground">
                       {isEditing ? (
                         <Input
+                          profil="mots"
+                          enterKeyHint="done"
                           autoFocus
+                          placeholder={t('form.namePlaceholder')}
                           value={editingName}
                           onChange={(e) => setEditingName(e.target.value)}
                           onKeyDown={(e) => {
@@ -286,7 +290,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
                             className="inline-block size-3 rounded-full border border-input"
                             style={{ backgroundColor: tag.color }}
                           />
-                          <code className="text-[11px]">{tag.color}</code>
+                          <code className="text-[0.6875rem]">{tag.color}</code>
                         </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
@@ -422,6 +426,7 @@ function CreateTagDialog({ open, onOpenChange, onSubmit }: CreateTagDialogProps)
             </label>
             <Input
               id="tag-name"
+              profil="mots"
               value={values.name}
               onChange={handleChange('name')}
               placeholder={t('form.namePlaceholder')}
@@ -485,6 +490,7 @@ function CreateTagDialog({ open, onOpenChange, onSubmit }: CreateTagDialogProps)
               </label>
               <Input
                 id="tag-color"
+                profil="mots"
                 value={values.color}
                 onChange={handleChange('color')}
                 placeholder="#2563eb"

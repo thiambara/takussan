@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Agency;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Models\Agency;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Agency\AgentPortfolio;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -19,7 +19,7 @@ use Illuminate\Validation\Validator;
  * {@see PersonnelDeLAgence::estPersonnel()}, et n'est pas le partant : un bailleur, un compte bloqué
  * ou supprimé ne sont jamais repreneurs.
  */
-class StoreAgentHandoverRequest extends FormRequest
+class StoreAgentHandoverRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
@@ -32,7 +32,8 @@ class StoreAgentHandoverRequest extends FormRequest
 
         return [
             'successor_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
-            'successors' => ['nullable', 'array'],
+            // TCK-2488 — une clé par catégorie transférable, au plus : la borne vient de la liste.
+            'successors' => ['nullable', 'array', 'max:'.count($categories)],
             'successors.*' => ['nullable', 'integer', Rule::exists('users', 'id')],
             'leave_unassigned' => ['sometimes', 'boolean'],
             'remove_after' => ['sometimes', 'boolean'],

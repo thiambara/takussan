@@ -1,19 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { MessagesSquare, Plus } from 'lucide-react';
+import { MessagesSquare, SquarePen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/console';
-import { usePropertyConversation } from '@/lib/queries/conversations';
-import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
+import {
+  useConversation,
+  useMarkConversationUnread,
+  useConversationsInfinite,
+  usePropertyConversation,
+  type MessagingContact,
+} from '@/lib/queries/conversations';
+import { useMatchesMaxWidth, useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
 import { ConversationList } from './ConversationList';
+import { EtatVideDeLaMessagerie } from './EtatVideDeLaMessagerie';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { ActionDEnTete } from '@/components/layout/EnTeteMobile';
 import { ChatView } from './ChatView';
 import { PropertyDraftChatView } from './PropertyDraftChatView';
-import { NewGroupDialog } from './NewGroupDialog';
+import { NouvelleConversation } from './NouvelleConversation';
+import { BrouillonDirect } from './BrouillonDirect';
 import { usePeutProposerUnGroupe } from './espaceActif';
+import { ColonneDeContexte } from './ColonneDeContexte';
+import { InfosDuGroupe } from './InfosDuGroupe';
+import { FeuilleDuFil } from './FeuilleDuFil';
+import { DialogueElargirLeFil, DialogueSignaler, type GestesDuFil } from './GestesDuFil';
+import { autreParticipant } from './ConversationList';
+import { useAuth } from '@/context/AuthContext';
+import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
+// TCK-2963 — la salle d'un bail ou d'une réservation : bandeau, dossier, raison de la lecture seule. Montés
+// par la PAGE seule (comme la colonne de contexte) : le widget flottant n'a pas à lire bail ni réservation.
+import { estUneSalle } from './salle/salle';
+import { BandeauDeLaSalle } from './salle/BandeauDeLaSalle';
+import { DossierDuFil } from './salle/DossierDuFil';
+import { LectureSeuleDeLaSalle } from './salle/LectureSeuleDeLaSalle';
+// TCK-2968 (ADR-0128 § 7) — les gestes de la boîte de pilotage, tenus par la page (jamais par le widget).
+import { usePilotageDeLaBoite } from './boite/PilotageDeLaBoite';
+// TCK-2973 — l'onglet « Engagements ».
+import { EngagementsDeLaMessagerie } from './engagements/EngagementsDeLaMessagerie';
+import { OngletsDeLaMessagerie, type OngletDeLaMessagerie } from './engagements/OngletsDeLaMessagerie';
+import { relaisImpersonationActif } from '@/lib/impersonation';
+import { isAgencyAdmin, isAgent } from '@/lib/roles';
+import { typeDuProfilActif } from '@/lib/navigation/personas';
+
+const AUCUN_ABONNEMENT = () => () => undefined;
 
 /**
  * Point de rupture `lg` de Tailwind (TCK-501, déplacé de `md` à `lg` par TCK-505 #4). La même
@@ -27,6 +59,8 @@ import { usePeutProposerUnGroupe } from './espaceActif';
  * portrait. `md` n'est pas « bureau » dans `/app`.
  */
 const LG_BREAKPOINT_PX = 1024;
+/** TCK-2860 — dès `xl`, la colonne de droite est une colonne ; entre `lg` et `xl`, un panneau superposé. */
+const XL_BREAKPOINT_PX = 1280;
 
 /**
  * Two-pane messaging layout: conversation list on the left, active chat on
@@ -95,7 +129,9 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
    * écarté » sont le même fait, et deux états pour un fait finissent par se contredire.
    */
   const [choix, setChoix] = useState<number | null | undefined>(initialId ?? undefined);
-  const [groupOpen, setGroupOpen] = useState(false);
+  /** TCK-2632 — « Nouvelle conversation », et la personne SANS fil qu'on y a choisie (AC4). */
+  const [nouvelleOuverte, setNouvelleOuverte] = useState(false);
+  const [brouillonDirect, setBrouillonDirect] = useState<MessagingContact | null>(null);
   /** Le dernier geste qui a fait passer de la liste à la conversation, ou l'inverse. */
   const [transition, setTransition] = useState<'aller' | 'retour' | null>(null);
   const peutCreerGroupe = usePeutProposerUnGroupe();
@@ -103,31 +139,154 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
   const { data: resolution } = usePropertyConversation(propertySlug);
   const bien = resolution?.data ?? null;
 
+  const compact = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
+  /**
+   * TCK-2632 — « au bureau » se lit en POSITIF : la requête rend `false` au serveur et pendant
+   * l'hydratation, et ne passe à `true` qu'une fois le navigateur mesuré. `!compact`, lui, vaut
+   * `true` à ce moment-là — sur un téléphone aussi —, et l'arrivée ci-dessous y aurait ouvert un fil.
+   */
+  const bureau = useMatchesMedia(`(min-width: ${LG_BREAKPOINT_PX}px)`);
+  // La même requête que la liste sans filtre (même clé) : rien de plus ne part.
+  const { data: listeSansFiltre } = useConversationsInfinite();
+  const premierePage = listeSansFiltre?.pages[0];
+
+  /**
+   * TCK-2632 (AC5) — au bureau, l'arrivée ouvre le fil non lu le plus récent (à défaut, le plus
+   * récent) au lieu d'un panneau vide. Un VERROU, posé une seule fois : ouvrir le fil le marque lu,
+   * et la relecture de la liste toutes les 10 s changerait « le plus récent non lu » sous les yeux
+   * de la personne. Jamais quand l'URL a amené un fil (`?conversation=`, `?property=`), ni après un
+   * choix, ni au téléphone.
+   */
+  const [arrivee, setArrivee] = useState<number | null | undefined>(undefined);
+  if (arrivee === undefined && bureau && premierePage) {
+    const sansConsigne = choix === undefined && initialId === null && propertySlug === null;
+    const fils = premierePage.data;
+    setArrivee(sansConsigne ? ((fils.find((c) => (c.unread_count ?? 0) > 0) ?? fils[0])?.id ?? null) : null);
+  }
+
   const brouillon =
     choix === undefined && bien && bien.can_message && bien.conversation_id === null ? bien : null;
   // Un choix explicite dans la liste l'emporte toujours sur ce que l'URL avait amené.
-  const conversationAffichee = choix !== undefined ? choix : (bien?.conversation_id ?? null);
-
-  const compact = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
-  const panneauOuvert = brouillon !== null || conversationAffichee !== null;
+  const conversationAffichee = choix !== undefined ? choix : (bien?.conversation_id ?? arrivee ?? null);
+  /** La colonne de contexte du bureau (dès `xl`), repliable depuis l'en-tête du fil. */
+  const [contexteOuvert, setContexteOuvert] = useState(true);
+  /**
+   * TCK-2860 — entre 1024 et 1279, le contexte n'a pas la place d'une colonne : le bouton de l'en-tête
+   * l'ouvre en panneau SUPERPOSÉ au fil (maquette l. 1047, « à 1024 le bouton du panneau l'ouvre »).
+   * Un état à part, fermé d'office : sinon l'arrivée couvrirait le fil. Changer de fil le referme.
+   */
+  const large = useMatchesMedia(`(min-width: ${XL_BREAKPOINT_PX}px)`);
+  const [panneauSuperpose, setPanneauSuperpose] = useState(false);
+  /** TCK-2632 (maquette a/2) — au téléphone, la feuille du fil que « ⋯ » d'un fil direct ouvre. */
+  const [feuilleDuFil, setFeuilleDuFil] = useState(false);
+  /** TCK-2963 — sous `xl`, la feuille du dossier d'une salle (« Dossier » du bandeau, sous-ligne de l'en-tête). */
+  const [dossierOuvert, setDossierOuvert] = useState(false);
+  const contexte = large
+    ? { ouvert: contexteOuvert, onBasculer: () => setContexteOuvert((o) => !o) }
+    : { ouvert: panneauSuperpose, onBasculer: () => setPanneauSuperpose((o) => !o) };
+  /** TCK-2860 — le dialogue d'un geste du « ⋯ » (signaler, ajouter un participant à un fil direct). */
+  const [dialogue, setDialogue] = useState<'signaler' | 'elargir' | null>(null);
+  const { user, activeProfileId } = useAuth();
+  /**
+   * TCK-2748 (AC2) — au bureau, la colonne de droite d'un fil de GROUPE est « Infos du groupe » ; celle
+   * d'un fil direct reste la colonne de contexte. Le type se lit sur la conversation que `ChatView`
+   * charge déjà (même clé, même requête) : rien de plus ne part. Tant qu'il est inconnu, aucune des
+   * deux colonnes : l'une remplacerait l'autre sous les yeux.
+   */
+  const filDuBureau = bureau && !brouillonDirect && !brouillon ? conversationAffichee : null;
+  const { data: detailDuFil } = useConversation(filDuBureau);
+  const typeDuFil = detailDuFil?.data?.id === filDuBureau ? detailDuFil?.data?.type : undefined;
+  const comptes = premierePage?.meta.counts;
+  const gestesAttendus = premierePage?.meta.gestes;
+  // TCK-2968 (maquette D) — « 5 gestes attendus · 14 conversations » quand l'API rend `meta.gestes`.
+  const sousTitreBureau = comptes
+    ? comptes.all === 0
+      ? t('bureau.aucune')
+      : gestesAttendus !== undefined
+        ? t('boite.sousTitre', { gestes: gestesAttendus, n: comptes.all })
+        : t('bureau.sousTitre', { nonLues: comptes.unread, total: comptes.all })
+    : sousTitre;
+  const panneauOuvert = brouillonDirect !== null || brouillon !== null || conversationAffichee !== null;
   const afficheListe = !compact || !panneauOuvert;
   const affichePanneau = !compact || panneauOuvert;
   /** Le retour n'existe que là où il a un sens : au-dessus de `lg`, la liste n'a jamais disparu. */
   const retourALaListe = compact
     ? () => {
         setTransition('retour');
+        setBrouillonDirect(null);
         setChoix(null);
       }
     : undefined;
 
   function choisir(id: number): void {
+    setBrouillonDirect(null);
+    setPanneauSuperpose(false);
+    setDossierOuvert(false);
     setChoix(id);
   }
+
+  function ouvrirUnBrouillon(personne: MessagingContact): void {
+    setTransition('aller');
+    setBrouillonDirect(personne);
+  }
+
+  const ouvrirNouvelle = () => setNouvelleOuverte(true);
 
   function ouvrirDepuisLaListe(id: number): void {
     setTransition('aller');
     choisir(id);
   }
+
+  /**
+   * TCK-2860 — les gestes du « ⋯ » du fil ouvert. « Ajouter un participant » n'existe que pour un fil
+   * DIRECT dont on connaît l'autre partie : il ouvre un nouveau groupe (ADR-0114), que `choisir` ouvre.
+   */
+  const filOuvert = !brouillonDirect && !brouillon ? conversationAffichee : null;
+  const { data: detailDuFilOuvert } = useConversation(filOuvert);
+  const conversationOuverte = detailDuFilOuvert?.data?.id === filOuvert ? detailDuFilOuvert?.data : undefined;
+  const autre = conversationOuverte?.type === 'direct' ? autreParticipant(conversationOuverte, user?.id) : null;
+  const marquerNonLue = useMarkConversationUnread(filOuvert ?? 0);
+  /**
+   * TCK-2968 — sous impersonation, la messagerie est en lecture seule : aucun geste de la boîte (l'API les
+   * refuserait, `EnforceImpersonationReadOnly`). Le témoin est un cookie du navigateur : le serveur rend
+   * « lecture seule », le client corrige à l'hydratation.
+   */
+  const lectureSeule = useSyncExternalStore(AUCUN_ABONNEMENT, relaisImpersonationActif, () => true);
+  // TCK-2973 — l'onglet de la colonne de liste : les conversations, ou les engagements.
+  const [onglet, setOnglet] = useState<OngletDeLaMessagerie>('conversations');
+  // TCK-2973 — au bureau, l'onglet « Engagements » ouvre le tableau dans le panneau ; une ligne ouvre son fil.
+  const [tableauOuvert, setTableauOuvert] = useState(false);
+  const changerDOnglet = (o: OngletDeLaMessagerie) => {
+    setOnglet(o);
+    setTableauOuvert(o === 'engagements');
+  };
+  const boite = usePilotageDeLaBoite({ actif: !lectureSeule });
+  const typeActif = typeDuProfilActif(activeProfileId ?? user?.active_profile_id);
+  const duPersonnel =
+    typeActif !== null ? typeActif === 'agent' || typeActif === 'agency_admin' : isAgent(user?.roles ?? []) || isAgencyAdmin(user?.roles ?? []);
+  // « Confier » : une salle ou un groupe (jamais le fil d'un prospect), par le personnel, hors impersonation.
+  const confiable =
+    boite.pilotage?.onConfier !== undefined && duPersonnel && conversationOuverte !== undefined && (conversationOuverte.type === 'group' || estUneSalle(conversationOuverte));
+  const gestes: GestesDuFil = {
+    onMarquerNonLue: ({ onSuccess, onError }) => marquerNonLue.mutate(undefined, { onSuccess: () => onSuccess?.(), onError }),
+    onSignaler: () => setDialogue('signaler'),
+    ...(autre ? { onAjouterUnParticipant: () => setDialogue('elargir') } : {}),
+    ...(confiable && conversationOuverte ? { onConfier: () => boite.pilotage?.onConfier?.(conversationOuverte) } : {}),
+  };
+
+  /**
+   * TCK-2963 — la salle ouverte. Son dossier : la colonne de droite dès `xl` (à la place du contexte), le
+   * panneau superposé entre `lg` et `xl`, et une FEUILLE sous `xl` que « Dossier » du bandeau ouvre.
+   */
+  const salleOuverte = conversationOuverte && estUneSalle(conversationOuverte) ? conversationOuverte : null;
+  const salle = salleOuverte
+    ? {
+        bandeau: <BandeauDeLaSalle conversation={salleOuverte} onDossier={() => setDossierOuvert(true)} />,
+        lectureSeule: <LectureSeuleDeLaSalle conversation={salleOuverte} />,
+        onDossier: () => setDossierOuvert(true),
+      }
+    : undefined;
+  const salleDuBureau = typeDuFil === 'lease' || typeDuFil === 'booking' ? (detailDuFil?.data ?? null) : null;
 
   const enConversation = compact && panneauOuvert;
   const entreeListe = compact && transition === 'retour' ? ENTREE_LISTE : '';
@@ -138,54 +297,73 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
    * jusqu'à la barre haute (`h-14`), comme dans une application de messagerie.
    *
    * ⚠ Couplage assumé avec le `<main>` d'`AppShell` : `px-4 py-6 md:px-6 md:py-8` et la barre
-   * haute en `h-14`. Les marges négatives et les `calc` ci-dessous en sont le miroir exact ; si la
-   * coque change de gouttière, ils changent avec elle. Au-dessus de `lg`, rien de tout cela :
-   * la page garde son en-tête et sa carte d'avant.
+   * haute en `h-14` ; sous `md`, la barre d'onglets de la coque (`--barre-onglets-hauteur`,
+   * TCK-2481), sœur du `<main>` : le `<main>` rétrécit de sa hauteur, le cadre s'en retire aussi,
+   * sans quoi le composeur passe sous le pli. Dès `md`, pas de barre : rien à retirer. Les marges
+   * négatives et les `calc` ci-dessous en sont le miroir exact ; si la coque change de gouttière,
+   * ils changent avec elle. Au-dessus de `lg`, rien de tout cela : la page garde son en-tête et sa
+   * carte d'avant.
    */
+  // TCK-2617 — une conversation ouverte prend tout l'écran du téléphone : la coque n'y rend ni son
+  // en-tête ni sa barre d'onglets (déclaré ci-dessous) ; le cadre n'en retire donc plus rien.
   const cadre = enConversation
-    ? '-mx-4 -my-6 h-[calc(100dvh-3.5rem)] md:-mx-6 md:-my-8 md:h-[calc(100dvh-3.5rem)]'
-    : '-mx-4 -mb-6 h-[calc(100dvh-5rem)] md:-mx-6 md:-mb-8 md:h-[calc(100dvh-5.5rem)]';
+    ? '-mx-4 -my-6 h-dvh md:-mx-6 md:-my-8 md:h-[calc(100dvh-var(--spacing)*14)]'
+    : // TCK-2632 — au téléphone, la liste commence sous l'en-tête de la coque (maquette : le champ à
+      // 12 px du filet), sans la marge haute de l'enveloppe (`py-6`) : le cadre la reprend.
+      '-mx-4 -my-6 h-[calc(100dvh-var(--spacing)*14-var(--barre-onglets-hauteur))] md:-mx-6 md:mt-0 md:-mb-8 md:h-[calc(100dvh-var(--spacing)*22)]';
 
   return (
     <>
+      {/* TCK-2617 — l'ÉTAT de la page, pas sa route : `?conversation=…` ne change pas le chemin. */}
+      {/* TCK-2632 — sous `md`, « Nouvelle conversation » est l'action de la page racine (TCK-2617). */}
+      <DeclarerEnTete
+        // TCK-2632 — au téléphone, la page porte le nom de son onglet (« Messages », TCK-2618) ; la
+        // colonne du bureau garde « Messagerie », comme la maquette.
+        titre={t('titreTelephone')}
+        conversation={enConversation}
+        action={
+          enConversation ? undefined : (
+            <ActionDEnTete libelle={t('nouvelle.titre')} icone={<SquarePen className="size-5" aria-hidden />} onClick={ouvrirNouvelle} primaire />
+          )
+        }
+      />
       <div
         data-testid="messagerie"
         className={cn(
-          'flex min-h-[24rem] flex-col lg:mx-0 lg:my-0 lg:block lg:h-auto lg:min-h-0 lg:space-y-6',
+          'flex min-h-96 flex-col',
           cadre,
+          // TCK-2632 — au bureau aussi, la messagerie occupe toute la zone de contenu (maquette
+          // `CadreBureau`) : elle déborde la marge de l'enveloppe (`lg:px-8`, `md:py-8`) et tient
+          // l'écran — pas d'en-tête de coque dès `md` —, en colonnes qui défilent chacune.
+          'lg:-mx-8 lg:-my-8 lg:h-dvh lg:min-h-0',
         )}
       >
         {/*
-          Deux en-têtes, un seul visible. Au-dessus de `lg`, celui de la console, inchangé. En
-          dessous, l'empilement titre / sous-titre / carte / barre « Conversations » (relevé du
-          porteur à 390 px) devient UNE ligne : le titre et l'action. Le sous-titre « Vos
-          conversations » y redisait le titre, et la barre de la liste le redisait une troisième
-          fois. Il disparaît quand une conversation occupe l'écran : elle a son propre en-tête,
-          avec son retour.
+          Entre `md` et `lg`, UNE ligne : le titre et l'action (sous `md`, l'en-tête de la coque les
+          porte). Au bureau, le titre vit en tête de la colonne de liste (TCK-2632 : un seul titre,
+          plus « Messagerie / Vos conversations / Conversations »). Il disparaît quand une
+          conversation occupe l'écran : elle a son propre en-tête, avec son retour.
         */}
-        <div data-testid="messagerie-entete-bureau" className="hidden lg:block">
-          <PageHeader title={titre} description={sousTitre} />
-        </div>
         {afficheListe && (
           <header
             data-testid="messagerie-entete-compact"
-            className={cn('flex items-center justify-between gap-3 px-4 pb-3 lg:hidden', entreeListe)}
+            // Sous `md`, l'en-tête de la coque porte le titre ET l'action : celui-ci n'existe qu'entre
+            // `md` et `lg` (rail de la coque, pas d'en-tête mobile).
+            className={cn('flex items-center justify-between gap-3 px-4 pb-3 max-md:hidden lg:hidden', entreeListe)}
           >
             <h1 className="min-w-0 truncate font-display text-2xl font-bold tracking-tight text-foreground">
               {titre}
             </h1>
-            {peutCreerGroupe && (
-              <Button
-                type="button"
-                variant="secondary"
-                className="shrink-0 rounded-full"
-                onClick={() => setGroupOpen(true)}
-                data-testid="new-group-button-compact"
-              >
-                <Plus className="size-4" aria-hidden />
-                {t('newGroup')}
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="secondary"
+              className="shrink-0 rounded-full"
+              onClick={ouvrirNouvelle}
+              data-testid="nouvelle-conversation-compact"
+            >
+              <SquarePen className="size-4" aria-hidden />
+              {t('nouvelle.bouton')}
+            </Button>
           </header>
         )}
         {/*
@@ -207,36 +385,75 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
         */}
         <div
           data-testid="messagerie-grille"
-          className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] overflow-hidden border-t border-border bg-card lg:h-[calc(100dvh-12rem)] lg:min-h-[24rem] lg:rounded-xl lg:border lg:grid-cols-[320px_1fr]"
+          // TCK-2632 — au bureau, trois colonnes (liste · fil · contexte), sans carte : la liste à
+          // 340 px (94,4 pas de 3,6 px), réduite avec la largeur dès `xl` pour que le fil garde le
+          // nom de la personne (maquette : « pleins à 1440, ≈ 295 à 1280 ») ; le contexte dès `xl`.
+          // TCK-2860 — `relative` : le panneau superposé de 1024-1279 s'y positionne.
+          className="relative grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] overflow-hidden bg-background md:border-t md:border-border lg:flex lg:border-t-0"
         >
           {afficheListe && (
-            <aside className={cn('flex min-h-0 min-w-0 flex-col lg:border-r lg:border-border', entreeListe)}>
-              <div
-                data-testid="messagerie-barre-liste"
-                className="hidden items-center justify-between gap-2 border-b border-border py-2 pl-4 pr-2 lg:flex"
-              >
-                <h2 className="text-sm font-semibold text-foreground">{t('listHeading')}</h2>
-                {peutCreerGroupe && (
+            <aside
+              className={cn(
+                'flex min-h-0 min-w-0 flex-col lg:w-[calc(var(--spacing)*94.4)] lg:flex-none lg:border-r lg:border-border xl:w-[min(calc(var(--spacing)*94.4),29.3%)]',
+                entreeListe,
+              )}
+            >
+              <div data-testid="messagerie-entete-bureau" className="hidden flex-none px-4 pt-6 pb-3 lg:block">
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h1 className="truncate font-display text-2xl font-semibold tracking-titre text-foreground">
+                      {titre}
+                    </h1>
+                    <p className="mt-0.5 truncate text-ui tabular-nums text-muted-foreground">{sousTitreBureau}</p>
+                  </div>
                   <Button
                     type="button"
                     size="sm"
-                    variant="secondary"
-                    onClick={() => setGroupOpen(true)}
-                    data-testid="new-group-button"
+                    onClick={ouvrirNouvelle}
+                    data-testid="nouvelle-conversation-bureau"
                   >
-                    <Plus className="mr-1 size-4" aria-hidden />
-                    {t('newGroup')}
+                    <SquarePen className="size-4" aria-hidden />
+                    {t('nouvelle.bouton')}
                   </Button>
-                )}
+                </div>
               </div>
+              {/* TCK-2973 — l'onglet « Engagements », à côté de « Conversations ». */}
+              <OngletsDeLaMessagerie onglet={onglet} onChange={changerDOnglet} />
               <div className="flex-1 overflow-y-auto">
-                <ConversationList selectedId={conversationAffichee} onSelect={ouvrirDepuisLaListe} />
+                {onglet === 'engagements' && compact ? (
+                  <EngagementsDeLaMessagerie onOuvrir={ouvrirDepuisLaListe} dense={!compact} />
+                ) : (
+                  <ConversationList
+                    selectedId={conversationAffichee}
+                    onSelect={ouvrirDepuisLaListe}
+                    dense={!compact}
+                    onNouvelle={ouvrirNouvelle}
+                    pilotage={boite.pilotage}
+                  />
+                )}
               </div>
             </aside>
           )}
           {affichePanneau && (
-            <section className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden', entreePanneau)}>
-              {brouillon ? (
+            <section className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden lg:flex-1', entreePanneau)}>
+              {!compact && onglet === 'engagements' && tableauOuvert ? (
+                <div className="min-h-0 flex-1 overflow-y-auto pt-4">
+                  <EngagementsDeLaMessagerie
+                    forme="tableau"
+                    onOuvrir={(id) => {
+                      setTableauOuvert(false);
+                      ouvrirDepuisLaListe(id);
+                    }}
+                  />
+                </div>
+              ) : brouillonDirect ? (
+                <BrouillonDirect
+                  key={brouillonDirect.id}
+                  personne={brouillonDirect}
+                  onBack={retourALaListe}
+                  onCreated={choisir}
+                />
+              ) : brouillon ? (
                 <PropertyDraftChatView
                   property={brouillon.property}
                   recipientName={brouillon.recipient?.name ?? null}
@@ -245,7 +462,19 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
                   onCreated={choisir}
                 />
               ) : conversationAffichee ? (
-                <ChatView conversationId={conversationAffichee} onBack={retourALaListe} />
+                <ChatView
+                  conversationId={conversationAffichee}
+                  onBack={retourALaListe}
+                  contexte={bureau ? contexte : undefined}
+                  // TCK-2963 — une salle garde le menu « ⋯ » : la feuille du fil est celle d'une directe.
+                  onPlusDActions={compact && !salle ? () => setFeuilleDuFil(true) : undefined}
+                  gestes={gestes}
+                  salle={salle}
+                />
+              ) : !compact && comptes?.all === 0 ? (
+                // TCK-2632 (a-4 bureau) — une messagerie sans aucun fil : le panneau dit d'où
+                // vient une conversation, au lieu de « Sélectionnez une conversation ».
+                <EtatVideDeLaMessagerie bureau onNouvelle={ouvrirNouvelle} />
               ) : (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-muted/50 p-8 text-center text-sm text-pretty text-muted-foreground">
                   <MessagesSquare className="size-8 text-muted-foreground/70" aria-hidden />
@@ -254,13 +483,84 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
               )}
             </section>
           )}
+          {filDuBureau && salleDuBureau && large ? (
+            contexteOuvert ? <DossierDuFil key={filDuBureau} conversation={salleDuBureau} forme="colonne" /> : null
+          ) : filDuBureau && salleDuBureau && panneauSuperpose ? (
+            <div data-testid="panneau-superpose" className="absolute inset-y-0 right-0 z-20 flex shadow-panneau">
+              <DossierDuFil key={filDuBureau} conversation={salleDuBureau} forme="superpose" />
+            </div>
+          ) : filDuBureau && typeDuFil !== undefined && large ? (
+            typeDuFil === 'group' ? (
+              contexteOuvert ? <InfosDuGroupe key={filDuBureau} conversationId={filDuBureau} /> : null
+            ) : (
+              <ColonneDeContexte
+                conversationId={filDuBureau}
+                ouverte={contexteOuvert}
+                onOuvrir={() => setContexteOuvert(true)}
+              />
+            )
+          ) : filDuBureau && typeDuFil !== undefined && panneauSuperpose ? (
+            // TCK-2860 — entre 1024 et 1279 : le panneau superposé, à droite, au-dessus du fil.
+            <div
+              data-testid="panneau-superpose"
+              className="absolute inset-y-0 right-0 z-20 flex shadow-panneau"
+            >
+              {typeDuFil === 'group' ? (
+                <InfosDuGroupe key={filDuBureau} conversationId={filDuBureau} superposee />
+              ) : (
+                <ColonneDeContexte conversationId={filDuBureau} ouverte onOuvrir={() => undefined} superposee />
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
       {/*
         Hors de la grille, délibérément : en `grid-cols-1` un troisième enfant deviendrait une
         deuxième RANGÉE et volerait la moitié de la hauteur au fil, y compris dialogue fermé.
       */}
-      <NewGroupDialog open={groupOpen} onClose={() => setGroupOpen(false)} onCreated={choisir} />
+      {salleOuverte && !large ? (
+        <FeuilleDuBas open={dossierOuvert} onOpenChange={setDossierOuvert} titre={t('salle.dossier.titre')}>
+          <DossierDuFil key={salleOuverte.id} conversation={salleOuverte} forme="feuille" />
+        </FeuilleDuBas>
+      ) : null}
+      {/* TCK-2968 — le toast de « Traité », la feuille « Rappelez-le-moi », « Confier » (absents sous impersonation). */}
+      {boite.rendu}
+      {compact && conversationAffichee && !brouillonDirect && !brouillon && !salleOuverte ? (
+        <FeuilleDuFil conversationId={conversationAffichee} open={feuilleDuFil} onOpenChange={setFeuilleDuFil} gestes={gestes} />
+      ) : null}
+      {filOuvert ? (
+        <>
+          <DialogueSignaler
+            key={`signaler-${filOuvert}`}
+            conversationId={filOuvert}
+            open={dialogue === 'signaler'}
+            onOpenChange={(o) => setDialogue(o ? 'signaler' : null)}
+          />
+          {autre ? (
+            <DialogueElargirLeFil
+              key={`elargir-${filOuvert}`}
+              conversationId={filOuvert}
+              nomDeLAutre={autre.full_name}
+              exclus={[autre.id, ...(user ? [user.id] : [])]}
+              open={dialogue === 'elargir'}
+              onOpenChange={(o) => setDialogue(o ? 'elargir' : null)}
+              onCree={(id) => {
+                setTransition('aller');
+                choisir(id);
+              }}
+            />
+          ) : null}
+        </>
+      ) : null}
+      <NouvelleConversation
+        open={nouvelleOuverte}
+        onClose={() => setNouvelleOuverte(false)}
+        onOuvrir={ouvrirDepuisLaListe}
+        onBrouillon={ouvrirUnBrouillon}
+        // TCK-2861 — le groupe se crée dans ce dialogue aux deux formats ; TCK-2860 a retiré `NewGroupDialog`.
+        groupePossible={peutCreerGroupe}
+        bureau={bureau}
+      />
     </>
   );
 }

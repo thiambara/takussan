@@ -56,10 +56,11 @@ const portePanneau = (el: Element) =>
  * (Préfixe découpé : Tailwind scanne aussi les tests.)
  */
 function largeurMaxDeLaClasse(el: Element, ecran: number): number {
-  const prefixe = 'max-w-' + '[calc(100vw-';
+  // TCK-2692 — la marge s'écrit en pas d'espacement (`var(--spacing)*K`), 4 px sous `lg` (ADR-0107).
+  const prefixe = 'max-w-' + '[calc(100vw-var(--spacing)*';
   for (const classe of el.className.split(/\s+/)) {
-    if (!classe.startsWith(prefixe) || !classe.endsWith('rem)]')) continue;
-    return ecran - Number(classe.slice(prefixe.length, -'rem)]'.length)) * 16;
+    if (!classe.startsWith(prefixe) || !classe.endsWith(')]')) continue;
+    return ecran - Number(classe.slice(prefixe.length, -')]'.length)) * 4;
   }
   return Infinity;
 }

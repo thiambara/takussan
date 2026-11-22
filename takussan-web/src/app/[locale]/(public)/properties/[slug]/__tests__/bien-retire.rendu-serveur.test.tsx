@@ -5,7 +5,7 @@
  * ce que la carte en fait. Ce fichier-ci rend le HTML que reçoit le lecteur d'un lien circulant sur
  * WhatsApp avant l'hydratation (`renderToString`, donc sans aucun effet) :
  *
- *   · TCK-1188 (P102.01) — les cartes de la première rangée ne sortent pas en `opacity-0` : la
+ *   · TCK-1188 (P102.01) — les cartes (trois au plus depuis TCK-2515) ne sortent pas en `opacity-0` : la
  *     carte ne se dévoile que dans l'`IntersectionObserver` d'un `useEffect`, et une carte
  *     `priority` saute cet état (contrat écrit dans `PropertyCard`).
  */
@@ -97,12 +97,13 @@ function racines(doc: Document): Element[] {
 const masquee = (el: Element) => el.className.split(/\s+/).includes('opacity-0');
 
 describe('TCK-1188 — les cartes de la première rangée ne sont pas masquées au rendu serveur', () => {
-  it('les trois premières cartes sortent visibles, la quatrième garde son apparition', async () => {
+  // TCK-2515 — la page ne garde plus que TROIS biens proches (la première rangée au plus large) :
+  // il n'y a donc plus de quatrième carte à dévoiler, et les trois sortent visibles.
+  it('trois cartes au plus, et toutes sortent visibles', async () => {
     const cartes = racines(await htmlServi(4));
 
-    expect(cartes).toHaveLength(4);
-    expect(cartes.slice(0, 3).map(masquee)).toEqual([false, false, false]);
-    expect(masquee(cartes[3])).toBe(true);
+    expect(cartes).toHaveLength(3);
+    expect(cartes.map(masquee)).toEqual([false, false, false]);
   });
 
   it('leurs images ne sont pas différées', async () => {

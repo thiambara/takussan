@@ -7,6 +7,7 @@ use App\Http\Resources\UserResource;
 use App\Models\Enums\UserStatus;
 use App\Models\RadarAdvertiser;
 use App\Models\User;
+use App\Services\Privacy\ConsentLedger;
 use App\Services\Property\PublishReadiness;
 use App\Support\CanonicalPhone;
 use Illuminate\Http\JsonResponse;
@@ -92,6 +93,35 @@ class PhoneLoginService
     }
 
     /**
+     * TCK-2940 (ADR-0126 § 4) — {@see self::requestCode()}, le code dicté par un appel. Mêmes bornes que le SMS — borne
+     * par numéro vérifiée avant et comptée après, verrou du numéro, plafond du jour dans `callCodeTo()` —, seul le délai
+     * entre deux appels est propre : l'appel part pendant le délai de renvoi du SMS. Ne dit rien de l'issue.
+     */
+    public function requestVoiceCode(string $phone, ?string $locale): void
+    {
+        if (! $this->codes->canCallTo(self::SCOPE, $phone)) {
+            return;
+        }
+        $this->quota->ensureAvailable($phone);
+
+        if ($this->lock->isNumberLocked($phone)) {
+            $this->codes->holdVoiceCooldownFor(self::SCOPE, $phone);
+            $this->quota->hit($phone);
+
+            return;
+        }
+
+        try {
+            $sent = $this->codes->callCodeTo(self::SCOPE, $phone, $locale);
+        } catch (SmsCodeUndelivered) {
+            $sent = true;
+        }
+        if ($sent) {
+            $this->quota->hit($phone);
+        }
+    }
+
+    /**
      * @param  array{two_factor_code?: ?string, recovery_code?: ?string, device_name?: ?string, terms_version?: ?string}  $proof
      */
     public function verify(string $phone, string $code, array $proof, ?string $locale): JsonResponse
@@ -168,7 +198,10 @@ class PhoneLoginService
         }
         if ($termsRequired) {
             // La version reposée est celle que la réponse `requires_terms` désignait : l'acceptation la date.
-            $this->readiness->recordTerms($user, true);
+            // TCK-537 (AC1) — la preuve dit par quel chemin : la réclamation du Radar, ou la connexion.
+            $this->readiness->recordTerms($user, true, str_contains((string) request()->route()?->getName(), 'radar')
+                ? ConsentLedger::CONTEXT_RADAR_CLAIM
+                : ConsentLedger::CONTEXT_PHONE_LOGIN);
             // Vérification adverse m2 — la trace, comme `radar_claimed` : qui, quelle version, par quel chemin (la
             // connexion, ou la réclamation qui passe par ici). Ni numéro ni adresse IP.
             activity('Radar')
@@ -185,7 +218,8 @@ class PhoneLoginService
 
         // Le verrou du mot de passe n'est PAS levé : un canal ne solde pas l'autre (M1 b).
         $this->lock->clearNumber($phone);
-        $user->forceFill(['last_login_at' => now()])->save();
+        // TCK-2926 (ADR-0124 § 3) — la dernière connexion : l'heure, la famille d'appareil, la ville seule.
+        app(LastLoginRecorder::class)->record($user);
 
         $issued = $this->tokens->issue(
             $user,

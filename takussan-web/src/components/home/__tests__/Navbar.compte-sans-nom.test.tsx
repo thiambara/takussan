@@ -62,17 +62,18 @@ describe('Navbar — compte sans nom (TCK-623)', () => {
     vi.unstubAllGlobals();
   });
 
-  it("n'écrit jamais « undefined », ni dans la barre ni dans le menu", async () => {
+  it("n'écrit jamais « undefined », ni dans la barre ni dans le menu « Mon espace »", async () => {
     const user = userEvent.setup();
     const { container } = rendre(PAR_TELEPHONE);
 
     expect(container.textContent?.toLowerCase()).not.toContain('undefined');
-    expect(screen.getByText('Mon compte')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Menu utilisateur' }));
-    expect(container.textContent?.toLowerCase()).not.toContain('undefined');
-    expect(container.textContent?.toLowerCase()).not.toContain('null');
+    // TCK-2494 — le bouton de compte est « Mon espace » ; son menu est rendu en portail.
+    await user.click(screen.getByRole('button', { name: /Mon espace/ }));
+    const menu = await screen.findByRole('menu');
+    expect(document.body.textContent?.toLowerCase()).not.toContain('undefined');
+    expect(document.body.textContent?.toLowerCase()).not.toContain('null');
     // Le numéro désigne le compte, lisible.
-    expect(screen.getAllByText('+221 77 000 06 23').length).toBeGreaterThan(0);
+    expect(menu).toHaveTextContent('+221 77 000 06 23');
   });
 });

@@ -333,6 +333,7 @@ class AccountDeletionStepUpTest extends TestCase
     public function test_registration_stamps_password_set_at(): void
     {
         $this->postJson('/api/auth/register', [
+            'terms_accepted' => true,
             'first_name' => 'Awa',
             'last_name' => 'Diop',
             'email' => 'awa.diop@example.test',

@@ -3,35 +3,34 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
-import { Check, Eye, ImageIcon } from 'lucide-react';
+import { Check, Eye, ImageIcon, MapPin } from 'lucide-react';
 
-import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { coutDEntreeTotal } from '@/lib/cout-d-entree';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import { cn } from '@/lib/utils';
 
 import { isFieldRelevant } from '../field-matrix';
 import { PROPERTY_ENUM_NAMESPACES } from '../options';
+import { useCoutDEntree } from './EncadreCoutDEntree';
 import { suggestTitle } from './suggest-title';
 
 /**
  * TCK-631 (piste 6) — l'annonce telle qu'elle se construit, à côté des questions.
  *
- * La carte reprend le gabarit de `PropertyCardStandard` — photo carrée, pastille du contrat,
+ * La carte reprend le gabarit de `PropertyCardStandard` (TCK-2819 : celui de la maquette) — photo, pastille du contrat,
  * titre, lieu, chiffres, prix et sa période — avec ce que le formulaire sait DÉJÀ. Ce qui manque
  * se dit (« Lieu à venir ») plutôt que de laisser un trou : une carte vide ressemble à une panne.
  *
  * Le titre est celui que l'utilisateur a écrit, sinon celui que la dernière étape lui proposera
  * (`suggestTitle`) : la carte montre dès l'étape 1 ce qu'elle deviendra.
  *
- * Le coût d'entrée : ses composantes, et son TOTAL indicatif (TCK-633, retour du porteur). Le
- * total vient de `coutDEntreeTotal` (`lib/cout-d-entree.ts`), jumelle de `CoutDEntree` côté API :
- * les deux sont jugées par la même fixture (tâche 17), de sorte qu'un écart d'un franc rougit une
- * suite. La règle de TCK-598 (« aucun écran ne refait l'addition ») est levée pour l'aperçu SEUL,
- * qui l'affiche avant que le bien existe ; la fiche publiée lit toujours le total de l'API, et la
- * note le dit (« l'annonce publiée fait foi »).
+ * Le coût d'entrée : la carte n'en dit que le TOTAL indicatif, « À l’entrée : … » (maquette `CarteApercu`,
+ * TCK-2819 lot 2). Ses composantes et la note « l'annonce publiée fait foi » (TCK-633) vivent dans
+ * l'encadré de l'étape du prix (`EncadreCoutDEntree`), qui calcule par le même `useCoutDEntree` :
+ * `coutDEntreeTotal` (`lib/cout-d-entree.ts`), jumelle de `CoutDEntree` côté API, jugées par la même
+ * fixture (tâche 17). La règle de TCK-598 (« aucun écran ne refait l'addition ») est levée pour
+ * l'assistant SEUL, avant que le bien existe ; la fiche publiée lit toujours le total de l'API.
  *
  * ⚠ Toutes les lectures passent par `useWatch` (TCK-564) : un `watch()` lu pendant le rendu se
  * figeait une fois compilé.
@@ -43,11 +42,16 @@ interface DonneesApercu {
   readonly type: PropertyFormValues['type'] | undefined;
   readonly contrat: Contrat | undefined;
   readonly titre: string;
+  /** TCK-2819 — le titre ÉCRIT (ou posé par la finition), sans repli sur le titre proposé. */
+  readonly titreSaisi: string;
+  /** TCK-2819 — le type, traduit (« Studio ») ; vide avant la première réponse. */
+  readonly typeLibelle: string;
+  /** TCK-2819 — le quartier, sinon la ville : le lieu court du résumé (« Mermoz »). */
+  readonly lieuCourt: string;
   readonly lieu: string;
   readonly chiffres: readonly string[];
   readonly prix: string | null;
   readonly periode: string | null;
-  readonly coutDEntree: readonly string[];
   /** TCK-633 — le total à l'entrée, mis en forme ; `null` sans composante ou à zéro. */
   readonly totalDEntree: string | null;
 }
@@ -60,13 +64,12 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
   const fmt = useFormatteurs();
   const [
     type, contrat, ville, quartier, surface, chambres, sallesDeBain, meuble, prix, devise, periode,
-    titreSaisi, avance, caution, frais, charges,
+    titreSaisi,
   ] = useWatch({
     control: form.control,
     name: [
       'type', 'contract_type', 'city', 'quarter', 'area', 'bedrooms', 'bathrooms', 'furnished',
-      'price', 'currency', 'rent_period', 'title', 'advance_months', 'deposit_months',
-      'agency_fee_months', 'monthly_charges',
+      'price', 'currency', 'rent_period', 'title',
     ],
   });
 
@@ -87,6 +90,7 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
             city: ville,
           },
           tType,
+          t,
         )
       : '');
 
@@ -105,35 +109,20 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
   // porte toujours sa période.
   const periodeAffichee = isFieldRelevant('rent_period', ctx) ? tPeriode(periode ?? 'monthly') : null;
 
-  const coutDEntree: string[] = [];
-  let totalDEntree: string | null = null;
-  if (isFieldRelevant('deposit_months', ctx)) {
-    if (nombre(avance)) coutDEntree.push(t('preview.entryAdvance', { count: nombre(avance)! }));
-    if (nombre(caution)) coutDEntree.push(t('preview.entryDeposit', { count: nombre(caution)! }));
-    if (nombre(frais)) coutDEntree.push(t('preview.entryFee', { count: nombre(frais)! }));
-    if (nombre(charges)) {
-      coutDEntree.push(t('preview.entryCharges', { amount: fmt.montant(nombre(charges)!, devise) }));
-    }
-    // `nombre()` : `useWatch` rend ces champs en `unknown` (schéma à coercition) ; zéro et vide
-    // valent « absent », ce que `coutDEntreeTotal` lit de même.
-    const total = coutDEntreeTotal({
-      price: nombre(prix), currency: devise, contract_type: contrat, rent_period: periode,
-      advance_months: nombre(avance), deposit_months: nombre(caution),
-      agency_fee_months: nombre(frais), monthly_charges: nombre(charges),
-    });
-    if (total !== null && total > 0) totalDEntree = fmt.montant(total, devise);
-  }
+  const entree = useCoutDEntree(form);
 
   return {
     type,
     contrat,
     titre,
+    titreSaisi: titreSaisi?.trim() ?? '',
+    typeLibelle: type ? tType(type) : '',
+    lieuCourt: quartier?.trim() || ville?.trim() || '',
     lieu: [quartier?.trim(), ville?.trim()].filter(Boolean).join(', '),
     chiffres,
     prix: nombre(prix) ? fmt.montant(nombre(prix)!, devise) : null,
     periode: periodeAffichee,
-    coutDEntree,
-    totalDEntree,
+    totalDEntree: entree.total,
   };
 }
 
@@ -142,7 +131,7 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
  * révoquée avec lui. Un `setState` dans l'effet serait refusé (`react-hooks/set-state-in-effect`),
  * et jsdom ne connaît pas `URL.createObjectURL` — d'où la garde.
  */
-function VignetteFichier({ fichier }: { readonly fichier: File }) {
+export function VignetteFichier({ fichier }: { readonly fichier: File }) {
   const image = useRef<HTMLImageElement>(null);
   useEffect(() => {
     if (!image.current || typeof URL.createObjectURL !== 'function') return;
@@ -154,76 +143,107 @@ function VignetteFichier({ fichier }: { readonly fichier: File }) {
   return <img ref={image} alt="" className="size-full object-cover" />;
 }
 
-function AVenir({ children }: { readonly children: React.ReactNode }) {
-  return <span className="rounded-md bg-muted px-1.5 text-muted-foreground">{children}</span>;
-}
-
-/** La carte de l'annonce, au gabarit de `PropertyCardStandard`. */
-export function CarteApercu({
+/**
+ * TCK-2601 — l'annonce en une ligne, en tête de la feuille de compte (maquette a-6 / a-7, `RappelAnnonce`) :
+ * sur un aplat `secondary`, la vignette de 48 px, le titre, « prix /période · prête à publier », et la
+ * pastille cochée à droite. Mêmes données que la carte (`useDonneesApercu`).
+ */
+export function RappelDeLAnnonce({
   form,
   photos,
+  pret,
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
   readonly photos: readonly File[];
+  /** « prête à publier », écrit à la suite du prix. */
+  readonly pret: string;
 }) {
   const t = useTranslations('property.wizard.preview');
+  const d = useDonneesApercu(form);
+  const prix = d.prix ? `${d.prix}${d.periode ? ` /${d.periode}` : ''}` : null;
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-secondary/70 p-2.5" data-testid="rappel-de-l-annonce">
+      <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
+        {photos[0] ? <VignetteFichier fichier={photos[0]} /> : <ImageIcon className="size-5" strokeWidth={1.5} aria-hidden="true" />}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col leading-tight">
+        <span className="truncate text-corps font-semibold text-foreground">{d.titre || t('empty')}</span>
+        <span className="mt-0.5 truncate text-ui text-muted-foreground tabular-nums">{prix ? `${prix} · ${pret}` : pret}</span>
+      </span>
+      <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+        <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * La carte de l'annonce. TCK-2819 — la `CarteApercu` de la maquette `app-entree-publier` : la photo à
+ * fond perdu (16/9 dans la colonne, `compact` ; 4/3 dans le tiroir), la pastille du contrat, le titre,
+ * le lieu, les chiffres, le prix et sa période, puis ce que le locataire verse à l'entrée.
+ */
+export function CarteApercu({
+  form,
+  photos,
+  compact = false,
+}: {
+  readonly form: UseFormReturn<PropertyFormValues>;
+  readonly photos: readonly File[];
+  /** La colonne collante du bureau doit tenir dans la hauteur : la photo y passe en 16/9. */
+  readonly compact?: boolean;
+}) {
+  const t = useTranslations('property.wizard.preview');
+  const tContrat = useTranslations('property.contractTypes');
   const d = useDonneesApercu(form);
   const premiere = photos[0];
 
   return (
-    <div data-testid="apercu-annonce" className="rounded-2xl border border-border bg-card p-3 shadow-[0_8px_24px_color-mix(in_srgb,var(--foreground)_8%,transparent)]">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
+    <div data-testid="apercu-annonce" className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className={cn('relative bg-muted', compact ? 'aspect-video' : 'aspect-[4/3]')}>
         {premiere ? (
           <VignetteFichier fichier={premiere} />
         ) : (
-          <div className="flex size-full flex-col items-center justify-center gap-2 text-xs text-muted-foreground">
-            <ImageIcon className="size-7" strokeWidth={1.5} aria-hidden="true" />
-            {t('photoLater')}
+          <div className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImageIcon className="size-7" strokeWidth={1.25} aria-hidden="true" />
+            <span className="text-sm">{t('photoLater')}</span>
           </div>
         )}
         {d.contrat ? (
-          <div className="absolute top-2.5 left-2.5">
-            <ContractTypeChip type={d.contrat} compact />
-          </div>
+          <span className="absolute top-3 left-3 inline-flex h-7 items-center gap-1.5 rounded-full bg-card px-2.5 text-xs font-semibold text-foreground">
+            <span className="size-1.5 rounded-full bg-accent" aria-hidden="true" />
+            {tContrat(d.contrat === 'sale' ? 'saleLong' : 'rentLong')}
+          </span>
+        ) : null}
+        {photos.length > 0 ? (
+          <span className="absolute right-3 bottom-3 rounded-full bg-foreground/70 px-2 py-0.5 text-xs font-medium text-background tabular-nums">
+            {t('photoCount', { current: 1, total: photos.length })}
+          </span>
         ) : null}
       </div>
 
-      <div className="mt-3 space-y-1 px-0.5">
-        <p className="font-display text-base leading-6 font-semibold text-pretty text-foreground">
+      <div className="p-4">
+        <p className={cn('font-display text-titre-court leading-snug text-pretty', d.titre ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
           {d.titre || t('empty')}
         </p>
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {d.lieu || <AVenir>{t('placeLater')}</AVenir>}
+        <p className={cn('mt-1 flex items-center gap-1 text-sm', d.lieu ? 'text-foreground' : 'text-muted-foreground')}>
+          <MapPin className="size-3.5 flex-none" aria-hidden="true" />
+          {d.lieu || t('placeLater')}
         </p>
-        {d.chiffres.length > 0 ? (
-          <p className="text-[13px] leading-[18px] text-muted-foreground">{d.chiffres.join(' · ')}</p>
+        {/* Maquette : les chiffres tant qu'il n'y a pas de prix (a-2), le prix et l'entrée ensuite (a-3 à a-5) —
+            la règle du résumé du téléphone (`BarreApercu`). La colonne garde ainsi sa hauteur. */}
+        {d.chiffres.length > 0 && !d.prix ? <p className="mt-1 text-ui text-muted-foreground">{d.chiffres.join(' · ')}</p> : null}
+        <p
+          className={cn('mt-2.5 font-display tabular-nums', d.prix ? 'text-xl font-semibold text-primary-deep' : 'text-base text-muted-foreground')}
+          data-testid="apercu-prix"
+        >
+          {d.prix ? `${d.prix}${d.periode ? ` / ${d.periode}` : ''}` : t('priceLater')}
+        </p>
+        {d.totalDEntree ? (
+          <p className="mt-0.5 text-ui text-muted-foreground tabular-nums" data-testid="apercu-total-entree">
+            {t('entryLine', { amount: d.totalDEntree })}
+          </p>
         ) : null}
-        <p className="pt-1 text-[15px] leading-6 font-semibold text-foreground tabular-nums" data-testid="apercu-prix">
-          {d.prix ? (
-            <>
-              {d.prix}
-              {d.periode ? (
-                <span className="ml-0.5 font-normal text-muted-foreground">/{d.periode}</span>
-              ) : null}
-            </>
-          ) : (
-            <AVenir>{t('priceLater')}</AVenir>
-          )}
-        </p>
       </div>
-
-      {d.coutDEntree.length > 0 ? (
-        <div className="mt-3 border-t border-border px-0.5 pt-3 text-[13px] leading-[18px]">
-          <p className="font-medium text-foreground">{t('entryTitle')}</p>
-          <p className="text-muted-foreground">{d.coutDEntree.join(', ')}</p>
-          {d.totalDEntree ? (
-            <p className="mt-1 font-medium text-foreground tabular-nums" data-testid="apercu-total-entree">
-              {t('entryTotal', { amount: d.totalDEntree })}
-            </p>
-          ) : null}
-          <p className="mt-1 text-xs text-muted-foreground">{t('entryNote')}</p>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -243,41 +263,55 @@ export function ListePourPublier({
   index,
   onRouvrir,
   desactivee = false,
+  enPlus,
+  enPlusEnCours = false,
 }: {
   readonly etapes: readonly EtapeDeListe[];
   readonly index: number;
   readonly onRouvrir: (index: number) => void;
   readonly desactivee?: boolean;
+  /** TCK-2600 — une dernière ligne, hors des étapes : « Votre numéro · à la fin » (sans compte). */
+  readonly enPlus?: { readonly libelle: string; readonly note: string };
+  /**
+   * TCK-2601 — la feuille de compte est ouverte : toutes les étapes sont franchies et la ligne en plus
+   * (« Votre numéro ») est l'étape en cours (maquette a-6 / a-7, « Pour publier » du bureau).
+   */
+  readonly enPlusEnCours?: boolean;
 }) {
   const t = useTranslations('property.wizard');
 
+  /** La puce de la maquette (`PourPublier`) : cochée sur `accent`, pointée en cours, cerclée à venir. */
+  const puce = (franchie: boolean, courante: boolean) => (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'inline-flex size-5 flex-none items-center justify-center rounded-full',
+        franchie && 'bg-accent text-accent-foreground',
+        courante && 'border-[1.5px] border-primary',
+        !franchie && !courante && 'border-[1.5px] border-border',
+      )}
+    >
+      {franchie ? <Check className="size-3" strokeWidth={3} /> : courante ? <span className="size-2 rounded-full bg-primary" /> : null}
+    </span>
+  );
+  /** La note alignée à droite : « en cours » en `primary`, les autres en encre douce. */
+  const note = (texte: string | null, enCours: boolean) =>
+    texte ? <span className={cn('flex-none text-ui', enCours ? 'font-medium text-primary' : 'text-muted-foreground')}>{texte}</span> : null;
+
   return (
-    <nav aria-label={t('railLabel')} className="rounded-2xl border border-border bg-card p-4">
-      <p className="mb-2 text-sm font-semibold text-foreground">{t('preview.checklist')}</p>
-      <ol className="space-y-0.5">
+    <nav aria-label={t('railLabel')} className="rounded-xl border border-border bg-card p-4">
+      <p className="text-corps font-semibold text-foreground">{t('preview.checklist')}</p>
+      <ol className="mt-2.5 space-y-0.5">
         {etapes.map((e, i) => {
           const franchie = i < index;
           const courante = i === index;
           const contenu = (
             <>
-              <span
-                aria-hidden="true"
-                className={cn(
-                  'grid size-5 shrink-0 place-items-center rounded-full',
-                  franchie && 'bg-foreground text-background',
-                  courante && 'border-2 border-primary',
-                  !franchie && !courante && 'border border-border',
-                )}
-              >
-                {franchie ? <Check className="size-3" strokeWidth={3} /> : null}
-              </span>
-              <span className={cn('min-w-0 text-pretty', !franchie && !courante && 'text-muted-foreground')}>
+              {puce(franchie, courante)}
+              <span className={cn('min-w-0 flex-1 truncate', !franchie && !courante && 'text-muted-foreground', courante && 'font-semibold')}>
                 {e.libelle}
-                {courante ? <span className="text-muted-foreground"> · {t('preview.current')}</span> : null}
-                {!courante && e.facultative ? (
-                  <span className="text-muted-foreground"> · {t('preview.optional')}</span>
-                ) : null}
               </span>
+              {note(courante ? t('preview.current') : !franchie && e.facultative ? t('preview.optional') : null, courante)}
             </>
           );
           return (
@@ -288,37 +322,90 @@ export function ListePourPublier({
                   disabled={desactivee}
                   onClick={() => onRouvrir(i)}
                   aria-label={t('preview.reopen', { step: e.libelle })}
-                  className="flex min-h-9 w-full items-center gap-2.5 rounded-lg px-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+                  className="-mx-1.5 flex h-8 w-[calc(100%+var(--spacing)*3)] items-center gap-3 rounded-md px-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
                 >
                   {contenu}
                 </button>
               ) : (
-                <span
-                  aria-current={courante ? 'step' : undefined}
-                  className={cn('flex min-h-9 items-center gap-2.5 px-1.5 text-sm', courante && 'font-medium')}
-                >
+                <span aria-current={courante ? 'step' : undefined} className="flex h-8 items-center gap-3 text-sm text-foreground">
                   {contenu}
                 </span>
               )}
             </li>
           );
         })}
+        {enPlus ? (
+          <li>
+            <span aria-current={enPlusEnCours ? 'step' : undefined} className="flex h-8 items-center gap-3 text-sm text-foreground">
+              {puce(false, enPlusEnCours)}
+              <span className={cn('min-w-0 flex-1 truncate font-semibold', !enPlusEnCours && 'text-muted-foreground')}>{enPlus.libelle}</span>
+              {note(enPlusEnCours ? t('preview.current') : enPlus.note, enPlusEnCours)}
+            </span>
+          </li>
+        ) : null}
       </ol>
     </nav>
   );
 }
 
 /**
+ * TCK-2819 — le `Resume` de la maquette : « Studio · En location · Mermoz » tant que l'annonce n'a pas de titre
+ * écrit, puis son titre ; dessous, le prix et sa période, sinon les chiffres déjà donnés. TCK-2988 — lu aussi par
+ * l'en-tête du téléphone de `/publish`, qui le dit en une ligne sous l'intention.
+ */
+export function useResumeDeLApercu(form: UseFormReturn<PropertyFormValues>): {
+  readonly premiereLigne: string;
+  readonly secondeLigne: string;
+  /** Le prix est donné : `secondeLigne` le dit (et non les chiffres ou « Prix à venir »). */
+  readonly prixDonne: boolean;
+  /**
+   * TCK-2988 — le résumé en UNE ligne, celle de l'en-tête du téléphone : le prix d'abord une fois donné (décision
+   * du porteur du 2026-11-21, 1b) — tronquée, la ligne perdait ce qu'on cherche le plus.
+   */
+  readonly ligne: string;
+} {
+  const t = useTranslations('property.wizard.preview');
+  const tContrat = useTranslations('property.contractTypes');
+  const d = useDonneesApercu(form);
+  const premiereLigne = d.titreSaisi
+    ? d.titreSaisi
+    : d.type
+      ? [d.typeLibelle, d.contrat ? tContrat(d.contrat === 'sale' ? 'saleLong' : 'rentLong') : null, d.lieuCourt || null]
+          .filter(Boolean)
+          .join(' · ')
+      : t('empty');
+  const secondeLigne = d.prix
+    ? `${d.prix}${d.periode ? ` / ${d.periode}` : ''}`
+    : d.chiffres.length > 0
+      ? d.chiffres.join(' · ')
+      : d.type
+        ? t('priceLater')
+        : t('emptyHint');
+  const prixDonne = Boolean(d.prix);
+  return {
+    premiereLigne,
+    secondeLigne,
+    prixDonne,
+    ligne: prixDonne ? `${secondeLigne} · ${premiereLigne}` : `${premiereLigne} · ${secondeLigne}`,
+  };
+}
+
+/**
  * Sous `lg`, l'aperçu tient dans une barre sous l'en-tête — le type, le lieu, le prix — et
  * s'ouvre en entier dans un tiroir. Plus de colonne : la largeur va à la question.
+ *
+ * TCK-2988 — `forme="bouton"` : le seul « Aperçu », posé dans l'en-tête du téléphone de `/publish`, dont la
+ * ligne sous l'intention porte déjà le résumé (maquette « L'écran économe ») ; le tiroir est le même.
  */
 export function BarreApercu({
   form,
   photos,
+  forme = 'barre',
   children,
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
   readonly photos: readonly File[];
+  readonly forme?: 'barre' | 'bouton' | 'icone';
   /**
    * Ce que le tiroir montre sous la carte — la liste « Pour publier ». Une fonction : un geste
    * dedans (rouvrir une étape) doit pouvoir REFERMER le tiroir, sans quoi l'étape rouverte se
@@ -327,47 +414,63 @@ export function BarreApercu({
   readonly children?: (fermer: () => void) => React.ReactNode;
 }) {
   const t = useTranslations('property.wizard.preview');
-  const tContrat = useTranslations('property.contractTypes');
-  const d = useDonneesApercu(form);
+  const { premiereLigne, secondeLigne } = useResumeDeLApercu(form);
   const [ouvert, setOuvert] = useState(false);
-
-  const premiereLigne = d.type
-    ? [d.titre, d.contrat ? tContrat(d.contrat === 'sale' ? 'saleLong' : 'rentLong') : null]
-        .filter(Boolean)
-        .join(' · ')
-    : t('empty');
-  const secondeLigne = d.prix
-    ? `${d.prix}${d.periode ? ` /${d.periode}` : ''}`
-    : d.lieu || (d.type ? t('priceLater') : t('emptyHint'));
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOuvert(true)}
-        aria-label={t('openLabel')}
-        data-testid="barre-apercu"
-        className="flex w-full shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-2.5 text-left focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset sm:px-6"
-      >
-        <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
-          {photos[0] ? <VignetteFichier fichier={photos[0]} /> : <ImageIcon className="size-5" strokeWidth={1.5} aria-hidden="true" />}
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-semibold text-foreground">{premiereLigne}</span>
-          <span className="truncate text-[13px] text-muted-foreground tabular-nums">{secondeLigne}</span>
-        </span>
-        <span className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-primary">
+      {forme === 'icone' ? (
+        // TCK-2988 — l'en-tête du téléphone de `/app/properties/new`, où « Enregistrer et quitter » prend la place
+        // du libellé : l'œil seul, 44 px, le nom accessible reste « Ouvrir l'aperçu de l'annonce ».
+        <button
+          type="button"
+          onClick={() => setOuvert(true)}
+          aria-label={t('openLabel')}
+          data-testid="barre-apercu"
+          className="inline-flex size-11 flex-none items-center justify-center rounded-full text-primary transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <Eye className="size-5" aria-hidden="true" />
+        </button>
+      ) : forme === 'bouton' ? (
+        <button
+          type="button"
+          onClick={() => setOuvert(true)}
+          aria-label={t('openLabel')}
+          data-testid="barre-apercu"
+          className="inline-flex h-11 flex-none items-center gap-1.5 rounded-full px-3 text-sm font-medium text-primary transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+        >
           <Eye className="size-4" aria-hidden="true" />
-          {t('open')}
-        </span>
-      </button>
+          {/* ADR-0133 — en saisie, l'en-tête passe à 44 px : l'œil seul. */}
+          <span className="saisie:hidden">{t('open')}</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOuvert(true)}
+          aria-label={t('openLabel')}
+          data-testid="barre-apercu"
+          className="flex w-full shrink-0 items-center gap-3 border-b border-border bg-card py-2 pr-3 pl-4 text-left focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset sm:pr-5 sm:pl-6"
+        >
+          <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
+            {photos[0] ? <VignetteFichier fichier={photos[0]} /> : <ImageIcon className="size-5" strokeWidth={1.5} aria-hidden="true" />}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col leading-tight">
+            <span className="truncate text-corps font-semibold text-foreground">{premiereLigne}</span>
+            <span className="mt-0.5 truncate text-ui text-muted-foreground tabular-nums">{secondeLigne}</span>
+          </span>
+          <span className="inline-flex h-11 shrink-0 items-center gap-1.5 px-1 text-sm font-medium text-primary">
+            <Eye className="size-4" aria-hidden="true" />
+            {t('open')}
+          </span>
+        </button>
+      )}
       <Sheet open={ouvert} onOpenChange={setOuvert}>
         <SheetContent side="bottom" className="rounded-t-2xl">
           <SheetHeader className="px-4 pt-4 sm:px-6">
             <SheetTitle>{t('label')}</SheetTitle>
             <SheetDescription>{t('hint')}</SheetDescription>
           </SheetHeader>
-          <div className="mx-auto flex w-full max-w-md flex-col gap-4 overflow-y-auto px-4 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:px-6">
+          <div className="mx-auto flex w-full max-w-md flex-col gap-4 overflow-y-auto px-4 pt-2 pb-[calc(var(--spacing)*6+env(safe-area-inset-bottom))] sm:px-6">
             <CarteApercu form={form} photos={photos} />
             {children?.(() => setOuvert(false))}
           </div>

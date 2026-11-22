@@ -91,7 +91,8 @@ class MaintenanceRequestObserver implements ShouldHandleEventsAfterCommit
             'amount' => round($amount, Currency::decimalPlacesOf($currency), PHP_ROUND_HALF_UP),
             'currency' => $currency,
             'exceeds_quote' => $quote > 0 && $actual > $quote,
-            'status' => ServiceProviderBillStatus::PendingValidation->value,
+            // TCK-2911 (ADR-0120 § 1) — « À facturer » : le prestataire l'envoie par « Facturer ».
+            'status' => ServiceProviderBillStatus::Draft->value,
             'rechargeable_to_landlord' => true,
             'created_at' => $now,
             'updated_at' => $now,

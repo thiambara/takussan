@@ -3,6 +3,7 @@ import { Suspense, use } from 'react';
 import { getLocale } from 'next-intl/server';
 
 import { HomepageDiscovery } from '@/components/property/HomepageDiscovery';
+import { CarteDeRappel } from '@/components/navigation-publique/CarteDeRappel';
 import { alternatesPubliques } from '@/lib/alternates';
 import { decouverteDeLAccueil } from '@/lib/queries/public-discovery';
 import { raccourcisDeLAccueil, type RaccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
@@ -45,7 +46,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * consultés et les boutons de favoris sont de l'état local.
  *
  * ⚠️ **Cette page n'attend PAS la ville du visiteur.** Elle est devinée côté client par
- * `UserLocationProvider` (ipapi.co, échéance 1200 ms), et un rendu serveur qui attendrait un
+ * `UserLocationProvider` (ipapi.co, échéance 1200 ms ; depuis TCK-537, seulement après le premier
+ * geste du visiteur — sans geste ni cache, la page reste sur ses rangées sans ville), et un rendu serveur qui attendrait un
  * fournisseur tiers serait un rendu serveur qu'on ne peut pas servir. Le serveur demande donc les
  * rangées **sans ville** — le back-end sert alors son marché de référence et le DIT
  * (`requested_city: null`, `fallback: false`), de sorte que le titre affiché reste vrai des biens
@@ -67,7 +69,10 @@ export default async function Home() {
   // rangées suivent dans la MÊME réponse diffusée : leurs titres et leurs liens
   // `/properties/<slug>` restent dans le HTML servi (TCK-432, `accueil-diffuse-avant-ses-rangees`).
   // Aucune des deux ne rejette : chacune rend `null` sur panne.
-  const donnees = Promise.all([decouverteDeLAccueil(locale), raccourcisDeLAccueil(locale)]);
+  // TCK-2495 — les quartiers et l'offre parlent de la ville que les rangées servent (`near.city`) :
+  // ils partent derrière la découverte, mais sont en cache partagé d'une heure (`raccourcisDeLAccueil`).
+  const decouverte = decouverteDeLAccueil(locale);
+  const donnees = Promise.all([decouverte, decouverte.then((d) => raccourcisDeLAccueil(d?.near.city ?? null))]);
 
   // Le repli est l'accueil SANS données : son propre squelette (barre, rangées en chargement),
   // sans `<h1>` — le repli et le contenu sont tous deux dans le HTML diffusé, et la page n'en
@@ -87,5 +92,10 @@ function AccueilServi({
   readonly donnees: Promise<[HomepageDiscoveryData | null, RaccourcisDeLAccueil]>;
 }) {
   const [rangees, raccourcis] = use(donnees);
-  return <HomepageDiscovery donneesInitiales={rangees} raccourcis={raccourcis} />;
+  // TCK-2493 (ADR-0091) — connecté, ce qui attend le persona en tête de l'accueil ; rien pour l'anonyme.
+  // La clé : l'élément traverse la frontière serveur → client et se pose parmi les enfants du `<main>`,
+  // où React exige d'un nœud venu du serveur qu'il soit nommé (avertissement relevé au navigateur).
+  return (
+    <HomepageDiscovery donneesInitiales={rangees} raccourcis={raccourcis} rappel={<CarteDeRappel key="carte-de-rappel" />} />
+  );
 }

@@ -149,7 +149,7 @@ class BillingPlansTest extends TestCase
 
         $this->getJson('/api/me/quota')
             ->assertOk()
-            ->assertExactJson(['data' => ['limit' => null, 'used' => 0, 'can_create' => true]]);
+            ->assertExactJson(['data' => ['limit' => null, 'used' => 0, 'can_create' => true, 'agents' => ['limit' => null, 'used' => 0]]]);
 
         $this->abonnement($agency, 2);
         Property::factory()->count(2)->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Available]);
@@ -157,7 +157,7 @@ class BillingPlansTest extends TestCase
 
         $this->getJson('/api/me/quota')
             ->assertOk()
-            ->assertExactJson(['data' => ['limit' => 2, 'used' => 2, 'can_create' => false]]);
+            ->assertExactJson(['data' => ['limit' => 2, 'used' => 2, 'can_create' => false, 'agents' => ['limit' => null, 'used' => 0]]]);
     }
 
     private function abonnement(Agency $agency, int $limite): void
@@ -339,5 +339,19 @@ class BillingPlansTest extends TestCase
             'status' => PropertyStatus::Available->value,
             'price' => 250000,
         ];
+    }
+
+    /** TCK-2743 (lot 3) — la fin d'essai, reçue avec décalage : l'instant désigné. */
+    public function test_trial_ends_at_recu_avec_decalage_est_l_instant_designe(): void
+    {
+        $this->actingAsRole('super_admin');
+        $agency = Agency::factory()->create();
+
+        $this->postJson("/api/admin/agencies/{$agency->id}/subscription", [
+            'plan_id' => $this->plan('pro')->id,
+            'trial_ends_at' => '2030-11-20T11:00:00+01:00',
+        ])->assertCreated();
+
+        $this->assertSame('2030-11-20 10:00:00', AgencySubscription::query()->where('agency_id', $agency->id)->sole()->getRawOriginal('trial_ends_at'));
     }
 }

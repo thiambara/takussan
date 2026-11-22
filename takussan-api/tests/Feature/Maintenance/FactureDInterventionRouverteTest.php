@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
+use Tests\Feature\Api\ServiceProviderBillDraftSubmitTest;
 use Tests\Support\EnvoisParCode;
 use Tests\TestCase;
 
@@ -98,8 +99,17 @@ class FactureDInterventionRouverteTest extends TestCase
         $this->service()->contestResolution($mr, $this->landlord, 'Toujours une fuite');
     }
 
+    /**
+     * TCK-2911 (ADR-0120 § 1) — la facture naît `draft` ; ces tests portent sur la suite du cycle :
+     * le prestataire l'a envoyée (« Facturer »). Le brouillon annulé par la contestation l'est aussi
+     * ({@see ServiceProviderBillDraftSubmitTest}).
+     */
     private function billOf(MaintenanceRequest $mr): ServiceProviderBill
     {
+        ServiceProviderBill::query()->where('maintenance_request_id', $mr->id)
+            ->where('status', ServiceProviderBillStatus::Draft->value)
+            ->update(['status' => ServiceProviderBillStatus::PendingValidation->value, 'submitted_at' => now()]);
+
         return ServiceProviderBill::query()->where('maintenance_request_id', $mr->id)->orderBy('id')->firstOrFail();
     }
 
@@ -267,7 +277,7 @@ class FactureDInterventionRouverteTest extends TestCase
 
         $this->assertSame(ServiceProviderBillStatus::Cancelled, $billA->fresh()->status);
         $open = ServiceProviderBill::query()->where('maintenance_request_id', $mr->id)
-            ->where('status', ServiceProviderBillStatus::PendingValidation)->sole();
+            ->where('status', ServiceProviderBillStatus::Draft)->sole();
         $this->assertSame($providerB->id, (int) $open->provider_id);
         $this->assertEquals(70000, (float) $open->amount);
     }
@@ -283,7 +293,7 @@ class FactureDInterventionRouverteTest extends TestCase
 
         $this->assertSame(ServiceProviderBillStatus::Cancelled, $first->fresh()->status);
         $open = ServiceProviderBill::query()->where('maintenance_request_id', $mr->id)
-            ->where('status', ServiceProviderBillStatus::PendingValidation)->sole();
+            ->where('status', ServiceProviderBillStatus::Draft)->sole();
         $this->assertEquals(80000, (float) $open->amount);
         $this->assertTrue($open->exceeds_quote);
     }

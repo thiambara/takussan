@@ -12,5 +12,12 @@ return [
         'payment' => 90,
         'sms' => 30,
         'whatsapp' => 30,
+        // TCK-2980 (ADR-0132 § 0, § 1) — le webhook générique de la messagerie, la rétention du canal `whatsapp`.
+        'messagerie' => 30,
     ],
+
+    // TCK-606 — une ligne `rejected` (signature absente ou fausse, jeton inconnu) ne porte rien
+    // qu'un litige de rapprochement relira : elle se purge à cette borne, quel que soit son canal.
+    // Au plafond du débit, elle vivait sinon 90 jours comme une ligne authentifiée.
+    'rejected_retention_days' => 7,
 ];

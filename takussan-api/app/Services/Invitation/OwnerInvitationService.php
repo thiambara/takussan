@@ -174,12 +174,7 @@ class OwnerInvitationService
             })
             ->first();
 
-        if ($existing !== null) {
-            throw new HttpException(
-                409,
-                __('owners.invite.errors.already_member', ['profile_id' => $existing->id]),
-            );
-        }
+        self::refuserUnBailleurDeLAgence($existing);
     }
 
     /**
@@ -195,12 +190,27 @@ class OwnerInvitationService
             ->where('user_id', $account->id)
             ->first();
 
-        if ($existing !== null) {
-            throw new HttpException(
-                409,
-                __('owners.invite.errors.already_member', ['profile_id' => $existing->id]),
-            );
+        self::refuserUnBailleurDeLAgence($existing);
+    }
+
+    /**
+     * Le 409 d'un compte déjà bailleur de l'agence. TCK-2753 (ADR-0108 § 5) — un bailleur PARTI
+     * (`inactive`) ne revient pas par une invitation : son refus porte un CODE distinct
+     * (`owner.invite_departed`, « a quitté »), que le front lit pour ne pas dire « déjà propriétaire »
+     * d'un bailleur que l'agence ne trouve plus dans son carnet.
+     */
+    private static function refuserUnBailleurDeLAgence(?OwnerProfile $existing): void
+    {
+        if ($existing === null) {
+            return;
         }
+
+        abort_code_if($existing->status === OwnerProfileStatus::Inactive, 409, 'owner.invite_departed');
+
+        throw new HttpException(
+            409,
+            __('owners.invite.errors.already_member', ['profile_id' => $existing->id]),
+        );
     }
 
     protected function cleanString(?string $value): ?string

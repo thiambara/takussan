@@ -2,9 +2,10 @@
 
 namespace App\Http\Requests\Api\Admin;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\BaseFormRequest;
+use App\Rules\JourIso;
 
-class ClosePlatformPayoutPeriodRequest extends FormRequest
+class ClosePlatformPayoutPeriodRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
@@ -15,7 +16,7 @@ class ClosePlatformPayoutPeriodRequest extends FormRequest
     {
         return [
             'agency_id' => ['nullable', 'integer', 'exists:agencies,id'],
-            'period_end' => ['required', 'date'],
+            'period_end' => ['required', 'date', new JourIso],
         ];
     }
 }

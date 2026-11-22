@@ -1,3 +1,5 @@
+import { estUnJourDeLApi } from '@/lib/jour-de-l-api';
+
 /**
  * La requête que `/properties` adresse à `GET /api/public/properties/search` — **une seule
  * définition, deux appelants** (TCK-432).
@@ -104,7 +106,7 @@ export function normaliserGeo(params: URLSearchParams): URLSearchParams {
  * Les paramètres d'URL de `/properties` traduits en requête d'API — la fonction que le rendu
  * serveur et `useSearch` appellent tous les deux.
  *
- * Trois transformations, dans cet ordre, et aucune n'est décorative :
+ * Quatre transformations, dans cet ordre, et aucune n'est décorative :
  *
  * 1. **`normaliserGeo`** — un état géographique que le serveur rendrait en 422 n'atteint jamais
  *    le réseau (TCK-346) ;
@@ -112,6 +114,9 @@ export function normaliserGeo(params: URLSearchParams): URLSearchParams {
  *    et un lien externe peut parfaitement porter `?search=villa` ;
  * 3. **le `per_page` par défaut** — posé explicitement, pour que la clef semée par le serveur et
  *    celle du client portent la même valeur (TCK-559).
+ * 4. **un `available_from` que l'API refuserait est écarté** (TCK-2768) — elle rend 422 sur un jour
+ *    qui n'est pas `AAAA-MM-JJ` réel (`JourIso`) ; un lien partagé ou une recherche sauvegardée sous
+ *    une forme antérieure ne finit pas en « 0 bien trouvé », il est servi sans ce critère.
  *
  * ⚠️ L'objet reçu n'est PAS muté : la copie est faite ici, une fois, pour que l'appelant serveur
  * puisse passer les `searchParams` de Next sans se demander qui les possède.
@@ -123,7 +128,37 @@ export function parametresDeRecherche(brut: URLSearchParams): URLSearchParams {
     params.set('q', params.get('search') ?? '');
   }
   if (!params.has('per_page')) params.set('per_page', String(PER_PAGE_PAR_DEFAUT));
+  if (params.getAll('available_from').some((jour) => !estUnJourDeLApi(jour))) params.delete('available_from');
 
+  return params;
+}
+
+/**
+ * TCK-2522 / TCK-2523 — {@link parametresDeRecherche}, plus des paramètres FIXES ajoutés par
+ * l'appelant et jamais lus dans l'URL : le périmètre d'une fiche (`agency=<slug>` ou
+ * `agent=<slug>`), `placements=false` (une fiche ne sert pas d'emplacements, TCK-2517) et `facets`.
+ *
+ * Le rendu serveur et `useSearch` l'appellent TOUS LES DEUX, comme `parametresDeRecherche` : deux
+ * constructions séparées donneraient deux clefs, et la graine serait redemandée à l'hydratation.
+ * Un paramètre fixe l'emporte sur celui de l'URL du même nom : `?agency=autre` sur la fiche de
+ * Dakar Immo ne sort pas de son portefeuille.
+ *
+ * …et sur TOUTE forme de ce nom, tableau compris (`agency[]`, `agency[0]`, `agency[slug]`) : PHP lit
+ * ces formes comme le même champ, en tableau, et l'API répondait 422 « The agency field must be a
+ * string » — le HTML servi de la fiche n'avait plus aucun bien (revue du 2026-11-09).
+ */
+export function requeteAvecFixes(
+  url: URLSearchParams,
+  fixes: Readonly<Record<string, string>> | undefined,
+): URLSearchParams {
+  const params = parametresDeRecherche(url);
+  if (!fixes) return params;
+  for (const [cle, valeur] of Object.entries(fixes)) {
+    for (const nom of [...params.keys()]) {
+      if (nom.startsWith(`${cle}[`)) params.delete(nom);
+    }
+    params.set(cle, valeur);
+  }
   return params;
 }
 
@@ -137,7 +172,7 @@ export function parametresDeRecherche(brut: URLSearchParams): URLSearchParams {
  */
 export const CLES_PROPRES_A_LA_LISTE = [
   'q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements',
-  'seed_hour',
+  'seed_hour', 'published_after', 'agency', 'agent', 'facets',
 ] as const;
 
 /**

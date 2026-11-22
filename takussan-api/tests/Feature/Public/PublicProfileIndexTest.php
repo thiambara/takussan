@@ -67,8 +67,12 @@ class PublicProfileIndexTest extends TestCase
 
     private function agentEligible(array $attributs = [], int $biens = 1, string $ville = 'Dakar', ?Agency $agence = null): User
     {
+        // TCK-2506 — un publieur sans profil d'agent n'est listé que s'il l'a choisi : la fabrique
+        // d'un profil ÉLIGIBLE pose donc le choix (les cas qui l'éprouvent vivent dans
+        // `PublicDirectoryOwnerOptInTest`).
         $agent = User::factory()->create(array_merge([
             'status' => UserStatus::Active,
+            'listed_in_public_directory' => true,
         ], $attributs));
 
         for ($i = 0; $i < $biens; $i++) {
@@ -650,7 +654,9 @@ class PublicProfileIndexTest extends TestCase
             $this->slugs($this->getJson('/api/public/agencies?filter[search]='.rawurlencode('Immo, Conseil'))->assertOk()),
         );
 
-        $this->agentEligible(['username' => 'awa-diop', 'first_name' => 'Awa', 'last_name' => 'Diop, Ndiaye']);
+        // TCK-2574 — un AGENT en exercice : le nom de famille d'un propriétaire n'est plus cherchable.
+        $awa = $this->agentEligible(['username' => 'awa-diop', 'first_name' => 'Awa', 'last_name' => 'Diop, Ndiaye']);
+        AgentProfile::factory()->create(['user_id' => $awa->id]);
         $this->agentEligible(['username' => 'moussa-fall', 'first_name' => 'Moussa', 'last_name' => 'Fall']);
 
         $this->assertSame(

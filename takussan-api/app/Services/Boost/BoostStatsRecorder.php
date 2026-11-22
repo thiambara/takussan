@@ -30,42 +30,26 @@ final class BoostStatsRecorder
     /** TCK-708 — fenêtre où un même visiteur ne compte qu'une impression par bien. */
     public const IMPRESSION_WINDOW_MINUTES = 30;
 
-    /**
-     * TCK-708 — les biens servis par la requête en cours, tant que `boost.impressions` diffère le
-     * comptage ; `null` hors de ce middleware (appel direct, console) : le comptage est immédiat.
-     *
-     * @var list<int>|null
-     */
-    private ?array $pending = null;
-
-    /** @param  list<int>  $propertyIds  biens servis dans un emplacement « Sponsorisé » */
+    /** @param  list<int>  $propertyIds  biens dont un emplacement « Sponsorisé » compte une impression */
     public function impressions(array $propertyIds): void
     {
-        if ($this->pending !== null) {
-            array_push($this->pending, ...array_map('intval', $propertyIds));
-
-            return;
-        }
         $counts = array_count_values(array_map('intval', $propertyIds));
         foreach ($this->liveFeaturedBoosts(array_keys($counts)) as $propertyId => $boostId) {
             $this->add($boostId, 'impressions', $counts[$propertyId]);
         }
     }
 
-    /** TCK-708 — les impressions suivantes attendent `commitImpressions()` ou `discardImpressions()`. */
-    public function deferImpressions(): void
-    {
-        $this->pending = [];
-    }
-
     /**
-     * TCK-708 (P01.04, décision du porteur) — une impression par visiteur et par bien sur 30 min.
-     * Sans visiteur connu (aucune IP), chaque bien servi compte une fois, sans dédoublonnage.
+     * TCK-2569 (amendement d'ADR-0061 du 2026-11-16) — les emplacements que le NAVIGATEUR déclare
+     * avoir affichés ; plus rien ne se compte au service. TCK-708 (P01.04, décision du porteur) —
+     * une impression par visiteur et par bien sur 30 min. Sans visiteur connu (aucune IP), chaque
+     * bien déclaré compte une fois, sans dédoublonnage.
+     *
+     * @param  list<int>  $propertyIds  biens PUBLICS — le filtre de publication est à l'appelant
      */
-    public function commitImpressions(?string $visitor): void
+    public function declared(array $propertyIds, ?string $visitor): void
     {
-        $propertyIds = array_values(array_unique($this->pending ?? []));
-        $this->pending = null;
+        $propertyIds = array_values(array_unique(array_map('intval', $propertyIds)));
 
         if ($visitor !== null) {
             $propertyIds = array_values(array_filter(
@@ -75,12 +59,6 @@ final class BoostStatsRecorder
         }
 
         $this->impressions($propertyIds);
-    }
-
-    /** TCK-708 — la réponse n'a rien servi (304, exception) : rien ne se compte. */
-    public function discardImpressions(): void
-    {
-        $this->pending = null;
     }
 
     /**

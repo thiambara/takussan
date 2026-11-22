@@ -4,6 +4,8 @@ namespace Tests\Feature\Radar;
 
 use App\Jobs\Radar\ExtractRadarListing;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\RadarCrawlDiscovery;
+use App\Models\Enums\RadarCrawlScope;
 use App\Models\Enums\RadarCrawlStatus;
 use App\Models\Enums\RadarCrawlTrigger;
 use App\Models\Enums\RadarListingStage;
@@ -15,6 +17,7 @@ use App\Models\RadarListingSnapshot;
 use App\Models\User;
 use App\Services\Radar\Crawl\ListCard;
 use App\Services\Radar\Crawl\RadarCrawlScheduler;
+use App\Services\Radar\Crawl\RadarCrawlSources;
 use App\Services\Radar\Crawl\RadarSnapshots;
 use App\Services\Radar\HostResolver;
 use App\Services\Radar\RadarListingIntake;
@@ -76,6 +79,8 @@ class RadarSnapshotPrivacyTest extends TestCase
                 : Http::response('introuvable', 404, ['Content-Type' => 'text/html']);
         });
         $this->operator = $this->operateur(PlatformProfileLevel::SuperAdmin);
+        // TCK-2468 — ces passages éprouvent la collecte d'ADR-0080 : la source saisit tout ce qu'elle voit (`scope = all`).
+        $this->app->make(RadarCrawlSources::class)->all()->each->update(['scope' => RadarCrawlScope::All, 'discovery' => RadarCrawlDiscovery::Lists]);
     }
 
     private function crawl(): RadarCrawlRun

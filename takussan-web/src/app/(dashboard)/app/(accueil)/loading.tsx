@@ -1,4 +1,4 @@
-import { RouteSkeleton } from '@/components/console';
+import { RouteSkeleton } from '@/components/console/RouteSkeleton';
 
 /**
  * TCK-426 — ce repli vit dans le GROUPE `(accueil)`, et non plus à la racine de `/app`.

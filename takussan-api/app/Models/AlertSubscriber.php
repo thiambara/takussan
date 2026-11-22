@@ -18,7 +18,7 @@ use InvalidArgumentException;
  *
  * ⚠ **`contact` est la donnée d'une personne physique** (e-mail ou téléphone) : colonne `text`,
  * cast `encrypted`, `$hidden`, jamais journalisé (le modèle n'est pas `Auditable`). On la retrouve
- * par {@see self::contactHash()} — HMAC sous `app.key`, la forme de `PayoutMethod::fingerprint()` :
+ * par {@see self::contactHash()} — HMAC sous `APP_HMAC_KEY` (TCK-614, `AppKeyHmac`), la forme de `PayoutMethod::fingerprint()` :
  * un SHA-256 nu d'un numéro se retrouve par force brute. TCK-2430 (ADR-0084) — une écriture pose l'empreinte sous la
  * clé courante, une lecture la cherche aussi sous `APP_PREVIOUS_KEYS` ({@see self::contactHashes()}) : une
  * rotation d'`APP_KEY` ne coupe pas un contact de ses demandes d'avant.

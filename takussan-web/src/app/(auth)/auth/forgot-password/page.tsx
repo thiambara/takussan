@@ -1,109 +1,19 @@
-'use client';
+import { Suspense } from 'react';
 
-import { forgotPassword } from '@/lib/auth';
-import Link from 'next/link';
-import { useState } from 'react';
-import { CheckCircle2, Loader2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { CIBLE_LIEN_EN_LIGNE } from '@/components/auth/cibles';
-import { useTranslations } from 'next-intl';
+import { MotDePasseOublie } from '@/components/auth/MotDePasseOublie';
+import { intentionDeLaRequete, type RechercheDeLaPage } from '@/components/auth/intention-de-la-requete';
 
-export default function ForgotPasswordPage() {
-  const t = useTranslations('auth.forgotPassword');
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      await forgotPassword(email);
-    } catch {
-      // Toujours afficher succès pour éviter l'énumération des emails
-    } finally {
-      setSubmitted(true);
-      setLoading(false);
-    }
-  }
-
-  if (submitted) {
-    return (
-      <div>
-        <div className="flex items-center justify-center size-14 rounded-full bg-success/10 text-success mb-6">
-          <CheckCircle2 className="size-7" aria-hidden="true" />
-        </div>
-        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
-          {t('sentTitle')}
-        </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-6">
-          {t.rich('sentBody', {
-            email,
-            b: (chunks) => <strong className="text-foreground">{chunks}</strong>,
-          })}
-        </p>
-        <Link
-          href="/auth/login"
-          className={`${CIBLE_LIEN_EN_LIGNE} inline-block text-sm font-semibold text-primary underline-offset-4 hover:underline`}
-        >
-          {t('backToLogin')}
-        </Link>
-      </div>
-    );
-  }
-
+/**
+ * `/auth/forgot-password` — « Mot de passe oublié », puis « Lien envoyé » (TCK-2606).
+ *
+ * SERVEUR pour la même raison que la connexion (TCK-2604) : le bien quitté reste dans la barre, lu
+ * par la lecture partagée de la fiche dès le premier rendu. Le formulaire est client.
+ */
+export default async function ForgotPasswordPage({ searchParams }: { readonly searchParams: RechercheDeLaPage }) {
+  const intention = await intentionDeLaRequete(await searchParams);
   return (
-    <div>
-      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
-        {t('title')}
-      </h1>
-      <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">{t('subtitle')}</p>
-
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium mb-1.5">
-            {t('email')}
-          </label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            spellCheck={false}
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder={t('emailPlaceholder')}
-           
-          />
-        </div>
-
-        <Button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-full h-11 text-base font-semibold"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              {t('submitting')}
-            </>
-          ) : (
-            t('submit')
-          )}
-        </Button>
-      </form>
-
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        <Link
-          href="/auth/login"
-          className={`${CIBLE_LIEN_EN_LIGNE} font-semibold text-primary underline-offset-4 hover:underline`}
-        >
-          {t('backToLogin')}
-        </Link>
-      </p>
-    </div>
+    <Suspense>
+      <MotDePasseOublie intention={intention} />
+    </Suspense>
   );
 }

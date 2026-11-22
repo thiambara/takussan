@@ -19,6 +19,12 @@ const { refresh, bulkUnpublish, canPublish } = vi.hoisted(() => ({
   canPublish: { value: true },
 }));
 
+// Réserve de verif-patrimoine (2026-11-12) — les gestes de la ligne disent leur issue par un toast
+// (`useGestesRapides`) ; le `ToastProvider` vit dans la coque, pas dans ce rendu (Base UI #73).
+vi.mock('@/components/ui/toast', async (original) => ({
+  ...(await original<typeof import('@/components/ui/toast')>()),
+  useToast: () => ({ add: vi.fn() }),
+}));
 vi.mock('@/hooks/useCan', () => ({
   useCan: (capability: string) => ({
     can: capability === 'properties.publish' ? canPublish.value : true,

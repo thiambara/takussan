@@ -57,7 +57,8 @@ export type PublishIntentDecision = {
   profilABasculer: string | null;
 };
 
-const LOGIN_TARGET = '/auth/login?redirect=/publish';
+// TCK-2604 — l'action interrompue suit : la connexion dit « Publier votre bien ».
+const LOGIN_TARGET = '/auth/login?redirect=/publish&intention=publication';
 const HOST_WIZARD_TARGET = '/onboarding/host';
 const NEW_PROPERTY_TARGET = '/app/properties/new';
 

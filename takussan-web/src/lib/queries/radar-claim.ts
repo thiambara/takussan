@@ -62,7 +62,16 @@ export interface RadarClaim {
    * espace (la confirmation n'exige alors aucune annonce à publier). `null` hors mandat.
    */
   readonly mandate: { readonly properties_count: number } | null;
+  /**
+   * TCK-2511 — le nombre de RECHERCHES (jamais de personnes : un même visiteur peut en faire
+   * plusieurs) des 30 derniers jours sur le quartier des annonces du lien. `null` sous le seuil
+   * (50), ou quand les annonces n'ont pas de quartier commun : rien ne s'affiche alors.
+   */
+  readonly demand: { readonly quarter: string; readonly searches_30d: number } | null;
 }
+
+/** TCK-2511 — le motif d'un refus par le lien. L'effet est celui d'un STOP, quel que soit le motif. */
+export type RadarClaimDeclineReason = 'not_me' | 'stop_contact';
 
 export interface RadarClaimCodeRequest {
   /** Secondes avant un nouvel envoi. */
@@ -134,4 +143,17 @@ export async function confirmRadarClaim(
   const session =
     typeof res.token === 'string' && res.user ? ({ token: res.token, user: res.user, expires_at: res.expires_at } as AuthResponse) : null;
   return { claim: res.claim, session };
+}
+
+/**
+ * TCK-2511 — « Ce n'est pas moi » / « Ne plus me contacter » : le refus par le lien, sans code ni
+ * compte. Effet d'un STOP : rien n'est publié, le numéro n'est plus contacté, le lien est désactivé.
+ * Il reste ouvert quand la page rend 503 (le droit d'opposition ne dépend pas de la connexion).
+ */
+export async function declineRadarClaim(jeton: string, reason: RadarClaimDeclineReason, token: string | null): Promise<void> {
+  await apiRequest<{ data: { status: string } }>(cheminApi`/api/radar/claims/${jeton}/decline`, {
+    method: 'POST',
+    body: { reason },
+    token: token ?? undefined,
+  });
 }

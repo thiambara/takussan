@@ -225,3 +225,16 @@ embedding n'a ni agent, ni prompt, ni sortie à relire.
   avant tout envoi, et Voyage entraîne par défaut. `VOYAGE_TRAINING_OPT_OUT`, faux par défaut, est exigé en plus de la clé : sans lui,
   rien ne part, test de connexion compris, et `pg_trgm` sert. Il déclare le geste au moment où il compte, sans le prouver.
 - **À réception d'un STOP, les envois suivants du texte de cet annonceur cessent**, à toutes les étapes, et son vecteur s'efface à la purge. Un envoi déjà en cours n'est pas annulé.
+
+## Amendement du 2026-11-16 — les usages de classe personnelle ne sont pas restreints par fournisseur (TCK-2462)
+
+**Décision du porteur (2026-11-16)** : on garde le comportement actuel. Un usage dont `maxDataClass()` rend
+`AiDataClass::Personnelle` (`RadarConsentMessageUsage`, `RadarConsentVerificationUsage`, `RadarExtractionUsage`) peut
+partir vers tout fournisseur configuré ; aucune liste de fournisseurs par usage ni par classe n'est ajoutée à `AiDataGuard`
+ou `AiGateway`, y compris pour un fournisseur ajouté plus tard. Mot du porteur : « pas besoin de compliquer les choses ».
+
+**Ce qui borne le risque, et qui reste la règle** : `AiDataClass::Sensible` est toujours refusé ; OpenRouter est appelé
+avec `data_collection: deny` (`config/ai.php`, gardé par `check-ai-providers-privacy.mjs`) ; aucune clé d'un fournisseur ne
+se pose avant son contrat de sous-traitance et sa déclaration à la CDP (`docs/infra/hebergement.md`, § IA) ; les transferts
+sont décrits dans `privacy.ts` § 5. **Conséquence** : la protection d'un usage personnel tient au geste de pose d'une clé,
+pas au code — c'est ce geste qu'il faut relire avant d'ajouter un fournisseur.

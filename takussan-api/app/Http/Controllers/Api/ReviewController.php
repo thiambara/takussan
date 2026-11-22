@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\IndexReceivedReviewsRequest;
+use App\Http\Requests\Api\ModerateReviewBatchRequest;
 use App\Http\Requests\Api\ModerateReviewRequest;
 use App\Http\Requests\Api\ReplyReviewRequest;
 use App\Http\Requests\Api\ReportReviewRequest;
@@ -19,14 +20,19 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Review\ReceivedReviews;
 use App\Services\Review\ReviewEligibility;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Review\ReviewModerationService;
 use App\Services\Review\ReviewNotifier;
 use App\Services\Review\ReviewReportService;
+use App\Services\Review\ReviewRiskClassifier;
+use App\Support\CaseInsensitive;
 use App\Support\Http\ParametreUnique;
 use App\Support\VisitorFingerprint;
+use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -81,6 +87,13 @@ class ReviewController extends Controller
             }
         }
 
+        // TCK-2930 — `filter[search]` : le titre et la référence du bien, le nom de l'auteur, le nom
+        // de l'agent noté. Posé APRÈS le cloisonnement et dans un seul groupe : les OU ne sortent
+        // jamais du périmètre. Avant les comptes de risque, qui portent ainsi sur la liste cherchée.
+        if (! $isSelfFilter) {
+            self::search($query, $request->query('filter.search') ?? data_get($request->query('filter', []), 'search'));
+        }
+
         $status = $request->query('filter.moderation_status')
             ?? data_get($request->query('filter', []), 'moderation_status');
         if ($status) {
@@ -99,16 +112,38 @@ class ReviewController extends Controller
             }
         }
 
+        // TCK-2722 — sous `filter[author_id]=me`, l'auteur ne lit pas le nombre de signalements
+        // (la ressource le lui retire) : ni filtre, ni tri par signalements.
+        // Reprise (décision de la session) — la file d'agence liste aussi des avis qu'elle ne modère
+        // pas (sur l'agence elle-même, par exemple) : la ressource leur retire `reported_count` et
+        // `risk`, donc le filtre, le tri et les comptes par signalement ou par risque ne portent que
+        // sur les types qu'elle modère — sans quoi l'ordre ou le filtre trahirait le compte tu. La
+        // liste elle-même est inchangée. Le super-admin modère tout : aucune borne.
+        $moderatedTypes = $isSelfFilter || $user->isSuperAdmin() ? null : Review::AGENCY_MODERATED_TYPES;
         $reported = $request->query('filter.reported')
             ?? data_get($request->query('filter', []), 'reported');
-        if (in_array($reported, [1, '1', true, 'true'], true)) {
+        if (! $isSelfFilter && in_array($reported, [1, '1', true, 'true'], true)) {
             $query->where('reported_count', '>', 0);
+            if ($moderatedTypes !== null) {
+                $query->whereIn('reviews.reviewable_type', $moderatedTypes);
+            }
         }
 
         $subjectType = $request->query('filter.subject_type')
             ?? data_get($request->query('filter', []), 'subject_type');
         if ($subjectType) {
             $query->where('reviewable_type', $subjectType);
+        }
+
+        // TCK-2672 — le risque ({@see ReviewRiskClassifier}) : les deux comptes portent sur la
+        // file telle qu'elle est filtrée, AVANT le filtre de risque — les pastilles « À risque » et
+        // « Sans risque » se lisent ensemble, quel que soit l'onglet ouvert.
+        // Vérification adverse — hors de la file de modération (`filter[author_id]=me`), l'auteur ne
+        // lit pas le risque (la ressource le lui retire) : ni compteur, ni filtre, ni tri par risque.
+        $riskCounts = $isSelfFilter ? null : ReviewRiskClassifier::counts($query, $moderatedTypes);
+        $risk = $isSelfFilter ? null : ParametreUnique::valeur($request->query('filter.risk') ?? data_get($request->query('filter', []), 'risk'));
+        if (in_array($risk, ReviewRiskClassifier::LEVELS, true)) {
+            ReviewRiskClassifier::whereLevel($query, $risk, $moderatedTypes);
         }
 
         // Sorting — default surfaces the queue (most reported first, then fresh).
@@ -124,14 +159,36 @@ class ReviewController extends Controller
                 $direction = 'desc';
                 $spec = substr($spec, 1);
             }
-            if (in_array($spec, ['created_at', 'reported_count', 'rating', 'id'], true)) {
+            if (in_array($spec, ['created_at', 'rating', 'id'], true)) {
                 $query->orderBy($spec, $direction);
+            } elseif ($spec === 'reported_count' && ! $isSelfFilter) {
+                // TCK-2722 — tri ignoré pour l'auteur, y compris celui par défaut : il retombe sur la date.
+                if ($moderatedTypes === null) {
+                    $query->orderBy($spec, $direction);
+                } else {
+                    // Reprise — un avis que l'agence ne modère pas se range comme sans signalement.
+                    $in = implode(', ', array_fill(0, count($moderatedTypes), '?'));
+                    $query->orderByRaw("CASE WHEN reviews.reviewable_type IN ({$in}) THEN reviews.reported_count ELSE 0 END {$direction}", $moderatedTypes);
+                }
+            } elseif ($spec === 'risk' && ! $isSelfFilter) {
+                // TCK-2672 — `risk` : à risque d'abord ; `-risk` : sans risque d'abord.
+                ReviewRiskClassifier::orderBy($query, $direction, $moderatedTypes);
             } elseif ($spec === 'pending_first') {
                 // TCK-597 — la vue d'agence montre les avis à trancher d'abord : en attente, puis
                 // signalés, puis le reste. Trié par le serveur, sur toute la file, pas par page.
                 $query->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'reported' THEN 1 ELSE 2 END");
             }
         }
+
+        // Reprise de TCK-2722 — un tri dont toutes les clés sont ignorées (l'auteur et
+        // `sort=-reported_count`, `sort=risk`) ne posait AUCUN ordre : la page sortait dans l'ordre
+        // physique de la table. Sans ordre posé, la date, la plus récente d'abord ; et toujours un
+        // départage par identifiant, pour que les ex aequo (`pending_first`, `-reported_count`)
+        // ne dépendent pas du tas et que la pagination reste stable.
+        if (($query->getQuery()->orders ?? []) === []) {
+            $query->orderBy('reviews.created_at', 'desc');
+        }
+        $query->orderBy('reviews.id', 'desc');
 
         $perPage = max(1, min((int) $request->input('per_page', 20), self::MAX_PER_PAGE));
         $paginator = $query->paginate($perPage);
@@ -145,8 +202,46 @@ class ReviewController extends Controller
 
         return $this->json([
             'data' => ReviewResource::collection($paginator)->toArray($request),
-            'meta' => $this->paginationMeta($paginator, ['pending_count' => $pendingCount]),
+            'meta' => $this->paginationMeta($paginator, ['pending_count' => $pendingCount, 'risk_counts' => $riskCounts]),
         ]);
+    }
+
+    /**
+     * TCK-2930 — la recherche de la file, insensible à la casse ({@see CaseInsensitive}, ADR-0025 :
+     * « SACRÉ » trouve « Sacré-Cœur », mais « sacre » ne le trouve pas, faute de repli d'accents).
+     * Chaque mot doit se trouver dans le prénom ou le nom d'une même personne (« Fatou Ndiaye ») ;
+     * la saisie entière, dans le titre ou la référence du bien.
+     *
+     * @param  Builder<Review>  $query
+     */
+    private static function search(Builder $query, mixed $value): void
+    {
+        $value = trim(ParametreUnique::valeur($value) ?? '');
+        if ($value === '') {
+            return;
+        }
+
+        $motif = '%'.addcslashes(CaseInsensitive::fold($value), '\\%_').'%';
+        $mots = array_map(
+            fn (string $mot) => '%'.addcslashes(CaseInsensitive::fold($mot), '\\%_').'%',
+            preg_split('/\s+/u', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [],
+        );
+        $personne = function (Builder $u) use ($mots): void {
+            foreach ($mots as $mot) {
+                $u->where(fn (Builder $l) => $l
+                    ->whereRaw(CaseInsensitive::sql('users.first_name').' like ?', [$mot])
+                    ->orWhereRaw(CaseInsensitive::sql('users.last_name').' like ?', [$mot])
+                    ->orWhereRaw(CaseInsensitive::sql('users.username').' like ?', [$mot]));
+            }
+        };
+
+        $query->where(function (Builder $w) use ($motif, $personne): void {
+            $w->whereHasMorph('reviewable', [Property::class], fn (Builder $p) => $p
+                ->whereRaw(CaseInsensitive::sql('properties.title').' like ?', [$motif])
+                ->orWhereRaw(CaseInsensitive::sql('properties.reference_number').' like ?', [$motif]))
+                ->orWhereHasMorph('reviewable', [User::class], $personne)
+                ->orWhereHas('author', $personne);
+        });
     }
 
     /**
@@ -174,6 +269,17 @@ class ReviewController extends Controller
         return $this->json([
             'data' => ReviewResource::make($result['review'])->resolve($request),
         ]);
+    }
+
+    /**
+     * TCK-2672 — `POST /api/reviews/moderate-batch` : publier un lot d'avis sans risque, tout ou
+     * rien ({@see ReviewModerationService::approveBatch()}).
+     */
+    public function moderateBatch(ModerateReviewBatchRequest $request): JsonResponse
+    {
+        $ids = $this->moderationService->approveBatch($request->validated('review_ids'), $request->user());
+
+        return $this->json(['data' => ['decision' => 'approve', 'review_ids' => $ids, 'count' => count($ids)]]);
     }
 
     /**
@@ -257,27 +363,66 @@ class ReviewController extends Controller
             ->latest('reviews.created_at')
             ->latest('reviews.id');
 
-        if (isset($filters['property_id'])) {
-            $query->where('reviews.reviewable_type', Property::class)
-                ->where('reviews.reviewable_id', (int) $filters['property_id']);
-        }
-        if (isset($filters['replied'])) {
-            $replied = filter_var($filters['replied'], FILTER_VALIDATE_BOOLEAN);
-            $replied ? $query->whereNotNull('reviews.reply_content') : $query->whereNull('reviews.reply_content');
-        }
+        // TCK-2863 — les filtres du sujet et de la réponse valent aussi pour `meta.distribution` et
+        // `meta.pending_count` ; le filtre de STATUT non : il choisit un onglet, et la répartition
+        // (avis publiés) comme le compte en attente décrivent toute la boîte.
+        $filtrer = function (Builder $q) use ($filters): Builder {
+            if (isset($filters['property_id'])) {
+                $q->where('reviews.reviewable_type', Property::class)
+                    ->where('reviews.reviewable_id', (int) $filters['property_id']);
+            }
+            if (isset($filters['replied'])) {
+                $replied = filter_var($filters['replied'], FILTER_VALIDATE_BOOLEAN);
+                $replied ? $q->whereNotNull('reviews.reply_content') : $q->whereNull('reviews.reply_content');
+            }
+            if (isset($filters['subject_type'])) {
+                $q->where('reviews.reviewable_type', IndexReceivedReviewsRequest::SUBJECT_TYPES[$filters['subject_type']]);
+            }
+
+            return $q;
+        };
+        $filtrer($query);
         if (isset($filters['status'])) {
             $query->where('reviews.status', $filters['status']);
-        }
-        if (isset($filters['subject_type'])) {
-            $query->where('reviews.reviewable_type', IndexReceivedReviewsRequest::SUBJECT_TYPES[$filters['subject_type']]);
         }
 
         $paginator = $query->paginate((int) $request->validated('per_page', 20));
 
         return $this->json([
             'data' => ReviewResource::collection($paginator->getCollection())->toArray($request),
-            'meta' => $this->paginationMeta($paginator),
+            'meta' => [
+                ...$this->paginationMeta($paginator),
+                ...$this->receivedMeta($request->user(), $received, $filtrer),
+            ],
         ]);
+    }
+
+    /**
+     * TCK-2863 — la répartition 5→1 des avis PUBLIÉS (`is_approved`, comme la note de la fiche
+     * publique) de la boîte, et le nombre d'avis reçus qui attendent leur validation : sur tout
+     * l'ensemble filtré, indépendamment de la page.
+     *
+     * @param  Closure(Builder): Builder  $filtrer
+     * @return array{distribution: array<int, int>, pending_count: int}
+     */
+    private function receivedMeta(User $user, ReceivedReviews $received, Closure $filtrer): array
+    {
+        $parNote = $filtrer($received->for($user))
+            ->where('reviews.is_approved', true)
+            ->toBase()
+            ->select('reviews.rating', DB::raw('count(*) as total'))
+            ->groupBy('reviews.rating')
+            ->pluck('total', 'rating');
+
+        $distribution = [];
+        foreach ([5, 4, 3, 2, 1] as $note) {
+            $distribution[$note] = (int) ($parNote[$note] ?? 0);
+        }
+
+        return [
+            'distribution' => $distribution,
+            'pending_count' => $filtrer($received->pendingFor($user))->count(),
+        ];
     }
 
     /**
@@ -286,7 +431,11 @@ class ReviewController extends Controller
      */
     private static function reviewableWithAccount(MorphTo $reviewable): void
     {
-        $reviewable->morphWith([ServiceProviderProfile::class => ['user']]);
+        // TCK-2672 — la photo principale et l'agent principal d'un bien noté, chargés une fois.
+        $reviewable->morphWith([
+            ServiceProviderProfile::class => ['user'],
+            Property::class => ['media', ...PrimaryPropertyContact::eagerLoads()],
+        ]);
     }
 
     public function storeForProperty(StoreForPropertyReviewRequest $request, Property $property): JsonResponse
@@ -397,9 +546,11 @@ class ReviewController extends Controller
 
         // TCK-305 — même raison que dans storeForProperty() ci-dessus.
         $data = $request->validated();
+        // TCK-2577 — le bail trouvé par `forAgency()`, ou null (super-admin sans bail).
+        $proof = $request->proof();
 
         // verif-597 M4 — même verrou parent que storeForProperty().
-        $review = DB::transaction(function () use ($agency, $user, $data, $request) {
+        $review = DB::transaction(function () use ($agency, $user, $data, $proof, $request) {
             Agency::query()->whereKey($agency->getKey())->lockForUpdate()->first();
 
             $alreadyReviewed = $agency->reviews()->withTrashed()->where('author_id', $user->id)->exists();
@@ -407,6 +558,8 @@ class ReviewController extends Controller
 
             return $agency->reviews()->create(array_merge($data, [
                 'author_id' => $user->id,
+                'context_type' => $proof?->getMorphClass(),
+                'context_id' => $proof?->getKey(),
                 'is_approved' => false,
                 'status' => ReviewStatus::Pending,
                 'metadata' => $this->creationMetadata($request),
@@ -495,7 +648,12 @@ class ReviewController extends Controller
     /** TCK-597 — `GET /api/me/review-opportunities` : ce que l'acteur peut noter, avec la preuve. */
     public function opportunities(Request $request, ReviewEligibility $eligibility): JsonResponse
     {
-        return $this->json(['data' => $eligibility->opportunities($request->user())]);
+        return $this->json([
+            'data' => $eligibility->opportunities($request->user()),
+            // TCK-2863 — à part de `data`, dont chaque ligne garde sa forme `{type, subject, context}` :
+            // les baux clôturés récemment, à noter ; `target` est l'opportunité à poster telle quelle.
+            'lease_closed' => $eligibility->closedLeaseOpportunities($request->user()),
+        ]);
     }
 
     /** L'agence du bien de la preuve : celle qui modère l'avis (ADR-0043 §1). */

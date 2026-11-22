@@ -10,6 +10,11 @@ import type { OwnerProfileSummary } from '@/lib/queries/owners';
  * P234.04 (TCK-2280) — le numéro que l'agence saisit à l'invitation est une donnée de sa fiche
  * (`metadata.phone`), jamais celui du compte : le carnet le rend dans sa colonne, `—` sans numéro.
  */
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/app/owners',
+}));
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   apiRequest: vi.fn(async () => donnees),
@@ -48,11 +53,11 @@ describe('<OwnersList> — numéro saisi à l’invitation', () => {
       </QueryClientProvider>,
     ));
 
-    await screen.findByText('Moussa Ndiaye');
+    await screen.findByRole('table');
     const entetes = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
     const colonne = entetes.indexOf('Téléphone');
     expect(colonne).toBeGreaterThan(-1);
-    const [, premiere, seconde] = screen.getAllByRole('row');
+    const [, premiere, seconde] = within(screen.getByRole('table')).getAllByRole('row');
     expect(within(premiere).getAllByRole('cell')[colonne]).toHaveTextContent('+221 77 123 45 67');
     expect(within(seconde).getAllByRole('cell')[colonne]).toHaveTextContent('—');
   });

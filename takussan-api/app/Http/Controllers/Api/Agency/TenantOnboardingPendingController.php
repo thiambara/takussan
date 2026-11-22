@@ -51,11 +51,10 @@ class TenantOnboardingPendingController extends Controller
 
         abort_unless($isStaff || $isAdmin, Response::HTTP_FORBIDDEN);
 
-        $cutoff = now()->subDays(7);
-
+        // TCK-2642 — la règle « en attente » vit dans `TenantOnboardingChecklist::scopePending()`, que
+        // lit aussi `filter[onboarding_pending]` de la liste des baux.
         $base = TenantOnboardingChecklist::query()
-            ->whereNull('completed_at')
-            ->where('created_at', '<', $cutoff)
+            ->pending()
             ->whereIn('lease_id', Lease::query()
                 ->where('agency_id', $agency->id)
                 ->select('id'));

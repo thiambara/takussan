@@ -137,7 +137,8 @@ class MaintenanceStatusBypassTest extends TestCase
 
         Sanctum::actingAs($landlord);
 
-        $this->putJson("/api/maintenance-requests/{$mr->id}/status", ['status' => 'cancelled'])
+        // TCK-2917 — qui annule dit pourquoi (ADR-0118 § 1).
+        $this->putJson("/api/maintenance-requests/{$mr->id}/status", ['status' => 'cancelled', 'reason' => 'Doublon'])
             ->assertOk()
             ->assertJsonPath('data.status', 'cancelled');
     }

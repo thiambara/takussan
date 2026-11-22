@@ -6,10 +6,11 @@ import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { SearchX } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { PucesDeFiltres } from '@/components/search/SearchToolbar';
-import { urlDeSuggestion, type SuggestItem } from '@/components/search/SearchAutocomplete';
+import { lieuxEtTypes, urlDeSuggestion } from '@/components/search/SearchAutocomplete';
 import { useSuggest } from '@/hooks/useSuggest';
 import { definitionDe, type SearchFilters } from '@/types/search';
 import type { Locale } from '@/i18n/config';
@@ -36,12 +37,8 @@ function SuggestionsDuVide({ terme }: { readonly terme: string }) {
   const searchParams = useSearchParams();
   const titreId = useId();
   const { data } = useSuggest(terme);
-  const reponse = data?.data;
-  const items: SuggestItem[] = [
-    ...(reponse?.cities ?? []).map((d): SuggestItem => ({ kind: 'city', data: d })),
-    ...(reponse?.neighborhoods ?? []).map((d): SuggestItem => ({ kind: 'neighborhood', data: d })),
-    ...(reponse?.property_types ?? []).map((d): SuggestItem => ({ kind: 'property_type', data: d })),
-  ].slice(0, SUGGESTIONS_MAX);
+  // TCK-2475 — les lieux viennent de `places` (TCK-2474), qui remplace `cities` et `neighborhoods`.
+  const items = lieuxEtTypes(data?.data).slice(0, SUGGESTIONS_MAX);
   if (items.length === 0) return null;
 
   const base = new URLSearchParams(searchParams.toString());
@@ -85,6 +82,16 @@ export interface SearchEmptyProps {
   /** Le MÊME retrait que les puces de la barre d'outils — valeurs multiples comprises. */
   readonly onRemoveFilter: (key: keyof SearchFilters, subKey?: string) => void;
   readonly onReset: () => void;
+  /**
+   * TCK-2499 — une page AU-DELÀ de la dernière (lien partagé après que le parc a diminué, « Voir
+   * plus » ouvert dans un onglet puis périmé) : les chemins vers les pages qui existent, FILTRES
+   * GARDÉS. La pagination numérotée les donnait ; « Voir N biens de plus » l'a remplacée, et
+   * « Effacer tous les filtres » détruisait la recherche (revue adverse du 2026-11-09).
+   */
+  readonly issuesDePage?: {
+    readonly derniere: { readonly numero: number; readonly href: string };
+    readonly premiere: string;
+  };
 }
 
 /**
@@ -120,6 +127,7 @@ export function SearchEmpty({
   criteresEnCause,
   onRemoveFilter,
   onReset,
+  issuesDePage,
 }: SearchEmptyProps) {
   const t = useTranslations('search.results');
   const aDesCriteres = criteresEnCause && activeCount > 0;
@@ -149,6 +157,19 @@ export function SearchEmpty({
               className="justify-center"
               aria-label={t('vide_criteres_aria')}
             />
+          ) : null}
+          {!criteresEnCause && issuesDePage ? (
+            <div data-issues-de-page className="flex flex-wrap items-center justify-center gap-2">
+              {/* Une seule page : « la page 1 » et « les premiers biens » sont le même lien. */}
+              {issuesDePage.derniere.numero > 1 ? (
+                <LienLocalise href={issuesDePage.derniere.href} className={buttonVariants({ className: 'rounded-full' })}>
+                  {t('vide_page_derniere', { numero: issuesDePage.derniere.numero })}
+                </LienLocalise>
+              ) : null}
+              <LienLocalise href={issuesDePage.premiere} className={buttonVariants({ variant: 'outline', className: 'rounded-full' })}>
+                {t('voirPlus.debut')}
+              </LienLocalise>
+            </div>
           ) : null}
           <div className="flex flex-wrap items-center justify-center gap-2">
             {aDesCriteres ? <SaveSearchButton filters={filters} activeCount={activeCount} /> : null}

@@ -1,0 +1,42 @@
+{
+ "page": "app-demandes",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Liste",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Demande ouverte",
+   "sansBureau": null
+  },
+  {
+   "e": 2,
+   "nom": "Retour de WhatsApp",
+   "sansBureau": null
+  },
+  {
+   "e": 3,
+   "nom": "Tout est traité",
+   "sansBureau": null
+  },
+  {
+   "e": 4,
+   "nom": "Chargement",
+   "sansBureau": null,
+   "etat": "chargement"
+  },
+  {
+   "e": 5,
+   "nom": "Erreur",
+   "sansBureau": null
+  }
+ ]
+}

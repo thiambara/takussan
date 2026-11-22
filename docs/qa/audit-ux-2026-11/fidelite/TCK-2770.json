@@ -1,0 +1,29 @@
+{
+  "ticket": "TCK-2770",
+  "ecrans": [
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Locataire — le coffre (« Tout télécharger » du dossier replié des quittances)",
+      "references": {
+        "telephone": "references/app-documents/a-0-telephone.json",
+        "bureau-1280": "references/app-documents/a-0-bureau-1280.json"
+      },
+      "produit": {
+        "route": "/app/documents",
+        "persona": "locataire",
+        "releve_le": "2026-11-14",
+        "etat": "coffre de démo du locataire de fidélité (26 documents) : « Quittances 2026 » (11) et « Quittances 2025 » (12) portent le geste, « Mon bail » et « Mes pièces » non"
+      },
+      "mesures": {
+        "telephone": "pastille « Tout télécharger » 148,4 × 44 px à x = 208,6, rayon 10, bord #ebe5d5 sur fond blanc, texte 13 px graisse 500, icône 16 px trait 1,75 à x = 221,6 : identique à la référence (même x, même largeur, même hauteur)",
+        "bureau-1280": "« Tout télécharger (.zip) » à droite du titre du dossier, x = 772,1 (référence 772,5), 133,5 × 19,5 px, 13 px graisse 500, couleur primary-deep (130, 60, 32)"
+      },
+      "ecarts": [
+        "Aucun écart de boîte au téléphone : la carte du dossier replié mesure 358 × 66 px, rayon 14, comme la référence ; seul le texte du résumé suit les mois de la démo.",
+        "La maquette ne dessine ni l'état en cours ni l'échec : le geste dit « Préparation de l’archive… » et se désactive ; l'échec est une ligne d'alerte sous les puces, comme celle d'un document seul, avec son propre texte."
+      ]
+    }
+  ]
+}

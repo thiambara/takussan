@@ -189,7 +189,7 @@ describe('<FilterSidebar> — bornes nommées (TCK-869)', () => {
   it('chaque borne numérique est nommée par le titre de sa section et sa borne', () => {
     monte();
 
-    expect(screen.getByRole('spinbutton', { name: 'Budget (FCFA) Min' })).toBeInTheDocument();
-    expect(screen.getByRole('spinbutton', { name: 'Budget (FCFA) Max' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Budget (FCFA) Min' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Budget (FCFA) Max' })).toBeInTheDocument();
   });
 });

@@ -92,7 +92,7 @@
  *
  * T4 · **LE TRADUCTEUR QUI N'EST PAS UNE `const`.** Un traducteur reçu en paramètre, rangé dans un
  *      objet (`const tr = { types: useTranslations('property.types') }`, forme réelle de
- *      `SearchToolbar` et `SavedSearchesList`) ou produit par une fabrique n'est pas résolu : son
+ *      `SearchToolbar` et `resume-de-criteres`) ou produit par une fabrique n'est pas résolu : son
  *      espace de noms est inconnu, donc aucune composition n'est jugée. Faux négatif, jamais faux
  *      positif — l'approximation se trompe toujours du même côté.
  *

@@ -199,8 +199,15 @@ final class PublicProfileFacts
     /**
      * L'agence de rattachement d'un agent, DÉRIVÉE DE SON PORTEFEUILLE PUBLIC — TCK-436.
      *
-     * ⚠ **Ce n'est pas la source que `PublicAgentController::show()` emploie**, et l'écart est
-     * mesuré, pas subi. `User::agency()` passe par `AgentProfile` (TCK-142) ; relevé le 2026-08-28
+     * TCK-2574 — c'est aussi « l'agence qui gère ses biens » : la fiche (`show()`, clé
+     * `managing_agency`) et l'annuaire (`index()`, clés `agency` et `managing_agency`) la lisent
+     * ICI, pour qu'un même propriétaire ne soit pas renvoyé à deux agences selon la page d'où le
+     * visiteur vient. La règle : parmi ses biens publics QUI EN ONT UNE, l'agence active et
+     * `standard` la plus fréquente, à égalité la plus petite `id` ; `null` s'il n'y en a aucune.
+     * Les biens sans agence ne comptent pas — ils ne désignent personne à qui écrire.
+     *
+     * ⚠ Le `agency` de la FICHE reste `User::agency()`, le rattachement de la personne : l'écart
+     * est mesuré, pas subi. `User::agency()` passe par `AgentProfile` (TCK-142) ; relevé le 2026-08-28
      * sur la base de développement :
      *
      *     publieurs publics porteurs d'un AgentProfile ........................  0 / 44
@@ -236,6 +243,10 @@ final class PublicProfileFacts
             // c'était une incohérence, et elle envoyait le visiteur vers une fiche que l'annuaire
             // ne recommande pas.
             ->where('agencies.status', AgencyStatus::Active)
+            // TCK-2574 — et le même `kind` que `PublicAgencyController::show()` : l'espace solo
+            // (`individual`) que « Publier » crée n'a pas de page `/agencies/…`. Servi ici, il
+            // remplaçait le formulaire du propriétaire par un lien vers un 404.
+            ->where('agencies.kind', AgencyKind::Standard->value)
             ->selectRaw('properties.user_id as profil_id, agencies.id as agence_id, agencies.slug as agence_slug, agencies.name as agence_nom, COUNT(*) as total')
             ->groupBy('properties.user_id', 'agencies.id', 'agencies.slug', 'agencies.name')
             // Ordre TOTAL : à volume égal, `agencies.id` départage — sans quoi l'agence affichée
@@ -259,6 +270,33 @@ final class PublicProfileFacts
         }
 
         return $agences;
+    }
+
+    /**
+     * Le nom d'une personne tel que la surface publique le SERT — TCK-2574.
+     *
+     * Un agent en exercice : nom complet. Un propriétaire : prénom et initiale du nom
+     * (« Sokhna G. », décision 1b de TCK-2523), `last_name` réduit à l'initiale (« G. ») — la
+     * fiche et l'annuaire sont anonymes et énumérables par slug, le nom de famille n'en sort pas.
+     * Même règle que le slug ({@see PublicSlugService::base()}). L'initiale plutôt que l'absence :
+     * le front l'abrège de façon idempotente (`nomAbrege`) et la garde.
+     *
+     * @param  'agent'|'owner'  $role
+     * @return array{last_name: ?string, full_name: string}
+     */
+    public static function nomPublic(?string $prenom, ?string $nom, string $role): array
+    {
+        $prenom = trim((string) $prenom);
+        $nom = trim((string) $nom);
+
+        if ($role !== 'agent' && $nom !== '') {
+            $nom = mb_strtoupper(mb_substr($nom, 0, 1)).'.';
+        }
+
+        return [
+            'last_name' => $nom === '' ? null : $nom,
+            'full_name' => trim($prenom.' '.$nom),
+        ];
     }
 
     /**

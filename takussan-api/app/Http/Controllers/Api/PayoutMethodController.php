@@ -21,7 +21,7 @@ class PayoutMethodController extends Controller
     public function index(ListPayoutMethodsRequest $request): JsonResponse
     {
         $methods = PayoutMethod::query()
-            ->with('verifications')
+            ->with(['verifications', 'media']) // TCK-2863 — `media` : le RIB, chargé une fois
             ->where('user_id', (int) $request->input('filter.user_id'))
             ->orderByDesc('is_default')
             ->orderBy('id')

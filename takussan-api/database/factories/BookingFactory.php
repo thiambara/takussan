@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Currency;
 use App\Models\Property;
@@ -23,6 +24,11 @@ class BookingFactory extends Factory
             'created_by_id' => User::factory(),
             'agency_id' => null,
             'reference_number' => 'BK-'.strtoupper(Str::random(8)),
+            // TCK-2579 — un SÉJOUR par défaut : la fabrique datait ses réservations et les tests les
+            // lisaient comme des nuits occupées, sur un bien tiré au hasard. Dérivée du bien, la
+            // nature aurait fait d'une réservation confirmée sur deux une candidature qui ne bloque
+            // rien. `kind => null` la fait dériver du bien (`Booking::performInsert()`).
+            'kind' => BookingKind::Stay,
             'status' => BookingStatus::Pending,
             'total_amount' => fake()->numberBetween(50_000, 2_000_000),
             'deposit_amount' => fake()->numberBetween(25_000, 500_000),

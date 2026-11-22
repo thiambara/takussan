@@ -5,7 +5,9 @@ namespace App\Http\Requests\Conversation\Concerns;
 use App\Models\Conversation;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
+use App\Models\Property;
 use App\Models\User;
+use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\MessagingReach;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Validator;
@@ -46,10 +48,19 @@ trait GuardsConversationScope
      * (leurs policies `view`). Ce n'est pas qu'une question de lecture : le rattachement ouvre
      * ensuite, pour un groupe, l'ajout de l'équipe de l'agence de ce bien (règle 4).
      *
+     * TCK-2753 (S2, r1 de la contre-vérification de 2eba3431c) — un bail ou un bien d'une agence où
+     * l'acteur n'est plus qu'un bailleur parti ou suspendu ({@see ConversationAccess::agencesFermeesAuBailleur()})
+     * ne se rattache plus, sauf le bail dont il est le LOCATAIRE : la règle de
+     * `MessagingReach::filsFermes()`. `view` ne suffit pas à le refuser, puisqu'il garde la lecture de
+     * son bail. Sans cette garde, ses correspondants des directes gardées ouvertes (l'agent, le
+     * locataire) lui ouvraient un fil de bail NEUF dans l'agence quittée — et le message initial y
+     * passait là où `POST …/messages` rend 403 (`contextAllowsWriting`).
+     *
      * @param  array<string, class-string<Model>>  $contexts  champ du corps → modèle
      */
     protected function guardContext(Validator $v, User $actor, array $contexts, string $messageKey): void
     {
+        $fermees = null;
         foreach ($contexts as $field => $class) {
             $id = $this->input($field);
             if ($id === null || $v->errors()->has($field)) {
@@ -63,6 +74,18 @@ trait GuardsConversationScope
             $model = $class::query()->find($id);
             if ($model === null || ! $actor->can('view', $model)) {
                 $v->errors()->add($field, __($messageKey));
+
+                continue;
+            }
+
+            if ($model instanceof Lease || $model instanceof Property) {
+                // La règle vit dans ConversationAccess, une seule fois : les listes de contextes du
+                // groupe (`ConversationContextController`) posent la même (r1 de 8d4d0f5f9).
+                $access = app(ConversationAccess::class);
+                $fermees ??= $access->agencesFermeesAuBailleur($actor);
+                if ($access->contexteFerme($actor, $model, $fermees)) {
+                    $v->errors()->add($field, __($messageKey));
+                }
             }
         }
     }

@@ -11,6 +11,68 @@
  */
 const ROUTES_PLEIN_ECRAN: readonly string[] = ['/app/properties/new'];
 
+/**
+ * TCK-2602 — « Votre annonce est en ligne », la sortie de la publication d'un espace particulier :
+ * l'écran porte la coque d'entrée (sa barre, sa sortie « Aller à mon espace »). Un motif ancré, pour
+ * la même raison que l'égalité stricte : la fiche `/app/properties/{id}` garde sa coque.
+ */
+const MOTIFS_PLEIN_ECRAN: readonly RegExp[] = [/^\/app\/properties\/\d+\/en-ligne$/];
+
 export function estPleinEcran(pathname: string | null | undefined): boolean {
-  return pathname != null && ROUTES_PLEIN_ECRAN.includes(pathname);
+  return pathname != null && (ROUTES_PLEIN_ECRAN.includes(pathname) || MOTIFS_PLEIN_ECRAN.some((motif) => motif.test(pathname)));
 }
+
+/**
+ * TCK-2619 (décision 6 a, ADR-0090) — `/app` et toutes ses pages : la console. Le widget de messagerie
+ * (`ChatWidget`) ne s'y monte plus, à aucune largeur : la barre d'onglets (téléphone) et l'entrée
+ * « Messagerie » de la colonne (bureau) y mènent déjà, et le lanceur recouvrait le coin bas droit du
+ * contenu. Il reste sur le site public.
+ */
+export function estDansLaConsole(pathname: string | null | undefined): boolean {
+  return pathname != null && (pathname === '/app' || pathname.startsWith('/app/'));
+}
+
+/**
+ * TCK-2481 — les routes où la coque porte la barre d'onglets mobile : `/app` et ses pages, hors plein
+ * écran. Lue par `AppShell` (la barre) et par `CorpsDuWidget` (le bouton flottant « Messagerie »,
+ * qui ne se rend plus là où la barre porte déjà la messagerie). Une règle, deux lecteurs — comme
+ * `estPleinEcran`.
+ */
+export function porteLaBarreDOnglets(pathname: string | null | undefined): boolean {
+  if (pathname == null || estPleinEcran(pathname)) return false;
+  return estDansLaConsole(pathname);
+}
+
+/**
+ * ADR-0134 (TCK-2989) — les routes de la console qui gardent, au téléphone, une boîte de la hauteur de
+ * l'écran où c'est le `<main>` qui défile : leur page a besoin d'une hauteur bornée. Relevé du
+ * 2026-11-21 (25 pages, 390 × 844) : la messagerie seule (sa colonne de conversations défile dans sa
+ * propre boîte, `MessagesPage`).
+ */
+export const ROUTES_EN_BOITE: readonly string[] = ['/app/messages'];
+
+/**
+ * ADR-0134 (TCK-2989) — sous `md`, c'est le DOCUMENT qui défile, pour que le navigateur replie ses
+ * barres : toute page de la barre d'onglets, hors des routes en boîte.
+ *
+ * ⚠ Décidé par la ROUTE, jamais par `data-barre-onglets` : la barre se retire EN COURS de page (une
+ * sélection, une section à enregistrer, déclarées par le client) ; le mode basculerait sous le doigt et
+ * le défilement sauterait en haut. La seule bascule légitime, la conversation ouverte, est un état de
+ * `/app/messages` — déjà en boîte.
+ */
+export function defileLeDocument(pathname: string | null | undefined): boolean {
+  if (!porteLaBarreDOnglets(pathname) || pathname == null) return false;
+  return !ROUTES_EN_BOITE.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
+/**
+ * TCK-2481 (revue, M5) — la plage où la barre d'onglets existe : le complément exact de `md:hidden`
+ * (`@media (width >= 48rem)`, Tailwind 4). Une seule chaîne, lue par la barre (`useMatchesMedia`, qui
+ * n'arme ses compteurs que dessous) et par la règle du dock de `globals.css` (gardée égale par
+ * `CoqueHauteur.test.tsx`).
+ *
+ * ⚠ En `rem`, jamais en px : dans une media query, `rem` vaut la taille de police PAR DÉFAUT du
+ * navigateur, un réglage d'accessibilité. À 20 px, `md` vaut 960 px ; un seuil JS à 767 px laissait
+ * la barre affichée entre 768 et 959 px sans qu'elle sonde rien.
+ */
+export const REQUETE_DE_LA_BARRE = '(width < 48rem)';

@@ -7,6 +7,7 @@ use App\Models\CalendarFeed;
 use App\Services\Calendar\CalendarEventCollector;
 use App\Services\Calendar\CalendarFeedService;
 use App\Services\Calendar\IcsCalendarRenderer;
+use App\Support\ImpersonationContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,7 +16,8 @@ use Illuminate\Http\Response;
  * TCK-591 (ADR-0034) — l'abonnement d'agenda : créer / faire tourner / révoquer son lien
  * (`me/calendar-feed`), et le lire (`calendar-feed/{token}.ics`, public, limité en débit).
  *
- * Le lien porte le secret : il n'est rendu qu'une fois, à la création, et ne se relit jamais.
+ * Le lien porte le secret. TCK-2887 (ADR-0121) — il se relit par son titulaire (`current`), depuis
+ * une copie chiffrée, jamais sous impersonation (ADR-0055 § 3).
  */
 class CalendarFeedController extends Controller
 {
@@ -24,7 +26,13 @@ class CalendarFeedController extends Controller
         private readonly IcsCalendarRenderer $renderer,
     ) {}
 
-    /** L'état du lien de l'appelant pour son profil actif (agence, ou prestataire) — jamais le jeton. */
+    /**
+     * L'état du lien de l'appelant pour son profil actif (agence, ou prestataire).
+     *
+     * TCK-2887 (ADR-0121) — `url` : le lien complet, relu de sa copie chiffrée ; `null` sans lien,
+     * pour un lien antérieur (sans copie) ou une copie indéchiffrable ; clé ABSENTE sous
+     * impersonation — le lien est un secret qui survit à la session.
+     */
     public function current(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -37,11 +45,25 @@ class CalendarFeedController extends Controller
             ->latest('id')
             ->first();
 
-        return $this->json(['data' => [
+        $data = [
             'active' => $feed !== null,
             'created_at' => $this->instant($feed?->created_at),
             'last_accessed_at' => $this->instant($feed?->last_accessed_at),
-        ]]);
+        ];
+
+        // TCK-2887 (ADR-0121 § 3) — jamais sous impersonation.
+        if (! app(ImpersonationContext::class)->active()) {
+            $token = $feed?->readableToken();
+            $data['url'] = $token !== null ? self::feedUrl($token) : null;
+        }
+
+        return $this->json(['data' => $data])->header('Cache-Control', 'no-store, private');
+    }
+
+    /** TCK-2887 — le lien d'un jeton : le même à la création et à la relecture. */
+    private static function feedUrl(string $token): string
+    {
+        return url('/api/calendar-feed/'.$token.'.ics');
     }
 
     public function store(Request $request): JsonResponse
@@ -52,7 +74,7 @@ class CalendarFeedController extends Controller
 
         return $this->json(['data' => [
             'active' => true,
-            'url' => url('/api/calendar-feed/'.$issued['token'].'.ics'),
+            'url' => self::feedUrl($issued['token']),
             'created_at' => $this->instant($issued['feed']->created_at),
             'last_accessed_at' => null,
         ]], 201);

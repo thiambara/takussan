@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { lireNombre } from '@/lib/clavier';
 import { requiredStringSchema } from './common';
 import { msgValidation } from './messages';
 import { customerStatusValues, idTypeValues, pipelineStageValues } from '@/lib/enums/customer';
@@ -27,10 +28,17 @@ export const seekingPropertyTypeValues = [
   'warehouse', 'factory', 'farm', 'hotel', 'resort', 'garage', 'parking', 'other',
 ] as const;
 
-const montantOuVide = (v: string | undefined) =>
-  v === undefined || v.trim() === '' || (/^\d+(?:[.,]\d{1,2})?$/.test(v.trim()));
-const montant = (v: string | undefined): number | null =>
-  v === undefined || v.trim() === '' ? null : Number(v.trim().replace(',', '.'));
+// ADR-0135 — « 150 000 », « 150,000 » (l'anglais) et « 12,50 » se lisent ; au plus deux décimales, jamais négatif.
+const montantOuVide = (v: string | undefined) => {
+  if (v === undefined || v.trim() === '') return true;
+  const n = lireNombre(v);
+  return typeof n === 'number' && n >= 0 && Math.round(n * 100) === n * 100;
+};
+const montant = (v: string | undefined): number | null => {
+  if (v === undefined || v.trim() === '') return null;
+  const n = lireNombre(v);
+  return typeof n === 'number' ? n : Number.NaN;
+};
 
 /**
  * Create / edit form. `email` and `phone` are both optional at the schema
@@ -133,7 +141,8 @@ export interface CustomerFormPayload {
   email?: string | null;
   phone?: string | null;
   occupation?: string | null;
-  pipeline_stage: (typeof pipelineStageValues)[number];
+  /** Absente de « Modifier » de la fiche (TCK-2589, 8a) : l'étape se change depuis l'en-tête ; l'API la tient pour `sometimes`. */
+  pipeline_stage?: (typeof pipelineStageValues)[number];
   /** TCK-1064 — absent à la création : l'API crée toujours un client `active`. */
   status?: (typeof customerStatusValues)[number];
   id_type?: (typeof idTypeValues)[number] | null;
@@ -142,6 +151,8 @@ export interface CustomerFormPayload {
   locale?: (typeof customerLocaleValues)[number] | null;
   /** TCK-591 — `true` après un 409 `customer.duplicate` assumé (« Créer quand même »). */
   allow_duplicate?: boolean;
+  /** TCK-2716 — la visite d'où naît la fiche : l'API la rattache dans la transaction de création. */
+  property_visit_id?: number;
   seeking_contract_type?: (typeof seekingContractTypeValues)[number] | null;
   budget_min?: number | null;
   budget_max?: number | null;

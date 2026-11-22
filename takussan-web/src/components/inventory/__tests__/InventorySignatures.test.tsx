@@ -144,3 +144,44 @@ describe('<InventorySignatures>', () => {
     });
   });
 });
+
+// TCK-2984 (TCK-2982) — `link_otp` : signée par la partie depuis un lien d'action, prouvée par un code SMS ; le numéro
+// arrive masqué de l'API, jamais le code.
+describe('<InventorySignatures> — signature par lien (`link_otp`)', () => {
+  beforeEach(() => stubCanvas());
+
+  const signe = {
+    tenant_signed: true,
+    tenant_signed_at: '2026-04-24T12:00:00Z',
+    tenant_signature_hash: 'a'.repeat(64),
+    owner_signed: true,
+    owner_signed_at: '2026-04-24T12:05:00Z',
+    owner_signature_hash: 'b'.repeat(64),
+  } as const;
+
+  it('avec le numéro masqué : « Signé depuis un lien, avec le code reçu au … », pour chaque partie', () => {
+    const inventory = buildInventory({
+      ...signe,
+      tenant_signature_method: 'link_otp',
+      tenant_otp_destination: '+221 •• ••• •4 18',
+      owner_signature_method: 'link_otp',
+      owner_otp_destination: '+221 •• ••• •9 02',
+    } as Partial<Inventory>);
+    render(wrap(<InventorySignatures inventory={inventory} />));
+    expect(screen.getByTestId('signature-card-tenant')).toHaveTextContent('Signé depuis un lien, avec le code reçu au +221 •• ••• •4 18');
+    expect(screen.getByTestId('signature-card-landlord')).toHaveTextContent('Signé depuis un lien, avec le code reçu au +221 •• ••• •9 02');
+  });
+
+  it('sans numéro : « Signé depuis un lien, avec le code reçu par SMS »', () => {
+    const inventory = buildInventory({
+      ...signe,
+      tenant_signature_method: 'link_otp',
+      tenant_otp_destination: null,
+      owner_signature_method: 'link_otp',
+      owner_otp_destination: null,
+    } as Partial<Inventory>);
+    render(wrap(<InventorySignatures inventory={inventory} />));
+    expect(screen.getByTestId('signature-card-tenant')).toHaveTextContent('Signé depuis un lien, avec le code reçu par SMS');
+    expect(screen.getByTestId('signature-card-landlord')).toHaveTextContent('Signé depuis un lien, avec le code reçu par SMS');
+  });
+});

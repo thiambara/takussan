@@ -1,6 +1,7 @@
 import { ApiError, apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { cheminApi } from '@/lib/chemin-api';
+import type { PeriodeDesRapports } from '@/lib/rapports/periode';
 
 /**
  * Server-side fetcher for the agency dashboard endpoint (TCK-032 / TCK-131).
@@ -21,11 +22,18 @@ export type DashboardAgencyKpi = {
   label: string;
   format: 'number' | 'percent' | 'currency';
   value: number | null;
+  /** TCK-2791 — la tuile dit l'état du jour, pas le mois servi. */
+  as_of_today?: boolean;
 };
 
 export type DashboardAgencySummary = {
   agency_id: number;
-  period: { start: string; end: string };
+  /**
+   * TCK-2791 — `key` : la période servie ; `as_of_today` : les chemins des chiffres qui restent l'état du jour,
+   * quelle que soit la période (absents d'une réponse d'avant TCK-2791).
+   */
+  /** TCK-2865 — `months` : les mois couverts (`AAAA-MM`). */
+  period: { start: string; end: string; key?: PeriodeDesRapports; months?: string[]; as_of_today?: string[] };
   properties: {
     total: number;
     published: number;
@@ -49,7 +57,8 @@ export type DashboardAgencySummary = {
     unpaid_rate_percent: number | null;
   };
   /** `null` sans bien éligible longue durée : pas de dénominateur (TCK-1114). */
-  occupancy: { rate_percent: number | null };
+  /** TCK-2626 — la base du taux (biens en location longue, et ceux occupés aujourd'hui) : « 18 loués sur 23 » (TCK-2628, AC4). */
+  occupancy: { rate_percent: number | null; eligible_count?: number; occupied_count?: number };
   /** TCK-2373 — les indicateurs activés, dans l'ordre ; vide sans configuration (tuiles par défaut). */
   kpis?: DashboardAgencyKpi[];
 };
@@ -57,6 +66,8 @@ export type DashboardAgencySummary = {
 export type DashboardAgencyTimeseries = {
   months: string[];
   revenue: number[];
+  /** TCK-2865 — l'impayé en fin de mois, au reste dû (le mois en cours : à aujourd'hui). */
+  overdue?: number[];
   /** `null` pour un mois sans bien éligible longue durée (P127.02, TCK-1355). */
   occupancy: (number | null)[];
 };
@@ -70,6 +81,8 @@ type FetchOptions = {
   signal?: AbortSignal;
   withTimeseries?: boolean;
   months?: number;
+  /** TCK-2791 — le mois résumé ; le mois en cours n'écrit rien. */
+  period?: PeriodeDesRapports;
 };
 
 export async function fetchDashboardAgency(
@@ -79,6 +92,8 @@ export async function fetchDashboardAgency(
   if (!token) return null;
 
   const params = new URLSearchParams();
+  // TCK-2867 — « Mois dernier » et « 12 mois » ; le mois en cours n'écrit rien.
+  if (opts.period && opts.period !== 'current_month') params.set('period', opts.period);
   if (opts.withTimeseries) {
     params.set('include', 'timeseries');
     if (opts.months) params.set('months', String(opts.months));

@@ -12,6 +12,8 @@ use App\Models\Enums\ParticipantRole;
 use App\Models\User;
 use App\Services\Model\NotificationService;
 use App\Support\Logging\SafeExceptionContext;
+use Closure;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -43,6 +45,13 @@ class GroupConversationService
      * @param  list<int>  $participantIds  Other users to invite. Creator must NOT be in this list (caller dedupes).
      * @param  bool  $sendInvites  TCK-804 — false for a thread opened by the platform itself, whose members are
      *                             already told by their own notification (see SyncMaintenanceConversation).
+     * @param  (Closure(Conversation): void)|null  $avantLesInvitations  TCK-2782 — ce qui s'écrit dans le groupe
+     *                                                                   À SA CRÉATION (le message initial,
+     *                                                                   {@see ConversationWriter::post()}), dans la même
+     *                                                                   transaction : un refus (403) annule le groupe, et
+     *                                                                   aucune invitation n'est partie.
+     * @param  Model|null  $sujet  TCK-2957 (ADR-0128 § 1) — l'objet auquel le fil appartient, écrit par le registre
+     *                             `SujetsDuFil` (sa clé, jamais sa classe) ; un objet hors des types sujets lève.
      */
     public function create(
         User $creator,
@@ -52,8 +61,12 @@ class GroupConversationService
         ?int $leaseId = null,
         ?int $maintenanceRequestId = null,
         bool $sendInvites = true,
+        ?Closure $avantLesInvitations = null,
+        ?Model $sujet = null,
     ): Conversation {
         $invited = [];
+        // TCK-2957 — résolu AVANT la transaction : un objet hors registre n'ouvre rien.
+        $subjectType = $sujet === null ? null : SujetsDuFil::typeDuSujet($sujet);
 
         $conversation = DB::transaction(function () use (
             &$invited,
@@ -63,6 +76,9 @@ class GroupConversationService
             $propertyId,
             $leaseId,
             $maintenanceRequestId,
+            $avantLesInvitations,
+            $subjectType,
+            $sujet,
         ) {
             $conversation = Conversation::create([
                 'subject' => $subject,
@@ -72,6 +88,9 @@ class GroupConversationService
                 'property_id' => $propertyId,
                 'lease_id' => $leaseId,
                 'maintenance_request_id' => $maintenanceRequestId,
+                // TCK-2957 — le sujet du fil (ADR-0128 § 1).
+                'subject_type' => $subjectType,
+                'subject_id' => $sujet?->getKey(),
             ]);
 
             // Creator → admin
@@ -94,6 +113,11 @@ class GroupConversationService
             }
             $invited = array_map('intval', $unique);
 
+            // TCK-2782 — le message initial, jugé comme un envoi, avant le COMMIT et avant les invitations.
+            if ($avantLesInvitations !== null) {
+                $avantLesInvitations($conversation);
+            }
+
             return $conversation->fresh();
         });
 
@@ -104,6 +128,46 @@ class GroupConversationService
         }
 
         return $conversation;
+    }
+
+    /**
+     * TCK-2859 (ADR-0114 § 3) — « ajouter quelqu'un » à un fil DIRECT : un groupe neuf, administré par
+     * l'acteur, dont les membres sont l'autre partie de la directe et les personnes ajoutées. Il
+     * reprend le bien et le bail de la directe ; AUCUN message n'y est copié (l'échange à deux reste
+     * à ces deux-là). La directe n'est pas touchée. Le sujet : celui envoyé, sinon celui de la
+     * directe, sinon les noms des membres.
+     *
+     * La joignabilité, la borne du bail et le plafond de 20 sont jugés avant, par
+     * `AddParticipantsRequest` ; l'autorisation par `ConversationPolicy::addToDirect`.
+     *
+     * @param  list<int>  $userIds
+     */
+    public function createFromDirect(Conversation $direct, User $actor, array $userIds, ?string $subject = null): Conversation
+    {
+        $autres = $direct->participants()
+            ->wherePivotNull('left_at')
+            ->where('users.id', '!=', $actor->id)
+            ->pluck('users.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $membres = array_values(array_unique(array_filter(
+            array_merge($autres, array_map('intval', $userIds)),
+            fn (int $id) => $id !== (int) $actor->id,
+        )));
+
+        $sujet = trim((string) $subject) !== '' ? trim((string) $subject)
+            : (trim((string) $direct->subject) !== '' ? (string) $direct->subject
+                : User::query()->whereIn('id', [$actor->id, ...$membres])->orderBy('id')->get()
+                    ->map(fn (User $u) => $u->nameWithoutContact())->implode(', '));
+
+        return $this->create(
+            $actor,
+            mb_substr($sujet, 0, 255),
+            $membres,
+            $direct->property_id !== null ? (int) $direct->property_id : null,
+            $direct->lease_id !== null ? (int) $direct->lease_id : null,
+        );
     }
 
     /**
@@ -136,24 +200,23 @@ class GroupConversationService
                 }
 
                 // Re-invite path: previously-left participant rejoins.
-                $hasLeftRow = ConversationParticipant::query()
+                // TCK-2955 (ADR-0129 § 2) — par le MODÈLE, plus par une écriture de masse : le retour
+                // change la composition du fil, et `ConversationParticipant` (`EmetDesSignaux`) le signale.
+                $leftRow = ConversationParticipant::query()
                     ->where('conversation_id', $conversation->id)
                     ->where('user_id', $uid)
-                    ->exists();
+                    ->first();
 
-                if ($hasLeftRow) {
-                    ConversationParticipant::query()
-                        ->where('conversation_id', $conversation->id)
-                        ->where('user_id', $uid)
-                        ->update([
-                            'role' => ParticipantRole::Member->value,
-                            'joined_at' => now(),
-                            'left_at' => null,
-                            'archived_at' => null,
-                            // TCK-861 (P38.07) — ce qui s'est écrit pendant l'absence n'est pas
-                            // « non lu » : le ré-invité n'était pas là pour le lire.
-                            'last_read_at' => now(),
-                        ]);
+                if ($leftRow !== null) {
+                    $leftRow->forceFill([
+                        'role' => ParticipantRole::Member->value,
+                        'joined_at' => now(),
+                        'left_at' => null,
+                        'archived_at' => null,
+                        // TCK-861 (P38.07) — ce qui s'est écrit pendant l'absence n'est pas
+                        // « non lu » : le ré-invité n'était pas là pour le lire.
+                        'last_read_at' => now(),
+                    ])->save();
                 } else {
                     $conversation->participants()->attach($uid, [
                         'role' => ParticipantRole::Member->value,

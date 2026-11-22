@@ -4,11 +4,16 @@ namespace App\Http\Resources;
 
 use App\Http\Requests\InventorySignRequest;
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Enums\InventoryStatus;
+use App\Models\Inventory;
 use App\Models\User;
+use App\Policies\InventoryPolicy;
+use App\Services\Inventory\InventoryRetention;
 use App\Services\Inventory\InventorySignatureService;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\Request;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class InventoryResource extends BaseResource
 {
@@ -40,33 +45,72 @@ class InventoryResource extends BaseResource
             'conducted_at' => $this->iso($this->conducted_at),
             'status' => $this->status?->value,
             'general_condition' => $this->general_condition?->value,
-            'rooms' => $this->rooms,
+            'rooms' => $this->viewer !== null ? $this->roomsWithEntryThumbnails() : $this->rooms,
             'notes' => $this->notes,
+            // TCK-2646 — pour une sortie, l'entrée signée qu'elle reprend ; et la somme des retenues
+            // proposées par ses éléments (nulle pour une entrée).
+            'entry_inventory_id' => $this->entry_inventory_id,
+            'retention_total' => $this->when(
+                array_key_exists('rooms', $this->resource->getAttributes()),
+                fn () => InventoryRetention::total($this->type, $this->rooms),
+            ),
             'tenant_signed' => (bool) $this->tenant_signed,
             'tenant_signed_at' => $this->iso($this->tenant_signed_at),
             'tenant_signature_hash' => $this->tenant_signature_hash,
+            // TCK-2646 (ADR-0098 §5) — la voie de la signature du locataire : `drawn` depuis son compte,
+            // `onsite_otp` sur l'appareil du personnel (qui, quel canal, quel numéro masqué). L'IP
+            // reste dans l'API.
+            'tenant_signature_method' => $this->tenant_signature_method,
+            'tenant_signed_via_user_id' => $this->tenant_signed_via_user_id,
+            'tenant_otp_channel' => $this->tenant_otp_channel,
+            'tenant_otp_destination' => $this->tenant_otp_destination,
             'owner_signed' => (bool) $this->owner_signed,
             'owner_signed_at' => $this->iso($this->owner_signed_at),
             'owner_signature_hash' => $this->owner_signature_hash,
             // TCK-596 — qui a signé pour le bailleur, et pour le compte de qui (nul : lui-même).
             'owner_signed_by_user_id' => $this->owner_signed_by_user_id,
             'owner_signed_on_behalf_of_user_id' => $this->owner_signed_on_behalf_of_user_id,
+            // TCK-2913 (ADR-0098, amendement A §5) — la voie de la signature du bailleur, comme celle du
+            // locataire : `onsite_otp` quand le personnel l'a recueillie par code. L'IP reste dans l'API.
+            'owner_signature_method' => $this->owner_signature_method,
+            'owner_signed_via_user_id' => $this->owner_signed_via_user_id,
+            'owner_otp_channel' => $this->owner_otp_channel,
+            'owner_otp_destination' => $this->owner_otp_destination,
             'signed_at' => $this->iso($this->signed_at),
+            // TCK-2913 (amendement B) — l'envoi du PDF aux parties à la seconde signature : quand, et à
+            // qui (un id et un nom, sous `show` seulement).
+            'pdf_sent_at' => $this->iso($this->pdf_sent_at),
+            'pdf_sent_to' => $this->when($this->viewer !== null, fn (): array => $this->pdfSentTo()),
             'traceability_hash' => $this->traceability_hash,
             'room_photos' => $this->whenLoaded('media', fn () => $this->roomPhotos()),
             'can_sign_as' => $this->when(
                 $this->viewer !== null && $this->signatures !== null,
-                fn () => array_values(array_filter(
-                    InventorySignRequest::ROLES,
-                    fn (string $role) => $this->signatures->canSignAs($this->resource, $this->viewer, $role),
-                )),
+                fn () => $this->canSignAs(),
             ),
             // P189.02 (TCK-1869) — le verdict d'`InventoryPolicy::update`, qui garde la soumission et
             // les photos : l'écran les jugeait sur le seul statut, et les montrait au locataire et au
             // bailleur suspendu, refusés en 403.
             'abilities' => $this->when($this->viewer !== null, fn (): array => [
                 'update' => $this->viewer->can('update', $this->resource),
+                // TCK-2648 — « Contester » : la policy appelée EN DIRECT, sans `Gate::before` — le
+                // super-admin passerait par la Gate, mais n'est partie ni au bail ni au constat — et
+                // seulement quand le service l'accepterait (à signer, ou signé : `inventory.cannot_dispute`).
+                'dispute' => in_array($this->status, [InventoryStatus::PendingSignature, InventoryStatus::Signed], true)
+                    && app(InventoryPolicy::class)->dispute($this->viewer, $this->resource),
             ]),
+            // TCK-2648 — les parties et les signataires NOMMÉS, sous `show` seulement (chargés par le
+            // contrôleur) : un id et un nom, jamais un téléphone ni un e-mail.
+            'tenant' => $this->when($this->viewer !== null, fn (): ?array => $this->tenant === null ? null : [
+                'id' => (int) $this->tenant->id,
+                'full_name' => $this->tenant->full_name,
+                'first_name' => $this->tenant->first_name,
+            ]),
+            'landlord' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->lease?->landlord)),
+            'tenant_signed_via' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->tenantSignedVia)),
+            'owner_signed_by' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->ownerSignedBy)),
+            'owner_signed_on_behalf_of' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->ownerSignedOnBehalfOf)),
+            // TCK-2913 — le membre du personnel qui a recueilli sur place la signature du bailleur.
+            'owner_signed_via' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->ownerSignedVia)),
             // TCK-596 — quand le lecteur signerait POUR LE COMPTE du bailleur, le canevas le dit.
             'sign_on_behalf_of' => $this->when(
                 $this->viewer !== null && $this->signatures !== null,
@@ -86,6 +130,125 @@ class InventoryResource extends BaseResource
             ] : null),
             'created_at' => $this->iso($this->created_at),
         ];
+    }
+
+    /**
+     * Les rôles que le lecteur peut signer. TCK-2646 — `tenant_onsite` au personnel habilité à
+     * recueillir sur son appareil la signature du locataire, tant que celui-ci n'a pas signé et que
+     * l'état des lieux se signe encore. Ce n'est pas un rôle de `sign` : c'est `tenant` + `code`.
+     *
+     * @return list<string>
+     */
+    private function canSignAs(): array
+    {
+        $roles = array_values(array_filter(
+            InventorySignRequest::ROLES,
+            fn (string $role) => $this->signatures->canSignAs($this->resource, $this->viewer, $role),
+        ));
+
+        if (! $this->tenant_signed
+            && in_array($this->status, [InventoryStatus::Draft, InventoryStatus::PendingSignature], true)
+            && ! in_array(InventorySignRequest::ROLE_TENANT, $roles, true)
+            && $this->signatures->canSignOnsite($this->resource, $this->viewer)) {
+            $roles[] = InventorySignatureService::ROLE_TENANT_ONSITE;
+        }
+
+        // TCK-2913 (ADR-0098, amendement A) — la même voie pour le bailleur. Le personnel qui signerait
+        // POUR SON COMPTE (`landlord`) peut aussi recueillir SA signature : les deux rôles coexistent.
+        if (! $this->owner_signed
+            && in_array($this->status, [InventoryStatus::Draft, InventoryStatus::PendingSignature], true)
+            && $this->signatures->canSignOnsite($this->resource, $this->viewer, InventorySignRequest::ROLE_LANDLORD)
+            // TCK-2914 — le code ne peut partir qu'au numéro VÉRIFIÉ du compte du bailleur (même condition
+            // que le 422 `landlord_without_phone` de l'envoi) : sans lui, « Lui envoyer un code par SMS »
+            // n'est pas offert.
+            && $this->landlordHasVerifiedPhone()) {
+            $roles[] = InventorySignatureService::ROLE_LANDLORD_ONSITE;
+        }
+
+        return $roles;
+    }
+
+    /**
+     * TCK-2646 — `show` seulement : chaque élément d'une sortie qui désigne une photo de l'entrée
+     * (`entry_photo_id`) reçoit sa vignette, en URL signée résolue à la lecture (collection privée,
+     * ADR-0029) — jamais stockée. La photo doit appartenir à l'entrée reprise.
+     *
+     * @return array<int, mixed>|null
+     */
+    private function roomsWithEntryThumbnails(): ?array
+    {
+        $rooms = $this->rooms;
+        if (! is_array($rooms) || $this->entry_inventory_id === null) {
+            return $rooms;
+        }
+
+        $ids = [];
+        foreach ($rooms as $room) {
+            foreach (is_array($room) && is_array($room['elements'] ?? null) ? $room['elements'] : [] as $element) {
+                if (is_array($element) && is_int($element['entry_photo_id'] ?? null)) {
+                    $ids[] = $element['entry_photo_id'];
+                }
+            }
+        }
+        if ($ids === []) {
+            return $rooms;
+        }
+
+        $access = app(PrivateMediaAccess::class);
+        $photos = Media::query()
+            ->whereKey(array_values(array_unique($ids)))
+            ->where('model_type', (new Inventory)->getMorphClass())
+            ->where('model_id', $this->entry_inventory_id)
+            ->where('collection_name', 'room_photos')
+            ->get()
+            ->keyBy('id');
+
+        foreach ($rooms as $r => $room) {
+            foreach (is_array($room) && is_array($room['elements'] ?? null) ? $room['elements'] : [] as $e => $element) {
+                $photo = is_array($element) && is_int($element['entry_photo_id'] ?? null) ? $photos->get($element['entry_photo_id']) : null;
+                if ($photo !== null) {
+                    $rooms[$r]['elements'][$e]['entry_thumbnail_url'] = $access->signedConversionUrl($photo, 'preview') ?? $access->signedUrl($photo);
+                }
+            }
+        }
+
+        return $rooms;
+    }
+
+    /**
+     * TCK-2648 — une personne nommée à un autre compte : son id et son nom (`nameWithoutContact`,
+     * jamais l'e-mail), ou `null`.
+     *
+     * @return array{id: int, full_name: string}|null
+     */
+    private static function personne(?User $user): ?array
+    {
+        return $user === null ? null : ['id' => (int) $user->id, 'full_name' => $user->nameWithoutContact()];
+    }
+
+    /** TCK-2914 — le compte du bailleur du bail porte-t-il un numéro vérifié (où le code partirait) ? */
+    private function landlordHasVerifiedPhone(): bool
+    {
+        $landlord = $this->lease?->landlord;
+
+        return $landlord !== null && is_string($landlord->phone) && $landlord->phone !== '' && $landlord->phone_verified_at !== null;
+    }
+
+    /**
+     * TCK-2913 — les comptes avisés de l'envoi du PDF (`pdf_sent_to`, des identifiants), nommés.
+     *
+     * @return list<array{id: int, full_name: string}>
+     */
+    private function pdfSentTo(): array
+    {
+        $ids = array_values(array_filter(is_array($this->pdf_sent_to) ? $this->pdf_sent_to : [], 'is_int'));
+        if ($ids === []) {
+            return [];
+        }
+
+        $users = User::query()->whereKey($ids)->get()->keyBy('id');
+
+        return array_values(array_filter(array_map(fn (int $id): ?array => self::personne($users->get($id)), $ids)));
     }
 
     /** @return array{id: int, full_name: string}|null */
@@ -130,6 +293,8 @@ class InventoryResource extends BaseResource
                 'url' => $url,
                 'preview_url' => $access->signedConversionUrl($media, 'preview') ?? $url,
                 'room_name' => $name,
+                // TCK-2646 — l'élément photographié, nul pour une vue de la pièce.
+                'element_label' => $media->getCustomProperty('element_label'),
             ];
         }
 

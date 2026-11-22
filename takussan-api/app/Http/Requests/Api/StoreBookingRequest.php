@@ -3,7 +3,15 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
+use App\Models\Booking;
+use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingSource;
 use App\Models\Enums\Currency;
+use App\Models\Enums\OfferFinancing;
+use App\Models\Property;
+use App\Rules\InstantIso;
+use App\Rules\JourIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -16,20 +24,59 @@ use Illuminate\Validation\Rule;
  */
 class StoreBookingRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
-     * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
-     * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
+     * La RÈGLE d'autorisation ne migre pas ici : elle appartient au contrôleur, au service puis aux
+     * policies (principes non négociables 1 et 2, et TCK-306) ; seule son INVOCATION y vient quand
+     * elle doit précéder la validation (TCK-2579). `BaseFormRequest` refuse par défaut —
      * *fail-closed* — donc sans cette surcharge l'endpoint rendrait 403 pour tout le monde.
      */
     public function authorize(): bool
     {
-        return true;
+        // TCK-2579 (ADR-0102 §2) — saisir une candidature ou une offre est un geste du PERSONNEL de
+        // l'agence du bien, pour un client (`BookingPolicy::recordForCustomer`). Jugé ici, AVANT la
+        // validation : un client ou un bailleur reçoit 403, jamais les règles d'un formulaire qui ne
+        // lui est pas ouvert. Un bien absent ou illisible reçoit le même refus qu'un bien tiers
+        // (TCK-1066). Sans `kind` ou en `stay`, la règle d'avant : le contrôleur et le service jugent.
+        if (! in_array($this->input('kind'), self::KINDS_RECORDED_FOR_CUSTOMER, true)) {
+            return true;
+        }
+
+        $propertyId = $this->input('property_id');
+        $property = is_int($propertyId) || (is_string($propertyId) && ctype_digit($propertyId))
+            ? Property::query()->find((int) $propertyId)
+            : null;
+
+        return $property !== null && $this->user()?->can('recordForCustomer', [Booking::class, $property]) === true;
     }
+
+    /**
+     * TCK-2579 — les natures que seul le personnel saisit par cette route : une candidature ou une
+     * offre n'a ni devis ni nuits, son montant est celui du client.
+     *
+     * @var list<string>
+     */
+    public const KINDS_RECORDED_FOR_CUSTOMER = ['application', 'offer'];
+
+    /**
+     * TCK-2579 — plus grand montant que `decimal(14,2)` porte : au-delà, une offre rendrait 500.
+     */
+    public const MAX_AMOUNT = 999_999_999_999.99;
 
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $kind = $this->input('kind');
+        $recorded = in_array($kind, self::KINDS_RECORDED_FOR_CUSTOMER, true);
+
         return [
+            // TCK-2579 (ADR-0102) — la nature saisie ; sans elle, celle du bien (`BookingKind`).
+            'kind' => ['nullable', Rule::enum(BookingKind::class)],
+            // TCK-2579 — la validité d'une offre, dernier jour inclus (heure de Dakar).
+            // TCK-2752 — un JOUR, le seul que le front envoie : un instant près de minuit rangeait un autre
+            // jour dans `offer_expires_at` (colonne `date`) que dans `expires_at` (`FinInclusive::de()`).
+            'offer_expires_at' => [Rule::prohibitedIf($kind !== BookingKind::Offer->value), 'nullable', 'date_format:Y-m-d', new JourIso, 'after_or_equal:today'],
             // TCK-1066 (P62.02) — plus de `exists:` : un 422 pour un identifiant absent contre un
             // 403 pour un client tiers ou un bien privé faisait de la création un ORACLE
             // d'existence. L'absence se juge dans le contrôleur et le service, avec la réponse du
@@ -39,20 +86,92 @@ class StoreBookingRequest extends BaseFormRequest
             // TCK-530 — facultatifs : le serveur calcule les deux (App\Services\Booking\BookingQuote)
             // et refuse un montant envoyé qui en diffère. `decimal:0,2` borne la forme que le
             // comparateur découpe sans flottant.
-            'total_amount' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
-            'deposit_amount' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
+            // TCK-2579 — une offre DIT son montant (libre, > 0) ; une candidature peut proposer un
+            // loyer (défaut : celui du bien). Aucune des deux ne porte d'acompte.
+            'total_amount' => $recorded
+                ? [Rule::requiredIf($kind === BookingKind::Offer->value), 'nullable', 'numeric', 'decimal:0,2', 'gt:0', 'max:'.self::MAX_AMOUNT]
+                : ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
+            'deposit_amount' => [Rule::prohibitedIf($recorded), 'nullable', 'numeric', 'decimal:0,2', 'min:0'],
             'currency' => ['nullable', Rule::enum(Currency::class)],
             // Vérification adverse de TCK-530 — une arrivée passée était acceptée. Même règle que
             // `BookingRequestPublicPropertyRequest` ; `today` se juge dans le fuseau de l'appli (UTC,
             // l'heure de Dakar).
-            'start_date' => ['nullable', 'date', 'after_or_equal:today'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            // TCK-2579 — la date d'entrée d'une candidature est `start_date`, et elle est requise ;
+            // une candidature n'a pas de départ, une offre n'a aucune date.
+            'start_date' => [Rule::requiredIf($kind === BookingKind::Application->value), Rule::prohibitedIf($kind === BookingKind::Offer->value), 'nullable', 'date', new JourIso, 'after_or_equal:today'],
+            'end_date' => [Rule::prohibitedIf($recorded), 'nullable', 'date', new JourIso, 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
             // TCK-1065 (P80.02) — le nombre que le tunnel exige (1 à 20, `booking.ts`) ; rangé dans
             // `metadata.guests` par `BookingService::create()`, comme la demande publique.
-            'guests' => ['sometimes', 'integer', 'min:1', 'max:20'],
-            'expires_at' => ['nullable', 'date'],
+            // TCK-2892 — et désormais en colonne `bookings.guests` ; un séjour seul (interdit à la
+            // candidature et à l'offre saisies, refusé à toute autre nature par `BookingConditions`).
+            'guests' => [Rule::prohibitedIf($recorded), 'sometimes', 'integer', 'min:1', 'max:20'],
+            'expires_at' => ['nullable', 'date', new InstantIso],
+            // TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation : un libellé, aucun droit.
+            'via' => self::viaRule(),
+        ] + self::conditionRules() + self::guarantorRules(existant: true);
+    }
+
+    /**
+     * TCK-2870 (ADR-0110 § 1) — les conditions d'une candidature (durée 1 à 120 mois,
+     * renouvellement) et d'une offre (financement, signature sous 1 à 365 jours, conditions de 500
+     * caractères au plus). Toutes facultatives ici : qu'un champ appartienne à la nature se juge
+     * APRÈS, sur la nature du bien (`BookingConditions::refuseForeignFields`, 422
+     * `booking.field_not_for_kind`). Partagées avec le tunnel public.
+     *
+     * @return array<string, mixed>
+     */
+    public static function conditionRules(): array
+    {
+        return [
+            'term_months' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:120'],
+            'renewable' => ['sometimes', 'nullable', 'boolean'],
+            'financing' => ['sometimes', 'nullable', Rule::enum(OfferFinancing::class)],
+            'signature_within_days' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:365'],
+            'conditions' => ['sometimes', 'nullable', 'string', 'max:500'],
+            // TCK-2893 (ADR-0110 § 4) — le revenu mensuel déclaré du candidat (candidature seule,
+            // chiffré en base) ; borne du ticket, 1e10.
+            'declared_monthly_income' => ['sometimes', 'nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:'.self::MAX_DECLARED_INCOME],
         ];
+    }
+
+    /** TCK-2893 — le plus grand revenu mensuel déclaré admis. */
+    public const MAX_DECLARED_INCOME = 10_000_000_000;
+
+    /**
+     * TCK-2893 (ADR-0110 § 3) — le garant facultatif d'une candidature ou d'une offre, à la création :
+     * une fiche neuve (champs de `StoreGuarantorRequest`) ou, pour le personnel seulement
+     * (`$existant`), une fiche existante par `guarantor.guarantor_id`. Un séjour qui l'envoie reçoit
+     * 422 `booking.field_not_for_kind` (`BookingConditions`). Créé APRÈS tous les refus, dans la
+     * transaction qui crée la réservation (`BookingGuarantorService::attach`).
+     *
+     * @return array<string, mixed>
+     */
+    public static function guarantorRules(bool $existant): array
+    {
+        $rules = [
+            'guarantor' => ['sometimes', 'nullable', 'array'],
+            'guarantor.guarantor_id' => $existant
+                ? ['sometimes', 'nullable', 'integer', Rule::exists('guarantors', 'id')->withoutTrashed()]
+                : ['prohibited'],
+        ];
+        $requis = $existant ? 'required_without:guarantor.guarantor_id' : 'required';
+        foreach (AttachBookingGuarantorRequest::fieldRules($requis) as $champ => $regles) {
+            $rules['guarantor.'.$champ] = ['exclude_without:guarantor', ...$regles];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * TCK-2874 (ADR-0110 § 6) — `via=invitation`, posé par le lien « Inviter à candidater » et
+     * transmis par la fiche publique au tunnel. Une autre valeur est refusée (422) plutôt qu'ignorée.
+     *
+     * @return list<mixed>
+     */
+    public static function viaRule(): array
+    {
+        return ['sometimes', 'nullable', 'string', Rule::in([BookingSource::VIA_INVITATION])];
     }
 
     /**
@@ -67,5 +186,15 @@ class StoreBookingRequest extends BaseFormRequest
             'start_date.after_or_equal' => __('bookings.start_in_past'),
             'end_date.after_or_equal' => __('bookings.end_before_start'),
         ];
+    }
+
+    /**
+     * TCK-2743 — {@see ConvertitLesInstantsRecus}.
+     * `offer_expires_at` n'est pas ici : il passe par `FinInclusive::de()`, qui garde la fin du jour
+     * d'une date seule.
+     */
+    protected function instantsRecus(): array
+    {
+        return ['expires_at'];
     }
 }

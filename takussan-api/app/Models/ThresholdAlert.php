@@ -4,9 +4,12 @@ namespace App\Models;
 
 use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
+use App\Services\Dashboard\ThresholdAlertReading;
 use App\Sorts\ThresholdAlertSeveritySort;
+use App\Support\Query\InclusionLueParLeControleur;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\QueryBuilder\AllowedInclude;
 use Spatie\QueryBuilder\AllowedSort;
 
 /**
@@ -18,7 +21,19 @@ class ThresholdAlert extends AbstractModel
         'agency_id', 'metric', 'operator', 'threshold',
         'severity', 'is_enabled', 'last_triggered_at', 'last_value',
         'cooldown_hours', 'settings',
+        // TCK-2866 — qui l'alerte prévient (vide = tous) et par quel canal (la cloche part toujours).
+        'recipient_ids', 'channel',
     ];
+
+    /**
+     * TCK-2866 — les identifiants choisis ne sortent pas par la ressource : la lecture de l'alerte
+     * ({@see ThresholdAlertReading}) les rend au seul lecteur qui peut la modifier, comme les noms
+     * (TCK-2723).
+     */
+    protected $hidden = ['recipient_ids'];
+
+    /** TCK-2866 — le défaut de la colonne, lu aussi par une alerte tout juste créée. */
+    protected $attributes = ['channel' => self::CHANNEL_EMAIL];
 
     protected $casts = [
         'threshold' => 'decimal:4',
@@ -27,6 +42,7 @@ class ThresholdAlert extends AbstractModel
         'last_triggered_at' => 'datetime',
         'cooldown_hours' => 'integer',
         'settings' => 'array',
+        'recipient_ids' => 'array',
     ];
 
     protected static array $requestFilterable = ['agency_id', 'metric', 'severity', 'is_enabled'];
@@ -49,10 +65,23 @@ class ThresholdAlert extends AbstractModel
 
     protected static array $requestLoadable = ['agency'];
 
+    /**
+     * TCK-2627 — `include=triggers` : les dix derniers déclenchements, lus au journal par
+     * {@see ThresholdAlertReading}, et non une relation.
+     *
+     * @return array<int, AllowedInclude>
+     */
+    protected static function getAllowedQueryIncludes(): array
+    {
+        return [...parent::getAllowedQueryIncludes(), AllowedInclude::custom('triggers', new InclusionLueParLeControleur)];
+    }
+
     protected static array $queryFields = [
         'id', 'agency_id', 'metric', 'operator', 'threshold',
         'severity', 'is_enabled', 'last_triggered_at', 'last_value',
         'cooldown_hours', 'created_at', 'updated_at',
+        // TCK-2866
+        'recipient_ids', 'channel',
     ];
 
     public function agency(): BelongsTo
@@ -80,6 +109,41 @@ class ThresholdAlert extends AbstractModel
     public static function allowedSeverities(): array
     {
         return ['info', 'warning', 'critical'];
+    }
+
+    /** TCK-2866 — le canal de l'alerte, en plus de la cloche, qui part toujours. */
+    public const CHANNEL_EMAIL = 'email';
+
+    public const CHANNEL_WHATSAPP = 'whatsapp';
+
+    public const CHANNEL_BOTH = 'both';
+
+    /** @return list<string> */
+    public static function allowedChannels(): array
+    {
+        return [self::CHANNEL_EMAIL, self::CHANNEL_WHATSAPP, self::CHANNEL_BOTH];
+    }
+
+    /** TCK-2866 — le courriel part-il (sous la préférence de chacun) ? */
+    public function sendsEmail(): bool
+    {
+        return in_array($this->channel ?? self::CHANNEL_EMAIL, [self::CHANNEL_EMAIL, self::CHANNEL_BOTH], true);
+    }
+
+    /** TCK-2866 — WhatsApp part-il (sous le consentement de chacun) ? */
+    public function sendsWhatsapp(): bool
+    {
+        return in_array($this->channel, [self::CHANNEL_WHATSAPP, self::CHANNEL_BOTH], true);
+    }
+
+    /**
+     * TCK-2866 — les destinataires choisis, en entiers ; `[]` = tous ceux de la mesure.
+     *
+     * @return list<int>
+     */
+    public function chosenRecipientIds(): array
+    {
+        return array_values(array_unique(array_map('intval', (array) ($this->recipient_ids ?? []))));
     }
 
     /**

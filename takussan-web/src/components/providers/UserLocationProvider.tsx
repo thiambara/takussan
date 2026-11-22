@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 /**
  * Géo-IP de l'utilisateur — résolu une fois via ipapi.co, mis en cache 24h dans localStorage,
@@ -11,6 +11,18 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
  * demande à son montage. Le fournisseur est monté par la mise en page racine, donc sur toute page,
  * et l'appelait dès son montage : l'IP du visiteur partait chez ce tiers sur la fiche, la liste ou
  * la console, qu'aucun écran n'en lise rien.
+ *
+ * TCK-537 (décision du porteur du 2026-11-16) — et le réseau ne part qu'au PREMIER GESTE du
+ * visiteur : un appui (souris, doigt, stylet) ou une touche du clavier, n'importe où dans la page
+ * (`GESTES`). Un lecteur monté ne suffit plus : l'accueil en est un, et l'IP de tout visiteur
+ * partait chez ipapi.co au simple chargement de la page. La politique de confidentialité (§ 5,
+ * « Géolocalisation approximative ») le dit dans les mêmes termes.
+ *  - Au montage d'un lecteur, seul le cache local (24 h) est lu : aucune requête.
+ *  - Sans cache ni geste, `loading` retombe à `false` sans ville ; le geste venu, la ville arrive
+ *    plus tard, et `loading` ne remonte JAMAIS (un formulaire déjà rendu ne repasse pas en
+ *    squelette). Sans cache mais geste déjà fait, `loading` attend la réponse du réseau.
+ *  - Le geste est écouté par le fournisseur, monté à la racine : un clic sur le lien qui mène à un
+ *    écran lecteur compte, la navigation côté client ne le fait pas oublier.
  *
  * La forme du payload reflète la réponse ipapi (https://ipapi.co/json/).
  * Tous les champs sont optionnels — on n'assume jamais qu'un champ est
@@ -49,7 +61,11 @@ export type UserLocation = {
 type UserLocationContextValue = {
   /** Réponse brute ipapi — `null` tant que le fetch n'a pas répondu (ou a échoué). */
   location: UserLocation | null;
-  /** `true` jusqu'à la première résolution — cache compris, qui est reporté d'une micro-tâche. */
+  /**
+   * `true` jusqu'à la lecture du cache (reportée d'une micro-tâche), ou jusqu'à la réponse du réseau
+   * si le geste est déjà fait. Sans cache ni geste, retombe à `false` SANS ville (TCK-537) ; ne
+   * remonte jamais ensuite.
+   */
   loading: boolean;
   /** Raccourci pratique : `location.city` avec fallback Dakar — toujours safe à afficher. */
   city: string;
@@ -58,6 +74,8 @@ type UserLocationContextValue = {
 };
 
 const STORAGE_KEY = 'takussan:user-location';
+/** TCK-537 — ce qui compte pour un geste : un appui ou une touche. Ni le chargement, ni le temps. */
+export const GESTES = ['pointerdown', 'touchstart', 'keydown'] as const;
 const TTL_MS = 24 * 60 * 60 * 1000;
 const FALLBACK_CITY = 'Dakar';
 
@@ -74,6 +92,24 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [loading, setLoading] = useState(true);
   const [demandee, setDemandee] = useState(false);
+  /** TCK-537 — le visiteur a-t-il fait un geste dans la page ? */
+  const [geste, setGeste] = useState(false);
+  /** Le même fait, lisible sans dépendance depuis l'effet du cache. */
+  const gesteFait = useRef(false);
+  /** TCK-537 — le cache n'a rien rendu : le réseau attend le geste. */
+  const [aJoindre, setAJoindre] = useState(false);
+
+  useEffect(() => {
+    if (geste) return;
+    const surGeste = () => {
+      gesteFait.current = true;
+      setGeste(true);
+    };
+    for (const type of GESTES) window.addEventListener(type, surGeste, { capture: true, passive: true });
+    return () => {
+      for (const type of GESTES) window.removeEventListener(type, surGeste, { capture: true });
+    };
+  }, [geste]);
 
   useEffect(() => {
     if (!demandee) return;
@@ -123,9 +159,29 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch {
-        // localStorage indisponible (Safari privé) — on tombe sur le fetch.
+        // localStorage indisponible (Safari privé) — on retombe sur le réseau, au geste.
       }
 
+      // TCK-537 — pas de cache. Geste déjà fait (un clic a mené à l'écran lecteur) : le réseau part
+      // tout de suite et `loading` attend sa réponse, comme avant — l'assistant hôte fige ses
+      // défauts au premier rendu. Sans geste, rien n'est en attente : les lecteurs rendent sans
+      // ville (repli), et la ville viendra après le geste, sans repasser par `loading`.
+      if (!cancelled) {
+        if (!gesteFait.current) setLoading(false);
+        setAJoindre(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [demandee]);
+
+  useEffect(() => {
+    if (!aJoindre || !geste) return;
+    let cancelled = false;
+
+    void (async () => {
       try {
         const r = await fetch('https://ipapi.co/json/');
         const data = r.ok ? ((await r.json()) as UserLocation) : null;
@@ -149,7 +205,7 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [demandee]);
+  }, [aJoindre, geste]);
 
   const city =
     location?.city && location.city.trim() ? location.city.trim() : FALLBACK_CITY;

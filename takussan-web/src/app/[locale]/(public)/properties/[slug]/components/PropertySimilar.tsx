@@ -15,7 +15,7 @@ interface PropertySimilarProps {
 }
 
 export function PropertySimilar({ slug, donneesInitiales = null }: PropertySimilarProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const { data, loading } = useSimilarProperties(slug, donneesInitiales);
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', slidesToScroll: 1 });
   const [canPrev, setCanPrev] = useState(false);

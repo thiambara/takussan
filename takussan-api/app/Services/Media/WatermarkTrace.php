@@ -3,6 +3,7 @@
 namespace App\Services\Media;
 
 use App\Models\Property;
+use App\Support\Logging\SafeExceptionContext;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -118,7 +119,7 @@ final class WatermarkTrace
             } catch (\Throwable $retrait) {
                 Log::error("[{$origin}] Retrait des exemptions impossible : la photo reste servie sans filigrane.", [
                     'media_id' => (int) $media->getKey(),
-                    'exception' => $retrait->getMessage(),
+                    'exception' => SafeExceptionContext::of($retrait),
                 ]);
             }
         }
@@ -128,7 +129,7 @@ final class WatermarkTrace
             'property_id' => $property?->getKey(),
             'agency_id' => $property?->getAttribute('agency_id'),
             'conversions' => $conversions,
-            'exception' => $exception->getMessage(),
+            'exception' => SafeExceptionContext::of($exception),
         ]);
     }
 

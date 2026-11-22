@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Settings\AgencySettings;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\Api\ConfirmPayoutThresholdRequest;
@@ -80,8 +81,9 @@ class AgencyController extends Controller
             $locked = Agency::query()->whereKey($agency->getKey())->lockForUpdate()->firstOrFail();
 
             if (array_key_exists('settings', $data)) {
+                // Revue de TCK-2487 — une clé `bool` du catalogue s'écrit en vrai booléen JSON.
                 $data['settings'] = array_filter(
-                    array_replace($locked->settings ?? [], $data['settings']),
+                    array_replace($locked->settings ?? [], AgencySettings::normalize($data['settings'])),
                     fn ($value) => $value !== null,
                 );
             }
@@ -187,7 +189,9 @@ class AgencyController extends Controller
         $request->query->remove('include');
 
         $query = User::buildAgencyMembersQuery(User::query()->membreDe((int) $agency->id), $request, (int) $agency->id);
-        $query->defaultSort('first_name');
+        // Le tri collationné (ADR-0025), pas `AllowedSort::field('first_name')`, que spatie tire d'une chaîne :
+        // l'ordre des octets plaçait « awa » et « Élodie » après « Zeynab ».
+        $query->defaultSorts(...User::nameSorts());
 
         $paginator = $query->paginate($this->tailleDePage($request, 20));
 
@@ -202,12 +206,18 @@ class AgencyController extends Controller
      * TCK-591 §8 — le retrait passe par {@see AgencyMemberRemovalService}, seul chemin (gardes,
      * journal, portefeuille, flux) ; il s'autorise par `team.remove` dans l'agence de la route.
      * `leave_unassigned=true` assume de laisser un portefeuille sans repreneur.
+     *
+     * TCK-612 — le drapeau se lit dans le CORPS seul, comme le front l'envoie
+     * (`lib/queries/agent-crm.ts`) : `boolean()` lisait aussi la query, et une URL réécrite
+     * (`…?leave_unassigned=1`) faisait retirer un membre sans passation que personne n'avait choisi.
      */
     public function removeAgent(Request $request, Agency $agency, User $user, AgencyMemberRemovalService $removal): JsonResponse
     {
         $this->authorize('removeMember', $agency);
 
-        $removed = $removal->remove($agency, $user, $request->user(), $request->boolean('leave_unassigned'));
+        $corps = $request->isJson() ? $request->json() : $request->request;
+        $leaveUnassigned = filter_var($corps->get('leave_unassigned'), FILTER_VALIDATE_BOOLEAN);
+        $removed = $removal->remove($agency, $user, $request->user(), $leaveUnassigned);
 
         return $this->json(['data' => ['user_id' => $user->id, 'removed' => true, 'removed_profiles' => $removed]]);
     }

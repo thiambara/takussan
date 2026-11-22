@@ -65,7 +65,7 @@ export default async function HostOnboardingPage() {
   }
 
   return (
-    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
+    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')} brouillon>
       <HostIndividualWizard />
     </OnboardingShell>
   );

@@ -56,8 +56,13 @@ const optionalNullableString = (max: number) =>
 
 export const inventoryElementSchema = z.object({
   label: requiredStringSchema(msgValidation('inventory.elementLabelRequired')).max(255),
-  state: elementStateEnum,
+  // TCK-2647 — `null` : l'élément proposé n'est pas encore qualifié (brouillon de terrain). La
+  // soumission refuse un état nul (`inventory.unqualified_elements`).
+  state: elementStateEnum.nullable(),
   notes: optionalNullableString(INVENTORY_MAX_ELEMENT_NOTES),
+  // TCK-2646 — sortie seulement : la retenue proposée sur la caution.
+  retention_amount: z.number().min(0).nullable().optional(),
+  retention_reason: optionalNullableString(INVENTORY_MAX_ELEMENT_NOTES),
 });
 
 export const inventoryRoomSchema = z.object({
@@ -72,6 +77,8 @@ export const inventoryRoomSchema = z.object({
     )
     .optional()
     .default([]),
+  // TCK-2647 — la pièce a été parcourue : la reprise rouvre la première qui ne l'est pas.
+  completed: z.boolean().nullable().optional(),
 });
 
 /**
@@ -95,6 +102,8 @@ export const inventoryCreateSchema = z.object({
     .array(inventoryRoomSchema)
     .min(1, msgValidation('inventory.roomsMin'))
     .max(INVENTORY_MAX_ROOMS, roomsMax),
+  // TCK-2646 — l'entrée signée qu'une sortie reprend (le serveur y rattache les états d'entrée).
+  from_inventory_id: z.number().int().positive().optional(),
 });
 
 export type InventoryCreateInput = z.infer<typeof inventoryCreateSchema>;

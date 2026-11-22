@@ -9,6 +9,8 @@ use App\Models\GeoNeighborhood;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -146,5 +148,50 @@ class GeoNeighborhoodModerationTest extends TestCase
         $this->postJson("/api/admin/geo/neighborhoods/{$q->id}/merge", ['into_id' => $ailleurs->id])->assertUnprocessable()->assertJsonPath('code', 'geo.merge_other_city');
         $this->postJson("/api/admin/geo/neighborhoods/{$q->id}/merge", ['into_id' => $refuse->id])->assertUnprocessable()->assertJsonPath('code', 'geo.merge_target_inactive');
         $this->assertSame(ReferentialStatus::Pending, $q->refresh()->status);
+    }
+
+    /** TCK-2844 — une photo posée sur un quartier, avec sa provenance. */
+    private function photoSur(GeoNeighborhood $quartier, string $auteur): void
+    {
+        $quartier->addMedia(UploadedFile::fake()->image('p.jpg', 900, 900))
+            ->withCustomProperties(['source' => 'wikimedia', 'author' => $auteur, 'license' => 'CC0', 'source_url' => 'https://commons.wikimedia.org/wiki/File:X.jpg'])
+            ->toMediaCollection('cover');
+    }
+
+    /** TCK-2844 (AC5) — la cible sans photo reçoit celle de la source, provenance comprise. */
+    public function test_fusionner_deplace_la_photo_vers_une_cible_qui_n_en_a_pas(): void
+    {
+        $this->actingAsRole('super_admin');
+        $source = GeoNeighborhood::factory()->for($this->ville, 'city')->create(['name' => 'Mermos', 'slug' => 'mermos']);
+        $cible = GeoNeighborhood::factory()->for($this->ville, 'city')->create(['name' => 'Mermoz', 'slug' => 'mermoz']);
+        $this->photoSur($source, 'Auteur Source');
+
+        $this->postJson("/api/admin/geo/neighborhoods/{$source->id}/merge", ['into_id' => $cible->id])
+            ->assertOk()
+            ->assertJsonPath('data.cover.source', 'wikimedia');
+
+        $this->assertCount(0, $source->refresh()->getMedia('cover'));
+        $media = $cible->refresh()->getFirstMedia('cover');
+        $this->assertNotNull($media);
+        $this->assertSame('Auteur Source', $media->getCustomProperty('author'));
+        $this->assertSame('CC0', $media->getCustomProperty('license'));
+        $this->assertTrue($media->hasGeneratedConversion('display'));
+        Storage::disk($media->disk)->assertExists($media->getPathRelativeToRoot('display'));
+    }
+
+    /** TCK-2844 (AC5) — la cible qui a une photo la garde ; la source fusionnée n'en a plus. */
+    public function test_fusionner_vers_une_cible_avec_photo_lui_laisse_la_sienne(): void
+    {
+        $this->actingAsRole('super_admin');
+        $source = GeoNeighborhood::factory()->for($this->ville, 'city')->create(['name' => 'Mermos', 'slug' => 'mermos']);
+        $cible = GeoNeighborhood::factory()->for($this->ville, 'city')->create(['name' => 'Mermoz', 'slug' => 'mermoz']);
+        $this->photoSur($source, 'Auteur Source');
+        $this->photoSur($cible, 'Auteur Cible');
+
+        $this->postJson("/api/admin/geo/neighborhoods/{$source->id}/merge", ['into_id' => $cible->id])->assertOk();
+
+        $this->assertCount(0, $source->refresh()->getMedia('cover'));
+        $this->assertCount(1, $cible->refresh()->getMedia('cover'));
+        $this->assertSame('Auteur Cible', $cible->getFirstMedia('cover')?->getCustomProperty('author'));
     }
 }

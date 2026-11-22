@@ -19,7 +19,7 @@ export type GroupContextOption = {
   readonly label: string;
   readonly detail: string | null;
   /**
-   * Pour un BAIL : le bien qu'il concerne. `NewGroupDialog` le lit pour ne retirer le bail que si
+   * Pour un BAIL : le bien qu'il concerne. `useCreationDeGroupe` le lit pour ne retirer le bail que si
    * l'on choisit un AUTRE bien — choisir le sien le garde (réparation 1, 2026-09-24).
    */
   readonly propertyId?: number | null;
@@ -221,7 +221,7 @@ function ContextCombobox({
       <Combobox.Portal>
         {/* Au-dessus du dialogue (z-50) qui le contient. */}
         <Combobox.Positioner sideOffset={4} className="isolate z-[1100] outline-none">
-          <Combobox.Popup className="max-h-[min(var(--available-height),18rem)] w-(--anchor-width) overflow-y-auto rounded-lg bg-popover py-1 text-popover-foreground shadow-md ring-1 ring-border">
+          <Combobox.Popup className="max-h-[min(var(--available-height),var(--spacing)*72)] w-(--anchor-width) overflow-y-auto rounded-lg bg-popover py-1 text-popover-foreground shadow-md ring-1 ring-border">
             <Combobox.Status>
               {enAttente && options.length === 0 ? (
                 <p className="px-3 py-2 text-sm text-muted-foreground">{t('searching')}</p>
@@ -267,7 +267,7 @@ function ContextCombobox({
                   // AVANT que le `click` n'arrive (même raison que dans `AgencyCombobox`).
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={onRetry}
-                  className="min-h-11 shrink-0 rounded-md px-3 text-sm font-medium text-primary hover:bg-accent"
+                  className="min-h-11 shrink-0 rounded-md px-3 text-sm font-medium text-primary hover:bg-muted"
                 >
                   {t('retry')}
                 </button>

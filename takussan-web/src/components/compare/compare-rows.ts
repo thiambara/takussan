@@ -1,6 +1,8 @@
 import type { PropertyDetail, PropertyTag } from '@/types/property';
 import { type CompareRow, highlightDivergent, type HighlightedRow } from '@/lib/compare';
+import type { Locale } from '@/i18n/config';
 import { formatPrice } from '@/lib/utils';
+import type { ChampLibelleDeBien } from '@/lib/biens/libelles-de-bien';
 
 /**
  * TCK-633 — le libellé d'un équipement à l'écran : `libelleEquipement(tag, t)` (lot D), que le
@@ -9,6 +11,15 @@ import { formatPrice } from '@/lib/utils';
 export type LibelleDEquipement = (tag: PropertyTag) => string;
 
 const NOM_EN_BASE: LibelleDEquipement = (tag) => tag.name;
+
+/**
+ * TCK-351 — le libellé d'un CODE de bien (`type`, `contract_type`, `rent_period`, `title_type`),
+ * que le composant lie au dictionnaire du front (`libelleDeBien`). L'API n'émet plus de `*_label` :
+ * sans traducteur (un appelant hors React), le code brut.
+ */
+export type LibelleDeCode = (champ: ChampLibelleDeBien, code: string | null | undefined) => string | null;
+
+const CODE_BRUT: LibelleDeCode = (_champ, code) => code ?? null;
 
 /**
  * TCK-082 — transforms the list of fetched properties into a stable set
@@ -41,6 +52,9 @@ export const COMPARE_ROW_DEFS: readonly CompareRowDef[] = [
   { id: 'city', labelKey: 'city', category: 'location' },
   { id: 'quarter', labelKey: 'quarter', category: 'location' },
   { id: 'area', labelKey: 'area', category: 'interior' },
+  // TCK-2509 — calculé ici (prix ÷ surface), seulement quand les deux existent : souvent ce qui
+  // départage deux biens au loyer proche. Le libellé suit le contrat (cf. `cleDuLibelle`).
+  { id: 'price_per_m2', labelKey: 'pricePerM2', category: 'interior' },
   { id: 'bedrooms', labelKey: 'bedrooms', category: 'interior' },
   { id: 'bathrooms', labelKey: 'bathrooms', category: 'interior' },
   { id: 'floor_number', labelKey: 'floor', category: 'interior' },
@@ -78,7 +92,9 @@ function otherTagNames(tags: PropertyTag[] | undefined, libelle: LibelleDEquipem
 export function buildCell(
   def: CompareRowDef,
   property: PropertyDetail | null,
+  locale: Locale,
   libelleEquipement: LibelleDEquipement = NOM_EN_BASE,
+  libelleDeCode: LibelleDeCode = CODE_BRUT,
 ): CompareCell {
   if (!property) return null;
 
@@ -90,27 +106,30 @@ export function buildCell(
       // with the wrong symbol. Pre-formatted strings also give
       // `highlightDivergent` the correct divergence signal across mixed
       // currencies.
-      return formatPrice(property.price, property.currency || 'XOF');
+      return formatPrice(property.price, property.currency || 'XOF', locale);
     case 'contract_type':
-      return property.contract_type_label ?? property.contract_type ?? null;
+      return libelleDeCode('contract_type', property.contract_type);
     case 'type':
-      return property.type_label ?? property.type ?? null;
+      return libelleDeCode('type', property.type);
     case 'rent_period':
-      return property.rent_period_label ?? property.rent_period ?? null;
+      return libelleDeCode('rent_period', property.rent_period);
     case 'entry_cost':
       return property.entry_cost
-        ? formatPrice(property.entry_cost.total, property.currency || 'XOF')
+        ? formatPrice(property.entry_cost.total, property.currency || 'XOF', locale)
         : null;
-    // Le libellé vient de l'API, dans la langue négociée — le même que celui de la fiche. Aucun
-    // second vocabulaire côté front : `DIVERGENCES_CONNUES` de la garde de parité ne grossit pas.
+    // TCK-351 — le même dictionnaire que la fiche (`property.titleTypes`), jamais un libellé d'API.
     case 'title_type':
-      return property.title_type_label ?? null;
+      return libelleDeCode('title_type', property.title_type);
     case 'city':
       return property.location?.city ?? null;
     case 'quarter':
       return property.location?.quarter ?? null;
     case 'area':
       return property.area ?? null;
+    case 'price_per_m2': {
+      const parM2 = prixAuM2(property);
+      return parM2 === null ? null : formatPrice(parM2, property.currency || 'XOF', locale);
+    }
     case 'bedrooms':
       return property.bedrooms ?? null;
     case 'bathrooms':
@@ -138,13 +157,119 @@ export function buildCell(
  */
 export function buildCompareRows(
   properties: readonly (PropertyDetail | null)[],
+  locale: Locale,
   libelleEquipement: LibelleDEquipement = NOM_EN_BASE,
-): HighlightedRow<CompareCell>[] {
+  libelleDeCode: LibelleDeCode = CODE_BRUT,
+): LigneComparee[] {
   const rows: CompareRow<CompareCell>[] = COMPARE_ROW_DEFS.map((def) => ({
     id: def.id,
-    values: properties.map((property) => buildCell(def, property, libelleEquipement)),
+    values: properties.map((property) => buildCell(def, property, locale, libelleEquipement, libelleDeCode)),
   })).filter((row) => row.values.some(porteUneValeur));
-  return highlightDivergent<CompareCell>(rows);
+  return highlightDivergent<CompareCell>(rows).map((row) => ({
+    ...row,
+    meilleurs: meilleursDeLaLigne(row.id, properties),
+  }));
+}
+
+/** Une ligne prête à rendre : ses valeurs, si elles diffèrent, et les colonnes qui portent le meilleur. */
+export type LigneComparee = HighlightedRow<CompareCell> & {
+  /** Les index des colonnes marquées « le meilleur » — vide quand la ligne n'en a pas. */
+  readonly meilleurs: readonly number[];
+};
+
+/* ────────────────────────────────────────────────────────────────────────────────────────────────
+ * TCK-2509 — le meilleur de chaque ligne, seulement là où « meilleur » a un sens
+ * ──────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * La table des critères qui ont un meilleur, et son sens. Tout critère absent est NEUTRE : l'étage,
+ * le meublé, le quartier, les équipements, les chambres (plus n'est pas mieux pour tout le monde)
+ * ne se classent pas — c'est au visiteur de dire ce qu'il préfère.
+ */
+export const SENS_DU_MEILLEUR: Readonly<Record<string, 'min' | 'max'>> = {
+  price: 'min',
+  entry_cost: 'min',
+  price_per_m2: 'min',
+  area: 'max',
+};
+
+/**
+ * Les lignes d'ARGENT : comparer deux montants n'a de sens que dans la même devise, pour le même
+ * contrat et la même période — une vente n'est pas « plus chère » qu'un loyer au mois, ni un loyer
+ * à la nuit « moins cher » qu'un loyer au mois. Hors de ce cas, la ligne reste sans marque.
+ */
+const LIGNES_D_ARGENT: ReadonlySet<string> = new Set(['price', 'entry_cost', 'price_per_m2']);
+
+/** Le loyer (ou le prix) au m², arrondi à l'unité affichée ; `null` sans prix ou sans surface. */
+export function prixAuM2(property: PropertyDetail): number | null {
+  const { price, area } = property;
+  if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) return null;
+  if (typeof area !== 'number' || !Number.isFinite(area) || area <= 0) return null;
+  return Math.round(price / area);
+}
+
+function valeurClassable(id: string, property: PropertyDetail): number | null {
+  const brute = (() => {
+    switch (id) {
+      case 'price':
+        return property.price;
+      case 'entry_cost':
+        return property.entry_cost?.total ?? null;
+      case 'price_per_m2':
+        return prixAuM2(property);
+      case 'area':
+        return property.area;
+      default:
+        return null;
+    }
+  })();
+  return typeof brute === 'number' && Number.isFinite(brute) && brute > 0 ? brute : null;
+}
+
+/**
+ * Les colonnes qui portent le meilleur d'une ligne. Vide quand : la ligne est neutre ; moins de deux
+ * biens ont une valeur ; tous ont la même (il n'y a pas de meilleur) ; ou, pour l'argent, les biens
+ * ne se comparent pas (devise, contrat ou période différents). Les ex æquo sont tous marqués.
+ */
+export function meilleursDeLaLigne(
+  id: string,
+  properties: readonly (PropertyDetail | null)[],
+): number[] {
+  const sens = SENS_DU_MEILLEUR[id];
+  if (!sens) return [];
+
+  const valeurs = properties.map((p) => (p ? { p, v: valeurClassable(id, p) } : null));
+  const presents = valeurs
+    .map((x, index) => (x && x.v !== null ? { index, p: x.p, v: x.v } : null))
+    .filter((x): x is { index: number; p: PropertyDetail; v: number } => x !== null);
+  if (presents.length < 2) return [];
+
+  if (LIGNES_D_ARGENT.has(id)) {
+    // Une location sans période déclarée est au mois (même convention que l'histogramme de prix,
+    // TCK-2498) ; hors location, la période ne compte pas.
+    const signature = (p: PropertyDetail) =>
+      `${p.currency || 'XOF'}|${p.contract_type ?? ''}|${p.contract_type === 'rent' ? (p.rent_period ?? 'monthly') : ''}`;
+    const premiere = signature(presents[0].p);
+    if (presents.some(({ p }) => signature(p) !== premiere)) return [];
+  }
+
+  const nombres = presents.map(({ v }) => v);
+  const meilleur = sens === 'min' ? Math.min(...nombres) : Math.max(...nombres);
+  if (nombres.every((v) => v === meilleur)) return [];
+  return presents.filter(({ v }) => v === meilleur).map(({ index }) => index);
+}
+
+/**
+ * La clé du libellé d'une ligne sous `compare.rows`. « Loyer au m² » quand tous les biens qui ont
+ * une valeur sont des locations, « Prix au m² » sinon (une vente, un terrain) : le nom de la ligne
+ * dit ce qu'elle divise.
+ */
+export function cleDuLibelle(def: CompareRowDef, properties: readonly (PropertyDetail | null)[]): string {
+  if (def.id !== 'price_per_m2') return def.labelKey;
+  const avecValeur = properties.filter((p): p is PropertyDetail => p !== null && prixAuM2(p) !== null);
+  return avecValeur.length > 0 && avecValeur.every((p) => p.contract_type === 'rent')
+    ? 'rentPerM2'
+    : def.labelKey;
 }
 
 /**

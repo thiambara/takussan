@@ -329,6 +329,25 @@ class DocumentVersionTest extends TestCase
     // Single-active invariant — service-level unit
     // ─────────────────────────────────────────────────────────────────────────
 
+    /** TCK-2898 — au premier remplacement, le fichier d'origine devient la version 1 (inactive) : 2 versions. */
+    public function test_le_fichier_d_origine_devient_la_version_1_au_premier_remplacement(): void
+    {
+        $user = User::factory()->create();
+        $document = $this->makeDocument($user);
+        $document->addMedia(UploadedFile::fake()->create('carte.pdf', 10, 'application/pdf'))->toMediaCollection('file');
+
+        $this->service->uploadVersion($document, UploadedFile::fake()->create('nouvelle.pdf', 10, 'application/pdf'), $user);
+        $this->service->uploadVersion($document, UploadedFile::fake()->create('troisieme.pdf', 10, 'application/pdf'), $user);
+
+        $versions = $this->service->listVersions($document);
+        $this->assertSame([3, 2, 1], $versions->map(fn ($m) => (int) $m->getCustomProperty('version_number'))->all());
+        $this->assertSame('carte.pdf', $versions->last()->file_name);
+        $this->assertFalse((bool) $versions->last()->getCustomProperty('is_active'));
+        $this->assertSame($user->id, $versions->last()->getCustomProperty('uploaded_by_id'));
+        $this->assertSame(1, $versions->filter(fn ($m) => (bool) $m->getCustomProperty('is_active'))->count());
+        $this->assertSame('troisieme.pdf', $document->fresh()->currentFile()?->file_name);
+    }
+
     public function test_service_enforces_single_active_invariant(): void
     {
         $user = User::factory()->create();

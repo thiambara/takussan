@@ -26,8 +26,21 @@ import {
   PAYMENT_STATUS_TONE,
   type PaymentStatus,
 } from './constants';
+import { jourDeLApiOuRien } from '@/lib/jour-de-l-api';
+import { PageAuDelaDeLaDerniere } from './PageAuDelaDeLaDerniere';
+import { densiteDeLAdresse, estAuDelaDeLaDernierePage, pageDeLAdresse } from './pagination-de-l-adresse';
 
-export function PaymentsHistoryTable() {
+interface PaymentsHistoryTableProps {
+  /**
+   * TCK-2651 — le registre du BAILLEUR (page « Loyers ») : ses seules opérations
+   * (`filter[landlord_id]`), le bien et le locataire NOMMÉS (`include=property,payer`) au lieu de
+   * « Bail #63 », la recherche par locataire (`?search=`), et aucun identifiant technique (ni
+   * `#id` en repli de référence).
+   */
+  readonly bailleur?: { readonly id: number };
+}
+
+export function PaymentsHistoryTable({ bailleur }: PaymentsHistoryTableProps = {}) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.history');
   const tTable = useTranslations('payments.history.table');
@@ -35,7 +48,10 @@ export function PaymentsHistoryTable() {
   const tMethods = useTranslations('payments.methods');
   const searchParams = useSearchParams();
 
-  const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
+  // TCK-2805 — la page et la densité que `PropertyPagination` écrit dans l'adresse.
+  const page = pageDeLAdresse(searchParams);
+  const parPage = densiteDeLAdresse(searchParams);
+  const bailleurId = bailleur?.id;
   const params: UsePaymentsHistoryParams = useMemo(() => {
     const status = searchParams.get('status') ?? undefined;
     const entity_type = (searchParams.get('entity_type') as
@@ -45,18 +61,23 @@ export function PaymentsHistoryTable() {
     const entity_id = entity_id_raw
       ? Number.parseInt(entity_id_raw, 10) || undefined
       : undefined;
-    const date_from = searchParams.get('date_from') ?? undefined;
-    const date_to = searchParams.get('date_to') ?? undefined;
+    // TCK-2768 (q2) — une borne que l'API refuserait (un favori « 12/11/2026 ») est ignorée, pas relayée en 422.
+    const date_from = jourDeLApiOuRien(searchParams.get('date_from'));
+    const date_to = jourDeLApiOuRien(searchParams.get('date_to'));
+    const duBailleur: Partial<UsePaymentsHistoryParams> = bailleurId !== undefined
+      ? { landlord_id: bailleurId, include: ['property', 'payer'], search: searchParams.get('search') ?? undefined }
+      : {};
     return {
+      ...duBailleur,
       page,
-      per_page: 20,
+      per_page: parPage,
       status: status || undefined,
       entity_type: entity_type || undefined,
       entity_id,
       date_from,
       date_to,
     };
-  }, [page, searchParams]);
+  }, [page, parPage, searchParams, bailleurId]);
 
   const query = usePaymentsHistory(params);
 
@@ -71,6 +92,10 @@ export function PaymentsHistoryTable() {
         const rows = data.data ?? [];
         const totals = data.meta.totals;
 
+        // TCK-2805 — une page au-delà de la dernière n'est pas une liste vide.
+        if (data.meta && estAuDelaDeLaDernierePage(rows.length, data.meta)) {
+          return <PageAuDelaDeLaDerniere meta={data.meta} />;
+        }
         if (rows.length === 0) {
           return (
             <EmptyState
@@ -81,7 +106,7 @@ export function PaymentsHistoryTable() {
           );
         }
 
-        const reference = (row: PaymentHistoryRow) => row.reference_number ?? `#${row.id}`;
+        const reference = (row: PaymentHistoryRow) => row.reference_number ?? (bailleur ? '—' : `#${row.id}`);
         const montant = (value: number, row: PaymentHistoryRow) =>
           formatCurrency(value, locale, { currency: row.currency || 'XOF' });
         const acompte = (row: PaymentHistoryRow) =>
@@ -100,7 +125,11 @@ export function PaymentsHistoryTable() {
               : row.payment_method.replace(/_/g, ' ')
             : '—';
         const entite = (row: PaymentHistoryRow, className?: string) => {
-          const label = row.lease_id
+          // TCK-2651 — le bailleur lit le bien et le locataire, jamais « Bail #63 ».
+          const nomme = [row.property?.title, row.payer?.name].filter(Boolean).join(' · ');
+          const label = bailleur
+            ? nomme || '—'
+            : row.lease_id
             ? tTable('entityLease', { id: String(row.lease_id) })
             : row.booking_id
               ? tTable('entityBooking', { id: String(row.booking_id) })
@@ -168,7 +197,7 @@ export function PaymentsHistoryTable() {
           },
           {
             id: 'entity',
-            header: tTable('entity'),
+            header: bailleur ? tTable('propertyAndTenant') : tTable('entity'),
             className: 'whitespace-nowrap',
             cell: (row) => <span className="text-xs">{entite(row)}</span>,
           },

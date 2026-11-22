@@ -20,6 +20,8 @@ vi.mock('@/i18n/messages', async () => ({
   messagesPour: async () => (await import('@/messages/fr.json')).default,
 }));
 
+vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
+
 vi.mock('@/components/auth/ReinitialiserSessionClient', () => ({
   ReinitialiserSessionClient: () => null,
 }));
@@ -27,13 +29,16 @@ vi.mock('@/components/auth/ReinitialiserSessionClient', () => ({
 const { default: AuthLayout } = await import('../layout');
 
 describe('(auth)/layout — repère <main>', () => {
-  it('rend un seul <main>, autour du formulaire, le panneau visuel hors de lui', async () => {
+  // TCK-2598 — le panneau visuel (photo, accroche en <h2>) a quitté la coque : les barres de la
+  // coque d'entrée restent hors du repère, le formulaire dedans.
+  it('rend un seul <main>, autour du formulaire, les barres de la coque hors de lui', async () => {
     const { container } = render(withIntl(await AuthLayout({ children: <form aria-label="Connexion" /> })));
 
     const mains = container.querySelectorAll('main');
     expect(mains).toHaveLength(1);
     expect(mains[0]).toContainElement(screen.getByRole('form', { name: 'Connexion' }));
-    expect(mains[0].querySelector('h2')).toBeNull();
-    expect(container.querySelector('h2')).not.toBeNull();
+    const barres = container.querySelectorAll('header');
+    expect(barres.length).toBeGreaterThan(0);
+    for (const barre of barres) expect(mains[0]).not.toContainElement(barre);
   });
 });

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Support\Search\SearchableModels;
+use Database\Seeders\Accounting\BankStatementSeeder;
 use Database\Seeders\Activity\BookingPaymentSeeder;
 use Database\Seeders\Activity\BookingSeeder;
 use Database\Seeders\Activity\CommissionSeeder;
@@ -12,9 +13,12 @@ use Database\Seeders\Activity\LeasePaymentLinkSeeder;
 use Database\Seeders\Activity\LeasePaymentSeeder;
 use Database\Seeders\Activity\LeaseSeeder;
 use Database\Seeders\Activity\LeaseSignatureSeeder;
+use Database\Seeders\Activity\OwnerStatementSnapshotSeeder;
+use Database\Seeders\Activity\PayoutClawbackSeeder;
 use Database\Seeders\Activity\PayoutMethodSeeder;
 use Database\Seeders\Activity\PayoutSeeder;
 use Database\Seeders\Activity\PropertyVisitSeeder;
+use Database\Seeders\Activity\TenantOnboardingSeeder;
 use Database\Seeders\Billing\AgencySubscriptionSeeder;
 use Database\Seeders\Billing\BoostActivitySeeder;
 use Database\Seeders\Catalog\PropertyCollaboratorSeeder;
@@ -24,6 +28,7 @@ use Database\Seeders\Catalog\PropertyPriceHistorySeeder;
 use Database\Seeders\Catalog\PropertySeeder;
 use Database\Seeders\Catalog\PropertyUnavailabilitySeeder;
 use Database\Seeders\Core\AgencySeeder;
+use Database\Seeders\Core\DataExportSeeder;
 use Database\Seeders\Core\IntegrationSeeder;
 use Database\Seeders\Core\InvitationSeeder;
 use Database\Seeders\Core\KycDossierSeeder;
@@ -38,15 +43,18 @@ use Database\Seeders\Crm\SavedSearchSeeder;
 use Database\Seeders\Crm\UserCustomerRelationshipSeeder;
 use Database\Seeders\Engagement\ActivityLogBackfillSeeder;
 use Database\Seeders\Engagement\AppNotificationSeeder;
+use Database\Seeders\Engagement\NotificationDeliverySeeder;
 use Database\Seeders\Engagement\NotificationPreferenceSeeder;
 use Database\Seeders\Engagement\PropertyReportSeeder;
 use Database\Seeders\Engagement\ReviewSeeder;
+use Database\Seeders\Engagement\ThresholdAlertSeeder;
 use Database\Seeders\Operations\ConversationSeeder;
 use Database\Seeders\Operations\DocumentSeeder;
 use Database\Seeders\Operations\DocumentShareLinkSeeder;
 use Database\Seeders\Operations\MaintenanceRequestSeeder;
 use Database\Seeders\Operations\MessageSeeder;
 use Database\Seeders\Operations\TaskSeeder;
+use Database\Seeders\Support\ClotureDesCandidaturesSeeder;
 use Database\Seeders\Support\DemoUsersSeeder;
 use Database\Seeders\Support\EdgeCaseSeeder;
 use Database\Seeders\Support\FilterCoverageSeeder;
@@ -54,7 +62,9 @@ use Database\Seeders\Support\PostProcessingSeeder;
 use Database\Seeders\Support\SeedingConfig;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\System\AgencyUpgradeRequestSeeder;
+use Database\Seeders\System\AnnouncementSeeder;
 use Database\Seeders\System\GeoReferentialSeeder;
+use Database\Seeders\System\PlatformMetricsSeeder;
 use Database\Seeders\System\TagSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Config;
@@ -136,11 +146,30 @@ class YearOfActivitySeeder extends Seeder
         AppNotificationSeeder::class,
         NotificationPreferenceSeeder::class,
         ActivityLogBackfillSeeder::class,
+        // TCK-2381 — les tables restantes, en un bloc APRÈS tout le reste du jeu réaliste (insérées plus
+        // haut, elles décaleraient le tirage de chaque seeder suivant) et AVANT le vérificateur, qui les
+        // juge. Dans cet ordre : l'Espace résident lit les états des lieux et les loyers ; les relevés de
+        // gérance sont figés le 1er du mois, AVANT le remboursement qui suit le dernier reversement — calculé
+        // après, l'instantané envoyé aurait déjà déduit un remboursement postérieur, qui doit se lire en
+        // rectificatif ; le remboursement (reprise et constaté) précède les relevés bancaires, qui portent son
+        // débit quand il tombe dans un mois clos ; les métriques plateforme, nettes des remboursements, en
+        // dernier.
+        TenantOnboardingSeeder::class,
+        OwnerStatementSnapshotSeeder::class,
+        PayoutClawbackSeeder::class,
+        BankStatementSeeder::class,
+        ThresholdAlertSeeder::class,
+        AnnouncementSeeder::class,
+        DataExportSeeder::class,
+        NotificationDeliverySeeder::class,
+        PlatformMetricsSeeder::class,
         // TCK-2376 — le vérificateur juge le jeu RÉALISTE, donc AVANT les fixtures : les cas limites et
         // la couverture des filtres violent ses invariants exprès (et ne sont semés que sur demande).
         PostProcessingSeeder::class,
         FilterCoverageSeeder::class,
         EdgeCaseSeeder::class,
+        // TCK-2747 (réserve r1) — APRÈS les fixtures, qui sèment des baux actifs sur des biens tirés de l'agence.
+        ClotureDesCandidaturesSeeder::class,
         // PropertyMediaSeeder runs last so properties created by FilterCoverage
         // / EdgeCase get media too. The seeder iterates Property::all() and
         // skips any that already have files in the `photos` collection, so

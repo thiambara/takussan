@@ -75,6 +75,13 @@ return [
         'unsubscribe' => 'Se désabonner des e-mails récapitulatifs',
     ],
 
+    // TCK-2633 — le nom des filtres de `GET /api/notifications` dans un 422.
+    'attributes' => [
+        'filters' => 'filtres',
+        'unread_filter' => 'non lues',
+        'action_filter' => 'à traiter',
+        'family_filter' => 'famille',
+    ],
     'types' => [
         'booking' => 'Réservations',
         'payment' => 'Paiements',
@@ -128,6 +135,15 @@ return [
         'expires' => 'Ce code est valable :minutes minutes et ne peut servir qu\'une seule fois.',
         'ignore' => 'Si vous n\'avez rien demandé, ignorez ce message : sans ce code, rien n\'est signé.',
         'sms' => 'Takussan : votre code de signature du bail :reference est :code (valable :minutes min). Ne le communiquez à personne.',
+    ],
+    // TCK-2646 (ADR-0098) — le code qui authentifie le locataire signant l'état des lieux sur le
+    // téléphone de l'agent. SMS seulement : pas de version e-mail.
+    // TCK-2982 (ADR-0132 § 5) — le code de signature par lien d'action, au numéro du lien.
+    'action_link_signature_code' => [
+        'sms' => "Takussan : code pour signer l'état des lieux (bail :reference) : :code, valable :minutes min. Ne le communiquez à personne.",
+    ],
+    'inventory_signature_code' => [
+        'sms' => 'Takussan : code de signature de l\'état des lieux (bail :reference) : :code, valable :minutes min. Saisissez-le vous-même, devant l\'agent.',
     ],
     'account_deletion_step_up' => [
         'subject' => 'Votre code de confirmation de suppression de compte',
@@ -270,6 +286,15 @@ return [
 
     // TCK-588 (ADR-0032) — une notification est un CODE rendu par surface dans la langue du destinataire : `codes.<code>.<surface>` (title, body, sms ; mail_subject/mail_body retombent sur title/body ; `_link` quand le lien de paiement est fourni). LangGroupParityTest garde les trois langues.
     'codes' => [
+        // TCK-2704 — une Vedette ou un Badge a pris fin (`BoostEndedNotification`, texte venu de `credits.boost.ended`).
+        'boost' => [
+            // Au titulaire du bien.
+            'ended' => [
+                'title' => 'Mise en avant terminée',
+                'body' => 'La mise en avant de « :property » est terminée.',
+                'sms' => 'Takussan : la mise en avant de « :property » est terminée.',
+            ],
+        ],
         'impersonation' => [
             'ended' => [
                 'title' => 'Votre compte a été consulté par l\'équipe Takussan',
@@ -278,6 +303,12 @@ return [
             ],
         ],
         'agency' => [
+            // TCK-2704 — aux super-admins : demande de passage en agence professionnelle (`AgencyUpgradeRequestSubmittedNotification`).
+            'upgrade_requested' => [
+                'title' => 'Nouvelle demande de passage en agence professionnelle : :agency',
+                'body' => 'L\'agence :agency demande à passer en mode professionnel. Examinez la demande.',
+                'sms' => 'Takussan : l\'agence :agency demande à passer en agence professionnelle.',
+            ],
             'suspended' => [
                 'title' => 'Agence suspendue : :agency',
                 'body' => 'L\'agence :agency est suspendue par la plateforme. Motif : :reason. Ses annonces ne sont plus publiées et son espace est en lecture seule.',
@@ -308,6 +339,18 @@ return [
                 'body_link' => 'Votre loyer de :amount pour :property est dû le :due_date. Payer en ligne : :payment_url',
                 'sms' => 'Takussan : loyer de :amount dû le :due_date (:property).',
                 'sms_link' => 'Takussan : loyer de :amount dû le :due_date. Payer : :payment_url',
+                // TCK-2706 — une relance qui fusionne loyer et charges du même jour les nomme et détaille les
+                // deux montants (`_rent_charges`, un lien par échéance) ; des charges seules disent « charges ».
+                'title_rent_charges' => 'Loyer et charges à payer le :due_date',
+                'body_rent_charges' => 'Votre loyer et vos charges pour :property sont dus le :due_date : loyer :rent, charges :charges, total :amount.',
+                'body_rent_charges_link' => 'Votre loyer et vos charges pour :property sont dus le :due_date : loyer :rent, charges :charges, total :amount. Payer le loyer : :payment_url — payer les charges : :charges_url',
+                'sms_rent_charges' => 'Takussan : loyer :rent + charges :charges = :amount, dus le :due_date (:property).',
+                'sms_rent_charges_link' => 'Takussan : loyer :rent + charges :charges = :amount, dus le :due_date. Loyer : :payment_url Charges : :charges_url',
+                'title_charges' => 'Charges à payer le :due_date',
+                'body_charges' => 'Vos charges de :amount pour :property sont dues le :due_date.',
+                'body_charges_link' => 'Vos charges de :amount pour :property sont dues le :due_date. Payer en ligne : :payment_url',
+                'sms_charges' => 'Takussan : charges de :amount dues le :due_date (:property).',
+                'sms_charges_link' => 'Takussan : charges de :amount dues le :due_date. Payer : :payment_url',
             ],
             'overdue' => [
                 'title' => 'Loyer en retard',
@@ -315,11 +358,31 @@ return [
                 'body_link' => '{1} Votre loyer de :amount pour :property, dû le :due_date, est en retard de :days jour. Payer en ligne : :payment_url|[0,*] Votre loyer de :amount pour :property, dû le :due_date, est en retard de :days jours. Payer en ligne : :payment_url',
                 'sms' => '{1} Takussan : loyer de :amount en retard de :days jour (:property).|[0,*] Takussan : loyer de :amount en retard de :days jours (:property).',
                 'sms_link' => '{1} Takussan : loyer de :amount en retard de :days jour. Payer : :payment_url|[0,*] Takussan : loyer de :amount en retard de :days jours. Payer : :payment_url',
+                // TCK-2706 — une relance qui fusionne loyer et charges du même jour les nomme et détaille les
+                // deux montants (`_rent_charges`, un lien par échéance) ; des charges seules disent « charges ».
+                'title_rent_charges' => 'Loyer et charges en retard',
+                'body_rent_charges' => '{1} Votre loyer et vos charges pour :property, dus le :due_date, sont en retard de :days jour : loyer :rent, charges :charges, total :amount.|[0,*] Votre loyer et vos charges pour :property, dus le :due_date, sont en retard de :days jours : loyer :rent, charges :charges, total :amount.',
+                'body_rent_charges_link' => '{1} Votre loyer et vos charges pour :property, dus le :due_date, sont en retard de :days jour : loyer :rent, charges :charges, total :amount. Payer le loyer : :payment_url — payer les charges : :charges_url|[0,*] Votre loyer et vos charges pour :property, dus le :due_date, sont en retard de :days jours : loyer :rent, charges :charges, total :amount. Payer le loyer : :payment_url — payer les charges : :charges_url',
+                'sms_rent_charges' => '{1} Takussan : loyer :rent + charges :charges = :amount, en retard de :days jour (:property).|[0,*] Takussan : loyer :rent + charges :charges = :amount, en retard de :days jours (:property).',
+                'sms_rent_charges_link' => '{1} Takussan : loyer :rent + charges :charges = :amount, en retard de :days jour. Loyer : :payment_url Charges : :charges_url|[0,*] Takussan : loyer :rent + charges :charges = :amount, en retard de :days jours. Loyer : :payment_url Charges : :charges_url',
+                'title_charges' => 'Charges en retard',
+                'body_charges' => '{1} Vos charges de :amount pour :property, dues le :due_date, sont en retard de :days jour.|[0,*] Vos charges de :amount pour :property, dues le :due_date, sont en retard de :days jours.',
+                'body_charges_link' => '{1} Vos charges de :amount pour :property, dues le :due_date, sont en retard de :days jour. Payer en ligne : :payment_url|[0,*] Vos charges de :amount pour :property, dues le :due_date, sont en retard de :days jours. Payer en ligne : :payment_url',
+                'sms_charges' => '{1} Takussan : charges de :amount en retard de :days jour (:property).|[0,*] Takussan : charges de :amount en retard de :days jours (:property).',
+                'sms_charges_link' => '{1} Takussan : charges de :amount en retard de :days jour. Payer : :payment_url|[0,*] Takussan : charges de :amount en retard de :days jours. Payer : :payment_url',
             ],
             'overdue_landlord' => [
                 'title' => 'Loyer impayé : :property',
                 'body' => '{1} Le loyer de :amount de :tenant pour :property est en retard de :days jour.|[0,*] Le loyer de :amount de :tenant pour :property est en retard de :days jours.',
                 'sms' => '{1} Takussan : loyer de :amount de :tenant (:property) en retard de :days jour.|[0,*] Takussan : loyer de :amount de :tenant (:property) en retard de :days jours.',
+                // TCK-2706 — une relance qui fusionne loyer et charges du même jour les nomme et détaille les
+                // deux montants (`_rent_charges`, un lien par échéance) ; des charges seules disent « charges ».
+                'title_rent_charges' => 'Loyer et charges impayés : :property',
+                'body_rent_charges' => '{1} Le loyer et les charges de :tenant pour :property sont en retard de :days jour : loyer :rent, charges :charges, total :amount.|[0,*] Le loyer et les charges de :tenant pour :property sont en retard de :days jours : loyer :rent, charges :charges, total :amount.',
+                'sms_rent_charges' => '{1} Takussan : loyer :rent + charges :charges = :amount de :tenant (:property), en retard de :days jour.|[0,*] Takussan : loyer :rent + charges :charges = :amount de :tenant (:property), en retard de :days jours.',
+                'title_charges' => 'Charges impayées : :property',
+                'body_charges' => '{1} Les charges de :amount de :tenant pour :property sont en retard de :days jour.|[0,*] Les charges de :amount de :tenant pour :property sont en retard de :days jours.',
+                'sms_charges' => '{1} Takussan : charges de :amount de :tenant (:property) en retard de :days jour.|[0,*] Takussan : charges de :amount de :tenant (:property) en retard de :days jours.',
             ],
             'overdue_digest' => [
                 'title' => '{1} :count loyer en retard|[0,*] :count loyers en retard',
@@ -354,6 +417,17 @@ return [
                 'title' => 'Loyer remboursé : :property',
                 'body' => ':amount du loyer payé par :tenant pour :property ont été remboursés par le moyen de paiement en ligne.',
                 'sms' => 'Takussan : :amount du loyer de :tenant (:property) remboursés.',
+            ],
+            // TCK-2793 — la pénalité de retard payée seule, remboursée par le moyen de paiement en ligne.
+            'late_fee_refunded' => [
+                'title' => 'Remboursement : :property',
+                'body' => 'Un remboursement de :amount a été fait sur la pénalité de retard que vous avez payée pour :property.',
+                'sms' => 'Takussan : remboursement de :amount sur votre pénalité de retard (:property).',
+            ],
+            'late_fee_refunded_landlord' => [
+                'title' => 'Pénalité remboursée : :property',
+                'body' => ':amount de la pénalité de retard payée par :tenant pour :property ont été remboursés par le moyen de paiement en ligne.',
+                'sms' => 'Takussan : :amount de la pénalité de :tenant (:property) remboursés.',
             ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
@@ -397,12 +471,44 @@ return [
             'rejected' => [
                 'title' => 'Réservation refusée',
                 'body' => 'Votre réservation :reference pour :property a été refusée.',
+                // TCK-2874 (ADR-0110 § 7) — le motif et la précision du personnel, quand il y en a.
+                'body_link' => 'Votre réservation :reference pour :property a été refusée. Motif : :reason_code',
                 'sms' => 'Takussan : réservation :reference refusée (:property).',
             ],
             'cancelled' => [
                 'title' => 'Réservation annulée',
                 'body' => 'La réservation :reference pour :property a été annulée.',
                 'sms' => 'Takussan : réservation :reference annulée (:property).',
+            ],
+            // TCK-2579 — au client : une candidature ou une offre saisie par l'agence en son nom.
+            'recorded_on_behalf' => [
+                'title' => 'Demande enregistrée en votre nom',
+                'body' => 'L\'agence a enregistré la demande :reference en votre nom pour :property. Vous pouvez l\'annuler depuis vos réservations.',
+                'sms' => 'Takussan : demande :reference enregistrée en votre nom (:property). Pour l\'annuler, contactez l\'agence.',
+            ],
+            // TCK-2734 — au client : un bail a été créé sur le bien pour un autre locataire.
+            'application_not_selected' => [
+                'title' => 'Candidature non retenue',
+                'body' => 'Votre candidature :reference pour :property n\'a pas été retenue : le logement a été attribué à un autre locataire.',
+                'sms' => 'Takussan : candidature :reference non retenue (:property).',
+            ],
+            // TCK-2872 — au client : l'agence lui demande une pièce de son dossier.
+            'dossier_piece_requested' => [
+                'title' => 'Pièce demandée pour votre dossier',
+                'body' => 'Pour votre demande :reference (:property), l\'agence vous demande : :piece. Déposez-la depuis votre réservation.',
+                'sms' => 'Takussan : pour votre demande :reference (:property), l\'agence vous demande : :piece.',
+            ],
+            // TCK-2873 — au client : l'agence contre-propose un prix sur son offre.
+            'counter_offer_received' => [
+                'title' => 'Contre-proposition sur votre offre',
+                'body' => 'Pour votre offre :reference (:property), l\'agence vous propose :amount, jusqu\'au :valid_until. Acceptez-la ou déclinez-la depuis votre réservation.',
+                'sms' => 'Takussan : offre :reference, l\'agence vous propose :amount jusqu\'au :valid_until.',
+            ],
+            // TCK-2873 — à l'agence : la réponse du client à la contre-offre.
+            'counter_offer_answered' => [
+                'title' => 'Réponse à votre contre-proposition',
+                'body' => 'Offre :reference (:property) : le client a :answer votre contre-proposition à :amount.',
+                'sms' => 'Takussan : offre :reference (:property), le client a :answer votre contre-proposition à :amount.',
             ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
@@ -417,6 +523,12 @@ return [
                 'body' => 'Votre invitation à rejoindre :agency vous attend.',
                 'sms' => 'Takussan : rappel — votre invitation à rejoindre :agency vous attend : :url',
             ],
+            // TCK-2609 — à l'invitant : l'invité au lien expiré demande un nouveau lien.
+            'renewal_requested' => [
+                'title' => 'Nouveau lien demandé : :invitee',
+                'body' => ':invitee demande un nouveau lien : son invitation en tant que :role a expiré. Renvoyez-la : :url',
+                'sms' => 'Takussan : :invitee demande un nouveau lien d\'invitation.',
+            ],
         ],
         // TCK-589 p3-1 — avis à l'ANCIEN numéro remplacé, et au compte. Aucun numéro dans le texte.
         'account' => [
@@ -424,6 +536,13 @@ return [
                 'title' => 'Numéro de téléphone remplacé',
                 'body' => 'Le numéro de téléphone vérifié de votre compte a été remplacé. Si ce n\'est pas vous, contactez le support.',
                 'sms' => 'Takussan : ce numéro n\'est plus celui de votre compte. Si vous n\'êtes pas à l\'origine de ce changement, contactez le support.',
+            ],
+            // TCK-2926 (ADR-0124 § 6) — l'admin rappelle au membre d'activer la double authentification.
+            'two_factor_reminder' => [
+                'title' => 'Activez la double authentification',
+                'body' => ':agency vous demande d\'activer la double authentification sur votre compte. Activez-la depuis la sécurité de votre profil.',
+                'mail_body' => ":agency vous demande d'activer la double authentification sur votre compte Takussan.\nElle protège l'accès aux données de l'agence : activez-la depuis la page Sécurité de votre profil.",
+                'sms' => 'Takussan : :agency vous demande d\'activer la double authentification de votre compte (Profil > Sécurité).',
             ],
             'blocked' => [
                 'title' => 'Votre compte est bloqué',
@@ -446,13 +565,57 @@ return [
                 'title' => 'Demande de visite : :property',
                 'body' => 'Créneau demandé : :scheduled_at. Pour joindre le visiteur : :contact.',
                 'mail_body' => "Une demande de visite pour :property.\nCréneau demandé : :scheduled_at (fuseau :timezone).\nPour joindre le visiteur : :contact.",
+                // TCK-2717 — sans `contact` (le bailleur d'un bien d'agence, sur une visite à fiche) : la phrase sans lui.
+                'body_unnamed' => 'Créneau demandé : :scheduled_at.',
+                'mail_body_unnamed' => "Une demande de visite pour :property.\nCréneau demandé : :scheduled_at (fuseau :timezone).",
                 'sms' => 'Takussan : demande de visite pour :property le :scheduled_at (:timezone).',
+            ],
+            // TCK-2502 — une demande par jour et tranche : la tranche est dite, l'heure reste à fixer.
+            'requested_window' => [
+                'title' => 'Demande de visite : :property',
+                'body' => 'Jour demandé : :date, :window — heure à fixer. Pour joindre le visiteur : :contact.',
+                'mail_body' => "Une demande de visite pour :property.\nJour demandé : :date, :window — l'heure est à fixer en confirmant la visite.\nPour joindre le visiteur : :contact.",
+                // TCK-2717 — sans `contact` (le bailleur d'un bien d'agence, sur une visite à fiche) : la phrase sans lui.
+                'body_unnamed' => 'Jour demandé : :date, :window — heure à fixer.',
+                'mail_body_unnamed' => "Une demande de visite pour :property.\nJour demandé : :date, :window — l'heure est à fixer en confirmant la visite.",
+                'sms' => 'Takussan : demande de visite pour :property le :date, :window (heure à fixer).',
             ],
             'rescheduled_by_visitor' => [
                 'title' => 'Autre créneau proposé : :property',
                 'body' => 'Le visiteur propose le :scheduled_at. La visite attend votre confirmation.',
                 'mail_body' => "Le visiteur a proposé un autre créneau pour :property. La visite attend votre confirmation.\nCréneau proposé : :scheduled_at (fuseau :timezone).",
                 'sms' => 'Takussan : le visiteur propose le :scheduled_at (:timezone) pour :property.',
+            ],
+            // TCK-2849 (ADR-0112 § 4) — le bailleur a confirmé la visite : à l'agent attribué, avec son nom.
+            'confirmed_by_owner' => [
+                'title' => 'Visite confirmée par le bailleur : :property',
+                'body' => ':owner a confirmé la visite du :scheduled_at.',
+                'mail_body' => ":owner, bailleur du bien, a confirmé la visite de :property.\nCréneau : :scheduled_at (fuseau :timezone).",
+                'sms' => 'Takussan : :owner a confirmé la visite de :property le :scheduled_at (:timezone).',
+            ],
+            // TCK-2502 — annulations d'une visite demandée par tranche, heure jamais fixée.
+            'cancelled_by_visitor_window' => [
+                'title' => 'Visite annulée par le visiteur : :property',
+                'body' => 'Le visiteur a annulé la visite demandée le :date, :window (heure non fixée).',
+                'mail_body' => "Le visiteur a annulé sa demande de visite de :property.\nElle était demandée le :date, :window ; l'heure n'avait pas été fixée.",
+                'sms' => 'Takussan : le visiteur a annulé la visite de :property demandée le :date, :window.',
+            ],
+            // TCK-2871 — l'agence a marqué le visiteur « Absent » : le jour (pas d'heure), et le lien public
+            // du bien quand il l'est encore (variantes `_link`).
+            'no_show' => [
+                'title' => 'Visite manquée : :property',
+                'body' => "La visite prévue le :date n'a pas eu lieu. Vous pouvez en demander une autre.",
+                'mail_body' => "La visite de :property prévue le :date n'a pas eu lieu.\nContactez l'agence pour en convenir d'une autre.",
+                'mail_body_link' => "La visite de :property prévue le :date n'a pas eu lieu.\nPour en demander une autre : :url",
+                'sms' => "Takussan : visite du :date manquée. Contactez l'agence pour en reprendre une.",
+                // Sans accent hors de la date : en GSM-7, le lien réel (~95 caractères) tient en deux segments.
+                'sms_link' => "Takussan : votre visite du :date n'a pas eu lieu. Pour en demander une autre : :url",
+            ],
+            'cancelled_window' => [
+                'title' => 'Votre visite de :property est annulée',
+                'body' => 'La visite demandée le :date, :window est annulée.',
+                'mail_body' => "L'agence a annulé votre demande de visite de :property.\nElle était demandée le :date, :window.",
+                'sms' => 'Takussan : votre visite de « :property » demandée le :date, :window est annulée.',
             ],
             'cancelled_by_visitor' => [
                 'title' => 'Visite annulée par le visiteur : :property',
@@ -484,6 +647,12 @@ return [
                 'title' => 'Nouveau message de :sender',
                 'body' => ':sender : :excerpt',
                 'sms' => 'Takussan : nouveau message de :sender.',
+            ],
+            // TCK-2966 (ADR-0128 § 6) — une @mention, à la personne mentionnée : l'extrait borné, le nom sans contact.
+            'mention' => [
+                'title' => ':sender vous a mentionné',
+                'body' => ':sender : :excerpt',
+                'sms' => 'Takussan : :sender vous a mentionné dans un message.',
             ],
             // TCK-861 (P38.07) — l'invitation à un groupe, ouverte depuis la cloche.
             'group_invite' => [
@@ -531,6 +700,26 @@ return [
                 'title' => 'Seuil d\'approbation modifié',
                 'body' => 'Le seuil d\'approbation des reversements a été modifié par :actor.',
                 'sms' => 'Takussan : seuil d\'approbation modifié par :actor.',
+            ],
+        ],
+        // TCK-2783 — `documents:remind-expiring` : une pièce du coffre expire dans 60 puis 7 jours.
+        'document' => [
+            'expiring_soon' => [
+                'title' => 'Pièce bientôt expirée : :document_name',
+                'body' => '« :document_name » expire le :expires_at. Ajoutez-en une nouvelle version depuis sa fiche pour garder votre dossier à jour.',
+                'sms' => 'Takussan : votre pièce « :document_name » expire le :expires_at.',
+            ],
+            // TCK-2812 — l'archive préparée d'un dossier du coffre, au seul demandeur.
+            // TCK-2916 — l'avis ouvre le coffre, ou la page des paiements pour l'archive des quittances : le texte ne nomme aucun des deux.
+            'archive_ready' => [
+                'title' => 'Votre archive est prête',
+                'body' => 'L’archive que vous avez demandée est prête. Ouvrez cet avis pour la télécharger dans les 24 heures.',
+                'sms' => 'Takussan : votre archive est prête dans votre espace, pour 24 heures.',
+            ],
+            'archive_failed' => [
+                'title' => 'Votre archive n’a pas pu être préparée',
+                'body' => 'L’archive que vous avez demandée n’a pas pu être préparée. Ouvrez cet avis pour réessayer.',
+                'sms' => 'Takussan : votre archive n’a pas pu être préparée. Réessayez depuis votre espace.',
             ],
         ],
         'kyc' => [
@@ -602,6 +791,18 @@ return [
             ],
         ],
         'maintenance' => [
+            // TCK-2704 — à l'agence : intervention urgente créée ou passée en urgent (`UrgentMaintenanceCreatedNotification`).
+            'urgent_created' => [
+                'title' => 'Urgent : :title',
+                'body' => 'L\'intervention urgente « :title » attend votre prise en charge.',
+                'sms' => 'Takussan : intervention urgente « :title ».',
+            ],
+            // TCK-2704 — à l'agence : l'intervention urgente n'a pas été prise en charge à temps.
+            'urgent_escalated' => [
+                'title' => 'Escalade urgente : :title',
+                'body' => 'L\'intervention urgente « :title » n\'a toujours pas été prise en charge.',
+                'sms' => 'Takussan : escalade urgente, « :title ».',
+            ],
             'created' => [
                 'title' => 'Nouvelle demande de maintenance',
                 'body' => 'Une demande de maintenance (:reference) a été soumise pour :property.',
@@ -703,6 +904,29 @@ return [
                 'body' => 'Le passage pour l\'intervention « :request » est prévu le :scheduled_at.',
                 'sms' => 'Takussan : passage prévu le :scheduled_at pour « :request ».',
             ],
+            // TCK-2786 — l'agence relance le bailleur : le devis attend toujours sa décision.
+            'owner_reminder' => [
+                'title' => 'Rappel : votre accord est requis pour « :request »',
+                'body' => 'Votre agence vous rappelle qu\'un devis de :amount pour « :request » attend votre décision. Approuvez-le ou refusez-le.',
+                'sms' => 'Takussan : rappel, votre accord est requis pour « :request ».',
+            ],
+            // TCK-2917 (ADR-0118) — l'annulation avec le motif de qui annule (le SMS ne le porte pas).
+            'cancelled_with_reason' => [
+                'title' => 'Intervention annulée : :request',
+                'body' => 'L\'intervention « :request » a été annulée. Motif : :reason',
+                'sms' => 'Takussan : Intervention annulée : :request',
+            ],
+            'step_cancelled_with_reason' => [
+                'title' => 'Votre demande « :request » : annulée',
+                'body' => 'Votre demande d\'intervention a été annulée. Motif : :reason',
+                'sms' => 'Takussan : Votre demande « :request » : annulée',
+            ],
+            // TCK-2917 — à l'agence et au prestataire : le locataire demande un autre créneau.
+            'reschedule_requested' => [
+                'title' => 'Autre créneau demandé : « :request »',
+                'body' => 'Le locataire demande un autre créneau pour « :request ». Créneaux proposés : :slots. Le créneau actuel ne change pas tant que vous n\'en posez pas un nouveau.',
+                'sms' => 'Takussan : le locataire demande un autre créneau pour « :request ».',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [
@@ -748,6 +972,20 @@ return [
                 'body' => 'Les deux parties ont signé le bail :reference pour :property. Il est désormais actif.',
                 'sms' => 'Takussan : le bail :reference est signé et actif.',
             ],
+            // TCK-2642 — au bailleur, quand le loyer de son bail est révisé.
+            'rent_reviewed_landlord' => [
+                'title' => 'Loyer révisé : :reference',
+                'body' => 'Le loyer du bail :reference pour :property passe de :old à :new à partir du :effective_date.',
+                'sms' => 'Takussan : loyer du bail :reference révisé (:old -> :new) au :effective_date.',
+            ],
+        ],
+        // TCK-2913 (ADR-0098, amendement B) — l'état des lieux signé par les deux parties : son PDF.
+        'inventory' => [
+            'signed_pdf_available' => [
+                'title' => 'État des lieux signé : bail :reference',
+                'body' => 'Le locataire et le bailleur ont signé l’état des lieux du bail :reference pour :property. Téléchargez son PDF depuis la fiche de l’état des lieux.',
+                'sms' => 'Takussan : l’état des lieux du bail :reference est signé. Son PDF est dans votre espace.',
+            ],
         ],
         'prospect_match' => [
             'digest' => [
@@ -757,6 +995,12 @@ return [
             ],
         ],
         'property' => [
+            // TCK-2704 — aux admins de l'agence : un bailleur propose un bien (`PropertyProposedNotification`).
+            'proposed' => [
+                'title' => 'Bien proposé par un bailleur : :property',
+                'body' => 'Un bailleur propose « :property » à votre agence. Ouvrez-le pour l\'examiner.',
+                'sms' => 'Takussan : un bailleur propose « :property » à votre agence.',
+            ],
             'approved' => [
                 'title' => 'Bien approuvé : :property',
                 'body' => 'Votre bien « :property » a été approuvé et est maintenant visible sur la plateforme.',
@@ -797,6 +1041,14 @@ return [
                 'title' => 'Votre bien est-il toujours disponible ? :property',
                 'body' => 'L\'annonce d\'origine de « :property » n\'est plus en ligne. Ouvrez le bien pour nous dire s\'il est loué, vendu ou toujours disponible.',
                 'sms' => 'Takussan : « :property » est-il toujours disponible ?',
+            ],
+        ],
+        // TCK-2661 — une commission payée au bénéficiaire.
+        'commission' => [
+            'paid' => [
+                'title' => '{1} Commission payée|[0,*] :count commissions payées',
+                'body' => '{1} Votre commission de :amount vous a été payée.|[0,*] :count de vos commissions vous ont été payées, pour un total de :amount.',
+                'sms' => '{1} Takussan : votre commission de :amount a été payée.|[0,*] Takussan : :count commissions payées (:amount).',
             ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.
@@ -851,6 +1103,17 @@ return [
                 'title' => 'Facture d\'intervention maintenue : :reference',
                 'body' => 'L\'intervention « :request » a été contestée ou annulée, mais sa facture :reference de :amount est déjà payée, refacturée au bailleur ou en cours de paiement : elle n\'est pas annulée. Vérifiez-la et régularisez-la à la main.',
                 'sms' => 'Takussan : facture :reference maintenue, intervention contestée ou annulée. À régulariser.',
+            ],
+        ],
+        // TCK-2985 (ADR-0132 § 6) — le résumé du lundi du bailleur.
+        'owner' => [
+            'weekly_digest' => [
+                'title' => 'Votre semaine avec :agency',
+                'body' => ':agency — loyers encaissés : :paid_count (:paid_total). En retard : :late_count (:late_total). Interventions ouvertes : :maintenance_opened, closes : :maintenance_closed. Visites confirmées : :visits.',
+                // Exigée par la parité des surfaces : le résumé ne part JAMAIS par SMS.
+                'sms' => 'Takussan — :agency, votre semaine : :paid_count loyer(s) encaissé(s), :late_count en retard.',
+                'mail_subject' => 'Votre résumé de la semaine — :agency',
+                'mail_body' => "Voici la semaine écoulée sur vos biens gérés par :agency.\nLoyers encaissés : :paid_count (:paid_total).\nLoyers en retard : :late_count (:late_total).\nInterventions ouvertes : :maintenance_opened ; closes : :maintenance_closed.\nVisites confirmées : :visits.",
             ],
         ],
         'owner_statement' => [

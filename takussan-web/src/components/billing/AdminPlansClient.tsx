@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Plus, Save, Trash2 } from 'lucide-react';
 
 import { createAdminPlan, deleteAdminPlan, fetchAdminPlans, updateAdminPlan } from '@/lib/queries/super-admin';
+import { lireNombre } from '@/lib/clavier';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,19 +15,42 @@ import { useToast } from '@/components/ui/toast';
 import type { Plan } from '@/types/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
+/**
+ * ADR-0135 — le prix et la commission sont des champs TEXTE (profils `montant`, `decimal`) : la frappe reste une
+ * chaîne (« 12, » ne s'efface pas), lue en nombre à l'envoi. Vide se lit 0, comme `Number('')` avant ; une saisie
+ * illisible rend `null` et bloque le bouton.
+ */
+function enNombre(saisie: string, milliers = true): number | null {
+  if (saisie.trim() === '') return 0;
+  const lu = lireNombre(saisie.trim(), milliers);
+  return typeof lu === 'number' ? lu : null;
+}
+
 export function AdminPlansClient() {
   const t = useTranslations('billing.plans');
   const tBilling = useTranslations('billing');
   const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState({ code: '', label: '', monthly_price_xof: 0, platform_fee_pct: 0 });
+  const [draft, setDraft] = useState({ code: '', label: '' });
+  const [prix, setPrix] = useState('');
+  const [commission, setCommission] = useState('');
+  const prixLu = enNombre(prix);
+  const commissionLue = enNombre(commission, false);
   const query = useQuery({ queryKey: ['super-admin', 'plans'], queryFn: fetchAdminPlans });
 
   const createMutation = useMutation({
-    mutationFn: () => createAdminPlan({ ...draft, limits: { max_active_listings: 10, max_agents: 3, max_branches: 1 } }),
+    mutationFn: () =>
+      createAdminPlan({
+        ...draft,
+        monthly_price_xof: prixLu ?? 0,
+        platform_fee_pct: commissionLue ?? 0,
+        limits: { max_active_listings: 10, max_agents: 3, max_branches: 1 },
+      }),
     onSuccess: async () => {
-      setDraft({ code: '', label: '', monthly_price_xof: 0, platform_fee_pct: 0 });
+      setDraft({ code: '', label: '' });
+      setPrix('');
+      setCommission('');
       toast.add({ title: t('toast.created'), type: 'success' });
       await queryClient.invalidateQueries({ queryKey: ['super-admin', 'plans'] });
     },
@@ -42,11 +66,11 @@ export function AdminPlansClient() {
           <CardTitle>{t('newPlan')}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 xl:grid-cols-[1fr_1fr_160px_140px_auto]">
-          <Input aria-label={t('fields.code')} placeholder={t('codePlaceholder')} value={draft.code} onChange={(event) => setDraft((v) => ({ ...v, code: event.target.value }))} />
-          <Input aria-label={t('fields.label')} placeholder={t('labelPlaceholder')} value={draft.label} onChange={(event) => setDraft((v) => ({ ...v, label: event.target.value }))} />
-          <Input type="number" aria-label={t('fields.price')} placeholder={t('pricePlaceholder')} value={draft.monthly_price_xof} onChange={(event) => setDraft((v) => ({ ...v, monthly_price_xof: Number(event.target.value) }))} />
-          <Input type="number" aria-label={t('fields.fee')} placeholder={t('feePlaceholder')} value={draft.platform_fee_pct} onChange={(event) => setDraft((v) => ({ ...v, platform_fee_pct: Number(event.target.value) }))} />
-          <Button type="button" disabled={!draft.code || !draft.label || createMutation.isPending} onClick={() => createMutation.mutate()}>
+          <Input profil="reference" aria-label={t('fields.code')} placeholder={t('codePlaceholder')} value={draft.code} onChange={(event) => setDraft((v) => ({ ...v, code: event.target.value }))} />
+          <Input profil="mots" aria-label={t('fields.label')} placeholder={t('labelPlaceholder')} value={draft.label} onChange={(event) => setDraft((v) => ({ ...v, label: event.target.value }))} />
+          <Input profil="montant" aria-label={t('fields.price')} placeholder={t('pricePlaceholder')} value={prix} onChange={(event) => setPrix(event.target.value)} />
+          <Input profil="decimal" enterKeyHint="done" aria-label={t('fields.fee')} placeholder={t('feePlaceholder')} value={commission} onChange={(event) => setCommission(event.target.value)} />
+          <Button type="button" disabled={!draft.code || !draft.label || prixLu === null || commissionLue === null || createMutation.isPending} onClick={() => createMutation.mutate()}>
             <Plus className="size-4" aria-hidden="true" />
             {t('create')}
           </Button>
@@ -64,8 +88,12 @@ function PlanRow({ plan }: { plan: Plan }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(plan);
+  const [prix, setPrix] = useState(String(plan.monthly_price_xof));
+  const [commission, setCommission] = useState(String(plan.platform_fee_pct));
+  const prixLu = enNombre(prix);
+  const commissionLue = enNombre(commission, false);
   const updateMutation = useMutation({
-    mutationFn: () => updateAdminPlan(plan.id, draft),
+    mutationFn: () => updateAdminPlan(plan.id, { ...draft, monthly_price_xof: prixLu ?? 0, platform_fee_pct: commissionLue ?? 0 }),
     onSuccess: async () => {
       toast.add({ title: t('toast.updated'), type: 'success' });
       await queryClient.invalidateQueries({ queryKey: ['super-admin', 'plans'] });
@@ -84,11 +112,11 @@ function PlanRow({ plan }: { plan: Plan }) {
   return (
     <Card>
       <CardContent className="grid gap-3 p-4 xl:grid-cols-[1fr_1fr_160px_140px_auto_auto]">
-        <Input aria-label={t('fields.code')} value={draft.code} onChange={(event) => setDraft((v) => ({ ...v, code: event.target.value }))} />
-        <Input aria-label={t('fields.label')} value={draft.label} onChange={(event) => setDraft((v) => ({ ...v, label: event.target.value }))} />
-        <Input type="number" aria-label={t('fields.price')} value={draft.monthly_price_xof} onChange={(event) => setDraft((v) => ({ ...v, monthly_price_xof: Number(event.target.value) }))} />
-        <Input type="number" aria-label={t('fields.fee')} value={draft.platform_fee_pct} onChange={(event) => setDraft((v) => ({ ...v, platform_fee_pct: Number(event.target.value) }))} />
-        <Button type="button" variant="outline" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate()}>
+        <Input profil="reference" aria-label={t('fields.code')} placeholder={t('exemples.code')} value={draft.code} onChange={(event) => setDraft((v) => ({ ...v, code: event.target.value }))} />
+        <Input profil="mots" aria-label={t('fields.label')} placeholder={t('exemples.label')} value={draft.label} onChange={(event) => setDraft((v) => ({ ...v, label: event.target.value }))} />
+        <Input profil="montant" aria-label={t('fields.price')} placeholder={t('exemples.price')} value={prix} onChange={(event) => setPrix(event.target.value)} />
+        <Input profil="decimal" enterKeyHint="done" aria-label={t('fields.fee')} placeholder={t('exemples.fee')} value={commission} onChange={(event) => setCommission(event.target.value)} />
+        <Button type="button" variant="outline" disabled={updateMutation.isPending || prixLu === null || commissionLue === null} onClick={() => updateMutation.mutate()}>
           <Save className="size-4" aria-hidden="true" />
           {t('save')}
         </Button>

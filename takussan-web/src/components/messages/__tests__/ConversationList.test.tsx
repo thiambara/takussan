@@ -59,9 +59,10 @@ describe('<ConversationList> vide (TCK-645)', () => {
 
     const vide = screen.getByTestId('conversations-vide');
     expect(vide).not.toHaveClass('border');
-    expect(vide).toHaveClass('border-0');
-    // Il remplit la hauteur de la liste au lieu de flotter en haut d'un grand vide.
-    expect(vide).toHaveClass('min-h-full');
+    expect(vide).not.toHaveClass('border-dashed');
+    // TCK-2632 (a-4) — l'état vide des maquettes de `/app` (`EmptyState variant="nue"`), posé à
+    // 96 px du haut de la liste : ni carte ni pointillé.
+    expect(vide).toHaveClass('pt-24');
   });
 });
 
@@ -115,6 +116,50 @@ describe('<ConversationList> aperçu d’un avis système (TCK-671)', () => {
 
     expect(screen.getByText("Alice changed Bob's role to Admin.")).toBeInTheDocument();
     expect(screen.queryByText('Alice a changé le rôle de Bob en admin')).not.toBeInTheDocument();
+  });
+
+  // TCK-2958 — l'aperçu serveur d'un avis, d'un événement ou d'une carte n'est qu'un code.
+  function listeDe(lastMessage: Record<string, unknown>, preview: string) {
+    conversations.mockReturnValue({
+      data: { pages: [{ data: [conversation(lastMessage, preview)] }] },
+      isLoading: false,
+      isError: false,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage,
+    } as never);
+    rendreEn();
+  }
+
+  it('rend l’aperçu d’un avis d’intervention depuis son code, dans la langue du lecteur', () => {
+    listeDe(
+      { id: 3, type: 'event', metadata: { object: { type: 'maintenance_request', id: 4 }, code: 'maintenance.assigned', data: { status: 'open', provider_name: 'Awa' } } },
+      'maintenance.assigned',
+    );
+
+    expect(screen.getByText('Job assigned to Awa.')).toBeInTheDocument();
+    expect(screen.queryByText('maintenance.assigned')).not.toBeInTheDocument();
+  });
+
+  it('ne montre jamais le code d’un événement inconnu', () => {
+    listeDe({ id: 4, type: 'event', metadata: { object: { type: 'lease', id: 4 }, code: 'lease.signed', data: {} } }, 'lease.signed');
+
+    expect(screen.getByText('The thread was updated.')).toBeInTheDocument();
+    expect(screen.queryByText('lease.signed')).not.toBeInTheDocument();
+  });
+
+  it('ne montre jamais le code d’un avis système sans métadonnée', () => {
+    listeDe({ id: 5, type: 'system', metadata: null }, 'participant_added');
+
+    expect(screen.getByText('The thread was updated.')).toBeInTheDocument();
+    expect(screen.queryByText('participant_added')).not.toBeInTheDocument();
+  });
+
+  it('rend une carte par un libellé neutre', () => {
+    listeDe({ id: 6, type: 'card', metadata: { object: { type: 'lease', id: 4 }, code: 'lease.shared', data: {} } }, 'lease.shared');
+
+    expect(screen.getByText('Shared item')).toBeInTheDocument();
+    expect(screen.queryByText('lease.shared')).not.toBeInTheDocument();
   });
 
   it('garde l’aperçu du serveur pour un message ordinaire', () => {

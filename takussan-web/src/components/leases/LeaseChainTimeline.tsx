@@ -54,9 +54,9 @@ export function LeaseChainTimeline({ leaseId, currentId }: LeaseChainTimelinePro
                 }`}
               >
                 <span className="font-semibold">{label}</span>
-                <span className="text-[11px] opacity-80">{lease.reference_number}</span>
+                <span className="text-[0.6875rem] opacity-80">{lease.reference_number}</span>
                 {isCurrent && (
-                  <span className="mt-1 text-[10px] uppercase tracking-wide">
+                  <span className="mt-1 text-[0.625rem] uppercase tracking-wide">
                     {t('timeline_current')}
                   </span>
                 )}

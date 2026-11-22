@@ -1,0 +1,200 @@
+{
+  "ticket": "TCK-2617",
+  "ecrans": [
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Accueil (admin)",
+      "references": {
+        "telephone": "references/app-coque/a-0-telephone.json",
+        "bureau-1440": "references/app-coque/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-coque/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "admin",
+        "etat": "accueil de l'admin d'agence, rien d'ouvert"
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Page racine (Demandes)",
+      "references": {
+        "telephone": "references/app-coque/a-1-telephone.json",
+        "bureau-1440": "references/app-coque/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-coque/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leads",
+        "persona": "admin",
+        "etat": "liste des demandes, filtre par défaut"
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Page de détail",
+      "references": {
+        "telephone": "references/app-coque/a-2-telephone.json",
+        "bureau-1440": "references/app-coque/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-coque/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leases/332",
+        "persona": "admin",
+        "etat": "un bail ouvert : la maquette dessine le détail d'une demande, que le produit n'a pas en page (/app/leads n'a pas de [id]) ; seule la COQUE (en-tête, fil d'Ariane) est comparée"
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Conversation ouverte",
+      "references": {
+        "telephone": "references/app-coque/a-7-telephone.json",
+        "bureau-1440": "references/app-coque/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-coque/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/messages",
+        "persona": "admin",
+        "etat": "première conversation de la liste ouverte (`--perturber`) : au téléphone, ni en-tête de coque ni barre d'onglets ; le contenu du fil est à TCK-2632"
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 9,
+      "nom": "Persona · bailleur",
+      "references": {
+        "telephone": "references/app-coque/a-9-telephone.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "proprietaire",
+        "etat": "accueil du bailleur"
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 10,
+      "nom": "Persona · locataire",
+      "references": {
+        "telephone": "references/app-coque/a-10-telephone.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "locataire",
+        "etat": "accueil du locataire"
+      }
+    },
+    {
+      "page": "app-coque",
+      "approche": "a",
+      "ecran": 11,
+      "nom": "Persona · prestataire",
+      "references": {
+        "telephone": "references/app-coque/a-11-telephone.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "prestataire",
+        "etat": "accueil du prestataire"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/leads",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir chaque écran ci-dessus (`ecrans[].produit`) : un ticket de coque compare plusieurs routes",
+    "defiler": null,
+    "perturber": null
+  },
+  "roles": [
+    {
+      "nom": "coque · fil d'Ariane",
+      "appareil": "desktop",
+      "maquette": {
+        "zone": {
+          "y": 24,
+          "h": 28,
+          "tol": 6,
+          "wMin": 120
+        }
+      },
+      "produit": {
+        "zone": {
+          "y": 24,
+          "h": 28,
+          "tol": 6,
+          "wMin": 120
+        }
+      },
+      "contenu": false
+    }
+  ],
+  "zones": [],
+  "alias": {
+    "Messages": "Messagerie"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-0-telephone",
+      "element": "coque · en-tête › initiales de l'espace",
+      "propriete": "couleur, fond",
+      "exception": "accessibilité",
+      "motif": "le « soi » de la maquette (accent/15, text-accent) tombe sous 4,5:1 ; le repli par défaut de l'avatar (secondary / primary-deep, 6,72:1) est celui du pied de la colonne (TCK-2691, C7). Le compte de démo a une photo : elle remplace les initiales"
+    },
+    {
+      "ecran": "a-*-telephone",
+      "element": "coque · en-tête › icônes « Aller à » et cloche",
+      "propriete": "couleur",
+      "exception": "technique",
+      "motif": "la maquette écrit l'encre douce en alpha (rgba(31,24,17,0.8)) ; le produit pose le jeton opaque `encre-douce` (rgb(76,70,65)), que le cliquet `encre-sans-alpha.contraste.test.ts` impose dans /app. Composée sur le fond Lin, l'alpha rend rgb(75,69,62) : 1 à 3 unités d'écart par canal, invisible"
+    },
+    {
+      "ecran": "a-9-telephone, a-10-telephone, a-11-telephone",
+      "element": "coque · en-tête › nom de l'espace",
+      "propriete": "contenu",
+      "exception": "incohérence des maquettes",
+      "motif": "les trois en-têtes de persona nomment l'espace par un intitulé de menu (« Mes biens », « Mon logement », « Mes interventions ») ; l'en-tête de l'admin (a-0) et le pied du compte des quatre personas (a-0/9/10/11 au bureau : « Dakar Immo · Bailleur », « Locataire · … », « Prestataire · … ») le nomment par l'agence, sinon le persona. Valeur majoritaire, et règle du ticket (« tel que le pied du compte le nomme déjà ») : l'agence, sinon le persona — mesuré : « Dakar Immo », « Locataire », « Prestataire »"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "element": "coque · barre d'onglets (cases, ordre, pastilles)",
+      "ticket": "TCK-2618",
+      "motif": "les cases des onglets par persona ; ce ticket ne touche la barre que pour la masquer (plein écran, conversation)"
+    },
+    {
+      "element": "a-7 · en-tête du fil (flèche à x 20 au lieu de 16, appel, « ⋯ », sous-titre du bien)",
+      "ticket": "TCK-2632",
+      "motif": "le contenu de la conversation ; ce ticket n'y pose que la flèche unique et retire la coque"
+    },
+    {
+      "element": "a-2 · « ⋯ » de la page de détail",
+      "ticket": "tickets de page",
+      "motif": "l'en-tête rend « ⋯ » dès qu'une page déclare `actions` ; aucune page ne les déclare encore"
+    },
+    {
+      "element": "contenu des pages sous l'en-tête (accueil, demandes, bail)",
+      "ticket": "tickets de page",
+      "motif": "seule la coque est comparée ici"
+    }
+  ]
+}

@@ -15,6 +15,11 @@ use Illuminate\Notifications\Notification;
  *
  * Le SMS passe par {@see SmsChannel}, qui refuse un numéro non vérifié et borne à 5 SMS par heure
  * et par utilisateur, code critique compris.
+ *
+ * TCK-2646 (ADR-0098 §4) — la même classe porte le code de la signature d'un état des lieux sur
+ * place : mêmes garanties (critique, synchrone, `smsLeft()`, délai de renvoi levé sur un échec), seul
+ * le texte change ({@see self::TEXTS_INVENTORY}). Une seconde classe aurait dû entrer, à part, dans
+ * chacune des listes fermées qui gardent celle-ci (hors préférences, synchrone, compte non joignable).
  */
 class LeaseSignatureCodeNotification extends Notification implements SupportsSms
 {
@@ -23,6 +28,12 @@ class LeaseSignatureCodeNotification extends Notification implements SupportsSms
     public const CHANNEL_SMS = 'sms';
 
     public const CHANNEL_MAIL = 'mail';
+
+    /** Le groupe de `lang/{fr,en,wo}/notifications.php` du code d'un bail (ADR-0042). */
+    public const TEXTS_LEASE = 'lease_signature_code';
+
+    /** TCK-2646 — celui d'un état des lieux signé sur place, SMS seulement (ADR-0098 §3). */
+    public const TEXTS_INVENTORY = 'inventory_signature_code';
 
     /**
      * TCK-799 (P11.05) — ce que le canal SMS a rendu, posé par {@see afterSending()}. Un objet, et
@@ -40,6 +51,8 @@ class LeaseSignatureCodeNotification extends Notification implements SupportsSms
         public readonly string $channel,
         // P72.04 (TCK-1354) — le délai de renvoi du signataire, levé par un accusé `failed`.
         public readonly ?string $resendKey = null,
+        // TCK-2646 — le texte : bail, ou état des lieux signé sur place.
+        public readonly string $texts = self::TEXTS_LEASE,
     ) {
         $this->outcome = new \ArrayObject;
     }
@@ -62,18 +75,18 @@ class LeaseSignatureCodeNotification extends Notification implements SupportsSms
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject(__('notifications.lease_signature_code.subject', ['reference' => $this->reference]))
-            ->greeting(__('notifications.lease_signature_code.greeting'))
-            ->line(__('notifications.lease_signature_code.intro', ['reference' => $this->reference]))
+            ->subject(__('notifications.'.$this->texts.'.subject', ['reference' => $this->reference]))
+            ->greeting(__('notifications.'.$this->texts.'.greeting'))
+            ->line(__('notifications.'.$this->texts.'.intro', ['reference' => $this->reference]))
             ->line('**'.$this->code.'**')
-            ->line(__('notifications.lease_signature_code.expires', ['minutes' => $this->expiresInMinutes]))
-            ->line(__('notifications.lease_signature_code.ignore'))
+            ->line(__('notifications.'.$this->texts.'.expires', ['minutes' => $this->expiresInMinutes]))
+            ->line(__('notifications.'.$this->texts.'.ignore'))
             ->salutation(__('notifications.salutation'));
     }
 
     public function toSms(object $notifiable): string
     {
-        return __('notifications.lease_signature_code.sms', [
+        return __('notifications.'.$this->texts.'.sms', [
             'code' => $this->code,
             'reference' => $this->reference,
             'minutes' => $this->expiresInMinutes,

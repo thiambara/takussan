@@ -44,7 +44,7 @@ class PropertyNeighborhoodsTest extends TestCase
             ->assertJsonPath('meta.truncated', false);
 
         $this->assertSame(
-            [['value' => 'Mermoz', 'count' => 3], ['value' => 'MÉDINA', 'count' => 2]],
+            [['value' => 'Mermoz', 'count' => 3, 'photo' => null], ['value' => 'Médina', 'count' => 2, 'photo' => null]],
             $reponse->json('data'),
         );
     }
@@ -83,7 +83,7 @@ class PropertyNeighborhoodsTest extends TestCase
         $this->bienA('Dakar', null);
 
         $this->assertSame(
-            [['value' => 'Mermoz', 'count' => 1]],
+            [['value' => 'Mermoz', 'count' => 1, 'photo' => null]],
             $this->getJson('/api/public/properties/neighborhoods?city=Dakar')->assertOk()->json('data'),
         );
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\ApprovePayoutRequest;
+use App\Http\Requests\Api\CancelPayoutRequest;
 use App\Http\Requests\Api\MarkFailedPayoutRequest;
 use App\Http\Requests\Api\MarkProcessedPayoutRequest;
 use App\Http\Requests\Api\StorePayoutRequest;
@@ -52,7 +53,7 @@ class PayoutController extends Controller
 
     public function store(StorePayoutRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         $landlord = User::findOrFail($data['landlord_id']);
         $payout = $this->payouts->create($request->user(), $landlord, $data);
@@ -107,10 +108,11 @@ class PayoutController extends Controller
         ]);
     }
 
-    public function cancel(Request $request, Payout $payout): JsonResponse
+    /** TCK-2922 — l'autorisation court dans {@see CancelPayoutRequest} ; le motif, s'il est donné, est gardé. */
+    public function cancel(CancelPayoutRequest $request, Payout $payout): JsonResponse
     {
-        $this->authorize('update', $payout);
-        $payout = $this->payouts->cancel($payout, $request->user());
+        $motif = $request->validated('reason');
+        $payout = $this->payouts->cancel($payout, $request->user(), is_string($motif) && trim($motif) !== '' ? trim($motif) : null);
 
         return $this->json([
             'data' => $this->presenter($payout, $request),

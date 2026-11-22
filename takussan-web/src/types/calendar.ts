@@ -41,8 +41,24 @@ export interface CalendarEvent {
   duration_minutes?: number | null;
   property_id?: number | null;
   property_slug?: string | null;
-  /** `lease_event` : `end` (fin de bail) ou `renewal` (renouvellement). */
-  kind?: 'end' | 'renewal' | null;
+  /** `lease_event` : `end` (fin de bail) ou `renewal` (renouvellement) ; `visit` : `window` (demandée par tranche). */
+  kind?: 'end' | 'renewal' | 'window' | null;
+  /** TCK-2585 — visite, pour le personnel de l'agence du bien seulement : le visiteur et l'adresse. */
+  visitor_name?: string | null;
+  address_line?: string | null;
+  /** TCK-2886 — séjour : aussi le quartier du bien, à tout lecteur de l'événement. */
+  neighborhood?: string | null;
+  /** TCK-2886 — séjour, pour le super-admin et le personnel de l'agence du bien seulement : le client. */
+  customer_name?: string | null;
+  /** TCK-2886 — visite : son rang parmi les visites non annulées du même client sur le bien ; nul sans client. */
+  visit_rank?: number | null;
+  /** Visite demandée par tranche (`morning`…) : journée entière, la tranche dans le titre. */
+  preferred_window?: string | null;
+  /** Tâche : ce à quoi elle est rattachée. */
+  taskable_type?: 'customer' | 'property' | null;
+  taskable_id?: number | null;
+  /** TCK-617 — tâche dont le parent (bien, client) est supprimé : gardée à l'agenda, marquée. */
+  parent_deleted?: boolean;
   /** Deeplink vers la page détail (`/app/bookings/{id}` ou `/app/visits/{id}`). */
   resource_url: string;
 }

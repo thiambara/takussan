@@ -14,7 +14,16 @@ import {
 } from '@/types/radar';
 import { ERREURS_RECLAMATION_RADAR, REFUS_DU_CODE } from '@/components/radar-claim/codes-reclamation';
 import { ERREURS_PUBLICATION_RADAR } from '../publication/codes-publication';
-import { ERREURS_ANNONCEUR_RADAR, ERREURS_COLLECTE_RADAR, ERREURS_FICHE_RADAR, ERREURS_SAISIE_RADAR, MOTIFS_ECART_RADAR } from '../codes-radar';
+import {
+  ECARTS_DEMANDE_RADAR,
+  ERREURS_ANNONCEUR_RADAR,
+  ERREURS_CIBLES_RADAR,
+  ERREURS_COLLECTE_RADAR,
+  ERREURS_FICHE_RADAR,
+  ERREURS_SAISIE_RADAR,
+  MOTIFS_ECART_RADAR,
+  REFUS_REVISION_RADAR,
+} from '../codes-radar';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', '..', '..');
 const lire = (...chemin: string[]) => readFileSync(join(RACINE, ...chemin), 'utf8');
@@ -108,8 +117,17 @@ describe('codes de la fiche du Radar', () => {
       ...Object.keys(ERREURS_PUBLICATION_RADAR),
       ...Object.keys(ERREURS_RECLAMATION_RADAR),
       ...Object.keys(ERREURS_COLLECTE_RADAR),
+      // TCK-2469 / TCK-2470 — les cibles, les opérations écartées de la demande, les refus de « défaire ».
+      ...Object.keys(ERREURS_CIBLES_RADAR),
+      ...Object.keys(ECARTS_DEMANDE_RADAR),
+      ...Object.keys(REFUS_REVISION_RADAR),
     ]);
     expect(codes.filter((code) => !connus.has(code))).toEqual([]);
+  });
+
+  it.each([['fr', fr], ['en', en], ['wo', wo]])('TCK-2470 — chaque refus de « défaire » une révision a son libellé en %s', (_langue, messages) => {
+    const erreurs = messages.superAdmin.pages.radar.targets.revisions.errors as Record<string, string>;
+    for (const cle of Object.values(REFUS_REVISION_RADAR)) expect(erreurs[cle], cle).toBeTruthy();
   });
 
   it.each([['fr', fr], ['en', en], ['wo', wo]])('TCK-2390 — chaque code de la réclamation publique a son libellé en %s', (_langue, messages) => {

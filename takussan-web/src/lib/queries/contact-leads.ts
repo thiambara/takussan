@@ -1,8 +1,15 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
+
+import { useAuth } from '@/context/AuthContext';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
+import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
+import { DELAI_DE_PREVENANCE_MINUTES, type CreneauDuServeur } from '@/lib/visites/planification';
 
 /**
  * TCK-590 — la boîte « Demandes » : `/api/contact-leads`.
@@ -13,6 +20,14 @@ import { cheminApi } from '@/lib/chemin-api';
  * module ne filtre rien lui-même. Les clics WhatsApp / Appeler n'y sont pas : `filter[channel]`
  * vaut `form` par défaut côté serveur.
  */
+
+/** TCK-2582 — la fiche de l'agence au même téléphone ou au même e-mail que la demande. */
+export interface DemandeDejaCliente {
+  /** `null` : une fiche que le lecteur ne voit pas — elle se signale sans nom ni lien. */
+  readonly id: number | null;
+  readonly name: string | null;
+  readonly visits_count: number | null;
+}
 
 export interface ContactLead {
   readonly id: number;
@@ -29,8 +44,19 @@ export interface ContactLead {
   readonly handled_at: string | null;
   readonly handled_by_id: number | null;
   readonly customer_id: number | null;
+  /** TCK-2583 — le premier geste de contact : répondre ne vaut pas traiter (`handled_at`). */
+  readonly first_responded_at?: string | null;
+  /**
+   * TCK-2582 — « déjà client » : clé ABSENTE pour qui n'est pas du personnel de l'agence de la
+   * demande (le bailleur destinataire), `null` sans fiche.
+   */
+  readonly known_customer?: DemandeDejaCliente | null;
   readonly created_at: string;
-  readonly property?: { id: number; title: string; slug: string } | null;
+  /**
+   * TCK-2885 (TCK-2884) — `address` : le seul quartier du bien (`include=property.address`), jamais la
+   * rue ; clé absente sous `include=property` seul.
+   */
+  readonly property?: { id: number; title: string; slug: string; address?: { neighborhood: string | null } | null } | null;
   readonly recipient?: { id: number; first_name: string | null; last_name: string | null } | null;
 }
 
@@ -49,36 +75,101 @@ export const CONTACT_LEAD_FIELDS: string[] = [
   'handled_at',
   'handled_by_id',
   'customer_id',
+  'first_responded_at',
   'created_at',
 ];
 
-export type FiltreDesDemandes = 'todo' | 'handled' | 'all';
+/**
+ * Les vues de la boîte. TCK-2584 — « Non attribuées » et « À moi » sont des vues À TRAITER : une
+ * demande traitée n'attend plus personne ; « Traitées » et « Toutes » montrent l'historique.
+ */
+export type FiltreDesDemandes = 'todo' | 'unassigned' | 'mine' | 'handled' | 'all';
+
+export type CanalDeDemande = ContactLead['channel'];
+
+/** TCK-2584 — ce qui affine la vue : la recherche, et les filtres du bureau (Bien, Agent, Canal). */
+export interface AffinageDesDemandes {
+  readonly recherche?: string | null;
+  readonly bien?: number | null;
+  readonly agent?: number | null;
+  readonly canal?: CanalDeDemande | null;
+}
 
 export const contactLeadsQueryKeys = {
-  list: (filtre: FiltreDesDemandes, page: number) => ['contact-leads', 'list', filtre, page] as const,
+  list: (filtre: FiltreDesDemandes, page: number, affinage: AffinageDesDemandes = {}) =>
+    ['contact-leads', 'list', filtre, page, affinage] as const,
   detail: (id: number) => ['contact-leads', 'detail', id] as const,
   /** Le compteur du menu : une clé à part, ce n'est pas une page de liste. */
   unhandledCount: () => ['contact-leads', 'unhandled-count'] as const,
+  /** TCK-2584 — le compte d'une vue, pour sa puce (« Non attribuées 1 »). */
+  compteDeLaVue: (filtre: FiltreDesDemandes) => ['contact-leads', 'compte', filtre] as const,
+  /** TCK-2584 — les demandes à traiter reçues avant `avant` (« 1 depuis plus de 24 h »). */
+  enRetard: (avant: string) => ['contact-leads', 'en-retard', avant] as const,
+  responseStats: () => ['contact-leads', 'response-stats'] as const,
 };
 
-export function useContactLeads(filtre: FiltreDesDemandes, page = 1) {
-  const params: SpatieQueryParams = {
+/**
+ * Le `filter[...]` de chaque vue de la boîte. TCK-2479 (revue) — partagé par la liste et par le
+ * compteur du menu : la garde `a-traiter-lu-par-sa-page.test.ts` exige que la pastille compte
+ * EXACTEMENT ce que la vue où elle mène montre.
+ */
+export function filtreSpatieDesDemandes(filtre: FiltreDesDemandes): Record<string, string> {
+  switch (filtre) {
+    case 'all':
+      return {};
+    case 'handled':
+      return { handled: '1' };
+    case 'unassigned':
+      return { handled: '0', unassigned: '1' };
+    case 'mine':
+      return { handled: '0', mine: '1' };
+    default:
+      return { handled: '0' };
+  }
+}
+
+/**
+ * TCK-2584 — l'ordre d'une vue : ce qui attend se lit des plus anciennes aux plus récentes (la
+ * demande oubliée d'abord, « Les plus anciennes d'abord ») ; l'historique (Traitées, Toutes), des
+ * plus récentes aux plus anciennes, comme avant.
+ */
+export function triDesDemandes(filtre: FiltreDesDemandes): string {
+  return filtre === 'handled' || filtre === 'all' ? '-created_at' : 'created_at';
+}
+
+/** Les paramètres de la liste : la vue, puis la recherche et les filtres du bureau. */
+export function parametresDesDemandes(
+  filtre: FiltreDesDemandes,
+  page: number,
+  affinage: AffinageDesDemandes = {},
+): SpatieQueryParams {
+  const filtres: Record<string, string> = { ...filtreSpatieDesDemandes(filtre) };
+  const recherche = affinage.recherche?.trim();
+  if (recherche) filtres.search = recherche;
+  if (affinage.bien) filtres.property_id = String(affinage.bien);
+  if (affinage.agent) filtres.recipient_user_id = String(affinage.agent);
+  if (affinage.canal) filtres.channel = affinage.canal;
+  return {
     fields: {
       property_contact_leads: CONTACT_LEAD_FIELDS,
       properties: ['id', 'title', 'slug'],
       users: ['id', 'first_name', 'last_name'],
     },
-    filter: filtre === 'all' ? {} : { handled: filtre === 'handled' ? '1' : '0' },
-    include: ['property', 'recipient'],
-    sort: ['-created_at'],
+    filter: filtres,
+    // TCK-2885 — `property.address` : le quartier sur la ligne (« Chambre meublée · Ouakam »). Sans
+    // `fields[…]` pour l'adresse : l'API le refuse (400), elle n'en émet que `neighborhood` (TCK-2884).
+    include: ['property.address', 'recipient'],
+    sort: [triDesDemandes(filtre)],
     page,
     per_page: 20,
   };
+}
 
+export function useContactLeads(filtre: FiltreDesDemandes, page = 1, affinage: AffinageDesDemandes = {}) {
   return useApiQuery<PaginatedResponse<ContactLead>>(
-    contactLeadsQueryKeys.list(filtre, page),
+    contactLeadsQueryKeys.list(filtre, page, affinage),
     '/api/contact-leads',
-    { params },
+    { params: parametresDesDemandes(filtre, page, affinage) },
   );
 }
 
@@ -100,24 +191,108 @@ export function useContactLead(id: number | null) {
  * Le nombre de demandes NON TRAITÉES, pour la pastille du menu — lu dans `meta.total`, comme le
  * compteur des visites (TCK-377) : `per_page: 1` et le seul `id`.
  */
-export function useUnhandledLeadsCount(options: { enabled?: boolean } = {}) {
-  const params: SpatieQueryParams = {
-    fields: { property_contact_leads: ['id'] },
-    filter: { handled: '0' },
-    page: 1,
-    per_page: 1,
-  };
+export const PARAMETRES_DU_COMPTE_DES_DEMANDES: SpatieQueryParams = {
+  fields: { property_contact_leads: ['id'] },
+  filter: filtreSpatieDesDemandes('todo'),
+  page: 1,
+  per_page: 1,
+};
 
+export function useUnhandledLeadsCount(options: { enabled?: boolean } = {}) {
   return useApiQuery<PaginatedResponse<ContactLead>>(
     contactLeadsQueryKeys.unhandledCount(),
     '/api/contact-leads',
     {
-      params,
+      params: PARAMETRES_DU_COMPTE_DES_DEMANDES,
       enabled: options.enabled ?? true,
       refetchInterval: 60_000,
       staleTime: 30_000,
     },
   );
+}
+
+/**
+ * TCK-2584 — le nombre de demandes d'une vue (la puce « Non attribuées 1 »), lu dans `meta.total` :
+ * `per_page: 1` et le seul `id`, comme le compteur du menu.
+ */
+export function useCompteDeLaVue(filtre: FiltreDesDemandes, options: { enabled?: boolean } = {}) {
+  return useApiQuery<PaginatedResponse<ContactLead>>(contactLeadsQueryKeys.compteDeLaVue(filtre), '/api/contact-leads', {
+    params: { fields: { property_contact_leads: ['id'] }, filter: filtreSpatieDesDemandes(filtre), page: 1, per_page: 1 },
+    enabled: options.enabled ?? true,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * TCK-2584 — « 1 depuis plus de 24 h » : les demandes à traiter reçues avant `avant` (ISO : l'instant
+ * moins 24 h, arrondi à la minute par l'appelant, pour que la clé ne change pas à chaque rendu). Une
+ * page n'en porte que 20 : le compte se demande à l'API.
+ */
+export function useDemandesEnRetard(avant: string, options: { enabled?: boolean } = {}) {
+  return useApiQuery<PaginatedResponse<ContactLead>>(contactLeadsQueryKeys.enRetard(avant), '/api/contact-leads', {
+    params: {
+      fields: { property_contact_leads: ['id'] },
+      filter: { ...filtreSpatieDesDemandes('todo'), created_at_max: avant },
+      page: 1,
+      per_page: 1,
+    },
+    enabled: options.enabled ?? true,
+    staleTime: 30_000,
+  });
+}
+
+/** TCK-2583 — les délais de première réponse de l'agence et de chaque agent. */
+export interface DelaisDeReponse {
+  readonly period_days: number;
+  readonly agency: {
+    readonly median_first_response_seconds: number | null;
+    readonly responded_count: number;
+    readonly open_over_24h_count: number;
+  };
+  readonly agents: readonly {
+    readonly user: { readonly id: number; readonly first_name: string | null; readonly last_name: string | null };
+    readonly median_first_response_seconds: number | null;
+    readonly responded_count: number;
+    readonly open_over_24h_count: number;
+  }[];
+}
+
+/**
+ * Le bandeau de l'administrateur. L'API le réserve à `crm.view_all`, que l'agent porte aussi : la
+ * décision de le montrer (le rôle) est celle de l'appelant, par `enabled`.
+ */
+export function useDelaisDeReponse(options: { enabled?: boolean } = {}) {
+  return useApiQuery<ApiResponse<DelaisDeReponse>>(contactLeadsQueryKeys.responseStats(), '/api/contact-leads/response-stats', {
+    enabled: options.enabled ?? true,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * TCK-2584 — le bien de la demande ouverte : sa carte (vignette, prix) et la visite préremplie. La
+ * ressource de la demande n'en porte que `{id, title, slug}`. `GET /api/properties/{id}` est un
+ * `show` : il rend le bien entier et ignore `fields` (P60.03) — d'où aucun paramètre.
+ */
+export interface BienDeLaDemande {
+  readonly id: number;
+  readonly title: string;
+  readonly slug?: string | null;
+  readonly reference_number?: string | null;
+  readonly price?: number | string | null;
+  readonly currency?: string | null;
+  readonly contract_type?: string | null;
+  readonly main_photo_url?: string | null;
+  /** TCK-2881 — de quoi dire les critères que la fiche née de la demande reprendra (`criteresDuBien`). */
+  readonly type?: string | null;
+  readonly rent_period?: string | null;
+  readonly location?: { readonly quarter?: string | null } | null;
+}
+
+export function useBienDeLaDemande(id: number | null) {
+  return useApiQuery<ApiResponse<BienDeLaDemande>>(['properties', 'demande', id ?? 0], cheminApi`/api/properties/${id ?? 0}`, {
+    enabled: id !== null,
+    staleTime: 5 * 60_000,
+  });
 }
 
 const INVALIDER = { invalidate: [['contact-leads']] };
@@ -127,6 +302,83 @@ export function useHandleLead() {
     { path: ({ id }) => cheminApi`/api/contact-leads/${id}/handle`, method: 'POST', body: () => ({}) },
     INVALIDER,
   );
+}
+
+/** TCK-2885 (TCK-2884) — « Annuler » un traitement : la demande revient à traiter. */
+export function useUnhandleLead() {
+  return useApiMutation<ApiResponse<ContactLead>, { id: number }>(
+    { path: ({ id }) => cheminApi`/api/contact-leads/${id}/unhandle`, method: 'POST', body: () => ({}) },
+    INVALIDER,
+  );
+}
+
+/* ───────────────────────── TCK-2885 — deux créneaux libres pour le message prérempli ───────────────────────── */
+
+/** Un créneau libre proposé dans le message : son jour (`AAAA-MM-JJ`, Dakar) et son heure murale. */
+export interface CreneauLibre {
+  readonly jour: string;
+  readonly heure: string;
+}
+
+/** La fenêtre de recherche : aujourd'hui et les six jours suivants. */
+export const JOURS_DE_RECHERCHE_DES_CRENEAUX = 7;
+
+/**
+ * Les `n` premiers créneaux LIBRES des sept jours qui viennent, jour après jour : un jour n'est lu
+ * que tant qu'il en manque (aujourd'hui suffit le plus souvent : une requête). Un créneau pris, ou
+ * à moins de 30 min (le délai de prévenance du serveur, comme `creneauxProposes`), n'est jamais
+ * proposé. Un jour illisible (403, réseau) arrête la recherche : on propose ce qu'on a.
+ */
+export async function chercherCreneauxLibres(
+  lireLeJour: (jour: string) => Promise<readonly CreneauDuServeur[]>,
+  maintenant: Date,
+  n = 2,
+): Promise<readonly CreneauLibre[]> {
+  const auPlusTot = maintenant.getTime() + DELAI_DE_PREVENANCE_MINUTES * 60_000;
+  const trouves: CreneauLibre[] = [];
+  const aujourdhui = jourDeLApi(maintenant);
+  for (let i = 0; i < JOURS_DE_RECHERCHE_DES_CRENEAUX && trouves.length < n; i++) {
+    const jour = decalerJour(aujourdhui, i);
+    let creneaux: readonly CreneauDuServeur[];
+    try {
+      creneaux = await lireLeJour(jour);
+    } catch {
+      break;
+    }
+    for (const c of creneaux) {
+      if (trouves.length >= n) break;
+      if (c.available && Date.parse(c.start) >= auPlusTot) trouves.push({ jour, heure: c.label });
+    }
+  }
+  return trouves;
+}
+
+/**
+ * Les deux premiers créneaux libres de l'utilisateur pour ce bien (`GET /api/property-visits/slots`,
+ * l'occupation de l'appelant). Lu pour la SEULE demande ouverte : une ligne de la liste n'en coûte
+ * aucun.
+ */
+export function useCreneauxLibresDuBien(propertyId: number | null, options: { enabled?: boolean } = {}) {
+  const { token } = useAuth();
+  const locale = useLocale();
+  const actif = (options.enabled ?? true) && propertyId !== null;
+  return useQuery({
+    queryKey: ['visits', 'creneaux-libres', propertyId, jourDeLApi()],
+    queryFn: ({ signal }) =>
+      chercherCreneauxLibres(
+        async (jour) =>
+          (
+            await apiRequest<{ data: { slots: readonly CreneauDuServeur[] } }>(
+              cheminApi`/api/property-visits/slots${requete(buildQueryString({ extra: { property_id: propertyId, date: jour } }))}`,
+              { token: token ?? undefined, locale, signal },
+            )
+          ).data.slots,
+        new Date(),
+      ),
+    enabled: actif,
+    staleTime: 60_000,
+    retry: false,
+  });
 }
 
 /**
@@ -153,6 +405,24 @@ export function useAssignLead() {
       path: ({ id }) => cheminApi`/api/contact-leads/${id}/assign`,
       method: 'POST',
       body: ({ user_id }) => ({ user_id }),
+    },
+    INVALIDER,
+  );
+}
+
+/**
+ * TCK-2583 — un geste de contact ENREGISTRÉ au toucher : `POST /api/contact-leads/{id}/contacts
+ * {channel}` pose la première réponse de la demande (204). Le lien s'ouvre de lui-même ; l'envoi
+ * part à côté, sans le retenir.
+ */
+export type CanalDeContact = 'whatsapp' | 'call' | 'email';
+
+export function useEnregistrerContact() {
+  return useApiMutation<void, { id: number; channel: CanalDeContact }>(
+    {
+      path: ({ id }) => cheminApi`/api/contact-leads/${id}/contacts`,
+      method: 'POST',
+      body: ({ channel }) => ({ channel }),
     },
     INVALIDER,
   );

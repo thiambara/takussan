@@ -1,0 +1,61 @@
+{
+ "page": "app-documents",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Locataire — le coffre",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Locataire — ajouter (photo ou fichier)",
+   "sansBureau": null
+  },
+  {
+   "e": 2,
+   "nom": "Locataire — nommer et ranger",
+   "sansBureau": null
+  },
+  {
+   "e": 3,
+   "nom": "Locataire — coffre encore vide",
+   "sansBureau": null
+  },
+  {
+   "e": 4,
+   "nom": "Agence — par bien, par bail",
+   "sansBureau": null
+  },
+  {
+   "e": 5,
+   "nom": "Fiche d’un document",
+   "sansBureau": null
+  },
+  {
+   "e": 6,
+   "nom": "Fiche — partager par lien",
+   "sansBureau": null
+  },
+  {
+   "e": 7,
+   "nom": "Fiche — lien copié",
+   "sansBureau": null
+  },
+  {
+   "e": 8,
+   "nom": "Bailleur — un dossier par bien",
+   "sansBureau": null
+  },
+  {
+   "e": 9,
+   "nom": "Prestataire — factures et pièces",
+   "sansBureau": null
+  }
+ ]
+}

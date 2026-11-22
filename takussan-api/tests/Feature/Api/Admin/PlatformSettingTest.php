@@ -59,6 +59,21 @@ class PlatformSettingTest extends TestCase
             ->assertJsonValidationErrors('currency.supported');
     }
 
+    /**
+     * Revue de TCK-2488 — l'après-validation de `currency.supported` passait chaque élément à
+     * `strtoupper` : un élément non scalaire levait une `TypeError`, et l'appel rendait 500.
+     */
+    public function test_a_non_scalar_supported_currency_is_a_422_not_a_500(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        foreach ([[['x']], ['XOF', ['x']], [['XOF']], [null]] as $devises) {
+            $this->patchJson('/api/admin/settings', ['currency.supported' => $devises])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('currency.supported');
+        }
+    }
+
     /** TCK-600 — les clés sans lecteur ont quitté le catalogue : elles ne s'éditent plus. */
     public function test_keys_without_a_reader_are_no_longer_editable(): void
     {

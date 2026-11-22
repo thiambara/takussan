@@ -78,6 +78,27 @@ class PropertyContactLeadPolicy extends BasePolicy
                     ->where(fn (Builder $a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $bailleurDe))));
     }
 
+    /**
+     * TCK-2847 — la portée de l'index des demandes, tirée de `ContactLeadController::index` pour que la
+     * ligne d'activité d'un espace (`ActiviteDesEspaces`) compte ce que la liste rendrait, sans la
+     * recopier : les demandes adressées à l'appelant, plus toute la boîte de l'agence qu'il lit en entier
+     * ({@see self::agencyScopeFor()}). Le super-admin lit tout.
+     */
+    public function scopeIndex(Builder $query, User $user): void
+    {
+        if ($user->isSuperAdmin()) {
+            return;
+        }
+
+        $agencyId = $this->agencyScopeFor($user);
+        $query->where(function (Builder $q) use ($user, $agencyId) {
+            $q->where(fn (Builder $d) => $this->scopeDestinataire($d, $user));
+            if ($agencyId !== null) {
+                $q->orWhere('agency_id', $agencyId);
+            }
+        });
+    }
+
     /** Marquer traitée, convertir : qui peut la lire peut la traiter. */
     public function handle(User $user, Model $model): bool
     {
@@ -87,6 +108,25 @@ class PropertyContactLeadPolicy extends BasePolicy
     public function convert(User $user, Model $model): bool
     {
         return $this->view($user, $model);
+    }
+
+    /**
+     * TCK-2583 — consigner un geste de contact (appel, WhatsApp, e-mail, SMS) : qui peut lire la
+     * demande peut la contacter. Une autre agence : 403.
+     */
+    public function contact(User $user, Model $model): bool
+    {
+        return $this->view($user, $model);
+    }
+
+    /**
+     * TCK-2583 (ADR-0103 § 7) — les délais de réponse par agent : le personnel qui lit toute la
+     * boîte de son agence (`crm.view_all`). Un agent sans elle ne voit jamais les délais de ses
+     * collègues. Le super-admin passe par `Gate::before` et nomme l'agence.
+     */
+    public function viewResponseStats(User $user): bool
+    {
+        return $this->agencyScopeFor($user) !== null;
     }
 
     public function assign(User $user, Model $model): bool

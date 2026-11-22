@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * TCK-594 (ADR-0039 §6) — une destination de paiement : numéro Wave / Orange Money / Free Money, ou
@@ -24,9 +26,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Le masquage passe par {@see self::mask()} et nulle part ailleurs : c'est le point où TCK-601
  * branchera son masqueur.
  */
-class PayoutMethod extends AbstractModel
+class PayoutMethod extends AbstractModel implements HasMedia
 {
-    use HasFactory, SoftDeletes;
+    // TCK-2863 — `InteractsWithMedia` : le RIB d'un compte bancaire, collection privée.
+    use HasFactory, InteractsWithMedia, SoftDeletes;
 
     protected $fillable = [
         'user_id', 'kind', 'account_identifier', 'account_holder_name', 'masked_identifier',
@@ -40,6 +43,8 @@ class PayoutMethod extends AbstractModel
         'account_identifier' => 'encrypted',
         'account_holder_name' => 'encrypted',
         'is_default' => 'boolean',
+        // TCK-2863 — l'envoi du RIB : la destination est « en revue » (informatif, ne vérifie rien).
+        'bank_statement_submitted_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['user_id', 'kind', 'is_default'];
@@ -51,7 +56,21 @@ class PayoutMethod extends AbstractModel
 
     protected static array $queryFields = [
         'id', 'user_id', 'kind', 'masked_identifier', 'is_default', 'created_at', 'updated_at',
+        // TCK-2863
+        'bank_statement_submitted_at',
     ];
+
+    /** TCK-2863 — la collection du relevé d'identité bancaire. */
+    public const BANK_STATEMENT_COLLECTION = 'bank_statement';
+
+    /**
+     * TCK-2863 — le RIB d'un compte bancaire : une pièce d'identité bancaire, PRIVÉE (ADR-0029 §3),
+     * un seul fichier (le dernier envoyé remplace le précédent).
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(self::BANK_STATEMENT_COLLECTION)->singleFile()->useDisk(config('media-library.disk_name'));
+    }
 
     /**
      * TCK-594 — la seule forme d'un identifiant que l'agence lit : les quatre derniers caractères.
@@ -65,7 +84,7 @@ class PayoutMethod extends AbstractModel
 
     /**
      * VERIF-594 M-4 — l'empreinte de CE que l'approbateur a approuvé : la nature et le numéro
-     * normalisé. HMAC sous la clé de l'application, jamais un hachage nu : un numéro de téléphone se
+     * normalisé. HMAC sous `APP_HMAC_KEY` (TCK-614, `AppKeyHmac`), jamais un hachage nu : un numéro de téléphone se
      * retrouve par force brute depuis son SHA-256, et l'empreinte vit dans `payouts.metadata`.
      */
     public function fingerprint(): string

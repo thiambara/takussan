@@ -17,7 +17,7 @@ import { useToast } from '@/components/ui/toast';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { libelleEvenementAudit } from '@/lib/audit-events';
-import { exportAuditLog, fetchAuditLog, type AuditLogExport } from '@/lib/queries/super-admin';
+import { downloadAuditLogExport, exportAuditLog, fetchAuditLog, type AuditLogExport } from '@/lib/queries/super-admin';
 import type { AuditLogEntry, AuditLogResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -60,17 +60,17 @@ export function CrossTenantAuditTable() {
 
   /**
    * TCK-601 — l'export reprend EXACTEMENT les filtres affichés (préréglage compris) : exporter
-   * autre chose que ce qu'on regarde serait une surprise. L'API rend un lien signé, ouvert ici.
+   * autre chose que ce qu'on regarde serait une surprise. TCK-613 — l'API rend un chemin signé que
+   * seul le demandeur, connecté, télécharge : par le relais de la console, plus par un lien ouvert.
    */
   const exportMutation = useMutation<AuditLogExport, ApiError>({
-    mutationFn: () => avecGardeDoubleFacteur(() => exportAuditLog(filtres), garde),
+    mutationFn: () =>
+      avecGardeDoubleFacteur(async () => {
+        const resultat = await exportAuditLog(filtres);
+        await downloadAuditLogExport(resultat.url);
+        return resultat;
+      }, garde),
     onSuccess: (resultat) => {
-      const a = document.createElement('a');
-      a.href = resultat.url;
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
       toast.add({ title: t('export.ready', { count: resultat.count }), type: 'success' });
     },
     onError: (err) => {
@@ -178,8 +178,7 @@ export function CrossTenantAuditTable() {
           busy={isFetching}
         />
         <Input
-          type="number"
-          inputMode="numeric"
+          profil="entier"
           min={1}
           value={causerId}
           onChange={(e) => {

@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Enums\Capability;
+use App\Models\PayoutMethod;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -85,12 +86,22 @@ class MediaPolicy extends BasePolicy
     }
 
     /**
-     * TCK-105 — only the owner of the underlying resource may request a
-     * signed CDN URL for private media.  Reuses the same ownership rules
-     * as delete().
+     * Qui peut recevoir l'URL d'API signée d'un média privé (`PrivateMediaAccess::signedUrl()`) :
+     * le propriétaire de la ressource, par les règles de delete(). Née pour la route de signature
+     * CDN de TCK-105, retirée par TCK-2463 ; elle garde aujourd'hui le RIB que
+     * `PayoutMethodResource` émet (`bank_statement_url`).
      */
     public function sign(User $user, Model $model): bool
     {
+        // TCK-2863 — le RIB d'une destination de paiement se lit aussi par qui la vérifie (le
+        // personnel d'une agence qui paie le titulaire, `PayoutMethodPolicy::verify`) : c'est la
+        // pièce qu'il revoit. Il ne la supprime pas pour autant (`delete` reste au titulaire).
+        if ($model instanceof Media && $model->model instanceof PayoutMethod
+            && $model->collection_name === PayoutMethod::BANK_STATEMENT_COLLECTION
+            && $user->can('verify', $model->model)) {
+            return true;
+        }
+
         return $this->delete($user, $model);
     }
 

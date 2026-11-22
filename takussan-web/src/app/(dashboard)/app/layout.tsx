@@ -1,14 +1,21 @@
 import { getMeAction } from '@/app/actions/auth';
 import { AppShell } from '@/components/layout/AppShell';
-import { getToken } from '@/lib/session';
+import { estEnImpersonation, getActiveProfileId, getModeIconesDuMenu, getToken } from '@/lib/session';
+import { profilLieDeLaCoque, typeDuProfilActif } from '@/lib/navigation/personas';
+import { espacesAChoisir } from '@/lib/espaces-serveur';
+import { ChoixDEspace } from '@/components/profile/ChoixDEspace';
+import { modulesMasquesDe, type CodeDeModule } from '@/lib/navigation/modules';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
-import { isAgent } from '@/lib/roles';
+import { isAgent, isOwner } from '@/lib/roles';
 import { accesAdmin, capacitesAmorcees } from '@/lib/access/pages-admin-server';
 import { AmorceCapacites } from '@/components/providers/AmorceCapacites';
 import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
+import { espaceDesRecents } from '@/lib/navigation/pages-recentes';
+import { accesALaConsole } from '@/lib/navigation/acces-console';
+import { TempsReelProvider } from '@/lib/temps-reel/TempsReelProvider';
 
 
 /**
@@ -29,11 +36,26 @@ import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getMeAction();
 
+  // TCK-2621 — un compte de plusieurs agences que l'API n'a lié à aucun profil choisit son espace AVANT
+  // la coque : l'écran la remplace (pas de modale d'accueil dessous, pas de menu d'un persona deviné).
+  const espaces = await espacesAChoisir(user);
+  if (espaces) {
+    return (
+      <IntlProvider messages={await messagesPour('(dashboard)/app')}>
+        <ChoixDEspace espaces={espaces} prenom={user.first_name ?? ''} userId={user.id} />
+      </IntlProvider>
+    );
+  }
+
   let agencyIsStandard: boolean | undefined;
   let hasPendingUpgrade: boolean | undefined;
   let agencySuspended = false;
   // TCK-1766 (P136.03) — le marqueur d'accueil de l'agence, pris sur la lecture déjà faite.
   let agencyStandardWelcome: { agencyId: number; unlockedAt: string | null } | undefined;
+  // TCK-2483 (ADR-0089, amendement « modules par agence ») — les modules que l'agence du profil actif
+  // retire du menu de son personnel, lus sur l'agence que ce layout lit déjà : aucune requête de plus.
+  // `composerMenu` décide à quel persona ils s'appliquent ; `[]` quand l'agence n'est pas lue.
+  let modulesMasques: CodeDeModule[] = [];
 
   if (user.roles.includes('agency_admin') && typeof user.agency_id === 'number') {
     const token = await getToken();
@@ -57,6 +79,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       hasPendingUpgrade =
         listing?.data.some((request) => request.status === 'pending') ?? false;
       agencySuspended = agency?.status === 'suspended';
+      modulesMasques = modulesMasquesDe(agency?.settings);
       agencyStandardWelcome = agency
         ? {
             agencyId: user.agency_id,
@@ -65,14 +88,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           }
         : undefined;
     }
-  } else if (isAgent(user.roles) && typeof user.agency_id === 'number') {
+  } else if ((isAgent(user.roles) || isOwner(user.roles)) && typeof user.agency_id === 'number') {
     // TCK-600 (ADR-0048) — l'agent d'une agence suspendue voit le même bandeau que son admin.
     // `resolveAgencyOrNull` est mis en cache pour le rendu : la page qui relit l'agence ne paie
     // pas un second appel.
+    //
+    // Revue de TCK-2478 (I3) — le BAILLEUR aussi : `EnsureAgencyWritable` refuse toute écriture
+    // (423 `agency.suspended`) sous un profil actif d'une agence suspendue, quel que soit son type.
+    // Sans cette lecture, sa barre gardait « Proposer un bien » et l'envoi échouait. `agency_id`
+    // est l'agence du profil ACTIF (`User::getAgencyIdAttribute`) : un compte sans agence ne paie
+    // aucune requête.
     const token = await getToken();
     if (token) {
       const agency = await resolveAgencyOrNull(token, user.agency_id, 'app/layout (suspension)');
       agencySuspended = agency?.status === 'suspended';
+      modulesMasques = modulesMasquesDe(agency?.settings);
     }
   }
 
@@ -80,23 +110,50 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // (TCK-649), le menu utilisateur, les raccourcis et les états vides. L'agence est relue par la promesse mise
   // en cache ci-dessus ; les capacités coûtent une requête, pour tout compte rattaché à une agence
   // depuis TCK-1412 (une délégation ou un rôle personnalisé ouvre des pages sans rôle d'admin).
-  const acces = await accesAdmin(user);
   // TCK-1278 (P136.02) — la même lecture des capacités (promesse `cache()`ée), passée au navigateur.
-  const capacites = await capacitesAmorcees(user);
+  // TCK-610 (AC6) — l'entrée de la console sur le geste `platform.console.access` (opérateurs `viewer`
+  // et `support` compris) : une requête de plus pour tout compte qui n'a pas le rôle `super_admin`,
+  // menée en même temps que les deux lectures d'accès (promesses `cache()`ées, sans ordre entre elles).
+  // Sous impersonation, aucune lecture : l'API refuse `/api/admin/*` à ce jeton (`impersonation.read_only`).
+  // TCK-2954 — lu une fois : la console (ci-dessous) et le temps réel, coupé sous impersonation (ADR-0129 § 4).
+  const enImpersonation = await estEnImpersonation();
+  const [acces, capacites, accesConsole] = await Promise.all([
+    accesAdmin(user),
+    capacitesAmorcees(user),
+    getToken().then((token) => accesALaConsole(user, enImpersonation ? undefined : token)),
+  ]);
+  // TCK-2477 (ADR-0089 §2) — le persona du menu se juge sur le profil ACTIF : le cookie, sinon (TCK-2621)
+  // le profil que l'API a lié à la requête — dernier espace retenu, auto-bascule, ou celui de la cible
+  // pendant une impersonation (`getActiveProfileId` n'y rend rien, TCK-600).
+  // TCK-2846 — l'identifiant lié lui-même range les récents par espace ; un compte sans profil (client,
+  // locataire) en a un seul, le sien (`espaceDesRecents`).
+  const espaceActif = profilLieDeLaCoque(await getActiveProfileId(), user);
+  const typeProfilActif = typeDuProfilActif(espaceActif);
+  // TCK-2480 (AC5) — la barre réduite aux icônes, réglage de l'appareil : lue ici pour que la largeur
+  // soit dans le HTML serveur.
+  const modeIcones = await getModeIconesDuMenu();
 
   return (
     <IntlProvider messages={await messagesPour('(dashboard)/app')}>
       <AccesAdminProvider acces={acces}>
         <AmorceCapacites lecture={capacites}>
-          <AppShell
-            user={user}
-            agencyIsStandard={agencyIsStandard}
-            hasPendingUpgrade={hasPendingUpgrade}
-            agencySuspended={agencySuspended}
-            agencyStandardWelcome={agencyStandardWelcome}
-          >
-            {children}
-          </AppShell>
+          {/* TCK-2954 (ADR-0129 § 4) — la seule connexion temps réel de l'onglet : la coque de `/app`. */}
+          <TempsReelProvider impersonation={enImpersonation}>
+            <AppShell
+              user={user}
+              agencyIsStandard={agencyIsStandard}
+              hasPendingUpgrade={hasPendingUpgrade}
+              agencySuspended={agencySuspended}
+              agencyStandardWelcome={agencyStandardWelcome}
+              typeProfilActif={typeProfilActif}
+              modeIcones={modeIcones}
+              modulesMasques={modulesMasques}
+              espaceActif={espaceDesRecents(espaceActif)}
+              accesConsole={accesConsole}
+            >
+              {children}
+            </AppShell>
+          </TempsReelProvider>
         </AmorceCapacites>
       </AccesAdminProvider>
     </IntlProvider>

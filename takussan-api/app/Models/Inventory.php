@@ -8,6 +8,7 @@ use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Enums\InventoryType;
 use App\Services\Media\PdfImageEmbedder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -28,7 +29,32 @@ class Inventory extends AbstractModel implements HasMedia
         'signed_at', 'metadata',
         // TCK-596 — qui a signé pour le bailleur, pour le compte de qui, et l'empreinte figée.
         'owner_signed_by_user_id', 'owner_signed_on_behalf_of_user_id', 'traceability_hash',
+        // TCK-2646 (ADR-0098 §5) — la trace de la signature du locataire, et l'entrée reprise par une sortie.
+        'tenant_signature_method', 'tenant_signed_via_user_id', 'tenant_otp_channel', 'tenant_otp_destination',
+        'tenant_signed_ip', 'entry_inventory_id',
+        // TCK-2913 (ADR-0098, amendement) — la trace de la signature du bailleur, et l'envoi du PDF.
+        'owner_signature_method', 'owner_signed_via_user_id', 'owner_otp_channel', 'owner_otp_destination',
+        'owner_signed_ip', 'pdf_sent_at', 'pdf_sent_to',
     ];
+
+    /** TCK-2646 — la signature recueillie depuis le compte du locataire, et celle recueillie sur place. */
+    public const TENANT_METHOD_DRAWN = 'drawn';
+
+    public const TENANT_METHOD_ONSITE_OTP = 'onsite_otp';
+
+    /** TCK-2913 — les mêmes voies pour la signature du bailleur (`owner_signature_method`). */
+    public const OWNER_METHOD_DRAWN = 'drawn';
+
+    public const OWNER_METHOD_ONSITE_OTP = 'onsite_otp';
+
+    /**
+     * TCK-2982 (ADR-0132 § 5, ADR-0098 § 5) — la signature dessinée par la partie ELLE-MÊME, depuis un lien
+     * d'action, sans session, et prouvée par un code à 6 chiffres envoyé par SMS au numéro du lien : canal et
+     * numéro masqué dans `*_otp_*`, comme la voie sur place ; jamais le code.
+     */
+    public const TENANT_METHOD_LINK_OTP = 'link_otp';
+
+    public const OWNER_METHOD_LINK_OTP = 'link_otp';
 
     /**
      * Raw signature payloads stay on the model for template rendering but are
@@ -39,6 +65,10 @@ class Inventory extends AbstractModel implements HasMedia
     protected $hidden = [
         'tenant_signature_data',
         'owner_signature_data',
+        // TCK-2646 (ADR-0042 §3, ADR-0098 §5) — l'IP de la signature sur place ne sort jamais de l'API.
+        'tenant_signed_ip',
+        // TCK-2913 — de même pour celle du bailleur.
+        'owner_signed_ip',
     ];
 
     protected $casts = [
@@ -51,6 +81,9 @@ class Inventory extends AbstractModel implements HasMedia
         'owner_signed' => 'boolean',
         'owner_signed_at' => 'datetime',
         'signed_at' => 'datetime',
+        // TCK-2913
+        'pdf_sent_at' => 'datetime',
+        'pdf_sent_to' => 'array',
         'rooms' => 'array',
         'metadata' => 'array',
     ];
@@ -70,6 +103,12 @@ class Inventory extends AbstractModel implements HasMedia
         'tenant_signed', 'tenant_signed_at', 'tenant_signature_hash',
         'owner_signed', 'owner_signed_at', 'owner_signature_hash',
         'owner_signed_by_user_id', 'owner_signed_on_behalf_of_user_id', 'traceability_hash',
+        // TCK-2646 — jamais `tenant_signed_ip`.
+        'tenant_signature_method', 'tenant_signed_via_user_id', 'tenant_otp_channel', 'tenant_otp_destination',
+        'entry_inventory_id',
+        // TCK-2913 — jamais `owner_signed_ip`.
+        'owner_signature_method', 'owner_signed_via_user_id', 'owner_otp_channel', 'owner_otp_destination',
+        'pdf_sent_at',
         'signed_at', 'created_at', 'updated_at',
     ];
 
@@ -101,6 +140,40 @@ class Inventory extends AbstractModel implements HasMedia
         return $this->belongsTo(Lease::class);
     }
 
+    /**
+     * TCK-2655 — le PDF d'un état des lieux existe une fois signé : `signed_at` posé, ou les deux
+     * signatures recueillies. La condition de `InventoryController::downloadPdf`, et celle du coffre.
+     */
+    public function pdfAvailable(): bool
+    {
+        return $this->signed_at !== null || ($this->tenant_signed && $this->owner_signed);
+    }
+
+    /**
+     * TCK-2764 4a (décision du porteur du 2026-11-13) — un état des lieux ENGAGÉ : sorti du brouillon
+     * (envoyé en signature, signé, contesté), ou portant une signature, quelle qu'elle soit. Un état des
+     * lieux engagé refuse l'abandon de son brouillon de bail (`lease.abandon_has_inventory`) ; un brouillon
+     * jamais signé part avec lui (`LeaseService::abandonDraft()`). Le seul lecteur de la règle : la fiche
+     * du bail (`has_inventory`) et l'abandon l'appellent tous deux.
+     */
+    public function engage(): bool
+    {
+        return $this->status !== InventoryStatus::Draft
+            || $this->tenant_signed
+            || $this->owner_signed
+            || $this->tenant_signed_at !== null
+            || $this->owner_signed_at !== null
+            || $this->signed_at !== null;
+    }
+
+    /** TCK-2655 — {@see self::pdfAvailable()} en requête. */
+    public function scopePdfAvailable(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereNotNull($q->qualifyColumn('signed_at'))
+            ->orWhere(fn (Builder $both) => $both->where($q->qualifyColumn('tenant_signed'), true)->where($q->qualifyColumn('owner_signed'), true)));
+    }
+
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
@@ -114,5 +187,35 @@ class Inventory extends AbstractModel implements HasMedia
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'tenant_id');
+    }
+
+    /** TCK-2648 — le membre du personnel sur l'appareil duquel le locataire a signé (`onsite_otp`). */
+    public function tenantSignedVia(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'tenant_signed_via_user_id');
+    }
+
+    /** TCK-2648 — qui a signé pour le bailleur (lui-même, ou le personnel pour son compte). */
+    public function ownerSignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_signed_by_user_id');
+    }
+
+    /** TCK-2913 — le membre du personnel qui a recueilli sur son appareil la signature du bailleur. */
+    public function ownerSignedVia(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_signed_via_user_id');
+    }
+
+    /** TCK-2648 — le bailleur pour le compte de qui le personnel a signé (nul : il a signé lui-même). */
+    public function ownerSignedOnBehalfOf(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_signed_on_behalf_of_user_id');
+    }
+
+    /** TCK-2646 — pour une sortie : l'entrée signée dont elle reprend les pièces et les états d'entrée. */
+    public function entryInventory(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'entry_inventory_id');
     }
 }

@@ -49,6 +49,12 @@ vi.mock('@/components/property-form/PropertyForm', () => ({ PropertyForm: () => 
 vi.mock('@/components/property-dashboard/PropertyMediaPanel', () => ({ PropertyMediaPanel: () => null }));
 vi.mock('@/components/property-dashboard/PropertyOverviewPanel', () => ({ PropertyOverviewPanel: () => null }));
 vi.mock('@/components/property-dashboard/PropertyCollaboratorsPanel', () => ({ PropertyCollaboratorsPanel: () => null }));
+// TCK-2639 — l'onglet Location, la barre du téléphone et les compteurs lisent l'API (React Query) :
+// hors du sujet ici, qui ne regarde que la présence de l'onglet Calendrier.
+vi.mock('@/components/property-dashboard/fiche/OngletLocation', () => ({ OngletLocation: () => null }));
+vi.mock('@/components/property-dashboard/fiche/BarreDuBien', () => ({ BarreDuBien: () => null }));
+vi.mock('@/components/property-dashboard/fiche/OngletDocuments', () => ({ OngletDocuments: () => null, useDocumentsDuBien: () => ({ total: null }) }));
+vi.mock('@/lib/queries/maintenance', () => ({ useMaintenanceHistoryForProperty: () => ({ data: undefined }) }));
 
 const MANUEL = {
   id: 11, property_id: 7, starts_on: '2026-12-01', ends_on: '2026-12-04', reason: 'Travaux',

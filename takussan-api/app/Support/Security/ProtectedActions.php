@@ -2,6 +2,7 @@
 
 namespace App\Support\Security;
 
+use App\Http\Controllers\Api\Admin\AdminAgencySpotlightController;
 use App\Http\Controllers\Api\Admin\AdminBoostController;
 use App\Http\Controllers\Api\Admin\AdminBoostProductController;
 use App\Http\Controllers\Api\Admin\AdminCreditWalletController;
@@ -33,14 +34,20 @@ use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\Auth\TwoFactorController;
+use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\BookingPaymentController;
 use App\Http\Controllers\Api\CommissionEntryController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\GuarantorController;
 use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
+use App\Http\Controllers\Api\LeaseController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
+use App\Http\Controllers\Api\LeasePaymentDuplicateRefundController;
+use App\Http\Controllers\Api\LeaseRentController;
+use App\Http\Controllers\Api\LeaseSignatureController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
+use App\Http\Controllers\Api\OwnerDepartureController;
 use App\Http\Controllers\Api\OwnerProfileController;
 use App\Http\Controllers\Api\PayoutController;
 use App\Http\Controllers\Api\PayoutMethodController;
@@ -51,6 +58,8 @@ use App\Http\Controllers\Api\ServiceProviderBillController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Http\Controllers\Public\InvitationAcceptController;
+use App\Http\Controllers\Public\InvitationCodeController;
+use App\Http\Controllers\Public\InvitationRenewalRequestController;
 use App\Http\Middleware\RequireRecentTwoFactor;
 use App\Http\Middleware\RequireTwoFactor;
 
@@ -116,10 +125,18 @@ final class ProtectedActions
         // Décision du porteur : de l'argent qui SORT (remboursement, restitution de caution).
         BookingPaymentController::class,
         LeaseDepositRefundController::class,
+        // TCK-608 — « Doublon remboursé » : l'agence constate avoir rendu un encaissement en double.
+        LeasePaymentDuplicateRefundController::class,
         // TCK-591 — gestes d'équipe, rattachés par contrôleur aussi : leurs routes ont
         // chacune leur fichier, et un déplacement ne doit pas les faire sortir de la famille.
         AgentHandoverController::class,
         AgentAbsenceController::class,
+        // TCK-2753 (ADR-0108 § 7) — le départ d'un bailleur : `owners.php` n'est pas une famille.
+        OwnerDepartureController::class,
+        // TCK-609 (ADR-0033 §8, amendement du 2026-11-16) — les gestes du bail qui engagent un loyer
+        // ou une indemnité : résilier, forcer un loyer (`AGENCY_TWO_FACTOR_WHEN`).
+        LeaseController::class,
+        LeaseRentController::class,
     ];
 
     /**
@@ -140,6 +157,8 @@ final class ProtectedActions
         // TCK-595 (ADR-0049 §3) — les deux gestes du grand livre, par qui détient `payouts.approve`.
         CommissionEntryController::class.'@markPaid',
         CommissionEntryController::class.'@cancel',
+        // TCK-2661 — le solde groupé des lignes d'un agent, même geste que `markPaid`.
+        CommissionEntryController::class.'@settle',
 
         IntegrationController::class.'@store',
         IntegrationController::class.'@update',
@@ -166,6 +185,8 @@ final class ProtectedActions
         AgencyController::class.'@removeAgent',
         TeamMemberSuspensionController::class.'@suspend',
         TeamMemberSuspensionController::class.'@reactivate',
+        // TCK-2753 (ADR-0108 § 7) — le départ d'un bailleur, geste de l'administrateur seul.
+        OwnerDepartureController::class.'@destroy',
         AgentProfileController::class.'@suspend',
         AgentProfileController::class.'@destroy',
         // TCK-2364 (P241.02) — le taux de l'agent est sa part de chaque commission qu'il négocie.
@@ -176,16 +197,40 @@ final class ProtectedActions
         // TCK-591 (ADR-0035) — une délégation : le suppléant couvre les tâches de l'absent.
         AgentAbsenceController::class.'@store',
         AgentAbsenceController::class.'@destroy',
+        // TCK-2666 — modifier une absence modifie aussi la délégation liée.
+        AgentAbsenceController::class.'@update',
 
         OwnerInvitationController::class.'@__invoke',
         AgentInvitationController::class.'@__invoke',
         ServiceProviderInvitationController::class.'@__invoke',
         InvitationController::class.'@revoke',
         InvitationController::class.'@resend',
+        // TCK-2927 (ADR-0123 § 2) — renouveler le lien partagé d'une invitation, comme la relancer.
+        InvitationController::class.'@shareLink',
+        // TCK-2665 — supprimer les invitations expirées de l'agence, comme renvoyer et révoquer.
+        InvitationController::class.'@purgeExpired',
 
         // Vérification adverse M4 — de l'argent qui sort.
         BookingPaymentController::class.'@refund',
         LeaseDepositRefundController::class.'@store',
+        // TCK-608 — constater le remboursement d'un doublon éteint « l'agence vous remboursera ».
+        LeasePaymentDuplicateRefundController::class.'@store',
+
+        // TCK-609 (décision du porteur, 2026-11-16) — résilier un bail engage une indemnité.
+        LeaseController::class.'@terminate',
+    ];
+
+    /**
+     * TCK-609 (ADR-0033 §8, amendement du 2026-11-16) — actions de la famille d'agence gardées
+     * SEULEMENT quand le champ nommé est vrai, lu comme le service le lit (booléen :
+     * `$request->boolean()`, donc `"1"`, `"on"`, `"true"` comptent). Hors de ce cas, l'action
+     * reste ouverte sans 2FA : une révision de loyer ordinaire n'est pas un geste de la famille.
+     *
+     * @var array<string, string>
+     */
+    public const AGENCY_TWO_FACTOR_WHEN = [
+        // Forcer un loyer au-delà du plafond d'un bail antérieur (`RentReviewService`).
+        LeaseRentController::class.'@update' => 'force',
     ];
 
     /**
@@ -196,8 +241,23 @@ final class ProtectedActions
     public const EXEMPT = [
         // L'invité n'a pas encore de compte : il accepte par le lien reçu.
         InvitationAcceptController::class.'@__invoke' => 'acceptation publique d\'une invitation',
+        // TCK-2609 — l'invité au lien expiré, sans compte, demande un nouveau lien : il ne fait que prévenir l'invitant.
+        InvitationRenewalRequestController::class.'@__invoke' => 'demande publique d\'un nouveau lien d\'invitation',
+        // TCK-2610 — l'invité accepte par un code SMS, comme il se connecterait : le second facteur d'un compte existant est
+        // exigé par la vérification elle-même (`requires_2fa`, ADR-0094 § 5).
+        InvitationCodeController::class.'@send' => 'envoi public du code d\'acceptation d\'une invitation',
+        InvitationCodeController::class.'@verify' => 'acceptation publique d\'une invitation par code SMS',
         // L'argent ENTRE : le client règle sa réservation, il n'est le personnel de personne.
         BookingPaymentController::class.'@store' => 'paiement d\'une réservation par le client',
+        // TCK-609 — les autres gestes du bail : la décision du porteur n'a rangé que `terminate`
+        // et `rent` (`force`) dans la famille.
+        LeaseController::class.'@store' => 'rédiger un bail : rien n\'est engagé avant la signature',
+        LeaseController::class.'@update' => 'modifier un brouillon de bail : le loyer passe par `rent`',
+        LeaseController::class.'@destroy' => 'abandonner un brouillon jamais envoyé en signature',
+        LeaseController::class.'@activate' => 'activer un bail signé sur papier par son bailleur',
+        LeaseController::class.'@attachGuarantor' => 'rattacher une caution au bail',
+        LeaseController::class.'@detachGuarantor' => 'détacher une caution du bail',
+        LeaseController::class.'@generateSchedule' => 'générer les échéances que le bail fixe déjà',
     ];
 
     /**
@@ -252,10 +312,14 @@ final class ProtectedActions
         PayoutController::class.'@markProcessed',
         // TCK-595 (ADR-0049 §3) — le marquage « versée » d'une commission, pendant de `markProcessed`.
         CommissionEntryController::class.'@markPaid',
+        // TCK-2661 — et le solde groupé, qui en paie plusieurs d'un coup.
+        CommissionEntryController::class.'@settle',
         ServiceProviderBillController::class.'@pay',
         MePayoutMethodController::class.'@store',
         MePayoutMethodController::class.'@update',
         MePayoutMethodController::class.'@destroy',
+        // TCK-2863 — envoyer le RIB d'un compte bancaire : une écriture de la destination comme les autres.
+        MePayoutMethodController::class.'@bankStatement',
         // VERIF-594 passe 4, P4-6 (décision de session, réversible) — qui vérifie une destination
         // décide où l'argent part ; un membre sans second facteur, agent compris, ne vérifie plus.
         PayoutMethodController::class.'@verify',
@@ -271,6 +335,9 @@ final class ProtectedActions
         AdminBoostController::class.'@offer',
         AdminBoostProductController::class.'@store',
         AdminBoostProductController::class.'@update',
+        // TCK-2520 (ADR-0092) — offrir ou retirer la vitrine de l'annuaire d'une ville : de la valeur qui bouge.
+        AdminAgencySpotlightController::class.'@store',
+        AdminAgencySpotlightController::class.'@destroy',
 
         // Codes de secours : une session volée ne les lit plus sans le TOTP.
         TwoFactorController::class.'@recoveryCodes',
@@ -284,6 +351,8 @@ final class ProtectedActions
         // clair : même règle que celle du bailleur.
         CustomerController::class.'@sensitive',
         GuarantorController::class.'@sensitive',
+        // TCK-2893 (ADR-0110 § 4) — le revenu déclaré du candidat, en clair : même règle.
+        BookingController::class.'@sensitive',
     ];
 
     /**
@@ -331,8 +400,18 @@ final class ProtectedActions
         PropertyModerationController::class.'@approve',
         PropertyModerationController::class.'@reject',
         ReviewController::class.'@moderate',
+        // TCK-2672 — la publication par lot : la même décision, sous la même garde.
+        ReviewController::class.'@moderateBatch',
         ReviewController::class.'@approve',
         ReviewController::class.'@reject',
+        // TCK-609 (verif-597 passe 4, n5) — `Gate::before` ouvrait au super-admin la réponse d'une
+        // agence : la réécrire ou l'effacer exige désormais son second facteur. L'admin d'agence,
+        // sujet de l'avis, y répond toujours sans 2FA.
+        ReviewController::class.'@reply',
+        ReviewController::class.'@deleteReply',
+        // TCK-609 (verif-596 passe 4, Q4a) — figer et envoyer en signature le contrat d'un bail de
+        // n'importe quelle agence. Hors de la famille d'agence (décision du porteur).
+        LeaseSignatureController::class.'@request',
         // TCK-600 (verif-600 R1) — les réglages génériques. TCK-651 (ADR-0065) : la portée `global`
         // n'y est plus écrite (422 `setting.global_not_writable`) — les réglages métier qu'elle
         // portait sont au catalogue, sous la même garde. Reste la portée `agency` écrite par un
@@ -350,11 +429,28 @@ final class ProtectedActions
         ReviewController::class.'@storeForAgency' => "dépôt d'un avis par son auteur",
         ReviewController::class.'@storeForAgent' => "dépôt d'un avis par son auteur",
         ReviewController::class.'@storeForServiceProvider' => "dépôt d'un avis par son auteur",
-        // verif-597 passe 4, n5 — le super-admin y passe encore sans 2FA : à reprendre là-bas.
-        ReviewController::class.'@reply' => 'réponse du sujet ; le chemin super-admin (Gate::before) est un pouvoir plateforme antérieur, renvoyé au ticket de suite',
-        ReviewController::class.'@deleteReply' => 'réponse du sujet ; le chemin super-admin (Gate::before) est un pouvoir plateforme antérieur, renvoyé au ticket de suite',
         ReviewController::class.'@report' => 'un signalement range, il ne tranche rien (ADR-0043 §6)',
+        LeaseSignatureController::class.'@sendCode' => 'le signataire reçoit SON code : rien ne se signe sans lui',
+        LeaseSignatureController::class.'@sign' => 'le signataire signe par le code qu\'il a reçu : le geste ne se délègue pas',
     ];
+
+    /**
+     * TCK-609 (ADR-0033 §8, amendement du 2026-11-16 ; option (b) du porteur) — le REGISTRE de
+     * chaque autre route mutante sous `/api` qu'un profil plateforme atteint, avec son motif.
+     * Ne change aucun comportement : c'est la décision écrite route par route, et
+     * `ProtectedActionsCoverageTest` rougit sur toute route mutante rangée nulle part.
+     *
+     * @var array<string, string>
+     */
+    public const PLATFORM_ANY_ROUTE_EXEMPT = PlatformAnyRouteExempt::ACTIONS;
+
+    /** TCK-609 — l'action est-elle gardée pour cette requête par `AGENCY_TWO_FACTOR_WHEN` ? */
+    public static function requiresAgencyTwoFactorWhen(?string $action, callable $flag): bool
+    {
+        $champ = self::AGENCY_TWO_FACTOR_WHEN[self::normalize($action)] ?? null;
+
+        return $champ !== null && (bool) $flag($champ);
+    }
 
     public static function requiresPlatformTwoFactor(?string $action): bool
     {

@@ -11,8 +11,9 @@ import { currencyValues } from '@/lib/schemas/property';
  * Saly ; la géo-IP dit alors « Dakar », et une valeur pré-remplie ne se relit pas, elle se
  * valide. La suggestion doit donc être ACCEPTÉE, jamais posée.
  *
- * Aucun appel réseau : `UserLocationProvider` est monté site-wide et met la réponse ipapi en
- * cache 24 h dans localStorage.
+ * Aucun appel réseau ici : `UserLocationProvider` est monté site-wide, joint ipapi au premier geste
+ * du visiteur (TCK-537) et met la réponse en cache 24 h dans localStorage. Sans geste ni cache, il
+ * n'y a pas de suggestion.
  */
 export type GeoSuggestion = { readonly city: string; readonly region: string } | null;
 

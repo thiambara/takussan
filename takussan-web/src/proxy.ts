@@ -228,8 +228,9 @@ function router(request: NextRequest): NextResponse {
  * dont une famille est faite exprès de sosies de préfixe (`apiary` pour `api`, `publishing` pour
  * `publish`…) — la famille qui a attrapé le point 2.
  */
+// TCK-2899 : `gz` ajouté à la liste (le modèle de langue de l'OCR du coffre), aux deux endroits.
 export const config = {
   matcher: [
-    '/((?!api(?:/|$)|_next(?:/|$)|.*\\.(?:avif|css|gif|ico|jpeg|jpg|js|json|map|mjs|mp4|otf|pdf|png|svg|ttf|txt|wasm|webm|webmanifest|webp|woff|woff2|xml)$).*)',
+    '/((?!api(?:/|$)|_next(?:/|$)|.*\\.(?:avif|css|gif|gz|ico|jpeg|jpg|js|json|map|mjs|mp4|otf|pdf|png|svg|ttf|txt|wasm|webm|webmanifest|webp|woff|woff2|xml)$).*)',
   ],
 };

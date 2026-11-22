@@ -34,7 +34,7 @@ class BookingPaymentController extends Controller
     public function store(StoreBookingPaymentRequest $request, Booking $booking): JsonResponse
     {
 
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         // TCK-172 — when the customer (not staff) posts the payment, force
         // the status to `pending` so the gateway flow can take it from there;

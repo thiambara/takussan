@@ -15,19 +15,25 @@
  * bande du bas — exactement la hauteur de la barre — est hors de portée : sur `/app/properties`,
  * la pagination est à 24 px du bord bas de la coque.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import { SUPER_ADMIN } from '@/test/habilitations';
 import { ToastProvider } from '@/components/ui/toast';
+import { BarreDAction, EMPLACEMENT_BARRE_D_ACTION } from '@/components/ui/barre-d-action';
 import type { User } from '@/types/user';
 import { AppShell } from '../AppShell';
+import { REQUETE_DE_LA_BARRE } from '../plein-ecran';
 import { SuperAdminShell } from '../SuperAdminShell';
 
+const navigation = vi.hoisted(() => ({ chemin: '/app' }));
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/app',
+  usePathname: () => navigation.chemin,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => ({ get: () => null, toString: () => '' }),
 }));
@@ -153,6 +159,133 @@ describe('TCK-503 — hauteur des coques de tableau de bord', () => {
   );
 });
 
+describe('TCK-2481 — la barre d’onglets réserve sa hauteur en sœur du contenu', () => {
+  /**
+   * AC1/AC2 — la barre n'est pas `fixed` : dernier enfant de la colonne `h-dvh`, elle prend sa hauteur
+   * au `<main>`, qui ne porte aucun rembourrage recopié. Dès `md`, `md:hidden` : ni barre ni réserve.
+   * La preuve au pixel est au navigateur (tâche 5) ; ceci garde la STRUCTURE qui la rend vraie.
+   */
+  it('AppShell : la barre suit la rangée du contenu, ne rétrécit pas, et le <main> ne réserve rien', () => {
+    const coque = monter(COQUES[0][1]);
+    const barre = coque.querySelector('[data-slot="barre-onglets"]');
+    const main = coque.querySelector('main')!;
+    const rangee = main.parentElement!;
+    expect(barre).not.toBeNull();
+    expect(barre!.parentElement).toBe(coque);
+    expect(rangee.parentElement).toBe(coque);
+    expect(rangee.compareDocumentPosition(barre!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(barre).toHaveClass('shrink-0', 'md:hidden');
+    expect(barre!.className).toContain('h-[var(--barre-onglets-hauteur)]');
+    expect(barre!.className).toContain('pb-[env(safe-area-inset-bottom)]');
+    expect(main.className).not.toMatch(/(^|\s)([a-z-]+:)*pb-/);
+    expect(coque).toHaveAttribute('data-barre-onglets');
+  });
+
+  /**
+   * Arbitrage 4 — le dock flottant (`--floating-dock-base`, lu par `useFloatingDockSlot`) se pose
+   * AU-DESSUS de la barre dans la coque qui la porte, et sous `md` SEULEMENT : la plage est le
+   * complément exact de `md:hidden` (`width >= 48rem`), dès `md` le dock reprend sa base de `:root`.
+   * jsdom n'applique pas `globals.css` : c'est la RÈGLE écrite qui est gardée, comme
+   * `mode-icones.test.ts` garde sa variante. Le 16 px est la base de `:root` sous `sm`.
+   */
+  it('le dock flottant monte de la hauteur de la barre sous md, dans la coque qui la porte', () => {
+    const css = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'app', 'globals.css'),
+      'utf8',
+    );
+    const regles = [...css.matchAll(/@media ([^{]+)\{\s*\[data-barre-onglets\]\s*\{([^}]*)\}\s*\}/g)];
+    expect(regles).toHaveLength(1);
+    const [, plage, corps] = regles[0];
+    expect(plage.trim()).toBe('(width < 48rem)');
+    // TCK-2481 (revue, M5) — la MÊME chaîne que le seuil JS de la barre (`useMatchesMedia`) : un
+    // seuil en px décroche du CSS dès que la police par défaut du navigateur dépasse 16 px.
+    expect(plage.trim()).toBe(REQUETE_DE_LA_BARRE);
+    // TCK-2712 (5) — et de celle de la barre d'action collante, comme le toast (0 sans elle).
+    expect(corps.trim()).toBe('--floating-dock-base: calc(16px + var(--barre-onglets-hauteur) + var(--barre-d-action-hauteur));');
+    // `md` reste le défaut de Tailwind (48rem) : aucun `--breakpoint-md` ne le déplace.
+    expect(css).not.toMatch(/--breakpoint-md\s*:/);
+  });
+});
+
+/**
+ * ADR-0134 (TCK-2989) — au téléphone, c'est le DOCUMENT qui défile sur une page de la barre d'onglets : le
+ * navigateur ne replie ses barres que sur ce défilement-là. La coque garde `h-dvh` (le bureau, la messagerie) ;
+ * c'est `globals.css` qui la libère sous `md`, en mode document. jsdom n'applique pas la feuille : on garde
+ * l'ATTRIBUT posé par la coque, et les RÈGLES écrites qui le lisent.
+ */
+describe('ADR-0134 — au téléphone, la page de la console défile', () => {
+  const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'app', 'globals.css'), 'utf8');
+  /** Le corps de la règle `selecteur { … }` dans le bloc `@media (width < 48rem)` du mode document. */
+  function regle(selecteur: string): string {
+    const debut = css.indexOf('@media (width < 48rem) {\n  :root:has([data-defilement="document"])');
+    expect(debut, 'le bloc du mode document').toBeGreaterThan(-1);
+    const bloc = css.slice(debut, css.indexOf('\n}\n', debut));
+    // Au DÉBUT d'une règle (après `{`, `}` ou un commentaire) : `… #contenu-principal {` termine aussi un
+    // sélecteur groupé.
+    let i = -1;
+    for (let j = bloc.indexOf(`\n  ${selecteur} {`); j > -1; j = bloc.indexOf(`\n  ${selecteur} {`, j + 1)) {
+      if ('{}/'.includes(bloc[j - 1] ?? '')) {
+        i = j;
+        break;
+      }
+    }
+    expect(i, selecteur).toBeGreaterThan(-1);
+    return bloc.slice(i, bloc.indexOf('}', i)).replace(/\s+/g, ' ');
+  }
+
+  afterEach(() => {
+    navigation.chemin = '/app';
+  });
+
+  it('la coque d’une page de la barre porte `data-defilement="document"`, et sa rangée est nommée', () => {
+    const coque = monter(COQUES[0][1]);
+    expect(coque).toHaveAttribute('data-defilement', 'document');
+    expect(coque.querySelector('main')!.parentElement).toHaveAttribute('data-rangee-du-contenu');
+  });
+
+  it('la messagerie garde sa boîte : sa colonne a une hauteur bornée, et pas de pastille', () => {
+    navigation.chemin = '/app/messages';
+    const coque = monter(COQUES[0][1]);
+    expect(coque).not.toHaveAttribute('data-defilement');
+    expect(coque.querySelector('[data-slot="pastille-des-barres"]')).toBeNull();
+  });
+
+  it('TCK-2990 — la pastille de rappel : un bouton nommé, du téléphone, inerte tant que les barres sont là', () => {
+    const coque = monter(COQUES[0][1]);
+    const pastille = coque.querySelector<HTMLButtonElement>('[data-slot="pastille-des-barres"]')!;
+    expect(pastille).not.toBeNull();
+    expect(pastille.tagName).toBe('BUTTON');
+    expect(pastille).toHaveAttribute('aria-label', 'Afficher la navigation');
+    expect(pastille).toHaveClass('pastille-des-barres', 'md:hidden');
+    expect(pastille).toHaveAttribute('inert');
+    expect(pastille).not.toHaveAttribute('data-visible');
+  });
+
+  it('les règles : la coque prend sa hauteur, rien ne défile dedans, l’en-tête colle et la barre est fixée', () => {
+    expect(regle('[data-defilement="document"]')).toMatch(/height: auto; min-height: 100dvh;/);
+    // `clip` et non `hidden` : rogner sans créer de conteneur de défilement ; `min-width: 0` : le `<main>`
+    // ne s'élargit pas à son contenu (505 px relevés à 390).
+    expect(regle('[data-defilement="document"] > [data-rangee-du-contenu],\n  [data-defilement="document"] #contenu-principal')).toMatch(
+      /overflow: visible; overflow-x: clip; min-width: 0;/,
+    );
+    expect(regle('[data-defilement="document"] > [data-slot="en-tete-mobile"]')).toMatch(/position: sticky; top: 0;/);
+    expect(regle('[data-defilement="document"] [data-slot="barre-onglets"]')).toMatch(/position: fixed; inset-inline: 0; bottom: 0;/);
+    expect(regle('[data-defilement="document"] #emplacement-barre-d-action > *')).toMatch(/position: fixed; inset-inline: 0; bottom: var\(--reserve-des-onglets\);/);
+  });
+
+  it('TCK-503 tenu par une réserve : le `<main>` réserve en bas la barre d’onglets (si elle est là) et la barre d’action', () => {
+    expect(regle('[data-defilement="document"][data-barre-onglets]')).toMatch(/--reserve-des-onglets: var\(--barre-onglets-hauteur\);/);
+    expect(regle('[data-defilement="document"] #contenu-principal')).toMatch(
+      /padding-bottom: calc\(var\(--reserve-des-onglets\) \+ var\(--barre-d-action-hauteur\)\);/,
+    );
+  });
+
+  it('ce qui colle en haut d’une page colle sous l’en-tête (`--haut-colle`, 0 hors du mode document)', () => {
+    expect(css).toMatch(/:root \{\s*--haut-colle: 0px;/);
+    expect(regle(':root:has([data-defilement="document"])')).toMatch(/--haut-colle: 3\.5rem; scroll-padding-top: var\(--haut-colle\);/);
+  });
+});
+
 // TCK-600 — ici parce que ce fichier monte déjà `AppShell` avec tous ses voisins neutralisés.
 describe('AppShell — bandeau de suspension de l’agence (TCK-600)', () => {
   it.each([
@@ -167,3 +300,72 @@ describe('AppShell — bandeau de suspension de l’agence (TCK-600)', () => {
     expect(coque.querySelectorAll('[data-testid="agency-suspended-banner"]')).toHaveLength(attendus);
   });
 });
+
+// TCK-2689 — ici pour la même raison : l'emplacement de la barre d'action collante est dans `AppShell`.
+describe('AppShell — l’emplacement de la barre d’action collante (TCK-2689)', () => {
+  /**
+   * La barre se pose EN FLUX entre la rangée du contenu et la barre d'onglets (annexe C § 4) : le
+   * `<main>` rétrécit de sa hauteur, rien ne passe dessous. L'emplacement est vide (`contents`) tant
+   * qu'aucune page n'y rend de barre, et ne dit « bas de l'écran » que sans barre d'onglets.
+   */
+  it('entre la rangée du contenu et la barre d’onglets, enfant de la coque, sans boîte propre', () => {
+    const coque = monter(COQUES[0][1]);
+    const emplacement = coque.querySelector(`#${EMPLACEMENT_BARRE_D_ACTION}`)!;
+    const rangee = coque.querySelector('main')!.parentElement!;
+    const onglets = coque.querySelector('[data-slot="barre-onglets"]')!;
+    expect(emplacement).not.toBeNull();
+    expect(emplacement.parentElement).toBe(coque);
+    expect(rangee.compareDocumentPosition(emplacement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(emplacement.compareDocumentPosition(onglets) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(emplacement).toHaveClass('contents');
+    expect(emplacement).not.toHaveAttribute('data-bas-de-l-ecran');
+    expect(emplacement.childElementCount).toBe(0);
+  });
+
+  it('une barre écrite par la page est rendue dans l’emplacement, hors du `<main>`', () => {
+    const coque = monter(
+      <AppShell user={user}>
+        <p>contenu</p>
+        <BarreDAction>
+          <button type="button">Enregistrer</button>
+        </BarreDAction>
+      </AppShell>,
+    );
+    const barre = coque.querySelector('[data-slot="barre-d-action"]')!;
+    expect(barre).not.toBeNull();
+    expect(barre.parentElement?.id).toBe(EMPLACEMENT_BARRE_D_ACTION);
+    expect(coque.querySelector('main')!.contains(barre)).toBe(false);
+  });
+});
+
+// TCK-2691:début
+/**
+ * TCK-2691 (ADR-0106, C1, C2, C4) — les cotes de la coque : la barre d'onglets à 64 px + zone sûre, la
+ * marge du contenu (`px-8` dès `lg`, 24 px de `md` à `lg`, `px-4 py-6` au téléphone) portée par UNE
+ * enveloppe, que la page « pleine largeur » retire sous `md`.
+ */
+describe('TCK-2691 — les cotes de la coque', () => {
+  const css = () =>
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'app', 'globals.css'), 'utf8');
+
+  it('C4 — la barre d’onglets mesure 64 px, zone sûre en plus (la variable que lisent la barre, la messagerie et le dock)', () => {
+    expect(css()).toContain('--barre-onglets-hauteur: calc(4rem + env(safe-area-inset-bottom));');
+    expect(css()).not.toContain('--barre-onglets-hauteur: calc(3.5rem');
+  });
+
+  it('C2 — le contenu de `/app` est dans l’enveloppe : `px-4 py-6`, `md:px-6 md:py-8`, `lg:px-8`', () => {
+    const coque = monter(COQUES[0][1]);
+    const enveloppe = coque.querySelector('main [data-slot="enveloppe-du-contenu"]')!;
+    expect(enveloppe).not.toBeNull();
+    expect(enveloppe.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['px-4', 'py-6', 'md:px-6', 'md:py-8', 'lg:px-8', 'max-md:has-[[data-pleine-largeur]]:p-0']),
+    );
+    expect(enveloppe.textContent).toBe('contenu');
+  });
+
+  it('AC9 — la console `/super-admin` n’a pas l’enveloppe de `/app` : ses marges ne bougent pas', () => {
+    const coque = monter(COQUES[1][1]);
+    expect(coque.querySelector('[data-slot="enveloppe-du-contenu"]')).toBeNull();
+  });
+});
+// TCK-2691:fin

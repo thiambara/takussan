@@ -145,6 +145,27 @@ class WhatsappChannel
     }
 
     /**
+     * TCK-2871 — ce canal, à cet instant, se replierait-il sur le SMS SANS rien tenter sur WhatsApp ?
+     * Vrai quand WhatsApp est inéligible ({@see resolveMessage()} rend `null` : désinscrit, sans
+     * consentement, hors fenêtre sans gabarit approuvé) et que la notification accepte le repli : le
+     * texte qui part est alors celui de `toSms()`. Faux pour un numéro absent ou invalide. À appeler
+     * sous la langue de l'envoi (le gabarit se cherche par langue). Ne dit rien d'un échec du
+     * fournisseur, qui se replie aussi, mais plus tard.
+     */
+    public function seReplieraitSurSms(object $notifiable, Notification $notification): bool
+    {
+        $phone = $this->resolvePhone($notifiable, $notification);
+        if (! $phone || ! PhoneNumber::isValid($phone)) {
+            return false;
+        }
+        if (method_exists($notification, 'smsFallbackAllowed') && ! $notification->smsFallbackAllowed()) {
+            return false;
+        }
+
+        return $this->resolveMessage($notifiable, $notification, $this->resolveContact($phone), $this->resolveEventType($notification)) === null;
+    }
+
+    /**
      * Decide the WhatsApp message to send, or null when WhatsApp is not a
      * viable channel for this recipient right now (→ SMS fallback).
      */
@@ -161,10 +182,10 @@ class WhatsappChannel
         if (! $notifiable instanceof User && $contact?->opt_in_status !== WhatsappContact::OPT_IN_OPTED_IN) {
             return null;
         }
-        // P203.05 (TCK-2326) — cette branche attend l'écrivain entrant : rien n'écrit encore
-        // `last_inbound_at` (aucune route ne reçoit les messages de Meta), la fenêtre reste donc
-        // fermée hors des tests. Elle est gardée : TCK-282 écrit le texte libre en fenêtre, et la
-        // fenêtre de Meta se compte par numéro d'entreprise, que le contact ne garde pas encore.
+        // P203.05 (TCK-2326) — TCK-2980 : le pont entrant écrit désormais `last_inbound_at` (tout message
+        // reçu sur le numéro des notifications). Cette lecture reste PAR CONTACT : la fenêtre de Meta se compte
+        // par numéro d'entreprise, que lit `ServiceWindow::isOpenFor()` (relais entrants) — à brancher ici
+        // quand le pilote dira quel numéro d'entreprise envoie (TCK-2981).
         if ($this->serviceWindow->isOpen($contact)) {
             return WhatsappMessage::text($notification->toWhatsapp($notifiable));
         }
@@ -301,11 +322,30 @@ class WhatsappChannel
         return is_int($id) ? $id : null;
     }
 
+    /**
+     * TCK-2464 — FERMÉ par défaut, même règle que {@see SmsChannel::isOptedIn()} : une notification
+     * non critique sans événement de préférence ne part pas, et le refus se journalise. Ici plus
+     * encore qu'au SMS : le repli SMS de ce canal ne relit pas le consentement SMS, une porte ouverte
+     * ici l'était donc aussi pour le SMS.
+     *
+     * Exception MOTIVÉE (option (a) du ticket, en attendant que le porteur tranche) : un
+     * destinataire non-`User` (abonné d'alerte sans compte, contact routé) n'a aucune ligne de
+     * préférence à lire ; pour WhatsApp, `resolveMessage()` exige en plus que son contact soit
+     * `opted_in` (TCK-588), sinon repli SMS.
+     */
     private function isOptedIn(object $notifiable, Notification $notification): bool
     {
-        $eventType = $this->resolveEventType($notification);
-        if (! $eventType || ! $notifiable instanceof User) {
+        if (! $notifiable instanceof User) {
             return true;
+        }
+        $eventType = $this->resolveEventType($notification);
+        if ($eventType === null || $eventType === '') {
+            Log::warning('[whatsapp-channel] non-critical notification without a preference event — refused', [
+                'notification' => $notification::class,
+                'user_id' => $notifiable->getKey(),
+            ]);
+
+            return false;
         }
 
         return $this->preferences->shouldSend($notifiable, $eventType, PreferenceResolver::CHANNEL_WHATSAPP);

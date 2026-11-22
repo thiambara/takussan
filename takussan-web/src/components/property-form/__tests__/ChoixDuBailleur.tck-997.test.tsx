@@ -132,7 +132,8 @@ beforeEach(() => {
   brouillon.etat.error = null;
   brouillon.etat.flush.mockResolvedValue({ ok: true, ecrit: true });
   brouillon.etat.clear.mockResolvedValue(undefined);
-  auth.user = { id: 1, first_name: 'Awa', phone: '+221770000901', phone_verified_at: '2026-10-01T00:00:00Z', terms_accepted_at: null };
+  // TCK-2601 — prénom ET nom (décision 1a) : l'auteur à qui il en manque un voit la feuille de compte avant toute écriture.
+  auth.user = { id: 1, first_name: 'Awa', last_name: 'Diop', phone: '+221770000901', phone_verified_at: '2026-10-01T00:00:00Z', terms_accepted_at: null };
   requete.useQuery.mockImplementation(() => ({ data: BAILLEURS, isLoading: false }));
   vi.mocked(createPropertyAction).mockResolvedValue({ ok: true, data: { id: 42 } } as never);
   vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: true } as never);
@@ -215,6 +216,16 @@ describe('PropertyWizard — le choix du bailleur (TCK-997)', () => {
     const corps = await allerAuBoutDepuisLePremierPas(null);
 
     expect(corps).not.toHaveProperty('owner_id');
+  });
+
+  // TCK-2601 — le contact d'un bien saisi au nom d'un bailleur est ce bailleur (`PrimaryPropertyContact`) :
+  // la feuille de compte ne juge pas l'auteur, l'API juge le contact.
+  it('un bailleur désigné : l’auteur sans numéro vérifié ni nom ne voit pas la feuille, la création part', async () => {
+    auth.user = { id: 1, first_name: 'Awa', phone: null, phone_verified_at: null, terms_accepted_at: null };
+    const corps = await allerAuBoutDepuisLePremierPas('Bineta Sarr');
+
+    expect(corps.owner_id).toBe(71);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('sans agence du choix (bailleur, indépendant, agent sans `update_any`), le choix n’est pas offert', async () => {

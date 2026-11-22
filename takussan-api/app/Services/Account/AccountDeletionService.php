@@ -24,19 +24,29 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\Payout;
+use App\Models\PayoutMethod;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
+use App\Models\Profiles\ServiceProviderProfile;
+use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
 use App\Services\Agency\AgencyMemberRemovalService;
+use App\Services\Auth\AccountTokenRevoker;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\PayoutCalculator;
+use App\Services\Payout\PiecesNonReversees;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\TitulaireALaSaisie;
+use App\Services\Visit\VisitReportService;
 use App\Support\CaseInsensitive;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -132,7 +142,8 @@ class AccountDeletionService
 
             // Token revocation — user is logged out everywhere immediately.
             // They can re-authenticate to cancel, which mints a fresh token.
-            $user->tokens()->delete();
+            // TCK-617 — les liens d'agenda tombent avec les jetons (point commun).
+            app(AccountTokenRevoker::class)->revokeAll($user);
 
             activity('Account')
                 ->performedOn($request)
@@ -252,6 +263,75 @@ class AccountDeletionService
     }
 
     /**
+     * TCK-2744 (d2) — bien → visite → utilisateur (`takussan-api/CLAUDE.md`, « Migrations — les
+     * pièges PostgreSQL ») : les biens des visites que l'effacement détache et ceux dont le compte
+     * est l'agent principal, en UNE passe par identifiant croissant ; puis ces visites ; puis le
+     * compte.
+     *
+     * TCK-2744 (d3) — et TOUT bien que l'effacement écrit ensuite, une écriture verrouillant sa
+     * ligne comme un `for update` : ceux qu'il peut dépublier faute de contact
+     * ({@see ErasedAccountListings::candidates()}) et ceux qu'il délie de l'invitation de bailleur
+     * qu'il révoque ({@see TitulaireALaSaisie::biensLies()}), par les requêtes mêmes qui les écrivent.
+     * Appelée AVANT le brouillage : l'adresse d'origine désigne encore les invitations.
+     */
+    private function lockInGlobalOrder(User $user): void
+    {
+        $visites = $this->visitsTouchedBy($user);
+        $biens = array_values(array_unique(array_merge(
+            array_map('intval', $visites()->distinct()->pluck('property_id')->all()),
+            app(AgencyMemberRemovalService::class)->markedPropertyIds($user, null),
+            array_map('intval', ErasedAccountListings::candidates($user)->pluck('properties.id')->all()),
+            array_map('intval', TitulaireALaSaisie::biensLies($this->invitationsDeBailleurOuvertes($user, $user->email)->pluck('invitable_id'))->pluck('id')->all()),
+        )));
+        sort($biens);
+        if ($biens !== []) {
+            Property::withTrashed()->whereIn('id', $biens)->orderBy('id')->lockForUpdate()->pluck('id');
+        }
+        $visites()->orderBy('id')->lockForUpdate()->pluck('id');
+        User::withTrashed()->whereKey($user->id)->lockForUpdate()->pluck('id');
+    }
+
+    /**
+     * TCK-1060 (P57.04) — les invitations en cours qui visent le compte, par son identifiant ou par
+     * son adresse d'origine. Une requête neuve à chaque appel.
+     *
+     * @return Builder<Invitation>
+     */
+    private function invitationsOuvertes(User $user, ?string $originalEmail): Builder
+    {
+        return Invitation::query()
+            ->where('status', InvitationStatus::Sent->value)
+            ->where(fn ($query) => $query
+                ->where('invited_user_id', $user->id)
+                ->orWhere('email', CaseInsensitive::fold(trim((string) $originalEmail))));
+    }
+
+    /**
+     * TCK-1000 (Q2) — celles d'un bailleur, dont {@see TitulaireALaSaisie::delier()} délie les biens.
+     *
+     * @return Builder<Invitation>
+     */
+    private function invitationsDeBailleurOuvertes(User $user, ?string $originalEmail): Builder
+    {
+        return $this->invitationsOuvertes($user, $originalEmail)->where('invitable_type', OwnerProfile::class);
+    }
+
+    /**
+     * Les visites que l'effacement écrit : celles qu'il a demandées (`visitor_id`), et celles à venir
+     * qu'il accompagne comme agent (cf. les deux `update` d'`anonymize`).
+     *
+     * @return \Closure(): Builder<PropertyVisit>
+     */
+    private function visitsTouchedBy(User $user): \Closure
+    {
+        return fn () => PropertyVisit::query()->where(fn ($q) => $q
+            ->where('visitor_id', $user->id)
+            ->orWhere(fn ($q) => $q
+                ->where('agent_id', $user->id)
+                ->whereIn('status', [VisitStatus::Scheduled->value, VisitStatus::Confirmed->value])));
+    }
+
+    /**
      * Anonymize a user IN PLACE. Public so admin tooling can call it
      * directly via a separate audited route (out of scope here).
      *
@@ -276,8 +356,18 @@ class AccountDeletionService
             $user->notify(new AccountDeletionExecutedNotification($request));
         }
 
+        // TCK-2744 (d2) — les lignes que l'effacement écrit, verrouillées AVANT toute écriture et
+        // dans l'ordre global du dépôt : bien → visite → utilisateur. Il écrivait les visites (sans
+        // leur bien), puis le compte, puis verrouillait les biens marqués : l'inverse de la
+        // confirmation d'une visite (bien → visite → agent), d'où un interblocage possible.
+        $this->lockInGlobalOrder($user);
+
         // Dissociate customers (preserve CRM history).
         Customer::query()->where('user_id', $user->id)->update(['user_id' => null]);
+
+        // TCK-2578 (ADR-0101 § 7) — AVANT de détacher `visitor_id` (ci-dessous), qui seul désigne
+        // ses visites : la note libre des comptes rendus est vidée, les codes restent à l'agence.
+        VisitReportService::forgetNotesOfVisitor((int) $user->id);
 
         // TCK-1014 (P57.02) — de même pour les visites demandées en étant connecté : le compte
         // n'étant que soft-deleted, la FK `visitor_id` en `nullOnDelete` ne joue pas. Le contact
@@ -296,7 +386,9 @@ class AccountDeletionService
 
         // Tokens already revoked at request time, but in case the user
         // signed back in to cancel and let the request lapse, revoke now.
-        $user->tokens()->delete();
+        // TCK-2887 (ADR-0121 § 4), TCK-617 — les liens d'agenda meurent avec le compte, et leur copie
+        // chiffrée avec eux (la ligne de l'utilisateur est gardée, la cascade ne joue pas) : point commun.
+        app(AccountTokenRevoker::class)->revokeAll($user);
 
         // TCK-688 (P19.01) — anonymiser sans journaliser : `User` journalise `email`, `phone`, les
         // noms et `username` en `logOnlyDirty()`, et la ligne `updated` recopierait l'identité
@@ -321,12 +413,21 @@ class AccountDeletionService
             'secondary_phone_whatsapp' => false,
             'bio' => null,
             'username' => null,
+            // TCK-2519 — le slug de fiche est tiré du NOM (`sokhna-gueye`) : il s'efface avec lui.
+            // Sinon le nom survit à l'effacement, et reste réservé à jamais par
+            // `PublicSlugService::pris()`, qui lit aussi les comptes supprimés. Ses anciennes formes
+            // (`metadata.previous_public_slugs`) partent avec `metadata`, plus bas.
+            'public_slug' => null,
             'google_id' => null,
             'facebook_id' => null,
             'apple_id' => null,
             'two_factor_enabled' => false,
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
+            // TCK-2926 (ADR-0124 § 5) — la dernière connexion (famille d'appareil, ville) et la date de la 2FA.
+            'two_factor_enabled_at' => null,
+            'last_login_device' => null,
+            'last_login_city' => null,
             'metadata' => null,
             // TCK-1141 (P83.02) — la ville et les intentions déclarées (`city`, `search_intent`,
             // `entry_intent`). `timezone` et `preferred_language` restent : ils n'identifient personne.
@@ -395,13 +496,9 @@ class AccountDeletionService
         // en a un, part, l'adresse masquée suffisant à la contrainte. Décision du
         // porteur, 2026-10-20. Par requête : aucun champ journalisé de l'invitation ne porte
         // l'adresse.
-        $ouvertes = Invitation::query()
-            ->where('status', InvitationStatus::Sent->value)
-            ->where(fn ($query) => $query
-                ->where('invited_user_id', $user->id)
-                ->orWhere('email', CaseInsensitive::fold(trim((string) $originalEmail))));
+        $ouvertes = $this->invitationsOuvertes($user, $originalEmail);
         // TCK-1000 (Q2) — révoquée, l'invitation d'un bailleur laisse à l'agence les biens saisis pour lui.
-        TitulaireALaSaisie::delier((clone $ouvertes)->where('invitable_type', OwnerProfile::class)->pluck('invitable_id'));
+        TitulaireALaSaisie::delier($this->invitationsDeBailleurOuvertes($user, $originalEmail)->pluck('invitable_id'));
         $ouvertes
             ->update([
                 'status' => InvitationStatus::Revoked->value,
@@ -442,6 +539,7 @@ class AccountDeletionService
         app(ErasedMemberPortfolio::class)->release($user);
 
         $this->endProfiles($user);
+        $this->erasePayoutMethods($user);
 
         // TCK-1025 (P57.05) — le contact WhatsApp et les alertes sans compte du contact vérifié
         // partent avec le compte (décision du porteur, 2026-10-19). Les recherches des alertes
@@ -631,7 +729,7 @@ class AccountDeletionService
      */
     private function agenciesOwingPayout(User $user): Collection
     {
-        $calculator = app(PayoutCalculator::class);
+        $pieces = app(PiecesNonReversees::class);
         $agencyIds = Lease::query()->where('landlord_id', $user->id)->whereNotNull('agency_id')->distinct()->pluck('agency_id')
             ->merge(Booking::query()
                 ->join('properties', 'properties.id', '=', 'bookings.property_id')
@@ -640,9 +738,8 @@ class AccountDeletionService
                 ->distinct()
                 ->pluck('bookings.agency_id'))
             ->unique()
-            ->filter(fn ($agencyId) => BeneficiaireDuReversement::est($user, (int) $agencyId)
-                && ($calculator->leasePayments((int) $agencyId, (int) $user->id)->exists()
-                    || $calculator->bookingPayments((int) $agencyId, (int) $user->id)->exists()))
+            // TCK-2753 — la règle est partagée avec le départ d'un bailleur ({@see PiecesNonReversees}).
+            ->filter(fn ($agencyId) => $pieces->existe($user, (int) $agencyId))
             ->values();
 
         return Agency::query()->whereIn('id', $agencyIds)->orderBy('id')->get(['id', 'name']);
@@ -687,7 +784,47 @@ class AccountDeletionService
     }
 
     /**
+     * TCK-537 (AC2) — les moyens de versement du compte : l'IBAN ou le numéro (`account_identifier`,
+     * NOT NULL, chiffré : vidé par le cast), le titulaire et le relevé bancaire déposé partent ; la
+     * forme masquée (`masked_identifier`, « •••• 4567 ») reste, que les reversements passés affichent.
+     * Puis la ligne est terminée (`deleted_at`). Le modèle n'est pas journalisé.
+     */
+    private function erasePayoutMethods(User $user): void
+    {
+        PayoutMethod::withTrashed()->where('user_id', $user->id)->orderBy('id')->get()
+            ->each(function (PayoutMethod $method): void {
+                $method->clearMediaCollection(PayoutMethod::BANK_STATEMENT_COLLECTION);
+                $method->forceFill(['account_identifier' => '', 'account_holder_name' => null])->save();
+                if (! $method->trashed()) {
+                    $method->delete();
+                }
+            });
+    }
+
+    /**
+     * TCK-537 (AC2) — les colonnes qui IDENTIFIENT la personne sur chacun de ses profils, effacées à
+     * la suppression du compte : la politique (§ 6) et les CGU (art. 17.1) promettent « les données
+     * d'identification du compte ET DES PROFILS effacées ou anonymisées ». Le reste du profil (agence,
+     * statut, dates, taux) demeure : les paiements, factures et reversements s'y rattachent 10 ans
+     * (OHADA), détachés de l'identité. `metadata` porte, selon le profil, le nom et le numéro d'un
+     * prestataire ou les pièces déclarées d'un agent : elle part entière.
+     *
+     * @var array<class-string, list<string>>
+     */
+    public const IDENTIFYING_PROFILE_COLUMNS = [
+        OwnerProfile::class => ['rib', 'tax_id', 'id_document_type', 'id_document_number', 'monthly_income', 'employer', 'metadata'],
+        AgentProfile::class => ['license_number', 'metadata'],
+        AgencyAdminProfile::class => ['metadata'],
+        ServiceProviderProfile::class => ['insurance_policy_id', 'certifications', 'metadata'],
+        PlatformProfile::class => ['notes'],
+    ];
+
+    /**
      * TCK-1061 (P64.02) — termine les profils du compte et retire le nom d'origine de leurs pièces.
+     *
+     * TCK-537 (AC2) — et efface leurs colonnes identifiantes ({@see self::IDENTIFYING_PROFILE_COLUMNS}),
+     * profils déjà terminés compris, par une requête de masse : ni événement ni journal d'activité,
+     * qui recopieraient l'ancienne valeur ailleurs.
      */
     private function endProfiles(User $user): void
     {
@@ -707,6 +844,10 @@ class AccountDeletionService
                     $document->forceFill(['name' => $label])->save();
                     $document->media->each(fn ($media) => $media->forceFill(['name' => $label])->save());
                 });
+
+            $profileClass::withTrashed()->whereIn('id', $ids)->update(
+                array_fill_keys(self::IDENTIFYING_PROFILE_COLUMNS[$profileClass] ?? [], null),
+            );
 
             $profileClass::query()->whereIn('id', $ids)->get()->each->delete();
         }

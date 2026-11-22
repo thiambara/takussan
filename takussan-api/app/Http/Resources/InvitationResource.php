@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Customer;
 use App\Models\Enums\InvitationStatus;
 use Illuminate\Http\Request;
 
@@ -38,10 +39,38 @@ class InvitationResource extends BaseResource
             'last_reminded_at' => $this->iso($this->last_reminded_at),
             'created_at' => $this->iso($this->created_at),
             'is_expired' => $this->isExpired(),
+            // Vérification de TCK-2668 (D1) — les gestes que `InvitationPolicy` accorde à l'appelant :
+            // la fiche client n'offre « Relancer » et « Annuler » que sur ce que l'API dit. Rendus
+            // seulement pour une invitation NÉE D'UNE FICHE CLIENT (la seule où la règle diffère de
+            // `team.invite`, que les autres écrans lisent déjà) : une liste d'équipe ne paie pas deux
+            // jugements par ligne (TCK-2739). Et seulement quand la ligne porte ce que la règle lit :
+            // une sélection restreinte (`fields[invitations]`) qui les tait jugerait sur des colonnes
+            // absentes.
+            'abilities' => $this->when(
+                $request->user() !== null && $this->porteCeQueLaRegleLit()
+                    && $this->resource->getAttribute('invitable_type') === (new Customer)->getMorphClass(),
+                fn (): array => [
+                    'resend' => $request->user()->can('resend', $this->resource),
+                    'revoke' => $request->user()->can('revoke', $this->resource),
+                ],
+            ),
             // P181.05 (TCK-2221) — `metadata` n'est pas rendu : il porte des clés internes que
             // l'API relit (`level`, `from_maintenance_request_id`, `deep_link_consumed_at`,
             // `locale`) et qu'aucun écran ne lit, y compris à l'invité qui accepte par le jeton.
         ];
+    }
+
+    private function porteCeQueLaRegleLit(): bool
+    {
+        $attributs = $this->resource->getAttributes();
+
+        foreach (['agency_id', 'invited_by', 'invitable_type', 'invitable_id'] as $colonne) {
+            if (! array_key_exists($colonne, $attributs)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

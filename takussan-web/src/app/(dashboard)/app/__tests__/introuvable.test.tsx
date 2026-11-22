@@ -28,7 +28,11 @@ const usePathnameMock = vi.fn<() => string>();
 vi.mock('next/navigation', () => ({ usePathname: () => usePathnameMock() }));
 
 // Import dynamique : `vi.mock` doit être posé avant que le module ne lise `usePathname`.
-const { default: AppNotFound } = await import('../not-found');
+// TCK-2619 — `not-found.tsx` est un composant serveur ASYNCHRONE (il lit le compte pour nommer le
+// retour) : jsdom rend son corps, `CorpsDeLIntrouvable` ; le câblage est éprouvé par
+// `introuvable-aller-a.tck-2619.test.tsx`.
+const { CorpsDeLIntrouvable } = await import('../CorpsDeLIntrouvable');
+const AppNotFound = () => <CorpsDeLIntrouvable aujourdhui={false} />;
 
 beforeEach(() => {
   usePathnameMock.mockReset();
@@ -39,10 +43,11 @@ describe('TCK-382 / AC2 — l’écran introuvable', () => {
     usePathnameMock.mockReturnValue('/app/leases/999');
     render(withIntl(<AppNotFound />));
 
-    expect(screen.getByText('Introuvable')).toBeInTheDocument();
+    // TCK-2619 — le titre de la page dit « Page introuvable » (l'onglet garde « Introuvable »).
+    expect(screen.getByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     // Les deux causes — objet absent, objet hors agence — sont couvertes, aucune n'est affirmée.
     expect(
-      screen.getByText(/n'existe pas, ou il ne relève pas de votre agence/),
+      screen.getByText(/n.existe pas, ou il ne relève pas de votre agence/),
     ).toBeInTheDocument();
     // Un « réessayer » ferait de l'absence une panne. `error.tsx` en a un ; celui-ci n'en a pas.
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
@@ -55,7 +60,7 @@ describe('TCK-382 / AC2 — l’écran introuvable', () => {
 
     const versLaListe = screen.getByRole('link', { name: 'Revenir à la liste' });
     expect(versLaListe).toHaveAttribute('href', '/app/leases');
-    expect(screen.getByRole('link', { name: 'Retour au tableau de bord' })).toHaveAttribute('href', '/app');
+    expect(screen.getByRole('link', { name: 'Retour à l’accueil' })).toHaveAttribute('href', '/app');
   });
 
   it('change de liste avec la section — le lien n’est pas figé', () => {
@@ -73,22 +78,24 @@ describe('TCK-382 / AC2 — l’écran introuvable', () => {
     usePathnameMock.mockReturnValue('/app/section-qui-nexiste-pas/7');
     render(withIntl(<AppNotFound />));
     expect(screen.queryByRole('link', { name: 'Revenir à la liste' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Retour au tableau de bord' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Retour à l’accueil' })).toBeInTheDocument();
   });
 
   it('rend le libellé de la langue active', () => {
     usePathnameMock.mockReturnValue('/app/leases/999');
     render(withIntl(<AppNotFound />, 'en'));
-    expect(screen.getByText('Not found')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to the list' })).toBeInTheDocument();
   });
 });
 
 describe('TCK-382 — l’écran introuvable est rendu par le SERVEUR', () => {
   it('not-found.tsx n’est pas un module client', () => {
-    // Mesuré le 2026-08-27 par sonde jetable, sur `next dev` ET sur `next build` + `next start` :
-    // un `not-found.tsx` marqué `'use client'` n'apparaît PAS dans le HTML de la réponse 404 —
-    // l'écran reste vide jusqu'à l'hydratation. Un composant SERVEUR y apparaît.
+    // ⚠ Ce cliquet ne garde PLUS un rendu HTML : mesuré le 2026-11-14 (TCK-2740, `next build` +
+    // `next start`, sonde hors de `/app` comprise), une 404 de `notFound()` est servie en document
+    // d'erreur au corps vide, que l'introuvable soit serveur ou client. Le relevé du 2026-08-27 qui
+    // disait le contraire est démenti. Il garde la structure serveur (aucune lecture client avant le
+    // premier rendu), cf. le docblock de `not-found.tsx`.
     //
     // Ce test lit une directive, pas un rendu : jsdom ne peut pas observer le HTML que Next
     // produit. C'est un cliquet sur la CAUSE, comme
@@ -97,7 +104,21 @@ describe('TCK-382 — l’écran introuvable est rendu par le SERVEUR', () => {
     expect(source.split('\n').slice(0, 3).join('\n')).not.toMatch(/['"]use client['"]/);
   });
 
-  it('le seul morceau client est le raccourci contextuel', () => {
+  it('TCK-2619 — le corps, le champ et le retour à l’accueil sont SERVEUR ; la liste seule est client', () => {
+    // Le champ « Aller à… » (AC5) et le retour principal vivent dans un module sans directive, et la
+    // moitié client (les pages proposées) n'y rend ni champ ni retour. Aucun n'est dans le HTML du 404
+    // (TCK-2740, ci-dessus) : la répartition reste, pas la promesse de rendu serveur.
+    const corps = readFileSync(join(APP, 'CorpsDeLIntrouvable.tsx'), 'utf8');
+    expect(corps.split('\n').slice(0, 3).join('\n')).not.toMatch(/['"]use client['"]/);
+    expect(corps).toContain('data-slot="aller-a-dans-la-page"');
+    expect(corps).toContain('data-slot="retour-a-l-accueil"');
+    const secours = readFileSync(join(APP, 'SecoursDeLIntrouvable.tsx'), 'utf8');
+    expect(secours.split('\n')[0]).toMatch(/['"]use client['"]/);
+    expect(secours).not.toContain('<input');
+    expect(secours).not.toContain('retour-a-l-accueil');
+  });
+
+  it('les morceaux client sont le raccourci contextuel et (TCK-2619) les secours : jamais la page', () => {
     // Non-vacuité : si `RetourVersLaListe` cessait d'être client, `usePathname()` casserait —
     // et l'assertion ci-dessus resterait verte en ayant supprimé la fonctionnalité.
     const source = readFileSync(join(APP, 'RetourVersLaListe.tsx'), 'utf8');

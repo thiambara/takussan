@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\CustomerNoteKind;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,7 +16,9 @@ class CustomerNote extends AbstractModel implements HasAuditAgency
 {
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $fillable = ['customer_id', 'author_id', 'body', 'pinned', 'kind'];
+    /** TCK-2578 — `property_visit_id` : la visite que cite une note `visit_report` (une par visite). */
+    /** TCK-2878 — `contact_lead_id` : la demande dont une note `lead_message` reprend le message. */
+    protected $fillable = ['customer_id', 'author_id', 'body', 'pinned', 'kind', 'property_visit_id', 'contact_lead_id'];
 
     protected $casts = [
         'pinned' => 'boolean',
@@ -43,6 +46,31 @@ class CustomerNote extends AbstractModel implements HasAuditAgency
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function visit(): BelongsTo
+    {
+        return $this->belongsTo(PropertyVisit::class, 'property_visit_id');
+    }
+
+    /** TCK-2878 — la demande de contact d'une note `lead_message` (son bien borne l'historique d'une candidature). */
+    public function contactLead(): BelongsTo
+    {
+        return $this->belongsTo(PropertyContactLead::class, 'contact_lead_id');
+    }
+
+    /**
+     * TCK-2578 (ADR-0101 § 2) — le compte rendu de visite est lu par le seul personnel de l'agence :
+     * sans ce droit, les notes `visit_report` sortent de la lecture ; les notes sans nature restent.
+     *
+     * TCK-2582 — et le message d'origine d'une demande (`lead_message`), pour la même raison : le
+     * bailleur auteur d'une fiche rattachée la lit, pas ce que le prospect a écrit à l'agence.
+     */
+    public function scopeWithoutVisitReports(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereNull('kind')
+            ->orWhereNotIn('kind', CustomerNoteKind::staffOnlyValues()));
     }
 
     /** TCK-601 (ADR-0044 §3) — l'agence d'une activité sur cette ligne est celle de la fiche client. */

@@ -1,6 +1,6 @@
 import type { PropertyDetail } from '@/types/property';
 
-/** Un bien complet pour les tests du comparateur (`CompareCarousel`, `CompareClient`). */
+/** Un bien complet pour les tests du comparateur (`CompareColonnes`, `CompareClient`). */
 export function makeProperty(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
   return {
     id: 1,
@@ -22,13 +22,7 @@ export function makeProperty(overrides: Partial<PropertyDetail> = {}): PropertyD
     main_photo_url: null,
     published_at: null,
     created_at: '2026-01-01T00:00:00.000Z',
-    type_label: 'Villa',
-    contract_type_label: 'Vente',
-    rent_period_label: null,
-    status_label: 'Disponible',
     title_type: null,
-    title_type_label: null,
-    condition_label: null,
     floor_number: null,
     total_floors: null,
     year_built: 2020,

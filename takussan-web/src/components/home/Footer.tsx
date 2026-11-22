@@ -153,7 +153,7 @@ export function Footer({ className }: FooterProps) {
             <p>
               <Logo nom={appName} taille="pied" />
             </p>
-            <p className="mt-4 max-w-[36ch] text-[15px] leading-relaxed text-muted-foreground text-pretty">
+            <p className="mt-4 max-w-[36ch] text-[0.9375rem] leading-relaxed text-muted-foreground text-pretty">
               {t('tagline')}
             </p>
             {/*
@@ -194,7 +194,7 @@ export function Footer({ className }: FooterProps) {
                     <li key={lien.labelKey}>
                       <LienLocalise
                         href={lien.href}
-                        className="inline-flex min-h-11 items-center text-[15px] text-muted-foreground underline-offset-4 decoration-1 transition-colors hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-h-9"
+                        className="inline-flex min-h-11 items-center text-[0.9375rem] text-muted-foreground underline-offset-4 decoration-1 transition-colors hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-h-9"
                       >
                         {t(`${colonne.cle}.${lien.labelKey}`)}
                       </LienLocalise>

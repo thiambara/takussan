@@ -14,6 +14,7 @@ use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Booking;
 use App\Models\BookingPayment;
+use App\Models\Commitment;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\DataExport;
@@ -38,6 +39,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
+use App\Models\RadarListing;
 use App\Models\Review;
 use App\Models\RoleDelegation;
 use App\Models\Task;
@@ -47,12 +49,14 @@ use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Observers\AgencyObserver;
+use App\Observers\AnnuleLesEngagementsDeSonObjet;
+use App\Observers\DocumentsDuPorteurObserver;
 use App\Observers\FavoriteObserver;
+use App\Observers\FermeLeFilDeSonObjet;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
 use App\Observers\LeasePaymentOnboardingObserver;
 use App\Observers\MaintenanceRequestObserver;
-use App\Observers\MediaCdnObserver;
 use App\Observers\MessageObserver;
 use App\Observers\PaymentPlatformFeeObserver;
 use App\Observers\PlatformProfileObserver;
@@ -60,7 +64,9 @@ use App\Observers\Privacy\PrivacyRegistryObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyPublicCacheObserver;
 use App\Observers\PropertyVisitObserver;
+use App\Observers\RadarListingTargetObserver;
 use App\Observers\ReviewObserver;
+use App\Observers\SallesDeLaFicheClient;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
 use App\Policies\AgencyIndicatorPolicy;
@@ -70,6 +76,7 @@ use App\Policies\AgencyUpgradeRequestPolicy;
 use App\Policies\AgentProfilePolicy;
 use App\Policies\BookingPaymentPolicy;
 use App\Policies\BookingPolicy;
+use App\Policies\CommitmentPolicy;
 use App\Policies\ConversationPolicy;
 use App\Policies\CustomerPolicy;
 use App\Policies\DocumentPolicy;
@@ -95,16 +102,14 @@ use App\Policies\TaskPolicy;
 use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\OtpPreview;
-use App\Services\Boost\BoostStatsRecorder;
+use App\Services\Auth\Voice\VoiceCodeDrivers;
+use App\Services\Auth\Voice\VoiceCodeSender;
+use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
-use App\Services\Media\Cdn\BunnyCdnDriver;
-use App\Services\Media\Cdn\CdnHealthGuard;
-use App\Services\Media\Cdn\CdnProviderContract;
-use App\Services\Media\Cdn\CloudflareCdnDriver;
-use App\Services\Media\MediaUrlResolver;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Messaging\SujetsDuFil;
 use App\Services\Notifications\Sms\Dlr\LogDlrPuller;
 use App\Services\Notifications\Sms\Dlr\MtargetDlrPuller;
 use App\Services\Notifications\Sms\Dlr\SmsDlrPullerInterface;
@@ -138,6 +143,11 @@ use App\Services\Radar\Whatsapp\RadarLogWhatsappDriver;
 use App\Services\Radar\Whatsapp\RadarWhatsappDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
+use App\Services\Search\Query\DatabasePlaceLexicon;
+use App\Services\Search\Query\DatabaseVocabularyAliases;
+use App\Services\Search\Query\PlaceLexicon;
+use App\Services\Search\Query\VocabularyAliases;
+use App\Services\Search\Suggestions\SearchSuggestions;
 use App\Services\Webhooks\WebhookJournal;
 use App\Support\ImpersonationContext;
 use App\Support\LienFront;
@@ -189,9 +199,10 @@ class AppServiceProvider extends ServiceProvider
         // dans le conteneur, et non alias : `withoutMiddleware(ThrottleRequests::class)` des tests
         // remplace cette même entrée, et continue d'éteindre le débit.
         $this->app->bind(ThrottleRequests::class, ThrottleRequestsByNetwork::class);
-        $this->registerCdnServices();
         $this->registerSmsServices();
         $this->registerWhatsappServices();
+        // TCK-2940 (ADR-0126 § 2) — le pilote d'appel, relu de la configuration à chaque résolution.
+        $this->app->bind(VoiceCodeSender::class, fn ($app) => VoiceCodeDrivers::make($app));
 
         // TCK-383 — SINGLETON, et c'est la condition de la déduplication : le conteneur résout un
         // écouteur à chaque dispatch, et une même exécution en échec en déclenche deux.
@@ -207,6 +218,11 @@ class AppServiceProvider extends ServiceProvider
         // TCK-2386 (ADR-0077 §10) — la résolution DNS du Radar, injectée : `UrlFetcher` contrôle
         // toutes les adresses d'un nom avant de s'y connecter, et les tests la doublent.
         $this->app->bind(HostResolver::class, DnsHostResolver::class);
+
+        // TCK-2473 (ADR-0088) — les lieux que l'analyse de la saisie reconnaît : le référentiel géographique, en cache.
+        $this->app->bind(PlaceLexicon::class, DatabasePlaceLexicon::class);
+        // TCK-2476 (ADR-0088 §7) — les variantes d'écriture actives d'un type ou d'un terme, que l'analyse lit en vocabulaire.
+        $this->app->bind(VocabularyAliases::class, DatabaseVocabularyAliases::class);
 
         // TCK-2392 — le quatrième signal de rapprochement du Radar : un pilote par `radar.similarity.driver`, `trigram` à défaut.
         $this->app->bind(RadarTextSimilarity::class, fn ($app) => $app->make(
@@ -235,10 +251,6 @@ class AppServiceProvider extends ServiceProvider
         // TCK-602 (ADR-0051 §4) — SCOPED : le journal du webhook en cours, que le middleware
         // `webhook.journal` ouvre et que le gestionnaire annote, dans la même requête.
         $this->app->scoped(WebhookJournal::class);
-
-        // TCK-708 (P01.04) — SCOPED : les impressions que la requête a servies, que le middleware
-        // `boost.impressions` diffère puis valide, une fois la réponse connue (aucune sur un 304).
-        $this->app->scoped(BoostStatsRecorder::class);
 
         // TCK-602 — la route du paquet Lemon Squeezy est reprise à l'URL et au nom identiques
         // (`routes/lemon-squeezy.php`), derrière un débit et le journal : le paquet n'en avait aucun.
@@ -310,27 +322,6 @@ class AppServiceProvider extends ServiceProvider
         // TCK-084 — share a single CurrencyFormatter so both the Blade
         // directive and any controller/service can resolve the same instance.
         $this->app->singleton(CurrencyFormatter::class);
-    }
-
-    private function registerCdnServices(): void
-    {
-        // TCK-105 — CDN layer. The contract is bound to the active provider
-        // from config. MediaUrlResolver and CdnHealthGuard are singletons so
-        // the circuit-breaker counter survives across multiple URL resolutions
-        // within the same request.
-        $this->app->singleton(CdnHealthGuard::class);
-        $this->app->singleton(CdnProviderContract::class, function ($app): CdnProviderContract {
-            return match ((string) $app['config']->get('cdn.provider', 'bunny')) {
-                'cloudflare' => $app->make(CloudflareCdnDriver::class),
-                default => $app->make(BunnyCdnDriver::class),
-            };
-        });
-        $this->app->singleton(MediaUrlResolver::class, function ($app): MediaUrlResolver {
-            return new MediaUrlResolver(
-                cdn: $app->make(CdnProviderContract::class),
-                guard: $app->make(CdnHealthGuard::class),
-            );
-        });
     }
 
     private function registerSmsServices(): void
@@ -462,10 +453,11 @@ class AppServiceProvider extends ServiceProvider
 
     private function bootRateLimiters(): void
     {
-        // TCK-107 — 60 req/min PAR VISITEUR. TCK-652 : sans `->by()`, la clé est la même pour
-        // tout le site (`ThrottleRequests` ne compte que `md5(nom.$limit->key)`) — un visiteur
-        // qui tapait vite faisait répondre 429 à tous les autres.
-        RateLimiter::for('search-suggest', fn (Request $request) => Limit::perMinute(60)->by($this->visitorRateLimitKey($request)));
+        // TCK-107 — PAR VISITEUR. TCK-652 : sans `->by()`, la clé est la même pour tout le site
+        // (`ThrottleRequests` ne compte que `md5(nom.$limit->key)`) — un visiteur qui tapait vite
+        // faisait répondre 429 à tous les autres. 60/min jusqu'au 2026-11-04 : la suggestion à chaque
+        // frappe (TCK-2475) coupait un visiteur à sa deuxième saisie (revue adverse n° 6).
+        RateLimiter::for('search-suggest', fn (Request $request) => Limit::perMinute(SearchSuggestions::RATE_PER_MINUTE)->by($this->visitorRateLimitKey($request)));
 
         // Public POST endpoints — keyed by authenticated user_id when a valid
         // Bearer token is present, otherwise by the visitor IP (resolved via
@@ -524,6 +516,19 @@ class AppServiceProvider extends ServiceProvider
         // TCK-598 — `POST /public/properties/{slug}/view`. Le service de comptage déduplique déjà
         // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
         RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
+        // TCK-2569 — `POST /public/properties/sponsored-impressions`, la déclaration groupée des emplacements affichés.
+        // Le compteur déduplique par (visiteur, bien) sur 30 min ; ce limiteur borne les appels, pas le compte.
+        RateLimiter::for('public-sponsored-impressions', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
+        // TCK-2599 (ADR-0093) — `POST /public/geo/resolve-link` : un lien collé SANS compte déclenche
+        // une requête SORTANTE. Par IP (réseau /64 en IPv6), et plus serré que la route connectée
+        // (20/min par compte) ; préfixe propre, pour ne partager aucun compteur avec elle.
+        RateLimiter::for('public-geo-link', fn (Request $request) => Limit::perMinute(10)->by('geo-link-ip:'.$this->clientNetwork($request)));
+
+        // TCK-2609 (ADR-0094 §3) — l'aperçu d'une invitation par son jeton, sans compte : par IP, assez
+        // large pour un invité qui recharge, assez serré pour qu'on n'y énumère pas de jetons. La
+        // demande d'un nouveau lien écrit à l'invitant : 5 par heure.
+        RateLimiter::for('public-invitation-preview', fn (Request $request) => Limit::perMinute(30)->by('invitation-preview-ip:'.$this->clientNetwork($request)));
+        RateLimiter::for('public-invitation-renewal', fn (Request $request) => Limit::perHour(5)->by('invitation-renewal-ip:'.$this->clientNetwork($request)));
 
         // TCK-596 (ADR-0042 §2) — l'envoi d'un code de signature de bail : par utilisateur, 3/min et
         // 10/h, EN PLUS de la borne du canal SMS (5/h) et du délai de renvoi de 60 s du service.
@@ -554,7 +559,8 @@ class AppServiceProvider extends ServiceProvider
         // freine le forçage du jeton d'URL. Un refus se journalise ici, puisque le journal des
         // webhooks vient après le débit et n'en garde aucune ligne ; la réponse reste celle de
         // `ThrottleRequestsException`, que l'enveloppe globale rend en 429.
-        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp', 'webhook-whatsapp-radar'] as $limiter) {
+        // TCK-2980 — `webhook-messagerie` : le webhook générique de la messagerie (ADR-0132 § 0).
+        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp', 'webhook-whatsapp-radar', 'webhook-messagerie'] as $limiter) {
             RateLimiter::for($limiter, fn (Request $request) => Limit::perMinute(600)
                 ->by('ip:'.$this->clientNetwork($request))
                 ->response(function (Request $request, array $headers) use ($limiter): never {
@@ -567,6 +573,38 @@ class AppServiceProvider extends ServiceProvider
                     throw new ThrottleRequestsException('Too Many Attempts.', null, $headers);
                 }));
         }
+
+        // TCK-606 (ADR-0046, amendement du 2026-11-16, point 4) — webhooks de paiement : un seau par
+        // INTÉGRATION (empreinte du jeton de l'URL, jamais le jeton en clair), pour que deux agences
+        // derrière une même IP de fournisseur n'épuisent pas le seau l'une de l'autre ; et une borne
+        // par IP, plus large, qui freine l'essai de jetons (chaque jeton inventé aurait sinon son
+        // seau neuf). L'ancienne URL (410) a le sien, qui ne touche jamais ceux des URL à jeton.
+        RateLimiter::for('payment-webhook', fn (Request $request) => [
+            Limit::perMinute(60)->by('payment-webhook-integration:'.hash('sha256', (string) $request->route('token'))),
+            Limit::perMinute(600)->by('payment-webhook-ip:'.$this->clientNetwork($request)),
+        ]);
+        RateLimiter::for('payment-webhook-gone', fn (Request $request) => Limit::perMinute(60)
+            ->by('payment-webhook-gone-ip:'.$this->clientNetwork($request)));
+
+        // TCK-2982 (ADR-0132 § 5) — le lien d'action, public : borné par IP ET par jeton (empreinte, jamais
+        // le clair), comme le lien de paiement.
+        RateLimiter::for('action-link', fn (Request $request) => [
+            Limit::perMinute(30)->by('action_link_ip:'.$this->clientNetwork($request)),
+            Limit::perMinute(20)->by('action_link:'.hash('sha256', (string) $request->route('token'))),
+        ]);
+        // /TCK-2982
+
+        // TCK-606 (verif-602 m4) — le lien de paiement : `verify` déclenche un appel sortant chez le
+        // fournisseur avec la clé de l'agence, `initiate` ouvre un checkout. Bornés par IP ET par
+        // JETON (empreinte `sha256`, jamais en clair) : un lien qui fuit ne se martèle plus depuis N IP.
+        RateLimiter::for('pay-link-verify', fn (Request $request) => [
+            Limit::perMinute(6)->by('pay_link_verify_ip:'.$this->clientNetwork($request)),
+            Limit::perMinute(6)->by('pay_link:verify:'.hash('sha256', (string) $request->route('token'))),
+        ]);
+        RateLimiter::for('pay-link-initiate', fn (Request $request) => [
+            Limit::perMinute(10)->by('pay_link_initiate_ip:'.$this->clientNetwork($request)),
+            Limit::perMinute(10)->by('pay_link:initiate:'.hash('sha256', (string) $request->route('token'))),
+        ]);
 
         // Unauthenticated auth surface — registration / password-reset flows.
         // `/login` is already throttled inline; these mirror it to stop
@@ -642,7 +680,24 @@ class AppServiceProvider extends ServiceProvider
         // limiteur, et chaque note vocale pèse jusqu'à 2 Mo (ADR-0038). Route authentifiée : la clé
         // est l'utilisateur déjà authentifié par `auth:sanctum` (le throttle passe après dans la
         // priorité des middlewares).
+        // TCK-2590 (décision 8 du porteur, 2026-11-12) — la sonde de doublon au numéro COMPLET peut
+        // signaler une fiche que l'appelant ne lit pas (tout à `null`) : vingt par HEURE et par
+        // personne, en plus des vingt par minute de la route. Le préfixe n'y compte pas
+        // (`CustomerDuplicateDetector::numeroComplet()`, le prédicat même de la sonde). L'e-mail complet
+        // qui désigne une fiche masquée puise dans le même seau, mais après la sonde, dans son contrôleur
+        // (troisième porte, nuit du 2026-11-12) ; la création, la mise à jour et la conversion d'une demande
+        // aussi (`CustomerDuplicateDetector::budgeterLesSignalementsMasques`).
+        RateLimiter::for(CustomerDuplicateDetector::LIMITEUR_DU_NUMERO_COMPLET, fn (Request $request) => CustomerDuplicateDetector::numeroComplet(
+            is_string($request->query('phone')) ? $request->query('phone') : null,
+        ) !== null
+            ? Limit::perHour(CustomerDuplicateDetector::NUMEROS_COMPLETS_PAR_HEURE)
+                ->by(CustomerDuplicateDetector::seauDuNumeroComplet($request->user()?->id ?? $this->clientNetwork($request)))
+            : Limit::none());
+
         RateLimiter::for('conversation-message', fn (Request $request) => Limit::perMinute(30)
+            ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
+        // TCK-2981 (ADR-0132 § 3) — « Joindre par WhatsApp » : par auteur ; chaque invitation coûte un envoi.
+        RateLimiter::for('pont-invitation', fn (Request $request) => Limit::perMinute(10)
             ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
     }
 
@@ -661,6 +716,17 @@ class AppServiceProvider extends ServiceProvider
         }
     }
 
+    /**
+     * TCK-2939 (ADR-0094, amendement du 2026-11-15 § 5) — les essais que le limiteur `auth-phone-verify` laisse encore
+     * à ce numéro dans sa fenêtre (l'essai de la requête en cours déjà compté, avant elle). Lu, jamais écrit.
+     */
+    public static function phoneVerifyAttemptsLeft(Request $request): int
+    {
+        $key = ThrottleRequestsByNetwork::namedLimiterKey('auth-phone-verify', 'phone:'.self::phoneRateLimitKey($request));
+
+        return max(0, self::PHONE_VERIFY_PER_WINDOW - (int) RateLimiter::attempts($key));
+    }
+
     /** TCK-589 — la clé d'un limiteur par numéro : le numéro saisi, espaces retirés. */
     /**
      * Le numéro DESTINATAIRE : celui du corps, sinon (M3) celui du compte — `phone/send-otp`
@@ -676,6 +742,26 @@ class AppServiceProvider extends ServiceProvider
             $token = (string) $request->route('token');
 
             return ClaimLinks::phoneOf($token) ?? 'radar-claim:'.hash('sha256', $token);
+        }
+
+        // TCK-2610 (ADR-0094 § 5) — l'invitation par SMS ne porte pas le numéro dans le corps : le seau est celui du numéro
+        // de l'invitation, que le jeton désigne (le même que la connexion par téléphone pour ce numéro). Par e-mail, le
+        // numéro saisi, comme `auth/phone/verify-code`. Un jeton inconnu a son propre seau, sans numéro.
+        if ($request->routeIs('public.invitations.verify-code')) {
+            $token = (string) $request->route('token');
+            $invitation = Invitation::query()->where('token', $token)->first(['email', 'phone', 'metadata']);
+            if ($invitation === null) {
+                return 'invitation-code:'.hash('sha256', $token);
+            }
+            // TCK-2939 (ADR-0094, amendement du 2026-11-15 § 4) — le numéro CORRIGÉ par l'invité, s'il en donne un : le
+            // seau est celui du numéro dont le code se vérifie (`SendInvitationCodeRequest::phone()`). Une invitation
+            // partagée refuse la correction : son seau reste celui de son numéro.
+            $corrige = is_string($request->input('phone')) && ! $invitation->estPartagee()
+                ? (preg_replace('/\s+/', '', $request->input('phone')) ?? '')
+                : '';
+            if ($invitation->email === null && $corrige === '') {
+                return preg_replace('/\s+/', '', (string) $invitation->phone) ?? '';
+            }
         }
 
         // TCK-589 p3-1 — le code de preuve part TOUJOURS au numéro du compte : la clé aussi. Un
@@ -769,13 +855,35 @@ class AppServiceProvider extends ServiceProvider
         Favorite::observe(FavoriteObserver::class);
         Review::observe(ReviewObserver::class);
         Lease::observe(LeaseObserver::class);
+        // TCK-2960 (ADR-0128 § 2) — une fiche liée à un compte : les salles de ses baux et réservations.
+        Customer::observe(SallesDeLaFicheClient::class);
         PropertyVisit::observe(PropertyVisitObserver::class);
         // TCK-594 (ADR-0039 §8) — l'intervention terminée produit sa facture d'intervention.
         MaintenanceRequest::observe(MaintenanceRequestObserver::class);
         User::observe(UserObserver::class);
         PlatformProfile::observe(PlatformProfileObserver::class);
+        // TCK-2468 (ADR-0087 §5) — une annonce extraite ou validée est rattachée aux cibles du Radar, après le commit.
+        RadarListing::observe(RadarListingTargetObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
+
+        // TCK-2957 (ADR-0128 § 1) — le fil d'un objet supprimé se ferme, restauré se rouvre. Une boucle
+        // sur le registre, pas une ligne par modèle : un type sujet ajouté à `SujetsDuFil` est couvert.
+        foreach (SujetsDuFil::typesSujets() as $type) {
+            SujetsDuFil::modele($type)::observe(FermeLeFilDeSonObjet::class);
+        }
+
+        // TCK-2969 (ADR-0130 § 7) — un objet clos (ou supprimé) annule ses engagements en cours. Une boucle sur
+        // la table « type → clos » de l'observateur : une ligne ajoutée y est branchée sans autre code.
+        foreach (array_keys(AnnuleLesEngagementsDeSonObjet::CLOS) as $type) {
+            SujetsDuFil::modele($type)::observe(AnnuleLesEngagementsDeSonObjet::class);
+        }
+
+        // TCK-2781 — l'index des documents recopie l'agence, la présence et le sujet de leur porteur :
+        // ils se réindexent quand l'un change (`DocumentsDuPorteurObserver::COLONNES`).
+        foreach (array_keys(DocumentsDuPorteurObserver::COLONNES) as $porteur) {
+            $porteur::observe(DocumentsDuPorteurObserver::class);
+        }
 
         // TCK-266 — onboarding checklist auto-completion observers.
         // Inventory.signed (move-in) → inventory_completed item ;
@@ -784,7 +892,6 @@ class AppServiceProvider extends ServiceProvider
         LeasePayment::observe(LeasePaymentOnboardingObserver::class);
 
         // TCK-105 — purge CDN cache when a media item is deleted or replaced.
-        Media::observe(MediaCdnObserver::class);
 
         // TCK-585 — une photo de bien neuve est marquée « conversions en WebP » AVANT sa
         // première conversion. Une photo ancienne n'a pas le marqueur et garde ses `.jpg`
@@ -866,6 +973,8 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-085 — group conversation gates (admin-only mutations + system-message immutability).
         Gate::policy(Conversation::class, ConversationPolicy::class);
+        // TCK-2969 (ADR-0130 § 2) — l'engagement se lit comme son fil.
+        Gate::policy(Commitment::class, CommitmentPolicy::class);
 
         // TCK-088 — explicit bind for `$user->can('refundDeposit', $lease)`.
         Gate::policy(Lease::class, LeasePolicy::class);

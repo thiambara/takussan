@@ -173,24 +173,23 @@ class PlatformModerationTwoFactorTest extends ApiTestCase
     }
 
     /**
-     * verif-597 passe 4, n5 — `reply` et `deleteReply` sont exemptés, mais un super-admin sans 2FA
-     * réécrit ou efface encore la réponse d'une agence (`Gate::before`, pouvoir antérieur à 597).
-     * Le motif doit le dire, pour que le ticket de suite les trouve en partant de la liste ; si le
-     * geste passe un jour sous 2FA, ce test tombe et le motif se réécrit avec lui.
+     * verif-597 passe 4, n5 — `reply` et `deleteReply` étaient exemptés, et un super-admin sans 2FA
+     * réécrivait ou effaçait la réponse d'une agence (`Gate::before`). TCK-609 (ADR-0033 §8,
+     * amendement du 2026-11-16) les range dans `PLATFORM_TWO_FACTOR` : l'exemption disparaît.
+     * Le détail (avec et sans second facteur, admin d'agence) est dans `PlatformPowerTwoFactorTest`.
      */
-    public function test_the_reply_exemption_names_the_platform_path_it_leaves_open(): void
+    public function test_the_reply_is_now_a_platform_power_under_two_factor(): void
     {
         $review = $this->review(ReviewStatus::Approved);
         $review->forceFill(['reply_content' => "Réponse de l'agence", 'replied_at' => now()])->saveQuietly();
         $this->superAdmin(false);
 
-        $this->deleteJson("/api/reviews/{$review->id}/reply")->assertOk();
-        $this->assertNull($review->refresh()->reply_content);
+        $this->assertRefused($this->deleteJson("/api/reviews/{$review->id}/reply"), 'two_factor_required');
+        $this->assertSame("Réponse de l'agence", $review->refresh()->reply_content);
 
         foreach (['reply', 'deleteReply'] as $method) {
-            $reason = ProtectedActions::PLATFORM_TWO_FACTOR_EXEMPT[ReviewController::class.'@'.$method];
-            $this->assertStringContainsString('Gate::before', $reason, "Motif de @{$method}");
-            $this->assertStringContainsString('ticket de suite', $reason, "Motif de @{$method}");
+            $this->assertTrue(ProtectedActions::requiresPlatformTwoFactor(ReviewController::class.'@'.$method), "@{$method}");
+            $this->assertArrayNotHasKey(ReviewController::class.'@'.$method, ProtectedActions::PLATFORM_TWO_FACTOR_EXEMPT);
         }
     }
 

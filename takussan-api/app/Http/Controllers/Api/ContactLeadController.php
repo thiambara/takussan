@@ -7,10 +7,11 @@ use App\Http\Requests\Api\AssignContactLeadRequest;
 use App\Http\Requests\Api\ConvertContactLeadRequest;
 use App\Http\Requests\Api\HandleContactLeadRequest;
 use App\Http\Resources\PropertyContactLeadResource;
-use App\Models\Enums\ContactLeadChannel;
+use App\Models\Customer;
 use App\Models\PropertyContactLead;
 use App\Models\User;
 use App\Policies\PropertyContactLeadPolicy;
+use App\Services\Crm\ContactLeadKnownCustomers;
 use App\Services\Lead\ContactLeadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,23 +32,16 @@ class ContactLeadController extends Controller
 
     public function index(Request $request, PropertyContactLeadPolicy $policy): JsonResponse
     {
-        $user = $request->user();
+        // TCK-2847 — la portée vit dans la policy (`scopeIndex`), que la ligne d'activité des espaces lit aussi.
         $base = PropertyContactLead::query();
-
-        if (! $user->isSuperAdmin()) {
-            $agencyId = $policy->agencyScopeFor($user);
-
-            $base->where(function ($q) use ($user, $agencyId, $policy) {
-                $q->where(fn ($d) => $policy->scopeDestinataire($d, $user));
-                if ($agencyId !== null) {
-                    $q->orWhere('agency_id', $agencyId);
-                }
-            });
-        }
+        $policy->scopeIndex($base, $request->user());
 
         $paginator = PropertyContactLead::buildQuery($base, $request)
             ->defaultSort('-created_at')
             ->paginate();
+
+        // TCK-2582 — `known_customer` pour la page entière, en requêtes groupées.
+        ContactLeadKnownCustomers::prime($request, $paginator->getCollection());
 
         return $this->paginated($paginator, PropertyContactLeadResource::collection($paginator)->toArray($request));
     }
@@ -57,13 +51,22 @@ class ContactLeadController extends Controller
         $this->authorize('view', $lead);
 
         return $this->json([
-            'data' => PropertyContactLeadResource::make($lead->load(['property', 'recipient']))->resolve($request),
+            // TCK-2884 — `property.address` : le quartier du bien, comme dans la liste.
+            'data' => PropertyContactLeadResource::make($lead->load(['property.address', 'recipient']))->resolve($request),
         ]);
     }
 
     public function handle(HandleContactLeadRequest $request, PropertyContactLead $lead): JsonResponse
     {
         $lead = $this->leads->markHandled($lead, $request->user());
+
+        return $this->json(['data' => PropertyContactLeadResource::make($lead)->resolve($request)]);
+    }
+
+    /** TCK-2884 — « Annuler » un traitement : même autorisation que `handle`, 422 sur une demande non traitée. */
+    public function unhandle(HandleContactLeadRequest $request, PropertyContactLead $lead): JsonResponse
+    {
+        $lead = $this->leads->unhandle($lead, $request->user());
 
         return $this->json(['data' => PropertyContactLeadResource::make($lead)->resolve($request)]);
     }
@@ -79,9 +82,14 @@ class ContactLeadController extends Controller
 
     public function convert(ConvertContactLeadRequest $request, PropertyContactLead $lead): JsonResponse
     {
-        abort_code_unless($lead->channel === ContactLeadChannel::Form, 422, 'lead.not_convertible');
+        // TCK-2980 — `form` ou `whatsapp_inbound` (un prospect du pont).
+        abort_code_unless($lead->channel?->estUneDemande() === true, 422, 'lead.not_convertible');
 
-        $customer = $this->leads->convert($lead, $request->user(), $request->boolean('allow_duplicate'));
+        // TCK-2582 — `customer_id` : la demande rejoint la fiche choisie au lieu d'en créer une.
+        $existing = $request->validated('customer_id');
+        $customer = $existing !== null
+            ? $this->leads->attach($lead, Customer::query()->findOrFail((int) $existing), $request->user())
+            : $this->leads->convert($lead, $request->user(), $request->boolean('allow_duplicate'));
 
         return $this->json([
             'data' => PropertyContactLeadResource::make($lead->refresh())->resolve($request),

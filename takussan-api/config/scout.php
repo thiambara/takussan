@@ -264,14 +264,24 @@ return [
             ],
             Message::class => [
                 'searchableAttributes' => ['body'],
-                'filterableAttributes' => ['sender_id', 'conversation_id', 'created_at'],
+                // TCK-2965 (ADR-0128 § 6) — `visibility` : la recherche écarte les notes d'équipe dans le moteur.
+                'filterableAttributes' => ['sender_id', 'conversation_id', 'created_at', 'visibility'],
                 'sortableAttributes' => ['created_at'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
                 'pagination' => $pagination,
             ],
             Document::class => [
-                'searchableAttributes' => ['title', 'description'],
-                'filterableAttributes' => ['type', 'documentable_type', 'documentable_id', 'uploaded_by', 'created_at'],
+                // TCK-2895 (ADR-0099, amendement du 2026-11-15, § 6) — le bien et le locataire du porteur,
+                // après le nom et la description de la pièce (la règle `attribute` les classe ensuite).
+                'searchableAttributes' => ['title', 'description', 'carrier_tenant_name', 'carrier_property_title'],
+                // TCK-2781 — la lecture s'écrit au moteur par un filtre borné par les agences du lecteur
+                // (`DocumentSearchService::filtreDeLecture`) : `is_internal` et les faits du porteur
+                // (`Document::porteurPourLIndex`). `id` n'est plus filtrable : le `NOT id IN [...]` de
+                // TCK-2759 (r4), qui grandissait avec les téléversements, ne peut pas revenir en silence.
+                'filterableAttributes' => [
+                    'type', 'documentable_type', 'documentable_id', 'uploaded_by', 'created_at',
+                    'is_internal', 'carrier_present', 'carrier_agency_id', 'subject_user_id',
+                ],
                 'sortableAttributes' => ['created_at'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
                 'pagination' => $pagination,

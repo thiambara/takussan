@@ -13,6 +13,9 @@ interface DepositRefundBannerProps {
   readonly lease: Pick<Lease, 'id' | 'status' | 'deposit_amount' | 'currency'>;
   /** When true, renders the action button (only for users with refund capability). */
   readonly canRefund: boolean;
+  /** TCK-2645 — « Restituer la caution » de la feuille « Gestes » ouvre la même restitution (contrôlée). */
+  readonly ouvert?: boolean;
+  readonly onOuvertChange?: (ouvert: boolean) => void;
 }
 
 /**
@@ -26,10 +29,12 @@ interface DepositRefundBannerProps {
  * On masque entièrement le bandeau pour les baux en cours — c'est dans la
  * carte "Caution" du grid principal qu'on lit le montant initial.
  */
-export function DepositRefundBanner({ lease, canRefund }: DepositRefundBannerProps) {
+export function DepositRefundBanner({ lease, canRefund, ouvert, onOuvertChange }: DepositRefundBannerProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('lease.deposit');
-  const [open, setOpen] = useState(false);
+  const [ouvertSeul, setOuvertSeul] = useState(false);
+  const open = ouvert ?? ouvertSeul;
+  const setOpen = onOuvertChange ?? setOuvertSeul;
 
   const eligible = lease.status === 'terminated' || lease.status === 'expired';
   const hasDeposit = (lease.deposit_amount ?? 0) > 0;

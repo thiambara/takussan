@@ -6,7 +6,9 @@ use App\Domain\Settings\AgencySettings;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Currency;
+use App\Rules\TelephoneJoignable;
 use App\Services\Admin\PlatformSettingService;
+use App\Support\TelephoneSaisi;
 use Illuminate\Validation\Rule;
 
 /**
@@ -43,6 +45,31 @@ class AgencyUpdateRequest extends BaseFormRequest
     }
 
     /**
+     * TCK-2504 — les numéros de paiement hors ligne passent par la normalisation de tout téléphone
+     * saisi (`TelephoneSaisi`, E.164), puis par ses règles (`AgencySettings`).
+     */
+    protected function prepareForValidation(): void
+    {
+        parent::prepareForValidation();
+
+        // TCK-2576 — le numéro WhatsApp de l'agence : même normalisation que tout téléphone saisi.
+        if ($this->has('phone_whatsapp')) {
+            $this->merge(['phone_whatsapp' => TelephoneSaisi::normaliser($this->input('phone_whatsapp'))]);
+        }
+
+        $settings = $this->input('settings');
+        if (! is_array($settings)) {
+            return;
+        }
+        foreach (AgencySettings::PHONE_KEYS as $key) {
+            if (array_key_exists($key, $settings)) {
+                $settings[$key] = TelephoneSaisi::normaliser($settings[$key]);
+            }
+        }
+        $this->merge(['settings' => $settings]);
+    }
+
+    /**
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
@@ -58,8 +85,25 @@ class AgencyUpdateRequest extends BaseFormRequest
                 Rule::unique('agencies', 'license_number')->ignore($this->route('agency')),
             ],
             'description' => ['sometimes', 'nullable', 'string'],
+            // TCK-2518 — la vitrine de la fiche publique : accroche, « Pourquoi nous » (trois chaînes),
+            // sélection (six biens DE CETTE AGENCE au plus, dans l'ordre choisi). Un bien d'une autre
+            // agence rend 422 et rien n'est écrit ; un bien de l'agence devenu non public reste
+            // sélectionnable — c'est la lecture publique qui le saute.
+            'tagline' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'highlights' => ['sometimes', 'nullable', 'array', 'list', 'max:3'],
+            'highlights.*' => ['required', 'string', 'max:80'],
+            'showcase_property_ids' => ['sometimes', 'nullable', 'array', 'list', 'max:6'],
+            'showcase_property_ids.*' => [
+                'required', 'integer', 'distinct',
+                Rule::exists('properties', 'id')
+                    ->where('agency_id', $this->route('agency') instanceof Agency ? $this->route('agency')->getKey() : 0)
+                    ->whereNull('deleted_at'),
+            ],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            // TCK-2576 — le numéro WhatsApp de l'agence (le bouton de sa fiche publique) : les règles
+            // des numéros de paiement hors ligne (`AgencySettings`), E.164 joignable.
+            'phone_whatsapp' => ['sometimes', 'nullable', 'string', 'max:30', new TelephoneJoignable, new TelephoneSaisi],
             'website' => ['sometimes', 'nullable', 'url'],
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             // TCK-600 — les devises que la plateforme accepte (`currency.supported`), pas tout l'enum.
@@ -74,7 +118,17 @@ class AgencyUpdateRequest extends BaseFormRequest
             'settings' => ['sometimes', 'array'],
             // TCK-970 — les clés de `settings`, leur type et leur défaut : une seule liste, que lit
             // aussi `Agency::setting()`.
+            // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un : le
+            // mécanisme commun de `BaseFormRequest` (`BorneLesReglesDElement`) le tient, sur le `max:`
+            // de la liste comme sur le `prohibited` posé ci-dessous pour une agence `individual`.
             ...AgencySettings::rules(),
+            // TCK-2483 (ADR-0089, amendement) — une agence `individual` n'a pas d'équipe dont masquer
+            // le menu : la clé y serait un réglage sans effet. `null` et `[]` passent (`prohibited`).
+            ...($this->isIndividual() ? ['settings.hidden_modules' => ['prohibited']] : []),
+            // TCK-2487 — ni d'équipe à qui exiger la 2FA : l'hôte la porte déjà en tant qu'admin
+            // d'agence (`TwoFactorRequirement::requiredAtAgency`), l'interrupteur n'y change rien.
+            // `null` passe (`prohibited`) et retire une valeur ancienne.
+            ...($this->isIndividual() ? ['settings.require_team_two_factor' => ['prohibited']] : []),
             // TCK-594 (ADR-0039 §4) — qui le modifie : `AgencyPolicy::updatePayoutThreshold`.
             'payout_approval_threshold' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999999999999'],
             // TCK-594 (ADR-0039 §7) — TVA par défaut des factures (un taux explicite gagne).

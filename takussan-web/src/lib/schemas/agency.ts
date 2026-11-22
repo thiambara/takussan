@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { lireNombre } from '@/lib/clavier';
 import { msgValidation } from './messages';
+import { CODES_DE_MODULE, modulesMasquesDe, type CodeDeModule } from '@/lib/navigation/modules';
 
 /**
  * Agency (admin config) schemas — TCK-064.
@@ -40,6 +42,17 @@ export const agencyFormSchema = z.object({
       (v) => v === '' || /^\+?[0-9\s().-]{8,20}$/.test(v),
       msgValidation('common.phoneInvalid'),
     ),
+  /**
+   * TCK-2576 — le numéro WhatsApp de l'agence (`agencies.phone_whatsapp`), que sa fiche publique offre
+   * au premier rang. Même forme que le téléphone ; l'API le normalise en E.164 et le juge joignable.
+   */
+  phone_whatsapp: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === '' || /^\+?[0-9\s().-]{8,20}$/.test(v),
+      msgValidation('common.phoneInvalid'),
+    ),
   website: z
     .string()
     .trim()
@@ -53,8 +66,8 @@ export const agencyFormSchema = z.object({
     .refine(
       (v) => {
         if (v === '') return true;
-        const n = Number(v);
-        return Number.isFinite(n) && n >= 0 && n <= 100;
+        const n = lireTaux(v);
+        return n !== null && n >= 0 && n <= 100;
       },
       msgValidation('agency.commissionRange'),
     ),
@@ -70,6 +83,13 @@ export const agencyFormSchema = z.object({
   require_team_two_factor: z.boolean(),
   /** TCK-593 — `settings.late_fee_online_collection`, désactivé par défaut. */
   late_fee_online_collection: z.boolean(),
+  /** TCK-2869 (ADR-0112) — `settings.owners_confirm_visits`, désactivé par défaut. */
+  owners_confirm_visits: z.boolean(),
+  /** TCK-2979 (ADR-0131) — `settings.copilot_enabled` / `voice_transcription_enabled`, vrais par défaut. */
+  copilot_enabled: z.boolean(),
+  voice_transcription_enabled: z.boolean(),
+  /** TCK-2483 — `settings.hidden_modules` : les modules retirés du menu de l'équipe (agence `standard`). */
+  hidden_modules: z.array(z.enum(CODES_DE_MODULE)),
   // TCK-594 (ADR-0039 §7) — mêmes bornes que `AgencyUpdateRequest`.
   default_tax_rate: z
     .string()
@@ -77,8 +97,8 @@ export const agencyFormSchema = z.object({
     .refine(
       (v) => {
         if (v === '') return true;
-        const n = Number(v);
-        return Number.isFinite(n) && n >= 0 && n <= 100;
+        const n = lireTaux(v);
+        return n !== null && n >= 0 && n <= 100;
       },
       msgValidation('agency.taxRateRange'),
     ),
@@ -86,14 +106,133 @@ export const agencyFormSchema = z.object({
   payout_approval_threshold: z
     .string()
     .trim()
-    .refine((v) => v === '' || /^[0-9]{1,12}$/.test(v), msgValidation('agency.thresholdInvalid')),
+    .refine((v) => v === '' || lireSeuil(v) !== null, msgValidation('agency.thresholdInvalid')),
   legal_name: z.string().trim().max(255, msgValidation('agency.legalNameTooLong')),
   ninea: z.string().trim().max(30, msgValidation('agency.legalIdTooLong')),
   rccm: z.string().trim().max(30, msgValidation('agency.legalIdTooLong')),
   legal_address: z.string().trim().max(1000, msgValidation('agency.legalAddressTooLong')),
+  // TCK-2536 — les moyens de paiement hors ligne (`settings.offline_payment_*`, TCK-2504). La forme d'un
+  // numéro se juge à l'API (422 sur `settings.<clé>`, rendu sous le champ) : elle accepte la saisie
+  // libre (« 77 123 45 67 ») et la rend en E.164 — un contrôle ici refuserait ce qu'elle accepte.
+  // PAS de `.trim()` sur les coordonnées bancaires : le schéma rendrait la valeur rognée, et la
+  // comparaison « inchangé » de l'envoi se fait de toute façon sur la valeur rognée.
+  // `default('')` : une valeur absente vaut « rien de saisi » (et ne part donc pas).
+  offline_payment_wave_number: z.string().default(''),
+  offline_payment_orange_money_number: z.string().default(''),
+  offline_payment_bank_details: z.string().default(''),
+  // TCK-2915 — `settings.payout_day` : le jour du mois (1-28) où partent les reversements aux bailleurs
+  // dont le mandat n'en fixe pas ; vide = aucun. Mêmes bornes que `AgencySettings`.
+  payout_day: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || (/^[0-9]{1,2}$/.test(v) && Number(v) >= 1 && Number(v) <= 28), msgValidation('agency.payoutDayRange'))
+    .default(''),
 });
 
+/** TCK-2536 — les trois clés de `settings` des moyens de paiement hors ligne (TCK-2504). */
+export const CLES_PAIEMENT_HORS_LIGNE = [
+  'offline_payment_wave_number',
+  'offline_payment_orange_money_number',
+  'offline_payment_bank_details',
+] as const;
+export type ClePaiementHorsLigne = (typeof CLES_PAIEMENT_HORS_LIGNE)[number];
+
+/** La borne de `settings.offline_payment_bank_details` côté API (`AgencySettings`, `max:500`). */
+export const COORDONNEES_BANCAIRES_MAX = 500;
+
 export type AgencyFormValues = z.infer<typeof agencyFormSchema>;
+
+/** Les clés de `agencies.settings` que la fiche de l'agence gère — et SEULEMENT elles (TCK-593). */
+export interface ReglagesDeLaFiche {
+  require_team_two_factor: boolean;
+  late_fee_online_collection: boolean;
+  /** TCK-2869 */
+  owners_confirm_visits: boolean;
+  /** TCK-2979 */
+  copilot_enabled: boolean;
+  voice_transcription_enabled: boolean;
+  hidden_modules: CodeDeModule[];
+  /** TCK-2536 — tels que l'API les rend (E.164 pour les numéros), `''` quand la clé est absente. */
+  offline_payment_wave_number: string;
+  offline_payment_orange_money_number: string;
+  offline_payment_bank_details: string;
+  /** TCK-2915 — `settings.payout_day` en texte de champ, `''` quand la clé est absente. */
+  payout_day: string;
+}
+
+/**
+ * Revue adverse de TCK-2486, M2 — un booléen de `settings` lu comme `AgencySettings::read` côté API :
+ * booléen tel quel ; scalaire par `filter_var($v, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)` (vrai :
+ * `1`, `"1"`, `"true"`, `"on"`, `"yes"` ; faux : `0`, `"0"`, `"false"`, `"off"`, `"no"`, `""` — casse et
+ * blancs ignorés) ; tout le reste, absent compris, = le défaut du catalogue.
+ */
+function booleenCommeLApi(valeur: unknown, defaut: boolean): boolean {
+  if (typeof valeur === 'boolean') return valeur;
+  // PHP convertit le nombre en chaîne avant de juger : seuls `1` et `0` sont lisibles.
+  const texte = typeof valeur === 'number' ? String(valeur) : typeof valeur === 'string' ? valeur.trim().toLowerCase() : null;
+  if (texte === null) return defaut;
+  if (['1', 'true', 'on', 'yes'].includes(texte)) return true;
+  if (['0', 'false', 'off', 'no', ''].includes(texte)) return false;
+  return defaut;
+}
+
+/**
+ * TCK-2486 — LA lecture de `settings` par la fiche : ses valeurs par défaut ET la référence « inchangé »
+ * de l'envoi. Une seule fonction, pour qu'une case affichée décochée ne puisse pas être jugée modifiée.
+ * Clé absente ou hors forme = le défaut de l'API (`AgencySettings`) : `false`, aucun module masqué.
+ *
+ * Revue de TCK-2486, M2 — chaque clé se lit comme le lecteur de l'API qui lui donne son EFFET : sinon une
+ * valeur que l'écran contredit reste en base, puisqu'une clé inchangée ne part plus.
+ */
+export function reglagesDeLaFiche(settings: unknown): ReglagesDeLaFiche {
+  const lu = settings !== null && typeof settings === 'object' ? (settings as Record<string, unknown>) : {};
+  return {
+    // TCK-589 — STRICT : son seul lecteur à effet, `TwoFactorRequirement::requiredAtAgency()`, filtre par
+    // `where('settings->require_team_two_factor', true)`, soit `(settings->'…')::jsonb = 'true'::jsonb`. Un `1`
+    // stocké n'exige rien du personnel : le montrer coché dirait « exigée » à tort. (Lu par `filter_var`,
+    // `AgencySettings::read` dirait vrai : l'écart est côté API, écrit au ticket.)
+    require_team_two_factor: lu.require_team_two_factor === true,
+    // TCK-593 — `Agency::collectsLateFeesOnline()` → `AgencySettings::read` ; clé absente = désactivé.
+    late_fee_online_collection: booleenCommeLApi(lu.late_fee_online_collection, false),
+    // TCK-2869 — `PropertyVisitPolicy::bailleurConfirmeDans` → `Agency::setting` (`AgencySettings::read`) ;
+    // clé absente = désactivé.
+    owners_confirm_visits: booleenCommeLApi(lu.owners_confirm_visits, false),
+    // TCK-2979 — `AgencySettings` : clé absente = activé (défaut `true` côté API).
+    copilot_enabled: booleenCommeLApi(lu.copilot_enabled, true),
+    voice_transcription_enabled: booleenCommeLApi(lu.voice_transcription_enabled, true),
+    // TCK-2483 — clé absente = rien de masqué ; un code inconnu est ignoré (et ne repart pas).
+    hidden_modules: modulesMasquesDe(lu),
+    // TCK-2536 — une chaîne telle quelle, sans reformatage : le numéro affiché est celui que l'API a rendu.
+    offline_payment_wave_number: texteDuReglage(lu.offline_payment_wave_number),
+    offline_payment_orange_money_number: texteDuReglage(lu.offline_payment_orange_money_number),
+    offline_payment_bank_details: texteDuReglage(lu.offline_payment_bank_details),
+    // TCK-2915 — un entier 1-28 (`AgencySettings::read`) ; toute autre valeur se lit « aucun ».
+    payout_day: typeof lu.payout_day === 'number' && Number.isInteger(lu.payout_day) ? String(lu.payout_day) : '',
+  };
+}
+
+function texteDuReglage(valeur: unknown): string {
+  return typeof valeur === 'string' ? valeur : '';
+}
+
+/**
+ * TCK-2536 — l'API rend l'erreur d'un réglage sous `settings.<clé>` ; le champ du formulaire porte la
+ * clé seule. Les trois clés du paiement hors ligne sont renommées pour que `useApiForm` pose l'erreur
+ * sous leur champ ; toute autre clé passe telle quelle (et finit, inconnue, dans le bandeau).
+ */
+export function erreursDesReglagesSurLeurChamp(
+  errors: Record<string, string[]> | undefined,
+): Record<string, string[]> | undefined {
+  if (errors === undefined) return undefined;
+  return Object.fromEntries(
+    Object.entries(errors).map(([cle, messages]) => {
+      const reglage = cle.startsWith('settings.') ? cle.slice('settings.'.length) : null;
+      // TCK-2915 — `settings.payout_day` sous son champ, comme les moyens de paiement hors ligne.
+      const surSonChamp = reglage !== null && ([...CLES_PAIEMENT_HORS_LIGNE, 'payout_day'] as readonly string[]).includes(reglage);
+      return [surSonChamp ? reglage : cle, messages];
+    }),
+  );
+}
 
 export interface AgencyFormPayload {
   name: string;
@@ -103,6 +242,8 @@ export interface AgencyFormPayload {
   description?: string | null;
   email?: string | null;
   phone?: string | null;
+  /** TCK-2576 — le numéro WhatsApp de l'agence ; vidé, `null` le retire de la fiche publique. */
+  phone_whatsapp?: string | null;
   website?: string | null;
   commission_rate?: number | null;
   /** TCK-084 — first-class column, not nested under `settings`. */
@@ -122,7 +263,8 @@ export interface AgencyFormPayload {
  * TCK-594 — ce que le formulaire sait de l'agence AVANT la saisie, et qui décide de ce qui part.
  *
  * - `individual` : l'API refuse les mentions légales d'une agence `individual` (`prohibited`) ; les
- *   envoyer, même vides, rendrait chaque enregistrement 422.
+ *   envoyer, même vides, rendrait chaque enregistrement 422. Même chose pour `settings.hidden_modules`
+ *   (TCK-2483) et `settings.require_team_two_factor` (TCK-2487).
  *   Même chose pour `moderation_required`, refusée à `true` (`declined`, TCK-686).
  * - `initialThreshold` : le seuil a sa propre capacité (`payouts.approve`) et sa règle des deux
  *   approbateurs. Le renvoyer INCHANGÉ ferait refuser l'enregistrement du nom à un admin qui ne la
@@ -137,6 +279,12 @@ export interface AgencyFormContext {
    */
   slugEditable?: boolean;
   initialSlug?: string;
+  /**
+   * TCK-2483 (revue, M5), TCK-2486 — le `settings` de l'agence tel que chargé (absent = aucun réglage
+   * posé). Une clé gérée ne part que si sa valeur a changé : l'API conserve une clé absente, et renvoyer
+   * la valeur du chargement écraserait celle qu'un autre admin aurait enregistrée depuis.
+   */
+  initialSettings?: unknown;
 }
 
 function emptyToNull(v: string | undefined): string | null {
@@ -151,22 +299,72 @@ function emptyToNull(v: string | undefined): string | null {
  * `settings.default_commission_rate` et `settings.currency`, ni `settings.timezone`, et
  * `validated()` les retirait sans erreur.
  *
- * TCK-593 — `settings` ne porte QUE les clés que cet écran gère. L'API fusionne `settings` clé par
+ * TCK-593 — `settings` ne porte QUE les clés que cet écran gère (`ReglagesDeLaFiche`), et depuis
+ * TCK-2486 seulement celles qui ont changé. L'API fusionne `settings` clé par
  * clé (`AgencyController::update`) : une clé absente est conservée, une clé à `null` est effacée.
  * Renvoyer ici l'objet `settings` lu de l'agence réécrirait donc des réglages que l'écran ne montre
  * pas (filigrane, accueil…) avec leur valeur du moment du chargement.
  */
+/**
+ * ADR-0135 — les champs de la fiche gardent le texte tapé (`garderLeTexte`) : un taux se lit « 8,5 » → 8.5 (sans
+ * séparateur de milliers : « 7,125 » est un taux), un seuil « 500 000 » ou « 500,000 » → 500000. `null` : illisible.
+ */
+function lireTaux(v: string): number | null {
+  const n = lireNombre(v.trim(), false);
+  return typeof n === 'number' && Number.isFinite(n) ? n : null;
+}
+function lireSeuil(v: string): number | null {
+  const n = lireNombre(v.trim());
+  return typeof n === 'number' && Number.isInteger(n) && n >= 0 && n < 1e12 ? n : null;
+}
+
 export function normaliseAgencyForm(
   values: AgencyFormValues,
   context: AgencyFormContext = { individual: false, initialThreshold: '' },
 ): AgencyFormPayload {
-  const commission = values.commission_rate.trim() === '' ? null : Number(values.commission_rate);
+  const commission = values.commission_rate.trim() === '' ? null : lireTaux(values.commission_rate);
   const settings: Record<string, unknown> = {};
   const currency = emptyToNull(values.currency);
-  // TCK-589 — toujours émis, `false` compris : décocher doit lever l'exigence, pas la laisser
-  // en place faute d'avoir été envoyé.
-  settings.require_team_two_factor = values.require_team_two_factor;
-  settings.late_fee_online_collection = values.late_fee_online_collection;
+  // TCK-2486 — chaque clé gérée ne part que si elle a changé (patron de M5, TCK-2483) ; alors `false`
+  // compris : décocher doit lever le réglage (TCK-589), pas le laisser en place faute d'avoir été envoyé.
+  const initial = reglagesDeLaFiche(context.initialSettings);
+  // TCK-2487 — jamais pour une `individual` : sans équipe, l'interrupteur n'a aucun effet, et l'API le
+  // refuse (422, `prohibited`), `false` compris.
+  if (!context.individual && values.require_team_two_factor !== initial.require_team_two_factor) {
+    settings.require_team_two_factor = values.require_team_two_factor;
+  }
+  if (values.late_fee_online_collection !== initial.late_fee_online_collection) {
+    settings.late_fee_online_collection = values.late_fee_online_collection;
+  }
+  // TCK-2869 — comme les autres booléens : ne part que modifié, `false` compris. Jamais pour une
+  // `individual` : sans bailleur hors de son équipe, l'interrupteur n'y a pas d'effet (l'hôte confirme
+  // déjà ses visites) et la fiche ne le montre pas.
+  if (!context.individual && values.owners_confirm_visits !== initial.owners_confirm_visits) {
+    settings.owners_confirm_visits = values.owners_confirm_visits;
+  }
+  // TCK-2979 — ne part que modifié, `false` compris ; vaut aussi pour une `individual` (l'assistant
+  // sert l'hôte comme une équipe).
+  if (values.copilot_enabled !== initial.copilot_enabled) settings.copilot_enabled = values.copilot_enabled;
+  if (values.voice_transcription_enabled !== initial.voice_transcription_enabled) {
+    settings.voice_transcription_enabled = values.voice_transcription_enabled;
+  }
+  // TCK-2483 — pour une agence `standard`, et seulement si la section a changé (revue, M5) : alors la
+  // liste entière, dans l'ordre des codes, `[]` compris (tout réafficher doit s'enregistrer). Jamais
+  // pour une `individual` : l'API la refuse (422).
+  if (!context.individual) {
+    const masques = CODES_DE_MODULE.filter((code) => values.hidden_modules.includes(code));
+    if (masques.join() !== initial.hidden_modules.join()) settings.hidden_modules = masques;
+  }
+  // TCK-2536 — comme les autres réglages : une clé ne part que si sa valeur (rognée, comme l'API la
+  // range) a changé ; vidée, elle part à `null`, ce qui la retire. Les deux autres ne partent pas : un
+  // `null` envoyé par mégarde effacerait un moyen de paiement que le locataire lit sur son lien.
+  for (const cle of CLES_PAIEMENT_HORS_LIGNE) {
+    const saisi = (values[cle] ?? '').trim();
+    if (saisi !== initial[cle].trim()) settings[cle] = saisi === '' ? null : saisi;
+  }
+  // TCK-2915 — ne part que modifié ; vidé, `null` retire la clé (plus de jour d'agence).
+  const jour = (values.payout_day ?? '').trim();
+  if (jour !== initial.payout_day) settings.payout_day = jour === '' ? null : Number(jour);
 
   const slug = (values.slug ?? '').trim();
 
@@ -177,13 +375,15 @@ export function normaliseAgencyForm(
     description: emptyToNull(values.description),
     email: emptyToNull(values.email)?.toLowerCase() ?? null,
     phone: emptyToNull(values.phone),
+    phone_whatsapp: emptyToNull(values.phone_whatsapp),
     website: emptyToNull(values.website),
     commission_rate: commission,
     ...(currency !== null ? { currency: currency.toUpperCase() } : {}),
-    settings,
+    // TCK-2486 — rien de modifié : pas de `settings` du tout.
+    ...(Object.keys(settings).length > 0 ? { settings } : {}),
     // TCK-686 — l'API refuse la modération à une agence `individual` (422) : la clé ne part pas.
     ...(context.individual ? {} : { moderation_required: values.moderation_required }),
-    default_tax_rate: values.default_tax_rate.trim() === '' ? null : Number(values.default_tax_rate),
+    default_tax_rate: values.default_tax_rate.trim() === '' ? null : lireTaux(values.default_tax_rate),
     ...(context.individual
       ? {}
       : {
@@ -192,10 +392,11 @@ export function normaliseAgencyForm(
           rccm: emptyToNull(values.rccm),
           legal_address: emptyToNull(values.legal_address),
         }),
-    ...(values.payout_approval_threshold.trim() !== context.initialThreshold
+    ...((values.payout_approval_threshold.trim() === '' ? '' : String(lireSeuil(values.payout_approval_threshold))) !==
+    context.initialThreshold
       ? {
           payout_approval_threshold:
-            values.payout_approval_threshold.trim() === '' ? null : Number(values.payout_approval_threshold),
+            values.payout_approval_threshold.trim() === '' ? null : lireSeuil(values.payout_approval_threshold),
         }
       : {}),
   };
@@ -212,7 +413,7 @@ export const AGENCY_LOGO_ACCEPT = 'image/jpeg,image/png,image/webp';
  * Rend une CLÉ de message (`validation.agency.…`), jamais un libellé — TCK-292, 2026-08-22.
  *
  * Les deux libellés français rendus ici l'étaient TELS QUELS à l'écran, dans les trois langues,
- * par deux chemins : `AgencyConfigForm.tsx` (`setLogoError` → `<p role="alert">`) et
+ * par deux chemins : le formulaire de l'agence (aujourd'hui `fiche/SectionIdentite.tsx`, TCK-2670) et
  * `uploadAgencyLogoAction` (`{ ok: false, message }`). Ce module est importé des DEUX côtés — un
  * composant client et un module `'use server'` — donc ni `useTranslations` ni `getTranslations`
  * n'y est appelable : c'est le patron de `./messages.ts` qui s'applique (le schéma porte la clé,

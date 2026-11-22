@@ -9,6 +9,21 @@ APP_ROOT=${APP_ROOT:-/app}   # déplacé seulement par scripts/test-release-rein
 
 php artisan migrate --force
 
+# TCK-614 (ADR-0084, amendement du 2026-11-16) — les empreintes HMAC s'écrivent sous APP_HMAC_KEY. Sans elle (hors
+# local/testing), la commande sort en 2 et le DÉPLOIEMENT S'ARRÊTE : les services ne démarrent pas, les anciens
+# conteneurs restent. À BLANC seulement : le release tourne pendant que les ANCIENS conteneurs servent, et l'ancien
+# code ne lit que sous APP_KEY — réécrire ici les lui rendrait introuvables (désinscription partielle, seconde
+# bienvenue, versement refusé), et un retour d'image le rendrait durable. La réécriture est une étape humaine de
+# l'action de déploiement, une fois les conteneurs neufs démarrés. Un autre échec n'arrête pas le déploiement.
+statut=0
+php artisan security:rehash-fingerprints --dry-run || statut=$?
+if [ "$statut" = 2 ]; then
+  echo "ERREUR : APP_HMAC_KEY est vide — déploiement arrêté. La poser dans Dokploy (docs/deploiement/actions/2026-11-16-cle-d-empreinte-app-hmac-key.md)." >&2
+  exit 1
+elif [ "$statut" != 0 ]; then
+  echo "AVERTISSEMENT : security:rehash-fingerprints --dry-run a échoué — sans effet sur le service." >&2
+fi
+
 # deploy.sh tolérait cet échec, on le tolère aussi : les rôles système rattrapent le catalogue
 # au déploiement suivant.
 php artisan membership:reconcile-system-roles \
@@ -31,6 +46,12 @@ SCOUT_QUEUE=false php artisan tags:sync-catalog \
 # destinées aux super-admins ; une règle existante n'est jamais réécrite. Idempotente.
 php artisan alerts:ensure-ops-rules \
   || echo "AVERTISSEMENT : alerts:ensure-ops-rules a échoué — les alertes d'exploitation sans règle ne partent nulle part." >&2
+
+# TCK-2960 (ADR-0128 § 2) — la salle des baux et des réservations d'avant les salles. APRÈS `migrate` (l'index
+# unique `conversations_salle_unique` la rend sûre contre une exécution simultanée). Idempotente : seuls les
+# objets sans salle sont examinés. Un échec n'arrête pas le déploiement : la salle s'ouvre aussi depuis la fiche.
+php artisan messaging:open-rooms \
+  || echo "AVERTISSEMENT : messaging:open-rooms a échoué — les baux et réservations sans salle l'ouvriront depuis leur fiche, ou au prochain déploiement." >&2
 
 if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
   # TCK-710 (P01.07) : un échec ARRÊTE le déploiement, et les services ne démarrent pas. Des
@@ -66,4 +87,11 @@ if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
     # seed.sh (TCK-1159, P89.03). Un échec n'arrête pas le déploiement.
     importer_index "$(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
   fi
+
+  # TCK-2474 — l'index des suggestions n'est pas un index de modèle : ni `.search-shape` ni `search:verify-indexes` ne
+  # le voient. Construit ici s'il est ABSENT (premier déploiement, Meilisearch recréé), APRÈS l'importation dont il lit
+  # les comptes ; sinon le scheduler le reconstruit chaque heure. Un échec n'arrête pas le déploiement : la barre de
+  # recherche sert alors la saisie comprise et ses biens, sans lieux ni complétions, jusqu'à l'heure suivante.
+  php artisan search:build-suggestions --if-missing \
+    || echo "AVERTISSEMENT : search:build-suggestions a échoué — suggestions sans lieux ni complétions jusqu'au passage horaire du scheduler." >&2
 fi

@@ -55,9 +55,6 @@ describe('<PropertyAgentCard> — TCK-505 #12, la ligne agence ne fixe pas la la
         <PropertyAgentCard
           contact={CONTACT}
           agency={AGENCE}
-          propertySlug="appartement-a-liberte-4"
-          propertyTitle="Appartement à Liberté 4"
-          onMessage={() => {}}
         />,
       ),
     );
@@ -77,9 +74,6 @@ describe('<PropertyAgentCard> — TCK-505 #12, la ligne agence ne fixe pas la la
         <PropertyAgentCard
           contact={CONTACT}
           agency={AGENCE}
-          propertySlug="appartement-a-liberte-4"
-          propertyTitle="Appartement à Liberté 4"
-          onMessage={() => {}}
         />,
       ),
     );

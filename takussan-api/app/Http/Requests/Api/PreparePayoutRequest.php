@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Payout;
+use App\Rules\JourIso;
 
 /**
  * TCK-594 (ADR-0039 §3) — `GET /api/payouts/preparation` : lire le calcul d'un reversement, sans
@@ -22,8 +23,8 @@ class PreparePayoutRequest extends BaseFormRequest
         return [
             'landlord_id' => ['required', 'integer', 'exists:users,id'],
             'agency_id' => ['nullable', 'integer', 'exists:agencies,id'],
-            'period_start' => ['required', 'date'],
-            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
+            'period_start' => ['required', 'date', new JourIso],
+            'period_end' => ['required', 'date', new JourIso, 'after_or_equal:period_start'],
         ];
     }
 }

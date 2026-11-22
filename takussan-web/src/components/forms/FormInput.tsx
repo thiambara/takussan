@@ -8,7 +8,8 @@ import {
   type FieldValues,
 } from 'react-hook-form';
 
-import { Input } from '@/components/ui/input';
+import { Input, type ProfilDeChamp } from '@/components/ui/input';
+import { lireNombre } from '@/lib/clavier';
 import { cn } from '@/lib/utils';
 import { FormError } from './FormError';
 
@@ -28,7 +29,18 @@ export type FormInputProps<TFieldValues extends FieldValues> = NativeInputProps 
   readonly trailing?: React.ReactNode;
   /** Extra className applied to the outer wrapper. */
   readonly containerClassName?: string;
+  /** ADR-0135 — le profil de clavier du champ. */
+  readonly profil?: ProfilDeChamp;
+  /**
+   * Un profil numérique remet d'ordinaire un NOMBRE au formulaire ; `garderLeTexte` lui laisse la chaîne tapée,
+   * pour un formulaire dont les valeurs sont du texte (la fiche d'agence, `ValeursDeLaFiche`).
+   */
+  readonly garderLeTexte?: boolean;
 };
+
+/** ADR-0135 — les profils dont la frappe part en NOMBRE vers le formulaire (le champ reste un champ texte). */
+const PROFILS_NUMERIQUES: ReadonlySet<ProfilDeChamp> = new Set(['entier', 'decimal', 'montant']);
+
 
 /**
  * `<input>` wired to react-hook-form via `Controller`. Shows the label,
@@ -45,11 +57,17 @@ export function FormInput<TFieldValues extends FieldValues>({
   className,
   containerClassName,
   required,
+  profil,
+  garderLeTexte = false,
   ...inputProps
 }: FormInputProps<TFieldValues>) {
   const inputId = id ?? `field-${String(name)}`;
   const errorId = `${inputId}-error`;
   const numerique = inputProps.type === 'number';
+  const numeriqueParProfil = !garderLeTexte && profil !== undefined && PROFILS_NUMERIQUES.has(profil);
+  // Ce que la personne a tapé (« 12, », « 1 500 ») : affiché tant qu'il se lit comme la valeur du formulaire,
+  // sans quoi taper la virgule d'un décimal l'effacerait aussitôt. Une valeur posée par le code l'emporte.
+  const [frappe, setFrappe] = React.useState<string | null>(null);
 
   return (
     <Controller
@@ -72,7 +90,11 @@ export function FormInput<TFieldValues extends FieldValues>({
                 aria-describedby={hasError ? errorId : undefined}
                 aria-required={required || undefined}
                 className={cn(trailing && 'pr-10', className)}
-                value={field.value ?? ''}
+                value={
+                  numeriqueParProfil && frappe !== null && lireNombre(frappe, profil !== 'decimal') === field.value
+                    ? frappe
+                    : (field.value ?? '')
+                }
                 // `Controller` transmet `event.target.value`, une CHAÎNE : un schéma `z.number()`
                 // la refusait, montant pourtant saisi (vérification de TCK-571). Un nombre tapé
                 // part en nombre ; un champ vide garde la chaîne vide, que les schémas lisent déjà.
@@ -82,8 +104,14 @@ export function FormInput<TFieldValues extends FieldValues>({
                         const { value, valueAsNumber } = event.target;
                         field.onChange(value === '' || Number.isNaN(valueAsNumber) ? value : valueAsNumber);
                       }
-                    : field.onChange
+                    : numeriqueParProfil
+                      ? (event: React.ChangeEvent<HTMLInputElement>) => {
+                          setFrappe(event.target.value);
+                          field.onChange(lireNombre(event.target.value, profil !== 'decimal'));
+                        }
+                      : field.onChange
                 }
+                profil={profil}
                 onBlur={field.onBlur}
                 ref={field.ref}
                 name={field.name}

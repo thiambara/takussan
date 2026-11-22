@@ -16,7 +16,7 @@ type State = {
  * et le navigateur ne les redemande pas ; `null`, il les lit comme avant.
  */
 export function useSimilarProperties(slug: string, donneesInitiales: PropertyListItem[] | null = null) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const [state, setState] = useState<State>(
     donneesInitiales !== null
       ? { data: donneesInitiales, loading: false, error: null }

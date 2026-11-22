@@ -56,10 +56,10 @@ import {
   fondsPossibles,
   versRvb,
 } from '@/test/contraste-wcag';
-import { AdminUsersTable } from '../users/AdminUsersTable';
+import { TableDesMembres } from '../equipe/TableDesMembres';
 import { OverduePaymentsTable } from '../finances/OverduePaymentsTable';
 import { AuditTrail } from '../AuditTrail';
-import { ModerationQueueList } from '../ModerationQueueList';
+import { CarteDAvis } from '../moderation/CarteDAvis';
 import { PropertyModerationQueueList } from '../PropertyModerationQueueList';
 import { AgencyRolesList } from '../roles/AgencyRolesList';
 import { CapabilityMatrix } from '../roles/CapabilityMatrix';
@@ -188,14 +188,21 @@ function coupuresHorizontales(depart: HTMLElement, racine: HTMLElement): Coupure
  * AC2 / AC3 — l'invariant de structure
  * ──────────────────────────────────────────────────────────────────────────────────────────── */
 
+// TCK-2667 — `TableDesMembres` remplace `AdminUsersTable` : même invariant, même mesure.
 function rendreMembres() {
   return render(
     withIntl(
-      <AdminUsersTable
-        rows={LIGNES}
-        total={1}
+      <TableDesMembres
+        membres={LIGNES}
+        agencyId={3}
         currentUserId={99}
-        onSelect={vi.fn()}
+        affectations={new Map()}
+        tri="-created_at"
+        onTrier={vi.fn()}
+        selectionne={null}
+        onOuvrir={vi.fn()}
+        suspensionDe={() => null}
+        onSuspension={vi.fn()}
       />,
     ),
   );
@@ -208,7 +215,7 @@ describe('AC2 — /app/agency/team : le menu d’actions de la dernière colonne
     // Le défaut d'origine coupait la colonne de droite SANS défilement : le menu était
     // rendu mais hors d'atteinte. Sa présence nommée est le plancher, pas la preuve —
     // c'est l'invariant de structure ci-dessous qui porte l'AC.
-    const declencheur = screen.getByRole('button', { name: 'Actions pour Awa Diop' });
+    const declencheur = screen.getByRole('button', { name: 'Actions de Awa Diop' });
     expect(declencheur).toBeInTheDocument();
     expect(container).toContainElement(declencheur);
   });
@@ -216,7 +223,7 @@ describe('AC2 — /app/agency/team : le menu d’actions de la dernière colonne
   it('encapsule le défilement : un conteneur défilant AVANT tout conteneur rognant', () => {
     const { container } = rendreMembres();
 
-    const declencheur = screen.getByRole('button', { name: 'Actions pour Awa Diop' });
+    const declencheur = screen.getByRole('button', { name: 'Actions de Awa Diop' });
     const racine = container.firstElementChild as HTMLElement;
 
     const coupures = coupuresHorizontales(declencheur, racine);
@@ -451,10 +458,11 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('/app/agency/team — en-têtes de tri, lien mailto, cellule « Membre »', () => {
+  it('/app/agency/team — en-têtes de tri, cellule « Membre »', () => {
     const { container } = rendreMembres();
-    // 3 en-têtes triables + le lien mailto + le bouton « Membre » au minimum.
-    mesureLesAnneaux(container, 5);
+    // TCK-2667 — 2 en-têtes triables (Membre, Dernière connexion) + le bouton « Membre ». L'e-mail
+    // de la ligne est du texte (maquette `app-equipe`) : le lien `mailto:` vit sur la fiche.
+    mesureLesAnneaux(container, 3);
   });
 
   it('/app/agency/finances — lien de la dernière colonne du tableau des impayés', async () => {
@@ -503,7 +511,11 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
   it('/app/agency/moderation — file des avis, entrée sélectionnée comprise', () => {
     const { container } = render(
       withIntl(
-        <ModerationQueueList reviews={AVIS} selectedId={AVIS[0].id} onSelect={vi.fn()} />,
+        // TCK-2673 — la carte de la file, ouverte (`actif`) et cochée comprises.
+        <ul>
+          <CarteDAvis avis={AVIS[0]} actif onOuvrir={vi.fn()} />
+          <CarteDAvis avis={AVIS[1]} coche onCocher={vi.fn()} onOuvrir={vi.fn()} />
+        </ul>,
       ),
     );
     mesureLesAnneaux(container, 2);

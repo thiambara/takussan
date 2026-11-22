@@ -107,6 +107,8 @@ class RadarListingResource extends BaseResource
             'source_url' => $this->whenHas('source_url'),
             'raw_text' => $this->whenHas('raw_text'),
             'photo_urls' => $this->whenHas('photo_urls', fn () => $this->photo_urls ?? []),
+            // TCK-2465 — ce que la page dit en clair, lu par l'adaptateur du site (`ListingPage::sourceFields()`) ; null sinon.
+            'source_fields' => $this->whenHas('source_fields'),
             'content_fingerprint' => $this->whenHas('content_fingerprint'),
             'extracted' => $this->whenHas('extracted'),
             'matches' => $this->whenHas('matches', fn () => $this->matches ?? []),

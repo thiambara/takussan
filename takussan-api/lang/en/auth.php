@@ -20,6 +20,8 @@ return [
     // TCK-589 — phone sign-in, lockout, sessions, required 2FA (additions only).
     'phone' => [
         'sms_code' => 'Takussan: your code is :code. It expires in :minutes min. Do not share it.',
+        // TCK-2940 (ADR-0126) — le texte que l'appel dicte.
+        'voice_code' => 'Hello. Your Takussan code is: :digits. I repeat: :digits. It expires in :minutes minutes. Do not share it.',
         'taken' => 'This number is already verified on another account.',
         'code_invalid' => 'Invalid or expired code.',
         'already_verified' => 'This number is already verified.',

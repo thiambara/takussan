@@ -6,6 +6,7 @@ import {
   clefDeRecherche,
   normaliserGeo,
   parametresDeRecherche,
+  requeteAvecFixes,
 } from '@/lib/recherche-publique';
 import {
   CLES_DE_RECHERCHE,
@@ -137,9 +138,24 @@ export type GraineDeRecherche = {
 
 export type OptionsDeRecherche = {
   readonly graine?: GraineDeRecherche | null;
+  /**
+   * TCK-2522 / TCK-2523 — des paramètres d'API AJOUTÉS à chaque requête, jamais écrits dans l'URL :
+   * le périmètre d'une fiche (`agency=<slug>`, `agent=<slug>`), `placements=false`, `facets=…`.
+   * L'URL de la fiche ne porte que les filtres du visiteur, dans le dialecte de `/properties`.
+   *
+   * ⚠ La graine du serveur doit avoir été demandée AVEC ces paramètres (`clefDeRecherche` de la
+   * même requête) : sinon le client la redemande, sans rien casser. Absent : la liste, inchangée.
+   */
+  readonly parametresFixes?: Readonly<Record<string, string>>;
+  /**
+   * TCK-2522 / TCK-2523 (revue du 2026-11-09) — `true` : un geste de filtre n'écrit pas `page=1`
+   * dans l'URL (la première page est celle par défaut). L'URL d'une fiche est celle que « Partager »
+   * recopie. Absent : la liste, qui l'écrit, inchangée.
+   */
+  readonly sansPageUne?: boolean;
 };
 
-export function useSearch({ graine }: OptionsDeRecherche = {}) {
+export function useSearch({ graine, parametresFixes, sansPageUne = false }: OptionsDeRecherche = {}) {
   const router   = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -266,10 +282,12 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
     options: OptionsNavigation = {},
   ) => {
     const merged = { ...filtresVises, ...filters, page: 1 };
-    const qs = filtersToParams(merged).toString();
+    const params = filtersToParams(merged);
+    if (sansPageUne) params.delete('page');
+    const qs = params.toString();
     // `scroll: false` : affiner une recherche ne doit pas ramener l'œil en haut de page.
     naviguer(`${pathname}${qs ? '?' + qs : ''}`, options.historique ?? 'push', merged);
-  }, [naviguer, pathname, filtresVises]);
+  }, [naviguer, pathname, filtresVises, sansPageUne]);
 
   const setPage = useCallback((page: number) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -301,9 +319,11 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
     // paie cher ailleurs. Ce qui reste load-bearing, c'est la POSSESSION des trois paramètres
     // par `radius_km` (`params`), gardée par `search-filters.parity.test.ts`.
     normaliserGeo(params);
-    params.set('page', '1');
-    naviguer(`${pathname}?${params.toString()}`, 'push', filtersFromSearchParams(params));
-  }, [naviguer, pathname, searchParams]);
+    if (sansPageUne) params.delete('page');
+    else params.set('page', '1');
+    const qs = params.toString();
+    naviguer(sansPageUne && !qs ? pathname : `${pathname}?${qs}`, 'push', filtersFromSearchParams(params));
+  }, [naviguer, pathname, searchParams, sansPageUne]);
 
   /**
    * TCK-338 — retirer UN terme de la requête texte, en gardant tout le reste.
@@ -339,7 +359,7 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
     // elle est désormais LA MÊME que celle du rendu serveur : deux écritures séparées feraient
     // demander deux requêtes différentes pour un seul écran, et la liste changerait à
     // l'hydratation sans qu'aucun test ne rougisse.
-    const apiParams = parametresDeRecherche(new URLSearchParams(qs));
+    const apiParams = requeteAvecFixes(new URLSearchParams(qs), parametresFixes);
 
     // TCK-432 — le serveur a déjà répondu à CETTE requête, et son résultat est déjà à l'écran.
     // Le redemander coûterait un aller-retour pour réafficher la même chose, et le `LOADING`
@@ -411,6 +431,9 @@ export function useSearch({ graine }: OptionsDeRecherche = {}) {
     // navigation court. C'est ce que l'écran affiche, et ce que le geste suivant complète.
     filters:        filtresVises,
     filtresDesResultats,
+    // TCK-2499 — la chaîne d'URL de la requête dont `data` est la RÉPONSE (`null` avant la
+    // première). « Voir N biens de plus » enchaîne les pages suivantes de CETTE requête-là.
+    cleDesResultats,
     activeCount:    countActiveFilters(filtresVises),
     // TCK-338 — ce que le bloc `search` de la réponse oblige l'écran à dire, ou `null`.
     // Il arrivait dans le JSON et mourait là : `SearchResult` ne le déclarait pas.

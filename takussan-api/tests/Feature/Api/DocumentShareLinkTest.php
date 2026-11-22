@@ -215,4 +215,23 @@ class DocumentShareLinkTest extends TestCase
         $this->getJson("/api/documents/{$document->id}/share-links")
             ->assertForbidden();
     }
+
+    /**
+     * TCK-2743 (AC4) — un lien expire à l'heure dite. `after:now` juge l'instant : l'heure murale
+     * « maintenant − 30 min » écrite en `-01:00` désigne « maintenant + 30 min », passe la règle, et
+     * s'écrivait déjà expirée.
+     */
+    public function test_l_expiration_recue_avec_decalage_est_l_instant_designe(): void
+    {
+        $this->travelTo('2026-11-12 10:00:00');
+        $owner = User::factory()->create();
+        $document = $this->createDocument($owner);
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/documents/{$document->id}/share", ['expires_at' => '2026-11-12T09:30:00-01:00'])->assertCreated();
+
+        $lien = DocumentShareLink::query()->where('document_id', $document->id)->sole();
+        $this->assertSame('2026-11-12 10:30:00', $lien->getRawOriginal('expires_at'));
+        $this->assertFalse($lien->expires_at->isPast(), 'le lien n\'est pas né expiré');
+    }
 }

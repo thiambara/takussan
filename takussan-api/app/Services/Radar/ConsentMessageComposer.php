@@ -5,9 +5,12 @@ namespace App\Services\Radar;
 use App\Ai\Agents\RadarConsentMessage;
 use App\Ai\Usages\RadarConsentMessageUsage;
 use App\Models\Enums\AiDataClass;
+use App\Models\Enums\RadarTargetOrigin;
+use App\Models\Enums\RadarTargetStatus;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
+use App\Models\RadarTarget;
 use App\Models\User;
 use App\Services\Ai\AiErrorCode;
 use App\Services\Ai\AiGateway;
@@ -51,6 +54,17 @@ final class ConsentMessageComposer
      */
     public const CLAUSES_VERSION = 'accord.v3';
 
+    /**
+     * TCK-2471 (décision du porteur, 2026-11-04) — `accord.v4` = `accord.v3` + une phrase fixe, sans nombre, en paragraphe à
+     * elle après la présentation (« Des personnes recherchent en ce moment sur Takussan un bien comme le vôtre. ») ; clauses
+     * identiques mot pour mot. Choisie par {@see self::versionFor()} dès qu'une cible `demand` ACTIVE couvre l'une des
+     * annonces du message, que l'API soit offerte ou non (décision 15a du porteur, 2026-11-04). Tant que son gabarit Meta
+     * n'est pas configuré (`radar_whatsapp.templates`, `RADAR_WHATSAPP_ACCORD_V4_TEMPLATE`), un `accord.v4` ne part que par
+     * `wa.me` : l'API le refuse (`radar.whatsapp.template_missing`), et la fiche ne propose pas l'envoi par l'API pour lui
+     * (`RadarOutreachResource.api_channel_available`).
+     */
+    public const DEMAND_VERSION = 'accord.v4';
+
     /** (décision 5, porteur 2026-10-28) — pas de wolof tant qu'il est en pause. */
     public const LOCALES = ['fr', 'en'];
 
@@ -63,7 +77,47 @@ final class ConsentMessageComposer
     /** Les marqueurs d'un fichier de clauses. TCK-2395 : le gabarit Meta les numérote dans cet ordre (`RadarWhatsappTemplate`). */
     public const PLACEHOLDER = '/\{(salutation|resume|lien_conditions|lien_reclamation)\}/';
 
-    public function __construct(private readonly AiGateway $gateway, private readonly ClaimLinks $claimLinks) {}
+    public function __construct(
+        private readonly AiGateway $gateway,
+        private readonly ClaimLinks $claimLinks,
+    ) {}
+
+    /**
+     * TCK-2471 — la version des clauses d'un message NEUF pour ces annonces ; jugée à la préparation, sous le verrou des
+     * annonces. Le canal se choisit après, sur l'aperçu, parmi ceux qui peuvent envoyer CETTE version. Un message préparé
+     * garde la sienne (`radar_outreaches.clauses_version`) : une retouche la relit.
+     *
+     * @param  list<int>  $listingIds
+     */
+    public function versionFor(array $listingIds): string
+    {
+        return $this->demandTargetNames($listingIds, activeOnly: true) === [] ? self::CLAUSES_VERSION : self::DEMAND_VERSION;
+    }
+
+    /**
+     * TCK-2471 — les cibles de la demande qui couvrent ces annonces, par nom : la raison de la phrase d'`accord.v4`, que
+     * l'aperçu de la console affiche (« Recherché : … »). `activeOnly` : la condition de la phrase ; sans, la raison d'un
+     * message déjà composé, que la cible ait été mise en pause ou retirée depuis.
+     *
+     * @param  list<int>  $listingIds
+     * @return list<string>
+     */
+    public function demandTargetNames(array $listingIds, bool $activeOnly = false): array
+    {
+        if ($listingIds === []) {
+            return [];
+        }
+
+        return RadarTarget::query()
+            ->where('origin', RadarTargetOrigin::Demand->value)
+            ->when($activeOnly, fn ($query) => $query->where('status', RadarTargetStatus::Active->value))
+            ->whereHas('listings', fn ($query) => $query->whereIn('radar_listings.id', $listingIds))
+            ->orderBy('name')
+            ->pluck('name')
+            ->map(fn ($name): string => (string) $name)
+            ->values()
+            ->all();
+    }
 
     public function template(string $locale, string $version = self::CLAUSES_VERSION): string
     {

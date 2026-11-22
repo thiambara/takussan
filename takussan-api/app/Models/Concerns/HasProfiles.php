@@ -88,6 +88,13 @@ trait HasProfiles
      *
      * TCK-495 a retiré le courtier de cette liste (ADR-0027), et ADR-0030 l'a
      * retiré du code et de la base : les profils polymorphes sont cinq.
+     *
+     * ⚠ L'ORDRE est un contrat (TCK-2479) : bailleurs, agents, admins, prestataire.
+     * L'auto-bascule de `ResolveActiveProfile` lie le PREMIER profil actif, et le menu
+     * de `/app` retient le même type sans profil actif lisible —
+     * `takussan-web/src/lib/navigation/personas.ts`, `TYPE_DOMINANT`. Changer l'un
+     * sans l'autre donne au compte un menu jugé sous un autre profil que l'API.
+     * Figé par `ProfilesEndpointTest::test_l_auto_bascule_retient_le_premier_type_dans_l_ordre_de_profiles`.
      */
     public function profiles(): Collection
     {
@@ -159,6 +166,10 @@ trait HasProfiles
      * TCK-587 (ADR-0031 §2, vérification adverse m3) — bailleur SUSPENDU dans cette agence
      * (`blocked`, par `POST /api/agencies/{a}/team/{u}/suspend`). Il reste partie à ses baux et en
      * garde la lecture ; il en perd les écritures dans cette agence.
+     *
+     * TCK-2753 (ADR-0108 § 5) — ou PARTI (`inactive`, `DELETE /api/owners/{id}`) : même garde, même
+     * lecture gardée. Les statuts sont ceux d'{@see OwnerProfileStatus::sansEcriture()}, que l'amorce
+     * lit aussi. Le nom est historique : il dit « bailleur qui n'écrit plus ici ».
      */
     public function isBlockedOwnerAt(int $agencyId): bool
     {
@@ -169,7 +180,7 @@ trait HasProfiles
 
         return $this->ownerProfiles()
             ->where('agency_id', $agencyId)
-            ->where('status', OwnerProfileStatus::Blocked->value)
+            ->whereIn('status', OwnerProfileStatus::valeursSansEcriture())
             ->exists();
     }
 
@@ -508,9 +519,20 @@ trait HasProfiles
         return $this->profileRelationExists('platformProfile');
     }
 
-    /** TCK-600 — le niveau du profil plateforme ACTIF, ou `null`. */
+    /**
+     * TCK-600 — le niveau du profil plateforme ACTIF, ou `null`.
+     *
+     * TCK-2739 — dans une amorce ({@see MembershipCapabilityResolver::primed()}), le niveau de tous ses
+     * utilisateurs est chargé en une requête : `Gate::before` et le résolveur le lisent pour chaque
+     * membre jugé.
+     */
     public function activePlatformLevel(): ?PlatformProfileLevel
     {
+        if (! $this->relationLoaded('platformProfile')
+            && ($amorce = MembershipCapabilityResolver::niveauPlateformeAmorce((int) $this->getKey())) !== false) {
+            return $amorce;
+        }
+
         $profile = $this->relationLoaded('platformProfile')
             ? $this->platformProfile
             : $this->platformProfile()->active()->first();

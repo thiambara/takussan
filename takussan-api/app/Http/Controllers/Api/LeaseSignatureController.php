@@ -45,7 +45,7 @@ class LeaseSignatureController extends Controller
     /** @return array<string, mixed> */
     private function detail(Lease $lease, Request $request): array
     {
-        return LeaseResource::make($lease->load(['property.address', 'tenant', 'signatures.signer', 'signatures.onBehalfOf']))
+        return LeaseResource::make($lease->load(['property.address', 'signatures.signer', 'signatures.onBehalfOf']))
             ->forViewer($request->user())
             ->resolve($request);
     }

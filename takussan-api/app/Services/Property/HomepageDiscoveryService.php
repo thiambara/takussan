@@ -4,7 +4,6 @@ namespace App\Services\Property;
 
 use App\Models\Enums\ContractType;
 use App\Models\Property;
-use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Boost\SponsoredRotation;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
@@ -109,8 +108,8 @@ class HomepageDiscoveryService
         $featuredIds = SponsoredRotation::pick($featuredCandidates, SponsoredRotation::seed(['surface' => 'homepage.featured']), 1, $perRow);
 
         $properties = $this->hydrate([...$nearIds, ...$rentIds, ...$latestIds, ...$featuredIds]);
-        // TCK-633 lot F (ADR-0061 §10) — la rangée vedette est un emplacement : ses biens servis comptent.
-        app(BoostStatsRecorder::class)->impressions(array_values(array_filter($featuredIds, fn (int $id) => $properties->has($id))));
+        // TCK-2569 (amendement d'ADR-0061 du 2026-11-16) — la rangée vedette est un emplacement, mais servir n'est plus
+        // compter : le front déclare les cartes qu'il affiche (`POST /api/public/properties/sponsored-impressions`).
 
         $nearItems = $this->inOrder($nearIds, $properties);
 

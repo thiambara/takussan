@@ -1,0 +1,118 @@
+{
+  "ticket": "TCK-2644",
+  "ecrans": [
+    {
+      "page": "app-baux",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Liste — À traiter",
+      "references": {
+        "telephone": "references/app-baux/a-0-telephone.json",
+        "bureau-1440": "references/app-baux/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-baux/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leases",
+        "persona": "agent au téléphone (coque « Aujourd’hui · Demandes · Clients · Messages · Menu »), admin au bureau, comme la maquette",
+        "etat": "l'onglet « À traiter » de la démo (summary : a_traiter 65, active 90, onboarding_pending 0, ended 32), trié par urgence ; aucune donnée bouchonnée. Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par cette ligne et le chemin WEB). Relevés du 2026-11-13 (terrain-6, fid/prod1..3, cmp1..4) — avant correction (cmp1) : téléphone 25 conformes · 20 écarts · 14 absents (16,78 % de pixels), bureau 1440 37 · 221 · 66 (12,52 %), 1280 36 · 222 · 66 (13,7 %) ; après (prod5, 10 h 25, filtre « Agent » compris ; cmp5) : téléphone 26 · 20 · 12 (13,71 %), bureau 1440 50 · 210 · 61 (10,56 %), 1280 50 · 210 · 61 (11,81 %). Deux relevés de plus montrent ce que la file de la démo ne met pas à l'écran (aucune signature en attente dans la démo — summary.motifs.signature_pending = 0) : `?motif=deposit_to_refund` (gestes à bord « Restituer la caution », téléphone et bureau 1440) et `?motif=rent_review_open` (2 lignes : « Réviser », la pagination, la règle) — cmp5/a-0-*-caution, a-0-*-revision : les gestes à bord ne diffèrent que par leur ordonnée et la primitive `Button` ; « Tous les agents » apparié. La pagination du téléphone sur une page unique, vue dans a-0-telephone-revision, a été retirée ensuite (la maquette n'en dessine pas ; test « une page unique »). Corrigé entre les deux : l'écart de 4 px entre les onglets et la première carte (téléphone), la largeur fixe des quatre filtres (170 / 160 px) et leur graisse 400, l'en-tête du tableau à 40 (36 px au bureau), les cellules à h-14, le montant tu dans « Ce qui attend » et « / mois » retiré de la colonne Loyer (comme la maquette). Balayage 390/768/1024/1280/1440 (admin et agent, 10 h 14) : aucun débord, aucune coupe ; seules ellipses : les libellés du rail replié de la coque à 768 Après la décision du 2026-11-13, point 4 (le montant de plusieurs loyers et de la pénalité gardé dans « Ce qui attend » au bureau), relevé de nouveau le 2026-11-13 à 11 h 05 (prod6, cmp6, admin, garde.js) : bureau 1440 53 conformes · 207 écarts · 49 absents (31 du produit, 18 de la maquette ; 10,69 %), 1280 50 · 210 · 49 (12,06 %). Les colonnes du tableau se déplacent avec la largeur du texte (mise en page automatique) ; le téléphone n'en est pas touché (sa carte écrivait déjà le montant). Le balayage 390-1440 n'a pas été rejoué après ce point."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/leases",
+    "persona": "agent / admin",
+    "disposition": "agent / admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-6, impl/lot2/terrain-6/fid/ : garde.js chargé AVANT la page par `FID_AVANT` ; releves.sh"
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Filtres et tri": "Filtres"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-baux a-0-*",
+      "element": "coque : barre latérale, en-tête, barre d'onglets (« Menu » allumé dans la maquette), pastilles de compte",
+      "propriete": "boîtes, libellés, état actif, couleurs, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 ; « Menu » ne s'allume que tiroir ouvert (`BarreDOnglets`), même constat que TCK-2641, TCK-2645 et TCK-2670 ; l'entrée « Entrées en attente » du menu disparaît avec le module `move_in_follow_up` (ADR-0089, amendement du 2026-11-10) ; les comptes sont ceux de la démo"
+    },
+    {
+      "ecran": "app-baux a-0-*",
+      "element": "lignes et cartes de la file (locataires, biens, motifs, âges) ; largeurs des colonnes du tableau",
+      "propriete": "texte, présence, position verticale ; largeurs (mise en page automatique, réglée par le contenu)",
+      "exception": "donnée",
+      "motif": "la démo trie 65 baux à traiter dont les premiers sont des pénalités et des impayés anciens (« Pénalité non réglée », « depuis 636 j ») : la maquette en dessine 9, un par motif. Les gestes à bord (« Réviser », « Restituer la caution »), la pagination et la règle ont été relevés à part sur `?motif=rent_review_open` et `?motif=deposit_to_refund` (voir `ecrans[0].produit.etat`) ; « Relancer la signature » n'a PAS été mesuré (aucune signature en attente dans la démo), seulement éprouvé par `liste-des-baux.tck-2644.test.tsx` ; depuis la décision du 2026-11-13 (point 4), la colonne « Ce qui attend » du bureau ÉCRIT le montant de plusieurs loyers en retard et d'une pénalité (« Pénalité non réglée · 22 500 F ») : la maquette, qui ne dessine qu'un loyer d'un mois, le tait, et la ligne ne porte que le loyer"
+    },
+    {
+      "ecran": "app-baux a-0-*",
+      "element": "onglets « À traiter », « Actifs », « En attente du locataire », « Terminés »",
+      "propriete": "largeur et abscisse (±2 à 13 px)",
+      "exception": "donnée",
+      "motif": "les comptes (65, 90, 0, 32 contre 9, 61, 2, 14) n'ont pas la même largeur ; police, graisse, couleurs et hauteur conformes"
+    },
+    {
+      "ecran": "app-baux a-0-*",
+      "element": "champ « Locataire, bien, référence… »",
+      "propriete": "bordure rgb(145,134,114) au lieu de --border, icône dans le champ (marges 36-38 px au lieu d'un `div` à 12 px + écart 8), trait de l'icône",
+      "exception": "règle du design system",
+      "motif": "`DebouncedSearchInput` sur la primitive `Input` (bord `--input`, check-champs-uniformes) — même exception que TCK-2587 et TCK-2641"
+    },
+    {
+      "ecran": "app-baux a-0-*",
+      "element": "boutons (« Relancer », « Nouveau bail », gestes des cartes)",
+      "propriete": "bordure 1 px transparente (+2 px de largeur) ; marges 16 px au lieu de 14 au téléphone",
+      "exception": "règle du design system",
+      "motif": "primitive `Button` (`buttonVariants`) — même exception que TCK-2580, TCK-2635, TCK-2645"
+    },
+    {
+      "ecran": "app-baux a-0-*",
+      "element": "icônes lucide (chevrons, plus, recherche)",
+      "propriete": "trait 2 → 1,75 (1,5 au bureau)",
+      "exception": "règle du design system",
+      "motif": "trait uniforme des icônes sous la portée /app (TCK-2685) — même exception que TCK-2584, TCK-2587, TCK-2645"
+    },
+    {
+      "ecran": "app-baux a-0-bureau-*",
+      "element": "pastille d'initiales de l'agent",
+      "propriete": "fond accent/15 et texte accent → repli par défaut de l'`Avatar`",
+      "exception": "règle du design system",
+      "motif": "l'accent est réservé aux badges *featured* et `accent/15` tombe sous 4,5:1 (docs/design-guidelines.md, « soi » de la maquette non repris) ; check-valeurs-arbitraires-app (aplat-accent)"
+    },
+    {
+      "ecran": "app-baux a-0-telephone",
+      "element": "bouton « Filtres et tri » → « Filtres » (alias)",
+      "propriete": "nom accessible",
+      "exception": "donnée",
+      "motif": "la feuille du téléphone porte les filtres (motif, type, statut hors de la file, agent) ; le tri de la file est fixé par l'urgence (`sort=attention`), il n'y a rien à trier"
+    },
+    {
+      "ecran": "app-baux a-0-bureau-*",
+      "element": "pagination « Précédent » / « Suivant » sous le tableau",
+      "propriete": "graisse 500 au lieu de 400, couleur muted au lieu de foreground (Suivant) et de foreground/40 (Précédent désactivé), interligne",
+      "exception": "règle du design system",
+      "motif": "`Pagination` de la console (`@/components/console/Pagination`), commune à toutes les listes de /app (TCK-2005)"
+    },
+    {
+      "ecran": "app-baux a-0-*",
+      "element": "libellés : règle de la file, « À signer par le locataire », « Pénalité non réglée »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "la règle ajoute la clause de l'entrée incomplète (« ou que l’entrée du locataire reste incomplète plus de 7 jours ») : c'est un motif de la file (LeaseAttention, onboarding_incomplete) que la maquette ne nomme pas ; « le locataire » au lieu de « la locataire » : le produit ne connaît pas le genre de la personne ; « Pénalité non réglée » sans mois (« Pénalité d’octobre non réglée ») : l'entrée d'attention ne porte pas l'échéance d'une pénalité. Les ancres de ces textes sont donc comptées absentes"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "liste « Pièces des baux » au bureau : cellules Bien, Début et Fin",
+      "propriete": "couleur du texte",
+      "exception": "charte",
+      "motif": "les maquettes écrivent text-foreground/80 et /85 ; le produit pose l’encre opaque text-encre-douce (#4c4641), comme le précédent de TCK-2596 (ADR-0106 § 2 c, TCK-2685) : une encre de texte ne s’atténue pas par l’opacité (TCK-658, garde encre-sans-alpha)"
+    }
+  ],
+  "ecarts_ouverts": []
+}

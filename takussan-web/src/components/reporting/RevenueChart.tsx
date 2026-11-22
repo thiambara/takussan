@@ -118,7 +118,7 @@ export function RevenueChart() {
 function KpiPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-1 text-xs">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="font-semibold text-foreground tabular-nums">{value}</div>
     </div>
   );

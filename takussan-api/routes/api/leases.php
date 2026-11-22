@@ -3,19 +3,30 @@
 use App\Http\Controllers\Api\DocumentPdfController;
 use App\Http\Controllers\Api\LeaseChainController;
 use App\Http\Controllers\Api\LeaseController;
+use App\Http\Controllers\Api\LeaseDefaultsController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\LeaseEarlyTerminationController;
 use App\Http\Controllers\Api\LeasePaymentController;
+use App\Http\Controllers\Api\LeasePaymentDuplicateRefundController;
 use App\Http\Controllers\Api\LeaseRenewalController;
 use App\Http\Controllers\Api\LeaseRentController;
 use App\Http\Controllers\Api\LeaseSignatureController;
+use App\Http\Controllers\Api\LeaseSummaryController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('leases', [LeaseController::class, 'index'])->name('leases.index');
     Route::post('leases', [LeaseController::class, 'store'])->name('leases.store');
+    // TCK-2642 — les comptes des onglets et des motifs de la file ; littérale, donc avant `leases/{lease}`.
+    Route::get('leases/summary', LeaseSummaryController::class)->name('leases.summary');
+    // TCK-2643 — le préremplissage d'un bail neuf depuis le bien et les réglages ; littérale, donc avant `leases/{lease}`.
+    Route::get('leases/defaults', LeaseDefaultsController::class)->name('leases.defaults');
+    // TCK-2906 — l'aperçu du contrat d'un bail neuf, depuis le formulaire, sans rien écrire ; littérale.
+    Route::post('leases/contract-preview', [DocumentPdfController::class, 'leaseContractPreview'])->name('leases.contract-preview');
     Route::get('leases/{lease}', [LeaseController::class, 'show'])->name('leases.show');
     Route::patch('leases/{lease}', [LeaseController::class, 'update'])->name('leases.update');
+    // TCK-2764 — abandonner un brouillon jamais envoyé en signature (suppression douce).
+    Route::delete('leases/{lease}', [LeaseController::class, 'destroy'])->name('leases.destroy');
     Route::post('leases/{lease}/activate', [LeaseController::class, 'activate'])->name('leases.activate');
     // TCK-596 §4B (ADR-0042) — signature par code : figer le contrat, recevoir son code, signer.
     Route::post('leases/{lease}/signature-request', [LeaseSignatureController::class, 'request'])->name('leases.signature.request');
@@ -62,6 +73,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-593 — la pénalité de retard réglée à l'agence (le loyer garde son statut).
     Route::post('lease-payments/{payment}/late-fee/mark-paid', [LeasePaymentController::class, 'markLateFeePaid'])
         ->name('lease-payments.late-fee.mark-paid');
+    // TCK-608 — l'agence constate qu'elle a rendu un encaissement en double (sous 2FA, `ProtectedActions`).
+    Route::post('lease-payments/{payment}/duplicate-refunded', [LeasePaymentDuplicateRefundController::class, 'store'])
+        ->name('lease-payments.duplicate-refunded');
 
     // Nested guarantors (many-to-many, max 3 per lease)
     Route::get('leases/{lease}/guarantors', [LeaseController::class, 'listGuarantors'])->name('leases.guarantors.index');

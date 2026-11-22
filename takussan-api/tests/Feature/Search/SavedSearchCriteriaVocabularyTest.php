@@ -74,6 +74,8 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
             // TCK-635 (ADR-0062 §8) — même nom de ville, autre région : seule la région les sépare.
             'region' => ['region', ['city' => 'Dakar', 'region' => 'Dakar'], [], ['region' => 'Thiès'], null],
             'cities' => ['cities', ['cities' => ['Dakar', 'Mbour']], [], ['city' => 'Saint-Louis'], null],
+            // TCK-2607 — plusieurs quartiers en OU : A est à Almadies, la SECONDE valeur.
+            'locations' => ['locations', ['locations' => ['Mermoz', 'Almadies']], [], ['neighborhood' => 'Médina'], null],
             'radius_km' => ['radius_km', self::POINT, [], ['latitude' => 14.9, 'longitude' => -17.2], null],
             'lat' => ['lat', self::POINT, [], ['latitude' => 14.9, 'longitude' => -17.2], null],
             'lng' => ['lng', self::POINT, [], ['latitude' => 14.9, 'longitude' => -17.2], null],
@@ -100,8 +102,8 @@ class SavedSearchCriteriaVocabularyTest extends TestCase
     public function test_chaque_cle_du_vocabulaire_a_sa_ligne(): void
     {
         $this->assertEqualsCanonicalizing(SavedSearchCriteria::KEYS, array_keys(self::cles()));
-        // 23 + `region` (TCK-635, ADR-0062 §8).
-        $this->assertCount(24, SavedSearchCriteria::KEYS);
+        // 23 + `region` (TCK-635, ADR-0062 §8) + `locations` (TCK-2607).
+        $this->assertCount(25, SavedSearchCriteria::KEYS);
     }
 
     /**

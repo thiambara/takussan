@@ -4,6 +4,7 @@ namespace App\Services\Calendar;
 
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\LeaseStatus;
@@ -19,11 +20,13 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Visit\VisitSchedulingService;
 use App\Support\DayRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-591 — les événements d'agenda d'un utilisateur, pour la console (`GET /api/calendar`) et pour
@@ -138,10 +141,10 @@ class CalendarEventCollector
         $events = collect();
 
         if (in_array('booking', $types, true)) {
-            $events = $events->merge($this->bookings($start, $end, $restrict));
+            $events = $events->merge($this->bookings($start, $end, $restrict, $isAdmin, $staffAgencyIds));
         }
         if (in_array('visit', $types, true)) {
-            $events = $events->merge($this->visits($start, $end, $restrict, $mine, $userId));
+            $events = $events->merge($this->visits($start, $end, $restrict, $mine, $userId, $isAdmin, $staffAgencyIds));
         }
         if (in_array('task', $types, true)) {
             $events = $events->merge($this->tasks($start, $end, $mine, $userId, $isAdmin, $staffAgencyIds, $memberAgencyIds));
@@ -186,16 +189,26 @@ class CalendarEventCollector
         });
     }
 
-    /** @return Collection<int, array<string, mixed>> */
-    private function bookings(Carbon $start, Carbon $end, \Closure $restrict): Collection
+    /**
+     * TCK-2886 — un séjour dit aussi qui séjourne (`customer_name`) et où est le bien
+     * (`neighborhood`). Le quartier sort à tout lecteur de l'événement (le bailleur lit celui de son
+     * bien) ; le nom du client, au super-admin et au PERSONNEL de l'agence du bien seulement, même
+     * règle que `visitor_name` (TCK-2585). Fiche et adresse : chargées en groupe, pas par séjour.
+     *
+     * @param  list<int>  $staffAgencyIds
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function bookings(Carbon $start, Carbon $end, \Closure $restrict, bool $isAdmin = false, array $staffAgencyIds = []): Collection
     {
+        // TCK-2735 (ADR-0102 § 3) — une barre de séjour n'est qu'un séjour : ni candidature ni offre.
         $query = Booking::query()
+            ->where('kind', BookingKind::Stay)
             ->whereIn('status', [BookingStatus::Confirmed, BookingStatus::Pending])
             ->whereDate('start_date', '<=', $end)
             ->whereDate('end_date', '>=', $start);
         $restrict($query);
 
-        return $query->with('property:id,title,slug')->get()->map(fn (Booking $b) => [
+        return $query->with(['property:id,title,slug,agency_id', 'property.address', 'customer:id,first_name,last_name'])->get()->map(fn (Booking $b) => [
             'key' => "booking-{$b->id}",
             'id' => $b->id,
             'type' => 'booking',
@@ -208,11 +221,40 @@ class CalendarEventCollector
             'property_id' => $b->property_id,
             'property_slug' => $b->property?->slug,
             'resource_url' => "/app/bookings/{$b->id}",
-        ]);
+            // TCK-2886 — le quartier du bien, à tout lecteur de l'événement.
+            'neighborhood' => $b->property?->address?->neighborhood,
+        ] + self::stayer($b, $isAdmin, $staffAgencyIds));
     }
 
-    /** @return Collection<int, array<string, mixed>> */
-    private function visits(Carbon $start, Carbon $end, \Closure $restrict, bool $mine, int $userId): Collection
+    /**
+     * TCK-2886 — le nom du client d'un séjour, pour le personnel de l'agence du bien ; aucune clé
+     * pour tout autre lecteur.
+     *
+     * @param  list<int>  $staffAgencyIds
+     * @return array{customer_name?: ?string}
+     */
+    private static function stayer(Booking $b, bool $isAdmin, array $staffAgencyIds): array
+    {
+        $agencyId = $b->property?->agency_id;
+        if (! $isAdmin && ($agencyId === null || ! in_array((int) $agencyId, $staffAgencyIds, true))) {
+            return [];
+        }
+
+        $name = $b->customer !== null ? trim($b->customer->first_name.' '.$b->customer->last_name) : '';
+
+        return ['customer_name' => $name !== '' ? $name : null];
+    }
+
+    /**
+     * TCK-2585 — un événement `visit` dit aussi avec qui et où (`visitor_name`, `address_line`,
+     * `neighborhood`), au super-admin et au PERSONNEL de l'agence du bien seulement (`$staffAgencyIds`,
+     * déjà bornées à l'agence de l'agenda) : le bailleur et le collaborateur hors personnel gardent
+     * l'événement sans ces clés. Le nom est celui de la fiche, à défaut celui saisi.
+     *
+     * @param  list<int>  $staffAgencyIds
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function visits(Carbon $start, Carbon $end, \Closure $restrict, bool $mine, int $userId, bool $isAdmin = false, array $staffAgencyIds = []): Collection
     {
         $query = PropertyVisit::query()
             ->whereIn('status', [VisitStatus::Scheduled, VisitStatus::Confirmed])
@@ -223,27 +265,101 @@ class CalendarEventCollector
             $query->where('agent_id', $userId);
         }
 
-        return $query->with('property:id,title,slug')->get()->map(function (PropertyVisit $v) {
+        // TCK-2886 — le rang de la visite (« 1re visite ») : sa place parmi les visites non annulées
+        // du même client sur le même bien, par date puis id, sur tout l'historique (une visite faite
+        // avant la fenêtre compte). Une sous-requête corrélée dans la même requête — l'équivalent
+        // d'un `row_number()` partitionné, servi par l'index `(property_id, scheduled_at)` au lieu
+        // d'une fenêtre calculée sur toute la table ; nul sans client (lu plus bas).
+        $query->select('property_visits.*')->selectSub(
+            DB::table('property_visits as earlier')
+                ->selectRaw('count(*)')
+                ->whereColumn('earlier.property_id', 'property_visits.property_id')
+                ->whereColumn('earlier.customer_id', 'property_visits.customer_id')
+                ->where('earlier.status', '!=', VisitStatus::Cancelled->value)
+                ->whereRaw('(earlier.scheduled_at, earlier.id) <= (property_visits.scheduled_at, property_visits.id)'),
+            'visit_rank',
+        );
+
+        // TCK-2585 — l'agence du bien, son adresse et la fiche : en trois requêtes pour la fenêtre.
+        return $query->with(['property:id,title,slug,agency_id', 'property.address', 'customer:id,first_name,last_name'])->get()->map(function (PropertyVisit $v) use ($isAdmin, $staffAgencyIds) {
+            $terrain = self::terrain($v, $isAdmin, $staffAgencyIds);
+            $rank = $v->customer_id !== null ? (int) $v->getAttribute('visit_rank') : null;
             $startAt = $v->scheduled_at;
             $endAt = $startAt && $v->duration_minutes
                 ? $startAt->copy()->addMinutes((int) $v->duration_minutes)
                 : $startAt;
+            $title = $v->property?->title ?? __('messages.visit');
+
+            // TCK-2502 — une visite demandée par tranche, heure pas encore fixée : un événement
+            // SUR LA JOURNÉE (son jour à Dakar), la tranche dans le titre. Jamais un rendez-vous
+            // minuté au début de tranche — le flux .ics le pousserait dans Google ou Apple Agenda,
+            // qui y poseraient leurs propres alertes. Confirmée, l'heure est fixée et la tranche
+            // tombe : elle redevient un rendez-vous minuté.
+            if ($v->preferred_window !== null && $startAt !== null) {
+                $day = $startAt->copy()->setTimezone(VisitSchedulingService::TIMEZONE)->format('Y-m-d').' 00:00:00';
+
+                return [
+                    'key' => "visit-{$v->id}",
+                    'id' => $v->id,
+                    'type' => 'visit',
+                    'kind' => 'window',
+                    'title' => __('calendar.visit_window_title', ['title' => $title, 'window' => __('visits.windows.'.$v->preferred_window->value)]),
+                    // Le titre du bien seul : le flux .ics compose son résumé dans SA langue.
+                    'property_title' => $title,
+                    'start' => $day,
+                    'end' => $day,
+                    'status' => $v->status,
+                    'all_day' => true,
+                    'preferred_window' => $v->preferred_window->value,
+                    'duration_minutes' => $v->duration_minutes,
+                    'property_id' => $v->property_id,
+                    'property_slug' => $v->property?->slug,
+                    'resource_url' => "/app/visits/{$v->id}",
+                    'visit_rank' => $rank,
+                ] + $terrain;
+            }
 
             return [
                 'key' => "visit-{$v->id}",
                 'id' => $v->id,
                 'type' => 'visit',
-                'title' => $v->property?->title ?? __('messages.visit'),
+                'title' => $title,
                 'start' => $startAt?->toDateTimeString(),
                 'end' => $endAt?->toDateTimeString(),
                 'status' => $v->status,
                 'all_day' => false,
+                'preferred_window' => null,
                 'duration_minutes' => $v->duration_minutes,
                 'property_id' => $v->property_id,
                 'property_slug' => $v->property?->slug,
                 'resource_url' => "/app/visits/{$v->id}",
-            ];
+                'visit_rank' => $rank,
+            ] + $terrain;
         });
+    }
+
+    /**
+     * TCK-2585 — le visiteur et l'adresse d'une visite, pour le personnel de l'agence du bien ;
+     * aucune clé pour tout autre lecteur.
+     *
+     * @param  list<int>  $staffAgencyIds
+     * @return array{visitor_name?: ?string, address_line?: ?string, neighborhood?: ?string}
+     */
+    private static function terrain(PropertyVisit $v, bool $isAdmin, array $staffAgencyIds): array
+    {
+        $agencyId = $v->property?->agency_id;
+        if (! $isAdmin && ($agencyId === null || ! in_array((int) $agencyId, $staffAgencyIds, true))) {
+            return [];
+        }
+
+        $fiche = $v->customer !== null ? trim($v->customer->first_name.' '.$v->customer->last_name) : '';
+        $address = $v->property?->address;
+
+        return [
+            'visitor_name' => $fiche !== '' ? $fiche : $v->visitor_name,
+            'address_line' => $address?->street,
+            'neighborhood' => $address?->neighborhood,
+        ];
     }
 
     /**
@@ -282,7 +398,9 @@ class CalendarEventCollector
             $query->where(fn (Builder $q) => $q->where($assigned)->orWhere($created));
         }
 
-        return $query->get()->map(fn (Task $t) => [
+        // TCK-617 (décision du porteur, 2026-11-16) — la tâche d'un parent supprimé en douceur reste à
+        // l'agenda (`parentAgencyIn()` le garde), marquée ; `taskable` ne relit pas le parent supprimé.
+        return $query->with('taskable')->get()->map(fn (Task $t) => [
             'key' => "task-{$t->id}",
             'id' => $t->id,
             'type' => 'task',
@@ -297,7 +415,8 @@ class CalendarEventCollector
                 default => null,
             },
             'taskable_id' => $t->taskable_id,
-            'property_id' => $t->taskable_type === Property::class ? $t->taskable_id : null,
+            'parent_deleted' => $t->taskable_type !== null && $t->taskable === null,
+            'property_id' => $t->taskable_type === Property::class && $t->taskable !== null ? $t->taskable_id : null,
             'resource_url' => '/app/tasks',
         ]);
     }

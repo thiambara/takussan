@@ -117,6 +117,7 @@ export function MaintenanceForm({
       <FormGlobalError>{globalError}</FormGlobalError>
 
       <FormInput
+        profil="phrase"
         name="title"
         control={form.control}
         label={t('title_label')}
@@ -125,6 +126,7 @@ export function MaintenanceForm({
       />
 
       <FormTextarea
+        profil="texte-long"
         name="description"
         control={form.control}
         label={t('description_label')}

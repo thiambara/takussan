@@ -2,11 +2,13 @@
 
 namespace App\Services\Search;
 
+use App\Http\Requests\Public\SearchPublicPropertyRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Responses\PaginationMeta;
+use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
+use App\Rules\JourIso;
 use App\Services\Boost\BoostSettings;
-use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Boost\SponsoredRotation;
 use App\Support\Search\CleDeQuartier;
 use Carbon\CarbonImmutable;
@@ -123,10 +125,11 @@ class PropertySearchService
 
         // Le repli ne coûte QUE sur une requête qui rend 0 : le chemin nominal
         // reste à une seule requête moteur.
-        $useful = $this->usefulTerms($term);
-
-        if ((int) ($result['totalHits'] ?? 0) === 0 && count($useful) >= 2) {
-            $widened = $this->widen($term, $useful, $filter, $sort, $page, $perPage);
+        // TCK-2496 (revue) — JAMAIS sous `published_after` : c'est un COMPTE des nouveaux d'une recherche, et il doit
+        // égaler ce que la liste STRICTE montrera une fois rouverte ; élargi, il annonçait des « nouveaux » qui ne
+        // portent qu'un des mots, absents de la liste.
+        if (empty($params['published_after']) && $this->wouldWiden($term, (int) ($result['totalHits'] ?? 0))) {
+            $widened = $this->widen($term, $this->usefulTerms($term), $filter, $sort, $page, $perPage);
 
             if ($widened !== null) {
                 [$result, $unmatched] = $widened;
@@ -148,8 +151,11 @@ class PropertySearchService
         // TCK-687 (P18.01) — rien non plus quand l'appelant les coupe (`placements=false`) : il ne
         // les affiche pas, et une impression ne se compte que pour un emplacement montré.
         $avecEmplacements = filter_var($params['placements'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
-        // Hors de la graine de rotation : `placements=true` doit servir la même rotation que l'absence.
-        unset($params['placements']);
+        // TCK-2517 — les comptes par option, sous le régime conjonctif (celui des fiches), chacun hors de son filtre.
+        $facettes = $this->facettes($term, $params);
+        // Hors de la graine de rotation : `placements=true` doit servir la même rotation que l'absence ; demander des
+        // comptes par option (`facets`) ne change pas la page non plus.
+        unset($params['placements'], $params['facets']);
         $heureDeGraine = $this->heureDeGraine($params['seed_hour'] ?? null);
         unset($params['seed_hour']);
         [$data, $sponsored] = $search['strategy'] === self::STRATEGY_STRICT && $avecEmplacements
@@ -166,6 +172,7 @@ class PropertySearchService
                 perPage: $perPage,
                 currentPage: $page,
                 lastPage: max(1, (int) ($result['totalPages'] ?? 1)),
+                extra: $facettes === null ? [] : ['facets' => $facettes],
             ),
             'search' => $search,
             // TCK-1008 (P55.01) — l'heure de la graine de rotation, que le front renvoie avec les
@@ -334,6 +341,17 @@ class PropertySearchService
     }
 
     /**
+     * ADR-0024 — le prédicat du repli élargi : zéro bien au régime exact, et au moins deux termes utiles dans la saisie.
+     * Public pour la suggestion (`interpretation.widens`, revue adverse n° 9) : elle dit si la liste élargira, par CE
+     * code, jamais recopié. ⚠ Il dit que la liste TENTERA d'élargir ; `widen()` peut encore renoncer (réponse incomplète
+     * du moteur), auquel cas la liste rend le résultat exact.
+     */
+    public function wouldWiden(string $term, int $totalHits): bool
+    {
+        return $totalHits === 0 && count($this->usefulTerms(trim($term))) >= 2;
+    }
+
+    /**
      * Les termes que le MOTEUR va réellement exiger — pas les mots de la saisie.
      *
      * Trois écarts entre les deux, et chacun produirait une phrase fausse s'il
@@ -442,10 +460,11 @@ class PropertySearchService
      * Les clauses moteur qui decrivent le CATALOGUE PUBLIC, et rien d'autre —
      * la transposition Meilisearch de `Property::scopePublic()`.
      *
-     * TCK-335 — extraite parce qu'elle a un SECOND appelant : `SuggestService`
-     * interroge desormais `POST /indexes/{uid}/facet-search` pour les villes et
-     * les quartiers, et une facette comptee sous un filtre INCOMPLET rend un
-     * compte faux. Mesure le 2026-08-21 sur la base locale (836 biens, 258
+     * TCK-335 — extraite pour un SECOND appelant : `SuggestService`, qui
+     * interrogeait `POST /indexes/{uid}/facet-search` pour les villes et les
+     * quartiers (retirés de la suggestion le 2026-11-04 : la suggestion lit
+     * l'index des suggestions, dont les comptes suivent `scopePublic()`). Une
+     * facette comptee sous un filtre INCOMPLET rend un compte faux. Mesure le 2026-08-21 sur la base locale (836 biens, 258
      * publics) : avec les trois premieres clauses seulement (visibility,
      * is_test, published_at) la facette rend « Mermoz 29 » et « Dakar 462 » ;
      * avec les quatre, « Mermoz 20 » et « Dakar 210 » — c'est-a-dire exactement
@@ -467,6 +486,175 @@ class PropertySearchService
     }
 
     /**
+     * TCK-2474 (ADR-0088) — la page 1 du régime NOMINAL de {@see self::search()}, en requête de `/multi-search` :
+     * même terme, même filtre (`buildFilter()`), même tri par défaut (`buildSort()`), même `matchingStrategy`.
+     *
+     * Son appelant est la suggestion (`App\Services\Search\Suggestions\SearchSuggestions`), qui promet « 12 biens »
+     * sous des critères compris et doit donc compter EXACTEMENT ce que la liste comptera : la traduction des critères
+     * en filtre est empruntée ici, jamais recopiée (même raison que {@see self::publicFilter()}).
+     *
+     * ⚠ Ni le repli d'ADR-0024 ni les emplacements : `totalHits` est le total du régime nominal, celui que
+     * `meta.total` rend tant que ce régime trouve au moins un bien.
+     *
+     * @param  array<string,mixed>  $params  les paramètres validés de la liste publique
+     */
+    public function nominalQuery(array $params, int $hitsPerPage): SearchQuery
+    {
+        $term = trim((string) ($params['q'] ?? $params['search'] ?? ''));
+        $sort = $this->buildSort((string) ($params['sort'] ?? 'relevance'), $term, $params);
+
+        $query = (new SearchQuery)
+            ->setIndexUid((new Property)->searchableAs())
+            ->setQuery($term)
+            ->setFilter($this->buildFilter($params))
+            ->setMatchingStrategy(self::STRATEGY_STRICT)
+            ->setAttributesToRetrieve(['id'])
+            ->setPage(1)
+            ->setHitsPerPage($hitsPerPage);
+
+        if ($sort !== []) {
+            $query->setSort($sort);
+        }
+
+        return $query;
+    }
+
+    /**
+     * TCK-2517 — les comptes par option de `facets` (`meta.facets.<clé>` = `[{value, count}]`), ou `null` sans demande.
+     *
+     * **Chaque facette se compte sous le filtre COMPLET moins le sien** (le piège de {@see self::publicFilter()} : un
+     * compte sous un filtre incomplet est faux) : sous `contract_type=rent`, l'option « vente » dit combien de biens à
+     * vendre la même recherche rendrait. Le filtre propre d'une facette : `contract_type` (et `rent_period`, qui ne
+     * s'entend que d'une location — gardé, il mettrait toute vente à 0), `type`, `bedrooms`, et `location` pour
+     * `neighborhood`. Un seul `/multi-search`, une sonde sans document par facette.
+     *
+     * - `bedrooms` est CUMULÉ : le filtre est un minimum (« 3+ »), l'option 3 compte les biens d'au moins 3 chambres.
+     * - `neighborhood` est replié par {@see CleDeQuartier} (« Grand-Yoff » et « Grand Yoff » sont une option, sous
+     *   l'écriture la plus fréquente) : c'est la clé que le filtre `location` compare.
+     * - Les autres, du plus grand compte au plus petit.
+     *
+     * @param  array<string,mixed>  $params
+     * @return array<string, list<array{value: string|int, count: int}>>|null
+     */
+    private function facettes(string $term, array $params): ?array
+    {
+        $demandees = array_values(array_intersect(
+            SearchPublicPropertyRequest::FACETTES,
+            array_map('trim', explode(',', (string) ($params['facets'] ?? ''))),
+        ));
+        if ($demandees === []) {
+            return null;
+        }
+
+        $uid = (new Property)->searchableAs();
+        $queries = [];
+        foreach ($demandees as $facette) {
+            $sans = array_diff_key($params, array_flip(self::FILTRES_D_UNE_FACETTE[$facette]));
+            $queries[] = (new SearchQuery)->setIndexUid($uid)->setQuery($term)->setFilter($this->buildFilter($sans))
+                ->setMatchingStrategy(self::STRATEGY_STRICT)->setFacets([$facette])->setPage(1)->setHitsPerPage(0);
+        }
+        /** @var array{results?: list<array<string,mixed>>} $response */
+        $response = app(EngineManager::class)->engine()->multiSearch($queries);
+
+        $facettes = [];
+        foreach ($demandees as $i => $facette) {
+            /** @var array<string,int> $distribution */
+            $distribution = $response['results'][$i]['facetDistribution'][$facette] ?? [];
+            $facettes[$facette] = match ($facette) {
+                'bedrooms' => self::cumulees($distribution),
+                'neighborhood' => self::parQuartier($distribution),
+                default => self::parCompte($distribution),
+            };
+        }
+
+        return $facettes;
+    }
+
+    /** TCK-2517 — les paramètres de la liste qu'une facette ignore pour se compter. */
+    private const FILTRES_D_UNE_FACETTE = [
+        'contract_type' => ['contract_type', 'rent_period'],
+        'type' => ['type'],
+        'bedrooms' => ['bedrooms'],
+        // TCK-2607 — la facette des quartiers se compte sans le quartier ni la liste de quartiers.
+        'neighborhood' => ['location', 'locations'],
+    ];
+
+    /**
+     * @param  array<string,int>  $distribution
+     * @return list<array{value: string, count: int}>
+     */
+    private static function parCompte(array $distribution): array
+    {
+        $options = [];
+        foreach ($distribution as $valeur => $compte) {
+            $options[] = ['value' => (string) $valeur, 'count' => (int) $compte];
+        }
+        usort($options, static fn (array $a, array $b): int => [$b['count'], $a['value']] <=> [$a['count'], $b['value']]);
+
+        return $options;
+    }
+
+    /**
+     * @param  array<string,int>  $distribution
+     * @return list<array{value: int, count: int}>
+     */
+    private static function cumulees(array $distribution): array
+    {
+        $parValeur = [];
+        foreach ($distribution as $valeur => $compte) {
+            $parValeur[(int) $valeur] = ($parValeur[(int) $valeur] ?? 0) + (int) $compte;
+        }
+        krsort($parValeur);
+
+        $options = [];
+        $cumul = 0;
+        foreach ($parValeur as $valeur => $compte) {
+            $cumul += $compte;
+            $options[] = ['value' => $valeur, 'count' => $cumul];
+        }
+
+        return array_reverse($options);
+    }
+
+    /**
+     * @param  array<string,int>  $distribution
+     * @return list<array{value: string, count: int}>
+     */
+    private static function parQuartier(array $distribution): array
+    {
+        $parCle = [];
+        foreach ($distribution as $ecriture => $compte) {
+            $cle = CleDeQuartier::de((string) $ecriture);
+            if ($cle === null) {
+                continue;
+            }
+            $parCle[$cle]['count'] = ($parCle[$cle]['count'] ?? 0) + (int) $compte;
+            $parCle[$cle]['ecritures'][(string) $ecriture] = (int) $compte;
+        }
+
+        $options = [];
+        foreach ($parCle as ['count' => $compte, 'ecritures' => $ecritures]) {
+            arsort($ecritures);
+            $options[] = ['value' => (string) array_key_first($ecritures), 'count' => $compte];
+        }
+        usort($options, static fn (array $a, array $b): int => [$b['count'], $a['value']] <=> [$a['count'], $b['value']]);
+
+        return $options;
+    }
+
+    /**
+     * TCK-2498 — le filtre moteur de la liste sous ces paramètres ({@see self::buildFilter()}, filtre public compris), pour
+     * un appelant qui compte sous les MÊMES filtres que la liste (la répartition des prix) : emprunté, jamais recopié.
+     *
+     * @param  array<string,mixed>  $params  les paramètres validés de la liste publique
+     * @return array<int,string|array<int,string>>
+     */
+    public function filtreDeLaListe(array $params): array
+    {
+        return $this->buildFilter($params);
+    }
+
+    /**
      * TCK-1169 (P99.01) — les noms saisis, et le nom actuel des villes dont l'un est un ancien nom.
      *
      * @param  list<string>  $saisies
@@ -481,6 +669,21 @@ class PropertySearchService
         }
 
         return array_values(array_unique($noms));
+    }
+
+    /**
+     * TCK-663 (P01.02) — la clause d'UN quartier : son identifiant pour une adresse rattachée au
+     * référentiel, la clé repliée de son texte sinon. Extraite telle quelle pour `locations`
+     * (TCK-2607) : `location` rend exactement la même chaîne qu'avant.
+     */
+    private static function clauseDeQuartier(string $saisie): string
+    {
+        $libre = 'geo_neighborhood_id IS NULL AND neighborhood_key = '.self::quote((string) CleDeQuartier::de($saisie));
+        $ids = app(QuartierDuFiltre::class)->idsDuReferentiel($saisie);
+
+        return $ids === []
+            ? $libre
+            : '(geo_neighborhood_id IN ['.implode(', ', $ids).'] OR ('.$libre.'))';
     }
 
     /**
@@ -499,11 +702,18 @@ class PropertySearchService
         // non rattachée porte un texte libre (« Grand-Yoff ») : l'égalité stricte rendait 0 bien.
         // Rattachée, l'adresse se juge par son identifiant ; sinon par sa clé repliée.
         if (! empty($p['location'])) {
-            $libre = 'geo_neighborhood_id IS NULL AND neighborhood_key = '.self::quote((string) CleDeQuartier::de((string) $p['location']));
-            $ids = app(QuartierDuFiltre::class)->idsDuReferentiel((string) $p['location']);
-            $filter[] = $ids === []
-                ? $libre
-                : '(geo_neighborhood_id IN ['.implode(', ', $ids).'] OR ('.$libre.'))';
+            $filter[] = self::clauseDeQuartier((string) $p['location']);
+        }
+        // TCK-2607 — plusieurs quartiers, en OU, chacun jugé par la règle de `location` : une seule
+        // expression parenthésée, pour qu'elle reste un ET avec les autres clauses du filtre.
+        if (! empty($p['locations']) && is_array($p['locations'])) {
+            $quartiers = array_values(array_filter(array_map(fn ($q) => trim((string) $q), $p['locations'])));
+            if ($quartiers !== []) {
+                $filter[] = '('.implode(' OR ', array_map(
+                    fn (string $q) => '('.self::clauseDeQuartier($q).')',
+                    $quartiers,
+                )).')';
+            }
         }
         // TCK-1169 (P99.01) — un ancien nom de ville (renommée par le jeu) désigne toujours la ville.
         if (! empty($p['city'])) {
@@ -609,9 +819,31 @@ class PropertySearchService
                 $filter[] = 'tags = '.self::quote((string) $tag);
             }
         }
-        if (! empty($p['available_from'])) {
+        // TCK-2768 (q1) — une recherche sauvegardée avant `JourIso` peut porter un jour qu'il refuse (« 99999-01-01 »,
+        // « 12/11/2026 ») : rejouée par l'alerte ou le compte, sans validation, `Carbon::parse` la relisait en 2009 ou
+        // au 11 décembre. Elle est ignorée, comme le front l'écarte (`parametresDeRecherche`).
+        if (is_string($p['available_from'] ?? null) && JourIso::estAdmis($p['available_from'])) {
             $ts = Carbon::parse($p['available_from'])->timestamp;
             $filter[] = ['available_from IS NULL', 'available_from <= '.$ts];
+        }
+        // TCK-2517 — les biens d'une agence ou d'un agent, par le slug de sa fiche. Un slug qui ne désigne aucune fiche
+        // publique ne rend RIEN (`id = 0` : aucun bien n'a cet identifiant), jamais la liste entière ni une erreur.
+        // Sous l'un des deux, le prédicat du PORTEFEUILLE des fiches (`Property::scopePublicPortfolio()` = public ET
+        // disponible) : le seul public admet `pending` et `published`, et la fiche et sa recherche compteraient deux
+        // nombres différents.
+        $profils = app(ProfilDuFiltre::class);
+        foreach (['agency' => [$profils->agence(...), 'agency_id'], 'agent' => [$profils->agent(...), 'user_id']] as $cle => [$resoudre, $attribut]) {
+            if (! empty($p[$cle]) && is_string($p[$cle])) {
+                $id = $resoudre($p[$cle]);
+                $filter[] = $id === null ? 'id = 0' : $attribut.' = '.$id;
+            }
+        }
+        if ((! empty($p['agency']) && is_string($p['agency'])) || (! empty($p['agent']) && is_string($p['agent']))) {
+            $filter[] = 'status = '.self::quote(PropertyStatus::Available->value);
+        }
+        // TCK-2496 — strictement après : la même borne basse que la fenêtre des alertes (`alertMatches()`).
+        if (! empty($p['published_after'])) {
+            $filter[] = 'published_at > '.Carbon::parse($p['published_after'])->timestamp;
         }
         if ($this->hasGeoBounds($p)) {
             $filter[] = sprintf(
@@ -720,23 +952,61 @@ class PropertySearchService
             ? array_slice(array_values(array_diff($pool, $servedOnFirstPage)), 0, $reservedMax)
             : [];
 
-        $sponsored = $this->withPlacement($this->hydrateIds($sponsoredIds), 'sponsored');
-        // ADR-0061 §10 — une impression par bien réellement servi (hydraté, donc public).
-        app(BoostStatsRecorder::class)->impressions(array_column($sponsored, 'id'));
-
         if ($reserved === []) {
-            return [$organic(), $sponsored];
+            $data = $organic();
+        } else {
+            $offset = $page === 1 ? 0 : ($page - 1) * $perPage - count($reserved);
+            $limit = $page === 1 ? $perPage - count($reserved) : $perPage;
+            $rest = $limit > 0 ? $this->organicExcluding($term, $filter, $sort, $reserved, $offset, $limit) : [];
+
+            $data = $page === 1
+                ? [...$this->withPlacement($this->hydrateIds($reserved), 'reserved'), ...$this->withPlacement($this->hydrate($rest), 'organic')]
+                : $this->withPlacement($this->hydrate($rest), 'organic');
         }
 
-        $offset = $page === 1 ? 0 : ($page - 1) * $perPage - count($reserved);
-        $limit = $page === 1 ? $perPage - count($reserved) : $perPage;
-        $rest = $limit > 0 ? $this->organicExcluding($term, $filter, $sort, $reserved, $offset, $limit) : [];
-
-        $data = $page === 1
-            ? [...$this->withPlacement($this->hydrateIds($reserved), 'reserved'), ...$this->withPlacement($this->hydrate($rest), 'organic')]
-            : $this->withPlacement($this->hydrate($rest), 'organic');
+        $sponsored = $this->emplacementsEspaces($pool, $seed, $page, $slots, $data);
+        // TCK-2569 (amendement d'ADR-0061 du 2026-11-16) — servir n'est plus compter : le front déclare les emplacements
+        // qu'il affiche (`POST /api/public/properties/sponsored-impressions`), il en retire certains (TCK-2500).
 
         return [$data, $sponsored];
+    }
+
+    /**
+     * TCK-2500 — après {@see self::CARTES_ENTRE_EMPLACEMENTS} cartes, un emplacement : le k-ième emplacement de la page
+     * se place à `k × (CARTES_ENTRE_EMPLACEMENTS + 1)` dans la suite des cartes affichées (0, 11, 22…).
+     */
+    public const CARTES_ENTRE_EMPLACEMENTS = 10;
+
+    /**
+     * TCK-2500 (décision 5a de l'audit UX) — les emplacements « Sponsorisé » d'une page, ESPACÉS : un en tête, puis un
+     * toutes les {@see self::CARTES_ENTRE_EMPLACEMENTS} cartes, chacun portant sa `position` dans la suite des cartes
+     * affichées (0 = tête). Les règles, dans l'ordre :
+     *
+     * - **le plafond** reste `boost.sponsored_slots_per_page` (0 : aucun) ;
+     * - **jamais deux de suite** : le k-ième emplacement n'est servi que si la page porte au moins k × 10 cartes
+     *   (organiques et places réservées) — une page courte n'en montre qu'un, en tête ;
+     * - **aucun doublon** avec les cartes de la page : une vedette déjà présente parmi elles n'est pas servie en
+     *   emplacement, la suivante dans la rotation prend sa place ({@see SponsoredRotation::pickExcluding()} : même
+     *   mélange, même tranche, même graine). La carte, elle, garde sa place.
+     *
+     * Les places réservées (calculées avant, sur la tranche de la page 1 de `pick()`) ne bougent pas : la pagination
+     * qu'elles décalent reste la même d'une page à l'autre.
+     *
+     * @param  list<int>  $pool
+     * @param  list<array<string, mixed>>  $data
+     * @return list<array<string, mixed>>
+     */
+    private function emplacementsEspaces(array $pool, string $seed, int $page, int $slots, array $data): array
+    {
+        $places = min($slots, 1 + intdiv(count($data), self::CARTES_ENTRE_EMPLACEMENTS));
+        $ids = SponsoredRotation::pickExcluding($pool, $seed, $page, $slots, array_map(intval(...), array_column($data, 'id')), $places);
+
+        $sponsored = [];
+        foreach ($this->withPlacement($this->hydrateIds($ids), 'sponsored') as $rang => $bien) {
+            $sponsored[] = $bien + ['position' => $rang * (self::CARTES_ENTRE_EMPLACEMENTS + 1)];
+        }
+
+        return $sponsored;
     }
 
     /**

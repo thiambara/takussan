@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PAGES_ADMIN,
   accesDepuis,
+  cheminsDEntree,
   contexteDeRepli,
   entreeAdmin,
   entreesDeMenu,
@@ -36,6 +37,7 @@ const PAGES_DU_SOLO = [
   '/app/agency/billing',
   '/app/agency/finances',
   '/app/agency/finances/reconciliation',
+  '/app/agency/lease-settings',
   '/app/agency/integrations',
 ];
 
@@ -63,6 +65,7 @@ describe('PAGES_ADMIN', () => {
       ['/app/agency/billing', { role: 'admin', capacite: 'agency.update_billing' }],
       ['/app/agency/finances', { role: 'admin' }],
       ['/app/agency/finances/reconciliation', { role: 'admin', capacite: 'payments.reconcile' }],
+      ['/app/agency/lease-settings', { role: 'admin', personnel: true }], // TCK-2921 (ADR-0111)
       ['/app/agency/moderation', { role: 'admin', agence: 'standard' }],
       ['/app/agency/moderation/properties', { role: 'admin', agence: 'standard' }],
       ['/app/agency/audit', { role: 'admin', agence: 'standard', capacite: 'reports.view_agency' }],
@@ -183,7 +186,8 @@ describe('pageAccessible — la section ouverte par capacité (TCK-1412)', () =>
 
   it("un délégataire agency_admin ouvre l'équipe, les rôles et le KYC, et rien que l'API lui refuse", () => {
     expect(accesDepuis(DELEGATAIRE)).toEqual({
-      chemins: ['/app/agency/team', '/app/agency/roles', '/app/agency/kyc'],
+      // TCK-2921 — et, agent de l'agence, les réglages de bail en lecture.
+      chemins: ['/app/agency/team', '/app/agency/roles', '/app/agency/kyc', '/app/agency/lease-settings'],
       espaceIndividuel: false,
     });
   });
@@ -198,12 +202,47 @@ describe('pageAccessible — la section ouverte par capacité (TCK-1412)', () =>
   );
 
   it("l'exigence « standard » vaut aussi pour lui, et des capacités inconnues n'ouvrent rien", () => {
-    expect(accesDepuis({ ...DELEGATAIRE, agence: { kind: 'individual' } }).chemins).toEqual(['/app/agency/kyc']);
-    expect(accesDepuis({ ...DELEGATAIRE, capacites: null }).chemins).toEqual([]);
+    expect(accesDepuis({ ...DELEGATAIRE, agence: { kind: 'individual' } }).chemins).toEqual(['/app/agency/kyc', '/app/agency/lease-settings']);
+    // TCK-2921 — les réglages de bail ne tiennent à aucune capacité : seuls eux restent.
+    expect(accesDepuis({ ...DELEGATAIRE, capacites: null }).chemins).toEqual(['/app/agency/lease-settings']);
   });
 
-  it("une capacité qui n'ouvre aucune page ne lui ouvre rien", () => {
-    expect(accesDepuis({ ...DELEGATAIRE, capacites: ['agency.update', 'leases.create'] }).chemins).toEqual([]);
+  it("une capacité qui n'ouvre aucune page ne lui ouvre rien (hors les réglages de bail, TCK-2921)", () => {
+    expect(accesDepuis({ ...DELEGATAIRE, capacites: ['agency.update', 'leases.create'] }).chemins).toEqual(['/app/agency/lease-settings']);
+  });
+});
+
+// TCK-2921 (ADR-0111, AC4) — les réglages de bail s'ouvrent au personnel de l'agence, agent compris,
+// sans capacité ; ils ne font pas pour autant de lui un administrateur (entrée, menu, repli).
+describe('pageAccessible — les réglages de bail ouverts au personnel (TCK-2921)', () => {
+  const AGENT: ContexteAdmin = { roles: ['agent', 'customer'], agence: { kind: null }, capacites: [] };
+  const reglages = PAGES_ADMIN.find((p) => p.chemin === '/app/agency/lease-settings')!;
+
+  it('un agent rattaché à une agence ouvre les réglages de bail, et rien d’autre', () => {
+    expect(accesDepuis(AGENT).chemins).toEqual(['/app/agency/lease-settings']);
+  });
+
+  it('ni « Administration », ni entrée de menu, ni repli pour autant', () => {
+    const acces = accesDepuis(AGENT);
+    expect(entreeAdmin(acces)).toBeNull();
+    expect(entreesDeMenu(acces)).toEqual([]);
+    expect(liensDuProfil(acces)).toEqual([]);
+    expect(cheminsDEntree(acces)).toEqual([]);
+  });
+
+  it('un admin garde son entrée : les réglages de bail ne la déplacent pas', () => {
+    expect(cheminsDEntree(accesDepuis(STANDARD))).not.toContain('/app/agency/lease-settings');
+    expect(entreeAdmin(accesDepuis(STANDARD))).toEqual({ href: '/app/agency/team', cle: 'sectionLabel' });
+  });
+
+  it('ni un agent sans agence, ni un bailleur, ni un client', () => {
+    expect(pageAccessible(reglages, { ...AGENT, agence: null })).toBe(false);
+    expect(pageAccessible(reglages, { roles: ['owner', 'customer'], agence: { kind: null }, capacites: [] })).toBe(false);
+    expect(pageAccessible(reglages, { roles: ['customer'], agence: null, capacites: [] })).toBe(false);
+  });
+
+  it('la même règle sans fournisseur (contexte de repli, capacités inconnues)', () => {
+    expect(pageAccessible(reglages, contexteDeRepli({ roles: ['agent', 'customer'], agencyId: 7 }))).toBe(true);
   });
 });
 

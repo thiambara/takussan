@@ -11,6 +11,26 @@ export interface PublicReview {
   readonly content: string | null;
   readonly author: { readonly name: string | null } | null;
   readonly created_at: string | null;
+  /**
+   * TCK-2522 — le TYPE de la preuve d'éligibilité (`ReviewResource::context_kind`), jamais le
+   * contrat lui-même. Absent d'une réponse antérieure, ou nul pour un avis sans contexte.
+   */
+  readonly context_kind?: ContexteDAvis | null;
+}
+
+/** Le vocabulaire de `ReviewEligibility::contextKind` côté API. */
+export type ContexteDAvis = 'lease' | 'booking' | 'visit' | 'maintenance_request';
+
+const CONTEXTES_CONNUS: ReadonlySet<string> = new Set<ContexteDAvis>([
+  'lease',
+  'booking',
+  'visit',
+  'maintenance_request',
+]);
+
+/** Un type que l'API servirait demain sans que le front le connaisse ne s'écrit pas (ni clé brute). */
+function contexteConnu(kind: string | null | undefined): kind is ContexteDAvis {
+  return typeof kind === 'string' && CONTEXTES_CONNUS.has(kind);
 }
 
 interface ReviewsSectionProps {
@@ -98,9 +118,18 @@ export function ReviewsSection({ average, count, reviews }: ReviewsSectionProps)
                 {r.content}
               </p>
             )}
-            <p className="mt-4 text-xs text-muted-foreground">
+            <p data-auteur-avis className="mt-4 text-xs text-muted-foreground">
               {r.author?.name ? anonymize(r.author.name, t('anonymous')) : t('anonymous')}
               {r.created_at && ` · ${moisDeLAvis(r.created_at, locale)}`}
+              {/* TCK-2522 — d'où parle l'avis (maquette : « Locataire · bail »), rien sans contexte. */}
+              {contexteConnu(r.context_kind) && (
+                <>
+                  {' · '}
+                  <span data-contexte-avis className="text-foreground">
+                    {t(`contexte.${r.context_kind}`)}
+                  </span>
+                </>
+              )}
             </p>
             <div className="mt-2">
               <ReviewReportButton reviewId={r.id} />

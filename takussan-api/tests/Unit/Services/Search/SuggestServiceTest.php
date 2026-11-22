@@ -65,7 +65,7 @@ class SuggestServiceTest extends TestCase
         $result = (new SuggestService($cache))->resolve('   ', 10, 'fr');
 
         $this->assertSame(
-            ['cities' => [], 'neighborhoods' => [], 'property_types' => []],
+            ['property_types' => []],
             $result,
         );
     }

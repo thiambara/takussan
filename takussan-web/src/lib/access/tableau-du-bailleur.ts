@@ -1,11 +1,12 @@
+import { cheminsDEntree } from '@/lib/access/pages-admin';
 import { accesAdmin, capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { isAdmin, isOwner, isSuperAdmin } from '@/lib/roles';
 import type { User } from '@/types/user';
 
 /**
- * TCK-2260 (P116.07) — qui ouvre la vue bailleur (`/app/overview/owner`), comme l'API
+ * TCK-2260 (P116.07) — qui ouvre la vue bailleur (vue d'ensemble de `/app/reports`, TCK-2628), comme l'API
  * (`DashboardOwnerController`) : le bailleur par son profil, le super-admin, et l'admin qui détient
- * `reports.view_agency`. Lu par le layout de la vue et par l'aiguillage de `/app/overview`.
+ * `reports.view_agency`. Lu par la garde de la vue (`garderLaVueDEnsemble`) et de l'onglet Reversements.
  *
  * `null` : capacités illisibles (panne) — à chaque appelant de dire s'il refuse ou dégrade.
  */
@@ -19,5 +20,6 @@ export async function vueBailleurOuverte(user: User): Promise<boolean | null> {
 
 /** Où va l'admin à qui la vue est fermée : la première page qu'il peut ouvrir, comme `garderPageAdmin`. */
 export async function repliDeLaVueBailleur(user: User): Promise<string> {
-  return (await accesAdmin(user)).chemins[0] ?? '/app';
+  // TCK-2921 — une page du personnel (réglages de bail) n'est pas un repli.
+  return cheminsDEntree(await accesAdmin(user))[0] ?? '/app';
 }

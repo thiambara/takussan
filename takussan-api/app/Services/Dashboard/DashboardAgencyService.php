@@ -30,11 +30,24 @@ class DashboardAgencyService
 {
     public function __construct(private readonly PortfolioMetrics $metrics) {}
 
-    public function summary(Agency $agency): array
+    /**
+     * TCK-2791 — les chiffres « du mois » (encaissé, reversé, commission, courte durée) suivent `$periode` ;
+     * TCK-2865 — sous `last_12_months`, ils valent pour les douze mois (somme ; courte durée : une seule mesure) ;
+     * les autres sont l'état du jour, listés dans `period.as_of_today` ({@see self::ETATS_DU_JOUR}).
+     */
+    public const ETATS_DU_JOUR = [
+        'properties.total', 'properties.published', 'properties.rented', 'properties.available',
+        'leases.active', 'customers_count', 'members_count', 'bookings.pending', 'maintenance.open',
+        'finance.deposits_held', 'finance.overdue_count', 'finance.overdue_amount',
+        'finance.late_fees_outstanding_count', 'finance.late_fees_outstanding_amount', 'finance.unpaid_rate_percent',
+        'occupancy.rate_percent', 'occupancy.eligible_count', 'occupancy.occupied_count',
+    ];
+
+    public function summary(Agency $agency, ?PeriodeDuTableauDeBord $periode = null): array
     {
-        $monthStart = now()->startOfMonth();
-        $monthEnd = now()->endOfMonth();
-        $month = $monthStart->format('Y-m');
+        $periode ??= PeriodeDuTableauDeBord::moisEnCours();
+        $monthStart = $periode->debut;
+        $monthEnd = $periode->fin;
         $scope = PortfolioScope::agency((int) $agency->id);
         $propertyIds = Property::query()->select('id')->where('agency_id', $agency->id);
 
@@ -79,18 +92,18 @@ class DashboardAgencyService
         $leaseIncome = $this->metrics->leaseIncomeByMonth($scope, $monthStart, $monthEnd);
         $bookingIncome = $this->metrics->bookingIncomeByMonth($scope, $monthStart, $monthEnd);
         $netPaidOut = $this->metrics->netPaidOutByMonth($scope, $monthStart, $monthEnd);
-        $shortStay = $this->metrics->shortStayOccupancy($scope, $monthStart, $monthEnd);
+        // TCK-2865 — une seule mesure sur la période (nuitées ÷ capacité), jamais une moyenne de taux.
+        $shortStay = $this->metrics->shortStayOccupancyOver($scope, $monthStart, $monthEnd);
+        $occupancyToday = $this->metrics->longStayOccupancyToday($scope);
         $overdue = $this->metrics->overdue($scope);
 
-        $leaseIncomeMonth = $leaseIncome[$month] ?? 0.0;
-        $bookingIncomeMonth = $bookingIncome[$month] ?? 0.0;
+        // TCK-2865 — la somme des mois servis : un mois, ou douze sous `last_12_months`.
+        $leaseIncomeMonth = $periode->somme($leaseIncome);
+        $bookingIncomeMonth = $periode->somme($bookingIncome);
 
         return [
             'agency_id' => $agency->id,
-            'period' => [
-                'start' => $monthStart->toIso8601String(),
-                'end' => $monthEnd->toIso8601String(),
-            ],
+            'period' => $periode->enTete(self::ETATS_DU_JOUR),
             'properties' => [
                 'total' => (int) $properties->total,
                 'published' => (int) $properties->published,
@@ -112,9 +125,9 @@ class DashboardAgencyService
                 'revenue_month' => round($leaseIncomeMonth + $bookingIncomeMonth, 2),
                 'lease_income_month' => $leaseIncomeMonth,
                 'booking_income_month' => $bookingIncomeMonth,
-                'net_paid_out_month' => $netPaidOut[$month] ?? 0.0,
+                'net_paid_out_month' => $periode->somme($netPaidOut),
                 'deposits_held' => $this->metrics->depositsHeld($scope),
-                'commission_month' => self::commissionMonth((int) $agency->id),
+                'commission_month' => self::commissionBetween((int) $agency->id, $monthStart, $monthEnd),
                 'overdue_count' => $overdue['count'],
                 'overdue_amount' => $overdue['amount'],
                 // P206.03 (ADR-0057, amendement du 2026-10-24) — à part de l'impayé, qui ne les compte pas.
@@ -123,9 +136,12 @@ class DashboardAgencyService
                 // P93.03 (TCK-1177) — impayé ÷ facturé des échéances échues sur 12 mois, `null` sans échéance.
                 'unpaid_rate_percent' => $this->metrics->unpaidRate($scope),
             ],
+            // TCK-2626 — le taux du jour rendu avec sa base ; les clés d'avant gardent nom et sens.
             'occupancy' => [
-                'rate_percent' => $this->metrics->longStayOccupancyToday($scope),
-                'short_stay_percent' => $shortStay[$month] ?? null,
+                'rate_percent' => $occupancyToday['rate_percent'],
+                'eligible_count' => $occupancyToday['eligible_count'],
+                'occupied_count' => $occupancyToday['occupied_count'],
+                'short_stay_percent' => $shortStay,
             ],
         ];
     }
@@ -133,7 +149,7 @@ class DashboardAgencyService
     /**
      * Monthly time-series: revenue (encaissé) and long-stay occupancy, one grouped query each.
      *
-     * @return array{months: array<int,string>, revenue: array<int,float>, occupancy: array<int,float|null>, short_stay_occupancy: array<int,float|null>}
+     * @return array{months: array<int,string>, overdue: array<int,float>, revenue: array<int,float>, occupancy: array<int,float|null>, short_stay_occupancy: array<int,float|null>}
      */
     public function monthlyTimeseries(Agency $agency, int $months = 12): array
     {
@@ -146,11 +162,14 @@ class DashboardAgencyService
         $bookingIncome = $this->metrics->bookingIncomeByMonth($scope, $from, $to);
         $occupancy = $this->metrics->longStayOccupancy($scope, $from, $to);
         $shortStay = $this->metrics->shortStayOccupancy($scope, $from, $to);
+        $overdue = $this->metrics->overdueByMonth($scope, $from, $to);
 
         $labels = array_keys($leaseIncome);
 
         return [
             'months' => $labels,
+            // TCK-2865 — l'impayé en fin de mois (le mois en cours : à aujourd'hui), {@see PortfolioMetrics::overdueByMonth()}.
+            'overdue' => array_map(static fn (string $m): float => $overdue[$m] ?? 0.0, $labels),
             'revenue' => array_map(static fn (string $m): float => round($leaseIncome[$m] + ($bookingIncome[$m] ?? 0.0), 2), $labels),
             'occupancy' => array_map(static fn (string $m): ?float => $occupancy[$m] ?? null, $labels),
             'short_stay_occupancy' => array_map(static fn (string $m): ?float => $shortStay[$m] ?? null, $labels),

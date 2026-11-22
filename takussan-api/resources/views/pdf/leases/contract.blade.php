@@ -28,12 +28,14 @@
     // `computePenalty` et `RentReviewService` exécuteront ; le réglage seulement si elles manquent.
     $penaltyMonths = $earlyTermination->penaltyMonthsFor($lease);
     $rentReviewMaxPct = app(\App\Services\Lease\RentReviewService::class)->maxPctFor($lease);
-    $number = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, ',', ' '), '0'), ',');
+    // TCK-2794 — groupé comme tout nombre rendu (U+00A0, jamais l'espace ordinaire, sécable).
+    $number = fn ($value) => \App\Services\Formatting\CurrencyFormatter::nombre((float) $value, 'fr', 0, 2);
 @endphp
 
 @section('content')
     <h1>Contrat de bail</h1>
-    <p class="muted">Référence : {{ $lease->reference_number ?? 'LS-'.$lease->id }}</p>
+    {{-- TCK-2906 — l'aperçu (bail en mémoire, sans référence ni id) le dit au lieu d'imprimer « LS- ». --}}
+    <p class="muted">Référence : {{ $lease->reference_number ?? ($lease->id !== null ? 'LS-'.$lease->id : 'aperçu, bail non encore créé') }}</p>
 
     <h2>Parties</h2>
     <table class="kv">
@@ -55,8 +57,11 @@
         <tr>
             <th>Locataire</th>
             <td>
-                {{ trim(($tenant->first_name ?? '').' '.($tenant->last_name ?? '')) }}
-                @if ($tenant->email ?? false)
+                {{-- TCK-2718 — une fiche sans nom : l'e-mail, puis le téléphone, puis « — ». La ligne
+                     de détail ne répète pas ce que le repli imprime déjà en nom. --}}
+                @php($nomDuLocataire = \App\Services\Pdf\PrintedName::of($tenant))
+                {{ $nomDuLocataire }}
+                @if (($tenant->email ?? false) && $tenant->email !== $nomDuLocataire)
                     <div class="muted">{{ $tenant->email }}</div>
                 @endif
             </td>
@@ -103,6 +108,13 @@
             <th>Loyer mensuel</th>
             <td class="amount"><strong>@currency($lease->monthly_rent, $currency)</strong></td>
         </tr>
+{{-- TCK-2679 — rendue seulement quand les charges sont posées. Directives en colonne 0, commentaire sur
+     la ligne du @if : sans charges, le HTML rendu est octet pour octet celui d'avant (mesuré). --}}@if ($lease->monthly_charges !== null && (float) $lease->monthly_charges > 0)
+        <tr>
+            <th>Charges mensuelles</th>
+            <td class="amount">@currency($lease->monthly_charges, $currency)</td>
+        </tr>
+@endif
         <tr>
             <th>Dépôt de garantie (caution)</th>
             <td class="amount">@currency($lease->deposit_amount, $currency)</td>
@@ -146,7 +158,8 @@
         @endif
         <tr>
             <th>Préavis de résiliation anticipée</th>
-            <td>{{ $noticeDays }} jour(s)</td>
+            {{-- TCK-2906 — un préavis en mois ronds (multiple de 30 jours) se dit aussi en mois : « 90 jours (3 mois) ». --}}
+            <td>{{ $noticeDays }} jour(s)@if ($noticeDays % 30 === 0) ({{ intdiv($noticeDays, 30) }} mois)@endif</td>
         </tr>
         <tr>
             <th>Indemnité de résiliation anticipée</th>
@@ -170,11 +183,12 @@
             </thead>
             <tbody>
                 @foreach ($guarantors as $g)
+                    @php($nomDuGarant = \App\Services\Pdf\PrintedName::of($g))
+                    @php($contactsDuGarant = array_values(array_filter([$g->email ?? null, $g->phone ?? null], fn ($c) => $c && $c !== $nomDuGarant)))
                     <tr>
-                        <td>{{ trim(($g->first_name ?? '').' '.($g->last_name ?? '')) }}</td>
+                        <td>{{ $nomDuGarant }}</td>
                         <td>
-                            @if ($g->email ?? false){{ $g->email }}<br>@endif
-                            @if ($g->phone ?? false){{ $g->phone }}@endif
+                            @foreach ($contactsDuGarant as $contact)@if (! $loop->first)<br>@endif{{ $contact }}@endforeach
                         </td>
                         <td>{{ $g->pivot->role ?? $g->role ?? '—' }}</td>
                     </tr>

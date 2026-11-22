@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import type { WelcomeSlide } from '@/components/welcome/WelcomeModal';
 import { useAccueilsVus } from '@/hooks/useAccueilsVus';
+import { useAccueilSuspendu } from '@/lib/arrivee-de-parcours';
 
 /**
  * TCK-251 — Drives a one-shot welcome modale.
@@ -48,7 +49,9 @@ export function useWelcomeOnce(key: string, slides: WelcomeSlide[]): UseWelcomeO
 
   // TCK-1477 — la lecture des clés vues a rendu son verdict (ou échoué).
   const checked = vus !== null || echec;
-  const open = isAuthenticated && !!key && vus !== null && !vus.includes(key) && fermee !== key;
+  // TCK-2615 — ni sur un écran plein, ni à l'arrivée d'un parcours ; la fenêtre n'est pas marquée vue.
+  const suspendue = useAccueilSuspendu();
+  const open = isAuthenticated && !!key && vus !== null && !vus.includes(key) && fermee !== key && !suspendue;
 
   const acknowledge = () => {
     if (acknowledgedRef.current === key || !key || !isAuthenticated) return;

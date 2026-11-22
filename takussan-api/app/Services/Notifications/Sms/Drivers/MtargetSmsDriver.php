@@ -10,6 +10,7 @@ use App\Services\Notifications\Sms\SmsDriverInterface;
 use App\Services\Notifications\Sms\SmsResult;
 use App\Services\Notifications\Sms\SmsSegmentCalculator;
 use App\Services\Notifications\Sms\SmsTimeBudget;
+use App\Support\Logging\SafeExceptionContext;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Log;
@@ -87,7 +88,7 @@ class MtargetSmsDriver implements SmsDriverInterface
                     ->timeout(SmsTimeBudget::httpTimeout($context))
                     ->post($url, $payload);
             } catch (\Throwable $e) {
-                Log::warning('[sms.mtarget] HTTP exception', ['error' => $e->getMessage()]);
+                Log::warning('[sms.mtarget] HTTP exception', ['error' => SafeExceptionContext::of($e)]);
                 foreach ($chunk as $n) {
                     $results[$n] = SmsResult::failed($n, $this->id(), 'mtarget_http_exception', AmbiguousDelivery::fromThrowable($e));
                 }

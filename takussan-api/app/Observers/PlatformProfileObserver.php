@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Profiles\PlatformProfile;
+use App\Services\Auth\AccountTokenRevoker;
 
 /**
  * TCK-278 — quand un PlatformProfile passe en révoqué (revoked_at set), on
@@ -23,9 +24,10 @@ class PlatformProfileObserver
             return;
         }
 
+        // TCK-617 — jetons et liens d'agenda, par le point commun.
         $user = $profile->user;
-        if ($user !== null && method_exists($user, 'tokens')) {
-            $user->tokens()->delete();
+        if ($user !== null) {
+            app(AccountTokenRevoker::class)->revokeAll($user);
         }
     }
 }

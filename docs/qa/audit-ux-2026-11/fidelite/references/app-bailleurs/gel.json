@@ -1,0 +1,21 @@
+{
+ "page": "app-bailleurs",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Liste",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Fiche du bailleur",
+   "sansBureau": null
+  }
+ ]
+}

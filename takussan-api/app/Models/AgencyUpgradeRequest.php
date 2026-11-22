@@ -60,6 +60,8 @@ class AgencyUpgradeRequest extends AbstractModel
         'reviewed_by',
         'reviewed_at',
         'review_comment',
+        // TCK-2669 (ADR-0104 § 5) — la demande refusée que celle-ci reprend.
+        'resubmit_of_id',
     ];
 
     /**
@@ -102,6 +104,8 @@ class AgencyUpgradeRequest extends AbstractModel
         'planned_agents_count', 'status', 'submitted_at',
         'reviewed_by', 'reviewed_at', 'review_comment',
         'created_at', 'updated_at',
+        // TCK-2669
+        'resubmit_of_id',
     ];
 
     /**

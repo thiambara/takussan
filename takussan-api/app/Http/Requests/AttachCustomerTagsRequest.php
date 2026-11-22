@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class AttachCustomerTagsRequest extends FormRequest
+class AttachCustomerTagsRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
@@ -14,7 +12,8 @@ class AttachCustomerTagsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tags' => ['required', 'array', 'min:1'],
+            // TCK-2488 — borne technique : `CustomerTagPicker` envoie une étiquette à la fois.
+            'tags' => ['required', 'array', 'min:1', 'max:100'],
             'tags.*' => ['required', 'string', 'max:100'],
         ];
     }

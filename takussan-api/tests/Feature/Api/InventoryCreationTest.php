@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Enums\InventoryType;
+use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
@@ -102,5 +103,24 @@ class InventoryCreationTest extends TestCase
             'general_condition' => InventoryCondition::Good->value,
             'rooms' => [['name' => 'Salon', 'condition' => 'good']],
         ])->assertForbidden();
+    }
+
+    /** TCK-2743 (lot 3) — la date d'un état des lieux, reçue avec décalage : l'instant désigné. */
+    public function test_conducted_at_recu_avec_decalage_est_l_instant_designe(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $lease = Lease::factory()->create(['property_id' => $property->id, 'landlord_id' => $owner->id, 'tenant_id' => Customer::factory()->create()->id]);
+        Sanctum::actingAs($owner);
+
+        $id = $this->postJson('/api/inventories', [
+            'lease_id' => $lease->id,
+            'type' => InventoryType::MoveOut->value,
+            'general_condition' => InventoryCondition::Fair->value,
+            'conducted_at' => '2026-11-10T18:00:00+02:00',
+            'rooms' => [['name' => 'Salon', 'condition' => 'fair']],
+        ])->assertCreated()->json('data.id');
+
+        $this->assertSame('2026-11-10 16:00:00', Inventory::query()->findOrFail($id)->getRawOriginal('conducted_at'));
     }
 }

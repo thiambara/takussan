@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\JourIso;
 
 /**
  * TCK-596 §3B (ADR-0041) — bloquer une plage `[starts_on, ends_on)` d'un bien. `ends_on` est le
@@ -20,8 +21,8 @@ class StorePropertyUnavailabilityRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'starts_on' => ['required', 'date_format:Y-m-d'],
-            'ends_on' => ['required', 'date_format:Y-m-d', 'after:starts_on', 'before_or_equal:'.now()->addMonths(24)->toDateString()],
+            'starts_on' => ['required', 'date_format:Y-m-d', new JourIso],
+            'ends_on' => ['required', 'date_format:Y-m-d', new JourIso, 'after:starts_on', 'before_or_equal:'.now()->addMonths(24)->toDateString()],
             'reason' => ['nullable', 'string', 'max:255'],
         ];
     }

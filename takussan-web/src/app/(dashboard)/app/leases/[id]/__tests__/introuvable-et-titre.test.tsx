@@ -38,12 +38,22 @@ vi.mock('next-intl/server', () => {
 const notFoundMock = vi.fn(() => { throw new Error('NEXT_NOT_FOUND'); });
 vi.mock('next/navigation', () => ({ notFound: () => notFoundMock() }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => ({ id: 1, roles: ['agent'] }) }));
+// TCK-2645 — la page lit l'accès à la piste d'audit (onglet « Historique ») : hors sujet ici.
+vi.mock('@/lib/access/pages-admin-server', () => ({ accesAdmin: async () => ({ chemins: [] }) }));
 
 const getTokenMock = vi.fn(async () => 'jeton' as string | null);
 vi.mock('@/lib/session', () => ({ getToken: () => getTokenMock() }));
 
 const apiRequestMock = vi.fn();
 vi.mock('@/lib/api', () => ({ apiRequest: (...a: unknown[]) => apiRequestMock(...a) }));
+
+// TCK-2831 — le titre rappelle la sonde du layout (`exigerRessource`), éprouvée pour les neuf fiches par
+// `app/__tests__/titre-de-la-fiche-absente.tck-2831.test.ts`. Doublée ici en « présente » : ce fichier
+// éprouve le titre d'une fiche qui existe, et la vraie sonde passerait par `apiRequestMock`.
+const exigerRessourceMock = vi.fn(async (_segment: string, brut: string) => Number(brut));
+vi.mock('@/lib/detail/ressource-de-detail', () => ({
+  exigerRessource: (segment: string, brut: string) => exigerRessourceMock(segment, brut),
+}));
 
 vi.mock('@/components/leases/LeaseDetail', () => ({
   LeaseDetail: ({ leaseId }: { leaseId: number }) => `LeaseDetail(${leaseId})`,

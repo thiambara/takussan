@@ -48,6 +48,9 @@ class StoreCustomerRequest extends BaseFormRequest
             'occupation' => ['nullable', 'string', 'max:255'],
             'pipeline_stage' => ['nullable', Rule::enum(CustomerPipelineStage::class)],
             'notes' => ['nullable', 'string'],
+            // TCK-2716 — la visite d'où naît la fiche (« Créer sa fiche ») : rattachée dans la
+            // transaction de création, sous la règle de `PropertyVisitPolicy::refusDeLaFicheDepuisLaVisite`.
+            'property_visit_id' => ['sometimes', 'nullable', 'integer', 'exists:property_visits,id'],
             ...$this->contactAndCriteriaRules(''),
         ];
     }

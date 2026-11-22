@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\InstantIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -39,8 +40,8 @@ class GrowthReportingRequest extends BaseFormRequest
             'metric' => ['required', Rule::in(['agencies', 'users', 'listings'])],
             'period' => ['nullable', Rule::in(['3m', '6m', '12m'])],
             'granularity' => ['nullable', Rule::in(['day', 'week', 'month'])],
-            'starts_at' => ['nullable', 'date', 'required_with:ends_at'],
-            'ends_at' => ['nullable', 'date', 'required_with:starts_at'],
+            'starts_at' => ['nullable', 'date', new InstantIso, 'required_with:ends_at'],
+            'ends_at' => ['nullable', 'date', new InstantIso, 'required_with:starts_at'],
         ];
     }
 }

@@ -316,7 +316,7 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
               et le chiffre est dans le docblock du composant — un seul endroit, délibérément.
               Ne pas la redescendre sans y refaire la mesure.
             */}
-            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
+            <p className="px-3 pb-1 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
               {tGroups(group.labelKey)}
             </p>
             {group.items.map((item) => (
@@ -389,7 +389,7 @@ function SuperAdminNavItem({
         {badge && badge > 0 ? (
           <span
             aria-label={t('pendingBadge', { count: badge })}
-            className="inline-flex min-w-5 items-center justify-center rounded-full bg-sidebar-primary px-1.5 text-[11px] font-semibold text-sidebar-primary-foreground"
+            className="inline-flex min-w-5 items-center justify-center rounded-full bg-sidebar-primary px-1.5 text-[0.6875rem] font-semibold text-sidebar-primary-foreground"
           >
             {badge > 99 ? '99+' : badge}
           </span>

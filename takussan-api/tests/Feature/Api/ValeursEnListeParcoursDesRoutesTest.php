@@ -70,6 +70,8 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/admin/ai/evaluations/{evaluation}' => '{evaluation} : sans liaison de modèle',
         'api/admin/enums/{key}' => '{key} : sans liaison de modèle',
         'api/admin/notification-templates/{event}/{channel}' => '{event} : sans liaison de modèle',
+        'api/admin/radar/targets/{target}' => '{target} : RadarTarget sans fabrique',
+        'api/admin/radar/targets/{target}/listings' => '{target} : RadarTarget sans fabrique',
         'api/admin/webhook-logs/{webhookLog}' => '{webhookLog} : IntegrationWebhookLog sans fabrique',
         'api/admin/reports/{report}/export' => '{report} : sans liaison de modèle',
         'api/report-exports/{reportExport}/download' => '{reportExport} : sans liaison de modèle',
@@ -87,12 +89,20 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/share/{token}/download' => '{token} : sans liaison de modèle',
         'api/enums/{key}' => '{key} : sans liaison de modèle',
         'api/export/{entity}' => '{entity} : sans liaison de modèle',
+        // TCK-2866 — le compte avant l'export, même paramètre.
+        'api/export/{entity}/count' => '{entity} : sans liaison de modèle',
         'api/kyc/documents/{media}' => '{media} : Media sans fabrique',
+        'api/me/document-vault/archives/{archive}/download' => '{archive} : sans liaison de modèle',
+        // TCK-2866 — le fichier gardé d'un export, par l'identifiant du journal.
+        'api/me/exports/{id}/download' => '{id} : sans liaison de modèle',
         'api/me/payouts/{payout}' => '{payout} : sans liaison de modèle',
+        // TCK-2939 — identifiant composite (`owner:12`), contraint par `where` : une valeur en liste ne l'atteint pas.
+        'api/me/profiles/{profile}/invite-summary' => '{profile} : sans liaison de modèle',
         'api/me/wizard-drafts/{key}' => '{key} : sans liaison de modèle',
-        'api/media/{media}/sign' => '{media} : Media sans fabrique',
         'api/media/{media}/file' => '{media} : Media sans fabrique',
         'api/pay/{token}' => '{token} : sans liaison de modèle',
+        // TCK-2982 — le lien d'action, par l'empreinte de son jeton.
+        'api/a/{token}' => '{token} : sans liaison de modèle',
         'api/pay/{token}/receipt' => '{token} : sans liaison de modèle',
         'api/{paymentType}/{paymentId}/verify' => '{paymentType} : sans liaison de modèle',
         'api/{paymentType}/{paymentId}/providers' => '{paymentType} : sans liaison de modèle',
@@ -108,12 +118,21 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/public/properties/{slug}/conversation' => '{slug} : sans liaison de modèle',
         'api/public/agents/{slug}' => '{slug} : sans liaison de modèle',
         'api/public/agents/{slug}/properties' => '{slug} : sans liaison de modèle',
+        // TCK-2609 — l'aperçu d'une invitation : le jeton n'est lié à aucun modèle par la route.
+        'api/public/invitations/{token}' => '{token} : sans liaison de modèle',
         'api/public/agencies/{slug}' => '{slug} : sans liaison de modèle',
         'api/public/agencies/{slug}/properties' => '{slug} : sans liaison de modèle',
         'api/service-provider-bills/{bill}' => '{bill} : sans liaison de modèle',
+        // TCK-2897 — le PDF d'une facture, même paramètre que sa fiche.
+        'api/service-provider-bills/{bill}/pdf' => '{bill} : sans liaison de modèle',
+        // TCK-2627 — liée (`ThresholdAlert $thresholdAlert`), mais sous le nom `{threshold_alert}` de
+        // `apiResource`, que ce parcours ne rapproche pas ; et `ThresholdAlert` n'a pas de fabrique.
+        'api/threshold-alerts/{threshold_alert}' => '{threshold_alert} : sans liaison de modèle',
         'api/webhooks/sms/lafricamobile/status/{token}/{notification}' => '{token} : sans liaison de modèle',
         'api/webhooks/whatsapp/status/{token}' => '{token} : sans liaison de modèle',
         'api/webhooks/whatsapp/radar/{token}' => '{token} : sans liaison de modèle',
+        // TCK-2980 (ADR-0132 § 0) — le webhook générique de la messagerie : `{canal}` est un nom de la config.
+        'api/webhooks/messagerie/{canal}/{token}' => '{canal} : sans liaison de modèle',
     ];
 
     public function test_aucune_route_get_ne_rend_5xx_sur_une_valeur_en_liste(): void

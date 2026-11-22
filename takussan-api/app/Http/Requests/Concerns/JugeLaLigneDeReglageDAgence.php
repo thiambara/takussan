@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Concerns;
 
 use App\Domain\Settings\EditablePlatformSettings;
+use App\Support\ReglesDElementBornees;
 use App\Support\ScopedSetting;
 use Illuminate\Support\Facades\Validator as ValidatorFactory;
 use Illuminate\Validation\Validator;
@@ -27,10 +28,13 @@ trait JugeLaLigneDeReglageDAgence
         }
 
         $definition = EditablePlatformSettings::get($key);
-        $jugee = ValidatorFactory::make(
-            ['value' => ScopedSetting::unwrap($key, $value)],
+        $donnees = ['value' => ScopedSetting::unwrap($key, $value)];
+        // TCK-2488 — validateur ad hoc, hors du trait des FormRequest : une liste hors de sa borne ne
+        // fait pas juger ses éléments un à un, ici non plus.
+        $jugee = ValidatorFactory::make($donnees, ReglesDElementBornees::retirer(
             ['value' => $definition['rules'], 'value.*' => $definition['item_rules'] ?? ['nullable']],
-        );
+            $donnees,
+        ));
         foreach ($jugee->errors()->all() as $message) {
             $validator->errors()->add('value', $message);
         }

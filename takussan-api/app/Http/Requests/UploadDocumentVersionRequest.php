@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\JourIso;
 use App\Support\Uploads\AcceptedUploads;
-use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Validation for POST /api/documents/{document}/versions.
@@ -14,7 +14,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * formats were announced here and checked nowhere.
  * TCK-2300 — an optional `expiry_date`: a new version clears the old one.
  */
-class UploadDocumentVersionRequest extends FormRequest
+class UploadDocumentVersionRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
@@ -28,7 +28,7 @@ class UploadDocumentVersionRequest extends FormRequest
             'file' => ['required', 'file', ...AcceptedUploads::document(10240)],
             'comment' => ['nullable', 'string', 'max:500'],
             // TCK-2300 (P231.03) — l'échéance du nouveau fichier ; absente, elle se vide.
-            'expiry_date' => ['nullable', 'date'],
+            'expiry_date' => ['nullable', 'date', new JourIso],
         ];
     }
 }

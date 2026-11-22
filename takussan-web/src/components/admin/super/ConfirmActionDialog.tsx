@@ -97,7 +97,9 @@ export function ConfirmActionDialog({
               {reason.label}
             </label>
             <Textarea
+              profil="texte-long"
               id={reasonId}
+              placeholder={t('reasonPlaceholder')}
               value={motif}
               maxLength={reason.maxLength ?? 1000}
               onChange={(e) => setMotif(e.target.value)}
@@ -112,14 +114,12 @@ export function ConfirmActionDialog({
             {t('typePrompt')} <code className="rounded bg-muted px-1 font-mono text-foreground">{confirmPhrase}</code>
           </label>
           <Input
+            profil="confirmation"
             id={inputId}
-            type="text"
+            placeholder={confirmPhrase}
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             data-testid="confirm-action-input"
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
           />
         </div>
         {error ? (

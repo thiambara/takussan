@@ -83,7 +83,7 @@ class RentalSettingsCatalogueTest extends TestCase
             'plafond de révision au-delà de 100' => ['lease.rent_review_max_pct', 150],
             'aucune relance' => ['invoice.reminder_offsets_days', []],
             'relance à zéro jour' => ['invoice.reminder_offsets_days', [0, 7]],
-            'pénalité de zéro mois' => ['lease.early_termination_penalty_months', 0],
+            'pénalité au-delà de douze mois' => ['lease.early_termination_penalty_months', 13], // TCK-2842
             'pénalité décimale' => ['lease.early_termination_penalty_months', 1.5],
             'signature non booléenne' => ['lease.require_signature', 'peut-être'],
             'plafond des pénalités négatif' => ['late_fees.cap_percent', -1],

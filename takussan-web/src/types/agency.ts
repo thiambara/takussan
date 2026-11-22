@@ -48,6 +48,32 @@ export interface AgencySettings {
    * une agence neuve n'encaisse que le loyer, la pénalité se règle auprès d'elle.
    */
   late_fee_online_collection?: boolean;
+  /**
+   * TCK-2849 / TCK-2869 (ADR-0112) — « Les bailleurs confirment les visites de leurs biens ». Absente
+   * = non : seule l'agence confirme (TCK-590).
+   */
+  owners_confirm_visits?: boolean;
+  /** TCK-2979 (ADR-0131) — l'assistant de la messagerie et la transcription des notes vocales ; vrais par défaut. */
+  copilot_enabled?: boolean;
+  voice_transcription_enabled?: boolean;
+  /**
+   * TCK-2915 — le jour du mois (1-28) où partent les reversements aux bailleurs dont le mandat n'en
+   * fixe pas ; absent = aucune règle d'agence.
+   */
+  payout_day?: number | null;
+  /**
+   * TCK-2483 — les modules que l'agence retire du menu de son personnel (codes d'`AgencyModule`).
+   * Lu par `modulesMasquesDe`, jamais tel quel : un code inconnu y est ignoré.
+   */
+  hidden_modules?: readonly string[];
+  /**
+   * TCK-2504 — les moyens de paiement hors ligne que le lien de paiement affiche. Numéros rendus en
+   * E.164 par l'API (`+221771234567`), coordonnées bancaires en texte libre (≤ 500, sauts de ligne
+   * admis). Absente = rien de déclaré.
+   */
+  offline_payment_wave_number?: string;
+  offline_payment_orange_money_number?: string;
+  offline_payment_bank_details?: string;
   [key: string]: unknown;
 }
 
@@ -64,6 +90,8 @@ export interface Agency {
   description: string | null;
   email: string | null;
   phone: string | null;
+  /** TCK-2576 — le numéro WhatsApp de l'agence (E.164), offert au premier rang de sa fiche publique. */
+  phone_whatsapp?: string | null;
   website: string | null;
   commission_rate: number | null;
   /**
@@ -90,6 +118,19 @@ export interface Agency {
    * d'agence ne propose « Regénérer les filigranes » que s'il l'est. Absent = non.
    */
   watermark_available?: boolean;
+  /**
+   * TCK-2979 (ADR-0131 § 8) — ce que la plateforme laisse aux deux interrupteurs de l'assistant, rendu à qui peut
+   * mettre l'agence à jour : `copilot` (au moins une fonction servie), `transcription` (pas coupée),
+   * `transcription_configured` (un fournisseur qui transcrit est affecté). Absent : rien n'est grisé.
+   */
+  ai_platform?: { copilot: boolean; transcription: boolean; transcription_configured: boolean };
+  /**
+   * TCK-2518 / TCK-2524 — la vitrine de la fiche publique : accroche (≤ 120), « Pourquoi nous »
+   * (trois chaînes ≤ 80, `[]` sans), sélection (six biens de l'agence au plus, dans l'ordre choisi).
+   */
+  tagline?: string | null;
+  highlights?: readonly string[];
+  showcase_property_ids?: readonly number[];
   /**
    * TCK-594 (ADR-0039 §4) — au-dessus de ce net, un reversement attend une seconde personne. `null` = désactivé.
    * VERIF-594 m-2 — ABSENT (avec `pending_payout_threshold_change`) pour qui ne détient ni `payouts.approve` ni

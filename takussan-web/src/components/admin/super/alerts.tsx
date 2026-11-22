@@ -236,11 +236,11 @@ export function AlertRuleDialog({
           </fieldset>
           <label className="block space-y-1.5">
             <Label htmlFor="alert-emails">{t('emails')}</Label>
-            <Input id="alert-emails" value={emails} onChange={(e) => setEmails(e.target.value)} placeholder={EMAIL_PLACEHOLDER} />
+            <Input profil="courriel" id="alert-emails" value={emails} onChange={(e) => setEmails(e.target.value)} placeholder={EMAIL_PLACEHOLDER} />
           </label>
           <label className="block space-y-1.5">
             <Label htmlFor="alert-webhooks">{t('webhooks')}</Label>
-            <Input id="alert-webhooks" value={webhooks} onChange={(e) => setWebhooks(e.target.value)} placeholder={WEBHOOK_PLACEHOLDER} />
+            <Input profil="url" enterKeyHint="done" id="alert-webhooks" value={webhooks} onChange={(e) => setWebhooks(e.target.value)} placeholder={WEBHOOK_PLACEHOLDER} />
           </label>
         </div>
         {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}

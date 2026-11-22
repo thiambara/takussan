@@ -101,13 +101,36 @@ final class GeoNeighborhoodModeration
             // Ce qui avait été fusionné DANS la source suit la cible : aucune chaîne ne s'allonge.
             GeoNeighborhood::query()->where('merged_into_id', $src->getKey())->update(['merged_into_id' => $cbl->getKey(), 'updated_at' => now()]);
             $src->forceFill(['merged_into_id' => $cbl->getKey()])->save();
+            $biens = $this->reecrireAdresses($src, $cbl);
+            $this->deplacerLaPhoto($src, $cbl);
 
-            return $this->reecrireAdresses($src, $cbl);
+            return $biens;
         });
+        // La photo que la cible n'a pas prise : effacée APRÈS la transaction, comme la
+        // réindexation — un rollback ne doit pas laisser une ligne `media` sans son fichier.
+        $source->refresh()->clearMediaCollection('cover');
         $this->journaliser($source, $par, 'super_admin_geo_neighborhood_merged', ['into_id' => $cible->getKey()], 'Quartier fusionné');
         $this->reindexation->biens($biens);
 
         return $cible->refresh();
+    }
+
+    /**
+     * TCK-2844 (ADR-0109 §4) — la cible garde sa photo ; si elle n'en a pas, celle de la source lui
+     * est rattachée. Le chemin d'un média ne dépend que de son identifiant (`DefaultPathGenerator`) :
+     * changer son propriétaire ne déplace aucun fichier, et la conversion `display` suit.
+     */
+    private function deplacerLaPhoto(GeoNeighborhood $source, GeoNeighborhood $cible): void
+    {
+        if ($cible->getFirstMedia('cover') !== null) {
+            return;
+        }
+        $photo = $source->getFirstMedia('cover');
+        if ($photo === null) {
+            return;
+        }
+        $photo->forceFill(['model_type' => $cible->getMorphClass(), 'model_id' => $cible->getKey()])->save();
+        $source->unsetRelation('media');
     }
 
     private function verrouiller(GeoNeighborhood $quartier): GeoNeighborhood

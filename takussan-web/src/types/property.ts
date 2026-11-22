@@ -1,4 +1,5 @@
 import type { AgencyKind } from './agency';
+import type { ResumeDesInterventions } from './lease';
 import type { TagStatus } from './tag';
 
 export type PropertyType =
@@ -19,6 +20,80 @@ export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'aut
  */
 export type PropertyCondition = 'off_plan' | 'new' | 'renovated' | 'good' | 'to_renovate';
 
+/**
+ * TCK-2637 — l'occupation d'un bien (`include=occupancy`), calculée par `PropertyOccupancy` côté API.
+ * Sans droit sur le bail, `lease`, `tenant`, `rent` et `current_month` sont absents (nuls) : seul
+ * `state` reste servi.
+ *
+ * TCK-2638 — `not_rental` : un bien qui n'est pas à louer (`contract_type` ≠ `rent`), ni occupé, ni
+ * vacant, ni en préavis. Le bail en cours d'une vente reste servi (`lease`, `tenant`, `current_month`).
+ */
+export interface OccupationDuBien {
+  state: 'occupied' | 'notice' | 'vacant' | 'not_rental';
+  /** Fin effective du dernier bail ; `null` pour un bien jamais loué (« Sans locataire ») et pour une vente. */
+  vacant_since: string | null;
+  lease: {
+    id: number;
+    reference_number: string | null;
+    type: string | null;
+    status: string | null;
+    start_date: string | null;
+    end_date: string | null;
+  } | null;
+  tenant: {
+    id: number;
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+  } | null;
+  rent: {
+    amount: number;
+    charges: number | null;
+    currency: string | null;
+    payment_frequency: 'monthly' | 'quarterly' | 'yearly' | null;
+  } | null;
+  /**
+   * TCK-2915 — la date (`Y-m-d`) du prochain avis d'échéance (le rappel J-3 au locataire) ; `null`
+   * sans avis à venir. Absente, comme `lease`, pour qui ne lit pas le bail.
+   */
+  next_due_notice_date?: string | null;
+  current_month: {
+    /** `refunded` : échu, reçu puis remboursé (TCK-2651, décision 18 du porteur). */
+    status: 'paid' | 'late' | 'partial' | 'due' | 'none' | 'refunded';
+    due_date: string | null;
+    days_late: number | null;
+    amount_due: number | null;
+    late_fee_outstanding: number | null;
+  } | null;
+}
+
+/**
+ * TCK-2637 — `GET /api/properties/portfolio-summary` : les comptes des tuiles, en un appel.
+ * TCK-2638 — `for_sale` compte les biens hors location (`filter[occupancy]=not_rental`) :
+ * `occupied + vacant + for_sale = total`.
+ */
+export interface ResumeDuPortefeuille {
+  total: number;
+  occupied: number;
+  vacant: number;
+  for_sale: number;
+  vacant_over_60_days: number;
+  rent_late: number;
+  rent_late_amount: number;
+  notice: number;
+  online: number;
+  /**
+   * TCK-2638 (lot B) — le mode Annonces : `online + pending_validation + drafts + offline = total`
+   * (`filter[listing]`), puis les onglets du bureau « Vendus, loués » (`status=sold,rented`) et
+   * « Archivés » (`include_archived=1&status=archived`, compté avec les archivés en toute portée).
+   */
+  pending_validation: number;
+  drafts: number;
+  offline: number;
+  sold_or_rented: number;
+  archived: number;
+}
+
 export interface PropertyListItem {
   id: number;
   user_id?: number;
@@ -34,6 +109,11 @@ export interface PropertyListItem {
   visibility: string | null;
   views_count?: number;
   favorites_count?: number;
+  /**
+   * TCK-2905 (ADR-0117) / TCK-2908 — vues, contacts et visites des 30 derniers jours, servis sur
+   * `include=stats30d` seulement (clé ABSENTE sinon) : la ligne de chiffres de la carte d'annonce.
+   */
+  stats_30d?: { readonly views: number; readonly contacts: number; readonly visits: number };
   location: {
     quarter: string | null;
     city: string | null;
@@ -63,6 +143,23 @@ export interface PropertyListItem {
   primary_contact?: PropertyOwnerLite | null;
   /** TCK-603 (verif-603 M2) — d'où vient `primary_contact` ; absente avec lui. */
   primary_contact_source?: PrimaryContactSource | null;
+  /** TCK-2637 — servi sur `include=occupancy` seulement : clé ABSENTE sinon. */
+  occupancy?: OccupationDuBien | null;
+  /** TCK-2637 (ADR-0097) — « En ligne », le prédicat du catalogue ; servi sur `include=online`. */
+  is_online?: boolean;
+  /** TCK-2906 — `include=maintenanceSummary` (fiche seule) : les interventions du bien que le lecteur lit. */
+  maintenance_summary?: ResumeDesInterventions;
+  /**
+   * TCK-2678 (ADR-0097 § 5) — pourquoi le bien est hors ligne : des codes (`lib/biens/motifs-hors-ligne`),
+   * dans l'ordre d'affichage ; `[]` pour un bien en ligne. Servi sur `include=offlineReasons` seulement.
+   */
+  offline_reasons?: readonly string[];
+  /**
+   * TCK-2638 (lot B2) — la fin de la mise en avant payée (`BoostLifecycle`), ISO 8601 ; nulle sans boost,
+   * ABSENTE hors de la liste pro (`fields[properties]`, jamais sur la surface publique). « Boostée » =
+   * en cours, `sponsored_until` > maintenant (décision du porteur).
+   */
+  sponsored_until?: string | null;
   collaborators?: {
     id: number;
     user_id: number;
@@ -132,6 +229,11 @@ export interface PropertyAgencyLite {
   rating: number | null;
   /** TCK-633 — un indépendant (`individual`) ne facture pas de frais d'agence (`PropertyResource`, tâche 13). */
   kind?: AgencyKind;
+  /**
+   * TCK-2935 — le délai de réponse médian de l'agence, en minutes (`null` sous le seuil de mesures),
+   * le même que la fiche publique d'agence. Absent quand la liste n'a pas chargé la colonne.
+   */
+  median_response_minutes?: number | null;
 }
 
 export interface PropertyTag {
@@ -194,10 +296,10 @@ export interface PropertyPriceHistoryItem {
 }
 
 export interface PropertyDetail extends PropertyListItem {
-  type_label: string;
-  contract_type_label: string | null;
-  rent_period_label: string | null;
-  status_label: string;
+  // TCK-351 (option a du porteur, 2026-11-16) — plus aucun `*_label` : l'API n'émet que les codes
+  // (`type`, `contract_type`, `rent_period`, `status`, `title_type`, `condition`), et le front les
+  // traduit par `@/lib/biens/libelles-de-bien`. Ne pas rétablir ces champs : la garde
+  // `src/types/__tests__/property-labels.parity.test.ts` rougit sur toute lecture de l'un d'eux.
   /**
    * TCK-464 — `whenHas('title_type', …)` côté `PropertyResource` : la clé est ABSENTE du JSON,
    * pas nulle, dès qu'elle ne fait pas partie du `fields[properties]` demandé. `COMPARE_FIELDS`
@@ -205,9 +307,6 @@ export interface PropertyDetail extends PropertyListItem {
    * ci-dessous.
    */
   title_type?: PropertyTitleType | null;
-  title_type_label: string | null;
-  /** TCK-508 — émis SANS condition par `PropertyResource`, comme `title_type_label`. */
-  condition_label: string | null;
   floor_number: number | null;
   total_floors: number | null;
   /**
@@ -217,6 +316,12 @@ export interface PropertyDetail extends PropertyListItem {
    * entière (P60.03).
    */
   available_from?: string | null;
+  /**
+   * TCK-2892 — `HH:MM`, l'heure d'arrivée (« à partir de ») et de départ (« avant ») d'un bien à la
+   * nuit ou à la semaine ; `null` quand le bien ne les dit pas (l'écran affiche alors 14:00 / 11:00).
+   */
+  check_in_from?: string | null;
+  check_out_before?: string | null;
   year_built: number | null;
   parking_spaces: number | null;
   views_count: number;
@@ -291,6 +396,11 @@ export interface PropertyDetail extends PropertyListItem {
    * court. Émis sur `properties.show` au seul personnel de l'agence du bien.
    */
   pending_owner?: { profile_id: number; name: string } | null;
+  /**
+   * TCK-2639 — le profil de bailleur du titulaire dans l'agence du bien (`/app/owners/{id}`), rendu à
+   * qui en ouvre la fiche (l'admin actif de l'agence) ; nul pour tout autre appelant.
+   */
+  owner_profile_id?: number | null;
 }
 
 export interface PaginatedProperties {

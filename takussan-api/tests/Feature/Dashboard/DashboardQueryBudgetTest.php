@@ -30,12 +30,15 @@ class DashboardQueryBudgetTest extends ApiTestCase
      * le 2026-10-24 (décision du porteur, TCK-2151) : la lecture des reprises du versé (ADR-0039,
      * amendement du 2026-10-24) est une requête de plus, constante. `agency` relevé de 29 à 30 le
      * 2026-10-25 (décision du porteur sur P249.02, TCK-2373) : la lecture de `kpi_configs` pour les
-     * tuiles configurées est une requête de plus, constante.
+     * tuiles configurées est une requête de plus, constante. TCK-2865 (2026-11-15) — `owner` relevé de 27 à 28
+     * (`timeseries.expected`, `PortfolioMetrics::expectedRentByMonth`) et `agency` de 30 à 31
+     * (`timeseries.overdue`, `PortfolioMetrics::overdueByMonth`) : une requête de plus chacun, constante quel que
+     * soit le nombre de mois (le premier assert de ce test le garde).
      */
     private const CEILINGS = [
-        'owner' => 27,
+        'owner' => 28,
         'agent' => 25,
-        'agency' => 30,
+        'agency' => 31,
     ];
 
     /** @return array<string, array{string, string}> */

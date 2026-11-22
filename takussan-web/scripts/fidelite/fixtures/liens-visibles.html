@@ -1,0 +1,45 @@
+<!doctype html>
+<!--
+  Cas éprouvés de LIENS_VISIBLES (inventaire.mjs) — vérifiés par verifier-liens-visibles.mjs.
+  Chaque lien porte data-attendu="visible" s'il DOIT être compté, "cache" sinon ; son href (/cas/…) le nomme.
+  Le cas « plus-replie » reproduit le panneau « Plus » replié de la barre latérale (Collapsible de base-ui) :
+  monté, hauteur 0, overflow hidden — le lien garde sa boîte (et elementFromPoint tombe sur la barre),
+  relevé le 2026-11-13 sur le client de la démo à 1440 (a-5, TCK-2625).
+-->
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { margin: 0; font: 16px/24px sans-serif; }
+      nav { width: 300px; }
+      a { display: block; height: 32px; }
+      .replie { height: 0; overflow: hidden; }
+      .replie-clip { height: 0; overflow: clip; }
+      .replie-ouvert { height: 0; overflow: visible; }
+      .defileur { height: 64px; overflow-y: auto; }
+      .defileur .bas { margin-top: 200px; }
+      .replie-largeur { width: 0; overflow-x: hidden; overflow-y: visible; }
+      .replie-largeur a { width: 200px; }
+      .lien-fixe { position: fixed; top: 0; right: 0; width: 200px; }
+      .barre-fixe { position: fixed; bottom: 0; left: 0; width: 300px; }
+    </style>
+  </head>
+  <body>
+    <nav aria-label="cas">
+      <a href="/cas/plein" data-attendu="visible">plein</a>
+      <div class="replie"><a href="/cas/plus-replie" data-attendu="cache">plus replié</a></div>
+      <div class="replie"><div><span><a href="/cas/plus-replie-profond" data-attendu="cache">plus replié, profond</a></span></div></div>
+      <div class="replie-clip"><a href="/cas/clip-replie" data-attendu="cache">overflow clip replié</a></div>
+      <div class="replie-ouvert"><a href="/cas/hauteur-nulle-sans-rognage" data-attendu="visible">hauteur nulle, rien ne rogne</a></div>
+      <div class="defileur">
+        <a href="/cas/defileur-haut" data-attendu="visible">dans le défileur, visible</a>
+        <a href="/cas/defileur-bas" class="bas" data-attendu="cache">dans le défileur, sous son bord</a>
+      </div>
+      <a href="/cas/invisible" style="visibility: hidden" data-attendu="cache">visibility hidden</a>
+      <div class="replie"><div class="barre-fixe"><a href="/cas/fixe-dans-replie" data-attendu="visible">barre fixe sous un parent replié</a></div></div>
+      <div class="replie-largeur"><a href="/cas/rail-replie-en-largeur" data-attendu="cache">rail replié en largeur</a></div>
+      <div class="replie"><a href="/cas/lien-fixe-dans-replie" class="lien-fixe" data-attendu="visible">lien lui-même fixe</a></div>
+    </nav>
+    <a href="/cas/hors-nav" data-attendu="cache">hors de nav : jamais compté</a>
+  </body>
+</html>

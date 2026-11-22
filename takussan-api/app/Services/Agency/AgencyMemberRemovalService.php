@@ -16,6 +16,7 @@ use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Services\Calendar\CalendarFeedService;
 use App\Services\Permissions\RoleDelegationService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -65,6 +66,11 @@ class AgencyMemberRemovalService
         }
 
         return DB::transaction(function () use ($agencyId, $member, $actor, $hasAgent, $hasAdmin, $leaveUnassigned) {
+            // TCK-2744 (d2) — l'ordre global des verrous est bien → visite → utilisateur (celui des
+            // écrivains de visites, `VisitSchedulingService::verrouillerBienPuisVisite`) : les biens
+            // dont il est l'agent principal AVANT le membre. Pris dans l'autre sens, le retrait et la
+            // confirmation d'une de ses visites sur un tel bien s'interbloquaient (40P01, 20 sur 20).
+            $this->lockMarkedProperties($member, $agencyId);
             $locked = User::query()->whereKey($member->id)->lockForUpdate()->first();
             if ($hasAdmin && $locked !== null) {
                 $remainingAdmins = AgencyAdminProfile::query()
@@ -179,19 +185,52 @@ class AgencyMemberRemovalService
      */
     private function dropPrimaryMarks(User $member, ?int $agencyId): void
     {
-        $marked = fn () => PropertyCollaborator::query()
+        if ($this->lockMarkedProperties($member, $agencyId) === []) {
+            return;
+        }
+
+        foreach ($this->markedRows($member, $agencyId)->get() as $row) {
+            $row->forceFill(['is_primary' => false])->save();
+        }
+    }
+
+    /**
+     * Les biens dont le membre est l'agent principal (dans l'agence, ou partout si `null`),
+     * verrouillés par identifiant croissant. TCK-2744 (d2) — appelé AVANT tout verrou sur la ligne
+     * `users` du membre : bien → visite → utilisateur est l'ordre de tout le dépôt
+     * (`takussan-api/CLAUDE.md`, « Migrations — les pièges PostgreSQL »). Le rappeler dans la même
+     * transaction ne coûte rien : PostgreSQL ne reprend pas un verrou déjà tenu.
+     *
+     * @return list<int>
+     */
+    public function lockMarkedProperties(User $member, ?int $agencyId): array
+    {
+        $propertyIds = $this->markedPropertyIds($member, $agencyId);
+        if ($propertyIds === []) {
+            return [];
+        }
+
+        return Property::withTrashed()->whereIn('id', $propertyIds)->orderBy('id')->lockForUpdate()->pluck('id')->all();
+    }
+
+    /**
+     * Les biens où le membre porte la marque d'agent principal, sans verrou : l'effacement d'un
+     * compte (`AccountDeletionService::anonymize`) les verrouille avec ceux de ses visites, en UNE
+     * passe triée.
+     *
+     * @return list<int>
+     */
+    public function markedPropertyIds(User $member, ?int $agencyId): array
+    {
+        return array_map('intval', $this->markedRows($member, $agencyId)->pluck('property_id')->all());
+    }
+
+    /** @return Builder<PropertyCollaborator> */
+    private function markedRows(User $member, ?int $agencyId): Builder
+    {
+        return PropertyCollaborator::query()
             ->where('user_id', $member->id)
             ->where('is_primary', true)
             ->when($agencyId !== null, fn ($q) => $q->whereIn('property_id', Property::withTrashed()->where('agency_id', $agencyId)->select('id')));
-
-        $propertyIds = $marked()->pluck('property_id')->all();
-        if ($propertyIds === []) {
-            return;
-        }
-        Property::withTrashed()->whereIn('id', $propertyIds)->orderBy('id')->lockForUpdate()->pluck('id');
-
-        foreach ($marked()->get() as $row) {
-            $row->forceFill(['is_primary' => false])->save();
-        }
     }
 }

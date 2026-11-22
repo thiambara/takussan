@@ -4,7 +4,6 @@ namespace App\Services\Model;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
-use App\Events\NewNotification;
 use App\Models\AppNotification;
 use App\Models\Enums\NotificationChannel;
 use App\Models\User;
@@ -16,6 +15,8 @@ use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\Sms\DeferredSmsGuard;
 use App\Services\Notifications\Sms\SmsOutcome;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Support\TempsReel\CodeDeSignal;
+use App\Support\TempsReel\TempsReel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -32,7 +33,7 @@ class NotificationService
      *
      * Pour un `User` : la ligne `app_notifications` est écrite en synchrone (code, paramètres
      * bruts, cible, et `title`/`body` rendus dans SA langue, qui servent de repli), puis
-     * {@see CodedNotification} part en file pour l'e-mail, le broadcast et un canal mobile,
+     * {@see CodedNotification} part en file pour l'e-mail et un canal mobile,
      * chacun selon l'interrupteur du code.
      *
      * Pour un {@see ContactSansCompte} : aucune ligne (`user_id` vise `users`), un envoi routé
@@ -114,13 +115,9 @@ class NotificationService
             (new CodedNotification($code, $params, $target?->toArray(), $notification->id, $mobileBorne, agencyId: $agencyId))->locale($locale)
         );
 
-        if (class_exists(NewNotification::class)) {
-            try {
-                event(new NewNotification($notification));
-            } catch (\Throwable) {
-                // Broadcasting not configured — silently skip.
-            }
-        }
+        // TCK-2952 (ADR-0129) — la cloche apprend qu'elle a changé, sans rien de la notification : elle relit
+        // `/api/notifications`. Après le COMMIT, dédoublonné, jamais en échec (`TempsReel`).
+        TempsReel::signalerA($to, CodeDeSignal::NotificationsUpdated);
 
         return $notification;
     }

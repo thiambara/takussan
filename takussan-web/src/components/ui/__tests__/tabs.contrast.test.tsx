@@ -8,7 +8,8 @@
  * sous le plancher AA de 4,5 pour du texte normal de 14 px.
  *
  * Ce test ne se contente donc PAS de figer une chaîne de classe : il RECALCULE le contraste à
- * partir de l'opacité réellement rendue, sur les trois fonds possibles, dans les deux thèmes.
+ * partir de l'opacité réellement rendue, sur les trois fonds possibles. Le sombre n'est pas mesuré :
+ * aucune portée `.dark` ne monte cette primitive (TCK-452, option B : pas de sombre global).
  * Une opacité rabaissée rougit avec le chiffre qui la condamne, et un jour où `--muted` bougerait
  * dans `globals.css`, c'est ce test qui le dirait — pas une revue à l'œil.
  *
@@ -21,10 +22,9 @@ import { render } from '@testing-library/react';
 
 import { Tabs, TabsList, TabsTrigger } from '../tabs';
 
-/** Jetons de `src/app/globals.css` — `:root` (clair) et `.dark` (sombre). */
+/** Jetons de `src/app/globals.css` — `:root`. */
 const JETONS = {
   clair: { foreground: '#1f1812', fonds: { '--background': '#fcf9f3', '--card': '#ffffff', '--muted': '#f1ece0' } },
-  sombre: { mutedForeground: '#b8aa97', fonds: { '--background': '#1f1812', '--card': '#2a2018', '--muted': '#3a2e23' } },
 } as const;
 
 const SEUIL_AA_TEXTE_NORMAL = 4.5;
@@ -90,20 +90,8 @@ describe('TabsTrigger — l’onglet inactif tient AA sur les trois fonds (TCK-3
     }
   });
 
-  it('mesure ≥ 4,5:1 en thème sombre, où l’encre bascule sur --muted-foreground', () => {
-    const classes = classesDuDeclencheurInactif();
-
-    // Sans cette bascule, l'encre sombre serait `--foreground` (#fcf9f3) à la même opacité, sur
-    // des fonds sombres : la mesure ci-dessous porterait sur une autre couleur que le rendu.
-    expect(classes).toContain('dark:text-muted-foreground');
-
-    for (const [nom, fond] of Object.entries(JETONS.sombre.fonds)) {
-      const ratio = contraste(JETONS.sombre.mutedForeground, fond);
-      expect(
-        ratio,
-        `--muted-foreground sur ${nom} (${fond}) = ${ratio.toFixed(4)}:1`,
-      ).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE_NORMAL);
-    }
+  it('ne porte aucune variante `dark:` : aucune portée `.dark` ne la monte (TCK-452)', () => {
+    expect(classesDuDeclencheurInactif().filter((c) => /(^|:)dark:/.test(c))).toEqual([]);
   });
 
   it('garde la `TabsList variant="line"` transparente — c’est ce qui rend le fond du PARENT décisif', () => {

@@ -105,7 +105,7 @@ async function ouvrirLaListe(container: HTMLElement) {
 
 async function ouvrirLeBien(container: HTMLElement, id: number) {
   const bouton = await waitFor(() => {
-    const libelle = formatPrice(250000 + id, 'XOF');
+    const libelle = formatPrice(250000 + id, 'XOF', 'fr');
     const b = [...container.querySelectorAll('.takussan-price-marker')].find(
       (m) => m.querySelector('button')?.getAttribute('aria-label') === libelle,
     );
@@ -241,7 +241,7 @@ describe('TCK-562 (W2) — un aperçu ouvert survit au rechargement de la carte'
     const { container, rerender } = render(withIntl(<PropertyMap />));
     await ouvrirLeBien(container, 50);
 
-    const libelle = formatPrice(250050, 'XOF');
+    const libelle = formatPrice(250050, 'XOF', 'fr');
     const etiquette = () =>
       [...container.querySelectorAll('.takussan-price-marker')].find(
         (m) => m.querySelector('button')?.getAttribute('aria-label') === libelle,
@@ -440,7 +440,7 @@ describe('TCK-562 (W2) — un aperçu ouvert survit au rechargement de la carte'
         reponse = collection(IMMEUBLE_ET_BIEN);
         const { container, rerender } = render(withIntl(<PropertyMap />));
         await ouvrirLeBien(container, 60);
-        const bien60 = marqueurs.trouver(formatPrice(250060, 'XOF'));
+        const bien60 = marqueurs.trouver(formatPrice(250060, 'XOF', 'fr'));
         await ouvrirLaListe(container);
         await waitFor(() => expect(within(popupOuvert(container)!).getAllByRole('link')).toHaveLength(4));
 

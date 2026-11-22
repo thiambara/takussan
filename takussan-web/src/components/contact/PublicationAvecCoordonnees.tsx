@@ -17,6 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { pendantLeGeste } from '@/lib/biens/gestes-en-vol';
 
 import { CoordonneesPublication } from './CoordonneesPublication';
 
@@ -54,6 +56,7 @@ export function usePublicationAvecCoordonnees(
   readonly dialogue: ReactNode;
 } {
   const t = useTranslations('property.form.publishContact');
+  const messageErreur = useMessageErreurApi();
   const [enCours, demarrer] = useTransition();
   const [ouvert, setOuvert] = useState(false);
   const [manquants, setManquants] = useState<string[] | null>(null);
@@ -71,7 +74,20 @@ export function usePublicationAvecCoordonnees(
     setErreur(null);
     setGeste(g);
     demarrer(async () => {
-      const r = await envoyer(g, depuisLeDialogue);
+      // Réserve de verif-patrimoine (2026-11-12) — une action serveur qui LÈVE (panne réseau)
+      // atteignait la frontière `(dashboard)/error.tsx` depuis la transition : la page entière
+      // passait à l'écran d'erreur. Elle se dit comme un refus : dans la boîte si elle est ouverte,
+      // sinon à l'appelant (`onEchec`).
+      let r: ResultatPublication;
+      try {
+        // Contre-vérification de f02583f76 — marqué au registre du bien : un menu démonté puis
+        // remonté pendant l'envoi (la feuille « ⋯ » de la fiche au téléphone) le retrouve en vol.
+        r = await pendantLeGeste(propertyId, () => envoyer(g, depuisLeDialogue));
+      } catch (erreur) {
+        if (depuisLeDialogue) setErreur(messageErreur(erreur));
+        else onEchec(messageErreur(erreur));
+        return;
+      }
       if (r.ok) {
         setOuvert(false);
         setManquants(null);

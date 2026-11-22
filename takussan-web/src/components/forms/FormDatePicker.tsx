@@ -24,6 +24,8 @@ export type FormDatePickerProps<TFieldValues extends FieldValues> = {
   readonly max?: string;
   readonly className?: string;
   readonly containerClassName?: string;
+  /** TCK-2643 — le motif date-fns du jour affiché, passé à `DatePicker` (« d MMM yyyy » : « 1 déc. 2026 »). */
+  readonly formatAffiche?: string;
 };
 
 /**
@@ -42,6 +44,7 @@ export function FormDatePicker<TFieldValues extends FieldValues>({
   max,
   className,
   containerClassName,
+  formatAffiche,
 }: FormDatePickerProps<TFieldValues>) {
   const inputId = id ?? `field-${String(name)}`;
   const errorId = `${inputId}-error`;
@@ -72,6 +75,7 @@ export function FormDatePicker<TFieldValues extends FieldValues>({
                 field.onBlur();
               }}
               placeholder={placeholder}
+              formatAffiche={formatAffiche}
               required={required}
               disabled={disabled}
               min={min}

@@ -80,9 +80,11 @@ return [
     // l'ordre de bascule. Un maillon ne porte que `max_tokens` : l'API d'Anthropic refuse
     // `temperature`, `top_p` et `top_k` depuis le 2026-10-21.
     'roles' => [
+        // TCK-2466 (ADR-0087 §2) — le petit modèle d'abord : l'IA ne lit plus que la description et ce que la page ne
+        // dit pas ; Sonnet en repli. Une ligne `ai_role_assignments` (console, ADR-0085) l'emporte sur ce repli.
         'extraction' => [
-            ['provider' => 'anthropic', 'model' => 'claude-sonnet-5-5', 'max_tokens' => 8000],
             ['provider' => 'anthropic', 'model' => 'claude-haiku-5-5', 'max_tokens' => 8000],
+            ['provider' => 'anthropic', 'model' => 'claude-sonnet-5-5', 'max_tokens' => 8000],
         ],
         'redaction' => [
             ['provider' => 'anthropic', 'model' => 'claude-sonnet-5-5', 'max_tokens' => 4000],
@@ -97,6 +99,10 @@ return [
         'embedding' => [
             ['provider' => 'voyageai', 'model' => 'voyage-4'],
         ],
+        // TCK-2976 (ADR-0131 § 7, décision 5a du porteur) — AUCUN fournisseur ni modèle par défaut : rôle vide = la
+        // transcription des notes vocales est désactivée proprement (aucun job, aucun appel, le fichier ne sort pas).
+        // Le porteur l'affecte dans la console le jour où il pose la clé d'un fournisseur qui transcrit.
+        'transcription' => [],
     ],
 
     // Tarifs publiés, en dollars US par million de tokens, relevés le 2026-10-31. Des chaînes, jamais des
@@ -139,7 +145,30 @@ return [
     // plafond d'un usage se règle dans la console (`ai_usage_settings`), à défaut celui que l'usage déclare.
     'budgets' => [
         'daily_global_usd' => $montant('AI_DAILY_BUDGET_USD', '8.33'),
-        'daily_per_agency_usd' => null,
+        // TCK-2979 (ADR-0131 § 8) — le DÉFAUT de la clé `ai.daily_budget_per_agency_usd` des Paramètres plateforme, qui
+        // l'emporte (`AiBudget`). Vide, illisible ou nul : pas de plafond par agence (un zéro refuserait tout appel).
+        'daily_per_agency_usd' => preg_match('/^\d+(\.\d+)?$/', (string) env('AI_DAILY_BUDGET_PER_AGENCY_USD')) === 1
+            && (float) env('AI_DAILY_BUDGET_PER_AGENCY_USD') > 0 ? (string) env('AI_DAILY_BUDGET_PER_AGENCY_USD') : null,
+    ],
+
+    // TCK-2974 (ADR-0131) — le copilote du fil, lu par le SEUL `App\Services\Messaging\Copilote\ReglagesDuCopilote`.
+    // `actif` faux : aucune fonction n'est servie, aucun appel ne part. `fonctions.<fonction>` faux : cette fonction
+    // seule est coupée. TCK-2979 y ajoute `ai_usage_settings` (plateforme) et `AgencySettings` (agence) ; le modèle
+    // de chaque fonction suit `ModelResolver` (le rôle de son usage).
+    'copilote' => [
+        'actif' => true,
+        'fonctions' => [
+            'resume' => true,
+            'question' => true,
+            'brouillon' => true,
+            'promesses' => true,
+            // TCK-2976 — servie seulement si le rôle `transcription` a un modèle (vide par défaut).
+            'transcription' => true,
+        ],
+        'seuil_du_resume' => 10,
+        'retention_en_jours' => 30,
+        'plafond_du_jour_usd' => '1.00',
+        'plafond_transcription_usd' => '0.50',
     ],
 
 ];

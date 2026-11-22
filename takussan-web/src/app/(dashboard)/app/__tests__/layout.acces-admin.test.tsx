@@ -19,7 +19,15 @@ const { getMe, accesAdmin, capacitesAmorcees, sonde, sondeDuCache } = vi.hoisted
 }));
 
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMe() }));
-vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
+// TCK-2621 — l'écran « Choisir un espace » n'est pas l'objet de ce fichier : jamais montré ici.
+vi.mock('@/lib/espaces-serveur', () => ({ espacesAChoisir: async () => null }));
+vi.mock('@/lib/session', () => ({
+  getToken: async () => 'jeton',
+  // TCK-610 — le layout demande si la session est une impersonation (entrée « console » du menu).
+  estEnImpersonation: async () => false,
+  getActiveProfileId: async () => undefined,
+  getModeIconesDuMenu: async () => 'auto' as const,
+}));
 vi.mock('@/lib/access/server-guards', () => ({
   resolveAgencyOrNull: async () => ({ id: 7, kind: 'individual', status: 'active' }),
 }));

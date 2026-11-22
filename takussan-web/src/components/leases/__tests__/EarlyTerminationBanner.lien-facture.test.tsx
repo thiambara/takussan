@@ -7,22 +7,25 @@ import { Toast } from '@base-ui/react/toast';
 import { EarlyTerminationBanner } from '../EarlyTerminationBanner';
 import frMessages from '@/messages/fr.json';
 import type { Lease } from '@/types/lease';
-import type { UserRole } from '@/types/user';
 
 /**
  * TCK-1365 (P131.03) — le numéro de la facture de résiliation mène, par un `Link`, à l'onglet des
  * factures pour l'équipe, et à la page de paiements (`CustomerPayments`) pour le client. Avant,
  * un `<a>` visait `/app/payments?invoice=<id>`, paramètre que rien ne lit : l'historique s'ouvrait.
+ *
+ * TCK-2645 — « le client » est le locataire de CE bail, lu sur les capacités (`locataire`, de
+ * `abilities.give_notice`), plus sur `user.roles` : un agent qui est aussi client de la plateforme
+ * reste l'équipe sur un bail qu'il gère.
  */
 
-let roles: UserRole[] = [];
+const roles = vi.hoisted(() => ({ liste: [] as string[] }));
 
 vi.mock('@/lib/queries/leases', () => ({
   useCancelEarlyTermination: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 1, roles } }),
+  useAuth: () => ({ user: { id: 1, roles: roles.liste } }),
 }));
 
 function bail(): Lease {
@@ -38,13 +41,13 @@ function bail(): Lease {
   } as Lease;
 }
 
-function monter() {
+function monter(locataire?: boolean) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
       <NextIntlClientProvider locale="fr" messages={frMessages}>
         <Toast.Provider>
-          <EarlyTerminationBanner lease={bail()} />
+          <EarlyTerminationBanner lease={bail()} locataire={locataire} />
         </Toast.Provider>
       </NextIntlClientProvider>
     </QueryClientProvider>,
@@ -54,16 +57,19 @@ function monter() {
 
 describe('<EarlyTerminationBanner> — lien de la facture de résiliation (TCK-1365)', () => {
   beforeEach(() => {
-    roles = [];
+    roles.liste = [];
   });
 
   it("mène l'équipe à l'onglet des factures", () => {
-    roles = ['agent'];
-    expect(monter().getAttribute('href')).toBe('/app/payments?tab=invoices');
+    expect(monter(false).getAttribute('href')).toBe('/app/payments?tab=invoices');
   });
 
-  it('mène le client à sa page de paiements', () => {
-    roles = ['customer'];
-    expect(monter().getAttribute('href')).toBe('/app/payments');
+  it('mène le locataire du bail à sa page de paiements', () => {
+    expect(monter(true).getAttribute('href')).toBe('/app/payments');
+  });
+
+  it('ne lit plus les rôles : un compte « client » seul qui n’est pas le locataire va aux factures (TCK-2645)', () => {
+    roles.liste = ['customer'];
+    expect(monter(false).getAttribute('href')).toBe('/app/payments?tab=invoices');
   });
 });

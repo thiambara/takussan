@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2, Stamp } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -88,24 +88,29 @@ export function RegenerateWatermarksCard({ agencyId }: { readonly agencyId: numb
   }
 
   return (
-    <section className="rounded-xl bg-card p-6 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-foreground">{t('title')}</h2>
-        <p className="mt-1 text-xs text-muted-foreground">{t('description')}</p>
+    // TCK-2670 — le bloc de la section « Identité » de la fiche (maquette retenue, ADR-0106) : au
+    // téléphone le bouton pleine largeur sous le texte, dès `md` sur la même ligne.
+    <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="titre-filigranes">
+      <div className="md:flex md:items-center md:gap-4">
+        <div className="min-w-0 flex-1">
+          <h3 id="titre-filigranes" className="text-corps font-medium">
+            {t('title')}
+          </h3>
+          <p className="mt-0.5 text-pretty text-ui leading-snug text-muted-foreground">{t('description')}</p>
+        </div>
+        <Button type="button" variant="outline" className="mt-3 h-11 w-full md:mt-0 md:w-auto md:flex-none" onClick={() => setConfirmOpen(true)}>
+          <RefreshCw aria-hidden="true" />
+          <span>{t('action')}</span>
+        </Button>
       </div>
 
-      <Button type="button" variant="outline" onClick={() => setConfirmOpen(true)}>
-        <Stamp aria-hidden="true" />
-        <span>{t('action')}</span>
-      </Button>
-
       {message ? (
-        <p role="status" className="text-xs text-muted-foreground">
+        <p role="status" className="mt-2 text-xs text-muted-foreground">
           {message}
         </p>
       ) : null}
       {erreur ? (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="mt-2 text-xs text-destructive">
           {erreur}
         </p>
       ) : null}

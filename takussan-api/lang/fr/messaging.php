@@ -27,8 +27,31 @@ return [
     // TCK-576, reprise (2026-09-24) — le nom du champ dans un 422, jamais « filter.property id ».
     'attributes' => [
         'property_filter' => 'bien',
+        // TCK-2630 — les filtres de la liste des conversations.
+        'filters' => 'filtres',
+        'search_filter' => 'recherche',
+        'unread_filter' => 'non lus',
+        'participant_filter' => 'participant',
+        // TCK-2967 (ADR-0128 § 7)
+        'file_filter' => 'file',
+        'snooze_until' => 'date du rappel',
+        'assignee' => 'personne confiée',
+        'type_filter' => 'type de conversation',
+        // TCK-2631 — la pièce jointe d'un message (photo ou PDF).
+        'file' => 'pièce jointe',
     ],
 
     // TCK-592 — ADR-0038 : aperçu d'une note vocale dans la liste des conversations.
     'audio_preview' => 'Note vocale',
+
+    // TCK-2631 — ADR-0038, amendement du 2026-11-10 : aperçu neutre d'une photo et d'un PDF, jamais le nom du fichier.
+    'image_preview' => 'Photo',
+    'document_preview' => 'Document',
+
+    // TCK-2964 — l'extrait de l'avis d'une carte posée dans un fil (`Message::cardPreview`) : une phrase
+    // générique, sans titre ni prix. Clé : le code de la carte, `.` remplacé par `_`.
+    'card_preview' => [
+        'property_shared' => 'Vous a partagé un bien.',
+        'visit_proposed' => 'Vous propose un créneau de visite.',
+    ],
 ];

@@ -101,6 +101,7 @@ const SURFACE = clotureDImport(ENTREES).filter((f) => f.endsWith('.tsx'));
  *     sans avoir regardé où le composant est réellement posé.
  *  2. **Boutons primaires au survol** — `hover:bg-primary/80` sous `text-primary-foreground`
  *     tombe à 3,45:1 : l'alpha du survol mange la marge. Défaut réel, hors de ce ticket.
+ *     *(Fermée le 2026-11-16 par TCK-487 : survol opaque `hover:bg-primary-deep`.)*
  *  3. **`text-border` en séparateur ou en étoile vide** — 1,20 à 1,26:1, au seuil non textuel de
  *     3:1. Défaut réel et de faible gravité.
  *  4. **Aplats de `--primary` sous de l'encre `--primary`** — le même motif que TCK-444 relève sur
@@ -112,14 +113,12 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['app/[locale]/(public)/properties/[slug]/components/PropertyLightbox.tsx · text-white sur hover:bg-white/20 sur un sous-jacent inconnu (pire pixel 255)', 1.00, 'idem, état survolé'],
   ['components/search/SearchAutocomplete.tsx · text-primary-foreground/80 sur bg-card/10 sur un sous-jacent inconnu (pire pixel 249)', 1.00, 'variante `navbar`, posée sur la barre `bg-foreground` de `AppTopbar` — un ancêtre d’un autre fichier'],
   ['components/search/SearchAutocomplete.tsx · text-primary-foreground/80 sur hover:bg-card/20 sur un sous-jacent inconnu (pire pixel 248)', 1.00, 'idem, état survolé'],
-  ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-muted-foreground sur group-hover:bg-foreground/10 sur un sous-jacent inconnu (pire pixel 111)', 1.00, 'voile de survol à 10 % sur un fond que le fichier ne pose pas'],
   // ── 2. Boutons primaires au survol ────────────────────────────────────────────────────────────
-  ['app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'idem'],
-  ['app/[locale]/(public)/properties/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur un sous-jacent inconnu (pire pixel 255)', 4.18, 'idem, alpha 90 %'],
-  ['components/compare/CompareFloatingBar.tsx · text-primary-foreground sur hover:bg-primary/90 sur #ffffff', 4.18, 'idem, sur un ancêtre `--card` connu'],
-  ['components/compare/CompareFloatingBar.tsx · text-primary-foreground sur hover:bg-primary/90 sur #fffffe', 4.18, 'idem, sur `--background` (l’ancêtre `bg-card/95` compose à un octet près)'],
-  ['app/[locale]/(public)/agencies/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur #fcf9f3', 4.21, 'idem'],
-  ['app/[locale]/(public)/agents/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur #fcf9f3', 4.21, 'idem'],
+  // VIDE depuis le 2026-11-16 (TCK-487, option b) : les six entrées (`PropertyReservationDialog`
+  // `hover:bg-primary/80` à 3,45:1, les trois `not-found` et `CompareFloatingBar` en
+  // `hover:bg-primary/90` à 4,18-4,21:1) survolent désormais en `hover:bg-primary-deep` OPAQUE,
+  // comme `ui/button.tsx` depuis TCK-2597 : 7,64:1 en clair, 6,78:1 en sombre. Le jeton `--primary`
+  // n'a pas changé ; seuls les sites qui échouaient ont bougé.
   // ── 3. `text-border` non textuel ──────────────────────────────────────────────────────────────
   // Les six entrées des cartes (`PropertyCard{Compact,Standard,Listing}`) sont sorties le
   // 2026-09-16 : leur séparateur « • » est désormais posé par `cards/CardMeta.tsx`, en
@@ -127,6 +126,8 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['components/public/profile/ReviewsSection.tsx · text-border sur #ffffff (ancêtre) sur --card', 1.26, 'étoile VIDE d’une note ; seuil non textuel 3:1'],
   ['components/public/profile/ReviewsSection.tsx · text-border sur #ffffff (ancêtre) sur --background', 1.26, 'idem'],
   // ── 4. Aplats de --primary sous encre --primary ───────────────────────────────────────────────
+  // Laissée le 2026-11-16 (TCK-487, option b) : le pire cas statique est un artefact du lecteur ;
+  // sur son fond réel (`--background` de la page de recherche) le couple rend 4,55:1, conforme.
   ['components/search/SearchToolbar.tsx · text-primary sur bg-primary/8 sur un sous-jacent inconnu (pire pixel 108)', 1.00, 'texte sur un aplat de sa propre couleur — motif de TCK-444'],
   // `SearchAutocomplete.tsx · text-primary sur bg-primary/15` est sortie le 2026-10-15 (TCK-657) :
   // le `<mark>` porte `text-[var(--primary-deep)]` sur `bg-primary/10`. La valeur arbitraire échappe
@@ -134,7 +135,12 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   // menu `bg-card`, ses lignes active et survolée comprises, dans les deux thèmes.
   // `FilterSidebar.tsx · text-primary sur bg-primary/5` est sortie le 2026-10-12 (TCK-633, lot E) :
   // c'était la bascule « Meublé uniquement », remplacée par trois puces (indifférent, oui, non).
-  ['components/forms/FormSuccess.tsx · text-success sur bg-success/5 sur un sous-jacent inconnu (pire pixel 97)', 1.00, 'idem, avec `--success` : le motif n’est pas propre à `--primary`'],
+  // `FormSuccess.tsx · text-success sur bg-success/5` est sortie le 2026-11-09 (TCK-2510) sans que
+  // le fichier change : `bookings/BookingTunnel.tsx` importe `FormGlobalError` depuis
+  // `forms/FormError` et non plus le barrel `@/components/forms` (react-hook-form hors des pages
+  // publiques). C'était le seul chemin des pages publiques vers `FormSuccess` : le fichier quitte
+  // la clôture d'import, avec `FormInput`, `FormCheckbox`, `FormTextarea`, `FormAmountInput` et
+  // `FormDatePicker`. C'est le périmètre qui rétrécit, pas un couple corrigé.
   /*
    * ⚠ LES QUATRE SUIVANTES SONT APPARUES LE 2026-08-30 SANS QU'AUCUN DE CES FICHIERS NE CHANGE.
    *
@@ -152,7 +158,6 @@ const DETTES: readonly (readonly [string, number, string])[] = [
    * sous-jacent que le lecteur statique ne voit pas.
    */
   ['components/forms/FormError.tsx · text-destructive sur bg-destructive/5 sur un sous-jacent inconnu (pire pixel 92)', 1.00, 'aplat de sa propre couleur, sous-jacent invisible au lecteur statique — mesuré 6,05:1 sur `--background` réel'],
-  ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-destructive sur bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem — 5,48:1 sur `--background` réel'],
   ['components/search/SearchToolbar.tsx · hover:text-destructive sur hover:bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem, état survolé'],
   ['components/favorites/FavoritesPopover.tsx · hover:text-destructive sur hover:bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem, état survolé de la croix « retirer » (2026-09-16, conversion `red` → `destructive`) — le fond réel est le `--card` du popover, que `check-destructive-contrast.mjs` mesure ≥ 4,55:1'],
   ['components/ui/destructive-banner.tsx · text-destructive sur bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem'],
@@ -161,6 +166,21 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   // destructive : l'aplat de sa propre encre sur un fond que le fichier ne pose pas. Mesuré sur les fonds réels :
   // `--warning` sur 10 % de lui-même au-dessus de `--background` 5,17:1, de `--card` 5,42:1.
   ['components/ui/warning-banner.tsx · text-warning sur bg-warning/10 sur un sous-jacent inconnu (pire pixel 97)', 1.00, 'aplat de sa propre couleur, sous-jacent invisible au lecteur statique — 5,17:1 sur `--background` réel'],
+  // Vague 2 de l'audit UX (2026-11-09) — quatre pastilles du même motif, aplat de sa propre encre
+  // sur un fond que le fichier ne pose pas. Le fond réel a été relevé chez l'appelant, puis
+  // mesuré avec `composer` et `contraste` de `contraste-wcag.ts` (l'aplat composé sur le fond
+  // réel, puis l'encre sur l'aplat) :
+  //  · `PayLinkReception` (TCK-2505) : la page `/pay/[token]` le monte dans `CoqueDeLien`, dont
+  //    le panneau intérieur est `bg-background` au téléphone comme en bureau (le `lg:bg-muted` est
+  //    l'extérieur du panneau) ;
+  //  · `CarteDeLien` (TCK-2514) : même coque, pour toutes les pages par lien (alertes,
+  //    désinscriptions, réclamation, partage), sans fond ajouté par les appelants du ton `succes` ;
+  //  · `CompareColonnes` (TCK-2509) : la cellule repose sur la page du comparateur, `bg-surface`
+  //    de `CompareClient`, #fcf9f3 comme `--background`.
+  ['components/pay/PayLinkReception.tsx · text-warning sur bg-warning/10 sur un sous-jacent inconnu (pire pixel 97)', 1.00, 'pastille « en retard » — 5,17:1 sur `--background` réel, 5,42:1 sur `--card`'],
+  ['components/pay/PayLinkReception.tsx · text-success sur bg-success/12 sur un sous-jacent inconnu (pire pixel 97)', 1.01, 'pastille de la coche d’un lien réglé (non textuel, 3:1) — 4,98:1 sur `--background` réel, 5,22:1 sur `--card`'],
+  ['components/lien-public/CarteDeLien.tsx · text-success sur bg-success/12 sur un sous-jacent inconnu (pire pixel 97)', 1.01, 'pictogramme du ton `succes` — 4,98:1 sur `--background` réel, 5,22:1 sur `--card`'],
+  ['components/compare/CompareColonnes.tsx · text-success sur bg-success/10 sur un sous-jacent inconnu (pire pixel 97)', 1.01, 'valeur « meilleure » d’une ligne — 5,12:1 sur `--background` réel (`bg-surface`), 5,37:1 sur `--card`'],
 ];
 
 /**
@@ -390,8 +410,149 @@ const FICHIERS_HORS_JETONS = 5;
  * (`<p role="status">`, `text-muted-foreground`, sans fond propre, sur le fond que posent les pages
  * de profil public). C'est sa seule entrée neuve : retirer `text-muted-foreground` de cette ligne
  * ramène le compte à 263, la valeur d'`origin/pre-dev`.
+ *
+ * **264 → 270 le 2026-11-04 (TCK-2475).** La barre de recherche suggère au fil de la frappe :
+ * `search/SearchAutocomplete.tsx` passe de 12 à 18 entrées, toutes `text-muted-foreground` sur le
+ * fond du panneau (`bg-card`), que pose le conteneur de la liste et non chaque ligne — icônes des
+ * lignes (récente, populaire, raccourci, lieu, texte libre, effacer), comptes, lieu d'un aperçu.
+ * Relevé en comparant les encres inverses du fichier de `HEAD` (12) et de l'arbre (18) ; aucun
+ * autre fichier de la surface ne change.
+ *
+ * **270 → 276 le 2026-11-09 (TCK-2493, TCK-2494).** La navigation du site public suit le profil
+ * (ADR-0091) : quatre fichiers neufs entrent dans la surface — `navigation-publique/EcranDuCompte`
+ * (7), `MenuMonEspace` (5), `CarteDeRappel` (1), `BarreDOngletsPublique` (1), toutes
+ * `text-muted-foreground` sur le fond que pose leur conteneur (carte, menu, barre) ; et deux en
+ * sortent ou maigrissent avec le menu burger : `home/Navbar` passe de 15 à 8, `shared/LanguageSwitcher`
+ * (1) quitte la surface. Net +6. Relevé en comparant, fichier par fichier, les encres inverses de
+ * `HEAD` (270) et de l'arbre (276) — le dossier local des maquettes exclu des deux côtés ; les
+ * fichiers de la fiche (TCK-2501) changent de répartition sans changer le total.
+ *
+ * **276 → 372 le 2026-11-09 (vague 2 de l'audit UX, TCK-2495 → TCK-2516).** Relevé en comparant,
+ * fichier par fichier, les encres inverses de la base (`5ab4362e1`, extraite par `git archive`)
+ * et de l'arbre, numéros de ligne retirés. Les deux côtés sont relevés sans le dossier local des
+ * maquettes. Bilan : 132 entrées neuves, 36 parties, net +96. Les 132 entrées neuves sont TOUTES
+ * `text-muted-foreground` (127 sans variante, 3 `disabled:`, 1 `md:`, 1 `/80`), et toutes reposent
+ * sur le fond que pose leur conteneur. Le pire fond relevé est `bg-secondary` (4,79:1), puis
+ * `bg-muted` (4,85:1). La seule exception est signalée plus bas.
+ *  · coque et pages par lien (TCK-2505, TCK-2512, TCK-2514) +47 : `pay/PayLinkReception` 0 → 15,
+ *    `radar-claim/RadarClaimReception` 0 → 19, `share/ShareReception` +5, `SearchAlertLinkAction`
+ *    +2, `DigestUnsubscribeAction` 1 → 0. La coque `lien-public/*` entre dans la surface :
+ *    `FeuilleDeLien` 2, `PiedDeLien` 2, `CarteDeLien` 1, `EnTeteDeLien` 1, et
+ *    `shared/LanguageSwitcher` (1) y revient par `PiedDeLien` ;
+ *  · favoris (TCK-2508) +24 : `favorites/suivi/*` entre (`CarteDeSuivi` 5, `OngletRecherches` 5,
+ *    `PartageDeSelection` 4, `PrevenirDeLaSelection` 3, `CarteDeCompte` 1), ainsi que
+ *    `FavoriteNote` 2 et `SelectionPartagee` 1 ; `PublicFavoritesPage` passe de 1 à 4 ;
+ *  · écran de recherche (TCK-2497) +8 : `search/SearchAutocomplete` 18 → 26 ;
+ *  · réservation (TCK-2510) +5 : `BookingTunnel` 9 → 24 et `CalendrierDesNuits` 3, qui entre.
+ *    `BookingSummary` (9) et `BookingStepper` (1) sortent, ainsi que `forms/FormInput` (1) et
+ *    `forms/FormCheckbox` (1) avec le barrel `@/components/forms` ; `bookings/page` passe de 1 à 0 ;
+ *  · accueil (TCK-2495) +3 : `home/accueil/BlocProprietaire`, `ChangerDeVille`,
+ *    `TuilesDeQuartiers`, 1 chacun ;
+ *  · erreurs (TCK-2515) +3 : `(public)/error.tsx`, qui entre ;
+ *  · légal (TCK-2516) +3 : `PageLegale` 3 → 5, `TexteJuridique` 1 → 2 ;
+ *  · liste (TCK-2499) +2 : `PropertyCard` 3 → 6, plus `liste/BasculeDeDensite`, `liste/VoirPlus` et
+ *    `search/HistogrammeDesPrix`, qui entrent avec 1 chacun. `search/Pagination` (4) sort,
+ *    remplacée par « Voir plus » ;
+ *  · comparateur (TCK-2509) +1 : `CompareColonnes` 12, qui entre ; `CompareCarousel` (6) et
+ *    `CompareTable` (5) sortent ;
+ *  · visite (TCK-2503) 0 : `PropertyVisitDialog` 15 → 8, contre les fichiers neufs de `visite/`
+ *    (`EtapeEnvoyee` 5, `EtapeQuand` 1, `RecapDuBien` 1).
+ *
+ * **372 → 371 le même jour** : une de ces encres était un DÉFAUT RÉEL, comptée parce qu'elle
+ * existait, pas parce qu'elle passait — `compare/CompareColonnes.tsx`, l'en-tête des lignes
+ * identiques en mode « tout voir » (`text-muted-foreground/80`, 13-14 px) sur la page `bg-surface` :
+ * 3,58:1, et 3,70:1 sur `--card`, sous le seuil de 4,5:1. L'atténuation passe désormais par la
+ * graisse (`font-normal`), l'encre reste `text-muted-foreground` plein, et l'entrée de
+ * `text-muted-foreground/80` sort du compte (mesuré : 372 avant, 371 après). *Une encre translucide sans fond déclaré traverse ce compteur sans y
+ * laisser de trace* : ce relevé ne mesure pas les encres inverses, il les compte.
+ *
+ * **371 → 398 le 2026-11-09 (vague 3 de l'audit UX, TCK-2521 → TCK-2524).** Même relevé :
+ * fichier par fichier, la base (`15bfcfcfe`, fin de vague 2, extraite par `git archive`) contre
+ * l'arbre, numéros de ligne retirés, et le dossier local des maquettes exclu des deux côtés.
+ * Bilan : 32 entrées neuves, 5 parties, net +27. Sur les 32 neuves, 31 sont
+ * `text-muted-foreground`. Leur fond est celui de la page ou de la carte (5,44:1 et 5,72:1), le
+ * `bg-background` de la fiche ou le `bg-card` d'une carte. Aucune n'est translucide. La 32e est
+ * `text-background`, le monogramme de `LogoDeFiche` : son conteneur direct pose
+ * `bg-foreground`, et le couple tient 16,69:1. Aucun défaut réel.
+ *  · fiches d'agence et d'agent (TCK-2522, TCK-2523) +20. Les composants partagés
+ *    `public/fiche/*` entrent : `RechercheDuPortefeuille` 12, `OngletsDeFiche` 2, `ContactDeFiche`
+ *    1, `LogoDeFiche` 1. `property/liste/LigneDeResultat` (4) entre aussi, par
+ *    `RechercheDuPortefeuille`. Les pages elles-mêmes gagnent : `agencies/[slug]/page` 7 → 10,
+ *    `agents/[slug]/page` 8 → 10. À l'inverse, `public/profile/TeamStrip` (4) et `StatsBar` (1)
+ *    sortent de la surface, car les pages ne les importent plus. Les fichiers restent dans le
+ *    dépôt, et `ContactSheet` sort de même, sans encre comptée ;
+ *  · annuaire (TCK-2521) +7. `public/index/OngletsDeLAnnuaire` (2) et `CarteMiseEnAvant` (2)
+ *    entrent. `ProfileCard` passe de 5 à 7, et `ProfileFilters` de 2 à 3 ;
+ *  · console (TCK-2524) 0 : ses écrans sont sous `/app`, hors de la surface publique.
+ *
+ * 398 → 401 (2026-11-11, TCK-2686) : la vitrine de la partie connectée (`/playground/vitrine`,
+ * page publique de mesure, 404 en production) rend désormais chaque champ, `DateTimePicker`
+ * compris — `ui/date-time-picker.tsx` entre dans la surface avec ses trois encres
+ * `text-muted-foreground` sans fond propre (l. 171, 200, 220), déjà là, rien de neuf.
+ *
+ * 401 → 411 (2026-11-11, TCK-2687) : la vitrine rend désormais les primitives existantes de `/app`.
+ * Relevé fichier par fichier, `HEAD` (`a7a78aa4b`, extrait par `git archive`) contre l'arbre, les
+ * maquettes exclues des deux côtés : `console/PageHeader` 0 → 3 (description, fil d'Ariane neuf),
+ * `console/StatCard` 0 → 4, `ui/card` 0 → 1 (`CardDescription`), `ui/tabs` 0 → 1 (`TabsCount` neuf),
+ * `feedback/EmptyState` 1 → 2 (la variante `nue`). Les onze sont `text-muted-foreground` OPAQUE,
+ * posé sur la page ou la carte (5,44:1 et 5,72:1) ; aucune n'est translucide, aucun défaut réel.
+ *
+ * 411 → 415 (2026-11-11, TCK-2690) : la vitrine rend les quatre primitives neuves (feuille du bas,
+ * case, interrupteur, jauge). Relevé `HEAD` (`ba8ba7e83`, `git archive`) contre l'arbre, maquettes
+ * exclues : seul `playground/vitrine/VitrineClient` bouge, 0 → 4 — la légende des feuilles, les
+ * libellés des lignes désactivées (case, interrupteur) et la valeur affichée d'une jauge, tous
+ * `text-muted-foreground` OPAQUE sur la page ou la carte. Les primitives elles-mêmes n'en posent
+ * aucune ; aucun défaut réel.
+ *
+ * 415 → 430 (2026-11-11, TCK-2688, TCK-2689, TCK-2691) : les primitives de `/app` dans la vitrine,
+ * et le toast sombre. Relevé `d7e9cecb7^` contre `3c6180e8c`, tous deux extraits par `git archive`
+ * (sans maquettes), numéros de ligne retirés. Les quinze entrées sont `text-muted-foreground`
+ * OPAQUE, sans fond propre :
+ *  · TCK-2688 +9 : `console/DataTable` 1 (en-tête de colonne), `console/DebouncedSearchInput` 3
+ *    (loupe, attente, effacer), `ui/table` 1 (`TableCaption`), `ui/choice-card` 2 (icône et
+ *    description), qui entrent par la vitrine. Ils sont posés sur la carte, la page ou `--muted`
+ *    (5,72, 5,44 et 4,85:1). `ui/toast` 2 (description et croix) : le toast ne déclare plus
+ *    d'aplat teinté, et son fond est celui de sa racine `.dark`, #1f1812, avec l'encre sombre
+ *    #b8aa97 (7,71:1) ;
+ *  · TCK-2689 +4 : `ui/ligne-de-liste` 2 (détail, chevron), `ui/puce-de-filtre` 1 (le compte, sur
+ *    `bg-card` au repos ; sur la puce active, il prend l'encre douce inverse, 8,69:1), et
+ *    `VitrineClient` 1 (légende de la barre d'action) ;
+ *  · TCK-2691 +2 : `VitrineClient`, les légendes de la section « pleine largeur ».
+ * Aucun défaut réel. Les deux défauts que le même relevé a trouvés sont CORRIGÉS dans le code, pas
+ * comptés : l'action du toast passe de l'encre principale à 80 % à l'encre douce opaque (cf.
+ * `encre-sans-alpha.contraste.test.ts`), et la puce active survolée déclare sa propre encre.
+ *
+ * 430 → 433 (2026-11-11, TCK-2618) : la page des favoris (publique ET `/app`) rend le réglage d'alerte
+ * et la suppression de chaque recherche (`GestionDeLaRecherche`). `ReglageDAlerte`, sorti de
+ * `SavedSearchesList` (hors surface publique), y entre : 2 (fréquence au repos, ligne des canaux) ;
+ * `OngletRecherches` 1 (le bouton « Supprimer », ghost). Les trois sont `text-muted-foreground`
+ * OPAQUE sur la carte de la recherche (`bg-card`). Le contenu de `PublicFavoritesPage` passé dans
+ * `SuiviDesFavoris` ne change rien au compte (4 entrées déplacées). Relevé en listant les encres
+ * inverses de `components/favorites/` dans un arbre sans maquettes. Aucun défaut réel.
+ *
+ * 433 → 435 (2026-11-13, TCK-2778) : la page `/pay/{jeton}` d'un lien de la pénalité seule
+ * (`PenaliteSeule` de `PayLinkReception`) : 2 (l'échéance sous le titre « Pénalité de retard », le
+ * libellé « Pénalité à payer » du montant), `text-muted-foreground` OPAQUE sur le fond de la coque de
+ * lien. La suite commune du paiement en ligne (« ou » à l'agence, validité, émetteur) est factorisée
+ * avec l'échéance (`SuiteDuPaiementEnLigne`) plutôt que recopiée : 5 → 2. Relevé en listant les
+ * encres inverses de la surface sur une extraction de HEAD et de HEAD + TCK-2778, sans maquettes.
+ * Aucun défaut réel.
+ *
+ * 435 → 436 (2026-11-15, TCK-2844) : la tuile de quartier AVEC photo de l'accueil, sortie de
+ * `TuilesDeQuartiers` dans `home/accueil/TuileDeQuartier.tsx` (avec l'encre du compte sans photo, déjà
+ * comptée) : 1, `text-background` du nom et du compte, posé sur la photo sous le
+ * dégradé `from-foreground/85` de la maquette — un fond que la mesure statique ne voit pas (une photo).
+ * Le dégradé ne porte pas l'encre (il serait compté « hors jetons »), et le compte reste à 85 % par
+ * `opacity-85` plutôt que par une seconde encre. Relevé par `couplesDesFichiers` sur la version de
+ * HEAD (1 encre) puis sur la nouvelle (2). Aucun défaut réel.
+ *
+ * 436 → 437 (2026-11-16, TCK-2575) : sa propre fiche publique (`VotreFiche` de
+ * `public/fiche/ContactDeFiche.tsx`) : 1, l'aide « votreFicheAide » sous le titre,
+ * `text-muted-foreground` OPAQUE sur la carte (`bg-card`), comme le sous-titre du contact déjà compté.
+ * Relevé en listant les encres inverses de la surface sur une extraction d'`origin/dev` et sur
+ * l'arbre de la branche, sans maquettes. Aucun défaut réel.
  */
-const ENCRES_INVERSES = 264;
+const ENCRES_INVERSES = 437;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

@@ -1,0 +1,36 @@
+{
+  "_lisez-moi": "EXEMPLE complet de fiche de fidélité (TCK-2684) sur la page des notifications — celle de l'essai de méthode (annexe D). Le ticket qui implémente cette page (TCK-2634) part de cette fiche : il la copie en TCK-2634.json et l'ajuste quand la page a sa structure définitive (les rôles côté produit visent ici la page d'AVANT son implémentation).",
+  "ticket": "TCK-2634",
+  "ecrans": [
+    {
+      "page": "app-notifications",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Historique",
+      "references": {
+        "telephone": "references/app-notifications/a-1-telephone.json",
+        "bureau-1440": "references/app-notifications/a-1-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11"
+    }
+  ],
+  "produit": {
+    "route": "/app/notifications",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "historique, filtre « Toutes », liste non vide (base de démo), rien d'ouvert",
+    "defiler": null,
+    "perturber": null
+  },
+  "roles": [
+    { "nom": "en-tête de la page", "appareil": "mobile", "maquette": { "boiteDe": "Notifications", "min": 40 }, "produit": { "zone": { "y": 0, "h": 56, "tol": 2, "wMin": 380 } } },
+    { "nom": "1re ligne de notification", "appareil": "mobile", "maquette": { "boiteDe": "Visite demandée", "min": 60 }, "produit": { "boiteDe": "Mise en avant terminée", "min": 60 } },
+    { "nom": "2e ligne de notification", "appareil": "mobile", "maquette": { "boiteDe": "Nouvelle demande", "min": 60 }, "produit": { "boiteDe": "Mise en avant terminée", "rang": 1, "min": 60 } },
+    { "nom": "bouton d'action de ligne", "appareil": "mobile", "maquette": { "boiteDe": "Répondre" }, "produit": { "boiteDe": "Marquer lu" } }
+  ],
+  "zones": [],
+  "alias": { "Messages": "Messagerie", "Tout": "Toutes" },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": []
+}

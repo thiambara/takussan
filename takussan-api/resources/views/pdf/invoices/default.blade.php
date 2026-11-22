@@ -126,7 +126,7 @@
             </tr>
             @if ((float) ($invoice->tax_amount ?? 0) > 0)
             <tr>
-                <td colspan="3" class="right">TVA ({{ rtrim(rtrim(number_format((float) $invoice->tax_rate, 2, ',', ' '), '0'), ',') }}%)</td>
+                <td colspan="3" class="right">TVA ({{ \App\Services\Formatting\CurrencyFormatter::nombre((float) $invoice->tax_rate, 'fr', 0, 2) }}%)</td>
                 <td class="right amount">@currency($invoice->tax_amount, $currency)</td>
             </tr>
             @endif

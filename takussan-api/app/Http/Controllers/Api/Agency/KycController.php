@@ -35,6 +35,8 @@ class KycController extends Controller
             $request->file('document'),
             $request->string('document_type')->toString(),
             $request->validated('expires_at'),
+            $request->validated('document_number'),
+            $request->user(),
         );
 
         return $this->json([

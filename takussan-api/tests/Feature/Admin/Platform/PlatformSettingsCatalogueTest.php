@@ -14,18 +14,29 @@ class PlatformSettingsCatalogueTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_le_catalogue_se_reduit_aux_quinze_cles_lues(): void
+    public function test_le_catalogue_se_reduit_aux_vingt_six_cles_lues(): void
     {
         $this->assertSame(
             [
                 'currency.default', 'currency.supported', 'platform.session_max_minutes',
                 'credits.welcome_amount', 'credits.welcome_validity_days', 'credits.expiry_notice_days',
                 'boost.bump_cooldown_hours', 'boost.sponsored_slots_per_page', 'boost.reserved_top_results',
+                // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — la mise en avant d'agence vendue.
+                'spotlight.sale_enabled', 'spotlight.price_credits', 'spotlight.duration_days',
+                'spotlight.max_advance_days', 'spotlight.when_taken', 'spotlight.refund_on_suspension',
+                'spotlight.offered_overlap', 'spotlight.sell_directory_wide',
                 // TCK-651 (ADR-0065) — les réglages métier à repli par agence.
                 'invoice.reminder_offsets_days', 'lease.rent_review_max_pct',
-                'lease.early_termination_penalty_months', 'lease.require_signature', 'late_fees.cap_percent',
+                'lease.early_termination_penalty_months', 'lease.require_signature',
+                'late_fees.cap_percent',
+                // TCK-2643 — la pénalité de retard qu'un bail neuf reprend, après le plafond.
+                'lease.late_fee_percent', 'lease.late_fee_grace_days',
                 // TCK-2394 (ADR-0079) — l'espace des mandats du Radar.
                 'radar.mandate_agency_id',
+                // TCK-2588 (ADR-0103 § 4) — le seuil de la relance sans contact.
+                'crm.follow_up_days',
+                // TCK-2979 (ADR-0131 § 8) — le plafond IA du jour par agence.
+                'ai.daily_budget_per_agency_usd',
             ],
             array_keys(EditablePlatformSettings::all()),
         );
@@ -52,11 +63,22 @@ class PlatformSettingsCatalogueTest extends TestCase
                 'currency.default', 'currency.supported', 'platform.session_max_minutes',
                 'credits.welcome_amount', 'credits.welcome_validity_days', 'credits.expiry_notice_days',
                 'boost.bump_cooldown_hours', 'boost.sponsored_slots_per_page', 'boost.reserved_top_results',
+                // TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — la mise en avant d'agence vendue.
+                'spotlight.sale_enabled', 'spotlight.price_credits', 'spotlight.duration_days',
+                'spotlight.max_advance_days', 'spotlight.when_taken', 'spotlight.refund_on_suspension',
+                'spotlight.offered_overlap', 'spotlight.sell_directory_wide',
                 // TCK-651 (ADR-0065) — les réglages métier à repli par agence.
                 'invoice.reminder_offsets_days', 'lease.rent_review_max_pct',
-                'lease.early_termination_penalty_months', 'lease.require_signature', 'late_fees.cap_percent',
+                'lease.early_termination_penalty_months', 'lease.require_signature',
+                'late_fees.cap_percent',
+                // TCK-2643 — la pénalité de retard qu'un bail neuf reprend, après le plafond.
+                'lease.late_fee_percent', 'lease.late_fee_grace_days',
                 // TCK-2394 (ADR-0079) — l'espace des mandats du Radar.
                 'radar.mandate_agency_id',
+                // TCK-2588 (ADR-0103 § 4) — le seuil de la relance sans contact.
+                'crm.follow_up_days',
+                // TCK-2979 (ADR-0131 § 8) — le plafond IA du jour par agence.
+                'ai.daily_budget_per_agency_usd',
             ],
             $entrees->pluck('key')->all(),
         );

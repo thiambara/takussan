@@ -90,7 +90,8 @@ describe('Pastille mobile — un tap ouvre une saisie (TCK-549 AC1)', () => {
 
     const dialogue = await screen.findByRole('dialog');
     const champ = within(dialogue).getByRole('combobox');
-    expect(champ).toHaveAttribute('type', 'text');
+    // ADR-0135 — le profil `recherche` : un champ texte de recherche (touche « Rechercher »), pas une date ni un nombre.
+    expect(champ).toHaveAttribute('type', 'search');
     expect(champ).toHaveValue('Dakar');
     await waitFor(() => expect(champ).toHaveFocus());
     // Le défaut du ticket tient ici : le tap relançait la recherche et perdait `page=2`.
@@ -219,26 +220,6 @@ describe('Pastille mobile — elle résume la recherche en vigueur (TCK-549 AC3,
     monter();
 
     expect(pastille().textContent).toBe('Chercher');
-  });
-});
-
-describe('Menu mobile — une seule surface de saisie (TCK-549 AC5)', () => {
-  it('le menu ouvert ne porte plus ni champ, ni bascule « Acheter / Louer »', async () => {
-    push.mockReset();
-    parametresUrl = new URLSearchParams('contract_type=rent');
-    chemin = '/fr/properties';
-    const user = userEvent.setup();
-    monter();
-
-    await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-    // TCK-551 — le panneau est la boîte de dialogue du `Sheet` (portail hors du <nav>).
-    const panneau = await screen.findByRole('dialog', { name: 'Menu' });
-
-    expect(panneau!.querySelectorAll('[aria-pressed]')).toHaveLength(0);
-    expect(panneau!.querySelectorAll('input')).toHaveLength(0);
-    // TCK-641 — et plus de lien « Louer » / « Acheter » non plus : la pastille porte la transaction.
-    expect(within(panneau as HTMLElement).queryByRole('link', { name: 'Louer' })).toBeNull();
-    expect(within(panneau as HTMLElement).queryByRole('link', { name: 'Acheter' })).toBeNull();
   });
 });
 

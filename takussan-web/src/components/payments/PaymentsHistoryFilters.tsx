@@ -107,7 +107,7 @@ export function PaymentsHistoryFilters() {
         </Label>
         <Input
           id="payments-entity-id"
-          type="number"
+          profil="entier"
           min={1}
           placeholder={t('entityIdPlaceholder')}
           defaultValue={searchParams.get('entity_id') ?? ''}

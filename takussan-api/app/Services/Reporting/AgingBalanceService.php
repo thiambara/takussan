@@ -34,8 +34,13 @@ class AgingBalanceService
         '90_plus' => [91, null],
     ];
 
-    /** @return array<string, mixed> */
-    public function forAgency(Agency $agency, string $groupBy = self::GROUP_TENANT): array
+    /**
+     * TCK-2866 — `$landlordId` : la balance d'UN bailleur de l'agence (`leases.landlord_id`), la même
+     * lecture que l'écran et le PDF qu'on lui envoie ; ses cautions aussi.
+     *
+     * @return array<string, mixed>
+     */
+    public function forAgency(Agency $agency, string $groupBy = self::GROUP_TENANT, ?int $landlordId = null): array
     {
         $today = now()->toDateString();
         $key = $groupBy === self::GROUP_LANDLORD ? 'leases.landlord_id' : 'lease_payments.payer_id';
@@ -54,6 +59,7 @@ class AgingBalanceService
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
             ->where('leases.agency_id', $agency->id)
+            ->when($landlordId !== null, fn ($q) => $q->where('leases.landlord_id', $landlordId))
             ->whereDate('lease_payments.due_date', '<', $today)
             ->toBase()
             ->selectRaw("{$key} AS group_id, {$case} AS bucket, COUNT(*) AS n, SUM(".CollectedPayments::OWED_REMAINING_SQL.') AS total', $bindings)
@@ -89,7 +95,8 @@ class AgingBalanceService
             'buckets' => $buckets,
             'total' => $total($buckets),
             'rows' => $groups,
-            'deposits_held' => $this->depositsHeld($agency),
+            'landlord_id' => $landlordId,
+            'deposits_held' => $this->depositsHeld($agency, $landlordId),
         ];
     }
 
@@ -99,12 +106,13 @@ class AgingBalanceService
      *
      * @return array{total: float, by_landlord: list<array{landlord_id: int|null, name: string|null, amount: float}>}
      */
-    public function depositsHeld(Agency $agency): array
+    public function depositsHeld(Agency $agency, ?int $landlordId = null): array
     {
         $byLandlord = LeasePayment::query()
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->whereNull('leases.deleted_at')
             ->where('leases.agency_id', $agency->id)
+            ->when($landlordId !== null, fn ($q) => $q->where('leases.landlord_id', $landlordId))
             ->paidDepositMovements()
             ->toBase()
             ->selectRaw('leases.landlord_id AS landlord_id, SUM(CASE WHEN lease_payments.payment_type = ? THEN lease_payments.amount ELSE -lease_payments.amount END) AS held', [LeasePaymentType::Deposit->value])

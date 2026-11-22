@@ -3,6 +3,7 @@
 # Lanceur de l'environnement de développement Takussan.
 #
 #   ./dev.sh              services docker + API + file de jobs + scheduler + front Next.js
+#                         (les services comptent Reverb, le serveur WebSocket du temps réel — TCK-2953)
 #   ./dev.sh api          back seul (docker + API + file + scheduler)
 #   ./dev.sh services     les conteneurs seuls, puis rend la main
 #   ./dev.sh doctor       ne lance rien : diagnostique l'environnement et sort
@@ -328,7 +329,7 @@ fi
 #
 # Un mode « diagnostic » qui modifie l'état qu'il observe n'est pas un diagnostic.
 if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "services" ]; }; then
-  bold "▸ Services docker (PostgreSQL, Meilisearch, Redis, Mailpit)"
+  bold "▸ Services docker (PostgreSQL, Meilisearch, Redis, Mailpit, Reverb)"
   # C'est ICI, et seulement ici, que docker est indispensable : on y entre parce que le `.env`
   # vise les conteneurs, ou parce que l'utilisateur les a demandés explicitement.
   if [ "$DOCKER_OK" != "1" ]; then
@@ -360,7 +361,7 @@ if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "service
   #
   # *Un `|| valeur-de-repli` ne remplace la sortie que si la commande n'a rien imprimé.*
   ATTENDUS=$(docker compose -f "$ROOT/docker-compose.yml" config --services 2>/dev/null | grep -c . || true)
-  case "$ATTENDUS" in ''|*[!0-9]*|0) ATTENDUS=4 ;; esac
+  case "$ATTENDUS" in ''|*[!0-9]*|0) ATTENDUS=5 ;; esac
   printf '  attente de la santé des %s services' "$ATTENDUS"
   SANTE_OK=0
   for _ in $(seq 1 60); do
@@ -584,6 +585,83 @@ else
   avert "  du courrier n'aboutiront nulle part de consultable. Mailpit : MAIL_MAILER=smtp."
 fi
 
+# ── Reverb, le serveur WebSocket du temps réel (TCK-2953, ADR-0129 § 5).
+#
+# Sondé dès que l'API y émet (`BROADCAST_CONNECTION=reverb`) — et en DEUX temps, comme Meilisearch,
+# parce que « répond » et « accepte la clé » sont deux faits distincts :
+#   · `GET /up`, la route de santé du serveur — elle ne dit rien de la clé ;
+#   · une poignée de main WebSocket sur `/app/<REVERB_APP_KEY>` : `pusher:connection_established`
+#     si le serveur connaît cette clé, `pusher:error` 4001 sinon. Elle prouve la clé PUBLIQUE, jamais
+#     le secret (seule une émission réelle de l'API l'éprouve).
+# Le serveur du dépôt lit le MÊME `takussan-api/.env` (code monté), mais seulement à son démarrage :
+# une clé changée dans le `.env` après coup rend exactement le 4001 que la seconde sonde attrape.
+sonde_reverb() {
+  local hote="$1" port="$2" schema="$3" cle="$4" sortie
+  [ -n "$hote" ] && [ -n "$port" ] || { ko "Reverb : REVERB_HOST ou REVERB_PORT vide dans takussan-api/.env"; NB_INJOIGNABLES=$((NB_INJOIGNABLES + 1)); return 0; }
+  if ! curl -fsS -m 3 "${schema:-http}://$hote:$port/up" >/dev/null 2>&1; then
+    ko "Reverb NE RÉPOND PAS sur $hote:$port (déclaré dans takussan-api/.env) — './dev.sh services' le lève"
+    NB_INJOIGNABLES=$((NB_INJOIGNABLES + 1))
+    return 0
+  fi
+  if [ -z "$cle" ]; then
+    ko "Reverb répond sur $hote:$port, mais REVERB_APP_KEY est vide : aucun client ne peut s'y connecter"
+    NB_INJOIGNABLES=$((NB_INJOIGNABLES + 1))
+    return 0
+  fi
+  # `WebSocket` est un global de Node depuis la 22 : en dessous, la sonde se tait plutôt que de
+  # rendre un faux rouge.
+  if ! node -e 'process.exit(typeof WebSocket === "function" ? 0 : 1)' >/dev/null 2>&1; then
+    ok "Reverb répond sur $hote:$port"
+    avert "  clé non vérifiée : ce Node n'a pas de WebSocket natif (Node ≥ 22)."
+    return 0
+  fi
+  local ws="ws"; [ "$schema" = "https" ] && ws="wss"
+  sortie="$(node -e '
+    const ws = new WebSocket(process.argv[1]);
+    const fin = (code, texte) => { console.log(texte); try { ws.close(); } catch {} process.exit(code); };
+    setTimeout(() => fin(2, "délai dépassé"), 3000);
+    ws.onmessage = (m) => { const e = JSON.parse(String(m.data)); fin(e.event === "pusher:connection_established" ? 0 : 1, e.event + " " + (e.data ?? "")); };
+    ws.onerror = () => fin(3, "connexion WebSocket refusée");
+  ' "$ws://$hote:$port/app/$cle?protocol=7&client=js&version=8.4.0" 2>&1)" && {
+    ok "Reverb répond sur $hote:$port et accepte REVERB_APP_KEY"
+    return 0
+  }
+  ko "Reverb répond sur $hote:$port mais REFUSE REVERB_APP_KEY — ${sortie:0:90}"
+  echo "     Le service du dépôt lit takussan-api/.env à son démarrage : après un changement de clé," >&2
+  echo "     'docker compose restart reverb'." >&2
+  NB_INJOIGNABLES=$((NB_INJOIGNABLES + 1))
+}
+
+# L'écart de port, sur le patron d'`ecart_port_natif` — mais TOUT écart, pas seulement le port
+# canonique : aucune instance native de Reverb n'écoute d'ordinaire sur 8080, et un `.env` qui vise
+# un autre port local que celui du service fait signer l'API vers un serveur absent. Un hôte qui
+# n'est pas la boucle locale (un tunnel, un serveur distant) est un choix dont on n'a rien à dire.
+ecart_port_reverb() {
+  local hote="$1" vise="$2" depot="$3"
+  [ -n "$vise" ] || return 0
+  case "$hote" in 127.0.0.1 | localhost) ;; *) return 0 ;; esac
+  [ "$vise" != "$depot" ] || return 0
+  avert "Reverb : le .env vise :$vise (REVERB_PORT), le dépôt publie le service sur :$depot."
+  avert "  L'API signerait vers un port où le serveur du dépôt n'écoute pas. Aligner REVERB_PORT"
+  avert "  (et TEMPS_REEL_URL du front) sur :$depot, ou TAKUSSAN_REVERB_PORT dans le .env de la racine."
+}
+
+BROADCAST_ENV="$(env_get "$API/.env" BROADCAST_CONNECTION)"
+REVERB_HOST_ENV="$(env_get "$API/.env" REVERB_HOST)"
+REVERB_PORT_ENV="$(env_get "$API/.env" REVERB_PORT)"
+if [ "$BROADCAST_ENV" = "reverb" ]; then
+  sonde_reverb "$REVERB_HOST_ENV" "$REVERB_PORT_ENV" "$(env_get "$API/.env" REVERB_SCHEME)" "$(env_get "$API/.env" REVERB_APP_KEY)"
+  ecart_port_reverb "$REVERB_HOST_ENV" "$REVERB_PORT_ENV" "${TAKUSSAN_REVERB_PORT:-8081}"
+elif [ "$VISE_DOCKER" = "1" ]; then
+  # Même confusion que Redis : le dépôt provisionne le service, rien ne s'y connecte. Un `.env`
+  # antérieur à TCK-2953 n'a ni `BROADCAST_CONNECTION=reverb` ni les six `REVERB_*` (le service
+  # démarre alors sur les clés de développement : cf. son bloc dans docker-compose.yml).
+  avert "BROADCAST_CONNECTION=${BROADCAST_ENV:-?} — le dépôt provisionne le service reverb, mais l'API n'y émet"
+  avert "  aucun signal : le temps réel est éteint, le front relit périodiquement. Pour l'allumer :"
+  avert "  BROADCAST_CONNECTION=reverb et les six REVERB_* de takussan-api/.env.docker, puis"
+  avert "  'docker compose restart reverb'."
+fi
+
 if [ "$NB_INJOIGNABLES" -gt 0 ]; then
   echo
   avert "$NB_INJOIGNABLES service(s) déclaré(s) mais injoignable(s) — l'API va démarrer quand même,"
@@ -610,6 +688,7 @@ if [ "$MODE" = "services" ]; then
   lien "Mailpit (courrier de dev)" "http://localhost:${TAKUSSAN_MAILPIT_UI_PORT:-8026}"
   lien "Meilisearch" "http://127.0.0.1:${TAKUSSAN_MEILI_PORT:-7701}"
   echo "  PostgreSQL 127.0.0.1:${TAKUSSAN_DB_PORT:-5433} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"
+  echo "  Reverb (temps réel) ws://127.0.0.1:${TAKUSSAN_REVERB_PORT:-8081}"
   exit 0
 fi
 
@@ -663,6 +742,21 @@ if [ "$MODE" = "doctor" ]; then
       avert "  s'affichera SANS S'HYDRATER, et le formulaire de connexion se soumettra en GET"
       avert "  natif — le mot de passe dans l'URL. Le chemin nominal (l'URL imprimée par"
       avert "  ./dev.sh, en localhost) n'est pas touché : c'est ce qui rend l'écart muet."
+    fi
+  fi
+  # ── Le temps réel du front (TCK-2953). Sans `TEMPS_REEL_URL`, le front ne se branche à rien et
+  # relit périodiquement : rien ne casse — c'est pourquoi rien d'autre ne le dit. `./dev.sh` ne
+  # recopie `.env.example` que si `.env.local` n'existe pas : un `.env.local` antérieur n'a pas ces clés.
+  if [ -f "$WEB/.env.local" ]; then
+    url_tr="$(env_get "$WEB/.env.local" TEMPS_REEL_URL)"
+    cle_tr="$(env_get "$WEB/.env.local" TEMPS_REEL_CLE)"
+    if [ -z "$url_tr" ] || [ -z "$cle_tr" ]; then
+      avert "takussan-web/.env.local sans TEMPS_REEL_URL ou TEMPS_REEL_CLE : le front est en MODE DÉGRADÉ"
+      avert "  (relecture périodique, aucun signal). Les recopier depuis takussan-web/.env.example."
+    elif [ -f "$API/.env" ] && [ "$cle_tr" != "$(env_get "$API/.env" REVERB_APP_KEY)" ]; then
+      avert "TEMPS_REEL_CLE du front ≠ REVERB_APP_KEY de l'API : le serveur refusera le navigateur (4001)."
+    elif [ "$(port_de_url "$url_tr")" != "${TAKUSSAN_REVERB_PORT:-8081}" ]; then
+      avert "TEMPS_REEL_URL vise :$(port_de_url "$url_tr"), le service reverb du dépôt écoute sur :${TAKUSSAN_REVERB_PORT:-8081}."
     fi
   fi
   echo
@@ -873,6 +967,7 @@ lien "API (Laravel)" "http://127.0.0.1:$API_PORT/api"
 lien "Mailpit (courrier de dev)" "http://localhost:${TAKUSSAN_MAILPIT_UI_PORT:-8026}"
 lien "Meilisearch" "http://127.0.0.1:${TAKUSSAN_MEILI_PORT:-7701}"
 echo "  PostgreSQL 127.0.0.1:${TAKUSSAN_DB_PORT:-5433} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"
+echo "  Reverb (temps réel) ws://127.0.0.1:${TAKUSSAN_REVERB_PORT:-8081}"
 echo "  File de jobs (queue:work) et scheduler (schedule:work) actifs"
 echo
 

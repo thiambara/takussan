@@ -16,6 +16,7 @@ use App\Services\Boost\BoostLifecycle;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Property\PropertyModerationNotifier;
+use App\Services\Property\PropertyRewriteModeration;
 use App\Services\Property\SimilarPropertiesService;
 
 class PropertyObserver
@@ -47,17 +48,57 @@ class PropertyObserver
         }
 
         $agency = $property->agency ?? $property->agency()->first();
-        if (! $agency?->moderation_required) {
-            return;
-        }
 
         // TCK-597 (verif-597 B1′) — un bien neuf ne porte jamais d'approbation debout : TOUT statut
         // affichable va dans la file, `pending` compris. Né `pending`, un bien partait d'un statut
         // affichable, et aucune transition ne le faisait plus passer par la file.
-        if (in_array($property->status, self::DISPLAYABLE_STATUSES, true)) {
+        if ($agency?->moderation_required && in_array($property->status, self::DISPLAYABLE_STATUSES, true)) {
             $property->status = PropertyStatus::PendingReview;
             $property->submitted_at = now();
         }
+
+        // TCK-2937 (ADR-0125 § 5) — jugé sur l'état FINAL du bien, après la file de modération.
+        $this->guardUnverifiedSelfOpenedAgency($property, $agency);
+    }
+
+    /**
+     * TCK-2937 (ADR-0125 § 5) — une agence ouverte en libre-service depuis l'orientation, que
+     * personne de la plateforme n'a encore vérifiée, ne met aucun bien en ligne : 422
+     * `agency.unverified_publication` pour toute sauvegarde qui rendrait public un bien qui ne
+     * l'était pas. Avant l'exemption de la modération ({@see Property::withoutModerationGate()}) :
+     * l'approbation d'un bien par l'admin de l'agence ne la contourne pas.
+     *
+     * « En ligne » se juge sur les colonnes de {@see Property::conditionsEnLigne()} (statut,
+     * `published_at`, `visibility`, `is_test`) ; le statut de l'agence est hors sujet, elle est
+     * active. Un bien privé, un brouillon, un bien loué se gèrent sans restriction.
+     */
+    private function guardUnverifiedSelfOpenedAgency(Property $property, ?Agency $agency = null): void
+    {
+        if (! $property->agency_id || ! $this->wouldBeOnline($property, $property->getAttributes())) {
+            return;
+        }
+        // Déjà en ligne, et dans la MÊME agence : un bien déplacé vers l'agence se juge comme neuf.
+        if ($property->exists && ! $property->isDirty('agency_id') && $this->wouldBeOnline($property, $property->getRawOriginal())) {
+            return;
+        }
+
+        $agency ??= Agency::query()->whereKey($property->agency_id)->first(['id', 'self_opened_at', 'is_verified', 'verified_at']);
+        abort_code_if($agency?->awaitsFirstVerification() === true, 422, 'agency.unverified_publication');
+    }
+
+    /** @param  array<string, mixed>  $brut  attributs bruts (actuels ou d'origine) */
+    private function wouldBeOnline(Property $property, array $brut): bool
+    {
+        $statut = $brut['status'] ?? null;
+        $statut = $statut instanceof PropertyStatus ? $statut->value : $statut;
+        $visibilite = $brut['visibility'] ?? null;
+        $visibilite = $visibilite instanceof PropertyVisibility ? $visibilite->value : $visibilite;
+
+        return $statut !== null
+            && ! in_array($statut, Property::NON_PUBLIC_STATUSES, true)
+            && ($brut['published_at'] ?? null) !== null
+            && $visibilite === PropertyVisibility::Public->value
+            && ! (bool) ($brut['is_test'] ?? false);
     }
 
     /**
@@ -85,11 +126,17 @@ class PropertyObserver
         $this->guardListingQuota($property);
 
         if (Property::moderationGateBypassed()) {
+            // TCK-2937 (ADR-0125 § 5) — même sous l'exemption : l'approbation de la modération
+            // d'agence ne met pas en ligne le bien d'une agence pas encore vérifiée.
+            $this->guardUnverifiedSelfOpenedAgency($property);
+
             return;
         }
 
         $this->guardPlatformHold($property);
         $this->routeActivationThroughModeration($property);
+        // TCK-2937 (ADR-0125 § 5) — jugé sur l'état FINAL, après la file de modération.
+        $this->guardUnverifiedSelfOpenedAgency($property);
     }
 
     /**
@@ -137,6 +184,11 @@ class PropertyObserver
 
     private function routeActivationThroughModeration(Property $property): void
     {
+        // TCK-611 (ADR-0043, amendement du 2026-11-16) — une réécriture d'un champ affiché efface
+        // l'approbation (et met en file un bien en ligne) AVANT le jugement de l'activation : dans
+        // la même sauvegarde, l'approbation qu'elle efface ne compte plus comme approbation debout.
+        $rewritten = app(PropertyRewriteModeration::class)->applyToPendingSave($property);
+
         if ($property->isDirty('status') && in_array($property->status, self::UNAPPROVING_STATUSES, true)) {
             $property->approved_at = null;
             $property->approved_by_user_id = null;
@@ -148,7 +200,7 @@ class PropertyObserver
         if (! $property->agency_id
             || ! in_array($property->status, self::DISPLAYABLE_STATUSES, true)
             || ! $this->movesTowardPublic($property)
-            || $this->carriesStandingApproval($property)
+            || (! $rewritten && $this->carriesStandingApproval($property))
             || $this->wasAlreadyOnline($property, $from)) {
             return;
         }
@@ -171,11 +223,16 @@ class PropertyObserver
      * `pending` ou `available` privé, jamais approuvé ni publié (né avant que l'agence active la
      * modération), n'a jamais été en ligne : le publier, le rendre public ou changer son statut
      * affichable est une activation.
+     *
+     * TCK-611 (ADR-0043, amendement du 2026-11-16, décision 2) — ET `visibility = public` : un bien
+     * passé en privé garde son `published_at`, et son retour en public n'était pas une activation,
+     * quand le même bien passé par `archived` allait en file.
      */
     private function wasAlreadyOnline(Property $property, mixed $from): bool
     {
         return in_array($from, self::DISPLAYABLE_STATUSES, true)
-            && $property->getOriginal('published_at') !== null;
+            && $property->getOriginal('published_at') !== null
+            && $property->getOriginal('visibility') === PropertyVisibility::Public;
     }
 
     /** Une approbation que rien n'a annulée depuis : un refus postérieur l'efface. */

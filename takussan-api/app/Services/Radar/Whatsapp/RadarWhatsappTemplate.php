@@ -54,12 +54,24 @@ final class RadarWhatsappTemplate
         return (string) preg_replace_callback('/\{\{(\d+)\}\}/', fn (array $m): string => (string) ($params[(int) $m[1] - 1] ?? $m[0]), $body);
     }
 
+    /**
+     * Le nom du gabarit Meta approuvé d'une version de clauses, ou `null` : une version sans nom configuré ne s'envoie pas par
+     * l'API. TCK-2471 — c'est aussi ce que lit la fiche pour proposer, ou non, l'envoi par l'API d'un message
+     * (`RadarOutreachResource.api_channel_available`).
+     */
+    public static function templateName(string $version): ?string
+    {
+        $name = ((array) config('radar_whatsapp.templates', []))[$version] ?? null;
+
+        return is_string($name) && trim($name) !== '' ? trim($name) : null;
+    }
+
     /** Le gabarit de ce message : son nom approuvé, sa langue Meta, et ses paramètres dans l'ordre du corps. */
     public function for(RadarOutreach $outreach): WhatsappTemplateRef
     {
-        $name = ((array) config('radar_whatsapp.templates', []))[$outreach->clauses_version] ?? null;
+        $name = self::templateName($outreach->clauses_version);
         $language = ((array) config('radar_whatsapp.template_languages', []))[$outreach->locale] ?? null;
-        abort_code_if(! is_string($name) || $name === '' || ! is_string($language) || $language === '', 422, 'radar.whatsapp.template_missing');
+        abort_code_if($name === null || ! is_string($language) || $language === '', 422, 'radar.whatsapp.template_missing');
 
         $template = $this->composer->template($outreach->locale, $outreach->clauses_version);
         preg_match_all(ConsentMessageComposer::PLACEHOLDER, $template, $found);

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth\Phone;
 
+use App\Models\ConsentProof;
 use App\Models\RadarAdvertiser;
 use App\Models\User;
 use App\Providers\AppServiceProvider;
@@ -77,6 +78,9 @@ class PhoneLoginRadarTermsTest extends TestCase
         $this->assertSame($compte->id, $journal->subject_id);
         $this->assertSame(PublishReadiness::TERMS_VERSION, $journal->properties['terms_version']);
         $this->assertSame('auth.phone.verify-code', $journal->properties['via']);
+        // TCK-537 (AC1) — et la preuve du consentement, par le chemin de la connexion.
+        $preuve = ConsentProof::query()->where('user_id', $compte->id)->sole();
+        $this->assertSame(['terms', 'phone_login', PublishReadiness::TERMS_VERSION], [$preuve->document, $preuve->context, $preuve->version]);
         $this->assertStringNotContainsString('741234567', json_encode($journal->properties));
 
         // Et le code est désormais consommé.

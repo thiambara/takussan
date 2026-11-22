@@ -2,6 +2,7 @@
 
 namespace App\Services\Onboarding;
 
+use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\MaintenanceStatus;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Model\MaintenanceRequestService;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -195,6 +197,65 @@ class ServiceProviderOnboardingService
         $invitation->forceFill([
             'metadata' => array_merge($invitation->metadata ?? [], ['deep_link_assigned_at' => now()->toIso8601String()]),
         ])->save();
+    }
+
+    /**
+     * TCK-2613 — la demande d'intervention que l'écran 2 de l'assistant montre AVANT la fin d'onboarding : celle
+     * que la fin d'onboarding assignera ({@see assignDeepLinkedRequest()}), et elle seule. `null` dès qu'une des
+     * conditions manque, sans dire laquelle :
+     *
+     *  - le titulaire du profil, et lui seul (le super-admin passe la porte par `Gate::before` : pas ici) ;
+     *  - un profil `draft` ou `active`, jamais suspendu ni inactif. ⚠ Pas « `draft` seul » : l'acceptation de
+     *    l'invitation passe déjà le profil à `active` (`InvitationService`, P208.02), avant tout écran de
+     *    l'assistant — mesuré par le parcours réel, `InterventionDOrigineTest`. Ce qui dit « onboarding pas
+     *    encore fini », c'est le lien NON CONSOMMÉ : la première fin d'onboarding le consomme ;
+     *  - la demande d'origine de l'invitation ACCEPTÉE, lien non consommé ;
+     *  - une demande d'un bien de l'agence de l'invitation (l'émission le vérifie ; une métadonnée réécrite depuis,
+     *    non) ;
+     *  - libre et non commencée : celle que la fin d'onboarding pourrait encore lui assigner.
+     */
+    public function demandeDOrigine(ServiceProviderProfile $sp, User $user): ?MaintenanceRequest
+    {
+        if ((int) $sp->user_id !== (int) $user->id
+            || ! in_array($sp->status, [ServiceProviderProfileStatus::Draft, ServiceProviderProfileStatus::Active], true)) {
+            return null;
+        }
+
+        $invitation = $this->acceptedInvitation($sp);
+        $id = $this->resolveMaintenanceRequestRedirect($invitation);
+        if ($invitation === null || $id === null || data_get($invitation->metadata, 'deep_link_consumed_at') !== null) {
+            return null;
+        }
+
+        $mr = MaintenanceRequest::query()->with(['property.address'])->find($id);
+        if ($mr === null
+            || $mr->property === null
+            || (int) $mr->property->agency_id !== (int) $invitation->agency_id
+            || $mr->assigned_to !== null
+            || ! in_array($mr->status, self::DEEP_LINK_ASSIGNABLE, true)) {
+            return null;
+        }
+
+        return $mr;
+    }
+
+    /**
+     * TCK-2943 (ADR-0122 § 6) — l'échéance de réponse annoncée au prestataire sur la demande d'origine : l'instant de
+     * l'invitation (quand l'agence a demandé à CE prestataire) plus le réglage `maintenance_provider_response_hours`
+     * de l'agence. `null` quand l'agence n'annonce aucun délai (0) ou sans invitation acceptée. Indicative : rien ne
+     * se passe à l'échéance ; une échéance passée est rendue telle quelle.
+     */
+    public function echeanceDeReponse(ServiceProviderProfile $sp): ?CarbonInterface
+    {
+        $invitation = $this->acceptedInvitation($sp);
+        $agence = $invitation?->agency_id === null ? null : Agency::query()->find($invitation->agency_id);
+        if ($invitation === null || $agence === null || $invitation->created_at === null) {
+            return null;
+        }
+
+        $heures = (int) $agence->setting('maintenance_provider_response_hours');
+
+        return $heures > 0 ? $invitation->created_at->copy()->addHours($heures) : null;
     }
 
     /**

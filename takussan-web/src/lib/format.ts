@@ -1,5 +1,6 @@
 import { TIMEZONE, type Locale } from '@/i18n/config';
 import { formatMontant } from './format/currency';
+import { formaterGroupesLisibles } from './format/groupes';
 
 /**
  * Locale-aware formatters wrapping {@link Intl.DateTimeFormat} and
@@ -56,7 +57,7 @@ import { formatMontant } from './format/currency';
  *
  *   1. **date-fns ne fournit AUCUNE locale wolof** (cf. `./format/dateFnsLocale.ts`). Un `wo` réel
  *      côté `Intl` ne peut donc pas être suivi par les dates de `date-picker`, `date-time-picker`
- *      ni de `AgencyRevenueSnapshot` : il produirait une incohérence de plus, pas une de moins.
+ *      ni de l'axe des graphiques mensuels : il produirait une incohérence de plus, pas une de moins.
  *   2. **Les données CLDR de `wo` ne sont pas sénégalaises sur ce qui compte ici** : séparateur de
  *      milliers `.` (Sénégal écrit l'espace), et une date `medium` de forme anglaise
  *      (`14 Mar, 2026`), à quoi `wo-SN` ne change rien — mesuré, il rend exactement la même chose.
@@ -89,7 +90,7 @@ const ETIQUETTE_PAR_DEFAUT = 'fr-SN';
  * `undefined` et suivrait la locale de la MACHINE, ce qui est le défaut que
  * `scripts/check-locale-figee.mjs` refuse partout ailleurs.
  */
-function toIntlLocale(locale: Locale): string {
+export function toIntlLocale(locale: Locale): string {
   return ETIQUETTES_INTL[locale] ?? ETIQUETTE_PAR_DEFAUT;
 }
 
@@ -138,6 +139,9 @@ export function formatDateTime(
 /**
  * Format a number using the given locale. Leaves `null`/`undefined`
  * untouched so callers can guard in the JSX.
+ *
+ * TCK-2714 — les groupes de milliers sortent en U+00A0, pas en U+202F (`./format/groupes`) ; le
+ * reste de la chaîne est celui d'`Intl` (l'espace avant « % », la notation compacte).
  */
 export function formatNumber(
   value: number | null | undefined,
@@ -145,7 +149,7 @@ export function formatNumber(
   options: Intl.NumberFormatOptions = {},
 ): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '';
-  return new Intl.NumberFormat(toIntlLocale(locale), options).format(value);
+  return formaterGroupesLisibles(new Intl.NumberFormat(toIntlLocale(locale), options), value);
 }
 
 /**

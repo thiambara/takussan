@@ -1,8 +1,8 @@
-import Link from 'next/link';
-import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
-import { Logo } from '@/components/brand/Logo';
+import { CoqueDEntree } from '@/components/entree/CoqueDEntree';
+import { libellesDeLaCoque } from '@/components/entree/libelles-de-la-coque';
 
 /**
  * Cadre commun des assistants d'onboarding.
@@ -22,14 +22,27 @@ import { Logo } from '@/components/brand/Logo';
  * 2. **L'alignement à gauche.** L'en-tête était centré au-dessus d'un formulaire
  *    aligné à gauche : deux axes, rien à quoi s'aligner. Le titre partage
  *    désormais l'arête gauche du rail d'étapes.
- * 3. **La sauvegarde automatique se DIT.** `WizardReprenable` enregistre chaque
- *    saisie depuis TCK-250, et rien à l'écran ne l'annonçait avant de quitter la
- *    page. Une promesse qu'on ne tient qu'après coup ne rassure personne pendant.
+ * 3. **La sauvegarde automatique se DIT — là où elle a lieu, et nulle part ailleurs.**
+ *    `WizardReprenable` enregistre chaque saisie depuis TCK-250, et rien à l'écran
+ *    ne l'annonçait avant de quitter la page. Mais la note était la valeur PAR
+ *    DÉFAUT de la coque : l'écran du prénom, la page d'invitation et l'accueil
+ *    multi-agences la promettaient sans rien enregistrer (TCK-2616). Elle ne
+ *    s'affiche plus que sur demande (`brouillon`) : un écran neuf ne promet rien.
+ *
+ * TCK-2598 — la barre est désormais celle de la coque d'entrée commune (`CoqueDEntree`) : la marque,
+ * l'intention et l'avancement quand l'écran les donne, « Retour au site » — qui demande confirmation
+ * quand l'écran déclare une saisie (`DeclarerEntree saisie`).
  */
 export async function OnboardingShell({
   title,
   subtitle,
+  brouillon = false,
   note,
+  intention,
+  pas,
+  total,
+  largeur = 'large',
+  sortie = 'retour-au-site',
   children,
 }: {
   /**
@@ -39,70 +52,69 @@ export async function OnboardingShell({
   readonly title?: string;
   readonly subtitle?: string;
   /**
-   * Remplace la mention de sauvegarde automatique en pied de page.
-   *
-   * TCK-493 — la coque sert désormais un écran qui n'est PAS un assistant : la
-   * question d'orientation posée après l'inscription n'enregistre rien au fil de
-   * la saisie. Lui laisser la promesse « vos réponses sont enregistrées
-   * automatiquement » serait une affirmation fausse, sur le premier écran que
-   * voit un compte neuf. `null` retire le pied de page : un écran qui n'a rien à
-   * promettre ne promet rien.
+   * L'écran enregistre RÉELLEMENT un brouillon (`WizardReprenable`) : le pied de page le dit.
+   * Absent, aucune promesse — TCK-2616 : c'était le défaut, et trois écrans sans brouillon
+   * l'affichaient.
    */
-  readonly note?: string | null;
+  readonly brouillon?: boolean;
+  /**
+   * Un pied de page propre à l'écran (TCK-493 : l'orientation dit que la réponse n'engage à
+   * rien). Il prime sur la note de brouillon.
+   */
+  readonly note?: string;
+  /** TCK-2598 — l'intention, titre de la barre de la coque (« Votre compte est créé »). */
+  readonly intention?: string;
+  /** TCK-2598 — l'avancement du parcours entier, compte compris. */
+  readonly pas?: number;
+  readonly total?: number;
+  /**
+   * TCK-2598 — `etroite` : la colonne de 480 px des maquettes (prénom, invitation). Défaut `large` :
+   * les assistants gardent leur largeur d'avant tant que leurs tickets ne les refont pas.
+   */
+  readonly largeur?: 'etroite' | 'large' | 'assistant';
+  /**
+   * TCK-2613 — `quitter` : la barre des assistants d'invité (maquette `EnTeteFormulaire`) — « ✕ » et l'intention
+   * au téléphone, « Quitter » au bureau. Défaut : « Retour au site ».
+   */
+  readonly sortie?: 'retour-au-site' | 'quitter';
   readonly children: React.ReactNode;
 }) {
   const t = await getTranslations('onboarding.shell');
-  // Le nom de marque passe par `common.appName` comme partout ailleurs : la
-  // garde i18n refuse un libellé en dur sur un fichier neuf, et elle a raison —
-  // un nom écrit à douze endroits est un nom qu'on ne peut plus changer.
-  const tCommon = await getTranslations('common');
+  const libelles = await libellesDeLaCoque();
+  const piedDePage = note ?? (brouillon ? t('autosave') : null);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex h-14 w-full max-w-4xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link
-            href="/"
-            className="inline-flex rounded-md py-1 focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            {/* TCK-621 — la marque, et non plus son nom en texte nu. */}
-            <Logo nom={tCommon('appName')} />
-          </Link>
-          <Link
-            href="/"
-            className="-mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-            {t('exit')}
-          </Link>
+    <CoqueDEntree
+      libelles={libelles}
+      titre={intention}
+      pas={pas}
+      total={total}
+      largeur={largeur}
+      sortie={{ href: '/', forme: sortie }}
+    >
+      {title ? (
+        <div className="mb-8 flex flex-col gap-3 sm:mb-10">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-balance text-foreground sm:text-4xl">
+            {title}
+          </h1>
+          {subtitle ? (
+            <p className="max-w-[62ch] text-[calc(var(--spacing)*3.75)] leading-relaxed text-pretty text-muted-foreground">
+              {subtitle}
+            </p>
+          ) : null}
         </div>
-      </header>
+      ) : null}
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6 lg:py-14">
-        {title ? (
-          <div className="mb-8 flex flex-col gap-3 sm:mb-10">
-            <h1 className="font-display text-3xl font-bold tracking-tight text-balance text-foreground sm:text-4xl">
-              {title}
-            </h1>
-            {subtitle ? (
-              <p className="max-w-[62ch] text-[0.9375rem] leading-relaxed text-pretty text-muted-foreground">
-                {subtitle}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+      {children}
 
-        {children}
-      </main>
-
-      {note === null ? null : (
-        <footer className="mx-auto w-full max-w-4xl px-4 pb-10 sm:px-6">
+      {piedDePage ? (
+        <footer className="mt-10">
           <p className="flex items-start gap-2 text-xs leading-relaxed text-pretty text-muted-foreground">
             <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            {note ?? t('autosave')}
+            {piedDePage}
           </p>
         </footer>
-      )}
-    </div>
+      ) : null}
+    </CoqueDEntree>
   );
 }

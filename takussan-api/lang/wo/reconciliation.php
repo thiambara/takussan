@@ -23,6 +23,8 @@ return [
         'payout_not_completed' => 'Reversement bu ñu yónnee rekk lañu mën rapprocher ak débit.',
         'invoice_not_reconcilable' => 'Seule une facture envoyée, en retard ou payée peut être rapprochée d\'un crédit.',
         'settled_by_platform' => 'Ce paiement a été encaissé par la plateforme : il arrive sur votre compte avec son reversement, pas seul.',
+        // TCK-2793 — la pénalité payée seule d'une échéance, sa seconde part.
+        'late_fee_not_reconcilable' => 'Cette échéance n\'a pas de pénalité payée seule en ligne, encaissée par votre agence, à rapprocher.',
         'platform_payout_not_paid' => 'Seul un reversement de la plateforme payé peut être rapproché d\'un crédit.',
         'file_not_utf8' => 'Fichier bi du UTF-8 : génnéel ko ci UTF-8 ci sa banque walla sa tableur.',
     ],

@@ -153,6 +153,7 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
           <Label htmlFor="agency-role-name">{t('editor.name_label')}</Label>
           <Input
             id="agency-role-name"
+            profil="mots"
             // P164.04 (TCK-1808) — un rôle système n'est jamais éditable : son champ montre le
             // nom affiché ailleurs dans la console, pas le défaut français rangé.
             value={role.is_system ? nomDuRole(role) : name}
@@ -165,10 +166,12 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
           <Label htmlFor="agency-role-description">{t('editor.description_label')}</Label>
           <Textarea
             id="agency-role-description"
+            profil="texte-long"
             rows={2}
             value={description}
             disabled={readOnly || isPending}
-            placeholder={t('editor.description_placeholder')}
+            // TCK-2676 — un champ qu'on ne peut pas remplir n'invite pas à écrire (rôle système).
+            placeholder={readOnly ? undefined : t('editor.description_placeholder')}
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>

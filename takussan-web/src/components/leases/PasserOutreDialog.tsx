@@ -84,6 +84,7 @@ export function PasserOutreDialog({
           <div className="space-y-1.5">
             <Label htmlFor="passer-outre-motif">{t('reason')}</Label>
             <Textarea
+              profil="texte-long"
               id="passer-outre-motif"
               value={motif}
               maxLength={500}

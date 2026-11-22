@@ -29,6 +29,9 @@ describe('La navigation du Radar', () => {
     ['/super-admin/radar/42', 'radar-lien-annonces'],
     ['/super-admin/radar/advertisers', 'radar-lien-annonceurs'],
     ['/super-admin/radar/advertisers/7', 'radar-lien-annonceurs'],
+    // TCK-2469 — les cibles, et la page d'une cible.
+    ['/super-admin/radar/targets', 'radar-lien-cibles'],
+    ['/super-admin/radar/targets/12', 'radar-lien-cibles'],
     ['/super-admin/radar/collecte', 'radar-lien-collecte'],
     ['/super-admin/radar/observatory', 'radar-lien-observatoire'],
   ])('sur %s, seule %s est courante', (valeur, attendue) => {

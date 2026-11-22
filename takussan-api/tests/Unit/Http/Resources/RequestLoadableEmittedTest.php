@@ -43,12 +43,16 @@ class RequestLoadableEmittedTest extends TestCase
         'Invitation' => ['inviter', 'invitedUser', 'agency', 'invitable'],
         'Invoice' => ['customer', 'issuer', 'agency', 'creditedInvoice'],
         'KycDossier' => ['reviewer'],
+        // TCK-2803 — `tenant` est émis par `when()` sur la décision du contrôleur (`avecLocataire()`,
+        // liste et fiche de LeaseController), jamais par `whenLoaded` : un repli rendrait le locataire
+        // aux onze gestes qui chargent la relation pour la policy.
+        'Lease' => ['tenant'],
         'MaintenanceRequest' => ['lease'],
         'OwnerProfile' => ['user', 'agency', 'invitations', 'agencyRole'],
         'PrivacyRequest' => ['user', 'handler'],
         // `tags` est émis sur la fiche par `when($isDetail)`, hors de `whenLoaded`.
         'Property' => ['tags', 'children', 'parent'],
-        'ServiceProviderBill' => ['maintenanceRequest', 'property', 'provider', 'payouts'],
+        'ServiceProviderBill' => ['provider', 'payouts'],
         'User' => ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles', 'platformProfile'],
     ];
 

@@ -6,6 +6,7 @@ use App\Domain\Notifications\NotificationCode;
 use App\Models\NotificationTemplate;
 use App\Notifications\CodedNotification;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Notifications\Whatsapp\TemplateResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Tests\TestCase;
@@ -44,7 +45,10 @@ class WhatsappTemplateRegistryTest extends TestCase
                 $this->assertArrayHasKey($name, $known, "{$where} : variable « {$name} » inconnue du code");
             }
             foreach ($code->optionalParams() as $name => $type) {
-                if ($type === NotificationCode::PARAM_URL) {
+                // TCK-2706 — `charges_url` n'existe que dans la variante fusionnée, qui n'a pas de
+                // gabarit Meta (`whatsappTemplateEvent()` = `<code>.<variante>`, jamais approuvé) :
+                // hors fenêtre, elle retombe sur le SMS. Le gabarit du code n'a pas à le porter.
+                if ($type === NotificationCode::PARAM_URL && ! in_array($name, $code->variantParams(), true)) {
                     $this->assertContains($name, $row->metaVariables(), "{$where} : le lien « {$name} » manque au gabarit");
                 }
             }
@@ -56,11 +60,38 @@ class WhatsappTemplateRegistryTest extends TestCase
         }
     }
 
+    /**
+     * TCK-2706 — une relance fusionnée (loyer et charges, ou charges seules) cherche le gabarit de
+     * `<code>.<variante>`, que le registre ne porte pas : hors fenêtre, le canal retombe sur le SMS,
+     * qui dit chaque montant et porte chaque lien. Le gabarit du code annoncerait le total sous le
+     * mot « loyer », avec le seul lien du loyer.
+     */
+    public function test_une_relance_fusionnee_n_a_pas_de_gabarit_et_retombe_sur_le_sms(): void
+    {
+        NotificationTemplate::query()->where('channel', 'whatsapp')->update(['meta_status' => NotificationTemplate::META_STATUS_APPROVED]);
+        $argent = NotificationRenderer::money(150000, 'XOF');
+
+        foreach ([NotificationCode::LeasePaymentDueSoon, NotificationCode::LeasePaymentOverdue] as $code) {
+            $this->assertNotNull(app(TemplateResolver::class)->approved($code->value, 'fr'), "prémisse : {$code->value} a un gabarit approuvé");
+            foreach (['rent_charges' => ['rent' => $argent, 'charges' => $argent], 'charges' => ['charges' => $argent]] as $variante => $detail) {
+                $notification = new CodedNotification($code, $this->sampleParams($code) + $detail);
+                $this->assertSame("{$code->value}.{$variante}", $notification->whatsappTemplateEvent());
+                $this->assertNull(app(TemplateResolver::class)->approved($notification->whatsappTemplateEvent(), 'fr'));
+            }
+            $this->assertSame($code->value, (new CodedNotification($code, $this->sampleParams($code)))->whatsappTemplateEvent(), 'un loyer seul garde son gabarit');
+        }
+    }
+
     /** @return array<string, mixed> */
     private function sampleParams(NotificationCode $code): array
     {
         $out = [];
         foreach ($code->params() + $code->optionalParams() as $name => $type) {
+            // TCK-2706 — sans les paramètres d'une variante : ils désigneraient la variante, qui n'a
+            // pas de gabarit (épinglé à part, ci-dessous).
+            if (in_array($name, $code->variantParams(), true)) {
+                continue;
+            }
             $out[$name] = match ($type) {
                 NotificationCode::PARAM_MONEY => NotificationRenderer::money(150000, 'XOF'),
                 NotificationCode::PARAM_DATE => '2026-10-22',

@@ -3,6 +3,14 @@ import type { QueryClient } from '@tanstack/react-query';
 /** La clé des profils de l'utilisateur, que le changement d'espace épargne (le menu garde sa coche). */
 export const CLE_PROFILS = ['me', 'profiles'] as const;
 
+/**
+ * TCK-2482 (revue M3) — la clé de MUTATION du changement d'espace (`useSwitchActiveProfile`). Toute
+ * surface qui propose une bascule lit `useIsMutating` sur elle : une bascule lancée ailleurs (le
+ * sélecteur) se voit, au lieu d'en lancer une seconde concurrente. Ici et non dans `useProfiles`, que
+ * vingt fichiers de test simulent sans connaître cet export.
+ */
+export const CLE_DE_BASCULE_D_ESPACE = ['me', 'profiles', 'bascule'] as const;
+
 function estClePrefixee(cle: readonly unknown[], prefixe: readonly unknown[]): boolean {
   return prefixe.every((segment, i) => cle[i] === segment);
 }

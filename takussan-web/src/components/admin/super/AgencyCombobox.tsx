@@ -203,7 +203,7 @@ export function AgencyCombobox({
 
       <Combobox.Portal>
         <Combobox.Positioner sideOffset={4} className="isolate z-[1100] outline-none">
-          <Combobox.Popup className="max-h-[min(var(--available-height),20rem)] w-(--anchor-width) min-w-56 overflow-y-auto rounded-lg bg-popover py-1 text-popover-foreground shadow-md ring-1 ring-border">
+          <Combobox.Popup className="max-h-[min(var(--available-height),var(--spacing)*80)] w-(--anchor-width) min-w-56 overflow-y-auto rounded-lg bg-popover py-1 text-popover-foreground shadow-md ring-1 ring-border">
             <Combobox.Status>
               {enAttente ? (
                 <p className="px-3 py-2 text-xs text-muted-foreground">{t('searching')}</p>
@@ -242,7 +242,7 @@ export function AgencyCombobox({
                   // le focus de la saisie et referme le popup AVANT que le `click` n'arrive.
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={reessayer}
-                  className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-accent"
+                  className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-muted"
                 >
                   {t('retry')}
                 </button>
@@ -262,7 +262,7 @@ export function AgencyCombobox({
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => void listQuery.fetchNextPage()}
                     disabled={listQuery.isFetchingNextPage}
-                    className="rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-accent disabled:opacity-50"
+                    className="rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-muted disabled:opacity-50"
                   >
                     {t('loadMore')}
                   </button>

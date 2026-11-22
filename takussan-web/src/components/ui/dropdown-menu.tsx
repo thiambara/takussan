@@ -34,18 +34,31 @@ function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
  * `color-mix` sur `var(--foreground)` à 4 % rend en clair très exactement le noir-brun à 4 %
  * qu'elle écrivait en dur (`--foreground` vaut #1f1812), et devient sous `.dark` une lueur
  * claire — ce qui est la forme d'élévation qui fonctionne sur une surface sombre.
+ *
+ * `voile` (revue adverse de TCK-2491, I2 — le patron de `PopoverContent`, TCK-572) — un voile
+ * TRANSPARENT sous le menu, qui reçoit l'appui « à côté » : le menu se ferme et RIEN d'autre ne se
+ * passe. ⚠ Le voile interne de Base UI ne suffit pas : ouvert DANS un dialogue modal (le tiroir de
+ * `/app`), il n'est pas posé, et l'appui qui fermait le menu du compte activait aussi la ligne
+ * dessous (« Publier un bien » → `/app/properties/new`, mesuré au toucher et à la souris). Juste sous
+ * le positionneur (`z-[1099]` contre `z-[1100]`), donc au-dessus du tiroir (`z-50`). Opt-in : les
+ * autres menus sont inchangés.
  */
 function DropdownMenuContent({
   className,
   sideOffset = 8,
   align = "end",
+  voile = false,
   ...props
 }: MenuPrimitive.Popup.Props & {
   sideOffset?: number
   align?: MenuPrimitive.Positioner.Props["align"]
+  readonly voile?: boolean
 }) {
   return (
     <DropdownMenuPortal>
+      {voile ? (
+        <MenuPrimitive.Backdrop data-slot="dropdown-menu-voile" className="fixed inset-0 z-[1099]" />
+      ) : null}
       {/*
         The Positioner is the element that gets portaled to <body>; the Popup
         sits inside it. The z-index MUST live on the Positioner — otherwise

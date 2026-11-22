@@ -17,7 +17,8 @@ import {
  */
 export function useIntentionDeReservation(
   pret: boolean,
-  ouvrir: () => void,
+  /** TCK-2510 — reçoit l'intention lue : un séjour court la porte au tunnel, dates comprises. */
+  ouvrir: (lue: IntentionReservation) => void,
 ): IntentionReservation | null {
   const [intention, setIntention] = useState<IntentionReservation | null>(null);
 
@@ -30,7 +31,7 @@ export function useIntentionDeReservation(
     // d'un système extérieur, après montage — le cas que la règle laisse passer en esprit.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIntention(lue);
-    ouvrir();
+    ouvrir(lue);
   }, [pret, ouvrir]);
 
   return intention;

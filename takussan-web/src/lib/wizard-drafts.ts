@@ -1,5 +1,6 @@
 import { apiRequest } from './api';
 import { brouillonUpgradeEstVierge } from './agency-upgrade-brouillon';
+import { CLE_BROUILLON_DE_PUBLICATION, LIEN_DE_REPRISE } from './publication/brouillon-de-publication';
 import type {
   WizardDraft,
   WizardDraftListResponse,
@@ -85,6 +86,16 @@ const WIZARD_RESUME_RULES: WizardResumeRule[] = [
       const d = (draft.data ?? {}) as Record<string, unknown>;
       return !['type', 'title', 'city', 'price'].some((cle) => d[cle] !== undefined && d[cle] !== null && d[cle] !== '');
     },
+  },
+  {
+    // TCK-2601 (AC3) — l'annonce commencée SANS COMPTE, versée au brouillon serveur sous SA clé quand
+    // elle ne pouvait pas être publiée d'un geste (agence `standard`, plusieurs espaces, bailleur seul).
+    // Une clé à part, un libellé à part : un brouillon `property-create-wizard` du même compte reste
+    // une autre ligne du bandeau, ni écrasé ni confondu (décision de la session du 2026-11-13).
+    kind: 'exact',
+    key: CLE_BROUILLON_DE_PUBLICATION,
+    href: LIEN_DE_REPRISE,
+    i18nKey: 'property-create-wizard-publication',
   },
   // TCK-419 — trois règles ont été RETIRÉES ici : `customer-onboarding`
   // (`/app/profile/customer/onboarding`), `owner-kyc` (`/app/profile/owner/kyc`) et `agent-kyc`

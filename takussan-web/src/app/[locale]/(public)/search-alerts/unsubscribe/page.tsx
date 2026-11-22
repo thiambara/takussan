@@ -1,11 +1,8 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { Navbar } from '@/components/home/Navbar';
-import { NavbarSpacer } from '@/components/home/NavbarSpacer';
-import { Footer } from '@/components/home/Footer';
+import { CoqueDeLien } from '@/components/lien-public/CoqueDeLien';
 import { SearchAlertLinkAction } from '@/components/search-alerts/SearchAlertLinkAction';
-import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 /**
  * `/[locale]/search-alerts/unsubscribe` — TCK-599 (ADR-0050 §4, contrainte 6) : la désinscription
@@ -14,6 +11,8 @@ import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
  * - `?token=…` — un abonné sans compte : toutes ses alertes s'arrêtent, son contact est effacé ;
  * - `?search=ID&expires=…&signature=…` — l'alerte d'un compte : l'URL signée de l'API, rejouée
  *   en `POST` ; la recherche reste, son alerte passe à `off`.
+ *
+ * TCK-2514 : dans la coque de lien nue ; la carte porte son titre.
  *
  * Jamais indexée, et `no-referrer` : le jeton ou la signature sont dans l'URL.
  */
@@ -36,27 +35,16 @@ export default async function SearchAlertUnsubscribePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const t = await getTranslations('search.alertPages.unsubscribe');
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
-      <NavbarSpacer />
-      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="flex-1 focus:outline-none">
-        <div className="mx-auto max-w-lg px-4 py-12">
-          <h1 className="mb-6 text-center font-display text-2xl font-bold tracking-tight text-balance text-foreground">
-            {t('title')}
-          </h1>
-          <SearchAlertLinkAction
-            mode="unsubscribe"
-            token={premier(params.token)}
-            search={premier(params.search)}
-            expires={premier(params.expires)}
-            signature={premier(params.signature)}
-          />
-        </div>
-      </main>
-      <Footer />
-    </div>
+    <CoqueDeLien>
+      <SearchAlertLinkAction
+        mode="unsubscribe"
+        token={premier(params.token)}
+        search={premier(params.search)}
+        expires={premier(params.expires)}
+        signature={premier(params.signature)}
+      />
+    </CoqueDeLien>
   );
 }

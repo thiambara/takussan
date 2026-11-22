@@ -180,7 +180,7 @@ function LigneDeProposition({
         >
           <div className="min-w-56 flex-1 space-y-1">
             <label htmlFor={idNom} className="text-xs font-medium text-muted-foreground">{t('newName')}</label>
-            <Input id={idNom} value={nom} maxLength={NOM_MAX[genre]} onChange={(e) => setNom(e.target.value)} />
+            <Input profil={genre === 'geo' ? 'lieu' : 'mots'} enterKeyHint="done" placeholder={genre === 'geo' ? t('newNamePlaceholderGeo') : t('newNamePlaceholderTags')} id={idNom} value={nom} maxLength={NOM_MAX[genre]} onChange={(e) => setNom(e.target.value)} />
           </div>
           <Button type="submit" disabled={occupe || nom.trim() === '' || nom.trim() === p.name}>{t('confirm')}</Button>
           <Button type="button" variant="ghost" onClick={fermer}>{t('cancel')}</Button>

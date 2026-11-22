@@ -43,7 +43,7 @@ interface ReviewItemProps {
 }
 
 function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
-  const t = useTranslations('property.reviews');
+  const t = useTranslations('propertyReviews');
   // Libellé partagé avec la fiche publique d'agence et d'agent (`ReviewsSection`).
   const tNote = useTranslations('publicProfile.reviews');
   const fmt = useFormatteurs();
@@ -217,7 +217,7 @@ export function PropertyReviews({
   ownerId,
   agencyId,
 }: PropertyReviewsProps) {
-  const t = useTranslations('property.reviews');
+  const t = useTranslations('propertyReviews');
   const { user } = useAuth();
   // TCK-1483 (P103.07) — les avis ne sont demandés qu'à l'approche de leur section (400 px), et
   // une fois approchée elle le reste. Sans `IntersectionObserver`, la lecture part au montage.

@@ -14,6 +14,7 @@ use App\Http\Requests\Public\ContactMessagePublicPropertyRequest;
 use App\Http\Requests\Public\HomepageDiscoveryRequest;
 use App\Http\Requests\Public\MapPublicPropertyRequest;
 use App\Http\Requests\Public\NeighborhoodsPublicPropertyRequest;
+use App\Http\Requests\Public\PriceDistributionRequest;
 use App\Http\Requests\Public\ReportPublicPropertyRequest;
 use App\Http\Requests\Public\SearchPublicPropertyRequest;
 use App\Http\Requests\Public\VisitRequestPublicPropertyRequest;
@@ -26,18 +27,27 @@ use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
 use App\Jobs\NotifyNewMessageJob;
 use App\Models\Booking;
+use App\Models\ConsentProof;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingSource;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\ReferentialStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
+use App\Models\Enums\VisitWindow;
+use App\Models\GeoNeighborhood;
 use App\Models\Property;
 use App\Models\PropertyReport;
+use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Booking\BookingConditions;
+use App\Services\Booking\BookingGuarantorService;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
 use App\Services\Boost\BoostStatsRecorder;
@@ -45,6 +55,7 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
+use App\Services\Privacy\ConsentLedger;
 use App\Services\Property\EtatPublicDuBien;
 use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\PrimaryPropertyContact;
@@ -54,6 +65,8 @@ use App\Services\Property\SimilarPropertiesService;
 use App\Services\Review\ReviewEligibility;
 use App\Services\Search\FiltresDeLaCarte;
 use App\Services\Search\PropertySearchService;
+use App\Services\Search\RepartitionDesPrix;
+use App\Services\Search\SearchJournal;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
 use App\Support\CaseInsensitive;
@@ -293,10 +306,19 @@ class PublicPropertyController extends Controller
      */
     public function neighborhoods(NeighborhoodsPublicPropertyRequest $request): JsonResponse
     {
-        $replie = CaseInsensitive::sql('addresses.neighborhood');
+        // TCK-618 (contrainte 2) — le regroupement porte sur le quartier ROGNÉ : « Mermoz » et
+        // « ␠Mermoz␠ » (seeders, imports : `TrimStrings` ne nettoie que la saisie par l'API) faisaient
+        // deux entrées et fractionnaient le compte jugé au seuil. Aucun index ne porte sur
+        // `addresses.neighborhood` : rien à recopier (piège PostgreSQL n°9).
+        //
+        // Deux niveaux : les graphies rognées comptées une à une, puis repliées. La graphie rendue est
+        // la plus fréquente ; à égalité, une graphie qui n'est pas tout en capitales (« Médina »
+        // contre « MÉDINA » : en collation C, `mode()` donnait la capitale), puis l'ordre binaire.
+        // `mode()` ne prend qu'une clé de tri : d'où `array_agg(… ORDER BY …)[1]`.
+        $replie = CaseInsensitive::sql('graphies.graphie');
         $max = self::neighborhoodsMax();
 
-        $lignes = Property::query()
+        $graphies = Property::query()
             ->public()
             ->join('addresses', function ($jointure) {
                 $jointure->on('addresses.addressable_id', '=', 'properties.id')
@@ -305,22 +327,70 @@ class PublicPropertyController extends Controller
             ->whereRaw(CaseInsensitive::sql('addresses.city').' = ?', [CaseInsensitive::fold($request->city())])
             ->whereNotNull('addresses.neighborhood')
             ->whereRaw("trim(addresses.neighborhood) != ''")
+            ->groupByRaw('trim(addresses.neighborhood)')
+            ->select([
+                DB::raw('trim(addresses.neighborhood) as graphie'),
+                DB::raw('count(*) as n'),
+            ])
+            ->toBase();
+
+        $lignes = DB::query()
+            ->fromSub($graphies, 'graphies')
             ->groupByRaw($replie)
-            ->orderByDesc(DB::raw('count(*)'))
+            ->orderByDesc(DB::raw('sum(graphies.n)'))
             ->orderByRaw($replie)
             ->limit($max + 1)
             ->get([
-                DB::raw('mode() WITHIN GROUP (ORDER BY addresses.neighborhood) as valeur'),
-                DB::raw('count(*) as compte'),
+                DB::raw('(array_agg(graphies.graphie ORDER BY graphies.n DESC, (graphies.graphie = upper(graphies.graphie)) ASC, graphies.graphie))[1] as valeur'),
+                DB::raw('sum(graphies.n) as compte'),
             ]);
 
+        $tronque = $lignes->count() > $max;
+        $lignes = $lignes->take($max)->map(fn ($l) => ['value' => trim((string) $l->valeur), 'count' => (int) $l->compte]);
+        $photos = $this->photosDesQuartiers($request->city(), $lignes->pluck('value')->all());
+
         return $this->json([
-            'data' => $lignes->take($max)
-                ->map(fn ($l) => ['value' => trim((string) $l->valeur), 'count' => (int) $l->compte])
+            'data' => $lignes
+                ->map(fn (array $l) => $l + ['photo' => $photos[CaseInsensitive::fold($l['value'])] ?? null])
                 ->values()
                 ->all(),
-            'meta' => ['truncated' => $lignes->count() > $max],
+            'meta' => ['truncated' => $tronque],
         ]);
+    }
+
+    /**
+     * TCK-2844 (ADR-0109 §3) — la photo de chaque quartier de l'accueil, par le RÉFÉRENTIEL : le
+     * quartier approuvé, non fusionné, de la ville demandée, dont le nom replié (`CaseInsensitive`)
+     * est celui de la ligne. Deux requêtes pour toutes les lignes (quartiers, puis médias), jamais
+     * une par ligne. Une URL seule : la provenance du média ne sort pas (décision 3 c).
+     *
+     * @param  list<string>  $noms
+     * @return array<string, string> nom replié → URL de la conversion `display`
+     */
+    private function photosDesQuartiers(string $ville, array $noms): array
+    {
+        if ($noms === []) {
+            return [];
+        }
+        $replies = array_values(array_unique(array_map(fn (string $n) => CaseInsensitive::fold($n), $noms)));
+
+        $quartiers = GeoNeighborhood::query()
+            ->where('status', ReferentialStatus::Approved->value)
+            ->whereNull('merged_into_id')
+            ->whereHas('city', fn ($q) => $q->whereRaw(CaseInsensitive::sql('geo_cities.name').' = ?', [CaseInsensitive::fold($ville)]))
+            ->whereRaw(CaseInsensitive::sql('geo_neighborhoods.name').' in ('.implode(',', array_fill(0, count($replies), '?')).')', $replies)
+            ->whereHas('media', fn ($q) => $q->where('collection_name', 'cover'))
+            ->with('media')
+            ->orderBy('id')
+            ->get(['id', 'geo_city_id', 'name']);
+
+        $photos = [];
+        foreach ($quartiers as $quartier) {
+            $cle = CaseInsensitive::fold($quartier->name);
+            $photos[$cle] ??= $quartier->cover_url;
+        }
+
+        return array_filter($photos, fn (?string $url) => $url !== null);
     }
 
     /**
@@ -369,6 +439,11 @@ class PublicPropertyController extends Controller
             //     trois corps distincts servis `public, s-maxage=300` sous UNE
             //     seule entrée de cache. Un visiteur anglophone recevait la
             //     page d'un francophone, et rien ne pouvait le signaler.
+            //     TCK-351 (2026-11-16) : ces libellés ne sont plus émis, le corps
+            //     ne varie plus avec la locale. `Accept-Language` RESTE, par
+            //     prudence : un texte localisé qui reviendrait serait sinon servi
+            //     dans la langue du premier visiteur. L'identité des corps est
+            //     épinglée par `CataloguePublicCacheTest`, qui rougira ce jour-là.
             //   · L'APPELANT : `PropertyResource` émet quatre champs de
             //     modération dès que `$request->user() !== null`, et
             //     `ResolveActiveProfile` propage un porteur Bearer au garde par
@@ -386,11 +461,30 @@ class PublicPropertyController extends Controller
         ]);
     }
 
-    public function search(SearchPublicPropertyRequest $request, PropertySearchService $service): array
+    /**
+     * TCK-2498 — la répartition des prix des biens que la liste rendrait sous ces filtres, sans bornes de prix :
+     * `{ data: { buckets: [{from, to, count}], min, max } }`. Voir {@see RepartitionDesPrix}.
+     */
+    public function priceDistribution(PriceDistributionRequest $request, RepartitionDesPrix $repartition): JsonResponse
+    {
+        return $this->json(['data' => $repartition->calculer($request->filtres())]);
+    }
+
+    public function search(SearchPublicPropertyRequest $request, PropertySearchService $service, SearchJournal $journal): array
     {
         $validated = $request->validated();
 
-        return $service->search($validated);
+        $result = $service->search($validated);
+        // TCK-2472 (ADR-0088) — le journal anonyme des recherches : page 1 seulement, après la réponse, jamais en échec.
+        // TCK-2496 — pas un compte de biens nouveaux (`published_after`) : le front le demande pour chaque recherche
+        // récente qu'il affiche, sans que personne n'ait cherché. TCK-2517 — pas une recherche dans les biens d'une
+        // fiche (`agency`, `agent`) : son total est celui d'un portefeuille, et un zéro y passerait pour une demande
+        // sans offre du catalogue entier (le Radar, les variantes d'écriture).
+        if (empty($validated['published_after']) && empty($validated['agency']) && empty($validated['agent'])) {
+            $journal->recordPublicSearch($request, $validated, $result);
+        }
+
+        return $result;
     }
 
     /**
@@ -840,12 +934,18 @@ class PublicPropertyController extends Controller
             ? Customer::query()->where('user_id', $user->id)->where('agency_id', $property->agency_id)->value('id')
             : null;
 
+        // TCK-2502 — un jour et une tranche, à la place d'une heure : la visite est rangée au début
+        // de la tranche, à Dakar, et la tranche dit que l'heure reste à fixer par l'agent.
+        $window = isset($data['preferred_window']) ? VisitWindow::from($data['preferred_window']) : null;
+
         $visit = $scheduling->createOrFail($property, $user, [
             'property_id' => $property->id,
             'visitor_id' => $user?->id,
             'customer_id' => $customerId,
             'agent_id' => $agentId,
-            'scheduled_at' => $data['scheduled_at'],
+            // TCK-2743 — hors tranche, l'instant que l'heure reçue désigne, et non son heure murale.
+            'scheduled_at' => $window !== null ? $window->startOn($data['date'])->utc() : $request->scheduledAt(),
+            'preferred_window' => $window,
             'type' => $data['type'] ?? VisitType::InPerson->value,
             'duration_minutes' => $data['duration_minutes'] ?? VisitSchedulingService::DEFAULT_DURATION_MINUTES,
             'status' => VisitStatus::Scheduled->value,
@@ -954,6 +1054,10 @@ class PublicPropertyController extends Controller
         );
 
         if ($isSale) {
+            // TCK-2870 (ADR-0110 § 1) — une offre n'écrit que ses conditions : la durée d'une
+            // candidature y est refusée, avant toute écriture (la fiche se résout juste après).
+            BookingConditions::refuseForeignFields(BookingKind::Offer, $data);
+
             // L'offre d'achat n'a aucune garde après ce point : la fiche se résout ici.
             $customer = $customers->findOrCreateFromUser($user, $property);
             $booking = Booking::create([
@@ -961,6 +1065,8 @@ class PublicPropertyController extends Controller
                 'customer_id' => $customer->id,
                 'created_by_id' => $user->id,
                 'agency_id' => $property->agency_id,
+                // TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation, sans aucun droit.
+                'source' => BookingSource::fromVia($data['via'] ?? null)->value,
                 'start_date' => null,
                 'end_date' => null,
                 'total_amount' => (float) $data['offer_amount'],
@@ -971,13 +1077,24 @@ class PublicPropertyController extends Controller
                 // valait le 21 à 00:00. La date choisie reste telle quelle dans `metadata`.
                 'expires_at' => FinInclusive::de($data['offer_expires_at']),
                 'notes' => $data['message'] ?? null,
+                // TCK-2579 (ADR-0102) — la nature et les termes de l'offre ont leurs colonnes ;
+                // `metadata` reste écrit comme avant, et n'est plus lu.
+                'kind' => BookingKind::Offer->value,
+                'offer_expires_at' => $data['offer_expires_at'],
+                'list_price_at_booking' => $property->price,
                 'metadata' => [
                     'kind' => 'offer',
                     'offer_amount' => (float) $data['offer_amount'],
                     'offer_expires_at' => $data['offer_expires_at'],
                     'list_price_at_offer' => (float) $property->price,
                 ],
-            ]);
+            ] + BookingConditions::columnsFor(BookingKind::Offer, $property, (string) $data['offer_amount'], $data));
+            // TCK-537 (AC1) — la case `terms_accepted` de l'offre (« J'ai lu et j'accepte les conditions
+            // générales d'utilisation ») : sa preuve. Une candidature ou un séjour n'a pas de case.
+            app(ConsentLedger::class)->record($user, ConsentLedger::CONTEXT_OFFER, $request->ip(), [ConsentProof::DOCUMENT_TERMS]);
+            // TCK-2893 — le garant déclaré : une fiche neuve sur une offre neuve, rien ne peut le refuser ici
+            // (nature, statut, borne de trois, `guarantor_id` interdit au tunnel).
+            $this->rattacherLeGarantDeclare($booking, $data, $user);
 
             // TCK-596 — l'offre prévient qui doit la traiter : elle ne prévenait personne.
             BookingRequested::dispatch($booking, $user->id);
@@ -1010,13 +1127,19 @@ class PublicPropertyController extends Controller
             // P213.03 (TCK-2199) — la fiche se résout après la garde des nuits, dans la transaction :
             // une demande refusée en 422 ne crée ni ne rattache plus de fiche. Verrous dans l'ordre
             // `properties` puis `users` (`findOrCreateFromUser`), comme `BookingService::create`.
+            $kind = BookingKind::forProperty($locked);
+            // TCK-2870 (ADR-0110 § 1) — séjour ou candidature d'après le bien relu : un champ d'une
+            // autre nature est refusé avant que la fiche ne soit résolue.
+            BookingConditions::refuseForeignFields($kind, $data);
             $customer = $customers->findOrCreateFromUser($user, $property);
 
-            return Booking::create([
+            $booking = Booking::create([
                 'property_id' => $property->id,
                 'customer_id' => $customer->id,
                 'created_by_id' => $user->id,
                 'agency_id' => $property->agency_id,
+                // TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation, sans aucun droit.
+                'source' => BookingSource::fromVia($data['via'] ?? null)->value,
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
                 // TCK-535 — ce calcul-ci donnait `prix × nuits` au seul `daily`, et le prix SEUL à
@@ -1026,8 +1149,20 @@ class PublicPropertyController extends Controller
                 'currency' => $locked->currency,
                 'status' => BookingStatus::Pending->value,
                 'notes' => $data['message'] ?? null,
-                'metadata' => ['guests' => $data['guests']],
-            ]);
+                // TCK-2579 (ADR-0102) — séjour ou candidature, d'après le bien relu sous le verrou ;
+                // une candidature retient le loyer affiché.
+                'kind' => $kind,
+                'list_price_at_booking' => $kind === BookingKind::Application ? $locked->price : null,
+                // TCK-2892 (ADR-0110 § 1) — le nombre de voyageurs a sa colonne (un séjour seul : une
+                // candidature qui l'envoie a été refusée ci-dessus) ; `metadata.guests` reste écrit
+                // et n'est plus lu.
+                'guests' => $kind === BookingKind::Stay ? (int) $data['guests'] : null,
+                'metadata' => isset($data['guests']) ? ['guests' => (int) $data['guests']] : null,
+            ] + BookingConditions::columnsFor($kind, $locked, (string) $amounts['total_amount'], $data));
+            // TCK-2893 — après tous les refus, dans la transaction (un séjour l'a déjà refusé).
+            $this->rattacherLeGarantDeclare($booking, $data, $user);
+
+            return $booking;
         });
 
         // TCK-596 — la demande publique prévient qui doit la traiter : elle ne prévenait personne.
@@ -1036,6 +1171,20 @@ class PublicPropertyController extends Controller
         return $this->json([
             'data' => BookingResource::make($booking)->resolve($request),
         ], 201);
+    }
+
+    /**
+     * TCK-2893 (ADR-0110 § 3) — le garant que le candidat déclare dans le tunnel : une fiche neuve
+     * (`guarantor_id` y est interdit), rattachée par la règle commune (trois au plus, pièces du
+     * garant ajoutées au dossier).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function rattacherLeGarantDeclare(Booking $booking, array $data, User $user): void
+    {
+        if (! empty($data['guarantor'])) {
+            app(BookingGuarantorService::class)->attach($booking, (array) $data['guarantor'], $user);
+        }
     }
 
     /**

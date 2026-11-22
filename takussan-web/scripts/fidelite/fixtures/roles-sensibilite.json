@@ -1,0 +1,4 @@
+{ "roles": [
+  { "nom": "ligne « Bien à valider »", "maquette": { "boiteDe": "Bien à valider", "min": 60 }, "produit": { "boiteDe": "Bien à valider", "min": 60 } },
+  { "nom": "intertitre de jour", "maquette": { "boiteDe": "Cette semaine" }, "produit": { "boiteDe": "Cette semaine" } }
+] }

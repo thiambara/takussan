@@ -38,8 +38,7 @@ export function VirtualTourField({ form }: { readonly form: UseFormReturn<Proper
         control={form.control}
         name="virtual_tour_url"
         label={t('label')}
-        type="url"
-        inputMode="url"
+        profil="url"
         placeholder={t('placeholder')}
         maxLength={2048}
       />
@@ -90,21 +89,24 @@ export function StepFinition({
         city: getValues('city'),
       },
       tType,
+      t,
     );
     if (propose) setValue('title', propose, { shouldDirty: true, shouldValidate: true });
-  }, [getValues, setValue, tType]);
+  }, [getValues, setValue, tType, t]);
 
   return (
     <>
-      <FormInput control={control} name="title" label={t('fields.title')} required maxLength={200} />
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Sparkles className="size-3.5" aria-hidden="true" />
+      <FormInput control={control} name="title" label={t('fields.title')} required profil="phrase" placeholder={t('placeholders.title')} maxLength={200} />
+      {/* TCK-2819 (lot 2) — maquette a-5 : 13 px, étincelle au trait de 1,75. */}
+      <p className="flex items-center gap-1.5 text-ui text-muted-foreground">
+        <Sparkles className="size-3.5 flex-none" strokeWidth={1.75} aria-hidden="true" />
         {t('titleComposedHint')}
       </p>
       <FormTextarea
         control={control}
         name="description"
         label={t('fields.description')}
+        profil="texte-long"
         rows={4}
         placeholder={t('placeholders.description')}
       />

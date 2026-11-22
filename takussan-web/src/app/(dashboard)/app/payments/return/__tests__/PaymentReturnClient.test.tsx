@@ -10,7 +10,9 @@ import { PaymentReturnClient } from '../PaymentReturnClient';
  * seconde fois. Quand l'API dit `refund_pending`, la page dit que l'agence rembourse.
  */
 const etat = vi.hoisted(() => ({
-  data: null as null | { data: { status: string | null; provider_status?: string; refund_pending?: boolean } },
+  data: null as null | {
+    data: { status: string | null; provider_status?: string; refund_pending?: boolean; late_fee_refund_pending?: boolean };
+  },
 }));
 
 vi.mock('next/navigation', () => ({
@@ -18,7 +20,10 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('payment_type=lease-payments&payment_id=12&status=success'),
 }));
 vi.mock('@/hooks/useInitiatePayment', () => ({
-  useVerifyPayment: () => ({ data: etat.data, refetch: vi.fn() }),
+  useVerifyPayment: () => ({ data: etat.data, error: null, refetch: vi.fn() }),
+}));
+vi.mock('@/lib/queries/payments', () => ({
+  useResumeDuLoyer: () => ({ data: { data: { lease: { agency: { id: 1, name: 'Dakar Immo', phone: '+221338212100' } }, offline_payment: null } } }),
 }));
 
 async function rendre() {
@@ -41,25 +46,45 @@ describe('PaymentReturnClient — règlement à rembourser', () => {
     etat.data = { data: { status: 'cancelled', provider_status: 'success', refund_pending: true } };
     await rendre();
 
-    expect(screen.getByText('Paiement reçu, remboursement à venir')).toBeInTheDocument();
-    expect(screen.getByText('Paiement reçu sur une échéance annulée : l’agence vous remboursera.')).toBeInTheDocument();
-    expect(screen.queryByText('Paiement échoué')).toBeNull();
-    expect(screen.queryByText(/Vous pouvez réessayer/)).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Actualiser' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Retour aux paiements' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Cette échéance a été annulée : nous vous remboursons' })).toBeInTheDocument();
+    expect(screen.getByText('Votre paiement est arrivé sur une échéance annulée. L’agence vous le rendra.')).toBeInTheDocument();
+    expect(screen.queryByText('Paiement non abouti')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Contacter l’agence' })).toHaveAttribute('href', 'tel:+221338212100');
+    expect(screen.getByRole('link', { name: 'Retour aux paiements' })).toHaveAttribute('href', '/app/payments');
   });
 
   it('échéance déjà réglée : le paiement en double est remboursé, pas « confirmé »', async () => {
     etat.data = { data: { status: 'paid', provider_status: 'success', refund_pending: true } };
     await rendre();
 
-    expect(screen.getByText('Cette échéance était déjà réglée : l’agence vous remboursera ce paiement.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ce loyer était déjà réglé : nous vous remboursons' })).toBeInTheDocument();
     expect(screen.queryByText('Paiement confirmé')).toBeNull();
   });
 
-  it('sans drapeau, une échéance annulée reste un échec', async () => {
+  it('TCK-608 — sans drapeau, une échéance annulée ne propose jamais de réessayer', async () => {
     etat.data = { data: { status: 'cancelled', provider_status: 'failed', refund_pending: false } };
     await rendre();
-    expect(screen.getByText('Paiement échoué')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Cette échéance a été annulée' })).toBeInTheDocument();
+    expect(screen.getByText('Elle n’est plus due. Si vous avez été débité, l’agence vous remboursera.')).toBeInTheDocument();
+    expect(screen.queryByText('Paiement non abouti')).toBeNull();
+    expect(screen.queryByText('Aucun montant n’a été débité.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Contacter l’agence' })).toHaveAttribute('href', 'tel:+221338212100');
+  });
+
+  it('TCK-608 — la part pénalité encaissée deux fois s’annonce sur un paiement confirmé', async () => {
+    etat.data = { data: { status: 'paid', provider_status: 'success', refund_pending: false, late_fee_refund_pending: true } };
+    await rendre();
+    expect(screen.getByRole('heading', { name: 'Paiement confirmé' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Votre pénalité de retard avait déjà été réglée à l’agence : cette part vous sera remboursée.'),
+    ).toBeInTheDocument();
+  });
+
+  it('TCK-608 — sans part pénalité à rendre, le paiement confirmé n’en dit rien', async () => {
+    etat.data = { data: { status: 'paid', provider_status: 'success', refund_pending: false, late_fee_refund_pending: false } };
+    await rendre();
+    expect(screen.queryByText(/cette part vous sera remboursée/)).toBeNull();
   });
 });

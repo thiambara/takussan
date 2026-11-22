@@ -35,11 +35,14 @@ function withProviders(node: React.ReactNode) {
 
 const mockSuggestData = {
   data: {
-    cities: [
-      { label: 'Dakar', slug: 'dakar', count: 12 },
-      { label: 'Darou', slug: 'darou', count: 3 },
+    // TCK-2475 — les lieux arrivent par `places` (TCK-2474) ; `cities`/`neighborhoods` ne sont plus lus.
+    places: [
+      { kind: 'city', label: 'Dakar', city: null, count: 12, criteria: { city: 'Dakar' } },
+      { kind: 'city', label: 'Darou', city: null, count: 3, criteria: { city: 'Darou' } },
+      { kind: 'neighborhood', label: 'Almadies', city: 'Dakar', count: 5, criteria: { city: 'Dakar', location: 'Almadies' } },
     ],
-    neighborhoods: [{ label: 'Almadies', city: 'Dakar', slug: 'almadies', count: 5 }],
+    cities: [],
+    neighborhoods: [],
     property_types: [],
   },
 };
@@ -156,7 +159,8 @@ describe('SearchAutocomplete', () => {
     const input = screen.getByRole('combobox');
     await userEvent.type(input, 'apprtement');
 
-    const action = await screen.findByRole('button', { name: 'Rechercher « apprtement » dans les annonces' });
+    // TCK-2475 — la ligne est une OPTION de la liste (atteignable aux flèches), plus un bouton.
+    const action = await screen.findByRole('option', { name: 'Rechercher « apprtement » dans les annonces' });
     expect(screen.queryByText(/Aucun résultat/)).not.toBeInTheDocument();
     expect(screen.queryByText('Tous les types')).not.toBeInTheDocument();
 
@@ -176,7 +180,9 @@ describe('SearchAutocomplete', () => {
 
       expect(screen.getByRole('combobox')).toHaveValue('villa piscine');
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-      expect(suggest).toHaveBeenLastCalledWith('villa piscine', { enabled: false });
+      // TCK-2475 — `vide: true` : ouvert sur un champ vide, la barre demande les recherches populaires.
+      // Revue adverse du 2026-11-04 (n° 5) — et la base de la liste, pour que le compte soit celui de la liste ouverte.
+      expect(suggest).toHaveBeenLastCalledWith('villa piscine', expect.objectContaining({ enabled: false, vide: true }));
     });
 
     it('reste modifiable : la saisie remplace `q` et conserve les autres paramètres', async () => {

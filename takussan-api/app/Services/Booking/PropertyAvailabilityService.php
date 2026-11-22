@@ -3,6 +3,7 @@
 namespace App\Services\Booking;
 
 use App\Models\Booking;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Property;
 use App\Models\PropertyUnavailability;
@@ -117,6 +118,10 @@ class PropertyAvailabilityService
             ->where('property_id', $propertyId)
             ->when($ignore !== null, fn ($q) => $q->whereKeyNot($ignore->getKey()))
             ->where('status', BookingStatus::Confirmed)
+            // TCK-2579 (ADR-0102 §3) — seul un SÉJOUR occupe des nuits. Une candidature confirmée
+            // (même datée, comme celles du tunnel public) ou une offre n'en bloque aucune : leur
+            // engagement est le bail ou la vente, pas le calendrier.
+            ->where('kind', BookingKind::Stay->value)
             ->whereNotNull('start_date')
             ->whereNotNull('end_date')
             ->where('start_date', '<', $end->toDateString())

@@ -255,19 +255,25 @@ class PaymentCheckoutReuseTest extends TestCase
             ->assertJsonPath('data.refund_pending', false);
         $this->assertSame(PaymentStatus::Paid, $ctx['payment']->refresh()->status);
 
-        // VERIF-596 passe 8 (m-o) — le rejeu du règlement qui a soldé n'attend aucun remboursement,
-        // même quand un AUTRE règlement de l'échéance est inscrit en doublon (le drapeau porte sur
-        // le règlement vérifié, pas sur l'échéance), ni quand seule SA part « pénalité » l'est.
+        // VERIF-596 passe 8 (m-o) — seule SA part « pénalité » en doublon ne fait pas du règlement
+        // un remboursement : elle s'annonce à part (TCK-608, `late_fee_refund_pending`).
         $meta = $ctx['payment']->refresh()->metadata;
         $meta['gateway_duplicate_payment'] = [
-            ['transaction_id' => 'autre_txn', 'amount' => 150_000, 'at' => now()->toIso8601String()],
             ['transaction_id' => 'spy_txn_1', 'amount' => 7_500, 'at' => now()->toIso8601String(), 'kind' => 'late_fee'],
         ];
         $ctx['payment']->forceFill(['metadata' => $meta])->saveQuietly();
         $this->getJson("/api/lease-payments/{$ctx['payment']->id}/verify")->assertOk()
-            ->assertJsonPath('data.refund_pending', false);
+            ->assertJsonPath('data.refund_pending', false)
+            ->assertJsonPath('data.late_fee_refund_pending', true);
+
+        // TCK-608 (contrainte 5) — le drapeau porte sur l'ÉCHÉANCE, plus sur le règlement vérifié : un
+        // AUTRE règlement inscrit en doublon a débité le locataire, et l'agence le lui rend (N2, N4).
+        $meta['gateway_duplicate_payment'][] = ['transaction_id' => 'autre_txn', 'amount' => 150_000, 'at' => now()->toIso8601String()];
+        $ctx['payment']->forceFill(['metadata' => $meta])->saveQuietly();
+        $this->getJson("/api/lease-payments/{$ctx['payment']->id}/verify")->assertOk()
+            ->assertJsonPath('data.refund_pending', true);
         // Le rejeu n'ajoute aucun doublon : seuls ceux posés à la main restent.
-        $this->assertSame(['autre_txn', 'spy_txn_1'], array_column($ctx['payment']->refresh()->metadata['gateway_duplicate_payment'], 'transaction_id'));
+        $this->assertSame(['spy_txn_1', 'autre_txn'], array_column($ctx['payment']->refresh()->metadata['gateway_duplicate_payment'], 'transaction_id'));
     }
 
     public function test_un_reglement_anterieur_a_settled_by_n_est_pas_son_propre_doublon(): void

@@ -74,6 +74,7 @@ export function ImpersonationStartDialog({
         <div className="space-y-2">
           <Label htmlFor={reasonId}>{t('impersonateReasonLabel')}</Label>
           <Textarea
+            profil="texte-long"
             id={reasonId}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
@@ -88,14 +89,12 @@ export function ImpersonationStartDialog({
             {tConfirm('typePrompt')} <code className="rounded bg-muted px-1 font-mono text-foreground">{phrase}</code>
           </label>
           <Input
+            profil="confirmation"
             id={phraseId}
-            type="text"
+            placeholder={phrase}
             value={typed}
             onChange={(event) => setTyped(event.target.value)}
             data-testid="confirm-action-input"
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
           />
         </div>
         {message ? <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{message}</p> : null}

@@ -19,7 +19,10 @@ import profilsBailleur from './fixtures/r2-profils-bailleur.json';
 
 const profils = vi.hoisted(() => ({ courant: null as unknown }));
 vi.mock('@/hooks/useProfiles', () => ({ useMyProfiles: () => ({ data: profils.courant }) }));
-vi.mock('@/lib/queries/visits', () => ({ usePlanVisit: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
+vi.mock('@/lib/queries/visits', () => ({
+  usePlanVisit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreneauxDeVisite: () => ({ isPending: true, isSuccess: false, isError: false, data: undefined, refetch: vi.fn() }),
+}));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: () => ({ data: { data: [] } }) }));
 

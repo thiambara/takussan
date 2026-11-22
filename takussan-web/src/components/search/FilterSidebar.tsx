@@ -13,9 +13,11 @@ import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { AutourDeMoi } from '@/components/search/AutourDeMoi';
 import { ChoixDeQuartier, ChoixDeVille, ChoixDEquipements } from '@/components/search/ChoixDuReferentiel';
 import { AttenteDePuce } from '@/components/search/AttenteDePuce';
+import { HistogrammeDesPrix } from '@/components/search/HistogrammeDesPrix';
 import { conditionValues, titleTypeValues } from '@/lib/enums/property';
 import { filtersToParams } from '@/hooks/useSearch';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { periodesAProposer, usePeriodesCourtesOffertes } from '@/components/bookings/usePeriodesCourtesOffertes';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -30,7 +32,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   const idTitre = React.useId();
   return (
     <div className="py-4 border-b border-border/70 last:border-0">
-      <h3 id={idTitre} className="mb-2.5 text-[13px] font-semibold text-foreground">{title}</h3>
+      <h3 id={idTitre} className="mb-2.5 text-[0.8125rem] font-semibold text-foreground">{title}</h3>
       <TitreDeSection.Provider value={idTitre}>{children}</TitreDeSection.Provider>
     </div>
   );
@@ -77,7 +79,7 @@ function ChipGroup<T extends string | number>({
               aria-pressed={isActive}
               aria-busy={attente || undefined}
               onClick={() => onChange(isActive ? undefined : opt.value)}
-              className={`relative min-h-9 rounded-lg px-2 text-[13px] font-semibold transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`relative min-h-9 rounded-lg px-2 text-[0.8125rem] font-semibold transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 isActive
                   ? 'bg-card text-primary shadow-sm ring-1 ring-primary/30'
                   : 'text-muted-foreground hover:text-foreground'
@@ -103,7 +105,7 @@ function ChipGroup<T extends string | number>({
             aria-pressed={isActive}
             aria-busy={attente || undefined}
             onClick={() => onChange(isActive ? undefined : opt.value)}
-            className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+            className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[0.8125rem] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
               isActive
                 ? 'bg-primary border-primary text-primary-foreground'
                 : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
@@ -141,6 +143,7 @@ function RangeInputs({
   onChangeMin,
   onChangeMax,
   onCommit,
+  profil = 'montant',
 }: {
   placeholderMin: string;
   placeholderMax: string;
@@ -150,6 +153,8 @@ function RangeInputs({
   onChangeMin: (v: string) => void;
   onChangeMax: (v: string) => void;
   onCommit: () => void;
+  /** ADR-0135 — le prix est un montant (défaut), la surface un entier. */
+  profil?: 'montant' | 'entier';
 }) {
   const idTitre = React.useContext(TitreDeSection);
   const idMin = React.useId();
@@ -177,26 +182,28 @@ function RangeInputs({
           négative rend 422, donc « 0 bien trouvé ». Le défaut existait déjà sur le prix
           (`?price_min=-5` → 422) et l'ajout des bornes de surface le doublait. Le champ
           refuse désormais le signe moins avant qu'il n'atteigne l'URL.
+          ADR-0135 — champs TEXTE au pavé numérique : `min` ne filtre plus la frappe, `chiffresSeuls`
+          le fait (ni signe moins, ni séparateur de milliers : « 150 000 » part en 150000).
         */}
         <Input
-          type="number"
+          profil={profil}
           min={0}
           placeholder={placeholderMin}
           aria-labelledby={nomme(idMin)}
           value={valueMin}
-          onChange={(e) => onChangeMin(e.target.value)}
+          onChange={(e) => onChangeMin(chiffresSeuls(e.target.value))}
           onBlur={onCommit}
           onKeyDown={surTouche}
           className="rounded-xl"
         />
         <span className="shrink-0 text-muted-foreground text-sm">–</span>
         <Input
-          type="number"
+          profil={profil}
           min={0}
           placeholder={placeholderMax}
           aria-labelledby={nomme(idMax)}
           value={valueMax}
-          onChange={(e) => onChangeMax(e.target.value)}
+          onChange={(e) => onChangeMax(chiffresSeuls(e.target.value))}
           onBlur={onCommit}
           onKeyDown={surTouche}
           className="rounded-xl"
@@ -284,6 +291,11 @@ function estActif(valeur: unknown): boolean {
   return valeur !== undefined && valeur !== '';
 }
 
+/** ADR-0135 — la frappe d'une borne réduite à ses chiffres : le signe moins et les espaces ne passent pas. */
+function chiffresSeuls(v: string): string {
+  return v.replace(/\D/g, '');
+}
+
 function nombreVersFiltre(v: string): number | undefined {
   if (v === '') return undefined;
   const n = Number(v);
@@ -332,6 +344,12 @@ export interface FilterSidebarProps {
   total?: number | null;
   /** Passé tel quel à {@link AutourDeMoi} — injectable pour les tests, jamais en production. */
   geolocalisation?: Pick<Geolocation, 'getCurrentPosition'>;
+  /**
+   * TCK-2522 — la fiche d'agence (et d'agent) n'a pas la place d'un rail : sa colonne d'identité
+   * l'occupe. `true` : aucun rail, et la feuille s'ouvre à TOUTES les largeurs (au bureau, centrée,
+   * `md:max-w-2xl`). Mêmes filtres, même composant que la liste. Défaut : `false` — la liste.
+   */
+  sansRail?: boolean;
 }
 
 /**
@@ -361,6 +379,7 @@ export function FilterSidebar({
   onClose,
   total = null,
   geolocalisation,
+  sansRail = false,
 }: FilterSidebarProps) {
   const t = useTranslations('search.filters');
   const fmt = useFormatteurs();
@@ -461,7 +480,6 @@ export function FilterSidebar({
 
   const contractTypes = CONTRACT_TYPE_VALUES.map((v) => ({ label: t(`transaction.${v}`), value: v }));
   const meubleOptions = MEUBLE_VALUES.map((v) => ({ label: t(`furnished.${v}`), value: v }));
-  const rentPeriods = RENT_PERIOD_VALUES.map((v) => ({ label: tPeriods(v), value: v }));
   const floorOptions = FLOOR_KEYS.map((k, i) => ({ label: t(`floors.${k}`), value: i }));
   const titleTypeOptions = titleTypeValues.map((v) => ({ label: tTitleTypes(v), value: v }));
 
@@ -571,7 +589,7 @@ export function FilterSidebar({
         <button
           type="button"
           onClick={onClose}
-          className="lg:hidden size-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
+          className={`${sansRail ? '' : 'lg:hidden '}size-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground`}
           aria-label={t('close')}
         >
           <X className="w-4 h-4" />
@@ -597,7 +615,16 @@ export function FilterSidebar({
   // panneau est VISIBLE : le tiroir n'est monté qu'ouvert ; le rail, lui, reste monté sous `lg`
   // (`hidden lg:block`) et demandait les trois listes à l'hydratation, panneau fermé (`geo/cities`
   // pèse 55 Kio). Même seuil que sa classe. Faux au rendu serveur, comme avant : rien n'y partait.
-  const railVisible = useMatchesMedia('(min-width: 1024px)');
+  const railVisible = useMatchesMedia('(min-width: 1024px)') && !sansRail;
+
+  // TCK-2510 — « Journalier » et « Hebdo » seulement s'ils ont des biens à montrer (ou s'ils sont
+  // choisis). La sonde attend, comme le référentiel, que le panneau se voie : rail dès `lg`, tiroir
+  // monté seulement ouvert — c'est le `charger` de `rendreCorps`, lu ici une fois pour les deux.
+  const periodesCourtes = usePeriodesCourtesOffertes(filters.contract_type === 'rent' && (railVisible || open));
+  const rentPeriods = periodesAProposer(RENT_PERIOD_VALUES, periodesCourtes, filters.rent_period).map((v) => ({
+    label: tPeriods(v),
+    value: v,
+  }));
 
   const rendreCorps = (rappel?: React.ReactNode, lieu: 'rail' | 'tiroir' = 'rail') => {
     const charger = lieu === 'tiroir' || railVisible;
@@ -619,57 +646,36 @@ export function FilterSidebar({
           />
         </Section>
 
-        {/* 2. Property type — multi-select */}
-        {/* TCK-635 — des tuiles à pictogramme, sur deux colonnes : seize puces de largeurs
-            inégales passaient sur sept lignes en escalier. Le pictogramme est celui de la bande de
-            catégories (`iconeDuType`) : un type ne porte qu'un dessin sur tout le site. */}
-        <Section title={t(`sections.propertyType`)}>
-          <div className="grid grid-cols-2 gap-1.5">
-            {PROPERTY_TYPE_VALUES.map(opt => {
-              const Icone = iconeDuType(opt);
-              const selected = filters.type ?? [];
-              const isActive = selected.includes(opt);
-              const attente = enAttente(isActive, (confirmes.type ?? []).includes(opt));
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  aria-pressed={isActive}
-                  aria-busy={attente || undefined}
-                  onClick={() => {
-                    const next = isActive
-                      ? selected.filter((value) => value !== opt)
-                      : [...selected, opt];
-                    set({ type: next.length > 0 ? next : undefined });
-                  }}
-                  className={`relative flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-[13px] font-medium transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                    isActive
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground'
-                  }`}
-                >
-                  <Icone className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
-                  <span className="truncate">{tTypes(opt)}</span>
-                  {attente ? <AttenteDePuce /> : null}
-                </button>
-              );
-            })}
-          </div>
+        {/*
+          TCK-2499 — L'ORDRE DE L'USAGE : la transaction, le budget (avec la répartition des prix),
+          le lieu, les chambres, puis le type de bien et le reste. Le budget et les chambres — les
+          deux filtres que tout locataire pose — sont visibles à l'ouverture du tiroir sans défiler
+          (AC2) ; ils étaient sous seize tuiles de type. Aucun filtre ne disparaît : seul l'ordre
+          change. La fréquence de loyer et « Autour de moi » suivent les chambres pour leur laisser
+          la place — « Autour de moi » toujours après la ville à laquelle son message de refus
+          renvoie.
+        */}
+        {/* 2. Budget — TCK-2499 : la répartition des prix au-dessus des bornes */}
+        <Section title={t(`sections.budget`)}>
+          <HistogrammeDesPrix
+            filters={filters}
+            min={nombreVersFiltre(priceMinDraft)}
+            max={nombreVersFiltre(priceMaxDraft)}
+            charger={charger}
+          />
+          <RangeInputs
+            placeholderMin={t('min')}
+            placeholderMax={t('max')}
+            valueMin={priceMinDraft}
+            valueMax={priceMaxDraft}
+            hint={priceHint || undefined}
+            onChangeMin={setPriceMinDraft}
+            onChangeMax={setPriceMaxDraft}
+            onCommit={commitImmediat}
+          />
         </Section>
 
-        {/* 3. Rent period — conditional */}
-        {filters.contract_type === 'rent' && (
-          <Section title={t(`sections.rentPeriod`)}>
-            <ChipGroup
-              options={rentPeriods}
-              value={filters.rent_period}
-              valeurConfirmee={confirmes.rent_period}
-              onChange={(v) => set({ rent_period: v as SearchFilters['rent_period'] })}
-            />
-          </Section>
-        )}
-
-        {/* 4. Lieu — TCK-633 : ville et quartier se CHOISISSENT dans le référentiel (ADR-0062) ;
+        {/* 3. Lieu — TCK-633 : ville et quartier se CHOISISSENT dans le référentiel (ADR-0062) ;
             la recherche filtre par le NOM canonique. Changer de ville retire un quartier qui
             appartenait à l'autre. */}
         <Section title={t(`sections.location`)}>
@@ -696,12 +702,37 @@ export function FilterSidebar({
           </div>
         </Section>
 
-        {/*
-          4 bis. Autour de moi — TCK-346.
+        {/* 4. Chambres */}
+        <Section title={t(`sections.bedrooms`)}>
+          <ChipGroup
+            options={BEDROOM_OPTIONS}
+            value={filters.bedrooms}
+            valeurConfirmee={confirmes.bedrooms}
+            onChange={(v) => set({ bedrooms: v as number })}
+            forme="segments"
+          />
+        </Section>
 
-          Placée JUSTE APRÈS « Localisation », et pas ailleurs : c'est la même intention
-          (« où »), et le message de refus de la géolocalisation renvoie explicitement au champ
-          « Ville » qui la précède. Les mettre à distance rendrait ce renvoi incompréhensible.
+        {/* 5. Fréquence de loyer — location seule. TCK-2499 : APRÈS les chambres ; posée entre le
+            budget et le lieu, elle repoussait les chambres sous le pied du tiroir à 390 × 844 (mesuré). */}
+        {filters.contract_type === 'rent' && (
+          <Section title={t(`sections.rentPeriod`)}>
+            <ChipGroup
+              options={rentPeriods}
+              value={filters.rent_period}
+              valeurConfirmee={confirmes.rent_period}
+              onChange={(v) => set({ rent_period: v as SearchFilters['rent_period'] })}
+            />
+          </Section>
+        )}
+
+        {/*
+          6. Autour de moi — TCK-346.
+
+          Toujours APRÈS « Localisation » : c'est la même intention (« où »), et le message de
+          refus de la géolocalisation renvoie explicitement au champ « Ville » qui la précède.
+          TCK-2499 — les chambres s'intercalent désormais entre les deux : elles doivent être
+          visibles à l'ouverture du tiroir (AC2), et la section suivante reste à un geste.
         */}
         <Section title={t(`sections.aroundMe`)}>
           <AutourDeMoi
@@ -713,29 +744,42 @@ export function FilterSidebar({
           />
         </Section>
 
-        {/* 5. Budget */}
-        <Section title={t(`sections.budget`)}>
-          <RangeInputs
-            placeholderMin={t('min')}
-            placeholderMax={t('max')}
-            valueMin={priceMinDraft}
-            valueMax={priceMaxDraft}
-            hint={priceHint || undefined}
-            onChangeMin={setPriceMinDraft}
-            onChangeMax={setPriceMaxDraft}
-            onCommit={commitImmediat}
-          />
-        </Section>
-
-        {/* 6. Chambres */}
-        <Section title={t(`sections.bedrooms`)}>
-          <ChipGroup
-            options={BEDROOM_OPTIONS}
-            value={filters.bedrooms}
-            valeurConfirmee={confirmes.bedrooms}
-            onChange={(v) => set({ bedrooms: v as number })}
-            forme="segments"
-          />
+        {/* 7. Property type — multi-select */}
+        {/* TCK-635 — des tuiles à pictogramme, sur deux colonnes : seize puces de largeurs
+            inégales passaient sur sept lignes en escalier. Le pictogramme est celui de la bande de
+            catégories (`iconeDuType`) : un type ne porte qu'un dessin sur tout le site. */}
+        <Section title={t(`sections.propertyType`)}>
+          <div className="grid grid-cols-2 gap-1.5">
+            {PROPERTY_TYPE_VALUES.map(opt => {
+              const Icone = iconeDuType(opt);
+              const selected = filters.type ?? [];
+              const isActive = selected.includes(opt);
+              const attente = enAttente(isActive, (confirmes.type ?? []).includes(opt));
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  aria-pressed={isActive}
+                  aria-busy={attente || undefined}
+                  onClick={() => {
+                    const next = isActive
+                      ? selected.filter((value) => value !== opt)
+                      : [...selected, opt];
+                    set({ type: next.length > 0 ? next : undefined });
+                  }}
+                  className={`relative flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-[0.8125rem] font-medium transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                    isActive
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                  }`}
+                >
+                  <Icone className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+                  <span className="truncate">{tTypes(opt)}</span>
+                  {attente ? <AttenteDePuce /> : null}
+                </button>
+              );
+            })}
+          </div>
         </Section>
 
         {/*
@@ -777,6 +821,7 @@ export function FilterSidebar({
           {/* 8. Surface */}
           <Section title={t(`sections.area`)}>
             <RangeInputs
+              profil="entier"
               placeholderMin={t('minArea')}
               placeholderMax={t('maxArea')}
               valueMin={areaMinDraft}
@@ -809,7 +854,7 @@ export function FilterSidebar({
                           : [...selected, opt];
                         set({ condition: next.length > 0 ? next : undefined });
                       }}
-                      className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                      className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[0.8125rem] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                         isActive
                           ? 'bg-primary border-primary text-primary-foreground'
                           : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
@@ -928,16 +973,19 @@ export function FilterSidebar({
           Entre 768 et 1023, c'est le tiroir, comme sur mobile. */}
       {/* TCK-635 — le rail défile avec la page (retour du porteur du 2026-10-12) : il était
           `sticky top-[145px]`, et restait collé pendant que les résultats défilaient. */}
-      <aside data-rail-filtres className="hidden lg:block w-[280px] shrink-0 self-start rounded-2xl border border-border bg-card">
-        <div className="flex flex-col">
-          {entete}
-          {rendreCorps()}
-        </div>
-      </aside>
+      {sansRail ? null : (
+        <aside data-rail-filtres className="hidden lg:block w-[280px] shrink-0 self-start rounded-2xl border border-border bg-card">
+          <div className="flex flex-col">
+            {entete}
+            {rendreCorps()}
+          </div>
+        </aside>
+      )}
 
       {/* Mobile drawer */}
       {open && (
         <TiroirMobile
+          aToutesLargeurs={sansRail}
           label={t('title')}
           onClose={onClose}
           onOuverture={surOuvertureDuTiroir}
@@ -1016,6 +1064,7 @@ const FOCALISABLES =
  */
 function TiroirMobile({
   label,
+  aToutesLargeurs = false,
   onClose,
   onOuverture,
   onRetour,
@@ -1025,6 +1074,8 @@ function TiroirMobile({
   children,
 }: {
   readonly label: string;
+  /** TCK-2522 — la feuille s'ouvre aussi dès `lg` (fiche sans rail). */
+  readonly aToutesLargeurs?: boolean;
   readonly onClose: () => void;
   /** Appelé une fois l'entrée sentinelle posée. */
   readonly onOuverture: () => void;
@@ -1119,7 +1170,7 @@ function TiroirMobile({
   }, [onClose]);
 
   return (
-    <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+    <div className={`${aToutesLargeurs ? '' : 'lg:hidden '}fixed inset-0 z-50 flex flex-col justify-end`}>
       <div className="absolute inset-0 bg-scrim/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
         ref={panneau}
@@ -1133,7 +1184,7 @@ function TiroirMobile({
         <div data-defilement="tiroir" className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {children}
         </div>
-        <div className="px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border bg-popover shrink-0">
+        <div className="px-5 pt-4 pb-[max(var(--spacing)*4,env(safe-area-inset-bottom))] border-t border-border bg-popover shrink-0">
           {pied}
         </div>
       </div>

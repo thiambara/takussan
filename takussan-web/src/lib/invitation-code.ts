@@ -1,0 +1,85 @@
+import { apiRequest } from './api';
+import { cheminApi } from './chemin-api';
+import { codeApercu } from './otp-preview';
+import type { AuthResponse } from './auth';
+import type { Locale } from '@/i18n/config';
+import type { ConditionsAAccepter } from './connexion-telephone';
+
+/**
+ * TCK-2611 (ADR-0094 § 4-5) — accepter une invitation par code SMS, et demander un nouveau lien,
+ * depuis le navigateur. Les deux routes du code (TCK-2610) suivent le drapeau `phone_login` : 404
+ * drapeau éteint.
+ *
+ * ⚠ `phone` part pour une invitation par e-mail, et — TCK-2941 (ADR-0094, amendement du 2026-11-15 § 4) — pour
+ * une invitation par SMS dont l'invité a CORRIGÉ le numéro (« Modifier ») : le code part alors à ce numéro, et
+ * `…/verify` doit porter le même. Sans correction, aucun `phone` : le code part au numéro de l'invitation. Une
+ * invitation partagée (`code_only`) refuse la correction (422) : l'écran ne l'offre pas.
+ */
+export interface DemandeDeCode {
+  readonly attente: number;
+  /** TCK-620 (ADR-0060) — le code, quand l'API le rend (hors production seulement). */
+  readonly codeApercu: string | null;
+  /**
+   * TCK-2948 (ADR-0126) — `voice_available` de la réponse : l'écran ne propose « le recevoir par appel »
+   * que s'il est VRAI. Absent ou d'une autre forme : faux (la voie n'existe pas tant que l'API ne la dit pas).
+   */
+  readonly voixDisponible: boolean;
+}
+
+/** TCK-2948 — la voie du code : SMS (défaut, corps inchangé) ou appel qui dicte le même code (TCK-2940). */
+export type CanalDuCode = 'sms' | 'voice';
+
+/** `POST /api/public/invitations/{token}/code`. */
+export async function demanderCodeDInvitation(
+  jeton: string,
+  telephone: string | null,
+  locale?: Locale,
+  canal: CanalDuCode = 'sms',
+): Promise<DemandeDeCode> {
+  const res = await apiRequest<{ data?: { retry_after?: unknown; voice_available?: unknown } }>(cheminApi`/api/public/invitations/${jeton}/code`, {
+    method: 'POST',
+    body: { ...(telephone ? { phone: telephone } : {}), ...(canal === 'voice' ? { channel: 'voice' } : {}) },
+    locale,
+  });
+  const attente = res?.data?.retry_after;
+  return {
+    attente: typeof attente === 'number' && Number.isFinite(attente) && attente > 0 ? Math.ceil(attente) : 60,
+    codeApercu: codeApercu(res),
+    voixDisponible: res?.data?.voice_available === true,
+  };
+}
+
+export interface VerificationDInvitation {
+  readonly code: string;
+  readonly phone?: string;
+  readonly first_name?: string;
+  readonly last_name?: string;
+  readonly two_factor_code?: string;
+  readonly recovery_code?: string;
+  readonly terms_version?: string;
+}
+
+/** Ce que l'acceptation rend d'utile : le rôle et le profil activé, pour l'assistant du rôle. */
+export interface InvitationAccepteeParCode {
+  readonly role: string;
+  readonly invitable_id: number | null;
+}
+
+export type ReponseDeVerification =
+  | { readonly requires_2fa: true }
+  | ConditionsAAccepter
+  | (AuthResponse & { readonly is_new_account?: boolean; readonly invitation: InvitationAccepteeParCode });
+
+/** `POST /api/public/invitations/{token}/verify` : la session ouverte ET l'invitation acceptée. Corps nu. */
+export async function verifierCodeDInvitation(jeton: string, payload: VerificationDInvitation, locale?: Locale): Promise<ReponseDeVerification> {
+  return apiRequest<ReponseDeVerification>(cheminApi`/api/public/invitations/${jeton}/verify`, {
+    method: 'POST',
+    body: payload,
+    locale,
+  });
+}
+
+/** `POST /api/public/invitations/{token}/renewal-request` : 202, que l'invitant soit prévenu ou non. */
+export async function demanderNouvelleInvitation(jeton: string, locale?: Locale): Promise<void> {
+  await apiRequest(cheminApi`/api/public/invitations/${jeton}/renewal-request`, { method: 'POST', locale });
+}

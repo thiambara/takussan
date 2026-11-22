@@ -67,6 +67,7 @@ class RienPourUnCompteNonJoignableTest extends TestCase
         Notifications\LeaseRenewedNotification::class,
         Notifications\LeaseRentReviewedNotification::class,
         Notifications\LeaseSignatureCodeNotification::class,
+        Notifications\OwnerWeeklyDigestNotification::class, // TCK-2985
         Notifications\PropertyApprovedNotification::class,
         Notifications\PropertyProposedNotification::class,
         Notifications\PropertyRejectedNotification::class,

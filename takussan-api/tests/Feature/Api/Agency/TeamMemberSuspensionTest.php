@@ -409,8 +409,11 @@ class TeamMemberSuspensionTest extends ApiTestCase
     /**
      * TCK-1144 (P82.03) — lister les liens d'un document (et donc lire leurs jetons) et en révoquer
      * un passent par la règle `share`, comme leur création : le bailleur bloqué dans A, téléverseur
-     * d'un document de son bail, reçoit 403 sur les deux, et le lien reste actif. Dans B, où il est
-     * actif, il liste et révoque ; le personnel de A aussi.
+     * d'un document de son bail, ne lit pas le jeton d'un lien de l'agence et ne le révoque pas (403),
+     * et le lien reste actif. Dans B, où il est actif, il liste et révoque ; le personnel de A aussi.
+     *
+     * TCK-2729 5a (décision du porteur du 2026-11-13) — la liste lui répond désormais 200 avec SES
+     * seuls liens (ici aucun) : il voit et révoque ceux qu'il a créés (`LiensDuBailleurBloqueTest`).
      */
     public function test_un_bailleur_bloque_ne_liste_ni_ne_revoque_les_liens_de_partage(): void
     {
@@ -422,7 +425,7 @@ class TeamMemberSuspensionTest extends ApiTestCase
         $lienA = $service->create($documentA, $this->adminA);
         $lienB = $service->create($documentB, $bailleur);
 
-        $this->getJson("/api/documents/{$documentA->id}/share-links")->assertForbidden();
+        $this->getJson("/api/documents/{$documentA->id}/share-links")->assertOk()->assertJsonCount(0, 'data');
         $this->deleteJson("/api/documents/{$documentA->id}/share/{$lienA->id}")->assertForbidden();
         $this->assertNull($lienA->fresh()->revoked_at);
 

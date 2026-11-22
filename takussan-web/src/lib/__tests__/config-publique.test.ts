@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ORIGINE_PRODUCTION,
   configPubliqueDuNavigateur,
+  configTempsReel,
   origineApi,
   origineMedia,
   origineSite,
@@ -112,18 +113,61 @@ describe('le script du layout racine', () => {
   it('transmet au navigateur l’API et les médias lus par le serveur', () => {
     vi.stubEnv('API_URL', 'https://preview.api.takussan.com');
     vi.stubEnv('MEDIA_URL', 'https://media-preview.takussan.com');
+    // TCK-2954 — sans temps réel, les deux clés partent vides : le navigateur tourne en mode dégradé.
+    vi.stubEnv('TEMPS_REEL_URL', '');
+    vi.stubEnv('TEMPS_REEL_CLE', '');
     expect(configPubliqueDuNavigateur()).toEqual({
       apiUrl: 'https://preview.api.takussan.com',
       mediaUrl: 'https://media-preview.takussan.com',
+      tempsReelUrl: '',
+      tempsReelCle: '',
     });
     expect(executer(scriptDeConfigPublique())).toEqual(configPubliqueDuNavigateur());
   });
 
   it('ne laisse jamais une valeur fermer la balise <script>', () => {
-    const config = { apiUrl: 'https://x.test/</script><script>alert(1)</script>', mediaUrl: '\u2028' };
+    const config = {
+      apiUrl: 'https://x.test/</script><script>alert(1)</script>',
+      mediaUrl: '\u2028',
+      tempsReelUrl: '',
+      tempsReelCle: '',
+    };
     const script = scriptDeConfigPublique(config);
     expect(script).not.toContain('<');
     expect(script).not.toContain('\u2028');
     expect(executer(script)).toEqual(config);
+  });
+});
+
+/** TCK-2954 (ADR-0129 § 5) — les deux clés du temps réel : publiques, facultatives, jamais `NEXT_PUBLIC_*`. */
+describe('la configuration du temps réel', () => {
+  it('transmet au navigateur l’origine WebSocket et la clé publique lues par le serveur', () => {
+    vi.stubEnv('TEMPS_REEL_URL', 'wss://temps-reel.exemple.test');
+    vi.stubEnv('TEMPS_REEL_CLE', 'cle-publique');
+    expect(configPubliqueDuNavigateur()).toMatchObject({
+      tempsReelUrl: 'wss://temps-reel.exemple.test',
+      tempsReelCle: 'cle-publique',
+    });
+    expect(configTempsReel()).toEqual({ url: 'wss://temps-reel.exemple.test', cle: 'cle-publique' });
+  });
+
+  it('côté navigateur, lit la configuration écrite par le layout — jamais une NEXT_PUBLIC_*', () => {
+    vi.stubEnv('NEXT_PUBLIC_TEMPS_REEL_URL', 'ws://ignore.test:1');
+    vi.stubGlobal('window', {
+      __TAKUSSAN_CONFIG__: { apiUrl: '', mediaUrl: '', tempsReelUrl: 'ws://127.0.0.1:8081/', tempsReelCle: 'cle' },
+    });
+    expect(configTempsReel()).toEqual({ url: 'ws://127.0.0.1:8081', cle: 'cle' });
+  });
+
+  it.each([
+    ['URL absente', '', 'cle'],
+    ['clé absente', 'ws://127.0.0.1:8081', ''],
+    ['schéma http', 'http://127.0.0.1:8081', 'cle'],
+    ['chemin', 'wss://temps-reel.exemple.test/app', 'cle'],
+    ['pas une URL', 'temps-reel.exemple.test', 'cle'],
+  ])('%s : mode dégradé, sans erreur', (_cas, url, cle) => {
+    vi.stubEnv('TEMPS_REEL_URL', url);
+    vi.stubEnv('TEMPS_REEL_CLE', cle);
+    expect(configTempsReel()).toBeUndefined();
   });
 });

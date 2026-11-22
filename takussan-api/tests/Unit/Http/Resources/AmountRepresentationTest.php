@@ -20,6 +20,7 @@ use App\Models\MaintenanceRequest;
 use App\Models\Payout;
 use App\Models\PlatformPayout;
 use App\Models\Property;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -174,8 +175,13 @@ class AmountRepresentationTest extends TestCase
         $this->assertSame(250000.0, $sortie['monthly_rent']);
         $this->assertNull($sortie['deposit_amount']);
 
-        $demande = MaintenanceRequest::factory()->create(['estimated_cost' => 45000, 'actual_cost' => null]);
-        $sortie = (new MaintenanceRequestResource($demande))->toArray(Request::create('/', 'GET'));
+        // TCK-2652 — les coûts ne sont servis qu'au donneur d'ordre et au prestataire assigné : la
+        // ressource est rendue pour ce dernier (sans appelant, les clés sont absentes).
+        $prestataire = User::factory()->create();
+        $demande = MaintenanceRequest::factory()->create(['estimated_cost' => 45000, 'actual_cost' => null, 'assigned_to' => $prestataire->id]);
+        $requete = Request::create('/', 'GET');
+        $requete->setUserResolver(fn () => $prestataire);
+        $sortie = (new MaintenanceRequestResource($demande))->toArray($requete);
 
         $this->assertSame(45000.0, $sortie['estimated_cost']);
         $this->assertNull($sortie['actual_cost']);

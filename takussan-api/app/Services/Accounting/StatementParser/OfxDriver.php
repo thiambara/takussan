@@ -78,6 +78,7 @@ class OfxDriver implements StatementParserInterface
 
         foreach ($transactions as [$block, $defaultCurrency]) {
             $lineNumber++;
+            $cause = null;
 
             try {
                 // P157.01 (TCK-1917) — un `CURDEF` hors de `Currency` (`ABC`) donnait des lignes
@@ -97,10 +98,12 @@ class OfxDriver implements StatementParserInterface
                     'exception' => $e::class,
                 ]);
                 $parsed = null;
+                $cause = $e;
             }
 
+            // TCK-2932 — avec son rang et sa raison, lus par l'aperçu d'un relevé.
             if ($parsed === null) {
-                $context->tally->skip();
+                $context->tally->skip($lineNumber, $cause);
 
                 continue;
             }

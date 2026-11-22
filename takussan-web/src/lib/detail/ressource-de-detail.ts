@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation';
 import { ApiError, apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { cheminApi } from '@/lib/chemin-api';
-import { fetchDashboardCustomer } from '@/lib/queries/customers';
+import { fetchFicheDuClient } from '@/lib/queries/customers';
+import { lireBailleurDuRendu } from '@/lib/owners/fiche-du-rendu';
 import { fetchDashboardProperty } from '@/lib/queries/properties-server';
 
 /**
@@ -84,6 +85,8 @@ export const RESSOURCES_DE_DETAIL = {
   inventories: { api: 'inventories' },
   leases: { api: 'leases' },
   maintenance: { api: 'maintenance-requests' },
+  // TCK-2641 — la fiche d'un bailleur, lue au serveur par sa page (`LECTURES_DE_PAGE`).
+  owners: { api: 'owners' },
   properties: { api: 'properties' },
   visits: { api: 'property-visits' },
 } as const satisfies Record<string, { readonly api: string }>;
@@ -116,12 +119,14 @@ export function idDeDetail(brut: string): number | null {
 export const lireBienDuRendu = cache((token: string, id: number) => fetchDashboardProperty(token, id));
 
 /** TCK-1384 (P138.04) — de même pour la fiche d'un client (`customers/[id]`). */
-export const lireClientDuRendu = cache((token: string, id: number) => fetchDashboardCustomer(token, id));
+// TCK-2589 — la lecture de la fiche, qui demande aussi ses attributs calculés et ses comptes.
+export const lireClientDuRendu = cache((token: string, id: number) => fetchFicheDuClient(token, id));
 
 /** Les segments dont la page lit la fiche au serveur : la sonde passe par sa lecture. */
 const LECTURES_DE_PAGE: Partial<Record<SegmentDeDetail, (token: string, id: number) => Promise<unknown>>> = {
   properties: lireBienDuRendu,
   customers: lireClientDuRendu,
+  owners: (token: string, id: number) => lireBailleurDuRendu(token, id),
 };
 
 /**

@@ -84,15 +84,24 @@ describe('fetchDashboardProperties — spatie conventions', () => {
     expect(url).toContain('filter%5Bcreated_to%5D=2026-05-31');
     expect(url).toContain('include=address%2Cowner%2Ccollaborators');
   });
+
+  it('TCK-2908 — « Tous les bailleurs » envoie `filter[owner_profile_id]`, et `stats30d` part avec les inclusions', async () => {
+    const fetchSpy = mockFetch({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } });
+    await fetchDashboardProperties('tok', { filters: { owner_profile_id: '12' }, inclusions: ['online', 'stats30d'] });
+    const url = String(fetchSpy.mock.calls[0][0]);
+    expect(url).toContain('filter%5Bowner_profile_id%5D=12');
+    expect(url).toContain('include=address%2Cowner%2Ccollaborators%2Conline%2Cstats30d');
+  });
 });
 
 describe('fetchDashboardProperty', () => {
-  it('lit le `show` sans `fields` (P60.03) et déballe { data }', async () => {
+  it('lit le `show` sans `fields` (P60.03), avec l\'occupation, « En ligne » (TCK-2639) les motifs hors ligne (TCK-2678) et les interventions (TCK-2908), et déballe { data }', async () => {
     const fetchSpy = mockFetch({ data: { id: 5, title: 'Villa' } });
     const result = await fetchDashboardProperty('tok', 5);
     expect(result).toEqual({ id: 5, title: 'Villa' });
     const url = String(fetchSpy.mock.calls[0][0]);
-    expect(url).toMatch(/\/api\/properties\/5$/);
+    expect(url).toMatch(/\/api\/properties\/5\?include=occupancy%2Conline%2CofflineReasons%2CmaintenanceSummary$/);
+    expect(url).not.toContain('fields');
   });
 });
 

@@ -12,6 +12,10 @@ use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Policies\DocumentPolicy;
+use App\Policies\PropertyVisitPolicy;
+use App\Services\Payments\TenantRentSummary;
+use App\Services\Visit\VisitSchedulingService;
 
 /**
  * Tenant-facing dashboard — upcoming payments, active lease, documents.
@@ -96,16 +100,20 @@ class DashboardTenantService
                 ->whereIn('customer_id', $customerIds)
                 ->whereIn('status', [VisitStatus::Scheduled->value, VisitStatus::Confirmed->value])
                 ->where('scheduled_at', '>=', now())
-                ->with('property:id,title')
+                // TCK-2851 — la photo, le lieu et l'agent de chaque visite, chargés en groupe ; l'agence du
+                // bien (`agency_id` sélectionné) rend `requiresWatermark()` sans requête par bien.
+                ->with([
+                    'property:id,title,agency_id',
+                    'property.agency',
+                    'property.media',
+                    'property.address',
+                    'agent:id,first_name,last_name',
+                    'customer:id,user_id',
+                ])
                 ->orderBy('scheduled_at')
                 ->limit(self::UPCOMING_VISITS)
-                ->get(['id', 'property_id', 'scheduled_at', 'status'])
-                ->map(fn (PropertyVisit $v): array => [
-                    'id' => $v->id,
-                    'scheduled_at' => $v->scheduled_at?->toIso8601String(),
-                    'status' => $v->status?->value,
-                    'property' => $v->property ? ['id' => $v->property->id, 'title' => $v->property->title] : null,
-                ])
+                ->get(['id', 'property_id', 'customer_id', 'visitor_id', 'agent_id', 'scheduled_at', 'status'])
+                ->map(fn (PropertyVisit $v): array => $this->visitRow($v, $user))
                 ->all();
         }
 
@@ -114,7 +122,9 @@ class DashboardTenantService
             ->open()
             ->count();
 
-        $recentDocs = Document::query()
+        // TCK-2759 (ADR-0099, amendement du 2026-11-12) — un document interne de sa fiche n'entre pas
+        // dans les récents du sujet : la forme SQL de `DocumentPolicy::readsInternalOf()`.
+        $recentDocs = DocumentPolicy::restreindreAuxLecteursDInternes(Document::query(), $user)
             ->where(function ($q) use ($user, $customerIds) {
                 $q->where('uploaded_by', $user->id);
                 if ($customerIds !== []) {
@@ -147,6 +157,40 @@ class DashboardTenantService
             'visits' => ['upcoming' => $visits],
             'maintenance' => ['open' => $openMaintenance],
             'documents' => ['recent' => $recentDocs],
+        ];
+    }
+
+    /**
+     * TCK-2851 — une visite à venir de l'accueil du client : la photo et le lieu (quartier, ville) du
+     * bien ; ses coordonnées seulement une fois la visite CONFIRMÉE (la règle de l'adresse de
+     * `PropertyVisitResource::adresseLisible`, clé absente sinon) ; le nom de l'agent attribué, sans
+     * contact ; `can_reschedule`, la Policy du report ({@see PropertyVisitPolicy::reschedule()})
+     * sur une visite encore active ({@see VisitSchedulingService::ACTIVE_STATUSES}).
+     *
+     * @return array<string, mixed>
+     */
+    private function visitRow(PropertyVisit $v, User $user): array
+    {
+        $property = $v->property;
+        $confirmed = $v->status === VisitStatus::Confirmed;
+        $address = $property?->address;
+
+        return [
+            'id' => $v->id,
+            'scheduled_at' => $v->scheduled_at?->toIso8601String(),
+            'status' => $v->status?->value,
+            'property' => $property ? [
+                'id' => $property->id,
+                'title' => $property->title,
+                'cover_url' => TenantRentSummary::coverUrl($property),
+                'address_line' => TenantRentSummary::addressLine($property),
+                ...($confirmed ? ['coordinates' => $address !== null && $address->latitude !== null && $address->longitude !== null
+                    ? ['lat' => (float) $address->latitude, 'lng' => (float) $address->longitude]
+                    : null] : []),
+            ] : null,
+            'agent' => $v->agent ? ['name' => $v->agent->full_name] : null,
+            'can_reschedule' => in_array($v->status, VisitSchedulingService::ACTIVE_STATUSES, true)
+                && $user->can('reschedule', $v),
         ];
     }
 }

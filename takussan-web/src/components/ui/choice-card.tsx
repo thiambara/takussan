@@ -56,12 +56,15 @@ export function ChoiceCard({
       <label
         className={cn(
           'group relative flex cursor-pointer items-start gap-3 rounded-xl border p-4',
+          // TCK-2688 — la carte de la maquette sous la portée `/app` (aucun appelant n'y est encore :
+          // les deux de l'onboarding restent hors portée, inchangés).
+          'portee-app:min-h-16 portee-app:items-center portee-app:px-3.5 portee-app:py-3',
           'transition-[background-color,border-color] duration-150 ease-out',
           // L'état retenu se dit par la bordure ET un aplat de sa propre encre :
           // pas d'ombre portée en plus (bordure + ombre large sur le même
           // élément est la carte-fantôme que les directives refusent).
           checked
-            ? 'border-primary bg-primary/[0.06]'
+            ? 'border-primary bg-primary/[0.06] portee-app:bg-card portee-app:ring-3 portee-app:ring-primary/12'
             : 'border-border bg-card hover:border-primary/40 hover:bg-muted/40',
           disabled && 'cursor-not-allowed opacity-50',
           // Le focus se peint sur la CARTE, l'input étant hors flux visuel.
@@ -82,21 +85,24 @@ export function ChoiceCard({
           aria-hidden
           className={cn(
             'mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border-2',
+            'portee-app:mt-0 portee-app:size-5 portee-app:border',
             'transition-colors duration-150 ease-out',
-            checked ? 'border-primary' : 'border-muted-foreground/40 group-hover:border-primary/50',
+            checked
+              ? 'border-primary'
+              : 'border-muted-foreground/40 portee-app:border-controle-vide group-hover:border-primary/50',
           )}
         >
           <span
             className={cn(
-              'size-2 rounded-full bg-primary',
+              'size-2 rounded-full bg-primary portee-app:size-2.5',
               'transition-transform duration-150 ease-out',
               checked ? 'scale-100' : 'scale-0',
             )}
           />
         </span>
 
-        <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="flex items-center gap-2 font-medium text-foreground">
+        <span className="flex min-w-0 flex-1 flex-col gap-1 portee-app:gap-0 portee-app:leading-snug">
+          <span className="flex items-center gap-2 font-medium text-foreground portee-app:text-corps portee-app:font-semibold">
             {icon ? (
               <span className={cn('shrink-0', checked ? 'text-primary' : 'text-muted-foreground')}>
                 {icon}
@@ -105,7 +111,9 @@ export function ChoiceCard({
             {title}
           </span>
           {description ? (
-            <span className="text-sm leading-relaxed text-muted-foreground">{description}</span>
+            <span className="text-sm leading-relaxed text-muted-foreground portee-app:text-ui portee-app:leading-snug">
+              {description}
+            </span>
           ) : null}
         </span>
       </label>

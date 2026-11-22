@@ -178,6 +178,20 @@ describe('garderPageAdmin — un profil sans rôle d’admin, jugé par capacit�
     await expect(garderPageAdmin('/app/agency/team')).rejects.toThrow(/^NEXT_REDIRECT \/app$/);
   });
 
+  // TCK-2921 (ADR-0111) — les réglages de bail s'ouvrent au personnel, sans capacité ; ils ne servent
+  // jamais de repli : un agent refusé ailleurs va sur /app, pas sur les réglages de bail.
+  it('un agent sans capacité ouvre les réglages de bail (TCK-2921)', async () => {
+    getMe.mockResolvedValue(moi(['agent', 'customer']));
+    capacites(['leases.create']);
+    await expect(garderPageAdmin('/app/agency/lease-settings')).resolves.toBeUndefined();
+  });
+
+  it('refusé sur /app/agency, il va sur /app — jamais sur les réglages de bail (TCK-2921)', async () => {
+    getMe.mockResolvedValue(moi(['agent', 'customer']));
+    capacites([]);
+    await expect(garderPageAdmin('/app/agency')).rejects.toThrow(/^NEXT_REDIRECT \/app$/);
+  });
+
   it("sans agence rattachée, rien n'est lu et rien ne s'ouvre", async () => {
     getMe.mockResolvedValue(moi(['customer'], null));
     expect((await accesAdmin(moi(['customer'], null))).chemins).toEqual([]);
@@ -196,6 +210,7 @@ describe('accesAdmin', () => {
         '/app/agency/billing',
         '/app/agency/finances',
         '/app/agency/finances/reconciliation',
+        '/app/agency/lease-settings',
         '/app/agency/integrations',
       ],
       espaceIndividuel: true,

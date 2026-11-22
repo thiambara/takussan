@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests\Maintenance;
 
+use App\Http\Requests\BaseFormRequest;
+use App\Rules\JourIso;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * TCK-592 (P12) — un devis structuré : des lignes (main-d'œuvre ou fourniture, quantité, prix
@@ -14,7 +15,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * IMPOSÉE (celle du bail, sinon de l'agence — `MaintenanceQuoteWorkflow::resolveCurrency()`).
  * Les envoyer rend 422, pour qu'un client qui croit les fixer l'apprenne.
  */
-class SubmitQuoteRequest extends FormRequest
+class SubmitQuoteRequest extends BaseFormRequest
 {
     /** Le prestataire assigné, et lui seul — avant la validation (403 avant 422). */
     public function authorize(): bool
@@ -35,7 +36,7 @@ class SubmitQuoteRequest extends FormRequest
             'lines.*.kind' => ['required', 'string', 'in:labour,supply'],
             'lines.*.quantity' => ['required', 'numeric', 'gt:0', 'max:100000', 'decimal:0,2'],
             'lines.*.unit_price' => ['required', 'numeric', 'min:0', 'max:1000000000', 'decimal:0,2'],
-            'valid_until' => ['required', 'date', 'after_or_equal:today'],
+            'valid_until' => ['required', 'date', new JourIso, 'after_or_equal:today'],
             'estimated_duration_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'attachments' => ['nullable', 'array', 'max:5'],
             // TCK-592 — PDF ou image SEULEMENT. Sans `mimes`, tout fichier partait dans `quotes`, et la

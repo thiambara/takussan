@@ -11,7 +11,8 @@ export type BookingStatus =
   | 'expired'
   | 'completed';
 
-export type BookingPaymentType = 'deposit' | 'advance' | 'fee';
+// TCK-2892 — `security_deposit` (la caution d'un séjour) et `other` (qui exige une note).
+export type BookingPaymentType = 'deposit' | 'advance' | 'fee' | 'security_deposit' | 'other';
 
 // TCK-1266 (P146.01) — les cas de `PaymentStatus` côté API, à l'identique : l'échec d'un paiement
 // en ligne écrit `failed` sur un `BookingPayment`.
@@ -24,7 +25,16 @@ export type BookingPaymentStatus =
   | 'refunded'
   | 'cancelled';
 
-export type BookingPaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'card';
+/** TCK-2594 — les huit cas de `PaymentMethod` côté API (`app/Models/Enums/PaymentMethod.php`). */
+export type BookingPaymentMethod =
+  | 'cash'
+  | 'bank_transfer'
+  | 'mobile_money'
+  | 'wave'
+  | 'orange_money'
+  | 'free_money'
+  | 'check'
+  | 'card';
 
 export type BookingPayment = {
   id: number;
@@ -49,10 +59,29 @@ export type BookingPayment = {
    * peut lire ce reversement. Le rembourser crée une reprise sur le reversement suivant (TCK-2151).
    */
   paid_out?: { payout_id: number; reference_number: string; processed_at: string | null } | null;
+  /** TCK-2877 — le cumul déjà remboursé (TCK-1214 : un remboursement partiel laisse la ligne `paid`). */
+  refund_amount?: number | null;
+  refund_reason?: string | null;
 };
+
+/** TCK-2579 (ADR-0102) — la nature d'une réservation : séjour, candidature ou offre. */
+export type BookingKind = 'stay' | 'application' | 'offer';
 
 export type Booking = {
   id: number;
+  /** TCK-2579 — posée à la création d'après le bien ; absente d'une lecture qui ne la demande pas. */
+  kind?: BookingKind;
+  /** TCK-2579 — le prix affiché du bien au moment de la demande (l'écart d'une offre). */
+  list_price_at_booking?: number | null;
+  /** TCK-2579 — la validité d'une offre, quand l'agent l'a saisie. */
+  offer_expires_at?: string | null;
+  /** TCK-2579 — l'auteur de la saisie, quand le personnel l'a faite au nom du client. */
+  created_by?: { id: number; name: string } | null;
+  recorded_by_staff?: boolean | null;
+  /**
+   * TCK-2593 — les visites terminées de ce client sur ce bien ; émis au seul personnel de l'agence.
+   */
+  visits_on_property?: number;
   property_id: number;
   customer_id: number;
   created_by_id: number;
@@ -92,12 +121,24 @@ export type Booking = {
     price: number;
     currency: string | null;
     contract_type: 'sale' | 'rent' | null;
+    rent_period?: string | null;
+    /** `PropertyResource` — le quartier sert la ligne « Bien · quartier ». */
+    location?: { quarter?: string | null; city?: string | null } | null;
+    /** TCK-2594 — « En vente depuis 47 jours » sous la comparaison d'une offre. */
+    published_at?: string | null;
+    /** TCK-2877 (TCK-2892) — « à partir de 15:00 » / « avant 11:00 » ; `null` : 14:00 / 11:00 (ADR-0110 § 1). */
+    check_in_from?: string | null;
+    check_out_before?: string | null;
   };
   customer?: {
     id: number;
     user_id?: number | null;
     first_name?: string | null;
     last_name?: string | null;
+    /** TCK-2593 — au seul personnel de l'agence de la réservation ; absent pour le client et le bailleur. */
+    phone?: string | null;
+    /** TCK-2594 — un fait du bloc « Qui » de la fiche (« Fonctionnaire »). */
+    occupation?: string | null;
   } | null;
   booking_payments?: BookingPayment[];
   /**
@@ -107,4 +148,116 @@ export type Booking = {
   refund_status?: 'pending' | 'refunded' | null;
   /** TCK-596 — l'appelant peut-il rembourser (`bookings.refund`, bailleur direct, super-admin). */
   can_refund?: boolean;
+  // ── TCK-2875 — les clés de TCK-2870, 2872 et 2893 (ADR-0110), lues par la fiche et la liste ──
+  /**
+   * TCK-2870 — la dernière visite terminée de ce client sur ce bien : son jour et le verdict de son
+   * compte rendu ; `null` sans visite. Au seul personnel de l'agence (mêmes lecteurs que `visits_on_property`).
+   */
+  last_visit_on_property?: { scheduled_at: string | null; report_verdict: 'interested' | 'thinking' | 'not_interested' | null } | null;
+  /** TCK-2870 — les autres demandes EN ATTENTE sur ce bien, au seul personnel. */
+  other_pending_on_property?: number;
+  /** TCK-2870 — les visites terminées du bien, au seul personnel. */
+  property_visits_count?: number;
+  /** TCK-2870 — le rang d'une offre parmi celles du bien (1 = la première). */
+  offer_rank?: number | null;
+  /** TCK-2892 — le nombre de voyageurs d'un séjour ; `null` hors séjour (ou s'il n'a pas été dit). */
+  guests?: number | null;
+  /** TCK-2870 — durée d'une candidature, en mois, et son renouvellement ; nulles hors candidature. */
+  term_months?: number | null;
+  renewable?: boolean | null;
+  /** TCK-2870 — la caution d'une candidature : en mois de loyer, et son montant (instantané). */
+  security_deposit_months?: number | null;
+  security_deposit_amount?: number | null;
+  advance_months_at_booking?: number | null;
+  agency_fee_months_at_booking?: number | null;
+  /** TCK-2870 — les conditions d'une offre ; `financing` : les cas d'`OfferFinancing` (TCK-2876). */
+  financing?: OfferFinancing | null;
+  signature_within_days?: number | null;
+  conditions?: string | null;
+  /** TCK-2870 — « À verser à l'entrée », DÉRIVÉ par l'API ; `null` hors candidature ou avant TCK-2870. */
+  entry_amount?: number | null;
+  /**
+   * TCK-2872 — la complétude du dossier ; `null` pour un séjour. `missing` : les codes des pièces
+   * manquantes, dans l'ordre de l'API (`DossierPiece`).
+   */
+  dossier?: { received: number; required: number; missing: DossierPiece[] } | null;
+  /** TCK-2893 — au seul personnel de l'agence : le garant déclaré et le revenu, MASQUÉ et en rapport au loyer. */
+  has_guarantor?: boolean;
+  guarantors?: { id: number; first_name: string | null; last_name: string | null; relationship_to_tenant: string | null }[];
+  /** Jamais affiché (ADR-0110 § 4) : la fiche dit le rapport au loyer, pas le montant. */
+  declared_monthly_income_masked?: string | null;
+  income_to_rent_ratio?: number | null;
+  // ── TCK-2876 — les clés de TCK-2873 et TCK-2874 (ADR-0110 § 5, 6 et 8) ──
+  /** TCK-2873 — la DERNIÈRE contre-offre de l'agence (`null` sans contre-offre) ; les précédentes ne sont pas servies. */
+  counter_offer?: BookingCounterOffer | null;
+  /** TCK-2873 — qui doit agir sur une réservation en attente : le client (contre-offre ouverte) ou l'agence ; `null` hors `pending`. */
+  awaiting?: 'customer' | 'agency' | null;
+  /** TCK-2874 — l'origine : le tunnel public, le lien d'invitation envoyé après la visite, ou la saisie du personnel. */
+  source?: BookingSource;
+  /** TCK-2874 — le passage de la fiche client en Négociation à l'acceptation, au seul personnel ; `null` sans changement. */
+  stage_change?: BookingStageChange | null;
+  // ── TCK-2879 ──
+  /**
+   * TCK-2879 — ce que le client a déjà réglé (paiements `paid`, ni caution ni « autre »), servi par la
+   * LISTE seule (`withSum` de l'index) ; absent de la fiche, qui lit `booking_payments`.
+   */
+  amount_paid?: number;
+};
+
+/** TCK-2870 / TCK-2876 — `OfferFinancing` côté API : comptant, crédit immobilier, apport et crédit. */
+export type OfferFinancing = 'cash' | 'mortgage' | 'mixed';
+
+/** TCK-2874 / TCK-2876 — `BookingSource` côté API. */
+export type BookingSource = 'public' | 'invitation' | 'staff';
+
+/** TCK-2873 / TCK-2876 — `CounterOfferStatus` côté API. Une `pending` échue est déjà servie `expired`. */
+export type CounterOfferStatus = 'pending' | 'accepted' | 'declined' | 'superseded' | 'expired';
+
+/** TCK-2873 / TCK-2876 — `BookingResource::counter_offer`. `valid_until` est un JOUR (`AAAA-MM-JJ`), valable jusqu'au soir à Dakar. */
+export type BookingCounterOffer = {
+  id: number;
+  amount: number;
+  message: string | null;
+  valid_until: string | null;
+  status: CounterOfferStatus;
+  created_at: string | null;
+  responded_at: string | null;
+};
+
+/** TCK-2874 / TCK-2876 — `BookingResource::stage_change` (étapes de `CustomerPipelineStage`). */
+export type BookingStageChange = {
+  from: string;
+  to: string;
+  at: string;
+  /** `null` une fois le passage annulé. */
+  undoable_until: string | null;
+  undone_at: string | null;
+};
+
+/** TCK-2872 / TCK-2875 — une pièce du dossier d'une candidature ou d'une offre (`DossierPiece` côté API). */
+export type DossierPiece =
+  | 'identity'
+  | 'payslips'
+  | 'employment_certificate'
+  | 'guarantor_commitment'
+  | 'guarantor_identity'
+  | 'proof_of_funds'
+  | 'other';
+
+/** TCK-2872 / TCK-2875 — une pièce lue par `GET /api/bookings/{id}/dossier`. */
+export type PieceDuDossier = {
+  piece: DossierPiece;
+  required: boolean;
+  received: boolean;
+  received_at: string | null;
+  requested_at: string | null;
+  document: { id: number; name: string; type: string | null; created_at: string | null } | null;
+};
+
+/** TCK-2872 / TCK-2875 — `GET /api/bookings/{id}/dossier` → `data`. */
+export type DossierDeLaReservation = {
+  received: number;
+  required: number;
+  missing: DossierPiece[];
+  pieces: PieceDuDossier[];
 };

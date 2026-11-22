@@ -466,10 +466,16 @@ describe('TCK-432 · AC3 — exactement un `<h1>` par page, issu du dictionnaire
 // ── TCK-557 — la pagination est faite de LIENS, dans le HTML servi ────────────
 
 describe('TCK-557 · AC1, AC2 — les pages suivantes sont atteignables par un lien, sans hydratation', () => {
-  /** Les `href` des `<a>` de la `<nav>` de pagination, entités décodées — ce qu'un robot suit. */
-  const hrefsDeLaPagination = (markup: string): string[] => {
-    const nav = markup.match(/<nav aria-label="Pagination"[\s\S]*?<\/nav>/)?.[0] ?? '';
-    return [...nav.matchAll(/<a [^>]*href="([^"]*)"/g)].map((m) => m[1].replaceAll('&amp;', '&'));
+  /**
+   * TCK-2499 — « Voir N biens de plus » a remplacé la pagination numérotée : les `href` des `<a>`
+   * du pied de liste, entités décodées — ce qu'un robot suit. Le bouton reste un LIEN.
+   */
+  const hrefsDuPiedDeListe = (markup: string): string[] => {
+    const debut = markup.indexOf('data-pied-de-liste');
+    const pied = debut < 0 ? '' : markup.slice(debut, markup.indexOf('</main>', debut));
+    // `\shref` : un `data-href` n'est pas un lien qu'un robot suit (ablation : un `<a data-href>`
+    // passait la version `[^>]*href`).
+    return [...pied.matchAll(/<a\b[^>]*\shref="([^"]*)"/g)].map((m) => m[1].replaceAll('&amp;', '&'));
   };
 
   const resultatSurSixPages = (page: number) => ({
@@ -484,28 +490,22 @@ describe('TCK-557 · AC1, AC2 — les pages suivantes sont atteignables par un l
       PageDeLaListe({ searchParams: Promise.resolve({ contract_type: 'rent' }) }),
     );
 
-    const pageDeux = hrefsDeLaPagination(markup)
+    const pageDeux = hrefsDuPiedDeListe(markup)
       .map((href) => new URLSearchParams(href.split('?')[1] ?? ''))
       .find((p) => p.get('page') === '2');
     expect(pageDeux, 'aucun lien vers la page 2 dans le HTML servi').toBeDefined();
     expect(pageDeux!.get('contract_type')).toBe('rent');
-    // Plus aucun bouton dans la pagination : c'est le défaut que le ticket ferme.
-    expect(markup.match(/<nav aria-label="Pagination"[\s\S]*?<\/nav>/)?.[0]).not.toContain('<button');
   });
 
-  it('le lien de la page 1 n’écrit pas `page=`', async () => {
+  it('depuis la page 2, le lien vers le début n’écrit pas `page=`, et la suite mène à la page 3', async () => {
     reponsePour = () => resultatSurSixPages(2);
     parametresCourants = new URLSearchParams('contract_type=rent&page=2');
     const markup = await html(
       PageDeLaListe({ searchParams: Promise.resolve({ contract_type: 'rent', page: '2' }) }),
     );
 
-    const hrefs = hrefsDeLaPagination(markup);
-    expect(hrefs).toContain('/properties?contract_type=rent');
-    expect(hrefs.filter((h) => !h.includes('page='))).toEqual([
-      // le lien « précédent » et le lien « 1 » : les deux mènent à la page 1
-      '/properties?contract_type=rent',
-      '/properties?contract_type=rent',
-    ]);
+    const hrefs = hrefsDuPiedDeListe(markup);
+    expect(hrefs.filter((h) => !h.includes('page='))).toEqual([expect.stringMatching(/\/properties\?contract_type=rent$/)]);
+    expect(hrefs.some((h) => new URLSearchParams(h.split('?')[1] ?? '').get('page') === '3')).toBe(true);
   });
 });

@@ -27,6 +27,26 @@ class ServiceProviderDirectoryResource extends BaseResource
         $data = IncludedUserResource::inParent($this->resource);
         unset($data['insurance_policy_id']);
 
+        // TCK-2652 — `phone` : celui du compte, sinon celui de l'invitation (`metadata.phone`), que le
+        // front appelle et ouvre dans WhatsApp ; `completed_interventions_count`, les interventions
+        // réalisées pour l'agence du carnet. Lus par sous-requête (`ServiceProviderProfileController`).
+        $accountPhone = $data['account_phone'] ?? null;
+        unset($data['account_phone']);
+        $data['phone'] = filled($accountPhone) ? $accountPhone : (data_get($this->resource->metadata, 'phone') ?: null);
+        if (array_key_exists('completed_interventions_count', $data)) {
+            $data['completed_interventions_count'] = (int) $data['completed_interventions_count'];
+        }
+
+        // TCK-2917 (ADR-0118 § 4) — les créneaux dépassés chez l'agence du carnet.
+        if (array_key_exists('overdue_slots_count', $data)) {
+            $data['overdue_slots_count'] = (int) $data['overdue_slots_count'];
+        }
+
+        // TCK-2772 — le délai de réponse médian en minutes, nul sans mesure.
+        if (array_key_exists('response_delay_minutes', $data)) {
+            $data['response_delay_minutes'] = $data['response_delay_minutes'] === null ? null : (int) $data['response_delay_minutes'];
+        }
+
         if (array_key_exists('metadata', $data) && is_array($data['metadata'])) {
             $data['metadata'] = array_intersect_key($data['metadata'], array_flip(self::METADATA_KEYS));
         }

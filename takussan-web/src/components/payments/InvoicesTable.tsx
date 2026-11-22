@@ -18,27 +18,33 @@ import type { Locale } from '@/i18n/config';
 import type { Invoice, InvoiceStatus } from '@/types/invoice';
 
 import { INVOICE_STATUS_TONE } from './constants';
+import { PageAuDelaDeLaDerniere } from './PageAuDelaDeLaDerniere';
+import { densiteDeLAdresse, estAuDelaDeLaDernierePage, pageDeLAdresse } from './pagination-de-l-adresse';
 
 interface InvoicesTableProps {
   readonly onSelect: (invoiceId: number) => void;
+  /** TCK-2651 — le bailleur (page « Loyers ») : aucun `#id` en repli de référence. */
+  readonly sansIdentifiants?: boolean;
 }
 
-export function InvoicesTable({ onSelect }: InvoicesTableProps) {
+export function InvoicesTable({ onSelect, sansIdentifiants = false }: InvoicesTableProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.invoices');
   const tTable = useTranslations('payments.invoices.table');
   const tStatus = useTranslations('payments.invoiceStatus');
   const searchParams = useSearchParams();
 
-  const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
+  // TCK-2805 — la page et la densité que `PropertyPagination` écrit dans l'adresse.
+  const page = pageDeLAdresse(searchParams);
+  const parPage = densiteDeLAdresse(searchParams);
 
   const params: UseInvoicesParams = useMemo(
     () => ({
       page,
-      per_page: 20,
+      per_page: parPage,
       status: (searchParams.get('invoice_status') as InvoiceStatus | null) ?? undefined,
     }),
-    [page, searchParams],
+    [page, parPage, searchParams],
   );
 
   const query = useInvoices(params);
@@ -52,6 +58,10 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
     >
       {(data) => {
         const rows = data.data ?? [];
+        // TCK-2805 — une page au-delà de la dernière n'est pas une liste vide.
+        if (data.meta && estAuDelaDeLaDernierePage(rows.length, data.meta)) {
+          return <PageAuDelaDeLaDerniere meta={data.meta} />;
+        }
         if (rows.length === 0) {
           return (
             <EmptyState
@@ -62,7 +72,7 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
           );
         }
 
-        const reference = (invoice: Invoice) => invoice.reference_number ?? `#${invoice.id}`;
+        const reference = (invoice: Invoice) => invoice.reference_number ?? (sansIdentifiants ? '—' : `#${invoice.id}`);
         const montant = (invoice: Invoice) =>
           formatCurrency(invoice.total_amount, locale, { currency: invoice.currency || 'XOF' });
         const jour = (value: string | null | undefined) => (value ? formatDate(value, locale) : '—');

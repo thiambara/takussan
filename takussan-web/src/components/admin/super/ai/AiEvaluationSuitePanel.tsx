@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { FlaskConical } from 'lucide-react';
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
@@ -36,6 +37,7 @@ export function AiEvaluationSuitePanel() {
   const t = useTranslations('superAdmin.pages.ai.suite');
   const tCommon = useTranslations('common');
   const format = useFormatter();
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const montant = useMontantIa();
   const garde = useGardeDoubleFacteur();
@@ -62,7 +64,7 @@ export function AiEvaluationSuitePanel() {
     },
   });
 
-  const nombre = (valeur: number) => format.number(valeur, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nombre = (valeur: number) => fmt.nombre(valeur, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const colonnes: DataTableColumn<[string, AiEvalReport]>[] = [
     { id: 'usage', header: t('columns.usage'), cell: ([key]) => <code className="text-sm">{key}</code> },
     { id: 'score', header: t('columns.score'), align: 'end', cell: ([, r]) => <span className="tabular-nums">{nombre(r.global)}</span> },

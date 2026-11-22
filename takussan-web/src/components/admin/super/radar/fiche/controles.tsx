@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Input } from '@/components/ui/input';
+import { lireNombre } from '@/lib/clavier';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const AUCUN = '__aucun__';
@@ -25,10 +26,13 @@ interface ControleCommun {
  * quand la fiche est relue ou les corrections abandonnées.
  */
 export function ChampNombre({
-  id, decritPar, desactive, valeur, pas = 1, min = 0, onChange,
+  id, decritPar, desactive, valeur, pas = 1, min = 0, onChange, profil, placeholder,
 }: ControleCommun & {
   readonly valeur: number | null;
-  /** `1` : entiers ; autre : décimal, sans pas imposé (`step="any"` — un pas de 0,5 refuserait 85,3 au navigateur). */
+  /** ADR-0135 — `montant` pour un prix XOF ; sinon déduit du pas (`entier` ou `decimal`). */
+  readonly profil?: 'montant';
+  readonly placeholder?: string;
+  /** `1` : entiers (profil `entier`) ; autre : décimal (profil `decimal`), sans pas imposé — 85,3 se saisit. */
   readonly pas?: number;
   readonly min?: number;
   readonly onChange: (valeur: number | null) => void;
@@ -36,11 +40,10 @@ export function ChampNombre({
   const [texte, setTexte] = useState(valeur === null ? '' : String(valeur));
   return (
     <Input
+      profil={profil ?? (pas === 1 ? 'entier' : 'decimal')}
       id={id}
-      type="number"
-      inputMode={pas === 1 ? 'numeric' : 'decimal'}
       min={min}
-      step={pas === 1 ? 1 : 'any'}
+      placeholder={placeholder}
       aria-describedby={decritPar}
       disabled={desactive}
       value={texte}
@@ -48,8 +51,9 @@ export function ChampNombre({
         const saisi = event.target.value;
         setTexte(saisi);
         if (saisi.trim() === '') return onChange(null);
-        const nombre = Number(saisi);
-        if (Number.isFinite(nombre)) onChange(nombre);
+        // ADR-0135 — champ texte : « 85,3 » et « 1 500 » se lisent, un texte qui n'est pas un nombre ne remonte pas.
+        const nombre = lireNombre(saisi, false);
+        if (typeof nombre === 'number' && Number.isFinite(nombre)) onChange(nombre);
       }}
     />
   );
@@ -57,12 +61,18 @@ export function ChampNombre({
 
 /** Une liste de mots séparés par des virgules (équipements). */
 export function ChampListe({
-  id, decritPar, desactive, valeur, onChange,
-}: ControleCommun & { readonly valeur: readonly string[] | null; readonly onChange: (valeur: string[] | null) => void }) {
+  id, decritPar, desactive, valeur, onChange, placeholder,
+}: ControleCommun & {
+  readonly valeur: readonly string[] | null;
+  readonly onChange: (valeur: string[] | null) => void;
+  readonly placeholder?: string;
+}) {
   const [texte, setTexte] = useState((valeur ?? []).join(', '));
   return (
     <Input
+      profil="mots"
       id={id}
+      placeholder={placeholder}
       aria-describedby={decritPar}
       disabled={desactive}
       value={texte}

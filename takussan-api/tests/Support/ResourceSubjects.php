@@ -7,17 +7,44 @@ use App\Http\Resources\Api\Admin\AgencyProvisioningResource;
 use App\Http\Resources\Api\Admin\ModerationItemResource;
 use App\Http\Resources\Api\Admin\RadarAdvertiserRankingResource;
 use App\Http\Resources\Api\Admin\RadarListingResource;
+use App\Http\Resources\ConversationContextResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DocumentVersionResource;
+use App\Http\Resources\LeaseResource;
+use App\Http\Resources\MaintenanceJournalEntryResource;
 use App\Http\Resources\MediaResource;
+use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\PayoutMethodResource;
+use App\Http\Resources\PropertyResource;
+use App\Http\Resources\PropertyVisitResource;
 use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PayeeRole;
+use App\Models\Enums\PaymentStatus;
+use App\Models\Enums\PayoutStatus;
+use App\Models\Lease;
+use App\Models\LeasePayment;
+use App\Models\MaintenanceRequest;
+use App\Models\Payout;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
+use App\Models\Property;
+use App\Models\PropertyContactLead;
+use App\Models\PropertyVisit;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use App\Models\User;
 use App\Services\Accounting\MatchCandidate;
+use App\Services\Lease\LeaseAttention;
+use App\Services\Lease\LeaseDueSummary;
+use App\Services\Maintenance\MaintenanceJournal;
+use App\Services\Messaging\ConversationThreadContext;
+use App\Services\Owners\OwnerDirectory;
+use App\Services\Property\PropertyOccupancy;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -107,6 +134,55 @@ final class ResourceSubjects
             }
         }
 
+        // TCK-2578 (ADR-0101 § 2) — `report` (qui porte `reported_at`) n'est servi qu'au personnel de
+        // l'agence du BIEN ; le sujet de la factory est sur un bien sans agence. Un second sujet, sur
+        // un bien d'agence, que {@see self::commeLeControleur()} fait lire comme l'index le pose pour
+        // le personnel de cette agence.
+        if ($resource === PropertyVisitResource::class) {
+            $bien = Property::factory()->create(['agency_id' => Agency::factory()->create()->id]);
+            $sujets['PropertyVisit (personnel)'] = self::modele(PropertyVisit::class, $resource, ['property_id' => $bien->id]);
+        }
+
+        // TCK-2637 — le bloc `occupancy` porte des dates (bail, échéance du mois, `vacant_since`) : un
+        // bien loué avec son loyer du mois, et un bien vacant après un bail, que
+        // {@see self::commeLeControleur()} fait lire comme `PropertyController` les pose.
+        if ($resource === PropertyResource::class) {
+            $agence = Agency::factory()->create();
+            $loue = Property::factory()->create(['agency_id' => $agence->id]);
+            $bail = Lease::factory()->create([
+                'property_id' => $loue->id, 'agency_id' => $agence->id, 'status' => LeaseStatus::Active,
+                'start_date' => now()->subMonth()->toDateString(), 'end_date' => now()->addYear()->toDateString(),
+            ]);
+            LeasePayment::factory()->create(['lease_id' => $bail->id, 'payment_type' => LeasePaymentType::Rent, 'due_date' => now()->startOfMonth()->toDateString()]);
+            $sujets['Property (occupé, TCK-2637)'] = $loue->fresh();
+            $vacant = Property::factory()->create(['agency_id' => $agence->id]);
+            Lease::factory()->create([
+                'property_id' => $vacant->id, 'agency_id' => $agence->id, 'status' => LeaseStatus::Expired,
+                'start_date' => now()->subYears(2)->toDateString(), 'end_date' => now()->subMonths(2)->toDateString(),
+            ]);
+            $sujets['Property (vacant, TCK-2637)'] = $vacant->fresh();
+        }
+
+        // TCK-2642 — `attention[]` (`since`, `due_date`) et le résumé d'échéance (`next_due.due_date`) portent
+        // des dates : un bail en retard de loyer avec une échéance à venir, et une fin proche, dont les blocs
+        // sont posés par les services mêmes que `LeaseController` appelle (`include=attention,due_summary`).
+        if ($resource === LeaseResource::class) {
+            $bail = Lease::factory()->create([
+                'status' => LeaseStatus::Active,
+                'start_date' => now()->subMonths(3)->toDateString(), 'end_date' => now()->addMonths(2)->toDateString(),
+            ]);
+            foreach ([now()->subMonth(), now()->addMonth()] as $echeance) {
+                LeasePayment::factory()->create([
+                    'lease_id' => $bail->id, 'payment_type' => LeasePaymentType::Rent, 'status' => PaymentStatus::Pending,
+                    'paid_at' => null, 'due_date' => $echeance->toDateString(),
+                ]);
+            }
+            $page = $bail->newCollection([$bail->fresh()]);
+            LeaseAttention::for(null)->attach($page);
+            LeaseDueSummary::attach($page);
+            $sujets['Lease (file à traiter, TCK-2642)'] = $page->first();
+        }
+
         return $sujets;
     }
 
@@ -117,9 +193,43 @@ final class ResourceSubjects
      */
     public static function commeLeControleur(JsonResource $instance): JsonResource
     {
+        // TCK-2578 — `PropertyVisitController::index` pose les agences où le lecteur est personnel
+        // (`visits.staff_agencies`) ; la ressource en décide du bloc `report` (l'agence du bien, elle,
+        // est relue par `VisitReadContext` depuis TCK-2779). Posées pour le sujet sur un bien d'agence,
+        // comme pour un lecteur du personnel de cette agence ; retirées sinon (la requête est partagée).
+        if ($instance instanceof PropertyVisitResource) {
+            $requete = request();
+            $propertyId = (int) $instance->resource->property_id;
+            $agencyId = Property::query()->whereKey($propertyId)->value('agency_id');
+            if ($agencyId !== null) {
+                $requete->attributes->set('visits.staff_agencies', [(int) $agencyId]);
+            } else {
+                $requete->attributes->remove('visits.staff_agencies');
+            }
+
+            return $instance;
+        }
+
+        // TCK-2637 — `PropertyController::index` / `show` posent, sur `include=online`, `is_online`
+        // et, sur `include=occupancy`, le bloc d'occupation (lu ici par un super-admin, qui lit tout bail).
+        if ($instance instanceof PropertyResource && $instance->resource instanceof Property && $instance->resource->exists) {
+            $instance->resource->markOnline($instance->resource->isOnline());
+            $lecteur = User::factory()->create();
+            PlatformProfile::factory()->superAdmin()->create(['user_id' => $lecteur->id]);
+            app(PropertyOccupancy::class)->attach(collect([$instance->resource]), $lecteur);
+
+            return $instance;
+        }
+
         // TCK-2392 — `RadarListingController::show` (et les deux autres contrôleurs de la fiche).
         if ($instance instanceof RadarListingResource) {
             return $instance->withNeighborhoodLink()->withProvenances();
+        }
+
+        // TCK-2803 — `LeaseController::index` / `show` posent, sur `include=tenant`, le bloc du locataire
+        // (`avecLocataire`) : sans cet appel il n'est jamais rendu. Ouvert ici sans `fields[customers]`, le bloc entier.
+        if ($instance instanceof LeaseResource) {
+            return $instance->avecLocataire(true, null);
         }
 
         return $instance;
@@ -408,6 +518,57 @@ final class ResourceSubjects
                     self::hydraterLesDates(...),
                 )->setAttribute('listings_count', 3)->setAttribute('published_count', 1)->setAttribute('outreaches_count', 2),
             ],
+            // TCK-2630 — la colonne de contexte d'un fil : la seule date est `maintenance.scheduled_at`
+            // (cast `datetime`) ; la fiche est rendue pour que le parcours atteigne `customer`.
+            ConversationContextResource::class => [
+                'DTO' => new ConversationThreadContext(
+                    property: null,
+                    lease: null,
+                    maintenance: tap(
+                        MaintenanceRequest::factory()->create(['scheduled_at' => Carbon::parse(self::INSTANT, 'UTC')])->refresh(),
+                        self::hydraterLesDates(...),
+                    ),
+                    customerShown: true,
+                    customer: Customer::factory()->create(),
+                    customerReadable: true,
+                    referent: User::factory()->create(),
+                    // TCK-2858 — trois instants de plus : la dernière visite, la demande liée, le premier contact.
+                    lastVisit: tap(PropertyVisit::factory()->create()->refresh(), self::hydraterLesDates(...)),
+                    contactLead: tap(PropertyContactLead::factory()->create()->refresh(), self::hydraterLesDates(...)),
+                    firstContactAt: Carbon::parse(self::INSTANT, 'UTC'),
+                    origin: 'form',
+                ),
+            ],
+            // TCK-2640 — la fiche d'un bailleur, telle que la compose le contrôleur : deux instants
+            // (`joined_at`, `last_payout.processed_at`, casts `datetime`) ; `next_payout` arrive déjà
+            // sérialisé par le relevé.
+            OwnerProfileDetailResource::class => [
+                'tableau' => (function (): array {
+                    $profile = OwnerProfile::factory()->create();
+                    Payout::factory()->create([
+                        'agency_id' => $profile->agency_id, 'landlord_id' => $profile->user_id,
+                        'payee_role' => PayeeRole::Landlord, 'status' => PayoutStatus::Completed,
+                        'processed_at' => Carbon::parse(self::INSTANT, 'UTC'),
+                    ]);
+
+                    return app(OwnerDirectory::class)->detail($profile->refresh(), '2026-08', true);
+                })(),
+            ],
+            // TCK-2786 — deux entrées du journal, lues comme le contrôleur les lit : une transition
+            // avec son auteur, et un geste du système (`actor` nul). La seule date est `at`
+            // (`created_at`, cast `datetime`).
+            MaintenanceJournalEntryResource::class => (function (): array {
+                $journal = app(MaintenanceJournal::class);
+                $demande = MaintenanceRequest::factory()->create();
+                $journal->record($demande, MaintenanceJournal::STATUS_PREFIX.'assigned', User::factory()->create(), ['from' => 'open', 'to' => 'open']);
+                $journal->record($demande, MaintenanceJournal::STATUS_PREFIX.'auto_closed', null, ['from' => 'completed', 'to' => 'closed']);
+                [$transition, $systeme] = $journal->entriesOf($demande)->get()->all();
+
+                return [
+                    'Activity, transition' => tap($transition, self::hydraterLesDates(...)),
+                    'Activity, système' => tap($systeme, self::hydraterLesDates(...)),
+                ];
+            })(),
             default => [],
         };
     }

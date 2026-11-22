@@ -2,14 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Support\Security\ColonnesChiffrees;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Encryption\DecryptException;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use ReflectionClass;
-use Symfony\Component\Finder\Finder;
 
 /**
  * P42.03 (TCK-882) — une restauration se juge aussi à ce qu'elle se LIT. Le critère d'ADR-0028 § 7
@@ -90,21 +88,19 @@ class BackupVerifyEncryption extends Command
         return 0;
     }
 
-    /** @return list<array{0: string, 1: string}> (table, colonne), triés */
+    /**
+     * TCK-614 — la découverte est partagée avec `security:reencrypt` ({@see ColonnesChiffrees}), qui voit aussi les
+     * casts `AsEncrypted…`.
+     *
+     * @return list<array{0: string, 1: string}> (table, colonne), triés
+     */
     private function colonnesChiffrees(): array
     {
         $paires = [];
-        foreach (Finder::create()->files()->in(app_path('Models'))->name('*.php') as $fichier) {
-            $classe = 'App\\Models\\'.str_replace(['/', '.php'], ['\\', ''], $fichier->getRelativePathname());
-            if (! class_exists($classe) || ! is_subclass_of($classe, Model::class) || (new ReflectionClass($classe))->isAbstract()) {
-                continue;
-            }
-            /** @var Model $modele */
-            $modele = new $classe;
-            foreach ($modele->getCasts() as $colonne => $cast) {
-                if (is_string($cast) && str_starts_with($cast, 'encrypted')) {
-                    $paires[$modele->getTable().'.'.$colonne] = [$modele->getTable(), $colonne];
-                }
+        foreach (app(ColonnesChiffrees::class)->parModele() as $classe => $colonnes) {
+            $table = (new $classe)->getTable();
+            foreach ($colonnes as $colonne) {
+                $paires[$table.'.'.$colonne] = [$table, $colonne];
             }
         }
         ksort($paires);

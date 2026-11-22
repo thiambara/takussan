@@ -19,9 +19,13 @@ const CATALOGUE: CapabilityCatalogue = {
   platform_reserved: ['properties.moderate'],
 };
 
+/**
+ * La case d'une capacité, trouvée par son code. TCK-2676 : le code n'est plus un texte de
+ * l'écran — il vit dans le `title` de la ligne (infobulle) et de la case.
+ */
 function box(capability: string): HTMLInputElement {
-  const label = screen.getByText(capability).closest('label');
-  if (!label) throw new Error(`Aucun libellé pour ${capability}`);
+  const label = document.querySelector(`label[data-capability="${capability}"]`);
+  if (!(label instanceof HTMLElement)) throw new Error(`Aucune ligne pour ${capability}`);
   return within(label).getByRole('checkbox') as HTMLInputElement;
 }
 
@@ -35,7 +39,7 @@ describe('<CapabilityMatrix>', () => {
 
     // Visible — la masquer laisserait sans réponse « pourquoi je n'ai pas
     // cette capacité ? ».
-    expect(screen.getByText('properties.moderate')).toBeInTheDocument();
+    expect(screen.getByText('Modérer les biens')).toBeInTheDocument();
     expect(box('properties.moderate')).toBeDisabled();
     expect(box('properties.create')).toBeEnabled();
     expect(screen.getByText('Réservé à la plateforme')).toBeInTheDocument();
@@ -146,14 +150,14 @@ describe('<CapabilityMatrix>', () => {
     await user.click(toggle);
 
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('team.invite')).not.toBeInTheDocument();
+    expect(screen.queryByText('Inviter un membre')).not.toBeInTheDocument();
     // Le compteur global ne bouge pas : replier n'est pas décocher.
     expect(screen.getByTestId('capability-matrix-count')).toHaveTextContent(
       '1 sur 4 capacités accordées',
     );
   });
 
-  it('retombe sur la valeur brute pour une capacité absente du dictionnaire', () => {
+  it('une capacité absente du dictionnaire se lit « Autre capacité », son code au survol (TCK-2676)', () => {
     render(
       withIntl(
         <CapabilityMatrix
@@ -168,17 +172,19 @@ describe('<CapabilityMatrix>', () => {
       ),
     );
 
-    // Un 45ᵉ cas ajouté au catalogue côté serveur ne doit pas faire tomber
-    // l'écran en attendant sa traduction.
-    expect(screen.getAllByText('quantum.entangle').length).toBeGreaterThan(0);
+    // Un cas ajouté au catalogue côté serveur ne fait pas tomber l'écran en attendant sa
+    // traduction — et ne s'y écrit pas non plus en code brut.
+    expect(screen.getByText('Autre capacité')).toBeInTheDocument();
+    expect(screen.queryByText('quantum.entangle')).not.toBeInTheDocument();
+    expect(box('quantum.entangle').closest('label')).toHaveAttribute('title', 'quantum.entangle');
     expect(screen.getByText('quantum')).toBeInTheDocument();
   });
 
   /**
-   * TCK-587 (AC10) — `not_enforced` signale une capacité qu'aucun geste ne juge encore. La case
-   * reste cochable : préparer un rôle est légitime, c'est l'effet qui ne l'est pas encore.
+   * TCK-587 (AC10), revu par TCK-2676 (AC2) — `not_enforced` signale une capacité qu'aucun geste
+   * ne juge encore. Sa case est désactivée, sa raison écrite à côté, et elle sort du compte.
    */
-  it('mentionne « Sans effet pour l’instant » sur payouts.approve, case cochable', async () => {
+  it('mentionne « Sans effet pour l’instant » sur payouts.approve, case désactivée et raison écrite', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
     render(
@@ -204,13 +210,15 @@ describe('<CapabilityMatrix>', () => {
 
     const mention = screen.getByTestId('capability-not-enforced-payouts.approve');
     expect(mention).toHaveTextContent("Sans effet pour l'instant");
-    expect(mention).toHaveAttribute('title', expect.stringContaining('prépare le rôle'));
+    expect(screen.getByTestId('capability-not-enforced-reason-payouts.approve')).toHaveTextContent(
+      "Aucun geste de l'application ne vérifie encore cette capacité",
+    );
     expect(screen.queryByTestId('capability-not-enforced-payouts.create')).not.toBeInTheDocument();
     // Une réservée plateforme garde son seul motif : elle est déjà grisée.
     expect(screen.queryByTestId('capability-not-enforced-properties.moderate')).not.toBeInTheDocument();
 
-    expect(box('payouts.approve')).toBeEnabled();
+    expect(box('payouts.approve')).toBeDisabled();
     await user.click(box('payouts.approve'));
-    expect(onChange).toHaveBeenCalledWith(['payouts.approve']);
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

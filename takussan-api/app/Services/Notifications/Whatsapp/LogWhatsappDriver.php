@@ -26,11 +26,15 @@ class LogWhatsappDriver implements WhatsappDriverInterface
         foreach ($recipients as $recipient) {
             $normalized = PhoneNumber::normalize($recipient);
             $providerMessageId = 'wamid.log_'.Str::uuid()->toString();
+            // TCK-613 (ADR-0044 §2) — comme `LogSmsDriver` (TCK-1025) : ni le numéro entier ni le
+            // texte, qui porte un code ou un lien porteur (`/pay/{jeton}`). La longueur suffit.
             Log::info('[whatsapp-log-driver] dispatched', [
-                'to' => $normalized,
+                'phone_suffix' => substr($normalized, -4),
                 'type' => $message->type,
-                'text' => $message->text,
+                'text_length' => $message->text === null ? null : mb_strlen($message->text),
                 'template' => $message->template?->name,
+                // TCK-2981 — le nombre de boutons (réponse, `quick_reply`), jamais leur charge utile.
+                'buttons' => count($message->buttons),
                 'context' => $context,
                 'provider_message_id' => $providerMessageId,
             ]);

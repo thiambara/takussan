@@ -14,6 +14,7 @@ use App\Models\RadarListing;
 use App\Models\User;
 use App\Services\Boost\BoostSettings;
 use App\Services\Credits\WelcomeCreditService;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Property\PropertyViewCounter;
 use App\Support\PhoneFingerprint;
 use App\Support\RadarWaMe;
@@ -29,7 +30,8 @@ use Illuminate\Support\Facades\DB;
  * jamais généré ; seuls les chiffres, la date et les liens s'y insèrent.
  *
  * **Les chiffres sont ceux d'une période** : depuis la dernière relance envoyée, sinon depuis la mise en ligne.
- *  - Les vues : `views_count` n'est qu'un compteur cumulé (aucune vue n'est datée, {@see PropertyViewCounter}) ;
+ *  - Les vues : `views_count` n'est qu'un compteur cumulé ({@see PropertyViewCounter}) — depuis TCK-2905 (ADR-0117), les vues
+ *    sont aussi datées par jour (`property_daily_views`), mais seulement depuis son déploiement ; la ligne de base reste la règle ;
  *    l'envoi pose donc une ligne de base (`activation_baseline`, `{bien: views_count}`), et la période suivante compte ce qui
  *    la dépasse. Un bien du Radar naît à 0 : sans ligne de base, tout son compteur est de la période.
  *  - Les demandes : les pistes (`property_contact_leads` : formulaire, clic WhatsApp, appel) et les demandes de visite
@@ -322,9 +324,13 @@ final class RadarActivationReminders
         ]);
     }
 
+    /**
+     * TCK-2794 — groupés comme tout nombre rendu : en `fr`, l'insécable U+00A0 et non plus l'espace
+     * ordinaire, sécable, qui pouvait couper « 1 200 » en fin de ligne ; en `en`, « 1,200 ».
+     */
     private static function number(int $value, string $locale): string
     {
-        return $locale === 'fr' ? number_format($value, 0, ',', ' ') : number_format($value);
+        return CurrencyFormatter::nombre($value, $locale, 0, 0);
     }
 
     /**

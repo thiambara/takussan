@@ -13,8 +13,10 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Services\Calendar\CalendarFeedService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Support\FinInclusive;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -112,6 +114,8 @@ class RoleDelegationService
                 'reason' => $data['reason'] ?? null,
                 'user_native_roles_snapshot' => $nativeRoles,
                 'activated_at' => $isImmediate ? now() : null,
+                // TCK-2666 — posé par `AgentAbsenceService` seul : la requête de la page Rôles ne le valide pas.
+                'covers_absence_id' => $data['covers_absence_id'] ?? null,
             ]);
 
             if ($isImmediate) {
@@ -142,15 +146,21 @@ class RoleDelegationService
     {
         $this->transition($delegation, [RoleDelegationStatus::Active, RoleDelegationStatus::Scheduled], function (RoleDelegation $locked) use ($caller): void {
             $locked->markRevoked($caller);
+            $this->dropFeedIfNoLongerStaff($locked);
 
             event(new RoleDelegationRevoked($locked));
+
+            // TCK-2666 — la révocation d'une absence nomme la délégation liée qu'elle emporte.
+            $covers = $locked->isAbsence() ? $this->liveCovers($locked) : collect();
 
             activity()
                 ->causedBy($caller)
                 ->performedOn($locked)
-                ->withProperties(['role' => $locked->role])
+                ->withProperties(['role' => $locked->role] + ($covers->isNotEmpty() ? ['delegation_id' => $covers->first()->id] : []))
                 ->event('revoked')
                 ->log('role_delegation.revoked');
+
+            $covers->each(fn (RoleDelegation $cover) => $this->revoke($cover, $caller));
         });
     }
 
@@ -167,6 +177,8 @@ class RoleDelegationService
                 ->withProperties(['role' => $locked->role, 'agency_id' => $locked->agency_id])
                 ->event('activated')
                 ->log('role_delegation.activated');
+
+            $this->linkedCover($locked, fn (RoleDelegation $cover) => $this->activate($cover));
         });
     }
 
@@ -174,6 +186,7 @@ class RoleDelegationService
     {
         $this->transition($delegation, [RoleDelegationStatus::Active], function (RoleDelegation $locked): void {
             $locked->markExpired();
+            $this->dropFeedIfNoLongerStaff($locked);
 
             event(new RoleDelegationExpired($locked));
 
@@ -183,7 +196,49 @@ class RoleDelegationService
                 ->withProperties(['role' => $locked->role, 'agency_id' => $locked->agency_id])
                 ->event('expired')
                 ->log('role_delegation.expired');
+
+            $this->linkedCover($locked, fn (RoleDelegation $cover) => $this->expire($cover));
         });
+    }
+
+    /**
+     * TCK-617 (décision du porteur, 2026-11-16) — la fin d'une délégation coupe le lien d'agenda que
+     * le délégué tenait dans l'agence, s'il n'y est plus personnel : éteint par la seule lecture
+     * (`CalendarFeedService::resolve()`), le lien revivait à la délégation suivante.
+     */
+    private function dropFeedIfNoLongerStaff(RoleDelegation $delegation): void
+    {
+        $user = $delegation->user;
+        if ($user === null || $delegation->agency_id === null) {
+            return;
+        }
+        app(CalendarFeedService::class)->revokeUnlessStaff($user, (int) $delegation->agency_id);
+    }
+
+    /**
+     * TCK-2666 (ADR-0035, amendement du 2026-11-10) — la transition d'une ABSENCE emporte celle de sa
+     * délégation liée en cours, dans la même transaction (le geste de `transition()` y tourne déjà).
+     * Chaque transition garde son propre contrôle de statut : une délégation déjà dans l'état visé
+     * n'est pas touchée.
+     *
+     * @param  callable(RoleDelegation): void  $geste
+     */
+    private function linkedCover(RoleDelegation $absence, callable $geste): void
+    {
+        if (! $absence->isAbsence()) {
+            return;
+        }
+
+        $this->liveCovers($absence)->each($geste);
+    }
+
+    /** @return Collection<int, RoleDelegation> les délégations liées en cours d'une absence */
+    private function liveCovers(RoleDelegation $absence): Collection
+    {
+        return RoleDelegation::query()
+            ->where('covers_absence_id', $absence->getKey())
+            ->whereIn('status', [RoleDelegationStatus::Scheduled, RoleDelegationStatus::Active])
+            ->get();
     }
 
     /**

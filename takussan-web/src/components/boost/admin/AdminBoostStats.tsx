@@ -23,7 +23,10 @@ function jour(decalage: number): string {
 /** `passedValidation` de `BoostStatsRequest` : 92 jours au plus entre « du » et « au ». */
 const FENETRE_MAX_JOURS = 92;
 
-/** TCK-633 lot F (ADR-0061 §10) — impressions, clics et taux de clic des emplacements. */
+/**
+ * TCK-633 lot F (ADR-0061 §10) — impressions, clics et taux de clic des emplacements.
+ * TCK-2525 — et la place « Mise en avant » des agences : achetées, offertes, crédits dépensés et rendus.
+ */
 export function AdminBoostStats() {
   const t = useTranslations('superAdmin.boosts.stats');
   const tBoosts = useTranslations('superAdmin.boosts');
@@ -46,6 +49,7 @@ export function AdminBoostStats() {
     { id: 'ctr', header: t('ctr'), align: 'end', cell: (r) => <span className="tabular-nums">{pourcent(r.ctr)}</span> },
   ];
   const totaux = stats.data?.totals;
+  const places = stats.data?.spotlights;
 
   return (
     <div className="space-y-6">
@@ -97,6 +101,31 @@ export function AdminBoostStats() {
         ) : null}
         <DataTable caption={t('caption')} columns={colonnes} rows={stats.data?.data ?? []} rowKey={(r) => r.date} />
       </DataState>
+
+      {/* TCK-2525 — hors de l'état vide des emplacements : une période sans impression peut avoir vendu des places. */}
+      {places ? (
+        <section aria-labelledby="stats-mise-en-avant" className="space-y-3">
+          <div>
+            <h2 id="stats-mise-en-avant" className="font-medium text-foreground">{t('spotlights.title')}</h2>
+            <p className="text-sm text-muted-foreground">{t('spotlights.hint')}</p>
+          </div>
+          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {(
+              [
+                ['purchased', places.purchased],
+                ['offered', places.offered],
+                ['creditsSpent', places.credits_spent],
+                ['creditsRefunded', places.credits_refunded],
+              ] as const
+            ).map(([cle, valeur]) => (
+              <div key={cle} className="rounded-xl border border-border bg-card p-4">
+                <dt className="text-sm text-muted-foreground">{t(`spotlights.${cle}`)}</dt>
+                <dd className="font-display text-2xl font-semibold tabular-nums text-foreground">{f.nombre(valeur)}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -20,6 +20,7 @@ import type {
   MaintenancePriority,
   MaintenanceQuoteLineKind,
   MaintenanceRequest,
+  MaintenanceRescheduleRequest,
   MaintenanceStatus,
 } from '@/types/maintenance';
 import type {
@@ -37,6 +38,8 @@ export const maintenanceKeys = {
   byProperty: (propertyId: number, params?: MaintenanceListParams) =>
     ['maintenance', 'property', propertyId, params ?? {}] as const,
   detail: (id: number) => ['maintenance', 'detail', id] as const,
+  /** TCK-2786 — le journal d'une demande. */
+  journal: (id: number) => ['maintenance', 'journal', id] as const,
 };
 
 /** Sparse fieldsets — keep responses minimal (CLAUDE.md rule #1). */
@@ -66,6 +69,8 @@ export interface MaintenanceListParams {
   readonly priority?: MaintenancePriority;
   readonly category?: MaintenanceCategory;
   readonly property_id?: number;
+  /** TCK-2919 — les interventions d'un bail (`filter[lease_id]`, lien « Interventions » de la fiche du bail). */
+  readonly lease_id?: number;
   readonly page?: number;
   readonly per_page?: number;
   readonly sort?: string;
@@ -82,6 +87,7 @@ function toSpatieParams(
   if (params?.priority) filter.priority = params.priority;
   if (params?.category) filter.category = params.category;
   if (params?.property_id) filter.property_id = params.property_id;
+  if (params?.lease_id) filter.lease_id = params.lease_id;
   if (params?.search) filter.search = params.search;
 
   return {
@@ -224,6 +230,23 @@ export function useDeclineMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, { reason: string }>(
     { path: cheminApi`/api/maintenance-requests/${id}/decline`, method: 'POST' },
     { relireSurErreur: true, invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+  );
+}
+
+/**
+ * TCK-2918 — « Changer le créneau » du demandeur : `POST /api/maintenance-requests/{id}/reschedule-requests`
+ * (TCK-2917, ADR-0118 § 3), un à trois instants ISO à venir et un mot. Ne change pas `scheduled_at` :
+ * la demande attend la réponse de l'agence (`pending_reschedule_request` au détail).
+ */
+export interface DemandeDeCreneauInput {
+  readonly proposed_slots: readonly string[];
+  readonly note?: string;
+}
+
+export function useDemanderUnAutreCreneau(id: number) {
+  return useApiMutation<ApiResponse<MaintenanceRescheduleRequest>, DemandeDeCreneauInput>(
+    { path: cheminApi`/api/maintenance-requests/${id}/reschedule-requests`, method: 'POST' },
+    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
 
@@ -414,5 +437,44 @@ export function useStartMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
     { path: cheminApi`/api/maintenance-requests/${id}/start`, method: 'POST' },
     { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+  );
+}
+
+/**
+ * TCK-2786 — `POST /api/maintenance-requests/{id}/owner-reminders` : « Relancer le bailleur ». La
+ * relance part par Takussan (notification au bailleur), jamais par son contact. 409 hors
+ * `awaiting_owner`, dans les 24 h d'une relance, ou vers un bailleur parti ou suspendu.
+ */
+export function useRemindMaintenanceOwner(id: number) {
+  return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
+    { path: cheminApi`/api/maintenance-requests/${id}/owner-reminders`, method: 'POST' },
+    { relireSurErreur: true, invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id), maintenanceKeys.journal(id)] },
+  );
+}
+
+/** TCK-2786 — une entrée du journal : un code (le libellé est au front), un instant, un acteur réduit. */
+export interface EntreeDuJournal {
+  readonly id: number | null;
+  /** `null` pour l'entrée « avant le journal ». */
+  readonly at: string | null;
+  /** `created`, `status.<cause>`, `owner_reminded`, `owner_unavailable`, `journal.before`. */
+  readonly code: string;
+  readonly actor: { readonly id: number; readonly full_name: string } | null;
+  readonly from: MaintenanceStatus | null;
+  readonly to: MaintenanceStatus | null;
+  /** TCK-2917 (ADR-0118 § 1) — le motif, sur la seule entrée d'une annulation (clé absente ailleurs). */
+  readonly reason?: string | null;
+  /** TCK-2900 (ADR-0113 § 6) — sur la seule entrée `created` : les photos du signalement, lues à la lecture. */
+  readonly photos_count?: number;
+  /** TCK-2900 (ADR-0113 § 6) — sur la seule entrée `created` : la demande porte une note vocale. */
+  readonly has_voice_note?: boolean;
+}
+
+/** TCK-2786 — `GET /api/maintenance-requests/{id}/journal`, dans l'ordre où c'est arrivé. */
+export function useMaintenanceJournal(id: number, enabled: boolean) {
+  return useApiQuery<PaginatedResponse<EntreeDuJournal> & { meta: { starts_with_request?: boolean } }>(
+    maintenanceKeys.journal(id),
+    cheminApi`/api/maintenance-requests/${id}/journal`,
+    { params: { per_page: 100 }, enabled: enabled && id > 0 },
   );
 }

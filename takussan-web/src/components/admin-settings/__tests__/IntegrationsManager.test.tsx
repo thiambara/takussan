@@ -76,16 +76,22 @@ describe('<IntegrationsManager />', () => {
     expect(screen.getAllByText('Adresse de notification')).toHaveLength(1);
   });
 
-  it('TCK-293 (m-1) — Lemon Squeezy d’agence : aucune adresse à coller, une mention neutre', () => {
+  it('TCK-606 (m-1) — Lemon Squeezy d’agence : l’adresse à coller dans la boutique, avec sa consigne', () => {
     const ls = { ...initial[0], id: 44, provider: 'lemon_squeezy' };
-    renderWithIntl(<IntegrationsManager initialIntegrations={[ls]} />);
+    renderWithIntl(
+      <IntegrationsManager
+        initialIntegrations={[ls]}
+        initialWebhookUrls={{ 44: 'https://api.takussan.test/api/webhooks/payments/lemon_squeezy/t' }}
+      />,
+    );
 
+    expect(screen.getByLabelText('Adresse de notification Lemon Squeezy')).toHaveValue(
+      'https://api.takussan.test/api/webhooks/payments/lemon_squeezy/t',
+    );
+    expect(screen.getByText(/boutique Lemon Squeezy/)).toBeInTheDocument();
     expect(
-      screen.getByText("La confirmation automatique des paiements n'est pas encore prise en charge pour ce fournisseur."),
-    ).toBeInTheDocument();
-    expect(screen.queryByText('Adresse de notification')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: "Afficher l'adresse" })).not.toBeInTheDocument();
-    expect(fetchEndpointMock).not.toHaveBeenCalled();
+      screen.queryByText("La confirmation automatique des paiements n'est pas encore prise en charge pour ce fournisseur."),
+    ).not.toBeInTheDocument();
     attendAucuneCleBrute();
   });
 
@@ -136,10 +142,10 @@ describe('<IntegrationsManager />', () => {
     await user.clear(providerInput);
     await user.type(providerInput, 'sms_orange');
 
-    expect(screen.getByLabelText('Client ID')).toBeInTheDocument();
-    expect(screen.getByLabelText('Client secret')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Sender address/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Sender name/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Identifiant client')).toBeInTheDocument();
+    expect(screen.getByLabelText('Secret client')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Numéro d'expéditeur/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Nom d'expéditeur/)).toBeInTheDocument();
     // ARTP banner present.
     expect(screen.getByText(/Conformité ARTP/i)).toBeInTheDocument();
     // Generic "Clé API" / "Secret" fields are hidden.
@@ -155,10 +161,10 @@ describe('<IntegrationsManager />', () => {
     await user.clear(providerInput);
     await user.type(providerInput, 'sms_lafricamobile');
 
-    expect(screen.getByLabelText('Account ID')).toBeInTheDocument();
-    expect(screen.getByLabelText('Password')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Sender ID/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Host LAMPUSH/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Identifiant de compte')).toBeInTheDocument();
+    expect(screen.getByLabelText('Mot de passe')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Nom d'expéditeur/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Adresse du serveur LAfricaMobile/)).toBeInTheDocument();
   });
 
   it('submits Orange credentials in the right shape (TCK-102)', async () => {
@@ -170,10 +176,10 @@ describe('<IntegrationsManager />', () => {
     const providerInput = await screen.findByLabelText(/Fournisseur/);
     await user.clear(providerInput);
     await user.type(providerInput, 'sms_orange');
-    await user.type(screen.getByLabelText('Client ID'), 'cid-123');
-    await user.type(screen.getByLabelText('Client secret'), 'csec-456');
-    await user.type(screen.getByLabelText(/Sender address/), 'tel:+221771234567');
-    await user.type(screen.getByLabelText(/Sender name/), 'TAKUSSAN');
+    await user.type(screen.getByLabelText('Identifiant client'), 'cid-123');
+    await user.type(screen.getByLabelText('Secret client'), 'csec-456');
+    await user.type(screen.getByLabelText(/Numéro d'expéditeur/), 'tel:+221771234567');
+    await user.type(screen.getByLabelText(/Nom d'expéditeur/), 'TAKUSSAN');
     await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
 
     expect(createMock).toHaveBeenCalledTimes(1);
@@ -235,12 +241,12 @@ describe('<IntegrationsManager />', () => {
     const fournisseur = await screen.findByLabelText(/Fournisseur/);
     fireEvent.change(fournisseur, { target: { value: 'sms_orange' } });
 
-    fireEvent.change(screen.getByLabelText(/Sender address/), { target: { value: 'pas-un-tel' } });
-    fireEvent.change(screen.getByLabelText(/Sender name/), { target: { value: 'nom-trop-long-et-non-alphanum' } });
+    fireEvent.change(screen.getByLabelText(/Numéro d'expéditeur/), { target: { value: 'pas-un-tel' } });
+    fireEvent.change(screen.getByLabelText(/Nom d'expéditeur/), { target: { value: 'nom-trop-long-et-non-alphanum' } });
     await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
 
     expect(await screen.findByText('Format attendu : tel:+221XXXXXXXXX (numéro Orange SN).')).toBeInTheDocument();
-    expect(screen.getByText('Sender name ≤ 11 caractères alphanumériques (whitelist Orange).')).toBeInTheDocument();
+    expect(screen.getByText("Nom d'expéditeur : 11 caractères au plus, lettres et chiffres (nom validé par Orange).")).toBeInTheDocument();
     attendAucuneCleBrute();
     expect(createMock).not.toHaveBeenCalled();
   });
@@ -253,15 +259,15 @@ describe('<IntegrationsManager />', () => {
     const fournisseur = await screen.findByLabelText(/Fournisseur/);
     fireEvent.change(fournisseur, { target: { value: 'sms_lafricamobile' } });
 
-    fireEvent.change(screen.getByLabelText(/Host LAMPUSH/), { target: { value: 'pas-une-url' } });
+    fireEvent.change(screen.getByLabelText(/Adresse du serveur LAfricaMobile/), { target: { value: 'pas-une-url' } });
     // Un sender ID QUI COMMENCE PAR UN CHIFFRE : c'est le seul message posé par `superRefine`,
     // donc le seul dont le chemin de traduction passe par `ctx.addIssue` et non par un `refine`.
-    fireEvent.change(screen.getByLabelText(/Sender ID/), { target: { value: '9ABC' } });
+    fireEvent.change(screen.getByLabelText(/Nom d'expéditeur/), { target: { value: '9ABC' } });
     await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
 
-    expect(await screen.findByText('Host invalide. Exemple : https://lampush-tls.lafricamobile.com')).toBeInTheDocument();
+    expect(await screen.findByText('Adresse de serveur invalide. Exemple : https://lampush-tls.lafricamobile.com')).toBeInTheDocument();
     expect(
-      screen.getByText('LAfricaMobile : le sender ID ne doit pas commencer par un chiffre.'),
+      screen.getByText("LAfricaMobile : le nom d'expéditeur ne doit pas commencer par un chiffre."),
     ).toBeInTheDocument();
     attendAucuneCleBrute();
     expect(createMock).not.toHaveBeenCalled();
@@ -274,10 +280,10 @@ describe('<IntegrationsManager />', () => {
     await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
     const fournisseur = await screen.findByLabelText(/Fournisseur/);
     fireEvent.change(fournisseur, { target: { value: 'sms_mtarget' } });
-    fireEvent.change(screen.getByLabelText(/Sender ID/), { target: { value: 'id-avec-tirets' } });
+    fireEvent.change(screen.getByLabelText(/Nom d'expéditeur/), { target: { value: 'id-avec-tirets' } });
     await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
 
-    expect(await screen.findByText('Sender ID ≤ 11 caractères alphanumériques.')).toBeInTheDocument();
+    expect(await screen.findByText("Nom d'expéditeur : 11 caractères au plus, lettres et chiffres.")).toBeInTheDocument();
     attendAucuneCleBrute();
     expect(createMock).not.toHaveBeenCalled();
   });
@@ -309,7 +315,7 @@ describe('<IntegrationsManager />', () => {
 
       expect(screen.getByTestId('payment-provider-fields')).toBeInTheDocument();
       expect(screen.queryByLabelText(/Clé API/)).toBeNull();
-      await user.type(screen.getByLabelText('Identifiant client (client ID)'), 'cid');
+      await user.type(screen.getByLabelText('Identifiant client'), 'cid');
       await user.type(screen.getByLabelText('Secret client'), 'csec');
       await user.type(screen.getByLabelText('Secret de webhook'), 'ws');
       await user.click(screen.getByRole('button', { name: /Ajouter$/ }));

@@ -5,16 +5,25 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreTaskRequest;
 use App\Http\Requests\Api\UpdateTaskRequest;
+use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
 use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
+use App\Policies\TaskPolicy;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Agency\AgentAvailability;
+use App\Services\Media\PublicPhotoUrl;
+use App\Services\Media\WatermarkRequirement;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Support\Http\ParametreUnique;
+use App\Support\TelephoneSaisi;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,9 +32,13 @@ class TaskController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $base = Task::query()->with(['assignee', 'creator', 'taskable']);
+        // TCK-2595 — l'adresse et la photo d'un bien parent (`taskable.subtitle`, `cover_url`).
+        $base = Task::query()->with(['assignee', 'creator', 'taskable' => fn (MorphTo $parent) => $parent
+            ->morphWith([Property::class => ['address', 'media']])]);
 
-        if (! $user->isSuperAdmin()) {
+        if (filter_var(ParametreUnique::valeur($request->input('filter.team')), FILTER_VALIDATE_BOOLEAN)) {
+            $this->teamScope($base, $user);
+        } elseif (! $user->isSuperAdmin()) {
             $covered = app(AgentAvailability::class)->coveredBy($user);
             $resolver = app(MembershipCapabilityResolver::class);
             $staffAgencyIds = $resolver->staffAgencyIds($user);
@@ -38,8 +51,10 @@ class TaskController extends Controller
                 // TCK-591 (ADR-0035) — pendant une absence, le remplaçant voit les tâches de
                 // l'absent rattachées à l'agence de l'absence.
                 foreach ($covered as $absence) {
+                    // TCK-617 — parent supprimé en douceur compris, comme `parentAgencyIn()`.
                     $q->orWhere(fn ($c) => $c->where('assigned_to_id', $absence['absent_id'])
-                        ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($t) => $t->where('agency_id', $absence['agency_id'])));
+                        ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($t) => $t
+                            ->withoutGlobalScope(SoftDeletingScope::class)->where('agency_id', $absence['agency_id'])));
                 }
             });
         }
@@ -48,14 +63,34 @@ class TaskController extends Controller
             ->defaultSort('-due_at')
             ->paginate();
 
+        WatermarkRequirement::attach($paginator->getCollection()->map(fn (Task $t) => $t->taskable)->filter(fn ($p) => $p instanceof Property));
+
         return $this->paginated($paginator, $paginator->getCollection()->map(fn (Task $t) => $this->format($t, $user))->values());
+    }
+
+    /**
+     * TCK-2595 — `filter[team]=1` : les tâches de l'équipe, pour qui tient `crm.view_all` dans
+     * l'agence de son profil actif, où il est personnel actif (sinon 403). Elle REMPLACE la portée
+     * « mes tâches » : les tâches assignées au personnel actif de cette agence (profil agent ou
+     * admin actif, ou délégation active — la règle des cibles d'attribution, `filter[assignable]`
+     * des membres), dont le parent est dans cette agence. Jamais une autre agence, jamais une tâche
+     * personnelle sans parent. `filter[assigned_to_id]` isole un agent.
+     *
+     * @param  Builder<Task>  $base
+     */
+    private function teamScope(Builder $base, User $user): void
+    {
+        $agency = TaskPolicy::teamAgencyOf($user);
+        abort_if($agency === null, 403);
+
+        $base->assigneAuPersonnelActifDe((int) $agency->id)->parentInAgency((int) $agency->id);
     }
 
     public function store(StoreTaskRequest $request): JsonResponse
     {
         $user = $request->user();
 
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         // Resolve & authorize the polymorphic parent: a user may only attach a
         // task to a record their agency owns / they created (superadmin bypass).
@@ -145,7 +180,7 @@ class TaskController extends Controller
 
     public function update(UpdateTaskRequest $request, Task $task): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         // TCK-591 — le contrôle d'assigné de `store` est rejoué dès que l'assigné change : un `PUT`
         // poussait la tâche chez n'importe quel utilisateur de la plateforme.
@@ -188,27 +223,39 @@ class TaskController extends Controller
             'taskable_id' => $task->taskable_id,
             'taskable_type' => $task->taskable_type,
             'taskable' => $this->taskable($task, $viewer),
+            // TCK-617 (décision du porteur, 2026-11-16) — la tâche d'un parent supprimé reste listée,
+            // marquée : le front ne lie plus vers la fiche, et `taskable.label` reste nul (le parent
+            // supprimé n'est pas relu).
+            'parent_deleted' => $this->parentDeleted($task),
             'status' => $task->status?->value,
             'priority' => $task->priority?->value,
             'due_at' => $this->instant($task->due_at),
             'completed_at' => $this->instant($task->completed_at),
             'assignee' => $this->whenLoaded($task, 'assignee', fn ($u) => ['id' => $u->id, 'name' => $u->getFullNameAttribute()]),
+            // TCK-2595 — `include=assignedTo` : clé présente seulement quand elle est demandée.
+            ...($task->relationLoaded('assignedTo') ? ['assigned_to' => $this->whenLoaded($task, 'assignedTo', fn ($u) => ['id' => $u->id, 'name' => $u->getFullNameAttribute()])] : []),
             'creator' => $this->whenLoaded($task, 'creator', fn ($u) => ['id' => $u->id, 'name' => $u->getFullNameAttribute()]),
             'created_at' => $this->instant($task->created_at),
         ];
     }
 
+    /** TCK-617 — un parent attendu que `taskable` ne voit plus : supprimé (en douceur ou non). */
+    private function parentDeleted(Task $task): bool
+    {
+        return $task->taskable_type !== null && $task->taskable_id !== null && $task->taskable === null;
+    }
+
     /**
-     * TCK-591 — à quoi la tâche se rattache, en clair : `{type, id, label}`.
+     * TCK-591 — à quoi la tâche se rattache, en clair : `{type, id, label, phone, subtitle, cover_url}`.
      *
-     * Le libellé (nom du client, titre du bien) n'est rendu qu'à qui passe le contrôle de
-     * rattachement (`TaskPolicy::attachTo`) : l'assigné d'une tâche ne lit pas, par elle, le nom
-     * d'un client qu'il ne verrait pas autrement.
+     * TCK-2595 — le libellé (nom du client, titre du bien), le téléphone, la ligne de second rang
+     * (`subtitle` : quartier du bien, téléphone du client en E.164 — le front le met en forme) et la
+     * vignette du bien se lisent sous la règle de LECTURE du parent (`view` : `CustomerPolicy`,
+     * `PropertyPolicy`) — qui peut ouvrir le bien en lit le nom. Ils se lisaient sous `attachTo`,
+     * qui exige `update` sur un bien (`properties.update_any` pour le personnel) : l'agent sans cette
+     * capacité lisait « Un bien ». `attachTo` reste la règle pour RATTACHER une tâche (`store`).
      *
-     * Le téléphone d'un client suit la même règle que son nom : la page « Mes tâches » en tire
-     * « Appeler » et « WhatsApp ».
-     *
-     * @return array{type: string, id: int, label: ?string, phone: ?string}|null
+     * @return array{type: string, id: int, label: ?string, phone: ?string, subtitle: ?string, cover_url: ?string}|null
      */
     private function taskable(Task $task, User $viewer): ?array
     {
@@ -224,14 +271,23 @@ class TaskController extends Controller
         $parent = $task->taskable;
         $label = null;
         $phone = null;
-        if ($parent !== null && $viewer->can('attachTo', [Task::class, $parent])) {
-            $label = $parent instanceof Customer
-                ? $parent->getFullNameAttribute()
-                : (string) $parent->getAttribute('title');
-            $phone = $parent instanceof Customer ? $parent->phone : null;
+        $subtitle = null;
+        $cover = null;
+        if ($parent !== null && $viewer->can('view', $parent)) {
+            if ($parent instanceof Customer) {
+                $label = $parent->getFullNameAttribute();
+                $phone = $parent->phone;
+                $normalise = TelephoneSaisi::normaliser($parent->phone);
+                $subtitle = is_string($normalise) && $normalise !== '' ? $normalise : null;
+            } elseif ($parent instanceof Property) {
+                $label = (string) $parent->getAttribute('title');
+                $subtitle = $parent->address?->neighborhood;
+                $media = $parent->getFirstMedia('photos');
+                $cover = $media !== null ? PublicPhotoUrl::upTo($media, 'thumbnail', fn () => $parent->requiresWatermark()) : null;
+            }
         }
 
-        return ['type' => $type, 'id' => (int) $task->taskable_id, 'label' => $label, 'phone' => $phone];
+        return ['type' => $type, 'id' => (int) $task->taskable_id, 'label' => $label, 'phone' => $phone, 'subtitle' => $subtitle, 'cover_url' => $cover];
     }
 
     private function whenLoaded(Task $task, string $relation, callable $fn): mixed

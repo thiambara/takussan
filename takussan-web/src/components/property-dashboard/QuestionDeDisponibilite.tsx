@@ -26,7 +26,7 @@ import type { ApiResponse } from '@/types/api';
  * l'ouvre qu'à qui peut modifier le bien, et rejuge tout au geste.
  */
 export function QuestionDeDisponibilite({ propertyId }: { readonly propertyId: number }) {
-  const t = useTranslations('property.availabilityCheck');
+  const t = useTranslations('propertyAvailabilityCheck');
   const fmt = useFormatteurs();
   const locale = useLocale();
   const router = useRouter();

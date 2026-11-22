@@ -30,7 +30,7 @@ describe('<TwoFactorSection>', () => {
     render(withIntl(<TwoFactorSection enabled={false} />));
     expect(screen.getByText('Désactivée')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /activer la 2fa/i }),
+      screen.getByRole('button', { name: /^activer la double authentification$/i }),
     ).toBeInTheDocument();
   });
 
@@ -42,7 +42,7 @@ describe('<TwoFactorSection>', () => {
     });
     render(withIntl(<TwoFactorSection enabled={false} />));
 
-    await user.click(screen.getByRole('button', { name: /activer la 2fa/i }));
+    await user.click(screen.getByRole('button', { name: /^activer la double authentification$/i }));
 
     await waitFor(() => expect(screen.getByText('ABCDEFGH')).toBeInTheDocument());
     expect(screen.getByPlaceholderText('123456')).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe('<TwoFactorSection>', () => {
     });
     render(withIntl(<TwoFactorSection enabled={false} />));
 
-    await user.click(screen.getByRole('button', { name: /activer la 2fa/i }));
+    await user.click(screen.getByRole('button', { name: /^activer la double authentification$/i }));
     await waitFor(() => screen.getByPlaceholderText('123456'));
     await user.type(screen.getByPlaceholderText('123456'), '123456');
     await user.click(screen.getByRole('button', { name: /confirmer et activer/i }));
@@ -77,7 +77,7 @@ describe('<TwoFactorSection>', () => {
     render(withIntl(<TwoFactorSection enabled={true} />));
 
     expect(screen.getByText('Activée')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /désactiver la 2fa/i }));
+    await user.click(screen.getByRole('button', { name: /désactiver la double authentification/i }));
     expect(screen.getByPlaceholderText('Mot de passe')).toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText('Mot de passe'), 'secret123');
@@ -95,7 +95,7 @@ describe('<TwoFactorSection>', () => {
     enableMock.mockResolvedValue({ ok: false, message: 'Boom.' });
     render(withIntl(<TwoFactorSection enabled={false} />));
 
-    await user.click(screen.getByRole('button', { name: /activer la 2fa/i }));
+    await user.click(screen.getByRole('button', { name: /^activer la double authentification$/i }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Boom.'));
   });

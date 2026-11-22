@@ -18,6 +18,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * TCK-2438 — `start_urls` : son périmètre, l'ensemble trié des listes qu'il a suivies (l'URL de la configuration résolue
  * comprise), chacune jusqu'au bout pour que `reached_end` soit vrai. Nulle seulement pour un passage antérieur à
  * TCK-2438, lu comme l'URL actuelle de la configuration. Pour l'observatoire (`RadarSourceWatch`).
+ *
+ * TCK-2468 (ADR-0087 §5) — `cards_skipped` : les cartes nouvelles qu'une source ciblée a écartées (aucune cible active ne
+ * pouvait leur correspondre). Aucune ligne n'est créée pour elles ; ce compteur est leur seule trace.
  */
 class RadarCrawlRun extends AbstractModel
 {
@@ -42,6 +45,7 @@ class RadarCrawlRun extends AbstractModel
     protected $fillable = [
         'site', 'trigger', 'status', 'operator_id', 'started_at', 'finished_at', 'pages_read', 'cards_seen',
         'listings_created', 'listings_known', 'snapshots_opened', 'reached_end', 'stop_reason', 'start_urls',
+        'cards_skipped',
     ];
 
     protected $casts = [
@@ -55,6 +59,7 @@ class RadarCrawlRun extends AbstractModel
         'listings_created' => 'integer',
         'listings_known' => 'integer',
         'snapshots_opened' => 'integer',
+        'cards_skipped' => 'integer',
         'reached_end' => 'boolean',
         'start_urls' => 'array',
     ];
@@ -66,6 +71,7 @@ class RadarCrawlRun extends AbstractModel
     protected static array $queryFields = [
         'id', 'site', 'trigger', 'status', 'operator_id', 'started_at', 'finished_at', 'pages_read', 'cards_seen',
         'listings_created', 'listings_known', 'snapshots_opened', 'reached_end', 'stop_reason', 'created_at', 'updated_at',
+        'cards_skipped',
     ];
 
     public function operator(): BelongsTo

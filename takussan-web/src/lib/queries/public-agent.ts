@@ -21,6 +21,16 @@ export interface AgentDto {
    * `owner` pour un propriétaire. `/agents/{slug}` sert les deux (TCK-436, option b).
    */
   public_role: 'agent' | 'owner';
+  /**
+   * TCK-2506 — `false` pour un propriétaire qui n'a pas choisi l'annuaire : sa fiche reste servie
+   * (une de ses annonces y mène) mais en `noindex`, sans données structurées. Absent vaut « oui ».
+   */
+  indexable?: boolean;
+  /**
+   * TCK-2519 — présent seulement quand l'adresse demandée n'est pas la canonique (ancien slug au
+   * nom, `username`, autre casse) : la page redirige, de façon permanente, vers `/agents/<canonical_slug>`.
+   */
+  canonical_slug?: string;
   bio?: string | null;
   // TCK-441 — `email` N'EST PLUS servi par l'API : c'est l'adresse de CONNEXION de l'agent, et
   // elle a quitté la charge publique. Le contact passe par le formulaire anonyme de
@@ -31,6 +41,11 @@ export interface AgentDto {
    * vérifié (D10) ; la page ne le publie qu'à `true`, et un champ absent vaut « non ».
    */
   phone_verified?: boolean;
+  /**
+   * TCK-2576 — le numéro publié est-il déclaré WhatsApp ? Servi AVEC `phone` seulement (absent pour un
+   * numéro non vérifié) ; un champ absent vaut « non ».
+   */
+  phone_whatsapp?: boolean;
   city?: string | null;
   preferred_language?: string | null;
   specialty?: string | null;
@@ -38,7 +53,23 @@ export interface AgentDto {
   intervention_zones?: string[];
   years_of_experience?: number | null;
   avatar_url: string | null;
+  /** TCK-2518 — prénom et nom séparés : la fiche d'un propriétaire n'en montre que l'initiale (TCK-2523). */
+  first_name?: string | null;
+  last_name?: string | null;
+  /** TCK-2518 — codes de langue (`fr`, `wo`…), filtrés sur `directory.languages` par l'API. */
+  languages?: string[];
+  /** TCK-2518 — les quartiers servis, nom compris : une donnée du référentiel, pas un libellé. */
+  neighborhoods?: { id: number; name: string }[];
+  /** TCK-2518 — médiane en minutes ; `null` sous le seuil ou quand elle tombe sur l'infini. */
+  median_response_minutes?: number | null;
+  /** Le rattachement de la PERSONNE (son profil d'agent) : nul pour un propriétaire. */
   agency: { id: number; name: string; slug: string } | null;
+  /**
+   * TCK-2574 — l'agence qui GÈRE ses biens publics : la plus fréquente parmi ceux qui en ont une
+   * (à égalité, la plus ancienne), `null` sans aucune. Même règle que l'annuaire. C'est à elle que
+   * la fiche d'un propriétaire renvoie le contact.
+   */
+  managing_agency?: { id: number; name: string; slug: string } | null;
   portfolio_count: number;
   portfolio_total: number;
   portfolio: PropertyListItem[];

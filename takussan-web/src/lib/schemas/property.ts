@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { lireNombre } from '@/lib/clavier';
 import { requiredStringSchema } from './common';
 import { msgValidation } from './messages';
 import {
@@ -50,7 +51,7 @@ function nombreFacultatif(schema: z.ZodNumber) {
   return z.preprocess(
     (v) => {
       if (v === null || v === undefined) return undefined;
-      if (typeof v === 'string') return v.trim() === '' ? undefined : Number(v.replace(',', '.'));
+      if (typeof v === 'string') return v.trim() === '' ? undefined : lireNombre(v); // ADR-0135 : « 1 500 », « 150,000 », « 12,5 »
       return v;
     },
     schema.optional(),

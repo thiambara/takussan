@@ -58,7 +58,8 @@ class ConversationMessageSenderTest extends TestCase
         $data = $this->getJson("/api/conversations/{$this->fil->id}/messages")->assertOk()->json('data');
         $ligne = collect($data)->firstWhere('id', $message->id);
 
-        $this->assertSame(['id' => $this->autre->id, 'full_name' => 'Awa Diop'], $ligne['sender']);
+        // TCK-2858 — `role_label_code` : un code de rôle dans un groupe, nul dans une directe ; jamais une coordonnée.
+        $this->assertSame(['id' => $this->autre->id, 'full_name' => 'Awa Diop', 'role_label_code' => null], $ligne['sender']);
     }
 
     public function test_la_relecture_par_after_id_rend_le_nom_de_l_auteur(): void
@@ -70,7 +71,7 @@ class ConversationMessageSenderTest extends TestCase
             ->assertOk()->json('data');
 
         $this->assertSame([$message->id], array_column($data, 'id'));
-        $this->assertSame(['id' => $this->autre->id, 'full_name' => 'Awa Diop'], $data[0]['sender']);
+        $this->assertSame(['id' => $this->autre->id, 'full_name' => 'Awa Diop', 'role_label_code' => null], $data[0]['sender']);
     }
 
     public function test_sender_est_nul_pour_un_compte_efface(): void

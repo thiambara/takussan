@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\EnvoieCanalParCanal;
 use App\Jobs\Concerns\RunsOnLongQueue;
 use App\Models\Enums\UserStatus;
 use App\Models\Favorite;
@@ -53,11 +54,13 @@ use Throwable;
  *  2. chaque annonce est RÉSERVÉE avant l'envoi par un `UPDATE` conditionnel sur l'état lu
  *     (`WHERE` l'ancienne base, l'ancien marqueur). Un passage qui a lu le même état avant la
  *     réservation de l'autre n'affecte aucune ligne, et n'annonce rien. Si l'envoi échoue, les
- *     réservations sont rendues (même `UPDATE`, à l'envers) : le passage suivant annonce.
+ *     réservations sont rendues (même `UPDATE`, à l'envers) : le passage suivant annonce — sauf si
+ *     un canal sortant (l'e-mail) est déjà parti (TCK-615) : l'annonce est faite, la cloche qui
+ *     lève après lui est perdue, pas rejouée avec l'e-mail.
  */
 class SendFavoriteChangeAlerts implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, RunsOnLongQueue, SerializesModels;
+    use Dispatchable, EnvoieCanalParCanal, InteractsWithQueue, Queueable, RunsOnLongQueue, SerializesModels;
 
     /** Un passage long n'est ni coupé à 60 s par le worker, ni rejoué : le suivant reprend. */
     public int $timeout = 1800;
@@ -170,11 +173,16 @@ class SendFavoriteChangeAlerts implements ShouldQueue
             if ($items === []) {
                 continue;
             }
+            // TCK-615 — canal par canal : l'e-mail parti garde ses réservations même si la cloche,
+            // après lui, lève ; seule une annonce dont aucun canal sortant n'est parti les rend.
+            $sortant = false;
             try {
-                $user->notify(new FavoriteChangesNotification($kind, $items));
+                $this->envoyerCanalParCanal($user, new FavoriteChangesNotification($kind, $items), $sortant);
             } catch (Throwable $e) {
-                foreach ($items as $item) {
-                    $this->deplacer($item['favorite_id'], $reserves[$item['favorite_id']], $lu[$item['favorite_id']]);
+                if (! $sortant) {
+                    foreach ($items as $item) {
+                        $this->deplacer($item['favorite_id'], $reserves[$item['favorite_id']], $lu[$item['favorite_id']]);
+                    }
                 }
                 $echec ??= $e;
             }

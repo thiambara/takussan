@@ -31,6 +31,9 @@ final class RadarFetchRefused extends RuntimeException
 
     public const NOT_HTML = 'radar.fetch.not_html';
 
+    /** TCK-2467 — un sitemap dont la réponse n'est pas du XML (ni l'en-tête, ni, sans en-tête, le début du corps). */
+    public const NOT_XML = 'radar.fetch.not_xml';
+
     /** TCK-2387 — une photo source dont les octets, relus, ne sont pas une image d'un type attendu. */
     public const NOT_IMAGE = 'radar.fetch.not_image';
 

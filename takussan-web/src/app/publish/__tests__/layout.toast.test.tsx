@@ -22,6 +22,9 @@ vi.mock('@/i18n/messages', async () => ({
   messagesPour: async () => (await import('@/messages/fr.json')).default,
 }));
 
+// TCK-2598 — le layout lit les libellés de la coque d'entrée par le serveur.
+vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
+
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 1 }, isLoading: false, refreshUser: vi.fn() }),
 }));

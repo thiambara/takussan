@@ -6,6 +6,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { cn } from '@/lib/utils';
 
 /** TCK-633 (lot C) — un contact sur place saisi dans l'étape Finition. */
 export interface ContactSurPlace {
@@ -29,34 +30,70 @@ export const MAX_CONTACTS_SUR_PLACE = 3;
 export function ContactsSurPlace({
   valeur,
   onChange,
+  presentation,
 }: {
   readonly valeur: readonly ContactSurPlace[];
   readonly onChange: (v: ContactSurPlace[]) => void;
+  /**
+   * TCK-2819 (lot 3) — `assistant` : le dessin de la maquette `app-entree-publier` (écran a-5), à la
+   * finition de l'assistant d'annonce (`/publish` et `/app/properties/new`). Titre de section 17 px,
+   * sans cadre autour ; chaque contact en carte, « Qui ? » et « Numéro » côte à côte dès le téléphone ;
+   * « Retirer » en geste texte ; « Ajouter un contact » en pastille pointillée de 44 px. Absente, la
+   * fiche du bien (`ContactsSurPlaceDuBien`), que la maquette ne couvre pas, garde son dessin.
+   */
+  readonly presentation?: 'assistant';
 }) {
   const t = useTranslations('property.contacts');
+  const assistant = presentation === 'assistant';
   const modifier = (i: number, patch: Partial<ContactSurPlace>) =>
     onChange(valeur.map((c, k) => (k === i ? { ...c, ...patch } : c)));
 
   return (
-    <fieldset className="space-y-3 rounded-lg border border-border p-4" data-testid="contacts-sur-place">
-      <legend className="float-left mb-1 w-full p-0 font-display text-base font-semibold text-foreground">{t('title')}</legend>
-      <p className="clear-left text-xs text-muted-foreground">{t('hint')}</p>
+    <fieldset
+      className={assistant ? 'min-w-0' : 'space-y-3 rounded-lg border border-border p-4'}
+      data-testid="contacts-sur-place"
+      data-presentation={assistant ? 'assistant' : undefined}
+    >
+      <legend
+        className={cn(
+          'float-left w-full p-0 font-display font-semibold text-foreground',
+          assistant ? 'text-titre-court tracking-titre' : 'mb-1 text-base',
+        )}
+      >
+        {t('title')}
+      </legend>
+      <p className={cn('clear-left text-muted-foreground', assistant ? 'pt-1 text-ui leading-snug' : 'text-xs')}>{t('hint')}</p>
       {valeur.map((c, i) => (
-        <div key={i} className="space-y-2 rounded-md border border-border bg-background p-3" data-contact-sur-place>
-          <div className="grid items-start gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label htmlFor={`contact-sur-place-label-${i}`} className="text-xs font-semibold text-muted-foreground">
+        <div
+          key={i}
+          className={cn(
+            'space-y-2 border border-border',
+            assistant ? 'mt-3 rounded-xl bg-card p-3.5' : 'rounded-md bg-background p-3',
+          )}
+          data-contact-sur-place
+        >
+          <div className={cn('grid items-start gap-3', assistant ? 'grid-cols-2' : 'sm:grid-cols-2')}>
+            <div className="min-w-0 space-y-1">
+              <label
+                htmlFor={`contact-sur-place-label-${i}`}
+                className={assistant ? 'text-sm font-medium text-foreground' : 'text-xs font-semibold text-muted-foreground'}
+              >
                 {t('labelLabel')}
               </label>
               <Input
+                profil="mots"
                 id={`contact-sur-place-label-${i}`}
                 value={c.label}
                 maxLength={60}
+                placeholder={t('labelPlaceholder')}
                 onChange={(e) => modifier(i, { label: e.target.value })}
               />
             </div>
-            <div className="space-y-1">
-              <label htmlFor={`contact-sur-place-phone-${i}`} className="text-xs font-semibold text-muted-foreground">
+            <div className="min-w-0 space-y-1">
+              <label
+                htmlFor={`contact-sur-place-phone-${i}`}
+                className={assistant ? 'text-sm font-medium text-foreground' : 'text-xs font-semibold text-muted-foreground'}
+              >
                 {t('phoneLabel')}
               </label>
               <PhoneInput id={`contact-sur-place-phone-${i}`} value={c.phone} onValueChange={(phone) => modifier(i, { phone })} />
@@ -68,36 +105,58 @@ export function ContactsSurPlace({
                 type="checkbox"
                 checked={c.has_whatsapp}
                 onChange={(e) => modifier(i, { has_whatsapp: e.target.checked })}
-                className="size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+                className={cn('shrink-0 cursor-pointer rounded border-input accent-primary', assistant ? 'size-5' : 'size-4')}
               />
               {t('whatsapp')}
             </label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onChange(valeur.filter((_, k) => k !== i))}
-              aria-label={t('removeAria', { index: i + 1 })}
-              className="text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 aria-hidden="true" />
-              {t('remove')}
-            </Button>
+            {assistant ? (
+              <button
+                type="button"
+                onClick={() => onChange(valeur.filter((_, k) => k !== i))}
+                aria-label={t('removeAria', { index: i + 1 })}
+                className="inline-flex h-11 items-center rounded-md px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-destructive focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                {t('remove')}
+              </button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onChange(valeur.filter((_, k) => k !== i))}
+                aria-label={t('removeAria', { index: i + 1 })}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 aria-hidden="true" />
+                {t('remove')}
+              </Button>
+            )}
           </div>
         </div>
       ))}
       {valeur.length < MAX_CONTACTS_SUR_PLACE ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onChange([...valeur, { label: '', phone: '', has_whatsapp: false }])}
-        >
-          <Plus aria-hidden="true" />
-          {t('add')}
-        </Button>
+        assistant ? (
+          <button
+            type="button"
+            onClick={() => onChange([...valeur, { label: '', phone: '', has_whatsapp: false }])}
+            className="mt-3 inline-flex h-11 items-center gap-2 rounded-full border border-dashed border-input px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            {t('add')}
+          </button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onChange([...valeur, { label: '', phone: '', has_whatsapp: false }])}
+          >
+            <Plus aria-hidden="true" />
+            {t('add')}
+          </Button>
+        )
       ) : (
-        <p className="text-xs text-muted-foreground">{t('max')}</p>
+        <p className={cn('text-xs text-muted-foreground', assistant && 'mt-3')}>{t('max')}</p>
       )}
     </fieldset>
   );

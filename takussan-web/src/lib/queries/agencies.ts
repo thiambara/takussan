@@ -1,7 +1,8 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, SpatieQueryParams } from '@/types/api';
 import type { Agency } from '@/types/agency';
-import type { AgencyFormPayload } from '@/lib/schemas/agency';
+import type { CorpsDeLaFiche } from '@/lib/agence/fiche';
+import type { ChargeUtileVitrine } from '@/lib/vitrine-agence';
 import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
@@ -18,6 +19,8 @@ export const AGENCY_ADMIN_FIELDS = [
   'description',
   'email',
   'phone',
+  // TCK-2576 — le numéro WhatsApp de l'agence, saisi dans « Identité et contact ».
+  'phone_whatsapp',
   'website',
   'commission_rate',
   'status',
@@ -30,6 +33,10 @@ export const AGENCY_ADMIN_FIELDS = [
   'ninea',
   'rccm',
   'legal_address',
+  // TCK-2524 — la vitrine de la fiche publique (TCK-2518), écrite par le bloc « Fiche publique ».
+  'tagline',
+  'highlights',
+  'showcase_property_ids',
 ] as const;
 
 function buildShowParams(): SpatieQueryParams {
@@ -89,7 +96,26 @@ export async function fetchAgency(
 export async function updateAgency(
   token: string,
   agencyId: number,
-  payload: AgencyFormPayload,
+  payload: CorpsDeLaFiche,
+  activeProfileId?: string,
+): Promise<Agency> {
+  const res = await apiRequest<ApiResponse<Agency>>(cheminApi`/api/agencies/${agencyId}`, {
+    method: 'PATCH',
+    body: payload,
+    token,
+    activeProfileId,
+  });
+  return res.data;
+}
+
+/**
+ * TCK-2524 — la vitrine seule (`tagline`, `highlights`, `showcase_property_ids`) : le bloc « Fiche
+ * publique » a son propre enregistrement, il n'envoie pas le reste de la fiche.
+ */
+export async function updateAgencyVitrine(
+  token: string,
+  agencyId: number,
+  payload: ChargeUtileVitrine,
   activeProfileId?: string,
 ): Promise<Agency> {
   const res = await apiRequest<ApiResponse<Agency>>(cheminApi`/api/agencies/${agencyId}`, {

@@ -222,7 +222,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
     id: 'property-form-save-bar',
     corner: 'bottom-full',
     height: barreSurDeuxLignes ? SAVE_BAR_HEIGHT_TWO_ROWS_PX : SAVE_BAR_HEIGHT_PX,
-    safeAreaInset: 'calc(1rem + env(safe-area-inset-bottom))',
+    safeAreaInset: 'calc(var(--spacing) * 4 + env(safe-area-inset-bottom))',
   });
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
@@ -359,6 +359,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
           name="title"
           label={t('fields.title')}
           required
+          profil="phrase"
           placeholder={t('fields.titlePlaceholder')}
           maxLength={200}
         />
@@ -432,18 +433,21 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
             control={control}
             name="street"
             label={t('fields.street')}
+            profil="lieu"
             placeholder={t('fields.streetPlaceholder')}
           />
           <FormInput
             control={control}
             name="postal_code"
             label={t('fields.postalCode')}
+            profil="mots"
             placeholder="10700"
           />
           <FormInput
             control={control}
             name="country"
             label={t('fields.country')}
+            profil="mots"
             placeholder={t('fields.countryPlaceholder')}
             maxLength={2}
           />
@@ -473,8 +477,8 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
               // TCK-488 — un terrain se mesure en surface de PARCELLE, un logement en surface
               // HABITABLE : `areaLabelKey` porte la distinction, et le parcours l'appliquait déjà.
               label={t(areaLabelKey(ctx.type))}
-              type="number"
-              inputMode="numeric"
+              profil="entier"
+              placeholder={t('fields.areaPlaceholder')}
               min={0}
             />
           ) : null}
@@ -537,6 +541,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
           control={control}
           name="description"
           label={t('fields.description')}
+          profil="texte-long"
           rows={6}
           placeholder={t('fields.descriptionPlaceholder')}
         />

@@ -3,8 +3,9 @@
 import * as React from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { DayPicker, getDefaultClassNames } from "react-day-picker";
-import { fr } from "date-fns/locale";
+import { useLocale } from "next-intl";
 
+import { localeDateFns } from "@/lib/format/dateFnsLocale";
 import { cn } from "@/lib/utils";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
@@ -18,6 +19,10 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>;
  * `components` (TCK-582) : importée ici, elle serait hors couche et battrait
  * tous les utilitaires ci-dessous.
  *
+ * TCK-347 — les noms de jours et de mois suivent la langue de l'écran (`localeDateFns`, repli
+ * `wo → fr` explicite) : `locale={fr}` en dur rendait « lundi, février » sous un bouton qui, lui,
+ * formatait déjà en anglais. Un `locale` passé par l'appelant l'emporte toujours.
+ *
  * Usage:
  *   <Calendar mode="single" selected={date} onSelect={setDate} />
  */
@@ -28,10 +33,11 @@ export function Calendar({
   ...props
 }: CalendarProps) {
   const defaults = getDefaultClassNames();
+  const locale = localeDateFns(useLocale());
 
   return (
     <DayPicker
-      locale={fr}
+      locale={locale}
       showOutsideDays={showOutsideDays}
       weekStartsOn={1}
       className={cn("p-3", className)}
@@ -66,7 +72,7 @@ export function Calendar({
           defaults.weekday,
           // `opacity-100` : la feuille de react-day-picker pose 0,75 sur les jours de la semaine, ce
           // qui ramenait le jeton à 3,33:1 (TCK-1032).
-          "flex-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground opacity-100",
+          "flex-1 text-[calc(var(--spacing)*2.8)] font-medium uppercase tracking-wide text-muted-foreground opacity-100",
         ),
         week: cn(defaults.week, "mt-1 flex w-full"),
         day: cn(

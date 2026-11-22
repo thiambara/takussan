@@ -45,8 +45,8 @@ function fusionne(base: Arbre, surcharge: Arbre): Arbre {
  * Enveloppe `ui` dans un `NextIntlClientProvider` chargé des vrais dictionnaires.
  *
  * ```tsx
- * render(withIntl(<AppTopbar user={user} />));
- * render(withIntl(<AppTopbar user={user} />, 'en'));   // pour vérifier une traduction anglaise
+ * render(withIntl(<AppSidebar user={user} />));
+ * render(withIntl(<AppSidebar user={user} />, 'en'));   // pour vérifier une traduction anglaise
  * ```
  */
 export function withIntl(ui: ReactNode, locale: LocaleDeTest = 'fr') {

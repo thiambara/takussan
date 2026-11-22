@@ -31,6 +31,12 @@ class LeasePaymentResourceContractTest extends TestCase
         'late_fee_amount', 'late_fee_applied_at', 'late_fee_paid_at', 'late_fee_refund_amount',
         'late_fee_outstanding', 'late_fee_payable_online', 'amount_due', 'receipt_available',
         'is_overdue', 'notes', 'created_at',
+        // TCK-2778 — les verdicts de la relance et du lien de la pénalité seule.
+        'late_fee_reminder_allowed', 'late_fee_link_allowed',
+        // TCK-608 — un encaissement en double reste à rendre (« Doublon remboursé »).
+        'duplicate_refund_pending',
+        // TCK-2958 (ADR-0128 § 4) — les gestes du lecteur sur l'échéance, que la carte du fil reprend.
+        'abilities',
     ];
 
     public function test_les_cles_de_la_ressource_sont_exactement_celles_du_contrat(): void

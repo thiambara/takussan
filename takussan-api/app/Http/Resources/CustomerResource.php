@@ -4,9 +4,20 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Customer;
+use App\Models\CustomerNote;
+use App\Models\Enums\CustomerNoteKind;
+use App\Models\PropertyVisit;
+use App\Models\User;
 use App\Policies\CustomerPolicy;
+use App\Policies\DocumentPolicy;
+use App\Policies\PropertyVisitPolicy;
+use App\Rules\PersonnelDeLAgence;
+use App\Services\Crm\CustomerCommercialAttributes;
+use App\Services\Documents\DocumentVisibility;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Support\Http\ParametreUnique;
 use App\Support\Masking;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
 class CustomerResource extends BaseResource
@@ -18,6 +29,97 @@ class CustomerResource extends BaseResource
      */
     private const RESERVES = ['id_type', 'id_number', 'emergency_contact_name', 'emergency_contact_phone', 'notes', 'metadata'];
 
+    private const CHAMPS_STRICTS = 'tck2756.champs_stricts';
+
+    private const CHAMPS_DEMANDES = 'tck2756.champs_demandes';
+
+    /**
+     * Les traits de la fiche que la policy et la règle des critères lisent : l'agence, l'auteur et — suivi
+     * de TCK-2757, « l'auteur n'est jamais le sujet » — le sujet. Une fiche lue sans l'un d'eux est relue
+     * ({@see self::ficheJugeable()}).
+     */
+    private const TRAITS_JUGES = ['id', 'agency_id', 'added_by_id', 'user_id'];
+
+    /**
+     * TCK-2780 — les clés de CE bloc ({@see self::borneeAuxChamps()}) ; `null` : le bloc entier.
+     *
+     * @var list<string>|null
+     */
+    private ?array $champsDuBloc = null;
+
+    /**
+     * TCK-2756 (décision du porteur : a) — la LISTE du CRM rend les seules colonnes que
+     * `fields[customers]` a demandées : une colonne non lue est absente, pas rendue à `null` (qui se
+     * lisait « ce client n'a pas d'e-mail »), et des attributs calculés seuls ne font plus retomber
+     * spatie sur `select *` ({@see CustomerCommercialAttributes::strip()}). Posé par
+     * `CustomerController::index` avant `Customer::buildQuery()`. Le show et les lecteurs imbriqués
+     * (bail, réservation) gardent leur forme : la fiche client envoie au show des attributs calculés
+     * seuls POUR recevoir la ressource entière (TCK-2589).
+     */
+    public static function rendreLesSeulsChampsDemandes(Request $request): void
+    {
+        $request->attributes->set(self::CHAMPS_STRICTS, true);
+    }
+
+    public static function champsStricts(Request $request): bool
+    {
+        return $request->attributes->get(self::CHAMPS_STRICTS) === true;
+    }
+
+    /**
+     * Vérification adverse de TCK-2756 (d2) — les colonnes que `fields[customers]` a demandées, notées
+     * par {@see CustomerCommercialAttributes::strip()} quand la lecture en lit d'autres (la clé étrangère
+     * d'un include) : seules celles-ci sont rendues.
+     *
+     * @param  list<string>  $colonnes
+     */
+    public static function noterLesChampsDemandes(Request $request, array $colonnes): void
+    {
+        $request->attributes->set(self::CHAMPS_DEMANDES, $colonnes);
+    }
+
+    /**
+     * TCK-2780 — les clés que `fields[customers]` demande pour un bloc imbriqué rendu à la main (le
+     * `tenant` de `GET /api/leases/{id}`), `id` en tête ; `null` sans demande. Même nom de clé que la
+     * liste des baux, où spatie la valide. Reçue en liste (`fields[customers][]=…`), la demande vaut
+     * absente (ADR-0075) : le bloc entier, celui que le lecteur reçoit sans `fields`.
+     *
+     * @return list<string>|null
+     */
+    public static function champsDemandesDuBloc(Request $request): ?array
+    {
+        $brut = ParametreUnique::chaine($request, 'fields.customers');
+        if ($brut === null || trim($brut) === '') {
+            return null;
+        }
+        $noms = array_filter(array_map('trim', explode(',', $brut)), fn (string $nom) => $nom !== '');
+
+        return array_values(array_unique(['id', ...$noms]));
+    }
+
+    /**
+     * TCK-2780 — borne CE bloc à `id` et aux clés demandées. Le bornage s'applique au rendu, après les
+     * gardes jugées sur la fiche complète (`litLaFiche`, `notesLisibles`, `readsVisits`…) : une clé
+     * demandée qu'une garde a retirée reste absente, aucune n'ouvre un droit. `null` : le bloc entier.
+     *
+     * @param  list<string>|null  $champs
+     */
+    public function borneeAuxChamps(?array $champs): static
+    {
+        $this->champsDuBloc = $champs;
+
+        return $this;
+    }
+
+    /**
+     * @param  array<string, mixed>  $rendu
+     * @return array<string, mixed>
+     */
+    private function borner(array $rendu): array
+    {
+        return $this->champsDuBloc === null ? $rendu : array_intersect_key($rendu, array_flip($this->champsDuBloc));
+    }
+
     public function toArray(Request $request): array
     {
         // TCK-808 (P23.02) — la pièce, le contact d'urgence, les notes et `metadata` ne sortent que
@@ -26,7 +128,7 @@ class CustomerResource extends BaseResource
         // (TCK-587), les lisait par là. Étalé, comme les critères, pour la même raison.
         $litLaFiche = $this->readsCustomer($request);
 
-        return [
+        $rendu = [
             'id' => $this->id,
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
@@ -61,7 +163,7 @@ class CustomerResource extends BaseResource
             'notes' => $this->when(
                 $litLaFiche
                     && (array_key_exists('notes', $this->resource->getAttributes()) || $this->resource->relationLoaded('notes')),
-                fn () => $this->resource->notes,
+                fn () => $this->notesLisibles($request),
             ),
             // TCK-591 §5 — les critères du prospect, que la fiche affiche et édite. Réservés au
             // personnel de l'agence de la fiche (verif-591 m2) : la ressource est imbriquée dans le
@@ -77,10 +179,64 @@ class CustomerResource extends BaseResource
                 'seeking_cities' => $this->seeking_cities,
                 'seeking_neighborhoods' => $this->seeking_neighborhoods,
                 'min_bedrooms' => $this->min_bedrooms,
+                // TCK-2761 — la recherche déduite du bien d'une demande, « à confirmer avec lui ».
+                'seeking_deduced_at' => $this->iso($this->seeking_deduced_at),
             ] : []),
+            // TCK-2582 (ADR-0101) — d'où vient la fiche : la demande (date, message cité, bien) et le
+            // bien qui a fait venir la personne. Au seul lecteur des critères (personnel de l'agence
+            // de la fiche) : le message n'est jamais recopié vers un compte hors du personnel — la
+            // ressource est imbriquée dans le bail et la réservation, que le bailleur lit.
+            ...($this->readsOrigin($request) ? $this->origine() : []),
+            // TCK-2583 — le dernier contact : geste, note, visite terminée ou compte rendu.
+            // Vérification adverse de TCK-2583 — au seul personnel de l'agence de la fiche : nourri
+            // par les visites et les comptes rendus de tous les biens de l'agence, il donnait au
+            // bailleur auteur l'heure d'un compte rendu sur le bien d'un autre bailleur.
+            'last_contacted_at' => $this->resource->last_contacted_at !== null && $this->readsVisits($request)
+                ? $this->iso($this->last_contacted_at)
+                : null,
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
             'tasks_count' => $this->whenCounted('tasks'),
+            // TCK-2588 — `next_action`, `follow_up`, `referent` : calculés pour la page, rendus
+            // seulement quand `fields[customers]` les demande.
+            ...CustomerCommercialAttributes::of($request, (int) $this->id),
+            // Vérification adverse de TCK-2588 — les visites d'une fiche (compte, à venir) sont au
+            // seul personnel de son agence (et au super-admin) : le bailleur auteur de la fiche
+            // lisait sinon les visites du client sur le bien d'un AUTRE bailleur, que
+            // `PropertyVisitPolicy::view` lui refuse.
+            'visits_count' => $this->when(
+                array_key_exists('visits_count', $this->resource->getAttributes()) && $this->readsVisits($request),
+                fn () => (int) $this->visits_count,
+            ),
+            // TCK-2589 — les comptes du dossier (« Réservations », « Baux »), dans l'agence de la fiche
+            // (`CompteDansLAgenceDeLaFiche`) et au même lecteur que `visits_count` : une
+            // réservation ou un bail peut porter sur le bien d'un autre bailleur.
+            'bookings_count' => $this->when(
+                array_key_exists('bookings_count', $this->resource->getAttributes()) && $this->readsVisits($request),
+                fn () => (int) $this->bookings_count,
+            ),
+            'leases_count' => $this->when(
+                array_key_exists('leases_count', $this->resource->getAttributes()) && $this->readsVisits($request),
+                fn () => (int) $this->leases_count,
+            ),
+            'upcoming_visits' => $this->when(
+                $this->relationLoaded('upcomingVisits') && $this->readsVisits($request),
+                fn () => $this->upcomingVisits->map(fn ($v) => [
+                    'id' => $v->id,
+                    'property_id' => $v->property_id,
+                    'status' => $v->status?->value,
+                    'scheduled_at' => $this->iso($v->scheduled_at),
+                    // TCK-2589 — « Confirmer » de la fiche : la tranche demandée (une demande par
+                    // tranche se confirme sur sa page, où l'heure se choisit), et la règle même
+                    // d'`abilities.manage` du show de visite. Rien du visiteur ni de la fiche.
+                    'preferred_window' => $this->enumValue($v->preferred_window),
+                    'manage' => PropertyVisitPolicy::gere($request->user(), $v),
+                    // TCK-2761 — l'adresse du bien (« Rue OU-48 », « Itinéraire ») : demandée
+                    // (`fields[customers]=visit_places`, chargée pour la page par
+                    // `avecVisitesAmorcees`), et au seul lecteur de l'adresse AU TITRE DU BIEN.
+                    ...($this->adresseDuBienLisible($request, $v) ? ['address' => PropertyVisitResource::adresse($v->property)] : []),
+                ])->values(),
+            ),
             'added_by' => $this->when(
                 $this->relationLoaded('addedBy'),
                 fn () => $this->addedBy ? [
@@ -99,16 +255,85 @@ class CustomerResource extends BaseResource
                     'color' => $t->color,
                 ])->values(),
             ),
+            // TCK-2759 (ADR-0099, amendement du 2026-11-12) — `include=documents` est un septième chemin
+            // de lecture : un document INTERNE n'y passe que pour le lecteur des documents internes de la
+            // fiche (`DocumentPolicy::readsInternalOf`, jugé une fois pour la fiche). Le bailleur auteur
+            // de sa propre fiche, ou l'agent qui en est le sujet, lisent la fiche sans lire ses internes.
+            // `set_visibility` est ce même verdict (`DocumentPolicy::setVisibility` sur une fiche).
             'documents' => $this->when(
                 $this->relationLoaded('documents'),
-                fn () => $this->documents->map(fn ($d) => [
-                    'id' => $d->id,
-                    'name' => $d->name,
-                    'type' => $d->type?->value,
-                    'created_at' => $this->iso($d->created_at),
-                ])->values(),
+                function () use ($request) {
+                    $user = $request->user();
+                    // TCK-2759 (r3, vérification de 90250c936) — la fiche est jugée sur sa ligne, comme le
+                    // document : un `fields[customers]` sans `user_id` faisait sauter « jamais le sujet »
+                    // (le sujet membre du personnel lisait ses internes), sans `agency_id` retirait les
+                    // internes au personnel. Relue au besoin, une fois par page en liste (`primeFiches`).
+                    // Une fiche que la relecture n'a pas trouvée (supprimée) reste partielle : rien d'interne,
+                    // aucune bascule — le jugement ferme, il ne retombe pas sur les colonnes demandées.
+                    $fiche = $this->ficheJugeable($request);
+                    $litLesInternes = $user !== null && self::porteLesTraitsJuges($fiche)
+                        && self::litLesInternesDe($request, $user, $fiche);
+                    // Vérification de 416274da0 — le filtre et l'offre lisent la ligne, pas les `fields[documents]` demandés.
+                    DocumentVisibility::completerLesColonnes($this->documents);
+
+                    return $this->documents
+                        ->filter(fn ($d) => $litLesInternes || ! $d->is_internal)
+                        ->map(fn ($d) => [
+                            'id' => $d->id,
+                            'name' => $d->name,
+                            'type' => $d->type?->value,
+                            'is_internal' => (bool) $d->is_internal,
+                            'created_at' => $this->iso($d->created_at),
+                            // TCK-2759 r1 — ni sur une pièce visible du sujet ({@see DocumentVisibility::basculeOfferte()}).
+                            'abilities' => ['set_visibility' => $litLesInternes && DocumentVisibility::basculeOfferte($d, $fiche)],
+                        ])->values();
+                },
             ),
         ];
+
+        if (! self::champsStricts($request)) {
+            return $this->borner($rendu);
+        }
+
+        // TCK-2756 — une colonne de la fiche que la lecture n'a pas chargée n'est pas rendue. Les
+        // clés calculées, masquées ou de relation (`id_number_masked`, `notes`, `next_action`,
+        // `visits_count`…) ont déjà leur propre condition.
+        // D2 : quand la lecture a lu plus que demandé (la clé étrangère d'un include), la liste des
+        // colonnes demandées tranche.
+        $colonnes = Customer::getOwnQueryFields();
+        $demandees = $request->attributes->get(self::CHAMPS_DEMANDES);
+        $lues = $this->resource->getAttributes();
+
+        return $this->borner(array_filter(
+            $rendu,
+            fn (string $cle) => ! in_array($cle, $colonnes, true)
+                || (is_array($demandees) ? in_array($cle, $demandees, true) : array_key_exists($cle, $lues)),
+            ARRAY_FILTER_USE_KEY,
+        ));
+    }
+
+    /**
+     * TCK-2578 (ADR-0101 § 2) — la relation `notes` chargée par `include=notes` porte aussi les
+     * comptes rendus de visite (`visit_report`) : ils ne sortent qu'au personnel de l'agence
+     * (`CustomerPolicy::viewVisitReports`). La colonne texte `notes`, quand elle est lue, passe telle
+     * quelle.
+     */
+    private function notesLisibles(Request $request): mixed
+    {
+        $notes = $this->resource->notes;
+        if (! $notes instanceof Collection) {
+            return $notes;
+        }
+
+        // Jugée sur la fiche relue (`agency_id`, `added_by_id`) : sous `fields[customers]`, le modèle
+        // rendu ne porte pas l'agence, et le personnel perdait ses comptes rendus.
+        $user = $request->user();
+        if ($user !== null && $user->can('viewVisitReports', $this->ficheJugeable($request))) {
+            return $notes;
+        }
+
+        // TCK-2582 — le message d'origine d'une demande (`lead_message`) suit la même règle.
+        return $notes->reject(fn (CustomerNote $note) => in_array($note->kind?->value, CustomerNoteKind::staffOnlyValues(), true))->values();
     }
 
     /**
@@ -131,8 +356,11 @@ class CustomerResource extends BaseResource
         }
 
         $fiche = $this->ficheJugeable($request);
+        // Suivi de TCK-2757 — le sujet entre dans la clé : la fiche d'un tiers ajoutée par l'appelant et
+        // la sienne ne partagent pas un verdict.
         $key = 'tck808.reads_customer.'.$user->id.'.'.($fiche->agency_id ?? 'aucune')
-            .'.'.($fiche->added_by_id === $user->id ? 'auteur' : 'tiers');
+            .'.'.($fiche->added_by_id === $user->id ? 'auteur' : 'tiers')
+            .((int) $fiche->user_id === (int) $user->id ? '.sujet' : '');
         if (! $request->attributes->has($key)) {
             $request->attributes->set($key, $user->can('view', $fiche));
         }
@@ -146,20 +374,225 @@ class CustomerResource extends BaseResource
      * par fiche et par requête. Les lectures du front les demandent toutes deux dès qu'elles
      * demandent un champ réservé (`DASHBOARD_CUSTOMER_DETAIL_FIELDS`, `PIPELINE_CARD_FIELDS`).
      */
+    /**
+     * Vérification adverse de TCK-2588 — pose, en une requête pour la page, la fiche « jugeable »
+     * ({@see self::ficheJugeable()}) de chaque fiche dont `fields[customers]` n'a lu ni l'agence ni
+     * l'auteur : sans elle, la règle des visites relisait la fiche une fois par ligne.
+     *
+     * @param  iterable<Customer>  $customers
+     */
+    public static function primeFiches(Request $request, iterable $customers): void
+    {
+        // TCK-2759 (r3) — et les colonnes du jugement des documents chargés par `include=documents`,
+        // pour la page entière : l'include les relisait sinon une fois par fiche.
+        DocumentVisibility::completerLesColonnes(collect($customers)
+            ->filter(fn (Customer $c): bool => $c->relationLoaded('documents'))
+            ->flatMap(fn (Customer $c) => $c->documents)
+            ->values());
+
+        $ids = [];
+        foreach ($customers as $customer) {
+            if (! self::porteLesTraitsJuges($customer)
+                && ! $request->attributes->has('tck808.fiche.'.$customer->getKey())) {
+                $ids[] = $customer->getKey();
+            }
+        }
+        if ($ids === []) {
+            return;
+        }
+
+        foreach (Customer::query()->select(self::TRAITS_JUGES)->whereKey($ids)->get() as $fiche) {
+            $request->attributes->set('tck808.fiche.'.$fiche->getKey(), $fiche);
+        }
+    }
+
+    /**
+     * TCK-2589 (lot C2) — rend `$render` sous une amorce des profils de l'appelant dans les agences
+     * des biens des visites à venir chargées ({@see MembershipCapabilityResolver::primed()}) :
+     * `upcoming_visits[].manage` ({@see PropertyVisitPolicy::gere()}) jugeait sinon le personnel et le
+     * bailleur de chaque visite par ses propres requêtes. Sans visite à venir chargée, rien.
+     *
+     * @template T
+     *
+     * @param  iterable<Customer>  $customers
+     * @param  \Closure(): T  $render
+     * @return T
+     */
+    public static function avecVisitesAmorcees(Request $request, iterable $customers, \Closure $render): mixed
+    {
+        $agences = [];
+        foreach ($customers as $customer) {
+            if ($customer->relationLoaded('upcomingVisits')) {
+                foreach ($customer->upcomingVisits as $visite) {
+                    $agences[] = $visite->property?->agency_id;
+                }
+            }
+        }
+        if ($request->user() === null || $agences === []) {
+            return $render();
+        }
+
+        // TCK-2761 — `visit_places` demandé : les adresses des biens de la page, en UNE requête.
+        if (in_array(CustomerCommercialAttributes::VISIT_PLACES, CustomerCommercialAttributes::requested($request), true)) {
+            $biens = new Collection;
+            foreach ($customers as $customer) {
+                if ($customer->relationLoaded('upcomingVisits')) {
+                    foreach ($customer->upcomingVisits as $visite) {
+                        if ($visite->property !== null) {
+                            $biens->push($visite->property);
+                        }
+                    }
+                }
+            }
+            $biens->loadMissing('address');
+        }
+
+        return MembershipCapabilityResolver::primed([$request->user()->id], $agences, $render);
+    }
+
+    /**
+     * TCK-2759 (r3) — `readsInternalOf` ne lit de la fiche que son agence et son sujet : le verdict se
+     * garde pour la requête par (agence, l'appelant en est-il le sujet), et une page de fiches d'une
+     * même agence ne rejuge pas le personnel une fois par ligne.
+     */
+    private static function litLesInternesDe(Request $request, User $user, Customer $fiche): bool
+    {
+        $sujet = $fiche->user_id !== null && (int) $fiche->user_id === (int) $user->id;
+        $key = 'tck2759.lit_internes.'.$user->id.'.'.($fiche->agency_id ?? 'aucune').'.'.($sujet ? 'sujet' : 'tiers');
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, app(DocumentPolicy::class)->readsInternalOf($user, $fiche));
+        }
+
+        return $request->attributes->get($key);
+    }
+
+    private static function porteLesTraitsJuges(Customer $customer): bool
+    {
+        return array_diff(self::TRAITS_JUGES, array_keys($customer->getAttributes())) === [];
+    }
+
     private function ficheJugeable(Request $request): Customer
     {
-        $attributs = $this->resource->getAttributes();
-        if (array_key_exists('agency_id', $attributs) && array_key_exists('added_by_id', $attributs)) {
+        if (self::porteLesTraitsJuges($this->resource)) {
             return $this->resource;
         }
 
         $key = 'tck808.fiche.'.$this->resource->getKey();
         if (! $request->attributes->has($key)) {
-            $request->attributes->set($key, Customer::query()->select(['id', 'agency_id', 'added_by_id'])
+            $request->attributes->set($key, Customer::query()->select(self::TRAITS_JUGES)
                 ->whereKey($this->resource->getKey())->first() ?? $this->resource);
         }
 
         return $request->attributes->get($key);
+    }
+
+    /**
+     * TCK-2582 — la règle des critères ({@see Customer::criteriaBelongTo()}), jugée sur la fiche
+     * relue quand `fields[customers]` n'a pas lu son agence : sans elle, le personnel perdait
+     * l'origine qu'il avait demandée. Rien n'est relu si aucune des deux relations n'est chargée.
+     */
+    private function readsOrigin(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user === null
+            || (! $this->resource->relationLoaded('origin') && ! $this->resource->relationLoaded('interestedProperty'))) {
+            return false;
+        }
+
+        $key = 'tck591.staff_agency_ids';
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, app(MembershipCapabilityResolver::class)->staffAgencyIds($user));
+        }
+
+        return $this->ficheJugeable($request)->criteriaBelongTo($user, $request->attributes->get($key));
+    }
+
+    /**
+     * Vérification adverse de TCK-2588 — les visites de la fiche, au seul personnel de son agence (et
+     * au super-admin) : la règle des critères, jugée sur la fiche relue quand `fields[customers]`
+     * n'a pas lu son agence (comme {@see self::readsOrigin()}).
+     */
+    /**
+     * TCK-2761 — l'adresse du bien d'une visite à venir : demandée et chargée (`property.address`),
+     * puis jugée par {@see PropertyVisitResource::lecteurDuBien()} — le lecteur des visites de la fiche
+     * (personnel de l'agence DE LA FICHE) n'est pas forcément celui du bien.
+     */
+    private function adresseDuBienLisible(Request $request, PropertyVisit $visite): bool
+    {
+        $user = $request->user();
+        $bien = $visite->property;
+        if ($user === null || $bien === null || ! $bien->relationLoaded('address')
+            || ! in_array(CustomerCommercialAttributes::VISIT_PLACES, CustomerCommercialAttributes::requested($request), true)) {
+            return false;
+        }
+
+        // Le personnel jugé comme l'adresse d'une visite (`PropertyVisitResource::personnelDe`) : l'agence
+        // du PROFIL ACTIF, compte joignable — et non `staffAgencyIds`, qui ouvre toutes ses agences.
+        return PropertyVisitResource::lecteurDuBien(
+            $user,
+            $bien->agency_id !== null ? (int) $bien->agency_id : null,
+            $bien->user_id !== null ? (int) $bien->user_id : null,
+            function (int $agence) use ($request, $user): bool {
+                $verdicts = $request->attributes->get('visits.staff_of', []);
+                if (! array_key_exists($agence, $verdicts)) {
+                    $verdicts[$agence] = PersonnelDeLAgence::personnelActifDe($user, $agence);
+                    $request->attributes->set('visits.staff_of', $verdicts);
+                }
+
+                return $verdicts[$agence];
+            },
+        );
+    }
+
+    private function readsVisits(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return false;
+        }
+
+        $key = 'tck591.staff_agency_ids';
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, app(MembershipCapabilityResolver::class)->staffAgencyIds($user));
+        }
+
+        return $this->ficheJugeable($request)->criteriaBelongTo($user, $request->attributes->get($key));
+    }
+
+    /**
+     * TCK-2582 — `origin` et `interested_property`, rendus seulement si `include=origin` /
+     * `include=interestedProperty` les a chargés.
+     *
+     * @return array<string, mixed>
+     */
+    private function origine(): array
+    {
+        $out = [];
+
+        if ($this->resource->relationLoaded('origin')) {
+            $lead = $this->resource->origin;
+            $out['origin'] = $lead === null ? null : [
+                'contact_lead_id' => $lead->id,
+                'received_at' => $this->iso($lead->created_at),
+                'message' => $lead->message,
+                'property' => $lead->property ? [
+                    'id' => $lead->property->id,
+                    'title' => $lead->property->title,
+                    'slug' => $lead->property->slug,
+                ] : null,
+            ];
+        }
+
+        if ($this->resource->relationLoaded('interestedProperty')) {
+            $property = $this->resource->interestedProperty;
+            $out['interested_property'] = $property === null ? null : [
+                'id' => $property->id,
+                'title' => $property->title,
+                'slug' => $property->slug,
+            ];
+        }
+
+        return $out;
     }
 
     /**
@@ -178,6 +611,8 @@ class CustomerResource extends BaseResource
             $request->attributes->set($key, app(MembershipCapabilityResolver::class)->staffAgencyIds($user));
         }
 
-        return $this->resource->criteriaBelongTo($user, $request->attributes->get($key));
+        // Vérification adverse de TCK-2756 (d1) — sur la fiche relue, comme les visites et l'origine : la
+        // liste du front ne lit pas `agency_id`, et la règle refusait les critères à tout le personnel.
+        return $this->ficheJugeable($request)->criteriaBelongTo($user, $request->attributes->get($key));
     }
 }

@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Domain\Notifications\AgenceDeLaCible;
+use App\Domain\Notifications\NotificationClassification;
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Http\Resources\Bases\BaseResource;
@@ -28,6 +30,8 @@ class AppNotificationResource extends BaseResource
     public const FIELDS = [
         'id', 'type', 'code', 'params', 'param_types', 'target', 'title', 'body', 'data',
         'is_read', 'read_at', 'sent_at', 'created_at',
+        // TCK-2633 — la famille de la cloche et « à traiter » (`NotificationClassification`).
+        'famille', 'a_traiter',
     ];
 
     public function toArray(Request $request): array
@@ -36,6 +40,7 @@ class AppNotificationResource extends BaseResource
         $want = fn (string $field): bool => $fields === null || in_array($field, $fields, true);
 
         $code = is_string($this->code) ? NotificationCode::tryFrom($this->code) : null;
+        $classe = NotificationClassification::ofRow($this->resource);
 
         $out = [
             'id' => $this->id,
@@ -46,7 +51,9 @@ class AppNotificationResource extends BaseResource
             // choisit son formatage par elle, sans la deviner du préfixe du code ni de la forme
             // de la valeur. `null` pour une ligne sans code connu.
             'param_types' => $code !== null ? $code->params() + $code->optionalParams() : null,
-            'target' => $want('target') ? NotificationTarget::forRow($this->resource)?->toArray() : null,
+            // TCK-2751 — l'agence de l'objet, rendue au seul lecteur qui y tient un profil actif
+            // ({@see AgenceDeLaCible}) : la cloche bascule sur ce profil avant d'ouvrir l'objet.
+            'target' => $want('target') ? AgenceDeLaCible::pour($request)->completer(NotificationTarget::forRow($this->resource))?->toArray() : null,
             'title' => $want('title') ? $this->rendered($code, 'title', $request) ?? $this->title : null,
             'body' => $want('body') ? $this->rendered($code, 'body', $request) ?? $this->body : null,
             'data' => $want('data') ? $this->dataAtRead($request) : null,
@@ -54,6 +61,11 @@ class AppNotificationResource extends BaseResource
             'read_at' => $this->iso($this->read_at),
             'sent_at' => $this->iso($this->sent_at),
             'created_at' => $this->iso($this->created_at),
+            // TCK-2633 — lus dans LA table (`NotificationClassification`), depuis les colonnes
+            // stockées : une ligne sans code prend la famille de sa cible stockée, sinon de son type,
+            // et n'est jamais à traiter.
+            'famille' => $classe['famille']->value,
+            'a_traiter' => $classe['a_traiter'],
         ];
 
         return $fields === null ? $out : array_intersect_key($out, array_flip($fields));

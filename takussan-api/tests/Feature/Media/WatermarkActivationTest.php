@@ -212,7 +212,8 @@ class WatermarkActivationTest extends TestCase
         Log::shouldHaveReceived('error')->once()->withArgs(fn (string $message, array $context) => $context['media_id'] === $media->id
             && $context['property_id'] === $property->id
             && $context['conversion'] === 'full'
-            && $context['exception'] === 'R2 injoignable');
+            && $context['exception']['exception'] === RuntimeException::class
+            && ! str_contains((string) json_encode($context), 'R2 injoignable')); // TCK-613 : la forme sûre, jamais le message
     }
 
     /** Troisième passe adverse, R1a — la régénération qui suit une activation signale son échec. */
@@ -224,7 +225,8 @@ class WatermarkActivationTest extends TestCase
         (new RegenerateAgencyWatermarksJob($agency->id))->failed(new RuntimeException('file perdue'));
 
         Log::shouldHaveReceived('error')->once()->withArgs(fn (string $message, array $context) => $context['agency_id'] === $agency->id
-            && $context['exception'] === 'file perdue');
+            && $context['exception']['exception'] === RuntimeException::class
+            && ! str_contains((string) json_encode($context), 'file perdue')); // TCK-613 : la forme sûre, jamais le message
     }
 
     public function test_untraced_and_missing_only_do_not_combine(): void

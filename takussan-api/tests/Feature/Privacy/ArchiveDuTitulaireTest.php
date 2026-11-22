@@ -184,13 +184,13 @@ class ArchiveDuTitulaireTest extends TestCase
     }
 
     /** P247.02 — le bail de l'archive porte les colonnes que `LeaseResource` rend hors personnel. */
-    public function test_le_bail_de_l_archive_du_locataire_et_du_bailleur_ne_porte_pas_le_montant_de_commission(): void
+    public function test_le_bail_de_l_archive_du_locataire_et_du_bailleur_ne_porte_ni_le_montant_ni_le_taux_de_commission(): void
     {
         foreach (['locataire' => $this->locataire, 'bailleur' => $this->bailleur] as $qui => $titulaire) {
             $bail = $this->ligne(app(DataExportBuilder::class)->payloads($titulaire)['leases.json'], $this->bail->id);
 
             $this->assertArrayNotHasKey('commission_amount', $bail, $qui);
-            $this->assertSame('10.00', $bail['commission_rate'], $qui);
+            $this->assertArrayNotHasKey('commission_rate', $bail, $qui);
             $this->assertSame($this->agent->id, $bail['agent_id'], $qui);
         }
     }

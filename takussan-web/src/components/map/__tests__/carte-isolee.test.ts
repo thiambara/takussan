@@ -37,3 +37,25 @@ describe('carte Leaflet isolée', () => {
     expect(leaflet).not.toMatch(/isolation\s*:\s*isolate/);
   });
 });
+
+/**
+ * TCK-2485 — ce que la carte pose AU-DESSUS d'elle reste enfermé avec elle.
+ *
+ * `.leaflet-container` isole les calques de Leaflet, mais pas ses frères : le compte de la carte de
+ * `PropertyMap` (`[data-compte-carte]`, `absolute … z-[400]`) est posé À CÔTÉ du conteneur Leaflet,
+ * dans une enveloppe `relative` qui n'ouvrait aucun contexte d'empilement. Son 400 se comparait donc
+ * à la page : tant que la messagerie flottante ouverte valait `z-[1000]`, rien ne se voyait ; au z
+ * des dialogues (50), la pastille passait sur le panneau (relevé à 1366 × 657 sur `/fr/properties`,
+ * vue carte : 130,3 × 25,2 px de recouvrement). L'enveloppe l'isole.
+ */
+describe('la carte des biens enferme sa pastille', () => {
+  it('l’enveloppe de PropertyMap ouvre un contexte d’empilement (`isolate`) autour de la pastille `z-[400]`', () => {
+    const src = fs.readFileSync(path.join(RACINE, 'src/components/map/PropertyMap.tsx'), 'utf8');
+    expect(src, 'la pastille du compte n’est plus en `z-[400]` : relire ce test').toMatch(/data-compte-carte[\s\S]{0,200}z-\[400\]/);
+    // L'enveloppe racine du composant (le premier `return (` du composant `PropertyMap`) : `relative isolate`.
+    const corps = src.slice(src.indexOf('export function PropertyMap'));
+    const enveloppe = /return \(\s*(?:\/\/[^\n]*\n\s*)*<div\s+className=\{cn\(\s*'([^']*)'/.exec(corps);
+    expect(enveloppe, 'enveloppe racine de PropertyMap introuvable : relire ce test').not.toBeNull();
+    expect(enveloppe![1].split(/\s+/)).toContain('isolate');
+  });
+});

@@ -43,6 +43,13 @@ export type OwnerPropertyEntry = {
   thumbnail_url?: string | null;
   status?: string | null;
   type?: string | null;
+  /** TCK-2613 — `rent` ou `sale` : le loyer ne se dit « /mois » que d'un bien en location au mois. */
+  contract_type?: string | null;
+  rent_period?: string | null;
+  /** TCK-2613 — la vignette (`PropertyResource::main_photo_url`). */
+  main_photo_url?: string | null;
+  /** TCK-2613 — le quartier de l'adresse (`include=address`). */
+  location?: { quarter?: string | null; city?: string | null } | null;
 };
 
 export type OwnerPropertiesResponse = {
@@ -75,13 +82,49 @@ export async function completeOwnerOnboarding(
   );
 }
 
+/**
+ * TCK-2613 — l'écran « Vos biens chez {agence} » : trois biens au plus (le compte vient de `meta.total`), avec ce
+ * qu'une ligne dit — vignette, type, quartier, état, loyer.
+ */
+export const BIENS_DU_BAILLEUR_REQUETE =
+  'fields[properties]=id,title,price,status,type,contract_type,rent_period&include=address&per_page=3';
+
 export async function fetchOwnerProperties(
   token: string,
   ownerProfileId: number,
-  query = 'fields[properties]=id,title,price,status,type',
+  query = BIENS_DU_BAILLEUR_REQUETE,
 ): Promise<OwnerPropertiesResponse> {
   return apiRequest<OwnerPropertiesResponse>(
     cheminApi`/api/me/owner-profiles/${ownerProfileId}/properties${requete(query)}`,
+    { token },
+  );
+}
+
+/**
+ * TCK-2838 — la personne qui, à l'agence, s'occupe du bailleur invité (`GET /api/me/owner-profiles/{id}/interlocuteur`) :
+ * l'invitant s'il est encore membre actif de l'agence (`source: 'inviter'`), sinon l'agence (`source: 'agency'`, sans nom).
+ * Le rôle est un code ; le texte se compose ici, sous `onboarding.invite.bailleur.interlocuteur.roles`.
+ */
+export type InterlocuteurDuBailleur = {
+  // TCK-2909 — `referent` : le référent du mandat désigné par l'agence, avant l'invitant.
+  source: 'referent' | 'inviter' | 'agency';
+  first_name?: string | null;
+  last_name?: string | null;
+  role?: 'agent' | 'agency_admin' | 'agency';
+  phone?: string | null;
+  whatsapp?: boolean;
+};
+
+// fields[interlocuteur] non lu par buildQuery : l'API le lit à la main dans une liste fermée (aucune table
+// `interlocuteur`) ; nommé dans HORS_BUILD_QUERY de fields-demandables.tck-1184.
+export const INTERLOCUTEUR_REQUETE = 'fields[interlocuteur]=first_name,last_name,role,phone,whatsapp';
+
+export async function fetchInterlocuteurDuBailleur(
+  token: string,
+  ownerProfileId: number,
+): Promise<{ data: InterlocuteurDuBailleur | null }> {
+  return apiRequest<{ data: InterlocuteurDuBailleur | null }>(
+    cheminApi`/api/me/owner-profiles/${ownerProfileId}/interlocuteur${requete(INTERLOCUTEUR_REQUETE)}`,
     { token },
   );
 }

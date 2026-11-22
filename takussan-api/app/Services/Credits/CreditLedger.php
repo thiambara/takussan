@@ -3,6 +3,7 @@
 namespace App\Services\Credits;
 
 use App\Models\Agency;
+use App\Models\AgencySpotlight;
 use App\Models\CreditLot;
 use App\Models\CreditMovement;
 use App\Models\Enums\CreditLotOrigin;
@@ -38,6 +39,7 @@ final class CreditLedger
         ?User $actor = null,
         ?string $reason = null,
         ?PropertyBoost $boost = null,
+        ?AgencySpotlight $spotlight = null,
     ): CreditLot {
         if ($amount <= 0) {
             throw new InvalidArgumentException('Un lot porte un montant strictement positif.');
@@ -46,7 +48,7 @@ final class CreditLedger
             throw new InvalidArgumentException('L’achat de crédits est la phase 2 (ADR-0061 §11).');
         }
 
-        return DB::transaction(function () use ($agency, $origin, $amount, $expiresAt, $actor, $reason, $boost): CreditLot {
+        return DB::transaction(function () use ($agency, $origin, $amount, $expiresAt, $actor, $reason, $boost, $spotlight): CreditLot {
             $lot = CreditLot::query()->create([
                 'agency_id' => $agency->getKey(),
                 'origin' => $origin,
@@ -63,6 +65,7 @@ final class CreditLedger
                 'type' => $origin === CreditLotOrigin::Refund ? CreditMovementType::Refund : CreditMovementType::Grant,
                 'amount' => $amount,
                 'property_boost_id' => $boost?->getKey(),
+                'agency_spotlight_id' => $spotlight?->getKey(),
                 'actor_id' => $actor?->getKey(),
                 'reason' => $reason,
             ]);
@@ -85,6 +88,7 @@ final class CreditLedger
         ?PropertyBoost $boost = null,
         ?User $actor = null,
         ?string $reason = null,
+        ?AgencySpotlight $spotlight = null,
     ): array {
         if ($amount <= 0) {
             throw new InvalidArgumentException('Une dépense porte un montant strictement positif.');
@@ -93,7 +97,7 @@ final class CreditLedger
             throw new InvalidArgumentException("Type de débit invalide : {$type->value}.");
         }
 
-        return DB::transaction(function () use ($agency, $amount, $type, $boost, $actor, $reason): array {
+        return DB::transaction(function () use ($agency, $amount, $type, $boost, $actor, $reason, $spotlight): array {
             // 1. Le point de sérialisation : la ligne PARENT.
             Agency::query()->whereKey($agency->getKey())->lockForUpdate()->firstOrFail();
 
@@ -123,6 +127,7 @@ final class CreditLedger
                     'type' => $type,
                     'amount' => -$take,
                     'property_boost_id' => $boost?->getKey(),
+                    'agency_spotlight_id' => $spotlight?->getKey(),
                     'actor_id' => $actor?->getKey(),
                     'reason' => $reason,
                 ]);
@@ -159,13 +164,39 @@ final class CreditLedger
      */
     public function refundPlan(PropertyBoost $boost, int $amount): RefundPlan
     {
+        return $this->planFor('property_boost_id', (int) $boost->getKey(), $amount);
+    }
+
+    /**
+     * TCK-2525 (amendement du 2026-11-16 d'ADR-0061) — la même répartition pour une place « Mise en
+     * avant » achetée : par lot d'origine, au prorata de ce que chacun a fourni.
+     */
+    public function spotlightRefundPlan(AgencySpotlight $spotlight, int $amount): RefundPlan
+    {
+        return $this->planFor('agency_spotlight_id', (int) $spotlight->getKey(), $amount);
+    }
+
+    /** TCK-2525 — rend `$amount` crédits d'une place achetée : un lot `refund` par lot d'origine (§ 4). */
+    public function refundSpotlight(AgencySpotlight $spotlight, int $amount, ?User $actor = null, ?string $reason = null): RefundPlan
+    {
+        return DB::transaction(function () use ($spotlight, $amount, $actor, $reason): RefundPlan {
+            $plan = $this->spotlightRefundPlan($spotlight, $amount);
+            $this->writeRefund((int) $spotlight->agency_id, $plan, $actor, $reason, null, $spotlight);
+
+            return $plan;
+        });
+    }
+
+    /** @param  'property_boost_id'|'agency_spotlight_id'  $column */
+    private function planFor(string $column, int $id, int $amount): RefundPlan
+    {
         if ($amount <= 0) {
             return new RefundPlan;
         }
 
         $paid = DB::table('credit_movements')
             ->join('credit_lots', 'credit_lots.id', '=', 'credit_movements.credit_lot_id')
-            ->where('credit_movements.property_boost_id', $boost->getKey())
+            ->where('credit_movements.'.$column, $id)
             ->where('credit_movements.type', CreditMovementType::Spend->value)
             ->groupBy('credit_movements.credit_lot_id', 'credit_lots.expires_at')
             ->orderBy('credit_movements.credit_lot_id')
@@ -222,17 +253,22 @@ final class CreditLedger
      */
     public function applyRefund(PropertyBoost $boost, RefundPlan $plan, ?User $actor = null, ?string $reason = null): void
     {
+        $this->writeRefund((int) $boost->agency_id, $plan, $actor, $reason, $boost, null);
+    }
+
+    private function writeRefund(int $agencyId, RefundPlan $plan, ?User $actor, ?string $reason, ?PropertyBoost $boost, ?AgencySpotlight $spotlight): void
+    {
         if ($plan->shares === []) {
             return;
         }
-        $agency = Agency::withTrashed()->findOrFail($boost->agency_id);
-        DB::transaction(function () use ($agency, $boost, $plan, $actor, $reason): void {
+        $agency = Agency::withTrashed()->findOrFail($agencyId);
+        DB::transaction(function () use ($agency, $boost, $spotlight, $plan, $actor, $reason): void {
             $prevenus = CreditLot::query()
                 ->whereIn('id', array_column($plan->shares, 'lot_id'))
                 ->whereNotNull('expiry_notice_sent_at')
                 ->pluck('expiry_notice_sent_at', 'id');
             foreach ($plan->shares as $share) {
-                $lot = $this->grant($agency, CreditLotOrigin::Refund, $share['amount'], $share['expires_at'], $actor, $reason, $boost);
+                $lot = $this->grant($agency, CreditLotOrigin::Refund, $share['amount'], $share['expires_at'], $actor, $reason, $boost, $spotlight);
                 if ($share['expires_at'] !== null && isset($prevenus[$share['lot_id']])) {
                     $lot->forceFill(['expiry_notice_sent_at' => $prevenus[$share['lot_id']]])->save();
                 }

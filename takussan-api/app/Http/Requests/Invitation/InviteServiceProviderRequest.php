@@ -53,9 +53,11 @@ class InviteServiceProviderRequest extends BaseFormRequest
             'phone' => $this->phoneLoginEnabled()
                 ? ['nullable', 'required_without:email', 'string', 'max:30', new TelephoneJoignable]
                 : ['nullable', 'string', 'max:30', new TelephoneJoignable],
-            'trades' => ['nullable', 'array'],
+            // TCK-2488 — borne technique : `TradesMultiSelect` propose 7 métiers.
+            'trades' => ['nullable', 'array', 'max:100'],
             'trades.*' => ['string', 'max:60'],
-            'intervention_zones' => ['nullable', 'array'],
+            // TCK-2488 — borne technique : les zones se saisissent librement, sans limite d'interface.
+            'intervention_zones' => ['nullable', 'array', 'max:1000'],
             'intervention_zones.*' => ['string', 'max:120'],
             'metadata' => ['nullable', 'array'],
             // TCK-592 (P18) — le lien profond n'emporte qu'une demande de CETTE agence, encore

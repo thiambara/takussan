@@ -5,7 +5,12 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\AuthorizesTransitionally;
 use App\Models\Enums\MessageType;
+use App\Models\Enums\MessageVisibility;
+use App\Rules\FichierNonVide;
+use App\Rules\PixelsAuPlus;
 use App\Services\Messaging\ConversationAccess;
+use App\Services\Messaging\MentionsDuFil;
+use App\Support\Media\VoiceNoteRules;
 use Illuminate\Validation\Rule;
 
 /**
@@ -50,39 +55,95 @@ class SendMessageConversationRequest extends BaseFormRequest
      * ne pouvait supprimer ni corriger (`ConversationPolicy`, `MessageObserver`). `image` et
      * `document` passaient de même, sans fichier. Le seul auteur légitime d'un avis système est
      * `SystemMessageFactory`, qui n'emprunte pas cette route.
+     *
+     * TCK-2631 (ADR-0038, amendement du 2026-11-10) — `image` et `document` y entrent, AVEC leur
+     * fichier (`file`) : une photo ou un PDF par message.
      */
-    public const PARTICIPANT_TYPES = [MessageType::Text, MessageType::Audio];
+    public const PARTICIPANT_TYPES = [MessageType::Text, MessageType::Audio, MessageType::Image, MessageType::Document];
 
     /**
-     * ADR-0038 — formats que produisent les navigateurs mobiles (`MediaRecorder`) et les lecteurs
-     * courants. `video/webm` : ce que `finfo` rend pour un enregistrement Chrome sans piste vidéo.
-     * `video/mp4` (TCK-2058, amendement du 2026-10-23) : ce que `finfo` rend pour un MP4 audio de
-     * marque générique (`isom`, `iso5`, `iso6`, `mp42`) — il juge la marque `ftyp`, pas la piste ;
-     * seule la marque `M4A ` est lue `audio/x-m4a`. La borne de 2 Mo reste ce qui protège.
+     * TCK-2631 (ADR-0038, amendement du 2026-11-10) — les types qui portent une pièce jointe, avec
+     * ce que `finfo` doit lire dans le CONTENU (`mimetypes:`, jamais l'extension) et la borne en Ko.
+     *
+     * @var array<string, array{mimetypes: list<string>, max_kb: int}>
      */
-    public const AUDIO_MIMETYPES = [
-        'audio/webm', 'video/webm', 'audio/ogg', 'audio/mp4', 'video/mp4', 'audio/x-m4a', 'audio/aac', 'audio/mpeg',
+    public const ATTACHMENT_RULES = [
+        'image' => ['mimetypes' => ['image/jpeg', 'image/png', 'image/webp'], 'max_kb' => 8192],
+        'document' => ['mimetypes' => ['application/pdf'], 'max_kb' => 10240],
     ];
 
-    /** ADR-0038 — la borne APPLIQUÉE (Ko). La durée, elle, est déclarée par le client. */
-    public const AUDIO_MAX_KB = 2048;
-
-    public const AUDIO_MAX_SECONDS = 60;
+    // TCK-2900 (ADR-0113 § 1) — formats, taille et durée de la note vocale : `VoiceNoteRules`, la
+    // règle partagée avec les porteurs d'une collection `voice_notes`. Plus aucune borne écrite ici.
 
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        // TCK-2631 — la légende d'une photo ou d'un PDF est facultative, comme le texte d'une note vocale.
+        // Un `type` qui n'est pas une chaîne (tableau) est refusé par sa propre règle, jamais en 500 ici.
+        $type = is_string($this->input('type')) ? $this->input('type') : null;
+        $attachment = $type === null ? null : (self::ATTACHMENT_RULES[$type] ?? null);
+        $attachmentTypes = implode(',', array_keys(self::ATTACHMENT_RULES));
+
         return [
-            'content' => ['required_unless:type,audio', 'nullable', 'string', 'max:5000'],
+            'content' => ['required_unless:type,audio,'.$attachmentTypes, 'nullable', 'string', 'max:5000'],
             'type' => ['nullable', Rule::in(array_map(static fn (MessageType $t): string => $t->value, self::PARTICIPANT_TYPES))],
+            // TCK-2965 (ADR-0128 § 6) — `team` : une note d'équipe. Qui peut l'écrire, et dans quel fil, se
+            // juge dans `ConversationWriter` (422 `messaging.team_note_*`), le point d'écriture unique.
+            'visibility' => ['nullable', Rule::enum(MessageVisibility::class)],
+            // TCK-2966 (ADR-0128 § 6) — les @mentions : des identifiants de compte, dix au plus, sur un
+            // texte ou une note vocale seulement (`MentionsDuFil::types()`). Un doublon est retiré, jamais
+            // refusé ; qui n'est pas lecteur du message est refusé dans `passedValidation()`.
+            'mentions' => [
+                'nullable', 'array', 'list', 'max:'.MentionsDuFil::MAX,
+                Rule::prohibitedIf(fn (): bool => ! MentionsDuFil::typePorteUneMention($type ?? MessageType::Text->value)),
+            ],
+            'mentions.*' => ['integer', 'min:1'],
             'audio' => [
                 'required_if:type,audio', 'prohibited_unless:type,audio',
-                'file', 'mimetypes:'.implode(',', self::AUDIO_MIMETYPES), 'max:'.self::AUDIO_MAX_KB,
+                ...VoiceNoteRules::file(),
             ],
             'duration' => [
                 'required_if:type,audio', 'prohibited_unless:type,audio',
-                'integer', 'min:1', 'max:'.self::AUDIO_MAX_SECONDS,
+                ...VoiceNoteRules::duration(),
+            ],
+            // TCK-2631 — un fichier, requis pour `image` et `document`, interdit ailleurs. Ses
+            // pixels sont bornés sur l'EN-TÊTE (`PixelsAuPlus`) : le réencodage qui retire l'EXIF
+            // décode l'image entière, dans la requête.
+            'file' => [
+                'required_if:type,'.$attachmentTypes, 'prohibited_unless:type,'.$attachmentTypes,
+                'file', new FichierNonVide,
+                ...($attachment === null ? [] : [
+                    'mimetypes:'.implode(',', $attachment['mimetypes']),
+                    'max:'.$attachment['max_kb'],
+                ]),
+                ...($type === MessageType::Image->value ? [new PixelsAuPlus] : []),
             ],
         ];
+    }
+
+    /**
+     * TCK-2966 (ADR-0128 § 6) — une mention n'est permise que vers qui LIT ce message : un participant
+     * actif du fil, dans ses branches, et pour une note d'équipe (`visibility=team`) un lecteur des notes
+     * ({@see MentionsDuFil::lecteursParmi()}). Toute autre est refusée en 422
+     * `messaging.mention_not_reader` : un rejet silencieux ferait croire à l'auteur qu'il a prévenu
+     * quelqu'un. Jugée ici, à l'envoi ; `NotifyNewMessageJob` la rejuge au départ de la notification.
+     */
+    protected function passedValidation(): void
+    {
+        $mentions = MentionsDuFil::normaliser($this->validated('mentions'));
+        if ($mentions === []) {
+            return;
+        }
+
+        $note = MessageVisibility::tryFrom((string) $this->validated('visibility')) === MessageVisibility::Team;
+        $lecteurs = MentionsDuFil::lecteursParmi($this->route('conversation'), $mentions, $note);
+
+        abort_code_if($lecteurs !== $mentions, 422, 'messaging.mention_not_reader');
+    }
+
+    /** TCK-2631 — le nom du champ dans un 422 (`messaging.attributes`). */
+    public function attributes(): array
+    {
+        return ['file' => __('messaging.attributes.file')];
     }
 }

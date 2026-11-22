@@ -3,7 +3,6 @@
 use App\Exceptions\ApiError;
 use App\Exceptions\HttpErrorCode;
 use App\Http\Middleware\AddRobotsTagOutsideProduction;
-use App\Http\Middleware\CountBoostImpressions;
 use App\Http\Middleware\EnforceImpersonationReadOnly;
 use App\Http\Middleware\EnsureAgencyWritable;
 use App\Http\Middleware\EnsureIdempotentWrite;
@@ -21,6 +20,7 @@ use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Middleware\ShareRequestLogContext;
 use App\Http\Requests\Accounting\UpdateBankCsvMappingRequest;
 use App\Http\Requests\UpsertWizardDraftRequest;
+use App\Services\Pdf\EchecDuPilotePdf;
 use App\Support\Logging\SafeExceptionContext;
 use App\Support\TrustedProxyList;
 use Illuminate\Database\QueryException;
@@ -32,6 +32,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Spatie\LaravelPdf\Exceptions\CouldNotGeneratePdf;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileCannotBeAdded;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
@@ -40,9 +41,12 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
-        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
+    // TCK-2952 (ADR-0129 § 4) — l'autorisation des canaux quitte le groupe `web` pour le préfixe `api` :
+    // `POST /api/broadcasting/auth`, sous `auth:sanctum` et le groupe `api` (donc `ResolveActiveProfile` et
+    // `EnforceImpersonationReadOnly`). Hors de `api/*`, le CORS de Laravel la rendait injoignable du navigateur.
+    ->withBroadcasting(__DIR__.'/../routes/channels.php', ['prefix' => 'api', 'middleware' => ['api', 'auth:sanctum']])
     ->withMiddleware(function (Middleware $middleware): void {
         // Trust the upstream proxy that fronts the API (Next.js server actions,
         // load balancer, reverse proxy). Without this, every request appears to
@@ -117,7 +121,6 @@ return Application::configure(basePath: dirname(__DIR__))
             // TCK-600 (ADR-0047) — le geste de console que sert une route de `/api/admin`.
             'platform-can' => EnsurePlatformAbility::class,
             // TCK-708 (P01.04) — les impressions sponsorisées, comptées une fois la réponse connue.
-            'boost.impressions' => CountBoostImpressions::class,
             // TCK-1396 (ADR-0072) — une écriture rejouée sous la même `Idempotency-Key`, après `throttle`.
             'idempotent' => EnsureIdempotentWrite::class,
         ]);
@@ -142,6 +145,14 @@ return Application::configure(basePath: dirname(__DIR__))
             // Spatie, qui porte le chemin temporaire du fichier.
             if ($e instanceof FileCannotBeAdded) {
                 $e = new ApiError(422, 'media.file_rejected');
+            }
+
+            // TCK-2811 — un échec du pilote PDF n'est jamais un 500 nu, sur AUCUNE route qui rend un PDF
+            // (exports compris : leur `PdfBuilder` se rend à la conversion en réponse) : 503
+            // `pdf.render_busy` + `Retry-After` pour une limite de débit, 502 `pdf.render_failed` sinon.
+            // L'exception d'origine est rapportée comme toute autre. Détecteur unique : `EchecDuPilotePdf`.
+            if ($e instanceof CouldNotGeneratePdf) {
+                $e = EchecDuPilotePdf::versApi($e);
             }
 
             if ($e instanceof ApiError) {
@@ -176,7 +187,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // TCK-2356 (P14.07) — toute exception rapportée part aussi en une ligne JSON sur stdout
         // (canal `exceptions`), quel que soit `LOG_CHANNEL`. Enregistré AVANT le rapporteur des
         // `QueryException`, qui s'arrête (`stop()`) : après lui, elles n'y arriveraient jamais.
-        // Ne s'arrête pas, lui : le rapport par défaut suit. Forme sûre (`SafeExceptionContext`),
+        // Ne s'arrête pas, lui : le rapport du canal par défaut suit (`query_exception` ou `exception`,
+        // plus bas). Forme sûre (`SafeExceptionContext`),
         // plus la route en GABARIT — jamais l'URL, qui porte des jetons (`/pay/{token}`, signatures) —,
         // la méthode et l'utilisateur. Ni corps, ni en-tête, ni cookie. Un échec du journal ne
         // casse jamais la réponse qu'il décrit.
@@ -199,5 +211,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // la forme sûre : SQLSTATE, SQL à placeholders, nombre de valeurs, `fichier:ligne`.
         $exceptions->report(function (QueryException $e): void {
             Log::error('query_exception', SafeExceptionContext::of($e) + ['user_id' => Auth::id()]);
+        })->stop();
+
+        // TCK-613 (ADR-0044 §2) — le rapport par défaut de TOUTE autre exception est remplacé de même :
+        // le framework écrivait `getMessage()` sur le canal par défaut, et un refus SMTP y recopiait
+        // l'adresse refusée (sonde P7 de verif-601). Enregistré EN DERNIER : il ne court-circuite ni le
+        // canal `exceptions` ni la forme SQL ci-dessus. `dontReport` reste respecté — le framework le
+        // juge avant tout rapporteur. Ni le message, ni `context()` de l'exception, ni l'objet lui-même.
+        $exceptions->report(function (Throwable $e): void {
+            Log::error('exception', SafeExceptionContext::of($e) + ['user_id' => Auth::id()]);
         })->stop();
     })->create();

@@ -24,6 +24,11 @@ vi.mock('@/lib/queries/conversations', () => ({
   useNewMessagesPolling: vi.fn(),
   useMarkConversationRead: vi.fn(),
   useSendMessage: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSendAttachment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // TCK-2632 — l'en-tête du fil lit le contexte (appel, WhatsApp) et porte la sourdine.
+  useConversationContext: () => ({ data: undefined }),
+  useConsignerGesteDuClient: () => ({ mutateAsync: vi.fn(() => Promise.resolve()) }),
+  useToggleMute: () => ({ mutate: vi.fn() }),
 }));
 
 vi.mock('@/hooks/useIntersectionObserver', () => ({ useIntersectionObserver: () => false }));
