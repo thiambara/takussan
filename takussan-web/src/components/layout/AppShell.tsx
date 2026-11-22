@@ -28,7 +28,7 @@ import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProf
 import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
 import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
-import { defileLeDocument, estPleinEcran, porteLaBarreDOnglets, REQUETE_DE_LA_BARRE } from './plein-ecran';
+import { defileLeDocument, estPleinEcran, porteLaBarreDOnglets, profilDEspace, REQUETE_DE_LA_BARRE } from './plein-ecran';
 import { useEffacementDesBarres } from './useEffacementDesBarres';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFenetre } from '@/lib/fenetre';
@@ -124,6 +124,8 @@ function CoqueDeLApp({
   // ADR-0134 (TCK-2989) — sous `md`, le document défile (le navigateur replie ses barres). Par la route :
   // une sélection ou une section à enregistrer retire la barre, pas le mode (`defileLeDocument`).
   const documentDefile = defileLeDocument(pathname);
+  // ADR-0136 (TCK-2998) — le profil d'espace : par la route, et la conversation ouverte (l'état admis par ADR-0134).
+  const espace = profilDEspace(pathname, { conversation: declaration.conversation === true });
   const boutonMenu = useRef<HTMLButtonElement>(null);
   // TCK-2481 (revue, M1) — le tiroir se referme-t-il sur une NAVIGATION ? Posé par `onNavigate`, lu
   // par `finalFocus` : « Menu » est le dernier focalisable du document, y rendre le focus après le
@@ -230,6 +232,7 @@ function CoqueDeLApp({
           className="flex h-dvh flex-col bg-background"
           data-barre-onglets={barreDOnglets ? '' : undefined}
           data-defilement={documentDefile ? 'document' : undefined}
+          data-espace={espace}
           data-forme-en-tete={pleinEcran ? undefined : forme}
           data-portee-app=""
         >
@@ -384,7 +387,8 @@ function CoqueDeLApp({
               <span aria-hidden />
             </button>
           ) : null}
-          {documentDefile ? <AbonnementALaFenetre /> : null}
+          {/* ADR-0136 — la mesure, sur tout profil : la saisie d'un formulaire ou d'une conversation y répond aussi. */}
+          <AbonnementALaFenetre />
           {customerOnboardingActive ? (
             <CustomerWelcomeWizard onSettled={() => setCustomerWelcomeSettled(true)} />
           ) : null}
@@ -402,7 +406,8 @@ function CoqueDeLApp({
 
 /**
  * ADR-0133 / ADR-0134 — s'abonner à la mesure de la fenêtre suffit à publier `data-saisie` sur `<html>` : la barre
- * d'onglets part quand le clavier s'ouvre. Un composant à part, qui ne rend rien : la mesure change à chaque
+ * d'onglets part quand le clavier s'ouvre. ADR-0136 — sur TOUT profil d'espace (la barre d'action d'un formulaire se
+ * pose sur le clavier, l'en-tête se compacte), et non plus seulement en mode document. Un composant à part, qui ne rend rien : la mesure change à chaque
  * repli des barres du navigateur, et seul lui se re-rend.
  */
 function AbonnementALaFenetre() {
