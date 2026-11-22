@@ -476,6 +476,22 @@
   html[data-saisie="ouvert"] [data-cadre-de-conversation] :is([data-testid="puces-du-pont"], [data-slot="bandeau-de-la-salle"]) {
     display: none;
   }
+  /* ADR-0136 (TCK-2998) — en saisie, en mode document : la barre d'action (« Continuer », « Enregistrer ») se pose sur
+     le clavier au lieu de rester dessous (la barre d'onglets est partie : plus de réserve), et l'en-tête collé suit le
+     haut de la fenêtre visible quand le navigateur la décale pour montrer le champ. */
+  html[data-saisie="ouvert"] [data-defilement="document"] #emplacement-barre-d-action > * {
+    bottom: var(--clavier, 0px);
+  }
+  html[data-saisie="ouvert"] [data-defilement="document"] > [data-slot="en-tete-mobile"] {
+    top: var(--vue-top, 0px);
+  }
+  /* ADR-0136 — le profil « formulaire » en saisie : l'en-tête passe de 56 à 44 px, sans la ligne d'étape. */
+  html[data-saisie="ouvert"] [data-espace="formulaire"] > [data-slot="en-tete-mobile"] {
+    height: 2.75rem;
+  }
+  html[data-saisie="ouvert"] [data-espace="formulaire"] > [data-slot="en-tete-mobile"] [data-slot="ligne-d-etape"] {
+    display: none;
+  }
 
 }
 /* La pastille (les deux lecteurs : `/app` sous `md`, le site public sous `lg` ; chacun la masque au-delà). */

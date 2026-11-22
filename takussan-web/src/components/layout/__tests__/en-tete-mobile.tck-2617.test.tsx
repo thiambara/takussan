@@ -138,6 +138,9 @@ describe('TCK-2617 — la forme de l’en-tête suit la route', () => {
     expect(within(e).getByRole('link', { name: 'Fermer' })).toHaveAttribute('href', '/app/leases');
     expect(e).toHaveTextContent('Nouveau bail');
     expect(e).toHaveTextContent('Étape 2 sur 4');
+    // ADR-0136 (TCK-2998) — le profil « formulaire », et la ligne d'étape que la saisie replie (`globals.css`).
+    expect(coque(container)).toHaveAttribute('data-espace', 'formulaire');
+    expect(e.querySelector('[data-slot="ligne-d-etape"]')).toHaveTextContent('Étape 2 sur 4');
     expect(container.querySelector('[data-slot="barre-onglets"]')).toBeNull();
     expect(coque(container)).not.toHaveAttribute('data-barre-onglets');
     // La colonne reste (dès `md`) : un formulaire n'est pas le plein écran de la publication.
@@ -160,6 +163,9 @@ describe('TCK-2617 — la forme de l’en-tête suit la route', () => {
     expect(e).toHaveAttribute('data-forme', 'plein-ecran');
     expect(within(e).getByRole('link', { name: 'Fermer' })).toHaveAttribute('href', '/app/visits/228');
     expect(e).toHaveTextContent('Visite de 10:00 · terminée à 10:35');
+    expect(e.querySelector('[data-slot="ligne-d-etape"]')).toHaveTextContent('Visite de 10:00 · terminée à 10:35');
+    // ADR-0136 — une forme DÉCLARÉE ne change pas le profil d'espace : il se décide par la route.
+    expect(coque(container)).toHaveAttribute('data-espace', 'liste');
     expect(e).not.toHaveTextContent('Étape 1 sur 2');
     expect(within(e).getByTestId('a-droite')).toHaveTextContent('30 s');
   });
@@ -194,6 +200,8 @@ describe('TCK-2617 — la conversation ouverte : un état, pas une route', () =>
     chemin.valeur = '/app/messages';
     const { container, rerender } = monter(<DeclarerEnTete conversation />);
     expect(entete(container)).toBeNull();
+    // ADR-0136 (TCK-2998) — l'état admis par ADR-0134 : le profil « conversation ».
+    expect(coque(container)).toHaveAttribute('data-espace', 'conversation');
     expect(container.querySelector('[data-slot="barre-onglets"]')).toBeNull();
     expect(coque(container)).not.toHaveAttribute('data-barre-onglets');
     expect(container.querySelector('[data-slot="annonce-non-lus"][aria-live]')).not.toBeNull();
@@ -212,6 +220,7 @@ describe('TCK-2617 — la conversation ouverte : un état, pas une route', () =>
     );
     expect(entete(container)).not.toBeNull();
     expect(container.querySelector('[data-slot="barre-onglets"]')).not.toBeNull();
+    expect(coque(container)).toHaveAttribute('data-espace', 'liste');
   });
 });
 

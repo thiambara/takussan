@@ -273,6 +273,29 @@ describe('ADR-0134 — au téléphone, la page de la console défile', () => {
     expect(regle('[data-defilement="document"] #emplacement-barre-d-action > *')).toMatch(/position: fixed; inset-inline: 0; bottom: var\(--reserve-des-onglets\);/);
   });
 
+  // ADR-0136 (TCK-2998) — en saisie : la barre d'action se pose sur le clavier, l'en-tête collé suit la fenêtre
+  // visible ; dans un formulaire, l'en-tête passe à 44 px et sa ligne d'étape se replie.
+  it('ADR-0136 — en saisie, la barre d’action sur le clavier, l’en-tête du formulaire compacté', () => {
+    // Ces règles vivent dans le bloc des barres qui s'effacent (sous `md` aussi) : on les cherche dans tout le fichier.
+    const regle = (selecteur: string) => {
+      const i = css.indexOf(`\n  ${selecteur} {`);
+      expect(i, selecteur).toBeGreaterThan(-1);
+      const media = css.lastIndexOf('@media', i);
+      expect(css.slice(media, media + 24), selecteur).toBe('@media (width < 48rem) {');
+      return css.slice(i, css.indexOf('}', i)).replace(/\s+/g, ' ');
+    };
+    expect(regle('html[data-saisie="ouvert"] [data-defilement="document"] #emplacement-barre-d-action > *')).toMatch(/bottom: var\(--clavier, 0px\);/);
+    expect(regle('html[data-saisie="ouvert"] [data-defilement="document"] > [data-slot="en-tete-mobile"]')).toMatch(/top: var\(--vue-top, 0px\);/);
+    expect(regle('html[data-saisie="ouvert"] [data-espace="formulaire"] > [data-slot="en-tete-mobile"]')).toMatch(/height: 2\.75rem;/);
+    expect(regle('html[data-saisie="ouvert"] [data-espace="formulaire"] > [data-slot="en-tete-mobile"] [data-slot="ligne-d-etape"]')).toMatch(/display: none;/);
+  });
+
+  it('ADR-0136 — la coque publie son profil d’espace', () => {
+    expect(monter(COQUES[0][1])).toHaveAttribute('data-espace', 'liste');
+    navigation.chemin = '/app/leases/new';
+    expect(monter(COQUES[0][1])).toHaveAttribute('data-espace', 'formulaire');
+  });
+
   it('TCK-503 tenu par une réserve : le `<main>` réserve en bas la barre d’onglets (si elle est là) et la barre d’action', () => {
     expect(regle('[data-defilement="document"][data-barre-onglets]')).toMatch(/--reserve-des-onglets: var\(--barre-onglets-hauteur\);/);
     expect(regle('[data-defilement="document"] #contenu-principal')).toMatch(
