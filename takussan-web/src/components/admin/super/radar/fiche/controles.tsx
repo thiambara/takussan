@@ -52,7 +52,7 @@ export function ChampNombre({
         setTexte(saisi);
         if (saisi.trim() === '') return onChange(null);
         // ADR-0135 — champ texte : « 85,3 » et « 1 500 » se lisent, un texte qui n'est pas un nombre ne remonte pas.
-        const nombre = lireNombre(saisi);
+        const nombre = lireNombre(saisi, false);
         if (typeof nombre === 'number' && Number.isFinite(nombre)) onChange(nombre);
       }}
     />

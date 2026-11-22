@@ -69,7 +69,7 @@ export function AgentCommissionRateField({ assignment, disposition = 'bloc', lig
 
   // ADR-0135 — un champ texte (profil `decimal`) : « 12,5 » se lit 12.5 ; une saisie illisible ne part pas.
   const saisi = valeur.trim();
-  const lu = lireNombre(saisi);
+  const lu = lireNombre(saisi, false);
   const dirty = saisi !== enPlace && (saisi === '' || typeof lu === 'number');
 
   const submit = () => {

@@ -65,9 +65,9 @@ function texteOuVide(value: number | null | undefined): string {
 }
 
 /** ADR-0135 — les champs sont des champs texte : « 150 000 » et « 2,5 » se lisent en nombre. */
-function num(value: string): number | undefined {
+function num(value: string, milliers = true): number | undefined {
   if (value === '') return undefined;
-  const n = lireNombre(value);
+  const n = lireNombre(value, milliers);
   return typeof n === 'number' && Number.isFinite(n) ? n : undefined;
 }
 
@@ -120,8 +120,8 @@ export function LeaseRenewalDialog({
       // P133.04 (TCK-1381) — un champ vide n'est pas envoyé, et l'API reprend alors la valeur du
       // parent : seule une valeur saisie qui en diffère est une modification.
       late_fee_percent:
-        num(form.late_fee_percent) !== undefined &&
-        num(form.late_fee_percent) !== (parent.late_fee_percent ?? undefined),
+        num(form.late_fee_percent, false) !== undefined &&
+        num(form.late_fee_percent, false) !== (parent.late_fee_percent ?? undefined),
       late_fee_grace_days:
         num(form.late_fee_grace_days) !== undefined &&
         num(form.late_fee_grace_days) !== (parent.late_fee_grace_days ?? undefined),
@@ -154,8 +154,8 @@ export function LeaseRenewalDialog({
       ...(num(form.deposit_amount) !== undefined
         ? { deposit_amount: num(form.deposit_amount) }
         : {}),
-      ...(num(form.late_fee_percent) !== undefined
-        ? { late_fee_percent: num(form.late_fee_percent) }
+      ...(num(form.late_fee_percent, false) !== undefined
+        ? { late_fee_percent: num(form.late_fee_percent, false) }
         : {}),
       ...(num(form.late_fee_grace_days) !== undefined
         ? { late_fee_grace_days: num(form.late_fee_grace_days) }

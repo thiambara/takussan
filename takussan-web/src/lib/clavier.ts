@@ -232,14 +232,13 @@ export function profil<N extends NomDuProfil>(nom: N): (typeof PROFILS)[N] & { r
 /**
  * ADR-0135 — une saisie numérique lue en nombre : « 1 500 » → 1500, « 150,000 » (l'anglais) → 150000, « 12,5 » →
  * 12.5 ; vide ou illisible : la chaîne telle quelle, que le schéma juge. Une virgule ou un point suivi d'EXACTEMENT
- * trois chiffres sépare les milliers ; sinon c'est la virgule décimale. Pas pour une coordonnée ni un coût à trois
- * décimales (« 14,692 » s'y lirait 14692) : ceux-là ont leur propre lecture.
+ * trois chiffres sépare les milliers ; sinon c'est la virgule décimale. Pour une valeur décimale (taux, mesure),
+ * `milliers: false` : « 7,125 » y vaut 7.125, et seuls les espaces séparent les milliers. Une coordonnée garde sa
+ * propre lecture.
  */
-export function lireNombre(saisie: string): number | string {
-  const nettoyee = saisie
-    .replace(/[\s\u202f\u00a0]/g, '')
-    .replace(/[.,](?=\d{3}(?:[.,]|$))/g, '')
-    .replace(',', '.');
+export function lireNombre(saisie: string, milliers = true): number | string {
+  const sansEspaces = saisie.replace(/[\s\u202f\u00a0]/g, '');
+  const nettoyee = (milliers ? sansEspaces.replace(/[.,](?=\d{3}(?:[.,]|$))/g, '') : sansEspaces).replace(',', '.');
   if (nettoyee === '') return saisie;
   const nombre = Number(nettoyee);
   return Number.isNaN(nombre) ? saisie : nombre;

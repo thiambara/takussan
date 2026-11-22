@@ -69,7 +69,8 @@ capitales, et une zone de liens retrouvait la correction automatique.
   `autoCorrect`, `autoCapitalize` ni `spellCheck` : ces réglages-là sont ce que le profil décide.
 - **Un profil numérique remet un nombre au formulaire, et l'écran garde ce qui a été tapé.** `FormInput` lit la
   frappe par `lireNombre` (`src/lib/clavier.ts`) : « 1 500 » → 1500, « 150,000 » (l'anglais) → 150000,
-  « 12,5 » → 12.5 ; vide ou illisible, la chaîne part telle quelle et le schéma la juge. Un formulaire dont les
+  « 12,5 » → 12.5 ; vide ou illisible, la chaîne part telle quelle et le schéma la juge. Un profil `decimal` ne
+  connaît que l'espace comme séparateur de milliers (« 7,125 » est un taux). Un formulaire dont les
   valeurs sont du texte (la fiche d'agence) pose `garderLeTexte`. Les lectures de montant hors `FormInput`
   (schémas, recherches) passent par la même fonction, jamais par un `replace(',', '.')` qui lirait « 150,000 »
   150. Une coordonnée garde sa propre lecture (« 14,692 » n'est pas un millier). Chaque champ quittant
@@ -125,7 +126,9 @@ capitales, et une zone de liens retrouvait la correction automatique.
 ## Conséquences
 
 - **Un nouveau champ choisit son profil et son placeholder dès sa première ligne**, sinon la CI rougit.
-- **Une valeur numérique qui arrivait en `number` arrive en chaîne.** La conversion se fait dans le schéma.
+- **Une valeur numérique se lit par `lireNombre`** : `FormInput` la remet en nombre au formulaire, un formulaire de
+  texte (la fiche d'agence) la lit dans son schéma. Un `Number(…)` ou un `replace(',', '.')` sur une frappe lirait
+  « 150 000 » NaN et « 150,000 » 150.
 - Environ 200 placeholders neufs, donc autant de clés de traduction. Le texte en dur est refusé par
   `check:i18n`.
 - **Ce que seul un téléphone juge** : le clavier effectivement ouvert, et la barre de saisie automatique

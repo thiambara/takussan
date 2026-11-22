@@ -67,10 +67,15 @@ par `FormInput` ou `PhoneInput`, cliquet à sens unique, commentaires et lecture
 
 ## Complément pendant la migration (2026-11-21)
 
-Six profils ajoutés à la table sur ce que les lots ont rencontré (ADR-0135 § 1) : `identifiant` (slug, identifiant
+Cinq profils ajoutés à la table sur ce que les lots ont rencontré (ADR-0135 § 1) : `identifiant` (slug, identifiant
 technique, « courriel ou téléphone »), `reference` (NINEA, référence de paiement, code de plan, en capitales),
 `confirmation` (phrase recopiée), `coordonnee` (le pavé décimal d'iOS n'a pas de signe moins, la longitude du
 Sénégal est négative), `liens` (zone de liens). `lireNombre` lit le séparateur de milliers de l'anglais
 (« 150,000 ») ; `FormInput` prend `garderLeTexte` pour un formulaire dont les valeurs sont du texte (la fiche
 d'agence). La garde juge aussi les appels de `ChampDeLaFiche`, `ZoneDeLaFiche` et `ChampChiffre`. La croix native
 d'un champ `type="search"` est masquée (`globals.css`) : elle doublait le bouton « Effacer » de l'application.
+
+Revue avant la PR (2026-11-22) : la règle des milliers de `lireNombre` lisait « 7,125 » 7125 ; un profil `decimal`
+(et tout taux lu hors `FormInput`) la quitte (`lireNombre(v, false)`). La fiche d'agence refusait ses propres
+exemples (« 8,5 » hors bornes, « 500 000 » seuil invalide) : son schéma lit les taux et le seuil par `lireNombre`.
+La retenue d'un état des lieux de sortie lit « 150,000 » de même.

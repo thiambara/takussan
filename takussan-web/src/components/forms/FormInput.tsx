@@ -93,7 +93,7 @@ export function FormInput<TFieldValues extends FieldValues>({
                 aria-required={required || undefined}
                 className={cn(trailing && 'pr-10', className)}
                 value={
-                  numeriqueParProfil && frappe !== null && lireNombre(frappe) === field.value
+                  numeriqueParProfil && frappe !== null && lireNombre(frappe, profil !== 'decimal') === field.value
                     ? frappe
                     : (field.value ?? '')
                 }
@@ -109,7 +109,7 @@ export function FormInput<TFieldValues extends FieldValues>({
                     : numeriqueParProfil
                       ? (event: React.ChangeEvent<HTMLInputElement>) => {
                           setFrappe(event.target.value);
-                          field.onChange(lireNombre(event.target.value));
+                          field.onChange(lireNombre(event.target.value, profil !== 'decimal'));
                         }
                       : field.onChange
                 }

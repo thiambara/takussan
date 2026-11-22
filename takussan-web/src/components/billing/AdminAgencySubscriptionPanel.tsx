@@ -45,7 +45,7 @@ export function AdminAgencySubscriptionPanel({ agencyId }: { agencyId: number })
       return assignAdminAgencySubscription(agencyId, {
         plan_id: Number(planId),
         overrides: {
-          platform_fee_pct: enValeur(fee) ?? undefined,
+          platform_fee_pct: enValeur(fee, false) ?? undefined,
           limits: quota === null ? undefined : { max_active_listings: quota },
         },
       });
@@ -125,8 +125,8 @@ function enChamp(value: number | null | undefined): string {
 }
 
 /** ADR-0135 — un champ texte (profil `entier`/`decimal`) : « 12,5 » se lit 12.5, vide se lit `null`. */
-function enValeur(champ: string): number | null {
-  const lu = lireNombre(champ.trim());
+function enValeur(champ: string, milliers = true): number | null {
+  const lu = lireNombre(champ.trim(), milliers);
   return typeof lu === 'number' ? lu : null;
 }
 
@@ -158,7 +158,7 @@ function OverridesCard({ agencyId, subscription }: { readonly agencyId: number; 
 
   const mutation = useMutation({
     mutationFn: () => updateAdminAgencySubscriptionOverrides(agencyId, {
-      platform_fee_pct: enValeur(fee),
+      platform_fee_pct: enValeur(fee, false),
       limits: {
         max_active_listings: enValeur(limits.max_active_listings),
         max_agents: enValeur(limits.max_agents),

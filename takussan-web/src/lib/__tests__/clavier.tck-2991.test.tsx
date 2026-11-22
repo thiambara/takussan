@@ -175,6 +175,13 @@ describe('ADR-0135 § 1 — un profil numérique remet un NOMBRE au formulaire',
     expect(sonde.form?.getValues('taux')).toBe(12.5);
   });
 
+  it('un décimal ne connaît pas le séparateur de milliers : « 7,125 » part en 7.125', async () => {
+    const user = userEvent.setup();
+    render(<Formulaire />);
+    await user.type(screen.getByLabelText('Taux'), '7,125');
+    expect(sonde.form?.getValues('taux')).toBe(7.125);
+  });
+
   it('`FormTextarea` transmet son profil', () => {
     render(<Formulaire />);
     expect(screen.getByLabelText('Note')).toHaveAttribute('data-profil', 'texte-long');
@@ -191,6 +198,9 @@ describe('ADR-0135 § 1 — un profil numérique remet un NOMBRE au formulaire',
     expect(lireNombre('1.500.000')).toBe(1500000);
     expect(lireNombre('12,5')).toBe(12.5);
     expect(lireNombre('12.50')).toBe(12.5);
+    // Une valeur décimale (profil `decimal`, taux) : pas de séparateur de milliers hors espaces.
+    expect(lireNombre('7,125', false)).toBe(7.125);
+    expect(lireNombre('1 500,5', false)).toBe(1500.5);
   });
 
   it('les lectures de montant hors `FormInput` passent par `lireNombre` : « 150,000 » n’y vaut jamais 150', () => {

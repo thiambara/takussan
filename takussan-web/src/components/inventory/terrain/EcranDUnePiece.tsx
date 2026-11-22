@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { lireNombre } from '@/lib/clavier';
 import { useDictee } from '@/hooks/useDictee';
 import { ajouterALaNote } from '@/lib/dictee';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -568,8 +569,8 @@ function Retenue({ element, onElement, bureau }: LigneProps) {
   const valeur = montant(element.retention_amount);
   if (saisie !== null) {
     const valider = () => {
-      const n = Number(saisie.replace(/\s/g, ''));
-      if (Number.isFinite(n) && n > 0) onElement({ retention_amount: Math.round(n) });
+      const n = lireNombre(saisie); // ADR-0135 : « 150 000 », « 150,000 »
+      if (typeof n === 'number' && Number.isFinite(n) && n > 0) onElement({ retention_amount: Math.round(n) });
       setSaisie(null);
     };
     return (

@@ -20,9 +20,9 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
  * chaîne (« 12, » ne s'efface pas), lue en nombre à l'envoi. Vide se lit 0, comme `Number('')` avant ; une saisie
  * illisible rend `null` et bloque le bouton.
  */
-function enNombre(saisie: string): number | null {
+function enNombre(saisie: string, milliers = true): number | null {
   if (saisie.trim() === '') return 0;
-  const lu = lireNombre(saisie.trim());
+  const lu = lireNombre(saisie.trim(), milliers);
   return typeof lu === 'number' ? lu : null;
 }
 
@@ -36,7 +36,7 @@ export function AdminPlansClient() {
   const [prix, setPrix] = useState('');
   const [commission, setCommission] = useState('');
   const prixLu = enNombre(prix);
-  const commissionLue = enNombre(commission);
+  const commissionLue = enNombre(commission, false);
   const query = useQuery({ queryKey: ['super-admin', 'plans'], queryFn: fetchAdminPlans });
 
   const createMutation = useMutation({
@@ -91,7 +91,7 @@ function PlanRow({ plan }: { plan: Plan }) {
   const [prix, setPrix] = useState(String(plan.monthly_price_xof));
   const [commission, setCommission] = useState(String(plan.platform_fee_pct));
   const prixLu = enNombre(prix);
-  const commissionLue = enNombre(commission);
+  const commissionLue = enNombre(commission, false);
   const updateMutation = useMutation({
     mutationFn: () => updateAdminPlan(plan.id, { ...draft, monthly_price_xof: prixLu ?? 0, platform_fee_pct: commissionLue ?? 0 }),
     onSuccess: async () => {

@@ -109,6 +109,26 @@ describe('agencyFormSchema', () => {
     expect(payload.currency).toBe('XOF');
   });
 
+  it('ADR-0135 — la fiche accepte ses propres exemples : « 8,5 », « 7,125 », « 500 000 », « 500,000 »', () => {
+    const valide = (v: Partial<typeof base>) => agencyFormSchema.safeParse({ ...base, ...v }).success;
+    expect(valide({ commission_rate: '8,5', default_tax_rate: '7,125' })).toBe(true);
+    expect(valide({ commission_rate: '150' })).toBe(false);
+    expect(valide({ payout_approval_threshold: '500 000' })).toBe(true);
+    expect(valide({ payout_approval_threshold: '500,000' })).toBe(true);
+    expect(valide({ payout_approval_threshold: '12,5' })).toBe(false);
+    const payload = normaliseAgencyForm(
+      { ...base, commission_rate: '8,5', default_tax_rate: '7,125', payout_approval_threshold: '500 000' },
+      { individual: false, initialThreshold: '' },
+    );
+    expect(payload.commission_rate).toBe(8.5);
+    expect(payload.default_tax_rate).toBe(7.125);
+    expect(payload.payout_approval_threshold).toBe(500000);
+    // Le seuil relu « 500000 » et retapé « 500 000 » n'a pas changé : il ne part pas.
+    expect(
+      normaliseAgencyForm({ ...base, payout_approval_threshold: '500 000' }, { individual: false, initialThreshold: '500000' }),
+    ).not.toHaveProperty('payout_approval_threshold');
+  });
+
   /**
    * TCK-962 (P47.02) — `settings` ne porte que des clés qu'`AgencyUpdateRequest` déclare :
    * `validated()` retire les autres, et l'API répond 200 en les perdant. `timezone`, `currency` et

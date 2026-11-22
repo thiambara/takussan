@@ -412,7 +412,7 @@ function FormulaireDAlerte({
     setError(null);
     // ADR-0135 — des champs TEXTE (profils `decimal`, `entier`) : « 7,5 » se lit 7.5, et les bornes que le
     // navigateur tenait en `type="number"` (délai de 1 à 720 h) se jugent ici.
-    const parsed = lireNombre(threshold.trim());
+    const parsed = lireNombre(threshold.trim(), false);
     if (typeof parsed !== 'number') {
       setError(tA('invalidThreshold'));
       return;
