@@ -86,7 +86,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
         })}
       </div>
       <Input
-        type="text"
+        profil="phrase"
         placeholder={t('titlePlaceholder')}
         aria-label={t('titlePlaceholder')}
         value={title}
@@ -95,6 +95,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
       />
       <div className="space-y-1">
         <Textarea
+          profil="texte-long"
           placeholder={t('contentOptionalPlaceholder')}
           aria-label={t('contentOptionalPlaceholder')}
           value={content}

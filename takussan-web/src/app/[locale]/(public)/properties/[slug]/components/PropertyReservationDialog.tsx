@@ -248,18 +248,20 @@ function ReservationForm({
           <label className="block space-y-1 text-sm">
             <span className="text-foreground">{t('booking.guests')}</span>
             <Input
-              type="number"
+              profil="entier"
               required
               min={1}
               max={20}
+              placeholder={t('booking.guestsPlaceholder')}
               value={guests}
-              onChange={(e) => setGuests(Number(e.target.value) || 1)}
+              onChange={(e) => setGuests(Math.min(20, Math.max(1, Math.trunc(Number(e.target.value)) || 1)))}
             />
           </label>
         )}
         <label className="block space-y-1 text-sm">
           <span className="text-foreground">{t('booking.message')}</span>
           <Textarea
+            profil="texte-long"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t('booking.messagePlaceholder')}
@@ -394,10 +396,9 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
             {t('offerForm.amount', { currency: property.currency ?? 'XOF' })}
           </span>
           <Input
-            type="number"
+            profil="montant"
             required
             min={1}
-            inputMode="numeric"
             value={offerAmount}
             onChange={(e) => setOfferAmount(e.target.value)}
             placeholder={String(property.price)}
@@ -416,6 +417,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
         <label className="block space-y-1 text-sm">
           <span className="text-foreground">{t('offerForm.message')}</span>
           <Textarea
+            profil="texte-long"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={t('offerForm.messagePlaceholder')}

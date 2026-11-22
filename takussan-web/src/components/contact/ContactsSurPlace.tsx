@@ -81,9 +81,11 @@ export function ContactsSurPlace({
                 {t('labelLabel')}
               </label>
               <Input
+                profil="mots"
                 id={`contact-sur-place-label-${i}`}
                 value={c.label}
                 maxLength={60}
+                placeholder={t('labelPlaceholder')}
                 onChange={(e) => modifier(i, { label: e.target.value })}
               />
             </div>

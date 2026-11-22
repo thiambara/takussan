@@ -292,7 +292,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
               {otpSent ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <Input
-                    inputMode="numeric"
+                    profil="code"
                     pattern="\d{6}"
                     maxLength={6}
                     value={otpCode}
@@ -343,8 +343,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                   <Input
                     id="phone-change-password"
                     data-testid="phone-change-password"
-                    type="password"
-                    autoComplete="current-password"
+                    profil="mot-de-passe"
                     value={proofPassword}
                     onChange={(e) => setProofPassword(e.target.value)}
                   />
@@ -364,7 +363,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                 </Button>
                 {proofCodeSent ? (
                   <Input
-                    inputMode="numeric"
+                    profil="code"
                     pattern="\d{6}"
                     maxLength={6}
                     value={proofCode}
@@ -409,8 +408,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             <Input
               id="contact-email"
               data-testid="email-input"
-              type="email"
-              autoComplete="email"
+              profil="courriel"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               readOnly={emailVerified}
@@ -470,6 +468,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
           </div>
           <Textarea
             id="contact-bio"
+            profil="texte-long"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             maxLength={500}

@@ -66,9 +66,15 @@ function memesListes(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((x) => b.includes(x));
 }
 
-/** Un tarif saisi tel que l'API le reçoit : vide = `null`. */
+/** Un tarif saisi tel que l'API le reçoit : vide = `null`. Le champ est un champ texte (ADR-0135) : « 5 000 » vaut 5000. */
 function tarif(saisie: string): number | null {
-  return saisie === '' ? null : Number(saisie);
+  const chiffres = saisie.replace(/[\s\u202f\u00a0]/g, '');
+  return chiffres === '' ? null : Number(chiffres);
+}
+
+/** ADR-0135 — le tarif est un champ texte : seuls les chiffres (et l'espace des milliers) entrent, comme sous `type="number"`. */
+function chiffresSeuls(saisie: string): string {
+  return saisie.replace(/[^\d\s\u202f\u00a0]/g, '');
 }
 
 function tarifEnregistre(valeur: number | string | null): number | null {
@@ -144,6 +150,7 @@ function SpSettingsForm({ id, settings }: { readonly id: number; readonly settin
         <SettingBlock title={t('zones')}>
           <Input
             id="sp-profile-zones"
+            profil="lieu"
             aria-label={t('zones')}
             value={zones}
             placeholder={t('zonesPlaceholder')}
@@ -157,13 +164,13 @@ function SpSettingsForm({ id, settings }: { readonly id: number; readonly settin
               <label htmlFor="sp-profile-hourly" className="mb-1 block text-xs font-semibold text-muted-foreground">
                 {t('hourlyRate')}
               </label>
-              <Input id="sp-profile-hourly" type="number" min={0} value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} />
+              <Input id="sp-profile-hourly" profil="montant" placeholder={t('hourlyRatePlaceholder')} min={0} value={hourlyRate} onChange={(e) => setHourlyRate(chiffresSeuls(e.target.value))} />
             </div>
             <div>
               <label htmlFor="sp-profile-visit" className="mb-1 block text-xs font-semibold text-muted-foreground">
                 {t('visitFee')}
               </label>
-              <Input id="sp-profile-visit" type="number" min={0} value={visitFee} onChange={(e) => setVisitFee(e.target.value)} />
+              <Input id="sp-profile-visit" profil="montant" placeholder={t('visitFeePlaceholder')} min={0} value={visitFee} onChange={(e) => setVisitFee(chiffresSeuls(e.target.value))} />
             </div>
           </div>
         </SettingBlock>

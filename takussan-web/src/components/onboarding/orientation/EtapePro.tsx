@@ -231,7 +231,9 @@ export function EtapePro({ marque, compte, onRetour }: { readonly marque: string
                 id={`${id}-nom`}
                 required
                 maxLength={160}
+                profil="nom"
                 autoComplete="organization"
+                placeholder={t('nomPlaceholder')}
                 value={nom}
                 aria-invalid={nomManquant || undefined}
                 aria-describedby={nomManquant ? `${id}-nom-erreur` : undefined}
@@ -304,9 +306,9 @@ export function EtapePro({ marque, compte, onRetour }: { readonly marque: string
             <div className="relative">
               <Input
                 id={`${id}-lien`}
-                inputMode="url"
+                profil="url"
                 autoComplete="off"
-                spellCheck={false}
+                placeholder={t('lien.placeholder')}
                 value={lien}
                 onChange={(e) => surLien(e.target.value)}
                 aria-invalid={lienRefuse || undefined}

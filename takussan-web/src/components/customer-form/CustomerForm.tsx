@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Controller, useFormState } from 'react-hook-form';
+import { Controller, useFormState, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import {
   FormError,
@@ -131,6 +132,54 @@ function toDefaults(customer?: CustomerDetail): CustomerFormValues {
 }
 
 /** TCK-2590 — les valeurs d'une fiche vierge, partagées avec la création en deux temps (`creation/`). */
+/**
+ * ADR-0135 — un critère chiffré (chambres, budget) au pavé numérique, dont la valeur reste la CHAÎNE tapée :
+ * `customerFormSchema` la juge (`z.string()`) et `normaliseCustomerForm` la convertit. `FormInput` à profil
+ * numérique remettrait un nombre au formulaire, que ces `z.string()` refusent.
+ */
+export function ChampChiffre<T extends FieldValues>({
+  control,
+  name,
+  label,
+  profil,
+  placeholder,
+}: {
+  readonly control: Control<T>;
+  readonly name: FieldPath<T>;
+  readonly label: ReactNode;
+  readonly profil: 'entier' | 'montant';
+  readonly placeholder: string;
+}) {
+  const id = `field-${String(name)}`;
+  const errorId = `${id}-error`;
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <div className="w-full">
+          <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+            {label}
+          </label>
+          <Input
+            profil={profil}
+            id={id}
+            placeholder={placeholder}
+            aria-invalid={fieldState.error ? true : undefined}
+            aria-describedby={fieldState.error ? errorId : undefined}
+            value={field.value ?? ''}
+            onChange={(e) => field.onChange(e.target.value)}
+            onBlur={field.onBlur}
+            ref={field.ref}
+            name={field.name}
+          />
+          <FormError id={errorId}>{fieldState.error?.message}</FormError>
+        </div>
+      )}
+    />
+  );
+}
+
 export function valeursDeCreation(): CustomerFormValues {
   return toDefaults();
 }
@@ -298,6 +347,7 @@ export function CustomerForm({
         <FormInput
           control={control}
           name="id_number"
+          profil="mots"
           label={t('idNumber')}
           placeholder={customer?.id_number_masked ? t('idNumberKept', { masque: customer.id_number_masked }) : undefined}
         />
@@ -358,10 +408,10 @@ export function CustomerForm({
             <>
               {/* Maquette a-2 : prénom et nom côte à côte à toute largeur, la langue seule sur sa ligne. */}
               <div className="grid grid-cols-2 gap-4">
-                <FormInput control={control} name="first_name" label={t('firstName')} required />
-                <FormInput control={control} name="last_name" label={t('lastName')} required />
+                <FormInput control={control} name="first_name" profil="nom" autoComplete="off" label={t('firstName')} placeholder={t('firstNamePlaceholder')} required />
+                <FormInput control={control} name="last_name" profil="nom" autoComplete="off" label={t('lastName')} placeholder={t('lastNamePlaceholder')} required />
               </div>
-              <FormInput control={control} name="occupation" label={t('occupation')} placeholder={t('occupationPlaceholder')} />
+              <FormInput control={control} name="occupation" profil="mots" label={t('occupation')} placeholder={t('occupationPlaceholder')} />
               <FormSelect control={control} name="locale" label={t('locale')} options={localeOptions} placeholder={t('localeDefault')} />
               <FormSelect control={control} name="status" label={t('status')} options={customerStatusOptions} />
             </>
@@ -369,7 +419,7 @@ export function CustomerForm({
           contact={
             <>
               {champTelephone}
-              <FormInput control={control} name="email" label={t('email')} type="email" autoComplete="email" />
+              <FormInput control={control} name="email" profil="courriel" autoComplete="off" label={t('email')} placeholder={t('emailPlaceholder')} />
             </>
           }
           recherche={
@@ -377,10 +427,10 @@ export function CustomerForm({
               <>
                 <ChampsDeLaRecherche control={control} prefixe="modifier" />
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <FormInput control={control} name="min_bedrooms" label={tCrm('criteria.minBedrooms')} inputMode="numeric" />
-                  <FormInput control={control} name="budget_min" label={tCrm('criteria.budgetMin')} inputMode="decimal" />
+                  <ChampChiffre control={control} name="min_bedrooms" profil="entier" label={tCrm('criteria.minBedrooms')} placeholder={tCrm('criteria.minBedroomsPlaceholder')} />
+                  <ChampChiffre control={control} name="budget_min" profil="montant" label={tCrm('criteria.budgetMin')} placeholder={tCrm('criteria.budgetMinPlaceholder')} />
                 </div>
-                <FormInput control={control} name="seeking_cities" label={tCrm('criteria.cities')} placeholder={tCrm('criteria.citiesPlaceholder')} />
+                <FormInput control={control} name="seeking_cities" profil="lieu" label={tCrm('criteria.cities')} placeholder={tCrm('criteria.citiesPlaceholder')} />
               </>
             ) : null
           }
@@ -390,16 +440,17 @@ export function CustomerForm({
         <>
         <div className="rounded-xl bg-card p-6 space-y-4">
           <div className="grid gap-4 lg:grid-cols-2">
-            <FormInput control={control} name="first_name" label={t('firstName')} required />
-            <FormInput control={control} name="last_name" label={t('lastName')} required />
+            <FormInput control={control} name="first_name" profil="nom" autoComplete="off" label={t('firstName')} placeholder={t('firstNamePlaceholder')} required />
+            <FormInput control={control} name="last_name" profil="nom" autoComplete="off" label={t('lastName')} placeholder={t('lastNamePlaceholder')} required />
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <FormInput
               control={control}
               name="email"
+              profil="courriel"
+              autoComplete="off"
               label={t('email')}
-              type="email"
-              autoComplete="email"
+              placeholder={t('emailPlaceholder')}
             />
             {champTelephone}
           </div>
@@ -407,6 +458,7 @@ export function CustomerForm({
             <FormInput
               control={control}
               name="occupation"
+              profil="mots"
               label={t('occupation')}
               placeholder={t('occupationPlaceholder')}
             />
@@ -456,16 +508,17 @@ export function CustomerForm({
                 options={contractOptions}
                 placeholder={tCrm('criteria.any')}
               />
-              <FormInput
+              <ChampChiffre
                 control={control}
                 name="min_bedrooms"
+                profil="entier"
                 label={tCrm('criteria.minBedrooms')}
-                inputMode="numeric"
+                placeholder={tCrm('criteria.minBedroomsPlaceholder')}
               />
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
-              <FormInput control={control} name="budget_min" label={tCrm('criteria.budgetMin')} inputMode="decimal" />
-              <FormInput control={control} name="budget_max" label={tCrm('criteria.budgetMax')} inputMode="decimal" />
+              <ChampChiffre control={control} name="budget_min" profil="montant" label={tCrm('criteria.budgetMin')} placeholder={tCrm('criteria.budgetMinPlaceholder')} />
+              <ChampChiffre control={control} name="budget_max" profil="montant" label={tCrm('criteria.budgetMax')} placeholder={tCrm('criteria.budgetMaxPlaceholder')} />
             </div>
             <Controller
               control={control}
@@ -502,12 +555,14 @@ export function CustomerForm({
               <FormInput
                 control={control}
                 name="seeking_cities"
+                profil="lieu"
                 label={tCrm('criteria.cities')}
                 placeholder={tCrm('criteria.citiesPlaceholder')}
               />
               <FormInput
                 control={control}
                 name="seeking_neighborhoods"
+                profil="lieu"
                 label={tCrm('criteria.neighborhoods')}
                 placeholder={tCrm('criteria.neighborhoodsPlaceholder')}
               />

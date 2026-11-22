@@ -87,8 +87,7 @@ export function StepCaracteristiques({
             control={control}
             name="area"
             label={t(areaLabelKey(ctx.type))}
-            type="number"
-            inputMode="numeric"
+            profil="entier"
             min={0}
             placeholder={t('placeholders.area')}
           />

@@ -47,7 +47,8 @@ describe('<AgentCommissionRateField>', () => {
   it('affiche le taux en place, sans bouton tant que rien ne change', () => {
     render(withIntl(<AgentCommissionRateField assignment={AGENT} />));
 
-    expect(screen.getByLabelText("Taux de commission de l'agent (%)")).toHaveValue(12.5);
+    // ADR-0135 — un champ TEXTE (profil `decimal`) : la valeur affichée est une chaîne.
+    expect(screen.getByLabelText("Taux de commission de l'agent (%)")).toHaveValue('12.5');
     expect(screen.queryByRole('button', { name: 'Enregistrer le taux' })).toBeNull();
     expect(useSetAgentCommissionRate).toHaveBeenCalledWith(42);
   });
@@ -62,6 +63,22 @@ describe('<AgentCommissionRateField>', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
 
     expect(mutate).toHaveBeenCalledWith({ commission_rate: 30 }, expect.anything());
+  });
+
+  it('lit la virgule décimale, et une saisie illisible ne part pas (ADR-0135)', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<AgentCommissionRateField assignment={AGENT} />));
+
+    const champ = screen.getByLabelText("Taux de commission de l'agent (%)");
+    await user.clear(champ);
+    await user.type(champ, '12a');
+    expect(screen.queryByRole('button', { name: 'Enregistrer le taux' })).toBeNull();
+
+    await user.clear(champ);
+    await user.type(champ, '7,5');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
+
+    expect(mutate).toHaveBeenCalledWith({ commission_rate: 7.5 }, expect.anything());
   });
 
   it('un champ vidé efface le taux', async () => {
@@ -86,6 +103,6 @@ describe('<AgentCommissionRateField>', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer le taux' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(message);
-    expect(champ).toHaveValue(12.5);
+    expect(champ).toHaveValue('12.5');
   });
 });

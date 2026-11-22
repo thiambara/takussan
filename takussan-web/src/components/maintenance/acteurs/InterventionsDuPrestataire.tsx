@@ -247,7 +247,7 @@ function CarteAAccepter({ ligne }: { readonly ligne: InterventionEnFile }) {
           <label htmlFor={`motif-${ligne.id}`} className="block text-sm font-medium">
             {tReponse('reason_label')}
           </label>
-          <Textarea id={`motif-${ligne.id}`} value={motif} onChange={(e) => setMotif(e.target.value)} rows={3} placeholder={tReponse('reason_placeholder')} />
+          <Textarea profil="texte-long" id={`motif-${ligne.id}`} value={motif} onChange={(e) => setMotif(e.target.value)} rows={3} placeholder={tReponse('reason_placeholder')} />
           <div className="flex gap-2">
             <Button type="submit" variant="destructive" size="lg" className="min-w-0 flex-1" disabled={enCours || motif.trim().length < MOTIF_MIN}>
               {tReponse('confirm_decline')}

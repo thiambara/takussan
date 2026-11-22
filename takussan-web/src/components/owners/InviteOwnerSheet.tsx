@@ -181,8 +181,10 @@ export function InviteOwnerSheet({
             <Label htmlFor="invite-owner-email">{t('fields.email')}</Label>
             <Input
               id="invite-owner-email"
-              type="email"
+              profil="courriel"
+              // Une adresse d'un TIERS : la saisie automatique ne propose pas la sienne.
               autoComplete="off"
+              placeholder={t('fields.emailPlaceholder')}
               required
               value={form.email}
               onChange={(e) => update('email', e.target.value)}
@@ -199,6 +201,9 @@ export function InviteOwnerSheet({
               <Label htmlFor="invite-owner-first">{t('fields.first_name')}</Label>
               <Input
                 id="invite-owner-first"
+                profil="nom"
+                autoComplete="off"
+                placeholder={t('fields.firstNamePlaceholder')}
                 required
                 value={form.first_name}
                 onChange={(e) => update('first_name', e.target.value)}
@@ -213,6 +218,9 @@ export function InviteOwnerSheet({
               <Label htmlFor="invite-owner-last">{t('fields.last_name')}</Label>
               <Input
                 id="invite-owner-last"
+                profil="nom"
+                autoComplete="off"
+                placeholder={t('fields.lastNamePlaceholder')}
                 required
                 value={form.last_name}
                 onChange={(e) => update('last_name', e.target.value)}
@@ -229,7 +237,7 @@ export function InviteOwnerSheet({
             <Label htmlFor="invite-owner-phone">{t('fields.phone')}</Label>
             <Input
               id="invite-owner-phone"
-              type="tel"
+              profil="telephone"
               autoComplete="off"
               value={form.phone}
               onChange={(e) => update('phone', e.target.value)}
@@ -277,6 +285,9 @@ export function InviteOwnerSheet({
               </Label>
               <Input
                 id="invite-owner-company"
+                profil="nom"
+                autoComplete="off"
+                placeholder={t('fields.companyNamePlaceholder')}
                 required
                 value={form.company_name}
                 onChange={(e) => update('company_name', e.target.value)}

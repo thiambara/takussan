@@ -3,11 +3,21 @@ import { Input as InputPrimitive } from "@base-ui/react/input"
 
 import { cn } from "@/lib/utils"
 import { FIELD_DENSITY_HEIGHT } from "@/components/ui/field-density"
+import { profil as attributsDuProfil, type NomDuProfil } from "@/lib/clavier"
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+type ProfilDeChamp = Exclude<NomDuProfil, "texte-long" | "message" | "liens">
+
+/**
+ * ADR-0135 — `profil` règle le clavier (type, `inputMode`, touche Entrée, saisie automatique, correction,
+ * majuscule) : ses valeurs passent AVANT les props de l'appelant, qui ne surcharge que `autoComplete` et
+ * `enterKeyHint` (`scripts/check-champs.mjs` refuse le reste à côté d'un profil).
+ */
+function Input({ className, type, profil, ...props }: React.ComponentProps<"input"> & { readonly profil?: ProfilDeChamp }) {
+  const clavier = profil ? attributsDuProfil(profil) : null
   return (
     <InputPrimitive
-      type={type}
+      {...clavier}
+      type={type ?? clavier?.type}
       data-slot="input"
       className={cn(
         // TCK-468 — la hauteur de base ne change PAS ; une portée
@@ -28,4 +38,4 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   )
 }
 
-export { Input }
+export { Input, type ProfilDeChamp }

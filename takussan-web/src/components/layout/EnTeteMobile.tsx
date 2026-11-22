@@ -114,10 +114,11 @@ export function EnTeteMobile({
         ) : (
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-action font-semibold text-foreground">{titre}</p>
+            {/* ADR-0136 — `ligne-d-etape` : repliée en saisie dans un formulaire (`globals.css`). */}
             {sousTitre ? (
-              <p className="truncate text-ui text-muted-foreground">{sousTitre}</p>
+              <p data-slot="ligne-d-etape" className="truncate text-ui text-muted-foreground">{sousTitre}</p>
             ) : etape ? (
-              <p className="text-ui text-muted-foreground">{tCoque('etape', etape)}</p>
+              <p data-slot="ligne-d-etape" className="text-ui text-muted-foreground">{tCoque('etape', etape)}</p>
             ) : null}
           </div>
         )}

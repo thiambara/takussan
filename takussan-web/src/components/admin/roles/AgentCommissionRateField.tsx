@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, Pencil } from 'lucide-react';
 
+import { lireNombre } from '@/lib/clavier';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -66,12 +67,16 @@ export function AgentCommissionRateField({ assignment, disposition = 'bloc', lig
     setValeur(enPlace);
   }
 
-  const dirty = valeur.trim() !== enPlace;
+  // ADR-0135 — un champ texte (profil `decimal`) : « 12,5 » se lit 12.5 ; une saisie illisible ne part pas.
+  const saisi = valeur.trim();
+  const lu = lireNombre(saisi, false);
+  const dirty = saisi !== enPlace && (saisi === '' || typeof lu === 'number');
 
   const submit = () => {
-    const saisi = valeur.trim();
+    const taux = saisi === '' ? null : typeof lu === 'number' ? lu : undefined;
+    if (taux === undefined) return;
     setRate.mutate(
-      { commission_rate: saisi === '' ? null : Number(saisi) },
+      { commission_rate: taux },
       { onError: () => setValeur(enPlace), onSuccess: () => setEdition(false) },
     );
   };
@@ -107,11 +112,9 @@ export function AgentCommissionRateField({ assignment, disposition = 'bloc', lig
             <span className="inline-flex flex-none items-center gap-1.5">
               <Input
                 id={inputId}
-                type="number"
-                inputMode="decimal"
-                min={0}
-                max={100}
-                step="0.01"
+                profil="decimal"
+                enterKeyHint="done"
+                placeholder={t('exemple')}
                 value={valeur}
                 disabled={setRate.isPending}
                 onChange={(e) => setValeur(e.target.value)}
@@ -160,11 +163,9 @@ export function AgentCommissionRateField({ assignment, disposition = 'bloc', lig
       <Label htmlFor={inputId}>{t('label')}</Label>
       <Input
         id={inputId}
-        type="number"
-        inputMode="decimal"
-        min={0}
-        max={100}
-        step="0.01"
+        profil="decimal"
+        enterKeyHint="done"
+        placeholder={t('exemple')}
         value={valeur}
         disabled={setRate.isPending}
         onChange={(e) => setValeur(e.target.value)}

@@ -604,6 +604,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
               {t('recap.message')}
             </label>
             <Textarea
+              profil="texte-long"
               id="booking-message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -855,10 +856,10 @@ function Identite({ identite }: { readonly identite: ReturnType<typeof useIdenti
           </label>
           <p className="text-pretty text-sm text-muted-foreground">{t('codeSentTo', { phone: formaterTelephone(identite.telephone) })}</p>
           <Input
+            profil="code"
             id="booking-code"
             value={identite.code}
             onChange={(e) => identite.setCode(e.target.value)}
-            inputMode="numeric"
             autoComplete="one-time-code"
             pattern="\d{6}"
             maxLength={6}

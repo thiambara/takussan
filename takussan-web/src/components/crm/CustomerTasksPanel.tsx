@@ -75,6 +75,7 @@ export function CustomerTasksPanel({ customerId }: CustomerTasksPanelProps) {
         }}
       >
         <Input
+          profil="phrase"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t('tasks.titlePlaceholder')}

@@ -144,6 +144,7 @@ export function SectionFichePublique() {
             <div className="relative">
               <Textarea
                 id={idDuChamp('tagline')}
+                profil="texte-long"
                 rows={2}
                 maxLength={MAX_ACCROCHE}
                 value={accroche}
@@ -183,6 +184,7 @@ export function SectionFichePublique() {
                     <div className="relative">
                       <Input
                         id={id}
+                        profil="phrase"
                         maxLength={MAX_POINT}
                         value={valeur}
                         placeholder={exemples[i]}
@@ -274,7 +276,7 @@ export function SectionFichePublique() {
               />
               <Input
                 id="recherche-vitrine"
-                type="search"
+                profil="recherche"
                 value={recherche}
                 placeholder={t('searchPlaceholder')}
                 className="pl-10 text-corps"

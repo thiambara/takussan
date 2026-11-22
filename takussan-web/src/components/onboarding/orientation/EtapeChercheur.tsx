@@ -245,8 +245,10 @@ export function EtapeChercheur({
           <form onSubmit={ajouterAutre} className="mt-3 flex gap-2">
             <Input
               ref={champAutre}
+              profil="lieu"
+              enterKeyHint="done"
               aria-label={t('autreLibelle')}
-              placeholder={t('autreLibelle')}
+              placeholder={t('autrePlaceholder')}
               maxLength={100}
               value={saisieAutre}
               onChange={(e) => setSaisieAutre(e.target.value)}

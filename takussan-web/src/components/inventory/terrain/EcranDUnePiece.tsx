@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { lireNombre } from '@/lib/clavier';
 import { useDictee } from '@/hooks/useDictee';
 import { ajouterALaNote } from '@/lib/dictee';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -102,6 +103,7 @@ export function EcranDUnePiece(props: EcranDUnePieceProps) {
     ) : (
       <div className="flex gap-2 px-4 py-2.5">
         <Input
+          profil="mots"
           ref={curseurALApparition}
           aria-label={t('nomElement')}
           placeholder={t('nomElement')}
@@ -146,6 +148,7 @@ export function EcranDUnePiece(props: EcranDUnePieceProps) {
       </label>
       {bureau ? (
         <Textarea
+          profil="texte-long"
           id={`note-${props.index}`}
           value={room.notes ?? ''}
           maxLength={NOTE_DE_PIECE_MAX}
@@ -256,6 +259,7 @@ function NoteDictee({
     <>
       <div className="relative">
         <Textarea
+          profil="texte-long"
           id={id}
           value={room.notes ?? ''}
           maxLength={NOTE_DE_PIECE_MAX}
@@ -565,15 +569,15 @@ function Retenue({ element, onElement, bureau }: LigneProps) {
   const valeur = montant(element.retention_amount);
   if (saisie !== null) {
     const valider = () => {
-      const n = Number(saisie.replace(/\s/g, ''));
-      if (Number.isFinite(n) && n > 0) onElement({ retention_amount: Math.round(n) });
+      const n = lireNombre(saisie); // ADR-0135 : « 150 000 », « 150,000 »
+      if (typeof n === 'number' && Number.isFinite(n) && n > 0) onElement({ retention_amount: Math.round(n) });
       setSaisie(null);
     };
     return (
       <div className={cn('flex gap-2', bureau ? 'justify-end' : undefined)}>
         <Input
+          profil="montant"
           ref={curseurALApparition}
-          inputMode="numeric"
           aria-label={t('montant', { element: element.label })}
           placeholder={t('montantPlaceholder')}
           value={saisie}
@@ -631,6 +635,7 @@ function Precision({ element, onElement, bureau }: LigneProps) {
   return (
     <div className="min-w-0 flex-1">
       <Input
+        profil="phrase"
         id={id}
         aria-label={t('precisezPour', { element: element.label })}
         aria-describedby={bureau ? undefined : `${id}-aide`}
@@ -777,7 +782,7 @@ function FeuilleDeLElement({
           <label htmlFor={`${id}-nom`} className="mb-1.5 block text-sm font-medium">
             {t('nom')}
           </label>
-          <Input id={`${id}-nom`} value={element.label} maxLength={255} onChange={(e) => onChange({ label: e.target.value })} />
+          <Input profil="mots" id={`${id}-nom`} placeholder={t('nomExemple')} value={element.label} maxLength={255} onChange={(e) => onChange({ label: e.target.value })} />
         </div>
         <label className="flex min-h-12 items-center gap-3 text-corps">
           <input
@@ -792,7 +797,7 @@ function FeuilleDeLElement({
           <label htmlFor={`${id}-note`} className="mb-1.5 block text-sm font-medium">
             {t('note')}
           </label>
-          <Textarea id={`${id}-note`} value={element.notes ?? ''} maxLength={200} onChange={(e) => onChange({ notes: e.target.value || null })} className="min-h-18" />
+          <Textarea profil="texte-long" id={`${id}-note`} placeholder={t('noteExemple')} value={element.notes ?? ''} maxLength={200} onChange={(e) => onChange({ notes: e.target.value || null })} className="min-h-18" />
         </div>
         <div className="flex gap-2">
           <Button type="button" variant="outline" className="h-12 flex-1 text-destructive" onClick={onRetirer}>
@@ -837,7 +842,7 @@ function FeuilleDeLaPiece({ room, onChange, onRetirerLaPiece, onAjouterUnePiece 
           <label htmlFor={`${id}-nom`} className="mb-1.5 block text-sm font-medium">
             {t('nom')}
           </label>
-          <Input id={`${id}-nom`} value={room.name} maxLength={255} onChange={(e) => onChange({ ...room, name: e.target.value })} />
+          <Input profil="mots" id={`${id}-nom`} placeholder={t('nomExemple')} value={room.name} maxLength={255} onChange={(e) => onChange({ ...room, name: e.target.value })} />
         </div>
         <fieldset>
           <legend className="mb-1.5 text-sm font-medium">{t('etat')}</legend>
@@ -851,7 +856,7 @@ function FeuilleDeLaPiece({ room, onChange, onRetirerLaPiece, onAjouterUnePiece 
           </div>
         </fieldset>
         <div className="flex gap-2">
-          <Input aria-label={t('nouvelle')} placeholder={t('nouvelle')} value={nouvelle} maxLength={255} onChange={(e) => setNouvelle(e.target.value)} className="flex-1" />
+          <Input profil="mots" aria-label={t('nouvelle')} placeholder={t('nouvelle')} value={nouvelle} maxLength={255} onChange={(e) => setNouvelle(e.target.value)} className="flex-1" />
           <Button
             type="button"
             variant="outline"

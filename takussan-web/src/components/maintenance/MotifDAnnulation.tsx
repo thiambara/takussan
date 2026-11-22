@@ -70,6 +70,7 @@ export function MotifDAnnulation({
           {t('motif')}
         </label>
         <Textarea
+          profil="texte-long"
           id="motif-d-annulation-texte"
           value={motif}
           onChange={(e) => setMotif(e.target.value)}

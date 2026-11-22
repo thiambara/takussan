@@ -24,6 +24,7 @@ import {
 import { normaliserSaisie, useSuggest } from '@/hooks/useSuggest';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { useTraducteursDeFiltre } from '@/hooks/useTraducteursDeFiltre';
+import { profil } from '@/lib/clavier';
 import { highlightMatch } from '@/lib/highlightMatch';
 import { formatPrice } from '@/lib/utils';
 import {
@@ -1161,6 +1162,7 @@ export function SearchAutocomplete({
         <Icone aria-hidden="true" className={cn('shrink-0', isNavbar ? 'size-4 text-primary-foreground/60' : 'size-4 text-primary')} />
         {/* Motif combobox ARIA 1.2 : le rôle est sur l'`input`, nommé par le texte qu'il affiche. */}
         <input
+          {...profil('recherche')}
           ref={inputRef}
           id={inputId}
           role="combobox"
@@ -1170,7 +1172,6 @@ export function SearchAutocomplete({
           aria-autocomplete="list"
           aria-controls={ouvert ? listboxId : undefined}
           aria-activedescendant={optionActiveRendue ? `${listboxId}-item-${activeIndex}` : undefined}
-          type="text"
           enterKeyHint="search"
           value={query}
           onChange={(e) => {
@@ -1192,7 +1193,7 @@ export function SearchAutocomplete({
           }}
           placeholder={nom}
           className={cn(
-            'w-full bg-transparent text-sm outline-none',
+            'w-full bg-transparent text-sm outline-none [&::-webkit-search-cancel-button]:hidden',
             isNavbar ? 'text-primary-foreground placeholder:text-primary-foreground/50' : 'text-foreground placeholder:text-muted-foreground font-medium',
           )}
           autoComplete="off"

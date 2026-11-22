@@ -30,6 +30,7 @@ const EXEMPLE_HT = 100_000;
 export function SectionFacturation() {
   const t = useTranslations('admin.agencyConfig');
   const tCurrency = useTranslations('agency.currency');
+  const tExemple = useTranslations('admin.agencyConfig.exemples');
   const tFiche = useTranslations('admin.agencyConfig.fiche.facturation');
   const { agence, individuelle, numerosDuDossier } = useFiche();
   const { control, setValue } = useFormContext<ValeursDeLaFiche>();
@@ -86,8 +87,8 @@ export function SectionFacturation() {
         <div className="min-w-0 flex-1 space-y-5">
           <GroupeDeChamps titre={tFiche('groupeFacturation')} texte={tFiche('groupeFacturationTexte')}>
             <div className="grid gap-4 md:grid-cols-2 md:items-start">
-              <ChampDeLaFiche name="default_tax_rate" libelle={t('moneyOut.taxRate')} inputMode="decimal" aide={t('fields.emptyRateIsZero')} />
-              <ChampDeLaFiche name="commission_rate" libelle={t('fields.commission')} inputMode="decimal" aide={t('fields.emptyRateIsZero')} />
+              <ChampDeLaFiche name="default_tax_rate" libelle={t('moneyOut.taxRate')} profil="decimal" placeholder={tExemple('taux')} aide={t('fields.emptyRateIsZero')} />
+              <ChampDeLaFiche name="commission_rate" libelle={t('fields.commission')} profil="decimal" placeholder={tExemple('commission')} aide={t('fields.emptyRateIsZero')} />
             </div>
             <div>
               <FormSelect
@@ -109,16 +110,17 @@ export function SectionFacturation() {
           </GroupeDeChamps>
           {individuelle ? null : (
             <GroupeDeChamps titre={tFiche('groupeMentions')} texte={tFiche('groupeMentionsTexte')} className="border-t border-border pt-5">
-              <ChampDeLaFiche name="legal_name" libelle={t('moneyOut.legalName')} />
+              <ChampDeLaFiche name="legal_name" libelle={t('moneyOut.legalName')} profil="nom" autoComplete="organization" placeholder={tExemple('raisonSociale')} />
               <div className="grid gap-4 md:grid-cols-2 md:items-start">
                 <ChampDeLaFiche
                   name="ninea"
                   libelle={t('moneyOut.ninea')}
-                  placeholder={reprise.ninea ? tFiche('aReprendre') : undefined}
+                  profil="reference"
+                  placeholder={reprise.ninea ? tFiche('aReprendre') : tExemple('ninea')}
                 />
-                <ChampDeLaFiche name="rccm" libelle={t('moneyOut.rccm')} placeholder={reprise.rccm ? tFiche('aReprendre') : undefined} />
+                <ChampDeLaFiche name="rccm" libelle={t('moneyOut.rccm')} profil="reference" placeholder={reprise.rccm ? tFiche('aReprendre') : tExemple('rccm')} />
               </div>
-              <ZoneDeLaFiche name="legal_address" libelle={t('moneyOut.legalAddress')} rows={2} />
+              <ZoneDeLaFiche name="legal_address" libelle={t('moneyOut.legalAddress')} rows={2} placeholder={tExemple('adresseLegale')} />
             </GroupeDeChamps>
           )}
         </div>

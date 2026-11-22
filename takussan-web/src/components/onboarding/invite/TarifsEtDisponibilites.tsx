@@ -42,9 +42,10 @@ function saisieDuTarif(valeur: number | string | null): string {
   return valeur === null ? '' : String(Number(valeur));
 }
 
-/** Un tarif saisi tel que l'API le reçoit : vide = `null`. */
+/** Un tarif saisi tel que l'API le reçoit : vide = `null`. Le champ est un champ texte (ADR-0135) : « 5 000 » vaut 5000. */
 function tarif(saisie: string): number | null {
-  return saisie.trim() === '' ? null : Number(saisie);
+  const chiffres = saisie.replace(/[\s\u202f\u00a0]/g, '');
+  return chiffres === '' ? null : Number(chiffres);
 }
 
 export function TarifsEtDisponibilites({ reglages, onEnregistre, plusTard, occupe }: TarifsEtDisponibilitesProps) {
@@ -122,14 +123,15 @@ export function TarifsEtDisponibilites({ reglages, onEnregistre, plusTard, occup
         <div className="relative">
           <Input
             id={idChamp}
-            type="number"
-            inputMode="numeric"
+            profil="montant"
+            placeholder={t(`placeholders.${cle === 'hourly_rate' ? 'horaire' : 'visite'}`)}
             min={0}
             value={valeur}
             onChange={(ev) => {
               setEnregistre(false);
               setErreurs((e) => ({ ...e, [cle]: undefined }));
-              changer(ev.target.value);
+              // ADR-0135 — un champ texte : seuls les chiffres (et l'espace des milliers) entrent, comme sous `type="number"`.
+              changer(ev.target.value.replace(/[^\d\s\u202f\u00a0]/g, ''));
             }}
             aria-invalid={erreur ? true : undefined}
             aria-describedby={erreur ? `${idChamp}-erreur` : undefined}

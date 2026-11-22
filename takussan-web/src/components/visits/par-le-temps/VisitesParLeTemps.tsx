@@ -202,7 +202,7 @@ export function VisitesParLeTemps({ titre }: { readonly titre: string }) {
       <div className="px-4 max-md:hidden md:px-0">
         <PageHeader title={titre} description={sousTitre} actions={actions} />
       </div>
-      <RangeeDePuces aria-label={t('vuesLabel')} className="sticky top-0 z-10 border-b border-border/70 bg-background md:mt-5 md:px-0">
+      <RangeeDePuces aria-label={t('vuesLabel')} className="sticky top-(--haut-colle) z-10 border-b border-border/70 bg-background md:mt-5 md:px-0">
         {vues.map((v) => (
           <PuceDeFiltre key={v} active={v === vue} compte={v === 'status' ? undefined : (compteDe(c, v) ?? undefined)} onClick={() => choisir(v)}>
             {t(`vues.${v}`)}

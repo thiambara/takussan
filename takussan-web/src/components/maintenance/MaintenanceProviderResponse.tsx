@@ -49,6 +49,7 @@ export function MaintenanceProviderResponse({ request }: { readonly request: Mai
             {t('reason_label')}
           </label>
           <Textarea
+            profil="texte-long"
             id="decline-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}

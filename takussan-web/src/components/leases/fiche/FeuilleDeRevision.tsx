@@ -208,6 +208,7 @@ export function FeuilleDeRevision({ lease, paiements, ouverte, onFermer, libelle
             control={form.control}
             label={t('nouveau')}
             currency={lease.currency}
+            example={150_000}
             unite={t('unite', { devise: ['XOF', 'XAF'].includes(lease.currency.toUpperCase()) ? 'F' : lease.currency })}
             // TCK-2645 (lot 3) — maquette a-4 : le montant est la valeur de la feuille, au corps des chiffres clés.
             className="h-14 font-display text-2xl font-semibold tracking-titre tabular-nums"
@@ -265,6 +266,7 @@ export function FeuilleDeRevision({ lease, paiements, ouverte, onFermer, libelle
             ))}
           </div>
           <Textarea
+            profil="texte-long"
             aria-labelledby="revision-motif"
             className="mt-3 min-h-18"
             value={precision}

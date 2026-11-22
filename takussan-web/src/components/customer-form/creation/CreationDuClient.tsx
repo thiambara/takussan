@@ -35,7 +35,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { CustomerDetail } from '@/types/customer';
 
-import { valeursDeCreation } from '../CustomerForm';
+import { ChampChiffre, valeursDeCreation } from '../CustomerForm';
 import { ChampsDeLaRecherche } from './ChampsDeLaRecherche';
 
 /**
@@ -208,8 +208,8 @@ export function CreationDuClient({ open, onClose, initial, visiteDOrigine }: Cre
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         {/* Requis sans astérisque, comme la maquette : l'erreur le dit à l'envoi, `aria-required` au lecteur d'écran. */}
-        <FormInput control={control} name="first_name" label={t('prenom')} aria-required autoComplete="off" />
-        <FormInput control={control} name="last_name" label={t('nom')} aria-required autoComplete="off" />
+        <FormInput control={control} name="first_name" profil="nom" label={t('prenom')} placeholder={t('prenomPlaceholder')} aria-required autoComplete="off" />
+        <FormInput control={control} name="last_name" profil="nom" label={t('nom')} placeholder={t('nomPlaceholder')} aria-required autoComplete="off" />
       </div>
       <ChampsDeContact control={control} emailOuvert={Boolean(email)} doublon={doublons !== null} />
       {doublons}
@@ -318,7 +318,7 @@ function ChampsDeContact({ control, emailOuvert, doublon }: { readonly control: 
           </div>
         )}
       />
-      {ouvert ? <FormInput control={control} name="email" label={tForm('email')} type="email" autoComplete="off" /> : null}
+      {ouvert ? <FormInput control={control} name="email" profil="courriel" label={tForm('email')} placeholder={tForm('emailPlaceholder')} autoComplete="off" /> : null}
     </>
   );
 }
@@ -418,7 +418,7 @@ function PlusDeChamps({ control }: { readonly control: Control<CustomerFormValue
       </button>
       {ouvert ? (
         <div id="creation-plus" className="space-y-3 border-t border-border p-3.5">
-          <FormInput control={control} name="occupation" label={tForm('occupation')} placeholder={t('facultatif')} />
+          <FormInput control={control} name="occupation" profil="mots" label={tForm('occupation')} placeholder={t('facultatif')} />
           <div className="grid grid-cols-2 gap-3">
             <FormSelect
               control={control}
@@ -427,13 +427,13 @@ function PlusDeChamps({ control }: { readonly control: Control<CustomerFormValue
               options={[{ value: CUSTOMER_LOCALE_DEFAULT, label: tForm('localeDefault') }, ...customerLocaleValues.map((v) => ({ value: v, label: localeDisplayLabel(v, locale) }))]}
               placeholder={tForm('localeDefault')}
             />
-            <FormInput control={control} name="min_bedrooms" label={t('chambresAuMoins')} placeholder={t('indifferent')} inputMode="numeric" />
+            <ChampChiffre control={control} name="min_bedrooms" profil="entier" label={t('chambresAuMoins')} placeholder={t('indifferent')} />
             <FormSelect control={control} name="id_type" label={t('pieceDIdentite')} options={idTypeValues.map((v) => ({ value: v, label: tIdType(v) }))} placeholder={tForm('idTypePlaceholder')} />
-            <FormInput control={control} name="id_number" label={tForm('idNumber')} placeholder={t('facultatif')} />
+            <FormInput control={control} name="id_number" profil="mots" label={tForm('idNumber')} placeholder={t('facultatif')} />
             <FormSelect control={control} name="pipeline_stage" label={tForm('pipelineStage')} options={pipelineStageValues.map((v) => ({ value: v, label: tStage(v) }))} />
-            <FormInput control={control} name="budget_min" label={tCrm('criteria.budgetMin')} inputMode="decimal" />
+            <ChampChiffre control={control} name="budget_min" profil="montant" label={tCrm('criteria.budgetMin')} placeholder={tCrm('criteria.budgetMinPlaceholder')} />
           </div>
-          <FormInput control={control} name="seeking_cities" label={tCrm('criteria.cities')} placeholder={tCrm('criteria.citiesPlaceholder')} />
+          <FormInput control={control} name="seeking_cities" profil="lieu" label={tCrm('criteria.cities')} placeholder={tCrm('criteria.citiesPlaceholder')} />
         </div>
       ) : null}
     </div>

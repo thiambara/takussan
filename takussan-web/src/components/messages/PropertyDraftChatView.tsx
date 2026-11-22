@@ -165,6 +165,7 @@ export function PropertyDraftChatView({
         sendAriaLabel={t('chat.sendAria')}
       >
         <Textarea
+          profil="message"
           rows={1}
           value={content}
           onChange={(e) => setContent(e.target.value)}

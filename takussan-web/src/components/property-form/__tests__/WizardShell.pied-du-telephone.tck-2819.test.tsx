@@ -1,10 +1,13 @@
 /**
- * TCK-2819 — le pied de l'assistant SOUS `lg`, aux deux entrées (`/publish` et `/app/properties/new`) :
- * le `PiedAssistant` de la maquette `app-entree-publier` (a-0 à a-5, téléphone).
+ * TCK-2819, puis TCK-2988 — le pied de l'assistant SOUS `lg`, aux deux entrées (`/publish` et `/app/properties/new`).
  *
- * - « Continuer » est un geste de 48 px, 16 px / 600, rond (AC4), large de 172 px à côté de
- *   « Précédent », de 136 px à côté de « Plus tard », et toute la ligne au départ ;
- * - sous 390 px, à côté de « Plus tard », il cède son minimum (a-4 finissait à 361 px sur 360, AC3) ;
+ * TCK-2988 (maquette « L'écran économe », validée par le porteur le 2026-11-21) remplace le `PiedAssistant` de
+ * TCK-2819 au téléphone : 117 px devenus 71.
+ *
+ * - la progression : trois segments de 3 px au ras du pied, sans bordure au-dessus ni libellés dessous ;
+ * - « Précédent » : un rond de 48 px à flèche, cerné, dont le libellé reste lu (`max-lg:sr-only`) ;
+ * - « Continuer » : 48 px, 16 px / 600, rond, et le reste de la ligne (« Plus tard » garde sa largeur) ;
+ * - sous 390 px, à côté de « Plus tard », « Continuer » cède son retrait et les écarts passent à 8 (a-4 à 360) ;
  * - le départ n'a pas de « Précédent » au téléphone, et pas encore de résumé ;
  * - dès `lg`, rien de tout cela ne s'applique : chaque classe du téléphone porte `max-lg:` (ou une
  *   valeur que `lg:` remplace), et le cadre plein écran de `/app` garde ses gestes.
@@ -49,32 +52,40 @@ const GESTE_48 = ['max-lg:h-12', 'max-lg:rounded-full', 'max-lg:border-0', 'max-
 describe.each([
   ['/app/properties/new', false],
   ['/publish', true],
-])('le pied du téléphone sur %s (TCK-2819)', (_route, cadreDEntree) => {
-  it('« Continuer » : 48 px, 16 px / 600, 172 px de large à côté de « Précédent » (AC4)', () => {
+])('le pied du téléphone sur %s (TCK-2988)', (_route, cadreDEntree) => {
+  it('« Continuer » : 48 px, 16 px / 600, et le reste de la ligne ; dès `lg`, 176 px au moins', () => {
     monter(1, { cadreDEntree });
-    expect(bouton(/^continuer$/i)).toHaveClass(...GESTE_48, 'max-lg:px-6', 'min-w-[10.75rem]');
-    expect(bouton(/^précédent$/i)).toHaveClass(...GESTE_48, 'max-lg:px-2');
-    expect(bouton(/^précédent$/i)).not.toHaveClass('-ml-2.5');
+    expect(bouton(/^continuer$/i)).toHaveClass(...GESTE_48, 'max-lg:px-6', 'max-lg:flex-1', 'max-lg:min-w-0');
+    // 176 px : `lg:min-w-44`, ou `lg:min-w-[11rem]` du cadre d'entrée, que `twMerge` garde à sa place.
+    expect(bouton(/^continuer$/i).className).toMatch(/(^|\s)lg:min-w-(44|\[11rem\])(\s|$)/);
+    expect(bouton(/^continuer$/i).parentElement).toHaveClass('max-lg:flex-1');
   });
 
-  it('à côté de « Plus tard », 136 px — qu’il cède sous 390 px, pour que la ligne tienne à 360 (AC3)', () => {
+  it('« Précédent » : un rond de 48 px à flèche, cerné, dont le libellé reste lu', () => {
+    monter(1, { cadreDEntree });
+    const precedent = bouton(/^précédent$/i);
+    expect(precedent).toHaveClass('max-lg:size-12', 'max-lg:rounded-full', 'max-lg:border-input', 'max-lg:p-0');
+    expect(precedent.querySelector('svg')).toHaveClass('lg:hidden');
+    expect(screen.getByText('Précédent')).toHaveClass('max-lg:sr-only');
+    expect(precedent).not.toHaveClass('-ml-2.5');
+  });
+
+  it('à côté de « Plus tard » : « Continuer » cède son retrait sous 390 px, les écarts passent à 8 (a-4 à 360)', () => {
     monter(2, { cadreDEntree });
-    expect(bouton(/^continuer$/i)).toHaveClass('min-w-[8.5rem]', 'max-[389px]:min-w-0', 'max-[389px]:px-5');
+    expect(bouton(/^continuer$/i)).toHaveClass('max-lg:flex-1', 'max-[389px]:px-5');
     expect(bouton(/^plus tard$/i)).toHaveClass(...GESTE_48, 'max-lg:px-2');
-    // Et les écarts passent de 12 à 8 : à 360, « Continuer » finissait à 346 px, dans la marge de 16.
     expect(bouton(/^continuer$/i).parentElement).toHaveClass('gap-3', 'max-[389px]:gap-2');
     expect(bouton(/^précédent$/i).parentElement).toHaveClass('gap-3', 'max-[389px]:gap-2');
   });
 
   it('la dernière étape : « Publier l’annonce », au même gabarit', () => {
     monter(3, { cadreDEntree });
-    expect(bouton(/^publier l’annonce$/i)).toHaveClass(...GESTE_48, 'min-w-[10.75rem]');
+    expect(bouton(/^publier l’annonce$/i)).toHaveClass(...GESTE_48, 'max-lg:flex-1');
   });
 
   it('le départ : « Continuer » sur toute la ligne, ni « Précédent » ni résumé au téléphone', () => {
     monter(0, { cadreDEntree });
-    expect(bouton(/^continuer$/i)).toHaveClass('max-lg:w-full');
-    expect(bouton(/^continuer$/i).parentElement).toHaveClass('max-lg:w-full');
+    expect(bouton(/^continuer$/i)).toHaveClass('max-lg:flex-1');
     const precedent = screen.queryByRole('button', { name: /^précédent$/i });
     if (precedent) expect(precedent).toHaveClass('max-lg:hidden');
     expect(screen.queryByText('résumé')).not.toBeInTheDocument();
@@ -85,13 +96,26 @@ describe.each([
     expect(screen.getByText('résumé').parentElement).toHaveClass('lg:hidden');
   });
 
-  it('le pied : la carte et son ombre, `pt-2.5`, une ligne de gestes espacée de 12 et suivie de 4', () => {
+  it('le pied : la carte et son ombre, sans bordure ni retrait du haut, 16 px ou la zone de sécurité en bas', () => {
     const { pied } = monter(1, { cadreDEntree });
-    expect(pied).toHaveClass('bg-card', 'pt-2.5', 'lg:pt-0');
-    expect(pied).toHaveClass('max-lg:shadow-barre-collante');
+    expect(pied).toHaveClass('bg-card', 'max-lg:shadow-barre-collante', 'lg:border-t');
+    // Le retrait du bas : 16 px, ou la zone de sécurité (demande du porteur : de l'air sous « Continuer ») — déclaré
+    // au dock et appliqué par le même geste (TCK-477), d'où le style plutôt qu'une classe.
+    expect(pied.style.paddingBottom).toBe('max(calc(var(--spacing) * 4), env(safe-area-inset-bottom))');
+    expect(pied.className).not.toMatch(/(^|\s)(border-t|pt-[\d.]+)(\s|$)/);
     expect(pied.className).not.toMatch(/(^|\s)(lg:)?shadow-/);
     const ligne = bouton(/^précédent$/i).parentElement!;
-    expect(ligne).toHaveClass('gap-3', 'pb-1', 'lg:gap-2', 'lg:pb-0');
+    expect(ligne).toHaveClass('gap-3', 'pt-2.5', 'lg:gap-2', 'lg:pt-3');
+  });
+
+  it('la progression : des segments de 3 px bord à bord, sans libellés des parties au téléphone', () => {
+    const { pied } = monter(1, { cadreDEntree });
+    const barre = screen.getByRole('progressbar');
+    expect(barre).toHaveClass('gap-0.5', 'lg:gap-1.5');
+    expect(barre.className).not.toMatch(/(^|\s)px-/);
+    expect(barre.firstElementChild).toHaveClass('h-[calc(var(--spacing)*0.75)]', 'lg:h-1', 'lg:rounded-full');
+    const libelles = pied.querySelector('[aria-hidden="true"].grid, [aria-hidden="true"].lg\\:grid') as HTMLElement;
+    expect(libelles).toHaveClass('hidden', 'lg:grid');
   });
 });
 

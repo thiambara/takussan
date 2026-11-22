@@ -431,6 +431,7 @@ function FormulaireDuLocataire({ logement, onChanger }: { readonly logement: Log
           {/* TCK-2902 — le champ et, à sa droite, le micro ; une note en cours ou enregistrée passe dessous. */}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Input
+              profil="phrase"
               id={`${id}-texte`}
               value={texte}
               onChange={(e) => setTexte(e.target.value)}

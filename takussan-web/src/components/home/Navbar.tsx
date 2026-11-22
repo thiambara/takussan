@@ -23,6 +23,7 @@ import { apiFetch } from '@/lib/api';
 import { referentielPublicQueryKeys, UNE_HEURE_MS } from '@/lib/queries/referentiel-public';
 import { parametreDe } from '@/types/search';
 import { retenirRecherche } from '@/lib/recherches-recentes';
+import { SuiviDeLaFenetre } from '@/lib/fenetre';
 import { hrefLocalise, localeDuChemin } from '@/i18n/navigation';
 import { decouperLocale } from '@/i18n/routing';
 import type { Locale } from '@/i18n/config';
@@ -569,8 +570,12 @@ export function Navbar({ className, auTelephone }: NavbarProps) {
               <SheetContent
                 side="top"
                 initialFocus={() => zoneSaisieRef.current?.querySelector<HTMLInputElement>('input') ?? true}
-                className="lg:hidden h-dvh max-h-dvh bg-background"
+                // ADR-0133, amendement (TCK-2997) — en saisie, calée sur la fenêtre visible : la liste des
+                // suggestions s'arrête au haut du clavier au lieu de passer dessous. « Rechercher » reste : la
+                // saisie est optimiste, et un focus posé sans clavier ne doit retirer aucun geste.
+                className="lg:hidden h-dvh max-h-dvh bg-background max-lg:saisie:top-[var(--vue-top,0px)] max-lg:saisie:h-[var(--vue-h,100dvh)] max-lg:saisie:max-h-[var(--vue-h,100dvh)]"
               >
+                <SuiviDeLaFenetre />
                 <div className="flex items-center gap-1 border-b border-border px-2 py-2">
                   <SheetClose
                     aria-label={t('searchSurface.back')}

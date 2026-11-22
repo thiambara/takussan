@@ -334,9 +334,9 @@ function ChampDeRecherche({
       </label>
       {/* La primitive, sans sa bordure : la coque en pilule porte le champ (comme la barre de la liste). */}
       <Input
+        profil="recherche"
         id={id}
         name="q"
-        type="search"
         defaultValue={valeur}
         placeholder={placeholder}
         enterKeyHint="search"
@@ -428,7 +428,7 @@ function PanneauxDeFiltre({
         )}
       </Panneau>
       <Panneau libelle={t('pastilles.budget')} actif={estPose('budget', filters)}>
-        <PanneauBudget filters={filters} changer={changer} libelleMin={tFiltres('min')} libelleMax={tFiltres('max')} appliquer={t('appliquer')} />
+        <PanneauBudget filters={filters} changer={changer} libelleMin={tFiltres('min')} libelleMax={tFiltres('max')} exempleMin={t('budgetMinExemple')} exempleMax={t('budgetMaxExemple')} appliquer={t('appliquer')} />
       </Panneau>
       <Panneau libelle={t('pastilles.chambres')} actif={estPose('chambres', filters)}>
         <ul className="space-y-0.5">
@@ -516,12 +516,16 @@ function PanneauBudget({
   changer,
   libelleMin,
   libelleMax,
+  exempleMin,
+  exempleMax,
   appliquer,
 }: {
   readonly filters: SearchFilters;
   readonly changer: (patch: Partial<SearchFilters>) => void;
   readonly libelleMin: string;
   readonly libelleMax: string;
+  readonly exempleMin: string;
+  readonly exempleMax: string;
   readonly appliquer: string;
 }) {
   const lire = (v: FormDataEntryValue | null): number | undefined => {
@@ -542,8 +546,9 @@ function PanneauBudget({
           <label key={cle} className="flex flex-col gap-1 text-xs text-muted-foreground">
             {cle === 'price_min' ? libelleMin : libelleMax}
             <Input
+              profil="montant"
               name={cle}
-              inputMode="numeric"
+              placeholder={cle === 'price_min' ? exempleMin : exempleMax}
               defaultValue={filters[cle] ?? ''}
               className="bg-card px-2.5 tabular-nums text-foreground"
             />

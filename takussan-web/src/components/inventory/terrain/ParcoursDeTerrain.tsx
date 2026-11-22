@@ -324,6 +324,7 @@ function Parcours({
               ) : (
                 <div className="flex gap-2 border-t border-border p-2">
                   <Input
+                    profil="mots"
                     ref={curseurALApparition}
                     aria-label={t('demarrer.nomDeLaPiece')}
                     placeholder={t('demarrer.nomDeLaPiece')}
@@ -353,7 +354,7 @@ function Parcours({
   return (
     <PagePleineLargeur data-slot="parcours-de-terrain">
       <DeclarerEnTete forme="detail" titre={titre} conversation />
-      <header className="sticky top-0 z-10 border-b border-border/70 bg-background">
+      <header className="sticky top-(--haut-colle) z-10 border-b border-border/70 bg-background">
         <div className="flex h-14 items-center gap-1 px-1">
           {/* La flèche unique (TCK-2617) : la pièce précédente, ou « Enregistrer et quitter » à la première. */}
           <BoutonFlecheDeRetour

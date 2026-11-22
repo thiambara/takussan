@@ -152,6 +152,7 @@ export function EarlyTerminationDialog({
               {t('field_reason')}
             </label>
             <Textarea
+              profil="texte-long"
               id="et-reason"
               rows={3}
               placeholder={t('field_reason_placeholder')}

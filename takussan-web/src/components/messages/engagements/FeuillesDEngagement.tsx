@@ -84,7 +84,7 @@ export function FeuilleDEcheance({
             <label htmlFor={`${formulaire}-titre`} className="mb-1.5 text-sm font-medium">
               {t('aQuoi')}
             </label>
-            <Input id={`${formulaire}-titre`} value={intitule} onChange={(e) => setIntitule(e.target.value)} maxLength={TITRE_MAX} />
+            <Input profil="phrase" id={`${formulaire}-titre`} value={intitule} onChange={(e) => setIntitule(e.target.value)} placeholder={t('exemple')} maxLength={TITRE_MAX} />
           </div>
         ) : null}
         <div className="flex flex-col">
@@ -151,7 +151,7 @@ export function FeuilleDeReouverture({ conversationId, engagementId, open, onOpe
         <label htmlFor={`${formulaire}-motif`} className="block text-sm font-medium">
           {t('motif')}
         </label>
-        <Textarea id={`${formulaire}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} maxLength={MOTIF_DE_REOUVERTURE_MAX} rows={3} />
+        <Textarea profil="texte-long" id={`${formulaire}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} placeholder={t('motifPlaceholder')} maxLength={MOTIF_DE_REOUVERTURE_MAX} rows={3} />
         <p className="text-xs text-muted-foreground">{t('aide', { min: MOTIF_DE_REOUVERTURE_MIN })}</p>
         {envoi.error ? (
           <p role="alert" className="text-xs text-destructive">

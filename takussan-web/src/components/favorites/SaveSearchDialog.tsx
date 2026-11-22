@@ -215,6 +215,7 @@ function CorpsDuDialogue({
             <div className="space-y-2">
               <Label htmlFor="saved-search-name">{t('nameLabel')}</Label>
               <Input
+                profil="mots"
                 id="saved-search-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}

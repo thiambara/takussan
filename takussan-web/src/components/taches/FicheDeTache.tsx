@@ -123,7 +123,7 @@ export function FicheDeTache({ tache, maintenant, moi, membres, onModifiee, onSu
               else setTitre(null);
             }}
           >
-            <Input ref={(champ) => champ?.focus()} value={titre} onChange={(e) => setTitre(e.target.value)} aria-label={t('titre')} maxLength={255} />
+            <Input profil="phrase" placeholder={t('titreExemple')} ref={(champ) => champ?.focus()} value={titre} onChange={(e) => setTitre(e.target.value)} aria-label={t('titre')} maxLength={255} />
             <Button type="submit" size="sm" disabled={!titre.trim() || modifier.isPending}>
               {t('enregistrer')}
             </Button>

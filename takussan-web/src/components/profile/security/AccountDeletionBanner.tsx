@@ -37,10 +37,12 @@ export function AccountDeletionBanner({ daysRemaining, onCancelled }: Props) {
     });
   }
 
+  // ADR-0134 — sous `md`, en flux : la page de la console défile au téléphone et son en-tête colle en haut ;
+  // collé lui aussi, ce bandeau le recouvrirait.
   return (
     <div
       role="alert"
-      className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive"
+      className="sticky top-0 z-40 max-md:static flex flex-wrap items-center justify-between gap-3 border-b border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive"
     >
       <div className="flex flex-col">
         <span className="font-semibold">{t('title')}</span>

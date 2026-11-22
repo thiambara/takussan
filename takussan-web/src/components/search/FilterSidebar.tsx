@@ -143,6 +143,7 @@ function RangeInputs({
   onChangeMin,
   onChangeMax,
   onCommit,
+  profil = 'montant',
 }: {
   placeholderMin: string;
   placeholderMax: string;
@@ -152,6 +153,8 @@ function RangeInputs({
   onChangeMin: (v: string) => void;
   onChangeMax: (v: string) => void;
   onCommit: () => void;
+  /** ADR-0135 — le prix est un montant (défaut), la surface un entier. */
+  profil?: 'montant' | 'entier';
 }) {
   const idTitre = React.useContext(TitreDeSection);
   const idMin = React.useId();
@@ -179,26 +182,28 @@ function RangeInputs({
           négative rend 422, donc « 0 bien trouvé ». Le défaut existait déjà sur le prix
           (`?price_min=-5` → 422) et l'ajout des bornes de surface le doublait. Le champ
           refuse désormais le signe moins avant qu'il n'atteigne l'URL.
+          ADR-0135 — champs TEXTE au pavé numérique : `min` ne filtre plus la frappe, `chiffresSeuls`
+          le fait (ni signe moins, ni séparateur de milliers : « 150 000 » part en 150000).
         */}
         <Input
-          type="number"
+          profil={profil}
           min={0}
           placeholder={placeholderMin}
           aria-labelledby={nomme(idMin)}
           value={valueMin}
-          onChange={(e) => onChangeMin(e.target.value)}
+          onChange={(e) => onChangeMin(chiffresSeuls(e.target.value))}
           onBlur={onCommit}
           onKeyDown={surTouche}
           className="rounded-xl"
         />
         <span className="shrink-0 text-muted-foreground text-sm">–</span>
         <Input
-          type="number"
+          profil={profil}
           min={0}
           placeholder={placeholderMax}
           aria-labelledby={nomme(idMax)}
           value={valueMax}
-          onChange={(e) => onChangeMax(e.target.value)}
+          onChange={(e) => onChangeMax(chiffresSeuls(e.target.value))}
           onBlur={onCommit}
           onKeyDown={surTouche}
           className="rounded-xl"
@@ -284,6 +289,11 @@ const CLES_REPLIEES = [
 function estActif(valeur: unknown): boolean {
   if (Array.isArray(valeur)) return valeur.length > 0;
   return valeur !== undefined && valeur !== '';
+}
+
+/** ADR-0135 — la frappe d'une borne réduite à ses chiffres : le signe moins et les espaces ne passent pas. */
+function chiffresSeuls(v: string): string {
+  return v.replace(/\D/g, '');
 }
 
 function nombreVersFiltre(v: string): number | undefined {
@@ -811,6 +821,7 @@ export function FilterSidebar({
           {/* 8. Surface */}
           <Section title={t(`sections.area`)}>
             <RangeInputs
+              profil="entier"
               placeholderMin={t('minArea')}
               placeholderMax={t('maxArea')}
               valueMin={areaMinDraft}

@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
-import { Input } from '@/components/ui/input';
+import { Input, type ProfilDeChamp } from '@/components/ui/input';
 import { Radio, RadioGroup } from '@/components/ui/radio-group';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
@@ -183,7 +183,13 @@ export function FormulaireDInvitation({ id, agencyId, onEnvoyee, envoi, ref }: F
     formState: { errors },
   } = form;
 
-  const champ = (nom: 'first_name' | 'last_name' | 'email' | 'phone', libelle: string, type: string, autoComplete: string) => {
+  const champ = (
+    nom: 'first_name' | 'last_name' | 'email' | 'phone',
+    libelle: string,
+    profil: ProfilDeChamp,
+    autoComplete: string,
+    placeholder: string,
+  ) => {
     const erreur = errors[nom]?.message;
     const champId = `${id}-${nom}`;
     return (
@@ -193,8 +199,9 @@ export function FormulaireDInvitation({ id, agencyId, onEnvoyee, envoi, ref }: F
         </label>
         <Input
           id={champId}
-          type={type}
+          profil={profil}
           autoComplete={autoComplete}
+          placeholder={placeholder}
           aria-invalid={erreur ? true : undefined}
           aria-describedby={erreur ? `${champId}-erreur` : undefined}
           {...register(nom)}
@@ -219,11 +226,11 @@ export function FormulaireDInvitation({ id, agencyId, onEnvoyee, envoi, ref }: F
       className="space-y-4"
     >
       <div className="grid grid-cols-2 gap-3">
-        {champ('first_name', t('firstName'), 'text', 'given-name')}
-        {champ('last_name', t('lastName'), 'text', 'family-name')}
+        {champ('first_name', t('firstName'), 'nom', 'given-name', tF('exemplePrenom'))}
+        {champ('last_name', t('lastName'), 'nom', 'family-name', tF('exempleNom'))}
       </div>
-      {champ('email', tF('email'), 'email', 'email')}
-      {champ('phone', t('phone'), 'tel', 'tel')}
+      {champ('email', tF('email'), 'courriel', 'email', t('emailPlaceholder'))}
+      {champ('phone', t('phone'), 'telephone', 'tel', tF('exempleTelephone'))}
       <fieldset>
         <legend className="mb-1.5 text-sm font-medium">{t('role')}</legend>
         <Controller

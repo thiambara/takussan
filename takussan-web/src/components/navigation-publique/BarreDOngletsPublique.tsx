@@ -10,6 +10,8 @@ import { AnnonceDesNonLus } from '@/components/layout/AnnonceDesNonLus';
 import { useCompteursDuMenu } from '@/components/layout/useCompteursDuMenu';
 import { useLibelleDuCompteur } from './useLibelleDuCompteur';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { useEffacementDesBarres } from '@/components/layout/useEffacementDesBarres';
+import { useFenetre } from '@/lib/fenetre';
 import { decouperLocale } from '@/i18n/routing';
 import { initialesDe } from '@/lib/identite';
 import { HREF_COMPTE, hrefDuCompte, libellePublic, porteLaBarrePublique, REQUETE_BARRE_PUBLIQUE } from '@/lib/navigation/barre-publique';
@@ -152,69 +154,87 @@ function Barre({
 }) {
   const t = useTranslations('navigationPublique');
   const tNav = useTranslations('nav.sidebar.onglets');
+  // ADR-0134 § 3 (TCK-2990) — comme dans `/app` : sous `lg`, la barre et l'en-tête du site s'effacent au
+  // défilement ; la pastille les rappelle ; clavier ouvert, la barre part (la mesure de la fenêtre, ADR-0133).
+  const sousLg = useMatchesMedia(REQUETE_BARRE_PUBLIQUE);
+  const { effacees, rappeler } = useEffacementDesBarres(sousLg, usePathname() ?? '');
+  useFenetre();
   return (
-    <nav
-      aria-label={t('barre.navLabel')}
-      data-barre-onglets-publique=""
-      className="fixed inset-x-0 bottom-0 z-40 h-[var(--barre-publique-hauteur)] border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
-    >
-      <ul className="flex h-full">
-        {cases.map((c) => {
-          const estActive = c.id === actif;
-          const Icone = c.icone;
-          return (
-            <li key={c.id} className="min-w-0 flex-1 basis-0">
-              <LienLocalise
-                href={c.href}
-                aria-current={estActive ? 'page' : undefined}
-                // Le nom accessible CONTIENT le libellé visible (WCAG 2.5.3), puis le compte exact.
-                aria-label={
-                  c.compte && c.libelleCompteur
-                    ? tNav('nomAvecCompteur', { libelle: c.libelle, compteur: c.libelleCompteur })
-                    : undefined
-                }
-                data-case={c.id}
-                className={cn(
-                  STYLE_CASE,
-                  estActive ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {/* La case active se lit par une FORME (ce trait), un poids et `aria-current` — jamais
-                    par la seule teinte (ADR-0091, comme la barre de `/app`). */}
-                {estActive ? (
-                  <span aria-hidden className="absolute inset-x-4 top-0 h-0.5 rounded-b-full bg-primary" />
-                ) : null}
-                <span className="relative">
-                  {c.avatar !== undefined ? (
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'inline-flex size-6 items-center justify-center rounded-full bg-secondary text-[0.625rem] font-semibold text-primary-deep',
-                        estActive && 'ring-2 ring-primary ring-offset-1 ring-offset-card',
-                      )}
-                    >
-                      {c.avatar}
-                    </span>
-                  ) : Icone ? (
-                    <Icone className="size-6" aria-hidden />
+    <>
+      <button
+        type="button"
+        data-slot="pastille-des-barres"
+        data-visible={effacees ? '' : undefined}
+        inert={!effacees}
+        aria-label={tNav('afficherLaNavigation')}
+        onClick={rappeler}
+        className="pastille-des-barres lg:hidden"
+      >
+        <span aria-hidden />
+      </button>
+      <nav
+        aria-label={t('barre.navLabel')}
+        data-barre-onglets-publique=""
+        className="fixed inset-x-0 bottom-0 z-40 h-[var(--barre-publique-hauteur)] border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
+      >
+        <ul className="flex h-full">
+          {cases.map((c) => {
+            const estActive = c.id === actif;
+            const Icone = c.icone;
+            return (
+              <li key={c.id} className="min-w-0 flex-1 basis-0">
+                <LienLocalise
+                  href={c.href}
+                  aria-current={estActive ? 'page' : undefined}
+                  // Le nom accessible CONTIENT le libellé visible (WCAG 2.5.3), puis le compte exact.
+                  aria-label={
+                    c.compte && c.libelleCompteur
+                      ? tNav('nomAvecCompteur', { libelle: c.libelle, compteur: c.libelleCompteur })
+                      : undefined
+                  }
+                  data-case={c.id}
+                  className={cn(
+                    STYLE_CASE,
+                    estActive ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {/* La case active se lit par une FORME (ce trait), un poids et `aria-current` — jamais
+                      par la seule teinte (ADR-0091, comme la barre de `/app`). */}
+                  {estActive ? (
+                    <span aria-hidden className="absolute inset-x-4 top-0 h-0.5 rounded-b-full bg-primary" />
                   ) : null}
-                  {c.compte ? (
-                    <span
-                      aria-hidden
-                      data-slot="pastille-onglet"
-                      className="absolute -top-1 -right-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] leading-none font-semibold tabular-nums text-primary-foreground ring-2 ring-card"
-                    >
-                      {c.compte > 99 ? tNav('plafond') : c.compte}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="max-w-full truncate">{c.libelle}</span>
-              </LienLocalise>
-            </li>
-          );
-        })}
-      </ul>
-      {children}
-    </nav>
+                  <span className="relative">
+                    {c.avatar !== undefined ? (
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'inline-flex size-6 items-center justify-center rounded-full bg-secondary text-[0.625rem] font-semibold text-primary-deep',
+                          estActive && 'ring-2 ring-primary ring-offset-1 ring-offset-card',
+                        )}
+                      >
+                        {c.avatar}
+                      </span>
+                    ) : Icone ? (
+                      <Icone className="size-6" aria-hidden />
+                    ) : null}
+                    {c.compte ? (
+                      <span
+                        aria-hidden
+                        data-slot="pastille-onglet"
+                        className="absolute -top-1 -right-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] leading-none font-semibold tabular-nums text-primary-foreground ring-2 ring-card"
+                      >
+                        {c.compte > 99 ? tNav('plafond') : c.compte}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="max-w-full truncate">{c.libelle}</span>
+                </LienLocalise>
+              </li>
+            );
+          })}
+        </ul>
+        {children}
+      </nav>
+    </>
   );
 }

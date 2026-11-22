@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { lireNombre } from '@/lib/clavier';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { usePaymentSearch } from '@/lib/queries/reconciliation';
 import type { Locale } from '@/i18n/config';
@@ -62,7 +63,8 @@ export function PaymentSearchDialog({
 
   function chercher(e: FormEvent) {
     e.preventDefault();
-    setCriteres({ q: saisie.trim(), amount: enNombre(montant) });
+    // ADR-0135 — « 150 000 » ou « 150000,5 » : espaces retirés, virgule lue en point (comme `ChercherUneLigne`).
+    setCriteres({ q: saisie.trim(), amount: enNombre(lireNombre(montant)) });
   }
 
   async function choisir(candidat: MatchCandidate) {
@@ -91,13 +93,21 @@ export function PaymentSearchDialog({
         <form onSubmit={chercher} className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
           <div className="space-y-1.5">
             <Label htmlFor="recherche-q">{t('query')}</Label>
-            <Input id="recherche-q" value={saisie} onChange={(e) => setSaisie(e.target.value)} />
+            <Input
+              id="recherche-q"
+              profil="recherche"
+              placeholder={t('queryPlaceholder')}
+              value={saisie}
+              onChange={(e) => setSaisie(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="recherche-montant">{t('amount')}</Label>
             <Input
               id="recherche-montant"
-              inputMode="decimal"
+              profil="montant"
+              enterKeyHint="search"
+              placeholder={t('amountPlaceholder')}
               value={montant}
               onChange={(e) => setMontant(e.target.value)}
             />

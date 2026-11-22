@@ -109,7 +109,7 @@ export function PhotosDeQuartiers() {
         </div>
         <div className="min-w-56 flex-1 space-y-1">
           <label htmlFor={idRecherche} className="text-xs font-medium text-muted-foreground">{t('search')}</label>
-          <Input id={idRecherche} type="search" value={saisie} onChange={(e) => setSaisie(e.target.value)} />
+          <Input profil="recherche" placeholder={t('searchPlaceholder')} id={idRecherche} value={saisie} onChange={(e) => setSaisie(e.target.value)} />
         </div>
         <Button type="submit" variant="outline">{t('searchSubmit')}</Button>
       </form>

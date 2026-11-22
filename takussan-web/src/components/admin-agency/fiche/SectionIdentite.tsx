@@ -27,6 +27,7 @@ import { EtiquetteDuChamp, LogoDeLAgence, TitreDeSection } from './pieces';
  */
 export function SectionIdentite() {
   const t = useTranslations('admin.agencyConfig');
+  const tExemple = useTranslations('admin.agencyConfig.exemples');
   const tFiche = useTranslations('admin.agencyConfig.fiche.identite');
   const { agence, filigranes, adressePublique, individuelle } = useFiche();
   const slugEditable = agence.slug_editable === true;
@@ -41,9 +42,9 @@ export function SectionIdentite() {
           <BlocDuLogo />
         </div>
         <EnTeteDeGroupe titre={t('identity.title')} texte={t('identity.description')} />
-        <ChampDeLaFiche name="name" libelle={t('fields.name')} required className="md:order-1" />
+        <ChampDeLaFiche name="name" libelle={t('fields.name')} required profil="nom" autoComplete="organization" placeholder={tExemple('nom')} className="md:order-1" />
         {slugEditable ? (
-          <ChampDeLaFiche name="slug" libelle={t('fields.slugEditable')} aide={t('fields.slugEditableHint')} className="md:order-2" />
+          <ChampDeLaFiche name="slug" libelle={t('fields.slugEditable')} profil="identifiant" placeholder={tExemple('slug')} aide={t('fields.slugEditableHint')} className="md:order-2" />
         ) : (
           <AdresseACopier
             libelle={tFiche('adresse')}
@@ -55,6 +56,7 @@ export function SectionIdentite() {
         <ChampDeLaFiche
           name="license_number"
           libelle={t('fields.license')}
+          profil="reference"
           placeholder={t('fields.licensePlaceholder')}
           aide={<span className="max-md:hidden">{tFiche('licenceAide')}</span>}
           className="md:order-3"
@@ -68,15 +70,16 @@ export function SectionIdentite() {
           className="md:order-7 md:col-span-2"
         />
         <EnTeteDeGroupe titre={t('contact.title')} texte={t('contact.description')} separe />
-        <ChampDeLaFiche name="email" libelle={t('fields.email')} type="email" className="md:order-4" />
-        <ChampDeLaFiche name="phone" libelle={t('fields.phone')} type="tel" placeholder="+221 77 123 45 67" className="md:order-5" />
+        <ChampDeLaFiche name="email" libelle={t('fields.email')} profil="courriel" placeholder={tExemple('courriel')} className="md:order-4" />
+        <ChampDeLaFiche name="phone" libelle={t('fields.phone')} profil="telephone" autoComplete="tel" placeholder="+221 77 123 45 67" className="md:order-5" />
         {/* TCK-2576 — le numéro que la fiche publique offre en WhatsApp, au premier rang ; vide, pas de bouton.
             Pas pour une agence `individual` : elle n'a pas de fiche publique d'agence (annuaire `standard`). */}
         {individuelle ? null : (
           <ChampDeLaFiche
             name="phone_whatsapp"
             libelle={t('fields.phoneWhatsapp')}
-            type="tel"
+            profil="telephone"
+            autoComplete="tel"
             placeholder="+221 77 123 45 67"
             aide={t('fields.phoneWhatsappHint')}
             className="md:order-5"
@@ -85,7 +88,7 @@ export function SectionIdentite() {
         <ChampDeLaFiche
           name="website"
           libelle={t('fields.website')}
-          type="url"
+          profil="url"
           placeholder={t('fields.websitePlaceholder')}
           className="md:order-6"
         />

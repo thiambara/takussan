@@ -139,7 +139,7 @@ export function CustomerMinimalProfileSheet({
             <Label htmlFor="cmp-city">{t('cityLabel')}</Label>
             <Input
               id="cmp-city"
-              type="text"
+              profil="lieu"
               autoComplete="address-level2"
               placeholder={t('cityPlaceholder')}
               value={city}

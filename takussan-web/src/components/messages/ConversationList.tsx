@@ -163,8 +163,8 @@ export function ConversationList({ selectedId, onSelect, dense = false, onNouvel
             texte reste celui du champ (`text-champ`, 16 px sous le pouce : iOS ne zoome pas au focus).
           */}
           <Input
+            profil="recherche"
             id={idRecherche}
-            type="search"
             value={saisie}
             onChange={(e) => setSaisie(e.target.value)}
             placeholder={t('list.recherche')}

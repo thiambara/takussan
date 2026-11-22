@@ -64,6 +64,7 @@ export function PropertyReviewReplyForm({
         {t(initialContent ? 'editSubmit' : 'newSubmit')}
       </p>
       <Textarea
+        profil="texte-long"
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={3}

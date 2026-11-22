@@ -270,7 +270,7 @@ export function FeuilleDePublication({ ouverte, onFermer, manques, autreContact,
                   <label htmlFor="feuille-prenom" className="text-xs font-semibold text-muted-foreground">
                     {tContact('firstNameLabel')}
                   </label>
-                  <Input id="feuille-prenom" value={prenom} maxLength={100} autoComplete="given-name" disabled={occupe} onChange={(e) => setPrenom(e.target.value)} />
+                  <Input id="feuille-prenom" profil="nom" placeholder={tContact('firstNamePlaceholder')} value={prenom} maxLength={100} autoComplete="given-name" disabled={occupe} onChange={(e) => setPrenom(e.target.value)} />
                 </div>
               ) : null}
               {demandeNom ? (
@@ -278,7 +278,7 @@ export function FeuilleDePublication({ ouverte, onFermer, manques, autreContact,
                   <label htmlFor="feuille-nom" className="text-xs font-semibold text-muted-foreground">
                     {tContact('lastNameLabel')}
                   </label>
-                  <Input id="feuille-nom" value={nom} maxLength={100} autoComplete="family-name" disabled={occupe} onChange={(e) => setNom(e.target.value)} />
+                  <Input id="feuille-nom" profil="nom" placeholder={tContact('lastNamePlaceholder')} value={nom} maxLength={100} autoComplete="family-name" disabled={occupe} onChange={(e) => setNom(e.target.value)} />
                 </div>
               ) : null}
             </div>

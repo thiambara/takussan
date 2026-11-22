@@ -3,11 +3,13 @@
 import type React from 'react';
 import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+import { naviguerEntreChamps, useAmenerLeChamp } from './saisie';
 
 /**
  * TCK-464 — la coquille du parcours de publication : progression, transition, navigation.
@@ -99,11 +101,6 @@ export type WizardShellProps = {
   readonly cadreDEntree?: boolean;
   /** Ce que le pied dit sous l'aperçu, dans le cadre d'entrée (dès `lg`). */
   readonly noteDuPied?: React.ReactNode;
-  /**
-   * TCK-2819 (lot 3) — une ligne SOUS les gestes, au téléphone seulement (`PiedAssistant`, `dessous`, de
-   * la maquette : la phrase des CGU sous « Publier »). Dès `lg`, c'est `noteDuPied` qui la porte.
-   */
-  readonly sousLesGestes?: React.ReactNode;
 };
 
 /**
@@ -119,6 +116,13 @@ export type WizardShellProps = {
  * (`GESTE_D_ENTREE`), le cadre plein écran de `/app` garde les siens.
  */
 const GESTE_DU_TELEPHONE = 'max-lg:h-12 max-lg:gap-2 max-lg:rounded-full max-lg:border-0 max-lg:text-action max-lg:leading-normal max-lg:font-semibold';
+
+/**
+ * TCK-2988 — « Précédent » SOUS `lg` (maquette « L'écran économe », validée le 2026-11-21) : un bouton rond de
+ * 48 px à flèche, cerné, à côté d'un « Continuer » qui prend le reste de la ligne. Le libellé reste dans le
+ * bouton, lu par les lecteurs d'écran (`max-lg:sr-only`) ; dès `lg`, rien ne change.
+ */
+const PRECEDENT_DU_TELEPHONE = 'max-lg:size-12 max-lg:rounded-full max-lg:border-input max-lg:bg-card max-lg:p-0';
 
 const GESTE_D_ENTREE = 'lg:h-11 lg:gap-2 lg:rounded-full lg:border-0 lg:px-5 lg:text-corps lg:leading-normal lg:font-semibold';
 
@@ -158,7 +162,6 @@ function GrilleDEntree({
 export function WizardShell({
   steps, index, direction, onNavigate, onFinish, finishLabel, busy = false, parts,
   entete, apercu, barreApercu, bandeau, refDuPanneau, panneauOuvert = false, cadreDEntree = false, noteDuPied,
-  sousLesGestes,
 }: WizardShellProps) {
   const t = useTranslations('property.wizard');
   const etape = steps[index];
@@ -169,15 +172,23 @@ export function WizardShell({
 
   // Le pied tient le bas de l'écran pendant tout le parcours : il revendique le bord bas auprès
   // du dock, sans quoi un élément flottant se posait sur « Continuer » à 390 px (mesuré le
-  // 2026-09-16). Hauteur au téléphone (TCK-2819, le `PiedAssistant` de la maquette, 117 px) :
-  // bordure + `pt-2.5` + barre (4) + libellés des parties (22) + `pt-3` + geste de 48 + `pb-1` + `pb-4`.
-  // Dès `lg` le pied est plus bas (97 px) : la place réservée en trop n'y gêne rien.
+  // 2026-09-16). TCK-2988 — au téléphone, le pied compact fait 77 px : segments (3) + `pt-2.5` + geste
+  // de 48 + 16 px en bas, ou la zone de sécurité (10 px d'abord ; le porteur a demandé de l'air sous « Continuer »,
+  // que les coins arrondis de Chrome iOS rognaient). Dès `lg`, 100 px (relevé à 1024 le 2026-11-21) : c'est la plus
+  // grande des deux qu'on réserve. Le pied applique ce que la déclaration rend (TCK-477 : déclarer et appliquer sont le
+  // même geste).
   const pied = useFloatingDockSlot({
     id: 'property-wizard-footer',
     corner: 'bottom-full',
-    height: 117,
-    safeAreaInset: 'calc(var(--spacing) * 4 + env(safe-area-inset-bottom))',
+    height: 100,
+    safeAreaInset: 'max(calc(var(--spacing) * 4), env(safe-area-inset-bottom))',
   });
+
+  // ADR-0133 (TCK-2988) — le mode saisie : le champ qui prend le focus est amené à sa place, ↑ ↓ passent d'un champ
+  // à l'autre. S'abonner à la mesure suffit à publier `data-saisie` sur `<html>`.
+  const refCorps = useRef<HTMLDivElement>(null);
+  const { saisie } = useAmenerLeChamp(refCorps);
+  const continuer = () => (derniere ? onFinish() : onNavigate(index + 1, 1));
 
   const titreRef = useRef<HTMLHeadingElement>(null);
   // Premier rendu excepté : le focus ne se déplace que sur un CHANGEMENT d'étape, jamais au
@@ -210,17 +221,27 @@ export function WizardShell({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div
+      className={cn(
+        'flex h-full min-h-0 flex-col',
+        // ADR-0133 — hors du cadre d'entrée (`/app/properties/new`), c'est l'assistant lui-même qui se cale sur la
+        // fenêtre visible pendant la saisie, au téléphone : par-dessus la barre et les onglets de l'application.
+        // Dans le cadre d'entrée, c'est la coque (`CoqueDEntree`).
+        !cadreDEntree &&
+          'max-lg:saisie:fixed max-lg:saisie:inset-x-0 max-lg:saisie:top-[var(--vue-top,0px)] max-lg:saisie:z-40 max-lg:saisie:h-[var(--vue-h,100dvh)] max-lg:saisie:bg-background',
+      )}
+    >
       {entete}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/* Maquette a-0 (téléphone) : le départ n'a pas encore de résumé — rien n'a été dit. */}
-          {barreApercu && !etape.accueil ? <div className="shrink-0 lg:hidden">{barreApercu}</div> : null}
-          {bandeau ? <div className="shrink-0 px-4 pt-4 sm:px-8 lg:px-12 xl:px-14">{bandeau}</div> : null}
+          {barreApercu && !etape.accueil ? <div className="shrink-0 lg:hidden saisie:hidden">{barreApercu}</div> : null}
+          {/* ADR-0133 — en saisie, au téléphone, le bandeau se replie (notes, reprise du brouillon) : il revient avec le clavier fermé. */}
+          {bandeau ? <div className="shrink-0 px-4 pt-4 sm:px-8 lg:px-12 xl:px-14 max-lg:saisie:hidden">{bandeau}</div> : null}
 
           {/* ── Corps : LA SEULE zone défilante (AC9) ── */}
-          <div data-wizard-scroll className="min-h-0 flex-1 overflow-y-auto">
+          <div ref={refCorps} data-wizard-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <GrilleDEntree
               active={cadreDEntree}
               className="lg:pt-10 lg:pb-12"
@@ -315,23 +336,29 @@ export function WizardShell({
                 <div className="mt-7 space-y-7">{etape.body}</div>
               </div>
             </GrilleDEntree>
+            {/* ADR-0133 — en saisie, de quoi amener en tête du corps même le dernier champ. */}
+            <div aria-hidden="true" data-cale-de-saisie="" className="hidden h-[var(--vue-h,100dvh)] max-lg:saisie:block" />
           </div>
 
           {/* ── Pied : HORS de la zone défilante. Le moyen d'avancer ne sort jamais de l'écran. ── */}
           <div
             data-wizard-footer
-            style={{ paddingBottom: pied.paddingBottom }}
             className={cn(
-              // TCK-2819 — sous `lg`, le `Pied` de la maquette : carte, ombre portée vers le haut, `pt-2.5`.
+              // TCK-2819 — sous `lg`, le `Pied` de la maquette : carte, ombre portée vers le haut.
               // L'ombre (le jeton `--shadow-barre-collante`, celle du `Pied`) porte `max-lg:` : un
               // `lg:shadow-none` laisserait des ombres transparentes calculées.
-              'shrink-0 border-t border-border bg-card pt-2.5 max-lg:shadow-barre-collante',
-              'lg:pt-0',
+              // TCK-2988 — sous `lg`, ni bordure ni retrait du haut : les segments de la progression SONT le bord
+              // du pied ; en bas, 16 px ou la zone de sécurité (`paddingBottom`, rendu par le dock).
+              'shrink-0 bg-card max-lg:shadow-barre-collante',
+              'lg:border-t lg:border-border',
               cadreDEntree
                 ? 'lg:bg-card'
                 : 'lg:bg-background/95 lg:backdrop-blur lg:supports-[backdrop-filter]:bg-background/80',
               panneauOuvert && (cadreDEntree ? 'lg:hidden' : 'xl:hidden'),
+              // ADR-0133 — en saisie, au téléphone, la barre de saisie prend sa place (ci-dessous).
+              'max-lg:saisie:hidden',
             )}
+            style={{ paddingBottom: pied.paddingBottom }}
           >
             <GrilleDEntree
               active={cadreDEntree}
@@ -345,12 +372,14 @@ export function WizardShell({
                 aria-valuemax={steps.length}
                 aria-valuetext={t('position', { current: index + 1, total: steps.length })}
                 aria-label={t('progressLabel')}
-                className={cn('grid gap-1.5 px-4 sm:px-8 lg:-mt-px xl:px-14', cadreDEntree && 'lg:mt-0 lg:px-0 xl:px-0')}
+                // TCK-2988 — sous `lg`, les segments vont d'un bord à l'autre, séparés de 2 px.
+                className={cn('grid gap-0.5 lg:-mt-px lg:gap-1.5 lg:px-8 xl:px-14', cadreDEntree && 'lg:mt-0 lg:px-0 xl:px-0')}
                 style={{ gridTemplateColumns: `repeat(${segments.length}, minmax(0, 1fr))` }}
               >
                 {segments.map((_, partie) => (
-                  // Sous `lg` (maquette `Segments`) : le rail en `border`, chaque partie atteinte en `primary`.
-                  <div key={partie} className="h-1 overflow-hidden rounded-full bg-border lg:bg-muted">
+                  // Sous `lg` (maquette « L'écran économe ») : 3 px, à angles droits ; le rail en `border`, chaque
+                  // partie atteinte en `primary`.
+                  <div key={partie} className="h-[calc(var(--spacing)*0.75)] overflow-hidden bg-border lg:h-1 lg:rounded-full lg:bg-muted">
                     {/*
                       420 ms : PLUS LENT que la transition d'étape (300 ms), délibérément. La barre
                       finit après, donc on la voit avancer — si elle finissait avant, l'œil serait
@@ -358,7 +387,7 @@ export function WizardShell({
                     */}
                     <div
                       className={cn(
-                        'h-full rounded-full transition-[width] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
+                        'h-full transition-[width] lg:rounded-full duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
                         partie < partieCourante ? 'bg-primary lg:bg-foreground' : 'bg-primary',
                       )}
                       style={{
@@ -371,7 +400,8 @@ export function WizardShell({
               {parts ? (
                 <div
                   aria-hidden="true"
-                  className={cn('grid gap-1.5 px-4 pt-1.5 text-xs text-muted-foreground sm:px-8 xl:px-14', cadreDEntree && 'lg:px-0 xl:px-0')}
+                  // TCK-2988 — sous `lg`, pas de libellés : le nom de la partie est écrit au-dessus de la question.
+                  className={cn('hidden gap-1.5 px-8 pt-1.5 text-xs text-muted-foreground lg:grid xl:px-14', cadreDEntree && 'lg:px-0 xl:px-0')}
                   style={{ gridTemplateColumns: `repeat(${parts.length}, minmax(0, 1fr))` }}
                 >
                   {parts.map((libelle, partie) => (
@@ -386,7 +416,7 @@ export function WizardShell({
               ) : null}
 
               {/* Sous 390 px, l'écart passe de 12 à 8 : a-4 (trois gestes) finissait à 346 px sur 360, dans la marge. */}
-              <div className={cn('flex items-center gap-3 px-4 pt-3 pb-1 max-[389px]:gap-2 sm:px-8 lg:gap-2 lg:pb-0 xl:px-14', cadreDEntree && 'lg:px-0 xl:px-0')}>
+              <div className={cn('flex items-center gap-3 px-4 pt-2.5 max-[389px]:gap-2 sm:px-8 lg:gap-2 lg:pt-3 xl:px-14', cadreDEntree && 'lg:px-0 xl:px-0')}>
                 {/*
                   Maquette a-0 : le départ n'a pas de « Précédent » (rien avant lui), plutôt qu'un geste
                   éteint — au téléphone aux deux entrées (TCK-2819), dès `lg` dans le cadre d'entrée seul.
@@ -399,20 +429,21 @@ export function WizardShell({
                     disabled={index === 0 || busy}
                     onClick={() => onNavigate(index - 1, -1)}
                     className={cn(
-                      GESTE_DU_TELEPHONE,
-                      'max-lg:px-2 lg:-ml-2.5',
+                      PRECEDENT_DU_TELEPHONE,
+                      'lg:-ml-2.5',
                       index === 0 && 'max-lg:hidden',
                       cadreDEntree && [GESTE_D_ENTREE, 'lg:-ml-5'],
                     )}
                   >
-                    {t('back')}
+                    <ArrowLeft className="size-5 lg:hidden" strokeWidth={1.75} aria-hidden="true" />
+                    <span className="max-lg:sr-only">{t('back')}</span>
                   </Button>
                 )}
                 {/* Maquette a-4 : « Plus tard » touche « Continuer » (aucun écart entre eux) dès `lg`. */}
                 <div
                   className={cn(
-                    'ml-auto flex items-center gap-3 max-[389px]:gap-2 lg:gap-2',
-                    index === 0 && 'max-lg:w-full',
+                    // TCK-2988 — sous `lg`, le reste de la ligne : « Plus tard » à sa largeur, « Continuer » au reste.
+                    'ml-auto flex items-center gap-3 max-lg:min-w-0 max-lg:flex-1 max-[389px]:gap-2 lg:gap-2',
                     cadreDEntree && 'lg:gap-0',
                   )}
                 >
@@ -428,19 +459,14 @@ export function WizardShell({
                     size="lg"
                     className={cn(
                       GESTE_DU_TELEPHONE,
-                      // Maquette : 172 px de large à côté de « Précédent » seul, 136 avec « Plus tard », toute
-                      // la ligne au départ. Sous 390 px, les trois gestes côte à côte ne tiennent qu'à la
-                      // largeur de leur texte : « Continuer » cède son minimum (a-4 à 360, TCK-2819).
-                      'max-lg:px-6 sm:min-w-44',
-                      index === 0
-                        ? 'max-lg:w-full'
-                        : etape.skippable && !derniere
-                          ? 'min-w-[8.5rem] max-[389px]:min-w-0 max-[389px]:px-5'
-                          : 'min-w-[10.75rem]',
+                      // TCK-2988 — sous `lg`, « Continuer » prend le reste de la ligne (maquette « L'écran économe ») ;
+                      // sous 390 px avec « Plus tard », son retrait cède (a-4 à 360, TCK-2819). Dès `lg`, 176 px au moins.
+                      'max-lg:min-w-0 max-lg:flex-1 max-lg:px-6 lg:min-w-44',
+                      etape.skippable && !derniere && 'max-[389px]:px-5',
                       cadreDEntree && [GESTE_D_ENTREE, 'lg:min-w-[11rem]'],
                     )}
                     disabled={busy || !peutAvancer}
-                    onClick={() => (derniere ? onFinish() : onNavigate(index + 1, 1))}
+                    onClick={continuer}
                   >
                     {busy ? (
                       <>
@@ -457,14 +483,53 @@ export function WizardShell({
                   </Button>
                 </div>
               </div>
-              {/* Maquette a-5 (téléphone) : `mt-2.5` sous les gestes — le `pb-1` de leur rangée, puis 6. */}
-              {sousLesGestes ? (
-                <div data-sous-les-gestes="" className="px-4 pt-1.5 sm:px-8 lg:hidden">
-                  {sousLesGestes}
-                </div>
-              ) : null}
             </GrilleDEntree>
           </div>
+
+          {/*
+            ADR-0133 — la barre de saisie (maquette « L'écran économe ») : 52 px collés au clavier, au téléphone, pendant
+            la saisie seulement. ↑ ↓ empêchent leur `pointerdown` : le focus ne quitte jamais le champ, le clavier
+            reste ouvert. Puis la partie et le rang, et « Continuer ».
+          */}
+          {/* Rendue en saisie seulement : hors d'elle, un second « Continuer » n'a rien à faire dans la page. */}
+          {saisie ? (
+          <div
+            data-barre-de-saisie=""
+            className="hidden h-13 shrink-0 items-center gap-1 border-t border-border bg-card px-2 max-lg:saisie:flex"
+          >
+            <button
+              type="button"
+              aria-label={t('saisie.precedent')}
+              onPointerDown={(evenement) => evenement.preventDefault()}
+              onClick={() => naviguerEntreChamps(refCorps.current, -1)}
+              className="grid size-10 flex-none place-items-center rounded-full text-foreground transition-colors active:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <ChevronUp className="size-5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={t('saisie.suivant')}
+              onPointerDown={(evenement) => evenement.preventDefault()}
+              onClick={() => naviguerEntreChamps(refCorps.current, 1)}
+              className="grid size-10 flex-none place-items-center rounded-full text-foreground transition-colors active:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <ChevronDown className="size-5" aria-hidden="true" />
+            </button>
+            <span className="min-w-0 flex-1 truncate px-1 text-xs text-muted-foreground tabular-nums">
+              {parts
+                ? t('saisie.position', { partie: parts[partieCourante], current: index + 1, total: steps.length })
+                : t('position', { current: index + 1, total: steps.length })}
+            </span>
+            <Button
+              type="button"
+              disabled={busy || !peutAvancer}
+              onClick={continuer}
+              className="h-10 flex-none rounded-full px-5 text-sm font-semibold"
+            >
+              {derniere ? finishLabel : t('continue')}
+            </Button>
+          </div>
+          ) : null}
         </div>
 
         {apercu && !cadreDEntree ? (

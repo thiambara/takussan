@@ -388,6 +388,7 @@ function ReasonFields({
         <span>{reasonTextRequired(code) ? t('decisionReasonRequired') : t('decisionReason')}</span>
       </label>
       <Textarea
+        profil="texte-long"
         id={`${idPrefix}-reason`}
         value={text}
         onChange={(event) => onText(event.target.value)}

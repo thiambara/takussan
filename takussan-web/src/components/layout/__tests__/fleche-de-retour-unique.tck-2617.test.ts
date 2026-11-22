@@ -64,6 +64,8 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/app/[locale]/(public)/properties/[slug]/components/PropertyMobileGallery.tsx': 'carrousel',
   'src/app/[locale]/(public)/properties/[slug]/components/PropertySimilar.tsx': 'carrousel',
   'src/components/wizard/WizardReprenable.tsx': 'etape',
+  // TCK-2988 — « Précédent » du pied de l'assistant de publication au téléphone : l'étape d'avant, pas un retour.
+  'src/components/property-form/wizard/WizardShell.tsx': 'etape',
   // TCK-2601 — « Revenir à l'annonce » du panneau de compte (bureau) : referme le panneau sur l'étape
   // de l'assistant qu'il remplace, dans la même page — un pas dans le formulaire, pas une page quittée.
   'src/components/publication/CadreDeLaFeuille.tsx': 'etape',

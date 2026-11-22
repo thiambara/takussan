@@ -421,8 +421,8 @@ function FormulaireCreationEmail({
           name="password"
           control={form.control}
           id="voie-email-nouveau-mot-de-passe"
+          profil="nouveau-mot-de-passe"
           type={visible ? 'text' : 'password'}
-          autoComplete="new-password"
           className="max-lg:pl-10"
           aria-describedby="voie-email-regle voie-email-nouveau-mot-de-passe-error"
           required
@@ -538,7 +538,7 @@ function DoubleFacteur({
             onChange={(e) =>
               setCode(recuperation ? e.target.value.toUpperCase().slice(0, 11) : e.target.value.replace(/\D/g, '').slice(0, 6))
             }
-            inputMode={recuperation ? 'text' : 'numeric'}
+            profil={recuperation ? 'identifiant' : 'code'}
             pattern={recuperation ? undefined : '\\d{6}'}
             autoComplete="one-time-code"
             placeholder={recuperation ? t2fa('recoveryPlaceholder') : t2fa('codePlaceholder')}

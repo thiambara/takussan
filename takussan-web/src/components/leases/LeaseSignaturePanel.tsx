@@ -225,8 +225,8 @@ function SignWithCode({ leaseId, role, onError, clearError }: SignWithCodeProps)
           <div className="flex gap-2">
             <Input
               id={inputId}
-              inputMode="numeric"
-              autoComplete="one-time-code"
+              profil="code"
+              placeholder={t('codePlaceholder')}
               maxLength={6}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}

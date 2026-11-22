@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { lireNombre } from '@/lib/clavier';
 import { msgValidation } from './messages';
 import { CODES_DE_MODULE, modulesMasquesDe, type CodeDeModule } from '@/lib/navigation/modules';
 
@@ -65,8 +66,8 @@ export const agencyFormSchema = z.object({
     .refine(
       (v) => {
         if (v === '') return true;
-        const n = Number(v);
-        return Number.isFinite(n) && n >= 0 && n <= 100;
+        const n = lireTaux(v);
+        return n !== null && n >= 0 && n <= 100;
       },
       msgValidation('agency.commissionRange'),
     ),
@@ -96,8 +97,8 @@ export const agencyFormSchema = z.object({
     .refine(
       (v) => {
         if (v === '') return true;
-        const n = Number(v);
-        return Number.isFinite(n) && n >= 0 && n <= 100;
+        const n = lireTaux(v);
+        return n !== null && n >= 0 && n <= 100;
       },
       msgValidation('agency.taxRateRange'),
     ),
@@ -105,7 +106,7 @@ export const agencyFormSchema = z.object({
   payout_approval_threshold: z
     .string()
     .trim()
-    .refine((v) => v === '' || /^[0-9]{1,12}$/.test(v), msgValidation('agency.thresholdInvalid')),
+    .refine((v) => v === '' || lireSeuil(v) !== null, msgValidation('agency.thresholdInvalid')),
   legal_name: z.string().trim().max(255, msgValidation('agency.legalNameTooLong')),
   ninea: z.string().trim().max(30, msgValidation('agency.legalIdTooLong')),
   rccm: z.string().trim().max(30, msgValidation('agency.legalIdTooLong')),
@@ -304,11 +305,24 @@ function emptyToNull(v: string | undefined): string | null {
  * Renvoyer ici l'objet `settings` lu de l'agence réécrirait donc des réglages que l'écran ne montre
  * pas (filigrane, accueil…) avec leur valeur du moment du chargement.
  */
+/**
+ * ADR-0135 — les champs de la fiche gardent le texte tapé (`garderLeTexte`) : un taux se lit « 8,5 » → 8.5 (sans
+ * séparateur de milliers : « 7,125 » est un taux), un seuil « 500 000 » ou « 500,000 » → 500000. `null` : illisible.
+ */
+function lireTaux(v: string): number | null {
+  const n = lireNombre(v.trim(), false);
+  return typeof n === 'number' && Number.isFinite(n) ? n : null;
+}
+function lireSeuil(v: string): number | null {
+  const n = lireNombre(v.trim());
+  return typeof n === 'number' && Number.isInteger(n) && n >= 0 && n < 1e12 ? n : null;
+}
+
 export function normaliseAgencyForm(
   values: AgencyFormValues,
   context: AgencyFormContext = { individual: false, initialThreshold: '' },
 ): AgencyFormPayload {
-  const commission = values.commission_rate.trim() === '' ? null : Number(values.commission_rate);
+  const commission = values.commission_rate.trim() === '' ? null : lireTaux(values.commission_rate);
   const settings: Record<string, unknown> = {};
   const currency = emptyToNull(values.currency);
   // TCK-2486 — chaque clé gérée ne part que si elle a changé (patron de M5, TCK-2483) ; alors `false`
@@ -369,7 +383,7 @@ export function normaliseAgencyForm(
     ...(Object.keys(settings).length > 0 ? { settings } : {}),
     // TCK-686 — l'API refuse la modération à une agence `individual` (422) : la clé ne part pas.
     ...(context.individual ? {} : { moderation_required: values.moderation_required }),
-    default_tax_rate: values.default_tax_rate.trim() === '' ? null : Number(values.default_tax_rate),
+    default_tax_rate: values.default_tax_rate.trim() === '' ? null : lireTaux(values.default_tax_rate),
     ...(context.individual
       ? {}
       : {
@@ -378,10 +392,11 @@ export function normaliseAgencyForm(
           rccm: emptyToNull(values.rccm),
           legal_address: emptyToNull(values.legal_address),
         }),
-    ...(values.payout_approval_threshold.trim() !== context.initialThreshold
+    ...((values.payout_approval_threshold.trim() === '' ? '' : String(lireSeuil(values.payout_approval_threshold))) !==
+    context.initialThreshold
       ? {
           payout_approval_threshold:
-            values.payout_approval_threshold.trim() === '' ? null : Number(values.payout_approval_threshold),
+            values.payout_approval_threshold.trim() === '' ? null : lireSeuil(values.payout_approval_threshold),
         }
       : {}),
   };

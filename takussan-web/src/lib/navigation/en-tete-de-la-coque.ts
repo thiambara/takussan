@@ -1,5 +1,5 @@
 import { PAGES_ADMIN } from '@/lib/access/pages-admin';
-import { estPleinEcran } from '@/components/layout/plein-ecran';
+import { profilDEspace } from '@/components/layout/plein-ecran';
 import { listePour } from './app-sections';
 import { CATALOGUE, cleDe, type IdDestination } from './catalogue';
 import { destinationDuChemin } from './composer-menu';
@@ -111,11 +111,6 @@ const HORS_MENU: Readonly<Record<string, PageHorsMenu>> = {
   '/app/inventories/new': { titre: { espace: PAGES, cle: 'inventoryNew.metaTitle' }, parent: '/app/inventories' },
 };
 
-/** Les formulaires plein écran (au téléphone) : une création, jamais un détail. */
-function estFormulaire(chemin: string): boolean {
-  return chemin.startsWith('/app/') && chemin.endsWith('/new');
-}
-
 /** Le chemin sans requête ni ancre, sans barre finale. */
 function cheminDe(pathname: string | null | undefined): string {
   const nu = (pathname ?? '').split(/[?#]/)[0] ?? '';
@@ -155,7 +150,8 @@ export function parentDeLaRoute(pathname: string | null | undefined): string | n
 export function formeDeLaRoute(pathname: string | null | undefined): FormeDEnTete {
   const chemin = cheminDe(pathname);
   if (chemin === '/app') return 'accueil';
-  if (estPleinEcran(chemin) || estFormulaire(chemin)) return 'plein-ecran';
+  // ADR-0136 — un formulaire (une création, un parcours plein écran) : la forme plein écran.
+  if (profilDEspace(chemin) === 'formulaire') return 'plein-ecran';
   return parentDeLaRoute(chemin) ? 'detail' : 'racine';
 }
 

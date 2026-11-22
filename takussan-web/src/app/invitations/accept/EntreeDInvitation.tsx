@@ -263,11 +263,11 @@ function ChampsDuNom({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor="invitation-prenom" className="leading-(--text-sm--line-height)">{t('firstName')}</Label>
-          <Input id="invitation-prenom" autoComplete="given-name" maxLength={100} value={prenom} onChange={(e) => setPrenom(e.target.value)} disabled={figes} />
+          <Input id="invitation-prenom" profil="nom" autoComplete="given-name" placeholder={t('placeholders.prenom')} maxLength={100} value={prenom} onChange={(e) => setPrenom(e.target.value)} disabled={figes} />
         </div>
         <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor="invitation-nom" className="leading-(--text-sm--line-height)">{t('noms.nom')}</Label>
-          <Input id="invitation-nom" autoComplete="family-name" maxLength={100} value={nom} onChange={(e) => setNom(e.target.value)} disabled={figes} />
+          <Input id="invitation-nom" profil="nom" autoComplete="family-name" placeholder={t('placeholders.nom')} maxLength={100} value={nom} onChange={(e) => setNom(e.target.value)} disabled={figes} />
         </div>
       </div>
       {prerempli ? <p className="mt-1.5 text-[0.8125rem] text-muted-foreground">{agence ? t('noms.aide', { agence }) : t('noms.aideSans')}</p> : null}
@@ -692,8 +692,10 @@ function EcranDuSecondFacteur({ entree }: { readonly entree: EntreeParInvitation
           onChange={(e) =>
             entree.setSecondFacteur(secours ? e.target.value.toUpperCase().slice(0, 11) : e.target.value.replace(/\D/g, '').slice(0, 6))
           }
-          inputMode={secours ? 'text' : 'numeric'}
+          // ADR-0135 — le code de l'application : pavé numérique ; un code de secours porte des lettres.
+          profil={secours ? 'identifiant' : 'code'}
           autoComplete="one-time-code"
+          placeholder={secours ? t('placeholderSecours') : '123456'}
           className="tabular-nums tracking-widest"
           required
         />

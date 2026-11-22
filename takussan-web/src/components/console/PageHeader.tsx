@@ -139,7 +139,7 @@ export const ONGLETS_DE_PAGE = { 'data-onglets-de-page': '' } as const;
  * masque le reste. Le fond plein couvre la boîte de la racine. Dès `md`, rien.
  */
 const ONGLETS_COLLES_AU_TELEPHONE =
-  'max-md:has-[[data-onglets-de-page]]:sticky max-md:has-[[data-onglets-de-page]]:top-0 max-md:has-[[data-onglets-de-page]]:z-20 max-md:has-[[data-onglets-de-page]]:bg-background';
+  'max-md:has-[[data-onglets-de-page]]:sticky max-md:has-[[data-onglets-de-page]]:top-(--haut-colle) max-md:has-[[data-onglets-de-page]]:z-20 max-md:has-[[data-onglets-de-page]]:bg-background';
 
 /**
  * TCK-2687 — l'emplacement `dessous`, à 20 px de l'en-tête. TCK-2804 — à 0 sous `md` quand il porte des

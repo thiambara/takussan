@@ -174,6 +174,7 @@ export function ReviewActionsModal({
               {isApprove ? null : <span className="ml-1 text-destructive">*</span>}
             </Label>
             <Textarea
+              profil="texte-long"
               id="review-comment"
               required={!isApprove}
               minLength={isApprove ? undefined : REJECT_MIN_CHARS}

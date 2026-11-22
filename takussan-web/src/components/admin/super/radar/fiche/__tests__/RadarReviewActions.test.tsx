@@ -69,7 +69,7 @@ describe('les trois gestes de la fiche (TCK-2387)', () => {
       expect(await screen.findByText('Cette fiche a changé d’étape entre-temps ; rechargez-la.')).toBeInTheDocument();
       expect(reviewRadarListing).not.toHaveBeenCalled();
       expect(push).not.toHaveBeenCalled();
-      expect(screen.getByLabelText('Prix (XOF)')).toHaveValue(3500000);
+      expect(screen.getByLabelText('Prix (XOF)')).toHaveValue('3500000');
     });
 
     it('le 422 « incomplet » nomme les champs manquants et met le focus sur le premier', async () => {

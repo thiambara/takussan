@@ -449,6 +449,8 @@ function UpdatePrivacyRequestForm({
 
         <Champ id="pr-summary" label={t('fields.responseSummary')} error={erreurDe(erreur, 'response_summary')}>
           <Textarea
+            profil="texte-long"
+            placeholder={t('placeholders.responseSummary')}
             id="pr-summary"
             value={summary}
             onChange={(e) => setSummary(e.target.value)}

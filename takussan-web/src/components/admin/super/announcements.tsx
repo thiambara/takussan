@@ -525,7 +525,7 @@ export function AnnouncementsConsole() {
 
           <label className="space-y-1.5">
             <Label htmlFor="announcement-rollout">{t('rollout')}</Label>
-            <Input id="announcement-rollout" type="number" min={0} max={100} value={form.rollout} onChange={(event) => setForm({ ...form, rollout: event.target.value })} />
+            <Input profil="entier" enterKeyHint="done" id="announcement-rollout" placeholder={t('rolloutPlaceholder')} min={0} max={100} value={form.rollout} onChange={(event) => setForm({ ...form, rollout: event.target.value })} />
           </label>
 
           {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
@@ -617,6 +617,7 @@ function LocaleFields({
         <div key={label} className="grid gap-2 rounded-lg border border-border p-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
           <Input
+            profil="phrase"
             id={`announcement-${titleKey}`}
             aria-label={t('titleFieldLabel', { locale: label })}
             aria-invalid={manquants.includes(titleKey) || undefined}
@@ -631,6 +632,7 @@ function LocaleFields({
             </p>
           ) : null}
           <Textarea
+            profil="texte-long"
             id={`announcement-${bodyKey}`}
             aria-label={t('bodyFieldLabel', { locale: label })}
             aria-invalid={manquants.includes(bodyKey) || undefined}
@@ -751,6 +753,7 @@ function AgencyTargeting({
       )}
 
       <Input
+        profil="recherche"
         aria-label={t('agencySearch')}
         placeholder={t('agencySearch')}
         value={agences.recherche}

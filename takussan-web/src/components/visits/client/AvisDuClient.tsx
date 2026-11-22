@@ -120,6 +120,7 @@ export function AvisDuClient({ v, maintenant }: { readonly v: PropertyVisit; rea
         </fieldset>
 
         <Textarea
+          profil="texte-long"
           rows={2}
           value={mot}
           onChange={(e) => setMot(e.target.value)}

@@ -96,6 +96,8 @@ export function CreationRapideDuLocataire({
           </label>
           <Input
             id={`${id}-prenom`}
+            profil="nom"
+            placeholder={t('prenomExemple')}
             value={prenom}
             onChange={(e) => setPrenom(e.target.value)}
             autoComplete="off"
@@ -114,6 +116,8 @@ export function CreationRapideDuLocataire({
           </label>
           <Input
             id={`${id}-nom`}
+            profil="nom"
+            placeholder={t('nomExemple')}
             value={nom}
             onChange={(e) => setNom(e.target.value)}
             autoComplete="off"

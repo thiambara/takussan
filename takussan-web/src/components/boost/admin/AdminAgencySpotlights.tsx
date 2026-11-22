@@ -244,7 +244,7 @@ export function AdminAgencySpotlights() {
         >
           <div className="min-w-0 flex-1 space-y-1 sm:max-w-sm">
             <Label htmlFor="place-agence">{t('form.agency')}</Label>
-            <Input id="place-agence" value={saisieAgence} onChange={(e) => setSaisieAgence(e.target.value)} placeholder={t('form.agencyPlaceholder')} />
+            <Input profil="recherche" id="place-agence" value={saisieAgence} onChange={(e) => setSaisieAgence(e.target.value)} placeholder={t('form.agencyPlaceholder')} />
           </div>
           <Button type="submit" variant="outline">{t('form.search')}</Button>
         </form>
@@ -295,7 +295,7 @@ export function AdminAgencySpotlights() {
           </div>
           <div className="space-y-1 sm:col-span-3">
             <Label htmlFor="place-motif">{t('form.reason')}</Label>
-            <Textarea id="place-motif" rows={2} value={motif} onChange={(e) => setMotif(e.target.value)} />
+            <Textarea profil="texte-long" placeholder={t('form.reasonPlaceholder')} id="place-motif" rows={2} value={motif} onChange={(e) => setMotif(e.target.value)} />
           </div>
           <div className="space-y-2 sm:col-span-3">
             <p className="text-sm text-muted-foreground">

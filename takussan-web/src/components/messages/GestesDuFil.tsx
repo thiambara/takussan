@@ -137,8 +137,10 @@ export function DialogueSignaler({
                   {t('commentaire')}
                 </label>
                 <Textarea
+                  profil="texte-long"
                   id={idCommentaire}
                   value={commentaire}
+                  placeholder={t('commentairePlaceholder')}
                   maxLength={500}
                   rows={3}
                   onChange={(e) => setCommentaire(e.target.value)}

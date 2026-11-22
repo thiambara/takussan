@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { useDecalageDuClavier } from '@/components/entree/useDecalageDuClavier';
+import { useFenetre } from '@/lib/fenetre';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 
 /**
@@ -32,6 +33,12 @@ import { useMatchesMedia } from '@/hooks/useMatchesMedia';
  * fenêtre visuelle, et une feuille posée en `bottom: 0` gardait « Recevoir un code » et « Publier mon
  * annonce » dessous. Elle remonte de ce que le clavier cache (`useDecalageDuClavier`, celui de la
  * coque d'entrée) et sa hauteur se réduit d'autant ; son corps défile, son pied reste.
+ *
+ * TCK-2988 (ADR-0133) — pendant la saisie, elle prend toute la fenêtre visible, et ce qui n'est pas le champ se
+ * replie (`max-md:saisie:hidden`) : le rappel de l'annonce ici, l'introduction et « Continuer avec Google » dans
+ * `FeuilleSansCompte`. Relevé sur iPhone (Chrome) : clavier et barre de remplissage ouverts, il ne restait au corps
+ * que la place du rappel, et le numéro qu'on tapait était hors de vue. Le champ focalisé est ramené dans la vue à
+ * chaque changement de la fenêtre visible.
  */
 export const REQUETE_DU_PANNEAU = '(width >= 80rem)';
 
@@ -80,6 +87,14 @@ export function CadreDeLaFeuille({
 }: CadreDeLaFeuilleProps) {
   const t = useTranslations('property.wizard.feuille');
   const clavier = useDecalageDuClavier();
+  const { saisie, vueH } = useFenetre();
+  useEffect(() => {
+    if (!saisie) return;
+    const champ = document.activeElement;
+    if (champ instanceof HTMLElement && champ.closest('[data-slot="feuille-du-bas-corps"]')) {
+      champ.scrollIntoView?.({ block: 'nearest' });
+    }
+  }, [saisie, vueH]);
   // Au téléphone, la maquette (a-6, a-7) n'a que le ✕ de 44 px : pas de « Revenir à l'annonce » au pied.
   const pasTelephone = useMatchesMedia('(width >= 48rem)');
 
@@ -113,7 +128,12 @@ export function CadreDeLaFeuille({
       // Maquette a-6 / a-7 : 80 % de la hauteur au téléphone, quel que soit le contenu (le pied reste
       // en bas, le corps défile). Dès `md`, le panneau latéral de la primitive.
       className="max-md:h-[80dvh]"
-      style={clavier > 0 ? { bottom: clavier, maxHeight: `calc(90dvh - ${clavier}px)` } : undefined}
+      // En saisie, toute la fenêtre visible moins 8 px (ADR-0133, `--vue-h`) ; sinon, 90 % moins le clavier.
+      style={
+        clavier > 0
+          ? { bottom: clavier, maxHeight: saisie ? 'calc(var(--vue-h, 90dvh) - calc(var(--spacing) * 2))' : `calc(90dvh - ${clavier}px)` }
+          : undefined
+      }
       pied={
         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row-reverse md:flex-wrap">
           {action}
@@ -128,7 +148,7 @@ export function CadreDeLaFeuille({
       }
     >
       <div className="space-y-4">
-        {rappel}
+        {rappel ? <div className="max-md:saisie:hidden">{rappel}</div> : null}
         {children}
       </div>
     </FeuilleDuBas>

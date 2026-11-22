@@ -87,6 +87,7 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
       <label className="block space-y-1 text-sm">
         <span className="text-muted-foreground">{t('commentLabel')}</span>
         <Textarea
+          profil="texte-long"
           rows={3}
           value={comment}
           onChange={(e) => setComment(e.target.value)}

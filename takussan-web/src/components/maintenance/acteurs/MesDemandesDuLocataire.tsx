@@ -225,7 +225,7 @@ function CarteAConfirmer({ demande }: { readonly demande: InterventionEnFile }) 
           <label htmlFor="persiste-commentaire" className="block text-sm font-medium">
             {tR('comment_label')}
           </label>
-          <Textarea id="persiste-commentaire" value={commentaire} onChange={(e) => setCommentaire(e.target.value)} rows={3} placeholder={tR('comment_placeholder')} />
+          <Textarea profil="texte-long" id="persiste-commentaire" value={commentaire} onChange={(e) => setCommentaire(e.target.value)} rows={3} placeholder={tR('comment_placeholder')} />
           <label className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'w-full cursor-pointer has-focus-visible:ring-3 has-focus-visible:ring-ring')}>
             <Camera aria-hidden="true" />
             {photos.length > 0 ? t('photos', { n: photos.length }) : tR('photos_label')}

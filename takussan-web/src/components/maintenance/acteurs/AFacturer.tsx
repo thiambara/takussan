@@ -112,7 +112,8 @@ function SaisieDeLaFacture({ facture, onFermer }: { readonly facture: ServicePro
           <Label htmlFor={`${idDuFormulaire}-montant`}>{t('saisie.montant', { devise: facture.currency })}</Label>
           <Input
             id={`${idDuFormulaire}-montant`}
-            inputMode="numeric"
+            profil="montant"
+            placeholder={t('saisie.montantExemple')}
             value={montant}
             onChange={(e) => setMontant(e.target.value)}
             aria-invalid={montant !== '' && valide === null}
@@ -124,7 +125,7 @@ function SaisieDeLaFacture({ facture, onFermer }: { readonly facture: ServicePro
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${idDuFormulaire}-reference`}>{t('saisie.reference')}</Label>
-          <Input id={`${idDuFormulaire}-reference`} value={reference} maxLength={100} onChange={(e) => setReference(e.target.value)} />
+          <Input profil="mots" id={`${idDuFormulaire}-reference`} placeholder={t('saisie.referenceExemple')} value={reference} maxLength={100} onChange={(e) => setReference(e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${idDuFormulaire}-piece`}>{t('saisie.piece')}</Label>

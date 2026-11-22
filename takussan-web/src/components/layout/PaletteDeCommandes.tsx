@@ -33,6 +33,7 @@ import { useCompteursDuMenu } from './useCompteursDuMenu';
 import { useMenuDeLEspace } from './useMenuDeLEspace';
 import { useRetenirLaPageRecente } from './usePaletteDeCommandes';
 import { useSurApple } from './useSurApple';
+import { SuiviDeLaFenetre } from '@/lib/fenetre';
 
 /** La clé de titre de chaque groupe, sous `nav.palette.groupes`. */
 const TITRES: Record<GroupeDeLaPalette, string> = {
@@ -96,9 +97,13 @@ export function PaletteDeCommandes({ ouverte, onOuverteChange, retourDuFocus, co
         // neutralisées ici, `ui/dialog.tsx` n'en sait rien.
         className={cn(
           'inset-0 flex h-dvh max-h-none w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none bg-background p-0 ring-0 sm:max-w-none',
+          // ADR-0133, amendement (TCK-2997) — sous `md`, en saisie, calée sur la fenêtre visible : les résultats
+          // s'arrêtent au haut du clavier.
+          'max-md:saisie:top-[var(--vue-top,0px)] max-md:saisie:bottom-auto max-md:saisie:h-[var(--vue-h,100dvh)]',
           'md:inset-auto md:top-28 md:left-1/2 md:h-auto md:max-h-[calc(100dvh-var(--spacing)*36)] md:w-130 md:max-w-[calc(100%-var(--spacing)*8)] md:-translate-x-1/2 md:rounded-2xl md:border md:border-border md:bg-popover md:shadow-feuille',
         )}
       >
+        <SuiviDeLaFenetre />
         <DialogTitle className="sr-only">{t('titre')}</DialogTitle>
         <DialogDescription className="sr-only">{t('description')}</DialogDescription>
         <ContenuDeLaPalette
@@ -287,6 +292,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
             aria-hidden
           />
           <Input
+            profil="recherche"
             ref={champ}
             role="combobox"
             aria-label={t('champ')}

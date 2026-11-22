@@ -194,6 +194,8 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
               <TabsContent value="urls" className="space-y-1.5 pt-3">
                 <Label htmlFor="radar-intake-urls">{t('intake.urlsLabel')}</Label>
                 <Textarea
+                  profil="liens"
+                  placeholder={t('intake.urlsPlaceholder')}
                   ref={champUrls}
                   id="radar-intake-urls"
                   value={urls}
@@ -201,7 +203,6 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
                   rows={6}
                   className="min-h-32 font-mono text-sm"
                   aria-describedby="radar-intake-urls-hint"
-                  spellCheck={false}
                   autoComplete="off"
                 />
                 <p id="radar-intake-urls-hint" className="text-xs text-muted-foreground">{t('intake.urlsHint')}</p>
@@ -211,6 +212,8 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
                 <div className="space-y-1.5">
                   <Label htmlFor="radar-intake-text">{t('intake.textLabel')}</Label>
                   <Textarea
+                    profil="texte-long"
+                    placeholder={t('intake.textPlaceholder')}
                     ref={champTexte}
                     id="radar-intake-text"
                     value={texte}

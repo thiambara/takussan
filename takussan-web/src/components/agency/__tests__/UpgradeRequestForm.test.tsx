@@ -399,7 +399,7 @@ describe('<UpgradeRequestForm>', () => {
       };
       render(withIntl(<UpgradeRequestForm agencyId={42} />));
 
-      expect(screen.getByLabelText(/Nombre estimé d.agents/i)).toHaveValue(4);
+      expect(screen.getByLabelText(/Nombre estimé d.agents/i)).toHaveValue('4');
       expect(brouillon.clear).not.toHaveBeenCalled();
     });
   });

@@ -457,4 +457,33 @@ describe('PropertyWizard au téléphone — la feuille au-dessus du clavier (TCK
       Reflect.deleteProperty(window, 'visualViewport');
     }
   });
+
+  it('TCK-2988 (ADR-0133) — en saisie, la feuille prend la fenêtre visible, et le rappel et l’introduction se replient', async () => {
+    media.large = false;
+    const abonnes = new Set<() => void>();
+    const vue = { height: 844, offsetTop: 0, addEventListener: (_: string, f: () => void) => abonnes.add(f), removeEventListener: (_: string, f: () => void) => abonnes.delete(f) };
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: vue });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 });
+    try {
+      const user = monter();
+      await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
+      await user.click(screen.getByRole('button', { name: 'Publier l’annonce' }));
+      const f = screen.getByRole('dialog', { name: 'Dernière étape : votre numéro' });
+      // Ce qui se replie en saisie : le rappel de l'annonce, l'introduction.
+      const rappel = within(f).getByText(/prête à publier/i).closest('.max-md\\:saisie\\:hidden');
+      expect(rappel).not.toBeNull();
+      expect(within(f).getByText(/un code par SMS suffit/i)).toHaveClass('max-md:saisie:hidden');
+      // Ce qui reste : le champ, la phrase des conditions (montrée avant le premier code, TCK-624).
+      expect(within(f).getByTestId('phrase-cgu-feuille')).not.toHaveClass('max-md:saisie:hidden');
+
+      act(() => within(f).getByLabelText('Votre numéro').focus());
+      vue.height = 508;
+      act(() => abonnes.forEach((x) => x()));
+      expect(document.documentElement.dataset.saisie).toBe('ouvert');
+      expect(f.style.bottom).toBe('336px');
+      expect(f.style.maxHeight).toBe('calc(var(--vue-h, 90dvh) - calc(var(--spacing) * 2))');
+    } finally {
+      Reflect.deleteProperty(window, 'visualViewport');
+    }
+  });
 });

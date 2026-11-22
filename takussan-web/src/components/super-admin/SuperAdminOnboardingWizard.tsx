@@ -198,8 +198,8 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
                   {t('scan.codeLabel')}
                 </label>
                 <Input
+                  profil="code"
                   id="super-admin-totp-code"
-                  inputMode="numeric"
                   pattern="\d{6}"
                   maxLength={6}
                   value={code}

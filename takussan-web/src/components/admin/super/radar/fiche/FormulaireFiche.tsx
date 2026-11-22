@@ -87,6 +87,8 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
 
   const texte = (cle: 'title' | 'city') => champ(cle, ({ id, decritPar }) => (
     <Input
+      profil={cle === 'title' ? 'phrase' : 'lieu'}
+      placeholder={t(`placeholders.${cle}`)}
       id={id}
       aria-describedby={decritPar}
       disabled={desactive}
@@ -104,6 +106,8 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
         desactive={desactive}
         pas={pas}
         min={min}
+        profil={cle === 'price' ? 'montant' : undefined}
+        placeholder={t(`placeholders.${cle}`)}
         valeur={corrections.valeur(cle) as number | null}
         onChange={(valeur) => corrections.corriger(cle, valeur)}
       />
@@ -143,6 +147,8 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
         {texte('title')}
         {champ('description', ({ id, decritPar }) => (
           <Textarea
+            profil="texte-long"
+            placeholder={t('placeholders.description')}
             id={id}
             aria-describedby={decritPar}
             disabled={desactive}
@@ -179,6 +185,7 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
             id={id}
             decritPar={decritPar}
             desactive={desactive}
+            placeholder={t('placeholders.amenities')}
             valeur={corrections.valeur('amenities') as readonly string[] | null}
             onChange={(valeur) => corrections.corriger('amenities', valeur)}
           />

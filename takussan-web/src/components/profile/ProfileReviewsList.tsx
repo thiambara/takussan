@@ -429,6 +429,8 @@ function OpportunityForm({ group }: { readonly group: OpportunityGroup }) {
             <label className="block text-xs text-muted-foreground">
               <span className="mb-1 block">{t('opportunityCommentLabel')}</span>
               <Textarea
+                profil="texte-long"
+                placeholder={t('opportunityCommentPlaceholder')}
                 value={contents[key] ?? ''}
                 onChange={(e) => setContents((c) => ({ ...c, [key]: e.target.value }))}
                 rows={2}
@@ -779,6 +781,8 @@ function ReceivedReviewCard({ review }: { readonly review: Review }) {
           <label htmlFor={fieldId} className="block text-xs font-medium text-foreground">{t('replyPrompt')}</label>
           <Textarea
             id={fieldId}
+            profil="texte-long"
+            placeholder={t('replyPlaceholder')}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={3}

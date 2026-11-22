@@ -151,7 +151,8 @@ export function FeuilleSansCompte({
             }}
             surEchec={setErreur}
             // Dans la rangée du panneau latéral (`md`, avant 1024 — TCK-2934), centrée sur la hauteur du geste, sans marge.
-            className={bureau ? undefined : 'self-center max-md:mt-1'}
+            // TCK-2988 (ADR-0133) — en saisie, au téléphone, il se replie : le geste du numéro seul reste au pied.
+            className={bureau ? undefined : 'self-center max-md:mt-1 max-md:saisie:hidden'}
           />
         ) : null}
       </>
@@ -235,9 +236,10 @@ export function FeuilleSansCompte({
       <div className="space-y-5" data-feuille-sans-compte="">
         {entree.etape === 'numero' && !compte ? (
           <section>
-            <p className="text-corps leading-snug text-muted-foreground text-pretty">{t('numeroTexteSansCompte')}</p>
+            {/* TCK-2988 (ADR-0133) — en saisie, au téléphone, l'introduction se replie : le numéro tient dans la vue. */}
+            <p className="mb-5 text-corps leading-snug text-muted-foreground text-pretty max-md:saisie:hidden">{t('numeroTexteSansCompte')}</p>
             {/* Le titre de la feuille dit « votre numéro » ; le champ garde son libellé visible (maquette a-6). */}
-            <label htmlFor="feuille-telephone" className="mt-5 mb-1.5 block w-fit text-sm font-medium text-foreground">
+            <label htmlFor="feuille-telephone" className="mb-1.5 block w-fit text-sm font-medium text-foreground">
               {tPorte('numero')}
             </label>
             <PhoneInput
@@ -317,13 +319,13 @@ export function FeuilleSansCompte({
                 <label htmlFor="feuille-prenom" className="mb-1.5 block w-fit text-sm font-medium text-foreground">
                   {tContact('firstNameLabel')}
                 </label>
-                <Input id="feuille-prenom" className="lg:text-action" value={prenom} maxLength={100} autoComplete="given-name" disabled={occupe} onChange={(e) => setPrenom(e.target.value)} />
+                <Input id="feuille-prenom" profil="nom" placeholder={tContact('firstNamePlaceholder')} className="lg:text-action" value={prenom} maxLength={100} autoComplete="given-name" disabled={occupe} onChange={(e) => setPrenom(e.target.value)} />
               </div>
               <div>
                 <label htmlFor="feuille-nom" className="mb-1.5 block w-fit text-sm font-medium text-foreground">
                   {tContact('lastNameLabel')}
                 </label>
-                <Input id="feuille-nom" className="lg:text-action" value={nom} maxLength={100} autoComplete="family-name" disabled={occupe} onChange={(e) => setNom(e.target.value)} />
+                <Input id="feuille-nom" profil="nom" placeholder={tContact('lastNamePlaceholder')} className="lg:text-action" value={nom} maxLength={100} autoComplete="family-name" disabled={occupe} onChange={(e) => setNom(e.target.value)} />
               </div>
             </div>
             <p className="mt-1.5 text-ui leading-snug text-muted-foreground">{t('nomsAide')}</p>
@@ -371,7 +373,7 @@ export function FeuilleSansCompte({
                   entree.codeDeSecours ? e.target.value.toUpperCase().slice(0, 11) : e.target.value.replace(/\D/g, '').slice(0, 6),
                 )
               }
-              inputMode={entree.codeDeSecours ? 'text' : 'numeric'}
+              profil={entree.codeDeSecours ? 'identifiant' : 'code'}
               autoComplete="one-time-code"
               placeholder={entree.codeDeSecours ? t2fa('recoveryPlaceholder') : t2fa('codePlaceholder')}
               className="tabular-nums tracking-widest"

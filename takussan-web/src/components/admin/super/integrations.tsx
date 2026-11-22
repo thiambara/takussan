@@ -181,8 +181,9 @@ export function IntegrationEditDialog({
               <div key={field.name} className="space-y-1.5">
                 <Label htmlFor={`credential-${field.name}`}>{field.label}</Label>
                 <Input
+                  profil={field.secret || field.type === 'password' ? 'mot-de-passe' : 'identifiant'}
+                  autoComplete="off"
                   id={`credential-${field.name}`}
-                  type={field.secret ? 'password' : field.type}
                   value={credentials[field.name] ?? ''}
                   placeholder={integration?.masked_credentials[field.name] ?? ''}
                   onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))}

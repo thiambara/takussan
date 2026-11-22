@@ -407,6 +407,7 @@ export function KycDecisionPanel({
           <label className="mt-4 block space-y-2 text-sm font-medium text-foreground">
             <span>{t('reasonLabel')}</span>
             <Textarea
+              profil="texte-long"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               placeholder={t('reasonPlaceholder')}

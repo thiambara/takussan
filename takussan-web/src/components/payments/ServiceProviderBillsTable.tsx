@@ -89,6 +89,8 @@ export function ServiceProviderBillsTable({ mode, onPaid, titreMasque = false }:
         return (
           <div className="flex min-w-64 flex-col gap-2">
             <Textarea
+              profil="texte-long"
+              placeholder={t('rejectionReasonExemple')}
               aria-label={t('rejectionReason')}
               rows={2}
               value={reason}

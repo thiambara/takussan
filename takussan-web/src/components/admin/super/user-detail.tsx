@@ -554,6 +554,7 @@ function SupportReasonDialog({
         <div className="space-y-2">
           <Label>{t('reasonLabel')}</Label>
           <Textarea
+            profil="texte-long"
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             placeholder={t('reasonPlaceholder')}

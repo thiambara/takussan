@@ -124,7 +124,7 @@ export function InterventionsDeLAgence() {
       <div className="lg:hidden">
         {vue === 'liste' ? null : (
           <>
-            <div className="sticky top-0 z-10 border-b border-border/70 bg-background md:static md:border-0">
+            <div className="sticky top-(--haut-colle) z-10 border-b border-border/70 bg-background md:static md:border-0">
               <PastillesDesFiles vue={vue} comptes={comptes} choisirVue={choisirVue} />
             </div>
             <div className="flex items-center gap-2 px-4 pt-3 text-ui md:px-0">

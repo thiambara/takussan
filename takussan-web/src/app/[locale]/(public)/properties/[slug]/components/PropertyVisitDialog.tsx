@@ -330,6 +330,7 @@ export function PropertyVisitDialog({
                       {tVisit('nameLabel')}
                     </label>
                     <Input
+                      profil="nom"
                       id={`${id}-name`}
                       value={name}
                       onChange={(e) => {
@@ -337,6 +338,7 @@ export function PropertyVisitDialog({
                         oublier('visitor_name');
                       }}
                       autoComplete="name"
+                      placeholder={tVisit('namePlaceholder')}
                       // TCK-1491 — la borne de l'API (`VisitRequestPublicPropertyRequest`, max:120).
                       maxLength={120}
                       aria-invalid={erreurNom ? true : undefined}
@@ -382,14 +384,15 @@ export function PropertyVisitDialog({
                         <span className="font-normal text-muted-foreground">{tVisit('optional')}</span>
                       </label>
                       <Input
+                        profil="courriel"
                         id={`${id}-email`}
-                        type="email"
                         value={email}
                         onChange={(e) => {
                           setEmail(e.target.value);
                           oublier('visitor_email');
                         }}
                         autoComplete="email"
+                        placeholder={tVisit('emailPlaceholder')}
                         aria-invalid={erreurEmail ? true : undefined}
                         aria-describedby={erreurEmail ? `${id}-email-error` : undefined}
                       />
@@ -476,6 +479,7 @@ export function PropertyVisitDialog({
                         </span>
                       </label>
                       <Textarea
+                        profil="texte-long"
                         id={`${id}-notes`}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}

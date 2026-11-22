@@ -132,7 +132,7 @@ export function AdminBoosts() {
         >
           <div className="space-y-1">
             <Label htmlFor="offre-bien">{t('offer.property')}</Label>
-            <Input id="offre-bien" inputMode="numeric" value={offre.bien} onChange={(e) => setOffre({ ...offre, bien: e.target.value })} />
+            <Input profil="entier" placeholder={t('offer.propertyPlaceholder')} id="offre-bien" value={offre.bien} onChange={(e) => setOffre({ ...offre, bien: e.target.value })} />
           </div>
           <div role="group" aria-label={t('offer.product')} className="flex flex-wrap gap-2">
             {vedettes.map((p) => (
@@ -150,7 +150,7 @@ export function AdminBoosts() {
           </div>
           <div className="space-y-1 sm:col-span-2">
             <Label htmlFor="offre-motif">{t('offer.reason')}</Label>
-            <Textarea id="offre-motif" rows={2} value={offre.motif} onChange={(e) => setOffre({ ...offre, motif: e.target.value })} />
+            <Textarea profil="texte-long" placeholder={t('offer.reasonPlaceholder')} id="offre-motif" rows={2} value={offre.motif} onChange={(e) => setOffre({ ...offre, motif: e.target.value })} />
           </div>
           <div>
             <Button type="submit" disabled={!offreValide || offrir.isPending}>{t('offer.submit')}</Button>
@@ -174,7 +174,7 @@ export function AdminBoosts() {
             </div>
             <div className="space-y-1">
               <Label htmlFor="annulation-motif">{t('cancel.reason')}</Label>
-              <Textarea id="annulation-motif" rows={2} value={motif} onChange={(e) => setMotif(e.target.value)} />
+              <Textarea profil="texte-long" placeholder={t('cancel.reasonPlaceholder')} id="annulation-motif" rows={2} value={motif} onChange={(e) => setMotif(e.target.value)} />
             </div>
             {erreur ? <p role="alert" className="text-sm text-destructive">{erreur}</p> : null}
           </div>

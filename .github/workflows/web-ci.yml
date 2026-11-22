@@ -259,6 +259,13 @@ jobs:
         # la parité des langues, et un texte au tutoiement est une chaîne valide pour tout le reste.
         run: npm run check:vouvoiement
 
+      - name: Profils de clavier et placeholders (TCK-2991, ADR-0135)
+        # Tout champ qui ouvre un clavier prend un profil (`src/lib/clavier.ts`) et porte un placeholder ;
+        # aucun n'est en `type="number"`. Cliquet EXACT par fichier sur `scripts/champs-baseline.json` : un
+        # compte qui monte rougit, un compte qui descend aussi tant que la base n'est pas réécrite. Ce qu'elle
+        # garde n'est vu par rien d'autre : un champ sans profil est du JSX valide pour tsc, ESLint et les tests.
+        run: npm run check:champs
+
       - name: Build
         run: npm run build
 
