@@ -61,6 +61,11 @@ ADR-0136.
         0-844 à 0-508, en-tête de 56 à 44 px, composeur de 748-844 à 412-508 ; tout revient clavier fermé ;
       - **client** (`customer@agency1.demo.takussan.sn`) : la note d'un favori (`/app/favorites`), champ à 260-326 et
         actions à 334-370 ; la barre d'onglets part ;
+      - **administrateur d'agence** (`admin@agency1.demo.takussan.sn`) :
+        - « Nouveau client » (panneau plein écran, profil `formulaire`) : « Continuer » de 744-844 à 408-508, en-tête de
+          56 à 44 px, et avec le décalage le panneau à 150-658 ;
+        - les réglages de bail (`/app/agency/lease-settings`, profil `liste`) : la barre « 1 modification non
+          enregistrée » de 711-780 (au-dessus des onglets) à 439-508, et elle revient clavier fermé ;
       - **visiteur** : la recherche du site public (TCK-2997).
 - [x] AC4 — Tests vérifiés par ablation (coque, CSS, en-tête, et `profilDEspace` sans le plein écran).
 - [ ] AC5 — Sur l'iPhone du porteur : dans « Nouveau bail », « Continuer » se pose sur le clavier.
