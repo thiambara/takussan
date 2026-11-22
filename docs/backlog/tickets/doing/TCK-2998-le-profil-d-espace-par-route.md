@@ -52,6 +52,16 @@ ADR-0136.
       - sur la recherche de `/app/properties`, la barre d'onglets part et l'en-tête reste à 0-56.
 - [x] AC3 bis — Rien ne bouge au bureau (1280, souris) ni sur une tablette tactile (820 × 1180), sur
       `/app/leases/new` comme dans la conversation de `/app/messages`.
+- [x] AC3 ter — Chaque acteur, sur son propre compte (émulation 390 × 844, clavier de 336 px, haut du clavier à 508,
+      relevé du 2026-11-22 sur `dev` après #1715) :
+      - **agent** (`agent1@dakarimmo.sn`) : « Nouveau bail », AC2 ;
+      - **prestataire** (`provider1@dakarimmo.sn`) : le refus d'une intervention (`/app/maintenance`), champ à 295-361
+        et « Confirmer le refus » à 369-413 ; la barre d'onglets part ;
+      - **bailleur** (`owner5@dakarimmo.sn`) : une conversation de `/app/messages`, profil `conversation`, cadre de
+        0-844 à 0-508, en-tête de 56 à 44 px, composeur de 748-844 à 412-508 ; tout revient clavier fermé ;
+      - **client** (`customer@agency1.demo.takussan.sn`) : la note d'un favori (`/app/favorites`), champ à 260-326 et
+        actions à 334-370 ; la barre d'onglets part ;
+      - **visiteur** : la recherche du site public (TCK-2997).
 - [x] AC4 — Tests vérifiés par ablation (coque, CSS, en-tête, et `profilDEspace` sans le plein écran).
 - [ ] AC5 — Sur l'iPhone du porteur : dans « Nouveau bail », « Continuer » se pose sur le clavier.
 
