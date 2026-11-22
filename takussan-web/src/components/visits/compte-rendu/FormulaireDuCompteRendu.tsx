@@ -198,6 +198,7 @@ export function FormulaireDuCompteRendu({ visitId, existant, densite, prenom, en
           )}
         >
           <Textarea
+            profil="texte-long"
             id={`${id}-note`}
             value={note}
             onChange={(e) => setNote(e.target.value)}

@@ -12,6 +12,7 @@ import {
   fetchAdminPlans,
   updateAdminAgencySubscriptionOverrides,
 } from '@/lib/queries/super-admin';
+import { lireNombre } from '@/components/forms/FormInput';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -39,13 +40,16 @@ export function AdminAgencySubscriptionPanel({ agencyId }: { agencyId: number })
   const plansQuery = useQuery({ queryKey: ['super-admin', 'plans'], queryFn: fetchAdminPlans });
 
   const assignMutation = useMutation({
-    mutationFn: () => assignAdminAgencySubscription(agencyId, {
-      plan_id: Number(planId),
-      overrides: {
-        platform_fee_pct: fee === '' ? undefined : Number(fee),
-        limits: maxListings === '' ? undefined : { max_active_listings: Number(maxListings) },
-      },
-    }),
+    mutationFn: () => {
+      const quota = enValeur(maxListings);
+      return assignAdminAgencySubscription(agencyId, {
+        plan_id: Number(planId),
+        overrides: {
+          platform_fee_pct: enValeur(fee) ?? undefined,
+          limits: quota === null ? undefined : { max_active_listings: quota },
+        },
+      });
+    },
     onSuccess: async () => {
       toast.add({ title: t('toast.assigned'), type: 'success' });
       await queryClient.invalidateQueries({ queryKey: ['super-admin', 'agency', agencyId, 'subscription'] });
@@ -89,10 +93,10 @@ export function AdminAgencySubscriptionPanel({ agencyId }: { agencyId: number })
                 ))}
               </SelectContent>
             </Select>
-            <Input type="number" placeholder={t('feeOverride')} value={fee} onChange={(event) => setFee(event.target.value)} />
-            <Input type="number" placeholder={t('listingsOverride')} value={maxListings} onChange={(event) => setMaxListings(event.target.value)} />
+            <Input profil="decimal" aria-label={t('feeOverride')} placeholder={t('exempleCommission')} value={fee} onChange={(event) => setFee(event.target.value)} />
+            <Input profil="entier" enterKeyHint="done" aria-label={t('listingsOverride')} placeholder={t('exempleQuota')} value={maxListings} onChange={(event) => setMaxListings(event.target.value)} />
             <div className="flex flex-wrap justify-end gap-2">
-              <Button type="button" variant="outline" disabled={!planId || assignMutation.isPending} onClick={() => assignMutation.mutate()}>
+              <Button type="button" variant="outline" disabled={!planId || assignMutation.isPending || !lisible(fee) || !lisible(maxListings)} onClick={() => assignMutation.mutate()}>
                 <Save className="mr-2 size-4" aria-hidden="true" />
                 {t('assign')}
               </Button>
@@ -120,8 +124,15 @@ function enChamp(value: number | null | undefined): string {
   return value === null || value === undefined ? '' : String(value);
 }
 
+/** ADR-0135 — un champ texte (profil `entier`/`decimal`) : « 12,5 » se lit 12.5, vide se lit `null`. */
 function enValeur(champ: string): number | null {
-  return champ.trim() === '' ? null : Number(champ);
+  const lu = lireNombre(champ.trim());
+  return typeof lu === 'number' ? lu : null;
+}
+
+/** Vide, ou un nombre : une saisie illisible (« 12a ») bloque l'envoi au lieu d'effacer la dérogation. */
+function lisible(champ: string): boolean {
+  return champ.trim() === '' || typeof lireNombre(champ.trim()) === 'number';
 }
 
 /**
@@ -172,10 +183,7 @@ function OverridesCard({ agencyId, subscription }: { readonly agencyId: number; 
           <Label htmlFor={`${idChamp}-fee`}>{t('overrides.fee')}</Label>
           <Input
             id={`${idChamp}-fee`}
-            type="number"
-            min={0}
-            max={100}
-            step="0.01"
+            profil="decimal"
             placeholder={t('overrides.planValue')}
             value={fee}
             onChange={(event) => setFee(event.target.value)}
@@ -186,9 +194,7 @@ function OverridesCard({ agencyId, subscription }: { readonly agencyId: number; 
             <Label htmlFor={`${idChamp}-${cle}`}>{t(`overrides.${LIBELLE_LIMITE[cle]}`)}</Label>
             <Input
               id={`${idChamp}-${cle}`}
-              type="number"
-              min={0}
-              step="1"
+              profil="entier"
               placeholder={t('overrides.planValue')}
               value={limits[cle]}
               onChange={(event) => setLimits((courant) => ({ ...courant, [cle]: event.target.value }))}
@@ -196,7 +202,12 @@ function OverridesCard({ agencyId, subscription }: { readonly agencyId: number; 
           </div>
         ))}
         <div className="flex justify-end">
-          <Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={mutation.isPending || !lisible(fee) || LIMITES.some((cle) => !lisible(limits[cle]))}
+            onClick={() => mutation.mutate()}
+          >
             <SlidersHorizontal className="mr-2 size-4" aria-hidden="true" />
             {t('overrides.save')}
           </Button>

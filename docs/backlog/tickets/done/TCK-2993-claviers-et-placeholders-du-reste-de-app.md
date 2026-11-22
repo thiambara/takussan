@@ -1,7 +1,7 @@
 ---
 id: TCK-2993
 title: Profils de clavier et placeholders sur le reste de /app
-status: todo
+status: done
 phase: P2
 family: front
 estimate: L
@@ -38,5 +38,12 @@ de `check:champs` descend d'autant.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Plus aucun défaut `check:champs` dans ces dossiers.
-- [ ] AC2 — Chaque champ quitté `type="number"` est vérifié dans son formulaire (valeur vide, bornes, envoi).
+- [x] AC1 — Plus aucun défaut `check:champs` dans ces dossiers.
+- [x] AC2 — Chaque champ quitté `type="number"` est vérifié dans son formulaire (valeur vide, bornes, envoi).
+
+## Relevé (2026-11-21)
+
+Deux lots délégués (C : baux, loyers, maintenance, biens, visites… ; D : administration d'agence, facturation,
+rapports, clients…), 83 fichiers, 76 clés ; puis la fiche d'agence (`ChampDeLaFiche`, que la garde ne voyait pas)
+reprise par la session. Les valeurs numériques passent par `lireNombre` ; la fiche garde ses chaînes
+(`garderLeTexte`).

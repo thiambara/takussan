@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
+import { lireNombre } from '@/components/forms/FormInput';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
@@ -63,10 +64,11 @@ function texteOuVide(value: number | null | undefined): string {
   return value !== null && value !== undefined ? String(value) : '';
 }
 
+/** ADR-0135 — les champs sont des champs texte : « 150 000 » et « 2,5 » se lisent en nombre. */
 function num(value: string): number | undefined {
   if (value === '') return undefined;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
+  const n = lireNombre(value);
+  return typeof n === 'number' && Number.isFinite(n) ? n : undefined;
 }
 
 /**
@@ -246,9 +248,8 @@ export function LeaseRenewalDialog({
                 <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-rent">{t('field_monthly_rent')}</label>
                 <Input
                   id="renew-rent"
-                  type="number"
-                  min={1}
-                  step="any"
+                  profil="montant"
+                  placeholder={t('placeholder_monthly_rent')}
                   value={form.monthly_rent}
                   onChange={(e) => setForm((s) => ({ ...s, monthly_rent: e.target.value }))}
                 />
@@ -267,9 +268,8 @@ export function LeaseRenewalDialog({
                 <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-deposit">{t('field_deposit_amount')}</label>
                 <Input
                   id="renew-deposit"
-                  type="number"
-                  min={0}
-                  step="any"
+                  profil="montant"
+                  placeholder={t('placeholder_deposit_amount')}
                   value={form.deposit_amount}
                   onChange={(e) => setForm((s) => ({ ...s, deposit_amount: e.target.value }))}
                 />
@@ -280,10 +280,8 @@ export function LeaseRenewalDialog({
                 <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-late-pct">{t('field_late_fee_percent')}</label>
                 <Input
                   id="renew-late-pct"
-                  type="number"
-                  min={0}
-                  max={50}
-                  step={0.5}
+                  profil="decimal"
+                  placeholder={t('placeholder_late_fee_percent')}
                   value={form.late_fee_percent}
                   onChange={(e) => setForm((s) => ({ ...s, late_fee_percent: e.target.value }))}
                 />
@@ -292,9 +290,8 @@ export function LeaseRenewalDialog({
                 <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-grace">{t('field_late_fee_grace_days')}</label>
                 <Input
                   id="renew-grace"
-                  type="number"
-                  min={0}
-                  max={30}
+                  profil="entier"
+                  placeholder={t('placeholder_late_fee_grace_days')}
                   value={form.late_fee_grace_days}
                   onChange={(e) =>
                     setForm((s) => ({ ...s, late_fee_grace_days: e.target.value }))
@@ -305,6 +302,8 @@ export function LeaseRenewalDialog({
             <div>
               <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-terms">{t('field_terms')}</label>
               <Textarea
+                profil="texte-long"
+                placeholder={t('placeholder_terms')}
                 id="renew-terms"
                 rows={3}
                 value={form.terms}

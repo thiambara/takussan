@@ -438,8 +438,7 @@ export function PropertyListFilters({
               <Input
                 id="property-search"
                 name="search"
-                type="search"
-                enterKeyHint="search"
+                profil="recherche"
                 placeholder={t('searchPlaceholder')}
                 className={cn(
                   'rounded-xl bg-card pl-9 shadow-xs lg:rounded-lg lg:shadow-none',
@@ -841,6 +840,7 @@ function champsDesCriteres({
     city: (
       <Input
         aria-label={t('cityAria')}
+        profil="lieu"
         name="city"
         placeholder={t('cityPlaceholder')}
         defaultValue={valeurs.city}
@@ -851,7 +851,7 @@ function champsDesCriteres({
       <Input
         aria-label={t('priceMinAria')}
         name="price_min"
-        inputMode="numeric"
+        profil="montant"
         placeholder={t('priceMinPlaceholder')}
         defaultValue={valeurs.priceMin}
         key={`pmin-${valeurs.priceMin}`}
@@ -861,7 +861,7 @@ function champsDesCriteres({
       <Input
         aria-label={t('priceMaxAria')}
         name="price_max"
-        inputMode="numeric"
+        profil="montant"
         placeholder={t('priceMaxPlaceholder')}
         defaultValue={valeurs.priceMax}
         key={`pmax-${valeurs.priceMax}`}

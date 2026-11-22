@@ -148,6 +148,7 @@ export function CreateRoleDialog({
             <Label htmlFor="create-role-name">{t('editor.name_label')}</Label>
             <Input
               id="create-role-name"
+              profil="mots"
               value={name}
               placeholder={t('editor.name_placeholder')}
               onChange={(e) => setName(e.target.value)}
@@ -206,6 +207,7 @@ export function CreateRoleDialog({
             <Label htmlFor="create-role-description">{t('editor.description_label')}</Label>
             <Textarea
               id="create-role-description"
+              profil="texte-long"
               rows={2}
               value={description}
               placeholder={t('editor.description_placeholder')}

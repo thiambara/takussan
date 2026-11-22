@@ -105,12 +105,10 @@ export function ChampDeRecherche({
       <Search className={cn('flex-none', bureau ? 'size-4' : 'size-icone')} strokeWidth={1.75} aria-hidden="true" />
       <Input
         id={id}
-        type="search"
+        profil="recherche"
         value={saisie}
         onChange={(e) => changer(e.target.value)}
         placeholder={libelle ?? t('champ')}
-        autoComplete="off"
-        enterKeyHint="search"
         className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-foreground focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden"
       />
       {saisie.length > 0 ? (

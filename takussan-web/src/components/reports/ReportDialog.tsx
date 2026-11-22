@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
+import { profil } from '@/lib/clavier';
 import type { ReportPayload } from '@/types/visit';
 
 export interface ReportReason {
@@ -131,6 +132,7 @@ export function ReportDialog({
               <label className="block space-y-1 text-sm">
                 <span className="text-foreground">{t('detailsLabel')}</span>
                 <Textarea
+                  profil="texte-long"
                   value={details}
                   onChange={(e) => setDetails(e.target.value)}
                   placeholder={t('detailsPlaceholder')}
@@ -144,10 +146,11 @@ export function ReportDialog({
             <div aria-hidden="true" className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden">
               <label htmlFor={`${idPrefix}-company`}>{t('honeypotLabel')}</label>
               <input
+                {...profil('mots')}
                 id={`${idPrefix}-company`}
-                type="text"
                 tabIndex={-1}
                 autoComplete="off"
+                placeholder={t('honeypotPlaceholder')}
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
               />

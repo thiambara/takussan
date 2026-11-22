@@ -123,7 +123,7 @@ export function AbandonnerLeBrouillon({
             <label className="text-xs font-medium text-muted-foreground" htmlFor="abandon-motif">
               {t('motif')}
             </label>
-            <Textarea id="abandon-motif" rows={3} maxLength={MOTIF_MAX} value={motif} onChange={(e) => setMotif(e.target.value)} disabled={enCours} />
+            <Textarea profil="texte-long" id="abandon-motif" placeholder={t('motifExemple')} rows={3} maxLength={MOTIF_MAX} value={motif} onChange={(e) => setMotif(e.target.value)} disabled={enCours} />
           </div>
         </div>
 

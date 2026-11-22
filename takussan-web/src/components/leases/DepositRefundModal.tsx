@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
+import { lireNombre } from '@/components/forms/FormInput';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -207,11 +208,16 @@ export function DepositRefundModal({
             <Label htmlFor="deposit-refund-amount">{t('modal.amount_label')}</Label>
             <Input
               id="deposit-refund-amount"
-              type="number"
-              min={1}
-              step="any"
+              profil="montant"
+              placeholder={t('modal.amount_placeholder')}
               aria-describedby={errors.amount?.message ? 'deposit-refund-amount-error' : undefined}
-              {...register('amount', { valueAsNumber: true })}
+              // ADR-0135 — champ texte : « 150 000 » se lit en nombre ; vide ou illisible reste NaN, comme `valueAsNumber`.
+              {...register('amount', {
+                setValueAs: (v: unknown) => {
+                  const n = lireNombre(String(v ?? ''));
+                  return typeof n === 'number' ? n : Number.NaN;
+                },
+              })}
             />
             <p className="text-xs text-muted-foreground">
               {t('modal.remaining', {
@@ -249,6 +255,7 @@ export function DepositRefundModal({
               {isPartial && <span className="ml-1 text-destructive">*</span>}
             </Label>
             <Textarea
+              profil="texte-long"
               id="deposit-refund-reason"
               rows={3}
               placeholder={t('modal.reason_placeholder')}

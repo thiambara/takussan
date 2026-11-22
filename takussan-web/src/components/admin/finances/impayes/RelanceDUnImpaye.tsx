@@ -74,6 +74,8 @@ export function ComposerLaRelance({ row, relance }: { readonly row: PaymentHisto
       ) : edition ? (
         <Textarea
           aria-labelledby={idDuMessage}
+          profil="texte-long"
+          placeholder={t('messageExemple')}
           value={relance.message}
           onChange={(e) => relance.modifierLeMessage(e.target.value)}
           rows={6}

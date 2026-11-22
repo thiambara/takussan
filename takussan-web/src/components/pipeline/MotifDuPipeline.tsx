@@ -116,7 +116,7 @@ function CorpsDuMotif({ motif, lecture, bureau, onAnnuler, onEnregistrer, erreur
             {tM('precision')}
             {perte ? <span className="font-normal text-muted-foreground"> · {tM('facultative')}</span> : null}
           </label>
-          <Textarea id="motif-precision" value={precision} onChange={(e) => setPrecision(e.target.value)} rows={3} maxLength={BORNE} className="min-h-24" data-testid="reason-input" />
+          <Textarea profil="texte-long" id="motif-precision" placeholder={tM('precisionExemple')} value={precision} onChange={(e) => setPrecision(e.target.value)} rows={3} maxLength={BORNE} className="min-h-24" data-testid="reason-input" />
         </div>
         <p className="flex items-start gap-2 rounded-lg bg-muted px-3 py-2.5 text-ui leading-snug text-muted-foreground">
           <Pin className="mt-0.5 size-3.5 flex-none" aria-hidden="true" />

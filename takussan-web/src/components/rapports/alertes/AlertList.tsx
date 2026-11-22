@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { createThresholdAlertAction, deleteThresholdAlertAction, recipientCandidatesAction, updateThresholdAlertAction } from '@/app/actions/alerts';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
+import { lireNombre } from '@/components/forms/FormInput';
 import { useActionDOnglet } from '@/components/rapports/ActionDeLOnglet';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { ActionDEnTete } from '@/components/layout/EnTeteMobile';
@@ -409,9 +410,16 @@ function FormulaireDAlerte({
 
   function enregistrer() {
     setError(null);
-    const parsed = Number(threshold);
-    if (threshold.trim() === '' || Number.isNaN(parsed)) {
+    // ADR-0135 — des champs TEXTE (profils `decimal`, `entier`) : « 7,5 » se lit 7.5, et les bornes que le
+    // navigateur tenait en `type="number"` (délai de 1 à 720 h) se jugent ici.
+    const parsed = lireNombre(threshold.trim());
+    if (typeof parsed !== 'number') {
       setError(tA('invalidThreshold'));
+      return;
+    }
+    const delai = cooldownHours.trim() === '' ? 24 : lireNombre(cooldownHours.trim());
+    if (typeof delai !== 'number' || !Number.isInteger(delai) || delai < 1 || delai > 720) {
+      setError(tA('invalidCooldown'));
       return;
     }
     const input = {
@@ -419,7 +427,7 @@ function FormulaireDAlerte({
       operator,
       threshold: parsed,
       severity,
-      cooldown_hours: Number(cooldownHours) || 24,
+      cooldown_hours: delai,
       // TCK-2868 — toujours envoyés : l'API re-juge le choix sur la mesure NOUVELLE (TCK-2866). Vide = tous.
       recipient_ids: recipientIds.length > 0 ? recipientIds : null,
       channel,
@@ -481,10 +489,8 @@ function FormulaireDAlerte({
           <Label htmlFor={`${id}-threshold`}>{tA('threshold')}</Label>
           <Input
             id={`${id}-threshold`}
-            type="number"
-            inputMode="decimal"
-            // Sans `step`, le `<form>` refuse 7.5 à l'Entrée (pas implicite de 1) — l'API accepte tout `numeric`.
-            step="any"
+            profil="decimal"
+            placeholder={t('exempleSeuil')}
             value={threshold}
             onChange={(e) => setThreshold(e.target.value)}
             className="tabular-nums"
@@ -551,10 +557,9 @@ function FormulaireDAlerte({
         <div className="flex items-center gap-2">
           <Input
             id={`${id}-cooldown`}
-            type="number"
-            min="1"
-            max="720"
-            inputMode="numeric"
+            profil="entier"
+            enterKeyHint="done"
+            placeholder={t('exempleDelai')}
             value={cooldownHours}
             onChange={(e) => setCooldownHours(e.target.value)}
             aria-describedby={`${id}-cooldown-unite ${id}-cooldown-hint`}

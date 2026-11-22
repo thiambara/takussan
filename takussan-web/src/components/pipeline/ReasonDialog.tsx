@@ -94,6 +94,7 @@ function ReasonForm({ pending, onCancel, onSubmit, erreur, enCours }: ReasonForm
       </DialogHeader>
       <div className="py-2">
         <Textarea
+          profil="texte-long"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={4}

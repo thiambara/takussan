@@ -94,6 +94,7 @@ export function MaintenanceCompleteForm({
       <FormGlobalError>{globalError}</FormGlobalError>
 
       <FormTextarea
+        profil="texte-long"
         name="resolution_notes"
         control={form.control}
         label={t('notes_label')}
@@ -106,9 +107,8 @@ export function MaintenanceCompleteForm({
           name="actual_cost"
           control={form.control}
           label={t('cost_label')}
-          type="number"
+          profil="montant"
           min={0}
-          step="100"
           placeholder="0"
         />
       ) : null}

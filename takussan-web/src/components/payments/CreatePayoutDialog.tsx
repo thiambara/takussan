@@ -486,7 +486,7 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated, bailleurInit
               </div>
               <div className="space-y-2">
                 <Label htmlFor="payout-notes">{t('notes')}</Label>
-                <Textarea id="payout-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <Textarea profil="texte-long" id="payout-notes" placeholder={t('notesExemple')} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
             </section>
           ) : (

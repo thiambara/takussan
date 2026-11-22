@@ -71,13 +71,12 @@ export function CorpsDeLIntrouvable({ aujourdhui }: { readonly aujourdhui: boole
             />
             <Input
               id={ID_CHAMP}
-              type="search"
+              profil="recherche"
               data-slot="aller-a-dans-la-page"
               aria-label={tPalette('champ')}
               aria-controls={ID_LISTE}
               placeholder={tPalette('placeholder')}
               maxLength={80}
-              autoComplete="off"
               className={STYLE_CHAMP}
             />
           </form>

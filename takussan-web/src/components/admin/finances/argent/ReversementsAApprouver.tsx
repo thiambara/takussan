@@ -153,6 +153,7 @@ export function RefuserUnReversement({ p, onFermer }: { readonly p: Payout; read
             </label>
             <Textarea
               id={`${id}-motif`}
+              profil="texte-long"
               value={motif}
               maxLength={500}
               rows={3}

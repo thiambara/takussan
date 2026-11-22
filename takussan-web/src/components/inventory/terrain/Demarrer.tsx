@@ -317,6 +317,7 @@ function Formulaire({
               ) : (
                 <div className="col-span-2 flex gap-2">
                   <Input
+                    profil="mots"
                     ref={curseurALApparition}
                     aria-label={t('demarrer.nomDeLaPiece')}
                     placeholder={t('demarrer.nomDeLaPiece')}

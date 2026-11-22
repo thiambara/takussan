@@ -428,7 +428,15 @@ function Formulaire({ id, agencyId, peutDeleguer, cible, onFermer, onEnCours }: 
       ) : null}
 
       <Champ libelle={t('motif')} htmlFor="absence-motif" aide={t('motifAide')}>
-        <Input id="absence-motif" value={motif} maxLength={500} onChange={(e) => setMotif(e.target.value)} />
+        <Input
+          id="absence-motif"
+          profil="phrase"
+          enterKeyHint="done"
+          placeholder={t('motifExemple')}
+          value={motif}
+          maxLength={500}
+          onChange={(e) => setMotif(e.target.value)}
+        />
       </Champ>
 
       {enregistrer.error ? (

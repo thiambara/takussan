@@ -394,6 +394,8 @@ function ChampsDuChiffre({
         <Label htmlFor={`${id}-libelle`}>{tK('label')}</Label>
         <Input
           id={`${id}-libelle`}
+          profil="mots"
+          placeholder={t('libelleExemple')}
           value={label}
           maxLength={120}
           onChange={(e) => onLabel(e.target.value)}

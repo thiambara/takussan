@@ -136,6 +136,7 @@ export function PropertyModerationDetail({ property, onModerated, telephone = fa
         </label>
         <Textarea
           id={idCorrection}
+          profil="texte-long"
           value={raison}
           onChange={(e) => setRaison(e.target.value)}
           rows={3}

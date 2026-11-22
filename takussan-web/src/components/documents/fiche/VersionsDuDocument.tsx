@@ -312,6 +312,7 @@ function AjouterUneVersion({
               {tV('comment_label')} <span className="font-normal text-muted-foreground">{tV('comment_optional')}</span>
             </Label>
             <Textarea
+              profil="texte-long"
               id="version-comment"
               value={commentaire}
               onChange={(e) => setCommentaire(e.target.value)}

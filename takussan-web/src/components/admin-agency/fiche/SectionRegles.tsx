@@ -209,15 +209,17 @@ function InterrupteurDuReglage({
 /** TCK-2915 — `settings.payout_day` : le jour de versement par défaut des bailleurs de l'agence. */
 function JourDeVersement() {
   const tMoney = useTranslations('admin.agencyConfig.moneyOut');
+  const tExemple = useTranslations('admin.agencyConfig.exemples');
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <ChampDeLaFiche name="payout_day" libelle={tMoney('payoutDay')} inputMode="numeric" aide={tMoney('payoutDayHint')} />
+      <ChampDeLaFiche name="payout_day" libelle={tMoney('payoutDay')} profil="entier" placeholder={tExemple('jourDeVersement')} aide={tMoney('payoutDayHint')} />
     </div>
   );
 }
 
 function Seuil() {
   const tMoney = useTranslations('admin.agencyConfig.moneyOut');
+  const tExemple = useTranslations('admin.agencyConfig.exemples');
   const tFiche = useTranslations('admin.agencyConfig.fiche.regles');
   const format = useFormatter();
   const router = useRouter();
@@ -248,7 +250,7 @@ function Seuil() {
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <ChampDeLaFiche name="payout_approval_threshold" libelle={tMoney('threshold')} inputMode="numeric" aide={tMoney('thresholdHint')} />
+      <ChampDeLaFiche name="payout_approval_threshold" libelle={tMoney('threshold')} profil="montant" placeholder={tExemple('seuil')} aide={tMoney('thresholdHint')} />
       {enAttente ? (
         <div className="mt-3 rounded-xl border border-border bg-muted/40 p-3" role="status">
           <p className="text-pretty text-sm">

@@ -30,8 +30,7 @@ export function SectionPaiement() {
           <ChampDeLaFiche
             name="offline_payment_wave_number"
             libelle={t('wave')}
-            type="tel"
-            inputMode="tel"
+            profil="telephone"
             autoComplete="off"
             placeholder="77 123 45 67"
             aide={t('phoneHint')}
@@ -39,8 +38,7 @@ export function SectionPaiement() {
           <ChampDeLaFiche
             name="offline_payment_orange_money_number"
             libelle={t('orangeMoney')}
-            type="tel"
-            inputMode="tel"
+            profil="telephone"
             autoComplete="off"
             placeholder="77 123 45 67"
           />

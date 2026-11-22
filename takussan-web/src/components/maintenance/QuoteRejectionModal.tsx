@@ -70,6 +70,7 @@ export function QuoteRejectionModal({
           <FormGlobalError>{globalError}</FormGlobalError>
           
           <FormTextarea
+            profil="texte-long"
             name="reason"
             control={form.control}
             label={t('reason_label')}

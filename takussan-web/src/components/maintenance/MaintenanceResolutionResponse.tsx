@@ -67,6 +67,7 @@ export function MaintenanceResolutionResponse({ request }: { readonly request: M
             {t('comment_label')}
           </label>
           <Textarea
+            profil="texte-long"
             id="contest-comment"
             value={comment}
             onChange={(e) => setComment(e.target.value)}

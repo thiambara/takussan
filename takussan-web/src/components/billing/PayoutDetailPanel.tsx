@@ -148,6 +148,7 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
             <div className="grid gap-2 md:grid-cols-[160px_1fr_auto]">
               <DatePicker value={processedAt} onValueChange={setProcessedAt} aria-label={t('processedAtAria')} />
               <Input
+                profil="reference"
                 aria-label={t('paymentReferenceLabel')}
                 placeholder={t('paymentReferencePlaceholder')}
                 required
@@ -170,6 +171,7 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
         {payout.status === 'pending' || payout.status === 'approved' ? (
           <div className="grid gap-2 md:grid-cols-[1fr_auto]">
             <Input
+              profil="phrase"
               placeholder={t('cancelReasonPlaceholder')}
               value={reason}
               onChange={(event) => setReason(event.target.value)}

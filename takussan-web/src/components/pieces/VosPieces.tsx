@@ -645,12 +645,9 @@ function ChampNinea({ saisie }: { readonly saisie: SaisieDuNinea }) {
       </label>
       <Input
         id={id}
+        profil="reference"
         value={saisie.valeur}
         onChange={(e) => saisie.onSaisir(e.target.value)}
-        inputMode="text"
-        autoCapitalize="characters"
-        autoComplete="off"
-        spellCheck={false}
         placeholder={t('exemple')}
         aria-invalid={saisie.erreur ? true : undefined}
         aria-describedby={saisie.erreur ? `${erreur} ${aide}` : aide}

@@ -391,6 +391,7 @@ export function PayoutDetailDialog({ payoutId, onClose, sansIdentifiants = false
                   </Label>
                   <Input
                     id="transaction-id"
+                    profil="mots"
                     value={transactionId}
                     onChange={(e) => setTransactionId(e.target.value)}
                     placeholder={t('transactionIdPlaceholder')}
@@ -401,7 +402,7 @@ export function PayoutDetailDialog({ payoutId, onClose, sansIdentifiants = false
                     <Label htmlFor="cash-note" className="mb-1.5 block text-xs font-medium">
                       {t('cashNote')}
                     </Label>
-                    <Input id="cash-note" value={cashNote} onChange={(e) => setCashNote(e.target.value)} />
+                    <Input profil="phrase" id="cash-note" placeholder={t('cashNoteExemple')} value={cashNote} onChange={(e) => setCashNote(e.target.value)} />
                   </div>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
@@ -429,6 +430,7 @@ export function PayoutDetailDialog({ payoutId, onClose, sansIdentifiants = false
                   </Label>
                   <Input
                     id="failed-reason"
+                    profil="phrase"
                     value={failedReason}
                     onChange={(e) => setFailedReason(e.target.value)}
                     placeholder={t('failedReasonPlaceholder')}
