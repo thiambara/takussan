@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetClose, SheetOverlay, SheetPortal, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useMatchesMedia } from "@/hooks/useMatchesMedia"
 import { useVerrouDeDefilement } from "@/hooks/useVerrouDeDefilement"
+import { SuiviDeLaFenetre } from "@/lib/fenetre"
 import { cn } from "@/lib/utils"
 
 /**
@@ -47,6 +48,13 @@ import { cn } from "@/lib/utils"
  * c'est celui de base-ui (`modal`) : il compense une barre de défilement CLASSIQUE, que le crochet
  * ferait disparaître en sortant `body` du flux — saut DÉDUIT, non mesuré (le Chrome de mesure a des
  * barres superposées).
+ *
+ * **ADR-0133, amendement du 2026-11-22 (TCK-2995) — au-dessus du clavier.** Ouverte, la feuille s'abonne à la
+ * mesure de la fenêtre (`SuiviDeLaFenetre`). Sous `md`, pendant la saisie, elle se pose sur le haut du clavier
+ * (`bottom: --clavier`) et ne dépasse jamais la fenêtre visible moins 8 px : son pied (l'action) reste au-dessus
+ * du clavier, son corps défile, et le champ focalisé y est ramené en vue. La zone sûre du bas tombe (le clavier
+ * la couvre). Clavier fermé, rien ne change. Le motif est celui de `CadreDeLaFeuille` (TCK-2601), qui garde son
+ * réglage en ligne, plus fin, et l'emporte.
  */
 interface FeuilleDuBasProps
   extends Omit<DialogPrimitive.Popup.Props, "children" | "className" | "title"> {
@@ -108,6 +116,8 @@ function FeuilleDuBas({
           className={cn(
             "fixed z-50 flex flex-col bg-card text-card-foreground shadow-feuille outline-none duration-200",
             "inset-x-0 bottom-0 max-h-[90dvh] rounded-t-2xl",
+            // ADR-0133 (TCK-2995) — en saisie, posée sur le clavier, bornée par la fenêtre visible.
+            "max-md:saisie:bottom-[var(--clavier,0px)] max-md:saisie:max-h-[min(90dvh,calc(var(--vue-h,90dvh)-var(--spacing)*2))]",
             "data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none",
             "max-md:data-open:slide-in-from-bottom max-md:data-closed:slide-out-to-bottom",
             // TCK-2688 — dès md, le panneau latéral droit (cf. `PanneauDroit`), modal.
@@ -119,6 +129,7 @@ function FeuilleDuBas({
           )}
           {...props}
         >
+          <SuiviDeLaFenetre corps="feuille-du-bas-corps" />
           <div
             data-slot="feuille-du-bas-poignee"
             aria-hidden="true"
@@ -144,7 +155,7 @@ function FeuilleDuBas({
             className={cn(
               "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 md:p-5",
               dialogue && "md:p-6",
-              pied ? "pb-4" : "pb-[calc(var(--spacing)*4+env(safe-area-inset-bottom))]"
+              pied ? "pb-4" : "pb-[calc(var(--spacing)*4+env(safe-area-inset-bottom))] max-md:saisie:pb-4"
             )}
           >
             {children}
@@ -153,7 +164,7 @@ function FeuilleDuBas({
             <div
               data-slot="feuille-du-bas-pied"
               className={cn(
-                "flex-none border-t border-border px-4 pt-3 pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))] md:flex md:justify-end md:gap-2 md:px-5 md:py-3",
+                "flex-none border-t border-border px-4 pt-3 pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))] max-md:saisie:pb-3 md:flex md:justify-end md:gap-2 md:px-5 md:py-3",
                 dialogue && "md:px-6 md:py-4"
               )}
             >

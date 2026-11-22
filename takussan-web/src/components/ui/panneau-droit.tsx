@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetClose, SheetPortal, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useMatchesMedia } from "@/hooks/useMatchesMedia"
 import { useVerrouDeDefilement } from "@/hooks/useVerrouDeDefilement"
+import { SuiviDeLaFenetre } from "@/lib/fenetre"
 import { cn } from "@/lib/utils"
 
 /**
@@ -43,6 +44,11 @@ import { cn } from "@/lib/utils"
  * fond de la page ; le corps en `px-4 pt-5 pb-8` ; le pied devient la barre collante du téléphone
  * (`BarreDAction` : filet, `px-4 py-3`, ombre `barre-collante`, zone sûre, enfants à parts égales).
  * Dès `xl`, rien ne change : le panneau de 480 px, son en-tête et son pied.
+ *
+ * ADR-0133, amendement du 2026-11-22 (TCK-2995) — sous `xl`, le panneau couvre l'écran : pendant la saisie, il
+ * se cale sur la fenêtre visible (`--vue-top`, `--vue-h`), comme le cadre de la publication. Son pied (« Continuer »,
+ * « Enregistrer ») reste au-dessus du clavier au lieu de passer dessous ; l'en-tête d'un formulaire passe de 56 à
+ * 44 px sans sa ligne d'étape ; la zone sûre du pied tombe ; le champ focalisé est ramené en vue.
  */
 interface PanneauDroitProps
   extends Omit<DialogPrimitive.Popup.Props, "children" | "className" | "title"> {
@@ -102,16 +108,19 @@ function PanneauDroit({
           data-formulaire={plein ? "" : undefined}
           className={cn(
             "fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-card text-card-foreground outline-none duration-200 xl:w-panneau xl:border-l xl:border-border xl:shadow-panneau",
+            // ADR-0133 (TCK-2995) — en saisie, sous `xl`, calé sur la fenêtre visible.
+            "max-xl:saisie:top-[var(--vue-top,0px)] max-xl:saisie:bottom-auto max-xl:saisie:h-[var(--vue-h,100dvh)]",
             plein && "bg-background text-foreground",
             "data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none",
             className
           )}
           {...props}
         >
+          {large ? null : <SuiviDeLaFenetre corps="panneau-droit-corps" />}
           {plein ? (
             <div
               data-slot="panneau-droit-en-tete"
-              className="flex h-14 flex-none items-center gap-1 border-b border-border/70 bg-background px-1"
+              className="flex h-14 flex-none items-center gap-1 border-b border-border/70 bg-background px-1 saisie:h-11"
             >
               <SheetClose
                 data-slot="panneau-droit-fermer"
@@ -122,7 +131,7 @@ function PanneauDroit({
               <div className="min-w-0 flex-1 leading-tight">
                 <SheetTitle className="truncate text-base leading-5 font-semibold">{titre}</SheetTitle>
                 {/* Le fond de l'en-tête redit sur la ligne : le couple encre/fond se mesure (TCK-458). */}
-                {sousTitre ? <p className="bg-background text-ui text-muted-foreground">{sousTitre}</p> : null}
+                {sousTitre ? <p className="bg-background text-ui text-muted-foreground saisie:hidden">{sousTitre}</p> : null}
               </div>
             </div>
           ) : (
@@ -151,7 +160,7 @@ function PanneauDroit({
               className={cn(
                 "flex flex-none gap-2 border-t border-border",
                 plein
-                  ? "bg-card px-4 pt-3 pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))] shadow-barre-collante *:min-w-0 *:flex-1"
+                  ? "bg-card px-4 pt-3 pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))] shadow-barre-collante saisie:pb-3 *:min-w-0 *:flex-1"
                   : "justify-end px-5 py-3"
               )}
             >

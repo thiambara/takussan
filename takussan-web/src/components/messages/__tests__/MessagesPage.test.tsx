@@ -425,6 +425,21 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
     expect(classes.find((c) => c.startsWith('md:h-[calc('))).not.toContain('barre-onglets');
   });
 
+  // ADR-0133, amendement (TCK-2996) — la conversation ouverte porte la marque que `globals.css` cale en saisie, et la
+  // messagerie (route en boîte, que la coque n'abonne pas) s'abonne à la mesure de la fenêtre.
+  it('conversation ouverte : le cadre est marqué pour la saisie, et la mesure est publiée', () => {
+    searchParamsGet.mockImplementation((cle: string) => (cle === 'conversation' ? '42' : null));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+    expect(screen.getByTestId('messagerie')).toHaveAttribute('data-cadre-de-conversation', '');
+    expect(document.documentElement.style.getPropertyValue('--vue-h')).not.toBe('');
+  });
+
+  it('liste : le cadre n’est pas marqué', () => {
+    searchParamsGet.mockImplementation(() => null);
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+    expect(screen.getByTestId('messagerie')).not.toHaveAttribute('data-cadre-de-conversation');
+  });
+
   // AC3 — un lien `?conversation=` n'est pas un cul-de-sac.
   it('ramène à la liste depuis une conversation ouverte par ?conversation=', () => {
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
