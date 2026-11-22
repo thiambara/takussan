@@ -55,14 +55,14 @@ afterEach(() => {
 describe('<SearchPreferencesForm>', () => {
   it('renders empty state when no SavedSearch provided', () => {
     renderForm({ initial: null, emailVerified: true });
-    expect(screen.getByTestId('pref-budget')).toHaveValue(null);
+    expect(screen.getByTestId('pref-budget')).toHaveValue('');
     expect(screen.getByTestId('pref-cities')).toHaveValue('');
     expect(screen.getByTestId('pref-alerts-toggle')).not.toBeChecked();
   });
 
   it('hydrates form fields from an existing SavedSearch', () => {
     renderForm({ initial: SAMPLE, emailVerified: true });
-    expect(screen.getByTestId('pref-budget')).toHaveValue(200_000);
+    expect(screen.getByTestId('pref-budget')).toHaveValue('200000');
     expect(screen.getByTestId('pref-cities')).toHaveValue('Dakar');
     expect(screen.getByTestId('pref-type-apartment')).toBeChecked();
     expect(screen.getByTestId('pref-alerts-toggle')).toBeChecked();

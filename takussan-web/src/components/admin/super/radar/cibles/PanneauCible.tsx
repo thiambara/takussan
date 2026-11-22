@@ -104,16 +104,17 @@ interface ChampNombreProps {
   readonly max?: number;
   readonly placeholder?: string;
   readonly desactive?: boolean;
+  /** ADR-0135 — un prix XOF prend `montant`, un compte `entier`. */
+  readonly profil?: 'entier' | 'montant';
 }
 
-function ChampNombre({ id, libelle, valeur, onChange, min = 0, max, placeholder, desactive }: ChampNombreProps) {
+function ChampNombre({ id, libelle, valeur, onChange, min = 0, max, placeholder, desactive, profil = 'entier' }: ChampNombreProps) {
   return (
     <div className="space-y-1">
       <Label htmlFor={id} className="text-xs text-muted-foreground">{libelle}</Label>
       <Input
+        profil={profil}
         id={id}
-        type="number"
-        inputMode="numeric"
         min={min}
         max={max}
         value={valeur}
@@ -236,6 +237,7 @@ function FormulaireCible({ cible, onFermer, onEnregistree }: FormulaireCibleProp
           <div className="space-y-1.5">
             <Label htmlFor={`${id}-nom`}>{t('form.name')}</Label>
             <Input
+              profil="mots"
               id={`${id}-nom`}
               value={nom}
               maxLength={RADAR_TARGET_NAME_MAX}
@@ -300,16 +302,16 @@ function FormulaireCible({ cible, onFermer, onEnregistree }: FormulaireCibleProp
             <fieldset className="space-y-1.5">
               <legend className="text-sm font-medium text-foreground">{t('form.price')}</legend>
               <div className="grid grid-cols-2 gap-2">
-                <ChampNombre id={`${id}-prix-min`} libelle={t('form.min')} valeur={brouillon.priceMin} onChange={(priceMin) => regler({ priceMin })} />
-                <ChampNombre id={`${id}-prix-max`} libelle={t('form.max')} valeur={brouillon.priceMax} onChange={(priceMax) => regler({ priceMax })} />
+                <ChampNombre profil="montant" id={`${id}-prix-min`} libelle={t('form.min')} placeholder={t('form.priceMinPlaceholder')} valeur={brouillon.priceMin} onChange={(priceMin) => regler({ priceMin })} />
+                <ChampNombre profil="montant" id={`${id}-prix-max`} libelle={t('form.max')} placeholder={t('form.priceMaxPlaceholder')} valeur={brouillon.priceMax} onChange={(priceMax) => regler({ priceMax })} />
               </div>
               <p className="text-xs text-muted-foreground">{t('form.priceHint')}</p>
             </fieldset>
             <fieldset className="space-y-1.5">
               <legend className="text-sm font-medium text-foreground">{t('form.bedrooms')}</legend>
               <div className="grid grid-cols-2 gap-2">
-                <ChampNombre id={`${id}-ch-min`} libelle={t('form.min')} valeur={brouillon.bedroomsMin} max={RADAR_TARGET_BEDROOMS_MAX} onChange={(bedroomsMin) => regler({ bedroomsMin })} />
-                <ChampNombre id={`${id}-ch-max`} libelle={t('form.max')} valeur={brouillon.bedroomsMax} max={RADAR_TARGET_BEDROOMS_MAX} onChange={(bedroomsMax) => regler({ bedroomsMax })} />
+                <ChampNombre id={`${id}-ch-min`} libelle={t('form.min')} placeholder={t('form.bedroomsMinPlaceholder')} valeur={brouillon.bedroomsMin} max={RADAR_TARGET_BEDROOMS_MAX} onChange={(bedroomsMin) => regler({ bedroomsMin })} />
+                <ChampNombre id={`${id}-ch-max`} libelle={t('form.max')} placeholder={t('form.bedroomsMaxPlaceholder')} valeur={brouillon.bedroomsMax} max={RADAR_TARGET_BEDROOMS_MAX} onChange={(bedroomsMax) => regler({ bedroomsMax })} />
               </div>
             </fieldset>
           </Section>
@@ -355,6 +357,7 @@ function FormulaireCible({ cible, onFermer, onEnregistree }: FormulaireCibleProp
                 id={`${id}-age`}
                 libelle={t('fields.max_age_days')}
                 valeur={brouillon.maxAgeDays}
+                placeholder={t('form.maxAgeDaysPlaceholder')}
                 min={1}
                 max={RADAR_TARGET_MAX_AGE_DAYS}
                 onChange={(maxAgeDays) => regler({ maxAgeDays })}

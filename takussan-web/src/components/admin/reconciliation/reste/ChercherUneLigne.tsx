@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { lireNombre } from '@/lib/clavier';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useBankLineSearch } from '@/lib/queries/reconciliation';
 import type { BankStatementLine, PendingPayment } from '@/types/reconciliation';
@@ -55,7 +56,7 @@ export function ChercherUneLigne({
 
   function chercher(e: FormEvent) {
     e.preventDefault();
-    setMontant(enNombre(saisie.replace(/\s/g, '').replace(',', '.')));
+    setMontant(enNombre(lireNombre(saisie)));
   }
 
   async function choisir(ligne: BankStatementLine) {
@@ -81,7 +82,14 @@ export function ChercherUneLigne({
       <form onSubmit={chercher} className="flex items-end gap-2">
         <div className="min-w-0 flex-1 space-y-1.5">
           <Label htmlFor="chercher-ligne-montant">{t('montant')}</Label>
-          <Input id="chercher-ligne-montant" inputMode="decimal" value={saisie} onChange={(e) => setSaisie(e.target.value)} />
+          <Input
+            id="chercher-ligne-montant"
+            profil="montant"
+            enterKeyHint="search"
+            placeholder={t('montantExemple')}
+            value={saisie}
+            onChange={(e) => setSaisie(e.target.value)}
+          />
         </div>
         <Button type="submit" variant="outline">
           {t('submit')}

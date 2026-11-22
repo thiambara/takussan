@@ -334,7 +334,8 @@ function CarteDeReglage({
           </label>
           <Input
             id={`${id}-champ`}
-            inputMode={reglage.type === 'integer' ? 'numeric' : 'decimal'}
+            profil={reglage.type === 'integer' ? 'entier' : 'decimal'}
+            placeholder={t('exemple', { valeur: reglage.platform_value })}
             value={saisie}
             onChange={(e) => onSaisie(e.target.value)}
             aria-invalid={erreur !== null}

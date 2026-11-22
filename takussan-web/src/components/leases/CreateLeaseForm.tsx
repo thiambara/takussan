@@ -939,6 +939,7 @@ function FormulaireDuBail({
                       </label>
                       <Input
                         id="tenant-search"
+                        profil="recherche"
                         value={customerSearch}
                         onChange={(event) => setCustomerSearch(event.target.value)}
                         placeholder={t('tenantSearchPlaceholder')}

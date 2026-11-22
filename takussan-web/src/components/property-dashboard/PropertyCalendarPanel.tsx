@@ -182,7 +182,7 @@ function BlockDatesSection({
         </div>
         <label className="block space-y-1 text-sm">
           <span className="text-foreground">{t('blockReason')}</span>
-          <Input value={reason} maxLength={255} onChange={(e) => setReason(e.target.value)} />
+          <Input profil="phrase" placeholder={t('blockReasonExemple')} value={reason} maxLength={255} onChange={(e) => setReason(e.target.value)} />
         </label>
         {error && (
           <p role="alert" className="text-sm text-destructive">
@@ -294,9 +294,8 @@ function FeedsSection({
           <label className="space-y-1 text-sm">
             <span className="text-foreground">{t('feedUrl')}</span>
             <Input
-              type="url"
+              profil="url"
               required
-              inputMode="url"
               placeholder="https://"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -304,7 +303,7 @@ function FeedsSection({
           </label>
           <label className="space-y-1 text-sm">
             <span className="text-foreground">{t('feedLabel')}</span>
-            <Input value={label} maxLength={120} onChange={(e) => setLabel(e.target.value)} />
+            <Input profil="mots" placeholder={t('feedLabelExemple')} enterKeyHint="done" value={label} maxLength={120} onChange={(e) => setLabel(e.target.value)} />
           </label>
         </div>
         {error && (

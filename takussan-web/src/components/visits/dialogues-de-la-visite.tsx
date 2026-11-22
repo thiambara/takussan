@@ -229,6 +229,7 @@ function VisitActionForm({
         </label>
         {kind === 'cancel' ? (
           <Textarea
+            profil="texte-long"
             id={fieldId}
             value={value}
             onChange={(event) => setValue(event.target.value)}

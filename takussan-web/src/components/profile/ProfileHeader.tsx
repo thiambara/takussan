@@ -234,6 +234,9 @@ export function ProfileHeader({ user, fonction, fiche }: ProfileHeaderProps) {
               </label>
               <Input
                 id="first_name"
+                profil="nom"
+                autoComplete="given-name"
+                placeholder={t('firstNamePlaceholder')}
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 required
@@ -245,6 +248,9 @@ export function ProfileHeader({ user, fonction, fiche }: ProfileHeaderProps) {
               </label>
               <Input
                 id="last_name"
+                profil="nom"
+                autoComplete="family-name"
+                placeholder={t('lastNamePlaceholder')}
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 required
@@ -256,6 +262,8 @@ export function ProfileHeader({ user, fonction, fiche }: ProfileHeaderProps) {
               </label>
               <Textarea
                 id="bio"
+                profil="texte-long"
+                placeholder={t('bioPlaceholder')}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 maxLength={500}

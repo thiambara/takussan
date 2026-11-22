@@ -158,7 +158,13 @@ export function ImportStatementForm({ agencyId }: { readonly agencyId: number })
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="releve-banque">{t('bankName')}</Label>
-          <Input id="releve-banque" value={banque} onChange={(e) => setBanque(e.target.value)} />
+          <Input
+            id="releve-banque"
+            profil="mots"
+            placeholder={t('bankNamePlaceholder')}
+            value={banque}
+            onChange={(e) => setBanque(e.target.value)}
+          />
         </div>
       </div>
       {fichier ? (

@@ -261,11 +261,11 @@ export function CoordonneesPublication({
             <div className="grid gap-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
               <div className="space-y-1">
                 <label htmlFor="coordonnees-prenom" className="text-xs font-semibold text-muted-foreground">{t('firstNameLabel')}</label>
-                <Input id="coordonnees-prenom" value={prenom} maxLength={100} onChange={(e) => setPrenom(e.target.value)} />
+                <Input profil="nom" autoComplete="given-name" placeholder={t('firstNamePlaceholder')} id="coordonnees-prenom" value={prenom} maxLength={100} onChange={(e) => setPrenom(e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label htmlFor="coordonnees-nom" className="text-xs font-semibold text-muted-foreground">{t('lastNameLabel')}</label>
-                <Input id="coordonnees-nom" value={nom} maxLength={100} onChange={(e) => setNom(e.target.value)} />
+                <Input profil="nom" autoComplete="family-name" placeholder={t('lastNamePlaceholder')} id="coordonnees-nom" value={nom} maxLength={100} onChange={(e) => setNom(e.target.value)} />
               </div>
               <Button type="button" variant="outline" size="sm" onClick={enregistrerNoms} disabled={enCours || prenom.trim() === ''}>
                 {t('saveNames')}
@@ -293,7 +293,8 @@ export function CoordonneesPublication({
                 {codeEnvoye ? (
                   <>
                     <Input
-                      inputMode="numeric"
+                      profil="code"
+                      placeholder="123456"
                       maxLength={6}
                       value={code}
                       onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}

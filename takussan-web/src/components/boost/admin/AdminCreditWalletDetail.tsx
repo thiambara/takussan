@@ -98,11 +98,11 @@ export function AdminCreditWalletDetail({ agencyId }: { readonly agencyId: numbe
           >
             <div className="space-y-1">
               <Label htmlFor="ajustement-montant">{t('amount')}</Label>
-              <Input id="ajustement-montant" inputMode="numeric" value={montant} onChange={(e) => setMontant(e.target.value)} />
+              <Input profil="entier" placeholder={t('amountPlaceholder')} id="ajustement-montant" value={montant} onChange={(e) => setMontant(e.target.value)} />
             </div>
             <div className="space-y-1">
               <Label htmlFor="ajustement-motif">{t('reason')}</Label>
-              <Textarea id="ajustement-motif" rows={2} value={motif} onChange={(e) => setMotif(e.target.value)} />
+              <Textarea profil="texte-long" placeholder={t('reasonPlaceholder')} id="ajustement-motif" rows={2} value={motif} onChange={(e) => setMotif(e.target.value)} />
             </div>
             <Button type="submit" disabled={!valide || ajuster.isPending}>{t('adjustSubmit')}</Button>
           </form>

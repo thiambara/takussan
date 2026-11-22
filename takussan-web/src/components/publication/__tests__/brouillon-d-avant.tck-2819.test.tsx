@@ -92,7 +92,7 @@ async function relireLesValeurs(user: ReturnType<typeof userEvent.setup>) {
   expect(screen.getByRole('radio', { name: 'Mois' })).toHaveAttribute('aria-checked', 'true');
   await user.click(precedent()); //                                         → les caractéristiques
   await screen.findByRole('heading', { level: 1, name: /parlez-nous/i });
-  expect(screen.getByLabelText(/surface habitable/i)).toHaveValue(38);
+  expect(screen.getByLabelText(/surface habitable/i)).toHaveValue('38'); // ADR-0135 : un champ texte au pavé numérique
   await user.click(continuer()); //                                         → le prix
 }
 

@@ -136,10 +136,9 @@ export function VerifierLAdresse({ adresse: adresseInitiale, intention = null }:
           </label>
           <Input
             id="verification-adresse"
-            type="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            spellCheck={false}
+            profil="courriel"
+            enterKeyHint="send"
+            placeholder={t('correction.placeholder')}
             required
             value={correction}
             onChange={(e) => setCorrection(e.target.value)}

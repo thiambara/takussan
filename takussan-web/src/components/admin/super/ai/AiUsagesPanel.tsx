@@ -164,9 +164,8 @@ function UsageSettingsDialog({ row, taux, options, optionsError, pending, error,
           <div className="space-y-1">
             <Label htmlFor="daily-budget">{t('dailyBudget')}</Label>
             <Input
+              profil="decimal"
               id="daily-budget"
-              inputMode="decimal"
-              autoComplete="off"
               value={budget}
               placeholder={row.default_daily_budget_usd ?? undefined}
               aria-invalid={saisieInvalide}

@@ -134,12 +134,13 @@ export function ClaimListingCard({ listing, brouillon, onChange, disabled = fals
               {t('fieldTitle')}
             </label>
             <Input
+              profil="phrase"
               id={`${id}-title`}
               value={brouillon.title}
               maxLength={200}
               disabled={disabled}
               onChange={(e) => onChange({ ...brouillon, title: e.target.value })}
-             
+              placeholder={t('fieldTitlePlaceholder')}
             />
           </div>
           <div className="space-y-1.5">
@@ -147,9 +148,10 @@ export function ClaimListingCard({ listing, brouillon, onChange, disabled = fals
               {t('fieldPrice')}
             </label>
             <Input
+              profil="montant"
               id={`${id}-price`}
               value={brouillon.price}
-              inputMode="numeric"
+              placeholder={t('fieldPricePlaceholder')}
               disabled={disabled}
               onChange={(e) => onChange({ ...brouillon, price: e.target.value.replace(/\D/g, '').slice(0, 12) })}
               className="tabular-nums"
@@ -160,12 +162,14 @@ export function ClaimListingCard({ listing, brouillon, onChange, disabled = fals
               {t('fieldDescription')}
             </label>
             <Textarea
+              profil="texte-long"
               id={`${id}-description`}
               value={brouillon.description}
               rows={5}
               maxLength={20000}
               disabled={disabled}
               onChange={(e) => onChange({ ...brouillon, description: e.target.value })}
+              placeholder={t('fieldDescriptionPlaceholder')}
             />
             <p className="bg-card text-xs text-muted-foreground text-pretty">{t('phoneHint')}</p>
           </div>

@@ -89,6 +89,7 @@ export function ZoneMultiSelect({
             <Label htmlFor={labelHtmlFor}>{t('zonesLabel')}</Label>
           ) : null}
           <Input
+            profil="lieu"
             id={labelHtmlFor}
             value={draft}
             placeholder={placeholder ?? t('zonesPlaceholder')}

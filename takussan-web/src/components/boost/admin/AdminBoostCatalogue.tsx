@@ -72,8 +72,9 @@ export function AdminBoostCatalogue() {
       header: t('catalogue.colPrice'),
       cell: (p) => (
         <Input
+          profil="entier"
+          placeholder={t('catalogue.pricePlaceholder')}
           aria-label={`${t('catalogue.colPrice')} — ${libelle(p)}`}
-          inputMode="numeric"
           className="w-24"
           value={prix[p.id] ?? String(p.price_credits)}
           onChange={(e) => setPrix({ ...prix, [p.id]: e.target.value })}
@@ -144,12 +145,12 @@ export function AdminBoostCatalogue() {
           {nouvelle.kind !== 'bump' ? (
             <div className="space-y-1">
               <Label htmlFor="offre-duree">{t('catalogue.duration')}</Label>
-              <Input id="offre-duree" inputMode="numeric" value={nouvelle.duration} onChange={(e) => setNouvelle({ ...nouvelle, duration: e.target.value })} />
+              <Input profil="entier" placeholder={t('catalogue.durationPlaceholder')} id="offre-duree" value={nouvelle.duration} onChange={(e) => setNouvelle({ ...nouvelle, duration: e.target.value })} />
             </div>
           ) : null}
           <div className="space-y-1">
             <Label htmlFor="offre-prix">{t('catalogue.price')}</Label>
-            <Input id="offre-prix" inputMode="numeric" value={nouvelle.price} onChange={(e) => setNouvelle({ ...nouvelle, price: e.target.value })} />
+            <Input profil="entier" enterKeyHint="done" placeholder={t('catalogue.pricePlaceholder')} id="offre-prix" value={nouvelle.price} onChange={(e) => setNouvelle({ ...nouvelle, price: e.target.value })} />
           </div>
           <div>
             <Button type="button" disabled={!creationValide || creer.isPending} onClick={() => creer.mutate()}>{t('catalogue.create')}</Button>

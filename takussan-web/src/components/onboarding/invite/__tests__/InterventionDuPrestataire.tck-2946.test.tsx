@@ -123,8 +123,8 @@ describe('InterventionDuPrestataire — la carte complète et les réglages au b
   it('AC2 — Tarifs (F CFA) et 14 cases Matin / Après-midi préremplis depuis le profil', () => {
     monter();
     const bloc = screen.getByTestId('tarifs-et-disponibilites');
-    expect(within(bloc).getByLabelText(R.horaire)).toHaveValue(5000);
-    expect(within(bloc).getByLabelText(R.visite)).toHaveValue(3000);
+    expect(within(bloc).getByLabelText(R.horaire)).toHaveValue('5000'); // ADR-0135 : un champ texte au pavé numérique
+    expect(within(bloc).getByLabelText(R.visite)).toHaveValue('3000');
     const cases = within(bloc).getAllByRole('switch');
     expect(cases).toHaveLength(14);
     expect(cases.filter((c) => c.getAttribute('aria-checked') === 'true').map((c) => c.getAttribute('data-creneau'))).toEqual(['monday-morning']);

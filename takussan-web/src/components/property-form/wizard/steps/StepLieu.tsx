@@ -193,6 +193,7 @@ export function StepLieu({
                   control={control}
                   name="street"
                   label={t('fields.street')}
+                  profil="lieu"
                   placeholder={t('placeholders.street')}
                 />
               </div>
@@ -200,12 +201,15 @@ export function StepLieu({
                 control={control}
                 name="postal_code"
                 label={t('fields.postalCode')}
+                profil="mots"
                 placeholder={t('placeholders.postalCode')}
               />
               <FormInput
                 control={control}
                 name="country"
                 label={t('fields.country')}
+                profil="mots"
+                enterKeyHint="done"
                 placeholder={t('placeholders.country')}
                 maxLength={2}
               />

@@ -278,6 +278,7 @@ export function CreateDelegationDialog({
             <Label htmlFor="delegation-reason">{t('create.reason_label')}</Label>
             <Textarea
               id="delegation-reason"
+              profil="texte-long"
               rows={2}
               value={reason}
               placeholder={t('create.reason_placeholder')}

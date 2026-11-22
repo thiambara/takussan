@@ -120,6 +120,7 @@ function GlobalSearchDialog({ onClose }: { onClose: () => void }) {
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <Input
+          profil="recherche"
           autoFocus
           role="combobox"
           aria-expanded={ordre.length > 0}

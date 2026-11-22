@@ -72,7 +72,7 @@ export function RefuserLeDevis({ conversationId, interventionId, open, onOpenCha
         <label htmlFor={`${formulaire}-motif`} className="block text-sm font-medium">
           {t('motif')}
         </label>
-        <Textarea id={`${formulaire}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} maxLength={MOTIF_MAX} rows={3} />
+        <Textarea profil="texte-long" id={`${formulaire}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} placeholder={t('motifPlaceholder')} maxLength={MOTIF_MAX} rows={3} />
         <p className="text-xs text-muted-foreground">{t('aide', { min: MOTIF_MIN })}</p>
         {envoi.error ? (
           <p role="alert" className="text-xs text-destructive">

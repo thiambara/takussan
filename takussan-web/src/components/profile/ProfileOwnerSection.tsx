@@ -18,7 +18,7 @@ export async function ProfileOwnerSection(_props: ProfileOwnerSectionProps) {
       </div>
       <div className="space-y-1">
         <label className="text-xs font-semibold text-muted-foreground">{t('typeLabel')}</label>
-        <Input value="" disabled placeholder={t('comingSoon')} />
+        <Input profil="mots" value="" disabled placeholder={t('comingSoon')} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-card/60 p-4">

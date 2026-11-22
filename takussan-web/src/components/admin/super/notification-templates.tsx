@@ -163,6 +163,8 @@ export function TemplateEditor({
           <label className="block text-sm font-medium">
             <span className="mb-1 block">{t('subject')}</span>
             <Input
+              profil="phrase"
+              placeholder={t('subjectPlaceholder')}
               value={current.subject ?? ''}
               onChange={(event) => setTemplates((prev) => ({
                 ...prev,
@@ -177,6 +179,8 @@ export function TemplateEditor({
             {smsSegments ? <span className={cn('text-xs', smsSegments > 6 && 'text-destructive')}>{t('smsSegments', { count: smsSegments })}</span> : null}
           </span>
           <Textarea
+            profil="texte-long"
+            placeholder={t('bodyPlaceholder')}
             rows={detail.channel === 'email' ? 12 : 6}
             value={current.body}
             onChange={(event) => setTemplates((prev) => ({

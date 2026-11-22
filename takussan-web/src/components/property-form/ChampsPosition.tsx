@@ -53,6 +53,11 @@ export function ChampsPosition({
   const t = useTranslations('property.form.address');
   const assistant = presentation === 'assistant';
   const { control, setValue } = form;
+  // ADR-0135 — latitude et longitude sont des champs TEXTE (profil `coordonnee` : le pavé décimal d'iOS n'a pas de
+  // signe moins, et la longitude du Sénégal est négative) : ce qui est tapé (« 14, »,
+  // « -17. ») reste affiché tant qu'il se lit comme la valeur du formulaire, sans quoi la virgule
+  // s'effacerait à la frappe. Une valeur posée par la carte ou le collage l'emporte.
+  const [frappes, setFrappes] = useState<Partial<Record<'latitude' | 'longitude', string>>>({});
   const [regionIdSuivi, villeIdSuivi, latSuivie, lngSuivie] = useWatch({
     control,
     name: ['geo_region_id', 'geo_city_id', 'latitude', 'longitude'],
@@ -130,10 +135,11 @@ export function ChampsPosition({
             id="champ-collage"
             value={collage}
             onChange={(e) => setCollage(e.target.value)}
+            profil="recherche"
+            enterKeyHint="go"
             onPaste={surCollage}
             onKeyDown={surTouche}
             placeholder={t('pastePlaceholder')}
-            autoComplete="off"
             aria-describedby={retour ? 'champ-collage-retour' : undefined}
             className="min-h-11"
           />
@@ -173,13 +179,20 @@ export function ChampsPosition({
                 </label>
                 <Input
                   id={`champ-${nom}`}
-                  type="number"
-                  inputMode="decimal"
-                  step="any"
+                  profil="coordonnee"
+                  placeholder={t(`${nom}Placeholder`)}
                   ref={field.ref}
                   name={field.name}
-                  value={(field.value as number | string | null | undefined) ?? ''}
-                  onChange={(e) => field.onChange(nombreOuNul(e.target.value))}
+                  value={
+                    frappes[nom] !== undefined && nombreOuNul(frappes[nom] ?? '') === (field.value ?? null)
+                      ? frappes[nom]
+                      : ((field.value as number | string | null | undefined) ?? '')
+                  }
+                  onChange={(e) => {
+                    const saisie = e.target.value;
+                    setFrappes((f) => ({ ...f, [nom]: saisie }));
+                    field.onChange(nombreOuNul(saisie));
+                  }}
                   onBlur={field.onBlur}
                   aria-invalid={fieldState.error ? true : undefined}
                   aria-describedby={fieldState.error ? `champ-${nom}-error` : undefined}

@@ -369,6 +369,7 @@ function SaisieDuFil({ customer, demande }: { readonly customer: CustomerDetail;
     >
       <Textarea
         ref={champ}
+        profil="texte-long"
         value={texte}
         onChange={(e) => setTexte(e.target.value)}
         maxLength={mode === 'tache' ? 255 : 5000}

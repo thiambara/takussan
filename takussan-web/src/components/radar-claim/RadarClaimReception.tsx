@@ -599,10 +599,12 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
           {t('fieldFirstName')}
         </label>
         <Input
+          profil="nom"
           id="claim-first-name"
           value={prenom}
           maxLength={60}
           autoComplete="given-name"
+          placeholder={t('fieldFirstNamePlaceholder')}
           disabled={envoi}
           aria-invalid={prenomRefuse || undefined}
           aria-describedby={prenomRefuse ? 'claim-first-name-error' : undefined}
@@ -622,9 +624,12 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
           {t('fieldSpaceName')}
         </label>
         <Input
+          profil="nom"
           id="claim-space-name"
           value={nomEspace}
           maxLength={120}
+          autoComplete="organization"
+          placeholder={t('fieldSpaceNamePlaceholder')}
           aria-describedby={[espaceRefuse ? 'claim-space-name-error' : null, 'claim-space-name-hint'].filter(Boolean).join(' ')}
           aria-invalid={espaceRefuse || undefined}
           disabled={envoi}
@@ -700,10 +705,10 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
               {t('codeLabel')}
             </label>
             <Input
+              profil="code"
               id="claim-code"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              inputMode="numeric"
               autoComplete="one-time-code"
               pattern="\d{6}"
               maxLength={6}

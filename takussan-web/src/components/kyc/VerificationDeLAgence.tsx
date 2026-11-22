@@ -624,6 +624,8 @@ function EnvoiDePiece({
           </label>
           <Input
             id={`${id}-numero`}
+            profil="mots"
+            placeholder={t(`numero.placeholder.${type as 'rccm' | 'ninea'}`)}
             value={numero}
             maxLength={50}
             aria-describedby={`${id}-numero-aide`}

@@ -202,7 +202,7 @@ describe('TCK-2857 — « Nouvelle tâche » préremplie, « Annuler »', () => 
     const feuille = await screen.findByRole('dialog');
     fireEvent.click(within(feuille).getByRole('button', { name: 'Changer' }));
     fireEvent.click(within(feuille).getByRole('radio', { name: 'Un bien' }));
-    fireEvent.change(within(feuille).getByRole('textbox', { name: /Chercher un bien/ }), { target: { value: 'F2' } });
+    fireEvent.change(within(feuille).getByRole('searchbox', { name: /Chercher un bien/ }), { target: { value: 'F2' } });
     fireEvent.click(await within(feuille).findByRole('button', { name: 'F2 Grand Yoff' }, { timeout: 2000 }));
     expect(within(feuille).getByText('Bien')).toBeInTheDocument();
     expect(within(feuille).queryByText('Bien · prérempli depuis sa fiche')).toBeNull();

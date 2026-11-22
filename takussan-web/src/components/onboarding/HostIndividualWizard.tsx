@@ -355,6 +355,9 @@ function IdentityStep({ data, setData }: StepProps) {
           <Label htmlFor="agency-name">{t('fields.spaceName')}</Label>
           <Input
             id="agency-name"
+            profil="nom"
+            autoComplete="organization"
+            placeholder={t('placeholders.spaceName')}
             value={data.agency.name}
             onChange={(e) =>
               setData({ ...data, agency: { ...data.agency, name: e.target.value } })
@@ -366,6 +369,8 @@ function IdentityStep({ data, setData }: StepProps) {
           <Label htmlFor="agency-city">{t('fields.primaryCity')}</Label>
           <Input
             id="agency-city"
+            profil="lieu"
+            placeholder={t('placeholders.primaryCity')}
             value={data.agency.primary_city}
             onChange={(e) =>
               setData({
@@ -537,8 +542,8 @@ function PhoneOtpField({ data, setData }: StepProps) {
               <Label htmlFor="phone-otp-code">{t('fields.otpCode')}</Label>
               <Input
                 id="phone-otp-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
+                profil="code"
+                placeholder="123456"
                 maxLength={6}
                 className="tabular-nums tracking-widest"
                 value={data.phone_otp.code}

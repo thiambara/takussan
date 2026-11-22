@@ -131,7 +131,7 @@ export function DebouncedSearchInput({
       <Input
         ref={champ}
         id={id}
-        type="search"
+        profil="recherche"
         aria-label={ariaLabel}
         value={brouillon}
         onChange={(event) => {

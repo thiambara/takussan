@@ -111,7 +111,7 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
             aria-hidden
           />
           <Input
-            type="search"
+            profil="recherche"
             name="q"
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}

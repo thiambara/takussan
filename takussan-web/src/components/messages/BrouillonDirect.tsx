@@ -80,6 +80,7 @@ export function BrouillonDirect({ personne, onBack, onCreated }: BrouillonDirect
         sendAriaLabel={t('chat.sendAria')}
       >
         <Textarea
+          profil="message"
           rows={1}
           value={texte}
           onChange={(e) => setTexte(e.target.value)}

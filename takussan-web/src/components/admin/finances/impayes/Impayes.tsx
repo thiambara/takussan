@@ -265,7 +265,7 @@ export function Impayes({
                   <div className="relative ml-auto w-[17.5rem] min-w-0">
                     <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                     <Input
-                      type="search"
+                      profil="recherche"
                       value={frappe}
                       onChange={(e) => {
                         setFrappe(e.target.value);

@@ -170,7 +170,7 @@ export function ChoixAvecRecherche({
           <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
             ref={champ}
-            type="search"
+            profil="recherche"
             value={frappe}
             onChange={(e) => setFrappe(e.target.value)}
             placeholder={placeholder}

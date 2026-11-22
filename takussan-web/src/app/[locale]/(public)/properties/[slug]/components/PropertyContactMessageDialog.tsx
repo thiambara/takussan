@@ -87,6 +87,7 @@ function AuthenticatedDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Textarea
+            profil="texte-long"
             required
             rows={5}
             value={message}

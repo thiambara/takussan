@@ -26,7 +26,7 @@ import { Camera, FileText, Upload } from 'lucide-react';
 
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, type ProfilDeChamp } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { serialiserEtatBrouillon, useAutosaveBrouillon } from '@/hooks/useAutosaveBrouillon';
@@ -67,6 +67,15 @@ const ACCEPT_PHOTO = 'image/jpeg,image/png';
 
 type Champ = keyof AgencyUpgradeRequestFormFields;
 const CHAMPS_TEXTE = ['company_legal_name', 'rc', 'ninea', 'rib_pro', 'address_fiscale'] as const;
+
+/** ADR-0135 — le clavier de chaque champ : la raison sociale est un nom, l'adresse un lieu, le reste des références. */
+const PROFIL_DU_CHAMP = {
+  company_legal_name: 'nom',
+  rc: 'mots',
+  ninea: 'mots',
+  rib_pro: 'mots',
+  address_fiscale: 'lieu',
+} as const satisfies Record<(typeof CHAMPS_TEXTE)[number], ProfilDeChamp>;
 
 /** Le formulaire tel qu'il s'ouvre, avant tout brouillon. */
 function formulaireDeDepart(prefill: PreremplissageDeLaDemande | undefined, refusee: AgencyUpgradeRequest | null): AgencyUpgradeRequestFormFields {
@@ -255,10 +264,12 @@ export function UpgradeRequestForm({ agencyId, prefill, refusee = null }: Upgrad
           {td(`champs.${cle}`)}
         </label>
         <Input
+          profil={PROFIL_DU_CHAMP[cle]}
           id={idChamp}
           required={!refusee}
           value={form[cle]}
-          autoComplete="off"
+          autoComplete={cle === 'company_legal_name' ? 'organization' : 'off'}
+          placeholder={td(`exemples.${cle}`)}
           className={cn(cle === 'rib_pro' && 'tabular-nums')}
           onChange={(e) => update(cle, e.target.value)}
           aria-invalid={!!erreur}
@@ -310,14 +321,18 @@ export function UpgradeRequestForm({ agencyId, prefill, refusee = null }: Upgrad
               {t('fields.planned_agents_count')}
             </label>
             <Input
+              profil="entier"
               id={`${id}-agents`}
-              type="number"
-              inputMode="numeric"
               min={1}
               max={10000}
               className="lg:max-w-60"
               value={form.planned_agents_count ?? ''}
-              onChange={(e) => update('planned_agents_count', e.target.value === '' ? null : Number(e.target.value))}
+              placeholder={t('placeholders.planned_agents_count')}
+              onChange={(e) => {
+                // Un champ texte (ADR-0135) : on n'en garde que les chiffres, l'API juge la borne (1 à 10 000).
+                const chiffres = e.target.value.replace(/\D/g, '');
+                update('planned_agents_count', chiffres === '' ? null : Number(chiffres));
+              }}
               aria-invalid={!!fieldError('planned_agents_count')}
               aria-describedby={`${id}-agents-aide${fieldError('planned_agents_count') ? ` ${id}-agents-erreur` : ''}`}
             />

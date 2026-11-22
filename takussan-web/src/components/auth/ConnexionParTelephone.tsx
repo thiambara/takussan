@@ -390,7 +390,7 @@ export function ConnexionParTelephone({ onConnecte, onEmail, intention = null, r
                     : e.target.value.replace(/\D/g, '').slice(0, 6),
                 )
               }
-              inputMode={codeDeSecours ? 'text' : 'numeric'}
+              profil={codeDeSecours ? 'identifiant' : 'code'}
               autoComplete="one-time-code"
               placeholder={codeDeSecours ? t2fa('recoveryPlaceholder') : t2fa('codePlaceholder')}
               className="tabular-nums tracking-widest"

@@ -135,7 +135,7 @@ function ChangerLeCreneau({ demande, open, onOpenChange }: { readonly demande: M
         <label htmlFor={`creneau-note-${demande.id}`} className="block text-sm font-medium">
           {t('note')}
         </label>
-        <Textarea id={`creneau-note-${demande.id}`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX} rows={2} placeholder={t('exemple')} />
+        <Textarea profil="texte-long" id={`creneau-note-${demande.id}`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX} rows={2} placeholder={t('exemple')} />
         <p className="text-xs text-muted-foreground">{t('attente')}</p>
         {envoi.error ? (
           <p role="alert" className="text-xs text-destructive">

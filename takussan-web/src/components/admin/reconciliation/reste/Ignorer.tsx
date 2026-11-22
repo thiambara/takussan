@@ -153,6 +153,8 @@ export function FenetreIgnorer({
             <Label htmlFor="ignorer-note">{t('note')}</Label>
             <Textarea
               id="ignorer-note"
+              profil="texte-long"
+              placeholder={t('noteExemple')}
               ref={noteRef}
               value={note}
               maxLength={NOTE_MAX}

@@ -72,9 +72,10 @@ describe('AdminAgencySubscriptionPanel — modifier les dérogations', () => {
     rendre();
 
     const carte = await screen.findByRole('region', { name: 'Modifier les dérogations' });
-    expect(within(carte).getByLabelText('Commission dérogée (%)')).toHaveValue(1);
-    expect(within(carte).getByLabelText('Quota d’agents dérogé')).toHaveValue(20);
-    expect(within(carte).getByLabelText('Quota de biens actifs dérogé')).toHaveValue(null);
+    // ADR-0135 — des champs TEXTE (profils `decimal`, `entier`) : la valeur affichée est une chaîne.
+    expect(within(carte).getByLabelText('Commission dérogée (%)')).toHaveValue('1');
+    expect(within(carte).getByLabelText('Quota d’agents dérogé')).toHaveValue('20');
+    expect(within(carte).getByLabelText('Quota de biens actifs dérogé')).toHaveValue('');
 
     await user.type(within(carte).getByLabelText('Quota de biens actifs dérogé'), '150');
     await user.click(within(carte).getByRole('button', { name: 'Enregistrer les dérogations' }));

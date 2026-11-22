@@ -160,9 +160,9 @@ export function ChampsDeLaPreuve({
       </label>
       <Input
         id={`${id}-ref`}
+        profil="reference"
         value={etat.reference}
         maxLength={100}
-        autoComplete="off"
         required={etat.moyen !== 'cash'}
         placeholder={etat.moyen === 'cash' ? t('referenceFacultative') : undefined}
         aria-invalid={erreurReference ? true : undefined}
@@ -332,6 +332,7 @@ function ChoixDuMotif({
           </label>
           <Textarea
             id={`${id}-precision`}
+            profil="texte-long"
             value={precision}
             maxLength={500}
             rows={3}

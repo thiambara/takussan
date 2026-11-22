@@ -154,10 +154,11 @@ export function PublicSearchAlertForm({ criteria, name, loginHref, onClose }: Pu
         <div className="space-y-2">
           <Label htmlFor="public-alert-code">{t('codeLabel')}</Label>
           <Input
+            profil="code"
             id="public-alert-code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            inputMode="numeric"
+            placeholder="123456"
             autoComplete="one-time-code"
             maxLength={10}
             required
@@ -211,10 +212,11 @@ export function PublicSearchAlertForm({ criteria, name, loginHref, onClose }: Pu
         <div className="space-y-2">
           <Label htmlFor="public-alert-email">{t('emailLabel')}</Label>
           <Input
+            profil="courriel"
             id="public-alert-email"
-            type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder={t('emailPlaceholder')}
             autoComplete="email"
             maxLength={255}
           />

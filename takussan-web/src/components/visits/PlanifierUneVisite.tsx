@@ -452,6 +452,9 @@ export function PlanifierDialog({
                   </label>
                   <Input
                     id="plan-name"
+                    profil="nom"
+                    autoComplete="off"
+                    placeholder={t('nameExemple')}
                     value={nom}
                     onChange={(e) => setNom(e.target.value)}
                     aria-invalid={erreurs.name ? true : undefined}
@@ -606,7 +609,7 @@ export function PlanifierDialog({
             <label htmlFor="plan-note" className="mb-1.5 block text-sm font-medium">
               {t('note')} <span className="font-normal text-muted-foreground">{t('optional')}</span>
             </label>
-            <Textarea id="plan-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('notePlaceholder')} />
+            <Textarea profil="texte-long" id="plan-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('notePlaceholder')} />
           </div>
         )}
 

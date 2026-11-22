@@ -215,9 +215,8 @@ function ChampMontant({
     <Input
       {...inputProps}
       id={id}
-      type="text"
-      inputMode={decimales > 0 ? 'decimal' : 'numeric'}
-      autoComplete="off"
+      // ADR-0135 — `montant` (le franc CFA n'a pas de décimales), `decimal` pour une devise qui en a.
+      profil={decimales > 0 ? 'decimal' : 'montant'}
       aria-invalid={hasError || undefined}
       aria-describedby={[hasError ? errorId : null, decritPar ?? null].filter(Boolean).join(' ') || undefined}
       aria-required={required || undefined}

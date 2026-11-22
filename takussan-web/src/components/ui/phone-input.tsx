@@ -147,9 +147,12 @@ export function PhoneInput({
         <Input
           {...props}
           id={id ?? idAuto}
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
+          // ADR-0135 — le profil `telephone` ; l'indicatif est affiché à part, la saisie automatique propose
+          // donc le numéro NATIONAL — le numéro complet en mode international.
+          profil="telephone"
+          autoComplete={international ? 'tel' : 'tel-national'}
+          // ADR-0135 § 3 — un exemple de numéro, sauf celui que l'appelant donne.
+          placeholder={props.placeholder ?? (international ? t('placeholderInternational') : t('placeholderNational'))}
           disabled={disabled}
           value={saisie}
           onChange={(e) => {

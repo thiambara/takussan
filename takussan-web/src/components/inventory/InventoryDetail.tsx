@@ -481,6 +481,7 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
             {t('disputeReason')}
           </label>
           <Textarea
+            profil="texte-long"
             id="dispute-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}

@@ -78,10 +78,30 @@ describe('ChampsPosition', () => {
     coller('14.6937, -17.4441');
 
     expect(valeurs()).toMatchObject({ latitude: 14.6937, longitude: -17.4441 });
-    expect(screen.getByLabelText(/^latitude$/i)).toHaveValue(14.6937);
-    expect(screen.getByLabelText(/^longitude$/i)).toHaveValue(-17.4441);
+    expect(screen.getByLabelText(/^latitude$/i)).toHaveValue('14.6937');
+    expect(screen.getByLabelText(/^longitude$/i)).toHaveValue('-17.4441');
     expect(screen.getByRole('status')).toHaveTextContent(/position placée sur la carte/i);
     expect(screen.getByTestId('carte')).toHaveAttribute('data-position', '14.6937,-17.4441');
+  });
+
+  it('ADR-0135 — la latitude tapée garde sa virgule à l’écran et part en nombre ; un collage la remplace', async () => {
+    const valeurs = harnais();
+    const latitude = screen.getByLabelText(/^latitude$/i);
+    // Le profil `coordonnee` : le clavier complet, dont la rangée de chiffres porte le signe moins (−17,4).
+    expect(latitude).toHaveAttribute('data-profil', 'coordonnee');
+    expect(latitude).toHaveAttribute('inputmode', 'text');
+
+    await userEvent.type(latitude, '14,');
+    expect(latitude).toHaveValue('14,');
+    await userEvent.type(latitude, '5');
+    expect(latitude).toHaveValue('14,5');
+    expect(valeurs().latitude).toBe(14.5);
+
+    coller('14.6937, -17.4441');
+    expect(latitude).toHaveValue('14.6937');
+
+    await userEvent.clear(latitude);
+    expect(valeurs().latitude).toBeNull();
   });
 
   it('un Plus Code COURT se lit à partir de la ville choisie', () => {

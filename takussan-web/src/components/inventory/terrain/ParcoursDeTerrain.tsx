@@ -324,6 +324,7 @@ function Parcours({
               ) : (
                 <div className="flex gap-2 border-t border-border p-2">
                   <Input
+                    profil="mots"
                     ref={curseurALApparition}
                     aria-label={t('demarrer.nomDeLaPiece')}
                     placeholder={t('demarrer.nomDeLaPiece')}

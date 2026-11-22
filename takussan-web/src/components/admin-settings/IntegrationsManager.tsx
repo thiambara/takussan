@@ -493,6 +493,7 @@ function IntegrationDialog({
             </label>
             <Input
               id="int-provider"
+              profil="identifiant"
               list="int-provider-suggestions"
               value={values.provider}
               onChange={(e) => setValues((v) => ({ ...v, provider: e.target.value }))}
@@ -556,7 +557,7 @@ function IntegrationDialog({
                 </label>
                 <Input
                   id="int-webhook"
-                  type="url"
+                  profil="url"
                   value={values.webhook_url}
                   onChange={(e) => setValues((v) => ({ ...v, webhook_url: e.target.value }))}
                   placeholder={t('fields.webhookPlaceholder')}
@@ -571,6 +572,7 @@ function IntegrationDialog({
             </label>
             <Textarea
               id="int-notes"
+              profil="texte-long"
               value={values.notes}
               onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
               rows={2}
@@ -673,6 +675,7 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-orange-sender-address"
+              profil="identifiant"
               value={values.sms_sender_address}
               onChange={(e) => onChange({ sms_sender_address: e.target.value })}
               placeholder="tel:+221771234567"
@@ -686,6 +689,7 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-orange-sender-name"
+              profil="reference"
               value={values.sms_sender_name}
               onChange={(e) => onChange({ sms_sender_name: e.target.value })}
               placeholder="TAKUSSAN"
@@ -721,6 +725,7 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-mtarget-sender-id"
+              profil="reference"
               value={values.sms_sender_id}
               onChange={(e) => onChange({ sms_sender_id: e.target.value })}
               placeholder="TAKUSSAN"
@@ -735,8 +740,10 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-mtarget-service-id"
+              profil="identifiant"
               value={values.sms_service_id}
               onChange={(e) => onChange({ sms_service_id: e.target.value })}
+              placeholder={t('fields.serviceIdPlaceholder')}
               autoComplete="off"
             />
             <FormError>{errors.sms_service_id?.[0]}</FormError>
@@ -768,6 +775,7 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-lam-sender-id"
+              profil="identifiant"
               value={values.sms_sender_id}
               onChange={(e) => onChange({ sms_sender_id: e.target.value })}
               placeholder="Takussan"
@@ -782,7 +790,7 @@ function SmsProviderFieldset({
             </label>
             <Input
               id="int-lam-host"
-              type="url"
+              profil="url"
               value={values.sms_host}
               onChange={(e) => onChange({ sms_host: e.target.value })}
               placeholder="https://lampush-tls.lafricamobile.com"
@@ -835,6 +843,7 @@ function PaymentProviderFieldset({ schema, mode, values, errors, onChange }: Pay
             </label>
             <Input
               id={id}
+              profil="identifiant"
               value={values[field.name] ?? ''}
               onChange={(e) => onChange(field.name, e.target.value)}
               placeholder={mode === 'edit' ? t('fields.secretUnchanged') : ''}
@@ -873,6 +882,8 @@ function SecretInput({ id, label, value, onChange, placeholder, error }: SecretI
       <div className="relative">
         <Input
           id={id}
+          // ADR-0135 — `mot-de-passe` règle le clavier ; le `type` reste calculé (le bouton « Afficher »).
+          profil="mot-de-passe"
           type={reveal ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}

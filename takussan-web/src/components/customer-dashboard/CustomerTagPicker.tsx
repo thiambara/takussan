@@ -305,7 +305,7 @@ export function CustomerTagPicker({
 
       <div className="relative">
         <Input
-          type="text"
+          profil="mots"
           role="combobox"
           aria-label={t('inputLabel')}
           aria-autocomplete="list"

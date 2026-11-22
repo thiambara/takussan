@@ -212,6 +212,7 @@ export function CsvMappingForm({ agencyId, initial }: CsvMappingFormProps) {
         <Label htmlFor={ID_DE_COLONNE[cle]}>{t(`colonnes.${cle}`)}</Label>
         <Input
           id={ID_DE_COLONNE[cle]}
+          profil="identifiant"
           value={valeur}
           placeholder={t('exemple', { exemple: t(`exemples.${cle}`) })}
           aria-invalid={manquante || undefined}

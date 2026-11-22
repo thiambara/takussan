@@ -142,6 +142,8 @@ export function ApercuMessage({
                 {salut ? t('salutation') : t('resume')}
               </Label>
               <Textarea
+                profil="texte-long"
+                placeholder={salut ? t('salutationPlaceholder') : t('resumePlaceholder')}
                 id={salut ? idSalutation : idResume}
                 value={salut ? salutation : resume}
                 maxLength={salut ? RADAR_SALUTATION_MAX : RADAR_SUMMARY_MAX}

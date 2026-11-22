@@ -114,7 +114,7 @@ export function NouvelleTache({ maintenant, moi, nomDeMoi, membres, rattachement
         <label htmlFor={idTitre} className="mb-1.5 block text-sm font-medium">
           {t('titre')}
         </label>
-        <Input id={idTitre} value={titre} onChange={(e) => setTitre(e.target.value)} maxLength={255} placeholder={t('titreExemple')} />
+        <Input profil="phrase" id={idTitre} value={titre} onChange={(e) => setTitre(e.target.value)} maxLength={255} placeholder={t('titreExemple')} />
       </div>
 
       <fieldset>
@@ -189,7 +189,7 @@ export function NouvelleTache({ maintenant, moi, nomDeMoi, membres, rattachement
                 </button>
               ))}
             </div>
-            <Input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder={t(`chercher.${genre}`)} aria-label={t(`chercher.${genre}`)} />
+            <Input profil="recherche" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder={t(`chercher.${genre}`)} aria-label={t(`chercher.${genre}`)} />
             {(options.data ?? []).length > 0 ? (
               <ul className="divide-y divide-border rounded-lg border border-border bg-card">
                 {(options.data ?? []).map((o) => (

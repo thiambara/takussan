@@ -461,6 +461,7 @@ function NotesGenerales({ inventory, modifiable }: { readonly inventory: Invento
       </label>
       {modifiable ? (
         <Textarea
+          profil="texte-long"
           id={id}
           value={notes}
           rows={3}

@@ -122,7 +122,8 @@ function buildCriteria(
     if (cities.length > 0) criteria.cities = cities;
   }
 
-  const budgetNum = values.budget.trim() === '' ? null : Number(values.budget);
+  // ADR-0135 — le budget est un champ texte : « 150 000 » vaut 150000.
+  const budgetNum = values.budget.trim() === '' ? null : Number(values.budget.replace(/[\s\u202f\u00a0]/g, ''));
   if (typeof budgetNum === 'number' && Number.isFinite(budgetNum) && budgetNum > 0) {
     criteria.price_max = budgetNum;
   }
@@ -252,12 +253,11 @@ export function SearchPreferencesForm({
           </label>
           <Input
             id="pref-budget"
-            type="number"
-            inputMode="numeric"
+            profil="montant"
             min={0}
             value={values.budget}
             onChange={(e) =>
-              setValues((v) => ({ ...v, budget: e.target.value }))
+              setValues((v) => ({ ...v, budget: e.target.value.replace(/[^\d\s\u202f\u00a0]/g, '') }))
             }
             placeholder={t('budgetPlaceholder')}
             data-testid="pref-budget"
@@ -273,6 +273,7 @@ export function SearchPreferencesForm({
           </label>
           <Input
             id="pref-cities"
+            profil="lieu"
             value={values.cities}
             onChange={(e) =>
               setValues((v) => ({ ...v, cities: e.target.value }))

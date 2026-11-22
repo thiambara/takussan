@@ -103,7 +103,7 @@ export function ProposerUnAutreMoment({
         <label htmlFor={`${formulaire}-note`} className="block text-sm font-medium">
           {t('note')}
         </label>
-        <Textarea id={`${formulaire}-note`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX} rows={2} placeholder={t('exemple')} />
+        <Textarea profil="texte-long" id={`${formulaire}-note`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={NOTE_MAX} rows={2} placeholder={t('exemple')} />
         <p className="text-xs text-muted-foreground">{t('attente')}</p>
         {envoi.error ? (
           <p role="alert" className="text-xs text-destructive">

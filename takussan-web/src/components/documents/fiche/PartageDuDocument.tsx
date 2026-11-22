@@ -344,8 +344,7 @@ function FormulaireDePartage({
             <Label htmlFor={`${base}-mdp`}>{t('motDePasse')}</Label>
             <Input
               id={`${base}-mdp`}
-              type="password"
-              autoComplete="new-password"
+              profil="nouveau-mot-de-passe"
               value={motDePasse}
               onChange={(e) => {
                 setMotDePasse(e.target.value);

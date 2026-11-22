@@ -391,6 +391,7 @@ export function ModerationDetail({
             </label>
             <Textarea
               id={idReponse}
+              profil="texte-long"
               value={reponse}
               onChange={(e) => setReponse(e.target.value)}
               rows={4}
@@ -437,6 +438,7 @@ export function ModerationDetail({
             </label>
             <Textarea
               id={`${idReponse}-motif`}
+              profil="texte-long"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}

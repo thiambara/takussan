@@ -343,8 +343,8 @@ function ChampsDuGarant({
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormInput control={control} name={champ('first_name')} label={t('firstName')} required />
-        <FormInput control={control} name={champ('last_name')} label={t('lastName')} required />
+        <FormInput control={control} name={champ('first_name')} label={t('firstName')} profil="nom" autoComplete="off" placeholder={t('firstNameExemple')} required />
+        <FormInput control={control} name={champ('last_name')} label={t('lastName')} profil="nom" autoComplete="off" placeholder={t('lastNameExemple')} required />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {/* TCK-913 — `PhoneInput` : clavier téléphonique, indicatif en préfixe, valeur E.164. */}
@@ -370,27 +370,27 @@ function ChampsDuGarant({
             </div>
           )}
         />
-        <FormInput control={control} name={champ('email')} type="email" label={t('email')} />
+        <FormInput control={control} name={champ('email')} profil="courriel" autoComplete="off" label={t('email')} placeholder={t('emailExemple')} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormSelect control={control} name={champ('id_type')} label={t('idType')} placeholder={t('idTypePlaceholder')} options={idTypeOptions} />
         <div>
-          <FormInput control={control} name={champ('id_number')} label={t('idNumber')} />
+          <FormInput control={control} name={champ('id_number')} profil="mots" label={t('idNumber')} placeholder={t('idNumberExemple')} />
           {aideDeLaPiece ? <p className="mt-1 text-ui text-muted-foreground">{aideDeLaPiece}</p> : null}
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormInput control={control} name={champ('occupation')} label={t('occupation')} />
-        <FormInput control={control} name={champ('employer')} label={t('employer')} />
+        <FormInput control={control} name={champ('occupation')} profil="mots" label={t('occupation')} placeholder={t('occupationExemple')} />
+        <FormInput control={control} name={champ('employer')} profil="nom" autoComplete="organization" label={t('employer')} placeholder={t('employerExemple')} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <FormInput control={control} name={champ('monthly_income')} type="number" label={t('monthlyIncome')} min={0} />
+          <FormInput control={control} name={champ('monthly_income')} profil="montant" label={t('monthlyIncome')} placeholder={t('monthlyIncomeExemple')} />
           {aideDuRevenu ? <p className="mt-1 text-ui text-muted-foreground">{aideDuRevenu}</p> : null}
         </div>
-        <FormInput control={control} name={champ('relationship_to_tenant')} label={t('relationshipToTenant')} placeholder={t('relationshipPlaceholder')} />
+        <FormInput control={control} name={champ('relationship_to_tenant')} profil="mots" label={t('relationshipToTenant')} placeholder={t('relationshipPlaceholder')} />
       </div>
-      <FormTextarea control={control} name={champ('notes')} label={t('notes')} rows={2} />
+      <FormTextarea control={control} name={champ('notes')} profil="texte-long" label={t('notes')} placeholder={t('notesExemple')} rows={2} />
     </>
   );
 }

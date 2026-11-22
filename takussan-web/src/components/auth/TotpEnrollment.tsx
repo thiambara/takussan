@@ -191,7 +191,7 @@ export function TotpEnrollment({ mode, onComplete, onSkip, onEtape }: TotpEnroll
           </label>
           <Input
             id="totp-enrollment-code"
-            inputMode="numeric"
+            profil="code"
             pattern="\d{6}"
             maxLength={6}
             value={code}

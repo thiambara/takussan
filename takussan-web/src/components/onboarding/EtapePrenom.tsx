@@ -88,7 +88,9 @@ export function EtapePrenom() {
           <Input
             id="etape-prenom"
             name="first_name"
+            profil="nom"
             autoComplete="given-name"
+            placeholder={t('prenomPlaceholder')}
             autoFocus
             maxLength={100}
             value={prenom}
@@ -105,7 +107,10 @@ export function EtapePrenom() {
           <Input
             id="etape-nom"
             name="last_name"
+            profil="nom"
             autoComplete="family-name"
+            enterKeyHint="done"
+            placeholder={t('nomPlaceholder')}
             maxLength={100}
             value={nom}
             onChange={(e) => setNom(e.target.value)}

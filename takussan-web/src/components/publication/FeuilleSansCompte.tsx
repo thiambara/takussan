@@ -319,13 +319,13 @@ export function FeuilleSansCompte({
                 <label htmlFor="feuille-prenom" className="mb-1.5 block w-fit text-sm font-medium text-foreground">
                   {tContact('firstNameLabel')}
                 </label>
-                <Input id="feuille-prenom" className="lg:text-action" value={prenom} maxLength={100} autoComplete="given-name" disabled={occupe} onChange={(e) => setPrenom(e.target.value)} />
+                <Input id="feuille-prenom" profil="nom" placeholder={tContact('firstNamePlaceholder')} className="lg:text-action" value={prenom} maxLength={100} autoComplete="given-name" disabled={occupe} onChange={(e) => setPrenom(e.target.value)} />
               </div>
               <div>
                 <label htmlFor="feuille-nom" className="mb-1.5 block w-fit text-sm font-medium text-foreground">
                   {tContact('lastNameLabel')}
                 </label>
-                <Input id="feuille-nom" className="lg:text-action" value={nom} maxLength={100} autoComplete="family-name" disabled={occupe} onChange={(e) => setNom(e.target.value)} />
+                <Input id="feuille-nom" profil="nom" placeholder={tContact('lastNamePlaceholder')} className="lg:text-action" value={nom} maxLength={100} autoComplete="family-name" disabled={occupe} onChange={(e) => setNom(e.target.value)} />
               </div>
             </div>
             <p className="mt-1.5 text-ui leading-snug text-muted-foreground">{t('nomsAide')}</p>
@@ -373,7 +373,7 @@ export function FeuilleSansCompte({
                   entree.codeDeSecours ? e.target.value.toUpperCase().slice(0, 11) : e.target.value.replace(/\D/g, '').slice(0, 6),
                 )
               }
-              inputMode={entree.codeDeSecours ? 'text' : 'numeric'}
+              profil={entree.codeDeSecours ? 'identifiant' : 'code'}
               autoComplete="one-time-code"
               placeholder={entree.codeDeSecours ? t2fa('recoveryPlaceholder') : t2fa('codePlaceholder')}
               className="tabular-nums tracking-widest"

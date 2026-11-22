@@ -1,3 +1,4 @@
+import { lireNombre } from '@/lib/clavier';
 import { CHAMPS_D_UNE_CARTE, type InterventionEnFile } from '@/lib/maintenance/files';
 import { lundiDe } from '@/lib/agenda/agenda';
 import { decalerJour } from '@/lib/jour-de-l-api';
@@ -165,8 +166,6 @@ export function montantAFacturer(brouillon: Pick<ServiceProviderBill, 'amount'>)
 
 /** TCK-2919 — un montant saisi valide : un nombre strictement positif (`gt:0` de l'API). */
 export function montantSaisiValide(saisi: string): number | null {
-  const propre = saisi.replace(/[\s  ]/g, '').replace(',', '.');
-  if (propre === '') return null;
-  const n = Number(propre);
-  return Number.isFinite(n) && n > 0 ? n : null;
+  const n = lireNombre(saisi); // ADR-0135 : « 150 000 », « 150,000 », « 12,5 »
+  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : null;
 }
