@@ -136,8 +136,8 @@ export function PreuveRecente({ onValide, onAnnuler }: PreuveRecenteProps) {
         <Input
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          inputMode="numeric"
-          autoComplete="one-time-code"
+          profil="code"
+          placeholder="123456"
           pattern="\d{6}"
           maxLength={6}
           required

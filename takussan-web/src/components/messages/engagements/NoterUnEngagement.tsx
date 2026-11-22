@@ -149,7 +149,7 @@ export function NoterUnEngagement({ conversationId, message, participants, moi, 
           <label htmlFor={`${formulaire}-titre`} className="mb-1.5 text-sm font-medium">
             {t('aQuoi')}
           </label>
-          <Input id={`${formulaire}-titre`} value={titre} onChange={(e) => setTitre(e.target.value)} maxLength={TITRE_MAX} placeholder={t('exemple')} />
+          <Input profil="phrase" id={`${formulaire}-titre`} value={titre} onChange={(e) => setTitre(e.target.value)} maxLength={TITRE_MAX} placeholder={t('exemple')} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

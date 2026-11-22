@@ -270,14 +270,16 @@ export function PayoutMethodsSection() {
             </Label>
             <Input
               id="payout-method-identifier"
+              profil={kind === 'bank_transfer' ? 'mots' : 'telephone'}
               autoComplete="off"
+              placeholder={kind === 'bank_transfer' ? t('ibanPlaceholder') : t('phonePlaceholder')}
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
             />
           </div>
           <div className="space-y-1">
             <Label htmlFor="payout-method-holder">{t('holder')}</Label>
-            <Input id="payout-method-holder" value={holder} onChange={(e) => setHolder(e.target.value)} />
+            <Input id="payout-method-holder" profil="nom" enterKeyHint="done" placeholder={t('holderPlaceholder')} value={holder} onChange={(e) => setHolder(e.target.value)} />
           </div>
           <Button type="button" className="sm:justify-self-start" disabled={identifier.trim() === '' || create.isPending} onClick={() => void add()}>
             {t('add')}

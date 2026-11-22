@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { UserPlus, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, type ProfilDeChamp } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
@@ -46,6 +46,14 @@ function useMessageDuRefus(): (erreur: unknown) => string {
 }
 
 const VIDE: GarantSaisi = { first_name: '', last_name: '', phone: '', relationship_to_tenant: '' };
+
+/** ADR-0135 — le clavier de chaque champ du garant. La saisie automatique reste coupée : c'est un tiers, pas l'utilisateur. */
+const PROFIL_DU_GARANT = {
+  first_name: 'nom',
+  last_name: 'nom',
+  phone: 'telephone',
+  relationship_to_tenant: 'mots',
+} as const satisfies Record<keyof GarantSaisi, ProfilDeChamp>;
 
 export function GarantsDeLaCandidature({ booking }: { readonly booking: Booking }) {
   const t = useTranslations('bookings.fiche.garants');
@@ -111,7 +119,10 @@ function FeuilleDuGarant({ bookingId, onOpenChange }: { readonly bookingId: numb
     <div>
       <Label htmlFor={`${formId}-${nom}`}>{libelle}</Label>
       <Input
+        profil={PROFIL_DU_GARANT[nom]}
+        autoComplete="off"
         id={`${formId}-${nom}`}
+        placeholder={t(`exemples.${nom}`)}
         className="mt-1.5"
         required={requis}
         value={valeurs[nom] ?? ''}

@@ -168,6 +168,7 @@ function Quartiers({ id, valeur, villes, onChange }: { readonly id: string; read
         ))}
         {/* La primitive, dépouillée de son cadre : c'est le conteneur qui porte la bordure et l'anneau. */}
         <Input
+          profil="lieu"
           id={id}
           value={saisie}
           onChange={(e) => setSaisie(e.target.value)}

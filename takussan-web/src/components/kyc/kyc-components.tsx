@@ -123,6 +123,7 @@ export function KycReviewPanel({ dossier, agencyId }: { dossier: KycDossier; age
         </div>
         <SharedIdentifiersNotice shared={dossier.shared_identifiers} />
         <Textarea
+          profil="texte-long"
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           placeholder={t('review.reasonPlaceholder')}

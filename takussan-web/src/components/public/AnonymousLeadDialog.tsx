@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { MentionDeConfidentialite } from '@/components/public/MentionDeConfidentialite';
 import { arrivee } from '@/lib/attribution';
+import { profil } from '@/lib/clavier';
 import { lireCoordonnees, retenirCoordonnees } from '@/lib/coordonnees-retenues';
 import type { AnonymousLeadPayload } from '@/types/contact-lead';
 import { useCleIdempotence } from '@/hooks/useCleIdempotence';
@@ -163,10 +164,12 @@ export function AnonymousLeadDialog({
               {t('name')}
             </label>
             <Input
+              profil="nom"
               id={`${idPrefix}-name`}
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
+              placeholder={tContact('namePlaceholder')}
               required
             />
             {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name}</p>}
@@ -179,11 +182,12 @@ export function AnonymousLeadDialog({
               {t('email')}
             </label>
             <Input
+              profil="courriel"
               id={`${idPrefix}-email`}
-              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
+              placeholder={tContact('emailPlaceholder')}
             />
             {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
           </div>
@@ -215,6 +219,7 @@ export function AnonymousLeadDialog({
               {t('message')}
             </label>
             <Textarea
+              profil="texte-long"
               id={`${idPrefix}-message`}
               rows={5}
               value={message}
@@ -234,10 +239,11 @@ export function AnonymousLeadDialog({
           >
             <label htmlFor={`${idPrefix}-company`}>Company</label>
             <input
+              {...profil('mots')}
               id={`${idPrefix}-company`}
-              type="text"
               tabIndex={-1}
               autoComplete="off"
+              placeholder={t('companyPlaceholder')}
               value={company}
               onChange={(e) => setCompany(e.target.value)}
             />

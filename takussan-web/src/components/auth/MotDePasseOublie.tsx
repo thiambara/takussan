@@ -154,10 +154,9 @@ export function MotDePasseOublie({ intention = null }: { readonly intention?: In
           <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground lg:hidden" strokeWidth={1.5} aria-hidden="true" />
           <Input
             id="oubli-email"
-            type="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            spellCheck={false}
+            profil="courriel"
+            enterKeyHint="send"
+            placeholder={t('emailPlaceholder')}
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}

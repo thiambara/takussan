@@ -287,6 +287,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
             aria-hidden
           />
           <Input
+            profil="recherche"
             ref={champ}
             role="combobox"
             aria-label={t('champ')}

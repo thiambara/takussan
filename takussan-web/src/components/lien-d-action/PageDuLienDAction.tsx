@@ -380,10 +380,11 @@ function Signature({ jeton, envoi, onSigner }: { readonly jeton: string; readonl
         {codeEnvoye ? (
           <>
             <Input
+              profil="code"
               className="mt-2 text-center text-xl font-semibold tracking-[0.4em] tabular-nums"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              inputMode="numeric"
+              placeholder="123456"
               autoComplete="one-time-code"
               maxLength={6}
               aria-label={t('codeAria')}

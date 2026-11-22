@@ -202,8 +202,8 @@ export function ShareReception({ token }: ShareReceptionProps) {
           <div className="space-y-1.5">
             <Label htmlFor="share-password">{t('passwordLabel')}</Label>
             <Input
+              profil="mot-de-passe"
               id="share-password"
-              type="password"
               autoComplete="off"
               autoFocus
               value={motDePasse}

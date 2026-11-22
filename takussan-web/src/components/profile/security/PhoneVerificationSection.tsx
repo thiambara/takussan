@@ -122,7 +122,7 @@ export function PhoneVerificationSection({
       {!verified && phone && sent ? (
         <form onSubmit={handleVerify} className="flex flex-col gap-2 sm:flex-row">
           <Input
-            inputMode="numeric"
+            profil="code"
             pattern="\d{6}"
             maxLength={6}
             value={code}

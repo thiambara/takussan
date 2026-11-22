@@ -140,7 +140,7 @@ export default function NotFound() {
           {/* La primitive (TCK-2460), sans sa bordure : la coque arrondie porte le champ et son
               anneau de focus, comme la barre de recherche du site. */}
           <Input
-            type="search"
+            profil="recherche"
             name="q"
             aria-label={t('searchLabel')}
             placeholder={t('searchPlaceholder')}

@@ -158,7 +158,7 @@ describe('<UpgradeRequestForm> — préremplissage et reprise (TCK-2671)', () =>
     render(withIntl(<UpgradeRequestForm agencyId={42} prefill={{ company_legal_name: 'Dakar Immo SARL', rc: 'SN-1' }} />));
     expect(screen.getByLabelText('RCCM')).toHaveValue('RC-BROUILLON');
     expect(screen.getByLabelText('Raison sociale')).toHaveValue('Dakar Immo SARL');
-    expect(screen.getByLabelText(/Nombre estimé d.agents/i)).toHaveValue(3);
+    expect(screen.getByLabelText(/Nombre estimé d.agents/i)).toHaveValue('3');
   });
 
   it('AC4 — reprise d’une demande refusée : préremplie, NINEA et RIB conservés, envoi sans eux avec resubmit_of', async () => {
@@ -168,7 +168,7 @@ describe('<UpgradeRequestForm> — préremplissage et reprise (TCK-2671)', () =>
     expect(screen.getByText(/Vos réponses du 28 oct\. sont conservées/)).toBeInTheDocument();
     expect(screen.getByLabelText('RCCM')).toHaveValue('SN-DKR-2024-B-12345');
     expect(screen.getByLabelText('Raison sociale')).toHaveValue('Studio de Aminata SARL');
-    expect(screen.getByLabelText(/Nombre estimé d.agents/i)).toHaveValue(4);
+    expect(screen.getByLabelText(/Nombre estimé d.agents/i)).toHaveValue('4');
     // Ni le masque de l'API, ni le NINEA de l'agence : les deux champs s'ouvrent vides.
     expect(screen.getByLabelText('NINEA')).toHaveValue('');
     expect(screen.getByLabelText('RIB professionnel')).toHaveValue('');

@@ -1003,6 +1003,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
           }
         >
           <Textarea
+            profil="message"
             {...champDuContenu}
             ref={(el) => {
               refDuChamp(el);

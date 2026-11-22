@@ -93,9 +93,11 @@ export function FavoriteNote({ item }: { item: AvailableFavorite }) {
         {t('label')}
       </label>
       <Textarea
+        profil="texte-long"
         id={fieldId}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
+        placeholder={t('placeholder')}
         maxLength={FAVORITE_NOTES_MAX}
         rows={3}
       />

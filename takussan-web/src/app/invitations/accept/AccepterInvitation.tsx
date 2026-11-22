@@ -185,12 +185,12 @@ export function AccepterInvitation({
     <div className="grid gap-5 sm:grid-cols-2">
       <div className="flex flex-col gap-2">
         <Label htmlFor="invitation-prenom">{t('firstName')}</Label>
-        <Input id="invitation-prenom" autoComplete="given-name" maxLength={100} value={prenom}
+        <Input id="invitation-prenom" profil="nom" autoComplete="given-name" placeholder={t('placeholders.prenom')} maxLength={100} value={prenom}
           onChange={(e) => setPrenom(e.target.value)} disabled={enCours} />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="invitation-nom">{t('lastName')}</Label>
-        <Input id="invitation-nom" autoComplete="family-name" maxLength={100} value={nom}
+        <Input id="invitation-nom" profil="nom" autoComplete="family-name" placeholder={t('placeholders.nom')} maxLength={100} value={nom}
           onChange={(e) => setNom(e.target.value)} disabled={enCours} />
       </div>
     </div>
@@ -244,7 +244,7 @@ export function AccepterInvitation({
         <Label htmlFor="invitation-mot-de-passe">{t('password')}</Label>
         {/* TCK-2611 — l'œil : le mot de passe se relit avant d'être envoyé (« avec l'œil », ticket). */}
         <div className="relative">
-          <Input id="invitation-mot-de-passe" type={visible ? 'text' : 'password'} autoComplete="new-password" maxLength={72}
+          <Input id="invitation-mot-de-passe" profil="nouveau-mot-de-passe" type={visible ? 'text' : 'password'} enterKeyHint="done" maxLength={72}
             value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} disabled={enCours}
             aria-describedby="invitation-mot-de-passe-aide" className="pr-11" />
           <button type="button" onClick={() => setVisible((v) => !v)} aria-pressed={visible}

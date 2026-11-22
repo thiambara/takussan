@@ -63,8 +63,10 @@ export function DemanderAuFil({ conversationId, ouvert, onOuvertChange, onVersLe
       pied={
         <form onSubmit={demander} className="flex w-full items-center gap-2">
           <Input
+            profil="phrase"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
+            enterKeyHint="send"
             maxLength={LONGUEUR_MAX_DE_LA_QUESTION}
             placeholder={reponse ? t('demander.autre') : t('demander.placeholder')}
             aria-label={t('demander.placeholder')}

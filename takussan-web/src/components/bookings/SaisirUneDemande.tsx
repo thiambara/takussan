@@ -589,7 +589,7 @@ function RechercheDeChoix<T extends { readonly id: number }>({
   return (
     <div className="space-y-2">
       <Input
-        type="search"
+        profil="recherche"
         aria-labelledby={idLibelle}
         aria-describedby={idErreur}
         aria-invalid={invalide || undefined}

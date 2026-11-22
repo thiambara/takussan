@@ -220,7 +220,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
             </label>
             <Input
               id="totp-code"
-              inputMode="numeric"
+              profil="code"
               pattern="\d{6}"
               maxLength={6}
               value={code}
@@ -350,7 +350,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
           ) : (
             <form onSubmit={handleDisable} className="flex w-full flex-col gap-2 sm:flex-row">
               <Input
-                type="password"
+                profil="mot-de-passe"
                 placeholder={t('passwordPlaceholder')}
                 value={disablePassword}
                 onChange={(e) => setDisablePassword(e.target.value)}

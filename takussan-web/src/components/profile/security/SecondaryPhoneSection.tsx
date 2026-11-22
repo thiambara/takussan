@@ -130,7 +130,8 @@ export function SecondaryPhoneSection() {
             {codeEnvoye ? (
               <>
                 <Input
-                  inputMode="numeric"
+                  profil="code"
+                  placeholder="123456"
                   maxLength={6}
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}

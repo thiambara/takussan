@@ -200,7 +200,7 @@ export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, gro
                   <label className="mb-1.5 block text-sm font-medium" htmlFor="groupe-nom">
                     {t('nomDuGroupe')}
                   </label>
-                  <Input id="groupe-nom" value={groupe.subject} onChange={(e) => groupe.setSubject(e.target.value)} maxLength={120} required />
+                  <Input profil="phrase" id="groupe-nom" value={groupe.subject} onChange={(e) => groupe.setSubject(e.target.value)} placeholder={t('nomDuGroupePlaceholder')} maxLength={120} required />
                 </div>
                 <div className={cn('grid gap-3', bureau && 'grid-cols-2')}>
                   <div className="min-w-0">
@@ -321,8 +321,8 @@ function ChampA({
       ) : null}
       {/* La primitive, nue dans la rangée (TCK-2460) : la rangée porte le filet ou le cadre. */}
       <Input
+        profil="recherche"
         id={saisieId}
-        type="search"
         value={saisie}
         onChange={(e) => onSaisie(e.target.value)}
         onKeyDown={onKeyDown}

@@ -51,10 +51,10 @@ export function EntryCostFields({
       <legend className="text-sm font-medium text-foreground">{t('legend')}</legend>
       <p className="text-xs text-muted-foreground">{t('hint')}</p>
       <div className={fraisDAgence ? 'grid gap-4 sm:grid-cols-3' : 'grid gap-4 sm:grid-cols-2'}>
-        <FormInput control={control} name="advance_months" label={t('advance')} type="number" min={0} max={24} step={1} inputMode="numeric" />
-        <FormInput control={control} name="deposit_months" label={t('deposit')} type="number" min={0} max={24} step={1} inputMode="numeric" />
+        <FormInput control={control} name="advance_months" label={t('advance')} profil="entier" placeholder={t('advancePlaceholder')} min={0} max={24} />
+        <FormInput control={control} name="deposit_months" label={t('deposit')} profil="entier" placeholder={t('depositPlaceholder')} min={0} max={24} />
         {fraisDAgence ? (
-          <FormInput control={control} name="agency_fee_months" label={t('agencyFee')} type="number" min={0} max={24} step={0.5} inputMode="decimal" />
+          <FormInput control={control} name="agency_fee_months" label={t('agencyFee')} profil="decimal" placeholder={t('agencyFeePlaceholder')} min={0} max={24} />
         ) : null}
       </div>
       <FormAmountInput

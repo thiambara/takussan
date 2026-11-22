@@ -147,6 +147,7 @@ export function FeuilleDeDecision({ action, nature, prenom, pending, onOpenChang
                 {enPastilles ? tF('refuser.message', { prenom }) : t(`decision.${action}.label`)}
               </label>
               <Textarea
+                profil="texte-long"
                 id={`${id}-precision`}
                 value={precision}
                 onChange={(e) => poser({ precision: e.target.value })}

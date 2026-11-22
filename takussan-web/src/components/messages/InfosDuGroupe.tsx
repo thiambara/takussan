@@ -212,9 +212,11 @@ function NomDuGroupe({
       </label>
       {/* La primitive, nue dans la boîte (TCK-2460) : la boîte porte le filet et l'anneau. */}
       <Input
+        profil="phrase"
         id="infos-nom-du-groupe"
         value={saisie}
         onChange={(e) => setSaisie(e.target.value)}
+        placeholder={t('renamePlaceholder')}
         maxLength={120}
         className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 font-medium focus-visible:ring-0"
       />

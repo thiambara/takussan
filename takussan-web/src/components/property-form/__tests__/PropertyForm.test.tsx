@@ -184,8 +184,8 @@ describe('PropertyForm — edit mode', () => {
   it('TCK-633 — latitude et longitude se lisent et se corrigent à l’édition', () => {
     renderForm(maison({ location: { city: 'Dakar', latitude: 14.6937, longitude: -17.4441 } }));
 
-    expect(screen.getByLabelText(/^latitude$/i)).toHaveValue(14.6937);
-    expect(screen.getByLabelText(/^longitude$/i)).toHaveValue(-17.4441);
+    expect(screen.getByLabelText(/^latitude$/i)).toHaveValue('14.6937');
+    expect(screen.getByLabelText(/^longitude$/i)).toHaveValue('-17.4441');
     expect(screen.getByLabelText(/coller un lien ou une position/i)).toBeInTheDocument();
   });
 

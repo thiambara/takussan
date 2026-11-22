@@ -60,9 +60,11 @@ export function ConversationInfoSheet({
               <label className="mb-1 block text-sm font-medium text-muted-foreground" htmlFor="rename-subject">{t('renameLabel')}</label>
               <div className="flex gap-2">
                 <Input
+                  profil="phrase"
                   id="rename-subject"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
+                  placeholder={t('renamePlaceholder')}
                   maxLength={120}
                 />
                 <Button

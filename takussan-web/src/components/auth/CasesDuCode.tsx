@@ -75,8 +75,8 @@ export function CasesDuCode({ id, valeur, onChange, erreur = false, desactive = 
         id={id}
         value={valeur}
         onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, LONGUEUR_DU_CODE))}
-        inputMode="numeric"
-        autoComplete="one-time-code"
+        profil="code"
+        placeholder="123456"
         pattern="\d{6}"
         maxLength={LONGUEUR_DU_CODE}
         required
@@ -88,7 +88,7 @@ export function CasesDuCode({ id, valeur, onChange, erreur = false, desactive = 
         // Transparent et pleine taille (`size-full` bat la hauteur de la primitive ET celle de la portée
         // confortable, sans écrire de hauteur de champ) : le doigt touche une case, c'est le champ qui reçoit. La
         // police à 16 px évite le zoom d'iOS ; le curseur natif est caché, les cases le dessinent.
-        className="absolute inset-0 size-full cursor-text in-data-[field-density=comfortable]:size-full rounded-lg border-0 bg-transparent p-0 text-base text-transparent caret-transparent shadow-none outline-none selection:bg-transparent focus-visible:ring-0 aria-invalid:ring-0"
+        className="absolute inset-0 size-full cursor-text in-data-[field-density=comfortable]:size-full rounded-lg border-0 bg-transparent p-0 text-base text-transparent caret-transparent placeholder:text-transparent shadow-none outline-none selection:bg-transparent focus-visible:ring-0 aria-invalid:ring-0"
       />
     </div>
   );

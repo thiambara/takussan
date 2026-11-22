@@ -113,8 +113,8 @@ function ResetPasswordForm() {
           <div className="relative">
             <Input
               id="password"
+              profil="nouveau-mot-de-passe"
               type={showPassword ? 'text' : 'password'}
-              autoComplete="new-password"
               required
               minLength={8}
               value={password}
@@ -143,8 +143,9 @@ function ResetPasswordForm() {
           <div className="relative">
             <Input
               id="password_confirmation"
+              profil="nouveau-mot-de-passe"
               type={showPasswordConfirmation ? 'text' : 'password'}
-              autoComplete="new-password"
+              enterKeyHint="done"
               required
               minLength={8}
               value={passwordConfirmation}
