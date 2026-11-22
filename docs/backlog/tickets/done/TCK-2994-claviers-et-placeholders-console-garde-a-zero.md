@@ -1,13 +1,13 @@
 ---
 id: TCK-2994
 title: Profils de clavier et placeholders de la console d'exploitation — la garde des champs à zéro
-status: doing
+status: done
 phase: P2
 family: front
 estimate: M
 wave: null
 created: 2026-11-21
-updated: 2026-11-21
+updated: 2026-11-22
 depends_on: [TCK-2992, TCK-2993]
 blocks: []
 spec_refs:
@@ -46,5 +46,4 @@ Lot E délégué (console d'exploitation, radar, boosts), 39 fichiers, 60 clés.
 Relevé au navigateur sur `/app/properties` : tous les champs visibles portent un profil ; les seules entrées sans
 profil sont les entrées cachées des listes de choix de base-ui (`aria-hidden`, sans clavier).
 
-Reste `doing` pour la seule règle n° 2 : sa dépendance TCK-2992 attend son AC3 (l'iPhone du porteur). Le travail
-de ce ticket est fait ; il passe à `done` avec TCK-2992.
+TCK-2992 constaté sur l'iPhone le 2026-11-22 : la dépendance est levée.
