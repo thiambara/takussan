@@ -18,7 +18,7 @@ import { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { fetchAdminAiEvaluation, postAdminAiEvaluation, putAdminAiRole } from '@/lib/queries/super-admin';
 import type { AiEvaluationStatus, AiModelLink, AiProvider, AiRoleRow } from '@/types/super-admin';
-import { lireNombre } from '@/components/forms/FormInput';
+import { lireNombre } from '@/lib/clavier';
 import { ERREURS_APPEL_IA } from './codes-erreur-appel';
 import { useMontantIa } from './useMontantIa';
 

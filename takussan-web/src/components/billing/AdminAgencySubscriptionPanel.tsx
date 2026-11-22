@@ -12,7 +12,7 @@ import {
   fetchAdminPlans,
   updateAdminAgencySubscriptionOverrides,
 } from '@/lib/queries/super-admin';
-import { lireNombre } from '@/components/forms/FormInput';
+import { lireNombre } from '@/lib/clavier';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

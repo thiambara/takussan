@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, Pencil } from 'lucide-react';
 
-import { lireNombre } from '@/components/forms/FormInput';
+import { lireNombre } from '@/lib/clavier';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

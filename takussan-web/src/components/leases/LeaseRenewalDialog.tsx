@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
-import { lireNombre } from '@/components/forms/FormInput';
+import { lireNombre } from '@/lib/clavier';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';

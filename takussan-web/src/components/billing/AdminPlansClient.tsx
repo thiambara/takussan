@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Plus, Save, Trash2 } from 'lucide-react';
 
 import { createAdminPlan, deleteAdminPlan, fetchAdminPlans, updateAdminPlan } from '@/lib/queries/super-admin';
-import { lireNombre } from '@/components/forms/FormInput';
+import { lireNombre } from '@/lib/clavier';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

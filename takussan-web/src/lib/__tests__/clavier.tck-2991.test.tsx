@@ -12,12 +12,12 @@ import { useForm, type UseFormReturn } from 'react-hook-form';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { FormInput, lireNombre } from '@/components/forms/FormInput';
+import { FormInput } from '@/components/forms/FormInput';
 import { FormTextarea } from '@/components/forms/FormTextarea';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Textarea } from '@/components/ui/textarea';
-import { PROFILS, profil } from '@/lib/clavier';
+import { lireNombre, PROFILS, profil } from '@/lib/clavier';
 import { montantSaisiValide } from '@/lib/maintenance/semaine-du-prestataire';
 import { customerFormSchema } from '@/lib/schemas/customer';
 import { withIntl } from '@/test/intl';

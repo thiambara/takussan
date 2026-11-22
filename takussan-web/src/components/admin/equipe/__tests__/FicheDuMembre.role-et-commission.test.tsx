@@ -118,7 +118,7 @@ describe('Rôle et commission, en rangées', () => {
     const bouton = screen.getByRole('button', { name: F.modifierLeTaux.replace('{valeur}', '40 %') });
     expect(bouton).toHaveTextContent('40 %');
     await user.click(bouton);
-    const champ = screen.getByRole('spinbutton', { name: F.tauxDeCommission });
+    const champ = screen.getByRole('textbox', { name: F.tauxDeCommission });
     expect(champ).toHaveFocus();
     await user.clear(champ);
     await user.type(champ, '35');
@@ -127,8 +127,8 @@ describe('Rôle et commission, en rangées', () => {
     expect(screen.getByRole('button', { name: F.modifierLeTaux.replace('{valeur}', '40 %') })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: F.modifierLeTaux.replace('{valeur}', '40 %') }));
-    await user.clear(screen.getByRole('spinbutton', { name: F.tauxDeCommission }));
-    await user.type(screen.getByRole('spinbutton', { name: F.tauxDeCommission }), '35');
+    await user.clear(screen.getByRole('textbox', { name: F.tauxDeCommission }));
+    await user.type(screen.getByRole('textbox', { name: F.tauxDeCommission }), '35');
     await user.click(screen.getByRole('button', { name: fr.admin.roles.commissionRate.submit }));
     expect(setRate).toHaveBeenCalledWith({ commission_rate: 35 }, expect.anything());
   });

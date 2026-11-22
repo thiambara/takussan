@@ -221,7 +221,7 @@ describe('Tâches — gestes', () => {
     expect(creer).toBeDisabled();
     fireEvent.change(within(feuille).getByLabelText('Titre'), { target: { value: 'Relancer Mariama après la visite' } });
     expect(creer).toBeDisabled();
-    fireEvent.change(within(feuille).getByRole('textbox', { name: /Chercher un client/ }), { target: { value: 'Ma' } });
+    fireEvent.change(within(feuille).getByRole('searchbox', { name: /Chercher un client/ }), { target: { value: 'Ma' } });
     fireEvent.click(await within(feuille).findByRole('button', { name: 'Mariama Fall' }, { timeout: 2000 }));
     const recherche = etat.appels.find((a) => a.chemin.startsWith('/api/customers?'))!;
     const p = new URLSearchParams(recherche.chemin.split('?')[1]);

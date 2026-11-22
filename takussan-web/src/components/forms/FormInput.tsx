@@ -41,8 +41,6 @@ export type FormInputProps<TFieldValues extends FieldValues> = NativeInputProps 
 /** ADR-0135 — les profils dont la frappe part en NOMBRE vers le formulaire (le champ reste un champ texte). */
 const PROFILS_NUMERIQUES: ReadonlySet<ProfilDeChamp> = new Set(['entier', 'decimal', 'montant']);
 
-/** Déplacé dans `@/lib/clavier` (les schémas le lisent aussi) ; ré-exporté pour les appelants existants. */
-export { lireNombre };
 
 /**
  * `<input>` wired to react-hook-form via `Controller`. Shows the label,

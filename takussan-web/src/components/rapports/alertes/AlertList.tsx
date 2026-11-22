@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { createThresholdAlertAction, deleteThresholdAlertAction, recipientCandidatesAction, updateThresholdAlertAction } from '@/app/actions/alerts';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
-import { lireNombre } from '@/components/forms/FormInput';
+import { lireNombre } from '@/lib/clavier';
 import { useActionDOnglet } from '@/components/rapports/ActionDeLOnglet';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { ActionDEnTete } from '@/components/layout/EnTeteMobile';

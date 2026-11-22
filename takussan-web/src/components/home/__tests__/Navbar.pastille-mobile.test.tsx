@@ -90,7 +90,8 @@ describe('Pastille mobile — un tap ouvre une saisie (TCK-549 AC1)', () => {
 
     const dialogue = await screen.findByRole('dialog');
     const champ = within(dialogue).getByRole('combobox');
-    expect(champ).toHaveAttribute('type', 'text');
+    // ADR-0135 — le profil `recherche` : un champ texte de recherche (touche « Rechercher »), pas une date ni un nombre.
+    expect(champ).toHaveAttribute('type', 'search');
     expect(champ).toHaveValue('Dakar');
     await waitFor(() => expect(champ).toHaveFocus());
     // Le défaut du ticket tient ici : le tap relançait la recherche et perdait `page=2`.

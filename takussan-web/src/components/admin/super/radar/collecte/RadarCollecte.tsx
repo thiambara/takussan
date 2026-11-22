@@ -8,7 +8,7 @@ import { Play, Radar, TriangleAlert } from 'lucide-react';
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { DataState, PageHeader, StatusBadge, type StatusTone } from '@/components/console';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
-import { lireNombre } from '@/components/forms/FormInput';
+import { lireNombre } from '@/lib/clavier';
 import { Pagination } from '@/components/console/Pagination';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
