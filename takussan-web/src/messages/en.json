@@ -15396,7 +15396,7 @@
           "inUseRoles": "Chains set here: {names}.",
           "inUseUsages": "Forced model of: {names}.",
           "inUseFallback": "Configuration fallback chains: {names}.",
-          "identifierPlaceholder": "e.g. claude-sonnet-4-5",
+          "identifierPlaceholder": "e.g. model-name-2025-01",
           "pricePlaceholder": "e.g. 3.00"
         },
         "dashboard": {

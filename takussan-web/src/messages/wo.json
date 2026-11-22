@@ -14816,7 +14816,7 @@
           "inUseRoles": "Chaînes réglées ici : {names}.",
           "inUseUsages": "Modèle forcé de : {names}.",
           "inUseFallback": "Chaînes de repli de la configuration : {names}.",
-          "identifierPlaceholder": "Ex. : claude-sonnet-4-5",
+          "identifierPlaceholder": "Ex. : nom-du-modele-2025-01",
           "pricePlaceholder": "Ex. : 3,00"
         },
         "dashboard": {
