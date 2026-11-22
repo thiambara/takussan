@@ -20,6 +20,7 @@ import { GroupLeasePicker, GroupPropertyPicker } from './GroupContextPicker';
 import { AlerteErreurs } from './erreursDeValidation';
 import { MAX_PARTICIPANTS, useCreationDeGroupe } from './useCreationDeGroupe';
 import { useLigneDeContact } from './ligneDeContact';
+import { SuiviDeLaFenetre } from '@/lib/fenetre';
 
 interface NouvelleConversationProps {
   readonly open: boolean;
@@ -155,14 +156,17 @@ export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, gro
       <DialogContent
         data-testid="nouvelle-conversation"
         showCloseButton={false}
-        className="flex flex-col gap-0 overflow-hidden p-0 max-lg:inset-0 max-lg:h-dvh max-lg:max-h-none max-lg:w-full max-lg:max-w-none max-lg:translate-none max-lg:rounded-none lg:max-h-[min(40rem,calc(100dvh-var(--spacing)*16))] lg:max-w-[32.5rem]"
+        className="flex flex-col gap-0 overflow-hidden p-0 max-lg:inset-0 max-lg:h-dvh max-lg:max-h-none max-lg:w-full max-lg:max-w-none max-lg:translate-none max-lg:rounded-none max-lg:saisie:top-[var(--vue-top,0px)] max-lg:saisie:bottom-auto max-lg:saisie:h-[var(--vue-h,100dvh)] lg:max-h-[min(40rem,calc(100dvh-var(--spacing)*16))] lg:max-w-[32.5rem]"
       >
+        {/* ADR-0133, amendement (TCK-2996) — en saisie, l'écran se cale sur la fenêtre visible : la liste s'arrête au
+            haut du clavier, et le pied (« Démarrer ») reste au-dessus. */}
+        <SuiviDeLaFenetre />
         {/*
           TCK-2632 — maquette `app-messagerie` a/3 : au téléphone, l'en-tête d'un écran plein (« ✕ »
           à gauche, puis le titre, comme `EnTeteMobile` en plein écran) ; au bureau, le titre puis
           « ✕ » à droite, comme tout dialogue.
         */}
-        <div className="flex h-14 flex-none items-center gap-1 border-b border-border/70 bg-background px-1 lg:gap-0 lg:border-border lg:bg-transparent lg:pr-2 lg:pl-5">
+        <div className="flex h-14 flex-none items-center gap-1 border-b border-border/70 bg-background px-1 max-lg:saisie:h-11 lg:gap-0 lg:border-border lg:bg-transparent lg:pr-2 lg:pl-5">
           <DialogClose
             aria-label={tRacine('common.actions.close')}
             className="inline-flex size-11 flex-none items-center justify-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring lg:order-last lg:size-9 lg:rounded-lg"

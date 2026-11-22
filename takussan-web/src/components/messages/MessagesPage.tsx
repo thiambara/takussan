@@ -44,6 +44,7 @@ import { OngletsDeLaMessagerie, type OngletDeLaMessagerie } from './engagements/
 import { relaisImpersonationActif } from '@/lib/impersonation';
 import { isAgencyAdmin, isAgent } from '@/lib/roles';
 import { typeDuProfilActif } from '@/lib/navigation/personas';
+import { SuiviDeLaFenetre } from '@/lib/fenetre';
 
 const AUCUN_ABONNEMENT = () => () => undefined;
 
@@ -327,8 +328,14 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
           )
         }
       />
+      {/* ADR-0133, amendement (TCK-2996) — la route est en boîte, la coque ne s'y abonne pas : la messagerie le fait,
+          pour que `<html>` porte la saisie et la fenêtre visible. */}
+      {compact ? <SuiviDeLaFenetre /> : null}
       <div
         data-testid="messagerie"
+        // ADR-0133, amendement (TCK-2996) — la conversation ouverte au téléphone : en saisie, le cadre se cale sur
+        // la fenêtre visible, l'en-tête se compacte (`globals.css`, `[data-cadre-de-conversation]`).
+        data-cadre-de-conversation={enConversation ? '' : undefined}
         className={cn(
           'flex min-h-96 flex-col',
           cadre,

@@ -457,6 +457,25 @@
     transform: translateY(100%);
     transition: transform 200ms var(--courbe-des-barres-retour);
   }
+  /* ADR-0133, amendement du 2026-11-22 (TCK-2996) — LA CONVERSATION OUVERTE, en saisie : le cadre se cale sur la
+     fenêtre visible (le clavier d'iPhone ne réduit que celle-là, et le composeur restait dessous), l'en-tête du fil
+     passe de 56 à 44 px, les puces du pont et le bandeau de l'objet se replient. Le fil, lui, reste collé en bas
+     (`ChatView` observe sa propre hauteur). Clavier fermé, rien ne change. */
+  html[data-saisie="ouvert"] [data-cadre-de-conversation] {
+    position: fixed;
+    inset-inline: 0;
+    top: var(--vue-top, 0px);
+    height: var(--vue-h, 100dvh);
+    min-height: 0;
+    margin: 0;
+    z-index: 30;
+  }
+  html[data-saisie="ouvert"] [data-cadre-de-conversation] [data-slot="en-tete-du-fil"] {
+    height: 2.75rem;
+  }
+  html[data-saisie="ouvert"] [data-cadre-de-conversation] :is([data-testid="puces-du-pont"], [data-slot="bandeau-de-la-salle"]) {
+    display: none;
+  }
 
 }
 /* La pastille (les deux lecteurs : `/app` sous `md`, le site public sous `lg` ; chacun la masque au-delà). */

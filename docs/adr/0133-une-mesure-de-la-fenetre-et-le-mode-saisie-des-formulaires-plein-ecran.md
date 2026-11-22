@@ -1,8 +1,8 @@
 # ADR-0133 — Une seule mesure de la fenêtre pour toute l'application, et le mode saisie des formulaires plein écran
 
-- **Statut** : Accepté le 2026-11-21 (maquette « L'écran économe » validée au téléphone par le porteur ; décision « 1a » du même jour : le mode clavier dans la branche de la publication)
+- **Statut** : Accepté le 2026-11-21 (maquette « L'écran économe » validée au téléphone par le porteur ; décision « 1a » du même jour : le mode clavier dans la branche de la publication) — amendé le 2026-11-22 : les surfaces superposées, la conversation et la recherche (« fait a et b » du porteur, chantier 2)
 - **Date** : 2026-11-21
-- **Tickets** : TCK-2988
+- **Tickets** : TCK-2988 ; amendement : TCK-2995 (feuilles et panneaux), TCK-2996 (messagerie), TCK-2997 (recherche)
 - **S'appuie sur** : [ADR-0107](0107-la-densite-du-bureau-est-un-jeu-de-jetons.md) (les valeurs sur l'échelle)
 
 ## Contexte
@@ -83,7 +83,8 @@ l'en-tête se compacte et le pied devient la barre de saisie.**
      dernier champ.
 5. **Hors de cette décision** : les barres qui s'escamotent au défilement (listes et lecture), le
    profil « conversation » et le profil « recherche » de la maquette. Chacun s'ajoutera en amendement,
-   sur la même mesure.
+   sur la même mesure. *(Les barres : ADR-0134. La conversation et la recherche : l'amendement du 2026-11-22,
+   ci-dessous.)*
 
 ## Conséquences
 
@@ -109,3 +110,69 @@ l'en-tête se compacte et le pied devient la barre de saisie.**
   champ amené, la cale ; `EnTetePublication.tsx` : l'en-tête de `/app/properties/new` en saisie.
 - Les tests : `src/lib/__tests__/fenetre.tck-2988.test.tsx`, et ceux du mode saisie de la coque et de
   `WizardShell`, chacun vérifié par ablation.
+
+## Amendement du 2026-11-22 — les surfaces superposées, la conversation et la recherche
+
+### Contexte
+
+Relevé le 2026-11-22 à 390 × 844, pointeur tactile, avec une fenêtre visible simulée : un clavier de 336 px qui
+laisse visibles les 508 premiers pixels. Les surfaces relevées et ce qu'elles faisaient :
+
+- **La conversation ouverte de `/app/messages`** : `data-saisie` n'y était jamais posé. La route est en boîte
+  (ADR-0134), et la coque ne s'abonne à la mesure qu'en mode document. Le composeur restait de 788 à 832 px, sous le
+  clavier.
+- **Le formulaire plein écran `/app/customers/new`** (un `PanneauDroit` sous `xl`) : « Continuer » restait de 757 à
+  805 px, sous le clavier. Il en allait de même de toute `FeuilleDuBas` avec un champ, comme « Demander au fil » :
+  son pied restait de 775 à 844 px.
+- **La recherche du site public** (le dialogue de la pastille) : la saisie était bien posée, mais le dialogue
+  gardait 844 px. Les dernières suggestions passaient sous le clavier, sans que rien permette de les atteindre.
+- **La palette de `/app`** et **« Nouvelle conversation »** : deux écrans pleins, au même défaut.
+
+Toutes ces surfaces ont deux points communs. Elles sont `fixed`, donc posées sur la fenêtre de mise en page, que le
+clavier d'iPhone ne réduit pas. Et elles sont montées dans un portail, hors de la coque qui s'abonne à la mesure.
+
+### Décision
+
+6. **Une surface superposée ouverte s'abonne à la mesure.** C'est le rôle de `SuiviDeLaFenetre`
+   (`src/lib/fenetre.ts`, à côté de `useFenetre`), monté DANS son contenu : il n'existe que pendant l'ouverture.
+   - `<html>` porte donc `data-saisie` et la fenêtre visible sur toute route, y compris celles que la coque
+     n'abonne pas.
+   - Avec `corps`, il ramène le champ focalisé en vue (`block: 'nearest'`) à chaque changement de la fenêtre
+     visible. C'est le geste de `CadreDeLaFeuille`, rendu commun.
+7. **Les primitives répondent en CSS** (le variant `saisie:`), et rien ne change hors saisie :
+   - **`FeuilleDuBas`**, sous `md` :
+     - elle se pose sur le clavier (`bottom: --clavier`) ;
+     - sa hauteur est bornée à `min(90dvh, --vue-h − 8 px)` ;
+     - la zone sûre du pied tombe ;
+     - son pied (l'action) reste au-dessus du clavier, et son corps défile.
+     - `CadreDeLaFeuille` garde son réglage en ligne, plus fin (dès 2 px cachés), qui l'emporte.
+   - **`PanneauDroit`**, sous `xl` (où il couvre l'écran) :
+     - il se cale sur la fenêtre visible (`top: --vue-top`, `height: --vue-h`) ;
+     - un formulaire y garde son pied ;
+     - son en-tête passe de 56 à 44 px, sans la ligne d'étape.
+8. **La conversation ouverte au téléphone** (`/app/messages`, sous `md`) :
+   - la messagerie s'abonne à la mesure, et le cadre porte `data-cadre-de-conversation` ;
+   - en saisie, `globals.css` le cale sur la fenêtre visible ;
+   - l'en-tête du fil passe de 56 à 44 px ;
+   - les puces du pont et le bandeau de l'objet se replient ;
+   - le fil reste collé en bas quand il rétrécit (`ChatView` observe aussi sa propre hauteur).
+   - Le choix « Équipe » et les réponses rapides **restent**. Pour l'agent, écrire au client ou à l'équipe est une
+     décision qui doit rester sous les yeux pendant qu'il tape.
+9. **La recherche et ses deux écrans pleins** (le dialogue de la pastille sous `lg`, la palette et « Nouvelle
+   conversation ») se calent sur la fenêtre visible en saisie : la liste s'arrête au haut du clavier.
+10. **La saisie optimiste ne retire aucun geste.** Le mode part avec le focus, avant toute mesure du clavier, et un
+    focus posé par programme peut n'ouvrir aucun clavier sur iOS. En saisie, une surface peut donc se compacter ou
+    se redimensionner, mais jamais retirer le seul moyen d'agir.
+    - « Rechercher » reste dans le dialogue de recherche, même si la touche du clavier fait la même chose :
+      la maquette le repliait, ce qui est écarté ici.
+    - Sans clavier mesuré, une feuille garde sa hauteur : `min(90dvh, --vue-h − 8 px)` vaut 90dvh.
+
+### Conséquences
+
+- **Une feuille ou un panneau neuf hérite du comportement** dès qu'il passe par les primitives. Les huit
+  `SheetContent side="bottom"` d'avant (TCK-2690) n'en héritent pas.
+- Ouvrir une surface sur une page non abonnée (le site public hors barre d'onglets) y pose désormais
+  `data-saisie`. Seules la barre d'onglets et la pastille y répondent, et elles le faisaient déjà.
+- **Ce que seul un téléphone juge** : la géométrie réelle du clavier et le défilement que Safari impose pour
+  montrer le champ (`offsetTop`). Relevé en émulation : avec un décalage de 150 px, chaque surface reste dans
+  `[--vue-top, --vue-top + --vue-h]`.

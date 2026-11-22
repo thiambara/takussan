@@ -120,6 +120,16 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect(champ).toHaveAttribute('aria-activedescendant', premiere.id);
   });
 
+  // ADR-0133, amendement (TCK-2997) — sous `md`, en saisie, la palette se cale sur la fenêtre visible, et s'abonne à la
+  // mesure tant qu'elle est ouverte.
+  it('en saisie, sous md : calée sur la fenêtre visible, abonnée à la mesure', async () => {
+    render(ui(LOCATAIRE));
+    const dialogue = await screen.findByRole('dialog', { name: 'Aller à une page ou changer d’espace' });
+    expect(dialogue).toHaveClass('max-md:saisie:top-[var(--vue-top,0px)]', 'max-md:saisie:bottom-auto', 'max-md:saisie:h-[var(--vue-h,100dvh)]');
+    expect(dialogue).toHaveClass('h-dvh');
+    expect(document.documentElement.style.getPropertyValue('--vue-h')).not.toBe('');
+  });
+
   it('AC2 — chez un locataire, « loyer » propose Paiements en premier ; Entrée y mène', async () => {
     const u = userEvent.setup();
     render(ui(LOCATAIRE));

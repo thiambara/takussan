@@ -459,6 +459,9 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
       if (colleEnBasRef.current) el.scrollTop = el.scrollHeight;
     });
     observateur.observe(contenu);
+    // ADR-0133, amendement (TCK-2996) — et quand le FIL rétrécit : le clavier qui monte réduit le cadre de la
+    // conversation ; collé en bas, le dernier message reste au-dessus du composeur.
+    observateur.observe(el);
     return () => observateur.disconnect();
   }, [premierContenu, conversationId]);
 

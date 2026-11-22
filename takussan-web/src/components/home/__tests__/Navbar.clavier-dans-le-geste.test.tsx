@@ -85,6 +85,19 @@ describe('Pastille mobile — un appui, clavier prêt (TCK-563, M3)', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  // ADR-0133, amendement (TCK-2997) — en saisie, la surface de recherche se cale sur la fenêtre visible : la liste
+  // des suggestions s'arrête au clavier. « Rechercher » reste (la saisie est optimiste : aucun geste ne se retire).
+  it('en saisie : calée sur la fenêtre visible, « Rechercher » toujours là', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}>{withIntl(<Navbar />)}</QueryClientProvider>);
+    fireEvent.click(pastille());
+    const dialogue = await screen.findByRole('dialog');
+    expect(dialogue).toHaveClass('max-lg:saisie:top-[var(--vue-top,0px)]', 'max-lg:saisie:h-[var(--vue-h,100dvh)]', 'max-lg:saisie:max-h-[var(--vue-h,100dvh)]');
+    const rechercher = within(dialogue).getAllByRole('button').find((b) => b.textContent?.trim() === 'Rechercher');
+    expect(rechercher).toBeDefined();
+    expect(rechercher?.className ?? '').not.toContain('saisie:hidden');
+  });
+
   it('refermée, la saisie rend le focus à la pastille — pas au relais disparu', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}>{withIntl(<Navbar />)}</QueryClientProvider>);

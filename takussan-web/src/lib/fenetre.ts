@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 
 /**
  * ADR-0133 (TCK-2988) — LA mesure de la fenêtre, une seule pour toute l'application.
@@ -167,4 +167,28 @@ export function useFenetre(): EtatFenetre {
     () => etat,
     () => ETAT_SANS_MESURE,
   );
+}
+
+/**
+ * ADR-0133, amendement du 2026-11-22 (TCK-2995) — une surface superposée (feuille du bas, panneau plein écran,
+ * dialogue de recherche, palette) s'abonne à LA mesure de la fenêtre tant qu'elle est montée : `<html>` porte alors
+ * `data-saisie`, `--vue-h`, `--vue-top` et `--clavier` sur TOUTE route, y compris celles que la coque n'abonne pas
+ * (`/app/messages`, le site public hors barre d'onglets). La réponse reste en CSS (le variant `saisie:`).
+ *
+ * Avec `corps` (le `data-slot` du corps qui défile) : le champ focalisé est ramené dans la vue, juste assez, à
+ * chaque changement de la fenêtre visible — la feuille rétrécit quand le clavier monte, et le champ qu'on tape
+ * pouvait se retrouver sous son bord bas (le geste de `CadreDeLaFeuille`, TCK-2988, rendu commun).
+ *
+ * Ne rend rien. À monter DANS le contenu de la surface : il n'existe que pendant son ouverture.
+ */
+export function SuiviDeLaFenetre({ corps }: { readonly corps?: string }): null {
+  const { saisie, vueH } = useFenetre();
+  useEffect(() => {
+    if (!saisie || !corps) return;
+    const champ = document.activeElement;
+    if (champ instanceof HTMLElement && champ.closest(`[data-slot="${corps}"]`)) {
+      champ.scrollIntoView?.({ block: 'nearest' });
+    }
+  }, [saisie, vueH, corps]);
+  return null;
 }

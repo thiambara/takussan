@@ -47,6 +47,16 @@ beforeEach(() => {
 });
 
 describe('<NouvelleConversation> (TCK-2632)', () => {
+  // ADR-0133, amendement (TCK-2996) — au téléphone, l'écran plein se cale sur la fenêtre visible en saisie : la liste
+  // s'arrête au clavier, le pied (« Démarrer ») reste au-dessus.
+  it('en saisie, sous lg : calée sur la fenêtre visible, en-tête de 44 px, abonnée à la mesure', () => {
+    monter();
+    const dialogue = screen.getByTestId('nouvelle-conversation');
+    expect(dialogue).toHaveClass('max-lg:saisie:top-[var(--vue-top,0px)]', 'max-lg:saisie:bottom-auto', 'max-lg:saisie:h-[var(--vue-h,100dvh)]');
+    expect(dialogue.firstElementChild?.className ?? '').toContain('max-lg:saisie:h-11');
+    expect(document.documentElement.style.getPropertyValue('--vue-h')).not.toBe('');
+  });
+
   it('AC4 — une personne qui a déjà un fil : il s’ouvre, et aucun brouillon', async () => {
     trouver.mockResolvedValue(77);
     const p = monter();
