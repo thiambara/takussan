@@ -29,8 +29,8 @@ Le porteur a demandé s'il fallait adopter le pack [`mattpocock/skills`](https:/
   - **L'interrogatoire par vagues** (`grilling`) : des questions numérotées, chacune avec sa recommandation,
     posées en texte. C'est la forme de décision que le porteur demande déjà.
   - **Un glossaire du domaine** : le dépôt n'en avait aucun, pour un domaine parlé en français et codé en
-    anglais. Exemples : « bailleur » s'écrit `OwnerProfile` et `landlord_id`, et `tenant` désigne le locataire,
-    pas l'agence.
+    anglais. Exemples : le profil du bailleur s'écrit `OwnerProfile`, et `tenant` désigne le locataire, pas
+    l'agence.
   - **La rétrospective** qui transforme une erreur en garde.
   - **Le relevé d'architecture** en lecture seule.
 - **Le coût d'un pack suivi en amont est mesuré.**

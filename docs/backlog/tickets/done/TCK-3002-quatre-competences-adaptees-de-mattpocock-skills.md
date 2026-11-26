@@ -95,7 +95,7 @@ Ce qu'il en ressort :
   - de se dispenser d'un ADR qu'une décision structurelle exige.
 - [x] AC3 — Chaque identifiant cité par `docs/glossaire.md` existe dans le code. Relu le 2026-11-26 :
       `Agency`, `app/Models/Profiles/*`, `ResolveActiveProfile`, `Capability`, `MembershipCapabilityResolver::staffAgencyId`,
-      `PlatformAbility`, `OwnerProfile`, `landlord_id`, `tenant_id`.
+      `PlatformAbility`, `OwnerProfile`, `tenant_id`.
 - [x] AC4 — Ablation de la garde. Chacune de ces mutations rougit :
   - (1) `.agent/skills/retro/` retiré ;
   - (2) un workflow vers une compétence inexistante ;
@@ -125,7 +125,11 @@ Ce qu'il en ressort :
 - **Claude Code ne découvre pas `.agent/skills/`**, et les commandes portent `disable-model-invocation: true`. Les
   quatre compétences ne se déclenchent donc pas d'elles-mêmes : on tape leur commande. C'est voulu : superpowers
   impose déjà ses compétences à chaque tour.
-- **Non exercées en séance.** Le harnais charge les commandes au démarrage. Les quatre n'existent qu'une fois la
-  branche fusionnée et `dev` récupéré dans l'arbre principal. Elles n'ont donc pas été lancées ici : leur câblage
-  est vérifié par la garde et leur en-tête par un parseur YAML.
+- **Exercées après coup, en séance sans interface sur la branche** (`claude -p`, 2026-11-26) : les quatre commandes
+  s'enregistrent, et `/grill-me` et `/grill-with-docs` ont rendu une vague conforme (faits relevés d'abord, questions
+  numérotées avec recommandation, rien d'écrit avant réponse).
+- **Corrigé après fusion, sur ce que `/grill-with-docs` a relevé** : l'entrée *Bailleur* donnait `landlord_id` comme
+  identifiant du bailleur. Faux : `LeaseService` le prend du titulaire du bien (`properties.user_id`), qui peut être
+  du personnel quand l'agence garde le bien en propre, et `AgentHandoverService` le réattribue à un agent. La ligne
+  est retirée ; le partage entre *titulaire du bien* et *bailleur* reste à trancher par `/grill-with-docs`.
 - **Le numéro.** TCK-2999 à TCK-3001 sont déjà pris sur une branche non fusionnée (e7ffcb8f3) : d'où TCK-3002.
