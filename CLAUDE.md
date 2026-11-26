@@ -323,6 +323,9 @@ vers `dev`. Le porteur la promeut vers `dev`. Les agents ne publient rien eux-m�
   mentionnés, et `scripts/check-models-spec.mjs` (Repo CI) casse si un nouveau ne l'est pas**
   (TCK-310, ex-dette D-18 : 16 modèles y manquaient). ⚠ La garde vérifie qu'un **nom** apparaît,
   jamais qu'il est bien décrit — c'est un plancher, pas une preuve de justesse.
+- `docs/glossaire.md` — le vocabulaire du domaine : un terme par concept, son identifiant dans le code quand le
+  français et l'anglais divergent, les mots à éviter. **L'employer** dans les tickets, les noms et les messages ;
+  il grandit par `/grill-with-docs`, jamais en inventaire (ADR-0137).
 
 **Backlog** : `docs/backlog/` → `tickets/<status>/TCK-NNN-<slug>.md`, et `INDEX.md` à la demande.
 
@@ -467,6 +470,13 @@ Par `.claude/commands/` (Claude Code) — `.windsurf/` a été retiré le 2026-1
 - `/sync-specs` — reporte le livré dans `docs/features.md` et `docs/models-spec.md` (commit local
   `docs(specs): …`, sans push) ; sur demande, une passe d'audit sous `docs/sync-passes/` qui ne touche
   pas les specs.
+- `/grill-me` — interrogatoire par vagues (questions numérotées, une recommandation chacune) avant de construire.
+- `/grill-with-docs` — le même, qui écrit au fil de l'eau `docs/glossaire.md` et les ADR.
+- `/retro` — rétrospective d'une séance : ce qui, dans l'environnement des agents, aurait évité l'accroc.
+- `/improve-codebase-architecture` — relevé d'architecture en lecture seule, puis interrogatoire sur un candidat.
+
+Ces quatre-là sont **adaptés** de `mattpocock/skills`, pas installés : aucun pack de compétences ne s'installe
+pour ce dépôt ([ADR-0137](docs/adr/0137-une-competence-venue-d-ailleurs-s-adapte-elle-ne-s-installe-pas.md)).
 
 Si l'utilisateur demande « crée un ticket » ou « implémente TCK-NNN » sans slash command, lire
 directement le workflow correspondant.
