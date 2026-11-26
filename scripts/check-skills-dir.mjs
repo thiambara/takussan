@@ -53,7 +53,7 @@
  *   node scripts/check-skills-dir.mjs --report   # + l'inventaire de ce qui a été lu
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -74,7 +74,7 @@ const CANONIQUE = '.agent/skills';
 const PREFIXES_FOURNISSEUR = ['bmad-', 'wds-'];
 
 /**
- * Le contrôle de NON-VACUITÉ — parce que « aucune copie parasite » n'est pas « la bonne copie ».
+ * Le PLANCHER de non-vacuité — parce que « aucune copie parasite » n'est pas « la bonne copie ».
  *
  * Prouvé par mutation : en renommant `.agent/skills/` tout entier, la première version de cette
  * garde restait VERTE. Elle ne trouvait plus aucune compétence hors du canonique, pour l'excellente
@@ -88,8 +88,61 @@ const PREFIXES_FOURNISSEUR = ['bmad-', 'wds-'];
  * `syncing-specs` s'y ajoute le 2026-11-14 (TCK-2737) : jusque-là, `/sync-specs` portait tout son
  * contenu dans la commande et ne relayait vers aucune compétence — hors du canonique, donc hors de
  * cette garde, et c'est la commande qui ordonnait un push que le `CLAUDE.md` racine interdit.
+ *
+ * ⚠ **Depuis TCK-3002, ces trois noms ne sont plus qu'un plancher.** Quatre commandes sont arrivées
+ * (`/grill-me`, `/grill-with-docs`, `/retro`, `/improve-codebase-architecture`, ADR-0137), et la liste
+ * écrite à la main les aurait ignorées — la faute même que l'en-tête de ce fichier décrit. Ce que les
+ * commandes désignent se DÉRIVE désormais (`relaisDesCommandes()` ci-dessous) ; ces trois noms restent
+ * pour le cas où `.claude/commands/` lui-même disparaîtrait, qui rendrait la dérivation vide, donc verte.
  */
 const EXIGEES = ['implementing-specs', 'syncing-specs', 'writing-specs'];
+
+/** Une référence de relais : un workflow de `.agent/workflows/` ou une compétence du canonique. */
+const REFERENCE_DE_RELAIS = /\.agent\/(?:workflows\/[\w.-]+\.md|skills\/[\w.-]+\/SKILL\.md)/g;
+
+/**
+ * Les RELAIS de chaque commande, suivis jusqu'au bout — TCK-3002.
+ *
+ * Le dépôt câble une commande en trois étages : `.claude/commands/<c>.md` → `.agent/workflows/<w>.md`
+ * → `.agent/skills/<s>/SKILL.md` (CLAUDE.md, § Workflows). Chaque étage cite le suivant par son chemin.
+ * On lit donc chaque commande SUIVIE PAR GIT (même raison que `trouverCompetences()` : une commande
+ * locale non versionnée n'est pas « ce dépôt »), on relève les chemins qu'elle cite, on lit chaque
+ * workflow cité de la même façon, et on rend chaque cible avec la commande qui y mène.
+ *
+ * Une commande qui ne cite AUCUN relais est rendue avec une cible `null` : c'est le défaut de
+ * TCK-2737 — `/sync-specs` portait tout son contenu dans la commande, hors du canonique, et ordonnait
+ * un push interdit sans qu'aucune garde le voie.
+ */
+function relaisDesCommandes() {
+  const commandes = execFileSync('git', ['ls-files', '--full-name', '.claude/commands/*.md'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  }).split('\n').filter(Boolean);
+
+  const lire = (chemin) => (existsSync(join(ROOT, chemin)) ? readFileSync(join(ROOT, chemin), 'utf8') : '');
+  const relais = [];
+  for (const commande of commandes) {
+    // `readFileSync` suit le lien : `implement-spec.md` et `write-spec.md` sont des liens vers leur workflow.
+    const cibles = [...new Set(lire(commande).match(REFERENCE_DE_RELAIS) ?? [])];
+    if (cibles.length === 0) relais.push({ commande, cible: null });
+    for (const cible of cibles) {
+      relais.push({ commande, cible });
+      if (cible.includes('/workflows/')) {
+        for (const suivante of new Set(lire(cible).match(REFERENCE_DE_RELAIS) ?? [])) {
+          relais.push({ commande, cible: suivante });
+        }
+      }
+    }
+  }
+  // Une commande cite souvent la compétence ET son workflow, qui la cite à son tour : un couple
+  // (commande, cible) ne compte qu'une fois, sinon un relais cassé s'imprime deux fois.
+  const vus = new Set();
+  const uniques = relais.filter(({ commande, cible }) => {
+    const cle = `${commande}\0${cible}`;
+    return vus.has(cle) ? false : vus.add(cle);
+  });
+  return { commandes, relais: uniques };
+}
 
 /** Une compétence sans préfixe de fournisseur est une compétence écrite par ce dépôt. */
 const estEcriteIci = (nom) => !PREFIXES_FOURNISSEUR.some((p) => nom.startsWith(p));
@@ -173,6 +226,33 @@ if (!existsSync(join(ROOT, CANONIQUE))) {
   }
 }
 
+// ── Propriété 3 : chaque commande mène à une compétence qui existe (TCK-3002) ─────────────────
+const { commandes, relais } = relaisDesCommandes();
+if (commandes.length === 0) {
+  erreurs.push(
+    `\`.claude/commands/\` ne porte aucune commande suivie par git — les points d'entrée du dépôt ont `
+    + `disparu, et la dérivation des relais n'a rien à vérifier.`,
+  );
+}
+for (const { commande, cible } of relais) {
+  if (cible === null) {
+    erreurs.push(
+      `${commande} — commande qui ne relaie vers aucun workflow ni aucune compétence : son contenu `
+      + `vit hors de \`${CANONIQUE}/\` (le défaut de TCK-2737).`,
+    );
+  } else if (!existsSync(join(ROOT, cible))) {
+    erreurs.push(`${commande} → \`${cible}\` est introuvable — relais cassé.`);
+  } else if (cible.startsWith('.agent/skills/') && !cible.startsWith(`${CANONIQUE}/`)) {
+    erreurs.push(`${commande} → \`${cible}\` est hors du canonique.`);
+  }
+}
+for (const commande of commandes) {
+  if (!relais.some((r) => r.commande === commande && r.cible?.startsWith(`${CANONIQUE}/`))) {
+    if (relais.some((r) => r.commande === commande && r.cible === null)) continue;
+    erreurs.push(`${commande} — aucun de ses relais n'aboutit à une compétence de \`${CANONIQUE}/\`.`);
+  }
+}
+
 if (REPORT) {
   const parEmplacement = new Map();
   for (const c of toutes) {
@@ -185,6 +265,13 @@ if (REPORT) {
   for (const [emplacement, n] of [...parEmplacement].sort()) {
     console.log(`  ${String(n).padStart(3)} compétence(s)  ${emplacement}/`);
   }
+  console.log(`Commandes suivies jusqu'à leur compétence (${commandes.length}) :`);
+  for (const commande of commandes) {
+    const competences = [...new Set(relais
+      .filter((r) => r.commande === commande && r.cible?.endsWith('/SKILL.md'))
+      .map((r) => r.cible.split('/').slice(-2, -1)[0]))];
+    console.log(`  ${commande.split('/').pop().padEnd(36)} → ${competences.join(', ') || '(aucune)'}`);
+  }
   console.log(`\nÉcrites par ce dépôt (sans préfixe de fournisseur) : ${ecritesIci.length}`);
   for (const c of ecritesIci.sort((a, b) => a.chemin.localeCompare(b.chemin))) {
     console.log(`  ${c.chemin}`);
@@ -195,7 +282,8 @@ if (REPORT) {
 if (erreurs.length === 0) {
   console.log(
     `✓ répertoire de compétences unique : ${canoniques.length} compétence(s) écrite(s) par ce dépôt, `
-    + `toutes sous \`${CANONIQUE}/\` (${toutes.length - ecritesIci.length} de fournisseur ignorées).`,
+    + `toutes sous \`${CANONIQUE}/\` (${toutes.length - ecritesIci.length} de fournisseur ignorées) ; `
+    + `${commandes.length} commande(s) suivie(s) jusqu'à leur compétence.`,
   );
   process.exit(0);
 }

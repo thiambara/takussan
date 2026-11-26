@@ -112,6 +112,10 @@ on:
       # arbre ajouté ; un motif, jamais.*
       - '**/skills/**'
       - '**/SKILL.md'
+      # Les deux étages de relais que `check-skills-dir` suit depuis TCK-3002 (commande → workflow →
+      # compétence) : un relais se casse sans toucher un seul `SKILL.md`.
+      - '.claude/commands/**'
+      - '.agent/workflows/**'
       # `check-infra-versions` confronte `docs/infra/versions.json` à TOUS les workflows (elle
       # liste le dossier plutôt que d'énumérer) et à `composer.json`. Le préfixe, pas
       # l'énumération : les deux lignes ci-dessus sont donc redondantes, et c'est voulu — une
@@ -224,6 +228,10 @@ on:
       # déclenchée d'un seul côté ne voit qu'une moitié de l'écart qu'elle cherche.
       - '**/skills/**'
       - '**/SKILL.md'
+      # Les deux étages de relais que `check-skills-dir` suit depuis TCK-3002 (commande → workflow →
+      # compétence) : un relais se casse sans toucher un seul `SKILL.md`.
+      - '.claude/commands/**'
+      - '.agent/workflows/**'
       # `check-infra-versions` confronte `docs/infra/versions.json` à TOUS les workflows (elle
       # liste le dossier plutôt que d'énumérer) et à `composer.json`. Le préfixe, pas
       # l'énumération : les deux lignes ci-dessus sont donc redondantes, et c'est voulu — une
