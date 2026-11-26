@@ -47,7 +47,7 @@ _Dans le code_ : `MembershipCapabilityResolver::staffAgencyId()`.
 **Bailleur** :
 La personne qui confie des biens à une **Agence** et en reçoit les loyers ; il n'a accès qu'à ses propres
 ressources. ([ADR-0031](adr/0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md))
-_Dans le code_ : `OwnerProfile` ; `landlord_id` sur un bail.
+_Dans le code_ : `OwnerProfile`.
 
 **Locataire** :
 La personne qui occupe un bien au titre d'un bail. ([ADR-0005](adr/0005-contrat-http-conserve-roles.md) : `tenant`
