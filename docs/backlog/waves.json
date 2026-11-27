@@ -92,6 +92,7 @@
     "95": "Le Fil, lot 2 — la note d'équipe, les @mentions et la boîte de pilotage (ADR-0128 §§ 6-7 ; maquettes fil-boite D et fil-cartes D, sans la puce « Retard », qui attend le lot 3) (TCK-2965 → TCK-2968)",
     "96": "Le Fil, lot 3 — les engagements : une promesse du fil devient un objet suivi (table commitments), sa carte, son cycle, la file « Retard » et la fiabilité lue par le personnel — ADR-0130 (TCK-2969 → TCK-2973)",
     "97": "Le Fil, lot 4 — le copilote : résumé, « Demander au fil », brouillons, promesses proposées en engagements, transcription ; interrupteurs et modèles paramétrables — ADR-0131 (TCK-2974 → TCK-2979)",
-    "98": "Le Fil, lot 5 — le pont de messagerie par drivers (WhatsApp, SMS, puis d'autres), consentement et STOP, liens d'action signés, résumé du bailleur de la diaspora — ADR-0132 (TCK-2980 → TCK-2985)"
+    "98": "Le Fil, lot 5 — le pont de messagerie par drivers (WhatsApp, SMS, puis d'autres), consentement et STOP, liens d'action signés, résumé du bailleur de la diaspora — ADR-0132 (TCK-2980 → TCK-2985)",
+    "99": "Approfondissements du relevé d'architecture du 2026-11-27 : gestes de la visite et de la réservation lus sur l'API (ADR-0139), « qui peut lire » à deux faces (ADR-0138), lecture des numéros, code métier des refus, client BFF, harnais de test du front, lecteur unique du backlog (TCK-3003 → TCK-3011)"
   }
 }
