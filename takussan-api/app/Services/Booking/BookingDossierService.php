@@ -7,7 +7,6 @@ use App\Models\Booking;
 use App\Models\BookingDossierItem;
 use App\Models\Document;
 use App\Models\Enums\BookingKind;
-use App\Models\Enums\BookingStatus;
 use App\Models\Enums\DossierPiece;
 use App\Models\User;
 use App\Services\Model\NotificationService;
@@ -37,9 +36,6 @@ final class BookingDossierService
 {
     /** L'attribut de requête où {@see self::prime()} range la complétude de la page. */
     private const RESUMES = 'bookings.dossier';
-
-    /** Les statuts où le dossier s'écrit encore. */
-    private const OUVERTS = [BookingStatus::Pending, BookingStatus::Confirmed];
 
     /** La borne de « Demander » : une fois par pièce et par 24 h. */
     public const REQUEST_COOLDOWN_HOURS = 24;
@@ -272,7 +268,7 @@ final class BookingDossierService
 
     private function assertOpen(Booking $booking): void
     {
-        abort_code_unless(in_array($booking->status, self::OUVERTS, true), 422, 'booking.dossier_closed');
+        abort_code_unless(in_array($booking->status, GestesDeLaReservation::STATUTS_DU_DOSSIER_OUVERT, true), 422, 'booking.dossier_closed');
     }
 
     private function kindOf(Booking $booking): ?BookingKind

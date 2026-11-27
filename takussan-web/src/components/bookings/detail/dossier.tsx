@@ -50,18 +50,23 @@ export function Completude({ recues, total, court, className }: { readonly recue
 
 /**
  * Les pièces du dossier : ce qui est là s'ouvre (au personnel, par la fiche du document), ce qui
- * manque se demande (au personnel). Lues par `GET /api/bookings/{id}/dossier`.
+ * manque se demande ou se dépose selon les gestes que l'API accorde (TCK-3007, ADR-0139). Lues par
+ * `GET /api/bookings/{id}/dossier`.
  */
 export function PiecesDuDossier({
   bookingId,
   personnel,
-  client = false,
+  demander = false,
+  deposer = false,
   maintenant,
 }: {
   readonly bookingId: number;
+  /** Le personnel actif de l'agence : il OUVRE une pièce reçue (une lecture, pas un geste). */
   readonly personnel: boolean;
-  /** TCK-2879 — le CLIENT de la réservation : il dépose lui-même chaque pièce manquante. */
-  readonly client?: boolean;
+  /** `abilities.request_dossier_piece` : « Demander » une pièce manquante. */
+  readonly demander?: boolean;
+  /** TCK-2879 — `upload_dossier_piece` sans « Demander » : le client dépose lui-même chaque pièce manquante. */
+  readonly deposer?: boolean;
   readonly maintenant: Date;
 }) {
   const t = useTranslations('bookings.fiche.dossier');
@@ -81,7 +86,7 @@ export function PiecesDuDossier({
   return (
     <ul data-slot="pieces-du-dossier" className="divide-y divide-border">
       {lecture.data.data.pieces.map((p) => (
-        <LigneDePiece key={p.piece} bookingId={bookingId} p={p} personnel={personnel} client={client} maintenant={maintenant} />
+        <LigneDePiece key={p.piece} bookingId={bookingId} p={p} personnel={personnel} peutDemander={demander} deposer={deposer} maintenant={maintenant} />
       ))}
     </ul>
   );
@@ -91,13 +96,15 @@ function LigneDePiece({
   bookingId,
   p,
   personnel,
-  client,
+  peutDemander,
+  deposer,
   maintenant,
 }: {
   readonly bookingId: number;
   readonly p: PieceDuDossier;
   readonly personnel: boolean;
-  readonly client: boolean;
+  readonly peutDemander: boolean;
+  readonly deposer: boolean;
   readonly maintenant: Date;
 }) {
   const t = useTranslations('bookings.fiche.dossier');
@@ -156,7 +163,7 @@ function LigneDePiece({
           {t('ouvrir')}
         </Link>
       ) : null}
-      {!recue && personnel ? (
+      {!recue && peutDemander ? (
         tue ? (
           <Button type="button" variant="outline" className="h-11 px-3" disabled title={t('demandeeMotif')}>
             {etiquetteDemandee}
@@ -168,7 +175,7 @@ function LigneDePiece({
         )
       ) : null}
       {/* TCK-2879 — le client dépose la pièce qui manque (jamais au personnel, qui la demande). */}
-      {!recue && client && !personnel ? <DepotDeLaPiece bookingId={bookingId} piece={p.piece} nom={nom} /> : null}
+      {!recue && deposer ? <DepotDeLaPiece bookingId={bookingId} piece={p.piece} nom={nom} /> : null}
       {retour ? (
         <p role={retour.erreur ? 'alert' : 'status'} className={cn('basis-full text-ui', retour.erreur ? 'text-destructive' : 'text-muted-foreground')}>
           {retour.texte}

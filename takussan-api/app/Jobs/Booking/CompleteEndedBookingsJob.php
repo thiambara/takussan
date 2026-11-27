@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Un séjour mené n'est pas une fermeture : ni `BookingClosed`, ni notification, ni tâche. Les
  * lecteurs de `completed` l'acceptent déjà : occupation (`PortfolioMetrics`), droit de noter le
- * bien (`ReviewEligibility`), refus d'annuler (`BookingService::TERMINAL_CANCEL_STATUSES`).
+ * bien (`ReviewEligibility`), refus d'annuler (`GestesDeLaReservation::annulable`, TCK-3007).
  *
  * TCK-2735 (ADR-0102 § 3) — seul un SÉJOUR est mené à sa date de fin. Une candidature ou une offre
  * confirmée a pour issue le bail ou la vente (`LeaseService` solde la réservation à la création du

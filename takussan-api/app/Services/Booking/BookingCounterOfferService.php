@@ -5,7 +5,6 @@ namespace App\Services\Booking;
 use App\Domain\Notifications\NotificationCode;
 use App\Models\Booking;
 use App\Models\BookingCounterOffer;
-use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CounterOfferStatus;
 use App\Models\Property;
@@ -68,8 +67,9 @@ class BookingCounterOfferService
         $counterOffer = DB::transaction(function () use ($booking, $data, $by): BookingCounterOffer {
             /** @var Booking $locked */
             $locked = Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
+            // TCK-3007 — l'état que `abilities.counter_offer` juge, relu sous le verrou.
             abort_code_unless(
-                $locked->kind === BookingKind::Offer && $locked->status === BookingStatus::Pending,
+                GestesDeLaReservation::contreProposable($locked),
                 422,
                 'booking.counter_offer_not_allowed',
             );

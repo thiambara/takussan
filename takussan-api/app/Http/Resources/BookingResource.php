@@ -13,6 +13,7 @@ use App\Services\Booking\BookingCustomerFacts;
 use App\Services\Booking\BookingDossierService;
 use App\Services\Booking\BookingExpirationService;
 use App\Services\Booking\BookingGuarantorFacts;
+use App\Services\Booking\GestesDeLaReservation;
 use App\Services\Crm\AcceptanceStageChange;
 use Illuminate\Http\Request;
 
@@ -157,33 +158,9 @@ class BookingResource extends BaseResource
                 fn (): ?array => AcceptanceStageChange::forBooking($this->resource),
             ),
             'created_at' => $this->iso($this->created_at),
-            // TCK-2958 — les gestes de CE lecteur, jugés par `BookingPolicy` et par l'état que le
-            // service exige (`BookingService::confirm`, `reject`, `cancel`) : le front ne refait pas la règle.
-            'abilities' => $this->when($this->lecteurDesGestes !== null && $this->resource instanceof Booking, fn (): array => $this->gestes($this->lecteurDesGestes)),
-        ];
-    }
-
-    /**
-     * TCK-2958 — confirmer et rejeter : `validate`, sur une réservation en attente ; annuler :
-     * `cancel`, hors des états terminaux, et pas un séjour confirmé déjà commencé (TCK-1301).
-     *
-     * @return array{confirm: bool, reject: bool, cancel: bool}
-     */
-    private function gestes(User $lecteur): array
-    {
-        $booking = $this->resource;
-        $enAttente = $booking->status === BookingStatus::Pending;
-        $valider = $enAttente && $lecteur->can('validate', $booking);
-        $commence = $booking->status === BookingStatus::Confirmed
-            && $booking->start_date !== null
-            // Le premier jour est arrivé (`BookingService::cancel`, TCK-1301) : `start_date` est casté `date`.
-            && $booking->start_date->copy()->startOfDay()->lte(now());
-        $annulable = in_array($booking->status, [BookingStatus::Pending, BookingStatus::Confirmed], true) && ! $commence;
-
-        return [
-            'confirm' => $valider,
-            'reject' => $valider,
-            'cancel' => $annulable && $lecteur->can('cancel', $booking),
+            // TCK-2958, TCK-3007 (ADR-0139) — les gestes de CE lecteur, policy ET état compris, une clé par
+            // geste (`GestesDeLaReservation`) : la fiche ne refait ni capacité ni statut pour en décider.
+            'abilities' => $this->when($this->lecteurDesGestes !== null && $this->resource instanceof Booking, fn (): array => app(GestesDeLaReservation::class)->pour($this->lecteurDesGestes, $this->resource)),
         ];
     }
 

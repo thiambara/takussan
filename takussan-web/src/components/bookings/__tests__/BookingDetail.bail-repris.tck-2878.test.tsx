@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
 import { useBooking } from '@/lib/queries/bookings';
 import type { EntreeDuFil } from '@/lib/queries/customer-timeline';
+import { gestesServis } from './abilities-de-test';
 import { BookingDetail } from '../BookingDetail';
 
 const ecran = vi.hoisted(() => ({ telephone: false, maintenant: new Date('2026-11-09T09:12:00Z') }));
@@ -21,7 +22,6 @@ vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () 
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: (q: string) => (q.includes('80rem') ? !ecran.telephone : ecran.telephone) }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 5 }));
 vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => ecran.maintenant }));
-vi.mock('@/hooks/useCan', () => ({ useCanAll: () => ({ can: true, isLoading: false }) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/usePaymentProviders', () => ({ usePaymentProviders: () => ({ providers: [] }) }));
 const routeur = vi.hoisted(() => ({ push: vi.fn() }));
@@ -101,7 +101,9 @@ const tFiche = fr.bookings.fiche;
 
 function rendre(booking: Record<string, unknown>) {
   vi.mocked(useAuth).mockReturnValue({ user: { id: 1, roles: ['agent'] }, token: 'tok' } as unknown as ReturnType<typeof useAuth>);
-  vi.mocked(useBooking).mockReturnValue({ data: { data: booking }, isLoading: false, isError: false } as unknown as ReturnType<typeof useBooking>);
+  // TCK-3007 — les gestes que l'API servirait à l'agent.
+  const servie = { ...booking, abilities: booking.abilities ?? gestesServis(booking, 'personnel') };
+  vi.mocked(useBooking).mockReturnValue({ data: { data: servie }, isLoading: false, isError: false } as unknown as ReturnType<typeof useBooking>);
   return render(
     withIntl(
       <ToastProvider>

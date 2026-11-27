@@ -38,21 +38,39 @@ Relevé du 2026-11-27 (`dev` 4e3a929f7), vérifié :
 
 ## Delta à produire
 
-- [ ] Service : `App\Services\Booking\GestesDeLaReservation` — un `peut<Geste>(User, Booking)` par geste, réutilisé par `BookingService` avant écriture et par `BookingResource::gestes`
-- [ ] `BookingMoneyAccess` : `payments.record` exigé pour l'encaissement par le personnel
-- [ ] `src/types/booking.ts` : `BookingAbilities`
-- [ ] Front : fonction pure des gestes de la fiche réservation (patron `components/leases/fiche/gestes.ts`) ; `BookingDetail` ne lit plus `useCanAll` ni le statut pour décider ; aucun geste tant qu'`abilities` manque
-- [ ] Tests API : `tests/Feature/Api/BookingGestesTest.php` (chaque clé vraie et fausse ; Bailleur ; encaissement sans `payments.record` → 403) ; tests front de la fonction pure, en remplacement des tests de règle par rendu (`capabilities`, `sejour-commence`, `jour-de-l-api.*`, `creer-le-bail`)
+- [x] Service : `App\Services\Booking\GestesDeLaReservation` — un `peut<Geste>(User, Booking)` par geste, réutilisé par `BookingService` avant écriture et par `BookingResource::gestes`
+- [x] `BookingMoneyAccess` : `payments.record` exigé pour l'encaissement par le personnel
+- [x] `src/types/booking.ts` : `BookingAbilities`
+- [x] Front : fonction pure des gestes de la fiche réservation (patron `components/leases/fiche/gestes.ts`) ; `BookingDetail` ne lit plus `useCanAll` ni le statut pour décider ; aucun geste tant qu'`abilities` manque
+- [x] Tests API : `tests/Feature/Api/BookingGestesTest.php` (chaque clé vraie et fausse ; Bailleur ; encaissement sans `payments.record` → 403) ; tests front de la fonction pure, en remplacement des tests de règle par rendu (`capabilities`, `sejour-commence`, `jour-de-l-api.*`, `creer-le-bail`)
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le Bailleur d'un bien voit Accepter, Refuser et Annuler sur une réservation `pending` de son bien, et l'API les accepte (test API + test de la fonction pure).
-- [ ] AC2 — `POST` d'encaissement par un membre du personnel sans `payments.record` rend 403.
-- [ ] AC3 — `grep -n "useCanAll\|staffMay" src/components/bookings/BookingDetail.tsx` est vide.
-- [ ] AC4 — Pendant le chargement, la fiche n'affiche aucun bouton de geste.
+- [x] AC1 — Le Bailleur d'un bien voit Accepter, Refuser et Annuler sur une réservation `pending` de son bien, et l'API les accepte (test API + test de la fonction pure).
+- [x] AC2 — `POST` d'encaissement par un membre du personnel sans `payments.record` rend 403.
+- [x] AC3 — `grep -n "useCanAll\|staffMay" src/components/bookings/BookingDetail.tsx` est vide.
+- [x] AC4 — Pendant le chargement, la fiche n'affiche aucun bouton de geste.
 
 ## Hors périmètre
 
 - Les listes de réservations (`MesReservations`) : pas d'`abilities` en liste (ADR-0139 § 5).
 
 ## Notes d'implémentation
+
+Re-mesure du 2026-11-27 (arbre `feat/approfondissements-architecture`), avant tout changement :
+
+- **Bailleur** : confirmé. `SystemRoleCapabilities::owner()` = `[PropertiesUpdateOwn]` ; `BookingPolicy::validate` et `cancel` admettent `landlordOf` ; la fiche exigeait `bookings.validate` / `bookings.cancel` par `useCanAll`. L'API lui servait déjà `abilities.confirm/reject/cancel` vrais : le défaut était côté fiche.
+- **Encaissement** : confirmé. `canRecordAsCollector` n'exigeait aucune capacité (rouge du test 403 constaté avant le correctif) ; statuts `Booking::STAFF_PAYABLE_STATUSES` inchangés.
+- **Agence active** : confirmé (`useCanAll` sans `agencyId`). **Chargement** : confirmé (`staffMay` rendait vrai tant que `capabilitiesLoading`).
+
+Ce qui a été fait, et ce qui diffère du ticket :
+
+- `App\Services\Booking\GestesDeLaReservation` : `pour(User, Booking)` (13 clés, ordre `GESTES`) et un `peut<Geste>` par geste, qui compose la policy (`BookingPolicy`, `BookingMoneyAccess`, `LeasePolicy::createOn`) avec l'état. Les prédicats d'état (`decidable`, `annulable`, `contreProposable`, `dossierOuvert`, `STATUTS_DU_DOSSIER_OUVERT`) sont relus SOUS VERROU par `BookingService::confirm/reject/cancel`, `BookingCounterOfferService::propose`, `BookingGuarantorService` et `BookingDossierService` : une seule définition par règle d'état. `BookingService::TERMINAL_CANCEL_STATUSES` est supprimée (sans appelant) ; le docblock de `CompleteEndedBookingsJob` renvoie à `GestesDeLaReservation::annulable`.
+- `estLePayeurClient` vit dans le module ; `StoreBookingPaymentRequest::payeurClient` y délègue.
+- **`can_refund` est retiré de l'API**, pas gardé en alias : la fiche (et `BookingRefundPanel`) en était le seul lecteur. `abilities.refund` = `canRefund` ET un paiement `paid` à rendre.
+- `create_lease` suit `LeasePolicy::createOn` : le Bailleur du bien le reçoit aussi (la fiche le lui cachait derrière `leases.create`).
+- `pay` exige un séjour (`kind = stay`) : la nature se juge à l'API (ADR-0102) ; la règle n'existait qu'au navigateur. Le reste dû est lu par `BookingPaymentService::aRegler` (neuve, `null` quand rien n'est dû), que `dueFromCustomer` enveloppe désormais pour le 422 `booking_payment.nothing_due` : une seule règle du dû.
+- Front : `components/bookings/detail/gestes.ts` (`gestesDeLaReservation`, `AUCUN_GESTE`, et `paiementsRemboursables` / `plafondDuRemboursement` déplacés depuis `BookingRefundPanel`). `PiecesDuDossier` prend `demander` / `deposer` (gestes) à la place de `client` ; `personnel` n'y garde que la lecture « Ouvrir ».
+- Tests supprimés (règle seule, désormais à l'API et en fonction pure) : `BookingDetail.capabilities`, `.sejour-commence.tck-1301`, `.jour-de-l-api.{paris,new-york}.p212-02`, `.creer-le-bail.p48-03` (le rendu de « Créer le bail » reste éprouvé par `.bail-repris.tck-2878`). `BookingGestesDuLecteurTest` (API) est absorbé par `BookingGestesTest`. Les tests de rendu reçoivent leurs `abilities` de `__tests__/abilities-de-test.ts` (`permis`, `gestesServis`).
+- Ablation rejouée : `canRecordAsCollector` sans `payments.record` → 2 rouges dans `BookingGestesTest` (dont le 403), restauré (md5 vérifié).
+- `canBookingLeaveReview` (`components/reviews/reviewEligibility.ts`) et son test sont retirés : la fiche était son seul appelant ; `canLeaseLeaveReview` reste (`LeaseDetail`).

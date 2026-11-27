@@ -7,15 +7,14 @@ vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () 
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 1 }));
 
 import { withIntl } from '@/test/intl';
+import { permis } from './abilities-de-test';
 import { BookingDetail } from '../BookingDetail';
-import { useCanAll } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { useBooking } from '@/lib/queries/bookings';
 import { ToastProvider } from '@/components/ui/toast';
 
 const createPayment = vi.hoisted(() => ({ mutateAsync: vi.fn().mockResolvedValue({}), isPending: false }));
 
-vi.mock('@/hooks/useCan', () => ({ useCanAll: vi.fn() }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/usePaymentProviders', () => ({
   usePaymentProviders: () => ({ providers: ['wave'] }),
@@ -46,6 +45,8 @@ function renderBooking(booking: Record<string, unknown>) {
         payments: [],
         booking_payments: [],
         notes: null,
+        // TCK-3007 — l'API accorde au client le paiement de son séjour.
+        abilities: permis('pay'),
         ...booking,
       },
     },
@@ -68,7 +69,6 @@ function renderBooking(booking: Record<string, unknown>) {
 describe('BookingDetail — le client ne fixe plus le montant (TCK-1309)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useCanAll).mockReturnValue({ can: false, isLoading: false });
     vi.mocked(useAuth).mockReturnValue({
       user: { id: 999, roles: ['customer'] },
       token: 'tok',

@@ -11,6 +11,7 @@ import fr from '@/messages/fr.json';
 import { ToastProvider } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useBooking } from '@/lib/queries/bookings';
+import { permis } from './abilities-de-test';
 import { BookingDetail } from '../BookingDetail';
 
 // TCK-2963 — le bloc de la salle ouvre sa conversation (React Query) : hors du propos de ce test.
@@ -18,7 +19,6 @@ vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () 
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => true }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => false, useAgenceDuPersonnelActif: () => null }));
 vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => new Date('2026-11-15T10:00:00Z') }));
-vi.mock('@/hooks/useCan', () => ({ useCanAll: () => ({ can: false, isLoading: false }) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/usePaymentProviders', () => ({ usePaymentProviders: () => ({ providers: [] }) }));
 vi.mock('@/lib/queries/bookings', () => ({
@@ -66,15 +66,20 @@ const BASE = {
 };
 const SEJOUR = {
   ...BASE, id: 1, kind: 'stay', total_amount: 110_000, deposit_amount: 33_000, start_date: '2026-11-19', end_date: '2026-11-21',
+  // TCK-3007 — ce que l'API accorde au client : payer le séjour, l'annuler.
+  abilities: permis('pay', 'cancel'),
   property: { id: 9, title: 'Duplex vue mer', slug: 'duplex', price: 55_000, currency: 'XOF', contract_type: 'short_term', location: { quarter: 'Ngor' }, main_photo_url: null },
 };
 const OFFRE = {
   ...BASE, id: 4, kind: 'offer', status: 'pending', total_amount: 85_000_000, list_price_at_booking: 95_000_000, awaiting: 'customer',
+  // L'API ne lui accorde pas `pay` : le montant d'une offre est un prix (TCK-2879).
+  abilities: permis('answer_counter_offer', 'cancel'),
   counter_offer: { id: 9, amount: 90_000_000, message: null, valid_until: '2026-11-18', status: 'pending', created_at: '2026-11-14T10:00:00Z', responded_at: null },
   property: { id: 10, title: 'Appartement F4', slug: 'f4', price: 95_000_000, currency: 'XOF', contract_type: 'sale', location: { quarter: 'Almadies' }, main_photo_url: null },
 };
 const CANDIDATURE = {
   ...BASE, id: 3, kind: 'application', status: 'pending', total_amount: 380_000, dossier: { received: 3, required: 4, missing: ['employment_certificate'] },
+  abilities: permis('upload_dossier_piece', 'manage_guarantors', 'cancel'),
   property: { id: 11, title: 'Deux-pièces rénové', slug: 'deux', price: 380_000, currency: 'XOF', contract_type: 'rent', location: { quarter: 'Point E' }, main_photo_url: null },
 };
 
@@ -139,8 +144,8 @@ describe('BookingDetail — le client au bout des gestes de sa carte (TCK-2879)'
     }
   });
 
-  it('candidature refusée : le dossier se lit, plus rien ne s’y dépose (l’API le refuserait)', () => {
-    rendre({ ...CANDIDATURE, status: 'rejected' });
+  it('candidature refusée : le dossier se lit, plus rien ne s’y dépose (l’API retire le geste)', () => {
+    rendre({ ...CANDIDATURE, status: 'rejected', abilities: permis() });
     const dossier = document.getElementById('dossier')!;
     expect(within(dossier).queryByRole('button', { name: /^(Prendre une photo|Déposer un fichier) : / })).toBeNull();
   });

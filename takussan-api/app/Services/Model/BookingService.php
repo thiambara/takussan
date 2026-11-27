@@ -23,6 +23,7 @@ use App\Services\Booking\BookingConditions;
 use App\Services\Booking\BookingGuarantorService;
 use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
+use App\Services\Booking\GestesDeLaReservation;
 use App\Services\Booking\PropertyAvailabilityService;
 use App\Services\Crm\AcceptanceStageChange;
 use App\Services\Messaging\FilDeLObjet;
@@ -51,14 +52,6 @@ class BookingService
         PropertyStatus::Archived,
         PropertyStatus::UnderMaintenance,
         PropertyStatus::Unavailable,
-    ];
-
-    /** @var array<int,BookingStatus> */
-    protected const TERMINAL_CANCEL_STATUSES = [
-        BookingStatus::Cancelled,
-        BookingStatus::Completed,
-        BookingStatus::Expired,
-        BookingStatus::Rejected,
     ];
 
     /**
@@ -306,8 +299,9 @@ class BookingService
 
     public function confirm(Booking $booking): Booking
     {
+        // TCK-3007 — l'état que `abilities.confirm` juge (`GestesDeLaReservation`), relu ici.
         abort_code_unless(
-            $booking->status === BookingStatus::Pending,
+            GestesDeLaReservation::decidable($booking),
             422,
             'booking.not_pending_confirm'
         );
@@ -326,7 +320,7 @@ class BookingService
 
             $booking->refresh();
             abort_code_unless(
-                $booking->status === BookingStatus::Pending,
+                GestesDeLaReservation::decidable($booking),
                 422,
                 'booking.not_pending_confirm'
             );
@@ -377,7 +371,7 @@ class BookingService
             /** @var Booking $locked */
             $locked = Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
             abort_code_unless(
-                $locked->status === BookingStatus::Pending,
+                GestesDeLaReservation::decidable($locked),
                 422,
                 'booking.not_pending_reject'
             );
@@ -512,22 +506,12 @@ class BookingService
         $booking = DB::transaction(function () use ($booking, $user, $reason): Booking {
             /** @var Booking $locked */
             $locked = Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
-            abort_code_if(
-                in_array($locked->status, self::TERMINAL_CANCEL_STATUSES, true),
-                422,
-                'booking.cannot_cancel'
-            );
             // TCK-1301 (P115.01, décision du porteur) — un séjour commencé ne s'annule plus : une
             // réservation `confirmed` dont le premier jour est arrivé reste au calendrier, et passe
             // `completed` au lendemain de sa fin (`CompleteEndedBookingsJob`). Son annulation
             // ouvrait une tâche de remboursement de l'acompte d'un séjour mené.
-            abort_code_if(
-                $locked->status === BookingStatus::Confirmed
-                    && $locked->start_date !== null
-                    && $locked->start_date->toDateString() <= now()->toDateString(),
-                422,
-                'booking.cannot_cancel'
-            );
+            // TCK-3007 — la règle vit dans `GestesDeLaReservation::annulable`, que `abilities.cancel` lit.
+            abort_code_unless(GestesDeLaReservation::annulable($locked), 422, 'booking.cannot_cancel');
 
             $property = $locked->property;
             if ($user->id === $locked->customer?->user_id) {

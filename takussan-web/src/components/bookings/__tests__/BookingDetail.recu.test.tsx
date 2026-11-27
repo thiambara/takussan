@@ -19,7 +19,6 @@ import { useBooking } from '@/lib/queries/bookings';
 import { ToastProvider } from '@/components/ui/toast';
 import { origineApi } from '@/lib/config-publique';
 
-vi.mock('@/hooks/useCan', () => ({ useCanAll: () => ({ can: false, isLoading: false }) }));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 999, roles: ['customer'] }, token: 'jeton-client' }),
 }));

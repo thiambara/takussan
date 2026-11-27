@@ -12,6 +12,8 @@ import fr from '@/messages/fr.json';
 import { ToastProvider } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useBooking } from '@/lib/queries/bookings';
+import type { BookingAbilities } from '@/types/booking';
+import { permis } from './abilities-de-test';
 import { BookingDetail } from '../BookingDetail';
 
 const ecran = vi.hoisted(() => ({ telephone: false, personnel: true }));
@@ -20,7 +22,6 @@ vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () 
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => ecran.telephone }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => ecran.personnel, useAgenceDuPersonnelActif: () => 5 }));
 vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => new Date('2026-11-12T10:00:00Z') }));
-vi.mock('@/hooks/useCan', () => ({ useCanAll: () => ({ can: true, isLoading: false }) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/usePaymentProviders', () => ({ usePaymentProviders: () => ({ providers: [] }) }));
 vi.mock('@/lib/queries/bookings', () => ({
@@ -102,9 +103,23 @@ const CONTRE_OFFRE = {
 const texte = (el: Element) => (el.textContent ?? '').replace(/[  ]/g, ' ');
 const CONTRE = fr.bookings.fiche.contreOffre;
 
+/**
+ * TCK-3007 (ADR-0139) — les gestes que l'API servirait à ce lecteur (`GestesDeLaReservation`) : la
+ * fiche ne les recalcule plus. Le bailleur décide sans négocier ; le client annule et répond.
+ */
+function gestesServis(booking: Record<string, unknown>, user: { roles: string[] }): BookingAbilities {
+  const enAttente = booking.status === 'pending';
+  if (user.roles.includes('customer')) {
+    return permis(...(enAttente ? (['cancel'] as const) : []), ...(enAttente && booking.awaiting === 'customer' ? (['answer_counter_offer'] as const) : []));
+  }
+  const personnel = !user.roles.includes('owner');
+  return permis(...(enAttente ? (['confirm', 'reject', 'cancel'] as const) : []), ...(enAttente && personnel && booking.kind === 'offer' ? (['counter_offer'] as const) : []));
+}
+
 function rendre(booking: Record<string, unknown>, user: { id: number; roles: string[] } = { id: 3, roles: ['agent'] }) {
   vi.mocked(useAuth).mockReturnValue({ user, token: 'tok' } as unknown as ReturnType<typeof useAuth>);
-  vi.mocked(useBooking).mockReturnValue({ data: { data: booking }, isLoading: false, isError: false } as unknown as ReturnType<typeof useBooking>);
+  const servie = { ...booking, abilities: booking.abilities ?? gestesServis(booking, user) };
+  vi.mocked(useBooking).mockReturnValue({ data: { data: servie }, isLoading: false, isError: false } as unknown as ReturnType<typeof useBooking>);
   return render(
     withIntl(
       <ToastProvider>

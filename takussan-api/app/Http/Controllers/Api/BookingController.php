@@ -18,7 +18,6 @@ use App\Models\User;
 use App\Services\Booking\BookingCustomerFacts;
 use App\Services\Booking\BookingDossierService;
 use App\Services\Booking\BookingGuarantorFacts;
-use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\BookingService;
 use App\Services\Privacy\PersonalDataAccessLogger;
@@ -238,11 +237,9 @@ class BookingController extends Controller
         app(BookingDossierService::class)->prime($request, [$booking]);
         // TCK-2893 — et les garants et revenus.
         BookingGuarantorFacts::prime($request, [$booking]);
-        // TCK-2958 — et les gestes du lecteur (`abilities`), que la carte du fil relit aussi.
-        $data = BookingResource::make($booking)->avecGestes($request->user())->resolve($request);
-        // TCK-596 — le geste de remboursement ne s'affiche qu'à qui peut le faire aboutir.
-        $data['can_refund'] = BookingMoneyAccess::canRefund($request->user(), $booking);
 
-        return $data;
+        // TCK-2958 — et les gestes du lecteur (`abilities`), que la carte du fil relit aussi.
+        // TCK-3007 — `abilities.refund` remplace `can_refund` (TCK-596), dont la fiche était le seul lecteur.
+        return BookingResource::make($booking)->avecGestes($request->user())->resolve($request);
     }
 }

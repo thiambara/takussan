@@ -146,8 +146,11 @@ export type Booking = {
    * réservation annulée, refusée ou expirée ; `refunded` une fois tout rendu.
    */
   refund_status?: 'pending' | 'refunded' | null;
-  /** TCK-596 — l'appelant peut-il rembourser (`bookings.refund`, bailleur direct, super-admin). */
-  can_refund?: boolean;
+  /**
+   * TCK-3007 (ADR-0139) — les gestes de CE lecteur, policy ET état compris (`GestesDeLaReservation`) :
+   * servis par le `show` et par les écritures, jamais par une liste. Absent, aucun geste.
+   */
+  abilities?: BookingAbilities;
   // ── TCK-2875 — les clés de TCK-2870, 2872 et 2893 (ADR-0110), lues par la fiche et la liste ──
   /**
    * TCK-2870 — la dernière visite terminée de ce client sur ce bien : son jour et le verdict de son
@@ -261,3 +264,26 @@ export type DossierDeLaReservation = {
   missing: DossierPiece[];
   pieces: PieceDuDossier[];
 };
+
+/**
+ * TCK-3007 (ADR-0139) — « ce geste est possible maintenant pour ce lecteur », une clé par geste. La
+ * fiche n'en recalcule aucun : ni capacité, ni rôle, ni statut (`components/bookings/detail/gestes.ts`).
+ */
+export interface BookingAbilities {
+  confirm: boolean;
+  reject: boolean;
+  cancel: boolean;
+  counter_offer: boolean;
+  answer_counter_offer: boolean;
+  /** `payments.record` pour le personnel (ADR-0003), le bailleur direct, dans les statuts de l'API. */
+  record_payment: boolean;
+  /** Remplace `can_refund` (TCK-596) : le droit, et un paiement encaissé à rendre. */
+  refund: boolean;
+  create_lease: boolean;
+  /** Le client règle un séjour ouvert où il reste dû. */
+  pay: boolean;
+  upload_dossier_piece: boolean;
+  request_dossier_piece: boolean;
+  manage_guarantors: boolean;
+  leave_review: boolean;
+}
