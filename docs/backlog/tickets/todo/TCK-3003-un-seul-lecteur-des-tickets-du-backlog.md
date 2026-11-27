@@ -38,20 +38,54 @@ Les deux parseurs ont divergé deux fois (`wave:` vide ; sous-clé inline de `sp
 
 ## Delta à produire
 
-- [ ] Module : `docs/backlog/tickets.mjs` — `STATUTS`, `listerTickets(racine)`, `lireFrontmatter(texte)` (toutes les formes : scalaire, `[]` inline, liste en bloc, `null` sur une clé vide hors listes, sous-clés inline et en bloc de `spec_refs` → `_spec_paths`), `lireTickets(racine)` qui rend des objets normalisés
-- [ ] `gen-index.mjs`, `check-backlog.mjs`, `ranger-tickets.mjs` : n'utilisent plus que ce module pour lister et lire
-- [ ] Tests : `docs/backlog/__tests__/tickets.test.mjs` (`node:test`), frontmatters fabriqués couvrant chaque forme, dont la liste en bloc et `wave:` vide
-- [ ] CI : `repo-ci.yml` joue `node --test docs/backlog/__tests__/` (et ses `paths` couvrent `docs/backlog/**`)
+- [x] Module : `docs/backlog/tickets.mjs` — `STATUTS`, `listerTickets(racine)`, `lireFrontmatter(texte)` (toutes les formes : scalaire, `[]` inline, liste en bloc, `null` sur une clé vide hors listes, sous-clés inline et en bloc de `spec_refs` → `_spec_paths`), `lireTickets(racine)` qui rend des objets normalisés
+- [x] `gen-index.mjs`, `check-backlog.mjs`, `ranger-tickets.mjs` : n'utilisent plus que ce module pour lister et lire
+- [x] Tests : `docs/backlog/__tests__/tickets.test.mjs` (`node:test`), frontmatters fabriqués couvrant chaque forme, dont la liste en bloc et `wave:` vide
+- [x] CI : `repo-ci.yml` joue `node --test docs/backlog/__tests__/` (et ses `paths` couvrent `docs/backlog/**`)
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `grep -c "function frontmatter" docs/backlog/*.mjs` ne rend plus qu'un fichier, `tickets.mjs`.
-- [ ] AC2 — Un ticket fabriqué avec `depends_on:` en liste en bloc est lu avec ses dépendances par les trois outils (test qui échoue sur l'ancien `gen-index`).
-- [ ] AC3 — Les cinq sorties listées en contrainte sont identiques avant et après (diff vide).
-- [ ] AC4 — `node --test docs/backlog/__tests__/` est vert et joué par `repo-ci`.
+- [x] AC1 — `grep -c "function frontmatter" docs/backlog/*.mjs` ne rend plus qu'un fichier, `tickets.mjs`.
+- [x] AC2 — Un ticket fabriqué avec `depends_on:` en liste en bloc est lu avec ses dépendances par les trois outils (test qui échoue sur l'ancien `gen-index`).
+- [x] AC3 — Les cinq sorties listées en contrainte sont identiques avant et après (diff vide).
+- [x] AC4 — `node --test docs/backlog/__tests__/` est vert et joué par `repo-ci`.
 
 ## Hors périmètre
 
 - Le contenu de l'index généré, les règles de cohérence de `check-backlog`.
 
 ## Notes d'implémentation
+
+Relevé et livré le 2026-11-27 (branche `feat/approfondissements-architecture`).
+
+- **Les trois divergences re-mesurées** avant d'écrire : l'ancien `frontmatter` de `gen-index`
+  (extrait de `HEAD`) rend `depends_on: []` sur une liste en bloc, celui de `check-backlog`
+  `["TCK-9102"]` sur le même texte. Le module reprend le parseur de `check-backlog` (le
+  sur-ensemble) ; `gen-index` gagne donc les listes en bloc, qu'il ne rend nulle part — d'où un
+  index identique.
+- **Le listage n'était pas le même** : `gen-index`/`check-backlog` prenaient tout `.md` hors `_*`,
+  `ranger-tickets` les seuls noms `TCK-N-slug.md`. `listerTickets` liste LARGE (sinon le
+  « ne commence pas par son id » de `check-backlog` ne verrait plus un fichier mal nommé) ;
+  `ranger-tickets` resserre lui-même. Testé par un fichier `mal-nomme.md` fabriqué.
+- **Doublons d'id** : `gen-index` gardait les deux, `check-backlog` le dernier. `lireTickets` rend
+  les deux, avec l'erreur ; chaque outil garde son choix.
+- **Normalisation** : `lireTickets` rend `depends_on`, `blocks`, `tags`, `_spec_paths` toujours en
+  tableau, et un scalaire (`depends_on: TCK-12`) en liste d'un élément — il devenait une chaîne que
+  toutes les vérifications de dépendances traversaient en silence. Aucun ticket de l'arbre n'a
+  cette forme (mesuré), d'où des sorties inchangées. Les gardes `Array.isArray` de `check-backlog`
+  sont tombées avec.
+- **Export de `ranger-tickets`** : `git grep` ne trouve AUCUN importeur de `listerTickets` ni de
+  `STATUTS` (ni `check-doc-links`, ni `check-pistes`) : le ré-export est retiré (aucun appelant).
+- **AC1, écart de libellé** : le Delta nomme la fonction `lireFrontmatter`, que le grep littéral
+  `function frontmatter` ne trouve pas — il rend 0 partout. Mesuré avec l'intention de l'AC :
+  `grep -cE "function (lireF|f)rontmatter" docs/backlog/*.mjs` → 1 dans `tickets.mjs`, 0 ailleurs.
+  Le test « les trois outils ne lisent que par ce module » le garde (ni parseur, ni `readdirSync`).
+- **AC3** : les cinq sorties capturées avant toute modification puis après, `INDEX.md` généré
+  compris — `diff -r` vide (2337 tickets).
+- **AC4, piège Node 24** : `node --test docs/backlog/__tests__/` (la forme du ticket) prend le
+  dossier pour un fichier, `pass 0 / fail 1`. CI et commande : `node --test
+  'docs/backlog/__tests__/*.test.mjs'` → 17 tests verts. `check-gardes-branchees` vert.
+- **`scripts/check-pistes.mjs` (`GARDES`)** nommait `docs/backlog/(gen-index|check-backlog).mjs`
+  comme gardes que l'implémenteur des pistes ne modifie pas ; `tickets.mjs` porte désormais leur
+  lecture et y entre (la session).
+

@@ -27,12 +27,12 @@
  * demande, la suit par construction), l'autre que la SOURCE suit la RÉALITÉ. Aucun des deux ne peut
  * voir ce que voit l'autre.
  */
-import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CLOS, STATUTS, lireTickets } from './tickets.mjs';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(DIR, '..', '..');
 const SORTIE = join(DIR, 'INDEX.md');
 const CHECK = process.argv.includes('--check');
 
@@ -40,110 +40,28 @@ const CHECK = process.argv.includes('--check');
 // Les valeurs sont celles RÉELLEMENT portées par les tickets, pas celles que l'ancien template
 // déclarait : `bug` (40 tickets) et `full` (2) vivaient hors de l'énumération documentée depuis
 // des mois. Une énumération qu'on ne tient pas ne garde rien — celle-ci est mesurée.
-const STATUTS = {
-  todo: { titre: '📋 Todo', ouvert: true },
-  doing: { titre: '🚧 Doing', ouvert: true },
-  review: { titre: '👀 Review', ouvert: true },
-  blocked: { titre: '⛔ Blocked', ouvert: true },
-  done: { titre: '✅ Done', ouvert: false },
-  obsolete: { titre: '🗑️ Obsolete', ouvert: false },
+// Les statuts eux-mêmes, et lesquels sont clos, viennent de `tickets.mjs` (TCK-3003) : ici, leur titre.
+const TITRES = {
+  todo: '📋 Todo',
+  doing: '🚧 Doing',
+  review: '👀 Review',
+  blocked: '⛔ Blocked',
+  done: '✅ Done',
+  obsolete: '🗑️ Obsolete',
 };
+const STATUTS_RENDUS = Object.fromEntries(STATUTS.map((s) => [s, { titre: TITRES[s] ?? s, ouvert: !CLOS.has(s) }]));
 const PHASES = ['P0', 'P1', 'P2', 'P3', 'EF'];
 const FAMILLES = ['back', 'front', 'applicatif', 'technique', 'bug', 'full', 'evolution'];
 const ESTIMATIONS = ['S', 'M', 'L', 'XL'];
 
 /* ─────────────────────────────────────────────────────────── lecture */
-const erreurs = [];
-
-/** Parseur de frontmatter volontairement minimal : ce dépôt n'a pas de dépendance YAML, et le
- *  format des tickets est plat et homogène (mesuré : 12 champs présents dans 265/265). */
-function frontmatter(txt, fichier) {
-  const m = txt.match(/^---\n([\s\S]*?)\n---\n?/);
-  if (!m) {
-    erreurs.push(`${fichier} : aucun frontmatter`);
-    return null;
-  }
-  const out = {};
-  let cleCourante = null;
-  for (const ligne of m[1].split('\n')) {
-    const scalaire = ligne.match(/^([a-z_]+):\s*(.*)$/);
-    if (scalaire) {
-      cleCourante = scalaire[1];
-      let v = scalaire[2].trim();
-      if (v === '') {
-        // Une clé sans valeur ouvre une liste en bloc, un objet imbriqué… ou vaut NULL.
-        //
-        // `{}` pour tout le monde était faux dans le dernier cas : `wave:` seul sur sa ligne est
-        // du YAML valide pour `null`, et `{}` est TRUTHY. Le test `t.wave && …` passait donc, et
-        // la recherche portait sur `VAGUES["[object Object]"]` — la génération s'interrompait sur
-        // « vague [object Object] absente de waves.json », un message qui ne désigne rien. Et
-        // comme `gen-index --check` est une étape obligatoire de la CI, un ticket écrit `wave:`
-        // au lieu de `wave: null` bloquait tout le pipeline.
-        //
-        // `check-backlog.mjs` traitait déjà ce cas correctement pour ses clés de liste : les deux
-        // analyseurs du même format avaient divergé. *Deux lecteurs d'un même format finissent
-        // toujours par en lire deux — il faut soit les fusionner, soit les confronter.*
-        out[cleCourante] = ['depends_on', 'blocks', 'tags'].includes(cleCourante) ? [] : null;
-        continue;
-      }
-      if (v.startsWith('[') && v.endsWith(']')) {
-        out[cleCourante] = v
-          .slice(1, -1)
-          .split(',')
-          .map((s) => s.trim().replace(/^["']|["']$/g, ''))
-          .filter(Boolean);
-        continue;
-      }
-      out[cleCourante] = v.replace(/^["']|["']$/g, '');
-      continue;
-    }
-    // sous-clé de spec_refs (`  features:` / `    - docs/...`) — on ne garde que les chemins
-    // La sous-clé INLINE — `  features: [docs/features.md#…]`.
-    //
-    // `check-backlog.mjs` a reçu cette branche après qu'on eut mesuré que 26 tickets sur 270
-    // l'utilisent et n'étaient donc PAS vérifiés. Son jumeau ne l'a pas reçue. C'est sans effet
-    // aujourd'hui — `gen-index` ne lit pas `_spec_paths` — mais les deux fichiers portent la
-    // même phrase, « Deux lecteurs d'un même format finissent toujours par en lire deux », et la
-    // divergence s'était rouverte un champ plus loin.
-    //
-    // *Une divergence refermée sur un champ ne l'est pas sur le format.*
-    const sousInline = ligne.match(/^\s+([a-z_]+):\s*\[(.*)\]\s*$/);
-    if (sousInline) {
-      const valeurs = sousInline[2]
-        .split(',')
-        .map((x) => x.trim().replace(/^["']|["']$/g, ''))
-        .filter(Boolean);
-      if (cleCourante === 'spec_refs') (out._spec_paths ||= []).push(...valeurs);
-      continue;
-    }
-
-    const item = ligne.match(/^\s+-\s+(.*)$/);
-    if (item && cleCourante === 'spec_refs') {
-      (out._spec_paths ||= []).push(item[1].trim().replace(/^["']|["']$/g, ''));
-    }
-  }
-  return out;
-}
-
-const tickets = [];
-const vus = new Map();
-// Rangés par statut (`tickets/<status>/`, `ranger-tickets.mjs`) : lus à toute profondeur.
-for (const fn of readdirSync(join(DIR, 'tickets'), { recursive: true }).map((p) => p.split('\\').join('/')).sort()) {
-  if (!fn.endsWith('.md') || fn.split('/').pop().startsWith('_')) continue;
-  const fm = frontmatter(readFileSync(join(DIR, 'tickets', fn), 'utf8'), fn);
-  if (!fm) continue;
-  fm._fichier = fn;
-  if (!fm.id) {
-    erreurs.push(`${fn} : aucun champ "id"`);
-    continue;
-  }
-  if (vus.has(fm.id)) erreurs.push(`${fm.id} : id dupliqué (${vus.get(fm.id)} et ${fn})`);
-  vus.set(fm.id, fn);
-  if (!STATUTS[fm.status]) erreurs.push(`${fm.id} : statut inconnu "${fm.status}"`);
+// Lister et lire passent par `tickets.mjs`, le seul lecteur du format (TCK-3003).
+const { tickets, erreurs } = lireTickets();
+for (const fm of tickets) {
+  if (!STATUTS.includes(fm.status)) erreurs.push(`${fm.id} : statut inconnu "${fm.status}"`);
   if (fm.phase && !PHASES.includes(fm.phase)) erreurs.push(`${fm.id} : phase inconnue "${fm.phase}"`);
   if (fm.family && !FAMILLES.includes(fm.family)) erreurs.push(`${fm.id} : family inconnue "${fm.family}"`);
   if (fm.estimate && !ESTIMATIONS.includes(fm.estimate)) erreurs.push(`${fm.id} : estimate inconnue "${fm.estimate}"`);
-  tickets.push(fm);
 }
 
 const VAGUES = JSON.parse(readFileSync(join(DIR, 'waves.json'), 'utf8')).waves;
@@ -169,8 +87,8 @@ function ligne(t) {
   return `- [${t.id}](tickets/${t._fichier}) — ${titre} \`${meta}\``;
 }
 
-const compte = Object.fromEntries(Object.keys(STATUTS).map((s) => [s, parStatut(s).length]));
-const ouverts = Object.entries(STATUTS)
+const compte = Object.fromEntries(STATUTS.map((s) => [s, parStatut(s).length]));
+const ouverts = Object.entries(STATUTS_RENDUS)
   .filter(([, v]) => v.ouvert)
   .reduce((n, [s]) => n + compte[s], 0);
 
@@ -187,13 +105,13 @@ L.push(`**${tickets.length} tickets** — ${ouverts} ouvert${ouverts > 1 ? 's' :
 L.push('');
 L.push('| Statut | Nombre |');
 L.push('|---|---:|');
-for (const [s, v] of Object.entries(STATUTS)) L.push(`| ${v.titre} | ${compte[s]} |`);
+for (const [s, v] of Object.entries(STATUTS_RENDUS)) L.push(`| ${v.titre} | ${compte[s]} |`);
 L.push('');
 L.push('## Légende');
 L.push('');
 L.push('| Champ | Valeurs |');
 L.push('|---|---|');
-L.push(`| \`status\` | ${Object.keys(STATUTS).map((s) => `\`${s}\``).join(' · ')} |`);
+L.push(`| \`status\` | ${STATUTS.map((s) => `\`${s}\``).join(' · ')} |`);
 L.push(`| \`phase\` | ${PHASES.map((p) => `\`${p}\``).join(' · ')} (EF = évolution future) |`);
 L.push(`| \`family\` | ${FAMILLES.map((f) => `\`${f}\``).join(' · ')} |`);
 L.push('| `estimate` | `S` ≤2j · `M` 3–5j · `L` 6–10j · `XL` >10j |');
@@ -205,7 +123,7 @@ L.push('---');
 L.push('');
 
 // Les statuts OUVERTS d'abord, à plat : c'est la seule partie qu'on lit pour décider quoi faire.
-for (const [s, v] of Object.entries(STATUTS)) {
+for (const [s, v] of Object.entries(STATUTS_RENDUS)) {
   if (!v.ouvert) continue;
   const lot = parStatut(s);
   L.push(`## ${v.titre}`);
@@ -219,7 +137,7 @@ L.push('---');
 L.push('');
 
 // Les statuts CLOS, groupés par vague : c'est un historique, il se consulte, il ne se scanne pas.
-for (const [s, v] of Object.entries(STATUTS)) {
+for (const [s, v] of Object.entries(STATUTS_RENDUS)) {
   if (v.ouvert) continue;
   const lot = parStatut(s);
   L.push(`## ${v.titre} — ${lot.length}`);

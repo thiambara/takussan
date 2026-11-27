@@ -39,14 +39,14 @@
  * anciens chemins : l'historique git les résout (`git log --follow`).
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { STATUTS, TICKETS, lireFrontmatter, listerTickets } from './tickets.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const TICKETS = 'docs/backlog/tickets';
-/** Les statuts de `check-backlog.mjs` — un dossier n'existe que s'il porte au moins un ticket. */
-export const STATUTS = ['todo', 'doing', 'review', 'blocked', 'done', 'obsolete'];
+// Lister et lire passent par `tickets.mjs`, le seul lecteur du format (TCK-3003). L'ancien
+// `statutDe` — une regex sur `status:` — en était un troisième.
 const NOM_TICKET = /^TCK-\d+-[A-Za-z0-9._-]+\.md$/;
 
 const ARGS = process.argv.slice(2);
@@ -55,28 +55,16 @@ const DRY = CHECK || ARGS.includes('--dry-run');
 
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
 
-/** Tous les tickets, où qu'ils soient sous `tickets/` (racine incluse : un ticket neuf y atterrit). */
-export function listerTickets(racine = ROOT) {
-  const dossier = join(racine, TICKETS);
-  return readdirSync(dossier, { recursive: true })
-    .map((p) => p.split('\\').join('/'))
-    .filter((p) => NOM_TICKET.test(posix.basename(p)))
-    .sort();
-}
-
-function statutDe(chemin) {
-  const tete = readFileSync(join(ROOT, chemin), 'utf8').match(/^---\n([\s\S]*?)\n---/);
-  return tete?.[1].match(/^status:\s*["']?([a-z]+)/m)?.[1];
-}
-
 /* ─────────────────────────────────────────────── 1. où chaque ticket doit être */
 const erreurs = [];
 const final = new Map(); // nom de fichier → chemin final, relatif à la racine du dépôt
 const deplacements = []; // [actuel, final]
-for (const rel of listerTickets()) {
+// Le module liste LARGE (tout `.md` hors `_*`, pour que `check-backlog` signale un fichier mal
+// nommé) ; on ne range, et on ne réécrit les liens, que des noms de ticket conformes.
+for (const rel of listerTickets().filter((p) => NOM_TICKET.test(posix.basename(p)))) {
   const actuel = `${TICKETS}/${rel}`;
   const nom = posix.basename(rel);
-  const statut = statutDe(actuel);
+  const statut = lireFrontmatter(readFileSync(join(ROOT, actuel), 'utf8'))?.status;
   if (!STATUTS.includes(statut)) {
     erreurs.push(`${actuel} : statut ${statut ? `inconnu « ${statut} »` : 'absent'} — laissé en place`);
     final.set(nom, actuel);

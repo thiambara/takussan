@@ -21,10 +21,11 @@
  * implémenté. Il attrape le pointeur pourri, la dépendance incohérente, la date impossible et le
  * statut que git contredit — jamais un ticket qu'on a codé sans le dire.
  */
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CLOS, STATUTS, lireTickets } from './tickets.mjs';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(DIR, '..', '..');
@@ -50,80 +51,15 @@ const avertissements = [];
 const ko = (m) => erreurs.push(m);
 const warn = (m) => avertissements.push(m);
 
-const STATUTS = ['todo', 'doing', 'review', 'blocked', 'done', 'obsolete'];
-const CLOS = new Set(['done', 'obsolete']);
 const REQUIS = ['id', 'title', 'status', 'phase', 'family', 'estimate', 'created', 'updated', 'wave'];
 
 /* ─────────────────────────────────────────────────── lecture des frontmatters */
-function frontmatter(txt) {
-  const m = txt.match(/^---\n([\s\S]*?)\n---\n?/);
-  if (!m) return null;
-  const out = {};
-  let cle = null;
-  for (const ligne of m[1].split('\n')) {
-    const s = ligne.match(/^([a-z_]+):\s*(.*)$/);
-    if (s) {
-      cle = s[1];
-      const v = s[2].trim();
-      // Une clé sans valeur ouvre soit une liste en bloc, soit un objet imbriqué, soit elle
-      // vaut NULL. On pose un TABLEAU pour les clés dont on sait qu'elles listent — sans ça,
-      // `depends_on:` écrit en style bloc (parfaitement valide en YAML) devenait `{}`, et
-      // toutes les vérifications de dépendances le traversaient sans rien voir.
-      //
-      // Pour les autres, `null` et NON `{}` : `{}` est truthy, donc `wave:` seul sur sa ligne —
-      // du YAML valide pour null — passait le test `t.wave && …` et faisait chercher
-      // `VAGUES["[object Object]"]`. Le même défaut vivait dans `gen-index.mjs`, à la ligne
-      // équivalente : deux analyseurs du même format, écrits séparément, ayant divergé au même
-      // endroit. *Deux lecteurs d'un même format finissent toujours par en lire deux.*
-      if (v === '') out[cle] = ['depends_on', 'blocks', 'tags'].includes(cle) ? [] : null;
-      else if (v.startsWith('[') && v.endsWith(']'))
-        out[cle] = v.slice(1, -1).split(',').map((x) => x.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
-      else out[cle] = v.replace(/^["']|["']$/g, '');
-      continue;
-    }
-    // Une sous-clé INLINE — `  features: [docs/features.md#…]` — sous une clé imbriquée.
-    //
-    // Elle ne correspondait à AUCUNE des deux branches : ni au `^([a-z_]+):` du dessus (elle est
-    // indentée), ni au motif de liste en bloc juste en dessous. Elle tombait donc dans le vide,
-    // `_spec_paths` restait vide, et la vérification « chaque `spec_refs` pointe sur un fichier
-    // qui existe » ne vérifiait RIEN pour ces tickets — **26 des 270**. Prouvé par exécution :
-    // un `features: [docs/CE-FICHIER-NEXISTE-PAS.md]` rendait « ✓ backlog cohérent, 270 tickets
-    // vérifiés », sortie 0.
-    //
-    // C'est la garde que joue `repo-ci.yml`, et c'est elle que le filtre `docs/**` de ce même
-    // fichier invoque pour se justifier. Un pointeur mort écrit dans la forme inline arrivait
-    // donc sur `dev` au vert, par les deux chemins à la fois.
-    //
-    // *Un analyseur qui ne connaît qu'une des écritures d'un format ne mesure pas le format :
-    // il mesure l'habitude de celui qui a écrit les exemples.*
-    const sousInline = ligne.match(/^\s+([a-z_]+):\s*\[(.*)\]\s*$/);
-    if (sousInline) {
-      const valeurs = sousInline[2].split(',').map((x) => x.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
-      if (cle === 'spec_refs') (out._spec_paths ||= []).push(...valeurs);
-      continue;
-    }
-
-    const item = ligne.match(/^\s+-\s+(.*)$/);
-    if (!item) continue;
-    const valeur = item[1].trim().replace(/^["']|["']$/g, '');
-    if (cle === 'spec_refs') (out._spec_paths ||= []).push(valeur);
-    else if (Array.isArray(out[cle])) out[cle].push(valeur);
-  }
-  return out;
-}
-
-const tickets = new Map();
-// Les tickets sont rangés par statut, `tickets/<status>/` (`ranger-tickets.mjs`) : on les lit tous,
-// à toute profondeur — un ticket neuf posé à la racine de `tickets/` compte aussi.
-for (const fn of readdirSync(join(DIR, 'tickets'), { recursive: true }).map((p) => p.split('\\').join('/')).sort()) {
-  if (!fn.endsWith('.md') || basename(fn).startsWith('_')) continue;
-  const fm = frontmatter(readFileSync(join(DIR, 'tickets', fn), 'utf8'));
-  if (!fm) { ko(`${fn} : aucun frontmatter`); continue; }
-  fm._fichier = fn;
-  if (!fm.id) { ko(`${fn} : aucun champ "id"`); continue; }
-  if (tickets.has(fm.id)) ko(`${fm.id} : id dupliqué (${tickets.get(fm.id)._fichier} et ${fn})`);
-  tickets.set(fm.id, fm);
-}
+// Lister et lire passent par `tickets.mjs`, le seul lecteur du format (TCK-3003) : il lit toutes
+// les formes admises (liste en bloc, sous-clé inline de `spec_refs`, clé vide), et dit les défauts
+// de structure — sans frontmatter, sans id, id en double. Un id en double : le dernier lu l'emporte.
+const lecture = lireTickets();
+lecture.erreurs.forEach(ko);
+const tickets = new Map(lecture.tickets.map((t) => [t.id, t]));
 
 /* ─────────────────────────────────────────────────── 1. complétude & valeurs */
 for (const t of tickets.values()) {
@@ -154,13 +90,13 @@ for (const t of tickets.values()) {
 // Un chemin cité qui n'existe plus est la dette la plus banale d'un backlog : il ne casse rien,
 // il fait juste perdre dix minutes à chaque lecteur, indéfiniment.
 for (const t of tickets.values()) {
-  for (const ref of t._spec_paths || []) {
+  for (const ref of t._spec_paths) {
     const chemin = ref.split('#')[0];
     if (!chemin) continue;
     if (!existsSync(join(ROOT, chemin))) ko(`${t.id} : spec_refs cite "${chemin}", qui n'existe pas`);
   }
   for (const champ of ['depends_on', 'blocks']) {
-    for (const autre of Array.isArray(t[champ]) ? t[champ] : []) {
+    for (const autre of t[champ]) {
       if (!tickets.has(autre)) ko(`${t.id} : ${champ} référence "${autre}", qui n'existe pas`);
     }
   }
@@ -169,7 +105,7 @@ for (const t of tickets.values()) {
 /* ─────────────────────────────────────────────────── 4. cohérence des dépendances */
 for (const t of tickets.values()) {
   if (!CLOS.has(t.status)) continue;
-  for (const dep of Array.isArray(t.depends_on) ? t.depends_on : []) {
+  for (const dep of t.depends_on) {
     const d = tickets.get(dep);
     if (d && !CLOS.has(d.status)) {
       ko(`${t.id} est "${t.status}" alors que sa dépendance ${dep} est "${d.status}" (règle n°2)`);
@@ -179,9 +115,9 @@ for (const t of tickets.values()) {
 // Réciprocité : « A bloque B » et « B dépend de A » sont la même phrase. Une moitié sans l'autre
 // rend le graphe faux dans un sens et juste dans l'autre — le pire des deux mondes.
 for (const t of tickets.values()) {
-  for (const b of Array.isArray(t.blocks) ? t.blocks : []) {
+  for (const b of t.blocks) {
     const autre = tickets.get(b);
-    if (autre && !(Array.isArray(autre.depends_on) ? autre.depends_on : []).includes(t.id)) {
+    if (autre && !autre.depends_on.includes(t.id)) {
       warn(`${t.id} déclare bloquer ${b}, mais ${b} ne le déclare pas dans depends_on`);
     }
   }
