@@ -47,6 +47,31 @@ class EmpreintesFigeesTest extends TestCase
                     '+221771234567' => $fictif,
                     '+221761234567' => '2ff29f77215c0440936ddc4697fa2a2038937d336b502eb7eb4ed1524ade6258',
                 ]],
+            // Tout le repli, caractère par caractère : un invisible ou une série de chiffres qu'il cesserait de replier change
+            // l'empreinte d'une annonce déjà connue (contre-vérification de TCK-3004 : sans U+00AD, ce test restait vert).
+            'trait d\'union conditionnel' => ["Villa Fann 77\u{00AD}123\u{00AD}45\u{00AD}67 jar\u{00AD}din",
+                '6710c39890dad60373ecbf2e1067f6e9891c1b97d416b7520f1c3342c51f5096', ['+221771234567' => $fictif]],
+            'joints et espace insécable' => ["Studio\u{00A0}Ouakam 78\u{2060}012\u{200B}34\u{FEFF}56\u{00A0}\u{00A0}cuisine\u{200C}\u{200D}",
+                'b8310a5e2d436d0b75a6f399b3cb6e25ad066a823b8fd1b1396c0890ab7c62f0', [
+                    '+221780123456' => 'cc523a81fb899287bf6cb789833cb27ade601a2985b96b5bbb18e82da44c809b',
+                ]],
+            'chiffres persans' => ['Appartement Point E ۷۰ ۱۲۳ ۴۵ ۶۷ loyer ۲۵۰ ۰۰۰',
+                '67237e4aa995c8c57e3bc5e7b3fc6b1a5d58f6b5d5988addc54a4dcf80660688', [
+                    '+221701234567' => '7dfa54474d91429919bd556d2468554b2da6e7cf19d648ba14a9223196e84c3e',
+                ]],
+            'chiffres devanagari' => ['Chambre Yoff ७६ ०१२ ३४ ५६ calme',
+                '3d8340b691fcf51c81795d5d42eba05249f9331a6a1cfd4897e6400c300e3311', [
+                    '+221760123456' => '26391d6eee91e5acb7ae54a28b65cd448d7e5571f5da11a56e53a15b7f25a42d',
+                ]],
+            '+221 collé' => ['Magasin Sandaga +221771234567 ou +22133 821 00 00',
+                '8893c5506322c0af13299a3d379db9b4787efb67a67c4ebfddea53cfcfd74079', [
+                    '+221771234567' => $fictif,
+                    '+221338210000' => 'b9405e27ebafa3d839a42bbece115a1ccf8653e1a81354457024b788d8b42334',
+                ]],
+            '+ et chiffres pleine chasse' => ["Bureau ＋２２１ ７５ ０１２ ３４ ５６\u{202F}libre",
+                '728ea8d10d7e93310debb9757eaae2df09132a0ae8c18ee3821634729b076512', [
+                    '+221750123456' => '440795d61d05ecdf0af6ae54e2502bdd2863f7db186af5d87bbdccbf058729f9',
+                ]],
         ];
     }
 
@@ -61,6 +86,36 @@ class EmpreintesFigeesTest extends TestCase
             $lus = RadarPhone::fromText($texte),
             array_map(RadarPhone::hmac(...), $lus),
         ));
+    }
+
+    /**
+     * La clé de `phone_hmac` est `RadarPhone::canonical()` : chaque écriture isolée qu'il reconnaissait avant TCK-3004 (valeurs
+     * relevées sur `dev` 4e3a929f7) donne la même forme E.164, sinon le refus STOP qu'elle porte n'est plus retrouvé.
+     *
+     * @return array<string, array{string, ?string}>
+     */
+    public static function ecritures(): array
+    {
+        return [
+            'trait d\'union conditionnel' => ["77\u{00AD}123\u{00AD}45\u{00AD}67", '+221771234567'],
+            'espace de largeur nulle' => ["+221\u{200B}78 012 34 56", '+221780123456'],
+            'BOM et joint de mots' => ["\u{FEFF}00221\u{2060}70 123 45 67", '+221701234567'],
+            'chiffres persans' => ['۷۶ ۱۲۳ ۴۵ ۶۷', '+221761234567'],
+            'chiffres arabes-indiens' => ['٣٣ ٨٢١ ٠٠ ٠٠', '+221338210000'],
+            'chiffres devanagari collés' => ['७७१२३४५६७', '+221771234567'],
+            'espaces insécables' => ["77\u{00A0}123\u{00A0}45\u{00A0}67", '+221771234567'],
+            '+221 collé' => ['+221771234567', '+221771234567'],
+            '(0) de trunk' => ['+221(0)77 123 45 67', '+221771234567'],
+            '+ et chiffres pleine chasse' => ['＋２２１７７１２３４５６７', '+221771234567'],
+            'étranger' => ['+33 6 12 34 56 78', null],
+            'préfixe 74 non attribué' => ['74 123 45 67', null],
+        ];
+    }
+
+    #[DataProvider('ecritures')]
+    public function test_une_ecriture_isolee_garde_sa_forme_canonique(string $ecriture, ?string $e164): void
+    {
+        $this->assertSame($e164, RadarPhone::canonical($ecriture));
     }
 
     /** Un texte qui n'est pas de l'UTF-8 se replie en rien, comme avant : son empreinte est celle du texte vide. */
