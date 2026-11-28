@@ -24,8 +24,8 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
  * TCK-261 — server actions consumed by `<ServiceProviderOnboardingWizard>`.
  *
  * The KYC upload uses a multipart body and is therefore submitted from
- * the client via `fetch('/api/me/profiles/{id}/kyc/upload', ...)` directly
- * to the SSR proxy — not exposed here.
+ * the client to the SSR proxy `/api/me/profiles/{id}/kyc/upload` by
+ * `envoyerLaPiece` (`lib/queries/pieces.ts`, TCK-3009) — not exposed here.
  */
 
 export type ActionResult<T> =

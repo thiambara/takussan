@@ -3,6 +3,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { apiRequest } from '@/lib/api';
+import { appelBff } from '@/lib/bff';
 import { cheminApi } from '@/lib/chemin-api';
 import type { MesPiecesResponse, ProfilDesPieces } from '@/lib/pieces/pieces';
 
@@ -19,16 +20,6 @@ export function useMesPieces() {
   return useApiQuery<MesPiecesResponse>([...CLE_PIECES], '/api/me/pieces', { enabled: Boolean(token), retry: false });
 }
 
-/** L'erreur d'un envoi par le relais : son statut et son corps, pour `messageCorpsErreurBff`. */
-export class EchecDEnvoi extends Error {
-  constructor(
-    readonly status: number,
-    readonly corps: unknown,
-  ) {
-    super(`envoi refusé (${status})`);
-  }
-}
-
 /**
  * Une pièce envoyée par le relais multipart same-origin (`src/app/api/me/<segment>/[id]/kyc/upload`), et non par une
  * server action : celles-ci ne relaient pas proprement un corps `multipart/form-data`.
@@ -37,12 +28,7 @@ export async function envoyerLaPiece(profil: ProfilDesPieces, code: string, fich
   const corps = new FormData();
   corps.append('file', fichier);
   corps.append('kind', code);
-  const reponse = await fetch(cheminApi`/api/me/${profil.segment}/${profil.id}/kyc/upload`, {
-    method: 'POST',
-    body: corps,
-    credentials: 'same-origin',
-  });
-  if (!reponse.ok) throw new EchecDEnvoi(reponse.status, await reponse.json().catch(() => null));
+  await appelBff(cheminApi`/api/me/${profil.segment}/${profil.id}/kyc/upload`, { method: 'POST', body: corps });
 }
 
 /** Le NINEA tapé (`PATCH /api/me/owner-profiles/{id}/tax-id`) : la réponse ne porte que sa forme masquée. */

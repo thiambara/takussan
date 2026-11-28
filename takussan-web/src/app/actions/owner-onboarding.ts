@@ -20,8 +20,8 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
  * TCK-257 — server actions consumed by `<OwnerOnboardingWizard>`.
  *
  * The KYC upload uses a multipart body and is submitted from the client
- * via `fetch('/api/me/owner-profiles/{id}/kyc/upload', ...)` directly to
- * the SSR proxy — not exposed here.
+ * to the SSR proxy `/api/me/owner-profiles/{id}/kyc/upload` by
+ * `envoyerLaPiece` (`lib/queries/pieces.ts`, TCK-3009) — not exposed here.
  */
 
 export type ActionResult<T> =

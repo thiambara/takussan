@@ -16,7 +16,8 @@
  *
  * ## Ce qu'elle refuse
  *
- *   1. un `fetch('/api/auth/set-token' | '/api/auth/logout')` hors de `src/context/AuthContext.tsx` ;
+ *   1. un `fetch('/api/auth/set-token' | '/api/auth/logout')` hors de `src/context/AuthContext.tsx` — ou le même
+ *      appel par `appelBff` (TCK-3009), la primitive des appels au BFF ;
  *   2. un effacement du cookie de session (`.delete(AUTH_COOKIE_NAME)`) hors des route handlers de
  *      `src/app/api/auth/` — c'est la forme qu'avait la server action `logoutAction`, dont le
  *      client n'apprenait jamais l'effet.
@@ -48,7 +49,7 @@ const FICHIERS = sources(SRC).map((f) => ({
   texte: readFileSync(f, 'utf8'),
 }));
 
-const POSE_OU_EFFACE = /fetch\(\s*['"`]\/api\/auth\/(?:set-token|logout)['"`]/;
+const POSE_OU_EFFACE = /(?:fetch|appelBff)(?:<[^>]*>)?\(\s*['"`]\/api\/auth\/(?:set-token|logout)['"`]/;
 const EFFACE_LE_COOKIE = /\.delete\(\s*AUTH_COOKIE_NAME\s*\)/;
 
 describe('TCK-509 — un seul chemin pour ouvrir et fermer une session côté client', () => {

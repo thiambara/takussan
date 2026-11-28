@@ -641,7 +641,7 @@ export type TraducteurRacine = (cle: string, valeurs?: Record<string, string | n
  * C'est LA fonction à appeler depuis un composant : contrairement à
  * {@link ApiError.displayMessage}, elle rend l'anglais et le wolof.
  *
- * @param erreur  ce qu'a levé `fetch` / `apiRequest` / un `jsonOrThrow`.
+ * @param erreur  ce qu'a levé `fetch` / `apiRequest` / `appelBff`.
  * @param t       un `useTranslations()` **sans argument** (racine du dictionnaire).
  * @param repli   libellé métier de l'appelant, déjà traduit, utilisé quand rien de plus précis
  *                n'est disponible — p. ex. « Une erreur est survenue. Réessayez. » de l'écran KYC.

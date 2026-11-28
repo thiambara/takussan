@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ApiError } from '@/lib/api';
+import { appelBff } from '@/lib/bff';
 import type { WizardDraft, WizardDraftResponse } from '@/types/wizard-draft';
 
 /**
@@ -95,21 +97,6 @@ export type UseWizardDraftResult<TData> = {
   clear: () => Promise<boolean>;
 };
 
-type FetchResponse<T> = { ok: boolean; status: number; json: () => Promise<T> };
-
-async function safeFetch<T>(url: string, init?: RequestInit): Promise<FetchResponse<T>> {
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    credentials: 'same-origin',
-    ...init,
-  });
-  return {
-    ok: res.ok,
-    status: res.status,
-    json: () => res.json() as Promise<T>,
-  };
-}
-
 export function useWizardDraft<TData = Record<string, unknown>>(
   key: string,
   options: UseWizardDraftOptions = {},
@@ -157,21 +144,13 @@ export function useWizardDraft<TData = Record<string, unknown>>(
 
     void (async () => {
       try {
-        const res = await safeFetch<WizardDraftResponse<TData>>(
-          `/api/me/wizard-drafts/${encodeURIComponent(key)}`,
-          { method: 'GET' },
-        );
-        if (cancelled) return;
-        if (res.status === 404) {
-          setDraft(null);
-        } else if (!res.ok) {
-          throw new Error(`GET wizard-drafts failed (${res.status})`);
-        } else {
-          const body = await res.json();
-          setDraft(body.data);
-        }
+        const body = await appelBff<WizardDraftResponse<TData>>(`/api/me/wizard-drafts/${encodeURIComponent(key)}`);
+        if (!cancelled) setDraft(body.data);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)));
+        if (cancelled) return;
+        // Aucun brouillon (404) : un état, pas une erreur.
+        if (err instanceof ApiError && err.status === 404) setDraft(null);
+        else setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -188,12 +167,10 @@ export function useWizardDraft<TData = Record<string, unknown>>(
       setError(null);
       enVolRef.current += 1;
       try {
-        const res = await safeFetch<WizardDraftResponse<TData>>(
-          `/api/me/wizard-drafts/${encodeURIComponent(key)}`,
-          { method: 'PUT', body: JSON.stringify(payload) },
-        );
-        if (!res.ok) throw new Error(`PUT wizard-drafts failed (${res.status})`);
-        const body = await res.json();
+        const body = await appelBff<WizardDraftResponse<TData>>(`/api/me/wizard-drafts/${encodeURIComponent(key)}`, {
+          method: 'PUT',
+          body: payload,
+        });
         setDraft(body.data);
         dernierEchecRef.current = null;
         aRejouerRef.current = null;
@@ -267,13 +244,7 @@ export function useWizardDraft<TData = Record<string, unknown>>(
     setIsSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/me/wizard-drafts/${encodeURIComponent(key)}`, {
-        method: 'DELETE',
-        credentials: 'same-origin',
-      });
-      if (!res.ok && res.status !== 204) {
-        throw new Error(`DELETE wizard-drafts failed (${res.status})`);
-      }
+      await appelBff(`/api/me/wizard-drafts/${encodeURIComponent(key)}`, { method: 'DELETE' });
       setDraft(null);
       return true;
     } catch (err) {

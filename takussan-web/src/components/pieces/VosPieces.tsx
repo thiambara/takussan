@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useMyProfiles } from '@/hooks/useProfiles';
-import { messageCorpsErreurBff, messageErreurApi } from '@/lib/api';
+import { ApiError, messageCorpsErreurBff, messageErreurApi } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { jourRelatif } from '@/lib/maintenance/mes-demandes';
 import {
@@ -36,7 +36,7 @@ import {
 } from '@/lib/pieces/pieces';
 import { lignesDeDeblocage, type LigneDeDeblocage } from '@/lib/pieces/ce-que-ca-debloque';
 import { CLE_DEMARRAGE } from '@/lib/queries/demarrage-espace';
-import { CLE_PIECES, EchecDEnvoi, enregistrerLeNinea, envoyerLaPiece, useMesPieces } from '@/lib/queries/pieces';
+import { CLE_PIECES, enregistrerLeNinea, envoyerLaPiece, useMesPieces } from '@/lib/queries/pieces';
 import { cn } from '@/lib/utils';
 
 /** La taille maximale qu'accepte l'envoi (`AcceptedUploads::kyc(8192)`), gardée par `seuils-de-saisie.parity.test.ts`. */
@@ -168,9 +168,11 @@ export function VosPieces() {
         restantes[code] = undefined;
         poserLApercu(code, undefined);
       } catch (e) {
+        // Le refus du RELAIS d'envoi se lit par son corps (`messageCorpsErreurBff`) : un 502 sans corps lisible garde le
+        // libellé de l'écran, là où `messageErreurApi` dirait « erreur serveur ». Le NINEA vient de l'API (`apiRequest`).
         const message =
-          e instanceof EchecDEnvoi
-            ? messageCorpsErreurBff(e.corps, tRacine, t('erreurs.envoi'))
+          'fichier' in prepare && e instanceof ApiError
+            ? messageCorpsErreurBff(e.data, tRacine, t('erreurs.envoi'))
             : messageErreurApi(e, tRacine, t('erreurs.envoi'));
         if (code === 'ninea' && !('fichier' in prepare)) setErreurNinea(message);
         else erreurs[code] = message;

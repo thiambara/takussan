@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { PiedDEnregistrement } from '@/components/profile/sommaire/PiedDEnregistrement';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { appelBff } from '@/lib/bff';
 
 interface ProfileTimezoneSectionProps {
   /** Le fuseau du compte (`users.timezone`), `null` ou absent : Dakar, le défaut de la colonne. */
@@ -46,13 +47,8 @@ export function ProfileTimezoneSection({ timezone, immediat = false }: ProfileTi
     demarrer(async () => {
       let ok = false;
       try {
-        const res = await fetch('/api/me', {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ timezone: valeur }),
-        });
-        ok = res.ok;
+        await appelBff('/api/me', { method: 'PATCH', body: { timezone: valeur } });
+        ok = true;
       } catch {
         ok = false;
       }

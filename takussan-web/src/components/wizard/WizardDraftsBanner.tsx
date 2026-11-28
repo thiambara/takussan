@@ -7,6 +7,7 @@ import { ArrowRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WizardDraftListResponse } from '@/types/wizard-draft';
 import { estDemarcheAReprendre, projectDraftForBanner } from '@/lib/wizard-drafts';
+import { appelBff } from '@/lib/bff';
 
 /**
  * TCK-250 — Dashboard banner that surfaces the current user's resumable
@@ -36,12 +37,7 @@ export function WizardDraftsBanner({ className, initialDrafts }: Props) {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch('/api/me/wizard-drafts', {
-          credentials: 'same-origin',
-          headers: { Accept: 'application/json' },
-        });
-        if (!res.ok) return;
-        const body = (await res.json()) as WizardDraftListResponse | null;
+        const body = await appelBff<WizardDraftListResponse | null>('/api/me/wizard-drafts');
         if (cancelled || !body?.data) return;
         setDrafts(body.data);
       } catch {
