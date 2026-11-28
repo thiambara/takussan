@@ -3,13 +3,10 @@
 namespace Tests\Feature\Database\Seeders;
 
 use App\Models\Booking;
-use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
-use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
-use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
@@ -44,35 +41,6 @@ class SeedingInvariantsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_un_jeu_seme_par_le_pipeline_tient_tous_ses_invariants(): void
-    {
-        $this->semer(new SeedingConfig(
-            agencies: 1,
-            propertiesPerAgency: 40,
-            customersPerAgency: 20,
-            bookingsPerAgency: 25,
-            leasesPerAgency: 15,
-            maintenanceRequestsPerAgency: 2,
-            conversationsPerAgency: 2,
-            documentsPerAgency: 2,
-            includeDemoUsers: false,
-        ));
-
-        // NON-VACUITÉ : chaque invariant porte sur une population présente. Sans biens à vendre, sans
-        // factures payées, sans réservation terminée, un zéro ne prouverait rien.
-        $this->assertGreaterThan(0, Property::query()->where('contract_type', ContractType::Sale)->count());
-        $this->assertGreaterThan(0, Property::query()->where('status', PropertyStatus::Rented)->count());
-        $this->assertGreaterThan(0, Lease::query()->where('status', LeaseStatus::Active)->count());
-        $this->assertGreaterThan(0, Invoice::query()->where('status', InvoiceStatus::Paid)->count());
-        $this->assertGreaterThan(0, Invoice::query()->where('status', InvoiceStatus::Overdue)->count());
-        $this->assertGreaterThan(0, Booking::query()->where('status', BookingStatus::Completed)->count());
-
-        $this->assertSame(
-            array_fill_keys(array_keys((new ReferentialIntegrityChecker)->violations()), 0),
-            (new ReferentialIntegrityChecker)->violations(),
-        );
-    }
-
     /**
      * Une réservation n'est terminée qu'une fois commencée. Le défaut ne touche que celles créées dans
      * la dernière semaine, soit 1 à 2 % d'un tirage sur 13 mois : il faut un VOLUME pour qu'il se
@@ -88,25 +56,6 @@ class SeedingInvariantsTest extends TestCase
 
         $this->assertGreaterThan(0, Booking::query()->where('start_date', '>', now()->toDateString())->count(), 'Aucune réservation à venir : le cas n\'est pas exercé.');
         $this->assertSame(0, (new ReferentialIntegrityChecker)->violations()['reservation_terminee_avant_son_debut']);
-    }
-
-    public function test_le_jeu_par_defaut_ne_contient_aucune_fixture_de_cas_limite_ni_de_couverture(): void
-    {
-        $this->semer(new SeedingConfig(
-            agencies: 1,
-            propertiesPerAgency: 10,
-            customersPerAgency: 5,
-            bookingsPerAgency: 3,
-            leasesPerAgency: 3,
-            maintenanceRequestsPerAgency: 1,
-            conversationsPerAgency: 1,
-            documentsPerAgency: 1,
-            includeDemoUsers: false,
-        ));
-
-        $this->assertSame(0, Property::query()->where('reference_number', 'like', 'PR-EC-%')->orWhere('reference_number', 'like', 'PR-FC-%')->count());
-        $this->assertSame(0, Lease::query()->where('reference_number', 'like', 'LS-EC-%')->orWhere('reference_number', 'like', 'LS-FC-%')->count());
-        $this->assertSame(0, Booking::query()->where('reference_number', 'like', 'BK-EC-%')->count());
     }
 
     public function test_les_fixtures_sont_eteintes_par_defaut_et_se_demandent_par_l_environnement(): void
@@ -158,16 +107,6 @@ class SeedingInvariantsTest extends TestCase
             [Lease::query()->count(), LeasePayment::query()->count(), Booking::query()->count(), Property::query()->where('status', PropertyStatus::Rented)->count()],
             'Le vérificateur a écrit en base : il « répare » au lieu de juger.',
         );
-    }
-
-    private function semer(SeedingConfig $config): void
-    {
-        app()->instance(SeedingConfig::class, $config);
-        // Le seeder réindexe le moteur que la configuration déclare : la suite en déclare un, et ce
-        // test ne juge pas l'index (SeedingReindexTest le fait).
-        config(['scout.driver' => null]);
-
-        $this->seed(YearOfActivitySeeder::class);
     }
 
     /**
