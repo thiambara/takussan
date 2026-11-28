@@ -233,7 +233,7 @@ class PaymentWebhookTest extends TestCase
     public function test_succes_avec_penalite_incluse_pose_late_fee_paid_at(): void
     {
         $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
 
@@ -268,12 +268,12 @@ class PaymentWebhookTest extends TestCase
         $fee = app(LateFeeCalculator::class)->apply($ctx['payment']->fresh());
         $this->assertSame(5_833.0, $fee);
 
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
 
         // Ce que le pilote transmet est un entier d'unités, égal au montant figé.
-        $this->assertSame(12_250_000, $spy->calls[0]['amount_cents']);
+        $this->assertSame(122_500, $spy->checkouts[0]['amount']);
         $this->assertEquals(122_500, $ctx['payment']->refresh()->metadata['gateway_expected_amount']);
 
         $this->waveWebhook('spy_txn_1', 122_500)->assertOk();
@@ -290,11 +290,11 @@ class PaymentWebhookTest extends TestCase
     public function test_une_penalite_fractionnaire_deja_enregistree_est_arrondie_au_montant_du(): void
     {
         $ctx = $this->leaseDue(['late_fee_online_collection' => true], ['late_fee_amount' => 7_500.05]);
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
 
-        $this->assertSame(15_750_000, $spy->calls[0]['amount_cents']);
+        $this->assertSame(157_500, $spy->checkouts[0]['amount']);
         $this->assertEquals(157_500, $ctx['payment']->refresh()->metadata['gateway_expected_amount']);
 
         $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
@@ -318,7 +318,7 @@ class PaymentWebhookTest extends TestCase
     public function test_succes_sans_penalite_incluse_laisse_la_penalite_due(): void
     {
         $ctx = $this->leaseDue(['late_fee_online_collection' => false]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
 
@@ -339,7 +339,7 @@ class PaymentWebhookTest extends TestCase
     public function test_echec_en_ligne_laisse_l_echeance_ouverte(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
 

@@ -72,7 +72,7 @@ class ReconciliationOverviewTest extends ApiTestCase
         $admin = User::factory()->create();
         $this->materializeRoleProfile($admin, 'agency_admin', $ctx['agency']);
         $ctx['agency']->update(['primary_admin_id' => $admin->id]);
-        $this->spyDriver();
+        $this->fakeWave();
         $this->actingAs($ctx['tenant'], 'sanctum');
         $this->postJson('/api/lease-payments/'.$ctx['payment']->id.'/initiate', ['provider' => 'wave'])->assertOk();
         $this->waveWebhook('spy_txn_1', 150000)->assertOk();

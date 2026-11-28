@@ -171,10 +171,10 @@ class DepositInstalmentScheduleTest extends TestCase
         app(LeaseService::class)->generateSchedule($ctx['lease']);
         $deposit = $this->deposits($ctx['lease'])->sole();
 
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         $this->actingAs($ctx['tenant'], 'sanctum');
         $this->postJson("/api/lease-payments/{$deposit->id}/initiate", ['provider' => 'wave'])->assertOk();
-        $this->assertSame(9_000_000, $spy->calls[0]['amount_cents']);
+        $this->assertSame(90_000, $spy->checkouts[0]['amount']);
         $this->waveWebhook('spy_txn_1', 90_000)->assertOk();
 
         $this->assertSame(PaymentStatus::Paid, $deposit->fresh()->status);

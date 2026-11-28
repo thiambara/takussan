@@ -17,13 +17,22 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\FakeWave;
 use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
 
 class PaymentGatewayInitiateTest extends TestCase
 {
-    use LeaseDueFixture;
+    use LeaseDueFixture {
+        fakeWave as private installerFakeWave;
+    }
     use RefreshDatabase;
+
+    /**
+     * TCK-3014 — `Http::fake` rend la PREMIÈRE réponse non nulle : la réponse Wave par défaut de
+     * `setUp()` masquerait celle du {@see FakeWave} installé ensuite. Elle s'efface dès qu'il l'est.
+     */
+    private bool $waveParDefaut = true;
 
     protected function setUp(): void
     {
@@ -33,12 +42,12 @@ class PaymentGatewayInitiateTest extends TestCase
 
         // Default: respond OK to common gateway URLs. Individual tests override.
         Http::fake([
-            'api.wave.com/*' => Http::response([
+            'api.wave.com/*' => fn () => $this->waveParDefaut ? Http::response([
                 'id' => 'cs_wave_123',
                 'wave_launch_url' => 'https://pay.wave.com/c/cs_wave_123',
                 'amount' => '50000',
                 'currency' => 'XOF',
-            ], 200),
+            ], 200) : null,
             'api.orange.com/oauth/v3/token' => Http::response(['access_token' => 'om_oauth', 'expires_in' => 3600]),
             'api.orange.com/*' => Http::response([
                 'pay_token' => 'om_token_abc',
@@ -53,6 +62,13 @@ class PaymentGatewayInitiateTest extends TestCase
      *
      * @return array{owner: User, booking: Booking, payment: BookingPayment, agency: Agency}
      */
+    protected function fakeWave(): FakeWave
+    {
+        $this->waveParDefaut = false;
+
+        return $this->installerFakeWave();
+    }
+
     protected function makeContext(string $provider = 'wave', string $currency = 'XOF', array $credentials = []): array
     {
         $agency = Agency::factory()->create();
@@ -229,13 +245,13 @@ class PaymentGatewayInitiateTest extends TestCase
     public function test_penalite_exclue_quand_l_agence_ne_l_encaisse_pas_en_ligne(): void
     {
         $ctx = $this->leaseDue(['late_fee_online_collection' => false]);
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])
             ->assertOk();
 
-        $this->assertSame(15_000_000, $spy->calls[0]['amount_cents']);
+        $this->assertSame(150_000, $spy->checkouts[0]['amount']);
         $meta = $ctx['payment']->refresh()->metadata;
         $this->assertEquals(150_000, $meta['gateway_expected_amount']);
         $this->assertFalse($meta['late_fee_included']);
@@ -245,13 +261,13 @@ class PaymentGatewayInitiateTest extends TestCase
     public function test_penalite_incluse_quand_l_agence_l_encaisse_en_ligne(): void
     {
         $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])
             ->assertOk();
 
-        $this->assertSame(15_750_000, $spy->calls[0]['amount_cents']);
+        $this->assertSame(157_500, $spy->checkouts[0]['amount']);
         $meta = $ctx['payment']->refresh()->metadata;
         $this->assertEquals(157_500, $meta['gateway_expected_amount']);
         $this->assertTrue($meta['late_fee_included']);
@@ -277,20 +293,20 @@ class PaymentGatewayInitiateTest extends TestCase
         $this->assertArrayNotHasKey('late_fee_online_collection', $agency->settings ?? []);
         $this->assertFalse($agency->collectsLateFeesOnline());
 
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])
             ->assertOk();
 
-        $this->assertSame(15_000_000, $spy->calls[0]['amount_cents']);
+        $this->assertSame(150_000, $spy->checkouts[0]['amount']);
     }
 
     /** AC8 — une échéance payée, remboursée, ou un acompte payé : 409, zéro appel au pilote. */
     public function test_initiation_refusee_sur_une_echeance_deja_payee(): void
     {
         $paid = $this->leaseDue(null, ['status' => PaymentStatus::Paid, 'paid_at' => now()]);
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($paid['tenant']);
 
         $this->postJson("/api/lease-payments/{$paid['payment']->id}/initiate", ['provider' => 'wave'])
@@ -332,20 +348,20 @@ class PaymentGatewayInitiateTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('code', 'payment.not_payable');
 
-        $this->assertSame([], $spy->calls, 'Le pilote ne doit jamais être appelé sur un paiement réglé.');
+        $this->assertSame([], $spy->checkouts, 'Le pilote ne doit jamais être appelé sur un paiement réglé.');
     }
 
     /** AC8 — réessayer après un échec est le cas nominal. */
     public function test_initiation_acceptee_sur_une_echeance_en_echec(): void
     {
         $ctx = $this->leaseDue(null, ['status' => PaymentStatus::Failed]);
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])
             ->assertOk();
 
-        $this->assertCount(1, $spy->calls);
+        $this->assertCount(1, $spy->checkouts);
     }
 
     /**
@@ -361,7 +377,7 @@ class PaymentGatewayInitiateTest extends TestCase
             'late_fee_amount' => null,
             'late_fee_applied_at' => null,
         ]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
         $this->assertEquals(150_000, $ctx['payment']->refresh()->metadata['gateway_expected_amount']);

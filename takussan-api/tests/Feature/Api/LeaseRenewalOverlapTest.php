@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Api;
 
-use App\Contracts\Payments\PaymentDriverContract;
 use App\Exceptions\ApiError;
 use App\Http\Resources\LeasePaymentResource;
 use App\Jobs\GenerateLeasePaymentSchedule;
@@ -21,14 +20,8 @@ use App\Services\Lease\LeaseRenewalService;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Model\LeasePaymentService;
 use App\Services\Model\LeaseService;
-use App\Services\Payments\Dto\CheckoutSession;
-use App\Services\Payments\Dto\PaymentEvent;
-use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
-use App\Services\Payments\PaymentGatewayService;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
@@ -38,6 +31,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\FakeWave;
 use Tests\Support\ReleveSqlParTransaction;
 use Tests\TestCase;
 
@@ -439,37 +433,14 @@ class LeaseRenewalOverlapTest extends TestCase
             ['start_date' => $start->toDateString(), 'end_date' => $start->copy()->addYear()->toDateString()],
             $parent->landlord,
         );
-        $driver = new class($renewal) implements PaymentDriverContract
-        {
-            public bool $called = false;
-
-            public function __construct(private readonly \Closure $duringCall) {}
-
-            public function initiate(Model $payment, int $amountCents, string $currency, array $meta = []): CheckoutSession
-            {
-                throw new \LogicException('non utilisé');
-            }
-
-            /** Le renouvellement passe pendant que le fournisseur répond. */
-            public function verify(string $externalId): DriverStatus
-            {
-                ($this->duringCall)();
-                $this->called = true;
-
-                return new DriverStatus(DriverStatus::SUCCESS, $externalId, []);
-            }
-
-            public function handleWebhook(Request $request): PaymentEvent
-            {
-                throw new \LogicException('non utilisé');
-            }
-        };
-        $this->partialMock(PaymentGatewayService::class, fn ($mock) => $mock->shouldReceive('driverFor')->andReturn($driver));
+        // Le renouvellement passe pendant que le fournisseur répond, et Wave dit la session réglée.
+        // TCK-3014 (ADR-0140 § 5) — Wave derrière le client HTTP, plus un double de `driverFor`.
+        $wave = FakeWave::install()->reglerALaVerification()->pendantLaVerification(fn () => $renewal());
         // Passe 8 (m-m) — le verrou est relevé avec le niveau de transaction qui le tient.
         $base = DB::transactionLevel();
         $locksAfterCall = [];
-        DB::listen(function (QueryExecuted $query) use ($driver, &$locksAfterCall): void {
-            if ($driver->called && preg_match('/from "lease_payments" .*for update/i', $query->sql)) {
+        DB::listen(function (QueryExecuted $query) use ($wave, &$locksAfterCall): void {
+            if ($wave->verifications !== [] && preg_match('/from "lease_payments" .*for update/i', $query->sql)) {
                 $locksAfterCall[] = DB::transactionLevel();
             }
         });
@@ -479,7 +450,7 @@ class LeaseRenewalOverlapTest extends TestCase
             ->assertJsonPath('data.status', PaymentStatus::Cancelled->value)
             ->assertJsonPath('data.refund_pending', true);
 
-        $this->assertTrue($driver->called);
+        $this->assertSame(['txn_ancien'], $wave->verifications);
         $this->assertNotEmpty($locksAfterCall, 'verify : l\'échéance n\'est pas relue FOR UPDATE après l\'appel au fournisseur');
         foreach ($locksAfterCall as $level) {
             $this->assertGreaterThan($base, $level, 'verify : le FOR UPDATE n\'est tenu par aucune transaction du code');

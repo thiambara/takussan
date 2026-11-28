@@ -2,7 +2,6 @@
 
 namespace Tests\Support;
 
-use App\Contracts\Payments\PaymentDriverContract;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\Currency;
@@ -12,13 +11,6 @@ use App\Models\Integration;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
-use App\Services\Payments\Drivers\WaveDriver;
-use App\Services\Payments\Dto\CheckoutSession;
-use App\Services\Payments\Dto\PaymentEvent;
-use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
-use App\Services\Payments\PaymentGatewayService;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
 
 /**
  * TCK-593 — l'échéance des critères d'acceptation : 150 000 XOF, pénalité de 7 500 appliquée et
@@ -76,57 +68,17 @@ trait LeaseDueFixture
     }
 
     /**
-     * Remplace le pilote par un espion : chaque `initiate()` est enregistré avec le montant ENTIER
-     * ×100 que le service lui transmet (principe n°3), sans appel réseau. Les identifiants de
-     * transaction valent `spy_txn_1`, `spy_txn_2`… dans l'ordre des initiations.
+     * Wave derrière le client HTTP ({@see FakeWave}) : le vrai `WaveDriver` est appelé, et chaque
+     * checkout est enregistré avec le montant ENTIER que Wave reçoit (principe n°3 : le service
+     * transmet ×100, le pilote redivise). Les identifiants de session valent `spy_txn_1`,
+     * `spy_txn_2`… et les URL `https://pay.example/c/1`… dans l'ordre des appels.
+     *
+     * TCK-3014 (ADR-0140 § 5) — remplace `spyDriver()`, qui doublait `PaymentGatewayService::driverFor`
+     * par `partialMock` : un espion de pilote, et non le pilote.
      */
-    protected function spyDriver(): object
+    protected function fakeWave(): FakeWave
     {
-        $spy = new class implements PaymentDriverContract
-        {
-            /** @var list<array{payment_id: int, amount_cents: int, currency: string, meta: array<string, mixed>}> */
-            public array $calls = [];
-
-            /** TCK-602 — ce que `verify()` répond : `pending` par défaut. */
-            public string $verifyStatus = DriverStatus::PENDING;
-
-            /** VERIF-602 M1 — ce qui se passe PENDANT l'appel au fournisseur (un webhook qui arrive). */
-            public ?\Closure $onVerify = null;
-
-            public bool $verified = false;
-
-            public function initiate(Model $payment, int $amountCents, string $currency, array $meta = []): CheckoutSession
-            {
-                // TCK-602 — `meta` aussi : les URLs de retour que le service transmet au pilote.
-                $this->calls[] = ['payment_id' => (int) $payment->getKey(), 'amount_cents' => $amountCents, 'currency' => $currency, 'meta' => $meta];
-
-                return new CheckoutSession('https://pay.example/c/'.count($this->calls), 'spy_txn_'.count($this->calls), 'wave');
-            }
-
-            public function verify(string $externalId): DriverStatus
-            {
-                if ($this->onVerify !== null) {
-                    ($this->onVerify)();
-                }
-                $this->verified = true;
-
-                return new DriverStatus($this->verifyStatus, $externalId, []);
-            }
-
-            /** Le webhook, lui, passe par le vrai pilote Wave : signature comprise. */
-            public function handleWebhook(Request $request): PaymentEvent
-            {
-                $integration = Integration::query()->where('provider', 'wave')->where('is_active', true)->firstOrFail();
-
-                return (new WaveDriver($integration))->handleWebhook($request);
-            }
-        };
-
-        $this->partialMock(PaymentGatewayService::class, function ($mock) use ($spy): void {
-            $mock->shouldReceive('driverFor')->andReturn($spy);
-        });
-
-        return $spy;
+        return FakeWave::install('spy_txn_', 'https://pay.example/c/');
     }
 
     /**

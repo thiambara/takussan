@@ -17,7 +17,6 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\Booking\BookingRefundTaskService;
 use App\Services\Payments\Dto\PaymentEvent;
-use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
 use App\Services\Payments\Dto\WebhookAuthority;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,7 +68,7 @@ class PaymentWebhookRefundTest extends TestCase
     public function test_rembourser_le_second_checkout_ne_rembourse_pas_le_loyer(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->initiate($ctx['payment']->id)->assertOk();
@@ -90,7 +89,7 @@ class PaymentWebhookRefundTest extends TestCase
     public function test_rembourser_le_checkout_paye_apres_des_especes_ne_rembourse_pas_le_loyer(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
 
@@ -110,7 +109,7 @@ class PaymentWebhookRefundTest extends TestCase
     public function test_temoin_rembourser_le_checkout_qui_a_solde_rembourse_le_loyer(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
         $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
@@ -129,7 +128,7 @@ class PaymentWebhookRefundTest extends TestCase
         $ctx = $this->leaseDue();
         $admin = User::factory()->create(['agency_id' => $ctx['agency']->id]);
         $ctx['agency']->update(['primary_admin_id' => $admin->id]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->initiate($ctx['payment']->id)->assertOk();
@@ -156,14 +155,14 @@ class PaymentWebhookRefundTest extends TestCase
     public function test_la_verification_forcee_du_reglement_rembourse_n_est_pas_un_doublon(): void
     {
         $ctx = $this->leaseDue();
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
         $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
         $this->refundEvent('spy_txn_1', 150_000);
 
         // La session du fournisseur reste « réglée » après son remboursement.
-        $spy->verifyStatus = DriverStatus::SUCCESS;
+        $spy->reglerALaVerification();
         app(PaymentGatewayService::class)->verify($ctx['payment']->refresh());
 
         $payment = $ctx['payment']->refresh();
@@ -225,7 +224,7 @@ class PaymentWebhookRefundTest extends TestCase
     public function test_le_remboursement_d_une_echeance_ecrit_le_montant_rembourse(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
         $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
@@ -242,7 +241,7 @@ class PaymentWebhookRefundTest extends TestCase
     public function test_le_montant_rembourse_est_plafonne_et_vaut_le_montant_entier_a_defaut(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
         $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
@@ -266,7 +265,7 @@ class PaymentWebhookRefundTest extends TestCase
     {
         Log::spy();
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
 
@@ -290,7 +289,7 @@ class PaymentWebhookRefundTest extends TestCase
     public function test_un_remboursement_du_doublon_recu_avant_son_paiement_ne_rembourse_pas_le_loyer(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
         $this->travel(config('payments.checkout_reuse_minutes') + 1)->minutes();

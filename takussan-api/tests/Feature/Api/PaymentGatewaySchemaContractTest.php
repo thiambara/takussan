@@ -124,15 +124,11 @@ class PaymentGatewaySchemaContractTest extends TestCase
             Invoice::factory()->create(['total_amount' => 15000]),
         ];
 
-        $resolve = new \ReflectionMethod(
-            PaymentGatewayService::class,
-            'amountDue',
-        );
-
+        // TCK-3014 — `amountDue()` est publique depuis TCK-593 : plus de réflexion.
         $gateway = app(PaymentGatewayService::class);
 
         foreach ($payables as $payable) {
-            $amount = $resolve->invoke($gateway, $payable);
+            $amount = $gateway->amountDue($payable);
 
             $this->assertNotNull(
                 $amount,

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Api;
 
-use App\Contracts\Payments\PaymentDriverContract;
 use App\Exceptions\ApiError;
 use App\Models\Customer;
 use App\Models\Enums\InvoiceKind;
@@ -15,17 +14,15 @@ use App\Models\User;
 use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Lease\EarlyTerminationService;
 use App\Services\Model\InvoiceService;
-use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
-use Mockery;
-use ReflectionMethod;
 use Tests\Concerns\BuildsInvoices;
 use Tests\Concerns\CreatesAgencyMembers;
+use Tests\Support\FakeWave;
 use Tests\TestCase;
 
 /**
@@ -142,18 +139,6 @@ class InvoiceNumberingTest extends TestCase
         $this->assertSame('AV-2026-00001', $credit->reference_number);
     }
 
-    public function test_ac12_a_draft_settled_by_the_gateway_is_numbered(): void
-    {
-        [$agency, , $customer] = $this->invoicingAgency();
-        $draft = $this->draftOf($agency, $customer, 50_000);
-
-        $apply = new ReflectionMethod(PaymentGatewayService::class, 'applyStatusToPayment');
-        $apply->invoke(app(PaymentGatewayService::class), $draft, 'success', ['amount' => 50_000]);
-
-        $this->assertSame(InvoiceStatus::Paid, $draft->fresh()->status);
-        $this->assertSame('FA-2026-00001', $draft->fresh()->reference_number);
-    }
-
     public function test_an_invoice_without_agency_keeps_its_reference(): void
     {
         $invoice = Invoice::factory()->create(['agency_id' => null, 'customer_id' => Customer::factory()->create()->id]);
@@ -225,23 +210,30 @@ class InvoiceNumberingTest extends TestCase
      * VERIF-594 m-4 — la vérification forcée par la passerelle (`verify`) appliquait l'état hors de
      * toute transaction : la facture passait `paid`, puis l'allocateur la numérotait à part. L'état
      * et le numéro s'écrivent désormais ensemble.
+     *
+     * AC12 aussi : un brouillon soldé par la passerelle est numéroté. TCK-3014 (ADR-0140 § 5) — par
+     * l'interface : une intégration Wave réelle, Wave derrière le client HTTP ({@see FakeWave}) qui
+     * rend la session réglée. Ni `makePartial` de la passerelle, ni réflexion sur
+     * `applyStatusToPayment` (`test_ac12_a_draft_settled_by_the_gateway_is_numbered`, que ce test absorbe).
      */
     public function test_m4_a_gateway_verification_writes_status_and_number_in_one_transaction(): void
     {
         [$agency, , $customer] = $this->invoicingAgency();
         $draft = $this->draftOf($agency, $customer, 50_000);
         $draft->forceFill(['transaction_id' => 'tx-m4', 'metadata' => ['gateway' => ['provider' => 'wave']]])->save();
-
-        $driver = Mockery::mock(PaymentDriverContract::class);
-        $driver->shouldReceive('verify')->with('tx-m4')->andReturn(new PaymentDriverStatus(PaymentDriverStatus::SUCCESS, 'tx-m4'));
-        $gateway = Mockery::mock(PaymentGatewayService::class)->makePartial();
-        $gateway->shouldReceive('resolveIntegration')->andReturn(new Integration(['provider' => 'wave']));
-        $gateway->shouldReceive('driverFor')->andReturn($driver);
+        Integration::factory()->create([
+            'agency_id' => $agency->id,
+            'provider' => 'wave',
+            'is_active' => true,
+            'credentials' => ['api_key' => 'wave_key', 'webhook_secret' => 'wave_secret'],
+        ]);
+        $wave = FakeWave::install()->reglerALaVerification();
         $levels = $this->levelsAtLock();
 
         $baseline = DB::transactionLevel();
-        $gateway->verify($draft);
+        app(PaymentGatewayService::class)->verify($draft);
 
+        $this->assertSame(['tx-m4'], $wave->verifications);
         $this->assertSame(InvoiceStatus::Paid, $draft->fresh()->status);
         $this->assertSame('FA-2026-00001', $draft->fresh()->reference_number);
         $this->assertNotSame([], $levels->status, "l'état de la facture doit s'écrire");
