@@ -133,3 +133,29 @@ parents de la face SQL des tâches → rouge.
   vérifie un 403 avant la migration et un 200 après. Les auteurs ambigus, suspendus ou partis restent
   sans agence. Ablation des filtres de statut : rouge, restauration vérifiée par md5. Le chemin de
   réservation et celui de bail posent l'agence de leur objet (nulle seulement hors agence).
+
+**Vérification adverse (quatre défauts, chacun rouge d'abord).** Les tests sont rangés dans la classe du module éprouvé : lecture et compte de requêtes dans `ListeEtFicheParityTest`, créateur dans `BookingRefundTaskTest`, export dans `ExportScopingTest`.
+
+- **Demandeur parti, bien en corbeille** : `InterventionsLisibles::estDemandeur` et la branche 1 en SQL
+  lisent désormais l'agence du bien corbeille comprise (`bien()`, `withoutGlobalScope(SoftDeletingScope)`).
+  Avant, `property?->agency_id` valait `null` sous la corbeille, et la fiche comme la liste se rouvraient
+  (200). Le docblock est corrigé. Ablations : PHP, 1 rouge ; SQL, 2 rouges.
+- **Tâche de remboursement servie au client** : corrigée à la source, sans toucher la règle de lecture.
+  `BookingRefundTaskService::createurInterne` n'enregistre pas le client de la réservation comme
+  créateur (`null`), et le personnel ou l'hôte qui ferment la réservation le restent. Retirer le créateur
+  de `participe()` aurait touché toutes les tâches personnelles, d'où ce choix. Résultat pour le client :
+  GET de la fiche 403, PATCH 403, absente de `GET /api/tasks`. L'hôte assigné la garde. La reprise
+  `2026_11_28_120100` retire le client des tâches déjà écrites ; son `down()` est vide, avec le motif.
+  `BookingRefundTaskTest` épinglait l'ancien créateur (le client) : l'assertion est inversée. Ablation :
+  1 rouge.
+- **Requête par ligne** : mesurée de 1 à 20 lignes sur un bien en corbeille. Les états des lieux et
+  les visites restaient constants (leur liste n'appelle pas `bien()`). Les interventions passaient de
+  25 à 44 requêtes, parce que la ressource relisait `property` sur chaque ligne. `with('property')` dans
+  `MaintenanceRequestController::index` la ramène à une requête. Le bien n'est pas chargé corbeille
+  comprise, sans quoi la ressource exposerait un bien supprimé. Ablation : 1 rouge.
+- **Export** : `ExportDataService::scopeToActor` plafonne désormais l'export par la liste du même objet,
+  `ClientsLisibles` / `BauxLisibles` / `FacturesLisibles` / `ReversementsLisibles` d'abord ; les bornes
+  existantes ne font que rétrécir. Deux fuites ont été fermées. `crm.export` sans `crm.view_all` rendait
+  toutes les fiches clients de l'agence, contact compris. `reports.export` sans `payouts.create` rendait
+  les reversements que la liste refuse. Ablation : 2 rouges. Les 289 tests d'export restent verts.
+

@@ -21,7 +21,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
 
@@ -359,6 +361,71 @@ class ListeEtFicheParityTest extends ApiTestCase
         }
 
         $this->assertParite('/api/maintenance-requests', $lignes);
+    }
+
+    /**
+     * ADR-0138 § 4 (vérification adverse) — le bien en corbeille se juge sur SON agence, pour la
+     * borne du demandeur aussi : le personnel parti, refusé tant que le bien est actif, ne retrouve
+     * pas l'intervention quand le bien passe en corbeille.
+     */
+    public function test_interventions_le_demandeur_parti_reste_refuse_quand_le_bien_passe_en_corbeille(): void
+    {
+        $parti = $this->acteur('personnel parti de A');
+        $bien = Property::factory()->create(['agency_id' => $this->a->id]);
+        $intervention = MaintenanceRequest::factory()->create(['property_id' => $bien->id, 'requester_id' => $parti->id]);
+        $this->assertFalse($this->ouvre($parti, $intervention));
+
+        $bien->delete();
+
+        $this->assertFalse($this->ouvre($parti, $intervention->fresh()));
+        $this->assertNotContains($intervention->id, $this->idsListes('/api/maintenance-requests', $parti));
+    }
+
+    /**
+     * Les listes d'objets dont le bien est en corbeille ne relisent pas le bien ligne par ligne :
+     * le nombre de requêtes ne croît pas de 1 à 20 lignes (interventions : la ressource lisait
+     * `property` sur chaque ligne).
+     *
+     * @return iterable<string, array{0: string}>
+     */
+    public static function listesSurUnBienEnCorbeille(): iterable
+    {
+        yield 'états des lieux' => ['inventories'];
+        yield 'visites' => ['property-visits'];
+        yield 'interventions' => ['maintenance-requests'];
+    }
+
+    #[DataProvider('listesSurUnBienEnCorbeille')]
+    public function test_une_liste_sur_un_bien_en_corbeille_ne_fait_pas_une_requete_par_ligne(string $route): void
+    {
+        $admin = $this->acteur('personnel actif (admin de A)');
+        $bien = Property::factory()->create(['agency_id' => $this->a->id]);
+
+        $compter = function (int $lignes) use ($route, $admin, $bien): int {
+            foreach (range(1, $lignes) as $_) {
+                match ($route) {
+                    'inventories' => Inventory::factory()->create(['property_id' => $bien->id]),
+                    'property-visits' => PropertyVisit::factory()->create(['property_id' => $bien->id]),
+                    'maintenance-requests' => MaintenanceRequest::factory()->create(['property_id' => $bien->id, 'requester_id' => $admin->id]),
+                };
+            }
+            $bien->delete();
+            $requete = $this->actingAsApi($admin);
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $total = count($requete->getJson("/api/{$route}?per_page=100")->assertOk()->json('data'));
+            $n = count(DB::getQueryLog());
+            DB::disableQueryLog();
+            $bien->restore();
+            $this->assertGreaterThanOrEqual($lignes, $total);
+
+            return $n;
+        };
+
+        $une = $compter(1);
+        $vingt = $compter(19);
+
+        $this->assertSame($une, $vingt, "{$route} : {$une} requêtes pour 1 ligne, {$vingt} pour 20");
     }
 
     public function test_reservations(): void

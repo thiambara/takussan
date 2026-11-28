@@ -13,6 +13,10 @@ use App\Models\Payout;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
+use App\Services\Lecture\BauxLisibles;
+use App\Services\Lecture\ClientsLisibles;
+use App\Services\Lecture\FacturesLisibles;
+use App\Services\Lecture\ReversementsLisibles;
 use App\Services\Payments\PaymentHistory;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Reporting\AgingBalanceService;
@@ -593,6 +597,19 @@ class ExportDataService
         if ($actor->isSuperAdmin()) {
             return;
         }
+
+        // TCK-3006 (ADR-0138) — plafond : l'export ne rend jamais plus que la LISTE du même objet. Les
+        // entités qui ont un module de lecture passent d'abord par lui ; les bornes ci-dessous (agence
+        // du profil actif, bailleur, locataire) ne font que rétrécir. `crm.export` seul rendait au
+        // personnel sans `crm.view_all` toutes les fiches de l'agence, et `reports.export` les
+        // reversements que la liste lui refuse (`payouts.create`).
+        match ($entity) {
+            'customer' => ClientsLisibles::restreindre($query, $actor),
+            'lease' => BauxLisibles::restreindre($query, $actor),
+            'invoice' => FacturesLisibles::restreindre($query, $actor),
+            'payout' => ReversementsLisibles::restreindre($query, $actor),
+            default => null,
+        };
 
         $agencyId = $actor->agency_id;
 

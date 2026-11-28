@@ -3,12 +3,14 @@
 namespace App\Services\Lecture;
 
 use App\Models\MaintenanceRequest;
+use App\Models\Property;
 use App\Models\User;
 use App\Policies\MaintenanceRequestPolicy;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 /**
  * TCK-3006 (ADR-0138) — qui peut lire une intervention, pour la liste (`GET /api/maintenance-requests`,
@@ -27,8 +29,11 @@ use Illuminate\Database\Eloquent\Builder;
  * Les branches 1 et 2 servent aussi les gestes (`update`, `contribute`, `actorsOf`) : la policy les
  * lit ici ({@see self::estDemandeur()}, {@see self::estPrestataireAssigne()}).
  *
- * Le bien supprimé en douceur ferme ses interventions (`PropertyObserver`, P130.03) : les deux faces
- * lisent le bien hors corbeille, et seul le demandeur garde la ligne.
+ * Le bien supprimé en douceur ferme ses interventions (`PropertyObserver`, P130.03) : les branches 2
+ * et 3 lisent le bien hors corbeille, et seul le demandeur garde la ligne. La borne du demandeur
+ * (branche 1) lit l'agence du bien CORBEILLE COMPRISE (ADR-0138 § 4, vérification adverse de
+ * TCK-3006) : le membre parti, refusé tant que le bien était actif, retrouvait la fiche et la liste
+ * dès sa suppression. La liste ne l'appelle pas : seule la fiche relit ce bien.
  */
 final class InterventionsLisibles
 {
@@ -62,7 +67,8 @@ final class InterventionsLisibles
             $q->where(fn (Builder $requested) => $requested
                 ->where($q->qualifyColumn('requester_id'), $user->id)
                 ->when($agencesQuittees !== [], fn (Builder $r) => $r
-                    ->whereDoesntHave('property', fn (Builder $p) => $p->whereIn('agency_id', $agencesQuittees))))
+                    ->whereDoesntHave('property', fn (Builder $p) => $p
+                        ->withoutGlobalScope(SoftDeletingScope::class)->whereIn('agency_id', $agencesQuittees))))
                 // 2.
                 ->orWhere(fn (Builder $assigned) => $assigned
                     ->where($q->qualifyColumn('assigned_to'), $user->id)
@@ -94,7 +100,7 @@ final class InterventionsLisibles
             return false;
         }
 
-        $agencyId = $request->property?->agency_id;
+        $agencyId = self::bien($request)?->agency_id;
 
         return $agencyId === null
             || ! in_array((int) $agencyId, app(MembershipCapabilityResolver::class)->agencesDuPersonnelParti($user), true);
@@ -106,5 +112,16 @@ final class InterventionsLisibles
         return $request->assigned_to !== null
             && (int) $request->assigned_to === (int) $user->id
             && app(ProviderEligibility::class)->isAssignable($user, $request->property);
+    }
+
+    /** Le bien, corbeille comprise : la relation chargée s'il y en a une, sinon relu en base. */
+    private static function bien(MaintenanceRequest $request): ?Property
+    {
+        if ($request->property_id === null) {
+            return null;
+        }
+
+        return ($request->relationLoaded('property') ? $request->property : null)
+            ?? Property::withTrashed()->find($request->property_id);
     }
 }
