@@ -36,6 +36,13 @@ export interface DescriptionDeRessource {
   readonly inclusAuDetail: readonly string[];
   /** La `Resource` décrite, depuis `takussan-api/` : la garde y relit les clés de `toArray`. */
   readonly php: string;
+  /**
+   * Les `filter[<nom>]` que la liste accepte : un autre, spatie le refuse en 400 (`InvalidFilterQuery`). Gardés contre
+   * le modèle PHP (`modele`, ce que compose `HasQueryBuilder::getAllowedQueryFilters`).
+   */
+  readonly filtresPermis: readonly string[];
+  /** Le modèle de la liste, depuis `takussan-api/` : la garde y relit ses filtres. */
+  readonly modele: string;
 }
 
 /**
@@ -61,6 +68,11 @@ const visites: DescriptionDeRessource = {
   // `PropertyVisitController::show` : `load(['property.address', 'property.media', 'agent', 'visitor', 'customer'])`.
   inclusAuDetail: ['property', 'agent', 'visitor', 'customer'],
   php: 'app/Http/Resources/PropertyVisitResource.php',
+  filtresPermis: [
+    'property_id', 'visitor_id', 'customer_id', 'agent_id', 'type', 'status', 'scheduled_at_min', 'scheduled_at_max',
+    'unassigned', 'mine', 'to_close', 'search', 'day',
+  ],
+  modele: 'app/Models/PropertyVisit.php',
 };
 
 /**
@@ -88,6 +100,11 @@ const reservations: DescriptionDeRessource = {
   // Ce que `show` charge est déjà dans `calculees`.
   inclusAuDetail: [],
   php: 'app/Http/Resources/BookingResource.php',
+  filtresPermis: [
+    'property_id', 'customer_id', 'created_by_id', 'agency_id', 'status', 'currency', 'kind', 'total_amount_min',
+    'total_amount_max', 'managed_by', 'search',
+  ],
+  modele: 'app/Models/Booking.php',
 };
 
 /** Baux — les parties et les clés calculées de la page suivent `include=` (`LeaseResource::computedAndParties`). */
@@ -128,6 +145,12 @@ const baux: DescriptionDeRessource = {
   // `LeaseController::show` : `load(['property.address', 'signatures.signer', …])`.
   inclusAuDetail: ['property'],
   php: 'app/Http/Resources/LeaseResource.php',
+  filtresPermis: [
+    'id', 'property_id', 'landlord_id', 'tenant_id', 'agency_id', 'agent_id', 'type', 'status', 'currency',
+    'payment_frequency', 'renewed_from_lease_id', 'monthly_rent_min', 'monthly_rent_max', 'a_traiter', 'motif',
+    'onboarding_pending', 'search',
+  ],
+  modele: 'app/Models/Lease.php',
 };
 
 export const RESSOURCES = { visites, reservations, baux } as const;

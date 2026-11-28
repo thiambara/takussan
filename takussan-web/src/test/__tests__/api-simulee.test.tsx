@@ -10,7 +10,7 @@ import { waitFor } from '@testing-library/react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -24,19 +24,17 @@ import { rendreLeHook } from '../rendu';
 vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
 import { RESSOURCES } from '../ressources-de-l-api';
 
-// Enregistré AVANT `doublerLApi()` : les `afterEach` se jouent en pile, celui-ci passe donc APRÈS celui du harnais.
-const fetchApresLesTests: unknown[] = [];
-afterEach(() => {
-  try {
-    void Promise.resolve(globalThis.fetch('/api/property-visits')).catch(() => undefined);
-    fetchApresLesTests.push('`fetch` n’a pas levé après le test');
-  } catch (refus) {
-    fetchApresLesTests.push(refus);
-  }
-});
+// Enregistré AVANT `doublerLApi()` : les `afterAll` se jouent en pile, celui-ci passe donc APRÈS celui du harnais,
+// qui fait échouer le fichier sur une requête arrivée hors d'un test. La sonde, elle, est attendue.
 afterAll(() => {
   // Hors d'un test, aucun appel ne joint le vrai réseau : `fetch` lève, tout de suite.
-  for (const issue of fetchApresLesTests) expect(issue).toEqual(expect.objectContaining({ message: expect.stringMatching(/hors d’un test/) }));
+  let issue: unknown = '`fetch` n’a pas levé hors d’un test';
+  try {
+    void Promise.resolve(globalThis.fetch('/api/property-visits')).catch(() => undefined);
+  } catch (refus) {
+    issue = refus;
+  }
+  expect(issue).toEqual(expect.objectContaining({ message: expect.stringMatching(/hors d’un test/) }));
 });
 
 const api = doublerLApi();
@@ -137,6 +135,39 @@ describe('la pagination, bornée comme l’API', () => {
     expect([parDefaut.data.length, parDefaut.meta.per_page, parDefaut.meta.last_page]).toEqual([15, 15, 8]);
     expect([plafond.data.length, plafond.meta.per_page, plafond.meta.last_page]).toEqual([100, 100, 2]);
   });
+
+  it('un producteur qui donne `meta.total` rend déjà sa page : elle n’est pas redécoupée', async () => {
+    api.servir('baux', lignes.slice(15, 30), { meta: { total: 40 } });
+
+    const { data, meta } = await apiRequest<Liste & { meta: Record<string, number> }>('/api/leases?page=2&per_page=15');
+
+    expect(data.map((l) => l.id)).toEqual(lignes.slice(15, 30).map((l) => l.id));
+    expect(meta).toEqual({ total: 40, per_page: 15, current_page: 2, last_page: 3 });
+  });
+
+  it('une page déjà découpée qui contredit la requête ou son `total` fait échouer le test', async () => {
+    api.servir('baux', ({ requete }) => (requete.get('page') === '1' ? lignes.slice(0, 20) : lignes.slice(0, 5)), { meta: ({ requete }) => ({ total: requete.get('page') === '1' ? 40 : 3 }) });
+
+    await apiRequest('/api/leases?page=1&per_page=15');
+    await apiRequest('/api/leases?page=2&per_page=15');
+
+    expect(() => api.verifier()).toThrow(/20 lignes pour per_page=15[\s\S]*5 lignes pour total=3/);
+  });
+
+  // Mesuré par PHP (TCK-3010, tour c) : `page` par `PaginationState` (FILTER_VALIDATE_INT, ≥ 1, sinon 1),
+  // `per_page` par `HasQueryBuilder::getPerPage` (`is_numeric`, `(int)` qui tronque, ≥ 1, au plus 100, sinon 15).
+  it.each([
+    ['2.5', 1, 2], ['0.5', 1, 15], ['1.9', 1, 1], ['', 1, 15], ['0x1A', 1, 15], ['007', 1, 7], ['1e1', 1, 10],
+    ['+3', 3, 3], ['-2', 1, 15], ['3abc', 1, 15], ['1e5', 1, 100], ['.5', 1, 15],
+  ])('`%s` : page %i, per_page %i, comme l’API', async (valeur, page, parPage) => {
+    api.servir('baux', [...lignes, ...lignes, ...lignes, ...lignes, ...lignes, ...lignes, ...lignes, ...lignes]);
+    const v = encodeURIComponent(valeur);
+
+    const { meta: m1 } = await apiRequest<{ meta: Record<string, number> }>(`/api/leases?page=${v}&per_page=1`);
+    const { meta: m2 } = await apiRequest<{ meta: Record<string, number> }>(`/api/leases?per_page=${v}`);
+
+    expect([m1.current_page, m2.per_page]).toEqual([page, parPage]);
+  });
 });
 
 describe('filter[] : la doublure ne filtre pas, et le dit', () => {
@@ -162,6 +193,17 @@ describe('filter[] : la doublure ne filtre pas, et le dit', () => {
     expect(() => api.verifier()).toThrow(/filter\[day\]/);
     expect(api.appels('/api/property-visits')[0].requete.get('filter[status]')).toBe('scheduled');
   });
+
+  it('`filtres` refuse un filtre que le modèle n’autorise pas : l’API le refuserait en 400', () => {
+    expect(() => api.servir('visites', [VISITE], { filtres: ['statuss'] })).toThrow(/visites.*filter\[statuss\].*PropertyVisit/);
+  });
+
+  it('un filter[] inconnu du modèle rend 400, comme spatie, et fait échouer le test', async () => {
+    api.servir('visites', ({ requete }) => (requete.get('filter[statuss]') ? [VISITE] : []));
+
+    await expect(apiRequest('/api/property-visits?filter[statuss]=scheduled')).rejects.toMatchObject({ status: 400 });
+    expect(() => api.verifier()).toThrow(/filter\[statuss\] inconnu de GET \/api\/property-visits/);
+  });
 });
 
 describe('une requête tardive accuse le test qui l’a lancée', () => {
@@ -180,6 +222,28 @@ describe('une requête tardive accuse le test qui l’a lancée', () => {
 
     expect(api.appels()).toEqual([]);
     expect(() => api.verifier()).not.toThrow();
+  });
+
+  // `auRepos` ne voit pas une minuterie : le harnais ne peut pas retenir le test A, mais la requête porte son
+  // étiquette. Elle n'entre ni au journal ni dans les déclarations de B, et B échoue en nommant A.
+  it('A — lance une requête dans 60 ms, puis finit', () => {
+    setTimeout(() => void apiRequest('/api/route-de-a').catch(() => undefined), 60);
+  });
+
+  it('B — la requête de A arrive pendant B : B échoue en nommant A, et rien d’elle ne compte pour B', async () => {
+    await new Promise((fin) => setTimeout(fin, 120));
+
+    expect(api.appels()).toEqual([]);
+    expect(() => api.verifier()).toThrow(/GET \/api\/route-de-a lancée par le test « .*A — lance une requête dans 60 ms, puis finit » après sa fin/);
+  });
+
+  // La première attente du repos, AVANT le démontage : sans elle, ce qu'un composant monté lance encore (ici, la
+  // requête que la première réponse débloque) ne partirait jamais, et le test serait vert.
+  it.fails('une requête dépendante, que seul le composant monté lance, accuse le test', () => {
+    rendreLeHook(() => {
+      const premiere = useQuery({ queryKey: ['premiere'], queryFn: () => apiRequest<Liste>('/api/property-visits') });
+      return useQuery({ queryKey: ['dependante'], queryFn: () => apiRequest('/api/route-dependante'), enabled: premiere.isSuccess });
+    });
   });
 });
 
@@ -367,6 +431,40 @@ describe('les descriptions de ressources suivent les `Resource` PHP', () => {
     expect(description.idToujours, 'idToujours suit la Resource').toBe(source.includes("['id', ...$noms]"));
     expect(php.filter((c) => !classees.has(c)), 'clés de la Resource que la description ne classe pas').toEqual([]);
     expect([...description.colonnes, ...description.calculees].filter((c) => !php.includes(c)), 'clés décrites que la Resource ne rend pas').toEqual([]);
+  });
+});
+
+describe('les filtres permis suivent les `allowedFilters` des modèles PHP', () => {
+  const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+
+  /** Une liste de chaînes PHP : `['a', 'b']`. */
+  const chaines = (liste: string | undefined) => [...(liste ?? '').matchAll(/'([a-z_0-9]+)'/g)].map((m) => m[1]);
+
+  /**
+   * Ce que `HasQueryBuilder::getAllowedQueryFilters` compose : `$requestFilterable` et `$requestFilterablePartial`
+   * tels quels, `$requestRangeFilters` en `_min`/`_max`, `search` si `$requestSearchFields` n'est pas vide, et tout
+   * `AllowedFilter::<sorte>('<nom>'` du modèle (`customQueryFilters`, ou la surcharge des visites).
+   */
+  function filtresDuPhp(fichier: string): string[] {
+    const php = readFileSync(join(RACINE, 'takussan-api', fichier), 'utf8');
+    const propriete = (nom: string) => new RegExp(`static (?:\\??array )?\\$${nom} = \\[([^\\]]*)\\]`).exec(php)?.[1];
+    const nommes = [...php.matchAll(/AllowedFilter::[a-zA-Z]+\(\s*'([a-z_0-9]+)'/g)].map((m) => m[1]);
+    // Un `AllowedFilter::` dont le nom n'est pas un littéral échapperait à la lecture : il rougit.
+    expect(php.match(/AllowedFilter::[a-zA-Z]+\(/g)?.length ?? 0, `${fichier} : un AllowedFilter sans nom littéral`).toBe(nommes.length);
+    return [...new Set([
+      ...chaines(propriete('requestFilterable')),
+      ...chaines(propriete('requestFilterablePartial')),
+      ...chaines(propriete('requestRangeFilters')).flatMap((c) => [`${c}_min`, `${c}_max`]),
+      ...(chaines(propriete('requestSearchFields')).length > 0 ? ['search'] : []),
+      ...nommes,
+    ])].sort();
+  }
+
+  it.each(Object.entries(RESSOURCES))('%s : les filtres permis sont ceux du modèle, et rien d’autre', (_nom, description) => {
+    const php = filtresDuPhp(description.modele);
+
+    expect(php.length).toBeGreaterThan(8);
+    expect([...description.filtresPermis].sort()).toEqual(php);
   });
 });
 
