@@ -1,13 +1,13 @@
 ---
 id: TCK-3007
 title: "Les gestes de la réservation lus sur l'API : abilities complètes (policy et état), fonction pure côté fiche, le Bailleur retrouve Accepter/Refuser/Annuler"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 99
 created: 2026-11-27
-updated: 2026-11-27
+updated: 2026-11-28
 depends_on: []
 blocks: [TCK-3006]
 spec_refs:

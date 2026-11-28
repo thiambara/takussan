@@ -1,13 +1,13 @@
 ---
 id: TCK-3003
 title: "Un seul lecteur des tickets du backlog : gen-index, check-backlog et ranger-tickets lisent par docs/backlog/tickets.mjs"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 99
 created: 2026-11-27
-updated: 2026-11-27
+updated: 2026-11-28
 depends_on: []
 blocks: []
 spec_refs:

@@ -1,13 +1,13 @@
 ---
 id: TCK-3008
 title: "Le refus de l'API lu par son code métier : ApiError.codeMetier, une cascade de messages écrite une fois, les server actions rendent le code"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 99
 created: 2026-11-27
-updated: 2026-11-27
+updated: 2026-11-28
 depends_on: []
 blocks: [TCK-3009, TCK-3010]
 spec_refs:

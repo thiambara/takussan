@@ -1,13 +1,13 @@
 ---
 id: TCK-3006
 title: "« Qui peut lire » à deux faces : un module par modèle pour la liste et la fiche, un test de parité, et trois divergences corrigées (caution, état des lieux, visite)"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: L
 wave: 99
 created: 2026-11-27
-updated: 2026-11-27
+updated: 2026-11-28
 depends_on: [TCK-3005, TCK-3007]
 blocks: [TCK-3011]
 spec_refs:

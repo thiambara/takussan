@@ -1,13 +1,13 @@
 ---
 id: TCK-3004
 title: "La lecture des numéros dans un texte : un module qui lit une fois et rend les numéros trouvés, trois politiques nommées, motifs privés"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M
 wave: 99
 created: 2026-11-27
-updated: 2026-11-27
+updated: 2026-11-28
 depends_on: []
 blocks: []
 spec_refs:

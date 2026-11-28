@@ -1,13 +1,13 @@
 ---
 id: TCK-3009
 title: "Un client BFF : une primitive pour les appels du front vers ses route handlers, qui sérialise, lève ApiError et remplace les jsonOrThrow recopiés"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 99
 created: 2026-11-27
-updated: 2026-11-27
+updated: 2026-11-28
 depends_on: [TCK-3008]
 blocks: [TCK-3010]
 spec_refs:

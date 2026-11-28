@@ -1,13 +1,13 @@
 ---
 id: TCK-3011
 title: "Le bail, l'état des lieux et la facture lisent leurs gestes sur l'API, policy et état compris (ADR-0139)"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 99
 created: 2026-11-27
-updated: 2026-11-27
+updated: 2026-11-28
 depends_on: [TCK-3006]
 blocks: []
 spec_refs:

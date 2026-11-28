@@ -1,13 +1,13 @@
 ---
 id: TCK-3005
 title: "Un module porte chaque geste de la visite (créer, confirmer, clore, absent, annuler) sous verrou ; la fiche lit ses gestes, état compris"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 99
 created: 2026-11-27
-updated: 2026-11-27
+updated: 2026-11-28
 depends_on: []
 blocks: [TCK-3006]
 spec_refs:

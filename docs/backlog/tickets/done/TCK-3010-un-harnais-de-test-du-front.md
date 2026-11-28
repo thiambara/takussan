@@ -1,13 +1,13 @@
 ---
 id: TCK-3010
 title: "Un harnais de test du front : un rendu unique (intl, QueryClient, auth, gestes) et une doublure de l'API par ressource, fidèle à fields[] et include="
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: M
 wave: 99
 created: 2026-11-27
-updated: 2026-11-27
+updated: 2026-11-28
 depends_on: [TCK-3008, TCK-3009]
 blocks: []
 spec_refs:
