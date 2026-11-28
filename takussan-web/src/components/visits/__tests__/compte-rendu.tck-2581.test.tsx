@@ -15,6 +15,7 @@ import { withIntl } from '@/test/intl';
 import { ToastProvider } from '@/components/ui/toast';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
+import { avecLesGestesDeLApi } from './fixtures/gestes-comme-l-api';
 
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), recherche: '' }));
 vi.mock('next/navigation', () => ({
@@ -116,16 +117,16 @@ beforeEach(() => {
         etat.visite = { ...etat.visite, report: report as PropertyVisit['report'] };
         const suggere = corps?.outcome === 'interested' && ['lead', 'prospect'].includes(etat.etape);
         return json(methode === 'POST' ? 201 : 200, {
-          data: etat.visite,
+          data: avecLesGestesDeLApi(etat.visite),
           customer_note: { id: 1, customer_id: 37 },
           suggested_stage: methode === 'POST' && suggere ? { from: etat.etape, to: 'qualified' } : null,
         });
       }
       if (url.pathname === '/api/property-visits/228/complete') {
         etat.visite = { ...etat.visite, status: 'completed', completed_at: '2026-11-11T08:40:00+00:00' };
-        return json(200, { data: etat.visite });
+        return json(200, { data: avecLesGestesDeLApi(etat.visite) });
       }
-      if (url.pathname === '/api/property-visits/228') return json(200, { data: etat.visite });
+      if (url.pathname === '/api/property-visits/228') return json(200, { data: avecLesGestesDeLApi(etat.visite) });
       if (url.pathname === `/api/properties/${etat.bien.id}`) {
         const enLigne = (url.searchParams.get('include') ?? '').split(',').includes('online');
         return json(200, { data: { ...etat.bien, ...(enLigne && etat.enLigne !== undefined ? { is_online: etat.enLigne } : {}) } });

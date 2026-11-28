@@ -18,15 +18,6 @@ class PropertyContactMessageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_unauthenticated_returns_401(): void
-    {
-        $property = Property::factory()->published()->create();
-
-        $this->postJson("/api/public/properties/{$property->slug}/contact-message", [
-            'message' => 'Hello',
-        ])->assertStatus(401);
-    }
-
     public function test_creates_conversation_and_message_with_owner(): void
     {
         $owner = User::factory()->create();

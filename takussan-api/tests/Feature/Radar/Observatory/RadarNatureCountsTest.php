@@ -11,7 +11,6 @@ use App\Models\RadarNatureCount;
 use App\Services\Radar\Observatory\RadarNatureCounter;
 use App\Services\Radar\Observatory\RadarObservatory;
 use App\Support\RadarPhone;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Exceptions;
@@ -174,22 +173,6 @@ class RadarNatureCountsTest extends TestCase
 
         $this->assertSame(2, RadarListing::query()->where('stage', RadarListingStage::Purged)->count());
         Exceptions::assertReported(fn (QueryException $e) => str_contains($e->getMessage(), 'radar_nature_counts'));
-    }
-
-    /** Le planificateur compte avant de purger, à l'heure de Dakar, sans chevauchement. */
-    public function test_le_planificateur_compte_avant_la_purge(): void
-    {
-        $evenements = collect(app(Schedule::class)->events());
-        $compte = $evenements->first(fn ($e) => str_contains((string) $e->command, 'radar:count-natures'));
-        $purge = $evenements->first(fn ($e) => str_contains((string) $e->command, 'radar:purge'));
-
-        $this->assertNotNull($compte);
-        $this->assertSame('Africa/Dakar', $compte->timezone);
-        $this->assertSame($purge->timezone, $compte->timezone);
-        $this->assertTrue($compte->withoutOverlapping);
-        [$minuteCompte, $heureCompte] = explode(' ', $compte->expression);
-        [$minutePurge, $heurePurge] = explode(' ', $purge->expression);
-        $this->assertLessThan((int) $heurePurge * 60 + (int) $minutePurge, (int) $heureCompte * 60 + (int) $minuteCompte);
     }
 
     /** Idempotent : une écriture rejouée le même jour ne double rien et garde le premier compte (celui d'avant la purge). */

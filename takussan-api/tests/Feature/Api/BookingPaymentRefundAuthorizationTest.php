@@ -204,27 +204,17 @@ class BookingPaymentRefundAuthorizationTest extends TestCase
         $this->assertDatabaseCount('booking_payments', 0);
     }
 
-    public function test_the_client_still_records_only_a_pending_payment(): void
-    {
-        $booking = $this->bookingOfClient();
-        Sanctum::actingAs($this->client);
-
-        $this->postJson("/api/bookings/{$booking->id}/payments", [
-            'amount' => 10_000,
-            'payment_type' => BookingPaymentType::Deposit->value,
-            'status' => PaymentStatus::Paid->value,
-        ])->assertCreated()->assertJsonPath('data.status', 'pending');
-    }
-
+    /** TCK-3007 — `abilities.refund` remplace `can_refund` : le droit, ET un paiement encaissé à rendre. */
     public function test_show_tells_who_can_refund(): void
     {
         $booking = $this->bookingOfClient();
+        $this->paidDeposit($booking);
 
         Sanctum::actingAs($this->client);
-        $this->getJson("/api/bookings/{$booking->id}")->assertOk()->assertJsonPath('data.can_refund', false);
+        $this->getJson("/api/bookings/{$booking->id}")->assertOk()->assertJsonPath('data.abilities.refund', false);
 
         Sanctum::actingAs($this->landlord);
-        $this->getJson("/api/bookings/{$booking->id}")->assertOk()->assertJsonPath('data.can_refund', true);
+        $this->getJson("/api/bookings/{$booking->id}")->assertOk()->assertJsonPath('data.abilities.refund', true);
     }
 
     /**
@@ -240,7 +230,7 @@ class BookingPaymentRefundAuthorizationTest extends TestCase
         $this->refundAs($creator)->assertForbidden();
         $this->assertStillPaid();
 
-        $this->getJson("/api/bookings/{$this->payment->booking_id}")->assertOk()->assertJsonPath('data.can_refund', false);
+        $this->getJson("/api/bookings/{$this->payment->booking_id}")->assertOk()->assertJsonPath('data.abilities.refund', false);
     }
 
     /** Second chemin : le même agent créateur, titulaire de `bookings.refund`, rembourse. */

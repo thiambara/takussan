@@ -25,7 +25,7 @@ class RadarPhoneKeyTest extends TestCase
     use OperateursPlateforme;
     use RefreshDatabase;
 
-    // Le numéro des épreuves voisines : le Radar ne lit pas le préfixe 74 (`PhoneMasker::PREFIX`), fictif ailleurs.
+    // Le numéro des épreuves voisines : le Radar ne lit pas le préfixe 74 (`PREFIX` de `App\Support\Telephone\LectureDesNumeros`), fictif ailleurs.
     private const NUMERO = '+221771234567';
 
     private const APP_KEY = 'base64:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=';

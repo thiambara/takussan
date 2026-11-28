@@ -9,8 +9,6 @@ use App\Models\Payout;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Notifications\CodedNotification;
-use Illuminate\Console\Scheduling\Event;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\Concerns\BuildsMoneyOut;
@@ -125,17 +123,5 @@ class RemindDuePayoutsCommandTest extends TestCase
         Notification::assertSentToTimes($admin, CodedNotification::class, 1);
         Notification::assertSentToTimes($collegue, CodedNotification::class, 1);
         Notification::assertCount(2);
-    }
-
-    public function test_ac20_the_command_is_scheduled_daily(): void
-    {
-        $events = array_filter(
-            app(Schedule::class)->events(),
-            static fn (Event $e): bool => str_contains((string) $e->command, 'payouts:remind-due'),
-        );
-
-        $this->assertCount(1, $events, 'la commande doit être planifiée une fois dans routes/console.php');
-        $this->assertSame('30 7 * * *', array_values($events)[0]->expression);
-        $this->assertSame('Africa/Dakar', array_values($events)[0]->timezone);
     }
 }

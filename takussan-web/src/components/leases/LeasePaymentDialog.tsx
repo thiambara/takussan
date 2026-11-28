@@ -48,10 +48,9 @@ export function LeasePaymentDialog({ leaseId, open, onOpenChange, paiementInitia
 
   const methodOptions = PAYMENT_METHODS.map((value) => ({ value, label: tMethods(value) }));
   const installmentOptions = (paymentsData?.data ?? [])
-    .filter((p) => p.status === 'pending' || p.status === 'late')
-    // TCK-1825 (P183.03) — une restitution de caution se règle par son reversement : `mark-paid`
-    // la refuse toujours (`lease_payment.deposit_refund_paid_by_payout`, TCK-594).
-    .filter((p) => p.payment_type !== 'deposit_refund')
+    // TCK-3011 (D2) — les échéances que l'API encaisse, dites par chaque LIGNE (`abilities.record_payment` :
+    // en attente, en retard ou partielle, jamais une restitution de caution, que son reversement règle).
+    .filter((p) => p.abilities?.record_payment === true)
     .map((p) => ({
       value: String(p.id),
       label: `${formatDate(p.period_start, locale)} → ${formatDate(p.period_end, locale)} · ${formatCurrency(p.amount, locale, { currency: p.currency })}`,

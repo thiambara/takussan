@@ -15,15 +15,14 @@ use App\Models\User;
 use App\Policies\TaskPolicy;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Agency\AgentAvailability;
+use App\Services\Lecture\TachesLisibles;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
-use App\Services\Membership\MembershipCapabilityResolver;
 use App\Support\Http\ParametreUnique;
 use App\Support\TelephoneSaisi;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -38,25 +37,9 @@ class TaskController extends Controller
 
         if (filter_var(ParametreUnique::valeur($request->input('filter.team')), FILTER_VALIDATE_BOOLEAN)) {
             $this->teamScope($base, $user);
-        } elseif (! $user->isSuperAdmin()) {
-            $covered = app(AgentAvailability::class)->coveredBy($user);
-            $resolver = app(MembershipCapabilityResolver::class);
-            $staffAgencyIds = $resolver->staffAgencyIds($user);
-            $memberAgencyIds = $resolver->memberAgencyIds($user);
-            $base->where(function ($q) use ($user, $covered, $staffAgencyIds, $memberAgencyIds) {
-                // TCK-591 (verif-591 B1, M1) — l'assigné ne voit la tâche que tant qu'il est personnel
-                // de l'agence du parent, le créateur tant qu'il en est membre (`TaskPolicy::view`).
-                $q->where(fn ($a) => $a->where('assigned_to_id', $user->id)->parentAgencyIn($staffAgencyIds))
-                    ->orWhere(fn ($c) => $c->where('created_by_id', $user->id)->parentAgencyIn($memberAgencyIds));
-                // TCK-591 (ADR-0035) — pendant une absence, le remplaçant voit les tâches de
-                // l'absent rattachées à l'agence de l'absence.
-                foreach ($covered as $absence) {
-                    // TCK-617 — parent supprimé en douceur compris, comme `parentAgencyIn()`.
-                    $q->orWhere(fn ($c) => $c->where('assigned_to_id', $absence['absent_id'])
-                        ->whereHasMorph('taskable', [Customer::class, Property::class], fn ($t) => $t
-                            ->withoutGlobalScope(SoftDeletingScope::class)->where('agency_id', $absence['agency_id'])));
-                }
-            });
+        } else {
+            // TCK-3006 (ADR-0138) — « mes tâches », la règle de la fiche en SQL : `TachesLisibles`.
+            TachesLisibles::restreindre($base, $user);
         }
 
         $paginator = Task::buildQuery($base, $request)
@@ -83,7 +66,7 @@ class TaskController extends Controller
         $agency = TaskPolicy::teamAgencyOf($user);
         abort_if($agency === null, 403);
 
-        $base->assigneAuPersonnelActifDe((int) $agency->id)->parentInAgency((int) $agency->id);
+        TachesLisibles::restreindreALEquipe($base, $agency);
     }
 
     public function store(StoreTaskRequest $request): JsonResponse

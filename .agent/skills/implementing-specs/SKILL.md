@@ -142,6 +142,23 @@ Invoke `.agent/skills/test-driven-development/SKILL.md`. Write the failing test 
 > code started from a falsehood. If you find this section contradicting the code, the code wins
 > and this file is the bug: fix it in the same PR.
 
+**11 bis. Tests: replace, don't stack** ([ADR-0140](../../../docs/adr/0140-une-classe-de-tests-par-module-la-livraison-qui-approfondit-retire-ce-qu-elle-absorbe.md)).
+
+- A new test goes into the test class of the **module or rule it exercises**, named after that module —
+  never a new file named after the ticket (`…Tck3006Test`, `…TCK-NNN…`). Cite the ticket in the test's
+  name or docblock instead. Measured on 2026-11-28: 2 095 of 2 166 backend test files were born per ticket,
+  1 738 added in 8 weeks, 22 removed.
+- When your ticket creates or deepens a module (gestures, reading rule, settings reader…), **remove in the
+  same PR the tests of the shallow modules it absorbs**.
+- **Removal proof, per cluster**: mutate the production rule the removed test guarded; a remaining test
+  must go red (md5 the mutant, restore, re-check). If none does, move the test, don't delete it. Only
+  tests that cannot fail (skeletons, tautologies) skip the ablation.
+- A cross-cutting rule (scheduling, removed routes, field lengths, auth, per-space refusals) is guarded
+  by a **census** (one table), not by a copy per route.
+- Test through the interface: no reflection on private members, no partial mock of an application module
+  — use a fake adapter behind the existing seam (`FakeSmsRouter` pattern). A race guard pinning a
+  `FOR UPDATE` is the only exception.
+
 **12. Honor the ticket's constraints.**
 
 - If the ticket says "aucun nouveau modèle", don't create one.

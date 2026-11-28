@@ -38,7 +38,8 @@ describe('ProfileDirectorySection', () => {
   });
 
   it('enregistre le choix au geste par PATCH /api/me, dans les deux sens', async () => {
-    fetchMock.mockResolvedValue(new Response('{}', { status: 200 }));
+    // Une réponse NEUVE par appel : un même `Response` relu au second geste a déjà consommé son corps (TCK-3009).
+    fetchMock.mockImplementation(async () => new Response('{}', { status: 200 }));
     const user = userEvent.setup();
     render(withIntl(<ProfileDirectorySection />));
 

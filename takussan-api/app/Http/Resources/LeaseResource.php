@@ -9,8 +9,8 @@ use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeaseSignature;
 use App\Models\User;
-use App\Policies\LeasePolicy;
 use App\Services\Lease\EarlyTerminationService;
+use App\Services\Lease\GestesDuBail;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Lease\RentReviewSchedule;
@@ -170,46 +170,9 @@ class LeaseResource extends BaseResource
             // VERIF-596 M1 — la voie papier : gestionnaire ET signataire possible pour le bailleur.
             'can_activate_on_paper' => $this->when($this->viewer !== null, fn (): bool => $this->viewer->can('update', $this->resource)
                 && LandlordSignatory::allows($this->viewer, $this->resource)),
-            // P152.02 — les quatre gestes que `LeasePolicy` juge par capacité, pour que la fiche ne
-            // monte que ceux que l'API acceptera. Le statut du bail reste jugé par l'écran et l'API.
-            'abilities' => $this->when($this->viewer !== null, fn (): array => [
-                'renew' => $this->viewer->can('renew', $this->resource),
-                'review_rent' => $this->viewer->can('reviewRent', $this->resource),
-                'record_payment' => $this->viewer->can('recordPayment', $this->resource),
-                'refund_deposit' => $this->viewer->can('refundDeposit', $this->resource),
-                // P189.03 (TCK-1871) — le préavis (et son annulation, même règle), l'ajout de garant
-                // et le lien de paiement, que la fiche ouvrait par le rôle : le bailleur suspendu le
-                // garde, et l'agent sans `leases.terminate` voyait le préavis.
-                'request_early_termination' => $this->viewer->can('requestEarlyTermination', $this->resource),
-                'update' => $this->viewer->can('update', $this->resource),
-                // TCK-607 (n3) — « Ajouter un garant » là seulement où l'API l'accepte : la règle
-                // d'`update`, plus `Lease::acceptsGuarantorChange` (garants figés sur un bail signé, sauf
-                // le premier d'un enfant de renouvellement). Hors verrou : un indice pour l'écran,
-                // l'API rejuge sous verrou.
-                'attach_guarantor' => $this->viewer->can('update', $this->resource)
-                    && $this->resource->acceptsGuarantorChange($this->guarantorsCount(), attaching: true),
-                // TCK-2764 — abandonner le brouillon (`DELETE /api/leases/{id}`) : la règle d'`update` sur un
-                // `draft`. Les échéances saisies restent jugées par l'écran et par l'API, sous verrou.
-                'abandon' => $this->viewer->can('abandon', $this->resource),
-                // TCK-2642 — les quatre gestes que la fiche ouvrait encore par le rôle. `leave_review` et
-                // `give_notice` sont des gestes de PARTIE (le locataire) : lus sur la policy, hors de
-                // `Gate::before`, qui les accorderait au super-admin.
-                'add_document' => $this->viewer->can('addDocument', $this->resource),
-                'download_contract' => $this->viewer->can('downloadContract', $this->resource),
-                'leave_review' => app(LeasePolicy::class)->leaveReview($this->viewer, $this->resource),
-                'give_notice' => app(LeasePolicy::class)->giveNotice($this->viewer, $this->resource),
-                // TCK-2645 (décision 3) — « Passer outre » le plafond de révision : la capacité, jugée dans
-                // l'agence DU BAIL (le bail en argument : sans lui, la Gate juge l'agence du profil actif),
-                // et un plafond NON figé au contrat. Un plafond figé n'est jamais forcé
-                // (`RentReviewService::review`, VERIF-596 passe 3) : l'offre suit le refus de l'API.
-                // Un bail SANS agence ne donne aucun contexte à la Gate, qui retomberait sur l'agence du
-                // profil actif : capacité d'agence, aucun membre ne l'y a — seul le super-admin, qui a
-                // tout (`Gate::before`), y passe outre (réserve r1 de la vérification d'eecb6f893).
-                'rent_review_force' => ($this->resource->agency_id !== null
-                    ? $this->viewer->can('leases.rent_review_force', $this->resource)
-                    : $this->viewer->isSuperAdmin())
-                    && $this->resource->rent_review_max_pct === null,
-            ]),
+            // P152.02, TCK-3011 (ADR-0139) — chaque geste que l'API accepterait maintenant pour ce lecteur,
+            // policy ET état compris ({@see GestesDuBail}) : la fiche n'y ajoute plus le statut.
+            'abilities' => $this->when($this->viewer !== null, fn (): array => app(GestesDuBail::class)->pour($this->viewer, $this->resource)),
             // TCK-2764 — la candidature d'où le bail est tiré, et son statut, pour que le dialogue
             // d'abandon propose de la fermer par son geste (`reject` si `pending`, `cancel` si
             // `confirmed`). À qui peut abandonner seulement, sur le détail (`forViewer`) ; `null` quand
@@ -349,15 +312,5 @@ class LeaseResource extends BaseResource
         $candidature = Booking::query()->whereKey($this->booking_id)->first(['id', 'status']);
 
         return $candidature === null ? null : ['id' => $candidature->id, 'status' => $this->enumValue($candidature->status)];
-    }
-
-    /** TCK-607 — le compte des garants : la relation chargée, le `withCount`, sinon une requête. */
-    private function guarantorsCount(): int
-    {
-        if ($this->resource->relationLoaded('guarantors')) {
-            return $this->resource->guarantors->count();
-        }
-
-        return (int) ($this->resource->guarantors_count ?? $this->resource->guarantors()->count());
     }
 }

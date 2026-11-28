@@ -44,7 +44,7 @@ function etatDeLErreur(err: unknown): Etat | null {
   if (err.status === 404) return { kind: 'notFound' };
   // Un jeton que `cheminApi` refuse (`/`, `?`, `#`, `..`) ne désigne aucun lien : aucun appel n'est
   // parti, et la page dit la même chose qu'à un jeton inconnu.
-  if (err.status === 400 && (err.data as { code?: unknown } | null)?.code === 'invalid_path') return { kind: 'notFound' };
+  if (err.status === 400 && err.codeMetier === 'invalid_path') return { kind: 'notFound' };
   return null;
 }
 

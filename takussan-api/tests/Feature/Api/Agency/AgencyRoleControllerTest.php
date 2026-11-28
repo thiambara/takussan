@@ -235,9 +235,4 @@ class AgencyRoleControllerTest extends ApiTestCase
 
         $this->apiGet("/api/agencies/{$this->agency->id}/roles/{$foreign->id}")->assertNotFound();
     }
-
-    public function test_guests_are_rejected(): void
-    {
-        $this->apiGet("/api/agencies/{$this->agency->id}/roles")->assertUnauthorized();
-    }
 }

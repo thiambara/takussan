@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
 import type { Booking } from '@/types/booking';
+import { permis } from '../../__tests__/abilities-de-test';
 import { BookingPaymentDialog } from '../../BookingPaymentDialog';
 import { BookingRefundPanel } from '../../BookingRefundPanel';
 import { FeuilleDeDecision } from '../FeuilleDeDecision';
@@ -196,11 +197,11 @@ describe('BookingRefundPanel — « Rembourser Awa Diop »', () => {
     status: 'cancelled',
     currency: 'XOF',
     refund_status: 'pending',
-    can_refund: true,
+    abilities: permis('refund'),
     customer_id: 12,
     customer: { id: 12, user_id: 40, first_name: 'Awa', last_name: 'Diop' },
     booking_payments: [
-      { id: 41, booking_id: 3, amount: 49_500, currency: 'XOF', payment_type: 'deposit', payment_method: 'wave', status: 'paid', paid_out: { processed_at: '2026-11-02T10:00:00Z', reference_number: 'PO-2026-11' } },
+      { id: 41, booking_id: 3, amount: 49_500, currency: 'XOF', payment_type: 'deposit', payment_method: 'wave', status: 'paid', refundable: true, paid_out: { processed_at: '2026-11-02T10:00:00Z', reference_number: 'PO-2026-11' } },
     ],
   } as unknown as Booking;
 

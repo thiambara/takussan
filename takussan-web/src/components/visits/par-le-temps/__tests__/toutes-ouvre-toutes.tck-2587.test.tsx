@@ -5,21 +5,20 @@
  * elle ouvrait « Demandées » (6 sur 13).
  *
  * Les vrais `VisitesParLeTemps` et `VisitsList`, une URL qui change vraiment (`navigationDeTest`), le
- * réseau doublé au niveau d'`apiRequest`.
+ * réseau doublé au niveau de `fetch` (`doublerLApi`, TCK-3010).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { doublerLApi } from '@/test/api-simulee';
 import { navigationDeTest } from '@/test/navigation-url';
-import { withIntl } from '@/test/intl';
-import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
+import { rendre } from '@/test/rendu';
 import type { PropertyVisit } from '@/types/visit';
 
 import { VisitesParLeTemps } from '../VisitesParLeTemps';
 
-const etat = vi.hoisted(() => ({ large: true, appels: [] as string[] }));
+const etat = vi.hoisted(() => ({ large: true }));
 
 vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
 vi.mock('@/hooks/useMatchesMedia', () => ({
@@ -27,7 +26,6 @@ vi.mock('@/hooks/useMatchesMedia', () => ({
 }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ useAgenceDuPersonnelActif: () => 3, usePersonnelActif: () => true }));
 vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: true, isLoading: false }) }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 7, roles: ['agent'], agency_id: 3 }, token: 'jeton' }) }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/components/layout/en-tete-de-la-coque', () => ({ DeclarerEnTete: () => null }));
 vi.mock('@/components/visits/PlanifierUneVisite', () => ({ PlanifierDialog: () => null }));
@@ -56,31 +54,17 @@ const UNE: PropertyVisit = {
   property: { id: 10, title: 'Studio Mermoz', slug: 'studio-mermoz' },
 } as PropertyVisit;
 
-vi.mock('@/lib/api', async (original) => {
-  const vrai = await original<typeof import('@/lib/api')>();
-  return {
-    ...vrai,
-    apiRequest: vi.fn(async (chemin: string, options: { method?: string } = {}) => {
-      if ((options.method ?? 'GET') === 'GET') etat.appels.push(chemin);
-      const [route, qs] = chemin.split('?');
-      const p = new URLSearchParams(qs ?? '');
-      if (route === '/api/property-visits/counts') return { data: COMPTES };
-      if (route === '/api/property-visits') {
-        const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
-        return servir(chemin, { data: [UNE], meta: { total: totalDe(p), per_page: 30, current_page: 1, last_page: 1 } });
-      }
-      return { data: [], meta: { total: 0, per_page: 8, current_page: 1, last_page: 1 } };
-    }),
-  };
-});
+const api = doublerLApi()
+  .sur('GET', '/api/property-visits/counts', { data: COMPTES })
+  // La page rendue suit son total : un total nul n'a pas de ligne (TCK-3010, tour c — le harnais refuse la contradiction).
+  .servir('visites', ({ requete }) => (totalDe(requete) > 0 ? [UNE] : []), { meta: ({ requete }) => ({ total: totalDe(requete) }) })
+  .parDefaut({ data: [], meta: { total: 0, per_page: 8, current_page: 1, last_page: 1 } });
 
 function monter() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{withIntl(<VisitesParLeTemps titre="Visites" />)}</QueryClientProvider>);
+  return rendre(<VisitesParLeTemps titre="Visites" />, { compte: { utilisateur: { id: 7, roles: ['agent'], agency_id: 3 }, jeton: 'jeton' } });
 }
 
-const lectures = (route: string) =>
-  etat.appels.filter((c) => c.split('?')[0] === route).map((c) => new URLSearchParams(c.split('?')[1] ?? ''));
+const lectures = (route: string) => api.appels(route).filter((a) => a.methode === 'GET').map((a) => a.requete);
 
 /** La rangée d'onglets de `VisitsList` (celle qui n'est pas « Vues des visites »). */
 const ongletsDeStatut = () => screen.getAllByRole('tablist').find((l) => l.getAttribute('aria-label') !== 'Vues des visites') as HTMLElement;
@@ -89,13 +73,9 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-10T10:12:00Z'));
   etat.large = true;
-  etat.appels = [];
-  oublierLesLectures();
 });
 afterEach(() => {
   vi.useRealTimers();
-  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas.
-  expect(lecturesHorsFields()).toEqual([]);
 });
 
 describe('« Toutes N » ouvre N (TCK-2587, q1)', () => {

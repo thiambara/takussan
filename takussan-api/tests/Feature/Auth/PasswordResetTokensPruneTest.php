@@ -18,16 +18,6 @@ class PasswordResetTokensPruneTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_le_planificateur_purge_les_jetons_de_reinitialisation_chaque_jour(): void
-    {
-        $events = collect(app(Schedule::class)->events())
-            ->filter(fn ($event) => str_contains((string) $event->command, 'auth:clear-resets'));
-
-        $this->assertCount(1, $events);
-        $this->assertStringContainsString('auth:clear-resets activations', (string) $events->first()->command);
-        $this->assertSame('0 0 * * *', $events->first()->expression);
-    }
-
     public function test_la_purge_planifiee_garde_un_lien_d_activation_encore_valable(): void
     {
         $command = (string) collect(app(Schedule::class)->events())

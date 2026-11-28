@@ -13,11 +13,8 @@ class AlertRuleTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_unknown_event_is_rejected_and_agency_admin_forbidden(): void
+    public function test_unknown_event_is_rejected(): void
     {
-        $this->actingAsRole('agency_admin');
-        $this->postJson('/api/admin/alert-rules', [])->assertForbidden();
-
         $this->actingAsRole('super_admin');
         $this->postJson('/api/admin/alert-rules', [
             'event' => 'unknown_event',

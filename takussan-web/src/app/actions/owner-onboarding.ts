@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers';
 
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction, type RefusDAction } from '@/lib/api';
 import {
   completeOwnerOnboarding,
   fetchOwnerProperties,
@@ -20,13 +20,13 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
  * TCK-257 — server actions consumed by `<OwnerOnboardingWizard>`.
  *
  * The KYC upload uses a multipart body and is submitted from the client
- * via `fetch('/api/me/owner-profiles/{id}/kyc/upload', ...)` directly to
- * the SSR proxy — not exposed here.
+ * to the SSR proxy `/api/me/owner-profiles/{id}/kyc/upload` by
+ * `envoyerLaPiece` (`lib/queries/pieces.ts`, TCK-3009) — not exposed here.
  */
 
 export type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
+  | ({ ok: false; status?: number; errors?: Record<string, string[]> } & RefusDAction);
 
 /** Clés de repli de `serverActions.ownerOnboarding` — l'union tient lieu de contrôle de frappe. */
 type CleRepli = 'kycFailed' | 'completeFailed' | 'propertiesFailed';
@@ -41,7 +41,7 @@ async function failure(err: unknown, cleRepli: CleRepli): Promise<ActionResult<n
     return {
       ok: false,
       status: err.status,
-      message: messageErreurApi(err, tRacine, repli),
+      ...refusDAction(err, tRacine, repli),
       errors: data?.errors,
     };
   }

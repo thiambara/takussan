@@ -3,38 +3,23 @@
  * de `fields[customers]`. La fiche du bail le demande avec ce qu'elle en lit ; l'onglet « Location » du
  * bien, qui n'en lit rien, ne le demande pas.
  */
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { waitFor } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
-import { withIntl } from '@/test/intl';
+import { doublerLApi } from '@/test/api-simulee';
+import { rendreLeHook } from '@/test/rendu';
 
-const mockApiRequest = vi.fn();
+import { useLease } from '@/lib/queries/leases';
 
-vi.mock('@/lib/api', async () => {
-  const reel = await vi.importActual<typeof import('@/lib/api')>('@/lib/api');
-  return { ...reel, apiRequest: (...args: unknown[]) => mockApiRequest(...args) };
-});
-
-const { useLease } = await import('@/lib/queries/leases');
-
-function enveloppe({ children }: { readonly children: ReactNode }) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return withIntl(<QueryClientProvider client={client}>{children}</QueryClientProvider>);
-}
+// TCK-3010 — le bail servi par l'API simulée : `show` le rend entier (il ne lit pas `fields[leases]`).
+const api = doublerLApi().servir('baux', [{ id: 80, reference_number: 'BAIL-0080' }]);
 
 async function requeteDe(appel: () => unknown): Promise<{ chemin: string; params: URLSearchParams }> {
-  renderHook(appel, { wrapper: enveloppe });
-  await waitFor(() => expect(mockApiRequest).toHaveBeenCalled());
-  const [chemin, params = ''] = decodeURIComponent(mockApiRequest.mock.calls[0][0] as string).split('?');
-  return { chemin, params: new URLSearchParams(params) };
+  rendreLeHook(appel);
+  await waitFor(() => expect(api.appels()).toHaveLength(1));
+  const [{ chemin, requete }] = api.appels();
+  return { chemin, params: requete };
 }
-
-beforeEach(() => {
-  mockApiRequest.mockReset();
-  mockApiRequest.mockResolvedValue({ data: { id: 80 } });
-});
 
 describe('TCK-2780 — le locataire du bail, à la demande', () => {
   it('la fiche du bail demande le locataire, avec les seules clés qu’elle lit', async () => {

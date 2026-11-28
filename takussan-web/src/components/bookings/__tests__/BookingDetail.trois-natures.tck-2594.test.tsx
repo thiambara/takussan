@@ -13,6 +13,7 @@ import { ToastProvider } from '@/components/ui/toast';
 import { PAYMENT_METHOD_VALUES } from '@/components/payments/constants';
 import { useAuth } from '@/context/AuthContext';
 import { useBooking } from '@/lib/queries/bookings';
+import { gestesServis } from './abilities-de-test';
 import { BookingDetail } from '../BookingDetail';
 
 const ecran = vi.hoisted(() => ({ telephone: false, personnel: true }));
@@ -21,7 +22,6 @@ vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () 
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => ecran.telephone }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => ecran.personnel, useAgenceDuPersonnelActif: () => 5 }));
 vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => new Date('2026-11-12T10:00:00Z') }));
-vi.mock('@/hooks/useCan', () => ({ useCanAll: () => ({ can: true, isLoading: false }) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/usePaymentProviders', () => ({ usePaymentProviders: () => ({ providers: [] }) }));
 // TCK-2877 — la carte « Nuits du bien » d'un séjour, au bureau : ses lectures, vides.
@@ -114,7 +114,9 @@ const texte = (el: HTMLElement) => (el.textContent ?? '').replace(/[  ]/g, ' 
 
 function rendre(booking: Record<string, unknown>, roles: readonly string[] = ['agent'], userId = 3) {
   vi.mocked(useAuth).mockReturnValue({ user: { id: userId, roles }, token: 'tok' } as unknown as ReturnType<typeof useAuth>);
-  vi.mocked(useBooking).mockReturnValue({ data: { data: booking }, isLoading: false, isError: false } as unknown as ReturnType<typeof useBooking>);
+  // TCK-3007 — les gestes que l'API servirait à ce lecteur.
+  const servie = { ...booking, abilities: booking.abilities ?? gestesServis(booking, (roles.includes('customer') ? 'client' : roles.includes('owner') ? 'bailleur' : 'personnel')) };
+  vi.mocked(useBooking).mockReturnValue({ data: { data: servie }, isLoading: false, isError: false } as unknown as ReturnType<typeof useBooking>);
   return render(
     withIntl(
       <ToastProvider>

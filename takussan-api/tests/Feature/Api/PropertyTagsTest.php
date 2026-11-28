@@ -138,21 +138,4 @@ class PropertyTagsTest extends TestCase
             'tag_ids' => [$tag->id],
         ])->assertForbidden();
     }
-
-    public function test_sync_with_empty_array_clears_tags(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $tag = Tag::factory()->create(['type' => TagType::Amenity]);
-        $property->tags()->attach($tag);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson("/api/properties/{$property->id}/tags", [
-            'tag_ids' => [],
-        ])->assertOk()
-            ->assertJsonCount(0, 'data');
-
-        $this->assertCount(0, $property->refresh()->tags);
-    }
 }

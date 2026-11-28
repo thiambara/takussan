@@ -100,4 +100,52 @@ class PropertyNeighborhoodsTest extends TestCase
 
         $reponse->assertJsonPath('meta.truncated', true)->assertJsonCount(2, 'data');
     }
+
+    /**
+     * TCK-618 (contrainte 2, ex-`PublicNeighborhoodsTest`, versé par TCK-3017) — un quartier n'est compté
+     * qu'une fois : le regroupement ignore les espaces de bord.
+     */
+    public function test_les_espaces_de_bord_ne_fractionnent_pas_le_compte(): void
+    {
+        foreach (range(1, 4) as $_) {
+            $this->bienA('Dakar', 'Mermoz');
+        }
+        $this->bienA('Dakar', ' Mermoz ');
+
+        $this->getJson('/api/public/properties/neighborhoods?city=Dakar')
+            ->assertOk()
+            ->assertExactJson([
+                'data' => [['value' => 'Mermoz', 'count' => 5, 'photo' => null]],
+                'meta' => ['truncated' => false],
+            ]);
+    }
+
+    /** TCK-618 — la graphie rendue est la plus fréquente, puis une graphie non capitale à égalité. */
+    public function test_a_egalite_la_graphie_non_capitale_l_emporte(): void
+    {
+        $this->bienA('Dakar', 'Médina');
+        $this->bienA('Dakar', 'Médina');
+        $this->bienA('Dakar', 'MÉDINA');
+        $this->bienA('Dakar', 'MÉDINA');
+
+        $this->getJson('/api/public/properties/neighborhoods?city=Dakar')
+            ->assertOk()
+            ->assertExactJson([
+                'data' => [['value' => 'Médina', 'count' => 4, 'photo' => null]],
+                'meta' => ['truncated' => false],
+            ]);
+    }
+
+    /** TCK-618 — la fréquence passe avant la casse : deux « MÉDINA » contre un « Médina ». */
+    public function test_la_graphie_la_plus_frequente_l_emporte_meme_capitale(): void
+    {
+        $this->bienA('Dakar', 'MÉDINA');
+        $this->bienA('Dakar', 'MÉDINA');
+        $this->bienA('Dakar', 'Médina');
+
+        $this->getJson('/api/public/properties/neighborhoods?city=Dakar')
+            ->assertOk()
+            ->assertJsonPath('data.0.value', 'MÉDINA')
+            ->assertJsonPath('data.0.count', 3);
+    }
 }

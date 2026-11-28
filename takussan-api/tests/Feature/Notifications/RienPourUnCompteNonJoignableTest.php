@@ -7,6 +7,7 @@ use App\Events\Lease\LeasePaymentLateFeeApplied;
 use App\Listeners\Lease\NotifyTenantOfLateFee;
 use App\Listeners\Notifications\RienPourUnCompteNonJoignable;
 use App\Models\Agency;
+use App\Models\AppNotification;
 use App\Models\Customer;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\UserStatus;
@@ -18,11 +19,13 @@ use App\Models\User;
 use App\Notifications;
 use App\Notifications\CodedNotification;
 use App\Services\Model\NotificationService;
+use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification as Avis;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use Symfony\Component\Finder\Finder;
@@ -240,5 +243,31 @@ class RienPourUnCompteNonJoignableTest extends TestCase
         $recoit
             ? $this->assertNotEmpty($canaux, 'le scénario envoie bien un avis à un compte actif')
             : $this->assertSame([], $canaux, 'aucun canal pour un compte bloqué');
+    }
+
+    /**
+     * TCK-1350 (P88.04, ex-`CompteNonJoignableTest`, versé par TCK-3017) — par `NotificationService::send()` : ni
+     * cloche, ni e-mail, ni canal mobile pour un compte bloqué ou supprimé ; et `CodedNotification::via()` n'ouvre
+     * aucun canal, envoyée par un autre chemin.
+     */
+    public function test_un_compte_bloque_ne_recoit_aucun_code_metier(): void
+    {
+        Avis::fake();
+
+        foreach (['+221771234567' => UserStatus::Blocked, '+221771234568' => UserStatus::Deleted] as $phone => $status) {
+            $user = User::factory()->create(['status' => $status, 'phone' => $phone, 'phone_verified_at' => now()]);
+
+            $row = app(NotificationService::class)->send($user, NotificationCode::LeasePaymentDueSoon, [
+                'amount' => NotificationRenderer::money(150000, 'XOF'),
+                'due_date' => now()->addDays(3)->toDateString(),
+                'property' => 'Villa',
+            ]);
+
+            $this->assertNull($row, $status->value);
+            $this->assertSame(0, AppNotification::query()->where('user_id', $user->id)->count(), $status->value);
+            Avis::assertNothingSentTo($user);
+            // La notification elle-même, envoyée par un autre chemin, n'ouvre aucun canal.
+            $this->assertSame([], (new CodedNotification(NotificationCode::LeasePaymentDueSoon, []))->via($user), $status->value);
+        }
     }
 }

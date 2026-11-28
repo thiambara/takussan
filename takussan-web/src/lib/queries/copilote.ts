@@ -15,7 +15,7 @@
  */
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
-import { apiRequest, ApiError } from '@/lib/api';
+import { apiRequest } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
 import { relaisImpersonationActif } from '@/lib/impersonation';
 import { useIntervalleDeRelecture, useSignal } from '@/lib/temps-reel/hooks';
@@ -253,13 +253,6 @@ export function useEtatDuCopilote(conversationId: number, utilisateurId: number 
     },
   });
   return { ...requete, etat: requete.data === undefined ? null : lireEtatDuCopilote(requete.data) };
-}
-
-/** Le code d'un refus de l'API (`{code}` de l'enveloppe d'erreur), ou `null`. */
-export function codeDuRefus(err: unknown): string | null {
-  if (!(err instanceof ApiError)) return null;
-  const o = objet(err.data);
-  return texte(o?.code) ?? texte(objet(o?.error)?.code) ?? null;
 }
 
 /**

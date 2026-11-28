@@ -128,7 +128,9 @@ const RIEN: LeaseAbilities = {
   give_notice: false,
   rent_review_force: false,
 };
-const GESTION: LeaseAbilities = { ...RIEN, renew: true, review_rent: true, record_payment: true, refund_deposit: true, request_early_termination: true, update: true, attach_guarantor: true, add_document: true, download_contract: true };
+// TCK-3011 (ADR-0139) — la gestion d'un bail actif : une ligne se pose (`add_payment`), la caution ne se
+// restitue qu'en fin de bail.
+const GESTION: LeaseAbilities = { ...RIEN, renew: true, review_rent: true, record_payment: true, add_payment: true, request_early_termination: true, update: true, attach_guarantor: true, add_document: true, download_contract: true };
 
 /** Le premier jour du mois dans `n` mois, à Dakar (UTC). */
 function debutDeMois(n: number): string {
@@ -151,6 +153,8 @@ function echeance(partiel: Partial<LeasePayment>): LeasePayment {
     receipt_available: false,
     is_overdue: false,
     late_fee_outstanding: 0,
+    // TCK-3011 — la ligne dit si l'API la laisse encaisser.
+    abilities: { pay: false, remind: false, record_payment: !['paid', 'cancelled'].includes(partiel.status ?? 'pending') },
     ...partiel,
   } as LeasePayment;
 }

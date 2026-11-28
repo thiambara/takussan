@@ -54,8 +54,9 @@ const LIBELLE_DEROGATION = {
 type Derogation = { readonly libelle: 'fee' | 'listings' | 'agents' | 'branches'; readonly valeur: number };
 
 function derogationsDe(erreur: ApiError): Derogation[] {
-  const corps = erreur.data as { code?: unknown; overrides?: { platform_fee_pct?: unknown; limits?: unknown } } | null;
-  if (corps?.code !== CODE_DEROGATIONS || !corps.overrides) return [];
+  if (erreur.codeMetier !== CODE_DEROGATIONS) return [];
+  const corps = erreur.data as { overrides?: { platform_fee_pct?: unknown; limits?: unknown } };
+  if (!corps.overrides) return [];
   const liste: Derogation[] = [];
   if (typeof corps.overrides.platform_fee_pct === 'number') {
     liste.push({ libelle: 'fee', valeur: corps.overrides.platform_fee_pct });

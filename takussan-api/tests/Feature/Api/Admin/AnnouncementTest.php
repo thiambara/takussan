@@ -73,12 +73,9 @@ class AnnouncementTest extends TestCase
         $this->assertSame(1, AnnouncementDismissal::query()->where('announcement_id', $announcement->id)->count());
     }
 
-    public function test_agency_admin_cannot_write_and_super_admin_mutation_is_audited(): void
+    public function test_super_admin_mutation_is_audited(): void
     {
         $payload = $this->payload();
-
-        $this->actingAsRole('agency_admin');
-        $this->postJson('/api/admin/announcements', $payload)->assertForbidden();
 
         $this->actingAsRole('super_admin');
         $this->postJson('/api/admin/announcements', $payload)

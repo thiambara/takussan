@@ -1,28 +1,13 @@
 import type { Announcement, AnnouncementsResponse } from '@/types/super-admin';
-import { ApiError } from '@/lib/api';
+import { appelBff } from '@/lib/bff';
 import { cheminApi } from '@/lib/chemin-api';
 
-async function jsonOrThrow<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new ApiError(res.status, data);
-  }
-  return res.json() as Promise<T>;
-}
-
 export async function fetchActiveAnnouncements(): Promise<AnnouncementsResponse> {
-  const res = await fetch('/api/announcements/active', {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AnnouncementsResponse>(res);
+  return appelBff<AnnouncementsResponse>('/api/announcements/active');
 }
 
 export async function dismissAnnouncement(id: number): Promise<{ data: { dismissed: boolean; announcement_id: number } }> {
-  const res = await fetch(cheminApi`/api/announcements/${id}/dismiss`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow<{ data: { dismissed: boolean; announcement_id: number } }>(res);
+  return appelBff<{ data: { dismissed: boolean; announcement_id: number } }>(cheminApi`/api/announcements/${id}/dismiss`, { method: 'POST' });
 }
 
 export function localizedAnnouncementText(announcement: Announcement, locale = 'fr'): { title: string; body: string } {

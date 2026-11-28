@@ -22,15 +22,10 @@ vi.mock('@/lib/session', () => ({
   getToken: () => getTokenMock(),
 }));
 
-vi.mock('@/lib/api', () => ({
-  ApiError: class ApiError extends Error {
-    constructor(
-      public readonly status: number,
-      public readonly data: unknown,
-    ) {
-      super(`API error ${status}`);
-    }
-  },
+// La VRAIE `ApiError` (TCK-3008) : l'écran lit `codeMetier` et `proseServeur`, qu'une classe
+// recopiée ici n'avait pas — le test restait sur une forme que l'API ne lève plus.
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ApiError: (await importOriginal<typeof import('@/lib/api')>()).ApiError,
   apiRequest: (...args: unknown[]) => apiRequestMock(...args),
 }));
 

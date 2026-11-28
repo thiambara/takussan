@@ -21,16 +21,15 @@ import { ApiError } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { useCan } from '@/hooks/useCan';
 import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { useAgenceDuPersonnelActif } from '@/hooks/usePersonnelActif';
 import { useMyProfiles } from '@/hooks/useProfiles';
-import { isAdmin, isAgent as hasAgentRole, isOwner } from '@/lib/roles';
 import { VisitFeedbackForm } from './VisitFeedbackForm';
 import { ProposerUnCreneau, VisitActionDialog, type VisitDialogKind } from './dialogues-de-la-visite';
 import { avisOuvert, FENETRE_D_AVIS_HEURES } from '@/lib/visites/fenetre-d-avis';
 import { REQUETE_TELEPHONE, SuiteDeLaVisite } from './compte-rendu/SuiteDeLaVisite';
 import { EnTeteDeLaFiche, FicheDeLaVisite, type FicheDeLaVisiteProps, type GestesDeLaFiche } from './fiche/FicheDeLaVisite';
+import { gestesDeLaVisite } from './fiche/gestes';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { closableParCompteRendu, compteRenduLisible } from '@/lib/visites/compte-rendu';
 import { commenceeDeLUrl, commenceeRetenue, etatDeLaFiche } from '@/lib/visites/etat-de-la-fiche';
@@ -68,9 +67,9 @@ export function VisitDetail({ id }: { id: number }) {
   // actions (ADR-0019) : sans `catch`, la promesse rejetée n'était rattrapée par rien.
   const [erreurGeste, setErreurGeste] = useState<string | null>(null);
   const telephone = useMatchesMedia(REQUETE_TELEPHONE);
-  // « Attribuer à un collègue » : le personnel actif de l'agence qui porte `crm.assign`.
+  // « Attribuer à un collègue » : l'API dit si le geste est permis (`abilities.assign`) ; l'agence du
+  // personnel actif ne sert qu'à lister les collègues.
   const agence = useAgenceDuPersonnelActif();
-  const { can: peutAttribuer } = useCan('crm.assign', agence ?? undefined, agence !== null);
   // TCK-2587 — la signature des messages au visiteur, « Sokhna, Dakar Immo » (maquette) : l'agence du
   // profil actif, lue comme la coque (le sélecteur d'espace) ; l'espace personnel n'est pas une agence.
   const { data: profils } = useMyProfiles();
@@ -111,36 +110,12 @@ export function VisitDetail({ id }: { id: number }) {
     visit.abilities?.feedback_customer === true ||
     (!!user?.id && user.id === visit.visitor_id) ||
     (!!user?.id && !!visit.customer && user.id === visit.customer.user_id);
-  const isAssignedAgent = user?.id === visit.agent_id;
-  const isManager = user ? isOwner(user.roles) || hasAgentRole(user.roles) || isAdmin(user.roles) : false;
-  // P152.04 — les gestes de gestion suivent le verdict de l'API, pas le rôle : sur un bien
-  // d'agence, le bailleur n'en a aucun (`visit.staff_only`). `isManager` ne garde que la
-  // proposition de créneau et le retour d'agent, qu'une autre règle juge.
+  // P152.04 — `manage` dit qui la fiche sert (messages au visiteur, fiche du client), jamais un geste.
   const peutGerer = visit.abilities?.manage === true;
   const feedbackLocked = !avisOuvert(visit);
-  const scheduledAtMs = visit.scheduled_at ? new Date(visit.scheduled_at).getTime() : Number.NaN;
-  const isPastSlot = Number.isFinite(scheduledAtMs) && scheduledAtMs <= maintenant.getTime();
-  // TCK-2869 (ADR-0112) — confirmer (et « Autre créneau ») suit `abilities.confirm` : `manage`, ou le
-  // bailleur d'un bien d'agence quand l'agence lui confie ses visites. Ce geste seul : les autres
-  // restent sous `manage`.
-  const canConfirm = (peutGerer || visit.abilities?.confirm === true) && status === 'scheduled';
-  const canCancel = (isVisitor || peutGerer) && (status === 'scheduled' || status === 'confirmed');
-  const canComplete =
-    peutGerer &&
-    (status === 'confirmed' || status === 'scheduled') &&
-    (isPastSlot || status === 'confirmed');
-  // TCK-1375 (P115.05) — l'absence ne se déclare qu'une fois l'heure passée ; le serveur le
-  // rejuge (`visit.cannot_mark_no_show`). TCK-2587 — commencée avant l'heure, la fiche montre
-  // « Absent » grisé, avec l'heure à partir de laquelle il le devient.
-  const canMarkNoShow = peutGerer && (status === 'confirmed' || status === 'scheduled');
-  const canReschedule = peutGerer && (status === 'scheduled' || status === 'confirmed');
-  const isActive = status === 'scheduled' || status === 'confirmed';
-  // TCK-590 — la visite déposée sur le site n'a pas d'agent : le personnel de l'agence la prend
-  // en charge. Le serveur tranche la course (409 si un collègue l'a prise entre-temps).
-  const canClaim =
-    !!user && (hasAgentRole(user.roles) || isAdmin(user.roles)) && isActive && visit.agent_id == null;
-  // Le visiteur ne pouvait qu'annuler : il propose désormais un autre créneau, tiré de la grille.
-  const canPropose = isVisitor && !isManager && isActive && !!visit.property?.slug;
+  // TCK-3005 (ADR-0139) — les gestes se lisent dans `abilities` (policy ET état, jugés par l'API) : ni
+  // `user.roles`, ni `useCan`, ni le statut pour décider ; aucun geste tant qu'`abilities` manque.
+  const permis = gestesDeLaVisite(visit, maintenant);
   // TCK-2581 — le compte rendu (et « Et maintenant ? ») : la clé n'existe que pour le personnel.
   const lisible = compteRenduLisible(visit);
   // TCK-2587 — `?commencee=HH:MM` : « Commencer » pose l'heure du clic dans l'URL, rien en base.
@@ -255,15 +230,15 @@ export function VisitDetail({ id }: { id: number }) {
   }
 
   const gestes: GestesDeLaFiche = {
-    confirmer: canConfirm ? (scheduledAt) => geste(() => handleConfirm(scheduledAt)) : null,
-    terminer: canComplete ? () => void geste(handleComplete) : null,
-    absent: canMarkNoShow ? () => void geste(handleNoShow) : null,
-    replanifier: canReschedule ? () => setDialog('reschedule') : null,
-    annuler: canCancel ? () => setDialog('cancel') : null,
-    prendreEnCharge: canClaim ? () => void handleClaim() : null,
-    proposer: canPropose ? () => setProposer(true) : null,
+    confirmer: permis.confirmer ? (scheduledAt) => geste(() => handleConfirm(scheduledAt)) : null,
+    terminer: permis.terminer ? () => void geste(handleComplete) : null,
+    absent: permis.absent ? () => void geste(handleNoShow) : null,
+    replanifier: permis.replanifier ? () => setDialog('reschedule') : null,
+    annuler: permis.annuler ? () => setDialog('cancel') : null,
+    prendreEnCharge: permis.prendreEnCharge ? () => void handleClaim() : null,
+    proposer: permis.proposer ? () => setProposer(true) : null,
     attribuer:
-      peutGerer && peutAttribuer && agence !== null && isActive
+      permis.attribuer && agence !== null
         ? { agence, onChoisir: (agentId) => void geste(() => handleAttribuer(agentId)) }
         : null,
     enCours,
@@ -309,7 +284,6 @@ export function VisitDetail({ id }: { id: number }) {
           visit={visit}
           locked={feedbackLocked}
           canCustomer={isVisitor}
-          canRead={isAssignedAgent || isManager}
         />
       )}
 
@@ -366,26 +340,25 @@ function avisDe(visit: PropertyVisit, role: 'customer' | 'agent'): AvisDeVisite 
  * Les avis de la visite. Le CLIENT y note la visite (1 à 5) dans sa fenêtre de 24 h — c'est son avis,
  * distinct du compte rendu de l'agence (TCK-2581), qu'il ne voit jamais. Ceux qui gèrent la visite
  * LISENT les avis déjà donnés ; ils n'écrivent plus de retour noté (le compte rendu le remplace).
+ *
+ * TCK-3005 — qui lit les avis ne se déduit plus de `user.roles` : l'API ne sert `metadata` (où ils
+ * vivent) qu'aux outils de la console (`PropertyVisitResource::outilDeLaConsole`) ; sa présence est la garde.
  */
 function FeedbackSection({
   visit,
   locked,
   canCustomer,
-  canRead,
 }: {
   visit: PropertyVisit;
   locked: boolean;
   canCustomer: boolean;
-  canRead: boolean;
 }) {
   const t = useTranslations('visits.detail');
   const [submitted, setSubmitted] = useState(false);
-  const lus = canRead
-    ? (['customer', 'agent'] as const).flatMap((role) => {
-        const avis = avisDe(visit, role);
-        return avis && (avis.rating != null || avis.comment) ? [{ role, avis }] : [];
-      })
-    : [];
+  const lus = (['customer', 'agent'] as const).flatMap((role) => {
+    const avis = avisDe(visit, role);
+    return avis && (avis.rating != null || avis.comment) ? [{ role, avis }] : [];
+  });
 
   if (canCustomer && locked) {
     return (

@@ -12,7 +12,7 @@ import { ErrorState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
+import { ApiError, codeMetierDe } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   depositRadarReply,
@@ -39,7 +39,6 @@ import type {
   RadarPrepareRequest,
   RadarPreparedOutreachResponse,
 } from '@/types/radar';
-import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
 import { ApercuMessage } from './ApercuMessage';
 import { raisonNonCochable } from './annonces';
 import { BandeauPriseEnCharge } from './BandeauPriseEnCharge';
@@ -291,7 +290,7 @@ function FicheChargee({ annonceur, onEnvoiApi }: FicheChargeeProps) {
 
       {erreur ? (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive" data-testid="radar-annonceur-erreur">
-          {erreurDeDemarchage && codeDeLErreur(erreur) === 'radar.outreach.reply_pending' ? t('message.replyPending') : messageEchec(erreur)}
+          {erreurDeDemarchage && codeMetierDe(erreur) === 'radar.outreach.reply_pending' ? t('message.replyPending') : messageEchec(erreur)}
         </p>
       ) : null}
       {reponseNonTranchee ? (

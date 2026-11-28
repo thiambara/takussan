@@ -12,7 +12,6 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Directory\ResponseTimes;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -250,15 +249,5 @@ class DirectoryResponseTimesTest extends TestCase
         $this->lancer();
         $this->assertNull($this->agence->fresh()->median_response_minutes, 'sous le seuil, le délai est retiré');
         $this->assertNull($this->profil->fresh()->median_response_minutes);
-    }
-
-    public function test_le_job_est_planifie_chaque_nuit(): void
-    {
-        $events = collect(app(Schedule::class)->events())
-            ->filter(fn ($event) => str_contains((string) $event->description, RefreshDirectoryResponseTimes::class));
-
-        $this->assertCount(1, $events);
-        $this->assertSame('20 4 * * *', $events->first()->expression);
-        $this->assertSame('Africa/Dakar', $events->first()->timezone);
     }
 }

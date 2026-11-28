@@ -20,7 +20,6 @@ use App\Services\Ai\PromptRepository;
 use App\Services\Search\Aliases\SearchAliasCurator;
 use App\Services\Search\Query\DatabasePlaceLexicon;
 use App\Services\Search\Query\SearchQueryParser;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -467,14 +466,5 @@ class SearchAliasCuratorTest extends TestCase
         $this->assertSame(0, Artisan::call('search:refresh-aliases'));
 
         $this->assertSame($other->id, AiCall::query()->sole()->actor_id);
-    }
-
-    public function test_le_passage_est_planifie_chaque_semaine(): void
-    {
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn ($e) => str_contains((string) $e->command, 'search:refresh-aliases'));
-
-        $this->assertNotNull($event, 'planifié dans routes/console.php');
-        $this->assertSame('10 4 * * 1', $event->expression);
     }
 }

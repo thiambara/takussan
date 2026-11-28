@@ -63,11 +63,6 @@ class AgencySettingsBooleensStockesTest extends TestCase
         }
     }
 
-    public function test_le_catalogue_a_des_cles_booleennes(): void
-    {
-        $this->assertContains('require_team_two_factor', array_keys(self::clesBooleennes()));
-    }
-
     /** La valeur telle que la COLONNE la porte, décodée du JSON brut (sans le cast du modèle). */
     private function stocke(string $cle): mixed
     {

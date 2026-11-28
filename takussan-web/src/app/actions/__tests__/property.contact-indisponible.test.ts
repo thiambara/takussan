@@ -32,6 +32,8 @@ describe('dépôt public refusé faute de destinataire', () => {
     const attendu = {
       ok: false,
       status: 409,
+      // TCK-3008 — le code du refus accompagne le message.
+      code: 'lead.contact_unavailable',
       message: 'Personne ne peut recevoir de demande pour ce bien en ce moment : la vôtre n’a pas été envoyée. Réessayez plus tard.',
     };
 

@@ -1,6 +1,6 @@
 'use server';
 
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction, type RefusDAction } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
 import {
@@ -36,12 +36,12 @@ function requireToken(
   if (!token) throw new ApiError(401, { message: messageSiAbsent });
 }
 
-type ActionResult<T> = { ok: true; data: T } | { ok: false; message: string };
+type ActionResult<T> = { ok: true; data: T } | ({ ok: false } & RefusDAction);
 
 /** Clés de repli de `serverActions.superAdminCooptation`. */
 type CleRepli = 'enrollFailed' | 'invalidTotp';
 
-async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string }> {
+async function failure(err: unknown, cleRepli: CleRepli): Promise<({ ok: false } & RefusDAction)> {
   journaliserErreurInattendue('super-admin-cooptation', err);
   const t = await getTranslations('serverActions.superAdminCooptation');
   const repli = t(cleRepli);
@@ -49,7 +49,7 @@ async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; m
     // ⚠️ C'était `err.displayMessage || repli`, et le repli était MORT : `displayMessage` rendait
     // une clé i18n, et une clé est *truthy*. Un module `'use server'` traduit avec
     // `getTranslations`, jamais en lisant un libellé pré-calculé sur l'erreur.
-    return { ok: false, message: messageErreurApi(err, await getTranslations(), repli) };
+    return { ok: false, ...refusDAction(err, await getTranslations(), repli) };
   }
   return { ok: false, message: repli };
 }

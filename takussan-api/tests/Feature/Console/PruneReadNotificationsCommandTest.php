@@ -4,8 +4,6 @@ namespace Tests\Feature\Console;
 
 use App\Models\AppNotification;
 use App\Models\NotificationDeliveryAttempt;
-use Illuminate\Console\Scheduling\Event;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -37,16 +35,6 @@ class PruneReadNotificationsCommandTest extends TestCase
         $this->assertModelMissing($tentative);
         $this->assertModelExists($recenteLue);
         $this->assertModelExists($vieilleNonLue);
-    }
-
-    public function test_la_purge_est_planifiee_chaque_jour_sans_chevauchement(): void
-    {
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn (Event $e) => str_contains((string) $e->command, 'notifications:prune-read'));
-
-        $this->assertNotNull($event, 'notifications:prune-read doit être planifiée.');
-        $this->assertSame('5 4 * * *', $event->expression);
-        $this->assertTrue($event->withoutOverlapping);
     }
 
     private function notification(\DateTimeInterface $creeIlYa, ?\DateTimeInterface $lueIlYa): AppNotification

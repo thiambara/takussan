@@ -10,7 +10,7 @@ use Carbon\CarbonImmutable;
 /**
  * TCK-2502 — confirmer une visite peut en fixer l'heure (`scheduled_at`, facultatif). Pour une
  * visite demandée par tranche (`preferred_window`), l'heure est exigée : c'est
- * `VisitSchedulingService::confirmOrFail` qui le dit (422 `visit.time_required`), sous le verrou de
+ * `GestesDeLaVisite::confirmer` qui le dit (422 `visit.time_required`), sous le verrou de
  * la ligne, pas cette règle — elle ne voit pas la visite relue.
  *
  * L'heure fixée par l'agent n'est pas soumise à la grille des créneaux du visiteur

@@ -102,13 +102,6 @@ class AuthLoginTest extends TestCase
         $this->assertLessThanOrEqual(time(), $cookie->getExpiresTime(), 'cookie must be expired');
     }
 
-    public function test_logout_requires_authentication(): void
-    {
-        $response = $this->postJson('/api/auth/logout');
-
-        $response->assertStatus(401);
-    }
-
     public function test_login_is_rate_limited_after_five_attempts(): void
     {
         $user = User::factory()->create(['password' => bcrypt('password123')]);

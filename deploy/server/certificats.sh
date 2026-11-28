@@ -27,6 +27,7 @@ NOMS=(
   deploy.takussan.com
   preview.takussan.com
   preview.api.takussan.com
+  preview.ws.takussan.com
 )
 [ $# -gt 0 ] && NOMS=("$@")
 

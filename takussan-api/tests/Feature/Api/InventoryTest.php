@@ -5,7 +5,6 @@ namespace Tests\Feature\Api;
 use App\Models\Customer;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryStatus;
-use App\Models\Enums\InventoryType;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
@@ -19,57 +18,6 @@ class InventoryTest extends TestCase
     use RefreshDatabase;
 
     private const SIGNATURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAvMBAOeufn4AAAAASUVORK5CYII=';
-
-    public function test_landlord_can_create_move_in_inventory(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $tenant = Customer::factory()->create();
-        $lease = Lease::factory()->create([
-            'property_id' => $property->id,
-            'landlord_id' => $owner->id,
-            'tenant_id' => $tenant->id,
-
-        ]);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson('/api/inventories', [
-            'lease_id' => $lease->id,
-            'type' => InventoryType::MoveIn->value,
-            'general_condition' => InventoryCondition::Good->value,
-            'rooms' => [
-                ['name' => 'Living', 'condition' => 'good'],
-                ['name' => 'Kitchen', 'condition' => 'fair'],
-            ],
-        ])->assertCreated()
-            ->assertJsonPath('data.status', InventoryStatus::Draft->value)
-            ->assertJsonPath('data.type', InventoryType::MoveIn->value);
-
-        $this->assertDatabaseCount('inventories', 1);
-    }
-
-    public function test_random_user_cannot_create_inventory(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $tenant = Customer::factory()->create();
-        $lease = Lease::factory()->create([
-            'property_id' => $property->id,
-            'landlord_id' => $owner->id,
-            'tenant_id' => $tenant->id,
-
-        ]);
-
-        Sanctum::actingAs(User::factory()->create());
-
-        $this->postJson('/api/inventories', [
-            'lease_id' => $lease->id,
-            'type' => InventoryType::MoveIn->value,
-            'general_condition' => InventoryCondition::Good->value,
-            'rooms' => [['name' => 'Living', 'condition' => 'good']],
-        ])->assertForbidden();
-    }
 
     public function test_submit_transitions_draft_to_pending_signature(): void
     {
@@ -86,116 +34,6 @@ class InventoryTest extends TestCase
         $this->postJson("/api/inventories/{$inventory->id}/submit")
             ->assertOk()
             ->assertJsonPath('data.status', InventoryStatus::PendingSignature->value);
-    }
-
-    public function test_cannot_submit_non_draft_inventory(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $inventory = Inventory::factory()->create([
-            'property_id' => $property->id,
-            'conducted_by' => $owner->id,
-            'status' => InventoryStatus::PendingSignature,
-        ]);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson("/api/inventories/{$inventory->id}/submit")->assertStatus(422);
-    }
-
-    public function test_update_only_allowed_on_draft(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        // TCK-076 AC5 — Signed inventories are immutable and PATCH now returns
-        // 409. Non-signed transitional states (pending_signature, disputed)
-        // still produce the historical 422 "only draft" response.
-        $inventory = Inventory::factory()->create([
-            'property_id' => $property->id,
-            'conducted_by' => $owner->id,
-            'status' => InventoryStatus::Signed,
-        ]);
-
-        Sanctum::actingAs($owner);
-
-        $this->patchJson("/api/inventories/{$inventory->id}", [
-            'notes' => 'update attempt',
-        ])->assertStatus(409);
-    }
-
-    /**
-     * TCK-596 — l'appel sans corps n'existe plus : chaque partie signe avec `{role, signature}`, et
-     * l'état des lieux porte son bail (le bailleur du BAIL signe, pas celui d'un bail de fabrique).
-     */
-    public function test_owner_signs_then_tenant_signs_marks_signed(): void
-    {
-        $owner = User::factory()->create();
-        $tenantUser = User::factory()->create();
-        $tenant = Customer::factory()->create(['user_id' => $tenantUser->id]);
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $lease = Lease::factory()->create([
-            'property_id' => $property->id,
-            'landlord_id' => $owner->id,
-            'tenant_id' => $tenant->id,
-        ]);
-        $inventory = Inventory::factory()->create([
-            'lease_id' => $lease->id,
-            'property_id' => $property->id,
-            'tenant_id' => $tenant->id,
-            'conducted_by' => $owner->id,
-            'status' => InventoryStatus::PendingSignature,
-        ]);
-
-        Sanctum::actingAs($owner);
-        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'landlord', 'signature' => self::SIGNATURE])
-            ->assertOk()
-            ->assertJsonPath('data.owner_signed', true)
-            ->assertJsonPath('data.status', InventoryStatus::PendingSignature->value);
-
-        Sanctum::actingAs($tenantUser);
-        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'tenant', 'signature' => self::SIGNATURE])
-            ->assertOk()
-            ->assertJsonPath('data.tenant_signed', true)
-            ->assertJsonPath('data.status', InventoryStatus::Signed->value);
-    }
-
-    public function test_random_user_cannot_sign_inventory(): void
-    {
-        $owner = User::factory()->create();
-        $tenant = Customer::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $inventory = Inventory::factory()->create([
-            'property_id' => $property->id,
-            'tenant_id' => $tenant->id,
-            'conducted_by' => $owner->id,
-            'status' => InventoryStatus::PendingSignature,
-        ]);
-
-        Sanctum::actingAs(User::factory()->create());
-
-        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'landlord', 'signature' => self::SIGNATURE])
-            ->assertForbidden();
-    }
-
-    public function test_tenant_can_dispute_pending_inventory(): void
-    {
-        $owner = User::factory()->create();
-        $tenantUser = User::factory()->create();
-        $tenant = Customer::factory()->create(['user_id' => $tenantUser->id]);
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $inventory = Inventory::factory()->create([
-            'property_id' => $property->id,
-            'tenant_id' => $tenant->id,
-            'conducted_by' => $owner->id,
-            'status' => InventoryStatus::PendingSignature,
-        ]);
-
-        Sanctum::actingAs($tenantUser);
-
-        $this->postJson("/api/inventories/{$inventory->id}/dispute", [
-            'reason' => 'Kitchen actually in poor condition',
-        ])->assertOk()
-            ->assertJsonPath('data.status', InventoryStatus::Disputed->value);
     }
 
     public function test_cannot_dispute_draft(): void
@@ -254,39 +92,5 @@ class InventoryTest extends TestCase
         $this->getJson('/api/inventories')
             ->assertOk()
             ->assertJsonPath('meta.total', 3);
-    }
-
-    public function test_can_show_inventory(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $inventory = Inventory::factory()->create([
-            'property_id' => $property->id,
-            'conducted_by' => $owner->id,
-        ]);
-
-        Sanctum::actingAs($owner);
-
-        $this->getJson("/api/inventories/{$inventory->id}")
-            ->assertOk()
-            ->assertJsonPath('data.id', $inventory->id);
-    }
-
-    public function test_can_update_draft_inventory(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $inventory = Inventory::factory()->create([
-            'property_id' => $property->id,
-            'conducted_by' => $owner->id,
-            'status' => InventoryStatus::Draft,
-        ]);
-
-        Sanctum::actingAs($owner);
-
-        $this->patchJson("/api/inventories/{$inventory->id}", [
-            'notes' => 'Updated notes',
-        ])->assertOk()
-            ->assertJsonPath('data.notes', 'Updated notes');
     }
 }

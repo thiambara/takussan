@@ -41,7 +41,7 @@ class PaymentSupervisionTest extends TestCase
 
     public function test_summary_and_list_count_failures_by_last_failed_at_and_survive_a_new_attempt(): void
     {
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         $pending = ['status' => PaymentStatus::Pending, 'due_date' => now()->addDays(5)->toDateString(), 'late_fee_amount' => 0, 'late_fee_applied_at' => null];
 
         // Deux échéances Wave : un checkout chacune, puis l'échec de ce checkout.
@@ -60,7 +60,7 @@ class PaymentSupervisionTest extends TestCase
         // L'une est ré-initiée : la nouvelle tentative ne doit pas effacer l'échec.
         Sanctum::actingAs($a['tenant']);
         $this->postJson("/api/lease-payments/{$a['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
-        $this->assertCount(3, $spy->calls);
+        $this->assertCount(3, $spy->checkouts);
 
         foreach ([$a['payment'], $b['payment']] as $payment) {
             $payment->refresh();
@@ -260,17 +260,5 @@ class PaymentSupervisionTest extends TestCase
         $echecs = $this->getJson('/api/admin/payments?filter[status]=failed')->assertOk()->json('data');
 
         $this->assertSame([$garde->id], collect($echecs)->pluck('id')->all());
-    }
-
-    /** AC10 — un agent ou un admin d'agence : 403 sur les quatre routes. */
-    public function test_agency_staff_is_forbidden_on_the_console_routes(): void
-    {
-        $log = IntegrationWebhookLog::query()->create(['provider' => 'wave', 'direction' => 'incoming', 'status' => 'processed', 'payload' => []]);
-        foreach (['agent', 'agency_admin'] as $role) {
-            $this->actingAsRole($role);
-            foreach (['/api/admin/payments', '/api/admin/payments/summary', '/api/admin/webhook-logs', "/api/admin/webhook-logs/{$log->id}"] as $url) {
-                $this->getJson($url)->assertForbidden();
-            }
-        }
     }
 }

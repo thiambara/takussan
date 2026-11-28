@@ -1,6 +1,6 @@
 'use server';
 
-import { apiRequest, buildQueryString } from '@/lib/api';
+import { apiRequest, buildQueryString, refusDAction, type RefusDAction } from '@/lib/api';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
@@ -13,7 +13,7 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
  */
 export async function createThresholdAlertAction(
   input: ThresholdAlertInput,
-): Promise<{ ok: true; data: ThresholdAlert } | { ok: false; message: string }> {
+): Promise<{ ok: true; data: ThresholdAlert } | ({ ok: false } & RefusDAction)> {
   const token = await getToken();
   if (!token) {
     // Le littéral d'origine était l'anglais « Not authenticated. », affiché tel quel à un
@@ -33,7 +33,9 @@ export async function createThresholdAlertAction(
     return { ok: true, data: res.data };
   } catch (err) {
     journaliserErreurInattendue('alerts', err);
-    return { ok: false, message: (err as Error).message };
+    // TCK-3008 — c'était `(err as Error).message` : « API error 422 » à l'écran, sans code ni langue.
+    const repli = (await getTranslations('serverActions.shared'))('networkErrorRetry');
+    return { ok: false, ...refusDAction(err, await getTranslations(), repli) };
   }
 }
 
@@ -45,7 +47,7 @@ export async function createThresholdAlertAction(
 export async function updateThresholdAlertAction(
   id: number,
   input: Partial<ThresholdAlertInput>,
-): Promise<{ ok: true; data: ThresholdAlert } | { ok: false; message: string }> {
+): Promise<{ ok: true; data: ThresholdAlert } | ({ ok: false } & RefusDAction)> {
   const token = await getToken();
   if (!token) {
     const tErr = await getTranslations('errors');
@@ -63,7 +65,9 @@ export async function updateThresholdAlertAction(
     return { ok: true, data: res.data };
   } catch (err) {
     journaliserErreurInattendue('alerts', err);
-    return { ok: false, message: (err as Error).message };
+    // TCK-3008 — c'était `(err as Error).message` : « API error 422 » à l'écran, sans code ni langue.
+    const repli = (await getTranslations('serverActions.shared'))('networkErrorRetry');
+    return { ok: false, ...refusDAction(err, await getTranslations(), repli) };
   }
 }
 

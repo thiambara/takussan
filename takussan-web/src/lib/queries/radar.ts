@@ -1,6 +1,6 @@
 import { buildQueryString } from '@/lib/api';
 import { cheminApi, requete } from '@/lib/chemin-api';
-import { jsonOrThrow } from '@/lib/queries/super-admin-coque';
+import { appelBff } from '@/lib/bff';
 import type { PaginatedResponse } from '@/types/api';
 import type {
   RadarAccountReleaseResponse,
@@ -138,8 +138,7 @@ export const radarKeys = {
 };
 
 export async function fetchRadarDashboard(): Promise<RadarDashboardResponse> {
-  const res = await fetch('/api/super-admin/radar/dashboard', { credentials: 'include' });
-  return jsonOrThrow<RadarDashboardResponse>(res);
+  return appelBff<RadarDashboardResponse>('/api/super-admin/radar/dashboard');
 }
 
 /** `sort=-created_at` : la plus récente en tête, ce qui vient d'être saisi se voit d'abord. */
@@ -153,8 +152,7 @@ export async function fetchRadarListings(
     page: filters.page ?? 1,
     per_page: filters.perPage ?? 25,
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/listings${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<PaginatedResponse<RadarListingRow>>(res);
+  return appelBff<PaginatedResponse<RadarListingRow>>(cheminApi`/api/super-admin/radar/listings${requete(qs)}`);
 }
 
 /**
@@ -163,30 +161,23 @@ export async function fetchRadarListings(
  * le site s'y déduit de l'hôte.
  */
 export async function postRadarListings(payload: RadarIntakePayload): Promise<RadarIntakeResponse> {
-  let init: RequestInit;
+  let body: FormData | object;
   if (payload.kind === 'captures') {
     const form = new FormData();
     for (const file of payload.files) form.append('captures[]', file);
     if (payload.sourceSite) form.append('source_site', payload.sourceSite);
-    init = { method: 'POST', body: form, headers: { Accept: 'application/json' } };
+    body = form;
   } else {
-    const body = payload.kind === 'urls'
+    body = payload.kind === 'urls'
       ? { urls: payload.urls }
       : { text: payload.text, ...(payload.sourceSite ? { source_site: payload.sourceSite } : {}) };
-    init = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(body),
-    };
   }
-  const res = await fetch('/api/super-admin/radar/listings', { ...init, credentials: 'include' });
-  return jsonOrThrow<RadarIntakeResponse>(res);
+  return appelBff<RadarIntakeResponse>('/api/super-admin/radar/listings', { method: 'POST', body });
 }
 
 /** TCK-2387 — la fiche complète : source, champs lus, captures (URL signées), annonceur, quartier rattaché. */
 export async function fetchRadarListing(id: number): Promise<RadarListingDetailResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${id}`, { credentials: 'include' });
-  return jsonOrThrow<RadarListingDetailResponse>(res);
+  return appelBff<RadarListingDetailResponse>(cheminApi`/api/super-admin/radar/listings/${id}`);
 }
 
 /**
@@ -194,13 +185,7 @@ export async function fetchRadarListing(id: number): Promise<RadarListingDetailR
  * (l'API refuse un corps vide, et chaque clé envoyée marque son champ « corrigé »). Rend la fiche relue.
  */
 export async function patchRadarListing(id: number, changes: RadarListingChanges): Promise<RadarListingDetailResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${id}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(changes),
-  });
-  return jsonOrThrow<RadarListingDetailResponse>(res);
+  return appelBff<RadarListingDetailResponse>(cheminApi`/api/super-admin/radar/listings/${id}`, { method: 'PATCH', body: changes });
 }
 
 /**
@@ -208,19 +193,12 @@ export async function patchRadarListing(id: number, changes: RadarListingChanges
  * `pending`, le signal photo peut manquer : l'écran relit toutes les {@link RADAR_POLL_MS} ms.
  */
 export async function fetchRadarMatches(id: number): Promise<RadarMatchesResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${id}/matches`, { credentials: 'include' });
-  return jsonOrThrow<RadarMatchesResponse>(res);
+  return appelBff<RadarMatchesResponse>(cheminApi`/api/super-admin/radar/listings/${id}/matches`);
 }
 
 /** Le chemin vient de {@link cheminApi} chez l'appelant : un segment `/…` passé en valeur serait refusé. */
 async function envoyer(chemin: string, method: 'POST' | 'PUT', body?: unknown): Promise<RadarListingDetailResponse> {
-  const res = await fetch(chemin, {
-    method,
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  return jsonOrThrow<RadarListingDetailResponse>(res);
+  return appelBff<RadarListingDetailResponse>(chemin, { method, body });
 }
 
 /** Valider : décide la suggestion (`accepted` ou `edited`) et fige les rapprochements. */
@@ -256,42 +234,25 @@ export async function fetchNextRadarListingId(excludeId: number): Promise<number
     page: 1,
     per_page: 2,
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/listings${requete(qs)}`, { credentials: 'include' });
-  const liste = await jsonOrThrow<PaginatedResponse<Pick<RadarListingRow, 'id'>>>(res);
+  const liste = await appelBff<PaginatedResponse<Pick<RadarListingRow, 'id'>>>(cheminApi`/api/super-admin/radar/listings${requete(qs)}`);
   return liste.data.find((row) => row.id !== excludeId)?.id ?? null;
 }
 
 // ─── L'annonceur et son message d'accord (TCK-2388) ──────────────────────────────────────────
 
-const JSON_ACCEPT = { 'Content-Type': 'application/json', Accept: 'application/json' } as const;
-
 /** La fiche annonceur : identité, annonces (hors purgées), messages du plus récent au plus ancien, prise en charge. */
 export async function fetchRadarAdvertiser(id: number): Promise<RadarAdvertiserResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}`, { credentials: 'include' });
-  return jsonOrThrow<RadarAdvertiserResponse>(res);
+  return appelBff<RadarAdvertiserResponse>(cheminApi`/api/super-admin/radar/advertisers/${id}`);
 }
 
 /** Prendre l'annonceur en charge : l'API refuse (409) s'il est tenu par un autre. Rend la prise. */
 export async function claimRadarAdvertiser(id: number): Promise<RadarClaimResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}/claim`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  return jsonOrThrow<RadarClaimResponse>(res);
+  return appelBff<RadarClaimResponse>(cheminApi`/api/super-admin/radar/advertisers/${id}/claim`, { method: 'POST' });
 }
 
-/**
- * Rendre la prise. L'API répond 204 SANS corps : `jsonOrThrow` lirait un JSON qui n'existe pas, la réponse
- * est donc jugée ici — un échec porte son `{code, params}` comme partout.
- */
+/** Rendre la prise. L'API répond 204 SANS corps ; un échec porte son `{code, params}` comme partout. */
 export async function releaseRadarAdvertiser(id: number): Promise<void> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}/claim`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  if (!res.ok) await jsonOrThrow<unknown>(res);
+  await appelBff<null>(cheminApi`/api/super-admin/radar/advertisers/${id}/claim`, { method: 'DELETE' });
 }
 
 /**
@@ -303,13 +264,7 @@ export async function releaseRadarAdvertiserAccount(
   reason: string,
 ): Promise<RadarAccountReleaseResponse> {
   const motif = reason.trim();
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${id}/release-account`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: JSON_ACCEPT,
-    body: JSON.stringify(motif ? { reason: motif } : {}),
-  });
-  return jsonOrThrow<RadarAccountReleaseResponse>(res);
+  return appelBff<RadarAccountReleaseResponse>(cheminApi`/api/super-admin/radar/advertisers/${id}/release-account`, { method: 'POST', body: motif ? { reason: motif } : {} });
 }
 
 /** Préparer un message : l'API compose le texte (clauses figées + salutation et résumé que l'IA rédige). */
@@ -317,34 +272,17 @@ export async function prepareRadarOutreach(
   advertiserId: number,
   request: RadarPrepareRequest,
 ): Promise<RadarPreparedOutreachResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/outreaches`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: JSON_ACCEPT,
-    body: JSON.stringify(request),
-  });
-  return jsonOrThrow<RadarPreparedOutreachResponse>(res);
+  return appelBff<RadarPreparedOutreachResponse>(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/outreaches`, { method: 'POST', body: request });
 }
 
 /** Retoucher la salutation et/ou le résumé : les seules parties modifiées. Rend le message RELU, texte compris. */
 export async function retouchRadarOutreach(id: number, changes: RadarOutreachChanges): Promise<RadarOutreachResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${id}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: JSON_ACCEPT,
-    body: JSON.stringify(changes),
-  });
-  return jsonOrThrow<RadarOutreachResponse>(res);
+  return appelBff<RadarOutreachResponse>(cheminApi`/api/super-admin/radar/outreaches/${id}`, { method: 'PATCH', body: changes });
 }
 
 /** « J'ai envoyé le message » : le message passe `sent`, les annonces `contacted`. */
 export async function markRadarOutreachSent(id: number): Promise<RadarOutreachResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${id}/sent`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  return jsonOrThrow<RadarOutreachResponse>(res);
+  return appelBff<RadarOutreachResponse>(cheminApi`/api/super-admin/radar/outreaches/${id}/sent`, { method: 'POST' });
 }
 
 /**
@@ -353,12 +291,7 @@ export async function markRadarOutreachSent(id: number): Promise<RadarOutreachRe
  * code (`radar.whatsapp.*`, `radar.outreach.reply_pending`) ; 502 `radar.whatsapp.send_failed` : rien n'est écrit.
  */
 export async function sendRadarOutreach(id: number): Promise<RadarOutreachResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${id}/send`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  return jsonOrThrow<RadarOutreachResponse>(res);
+  return appelBff<RadarOutreachResponse>(cheminApi`/api/super-admin/radar/outreaches/${id}/send`, { method: 'POST' });
 }
 
 /**
@@ -374,8 +307,7 @@ export async function fetchRadarAdvertisers(filters: RadarAdvertiserFilters): Pr
     page: filters.page ?? 1,
     per_page: filters.perPage ?? 25,
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<PaginatedResponse<RadarAdvertiserRow>>(res);
+  return appelBff<PaginatedResponse<RadarAdvertiserRow>>(cheminApi`/api/super-admin/radar/advertisers${requete(qs)}`);
 }
 
 /**
@@ -385,13 +317,7 @@ export async function fetchRadarAdvertisers(filters: RadarAdvertiserFilters): Pr
 export async function depositRadarReply(outreachId: number, files: readonly File[]): Promise<{ readonly data: RadarConsent }> {
   const form = new FormData();
   for (const file of files) form.append('captures[]', file);
-  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${outreachId}/reply`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-    body: form,
-  });
-  return jsonOrThrow<{ readonly data: RadarConsent }>(res);
+  return appelBff<{ readonly data: RadarConsent }>(cheminApi`/api/super-admin/radar/outreaches/${outreachId}/reply`, { method: 'POST', body: form });
 }
 
 /**
@@ -400,13 +326,7 @@ export async function depositRadarReply(outreachId: number, files: readonly File
  */
 export async function recordRadarOutcome(outreachId: number, request: RadarOutcomeRequest): Promise<RadarOutreachResponse> {
   const reason = request.reason?.trim();
-  const res = await fetch(cheminApi`/api/super-admin/radar/outreaches/${outreachId}/outcome`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: JSON_ACCEPT,
-    body: JSON.stringify({ outcome: request.outcome, ...(reason ? { reason } : {}) }),
-  });
-  return jsonOrThrow<RadarOutreachResponse>(res);
+  return appelBff<RadarOutreachResponse>(cheminApi`/api/super-admin/radar/outreaches/${outreachId}/outcome`, { method: 'POST', body: { outcome: request.outcome, ...(reason ? { reason } : {}) } });
 }
 
 // ─── « Publier pour lui » (TCK-2389) ─────────────────────────────────────────────────────────
@@ -417,8 +337,7 @@ export async function recordRadarOutcome(outreachId: number, request: RadarOutco
  * ce qui bloque. Il n'écrit rien ; il se relit tant qu'une préparation de photos tourne.
  */
 export async function fetchRadarPublicationPreview(advertiserId: number): Promise<RadarPublicationPreviewResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/publication-preview`, { credentials: 'include' });
-  return jsonOrThrow<RadarPublicationPreviewResponse>(res);
+  return appelBff<RadarPublicationPreviewResponse>(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/publication-preview`);
 }
 
 /**
@@ -431,13 +350,7 @@ export async function publishRadarAdvertiser(
   listingIds: readonly number[],
   cleIdempotence: string,
 ): Promise<RadarPublicationResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/publish`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { ...JSON_ACCEPT, 'Idempotency-Key': cleIdempotence },
-    body: JSON.stringify({ listing_ids: [...listingIds] }),
-  });
-  return jsonOrThrow<RadarPublicationResponse>(res);
+  return appelBff<RadarPublicationResponse>(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/publish`, { method: 'POST', cleIdempotence: cleIdempotence, body: { listing_ids: [...listingIds] } });
 }
 
 /**
@@ -450,13 +363,7 @@ export async function publishRadarAdvertiserUnderMandate(
   listingIds: readonly number[],
   cleIdempotence: string,
 ): Promise<RadarPublicationResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/publish-mandate`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { ...JSON_ACCEPT, 'Idempotency-Key': cleIdempotence },
-    body: JSON.stringify({ listing_ids: [...listingIds] }),
-  });
-  return jsonOrThrow<RadarPublicationResponse>(res);
+  return appelBff<RadarPublicationResponse>(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/publish-mandate`, { method: 'POST', cleIdempotence: cleIdempotence, body: { listing_ids: [...listingIds] } });
 }
 
 /** Le second message (« vos annonces sont en ligne… ») et son lien `wa.me`, dans la langue demandée. */
@@ -465,43 +372,24 @@ export async function fetchRadarPublishedMessage(
   locale: RadarMessageLocale,
 ): Promise<RadarPublishedMessageResponse> {
   const qs = new URLSearchParams({ locale });
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/published-message${requete(qs)}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<RadarPublishedMessageResponse>(res);
+  return appelBff<RadarPublishedMessageResponse>(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/published-message${requete(qs)}`);
 }
 
 /** « Récupérer les photos de la source » : remet la lecture en file (202). La fiche se relit ensuite. */
 export async function refetchRadarListingPhotos(listingId: number): Promise<RadarListingDetailResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${listingId}/photos/fetch`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  return jsonOrThrow<RadarListingDetailResponse>(res);
+  return appelBff<RadarListingDetailResponse>(cheminApi`/api/super-admin/radar/listings/${listingId}/photos/fetch`, { method: 'POST' });
 }
 
 /** Déposer des photos à la main dans la réserve : multipart (`photos[]`), au plus `RADAR_PHOTOS_PAR_ENVOI_MAX` par envoi. */
 export async function uploadRadarListingPhotos(listingId: number, files: readonly File[]): Promise<RadarListingDetailResponse> {
   const form = new FormData();
   for (const file of files) form.append('photos[]', file);
-  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${listingId}/photos`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-    body: form,
-  });
-  return jsonOrThrow<RadarListingDetailResponse>(res);
+  return appelBff<RadarListingDetailResponse>(cheminApi`/api/super-admin/radar/listings/${listingId}/photos`, { method: 'POST', body: form });
 }
 
 /** Retirer une photo de la réserve. L'API répond 204 SANS corps : un échec porte son `{code, params}`. */
 export async function deleteRadarListingPhoto(listingId: number, mediaId: number): Promise<void> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/listings/${listingId}/photos/${mediaId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  if (!res.ok) await jsonOrThrow<unknown>(res);
+  await appelBff<null>(cheminApi`/api/super-admin/radar/listings/${listingId}/photos/${mediaId}`, { method: 'DELETE' });
 }
 
 // ─── Collecte automatique (TCK-2392) ─────────────────────────────────────────────────────────
@@ -548,8 +436,7 @@ export async function fetchRadarCrawlSources(): Promise<RadarCrawlSourcesRespons
     fields: { radar_crawl_sources: RADAR_CRAWL_SOURCE_FIELDS, users: ['id', 'first_name', 'last_name', 'username'] },
     include: 'operator',
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/crawl/sources${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<RadarCrawlSourcesResponse>(res);
+  return appelBff<RadarCrawlSourcesResponse>(cheminApi`/api/super-admin/radar/crawl/sources${requete(qs)}`);
 }
 
 /** `sort=-created_at` : le dernier passage en tête. */
@@ -560,30 +447,18 @@ export async function fetchRadarCrawlRuns(page = 1, perPage = 20): Promise<Pagin
     page,
     per_page: perPage,
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/crawl/runs${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<PaginatedResponse<RadarCrawlRun>>(res);
+  return appelBff<PaginatedResponse<RadarCrawlRun>>(cheminApi`/api/super-admin/radar/crawl/runs${requete(qs)}`);
 }
 
 /** Allumer, éteindre, régler un site (`super_admin`). Allumer en fait l'opérateur de celui qui l'allume. */
 export async function patchRadarCrawlSource(site: string, changes: RadarCrawlSourceChanges): Promise<RadarCrawlSourceResponse> {
   const qs = buildQueryString({ include: 'operator' });
-  const res = await fetch(cheminApi`/api/super-admin/radar/crawl/sources/${site}${requete(qs)}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(changes),
-  });
-  return jsonOrThrow<RadarCrawlSourceResponse>(res);
+  return appelBff<RadarCrawlSourceResponse>(cheminApi`/api/super-admin/radar/crawl/sources/${site}${requete(qs)}`, { method: 'PATCH', body: changes });
 }
 
 /** Lancer un passage maintenant (202) ; 409 `radar.crawl.active` si un passage tourne déjà sur ce site. */
 export async function startRadarCrawlRun(site: string): Promise<RadarCrawlRunResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/crawl/sources/${site}/run`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  return jsonOrThrow<RadarCrawlRunResponse>(res);
+  return appelBff<RadarCrawlRunResponse>(cheminApi`/api/super-admin/radar/crawl/sources/${site}/run`, { method: 'POST' });
 }
 
 /** Séparer une fusion AUTOMATIQUE : l'annonce revient à relire ; 409 `radar.merge.not_automatic` pour un doublon posé à la main. */
@@ -600,10 +475,7 @@ export async function fetchRadarActivationReminder(
   locale: RadarMessageLocale,
 ): Promise<RadarActivationReminderResponse> {
   const qs = new URLSearchParams({ locale });
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/activation-reminder${requete(qs)}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<RadarActivationReminderResponse>(res);
+  return appelBff<RadarActivationReminderResponse>(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/activation-reminder${requete(qs)}`);
 }
 
 /**
@@ -614,13 +486,7 @@ export async function markRadarActivationReminderSent(
   advertiserId: number,
   locale: RadarMessageLocale,
 ): Promise<RadarActivationReminderResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/activation-reminder/sent`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: JSON_ACCEPT,
-    body: JSON.stringify({ locale }),
-  });
-  return jsonOrThrow<RadarActivationReminderResponse>(res);
+  return appelBff<RadarActivationReminderResponse>(cheminApi`/api/super-admin/radar/advertisers/${advertiserId}/activation-reminder/sent`, { method: 'POST', body: { locale } });
 }
 
 // ─── Les cibles (TCK-2469, routes de TCK-2468) ───────────────────────────────────────────────
@@ -660,14 +526,12 @@ export async function fetchRadarTargets(filters: RadarTargetFilters = {}): Promi
     page: filters.page ?? 1,
     per_page: filters.perPage ?? 25,
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/targets${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<PaginatedResponse<RadarTarget>>(res);
+  return appelBff<PaginatedResponse<RadarTarget>>(cheminApi`/api/super-admin/radar/targets${requete(qs)}`);
 }
 
 export async function fetchRadarTarget(id: number): Promise<RadarTargetResponse> {
   // P60.03 — un `show` rend la ressource entière : aucun `fields[...]` (l'API l'ignorerait).
-  const res = await fetch(cheminApi`/api/super-admin/radar/targets/${id}`, { credentials: 'include' });
-  return jsonOrThrow<RadarTargetResponse>(res);
+  return appelBff<RadarTargetResponse>(cheminApi`/api/super-admin/radar/targets/${id}`);
 }
 
 /** Les annonces rattachées à une cible, les plus récentes d'abord. */
@@ -682,40 +546,22 @@ export async function fetchRadarTargetListings(
     page,
     per_page: perPage,
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/targets/${id}/listings${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<PaginatedResponse<RadarTargetListingRow>>(res);
+  return appelBff<PaginatedResponse<RadarTargetListingRow>>(cheminApi`/api/super-admin/radar/targets/${id}/listings${requete(qs)}`);
 }
 
 /** 201 ; 422 codé `radar.targets.*` (critères, doublon, plafond). */
 export async function createRadarTarget(payload: RadarTargetCreation): Promise<RadarTargetResponse> {
-  const res = await fetch('/api/super-admin/radar/targets', {
-    method: 'POST',
-    credentials: 'include',
-    headers: JSON_ACCEPT,
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<RadarTargetResponse>(res);
+  return appelBff<RadarTargetResponse>('/api/super-admin/radar/targets', { method: 'POST', body: payload });
 }
 
 /** Les seuls champs modifiés. Modifier les critères d'une cible de la demande l'épingle (l'API le fait). */
 export async function updateRadarTarget(id: number, changes: RadarTargetChanges): Promise<RadarTargetResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/targets/${id}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: JSON_ACCEPT,
-    body: JSON.stringify(changes),
-  });
-  return jsonOrThrow<RadarTargetResponse>(res);
+  return appelBff<RadarTargetResponse>(cheminApi`/api/super-admin/radar/targets/${id}`, { method: 'PATCH', body: changes });
 }
 
 /** Retire la cible (`status: retired`) : rien n'est jamais supprimé. */
 export async function retireRadarTarget(id: number): Promise<RadarTargetResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/targets/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  return jsonOrThrow<RadarTargetResponse>(res);
+  return appelBff<RadarTargetResponse>(cheminApi`/api/super-admin/radar/targets/${id}`, { method: 'DELETE' });
 }
 
 // ─── Les cibles de la demande (TCK-2470, `RadarDemandController`) ────────────────────────────
@@ -723,29 +569,17 @@ export async function retireRadarTarget(id: number): Promise<RadarTargetResponse
 
 /** Le réglage : allumé, opérateur, ce qui bloque un passage, le dernier passage et la dernière révision. */
 export async function fetchRadarDemand(): Promise<RadarDemandSettingResponse> {
-  const res = await fetch('/api/super-admin/radar/demand', { credentials: 'include' });
-  return jsonOrThrow<RadarDemandSettingResponse>(res);
+  return appelBff<RadarDemandSettingResponse>('/api/super-admin/radar/demand');
 }
 
 /** Allumer fait de l'appelant l'opérateur (et le reprend si l'opérateur a disparu) ; éteindre garde l'opérateur affiché. */
 export async function setRadarDemandEnabled(enabled: boolean): Promise<RadarDemandSettingResponse> {
-  const res = await fetch('/api/super-admin/radar/demand', {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: JSON_ACCEPT,
-    body: JSON.stringify({ enabled }),
-  });
-  return jsonOrThrow<RadarDemandSettingResponse>(res);
+  return appelBff<RadarDemandSettingResponse>('/api/super-admin/radar/demand', { method: 'PATCH', body: { enabled } });
 }
 
 /** 202 : le passage part en file, la réponse le précède ; 409 `radar.demand.disabled|operator_missing`. */
 export async function refreshRadarDemand(): Promise<RadarDemandSettingResponse> {
-  const res = await fetch('/api/super-admin/radar/demand/refresh', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  return jsonOrThrow<RadarDemandSettingResponse>(res);
+  return appelBff<RadarDemandSettingResponse>('/api/super-admin/radar/demand/refresh', { method: 'POST' });
 }
 
 /** Les colonnes de l'historique (`RadarTargetRevision::$queryFields`, sans `ai_call_id` ni `updated_at`). */
@@ -769,16 +603,10 @@ export async function fetchRadarTargetRevisions(page = 1, perPage = 20): Promise
     page,
     per_page: perPage,
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/targets/revisions${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<PaginatedResponse<RadarTargetRevision>>(res);
+  return appelBff<PaginatedResponse<RadarTargetRevision>>(cheminApi`/api/super-admin/radar/targets/revisions${requete(qs)}`);
 }
 
 /** Défait la révision ; 409 `radar.targets.revision_superseded` (`params.revision_id` ou `params.target_id`) ou `revision_reverted`. */
 export async function revertRadarTargetRevision(id: number): Promise<RadarTargetRevisionResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/radar/targets/revisions/${id}/revert`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  return jsonOrThrow<RadarTargetRevisionResponse>(res);
+  return appelBff<RadarTargetRevisionResponse>(cheminApi`/api/super-admin/radar/targets/revisions/${id}/revert`, { method: 'POST' });
 }

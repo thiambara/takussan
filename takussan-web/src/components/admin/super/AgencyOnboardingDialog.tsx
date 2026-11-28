@@ -116,8 +116,7 @@ export function AgencyOnboardingDialog() {
     onError: (e) => {
       if (e instanceof ApiError && e.status === 409) {
         // P251.02 (TCK-2365) — deux conflits distincts : l'e-mail, ou le numéro vérifié du gérant.
-        const code = e.data && typeof e.data === 'object' ? (e.data as { code?: unknown }).code : undefined;
-        setError(t(code === 'agency.admin_phone_taken' ? 'errorPhoneConflict' : 'errorEmailConflict'));
+        setError(t(e.codeMetier === 'agency.admin_phone_taken' ? 'errorPhoneConflict' : 'errorEmailConflict'));
         return;
       }
       setError(messageErreur(e, t('errorGeneric')));

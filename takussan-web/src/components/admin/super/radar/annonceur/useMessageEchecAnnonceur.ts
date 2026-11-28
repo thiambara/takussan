@@ -7,58 +7,56 @@ import { ApiError } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ERREURS_ANNONCEUR_RADAR, ERREURS_SAISIE_RADAR, MOTIFS_RADAR, MOTIFS_VERIFICATION_RADAR } from '../codes-radar';
 import { ERREURS_PUBLICATION_RADAR } from '../publication/codes-publication';
-import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
-
-/** Le paramètre `claimed_until` d'un 409 `claimed_by_other` : l'instant jusqu'où l'autre opérateur tient la prise. */
-function priseJusqua(erreur: unknown): string | null {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return null;
-  const params = (erreur.data as { params?: unknown }).params;
-  if (!params || typeof params !== 'object') return null;
-  const until = (params as { claimed_until?: unknown }).claimed_until;
-  return typeof until === 'string' ? until : null;
-}
 
 /**
  * TCK-2388 — le libellé d'un refus de la fiche annonceur, lu par son CODE et jamais par la prose du serveur.
- * `claimed_by_other` dit jusqu'à quand, formaté dans la langue de l'écran. À défaut de code connu : les
- * messages de validation (un 422 de champ), puis le libellé générique de l'API.
+ * `claimed_by_other` dit jusqu'à quand, formaté dans la langue de l'écran. TCK-2389 : la publication et la réserve
+ * de photos ont leurs libellés sous `publication.errors` ; le dépôt d'une réponse reçoit les refus de la saisie (une
+ * capture illisible ou trop grande). À défaut de code connu : les messages de validation (un 422 de champ), puis le
+ * libellé générique de l'API — la cascade de {@link useMessageErreurApi} (TCK-3008).
  */
 export function useMessageEchecAnnonceur() {
   const t = useTranslations('superAdmin.pages.radar.advertiser');
-  const tSaisie = useTranslations('superAdmin.pages.radar.intake');
+  const tPublication = useTranslations('superAdmin.pages.radar.publication.errors');
+  const tErreurs = useTranslations('superAdmin.pages.radar.advertiser.errors');
+  const tErreursSaisie = useTranslations('superAdmin.pages.radar.intake.errors');
   const fmt = useFormatteurs();
-  const messageErreur = useMessageErreurApi();
-  const libelleCode = useLibelleCodePublication();
+  const messageErreur = useMessageErreurApi({
+    tables: [
+      {
+        t: tPublication,
+        codes: ERREURS_PUBLICATION_RADAR,
+        parametres: (code, erreur) => valeursDePublication(ERREURS_PUBLICATION_RADAR[code], erreur.params),
+      },
+      {
+        t: tErreurs,
+        codes: ERREURS_ANNONCEUR_RADAR,
+        parametres: (code, erreur): Record<string, string> => (code === 'radar.advertiser.claimed_by_other'
+          ? { until: fmt.dateTime(typeof erreur.params.claimed_until === 'string' ? erreur.params.claimed_until : null) }
+          : {}),
+      },
+      { t: tErreursSaisie, codes: ERREURS_SAISIE_RADAR },
+    ],
+    validation: true,
+  });
 
   return (erreur: unknown, repli: string = t('errors.generic')): string => {
-    const code = codeDeLErreur(erreur);
-    // TCK-2389 — la publication et la réserve de photos : leurs codes ont leur libellé sous `publication.errors`.
-    if (code && ERREURS_PUBLICATION_RADAR[code]) return libelleCode(code, erreur);
-    if (code && ERREURS_ANNONCEUR_RADAR[code]) {
-      const cle = ERREURS_ANNONCEUR_RADAR[code];
-      if (code === 'radar.advertiser.claimed_by_other') {
-        return t(`errors.${cle}`, { until: fmt.dateTime(priseJusqua(erreur)) });
-      }
-      return t(`errors.${cle}`);
-    }
-    // Le dépôt d'une réponse reçoit les refus de la saisie : une capture illisible ou trop grande (422).
-    if (code && ERREURS_SAISIE_RADAR[code]) return tSaisie(`errors.${ERREURS_SAISIE_RADAR[code]}`);
-    if (erreur instanceof ApiError && erreur.status === 413) return tSaisie('errors.payloadTooLarge');
-    const validation = erreur instanceof ApiError ? erreur.validationErrors : undefined;
-    if (validation) {
-      const messages = Object.values(validation).flat().filter(Boolean);
-      if (messages.length > 0) return messages.join(' ');
-    }
+    // Le 413 de l'image de l'API (`post_max_size`) ne porte aucun code du Radar : il passe avant les tables sans en
+    // masquer aucune.
+    if (erreur instanceof ApiError && erreur.status === 413) return tErreursSaisie('payloadTooLarge');
     return messageErreur(erreur, repli);
   };
 }
 
-/** Un paramètre numérique d'un refus de l'API (`params.max`, `params.count`), `null` s'il manque. */
-function paramNumerique(erreur: unknown, nom: string): number | null {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return null;
-  const params = (erreur.data as { params?: unknown }).params;
-  const valeur = params && typeof params === 'object' ? (params as Record<string, unknown>)[nom] : undefined;
-  return typeof valeur === 'number' ? valeur : null;
+/**
+ * Les valeurs du libellé de publication `cle`, lues sur les `params` d'un refus — avec la borne connue de l'écran
+ * quand l'API ne la donne pas (un `blocking` d'aperçu n'a pas de params).
+ */
+function valeursDePublication(cle: string | undefined, params: Readonly<Record<string, unknown>>): Record<string, number> {
+  const nombre = (nom: string): number | null => (typeof params[nom] === 'number' ? (params[nom] as number) : null);
+  if (cle === 'reserveFull') return { max: nombre('max') ?? 20 };
+  if (cle === 'tooManyPhotos') return { max: nombre('max') ?? 30, count: nombre('count') ?? 0 };
+  return {};
 }
 
 /**
@@ -72,9 +70,7 @@ export function useLibelleCodePublication() {
 
   return (code: string, erreur?: unknown): string => {
     const cle = ERREURS_PUBLICATION_RADAR[code];
-    if (cle === 'reserveFull') return t(cle, { max: paramNumerique(erreur, 'max') ?? 20 });
-    if (cle === 'tooManyPhotos') return t(cle, { max: paramNumerique(erreur, 'max') ?? 30, count: paramNumerique(erreur, 'count') ?? 0 });
-    if (cle) return t(cle);
+    if (cle) return t(cle, valeursDePublication(cle, erreur instanceof ApiError ? erreur.params : {}));
     const annonceur = ERREURS_ANNONCEUR_RADAR[code];
     return annonceur ? tFiche(`errors.${annonceur}`) : code;
   };

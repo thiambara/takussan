@@ -25,3 +25,5 @@ production: a-faire
 
 - 2026-11-19 · preview · a-faire · Claude (inventaire, pour le porteur) · re-mesuré le 2026-11-19 : `min_tls_version` = `1.0`, `always_use_https` = `off`, `ssl` = `strict` (API Cloudflare) ; `NOMS` de `certificats.sh` = `deploy`, `preview`, `preview.api` seulement
 - 2026-11-19 · production · a-faire · Claude (inventaire, pour le porteur) · même zone : le même réglage la couvre
+- 2026-11-22 · preview · a-faire · Claude (session, pour le porteur) · 1 fait : `PATCH /zones/<id>/settings/min_tls_version` → `1.2`, relu `1.2` sur l'API Cloudflare ; poignée de main sur `deploy.takussan.com` : `--tls-max 1.1` → échec, `1.2` → `200`. 2 fait : `preview.ws.takussan.com` ajouté à `NOMS` de `deploy/server/certificats.sh`, le script lancé rend 86 jours (2027-02-17, Let's Encrypt YR1). Reste 3 : décider « Always Use HTTPS » (relu `off`)
+- 2026-11-22 · production · a-faire · Claude (session, pour le porteur) · 1 fait par la même zone (`min_tls_version` = `1.2`) ; restent `api` et `www` dans `NOMS` en F3, étape 3, et la décision 3

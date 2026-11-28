@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
+import type { ApiError } from '@/lib/api';
 import { postRadarListings, radarKeys } from '@/lib/queries/radar';
 import {
   RADAR_SOURCE_SITES,
@@ -50,16 +50,9 @@ function lignesNonVides(valeur: string): string[] {
   return valeur.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== '');
 }
 
-function codeDe(erreur: unknown): string | undefined {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return undefined;
-  const code = (erreur.data as { code?: unknown }).code;
-  return typeof code === 'string' ? code : undefined;
-}
-
 /** Le rang de l'URL refusée d'un lot (`params.field` = `urls.N`), s'il est donné. */
-function rangUrlRefusee(erreur: unknown): number | undefined {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return undefined;
-  const champ = (erreur.data as { params?: { field?: unknown } }).params?.field;
+function rangUrlRefusee(erreur: ApiError): number | undefined {
+  const champ = erreur.params.field;
   const rang = typeof champ === 'string' ? /^urls\.(\d+)$/.exec(champ)?.[1] : undefined;
   return rang === undefined ? undefined : Number(rang);
 }
@@ -75,7 +68,8 @@ function rangUrlRefusee(erreur: unknown): number | undefined {
  */
 export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) {
   const t = useTranslations('superAdmin.pages.radar');
-  const messageErreur = useMessageErreurApi();
+  const tErreurs = useTranslations('superAdmin.pages.radar.intake.errors');
+  const messageErreur = useMessageErreurApi({ tables: [{ t: tErreurs, codes: ERREURS_SAISIE_RADAR }], validation: true });
   const queryClient = useQueryClient();
 
   const [onglet, setOnglet] = useState<Onglet>('urls');
@@ -106,22 +100,16 @@ export function RadarIntakeSheet({ open, onOpenChange }: RadarIntakeSheetProps) 
     },
   });
 
+  // TCK-3008 — la cascade (code de la saisie → validation → message de l'API → repli) est celle du hook ; restent ici
+  // les deux cas propres à la saisie : le 413, et l'URL refusée d'un lot nommée après le libellé de son code.
   const messageEchec = (erreur: ApiError): string => {
-    const code = codeDe(erreur);
     // Le 413 de l'image de l'API (`post_max_size`) : la cause et le geste propres au Radar.
-    if (erreur.status === 413 || code === 'payload_too_large') return t('intake.errors.payloadTooLarge');
-    if (code && ERREURS_SAISIE_RADAR[code]) {
-      const libelle = t(`intake.errors.${ERREURS_SAISIE_RADAR[code]}`);
-      const rang = rangUrlRefusee(erreur);
-      const url = rang !== undefined && mutation.variables?.kind === 'urls' ? mutation.variables.urls[rang] : undefined;
-      return url ? `${libelle} ${t('intake.errors.refusedUrl', { url })}` : libelle;
-    }
-    const validation = erreur.validationErrors;
-    if (validation) {
-      const messages = Object.values(validation).flat().filter(Boolean);
-      if (messages.length > 0) return messages.join(' ');
-    }
-    return messageErreur(erreur, t('intake.failed'));
+    if (erreur.status === 413 || erreur.codeMetier === 'payload_too_large') return tErreurs('payloadTooLarge');
+    const libelle = messageErreur(erreur, t('intake.failed'));
+    const code = erreur.codeMetier;
+    const rang = code && ERREURS_SAISIE_RADAR[code] ? rangUrlRefusee(erreur) : undefined;
+    const url = rang !== undefined && mutation.variables?.kind === 'urls' ? mutation.variables.urls[rang] : undefined;
+    return url ? `${libelle} ${t('intake.errors.refusedUrl', { url })}` : libelle;
   };
 
   const lignes = lignesNonVides(urls);

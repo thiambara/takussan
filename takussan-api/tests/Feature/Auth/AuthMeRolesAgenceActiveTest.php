@@ -149,4 +149,20 @@ class AuthMeRolesAgenceActiveTest extends TestCase
             ->assertJsonPath('agency_id', $agency->id)
             ->assertJsonPath('roles', ['agency_admin', 'customer']);
     }
+
+    /**
+     * Ex-`AuthMeRolesTest` (versé par TCK-3017) : le super-admin, sans agence, sort `super_admin` et le plancher
+     * `customer` (TCK-492 : le modèle est additif), `agency_id` nul.
+     */
+    public function test_le_super_admin_sans_agence_sort_super_admin_et_le_plancher_customer(): void
+    {
+        $user = User::factory()->create();
+        $this->materializeRoleProfile($user, 'super_admin');
+
+        $this->withToken($user->createToken('t')->plainTextToken)
+            ->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('roles', ['super_admin', 'customer'])
+            ->assertJsonPath('agency_id', null);
+    }
 }

@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 /**
  * TCK-2381 — les trois invariants du lot 2 MORDENT : chacun compte la ligne fausse qu'on lui plante, et
- * se tait sur sa jumelle juste. `SeedingFeatureTablesTest` affirme qu'un seed les tient ; sans ce test,
+ * se tait sur sa jumelle juste. `JeuSemeTest` affirme qu'un seed les tient ; sans ce test,
  * un invariant qui rendrait toujours zéro y passerait aussi.
  */
 class RemainingTablesInvariantsTest extends TestCase

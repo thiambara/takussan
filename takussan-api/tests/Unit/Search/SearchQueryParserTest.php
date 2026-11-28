@@ -233,6 +233,32 @@ class SearchQueryParserTest extends TestCase
         $this->assertSame($criteria !== [], $r->understood);
     }
 
+    /**
+     * TCK-3004 (AC2) — la recherche lit un numéro comme les autres lecteurs : sur le texte replié, chiffres non latins ramenés à
+     * l'ASCII et invisibles retirés. Elle cherchait le motif sur la saisie brute : `٧٧ ١٢٣ ٤٥ ٦٧` ou `77<ZWSP>123 45 67` n'y étaient
+     * pas un numéro, et leurs nombres se lisaient comme un prix.
+     *
+     * @return array<string, array{string, array<string, mixed>, string}>
+     */
+    public static function numerosEcritsAutrement(): array
+    {
+        return [
+            'chiffres arabes-indiens' => ['appartement à louer ٧٧ ١٢٣ ٤٥ ٦٧', ['contract_type' => 'rent', 'type' => 'apartment'], '٧٧ ١٢٣ ٤٥ ٦٧'],
+            'coupé par un U+200B' => ["studio max 771\u{200B}23 45 67", ['type' => 'studio'], "max 771\u{200B}23 45 67"],
+            'pleine chasse' => ['studio ７７ １２ ３４ ５６７', ['type' => 'studio'], '７７ １２ ３４ ５６７'],
+        ];
+    }
+
+    #[DataProvider('numerosEcritsAutrement')]
+    /** @param  array<string, mixed>  $criteria */
+    public function test_un_numero_ecrit_autrement_n_est_pas_un_prix(string $q, array $criteria, string $residue): void
+    {
+        $r = $this->parse($q);
+
+        $this->assertSame($criteria, $r->criteria, "« {$q} »");
+        $this->assertSame($residue, $r->residue, "« {$q} »");
+    }
+
     // ───────────────────────────────────────────────────────── rien d'inventé, rien de jeté
 
     /** @return array<string, array{string}> */

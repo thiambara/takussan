@@ -2,7 +2,7 @@
 
 import { getTranslations } from 'next-intl/server';
 
-import { apiRequest, messageErreurApi } from '@/lib/api';
+import { apiRequest, refusDAction, type RefusDAction } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import type { ContactSurPlace } from '@/components/contact/ContactsSurPlace';
@@ -18,7 +18,7 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 export async function replacePropertyContactsAction(
   propertyId: number,
   contacts: readonly ContactSurPlace[],
-): Promise<{ ok: true; data: ContactSurPlace[] } | { ok: false; message: string }> {
+): Promise<{ ok: true; data: ContactSurPlace[] } | ({ ok: false } & RefusDAction)> {
   const token = await getToken();
   if (!token) return { ok: false, message: (await getTranslations('errors'))('missingToken') };
   try {
@@ -37,6 +37,6 @@ export async function replacePropertyContactsAction(
   } catch (err) {
     journaliserErreurInattendue('property-contacts', err);
     const repli = (await getTranslations('property.form.publishContact'))('failed');
-    return { ok: false, message: messageErreurApi(err, await getTranslations(), repli) };
+    return { ok: false, ...refusDAction(err, await getTranslations(), repli) };
   }
 }

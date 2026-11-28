@@ -17,6 +17,9 @@ use Tests\TestCase;
 /**
  * TCK-1398 (P144.02, ADR-0072 lot 1) — le scénario mesuré de l'angle 144 : deux `POST` identiques à
  * 30 s d'écart écrivaient deux messages. Sous la même `Idempotency-Key`, un seul.
+ *
+ * TCK-3015 — le message texte rejoué a rejoint le fournisseur de `RejeuSousLaMemeCleTest` ; restent ici les deux
+ * cas qui n'ont pas sa forme : la note vocale (envoi multipart) et l'envoi sans clé.
  */
 class MessageRejoueTest extends TestCase
 {
@@ -26,23 +29,6 @@ class MessageRejoueTest extends TestCase
     {
         parent::setUp();
         Storage::fake(config('media-library.disk_name'));
-    }
-
-    public function test_un_message_rejoue_sous_la_meme_cle_ne_s_ecrit_qu_une_fois(): void
-    {
-        [$member, $conversation] = $this->conversation();
-        Sanctum::actingAs($member);
-        $cle = ['Idempotency-Key' => 'b6f1c9a2-7d3e-4f0a-9c1b-2e5d8f7a6c40'];
-
-        $premier = $this->postJson("/api/conversations/{$conversation->id}/messages", ['content' => 'Je passe demain'], $cle)
-            ->assertCreated();
-        $this->travel(30)->seconds();
-        $this->postJson("/api/conversations/{$conversation->id}/messages", ['content' => 'Je passe demain'], $cle)
-            ->assertCreated()
-            ->assertHeader('Idempotent-Replayed', 'true')
-            ->assertJsonPath('data.id', $premier->json('data.id'));
-
-        $this->assertSame(1, Message::query()->count());
     }
 
     public function test_une_note_vocale_rejouee_sous_la_meme_cle_ne_s_ecrit_qu_une_fois(): void

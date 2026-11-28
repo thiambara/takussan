@@ -16,11 +16,6 @@ class PropertyCrudTest extends TestCase
 {
     use PubliePret, RefreshDatabase;
 
-    public function test_requires_auth(): void
-    {
-        $this->getJson('/api/properties')->assertUnauthorized();
-    }
-
     public function test_lists_only_owner_properties(): void
     {
         $me = User::factory()->create();

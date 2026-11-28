@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers';
 
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction, type RefusDAction } from '@/lib/api';
 import {
   hostIndividualOnboard,
   ouvrirMonAgence,
@@ -26,7 +26,7 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
  */
 export type HostIndividualOnboardActionResult =
   | { ok: true; data: HostIndividualOnboardResponse['data'] }
-  | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
+  | ({ ok: false; status?: number; errors?: Record<string, string[]> } & RefusDAction);
 
 export async function hostIndividualOnboardAction(
   payload: HostIndividualOnboardPayload,
@@ -58,7 +58,7 @@ export async function hostIndividualOnboardAction(
         ok: false,
         status: err.status,
         // Module `'use server'` : traduction explicite, sinon la CLÉ `errors.api.*` part à l'écran.
-        message: messageErreurApi(err, await getTranslations(), t('completeFailed')),
+        ...refusDAction(err, await getTranslations(), t('completeFailed')),
         errors: data?.errors,
       };
     }
@@ -77,7 +77,7 @@ export async function hostIndividualOnboardAction(
  */
 export type OuvertureDAgenceActionResult =
   | { ok: true; data: OuvertureDAgenceResponse['data'] }
-  | { ok: false; status?: number; code?: string; message: string };
+  | ({ ok: false; status?: number } & RefusDAction);
 
 export async function ouvrirMonAgenceAction(payload: OuvertureDAgencePayload): Promise<OuvertureDAgenceActionResult> {
   const t = await getTranslations('serverActions.hostOnboarding');
@@ -100,12 +100,10 @@ export async function ouvrirMonAgenceAction(payload: OuvertureDAgencePayload): P
   } catch (err) {
     journaliserErreurInattendue('onboarding', err);
     if (err instanceof ApiError) {
-      const brut = (err.data as { code?: unknown } | null)?.code;
       return {
         ok: false,
         status: err.status,
-        code: typeof brut === 'string' ? brut : undefined,
-        message: messageErreurApi(err, await getTranslations(), t('completeFailed')),
+        ...refusDAction(err, await getTranslations(), t('completeFailed')),
       };
     }
     return { ok: false, message: t('completeFailed') };

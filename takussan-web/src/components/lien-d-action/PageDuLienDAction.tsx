@@ -13,7 +13,7 @@ import { EnTeteDeLien } from '@/components/lien-public/EnTeteDeLien';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
+import { ApiError, codeMetierDe } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   GESTES_DU_LIEN,
@@ -85,9 +85,7 @@ const CODES_NOMMES: Readonly<Record<string, string>> = {
 };
 
 function cleDuRefus(err: unknown): string | null {
-  if (!(err instanceof ApiError) || !err.data || typeof err.data !== 'object') return null;
-  const code = (err.data as { code?: unknown }).code;
-  return typeof code === 'string' ? (CODES_NOMMES[code] ?? null) : null;
+  return CODES_NOMMES[codeMetierDe(err) ?? ''] ?? null;
 }
 
 function estUnGeste(g: unknown): g is GesteDuLien {

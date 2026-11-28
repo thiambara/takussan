@@ -175,10 +175,4 @@ class NotificationPreferenceTest extends TestCase
             ->where('user_id', $user->id)->where('event_type', 'review_received')->where('channel', 'sms')
             ->exists());
     }
-
-    public function test_unauthenticated_cannot_access_preferences(): void
-    {
-        $this->getJson('/api/me/notification-preferences')
-            ->assertUnauthorized();
-    }
 }

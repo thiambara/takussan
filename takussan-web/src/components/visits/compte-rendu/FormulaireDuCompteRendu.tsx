@@ -12,8 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { useDictee } from '@/hooks/useDictee';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { codeMetierDe } from '@/lib/api';
 import { ajouterALaNote, dureeDictee } from '@/lib/dictee';
-import { codeDuRefus } from '@/lib/reservations/saisie-de-demande';
 import { useCreateVisitReport, useUpdateVisitReport, type ReponseDuCompteRendu } from '@/lib/queries/visits';
 import { OBJECTIONS, VERDICTS, type CompteRendu, type Objection, type Verdict } from '@/lib/visites/compte-rendu';
 import { cn } from '@/lib/utils';
@@ -89,7 +89,7 @@ export function FormulaireDuCompteRendu({ visitId, existant, densite, prenom, en
       toast.add({ title: t('succes'), type: 'success' });
       onEnregistre(reponse);
     } catch (err) {
-      const code = codeDuRefus(err);
+      const code = codeMetierDe(err);
       setErreur(code && CODES_CONNUS.has(code) ? t(`codes.${code}`) : messageErreur(err));
     }
   }

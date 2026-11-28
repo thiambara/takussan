@@ -57,6 +57,13 @@ class PropertyVisitRequestTest extends TestCase
             'duration_minutes' => 45,
             'status' => VisitStatus::Scheduled->value,
         ]);
+
+        // TCK-967 (P45.04, ex-`VisitRequestResponseShapeTest`, versé par TCK-3017) — la ressource passe par
+        // `resolve()` : une relation non chargée est omise, jamais rendue en objet vide.
+        foreach (['property', 'visitor', 'agent', 'customer'] as $cle) {
+            $response->assertJsonMissingPath("data.{$cle}");
+        }
+        $this->assertStringNotContainsString(':{}', $response->getContent());
     }
 
     /**

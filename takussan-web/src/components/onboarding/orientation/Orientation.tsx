@@ -13,6 +13,7 @@ import { DeclarerBarreDOrientation } from './BarreDOrientation';
 import { EtapeChercheur } from './EtapeChercheur';
 import { EtapePro, type CompteDuPro } from './EtapePro';
 import { PortesDEntree, type Porte } from './PortesDEntree';
+import { appelBff } from '@/lib/bff';
 
 /**
  * TCK-2608 — l'orientation après la création du compte : TROIS portes, un geste (maquette
@@ -51,13 +52,10 @@ const INTENTION: Record<Porte, Exclude<EntryIntent, 'skipped'>> = {
 };
 
 async function enregistrer(intent: EntryIntent): Promise<boolean> {
-  const res = await fetch('/api/me', {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entry_intent: intent }),
-  });
-  return res.ok;
+  return appelBff('/api/me', { method: 'PATCH', body: { entry_intent: intent } }).then(
+    () => true,
+    () => false,
+  );
 }
 
 export interface OrientationProps {
@@ -105,7 +103,7 @@ export function Orientation({ ecranInitial = 'portes', ecrireProfessionnel = fal
   async function repondre(intent: EntryIntent, suite: () => void, quoi: Porte | 'plus-tard') {
     setErreur(null);
     setEnCours(quoi);
-    const ok = await enregistrer(intent).catch(() => false);
+    const ok = await enregistrer(intent);
     if (!ok) {
       setErreur(t('erreur'));
       setEnCours(null);

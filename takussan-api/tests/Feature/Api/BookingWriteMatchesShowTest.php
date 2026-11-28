@@ -19,7 +19,7 @@ use Tests\TestCase;
 /**
  * ADR-0071 (TCK-1509, P95.03) — `store`, `confirm`, `cancel` et `reject` d'une réservation rendent
  * la forme de son `show` : `property` (avec son adresse, rendue en `location`), `customer`, `refund_status`,
- * `booking_payments` et `can_refund`. Avant : les trois gestes rendaient la ressource nue, et
+ * `booking_payments` et `abilities` (TCK-3007 : `abilities.refund` remplace `can_refund`). Avant : les trois gestes rendaient la ressource nue, et
  * `store` chargeait le bien sans adresse. Chaque écriture est relue par le `show` du même appelant.
  */
 class BookingWriteMatchesShowTest extends TestCase
@@ -124,7 +124,7 @@ class BookingWriteMatchesShowTest extends TestCase
         // ressemblent.
         $this->assertIsString($show['property']['location']['city'] ?? null, 'le show doit rendre l\'adresse du bien');
         $this->assertIsArray($show['customer'] ?? null, 'le show doit rendre le client');
-        $this->assertArrayHasKey('can_refund', $show);
+        $this->assertArrayHasKey('abilities', $show);
         $this->assertArrayHasKey('refund_status', $show);
         $this->assertArrayHasKey('booking_payments', $show);
         if ($avecPaiement) {

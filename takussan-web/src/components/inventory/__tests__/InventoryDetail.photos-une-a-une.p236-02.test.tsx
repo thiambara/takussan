@@ -63,7 +63,8 @@ function etatDesLieux(): Inventory {
     room_photos: [{ room_name: 'Salon', photos: [] }],
     can_sign_as: [],
     sign_on_behalf_of: null,
-    abilities: { update: true },
+    // TCK-3011 — un brouillon que le lecteur conduit : l'API sert `edit` et `submit`.
+    abilities: { update: true, edit: true, submit: true },
   };
 }
 

@@ -5,6 +5,9 @@ namespace Tests\Unit\Support;
 use App\Services\Radar\RadarAmountParser;
 use App\Support\PhoneMasker;
 use App\Support\RadarPhone;
+use App\Support\Telephone\LectureDesNumeros;
+use App\Support\Telephone\Politique;
+use App\Support\Telephone\Repli;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -111,7 +114,7 @@ class RadarPhoneTest extends TestCase
     #[DataProvider('telephones')]
     public function test_une_forme_du_fixture_donne_son_numero_senegalais_ou_rien(string $forme): void
     {
-        $chiffres = (string) preg_replace('/[^0-9]/', '', PhoneMasker::normalizeDigits($forme));
+        $chiffres = (string) preg_replace('/[^0-9]/', '', Repli::texte($forme));
         $attendu = preg_match('/^(?:(?:00)?2210?)?((?:3[02369]|7[0-25-9]|93)[0-9]{7})$/', $chiffres, $m) === 1 ? ['+221'.$m[1]] : [];
 
         $this->assertSame($attendu, RadarPhone::fromText("Appelez le {$forme} ce soir"));
@@ -254,9 +257,9 @@ class RadarPhoneTest extends TestCase
             $this->assertSame([], RadarPhone::fromText($texte), $texte);
             $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
         }
-        // Le `+` de ces numéros n'est pas neutralisé comme celui d'un étage.
-        $this->assertSame('RDC +7 (495) 123-45-67 F', RadarPhone::withoutFloorPlus('RDC +7 (495) 123-45-67 F'));
-        $this->assertSame('R+7 (495) 123-45-67 F', RadarPhone::withoutFloorPlus('R+7 (495) 123-45-67 F'));
+        // Le `+` de ces numéros n'est pas neutralisé comme celui d'un étage : il ouvre le numéro lu dans l'annonce.
+        $this->assertSame('+7 (495) 123-45-67', self::seulNumeroDeLAnnonce('RDC +7 (495) 123-45-67 F'));
+        $this->assertSame('+7 (495) 123-45-67', self::seulNumeroDeLAnnonce('R+7 (495) 123-45-67 F'));
     }
 
     /**
@@ -269,7 +272,7 @@ class RadarPhoneTest extends TestCase
             'Villa R+32 470 12 34 56', 'Villa R+33 6 12 34 56 78 3 chambres', 'Villa R+33 6 12 34 56 78 F'] as $texte) {
             $this->assertSame([], RadarPhone::fromText($texte), $texte);
             $this->assertSame([], RadarPhone::contactsFromText($texte), $texte);
-            $this->assertSame($texte, RadarPhone::withoutFloorPlus($texte), $texte);
+            $this->assertStringStartsWith('+', self::seulNumeroDeLAnnonce($texte), $texte);
         }
         // Chiffre à chiffre, comme sans `R` (B1) : jamais un contact d'office ; la lecture large le garde pour le refus STOP.
         $this->assertSame([], RadarPhone::contactsFromText('Villa R+33 7 7 1 2 3 4 5 6 7'));
@@ -529,8 +532,7 @@ class RadarPhoneTest extends TestCase
                 }
                 $c = mb_chr($code, 'UTF-8');
                 $texte = "77{$c}123{$c}45{$c}67";
-                $normalise = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $texte));
-                if (preg_match(PhoneMasker::MASK_PATTERN, $normalise, $m) !== 1 || $m[0] !== $normalise) {
+                if (PhoneMasker::mask($texte) !== PhoneMasker::TOKEN) {
                     continue;
                 }
                 $lus[] = $code;
@@ -629,5 +631,14 @@ class RadarPhoneTest extends TestCase
 
         $this->assertSame('cle-deux', $radar['phone_hmac_key']);
         $this->assertSame(['cle-une', 'cle-zero'], $radar['phone_hmac_previous_keys']);
+    }
+
+    /** Le seul numéro qu'une annonce porte, tel qu'écrit : le `+` d'un étage n'en fait jamais partie (TCK-3004, ex-`withoutFloorPlus`). */
+    private static function seulNumeroDeLAnnonce(string $texte): string
+    {
+        $numeros = LectureDesNumeros::lire($texte, Politique::Ecarter) ?? [];
+        self::assertCount(1, $numeros, $texte);
+
+        return $numeros[0]->texte;
     }
 }

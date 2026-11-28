@@ -6,10 +6,11 @@ use App\Models\Property;
 use App\Services\Radar\RadarAmountParser;
 use App\Services\Tags\TagCatalog;
 use App\Support\CaseInsensitive;
-use App\Support\PhoneMasker;
-use App\Support\RadarPhone;
 use App\Support\Search\CleDeQuartier;
 use App\Support\Search\PropertyLabels;
+use App\Support\Telephone\LectureDesNumeros;
+use App\Support\Telephone\Politique;
+use App\Support\Telephone\Repli;
 use Illuminate\Support\Str;
 
 /**
@@ -543,8 +544,9 @@ final class SearchQueryParser
 
     /**
      * Les jetons de la saisie, positions en caractères. `phone` : le jeton fait partie d'un numéro de téléphone que le
-     * masquage voit ({@see PhoneMasker::MASK_PATTERN}, comme `RadarAmountParser`) — « 77 123 45 67 » n'est pas un prix
-     * de 77 123 : il ne se lit jamais comme une quantité et reste au résidu.
+     * masquage voit ({@see Politique::Ecarter}, comme `RadarAmountParser`) — « 77 123 45 67 » n'est pas un prix
+     * de 77 123 : il ne se lit jamais comme une quantité et reste au résidu. TCK-3004 : lu sur la saisie repliée, comme ailleurs —
+     * « ٧٧ ١٢٣ ٤٥ ٦٧ » ou « 77<ZWSP>123 45 67 » ne sont pas plus un prix ; les positions rendues sont celles de la saisie.
      *
      * @return list<array{text: string, f: string, from: int, to: int, phone: bool}>
      */
@@ -557,19 +559,17 @@ final class SearchQueryParser
             return [];
         }
 
-        // Le `+` d'un étage (`R+1`) n'est pas un indicatif ; un octet pour un, les positions restent justes.
+        // Le `+` d'un étage (`R+1`) n'est pas un indicatif : c'est la politique `Ecarter`.
         $phones = [];
-        if (preg_match_all(PhoneMasker::MASK_PATTERN, RadarPhone::withoutFloorPlus($q), $numbers, PREG_OFFSET_CAPTURE) > 0) {
-            foreach ($numbers[0] as [$number, $byte]) {
-                $phones[] = [$byte, $byte + strlen($number)];
-            }
+        foreach (LectureDesNumeros::lire($q, Politique::Ecarter) ?? [] as $numero) {
+            $phones[] = [$numero->debut, $numero->fin];
         }
 
         $tokens = [];
         foreach ($found[0] as [$text, $byte]) {
             $from = mb_strlen(substr($q, 0, $byte));
             $folded = strtr($text, ['≤' => '<', '≥' => '>', '–' => '-', '—' => '-', '²' => '2', '³' => '3']);
-            $folded = Str::ascii(CaseInsensitive::fold(PhoneMasker::normalizeDigits($folded)));
+            $folded = Str::ascii(CaseInsensitive::fold(Repli::texte($folded)));
             $phone = false;
             foreach ($phones as [$start, $end]) {
                 $phone = $phone || ($byte < $end && $byte + strlen($text) > $start);

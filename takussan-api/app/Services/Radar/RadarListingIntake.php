@@ -9,8 +9,8 @@ use App\Models\Enums\RadarSourceKind;
 use App\Models\Enums\RadarSourceSite;
 use App\Models\RadarListing;
 use App\Models\User;
-use App\Support\PhoneMasker;
 use App\Support\RadarPhone;
+use App\Support\Telephone\Repli;
 use GuzzleHttp\Psr7\Uri;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -188,7 +188,7 @@ final class RadarListingIntake
     /** Le texte replié pour l'empreinte : chiffres normalisés, invisibles retirés, blancs repliés, minuscules. */
     public static function foldText(string $text): string
     {
-        $text = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $text));
+        $text = Repli::texte($text);
 
         return mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $text)));
     }

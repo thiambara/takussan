@@ -46,6 +46,10 @@ class EmissionDesLiensTest extends ApiTestCase
         config()->set('messagerie.repli', [FauxCanal::NOM, 'sms']);
         FauxCanal::$numeros = ['FAUX-A' => $this->agence->id];
         FauxCanal::$boutons = true;
+        // TCK-3005 — un lien de confirmation n'est émis qu'à qui peut ENCORE confirmer
+        // (`GestesDeLaVisite::peutConfirmer`, policy et état) : le bailleur du bien, quand l'agence lui
+        // confie ses visites (ADR-0112), comme le fait `visit.rescheduled` en choisissant ses destinataires.
+        $this->agence->update(['settings' => array_replace($this->agence->settings ?? [], ['owners_confirm_visits' => true])]);
     }
 
     private function joint(User $compte, string $telephone): void
@@ -92,6 +96,18 @@ class EmissionDesLiensTest extends ApiTestCase
         $this->assertMatchesRegularExpression('#/(fr|en|wo)/fil/a/([A-Za-z0-9_-]{43})#', (string) FauxCanal::$envois[0]['texte']);
         preg_match('#/fil/a/([A-Za-z0-9_-]{43})#', (string) FauxCanal::$envois[0]['texte'], $m);
         $this->assertSame(hash('sha256', $m[1]), ActionLink::query()->value('token_hash'));
+    }
+
+    /** TCK-3005 — le geste n'est plus attendu de qui ne peut plus le faire : sans le réglage, le bailleur n'a pas de lien. */
+    public function test_aucun_lien_pour_qui_ne_peut_plus_confirmer(): void
+    {
+        $this->agence->update(['settings' => array_replace($this->agence->settings ?? [], ['owners_confirm_visits' => false])]);
+        $this->joint($this->bailleur, self::TEL_BAILLEUR);
+
+        app(EvenementsDuFil::class)->ecrire($this->fil, $this->visite(), 'visit.rescheduled', ['scheduled_at' => null], [$this->bailleur]);
+
+        $this->assertSame(0, ActionLink::query()->count());
+        $this->assertSame([], $this->relaisDeLiens());
     }
 
     /**

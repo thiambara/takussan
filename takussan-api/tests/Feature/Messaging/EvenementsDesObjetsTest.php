@@ -31,7 +31,7 @@ use App\Services\Model\InventoryService;
 use App\Services\Model\LeasePaymentService;
 use App\Services\Model\LeaseService;
 use App\Services\Model\NotificationService;
-use App\Services\Visit\VisitSchedulingService;
+use App\Services\Visit\GestesDeLaVisite;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -377,7 +377,8 @@ class EvenementsDesObjetsTest extends TestCase
         [$visite, $proprietaire, $prospect] = $this->visiteSansAgence();
         $fil = app(PropertyConversationResolver::class)->firstOrCreate($visite->property, $prospect, $proprietaire);
 
-        app(VisitSchedulingService::class)->confirmOrFail($visite);
+        // TCK-3005 — le geste par son seul chemin, pour l'hôte du bien sans agence qui la confirme.
+        app(GestesDeLaVisite::class)->confirmer($proprietaire, $visite);
 
         $evenement = $this->seulEvenement('visit.confirmed', $visite);
         $this->assertSame($fil->id, $evenement->conversation_id);
@@ -392,7 +393,7 @@ class EvenementsDesObjetsTest extends TestCase
         app(PropertyConversationResolver::class)->firstOrCreate($visite->property, $prospect, $proprietaire);
         $instant = now()->addDays(6)->setTime(15, 0)->toImmutable();
 
-        app(VisitSchedulingService::class)->rescheduleOrFail($visite, $instant);
+        app(GestesDeLaVisite::class)->proposerUnCreneau($prospect, $visite, $instant);
 
         $evenement = $this->seulEvenement('visit.rescheduled', $visite);
         $this->assertSame(['scheduled_at' => $instant->toIso8601String()], $evenement->metadata['data']);
@@ -443,10 +444,10 @@ class EvenementsDesObjetsTest extends TestCase
 
     public function test_sans_fil_de_prospect_la_visite_se_confirme_et_aucun_fil_ne_nait(): void
     {
-        [$visite] = $this->visiteSansAgence();
+        [$visite, $proprietaire] = $this->visiteSansAgence();
         $fils = Conversation::query()->count();
 
-        app(VisitSchedulingService::class)->confirmOrFail($visite);
+        app(GestesDeLaVisite::class)->confirmer($proprietaire, $visite);
 
         $this->assertSame('confirmed', $visite->refresh()->status->value);
         $this->assertSame($fils, Conversation::query()->count());

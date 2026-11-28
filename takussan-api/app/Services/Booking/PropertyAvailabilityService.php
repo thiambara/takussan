@@ -30,26 +30,37 @@ class PropertyAvailabilityService
         CarbonInterface|string|null $end,
         ?Booking $ignore = null,
     ): void {
+        $refus = $this->refus($property, $start, $end, $ignore);
+        if ($refus !== null) {
+            abort_code(422, $refus);
+        }
+    }
+
+    /**
+     * TCK-3007 — le refus que {@see self::assertAvailable()} lèverait, sans le lever : la fiche en tire
+     * `abilities.confirm` (`GestesDeLaReservation::conflitALaConfirmation`), l'écriture le rejuge sous
+     * verrou. `null` : libre.
+     */
+    public function refus(
+        Property|int $property,
+        CarbonInterface|string|null $start,
+        CarbonInterface|string|null $end,
+        ?Booking $ignore = null,
+    ): ?string {
         if ($start === null || $end === null) {
-            return;
+            return null;
         }
 
         $propertyId = $property instanceof Property ? $property->id : $property;
         $start = Carbon::parse($start);
         $end = Carbon::parse($end);
 
-        abort_code_if(
-            $this->confirmedOverlapExists($propertyId, $start, $end, $ignore),
-            422,
-            'booking.dates_overlap'
-        );
+        if ($this->confirmedOverlapExists($propertyId, $start, $end, $ignore)) {
+            return 'booking.dates_overlap';
+        }
 
         // TCK-596 §3B (ADR-0041) — une nuit bloquée, à la main ou par un flux importé.
-        abort_code_if(
-            $this->unavailabilityOverlapExists($propertyId, $start, $end),
-            422,
-            'booking.dates_unavailable'
-        );
+        return $this->unavailabilityOverlapExists($propertyId, $start, $end) ? 'booking.dates_unavailable' : null;
     }
 
     /**

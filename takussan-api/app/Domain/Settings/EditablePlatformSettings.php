@@ -177,7 +177,7 @@ class EditablePlatformSettings
                 'rules' => ['present', 'nullable', 'numeric', 'min:0', 'max:100'],
             ],
             // TCK-2643 — APRÈS le plafond : la catégorie se rend dans cet ordre, et `late_fees.cap_percent`
-            // garde son rang (`RentalSettingsCatalogueTest` le lit en `data.rentals.4`).
+            // garde son rang (`ScopedSettingTest` le lit en `data.rentals.4`).
             // La pénalité de retard qu'un bail NEUF reprend (`LeaseDefaults`, préremplissage
             // seul : `LateFeeCalculator` lit la colonne du bail). Défaut 0 = pas de pénalité (décision de
             // la session du 2026-11-12) ; bornes = celles du bail (`StoreLeaseRequest`, `UpdateLeaseRequest`).

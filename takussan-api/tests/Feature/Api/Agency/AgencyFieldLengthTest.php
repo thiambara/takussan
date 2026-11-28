@@ -5,7 +5,6 @@ namespace Tests\Feature\Api\Agency;
 use App\Models\Agency;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
 
@@ -14,6 +13,10 @@ use Tests\ApiTestCase;
  * `varchar(255)`. Les voies d'écriture (modification, ouverture par la console) les bornent à la
  * colonne : une valeur trop longue rend 422 sur sa clé, et non le 500 de PostgreSQL (22001). Une
  * valeur à la borne passe. La création par `POST /api/agencies` est retirée (TCK-2311, P225.06).
+ *
+ * TCK-3015 (ADR-0140 § 4) — la borne de CHAQUE voie est tenue par le recensement
+ * `Validation\BornesMaxFaceAuSchemaTest` ; ce fichier n'en garde qu'un témoin HTTP, la preuve que la requête
+ * bornée est bien celle que la route reçoit.
  */
 class AgencyFieldLengthTest extends ApiTestCase
 {
@@ -43,30 +46,5 @@ class AgencyFieldLengthTest extends ApiTestCase
             'phone' => str_repeat('1', 30),
             'license_number' => str_repeat('L', 255),
         ])->assertOk();
-    }
-
-    public function test_ouvrir_une_agence_a_la_console_avec_un_telephone_trop_long_rend_422(): void
-    {
-        Notification::fake();
-        $this->actingAsRole('super_admin');
-
-        $this->postJson('/api/admin/agencies', $this->onboarding(str_repeat('1', 31)))
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('agency.phone');
-
-        $this->assertSame(0, Agency::query()->where('slug', 'sunu-gestion')->count());
-
-        // Témoin : 30 caractères, la largeur de la colonne, passent.
-        $this->postJson('/api/admin/agencies', $this->onboarding(str_repeat('1', 30)))
-            ->assertCreated();
-    }
-
-    /** @return array<string, array<string, string>> */
-    private function onboarding(string $phone): array
-    {
-        return [
-            'agency' => ['name' => 'Sunu Gestion', 'slug' => 'sunu-gestion', 'phone' => $phone],
-            'admin' => ['first_name' => 'Awa', 'last_name' => 'Ndiaye', 'email' => 'admin@sunu.test'],
-        ];
     }
 }

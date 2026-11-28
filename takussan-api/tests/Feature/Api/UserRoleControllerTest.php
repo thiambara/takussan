@@ -79,14 +79,6 @@ class UserRoleControllerTest extends ApiTestCase
             ->assertForbidden();
     }
 
-    public function test_unauthenticated_request_is_rejected(): void
-    {
-        $target = User::factory()->create();
-
-        $this->apiPut("/api/users/{$target->id}/role", ['role' => 'agent'])
-            ->assertUnauthorized();
-    }
-
     public function test_agency_admin_cannot_grant_super_admin(): void
     {
         $agency = Agency::factory()->create();

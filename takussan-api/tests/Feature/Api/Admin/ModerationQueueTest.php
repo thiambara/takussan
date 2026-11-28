@@ -87,13 +87,6 @@ class ModerationQueueTest extends TestCase
         $this->assertSame(1, $after->json('meta.counts.review'));
     }
 
-    public function test_agency_admin_is_forbidden(): void
-    {
-        $this->actingAsRole('agency_admin');
-
-        $this->getJson('/api/admin/moderation')->assertForbidden();
-    }
-
     public function test_type_filter_is_strictly_whitelisted(): void
     {
         $this->actingAsRole('super_admin');

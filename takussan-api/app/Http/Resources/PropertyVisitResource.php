@@ -13,6 +13,7 @@ use App\Rules\PersonnelDeLAgence;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Visit\GestesDeLaVisite;
 use App\Services\Visit\ProprietaireHorsConsole;
 use App\Services\Visit\VisitReadContext;
 use Illuminate\Http\Request;
@@ -239,17 +240,34 @@ class PropertyVisitResource extends BaseResource
             'created_at' => $this->iso($this->created_at),
             // P152.04 — sur LA visite de la route seulement (une batterie de règles par ligne d'une
             // liste coûterait) : {@see PropertyVisitPolicy::gere()}.
-            // TCK-2849 (ADR-0112) — « Confirmer » et « Autre créneau » permis à ce lecteur (le statut
-            // n'y entre pas : `confirm` le refuse en 422). En liste, sur demande seulement
-            // (`fields[property_visits]=…,can_confirm`) : l'accueil du bailleur n'offre le geste que là.
+            // TCK-2849 (ADR-0112) — « Confirmer » et « Autre créneau » permis à ce lecteur, MAINTENANT :
+            // TCK-3005 (ADR-0139) — le statut y entre (une visite déjà confirmée ne se confirme plus). En
+            // liste, sur demande seulement (`fields[property_visits]=…,can_confirm`) : l'accueil du
+            // bailleur n'offre le geste que là.
             'can_confirm' => $this->when(
                 $this->gestesRendus($request) || in_array('can_confirm', self::requestedFields($request) ?? [], true),
                 $peutConfirmer,
             ),
+            // TCK-3005 (ADR-0139) — une clé par geste : « ce geste est possible maintenant pour ce
+            // lecteur », policy ET état, par la garde du module qui l'écrit ({@see GestesDeLaVisite}).
+            // La fiche n'en recalcule rien : ni rôle, ni capacité, ni statut.
             'abilities' => $this->when($this->gestesRendus($request), fn (): array => [
+                // P152.04 — ceux qui gèrent la visite, quel que soit son état : la fiche y lit qui elle
+                // sert (messages au visiteur, fiche du client), jamais un geste.
                 'manage' => PropertyVisitPolicy::gere($request->user(), $this->resource),
-                // TCK-2849 — le prédicat de `confirm` : `manage`, ou le bailleur au titre du réglage.
+                // TCK-2849 — `manage`, ou le bailleur au titre du réglage ; sur une visite à confirmer.
                 'confirm' => $peutConfirmer(),
+                'complete' => GestesDeLaVisite::peutClore($request->user(), $this->resource),
+                // L'heure n'y entre pas : la fiche grise « Absent » jusqu'à l'heure, l'API la rejuge.
+                'no_show' => GestesDeLaVisite::peutDeclarerAbsent($request->user(), $this->resource),
+                'cancel' => GestesDeLaVisite::peutAnnuler($request->user(), $this->resource),
+                // Déplacer l'heure au nom de l'agence (`PATCH`), le visiteur prévenu.
+                'reschedule' => GestesDeLaVisite::peutDeplacer($request->user(), $this->resource),
+                // Prendre en charge une visite sans agent ; l'attribuer à un collègue (`crm.assign`).
+                'claim' => GestesDeLaVisite::peutPrendreEnCharge($request->user(), $this->resource),
+                'assign' => GestesDeLaVisite::peutAttribuer($request->user(), $this->resource),
+                // Le demandeur propose un autre créneau (`POST …/reschedule`).
+                'propose' => GestesDeLaVisite::peutProposerUnCreneau($request->user(), $this->resource),
                 // Vérification de TCK-2581 — déposer l'avis du VISITEUR : le `$isCustomer` de
                 // `PropertyVisitController::feedback`, le visiteur (`visitor_id`) ou le client
                 // rattaché par la fiche (`customer.user_id`). Le front le déduisait de `customer`,
@@ -539,11 +557,12 @@ class PropertyVisitResource extends BaseResource
     }
 
     /**
-     * TCK-2849 — {@see PropertyVisitPolicy::peutConfirmer()} pour une ligne : sur LA visite de la
-     * route, le prédicat lui-même ; dans une liste, la même règle jugée sur le contexte relu de la
-     * page (`VisitReadContext` : agence, créateur du bien, agent), les verdicts d'agence retenus pour
-     * la requête — aucune requête par ligne. La parité des deux est testée
-     * (`OwnerConfirmsAgencyVisitTest`).
+     * TCK-2849 — {@see GestesDeLaVisite::peutConfirmer()} pour une ligne : sur LA visite de la route,
+     * la garde elle-même ; dans une liste, la même règle jugée sur le contexte relu de la page
+     * (`VisitReadContext` : statut, agence, créateur du bien, agent), les verdicts d'agence retenus
+     * pour la requête — aucune requête par ligne. La parité des deux est testée
+     * (`OwnerConfirmsAgencyVisitTest`). TCK-3005 — le statut y entre, relu comme le reste : sous
+     * `fields[property_visits]`, `status` peut manquer au modèle de la ligne.
      */
     private function peutConfirmer(Request $request): bool
     {
@@ -552,14 +571,14 @@ class PropertyVisitResource extends BaseResource
             return false;
         }
         if ($this->isDetailRequest($request)) {
-            return PropertyVisitPolicy::peutConfirmer($user, $this->resource);
+            return GestesDeLaVisite::peutConfirmer($user, $this->resource);
+        }
+        $ctx = VisitReadContext::for($request, $this->resource);
+        if ($ctx === null || $ctx['status'] !== VisitStatus::Scheduled->value) {
+            return false;
         }
         if ($user->isSuperAdmin()) {
             return true;
-        }
-        $ctx = VisitReadContext::for($request, $this->resource);
-        if ($ctx === null) {
-            return false;
         }
         $moi = (int) $user->id;
         if (! $ctx['property_live']) {

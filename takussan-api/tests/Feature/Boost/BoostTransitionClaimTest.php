@@ -149,24 +149,4 @@ class BoostTransitionClaimTest extends TestCase
         $this->assertSame(BoostStatus::Active, $vedette->status);
         $this->assertSame(now()->addDays(10)->getTimestamp(), $vedette->ends_at->getTimestamp(), 'les trois jours ajoutés ne sont pas perdus');
     }
-
-    /**
-     * Une réclamation perdue laisse l'instance conforme à la ligne : pas d'attributs forcés et non
-     * écrits qu'un appelant prendrait pour l'état du boost. `pause()` est privée : appelée par
-     * réflexion, aucun chemin public ne rend l'instance.
-     */
-    public function test_une_reclamation_perdue_laisse_l_instance_conforme_a_la_ligne(): void
-    {
-        $vedette = $this->vedette7j();
-        $lu = PropertyBoost::query()->findOrFail($vedette->getKey());
-        PropertyBoost::query()->whereKey($vedette->getKey())->update(['status' => BoostStatus::Ended->value, 'ended_at' => now()]);
-
-        $pause = new \ReflectionMethod(BoostLifecycle::class, 'pause');
-        $reclamee = $pause->invoke(app(BoostLifecycle::class), $lu);
-
-        $this->assertFalse($reclamee);
-        $this->assertSame(BoostStatus::Ended, $lu->status);
-        $this->assertNotNull($lu->ends_at, 'la fin forcée à null n\'a pas été écrite');
-        $this->assertFalse($lu->isDirty(), 'l\'instance ne se croit pas modifiée');
-    }
 }

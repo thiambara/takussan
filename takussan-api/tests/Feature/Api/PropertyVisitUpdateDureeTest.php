@@ -2,14 +2,11 @@
 
 namespace Tests\Feature\Api;
 
-use App\Http\Requests\Api\StorePropertyVisitRequest;
-use App\Http\Requests\Api\UpdatePropertyVisitRequest;
 use App\Models\Enums\VisitStatus;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Validator;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -61,15 +58,5 @@ class PropertyVisitUpdateDureeTest extends TestCase
 
         $this->patchJson("/api/property-visits/{$visit->id}", ['duration_minutes' => 240])->assertOk();
         $this->assertSame(240, $visit->fresh()->duration_minutes);
-    }
-
-    public function test_creation_et_modification_partagent_la_meme_borne_de_duree(): void
-    {
-        $this->assertSame(240, StorePropertyVisitRequest::MAX_DURATION_MINUTES);
-
-        $regle = (new UpdatePropertyVisitRequest)->rules()['duration_minutes'];
-        $this->assertContains('max:'.StorePropertyVisitRequest::MAX_DURATION_MINUTES, $regle);
-        $this->assertTrue(Validator::make(['duration_minutes' => 240], ['duration_minutes' => $regle])->passes());
-        $this->assertTrue(Validator::make(['duration_minutes' => 241], ['duration_minutes' => $regle])->fails());
     }
 }

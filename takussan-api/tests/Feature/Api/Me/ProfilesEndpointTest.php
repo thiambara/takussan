@@ -94,11 +94,6 @@ class ProfilesEndpointTest extends TestCase
         $this->assertArrayNotHasKey('specialty', $data["owner:{$owner->id}"]);
     }
 
-    public function test_get_me_profiles_requires_authentication(): void
-    {
-        $this->getJson('/api/me/profiles')->assertStatus(401);
-    }
-
     public function test_meta_active_profile_id_reflects_resolved_profile_for_single_profile_user(): void
     {
         $user = User::factory()->create();

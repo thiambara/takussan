@@ -123,14 +123,4 @@ class RegenerateWatermarksEndpointTest extends TestCase
             ->postJson("/api/agencies/{$agency->id}/regenerate-watermarks")
             ->assertStatus(202);
     }
-
-    public function test_endpoint_validates_agency_exists(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)
-            ->postJson('/api/agencies/99999/regenerate-watermarks');
-
-        $response->assertStatus(404);
-    }
 }

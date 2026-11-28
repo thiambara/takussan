@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/api';
 import type { PaginationMeta } from '@/types/api';
 
 /** TCK-633 lot F (ADR-0061) — les formes de l'API des crédits et du boost, propres au lot. */
@@ -95,7 +96,6 @@ export interface BuyBoostResponse {
 
 /** Le corps d'un refus `credits.insufficient` (ADR-0032 : code + paramètres bruts). */
 export function manqueDeCredits(erreur: unknown): { readonly missing: number; readonly balance: number } | null {
-  const data = (erreur as { data?: { code?: unknown; params?: { missing?: unknown; balance?: unknown } } } | null)?.data;
-  if (data?.code !== 'credits.insufficient') return null;
-  return { missing: Number(data.params?.missing ?? 0), balance: Number(data.params?.balance ?? 0) };
+  if (!(erreur instanceof ApiError) || erreur.codeMetier !== 'credits.insufficient') return null;
+  return { missing: Number(erreur.params.missing ?? 0), balance: Number(erreur.params.balance ?? 0) };
 }

@@ -11,6 +11,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
+use App\Services\Lecture\BauxLisibles;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Review\ReviewEligibility;
 use Illuminate\Database\Eloquent\Model;
@@ -75,44 +76,16 @@ class LeasePolicy extends BasePolicy
     }
 
     /**
-     * TCK-306 — lire un bail : bailleur, périmètre d'agence, **locataire**, ou super-admin.
+     * TCK-306 — lire un bail : la règle de {@see BauxLisibles}, que la liste (`Lease::scopeVisibleTo`)
+     * applique aussi (TCK-3006, ADR-0138) — bailleur, **locataire**, personnel de l'agence, ou
+     * super-admin.
      *
-     * TCK-587 (ADR-0031) — le « périmètre d'agence » est le PERSONNEL de l'agence du bail
-     * ({@see BasePolicy::isStaffOf()}). Les sept clauses de cette policy comparaient
-     * `$user->agency_id` à celle du bail, vraie pour un autre bailleur de l'agence : il lisait et
-     * modifiait le bail.
-     *
-     * Reprise EXACTE des trois `authorizeAccess()` qui portaient cette règle —
-     * `LeaseController`, `LeaseChainController`, `LeaseDepositRefundController`. Les trois étaient
-     * identiques au `?->` près : `LeaseChainController` seul se protégeait d'un `$user` nul. La
-     * différence est sans effet ici, la route exige `auth:sanctum`.
-     *
-     * ⚠ **La quatrième clause est celle qui compte** : le LOCATAIRE lit son bail. C'est la seule
-     * chose qui sépare `view` de `update` ci-dessous, et l'inverser ouvrirait au locataire le droit
-     * de modifier son propre bail.
+     * ⚠ **Le locataire est ce qui sépare `view` de `update`** ci-dessous : l'ajouter à `update`
+     * ouvrirait au locataire le droit de modifier son propre bail.
      */
     public function view(User $user, Model $model): bool
     {
-        if (! $model instanceof Lease) {
-            return false;
-        }
-
-        // TCK-1926 (P190.04, décision du porteur) — `landlord_id` recopie le créateur du bien : sur un
-        // bien d'agence, l'agent qui l'a saisi. Lu tel quel, il gardait la lecture du bail suspendu ou
-        // retiré ; il lit désormais au titre du personnel. Le bailleur, même suspendu, garde la sienne.
-        if (BailleurDuBien::est($user, $model->landlord_id, $model->agency_id)) {
-            return true;
-        }
-
-        if ($this->isStaffOf($user, $model->agency_id)) {
-            return true;
-        }
-
-        if ($model->tenant && $model->tenant->user_id === $user->id) {
-            return true;
-        }
-
-        return $user->isSuperAdmin();
+        return $model instanceof Lease && BauxLisibles::peut($user, $model);
     }
 
     /**

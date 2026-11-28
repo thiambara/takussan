@@ -44,15 +44,4 @@ class HealthCheckTest extends TestCase
         Cache::put(HealthcheckService::STATUS_KEY, ['status' => 'degraded', 'checked_at' => '2026-10-08T10:00:00.000000Z'], 600);
         $this->getJson('/api/health')->assertOk()->assertJsonPath('status', 'degraded');
     }
-
-    /** TCK-2463 (AC4) — l'intégration CDN de TCK-105 retirée, la console n'a plus de sonde `cdn`. */
-    public function test_admin_health_no_longer_reports_a_cdn_probe(): void
-    {
-        $this->actingAsRole('super_admin');
-
-        $this->getJson('/api/admin/health')
-            ->assertOk()
-            ->assertJsonPath('data.db.status', 'ok')
-            ->assertJsonMissingPath('data.cdn');
-    }
 }

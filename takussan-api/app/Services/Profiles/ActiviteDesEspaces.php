@@ -96,7 +96,7 @@ final class ActiviteDesEspaces
 
     private function visitesDuJour(User $user, string $aujourdhui): int
     {
-        return PropertyVisit::buildQuery(VisitesLisibles::pour($user), self::filtres(['day' => $aujourdhui]))
+        return PropertyVisit::buildQuery(VisitesLisibles::restreindre(PropertyVisit::query(), $user), self::filtres(['day' => $aujourdhui]))
             ->getEloquentBuilder()
             ->count();
     }

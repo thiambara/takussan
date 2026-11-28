@@ -69,7 +69,7 @@ class UserAdminTest extends TestCase
     // rôles : `AccountBlockSingleRouteTest` ; bloquer et réactiver passent par la console.
 
     // TCK-600 — `DELETE /users/{user}` et `DELETE /auth/account` ont été retirés :
-    // `OwnAccountImmediateDeletionRemovedTest` éprouve leur absence, `AdminUserLifecycleTest`
+    // `Routes\RoutesEnDoubleRetireesTest` éprouve leur absence, `AdminUserLifecycleTest`
     // l'effacement par la console.
 
     public function test_unpublish_available_property(): void

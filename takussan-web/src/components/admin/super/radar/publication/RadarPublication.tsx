@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCleIdempotence } from '@/hooks/useCleIdempotence';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
+import { ApiError, codeMetierDe } from '@/lib/api';
 import {
   deleteRadarListingPhoto,
   fetchRadarAdvertiser,
@@ -33,7 +33,6 @@ import {
   type RadarPublicationPreviewResponse,
   type RadarPublicationResponse,
 } from '@/types/radar';
-import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
 import { BandeauPriseEnCharge } from '../annonceur/BandeauPriseEnCharge';
 import { useGestesDePrise } from '../annonceur/useGestesDePrise';
 import { useLibelleCodePublication, useMessageEchecAnnonceur } from '../annonceur/useMessageEchecAnnonceur';
@@ -98,7 +97,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
   // Un refus 409/422 dit que l'aperçu n'est plus ce que l'écran croit (accord révoqué, annonce changée d'étape) : il se relit.
   // Sauf `idempotency.in_progress` : l'envoi tourne encore, et relu, l'aperçu ne montrerait plus les biens qu'il vient de publier.
   const relireSurRefus = (e: unknown) => {
-    if (codeDeLErreur(e) === CODE_EN_COURS) return;
+    if (codeMetierDe(e) === CODE_EN_COURS) return;
     if (e instanceof ApiError && (e.status === 409 || e.status === 422)) void relire();
   };
   const surEchec = (e: unknown) => {
@@ -122,7 +121,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
     try {
       return await appel();
     } catch (e) {
-      if (codeDeLErreur(e) !== PRISE_REQUISE) throw e;
+      if (codeMetierDe(e) !== PRISE_REQUISE) throw e;
       await prise.mutateAsync();
       return appel();
     }
@@ -159,7 +158,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
       return relire();
     },
     onError: (e) => {
-      idempotence.apres({ ok: false, code: codeDeLErreur(e) });
+      idempotence.apres({ ok: false, code: codeMetierDe(e) });
       setErreurPublication(e);
       relireSurRefus(e);
     },
@@ -175,7 +174,7 @@ function ApercuCharge({ id, apercu, claim }: ApercuChargeProps) {
       return relire();
     },
     onError: (e) => {
-      idempotenceMandat.apres({ ok: false, code: codeDeLErreur(e) });
+      idempotenceMandat.apres({ ok: false, code: codeMetierDe(e) });
       setErreurPublication(e);
       relireSurRefus(e);
     },

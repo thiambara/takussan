@@ -20,6 +20,7 @@ use App\Services\Property\BailleurDuBien;
  *     reste partie, il perd les écritures (ADR-0031 §2, ADR-0108 § 5) ;
  *   - le **personnel de l'agence de la réservation** (prédicat TCK-587 `isStaffAt`, jamais
  *     l'accesseur d'agence unique de l'utilisateur) — pour rembourser, titulaire de `bookings.refund` dans CETTE agence ;
+ *     pour encaisser, de `payments.record` (TCK-3007) ;
  *   - le super-admin.
  *
  * Ni un autre bailleur de l'agence : `canManageBooking` acceptait « même agence », et l'accesseur
@@ -56,23 +57,35 @@ final class BookingMoneyAccess
      */
     public static function canRefund(User $user, Booking $booking): bool
     {
-        if ($user->isSuperAdmin() || self::isDirectLandlord($user, $booking)) {
-            return true;
-        }
+        return $user->isSuperAdmin()
+            || self::isDirectLandlord($user, $booking)
+            || self::staffHolding($user, $booking, Capability::BookingsRefund);
+    }
 
+    /**
+     * Peut enregistrer un paiement tel quel (`paid` compris) : jamais le client seul.
+     *
+     * TCK-3007 (ADR-0003 : un geste d'argent est une capacité) — le personnel, titulaire de
+     * `payments.record` dans l'agence de la réservation. Il n'en fallait aucune : un rôle qui la retire
+     * encaissait quand même, et la fiche, qui l'exigeait, cachait un geste que l'API acceptait.
+     */
+    public static function canRecordAsCollector(User $user, Booking $booking): bool
+    {
+        return $user->isSuperAdmin()
+            || self::isDirectLandlord($user, $booking)
+            || self::staffHolding($user, $booking, Capability::PaymentsRecord);
+    }
+
+    /** Du personnel de l'agence de la réservation, titulaire de `$capability` dans CETTE agence. */
+    private static function staffHolding(User $user, Booking $booking, Capability $capability): bool
+    {
         if (! self::isStaff($user, $booking)) {
             return false;
         }
 
         $agency = Agency::query()->find(self::agencyId($booking));
 
-        return $agency !== null && $user->canActAt(Capability::BookingsRefund, $agency);
-    }
-
-    /** Peut enregistrer un paiement tel quel (`paid` compris) : jamais le client seul. */
-    public static function canRecordAsCollector(User $user, Booking $booking): bool
-    {
-        return $user->isSuperAdmin() || self::isDirectLandlord($user, $booking) || self::isStaff($user, $booking);
+        return $agency !== null && $user->canActAt($capability, $agency);
     }
 
     private static function agencyId(Booking $booking): ?int

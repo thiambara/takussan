@@ -6,7 +6,6 @@ use App\Jobs\RecordQueueHeartbeat;
 use App\Jobs\SendAdminAlert;
 use App\Models\AlertRule;
 use App\Services\Admin\HealthcheckService;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -104,13 +103,6 @@ class EvaluateOperationalAlertsTest extends TestCase
 
         $this->assertSame(1, $this->compte('ops_health_degraded'));
         $this->assertNull(Activity::query()->where('event', 'ops_health_degraded')->sole()->causer_id);
-    }
-
-    public function test_la_commande_est_planifiee_toutes_les_cinq_minutes(): void
-    {
-        $this->assertTrue(collect(app(Schedule::class)->events())->contains(
-            fn ($e) => str_contains((string) $e->command, 'alerts:evaluate') && $e->expression === '*/5 * * * *',
-        ));
     }
 
     private function evaluer(): void

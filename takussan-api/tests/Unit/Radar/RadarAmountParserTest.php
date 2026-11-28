@@ -148,7 +148,7 @@ class RadarAmountParserTest extends TestCase
     public function test_un_etage_rdc_ou_espace_devant_un_prix_n_en_fait_pas_un_numero(): void
     {
         // TCK-2435 : `RDC+1` et `R + 1` sont des étages comme `R+1`, le prix qui suit est lu. Ces cas gardent
-        // `PhoneMasker::NOT_A_FLOOR` ; `RadarPhone::FLOOR_PLUS` est gardé par le test suivant et par `RadarPhoneTest`.
+        // `NOT_A_FLOOR` de `LectureDesNumeros` ; son `FLOOR_PLUS` est gardé par le test suivant et par `RadarPhoneTest`.
         foreach (['Immeuble RDC+1 1 250 500 750 F', 'Immeuble R + 1 1 250 500 750 F', 'Immeuble R +1 1 250 500 750 F',
             'Immeuble R+ 1 1 250 500 750 F', 'Immeuble Rdc + 2 1 250 500 750 F'] as $texte) {
             $this->assertSame(['amount' => 1_250_500_750, 'period' => null], RadarAmountParser::parse($texte), $texte);
@@ -243,7 +243,7 @@ class RadarAmountParserTest extends TestCase
 
     public function test_un_numero_sept_a_zone_entre_parentheses_derriere_un_etage_n_est_pas_un_prix(): void
     {
-        // TCK-2445 : sans la zone entre parenthèses dans `PhoneMasker::CC7_REST`, le `7` était lu comme un étage et un bout
+        // TCK-2445 : sans la zone entre parenthèses dans `CC7_REST` (`LectureDesNumeros`), le `7` était lu comme un étage et un bout
         // du numéro devenait le prix (`1234567`, `495`, `67`, `34567`).
         foreach (['RDC +7 (495) 123-45-67 F', 'R + 7 (495) 123-45-67 F', 'R +7 (812) 123-45-67 XOF', 'RDC +7 (912) 345-67-89 F',
             'RDC+7 (495)1234567 F', 'R+7 (495) 123-45-67 F', 'RDC +7 (495).123.45.67 F', 'RDC +7 (495)/123/45/67 F',

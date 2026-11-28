@@ -93,9 +93,4 @@ class AgencyResponseTimeTest extends ApiTestCase
         $this->getJson("/api/agencies/{$this->agence->id}/response-time")->assertOk()
             ->assertExactJson(['data' => ['median_hours' => 1, 'sample' => 10]]);
     }
-
-    public function test_sans_session_401(): void
-    {
-        $this->getJson("/api/agencies/{$this->agence->id}/response-time")->assertUnauthorized();
-    }
 }

@@ -15,11 +15,11 @@ import { withIntl } from '@/test/intl';
 import { BookingDetail } from '../BookingDetail';
 import { ApiError } from '@/lib/api';
 import { ToastProvider } from '@/components/ui/toast';
+import { permis } from './abilities-de-test';
 
 const confirmer = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
 const annuler = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
 
-vi.mock('@/hooks/useCan', () => ({ useCanAll: () => ({ can: true, isLoading: false }) }));
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 3, roles: ['agency_admin'] }, token: 'tok' }),
 }));
@@ -38,6 +38,8 @@ vi.mock('@/lib/queries/bookings', () => ({
         customer: { user_id: 999 },
         payments: [],
         notes: null,
+        // TCK-3007 — les gestes que l'API accorde à l'admin de l'agence.
+        abilities: permis('confirm', 'reject', 'cancel'),
       },
     },
     isLoading: false,

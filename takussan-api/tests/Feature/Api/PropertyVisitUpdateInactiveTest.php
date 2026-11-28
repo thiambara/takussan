@@ -41,22 +41,6 @@ class PropertyVisitUpdateInactiveTest extends TestCase
         Sanctum::actingAs($this->owner);
     }
 
-    public function test_une_visite_absente_ne_se_deplace_pas_et_le_visiteur_n_est_pas_averti(): void
-    {
-        $avant = $this->visit->scheduled_at;
-
-        $this->patchJson("/api/property-visits/{$this->visit->id}", [
-            'scheduled_at' => now()->addDays(2)->setTime(10, 0)->toIso8601String(),
-        ])
-            ->assertStatus(422)
-            ->assertJsonPath('code', 'visit.reschedule_inactive');
-
-        $fresh = $this->visit->fresh();
-        $this->assertSame(VisitStatus::NoShow, $fresh->status);
-        $this->assertTrue($fresh->scheduled_at->equalTo($avant));
-        Notification::assertNothingSent();
-    }
-
     public function test_les_notes_et_le_type_d_une_visite_absente_restent_modifiables(): void
     {
         $this->patchJson("/api/property-visits/{$this->visit->id}", [

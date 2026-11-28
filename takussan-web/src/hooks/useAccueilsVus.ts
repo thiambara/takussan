@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/context/AuthContext';
+import { appelBff } from '@/lib/bff';
 import type { WelcomeSeenListResponse } from '@/types/welcome-view';
 
 /**
@@ -24,13 +25,7 @@ export const accueilsVusQueryKeys = {
 };
 
 async function lireAccueilsVus(): Promise<string[]> {
-  const res = await fetch('/api/me/welcome-seen', {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-    credentials: 'same-origin',
-  });
-  if (!res.ok) throw new Error(`welcome-seen ${res.status}`);
-  const body = (await res.json()) as WelcomeSeenListResponse;
+  const body = await appelBff<WelcomeSeenListResponse>('/api/me/welcome-seen');
   return Array.isArray(body?.data) ? body.data : [];
 }
 
@@ -62,12 +57,7 @@ export function useAccueilsVus(actif: boolean): AccueilsVus {
     queryClient.setQueryData<string[]>(accueilsVusQueryKeys.compte(userId), (vus) =>
       vus && !vus.includes(cle) ? [...vus, cle] : vus,
     );
-    void fetch('/api/me/welcome-seen', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ key: cle }),
-    }).catch(() => {
+    void appelBff('/api/me/welcome-seen', { method: 'POST', body: { key: cle } }).catch(() => {
       // Silencieux : le serveur est idempotent ; une écriture perdue rouvre la fenêtre à la
       // session suivante, ce qui vaut mieux qu'une coque en erreur.
     });

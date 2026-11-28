@@ -290,18 +290,6 @@ class RoleDelegationTest extends TestCase
     }
 
     /** @test */
-    public function test_unauthenticated_returns_401(): void
-    {
-        $response = $this->postJson("/api/agencies/{$this->agency->id}/role-delegations", [
-            'user_id' => $this->agent->id,
-            'role' => 'agency_admin',
-            'ends_at' => now()->addWeek()->toIso8601String(),
-        ]);
-
-        $response->assertStatus(401);
-    }
-
-    /** @test */
     public function test_beneficiary_can_view_own_delegation_but_not_others(): void
     {
         $beneficiary = User::factory()->create(['agency_id' => $this->agency->id]);

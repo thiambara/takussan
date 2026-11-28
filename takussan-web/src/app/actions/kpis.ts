@@ -1,6 +1,6 @@
 'use server';
 
-import { apiRequest } from '@/lib/api';
+import { apiRequest, refusDAction, type RefusDAction } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
@@ -13,7 +13,7 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
  */
 export async function createKpiConfigAction(
   input: KpiConfigInput,
-): Promise<{ ok: true; data: KpiConfig } | { ok: false; message: string }> {
+): Promise<{ ok: true; data: KpiConfig } | ({ ok: false } & RefusDAction)> {
   const token = await getToken();
   if (!token) {
     // Le littéral d'origine était l'anglais « Not authenticated. », affiché tel quel à un
@@ -32,7 +32,9 @@ export async function createKpiConfigAction(
     return { ok: true, data: res.data };
   } catch (err) {
     journaliserErreurInattendue('kpis', err);
-    return { ok: false, message: (err as Error).message };
+    // TCK-3008 — c'était `(err as Error).message` : « API error 422 » à l'écran, sans code ni langue.
+    const repli = (await getTranslations('serverActions.shared'))('networkErrorRetry');
+    return { ok: false, ...refusDAction(err, await getTranslations(), repli) };
   }
 }
 
@@ -43,7 +45,7 @@ export async function createKpiConfigAction(
 export async function updateKpiConfigAction(
   id: number,
   input: Partial<Pick<KpiConfigInput, 'sort_order' | 'is_enabled' | 'label' | 'format'>>,
-): Promise<{ ok: true; data: KpiConfig } | { ok: false; message: string }> {
+): Promise<{ ok: true; data: KpiConfig } | ({ ok: false } & RefusDAction)> {
   const token = await getToken();
   if (!token) {
     const tErr = await getTranslations('errors');
@@ -61,7 +63,9 @@ export async function updateKpiConfigAction(
     return { ok: true, data: res.data };
   } catch (err) {
     journaliserErreurInattendue('kpis', err);
-    return { ok: false, message: (err as Error).message };
+    // TCK-3008 — c'était `(err as Error).message` : « API error 422 » à l'écran, sans code ni langue.
+    const repli = (await getTranslations('serverActions.shared'))('networkErrorRetry');
+    return { ok: false, ...refusDAction(err, await getTranslations(), repli) };
   }
 }
 

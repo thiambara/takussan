@@ -38,6 +38,7 @@ import {
 } from './InventoryBadges';
 import { InventorySignatures } from './InventorySignatures';
 import { InventoryPdfButton } from './InventoryPdfButton';
+import { gestesDeLEtatDesLieux } from './gestes';
 import { ParcoursDeTerrain } from './terrain/ParcoursDeTerrain';
 import { RecapEtSignatures } from './terrain/RecapEtSignatures';
 
@@ -125,7 +126,8 @@ export function dateSansHeureFictive(f: Formatteurs, iso: string | null | undefi
  * brouillon dont le serveur ne garderait pas `completed` rouvrirait la pièce 1 sans fin.
  */
 function enTerrain(inventory: Inventory, piece: number | null): boolean {
-  if (inventory.status !== 'draft' || inventory.abilities?.update !== true || inventory.rooms.length === 0) return false;
+  // TCK-3011 — le parcours est celui d'un brouillon que le lecteur MODIFIE (`abilities.edit`).
+  if (!gestesDeLEtatDesLieux(inventory).modifier || inventory.rooms.length === 0) return false;
   return piece !== null || inventory.rooms.some((r) => r.completed === false);
 }
 
@@ -135,9 +137,9 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
   const tConditions = useTranslations('inventory.conditions');
   const tTerrain = useTranslations('inventory.terrain');
   const f = useFormatteurs();
-  // TCK-1869 (P189.02) — le statut ET le verdict d'`InventoryPolicy::update` servi par l'API : le
+  // TCK-1869 (P189.02), TCK-3011 — `abilities.edit` : la policy ET le brouillon, jugés par l'API ; le
   // locataire et le bailleur suspendu lisent le brouillon, ils ne le modifient pas.
-  const canEditDraft = inventory.status === 'draft' && inventory.abilities?.update === true;
+  const canEditDraft = gestesDeLEtatDesLieux(inventory).modifier;
 
   return (
     <div className="space-y-6">
@@ -400,15 +402,13 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
   const [reason, setReason] = useState('');
   const [showDispute, setShowDispute] = useState(false);
 
-  const canSubmit = inventory.status === 'draft' && inventory.abilities?.update === true;
-  // TCK-2648 (AC3) — « Contester » suit l'API (`abilities.dispute` : les deux parties seules, sur un
-  // état des lieux contestable) ; le statut seul l'offrait à l'agent, à l'admin et au super-admin.
-  const canDispute = inventory.abilities?.dispute === true;
-  // TCK-2648 — la signature sur place (code SMS au locataire, l'agence pour le bailleur).
-  const roles = inventory.can_sign_as ?? [];
-  const signable = inventory.status === 'draft' || inventory.status === 'pending_signature';
-  const surPlace =
-    signable && inventory.abilities?.update === true && (roles.includes('tenant_onsite') || (roles.includes('landlord') && inventory.sign_on_behalf_of != null));
+  // TCK-3011 (ADR-0139) — chaque geste suit l'API, policy ET état (`./gestes.ts`) : ni le statut, ni
+  // `update && status`. TCK-2648 (AC3) — « Contester » aux deux parties seules ; la signature sur place
+  // (code SMS au locataire, l'agence pour le bailleur) à qui conduit l'état des lieux.
+  const gestes = gestesDeLEtatDesLieux(inventory);
+  const canSubmit = gestes.envoyer;
+  const canDispute = gestes.contester;
+  const surPlace = gestes.signerSurPlace;
   // L'action principale quand rien n'est à soumettre ; secondaire à côté de « Soumettre ».
   const varianteSurPlace = canSubmit ? 'outline' : 'default';
   // PDF download is surfaced here (always visible when signed) so it sits
@@ -527,15 +527,14 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
  * répondait 403 ; le super-admin voyait même les deux.
  */
 function SignatureSection({ inventory }: { readonly inventory: Inventory }) {
-  const signable =
-    inventory.status === 'draft' || inventory.status === 'pending_signature';
-  const roles = inventory.can_sign_as ?? [];
+  // TCK-3011 — `can_sign_as` ne nomme que les rôles qui peuvent signer MAINTENANT (statut, déjà signé).
+  const gestes = gestesDeLEtatDesLieux(inventory);
 
   return (
     <InventorySignatures
       inventory={inventory}
-      canSignTenant={signable && roles.includes('tenant')}
-      canSignLandlord={signable && roles.includes('landlord')}
+      canSignTenant={gestes.signerCommeLocataire}
+      canSignLandlord={gestes.signerCommeBailleur}
       landlordOnBehalfOf={inventory.sign_on_behalf_of?.full_name ?? null}
       nomDuLocataire={inventory.tenant?.full_name ?? null}
       nomDuBailleur={inventory.landlord?.full_name ?? null}

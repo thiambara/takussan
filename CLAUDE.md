@@ -20,10 +20,17 @@ Ce qui existe réellement — **ordres de grandeur**, non des comptes à tenir �
 
 | | `takussan-api/` | `takussan-web/` |
 |---|---|---|
-| Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
-| Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
-| Données | 135 migrations · 38 factories · ~80 fichiers de seeders | — |
-| Tests | ~380 fichiers · **~2740 tests, verts sur PostgreSQL** *(2026-08-22)* | ~190 fichiers · **~1330 tests, verts** *(2026-08-22)* |
+| Code | ~2 300 fichiers PHP · ~250 000 lignes dans `app/` | ~4 400 fichiers `.ts`/`.tsx` dans `src/` |
+| Surface | ~925 routes · ~310 contrôleurs · ~130 modèles | ~185 pages · ~40 route handlers BFF · ~28 modules de server actions |
+| Données | ~390 migrations · ~55 factories · ~80 fichiers de seeders | — |
+| Tests | ~2 170 fichiers · **~14 300 tests** · ~380 000 lignes *(2026-11-28)* | ~2 000 fichiers · **~13 000 cas** *(2026-11-28)* |
+
+> ⚠ **Ce tableau a sous-compté les tests d'un facteur cinq pendant trois mois** (« ~380 fichiers · ~2 740 tests »,
+> relevé du 2026-08-22, alors que la suite en comptait ~14 300 au 2026-11-28). Le relevé des tests du back
+> ([ADR-0140](docs/adr/0140-une-classe-de-tests-par-module-la-livraison-qui-approfondit-retire-ce-qu-elle-absorbe.md))
+> l'a montré : 379 000 lignes de tests pour 250 000 dans `app/`, et une suite qui grossit par accrétion. Les commandes :
+> `find takussan-api/app -name '*.php' | wc -l`, `grep -rhoE 'public function test_|#\[Test\]' takussan-api/tests | wc -l`,
+> `php artisan route:list --json | jq length`.
 
 > **Le compte exact se prend à la source**, jamais ici : `php artisan test`, `npm run test`,
 > `find … | wc -l`. *Une précision qu'on ne peut pas tenir n'est pas de la rigueur, c'est une dette
@@ -41,7 +48,8 @@ node docs/backlog/check-backlog.mjs --report   # compte par statut + la liste de
 **Ce qui est vert.** Backend : Pint propre, suite entière verte sur PostgreSQL. Frontend : ESLint
 0 erreur, `tsc --noEmit` propre, suite verte.
 
-**Temps de référence de la suite backend : 470 à 610 s** (2026-08-22, ~2740 tests, 8 cœurs,
+**Temps de référence de la suite backend, séquentielle : 470 à 610 s — PÉRIMÉ** (relevé du 2026-08-22, sur ~2 740 tests ;
+la suite en compte ~14 300 au 2026-11-28 et n'a pas été re-mesurée en séquentiel : la référence est le job CI, cf. plus bas ; 8 cœurs,
 **machine au repos**). Sous charge, le facteur mesuré est d'environ ×11 : relever les trois moyennes
 d'`uptime` et `sysctl -n hw.ncpu` à côté de tout chiffre, sans se fier à la moyenne à 1 minute
 ([les quatre références successives, qui ne se soustraient pas](docs/journal-des-corrections.md#j-09)).
@@ -323,6 +331,9 @@ vers `dev`. Le porteur la promeut vers `dev`. Les agents ne publient rien eux-m�
   mentionnés, et `scripts/check-models-spec.mjs` (Repo CI) casse si un nouveau ne l'est pas**
   (TCK-310, ex-dette D-18 : 16 modèles y manquaient). ⚠ La garde vérifie qu'un **nom** apparaît,
   jamais qu'il est bien décrit — c'est un plancher, pas une preuve de justesse.
+- `docs/glossaire.md` — le vocabulaire du domaine : un terme par concept, son identifiant dans le code quand le
+  français et l'anglais divergent, les mots à éviter. **L'employer** dans les tickets, les noms et les messages ;
+  il grandit par `/grill-with-docs`, jamais en inventaire (ADR-0137).
 
 **Backlog** : `docs/backlog/` → `tickets/<status>/TCK-NNN-<slug>.md`, et `INDEX.md` à la demande.
 
@@ -467,6 +478,13 @@ Par `.claude/commands/` (Claude Code) — `.windsurf/` a été retiré le 2026-1
 - `/sync-specs` — reporte le livré dans `docs/features.md` et `docs/models-spec.md` (commit local
   `docs(specs): …`, sans push) ; sur demande, une passe d'audit sous `docs/sync-passes/` qui ne touche
   pas les specs.
+- `/grill-me` — interrogatoire par vagues (questions numérotées, une recommandation chacune) avant de construire.
+- `/grill-with-docs` — le même, qui écrit au fil de l'eau `docs/glossaire.md` et les ADR.
+- `/retro` — rétrospective d'une séance : ce qui, dans l'environnement des agents, aurait évité l'accroc.
+- `/improve-codebase-architecture` — relevé d'architecture en lecture seule, puis interrogatoire sur un candidat.
+
+Ces quatre-là sont **adaptés** de `mattpocock/skills`, pas installés : aucun pack de compétences ne s'installe
+pour ce dépôt ([ADR-0137](docs/adr/0137-une-competence-venue-d-ailleurs-s-adapte-elle-ne-s-installe-pas.md)).
 
 Si l'utilisateur demande « crée un ticket » ou « implémente TCK-NNN » sans slash command, lire
 directement le workflow correspondant.

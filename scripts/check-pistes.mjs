@@ -148,7 +148,7 @@ const PROTEGES_IMPLEMENTEUR = [
   /^takussan-api\/pint\.json$/,
 ];
 // Une garde existante ne se modifie pas (V9) ; une garde neuve s'ajoute (A5).
-const GARDES = /^(scripts\/[^/]+\.mjs|docs\/backlog\/(gen-index|check-backlog)\.mjs|takussan-web\/scripts\/)/;
+const GARDES = /^(scripts\/[^/]+\.mjs|docs\/backlog\/(gen-index|check-backlog|tickets)\.mjs|takussan-web\/scripts\/)/;
 // Un test ne se supprime pas pour faire passer un correctif.
 const TESTS = /^takussan-api\/tests\/|\.test\.tsx?$/;
 const MIGRATIONS = /^takussan-api\/database\/migrations\//;

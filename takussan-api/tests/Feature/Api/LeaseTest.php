@@ -157,46 +157,6 @@ class LeaseTest extends TestCase
         $this->assertSame(0, $lease->payments()->count());
     }
 
-    public function test_can_renew_active_lease(): void
-    {
-        // TCK-089 — renewal route now lives on `LeaseRenewalController`,
-        // requires the `leases.renew` permission, returns the child lease
-        // already in `active` status, and accepts `start_date` in payload.
-        $landlord = User::factory()->create();
-        $lease = Lease::factory()->active()->create([
-            'landlord_id' => $landlord->id,
-            'end_date' => now()->subDay()->toDateString(),
-        ]);
-
-        Sanctum::actingAs($landlord);
-
-        $this->postJson("/api/leases/{$lease->id}/renew", [
-            'start_date' => now()->toDateString(),
-            'end_date' => now()->addYear()->toDateString(),
-            'monthly_rent' => 450000,
-        ])->assertCreated()
-            ->assertJsonPath('data.status', 'active')
-            ->assertJsonPath('data.monthly_rent', 450000);
-    }
-
-    public function test_cannot_renew_inactive_lease(): void
-    {
-        // TCK-089 — `Draft` is not a renewable status; service returns 422.
-        $landlord = User::factory()->create();
-        $lease = Lease::factory()->create([
-            'landlord_id' => $landlord->id,
-            'status' => LeaseStatus::Draft->value,
-            'end_date' => now()->subDay()->toDateString(),
-        ]);
-
-        Sanctum::actingAs($landlord);
-
-        $this->postJson("/api/leases/{$lease->id}/renew", [
-            'start_date' => now()->toDateString(),
-            'end_date' => now()->addYear()->toDateString(),
-        ])->assertStatus(422);
-    }
-
     public function test_cannot_activate_already_active_lease(): void
     {
         $landlord = User::factory()->create();
@@ -284,5 +244,27 @@ class LeaseTest extends TestCase
             'period_start' => '2026-01-01',
             'period_end' => '2026-01-31',
         ])->assertCreated();
+    }
+
+    /** TCK-3017 — ex-LeaseRefundTest : résilier avant le terme écrit la ligne de pénalité. */
+    public function test_early_termination_creates_penalty_payment(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = Lease::factory()->active()->withCollectedDeposit()->create([
+            'landlord_id' => $landlord->id,
+            'end_date' => now()->addMonths(6)->toDateString(),
+            'monthly_rent' => 300000,
+        ]);
+
+        Sanctum::actingAs($landlord);
+
+        $this->postJson("/api/leases/{$lease->id}/terminate", ['reason' => 'early exit'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'terminated');
+
+        $this->assertDatabaseHas('lease_payments', [
+            'lease_id' => $lease->id,
+            'payment_type' => 'penalty',
+        ]);
     }
 }

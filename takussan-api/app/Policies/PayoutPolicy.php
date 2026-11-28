@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\Enums\Capability;
 use App\Models\Payout;
 use App\Models\User;
+use App\Services\Lecture\ReversementsLisibles;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -24,23 +25,12 @@ class PayoutPolicy extends BasePolicy
     }
 
     /**
-     * Lire un versement : super-admin, BÉNÉFICIAIRE, émetteur, ou personnel de l'agence tenant
-     * `payouts.create`.
-     *
-     * TCK-587 — la dernière clause était `$user->agency_id === $model->agency_id` : tout membre de
-     * l'agence, bailleur compris, lisait les versements de tous les bailleurs.
+     * Lire un versement : la règle de {@see ReversementsLisibles}, que la liste applique aussi
+     * (TCK-3006, ADR-0138).
      */
     public function view(User $user, Model $model): bool
     {
-        if (! $model instanceof Payout) {
-            return false;
-        }
-
-        return $user->isSuperAdmin()
-            || $model->landlord_id === $user->id
-            // P218.03 (TCK-2196) — l'émetteur encore membre de l'agence (ADR-0031, amendement du 2026-10-24).
-            || $this->auteurEncoreMembre($user, $model->issued_by_id, $model->agency_id)
-            || ($this->isStaffOf($user, $model->agency_id) && $user->can(Capability::PayoutsCreate->value, $model));
+        return $model instanceof Payout && ReversementsLisibles::peut($user, $model);
     }
 
     /**

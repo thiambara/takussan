@@ -24,7 +24,6 @@ import {
 } from '@/lib/queries/radar';
 import type { RadarDemandSetting, RadarDemandSettingResponse } from '@/types/radar';
 import { BLOCAGES_DEMANDE_RADAR, ISSUES_DEMANDE_RADAR, MOTIFS_RADAR } from '../codes-radar';
-import { codeDuRefus } from './useMessageRefusCible';
 
 /** Combien de temps « rafraîchir maintenant » relit le réglage en attendant l'issue du passage (file `ai`, 85 s au plus). */
 const ATTENTE_MAX_MS = 3 * 60_000;
@@ -53,6 +52,9 @@ export function EncartDemande() {
   const { can } = usePlatformAbilities();
   const queryClient = useQueryClient();
   const messageErreur = useMessageErreurApi();
+  // TCK-3008 — un refus d'écriture qui dit ce qui bloque la demande se lit par sa table ; sinon le message de l'API.
+  const tBlocages = useTranslations('superAdmin.pages.radar.targets.demand.blocked');
+  const messageDuRefus = useMessageErreurApi({ tables: [{ t: tBlocages, codes: BLOCAGES_DEMANDE_RADAR }] });
   const fmt = useFormatteurs();
   const lit = can('platform.radar.operate');
   const ecrit = can('platform.radar.publish');
@@ -116,10 +118,6 @@ export function EncartDemande() {
   const erreur = basculer.error ?? rafraichir.error;
   const passageEnCours = attente !== null && demande.last_run_at === attente.depuis;
 
-  const messageDuRefus = (e: ApiError) => {
-    const code = codeDuRefus(e);
-    return code && BLOCAGES_DEMANDE_RADAR[code] ? t(`blocked.${BLOCAGES_DEMANDE_RADAR[code]}`) : messageErreur(e, t('saveError'));
-  };
 
   const issue = (code: string) => {
     if (ISSUES_DEMANDE_RADAR[code]) return t(`outcomes.${ISSUES_DEMANDE_RADAR[code]}`);
@@ -249,7 +247,7 @@ export function EncartDemande() {
           <p className="text-xs text-muted-foreground" data-testid="radar-demande-lance">{t('refreshQueued')}</p>
         ) : null}
       </div>
-      {erreur ? <ErrorState message={messageDuRefus(erreur)} data-testid="radar-demande-erreur" /> : null}
+      {erreur ? <ErrorState message={messageDuRefus(erreur, t('saveError'))} data-testid="radar-demande-erreur" /> : null}
     </section>
   );
 }

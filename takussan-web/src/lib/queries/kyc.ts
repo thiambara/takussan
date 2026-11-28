@@ -1,14 +1,6 @@
-import { ApiError } from '@/lib/api';
+import { appelBff } from '@/lib/bff';
 import type { KycDossierResponse } from '@/types/super-admin';
 import { cheminApi } from '@/lib/chemin-api';
-
-async function jsonOrThrow<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new ApiError(res.status, data);
-  }
-  return res.json() as Promise<T>;
-}
 
 const KYC_DOSSIER_FIELDS = [
   'id',
@@ -31,10 +23,7 @@ export async function fetchAgencyKyc(agencyId: number): Promise<KycDossierRespon
   const qs = new URLSearchParams();
   qs.set('fields[kyc_dossiers]', KYC_DOSSIER_FIELDS);
   qs.set('include', 'subject,reviewer');
-  const res = await fetch(cheminApi`/api/agencies/${agencyId}/kyc?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<KycDossierResponse>(res);
+  return appelBff<KycDossierResponse>(cheminApi`/api/agencies/${agencyId}/kyc?${qs.toString()}`);
 }
 
 /**
@@ -63,18 +52,9 @@ export async function uploadAgencyKycDocument(
   const numero = documentNumber?.trim();
   if (numero && documentType !== 'director_id') body.set('document_number', numero);
 
-  const res = await fetch(cheminApi`/api/agencies/${agencyId}/kyc/documents`, {
-    method: 'POST',
-    credentials: 'include',
-    body,
-  });
-  return jsonOrThrow<KycDossierResponse>(res);
+  return appelBff<KycDossierResponse>(cheminApi`/api/agencies/${agencyId}/kyc/documents`, { method: 'POST', body });
 }
 
 export async function submitAgencyKyc(agencyId: number): Promise<KycDossierResponse> {
-  const res = await fetch(cheminApi`/api/agencies/${agencyId}/kyc/submit`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow<KycDossierResponse>(res);
+  return appelBff<KycDossierResponse>(cheminApi`/api/agencies/${agencyId}/kyc/submit`, { method: 'POST' });
 }

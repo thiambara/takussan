@@ -63,12 +63,30 @@ class BookingRefundTaskService
                 'taskable_type' => $booking->getMorphClass(),
                 'taskable_id' => $booking->getKey(),
                 'assigned_to_id' => $this->assigneeFor($booking)?->id,
-                'created_by_id' => $authorId,
+                'created_by_id' => $this->createurInterne($booking, $authorId),
                 'status' => TaskStatus::Open,
                 'priority' => TaskPriority::High,
                 'metadata' => ['kind' => self::KIND, 'booking_payment_ids' => $paidIds, 'paid_out' => $this->paidOut($paidIds)],
             ]);
         });
+    }
+
+    /**
+     * TCK-3006 (vérification adverse) — le créateur de la tâche est l'auteur de la fermeture, SAUF le
+     * client de la réservation. La tâche est interne (elle porte les acomptes et les reversements du
+     * bailleur) et `TachesLisibles::participe` admet son créateur : le client qui annulait la lisait,
+     * et pouvait la cocher. La correction porte sur la tâche, pas sur la règle de lecture : retirer le
+     * créateur de `participe` toucherait toutes les tâches personnelles. Le geste du client reste
+     * tracé par la réservation et son journal.
+     */
+    private function createurInterne(Booking $booking, ?int $authorId): ?int
+    {
+        if ($authorId === null) {
+            return null;
+        }
+        $client = $booking->customer()->value('user_id');
+
+        return $client !== null && (int) $client === $authorId ? null : $authorId;
     }
 
     /**

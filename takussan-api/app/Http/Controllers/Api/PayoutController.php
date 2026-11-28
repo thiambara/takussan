@@ -9,10 +9,9 @@ use App\Http\Requests\Api\MarkFailedPayoutRequest;
 use App\Http\Requests\Api\MarkProcessedPayoutRequest;
 use App\Http\Requests\Api\StorePayoutRequest;
 use App\Http\Resources\PayoutResource;
-use App\Models\Enums\Capability;
 use App\Models\Payout;
 use App\Models\User;
-use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Lecture\ReversementsLisibles;
 use App\Services\Model\PayoutService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,21 +27,8 @@ class PayoutController extends Controller
         // TCK-807 (P21.05) — `landlord` n'est pas émis par `PayoutResource` : il n'est plus chargé.
         $base = Payout::query()->with(['payoutMethod:id,masked_identifier']);
 
-        if (! $user->isSuperAdmin()) {
-            // P218.03 (TCK-2196) — l'émetteur encore membre de l'agence, comme `PayoutPolicy::view`.
-            $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
-            $base->where(function ($q) use ($user, $memberAgencyIds) {
-                $q->where('landlord_id', $user->id)
-                    ->orWhere(fn ($a) => $a->where('issued_by_id', $user->id)
-                        ->where(fn ($m) => $m->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)));
-                // TCK-587 — les versements de l'agence : le personnel tenant `payouts.create`, comme
-                // `PayoutPolicy::view` (ADR-0031). Un bailleur de l'agence listait ceux des autres.
-                if (($staffAgencyId = $user->staffAgencyId()) !== null
-                    && $user->can(Capability::PayoutsCreate->value)) {
-                    $q->orWhere('agency_id', $staffAgencyId);
-                }
-            });
-        }
+        // TCK-3006 (ADR-0138) — la règle de lecture de la fiche, en SQL : `ReversementsLisibles`.
+        ReversementsLisibles::restreindre($base, $user);
 
         $paginator = Payout::buildQuery($base, $request)
             ->defaultSort('-created_at')

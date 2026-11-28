@@ -2,18 +2,17 @@
  * TCK-2850 — l'accueil du bailleur : « Démarrer » (ligne au téléphone, bandeau « Continuer » au bureau),
  * « Prochain reversement · 15 nov. », « relancé par l'agence le 8 nov. » sur un loyer en retard, et la
  * place de « Loyers du mois » au bureau (à droite quand rien n'attend, maquette e6). Le réseau est doublé
- * au niveau d'`apiRequest` : les hooks tournent pour de vrai, on lit les requêtes émises.
+ * au niveau de `fetch` (`doublerLApi`, TCK-3010) : les hooks tournent pour de vrai, on lit les requêtes émises.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { screen, waitFor, within } from '@testing-library/react';
 
 import { Contexte, type PreferencesDuMenu } from '@/components/layout/contexte-preferences-du-menu';
 import { SocleDeLAccueil } from '@/components/accueil/SocleDeLAccueil';
 import { lireLoyersDuMois } from '@/lib/accueil/loyers-du-mois';
 import { NAVIGATION_VIDE } from '@/lib/navigation/preferences';
-import { withIntl } from '@/test/intl';
-import { oublierLesLectures } from '@/test/visites-comme-l-api';
+import { doublerLApi } from '@/test/api-simulee';
+import { rendre } from '@/test/rendu';
 
 import { AFaireBailleur } from '../AFaireBailleur';
 import { DemarrerDuBailleur } from '../DemarrerDuBailleur';
@@ -21,7 +20,6 @@ import { EnCoursSurVosBiens } from '../EnCoursSurVosBiens';
 import { PlaceDesLoyers } from '../PlaceDesLoyers';
 
 const etat = vi.hoisted(() => ({
-  appels: [] as string[],
   etapes: [
     { code: 'premier_bien', faite: true },
     { code: 'piece:cni', faite: false },
@@ -36,7 +34,6 @@ const etat = vi.hoisted(() => ({
 }));
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/app', useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 21, roles: ['owner'] }, token: 'jeton' }) }));
 // Le bureau : les rangées des loyers en retard (et leur relance) ne se lisent qu'à partir de `md`.
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => etat.bureau }));
 
@@ -56,48 +53,32 @@ const LOYER = {
   property: { id: 4, title: 'Villa blanche, Yoff' },
 };
 
-vi.mock('@/lib/api', async (original) => {
-  const vrai = await original<typeof import('@/lib/api')>();
-  return {
-    ...vrai,
-    apiRequest: vi.fn(async (chemin: string) => {
-      etat.appels.push(chemin);
-      const [route] = chemin.split('?') as [string];
-      const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
-      const page = (data: unknown[], total: number) => servir(chemin, { data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1 } });
-      switch (route) {
-        case '/api/me/espace/demarrage':
-          return { data: { etapes: etat.etapes } };
-        case '/api/payouts':
-          return page(etat.reversements, etat.reversements.length);
-        case '/api/maintenance-requests':
-          return page([{ id: 72, title: 'Fuite sous évier', status: 'scheduled', scheduled_at: null, property: { id: 4, title: 'F2, Grand Yoff' }, assignee: null }], etat.enCours);
-        case '/api/property-visits':
-          return page([], etat.visites);
-        case '/api/payments/history':
-          return page([LOYER], etat.loyers);
-        case '/api/owner-statements':
-          return { data: { properties: [{ property_id: 4, title: 'Villa blanche, Yoff', reminders: etat.relances }] } };
-        default:
-          return page([], 0);
-      }
-    }),
-  };
-});
+const page = (data: unknown[], total: number) => ({ data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1 } });
+
+const api = doublerLApi()
+  .sur('GET', '/api/me/espace/demarrage', () => ({ data: { etapes: etat.etapes } }))
+  .sur('GET', '/api/payouts', () => page(etat.reversements, etat.reversements.length))
+  .sur('GET', '/api/maintenance-requests', () =>
+    page([{ id: 72, title: 'Fuite sous évier', status: 'scheduled', scheduled_at: null, property: { id: 4, title: 'F2, Grand Yoff' }, assignee: null }], etat.enCours),
+  )
+  // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  .servir('visites', [], { meta: () => ({ total: etat.visites, per_page: 20 }), filtres: ['status', 'scheduled_at_min'] })
+  .sur('GET', '/api/payments/history', () => page([LOYER], etat.loyers))
+  .sur('GET', '/api/owner-statements', () => ({ data: { properties: [{ property_id: 4, title: 'Villa blanche, Yoff', reminders: etat.relances }] } }))
+  .parDefaut(page([], 0));
 
 function monter(contenu: React.ReactNode, prefs?: PreferencesDuMenu) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const arbre = <QueryClientProvider client={client}>{withIntl(contenu)}</QueryClientProvider>;
-  return render(prefs ? <Contexte.Provider value={prefs}>{arbre}</Contexte.Provider> : arbre);
+  return rendre(prefs ? <Contexte.Provider value={prefs}>{contenu}</Contexte.Provider> : contenu, {
+    compte: { utilisateur: { id: 21, roles: ['owner'] }, jeton: 'jeton' },
+  });
 }
 
-const lectures = (route: string) => etat.appels.filter((c) => c.split('?')[0] === route).map((c) => new URLSearchParams(c.split('?')[1] ?? ''));
+const lectures = (route: string) => api.appels(route).filter((a) => a.methode === 'GET').map((a) => a.requete);
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-10T10:12:00Z'));
   Object.assign(etat, {
-    appels: [],
     etapes: [
       { code: 'premier_bien', faite: true },
       { code: 'piece:cni', faite: false },
@@ -110,7 +91,6 @@ beforeEach(() => {
     relances: [],
     bureau: true,
   });
-  oublierLesLectures();
 });
 afterEach(() => vi.useRealTimers());
 
@@ -169,23 +149,21 @@ describe('AC1 — « Démarrer » du bailleur', () => {
       modeIcones: 'complet',
     } as unknown as PreferencesDuMenu;
     monter(<DemarrerDuBailleur large />, prefs);
-    await Promise.resolve();
+    await api.auRepos();
     expect(document.querySelector('[data-slot="demarrer-du-bailleur"]')).toBeNull();
     expect(lectures('/api/me/espace/demarrage')).toHaveLength(0);
   });
 
   it('le socle pose la ligne au-dessus du salut au téléphone et le bandeau dans l’en-tête au bureau', () => {
-    render(
-      withIntl(
-        <SocleDeLAccueil
-          titre="Bonjour Mouhamed"
-          ligne="Mardi 10 novembre"
-          miseEnService={null}
-          demarrage={{ telephone: <p>ligne-demarrer</p>, bureau: <p>bandeau-demarrer</p> }}
-          bandeaux={null}
-          ceMois={null}
-        />,
-      ),
+    monter(
+      <SocleDeLAccueil
+        titre="Bonjour Mouhamed"
+        ligne="Mardi 10 novembre"
+        miseEnService={null}
+        demarrage={{ telephone: <p>ligne-demarrer</p>, bureau: <p>bandeau-demarrer</p> }}
+        bandeaux={null}
+        ceMois={null}
+      />,
     );
     const ligne = screen.getByText('ligne-demarrer');
     const [salutTelephone] = screen.getAllByText('Bonjour Mouhamed');
@@ -261,7 +239,7 @@ describe('TCK-2850 — au téléphone, aucune lecture de relevé', () => {
     etat.bureau = false;
     monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(lectures('/api/payments/history').length).toBeGreaterThan(0));
-    await new Promise((r) => setTimeout(r, 0));
+    await api.auRepos();
     expect(lectures('/api/owner-statements')).toHaveLength(0);
   });
 });

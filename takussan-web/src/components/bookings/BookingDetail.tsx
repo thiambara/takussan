@@ -24,12 +24,10 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
-import { useCanAll } from '@/hooks/useCan';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { usePersonnelActif } from '@/hooks/usePersonnelActif';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
-import { clientPeutAnnuler, contreOffreARepondre } from '@/lib/reservations/appel-du-client';
 import { useFormatteurs, type Formatteurs } from '@/lib/format/useFormatteurs';
 import { montantDansLaNature, nuitsEntre } from '@/lib/reservations/liste-des-reservations';
 import { cn } from '@/lib/utils';
@@ -39,7 +37,9 @@ import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment } from '@/types/booking';
 import { BOOKING_PAYMENT_STATUS_TONE } from './booking-status';
 import { BookingPaymentDialog } from './BookingPaymentDialog';
-import { BookingRefundDialog, BookingRefundPanel, paiementsRemboursables } from './BookingRefundPanel';
+import { BookingRefundDialog, BookingRefundPanel } from './BookingRefundPanel';
+// TCK-3007 (ADR-0139) — les gestes de la fiche, lus dans `abilities` par une fonction pure.
+import { gestesDeLaReservation, paiementsRemboursables } from './detail/gestes';
 // TCK-2877 — les nuits du bien autour du séjour, au bureau.
 import { NuitsDuBien } from './detail/nuits-du-bien';
 import { FeuilleDeDecision } from './feuilles/FeuilleDeDecision';
@@ -49,7 +49,6 @@ import { BoutonTelechargement } from '@/components/documents/BoutonTelechargemen
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
-import { canBookingLeaveReview } from '@/components/reviews/reviewEligibility';
 import type { GatewayProvider } from '@/hooks/useInitiatePayment';
 import { ecartEnClair, StatutDeLaDemande, useAgeDeLaDemande, useBienEtQuartier, useNomDuClient } from './liste/pieces';
 import {
@@ -78,16 +77,6 @@ import { BandeauAcceptee, BandeauDOrigine, EtapeDuClient, FilDeLaCandidature, us
 import { GarantsDeLaCandidature } from './detail/garants';
 import { PanneauDuBailRepris } from './feuilles/PanneauDuBailRepris';
 import { heuresAvantLaReponse } from '@/lib/reservations/candidature';
-
-/**
- * Listes figées hors composant : `useCanAll` mémoïse sur la RÉFÉRENCE du
- * tableau. Un littéral inline en recréerait une à chaque rendu et
- * recalculerait le verdict à chaque fois.
- */
-const CAPABILITY_VALIDATE = ['bookings.validate'] as const;
-const CAPABILITY_CANCEL = ['bookings.cancel'] as const;
-const CAPABILITY_RECORD_PAYMENT = ['payments.record'] as const;
-const CAPABILITY_CREATE_LEASE = ['leases.create'] as const;
 
 /** Le téléphone : la coque de `/app` change de forme sous `md` (48 rem). */
 const REQUETE_TELEPHONE = '(width < 48rem)';
@@ -193,42 +182,13 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   /**
    * TCK-279 (AC12) — « suis-je du côté tableau de bord ? » reste un test
    * d'APPARTENANCE : il pilote l'affichage (colonne agent contre colonne
-   * client, invitation à laisser un avis), pas un verbe. Il garde donc
+   * client, lien du bien, nuits du bien), pas un geste. Il garde donc
    * `isAgent`/`isAdmin`/`isOwner`, comme le prescrit le docblock de
    * `useCan`.
    */
   const isDashboardAgent = user ? isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles) : false;
   /** TCK-2594 — la fiche du client (« Fiche ») : au seul personnel actif de l'agence de la réservation. */
   const personnel = usePersonnelActif(data?.data?.agency_id ?? null);
-  /**
-   * Les GESTES, eux, sont gardés par capacité. Un `agency_admin` dont
-   * l'`AgencyRole` n'a pas `bookings.validate` voyait « Accepter » et
-   * récoltait un 403 : depuis TCK-279, deux administrateurs de la même
-   * agence peuvent porter des rôles différents, et le type de profil ne dit
-   * plus ce qu'on a le droit de faire.
-   *
-   * ⚠️ Ceci n'autorise rien — `BookingPolicy` décide. Un bouton caché n'est
-   * pas une sécurité, c'est une politesse.
-   *
-   * Plusieurs appels de hook, UNE requête réseau : ils partagent la clé
-   * `['me','capabilities','active']`, donc TanStack Query n'en émet qu'une.
-   *
-   * `enabled: isDashboardAgent` — cet écran sert aussi les CLIENTS, qui
-   * n'ont aucune de ces capacités et pour qui la question ne se pose pas.
-   */
-  const { can: canValidateBookings, isLoading: capabilitiesLoading } = useCanAll(
-    CAPABILITY_VALIDATE,
-    { enabled: isDashboardAgent },
-  );
-  const { can: canCancelBookings } = useCanAll(CAPABILITY_CANCEL, {
-    enabled: isDashboardAgent,
-  });
-  const { can: canRecordPayments } = useCanAll(CAPABILITY_RECORD_PAYMENT, {
-    enabled: isDashboardAgent,
-  });
-  const { can: canCreateLeases } = useCanAll(CAPABILITY_CREATE_LEASE, {
-    enabled: isDashboardAgent,
-  });
   const toast = useToast();
 
   if (isLoading) {
@@ -258,33 +218,18 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const booking = data.data;
   const isCustomer =
     !!user?.id && !!booking.customer && user.id === booking.customer.user_id;
-  // Tant que les capacités n'ont pas répondu, `can` vaut `false` : rendre le
-  // bouton sur cette seule base le ferait DISPARAÎTRE puis réapparaître. On
-  // laisse donc l'ancien verdict d'appartenance tenir pendant le chargement,
-  // puis la capacité prend la main. Le serveur reste seul juge dans les deux
-  // cas.
-  const staffMay = (granted: boolean) =>
-    isDashboardAgent && (capabilitiesLoading ? true : granted);
-
-  // TCK-1301 (P115.01) — un séjour confirmé dont le premier jour est arrivé ne
-  // s'annule plus : l'API le refuse (`booking.cannot_cancel`). Le premier jour se juge sur le
-  // jour de l'API, en UTC, pas sur celui du navigateur (P212.02). TCK-2879 — la règle est partagée
-  // avec la carte de « Mes réservations » (`clientPeutAnnuler`).
-  const canCancel = (isCustomer || staffMay(canCancelBookings)) && clientPeutAnnuler(booking);
-  const canConfirm = staffMay(canValidateBookings) && booking.status === 'pending';
-  const canReject = staffMay(canValidateBookings) && booking.status === 'pending';
-  // TCK-2876 (ADR-0110 § 5) — « Contre-proposer » : une OFFRE en attente, sous la capacité
-  // d'Accepter, au seul personnel de l'agence (`BookingPolicy::proposeCounterOffer` refuse le bailleur).
-  const canCounterOffer = canConfirm && booking.kind === 'offer' && personnel && !isCustomer;
-  const canRegisterPayment = staffMay(canRecordPayments);
-  // P48.03 (TCK-2352) — la candidature acceptée d'un bien à louer mène au bail prérempli. L'API
-  // vérifie que le locataire est le client de la réservation, et la passe à `completed`.
-  // TCK-2594 — une CANDIDATURE seulement : un séjour confirmé d'un bien à louer ne mène pas au bail.
-  const canCreateLease =
-    staffMay(canCreateLeases) &&
-    booking.kind === 'application' &&
-    booking.status === 'confirmed' &&
-    booking.property?.contract_type === 'rent';
+  /**
+   * TCK-3007 (ADR-0139) — les GESTES se lisent dans `abilities`, que l'API calcule pour ce lecteur,
+   * policy et état compris : plus de capacités lues au navigateur (qui jugeaient l'agence ACTIVE, pas
+   * celle de la réservation, et cachaient au Bailleur Accepter, Refuser et Annuler), plus d'affichage
+   * optimiste pendant le chargement. Ceci n'autorise rien — `BookingPolicy` décide.
+   */
+  const g = gestesDeLaReservation(booking);
+  const canCancel = g.annuler;
+  const canConfirm = g.accepter;
+  const canReject = g.refuser;
+  const canCounterOffer = g.contreProposer;
+  const canCreateLease = g.creerLeBail;
 
   /* ─────────────────────────────── Les mots de la réservation ─────────────────────────────── */
 
@@ -594,13 +539,13 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const completude = dossier ? <Completude recues={dossier.received} total={dossier.required} /> : null;
   // TCK-2878 — les garants d'une candidature ouverte, sous ses pièces, au seul personnel (le geste garant).
   const garantsDeLaCandidature =
-    dossier && personnel && !isCustomer && booking.guarantors !== undefined && (booking.status === 'pending' || booking.status === 'confirmed') ? (
+    dossier && g.gererLesGarants && booking.guarantors !== undefined ? (
       <GarantsDeLaCandidature booking={booking} />
     ) : null;
   const piecesDuDossier = dossier ? (
     <>
       {/* TCK-2879 — le client dépose tant que la demande est ouverte (`booking.dossier_closed` sinon). */}
-      <PiecesDuDossier bookingId={booking.id} personnel={personnel} client={isCustomer && (booking.status === 'pending' || booking.status === 'confirmed')} maintenant={maintenant} />
+      <PiecesDuDossier bookingId={booking.id} personnel={personnel} demander={g.demanderUnePiece} deposer={g.deposerUnePiece} maintenant={maintenant} />
       {garantsDeLaCandidature}
     </>
   ) : null;
@@ -621,7 +566,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
 
   // TCK-2879 — la contre-offre qui attend le client (où mène l'avis `counter_offer_received`) : sa réponse,
   // comme sur la carte de « Mes réservations ».
-  const contreOffreDuClient = isCustomer ? contreOffreARepondre(booking) : null;
+  const contreOffreDuClient = g.repondreALaContreOffre ? (booking.counter_offer ?? null) : null;
   // TCK-2879 — `#paiement` : « Payer l'acompte » et « Payer le solde » de la carte du client mènent ici. Avec un
   // paiement déjà en attente (le client revient de la passerelle), `CustomerPayCta` se tait et « Payer en ligne »
   // vit dans la section Paiements : l'ancre y passe.
@@ -631,10 +576,10 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
       {contreOffreDuClient ? (
         <ReponseALaContreOffre bookingId={booking.id} co={contreOffreDuClient} devise={devise} className="rounded-xl border border-border bg-card p-4 max-md:mx-4 max-md:my-4" />
       ) : null}
-      {!isDashboardAgent && canBookingLeaveReview(booking) && booking.property?.slug && (
+      {g.laisserUnAvis && booking.property?.slug && (
         <LeaveReviewCta slug={booking.property.slug} context={t('reviewContext')} propertyTitle={booking.property.title} />
       )}
-      {isCustomer && (
+      {g.payer && (
         <CustomerPayCta
           bookingId={bookingId}
           booking={booking}
@@ -651,7 +596,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
 
   const annuler = () => setAction('cancel');
   const libelleAnnuler = tFiche('gestes.annuler', { nature });
-  const sejourAvecPaiement = nature === 'stay' && canRegisterPayment && booking.status === 'confirmed';
+  const sejourAvecPaiement = g.encaisser === 'principal';
   /** TCK-2876 — « Contre-proposer », ou « Modifier la contre-offre » quand une contre-offre attend le client. */
   const libelleContreProposer = tFiche('contreOffre.geste', { modifier: contreOffre ? 'oui' : 'non' });
   // Au téléphone, trois gestes tiennent dans ~340 px : « Modifier la contre-offre » s'y dit « Modifier »
@@ -705,14 +650,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
       </Button>
     ) : null;
   /** « Enregistrer un paiement » hors d'un séjour confirmé : un geste second. */
-  const paiementSecond = canRegisterPayment && !sejourAvecPaiement;
+  const paiementSecond = g.encaisser === 'second';
   /**
    * TCK-2877 — « Rembourser » un séjour CONFIRMÉ sans attendre qu'il soit fermé (l'API rembourse
-   * tout paiement `paid`, `BookingPaymentService::refund`) : sous `can_refund`, et s'il reste un
+   * tout paiement `paid`, `BookingPaymentService::refund`) : sous `abilities.refund`, et s'il reste un
    * paiement encaissé pas entièrement rendu. Une réservation fermée garde son bloc (TCK-596).
    */
   const remboursables = paiementsRemboursables(booking);
-  const canRefundStay = nature === 'stay' && booking.status === 'confirmed' && !isCustomer && booking.can_refund === true && remboursables.length > 0;
+  const canRefundStay = g.rembourserLeSejour;
   const ouvrirLeRemboursement = () => setRemboursementOuvert(true);
 
   const dialogues = (
@@ -1178,19 +1123,14 @@ function CustomerPayCta({
   // can pay it via the existing PayOnlineButton just below.
   if (hasPending) return null;
 
-  if (booking.status !== 'pending' && booking.status !== 'confirmed') return null;
-  // TCK-2879 — un séjour seulement : le `total_amount` d'une candidature est le loyer du bien, celui d'une
-  // offre le prix proposé — rien que le client règle sur la réservation (`appelDuClient`, même règle).
-  if (booking.kind === 'application' || booking.kind === 'offer') return null;
+  // TCK-3007 — le statut, la nature (un séjour seulement, TCK-2879) et le reste dû sont jugés par l'API
+  // (`abilities.pay`) : la fiche ne monte cet appel que sous ce geste.
   if (providers !== undefined && providers.length === 0) return null;
 
-  // TCK-2877 — comme l'API (`dueFromCustomer`) : ni caution ni « autre ».
+  // TCK-2877 — comme l'API (`dueFromCustomer`) : ni caution ni « autre ». Le libellé seul en dépend.
   const succeededTotal = payments
     .filter(regleLeTotal)
     .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
-  const total = Number(booking.total_amount ?? 0);
-  const remaining = Math.max(total - succeededTotal, 0);
-  if (remaining <= 0) return null;
 
   const depositAmount = Number(booking.deposit_amount ?? 0);
   const isDepositStep = succeededTotal === 0 && depositAmount > 0;

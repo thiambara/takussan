@@ -69,11 +69,10 @@ class EarlyTerminationService
 
             $this->guardRequestable($lease);
 
-            $today = now()->startOfDay();
             $notice = $this->resolveNoticeDays($lease);
             $effective = Carbon::parse($data['effective_date'])->startOfDay();
 
-            $minEffective = $today->copy()->addDays($notice);
+            $minEffective = $this->premiereDateDEffet($lease);
             if ($effective->lt($minEffective)) {
                 throw ValidationException::withMessages([
                     'effective_date' => [__('messages.lease_early_termination_notice_too_short', [
@@ -129,16 +128,13 @@ class EarlyTerminationService
         return DB::transaction(function () use ($lease, $actor) {
             $lease = Lease::query()->lockForUpdate()->findOrFail($lease->id);
 
-            if ($lease->status !== LeaseStatus::Terminating) {
+            if (! GestesDuBail::preavisEnCours($lease)) {
                 throw ValidationException::withMessages([
                     'status' => [__('messages.lease_early_termination_not_in_progress')],
                 ])->status(422);
             }
 
-            $effective = $lease->early_termination_effective_date
-                ? Carbon::parse($lease->early_termination_effective_date)->startOfDay()
-                : null;
-            if ($effective && $effective->lte(now()->startOfDay())) {
+            if (! GestesDuBail::annulationDuPreavisOuverte($lease)) {
                 throw ValidationException::withMessages([
                     'effective_date' => [__('messages.lease_early_termination_window_closed')],
                 ])->status(422);
@@ -196,7 +192,7 @@ class EarlyTerminationService
         return DB::transaction(function () use ($lease, $actor) {
             $lease = Lease::query()->lockForUpdate()->findOrFail($lease->id);
 
-            if ($lease->status !== LeaseStatus::Terminating) {
+            if (! GestesDuBail::preavisEnCours($lease)) {
                 throw ValidationException::withMessages([
                     'status' => [__('messages.lease_early_termination_not_in_progress')],
                 ])->status(422);
@@ -273,6 +269,17 @@ class EarlyTerminationService
         return round($monthlyRent * $billable, 2);
     }
 
+    /**
+     * TCK-3011 (D1) — la date d'effet la plus proche qu'un préavis demandé aujourd'hui peut porter :
+     * aujourd'hui plus le préavis du bail. `request()` refuse avant (`notice_too_short`), et refuse une date
+     * qui tombe à la fin du bail ou après (`after_end_date`) : {@see GestesDuBail::preavisTientAvantLaFin()}
+     * lit la même date pour n'offrir le préavis que s'il en existe une.
+     */
+    public function premiereDateDEffet(Lease $lease): Carbon
+    {
+        return now()->startOfDay()->addDays($this->resolveNoticeDays($lease));
+    }
+
     public function resolveNoticeDays(Lease $lease): int
     {
         $value = $lease->notice_period_days;
@@ -327,7 +334,7 @@ class EarlyTerminationService
             ])->status(422);
         }
 
-        if (! in_array($lease->status, self::REQUESTABLE_STATUSES, true)) {
+        if (! GestesDuBail::preavisPossible($lease)) {
             throw ValidationException::withMessages([
                 'status' => [__('messages.lease_early_termination_status_not_requestable')],
             ])->status(422);

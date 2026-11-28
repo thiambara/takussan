@@ -51,4 +51,24 @@ class CustomerServiceCreateTest extends TestCase
         $this->assertSame($agency->id, $customer->agency_id);
         $this->assertSame($actor->id, $customer->added_by_id);
     }
+
+    /**
+     * P220.03 (TCK-2281, ex-`FicheDUnCompteSansNomTest`, versé par TCK-3017) — une fiche née d'un compte créé
+     * par téléphone (noms `''`) garde des noms vides : décision du porteur, rien n'est écrit en base, c'est le
+     * front qui la nomme (`nomAffichable`).
+     */
+    public function test_la_fiche_d_un_compte_sans_nom_garde_des_noms_vides(): void
+    {
+        $compte = User::factory()->create([
+            'first_name' => '',
+            'last_name' => '',
+            'email' => null,
+            'phone' => '+221770000622',
+        ]);
+
+        $fiche = app(CustomerService::class)->findOrCreateFromUser($compte);
+
+        $this->assertSame(['', ''], [$fiche->fresh()->first_name, $fiche->fresh()->last_name]);
+        $this->assertSame('+221770000622', $fiche->phone);
+    }
 }

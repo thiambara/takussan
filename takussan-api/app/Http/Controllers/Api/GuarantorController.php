@@ -11,6 +11,7 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Policies\GuarantorPolicy;
+use App\Services\Lecture\CautionsLisibles;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\Masking;
 use Illuminate\Http\JsonResponse;
@@ -22,11 +23,9 @@ class GuarantorController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $base = Guarantor::query();
-
-        if (! $user->isSuperAdmin()) {
-            $base->where('added_by_id', $user->id);
-        }
+        // TCK-3006 (ADR-0138) — la règle de la fiche, en SQL (`CautionsLisibles`) : la liste ne
+        // rendait au personnel que ses propres ajouts, et à l'auteur parti les siens.
+        $base = CautionsLisibles::restreindre(Guarantor::query(), $user);
 
         // lease_id filters via relationship (not a direct column)
         // TCK-1862 — un `lease_id` qui n'est pas un identifiant rend 400, comme `filter[<x>_id]`,

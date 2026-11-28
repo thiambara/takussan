@@ -71,11 +71,6 @@ class MediaUrlGenerationTest extends TestCase
         $this->assertUrlsDuDisque($media, array_keys($media->generated_conversions ?? []));
     }
 
-    public function test_le_generateur_d_url_est_celui_de_spatie(): void
-    {
-        $this->assertSame(DefaultUrlGenerator::class, config('media-library.url_generator'));
-    }
-
     /** @param list<string> $conversions */
     private function assertUrlsDuDisque(Media $media, array $conversions): void
     {

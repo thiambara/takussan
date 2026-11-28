@@ -37,7 +37,10 @@ vi.mock('@/lib/queries/booking-gestes-du-client', async (orig) => ({
 
 const maintenant = new Date('2026-11-15T10:00:00Z');
 const nom = fr.bookings.fiche.dossier.pieces.employment_certificate;
-const rendre = (personnel: boolean, client: boolean) => render(withIntl(<PiecesDuDossier bookingId={3} personnel={personnel} client={client} maintenant={maintenant} />));
+// TCK-3007 — les gestes viennent des `abilities` : le personnel demande (`request_dossier_piece`), le client
+// dépose (`upload_dossier_piece` sans « Demander »), le bailleur ne fait ni l'un ni l'autre.
+const rendre = (personnel: boolean, client: boolean) =>
+  render(withIntl(<PiecesDuDossier bookingId={3} personnel={personnel} demander={personnel} deposer={client} maintenant={maintenant} />));
 
 describe('Dossier — le dépôt du client (TCK-2879)', () => {
   beforeEach(() => {

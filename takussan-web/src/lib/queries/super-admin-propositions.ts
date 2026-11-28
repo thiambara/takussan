@@ -1,4 +1,4 @@
-import { ApiError } from '@/lib/api';
+import { appelBff } from '@/lib/bff';
 import { cheminApi, requete } from '@/lib/chemin-api';
 
 /**
@@ -84,14 +84,6 @@ interface Enveloppe<T> {
   readonly meta: MetaDePage;
 }
 
-async function jsonOrThrow<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new ApiError(res.status, data);
-  }
-  return res.json() as Promise<T>;
-}
-
 /** Un auteur sans nom (prénom et nom vides) n'est pas un auteur affichable. */
 function nomDAuteur(auteur: Auteur | null): string | null {
   const nom = auteur?.name.trim() ?? '';
@@ -115,13 +107,11 @@ function depuisEquipement(e: EquipementAdmin): Proposition {
 }
 
 async function lireQuartiers(qs: URLSearchParams): Promise<Enveloppe<QuartierAdmin>> {
-  const res = await fetch(cheminApi`/api/super-admin/geo/neighborhoods${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<Enveloppe<QuartierAdmin>>(res);
+  return appelBff<Enveloppe<QuartierAdmin>>(cheminApi`/api/super-admin/geo/neighborhoods${requete(qs)}`);
 }
 
 async function lireEquipements(qs: URLSearchParams): Promise<Enveloppe<EquipementAdmin>> {
-  const res = await fetch(cheminApi`/api/super-admin/tags/proposals${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<Enveloppe<EquipementAdmin>>(res);
+  return appelBff<Enveloppe<EquipementAdmin>>(cheminApi`/api/super-admin/tags/proposals${requete(qs)}`);
 }
 
 /** La file : les propositions EN ATTENTE, les plus récentes d'abord (tri par défaut de l'API). */
@@ -172,19 +162,16 @@ function cheminDeLaProposition(genre: GenreDePropositions, id: number): string {
 /** Approuver, refuser, renommer, fusionner — un geste, une requête. */
 export async function agirSurProposition(genre: GenreDePropositions, id: number, geste: GesteDeModeration): Promise<void> {
   const chemin = cheminDeLaProposition(genre, id);
-  const json = { 'Content-Type': 'application/json', Accept: 'application/json' };
-  let res: Response;
   switch (geste.type) {
     case 'approve':
     case 'reject':
-      res = await fetch(`${chemin}/${geste.type}`, { method: 'POST', credentials: 'include', headers: json });
-      break;
+      await appelBff(`${chemin}/${geste.type}`, { method: 'POST' });
+      return;
     case 'rename':
-      res = await fetch(chemin, { method: 'PATCH', credentials: 'include', headers: json, body: JSON.stringify({ name: geste.name }) });
-      break;
+      await appelBff(chemin, { method: 'PATCH', body: { name: geste.name } });
+      return;
     case 'merge':
-      res = await fetch(`${chemin}/merge`, { method: 'POST', credentials: 'include', headers: json, body: JSON.stringify({ into_id: geste.intoId }) });
-      break;
+      await appelBff(`${chemin}/merge`, { method: 'POST', body: { into_id: geste.intoId } });
+      return;
   }
-  await jsonOrThrow<unknown>(res);
 }

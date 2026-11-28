@@ -6,6 +6,7 @@ import type {
   RadarOutreachProviderStatus,
   RadarVerdictClassification,
 } from '@/types/radar';
+import { ApiError } from '@/lib/api';
 import { RADAR_MESSAGE_LOCALES } from '@/types/radar';
 
 /**
@@ -98,8 +99,7 @@ export function messagesEnAttente(messages: readonly RadarOutreach[]): RadarOutr
 
 /** Les écarts qu'un 422 `radar.consent.reason_required` porte (`params.discordances`), ou `no_verdict` à défaut. */
 export function ecartsDeLErreur(erreur: unknown): string[] {
-  const params = (erreur as { data?: { params?: { discordances?: unknown } } } | null)?.data?.params;
-  const ecarts = params?.discordances;
+  const ecarts = erreur instanceof ApiError ? erreur.params.discordances : undefined;
   return Array.isArray(ecarts) && ecarts.length > 0 && ecarts.every((e) => typeof e === 'string') ? [...ecarts] : ['no_verdict'];
 }
 

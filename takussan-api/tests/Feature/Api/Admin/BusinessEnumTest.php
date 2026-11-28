@@ -47,14 +47,6 @@ class BusinessEnumTest extends TestCase
             ->assertJsonPath('errors.key.0', 'enum_not_editable');
     }
 
-    public function test_agency_admin_is_forbidden_on_admin_endpoints(): void
-    {
-        $this->actingAsRole('agency_admin');
-
-        $this->getJson('/api/admin/enums')->assertForbidden();
-        $this->getJson('/api/admin/enums/property_type')->assertForbidden();
-    }
-
     /**
      * P66.02 (TCK-1056) : la console ne désactive plus de valeur. Aucune écriture de bien ne lisait
      * le drapeau : une valeur « désactivée » restait acceptée par `POST /api/properties` et

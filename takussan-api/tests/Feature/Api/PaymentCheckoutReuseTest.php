@@ -2,22 +2,17 @@
 
 namespace Tests\Feature\Api;
 
-use App\Contracts\Payments\PaymentDriverContract;
 use App\Models\AppNotification;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\User;
-use App\Services\Payments\Dto\CheckoutSession;
-use App\Services\Payments\Dto\PaymentEvent;
-use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
 use App\Services\Payments\PaymentGatewayService;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
+use Tests\Support\FakeWave;
 use Tests\Support\LeaseDueFixture;
 use Tests\TestCase;
 
@@ -42,13 +37,13 @@ class PaymentCheckoutReuseTest extends TestCase
     public function test_un_double_clic_rend_le_meme_checkout(): void
     {
         $ctx = $this->leaseDue();
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $first = $this->initiate($ctx['payment']->id)->assertOk()->json('data');
         $second = $this->initiate($ctx['payment']->id)->assertOk()->json('data');
 
-        $this->assertCount(1, $spy->calls, 'Un second checkout a été ouvert alors que le premier vivait.');
+        $this->assertCount(1, $spy->checkouts, 'Un second checkout a été ouvert alors que le premier vivait.');
         $this->assertSame($first['checkout_url'], $second['checkout_url']);
         $this->assertSame($first['transaction_id'], $second['transaction_id']);
     }
@@ -56,7 +51,7 @@ class PaymentCheckoutReuseTest extends TestCase
     public function test_un_autre_fournisseur_est_refuse_tant_que_le_checkout_vit(): void
     {
         $ctx = $this->leaseDue();
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->initiate($ctx['payment']->id)->assertOk();
@@ -64,7 +59,7 @@ class PaymentCheckoutReuseTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('code', 'payment.checkout_in_progress');
 
-        $this->assertCount(1, $spy->calls);
+        $this->assertCount(1, $spy->checkouts);
     }
 
     public function test_un_checkout_a_un_autre_montant_n_est_pas_rendu(): void
@@ -72,7 +67,7 @@ class PaymentCheckoutReuseTest extends TestCase
         // Passe 2, N2 — un checkout ouvert à 150 000, puis l'agence active l'encaissement en ligne
         // de la pénalité : l'écran dit 157 500. Le second clic rendait le checkout à 150 000.
         $ctx = $this->leaseDue(['late_fee_online_collection' => false]);
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
 
@@ -88,18 +83,18 @@ class PaymentCheckoutReuseTest extends TestCase
             ->assertJsonPath('checkout.currency', 'XOF')
             ->assertJsonPath('checkout.age_minutes', 5)
             ->assertJsonPath('checkout.retry_after', $initiatedAt->addMinutes(config('payments.checkout_reuse_minutes'))->toIso8601String());
-        $this->assertCount(1, $spy->calls);
+        $this->assertCount(1, $spy->checkouts);
 
         // Au même montant, le checkout est rendu tel quel.
         $ctx['agency']->update(['settings' => ['late_fee_online_collection' => false]]);
         $this->initiate($ctx['payment']->id)->assertOk()->assertJsonPath('data.transaction_id', 'spy_txn_1');
-        $this->assertCount(1, $spy->calls);
+        $this->assertCount(1, $spy->checkouts);
     }
 
     public function test_un_checkout_expire_ou_en_echec_n_est_plus_reutilise(): void
     {
         $ctx = $this->leaseDue();
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->initiate($ctx['payment']->id)->assertOk();
@@ -107,12 +102,12 @@ class PaymentCheckoutReuseTest extends TestCase
         // Échec rapporté : un nouveau checkout s'ouvre aussitôt.
         $this->waveWebhook('spy_txn_1', null, 'checkout.session.payment_failed')->assertOk();
         $this->initiate($ctx['payment']->id)->assertOk();
-        $this->assertCount(2, $spy->calls);
+        $this->assertCount(2, $spy->checkouts);
 
         // Au-delà de la durée de vie : de même.
         $this->travel(config('payments.checkout_reuse_minutes') + 1)->minutes();
         $this->initiate($ctx['payment']->id)->assertOk();
-        $this->assertCount(3, $spy->calls);
+        $this->assertCount(3, $spy->checkouts);
 
         $history = array_column($ctx['payment']->refresh()->metadata['gateway']['transactions'], 'transaction_id');
         $this->assertSame(['spy_txn_1', 'spy_txn_2', 'spy_txn_3'], $history);
@@ -123,7 +118,7 @@ class PaymentCheckoutReuseTest extends TestCase
         // Passe 2, N1 — checkout 1 abandonné, checkout 2 ouvert 31 min plus tard, puis l'échec du
         // 1 arrive : il fermait le 2, et le clic suivant ouvrait un TROISIÈME checkout vivant.
         $ctx = $this->leaseDue();
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->initiate($ctx['payment']->id)->assertOk();
@@ -132,7 +127,7 @@ class PaymentCheckoutReuseTest extends TestCase
         $this->waveWebhook('spy_txn_1', null, 'checkout.session.payment_failed')->assertOk();
 
         $this->assertSame('spy_txn_2', $this->initiate($ctx['payment']->id)->assertOk()->json('data.transaction_id'));
-        $this->assertCount(2, $spy->calls);
+        $this->assertCount(2, $spy->checkouts);
 
         $gateway = $ctx['payment']->refresh()->metadata['gateway'];
         $this->assertArrayNotHasKey('last_failed_at', $gateway);
@@ -151,7 +146,7 @@ class PaymentCheckoutReuseTest extends TestCase
     public function test_le_webhook_d_un_checkout_anterieur_retrouve_son_echeance(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->initiate($ctx['payment']->id)->assertOk();
@@ -169,7 +164,7 @@ class PaymentCheckoutReuseTest extends TestCase
         $ctx = $this->leaseDue();
         $admin = User::factory()->create(['agency_id' => $ctx['agency']->id]);
         $ctx['agency']->update(['primary_admin_id' => $admin->id]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->initiate($ctx['payment']->id)->assertOk();
@@ -204,7 +199,7 @@ class PaymentCheckoutReuseTest extends TestCase
         $ctx = $this->leaseDue();
         $admin = User::factory()->create(['agency_id' => $ctx['agency']->id]);
         $ctx['agency']->update(['primary_admin_id' => $admin->id]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
 
         $this->initiate($ctx['payment']->id)->assertOk();
@@ -230,24 +225,8 @@ class PaymentCheckoutReuseTest extends TestCase
         // La vérification forcée n'a pas la déduplication des webhooks : c'est `settled_by` qui
         // dit que le payable a été soldé par CE règlement.
         $ctx = $this->leaseDue();
-        $driver = new class implements PaymentDriverContract
-        {
-            public function initiate(Model $payment, int $amountCents, string $currency, array $meta = []): CheckoutSession
-            {
-                return new CheckoutSession('https://pay.example/c/1', 'spy_txn_1', 'wave');
-            }
-
-            public function verify(string $externalId): DriverStatus
-            {
-                return new DriverStatus(DriverStatus::SUCCESS, $externalId, []);
-            }
-
-            public function handleWebhook(Request $request): PaymentEvent
-            {
-                throw new \LogicException('non utilisé');
-            }
-        };
-        $this->partialMock(PaymentGatewayService::class, fn ($mock) => $mock->shouldReceive('driverFor')->andReturn($driver));
+        // TCK-3014 (ADR-0140 § 5) — Wave derrière le client HTTP, qui rend la session réglée à la vérification.
+        FakeWave::install('spy_txn_')->reglerALaVerification();
 
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
@@ -300,7 +279,7 @@ class PaymentCheckoutReuseTest extends TestCase
         // Le témoin : la même ligne réglée À LA MAIN (marque `manual`) — le webhook de son checkout
         // reste un doublon.
         $other = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($other['tenant']);
         $this->initiate($other['payment']->id)->assertOk();
         $this->travel(config('payments.checkout_reuse_minutes') + 1)->minutes();
@@ -314,7 +293,7 @@ class PaymentCheckoutReuseTest extends TestCase
     public function test_especes_refusees_tant_que_le_checkout_vit_puis_doublon_marque(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
 
@@ -339,7 +318,7 @@ class PaymentCheckoutReuseTest extends TestCase
     {
         // V4 — réglage activé : le checkout ouvert inclut la pénalité.
         $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
 
@@ -365,7 +344,7 @@ class PaymentCheckoutReuseTest extends TestCase
         $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
         $admin = User::factory()->create(['agency_id' => $ctx['agency']->id]);
         $ctx['agency']->update(['primary_admin_id' => $admin->id]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
 
@@ -407,7 +386,7 @@ class PaymentCheckoutReuseTest extends TestCase
         $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
         $admin = User::factory()->create(['agency_id' => $ctx['agency']->id]);
         $ctx['agency']->update(['primary_admin_id' => $admin->id]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->initiate($ctx['payment']->id)->assertOk();
         $payment = $ctx['payment']->refresh();

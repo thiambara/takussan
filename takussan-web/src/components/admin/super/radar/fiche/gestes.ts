@@ -52,6 +52,4 @@ export const dialogueOuvert = (cible: EventTarget | null = null): boolean =>
 export const estConflitDEtape = (erreur: unknown): boolean =>
   erreur instanceof ApiError
   && erreur.status === 409
-  && typeof erreur.data === 'object'
-  && erreur.data !== null
-  && (erreur.data as { code?: unknown }).code === 'radar.listing.stage_conflict';
+  && erreur.codeMetier === 'radar.listing.stage_conflict';

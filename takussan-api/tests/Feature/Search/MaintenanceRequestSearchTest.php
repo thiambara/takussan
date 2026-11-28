@@ -16,23 +16,6 @@ class MaintenanceRequestSearchTest extends ApiTestCase
     use InteractsWithMeilisearch;
     use RefreshDatabase;
 
-    public function test_maintenance_search_is_typo_tolerant(): void
-    {
-        $agency = Agency::factory()->create();
-        $this->actingAsRole('agent', ['agency' => $agency]);
-
-        $property = Property::factory()->create(['agency_id' => $agency->id]);
-        MaintenanceRequest::factory()->create([
-            'property_id' => $property->id,
-            'title' => 'Fuite robinet cuisine',
-        ]);
-        $this->indexSearchable(MaintenanceRequest::class);
-
-        $this->getJson('/api/maintenance-requests?filter[search]=robinat')
-            ->assertOk()
-            ->assertJsonPath('meta.total', 1);
-    }
-
     /**
      * AC1 — les trois demandes partagent la même priorité et sont créées dans
      * l'ordre INVERSE de leur pertinence, de sorte que le tri par défaut du

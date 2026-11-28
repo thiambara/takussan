@@ -26,22 +26,16 @@ class RechercheParVillesTest extends ApiTestCase
 
     private const CADRAGE = '14.0,-18.0,17.0,-15.0';
 
-    public function test_cities_en_liste_a_virgules_garde_chaque_ville_en_liste_et_en_carte(): void
+    /** Les deux formes, liste à virgules et tableau, gardent chaque ville, en liste et en carte. */
+    public function test_cities_en_liste_a_virgules_ou_en_tableau_garde_chaque_ville_en_liste_et_en_carte(): void
     {
         [$dakar, $thies] = $this->troisBiens();
 
         $attendu = $this->tries([$dakar->id, $thies->id]);
-        $this->assertSame($attendu, $this->idsDeLaListe('cities=Dakar,Thi%C3%A8s'));
-        $this->assertSame($attendu, $this->idsDeLaCarte('cities=Dakar,Thi%C3%A8s'));
-    }
-
-    public function test_cities_en_tableau_garde_chaque_ville(): void
-    {
-        [$dakar, $thies] = $this->troisBiens();
-
-        $attendu = $this->tries([$dakar->id, $thies->id]);
-        $this->assertSame($attendu, $this->idsDeLaListe('cities[]=Dakar&cities[]=Thi%C3%A8s'));
-        $this->assertSame($attendu, $this->idsDeLaCarte('cities[]=Dakar&cities[]=Thi%C3%A8s'));
+        foreach (['cities=Dakar,Thi%C3%A8s', 'cities[]=Dakar&cities[]=Thi%C3%A8s'] as $forme) {
+            $this->assertSame($attendu, $this->idsDeLaListe($forme), $forme);
+            $this->assertSame($attendu, $this->idsDeLaCarte($forme), $forme);
+        }
     }
 
     public function test_cities_borne_le_nombre_et_la_longueur_comme_le_critere_sauvegarde(): void

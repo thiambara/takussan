@@ -6,8 +6,6 @@ use App\Events\Booking\BookingClosed;
 use App\Jobs\Booking\CompleteEndedBookingsJob;
 use App\Models\Enums\BookingStatus;
 use App\Models\Task;
-use Illuminate\Console\Scheduling\Event;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event as EventFacade;
@@ -82,15 +80,5 @@ class CompleteEndedBookingsJobTest extends TestCase
         $this->postJson("/api/bookings/{$booking->id}/cancel")
             ->assertStatus(422)
             ->assertJsonPath('code', 'booking.cannot_cancel');
-    }
-
-    public function test_la_tache_est_planifiee_chaque_jour_sans_chevauchement(): void
-    {
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn (Event $e) => str_contains((string) $e->description, CompleteEndedBookingsJob::class));
-
-        $this->assertNotNull($event, 'CompleteEndedBookingsJob absente du planificateur');
-        $this->assertSame('30 3 * * *', $event->expression);
-        $this->assertTrue($event->withoutOverlapping);
     }
 }

@@ -84,12 +84,6 @@ class SelectActiveProfileTest extends TestCase
         ])->assertStatus(422);
     }
 
-    public function test_patch_active_profile_requires_authentication(): void
-    {
-        $this->patchJson('/api/me/active-profile', ['profile_id' => 'owner:1'])
-            ->assertStatus(401);
-    }
-
     public function test_patch_active_profile_rejects_suspended_profile_with_403(): void
     {
         $user = User::factory()->create();

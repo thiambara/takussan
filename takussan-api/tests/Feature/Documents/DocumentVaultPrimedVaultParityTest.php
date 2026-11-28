@@ -19,10 +19,8 @@ use App\Models\User;
 use App\Services\Documents\DocumentVault;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Payout\OwnerStatementSnapshots;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use ReflectionMethod;
 use RuntimeException;
 use Tests\Support\CoffreDeDocuments;
 use Tests\TestCase;
@@ -44,6 +42,9 @@ class DocumentVaultPrimedVaultParityTest extends TestCase
 {
     use CoffreDeDocuments;
     use RefreshDatabase;
+
+    /** Un identifiant qu'aucun compte ni aucune agence ne porte : l'amorce qu'il pose ne couvre personne. */
+    private const PERSONNE = -1;
 
     private Agency $agencyB;
 
@@ -146,21 +147,35 @@ class DocumentVaultPrimedVaultParityTest extends TestCase
         }
     }
 
-    /** @return array<string, mixed> le coffre construit SANS amorce (`build()`, privée) */
-    private function construire(User $user, ?Model $profil): array
+    /**
+     * TCK-3014 (ADR-0140 § 5) — `$appel` SANS amorce, par l'interface publique : une amorce déjà
+     * posée rend `primed()` inerte (`self::$amorce !== null`), et une amorce qui ne couvre aucun
+     * couple réel laisse chaque jugement à sa requête (« hors d'elles, chaque jugement reste une
+     * requête »). `for()` et `generatedFor()` y jugent donc comme `build()` et `generatedOf()` seuls,
+     * qu'on appelait par réflexion.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $appel
+     * @return T
+     */
+    private function sansAmorce(callable $appel): mixed
     {
-        return (new ReflectionMethod(DocumentVault::class, 'build'))->invoke(new DocumentVault, $user, $profil?->fresh());
+        return MembershipCapabilityResolver::primed([self::PERSONNE], [self::PERSONNE], $appel);
     }
 
-    /** @return list<array<string, mixed>> les générés d'une cible SANS amorce (`generatedOf()`, privée) */
+    /** @return array<string, mixed> le coffre construit sans amorce */
+    private function construire(User $user, ?Model $profil): array
+    {
+        return $this->sansAmorce(fn (): array => (new DocumentVault)->for($user, $profil?->fresh()));
+    }
+
+    /** @return list<array<string, mixed>> les générés d'une cible sans amorce */
     private function generesSansAmorce(User $user, Lease|Property $cible): array
     {
         $cible = $cible::query()->findOrFail($cible->getKey());
-        $baux = $cible instanceof Lease
-            ? new Collection([$cible->loadMissing(['property', 'tenant'])])
-            : $cible->leases()->with(['property', 'tenant'])->get();
 
-        return (new ReflectionMethod(DocumentVault::class, 'generatedOf'))->invoke(new DocumentVault, $user, $cible, $baux);
+        return $this->sansAmorce(fn (): array => (new DocumentVault)->generatedFor($user, $cible));
     }
 
     public function test_le_coffre_et_les_generes_sont_les_memes_amorces_et_non_amorces(): void

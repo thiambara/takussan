@@ -28,7 +28,6 @@ use App\Http\Resources\ReviewResource;
 use App\Jobs\NotifyNewMessageJob;
 use App\Models\Booking;
 use App\Models\ConsentProof;
-use App\Models\Customer;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingSource;
 use App\Models\Enums\BookingStatus;
@@ -38,8 +37,6 @@ use App\Models\Enums\MessageType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\ReferentialStatus;
 use App\Models\Enums\RentPeriod;
-use App\Models\Enums\VisitStatus;
-use App\Models\Enums\VisitType;
 use App\Models\Enums\VisitWindow;
 use App\Models\GeoNeighborhood;
 use App\Models\Property;
@@ -67,7 +64,7 @@ use App\Services\Search\FiltresDeLaCarte;
 use App\Services\Search\PropertySearchService;
 use App\Services\Search\RepartitionDesPrix;
 use App\Services\Search\SearchJournal;
-use App\Services\Visit\VisitNotifier;
+use App\Services\Visit\GestesDeLaVisite;
 use App\Services\Visit\VisitSchedulingService;
 use App\Support\CaseInsensitive;
 use App\Support\DistanceHaversine;
@@ -908,7 +905,7 @@ class PublicPropertyController extends Controller
      * notification, ni quota**, alors que c'est le chemin que TOUS les clients empruntent. Elle
      * passe désormais par les mêmes garde-fous que le chemin authentifié :
      *
-     *   · le quota de visites actives (`VisitSchedulingService::createOrFail`) ;
+     *   · le quota de visites actives (`GestesDeLaVisite::demander`, le chemin de toute demande) ;
      *   · `agent_id` = le contact principal **s'il est personnel de l'agence du bien**, sinon la
      *     visite est « non attribuée » (contrainte 2) ;
      *   · `customer_id` = la fiche du visiteur DANS l'agence du bien, ou rien — `$user->customer`
@@ -917,7 +914,7 @@ class PublicPropertyController extends Controller
      *     destinataire ni agence, 409 avant toute écriture (contrainte 1) ;
      *   · le dépôt n'envoie AUCUN SMS au visiteur (contrainte 4).
      */
-    public function visitRequest(VisitRequestPublicPropertyRequest $request, VisitSchedulingService $scheduling, VisitNotifier $notifier, ContactLeadService $leads, string $slug): JsonResponse
+    public function visitRequest(VisitRequestPublicPropertyRequest $request, GestesDeLaVisite $gestes, ContactLeadService $leads, string $slug): JsonResponse
     {
         $property = $request->property()->loadMissing(PrimaryPropertyContact::eagerLoads());
         $user = $request->user();
@@ -928,40 +925,28 @@ class PublicPropertyController extends Controller
         }
 
         $primary = PrimaryPropertyContact::for($property);
-        $agentId = PersonnelDeLAgence::estPersonnel($primary, $property->agency_id) ? $primary->id : null;
-
-        $customerId = ($user !== null && $property->agency_id !== null)
-            ? Customer::query()->where('user_id', $user->id)->where('agency_id', $property->agency_id)->value('id')
-            : null;
 
         // TCK-2502 — un jour et une tranche, à la place d'une heure : la visite est rangée au début
         // de la tranche, à Dakar, et la tranche dit que l'heure reste à fixer par l'agent.
         $window = isset($data['preferred_window']) ? VisitWindow::from($data['preferred_window']) : null;
 
-        $visit = $scheduling->createOrFail($property, $user, [
-            'property_id' => $property->id,
-            'visitor_id' => $user?->id,
-            'customer_id' => $customerId,
-            'agent_id' => $agentId,
+        // TCK-3005 — le chemin unique de la demande (`GestesDeLaVisite::demander`) : fiche, quota,
+        // demande rejouée, avis à l'agence. Cette porte-ci attribue le contact principal s'il est du
+        // personnel de l'agence du bien, et pose la durée par défaut.
+        $visit = $gestes->demander($property, $user, [
+            'agent_id' => PersonnelDeLAgence::estPersonnel($primary, $property->agency_id) ? $primary->id : null,
             // TCK-2743 — hors tranche, l'instant que l'heure reçue désigne, et non son heure murale.
             'scheduled_at' => $window !== null ? $window->startOn($data['date'])->utc() : $request->scheduledAt(),
             'preferred_window' => $window,
-            'type' => $data['type'] ?? VisitType::InPerson->value,
+            'type' => $data['type'] ?? null,
             'duration_minutes' => $data['duration_minutes'] ?? VisitSchedulingService::DEFAULT_DURATION_MINUTES,
-            'status' => VisitStatus::Scheduled->value,
-            'visitor_name' => $data['visitor_name'] ?? trim(($user?->first_name ?? '').' '.($user?->last_name ?? '')) ?: null,
-            'visitor_email' => $data['visitor_email'] ?? $user?->email,
-            'visitor_phone' => $data['visitor_phone'] ?? $user?->phone,
+            'visitor_name' => $data['visitor_name'] ?? null,
+            'visitor_email' => $data['visitor_email'] ?? null,
+            'visitor_phone' => $data['visitor_phone'] ?? null,
             'notes' => $data['notes'] ?? null,
             'source' => $data['source'] ?? null,
             'medium' => $data['medium'] ?? null,
-            'locale' => app()->getLocale(),
         ]);
-
-        // TCK-1410 — une demande rejouée au même créneau rend la visite déjà ouverte : déjà prévenue.
-        if ($visit->wasRecentlyCreated) {
-            $notifier->requested($visit->fresh(['property', 'agent']));
-        }
 
         return $this->json([
             'data' => PropertyVisitResource::make($visit)->resolve($request),

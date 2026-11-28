@@ -8,6 +8,7 @@ import { useDejaOuvert } from '@/hooks/useDejaOuvert';
 import type { MinimalProfilePayload } from './CustomerMinimalProfileSheet';
 import { useAccueilsVus } from '@/hooks/useAccueilsVus';
 import { isCustomerOnly } from '@/lib/roles';
+import { appelBff } from '@/lib/bff';
 
 /**
  * TCK-253 — Mounts the minimal-profile sheet once at the dashboard shell
@@ -86,17 +87,8 @@ export function MinimalProfileTriggerProvider({
   };
 
   const handleSave = useCallback(async (payload: MinimalProfilePayload) => {
-    const res = await fetch('/api/me', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      // Surface a generic error — the sheet keeps the form filled so the
-      // user can retry without retyping.
-      throw new Error('save_failed');
-    }
+    // Un refus lève une `ApiError` : la feuille garde le formulaire rempli, l'utilisateur réessaie sans retaper.
+    await appelBff('/api/me', { method: 'PATCH', body: payload });
   }, []);
 
   const value = useMemo(() => ({ triggerIfNeeded }), [triggerIfNeeded]);

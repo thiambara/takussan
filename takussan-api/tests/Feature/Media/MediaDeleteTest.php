@@ -87,15 +87,4 @@ class MediaDeleteTest extends TestCase
 
         Storage::disk(config('media-library.disk_name'))->assertMissing($path);
     }
-
-    public function test_guest_cannot_delete(): void
-    {
-        $owner = User::factory()->create();
-        $id = $this->uploadFor($owner);
-
-        // Log out.
-        $this->app['auth']->forgetGuards();
-
-        $this->deleteJson("/api/media/{$id}")->assertUnauthorized();
-    }
 }

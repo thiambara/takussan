@@ -26,9 +26,8 @@ const TARIFS_VIDES: AiModelPrices = { input: '', output: '', cache_read: '', cac
 
 /** Un retrait refusé (`AiModelController`) : l'API nomme ce qui emploie encore le modèle. */
 function emploisDe(error: unknown): AiModelUses | null {
-  if (!(error instanceof ApiError) || error.status !== 409 || typeof error.data !== 'object' || error.data === null) return null;
-  const { code, uses } = error.data as { code?: unknown; uses?: AiModelUses };
-  return code === 'ai.model_in_use' && uses ? uses : null;
+  if (!(error instanceof ApiError) || error.status !== 409 || error.codeMetier !== 'ai.model_in_use') return null;
+  return (error.data as { uses?: AiModelUses }).uses ?? null;
 }
 
 /** Une ligne de la console se modifie ; un modèle de la configuration se corrige en créant la sienne, qui l'emporte. */

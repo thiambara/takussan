@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 
-import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
+import { ApiError, apiRequest, refusDAction, type RefusDAction } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import type { PropertyDetail } from '@/types/property';
@@ -16,7 +16,7 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
  */
 export type ResultatPublication =
   | { ok: true; data: PropertyDetail }
-  | { ok: false; status?: number; message: string; missing: string[] | null; contactIsSelf: boolean };
+  | ({ ok: false; status?: number; missing: string[] | null; contactIsSelf: boolean } & RefusDAction);
 
 export async function publishPropertyAction(
   propertyId: number,
@@ -66,17 +66,17 @@ async function envoyer(
     return { ok: true, data: res.data };
   } catch (err) {
     journaliserErreurInattendue('publish-property', err);
-    const corps = err instanceof ApiError
-      ? (err.data as { code?: unknown; missing?: unknown; contact_is_self?: unknown } | null)
-      : null;
-    const missing = corps?.code === 'property.publish_contact_incomplete' && Array.isArray(corps.missing)
+    const incomplet = err instanceof ApiError && err.codeMetier === 'property.publish_contact_incomplete';
+    // `missing` et `contact_is_self` sont rangés À CÔTÉ du code, pas dans `params`.
+    const corps = incomplet ? (err.data as { missing?: unknown; contact_is_self?: unknown }) : null;
+    const missing = corps && Array.isArray(corps.missing)
       ? corps.missing.filter((m): m is string => typeof m === 'string')
       : null;
     const repli = (await getTranslations('property.form.publishContact'))('failed');
     return {
       ok: false,
       status: err instanceof ApiError ? err.status : undefined,
-      message: messageErreurApi(err, await getTranslations(), repli),
+      ...refusDAction(err, await getTranslations(), repli),
       missing,
       contactIsSelf: missing !== null ? corps?.contact_is_self === true : true,
     };

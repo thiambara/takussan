@@ -10,7 +10,6 @@ use App\Models\Customer;
 use App\Models\Enums\Currency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
-use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\Lease;
@@ -171,10 +170,10 @@ class MergedReminderPayLinkTest extends TestCase
     {
         $this->bail();
         $avis = $this->relancer('2026-11-06');
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
 
         $this->postJson('/api/pay/'.$this->jeton($avis->params['payment_url']).'/initiate', ['provider' => 'wave'])->assertOk();
-        $this->assertSame(50_000_000, end($spy->calls)['amount_cents'], 'le lien du loyer encaisse 500 000');
+        $this->assertSame(500_000, end($spy->checkouts)['amount'], 'le lien du loyer encaisse 500 000');
         $this->waveWebhook('spy_txn_1', 500_000)->assertOk();
 
         $this->assertSame(PaymentStatus::Paid, $this->loyer->fresh()->status);
@@ -264,11 +263,11 @@ class MergedReminderPayLinkTest extends TestCase
     public function test_une_echeance_sans_paiement_en_ligne_retire_tous_les_liens(): void
     {
         $this->bail();
-        $this->partialMock(PaymentGatewayService::class, function ($mock): void {
-            $mock->shouldReceive('availableProviders')->andReturnUsing(
-                fn (LeasePayment $due): array => $due->payment_type === LeasePaymentType::Charges ? [] : [PaymentProvider::Wave],
-            );
-        });
+        // TCK-3014 (ADR-0140 § 5) — les charges dans une devise que Wave, seul fournisseur actif, ne sert
+        // pas : `availableProviders()` ne leur offre rien, sans doublure du service.
+        $this->charges->forceFill(['currency' => Currency::EUR])->save();
+        $this->assertSame([], app(PaymentGatewayService::class)->availableProviders($this->charges->fresh()), 'prémisse : les charges ne se paient pas en ligne');
+        $this->assertNotSame([], app(PaymentGatewayService::class)->availableProviders($this->loyer->fresh()), 'prémisse : le loyer, si');
 
         $avis = $this->relancer('2026-11-06');
 

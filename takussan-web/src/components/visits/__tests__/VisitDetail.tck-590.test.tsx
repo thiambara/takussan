@@ -14,6 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
+import { avecLesGestesDeLApi } from './fixtures/gestes-comme-l-api';
 
 const etat = vi.hoisted(() => ({
   visit: null as PropertyVisit | null,
@@ -37,7 +38,7 @@ vi.mock('@/lib/api', async (orig) => ({
   apiFetch: (...args: unknown[]) => apiFetch(...args),
 }));
 vi.mock('@/lib/queries/visits', () => ({
-  useVisit: () => ({ data: { data: etat.visit }, isLoading: false, isError: false }),
+  useVisit: () => ({ data: { data: avecLesGestesDeLApi(etat.visit) }, isLoading: false, isError: false }),
   useCancelVisit: () => mutation,
   useCompleteVisit: () => mutation,
   useConfirmVisit: () => mutation,
@@ -140,16 +141,18 @@ describe('<VisitDetail> — TCK-590', () => {
     expect(screen.queryByRole('button', { name: /^Prendre en charge/ })).not.toBeInTheDocument();
     unmount();
 
-    etat.visit = visite();
+    // TCK-3005 — le bailleur d'un bien d'agence : l'API ne lui accorde aucun geste de l'agence.
+    etat.visit = visite({ abilities: { manage: false } });
     etat.user = { id: 7, roles: ['owner'] };
     rendreLeDetail();
-    await ouvrirLeMenu();
+    // Aucun geste : pas même le menu « ⋯ ».
+    expect(screen.queryByRole('button', { name: 'Plus d’actions' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Prendre en charge/ })).not.toBeInTheDocument();
   });
 
   it('le visiteur propose un autre créneau : grille de l’API, 10:00 à Dakar depuis Paris', async () => {
     etat.user = { id: 30, roles: ['customer'] };
-    etat.visit = visite({ visitor_id: 30, agent_id: 7, status: 'confirmed', abilities: { manage: false } });
+    etat.visit = visite({ visitor_id: 30, agent_id: 7, status: 'confirmed', abilities: { manage: false, feedback_customer: true } });
     const user = userEvent.setup();
     rendreLeDetail();
 

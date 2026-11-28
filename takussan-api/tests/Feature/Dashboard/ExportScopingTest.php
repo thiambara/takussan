@@ -8,8 +8,10 @@ use App\Models\Enums\Capability;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Payout;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
@@ -148,6 +150,33 @@ class ExportScopingTest extends ApiTestCase
         $this->assertStringNotContainsString($foreign->email, $customers);
     }
 
+    /**
+     * TCK-3006 — l'export ne rend jamais plus que la liste (`ClientsLisibles`). Le personnel sans
+     * `crm.view_all` lit ses propres fiches, jamais celle d'un collègue ; `crm.export` seul lui
+     * rendait toutes les fiches de l'agence, nom, e-mail et téléphone compris.
+     */
+    public function test_staff_without_crm_view_all_exports_only_the_customers_his_list_shows(): void
+    {
+        $membre = $this->adminWithout($this->agencyA, Capability::CrmViewAll);
+        $sienne = Customer::factory()->create(['agency_id' => $this->agencyA->id, 'added_by_id' => $membre->id, 'email' => 'sienne@agence-a.test']);
+        $this->actingAs($membre, 'sanctum');
+
+        $customers = $this->export('customers');
+        $this->assertStringContainsString($sienne->email, $customers);
+        $this->assertStringNotContainsString($this->tenantA->email, $customers);
+        $this->assertSame([$sienne->id], collect($this->apiGet('/api/customers?per_page=100')->assertOk()->json('data'))->pluck('id')->all());
+    }
+
+    /** TCK-3006 — même plafond pour les reversements (`ReversementsLisibles` : `payouts.create`). */
+    public function test_staff_without_payouts_create_does_not_export_the_payouts_his_list_refuses(): void
+    {
+        Payout::factory()->create(['agency_id' => $this->agencyA->id, 'reference_number' => 'PO-CIBLE-A']);
+        $this->actingAs($this->adminWithout($this->agencyA, Capability::PayoutsCreate), 'sanctum');
+
+        $this->assertStringNotContainsString('PO-CIBLE-A', $this->export('payouts'));
+        $this->assertSame([], $this->apiGet('/api/payouts?per_page=100')->assertOk()->json('data'));
+    }
+
     public function test_agency_staff_never_export_the_properties_of_another_agency(): void
     {
         $foreign = Property::factory()->create([
@@ -194,6 +223,27 @@ class ExportScopingTest extends ApiTestCase
             $ids,
         );
         $this->assertCount(1, $ids);
+    }
+
+    /**
+     * TCK-3018 — le bailleur qui est AUSSI locataire d'un autre bail de l'agence n'exporte pas ce bail :
+     * l'export d'un bailleur est celui de ses biens ({@see BailleurDuBien}). Le plafond de la liste
+     * (`BauxLisibles`, TCK-3006) lui laisse lire ce bail ; sans la borne du bailleur, il partait aussi.
+     */
+    public function test_an_owner_who_is_also_a_tenant_exports_only_the_leases_he_lets(): void
+    {
+        $this->actingAs($this->ownerA, 'sanctum');
+        $this->materializeRoleProfile($this->ownerA, 'owner', $this->agencyA);
+        $commeLocataire = Lease::factory()->active()->create([
+            'agency_id' => $this->agencyA->id,
+            'tenant_id' => Customer::factory()->create(['agency_id' => $this->agencyA->id, 'user_id' => $this->ownerA->id])->id,
+            'property_id' => Property::factory()->create(['agency_id' => $this->agencyA->id])->id,
+        ]);
+
+        $ids = array_map(static fn (string $line): int => (int) str_getcsv($line, escape: '\\')[0], $this->dataLines($this->export('leases')));
+
+        $this->assertNotContains($commeLocataire->id, $ids);
+        $this->assertSame(Lease::query()->where('landlord_id', $this->ownerA->id)->pluck('id')->all(), $ids);
     }
 
     public function test_an_owner_exports_only_his_own_properties(): void

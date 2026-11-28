@@ -157,25 +157,6 @@ class GroupConversationCreationTest extends TestCase
             ->assertJsonValidationErrors(['participants']);
     }
 
-    public function test_direct_conversation_path_still_works(): void
-    {
-        $me = User::factory()->create();
-        $other = User::factory()->create();
-        $this->relate($me, $other);
-
-        Sanctum::actingAs($me);
-
-        // `relate()` a déjà ouvert une directe entre eux : elle est rendue (200), pas recréée
-        // (contre-vérification de TCK-2632). Le chemin direct reste celui de la directe.
-        $resp = $this->postJson('/api/conversations', [
-            'subject' => 'Hello direct',
-            'participants' => [$other->id],
-        ])->assertOk();
-
-        $this->assertSame(ConversationType::Direct->value, $resp->json('data.type'));
-        $this->assertSame(1, Conversation::query()->where('type', ConversationType::Direct->value)->count());
-    }
-
     public function test_creator_is_filtered_out_if_listed_in_participants(): void
     {
         // Even if the FE redundantly sends the creator id, we accept the

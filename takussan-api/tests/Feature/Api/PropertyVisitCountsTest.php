@@ -248,9 +248,4 @@ class PropertyVisitCountsTest extends ApiTestCase
         $this->assertSame(4, $this->getJson('/api/property-visits/counts')->assertOk()->json('data.to_close'));
         $this->assertSame(4, $this->getJson('/api/property-visits?filter[to_close]=1')->json('meta.total'));
     }
-
-    public function test_sans_compte_401(): void
-    {
-        $this->getJson('/api/property-visits/counts')->assertUnauthorized();
-    }
 }

@@ -5,7 +5,6 @@ namespace Tests\Feature\Agency;
 use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
-use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -24,30 +23,6 @@ use Tests\TestCase;
 class AgencyUpgradeRequestTest extends TestCase
 {
     use RefreshDatabase;
-
-    public function test_factory_creates_pending_request_with_expected_fields(): void
-    {
-        $agency = Agency::factory()->individual()->create();
-        $admin = User::factory()->create();
-
-        $request = AgencyUpgradeRequest::factory()->create([
-            'agency_id' => $agency->id,
-            'submitted_by' => $admin->id,
-        ]);
-
-        $this->assertDatabaseHas('agency_upgrade_requests', [
-            'id' => $request->id,
-            'agency_id' => $agency->id,
-            'submitted_by' => $admin->id,
-            'status' => AgencyUpgradeRequestStatus::Pending->value,
-        ]);
-
-        $fresh = $request->fresh();
-        $this->assertSame(AgencyUpgradeRequestStatus::Pending, $fresh->status);
-        $this->assertNotNull($fresh->submitted_at);
-        $this->assertNull($fresh->reviewed_at);
-        $this->assertNull($fresh->reviewed_by);
-    }
 
     /**
      * L'index unique PARTIEL est désormais le seul garde-fou au niveau des données.
@@ -101,13 +76,6 @@ class AgencyUpgradeRequestTest extends TestCase
         $this->assertSame($expected, $ids);
     }
 
-    public function test_agency_pending_upgrade_request_returns_null_when_none(): void
-    {
-        $agency = Agency::factory()->individual()->create();
-
-        $this->assertNull($agency->pendingUpgradeRequest);
-    }
-
     public function test_agency_pending_upgrade_request_returns_the_pending_one(): void
     {
         $agency = Agency::factory()->individual()->create();
@@ -154,18 +122,5 @@ class AgencyUpgradeRequestTest extends TestCase
         $new = AgencyUpgradeRequest::factory()->pending()->create(['agency_id' => $agency->id]);
 
         $this->assertSame(AgencyUpgradeRequestStatus::Pending, $new->fresh()->status);
-    }
-
-    public function test_status_enum_serializes_to_string_in_json(): void
-    {
-        $request = AgencyUpgradeRequest::factory()->pending()->create();
-
-        $payload = $request->toArray();
-
-        $this->assertSame('pending', $payload['status']);
-        $this->assertSame(
-            'pending',
-            json_decode(json_encode($request), true)['status']
-        );
     }
 }

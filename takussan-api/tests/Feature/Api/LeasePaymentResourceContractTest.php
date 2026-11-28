@@ -150,8 +150,8 @@ class LeasePaymentResourceContractTest extends TestCase
      */
     public function test_une_echeance_payee_en_partie_ne_demande_que_son_reste(): void
     {
-        $spy = $this->spyDriver();
-        foreach ([false => [100000, 10_000_000], true => [107500, 10_750_000]] as $online => [$due, $cents]) {
+        $spy = $this->fakeWave();
+        foreach ([false => [100000, 100_000], true => [107500, 107_500]] as $online => [$due, $wave]) {
             $ctx = $this->leaseDue(['late_fee_online_collection' => (bool) $online], ['metadata' => ['paid_amount' => 50_000]]);
             Sanctum::actingAs($ctx['tenant']);
 
@@ -160,7 +160,7 @@ class LeasePaymentResourceContractTest extends TestCase
                 ->assertJsonPath('data.0.amount_due', $due);
 
             $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
-            $this->assertSame($cents, end($spy->calls)['amount_cents']);
+            $this->assertSame($wave, end($spy->checkouts)['amount']);
         }
     }
 

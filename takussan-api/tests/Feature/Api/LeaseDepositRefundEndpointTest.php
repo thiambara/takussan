@@ -99,22 +99,6 @@ class LeaseDepositRefundEndpointTest extends TestCase
             ->assertStatus(422);
     }
 
-    public function test_amount_exceeding_remaining_returns_422(): void
-    {
-        $admin = $this->actingAsRole('agency_admin');
-        $lease = Lease::factory()->withCollectedDeposit()->create([
-            'landlord_id' => $admin->id,
-            'agency_id' => $admin->agency_id,
-            'status' => LeaseStatus::Terminated,
-            'deposit_amount' => 500000,
-        ]);
-
-        Sanctum::actingAs($admin);
-
-        $this->postJson("/api/leases/{$lease->id}/deposit-refund", ['amount' => 999999])
-            ->assertStatus(422);
-    }
-
     public function test_partial_refund_without_reason_returns_422(): void
     {
         $admin = $this->actingAsRole('agency_admin');

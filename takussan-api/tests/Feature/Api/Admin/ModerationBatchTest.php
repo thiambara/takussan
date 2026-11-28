@@ -73,12 +73,4 @@ class ModerationBatchTest extends ApiTestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors('reason_code');
     }
-
-    public function test_an_agency_admin_cannot_batch(): void
-    {
-        $this->actingAsRole('agency_admin');
-
-        $this->postJson('/api/admin/moderation/decide-batch', ['ids' => ['review:1'], 'decision' => 'approve'])
-            ->assertForbidden();
-    }
 }

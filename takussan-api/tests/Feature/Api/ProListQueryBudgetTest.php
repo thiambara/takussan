@@ -11,6 +11,9 @@ use App\Models\CustomerNote;
 use App\Models\Document;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
+use App\Models\Enums\InvoiceStatus;
+use App\Models\Inventory;
+use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Message;
@@ -66,6 +69,11 @@ class ProListQueryBudgetTest extends ApiTestCase
                 .'&sort=-created_at&per_page=20'],
             'conversations' => ['conversation', '/api/conversations?fields[conversations]=id,subject,property_id,type,status,last_message_at,last_message_preview,updated_at'
                 .'&fields[properties]=id,title,slug&include=property,participants,last_message&sort=-last_message_at&per_page=30'],
+            // TCK-3018 — les deux listes que TCK-3011 a dotées de gestes (`abilities`, jamais en liste : ADR-0139 § 5).
+            'factures' => ['facture', '/api/invoices?fields[invoices]=id,reference_number,customer_id,issued_by_id,agency_id,status,issue_date,due_date,subtotal,tax_rate,tax_amount,total_amount,currency,created_at'
+                .'&sort=-created_at&page=1&per_page=20'],
+            'états des lieux' => ['etat_des_lieux', '/api/inventories?fields[inventories]=id,lease_id,property_id,type,status,general_condition,conducted_at,tenant_signed_at,owner_signed_at,created_at'
+                .'&fields[properties]=id,title,slug&fields[leases]=id,reference_number&include=property,lease&sort=-created_at&per_page=20'],
         ];
     }
 
@@ -147,6 +155,8 @@ class ProListQueryBudgetTest extends ApiTestCase
                 'intervention' => $this->intervention(),
                 'document' => $this->document(),
                 'conversation' => $this->conversation(),
+                'facture' => $this->facture(),
+                'etat_des_lieux' => $this->etatDesLieux(),
             };
         }
     }
@@ -172,13 +182,39 @@ class ProListQueryBudgetTest extends ApiTestCase
         return $customer;
     }
 
-    private function bail(): void
+    private function bail(): Lease
     {
-        Lease::factory()->create([
+        return Lease::factory()->create([
             'agency_id' => $this->agency->id,
             'landlord_id' => $this->autre->id,
             'property_id' => $this->bien()->id,
             'tenant_id' => $this->client()->id,
+        ]);
+    }
+
+    /** Une facture émise du bail, au nom de sa fiche client, par le personnel. */
+    private function facture(): void
+    {
+        $bail = $this->bail();
+        Invoice::factory()->create([
+            'agency_id' => $this->agency->id,
+            'issued_by_id' => $this->admin->id,
+            'customer_id' => $bail->tenant_id,
+            'invoiceable_type' => Lease::class,
+            'invoiceable_id' => $bail->id,
+            'status' => InvoiceStatus::Sent,
+        ]);
+    }
+
+    /** Un état des lieux du bail, sur son bien (photo, adresse), avec son locataire. */
+    private function etatDesLieux(): void
+    {
+        $bail = $this->bail();
+        Inventory::factory()->create([
+            'lease_id' => $bail->id,
+            'property_id' => $bail->property_id,
+            'tenant_id' => $bail->tenant_id,
+            'conducted_by' => $this->admin->id,
         ]);
     }
 

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Lease;
 
-use App\Contracts\Payments\PaymentDriverContract;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Models\Agency;
 use App\Models\Customer;
@@ -16,19 +15,16 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
-use App\Services\Payments\Dto\CheckoutSession;
-use App\Services\Payments\Dto\PaymentEvent;
 use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Reporting\OverdueInstalment;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
+use Tests\Support\FakeWave;
 
 /**
  * TCK-608 — une échéance dit ce qui a été versé et ce qui reste à rembourser.
@@ -186,7 +182,7 @@ class LeaseDuplicateRefundTest extends ApiTestCase
             'gateway' => ['provider' => 'wave', 'transaction_id' => 'txn_recent'],
             'gateway_duplicate_payment' => [self::duplicate('txn_ancien')],
         ], ['transaction_id' => 'txn_recent']);
-        $this->fournisseur('wave', DriverStatus::PENDING);
+        $this->fournisseurEnCours('wave');
 
         $this->actingAsApi($this->tenantUser)
             ->getJson("/api/lease-payments/{$due->id}/verify")
@@ -202,7 +198,7 @@ class LeaseDuplicateRefundTest extends ApiTestCase
             'gateway' => ['provider' => 'lemon_squeezy', 'transaction_id' => 'chk_42'],
             'gateway_duplicate_payment' => [self::duplicate('order_9001')],
         ], ['transaction_id' => 'chk_42']);
-        $this->fournisseur('lemon_squeezy', DriverStatus::PENDING);
+        $this->fournisseurEnCours('lemon_squeezy');
 
         $this->actingAsApi($this->tenantUser)
             ->getJson("/api/lease-payments/{$due->id}/verify")
@@ -309,34 +305,21 @@ class LeaseDuplicateRefundTest extends ApiTestCase
         $this->assertArrayNotHasKey('refunded_at', $due->fresh()->metadata['gateway_duplicate_payment'][0]);
     }
 
-    /** Le fournisseur répond `$status` à toute vérification. */
-    private function fournisseur(string $provider, string $status): void
+    /**
+     * Une intégration active du fournisseur, dont la vérification répond « en cours » : Wave derrière
+     * le client HTTP ({@see FakeWave}) ; Lemon Squeezy n'a pas d'appel de vérification, son pilote rend
+     * `pending` de lui-même. TCK-3014 (ADR-0140 § 5) — le vrai pilote, plus un double de `driverFor`.
+     */
+    private function fournisseurEnCours(string $provider): void
     {
         Integration::factory()->create([
             'agency_id' => $this->agency->id,
             'provider' => $provider,
             'is_active' => true,
-            'credentials' => ['api_key' => 'k', 'webhook_secret' => 's', 'store_id' => '1'],
+            'credentials' => array_fill_keys(PaymentGatewayService::DRIVERS[$provider]::CREDENTIAL_KEYS, 'k'),
         ]);
-        $driver = new class($status) implements PaymentDriverContract
-        {
-            public function __construct(private readonly string $status) {}
-
-            public function initiate(Model $payment, int $amountCents, string $currency, array $meta = []): CheckoutSession
-            {
-                throw new \LogicException('non utilisé');
-            }
-
-            public function verify(string $externalId): DriverStatus
-            {
-                return new DriverStatus($this->status, $externalId, []);
-            }
-
-            public function handleWebhook(Request $request): PaymentEvent
-            {
-                throw new \LogicException('non utilisé');
-            }
-        };
-        $this->partialMock(PaymentGatewayService::class, fn ($mock) => $mock->shouldReceive('driverFor')->andReturn($driver));
+        if ($provider === 'wave') {
+            FakeWave::install();
+        }
     }
 }

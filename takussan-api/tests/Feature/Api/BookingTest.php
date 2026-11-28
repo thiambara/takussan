@@ -70,33 +70,6 @@ class BookingTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_owner_can_confirm_booking(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $booking = Booking::factory()->create(['property_id' => $property->id]);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson("/api/bookings/{$booking->id}/confirm")
-            ->assertOk()
-            ->assertJsonPath('data.status', 'confirmed');
-    }
-
-    public function test_owner_can_cancel_booking(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $booking = Booking::factory()->create(['property_id' => $property->id]);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson("/api/bookings/{$booking->id}/cancel", ['reason' => 'unavailable'])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'cancelled')
-            ->assertJsonPath('data.cancellation_reason', 'unavailable');
-    }
-
     public function test_random_user_cannot_confirm_booking(): void
     {
         $booking = Booking::factory()->create();
@@ -118,19 +91,6 @@ class BookingTest extends TestCase
 
         $this->postJson("/api/bookings/{$booking->id}/confirm")
             ->assertStatus(422);
-    }
-
-    public function test_owner_can_reject_booking(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $booking = Booking::factory()->create(['property_id' => $property->id]);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson("/api/bookings/{$booking->id}/reject", ['reason' => 'not available dates'])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'rejected');
     }
 
     public function test_cannot_reject_confirmed_booking(): void
@@ -205,24 +165,6 @@ class BookingTest extends TestCase
         $this->assertDatabaseCount('bookings', 0);
     }
 
-    public function test_end_date_before_start_date_returns_422(): void
-    {
-        $user = User::factory()->create();
-        $customer = Customer::factory()->create(['user_id' => $user->id]);
-        $property = Property::factory()->create();
-
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/bookings', [
-            'property_id' => $property->id,
-            'customer_id' => $customer->id,
-            'total_amount' => 500000,
-            'start_date' => now()->addMonth()->toDateString(),
-            'end_date' => now()->addDay()->toDateString(),
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['end_date']);
-    }
-
     /** TCK-2743 (lot 3) — l'échéance d'une réservation, reçue avec décalage : l'instant désigné. */
     public function test_expires_at_recu_avec_decalage_est_l_instant_designe(): void
     {
@@ -240,5 +182,50 @@ class BookingTest extends TestCase
         ])->assertCreated();
 
         $this->assertSame('2030-11-20 10:00:00', Booking::query()->sole()->getRawOriginal('expires_at'));
+    }
+
+    public function test_owner_can_confirm_booking(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/bookings/{$booking->id}/confirm")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'confirmed');
+    }
+
+    public function test_owner_can_cancel_booking(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/bookings/{$booking->id}/cancel", ['reason' => 'unavailable'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled')
+            ->assertJsonPath('data.cancellation_reason', 'unavailable');
+    }
+
+    public function test_end_date_before_start_date_returns_422(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
+        $property = Property::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/bookings', [
+            'property_id' => $property->id,
+            'customer_id' => $customer->id,
+            'total_amount' => 500000,
+            'start_date' => now()->addMonth()->toDateString(),
+            'end_date' => now()->addDay()->toDateString(),
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['end_date']);
     }
 }

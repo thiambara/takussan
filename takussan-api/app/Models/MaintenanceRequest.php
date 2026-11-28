@@ -13,10 +13,8 @@ use App\Models\Enums\ConversationType;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
+use App\Services\Lecture\InterventionsLisibles;
 use App\Services\Maintenance\MaintenanceQueue;
-use App\Services\Maintenance\ProviderEligibility;
-use App\Services\Membership\MembershipCapabilityResolver;
-use App\Services\Property\BailleurDuBien;
 use App\Sorts\MaintenancePrioritySort;
 use App\Support\Http\ParametreUnique;
 use App\Support\InstantRecu;
@@ -318,44 +316,14 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
     }
 
     /**
-     * TCK-592 — LE périmètre de lecture d'une liste, aligné sur `MaintenanceRequestPolicy::view()` :
-     * demandeur, bailleur du bien, personnel de l'agence du bien (agence du profil actif), prestataire
-     * assigné tant qu'il est assignable (collaboration et profil actifs).
-     *
-     * `index` recopiait la clause `agency_id` de l'ancienne policy : un bailleur de l'agence listait
-     * les interventions des autres bailleurs, et un prestataire dont la collaboration avait pris fin
-     * listait encore les siennes. TCK-591 (calendrier) réutilise ce scope.
+     * TCK-592 — LE périmètre de lecture d'une liste : un raccourci de
+     * {@see InterventionsLisibles::restreindre()} (TCK-3006, ADR-0138), la face SQL de
+     * `MaintenanceRequestPolicy::view`. Lu par la liste, le calendrier (TCK-591), le résumé,
+     * l'activité des espaces et la messagerie.
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if ($user->isSuperAdmin()) {
-            return $query;
-        }
-
-        $eligibility = app(ProviderEligibility::class);
-        $assignableAgencyIds = $eligibility->agencyIdsWhereAssignable($user);
-        $staffAgencyId = $user->staffAgencyId();
-        $agencesQuittees = app(MembershipCapabilityResolver::class)->agencesDuPersonnelParti($user);
-
-        return $query->where(function (Builder $q) use ($user, $assignableAgencyIds, $staffAgencyId, $agencesQuittees): void {
-            // P233.03 (TCK-2290) — le demandeur, au sens de `MaintenanceRequestPolicy::isRequester` :
-            // pas sur un bien d'une agence dont il est du personnel parti (ADR-0031, amendement du
-            // 2026-10-25, D2). Le locataire et le client demandeurs n'y ont jamais été personnel.
-            $q->where(fn (Builder $requested) => $requested
-                ->where('requester_id', $user->id)
-                ->when($agencesQuittees !== [], fn (Builder $r) => $r
-                    ->whereDoesntHave('property', fn (Builder $p) => $p->whereIn('agency_id', $agencesQuittees))))
-                // TCK-2179 (P217.01) — le bailleur du bien, au sens de `view` (`BailleurDuBien::est`,
-                // TCK-1720) : l'agent qui l'a saisi est jugé par la branche du personnel ci-dessous.
-                ->orWhereHas('property', fn (Builder $p) => BailleurDuBien::restreindre($p, $user))
-                ->orWhere(fn (Builder $assigned) => $assigned
-                    ->where('assigned_to', $user->id)
-                    ->whereHas('property', fn (Builder $p) => $p->whereIn('agency_id', $assignableAgencyIds)));
-
-            if ($staffAgencyId !== null) {
-                $q->orWhereHas('property', fn (Builder $p) => $p->where('agency_id', $staffAgencyId));
-            }
-        });
+        return InterventionsLisibles::restreindre($query, $user);
     }
 
     public function registerMediaCollections(): void

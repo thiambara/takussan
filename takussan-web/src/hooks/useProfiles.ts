@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { appelBff } from '@/lib/bff';
 import type { MyProfilesResponse, Profile } from '@/types/profile';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { CLE_DE_BASCULE_D_ESPACE, CLE_PROFILS, oublierLeCacheDEspace } from '@/lib/cache-d-espace';
@@ -16,12 +17,7 @@ export const profilesKeys = {
 
 /** Exportée pour TCK-2601 : la publication sans compte relit les espaces au moment de publier. */
 export async function fetchProfilesViaProxy(): Promise<MyProfilesResponse> {
-  const res = await fetch('/api/me/profiles', { credentials: 'include' });
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new ApiError(res.status, data);
-  }
-  return res.json();
+  return appelBff<MyProfilesResponse>('/api/me/profiles');
 }
 
 /**
@@ -39,17 +35,7 @@ async function patchActiveProfileViaProxy(bascule: BasculeDEspace): Promise<{ da
     typeof bascule === 'string'
       ? { profile_id: bascule }
       : { profile_id: bascule.profileId, remember: bascule.remember };
-  const res = await fetch('/api/me/active-profile', {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(corps),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new ApiError(res.status, data);
-  }
-  return res.json();
+  return appelBff('/api/me/active-profile', { method: 'PATCH', body: corps });
 }
 
 /**

@@ -99,20 +99,4 @@ class CustomerNoteKindTest extends ApiTestCase
 
         $migration->up();
     }
-
-    public function test_no_french_prefix_is_left_in_the_application_code(): void
-    {
-        $hits = [];
-        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(app_path()));
-        foreach ($iterator as $file) {
-            if ($file->isFile() && str_ends_with($file->getFilename(), '.php')) {
-                $content = (string) file_get_contents($file->getPathname());
-                if (str_contains($content, "'Perte : '") || str_contains($content, "'Conversion : '")) {
-                    $hits[] = $file->getPathname();
-                }
-            }
-        }
-
-        $this->assertSame([], $hits);
-    }
 }

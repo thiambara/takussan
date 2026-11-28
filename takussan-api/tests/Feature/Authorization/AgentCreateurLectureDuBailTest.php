@@ -17,6 +17,7 @@ use App\Services\Messaging\ConversationAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsBookingStakeholders;
+use Tests\Feature\Lecture\QuiPeutLireTest;
 use Tests\TestCase;
 
 /**
@@ -24,6 +25,11 @@ use Tests\TestCase;
  * `landlord_id` : sur un bien saisi par un agent, le bail le désigne. `LeasePolicy::view` et la liste
  * lisaient la colonne telle quelle, et l'agent suspendu ou retiré lisait encore le bail, le voyait
  * dans sa liste et gardait son fil. La branche du bailleur se juge par `BailleurDuBien::est`.
+ *
+ * TCK-3016 — le personnel actif qui lit au titre de l'agence et le bailleur d'un bail hors agence
+ * sont des lignes de la table de `BauxLisibles` ({@see QuiPeutLireTest}),
+ * qui rougit à la place des deux témoins retirés d'ici. Restent ce que la table ne joue pas : la
+ * suspension et le retrait par leurs services, le fil, le bailleur suspendu.
  */
 class AgentCreateurLectureDuBailTest extends TestCase
 {
@@ -58,15 +64,6 @@ class AgentCreateurLectureDuBailTest extends TestCase
         Sanctum::actingAs($agent);
         $this->getJson("/api/leases/{$lease->id}")->assertForbidden();
         $this->assertNotContains($lease->id, collect($this->getJson('/api/leases')->assertOk()->json('data'))->pluck('id')->all());
-    }
-
-    public function test_l_agent_createur_actif_lit_le_bail_au_titre_du_personnel(): void
-    {
-        $lease = $this->bailDe($this->agent);
-
-        Sanctum::actingAs($this->agent);
-        $this->getJson("/api/leases/{$lease->id}")->assertOk();
-        $this->assertContains($lease->id, collect($this->getJson('/api/leases')->json('data'))->pluck('id')->all());
     }
 
     public function test_l_agent_createur_suspendu_ne_lit_plus_le_bail(): void
@@ -107,17 +104,4 @@ class AgentCreateurLectureDuBailTest extends TestCase
     }
 
     /** Témoin : un bail d'un bien de particulier (sans agence) reste lu par celui qu'il désigne. */
-    public function test_le_bailleur_particulier_garde_la_lecture(): void
-    {
-        $particulier = User::factory()->create();
-        $lease = Lease::factory()->create([
-            'agency_id' => null,
-            'landlord_id' => $particulier->id,
-            'status' => LeaseStatus::Active,
-        ]);
-
-        Sanctum::actingAs($particulier);
-        $this->getJson("/api/leases/{$lease->id}")->assertOk();
-        $this->assertContains($lease->id, collect($this->getJson('/api/leases')->json('data'))->pluck('id')->all());
-    }
 }

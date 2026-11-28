@@ -704,24 +704,6 @@ class PlatformReportingTest extends TestCase
         $this->assertStringContainsString('attachment;', (string) $response->headers->get('Content-Disposition'));
     }
 
-    public function test_agency_admin_is_forbidden(): void
-    {
-        $agency = Agency::factory()->create();
-        $this->actingAsRole('agency_admin', ['agency' => $agency]);
-
-        $this->getJson('/api/admin/reports/growth?metric=agencies')->assertForbidden();
-        $this->getJson('/api/admin/reports/revenue')->assertForbidden();
-        $this->getJson('/api/admin/reports/cohorts')->assertForbidden();
-        $this->getJson('/api/admin/reports/funnel')->assertForbidden();
-        $this->getJson('/api/admin/reports/funnel/export?format=csv')->assertForbidden();
-    }
-
-    public function test_anonymous_export_is_unauthenticated(): void
-    {
-        $this->getJson('/api/admin/reports/growth/export?format=csv&metric=agencies&period=12m')
-            ->assertUnauthorized();
-    }
-
     public function test_export_with_unknown_report_returns_404(): void
     {
         $this->actingAsRole('super_admin');

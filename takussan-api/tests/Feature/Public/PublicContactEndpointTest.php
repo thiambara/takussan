@@ -181,4 +181,12 @@ class PublicContactEndpointTest extends TestCase
             ->assertJsonPath('data.primary_contact.has_whatsapp', true);
         $this->assertStringNotContainsString('770000832', (string) $fiche->getContent());
     }
+
+    /** TCK-590 (ex-`PropertyContactTest`, versé par TCK-3017) — un brouillon n'a pas de numéro public : 404. */
+    public function test_un_brouillon_rend_404(): void
+    {
+        $property = Property::factory()->draft()->create();
+
+        $this->getJson("/api/public/properties/{$property->slug}/contact")->assertNotFound();
+    }
 }

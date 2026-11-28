@@ -170,13 +170,30 @@ export type LeaseParty = {
 
 export type LeaseSignatureRole = 'tenant' | 'landlord';
 
+/**
+ * TCK-3011 (ADR-0139) — chaque clé dit « ce geste est possible MAINTENANT pour ce lecteur », policy ET
+ * état du bail compris (`GestesDuBail`). La fiche ne compare plus le statut pour décider ; elle peut le
+ * lire pour présenter. Trois repères ne sont pas des gestes : `update` (le lecteur gère le bail),
+ * `record_payment` (il encaisse sur ce bail ; l'état se juge par échéance) et `give_notice` (il en est
+ * le locataire).
+ */
 export interface LeaseAbilities {
   readonly renew: boolean;
   readonly review_rent: boolean;
   readonly record_payment: boolean;
   readonly refund_deposit: boolean;
-  /** P189.03 — `LeasePolicy::requestEarlyTermination` : le préavis et son annulation. */
+  /** P189.03 — `LeasePolicy::requestEarlyTermination` ; TCK-3011 : sur un bail en cours ou échu, hors préavis. */
   readonly request_early_termination: boolean;
+  /** TCK-3011 — annuler le préavis : en préavis, avant sa date d'effet, indemnité non payée. */
+  readonly cancel_early_termination?: boolean;
+  /** TCK-3011 — poser une ligne (charges, régularisation, pénalité) sur un bail qui court. */
+  readonly add_payment?: boolean;
+  /** TCK-3011 — générer l'échéancier d'un bail actif dont aucun loyer n'est émis. */
+  readonly generate_schedule?: boolean;
+  /** TCK-3011 — envoyer, ou renvoyer, en signature : un brouillon ou un bail qui l'attend. */
+  readonly request_signature?: boolean;
+  /** TCK-3011 — signer le contrat figé, pour un rôle que le lecteur tient et n'a pas encore signé. */
+  readonly sign?: boolean;
   /** P189.03 — `LeasePolicy::update` : l'ajout de garant et le lien de paiement d'une échéance. */
   readonly update: boolean;
   /**
@@ -193,7 +210,8 @@ export interface LeaseAbilities {
   readonly rent_review_force?: boolean;
   /**
    * TCK-2764 — abandonner le brouillon (`DELETE /api/leases/{id}`) : la règle de `update`, sur un bail
-   * `draft`. Les échéances saisies se jugent à part (l'écran les lit, l'API les refuse en 422).
+   * `draft`. TCK-3011 — et sans échéance saisie ni état des lieux engagé : faux quand l'API le refuserait
+   * (la fiche dit alors pourquoi, `raisonDAbandonEmpeche`).
    */
   readonly abandon?: boolean;
   /**

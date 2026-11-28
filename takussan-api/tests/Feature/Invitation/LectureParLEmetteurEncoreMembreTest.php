@@ -20,6 +20,9 @@ use Tests\Concerns\CreatesAgencyMembers;
  *
  * Avant : l'agent suspendu ou retiré lisait l'invitation qu'il avait émise, adresse de l'invité
  * comprise (`GET /api/invitations/{id}` → 200).
+ *
+ * P233.02 (TCK-2243, ex-`ListeParLEmetteurEncoreMembreTest`, versé par TCK-3017) — la liste suit la même règle
+ * (`InvitationController::visibleScope`, forme SQL de la branche émetteur de la policy) : chaque cas lit ET liste.
  */
 class LectureParLEmetteurEncoreMembreTest extends ApiTestCase
 {
@@ -40,7 +43,14 @@ class LectureParLEmetteurEncoreMembreTest extends ApiTestCase
         ]);
     }
 
-    public function test_l_agent_suspendu_ne_lit_plus_l_invitation_qu_il_a_emise(): void
+    /** @return list<int> */
+    private function listeDe(User $user): array
+    {
+        return collect($this->actingAsApi($user->fresh())->getJson('/api/invitations')->assertOk()->json('data'))
+            ->pluck('id')->all();
+    }
+
+    public function test_l_agent_suspendu_ne_lit_ni_ne_liste_plus_l_invitation_qu_il_a_emise(): void
     {
         $agency = Agency::factory()->create();
         $agent = $this->agencyAgent($agency);
@@ -49,9 +59,10 @@ class LectureParLEmetteurEncoreMembreTest extends ApiTestCase
         AgentProfile::query()->where('user_id', $agent->id)->update(['status' => AgentProfileStatus::Suspended->value]);
 
         $this->actingAsApi($agent->fresh())->getJson("/api/invitations/{$invitation->id}")->assertForbidden();
+        $this->assertNotContains($invitation->id, $this->listeDe($agent), 'invitation listée à l\'émetteur suspendu');
     }
 
-    public function test_l_agent_retire_ne_lit_plus_l_invitation_qu_il_a_emise(): void
+    public function test_l_agent_retire_ne_lit_ni_ne_liste_plus_l_invitation_qu_il_a_emise(): void
     {
         $agency = Agency::factory()->create();
         $agent = $this->agencyAgent($agency);
@@ -60,22 +71,25 @@ class LectureParLEmetteurEncoreMembreTest extends ApiTestCase
         AgentProfile::query()->where('user_id', $agent->id)->delete();
 
         $this->actingAsApi($agent->fresh())->getJson("/api/invitations/{$invitation->id}")->assertForbidden();
+        $this->assertNotContains($invitation->id, $this->listeDe($agent), 'invitation listée à l\'émetteur retiré');
     }
 
-    public function test_temoin_l_agent_actif_lit_l_invitation_qu_il_a_emise(): void
+    public function test_temoin_l_agent_actif_lit_et_liste_l_invitation_qu_il_a_emise(): void
     {
         $agency = Agency::factory()->create();
         $agent = $this->agencyAgent($agency);
         $invitation = $this->invitationEmisePar($agent, $agency->id);
 
         $this->actingAsApi($agent)->getJson("/api/invitations/{$invitation->id}")->assertOk();
+        $this->assertContains($invitation->id, $this->listeDe($agent));
     }
 
-    public function test_temoin_l_emetteur_lit_son_invitation_sans_agence(): void
+    public function test_temoin_l_emetteur_lit_et_liste_son_invitation_sans_agence(): void
     {
         $emetteur = User::factory()->create();
         $invitation = $this->invitationEmisePar($emetteur, null);
 
         $this->actingAsApi($emetteur)->getJson("/api/invitations/{$invitation->id}")->assertOk();
+        $this->assertContains($invitation->id, $this->listeDe($emetteur));
     }
 }

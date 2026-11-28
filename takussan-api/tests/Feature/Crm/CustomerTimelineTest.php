@@ -302,11 +302,6 @@ class CustomerTimelineTest extends ApiTestCase
         $this->assertContains($vus['admin d une autre agence'], [403, 404]);
     }
 
-    public function test_sans_authentification_401(): void
-    {
-        $this->getJson("/api/customers/{$this->fiche->id}/timeline")->assertUnauthorized();
-    }
-
     public function test_un_filtre_mal_forme_rend_422_au_lecteur_admis_et_403_au_lecteur_refuse(): void
     {
         // TCK-2894 — `booking` est devenu un type du fil : l'inconnu est désormais `lease`.

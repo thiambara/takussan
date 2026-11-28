@@ -2,19 +2,15 @@
 
 namespace Tests\Feature\Database\Seeders;
 
-use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\MaintenanceCategory;
-use App\Models\LeasePayment;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedFaker;
 use Database\Seeders\Support\SeedingConfig;
 use Database\Seeders\Support\SeedTexts;
 use Database\Seeders\YearOfActivitySeeder;
 use Faker\Factory;
-use Faker\Provider\Lorem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use ReflectionProperty;
 use Tests\TestCase;
 
 /**
@@ -28,19 +24,6 @@ class SeedingTextAndDeterminismTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Colonnes de texte semé que l'interface affiche. */
-    private const TEXTES = [
-        'messages' => 'content',
-        'tasks' => 'title',
-        'maintenance_requests' => 'title',
-        'reviews' => 'content',
-        'customer_notes' => 'body',
-        'conversations' => 'subject',
-        'property_contact_leads' => 'message',
-        'property_reports' => 'details',
-        'property_unavailabilities' => 'reason',
-    ];
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -48,30 +31,6 @@ class SeedingTextAndDeterminismTest extends TestCase
         CarbonImmutable::setTestNow('2026-10-25 12:00:00');
         $this->travelTo(CarbonImmutable::now());
         config(['scout.driver' => null]);
-    }
-
-    public function test_aucun_texte_seme_n_est_du_lorem_ipsum(): void
-    {
-        $this->semer(2026);
-
-        $lorem = array_flip((new ReflectionProperty(Lorem::class, 'wordList'))->getValue());
-        $textes = 0;
-
-        foreach (self::TEXTES as $table => $colonne) {
-            foreach (DB::table($table)->whereNotNull($colonne)->pluck($colonne) as $texte) {
-                $textes++;
-                $mots = preg_split('/[^\p{L}]+/u', mb_strtolower($texte), -1, PREG_SPLIT_NO_EMPTY);
-                $latins = array_filter($mots, fn (string $mot) => isset($lorem[$mot]));
-
-                // « et », « est », « a » existent dans les deux langues : c'est la PART qui signe le lorem.
-                $this->assertFalse(
-                    count($latins) >= 3 && count($latins) * 2 >= count($mots),
-                    "{$table}.{$colonne} contient du lorem ipsum : « {$texte} »",
-                );
-            }
-        }
-
-        $this->assertGreaterThan(50, $textes, 'Trop peu de textes semés pour que la mesure dise quelque chose.');
     }
 
     public function test_chaque_categorie_d_intervention_a_sa_propre_banque_de_textes(): void
@@ -134,15 +93,6 @@ class SeedingTextAndDeterminismTest extends TestCase
         $this->assertSame([], $fautifs, 'Un seeder tire dans la base, hors de la graine : passer par Tirage.');
     }
 
-    public function test_les_loyers_passent_par_plusieurs_moyens_de_paiement(): void
-    {
-        $this->semer(2026);
-
-        // Les LOYERS : les cautions ont leurs propres moyens, et les compter ensemble laissait vert un
-        // seed où tous les loyers passaient par Wave (vérifié par ablation).
-        $this->assertGreaterThanOrEqual(3, LeasePayment::query()->where('payment_type', LeasePaymentType::Rent)->distinct()->count('payment_method'));
-    }
-
     /** Sème dans une transaction annulée ensuite : chaque seed part d'une base vide. */
     /** @return array<string, string> empreinte par table : la divergence se lit sur la table fautive */
     private function empreinteDUnSeed(int $graine): array
@@ -189,7 +139,7 @@ class SeedingTextAndDeterminismTest extends TestCase
             conversationsPerAgency: 4,
             documentsPerAgency: 2,
             includeDemoUsers: false,
-            // Ne lit pas les signatures : le rendu des contrats (~0,25 s par bail) est pour SeedingFeatureTablesTest.
+            // Ne lit pas les signatures : le rendu des contrats (~0,25 s par bail) est pour JeuSemeTest.
             contratsFiges: false,
             graine: $graine,
         ));

@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { appelBff } from '@/lib/bff';
 import { CLE_PROFILS } from '@/lib/cache-d-espace';
 import { espacesAProposer } from '@/lib/espaces';
 import { casesDuPersona } from '@/lib/navigation/barre-publique';
@@ -19,12 +20,7 @@ import type { User } from '@/types/user';
  * imports). La bascule ne vit que sur l'écran « Moi », qui monte sa propre frontière.
  */
 async function lireLesEspaces(): Promise<MyProfilesResponse> {
-  const res = await fetch('/api/me/profiles', { credentials: 'include' });
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new ApiError(res.status, data);
-  }
-  return res.json();
+  return appelBff<MyProfilesResponse>('/api/me/profiles');
 }
 
 export function useEspacesDuComptePublic(user: User | null) {

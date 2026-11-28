@@ -126,53 +126,31 @@ class PhoneVerificationTest extends TestCase
      * acheminer (`PhoneNumber::isValid` le refuse en aval) —, et la vérification
      * marquait ensuite « vérifié » un numéro qui n'en était pas un.
      */
-    public function test_send_otp_refuse_un_numero_hors_e164_sans_rien_enregistrer(): void
+    /** @return array<string, array{string}> */
+    public static function numerosMalFormes(): array
     {
-        Cache::flush();
-        $user = User::factory()->create(['phone' => null, 'phone_verified_at' => null]);
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/auth/phone/send-otp', ['phone' => '780143710+221'])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['phone']);
-
-        $this->assertNull($user->fresh()->phone);
-        $this->assertFalse(Cache::has("phone-otp:{$user->id}"));
+        return [
+            'hors E.164' => ['780143710+221'],
+            // Huit chiffres après +221 : E.164 valide en apparence (11 chiffres), mais aucun numéro sénégalais n'a
+            // cette longueur.
+            'sénégalais incomplet' => ['+22178014371'],
+            'sénégalais trop long' => ['+2217801437100'],
+        ];
     }
 
-    public function test_send_otp_refuse_un_numero_senegalais_incomplet(): void
+    #[DataProvider('numerosMalFormes')]
+    public function test_send_otp_refuse_un_numero_mal_forme_sans_rien_enregistrer(string $numero): void
     {
         Cache::flush();
         $user = User::factory()->create(['phone' => null, 'phone_verified_at' => null]);
         Sanctum::actingAs($user);
 
-        // Huit chiffres après +221 : E.164 valide en apparence (11 chiffres),
-        // mais aucun numéro sénégalais n'a cette longueur.
-        $this->postJson('/api/auth/phone/send-otp', ['phone' => '+22178014371'])
+        $this->postJson('/api/auth/phone/send-otp', ['phone' => $numero])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['phone']);
 
-        // Le refus n'a RIEN laissé derrière lui : le contrôleur enregistre le
-        // numéro avant d'émettre le code, un refus doit donc précéder les deux.
-        $this->assertNull($user->fresh()->phone);
-        $this->assertFalse(Cache::has("phone-otp:{$user->id}"));
-    }
-
-    /**
-     * La borne HAUTE : dix chiffres après +221. Sans l'ancre de fin de la règle
-     * `not_regex`, la lookahead ne vérifie que la présence de neuf chiffres, et
-     * `+2217801437100` — E.164 valide (13 chiffres) — serait enregistré.
-     */
-    public function test_send_otp_refuse_un_numero_senegalais_trop_long(): void
-    {
-        Cache::flush();
-        $user = User::factory()->create(['phone' => null, 'phone_verified_at' => null]);
-        Sanctum::actingAs($user);
-
-        $this->postJson('/api/auth/phone/send-otp', ['phone' => '+2217801437100'])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['phone']);
-
+        // Le refus n'a RIEN laissé derrière lui : le contrôleur enregistre le numéro avant d'émettre le code, un refus
+        // doit donc précéder les deux.
         $this->assertNull($user->fresh()->phone);
         $this->assertFalse(Cache::has("phone-otp:{$user->id}"));
     }

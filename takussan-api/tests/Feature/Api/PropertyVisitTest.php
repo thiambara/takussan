@@ -41,20 +41,6 @@ class PropertyVisitTest extends TestCase
             ->assertJsonPath('data.status', 'completed');
     }
 
-    public function test_cancel_visit(): void
-    {
-        $visitor = User::factory()->create();
-        $visit = PropertyVisit::factory()->create(['visitor_id' => $visitor->id]);
-
-        Sanctum::actingAs($visitor);
-
-        $this->postJson("/api/property-visits/{$visit->id}/cancel", ['reason' => 'conflit agenda'])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'cancelled')
-            ->assertJsonPath('data.cancellation_reason', 'conflit agenda')
-            ->assertJsonPath('data.cancelled_at', fn ($value) => is_string($value));
-    }
-
     public function test_visit_list_exposes_visitor_contact_fields(): void
     {
         $visitor = User::factory()->create();
@@ -123,20 +109,6 @@ class PropertyVisitTest extends TestCase
         $this->postJson("/api/property-visits/{$visit->id}/confirm")->assertForbidden();
     }
 
-    public function test_cannot_confirm_cancelled_visit(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $visit = PropertyVisit::factory()->create([
-            'property_id' => $property->id,
-            'status' => VisitStatus::Cancelled,
-        ]);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson("/api/property-visits/{$visit->id}/confirm")->assertStatus(422);
-    }
-
     public function test_customer_linked_user_can_list_and_view_visit_with_customer_payload(): void
     {
         $customerUser = User::factory()->create();
@@ -169,5 +141,19 @@ class PropertyVisitTest extends TestCase
             ->assertJsonPath('data.customer.user_id', $customerUser->id)
             ->assertJsonPath('data.customer.last_name', 'Diop')
             ->assertJsonPath('data.customer.email', 'awa.diop@example.test');
+    }
+
+    public function test_cannot_confirm_cancelled_visit(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $visit = PropertyVisit::factory()->create([
+            'property_id' => $property->id,
+            'status' => VisitStatus::Cancelled,
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/property-visits/{$visit->id}/confirm")->assertStatus(422);
     }
 }

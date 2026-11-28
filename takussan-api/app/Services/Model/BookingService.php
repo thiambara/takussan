@@ -23,6 +23,7 @@ use App\Services\Booking\BookingConditions;
 use App\Services\Booking\BookingGuarantorService;
 use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
+use App\Services\Booking\GestesDeLaReservation;
 use App\Services\Booking\PropertyAvailabilityService;
 use App\Services\Crm\AcceptanceStageChange;
 use App\Services\Messaging\FilDeLObjet;
@@ -51,14 +52,6 @@ class BookingService
         PropertyStatus::Archived,
         PropertyStatus::UnderMaintenance,
         PropertyStatus::Unavailable,
-    ];
-
-    /** @var array<int,BookingStatus> */
-    protected const TERMINAL_CANCEL_STATUSES = [
-        BookingStatus::Cancelled,
-        BookingStatus::Completed,
-        BookingStatus::Expired,
-        BookingStatus::Rejected,
     ];
 
     /**
@@ -306,8 +299,9 @@ class BookingService
 
     public function confirm(Booking $booking): Booking
     {
+        // TCK-3007 — l'état que `abilities.confirm` juge (`GestesDeLaReservation`), relu ici.
         abort_code_unless(
-            $booking->status === BookingStatus::Pending,
+            GestesDeLaReservation::decidable($booking),
             422,
             'booking.not_pending_confirm'
         );
@@ -326,14 +320,16 @@ class BookingService
 
             $booking->refresh();
             abort_code_unless(
-                $booking->status === BookingStatus::Pending,
+                GestesDeLaReservation::decidable($booking),
                 422,
                 'booking.not_pending_confirm'
             );
 
-            $this->assertNoOverlap($booking);
-            $this->assertNoOtherAcceptedApplication($booking);
-            $this->assertPropertyNotLeased($booking);
+            // TCK-3007 — les conflits qu'`abilities.confirm` juge, rejugés sous le verrou du bien.
+            $conflit = app(GestesDeLaReservation::class)->conflitALaConfirmation($booking);
+            if ($conflit !== null) {
+                abort_code($conflit[0], $conflit[1]);
+            }
 
             $booking->update([
                 'status' => BookingStatus::Confirmed,
@@ -377,7 +373,7 @@ class BookingService
             /** @var Booking $locked */
             $locked = Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
             abort_code_unless(
-                $locked->status === BookingStatus::Pending,
+                GestesDeLaReservation::decidable($locked),
                 422,
                 'booking.not_pending_reject'
             );
@@ -414,72 +410,8 @@ class BookingService
     }
 
     /**
-     * Reject the confirmation if another confirmed booking already
-     * overlaps the target booking's date range on the same property.
-     * Bookings without dates are skipped (open-ended reservations).
-     *
-     * TCK-596 — délègue à `PropertyAvailabilityService`, en semi-ouvert : les bornes fermées
-     * refusaient un séjour qui arrive le jour du départ d'un autre.
-     */
-    protected function assertNoOverlap(Booking $booking): void
-    {
-        $this->availability->assertAvailable($booking->property_id, $booking->start_date, $booking->end_date, $booking);
-    }
-
-    /**
-     * TCK-2734 (décision du porteur du 2026-11-11) — une seule candidature confirmée par bien à la
-     * fois : la confirmation dit « acceptée » au client, et deux acceptations promettraient le même
-     * logement à deux personnes. Jugée sous le verrou du bien que {@see self::confirm()} pose (la
-     * ligne parent, piège PostgreSQL n° 2). Une candidature quitte `confirmed` annulée, convertie
-     * en bail (`completed`), ou close par le bail d'un autre locataire sur le bien (`rejected`, seconde
-     * porte de TCK-2734) — l'un et l'autre quand ce bail PART : envoi en signature ou signature papier
-     * ({@see LeaseService::cloreLesCandidaturesDuBien()}, décision 7 du porteur du 2026-11-12), plus à
-     * la création du brouillon. Les offres d'achat et les séjours n'y sont pas
-     * soumis : plusieurs offres sur un bien à vendre sont normales, et le séjour garde sa règle de nuits.
-     */
-    protected function assertNoOtherAcceptedApplication(Booking $booking): void
-    {
-        if ($booking->kind !== BookingKind::Application) {
-            return;
-        }
-
-        abort_code_if(
-            Booking::query()
-                ->where('property_id', $booking->property_id)
-                ->where('kind', BookingKind::Application->value)
-                ->where('status', BookingStatus::Confirmed->value)
-                ->whereKeyNot($booking->getKey())
-                ->exists(),
-            409,
-            'booking.application_already_accepted'
-        );
-    }
-
-    /**
-     * TCK-2747 (décision 6 du porteur, 2026-11-12, option a) — une candidature ne s'accepte pas sur un
-     * logement qu'un bail occupe ou occupera : `active`, `terminating`, ou à venir (`draft`,
-     * `pending_signature`), sauf si ce bail finit AVANT le début demandé (relocation anticipée). Sa fin
-     * est `end_date`, ou la date d'effet du préavis d'un bail `terminating` ; un bail sans fin couvre
-     * tout, et une candidature sans date ne prouve aucun début après lui.
-     *
-     * Le bail du candidat lui-même ne compte pas : sa candidature reste ouverte pendant le brouillon
-     * tiré d'elle (décision 7, TCK-2734), et l'agent peut encore l'accepter.
-     *
-     * Jugée sous le verrou du bien que {@see self::confirm()} pose, et que `LeaseService::create()` prend
-     * aussi : un brouillon né en même temps est vu, ou attend. Offres d'achat et séjours non soumis.
-     */
-    protected function assertPropertyNotLeased(Booking $booking): void
-    {
-        if ($booking->kind !== BookingKind::Application) {
-            return;
-        }
-
-        abort_code_if(self::bauxQuiOccupent($booking)->exists(), 409, 'booking.property_already_leased');
-    }
-
-    /**
      * TCK-2747 — les baux du bien qui occupent le logement au début demandé par `$booking`, hors ceux
-     * de son client (la règle de {@see self::assertPropertyNotLeased()}). Public : le jeu de démo s'en
+     * de son client (la règle de `GestesDeLaReservation::conflitALaConfirmation()`). Public : le jeu de démo s'en
      * sert pour ne pas laisser de candidature acceptée sur un bien loué (`LeaseSeeder`).
      *
      * @return Builder<Lease>
@@ -512,22 +444,12 @@ class BookingService
         $booking = DB::transaction(function () use ($booking, $user, $reason): Booking {
             /** @var Booking $locked */
             $locked = Booking::query()->whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
-            abort_code_if(
-                in_array($locked->status, self::TERMINAL_CANCEL_STATUSES, true),
-                422,
-                'booking.cannot_cancel'
-            );
             // TCK-1301 (P115.01, décision du porteur) — un séjour commencé ne s'annule plus : une
             // réservation `confirmed` dont le premier jour est arrivé reste au calendrier, et passe
             // `completed` au lendemain de sa fin (`CompleteEndedBookingsJob`). Son annulation
             // ouvrait une tâche de remboursement de l'acompte d'un séjour mené.
-            abort_code_if(
-                $locked->status === BookingStatus::Confirmed
-                    && $locked->start_date !== null
-                    && $locked->start_date->toDateString() <= now()->toDateString(),
-                422,
-                'booking.cannot_cancel'
-            );
+            // TCK-3007 — la règle vit dans `GestesDeLaReservation::annulable`, que `abilities.cancel` lit.
+            abort_code_unless(GestesDeLaReservation::annulable($locked), 422, 'booking.cannot_cancel');
 
             $property = $locked->property;
             if ($user->id === $locked->customer?->user_id) {

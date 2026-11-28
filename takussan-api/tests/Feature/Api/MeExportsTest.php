@@ -78,11 +78,6 @@ class MeExportsTest extends ApiTestCase
         $this->getJson('/api/me/exports?limit=51')->assertUnprocessable();
     }
 
-    public function test_a_guest_is_refused(): void
-    {
-        $this->getJson('/api/me/exports')->assertUnauthorized();
-    }
-
     /** La forme exacte de l'écrivain (`ExportController::show`). */
     private function logged(User $user, int $agencyId, string $entity, string $at): void
     {

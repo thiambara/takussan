@@ -116,7 +116,7 @@ function ReviserSurLaListe({ bail, libelle, classes }: { readonly bail: BailDeLa
   const lease = demande ? (lecture.data?.data ?? null) : null;
   const paiements = echeances.data?.data;
   const pret = lease !== null && (echeances.data !== undefined || echeances.isError);
-  const permise = pret && gestesSecondaires(lease, paiements).includes('reviser');
+  const permise = pret && gestesSecondaires(lease).includes('reviser');
   const refusee = demande && (lecture.isError || (pret && !permise));
 
   useEffect(() => {

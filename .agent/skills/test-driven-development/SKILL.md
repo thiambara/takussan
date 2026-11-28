@@ -202,6 +202,10 @@ Next failing test for next feature.
 | **Minimal** | One thing. "and" in name? Split it. | `test('validates email and domain and whitespace')` |
 | **Clear** | Name describes behavior | `test('test1')` |
 | **Shows intent** | Demonstrates desired API | Obscures what code should do |
+| **At the module's seam** | Public interface of the module; lives in that module's test class | Reflection on private methods, partial mock of an app module, a new file per ticket |
+
+**Replace, don't stack (ADR-0140).** If the module you just deepened makes older tests redundant, delete them
+in the same change — after an ablation shows a remaining test goes red on the rule they guarded.
 
 ## Why Order Matters
 

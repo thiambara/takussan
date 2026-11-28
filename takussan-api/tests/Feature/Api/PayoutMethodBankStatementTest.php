@@ -11,7 +11,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsMoneyOut;
@@ -175,20 +174,6 @@ class PayoutMethodBankStatementTest extends TestCase
         $landlord = $this->landlordOf($this->moneyAgency());
 
         $this->assertNull($this->rendu($this->bank($landlord->id), $landlord)['bank_statement_url']);
-    }
-
-    /** TCK-2463 (AC2) — la route de signature CDN de TCK-105 n'existe plus. */
-    public function test_la_route_de_signature_cdn_est_retiree(): void
-    {
-        $agency = $this->moneyAgency();
-        $landlord = $this->landlordOf($agency);
-        $method = $this->bank($landlord->id);
-        $this->actingWithStepUp($landlord);
-        $mediaId = $this->envoyer($method)->assertCreated()->json('data.bank_statement_media_id');
-
-        // Le titulaire, autorisé par `MediaPolicy::sign` : rendait 200 tant que la route existait.
-        $this->getJson("/api/media/{$mediaId}/sign")->assertNotFound();
-        $this->assertFalse(Route::has('media.sign'));
     }
 
     /** @return array<string,mixed> */

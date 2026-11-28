@@ -7,6 +7,7 @@ use App\Models\Address;
 use App\Models\Property;
 use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
@@ -245,56 +246,31 @@ class PropertyGeoSearchTest extends TestCase
 
     // ── Les bornes de validation ──────────────────────────────────────────────
 
-    public function test_lat_sans_lng_rend_422(): void
+    /** @return array<string, array{array<string, mixed>, string}> */
+    public static function pointsOuRayonsRefuses(): array
     {
-        $this->getJson($this->urlDeRecherche(['lat' => self::CENTRE_LAT]))
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['lng']);
+        $point = ['lat' => self::CENTRE_LAT, 'lng' => self::CENTRE_LNG];
+
+        return [
+            'lat sans lng' => [['lat' => self::CENTRE_LAT], 'lng'],
+            'lng sans lat' => [['lng' => self::CENTRE_LNG], 'lat'],
+            'latitude hors bornes' => [['lat' => 91, 'lng' => 0], 'lat'],
+            'longitude hors bornes' => [['lat' => 0, 'lng' => -181], 'lng'],
+            'rayon nul' => [[...$point, 'radius_km' => 0], 'radius_km'],
+            'rayon négatif' => [[...$point, 'radius_km' => -1], 'radius_km'],
+            'rayon au-delà du plafond' => [[...$point, 'radius_km' => SearchPublicPropertyRequest::RADIUS_KM_MAX + 1], 'radius_km'],
+            'rayon sans point' => [['radius_km' => 5], 'radius_km'],
+            'tri par distance sans point' => [['sort' => 'distance'], 'sort'],
+        ];
     }
 
-    public function test_lng_sans_lat_rend_422(): void
+    /** @param array<string, mixed> $params */
+    #[DataProvider('pointsOuRayonsRefuses')]
+    public function test_un_point_ou_un_rayon_incoherent_rend_422(array $params, string $champ): void
     {
-        $this->getJson($this->urlDeRecherche(['lng' => self::CENTRE_LNG]))
+        $this->getJson($this->urlDeRecherche($params))
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['lat']);
-    }
-
-    public function test_latitude_hors_bornes_rend_422(): void
-    {
-        $this->getJson($this->urlDeRecherche(['lat' => 91, 'lng' => 0]))
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['lat']);
-    }
-
-    public function test_longitude_hors_bornes_rend_422(): void
-    {
-        $this->getJson($this->urlDeRecherche(['lat' => 0, 'lng' => -181]))
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['lng']);
-    }
-
-    public function test_rayon_nul_ou_negatif_rend_422(): void
-    {
-        foreach ([0, -1] as $rayon) {
-            $this->getJson($this->urlDeRecherche([
-                'lat' => self::CENTRE_LAT,
-                'lng' => self::CENTRE_LNG,
-                'radius_km' => $rayon,
-            ]))
-                ->assertStatus(422)
-                ->assertJsonValidationErrors(['radius_km']);
-        }
-    }
-
-    public function test_rayon_au_dela_du_plafond_rend_422(): void
-    {
-        $this->getJson($this->urlDeRecherche([
-            'lat' => self::CENTRE_LAT,
-            'lng' => self::CENTRE_LNG,
-            'radius_km' => SearchPublicPropertyRequest::RADIUS_KM_MAX + 1,
-        ]))
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['radius_km']);
+            ->assertJsonValidationErrors([$champ]);
     }
 
     public function test_le_plafond_de_rayon_lui_meme_est_accepte(): void
@@ -307,24 +283,6 @@ class PropertyGeoSearchTest extends TestCase
             'lng' => self::CENTRE_LNG,
             'radius_km' => SearchPublicPropertyRequest::RADIUS_KM_MAX,
         ]))->assertOk()->assertJsonCount(1, 'data');
-    }
-
-    public function test_rayon_sans_point_rend_422(): void
-    {
-        $this->getJson($this->urlDeRecherche(['radius_km' => 5]))
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['radius_km']);
-    }
-
-    /**
-     * `sort=distance` sans point rend 422 et NON un repli silencieux sur le tri
-     * par défaut : le front croirait trier.
-     */
-    public function test_sort_distance_sans_point_rend_422(): void
-    {
-        $this->getJson($this->urlDeRecherche(['sort' => 'distance']))
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['sort']);
     }
 
     public function test_une_valeur_de_sort_inconnue_reste_refusee(): void

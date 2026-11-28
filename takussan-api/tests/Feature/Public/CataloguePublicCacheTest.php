@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
 use Tests\Concerns\InteractsWithMeilisearch;
 
@@ -378,5 +379,34 @@ class CataloguePublicCacheTest extends ApiTestCase
 
         $this->assertStringNotContainsString('public', $entete, "Cache-Control émis : « {$entete} »");
         $this->assertStringNotContainsString('s-maxage', $entete, "Cache-Control émis : « {$entete} »");
+    }
+
+    /** @return array<string, array{string}> */
+    public static function referentiel(): array
+    {
+        return [
+            'villes' => ['/api/public/geo/cities'],
+            'régions' => ['/api/public/geo/regions'],
+            'équipements' => ['/api/public/amenities'],
+            'types de bien' => ['/api/public/property-types'],
+        ];
+    }
+
+    /**
+     * TCK-1207 (P103.03, ex-`ReferentielPublicCacheTest`, versé par TCK-3017) — les listes du référentiel
+     * public sortent en cache public de cinq minutes, avec un `ETag`, comme les énumérations. Avant :
+     * `no-cache, private`, sans `ETag`, retéléchargées à chaque page.
+     */
+    #[DataProvider('referentiel')]
+    public function test_le_referentiel_sort_en_cache_public_avec_un_etag(string $url): void
+    {
+        $headers = $this->getJson($url)->assertOk()->headers;
+
+        // Directive par directive : Symfony réordonne `Cache-Control` (cf. HomepageDiscoveryTest).
+        $this->assertTrue($headers->hasCacheControlDirective('public'), $url);
+        $this->assertSame('300', $headers->getCacheControlDirective('max-age'), $url);
+        $this->assertFalse($headers->hasCacheControlDirective('private'), $url);
+        $this->assertFalse($headers->hasCacheControlDirective('no-cache'), $url);
+        $this->assertNotNull($headers->get('ETag'), $url);
     }
 }

@@ -42,6 +42,8 @@ describe('<FeatureFlagProvider>', () => {
 
   beforeEach(() => {
     fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
       json: async () => ({ data: { property_compare: true } }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -58,7 +60,8 @@ describe('<FeatureFlagProvider>', () => {
     monter();
 
     expect(await screen.findByText('enabled')).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith('/api/feature-flags/me');
+    // TCK-3009 — par `appelBff` : le chemin du route handler tel quel, sous le cookie.
+    expect(fetchMock).toHaveBeenCalledWith('/api/feature-flags/me', expect.objectContaining({ credentials: 'include' }));
   });
 
   it("n'appelle pas la route authentifiée pour un visiteur anonyme, et tout drapeau vaut false", async () => {

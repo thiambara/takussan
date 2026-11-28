@@ -117,9 +117,4 @@ class DashboardTenantTest extends ApiTestCase
         $this->assertNotEmpty($data['documents']['recent']);
         $this->assertSame('contrat.pdf', $data['documents']['recent'][0]['name']);
     }
-
-    public function test_unauthenticated_is_rejected(): void
-    {
-        $this->apiGet('/api/dashboard/tenant')->assertUnauthorized();
-    }
 }

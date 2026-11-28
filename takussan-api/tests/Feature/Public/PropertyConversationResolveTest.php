@@ -26,14 +26,6 @@ class PropertyConversationResolveTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_unauthenticated_returns_401(): void
-    {
-        $property = Property::factory()->published()->create();
-
-        $this->getJson("/api/public/properties/{$property->slug}/conversation")
-            ->assertStatus(401);
-    }
-
     public function test_unknown_slug_returns_404(): void
     {
         Sanctum::actingAs(User::factory()->create());

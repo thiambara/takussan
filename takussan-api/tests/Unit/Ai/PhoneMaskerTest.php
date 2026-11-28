@@ -3,6 +3,7 @@
 namespace Tests\Unit\Ai;
 
 use App\Support\PhoneMasker;
+use App\Support\Telephone\LectureDesNumeros;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -134,13 +135,13 @@ class PhoneMaskerTest extends TestCase
         $this->assertSame($texte, PhoneMasker::mask($texte));
     }
 
-    /** `RadarPhone::canonical()` lit `PATTERN` : il reste le numéro sénégalais, sans le numéro étranger. */
+    /** `RadarPhone::canonical()` ne lit que le numéro sénégalais (`PATTERN`) ; le masqueur lit aussi le numéro étranger. */
     public function test_the_senegalese_pattern_does_not_read_a_foreign_number(): void
     {
-        $this->assertSame(1, preg_match(PhoneMasker::PATTERN, '+221 77 123 45 67'));
+        $this->assertSame('+221771234567', LectureDesNumeros::e164('+221 77 123 45 67'));
         foreach (['+33 6 12 34 56 78', '+2250712345678', '0033612345678', '06.12.34.56.78', '+1 202 555 0123'] as $etranger) {
-            $this->assertSame(0, preg_match(PhoneMasker::PATTERN, $etranger), $etranger);
-            $this->assertSame(1, preg_match(PhoneMasker::MASK_PATTERN, $etranger), $etranger);
+            $this->assertNull(LectureDesNumeros::e164($etranger), $etranger);
+            $this->assertSame(PhoneMasker::TOKEN, PhoneMasker::mask($etranger), $etranger);
         }
     }
 }

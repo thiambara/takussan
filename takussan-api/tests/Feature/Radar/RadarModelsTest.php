@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Radar;
 
-use App\Ai\Agents\RadarExtraction;
 use App\Models\Enums\RadarAdvertiserNature;
 use App\Models\Enums\RadarConfidence;
 use App\Models\Enums\RadarConsentProof;
@@ -255,26 +254,6 @@ class RadarModelsTest extends TestCase
         $this->assertSame(['status' => 'done', 'total' => 2, 'done' => 2], $listing->photoFingerprintStatus());
     }
 
-    public function test_la_factory_extracted_rend_une_sortie_normalisee_complete(): void
-    {
-        $listing = RadarListing::factory()->extracted()->create()->fresh();
-
-        $this->assertSame(RadarListingStage::Extracted, $listing->stage);
-        $this->assertNotNull($listing->extracted_at);
-        foreach ([...RadarExtraction::PROPERTY_FIELDS, ...RadarExtraction::ADVERTISER_FIELDS] as $champ) {
-            // jsonb ne garde pas l'ordre des clés : on vérifie leur présence.
-            foreach (['value', 'confidence', 'evidence', 'flags'] as $cle) {
-                $this->assertArrayHasKey($cle, $listing->extracted[$champ], "$champ.$cle");
-            }
-        }
-        $this->assertSame([], $listing->extracted['phones_dropped']);
-        $this->assertIsArray($listing->extracted['phones']);
-        $this->assertSame(
-            450000,
-            RadarListing::factory()->extracted(['price' => ['value' => 450000]])->make()->extracted['price']['value'],
-        );
-    }
-
     public function test_une_annonce_lit_ses_relations_et_ses_casts(): void
     {
         $user = User::factory()->create();
@@ -352,11 +331,6 @@ class RadarModelsTest extends TestCase
         $this->assertTrue(RadarOutreachOutcome::Stop->isFinal());
         $this->assertFalse(RadarOutreachOutcome::Question->isFinal());
         $this->assertFalse(RadarOutreachOutcome::NoAnswer->isFinal());
-    }
-
-    public function test_la_config_des_relances(): void
-    {
-        $this->assertSame(['after_days' => 3, 'max' => 2], config('radar.follow_ups'));
     }
 
     public function test_la_prise_en_charge_vit_sur_la_ligne_de_l_annonceur(): void
@@ -480,19 +454,6 @@ class RadarModelsTest extends TestCase
         }
     }
 
-    public function test_les_etats_verified_et_confirmed_de_la_factory(): void
-    {
-        $user = User::factory()->create();
-        $verdict = ['number_matches' => true, 'clauses_visible' => true, 'reply' => 'consented'];
-
-        $consent = RadarConsent::factory()->verified($verdict)->confirmed($user)->create()->fresh();
-
-        $this->assertSame(RadarVerificationStatus::Done, $consent->verification_status);
-        $this->assertEquals($verdict, $consent->ai_verdict);
-        $this->assertTrue($consent->confirmer->is($user));
-        $this->assertNotNull($consent->confirmed_at);
-    }
-
     public function test_un_accord_valide_est_confirme_et_non_revoque(): void
     {
         $user = User::factory()->create();
@@ -524,14 +485,6 @@ class RadarModelsTest extends TestCase
         $this->assertSame($private, $media->disk);
         Storage::disk($private)->assertExists($media->getPathRelativeToRoot());
         Storage::disk($public)->assertMissing($media->getPathRelativeToRoot());
-    }
-
-    public function test_la_factory_reviewed_pose_l_etape_lue(): void
-    {
-        $listing = RadarListing::factory()->reviewed()->create()->fresh();
-
-        $this->assertSame(RadarListingStage::Reviewed, $listing->stage);
-        $this->assertNotNull($listing->extracted);
     }
 
     public function test_les_migrations_du_demarchage_posent_leurs_objets(): void

@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { WarningBanner } from '@/components/ui/warning-banner';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
+import type { ApiError } from '@/lib/api';
 import { useFormatteurs, VALEUR_ABSENTE } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import {
@@ -46,7 +46,6 @@ import {
   type RadarCrawlStatus,
 } from '@/types/radar';
 import { RadarNav } from '../RadarNav';
-import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
 import { ARRETS_COLLECTE_RADAR, ERREURS_COLLECTE_RADAR, MOTIFS_RADAR } from '../codes-radar';
 
 const TON_STATUT: Record<RadarCrawlStatus, StatusTone> = {
@@ -58,33 +57,30 @@ const TON_STATUT: Record<RadarCrawlStatus, StatusTone> = {
 
 const enCours = (run: RadarCrawlRun) => run.status === 'queued' || run.status === 'running';
 
-/** Les paramètres d'un refus codé (`params`), pour son libellé. */
-function parametresDeLErreur(erreur: unknown): Record<string, unknown> {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return {};
-  const params = (erreur.data as { params?: unknown }).params;
-  return params && typeof params === 'object' ? (params as Record<string, unknown>) : {};
-}
-
 /**
  * Le libellé d'un refus de l'onglet, lu par son code ; à défaut, le libellé générique de l'API. TCK-2438 : une URL de
  * départ refusée est nommée par son rang (`params.field`, `start_urls.N`), avec les bornes et les hôtes que l'API rend.
+ * La cascade est celle de {@link useMessageErreurApi} (TCK-3008), sans l'étape de validation : l'onglet n'en avait pas.
  */
 function useMessageEchecCollecte() {
   const t = useTranslations('superAdmin.pages.radar.crawl');
-  const messageErreur = useMessageErreurApi();
-  return (erreur: unknown): string => {
-    const code = codeDeLErreur(erreur);
-    if (code && ERREURS_COLLECTE_RADAR[code]) {
-      const params = parametresDeLErreur(erreur);
-      const rang = /^start_urls\.(\d+)$/.exec(String(params.field ?? ''));
-      return t(`errors.${ERREURS_COLLECTE_RADAR[code]}`, {
-        rank: rang ? Number(rang[1]) + 1 : '',
-        max: typeof params.max === 'number' ? params.max : '',
-        hosts: Array.isArray(params.hosts) ? params.hosts.join(', ') : '',
-      });
-    }
-    return messageErreur(erreur, t('errors.generic'));
-  };
+  const tErreurs = useTranslations('superAdmin.pages.radar.crawl.errors');
+  const messageErreur = useMessageErreurApi({
+    tables: [{
+      t: tErreurs,
+      codes: ERREURS_COLLECTE_RADAR,
+      parametres: (_code, erreur) => {
+        const { field, max, hosts } = erreur.params;
+        const rang = /^start_urls\.(\d+)$/.exec(String(field ?? ''));
+        return {
+          rank: rang ? Number(rang[1]) + 1 : '',
+          max: typeof max === 'number' ? max : '',
+          hosts: Array.isArray(hosts) ? hosts.join(', ') : '',
+        };
+      },
+    }],
+  });
+  return (erreur: unknown): string => messageErreur(erreur, t('errors.generic'));
 }
 
 /** Les lignes non vides d'un champ, sans leurs espaces de bord : ce que l'API enregistre. */

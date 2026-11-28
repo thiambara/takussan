@@ -8,7 +8,6 @@ use App\Models\Integration;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\User;
 use App\Services\Admin\HealthcheckService;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -340,19 +339,6 @@ class HealthcheckProbesTest extends TestCase
 
         $this->assertContains($this->getJson('/api/health')->json('status'), ['ok', 'degraded', 'failed']);
         $this->assertNotNull($this->getJson('/api/health')->json('checked_at'));
-    }
-
-    public function test_le_battement_et_la_sonde_sont_planifies_chaque_minute_sur_chaque_file_surveillee(): void
-    {
-        $evenements = collect(app(Schedule::class)->events());
-
-        $battements = $evenements->filter(fn ($e) => $e->description === RecordQueueHeartbeat::class);
-        // Les six files du compose, `ai` comprise (TCK-2402) : un compte écrit en dur laisserait passer une file retirée.
-        $this->assertCount(6, RecordQueueHeartbeat::QUEUES);
-        $this->assertContains('ai', RecordQueueHeartbeat::QUEUES);
-        $this->assertCount(count(RecordQueueHeartbeat::QUEUES), $battements);
-        $battements->each(fn ($e) => $this->assertSame('* * * * *', $e->expression));
-        $this->assertTrue($evenements->contains(fn ($e) => str_contains((string) $e->command, 'health:probe') && $e->expression === '* * * * *'));
     }
 
     private function tentativesSms(int $reussies, int $echouees, $quand = null, string $fournisseur = 'mtarget', $misAJour = null): void

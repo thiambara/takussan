@@ -84,6 +84,9 @@ class EarlyTerminationServiceTest extends TestCase
         ]);
 
         $this->expectException(ValidationException::class);
+        // TCK-3017 — le refus de CETTE garde : un second préavis échoue aussi sur `preavisPossible`, et le
+        // test restait vert sans elle (mesuré par ablation).
+        $this->expectExceptionMessage(__('messages.lease_early_termination_already_in_progress'));
         $service->request($lease->fresh(), $actor, [
             'effective_date' => now()->addDays(60)->toDateString(),
         ]);

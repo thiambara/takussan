@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Guarantor;
 use App\Models\User;
+use App\Services\Lecture\CautionsLisibles;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -12,25 +13,16 @@ use Illuminate\Database\Eloquent\Model;
 class GuarantorPolicy extends BasePolicy
 {
     /**
-     * Lire une caution : super-admin, celui qui l'a ajoutée, ou un membre de l'agence de
-     * celui-ci.
+     * Lire une caution : la règle de {@see CautionsLisibles}, que la liste applique aussi (TCK-3006,
+     * ADR-0138). Elle sert aussi `update` et `delete` : l'auteur parti de l'agence de la caution ne
+     * la modifie ni ne la supprime plus.
      *
-     * TCK-1993 (P175.01) — la troisième clause lit l'agence de la caution ({@see self::agencyOf()}),
-     * sa colonne `agency_id` d'abord : elle ne passait que par `addedBy->agency_id`, et une caution
-     * dont l'auteur avait effacé son compte n'était plus lisible par personne dans l'agence.
-     *
-     * TCK-587 (ADR-0031) — « un membre de l'agence » est désormais son PERSONNEL : un bailleur de
-     * l'agence lisait, modifiait et supprimait les cautions ajoutées par les autres.
+     * TCK-1993 (P175.01) — l'agence d'une caution ne dépend plus de la vie de son auteur ; TCK-587
+     * (ADR-0031) — « un membre de l'agence » est son PERSONNEL, plus un bailleur.
      */
     public function view(User $user, Model $model): bool
     {
-        if (! $model instanceof Guarantor) {
-            return false;
-        }
-
-        return $user->isSuperAdmin()
-            || $model->added_by_id === $user->id
-            || $this->isStaffOf($user, self::agencyOf($model));
+        return $model instanceof Guarantor && CautionsLisibles::peut($user, $model);
     }
 
     /** `GuarantorController` employait la même règle pour lire et pour écrire. */

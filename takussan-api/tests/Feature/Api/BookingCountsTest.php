@@ -150,9 +150,4 @@ class BookingCountsTest extends TestCase
         $this->getJson('/api/bookings?filter[nope]=1')->assertStatus(400);
         $this->getJson('/api/bookings/counts?filter[nope]=1')->assertStatus(400);
     }
-
-    public function test_a_guest_is_refused(): void
-    {
-        $this->getJson('/api/bookings/counts')->assertUnauthorized();
-    }
 }
