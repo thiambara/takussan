@@ -4,6 +4,7 @@ namespace Tests\Feature\Api\Me;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -88,31 +89,30 @@ class MeUpdateTest extends TestCase
     }
 
     /**
-     * TCK-493 — l'intention d'entrée se mémorise, et elle n'accorde rien.
+     * TCK-493 — l'intention d'entrée se mémorise, et elle n'accorde rien. `skipped` aussi : c'est lui qui
+     * empêche de reposer la question à qui a choisi de passer. TCK-2607 — `professional` (ex-
+     * EntryIntentProfessionalTest, TCK-3017), relu aussi par `/auth/me`.
+     *
+     * @return array<string, array{0: string}>
      */
-    public function test_entry_intent_est_memorise_dans_les_preferences(): void
+    public static function intentions(): array
     {
-        $user = User::factory()->create(['preferences' => null]);
-
-        $this->actingAs($user)
-            ->patchJson('/api/me', ['entry_intent' => 'publish'])
-            ->assertOk()
-            ->assertJsonPath('data.preferences.entry_intent', 'publish');
-
-        $this->assertSame('publish', $user->fresh()->preferences['entry_intent']);
+        return ['search' => ['search'], 'publish' => ['publish'], 'skipped' => ['skipped'], 'professional' => ['professional']];
     }
 
-    public function test_passer_la_question_est_une_reponse_a_part_entiere(): void
+    #[DataProvider('intentions')]
+    public function test_entry_intent_est_memorise_dans_les_preferences(string $intention): void
     {
-        // C'est `skipped` qui empêche de reposer la question à quelqu'un qui a
-        // choisi de passer. Sans valeur enregistrée, « passer » deviendrait
-        // « repousser à la prochaine connexion » — ce qui n'est pas passer.
         $user = User::factory()->create(['preferences' => null]);
 
         $this->actingAs($user)
-            ->patchJson('/api/me', ['entry_intent' => 'skipped'])
+            ->patchJson('/api/me', ['entry_intent' => $intention])
             ->assertOk()
-            ->assertJsonPath('data.preferences.entry_intent', 'skipped');
+            ->assertJsonPath('data.preferences.entry_intent', $intention);
+
+        $this->assertSame($intention, $user->fresh()->preferences['entry_intent']);
+        $this->actingAs($user)->getJson('/api/auth/me')->assertOk()
+            ->assertJsonFragment(['entry_intent' => $intention]);
     }
 
     public function test_une_intention_inconnue_est_refusee(): void
@@ -125,13 +125,14 @@ class MeUpdateTest extends TestCase
             ->assertJsonValidationErrors('entry_intent');
     }
 
-    public function test_repondre_a_la_question_ne_cree_aucun_profil(): void
+    #[DataProvider('intentions')]
+    public function test_repondre_a_la_question_ne_cree_aucun_profil(string $intention): void
     {
         // AC6 — la réponse ORIENTE, elle n'attribue rien.
         $user = User::factory()->create();
         $avant = $this->actingAs($user)->getJson('/api/me/profiles')->json('data');
 
-        $this->actingAs($user)->patchJson('/api/me', ['entry_intent' => 'publish'])->assertOk();
+        $this->actingAs($user)->patchJson('/api/me', ['entry_intent' => $intention])->assertOk();
 
         $apres = $this->actingAs($user)->getJson('/api/me/profiles')->json('data');
         $this->assertSame($avant, $apres);

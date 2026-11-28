@@ -19,30 +19,6 @@ class InvoiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_agency_user_can_issue_invoice(): void
-    {
-        $agency = Agency::factory()->create();
-        // TCK-528 — `agency_id` seul matérialise un profil OWNER, qui ne porte pas `invoices.create`.
-        $agent = User::factory()->withAgentProfile($agency)->create();
-        $customer = Customer::factory()->create(['agency_id' => $agency->id]);
-
-        Sanctum::actingAs($agent);
-
-        $this->postJson('/api/invoices', [
-            'customer_id' => $customer->id,
-            'issue_date' => now()->toDateString(),
-            'due_date' => now()->addDays(15)->toDateString(),
-            'subtotal' => 500000,
-            'tax_rate' => 18,
-        ])->assertCreated()
-            ->assertJsonPath('data.status', 'draft')
-            ->assertJsonPath('data.subtotal', 500000)
-            ->assertJsonPath('data.tax_amount', 90000)
-            ->assertJsonPath('data.total_amount', 590000);
-
-        $this->assertDatabaseCount('invoices', 1);
-    }
-
     public function test_creator_can_issue_invoice_for_customer_they_added(): void
     {
         // TCK-528 — émettre exige `invoices.create` : l'émetteur est un agent (d'une autre agence
@@ -59,19 +35,6 @@ class InvoiceTest extends TestCase
         ])->assertCreated();
     }
 
-    public function test_random_user_cannot_issue_invoice(): void
-    {
-        $customer = Customer::factory()->create();
-
-        Sanctum::actingAs(User::factory()->create());
-
-        $this->postJson('/api/invoices', [
-            'customer_id' => $customer->id,
-            'issue_date' => now()->toDateString(),
-            'subtotal' => 100000,
-        ])->assertForbidden();
-    }
-
     public function test_issuer_can_send_draft_invoice(): void
     {
         $agent = User::factory()->create();
@@ -82,17 +45,6 @@ class InvoiceTest extends TestCase
         $this->postJson("/api/invoices/{$invoice->id}/send")
             ->assertOk()
             ->assertJsonPath('data.status', 'sent');
-    }
-
-    public function test_cannot_send_non_draft_invoice(): void
-    {
-        $agent = User::factory()->create();
-        $invoice = Invoice::factory()->sent()->create(['issued_by_id' => $agent->id]);
-
-        Sanctum::actingAs($agent);
-
-        $this->postJson("/api/invoices/{$invoice->id}/send")
-            ->assertStatus(422);
     }
 
     public function test_issuer_can_mark_sent_invoice_paid(): void
@@ -136,17 +88,6 @@ class InvoiceTest extends TestCase
         );
 
         $this->assertSame('inv_txn', $invoice->refresh()->metadata['gateway_duplicate_payment'][0]['transaction_id'] ?? null);
-    }
-
-    public function test_cannot_cancel_paid_invoice(): void
-    {
-        $agent = User::factory()->create();
-        $invoice = Invoice::factory()->paid()->create(['issued_by_id' => $agent->id]);
-
-        Sanctum::actingAs($agent);
-
-        $this->postJson("/api/invoices/{$invoice->id}/cancel")
-            ->assertStatus(422);
     }
 
     public function test_customer_can_view_own_invoice(): void
@@ -299,19 +240,6 @@ class InvoiceTest extends TestCase
             'invoiceable_type' => 'invalid_model',
             'invoiceable_id' => 1,
         ])->assertStatus(422);
-    }
-
-    public function test_cannot_mark_cancelled_invoice_paid(): void
-    {
-        $agent = User::factory()->create();
-        $invoice = Invoice::factory()->create([
-            'issued_by_id' => $agent->id,
-            'status' => InvoiceStatus::Cancelled->value,
-        ]);
-
-        Sanctum::actingAs($agent);
-
-        $this->postJson("/api/invoices/{$invoice->id}/mark-paid")->assertStatus(422);
     }
 
     public function test_can_cancel_draft_invoice(): void

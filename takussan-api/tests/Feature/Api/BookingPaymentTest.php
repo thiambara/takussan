@@ -60,20 +60,6 @@ class BookingPaymentTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_invalid_payment_type_returns_422(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $booking = Booking::factory()->create(['property_id' => $property->id]);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson("/api/bookings/{$booking->id}/payments", [
-            'amount' => 50000,
-            'payment_type' => 'not-a-type',
-        ])->assertStatus(422);
-    }
-
     public function test_owner_can_list_booking_payments(): void
     {
         $owner = User::factory()->create();
@@ -231,5 +217,20 @@ class BookingPaymentTest extends TestCase
         $this->postJson("/api/booking-payments/{$payment->id}/refund", [
             'refund_amount' => 10000,
         ])->assertStatus(422);
+    }
+
+    public function test_invalid_payment_type_returns_422(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $booking = Booking::factory()->create(['property_id' => $property->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/bookings/{$booking->id}/payments", [
+            'amount' => 50000,
+            'payment_type' => 'not-a-type',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['payment_type']);
     }
 }

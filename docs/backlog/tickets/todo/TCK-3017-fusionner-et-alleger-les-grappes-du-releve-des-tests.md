@@ -252,3 +252,100 @@ par md5. « Rougit » nomme le test restant qui a rougi.
   classes (deux décors, deux aides `fil()` de signatures différentes) n'est PAS faite.
 - `GroupConversationCreationTest::direct_conversation_path_still_works` (type par défaut basculé en groupe → rougit
   neuf tests de `ConversationTest`, dont `la_directe_existante…_est_rendue`).
+
+### Réservations, factures, documents, CRM — les lignes ALLEGER
+
+- `BookingTest::owner_can_reject_booking` retiré (statut `rejected` non écrit → rougit `BookingRejectionMessageTest`).
+  GARDÉS contre le relevé : `owner_can_confirm_booking` et `owner_can_cancel_booking` (statut `confirmed` non écrit,
+  motif d'annulation non écrit : `BookingGestesTest` et `BookingWriteMatchesShowTest` restent verts — ils ne relisent
+  pas le statut écrit) et `end_date_before_start_date…` (`after_or_equal` ôté : rien d'autre ne rougit).
+- Validation (réponse du porteur : l'ablation tranche) : `BookingPaymentTest::invalid_payment_type…`,
+  `DocumentTest::missing_file…` et `invalid_type…` — règle ôtée, aucun autre test ne rougit : GARDÉS, et durcis
+  (`assertJsonValidationErrors` sur le champ : ils ne vérifiaient qu'un 422, d'où qu'il vienne) ; chaque règle ôtée
+  les rougit désormais.
+- `CustomerTest::can_update_customer_pipeline_stage` retiré (`pipeline_stage` interdit → rougit `CustomerPipelineTest` ×2).
+- `InvoiceTest` : retirés `cannot_send_non_draft` (garde d'écriture `envoyable` à `true` → rougit
+  `InvoiceNumberingTest::m5` et deux autres), `cannot_mark_cancelled_invoice_paid` (`encaissable` → rougit m5),
+  `cannot_cancel_paid_invoice` (`annulable` → rougit m5), `agency_user_can_issue` (création fermée → rougit
+  `InvoiceStoreAuthorizationTest::an_agent_creates` ; TVA à zéro → rougit `the_tax_is_rounded…` et un autre : le
+  calcul 18 % reste gardé), `random_user_cannot_issue` (création ouverte → rougit `InvoiceStoreAuthorizationTest` ×3).
+- `PaymentDriverTest` GARDÉ entier : `PaymentAmountScaleTest` ne vérifie que le montant ; l'en-tête `Authorization`,
+  le point d'appel et la lecture `transactionId`/`checkoutUrl` ne sont vérifiés que là.
+
+### Espace « Démarrer » et rôle de l'agent
+
+- `Me/AgentRoleCapabilitiesDeniedTest` → `Me/AgentRoleCapabilitiesTest` (deux tests et leurs aides versés, aucun retiré).
+- `Me/DemarrageEtapesParPieceTest` → `Me/EspaceDemarrageTest` : la société vérifiée versée (réécrite sur les aides de
+  la classe) ; retirés les quatre autres (bailleur, agent, prestataire, admin), chacun égal à un test de la classe.
+  Mutations rougies dans `EspaceDemarrageTest` : pièce facultative en étape (bailleur, prestataire), ordre des pièces
+  inversé (bailleur, agent, société), `kyc` d'agence perdu (sept tests dont `une_agence_neuve…`), `verified` lu
+  `envoyee` (agent, société), pièce manquante comptée faite (cinq tests).
+- `Me/EntryIntentProfessionalTest` → `MeUpdateTest` NON fait : `MeUpdateTest` est en cours de modification dans
+  l'arbre (non commitée, hors de ce ticket).
+
+### Clients — `CustomerCrmTest`, le doublon du PATCH `pipeline-stage` (second agent)
+
+- Retiré : `update_pipeline_stage` (écriture du stage ôtée dans `updatePipelineStage` → rougit
+  `CustomerPipelineTest::update_to_lost_via_pipeline_stage_endpoint_creates_note`).
+- GARDÉ : `invalid_pipeline_stage_returns_422` — `Rule::enum` ôté de `UpdatePipelineStageCustomerRequest`, aucun test
+  restant ne rougit (le seul autre envoi d'une étape inconnue, `AuthorizationPrecedesValidationTest`, est un 403).
+- `CustomerTest::can_update_customer_pipeline_stage` (retiré par le premier agent) : règle `pipeline_stage` ôtée
+  d'`UpdateCustomerRequest` → rougit `CustomerPipelineTest::update_to_converted_with_reason_creates_customer_note`.
+
+### Paiements — `PaymentDriverTest` (2/5)
+
+- Retirés : `wave_driver_initiate_calls_api_with_correct_payload` et `orange_money_driver_initiate_calls_api`. Le montant
+  et la devise sont à `PaymentAmountScaleTest` ; le reste a sa mutation : jeton Wave faussé → rougit
+  `PaymentGatewayInitiateTest::initiate_only_uses_agency_scoped_integration` ; identifiant de session Wave faussé →
+  rougit `owner_can_initiate_wave_checkout` (+ `webhook_compare_au_montant_fige…`) ; URL de paiement Wave figée → rougit
+  `owner_can_initiate_wave_checkout` ; `pay_token` Orange faussé → rougit `owner_can_initiate_orange_money_checkout`.
+
+### Historique des paiements — `PaymentHistoryExportTest::d1_*` (1/3)
+
+- Retiré : `d1_la_coupe_sur_le_retard_suit_les_jours_de_retard`. Ses règles, mutées dans `PaymentHistory::orderForCut`,
+  rougissent `PaymentHistoryCutOrderTest::une_coupe_a_k_lignes…` : date d'une échéance impayée sans `period_start`,
+  restitution de caution comptée en retard, statut dû ignoré.
+- GARDÉS, l'ablation les trouve seuls : `d1_la_coupe_sur_le_reste_du…` (remboursé ignoré sur une ligne `paid` : le décor
+  de `CutOrderTest` reste vert, lui seul rougit) ; `d1_une_coupe_garde_les_premieres_lignes…` (le tri inconnu ramené à
+  `date` croissant : lui seul rougit, `CutOrderTest` ne balaie que les dix tris connus).
+- Vu au passage : la condition « reste dû > 0 » de `daysLateSql()` ôtée, ni `CutOrderTest` ni les `d1` ne rougissent.
+
+### CRM — six regroupements, trois retraits
+
+- `CustomerLastContactedTest` → `DernierContactEtSonCanalTest` : déplacés le geste sur la demande convertie (journal),
+  le geste sur la fiche (journal), la demande non convertie. Retirés : note, visite terminée, compte rendu (chaque appel
+  à `touchCustomer` ôté → rougit le `ac3_…` correspondant, qui part d'un canal différent et vérifie aussi le canal),
+  `le_dernier_contact_ne_recule_pas` (garde `last_contacted_at <` ôtée → rougit `ac2_un_contact_plus_ancien…`).
+- `CustomerSortByReferentTest` et `CustomerSortByStageTest` → `CustomerReferentFilterTest`, réécrits sur son décor (le
+  collègue nommé « aminata » en minuscule) ; les deux tests du tri par étape fondus en un. Collation `C` → rougit
+  `sort_referent_par_nom…`.
+- `CustomerListQueryCountTest` et `SuggestedStageQueryCountTest` → `CustomerIndexQueryBudgetTest` (chacun dans son
+  agence ; aucun retrait).
+- `FicheDUnCompteSansNomTest` → `CustomerServiceCreateTest` (un test déplacé).
+- `FicheDuCandidatRattacheeTest` → `FicheDeCandidatureDansLAgenceDuBienTest` : déplacés l'e-mail vérifié et la fiche
+  déjà liée (garde `whereNull('user_id')` ôtée → il rougit). Retirés : le téléphone vérifié (téléphone comparé faux →
+  rougit `la_fiche_de_l_agence_du_bien_se_rattache_sur_une_coordonnee_verifiee` ; NB : ôter la clause téléphone ne
+  rougissait rien, la clause vide rattachant n'importe quelle fiche) et « sans coordonnée vérifiée » (vérification
+  ignorée → rougit `sans_coordonnee_verifiee_aucune_fiche…`).
+- `TaskDueListFilterTest` → `TaskDueFilterTest` (une tâche du jour faite ajoutée au décor) ; `les_valeurs_seules…`
+  fondu (les singletons y sont, l'union `upcoming,none` versée dans `ac2_…`). Seule la première période lue → rougit
+  `ac2_une_liste_rend_l_union…` et `la_liste_se_combine…`.
+- `CustomerNoteKindTest::no_french_prefix_is_left_in_the_application_code` (lecture du source) retiré : préfixe
+  « Perte : » remis dans `pinStageNote` → rougit `losing_by_the_pipeline_stage_endpoint…` et `converting_by_update…`.
+  GARDÉS : les tests de migration (`CustomerNoteKindTest`, `CustomerIdNumberEncryptionTest`) — seule garde de leur
+  migration, ils peuvent rougir.
+
+### Agenda, contexte du fil, intention d'entrée — les trois fusions à décor
+
+- `Calendar/CalendarBookingEventTest` + `Calendar/CalendarVisitEventEnrichedTest` → `Calendar/CalendarVisitRankTest`, sur
+  un seul décor (agence, agent, bailleur, bien, fiche ; aides `adresse`, `sejourDe`, `visiteDAbdoulaye`, `evenements`
+  par `key`). Les deux tests N+1 fondus en un, sur un agenda qui sert les deux types : client du séjour non chargé →
+  il rougit ; adresse de la visite non chargée → il rougit.
+- `ConversationContextCustomerFactsTest` → `ConversationThreadContextTest` : les sept tests versés, leur décor propre
+  (horloge du 15 novembre, demande du 2, projet de la fiche) posé par l'aide `avecLaDemande()` sur celui de la classe.
+  Mutations rougies dans la classe : visite d'une autre agence comptée (`la_visite_d_une_autre_agence…`), visite annulée
+  comptée (`l_agent_lit_les_faits…`).
+- `Me/EntryIntentProfessionalTest` → `Me/MeUpdateTest` : un fournisseur `intentions` (search, publish, skipped,
+  professional) porte la mémorisation (relue aussi par `/auth/me`) et « ne crée aucun profil » ; retirés
+  `passer_la_question…` (absorbé) et `une_autre_valeur_reste_refusee` (vocabulaire ouvert → rougit
+  `une_intention_inconnue…`). `professional` retiré de la règle → rougit les deux cas `professional`.
