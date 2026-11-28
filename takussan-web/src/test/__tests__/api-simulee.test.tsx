@@ -3,26 +3,41 @@
  * nomme une clé lue sans être demandée, rend les refus à la forme qu'`ApiError` lit (TCK-3008), journalise ce que
  * Laravel recevrait (relais compris) ; le rendu de test passe le compte par le vrai `AuthProvider`.
  */
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { waitFor } from '@testing-library/react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError, apiRequest } from '@/lib/api';
 import { appelBff } from '@/lib/bff';
 
-import { doublerLApi } from '../api-simulee';
+import { cheminDeLApi, doublerLApi, RELAIS_DU_BFF } from '../api-simulee';
 import { SUPER_ADMIN } from '../habilitations';
 import { rendreLeHook } from '../rendu';
 
 vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
 import { RESSOURCES } from '../ressources-de-l-api';
+
+// Enregistré AVANT `doublerLApi()` : les `afterEach` se jouent en pile, celui-ci passe donc APRÈS celui du harnais.
+const fetchApresLesTests: unknown[] = [];
+afterEach(() => {
+  try {
+    void Promise.resolve(globalThis.fetch('/api/property-visits')).catch(() => undefined);
+    fetchApresLesTests.push('`fetch` n’a pas levé après le test');
+  } catch (refus) {
+    fetchApresLesTests.push(refus);
+  }
+});
+afterAll(() => {
+  // Hors d'un test, aucun appel ne joint le vrai réseau : `fetch` lève, tout de suite.
+  for (const issue of fetchApresLesTests) expect(issue).toEqual(expect.objectContaining({ message: expect.stringMatching(/hors d’un test/) }));
+});
 
 const api = doublerLApi();
 
@@ -58,7 +73,8 @@ describe('fields[] et include=', () => {
   it('sert le détail `<route>/<id>` sous la même règle, et 404 pour un id inconnu', async () => {
     const { data } = await apiRequest<{ data: Record<string, unknown> }>('/api/property-visits/41?fields[property_visits]=scheduled_at');
 
-    expect(Object.keys(data)).toEqual(['id', 'scheduled_at']);
+    // `show` charge toujours property, agent, visitor et customer (`whenLoaded`) : un bloc chargé mais vide vaut `null`.
+    expect(data).toEqual({ id: 41, scheduled_at: '2026-11-20T10:00:00Z', property: VISITE.property, customer: VISITE.customer, visitor: null, agent: null });
     await expect(apiRequest('/api/property-visits/99')).rejects.toMatchObject({ status: 404 });
   });
 });
@@ -67,7 +83,8 @@ describe('les réservations et les baux, selon leur description', () => {
   it('réservations : les colonnes suivent fields[bookings], les blocs que l’index charge toujours restent', async () => {
     const { data } = await apiRequest<Liste>('/api/bookings?fields[bookings]=kind');
 
-    expect(data[0]).toEqual({ id: 5, kind: 'offer', customer: { id: 7 }, abilities: { confirm: true } });
+    // `id` n'est pas forcé : sous `fields[bookings]=kind`, `BookingResource` le rend `null` (mesuré, TCK-3010).
+    expect(data[0]).toEqual({ kind: 'offer', customer: { id: 7 }, abilities: { confirm: true } });
     void data[0].notes;
     expect(() => api.verifier()).toThrow(/« notes » lue sans être demandée par fields\[bookings\]/);
   });
@@ -75,9 +92,94 @@ describe('les réservations et les baux, selon leur description', () => {
   it('baux : `include=due_summary` apporte ses quatre clés, `tenant` attend son inclusion', async () => {
     const { data } = await apiRequest<Liste>('/api/leases?fields[leases]=status&include=due_summary');
 
-    expect(data[0]).toEqual({ id: 80, status: 'active', next_due: { amount: 150_000 }, overdue_count: 0 });
+    expect(data[0]).toEqual({ status: 'active', next_due: { amount: 150_000 }, overdue_count: 0 });
     void data[0].tenant;
     expect(() => api.verifier()).toThrow(/« tenant » lue sans être demandée par fields\[leases\] ni include=/);
+  });
+
+  it('`id` se lit seulement demandé, sauf là où la Resource le force (les visites)', async () => {
+    const baux = await apiRequest<Liste>('/api/leases?fields[leases]=status');
+    void baux.data[0].id;
+    expect(() => api.verifier()).toThrow(/« id » lue sans être demandée par fields\[leases\]/);
+
+    const visites = await apiRequest<Liste>('/api/property-visits?fields[property_visits]=status');
+    expect(visites.data[0].id).toBe(41);
+    const avecId = await apiRequest<Liste>('/api/bookings?fields[bookings]=id,kind');
+    expect(avecId.data[0].id).toBe(5);
+    expect(() => api.verifier()).not.toThrow();
+  });
+
+  it('le détail d’un bail charge toujours son bien (`LeaseController::show`)', async () => {
+    const { data } = await apiRequest<{ data: Record<string, unknown> }>('/api/leases/80?fields[leases]=id,status');
+
+    expect(data).toEqual({ id: 80, status: 'active', property: null });
+  });
+});
+
+describe('la pagination, bornée comme l’API', () => {
+  const lignes = Array.from({ length: 40 }, (_, i) => ({ id: i + 1, status: 'active' }));
+
+  it('`page` et `per_page` découpent la liste ; `total` et `last_page` suivent', async () => {
+    api.servir('baux', lignes);
+
+    const { data, meta } = await apiRequest<Liste & { meta: Record<string, number> }>('/api/leases?per_page=15&page=3');
+
+    expect(data.map((l) => l.id)).toEqual([31, 32, 33, 34, 35, 36, 37, 38, 39, 40]);
+    expect(meta).toEqual({ total: 40, per_page: 15, current_page: 3, last_page: 3 });
+  });
+
+  it('sans `per_page`, la taille d’Eloquent (15) ; au-delà de 100, 100 (`HasQueryBuilder::PER_PAGE_MAX`)', async () => {
+    api.servir('baux', [...lignes, ...lignes.map((l) => ({ ...l, id: l.id + 40 })), ...lignes.map((l) => ({ ...l, id: l.id + 80 }))]);
+
+    const parDefaut = await apiRequest<Liste & { meta: Record<string, number> }>('/api/leases');
+    const plafond = await apiRequest<Liste & { meta: Record<string, number> }>('/api/leases?per_page=500');
+
+    expect([parDefaut.data.length, parDefaut.meta.per_page, parDefaut.meta.last_page]).toEqual([15, 15, 8]);
+    expect([plafond.data.length, plafond.meta.per_page, plafond.meta.last_page]).toEqual([100, 100, 2]);
+  });
+});
+
+describe('filter[] : la doublure ne filtre pas, et le dit', () => {
+  it('un filter[] qu’aucune réponse ne lit ni ne déclare fait échouer le test', async () => {
+    await apiRequest('/api/property-visits?filter[status]=scheduled');
+
+    expect(() => api.verifier()).toThrow(/filter\[status\] envoyé à GET \/api\/property-visits sans qu’une réponse le lise ni le déclare/);
+  });
+
+  it('un producteur qui lit le filtre le prend en charge', async () => {
+    api.servir('visites', ({ requete }) => (requete.get('filter[status]') === 'scheduled' ? [VISITE] : []));
+
+    await apiRequest('/api/property-visits?filter[status]=scheduled');
+
+    expect(() => api.verifier()).not.toThrow();
+  });
+
+  it('`filtres` le déclare, pour un test qui ne juge que la requête', async () => {
+    api.servir('visites', [VISITE], { filtres: ['status'] });
+
+    await apiRequest('/api/property-visits?filter[status]=scheduled&filter[day]=2026-11-20');
+
+    expect(() => api.verifier()).toThrow(/filter\[day\]/);
+    expect(api.appels('/api/property-visits')[0].requete.get('filter[status]')).toBe('scheduled');
+  });
+});
+
+describe('une requête tardive accuse le test qui l’a lancée', () => {
+  // Le harnais attend le repos dans son `afterEach`, puis démonte : la requête qu'un hook lance après la dernière
+  // assertion tombe dans CE test, qui échoue en la nommant (ici, attendu : `it.fails`).
+  it.fails('le test qui laisse partir une requête non doublée échoue', () => {
+    const plusTard = async () => {
+      await new Promise((fin) => setTimeout(fin, 0));
+      return apiRequest('/api/route-tardive');
+    };
+    rendreLeHook(() => useQuery({ queryKey: ['tardive'], queryFn: plusTard }));
+  });
+
+  it('le test suivant ne reçoit rien d’elle', async () => {
+    await api.auRepos();
+
+    expect(api.appels()).toEqual([]);
+    expect(() => api.verifier()).not.toThrow();
   });
 });
 
@@ -260,7 +362,71 @@ describe('les descriptions de ressources suivent les `Resource` PHP', () => {
     const classees = new Set([...description.colonnes, ...description.calculees, ...inclusions]);
 
     expect(php.length).toBeGreaterThan(10);
+    // `id` forcé : seule `PropertyVisitResource::requestedFields` l'ajoute (`['id', ...$noms]`).
+    const source = readFileSync(join(RACINE, 'takussan-api', description.php), 'utf8');
+    expect(description.idToujours, 'idToujours suit la Resource').toBe(source.includes("['id', ...$noms]"));
     expect(php.filter((c) => !classees.has(c)), 'clés de la Resource que la description ne classe pas').toEqual([]);
     expect([...description.colonnes, ...description.calculees].filter((c) => !php.includes(c)), 'clés décrites que la Resource ne rend pas').toEqual([]);
+  });
+});
+
+describe('les relais du BFF : la table suit les route handlers', () => {
+  const APP = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'app');
+
+  /**
+   * Les route handlers qui ne transmettent pas leur propre chemin à Laravel, chacun avec sa raison. Tout autre
+   * `src/app/api/**\/route.ts` doit garder son chemin ou être traduit par `RELAIS_DU_BFF` : un oubli rougit ici.
+   */
+  const SANS_RELAIS: Record<string, string> = {
+    '/api/auth/me': 'par `getMe` (`/api/auth/me`), même chemin',
+    '/api/auth/session-expired': 'efface le cookie de session',
+    '/api/auth/set-token': 'pose le cookie de session',
+    '/api/auth/logout': 'par `logout` (`/api/auth/logout`), même chemin ; clôt aussi l’impersonation (`/admin/impersonate/stop`)',
+    '/api/me/active-profile': 'par `patchActiveProfile` (`/api/me/active-profile`), même chemin, puis le cookie',
+    '/api/me/profiles': 'par `fetchMyProfiles` (`/api/me/profiles`), même chemin',
+    '/api/me/wizard-drafts': 'par `fetchMyWizardDrafts` (`/api/me/wizard-drafts`), même chemin',
+    '/api/me/wizard-drafts/*': 'par `buildPath` (`/api/me/wizard-drafts/${key}`), même chemin',
+    '/api/impersonation/start': 'geste du BFF : `POST /admin/users/{id}/impersonate`, puis le cookie',
+    '/api/impersonation/stop': 'geste du BFF : `POST /admin/impersonate/stop`, puis le cookie',
+    '/api/revalidation/fiche': 'revalide le cache de Next, ne joint pas Laravel',
+    '/api/sante': 'sonde `/up`, hors du préfixe `/api`',
+  };
+
+  function routes(dossier: string): string[] {
+    return readdirSync(dossier, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? routes(join(dossier, e.name)) : e.name === 'route.ts' ? [join(dossier, e.name)] : [],
+    );
+  }
+
+  /** Le chemin du route handler, `[id]`, `[...path]` et `[[...path]]` notés `*`. */
+  const duFront = (fichier: string) => '/' + relative(APP, dirname(fichier)).split(sep).map((s) => (s.startsWith('[') ? '*' : s)).join('/');
+  /** Le préfixe fixe, avant le premier segment variable : c'est lui qu'un relais traduit. */
+  const fixe = (chemin: string) => chemin.split(/\*|\$\{/)[0].replace(/\/$/, '');
+
+  it('chaque route handler garde son chemin, est traduit par `RELAIS_DU_BFF`, ou dit pourquoi', () => {
+    const ecarts: string[] = [];
+    const vus = new Set<string>();
+    const servis = new Set<string>();
+    for (const fichier of routes(join(APP, 'api'))) {
+      const front = duFront(fichier);
+      vus.add(front);
+      if (front in SANS_RELAIS) continue;
+      const source = readFileSync(fichier, 'utf8');
+      // Le chemin que le handler demande à Laravel : `urlApiServeur` et `relayerVersApi` sans `/api`, `apiRequest` avec.
+      const cibles = [...source.matchAll(/(?:relayerVersApi\(request, |urlApiServeur\(|apiRequest(?:<[^>]*>)?\()[`']([^`']*)[`']/g)]
+        .map((m) => fixe(m[1].replace(/^\/api(?=\/|$)/, '')));
+      if (cibles.length === 0) ecarts.push(`${front} : aucun chemin de Laravel lu, ni raison dans SANS_RELAIS`);
+      for (const cible of new Set(cibles)) {
+        const entree = RELAIS_DU_BFF.find(([depuis]) => `${fixe(front)}/sonde`.startsWith(depuis));
+        if (entree) servis.add(entree[0]);
+        const recu = cheminDeLApi(`${fixe(front)}/sonde`);
+        if (recu !== `/api${cible}/sonde`) ecarts.push(`${front} → Laravel ${cible || '/'}… ; la table traduit en ${recu}`);
+      }
+    }
+    for (const nom of Object.keys(SANS_RELAIS)) if (!vus.has(nom)) ecarts.push(`${nom} : dans SANS_RELAIS, mais aucun route handler`);
+
+    expect(ecarts).toEqual([]);
+    // Et chaque entrée de la table sert un route handler : une entrée morte rougit aussi.
+    expect(RELAIS_DU_BFF.map(([depuis]) => depuis).filter((d) => !servis.has(d)), 'entrées de RELAIS_DU_BFF sans route handler').toEqual([]);
   });
 });

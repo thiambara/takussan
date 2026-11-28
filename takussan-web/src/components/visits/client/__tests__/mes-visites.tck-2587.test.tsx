@@ -33,8 +33,6 @@ vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: toastAdd }) })
 vi.mock('@/components/layout/en-tete-de-la-coque', () => ({ DeclarerEnTete: () => null }));
 
 /** Les passées sur deux pages, quand la seconde en a. */
-const paginees = (p: URLSearchParams) => !p.get('filter[status]') && !!p.get('filter[scheduled_at_max]') && etat.passeesPage2.length > 0;
-
 // TCK-2797, TCK-3010 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
 const api = doublerLApi()
   .servir(
@@ -42,7 +40,6 @@ const api = doublerLApi()
     ({ requete: p }) => {
       const statut = p.get('filter[status]');
       const min = p.get('filter[scheduled_at_min]');
-      if (paginees(p)) return p.get('page') === '2' ? etat.passeesPage2 : etat.passees;
       return statut === 'confirmed' && min
         ? etat.confirmees
         : statut === 'scheduled' && min
@@ -52,14 +49,9 @@ const api = doublerLApi()
             : statut === 'completed,cancelled,no_show' && min
               ? etat.closesAVenir
               : !statut && p.get('filter[scheduled_at_max]')
-                ? etat.passees
+                // TCK-3010 — toutes les passées : la doublure les pagine comme l'API (`page`, `per_page`).
+                ? [...etat.passees, ...etat.passeesPage2]
                 : [];
-    },
-    {
-      meta: ({ requete: p }) =>
-        paginees(p)
-          ? { total: etat.passees.length + etat.passeesPage2.length, per_page: 20, current_page: Number(p.get('page') ?? '1'), last_page: 2 }
-          : {},
     },
   )
   .sur('POST', /^\/api\/property-visits\//, { data: {} })
@@ -318,7 +310,8 @@ describe('les passées', () => {
   it('la page suivante des passées ne vide pas la vue : l’avis en cours de saisie reste', async () => {
     const user = userEvent.setup();
     etat.terminees = [RECENTE];
-    etat.passees = [RECENTE, ANCIENNE];
+    // Une page pleine (`per_page` = 20), puis une visite en page 2.
+    etat.passees = [RECENTE, ANCIENNE, ...Array.from({ length: 18 }, (_, i) => ({ ...ANCIENNE, id: 940 + i }))];
     etat.passeesPage2 = [visite({ id: 930, status: 'completed', scheduled_at: '2026-10-01T10:00:00Z', completed_at: '2026-10-01T10:30:00Z', rating: 5, property: { id: 60, title: 'Villa des Almadies', slug: 'villa', cover_url: null } })];
     monter();
     const carte = (await screen.findByText('Visité aujourd’hui à 06:00 avec Sokhna')).closest('[data-slot="avis-du-client"]') as HTMLElement;

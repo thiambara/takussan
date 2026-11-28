@@ -61,7 +61,8 @@ const api = doublerLApi()
   .sur('GET', '/api/maintenance-requests', () =>
     page([{ id: 72, title: 'Fuite sous évier', status: 'scheduled', scheduled_at: null, property: { id: 4, title: 'F2, Grand Yoff' }, assignee: null }], etat.enCours),
   )
-  .servir('visites', [], { meta: () => ({ total: etat.visites, per_page: 20 }) })
+  // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  .servir('visites', [], { meta: () => ({ total: etat.visites, per_page: 20 }), filtres: ['status', 'scheduled_at_min'] })
   .sur('GET', '/api/payments/history', () => page([LOYER], etat.loyers))
   .sur('GET', '/api/owner-statements', () => ({ data: { properties: [{ property_id: 4, title: 'Villa blanche, Yoff', reminders: etat.relances }] } }))
   .parDefaut(page([], 0));

@@ -97,7 +97,8 @@ const api = doublerLApi()
   .servir(
     'visites',
     () => [VISITE, { ...VISITE, id: 602, scheduled_at: '2026-11-16T17:00:00Z' }].map((v) => ({ ...v, can_confirm: etat.peutConfirmer })).slice(0, etat.visites),
-    { meta: () => ({ total: etat.visites, per_page: 20 }) },
+    // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+    { meta: () => ({ total: etat.visites, per_page: 20 }), filtres: ['status', 'scheduled_at_min'] },
   )
   .sur('GET', '/api/maintenance-requests', ({ requete }) =>
     requete.get('filter[status]') === 'awaiting_owner'

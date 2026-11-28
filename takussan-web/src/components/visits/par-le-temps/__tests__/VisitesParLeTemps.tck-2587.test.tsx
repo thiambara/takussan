@@ -126,7 +126,8 @@ const api = doublerLApi()
     };
   })
   // TCK-2797 — servies comme l'API : les seules clés de `fields[property_visits]`.
-  .servir('visites', ({ requete }) => liste(requete))
+  // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  .servir('visites', ({ requete }) => liste(requete), { filtres: ['scheduled_at_min'] })
   .sur('POST', '/api/property-visits/bulk-confirm', () => etat.lot)
   // L'attribution en lot répond comme la confirmation en lot : une ligne par visite, et ses comptes.
   .sur('POST', '/api/property-visits/bulk-assign', { data: [{ id: 2301, ok: true }], meta: { ok: 1, failed: 0 } })

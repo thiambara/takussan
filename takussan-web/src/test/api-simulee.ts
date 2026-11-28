@@ -16,9 +16,15 @@
  * ```
  *
  * **Ce qui fait échouer un test, après lui** (un `afterEach` que `doublerLApi` pose) : une clé lue que la requête
- * n'a pas demandée (`fields[<table>]`, `include=`) — l'écran se viderait en silence contre la vraie API —, et une
- * requête qu'aucune déclaration ne sert. Les deux sont NOTÉS pendant le test, jamais levés là où ils arrivent :
- * une exception dans un rendu ou une requête serait avalée par React Query ou par une frontière d'erreur.
+ * n'a pas demandée (`fields[<table>]`, `include=`) — l'écran se viderait en silence contre la vraie API —, une
+ * requête qu'aucune déclaration ne sert, et un `filter[…]` envoyé à une ressource servie sans qu'une réponse le lise
+ * ni le déclare (la doublure ne filtre pas : sans ce signal, un test croirait le filtre appliqué). Tous sont NOTÉS
+ * pendant le test, jamais levés là où ils arrivent : une exception dans un rendu ou une requête serait avalée par
+ * React Query ou par une frontière d'erreur.
+ *
+ * **Le coupable est le test qui a lancé la requête** : l'`afterEach` attend que le réseau se taise, démonte (RTL),
+ * puis vérifie. Une lecture notée pour un test qui n'est plus en cours est ignorée. Entre deux tests, `fetch` lève :
+ * aucun appel ne joint le vrai réseau.
  *
  * Une déclaration faite PENDANT un test ne vaut que pour lui ; faite au niveau du module, pour tous.
  * Le chemin journalisé et apparié est **celui que Laravel reçoit** : une URL absolue (`apiRequest`) garde son
@@ -26,7 +32,7 @@
  *
  * Limite : une ligne recopiée (`{ ...ligne }`) perd sa surveillance ; ses lectures suivantes ne sont plus vues.
  */
-import { act } from '@testing-library/react';
+import { act, cleanup } from '@testing-library/react';
 import { afterEach, beforeEach } from 'vitest';
 
 import { ApiError } from '@/lib/api';
@@ -38,10 +44,17 @@ import { RESSOURCES, type DescriptionDeRessource, type NomDeRessource } from './
  * TCK-1800 (`requetes-du-front.tck-1800.test.tsx`) la lit aussi.
  * - `src/app/api/admin-users/[[...path]]/route.ts` → `/api/users` ;
  * - `src/app/api/super-admin/[...path]/route.ts` → `/api/admin` (TCK-145) ;
+ * - `src/app/api/super-admin-properties/[[...path]]/route.ts` → `/api/properties` ;
+ * - `src/app/api/super-admin-users/route.ts` → `/api/admin/users` ;
  * - `src/app/api/impersonation/proxy/[...path]` → `/api` (`cheminParLeRelais`, ADR-0055 §6).
+ *
+ * Gardée contre TOUS les route handlers (`__tests__/api-simulee.test.tsx`, « les relais du BFF ») : un relais qui
+ * renomme sans figurer ici rougit, au lieu de laisser le journal nommer un chemin que Laravel ne reçoit jamais.
  */
 export const RELAIS_DU_BFF: readonly (readonly [string, string])[] = [
   ['/api/admin-users', '/api/users'],
+  ['/api/super-admin-properties', '/api/properties'],
+  ['/api/super-admin-users', '/api/admin/users'],
   ['/api/super-admin/', '/api/admin/'],
   ['/api/impersonation/proxy/', '/api/'],
 ];
@@ -55,6 +68,14 @@ export function cheminDeLApi(cheminDuFront: string): string {
 }
 
 const ORIGINE_DU_FRONT = 'http://front.test';
+
+/** Le vrai `setTimeout`, saisi au chargement : une horloge simulée ne fige pas `auRepos`. */
+const attendre = globalThis.setTimeout.bind(globalThis);
+
+/** Le `fetch` entre deux tests : aucun appel ne joint le vrai réseau. */
+const FETCH_HORS_DES_TESTS = ((entree: RequestInfo | URL) => {
+  throw new Error(`fetch appelé hors d’un test (${String(entree instanceof Request ? entree.url : entree)}) : la doublure de l’API (TCK-3010) ne sert qu’entre beforeEach et afterEach, et le vrai réseau n’est jamais joint.`);
+}) as typeof fetch;
 
 /** Une requête reçue, telle que Laravel la verrait. */
 export interface AppelSimule {
@@ -99,8 +120,19 @@ export interface ApiSimulee {
   servir(
     ressource: NomDeRessource,
     lignes: Produit<readonly object[]>,
-    /** Ce que `meta` remplace dans `{ total, per_page, current_page: 1, last_page: 1 }` (une pagination, par exemple). */
-    options?: { readonly meta?: Produit<Readonly<Record<string, unknown>>> },
+    options?: {
+      /**
+       * Ce que `meta` ajoute à `{ total, per_page, current_page, last_page }`, calculés comme l'API sur les lignes
+       * produites (`page`, `per_page` : 15 par défaut, 100 au plus). Seul `total` s'y remplace (et recalcule
+       * `last_page`) : les trois autres suivent la requête, comme `PaginationMeta`.
+       */
+      readonly meta?: Produit<Readonly<Record<string, unknown>>>;
+      /**
+       * Les `filter[<nom>]` que ce test prend en charge sans que le producteur les lise (un test qui ne juge que la
+       * requête). Un producteur qui lit `requete.get('filter[…]')` n'a rien à déclarer.
+       */
+      readonly filtres?: readonly string[];
+    },
   ): ApiSimulee;
   /**
    * Une réponse 2xx, rendue telle quelle (aucun bornage). Un producteur qui doit refuser selon la requête lève
@@ -169,18 +201,55 @@ function surLeFil<T>(valeur: T): T {
   return valeur === undefined ? valeur : (JSON.parse(JSON.stringify(valeur)) as T);
 }
 
-/** Les clés qu'une requête fait servir, ou `null` sans `fields[<table>]` (la ressource entière). */
-function clesServies(description: DescriptionDeRessource, requete: URLSearchParams): Set<string> | null {
+/** Les inclusions d'une requête : celles d'`include=`, plus celles que le détail charge toujours. */
+function inclusionsDe(description: DescriptionDeRessource, requete: URLSearchParams, auDetail: boolean): string[] {
+  const inclus = (requete.get('include') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return [...new Set([...inclus, ...(auDetail ? description.inclusAuDetail : [])])];
+}
+
+/**
+ * Les clés qu'une requête fait servir, ou `null` sans `fields[<table>]` (la ressource entière). `id` n'y entre que
+ * demandé, sauf si la Resource le force (`idToujours`).
+ */
+function clesServies(description: DescriptionDeRessource, requete: URLSearchParams, auDetail: boolean): Set<string> | null {
   const brut = requete.get(`fields[${description.table}]`);
   if (brut === null || brut.trim() === '') return null;
   const demandees = new Set(brut.split(',').map((s) => s.trim()).filter(Boolean));
-  const inclus = (requete.get('include') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   return new Set([
-    'id',
+    ...(description.idToujours ? ['id'] : []),
     ...description.colonnes.filter((c) => demandees.has(c)),
-    ...inclus.flatMap((i) => description.inclusions[i] ?? []),
+    ...inclusionsDe(description, requete, auDetail).flatMap((i) => description.inclusions[i] ?? []),
     ...description.calculees,
   ]);
+}
+
+/** La taille de page de l'API : `per_page` borné à [1, 100] (`HasQueryBuilder::getPerPage`), sinon 15 (Eloquent). */
+function tailleDePage(requete: URLSearchParams): number {
+  const demande = Number(requete.get('per_page'));
+  return Number.isFinite(demande) && demande >= 1 ? Math.min(Math.trunc(demande), 100) : 15;
+}
+
+/** Les `filter[<nom>]` de la requête. */
+function filtresDe(requete: URLSearchParams): string[] {
+  return [...requete.keys()].flatMap((cle) => /^filter\[(.+)\]$/.exec(cle)?.[1] ?? []);
+}
+
+/**
+ * La requête que lit un producteur de `servir`, qui note les paramètres lus : un `filter[…]` lu est pris en charge.
+ * Un parcours (`keys`, `entries`, `forEach`, `toString`…) vaut lecture de tout.
+ */
+function requeteSuivie(requete: URLSearchParams, lus: Set<string>): URLSearchParams {
+  return new Proxy(requete, {
+    get(cible, cle) {
+      const valeur = Reflect.get(cible, cle, cible) as unknown;
+      if (typeof valeur !== 'function') return valeur;
+      const nommee = cle === 'get' || cle === 'getAll' || cle === 'has';
+      return (...args: unknown[]) => {
+        lus.add(nommee ? String(args[0]) : '*');
+        return (valeur as (...a: unknown[]) => unknown).apply(cible, args);
+      };
+    },
+  });
 }
 
 export function doublerLApi(): ApiSimulee {
@@ -192,18 +261,24 @@ export function doublerLApi(): ApiSimulee {
   let journal: AppelSimule[] = [];
   const lectures = new Set<string>();
   const nonServies = new Set<string>();
+  const filtresIgnores = new Set<string>();
+  // Le test en cours : une lecture notée sous un autre numéro (une réponse d'un test fini) n'accuse personne.
+  let epoque = 0;
+  let enVol = 0;
 
   const declarer = (d: Declaration) => (enCours ? duTest : permanentes).push(d);
 
   const produire = async <T,>(p: Produit<T>, appel: AppelSimule): Promise<T> =>
     typeof p === 'function' ? await (p as (a: AppelSimule) => T | Promise<T>)(appel) : p;
 
-  function surveiller(ligne: unknown, description: DescriptionDeRessource, servies: Set<string>, appel: AppelSimule): unknown {
+  function surveiller(ligne: unknown, description: DescriptionDeRessource, servies: Set<string>, appel: AppelSimule, nulles: readonly string[]): unknown {
     if (ligne === null || typeof ligne !== 'object' || Array.isArray(ligne)) return ligne;
     const signalables = new Set([...description.colonnes, ...Object.values(description.inclusions).flat()]);
     const bornee = Object.fromEntries(Object.entries(ligne).filter(([cle]) => servies.has(cle)));
+    for (const cle of nulles) if (!(cle in bornee)) bornee[cle] = null;
+    const duTestEnCours = epoque;
     const noter = (cle: string | symbol) => {
-      if (typeof cle === 'string' && signalables.has(cle) && !servies.has(cle)) {
+      if (duTestEnCours === epoque && typeof cle === 'string' && signalables.has(cle) && !servies.has(cle)) {
         lectures.add(`« ${cle} » lue sans être demandée par fields[${description.table}] ni include= (${appel.methode} ${appel.chemin})`);
       }
     };
@@ -223,15 +298,49 @@ export function doublerLApi(): ApiSimulee {
     });
   }
 
-  function borner(ligneOuLignes: unknown, description: DescriptionDeRessource, appel: AppelSimule): unknown {
-    const servies = clesServies(description, appel.requete);
-    if (servies === null) return ligneOuLignes;
+  /**
+   * Borne une ligne ou une liste à ce que la requête fait servir. Au détail, un bloc que le contrôleur charge toujours
+   * (`inclusAuDetail`) et que la ligne n'a pas vaut `null`, comme `whenLoaded` sur une relation vide.
+   */
+  function borner(ligneOuLignes: unknown, description: DescriptionDeRessource, appel: AppelSimule, auDetail: boolean): unknown {
+    const servies = clesServies(description, appel.requete, auDetail);
+    const nulles = auDetail ? description.inclusAuDetail.flatMap((i) => description.inclusions[i] ?? []) : [];
+    if (servies === null) {
+      if (nulles.length === 0 || ligneOuLignes === null || typeof ligneOuLignes !== 'object') return ligneOuLignes;
+      return { ...Object.fromEntries(nulles.map((cle) => [cle, null])), ...ligneOuLignes };
+    }
     return Array.isArray(ligneOuLignes)
-      ? ligneOuLignes.map((l) => surveiller(l, description, servies, appel))
-      : surveiller(ligneOuLignes, description, servies, appel);
+      ? ligneOuLignes.map((l) => surveiller(l, description, servies, appel, nulles))
+      : surveiller(ligneOuLignes, description, servies, appel, nulles);
+  }
+
+  /**
+   * L'appel que voient les producteurs d'une ressource (lignes et `meta`), et, une fois la réponse produite, la note
+   * des `filter[…]` que ni eux ni `filtres` n'ont pris.
+   */
+  function suivre(appel: AppelSimule, filtres: readonly string[]): { readonly vu: AppelSimule; noterLesIgnores(): void } {
+    const lus = new Set<string>(filtres.map((f) => `filter[${f}]`));
+    return {
+      vu: { ...appel, requete: requeteSuivie(appel.requete, lus) },
+      noterLesIgnores() {
+        if (lus.has('*')) return;
+        for (const filtre of filtresDe(appel.requete)) {
+          if (!lus.has(`filter[${filtre}]`)) filtresIgnores.add(`filter[${filtre}] envoyé à ${appel.methode} ${appel.chemin}`);
+        }
+      },
+    };
   }
 
   const simule = async (entree: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    enVol += 1;
+    try {
+      return await repondreA(entree, init);
+    } finally {
+      enVol -= 1;
+    }
+  };
+
+  const repondreA = async (entree: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const appel = lireAppel(entree, init);
     journal.push(appel);
     const declaration = [...duTest].reverse().concat([...permanentes].reverse())
@@ -268,13 +377,20 @@ export function doublerLApi(): ApiSimulee {
         methode: 'GET',
         motif: description.route,
         repondre: async (appel) => {
-          const data = surLeFil(await produire(lignes, appel)) as object[];
-          const parPage = Number(appel.requete.get('per_page')) || 30;
+          const suivi = suivre(appel, options.filtres ?? []);
+          const data = surLeFil(await produire(lignes, suivi.vu)) as object[];
+          const ajouts = await produire(options.meta ?? {}, suivi.vu);
+          suivi.noterLesIgnores();
+          // La pagination de l'API (`PaginationMeta::of`) : la page demandée, et `last_page` tiré du total.
+          const parPage = tailleDePage(appel.requete);
+          const page = Math.max(1, Math.trunc(Number(appel.requete.get('page'))) || 1);
+          const total = typeof ajouts.total === 'number' ? ajouts.total : data.length;
           return {
             statut: 200,
             corps: {
-              data: borner(data, description, appel),
-              meta: { total: data.length, per_page: parPage, current_page: 1, last_page: 1, ...(await produire(options.meta ?? {}, appel)) },
+              data: borner(data.slice((page - 1) * parPage, page * parPage), description, appel, false),
+              // `PaginationMeta::of` écarte les clés canoniques d'un `meta` en plus : seul `total` se donne ici.
+              meta: { ...ajouts, total, per_page: parPage, current_page: page, last_page: Math.max(1, Math.ceil(total / parPage)) },
             },
           };
         },
@@ -284,10 +400,12 @@ export function doublerLApi(): ApiSimulee {
         motif: detail,
         repondre: async (appel) => {
           const id = Number(detail.exec(appel.chemin)?.[1]);
-          const ligne = (surLeFil(await produire(lignes, appel)) as { id?: unknown }[]).find((l) => l.id === id);
+          const suivi = suivre(appel, options.filtres ?? []);
+          const ligne = (surLeFil(await produire(lignes, suivi.vu)) as { id?: unknown }[]).find((l) => l.id === id);
+          suivi.noterLesIgnores();
           return ligne === undefined
             ? { statut: 404, corps: { code: 'not_found', message: 'Introuvable.' } }
-            : { statut: 200, corps: { data: borner(ligne, description, appel) } };
+            : { statut: 200, corps: { data: borner(ligne, description, appel, true) } };
         },
       });
       return api;
@@ -311,10 +429,10 @@ export function doublerLApi(): ApiSimulee {
     },
     async auRepos() {
       let avant = -1;
-      for (let tour = 0; tour < 10 && avant !== journal.length; tour += 1) {
+      for (let tour = 0; tour < 20 && (avant !== journal.length || enVol > 0); tour += 1) {
         avant = journal.length;
         await act(async () => {
-          await new Promise((fin) => setTimeout(fin, 0));
+          await new Promise((fin) => attendre(fin, 0));
         });
       }
     },
@@ -325,31 +443,42 @@ export function doublerLApi(): ApiSimulee {
       const defauts = [
         ...[...lectures].sort().map((l) => `- clé ${l}`),
         ...[...nonServies].sort().map((r) => `- requête non doublée : ${r} (api.sur, api.servir ou api.parDefaut)`),
+        ...[...filtresIgnores].sort().map((f) => `- ${f} sans qu’une réponse le lise ni le déclare : la doublure ne filtre pas (un producteur qui lit \`requete\`, ou \`filtres\` de api.servir)`),
       ];
       lectures.clear();
       nonServies.clear();
+      filtresIgnores.clear();
       if (defauts.length > 0) throw new Error(`L'API simulée a vu ce que la vraie refuserait :\n${defauts.join('\n')}`);
     },
     fetch: simule as typeof fetch,
   };
 
-  let fetchDOrigine: typeof fetch;
   beforeEach(() => {
+    epoque += 1;
     enCours = true;
     duTest = [];
     defautDuTest = null;
     journal = [];
     lectures.clear();
     nonServies.clear();
-    fetchDOrigine = globalThis.fetch;
+    filtresIgnores.clear();
     globalThis.fetch = api.fetch;
   });
-  afterEach(() => {
-    globalThis.fetch = fetchDOrigine;
-    enCours = false;
-    duTest = [];
-    defautDuTest = null;
-    api.verifier();
+  // Dans cet ordre : le réseau se tait (la requête tardive tombe dans CE test), RTL démonte (plus rien ne part), on
+  // vérifie, puis `fetch` lève jusqu'au test suivant. Les `afterEach` se jouent en pile : celui-ci, posé au chargement
+  // du fichier de test, passe avant le nettoyage de RTL du `setupFiles`.
+  afterEach(async () => {
+    try {
+      await api.auRepos();
+      cleanup();
+      await api.auRepos();
+      api.verifier();
+    } finally {
+      globalThis.fetch = FETCH_HORS_DES_TESTS;
+      enCours = false;
+      duTest = [];
+      defautDuTest = null;
+    }
   });
 
   return api;

@@ -69,16 +69,16 @@ Livré le 2026-11-28 (branche `feat/approfondissements-architecture`).
   (nommée, avec sa table et sa route) et une requête qu'aucune déclaration ne sert — notées pendant le test,
   jamais levées dans le rendu, où React Query les avalerait. `json()` rend l'arbre sous surveillance (le `Proxy`
   ne survivrait pas à `JSON.stringify`). Le chemin journalisé est celui que Laravel reçoit : absolu tel quel,
-  relatif par `RELAIS_DU_BFF` (`admin-users`, `super-admin`, et `impersonation/proxy`), seule copie de la table.
+  relatif par `RELAIS_DU_BFF` (cinq relais, gardés par un recensement des route handlers : cf. la vérification adverse), seule copie de la table.
 - `ressources-de-l-api.ts` — visites, réservations, baux : `colonnes` (suivent `fields`), `inclusions` (nom
   d'`include=` → clés), `calculees` (servies telles quelles, jamais signalées). Chaque description est gardée
   contre le `toArray` de sa `Resource` PHP (`toutesLesCles` pour les visites).
 - `rendu.tsx` — `rendre(ui, { compte, locale, gestes, url })`, `rendreLeHook`, `enveloppeDeTest` (pour un
   `renderToString` puis `hydrateRoot`) : `QueryClient` frais sans nouvel essai, le **vrai** `AuthProvider`
   (le Bearer et `X-Active-Profile-Hint` partent avec l'appel, vérifié), `avecGestes`, `withIntl`.
-- `__tests__/api-simulee.test.tsx` — 24 cas : fields, include, détail et 404, réservations et baux selon leur
+- `__tests__/api-simulee.test.tsx` — 24 cas au premier tour (34 après la vérification adverse) : fields, include, détail et 404, réservations et baux selon leur
   description, clé hors fields nommée par `apiRequest` ET par `appelBff`, requête non doublée, refus 409 codé et
-  422, portée d'une déclaration, `auRepos`, les trois relais, corps, auth (Bearer, profil actif, profil non
+  422, portée d'une déclaration, `auRepos`, les relais, corps, auth (Bearer, profil actif, profil non
   hérité du rendu précédent), langue, gestes et URL de départ, et les trois gardes PHP.
 
 **Ce qui différait du ticket, re-mesuré :**
@@ -95,19 +95,79 @@ Livré le 2026-11-28 (branche `feat/approfondissements-architecture`).
   des motifs. Migrés : les 10 importeurs de `commeLApi` (`visites-comme-l-api.ts` supprimé, sa garde PHP et
   son test passés au harnais), le contrat TCK-1800 (fixture identique, md5 `901debc6…`), la fiche de visite
   (`visits/fiche/__tests__/fiche.tck-2587`, TCK-3005), `bookings.trois-natures.tck-2594` (TCK-3007) et
-  `leases.locataire.tck-2780`. **Non fait, décision attendue du porteur de la vague** : les autres fichiers de ces
-  dossiers, dont ceux de 3008 et 3009 (prochaine tranche proposée : `components/boost/admin/__tests__`, 5 fichiers).
+  `leases.locataire.tck-2780`. Limite acceptée par la session qui a délégué le ticket (2026-11-28) : elle tient le
+  « hors périmètre ». Les autres fichiers se migrent quand un ticket les touche. La règle doit vivre dans
+  `takussan-web/CLAUDE.md`, § Tests (texte proposé ci-dessous, à poser par la session).
+- Règle proposée pour `takussan-web/CLAUDE.md`, § Tests :
+  > **Un test neuf, ou un test qu'un ticket modifie, monte par `rendre`/`rendreLeHook` (`src/test/rendu.tsx`) et
+  > double le réseau par `doublerLApi()` (`src/test/api-simulee.ts`)** : ni `new QueryClient`, ni
+  > `vi.mock('@/lib/api')`, ni `vi.stubGlobal('fetch')` locaux (TCK-3010). Il remplace sa plomberie, il ne
+  > l'empile pas ([ADR-0140](../docs/adr/0140-une-classe-de-tests-par-module-la-livraison-qui-approfondit-retire-ce-qu-elle-absorbe.md)).
+  > Avant une assertion d'absence (« aucune lecture de… »), `await api.auRepos()`.
+- Garde possible (non écrite) : un test de `src/test/__tests__/` qui lit `git diff --name-only --diff-filter=A
+  origin/dev...HEAD -- '*.test.ts*'` et rougit sur `new QueryClient(` ou `vi.mock('@/lib/api'` dans un fichier
+  AJOUTÉ. C'est un cliquet sur les seuls fichiers neufs : il ne voit pas un test modifié, et il dépend de la base
+  de comparaison (en local, `dev` peut être périmé, cf. la garde du cimetière).
 - Au niveau de `fetch`, une lecture part après les attentes d'`apiRequest` : un test qui vidait son journal
   juste après le montage attend désormais la première lecture (`semaine-et-filtres`), et **toute assertion
   d'absence** (« aucune lecture de… ») passe d'abord par `await api.auRepos()` — sans lui elle serait verte quoi
   que fasse le code (12 sites dans les fichiers migrés).
 
 **Vérifié :** les 15 fichiers de test touchés verts ; `tsc --noEmit` et eslint propres ;
-`npm run check:*` : les seuls rouges viennent de `playground/maquettes` et de `src/lib/bff.ts` (TCK-3009) ;
-`node scripts/gen-requetes-du-front.mjs --check` vert ; gardes qui parcourent `src/` (13 fichiers) vertes, sauf
-`relais-bff.tck-968` (« plus de 40 fetch littéraux », 5 depuis TCK-3009 : sans lien avec ce ticket).
+`npm run check:*` : les seuls rouges viennent de `playground/maquettes` (et, au relevé, de `src/lib/bff.ts`,
+corrigé depuis par TCK-3009) ; `node scripts/gen-requetes-du-front.mjs --check` vert ; gardes qui parcourent
+`src/` (13 fichiers) vertes (`relais-bff.tck-968`, rouge au relevé du fait de TCK-3009, y a été corrigée).
 Ablations : sans l'`afterEach` de `doublerLApi`, un test qui lit une clé non demandée passe au vert ; sans
 `cancelled_by` dans `VISIT_CLIENT_FIELDS`, `mes-visites.tck-2883` rougit en nommant la clé ; sans l'entrée
 `super-admin` de `RELAIS_DU_BFF`, le contrat TCK-1800 rougit ; sans `enabled: false` dans `useBookings`, l'assertion
 d'absence de `bookings.trois-natures` rougit.
 
+
+**Vérification adverse (2026-11-28), quatre défauts.** Chacun a d'abord eu un test du harnais en échec :
+
+- **Relais incomplets** : `RELAIS_DU_BFF` oubliait `super-admin-properties` (→ `/api/properties`) et `super-admin-users`
+  (→ `/api/admin/users`, par `urlApiServeur`, sans `relayerVersApi`). La table est désormais gardée par un
+  recensement de TOUS les `src/app/api/**/route.ts`. Chaque handler y entre dans exactement une case :
+  - il garde son chemin ;
+  - `RELAIS_DU_BFF` le traduit (le préfixe fixe, lu dans `relayerVersApi`, `urlApiServeur` ou `apiRequest`) ;
+  - il figure dans `SANS_RELAIS` avec sa raison (12 handlers : cookies de session, gestes du BFF comme
+    `impersonation/start`, sonde `/up`…).
+
+  Un handler neuf ou un relais oublié fait échouer le test, et une exception devenue périmée aussi. La fixture TCK-1800
+  n'a pas changé (md5 `901debc6…`).
+- **`id`** : un descripteur ne le force plus que si `idToujours` est posé, et seule `PropertyVisitResource`
+  l'ajoute (`['id', ...$noms]`, gardé contre le PHP). Sous `fields[…]` sans `id`, une réservation ou un bail ne
+  porte donc pas d'`id`, et une lecture de cet `id` est signalée. **Au détail**, `inclusAuDetail` : `show` charge
+  toujours property, agent, visitor et customer pour une visite, et property pour un bail. Une relation vide y vaut
+  `null`, comme le rend `whenLoaded`.
+- **Pagination et filtres** :
+  - La liste est découpée comme le fait l'API (`page`, `per_page` borné à [1, 100], 15 par défaut comme Eloquent).
+    `last_page` est tiré du total, et un `total` donné par `meta` le recalcule.
+  - La doublure ne simule aucun filtre. Un `filter[…]` envoyé à une ressource servie fait échouer le test s'il n'est
+    ni lu par un producteur (la requête qu'il reçoit est suivie, et un parcours compte comme une lecture de tout) ni
+    déclaré par `servir(…, { filtres })`.
+  - Neuf fichiers migrés déclarent ainsi les filtres qu'ils ne jugent que sur la requête.
+  - `mes-visites.tck-2587` fabriquait une deuxième page à la main (`last_page: 2` pour 3 lignes à 20 par page). Il
+    sert maintenant 21 lignes, et la doublure les pagine.
+  - `sur` (corps libre) n'est pas suivi : c'est le test qui y écrit la réponse.
+- **Coupable mal désigné** : l'`afterEach` du harnais attend le repos du réseau, démonte (`cleanup` de RTL),
+  attend de nouveau, puis vérifie. Ensuite, dans un `finally`, `fetch` est remplacé par une fonction qui lève. Une
+  lecture notée pour un test terminé (son numéro d'époque) n'accuse personne. `auRepos` attend aussi les réponses
+  en vol, sur le vrai `setTimeout`, que l'on saisit au chargement.
+  - Le test « requête tardive » est un `it.fails`. Avant le correctif, ce test passait et le test SUIVANT
+    recevait la requête. Après le correctif, le test fautif échoue et le suivant n'en voit rien.
+  - Un `afterAll` vérifie que `fetch` lève entre deux tests.
+- **Ablations**, toutes restaurées avec vérification md5. Chaque mutation fait échouer des tests :
+
+  | Mutation | Tests en échec |
+  |---|---|
+  | entrée `super-admin-properties` retirée | 1 (recensement) |
+  | `id` forcé partout | 3 |
+  | `inclusAuDetail` des visites vidé | 1 |
+  | pagination sans découpe | 2 |
+  | filtres non notés | 2 |
+  | `afterEach` sans attente du repos | 2 (dont l'`it.fails`) |
+  | `fetch` non remplacé après le test | l'`afterAll` |
+
+  Les 15 fichiers passent (233 tests, plus l'`it.fails`), ainsi que `tsc --noEmit`, eslint,
+  `gen-requetes-du-front.mjs --check` et `scripts/check-front-routes.mjs`.

@@ -115,6 +115,8 @@ const api = doublerLApi()
   // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
   .servir('visites', () => (etat.visites > 0 ? [etat.tranche ? { ...VISITE, preferred_window: 'morning' } : VISITE] : []), {
     meta: () => ({ total: etat.visites, per_page: 20, pending_count: etat.visites }),
+    // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+    filtres: ['status', 'scheduled_at_min'],
   })
   .sur('GET', '/api/property-visits/slots', {
     data: {

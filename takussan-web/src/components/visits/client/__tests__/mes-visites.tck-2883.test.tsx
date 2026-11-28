@@ -29,7 +29,8 @@ const api = doublerLApi()
   .servir('visites', ({ requete }) => {
     const statut = requete.get('filter[status]');
     return statut === 'scheduled' ? etat.demandees : !statut && requete.get('filter[scheduled_at_max]') ? etat.passees : [];
-  })
+    // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  }, { filtres: ['scheduled_at_min'] })
   .parDefaut({ data: [], meta: { total: 0, per_page: 20, current_page: 1, last_page: 1 } });
 
 const DELAI_DE_REPONSE = /^\/api\/agencies\/\d+\/response-time$/;

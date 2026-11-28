@@ -61,7 +61,8 @@ const VISITE_ENTIERE: PropertyVisit = {
 vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
 
 const api = doublerLApi()
-  .servir('visites', [VISITE_ENTIERE])
+  // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  .servir('visites', [VISITE_ENTIERE], { filtres: ['status', 'scheduled_at_min', 'scheduled_at_max', 'customer_id', 'unassigned'] })
   .parDefaut({ data: [], meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 } });
 
 const COMPTE = { utilisateur: { id: 3, roles: ['agent'], agency_id: 1 }, jeton: 'jeton' } as const;

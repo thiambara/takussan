@@ -50,7 +50,8 @@ const api = doublerLApi()
   .servir('visites', ({ requete: p }) => {
     const semaine = p.get('filter[scheduled_at_min]') === '2026-11-09T00:00:00Z';
     return semaine ? [MERCREDI, VENDREDI, LUNDI_TERMINEE, MARDI_ABSENT] : p.get('filter[type]') === 'virtual' ? [MERCREDI] : [MERCREDI, VENDREDI];
-  })
+    // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  }, { filtres: ['status', 'day', 'scheduled_at_max', 'agent_id', 'property_id', 'search', 'unassigned'] })
   .parDefaut({ data: [], meta: { total: 0, per_page: 8, current_page: 1, last_page: 1 } });
 
 function monter() {

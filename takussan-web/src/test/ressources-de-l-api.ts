@@ -7,7 +7,9 @@
  * « chaque clé de `toArray` est classée ») — une clé ajoutée à l'API sans être rangée ici rougit.
  *
  * Trois sortes de clés, et une règle de prudence :
- * - `colonnes` : sous `fields[<table>]`, l'API ne rend que celles demandées (plus `id`). Laravel en omet une
+ * - `colonnes` : sous `fields[<table>]`, l'API ne rend que celles demandées. `id` compris : seule une Resource qui
+ *   le force (`idToujours`, gardé contre le PHP) le rend sans qu'on le demande — `BookingResource` et
+ *   `LeaseResource` le rendent `null` sous `fields[…]=status` (mesuré par tinker, TCK-3010). Laravel en omet une
  *   partie (`whenHas`, `lue()`) et rend les autres à `null` ; la doublure les omet toutes — l'écran ne lit rien
  *   d'utile dans les deux cas — et SIGNALE leur lecture.
  * - `inclusions` : le nom passé à `include=` → les clés qu'il apporte. Sous `fields`, absentes sans lui, et
@@ -28,6 +30,10 @@ export interface DescriptionDeRessource {
   readonly colonnes: readonly string[];
   readonly inclusions: Readonly<Record<string, readonly string[]>>;
   readonly calculees: readonly string[];
+  /** `id` rendu sous `fields[<table>]` même non demandé (`['id', ...$noms]` de la Resource). */
+  readonly idToujours: boolean;
+  /** Les inclusions que `show` charge quoi que dise `include=` : au détail, elles valent `null` sans donnée. */
+  readonly inclusAuDetail: readonly string[];
   /** La `Resource` décrite, depuis `takussan-api/` : la garde y relit les clés de `toArray`. */
   readonly php: string;
 }
@@ -50,6 +56,10 @@ const visites: DescriptionDeRessource = {
   ],
   inclusions: { property: ['property'], visitor: ['visitor'], agent: ['agent'], customer: ['customer'] },
   calculees: [],
+  // `requestedFields` : `['id', ...$noms]`.
+  idToujours: true,
+  // `PropertyVisitController::show` : `load(['property.address', 'property.media', 'agent', 'visitor', 'customer'])`.
+  inclusAuDetail: ['property', 'agent', 'visitor', 'customer'],
   php: 'app/Http/Resources/PropertyVisitResource.php',
 };
 
@@ -74,6 +84,9 @@ const reservations: DescriptionDeRessource = {
     'property_visits_count', 'offer_rank', 'entry_amount', 'dossier', 'has_guarantor', 'guarantors',
     'declared_monthly_income_masked', 'income_to_rent_ratio', 'counter_offer', 'awaiting', 'stage_change', 'abilities',
   ],
+  idToujours: false,
+  // Ce que `show` charge est déjà dans `calculees`.
+  inclusAuDetail: [],
   php: 'app/Http/Resources/BookingResource.php',
 };
 
@@ -111,6 +124,9 @@ const baux: DescriptionDeRessource = {
     'signatures', 'early_termination_penalty_months', 'can_sign_as', 'can_request_signature', 'can_activate_on_paper', 'abilities',
     'origin_booking', 'has_inventory', 'rent_review_cap_pct', 'next_revision_date',
   ],
+  idToujours: false,
+  // `LeaseController::show` : `load(['property.address', 'signatures.signer', …])`.
+  inclusAuDetail: ['property'],
   php: 'app/Http/Resources/LeaseResource.php',
 };
 

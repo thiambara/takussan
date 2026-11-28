@@ -85,7 +85,8 @@ const api = doublerLApi()
     if (p.get('filter[scheduled_at_min]')) return [PLATEAU, TERRAIN, FAITE_LE_11, ANNULEE_LE_13, TRANCHE_LE_14];
     const duJour = p.get('filter[day]') === '2026-11-10' ? [TERRAIN, PLATEAU] : [];
     return etat.injoignable ? duJour.map(injoignable) : duJour;
-  })
+    // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  }, { filtres: ['day', 'mine', 'scheduled_at_min', 'scheduled_at_max', 'to_close'] })
   .sur('GET', '/api/tasks', () => {
     if (etat.vide) return page([]);
     return page(etat.injoignable ? TACHES.map((t) => (t.taskable?.type === 'customer' ? { ...t, taskable: { ...t.taskable, phone: '706190713' } } : t)) : TACHES);

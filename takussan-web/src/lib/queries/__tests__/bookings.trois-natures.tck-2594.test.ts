@@ -29,7 +29,8 @@ const OFFRE = {
 };
 
 const api = doublerLApi()
-  .servir('reservations', [OFFRE])
+  // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  .servir('reservations', [OFFRE], { filtres: ['kind', 'status', 'search', 'property_id', 'customer_id'] })
   .sur('GET', '/api/bookings/counts', { data: {} });
 
 const requeteDe = (chemin: string) => api.appels(chemin)[0]?.requete;
