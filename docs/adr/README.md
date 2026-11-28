@@ -161,6 +161,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0137](0137-une-competence-venue-d-ailleurs-s-adapte-elle-ne-s-installe-pas.md) | Une compétence venue d'ailleurs s'adapte dans `.agent/skills/`, elle ne s'installe pas — quatre compétences adaptées de `mattpocock/skills`, glossaire dans `docs/glossaire.md` | Accepté |
 | [0138](0138-qui-peut-lire-s-ecrit-une-fois-pour-la-liste-et-la-fiche.md) | « Qui peut lire » s'écrit une fois, dans un module à deux faces (`restreindre` pour la liste, `peut` pour la fiche), gardé par un test de parité ; le parent supprimé se juge sur son agence | Accepté |
 | [0139](0139-une-fiche-lit-ses-gestes-sur-l-api-policy-et-etat-compris.md) | Une fiche lit ses gestes dans `abilities`, policy et état compris ; chaque geste s'écrit par un seul module ; pas d'`abilities`, pas de geste | Accepté |
+| [0140](0140-une-classe-de-tests-par-module-la-livraison-qui-approfondit-retire-ce-qu-elle-absorbe.md) | Une classe de tests par module, nommée par le module et non par le ticket ; la livraison qui approfondit un module retire les tests qu'il absorbe, retrait prouvé par ablation ; règles transversales par recensement ; tests par l'interface | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
