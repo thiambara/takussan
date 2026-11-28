@@ -8,9 +8,9 @@ use App\Http\Requests\Api\MarkPaidLeasePaymentRequest;
 use App\Http\Requests\Api\StoreLeasePaymentRequest;
 use App\Http\Resources\LeasePaymentResource;
 use App\Models\Enums\LeasePaymentType;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Services\Lease\GestesDuBail;
 use App\Services\Lease\LateFeeSettlement;
 use App\Services\Model\LeasePaymentService;
 use App\Support\Http\ParametreUnique;
@@ -63,11 +63,8 @@ class LeasePaymentController extends Controller
         // P46.04 (TCK-957) — une ligne ne se pose que sur un bail qui court : actif, ou en préavis
         // (le loyer reste dû jusqu'à la date d'effet). Posée sur un brouillon, elle tenait lieu
         // d'échéancier à l'activation, et le bail n'avait plus aucun loyer.
-        abort_code_unless(
-            in_array($lease->status, [LeaseStatus::Active, LeaseStatus::Terminating], true),
-            422,
-            'lease_payment.lease_not_active',
-        );
+        // TCK-3011 — le même prédicat que `abilities.add_payment`, rejugé sous verrou par le service.
+        abort_code_unless(GestesDuBail::ligneAjoutable($lease), 422, 'lease_payment.lease_not_active');
 
         $data = $request->validated();
 

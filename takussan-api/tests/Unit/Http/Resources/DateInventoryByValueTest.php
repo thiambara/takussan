@@ -210,6 +210,8 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\InvitationResource::abilities' => '`when()` sur un appelant connu ET une invitation née '
             .'d\'une fiche client (TCK-2668, D1) — le parcours n\'a ni l\'un ni l\'autre. Deux booléens (`resend`, '
             .'`revoke`), jamais une date.',
+        'App\Http\Resources\InvoiceResource::abilities' => '`when()` sur le lecteur de `forViewer()` (TCK-3011, ADR-0139) : '
+            .'`send`, `mark_paid`, `cancel`, `pay`, quatre booléens, jamais une date.',
         'App\Http\Resources\KycDossierResource::shared_identifiers' => '`when(super-admin)` — même forme, même absence de date (TCK-601).',
         // TCK-2958 — sur demande (`avecGestes`) : l'échéancier du bail et la relecture d'une carte du fil.
         'App\Http\Resources\LeasePaymentResource::abilities' => '`when()` sur un lecteur passé par `avecGestes()` (TCK-2958) : '

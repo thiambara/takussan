@@ -7,7 +7,6 @@ use App\Models\Agency;
 use App\Models\Enums\Currency;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
-use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
@@ -48,11 +47,7 @@ class DepositRefundService
     {
         // Cheap pre-flight: status / non-zero deposit / amount shape don't
         // change under contention so they're worth failing fast on.
-        abort_code_unless(
-            in_array($lease->status, [LeaseStatus::Terminated, LeaseStatus::Expired], true),
-            422,
-            'deposit_refund.lease_not_ended'
-        );
+        abort_code_unless(GestesDuBail::enFinDeBail($lease), 422, 'deposit_refund.lease_not_ended');
 
         $deposit = (float) ($lease->deposit_amount ?? 0);
         abort_code_if($deposit <= 0, 422, 'deposit_refund.no_deposit');
@@ -73,6 +68,11 @@ class DepositRefundService
                 ->whereKey($lease->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            // TCK-3011 — le statut se rejuge sur la ligne verrouillée : un bail échu renouvelé entre la
+            // lecture et l'écriture passe sa caution au bail suivant (`LeaseRenewalService::handOver`), elle
+            // ne se rend pas. Le contrôle d'avant le verrou garde l'ordre des refus.
+            abort_code_unless(GestesDuBail::enFinDeBail($lease), 422, 'deposit_refund.lease_not_ended');
 
             // TCK-2375 (P04.10) — une caution jamais encaissée ne se rend pas : le reste la borne
             // (`Lease::collectedDeposit`), et le refus le dit plutôt que « déjà remboursée ».

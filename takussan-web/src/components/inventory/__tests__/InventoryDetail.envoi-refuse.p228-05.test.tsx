@@ -55,7 +55,8 @@ etat.inventory = {
   room_photos: [],
   can_sign_as: [],
   sign_on_behalf_of: null,
-  abilities: { update: true },
+  // TCK-3011 — un brouillon que le lecteur conduit : l'API sert `edit` et `submit`.
+  abilities: { update: true, edit: true, submit: true },
 };
 
 describe('InventoryDetail — l’envoi refusé se dit (P228.05)', () => {

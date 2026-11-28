@@ -478,7 +478,7 @@ class LeaseRenewalService
 
     protected function guardParentStatus(Lease $parent): void
     {
-        if (! in_array($parent->status, self::RENEWABLE_PARENT_STATUSES, true)) {
+        if (! GestesDuBail::renouvelable($parent)) {
             throw ValidationException::withMessages([
                 'status' => [__('messages.lease_renewal_status_not_renewable')],
             ])->status(422);
@@ -507,12 +507,7 @@ class LeaseRenewalService
      */
     protected function guardNoActiveChild(Lease $parent): void
     {
-        $activeChild = Lease::query()
-            ->where('renewed_from_lease_id', $parent->id)
-            ->whereIn('status', [...Lease::OPEN_STATUSES, LeaseStatus::Draft->value])
-            ->exists();
-
-        if ($activeChild) {
+        if (GestesDuBail::renouvellementOuvert($parent)) {
             throw ValidationException::withMessages([
                 'parent' => [__('messages.lease_renewal_active_child_exists')],
             ])->status(422);

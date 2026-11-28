@@ -13,6 +13,7 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\User;
+use App\Services\Invoice\GestesDeLaFacture;
 use App\Services\Invoice\InvoiceNumberAllocator;
 use App\Services\Maintenance\CurrencyUnit;
 use App\Services\Payments\PaymentGatewayService;
@@ -143,7 +144,7 @@ class InvoiceService
         DB::transaction(function () use ($invoice): void {
             $locked = $this->locked($invoice);
             abort_code_unless(
-                $locked->status === InvoiceStatus::Draft,
+                GestesDeLaFacture::envoyable($locked),
                 422,
                 'invoice.not_draft_send'
             );
@@ -161,7 +162,7 @@ class InvoiceService
         DB::transaction(function () use ($invoice): void {
             $locked = $this->locked($invoice);
             abort_code_unless(
-                in_array($locked->status, [InvoiceStatus::Sent, InvoiceStatus::Overdue, InvoiceStatus::Draft], true),
+                GestesDeLaFacture::encaissable($locked),
                 422,
                 'invoice.cannot_mark_paid'
             );
@@ -182,8 +183,8 @@ class InvoiceService
         // créé dans la même transaction ; un brouillon reste un simple changement de statut.
         DB::transaction(function () use ($invoice, $actor): void {
             $locked = $this->locked($invoice);
-            abort_code_if(
-                in_array($locked->status, [InvoiceStatus::Paid, InvoiceStatus::Cancelled, InvoiceStatus::Void], true),
+            abort_code_unless(
+                GestesDeLaFacture::annulable($locked),
                 422,
                 'invoice.cannot_cancel'
             );

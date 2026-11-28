@@ -179,7 +179,7 @@ export function LeaseDetail({ leaseId, historique = false }: LeaseDetailProps) {
   // « Payer » qui disparaîtrait, ni le contrat qui lui céderait la place.
   const paiementsDesGestes = locataire && aPayer && fournisseursEnLecture ? undefined : paiements;
   const principal = gestePrincipal(lease, { paiements: paiementsDesGestes, paiementEnLigne: providers.length > 0 });
-  const secondaires = gestesSecondaires(lease, paiements);
+  const secondaires = gestesSecondaires(lease);
   const ongletDemande = params.get('onglet');
   const onglet: Onglet = ongletDemande === 'documents' || (ongletDemande === 'historique' && historique) ? ongletDemande : 'dossier';
   const gesteDemande = params.get('geste') as GesteSecondaire | null;
@@ -485,7 +485,7 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
                   {t(`gestes.bloque.${principal.bloque}`)}
                 </p>
               ) : null}
-              <EarlyTerminationBanner lease={lease} canCancel={a?.request_early_termination === true} locataire={locataire} />
+              <EarlyTerminationBanner lease={lease} canCancel={a?.cancel_early_termination === true} locataire={locataire} />
               <DepositRefundBanner
                 lease={lease}
                 canRefund={a?.refund_deposit === true}

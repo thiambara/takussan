@@ -10,7 +10,6 @@ use App\Http\Requests\InventorySignRequest;
 use App\Http\Requests\InventoryStoreRequest;
 use App\Http\Requests\InventoryUpdateRequest;
 use App\Http\Resources\InventoryResource;
-use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Profiles\OwnerProfile;
@@ -109,20 +108,8 @@ class InventoryController extends Controller
         // TCK-076 AC5 — once signed, an inventory is immutable: PATCH returns
         // 409 with a clear message. Other non-draft states (pending_signature,
         // disputed) keep the historical 422 response from TCK-031.
-        if ($inventory->status === InventoryStatus::Signed) {
-            abort_code(
-                SymfonyResponse::HTTP_CONFLICT,
-                'inventory.signed_locked'
-            );
-        }
-
-        // Status guard runs BEFORE validation so non-draft inventories fail
-        // with a clear 422 "only draft" message instead of generic validation errors.
-        abort_code_unless(
-            $inventory->status === InventoryStatus::Draft,
-            422,
-            'inventory.not_draft'
-        );
+        // TCK-3011 — la garde de l'écriture, une seule définition ; le service la rejuge sous verrou.
+        InventoryService::assertDraft($inventory);
 
         $data = $request->validated();
 
@@ -328,7 +315,7 @@ class InventoryController extends Controller
     {
         // TCK-596 — même garde que `update`, AVANT toute écriture : le PDF d'un état des lieux est
         // recomposé au téléchargement, une photo ajoutée après signature changerait le document signé.
-        $this->assertDraft($inventory);
+        InventoryService::assertDraft($inventory);
 
         $inventory = $this->inventories->addRoomPhotos($inventory, $request->file('photos'), $request->input('room_name'), $request->validated('element_label'));
 
@@ -358,20 +345,10 @@ class InventoryController extends Controller
             ->whereKey($media)
             ->firstOrFail();
 
-        $this->assertDraft($inventory);
+        InventoryService::assertDraft($inventory);
 
         $this->inventories->removeRoomPhoto($inventory, $photo);
 
         return response()->noContent();
-    }
-
-    /** 409 si l'état des lieux est signé, 422 s'il n'est plus un brouillon — la garde d'`update`. */
-    private function assertDraft(Inventory $inventory): void
-    {
-        if ($inventory->status === InventoryStatus::Signed) {
-            abort_code(SymfonyResponse::HTTP_CONFLICT, 'inventory.signed_locked');
-        }
-
-        abort_code_unless($inventory->status === InventoryStatus::Draft, 422, 'inventory.not_draft');
     }
 }

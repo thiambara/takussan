@@ -129,16 +129,13 @@ class EarlyTerminationService
         return DB::transaction(function () use ($lease, $actor) {
             $lease = Lease::query()->lockForUpdate()->findOrFail($lease->id);
 
-            if ($lease->status !== LeaseStatus::Terminating) {
+            if (! GestesDuBail::preavisEnCours($lease)) {
                 throw ValidationException::withMessages([
                     'status' => [__('messages.lease_early_termination_not_in_progress')],
                 ])->status(422);
             }
 
-            $effective = $lease->early_termination_effective_date
-                ? Carbon::parse($lease->early_termination_effective_date)->startOfDay()
-                : null;
-            if ($effective && $effective->lte(now()->startOfDay())) {
+            if (! GestesDuBail::annulationDuPreavisOuverte($lease)) {
                 throw ValidationException::withMessages([
                     'effective_date' => [__('messages.lease_early_termination_window_closed')],
                 ])->status(422);
@@ -196,7 +193,7 @@ class EarlyTerminationService
         return DB::transaction(function () use ($lease, $actor) {
             $lease = Lease::query()->lockForUpdate()->findOrFail($lease->id);
 
-            if ($lease->status !== LeaseStatus::Terminating) {
+            if (! GestesDuBail::preavisEnCours($lease)) {
                 throw ValidationException::withMessages([
                     'status' => [__('messages.lease_early_termination_not_in_progress')],
                 ])->status(422);
@@ -327,7 +324,7 @@ class EarlyTerminationService
             ])->status(422);
         }
 
-        if (! in_array($lease->status, self::REQUESTABLE_STATUSES, true)) {
+        if (! GestesDuBail::preavisPossible($lease)) {
             throw ValidationException::withMessages([
                 'status' => [__('messages.lease_early_termination_status_not_requestable')],
             ])->status(422);

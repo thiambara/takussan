@@ -89,7 +89,7 @@ function stubCanvas() {
 const piece = (name: string, elements: InventoryRoom['elements']): InventoryRoom => ({ name, condition: 'good', notes: null, completed: true, elements });
 
 function etatDesLieux(overrides: Partial<Inventory> = {}): Inventory {
-  return {
+  const fiche: Inventory = {
     id: 19,
     lease_id: 208,
     property_id: 2,
@@ -128,6 +128,10 @@ function etatDesLieux(overrides: Partial<Inventory> = {}): Inventory {
     landlord: { id: 9, full_name: 'Mouhamed Sène' },
     ...overrides,
   };
+  // TCK-3011 — comme l'API (`GestesDeLEtatDesLieux`) : `edit` et `submit` = `update` ET brouillon.
+  const a = fiche.abilities;
+  const brouillon = fiche.status === 'draft';
+  return { ...fiche, abilities: a && { edit: a.update && brouillon, submit: a.update && brouillon, ...a } };
 }
 
 function ouvrir(inventory: Inventory = etatDesLieux()) {

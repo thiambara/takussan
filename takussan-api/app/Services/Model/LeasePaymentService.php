@@ -9,6 +9,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Lease\GestesDuBail;
 use App\Services\Messaging\FilDeLObjet;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
@@ -34,13 +35,22 @@ class LeasePaymentService
         // Preserve caller-provided status when explicit; default to pending.
         $status = $data['status'] ?? PaymentStatus::Pending->value;
 
-        return $lease->payments()->create(array_merge($data, [
-            'reference_number' => ReferenceNumberGenerator::leasePayment(),
-            'payer_id' => $lease->tenant_id,
-            'collector_id' => $user->id,
-            'currency' => $lease->currency?->value ?? 'XOF',
-            'status' => $status instanceof PaymentStatus ? $status->value : $status,
-        ]));
+        return DB::transaction(function () use ($lease, $user, $data, $status): LeasePayment {
+            // TCK-3011 — P46.04 se rejuge sur la ligne du bail verrouillée : sur le modèle lié à la route, une
+            // résiliation validée entre la lecture et l'écriture laissait poser une ligne sur un bail fini.
+            // `for no key update`, comme le renouvellement : il ne heurte pas le `KEY SHARE` qu'un webhook pose
+            // sur le bail en écrivant l'une de ses échéances.
+            $locked = Lease::query()->whereKey($lease->getKey())->lock('for no key update')->firstOrFail();
+            abort_code_unless(GestesDuBail::ligneAjoutable($locked), 422, 'lease_payment.lease_not_active');
+
+            return $locked->payments()->create(array_merge($data, [
+                'reference_number' => ReferenceNumberGenerator::leasePayment(),
+                'payer_id' => $locked->tenant_id,
+                'collector_id' => $user->id,
+                'currency' => $locked->currency?->value ?? 'XOF',
+                'status' => $status instanceof PaymentStatus ? $status->value : $status,
+            ]));
+        });
     }
 
     /**

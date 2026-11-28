@@ -50,11 +50,7 @@ class LeaseSignatureService
         // VERIF-596 passe 4 (M-R) — le rendu part d'une lecture de la base, pas du modèle de
         // l'appelant : c'est elle que la ligne verrouillée doit encore valoir au moment de figer.
         $lease = Lease::query()->findOrFail($lease->getKey());
-        abort_code_unless(
-            in_array($lease->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true),
-            422,
-            'lease_signature.not_requestable'
-        );
+        abort_code_unless(GestesDuBail::signatureDemandable($lease), 422, 'lease_signature.not_requestable');
 
         $lease->loadMissing(['property.address', 'tenant.user', 'landlord', 'agency', 'guarantors']);
         // ADR-0042 §5 — la v1 exige un compte au locataire ; sinon, la voie papier.
@@ -81,11 +77,7 @@ class LeaseSignatureService
         $fresh = DB::transaction(function () use ($lease, $bytes, $sha, $terms, $by): Lease {
             // TCK-2734 (décision 7) — le bien avant le bail : l'envoi écrit aussi les candidatures du bien.
             $locked = LeaseService::verrouillerLeBienPuisLeBail($lease);
-            abort_code_unless(
-                in_array($locked->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true),
-                422,
-                'lease_signature.not_requestable'
-            );
+            abort_code_unless(GestesDuBail::signatureDemandable($locked), 422, 'lease_signature.not_requestable');
             // VERIF-596 passe 4 (M-R, ADR-0042 §1) — le PDF est rendu HORS verrou (en production, un
             // aller-retour réseau) : une écriture validée pendant le rendu (`PATCH` d'un terme, garant)
             // ferait figer un contrat qui n'imprime plus ce que le bail exécute. Sous le verrou, la

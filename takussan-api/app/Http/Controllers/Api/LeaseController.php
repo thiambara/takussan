@@ -87,7 +87,7 @@ class LeaseController extends Controller
 
         return $this->json([
             // TCK-2803 — sans le locataire : la réponse d'un geste ne le rend pas (`LeaseResource`).
-            'data' => LeaseResource::make($lease->load(['property']))->resolve($request),
+            'data' => LeaseResource::make($lease->load(['property']))->forViewer($request->user())->resolve($request),
         ], 201);
     }
 
@@ -237,7 +237,7 @@ class LeaseController extends Controller
         });
 
         return $this->json([
-            'data' => LeaseResource::make($lease->fresh())->resolve($request),
+            'data' => LeaseResource::make($lease->fresh())->forViewer($request->user())->resolve($request),
         ]);
     }
 
@@ -251,7 +251,7 @@ class LeaseController extends Controller
         $lease = $signatures->signOnPaper($lease, $request->file('contract'), $request->user());
 
         return $this->json([
-            'data' => LeaseResource::make($lease)->resolve($request),
+            'data' => LeaseResource::make($lease)->forViewer($request->user())->resolve($request),
         ]);
     }
 
@@ -287,7 +287,7 @@ class LeaseController extends Controller
         $lease = $this->leases->terminate($lease, $request->user(), $data['reason'] ?? null);
 
         return $this->json([
-            'data' => LeaseResource::make($lease)->resolve($request),
+            'data' => LeaseResource::make($lease)->forViewer($request->user())->resolve($request),
         ]);
     }
 

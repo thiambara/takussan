@@ -33,7 +33,7 @@ class LeaseEarlyTerminationController extends Controller
         $lease = $this->service->request($lease, $user, $request->validated());
 
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property', 'earlyTerminationInvoice']))->resolve($request),
+            'data' => LeaseResource::make($lease->load(['property', 'earlyTerminationInvoice']))->forViewer($request->user())->resolve($request),
         ], 201);
     }
 
@@ -45,7 +45,7 @@ class LeaseEarlyTerminationController extends Controller
         $lease = $this->service->cancel($lease, $user);
 
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property']))->resolve($request),
+            'data' => LeaseResource::make($lease->load(['property']))->forViewer($request->user())->resolve($request),
         ]);
     }
 
@@ -57,7 +57,7 @@ class LeaseEarlyTerminationController extends Controller
         $lease = $this->service->confirm($lease, $user);
 
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property', 'earlyTerminationInvoice']))->resolve($request),
+            'data' => LeaseResource::make($lease->load(['property', 'earlyTerminationInvoice']))->forViewer($request->user())->resolve($request),
         ]);
     }
 }

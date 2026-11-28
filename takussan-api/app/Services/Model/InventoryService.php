@@ -8,6 +8,7 @@ use App\Models\Enums\InventoryType;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\User;
+use App\Services\Inventory\GestesDeLEtatDesLieux;
 use App\Services\Inventory\InventoryExitPrefill;
 use App\Services\Inventory\InventorySignatureService;
 use App\Services\Messaging\FilDeLObjet;
@@ -79,7 +80,7 @@ class InventoryService
     public function update(Inventory $inventory, array $data, array $presentKeys): Inventory
     {
         return $this->underLock($inventory, function (Inventory $locked) use ($data, $presentKeys): Inventory {
-            $this->assertDraft($locked);
+            self::assertDraft($locked);
 
             // TCK-2646 — les états d'entrée d'une sortie sont reposés par le serveur à chaque
             // écriture des pièces : un `PATCH` ne les change pas, ne les retire pas.
@@ -101,7 +102,7 @@ class InventoryService
     {
         return $this->underLock($inventory, function (Inventory $locked): Inventory {
             abort_code_unless(
-                $locked->status === InventoryStatus::Draft,
+                GestesDeLEtatDesLieux::brouillon($locked),
                 422,
                 'inventory.not_draft_submit'
             );
@@ -151,7 +152,7 @@ class InventoryService
     {
         return $this->underLock($inventory, function (Inventory $locked) use ($reason): Inventory {
             abort_code_unless(
-                in_array($locked->status, [InventoryStatus::PendingSignature, InventoryStatus::Signed], true),
+                GestesDeLEtatDesLieux::contestable($locked),
                 422,
                 'inventory.cannot_dispute'
             );
@@ -174,7 +175,7 @@ class InventoryService
     public function addRoomPhotos(Inventory $inventory, array $photos, ?string $roomName, ?string $elementLabel = null): Inventory
     {
         return $this->underLock($inventory, function (Inventory $locked) use ($photos, $roomName, $elementLabel): Inventory {
-            $this->assertDraft($locked);
+            self::assertDraft($locked);
 
             foreach ($photos as $photo) {
                 $locked->addMedia($photo)
@@ -190,7 +191,7 @@ class InventoryService
     public function removeRoomPhoto(Inventory $inventory, Media $photo): void
     {
         $this->underLock($inventory, function (Inventory $locked) use ($photo): void {
-            $this->assertDraft($locked);
+            self::assertDraft($locked);
 
             $photo->delete();
         });
@@ -217,13 +218,17 @@ class InventoryService
         });
     }
 
-    /** 409 si l'état des lieux est signé, 422 s'il n'est plus un brouillon — la garde d'`update`. */
-    private function assertDraft(Inventory $inventory): void
+    /**
+     * 409 si l'état des lieux est signé, 422 s'il n'est plus un brouillon — la garde d'`update` et des
+     * photos. TCK-3011 — la seule : le contrôleur l'appelle aussi, avant la validation, sur le modèle lié
+     * (le refus d'un écran périmé prime sur les erreurs de champ) ; l'écriture la rejuge ici sous verrou.
+     */
+    public static function assertDraft(Inventory $inventory): void
     {
         if ($inventory->status === InventoryStatus::Signed) {
             abort_code(SymfonyResponse::HTTP_CONFLICT, 'inventory.signed_locked');
         }
 
-        abort_code_unless($inventory->status === InventoryStatus::Draft, 422, 'inventory.not_draft');
+        abort_code_unless(GestesDeLEtatDesLieux::brouillon($inventory), 422, 'inventory.not_draft');
     }
 }

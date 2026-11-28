@@ -135,6 +135,7 @@ export interface Inventory {
   readonly room_photos?: readonly InventoryRoomPhotoGroup[];
   /**
    * Les rôles que l'utilisateur courant peut signer, jugés par l'API (même prédicat que la signature).
+   * TCK-3011 — MAINTENANT : la partie n'a pas déjà signé, et l'état des lieux se signe encore.
    * TCK-2646 — `tenant_onsite` : il peut recueillir sur son téléphone la signature du locataire, par code
    * SMS. Ce n'est PAS un rôle de `POST …/sign` (c'est `tenant` + `code`) : {@link InventorySignatureRole}
    * ne le contient pas.
@@ -145,8 +146,16 @@ export interface Inventory {
    * la soumission et les photos. Absent, aucun de ces gestes ne s'ouvre.
    * TCK-2648 — `dispute` : `InventoryPolicy::dispute` (les deux parties seules, jamais le personnel ni
    * le super-admin) et un statut contestable. Absent, « Contester » ne s'offre pas.
+   * TCK-3011 (ADR-0139) — `edit` et `submit` : la policy ET le brouillon (`GestesDeLEtatDesLieux`) ;
+   * `update` ne dit plus que « le lecteur conduit l'état des lieux » (le récapitulatif, la signature
+   * sur place). L'écran n'y ajoute plus le statut : il lit `./gestes.ts`.
    */
-  readonly abilities?: { readonly update: boolean; readonly dispute?: boolean };
+  readonly abilities?: {
+    readonly update: boolean;
+    readonly edit?: boolean;
+    readonly submit?: boolean;
+    readonly dispute?: boolean;
+  };
   // TCK-2648 — `show` seulement : les personnes que la fiche nomme (le locataire, le bailleur, et qui a
   // signé pour qui). Les ids ci-dessus restent ; ces objets sont ce qu'on AFFICHE.
   readonly tenant?: InventoryPersonne & { readonly first_name?: string | null } | null;

@@ -416,7 +416,7 @@ class InventorySignatureService
     protected function assertSignable(Inventory $inventory): void
     {
         abort_code_unless(
-            in_array($inventory->status, [InventoryStatus::Draft, InventoryStatus::PendingSignature], true),
+            GestesDeLEtatDesLieux::signable($inventory),
             Response::HTTP_CONFLICT,
             'inventory.cannot_sign'
         );

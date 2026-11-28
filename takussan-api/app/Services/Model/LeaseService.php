@@ -27,6 +27,7 @@ use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Booking\BookingNotificationParams;
 use App\Services\Lease\EarlyTerminationService;
+use App\Services\Lease\GestesDuBail;
 use App\Services\Lease\LeaseExitScheduleService;
 use App\Services\Lease\LeaseRenewalService;
 use App\Services\Property\ContactDeLAgenceDuBien;
@@ -546,17 +547,15 @@ class LeaseService
             // P46.04 (TCK-957) — l'échéancier existe si le bail a des échéances de loyer dues, celles
             // que cette méthode émet. Compter toutes les lignes faisait d'une caution saisie avant
             // l'activation un échéancier : la tâche se taisait, et le bail n'avait aucun loyer.
-            $existing = $lease->payments()
-                ->where('payment_type', LeasePaymentType::Rent->value)
-                ->where('status', '!=', PaymentStatus::Cancelled->value)
-                ->count();
+            // TCK-3011 — la règle d'`abilities.generate_schedule`, relue ici sous verrou.
+            $existing = GestesDuBail::echeancierEmis($lease);
             // L'ordre des contrôles de chaque appelant est conservé : la tâche se tait d'abord sur un
             // échéancier existant, la route refuse d'abord un bail inactif.
-            if ($existing > 0 && ! $failIfExists) {
+            if ($existing && ! $failIfExists) {
                 return 0;
             }
             abort_code_unless($lease->status === LeaseStatus::Active, 422, 'lease.not_active_schedule');
-            abort_code_if($existing > 0, 422, 'lease.schedule_exists');
+            abort_code_if($existing, 422, 'lease.schedule_exists');
 
             $start = Carbon::parse($lease->start_date);
             $end = $lease->end_date ? Carbon::parse($lease->end_date) : null;

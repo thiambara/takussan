@@ -38,6 +38,8 @@ const BASE = {
   total_amount: 100000,
   currency: 'XOF',
   issue_date: '2026-10-01',
+  // TCK-3011 (ADR-0139) — les gestes suivent ce que l'API sert à ce lecteur ; sans `abilities`, aucun.
+  abilities: { send: false, mark_paid: true, cancel: true, pay: true },
 };
 
 function rendre() {

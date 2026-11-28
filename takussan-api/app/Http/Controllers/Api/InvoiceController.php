@@ -85,6 +85,7 @@ class InvoiceController extends Controller
     private function presenter(Request $request, Invoice $invoice): array
     {
         // TCK-594 (ADR-0039 §7) — l'avoir se lit sur la facture qu'il annule.
-        return InvoiceResource::make($invoice->load(['creditNotes']))->resolve($request);
+        // TCK-3011 (ADR-0139) — et ses gestes pour ce lecteur : la fiche se met à jour sans relecture.
+        return InvoiceResource::make($invoice->load(['creditNotes']))->forViewer($request->user())->resolve($request);
     }
 }
