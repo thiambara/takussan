@@ -20,10 +20,17 @@ Ce qui existe réellement — **ordres de grandeur**, non des comptes à tenir �
 
 | | `takussan-api/` | `takussan-web/` |
 |---|---|---|
-| Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
-| Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
-| Données | 135 migrations · 38 factories · ~80 fichiers de seeders | — |
-| Tests | ~380 fichiers · **~2740 tests, verts sur PostgreSQL** *(2026-08-22)* | ~190 fichiers · **~1330 tests, verts** *(2026-08-22)* |
+| Code | ~2 300 fichiers PHP · ~250 000 lignes dans `app/` | ~4 400 fichiers `.ts`/`.tsx` dans `src/` |
+| Surface | ~925 routes · ~310 contrôleurs · ~130 modèles | ~185 pages · ~40 route handlers BFF · ~28 modules de server actions |
+| Données | ~390 migrations · ~55 factories · ~80 fichiers de seeders | — |
+| Tests | ~2 170 fichiers · **~14 300 tests** · ~380 000 lignes *(2026-11-28)* | ~2 000 fichiers · **~13 000 cas** *(2026-11-28)* |
+
+> ⚠ **Ce tableau a sous-compté les tests d'un facteur cinq pendant trois mois** (« ~380 fichiers · ~2 740 tests »,
+> relevé du 2026-08-22, alors que la suite en comptait ~14 300 au 2026-11-28). Le relevé des tests du back
+> ([ADR-0140](docs/adr/0140-une-classe-de-tests-par-module-la-livraison-qui-approfondit-retire-ce-qu-elle-absorbe.md))
+> l'a montré : 379 000 lignes de tests pour 250 000 dans `app/`, et une suite qui grossit par accrétion. Les commandes :
+> `find takussan-api/app -name '*.php' | wc -l`, `grep -rhoE 'public function test_|#\[Test\]' takussan-api/tests | wc -l`,
+> `php artisan route:list --json | jq length`.
 
 > **Le compte exact se prend à la source**, jamais ici : `php artisan test`, `npm run test`,
 > `find … | wc -l`. *Une précision qu'on ne peut pas tenir n'est pas de la rigueur, c'est une dette
@@ -41,7 +48,8 @@ node docs/backlog/check-backlog.mjs --report   # compte par statut + la liste de
 **Ce qui est vert.** Backend : Pint propre, suite entière verte sur PostgreSQL. Frontend : ESLint
 0 erreur, `tsc --noEmit` propre, suite verte.
 
-**Temps de référence de la suite backend : 470 à 610 s** (2026-08-22, ~2740 tests, 8 cœurs,
+**Temps de référence de la suite backend, séquentielle : 470 à 610 s — PÉRIMÉ** (relevé du 2026-08-22, sur ~2 740 tests ;
+la suite en compte ~14 300 au 2026-11-28 et n'a pas été re-mesurée en séquentiel : la référence est le job CI, cf. plus bas ; 8 cœurs,
 **machine au repos**). Sous charge, le facteur mesuré est d'environ ×11 : relever les trois moyennes
 d'`uptime` et `sysctl -n hw.ncpu` à côté de tout chiffre, sans se fier à la moyenne à 1 minute
 ([les quatre références successives, qui ne se soustraient pas](docs/journal-des-corrections.md#j-09)).
