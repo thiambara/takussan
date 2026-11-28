@@ -7,6 +7,7 @@ import { withIntl } from '@/test/intl';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
 import { ApiError } from '@/lib/api';
+import { avecLesGestesDeLApi } from './fixtures/gestes-comme-l-api';
 
 const visitState = vi.hoisted(() => ({
   visit: null as PropertyVisit | null,
@@ -41,7 +42,7 @@ vi.mock('@/components/ui/toast', () => ({
 
 vi.mock('@/lib/queries/visits', () => ({
   useVisit: () => ({
-    data: visitState.visit ? { data: visitState.visit } : undefined,
+    data: visitState.visit ? { data: avecLesGestesDeLApi(visitState.visit) } : undefined,
     isLoading: false,
     isError: !visitState.visit,
     error: visitState.error,

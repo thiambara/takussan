@@ -15,6 +15,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
+import { avecLesGestesDeLApi } from './fixtures/gestes-comme-l-api';
 
 const mutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const visite: PropertyVisit = {
@@ -30,7 +31,8 @@ const visite: PropertyVisit = {
   visitor_name: 'Awa Diop',
   visitor_phone: '+221771234567',
   property: { id: 10, title: 'Villa à Almadies', slug: 'villa-almadies' },
-  abilities: { manage: false },
+  // TCK-3005 — l'API dit au demandeur qu'il l'est (`feedback_customer`), et donc qu'il propose.
+  abilities: { manage: false, feedback_customer: true },
 };
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 30, roles: ['customer'] } }) }));
@@ -45,7 +47,7 @@ vi.mock('@/lib/api', async (orig) => ({
   apiFetch: () => Promise.resolve({ data: { slots: [] } }),
 }));
 vi.mock('@/lib/queries/visits', () => ({
-  useVisit: () => ({ data: { data: visite }, isLoading: false, isError: false }),
+  useVisit: () => ({ data: { data: avecLesGestesDeLApi(visite) }, isLoading: false, isError: false }),
   useCancelVisit: () => mutation,
   useCompleteVisit: () => mutation,
   useConfirmVisit: () => mutation,

@@ -5,7 +5,6 @@ namespace App\Services\Pont;
 use App\Http\Requests\InventorySignRequest;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\MaintenanceStatus;
-use App\Models\Enums\VisitStatus;
 use App\Models\Inventory;
 use App\Models\MaintenanceRequest;
 use App\Models\PropertyVisit;
@@ -14,7 +13,7 @@ use App\Services\Inventory\InventorySignatureService;
 use App\Services\Messaging\SujetsDuFil;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Signature\SignatureOtpService;
-use App\Services\Visit\ConfirmerUneVisite;
+use App\Services\Visit\GestesDeLaVisite;
 use App\Support\InstantRecu;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
@@ -115,13 +114,14 @@ final class GestesParLien
     }
 
     /**
-     * Le geste est-il encore attendu de `$compte` sur `$objet` ? Une visite encore à confirmer ; une intervention
+     * Le geste est-il encore attendu de `$compte` sur `$objet` ? Une visite que ce compte peut encore confirmer
+     * (TCK-3005 : la garde du module, policy et état, que sert aussi `abilities.confirm`) ; une intervention
      * qui attend l'acceptation de SON prestataire ; un état des lieux où il lui reste un rôle à signer.
      */
     public static function attendEncore(string $geste, Model $objet, User $compte): bool
     {
         return match (true) {
-            $geste === 'property_visit.confirm' && $objet instanceof PropertyVisit => $objet->status === VisitStatus::Scheduled,
+            $geste === 'property_visit.confirm' && $objet instanceof PropertyVisit => GestesDeLaVisite::peutConfirmer($compte, $objet),
             $geste === 'maintenance_request.accept' && $objet instanceof MaintenanceRequest => self::attendLAcceptation($objet) && (int) $objet->assigned_to === $compte->id,
             $geste === 'inventory.sign' && $objet instanceof Inventory => self::roleASigner($objet, $compte) !== null,
             default => false,
@@ -159,7 +159,7 @@ final class GestesParLien
     public static function executer(string $geste, User $acteur, Model $objet, array $parametres): Model
     {
         return match ($geste) {
-            'property_visit.confirm' => app(ConfirmerUneVisite::class)->executer(
+            'property_visit.confirm' => app(GestesDeLaVisite::class)->confirmer(
                 $acteur,
                 self::attendu($objet, PropertyVisit::class),
                 InstantRecu::ouNul($parametres['scheduled_at'] ?? null),

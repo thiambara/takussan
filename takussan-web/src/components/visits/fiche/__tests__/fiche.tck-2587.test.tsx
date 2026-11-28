@@ -16,6 +16,7 @@ import { withIntl } from '@/test/intl';
 import type { PropertyVisit } from '@/types/visit';
 
 import { VisitDetail } from '../../VisitDetail';
+import { avecLesGestesDeLApi } from '../../__tests__/fixtures/gestes-comme-l-api';
 
 // Reprise (vérification du lot B, g2) : la machine et la CI sont à l'heure de Dakar (UTC+0), où l'heure
 // locale et l'heure de Dakar se confondent ; une lecture en heure locale y passerait inaperçue. Le
@@ -68,7 +69,7 @@ function creneaux(jour: string | null) {
 }
 
 vi.mock('@/lib/queries/visits', () => ({
-  useVisit: () => ({ data: { data: etat.visite }, isLoading: false, isError: false }),
+  useVisit: () => ({ data: { data: avecLesGestesDeLApi(etat.visite) }, isLoading: false, isError: false }),
   useConfirmVisit: () => confirmer,
   useCompleteVisit: () => terminer,
   useMarkVisitNoShow: () => absent,
@@ -622,7 +623,8 @@ describe('TCK-2587 — suivi du lot A : l’agent de la visite parti ou suspendu
   });
 
   it('téléphone, avec `crm.assign` : la demande le dit, et la barre réattribue au lieu de confirmer', () => {
-    etat.capacites = ['crm.assign'];
+    // TCK-3005 — « Réattribuer » suit `abilities.assign` (`crm.assign` jugé par l'API), plus `useCan`.
+    etat.visite = visite({ ...etat.visite, abilities: { manage: true, assign: true } });
     monter();
     const ligne = document.querySelector('[data-slot="carte-demande-recue"] [data-slot="agent-indisponible"]') as HTMLElement;
     expect(within(ligne).getByRole('status')).toHaveTextContent(MESSAGE);
@@ -645,7 +647,8 @@ describe('TCK-2587 — suivi du lot A : l’agent de la visite parti ou suspendu
 
   it('bureau : « Réattribuer » prend la place de « Confirmer à … » ; le corps dit pourquoi', () => {
     ecrans(false);
-    etat.capacites = ['crm.assign'];
+    // TCK-3005 — « Réattribuer » suit `abilities.assign` (`crm.assign` jugé par l'API), plus `useCan`.
+    etat.visite = visite({ ...etat.visite, abilities: { manage: true, assign: true } });
     monter();
     expect(screen.queryByRole('button', { name: /^Confirmer à/ })).toBeNull();
     expect(screen.getAllByRole('button', { name: 'Réattribuer' })).toHaveLength(1);

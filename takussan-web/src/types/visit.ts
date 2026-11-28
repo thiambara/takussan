@@ -117,9 +117,9 @@ export interface PropertyVisit {
   } | null;
   created_at?: string | null;
   /**
-   * P152.04 — rendu sur la seule visite de la route : `manage` dit si l'utilisateur courant peut la
-   * confirmer, la clore, la déclarer manquée, la déplacer ou l'annuler au nom de ceux qui gèrent le
-   * bien (`PropertyVisitPolicy::update` et `agitPourLeBien`). Absent, rien n'est offert.
+   * P152.04 — rendu sur la seule visite de la route : `manage` dit si l'utilisateur courant gère la
+   * visite au nom de ceux qui gèrent le bien (`PropertyVisitPolicy::gere`) — qui la fiche sert, jamais
+   * un geste (TCK-3005 : chaque geste a sa clé). Absent, rien n'est offert.
    */
   /**
    * `feedback_customer` (TCK-2581, AC6 ; API 627ecd6e6) : le lecteur est le DEMANDEUR de la visite (le
@@ -141,6 +141,22 @@ export interface PropertyVisit {
      * d'un bien d'agence quand l'agence lui confie ses visites (`PropertyVisitPolicy::peutConfirmer`).
      */
     readonly confirm?: boolean;
+    /**
+     * TCK-3005 (ADR-0139) — une clé par geste, « possible maintenant pour ce lecteur » : policy ET état
+     * (`GestesDeLaVisite::peut*`). La fiche les lit par `gestesDeLaVisite` (`components/visits/fiche/gestes.ts`)
+     * et n'en recalcule rien. `no_show` ne dit pas l'heure : la fiche grise « Absent » jusqu'à elle.
+     */
+    readonly complete?: boolean;
+    readonly no_show?: boolean;
+    readonly cancel?: boolean;
+    /** Déplacer l'heure au nom de l'agence (`PATCH`). */
+    readonly reschedule?: boolean;
+    /** Prendre en charge une visite sans agent. */
+    readonly claim?: boolean;
+    /** Attribuer à un collègue (`crm.assign` dans l'agence du bien). */
+    readonly assign?: boolean;
+    /** Le demandeur propose un autre créneau (`POST …/reschedule`). */
+    readonly propose?: boolean;
   };
   /**
    * TCK-2849 / TCK-2869 — la même capacité que `abilities.confirm`, servie AUSSI en liste quand

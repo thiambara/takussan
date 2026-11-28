@@ -2,21 +2,19 @@
 
 namespace App\Services\Visit;
 
-use App\Models\Enums\VisitCancelledBy;
 use App\Models\Enums\VisitStatus;
-use App\Models\Enums\VisitWindow;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
-use App\Policies\PropertyVisitPolicy;
-use App\Services\Messaging\FilDeLObjet;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-075 — Central scheduling rules for {@see PropertyVisit}.
+ *
+ * TCK-3005 — les INVARIANTS du calendrier (chevauchement, quota, agent libre, ordre des verrous) et
+ * le calcul des créneaux ; toute transition d'une visite vit dans {@see GestesDeLaVisite}, qui les appelle.
  *
  * Enforces two business invariants that the controller would otherwise
  * duplicate across store/confirm/update:
@@ -241,9 +239,10 @@ class VisitSchedulingService
      * ligne du BIEN, puis celle de la visite, puis ({@see self::assertAgentFree()}) celle de l'agent.
      * Le bien est le point de sérialisation des visites d'un bien (`takussan-api/CLAUDE.md`, piège
      * n° 2 : la ligne parent) ; deux écrivains d'un même bien s'y attendent au lieu de se croiser sur
-     * leurs visites. `confirmOrFail`, `rescheduleOrFail`, `update`, `claim` et `bulk-assign` passent
-     * ici ; `createConfirmedOrFail` n'a pas encore de visite et verrouille le bien seul. Un écrivain
-     * qui ne tient qu'UNE ligne (`cancelOrFail`, le compte rendu) ne peut pas fermer de cycle.
+     * leurs visites. Les transitions de {@see GestesDeLaVisite} (confirmer, proposer un créneau, clore,
+     * absent, annuler), `update`, `claim` et `bulk-assign` passent ici ; `GestesDeLaVisite::planifier`
+     * n'a pas encore de visite et verrouille le bien seul. Le compte rendu, qui ne tient qu'UNE ligne,
+     * ne peut pas fermer de cycle.
      * `VisitAgentOverlapTest::test_chaque_ecrivain_verrouille_le_bien_puis_la_visite_puis_l_agent`
      * épingle l'ordre, chemin par chemin.
      *
@@ -257,94 +256,9 @@ class VisitSchedulingService
     }
 
     /** La ligne du bien sous verrou, corbeille comprise : un bien supprimé garde ses visites. */
-    private function verrouillerBien(int $propertyId): void
+    public function verrouillerBien(int $propertyId): void
     {
         Property::withTrashed()->whereKey($propertyId)->lockForUpdate()->first(['id']);
-    }
-
-    /**
-     * Transactional confirm: re-read the visit with a row lock, run the
-     * overlap guard against freshly-locked candidate rows, then flip the
-     * status to `confirmed` inside the same transaction.
-     *
-     * Two concurrent `POST /confirm` calls used to both pass the
-     * non-locking overlap check and both win; the row lock here
-     * serializes them so only one can confirm.
-     */
-    public function confirmOrFail(PropertyVisit $visit, ?CarbonInterface $scheduledAt = null): PropertyVisit
-    {
-        return DB::transaction(function () use ($visit, $scheduledAt) {
-            $fresh = $this->verrouillerBienPuisVisite($visit);
-
-            abort_code_unless(
-                $fresh->status === VisitStatus::Scheduled,
-                422,
-                'visit.not_scheduled_confirm'
-            );
-
-            // TCK-2502 — une visite demandée par tranche (« mardi après-midi ») n'a pas d'heure :
-            // la confirmer, c'est la fixer. Sans heure, le début de tranche serait confirmé comme
-            // un rendez-vous réel, et les rappels partiraient pour lui.
-            abort_code_if(
-                $fresh->preferred_window !== null && $scheduledAt === null,
-                422,
-                'visit.time_required'
-            );
-
-            $start = $scheduledAt !== null ? Carbon::instance($scheduledAt) : null;
-            $this->assertNoOverlap($fresh, $start, lockForUpdate: true);
-            // TCK-2744 — et l'agent de la visite n'est pas déjà ailleurs à cette heure.
-            $this->assertAgentFree($fresh, $fresh->agent_id, $start ?? $fresh->scheduled_at, $fresh->duration_minutes, lockForUpdate: true);
-
-            // Une heure posée lève la tranche — explicitement : l'heure fixée peut ÉGALER le début de
-            // tranche (14:00 pour « l'après-midi »), et `scheduled_at` n'est alors pas modifié.
-            $fresh->update($start !== null
-                ? ['status' => VisitStatus::Confirmed, 'scheduled_at' => $start, 'preferred_window' => null]
-                : ['status' => VisitStatus::Confirmed]);
-
-            // TCK-2961 (ADR-0128 § 3) — la visite confirmée parle dans le fil EXISTANT du prospect, après
-            // le COMMIT (le verrou est encore tenu ici) ; aucun fil n'est ouvert pour elle.
-            app(FilDeLObjet::class)->parler($fresh, 'visit.confirmed', ['scheduled_at' => $fresh->scheduled_at?->toIso8601String()]);
-
-            return $fresh;
-        });
-    }
-
-    /**
-     * P182.06 (TCK-1820) — annulation transactionnelle : la ligne est relue sous verrou, et
-     * `visit.cannot_cancel` se juge sur elle, comme {@see confirmOrFail}. Jugée sur le modèle lié
-     * à la route, deux annulations simultanées passaient toutes deux (deux avis), et une
-     * annulation concurrente d'un `complete` écrasait `completed`. L'avis part après la
-     * transaction, chez l'appelant.
-     */
-    /** TCK-2871 — `$by` : qui annule, écrit avec le statut (« Annulée par vous »). */
-    public function cancelOrFail(PropertyVisit $visit, ?string $reason, ?VisitCancelledBy $by = null): PropertyVisit
-    {
-        return DB::transaction(function () use ($visit, $reason, $by) {
-            $fresh = PropertyVisit::query()
-                ->whereKey($visit->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            abort_code_if(
-                in_array($fresh->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
-                422,
-                'visit.cannot_cancel'
-            );
-
-            $fresh->update([
-                'status' => VisitStatus::Cancelled,
-                'cancelled_at' => now(),
-                'cancellation_reason' => $reason,
-                'cancelled_by' => $by, // TCK-2871
-            ]);
-
-            // TCK-2967 — la visite annulée parle dans son fil EXISTANT, après le COMMIT : l'autre moment
-            // proposé (`visit.rescheduled`) n'attend plus personne.
-            app(FilDeLObjet::class)->parler($fresh, 'visit.cancelled');
-
-            return $fresh;
-        });
     }
 
     /**
@@ -406,136 +320,5 @@ class VisitSchedulingService
             'visit.active_limit_reached',
             ['max' => self::MAX_ACTIVE_VISITS_PER_CUSTOMER]
         );
-    }
-
-    /**
-     * Transactional create: enforce the per-customer quota with a row
-     * lock on the existing active visits before inserting. Closes the
-     * TOCTOU window where two parallel requests from the same visitor
-     * could both pass `assertQuota` and end up with `count + 2` active
-     * visits.
-     *
-     * @param  array<string,mixed>  $attributes  payload passed to PropertyVisit::create
-     */
-    public function createOrFail(Property $property, ?User $visitor, array $attributes): PropertyVisit
-    {
-        return DB::transaction(function () use ($property, $visitor, $attributes) {
-            Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
-
-            // TCK-1410 (P144.08, ADR-0072 § 8) — la même demande rejouée au même créneau rend la
-            // visite active déjà ouverte, sous le verrou du bien, au lieu d'en créer une seconde qui
-            // consommerait le quota. `wasRecentlyCreated` reste faux : l'appelant ne prévient pas
-            // une seconde fois.
-            $existing = $this->activeVisitAtSameSlot($property, $visitor, $attributes);
-            if ($existing !== null) {
-                return $existing;
-            }
-
-            $this->assertQuota(
-                $property,
-                $visitor,
-                $attributes['customer_id'] ?? null,
-                lockForUpdate: true,
-            );
-
-            return PropertyVisit::create($attributes);
-        });
-    }
-
-    /**
-     * TCK-1410 — la visite active du même visiteur (compte, sinon fiche client), sur le même bien,
-     * au même créneau. Une demande anonyme n'a pas de visiteur à reconnaître : rien n'est rapproché.
-     *
-     * @param  array<string,mixed>  $attributes
-     */
-    private function activeVisitAtSameSlot(Property $property, ?User $visitor, array $attributes): ?PropertyVisit
-    {
-        $customerId = $attributes['customer_id'] ?? null;
-        if (($visitor === null && $customerId === null) || ! isset($attributes['scheduled_at'])) {
-            return null;
-        }
-
-        // L'instant tel que `create()` l'écrirait : même cast, donc même valeur stockée.
-        $slot = (new PropertyVisit(['scheduled_at' => $attributes['scheduled_at']]))->getAttributes()['scheduled_at'];
-
-        // TCK-2502 — « l'après-midi, heure à fixer » n'est pas 14:00 précis, bien qu'ils partagent
-        // le même `scheduled_at` : la tranche fait partie de la demande.
-        $window = $attributes['preferred_window'] ?? null;
-        $window = $window instanceof VisitWindow ? $window->value : $window;
-
-        return PropertyVisit::query()
-            ->where('property_id', $property->id)
-            ->whereIn('status', self::ACTIVE_STATUSES)
-            ->where('scheduled_at', $slot)
-            ->when($window !== null, fn ($q) => $q->where('preferred_window', $window), fn ($q) => $q->whereNull('preferred_window'))
-            ->where(function ($q) use ($visitor, $customerId) {
-                if ($visitor !== null) {
-                    $q->where('visitor_id', $visitor->id);
-                }
-                if ($customerId !== null) {
-                    $q->orWhere('customer_id', $customerId);
-                }
-            })
-            ->oldest('id')
-            ->first();
-    }
-
-    /**
-     * TCK-590 — la planification par le personnel : la visite naît CONFIRMÉE, donc le garde de
-     * chevauchement court avant l'insertion, sous le même verrou de bien que le quota.
-     *
-     * @param  array<string,mixed>  $attributes
-     */
-    public function createConfirmedOrFail(Property $property, ?User $visitor, array $attributes): PropertyVisit
-    {
-        return DB::transaction(function () use ($property, $visitor, $attributes) {
-            // TCK-2744 (d1) — le bien d'abord, puis l'agent : l'ordre de tous les écrivains.
-            $this->verrouillerBien((int) $property->getKey());
-            $this->assertQuota($property, $visitor, $attributes['customer_id'] ?? null, lockForUpdate: true);
-
-            $candidate = new PropertyVisit($attributes);
-            $candidate->property_id = $property->id;
-            $this->assertNoOverlap($candidate, lockForUpdate: true);
-            // TCK-2744 — la visite naît confirmée : son agent ne doit pas être déjà ailleurs.
-            $this->assertAgentFree($candidate, $candidate->agent_id, $candidate->scheduled_at, $candidate->duration_minutes, lockForUpdate: true);
-
-            return PropertyVisit::create(array_merge($attributes, ['status' => VisitStatus::Confirmed]));
-        });
-    }
-
-    /**
-     * TCK-590 — le visiteur propose un autre créneau : nouvelle heure, et la visite REPASSE en
-     * attente de confirmation (`scheduled`), même si elle était confirmée. Le créneau ne doit
-     * chevaucher aucune visite confirmée du bien.
-     */
-    public function rescheduleOrFail(PropertyVisit $visit, CarbonInterface $scheduledAt): PropertyVisit
-    {
-        return DB::transaction(function () use ($visit, $scheduledAt) {
-            $fresh = $this->verrouillerBienPuisVisite($visit);
-
-            abort_code_unless(
-                in_array($fresh->status, self::ACTIVE_STATUSES, true),
-                422,
-                'visit.reschedule_inactive',
-            );
-
-            $this->assertNoOverlap($fresh, Carbon::instance($scheduledAt), lockForUpdate: true);
-
-            $fresh->update([
-                'scheduled_at' => $scheduledAt,
-                // TCK-2502 — le visiteur propose une heure précise : plus de tranche, même si
-                // l'heure proposée égale le début de tranche.
-                'preferred_window' => null,
-                'status' => VisitStatus::Scheduled,
-            ]);
-
-            // TCK-2961 (ADR-0128 § 3) — l'autre moment proposé par le visiteur parle dans son fil EXISTANT,
-            // après le COMMIT ; confirmer attend l'autre partie : qui administre la visite ET la confirme
-            // (la garde de `PropertyVisitController::confirm`).
-            app(FilDeLObjet::class)->parler($fresh, 'visit.rescheduled', ['scheduled_at' => $fresh->scheduled_at?->toIso8601String()],
-                fn (User $partie): bool => $partie->can('update', $fresh) && PropertyVisitPolicy::peutConfirmer($partie, $fresh));
-
-            return $fresh;
-        });
     }
 }

@@ -13,6 +13,7 @@ import { withIntl } from '@/test/intl';
 import { ApiError } from '@/lib/api';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
+import { avecLesGestesDeLApi } from './fixtures/gestes-comme-l-api';
 
 const etat = vi.hoisted(() => ({ visit: null as PropertyVisit | null }));
 const neutre = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
@@ -28,7 +29,7 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: toastAdd }) }));
 vi.mock('@/lib/queries/visits', () => ({
-  useVisit: () => ({ data: { data: etat.visit }, isLoading: false, isError: false }),
+  useVisit: () => ({ data: { data: avecLesGestesDeLApi(etat.visit) }, isLoading: false, isError: false }),
   useCancelVisit: () => annuler,
   useCompleteVisit: () => neutre,
   useConfirmVisit: () => confirmer,

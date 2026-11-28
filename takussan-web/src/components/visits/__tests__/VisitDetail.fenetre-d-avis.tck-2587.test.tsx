@@ -11,6 +11,7 @@ import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
+import { avecLesGestesDeLApi } from './fixtures/gestes-comme-l-api';
 
 const etat = vi.hoisted(() => ({ visit: null as PropertyVisit | null }));
 const mutation = { mutateAsync: vi.fn(), isPending: false };
@@ -23,7 +24,7 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/lib/queries/visits', () => ({
-  useVisit: () => ({ data: etat.visit ? { data: etat.visit } : undefined, isLoading: false, isError: !etat.visit, error: null, refetch: vi.fn() }),
+  useVisit: () => ({ data: etat.visit ? { data: avecLesGestesDeLApi(etat.visit) } : undefined, isLoading: false, isError: !etat.visit, error: null, refetch: vi.fn() }),
   useCancelVisit: () => mutation,
   useCompleteVisit: () => mutation,
   useConfirmVisit: () => mutation,

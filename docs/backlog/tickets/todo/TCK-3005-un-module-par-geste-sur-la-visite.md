@@ -38,21 +38,70 @@ Relevé du 2026-11-27 (`dev` 4e3a929f7), vérifié :
 
 ## Delta à produire
 
-- [ ] Service : `App\Services\Visit\GestesDeLaVisite` — `peutConfirmer`, `peutClore`, `peutDeclarerAbsent`, `peutAnnuler`, … (`User`, `PropertyVisit`) et les transitions correspondantes sous verrou ; reprend `ConfirmerUneVisite` et les transitions de `VisitSchedulingService`
-- [ ] `PropertyVisitController::complete`, `noShow`, `confirm`, `cancel` délèguent au module ; la création n'a plus qu'un chemin
-- [ ] `GestesParLien` et `PropertyVisitResource` (`abilities`, `can_confirm`) appellent les `peut*` du module
-- [ ] Front : la fiche visite décide de ses gestes par une fonction pure sur `abilities` (patron `components/leases/fiche/gestes.ts`) ; plus de `user.roles` ni de statut pour décider ; aucun geste tant qu'`abilities` manque
-- [ ] Tests API : `tests/Feature/Visits/GestesDeLaVisiteTest.php` (chaque geste : vrai et faux, dont un statut déjà changé sous la ligne relue) ; tests front de la fonction pure
+- [x] Service : `App\Services\Visit\GestesDeLaVisite` — `peutConfirmer`, `peutClore`, `peutDeclarerAbsent`, `peutAnnuler`, … (`User`, `PropertyVisit`) et les transitions correspondantes sous verrou ; reprend `ConfirmerUneVisite` et les transitions de `VisitSchedulingService`
+- [x] `PropertyVisitController::complete`, `noShow`, `confirm`, `cancel` délèguent au module ; la création n'a plus qu'un chemin
+- [x] `GestesParLien` et `PropertyVisitResource` (`abilities`, `can_confirm`) appellent les `peut*` du module
+- [x] Front : la fiche visite décide de ses gestes par une fonction pure sur `abilities` (patron `components/leases/fiche/gestes.ts`) ; plus de `user.roles` ni de statut pour décider ; aucun geste tant qu'`abilities` manque
+- [x] Tests API : `tests/Feature/Visits/GestesDeLaVisiteTest.php` (chaque geste : vrai et faux, dont un statut déjà changé sous la ligne relue) ; tests front de la fonction pure
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `complete` et `noShow` relisent la visite sous verrou : un test où la visite passe `cancelled` entre la liaison de route et l'écriture rend 422 et n'écrit rien.
-- [ ] AC2 — `grep -n "VisitStatus::" app/Http/Controllers/Api/PropertyVisitController.php` ne montre plus d'écriture de statut.
-- [ ] AC3 — `abilities.complete` / `no_show` / `confirm` / `cancel` d'une visite valent faux quand le statut ne le permet plus (test API).
-- [ ] AC4 — La fiche visite n'affiche aucun geste qu'`abilities` refuse (test de la fonction pure + un test de rendu).
+- [x] AC1 — `complete` et `noShow` relisent la visite sous verrou : un test où la visite passe `cancelled` entre la liaison de route et l'écriture rend 422 et n'écrit rien.
+- [x] AC2 — `grep -n "VisitStatus::" app/Http/Controllers/Api/PropertyVisitController.php` ne montre plus d'écriture de statut.
+- [x] AC3 — `abilities.complete` / `no_show` / `confirm` / `cancel` d'une visite valent faux quand le statut ne le permet plus (test API).
+- [x] AC4 — La fiche visite n'affiche aucun geste qu'`abilities` refuse (test de la fonction pure + un test de rendu).
 
 ## Hors périmètre
 
 - La règle « qui peut lire » une visite (TCK-3006).
 
 ## Notes d'implémentation
+
+Relevé du 2026-11-27 re-mesuré sur l'arbre de la branche : `complete` et `noShow` jugeaient bien le statut sur le
+modèle lié à la route, sans verrou. La création était écrite DEUX fois (la demande authentifiée de
+`PropertyVisitController::store` et la demande publique), plus la planification (`createConfirmedOrFail`) : la
+troisième ligne citée (`VisitSchedulingService` ~:529) est cette planification.
+
+- **Module** : `App\Services\Visit\GestesDeLaVisite`. Gardes statiques `peutConfirmer`, `peutClore`,
+  `peutDeclarerAbsent`, `peutAnnuler`, `peutDeplacer`, `peutPrendreEnCharge`, `peutAttribuer`, `peutProposerUnCreneau`
+  (policy ET état). Gestes `demander`, `planifier`, `confirmer`, `proposerUnCreneau` (le report du visiteur),
+  `clore`, `declarerAbsent`, `annuler`. Toutes leurs écritures se font sous verrou (bien, puis visite), et celles
+  de la confirmation et de l'annulation sont PRIVÉES : il n'existe pas de second chemin d'écriture sans garde
+  d'acteur. `ConfirmerUneVisite` est supprimé. `confirmOrFail`, `cancelOrFail`, `rescheduleOrFail`, `createOrFail`
+  et `createConfirmedOrFail` ont quitté `VisitSchedulingService`, qui ne garde que les invariants (chevauchement,
+  quota, agent libre, ordre des verrous) et le calcul des créneaux.
+- **Une création** : `demander` sert les deux portes de la demande. Deux écarts restent délibérément à l'appelant :
+  l'agent (le contact principal pour la porte publique, personne pour la console) et la durée par défaut (30 min
+  pour la porte publique). Ils n'ont pas été unifiés : cela changerait qui reçoit l'avis de la demande.
+- **`abilities`** : une clé par geste, `confirm`, `complete`, `no_show`, `cancel`, `reschedule`, `claim`, `assign`
+  et `propose`, plus `manage`, `feedback_customer` et `create_customer`, qui ne changent pas. `can_confirm` en liste
+  lit aussi le statut, relu par `VisitReadContext`, sans requête par ligne.
+- **Gardes plus étroites que l'écriture, jamais plus larges** : `abilities` n'offre un geste que sur une visite
+  `scheduled` ou `confirmed`. L'écriture garde ses refus historiques : annuler une visite `no_show` reste accepté,
+  car les réponses HTTP ne changent pas. `claim` ne s'offre que sur une visite sans agent ; la reprise par un
+  titulaire de `crm.assign` passe par `assign`.
+- **L'heure n'entre pas dans `no_show`** : la fiche grise « Absent » jusqu'à l'heure de la visite (présentation),
+  et l'écriture rejuge l'heure sous verrou.
+- **Écarts acceptés par la session (ADR-0139)** :
+  - l'échec de l'avis au visiteur ne rend plus une 500 après une confirmation déjà commise : `confirmer`
+    l'attrape et le journalise, comme le faisait déjà le lot. La route rend 200 avec `sms_sent: false` ;
+    par lien, la confirmation est commise et le lien consommé ;
+  - `confirm` et `can_confirm` (en liste aussi) disent l'état ;
+  - les destinataires des liens d'action sont filtrés par la policy.
+- **Lien d'action** : `GestesParLien::attendEncore` lit `peutConfirmer` du compte (policy et état), et plus le seul
+  statut. Un compte qui a perdu le droit ne reçoit plus de lien (test `EmissionDesLiensTest`). Le décor de ce test
+  pose désormais `owners_confirm_visits`, comme le fait `visit.rescheduled` en choisissant ses destinataires.
+- **Front** : `components/visits/fiche/gestes.ts` (`gestesDeLaVisite`). `VisitDetail` ne lit plus `user.roles` ni
+  `useCan('crm.assign')`, et ne compare plus le statut pour décider d'un geste. La lecture des avis suit la présence
+  de `metadata`, que l'API ne sert qu'aux outils de la console, au lieu des rôles. Les doublures des tests de la
+  fiche complètent `abilities` comme l'API (`__tests__/fixtures/gestes-comme-l-api.ts`).
+- **Vérifié** :
+  - AC1 : rouge avant le correctif (200 au lieu de 422), puis vert.
+  - Ablations rejouées et vérifiées par md5 : jugement sur le modèle passé (AC1, 2 rouges), état retiré de
+    `peutClore` (2 rouges), `attendEncore` ramené au seul statut (1 rouge), `VisitDetail` d'avant (AC4, 2 rouges).
+  - AC2 : `grep -n "VisitStatus::"` sur le contrôleur ne montre plus que des lectures.
+  - L'ordre des verrous de clore, absent et annuler est épinglé dans `VisitAgentOverlapTest`.
+- **Appelants repris** : les tests de la messagerie (`EvenementsDesObjetsTest`, `CloturesDesObjetsTest`) passent par
+  `confirmer`, `proposerUnCreneau` et `annuler`, avec un acteur légitime (l'hôte du bien, le prospect). Le report de
+  `VisitAgentOverlapTest` passe par sa route. Le commentaire de `PropertyVisit.php:69` est corrigé.
+- **Reste à la session** : `docs/adr/0072-…` nomme encore `VisitSchedulingService::createOrFail`.
