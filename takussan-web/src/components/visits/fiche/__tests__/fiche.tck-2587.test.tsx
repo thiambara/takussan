@@ -7,12 +7,12 @@
  * Horloge : mardi 10 novembre 2026, 10:12 à Dakar (UTC+0 toute l'année).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 
 import { ApiError } from '@/lib/api';
 import fr from '@/messages/fr.json';
-import { withIntl } from '@/test/intl';
+import { doublerLApi } from '@/test/api-simulee';
+import { rendre } from '@/test/rendu';
 import type { PropertyVisit } from '@/types/visit';
 
 import { VisitDetail } from '../../VisitDetail';
@@ -43,7 +43,6 @@ const terminer = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
 const absent = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
 const autre = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
 
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: etat.user, token: 'jeton' }) }));
 vi.mock('next/navigation', () => ({
   useRouter: () => nav,
   usePathname: () => '/app/visits/1',
@@ -119,15 +118,14 @@ const BIENS_45 = [
   { id: 82, title: 'Boutique 45 m²', slug: 'boutique-45', type: 'shop', contract_type: 'rent', price: '300000.00', bedrooms: null, visibility: 'public', status: 'available', city: 'Dakar', neighborhood: 'Yoff' },
   { id: 83, title: 'Bureau privé', slug: null, type: 'office', contract_type: 'rent', price: '420000.00', bedrooms: null, visibility: 'private', status: 'available', city: 'Dakar', neighborhood: 'Point E' },
 ];
-const urlDe = (entree: RequestInfo | URL) => (typeof entree === 'string' ? entree : entree instanceof URL ? entree.href : entree.url);
-const fetchEspion = vi.fn((entree: RequestInfo | URL, _init?: RequestInit) => {
-  const url = urlDe(entree);
-  const json = (corps: unknown) => Promise.resolve(new Response(JSON.stringify(corps), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-  if (/\/api\/customers\/45\/matching-properties/.test(url)) return json({ data: BIENS_45, meta: { total: 3, per_page: 20, current_page: 1, last_page: 1 } });
-  if (/\/api\/customers\/45(\?|$)/.test(url)) return json({ data: CLIENT_45 });
-  return Promise.resolve(new Response('{}', { status: 404 }));
-});
-const lecturesDuClient = () => fetchEspion.mock.calls.map(([e]) => urlDe(e)).filter((u) => /\/api\/customers\//.test(u));
+/** La fiche du client 45 et ses biens correspondants (TCK-3010 : doublés à `fetch`). */
+const api = doublerLApi()
+  .sur('GET', '/api/customers/45/matching-properties', { data: BIENS_45, meta: { total: 3, per_page: 20, current_page: 1, last_page: 1 } })
+  .sur('GET', '/api/customers/45', { data: CLIENT_45 })
+  // Ce que la fiche lit d'autre (le bien, « Ses visites ») n'est pas l'objet de ce fichier : introuvable.
+  .refuser('GET', /^\/api\/(properties\/\d+|property-visits)$/, 404, { code: 'not_found', message: 'Introuvable.' });
+
+const lecturesDuClient = () => api.appels().filter((a) => a.chemin.startsWith('/api/customers/'));
 
 function visite(o: Partial<PropertyVisit> = {}): PropertyVisit {
   return {
@@ -150,8 +148,7 @@ function visite(o: Partial<PropertyVisit> = {}): PropertyVisit {
 }
 
 function monter() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(withIntl(<QueryClientProvider client={client}><VisitDetail id={1} /></QueryClientProvider>));
+  return rendre(<VisitDetail id={1} />, { compte: { utilisateur: etat.user, jeton: 'jeton' } });
 }
 
 const texteDe = (href: string | null) => decodeURIComponent((href ?? '').split('?text=')[1] ?? '');
@@ -169,7 +166,6 @@ beforeEach(() => {
   etat.capacites = [];
   etat.agentParti = null;
   confirmer.mutateAsync.mockResolvedValue({});
-  vi.stubGlobal('fetch', fetchEspion);
   ecrans(true);
 });
 afterEach(() => {
@@ -180,7 +176,7 @@ afterEach(() => {
 /** Aucune écriture : ni mutation, ni requête autre qu'une lecture. */
 function aucuneEcriture() {
   for (const m of [confirmer, terminer, absent, autre]) expect(m.mutateAsync).not.toHaveBeenCalled();
-  for (const [, init] of fetchEspion.mock.calls) expect(init?.method ?? 'GET').toBe('GET');
+  for (const { methode } of api.appels()) expect(methode).toBe('GET');
 }
 
 describe('TCK-2587 lot B — à confirmer (téléphone)', () => {
@@ -536,9 +532,9 @@ describe('TCK-2587 lot B — réponses du team-lead', () => {
     });
     expect(within(dl).getByText(/^Location · commerce · Plateau, Yoff · jusqu’à 500\s000\sF\/mois$/u)).toBeInTheDocument();
     expect(within(dl).getByText('Prospect')).toBeInTheDocument();
-    const fiche = lecturesDuClient().filter((u) => /\/api\/customers\/45(\?|$)/.test(u));
+    const fiche = lecturesDuClient().filter((a) => a.chemin === '/api/customers/45');
     expect(fiche.length).toBeGreaterThan(0);
-    expect(fiche.every((u) => !u.includes('fields'))).toBe(true);
+    expect(fiche.every((a) => ![...a.requete.keys()].some((k) => k.startsWith('fields')))).toBe(true);
   });
 
   it('1c — le bailleur (aucun profil de personnel actif) ne lit ni la fiche du client ni ses biens correspondants', async () => {
@@ -549,6 +545,7 @@ describe('TCK-2587 lot B — réponses du team-lead', () => {
     await act(async () => {
       await Promise.resolve();
     });
+    await api.auRepos();
     expect(lecturesDuClient()).toEqual([]);
     expect(document.querySelector('[data-slot="cherche-etape"]')).toBeNull();
     expect(document.querySelector('[data-slot="biens-correspondants"]')).toBeNull();

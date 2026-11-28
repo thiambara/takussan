@@ -1,15 +1,14 @@
 /**
  * TCK-2624 (lot 2) — « À faire maintenant » du bailleur et de l'hôte, « En cours sur vos biens »,
- * « Loyers du mois » et la ligne du jour. Le réseau est doublé au niveau d'`apiRequest` : les hooks
+ * « Loyers du mois » et la ligne du jour. Le réseau est doublé au niveau de `fetch` (`doublerLApi`, TCK-3010) : les hooks
  * de requête et de mutation tournent pour de vrai sur un `QueryClient` de test, et l'on lit les
  * requêtes émises (filtres compris) et les gestes envoyés, comme au relevé réseau.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 
-import { withIntl } from '@/test/intl';
-import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
+import { doublerLApi } from '@/test/api-simulee';
+import { rendre } from '@/test/rendu';
 import { lireLoyersDuMois } from '@/lib/accueil/loyers-du-mois';
 
 import { AFaireBailleur, type FilesDeLHote } from '../AFaireBailleur';
@@ -18,20 +17,17 @@ import { LoyersDuMois } from '../LoyersDuMois';
 import { ResumeDuBailleur } from '../ResumeDuBailleur';
 
 const etat = vi.hoisted(() => ({
-  appels: [] as { chemin: string; methode: string; corps: unknown }[],
   visites: 2,
   devis: 1,
   loyers: 4,
   enCours: 1,
   peutDecider: true,
   plafond: null as number | null,
-  pannes: new Map<string, number>(),
-  refus: new Set<string>(),
   /** TCK-2869 — `can_confirm` de chaque visite servie (ADR-0112). */
   peutConfirmer: false,
 }));
 
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 21, roles: ['owner'] }, token: 'jeton' }) }));
+const COMPTE = { utilisateur: { id: 21, roles: ['owner'] }, jeton: 'jeton' } as const;
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => false }));
 vi.mock('@/components/ui/toast', async (original) => ({
   ...(await original<typeof import('@/components/ui/toast')>()),
@@ -89,52 +85,37 @@ const LOYER = {
   property: { id: 4, title: 'Villa blanche, Yoff' },
 };
 
-vi.mock('@/lib/api', async (original) => {
-  const vrai = await original<typeof import('@/lib/api')>();
-  return {
-    ...vrai,
-    apiRequest: vi.fn(async (chemin: string, options: { method?: string; body?: unknown } = {}) => {
-      const methode = options.method ?? 'GET';
-      etat.appels.push({ chemin, methode, corps: options.body });
-      const [route, qs] = chemin.split('?') as [string, string | undefined];
-      const params = new URLSearchParams(qs ?? '');
-      const panne = etat.pannes.get(route);
-      if (panne) throw new vrai.ApiError(panne, {});
-      if (methode !== 'GET') {
-        if (etat.refus.has(route)) throw new vrai.ApiError(403, { message: 'Refusé' });
-        if (route === '/api/maintenance-requests/71/quote/approve') etat.devis = 0;
-        if (route === '/api/property-visits/601/confirm') etat.visites -= 1;
-        return { data: {} };
-      }
-      // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
-      const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
-      const page = (data: unknown[], total: number) => servir(chemin, { data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1 } });
-      switch (route) {
-        case '/api/property-visits': {
-          const visites = [VISITE, { ...VISITE, id: 602, scheduled_at: '2026-11-16T17:00:00Z' }].map((v) => ({ ...v, can_confirm: etat.peutConfirmer }));
-          return page(visites.slice(0, etat.visites), etat.visites);
-        }
-        case '/api/maintenance-requests':
-          return params.get('filter[status]') === 'awaiting_owner' ? page([DEVIS], etat.devis) : page([EN_COURS, { ...EN_COURS, id: 73, title: 'Peinture du salon', scheduled_at: null }, { ...EN_COURS, id: 74, title: 'Peinture écaillée', scheduled_at: '2026-11-07T14:25:00Z' }, { ...EN_COURS, id: 75, title: 'Serrure', scheduled_at: '2026-11-09T09:00:00Z' }], etat.enCours);
-        case '/api/maintenance-requests/71':
-          return { data: { ...DEVIS, quote_lines: [{ label: 'Chauffe-eau 100 L', total: 70_000 }, { label: 'Main-d’œuvre', total: 15_000 }], owner_approval_threshold: etat.plafond, abilities: { can_decide_quote: etat.peutDecider } } };
-        case '/api/payments/history':
-          return page([LOYER, { ...LOYER, id: 89, payer: { id: 9, name: 'Ndeye Wade' } }], etat.loyers);
-        default:
-          return page([], 0);
-      }
-    }),
-  };
-});
+const page = (data: unknown[], total: number) => ({ data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1 } });
+
+const api = doublerLApi()
+  .sur('POST', /^\/api\//, ({ chemin }) => {
+    if (chemin === '/api/maintenance-requests/71/quote/approve') etat.devis = 0;
+    if (chemin === '/api/property-visits/601/confirm') etat.visites -= 1;
+    return { data: {} };
+  })
+  // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
+  .servir(
+    'visites',
+    () => [VISITE, { ...VISITE, id: 602, scheduled_at: '2026-11-16T17:00:00Z' }].map((v) => ({ ...v, can_confirm: etat.peutConfirmer })).slice(0, etat.visites),
+    { meta: () => ({ total: etat.visites, per_page: 20 }) },
+  )
+  .sur('GET', '/api/maintenance-requests', ({ requete }) =>
+    requete.get('filter[status]') === 'awaiting_owner'
+      ? page([DEVIS], etat.devis)
+      : page([EN_COURS, { ...EN_COURS, id: 73, title: 'Peinture du salon', scheduled_at: null }, { ...EN_COURS, id: 74, title: 'Peinture écaillée', scheduled_at: '2026-11-07T14:25:00Z' }, { ...EN_COURS, id: 75, title: 'Serrure', scheduled_at: '2026-11-09T09:00:00Z' }], etat.enCours),
+  )
+  .sur('GET', '/api/maintenance-requests/71', () => ({
+    data: { ...DEVIS, quote_lines: [{ label: 'Chauffe-eau 100 L', total: 70_000 }, { label: 'Main-d’œuvre', total: 15_000 }], owner_approval_threshold: etat.plafond, abilities: { can_decide_quote: etat.peutDecider } },
+  }))
+  .sur('GET', '/api/payments/history', () => page([LOYER, { ...LOYER, id: 89, payer: { id: 9, name: 'Ndeye Wade' } }], etat.loyers))
+  .parDefaut(page([], 0));
 
 function monter(contenu: React.ReactNode) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{withIntl(contenu)}</QueryClientProvider>);
+  return rendre(contenu, { compte: COMPTE });
 }
 
-const lectures = (route: string) =>
-  etat.appels.filter((a) => a.methode === 'GET' && a.chemin.split('?')[0] === route).map((a) => new URLSearchParams(a.chemin.split('?')[1] ?? ''));
-const gestes = () => etat.appels.filter((a) => a.methode !== 'GET');
+const lectures = (route: string) => api.appels(route).filter((a) => a.methode === 'GET').map((a) => a.requete);
+const gestes = () => api.appels().filter((a) => a.methode !== 'GET');
 const telephone = () => document.querySelector<HTMLElement>('[data-slot="a-faire-telephone"]')!;
 const bureau = () => document.querySelector<HTMLElement>('[data-slot="a-faire-bureau"]')!;
 const groupe = (nom: string) => within(bureau()).getByRole('region', { name: nom });
@@ -145,13 +126,10 @@ const MAINTENANT = new Date('2026-11-10T10:12:00Z');
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { appels: [], visites: 2, devis: 1, loyers: 4, enCours: 1, peutDecider: true, plafond: null, pannes: new Map(), refus: new Set(), peutConfirmer: false });
-  oublierLesLectures();
+  Object.assign(etat, { visites: 2, devis: 1, loyers: 4, enCours: 1, peutDecider: true, plafond: null, peutConfirmer: false });
 });
 afterEach(() => {
   vi.useRealTimers();
-  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas.
-  expect(lecturesHorsFields()).toEqual([]);
 });
 
 describe('TCK-2854 — le chargement de « À faire » du bailleur', () => {
@@ -289,7 +267,7 @@ describe('TCK-2869 (ADR-0112) — le bailleur à qui l’agence confie ses visit
 
   it('un refus de l’API (403) retire le geste et garde la ligne : la carte mène à la visite', async () => {
     etat.peutConfirmer = true;
-    etat.refus.add('/api/property-visits/601/confirm');
+    api.refuser('POST', '/api/property-visits/601/confirm', 403, { message: 'Refusé' });
     monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(within(telephone()).getAllByRole('button', { name: 'Confirmer' })).toHaveLength(2));
     fireEvent.click(within(telephone()).getAllByRole('button', { name: 'Confirmer' })[0]!);
@@ -336,7 +314,7 @@ describe('AC5 — valider un devis sans quitter l’accueil', () => {
   });
 
   it('un refus de l’API (403) retire « Valider » : la carte mène au devis', async () => {
-    etat.refus.add('/api/maintenance-requests/71/quote/approve');
+    api.refuser('POST', '/api/maintenance-requests/71/quote/approve', 403, { message: 'Refusé' });
     monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(within(telephone()).getByRole('button', { name: 'Valider' })).toBeTruthy());
     fireEvent.click(within(telephone()).getByRole('button', { name: 'Valider' }));
@@ -367,7 +345,7 @@ describe('« À faire » ne liste que l’inachevé', () => {
 
   it('une file en panne n’est pas une file vide : pas de « Tout est à jour »', async () => {
     Object.assign(etat, { visites: 0, devis: 0 });
-    etat.pannes.set('/api/payments/history', 500);
+    api.refuser('GET', '/api/payments/history', 500, {});
     monter(<AFaireBailleur landlordId={21} />);
     expect(await screen.findByText(/Impossible de charger ce qui vous attend/)).toBeTruthy();
     expect(screen.queryByText('Tout est à jour')).toBeNull();

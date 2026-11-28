@@ -1,10 +1,11 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, expect, it } from 'vitest';
+import { waitFor } from '@testing-library/react';
+
+import { doublerLApi, type AppelSimule } from '@/test/api-simulee';
+import { JETON_DE_TEST, rendreLeHook } from '@/test/rendu';
 
 import { fetchAdminUsers } from '../admin-users';
 import { useBookingCounts, useBookings } from '../bookings';
@@ -21,7 +22,8 @@ import { fetchTags } from '../tags';
  * hooks de `src/lib/queries`, et rejoué par l'API (`tests/Feature/Contrat/RequetesDuFrontTest.php` :
  * aucune ne doit rendre 400).
  *
- * Ce test appelle chaque entrée d'`INVOCATIONS`, capte l'URL que `fetch` reçoit, et la compare au
+ * Ce test appelle chaque entrée d'`INVOCATIONS`, capte la requête que l'API simulée reçoit (`doublerLApi`,
+ * TCK-3010 : relais du BFF compris), et la compare au
  * fichier versionné `takussan-api/tests/fixtures/requetes-du-front.json`. Il rougit dès qu'un
  * `sort`, un `filter`, un `include` ou un `fields` change sans que le fichier suive :
  *
@@ -49,24 +51,15 @@ interface Requete {
   readonly parametres: Readonly<Record<string, string>>;
 }
 
-const JETON = 'jeton-de-test';
+const JETON = JETON_DE_TEST;
 
-vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ token: JETON }),
-}));
-
-vi.mock('next-intl', () => ({
-  useLocale: () => 'fr',
-}));
+const api = doublerLApi().parDefaut({ data: [], meta: {} });
 
 /** Monte un hook de lecture et attend qu'il ait émis sa requête. */
 async function monter(hook: () => unknown): Promise<void> {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
-  );
-  const { unmount } = renderHook(hook, { wrapper });
-  await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+  api.oublierLesAppels();
+  const { unmount, client } = rendreLeHook(hook);
+  await waitFor(() => expect(api.appels()).not.toHaveLength(0));
   unmount();
   client.clear();
 }
@@ -115,30 +108,14 @@ const INVOCATIONS: readonly Invocation[] = [
   { source: 'fetchAdminAgencies()', acteur: 'operateur', appel: () => fetchAdminAgencies() },
 ];
 
-/**
- * Les relais du BFF qui renomment le chemin (`src/app/api/admin-users/[[...path]]/route.ts`,
- * `src/app/api/super-admin/[...path]/route.ts`) : la requête rejouée est celle que l'API reçoit.
- */
-const RELAIS: readonly (readonly [string, string])[] = [
-  ['/api/admin-users', '/api/users'],
-  ['/api/super-admin/', '/api/admin/'],
-];
-
-function versApi(url: string): { chemin: string; parametres: Record<string, string> } {
-  const u = new URL(url, 'http://front.test');
-  let chemin = u.pathname;
-  for (const [relais, api] of RELAIS) {
-    if (chemin.startsWith(relais)) {
-      chemin = api + chemin.slice(relais.length);
-      break;
-    }
-  }
+/** Les paramètres de la requête, un par clé : le fichier ne sait pas dire un paramètre répété. */
+function parametresDe({ chemin, requete }: AppelSimule): Record<string, string> {
   const parametres: Record<string, string> = {};
-  u.searchParams.forEach((valeur, cle) => {
-    if (cle in parametres) throw new Error(`${url} : paramètre « ${cle} » répété, que le fichier ne sait pas dire`);
+  requete.forEach((valeur, cle) => {
+    if (cle in parametres) throw new Error(`${chemin} : paramètre « ${cle} » répété, que le fichier ne sait pas dire`);
     parametres[cle] = valeur;
   });
-  return { chemin, parametres };
+  return parametres;
 }
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
@@ -147,16 +124,13 @@ const FICHIER = join(ROOT, 'takussan-api', 'tests', 'fixtures', 'requetes-du-fro
 async function capter(): Promise<Requete[]> {
   const requetes: Requete[] = [];
   for (const { source, acteur, appel } of INVOCATIONS) {
-    const espion = vi.fn(async () => new Response(JSON.stringify({ data: [], meta: {} }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    }));
-    vi.stubGlobal('fetch', espion);
+    api.oublierLesAppels();
     await appel();
-    expect(espion, source).toHaveBeenCalledTimes(1);
-    const [url] = espion.mock.calls[0] as unknown as [string];
-    requetes.push({ source, acteur, ...versApi(String(url)) });
-    vi.unstubAllGlobals();
+    const appels = api.appels();
+    expect(appels, source).toHaveLength(1);
+    // Le chemin journalisé est celui que l'API reçoit : après les relais du BFF qui le renomment
+    // (`/api/admin-users` → `/api/users`, `/api/super-admin/` → `/api/admin/`, table `RELAIS_DU_BFF`).
+    requetes.push({ source, acteur, chemin: appels[0].chemin, parametres: parametresDe(appels[0]) });
   }
   return requetes;
 }
@@ -171,10 +145,6 @@ function rendre(requetes: Requete[]): string {
     2,
   )}\n`;
 }
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
 
 describe('TCK-1800 — les requêtes du front, dérivées et rejouées par l’API', () => {
   it('le fichier versionné est celui que les fonctions de lecture produisent', async () => {

@@ -313,6 +313,14 @@ En CI, Vitest tourne en **4 shards** (`npx vitest run --shard=<i>/4`, un runner 
 les gardes et le build dans un job `statique` en parallèle ; le check requis `Web (ESLint + tsc + Vitest +
 build)` est l'agrégateur (TCK-2950). Un shard rouge se reproduit en local par la même commande.
 
+**Le harnais de test (TCK-3010).** Un test neuf, ou un test qu'un ticket modifie, monte par `rendre` /
+`rendreLeHook` (`src/test/rendu.tsx`) et double le réseau par `doublerLApi()` (`src/test/api-simulee.ts`).
+Jamais de `new QueryClient`, ni de `vi.mock('@/lib/api')` ou de `stubGlobal('fetch')` locaux. Le harnais fait
+échouer un test qui lit une clé absente de `fields[]` ou qui lance une requête non doublée, et il porte la seule
+table des relais du BFF. Une assertion d'absence (« aucune requête ») s'écrit après `await api.auRepos()` :
+sans cette attente, elle est verte quoi que fasse le code. Les ~1 900 fichiers d'avant migrent quand un ticket
+les touche : remplacer, ne pas empiler ([ADR-0140](../docs/adr/0140-une-classe-de-tests-par-module-la-livraison-qui-approfondit-retire-ce-qu-elle-absorbe.md)).
+
 > **Deux plafonds, deux valeurs MESURÉES, et aucune des deux ne se rabaisse sans refaire la
 > mesure** : `testTimeout` à **20 s** (`vitest.config.ts`, TCK-312) et le délai des attentes à
 > **3000 ms** (`vitest.setup.ts`, TCK-313). Les valeurs précédentes étaient les défauts de vitest et

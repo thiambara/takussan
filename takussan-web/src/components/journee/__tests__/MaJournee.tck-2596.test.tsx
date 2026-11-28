@@ -1,21 +1,19 @@
 /**
- * TCK-2596 — « Ma journée », l'accueil de l'agent. Le réseau est doublé au niveau d'`apiRequest` (les
+ * TCK-2596 — « Ma journée », l'accueil de l'agent. Le réseau est doublé au niveau de `fetch` (`doublerLApi`, TCK-3010 ; les
  * hooks de requête et de mutation tournent pour de vrai, sur un `QueryClient` de test) : on lit les
  * requêtes émises avec leurs filtres et les corps envoyés, comme au relevé réseau.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 
-import { withIntl } from '@/test/intl';
-import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
+import { doublerLApi } from '@/test/api-simulee';
+import { rendre } from '@/test/rendu';
 import type { AgentTask } from '@/types/agent-crm';
 import type { PropertyVisit } from '@/types/visit';
 
 import { MaJournee } from '../MaJournee';
 
 const etat = vi.hoisted(() => ({
-  appels: [] as { chemin: string; methode: string; corps: unknown }[],
   vide: false,
   /** r2 — chaque source rend un numéro qu'on ne peut pas joindre (masqué, ou hors E.164). */
   injoignable: false,
@@ -24,7 +22,6 @@ const etat = vi.hoisted(() => ({
   titre: null as string | null,
 }));
 
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 7, roles: ['agent'], agency_id: 3 }, token: 'jeton' }) }));
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => false }));
 vi.mock('@/components/layout/en-tete-de-la-coque', () => ({
   DeclarerEnTete: ({ titre }: { titre?: string }) => {
@@ -76,81 +73,65 @@ const MASQUE = '+221 77 *** ** 52';
 const injoignable = (v: PropertyVisit) => ({ ...v, visitor_display: { ...v.visitor_display!, phone: MASQUE } });
 const MOUHAMED = { id: 41, name: 'Mouhamed Dieng', phone: '+221770000001', created_at: '2026-11-02T09:00:00Z', property: { id: 7, title: 'Pièce indépendante', slug: 'p' } };
 
-vi.mock('@/lib/api', async (original) => {
-  const vrai = await original<typeof import('@/lib/api')>();
-  return {
-    ...vrai,
-    apiRequest: vi.fn(async (chemin: string, options: { method?: string; body?: unknown } = {}) => {
-      const methode = options.method ?? 'GET';
-      etat.appels.push({ chemin, methode, corps: options.body });
-      if (methode !== 'GET') return { data: {} };
-      const [route, qs] = chemin.split('?');
-      const p = new URLSearchParams(qs ?? '');
-      // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
-      const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
-      const page = (data: unknown[], total = data.length) => servir(chemin, { data, meta: { total, per_page: 30, current_page: 1, last_page: 1 } });
-      if (route === '/api/property-visits') {
-        if (etat.vide) return page([]);
-        if (p.get('filter[to_close]')) return page([LIBERTE]);
-        if (p.get('filter[scheduled_at_min]')) return page([PLATEAU, TERRAIN, FAITE_LE_11, ANNULEE_LE_13, TRANCHE_LE_14]);
-        const duJour = p.get('filter[day]') === '2026-11-10' ? [TERRAIN, PLATEAU] : [];
-        return page(etat.injoignable ? duJour.map(injoignable) : duJour);
-      }
-      if (route === '/api/tasks') {
-        if (etat.vide) return page([]);
-        return page(etat.injoignable ? TACHES.map((t) => (t.taskable?.type === 'customer' ? { ...t, taskable: { ...t.taskable, phone: '706190713' } } : t)) : TACHES);
-      }
-      if (route === '/api/contact-leads') return page(etat.vide ? [] : [etat.injoignable ? { ...MOUHAMED, phone: '77 000 00 01' } : MOUHAMED]);
-      // TCK-2596 AC2 — « Prospects » compte sa liste (référent = moi, étapes vivantes) : 7, pas les 38 de `pipeline_total`.
-      if (route === '/api/customers') {
-        if (p.get('filter[stage_group]') !== 'active') return page([{ id: 1 }], 6);
-        if (etat.prospectsEnPanne) throw new Error('panne');
-        return page([{ id: 1 }], 7);
-      }
-      if (route === '/api/calendar') {
-        return {
-          data: etat.vide
-            ? []
-            : [
-                { id: 2291, type: 'visit', title: 'v', start: '2026-11-10 10:57:00', end: null, status: 'confirmed', all_day: false, resource_url: '' },
-                { id: 3, type: 'task', title: 'Relancer Yacine', start: '2026-11-10 18:00:00', end: null, status: 'open', all_day: false, resource_url: '' },
-                { id: 5, type: 'task', title: 'Préparer le bail de Mariama', start: '2026-11-12 14:00:00', end: null, status: 'open', all_day: false, resource_url: '' },
-                // L'agenda rendrait aussi des visites : la bande ne les compte plus (r1), elles ne s'ajoutent pas.
-                { id: 2299, type: 'visit', title: 'v', start: '2026-11-13 15:00:00', end: null, status: 'confirmed', all_day: false, resource_url: '' },
-              ],
-        };
-      }
-      // TCK-2856 — la relance de « Journée libre » ne se rend que servie nominativement (`include=suggestions`).
-      if (route === '/api/dashboard/me') return { data: { suggestions: { follow_up: { customer: { id: 4, full_name: 'Yacine Diouf' }, waiting_days: 3 }, matches: null } } };
-      return page([]);
-    }),
-  };
-});
+const page = (data: unknown[], total = data.length) => ({ data, meta: { total, per_page: 30, current_page: 1, last_page: 1 } });
+
+const api = doublerLApi()
+  .sur('POST', /^\/api\//, { data: {} })
+  .sur('PATCH', /^\/api\//, { data: {} })
+  // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
+  .servir('visites', ({ requete: p }) => {
+    if (etat.vide) return [];
+    if (p.get('filter[to_close]')) return [LIBERTE];
+    if (p.get('filter[scheduled_at_min]')) return [PLATEAU, TERRAIN, FAITE_LE_11, ANNULEE_LE_13, TRANCHE_LE_14];
+    const duJour = p.get('filter[day]') === '2026-11-10' ? [TERRAIN, PLATEAU] : [];
+    return etat.injoignable ? duJour.map(injoignable) : duJour;
+  })
+  .sur('GET', '/api/tasks', () => {
+    if (etat.vide) return page([]);
+    return page(etat.injoignable ? TACHES.map((t) => (t.taskable?.type === 'customer' ? { ...t, taskable: { ...t.taskable, phone: '706190713' } } : t)) : TACHES);
+  })
+  .sur('GET', '/api/contact-leads', () => page(etat.vide ? [] : [etat.injoignable ? { ...MOUHAMED, phone: '77 000 00 01' } : MOUHAMED]))
+  // TCK-2596 AC2 — « Prospects » compte sa liste (référent = moi, étapes vivantes) : 7, pas les 38 de `pipeline_total`.
+  .sur('GET', '/api/customers', ({ requete: p }) => {
+    if (p.get('filter[stage_group]') !== 'active') return page([{ id: 1 }], 6);
+    if (etat.prospectsEnPanne) throw new Error('panne');
+    return page([{ id: 1 }], 7);
+  })
+  .sur('GET', '/api/calendar', () => ({
+    data: etat.vide
+      ? []
+      : [
+          { id: 2291, type: 'visit', title: 'v', start: '2026-11-10 10:57:00', end: null, status: 'confirmed', all_day: false, resource_url: '' },
+          { id: 3, type: 'task', title: 'Relancer Yacine', start: '2026-11-10 18:00:00', end: null, status: 'open', all_day: false, resource_url: '' },
+          { id: 5, type: 'task', title: 'Préparer le bail de Mariama', start: '2026-11-12 14:00:00', end: null, status: 'open', all_day: false, resource_url: '' },
+          // L'agenda rendrait aussi des visites : la bande ne les compte plus (r1), elles ne s'ajoutent pas.
+          { id: 2299, type: 'visit', title: 'v', start: '2026-11-13 15:00:00', end: null, status: 'confirmed', all_day: false, resource_url: '' },
+        ],
+  }))
+  // TCK-2856 — la relance de « Journée libre » ne se rend que servie nominativement (`include=suggestions`).
+  .sur('GET', '/api/dashboard/me', { data: { suggestions: { follow_up: { customer: { id: 4, full_name: 'Yacine Diouf' }, waiting_days: 3 }, matches: null } } })
+  .parDefaut(page([]));
 
 /** Mardi 10 novembre 2026, 10:12 à Dakar. */
 const MAINTENANT = new Date('2026-11-10T10:12:00Z');
 const CHIFFRES = { properties_managed: 25, pipeline_total: 38, tasks_open: 10, tasks_overdue: 2, commissions_month: 0 };
 
 function monter(bandeau?: React.ReactNode) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{withIntl(<MaJournee chiffres={CHIFFRES} bandeau={bandeau} />)}</QueryClientProvider>);
+  return rendre(<MaJournee chiffres={CHIFFRES} bandeau={bandeau} />, { compte: { utilisateur: { id: 7, roles: ['agent'], agency_id: 3 }, jeton: 'jeton' } });
 }
 
-const lectures = (route: string) =>
-  etat.appels.filter((a) => a.methode === 'GET' && a.chemin.split('?')[0] === route).map((a) => new URLSearchParams(a.chemin.split('?')[1] ?? ''));
+const lectures = (route: string) => api.appels(route).filter((a) => a.methode === 'GET').map((a) => a.requete);
+const ecritures = (methode: string) => api.appels().filter((a) => a.methode === methode);
 const telephone = () => document.querySelector<HTMLElement>('[data-slot="journee-telephone"]')!;
 const bureau = () => document.querySelector<HTMLElement>('[data-slot="journee-bureau"]')!;
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { appels: [], vide: false, injoignable: false, prospectsEnPanne: false, titre: null });
-  oublierLesLectures();
+  Object.assign(etat, { vide: false, injoignable: false, prospectsEnPanne: false, titre: null });
 });
 afterEach(() => {
   vi.useRealTimers();
-  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas.
-  expect(lecturesHorsFields()).toEqual([]);
 });
 
 describe('les sources composées', () => {
@@ -305,12 +286,12 @@ describe('le téléphone', () => {
 
     fireEvent.click(within(bloc).getByRole('button', { name: 'Reporter : Vérifier le titre foncier' }));
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Demain' }));
-    await waitFor(() => expect(etat.appels.some((a) => a.methode === 'PATCH')).toBe(true));
-    expect(etat.appels.find((a) => a.methode === 'PATCH')).toMatchObject({ chemin: '/api/tasks/1', corps: { due_at: '2026-11-11T09:00:00Z' } });
+    await waitFor(() => expect(ecritures('PATCH')).not.toHaveLength(0));
+    expect(ecritures('PATCH')[0]).toMatchObject({ chemin: '/api/tasks/1', corps: { due_at: '2026-11-11T09:00:00Z' } });
 
     fireEvent.click(within(bloc).getByRole('checkbox', { name: 'Marquer faite : Faire signer l’état des lieux d’entrée' }));
-    await waitFor(() => expect(etat.appels.filter((a) => a.methode === 'PATCH')).toHaveLength(2));
-    expect(etat.appels.filter((a) => a.methode === 'PATCH')[1]).toMatchObject({ chemin: '/api/tasks/2', corps: { status: 'done' } });
+    await waitFor(() => expect(ecritures('PATCH')).toHaveLength(2));
+    expect(ecritures('PATCH')[1]).toMatchObject({ chemin: '/api/tasks/2', corps: { status: 'done' } });
   });
 
   it('AC4 — toucher le jour suivant relit la chronologie de ce jour (`filter[day]`) et y montre ses tâches de l’agenda', async () => {
