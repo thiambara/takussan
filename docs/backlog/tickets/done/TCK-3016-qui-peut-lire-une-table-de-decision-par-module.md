@@ -1,7 +1,7 @@
 ---
 id: TCK-3016
 title: "Qui peut lire : une table de décision par module de lecture, jouée sur ses deux faces"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M

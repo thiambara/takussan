@@ -1,7 +1,7 @@
 ---
 id: TCK-3014
 title: "Tester le paiement et les réglages par l'interface : un faux adaptateur de paiement, plus de réflexion sur du privé"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: M

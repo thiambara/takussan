@@ -1,7 +1,7 @@
 ---
 id: TCK-3012
 title: "Remplacer, ne pas empiler : la règle des tests écrite là où l'implémenteur la lit, et les comptes du CLAUDE.md pris à la source"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S

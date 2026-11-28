@@ -1,7 +1,7 @@
 ---
 id: TCK-3017
 title: "Fusionner et alléger les grappes du relevé : un fichier par module, retraits prouvés par ablation"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: L
@@ -35,16 +35,16 @@ Relevé exhaustif : `/private/tmp/claude-501/-Users-aminethiam-Documents-perso-t
 
 ## Delta à produire
 
-- [ ] Grappes FUSIONNER traitées une par une, ablation par grappe
-- [ ] Lignes ALLEGER : retrait des tests nommés dans la raison, ablation par règle
-- [ ] Lignes SUPPRIMER : retrait, sans ablation pour un test qui ne peut pas rougir
+- [x] Grappes FUSIONNER traitées une par une, ablation par grappe
+- [x] Lignes ALLEGER : retrait des tests nommés dans la raison, ablation par règle
+- [x] Lignes SUPPRIMER : retrait, sans ablation pour un test qui ne peut pas rougir
 - [x] Notes : par grappe, les tests retirés et la mutation qui a rougi à leur place
 
 ## Critères d'acceptation
 
 - [x] AC1 — Chaque retrait d'un test qui garde une règle est accompagné, dans les notes, d'une ablation qui rougit un test restant.
 - [x] AC2 — Aucune ligne « doute » n'est retirée.
-- [ ] AC3 — Le job `couverture` de la PR reste au-dessus du cliquet (92 %).
+- [x] AC3 — Le job `couverture` de la PR reste au-dessus du cliquet (92 %).
 
 ## Hors périmètre
 
@@ -503,3 +503,8 @@ par md5. « Rougit » nomme le test restant qui a rougi.
   `RoutesEnDoubleRetireesTest`, recensement) ; `SearchRelevanceSortTest` (remplacer l'épingle SQL demande un tri réel
   sur PostgreSQL, c'est un test neuf) ; `LangGroupParityTest` (garde de recensement) ; les lignes `no_auth_required` /
   `endpoint_is_public` (hors périmètre).
+
+**Mesuré par la CI (2026-11-28, run 46114450010 contre 46106692032 sur la branche d'architecture, même runner à 4 processus).**
+Tests 18 314 → 18 031 (−283), assertions 124 591 → 125 220 (+629) ; couverture 96,8 % → 96,9 % (cliquet 92 % tenu).
+Durées : `couverture` 2 116 s → 1 918 s ; `lint-and-test` 1 421 s → 1 557 s. L'écart des runners (±10 %) couvre les
+deux sens : la PR ne promet pas de gain de durée en CI, elle retire des tests redondants sans perdre une ligne couverte.

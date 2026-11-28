@@ -1,7 +1,7 @@
 ---
 id: TCK-3015
 title: "Les règles transversales gardées par recensement : planification, routes retirées, bornes, authentification, refus par espace, rejeu idempotent"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: M

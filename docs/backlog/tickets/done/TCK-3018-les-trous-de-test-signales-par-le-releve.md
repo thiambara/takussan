@@ -1,7 +1,7 @@
 ---
 id: TCK-3018
 title: "Les trous de test signalés par le relevé : vérifier chacun, combler ceux qui existent"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S

@@ -1,7 +1,7 @@
 ---
 id: TCK-3013
 title: "Les tests du seeder sèment une fois : un décor semé partagé par les tests qui ne font que le lire"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: M
