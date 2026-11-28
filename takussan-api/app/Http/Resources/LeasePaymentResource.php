@@ -7,6 +7,7 @@ use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Lease\GestesDuBail;
 use App\Services\Payments\DuplicatePayments;
 use App\Services\Payments\PaymentGatewayService;
 use Illuminate\Http\Request;
@@ -103,7 +104,9 @@ class LeasePaymentResource extends BaseResource
         return [
             'pay' => $ouvert && $locataire && $lecteur->can('update', $payment),
             'remind' => $ouvert && $lecteur->can('remind', $payment),
-            'record_payment' => $ouvert && $lease !== null && $lecteur->can('recordPayment', $lease),
+            // TCK-3011 (D2) — la règle de `markPaid`, pas le reste dû : une échéance en échec s'annonçait
+            // encaissable et l'écriture la refusait (422).
+            'record_payment' => GestesDuBail::echeanceEncaissable($payment) && $lease !== null && $lecteur->can('recordPayment', $lease),
         ];
     }
 }

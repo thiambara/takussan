@@ -66,23 +66,19 @@ class LeasePaymentService
             /** @var LeasePayment $locked */
             $locked = LeasePayment::query()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
 
-            // TCK-594 (VERIF-594 passe 4, P4-7) — la ligne d'une caution rendue se règle par son
-            // reversement (`PayoutService::markProcessed`), jamais à la main : marquée payée, le refus
-            // de la restitution la laissait `paid`, et la restitution suivante en créait une seconde.
-            abort_code_if(
-                $locked->payment_type === LeasePaymentType::DepositRefund,
-                422,
-                'lease_payment.deposit_refund_paid_by_payout'
-            );
-
-            abort_code_if($locked->status === PaymentStatus::Cancelled, 409, 'lease_payment.cancelled');
-            // TCK-608 (décision du porteur du 2026-11-16, option (b)) — aucune voie ne crée plus de
-            // `partially_paid` (TCK-1918) ; une ligne héritée se solde ici, au reste dû.
-            abort_code_unless(
-                in_array($locked->status, [PaymentStatus::Pending, PaymentStatus::Late, PaymentStatus::PartiallyPaid], true),
-                422,
-                'lease_payment.cannot_mark_paid'
-            );
+            // TCK-3011 (D2) — la règle « encaissable » est celle d'`abilities.record_payment` de la ligne
+            // (`GestesDuBail::echeanceEncaissable`), relue ici sous verrou. Refusée, la ligne dit pourquoi,
+            // dans l'ordre historique des codes :
+            if (! GestesDuBail::echeanceEncaissable($locked)) {
+                // TCK-594 (VERIF-594 passe 4, P4-7) — la ligne d'une caution rendue se règle par son
+                // reversement (`PayoutService::markProcessed`), jamais à la main : marquée payée, le refus
+                // de la restitution la laissait `paid`, et la restitution suivante en créait une seconde.
+                abort_code_if($locked->payment_type === LeasePaymentType::DepositRefund, 422, 'lease_payment.deposit_refund_paid_by_payout');
+                abort_code_if($locked->status === PaymentStatus::Cancelled, 409, 'lease_payment.cancelled');
+                // TCK-608 (décision du porteur du 2026-11-16, option (b)) — aucune voie ne crée plus de
+                // `partially_paid` (TCK-1918) ; une ligne héritée se solde ici, au reste dû.
+                abort_code_if(true, 422, 'lease_payment.cannot_mark_paid');
+            }
 
             // TCK-593 (vérification adverse, V3) — un règlement manuel pendant qu'un checkout est
             // ouvert ferait encaisser l'échéance deux fois : refusé tant que le checkout vit.

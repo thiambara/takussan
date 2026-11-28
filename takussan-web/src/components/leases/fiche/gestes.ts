@@ -56,12 +56,12 @@ export function echeanceAPayer(paiements: readonly LeasePayment[]): LeasePayment
 
 /**
  * L'échéance à encaisser en premier : la plus ancienne en retard, sinon la prochaine due. TCK-3011 —
- * parmi celles que l'API laisse encaisser à ce lecteur (`abilities.record_payment` de la ligne : un
- * reste dû, ni payée ni annulée).
+ * parmi celles que l'API laisse encaisser à ce lecteur, et elle seule le dit (`abilities.record_payment`
+ * de la ligne : la policy et la règle de `markPaid`) ; ni le statut ni le type ne s'y ajoutent.
  */
 export function echeanceAEncaisser(paiements: readonly LeasePayment[]): LeasePayment | null {
   const dues = [...paiements]
-    .filter((p) => compte(p) && p.abilities?.record_payment === true)
+    .filter((p) => p.abilities?.record_payment === true)
     .sort((a, b) => (a.due_date ?? a.period_start).localeCompare(b.due_date ?? b.period_start));
   return dues.find((p) => p.is_overdue) ?? dues[0] ?? null;
 }

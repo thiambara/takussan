@@ -69,11 +69,10 @@ class EarlyTerminationService
 
             $this->guardRequestable($lease);
 
-            $today = now()->startOfDay();
             $notice = $this->resolveNoticeDays($lease);
             $effective = Carbon::parse($data['effective_date'])->startOfDay();
 
-            $minEffective = $today->copy()->addDays($notice);
+            $minEffective = $this->premiereDateDEffet($lease);
             if ($effective->lt($minEffective)) {
                 throw ValidationException::withMessages([
                     'effective_date' => [__('messages.lease_early_termination_notice_too_short', [
@@ -268,6 +267,17 @@ class EarlyTerminationService
         $billable = min($configuredMonths, $monthsRemaining);
 
         return round($monthlyRent * $billable, 2);
+    }
+
+    /**
+     * TCK-3011 (D1) — la date d'effet la plus proche qu'un préavis demandé aujourd'hui peut porter :
+     * aujourd'hui plus le préavis du bail. `request()` refuse avant (`notice_too_short`), et refuse une date
+     * qui tombe à la fin du bail ou après (`after_end_date`) : {@see GestesDuBail::preavisTientAvantLaFin()}
+     * lit la même date pour n'offrir le préavis que s'il en existe une.
+     */
+    public function premiereDateDEffet(Lease $lease): Carbon
+    {
+        return now()->startOfDay()->addDays($this->resolveNoticeDays($lease));
     }
 
     public function resolveNoticeDays(Lease $lease): int

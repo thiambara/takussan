@@ -554,7 +554,7 @@ class LeaseService
             if ($existing && ! $failIfExists) {
                 return 0;
             }
-            abort_code_unless($lease->status === LeaseStatus::Active, 422, 'lease.not_active_schedule');
+            abort_code_unless(GestesDuBail::echeancierGenerable($lease), 422, 'lease.not_active_schedule');
             abort_code_if($existing, 422, 'lease.schedule_exists');
 
             $start = Carbon::parse($lease->start_date);
@@ -716,12 +716,9 @@ class LeaseService
         return DB::transaction(function () use ($lease, $by, $reason): Lease {
             $locked = self::verrouillerLeBienPuisLeBail($lease);
 
-            abort_code_if($locked->status !== LeaseStatus::Draft, 422, 'lease.not_draft_abandon');
-            abort_code_if(
-                $locked->payments()->where('status', '!=', PaymentStatus::Cancelled->value)->exists(),
-                422,
-                'lease.abandon_has_payments'
-            );
+            // TCK-3011 (D4) — les règles d'`abilities.abandon` (`GestesDuBail`), relues sur la ligne verrouillée.
+            abort_code_unless(GestesDuBail::brouillon($locked), 422, 'lease.not_draft_abandon');
+            abort_code_if(GestesDuBail::echeanceSaisie($locked), 422, 'lease.abandon_has_payments');
             // TCK-2764 4a (décision du porteur du 2026-11-13, qui assouplit r1) — un état des lieux ENGAGÉ
             // (`Inventory::engage()` : sorti du brouillon, ou portant une signature) refuse l'abandon ; des
             // brouillons jamais signés partent avec le bail, en suppression douce, plutôt que de rester
@@ -732,7 +729,7 @@ class LeaseService
             // `InventoryService::create()` prend le même bien puis le même bail : de deux ordres
             // concurrents, le second voit l'autre.
             $etatsDesLieux = $locked->inventories()->orderBy('id')->lockForUpdate()->get();
-            abort_code_if($etatsDesLieux->contains(fn (Inventory $etat): bool => $etat->engage()), 422, 'lease.abandon_has_inventory');
+            abort_code_if(GestesDuBail::etatDesLieuxEngage($etatsDesLieux), 422, 'lease.abandon_has_inventory');
 
             foreach ($etatsDesLieux as $etat) {
                 $etat->delete();

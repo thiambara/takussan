@@ -4,10 +4,12 @@ namespace Tests\Feature\Lease;
 
 use App\Exceptions\ApiError;
 use App\Models\Customer;
+use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
@@ -124,15 +126,44 @@ class GestesDuBailTest extends TestCase
         $this->postJson("/api/leases/{$bail->id}/payments/generate-schedule")->assertStatus(422)->assertJsonPath('code', 'lease.schedule_exists');
     }
 
-    public function test_un_bail_echu_se_renouvelle_mais_ne_prend_plus_de_ligne_ni_de_revision(): void
+    /**
+     * Un bail échu (sa fin est passée) se renouvelle ; il ne prend plus de ligne ni de révision, et ne
+     * s'ouvre plus au préavis : toute date d'effet tombe après sa fin (`after_end_date`), l'écriture le
+     * refuse toujours (vérification adverse de TCK-3011, D1).
+     */
+    public function test_un_bail_echu_se_renouvelle_mais_ne_prend_plus_de_ligne_ni_de_revision_ni_de_preavis(): void
     {
-        $gestes = $this->gestesDe($this->landlord, $this->bail(['status' => LeaseStatus::Expired]));
+        $echu = $this->bail(['status' => LeaseStatus::Expired, 'start_date' => '2025-11-01', 'end_date' => '2026-10-31']);
+        $gestes = $this->gestesDe($this->landlord, $echu);
 
         $this->assertTrue($gestes['renew']);
-        $this->assertTrue($gestes['request_early_termination']);
+        $this->assertFalse($gestes['request_early_termination']);
         $this->assertFalse($gestes['add_payment']);
         $this->assertFalse($gestes['review_rent']);
         $this->assertFalse($gestes['generate_schedule']);
+        $this->postJson("/api/leases/{$echu->id}/early-termination", ['effective_date' => '2027-01-15'])->assertStatus(422);
+        // D4 — l'échéancier ne se génère que sur un bail actif : la règle de la clé, relue par l'écriture.
+        $this->postJson("/api/leases/{$echu->id}/payments/generate-schedule")->assertStatus(422)
+            ->assertJsonPath('code', 'lease.not_active_schedule');
+    }
+
+    /**
+     * D1 — le préavis ne s'offre que s'il existe une date d'effet que l'écriture accepte : au plus tôt
+     * aujourd'hui plus le préavis, et avant la fin du bail. Un bail actif qui finit avant n'a pas de préavis.
+     */
+    public function test_le_preavis_ne_s_offre_que_si_une_date_d_effet_tient_avant_la_fin(): void
+    {
+        // Préavis de 30 jours : au plus tôt le 2026-12-20.
+        $finProche = $this->bail(['notice_period_days' => 30, 'end_date' => '2026-12-20']);
+        $this->assertFalse($this->geste($finProche, 'request_early_termination'));
+        $this->postJson("/api/leases/{$finProche->id}/early-termination", ['effective_date' => '2026-12-20'])->assertStatus(422);
+
+        $finLointaine = $this->bail(['notice_period_days' => 30, 'end_date' => '2026-12-21']);
+        $this->assertTrue($this->geste($finLointaine, 'request_early_termination'));
+        $this->postJson("/api/leases/{$finLointaine->id}/early-termination", ['effective_date' => '2026-12-20'])->assertCreated();
+
+        $sansFin = $this->bail(['notice_period_days' => 30, 'end_date' => null]);
+        $this->assertTrue($this->geste($sansFin, 'request_early_termination'));
     }
 
     public function test_un_renouvellement_ouvert_arrete_le_suivant(): void
@@ -154,6 +185,22 @@ class GestesDuBailTest extends TestCase
         $echu = $this->bail(['status' => LeaseStatus::Terminating, 'early_termination_effective_date' => '2026-11-20']);
         $this->assertFalse($this->geste($echu, 'cancel_early_termination'));
         $this->deleteJson("/api/leases/{$echu->id}/early-termination")->assertStatus(422);
+    }
+
+    /** D3 — une indemnité payée ferme l'annulation du préavis (`lease_early_termination_penalty_paid`). */
+    public function test_une_indemnite_payee_ferme_l_annulation_du_preavis(): void
+    {
+        $facture = Invoice::factory()->create(['agency_id' => $this->agency->id, 'status' => InvoiceStatus::Sent]);
+        $enPreavis = $this->bail([
+            'status' => LeaseStatus::Terminating,
+            'early_termination_effective_date' => '2026-12-20',
+            'early_termination_invoice_id' => $facture->id,
+        ]);
+        $this->assertTrue($this->geste($enPreavis, 'cancel_early_termination'));
+
+        $facture->forceFill(['status' => InvoiceStatus::Paid])->save();
+        $this->assertFalse($this->geste($enPreavis, 'cancel_early_termination'));
+        $this->deleteJson("/api/leases/{$enPreavis->id}/early-termination")->assertStatus(422);
     }
 
     public function test_la_caution_se_restitue_sur_un_bail_fini_qui_l_a_encaissee(): void
@@ -231,6 +278,25 @@ class GestesDuBailTest extends TestCase
 
         Sanctum::actingAs($this->client);
         $this->assertFalse(collect($this->getJson("/api/leases/{$bail->id}/payments")->json('data'))->firstWhere('id', $due->id)['abilities']['record_payment']);
+    }
+
+    /**
+     * D2 — une ligne ne s'annonce encaissable que si `markPaid` l'encaisse : une échéance en échec, une
+     * restitution de caution (réglée par son reversement) ou une ligne annulée ne s'offrent pas.
+     */
+    public function test_une_ligne_ne_s_annonce_encaissable_que_si_l_encaissement_l_accepte(): void
+    {
+        $bail = $this->bail();
+        $echec = LeasePayment::factory()->create(['lease_id' => $bail->id, 'payment_type' => LeasePaymentType::Rent, 'status' => PaymentStatus::Failed, 'amount' => 100000]);
+        $restitution = LeasePayment::factory()->create(['lease_id' => $bail->id, 'payment_type' => LeasePaymentType::DepositRefund, 'status' => PaymentStatus::Pending, 'amount' => 100000]);
+        $annulee = LeasePayment::factory()->create(['lease_id' => $bail->id, 'payment_type' => LeasePaymentType::Rent, 'status' => PaymentStatus::Cancelled, 'amount' => 100000]);
+
+        Sanctum::actingAs($this->landlord);
+        $lignes = collect($this->getJson("/api/leases/{$bail->id}/payments")->assertOk()->json('data'))->keyBy('id');
+        foreach ([$echec, $restitution, $annulee] as $ligne) {
+            $this->assertFalse($lignes[$ligne->id]['abilities']['record_payment'], "ligne {$ligne->status->value} {$ligne->payment_type->value}");
+            $this->assertContains($this->postJson("/api/lease-payments/{$ligne->id}/mark-paid", [])->status(), [409, 422]);
+        }
     }
 
     public function test_ac3_la_reponse_d_un_geste_du_bail_porte_ses_abilities_a_jour(): void

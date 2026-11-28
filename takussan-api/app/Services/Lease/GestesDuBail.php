@@ -9,11 +9,13 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Inventory;
 use App\Models\Invoice;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\LeaseSignature;
 use App\Models\User;
 use App\Policies\LeasePolicy;
 use App\Services\Model\LeasePaymentService;
 use App\Services\Model\LeaseService;
+use Illuminate\Support\Carbon;
 
 /**
  * TCK-3011 (ADR-0139) — les gestes d'un bail : pour chacun, « possible MAINTENANT pour ce lecteur »,
@@ -105,7 +107,7 @@ final class GestesDuBail
     /** Générer l'échéancier (`LeaseService::generateSchedule`) : un bail actif dont aucun loyer n'est émis. */
     public function peutGenererLEcheancier(User $lecteur, Lease $bail): bool
     {
-        return $bail->status === LeaseStatus::Active && $lecteur->can('recordPayment', $bail) && ! self::echeancierEmis($bail);
+        return self::echeancierGenerable($bail) && $lecteur->can('recordPayment', $bail) && ! self::echeancierEmis($bail);
     }
 
     /**
@@ -121,10 +123,14 @@ final class GestesDuBail
             && $bail->deposit_remaining > 0;
     }
 
-    /** Donner préavis ou résilier (`EarlyTerminationService::request`) : un bail en cours ou échu, hors préavis. */
+    /**
+     * Donner préavis ou résilier (`EarlyTerminationService::request`) : un bail en cours ou échu, hors
+     * préavis, et dont une date d'effet tient avant la fin — sans quoi l'écriture refuse toute date
+     * (`after_end_date`) : c'est le cas de tout bail échu dont la fin est passée.
+     */
     public function peutDonnerPreavis(User $lecteur, Lease $bail): bool
     {
-        return self::preavisPossible($bail) && $lecteur->can('requestEarlyTermination', $bail);
+        return self::preavisPossible($bail) && self::preavisTientAvantLaFin($bail) && $lecteur->can('requestEarlyTermination', $bail);
     }
 
     /**
@@ -137,8 +143,10 @@ final class GestesDuBail
             return false;
         }
 
+        // `value()` d'un builder Eloquent rend l'attribut CASTÉ (l'enum) : le comparer à la chaîne ne fermait
+        // jamais l'annulation (vérification adverse de TCK-3011, D3).
         return $bail->early_termination_invoice_id === null
-            || Invoice::query()->whereKey($bail->early_termination_invoice_id)->value('status') !== InvoiceStatus::Paid->value;
+            || Invoice::query()->whereKey($bail->early_termination_invoice_id)->first(['id', 'status'])?->status !== InvoiceStatus::Paid;
     }
 
     /**
@@ -157,9 +165,10 @@ final class GestesDuBail
      */
     public function peutAbandonner(User $lecteur, Lease $bail): bool
     {
-        return $lecteur->can('abandon', $bail)
-            && ! $bail->payments()->where('status', '!=', PaymentStatus::Cancelled->value)->exists()
-            && ! $bail->inventories()->get()->contains(fn (Inventory $etat): bool => $etat->engage());
+        return self::brouillon($bail)
+            && $lecteur->can('abandon', $bail)
+            && ! self::echeanceSaisie($bail)
+            && ! self::etatDesLieuxEngage($bail->inventories()->get());
     }
 
     /** Envoyer (ou renvoyer) en signature (`LeaseSignatureService::request`) : un brouillon ou un bail qui l'attend. */
@@ -175,19 +184,12 @@ final class GestesDuBail
      */
     public function peutSigner(User $lecteur, Lease $bail): bool
     {
-        if ($bail->status !== LeaseStatus::PendingSignature || $bail->contract_sha256 === null) {
+        if (! self::signatureAttendue($bail)) {
             return false;
         }
         $roles = LeaseSignatureService::rolesFor($lecteur, $bail);
-        if ($roles === []) {
-            return false;
-        }
-        $signes = ($bail->relationLoaded('signatures') ? $bail->signatures : $bail->signatures()->get())
-            ->filter(fn (LeaseSignature $s): bool => $s->document_sha256 === $bail->contract_sha256)
-            ->pluck('role')
-            ->all();
 
-        return array_diff($roles, $signes) !== [];
+        return $roles !== [] && array_diff($roles, self::rolesSignes($bail)) !== [];
     }
 
     /**
@@ -239,6 +241,16 @@ final class GestesDuBail
         return in_array($bail->status, EarlyTerminationService::REQUESTABLE_STATUSES, true);
     }
 
+    /**
+     * `EarlyTerminationService::request` — `after_end_date` : la première date d'effet possible
+     * ({@see EarlyTerminationService::premiereDateDEffet()}) tombe avant la fin du bail, ou il n'en a pas.
+     */
+    public static function preavisTientAvantLaFin(Lease $bail): bool
+    {
+        return $bail->end_date === null
+            || app(EarlyTerminationService::class)->premiereDateDEffet($bail)->lt(Carbon::parse($bail->end_date)->startOfDay());
+    }
+
     /** `EarlyTerminationService::cancel` — `lease_early_termination_not_in_progress`. */
     public static function preavisEnCours(Lease $bail): bool
     {
@@ -271,6 +283,76 @@ final class GestesDuBail
             ->where('payment_type', LeasePaymentType::Rent->value)
             ->where('status', '!=', PaymentStatus::Cancelled->value)
             ->exists();
+    }
+
+    /**
+     * TCK-3011 (D2) — une échéance s'encaisse à la main (`LeasePaymentService::markPaid`) si elle attend
+     * un règlement — en attente, en retard, ou partiellement payée (héritée) — et n'est pas une
+     * restitution de caution, que son reversement règle. Une échéance en échec, annulée ou payée, non.
+     * `LeasePaymentResource` en tire `abilities.record_payment` de la ligne.
+     */
+    public static function echeanceEncaissable(LeasePayment $echeance): bool
+    {
+        return $echeance->payment_type !== LeasePaymentType::DepositRefund
+            && in_array($echeance->status, [PaymentStatus::Pending, PaymentStatus::Late, PaymentStatus::PartiallyPaid], true);
+    }
+
+    /** `LeaseService::generateSchedule` — `lease.not_active_schedule` : l'échéancier d'un bail actif. */
+    public static function echeancierGenerable(Lease $bail): bool
+    {
+        return $bail->status === LeaseStatus::Active;
+    }
+
+    /** `LeaseService::abandonDraft` — `lease.not_draft_abandon`. */
+    public static function brouillon(Lease $bail): bool
+    {
+        return $bail->status === LeaseStatus::Draft;
+    }
+
+    /** `LeaseService::abandonDraft` — `lease.abandon_has_payments` : une échéance non annulée, de tout type. */
+    public static function echeanceSaisie(Lease $bail): bool
+    {
+        return $bail->payments()->where('status', '!=', PaymentStatus::Cancelled->value)->exists();
+    }
+
+    /**
+     * `LeaseService::abandonDraft` — `lease.abandon_has_inventory` : un état des lieux engagé
+     * ({@see Inventory::engage()}). L'écriture passe les états des lieux qu'elle a verrouillés.
+     *
+     * @param  iterable<Inventory>  $etats
+     */
+    public static function etatDesLieuxEngage(iterable $etats): bool
+    {
+        foreach ($etats as $etat) {
+            if ($etat->engage()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** `LeaseSignatureService::assertAwaiting` — `lease_signature.not_requested` : un contrat figé qui attend. */
+    public static function signatureAttendue(Lease $bail): bool
+    {
+        return $bail->status === LeaseStatus::PendingSignature && $bail->contract_sha256 !== null;
+    }
+
+    /**
+     * Les rôles déjà signés sur le contrat figé courant (`lease_signature.already_signed`) : la relation
+     * chargée, sinon une requête — celle que l'écriture fait sur la ligne verrouillée.
+     *
+     * @return list<string>
+     */
+    public static function rolesSignes(Lease $bail): array
+    {
+        if ($bail->relationLoaded('signatures')) {
+            return $bail->signatures
+                ->filter(fn (LeaseSignature $s): bool => $s->document_sha256 === $bail->contract_sha256)
+                ->pluck('role')->values()->all();
+        }
+
+        return $bail->signatures()->where('document_sha256', $bail->contract_sha256)->pluck('role')->all();
     }
 
     /** `LeaseSignatureService::request` — `lease_signature.not_requestable`. */

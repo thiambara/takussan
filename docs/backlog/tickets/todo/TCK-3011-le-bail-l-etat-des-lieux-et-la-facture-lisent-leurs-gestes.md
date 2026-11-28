@@ -107,3 +107,28 @@ après chaque geste. Lu pour PRÉSENTER, le statut reste : la forme de la demand
 relancer), la vue récapitulatif de l'état des lieux, et `RecapEtSignatures.avantDeSigner`, qui fige le
 brouillon avant la signature sur place — un enchaînement, pas une permission.
 
+
+**Vérification adverse (2026-11-28), quatre défauts corrigés, chacun par un test rouge d'abord, dans
+`GestesDuBailTest` (ADR-0140)** :
+
+- D1 — le préavis s'offrait sur un bail échu (et sur un bail actif qui finit avant la fin du préavis),
+  que `request()` refuse toujours (`after_end_date`). `GestesDuBail::preavisTientAvantLaFin` lit la date
+  de l'écriture, `EarlyTerminationService::premiereDateDEffet` (aujourd'hui plus le préavis), que
+  `request()` emploie aussi. Le décor « bail échu » portait une fin dans un an : corrigé.
+- D2 — une échéance `failed` s'annonçait encaissable ; `markPaid` la refuse. Une règle,
+  `GestesDuBail::echeanceEncaissable`, lue par `LeasePaymentResource` (`record_payment` de la ligne) et
+  par `markPaid` sous verrou (codes et ordre inchangés). Côté front, `echeanceAEncaisser`,
+  `LeaseSchedule` et `LeasePaymentDialog` lisent la clé de la LIGNE, plus le statut ni la clé repère.
+- D3 — la branche « indemnité payée » ne fermait jamais l'annulation : `value()` rend l'enum casté,
+  comparé à la chaîne. Corrigé et épinglé.
+- D4 — `assertAwaiting`, `scheduleUnderLock` et `abandonDraft` relisent les prédicats du module
+  (`signatureAttendue`, `rolesSignes`, `echeancierGenerable`, `brouillon`, `echeanceSaisie`,
+  `etatDesLieuxEngage`), sous leur verrou. `lease.not_active_schedule` n'avait aucun test : épinglé.
+- `GenerateLeasePaymentScheduleTest` cherchait un `count(*)` que `echeancierEmis` (`exists`) ne fait plus
+  depuis la première livraison : ses deux tests de verrou rougissaient ; le motif accepte les deux.
+
+Ablations (md5 vérifié) : D1-D4 ensemble → 5 rouges dans `GestesDuBailTest` ; `echeanceSaisie`,
+`rolesSignes` → 3 rouges dans `LeaseDraftAbandonTest` et `LeaseSignatureTest` (l'écriture lit bien le
+prédicat) ; `echeancierGenerable` → rouge ; front, retour au statut → 2 rouges. Aucun test plus ancien
+n'est devenu redondant : ceux de l'abandon et de la signature éprouvent l'écriture, que le module ne
+remplace pas.

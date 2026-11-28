@@ -364,19 +364,12 @@ class LeaseSignatureService
 
     private function assertAwaiting(Lease $lease, string $role): void
     {
-        abort_code_unless(
-            $lease->status === LeaseStatus::PendingSignature && $lease->contract_sha256 !== null,
-            409,
-            'lease_signature.not_requested'
-        );
+        // TCK-3011 (D4) — les règles d'`abilities.sign` (`GestesDuBail`), relues ici (sous verrou pour `sign`).
+        abort_code_unless(GestesDuBail::signatureAttendue($lease), 409, 'lease_signature.not_requested');
         // ADR-0042 §1 — on ne signe pas une empreinte sans document : le contrat figé doit exister et
         // avoir encore cette empreinte (fermé à l'échec, comme le téléchargement).
         abort_code_if($lease->frozenContractBytes() === null, 409, 'lease_signature.contract_missing');
-        abort_code_if(
-            $lease->signatures()->where('document_sha256', $lease->contract_sha256)->where('role', $role)->exists(),
-            409,
-            'lease_signature.already_signed'
-        );
+        abort_code_if(in_array($role, GestesDuBail::rolesSignes($lease), true), 409, 'lease_signature.already_signed');
     }
 
     /** Les parties qui ont un compte : l'utilisateur du locataire, et le bailleur. @return list<User> */
