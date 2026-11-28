@@ -17,10 +17,9 @@ export interface CheckoutEnCours {
 }
 
 export function checkoutEnCours(erreur: unknown): CheckoutEnCours | null {
-  if (!(erreur instanceof ApiError) || erreur.status !== 409) return null;
-  const corps = erreur.data as { code?: unknown; checkout?: Record<string, unknown> } | null;
-  if (!corps || typeof corps !== 'object' || corps.code !== 'payment.checkout_in_progress') return null;
-  const checkout = corps.checkout;
+  if (!(erreur instanceof ApiError) || erreur.status !== 409 || erreur.codeMetier !== 'payment.checkout_in_progress') return null;
+  // `checkout` est rangé À CÔTÉ du code, pas dans `params`.
+  const checkout = (erreur.data as { checkout?: Record<string, unknown> }).checkout;
   if (!checkout || typeof checkout.amount !== 'number') return null;
   return {
     montant: checkout.amount,

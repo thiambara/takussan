@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers';
 
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction, type RefusDAction } from '@/lib/api';
 import {
   completeOwnerOnboarding,
   fetchOwnerProperties,
@@ -26,7 +26,7 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 export type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
+  | ({ ok: false; status?: number; errors?: Record<string, string[]> } & RefusDAction);
 
 /** Clés de repli de `serverActions.ownerOnboarding` — l'union tient lieu de contrôle de frappe. */
 type CleRepli = 'kycFailed' | 'completeFailed' | 'propertiesFailed';
@@ -41,7 +41,7 @@ async function failure(err: unknown, cleRepli: CleRepli): Promise<ActionResult<n
     return {
       ok: false,
       status: err.status,
-      message: messageErreurApi(err, tRacine, repli),
+      ...refusDAction(err, tRacine, repli),
       errors: data?.errors,
     };
   }

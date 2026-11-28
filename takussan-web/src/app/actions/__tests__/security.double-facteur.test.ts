@@ -37,12 +37,13 @@ describe('actions de sécurité — refus de second facteur', () => {
     expect(await twoFactorEnableAction()).toMatchObject({ ok: false, code: 'two_factor_step_up_required' });
   });
 
-  it('un autre refus ne porte aucun code', async () => {
+  // TCK-3008 — l'action rend désormais le code de TOUT refus ; c'est `avecGardeDoubleFacteurAction` qui ne
+  // reconnaît que les siens (`lib/__tests__/double-facteur.code-metier.tck-3008.test.ts`).
+  it('un autre refus porte son propre code, pas celui du second facteur', async () => {
     apiRequestMock.mockRejectedValue(new ApiError(422, { code: 'validation_failed' }));
 
     const resultat = await twoFactorRegenerateAction();
 
-    expect(resultat.ok).toBe(false);
-    expect(resultat).not.toHaveProperty('code');
+    expect(resultat).toMatchObject({ ok: false, code: 'validation_failed' });
   });
 });

@@ -1,4 +1,4 @@
-import { ApiError } from '@/lib/api';
+import { ApiError, codeMetierDe } from '@/lib/api';
 
 /**
  * TCK-2580 (ADR-0102) — la saisie d'une candidature ou d'une offre au nom d'un client : ce qui se
@@ -107,13 +107,6 @@ export const CHAMP_DU_CODE: Readonly<Record<string, ChampDeLaDemande>> = {
   'booking.field_not_for_kind': 'nature',
 };
 
-/** Le code d'un refus `{code}` de l'API, s'il y en a un. */
-export function codeDuRefus(erreur: unknown): string | undefined {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return undefined;
-  const code = (erreur.data as { code?: unknown }).code;
-  return typeof code === 'string' ? code : undefined;
-}
-
 /**
  * Les erreurs d'un envoi refusé, champ par champ. Un code connu (`CHAMP_DU_CODE`) donne sa CLÉ de
  * traduction (`codes.<code>`, le front possède le texte) ; une erreur de validation, la prose déjà
@@ -123,7 +116,7 @@ export function erreursDeLaDemande(
   erreur: unknown,
 ): { readonly champs: Partial<Record<ChampDeLaDemande, { readonly cle?: string; readonly texte?: string }>>; readonly pose: boolean } {
   const champs: Partial<Record<ChampDeLaDemande, { readonly cle?: string; readonly texte?: string }>> = {};
-  const code = codeDuRefus(erreur);
+  const code = codeMetierDe(erreur);
   if (code && CHAMP_DU_CODE[code]) champs[CHAMP_DU_CODE[code]] = { cle: code };
   if (erreur instanceof ApiError) {
     for (const [cle, messages] of Object.entries(erreur.validationErrors ?? {})) {

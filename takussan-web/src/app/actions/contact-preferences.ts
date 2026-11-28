@@ -2,7 +2,7 @@
 
 import { getTranslations } from 'next-intl/server';
 
-import { apiRequest, messageErreurApi } from '@/lib/api';
+import { apiRequest, refusDAction, type RefusDAction } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import type { User } from '@/types/user';
 import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
@@ -19,7 +19,7 @@ export type PreferencesDeContact = {
   secondary_phone_whatsapp?: boolean;
 };
 
-export type ResultatPreferences = { ok: true; user: User } | { ok: false; message: string };
+export type ResultatPreferences = { ok: true; user: User } | ({ ok: false } & RefusDAction);
 
 export async function updateContactPreferencesAction(
   payload: PreferencesDeContact,
@@ -32,6 +32,6 @@ export async function updateContactPreferencesAction(
   } catch (err) {
     journaliserErreurInattendue('contact-preferences', err);
     const repli = (await getTranslations('profile.contact'))('saveError');
-    return { ok: false, message: messageErreurApi(err, await getTranslations(), repli) };
+    return { ok: false, ...refusDAction(err, await getTranslations(), repli) };
   }
 }

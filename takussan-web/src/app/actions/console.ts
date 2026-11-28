@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction, type RefusDAction } from '@/lib/api';
 import { getOperatorToken } from '@/lib/session';
 import { createTag, deleteTag, fetchAllTags, updateTag, type FetchTagsParams } from '@/lib/queries/tags';
 import type { TagFormPayload } from '@/lib/schemas/tag';
@@ -34,12 +34,14 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 type ActionResult<T = void> =
   | { ok: true; data?: T }
-  | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
+  | ({ ok: false; status?: number; errors?: Record<string, string[]> } & RefusDAction);
 
 async function mapError(e: unknown): Promise<{
   status?: number;
   message: string;
   errors?: Record<string, string[]>;
+  code?: string;
+  params?: Readonly<Record<string, unknown>>;
 }> {
   journaliserErreurInattendue('console', e);
   const [tRacine, t] = await Promise.all([
@@ -50,7 +52,7 @@ async function mapError(e: unknown): Promise<{
   if (e instanceof ApiError) {
     return {
       status: e.status,
-      message: messageErreurApi(e, tRacine, repli),
+      ...refusDAction(e, tRacine, repli),
       errors: e.validationErrors,
     };
   }

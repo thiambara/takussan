@@ -34,10 +34,9 @@ export type Geste =
 
 /** Les champs que l'API dit manquer à la validation (`params.fields` du 422 `radar.review.incomplete`). */
 export function champsManquants(erreur: unknown): string[] {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return [];
-  const donnees = erreur.data as { code?: unknown; params?: { fields?: unknown } };
-  if (donnees.code !== 'radar.review.incomplete' || !Array.isArray(donnees.params?.fields)) return [];
-  return donnees.params.fields.filter((champ): champ is string => typeof champ === 'string');
+  if (!(erreur instanceof ApiError) || erreur.codeMetier !== 'radar.review.incomplete') return [];
+  const champs = erreur.params.fields;
+  return Array.isArray(champs) ? champs.filter((champ): champ is string => typeof champ === 'string') : [];
 }
 
 /**

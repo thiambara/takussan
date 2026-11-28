@@ -2,7 +2,7 @@
 
 import { getTranslations } from 'next-intl/server';
 
-import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
+import { ApiError, apiRequest, refusDAction, type RefusDAction } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
 import { getToken } from '@/lib/session';
 import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
@@ -22,12 +22,12 @@ export type AccepterInvitationResultat =
    * est l'adresse MASQUÉE que l'API rend (« m•••@gmail.com », le `recipient.masked` de l'aperçu) : elle
    * sert à DIRE à quel compte se connecter, jamais à préremplir le formulaire de connexion.
    */
-  | { ok: false; seConnecter: true; emailMasque: string | null; message: string }
+  | ({ ok: false; seConnecter: true; emailMasque: string | null } & RefusDAction)
   /**
    * TCK-2611 — `changerDeCompte` : 403 `invitation.email_mismatch` / `phone_mismatch`, le compte connecté
    * n'est pas le destinataire (ADR-0094 § 7) ; l'écran propose de changer de compte.
    */
-  | { ok: false; seConnecter: false; changerDeCompte?: boolean; message: string };
+  | ({ ok: false; seConnecter: false; changerDeCompte?: boolean } & RefusDAction);
 
 /**
  * TCK-626 — `POST /api/invitations/{token}/accept`, avec le jeton de session s'il y en a un.
@@ -59,14 +59,13 @@ export async function accepterInvitationAction(
           ok: false,
           seConnecter: true,
           emailMasque: corps.email ?? null,
-          message: messageErreurApi(err, tRacine, repli),
+          ...refusDAction(err, tRacine, repli),
         };
       }
-      const code = (err.data ?? {}) as { code?: unknown };
-      if (err.status === 403 && (code.code === 'invitation.email_mismatch' || code.code === 'invitation.phone_mismatch')) {
-        return { ok: false, seConnecter: false, changerDeCompte: true, message: t('errors.mauvaisCompte') };
+      if (err.status === 403 && (err.codeMetier === 'invitation.email_mismatch' || err.codeMetier === 'invitation.phone_mismatch')) {
+        return { ok: false, seConnecter: false, changerDeCompte: true, code: err.codeMetier, message: t('errors.mauvaisCompte') };
       }
-      return { ok: false, seConnecter: false, message: messageErreurApi(err, tRacine, repli) };
+      return { ok: false, seConnecter: false, ...refusDAction(err, tRacine, repli) };
     }
     return { ok: false, seConnecter: false, message: repli };
   }

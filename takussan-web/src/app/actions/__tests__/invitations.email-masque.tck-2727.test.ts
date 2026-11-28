@@ -34,7 +34,8 @@ describe('accepterInvitationAction — le 401 « connectez-vous » (TCK-2727)', 
 
     const resultat = await accepterInvitationAction('jeton-abc', { first_name: 'Moussa', password: 'secret123' });
 
-    expect(resultat).toEqual({ ok: false, seConnecter: true, emailMasque: MASQUE, message: 'Connectez-vous.' });
+    // TCK-3008 — le code du refus accompagne le message.
+    expect(resultat).toEqual({ ok: false, seConnecter: true, emailMasque: MASQUE, message: 'Connectez-vous.', code: 'invitation.requires_login' });
     expect(resultat).not.toHaveProperty('email');
   });
 

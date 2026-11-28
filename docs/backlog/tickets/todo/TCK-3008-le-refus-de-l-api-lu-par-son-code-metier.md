@@ -40,22 +40,47 @@ Relevé du 2026-11-27 (`dev` 4e3a929f7), `takussan-web/src/lib/api.ts` :
 
 ## Delta à produire
 
-- [ ] Intention : `ApiError` expose le code métier, ses paramètres, et l'aplatissement des erreurs de validation (une méthode)
-- [ ] Intention : le hook de message d'erreur accepte, en option, une table code → clé i18n et un résolveur de paramètres, et porte la cascade (table → validation → message de l'API → repli) une seule fois
-- [ ] Les extracteurs locaux et les cascades du Radar disparaissent au profit de ces deux points ; les lectures en ligne passent à `err.codeMetier`
-- [ ] Server actions : le résultat d'échec porte `code` et `params` en plus de `message`
-- [ ] Tests : la cascade en unitaire (table, paramètres, 422, repli) ; les tests d'écran existants restent verts
+- [x] Intention : `ApiError` expose le code métier, ses paramètres, et l'aplatissement des erreurs de validation (une méthode)
+- [x] Intention : le hook de message d'erreur accepte, en option, une table code → clé i18n et un résolveur de paramètres, et porte la cascade (table → validation → message de l'API → repli) une seule fois
+- [x] Les extracteurs locaux et les cascades du Radar disparaissent au profit de ces deux points ; les lectures en ligne passent à `err.codeMetier`
+- [x] Server actions : le résultat d'échec porte `code` et `params` en plus de `message`
+- [x] Tests : la cascade en unitaire (table, paramètres, 422, repli) ; les tests d'écran existants restent verts
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `grep -rn "as { code?: unknown }" src --include=*.ts --include=*.tsx | grep -v __tests__` est vide.
-- [ ] AC2 — Les fonctions `codeDe`, `codeDuRefus`, `codeDeLErreur` (et équivalents de la liste) n'existent plus.
-- [ ] AC3 — `Object.values(…).flat()` d'aplatissement 422 n'apparaît plus qu'une fois, dans `lib/api.ts`.
-- [ ] AC4 — Une server action en échec rend `code` (test sur au moins une action).
-- [ ] AC5 — `tsc --noEmit`, `npm run lint` et les tests touchés sont verts.
+- [x] AC1 — `grep -rn "as { code?: unknown }" src --include=*.ts --include=*.tsx | grep -v __tests__` est vide.
+- [x] AC2 — Les fonctions `codeDe`, `codeDuRefus`, `codeDeLErreur` (et équivalents de la liste) n'existent plus.
+- [x] AC3 — `Object.values(…).flat()` d'aplatissement 422 n'apparaît plus qu'une fois, dans `lib/api.ts`.
+- [x] AC4 — Une server action en échec rend `code` (test sur au moins une action).
+- [x] AC5 — `tsc --noEmit`, `npm run lint` et les tests touchés sont verts.
 
 ## Hors périmètre
 
 - Les libellés eux-mêmes ; le préfixe `/api` (TCK-3009 n'y touche pas non plus).
 
 ## Notes d'implémentation
+
+Re-mesuré le 2026-11-27 sur l'arbre partagé de `feat/approfondissements-architecture`.
+
+**Ce qui différait du relevé.**
+
+- `copilote.ts:259` (`codeDuRefus`) n'avait **aucun appelant** : supprimé, sans test possible ; la lecture de `data.error.code` disparaît avec lui.
+- `lien-d-action.ts:72` prenait `error` puis `message` pour un code : un 410 `{message: 'action_link.used'}` rendait « utilisé ». Test rouge avant le correctif (`lib/queries/__tests__/lien-d-action.lien-mort.tck-3008.test.ts`), vert après.
+- Le relevé oubliait un défaut que le changement CRÉAIT : `avecGardeDoubleFacteurAction` traitait tout `code` d'un résultat d'action comme un refus de second facteur. Puisque les actions rendent désormais le code de tout refus, la garde ne reconnaît plus que `two_factor_*` (test rouge avant, `lib/__tests__/double-facteur.code-metier.tck-3008.test.ts`).
+- Défaut voisin corrigé : `kpis.ts` et `alerts.ts` rendaient `(err as Error).message`, soit « API error 422 » à l'écran. Ils passent par `refusDAction`.
+- `RadarCollecte` n'avait pas d'étape de validation dans sa cascade : il ne l'a toujours pas (`validation` est une option du hook, absente par défaut).
+
+**Ce qui est en place.**
+
+- `ApiError` : `codeMetier`, `params` (objet vide sans `params`), `messagesDeValidation()` (le seul `Object.values(…).flat()`, dans `lib/api.ts`). Une lecture privée `texteDuCorps` sert le code, la prose, le code BFF et `messageCorpsErreurBff`. `codeMetierDe(erreur: unknown)` pour les `catch (e)`.
+- `useMessageErreurApi({ tables, validation })` : tables consultées dans l'ordre (traducteur d'espace + codes → clés + résolveur de paramètres optionnel, à défaut les `params` simples de l'API), validation sur demande, puis `messageErreurApi` (message de l'API, puis repli). Sans options, comportement et identité inchangés.
+- Les six cascades du Radar passent par le hook avec leurs cas spéciaux (champs de `radar.review.incomplete`, `until` formaté, 413, URL refusée d'un lot, bornes de la publication). Le 413 de la fiche annonceur se teste désormais AVANT les tables : aucun 413 ne porte de code du Radar (celui du proxy porte `payload_too_large`).
+- `refusDAction(err, t, repli)` → `{message, code?, params?}` : les 26 modules d’actions qui rendent un message d’échec le portent. Trois tests d'actions fixaient l'ancienne forme sans code (`security.double-facteur`, `invitations.email-masque.tck-2727`, `property.contact-indisponible`) : mis à jour.
+
+**Zones des réservations et des visites**, migrées en second temps une fois libérées : `BookingTunnel.tsx` (code par `err.codeMetier`, aplatissement par `messagesDeValidation()`), `useIdentiteParTelephone.ts`, `PlanifierUneVisite.tsx` (`codeDe` supprimé ; `existing` lu à côté du code), `saisie-de-demande.ts` (`codeDuRefus` supprimé) et ses trois appelants (`bookings/detail/dossier.tsx`, `bookings/detail/garants.tsx`, `visits/compte-rendu/FormulaireDuCompteRendu.tsx`, par `codeMetierDe`). Les trois grep des AC1 à AC3 sont vides sur tout `src/` (un seul `Object.values(…).flat()`, dans `lib/api.ts`).
+
+**AC5, mesuré le 2026-11-28.** `npx tsc --noEmit` complet : propre. Lint et `check:i18n` : rouges SEULEMENT sur `src/app/[locale]/(public)/playground/maquettes/`, maquettes locales ignorées par git (3 erreurs jsx-a11y ; 127 constats i18n, tous sous ce chemin). ⚠ `npm run lint` tel quel s'arrête en local avant de rien juger (« could not find plugin "jsx-a11y" ») à cause de `takussan-web/.fidelite/`, répertoire de captures ignoré par git : mesuré par `eslint --ignore-pattern '.fidelite/**' .`, qui ne rapporte que les maquettes. La CI, sans ces deux répertoires, n'est pas touchée. Même cause pour `surface-publique.contraste.test.ts`, rouge en local sur 186 couples, tous sous `playground/maquettes`.
+
+**Laissé volontairement.** `lib/double-facteur.ts` garde `codeDoubleFacteur`, qui ne lit plus rien lui-même (`err.codeMetier`) mais rétrécit au type `CodeDoubleFacteur`. `components/boost/types.ts` (`manqueDeCredits`) lit désormais `codeMetier` : son test (`BoostDialog.test.tsx`) passait un faux `{status, data}` que `useApiMutation` ne rejette jamais, remplacé par une vraie `ApiError`.
+
+**Écarts au brief.** La validation 422 est une option du hook (`validation: true`), jamais un défaut : sans options, la prose de Laravel l'emporte toujours. `reset-password` affiche `proseServeur` (sentinelles écartées) au lieu du `message` brut.

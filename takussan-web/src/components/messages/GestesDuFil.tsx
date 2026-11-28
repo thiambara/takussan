@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Radio, RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
+import { codeMetierDe } from '@/lib/api';
 import {
   MOTIFS_DE_SIGNALEMENT,
   useElargirLeFilDirect,
@@ -44,12 +44,6 @@ export type GestesDuFil = {
 
 /** Le plafond d'un groupe (`AddParticipantsRequest`, 20 membres) moins les deux membres de la directe. */
 const MAX_AJOUTS = 18;
-
-function codeDe(erreur: unknown): string | null {
-  if (!(erreur instanceof ApiError)) return null;
-  const data = erreur.data as { code?: unknown } | null;
-  return data && typeof data.code === 'string' ? data.code : null;
-}
 
 /**
  * « Signaler la conversation » (`POST …/reports`, TCK-2859) : un motif codé, un commentaire
@@ -99,7 +93,7 @@ export function DialogueSignaler({
       {
         onSuccess: () => setEtat('fait'),
         onError: (e) => {
-          if (codeDe(e) === 'conversation.already_reported') setEtat('deja');
+          if (codeMetierDe(e) === 'conversation.already_reported') setEtat('deja');
           else setErreur(messageErreur(e, t('echec')));
         },
       },

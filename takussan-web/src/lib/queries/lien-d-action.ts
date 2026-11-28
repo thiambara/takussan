@@ -64,18 +64,10 @@ export function lienMortDe(erreur: unknown): CauseDuLienMort | null {
   if (!(erreur instanceof ApiError)) return null;
   if (erreur.status === 404) return 'notFound';
   // Un jeton que `cheminApi` refuse (`/`, `?`, `#`, `..`) ne désigne aucun lien : aucun appel n'est parti.
-  if (erreur.status === 400 && codeDuCorps(erreur.data) === 'invalid_path') return 'notFound';
+  if (erreur.status === 400 && erreur.codeMetier === 'invalid_path') return 'notFound';
   if (erreur.status !== 410) return null;
-  return CODES_DU_410[codeDuCorps(erreur.data) ?? ''] ?? 'expired';
-}
-
-function codeDuCorps(corps: unknown): string | null {
-  if (!corps || typeof corps !== 'object') return null;
-  for (const cle of ['code', 'error', 'message'] as const) {
-    const v = (corps as Record<string, unknown>)[cle];
-    if (typeof v === 'string' && v !== '') return v;
-  }
-  return null;
+  // TCK-3008 — le CODE seul : la prose (`message`, déjà localisée) n'en est jamais un, même quand elle y ressemble.
+  return CODES_DU_410[erreur.codeMetier ?? ''] ?? 'expired';
 }
 
 function deballer<T>(corps: T | { readonly data: T }): T {

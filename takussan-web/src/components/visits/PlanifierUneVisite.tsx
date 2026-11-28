@@ -334,7 +334,7 @@ export function PlanifierDialog({
       // a déjà une visite confirmée à cette heure, dans quelque agence que ce soit — même place,
       // même relecture. Les autres 422 sans champ (`lead.not_convertible`,
       // `lead.without_agency`) vont au bas de la feuille.
-      const code = err instanceof ApiError && err.status === 422 ? codeDe(err) : null;
+      const code = err instanceof ApiError && err.status === 422 ? (err.codeMetier ?? null) : null;
       if (code === 'visit.slot_overlap' || code === 'visit.agent_overlap') {
         setErreurs({ heure: messageErreur(err, t('requiredTime')) });
         void creneaux.refetch();
@@ -691,17 +691,12 @@ function capitaliser(texte: string): string {
   return texte.charAt(0).toLocaleUpperCase() + texte.slice(1);
 }
 
-function codeDe(e: ApiError): string | null {
-  const data = e.data as { code?: unknown } | null;
-  return data && typeof data.code === 'string' ? data.code : null;
-}
-
 /** TCK-1343 — les fiches existantes d'un 409 `customer.duplicate`, sinon `null`. */
 function doublonsDe(e: unknown): CustomerDuplicateMatch[] | null {
-  if (!(e instanceof ApiError) || e.status !== 409) return null;
-  const data = e.data as { code?: unknown; existing?: unknown } | null;
-  if (!data || data.code !== 'customer.duplicate' || !Array.isArray(data.existing)) return null;
-  return data.existing as CustomerDuplicateMatch[];
+  if (!(e instanceof ApiError) || e.status !== 409 || e.codeMetier !== 'customer.duplicate') return null;
+  // `existing` est rangé À CÔTÉ du code, pas dans `params`.
+  const existantes = (e.data as { existing?: unknown }).existing;
+  return Array.isArray(existantes) ? (existantes as CustomerDuplicateMatch[]) : null;
 }
 
 /**

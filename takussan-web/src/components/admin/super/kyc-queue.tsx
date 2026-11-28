@@ -78,15 +78,6 @@ const CODES_REFUS_KYC = {
   documentsManquants: 'kyc.documents_missing',
 } as const;
 
-/** Le `code` d'un refus 422 de l'API KYC, quand il y en a un. */
-function codeRefusKyc(erreur: unknown): string | undefined {
-  if (!(erreur instanceof ApiError) || erreur.status !== 422) return undefined;
-  const corps = erreur.data;
-  if (!corps || typeof corps !== 'object' || !('code' in corps)) return undefined;
-  const brut = (corps as { code?: unknown }).code;
-  return typeof brut === 'string' ? brut : undefined;
-}
-
 /**
  * Le libellé du sujet — et, quand ce n'en est pas un, le fait que c'est un REPLI.
  *
@@ -297,7 +288,8 @@ export function KycDecisionPanel({
      * laisserait l'opérateur recliquer sur la même ligne.
      */
     onError: (err: ApiError) => {
-      const code = codeRefusKyc(err);
+      // Le code d'un refus 422 seulement : un autre statut garde son libellé générique.
+      const code = err.status === 422 ? err.codeMetier : undefined;
       if (code === CODES_REFUS_KYC.transitionRefusee || code === CODES_REFUS_KYC.documentsManquants) {
         setError(t(code === CODES_REFUS_KYC.transitionRefusee ? 'staleDecision' : 'incompleteDossier'));
         void queryClient.invalidateQueries({ queryKey: ['super-admin', 'kyc'] });

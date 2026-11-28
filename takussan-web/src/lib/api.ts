@@ -404,25 +404,31 @@ function estSentinelleFramework(message: string): boolean {
 }
 
 /**
+ * TCK-3008 — la seule lecture d'un champ texte du corps d'erreur (`code`, `message`) : non vide, tel quel,
+ * `undefined` sinon. Le code, la prose, le code du BFF et le corps nu de {@link messageCorpsErreurBff} passent
+ * tous par elle ; une trentaine d'écrans la recopiaient (`(x.data as {code?}).code`).
+ */
+function texteDuCorps(data: unknown, champ: 'code' | 'message'): string | undefined {
+  if (!data || typeof data !== 'object') return undefined;
+  const brut = (data as Record<string, unknown>)[champ];
+  return typeof brut === 'string' && brut.length > 0 ? brut : undefined;
+}
+
+/**
  * Le `code` qu'a émis Laravel (`abort_code`, ADR-0032), tel quel — `undefined` s'il n'y en a pas.
  * Les codes `http.*` sont ceux que le backend DÉDUIT du statut, sans rien savoir de plus.
  */
 function codeLaravel(data: unknown): string | undefined {
-  if (data && typeof data === 'object' && 'code' in data) {
-    const brut = (data as { code?: unknown }).code;
-    if (typeof brut === 'string' && brut.length > 0) return brut;
-  }
-  return undefined;
+  return texteDuCorps(data, 'code');
 }
 
 /** Le `message` du corps, tel quel, sans jugement — `undefined` s'il n'y en a pas. */
 function messageBrut(data: unknown): string | undefined {
-  if (data && typeof data === 'object' && 'message' in data) {
-    const brut = (data as { message?: unknown }).message;
-    if (typeof brut === 'string' && brut.length > 0) return brut;
-  }
-  return undefined;
+  return texteDuCorps(data, 'message');
 }
+
+/** Aucun paramètre : l'objet partagé que rend {@link ApiError.params}, figé pour qu'aucun lecteur ne l'écrive. */
+const AUCUN_PARAMETRE: Readonly<Record<string, unknown>> = Object.freeze({});
 
 export class ApiError extends Error {
   /**
@@ -449,11 +455,28 @@ export class ApiError extends Error {
    * localisée (`Accept-Language` est forwardé par {@link apiRequest}), et c'est légitime.
    */
   get code(): CodeErreurBff | undefined {
-    if (this.data && typeof this.data === 'object' && 'code' in this.data) {
-      const brut = (this.data as { code?: unknown }).code;
-      if (estCodeBff(brut)) return brut;
-    }
-    return undefined;
+    const brut = codeLaravel(this.data);
+    return estCodeBff(brut) ? brut : undefined;
+  }
+
+  /**
+   * TCK-3008 — **le code métier du refus** (`radar.review.incomplete`, `booking.dossier_closed`…), tel que l'API
+   * l'émet (`abort_code`, ADR-0032), ou `undefined`. Contrairement à {@link codeErreur}, il ne s'efface jamais
+   * devant la prose : c'est la DONNÉE qu'un écran compare pour choisir un geste ou un libellé propre. Pas d'union
+   * générée : les codes vivent dans l'API, l'écran ne connaît que ceux qu'il traite.
+   */
+  get codeMetier(): string | undefined {
+    return codeLaravel(this.data);
+  }
+
+  /**
+   * TCK-3008 — les paramètres du refus (`params` de l'enveloppe : `{max}`, `{field}`, `{claimed_until}`…), objet
+   * vide s'il n'y en a pas. Seul `params` : ce qu'une réponse range À CÔTÉ du code (`existing`, `checkout`…) reste
+   * dans {@link data}.
+   */
+  get params(): Readonly<Record<string, unknown>> {
+    const brut = this.data && typeof this.data === 'object' ? (this.data as { params?: unknown }).params : undefined;
+    return brut && typeof brut === 'object' && !Array.isArray(brut) ? (brut as Record<string, unknown>) : AUCUN_PARAMETRE;
   }
 
   /**
@@ -578,6 +601,28 @@ export class ApiError extends Error {
     }
     return undefined;
   }
+
+  /**
+   * TCK-3008 — les messages de validation d'un 422, à plat et dans l'ordre des champs (déjà localisés par
+   * Laravel) ; vide hors d'un 422 ou sans `errors`. La seule écriture de l'aplatissement : cinq écrans la
+   * recopiaient.
+   */
+  messagesDeValidation(): string[] {
+    const parChamp = this.validationErrors;
+    if (!parChamp) return [];
+    return Object.values(parChamp)
+      .flat()
+      .filter((m): m is string => typeof m === 'string' && m.length > 0);
+  }
+}
+
+/**
+ * TCK-3008 — le {@link ApiError.codeMetier} de ce qu'a levé un appel, `undefined` si ce n'est pas une `ApiError`
+ * (réseau coupé, délai, `Error` nu). Pour les `catch (e)` et les `onError` typés `unknown` ; une erreur déjà typée
+ * se lit par `err.codeMetier`.
+ */
+export function codeMetierDe(erreur: unknown): string | undefined {
+  return erreur instanceof ApiError ? erreur.codeMetier : undefined;
 }
 
 /**
@@ -651,6 +696,34 @@ export function messageErreurApi(
 }
 
 /**
+ * TCK-3008 — ce qu'une server action rend d'un refus : le libellé traduit, plus le code métier et les paramètres
+ * de l'API quand il y en a. Sans eux, l'écran qui reçoit `{ok: false, message}` ne peut plus choisir un geste par
+ * le code (« se connecter », « relancer ») : il en était réduit à comparer la prose.
+ */
+export interface RefusDAction {
+  readonly message: string;
+  readonly code?: string;
+  readonly params?: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * Le {@link RefusDAction} d'une erreur, pour la branche d'échec d'une server action (`'use server'` n'exporte que
+ * des fonctions asynchrones : l'aide vit donc ici). `code` et `params` sont absents, et non `undefined`, quand
+ * l'API n'en donne pas : le résultat traverse la frontière serveur → client tel quel.
+ */
+export function refusDAction(erreur: unknown, t: TraducteurRacine, repli: string): RefusDAction {
+  const message = messageErreurApi(erreur, t, repli);
+  if (!(erreur instanceof ApiError)) return { message };
+  const code = erreur.codeMetier;
+  const params = erreur.params;
+  return {
+    message,
+    ...(code !== undefined ? { code } : {}),
+    ...(Object.keys(params).length > 0 ? { params } : {}),
+  };
+}
+
+/**
  * Même chose, à partir d'un corps de réponse JSON déjà lu — pour les appelants qui font un `fetch`
  * nu vers le BFF et n'ont pas construit d'{@link ApiError}.
  *
@@ -666,19 +739,12 @@ export function messageCorpsErreurBff(
   t: TraducteurRacine,
   repli: string,
 ): string {
-  if (corps && typeof corps === 'object') {
-    if ('code' in corps) {
-      const brut = (corps as { code?: unknown }).code;
-      if (estCodeBff(brut)) return t(CLE_I18N_ERREUR_BFF[brut]);
-    }
-    if ('message' in corps) {
-      const brut = (corps as { message?: unknown }).message;
-      if (typeof brut === 'string' && brut.length > 0) {
-        const sentinelle = codeSentinelle(brut);
-        if (sentinelle) return t(CLE_I18N_ERREUR_API[sentinelle]);
-        return brut;
-      }
-    }
+  const code = codeLaravel(corps);
+  if (estCodeBff(code)) return t(CLE_I18N_ERREUR_BFF[code]);
+  const brut = messageBrut(corps);
+  if (brut !== undefined) {
+    const sentinelle = codeSentinelle(brut);
+    return sentinelle ? t(CLE_I18N_ERREUR_API[sentinelle]) : brut;
   }
   return repli;
 }

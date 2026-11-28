@@ -8,11 +8,11 @@ import { Camera, Check, CircleAlert, FileText, Upload } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { codeMetierDe } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useAutresCandidaturesDuBien, useDemanderUnePiece, useDossierDeLaReservation } from '@/lib/queries/booking-dossier';
 import { PIECE_DU_DOSSIER_ACCEPT, PIECE_DU_DOSSIER_MAX_OCTETS, useDeposerUnePiece } from '@/lib/queries/booking-gestes-du-client';
 import { demandeeRecemment, syntheseDeLaCandidature } from '@/lib/reservations/candidature';
-import { codeDuRefus } from '@/lib/reservations/saisie-de-demande';
 import { cn } from '@/lib/utils';
 import type { Booking, DossierPiece, PieceDuDossier } from '@/types/booking';
 
@@ -133,7 +133,7 @@ function LigneDePiece({
       setDemandeeA(reponse.data?.requested_at ?? new Date(maintenant.getTime()).toISOString());
       if (reponse.data && reponse.data.customer_notified === false) setRetour({ texte: t('sansCompte'), erreur: false });
     } catch (e) {
-      const code = codeDuRefus(e);
+      const code = codeMetierDe(e);
       setRetour({
         texte: code === 'booking.dossier_request_throttled' ? t('erreurs.throttled') : code === 'booking.dossier_closed' ? t('erreurs.closed') : messageErreur(e),
         erreur: true,
@@ -211,7 +211,7 @@ function DepotDeLaPiece({ bookingId, piece, nom }: { readonly bookingId: number;
       await deposer.mutateAsync({ piece, file: choisi });
       setRetour({ texte: t('envoyee'), erreur: false });
     } catch (e) {
-      setRetour({ texte: codeDuRefus(e) === 'booking.dossier_closed' ? t('erreurs.closed') : messageErreur(e), erreur: true });
+      setRetour({ texte: codeMetierDe(e) === 'booking.dossier_closed' ? t('erreurs.closed') : messageErreur(e), erreur: true });
     }
   }
 

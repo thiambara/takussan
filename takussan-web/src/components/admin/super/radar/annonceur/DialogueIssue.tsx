@@ -14,11 +14,11 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { codeMetierDe } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { RADAR_OUTREACH_OUTCOMES, RADAR_REASON_MAX, type RadarConsent, type RadarOutcomeRequest, type RadarOutreachOutcome } from '@/types/radar';
 import { DISCORDANCES_RADAR } from '../codes-radar';
 import { discordancesDe, ecartsDeLErreur, issueProposee } from './reponses';
-import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
 import { useMessageEchecAnnonceur } from './useMessageEchecAnnonceur';
 
 interface DialogueIssueProps {
@@ -100,7 +100,7 @@ function FormulaireIssue({ reponse, onConfirmer, onAnnuler }: FormulaireIssuePro
     } catch (e) {
       setErreur(e);
       setEtapeStop(false);
-      if (codeDeLErreur(e) === CODE_MOTIF_EXIGE) setEcartsServeur(ecartsDeLErreur(e));
+      if (codeMetierDe(e) === CODE_MOTIF_EXIGE) setEcartsServeur(ecartsDeLErreur(e));
     } finally {
       setEnCours(false);
     }

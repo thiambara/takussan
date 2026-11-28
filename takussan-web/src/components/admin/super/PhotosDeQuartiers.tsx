@@ -15,7 +15,6 @@ import { Combobox, type OptionDeListe } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
 import {
   TYPES_DE_PHOTO,
   envoyerPhoto,
@@ -39,12 +38,6 @@ const CODES_DE_PHOTO: Record<string, string> = {
   'geo_cover.source_not_found': 'sourceNotFound',
   'geo_cover.source_unavailable': 'sourceUnavailable',
 };
-
-function codeDe(erreur: unknown): string | null {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return null;
-  const code = (erreur.data as { code?: unknown }).code;
-  return typeof code === 'string' && code in CODES_DE_PHOTO ? CODES_DE_PHOTO[code] : null;
-}
 
 /**
  * TCK-2844 (ADR-0109) — les quartiers APPROUVÉS et leur photo, à côté de la file des propositions.
@@ -144,17 +137,15 @@ export function PhotosDeQuartiers() {
 
 function LigneDePhoto({ quartier: q }: { readonly quartier: QuartierApprouve }) {
   const t = useTranslations('superAdmin.photosDeQuartier');
-  const messageErreurApi = useMessageErreurApi();
+  const tErreurs = useTranslations('superAdmin.photosDeQuartier.errors');
+  const messageErreurApi = useMessageErreurApi({ tables: [{ t: tErreurs, codes: CODES_DE_PHOTO }] });
   const queryClient = useQueryClient();
   const idFichier = useId();
   const [propositionsOuvertes, setPropositionsOuvertes] = useState(false);
   const [retraitDemande, setRetraitDemande] = useState(false);
   const [issue, setIssue] = useState<{ readonly ok: boolean; readonly texte: string } | null>(null);
 
-  const messageDe = (erreur: unknown): string => {
-    const cle = codeDe(erreur);
-    return cle ? t(`errors.${cle}`) : messageErreurApi(erreur, t('errors.generic'));
-  };
+  const messageDe = (erreur: unknown): string => messageErreurApi(erreur, t('errors.generic'));
 
   const relire = () => queryClient.invalidateQueries({ queryKey: [...photosDeQuartierKeys.all, 'liste'] });
 

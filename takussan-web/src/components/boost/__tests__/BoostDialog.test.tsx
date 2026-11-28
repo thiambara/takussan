@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '@/lib/api';
 import { withIntl } from '@/test/intl';
 import { useBoostProducts, useBuyBoost, useCredits, usePropertyBoosts } from '@/components/boost/api';
 import { BoostDialog } from '../BoostDialog';
@@ -183,7 +184,8 @@ describe('BoostDialog (TCK-633 lot F)', () => {
   // refus à ce moment rendait la parole au solde d'avant (« Il vous restera » revenait, Confirmer
   // se rouvrait sur un achat que le serveur venait de refuser).
   describe('le refus « solde insuffisant » et la relecture des crédits', () => {
-    const refus = { status: 422, data: { code: 'credits.insufficient', params: { missing: 8, balance: 12 } } };
+    // TCK-3008 — une vraie `ApiError` : `useApiMutation` ne rejette rien d'autre, et le refus se lit par `codeMetier`.
+    const refus = new ApiError(422, { code: 'credits.insufficient', params: { missing: 8, balance: 12 } });
 
     async function refuserPuisRelire(relu: { isSuccess: boolean; isError: boolean }) {
       etat(100);

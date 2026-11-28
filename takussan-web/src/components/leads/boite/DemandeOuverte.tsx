@@ -57,18 +57,16 @@ import {
 
 /** TCK-1343 — les fiches existantes d'un 409 `customer.duplicate`, sinon `null`. */
 function doublonsDe(e: unknown): CustomerDuplicateMatch[] | null {
-  if (!(e instanceof ApiError) || e.status !== 409) return null;
-  const data = e.data as { code?: unknown; existing?: unknown } | null;
-  if (!data || data.code !== 'customer.duplicate' || !Array.isArray(data.existing)) return null;
-  return data.existing as CustomerDuplicateMatch[];
+  if (!(e instanceof ApiError) || e.status !== 409 || e.codeMetier !== 'customer.duplicate') return null;
+  const existantes = (e.data as { existing?: unknown }).existing;
+  return Array.isArray(existantes) ? (existantes as CustomerDuplicateMatch[]) : null;
 }
 
 /** P182.03 (TCK-1824) — la fiche d'un 409 `lead.already_converted`, sinon `null`. */
 function ficheDejaCreeeDe(e: unknown): number | null {
-  if (!(e instanceof ApiError) || e.status !== 409) return null;
-  const data = e.data as { code?: unknown; customer?: { id?: unknown } | null } | null;
-  if (!data || data.code !== 'lead.already_converted' || typeof data.customer?.id !== 'number') return null;
-  return data.customer.id;
+  if (!(e instanceof ApiError) || e.status !== 409 || e.codeMetier !== 'lead.already_converted') return null;
+  const id = (e.data as { customer?: { id?: unknown } | null }).customer?.id;
+  return typeof id === 'number' ? id : null;
 }
 
 /** Les sources connues, nommées ; une autre passe telle quelle (« Arrivé par {source} »). */

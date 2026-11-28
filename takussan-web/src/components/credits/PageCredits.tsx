@@ -146,8 +146,7 @@ function PanneauDesCredits({
 function estReservee(erreur: unknown): boolean {
   if (!(erreur instanceof ApiError)) return false;
   if (erreur.status === 403) return true;
-  const code = erreur.data && typeof erreur.data === 'object' ? (erreur.data as { code?: unknown }).code : undefined;
-  return erreur.status === 422 && code === 'credits.no_space';
+  return erreur.status === 422 && erreur.codeMetier === 'credits.no_space';
 }
 
 export function PageCredits() {

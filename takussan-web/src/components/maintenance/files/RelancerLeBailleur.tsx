@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
+import { ApiError, codeMetierDe } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { dureeJusqua, relanceDuBailleur, type Duree, type InterventionEnFile } from '@/lib/maintenance/files';
 import { useRemindMaintenanceOwner } from '@/lib/queries/maintenance';
@@ -62,12 +62,13 @@ export function RelancerLeBailleur({
   const duree = (d: Duree) => f.nombre(d.n, { style: 'unit', unit: d.unite, unitDisplay: 'short' });
 
   const quandErreur = (err: unknown) => {
-    const corps = err instanceof ApiError && err.data && typeof err.data === 'object' ? (err.data as { code?: unknown; params?: { available_at?: unknown } }) : null;
-    const permise = corps?.code === 'maintenance.owner_reminder_too_soon' && typeof corps.params?.available_at === 'string' ? corps.params.available_at : null;
+    const code = codeMetierDe(err);
+    const quand = err instanceof ApiError ? err.params.available_at : undefined;
+    const permise = code === 'maintenance.owner_reminder_too_soon' && typeof quand === 'string' ? quand : null;
     const reste = permise ? dureeJusqua(permise, new Date()) : null;
     if (permise && reste) {
       setErreur(t('tropTot', { delai: duree(reste), date: f.jourMois(permise, maintenant), heure: f.heure(permise) }));
-    } else if (corps?.code === 'maintenance.owner_unavailable') {
+    } else if (code === 'maintenance.owner_unavailable') {
       setErreur(t('injoignable'));
     } else {
       setErreur(messageErreur(err, t('echec')));

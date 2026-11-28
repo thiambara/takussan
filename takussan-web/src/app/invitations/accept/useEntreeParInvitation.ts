@@ -47,7 +47,8 @@ export interface ConnexionDemandee {
   readonly emailMasque: string | null;
 }
 
-type CorpsDErreur = { code?: unknown; email?: unknown; requires_login?: unknown; attempts_left?: unknown };
+/** Ce qu'un refus de l'invitation range À CÔTÉ de son code (le code se lit par `err.codeMetier`, TCK-3008). */
+type CorpsDErreur = { email?: unknown; requires_login?: unknown; attempts_left?: unknown };
 
 const corps = (err: ApiError): CorpsDErreur => (err.data && typeof err.data === 'object' ? (err.data as CorpsDErreur) : {});
 
@@ -55,9 +56,9 @@ const corps = (err: ApiError): CorpsDErreur => (err.data && typeof err.data === 
  * TCK-2941 (ADR-0094, amendement § 5) — les essais restants d'un code faux : `attempts_left` d'un 422
  * `phone_code_invalid` seulement, entier positif ou nul ; toute autre forme se tait (le message d'avant).
  */
-function essaisRestants(corpsDErreur: CorpsDErreur): number | null {
-  if (corpsDErreur.code !== 'phone_code_invalid') return null;
-  const n = corpsDErreur.attempts_left;
+function essaisRestants(err: ApiError): number | null {
+  if (err.codeMetier !== 'phone_code_invalid') return null;
+  const n = corps(err).attempts_left;
   return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : null;
 }
 
@@ -131,7 +132,7 @@ export function useEntreeParInvitation({ jeton, parSms, numeroModifiable = false
         setErreur(t('appelIndisponible'));
         return;
       }
-      if (err instanceof ApiError && err.status === 404 && corps(err).code !== 'invitation.token_not_found') {
+      if (err instanceof ApiError && err.status === 404 && err.codeMetier !== 'invitation.token_not_found') {
         // Drapeau éteint entre l'affichage et l'envoi : la voie mot de passe reste.
         onMotDePasse();
         return;
@@ -195,7 +196,8 @@ export function useEntreeParInvitation({ jeton, parSms, numeroModifiable = false
         setErreur(t('echec'));
         return;
       }
-      const { code: codeErreur, email, requires_login: connexion } = corps(err);
+      const codeErreur = err.codeMetier;
+      const { email, requires_login: connexion } = corps(err);
       if (err.status === 401 && connexion === true) {
         // TCK-2727 — l'adresse est déjà MASQUÉE par l'API ; elle dit à quel compte se connecter, rien de plus.
         setConnexionDemandee({ emailMasque: typeof email === 'string' ? email : null });
@@ -220,7 +222,7 @@ export function useEntreeParInvitation({ jeton, parSms, numeroModifiable = false
           setCode('');
           setEtape('code');
         } else if (etape === 'code') setCodeRefuse(true);
-        const essais = essaisRestants(corps(err));
+        const essais = essaisRestants(err);
         setErreur(essais === null ? t('codeInvalide') : t('codeInvalideEssais', { n: essais }));
       } else setErreur(t('echec'));
     } finally {

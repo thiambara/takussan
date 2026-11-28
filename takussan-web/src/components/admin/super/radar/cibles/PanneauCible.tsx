@@ -38,7 +38,7 @@ import {
   SEPARATEUR_DU_RESUME,
   type BrouillonCriteres,
 } from './criteres';
-import { codeDuRefus, useMessageRefusCible } from './useMessageRefusCible';
+import { useMessageRefusCible } from './useMessageRefusCible';
 
 /**
  * L'ordre des types : celui des filtres de la recherche publique (`FilterSidebar`, TCK-633), qui met en tête ce que
@@ -209,8 +209,8 @@ function FormulaireCible({ cible, onFermer, onEnregistree }: FormulaireCibleProp
   };
 
   const refus = enregistrer.error;
-  const doublon = codeDuRefus(refus) === 'radar.targets.duplicate' ? refus : null;
-  const idDoublon = doublon ? Number((doublon.data as { params?: { target_id?: unknown } }).params?.target_id) : NaN;
+  const doublon = refus?.codeMetier === 'radar.targets.duplicate' ? refus : null;
+  const idDoublon = doublon ? Number(doublon.params.target_id) : NaN;
 
   return (
     <>
