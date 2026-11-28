@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Enums\Capability;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Lecture\ReservationsLisibles;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Model;
 
@@ -19,27 +20,15 @@ use Illuminate\Database\Eloquent\Model;
 class BookingPolicy extends BasePolicy
 {
     /**
-     * Lire une réservation : super-admin, celui qui l'a créée, le propriétaire du bien, le
-     * personnel de l'agence (TCK-587 : plus tout membre), ou le CLIENT rattaché.
+     * Lire une réservation : la règle de {@see ReservationsLisibles}, que la liste applique aussi
+     * (TCK-3006, ADR-0138) — créateur encore membre, bailleur du bien, personnel de l'agence, CLIENT.
      *
      * ⚠ Deux clauses sont ici et **pas** dans `update()` : le créateur et le client. Un client
      * consulte sa réservation, il ne l'administre pas.
      */
     public function view(User $user, Model $model): bool
     {
-        if (! $model instanceof Booking) {
-            return false;
-        }
-
-        $property = $model->property;
-
-        return $user->isSuperAdmin()
-            // P218.03 (TCK-2196) — le créateur encore membre de l'agence (ADR-0031, amendement du
-            // 2026-10-24) ; le client du tunnel public garde la lecture par la branche du client.
-            || $this->auteurEncoreMembre($user, $model->created_by_id, $model->agency_id)
-            || $this->ownerOfProperty($user, $property)
-            || $this->isStaffOf($user, $model->agency_id)
-            || ($model->customer && $model->customer->user_id === $user->id);
+        return $model instanceof Booking && ReservationsLisibles::peut($user, $model);
     }
 
     /**

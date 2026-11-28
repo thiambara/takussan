@@ -96,7 +96,8 @@ class DestroyAuthorizationTest extends ApiTestCase
 
     public function test_le_personnel_de_l_agence_de_l_auteur_supprime_le_garant(): void
     {
-        $guarantor = Guarantor::factory()->create(['added_by_id' => $this->agent->id]);
+        // TCK-3006 — l'agence posée comme `GuarantorController::store` la pose (`CautionsLisibles`).
+        $guarantor = Guarantor::factory()->create(['added_by_id' => $this->agent->id, 'agency_id' => $this->agency->id]);
 
         $this->actingAsApi($this->agencyAdmin($this->agency))
             ->deleteJson("/api/guarantors/{$guarantor->id}")

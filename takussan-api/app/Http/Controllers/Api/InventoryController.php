@@ -18,13 +18,12 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Documents\ArchiveDuCoffre;
 use App\Services\Inventory\InventorySignatureService;
+use App\Services\Lecture\InventairesLisibles;
 use App\Services\Media\PdfImageEmbedder;
 use App\Services\Media\PrivateMediaAccess;
-use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\InventoryService;
 use App\Services\Pdf\DocumentPdfService;
 use App\Services\Pdf\PrintedIdentity;
-use App\Services\Property\BailleurDuBien;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -44,32 +43,9 @@ class InventoryController extends Controller
     {
         $user = $request->user();
 
-        $base = Inventory::query()->with(['lease', 'property']);
-
-        if (! $user->isSuperAdmin()) {
-            // P218.04 (TCK-2198) — le conducteur, comme `InventoryPolicy::view` : bien sans agence,
-            // agence dont il est encore membre, ou où il a un profil de bailleur de tout statut.
-            $conducteurAgencyIds = collect(app(MembershipCapabilityResolver::class)->memberAgencyIds($user))
-                ->merge($user->ownerProfiles()->pluck('agency_id'))
-                ->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
-            $base->where(function ($q) use ($user, $conducteurAgencyIds) {
-                $q->where(fn ($c) => $c->where('conducted_by', $user->id)
-                    ->whereHas('property', fn ($pq) => $pq->whereNull('agency_id')->orWhereIn('agency_id', $conducteurAgencyIds)))
-                    // TCK-1928 (P190.01) — le bailleur du bien (`BailleurDuBien`), comme `view`.
-                    ->orWhereHas('property', fn ($pq) => BailleurDuBien::restreindre($pq, $user))
-                    ->orWhereHas('tenant', function ($tq) use ($user) {
-                        $tq->where('user_id', $user->id);
-                    });
-
-                // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
-                // listait les ressources de tous les autres.
-                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
-                    $q->orWhereHas('property', function ($pq) use ($staffAgencyId) {
-                        $pq->where('agency_id', $staffAgencyId);
-                    });
-                }
-            });
-        }
+        // TCK-3006 (ADR-0138) — la règle de la fiche, en SQL (`InventairesLisibles`), bien en
+        // corbeille compris.
+        $base = InventairesLisibles::restreindre(Inventory::query()->with(['lease', 'property']), $user);
 
         $paginator = Inventory::buildQuery($base, $request)
             ->defaultSort('-created_at')

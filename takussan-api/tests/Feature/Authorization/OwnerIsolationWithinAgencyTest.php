@@ -159,7 +159,9 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
             'property_id' => $property->id,
             'visitor_id' => User::factory()->create()->id,
         ]);
-        $guarantor = Guarantor::factory()->create(['added_by_id' => $landlord->id]);
+        // TCK-3006 — l'agence posée comme `GuarantorController::store` la pose : la lecture se juge sur
+        // la colonne `agency_id` (`CautionsLisibles`), plus sur l'agence du profil de l'auteur.
+        $guarantor = Guarantor::factory()->create(['added_by_id' => $landlord->id, 'agency_id' => $agencyId]);
 
         // Vérification adverse (verif-587, B3) — un document par type de rattachement : chaque
         // branche de `DocumentPolicy::attachTo()` a sa clause d'agence, et un seul document de
@@ -468,7 +470,7 @@ class OwnerIsolationWithinAgencyTest extends ApiTestCase
 
         return [
             'customer' => Customer::factory()->create(['agency_id' => $other->id, 'added_by_id' => $foreignAgent->id]),
-            'guarantor' => Guarantor::factory()->create(['added_by_id' => $foreignAgent->id]),
+            'guarantor' => Guarantor::factory()->create(['added_by_id' => $foreignAgent->id, 'agency_id' => $other->id]),
         ];
     }
 

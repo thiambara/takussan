@@ -14,14 +14,12 @@ use App\Models\Enums\BookingRejectionReason;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Property;
-use App\Models\User;
 use App\Services\Booking\BookingCustomerFacts;
 use App\Services\Booking\BookingDossierService;
 use App\Services\Booking\BookingGuarantorFacts;
-use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Lecture\ReservationsLisibles;
 use App\Services\Model\BookingService;
 use App\Services\Privacy\PersonalDataAccessLogger;
-use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,7 +34,8 @@ class BookingController extends Controller
     public function index(Request $request): JsonResponse
     {
         // TCK-2579 — `createdBy` (le nom de l'auteur, `created_by`), en une requête pour la page.
-        $base = $this->visibleTo(
+        // TCK-3006 (ADR-0138) — la règle de la fiche, en SQL : `ReservationsLisibles`.
+        $base = ReservationsLisibles::restreindre(
             // TCK-2873 — `latestCounterOffer` : `counter_offer` et `awaiting`, en une requête pour la page.
             Booking::query()->with(['property.address', 'property.media', 'customer', 'agency', 'createdBy:'.self::AUTEUR, 'latestCounterOffer']),
             $request->user(),
@@ -66,14 +65,14 @@ class BookingController extends Controller
 
     /**
      * TCK-2593 — `GET /api/bookings/counts` : un compte par nature × statut, toutes les cases
-     * présentes (0 comprises). Même portée que l'index ({@see self::visibleTo()}) et MÊMES filtres
+     * présentes (0 comprises). Même portée que l'index ({@see ReservationsLisibles}) et MÊMES filtres
      * (`Booking::buildQuery`, donc `managed_by`, `search`, `property_id`… et le 400 d'un filtre
      * inconnu) : chaque case égale le `meta.total` de l'index filtré sur cette nature et ce
      * statut. Une seule requête groupée ; tri, pagination et `include` n'y ont aucun effet.
      */
     public function counts(Request $request): JsonResponse
     {
-        $rows = Booking::buildQuery($this->visibleTo(Booking::query(), $request->user()), $request)
+        $rows = Booking::buildQuery(ReservationsLisibles::restreindre(Booking::query(), $request->user()), $request)
             ->getEloquentBuilder()
             ->toBase()
             ->reorder()
@@ -95,37 +94,6 @@ class BookingController extends Controller
         }
 
         return $this->json(['data' => $counts]);
-    }
-
-    /**
-     * Les réservations que l'appelant lit : la portée de l'index, partagée avec `counts`
-     * (TCK-2593) — une seule définition, sinon les compteurs divergent de la liste.
-     *
-     * @param  Builder<Booking>  $query
-     * @return Builder<Booking>
-     */
-    private function visibleTo(Builder $query, User $user): Builder
-    {
-        if ($user->isSuperAdmin()) {
-            return $query;
-        }
-
-        // P218.03 (TCK-2196) — le créateur encore membre de l'agence, comme `BookingPolicy::view`.
-        $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
-
-        return $query->where(function ($q) use ($user, $memberAgencyIds) {
-            $q->where(fn ($a) => $a->where('created_by_id', $user->id)
-                ->where(fn ($m) => $m->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)))
-                // TCK-1930 (P190.02, décision du porteur) — le bailleur du bien, comme
-                // `BookingPolicy::view` : plus l'agent créateur suspendu ou retiré.
-                ->orWhereHas('property', fn ($p) => BailleurDuBien::restreindre($p, $user))
-                ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
-            // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
-            // listait les ressources de tous les autres.
-            if (($staffAgencyId = $user->staffAgencyId()) !== null) {
-                $q->orWhere('agency_id', $staffAgencyId);
-            }
-        });
     }
 
     public function store(StoreBookingRequest $request): JsonResponse

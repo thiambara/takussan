@@ -31,7 +31,8 @@ use Illuminate\Support\Facades\DB;
  * simple vers `/app/agency/finances` ouvrirait les données de l'agence de son profil actif, sans le
  * dire. Une cible d'OBJET garde son lien simple : la fiche refuse elle-même (403).
  *
- * Un objet supprimé (y compris en corbeille) ou introuvable ne rend pas de clé.
+ * Un objet supprimé (y compris en corbeille) ou introuvable ne rend pas de clé ; le BIEN en corbeille
+ * d'une visite ou d'un état des lieux en rend une ({@see self::BIEN_EN_CORBEILLE_LU}, TCK-3006).
  *
  * Le genre de chaque cible est classé dans UNE des trois listes ci-dessous ;
  * `AgenceDeLaCibleTest` rougit sur un genre de `NotificationTarget::PATHS` qui n'y est pas.
@@ -40,8 +41,9 @@ final class AgenceDeLaCible
 {
     /**
      * Les objets d'agence : genre → [table, colonne d'agence, corbeille]. Une colonne `null` lit
-     * l'agence du bien (`property_id` → `properties.agency_id`, bien en corbeille exclu), comme les
-     * policies de ces objets. `corbeille` : la table a `deleted_at` (gardé par `AgenceDeLaCibleTest`).
+     * l'agence du bien (`property_id` → `properties.agency_id`) ; le bien en corbeille n'en rend une
+     * que pour les genres de {@see self::BIEN_EN_CORBEILLE_LU}. `corbeille` : la table a `deleted_at`
+     * (gardé par `AgenceDeLaCibleTest`).
      *
      * @var array<string, array{0: string, 1: ?string, 2: bool}>
      */
@@ -52,9 +54,20 @@ final class AgenceDeLaCible
         'lead' => ['property_contact_leads', 'agency_id', false],
         'visit' => ['property_visits', null, false],
         'maintenance' => ['maintenance_requests', null, true],
-        // TCK-2913 — l'état des lieux signé : l'agence de son bien, comme `InventoryPolicy::view`.
+        // TCK-2913 — l'état des lieux signé : l'agence de son bien.
         'inventory' => ['inventories', null, true],
     ];
+
+    /**
+     * TCK-3006 (ADR-0138 § 4) — les genres dont la fiche se juge sur l'agence du bien MÊME EN
+     * CORBEILLE (`VisitesLisibles`, `InventairesLisibles`) : le personnel de l'agence les lit encore,
+     * la cible porte donc l'agence. L'intervention n'y est pas : un bien supprimé ferme ses
+     * interventions (`PropertyObserver`) et sa fiche ne se juge plus que pour le demandeur
+     * (`InterventionsLisibles`) ; la piste (`lead`) porte sa propre colonne.
+     *
+     * @var list<string>
+     */
+    public const BIEN_EN_CORBEILLE_LU = ['visit', 'inventory'];
 
     /**
      * Les pages d'une section d'agence, sans objet à relire : elles lisent l'agence du profil actif,
@@ -203,7 +216,7 @@ final class AgenceDeLaCible
             ? $requete->pluck($table.'.'.$colonne, $table.'.id')
             : $requete
                 ->join('properties', 'properties.id', '=', $table.'.property_id')
-                ->whereNull('properties.deleted_at')
+                ->when(! in_array($genre, self::BIEN_EN_CORBEILLE_LU, true), fn ($q) => $q->whereNull('properties.deleted_at'))
                 ->pluck('properties.agency_id', $table.'.id');
 
         foreach ($ids as $id) {

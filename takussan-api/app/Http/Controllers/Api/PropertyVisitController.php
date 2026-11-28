@@ -115,14 +115,14 @@ class PropertyVisitController extends Controller
     {
         $user = $request->user();
         if ($user->isSuperAdmin()) {
-            return VisitesLisibles::pour($user);
+            return VisitesLisibles::restreindre(PropertyVisit::query(), $user);
         }
         // La ressource lit les agences du personnel pour décider de la fiche client de chaque ligne.
         $personnelDe = PersonnelDeLAgence::agencesOuPersonnelActif($user);
         $request->attributes->set('visits.staff_agencies', $personnelDe);
 
-        // TCK-2589 — la règle vit dans `VisitesLisibles`, que le fil de la fiche client lit aussi.
-        return VisitesLisibles::pour($user, $personnelDe);
+        // TCK-2589, TCK-3006 — la règle vit dans `VisitesLisibles`, avec sa face de la fiche.
+        return VisitesLisibles::restreindre(PropertyVisit::query(), $user, $personnelDe);
     }
 
     public function show(Request $request, PropertyVisit $visit): JsonResponse

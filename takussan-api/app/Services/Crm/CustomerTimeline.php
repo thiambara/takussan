@@ -163,7 +163,7 @@ final class CustomerTimeline
      */
     private function visits(Customer $customer, User $reader): array
     {
-        $jalon = fn (string $nom, string $colonne) => VisitesLisibles::pour($reader)
+        $jalon = fn (string $nom, string $colonne) => VisitesLisibles::restreindre(PropertyVisit::query(), $reader)
             ->where('property_visits.customer_id', $customer->id)
             ->whereNotNull("property_visits.{$colonne}")
             ->toBase()

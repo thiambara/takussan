@@ -8,7 +8,7 @@ use App\Models\Enums\Capability;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Crm\CustomerCommercialAttributes;
-use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Lecture\ClientsLisibles;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -25,37 +25,13 @@ use Illuminate\Database\Eloquent\Model;
 class CustomerPolicy extends BasePolicy
 {
     /**
-     * Lire un client : super-admin, celui qui l'a ajouté, ou le personnel tenant `crm.view_all`.
-     *
-     * TCK-591 (verif-591 M1, décision de la session — modifie la règle de 587) — l'auteur ne garde
-     * sa fiche que tant qu'il est MEMBRE actif (de tout type) de l'agence de la fiche ; une fiche
-     * hors agence garde son auteur. Après passation et retrait, le partant lisait encore la pièce
-     * d'identité de « ses » clients et les modifiait.
+     * Lire un client : la règle de {@see ClientsLisibles}, que la liste (`Customer::scopeVisibleTo`)
+     * applique aussi (TCK-3006, ADR-0138) — l'auteur encore membre de l'agence de la fiche et qui
+     * n'en est pas le sujet (TCK-591, TCK-2757), ou le personnel tenant `crm.view_all`.
      */
     public function view(User $user, Model $model): bool
     {
-        if (! $model instanceof Customer) {
-            return false;
-        }
-
-        return $user->isSuperAdmin()
-            || $this->isAuthorStillMember($user, $model)
-            || $this->seesWholeCrm($user, $model);
-    }
-
-    /**
-     * TCK-2757 — l'auteur d'une fiche n'en est jamais le SUJET : la fiche née de la candidature, de la
-     * réservation ou de la demande de visite d'un bailleur dans sa propre agence a pour auteur ce
-     * bailleur (`CustomerService::findOrCreateFromUser`), et son `OwnerProfile` le fait membre. Sans
-     * cette condition, il lisait ce que le personnel écrit de lui et modifiait sa fiche. Même règle
-     * dans `Customer::scopeVisibleTo()`, pour que la liste et la fiche disent la même chose.
-     */
-    private function isAuthorStillMember(User $user, Customer $customer): bool
-    {
-        return $customer->added_by_id === $user->id
-            && (int) $customer->user_id !== (int) $user->id
-            && ($customer->agency_id === null
-                || app(MembershipCapabilityResolver::class)->isMemberAt($user, (int) $customer->agency_id));
+        return $model instanceof Customer && ClientsLisibles::peut($user, $model);
     }
 
     /**
@@ -153,7 +129,7 @@ class CustomerPolicy extends BasePolicy
     /**
      * TCK-2591 — les chiffres du pipeline de TOUTE l'agence active (`scope=agency`) : le
      * super-admin, ou le personnel de l'agence de son profil actif qui y tient `crm.view_all` —
-     * la capacité qui ouvre déjà le CRM entier de l'agence ({@see self::seesWholeCrm()}).
+     * la capacité qui ouvre déjà le CRM entier de l'agence ({@see ClientsLisibles}, branche 2).
      */
     public function viewAgencyPipeline(User $user): bool
     {
@@ -164,12 +140,6 @@ class CustomerPolicy extends BasePolicy
 
         return $agencyId !== null
             && $user->canActAt(Capability::CrmViewAll, Agency::query()->find($agencyId));
-    }
-
-    private function seesWholeCrm(User $user, Customer $customer): bool
-    {
-        return $this->isStaffOf($user, $customer->agency_id)
-            && $user->can(Capability::CrmViewAll->value, $customer);
     }
 
     /**

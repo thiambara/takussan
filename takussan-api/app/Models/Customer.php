@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
-use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
@@ -14,6 +13,7 @@ use App\Services\Crm\CustomerFollowUpQuery;
 use App\Services\Crm\CustomerNextActionQuery;
 use App\Services\Crm\CustomerPhoneNormalizer;
 use App\Services\Crm\PipelineStatsService;
+use App\Services\Lecture\ClientsLisibles;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Sorts\CollatedNameSort;
 use App\Sorts\CustomerFollowUpSort;
@@ -449,41 +449,17 @@ class Customer extends AbstractModel
     }
 
     /**
-     * TCK-591 §9 — les fiches qu'un utilisateur peut LIRE, en une requête : exactement la règle de
-     * `CustomerPolicy::view` (TCK-587). Super-admin → tout ; personnel de l'agence de son profil
-     * actif tenant `crm.view_all` → l'agence, plus ses propres ajouts ; tout autre compte (personnel
-     * sans la capacité, bailleur, client) → ses seuls ajouts.
-     *
-     * TCK-591 (verif-591 M1) — « ses ajouts » : ceux d'une agence dont il est encore MEMBRE actif,
-     * ou hors agence (`CustomerPolicy::view`, même décision).
-     *
-     * Partagée par `CustomerController::index` et `PipelineStatsService` : le kanban et ses
-     * compteurs ne peuvent plus diverger de la fiche. `$user->agency_id` n'y entre pas — c'est
-     * l'agence du profil actif QUEL QU'IL SOIT, et un bailleur y lisait tout le CRM.
+     * TCK-591 §9 — les fiches qu'un utilisateur peut LIRE, en une requête : un raccourci de
+     * {@see ClientsLisibles::restreindre()} (TCK-3006, ADR-0138), la face SQL de
+     * `CustomerPolicy::view`. Lue par `CustomerController::index`, le pipeline et ses compteurs, les
+     * doublons, les suggestions de la journée et l'export : aucun ne peut diverger de la fiche.
      *
      * @param  Builder<Customer>  $query
      * @return Builder<Customer>
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if ($user->isSuperAdmin()) {
-            return $query;
-        }
-
-        $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
-        // TCK-2757 — l'auteur n'est jamais le sujet : même règle que `CustomerPolicy::isAuthorStillMember()`.
-        $ownAdds = fn (Builder $q) => $q->where('added_by_id', $user->id)
-            ->where(fn (Builder $s) => $s->whereNull('user_id')->orWhere('user_id', '!=', $user->id))
-            ->where(fn (Builder $a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds));
-
-        $staffAgencyId = $user->staffAgencyId();
-        if ($staffAgencyId !== null && $user->can(Capability::CrmViewAll->value)) {
-            return $query->where(function (Builder $inner) use ($staffAgencyId, $ownAdds) {
-                $inner->where('agency_id', $staffAgencyId)->orWhere($ownAdds);
-            });
-        }
-
-        return $query->where($ownAdds);
+        return ClientsLisibles::restreindre($query, $user);
     }
 
     public function getFullNameAttribute(): string

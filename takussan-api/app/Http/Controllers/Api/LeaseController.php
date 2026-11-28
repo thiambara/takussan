@@ -51,11 +51,7 @@ class LeaseController extends Controller
         // (`$requestLoadable`), et le rendu le borne plus bas.
         $base = Lease::query()->with(['property.address', 'property.media']);
 
-        // TCK-1926 (P190.04) — la clause du bailleur suit `LeasePolicy::view` : désigné, ET bail sans
-        // agence ou profil propriétaire dans son agence (`BailleurDuBien`). L'agent créateur suspendu
-        // ou retiré ne liste plus le bail qui le désigne. TCK-587 — le périmètre d'agence est celui du
-        // PERSONNEL (ADR-0031). TCK-2637 — la clause vit dans `Lease::scopeVisibleTo()`, que lit aussi
-        // l'occupation des biens (bloc `tenant`).
+        // TCK-3006 (ADR-0138) — la règle de la fiche, en SQL : `BauxLisibles`, par `Lease::scopeVisibleTo`.
         $base->visibleTo($user);
 
         // TCK-2642 (P3 de l'audit) — par défaut, les baux en cours avant les brouillons et les baux
