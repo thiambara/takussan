@@ -20,10 +20,13 @@ import type { SpatieQueryParams } from '@/types/api';
  *   construite, passée dans le chemin par `cheminApi` + `requete()` quand elle est partagée avec le serveur ;
  * - un corps JSON (`Content-Type` posé) ou un `FormData` tel quel (sans `Content-Type` : le navigateur pose
  *   la frontière du multipart) ;
- * - la réponse lue comme `apiRequest` la lit : un 2xx sans corps JSON (204) rend `null` — l'ancien
- *   lecteur rejetait, d'où trois cas particuliers (Radar, modération) —, et un refus lève **la même
- *   `ApiError(status, corps)`**, code métier et paramètres compris (TCK-3008) : un appelant n'a qu'une
- *   forme d'erreur à lire, d'où que vienne la réponse.
+ * - un 2xx SANS corps (204, 205, `Content-Length: 0`) rend `null` — l'ancien lecteur rejetait, d'où trois cas
+ *   particuliers (Radar, modération) ; un 2xx dont le corps n'est pas du JSON (une page HTML d'un portail, un
+ *   mandataire) est un ÉCHEC, levé en `ApiError(status, null)` : rendu `null`, il devenait chez l'appelant qui
+ *   lit `json.data` une TypeError que rien ne traduit (vérification adverse de TCK-3009) ; un abandon pendant
+ *   la lecture du corps se propage tel quel (`AbortError`) ;
+ * - un refus lève **la même `ApiError(status, corps)`** qu'`apiRequest`, code métier et paramètres compris
+ *   (TCK-3008) : un appelant n'a qu'une forme d'erreur à lire, d'où que vienne la réponse.
  *
  * Le préfixe `/api` reste écrit par l'appelant (hors de TCK-3009), et une valeur dans le chemin passe par
  * `cheminApi`. Les chemins d'impersonation restent refusés par le relais lui-même.
@@ -72,7 +75,22 @@ export async function appelBff<T>(
   if (keepalive) init.keepalive = true;
 
   const reponse = await fetch(url, init);
-  const donnees: unknown = await reponse.json().catch(() => null);
-  if (!reponse.ok) throw new ApiError(reponse.status, donnees);
-  return donnees as T;
+  const corps = await lireLeCorps(reponse);
+  if (!reponse.ok) throw new ApiError(reponse.status, corps === ILLISIBLE ? null : corps);
+  if (corps === ILLISIBLE) throw new ApiError(reponse.status, null);
+  return corps as T;
+}
+
+/** Un corps présent qui n'est pas du JSON : un refus le porte en `null`, un 2xx en fait un échec. */
+const ILLISIBLE = Symbol('bff.corps-illisible');
+
+async function lireLeCorps(reponse: Response): Promise<unknown> {
+  if (reponse.status === 204 || reponse.status === 205) return null;
+  try {
+    return await reponse.json();
+  } catch (erreur) {
+    // Lu par le nom : sous jsdom, la `DOMException` n'est pas toujours un `Error`.
+    if ((erreur as { name?: unknown } | null)?.name === 'AbortError') throw erreur;
+    return reponse.headers.get('content-length') === '0' ? null : ILLISIBLE;
+  }
 }

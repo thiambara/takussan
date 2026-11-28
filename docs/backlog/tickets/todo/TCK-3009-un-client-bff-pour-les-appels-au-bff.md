@@ -106,3 +106,25 @@ Relevé refait le 2026-11-28 sur `feat/approfondissements-architecture` (`e92d8e
   de test (ceux des modules convertis, et ceux qui stubbent `fetch` sur une URL du BFF), verts. Deux assertions
   d'appel exact ont suivi la forme de la requête (`FeatureFlagProvider`, `ImpersonationBanner`).
 
+
+**Second tour, après la vérification adverse (2026-11-28)** — trois défauts, chacun rouge avant son correctif :
+
+- **Un 2xx non JSON résolvait `null`** (`res.json().catch(() => null)`, la lecture d'`apiRequest`) : l'appelant qui
+  lit `json.data` levait une TypeError que rien ne traduit, et un abandon pendant la lecture du corps devenait
+  `null`. Désormais `null` pour un 204, un 205 ou `Content-Length: 0` seulement ; tout autre corps illisible d'un
+  2xx lève `ApiError(status, null)`, et un `AbortError` se propage tel quel. Un refus au corps illisible garde
+  `data: null`. ⚠ `apiRequest` garde l'ancienne lecture (hors du ticket).
+- **La garde `AuthContext.chemin-unique.test.ts` n'avait aucun témoin de sa partie `appelBff`** : retirer
+  `|appelBff` la laissait verte, et un générique imbriqué ou un gabarit étiqueté (`cheminApi`) passaient sous la
+  regex. Elle lit maintenant l'AST (TypeScript : tout appel `fetch`/`appelBff` dont le premier argument — chaîne,
+  gabarit, ou tête d'un gabarit étiqueté — commence par `/api/auth/{set-token,logout}`), avec des témoins
+  fabriqués attrapés et ignorés. Ablation : sans `appelBff` dans ses appelants, quatre témoins rougissent.
+- **`PropertyWizard.test` et `UpgradeRequestForm.test` doublaient une erreur que le hook ne lève plus**
+  (`Error('PUT wizard-drafts failed (503)')`) : les doubles portent l'`ApiError`.
+- **La garde TCK-968 (`relais-bff.tck-968.test.ts`) ne voyait plus que cinq `fetch` littéraux** (seuil : 40) : elle
+  relève désormais, par l'AST, `fetch` ET `appelBff` (générique, gabarit étiqueté `cheminApi` compris), seuil porté à
+  150, et un témoin positif sur `lib/queries/radar.ts`. Ablation : sans `appelBff`, deux cas rougissent.
+- `ProfileDirectorySection.test` resservait le MÊME `Response` à deux appels : son corps déjà lu tombait dans
+  « illisible ». Une réponse neuve par appel.
+- La description du symbole interne de `bff.ts` est un identifiant (`bff.corps-illisible`), plus une phrase que
+  `check:i18n` comptait comme libellé.

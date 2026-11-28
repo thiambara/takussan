@@ -135,6 +135,26 @@ describe('appelBff — la réponse', () => {
     await expect(appelBff('/api/super-admin/radar/advertisers/7/claim', { method: 'DELETE' })).resolves.toBeNull();
   });
 
+  it('un 2xx au corps vide (`Content-Length: 0`) rend `null`', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 200, headers: { 'Content-Length': '0' } }));
+    await expect(appelBff('/api/super-admin/plans/3', { method: 'DELETE' })).resolves.toBeNull();
+  });
+
+  it('un 2xx dont le corps n’est pas du JSON (une page HTML) est un ÉCHEC : ApiError, jamais `null`', async () => {
+    // Un `null` ici, et l'appelant qui lit `json.data` lève une TypeError que rien ne traduit.
+    fetchMock.mockResolvedValue(new Response('<html>Connexion du portail</html>', { status: 200 }));
+    const erreur = await appelBff('/api/super-admin/plans').catch((e: unknown) => e);
+    expect(erreur).toBeInstanceOf(ApiError);
+    expect((erreur as ApiError).status).toBe(200);
+    expect((erreur as ApiError).data).toBeNull();
+  });
+
+  it('un abandon pendant la lecture du corps se propage tel quel (AbortError), sans devenir `null`', async () => {
+    const abandon = new DOMException('The operation was aborted.', 'AbortError');
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: () => Promise.reject(abandon) } as unknown as Response);
+    await expect(appelBff('/api/super-admin/search')).rejects.toBe(abandon);
+  });
+
   it('un refus lève une ApiError qui porte le statut, le corps, le code métier et ses paramètres (TCK-3008)', async () => {
     fetchMock.mockResolvedValue(repondre(409, { code: 'radar.claim.taken', params: { claimed_until: '2026-12-01' } }));
     const erreur = await appelBff('/api/super-admin/radar/advertisers/7/claim', { method: 'POST' }).catch((e: unknown) => e);

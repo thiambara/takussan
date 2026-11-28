@@ -215,7 +215,8 @@ describe('<UpgradeRequestForm>', () => {
     brouillon.flush.mockResolvedValue({
       ok: false,
       ecrit: true,
-      error: new Error('PUT wizard-drafts failed (503)'),
+      // La forme que `useWizardDraft` lève depuis TCK-3009 : l'`ApiError` d'`appelBff`.
+      error: new ApiError(503, null),
     });
 
     render(withIntl(<UpgradeRequestForm agencyId={42} />));

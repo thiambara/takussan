@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { ApiError } from '@/lib/api';
 import { withIntl } from '@/test/intl';
 import type { Tag } from '@/types/tag';
 
@@ -513,7 +514,8 @@ describe('PropertyWizard — le brouillon', () => {
     brouillon.etat.flush.mockResolvedValue({
       ok: false,
       ecrit: true,
-      error: new Error('PUT wizard-drafts failed (503)'),
+      // La forme que `useWizardDraft` lève depuis TCK-3009 : l'`ApiError` d'`appelBff`.
+      error: new ApiError(503, null),
     });
     monter();
 
@@ -547,7 +549,7 @@ describe('PropertyWizard — le brouillon', () => {
   it('AC1 — un autosave silencieux qui échoue est annoncé sans qu’on ait rien cliqué', async () => {
     // Le défaut d'origine dans sa forme la plus pure : la frappe part toute seule, le PUT meurt,
     // et l'écran continue de ressembler à un écran où tout va bien.
-    brouillon.etat.error = new Error('PUT wizard-drafts failed (500)');
+    brouillon.etat.error = new ApiError(500, null);
     monter();
 
     expect(

@@ -30,6 +30,7 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const RACINE = process.cwd();
@@ -49,21 +50,75 @@ const FICHIERS = sources(SRC).map((f) => ({
   texte: readFileSync(f, 'utf8'),
 }));
 
-const POSE_OU_EFFACE = /(?:fetch|appelBff)(?:<[^>]*>)?\(\s*['"`]\/api\/auth\/(?:set-token|logout)['"`]/;
+/**
+ * TCK-3009 (vérification adverse) — l'appel se lit par l'AST, plus par une expression régulière : un générique
+ * imbriqué (`appelBff<{ data: Array<string> }>(…)`) ou un gabarit étiqueté (`` appelBff(cheminApi`/api/auth/logout`) ``)
+ * passaient sous le motif. Est fautif tout appel à `fetch` ou `appelBff` dont le PREMIER argument commence par l'un
+ * de ces chemins : chaîne, gabarit, ou gabarit étiqueté (la tête, avant toute substitution).
+ * ⚠ L'API du compilateur TypeScript a déjà cassé un outil du dépôt à un changement de version majeure (TCK-323) :
+ * les témoins fabriqués ci-dessous font rougir cette garde, au lieu de la laisser passer à vide, si elle cesse de lire.
+ */
+const CHEMIN_DE_SESSION = /^\/api\/auth\/(?:set-token|logout)(?:[/?]|$)/;
+const APPELANTS = new Set(['fetch', 'appelBff']);
 const EFFACE_LE_COOKIE = /\.delete\(\s*AUTH_COOKIE_NAME\s*\)/;
+
+function debutDuChemin(argument: ts.Expression): string | null {
+  if (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument)) return argument.text;
+  if (ts.isTemplateExpression(argument)) return argument.head.text;
+  if (ts.isTaggedTemplateExpression(argument)) return debutDuChemin(argument.template);
+  return null;
+}
+
+function poseOuEfface(texte: string): boolean {
+  // Le parseur ne lit que les fichiers qui nomment `/api/auth/` : la garde parcourt tout `src`.
+  if (!texte.includes('/api/auth/')) return false;
+  const source = ts.createSourceFile('source.tsx', texte, ts.ScriptTarget.Latest, false, ts.ScriptKind.TSX);
+  let trouve = false;
+  const visiter = (noeud: ts.Node): void => {
+    if (trouve) return;
+    if (ts.isCallExpression(noeud) && ts.isIdentifier(noeud.expression) && APPELANTS.has(noeud.expression.text)) {
+      const debut = noeud.arguments[0] ? debutDuChemin(noeud.arguments[0]) : null;
+      if (debut !== null && CHEMIN_DE_SESSION.test(debut)) trouve = true;
+    }
+    ts.forEachChild(noeud, visiter);
+  };
+  visiter(source);
+  return trouve;
+}
+
+describe('TCK-3009 — le motif voit les formes que prend un appel (témoins fabriqués)', () => {
+  it.each([
+    ["fetch('/api/auth/logout', { method: 'POST' })"],
+    ['fetch(`/api/auth/set-token`, init)'],
+    ["appelBff('/api/auth/logout', { method: 'POST' })"],
+    ["appelBff<{ data: Array<string> }>('/api/auth/logout')"],
+    ['appelBff(cheminApi`/api/auth/logout`)'],
+    ['appelBff<null>(cheminApi`/api/auth/set-token`, { method: \'POST\', body })'],
+  ])('attrapé : %s', (source) => {
+    expect(poseOuEfface(`export const f = () => ${source};`)).toBe(true);
+  });
+
+  it.each([
+    ["fetch('/api/auth/me')"],
+    ["appelBff('/api/me/profiles')"],
+    ["const texte = 'fetch(\\'/api/auth/logout\\')';"],
+  ])('ignoré : %s', (source) => {
+    expect(poseOuEfface(`export const f = () => ${source};`)).toBe(false);
+  });
+});
 
 describe('TCK-509 — un seul chemin pour ouvrir et fermer une session côté client', () => {
   it('parcourt réellement le code (témoins positifs)', () => {
     expect(FICHIERS.length).toBeGreaterThan(300);
     // Le contexte LUI-MÊME doit être vu par le motif : sans quoi un motif cassé passerait à vide.
-    expect(POSE_OU_EFFACE.test(FICHIERS.find((f) => f.chemin === CONTEXTE)?.texte ?? '')).toBe(true);
+    expect(poseOuEfface(FICHIERS.find((f) => f.chemin === CONTEXTE)?.texte ?? '')).toBe(true);
     expect(
       FICHIERS.some((f) => f.chemin.startsWith('src/app/api/auth/') && EFFACE_LE_COOKIE.test(f.texte)),
     ).toBe(true);
   });
 
   it('seul le contexte d’auth appelle set-token ou /api/auth/logout depuis le client', () => {
-    const fautifs = FICHIERS.filter((f) => f.chemin !== CONTEXTE && POSE_OU_EFFACE.test(f.texte)).map(
+    const fautifs = FICHIERS.filter((f) => f.chemin !== CONTEXTE && poseOuEfface(f.texte)).map(
       (f) => f.chemin,
     );
     expect(fautifs, 'passer par useAuth().openSession / useAuth().logout').toEqual([]);
