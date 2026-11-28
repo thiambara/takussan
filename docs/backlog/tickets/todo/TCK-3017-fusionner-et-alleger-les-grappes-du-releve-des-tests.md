@@ -349,3 +349,157 @@ par md5. « Rougit » nomme le test restant qui a rougi.
   professional) porte la mémorisation (relue aussi par `/auth/me`) et « ne crée aucun profil » ; retirés
   `passer_la_question…` (absorbé) et `une_autre_valeur_reste_refusee` (vocabulaire ouvert → rougit
   `une_intention_inconnue…`). `professional` retiré de la règle → rougit les deux cas `professional`.
+
+### Public — neuf regroupements, quatre retraits
+
+- `PropertyContactTest` → `PublicContactEndpointTest` : le 404 d'un brouillon déplacé ; `returns_phone_only` retiré
+  (une clé `message` ajoutée à la réponse → rougit `principal_second_puis_sur_place` et cinq autres `assertExactJson`).
+- `PropertyDetailTest::returns_full_property_detail` : ses clés (`title`, `slug`, `price`, `bedrooms`, `area`,
+  `description`) versées dans la structure de `show_returns_enriched_public_detail`, qui ne les vérifiait PAS — le relevé
+  le disait subsumé à tort.
+- `PublicBookingWritesKindTest` → `PropertyBookingRequestTest` : la nature, la validité, le prix affiché et `metadata`
+  versés dans `sale_property_creates_offer_booking`, `a_long_term_application…` et `daily_rent_stores…` (3 tests de moins,
+  aucune assertion perdue).
+- `PublicNeighborhoodsTest` → `PropertyNeighborhoodsTest`, les TROIS déplacés : `la_graphie_la_plus_frequente…` n'est pas
+  couvert (une règle « la non-capitale d'abord » passe `a_egalite…` et `variantes_de_casse…`, aucune n'a une capitale
+  majoritaire).
+- `ReviewAuthorNameTest` → `NomDeLAuteurDAvisTest` : les deux auteurs sans nom fondus en un test ; « Awa N. » retiré
+  (initiale ôtée de `NomPublic` → rougit `la_fiche_de_bien_nomme_l_auteur…` et trois autres).
+- `VisitRequestResponseShapeTest` : son assertion versée dans `PropertyVisitRequestTest::authenticated_visit_request…`
+  (`toArray()` au lieu de `resolve()` → il rougit).
+- `ReferentielPublicCacheTest` → `CataloguePublicCacheTest` ; `PublicAgencyIsVerifiedTest`, `PublicAgencyLogoTest`,
+  `PublicAvatarDeLaFicheTest` → `PublicProfileTest` ; `PublicAgencyTeamAgentsOnlyTest` → `PublicRoleTest` (relevé en
+  doute : rien retiré).
+- GARDÉ : `PropertyContactLeadTest::un_agent_utilisateur_multioctet…` — `ContactLeadService` coupe l'agent utilisateur à
+  DEUX endroits ; `substr` sur celui de la demande de contact, `PropertyContactClickTest` reste vert (il ne rougit que
+  sur celui du clic). Les tests de migration du même fichier gardés aussi.
+- Non faits : les `no_auth_required` / `endpoint_is_public` (recensement de TCK-3015) ; `PropertyMapTest` (ses quatre
+  bornes invalides en fournisseur ne retireraient aucun cas ; `map_caps…` est une COUTURE, TCK-3014) ;
+  `HomepageDiscoveryTest` (en doute).
+
+### Radar — trois regroupements, quatre retraits sans ablation, et le relevé démenti
+
+- `RadarModelsTest` : retirés sans ablation les trois tests de fabrique (`extracted`, `verified`/`confirmed`, `reviewed` :
+  du code de test) et `la_config_des_relances` (une valeur de configuration lue telle quelle). GARDÉS : les valeurs des
+  énumérations (stockées en base et lues par le front), la déclaration des filtres, les objets de la migration (seule
+  preuve de l'index partiel).
+- `RadarBackfillSimilarityTest` → `RadarTextSignalTest` ; `RadarCrawlDiscoveryApiTest` → `RadarCrawlApiTest` (les deux
+  lectures de la console fondues en une, le refus au support versé dans `le_support_lit_les_passages…`) ;
+  `RadarWhatsappDeliveryErrorCodeTest` → `RadarWhatsappReceiptTest` (les neuf cas déplacés : aucun n'est rejoué par
+  le fichier d'accueil, qui ne pose qu'un code entier valide).
+- `RadarListingReviewTest` : les quatre retraits du relevé REFUSÉS — garde du doublon de soi-même ôtée, garde du lien
+  entrant ôtée, garde du corps vide ôtée : chaque fois, le test candidat est le SEUL des 70 à rougir.
+- `RadarEmbeddingsTest` : rien retiré — la classe de données d'un usage d'IA et la déclaration de non-entraînement sont
+  des règles de confidentialité, et les deux replis « vecteur manquant » visent deux annonces différentes.
+- Non faits : `RadarAvailabilityCheckSousMandatTest` (la publication sous mandat doit tourner avant le `Queue::fake()`
+  que pose le `setUp()` de la classe d'accueil) ; `RadarSourceWatchCrawlTest` (l'accueil sert une page de plus et
+  `crawl()` n'y a pas la même signature) ; `RadarClaimTest`, `RadarMandateTest`, `RadarUrlFetcherTest`,
+  `ExtractionNormalizerTest` (en doute) ; `ExtractRadarListingTest` (pas relu par ce second passage).
+
+### Notifications — deux regroupements, quatre retraits
+
+- `CompteNonJoignableTest` → `RienPourUnCompteNonJoignableTest` : le cas `NotificationService::send()` + `via()`
+  déplacé. Retirés : `le_blocage_lui_est_encore_annonce` (`AccountBlocked` ôté des avis du compte → rougit
+  `les_avis_du_compte_atteignent_encore_un_compte_bloque`) et le témoin `un_compte_actif_recoit…` (envoi coupé pour
+  TOUT compte dans `send()` → rougit huit tests de `NotificationFiltersTest`, qui émettent par `send()`).
+- `NotificationTotalParFamilleTest` → `NotificationFiltersTest` : les deux cas propres déplacés, « sans notification »
+  fondu dans `sans_non_lue_par_famille…` (mêmes lieux, mêmes assertions).
+- `NotificationDigestMailTest::does_not_include_critical_notifications` (filtre `isCritical` ôté → rougit
+  `DigestBuilderServiceTest::excludes_critical_notifications` ; garde du résumé vide ôtée → rougit
+  `does_not_send_when_no_unread_notifications`).
+- `NotificationTargetAgencyTest::le_fil_rend_l_agence_de_la_cible` (agence de la cible faussée → rougit
+  `AgenceDeLaCibleTest::l_agence_stockee_passe_la_meme_porte` et sept autres).
+
+### Recherche — deux allègements prouvés, deux paramétrages, et le relevé à moitié démenti
+
+- `MaintenanceRequestSearchTest::…is_typo_tolerant` et `UserSearchTest::…is_typo_tolerant_for_agency_admin` retirés :
+  le modèle forcé sur le repli SQL (`rechercheParLaBase()` → `true`) rougit AUSSI `…ranks_by_relevance_not_by_date`,
+  dont les fautes de frappe ne se trouvent que par le moteur. Les tests de pertinence, eux, sont GARDÉS : le
+  `defaultSortsWithRelevance()` du contrôleur ôté, chacun est le seul à rougir — ce n'est pas « le mécanisme générique
+  déjà éprouvé », c'est le câblage de chaque contrôleur.
+- `AgencySearchTest` : même preuve (la faute ne rougit pas seule), mais la ligne du relevé dit « doute » : rien retiré.
+- `PropertyGeoSearchTest` : neuf refus (point incomplet, hors bornes, rayon nul, négatif, au-delà du plafond, sans
+  point, tri par distance sans point) en un `DataProvider` ; `RechercheParVillesTest` : les deux formes de `cities` en
+  un test.
+- GARDÉS contre le relevé : `SearchIdCapIndexSettingsTest::le_plafond_des_contacts…` (le plafond de la messagerie à
+  1000 ne rougit aucun des 44 tests de `MessagingContacts*`) ; `SavedSearchCriteriaVocabularyTest::la_fabrique_et_le_seeder…`
+  (seule garde du vocabulaire du seeder, et les tests de seeders sont hors de ce passage). `MessageSearchTest` : doute.
+
+### Journal, connexion, crédits, tableau de bord — six regroupements
+
+- `CauseurSansEmailDansLExportTest` + `RoleDuCauseurDansLExportTest` → `CauseurSupprimeDansLExportTest` (les colonnes
+  `causer_*` des deux exports, même décor) ; les deux cas « compte supprimé » (agence, console) en un, sur les deux
+  exports.
+- `AuthLoginCaseInsensitiveTest` : `login_matches_all_caps_email` retiré (le repli de casse de `LoginRequest` ôté →
+  rougit `login_matches_email_case_insensitively`) ; `existing_user_update_normalizes_email` retiré (même
+  `setEmailAttribute` que `user_model_mutator_normalizes_email`).
+- `AuthMeRolesTest` → `AuthMeRolesAgenceActiveTest` : le super-admin sans agence déplacé ; le rôle d'agent est jugé
+  là, au rôle près (`['agent', 'customer']`). Le 401 était déjà parti (TCK-3015).
+- `PhoneVerificationTest` : hors E.164, incomplet, trop long en un `DataProvider` (même décor, mêmes assertions).
+- `CreditBalanceEndpointTest` → `CreditsApiTest` : les deux refus en `DataProvider` sur les deux routes.
+- `DashboardMeRoutingTest` → `DashboardMeTest` : l'agence `individual` déplacée, « sans fiche client » versé dans
+  `an_account_with_no_other_role…` (même décor), « agence standard » retiré (= `agency_admin_resolves_to_agency…`).
+- `DashboardOwnerTest::occupancy_rate_is_null…` retiré (taux à `0.0` au lieu de `null` → rougit
+  `OwnerOccupancyBaseTest::the_base_is_zero…` et `DashboardMeTest::owner_occupancy_is_null…`).
+- GARDÉS : `AccountDeletionStepUpTest::activity_log_records_the_password_mode…` (seul à lire `step_up = password` ; le
+  test d'en face ne lit que le causeur) ; `BoostModelsTest::relations` (`Property::boosts()` et
+  `Agency::creditLots()` ne sont appelées par aucun code de `app/` : ce test est leur seul lecteur) ;
+  `AuthProfileTest`, `SuperAdminInvitationLifecycleTest` (401 hors périmètre, verrou en doute).
+
+### Interventions, messagerie, équipements — cinq regroupements, le relevé démenti deux fois
+
+- `MaintenanceAcceptOnCompletedTest` → `MaintenanceAcceptDeclineTest` : les trois cas déplacés. Le témoin
+  `an_unaccepted_in_progress_request_stays_acceptable` est GARDÉ : le 409 élargi à tout statut autre qu'`assigned`
+  ne rougit que lui (`assigned_provider_accepts` ne joue que l'état `assigned`).
+- `ProviderWeekFilterTest` → `MaintenanceScheduledRangeFilterTest` (même filtre, même lecture à l'heure de Dakar) :
+  déplacé tel quel, il est le seul à poser la demande sans créneau et l'autre prestataire de la MÊME agence.
+- `FilFermeEcritureTest` → `FilFermeALaSuppressionTest` (passé sur `ApiTestCase`) : la règle y est jugée sur le
+  service, l'envoi refusé et `abilities.can_send_message` par HTTP ; les deux cas déplacés.
+- `FilSansMessageEnFinDeBoiteTest` → `ListeDeLaBoiteTest`, à côté des autres ordres de la boîte.
+- `TagSyncReindexTest` → `TagSyncIndexFilterTest` : `un_bien_public_reste_indexe…` absorbé par
+  `rattacher_un_equipement_rend_le_bien_public_trouvable…` (il ne lisait que la présence dans l'index, où le bien
+  était déjà depuis sa création) ; `retirer` déplacé.
+- GARDÉS contre le relevé : `MaintenanceStatusChangedEventTest::the_only_maintenance_request_observer…`
+  (`insertOrIgnore` → `insert` dans l'observateur ne rougit que lui, sur 31 tests de factures et d'événements) ;
+  `SalleUniqueTest::aucune_violation_d_unicite…` (seule garde du piège PostgreSQL n° 1 dans le code des salles) ;
+  `GestesEtRetardTest` (décor `SceneDEngagement`, que la boîte ne monte pas) ; `MaintenanceAcceptWithSlotTest`
+  (doute) ; les trois `*FieldLengthTest` (cible `BornesMaxFaceAuSchemaTest`, garde de recensement hors périmètre).
+
+### Validation, schéma, invitations, visites, assistants de test — fin du second passage
+
+- `AccountAndProfileValidationTest`, `AdminConsoleValidationTest`, `PropertyDomainValidationTest` : les 16 cas
+  « triviaux » sont tous GARDÉS. J'ai ablaté 31 règles une par une (`required`, `boolean`, `array`, `string`, `in:`),
+  en jouant chaque fois tous les fichiers qui visent la route, sauf celui qu'on juge. Chacun de ces 16 tests porte au
+  moins une règle qu'aucun autre ne voit : `required` de l'oubli de mot de passe, `boolean` des préférences, `required`
+  de la sourdine, nom et critères à la création d'une recherche, `string`/`boolean` à sa modification, les six règles
+  des intégrations, `metric`, `sample_data`, `enabled`, `order`, `reason`, `failed_reason`, `user_id` du référent,
+  `property_id`/`notes` du favori. Seules quelques règles se recoupent ailleurs (format de l'adresse, `boolean` de la
+  sourdine, `notification_frequency`, `order.*`) : ça ne suffit à retirer aucun test entier.
+- `AddOwnersUpdateToCustomAgencyAdminRolesTest` → `AddPaymentsReconcileToCustomAgencyAdminRolesTest` : les deux
+  migrations jumelles dans un `DataProvider` (migration, capacité).
+- `ProfileSchemaTest` : unicité bailleur/agent en `DataProvider`. `broker_tables_are_gone` est retiré, car le `down()`
+  du test suivant commence par `Schema::create` et lèverait si les tables existaient encore.
+  `profile_tables_exist…` est GARDÉ : aucune écriture de profil ne lit `employer`, `rib` ni `tax_id`.
+- `Http/Requests/BaseFormRequestTest` → `BaseFormRequestNormalizationTest` : `authorize_defaults_to_false` déplacé ;
+  `trims…` et `recurses…` retirés. L'ablation dit pourquoi : ôter le `trim`, la mise à `null` ou la récursion de
+  `BaseFormRequest::normalize()` ne rougit NI l'ancien fichier NI la cible (8 tests). `TrimStrings` et
+  `ConvertEmptyStringsToNull` ont déjà normalisé le corps avant la requête de formulaire. Aucun test ne garde donc
+  `normalize()` par HTTP, et ces deux tests ne gardaient rien.
+- `ListeParLEmetteurEncoreMembreTest` → `LectureParLEmetteurEncoreMembreTest` : chacun des quatre cas lit ET liste
+  (deux tests économisés).
+- `VisitRemindersSkipUnfixedTest` → `VisitWindowConfirmationTest`, déplacé tel quel. Le test d'accueil sur le rappel
+  ne pose pas d'état « confirmée à tranche », et ne peut donc pas voir la garde.
+- `MediaUrlGenerationTest::le_generateur_d_url_est_celui_de_spatie` retiré : c'est une valeur de config relue, et les
+  trois tests d'URL rougiraient sous un générateur qui réécrit.
+- `TestCaseHelpersTest` : quatre retraits, chacun avec son ablation dans `TestCase::actingAsRole`. Option `agency`
+  ignorée → 4 rouges dans `CreditsApiTest` et `MaintenanceRequestSearchTest`. `agency_id` ignoré → 11 rouges dans
+  `PropertyModerationTest`, `MemberProfileRestoreTest` et `TeamFormationBoundaryTest`. `customer` doté d'une agence →
+  3 rouges. Profil non matérialisé → 2 rouges. GARDÉ : `prefers_agency_model_over_agency_id_on_conflict`, que nulle
+  part la suite ne passe.
+- GARDÉS : `CommissionEntryApiTest::ac13_*` (les seuls à lire `meta.totals.due` par portée : de l'argent, et la
+  portée de la somme est un `clone $base` distinct de la liste) ; `PaymentReceiptPdfTest::the_bypassed_template_is_gone`
+  (pierre tombale : elle relève du recensement des retraits) ; `SocleAgentProviderOptionsTest` (l'octet du corps
+  envoyé, en doute) ; `RattachementParInvitationTest` et `AccountBlockSingleRouteTest` (cible
+  `RoutesEnDoubleRetireesTest`, recensement) ; `SearchRelevanceSortTest` (remplacer l'épingle SQL demande un tri réel
+  sur PostgreSQL, c'est un test neuf) ; `LangGroupParityTest` (garde de recensement) ; les lignes `no_auth_required` /
+  `endpoint_is_public` (hors périmètre).

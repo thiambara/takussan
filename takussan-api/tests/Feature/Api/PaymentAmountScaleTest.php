@@ -27,8 +27,8 @@ use Tests\TestCase;
  * entier plausible, et l'erreur ne se voit qu'au relevé du client. Un nouveau driver écrit sans la
  * division facture **cent fois trop**. La règle n'était écrite dans aucune spec — sa seule trace
  * était un commentaire défensif dans `WaveDriver` — et **aucun test ne la tenait de bout en bout** :
- * `PaymentDriverTest::test_orange_money_driver_initiate_calls_api` n'assertait que le
- * `transactionId`, jamais le montant transmis.
+ * le test du driver Orange Money (retiré par TCK-3017 : `PaymentGatewayInitiateTest` tient le
+ * `transactionId`) n'assertait que le `transactionId`, jamais le montant transmis.
  *
  * Ce que ces cas éprouvent, et que les tests de driver existants ne pouvaient pas voir :
  *

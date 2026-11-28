@@ -2,22 +2,16 @@
 
 namespace Tests\Feature\Notifications;
 
-use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Events\Accounting\BankStatementImported;
 use App\Events\Permissions\RoleDelegationActivated;
 use App\Listeners\Accounting\NotifyStatementImported;
 use App\Listeners\Permissions\NotifyDelegationActivated;
-use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\BankStatement;
-use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\RoleDelegation;
-use App\Models\User;
-use App\Services\Model\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
@@ -38,21 +32,6 @@ class NotificationTargetAgencyTest extends TestCase
         $this->assertSame(7, NotificationTarget::fromArray($cible->toArray())?->agencyId);
         // Une cible sans agence garde sa forme d'avant : ni clé de plus, ni `null`.
         $this->assertSame(['kind' => 'lease', 'id' => 3, 'path' => '/app/leases/3'], NotificationTarget::of('lease', 3)->toArray());
-    }
-
-    /** TCK-2751 — au membre actif de l'agence seulement (`AgenceDeLaCible`, `AgenceDeLaCibleTest`). */
-    public function test_le_fil_rend_l_agence_de_la_cible(): void
-    {
-        Notification::fake();
-        $agence = Agency::factory()->create();
-        $user = User::factory()->create();
-        AgencyAdminProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agence->id]);
-        app(NotificationService::class)->send($user, NotificationCode::BankStatementImported, ['bank' => 'CBAO', 'lines' => 3], NotificationTarget::of('finances')->forAgency($agence->id));
-        Sanctum::actingAs($user);
-
-        $item = $this->getJson('/api/notifications')->assertOk()->json('data.0');
-
-        $this->assertSame($agence->id, $item['target']['agency_id']);
     }
 
     public function test_l_import_d_un_releve_porte_l_agence_du_releve(): void

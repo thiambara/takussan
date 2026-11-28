@@ -14,18 +14,6 @@ class PropertyDetailTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_returns_full_property_detail(): void
-    {
-        $property = Property::factory()->published()->create();
-
-        $response = $this->getJson("/api/public/properties/{$property->slug}");
-
-        $response->assertOk()
-            ->assertJsonStructure([
-                'data' => ['id', 'title', 'slug', 'price', 'type', 'location', 'bedrooms', 'area', 'description'],
-            ]);
-    }
-
     public function test_returns_404_for_unknown_slug(): void
     {
         $response = $this->getJson('/api/public/properties/slug-inexistant-xyz');
@@ -74,6 +62,8 @@ class PropertyDetailTest extends TestCase
         $response->assertOk()->assertJsonStructure([
             'data' => [
                 'id', 'reference_number',
+                // TCK-3017 — les clés de l'ancien `returns_full_property_detail`, versées ici.
+                'title', 'slug', 'price', 'bedrooms', 'area', 'description',
                 'type',
                 'contract_type',
                 'status',

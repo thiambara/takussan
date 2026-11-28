@@ -28,7 +28,24 @@ class DashboardMeTest extends ApiTestCase
         $user = User::factory()->create();
         $this->actingAs($user, 'sanctum');
 
-        $this->apiGet('/api/dashboard/me')->assertOk()->assertJsonPath('data.role', 'tenant');
+        $this->apiGet('/api/dashboard/me')
+            ->assertOk()
+            ->assertJsonPath('data.role', 'tenant')
+            // Ex-`DashboardMeRoutingTest` (AC16) : sans fiche, la vue client se rend vide, pas en 404.
+            ->assertJsonPath('data.metrics.has_customer_profile', false)
+            ->assertJsonPath('data.metrics.visits_upcoming', []);
+    }
+
+    /**
+     * TCK-595 AC7 (ex-`DashboardMeRoutingTest`, versé par TCK-3017) — l'hôte créé par « Publier » est admin d'une
+     * agence `individual` : il atterrit sur la vue bailleur, pas sur le tableau de bord d'agence que
+     * `docs/features.md` §2.5 réserve aux agences `standard`.
+     */
+    public function test_the_admin_of_an_individual_agency_lands_on_the_owner_view(): void
+    {
+        $this->apiActingAsRole('agency_admin', ['agency' => Agency::factory()->individual()->create()]);
+
+        $this->apiGet('/api/dashboard/me')->assertOk()->assertJsonPath('data.role', 'owner');
     }
 
     public function test_super_admin_with_agency_resolves_to_agency(): void

@@ -83,19 +83,6 @@ class CustomerCrmTest extends TestCase
         ]);
     }
 
-    public function test_update_pipeline_stage(): void
-    {
-        $user = User::factory()->create();
-        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
-
-        Sanctum::actingAs($user);
-
-        $this->patchJson("/api/customers/{$customer->id}/pipeline-stage", [
-            'pipeline_stage' => 'converted',
-        ])->assertOk()
-            ->assertJsonPath('data.pipeline_stage', 'converted');
-    }
-
     public function test_invalid_pipeline_stage_returns_422(): void
     {
         $user = User::factory()->create();

@@ -2,12 +2,7 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\Agency;
-use App\Models\Booking;
-use App\Models\BookingPayment;
-use App\Models\Enums\Currency;
 use App\Models\Integration;
-use App\Models\Property;
 use App\Services\Payments\Drivers\OrangeMoneyDriver;
 use App\Services\Payments\Drivers\WaveDriver;
 use App\Services\Payments\Dto\PaymentEvent;
@@ -22,45 +17,6 @@ use Tests\TestCase;
 class PaymentDriverTest extends TestCase
 {
     use RefreshDatabase;
-
-    public function test_wave_driver_initiate_calls_api_with_correct_payload(): void
-    {
-        Http::fake([
-            'api.wave.com/v1/checkout/sessions' => Http::response([
-                'id' => 'cs_999',
-                'wave_launch_url' => 'https://pay.wave.com/c/cs_999',
-            ], 200),
-        ]);
-
-        $integration = Integration::factory()->create([
-            'provider' => 'wave',
-            'credentials' => ['api_key' => 'wave_test', 'webhook_secret' => 's'],
-        ]);
-        $driver = new WaveDriver($integration);
-
-        $agency = Agency::factory()->create();
-        $property = Property::factory()->create(['agency_id' => $agency->id]);
-        $booking = Booking::factory()->create(['property_id' => $property->id, 'agency_id' => $agency->id]);
-        $payment = BookingPayment::factory()->create([
-            'booking_id' => $booking->id,
-            'amount' => 250.00,
-            'currency' => Currency::XOF,
-        ]);
-
-        $session = $driver->initiate($payment, 25000, 'XOF', ['return_url' => 'https://example.com/return']);
-
-        $this->assertSame('cs_999', $session->transactionId);
-        $this->assertSame('https://pay.wave.com/c/cs_999', $session->checkoutUrl);
-
-        Http::assertSent(function ($request) {
-            $body = json_decode($request->body() ?: '{}', true);
-
-            return str_contains($request->url(), '/v1/checkout/sessions')
-                && $request->hasHeader('Authorization', 'Bearer wave_test')
-                && ($body['amount'] ?? null) === '250'
-                && ($body['currency'] ?? null) === 'XOF';
-        });
-    }
 
     public function test_wave_driver_verify_returns_pending_for_unknown_status(): void
     {
@@ -98,34 +54,6 @@ class PaymentDriverTest extends TestCase
             $this->assertSame(401, $e->getStatusCode());
             throw $e;
         }
-    }
-
-    public function test_orange_money_driver_initiate_calls_api(): void
-    {
-        Http::fake([
-            'api.orange.com/oauth/v3/token' => Http::response(['access_token' => 'om_oauth', 'expires_in' => 3600]),
-            'api.orange.com/orange-money-webpay/v1/webpayment' => Http::response([
-                'pay_token' => 'omt_321',
-                'payment_url' => 'https://webpayment.orange-money.com/pay/omt_321',
-            ], 200),
-        ]);
-
-        $integration = Integration::factory()->create([
-            'provider' => 'orange_money',
-            'credentials' => ['client_id' => 'om_client', 'client_secret' => 'om_secret', 'merchant_key' => 'mk', 'webhook_secret' => 's'],
-        ]);
-
-        $agency = Agency::factory()->create();
-        $property = Property::factory()->create(['agency_id' => $agency->id]);
-        $booking = Booking::factory()->create(['property_id' => $property->id, 'agency_id' => $agency->id]);
-        $payment = BookingPayment::factory()->create([
-            'booking_id' => $booking->id,
-            'amount' => 100.00,
-            'currency' => Currency::XOF,
-        ]);
-
-        $session = (new OrangeMoneyDriver($integration))->initiate($payment, 10000, 'XOF');
-        $this->assertSame('omt_321', $session->transactionId);
     }
 
     public function test_orange_money_handles_webhook_paid(): void

@@ -8,6 +8,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ProfileSchemaTest extends TestCase
@@ -78,38 +79,19 @@ class ProfileSchemaTest extends TestCase
         }
     }
 
-    public function test_owner_profile_unique_user_agency(): void
+    /** @return array<string, array{string}> */
+    public static function profilsDAgence(): array
     {
-        $user = User::factory()->create();
-        $agency = Agency::factory()->create();
-
-        DB::table('owner_profiles')->insert([
-            'user_id' => $user->id,
-            'agency_id' => $agency->id,
-            'agency_role_id' => $this->systemRoleId($agency->id),
-            'status' => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $this->expectException(QueryException::class);
-
-        DB::table('owner_profiles')->insert([
-            'user_id' => $user->id,
-            'agency_id' => $agency->id,
-            'agency_role_id' => $this->systemRoleId($agency->id),
-            'status' => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        return ['bailleur' => ['owner_profiles'], 'agent' => ['agent_profiles']];
     }
 
-    public function test_agent_profile_unique_user_agency(): void
+    #[DataProvider('profilsDAgence')]
+    public function test_un_profil_d_agence_est_unique_par_compte_et_agence(string $table): void
     {
         $user = User::factory()->create();
         $agency = Agency::factory()->create();
 
-        DB::table('agent_profiles')->insert([
+        DB::table($table)->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
             'agency_role_id' => $this->systemRoleId($agency->id),
@@ -120,7 +102,7 @@ class ProfileSchemaTest extends TestCase
 
         $this->expectException(QueryException::class);
 
-        DB::table('agent_profiles')->insert([
+        DB::table($table)->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
             'agency_role_id' => $this->systemRoleId($agency->id),
@@ -250,16 +232,9 @@ class ProfileSchemaTest extends TestCase
     }
 
     /**
-     * TCK-586 — le courtier a quitté la base (ADR-0030). Rouge tant que la
-     * migration `drop_broker_tables` n'a pas tourné.
-     */
-    public function test_broker_tables_are_gone(): void
-    {
-        $this->assertFalse(Schema::hasTable('broker_profiles'));
-        $this->assertFalse(Schema::hasTable('broker_agency_collaborations'));
-    }
-
-    /**
+     * TCK-586 — le courtier a quitté la base (ADR-0030). Le `down()` commence par `Schema::create` : si les tables
+     * étaient encore là, il lèverait — ce test tient donc aussi l'ancien `broker_tables_are_gone` (retiré par TCK-3017).
+     *
      * TCK-586, AC1 — le `down()` recrée les deux tables VIDES au schéma
      * d'origine. « D'origine » se mesure : le schéma qu'il rend est comparé à
      * celui que rendent les deux migrations de création elles-mêmes —

@@ -26,21 +26,6 @@ class AuthLoginCaseInsensitiveTest extends TestCase
             ->assertJsonStructure(['token', 'user']);
     }
 
-    public function test_login_matches_all_caps_email(): void
-    {
-        User::factory()->create([
-            'email' => 'jean.dujardin@example.com',
-            'password' => bcrypt('password123'),
-        ]);
-
-        $response = $this->postJson('/api/auth/login', [
-            'email' => 'JEAN.DUJARDIN@EXAMPLE.COM',
-            'password' => 'password123',
-        ]);
-
-        $response->assertStatus(200);
-    }
-
     public function test_register_rejects_case_variant_duplicate(): void
     {
         User::factory()->create(['email' => 'alice@example.com']);
@@ -81,13 +66,5 @@ class AuthLoginCaseInsensitiveTest extends TestCase
         $user = User::factory()->create(['email' => '  Pascal.Case@Example.ORG  ']);
 
         $this->assertSame('pascal.case@example.org', $user->fresh()->email);
-    }
-
-    public function test_existing_user_update_normalizes_email(): void
-    {
-        $user = User::factory()->create(['email' => 'original@example.com']);
-        $user->update(['email' => 'UPDATED@EXAMPLE.COM']);
-
-        $this->assertSame('updated@example.com', $user->fresh()->email);
     }
 }

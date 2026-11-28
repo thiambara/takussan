@@ -119,23 +119,6 @@ class NotificationDigestMailTest extends TestCase
         $this->assertTrue($n->fresh()->digested_at->lt(now()->subMinute()));
     }
 
-    public function test_does_not_include_critical_notifications(): void
-    {
-        Mail::fake();
-
-        $user = User::factory()->create([
-            'email_frequency' => EmailFrequency::Daily,
-            'email' => 'critical@example.com',
-        ]);
-
-        // Only a critical notification — should result in empty digest (no mail)
-        $this->makeNotification($user, ['data' => ['is_critical' => true]]);
-
-        (new BuildUserDigestJob($user))->handle(app(DigestBuilderService::class));
-
-        Mail::assertNothingOutgoing();
-    }
-
     public function test_digest_mail_contains_unsubscribe_url(): void
     {
         $user = User::factory()->create(['email' => 'unsub@example.com']);

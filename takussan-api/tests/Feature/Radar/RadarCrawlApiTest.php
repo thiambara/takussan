@@ -4,6 +4,7 @@ namespace Tests\Feature\Radar;
 
 use App\Jobs\Radar\CrawlRadarSource;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\RadarCrawlDiscovery;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarCrawlSource;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,8 +49,11 @@ class RadarCrawlApiTest extends TestCase
         $this->getJson('/api/admin/radar/crawl/runs?fields[radar_crawl_runs]=id,site,status')->assertOk();
 
         $this->patchJson('/api/admin/radar/crawl/sources/expat_dakar', ['enabled' => true])->assertForbidden();
+        // TCK-2467 (ex-`RadarCrawlDiscoveryApiTest`) — ni la découverte.
+        $this->patchJson('/api/admin/radar/crawl/sources/expat_dakar', ['discovery' => 'lists'])->assertForbidden();
         $this->postJson('/api/admin/radar/crawl/sources/expat_dakar/run')->assertForbidden();
         $this->assertFalse((bool) RadarCrawlSource::query()->where('site', 'expat_dakar')->value('enabled'));
+        $this->assertSame(0, RadarCrawlSource::query()->whereNotNull('discovery')->count());
         Queue::assertNothingPushed();
     }
 
@@ -109,5 +113,53 @@ class RadarCrawlApiTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('code', 'radar.crawl.active');
         $this->assertSame(1, RadarCrawlRun::query()->count());
+    }
+
+    /**
+     * TCK-2467 (ADR-0087 §4, ex-`RadarCrawlDiscoveryApiTest`, versé par TCK-3017) — la console lit la découverte
+     * effective de chaque source, et le plafond d'URL neuves d'un passage, qui vient de la configuration (revue du
+     * 2026-11-04 : la console ne le recopie pas).
+     */
+    public function test_la_console_lit_la_decouverte_effective_et_le_plafond_de_la_configuration(): void
+    {
+        config(['radar.crawl.max_new_per_run' => 137]);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $data = collect($this->getJson('/api/admin/radar/crawl/sources')->assertOk()->json('data'))->keyBy('site');
+
+        $this->assertSame('sitemap', $data['expat_dakar']['discovery']);
+        $this->assertTrue($data['expat_dakar']['sitemap_available']);
+        $this->assertSame('lists', $data['coinafrique']['discovery']);
+        $this->assertFalse($data['coinafrique']['sitemap_available']);
+        $this->assertSame(137, $data['expat_dakar']['max_new_per_run']);
+        $this->assertSame(137, $data['coinafrique']['max_new_per_run']);
+    }
+
+    /** TCK-2467 — le porteur règle la découverte (`platform.radar.publish`), et `null` rend le défaut. */
+    public function test_le_porteur_regle_la_decouverte_et_null_rend_le_defaut(): void
+    {
+        $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+
+        $this->patchJson('/api/admin/radar/crawl/sources/expat_dakar', ['discovery' => 'lists'])
+            ->assertOk()
+            ->assertJsonPath('data.discovery', 'lists');
+        $this->assertSame(RadarCrawlDiscovery::Lists, RadarCrawlSource::query()->where('site', 'expat_dakar')->sole()->discovery);
+
+        $this->patchJson('/api/admin/radar/crawl/sources/expat_dakar', ['discovery' => null])
+            ->assertOk()
+            ->assertJsonPath('data.discovery', 'sitemap');
+        $this->assertNull(RadarCrawlSource::query()->where('site', 'expat_dakar')->sole()->discovery);
+    }
+
+    /** TCK-2467 — un sitemap sur un site qui n'en déclare pas, ou une valeur inconnue, sont refusés. */
+    public function test_un_sitemap_sur_un_site_qui_n_en_declare_pas_ou_une_valeur_inconnue_sont_refuses(): void
+    {
+        $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+
+        $this->patchJson('/api/admin/radar/crawl/sources/coinafrique', ['discovery' => 'sitemap'])
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'radar.crawl.discovery_unavailable');
+        $this->patchJson('/api/admin/radar/crawl/sources/expat_dakar', ['discovery' => 'rss'])->assertUnprocessable();
+        $this->assertSame(0, RadarCrawlSource::query()->whereNotNull('discovery')->count());
     }
 }

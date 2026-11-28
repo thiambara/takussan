@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Tags;
 
+use App\Models\Address;
 use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\PropertyStatus;
@@ -106,13 +107,61 @@ class TagSyncIndexFilterTest extends TestCase
         $this->assertSame([], $this->indexes());
     }
 
-    public function test_un_bien_public_reste_indexe_par_ses_equipements(): void
+    // --- TCK-633 lot E (ex-`TagSyncReindexTest`, versé par TCK-3017) : le témoin public, jugé par le filtre `tags` de la
+    // recherche publique et non par la seule présence dans l'index — un bien déjà indexé à sa création y serait resté
+    // sans que la synchronisation le réindexe. ---------------------------------------------------------------
+
+    private function bienPublicADakar(): Property
     {
-        $bien = Property::factory()->published()->create(['user_id' => $this->proprietaire->id, 'published_at' => now()->subHour()]);
+        $bien = Property::factory()->published()->create([
+            'user_id' => $this->proprietaire->id,
+            'featured' => false,
+            'published_at' => now()->subHour(),
+        ]);
+        Address::create([
+            'addressable_type' => Property::class,
+            'addressable_id' => $bien->id,
+            'country' => 'SN',
+            'city' => 'Dakar',
+            'neighborhood' => 'Almadies',
+            'latitude' => 14.7,
+            'longitude' => -17.45,
+        ]);
+        $this->indexProperties();
+
+        return $bien;
+    }
+
+    /** @return list<int> */
+    private function idsFiltresParPiscine(): array
+    {
+        $reponse = $this->getJson('/api/public/properties/search?'.http_build_query(['tags' => 'Piscine', 'per_page' => 100]))->assertOk();
+
+        return array_values(array_map('intval', array_column($reponse->json('data') ?? [], 'id')));
+    }
+
+    public function test_rattacher_un_equipement_rend_le_bien_public_trouvable_par_lui(): void
+    {
+        $bien = $this->bienPublicADakar();
+        $this->assertSame([], $this->idsFiltresParPiscine(), 'témoin : pas encore d\'équipement');
 
         $this->postJson("/api/properties/{$bien->id}/tags", ['tag_ids' => [$this->piscine->id]])->assertOk();
         $this->waitForMeilisearch();
 
+        $this->assertSame([$bien->id], $this->idsFiltresParPiscine());
         $this->assertSame([$bien->id], $this->indexes());
+    }
+
+    public function test_retirer_un_equipement_rend_le_bien_introuvable_par_lui(): void
+    {
+        $bien = $this->bienPublicADakar();
+        $this->postJson("/api/properties/{$bien->id}/tags", ['tag_ids' => [$this->piscine->id]])->assertOk();
+        $this->waitForMeilisearch();
+        $this->assertSame([$bien->id], $this->idsFiltresParPiscine(), 'témoin');
+
+        $this->deleteJson("/api/properties/{$bien->id}/tags/{$this->piscine->id}")->assertNoContent();
+        $this->waitForMeilisearch();
+
+        $this->assertSame([], $this->idsFiltresParPiscine());
     }
 }

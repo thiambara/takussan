@@ -7,7 +7,6 @@ use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
-use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
@@ -359,33 +358,6 @@ class PaymentHistoryExportTest extends ApiTestCase
         $filtres = ['entity_type' => 'lease', 'entity_id' => $bail->id];
         $this->assertSelectionCoupeeGardeLeDebut($filtres, '-remaining_amount', ['X-2', 'X-1', 'X-5', 'X-3', 'X-6', 'X-4']);
         $this->assertSelectionCoupeeGardeLeDebut($filtres, 'remaining_amount', ['X-4', 'X-6', 'X-3', 'X-5', 'X-1', 'X-2']);
-    }
-
-    /**
-     * TCK-2721 (d1) — la coupe sur `days_late` lit `OverdueInstalment::daysLate()` : ni une échéance
-     * payée (D-1), ni une restitution de caution (D-3), ni une échéance à venir (D-5) n'ont de retard,
-     * et elles se rangent après les retards, dans leur ordre d'insertion.
-     */
-    public function test_d1_la_coupe_sur_le_retard_suit_les_jours_de_retard(): void
-    {
-        $bail = $this->bail($this->agency, $this->l1, $this->t2, 'Résidence de Ouakam');
-        $ligne = fn (string $ref, PaymentStatus $statut, string $mois, array $plus = []) => $this->echeance($bail, $ref, 100, $statut, $statut === PaymentStatus::Paid ? '2026-08-05 09:00:00' : null, $mois, null)->forceFill($plus)->save();
-
-        $ligne('D-1', PaymentStatus::Paid, '2026-08');                                               // échue le 08-05, payée
-        $ligne('D-2', PaymentStatus::Late, '2026-10');                                               // 41 jours
-        $ligne('D-3', PaymentStatus::Pending, '2026-07', ['payment_type' => LeasePaymentType::DepositRefund]);
-        $ligne('D-4', PaymentStatus::Late, '2026-09');                                               // 71 jours
-        $ligne('D-5', PaymentStatus::Pending, '2026-12');                                            // à venir
-        $ligne('D-6', PaymentStatus::PartiallyPaid, '2026-11', ['metadata' => ['paid_amount' => 10]]); // 10 jours
-
-        $requete = "filter[entity_type]=lease&filter[entity_id]={$bail->id}";
-        $this->assertCoupesGardentLeDebut("sort=-days_late&{$requete}", ['D-4', 'D-2', 'D-6', 'D-1', 'D-3', 'D-5']);
-        $this->assertCoupesGardentLeDebut("sort=days_late&{$requete}", ['D-6', 'D-2', 'D-4', 'D-1', 'D-3', 'D-5']);
-        $filtres = ['entity_type' => 'lease', 'entity_id' => $bail->id];
-        $this->assertSelectionCoupeeGardeLeDebut($filtres, '-days_late', ['D-4', 'D-2', 'D-6', 'D-1', 'D-3', 'D-5']);
-        $this->assertSelectionCoupeeGardeLeDebut($filtres, 'days_late', ['D-6', 'D-2', 'D-4', 'D-1', 'D-3', 'D-5']);
-        // La date d'une échéance impayée est le début de sa période (`leaseRow()`), pas sa création.
-        $this->assertSelectionCoupeeGardeLeDebut($filtres, '-date', ['D-5', 'D-6', 'D-2', 'D-4', 'D-1', 'D-3']);
     }
 
     /**
