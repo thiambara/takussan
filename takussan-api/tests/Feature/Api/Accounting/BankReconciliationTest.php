@@ -335,7 +335,7 @@ class BankReconciliationTest extends TestCase
         // Le crédit arrive pour 157 500 ; le matcher comparait `amount` (150 000) et ne la
         // retrouvait plus.
         $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
         $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
@@ -371,7 +371,7 @@ class BankReconciliationTest extends TestCase
         // TCK-715 (P25.01) — l'échéance de l'AC14, payée en ligne 157 500. Le dialogue de recherche
         // s'ouvre au montant de la ligne : la recherche comparait `amount` (150 000) et rendait `[]`.
         $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
         $this->waveWebhook('spy_txn_1', 157_500)->assertOk();
@@ -387,7 +387,7 @@ class BankReconciliationTest extends TestCase
         // trois heures plus tard, le loyer est enregistré payé par virement (150 000). Le montant
         // figé du checkout restait sur la ligne, et le matcher le préférait à `amount`.
         $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
 

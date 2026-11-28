@@ -121,11 +121,6 @@ class TaskTest extends TestCase
             ->assertJsonValidationErrors(['status']);
     }
 
-    public function test_create_requires_auth(): void
-    {
-        $this->postJson('/api/tasks', ['title' => 'Test'])->assertUnauthorized();
-    }
-
     public function test_user_cannot_attach_task_to_another_users_record(): void
     {
         $user = User::factory()->create();

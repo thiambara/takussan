@@ -4,6 +4,7 @@ namespace Tests\Feature\Public;
 
 use App\Jobs\ExpireBookings;
 use App\Models\Booking;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
@@ -19,17 +20,6 @@ use Tests\TestCase;
 class PropertyBookingRequestTest extends TestCase
 {
     use RefreshDatabase;
-
-    public function test_unauthenticated_returns_401(): void
-    {
-        $property = Property::factory()->published()->create();
-
-        $this->postJson("/api/public/properties/{$property->slug}/booking-request", [
-            'start_date' => now()->addDay()->toDateString(),
-            'end_date' => now()->addDays(3)->toDateString(),
-            'guests' => 2,
-        ])->assertStatus(401);
-    }
 
     public function test_authenticated_creates_booking_and_customer(): void
     {
@@ -106,6 +96,9 @@ class PropertyBookingRequestTest extends TestCase
         $booking = Booking::query()->sole();
         $this->assertSame('60000.00', $booking->total_amount);
         $this->assertSame('18000.00', $booking->deposit_amount);
+        // TCK-2579 (AC7, ex-`PublicBookingWritesKindTest`) — un séjour, sans prix affiché retenu.
+        $this->assertSame(BookingKind::Stay, $booking->kind);
+        $this->assertNull($booking->list_price_at_booking);
     }
 
     public static function longTermPeriods(): array
@@ -140,6 +133,9 @@ class PropertyBookingRequestTest extends TestCase
         $this->assertSame('250000.00', $booking->total_amount);
         $this->assertNotSame('2500000.00', $booking->total_amount);
         $this->assertNull($booking->deposit_amount);
+        // TCK-2579 (AC7, ex-`PublicBookingWritesKindTest`) — une candidature, au prix affiché.
+        $this->assertSame(BookingKind::Application, $booking->kind);
+        $this->assertSame('250000.00', $booking->list_price_at_booking);
     }
 
     /**
@@ -283,7 +279,7 @@ class PropertyBookingRequestTest extends TestCase
             'message' => 'Best and final.',
         ]);
 
-        $response->assertCreated();
+        $response->assertCreated()->assertJsonPath('data.kind', 'offer');
         $this->assertDatabaseHas('bookings', [
             'property_id' => $property->id,
             'status' => BookingStatus::Pending->value,
@@ -291,6 +287,13 @@ class PropertyBookingRequestTest extends TestCase
             'start_date' => null,
             'end_date' => null,
         ]);
+        // TCK-2579 (AC7, ex-`PublicBookingWritesKindTest`) — une offre, sa validité et le prix affiché dans
+        // leurs colonnes ; `metadata` reste écrit comme avant.
+        $booking = Booking::query()->sole();
+        $this->assertSame(BookingKind::Offer, $booking->kind);
+        $this->assertSame($expiresAt, $booking->offer_expires_at->toDateString());
+        $this->assertSame('121000000.00', $booking->list_price_at_booking);
+        $this->assertSame('offer', $booking->metadata['kind']);
     }
 
     /**

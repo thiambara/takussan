@@ -3,8 +3,6 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Guarantor;
-use App\Models\Lease;
-use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -15,6 +13,10 @@ use Tests\TestCase;
  * `occupation`, `employer` et `relationship_to_tenant` des `varchar(255)`. Les trois voies
  * d'écriture d'un garant (création, modification, ajout d'un garant neuf à un bail) les bornent à
  * la colonne : au-delà, 422 sur la clé, et non le 500 de PostgreSQL (22001).
+ *
+ * TCK-3015 (ADR-0140 § 4) — la borne de CHAQUE voie est tenue par le recensement
+ * `Validation\BornesMaxFaceAuSchemaTest` ; ce fichier n'en garde qu'un témoin HTTP, la preuve que la requête
+ * bornée est bien celle que la route reçoit.
  */
 class GuarantorFieldLengthTest extends TestCase
 {
@@ -60,40 +62,5 @@ class GuarantorFieldLengthTest extends TestCase
         $this->assertSame(0, Guarantor::query()->count());
 
         $this->postJson('/api/guarantors', self::aLaBorne())->assertCreated();
-    }
-
-    public function test_modifier_un_garant_avec_un_champ_trop_long_rend_422(): void
-    {
-        $user = User::factory()->create();
-        $guarantor = Guarantor::factory()->create(['added_by_id' => $user->id, 'first_name' => 'Avant']);
-        Sanctum::actingAs($user);
-
-        foreach (self::tropLongs() as $cle => $valeur) {
-            $this->putJson("/api/guarantors/{$guarantor->id}", [$cle => $valeur])
-                ->assertStatus(422)
-                ->assertJsonValidationErrors($cle);
-        }
-
-        $this->assertSame('Avant', $guarantor->fresh()->first_name);
-
-        $this->putJson("/api/guarantors/{$guarantor->id}", self::aLaBorne())->assertOk();
-    }
-
-    public function test_ajouter_un_garant_neuf_a_un_bail_avec_un_champ_trop_long_rend_422(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-        $lease = Lease::factory()->create(['property_id' => $property->id, 'landlord_id' => $owner->id]);
-        Sanctum::actingAs($owner);
-
-        foreach (self::tropLongs() as $cle => $valeur) {
-            $this->postJson("/api/leases/{$lease->id}/guarantors", array_merge(['first_name' => 'Awa', 'last_name' => 'Diop'], [$cle => $valeur]))
-                ->assertStatus(422)
-                ->assertJsonValidationErrors($cle);
-        }
-
-        $this->assertSame(0, $lease->guarantors()->count());
-
-        $this->postJson("/api/leases/{$lease->id}/guarantors", self::aLaBorne())->assertCreated();
     }
 }

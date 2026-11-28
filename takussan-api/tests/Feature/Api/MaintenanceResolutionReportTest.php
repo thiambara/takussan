@@ -106,8 +106,10 @@ class MaintenanceResolutionReportTest extends TestCase
 
         $mr->fill(['resolution_report' => 'Rapport joint hors HTTP.'])->save();
 
+        // TCK-3014 — l'écriture même est la preuve : un champ `fillable` sans colonne ferait lever
+        // `save()` (SQLSTATE[42703]) ; lire `getFillable()` épinglait le mécanisme en double.
         $this->assertTrue($mr->exists);
-        $this->assertNotContains('resolution_report', $mr->getFillable());
+        $this->assertArrayNotHasKey('resolution_report', $mr->fresh()->getAttributes());
     }
 
     /**

@@ -88,12 +88,6 @@ class ConversationContextTest extends ApiTestCase
         return compact('agency', 'agent', 'visibles', 'archive', 'etrangers');
     }
 
-    public function test_un_visiteur_anonyme_est_refuse(): void
-    {
-        $this->getJson('/api/conversations/context/properties')->assertUnauthorized();
-        $this->getJson('/api/conversations/context/leases')->assertUnauthorized();
-    }
-
     public function test_liste_les_biens_que_la_creation_accepte_et_eux_seuls(): void
     {
         ['agent' => $agent, 'visibles' => $visibles, 'archive' => $archive, 'etrangers' => $etrangers] = $this->monde();

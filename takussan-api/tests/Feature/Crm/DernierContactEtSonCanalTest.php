@@ -222,4 +222,76 @@ class DernierContactEtSonCanalTest extends ApiTestCase
         $jamais = $this->fiche(null, null);
         $this->assertNull($this->lire($this->agent, $jamais)['last_contact']);
     }
+
+    /**
+     * TCK-2583 (ex-`CustomerLastContactedTest`, TCK-3017) — AC2 : la demande convertie, puis le WhatsApp de
+     * 09:30 : la fiche a 09:30 et une ligne « WhatsApp » au journal.
+     */
+    public function test_ac2_le_geste_sur_la_demande_convertie_avance_la_fiche_et_entre_au_journal(): void
+    {
+        $lead = PropertyContactLead::factory()->create([
+            'property_id' => $this->bienDe($this->agence)->id,
+            'agency_id' => $this->agence->id,
+            'recipient_user_id' => $this->agent->id,
+            'name' => 'Awa Diop', 'phone' => '+221771234567',
+        ]);
+
+        Sanctum::actingAs($this->agent);
+        $this->travelTo(Carbon::parse('2026-11-10 08:45:00'));
+        $customerId = $this->postJson("/api/contact-leads/{$lead->id}/convert")->assertCreated()->json('customer.id');
+        $fiche = Customer::query()->findOrFail($customerId);
+        $this->assertNull($fiche->last_contacted_at);
+
+        $this->travelTo(Carbon::parse('2026-11-10 09:30:00'));
+        $this->postJson("/api/contact-leads/{$lead->id}/contacts", ['channel' => 'whatsapp'])->assertNoContent();
+
+        $this->assertSame(['2026-11-10 09:30:00', 'whatsapp'], $this->ligne($fiche));
+
+        $journal = collect($this->getJson("/api/customers/{$fiche->id}/activity")->assertOk()->json('data'));
+        $geste = $journal->firstWhere('event', 'contacted');
+        $this->assertNotNull($geste, 'le geste sur la demande convertie doit entrer au journal de la fiche');
+        $this->assertSame('lead', $geste['subject']);
+        $this->assertSame($lead->id, $geste['subject_id']);
+        $this->assertSame('whatsapp', $geste['channel']);
+        $this->assertSame($this->agent->id, $geste['causer']['id']);
+
+        $this->getJson("/api/customers/{$fiche->id}")
+            ->assertOk()
+            ->assertJsonPath('data.last_contacted_at', '2026-11-10T09:30:00+00:00');
+    }
+
+    /** TCK-2583 (ex-`CustomerLastContactedTest`) — un geste sur la fiche elle-même entre aussi au journal, avec son canal. */
+    public function test_le_geste_sur_la_fiche_entre_au_journal(): void
+    {
+        $fiche = $this->fiche();
+
+        Sanctum::actingAs($this->agent);
+        $this->postJson("/api/customers/{$fiche->id}/contacts", ['channel' => 'call'])->assertNoContent();
+
+        $geste = collect($this->getJson("/api/customers/{$fiche->id}/activity")->assertOk()->json('data'))
+            ->firstWhere('event', 'contacted');
+        $this->assertSame('customer', $geste['subject']);
+        $this->assertSame('call', $geste['channel']);
+    }
+
+    /**
+     * TCK-2583 (ex-`CustomerLastContactedTest`) — un geste sur une demande NON convertie ne touche aucune fiche
+     * et n'entre dans aucun journal de fiche.
+     */
+    public function test_la_demande_non_convertie_ne_touche_aucune_fiche(): void
+    {
+        $fiche = $this->fiche(null, null);
+        $lead = PropertyContactLead::factory()->create([
+            'property_id' => $this->bienDe($this->agence)->id,
+            'agency_id' => $this->agence->id,
+            'recipient_user_id' => $this->agent->id,
+        ]);
+
+        Sanctum::actingAs($this->agent);
+        $this->postJson("/api/contact-leads/{$lead->id}/contacts", ['channel' => 'email'])->assertNoContent();
+
+        $this->assertSame([null, null], $this->ligne($fiche));
+        $this->assertNull(collect($this->getJson("/api/customers/{$fiche->id}/activity")->json('data'))
+            ->firstWhere('event', 'contacted'));
+    }
 }

@@ -35,21 +35,6 @@ class AgencyDetailTest extends TestCase
             ->assertJsonMissingPath('data.settings');
     }
 
-    public function test_agency_admin_is_forbidden_on_detail_routes(): void
-    {
-        $this->actingAsRole('agency_admin');
-        $agency = Agency::factory()->create();
-
-        foreach ([
-            "/api/admin/agencies/{$agency->id}",
-            "/api/admin/agencies/{$agency->id}/health",
-            "/api/admin/agencies/{$agency->id}/team",
-            "/api/admin/agencies/{$agency->id}/properties",
-        ] as $uri) {
-            $this->getJson($uri)->assertForbidden();
-        }
-    }
-
     public function test_health_payload_counts_agency_activity(): void
     {
         $this->actingAsRole('super_admin');

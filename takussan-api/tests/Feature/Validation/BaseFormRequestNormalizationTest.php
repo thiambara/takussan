@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Validation;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Models\SavedSearch;
 use App\Models\Tag;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -162,5 +163,19 @@ class BaseFormRequestNormalizationTest extends ApiTestCase
         $this->assertNull($criteria['location'], 'chaîne vide → null dans un tableau imbriqué');
         $this->assertSame('mer', $criteria['tags'][0], 'trim dans un tableau de tableau');
         $this->assertNull($criteria['tags'][1], 'chaîne vide → null dans un tableau de tableau');
+    }
+
+    /** Ex-`Http/Requests/BaseFormRequestTest` (versé par TCK-3017) : une requête qui ne dit rien refuse. */
+    public function test_authorize_defaults_to_false(): void
+    {
+        $instance = new class extends BaseFormRequest
+        {
+            public function rules(): array
+            {
+                return [];
+            }
+        };
+
+        $this->assertFalse($instance->authorize());
     }
 }

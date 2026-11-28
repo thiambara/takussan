@@ -120,14 +120,6 @@ class AgencyModerationTest extends TestCase
         $this->assertSame(['Verif Non', 'Verif Oui'], $noms('filter[is_verified]=nawak'));
     }
 
-    public function test_index_is_forbidden_to_non_super_admin(): void
-    {
-        $agency = Agency::factory()->create();
-        $this->actingAsRole('agency_admin', ['agency' => $agency]);
-
-        $this->getJson('/api/admin/agencies')->assertForbidden();
-    }
-
     public function test_verify_flips_status_active_and_sets_verified_at(): void
     {
         $this->actingAsRole('super_admin');

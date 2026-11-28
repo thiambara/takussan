@@ -112,18 +112,6 @@ class AgencySubscriptionOverridesTest extends TestCase
         $this->assertEquals(['max_agents' => 20], $subscription->limits_override);
     }
 
-    public function test_un_admin_d_agence_est_refuse(): void
-    {
-        [$agency, $subscription] = $this->abonnementDeroge();
-        $this->actingAsRole('agency_admin', ['agency' => $agency]);
-
-        $this->patchJson("/api/admin/agencies/{$agency->id}/subscription/overrides", [
-            'platform_fee_pct' => 0,
-        ])->assertForbidden();
-
-        $this->assertEquals(1.0, (float) $subscription->refresh()->platform_fee_pct_override);
-    }
-
     /** @return array{Agency, AgencySubscription} */
     private function abonnementDeroge(): array
     {

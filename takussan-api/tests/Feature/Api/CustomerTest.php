@@ -35,18 +35,6 @@ class CustomerTest extends TestCase
             ->assertJsonPath('meta.total', 1);
     }
 
-    public function test_can_update_customer_pipeline_stage(): void
-    {
-        $user = User::factory()->create();
-        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
-
-        Sanctum::actingAs($user);
-
-        $this->patchJson("/api/customers/{$customer->id}", ['pipeline_stage' => 'converted'])
-            ->assertOk()
-            ->assertJsonPath('data.pipeline_stage', 'converted');
-    }
-
     public function test_user_can_show_own_customer(): void
     {
         $user = User::factory()->create();

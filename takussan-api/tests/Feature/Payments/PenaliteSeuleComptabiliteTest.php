@@ -111,7 +111,7 @@ class PenaliteSeuleComptabiliteTest extends TestCase
     /** Le lien de la pénalité seule, son checkout, et le webhook de succès reçu sur `$integration`. */
     private function payLateFeeAlone(array $ctx, Integration $integration): LeasePayment
     {
-        $this->spyDriver();
+        $this->fakeWave();
         $url = $this->actingAs($ctx['agent'], 'sanctum')
             ->postJson('/api/lease-payments/'.$ctx['payment']->id.'/payment-link')->assertOk()->json('data.url');
         $token = substr($url, strlen('https://front.test/pay/'));

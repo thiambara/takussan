@@ -11,7 +11,6 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Invoice;
 use App\Models\Property;
 use App\Models\User;
-use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\LeaseDueFixture;
@@ -38,7 +37,7 @@ class VerifyPaiementLuEnBaseTest extends TestCase
     {
         // La pénalité encaissée en ligne : le checkout demande 157 500, la ligne en vaut 150 000.
         $ctx = $this->leaseDue(['late_fee_online_collection' => true]);
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         $ctx['payment']->update(['period_start' => '2026-12-01', 'period_end' => '2026-12-31']);
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
@@ -63,7 +62,7 @@ class VerifyPaiementLuEnBaseTest extends TestCase
                 'period_end' => '2026-12-31',
             ]);
 
-        $spy->verifyStatus = DriverStatus::SUCCESS;
+        $spy->reglerALaVerification();
         $reponse = $this->getJson("/api/lease-payments/{$ctx['payment']->id}/verify")->assertOk()
             ->assertJsonPath('data.status', PaymentStatus::Paid->value)
             ->assertJsonMissingPath('data.payment.status');
@@ -78,7 +77,7 @@ class VerifyPaiementLuEnBaseTest extends TestCase
     public function test_un_checkout_sans_penalite_en_ligne_en_porte_une_part_nulle(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
 

@@ -170,12 +170,6 @@ class MessageSearchTest extends TestCase
         $response->assertJsonCount(0, 'data');
     }
 
-    public function test_unauthenticated_returns_401(): void
-    {
-        $this->getJson('/api/search/messages?q=test')
-            ->assertUnauthorized();
-    }
-
     public function test_filter_by_conversation(): void
     {
         $user = User::factory()->create();

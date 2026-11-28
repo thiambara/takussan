@@ -146,7 +146,7 @@ class PublicPaymentLinkTest extends TestCase
     public function test_initiate_ignores_any_return_url_from_the_request(): void
     {
         [, $token] = $this->linkFor();
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
 
         $this->postJson("/api/pay/{$token}/initiate", [
             'provider' => 'wave',
@@ -154,10 +154,10 @@ class PublicPaymentLinkTest extends TestCase
             'cancel_url' => 'https://evil.example/steal',
         ])->assertOk()->assertJsonPath('data.checkout_url', 'https://pay.example/c/1');
 
-        $meta = $spy->calls[0]['meta'];
-        $this->assertSame("https://front.test/pay/{$token}?status=success", $meta['return_url']);
-        $this->assertSame("https://front.test/pay/{$token}?status=cancelled", $meta['cancel_url']);
-        $this->assertStringNotContainsString('evil', json_encode($spy->calls));
+        $checkout = $spy->checkouts[0];
+        $this->assertSame("https://front.test/pay/{$token}?status=success", $checkout['success_url']);
+        $this->assertSame("https://front.test/pay/{$token}?status=cancelled", $checkout['error_url']);
+        $this->assertStringNotContainsString('evil', json_encode($spy->checkouts));
     }
 
     /**
@@ -203,11 +203,11 @@ class PublicPaymentLinkTest extends TestCase
      */
     public function test_the_link_pays_amount_due_under_both_agency_settings(): void
     {
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         foreach ([
-            'désactivé' => [null, 150000.0, false, 15_000_000],
-            'activé' => [['late_fee_online_collection' => true], 157500.0, true, 15_750_000],
-        ] as $label => [$settings, $due, $online, $cents]) {
+            'désactivé' => [null, 150000.0, false, 150_000],
+            'activé' => [['late_fee_online_collection' => true], 157500.0, true, 157_500],
+        ] as $label => [$settings, $due, $online, $wave]) {
             [$ctx, $token] = $this->linkFor($settings);
 
             $show = $this->getJson("/api/pay/{$token}")->assertOk();
@@ -221,7 +221,7 @@ class PublicPaymentLinkTest extends TestCase
             }
 
             $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
-            $this->assertSame($cents, end($spy->calls)['amount_cents'], $label);
+            $this->assertSame($wave, end($spy->checkouts)['amount'], $label);
         }
 
         [$ctx, $token] = $this->linkFor(null, ['status' => PaymentStatus::Paid, 'paid_at' => now()]);
@@ -254,7 +254,7 @@ class PublicPaymentLinkTest extends TestCase
         Integration::factory()->create(['agency_id' => null, 'provider' => 'wave', 'is_active' => true,
             'credentials' => ['api_key' => 'k', 'webhook_secret' => $this->waveSecret]]);
         Integration::factory()->create(['agency_id' => null, 'provider' => 'lemon_squeezy', 'is_active' => true]);
-        $this->spyDriver();
+        $this->fakeWave();
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
 
         app(PaymentGatewayService::class)->handleWebhookEvent('order_created', [

@@ -4,6 +4,7 @@ namespace Tests\Feature\Public;
 
 use App\Models\Address;
 use App\Models\Agency;
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\UserStatus;
@@ -12,6 +13,8 @@ use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PublicProfileTest extends TestCase
@@ -464,5 +467,99 @@ class PublicProfileTest extends TestCase
             ->assertJsonCount(6, 'data')
             ->assertJsonPath('meta.current_page', 2)
             ->assertJsonPath('meta.total', 30);
+    }
+
+    /**
+     * TCK-1079 (P85.06, ex-`PublicAgencyIsVerifiedTest`, versé par TCK-3017) — la fiche publique d'agence sert
+     * `is_verified`, comme l'annuaire. Les deux valeurs sont éprouvées : une clé figée rougit.
+     */
+    public function test_la_fiche_sert_l_etat_verifie_de_l_agence(): void
+    {
+        foreach (['agence-verifiee' => true, 'agence-non-verifiee' => false] as $slug => $verifiee) {
+            $agence = Agency::factory()->create([
+                'slug' => $slug,
+                'status' => AgencyStatus::Active,
+                'is_verified' => $verifiee,
+            ]);
+            Property::factory()->published()->create(['agency_id' => $agence->id]);
+
+            $this->getJson('/api/public/agencies/'.$slug)
+                ->assertOk()
+                ->assertJsonPath('data.is_verified', $verifiee);
+        }
+    }
+
+    /**
+     * TCK-1076 (P85.01, ex-`PublicAgencyLogoTest`) — la fiche publique d'agence sert le logo que l'annuaire sert
+     * déjà : les deux surfaces comparées, pour qu'une URL réécrite d'un seul côté rougisse.
+     */
+    private function agencePubliee(string $slug): Agency
+    {
+        $agence = Agency::factory()->create(['slug' => $slug, 'status' => AgencyStatus::Active]);
+        Property::factory()->published()->create(['agency_id' => $agence->id]);
+
+        return $agence;
+    }
+
+    public function test_la_fiche_sert_le_logo_de_la_collection_comme_l_annuaire(): void
+    {
+        $agence = $this->agencePubliee('agence-au-logo');
+        $agence->addMedia(UploadedFile::fake()->image('logo.png', 240, 80))->toMediaCollection('logo');
+
+        $fiche = $this->getJson('/api/public/agencies/agence-au-logo')->assertOk()->json('data.logo_url');
+
+        $annuaire = collect($this->getJson('/api/public/agencies?per_page=48')->assertOk()->json('data'))
+            ->firstWhere('slug', 'agence-au-logo');
+
+        $this->assertNotNull($fiche);
+        $this->assertStringContainsString('logo.png', $fiche);
+        $this->assertSame($annuaire['logo_url'] ?? null, $fiche);
+    }
+
+    public function test_sans_logo_la_fiche_rend_null_et_non_une_chaine_vide(): void
+    {
+        $this->agencePubliee('agence-sans-logo');
+
+        $this->getJson('/api/public/agencies/agence-sans-logo')
+            ->assertOk()
+            ->assertJsonPath('data.logo_url', null);
+    }
+
+    /**
+     * TCK-2863 (ex-`PublicAvatarDeLaFicheTest`) — la fiche d'un agent et l'équipe d'une fiche d'agence servent
+     * `User::avatarUrl()`, la miniature ; `$user->avatar_url` n'existe pas et rendait toujours `null`.
+     */
+    private function agentAvecPhoto(Agency $agence): User
+    {
+        Storage::fake((string) config('media-library.public_disk_name'));
+        $agent = User::factory()->create(['username' => 'awa-photo', 'status' => UserStatus::Active]);
+        AgentProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $agence->id]);
+        $agent->addMedia(UploadedFile::fake()->image('avatar.jpg', 256, 256))->toMediaCollection('avatar');
+
+        $attendue = $agent->fresh()->avatarUrl();
+        $this->assertNotNull($attendue, 'la miniature de l\'avatar doit avoir été produite');
+
+        return $agent;
+    }
+
+    public function test_la_fiche_publique_de_l_agent_sert_l_url_de_sa_photo(): void
+    {
+        $agence = Agency::factory()->create(['status' => AgencyStatus::Active]);
+        $agent = $this->agentAvecPhoto($agence);
+
+        $this->getJson('/api/public/agents/awa-photo')
+            ->assertOk()
+            ->assertJsonPath('data.avatar_url', $agent->fresh()->avatarUrl());
+    }
+
+    public function test_l_equipe_de_la_fiche_d_agence_sert_l_url_de_la_photo(): void
+    {
+        $agence = Agency::factory()->create(['status' => AgencyStatus::Active, 'slug' => 'sahel-photo']);
+        $agent = $this->agentAvecPhoto($agence);
+
+        $membre = collect($this->getJson('/api/public/agencies/sahel-photo')->assertOk()->json('data.agents'))
+            ->firstWhere('id', $agent->id);
+        $this->assertNotNull($membre);
+        $this->assertSame($agent->fresh()->avatarUrl(), $membre['avatar_url']);
     }
 }

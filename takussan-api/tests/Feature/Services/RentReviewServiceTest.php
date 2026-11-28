@@ -114,9 +114,12 @@ class RentReviewServiceTest extends TestCase
         $lease->forceFill(['status' => LeaseStatus::Draft])->save();
 
         $this->expectException(ValidationException::class);
+        // TCK-3017 — un motif VALIDE : « Test » (4 caractères) levait l'exception du motif trop court,
+        // et le test restait vert sans que le statut soit jamais jugé (mesuré par ablation).
+        $this->expectExceptionMessage(__('messages.lease_rent_review_status_not_reviewable'));
         $service->review($lease->fresh(), $actor, [
             'new_rent' => 210_000,
-            'reason' => 'Test',
+            'reason' => 'Révision sur un brouillon',
         ]);
     }
 

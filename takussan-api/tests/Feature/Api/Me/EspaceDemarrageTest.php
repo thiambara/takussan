@@ -325,4 +325,25 @@ class EspaceDemarrageTest extends ApiTestCase
         return (bool) collect($this->apiGet(self::URL, $entete)->assertOk()->json('data.etapes'))
             ->firstWhere('code', $code)['faite'];
     }
+
+    /**
+     * TCK-2944 (ex-DemarrageEtapesParPieceTest, TCK-3017) — une pièce vérifiée → `verifiee`, faite ; la société a en
+     * plus son NINEA, que le numéro tapé fait passer.
+     */
+    public function test_la_societe_a_son_ninea_et_une_piece_verifiee_est_verifiee(): void
+    {
+        $bailleur = $this->apiActingAsRole('owner', ['agency' => Agency::factory()->create()]);
+        $profil = OwnerProfile::query()->where('user_id', $bailleur->id)->sole();
+        $profil->forceFill(['metadata' => ['owner_type' => 'company']])->save();
+
+        $this->piece($profil, DocumentType::IdCard, $bailleur, ['is_verified' => true, 'verified_at' => now()]);
+        $profil->forceFill(['tax_id' => '01234567G2'])->save();
+
+        $this->assertSame([
+            ['code' => 'premier_bien', 'faite' => false],
+            ['code' => 'piece:cni', 'faite' => true, 'etat' => 'verifiee'],
+            ['code' => 'piece:rib', 'faite' => false, 'etat' => 'manquante'],
+            ['code' => 'piece:ninea', 'faite' => true, 'etat' => 'envoyee'],
+        ], $this->apiGet(self::URL, $this->entete('owner', $profil->id))->assertOk()->json('data.etapes'));
+    }
 }

@@ -454,18 +454,6 @@ class SuperAdminInvitationLifecycleTest extends TestCase
         $this->assertSame(InvitationStatus::Sent, $invitation->status);
     }
 
-    public function test_an_unauthenticated_caller_is_refused(): void
-    {
-        Mail::fake();
-        Notification::fake();
-        $inviter = User::factory()->create();
-        $this->materializeRoleProfile($inviter, 'super_admin');
-        $invitation = $this->cooptationInvitation($inviter);
-
-        $this->postJson("/api/admin/super-admins/invitations/{$invitation->id}/resend")
-            ->assertStatus(401);
-    }
-
     /**
      * La surface de cooptation ne doit pas devenir une porte dérobée sur
      * les invitations d'agence : 404, pas 403 (cf. le docblock du service).

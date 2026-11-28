@@ -210,49 +210,6 @@ class InviteOwnerTest extends TestCase
         $this->assertSame($existing->id, $invitation->invited_user_id);
     }
 
-    public function test_resend_works_via_generic_invitation_endpoint(): void
-    {
-        Mail::fake();
-        [$agency, $admin] = $this->standardAgencyWithAdmin();
-
-        $this->postJson("/api/agencies/{$agency->id}/owners/invite", [
-            'email' => 'resend@example.com',
-            'first_name' => 'A',
-            'last_name' => 'B',
-            'owner_type' => 'individual',
-        ])->assertStatus(201);
-
-        $invitation = Invitation::query()->where('email', 'resend@example.com')->firstOrFail();
-        $originalToken = $invitation->token;
-
-        $this->postJson("/api/invitations/{$invitation->id}/resend")
-            ->assertStatus(200);
-
-        $invitation->refresh();
-        $this->assertNotSame($originalToken, $invitation->token);
-        Mail::assertSent(InvitationMailable::class, fn (InvitationMailable $m) => $m->hasTo('resend@example.com'));
-    }
-
-    public function test_revoke_works_via_generic_invitation_endpoint(): void
-    {
-        Mail::fake();
-        [$agency, $admin] = $this->standardAgencyWithAdmin();
-
-        $this->postJson("/api/agencies/{$agency->id}/owners/invite", [
-            'email' => 'revoke@example.com',
-            'first_name' => 'A',
-            'last_name' => 'B',
-            'owner_type' => 'individual',
-        ])->assertStatus(201);
-
-        $invitation = Invitation::query()->where('email', 'revoke@example.com')->firstOrFail();
-
-        $this->postJson("/api/invitations/{$invitation->id}/revoke")
-            ->assertStatus(200);
-
-        $this->assertSame(InvitationStatus::Revoked, $invitation->fresh()->status);
-    }
-
     public function test_activity_log_records_owner_invited(): void
     {
         Mail::fake();

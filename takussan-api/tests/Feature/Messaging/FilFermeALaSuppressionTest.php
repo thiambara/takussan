@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Messaging;
 
+use App\Models\Booking;
 use App\Models\Conversation;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
@@ -14,7 +15,7 @@ use App\Services\Messaging\SujetsDuFil;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Tests\TestCase;
+use Tests\ApiTestCase;
 
 /**
  * TCK-2957 (AC3, AC4, AC6 ; ADR-0128 § 1) — il n'y a pas de clé étrangère sur le lien générique :
@@ -30,7 +31,7 @@ use Tests\TestCase;
  * raison pour laquelle `allowsWriting` bascule. Un fil d'intervention dont la demande est supprimée
  * en douceur est déjà illisible par `maintenanceAllows` (relevé du ticket) : il ne prouverait rien.
  */
-class FilFermeALaSuppressionTest extends TestCase
+class FilFermeALaSuppressionTest extends ApiTestCase
 {
     use RefreshDatabase;
 
@@ -150,5 +151,57 @@ class FilFermeALaSuppressionTest extends TestCase
         $this->assertSame(ConversationStatus::Closed, $fil->status);
         $this->assertTrue(app(ConversationAccess::class)->allows($membre, $fil));
         $this->assertFalse(app(ConversationAccess::class)->allowsWriting($membre, $fil));
+    }
+
+    // --- TCK-2957 (AC4, ex-`FilFermeEcritureTest`, versé par TCK-3017) : par HTTP, un fil `closed` refuse l'envoi (403,
+    // `SendMessageConversationRequest::authorize` lit `allowsWriting`) et `abilities.can_send_message` cache la saisie ;
+    // la lecture ne change pas. Le fil est fermé PAR LE TEST, son objet existe toujours ; le témoin `active` reçoit
+    // l'envoi, sinon le 403 ne prouverait rien. ------------------------------------------------------------------
+
+    /** @return array{Conversation, User} */
+    private function filFermeParLeTest(ConversationStatus $status): array
+    {
+        $booking = Booking::factory()->create();
+        $membre = User::factory()->create();
+        $autre = User::factory()->create();
+        $fil = Conversation::create([
+            'type' => ConversationType::Group->value,
+            'status' => $status->value,
+            'subject' => 'Réservation',
+            'created_by' => $membre->id,
+            'subject_type' => 'booking',
+            'subject_id' => $booking->id,
+        ]);
+        $fil->participants()->attach($membre->id, ['role' => ParticipantRole::Admin->value, 'joined_at' => now()]);
+        $fil->participants()->attach($autre->id, ['role' => ParticipantRole::Member->value, 'joined_at' => now()]);
+
+        return [$fil, $membre];
+    }
+
+    public function test_un_fil_ferme_refuse_l_envoi_et_cache_la_saisie_mais_se_lit(): void
+    {
+        [$fil, $membre] = $this->filFermeParLeTest(ConversationStatus::Closed);
+        $this->actingAsApi($membre);
+
+        $this->apiPost("/api/conversations/{$fil->id}/messages", ['content' => 'Encore là ?'])->assertForbidden();
+        $this->assertSame(0, $fil->messages()->count());
+
+        $this->apiGet("/api/conversations/{$fil->id}")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'closed')
+            ->assertJsonPath('data.subject_type', 'booking')
+            ->assertJsonPath('data.abilities.can_send_message', false);
+        $this->apiGet("/api/conversations/{$fil->id}/messages")->assertOk();
+    }
+
+    public function test_temoin_le_meme_fil_actif_recoit_l_envoi(): void
+    {
+        [$fil, $membre] = $this->filFermeParLeTest(ConversationStatus::Active);
+        $this->actingAsApi($membre);
+
+        $this->apiPost("/api/conversations/{$fil->id}/messages", ['content' => 'Bonjour'])->assertCreated();
+        $this->apiGet("/api/conversations/{$fil->id}")
+            ->assertOk()
+            ->assertJsonPath('data.abilities.can_send_message', true);
     }
 }

@@ -3,7 +3,6 @@
 namespace Tests\Feature\Auth\Session;
 
 use App\Models\User;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\PersonalAccessToken;
 use Tests\TestCase;
@@ -39,15 +38,6 @@ class IdleTokenPruneTest extends TestCase
         $this->assertContains($jetons['défaut, inactif 3 j'], $restants);
         $this->assertContains($jetons['super-admin inactif 10 h (grâce)'], $restants);
         $this->assertContains($jetons['sans borne'], $restants);
-    }
-
-    public function test_le_planificateur_purge_les_jetons_inactifs_chaque_jour(): void
-    {
-        $events = collect(app(Schedule::class)->events())
-            ->filter(fn ($event) => str_contains((string) $event->command, 'sessions:prune-idle'));
-
-        $this->assertCount(1, $events);
-        $this->assertSame('0 0 * * *', $events->first()->expression);
     }
 
     private function jeton(User $user, ?int $idle, $lastUsed, $createdAt = null): int

@@ -190,24 +190,6 @@ class BillingPlansTest extends TestCase
         $this->assertSame(AgencySubscriptionStatus::Active, $subscription->refresh()->status);
     }
 
-    public function test_agency_admin_is_forbidden_on_super_admin_billing_writes(): void
-    {
-        $agency = Agency::factory()->create();
-        $plan = $this->plan('free');
-        $this->actingAsRole('agency_admin', ['agency' => $agency]);
-
-        $this->postJson('/api/admin/plans', [
-            'code' => 'starter',
-            'label' => 'Starter',
-            'monthly_price_xof' => 10000,
-            'platform_fee_pct' => 2,
-        ])->assertForbidden();
-
-        $this->postJson("/api/admin/agencies/{$agency->id}/subscription", [
-            'plan_id' => $plan->id,
-        ])->assertForbidden();
-    }
-
     public function test_referenced_plan_delete_returns_409_and_plan_mutations_are_audited(): void
     {
         $actor = $this->actingAsRole('super_admin');

@@ -4,7 +4,6 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\PaymentProvider;
-use App\Models\Integration;
 use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Payments\PaymentGatewayService;
@@ -140,10 +139,6 @@ class ApiErrorCodeTest extends ApiTestCase
             $paiement->setRawAttributes(['id' => 1, 'amount' => null, 'currency' => 'XOF']);
 
             return app(PaymentGatewayService::class)->initiate($paiement, PaymentProvider::Wave);
-        });
-        $this->partialMock(PaymentGatewayService::class, function ($mock) {
-            $mock->shouldAllowMockingProtectedMethods();
-            $mock->shouldReceive('resolveIntegration')->andReturn(new Integration);
         });
 
         $response = $this->getJson('/api/_test/paiement-sans-montant', ['Accept-Language' => 'fr']);

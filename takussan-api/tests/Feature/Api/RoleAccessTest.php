@@ -42,7 +42,7 @@ class RoleAccessTest extends ApiTestCase
     // rôles : `AccountBlockSingleRouteTest` ; bloquer et réactiver passent par la console.
 
     // TCK-600 — `DELETE /api/users/{user}` (effacement immédiat) est retiré, pour tous les rôles :
-    // `OwnAccountImmediateDeletionRemovedTest` ; l'effacement passe par la console
+    // `Routes\RoutesEnDoubleRetireesTest` ; l'effacement passe par la console
     // (`AdminUserLifecycleTest`).
 
     public function test_super_admin_can_set_user_role(): void

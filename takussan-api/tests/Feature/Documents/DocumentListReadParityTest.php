@@ -144,10 +144,4 @@ class DocumentListReadParityTest extends TestCase
         $this->assertCount(9 + 9, $call()->json('data'));
         $this->assertSame($one, $this->requetes($call));
     }
-
-    public function test_both_routes_refuse_an_anonymous_caller(): void
-    {
-        $this->getJson('/api/me/document-vault')->assertUnauthorized();
-        $this->getJson("/api/documents/generated?target=lease:{$this->lease->id}")->assertUnauthorized();
-    }
 }

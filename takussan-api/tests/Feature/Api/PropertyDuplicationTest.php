@@ -25,13 +25,6 @@ class PropertyDuplicationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_requires_auth(): void
-    {
-        $property = Property::factory()->create();
-        $this->postJson("/api/properties/{$property->id}/duplicate")
-            ->assertUnauthorized();
-    }
-
     public function test_duplicate_creates_draft_with_new_reference(): void
     {
         $owner = User::factory()->create();

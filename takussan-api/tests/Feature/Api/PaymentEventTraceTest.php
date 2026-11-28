@@ -38,7 +38,7 @@ class PaymentEventTraceTest extends TestCase
     private function paidLease(): array
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
         $this->waveWebhook('spy_txn_1', 150_000)->assertOk();
@@ -97,7 +97,7 @@ class PaymentEventTraceTest extends TestCase
     public function test_un_echec_sur_le_checkout_courant_d_une_echeance_ouverte_reste_trace(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
         $this->waveWebhook('spy_txn_1', 150_000, 'checkout.session.payment_failed')->assertOk();

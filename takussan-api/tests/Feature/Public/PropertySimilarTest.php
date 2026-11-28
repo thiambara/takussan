@@ -236,27 +236,31 @@ class PropertySimilarTest extends TestCase
 
     // ── AC5 — Second identical call served from cache ─────────────────────────
 
+    /**
+     * TCK-3017 — ce test doublait le service par un mock et constatait DEUX appels : il ne
+     * prouvait rien du cache. Ici le vrai service sert la route ; un second voisin apparaît
+     * entre les deux appels SANS l'observateur qui vide le cache (`withoutEvents`) : la seconde
+     * réponse est celle de la première, parce qu'elle sort du cache et non d'un nouveau calcul.
+     */
     public function test_second_call_is_served_from_cache(): void
     {
+        Cache::flush();
+
         $source = $this->createPublishedPropertyInCity('Dakar');
+        $voisin = $this->createPublishedPropertyInCity('Dakar', ['contract_type' => $source->contract_type]);
 
-        $hitCount = 0;
-        $service = $this->mock(SimilarPropertiesService::class, function ($mock) use (&$hitCount) {
-            $mock->shouldReceive('findSimilar')
-                ->andReturnUsing(function () use (&$hitCount) {
-                    $hitCount++;
+        $this->getJson("/api/public/properties/{$source->slug}/similar")
+            ->assertOk()
+            ->assertJsonPath('data.*.id', [$voisin->id]);
 
-                    return collect();
-                });
-        });
+        $tardif = Property::withoutEvents(
+            fn () => $this->createPublishedPropertyInCity('Dakar', ['contract_type' => $source->contract_type]),
+        );
+        $this->assertTrue($tardif->exists);
 
-        $this->app->instance(SimilarPropertiesService::class, $service);
-
-        $this->getJson("/api/public/properties/{$source->slug}/similar");
-        $this->getJson("/api/public/properties/{$source->slug}/similar");
-
-        // Mock is called twice — actual caching is tested via cache layer below
-        $this->assertEquals(2, $hitCount);
+        $this->getJson("/api/public/properties/{$source->slug}/similar")
+            ->assertOk()
+            ->assertJsonPath('data.*.id', [$voisin->id]);
     }
 
     public function test_cache_stores_result_and_returns_it_on_second_call(): void

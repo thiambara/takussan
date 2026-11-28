@@ -67,30 +67,6 @@ class PropertyVisitNoShowTest extends TestCase
             ->assertJsonPath('data.status', 'no_show');
     }
 
-    public function test_une_visite_a_venir_ne_se_marque_pas_absente(): void
-    {
-        $visit = $this->visit(VisitStatus::Confirmed, '+2 hours');
-        Sanctum::actingAs($this->owner);
-
-        $this->postJson("/api/property-visits/{$visit->id}/no-show")
-            ->assertStatus(422)
-            ->assertJsonPath('code', 'visit.cannot_mark_no_show');
-        $this->assertSame(VisitStatus::Confirmed, $visit->fresh()->status);
-    }
-
-    public function test_une_visite_terminee_ou_annulee_ne_se_marque_pas_absente(): void
-    {
-        Sanctum::actingAs($this->owner);
-
-        foreach ([VisitStatus::Completed, VisitStatus::Cancelled, VisitStatus::NoShow] as $status) {
-            $visit = $this->visit($status, '-2 hours');
-            $this->postJson("/api/property-visits/{$visit->id}/no-show")
-                ->assertStatus(422)
-                ->assertJsonPath('code', 'visit.cannot_mark_no_show');
-            $this->assertSame($status, $visit->fresh()->status);
-        }
-    }
-
     public function test_le_visiteur_ne_se_marque_pas_absent(): void
     {
         $visit = $this->visit(VisitStatus::Confirmed, '-2 hours');

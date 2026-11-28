@@ -14,8 +14,6 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Notifications\CodedNotification;
 use App\Services\Notifications\PreferenceResolver;
-use Illuminate\Console\Scheduling\Event;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -338,18 +336,5 @@ class RappelExpirationDocumentTest extends TestCase
         // Courriel coupé (et pas de transport de diffusion en test) : aucun canal sortant, la cloche seule.
         $this->assertCount(1, $this->rappels($sansCourriel));
         Notification::assertNotSentTo($sansCourriel, CodedNotification::class);
-    }
-
-    /** La commande est planifiée chaque jour à 07:00, heure de Dakar, sans chevauchement. */
-    public function test_la_commande_est_planifiee(): void
-    {
-        $events = collect(app(Schedule::class)->events())
-            ->filter(fn (Event $e) => str_contains((string) $e->command, 'documents:remind-expiring'));
-
-        $this->assertCount(1, $events);
-        $event = $events->sole();
-        $this->assertSame('0 7 * * *', $event->expression);
-        $this->assertSame('Africa/Dakar', $event->timezone);
-        $this->assertTrue($event->withoutOverlapping);
     }
 }

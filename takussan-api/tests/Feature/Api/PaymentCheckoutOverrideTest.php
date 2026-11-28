@@ -23,7 +23,7 @@ class PaymentCheckoutOverrideTest extends TestCase
 
     private function ouvrirUnCheckout(array $ctx): void
     {
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
     }

@@ -193,16 +193,6 @@ class PaymentGatewayVerifyTest extends ApiTestCase
         Http::assertNothingSent();
     }
 
-    public function test_an_unauthenticated_caller_is_rejected(): void
-    {
-        $this->fakeWave('succeeded');
-        $payment = $this->bookingPayment();
-
-        $this->getJson("/api/booking-payments/{$payment->id}/verify")->assertUnauthorized();
-
-        $this->assertSame(PaymentStatus::Pending, $payment->refresh()->status);
-    }
-
     public function test_an_unknown_payment_type_is_a_404(): void
     {
         $this->actingAs($this->admin)

@@ -146,9 +146,4 @@ class RadarAdvertiserRankingTest extends TestCase
         $this->assertSame('agency', $lignes[$agence->id]['pipeline']);
         $this->assertSame('do_not_contact', $lignes[$stop->id]['pipeline']);
     }
-
-    public function test_la_route_est_gardee(): void
-    {
-        $this->getJson(self::ROUTE)->assertUnauthorized();
-    }
 }

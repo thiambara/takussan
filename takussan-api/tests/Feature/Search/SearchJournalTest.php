@@ -6,7 +6,6 @@ use App\Models\SearchQueryStat;
 use App\Services\Search\SearchJournal;
 use App\Support\AppKeyHmac;
 use App\Support\VisitorFingerprint;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -332,15 +331,6 @@ class SearchJournalTest extends TestCase
         $this->assertSame(0, Artisan::call('search:purge-journal'), 'idempotente');
         $this->assertSame(3, SearchQueryStat::query()->count());
         $this->assertSame(2, DB::table('search_query_visitors')->count(), 'l’empreinte du visiteur et celle de son réseau');
-    }
-
-    public function test_la_purge_est_planifiee_toutes_les_heures(): void
-    {
-        $evenement = collect(app(Schedule::class)->events())
-            ->first(fn ($e) => str_contains((string) $e->command, 'search:purge-journal'));
-
-        $this->assertNotNull($evenement, 'planifiée dans routes/console.php');
-        $this->assertSame('0 * * * *', $evenement->expression, 'horaire : sinon une empreinte vit jusqu’à 71 h');
     }
 
     private function visiteur(string $ip, string $agent = self::NAVIGATEUR): Request

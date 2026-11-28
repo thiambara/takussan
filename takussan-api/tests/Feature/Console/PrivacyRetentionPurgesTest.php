@@ -11,7 +11,6 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\PropertyContactLead;
 use App\Models\User;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -21,20 +20,11 @@ use Tests\TestCase;
  * TCK-537 (AC3) — les durées de la politique de confidentialité (§ 6) que le code ne tenait pas :
  * pièces KYC 5 ans après la fin du profil (ou de l'agence), demandes de contact sans compte 3 ans
  * après leur dernier échange, preuve du consentement 5 ans après l'effacement du compte. Chacune est
- * jugée à un jour de sa borne, des deux côtés, et planifiée.
+ * jugée à un jour de sa borne, des deux côtés ; leur planification est tenue par `Console\PlanificationTest`.
  */
 class PrivacyRetentionPurgesTest extends TestCase
 {
     use RefreshDatabase;
-
-    public function test_les_trois_purges_sont_planifiees_chaque_jour(): void
-    {
-        $commandes = collect(app(Schedule::class)->events())->map(fn ($e) => (string) $e->command)->implode("\n");
-
-        foreach (['kyc:prune-ended-pieces', 'crm:prune-contact-leads', 'account:prune-consent-proofs'] as $commande) {
-            $this->assertStringContainsString($commande, $commandes);
-        }
-    }
 
     private function piece(string $profil, int $id, DocumentType $type = DocumentType::IdCard): Document
     {

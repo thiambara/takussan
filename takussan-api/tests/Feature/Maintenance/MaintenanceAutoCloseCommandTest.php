@@ -4,7 +4,6 @@ namespace Tests\Feature\Maintenance;
 
 use App\Events\Maintenance\MaintenanceStatusChanged;
 use App\Models\Enums\MaintenanceStatus;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Tests\Support\MaintenanceActors;
@@ -42,14 +41,5 @@ class MaintenanceAutoCloseCommandTest extends TestCase
         Event::assertDispatched(MaintenanceStatusChanged::class, fn (MaintenanceStatusChanged $e): bool => $e->actor === null
             && $e->cause === MaintenanceStatusChanged::CAUSE_AUTO_CLOSED
             && $e->to === MaintenanceStatus::Closed);
-    }
-
-    public function test_is_scheduled_daily(): void
-    {
-        $events = collect(app(Schedule::class)->events())
-            ->filter(fn ($event) => str_contains((string) $event->command, 'maintenance:auto-close'));
-
-        $this->assertCount(1, $events);
-        $this->assertSame('0 4 * * *', $events->first()->expression);
     }
 }

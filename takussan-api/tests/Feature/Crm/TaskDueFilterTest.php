@@ -13,7 +13,11 @@ use Tests\ApiTestCase;
 
 /**
  * TCK-591 AC7 — `filter[due]` sur un jeu fixé : une tâche d'hier ouverte, une d'hier terminée, une
- * d'aujourd'hui, une de demain, une sans échéance.
+ * d'aujourd'hui ouverte et une terminée, une de demain, une sans échéance.
+ *
+ * TCK-2595 (ex-`TaskDueListFilterTest`, versé par TCK-3017) — `filter[due]` en liste séparée par des
+ * virgules : l'union des périodes, pour la journée de l'agent en une requête. Le tableau
+ * (`filter[due][]=`) reste une valeur absente.
  */
 class TaskDueFilterTest extends ApiTestCase
 {
@@ -51,6 +55,7 @@ class TaskDueFilterTest extends ApiTestCase
             'yesterday_open' => $make('2026-10-06 09:00'),
             'yesterday_done' => $make('2026-10-06 09:00', TaskStatus::Done),
             'today' => $make('2026-10-07 18:00'),
+            'today_done' => $make('2026-10-07 08:00', TaskStatus::Done),
             'tomorrow' => $make('2026-10-08 08:00'),
             'none' => $make(null),
         ];
@@ -78,6 +83,12 @@ class TaskDueFilterTest extends ApiTestCase
         return collect($rows)->pluck('id')->sort()->values()->all();
     }
 
+    /** @return list<int> */
+    private function of(string ...$keys): array
+    {
+        return collect($keys)->map(fn (string $k) => $this->tasks[$k]->id)->sort()->values()->all();
+    }
+
     public function test_overdue_keeps_only_the_open_task_of_yesterday(): void
     {
         $this->assertSame([$this->tasks['yesterday_open']->id], $this->ids('overdue'));
@@ -85,7 +96,8 @@ class TaskDueFilterTest extends ApiTestCase
 
     public function test_today_upcoming_and_none(): void
     {
-        $this->assertSame([$this->tasks['today']->id], $this->ids('today'));
+        // Une tâche du jour reste du jour, faite ou non (TCK-591).
+        $this->assertSame($this->of('today', 'today_done'), $this->ids('today'));
         $this->assertSame([$this->tasks['tomorrow']->id], $this->ids('upcoming'));
         $this->assertSame([$this->tasks['none']->id], $this->ids('none'));
     }
@@ -102,5 +114,30 @@ class TaskDueFilterTest extends ApiTestCase
             ->apiGet('/api/tasks?filter[due][]=today')
             ->assertOk()
             ->assertJsonCount(0, 'data');
+    }
+
+    /** TCK-2595 AC2 (R) — en retard ET du jour, pas demain ; la tâche d'hier faite n'est pas en retard. */
+    public function test_ac2_une_liste_rend_l_union_des_periodes(): void
+    {
+        $this->assertSame($this->of('yesterday_open', 'today', 'today_done'), $this->ids('overdue,today'));
+        $this->assertSame($this->of('yesterday_open', 'today', 'today_done'), $this->ids('today,%20overdue'));
+        $this->assertSame($this->of('tomorrow', 'none'), $this->ids('upcoming,none'));
+    }
+
+    /** TCK-2595 — une valeur inconnue dans la liste ne rend rien d'elle ; vide, rien ; deux tableaux, rien. */
+    public function test_une_valeur_inconnue_dans_la_liste_ne_rend_rien_d_elle(): void
+    {
+        $this->assertSame($this->of('today', 'today_done'), $this->ids('today,someday'));
+        $this->assertSame([], $this->ids(','));
+        $this->actingAsApi($this->agent)
+            ->apiGet('/api/tasks?filter[due][]=today&filter[due][]=overdue')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    /** TCK-2595 — la liste se combine aux autres filtres en ET. */
+    public function test_la_liste_se_combine_a_un_autre_filtre(): void
+    {
+        $this->assertSame($this->of('today_done'), $this->ids('overdue,today&filter[status]=done'));
     }
 }

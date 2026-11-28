@@ -7,7 +7,6 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Route;
 use Tests\Support\FabriqueDemandesEtVisites;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
@@ -25,12 +24,6 @@ class AccountBlockSingleRouteTest extends TestCase
     use FabriqueDemandesEtVisites;
     use OperateursPlateforme;
     use RefreshDatabase;
-
-    public function test_les_routes_hors_console_n_existent_plus(): void
-    {
-        $this->assertFalse(Route::has('users.block'));
-        $this->assertFalse(Route::has('users.activate'));
-    }
 
     public function test_aucun_acteur_ne_bloque_ni_ne_reactive_hors_console(): void
     {

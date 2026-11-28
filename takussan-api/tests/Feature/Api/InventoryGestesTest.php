@@ -6,8 +6,10 @@ use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\InventoryStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Inventory\GestesDeLEtatDesLieux;
@@ -127,5 +129,25 @@ class InventoryGestesTest extends TestCase
             $this->assertSame(422, $e->getStatusCode());
         }
         $this->assertSame(InventoryStatus::Disputed, Inventory::query()->findOrFail($etat->id)->status);
+    }
+
+    /**
+     * TCK-1869 (P189.02) — `abilities.update` suit `InventoryPolicy::update` : le locataire et le bailleur
+     * suspendu le lisent faux, et l'API les refuse en 403 (TCK-3017 : ex-InventoryAbilitiesTest).
+     */
+    public function test_abilities_update_suit_la_policy_pour_le_lecteur(): void
+    {
+        $etat = $this->etat(['status' => 'draft']);
+
+        $this->assertTrue($this->fiche($this->bailleur, $etat)['abilities']['update']);
+
+        $this->assertFalse($this->fiche($this->locataire, $etat)['abilities']['update']);
+        $this->postJson("/api/inventories/{$etat->id}/submit")->assertForbidden();
+
+        OwnerProfile::query()->where('user_id', $this->bailleur->id)->where('agency_id', $this->bail->agency_id)
+            ->update(['status' => OwnerProfileStatus::Blocked->value]);
+
+        $this->assertFalse($this->fiche($this->bailleur, $etat)['abilities']['update']);
+        $this->postJson("/api/inventories/{$etat->id}/submit")->assertForbidden();
     }
 }

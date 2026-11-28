@@ -3,6 +3,7 @@
 namespace Tests\Feature\Messaging\Boite;
 
 use App\Models\Conversation;
+use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
@@ -202,5 +203,37 @@ class ListeDeLaBoiteTest extends ApiTestCase
             3 => tap($this->message($fil, $this->locataire), fn () => $fil->forceFill(['assigned_to_id' => $this->collegue->id])->save()),
             default => tap($this->message($fil, $this->locataire), fn () => $fil->participants()->updateExistingPivot($this->auteur->id, ['snoozed_until' => now()->addDay()])),
         };
+    }
+
+    /**
+     * TCK-2960 (ADR-0128 § 2, ex-`FilSansMessageEnFinDeBoiteTest`, versé par TCK-3017) — un fil sans aucun message (une
+     * salle ouverte par `messaging:open-rooms`) se range APRÈS les fils qui ont parlé : PostgreSQL trie les NULL en
+     * premier sur un ordre décroissant.
+     */
+    public function test_un_fil_sans_message_vient_apres_un_fil_qui_a_parle(): void
+    {
+        $moi = User::factory()->create();
+        $autre = User::factory()->create();
+
+        $muet = $this->groupeDe($moi, $autre, null);
+        $parle = $this->groupeDe($moi, $autre, now()->subDays(30));
+
+        Sanctum::actingAs($moi);
+        $ids = collect($this->getJson('/api/conversations')->assertOk()->json('data'))->pluck('id')->all();
+
+        $this->assertSame([$parle->id, $muet->id], $ids);
+    }
+
+    private function groupeDe(User $moi, User $autre, mixed $dernierMessage): Conversation
+    {
+        $c = Conversation::create([
+            'type' => ConversationType::Group->value,
+            'created_by' => $moi->id,
+            'title' => 'Groupe',
+        ]);
+        $c->forceFill(['last_message_at' => $dernierMessage])->saveQuietly();
+        $c->participants()->attach([$moi->id => ['joined_at' => now()], $autre->id => ['joined_at' => now()]]);
+
+        return $c;
     }
 }

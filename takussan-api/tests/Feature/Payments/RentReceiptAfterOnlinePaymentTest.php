@@ -5,7 +5,6 @@ namespace Tests\Feature\Payments;
 use App\Domain\Notifications\NotificationCode;
 use App\Models\Enums\PaymentStatus;
 use App\Models\IntegrationWebhookLog;
-use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
 use App\Services\Payments\LeasePaymentLinkService;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,7 +37,7 @@ class RentReceiptAfterOnlinePaymentTest extends TestCase
     {
         $ctx = $this->leaseDue();
         $ctx['lease']->tenant->forceFill(['user_id' => null, 'phone' => '+221771234567'])->save();
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
         $token = substr(app(LeasePaymentLinkService::class)->urlFor($ctx['payment']), strlen('https://front.test/pay/'));
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
 
@@ -76,7 +75,7 @@ class RentReceiptAfterOnlinePaymentTest extends TestCase
     {
         $ctx = $this->leaseDue();
         $ctx['tenant']->forceFill(['phone_verified_at' => now()])->save();
-        $this->spyDriver();
+        $this->fakeWave();
         $this->actingAs($ctx['tenant'], 'sanctum');
         $this->postJson('/api/lease-payments/'.$ctx['payment']->id.'/initiate', ['provider' => 'wave'])->assertOk();
         $this->waveWebhook('spy_txn_1', 150000)->assertOk();
@@ -101,7 +100,7 @@ class RentReceiptAfterOnlinePaymentTest extends TestCase
         $this->actingAsRole('super_admin');
         $this->postJson("/api/admin/webhook-logs/{$log->id}/replay")->assertOk();
 
-        $spy->verifyStatus = DriverStatus::SUCCESS;
+        $spy->reglerALaVerification();
         $this->postJson("/api/pay/{$token}/verify")->assertOk()->assertJsonPath('data.status', 'paid');
 
         $this->assertCount(1, self::envoisALaDemande(NotificationCode::LeasePaymentSettledOnline));
@@ -149,15 +148,15 @@ class RentReceiptAfterOnlinePaymentTest extends TestCase
     public function test_verify_racing_the_webhook_sends_a_single_receipt_and_keeps_the_webhook_event(): void
     {
         [$ctx, $token, $spy] = $this->initiatedWithoutAccount();
-        $spy->verifyStatus = DriverStatus::SUCCESS;
-        $spy->onVerify = function (): void {
+        $spy->reglerALaVerification();
+        $spy->pendantLaVerification(function (): void {
             $this->waveWebhook('spy_txn_1', 150000)->assertOk();
-        };
+        });
 
         $base = DB::transactionLevel();
         $locksAfterCall = [];
         DB::listen(function (QueryExecuted $query) use ($spy, &$locksAfterCall): void {
-            if ($spy->verified && preg_match('/from "lease_payments" .*for update/i', $query->sql)) {
+            if ($spy->verifications !== [] && preg_match('/from "lease_payments" .*for update/i', $query->sql)) {
                 $locksAfterCall[] = DB::transactionLevel();
             }
         });
@@ -178,7 +177,7 @@ class RentReceiptAfterOnlinePaymentTest extends TestCase
     public function test_verify_alone_sends_one_receipt(): void
     {
         [, $token, $spy] = $this->initiatedWithoutAccount();
-        $spy->verifyStatus = DriverStatus::SUCCESS;
+        $spy->reglerALaVerification();
 
         $this->postJson("/api/pay/{$token}/verify")->assertOk()->assertJsonPath('data.status', 'paid');
         $this->postJson("/api/pay/{$token}/verify")->assertOk();

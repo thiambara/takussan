@@ -6,11 +6,11 @@ use App\Models\Booking;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
-use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Membership\TeamMemberSuspensionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsBookingStakeholders;
+use Tests\Feature\Lecture\QuiPeutLireTest;
 use Tests\TestCase;
 
 /**
@@ -18,6 +18,11 @@ use Tests\TestCase;
  * `BailleurDuBien` (TCK-1707), mais la liste gardait `orWhereHas('property', … user_id)` : l'agent
  * qui a saisi le bien, suspendu ou retiré, y voyait les réservations de ce bien, téléphone du client
  * compris. La clause « mes biens » suit la règle de `view`.
+ *
+ * TCK-3016 — le créateur du bien sans profil de bailleur (le personnel parti) et le personnel actif
+ * sont des lignes de la table de `ReservationsLisibles` ({@see QuiPeutLireTest}),
+ * qui rougit à la place des deux tests retirés d'ici. Restent la suspension par son service et le
+ * bailleur bloqué, que la table ne joue pas.
  */
 class AgentCreateurListeDesReservationsTest extends TestCase
 {
@@ -56,14 +61,6 @@ class AgentCreateurListeDesReservationsTest extends TestCase
         $this->assertNotContains($booking->id, $this->listeDe($this->agent));
     }
 
-    public function test_l_agent_createur_retire_ne_liste_plus_les_reservations_du_bien(): void
-    {
-        $booking = $this->reservationDuBienDe($this->agent);
-        app(AgencyMemberRemovalService::class)->remove($this->agency, $this->agent, $this->admin, leaveUnassigned: true);
-
-        $this->assertNotContains($booking->id, $this->listeDe($this->agent));
-    }
-
     /** Témoin : le bailleur du bien, bloqué, garde la liste (il garde la lecture). */
     public function test_le_bailleur_bloque_liste_encore_les_reservations_du_bien(): void
     {
@@ -74,10 +71,4 @@ class AgentCreateurListeDesReservationsTest extends TestCase
     }
 
     /** Témoin : l'agent actif liste au titre du personnel. */
-    public function test_l_agent_createur_actif_liste_les_reservations_du_bien(): void
-    {
-        $booking = $this->reservationDuBienDe($this->agent);
-
-        $this->assertContains($booking->id, $this->listeDe($this->agent));
-    }
 }

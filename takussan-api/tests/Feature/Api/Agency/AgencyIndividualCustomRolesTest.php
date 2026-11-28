@@ -11,7 +11,6 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Services\Membership\AgencySystemRoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Route;
 use Tests\ApiTestCase;
 
 /**
@@ -58,40 +57,6 @@ class AgencyIndividualCustomRolesTest extends ApiTestCase
         ]);
 
         return [$agency, $admin];
-    }
-
-    /**
-     * AC2 — l'inventaire des routes est DÉRIVÉ, pas écrit de mémoire.
-     *
-     * TCK-392 a dû éprouver deux routes menant à `AgencyMemberRoleController@update`
-     * (`PUT /members/{u}/role` et `PATCH /members/{u}`) : la seconde n'avait
-     * été trouvée qu'à la deuxième passe. Ce test interroge la table de routage
-     * plutôt que la mémoire, et rougira le jour où un second chemin atteindra
-     * l'une de ces deux méthodes sans que son cas soit couvert ici.
-     */
-    public function test_chacune_des_deux_methodes_gardees_n_a_qu_une_seule_route(): void
-    {
-        $parAction = [];
-        foreach (Route::getRoutes() as $route) {
-            $action = $route->getActionName();
-            if (str_contains($action, 'Agency\RoleController@store')
-                || str_contains($action, 'Profile\AgencyRoleController@update')) {
-                $parAction[$action][] = implode('|', $route->methods()).' '.$route->uri();
-            }
-        }
-
-        $this->assertSame(
-            [
-                'App\Http\Controllers\Api\Agency\RoleController@store' => [
-                    'POST api/agencies/{agency}/roles',
-                ],
-                'App\Http\Controllers\Api\Profile\AgencyRoleController@update' => [
-                    'PATCH api/profiles/{profile}/agency-role',
-                ],
-            ],
-            $parAction,
-            "Une route de plus atteint une méthode gardée : son cas `individual` n'est pas couvert.",
-        );
     }
 
     /** AC1 — création d'un rôle personnalisé refusée sur une agence `individual`. */
@@ -229,75 +194,6 @@ class AgencyIndividualCustomRolesTest extends ApiTestCase
         ])->assertOk();
 
         $this->assertSame($systeme->id, $profile->fresh()->agency_role_id);
-    }
-
-    /**
-     * AC5 — « le refus est lisible côté front », dans les trois langues.
-     *
-     * Le front n'invente pas ce texte : `messageErreurApi` affiche la prose du
-     * serveur telle quelle dès qu'aucun `code` ne l'accompagne
-     * (`src/lib/api.ts`, branche `proseServeur`), et Laravel la localise sur
-     * `Accept-Language`. Ce sont donc `lang/{fr,en,wo}/agencies.php` qui SONT
-     * les trois dictionnaires du ticket.
-     *
-     * Le test compare au libellé rendu par `__()` et non à une chaîne écrite
-     * ici : ce qu'il éprouve est que la clé EXISTE dans les trois catalogues —
-     * une clé absente rendrait son propre nom, et l'assertion tomberait.
-     */
-    public function test_le_refus_porte_un_libelle_dans_les_trois_langues(): void
-    {
-        [$agency, $admin] = $this->agenceAvecAdmin(AgencyKind::Individual);
-        $this->actingAsApi($admin);
-
-        $rendus = [];
-
-        foreach (['fr', 'en', 'wo'] as $locale) {
-            $attendu = trans('errors.agency.individual_no_custom_roles', [], $locale);
-            $rendus[$locale] = $attendu;
-
-            // Les deux mailles ne prennent PAS le même défaut, et il a fallu
-            // deux ablations pour le voir :
-            //  · catalogue `wo` supprimé → Laravel retombe sur `fallback_locale`
-            //    et rend le texte FRANÇAIS → attrapé par l'unicité, plus bas ;
-            //  · catalogue `en` supprimé → le repli EST `en`, donc Laravel rend
-            //    la CLÉ NUE → trois valeurs distinctes, unicité verte, et c'est
-            //    cette assertion-ci qui rougit.
-            // *Une seule des deux laissait passer la moitié des cas.*
-            $this->assertNotSame(
-                'errors.agency.individual_no_custom_roles',
-                $attendu,
-                "La clé manque au catalogue `{$locale}` : Laravel rend son propre nom.",
-            );
-
-            // ⚠ La langue part en `Accept-Language` — c'est elle qui prime sur
-            // `preferred_language` depuis TCK-536. Sans en-tête explicite, le
-            // harnais injecte `en-us` à chaque requête : le test comparerait
-            // trois fois le libellé anglais à lui-même et resterait vert sans
-            // rien éprouver (l'unicité, plus bas, le rattraperait).
-            $this->apiPost("/api/agencies/{$agency->id}/roles", [
-                'name' => "Rôle {$locale}",
-                'base_profile_type' => AgencyRoleBaseType::Agent->value,
-            ], ['Accept-Language' => $locale])
-                ->assertStatus(403)
-                ->assertJsonPath('message', $attendu);
-        }
-
-        // ⚠ CE bloc est la seule chose qui éprouve les TROIS catalogues, et il a
-        // fallu une ablation pour s'en rendre compte : supprimer
-        // `lang/wo/agencies.php` laissait la boucle ci-dessus VERTE. Laravel
-        // retombe sur `fallback_locale` (fr), donc `trans(…, 'wo')` et la
-        // réponse HTTP bougent ENSEMBLE — les deux côtés de l'assertion étaient
-        // fournis par le même catalogue absent.
-        //
-        // *Un test qui compare une valeur à elle-même reste vert sans rien
-        // garder.* Trois libellés distincts, en revanche, ne peuvent pas venir
-        // d'un seul fichier.
-        $this->assertCount(
-            3,
-            array_unique($rendus),
-            'Un catalogue manque : deux langues rendent le même texte, donc au moins une retombe '
-                .'sur le repli. '.json_encode($rendus, JSON_UNESCAPED_UNICODE),
-        );
     }
 
     /**

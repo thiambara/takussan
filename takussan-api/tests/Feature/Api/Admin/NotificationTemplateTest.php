@@ -64,16 +64,6 @@ class NotificationTemplateTest extends TestCase
             ->assertJsonValidationErrors('templates.fr.body');
     }
 
-    public function test_agency_admin_is_forbidden(): void
-    {
-        $this->actingAsRole('agency_admin');
-
-        $this->getJson('/api/admin/notification-templates')->assertForbidden();
-        $this->patchJson('/api/admin/notification-templates/booking_confirmed/email', [
-            'templates' => ['fr' => ['subject' => 'x', 'body' => 'x']],
-        ])->assertForbidden();
-    }
-
     public function test_booking_mail_uses_active_template_and_falls_back_when_disabled(): void
     {
         $booking = Booking::factory()->create(['reference_number' => 'BK-1']);

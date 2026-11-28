@@ -5,8 +5,6 @@ namespace Tests\Feature\Jobs;
 use App\Jobs\Lease\ExpireEndedLeasesJob;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
-use Illuminate\Console\Scheduling\Event;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -92,15 +90,5 @@ class ExpireEndedLeasesJobTest extends TestCase
         (new ExpireEndedLeasesJob)->handle();
 
         $this->assertSame(LeaseStatus::Active, $parent->fresh()->status);
-    }
-
-    public function test_la_tache_est_planifiee_chaque_jour(): void
-    {
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn (Event $e) => str_contains((string) $e->description, ExpireEndedLeasesJob::class));
-
-        $this->assertNotNull($event, 'ExpireEndedLeasesJob absente du planificateur');
-        $this->assertSame('15 3 * * *', $event->expression);
-        $this->assertTrue($event->withoutOverlapping);
     }
 }

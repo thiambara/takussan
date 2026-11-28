@@ -120,4 +120,33 @@ class NomDeLAuteurDAvisTest extends ApiTestCase
         $this->assertNotEmpty($noms);
         $this->assertContains('Awa '.self::NOM, $noms->all());
     }
+
+    /**
+     * TCK-1781 (P175.05, ex-`ReviewAuthorNameTest`, versé par TCK-3017) — l'API ne rend pas de libellé pour un
+     * auteur sans nom : `author.name` est nul, et le front écrit « Anonyme » dans la langue du lecteur
+     * (principe n°5). Un compte supprimé, puis un compte sans nom ni identifiant.
+     */
+    public function test_un_auteur_supprime_ou_sans_nom_n_a_pas_de_nom(): void
+    {
+        $supprime = User::factory()->create();
+        $sansNom = User::factory()->create(['first_name' => '', 'last_name' => '', 'username' => null]);
+
+        foreach ([$supprime, $sansNom] as $auteur) {
+            $bien = Property::factory()->published()->create();
+            Review::factory()->create([
+                'reviewable_type' => Property::class, 'reviewable_id' => $bien->id, 'author_id' => $auteur->id,
+                'rating' => 4, 'is_approved' => true, 'approved_at' => now(),
+            ]);
+            $biens[$auteur->id] = $bien;
+        }
+        $supprime->delete();
+
+        $this->getJson("/api/public/properties/{$biens[$supprime->id]->slug}/reviews")
+            ->assertOk()
+            ->assertJsonPath('data.0.author.name', null);
+        $this->getJson("/api/public/properties/{$biens[$sansNom->id]->slug}/reviews")
+            ->assertOk()
+            ->assertJsonPath('data.0.author.id', $sansNom->id)
+            ->assertJsonPath('data.0.author.name', null);
+    }
 }

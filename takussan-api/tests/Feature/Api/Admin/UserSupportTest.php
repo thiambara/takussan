@@ -201,23 +201,6 @@ class UserSupportTest extends TestCase
             ->assertJsonPath('code', 'support.target_super_admin');
     }
 
-    public function test_agency_admin_gets_403_on_support_endpoints(): void
-    {
-        $this->actingAsRole('agency_admin');
-        $target = User::factory()->create();
-        $token = $target->createToken('web')->accessToken;
-
-        foreach ([
-            ['POST', "/api/admin/users/{$target->id}/force-password-reset"],
-            ['POST', "/api/admin/users/{$target->id}/unlock"],
-            ['POST', "/api/admin/users/{$target->id}/reset-2fa"],
-            ['POST', "/api/admin/users/{$target->id}/revoke-sessions"],
-            ['DELETE', "/api/admin/users/{$target->id}/sessions/{$token->id}"],
-        ] as [$method, $uri]) {
-            $this->json($method, $uri, ['reason' => 'support'])->assertForbidden();
-        }
-    }
-
     private function assertAudit(User $actor, User $target, string $event, string $reason): void
     {
         $activity = Activity::query()

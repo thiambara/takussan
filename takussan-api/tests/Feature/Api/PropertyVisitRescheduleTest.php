@@ -57,18 +57,4 @@ class PropertyVisitRescheduleTest extends ApiTestCase
         $this->assertSame(1, self::nombreDEnvois($agent, NotificationCode::VisitRescheduledByVisitor));
         Notification::assertNotSentTo($visiteur, CodedNotification::class, self::deCode(NotificationCode::VisitRescheduled, NotificationCode::VisitRescheduledByVisitor));
     }
-
-    public function test_une_visite_annulee_ne_se_replanifie_pas(): void
-    {
-        $visiteur = $this->client();
-        $visite = PropertyVisit::factory()->create([
-            'property_id' => $this->bienDe($this->agence())->id,
-            'visitor_id' => $visiteur->id,
-            'status' => VisitStatus::Cancelled,
-        ]);
-
-        Sanctum::actingAs($visiteur);
-        $this->postJson("/api/property-visits/{$visite->id}/reschedule", ['scheduled_at' => $this->creneau()])
-            ->assertUnprocessable();
-    }
 }

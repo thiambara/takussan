@@ -272,13 +272,6 @@ class InterlocuteurDuBailleurTest extends TestCase
         $this->assertStringNotContainsString('Diop', $b->getContent());
     }
 
-    public function test_un_invite_non_connecte_recoit_401(): void
-    {
-        [$profil] = $this->invite();
-
-        $this->getJson($this->url($profil))->assertUnauthorized();
-    }
-
     /** @return array<string, mixed> */
     private function agence(): array
     {

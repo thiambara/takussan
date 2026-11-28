@@ -191,12 +191,6 @@ class DocumentSearchTest extends TestCase
         $response->assertJsonCount(0, 'data');
     }
 
-    public function test_unauthenticated_returns_401(): void
-    {
-        $this->getJson('/api/search/documents?q=test')
-            ->assertUnauthorized();
-    }
-
     // TCK-786 — `test_date_range_filter` a rejoint `SearchDateRangeTest`, sur Meilisearch réel :
     // la plage filtre désormais dans le moteur, et le pilote `collection` de cette classe la
     // rejouerait en SQL, où `created_at` est un `timestamp` et non l'entier de l'index.

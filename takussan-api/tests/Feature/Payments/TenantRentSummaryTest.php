@@ -318,9 +318,4 @@ class TenantRentSummaryTest extends TestCase
         $this->assertNull($data['lease']);
         $this->assertEquals(0, $data['total_due']);
     }
-
-    public function test_un_invite_recoit_401(): void
-    {
-        $this->getJson('/api/me/rent-summary')->assertUnauthorized();
-    }
 }

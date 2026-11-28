@@ -218,12 +218,6 @@ class NotificationPreferenceTest extends TestCase
         $this->assertFalse($resolver->shouldSend($user, 'booking_request', 'sms'));
     }
 
-    public function test_endpoint_requires_auth(): void
-    {
-        $this->getJson('/api/me/notification-preferences')->assertUnauthorized();
-        $this->patchJson('/api/me/notification-preferences', ['preferences' => []])->assertUnauthorized();
-    }
-
     public function test_new_user_gets_default_preferences_created(): void
     {
         $user = User::factory()->create();

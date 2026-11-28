@@ -13,7 +13,6 @@ use App\Models\LeasePaymentLink;
 use App\Models\User;
 use App\Services\Billing\PlatformPayoutService;
 use App\Services\Payments\Dto\PaymentEvent;
-use App\Services\Payments\Dto\PaymentStatus as DriverStatus;
 use App\Services\Payments\Dto\WebhookAuthority;
 use App\Services\Payments\LeasePaymentLinkService;
 use App\Services\Payments\PaymentGatewayService;
@@ -131,7 +130,7 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
     {
         $ctx = $this->paidWithFeeDue();
         $before = $this->rentSettlement($ctx['payment']);
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
 
         $url = $this->issue($ctx)->assertOk()->assertJsonPath('data.subject', 'late_fee')->json('data.url');
         $this->assertSame('late_fee', LeasePaymentLink::query()->sole()->subject->value);
@@ -147,8 +146,8 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk()
             ->assertJsonPath('data.checkout_url', 'https://pay.example/c/1');
 
-        $this->assertCount(1, $spy->calls);
-        $this->assertSame(self::FEE * 100, $spy->calls[0]['amount_cents']);
+        $this->assertCount(1, $spy->checkouts);
+        $this->assertSame(self::FEE, $spy->checkouts[0]['amount']);
         $this->assertSame($before, $this->rentSettlement($ctx['payment']));
 
         $gateway = $ctx['payment']->fresh()->metadata['gateway'];
@@ -160,7 +159,7 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
         // Le même lien, rouvert pendant que le checkout vit : le même checkout, pas un second.
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk()
             ->assertJsonPath('data.checkout_url', 'https://pay.example/c/1');
-        $this->assertCount(1, $spy->calls);
+        $this->assertCount(1, $spy->checkouts);
     }
 
     /**
@@ -173,7 +172,7 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
         Event::fake([LeasePaymentSettledOnline::class]);
         $ctx = $this->paidWithFeeDue();
         $before = $this->rentSettlement($ctx['payment']);
-        $this->spyDriver();
+        $this->fakeWave();
         $token = $this->tokenOf($this->issue($ctx)->json('data.url'));
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
 
@@ -204,7 +203,7 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
     public function test_le_paiement_verifie_decrit_le_checkout_du_loyer(): void
     {
         $ctx = $this->paidWithFeeDue();
-        $this->spyDriver();
+        $this->fakeWave();
         $token = $this->tokenOf($this->issue($ctx)->json('data.url'));
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
         $this->waveWebhook('spy_txn_1', self::FEE)->assertOk();
@@ -219,7 +218,7 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
     public function test_un_paiement_inferieur_a_la_penalite_ne_la_regle_pas(): void
     {
         $ctx = $this->paidWithFeeDue();
-        $this->spyDriver();
+        $this->fakeWave();
         $token = $this->tokenOf($this->issue($ctx)->json('data.url'));
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
 
@@ -236,8 +235,8 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
     {
         $ctx = $this->paidWithFeeDue();
         $before = $this->rentSettlement($ctx['payment']);
-        $spy = $this->spyDriver();
-        $spy->verifyStatus = DriverStatus::SUCCESS;
+        $spy = $this->fakeWave();
+        $spy->reglerALaVerification();
         $token = $this->tokenOf($this->issue($ctx)->json('data.url'));
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
 
@@ -260,7 +259,7 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
     {
         $ctx = $this->paidWithFeeDue();
         $before = $this->rentSettlement($ctx['payment']);
-        $this->spyDriver();
+        $this->fakeWave();
         $token = $this->tokenOf($this->issue($ctx)->json('data.url'));
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
         $this->waveWebhook('spy_txn_1', self::FEE)->assertOk();
@@ -285,7 +284,7 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
     {
         $ctx = $this->paidWithFeeDue();
         $before = $this->rentSettlement($ctx['payment']);
-        $this->spyDriver();
+        $this->fakeWave();
         $token = $this->tokenOf($this->issue($ctx)->json('data.url'));
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
         $markPaid = '/api/lease-payments/'.$ctx['payment']->id.'/late-fee/mark-paid';
@@ -345,10 +344,15 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
     }
 
     /**
-     * Les lecteurs du RÈGLEMENT DU LOYER ignorent le checkout de la pénalité seule : `isSettledBy`
-     * (malgré son `paid` journalisé), le montant attendu en banque (`expectedBankAmount`, et sa
-     * forme SQL), et l'encaisseur du loyer (`whereNotSettledByPlatform`, `isSettledByPlatform`) — ici
+     * Les lecteurs du RÈGLEMENT DU LOYER ignorent le checkout de la pénalité seule : le montant
+     * attendu en banque (`expectedBankAmount`, et sa forme SQL), et l'encaisseur du loyer (`whereNotSettledByPlatform`, `isSettledByPlatform`) — ici
      * un loyer encaissé par la PLATEFORME, et une pénalité par l'agence.
+     *
+     * TCK-3014 (ADR-0140 § 5) — `isSettledBy` ne se lit plus par réflexion : un événement du checkout
+     * de la pénalité seule n'y arrive jamais, `applyStatusToPayment` l'aiguille avant
+     * (`applyLateFeeAloneStatus`). Ce court-circuit, muté, rougit trois tests de cette classe, dont
+     * `test_le_remboursement_de_la_penalite_ne_rembourse_pas_le_loyer` ; la garde interne de
+     * `isSettledBy`, mutée, n'en rougit aucun : aucun chemin public ne l'atteint.
      */
     public function test_les_lecteurs_du_reglement_du_loyer_ignorent_le_checkout_de_la_penalite(): void
     {
@@ -361,18 +365,13 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
         $meta['gateway']['transactions'][0]['integration_id'] = $platformWave->id;
         DB::table('lease_payments')->where('id', $ctx['payment']->id)->update(['metadata' => json_encode($meta)]);
 
-        $this->spyDriver();
+        $this->fakeWave();
         $token = $this->tokenOf($this->issue($ctx)->json('data.url'));
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
         $this->waveWebhook('spy_txn_1', self::FEE, integration: $agencyWave)->assertOk();
 
         $fresh = $ctx['payment']->fresh();
         $this->assertNotNull($fresh->late_fee_paid_at);
-
-        $isSettledBy = new \ReflectionMethod(PaymentGatewayService::class, 'isSettledBy');
-        $gateway = app(PaymentGatewayService::class);
-        $this->assertFalse($isSettledBy->invoke($gateway, $fresh->metadata, 'spy_txn_1'));
-        $this->assertTrue($isSettledBy->invoke($gateway, $fresh->metadata, 'rent_txn'));
 
         $this->assertSame(150000.0, $fresh->expectedBankAmount());
         $this->assertTrue(LeasePayment::query()->whereKey($fresh->id)->whereExpectedAmountNear(150000, 1)->exists());
@@ -402,7 +401,7 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
     public function test_ac6_une_echeance_due_garde_son_lien_de_loyer_penalite_comprise(): void
     {
         $ctx = $this->leaseDue(['late_fee_online_collection' => true], ['late_fee_amount' => self::FEE]);
-        $spy = $this->spyDriver();
+        $spy = $this->fakeWave();
 
         $url = $this->issue($ctx)->assertOk()->assertJsonPath('data.subject', 'rent')->json('data.url');
         $token = $this->tokenOf($url);
@@ -411,7 +410,7 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
             ->assertJsonPath('data.amount_due', 155000);
         $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'wave'])->assertOk();
 
-        $this->assertSame(15_500_000, $spy->calls[0]['amount_cents']);
+        $this->assertSame(155_000, $spy->checkouts[0]['amount']);
         $this->assertSame('rent', LeasePaymentLink::query()->sole()->subject->value);
     }
 

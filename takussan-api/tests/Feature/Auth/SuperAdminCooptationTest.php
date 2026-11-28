@@ -273,11 +273,6 @@ class SuperAdminCooptationTest extends TestCase
         ])->assertStatus(409);
     }
 
-    public function test_unauthenticated_2fa_enroll_is_rejected(): void
-    {
-        $this->postJson('/api/auth/super-admin/2fa/enroll')->assertStatus(401);
-    }
-
     public function test_2fa_enroll_for_non_pending_user_returns_403(): void
     {
         $user = User::factory()->create([

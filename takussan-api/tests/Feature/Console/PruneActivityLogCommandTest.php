@@ -3,8 +3,6 @@
 namespace Tests\Feature\Console;
 
 use App\Models\Activity;
-use Illuminate\Console\Scheduling\Event;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -127,17 +125,6 @@ class PruneActivityLogCommandTest extends TestCase
             ->expectsOutputToContain('lignes supprimées : 0')
             ->assertSuccessful();
         $this->assertPresente($vivante);
-    }
-
-    public function test_la_purge_est_planifiee_chaque_jour_sans_chevauchement(): void
-    {
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn (Event $e) => str_contains((string) $e->command, 'audit:prune-activity-log'));
-
-        $this->assertNotNull($event, 'audit:prune-activity-log doit être planifiée.');
-        $this->assertSame('10 4 * * *', $event->expression);
-        $this->assertSame('Africa/Dakar', $event->timezone);
-        $this->assertTrue($event->withoutOverlapping);
     }
 
     /**

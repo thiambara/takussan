@@ -80,4 +80,4 @@ brute `/api/settings` ne fait plus que la portée `agency`.**
 - `takussan-api/app/Http/Requests/Api/StoreSettingRequest.php`, `UpdateSettingRequest.php`,
   `SettingController::destroy` — le refus de la portée `global`.
 - `scripts/check-platform-catalogue-readers.mjs` — chaque clé du catalogue a son `getValue` littéral.
-- Tests : `GenericSettingsCatalogueBypassTest`, `ScopedSettingReadersTest`, `PlatformSettingTest`.
+- Tests : `GenericSettingsCatalogueBypassTest`, `ScopedSettingTest` (ex-`ScopedSettingReadersTest`, TCK-3014), `PlatformSettingTest`.

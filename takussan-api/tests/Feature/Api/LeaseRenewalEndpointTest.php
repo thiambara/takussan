@@ -53,30 +53,6 @@ class LeaseRenewalEndpointTest extends TestCase
         ])->assertStatus(422);
     }
 
-    public function test_renew_inherits_monthly_rent_when_omitted(): void
-    {
-        [$landlord, $lease] = $this->scaffold();
-        Sanctum::actingAs($landlord);
-
-        $response = $this->postJson("/api/leases/{$lease->id}/renew", [
-            'start_date' => $lease->end_date->copy()->addDay()->toDateString(),
-        ])->assertCreated();
-
-        $this->assertEquals((float) $lease->monthly_rent, (float) $response->json('data.monthly_rent'));
-    }
-
-    public function test_renew_rejects_tenant_or_property_mutation(): void
-    {
-        [$landlord, $lease] = $this->scaffold();
-        $otherTenant = Customer::factory()->create();
-        Sanctum::actingAs($landlord);
-
-        $this->postJson("/api/leases/{$lease->id}/renew", [
-            'tenant_id' => $otherTenant->id,
-            'start_date' => $lease->end_date->copy()->addDay()->toDateString(),
-        ])->assertStatus(422);
-    }
-
     /** P209.05 (TCK-2177) — la borne de `special_conditions` de la création (TCK-1240) vaut au renouvellement. */
     public function test_renew_bounds_special_conditions_like_the_creation(): void
     {

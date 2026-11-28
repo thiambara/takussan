@@ -6,17 +6,23 @@ use App\Models\Agency;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
+use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\RelationshipType;
+use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\CreatesAgencyMembers;
 use Tests\TestCase;
@@ -42,6 +48,8 @@ class ConversationThreadContextTest extends TestCase
     private Property $maison;
 
     private Customer $fiche;
+
+    private PropertyContactLead $demande;
 
     protected function setUp(): void
     {
@@ -311,5 +319,186 @@ class ConversationThreadContextTest extends TestCase
         $fil->participants()->updateExistingPivot($this->malick->id, ['left_at' => now()]);
 
         $this->contexte($fil, $this->malick)->assertForbidden();
+    }
+
+    // ── Les faits de la fiche (TCK-2858 ; ex-ConversationContextCustomerFactsTest, TCK-3017) ──────────
+    //
+    // La fiche de la colonne dit le PROJET du client, sa DERNIÈRE VISITE passée dans l'agence, son PREMIER
+    // CONTACT (date et canal) et la DEMANDE DE CONTACT liée — au seul personnel de l'agence du fil, et
+    // seulement s'il lit la fiche dans le CRM (`customerReadable`, TCK-2724). Le décor de la classe
+    // reçoit, pour ces tests, l'horloge du 15 novembre, la demande du 2 et le projet de la fiche.
+
+    /** La demande qui a créé la fiche (déposée le 2 novembre), la fiche du 3, son projet ; horloge au 15. */
+    private function avecLaDemande(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'UTC'));
+
+        $this->demande = PropertyContactLead::factory()->create([
+            'property_id' => $this->maison->id,
+            'agency_id' => $this->agency->id,
+            'recipient_user_id' => $this->agent->id,
+            'channel' => ContactLeadChannel::Form,
+        ]);
+        $this->demande->forceFill(['created_at' => Carbon::parse('2026-11-02 17:42:00', 'UTC')])->save();
+
+        $this->fiche->forceFill([
+            'seeking_contract_type' => 'sale',
+            'budget_max' => 70000000,
+            'seeking_property_types' => ['house'],
+            'seeking_neighborhoods' => ['Thiès Nord'],
+            'source_contact_lead_id' => $this->demande->id,
+            'created_at' => Carbon::parse('2026-11-03 09:00:00', 'UTC'),
+        ])->save();
+        $this->demande->forceFill(['customer_id' => $this->fiche->id])->save();
+    }
+
+    /** La directe de l'agent et de Malick, sur la maison. */
+    private function filDuBien(): Conversation
+    {
+        return $this->fil([$this->agent, $this->malick], ['created_by' => $this->malick->id, 'property_id' => $this->maison->id]);
+    }
+
+    private function faits(Conversation $fil, User $lecteur): TestResponse
+    {
+        return $this->contexte($fil, $lecteur)->assertOk();
+    }
+
+    private function visite(string $quand, VisitStatus $statut, ?Property $bien = null): PropertyVisit
+    {
+        return PropertyVisit::factory()->create([
+            'property_id' => ($bien ?? $this->maison)->id,
+            'customer_id' => $this->fiche->id,
+            'visitor_id' => $this->malick->id,
+            'scheduled_at' => Carbon::parse($quand, 'UTC'),
+            'status' => $statut,
+        ]);
+    }
+
+    /** AC1 — l'agent lit la dernière visite passée, la demande qui a créé la fiche et le premier contact. */
+    public function test_l_agent_lit_les_faits_du_client(): void
+    {
+        $this->avecLaDemande();
+        $visiteDu8 = $this->visite('2026-11-08 10:00:00', VisitStatus::Completed);
+        $this->visite('2026-11-05 10:00:00', VisitStatus::Completed);
+        // Ni une visite annulée, ni une absence, ni une visite à venir ne sont « la dernière visite ».
+        $this->visite('2026-11-12 10:00:00', VisitStatus::Cancelled);
+        $this->visite('2026-11-13 10:00:00', VisitStatus::NoShow);
+        $this->visite('2026-11-20 10:00:00', VisitStatus::Confirmed);
+
+        $this->faits($this->filDuBien(), $this->agent)
+            ->assertJsonPath('data.customer.last_visit.id', $visiteDu8->id)
+            ->assertJsonPath('data.customer.last_visit.scheduled_at', '2026-11-08T10:00:00+00:00')
+            ->assertJsonPath('data.customer.last_visit.property_title', 'Maison avec jardin · Thiès')
+            ->assertJsonPath('data.customer.contact_lead.id', $this->demande->id)
+            ->assertJsonPath('data.customer.contact_lead.created_at', '2026-11-02T17:42:00+00:00')
+            ->assertJsonPath('data.customer.contact_lead.property_title', 'Maison avec jardin · Thiès')
+            ->assertJsonPath('data.customer.first_contact_at', '2026-11-02T17:42:00+00:00')
+            ->assertJsonPath('data.customer.origin', 'form')
+            ->assertJsonPath('data.customer.project.contract_type', 'sale')
+            ->assertJsonPath('data.customer.project.budget_max', 70000000)
+            ->assertJsonPath('data.customer.project.budget_min', null)
+            ->assertJsonPath('data.customer.project.property_types', ['house'])
+            ->assertJsonPath('data.customer.project.neighborhoods', ['Thiès Nord']);
+    }
+
+    /** Une visite passée dans une AUTRE agence n'est pas « la dernière visite » de la fiche de celle-ci. */
+    public function test_la_visite_d_une_autre_agence_ne_compte_pas(): void
+    {
+        $this->avecLaDemande();
+        $ailleurs = Property::factory()->create(['agency_id' => Agency::factory()->create()->id]);
+        $this->visite('2026-11-10 10:00:00', VisitStatus::Completed, $ailleurs);
+
+        $this->faits($this->filDuBien(), $this->agent)
+            ->assertJsonPath('data.customer.last_visit', null);
+    }
+
+    /** Sans visite ni demande : « Aucune encore », et le premier contact retombe sur la création de la fiche. */
+    public function test_sans_visite_ni_demande(): void
+    {
+        $this->avecLaDemande();
+        $this->fiche->forceFill(['source_contact_lead_id' => null])->save();
+        $this->demande->forceFill(['customer_id' => null])->save();
+
+        $this->faits($this->filDuBien(), $this->agent)
+            ->assertJsonPath('data.customer.last_visit', null)
+            ->assertJsonPath('data.customer.contact_lead', null)
+            ->assertJsonPath('data.customer.first_contact_at', '2026-11-03T09:00:00+00:00')
+            ->assertJsonPath('data.customer.origin', null);
+    }
+
+    /** Une fiche saisie à la main AVANT la demande qu'on lui rattache : le premier contact est la fiche, sans canal. */
+    public function test_la_fiche_plus_ancienne_que_la_demande(): void
+    {
+        $this->avecLaDemande();
+        $this->fiche->forceFill(['created_at' => Carbon::parse('2026-11-01 09:00:00', 'UTC')])->save();
+
+        $this->faits($this->filDuBien(), $this->agent)
+            ->assertJsonPath('data.customer.first_contact_at', '2026-11-01T09:00:00+00:00')
+            ->assertJsonPath('data.customer.origin', null)
+            // La demande liée reste celle qui a été rattachée.
+            ->assertJsonPath('data.customer.contact_lead.id', $this->demande->id);
+    }
+
+    /** Sans `source_contact_lead_id` : la dernière demande de la fiche sur le bien du fil. */
+    public function test_la_demande_liee_retombe_sur_la_derniere_du_bien_du_fil(): void
+    {
+        $this->avecLaDemande();
+        $this->fiche->forceFill(['source_contact_lead_id' => null])->save();
+        $recente = PropertyContactLead::factory()->create([
+            'property_id' => $this->maison->id,
+            'agency_id' => $this->agency->id,
+            'recipient_user_id' => $this->agent->id,
+            'customer_id' => $this->fiche->id,
+        ]);
+        $recente->forceFill(['created_at' => Carbon::parse('2026-11-10 08:00:00', 'UTC')])->save();
+        // Une demande plus récente encore, mais sur un autre bien : pas celle du fil.
+        PropertyContactLead::factory()->create([
+            'agency_id' => $this->agency->id,
+            'property_id' => Property::factory()->create(['agency_id' => $this->agency->id])->id,
+            'customer_id' => $this->fiche->id,
+        ]);
+
+        $this->faits($this->filDuBien(), $this->agent)
+            ->assertJsonPath('data.customer.contact_lead.id', $recente->id)
+            // Le premier contact reste la plus ancienne demande de la fiche.
+            ->assertJsonPath('data.customer.first_contact_at', '2026-11-02T17:42:00+00:00');
+    }
+
+    /** La demande liée n'est rendue qu'à qui peut la lire (`PropertyContactLeadPolicy::view`). */
+    public function test_la_demande_liee_suit_sa_policy(): void
+    {
+        $this->avecLaDemande();
+        // Une demande destinée à un autre, d'une autre agence : l'agent ne la lit pas.
+        $autre = Agency::factory()->create();
+        $this->demande->forceFill(['agency_id' => $autre->id, 'recipient_user_id' => User::factory()->create()->id])->save();
+
+        $this->faits($this->filDuBien(), $this->agent)
+            ->assertJsonPath('data.customer.contact_lead', null);
+    }
+
+    /**
+     * Le personnel qui ne lit pas la fiche dans le CRM (`CustomerPolicy::view`) n'en lit ni le projet
+     * ni les faits : la colonne ne montre pas plus que le CRM (TCK-2724).
+     */
+    public function test_sans_lecture_de_la_fiche_aucun_fait(): void
+    {
+        $this->avecLaDemande();
+        $this->visite('2026-11-08 10:00:00', VisitStatus::Completed);
+        $collegue = $this->agentWithout($this->agency, Capability::CrmViewAll);
+        Sanctum::actingAs($collegue);
+        $this->getJson("/api/customers/{$this->fiche->id}")->assertForbidden();
+
+        $fil = Conversation::factory()->create(['type' => ConversationType::Direct, 'subject' => null, 'created_by' => $this->malick->id]);
+        foreach ([$collegue, $this->malick] as $membre) {
+            $fil->participants()->attach($membre->id, ['joined_at' => now()]);
+        }
+
+        $this->faits($fil, $collegue)
+            ->assertJsonPath('data.customer.id', $this->fiche->id)
+            ->assertJsonPath('data.customer.project', null)
+            ->assertJsonPath('data.customer.last_visit', null)
+            ->assertJsonPath('data.customer.contact_lead', null)
+            ->assertJsonPath('data.customer.first_contact_at', null)
+            ->assertJsonPath('data.customer.origin', null);
     }
 }

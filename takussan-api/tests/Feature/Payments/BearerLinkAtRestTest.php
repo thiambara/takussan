@@ -40,7 +40,7 @@ class BearerLinkAtRestTest extends TestCase
     public function test_an_account_holder_flow_leaves_no_token_in_clear(): void
     {
         $ctx = $this->leaseDue(null, ['due_date' => now()->subDay()->toDateString()]);
-        $this->spyDriver();
+        $this->fakeWave();
 
         $this->actingAs($ctx['agent'], 'sanctum');
         $token = $this->tokenOf($this->postJson("/api/lease-payments/{$ctx['payment']->id}/payment-link")->assertOk()->json('data.url'));
@@ -64,7 +64,7 @@ class BearerLinkAtRestTest extends TestCase
         Carbon::setTestNow(now());
         $ctx = $this->leaseDue(null, ['due_date' => now()->subDay()->toDateString()]);
         $ctx['lease']->tenant->forceFill(['user_id' => null, 'phone' => '+221771234567'])->save();
-        $this->spyDriver();
+        $this->fakeWave();
 
         (new SendLeasePaymentReminders)->handle(app(NotificationService::class));
         $this->assertGreaterThan(0, DB::table('jobs')->count(), 'la relance est en file');

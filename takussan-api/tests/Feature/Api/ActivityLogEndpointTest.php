@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\BookingPayment;
+use App\Models\Enums\AgencyKind;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -247,5 +248,58 @@ class ActivityLogEndpointTest extends TestCase
 
         $ids = array_column($response->json('data'), 'id');
         $this->assertContains($seeded->id, $ids);
+    }
+
+    /** TCK-3017 — ex-AuditLogTest : la route historique `/audit-log`, que lit l'onglet Historique du bail, et son filtre `log_name`. */
+    public function test_legacy_route_lists_and_filters_by_log_name(): void
+    {
+        $admin = User::factory()->create(['agency_id' => Agency::factory()->create()->id]);
+        $this->materializeRoleProfile($admin, 'super_admin');
+        Sanctum::actingAs($admin);
+
+        Activity::create([
+            'log_name' => 'default',
+            'description' => 'created',
+            'subject_type' => User::class,
+            'subject_id' => $admin->id,
+            'causer_type' => User::class,
+            'causer_id' => $admin->id,
+            'event' => 'created',
+        ]);
+
+        $this->getJson('/api/audit-log')
+            ->assertOk()
+            ->assertJsonStructure([
+                'data' => [
+                    '*' => [
+                        'id', 'log_name', 'event', 'description', 'causer_type', 'causer_id', 'subject_type', 'subject_id',
+                    ],
+                ],
+                'meta' => ['total', 'current_page', 'last_page', 'per_page'],
+            ]);
+
+        // Two `created` entries exist: one auto-logged by the LogsActivity trait
+        // when the admin factory ran, plus the one manually seeded above. Since
+        // TCK-803 the auto-logged one is written under the `User` log, not `default`.
+        $this->getJson('/api/audit-log?log_name=default&event=created')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+        $this->getJson('/api/audit-log?log_name=User&event=created')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
+    /** TCK-3017 — ex-AuditLogTest. */
+    public function test_individual_agency_admin_cannot_read_audit_log(): void
+    {
+        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
+        $admin = User::factory()->create(['agency_id' => $agency->id]);
+        $this->materializeRoleProfile($admin, 'agency_admin', $agency);
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/audit-log')->assertForbidden();
+
+        $agency->update(['kind' => AgencyKind::Standard]);
+        $this->getJson('/api/audit-log')->assertOk();
     }
 }

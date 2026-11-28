@@ -184,11 +184,4 @@ class PrixDepuisLAjoutTest extends TestCase
             ->assertJsonPath('data.0.last_viewed_at', '2026-11-09T10:15:00+00:00');
         $this->assertSame($majAvant, $recherche->fresh()->getRawOriginal('updated_at'), 'une ouverture ne modifie pas la recherche');
     }
-
-    public function test_ouvrir_sans_session_rend_401(): void
-    {
-        $recherche = SavedSearch::factory()->create();
-
-        $this->postJson("/api/saved-searches/{$recherche->id}/viewed")->assertUnauthorized();
-    }
 }

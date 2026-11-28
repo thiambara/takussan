@@ -526,10 +526,25 @@ nom du produit**. `scripts/check-command-prefixes.mjs` (Repo CI) le garde. **Fic
 
 ## Tests
 
-**377 fichiers de test** (326 `Feature`, 51 `Unit`), mesurés le 2026-08-22 par
-`find tests -name '*Test.php' | wc -l`. ⚠ **Ce chiffre est un ordre de grandeur, pas un compte à
-tenir à jour** : cette ligne annonçait « 307 fichiers (277 `Feature`, 26 `Unit`) » — faux de 70
-fichiers, dont 25 sur les seuls tests unitaires, soit un doublement passé inaperçu.
+**~2 170 fichiers de test, ~14 300 tests, ~380 000 lignes** (2026-11-28 ; `find tests -name '*Test.php' | wc -l`,
+`grep -rhoE 'public function test_|#\[Test\]' tests | wc -l`). ⚠ Ordre de grandeur, pas un compte à tenir : cette
+ligne annonçait « 377 fichiers » le 2026-08-22, la suite avait quintuplé sans qu'elle bouge.
+
+### Une classe par module ; remplacer, ne pas empiler (ADR-0140)
+
+Le relevé du 2026-11-28 : peu de tests inutiles (~2,7 %), mais une suite qui grossit par **accrétion** — 1 738
+fichiers ajoutés en 8 semaines, 22 retirés ; 2 095 fichiers sur 2 166 nés d'un ticket.
+
+- Un test neuf va dans la classe du **module ou de la règle** qu'il éprouve, nommée par eux, jamais dans un fichier
+  nommé par le ticket. Le ticket se cite dans le nom ou le docblock du test.
+- Le ticket qui crée ou approfondit un module (`GestesDe…`, `*Lisibles`, lecteur de réglages…) **retire dans la même
+  PR** les tests qu'il absorbe.
+- **Un retrait se prouve par ablation, par grappe** : muter la règle en production, un test restant doit rougir ;
+  sinon le test se déplace. Les règles sacrées (argent, isolation, empreintes du Radar, idempotence) ne perdent un
+  test que si un autre rougit à sa place.
+- **Règle transversale = recensement** (planification, routes retirées, bornes, authentification, refus par espace).
+- **Par l'interface** : pas de réflexion sur du privé, pas de doublure partielle d'un module de l'application ; un
+  adaptateur factice derrière la couture. Exception : une garde de course qui épingle un `FOR UPDATE`.
 
 `phpunit.xml` force **`DB_CONNECTION=pgsql` SANS REPLI** (ADR-0020, 2026-08-21) — et non plus
 SQLite `:memory:`, comme cette ligne l'a affirmé jusqu'au 2026-08-22 —, plus

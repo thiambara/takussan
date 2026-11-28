@@ -34,22 +34,6 @@ class LocaleBearerTokenTest extends TestCase
         $this->assertStringContainsString('Barabu', $response->json('errors.first_name.0'));
     }
 
-    public function test_accept_language_supporte_lemporte_sur_preferred_language(): void
-    {
-        $response = $this->appelSansPrenom('wo', ['Accept-Language' => 'fr-FR,fr;q=0.9']);
-
-        $response->assertStatus(422);
-        $this->assertStringContainsString('est obligatoire', $response->json('errors.first_name.0'));
-    }
-
-    public function test_le_parametre_lang_lemporte_sur_tout(): void
-    {
-        $response = $this->appelSansPrenom('wo', ['Accept-Language' => 'en'], '?lang=fr');
-
-        $response->assertStatus(422);
-        $this->assertStringContainsString('est obligatoire', $response->json('errors.first_name.0'));
-    }
-
     /** @param array<string, string> $enTetes */
     private function appelSansPrenom(string $langueDuCompte, array $enTetes, string $requete = ''): TestResponse
     {

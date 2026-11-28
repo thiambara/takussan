@@ -46,17 +46,6 @@ class LeaseRentEndpointTest extends TestCase
         $this->assertSame('Annual rent review', $log->properties['reason']);
     }
 
-    public function test_short_reason_returns_422(): void
-    {
-        [$landlord, $lease] = $this->scaffold();
-        Sanctum::actingAs($landlord);
-
-        $this->patchJson("/api/leases/{$lease->id}/rent", [
-            'new_rent' => 210_000,
-            'reason' => 'no',
-        ])->assertStatus(422);
-    }
-
     public function test_excessive_variation_without_force_returns_422(): void
     {
         [$landlord, $lease] = $this->scaffold();
@@ -136,18 +125,6 @@ class LeaseRentEndpointTest extends TestCase
             'new_rent' => 210_000,
             'reason' => 'Stranger trying',
         ])->assertStatus(403);
-    }
-
-    public function test_review_on_draft_lease_returns_422(): void
-    {
-        [$landlord, $lease] = $this->scaffold();
-        $lease->forceFill(['status' => 'draft'])->save();
-        Sanctum::actingAs($landlord);
-
-        $this->patchJson("/api/leases/{$lease->id}/rent", [
-            'new_rent' => 210_000,
-            'reason' => 'On draft',
-        ])->assertStatus(422);
     }
 
     /**

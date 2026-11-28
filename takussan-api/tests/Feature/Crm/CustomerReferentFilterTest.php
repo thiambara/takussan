@@ -4,11 +4,13 @@ namespace Tests\Feature\Crm;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
 use Tests\Support\FabriqueDemandesEtVisites;
@@ -16,6 +18,10 @@ use Tests\Support\FabriqueDemandesEtVisites;
 /**
  * TCK-2588 — le référent d'une fiche (relation `agent_client` principale et active) : rendu par
  * `fields[customers]=referent`, filtré par `filter[referent]=me|none|{id}`.
+ *
+ * TCK-2889 (ex-`CustomerSortByReferentTest` et `CustomerSortByStageTest`, versés par TCK-3017) — les
+ * tris de la liste des fiches : `sort=referent` par le nom affiché du même référent, en collation ICU,
+ * et `sort=pipeline_stage` dans l'ordre du pipeline.
  */
 class CustomerReferentFilterTest extends ApiTestCase
 {
@@ -42,7 +48,8 @@ class CustomerReferentFilterTest extends ApiTestCase
 
         $this->agence = $this->agence();
         $this->agent = $this->personnel($this->agence, attributes: ['first_name' => 'Awa', 'last_name' => 'Ndiaye']);
-        $this->collegue = $this->personnel($this->agence);
+        // En minuscule : sous `--locale=C`, un tri nu la rangerait après « Awa » (TCK-2889).
+        $this->collegue = $this->personnel($this->agence, attributes: ['first_name' => 'aminata', 'last_name' => 'Sow']);
 
         $this->mienne = $this->ficheClient($this->agence);
         $this->sienne = $this->ficheClient($this->agence);
@@ -126,5 +133,73 @@ class CustomerReferentFilterTest extends ApiTestCase
         Sanctum::actingAs($this->agent);
         $this->getJson('/api/customers?filter[referent]=abc')->assertStatus(422);
         $this->getJson('/api/customers?filter[referent][]=me')->assertStatus(422);
+    }
+
+    /** @return list<int> dans l'ordre rendu */
+    private function ordre(string $tri, ?User $lecteur = null): array
+    {
+        Sanctum::actingAs($lecteur ?? $this->agent);
+
+        return collect($this->getJson('/api/customers?fields[customers]=id&sort='.$tri)->assertOk()->json('data'))
+            ->pluck('id')->all();
+    }
+
+    /**
+     * TCK-2889 AC2 — `sort=referent` : aminata avant Awa (collation ICU), les fiches sans référent (relation
+     * non principale, relation terminée) en dernier dans les deux sens, départagées dans le sens du tri.
+     */
+    public function test_sort_referent_par_nom_sans_referent_en_dernier(): void
+    {
+        $sans = [$this->orpheline->id, $this->terminee->id];
+
+        $this->assertSame([$this->sienne->id, $this->mienne->id, ...$sans], $this->ordre('referent'));
+        $this->assertSame([$this->mienne->id, $this->sienne->id, ...array_reverse($sans)], $this->ordre('-referent'));
+    }
+
+    /** TCK-2889 — le référent est lu dans la requête de la page : le tri n'ajoute aucune requête. */
+    public function test_sort_referent_tient_dans_la_requete_de_la_page(): void
+    {
+        Sanctum::actingAs($this->agent);
+        $this->getJson('/api/customers?fields[customers]=id&sort=id')->assertOk();
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->getJson('/api/customers?fields[customers]=id&sort=id')->assertOk();
+        $sansTri = count(DB::getQueryLog());
+
+        DB::flushQueryLog();
+        $this->getJson('/api/customers?fields[customers]=id&sort=referent')->assertOk();
+        $avecTri = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $this->assertSame($sansTri, $avecTri);
+    }
+
+    /**
+     * TCK-2889 AC1 — `sort=pipeline_stage` : l'ordre du PIPELINE, pas l'alphabétique des codes, dans les deux
+     * sens ; deux fiches à la même étape départagées par identifiant, dans le sens du tri. Une agence à part :
+     * les fiches du décor n'y sont pas.
+     */
+    public function test_sort_pipeline_stage_suit_le_pipeline_et_departage_par_identifiant(): void
+    {
+        $agence = $this->agence();
+        $agent = $this->personnel($agence);
+        $fiches = [];
+        // Créées dans un ordre qui n'est ni celui du pipeline ni l'alphabétique.
+        foreach (['lost', 'negotiating', 'prospect', 'converted', 'qualified', 'lead'] as $etape) {
+            $fiches[$etape] = $this->ficheClient($agence, null, ['pipeline_stage' => CustomerPipelineStage::from($etape)]);
+        }
+        $seconde = $this->ficheClient($agence, null, ['pipeline_stage' => CustomerPipelineStage::Qualified]);
+
+        Sanctum::actingAs($agent);
+        $lire = fn (string $tri) => collect($this->getJson('/api/customers?fields[customers]=id,pipeline_stage&sort='.$tri)->assertOk()->json('data'));
+
+        $pipeline = ['lead', 'prospect', 'qualified', 'qualified', 'negotiating', 'converted', 'lost'];
+        $this->assertSame($pipeline, $lire('pipeline_stage')->pluck('pipeline_stage')->all());
+        $this->assertSame(array_reverse($pipeline), $lire('-pipeline_stage')->pluck('pipeline_stage')->all());
+
+        $qualifiees = fn (string $tri) => $lire($tri)->where('pipeline_stage', 'qualified')->pluck('id')->values()->all();
+        $this->assertSame([$fiches['qualified']->id, $seconde->id], $qualifiees('pipeline_stage'));
+        $this->assertSame([$seconde->id, $fiches['qualified']->id], $qualifiees('-pipeline_stage'));
     }
 }

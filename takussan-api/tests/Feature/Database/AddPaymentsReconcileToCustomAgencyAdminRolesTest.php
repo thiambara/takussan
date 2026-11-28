@@ -10,6 +10,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -18,14 +19,26 @@ use Tests\TestCase;
  * un admin dont le profil pointe un rôle PERSONNALISÉ l'aurait perdue. La migration de données
  * l'insère dans les rôles personnalisés de base `agency_admin`, en ajout seul et idempotente ; les
  * rôles d'un autre type et les autres capacités sont les témoins de ce qu'elle ne touche pas.
+ *
+ * TCK-2640 — `owners.update` (régler le plafond de travaux d'un bailleur du carnet) a pris le même chemin,
+ * par une migration jumelle : les deux se jouent par le même `DataProvider` (ex-`AddOwnersUpdateToCustomAgencyAdminRolesTest`,
+ * versé par TCK-3017).
  */
 class AddPaymentsReconcileToCustomAgencyAdminRolesTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const MIGRATION = 'migrations/2026_10_24_170000_add_payments_reconcile_to_custom_agency_admin_roles.php';
+    /** @return array<string, array{string, Capability}> */
+    public static function migrations(): array
+    {
+        return [
+            'payments.reconcile (TCK-2260)' => ['migrations/2026_10_24_170000_add_payments_reconcile_to_custom_agency_admin_roles.php', Capability::PaymentsReconcile],
+            'owners.update (TCK-2640)' => ['migrations/2026_11_11_121000_add_owners_update_to_custom_agency_admin_roles.php', Capability::OwnersUpdate],
+        ];
+    }
 
-    public function test_les_roles_personnalises_d_admin_recoivent_la_capacite_et_rien_d_autre_ne_bouge(): void
+    #[DataProvider('migrations')]
+    public function test_les_roles_personnalises_d_admin_recoivent_la_capacite_et_rien_d_autre_ne_bouge(string $migration, Capability $capacite): void
     {
         $agency = Agency::factory()->create();
         $customAdmin = AgencyRole::factory()->ofType(AgencyRoleBaseType::AgencyAdmin)
@@ -47,19 +60,20 @@ class AddPaymentsReconcileToCustomAgencyAdminRolesTest extends TestCase
         AgencyAdminProfile::factory()->create([
             'user_id' => $admin->id, 'agency_id' => $agency->id, 'agency_role_id' => $customAdmin->id,
         ]);
-        $this->assertFalse($admin->canActAt(Capability::PaymentsReconcile, $agency));
+        $this->assertFalse($admin->canActAt($capacite, $agency));
 
-        $this->up();
-        $this->up(); // idempotente : un second passage n'ajoute ni ne casse rien
+        $this->up($migration);
+        $this->up($migration); // idempotente : un second passage n'ajoute ni ne casse rien
 
-        $this->assertSame(['payments.reconcile', 'reports.view_agency', 'team.invite'], $this->capabilitiesOf($customAdmin));
+        $this->assertSame($this->tri([$capacite->value, 'reports.view_agency', 'team.invite']), $this->capabilitiesOf($customAdmin));
         $this->assertSame(['payments.record'], $this->capabilitiesOf($customAgent));
         $this->assertSame($before['systemAdmin'], $this->capabilitiesOf($systemAdmin));
         $this->assertSame($before['systemAgent'], $this->capabilitiesOf($systemAgent));
-        $this->assertTrue($admin->fresh()->canActAt(Capability::PaymentsReconcile, $agency));
+        $this->assertTrue($admin->fresh()->canActAt($capacite, $agency));
     }
 
-    public function test_down_retire_la_capacite_des_seuls_roles_personnalises_d_admin(): void
+    #[DataProvider('migrations')]
+    public function test_down_retire_la_capacite_des_seuls_roles_personnalises_d_admin(string $migration, Capability $capacite): void
     {
         $agency = Agency::factory()->create();
         $customAdmin = AgencyRole::factory()->ofType(AgencyRoleBaseType::AgencyAdmin)
@@ -68,21 +82,32 @@ class AddPaymentsReconcileToCustomAgencyAdminRolesTest extends TestCase
         // Un rôle d'agent auquel l'éditeur a donné la capacité : la migration ne la lui a pas
         // donnée, son `down()` ne la lui retire pas.
         $customAgent = AgencyRole::factory()->ofType(AgencyRoleBaseType::Agent)
-            ->withCapabilities([Capability::PaymentsReconcile])
+            ->withCapabilities([$capacite])
             ->create(['agency_id' => $agency->id]);
         $systemAdmin = $this->systemRole($agency, AgencyRoleBaseType::AgencyAdmin);
 
-        $this->up();
-        (require database_path(self::MIGRATION))->down();
+        $this->up($migration);
+        (require database_path($migration))->down();
 
         $this->assertSame(['team.invite'], $this->capabilitiesOf($customAdmin));
-        $this->assertSame(['payments.reconcile'], $this->capabilitiesOf($customAgent));
-        $this->assertContains('payments.reconcile', $this->capabilitiesOf($systemAdmin));
+        $this->assertSame([$capacite->value], $this->capabilitiesOf($customAgent));
+        $this->assertContains($capacite->value, $this->capabilitiesOf($systemAdmin));
     }
 
-    private function up(): void
+    private function up(string $migration): void
     {
-        (require database_path(self::MIGRATION))->up();
+        (require database_path($migration))->up();
+    }
+
+    /**
+     * @param  list<string>  $capacites
+     * @return list<string>
+     */
+    private function tri(array $capacites): array
+    {
+        sort($capacites);
+
+        return $capacites;
     }
 
     private function systemRole(Agency $agency, AgencyRoleBaseType $type): AgencyRole

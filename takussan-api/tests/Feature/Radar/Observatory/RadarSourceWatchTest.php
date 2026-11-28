@@ -15,7 +15,6 @@ use App\Services\Radar\Crawl\RadarSnapshots;
 use App\Services\Radar\Observatory\RadarSourceWatch;
 use App\Services\Radar\RadarPurger;
 use App\Support\RadarPhone;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Spatie\Activitylog\Models\Activity;
@@ -376,15 +375,5 @@ class RadarSourceWatchTest extends TestCase
             }
         }
         $this->assertSame([], $ecarts);
-    }
-
-    /** La commande est planifiée toutes les quinze minutes, sans chevauchement. */
-    public function test_la_commande_est_planifiee(): void
-    {
-        $evenements = collect(app(Schedule::class)->events())->filter(fn ($e) => str_contains((string) $e->command, 'radar:observe-sources'));
-
-        $this->assertCount(1, $evenements);
-        $this->assertSame('*/15 * * * *', $evenements->first()->expression);
-        $this->assertTrue($evenements->first()->withoutOverlapping);
     }
 }

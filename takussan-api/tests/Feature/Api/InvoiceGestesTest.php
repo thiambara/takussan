@@ -3,14 +3,18 @@
 namespace Tests\Feature\Api;
 
 use App\Exceptions\ApiError;
+use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Integration;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Services\Invoice\GestesDeLaFacture;
 use App\Services\Model\InvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\CreatesAgencyMembers;
+use Tests\Support\FakeWave;
 use Tests\TestCase;
 
 /**
@@ -21,6 +25,7 @@ use Tests\TestCase;
  */
 class InvoiceGestesTest extends TestCase
 {
+    use CreatesAgencyMembers;
     use RefreshDatabase;
 
     /** @return array<string, bool> */
@@ -115,6 +120,47 @@ class InvoiceGestesTest extends TestCase
         Sanctum::actingAs($emetteur);
 
         $this->assertArrayNotHasKey('abilities', $this->getJson('/api/invoices')->assertOk()->json('data.0'));
+    }
+
+    /**
+     * TCK-3018 — parité du geste `pay` et de la route qu'il annonce : pour chaque lecteur et chaque statut,
+     * « Payer en ligne » est offert si et seulement si `POST /api/invoices/{id}/initiate` ouvre le paiement.
+     * Le geste compose `isPayable` et `update` ; la route juge `update` puis `isPayable` sous la passerelle.
+     * Aucun test n'initiait le paiement d'une facture : une route qui divergeait du geste restait verte.
+     */
+    public function test_payer_en_ligne_est_offert_si_et_seulement_si_la_route_l_ouvre(): void
+    {
+        FakeWave::install();
+        $agence = Agency::factory()->create();
+        Integration::factory()->create([
+            'agency_id' => $agence->id,
+            'provider' => 'wave',
+            'is_active' => true,
+            'credentials' => ['api_key' => 'wave_test_key', 'webhook_secret' => 'wave_secret'],
+        ]);
+        $personnel = $this->agencyAdmin($agence);
+        $client = User::factory()->create();
+        $fiche = Customer::factory()->create(['agency_id' => $agence->id, 'user_id' => $client->id]);
+
+        $offerts = 0;
+        foreach (InvoiceStatus::cases() as $statut) {
+            foreach (['personnel' => $personnel, 'client' => $client] as $qui => $lecteur) {
+                $facture = Invoice::factory()->create([
+                    'agency_id' => $agence->id,
+                    'issued_by_id' => $personnel->id,
+                    'customer_id' => $fiche->id,
+                    'status' => $statut,
+                ]);
+                $show = $this->actingAs($lecteur, 'sanctum')->getJson("/api/invoices/{$facture->id}");
+                $offert = $show->isOk() && $show->json('data.abilities.pay') === true;
+
+                $ouvert = $this->postJson("/api/invoices/{$facture->id}/initiate", ['provider' => 'wave']);
+
+                $this->assertSame($offert, $ouvert->isOk(), "{$qui}, {$statut->value} : pay ".var_export($offert, true)." mais la route rend {$ouvert->status()}");
+                $offerts += (int) $offert;
+            }
+        }
+        $this->assertGreaterThan(0, $offerts, 'au moins un cas où le paiement s\'ouvre');
     }
 
     /**

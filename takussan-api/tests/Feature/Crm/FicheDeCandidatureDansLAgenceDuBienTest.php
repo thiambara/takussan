@@ -189,4 +189,36 @@ class FicheDeCandidatureDansLAgenceDuBienTest extends ApiTestCase
         $this->assertNull($reservation->customer->agency_id);
         $this->assertSame($candidat->id, $reservation->customer->user_id);
     }
+
+    /**
+     * P158.01 (TCK-1710, ex-`FicheDuCandidatRattacheeTest`, versé par TCK-3017) — l'e-mail vérifié rattache
+     * aussi, replié : `AWA@` vaut `awa@`. Le téléphone de la fiche diffère : seul l'e-mail peut rattacher.
+     */
+    public function test_la_fiche_de_l_agence_a_l_e_mail_verifie_se_rattache_au_compte(): void
+    {
+        $fiche = Customer::factory()->create([
+            'agency_id' => $this->agence->id, 'user_id' => null, 'phone' => '77 000 00 00', 'email' => 'AWA@example.test',
+        ]);
+        $candidat = $this->candidat(['email_verified_at' => now()]);
+
+        $this->postuler($candidat);
+
+        $this->assertSame(1, Customer::query()->where('agency_id', $this->agence->id)->count());
+        $this->assertSame($candidat->id, $fiche->refresh()->user_id);
+    }
+
+    /** P158.01 (TCK-1710, ex-`FicheDuCandidatRattacheeTest`) — une fiche déjà liée à un autre compte ne se rattache pas. */
+    public function test_une_fiche_deja_liee_a_un_autre_compte_ne_se_rattache_pas(): void
+    {
+        $autre = User::factory()->create();
+        $fiche = Customer::factory()->create([
+            'agency_id' => $this->agence->id, 'user_id' => $autre->id, 'phone' => '77 123 45 67', 'email' => 'awa@example.test',
+        ]);
+        $candidat = $this->candidat(['phone_verified_at' => now(), 'email_verified_at' => now()]);
+
+        $this->postuler($candidat);
+
+        $this->assertSame($autre->id, $fiche->refresh()->user_id);
+        $this->assertSame(1, Customer::query()->where('user_id', $candidat->id)->count());
+    }
 }

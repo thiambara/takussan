@@ -112,11 +112,6 @@ class MePiecesTest extends ApiTestCase
         $this->apiGet(self::URL)->assertOk()->assertExactJson(['data' => []]);
     }
 
-    public function test_sans_session_401(): void
-    {
-        $this->getJson(self::URL)->assertUnauthorized();
-    }
-
     /** @param  array<string, mixed>  $attributs */
     private function piece(Model $profil, DocumentType $type, User $par, array $attributs = []): Document
     {

@@ -161,11 +161,13 @@ class PropertyVisitWorkflowTest extends TestCase
 
         $owner = User::factory()->create();
         $visitor = User::factory()->create();
+        $agent = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $owner->id]);
 
         PropertyVisit::factory()->create([
             'property_id' => $property->id,
             'visitor_id' => $visitor->id,
+            'agent_id' => $agent->id,
             'status' => VisitStatus::Confirmed,
             'scheduled_at' => now()->addHours(24),
             'duration_minutes' => 30,
@@ -176,6 +178,8 @@ class PropertyVisitWorkflowTest extends TestCase
         Notification::assertSentTo($visitor, CodedNotification::class, function (CodedNotification $notif) {
             return $notif->code === NotificationCode::VisitReminder && $notif->params['window'] === '24h';
         });
+        // L'agent de la visite est rappelé lui aussi (TCK-3017 : ex-ScheduledJobsTest).
+        Notification::assertSentTo($agent, CodedNotification::class);
     }
 
     public function test_reminder_job_dispatches_1h_notification(): void
@@ -433,5 +437,25 @@ class PropertyVisitWorkflowTest extends TestCase
         $ids = collect($response->json('data'))->pluck('id')->all();
         $this->assertContains($upcoming->id, $ids);
         $this->assertCount(1, $ids);
+    }
+
+    /** TCK-3017 — ex-ScheduledJobsTest : une visite à cinq jours n'est pas rappelée. */
+    public function test_visit_reminder_ignores_non_tomorrow_visits(): void
+    {
+        Notification::fake();
+
+        $agent = User::factory()->create();
+        $property = Property::factory()->create();
+
+        PropertyVisit::factory()->create([
+            'property_id' => $property->id,
+            'agent_id' => $agent->id,
+            'status' => VisitStatus::Confirmed,
+            'scheduled_at' => now()->addDays(5),
+        ]);
+
+        (new SendPropertyVisitReminders)->handle();
+
+        Notification::assertNothingSentTo($agent);
     }
 }

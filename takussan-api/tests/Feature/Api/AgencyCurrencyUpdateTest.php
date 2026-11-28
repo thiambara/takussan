@@ -107,16 +107,4 @@ class AgencyCurrencyUpdateTest extends TestCase
         $this->assertSame('XOF', $payment->refresh()->currency->value);
         $this->assertEquals(250_000, (float) $payment->amount);
     }
-
-    public function test_existing_agencies_have_xof_default_after_migration(): void
-    {
-        // The migration sets the default at the column level — newly created
-        // rows that omit `currency` get XOF without us having to specify it.
-        $admin = User::factory()->create();
-        $agency = Agency::factory()->create([
-            'primary_admin_id' => $admin->id,
-        ]);
-
-        $this->assertSame('XOF', $agency->refresh()->currency->value);
-    }
 }

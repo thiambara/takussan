@@ -158,12 +158,4 @@ class AgencyStatsTest extends ApiTestCase
         $this->apiGet("/api/agencies/{$agency->id}/stats")
             ->assertForbidden();
     }
-
-    public function test_unauthenticated_request_is_rejected(): void
-    {
-        $agency = Agency::factory()->create();
-
-        $this->getJson("/api/agencies/{$agency->id}/stats")
-            ->assertUnauthorized();
-    }
 }

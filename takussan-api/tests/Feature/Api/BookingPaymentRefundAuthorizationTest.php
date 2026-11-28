@@ -204,18 +204,6 @@ class BookingPaymentRefundAuthorizationTest extends TestCase
         $this->assertDatabaseCount('booking_payments', 0);
     }
 
-    public function test_the_client_still_records_only_a_pending_payment(): void
-    {
-        $booking = $this->bookingOfClient();
-        Sanctum::actingAs($this->client);
-
-        $this->postJson("/api/bookings/{$booking->id}/payments", [
-            'amount' => 10_000,
-            'payment_type' => BookingPaymentType::Deposit->value,
-            'status' => PaymentStatus::Paid->value,
-        ])->assertCreated()->assertJsonPath('data.status', 'pending');
-    }
-
     /** TCK-3007 — `abilities.refund` remplace `can_refund` : le droit, ET un paiement encaissé à rendre. */
     public function test_show_tells_who_can_refund(): void
     {

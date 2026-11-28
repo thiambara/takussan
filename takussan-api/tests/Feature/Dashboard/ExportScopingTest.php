@@ -11,6 +11,7 @@ use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
@@ -222,6 +223,27 @@ class ExportScopingTest extends ApiTestCase
             $ids,
         );
         $this->assertCount(1, $ids);
+    }
+
+    /**
+     * TCK-3018 — le bailleur qui est AUSSI locataire d'un autre bail de l'agence n'exporte pas ce bail :
+     * l'export d'un bailleur est celui de ses biens ({@see BailleurDuBien}). Le plafond de la liste
+     * (`BauxLisibles`, TCK-3006) lui laisse lire ce bail ; sans la borne du bailleur, il partait aussi.
+     */
+    public function test_an_owner_who_is_also_a_tenant_exports_only_the_leases_he_lets(): void
+    {
+        $this->actingAs($this->ownerA, 'sanctum');
+        $this->materializeRoleProfile($this->ownerA, 'owner', $this->agencyA);
+        $commeLocataire = Lease::factory()->active()->create([
+            'agency_id' => $this->agencyA->id,
+            'tenant_id' => Customer::factory()->create(['agency_id' => $this->agencyA->id, 'user_id' => $this->ownerA->id])->id,
+            'property_id' => Property::factory()->create(['agency_id' => $this->agencyA->id])->id,
+        ]);
+
+        $ids = array_map(static fn (string $line): int => (int) str_getcsv($line, escape: '\\')[0], $this->dataLines($this->export('leases')));
+
+        $this->assertNotContains($commeLocataire->id, $ids);
+        $this->assertSame(Lease::query()->where('landlord_id', $this->ownerA->id)->pluck('id')->all(), $ids);
     }
 
     public function test_an_owner_exports_only_his_own_properties(): void

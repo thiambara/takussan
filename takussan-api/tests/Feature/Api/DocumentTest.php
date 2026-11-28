@@ -105,37 +105,6 @@ class DocumentTest extends TestCase
         ])->assertStatus(422);
     }
 
-    public function test_missing_file_returns_422(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson('/api/documents', [
-            'documentable_type' => 'property',
-            'documentable_id' => $property->id,
-            'name' => 'Test',
-            'type' => DocumentType::Other->value,
-        ])->assertStatus(422);
-    }
-
-    public function test_invalid_type_returns_422(): void
-    {
-        $owner = User::factory()->create();
-        $property = Property::factory()->create(['user_id' => $owner->id]);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson('/api/documents', [
-            'documentable_type' => 'property',
-            'documentable_id' => $property->id,
-            'name' => 'Test',
-            'type' => 'not_a_type',
-            'file' => UploadedFile::fake()->create('x.pdf', 10, 'application/pdf'),
-        ])->assertStatus(422);
-    }
-
     public function test_owner_sees_own_documents_only_by_default(): void
     {
         $userA = User::factory()->create();
@@ -256,5 +225,38 @@ class DocumentTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->postJson("/api/documents/{$document->id}/verify")->assertForbidden();
+    }
+
+    public function test_missing_file_returns_422(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/documents', [
+            'documentable_type' => 'property',
+            'documentable_id' => $property->id,
+            'name' => 'Test',
+            'type' => DocumentType::Other->value,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['file']);
+    }
+
+    public function test_invalid_type_returns_422(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/documents', [
+            'documentable_type' => 'property',
+            'documentable_id' => $property->id,
+            'name' => 'Test',
+            'type' => 'not_a_type',
+            'file' => UploadedFile::fake()->create('x.pdf', 10, 'application/pdf'),
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['type']);
     }
 }

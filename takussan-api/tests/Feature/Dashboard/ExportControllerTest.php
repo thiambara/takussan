@@ -24,11 +24,6 @@ class ExportControllerTest extends ApiTestCase
         $this->apiGet('/api/export/widgets?format=csv')->assertStatus(404);
     }
 
-    public function test_unauthenticated_is_rejected(): void
-    {
-        $this->apiGet('/api/export/payments')->assertUnauthorized();
-    }
-
     public function test_csv_payments_export_matches_scope(): void
     {
         $agency = Agency::factory()->create();

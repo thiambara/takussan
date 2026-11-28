@@ -164,11 +164,6 @@ class InviteNumberStepSummaryTest extends TestCase
             ->assertJsonPath('data.properties_count', 2);
     }
 
-    public function test_sans_session_401(): void
-    {
-        $this->getJson('/api/me/profiles/owner:1/invite-summary')->assertUnauthorized();
-    }
-
     private function resume(User $user, string $profile): TestResponse
     {
         Sanctum::actingAs($user);

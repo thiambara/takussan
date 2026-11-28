@@ -28,7 +28,7 @@ class RefundedRentStaysTerminalTest extends TestCase
     public function test_a_refunded_rent_is_neither_owed_nor_payable(): void
     {
         $ctx = $this->leaseDue();
-        $this->spyDriver();
+        $this->fakeWave();
         Sanctum::actingAs($ctx['tenant']);
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/initiate", ['provider' => 'wave'])->assertOk();
         $this->waveWebhook('spy_txn_1', 150_000)->assertOk();

@@ -21,11 +21,6 @@ class MeCapabilitiesTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_requires_authentication(): void
-    {
-        $this->getJson('/api/me/capabilities')->assertUnauthorized();
-    }
-
     public function test_an_agency_admin_gets_the_capabilities_of_its_agency(): void
     {
         $agency = Agency::factory()->create();
