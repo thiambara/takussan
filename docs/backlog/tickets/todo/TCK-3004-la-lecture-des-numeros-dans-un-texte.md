@@ -38,22 +38,57 @@ Les notions de « numéro » divergent **volontairement** et doivent être conse
 
 ## Delta à produire
 
-- [ ] Module : `App\Support\Telephone\LectureDesNumeros` — lit un texte une fois et rend des numéros trouvés (début et fin **dans le texte d'origine**, texte brut, forme E.164 à la demande, « contact » à la demande) ; politiques nommées `masquer`, `refusStop`, `contactDOffice`
-- [ ] Fonction publique de repli du texte (invisibles + chiffres), distincte de la lecture des numéros
-- [ ] Les constantes de motif de `PhoneMasker` deviennent privées ; `PhoneMasker::mask` reste l'entrée du masquage
-- [ ] `RadarPhone` garde les empreintes HMAC et le choix de politique ; il ne lit plus les motifs de `PhoneMasker`
-- [ ] `RadarAmountParser`, `SearchQueryParser`, `EvalCaseAnonymizer`, `RadarPublisher`, `ExtractionNormalizer`, `RadarListingIntake`, `RadarSimilarityText` passent par le module
-- [ ] Tests : `tests/Unit/Support/Telephone/LectureDesNumerosTest.php` sur le fichier de cas partagé (une colonne « attendu » par politique), plus un test du défaut de la recherche, plus un test d'empreinte stable (`content_fingerprint` et `phone_hmac` d'un jeu de textes figé)
+- [x] Module : `App\Support\Telephone\LectureDesNumeros` — lit un texte une fois et rend des numéros trouvés (début et fin **dans le texte d'origine**, texte brut, forme E.164 à la demande, « contact » à la demande) ; politiques nommées `masquer`, `refusStop`, `contactDOffice`
+- [x] Fonction publique de repli du texte (invisibles + chiffres), distincte de la lecture des numéros
+- [x] Les constantes de motif de `PhoneMasker` deviennent privées ; `PhoneMasker::mask` reste l'entrée du masquage
+- [x] `RadarPhone` garde les empreintes HMAC et le choix de politique ; il ne lit plus les motifs de `PhoneMasker`
+- [x] `RadarAmountParser`, `SearchQueryParser`, `EvalCaseAnonymizer`, `RadarPublisher`, `ExtractionNormalizer`, `RadarListingIntake`, `RadarSimilarityText` passent par le module
+- [x] Tests : `tests/Unit/Support/Telephone/LectureDesNumerosTest.php` sur le fichier de cas partagé (une colonne « attendu » par politique), plus un test du défaut de la recherche, plus un test d'empreinte stable (`content_fingerprint` et `phone_hmac` d'un jeu de textes figé)
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `grep -rn "PhoneMasker::[A-Z_]\+" app/` ne rend plus aucune constante lue hors de `app/Support/Telephone/` et de `PhoneMasker`.
-- [ ] AC2 — La recherche reconnaît un numéro écrit en chiffres arabes et un numéro coupé par U+200B (test rouge avant, vert après).
-- [ ] AC3 — Les tests existants de `PhoneMasker`, `RadarPhone`, `RadarAmountParser`, `SearchQueryParser`, `EvalCaseAnonymizer` restent verts sans changer leurs attendus (hors AC2).
-- [ ] AC4 — Les empreintes d'un jeu de textes figé sont identiques avant et après (test).
+- [x] AC1 — `grep -rn "PhoneMasker::[A-Z_]\+" app/` ne rend plus aucune constante lue hors de `app/Support/Telephone/` et de `PhoneMasker`.
+- [x] AC2 — La recherche reconnaît un numéro écrit en chiffres arabes et un numéro coupé par U+200B (test rouge avant, vert après).
+- [x] AC3 — Les tests existants de `PhoneMasker`, `RadarPhone`, `RadarAmountParser`, `SearchQueryParser`, `EvalCaseAnonymizer` restent verts sans changer leurs attendus (hors AC2).
+- [x] AC4 — Les empreintes d'un jeu de textes figé sont identiques avant et après (test).
 
 ## Hors périmètre
 
 - Les règles de chaque politique (on les déplace, on ne les change pas), le stockage des empreintes.
 
 ## Notes d'implémentation
+
+Relevé re-mesuré le 2026-11-27 sur l'arbre de la branche `feat/approfondissements-architecture` : conforme au contrat, à trois écarts près.
+
+- **Une quatrième lecture, et non trois.** `RadarAmountParser` et `SearchQueryParser` ne lisaient ni le masquage ni une politique du
+  Radar : le motif du masquage sur un texte où le `+` d'un étage est neutralisé (`RadarPhone::withoutFloorPlus`, plus large que
+  l'exemption du masqueur), sans filtre. La replier dans `masquer` changeait des prix lus. Elle est nommée `Politique::Ecarter`,
+  et c'est la base que `RefusStop` et `ContactDOffice` filtrent. Elle seule rend l'indicatif écrit devant (`debutIndicatif`,
+  l'ancien `RadarPhone::prefixStart`). « Contact à la demande » est donc une politique, pas une méthode du numéro trouvé.
+- **Une lecture en échec rend `null`, pas `[]`.** Le masquage relance puis lève, l'anonymisation lève ; le Radar, les prix et la
+  recherche lisent `?? []`, comme avant. Ablation : `return []` au lieu de `null` rougit `LectureDesNumerosTest` et le test
+  existant `PhoneMaskerTest::test_invalid_utf8_is_scrubbed_then_masked_instead_of_returned_as_is` (le masque fuitait).
+- **AC1 tenu ; seul `TOKEN` reste lu dehors, c'est la sortie du masquage** (décision de la session, 2026-11-27) : le grep rend encore `PhoneMasker::TOKEN` (`EvalCaseAnonymizer` ×2, `RadarPublisher` ×1).
+  C'est le jeton de sortie du masquage, pas un motif : l'anonymisation émet le même jeton que le masqueur qu'elle appelle ensuite,
+  et `RadarPublisher::displayNameWithoutPhone()` retire aussi un `[TELEPHONE]` déjà écrit dans le nom (le modèle recopie
+  `advertiser_name` d'un prompt masqué : `mask($nom, ' ')` l'aurait laissé). Aucune constante de motif n'est lue hors de
+  `app/Support/Telephone/`. AC3 : trois épreuves de test ont été réécrites par l'interface publique, attendus inchangés (les
+  assertions `withoutFloorPlus` de `RadarPhoneTest`, son balayage des séparateurs, et le test `PATTERN`/`MASK_PATTERN` de
+  `PhoneMaskerTest`).
+
+Ce qui a bougé :
+- tous les motifs de `PhoneMasker` et ceux de lecture de `RadarPhone` (`FLOOR_PLUS`, `FOREIGN_PREFIX`, `NOT_A_CONTACT_*`…) sont
+  des constantes privées de `LectureDesNumeros`, déplacées par programme et non retapées ; md5 et longueur de `MASK_PATTERN`
+  (24 348 octets), `PATTERN`, `SHAPED_NUMBER`, `FLOOR_PLUS` et `FOREIGN_PREFIX` identiques avant et après, le motif ne grossit pas ;
+- `Repli::texte()` remplace `PhoneMasker::normalizeDigits(preg_replace(INVISIBLE…))` (six copies) ; `normalizeDigits`,
+  `withoutFloorPlus` et `prefixStart` disparaissent, sans appelant restant ;
+- `RadarPhone::canonical()` délègue à `LectureDesNumeros::e164()` : quinze appelants hors du périmètre gardent leur appel.
+
+Comportement constant, mesuré : les sorties publiques (masque, `fromText`, `contactsFromText`, `canonical`, HMAC, `foldText` et
+empreinte, `RadarSimilarityText::fold`, `RadarAmountParser::parse`) de 2 148 textes (le fichier partagé, chaque chaîne chiffrée
+des cinq fichiers de test des lecteurs, chacune aussi entourée de contexte) ont été gelées sur le code d'avant puis comparées :
+0 écart. AC2 : les trois cas de `SearchQueryParserTest::test_un_numero_ecrit_autrement_n_est_pas_un_prix` étaient rouges avant
+(`٧٧ ١٢٣` lu comme un prix de 77 123, `771<ZWSP>23` comme 771), verts après. AC4 : `EmpreintesFigeesTest`, valeurs relevées sur
+le code d'avant et vert dessus avant toute modification. Le fichier partagé porte une clé `politiques` (16 cas, une colonne
+par politique) ; `check-ai-evals-pii.mjs` rejoue la colonne `masquer` (ablation d'un attendu : sortie 1).
+

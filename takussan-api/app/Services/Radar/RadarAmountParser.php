@@ -3,8 +3,10 @@
 namespace App\Services\Radar;
 
 use App\Models\Enums\RentPeriod;
-use App\Support\PhoneMasker;
-use App\Support\RadarPhone;
+use App\Support\Telephone\LectureDesNumeros;
+use App\Support\Telephone\NumeroTrouve;
+use App\Support\Telephone\Politique;
+use App\Support\Telephone\Repli;
 
 /**
  * TCK-2386 (ADR-0077 §5, AC4) — le prix d'une annonce tel qu'écrit, lu par du code : le modèle
@@ -24,7 +26,7 @@ use App\Support\RadarPhone;
  * **Les écartés.** Un nombre suivi d'une unité qui n'est pas une monnaie (« 300 m² », « 3 chambres »,
  * « 5 ans », « 2 mois » — une durée, pas une période : la période s'écrit « /mois », « par mois »),
  * et un nombre qui fait partie d'un numéro de téléphone que le masquage voit, sénégalais, étranger ou
- * lien WhatsApp ({@see PhoneMasker::MASK_PATTERN}, TCK-2412 : `0033612345678` n'est pas un prix), avec l'indicatif écrit
+ * lien WhatsApp ({@see Politique::Ecarter}, TCK-2412 : `0033612345678` n'est pas un prix), avec l'indicatif écrit
  * devant (`+`, `00`, et `221` nu ou entre parenthèses depuis TCK-2447 : `(221) 77 012 34 56` n'a pas de prix de 221).
  *
  * **Le choix.**
@@ -44,7 +46,7 @@ use App\Support\RadarPhone;
  *
  * Calcul entier de bout en bout (aucun flottant) ; au-delà de 15 chiffres, ou à zéro, le nombre
  * n'est pas un prix. Chiffres arabes et pleine chasse repliés par
- * {@see PhoneMasker::normalizeDigits()}, comme pour les numéros.
+ * {@see Repli}, comme pour les numéros.
  */
 final class RadarAmountParser
 {
@@ -78,7 +80,7 @@ final class RadarAmountParser
     /**
      * TCK-2445 — l'étage de 0 à 19 espacé de son `+` (`R+ 2`, `RDC + 2`, `R + 12`) n'est pas un candidat : `R+ 2 450 000 F`
      * se lisait 2 450 000, l'étage collé au prix. Le texte est normalisé (minuscules, une espace) ; collé au `+`, l'étage
-     * est déjà écarté. Une branche de longueur fixe par écriture, comme `PhoneMasker::FLOOR_WORD`. L'étage n'en est un que
+     * est déjà écarté. Une branche de longueur fixe par écriture, comme `FLOOR_WORD` de la lecture des numéros. L'étage n'en est un que
      * suivi d'une espace et d'un chiffre de 1 à 9 : aucun prix ne commence par 0 (`R+ 15 000 000 F` vaut 15 000 000), et
      * `R+ 1M5` est un million et demi.
      */
@@ -231,27 +233,18 @@ final class RadarAmountParser
     /** @return list<array{int, int}> les plages d'octets des numéros de téléphone du texte */
     private static function phoneSpans(string $text): array
     {
-        // Le `+` d'un étage (`R+1 1 250 500 750 F`) n'est pas un indicatif (TCK-2412) ; un octet pour un, les plages restent justes.
-        $text = RadarPhone::withoutFloorPlus($text);
-        if (preg_match_all(PhoneMasker::MASK_PATTERN, $text, $found, PREG_OFFSET_CAPTURE) < 1) {
-            return [];
-        }
-
+        // Le `+` d'un étage (`R+1 1 250 500 750 F`) n'est pas un indicatif (TCK-2412) : c'est la politique `Ecarter`.
         // L'indicatif écrit devant la plage en fait partie : `0033 7 7 1 2 …` ne laisse pas un « prix » de 33.
         // TCK-2447 : l'indicatif sénégalais écrit nu ou entre parenthèses aussi, `(221) 77 012 34 56` laissait un « prix » de 221.
-        return array_map(static fn (array $f): array => [self::spanStart(substr($text, 0, $f[1])) ?? $f[1], $f[1] + strlen($f[0])], $found[0]);
-    }
-
-    /** L'octet où commence l'indicatif écrit juste devant une plage : `+` / `00` (`RadarPhone::prefixStart()`), ou `221`. */
-    private static function spanStart(string $before): ?int
-    {
-        return RadarPhone::prefixStart($before)
-            ?? (preg_match(self::SENEGAL_CODE_BEFORE, $before, $code, PREG_OFFSET_CAPTURE) === 1 ? $code[0][1] : null);
+        return array_map(static fn (NumeroTrouve $n): array => [
+            $n->debutIndicatif ?? (preg_match(self::SENEGAL_CODE_BEFORE, substr($text, 0, $n->debut), $code, PREG_OFFSET_CAPTURE) === 1 ? $code[0][1] : $n->debut),
+            $n->fin,
+        ], LectureDesNumeros::lire($text, Politique::Ecarter) ?? []);
     }
 
     private static function normalize(string $text): string
     {
-        $text = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $text));
+        $text = Repli::texte($text);
         // Séparateurs arabes : ٫ est la décimale, ٬ le groupement des milliers.
         $text = strtr($text, ['٫' => '.', '٬' => ',', '’' => "'", 'ʼ' => "'"]);
         $text = (string) preg_replace('/[\s\x{00A0}\x{202F}\x{2009}\x{3000}]+/u', ' ', $text);

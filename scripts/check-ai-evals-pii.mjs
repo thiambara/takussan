@@ -25,7 +25,7 @@
  * relecture d'un diff qui cite un numéro est donc humaine ; cette garde ne couvre que les jeux d'évaluation.
  *
  * **Le même ensemble que le masqueur** (TCK-2400, TCK-2410) : `TELEPHONE` est le motif de
- * `App\Support\PhoneMasker::MASK_PATTERN` (numéro sénégalais ou étranger), `COURRIEL` celui
+ * `App\Support\Telephone\LectureDesNumeros::MASK_PATTERN` (numéro sénégalais ou étranger), `COURRIEL` celui
  * d'`EvalCaseAnonymizer::EMAIL`, appliqués au texte normalisé de la même façon (chiffres pleine chasse
  * et arabes-indiens en ASCII, invisibles retirés). `takussan-api/tests/fixtures/ai/donnees-personnelles.json`
  * les éprouve des deux côtés : ses épreuves tournent ici à chaque exécution, et dans
@@ -41,14 +41,14 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EVALS = join(ROOT, 'takussan-api', 'resources', 'ai', 'evals');
 
-// Les motifs sont ceux de `App\Support\PhoneMasker`, constante par constante : `[0-9]` et non `\d`, espaces
+// Les motifs sont ceux de `App\Support\Telephone\LectureDesNumeros`, constante par constante : `[0-9]` et non `\d`, espaces
 // énumérées et non `\s` (U+0085 : PCRE le compte, JavaScript non), pour que les deux lisent le même ensemble.
 const WSI = String.raw`\u{09}-\u{0D}\u{20}\u{85}\u{A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}`;
 const WS = `[${WSI}]`;
 // Un séparateur : espace, point, barre oblique, tiret (`-`, demi-cadratin `–`, moins `−`…).
 const SEP = String.raw`[${WSI}.\-/\u{2010}-\u{2015}\u{2212}]`;
 // Préfixes : plan de numérotage national de l'ARTP, communication du 6.IX.2022 publiée par l'UIT le
-// 3.X.2023, plus 71 sur décision du porteur (cf. PhoneMasker).
+// 3.X.2023, plus 71 sur décision du porteur (cf. LectureDesNumeros).
 // Après l'indicatif : le `)` de `(+33)`, puis le `(0)` de trunk.
 const APRES_CC = String.raw`\)?(?:${WS}?\(0\))?(?!${SEP}?[0-9]{0,3}(?:${SEP}[0-9]{3})*${SEP}000${SEP}000(?![0-9]))`;
 const PREFIXE = '(?:3[02369]|7[0-25-9]|93)';
@@ -191,7 +191,7 @@ const ZEROS = [
 // Le `+` et les séparateurs en pleine chasse ou en forme de petite capitale, un code point pour un.
 const PONCTUATION = new Map([[0xff0b, '+'], [0xfe62, '+'], [0xff0d, '-'], [0xff0e, '.'], [0xff0f, '/']]);
 
-/** Comme `PhoneMasker` : chiffres non ASCII et `+` pleine chasse ramenés à l'ASCII, caractères invisibles retirés. */
+/** Comme `App\Support\Telephone\Repli` : chiffres non ASCII et `+` pleine chasse ramenés à l'ASCII, caractères invisibles retirés. */
 export function normaliser(texte) {
   let sortie = '';
   for (const c of texte.replace(INVISIBLES, '')) {
@@ -275,6 +275,14 @@ for (const [texte, attendu, masque] of CAS_EPREUVE) {
   }
   if ((trouver(`Contact : ${texte}, merci`) !== null) !== attendu) {
     console.error(`✗ épreuve : « ${texte} » devait rendre ${attendu}`);
+    process.exit(1);
+  }
+}
+// TCK-3004 : la colonne `masquer` des cas par politique, que `LectureDesNumerosTest` rejoue côté PHP. Les autres colonnes
+// (numéros écartés, refus STOP, contact d'office) sont des lectures du Radar, que ce miroir ne porte pas.
+for (const [nom, { texte, masquer }] of Object.entries(FORMES.politiques)) {
+  if (normaliser(texte).replace(MASQUE, '[TELEPHONE]') !== masquer) {
+    console.error(`✗ épreuve : « ${nom} » devait se masquer en « ${masquer} »`);
     process.exit(1);
   }
 }

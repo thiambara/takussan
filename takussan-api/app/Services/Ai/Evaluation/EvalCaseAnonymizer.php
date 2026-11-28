@@ -3,6 +3,9 @@
 namespace App\Services\Ai\Evaluation;
 
 use App\Support\PhoneMasker;
+use App\Support\Telephone\LectureDesNumeros;
+use App\Support\Telephone\Politique;
+use App\Support\Telephone\Repli;
 use Closure;
 use RuntimeException;
 
@@ -313,15 +316,17 @@ final class EvalCaseAnonymizer
         // Un courriel ou un numéro est un seul bloc : « awa.diop@exemple.sn » ne doit pas devenir
         // « [NOM].[NOM]@exemple.sn ». Ces blocs passent avant tout nom au départage des chevauchements.
         // Chiffres pleine chasse et arabes-indiens ramenés à l'ASCII, un code point pour un : `$map` reste juste.
-        $scan = PhoneMasker::normalizeDigits($folded);
+        $scan = Repli::texte($folded);
+        if (preg_match_all(self::EMAIL, $scan, $found, PREG_OFFSET_CAPTURE) === false) {
+            throw new RuntimeException('ai.eval_anonymize_failed');
+        }
         $spans = [];
-        foreach ([[self::EMAIL, self::EMAIL_TOKEN], [PhoneMasker::MASK_PATTERN, PhoneMasker::TOKEN]] as [$pattern, $token]) {
-            if (preg_match_all($pattern, $scan, $found, PREG_OFFSET_CAPTURE) === false) {
-                throw new RuntimeException('ai.eval_anonymize_failed');
-            }
-            foreach ($found[0] as [$match, $byte]) {
-                $spans[] = $this->span($scan, $map, $chars, $match, $byte, $token, 1);
-            }
+        foreach ($found[0] as [$match, $byte]) {
+            $spans[] = $this->span($scan, $map, $chars, $match, $byte, self::EMAIL_TOKEN, 1);
+        }
+        // Les numéros, lus comme le masqueur les lit (TCK-3004) : positions en octets de `$folded`, qui n'a plus d'invisible.
+        foreach (LectureDesNumeros::lire($folded, Politique::Masquer) ?? throw new RuntimeException('ai.eval_anonymize_failed') as $numero) {
+            $spans[] = $this->span($folded, $map, $chars, $numero->texte, $numero->debut, PhoneMasker::TOKEN, 1);
         }
         foreach ($needles as ['needle' => $needle, 'token' => $token]) {
             $parts = preg_split('/'.self::SPACE.'/u', $needle, -1, PREG_SPLIT_NO_EMPTY) ?: [];
