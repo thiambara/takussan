@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Lecture;
 
-use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Guarantor;
@@ -11,21 +10,17 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Payout;
-use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
-use Tests\Concerns\CreatesAgencyMembers;
 
 /**
  * TCK-3006 (ADR-0138 § 3) — la liste et la fiche disent la même chose, dans les DEUX sens, pour
@@ -47,62 +42,14 @@ use Tests\Concerns\CreatesAgencyMembers;
  */
 class ListeEtFicheParityTest extends ApiTestCase
 {
-    use CreatesAgencyMembers;
+    use ActeursDeLecture;
     use RefreshDatabase;
-
-    private Agency $a;
-
-    private Agency $b;
-
-    /** @var array<string, User> */
-    private array $acteurs = [];
-
-    /** Le profil actif du compte à deux agences : son profil d'agent dans B. */
-    private AgentProfile $profilDuDouble;
-
-    private Customer $ficheDuLocataire;
-
-    private Customer $ficheDuClient;
-
-    /** @var array<string, Property> */
-    private array $biens = [];
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->a = Agency::factory()->create();
-        $this->b = Agency::factory()->create();
-
-        $super = User::factory()->withTwoFactor()->create();
-        $this->materializeRoleProfile($super, 'super_admin');
-
-        $parti = $this->agencyAgent($this->a);
-        AgentProfile::query()->where('user_id', $parti->id)->delete();
-
-        $double = $this->agencyAgent($this->a);
-        $this->profilDuDouble = AgentProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $this->b->id]);
-
-        $bailleur = User::factory()->create();
-        OwnerProfile::factory()->create(['user_id' => $bailleur->id, 'agency_id' => $this->a->id]);
-
-        $locataire = User::factory()->create();
-        $client = User::factory()->create();
-
-        $this->acteurs = [
-            'super-admin' => $super,
-            'personnel actif (admin de A)' => $this->agencyAdmin($this->a),
-            'agent de A' => $this->agencyAgent($this->a),
-            'personnel parti de A' => $parti,
-            'bailleur de A' => $bailleur,
-            'locataire' => $locataire,
-            'client' => $client,
-            'étranger (agent de B)' => $this->agencyAgent($this->b),
-            'profil dans deux agences (actif : B)' => $double,
-        ];
-
-        $this->ficheDuLocataire = Customer::factory()->create(['agency_id' => $this->a->id, 'user_id' => $locataire->id]);
-        $this->ficheDuClient = Customer::factory()->create(['agency_id' => $this->a->id, 'user_id' => $client->id]);
+        $this->poserLesActeurs();
     }
 
     /**
@@ -120,36 +67,6 @@ class ListeEtFicheParityTest extends ApiTestCase
     private function agences(): array
     {
         return [$this->a->id, $this->b->id, null];
-    }
-
-    /**
-     * Les biens du décor : dans A (au bailleur, puis saisi par un agent), dans B, hors agence, et
-     * dans A supprimé en douceur — la ligne qu'ADR-0138 § 4 juge sur l'agence du bien.
-     *
-     * @return array<string, Property>
-     */
-    private function biens(): array
-    {
-        if ($this->biens !== []) {
-            return $this->biens;
-        }
-
-        $bailleur = $this->acteur('bailleur de A');
-        $corbeille = Property::factory()->create(['agency_id' => $this->a->id, 'user_id' => $bailleur->id]);
-        $corbeille->delete();
-
-        return $this->biens = [
-            'A' => Property::factory()->create(['agency_id' => $this->a->id, 'user_id' => $bailleur->id]),
-            'A, saisi par un agent' => Property::factory()->create(['agency_id' => $this->a->id, 'user_id' => $this->acteur('agent de A')->id]),
-            'B' => Property::factory()->create(['agency_id' => $this->b->id, 'user_id' => $this->acteur('étranger (agent de B)')->id]),
-            'hors agence' => Property::factory()->create(['agency_id' => null, 'user_id' => $bailleur->id]),
-            'A, en corbeille' => $corbeille,
-        ];
-    }
-
-    private function acteur(string $nom): User
-    {
-        return $this->acteurs[$nom];
     }
 
     /**
@@ -212,13 +129,7 @@ class ListeEtFicheParityTest extends ApiTestCase
     /** La fiche, jugée sous le profil actif que le middleware aurait résolu pour cet acteur. */
     private function ouvre(User $acteur, Model $ligne): bool
     {
-        $requete = Request::create('/');
-        if ($acteur->is($this->acteur('profil dans deux agences (actif : B)'))) {
-            $requete->attributes->set('active_profile', $this->profilDuDouble);
-        }
-        $this->app->instance('request', $requete);
-
-        return Gate::forUser($acteur->fresh())->allows('view', $ligne);
+        return Gate::forUser($this->sousLeProfilActif($acteur))->allows('view', $ligne);
     }
 
     public function test_cautions(): void
