@@ -201,7 +201,7 @@ describe('BookingRefundPanel — « Rembourser Awa Diop »', () => {
     customer_id: 12,
     customer: { id: 12, user_id: 40, first_name: 'Awa', last_name: 'Diop' },
     booking_payments: [
-      { id: 41, booking_id: 3, amount: 49_500, currency: 'XOF', payment_type: 'deposit', payment_method: 'wave', status: 'paid', paid_out: { processed_at: '2026-11-02T10:00:00Z', reference_number: 'PO-2026-11' } },
+      { id: 41, booking_id: 3, amount: 49_500, currency: 'XOF', payment_type: 'deposit', payment_method: 'wave', status: 'paid', refundable: true, paid_out: { processed_at: '2026-11-02T10:00:00Z', reference_number: 'PO-2026-11' } },
     ],
   } as unknown as Booking;
 

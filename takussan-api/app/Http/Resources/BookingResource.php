@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Booking;
+use App\Models\BookingPayment;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CounterOfferStatus;
 use App\Models\Enums\PaymentStatus;
@@ -31,6 +32,29 @@ class BookingResource extends BaseResource
         $this->lecteurDesGestes = $lecteur;
 
         return $this;
+    }
+
+    /**
+     * Les paiements de la réservation ; avec les gestes (fiche, carte du fil), chacun dit s'il se
+     * rembourse à la main (`refundable`, TCK-3007) — la règle reste à l'API
+     * (`GestesDeLaReservation::seRembourseALaMain`), le panneau de remboursement la lit.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function paiementsServis(Request $request): array
+    {
+        $servis = BookingPaymentResource::collection($this->payments)->toArray($request);
+        if ($this->lecteurDesGestes === null) {
+            return $servis;
+        }
+
+        $gestes = app(GestesDeLaReservation::class);
+
+        return array_map(
+            fn (array $servi, BookingPayment $paiement): array => [...$servi, 'refundable' => $gestes->seRembourseALaMain($paiement)],
+            $servis,
+            $this->payments->values()->all(),
+        );
     }
 
     public function toArray(Request $request): array
@@ -84,7 +108,7 @@ class BookingResource extends BaseResource
             'refund_status' => $this->whenLoaded('payments', fn (): ?string => $this->refundStatus()),
             // TCK-596 — le détail les attendait (`booking_payments`) et ne les recevait jamais : la
             // liste des paiements restait vide, et rien ne désignait l'acompte à rembourser.
-            'booking_payments' => $this->whenLoaded('payments', fn (): array => BookingPaymentResource::collection($this->payments)->toArray($request)),
+            'booking_payments' => $this->whenLoaded('payments', fn (): array => $this->paiementsServis($request)),
             // TCK-2879 — le réglé (ni caution ni « autre »), quand la page l'a sommé (`withSum` de l'index) :
             // jamais une requête par ligne, omis ailleurs. Mêmes lecteurs que `booking_payments`.
             'amount_paid' => $this->when(

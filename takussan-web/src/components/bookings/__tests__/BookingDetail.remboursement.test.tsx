@@ -36,6 +36,7 @@ const PAYE = {
   payment_type: 'deposit',
   payment_method: 'cash',
   status: 'paid',
+  refundable: true,
   created_at: '2026-10-01T10:00:00Z',
 };
 
@@ -85,7 +86,7 @@ describe('BookingDetail — acompte d’une réservation fermée (TCK-596 AC5)',
 
   it('le client lit « remboursé » une fois l’acompte rendu', () => {
     monter(
-      reservation({ refund_status: 'refunded', abilities: permis(), booking_payments: [{ ...PAYE, status: 'refunded' }] }),
+      reservation({ refund_status: 'refunded', abilities: permis(), booking_payments: [{ ...PAYE, status: 'refunded', refundable: false }] }),
       { id: CLIENT_ID, roles: ['customer'] },
     );
 

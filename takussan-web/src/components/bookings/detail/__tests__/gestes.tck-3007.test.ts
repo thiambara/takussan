@@ -27,7 +27,7 @@ const RIEN: BookingAbilities = {
   leave_review: false,
 };
 
-const PAYE: BookingPayment = { id: 1, amount: 50_000, refund_amount: 0, status: 'paid', payment_type: 'deposit' } as BookingPayment;
+const PAYE: BookingPayment = { id: 1, amount: 50_000, refund_amount: 0, status: 'paid', payment_type: 'deposit', refundable: true } as BookingPayment;
 
 function reservation(abilities: Partial<BookingAbilities> | undefined, extra: Partial<Booking> = {}): Booking {
   return {
@@ -87,7 +87,7 @@ describe('gestesDeLaReservation (TCK-3007)', () => {
       expect(gestesDeLaReservation(reservation({ refund: true }, sejour)).rembourserLeSejour).toBe(true);
       expect(gestesDeLaReservation(reservation({ refund: false }, sejour)).rembourserLeSejour).toBe(false);
       expect(
-        gestesDeLaReservation(reservation({ refund: true }, { ...sejour, booking_payments: [{ ...PAYE, refund_amount: 50_000 }] }))
+        gestesDeLaReservation(reservation({ refund: true }, { ...sejour, booking_payments: [{ ...PAYE, refund_amount: 50_000, refundable: false }] }))
           .rembourserLeSejour,
       ).toBe(false);
     });
@@ -117,11 +117,16 @@ describe('gestesDeLaReservation (TCK-3007)', () => {
 });
 
 describe('paiementsRemboursables', () => {
-  it('les paiements encaissés pas entièrement rendus', () => {
+  // TCK-3007 — l'API en juge par paiement (`refundable`) : la fonction ne fait que la lire.
+  it('les paiements que l’API dit remboursables à la main, et eux seuls', () => {
     const partiel = { ...PAYE, id: 2, refund_amount: 10_000 };
-    const rendu = { ...PAYE, id: 3, refund_amount: 50_000 };
-    const attendu = { ...PAYE, id: 4, status: 'pending' as const };
+    const rendu = { ...PAYE, id: 3, refund_amount: 50_000, refundable: false };
+    const attendu = { ...PAYE, id: 4, status: 'pending' as const, refundable: false };
+    const plateforme = { ...PAYE, id: 5, refundable: false };
+    const sansAvis = { ...PAYE, id: 6, refundable: undefined };
 
-    expect(paiementsRemboursables({ booking_payments: [PAYE, partiel, rendu, attendu] }).map((p) => p.id)).toEqual([1, 2]);
+    expect(
+      paiementsRemboursables({ booking_payments: [PAYE, partiel, rendu, attendu, plateforme, sansAvis] }).map((p) => p.id),
+    ).toEqual([1, 2]);
   });
 });

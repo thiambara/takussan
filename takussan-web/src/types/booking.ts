@@ -59,6 +59,8 @@ export type BookingPayment = {
    * peut lire ce reversement. Le rembourser crée une reprise sur le reversement suivant (TCK-2151).
    */
   paid_out?: { payout_id: number; reference_number: string; processed_at: string | null } | null;
+  /** TCK-3007 — servi avec les gestes (fiche) : `BookingPaymentService::refund` l'accepterait (encaissé, pas tout rendu, pas soldé par la plateforme). */
+  refundable?: boolean;
   /** TCK-2877 — le cumul déjà remboursé (TCK-1214 : un remboursement partiel laisse la ligne `paid`). */
   refund_amount?: number | null;
   refund_reason?: string | null;

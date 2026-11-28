@@ -3,14 +3,19 @@
 namespace App\Services\Booking;
 
 use App\Models\Booking;
+use App\Models\BookingCounterOffer;
 use App\Models\BookingPayment;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
+use App\Models\Enums\CounterOfferStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\User;
+use App\Services\Billing\PlatformPayoutService;
 use App\Services\Model\BookingPaymentService;
+use App\Services\Model\BookingService;
+use App\Services\Model\LeaseService;
 use App\Services\Review\ReviewEligibility;
 use Illuminate\Support\Collection;
 
@@ -19,7 +24,13 @@ use Illuminate\Support\Collection;
  * lecteur », policy ET état compris. La ressource en tire `abilities` (`BookingResource`), la fiche
  * n'en recalcule aucun ; les services relisent les mêmes prédicats d'état sous leur verrou avant
  * d'écrire ({@see self::decidable()}, {@see self::annulable()}, {@see self::contreProposable()},
- * {@see self::dossierOuvert()}) : une règle d'état n'a qu'une définition.
+ * {@see self::dossierOuvert()}, {@see self::refusDuPaiementDuClient()}, {@see self::refusDeLaContreOffre()},
+ * {@see self::conflitALaConfirmation()}) : une règle d'état n'a qu'une définition.
+ *
+ * Coût : `abilities` n'est servi que par le `show` et la carte du fil (un objet distinct par carte), jamais en
+ * liste (ADR-0139 § 5). Les jugements qui lisent la base (conflits de la confirmation, avis déjà déposé,
+ * paiements à rendre) ne s'évaluent qu'après les gardes gratuites qui les rendent pertinents : une requête
+ * par règle, pour le lecteur qui pourrait faire le geste, et aucune sinon.
  *
  * Le rôle sur l'objet (bailleur, client, personnel) reste jugé par `BookingPolicy`,
  * `BookingMoneyAccess` et `LeasePolicy::createOn` ; ce module ne refait aucune de ces règles, il les
@@ -44,12 +55,9 @@ final class GestesDeLaReservation
      */
     public function pour(User $lecteur, Booking $booking): array
     {
-        $valider = $this->peutConfirmer($lecteur, $booking);
-
         return [
-            'confirm' => $valider,
-            // Refuser : la même garde qu'accepter (`validate`, sur une demande en attente).
-            'reject' => $valider,
+            'confirm' => $this->peutConfirmer($lecteur, $booking),
+            'reject' => $this->peutRefuser($lecteur, $booking),
             'cancel' => $this->peutAnnuler($lecteur, $booking),
             'counter_offer' => $this->peutContreProposer($lecteur, $booking),
             'answer_counter_offer' => $this->peutRepondreALaContreOffre($lecteur, $booking),
@@ -64,8 +72,18 @@ final class GestesDeLaReservation
         ];
     }
 
-    /** Accepter ou refuser : `BookingPolicy::validate` (bailleur compris), sur une demande en attente. */
+    /**
+     * Accepter : `BookingPolicy::validate` (bailleur compris), sur une demande en attente, sans le conflit
+     * que l'écriture refuserait (vérification adverse de TCK-3007 : la fiche offrait Accepter, l'API
+     * rendait 409 ou 422).
+     */
     public function peutConfirmer(User $lecteur, Booking $booking): bool
+    {
+        return $this->peutRefuser($lecteur, $booking) && $this->conflitALaConfirmation($booking) === null;
+    }
+
+    /** Refuser : la garde d'accepter sans les conflits — une demande qui ne peut plus être acceptée se refuse. */
+    public function peutRefuser(User $lecteur, Booking $booking): bool
     {
         return self::decidable($booking) && $lecteur->can('validate', $booking);
     }
@@ -85,8 +103,10 @@ final class GestesDeLaReservation
     /** Le client, tant que la dernière contre-offre attend sa réponse (`pending`, non échue). */
     public function peutRepondreALaContreOffre(User $lecteur, Booking $booking): bool
     {
-        return $booking->status === BookingStatus::Pending
-            && $booking->latestCounterOffer?->isOpen() === true
+        $offre = $booking->latestCounterOffer;
+
+        return $offre !== null
+            && self::refusDeLaContreOffre($booking, $offre) === null
             && $lecteur->can('answerCounterOffer', $booking);
     }
 
@@ -96,11 +116,23 @@ final class GestesDeLaReservation
         return $booking->acceptsStaffPayment() && BookingMoneyAccess::canRecordAsCollector($lecteur, $booking);
     }
 
-    /** Qui rembourse (`BookingMoneyAccess::canRefund`), quand un paiement encaissé reste à rendre. */
+    /** Qui rembourse (`BookingMoneyAccess::canRefund`), quand un paiement encaissé reste à rendre à la main. */
     public function peutRembourser(User $lecteur, Booking $booking): bool
     {
-        return self::paiements($booking)->contains(fn (BookingPayment $p): bool => $p->status === PaymentStatus::Paid)
-            && BookingMoneyAccess::canRefund($lecteur, $booking);
+        return BookingMoneyAccess::canRefund($lecteur, $booking)
+            && self::paiements($booking)->contains(fn (BookingPayment $p): bool => $this->seRembourseALaMain($p));
+    }
+
+    /**
+     * Un paiement que `BookingPaymentService::refund` accepterait : encaissé (`refund_unpaid`), pas
+     * entièrement rendu (`refund_exceeds_paid`), et pas soldé par la plateforme, dont le remboursement
+     * passe par le fournisseur (`refund_settled_by_platform`, TCK-1160).
+     */
+    public function seRembourseALaMain(BookingPayment $paiement): bool
+    {
+        return $paiement->status === PaymentStatus::Paid
+            && (float) ($paiement->refund_amount ?? 0) < (float) $paiement->amount
+            && ! app(PlatformPayoutService::class)->isSettledByPlatform($paiement);
     }
 
     /**
@@ -125,8 +157,7 @@ final class GestesDeLaReservation
      */
     public function peutPayer(User $lecteur, Booking $booking): bool
     {
-        return $booking->kind === BookingKind::Stay
-            && $booking->isPayableByCustomer()
+        return self::refusDuPaiementDuClient($booking) === null
             && self::estLePayeurClient($lecteur, $booking)
             && app(BookingPaymentService::class)->aRegler($booking) !== null;
     }
@@ -149,11 +180,19 @@ final class GestesDeLaReservation
         return self::dossierOuvert($booking) && $lecteur->can('manageGuarantors', $booking);
     }
 
-    /** Le client d'une réservation honorée : la preuve que `ReviewEligibility::forProperty` retient. */
+    /**
+     * Le client d'une réservation honorée (la preuve que `ReviewEligibility::forProperty` retient) qui
+     * n'a pas déjà noté le bien : `ReviewController::storeForProperty` refuse le second avis (422
+     * `review.property_already_reviewed`), y compris quand le premier a été retiré par la plateforme.
+     */
     public function peutLaisserUnAvis(User $lecteur, Booking $booking): bool
     {
+        $bien = $booking->property;
+
         return in_array($booking->status, ReviewEligibility::BOOKING_STATUSES, true)
-            && self::estLeClient($lecteur, $booking);
+            && self::estLeClient($lecteur, $booking)
+            && $bien !== null
+            && ! $bien->reviews()->withTrashed()->where('author_id', $lecteur->id)->exists();
     }
 
     /**
@@ -186,6 +225,76 @@ final class GestesDeLaReservation
         return ! ($booking->status === BookingStatus::Confirmed
             && $booking->start_date !== null
             && $booking->start_date->toDateString() <= now()->toDateString());
+    }
+
+    /**
+     * Le client paie sur la réservation (`BookingPaymentController::store`) : un SÉJOUR, `pending` ou
+     * `confirmed` (TCK-1914). Le montant d'une candidature est un loyer, celui d'une offre un prix
+     * (TCK-2879, ADR-0102) : ni l'un ni l'autre ne se règle ici. `null` : payable ; sinon le code du refus.
+     */
+    public static function refusDuPaiementDuClient(Booking $booking): ?string
+    {
+        if ($booking->kind !== BookingKind::Stay) {
+            return 'booking_payment.not_a_stay';
+        }
+
+        return $booking->isPayableByCustomer() ? null : 'booking_payment.booking_not_payable';
+    }
+
+    /**
+     * Répondre à une contre-offre (TCK-2879) : la sienne, ni échue (`booking.counter_offer_expired`),
+     * ni remplacée ou traitée, sur une offre encore en attente (`booking.counter_offer_not_open`).
+     * `BookingCounterOfferService::lockOpen` le relit sous verrou. `null` : ouverte.
+     */
+    public static function refusDeLaContreOffre(Booking $booking, BookingCounterOffer $offre): ?string
+    {
+        if ($offre->status === CounterOfferStatus::Expired || ($offre->status === CounterOfferStatus::Pending && $offre->isOverdue())) {
+            return 'booking.counter_offer_expired';
+        }
+
+        return $offre->status === CounterOfferStatus::Pending && $booking->status === BookingStatus::Pending
+            ? null
+            : 'booking.counter_offer_not_open';
+    }
+
+    /**
+     * Ce qui empêche d'accepter une demande, au-delà de son statut — `[statut HTTP, code]`, ou `null`.
+     * `BookingService::confirm` le rejuge sous le verrou du bien (piège PostgreSQL n° 2 : la ligne
+     * parent), la fiche en tire `abilities.confirm`. Dans l'ordre de l'écriture :
+     *
+     * - les nuits (TCK-596, ADR-0041) : un séjour confirmé ou une indisponibilité qui chevauche
+     *   `[début, fin)` (`PropertyAvailabilityService::refus`) ;
+     * - TCK-2734 (décision du porteur du 2026-11-11) — une seule candidature confirmée par bien : deux
+     *   acceptations promettraient le même logement à deux personnes. Les offres et les séjours n'y sont
+     *   pas soumis. Une candidature quitte `confirmed` annulée, convertie en bail, ou close par le bail
+     *   d'un autre locataire ({@see LeaseService::cloreLesCandidaturesDuBien()}) ;
+     * - TCK-2747 (décision 6 du porteur, 2026-11-12) — pas de candidature acceptée sur un logement qu'un
+     *   bail occupe ou occupera ({@see BookingService::bauxQuiOccupent()}).
+     *
+     * @return array{0: int, 1: string}|null
+     */
+    public function conflitALaConfirmation(Booking $booking): ?array
+    {
+        $nuits = app(PropertyAvailabilityService::class)->refus($booking->property_id, $booking->start_date, $booking->end_date, $booking);
+        if ($nuits !== null) {
+            return [422, $nuits];
+        }
+
+        if ($booking->kind !== BookingKind::Application) {
+            return null;
+        }
+
+        $autreAcceptee = Booking::query()
+            ->where('property_id', $booking->property_id)
+            ->where('kind', BookingKind::Application->value)
+            ->where('status', BookingStatus::Confirmed->value)
+            ->whereKeyNot($booking->getKey())
+            ->exists();
+        if ($autreAcceptee) {
+            return [409, 'booking.application_already_accepted'];
+        }
+
+        return BookingService::bauxQuiOccupent($booking)->exists() ? [409, 'booking.property_already_leased'] : null;
     }
 
     /** Contre-proposer : une offre d'achat en attente (`booking.counter_offer_not_allowed`). */

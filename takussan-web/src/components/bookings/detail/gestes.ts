@@ -69,9 +69,12 @@ export function plafondDuRemboursement(p: BookingPayment): number {
   return Math.max(0, Number(p.amount ?? 0) - Number(p.refund_amount ?? 0));
 }
 
-/** TCK-2877 — les paiements qu'on peut encore rembourser : encaissés, et pas entièrement rendus. */
+/**
+ * TCK-2877 — les paiements qu'on peut encore rembourser à la main. TCK-3007 — l'API en juge par paiement
+ * (`refundable` : encaissé, pas entièrement rendu, pas soldé par la plateforme) ; absent, aucun.
+ */
 export function paiementsRemboursables(booking: Pick<Booking, 'booking_payments'>): BookingPayment[] {
-  return (booking.booking_payments ?? []).filter((p) => p.status === 'paid' && plafondDuRemboursement(p) > 0);
+  return (booking.booking_payments ?? []).filter((p) => p.refundable === true);
 }
 
 /**

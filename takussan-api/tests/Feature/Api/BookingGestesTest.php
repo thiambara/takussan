@@ -9,7 +9,10 @@ use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\CounterOfferStatus;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Models\Lease;
+use App\Models\Review;
 use App\Models\User;
 use App\Services\Booking\GestesDeLaReservation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,6 +20,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\BuildsBookingStakeholders;
+use Tests\Support\EncaissementsPlateforme;
 use Tests\TestCase;
 
 /**
@@ -29,7 +33,7 @@ use Tests\TestCase;
  */
 class BookingGestesTest extends TestCase
 {
-    use BuildsBookingStakeholders, RefreshDatabase;
+    use BuildsBookingStakeholders, EncaissementsPlateforme, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -272,5 +276,144 @@ class BookingGestesTest extends TestCase
         $this->assertTrue($this->geste($this->client, $this->bookingOfClient(['status' => BookingStatus::Confirmed]), 'leave_review'));
         $this->assertFalse($this->geste($this->client, $this->bookingOfClient(), 'leave_review'));
         $this->assertFalse($this->geste($this->agent, $this->bookingOfClient(['status' => BookingStatus::Completed]), 'leave_review'));
+    }
+
+    /* ─────────────── Vérification adverse de TCK-3007 : le geste servi = l'écriture acceptée ─────────────── */
+
+    public function test_le_client_ne_paie_ni_une_candidature_ni_une_offre_a_l_ecriture_non_plus(): void
+    {
+        Sanctum::actingAs($this->client);
+        foreach ([BookingKind::Application, BookingKind::Offer] as $nature) {
+            $booking = $this->bookingOfClient(['kind' => $nature, 'total_amount' => 20_000, 'deposit_amount' => 10_000]);
+            $this->assertFalse($this->geste($this->client, $booking, 'pay'));
+
+            $this->postJson("/api/bookings/{$booking->id}/payments", [])
+                ->assertStatus(422)
+                ->assertJsonPath('code', 'booking_payment.not_a_stay');
+        }
+        $this->assertDatabaseCount('booking_payments', 0);
+
+        // Second chemin : le séjour, lui, se paie.
+        $sejour = $this->bookingOfClient(['total_amount' => 20_000, 'deposit_amount' => 10_000]);
+        $this->postJson("/api/bookings/{$sejour->id}/payments", [])->assertCreated();
+    }
+
+    public function test_laisser_un_avis_s_eteint_une_fois_l_avis_depose_meme_retire(): void
+    {
+        $booking = $this->bookingOfClient(['status' => BookingStatus::Completed]);
+        $this->assertTrue($this->geste($this->client, $booking, 'leave_review'));
+
+        $avis = Review::factory()->create([
+            'reviewable_type' => $this->property->getMorphClass(),
+            'reviewable_id' => $this->property->id,
+            'author_id' => $this->client->id,
+        ]);
+        $this->assertFalse($this->geste($this->client, $booking, 'leave_review'));
+
+        // Retiré par la plateforme, il compte encore (`ReviewController::storeForProperty`, verif-597 M2).
+        $avis->delete();
+        $this->assertFalse($this->geste($this->client, $booking, 'leave_review'));
+    }
+
+    public function test_un_avis_d_un_autre_auteur_ou_sur_un_autre_bien_n_eteint_rien(): void
+    {
+        Review::factory()->create(['reviewable_type' => $this->property->getMorphClass(), 'reviewable_id' => $this->property->id]);
+        Review::factory()->create(['author_id' => $this->client->id]);
+
+        $this->assertTrue($this->geste($this->client, $this->bookingOfClient(['status' => BookingStatus::Completed]), 'leave_review'));
+    }
+
+    public function test_accepter_s_eteint_sur_un_sejour_qui_chevauche_mais_refuser_reste(): void
+    {
+        $this->bookingOfClient(['status' => BookingStatus::Confirmed]);
+        $demande = $this->bookingOfClient();
+
+        $gestes = $this->gestesDe($this->agent, $demande);
+        $this->assertFalse($gestes['confirm']);
+        $this->assertTrue($gestes['reject']);
+        $this->postJson("/api/bookings/{$demande->id}/confirm")->assertStatus(422)->assertJsonPath('code', 'booking.dates_overlap');
+    }
+
+    public function test_accepter_s_eteint_quand_une_autre_candidature_est_acceptee(): void
+    {
+        $candidature = ['kind' => BookingKind::Application, 'start_date' => null, 'end_date' => null];
+        $this->bookingOfClient([...$candidature, 'status' => BookingStatus::Confirmed]);
+        $seconde = $this->bookingOfClient($candidature);
+
+        $this->assertFalse($this->geste($this->agent, $seconde, 'confirm'));
+        $this->postJson("/api/bookings/{$seconde->id}/confirm")->assertStatus(409)->assertJsonPath('code', 'booking.application_already_accepted');
+    }
+
+    public function test_accepter_s_eteint_sur_un_bien_deja_loue_et_revient_sans_bail(): void
+    {
+        $candidature = $this->bookingOfClient(['kind' => BookingKind::Application, 'start_date' => now()->addDays(60)->toDateString(), 'end_date' => null]);
+        $this->assertTrue($this->geste($this->agent, $candidature, 'confirm'));
+
+        Lease::factory()->create([
+            'property_id' => $this->property->id,
+            'landlord_id' => $this->property->user_id,
+            'agency_id' => $this->agency->id,
+            'status' => LeaseStatus::Active,
+            'start_date' => now()->subDays(30)->toDateString(),
+            'end_date' => now()->addDays(300)->toDateString(),
+        ]);
+
+        $this->assertFalse($this->geste($this->agent, $candidature, 'confirm'));
+        $this->postJson("/api/bookings/{$candidature->id}/confirm")->assertStatus(409)->assertJsonPath('code', 'booking.property_already_leased');
+    }
+
+    public function test_repondre_a_une_contre_offre_et_l_ecriture_jugent_la_meme_ouverture(): void
+    {
+        $offre = $this->bookingOfClient(['kind' => BookingKind::Offer]);
+        $contre = BookingCounterOffer::create([
+            'booking_id' => $offre->id,
+            'amount' => '15000',
+            'valid_until' => '2026-11-20',
+            'created_by_id' => $this->agent->id,
+            'status' => CounterOfferStatus::Pending->value,
+        ]);
+
+        Carbon::setTestNow('2026-11-21 10:00:00');
+        $this->assertFalse($this->geste($this->client, $offre, 'answer_counter_offer'));
+        $this->postJson("/api/bookings/{$offre->id}/counter-offers/{$contre->id}/accept")
+            ->assertStatus(422)->assertJsonPath('code', 'booking.counter_offer_expired');
+    }
+
+    public function test_rembourser_s_eteint_sur_un_acompte_solde_par_la_plateforme(): void
+    {
+        $booking = $this->bookingOfClient(['status' => BookingStatus::Cancelled]);
+        $this->soldeParLaPlateforme($this->paidDeposit($booking));
+
+        $this->assertFalse($this->geste($this->landlord, $booking, 'refund'));
+
+        // Second chemin : soldé par l'intégration de l'agence, il se rembourse à la main.
+        $autre = $this->bookingOfClient(['status' => BookingStatus::Cancelled]);
+        $this->soldeParLAgence($this->paidDeposit($autre), $this->agency);
+        $this->assertTrue($this->geste($this->landlord, $autre, 'refund'));
+    }
+
+    public function test_un_acompte_deja_rendu_en_entier_ne_se_rembourse_plus(): void
+    {
+        $booking = $this->bookingOfClient(['status' => BookingStatus::Cancelled]);
+        $this->paidDeposit($booking)->update(['refund_amount' => 10_000]);
+
+        $this->assertFalse($this->geste($this->landlord, $booking, 'refund'));
+    }
+
+    public function test_chaque_paiement_dit_s_il_se_rembourse_a_la_main(): void
+    {
+        $booking = $this->bookingOfClient(['status' => BookingStatus::Cancelled]);
+        $plateforme = $this->soldeParLaPlateforme($this->paidDeposit($booking));
+        $especes = $this->paidDeposit($booking, 5_000);
+        $attente = $this->paidDeposit($booking, 3_000, PaymentStatus::Pending);
+
+        Sanctum::actingAs($this->landlord);
+        $parId = collect($this->getJson("/api/bookings/{$booking->id}")->assertOk()->json('data.booking_payments'))
+            ->mapWithKeys(fn (array $p): array => [$p['id'] => $p['refundable'] ?? null]);
+
+        $this->assertFalse($parId[$plateforme->id], 'soldé par la plateforme : remboursé par le fournisseur');
+        $this->assertTrue($parId[$especes->id]);
+        $this->assertFalse($parId[$attente->id], 'rien d\'encaissé');
+        $this->assertTrue($this->geste($this->landlord, $booking, 'refund'));
     }
 }

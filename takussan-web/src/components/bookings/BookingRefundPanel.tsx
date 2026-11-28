@@ -13,7 +13,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment } from '@/types/booking';
 import { useNomDuClient } from './liste/pieces';
-import { plafondDuRemboursement } from './detail/gestes';
+import { gestesDeLaReservation, paiementsRemboursables, plafondDuRemboursement } from './detail/gestes';
 import { Avertissement, FeuilleOuPanneau, PastillesDeChoix, useEnPanneau } from './feuilles/pieces-des-feuilles';
 
 interface BookingRefundPanelProps {
@@ -38,9 +38,11 @@ export function BookingRefundPanel({ booking, locale, isCustomer }: BookingRefun
 
   const refunded = booking.refund_status === 'refunded';
   const toProcess = !refunded && !isCustomer;
-  // Le geste ne s'affiche qu'à qui peut le faire aboutir : l'API en juge (`abilities.refund`, TCK-3007).
-  const canAct = toProcess && booking.abilities?.refund === true;
-  const paid = (booking.booking_payments ?? []).filter((p) => p.status === 'paid');
+  // Le geste ne s'affiche qu'à qui peut le faire aboutir : l'API en juge (`abilities.refund`), lu par la
+  // fonction pure de la fiche (TCK-3007).
+  const canAct = toProcess && gestesDeLaReservation(booking).rembourser;
+  // TCK-3007 — paiement par paiement, ceux que l'API dit remboursables à la main (`refundable`).
+  const paid = paiementsRemboursables(booking);
 
   const title = refunded ? t('refundedTitle') : toProcess ? t('toProcessTitle') : t('pendingTitle');
   const description = refunded
