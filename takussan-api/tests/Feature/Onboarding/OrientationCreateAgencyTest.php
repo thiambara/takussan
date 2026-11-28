@@ -11,6 +11,7 @@ use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
+use App\Models\Enums\Currency;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
@@ -69,6 +70,9 @@ class OrientationCreateAgencyTest extends TestCase
 
         $agence = $this->ouverte();
         $this->assertSame(AgencyKind::Standard, $agence->kind);
+        // TCK-3018 — l'agence ouverte en libre-service tient sa devise du code, en XOF : la factory pose
+        // `currency`, et ce chemin était le seul des trois (console, hôte, libre-service) sans garde.
+        $this->assertSame(Currency::XOF, $agence->currency);
         $this->assertFalse($agence->is_verified);
         $this->assertNotNull($agence->self_opened_at);
         $this->assertTrue($agence->awaitsFirstVerification());

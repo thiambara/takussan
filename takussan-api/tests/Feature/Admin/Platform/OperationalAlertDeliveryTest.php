@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin\Platform;
 
 use App\Jobs\RecordQueueHeartbeat;
+use App\Jobs\SendAdminAlert;
 use App\Models\AlertRule;
 use App\Services\Admin\HealthcheckService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -80,6 +81,57 @@ class OperationalAlertDeliveryTest extends TestCase
         $this->assertNull($enEchec->last_triggered_at);
         $this->assertNotNull($saine->refresh()->last_triggered_at);
         $this->assertSame(1, DB::table('activity_log')->where('event', 'ops_health_degraded')->count());
+    }
+
+    /**
+     * TCK-3018 — `webhooks` est une liste d'URL sans fournisseur, et Slack et Discord n'acceptent pas le
+     * même corps : chaque URL reçoit UNE fois celui que son hôte accepte. Un corps Slack sur Discord rend
+     * 400, et `->throw()` faisait échouer le job à chaque fois.
+     */
+    public function test_chaque_webhook_recoit_le_corps_de_son_fournisseur(): void
+    {
+        Http::fake(['*' => Http::response('ok')]);
+        $regle = AlertRule::create([
+            'event' => 'ops_queue_stalled',
+            'channels_json' => ['slack', 'discord'],
+            'recipients_json' => ['webhooks' => [self::SLACK, self::DISCORD]],
+            'is_active' => true,
+        ]);
+
+        (new SendAdminAlert($regle->id, ['message' => 'File à l\'arrêt', 'audit_url' => 'https://takussan.test/audit/1']))->handle();
+
+        Http::assertSentCount(2);
+        Http::assertSent(fn (Request $r) => $r->url() === self::SLACK
+            && $r['text'] === 'File à l\'arrêt'
+            && $r['blocks'][1]['elements'][0]['text'] === 'https://takussan.test/audit/1'
+            && ! isset($r['content']));
+        Http::assertSent(fn (Request $r) => $r->url() === self::DISCORD
+            && $r['content'] === "File à l'arrêt\nhttps://takussan.test/audit/1"
+            && ! isset($r['text']));
+    }
+
+    /**
+     * TCK-3018 — un hôte inconnu prend le seul canal actif de la règle ; deux canaux actifs, il est
+     * sauté plutôt que deviné. Un hôte reconnu dont le canal n'est pas actif est sauté aussi.
+     */
+    public function test_un_hote_inconnu_prend_le_seul_canal_actif_et_rien_quand_ils_sont_deux(): void
+    {
+        Http::fake(['*' => Http::response('ok')]);
+        $maison = 'https://alertes.agence.test/hook';
+        $alerte = ['message' => 'Santé dégradée', 'audit_url' => 'https://takussan.test/audit/2'];
+        $regle = fn (array $canaux, array $urls): int => AlertRule::create([
+            'event' => 'ops_queue_stalled',
+            'channels_json' => $canaux,
+            'recipients_json' => ['webhooks' => $urls],
+            'is_active' => true,
+        ])->id;
+
+        (new SendAdminAlert($regle(['discord'], [$maison, self::SLACK]), $alerte))->handle();
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $r) => $r->url() === $maison && isset($r['content']) && ! isset($r['blocks']));
+
+        (new SendAdminAlert($regle(['slack', 'discord'], [$maison]), $alerte))->handle();
+        Http::assertSentCount(1);
     }
 
     private function regle(string $event, string $url, string $canal = 'slack'): AlertRule
