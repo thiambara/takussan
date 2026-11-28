@@ -56,7 +56,8 @@ const UNE: PropertyVisit = {
 
 const api = doublerLApi()
   .sur('GET', '/api/property-visits/counts', { data: COMPTES })
-  .servir('visites', [UNE], { meta: ({ requete }) => ({ total: totalDe(requete) }) })
+  // La page rendue suit son total : un total nul n'a pas de ligne (TCK-3010, tour c — le harnais refuse la contradiction).
+  .servir('visites', ({ requete }) => (totalDe(requete) > 0 ? [UNE] : []), { meta: ({ requete }) => ({ total: totalDe(requete) }) })
   .parDefaut({ data: [], meta: { total: 0, per_page: 8, current_page: 1, last_page: 1 } });
 
 function monter() {

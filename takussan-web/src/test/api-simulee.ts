@@ -22,9 +22,18 @@
  * pendant le test, jamais levés là où ils arrivent : une exception dans un rendu ou une requête serait avalée par
  * React Query ou par une frontière d'erreur.
  *
- * **Le coupable est le test qui a lancé la requête** : l'`afterEach` attend que le réseau se taise, démonte (RTL),
- * puis vérifie. Une lecture notée pour un test qui n'est plus en cours est ignorée. Entre deux tests, `fetch` lève :
- * aucun appel ne joint le vrai réseau.
+ * **Le coupable est le test qui a lancé la requête** : l'`afterEach` attend que le réseau se taise (cinq tours sans
+ * requête neuve), démonte (RTL), attend de nouveau, puis vérifie. La première attente laisse partir ce que seul un
+ * composant monté lance (la requête qu'une réponse débloque) ; la seconde, ce qui était déjà parti. Une lecture notée
+ * pour un test qui n'est plus en cours est ignorée. Entre deux tests, `fetch` lève : aucun appel ne joint le vrai réseau.
+ *
+ * Une requête que `auRepos` ne peut pas attendre (une minuterie de 60 ms, un délai de saisie) porte l'étiquette du test
+ * qui l'a lancée (`AsyncLocalStorage`, posée dans le `beforeEach`, suivie à travers minuteries et promesses). Si elle
+ * arrive dans un test suivant, elle n'y est ni servie ni journalisée, et CE test échoue en nommant l'auteur ; entre deux
+ * tests ou après le dernier, l'`afterAll` du fichier la nomme. Le test qui l'a lancée, déjà fini, reste vert : aucun
+ * `afterEach` ne peut attendre une minuterie arbitraire. Ce que l'étiquette ne suit pas : une minuterie simulée
+ * (`vi.useFakeTimers`) avancée par un test suivant, et du travail lancé hors d'un test (au chargement du module), qui
+ * passe pour celui du test en cours.
  *
  * Une déclaration faite PENDANT un test ne vaut que pour lui ; faite au niveau du module, pour tous.
  * Le chemin journalisé et apparié est **celui que Laravel reçoit** : une URL absolue (`apiRequest`) garde son
@@ -32,8 +41,10 @@
  *
  * Limite : une ligne recopiée (`{ ...ligne }`) perd sa surveillance ; ses lectures suivantes ne sont plus vues.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 import { act, cleanup } from '@testing-library/react';
-import { afterEach, beforeEach } from 'vitest';
+import { afterAll, afterEach, beforeEach, expect } from 'vitest';
 
 import { ApiError } from '@/lib/api';
 
@@ -69,13 +80,29 @@ export function cheminDeLApi(cheminDuFront: string): string {
 
 const ORIGINE_DU_FRONT = 'http://front.test';
 
+/** `auRepos` : le nombre de tours sans requête neuve qui vaut silence, et le plafond de tours. */
+const TOURS_CALMES = 5;
+const TOURS_AU_PLUS = 100;
+
 /** Le vrai `setTimeout`, saisi au chargement : une horloge simulée ne fige pas `auRepos`. */
 const attendre = globalThis.setTimeout.bind(globalThis);
 
-/** Le `fetch` entre deux tests : aucun appel ne joint le vrai réseau. */
-const FETCH_HORS_DES_TESTS = ((entree: RequestInfo | URL) => {
-  throw new Error(`fetch appelé hors d’un test (${String(entree instanceof Request ? entree.url : entree)}) : la doublure de l’API (TCK-3010) ne sert qu’entre beforeEach et afterEach, et le vrai réseau n’est jamais joint.`);
-}) as typeof fetch;
+const refusHorsDesTests = (entree: RequestInfo | URL) =>
+  new Error(`fetch appelé hors d’un test (${String(entree instanceof Request ? entree.url : entree)}) : la doublure de l’API (TCK-3010) ne sert qu’entre beforeEach et afterEach, et le vrai réseau n’est jamais joint.`);
+
+/**
+ * L'étiquette du test qui a lancé un travail asynchrone : son numéro d'époque. `enterWith` dans le `beforeEach` la
+ * pose sur tout ce que le test crée ensuite — minuteries, promesses, et ce qu'elles lancent à leur tour —, et elle
+ * les suit après la fin du test. Sans étiquette (du code du module), un appel est celui du test en cours.
+ */
+const ORIGINE = new AsyncLocalStorage<number>();
+
+/** `page` comme `PaginationState` de Laravel : `FILTER_VALIDATE_INT` (ni `2.5`, ni `007`, ni `1e1`), ≥ 1, sinon 1. */
+function pageDemandee(requete: URLSearchParams): number {
+  const brut = (requete.get('page') ?? '').trim();
+  const page = /^[+-]?(0|[1-9]\d*)$/.test(brut) ? Number(brut) : 0;
+  return page >= 1 ? page : 1;
+}
 
 /** Une requête reçue, telle que Laravel la verrait. */
 export interface AppelSimule {
@@ -123,13 +150,20 @@ export interface ApiSimulee {
     options?: {
       /**
        * Ce que `meta` ajoute à `{ total, per_page, current_page, last_page }`, calculés comme l'API sur les lignes
-       * produites (`page`, `per_page` : 15 par défaut, 100 au plus). Seul `total` s'y remplace (et recalcule
-       * `last_page`) : les trois autres suivent la requête, comme `PaginationMeta`.
+       * produites (`page` comme `PaginationState`, `per_page` comme `getPerPage` : 15 par défaut, 100 au plus). Les
+       * trois derniers suivent toujours la requête, comme `PaginationMeta`.
+       *
+       * **Sans `total`**, les lignes sont la liste entière, et la doublure en découpe la page demandée. **Avec un
+       * `total`**, elles sont DÉJÀ la page demandée (le producteur sait un total qu'il ne sert pas en entier) : rendues
+       * telles quelles, et `last_page` tiré du total. Une telle page plus longue que `per_page` ou que son total fait
+       * échouer le test : l'API ne la rendrait jamais.
        */
       readonly meta?: Produit<Readonly<Record<string, unknown>>>;
       /**
        * Les `filter[<nom>]` que ce test prend en charge sans que le producteur les lise (un test qui ne juge que la
-       * requête). Un producteur qui lit `requete.get('filter[…]')` n'a rien à déclarer.
+       * requête). Un producteur qui lit `requete.get('filter[…]')` n'a rien à déclarer. Un nom absent des
+       * `filtresPermis` de la ressource lève ici ; envoyé dans une requête, il rend 400, comme spatie, et fait échouer
+       * le test.
        */
       readonly filtres?: readonly string[];
     },
@@ -223,10 +257,14 @@ function clesServies(description: DescriptionDeRessource, requete: URLSearchPara
   ]);
 }
 
-/** La taille de page de l'API : `per_page` borné à [1, 100] (`HasQueryBuilder::getPerPage`), sinon 15 (Eloquent). */
+/**
+ * La taille de page de l'API, `HasQueryBuilder::getPerPage` : `is_numeric` (`1e1` oui, `0x1A` non), puis `(int)`,
+ * qui TRONQUE (`2.5` → 2, `0.5` → 0, donc 15) ; bornée à [1, 100], sinon 15 (Eloquent). Mesuré par PHP (tour c).
+ */
 function tailleDePage(requete: URLSearchParams): number {
-  const demande = Number(requete.get('per_page'));
-  return Number.isFinite(demande) && demande >= 1 ? Math.min(Math.trunc(demande), 100) : 15;
+  const brut = (requete.get('per_page') ?? '').trim();
+  const demande = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(brut) ? Math.trunc(Number(brut)) : 0;
+  return demande >= 1 ? Math.min(demande, 100) : 15;
 }
 
 /** Les `filter[<nom>]` de la requête. */
@@ -262,6 +300,11 @@ export function doublerLApi(): ApiSimulee {
   const lectures = new Set<string>();
   const nonServies = new Set<string>();
   const filtresIgnores = new Set<string>();
+  const pagesContredites = new Set<string>();
+  const filtresInconnus = new Set<string>();
+  /** Les requêtes qu'un test fini a lancées : la suivante vérification (ou l'`afterAll`) les nomme. */
+  const tardives = new Set<string>();
+  const nomsDesTests = new Map<number, string>();
   // Le test en cours : une lecture notée sous un autre numéro (une réponse d'un test fini) n'accuse personne.
   let epoque = 0;
   let enVol = 0;
@@ -331,7 +374,23 @@ export function doublerLApi(): ApiSimulee {
     };
   }
 
+  /** La requête d'un test fini : notée sous son nom, jamais servie ni journalisée pour le test en cours. */
+  const tardive = (origine: number, entree: RequestInfo | URL, init: RequestInit | undefined): Error => {
+    const appel = lireAppel(entree, init);
+    tardives.add(`${appel.methode} ${appel.chemin} lancée par le test « ${nomsDesTests.get(origine) ?? `n° ${origine}`} » après sa fin`);
+    return new Error(`requête tardive (TCK-3010) : ${appel.methode} ${appel.chemin}, lancée par un test fini`);
+  };
+
+  /** Le `fetch` entre deux tests : il lève, et note l'appel d'un test fini. */
+  const horsDesTests = ((entree: RequestInfo | URL, init?: RequestInit) => {
+    const origine = ORIGINE.getStore();
+    if (origine !== undefined) tardive(origine, entree, init);
+    throw refusHorsDesTests(entree);
+  }) as typeof fetch;
+
   const simule = async (entree: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const origine = ORIGINE.getStore();
+    if (origine !== undefined && origine !== epoque) throw tardive(origine, entree, init);
     enVol += 1;
     try {
       return await repondreA(entree, init);
@@ -343,6 +402,12 @@ export function doublerLApi(): ApiSimulee {
   const repondreA = async (entree: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const appel = lireAppel(entree, init);
     journal.push(appel);
+    const inconnus = filtresInconnusDe(appel);
+    if (inconnus.length > 0) {
+      for (const f of inconnus) filtresInconnus.add(`filter[${f}] inconnu de ${appel.methode} ${appel.chemin}`);
+      // `InvalidFilterQuery` de spatie, rendu en 400 par `bootstrap/app.php`.
+      return reponseJson(400, { message: `Requested filter(s) \`${inconnus.join(', ')}\` are not allowed.` });
+    }
     const declaration = [...duTest].reverse().concat([...permanentes].reverse())
       .find((d) => d.methode === appel.methode && correspond(d.motif, appel.chemin));
     const defaut = defautDuTest ?? defautPermanent;
@@ -359,19 +424,35 @@ export function doublerLApi(): ApiSimulee {
       if (!(refus instanceof ApiError)) throw refus;
       reponse = { statut: refus.status, corps: surLeFil(refus.data) };
     }
-    // Un 204 n'a pas de corps ; tout autre statut porte du JSON, que `json()` rend sous sa surveillance.
-    const sansCorps = reponse.statut === 204;
-    const fil = new Response(sansCorps ? null : JSON.stringify(reponse.corps ?? null), {
-      status: reponse.statut,
+    return reponseJson(reponse.statut, reponse.corps);
+  };
+
+  /** Un 204 n'a pas de corps ; tout autre statut porte du JSON, que `json()` rend sous sa surveillance. */
+  function reponseJson(statut: number, corps: unknown): Response {
+    const sansCorps = statut === 204;
+    const fil = new Response(sansCorps ? null : JSON.stringify(corps ?? null), {
+      status: statut,
       headers: sansCorps ? {} : { 'Content-Type': 'application/json' },
     });
-    if (!sansCorps) Object.defineProperty(fil, 'json', { value: async () => reponse.corps });
+    if (!sansCorps) Object.defineProperty(fil, 'json', { value: async () => corps });
     return fil;
+  }
+
+  /** Les listes servies par `servir`, et les filtres que leur modèle autorise. */
+  const listesServies = new Map<string, DescriptionDeRessource>();
+  const filtresInconnusDe = (appel: AppelSimule): string[] => {
+    const description = appel.methode === 'GET' ? listesServies.get(appel.chemin) : undefined;
+    return description ? filtresDe(appel.requete).filter((f) => !description.filtresPermis.includes(f)) : [];
   };
 
   const api: ApiSimulee = {
     servir(nom, lignes, options = {}) {
       const description = RESSOURCES[nom];
+      const refuses = (options.filtres ?? []).filter((f) => !description.filtresPermis.includes(f));
+      if (refuses.length > 0) {
+        throw new Error(`api.servir('${nom}', …, { filtres }) : ${refuses.map((f) => `filter[${f}]`).join(', ')} n’est pas un filtre de ${description.modele} — l’API le refuserait en 400. Permis : ${description.filtresPermis.join(', ')}.`);
+      }
+      listesServies.set(description.route, description);
       const detail = new RegExp(`^${description.route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/(\\d+)$`);
       declarer({
         methode: 'GET',
@@ -383,12 +464,18 @@ export function doublerLApi(): ApiSimulee {
           suivi.noterLesIgnores();
           // La pagination de l'API (`PaginationMeta::of`) : la page demandée, et `last_page` tiré du total.
           const parPage = tailleDePage(appel.requete);
-          const page = Math.max(1, Math.trunc(Number(appel.requete.get('page'))) || 1);
-          const total = typeof ajouts.total === 'number' ? ajouts.total : data.length;
+          const page = pageDemandee(appel.requete);
+          // Un `meta.total` donné : le producteur rend DÉJÀ la page demandée (il connaît un total qu'il ne sert pas
+          // en entier), elle n'est pas redécoupée. Une page plus longue que `per_page`, ou plus longue que le total,
+          // l'API ne la rendrait jamais : notée.
+          const dejaPaginee = typeof ajouts.total === 'number';
+          const total = dejaPaginee ? (ajouts.total as number) : data.length;
+          if (dejaPaginee && data.length > parPage) pagesContredites.add(`${data.length} lignes pour per_page=${parPage} (${appel.methode} ${appel.chemin})`);
+          if (dejaPaginee && data.length > total) pagesContredites.add(`${data.length} lignes pour total=${total} (${appel.methode} ${appel.chemin})`);
           return {
             statut: 200,
             corps: {
-              data: borner(data.slice((page - 1) * parPage, page * parPage), description, appel, false),
+              data: borner(dejaPaginee ? data : data.slice((page - 1) * parPage, page * parPage), description, appel, false),
               // `PaginationMeta::of` écarte les clés canoniques d'un `meta` en plus : seul `total` se donne ici.
               meta: { ...ajouts, total, per_page: parPage, current_page: page, last_page: Math.max(1, Math.ceil(total / parPage)) },
             },
@@ -428,12 +515,16 @@ export function doublerLApi(): ApiSimulee {
       return chemin === undefined ? [...journal] : journal.filter((a) => a.chemin === chemin);
     },
     async auRepos() {
-      let avant = -1;
-      for (let tour = 0; tour < 20 && (avant !== journal.length || enVol > 0); tour += 1) {
-        avant = journal.length;
+      // Le silence se constate sur plusieurs tours de suite : entre une réponse et la requête qu'elle débloque, il y a
+      // le décodage, la notification de React Query (une tâche), le rendu (une autre) et les attentes d'`apiRequest`.
+      // Un seul tour calme a laissé partir la requête dépendante une fois sur trois (tour c, mesuré).
+      let calmes = 0;
+      for (let tour = 0; tour < TOURS_AU_PLUS && calmes < TOURS_CALMES; tour += 1) {
+        const avant = journal.length;
         await act(async () => {
           await new Promise((fin) => attendre(fin, 0));
         });
+        calmes = avant === journal.length && enVol === 0 ? calmes + 1 : 0;
       }
     },
     oublierLesAppels() {
@@ -444,10 +535,16 @@ export function doublerLApi(): ApiSimulee {
         ...[...lectures].sort().map((l) => `- clé ${l}`),
         ...[...nonServies].sort().map((r) => `- requête non doublée : ${r} (api.sur, api.servir ou api.parDefaut)`),
         ...[...filtresIgnores].sort().map((f) => `- ${f} sans qu’une réponse le lise ni le déclare : la doublure ne filtre pas (un producteur qui lit \`requete\`, ou \`filtres\` de api.servir)`),
+        ...[...filtresInconnus].sort().map((f) => `- ${f} : le modèle ne l’autorise pas, l’API rend 400 (\`filtresPermis\` de ressources-de-l-api.ts)`),
+        ...[...pagesContredites].sort().map((p) => `- page déjà paginée (meta.total) de ${p} : l’API ne la rendrait pas`),
+        ...[...tardives].sort().map((t) => `- requête ${t} : elle tombe dans le test en cours (attendre sa réponse dans le test qui la lance, ou l’annuler)`),
       ];
       lectures.clear();
       nonServies.clear();
       filtresIgnores.clear();
+      filtresInconnus.clear();
+      pagesContredites.clear();
+      tardives.clear();
       if (defauts.length > 0) throw new Error(`L'API simulée a vu ce que la vraie refuserait :\n${defauts.join('\n')}`);
     },
     fetch: simule as typeof fetch,
@@ -455,6 +552,9 @@ export function doublerLApi(): ApiSimulee {
 
   beforeEach(() => {
     epoque += 1;
+    nomsDesTests.set(epoque, expect.getState().currentTestName ?? `n° ${epoque}`);
+    // Pour le reste du test ET tout ce qu'il laisse en attente : c'est ce qui désigne l'auteur d'une requête tardive.
+    ORIGINE.enterWith(epoque);
     enCours = true;
     duTest = [];
     defautDuTest = null;
@@ -462,6 +562,8 @@ export function doublerLApi(): ApiSimulee {
     lectures.clear();
     nonServies.clear();
     filtresIgnores.clear();
+    filtresInconnus.clear();
+    pagesContredites.clear();
     globalThis.fetch = api.fetch;
   });
   // Dans cet ordre : le réseau se tait (la requête tardive tombe dans CE test), RTL démonte (plus rien ne part), on
@@ -474,11 +576,16 @@ export function doublerLApi(): ApiSimulee {
       await api.auRepos();
       api.verifier();
     } finally {
-      globalThis.fetch = FETCH_HORS_DES_TESTS;
+      globalThis.fetch = horsDesTests;
       enCours = false;
       duTest = [];
       defautDuTest = null;
     }
+  });
+
+  // Une requête qu'un test fini lance après le dernier test (ou entre deux tests, quand aucun ne suit) : nommée ici.
+  afterAll(() => {
+    if (tardives.size > 0) throw new Error(`L'API simulée a reçu, hors d'un test :\n${[...tardives].sort().map((t) => `- ${t}`).join('\n')}`);
   });
 
   return api;

@@ -171,3 +171,41 @@ d'absence de `bookings.trois-natures` rougit.
 
   Les 15 fichiers passent (233 tests, plus l'`it.fails`), ainsi que `tsc --noEmit`, eslint,
   `gen-requetes-du-front.mjs --check` et `scripts/check-front-routes.mjs`.
+
+**Tour c (2026-11-28), cinq défauts confirmés par exécution.** Chacun a d'abord eu un test du harnais en échec, puis
+une ablation (restaurée, md5 vérifié) :
+
+- **Page redécoupée** : un `meta.total` donné vaut « le producteur rend déjà la page demandée ». Elle n'est plus
+  redécoupée (`/api/leases?page=2&per_page=15`, 15 lignes, `total: 40` → 15 lignes, `last_page: 3`). Une telle page
+  plus longue que `per_page` ou que son total fait échouer le test. Cette garde a trouvé une fixture qui se contredisait :
+  `toutes-ouvre-toutes.tck-2587` servait une ligne sous `total: 0`, et ses lignes suivent maintenant le total.
+- **`page` et `per_page`**, mesurés par PHP sur 12 valeurs, puis recopiés dans un `it.each` :
+  - `page` suit `PaginationState` (`FILTER_VALIDATE_INT`) : `2.5`, `007` et `1e1` valent 1.
+  - `per_page` suit `getPerPage` (`is_numeric`, puis `(int)` qui tronque) : `2.5` → 2, `1e1` → 10, `0x1A` → 15.
+  - ⚠ La règle n'est donc pas la même pour les deux : `per_page=2.5` vaut 2, pas 15.
+- **Requête tardive d'un test fini** : un `AsyncLocalStorage` reçoit le numéro du test par `enterWith` dans le
+  `beforeEach`, et suit tout ce que le test laisse en attente. Si la requête arrive dans un test B, elle n'y est ni
+  servie ni journalisée, et B échoue en nommant A. Si elle arrive entre deux tests ou après le dernier, l'`afterAll`
+  la nomme. Ce que la solution ne couvre pas :
+  - A, déjà fini, reste vert : aucun `afterEach` ne peut attendre une minuterie arbitraire, et dix des quinze
+    fichiers simulent l'horloge, si bien qu'on ne peut pas envelopper `setTimeout`.
+  - Une minuterie simulée avancée par un test suivant n'est pas suivie.
+  - Du travail lancé hors de tout test passe pour celui du test en cours.
+  - Le cas de l'`afterAll` n'a pas de test.
+  - La sonde « `fetch` lève hors d'un test » est passée d'un `afterEach` à un `afterAll` : appelée après chaque
+    test, elle se serait elle-même notée comme requête tardive.
+- **Première attente du repos** : prouvée par un `it.fails`. Une requête que seule la réponse de la première débloque
+  (`enabled: premiere.isSuccess`) ne part que si le composant est encore monté.
+  - Retirer l'attente fait rougir le test, 5 fois sur 5.
+  - Le test a aussi montré que `auRepos` s'arrêtait après UN seul tour calme : il laissait partir la requête
+    dépendante 2 fois sur 6. Il attend maintenant cinq tours calmes de suite, au plus cent.
+  - ⚠ Revenir à un seul tour n'a rougi aucune des 5 exécutions suivantes : ce point est un relevé, pas une preuve
+    par ablation.
+- **Filtres** : `filtresPermis` par ressource (13, 11 et 17 noms, identiques à la réflexion de
+  `getAllowedQueryFilters` relevée par tinker). Un nom inconnu dans `servir(…, { filtres })` lève, et un `filter[…]`
+  inconnu envoyé rend 400 et fait échouer le test. La garde relit le modèle PHP : `$requestFilterable`,
+  `…Partial`, `$requestRangeFilters` en `_min`/`_max`, `search`, et tout `AllowedFilter::x('nom'`. Elle a un plancher
+  de 9 noms et rougit sur un `AllowedFilter` sans nom littéral.
+
+Vérifié : les 15 fichiers du harnais (254 tests, plus 2 `it.fails`), `tsc --noEmit`, eslint et
+`scripts/check-front-routes.mjs`.
