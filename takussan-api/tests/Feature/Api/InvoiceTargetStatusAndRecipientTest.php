@@ -139,4 +139,23 @@ class InvoiceTargetStatusAndRecipientTest extends TestCase
             'status' => $status,
         ]);
     }
+
+    /**
+     * TCK-594 (AC22, ex-InvoiceTargetScopeTest, TCK-3017) — une facture ne cible qu'un bail de son agence :
+     * le bail d'une autre, même signé et au même client, est refusé sans rien écrire.
+     */
+    public function test_ac22_a_lease_of_another_agency_is_refused_and_nothing_is_written(): void
+    {
+        $foreign = Lease::factory()->active()->create([
+            'agency_id' => Agency::factory()->create()->id,
+            'tenant_id' => $this->customer->id,
+        ]);
+
+        $this->invoice('lease', $foreign->id)
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'invoice.foreign_target');
+        $this->assertSame(0, Invoice::query()->count());
+
+        $this->invoice('lease', $this->lease(LeaseStatus::Active)->id)->assertCreated();
+    }
 }

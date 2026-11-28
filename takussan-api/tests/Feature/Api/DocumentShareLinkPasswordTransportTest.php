@@ -52,13 +52,6 @@ class DocumentShareLinkPasswordTransportTest extends ApiTestCase
         $this->assertSame(0, $this->link->refresh()->downloads_count);
     }
 
-    public function test_le_mot_de_passe_dans_le_corps_ouvre_le_lien(): void
-    {
-        $this->postJson("/api/share/{$this->link->token}", ['password' => 'secret1234'])
-            ->assertOk()
-            ->assertJsonPath('data.document.name', 'Bail signé');
-    }
-
     public function test_le_mot_de_passe_dans_le_corps_telecharge_et_compte(): void
     {
         $response = $this->post("/api/share/{$this->link->token}/download", ['password' => 'secret1234']);

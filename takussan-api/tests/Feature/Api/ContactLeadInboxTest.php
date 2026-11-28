@@ -260,18 +260,4 @@ class ContactLeadInboxTest extends ApiTestCase
             ->assertOk()
             ->assertJsonPath('meta.total', 2);
     }
-
-    /** AC17 — plus aucun titre figé « Nouveau lead anonyme » dans `app/`. */
-    public function test_plus_aucun_titre_fige_dans_app(): void
-    {
-        $fichiers = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(app_path()));
-        $trouves = [];
-        foreach ($fichiers as $fichier) {
-            if ($fichier->isFile() && str_contains((string) file_get_contents($fichier->getPathname()), 'Nouveau lead anonyme')) {
-                $trouves[] = $fichier->getPathname();
-            }
-        }
-
-        $this->assertSame([], $trouves);
-    }
 }

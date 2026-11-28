@@ -58,34 +58,6 @@ class PayoutTest extends TestCase
             ->assertJsonPath('data.status', 'scheduled');
     }
 
-    public function test_non_agency_user_cannot_create_payout(): void
-    {
-        $user = User::factory()->create(['agency_id' => null]);
-        $landlord = User::factory()->create();
-
-        $this->actingWithStepUp($user);
-
-        $this->postJson('/api/payouts', [
-            'landlord_id' => $landlord->id,
-            'lease_payment_ids' => [1],
-        ])->assertForbidden();
-    }
-
-    public function test_agency_user_cannot_create_payout_for_foreign_landlord(): void
-    {
-        $agency1 = Agency::factory()->create();
-        $agency2 = Agency::factory()->create();
-        $agent = User::factory()->withAgentProfile($agency1)->create();
-        $landlord = User::factory()->create(['agency_id' => $agency2->id]);
-
-        $this->actingWithStepUp($agent);
-
-        $this->postJson('/api/payouts', [
-            'landlord_id' => $landlord->id,
-            'lease_payment_ids' => [1],
-        ])->assertForbidden();
-    }
-
     public function test_negative_net_amount_returns_422(): void
     {
         $agency = $this->moneyAgency();

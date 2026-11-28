@@ -2,24 +2,39 @@
 
 namespace Tests\Feature\Public;
 
+use App\Http\Controllers\Public\PublicPropertyController;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * TCK-082 — public /compare endpoint smoke tests.
+ * TCK-082 (/compare) et TCK-100 (/by-ids, le carrousel « vus récemment ») — deux routes publiques au
+ * même contrat : ordre demandé, brouillons et inconnus écartés en silence, `ids` requis, méta complète
+ * même vide. Seul le plafond diffère. TCK-3017 : ex-PropertyByIdsTest, le contrat joué sur les deux
+ * routes (chacune a son code dans le contrôleur).
  */
 class PropertyCompareTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_returns_requested_published_properties_in_order(): void
+    /** @return array<string, array{0: string, 1: int}> */
+    public static function routes(): array
+    {
+        return [
+            'compare' => ['/api/public/properties/compare', PublicPropertyController::COMPARE_MAX_IDS],
+            'by-ids' => ['/api/public/properties/by-ids', PublicPropertyController::BY_IDS_MAX_IDS],
+        ];
+    }
+
+    #[DataProvider('routes')]
+    public function test_returns_requested_published_properties_in_order(string $route, int $max): void
     {
         $a = Property::factory()->published()->create();
         $b = Property::factory()->published()->create();
         $c = Property::factory()->published()->create();
 
-        $response = $this->getJson("/api/public/properties/compare?ids={$c->id},{$a->id},{$b->id}");
+        $response = $this->getJson("{$route}?ids={$c->id},{$a->id},{$b->id}");
 
         $response->assertOk()
             ->assertJsonCount(3, 'data')
@@ -28,12 +43,13 @@ class PropertyCompareTest extends TestCase
             ->assertJsonPath('data.2.id', $b->id);
     }
 
-    public function test_draft_and_unknown_ids_are_silently_dropped(): void
+    #[DataProvider('routes')]
+    public function test_draft_and_unknown_ids_are_silently_dropped(string $route, int $max): void
     {
         $published = Property::factory()->published()->create();
         $draft = Property::factory()->draft()->create();
 
-        $response = $this->getJson("/api/public/properties/compare?ids={$published->id},{$draft->id},99999");
+        $response = $this->getJson("{$route}?ids={$published->id},{$draft->id},99999");
 
         $response->assertOk()
             ->assertJsonCount(1, 'data')
@@ -41,19 +57,19 @@ class PropertyCompareTest extends TestCase
             ->assertJsonPath('meta.returned_ids', [$published->id]);
     }
 
-    public function test_caps_at_four_ids(): void
+    #[DataProvider('routes')]
+    public function test_caps_at_the_route_maximum(string $route, int $max): void
     {
-        $props = Property::factory()->count(6)->published()->create();
+        $props = Property::factory()->count($max + 2)->published()->create();
         $idsCsv = $props->pluck('id')->implode(',');
 
-        $response = $this->getJson("/api/public/properties/compare?ids={$idsCsv}");
-
-        $response->assertOk()->assertJsonCount(4, 'data');
+        $this->getJson("{$route}?ids={$idsCsv}")->assertOk()->assertJsonCount($max, 'data');
     }
 
-    public function test_ids_parameter_is_required(): void
+    #[DataProvider('routes')]
+    public function test_ids_parameter_is_required(string $route, int $max): void
     {
-        $this->getJson('/api/public/properties/compare')->assertStatus(422);
+        $this->getJson($route)->assertStatus(422);
     }
 
     public function test_exposes_detail_fields_for_comparison(): void
@@ -79,22 +95,16 @@ class PropertyCompareTest extends TestCase
             ]);
     }
 
-    public function test_no_auth_required(): void
-    {
-        $property = Property::factory()->published()->create();
-
-        $this->getJson("/api/public/properties/compare?ids={$property->id}")->assertOk();
-    }
-
     /**
      * When every parsed id is invalid (zeros / negatives / non-numeric),
      * the controller short-circuits with an empty payload. It must still
      * include `returned_ids` in meta — the frontend's useCompare reducer
      * reads that field as an array and would crash on `undefined`.
      */
-    public function test_all_invalid_ids_return_empty_meta_with_both_keys(): void
+    #[DataProvider('routes')]
+    public function test_all_invalid_ids_return_empty_meta_with_both_keys(string $route, int $max): void
     {
-        $response = $this->getJson('/api/public/properties/compare?ids=0,-1,abc');
+        $response = $this->getJson("{$route}?ids=0,-1,abc");
 
         $response->assertOk()
             ->assertJsonPath('meta.requested_ids', [])

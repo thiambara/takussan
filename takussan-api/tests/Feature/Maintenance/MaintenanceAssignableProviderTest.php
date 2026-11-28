@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Enums\UserStatus;
+use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -162,5 +163,33 @@ class MaintenanceAssignableProviderTest extends TestCase
             'description' => 'Goutte à goutte continu',
             'category' => 'plumbing',
         ];
+    }
+
+    // TCK-3017 — ex-Api/MaintenanceAssignmentTest : un tiers n'assigne pas, le prestataire qui a accepté planifie.
+
+    public function test_unrelated_user_cannot_assign_provider(): void
+    {
+        ['mr' => $mr, 'agency' => $agency] = $this->maintenanceScenario(attributes: ['assigned_to' => null]);
+        $provider = $this->providerFor($agency);
+
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", [
+            'assigned_to' => $provider->id,
+        ])->assertForbidden();
+
+        $this->assertNull(MaintenanceRequest::query()->find($mr->id)->assigned_to);
+    }
+
+    /** Le prestataire qui a ACCEPTÉ planifie son passage. */
+    public function test_assigned_provider_can_update_request_after_assignment(): void
+    {
+        ['mr' => $mr, 'provider' => $provider] = $this->maintenanceScenario(attributes: ['accepted_at' => now()]);
+
+        Sanctum::actingAs($provider);
+
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", [
+            'scheduled_at' => now()->addDays(2)->toISOString(),
+        ])->assertOk();
     }
 }

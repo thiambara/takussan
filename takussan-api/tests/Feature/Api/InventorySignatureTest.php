@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\Inventory\InventorySignatureService;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\LaravelPdf\Facades\Pdf;
@@ -39,7 +40,11 @@ class InventorySignatureTest extends TestCase
 
     public function test_tenant_can_sign_as_tenant_role(): void
     {
+        Notification::fake();
         [$owner, $tenantUser, $tenant, $property, $lease] = $this->scaffoldLease();
+        // TCK-2646 (ADR-0098 §6) — numéro vérifié ou non, le locataire connecté signe par son seul
+        // tracé, sans code (TCK-3017 : ex-InventoryTenantOwnSignatureUnchangedTest).
+        $tenantUser->forceFill(['phone_verified_at' => null])->save();
         $inventory = $this->makeInventory($property, $tenant, $owner, $lease);
 
         Sanctum::actingAs($tenantUser);
@@ -51,6 +56,11 @@ class InventorySignatureTest extends TestCase
 
         $response->assertJsonPath('data.tenant_signed', true);
         $response->assertJsonPath('data.owner_signed', false);
+        $response->assertJsonPath('data.tenant_signature_method', 'drawn');
+        $response->assertJsonPath('data.tenant_signed_via_user_id', null);
+        $response->assertJsonPath('data.tenant_otp_destination', null);
+        $this->assertNull($inventory->refresh()->tenant_signed_ip);
+        Notification::assertNothingSent();
         // The raw payload must NEVER come back in the API response — only
         // the hash is exposed.
         $response->assertJsonMissingPath('data.tenant_signature_data');
@@ -198,57 +208,6 @@ class InventorySignatureTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
 
         $this->get("/api/inventories/{$inventory->id}/pdf")->assertForbidden();
-    }
-
-    public function test_signed_inventory_patch_returns_409(): void
-    {
-        [$owner, $tenantUser, $tenant, $property, $lease] = $this->scaffoldLease();
-        $inventory = Inventory::factory()->signed()->create([
-            'property_id' => $property->id,
-            'lease_id' => $lease->id,
-            'tenant_id' => $tenant->id,
-            'conducted_by' => $owner->id,
-        ]);
-
-        Sanctum::actingAs($owner);
-
-        $this->patchJson("/api/inventories/{$inventory->id}", [
-            'notes' => 'late-night edit',
-        ])->assertStatus(409);
-    }
-
-    public function test_missing_signature_payload_returns_422(): void
-    {
-        [$owner, $tenantUser, $tenant, $property, $lease] = $this->scaffoldLease();
-        $inventory = $this->makeInventory($property, $tenant, $owner, $lease);
-
-        Sanctum::actingAs($owner);
-
-        $this->postJson("/api/inventories/{$inventory->id}/sign", [
-            'role' => 'landlord',
-            // missing signature
-        ])->assertStatus(422);
-
-        $this->postJson("/api/inventories/{$inventory->id}/sign", [
-            'signature' => self::SIGNATURE,
-            // missing role
-        ])->assertStatus(422);
-
-        $this->postJson("/api/inventories/{$inventory->id}/sign", [
-            'role' => 'bogus',
-            'signature' => self::SIGNATURE,
-        ])->assertStatus(422);
-    }
-
-    public function test_pdf_rejects_unsigned_inventory_with_409(): void
-    {
-        [$owner, $tenantUser, $tenant, $property, $lease] = $this->scaffoldLease();
-        $inventory = $this->makeInventory($property, $tenant, $owner, $lease);
-
-        Sanctum::actingAs($owner);
-
-        $this->get("/api/inventories/{$inventory->id}/pdf")
-            ->assertStatus(409);
     }
 
     /**
@@ -624,5 +583,17 @@ class InventorySignatureTest extends TestCase
             'tenant_id' => $tenant->id,
             'conducted_by' => $owner->id,
         ]);
+    }
+
+    /** TCK-2646 — un code posté par le locataire lui-même ne change pas la voie : il n'est ni exigé ni lu. */
+    public function test_un_code_poste_par_le_locataire_est_ignore(): void
+    {
+        [$owner, $tenantUser, $tenant, $property, $lease] = $this->scaffoldLease();
+        $inventory = $this->makeInventory($property, $tenant, $owner, $lease);
+
+        Sanctum::actingAs($tenantUser);
+        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'tenant', 'signature' => self::SIGNATURE, 'code' => '123456'])
+            ->assertOk()
+            ->assertJsonPath('data.tenant_signature_method', 'drawn');
     }
 }

@@ -20,7 +20,7 @@ use Tests\Support\FabriqueDemandesEtVisites;
  * TCK-3005 (ADR-0139) — chaque geste de la visite a UNE garde (`GestesDeLaVisite::peut*`), que
  * `abilities` sert au lecteur, et UNE écriture, qui rejuge l'état sur la ligne relue sous verrou.
  *
- * La course se rejoue sans concurrence, comme `PropertyVisitCancelSousVerrouTest` : un écouteur
+ * La course se rejoue sans concurrence, comme l'annulation (plus bas) : un écouteur
  * `retrieved` change la ligne en base juste après la liaison de route ; le contrôleur tient alors un
  * modèle resté `confirmed` pendant que la base dit `cancelled` — ce que voit le second de deux
  * collègues qui agissent au même moment.
@@ -393,5 +393,49 @@ class GestesDeLaVisiteTest extends ApiTestCase
 
         $this->assertTrue($lignes[$aConfirmer->id]['can_confirm']);
         $this->assertFalse($lignes[$confirmee->id]['can_confirm']);
+    }
+
+    /* ─────── Annuler relit la visite sous verrou (P182.06, TCK-1820 ; TCK-3017 : ex-PropertyVisitCancelSousVerrouTest) ─────── */
+
+    public function test_une_visite_deja_annulee_en_base_ne_s_annule_pas_une_seconde_fois(): void
+    {
+        $visite = $this->visite(VisitStatus::Scheduled, ['scheduled_at' => now()->addDay()]);
+        $this->changerLaBaseApresLaLiaison($visite, VisitStatus::Cancelled);
+
+        Sanctum::actingAs($this->visiteur);
+        $this->postJson("/api/property-visits/{$visite->id}/cancel", ['reason' => 'Second onglet'])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'visit.cannot_cancel');
+
+        Notification::assertNothingSent();
+        $this->assertNull($visite->fresh()->cancellation_reason);
+    }
+
+    public function test_une_visite_terminee_en_base_n_est_pas_ecrasee_par_l_annulation(): void
+    {
+        $visite = $this->visite(VisitStatus::Scheduled, ['scheduled_at' => now()->addDay()]);
+        $this->changerLaBaseApresLaLiaison($visite, VisitStatus::Completed);
+
+        Sanctum::actingAs($this->visiteur);
+        $this->postJson("/api/property-visits/{$visite->id}/cancel", ['reason' => 'Trop tard'])
+            ->assertStatus(422);
+
+        Notification::assertNothingSent();
+        $this->assertSame(VisitStatus::Completed, $visite->fresh()->status);
+    }
+
+    public function test_une_visite_planifiee_s_annule_toujours_et_previent_l_agence(): void
+    {
+        $visite = $this->visite(VisitStatus::Scheduled, ['scheduled_at' => now()->addDay()]);
+
+        Sanctum::actingAs($this->visiteur);
+        $this->postJson("/api/property-visits/{$visite->id}/cancel", ['reason' => 'Empêché'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled');
+
+        $this->assertSame(VisitStatus::Cancelled, $visite->fresh()->status);
+        $this->assertSame('Empêché', $visite->fresh()->cancellation_reason);
+        $this->assertNotNull($visite->fresh()->cancelled_at); // ex-PropertyVisitTest::cancel_visit
+        Notification::assertCount(1);
     }
 }

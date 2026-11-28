@@ -9,6 +9,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 class TagTest extends TestCase
@@ -163,5 +164,70 @@ class TagTest extends TestCase
             ->assertJsonPath('usage', 1);
 
         $this->assertDatabaseHas('tags', ['id' => $tag->id]);
+    }
+
+    // TCK-3017 — ex-TagWriteAuthorizationTest (TCK-2025) : le journal des écritures, le refus du personnel
+    // d'agence sur les trois verbes, et les biens étiquetés préservés à l'écriture.
+
+    public function test_super_admin_can_write_tags_and_activity_is_logged(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $createdId = $this->postJson('/api/tags', [
+            'name' => 'Terrasse privée',
+            'type' => TagType::Amenity->value,
+        ])->assertCreated()
+            ->assertJsonPath('data.name', 'Terrasse privée')
+            ->json('data.id');
+
+        $this->patchJson("/api/tags/{$createdId}", ['name' => 'Terrasse'])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Terrasse');
+
+        $this->deleteJson("/api/tags/{$createdId}")
+            ->assertNoContent();
+
+        $this->assertTrue(Activity::query()->where('event', 'super_admin_tag_created')->exists());
+        $this->assertTrue(Activity::query()->where('event', 'super_admin_tag_updated')->exists());
+        $this->assertTrue(Activity::query()->where('event', 'super_admin_tag_disabled')->exists());
+    }
+
+    public function test_agency_admin_and_agent_cannot_write_tags(): void
+    {
+        $tag = Tag::factory()->create(['type' => TagType::Amenity]);
+
+        $this->actingAsRole('agency_admin');
+        $this->postJson('/api/tags', [
+            'name' => 'Piscine',
+            'type' => TagType::Amenity->value,
+        ])->assertForbidden();
+        $this->patchJson("/api/tags/{$tag->id}", ['name' => 'Piscine privée'])->assertForbidden();
+        $this->deleteJson("/api/tags/{$tag->id}")->assertForbidden();
+
+        $this->actingAsRole('agent');
+        $this->postJson('/api/tags', [
+            'name' => 'Balcon',
+            'type' => TagType::Amenity->value,
+        ])->assertForbidden();
+        $this->patchJson("/api/tags/{$tag->id}", ['name' => 'Balcon filant'])->assertForbidden();
+        $this->deleteJson("/api/tags/{$tag->id}")->assertForbidden();
+    }
+
+    public function test_tag_write_does_not_drop_property_relationships(): void
+    {
+        $tag = Tag::factory()->create(['type' => TagType::Amenity]);
+        $property = Property::factory()->create();
+        $tag->properties()->attach($property->id);
+
+        $this->actingAsRole('super_admin');
+
+        $this->patchJson("/api/tags/{$tag->id}", ['name' => 'Piscine commune'])
+            ->assertOk();
+
+        $this->assertDatabaseHas('taggables', [
+            'tag_id' => $tag->id,
+            'taggable_id' => $property->id,
+            'taggable_type' => Property::class,
+        ]);
     }
 }

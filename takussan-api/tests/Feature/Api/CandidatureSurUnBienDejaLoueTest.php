@@ -16,14 +16,10 @@ use App\Models\Property;
 use App\Models\User;
 use Database\Seeders\Activity\LeaseSeeder;
 use Database\Seeders\Support\ClotureDesCandidaturesSeeder;
-use Database\Seeders\Support\EdgeCaseSeeder;
-use Database\Seeders\Support\FilterCoverageSeeder;
-use Database\Seeders\YearOfActivitySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
-use ReflectionClassConstant;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
 
@@ -249,19 +245,12 @@ class CandidatureSurUnBienDejaLoueTest extends ApiTestCase
     }
 
     /**
-     * Réserve r1 de la vérification de d87e423e7 — `FilterCoverageSeeder` et `EdgeCaseSeeder` sèment des baux
-     * actifs APRÈS `LeaseSeeder` : la clôture se rejoue après eux (`ClotureDesCandidaturesSeeder`), par la même
-     * règle. Celle de `LeaseSeeder` reste, avant les paiements du jeu réaliste.
+     * Réserve r1 de la vérification de d87e423e7 — un bail actif semé APRÈS `LeaseSeeder` (par une fixture) :
+     * la passe finale `ClotureDesCandidaturesSeeder` ferme la candidature qu'il couvre, par la même règle.
+     * TCK-3017 : l'ordre du pipeline n'est plus épinglé par réflexion sur la constante privée du semeur (ADR-0140 § 5).
      */
-    public function test_la_cloture_du_jeu_de_demo_se_rejoue_apres_les_fixtures(): void
+    public function test_la_cloture_du_jeu_de_demo_ferme_la_candidature_couverte_par_un_bail_seme_apres(): void
     {
-        $pipeline = (new ReflectionClassConstant(YearOfActivitySeeder::class, 'PIPELINE'))->getValue();
-        $cloture = array_search(ClotureDesCandidaturesSeeder::class, $pipeline, true);
-
-        $this->assertIsInt($cloture);
-        $this->assertGreaterThan(array_search(FilterCoverageSeeder::class, $pipeline, true), $cloture);
-        $this->assertGreaterThan(array_search(EdgeCaseSeeder::class, $pipeline, true), $cloture);
-
         // Un bail semé par une fixture, après LeaseSeeder : la passe finale ferme la candidature qu'il couvre.
         $this->bail(LeaseStatus::Active, 300, $this->client());
         $couverte = $this->demande(debut: 60);

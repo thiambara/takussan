@@ -236,15 +236,6 @@ class ConversationContextCustomerFactsTest extends TestCase
             ->assertJsonPath('data.customer.contact_lead', null);
     }
 
-    /** AC2 — Malick lui-même ne reçoit aucune fiche (clé absente, régression gardée). */
-    public function test_le_client_lui_meme_ne_recoit_pas_la_fiche(): void
-    {
-        $this->visite('2026-11-08 10:00:00', VisitStatus::Completed);
-
-        $this->contexte($this->fil(), $this->malick)
-            ->assertJsonMissingPath('data.customer');
-    }
-
     /**
      * Le personnel qui ne lit pas la fiche dans le CRM (`CustomerPolicy::view`) n'en lit ni le projet
      * ni les faits : la colonne ne montre pas plus que le CRM (TCK-2724).

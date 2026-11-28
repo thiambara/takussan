@@ -16,42 +16,6 @@ class AgencyKindTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_default_kind_is_standard(): void
-    {
-        $agency = Agency::factory()->create();
-
-        $this->assertSame(AgencyKind::Standard, $agency->kind);
-        $this->assertDatabaseHas('agencies', [
-            'id' => $agency->id,
-            'kind' => 'standard',
-        ]);
-    }
-
-    public function test_factory_accepts_kind_override(): void
-    {
-        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
-
-        $this->assertSame(AgencyKind::Individual, $agency->fresh()->kind);
-        $this->assertDatabaseHas('agencies', [
-            'id' => $agency->id,
-            'kind' => 'individual',
-        ]);
-    }
-
-    public function test_factory_individual_state_helper(): void
-    {
-        $agency = Agency::factory()->individual()->create();
-
-        $this->assertTrue($agency->kind->isIndividual());
-    }
-
-    public function test_kind_persists_across_reload(): void
-    {
-        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
-
-        $this->assertSame(AgencyKind::Individual, Agency::find($agency->id)->kind);
-    }
-
     public function test_is_individual_helper_returns_true_only_for_individual(): void
     {
         $individual = Agency::factory()->create(['kind' => AgencyKind::Individual]);

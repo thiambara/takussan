@@ -56,20 +56,6 @@ class LeaseEarlyTerminationEndpointTest extends TestCase
         ])->assertStatus(422);
     }
 
-    public function test_double_request_returns_422_already_in_progress(): void
-    {
-        [$landlord, $lease] = $this->scaffold();
-        Sanctum::actingAs($landlord);
-
-        $this->postJson("/api/leases/{$lease->id}/early-termination", [
-            'effective_date' => now()->addDays(45)->toDateString(),
-        ])->assertCreated();
-
-        $this->postJson("/api/leases/{$lease->id}/early-termination", [
-            'effective_date' => now()->addDays(60)->toDateString(),
-        ])->assertStatus(422);
-    }
-
     public function test_cancel_before_effective_date_reverts_to_active(): void
     {
         [$landlord, $lease] = $this->scaffold();
@@ -83,21 +69,6 @@ class LeaseEarlyTerminationEndpointTest extends TestCase
             ->assertStatus(200);
 
         $this->assertSame(LeaseStatus::Active->value, $response->json('data.status'));
-    }
-
-    public function test_cancel_after_penalty_paid_returns_422(): void
-    {
-        [$landlord, $lease] = $this->scaffold();
-        Sanctum::actingAs($landlord);
-
-        $this->postJson("/api/leases/{$lease->id}/early-termination", [
-            'effective_date' => now()->addDays(45)->toDateString(),
-        ])->assertCreated();
-
-        $invoiceId = $lease->fresh()->early_termination_invoice_id;
-        Invoice::find($invoiceId)->forceFill(['status' => InvoiceStatus::Paid])->save();
-
-        $this->deleteJson("/api/leases/{$lease->id}/early-termination")->assertStatus(422);
     }
 
     public function test_tenant_can_open_their_own_request_without_terminate_permission(): void

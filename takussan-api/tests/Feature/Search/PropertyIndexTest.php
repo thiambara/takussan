@@ -20,14 +20,6 @@ class PropertyIndexTest extends TestCase
         config(['scout.driver' => 'collection']);
     }
 
-    public function test_property_uses_searchable_trait(): void
-    {
-        $this->assertContains(
-            Searchable::class,
-            class_uses_recursive(Property::class)
-        );
-    }
-
     public function test_save_adds_property_to_index(): void
     {
         $property = Property::factory()->published()->create([
@@ -101,5 +93,29 @@ class PropertyIndexTest extends TestCase
         ]);
 
         $this->assertCount(1, Property::search('stegosaurus')->get());
+    }
+
+    /** TCK-3017 — ex-ScoutSearchTest (ses quatre autres cas éprouvaient Scout lui-même). */
+    public function test_searchable_array_exposes_filterable_and_searchable_fields(): void
+    {
+        $property = Property::factory()->published()->create([
+            'title' => 'Test listing',
+            'description' => 'Sample description',
+            'price' => 12_345_678,
+        ]);
+
+        $payload = $property->toSearchableArray();
+
+        // TCK-280 — the payload carries every field Meilisearch searches,
+        // filters or sorts on (price, agency_id, etc. are public listing data).
+        foreach ([
+            'id', 'title', 'description', 'type', 'contract_type', 'rent_period',
+            'status', 'city', 'price', 'bedrooms', 'agency_id', 'published_at',
+        ] as $key) {
+            $this->assertArrayHasKey($key, $payload);
+        }
+
+        // Free-form metadata is never indexed.
+        $this->assertArrayNotHasKey('metadata', $payload);
     }
 }

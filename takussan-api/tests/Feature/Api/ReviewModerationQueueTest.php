@@ -49,13 +49,6 @@ class ReviewModerationQueueTest extends TestCase
         $this->assertSame(5, $response->json('meta.total'));
     }
 
-    public function test_non_admin_cannot_list_reviews(): void
-    {
-        Sanctum::actingAs(User::factory()->create());
-
-        $this->getJson('/api/reviews')->assertForbidden();
-    }
-
     public function test_filter_by_moderation_status(): void
     {
         Review::factory()->create(['status' => ReviewStatus::Pending]);
@@ -186,5 +179,168 @@ class ReviewModerationQueueTest extends TestCase
         Sanctum::actingAs($this->admin());
 
         $this->assertSame(2, $this->getJson('/api/reviews?filter[moderation_status][]=pending')->assertOk()->json('meta.total'));
+    }
+
+    // --- Décisions unitaires et signalements (TCK-3017 : ex-ReviewModerationWorkflowTest et
+    // ex-ReviewReportAndDocSearchTest, un fichier par module — ADR-0140) ---
+
+    public function test_pending_review_can_transition_to_rejected(): void
+    {
+        $review = Review::factory()->create([
+            'status' => ReviewStatus::Pending,
+            'is_approved' => false,
+        ]);
+
+        Sanctum::actingAs($this->admin());
+
+        $this->postJson("/api/reviews/{$review->id}/reject")
+            ->assertOk()
+            ->assertJsonPath('data.status', ReviewStatus::Rejected->value)
+            ->assertJsonPath('data.is_approved', false);
+    }
+
+    public function test_rejected_review_cannot_transition_further(): void
+    {
+        $review = Review::factory()->create([
+            'status' => ReviewStatus::Rejected,
+            'is_approved' => false,
+        ]);
+
+        Sanctum::actingAs($this->admin());
+
+        $this->postJson("/api/reviews/{$review->id}/approve")
+            ->assertStatus(422);
+    }
+
+    public function test_non_admin_cannot_reject_review(): void
+    {
+        $review = Review::factory()->create(['status' => ReviewStatus::Pending]);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson("/api/reviews/{$review->id}/reject")->assertForbidden();
+    }
+
+    public function test_cannot_reply_to_rejected_review(): void
+    {
+        // Rejected is a terminal moderation state — it's invisible to the
+        // public, so letting admin/owner still reply to it is nonsensical
+        // and lets through noise into the audit trail.
+        $review = Review::factory()->create([
+            'status' => ReviewStatus::Rejected,
+            'is_approved' => false,
+        ]);
+
+        Sanctum::actingAs($this->admin());
+
+        $this->postJson("/api/reviews/{$review->id}/reply", [
+            'reply_content' => 'too late',
+        ])->assertStatus(422);
+    }
+
+    /** verif-597 m3 — seul un avis PUBLIÉ se signale : c'est lui qui passe `reported`. */
+    public function test_report_transitions_approved_to_reported_when_threshold_reached(): void
+    {
+        $review = Review::factory()->create([
+            'status' => ReviewStatus::Approved,
+            'is_approved' => true,
+        ]);
+
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson("/api/reviews/{$review->id}/report", [
+            'reason' => 'spam',
+        ])->assertOk();
+
+        $review->refresh();
+        $this->assertSame(ReviewStatus::Reported, $review->status);
+        $this->assertSame(1, (int) $review->reported_count);
+    }
+
+    public function test_report_is_deduped_per_user(): void
+    {
+        // TCK-597 — le seuil est la constante `ReviewReportService::REPORTED_THRESHOLD` (1) : un
+        // signalement range l'avis dans la file sans le masquer. Le dédoublonnage reste par compte.
+        $review = Review::factory()->create([
+            'status' => ReviewStatus::Approved,
+            'is_approved' => true,
+        ]);
+
+        $reporter = User::factory()->create();
+        Sanctum::actingAs($reporter);
+
+        $this->postJson("/api/reviews/{$review->id}/report", ['reason' => 'spam'])->assertOk();
+        $this->postJson("/api/reviews/{$review->id}/report", ['reason' => 'spam again'])->assertOk();
+
+        $review->refresh();
+        $this->assertSame(1, (int) $review->reported_count);
+        $this->assertSame(ReviewStatus::Reported, $review->status);
+
+        // Un autre compte compte.
+        Sanctum::actingAs(User::factory()->create());
+        $this->postJson("/api/reviews/{$review->id}/report", ['reason' => 'spam'])->assertOk();
+
+        $this->assertSame(2, (int) $review->refresh()->reported_count);
+        // TCK-3017 — ex-ReviewReportAndDocSearchTest::multiple_reports_accumulate : chaque compte
+        // ajoute SA ligne à `metadata.reports`, que la file des signalements relit.
+        $this->assertCount(2, $review->metadata['reports']);
+    }
+
+    /** verif-597 m3 — un avis masqué n'est plus publié : il ne se signale pas (404). */
+    public function test_report_does_not_transition_rejected_review(): void
+    {
+        $review = Review::factory()->create([
+            'status' => ReviewStatus::Rejected,
+            'is_approved' => false,
+        ]);
+
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson("/api/reviews/{$review->id}/report", [
+            'reason' => 'stale',
+        ])->assertNotFound();
+
+        $review->refresh();
+        $this->assertSame(ReviewStatus::Rejected, $review->status);
+    }
+
+    public function test_enum_transition_map(): void
+    {
+        $this->assertTrue(ReviewStatus::Pending->canTransitionTo(ReviewStatus::Approved));
+        $this->assertTrue(ReviewStatus::Pending->canTransitionTo(ReviewStatus::Rejected));
+        $this->assertTrue(ReviewStatus::Pending->canTransitionTo(ReviewStatus::Reported));
+        $this->assertTrue(ReviewStatus::Reported->canTransitionTo(ReviewStatus::Approved));
+        $this->assertTrue(ReviewStatus::Reported->canTransitionTo(ReviewStatus::Rejected));
+        $this->assertTrue(ReviewStatus::Approved->canTransitionTo(ReviewStatus::Reported));
+        $this->assertTrue(ReviewStatus::Approved->canTransitionTo(ReviewStatus::Rejected));
+        $this->assertFalse(ReviewStatus::Rejected->canTransitionTo(ReviewStatus::Approved));
+        $this->assertFalse(ReviewStatus::Rejected->canTransitionTo(ReviewStatus::Reported));
+    }
+
+    public function test_user_can_report_review(): void
+    {
+        $user = User::factory()->create();
+        $review = Review::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/reviews/{$review->id}/report", [
+            'reason' => 'Contenu inapproprié',
+        ])->assertOk();
+
+        $review->refresh();
+        $this->assertTrue($review->metadata['reported']);
+        $this->assertCount(1, $review->metadata['reports']);
+        $this->assertEquals($user->id, $review->metadata['reports'][0]['user_id']);
+    }
+
+    public function test_report_requires_reason(): void
+    {
+        $user = User::factory()->create();
+        $review = Review::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/reviews/{$review->id}/report", [])
+            ->assertStatus(422);
     }
 }

@@ -4,8 +4,10 @@ namespace Tests\Feature\Api;
 
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
+use App\Models\Property;
 use App\Models\PropertyCalendarFeed;
 use App\Models\PropertyUnavailability;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -174,5 +176,32 @@ class BookingAvailabilityTest extends TestCase
         Sanctum::actingAs($this->landlord);
         $this->postJson("/api/bookings/{$pending->id}/confirm")->assertStatus(422)->assertJsonPath('code', 'booking.dates_unavailable');
         $this->assertSame(BookingStatus::Pending, $pending->fresh()->status);
+    }
+
+    /** TCK-3017 — ex-BookingOverlapAndExpirationTest : le chevauchement se juge bien par bien. */
+    public function test_overlap_check_ignores_other_properties(): void
+    {
+        $owner = User::factory()->create();
+        $propA = Property::factory()->create(['user_id' => $owner->id]);
+        $propB = Property::factory()->create(['user_id' => $owner->id]);
+
+        Booking::factory()->create([
+            'property_id' => $propA->id,
+            'status' => BookingStatus::Confirmed,
+            'start_date' => now()->addDay(),
+            'end_date' => now()->addWeek(),
+        ]);
+
+        $pending = Booking::factory()->create([
+            'property_id' => $propB->id,
+            'status' => BookingStatus::Pending,
+            'start_date' => now()->addDays(3),
+            'end_date' => now()->addDays(4),
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/bookings/{$pending->id}/confirm")
+            ->assertOk();
     }
 }
