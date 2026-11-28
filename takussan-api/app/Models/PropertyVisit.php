@@ -66,7 +66,7 @@ class PropertyVisit extends AbstractModel
         // TCK-2502 — la tranche demandée quand l'heure reste à fixer (`VisitWindow`).
         'preferred_window',
         'completed_at', 'cancelled_at', 'cancellation_reason',
-        // TCK-2871 — qui a annulé (`VisitCancelledBy`), posé par `VisitSchedulingService::cancelOrFail`.
+        // TCK-2871 — qui a annulé (`VisitCancelledBy`), posé par `GestesDeLaVisite::annuler` (TCK-3005).
         'cancelled_by',
         'feedback', 'rating', 'notes', 'metadata',
         // TCK-590 — d'où vient la demande, et dans quelle langue prévenir un visiteur sans compte.

@@ -87,7 +87,8 @@ class GenerateLeasePaymentScheduleTest extends TestCase
             if ($lock === null && str_contains($sql, 'from "leases"') && str_contains($sql, 'for update')) {
                 $lock = $i;
             }
-            if ($count === null && str_contains($sql, 'count(*)') && str_contains($sql, '"lease_payments"')) {
+            // TCK-3011 — le contrôle est `GestesDuBail::echeancierEmis` : un `exists`, plus un `count(*)`.
+            if ($count === null && (str_contains($sql, 'count(*)') || str_contains($sql, 'select exists(')) && str_contains($sql, '"lease_payments"')) {
                 $count = $i;
             }
             if ($insert === null && str_starts_with($sql, 'insert into "lease_payments"')) {

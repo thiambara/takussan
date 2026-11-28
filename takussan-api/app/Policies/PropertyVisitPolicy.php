@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Visit\VisitesLisibles;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -20,34 +21,14 @@ use Illuminate\Database\Eloquent\Model;
 class PropertyVisitPolicy extends BasePolicy
 {
     /**
-     * Lire une visite : super-admin, VISITEUR, agent, propriétaire du bien, périmètre d'agence,
-     * ou le CLIENT rattaché.
+     * Lire une visite : la règle de {@see VisitesLisibles}, que la liste applique aussi (TCK-3006,
+     * ADR-0138) — super-admin, VISITEUR, agent encore personnel, propriétaire du bien, personnel actif
+     * de l'agence, ou le CLIENT rattaché ; le bien en corbeille s'y juge sur son agence. La fiche
+     * client reste au seul personnel ({@see PropertyVisitResource}).
      */
     public function view(User $user, Model $model): bool
     {
-        if (! $model instanceof PropertyVisit) {
-            return false;
-        }
-
-        $property = $model->property;
-
-        // TCK-590 (passe 3, M7′) — `property.user_id` ne fait le propriétaire d'un bien d'agence
-        // que s'il y est bailleur actif (`estProprietaire`, définition de M7) : l'agent parti qui
-        // a créé le bien ne lit plus la visite. L'agent assigné, de même, ne la lit sur un bien
-        // d'agence que tant qu'il en est du personnel. La fiche client reste au seul personnel
-        // ({@see PropertyVisitResource}).
-        //
-        // Passe 4 (X1) — le compte doit être joignable : par `isStaffOf`, un compte BLOQUÉ de
-        // l'agence lisait encore la visite et sa fiche. Passe 5 (X1′) — et l'agence est celle du
-        // PROFIL ACTIF (ADR-0031 §1) : `PersonnelDeLAgence::personnelActifDe`.
-        return $user->isSuperAdmin()
-            || $model->visitor_id === $user->id
-            || ($model->agent_id === $user->id
-                && ($property === null || $property->agency_id === null
-                    || PersonnelDeLAgence::personnelActifDe($user, $property->agency_id)))
-            || ($property && PrimaryPropertyContact::estProprietaire($user, $property))
-            || ($property && PersonnelDeLAgence::personnelActifDe($user, $property->agency_id))
-            || ($model->customer && $model->customer->user_id === $user->id);
+        return $model instanceof PropertyVisit && VisitesLisibles::peut($user, $model);
     }
 
     /**

@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
+import { ApiError, codeMetierDe } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { initialesDe } from '@/lib/identite';
 import { useReviewLeaseRent, type LeaseWithRelations } from '@/lib/queries/leases';
@@ -67,12 +67,6 @@ export function premiereEcheanceRevisee(paiements: readonly LeasePayment[] | und
       .map((p) => (p.due_date as string).slice(0, 10))
       .sort()[0] ?? null
   );
-}
-
-function codeDErreur(erreur: unknown): string | undefined {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return undefined;
-  const code = (erreur.data as { code?: unknown }).code;
-  return typeof code === 'string' ? code : undefined;
 }
 
 /**
@@ -139,7 +133,7 @@ export function FeuilleDeRevision({ lease, paiements, ouverte, onFermer, libelle
 
   function erreurDuMontant(e: unknown): string | undefined {
     const champs = e instanceof ApiError ? (e.validationErrors ?? {}) : {};
-    return champs.new_rent?.[0] ?? champs.monthly_rent?.[0] ?? (codeDErreur(e) === 'lease.rent_review_above_contract_cap' ? messageErreur(e) : undefined);
+    return champs.new_rent?.[0] ?? champs.monthly_rent?.[0] ?? (codeMetierDe(e) === 'lease.rent_review_above_contract_cap' ? messageErreur(e) : undefined);
   }
 
   const proposer = async () => {

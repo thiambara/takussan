@@ -258,7 +258,7 @@ export type RefundBookingPaymentPayload = {
 /**
  * TCK-596 — rembourse un paiement de réservation (`POST /api/booking-payments/{id}/refund`), la
  * route qui n'avait aucun appelant. Réservé au personnel titulaire de `bookings.refund`, au
- * bailleur direct et au super-admin : le détail l'annonce par `can_refund`.
+ * bailleur direct et au super-admin : le détail l’annonce par `abilities.refund` (TCK-3007).
  */
 export function useRefundBookingPayment(bookingId: number) {
   return useApiMutation<ApiResponse<BookingPayment>, RefundBookingPaymentPayload>(

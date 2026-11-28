@@ -137,6 +137,8 @@ function enRetard(surcharge: Partial<LeasePayment> = {}): LeasePayment {
     amount_due: 150000,
     receipt_available: false,
     is_overdue: true,
+    // TCK-3011 (D2) — la ligne dit si l'API l'encaisse.
+    abilities: { pay: false, remind: false, record_payment: true },
     ...surcharge,
   };
 }
@@ -404,6 +406,18 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
     expect(within(ligne(/juillet 2026/)).queryByRole('button', { name: fr.lease.fiche.echeancier.encaisser })).toBeNull();
     fireEvent.click(within(ligne(/août 2026/)).getByRole('button', { name: fr.lease.fiche.echeancier.encaisser }));
     expect(onEncaisser).toHaveBeenCalledWith(12);
+  });
+
+  it('TCK-3011 (D2) — « Encaisser » suit la LIGNE : une échéance en échec que l’API n’encaisse pas ne l’offre pas', () => {
+    avecEcheances([enRetard({ status: 'failed', abilities: { pay: false, remind: false, record_payment: false } })]);
+    const onEncaisser = vi.fn();
+    const { unmount } = rendre(true, {}, { onEncaisser });
+    expect(within(ligne(/août 2026/)).queryByRole('button', { name: fr.lease.fiche.echeancier.encaisser })).toBeNull();
+    unmount();
+
+    avecEcheances([enRetard({ abilities: { pay: false, remind: false, record_payment: true } })]);
+    rendre(true, {}, { onEncaisser });
+    expect(within(ligne(/août 2026/)).getByRole('button', { name: fr.lease.fiche.echeancier.encaisser })).toBeTruthy();
   });
 });
 

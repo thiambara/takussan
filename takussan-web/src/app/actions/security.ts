@@ -1,10 +1,9 @@
 'use server';
 
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction, type RefusDAction } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
-import { codeDoubleFacteur, type CodeDoubleFacteur } from '@/lib/double-facteur';
 import {
   listActiveSessions,
   phoneChangeCode,
@@ -47,7 +46,7 @@ function requireToken(
 
 type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; message: string; code?: CodeDoubleFacteur };
+  | ({ ok: false } & RefusDAction);
 
 /** Clés de repli de `serverActions.security` — l'union tient lieu de contrôle de frappe. */
 type CleRepli =
@@ -63,7 +62,7 @@ type CleRepli =
 async function failure(
   err: unknown,
   cleRepli: CleRepli,
-): Promise<{ ok: false; message: string; code?: CodeDoubleFacteur }> {
+): Promise<{ ok: false } & RefusDAction> {
   journaliserErreurInattendue('security', err);
   const t = await getTranslations('serverActions.security');
   const repli = t(cleRepli);
@@ -72,13 +71,9 @@ async function failure(
     // une clé i18n, et une clé est *truthy*. Un module `'use server'` traduit avec
     // `getTranslations`, jamais en lisant un libellé pré-calculé sur l'erreur.
     // TCK-1203 — le refus de second facteur garde son code : sans lui, `avecGardeDoubleFacteurAction`
-    // ne peut pas demander le TOTP, et l'écran n'affiche qu'un « code requis » sans champ.
-    const code = codeDoubleFacteur(err);
-    return {
-      ok: false,
-      message: messageErreurApi(err, await getTranslations(), repli),
-      ...(code ? { code } : {}),
-    };
+    // ne peut pas demander le TOTP, et l'écran n'affiche qu'un « code requis » sans champ. TCK-3008 :
+    // `refusDAction` rend le code de tout refus ; la garde ne reconnaît que les siens.
+    return { ok: false, ...refusDAction(err, await getTranslations(), repli) };
   }
   return { ok: false, message: repli };
 }

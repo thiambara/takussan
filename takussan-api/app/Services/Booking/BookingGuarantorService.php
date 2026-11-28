@@ -4,7 +4,6 @@ namespace App\Services\Booking;
 
 use App\Models\Booking;
 use App\Models\Enums\BookingKind;
-use App\Models\Enums\BookingStatus;
 use App\Models\Enums\DossierPiece;
 use App\Models\Guarantor;
 use App\Models\User;
@@ -57,7 +56,7 @@ final class BookingGuarantorService
                 'booking.guarantor_not_for_kind',
             );
             abort_code_unless(
-                in_array($locked->status, [BookingStatus::Pending, BookingStatus::Confirmed], true),
+                in_array($locked->status, GestesDeLaReservation::STATUTS_DU_DOSSIER_OUVERT, true),
                 422,
                 'booking.dossier_closed',
             );
@@ -99,7 +98,7 @@ final class BookingGuarantorService
             $attaches = $locked->guarantors()->lockForUpdate()->get(['guarantors.id']);
             abort_code_unless($attaches->contains('id', $guarantor->id), 404, 'booking.guarantor_not_attached');
             abort_code_unless(
-                in_array($locked->status, [BookingStatus::Pending, BookingStatus::Confirmed], true),
+                in_array($locked->status, GestesDeLaReservation::STATUTS_DU_DOSSIER_OUVERT, true),
                 422,
                 'booking.dossier_closed',
             );

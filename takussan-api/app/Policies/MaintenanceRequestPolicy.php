@@ -10,6 +10,7 @@ use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Lecture\InterventionsLisibles;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
@@ -26,24 +27,16 @@ use Illuminate\Database\Eloquent\Model;
 class MaintenanceRequestPolicy extends BasePolicy
 {
     /**
-     * Lire une demande : super-admin, DEMANDEUR, prestataire assigné (collaboration et profil
-     * actifs), ou donneur d'ordre (bailleur du bien, personnel de l'agence du bien).
+     * Lire une demande : la règle de {@see InterventionsLisibles}, que la liste
+     * (`MaintenanceRequest::scopeVisibleTo`) applique aussi (TCK-3006, ADR-0138) — super-admin,
+     * DEMANDEUR, prestataire assigné (collaboration et profil actifs), ou donneur d'ordre.
      *
-     * TCK-592 — le périmètre d'agence lisait `$user->agency_id === $property->agency_id` sans
-     * regarder le type de profil : un bailleur invité porte un `OwnerProfile` de l'agence, et lisait
-     * donc les interventions des AUTRES bailleurs (O1). Et `assigned_to === $user->id` suffisait :
-     * une collaboration finie ne retirait rien.
+     * TCK-592 — un bailleur invité lisait les interventions des AUTRES bailleurs de l'agence (O1), et
+     * une collaboration finie ne retirait rien au prestataire.
      */
     public function view(User $user, Model $model): bool
     {
-        if (! $model instanceof MaintenanceRequest) {
-            return false;
-        }
-
-        return $user->isSuperAdmin()
-            || $this->isRequester($user, $model)
-            || $this->isAssignedProvider($user, $model)
-            || self::isPrincipalFor($user, $model->property);
+        return $model instanceof MaintenanceRequest && InterventionsLisibles::peut($user, $model);
     }
 
     /**
@@ -339,18 +332,12 @@ class MaintenanceRequestPolicy extends BasePolicy
      * ({@see MembershipCapabilityResolver::agencesDuPersonnelParti()}). La règle d'auteur ne vise que
      * le personnel : le locataire et le client demandeurs gardent tout, l'agent actif sans capacité
      * garde sa demande ; l'agent suspendu ou retiré ne la lit, ne la liste ni ne la tranche plus.
-     * Forme SQL : {@see MaintenanceRequest::scopeVisibleTo()}.
+     * Écrite dans {@see InterventionsLisibles::estDemandeur()}, à côté de sa forme SQL.
      */
     private function isRequester(User $user, MaintenanceRequest $request): bool
     {
-        if ($request->requester_id === null || (int) $request->requester_id !== $user->id) {
-            return false;
-        }
-
-        $agencyId = $request->property?->agency_id;
-
-        return $agencyId === null
-            || ! in_array((int) $agencyId, app(MembershipCapabilityResolver::class)->agencesDuPersonnelParti($user), true);
+        // TCK-3006 — la branche de lecture, écrite une fois avec sa forme SQL.
+        return InterventionsLisibles::estDemandeur($user, $request);
     }
 
     /**
@@ -485,8 +472,7 @@ class MaintenanceRequestPolicy extends BasePolicy
      */
     private function isAssignedProvider(User $user, MaintenanceRequest $request): bool
     {
-        return $request->assigned_to !== null
-            && $request->assigned_to === $user->id
-            && app(ProviderEligibility::class)->isAssignable($user, $request->property);
+        // TCK-3006 — la branche de lecture, écrite une fois avec sa forme SQL.
+        return InterventionsLisibles::estPrestataireAssigne($user, $request);
     }
 }

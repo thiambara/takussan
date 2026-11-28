@@ -43,7 +43,7 @@ import { InventoryDetail } from '../InventoryDetail';
 const MO = 1024 * 1024;
 
 function etatDesLieux(overrides: Partial<Inventory> = {}): Inventory {
-  return {
+  const fiche: Inventory = {
     id: 7,
     lease_id: 3,
     property_id: 2,
@@ -73,6 +73,10 @@ function etatDesLieux(overrides: Partial<Inventory> = {}): Inventory {
     abilities: { update: true },
     ...overrides,
   };
+  // TCK-3011 — comme l'API (`GestesDeLEtatDesLieux`) : `edit` et `submit` = `update` ET brouillon.
+  const a = fiche.abilities;
+  const brouillon = fiche.status === 'draft';
+  return { ...fiche, abilities: a && { edit: a.update && brouillon, submit: a.update && brouillon, ...a } };
 }
 
 function piece(nom: string): HTMLElement {

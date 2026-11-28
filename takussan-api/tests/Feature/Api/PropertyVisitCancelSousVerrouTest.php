@@ -16,8 +16,8 @@ use Tests\Support\FabriqueDemandesEtVisites;
 
 /**
  * P182.06 (TCK-1820) — l'annulation d'une visite juge `visit.cannot_cancel` sur la ligne relue
- * sous verrou, comme `confirmOrFail`. Elle le jugeait sur le modèle lié à la route : deux
- * annulations simultanées passaient toutes deux et prévenaient deux fois, et une annulation
+ * sous verrou, comme la confirmation (`GestesDeLaVisite::annuler`, TCK-3005). Elle le
+ * jugeait sur le modèle lié à la route : deux annulations simultanées passaient toutes deux et prévenaient deux fois, et une annulation
  * concurrente d'un `complete` écrasait `completed`.
  *
  * La course se rejoue sans concurrence : un écouteur `retrieved` change la ligne en base juste

@@ -1,5 +1,5 @@
 import type { RadarPublicationListing, RadarPublicationPreview } from '@/types/radar';
-import { codeDeLErreur } from '../fiche/useMessageEchecFiche';
+import { codeMetierDe } from '@/lib/api';
 
 /** Le choix explicite de l'opérateur, par annonce ; une annonce sans choix est cochée si rien ne la bloque. */
 export type ChoixAnnonces = Readonly<Record<number, boolean>>;
@@ -83,7 +83,7 @@ export async function rejouerSiEnCours<T>(
     try {
       return await appel();
     } catch (e) {
-      if (codeDeLErreur(e) !== CODE_EN_COURS || essai >= essais) throw e;
+      if (codeMetierDe(e) !== CODE_EN_COURS || essai >= essais) throw e;
       await attendre(delaiMs);
     }
   }

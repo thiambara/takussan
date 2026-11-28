@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import {
   createProperty,
@@ -43,6 +43,9 @@ type ActionResult<T = void> =
       ok: false;
       status?: number;
       message: string;
+      /** TCK-3008 — le code métier et les paramètres du refus, quand l'API en donne. */
+      code?: string;
+      params?: Readonly<Record<string, unknown>>;
       errors?: Record<string, string[]>;
     };
 
@@ -50,6 +53,8 @@ async function mapError(e: unknown): Promise<{
   status?: number;
   message: string;
   errors?: Record<string, string[]>;
+  code?: string;
+  params?: Readonly<Record<string, unknown>>;
 }> {
   journaliserErreurInattendue('dashboard-properties', e);
   // cf. `admin-agency.ts` — un module `'use server'` traduit avec `getTranslations`, jamais
@@ -59,7 +64,7 @@ async function mapError(e: unknown): Promise<{
     const t = await getTranslations('serverActions.shared');
     return {
       status: e.status,
-      message: messageErreurApi(e, tRacine, t('networkErrorRetry')),
+      ...refusDAction(e, tRacine, t('networkErrorRetry')),
       errors: e.validationErrors,
     };
   }

@@ -66,13 +66,20 @@ class LeaseAbilitiesTest extends ApiTestCase
             'renew' => false,
             'review_rent' => false,
             'record_payment' => false,
+            // TCK-3011 (ADR-0139) — policy ET état : la ligne, l'échéancier, la caution, le préavis.
+            'add_payment' => false,
+            'generate_schedule' => false,
             'refund_deposit' => false,
             'request_early_termination' => false,
+            'cancel_early_termination' => false,
             'update' => true,
             // TCK-607 — bail actif hors renouvellement : ses garants sont figés.
             'attach_guarantor' => false,
             // TCK-2764 — abandonner ne vaut que pour un brouillon : ce bail est en cours.
             'abandon' => false,
+            // TCK-3011 — la signature ne se demande et ne se donne que sur un bail qui l'attend.
+            'request_signature' => false,
+            'sign' => false,
             // TCK-2642 — joindre une pièce et le contrat suivent l'envoi de document et la lecture.
             'add_document' => true,
             'download_contract' => true,
@@ -89,13 +96,19 @@ class LeaseAbilitiesTest extends ApiTestCase
             'renew' => true,
             'review_rent' => false,
             'record_payment' => true,
+            // TCK-3011 — un bail actif sans loyer émis prend une ligne et son échéancier.
+            'add_payment' => true,
+            'generate_schedule' => true,
             'refund_deposit' => false,
             'request_early_termination' => false,
+            'cancel_early_termination' => false,
             'update' => true,
             // TCK-607 — bail actif hors renouvellement : ses garants sont figés.
             'attach_guarantor' => false,
             // TCK-2764 — abandonner ne vaut que pour un brouillon : ce bail est en cours.
             'abandon' => false,
+            'request_signature' => false,
+            'sign' => false,
             // TCK-2642 — joindre une pièce et le contrat suivent l'envoi de document et la lecture.
             'add_document' => true,
             'download_contract' => true,
@@ -119,13 +132,19 @@ class LeaseAbilitiesTest extends ApiTestCase
                 'renew' => true,
                 'review_rent' => true,
                 'record_payment' => true,
-                'refund_deposit' => true,
+                'add_payment' => true,
+                'generate_schedule' => true,
+                // TCK-3011 (ADR-0139) — la caution ne se restitue qu'à la fin du bail : ce bail est en cours.
+                'refund_deposit' => false,
                 'request_early_termination' => true,
+                'cancel_early_termination' => false,
                 'update' => true,
                 // TCK-607 — bail actif hors renouvellement : ses garants sont figés.
                 'attach_guarantor' => false,
                 // TCK-2764 — abandonner ne vaut que pour un brouillon : ce bail est en cours.
                 'abandon' => false,
+                'request_signature' => false,
+                'sign' => false,
                 // TCK-2642 — les gestes que la fiche ouvrait encore par le rôle.
                 'add_document' => true,
                 'download_contract' => true,

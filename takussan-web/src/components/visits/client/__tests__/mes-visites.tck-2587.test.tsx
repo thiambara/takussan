@@ -1,21 +1,19 @@
 /**
  * TCK-2587 (lot C) — « Mes visites », la vue du client (maquette a-7). Le réseau est doublé au niveau
- * d'`apiRequest` : les hooks tournent pour de vrai sur un `QueryClient` de test, on lit les filtres
+ * de `fetch` (`doublerLApi`, TCK-3010) : les hooks tournent pour de vrai sur un `QueryClient` de test, on lit les filtres
  * demandés et les corps postés.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { withIntl } from '@/test/intl';
-import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
+import { doublerLApi } from '@/test/api-simulee';
+import { rendre } from '@/test/rendu';
 import type { PropertyVisit } from '@/types/visit';
 
 import { MesVisites } from '../MesVisites';
 
-const etat = vi.hoisted(() => ({
-  appels: [] as { chemin: string; methode: string; corps: unknown }[],
+const etat = {
   confirmees: [] as PropertyVisit[],
   demandees: [] as PropertyVisit[],
   terminees: [] as PropertyVisit[],
@@ -23,7 +21,7 @@ const etat = vi.hoisted(() => ({
   passees: [] as PropertyVisit[],
   /** La seconde page des passées (`page=2`) ; vide : une seule page. */
   passeesPage2: [] as PropertyVisit[],
-}));
+};
 const toastAdd = vi.hoisted(() => vi.fn());
 
 vi.mock('next/navigation', () => ({
@@ -31,48 +29,33 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   usePathname: () => '/app/visits',
 }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 30, roles: ['customer'] }, token: 'jeton' }) }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: toastAdd }) }));
 vi.mock('@/components/layout/en-tete-de-la-coque', () => ({ DeclarerEnTete: () => null }));
 
-vi.mock('@/lib/api', async (original) => {
-  const vrai = await original<typeof import('@/lib/api')>();
-  return {
-    ...vrai,
-    apiRequest: vi.fn(async (chemin: string, options: { method?: string; body?: unknown } = {}) => {
-      const methode = options.method ?? 'GET';
-      etat.appels.push({ chemin, methode, corps: options.body });
-      const [route, qs] = chemin.split('?');
-      const p = new URLSearchParams(qs ?? '');
-      if (route === '/api/property-visits' && methode === 'GET') {
-        // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
-        const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
-        const statut = p.get('filter[status]');
-        const min = p.get('filter[scheduled_at_min]');
-        const data =
-          statut === 'confirmed' && min
-            ? etat.confirmees
-            : statut === 'scheduled' && min
-              ? etat.demandees
-              : statut === 'completed' && !min
-                ? etat.terminees
-                : statut === 'completed,cancelled,no_show' && min
-                  ? etat.closesAVenir
-                  : !statut && p.get('filter[scheduled_at_max]')
-                    ? etat.passees
-                    : [];
-        if (!statut && p.get('filter[scheduled_at_max]') && etat.passeesPage2.length > 0) {
-          const page = Number(p.get('page') ?? '1');
-          const lignes = page === 2 ? etat.passeesPage2 : etat.passees;
-          return servir(chemin, { data: lignes, meta: { total: etat.passees.length + etat.passeesPage2.length, per_page: 20, current_page: page, last_page: 2 } });
-        }
-        return servir(chemin, { data, meta: { total: data.length, per_page: 20, current_page: 1, last_page: 1 } });
-      }
-      if (methode === 'POST') return { data: {} };
-      return { data: [], meta: { total: 0, per_page: 20, current_page: 1, last_page: 1 } };
-    }),
-  };
-});
+/** Les passées sur deux pages, quand la seconde en a. */
+// TCK-2797, TCK-3010 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
+const api = doublerLApi()
+  .servir(
+    'visites',
+    ({ requete: p }) => {
+      const statut = p.get('filter[status]');
+      const min = p.get('filter[scheduled_at_min]');
+      return statut === 'confirmed' && min
+        ? etat.confirmees
+        : statut === 'scheduled' && min
+          ? etat.demandees
+          : statut === 'completed' && !min
+            ? etat.terminees
+            : statut === 'completed,cancelled,no_show' && min
+              ? etat.closesAVenir
+              : !statut && p.get('filter[scheduled_at_max]')
+                // TCK-3010 — toutes les passées : la doublure les pagine comme l'API (`page`, `per_page`).
+                ? [...etat.passees, ...etat.passeesPage2]
+                : [];
+    },
+  )
+  .sur('POST', /^\/api\/property-visits\//, { data: {} })
+  .parDefaut({ data: [], meta: { total: 0, per_page: 20, current_page: 1, last_page: 1 } });
 
 /** Mardi 10 novembre 2026, 10:12 à Dakar. */
 const MAINTENANT = new Date('2026-11-10T10:12:00Z');
@@ -122,13 +105,11 @@ const DEMANDE = visite({
 });
 
 function monter() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{withIntl(<MesVisites titre="Mes visites" />)}</QueryClientProvider>);
+  return rendre(<MesVisites titre="Mes visites" />, { compte: { utilisateur: { id: 30, roles: ['customer'] }, jeton: 'jeton' } });
 }
 
-const lectures = () =>
-  etat.appels.filter((a) => a.methode === 'GET' && a.chemin.startsWith('/api/property-visits?')).map((a) => new URLSearchParams(a.chemin.split('?')[1]));
-const ecritures = (fin: string) => etat.appels.filter((a) => a.methode === 'POST' && a.chemin.split('?')[0].endsWith(fin));
+const lectures = () => api.appels('/api/property-visits').filter((a) => a.methode === 'GET').map((a) => a.requete);
+const ecritures = (fin: string) => api.appels().filter((a) => a.methode === 'POST' && a.chemin.endsWith(fin));
 
 /** Les gestes du personnel, qu'aucune vue du client ne montre. */
 const GESTES_DU_PERSONNEL = /^(Confirmer|Terminer|Absent|Replanifier|Attribuer|Réattribuer|Prendre en charge|Commencer|Je suis en route)/;
@@ -136,14 +117,11 @@ const GESTES_DU_PERSONNEL = /^(Confirmer|Terminer|Absent|Replanifier|Attribuer|R
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { appels: [], confirmees: [], demandees: [], terminees: [], closesAVenir: [], passees: [], passeesPage2: [] });
+  Object.assign(etat, { confirmees: [], demandees: [], terminees: [], closesAVenir: [], passees: [], passeesPage2: [] });
   toastAdd.mockClear();
-  oublierLesLectures();
 });
 afterEach(() => {
   vi.useRealTimers();
-  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas.
-  expect(lecturesHorsFields()).toEqual([]);
 });
 
 describe('AC6 — un client sans visite à venir', () => {
@@ -285,6 +263,7 @@ describe('joindre l’agent de la prochaine visite (contact servi par l’API au
     expect(whatsapp).toHaveAttribute('target', '_blank');
     fireEvent.click(appeler);
     fireEvent.click(whatsapp);
+    await api.auRepos();
     expect(ecritures('')).toEqual([]);
   });
 
@@ -331,7 +310,8 @@ describe('les passées', () => {
   it('la page suivante des passées ne vide pas la vue : l’avis en cours de saisie reste', async () => {
     const user = userEvent.setup();
     etat.terminees = [RECENTE];
-    etat.passees = [RECENTE, ANCIENNE];
+    // Une page pleine (`per_page` = 20), puis une visite en page 2.
+    etat.passees = [RECENTE, ANCIENNE, ...Array.from({ length: 18 }, (_, i) => ({ ...ANCIENNE, id: 940 + i }))];
     etat.passeesPage2 = [visite({ id: 930, status: 'completed', scheduled_at: '2026-10-01T10:00:00Z', completed_at: '2026-10-01T10:30:00Z', rating: 5, property: { id: 60, title: 'Villa des Almadies', slug: 'villa', cover_url: null } })];
     monter();
     const carte = (await screen.findByText('Visité aujourd’hui à 06:00 avec Sokhna')).closest('[data-slot="avis-du-client"]') as HTMLElement;

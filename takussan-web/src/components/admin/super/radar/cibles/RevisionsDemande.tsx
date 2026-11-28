@@ -13,7 +13,7 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
+import { ApiError, codeMetierDe } from '@/lib/api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { fetchRadarTargetRevisions, radarKeys, revertRadarTargetRevision } from '@/lib/queries/radar';
 import type { PaginatedResponse } from '@/types/api';
@@ -26,8 +26,8 @@ import type {
 } from '@/types/radar';
 import { ECARTS_DEMANDE_RADAR, MOTIFS_REVISION_RADAR, REFUS_REVISION_RADAR } from '../codes-radar';
 import { RadarNav } from '../RadarNav';
-import { morceauxDuResume, parametresDuRefus, SEPARATEUR_DU_RESUME } from './criteres';
-import { codeDuRefus, useMessageRefusCible } from './useMessageRefusCible';
+import { morceauxDuResume, SEPARATEUR_DU_RESUME } from './criteres';
+import { useMessageRefusCible } from './useMessageRefusCible';
 
 const PAR_PAGE = 20;
 
@@ -69,8 +69,8 @@ function useMessageRefusRevision() {
   const messageRefus = useMessageRefusCible();
 
   return (erreur: unknown, revision: RadarTargetRevision): string => {
-    const code = codeDuRefus(erreur);
-    const params = parametresDuRefus(erreur);
+    const code = codeMetierDe(erreur);
+    const params = erreur instanceof ApiError ? erreur.params : {};
     const refus = code === undefined ? undefined : REFUS_REVISION_RADAR[code];
     if (refus === 'alreadyReverted') return t('errors.alreadyReverted');
     if (refus === 'superseded') {
@@ -289,7 +289,7 @@ export function RevisionsDemande() {
     },
     onError: (erreur) => {
       // Déjà défaite ailleurs : la liste relue le montre.
-      if (codeDuRefus(erreur) === 'radar.targets.revision_reverted') {
+      if (erreur.codeMetier === 'radar.targets.revision_reverted') {
         void queryClient.invalidateQueries({ queryKey: radarKeys.targets() });
       }
     },

@@ -1,6 +1,6 @@
 'use server';
 
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction, type RefusDAction } from '@/lib/api';
 import {
   fetchNotifications,
   markAllNotificationsRead,
@@ -16,12 +16,12 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; message: string };
+  | ({ ok: false } & RefusDAction);
 
 /** Clés de repli de `serverActions.notifications` — l'union tient lieu de contrôle de frappe. */
 type CleRepli = 'loadFailed' | 'markReadFailed' | 'markUnreadFailed' | 'markAllReadFailed';
 
-async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string }> {
+async function failure(err: unknown, cleRepli: CleRepli): Promise<({ ok: false } & RefusDAction)> {
   journaliserErreurInattendue('notifications', err);
   const t = await getTranslations('serverActions.notifications');
   const repli = t(cleRepli);
@@ -29,14 +29,14 @@ async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; m
     // ⚠️ C'était `err.displayMessage || repli`, et le repli était MORT : `displayMessage` rendait
     // une clé i18n, et une clé est *truthy*. Un module `'use server'` traduit avec
     // `getTranslations`, jamais en lisant un libellé pré-calculé sur l'erreur.
-    return { ok: false, message: messageErreurApi(err, await getTranslations(), repli) };
+    return { ok: false, ...refusDAction(err, await getTranslations(), repli) };
   }
 
   return { ok: false, message: repli };
 }
 
 /** Repli commun : le jeton manque, aucun appel n'a été tenté. */
-async function nonAuthentifie(): Promise<{ ok: false; message: string }> {
+async function nonAuthentifie(): Promise<({ ok: false } & RefusDAction)> {
   const t = await getTranslations('serverActions.notifications');
   return { ok: false, message: t('notAuthenticated') };
 }

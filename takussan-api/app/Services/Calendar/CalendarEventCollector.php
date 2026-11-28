@@ -18,6 +18,8 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Lecture\InterventionsLisibles;
+use App\Services\Lecture\TachesLisibles;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Visit\VisitSchedulingService;
@@ -46,7 +48,7 @@ use Illuminate\Support\Facades\DB;
  * un agent retiré de l'agence voyait encore, dans son agenda, les visites qui lui restaient
  * assignées. Elle n'est plus qu'un filtre (`mine`), à l'intérieur du périmètre.
  *
- * Les tâches sont personnelles (même règle que `TaskPolicy::view`) ; les interventions planifiées
+ * Les tâches sont personnelles (un sous-ensemble de `TachesLisibles`, TCK-3006) ; les interventions planifiées
  * suivent le périmètre des biens, plus celles assignées à l'appelant (le prestataire).
  *
  * ## La forme des dates : heure murale UTC, exception délibérée à ADR-0018 (TCK-1502, P94.02)
@@ -103,7 +105,6 @@ class CalendarEventCollector
         // TCK-591 (verif-591 B1) — une affectation n'ouvre l'agenda que dans les agences où l'on est
         // personnel ; le prestataire, qui n'est personnel nulle part, garde ses interventions.
         $staffAgencyIds = $isAdmin ? [] : app(MembershipCapabilityResolver::class)->staffAgencyIds($user);
-        $memberAgencyIds = $isAdmin ? [] : app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
         $isProvider = ! $isAdmin && $user->serviceProviderProfile()->active()->exists();
         // verif-591 passe 2 (N2, ADR-0034) — une agence donnée (le lien, ou le profil actif de la
         // console) borne aussi les tâches et interventions à CETTE agence : un flux n'agrège jamais
@@ -112,7 +113,6 @@ class CalendarEventCollector
         // agences » reste la forme de `GET /api/tasks`.
         if (! $isAdmin && $staffAgencyId !== null) {
             $staffAgencyIds = array_values(array_intersect($staffAgencyIds, [$staffAgencyId]));
-            $memberAgencyIds = array_values(array_intersect($memberAgencyIds, [$staffAgencyId]));
         }
         // Le prestataire n'est borné nulle part, sauf dans l'agenda d'une agence.
         $unboundedProvider = $isProvider && $staffAgencyId === null;
@@ -147,13 +147,13 @@ class CalendarEventCollector
             $events = $events->merge($this->visits($start, $end, $restrict, $mine, $userId, $isAdmin, $staffAgencyIds));
         }
         if (in_array('task', $types, true)) {
-            $events = $events->merge($this->tasks($start, $end, $mine, $userId, $isAdmin, $staffAgencyIds, $memberAgencyIds));
+            $events = $events->merge($this->tasks($start, $end, $mine, $user, $staffAgencyId));
         }
         if (in_array('lease_event', $types, true)) {
             $events = $events->merge($this->leaseEvents($start, $end, $restrict));
         }
         if (in_array('maintenance', $types, true)) {
-            $events = $events->merge($this->maintenance($start, $end, $restrict, $mine, $userId, $isAdmin, $propertyId, $propertyIds, $agencyFilter, $assignableAgencyIds));
+            $events = $events->merge($this->maintenance($start, $end, $restrict, $mine, $user, $staffAgencyId, $propertyId, $propertyIds, $agencyFilter, $assignableAgencyIds));
         }
 
         return $events->sortBy('start')->values();
@@ -367,39 +367,33 @@ class CalendarEventCollector
      * qui lui sont assignées (`mine` : assignées seulement). Le titre est celui que l'agent a
      * écrit ; la description ne sort pas.
      *
-     * @param  list<int>  $staffAgencyIds
-     * @param  list<int>  $memberAgencyIds
+     * TCK-3006 (ADR-0138) — un SOUS-ENSEMBLE de la liste, composé sur elle
+     * ({@see TachesLisibles::restreindre()}) : l'agenda n'ajoute pas de règle de lecture, il ne garde
+     * que les tâches de l'appelant (ni celles qu'il lit en remplaçant un absent, ni la vue d'équipe),
+     * et, sous une agence (le lien, le profil actif), celles dont le parent est absent, hors agence ou
+     * dans cette agence (verif-591 passe 2, N2 : un flux n'agrège jamais deux agences). Il recopiait la
+     * règle ; la copie ignorait la tâche de remboursement (parent `Booking`).
+     *
      * @return Collection<int, array<string, mixed>>
      */
-    private function tasks(Carbon $start, Carbon $end, bool $mine, int $userId, bool $isAdmin, array $staffAgencyIds, array $memberAgencyIds): Collection
+    private function tasks(Carbon $start, Carbon $end, bool $mine, User $user, ?int $staffAgencyId): Collection
     {
-        $query = Task::query()
+        $userId = (int) $user->id;
+        $query = TachesLisibles::restreindre(Task::query(), $user)
             ->whereNotNull('due_at')
             ->where('due_at', '>=', $start->copy()->startOfDay())
             ->where('due_at', '<=', $end->copy()->endOfDay())
-            ->where('status', '!=', TaskStatus::Cancelled->value);
+            ->where('status', '!=', TaskStatus::Cancelled->value)
+            ->where(fn (Builder $q) => $mine
+                ? $q->where('assigned_to_id', $userId)
+                : $q->where('assigned_to_id', $userId)->orWhere('created_by_id', $userId));
 
-        $assigned = function (Builder $q) use ($userId, $isAdmin, $staffAgencyIds): void {
-            $q->where('assigned_to_id', $userId);
-            if (! $isAdmin) {
-                $q->parentAgencyIn($staffAgencyIds);
-            }
-        };
-
-        if ($mine) {
-            $query->where($assigned);
-        } else {
-            $created = function (Builder $q) use ($userId, $isAdmin, $memberAgencyIds): void {
-                $q->where('created_by_id', $userId);
-                if (! $isAdmin) {
-                    $q->parentAgencyIn($memberAgencyIds);
-                }
-            };
-            $query->where(fn (Builder $q) => $q->where($assigned)->orWhere($created));
+        if (! $user->isSuperAdmin() && $staffAgencyId !== null) {
+            TachesLisibles::parentDans($query, [$staffAgencyId]);
         }
 
         // TCK-617 (décision du porteur, 2026-11-16) — la tâche d'un parent supprimé en douceur reste à
-        // l'agenda (`parentAgencyIn()` le garde), marquée ; `taskable` ne relit pas le parent supprimé.
+        // l'agenda (`TachesLisibles` la garde), marquée ; `taskable` ne relit pas le parent supprimé.
         return $query->with('taskable')->get()->map(fn (Task $t) => [
             'key' => "task-{$t->id}",
             'id' => $t->id,
@@ -472,8 +466,12 @@ class CalendarEventCollector
      * Les interventions planifiées : celles des biens du périmètre, et celles assignées à
      * l'appelant (le prestataire, qui n'a aucun bien).
      *
-     * TCK-592 — expression équivalente de `MaintenanceRequest::scopeVisibleTo()`, remplacée à sa
-     * fusion.
+     * TCK-3006 (ADR-0138) — un SOUS-ENSEMBLE de la liste, composé sur elle
+     * ({@see InterventionsLisibles::restreindreDans()} sous l'agence de l'agenda — le lien n'a pas de
+     * profil actif) : l'agenda ne montre que les interventions assignées à l'appelant ou celles
+     * des biens de son agenda, jamais une que la fiche refuse. La copie de la règle qu'il portait
+     * gardait l'agent qui avait saisi un bien de l'agence qu'il a quittée (`properties.user_id`) : la
+     * fiche le lui refuse (`BailleurDuBien`).
      *
      * @param  list<int>  $propertyIds
      * @param  list<int>  $staffAgencyIds
@@ -484,13 +482,15 @@ class CalendarEventCollector
         Carbon $end,
         \Closure $restrict,
         bool $mine,
-        int $userId,
-        bool $isAdmin,
+        User $user,
+        ?int $staffAgencyId,
         ?int $propertyId,
         array $propertyIds,
         ?int $agencyFilter,
         array $assignableAgencyIds = [],
     ): Collection {
+        $userId = (int) $user->id;
+        $isAdmin = $user->isSuperAdmin();
         // L'intervention assignée à l'appelant, dans les agences où il la garde : celles de ses
         // collaborations actives (prestataire), celles où il est personnel.
         $assigned = function (Builder $q) use ($userId, $isAdmin, $assignableAgencyIds): void {
@@ -500,7 +500,9 @@ class CalendarEventCollector
             }
         };
 
-        $query = MaintenanceRequest::query()
+        $query = ($staffAgencyId === null
+            ? InterventionsLisibles::restreindre(MaintenanceRequest::query(), $user)
+            : InterventionsLisibles::restreindreDans(MaintenanceRequest::query(), $user, $staffAgencyId))
             ->whereNotNull('scheduled_at')
             ->where('scheduled_at', '>=', DayRange::start($start))
             ->where('scheduled_at', '<', DayRange::after($end))

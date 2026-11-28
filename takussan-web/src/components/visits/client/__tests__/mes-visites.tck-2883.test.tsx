@@ -1,55 +1,41 @@
 /**
  * TCK-2883 — « Mes visites » du client (maquette `app-visites` a-7) : le quartier dès la demande, « L'agence
  * vous répond d'ordinaire en N h » (rien sur 204), « Annulée par vous » / « Annulée par l'agence ». Le
- * réseau est doublé au niveau d'`apiRequest`, comme TCK-2587 ; les visites servies comme l'API.
+ * réseau est doublé au niveau de `fetch` (`doublerLApi`, TCK-3010) ; les visites servies comme l'API.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { screen, waitFor, within } from '@testing-library/react';
 
-import { withIntl } from '@/test/intl';
-import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
+import { doublerLApi } from '@/test/api-simulee';
+import { rendre } from '@/test/rendu';
 import type { PropertyVisit } from '@/types/visit';
 
 import { MesVisites } from '../MesVisites';
 
-const etat = vi.hoisted(() => ({
-  appels: [] as string[],
+const etat = {
   demandees: [] as PropertyVisit[],
   passees: [] as PropertyVisit[],
-  /** Le corps de `response-time` ; `null` = 204. */
-  delai: null as { median_hours: number; sample: number } | null,
-}));
+};
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(''),
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   usePathname: () => '/app/visits',
 }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 30, roles: ['customer'] }, token: 'jeton' }) }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/components/layout/en-tete-de-la-coque', () => ({ DeclarerEnTete: () => null }));
 
-vi.mock('@/lib/api', async (original) => {
-  const vrai = await original<typeof import('@/lib/api')>();
-  return {
-    ...vrai,
-    apiRequest: vi.fn(async (chemin: string) => {
-      etat.appels.push(chemin);
-      const [route, qs] = chemin.split('?');
-      const p = new URLSearchParams(qs ?? '');
-      if (route === '/api/property-visits') {
-        const { commeLApi } = await import('@/test/visites-comme-l-api');
-        const statut = p.get('filter[status]');
-        const data = statut === 'scheduled' ? etat.demandees : !statut && p.get('filter[scheduled_at_max]') ? etat.passees : [];
-        return commeLApi(chemin, { data, meta: { total: data.length, per_page: 20, current_page: 1, last_page: 1 } });
-      }
-      // 204 : `apiRequest` rend `null` (corps vide).
-      if (/^\/api\/agencies\/\d+\/response-time$/.test(route)) return etat.delai ? { data: etat.delai } : null;
-      return { data: [], meta: { total: 0, per_page: 20, current_page: 1, last_page: 1 } };
-    }),
-  };
-});
+const api = doublerLApi()
+  .servir('visites', ({ requete }) => {
+    const statut = requete.get('filter[status]');
+    return statut === 'scheduled' ? etat.demandees : !statut && requete.get('filter[scheduled_at_max]') ? etat.passees : [];
+    // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  }, { filtres: ['scheduled_at_min'] })
+  .parDefaut({ data: [], meta: { total: 0, per_page: 20, current_page: 1, last_page: 1 } });
+
+const DELAI_DE_REPONSE = /^\/api\/agencies\/\d+\/response-time$/;
+/** Le délai de réponse de l'agence ; sans lui, 204 (`apiRequest` rend `null`). */
+const servirLeDelai = (delai: { median_hours: number; sample: number }) => api.sur('GET', DELAI_DE_REPONSE, { data: delai });
 
 const MAINTENANT = new Date('2026-11-10T10:12:00Z');
 
@@ -75,8 +61,7 @@ const DEMANDE = visite({
 });
 
 function monter() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{withIntl(<MesVisites titre="Mes visites" />)}</QueryClientProvider>);
+  return rendre(<MesVisites titre="Mes visites" />, { compte: { utilisateur: { id: 30, roles: ['customer'] }, jeton: 'jeton' } });
 }
 
 async function ligneEnAttente() {
@@ -87,12 +72,11 @@ async function ligneEnAttente() {
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { appels: [], demandees: [], passees: [], delai: null });
-  oublierLesLectures();
+  Object.assign(etat, { demandees: [], passees: [] });
+  api.sur('GET', DELAI_DE_REPONSE, null, 204);
 });
 afterEach(() => {
   vi.useRealTimers();
-  expect(lecturesHorsFields()).toEqual([]);
 });
 
 describe('AC1 — le quartier dès la demande', () => {
@@ -108,31 +92,31 @@ describe('AC1 — le quartier dès la demande', () => {
 describe('AC2 — le délai de réponse de l’agence', () => {
   it('median_hours = 2 : « L’agence vous répond d’ordinaire en 2 h », lu sur l’agence du bien', async () => {
     etat.demandees = [DEMANDE];
-    etat.delai = { median_hours: 2, sample: 14 };
+    servirLeDelai({ median_hours: 2, sample: 14 });
     monter();
     const ligne = await ligneEnAttente();
     expect(await within(ligne).findByText('L’agence vous répond d’ordinaire en 2 h')).toBeInTheDocument();
-    expect(etat.appels).toContain('/api/agencies/7/response-time');
+    expect(api.appels('/api/agencies/7/response-time')).toHaveLength(1);
   });
 
   it('204 : la ligne n’existe pas', async () => {
     etat.demandees = [DEMANDE];
     monter();
     const ligne = await ligneEnAttente();
-    await waitFor(() => expect(etat.appels).toContain('/api/agencies/7/response-time'));
+    await waitFor(() => expect(api.appels('/api/agencies/7/response-time')).toHaveLength(1));
     expect(ligne.querySelector('[data-slot="delai-de-reponse"]')).toBeNull();
     expect(within(ligne).queryByText(/répond d’ordinaire/)).toBeNull();
   });
 
   it('un bien sans agence : aucune lecture, aucune ligne', async () => {
     etat.demandees = [visite({ ...DEMANDE, id: 912, property: { ...DEMANDE.property!, agency_id: null } })];
-    etat.delai = { median_hours: 2, sample: 14 };
+    servirLeDelai({ median_hours: 2, sample: 14 });
     monter();
     const ligne = await ligneEnAttente();
     expect(ligne.querySelector('[data-slot="delai-de-reponse"]')).toBeNull();
-    expect(etat.appels.some((c) => c.includes('response-time'))).toBe(false);
+    await api.auRepos();
     // Ni sur un chemin vide : la lecture n'est pas armée sans agence.
-    expect(etat.appels.filter((c) => !c.startsWith('/api/property-visits?'))).toEqual([]);
+    expect(api.appels().filter((a) => a.chemin !== '/api/property-visits')).toEqual([]);
   });
 });
 

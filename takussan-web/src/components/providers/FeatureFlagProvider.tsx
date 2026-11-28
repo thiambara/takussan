@@ -3,6 +3,7 @@
 import { createContext, useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { appelBff } from '@/lib/bff';
 import type { FeatureFlagsMeResponse } from '@/types/super-admin';
 
 type FeatureFlagContextValue = {
@@ -12,9 +13,8 @@ type FeatureFlagContextValue = {
 
 const FeatureFlagContext = createContext<FeatureFlagContextValue>({ flags: {}, isLoading: false });
 
-async function fetchFlags(): Promise<FeatureFlagsMeResponse> {
-  const res = await fetch('/api/feature-flags/me');
-  return res.json() as Promise<FeatureFlagsMeResponse>;
+function fetchFlags(): Promise<FeatureFlagsMeResponse> {
+  return appelBff<FeatureFlagsMeResponse>('/api/feature-flags/me');
 }
 
 export function FeatureFlagProvider({ children }: { children: React.ReactNode }) {

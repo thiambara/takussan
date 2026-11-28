@@ -124,9 +124,7 @@ function nouvelleCleIdempotence(): string {
 }
 
 function cleDejaServie(error: unknown): boolean {
-  if (!(error instanceof ApiError) || error.status !== 422) return false;
-  const data = error.data as { code?: unknown } | null;
-  return data !== null && typeof data === 'object' && data.code === 'idempotency.key_reused';
+  return error instanceof ApiError && error.status === 422 && error.codeMetier === 'idempotency.key_reused';
 }
 
 type MutationShape<TVariables> = {

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { useAuth } from '@/context/AuthContext';
+import { ApiError } from '@/lib/api';
 import { origineApi } from '@/lib/config-publique';
 import { cheminApi } from '@/lib/chemin-api';
 import type { ArchivePreparee } from '@/lib/documents/coffre';
@@ -15,12 +16,6 @@ export const DOSSIER_DES_QUITTANCES = 'receipts:all';
 
 type Echec = 'vide' | 'interdit' | 'echec' | 'demande';
 export type EtatDeLArchiveDesQuittances = 'pret' | 'telechargement' | 'preparation' | 'prete' | 'echec';
-
-/** Le code d'erreur de l'API (`{code, message}`), quand la réponse en porte un. */
-async function codeDe(reponse: Response): Promise<string | null> {
-  const corps: unknown = await reponse.json().catch(() => null);
-  return corps && typeof corps === 'object' && 'code' in corps && typeof corps.code === 'string' ? corps.code : null;
-}
 
 /**
  * TCK-2916 — « Tout télécharger » de l'historique du locataire : toutes ses quittances en une archive,
@@ -96,7 +91,8 @@ export function useArchiveDesQuittances() {
           : cheminApi`/api/me/document-vault/archive${new URLSearchParams({ folder: DOSSIER_DES_QUITTANCES })}`;
       const refus = await recevoir(chemin, nomDuFichier);
       if (refus === null) return;
-      const code = refus.status === 422 ? await codeDe(refus) : null;
+      // Un `fetch` nu (le fichier se télécharge) : son refus se lit comme une `ApiError` (TCK-3008).
+      const code = refus.status === 422 ? new ApiError(refus.status, await refus.json().catch(() => null)).codeMetier : undefined;
       if (code === 'document.archive_too_large') {
         const pret = await preparer();
         if (pret !== null) {

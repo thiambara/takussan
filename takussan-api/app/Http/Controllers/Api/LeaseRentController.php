@@ -32,7 +32,7 @@ class LeaseRentController extends Controller
         $lease = $this->service->review($lease, $user, $request->validated());
 
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property']))->resolve($request),
+            'data' => LeaseResource::make($lease->load(['property']))->forViewer($request->user())->resolve($request),
         ]);
     }
 

@@ -199,9 +199,9 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
         return;
       }
       if (err instanceof ApiError && err.status === 422) {
-        const code = err.data && typeof err.data === 'object' ? (err.data as { code?: unknown }).code : undefined;
+        const code = err.codeMetier;
         // TCK-596 — des nuits confirmées entre-temps : retour au calendrier, relu, et le départ tombe.
-        if (typeof code === 'string' && CODES_NUITS_PRISES.has(code)) {
+        if (code !== undefined && CODES_NUITS_PRISES.has(code)) {
           setSelection({ arrivee: selection.arrivee, depart: null });
           setAvisDates(messageErreur(err, t('dates.noLongerFree')));
           setLecture((n) => n + 1);
@@ -217,7 +217,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
           haut();
           return;
         }
-        const messages = Object.values(champs).flat();
+        const messages = err.messagesDeValidation();
         // Un refus sur `property_id` (bien passé au mois entre-temps, TCK-530) n'a pas de champ à
         // l'écran : il se dit en erreur globale.
         setErreurGlobale(messages.length > 0 ? messages.join(' ') : messageErreur(err, t('error')));

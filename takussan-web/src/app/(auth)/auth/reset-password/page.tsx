@@ -58,11 +58,10 @@ function ResetPasswordForm() {
           // TCK-2026 (P192.01) — l'API rend un code stable pour un lien faux ou expiré, et une
           // adresse sans compte sous le même code : l'écran le traduit, le `message` de l'API
           // n'est qu'un repli pour un code que l'écran ne connaît pas.
-          const data = err.data as { code?: string; message?: string } | null;
           setGlobalError(
-            data?.code === 'password_reset.invalid_link'
+            err.codeMetier === 'password_reset.invalid_link'
               ? t('invalidBody')
-              : (data?.message ?? t('failed')),
+              : (err.proseServeur ?? t('failed')),
           );
         }
       } else {

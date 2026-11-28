@@ -1,4 +1,3 @@
-import { ApiError } from '@/lib/api';
 import type { Formatteurs } from '@/lib/format/useFormatteurs';
 import type { RadarContract, RadarSourceSite, RadarTargetCriteria, RadarTargetNeighborhood } from '@/types/radar';
 
@@ -153,13 +152,6 @@ export function morceauxDuResume(criteres: RadarTargetCriteria, { t, tTypes, tSi
 export const SEPARATEUR_DU_RESUME = ' · ';
 
 // ─── Les refus ────────────────────────────────────────────────────────────────────────────────
-
-/** Les paramètres d'un refus codé (`params`). */
-export function parametresDuRefus(erreur: unknown): Record<string, unknown> {
-  if (!(erreur instanceof ApiError) || !erreur.data || typeof erreur.data !== 'object') return {};
-  const params = (erreur.data as { params?: unknown }).params;
-  return params && typeof params === 'object' ? (params as Record<string, unknown>) : {};
-}
 
 /** Les clés de critère que le formulaire nomme (`targets.fields.*`). */
 export const CLES_DE_CRITERE = [

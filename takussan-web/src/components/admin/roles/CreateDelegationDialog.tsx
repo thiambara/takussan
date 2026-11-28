@@ -52,13 +52,9 @@ const DUREE_MAX_JOURS = 366;
 function messagesDeRefus(erreur: unknown): readonly string[] {
   if (!(erreur instanceof ApiError) || erreur.status !== 422) return [];
 
-  // `validationErrors` est l'accesseur canonique d'`ApiError` — il ne rend un
-  // objet que sur un 422 portant `errors`.
-  const parChamp = erreur.validationErrors;
-  if (parChamp) {
-    const messages = Object.values(parChamp).flat().filter((m) => typeof m === 'string');
-    if (messages.length > 0) return messages;
-  }
+  // TCK-3008 — l'aplatissement d'`ApiError`, écrit une fois : vide hors d'un 422 portant `errors`.
+  const messages = erreur.messagesDeValidation();
+  if (messages.length > 0) return messages;
 
   // Repli : un 422 sans `errors`. `proseServeur` filtre au passage les
   // sentinelles anglaises du framework, qui ne doivent jamais atteindre

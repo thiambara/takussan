@@ -3,8 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 
-import { ApiError, messageErreurApi } from '@/lib/api';
-import { codeDoubleFacteur, type CodeDoubleFacteur } from '@/lib/double-facteur';
+import { ApiError, refusDAction } from '@/lib/api';
 import { getActiveProfileId, getToken } from '@/lib/session';
 import { lireAgenceDuRendu } from '@/lib/access/server-guards';
 import {
@@ -33,18 +32,23 @@ type ActionResult<T = void> =
       status?: number;
       message: string;
       errors?: Record<string, string[]>;
-      /** TCK-761 — le refus de second facteur, que l'écran confie à `GardeDoubleFacteur` (TCK-293). */
-      code?: CodeDoubleFacteur;
+      /**
+       * TCK-761 — le code métier du refus (TCK-3008 : tout refus, plus seulement le second facteur, que
+       * `avecGardeDoubleFacteurAction` reconnaît seul et confie à `GardeDoubleFacteur`, TCK-293).
+       */
+      code?: string;
+      params?: Readonly<Record<string, unknown>>;
     };
 
 async function mapError(e: unknown): Promise<{
   status?: number;
   message: string;
   errors?: Record<string, string[]>;
-  code?: CodeDoubleFacteur;
+  code?: string;
+  params?: Readonly<Record<string, unknown>>;
 }> {
   journaliserErreurInattendue('admin-agency', e);
-  // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
+  // `refusDAction` (`messageErreurApi`) compose le CODE de l'erreur avec un traducteur que CE contexte sait
   // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
   // primitive correcte ici. Lire `e.displayMessage` seul rendait la clé i18n brute à l'écran.
   const [tRacine, t] = await Promise.all([
@@ -53,12 +57,10 @@ async function mapError(e: unknown): Promise<{
   ]);
   const repli = t('networkErrorRetry');
   if (e instanceof ApiError) {
-    const code = codeDoubleFacteur(e);
     return {
       status: e.status,
-      message: messageErreurApi(e, tRacine, repli),
+      ...refusDAction(e, tRacine, repli),
       errors: e.validationErrors,
-      ...(code ? { code } : {}),
     };
   }
   return { message: repli };

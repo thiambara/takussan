@@ -1,5 +1,5 @@
 {
-  "_doc": "TCK-2400, TCK-2410 — formes que PhoneMasker / EvalCaseAnonymizer masquent ET que scripts/check-ai-evals-pii.mjs signale. Lu par les deux : une forme ajoutée ici est éprouvée des deux côtés. `avec_contexte` : [texte, texte une fois masqué], pour ce qui n'est pas tout le texte (liens WhatsApp, un `F` derrière). Échappements JSON : \\u0085 NEL, \\u00a0 espace insécable, \\u202f espace fine, \\u200b espace de largeur nulle.",
+  "_doc": "TCK-2400, TCK-2410 — formes que PhoneMasker / EvalCaseAnonymizer masquent ET que scripts/check-ai-evals-pii.mjs signale. Lu par les deux : une forme ajoutée ici est éprouvée des deux côtés. `avec_contexte` : [texte, texte une fois masqué], pour ce qui n'est pas tout le texte (liens WhatsApp, un `F` derrière). Échappements JSON : \\u0085 NEL, \\u00a0 espace insécable, \\u202f espace fine, \\u200b espace de largeur nulle. `politiques` (TCK-3004) : un texte et, par politique d'`App\\Support\\Telephone\\Politique`, ce qu'il rend — masqué, numéros écartés tels qu'écrits, refus STOP et contact d'office en E.164 ; le miroir JS rejoue la colonne `masquer`.",
   "telephones": {
     "espaces": "77 123 45 67",
     "collé": "771234567",
@@ -614,5 +614,179 @@
     "étage TCK-2445 vérification I1 — année 2019 entre parenthèses, prix en FCFA": "Immeuble R+7 (2019) 850 000 000 FCFA",
     "étage TCK-2445 vérification I1 — année 2023 entre parenthèses, loyer mensuel": "Appartement R+7 (2023) 450 000 F/mois",
     "étage TCK-2445 vérification M3 — une surface entre parenthèses derrière R+7 n'est pas une zone": "Immeuble R+7 (3500 m²) 450 000 000 F"
+  },
+  "politiques": {
+    "sénégalais nu": {
+      "texte": "Tel 77 123 45 67 svp",
+      "masquer": "Tel [TELEPHONE] svp",
+      "ecarter": [
+        "77 123 45 67"
+      ],
+      "refus_stop": [
+        "+221771234567"
+      ],
+      "contact_d_office": [
+        "+221771234567"
+      ]
+    },
+    "indicatif +221": {
+      "texte": "Contact +221 78 123 45 67",
+      "masquer": "Contact [TELEPHONE]",
+      "ecarter": [
+        "+221 78 123 45 67"
+      ],
+      "refus_stop": [
+        "+221781234567"
+      ],
+      "contact_d_office": [
+        "+221781234567"
+      ]
+    },
+    "étranger": {
+      "texte": "Appelez le +33 6 12 34 56 78",
+      "masquer": "Appelez le [TELEPHONE]",
+      "ecarter": [
+        "+33 6 12 34 56 78"
+      ],
+      "refus_stop": [],
+      "contact_d_office": []
+    },
+    "lien WhatsApp étranger": {
+      "texte": "wa.me/33612345678",
+      "masquer": "wa.me/[TELEPHONE]",
+      "ecarter": [
+        "33612345678"
+      ],
+      "refus_stop": [],
+      "contact_d_office": []
+    },
+    "lien WhatsApp sénégalais": {
+      "texte": "wa.me/221771234567",
+      "masquer": "wa.me/[TELEPHONE]",
+      "ecarter": [
+        "221771234567"
+      ],
+      "refus_stop": [
+        "+221771234567"
+      ],
+      "contact_d_office": [
+        "+221771234567"
+      ]
+    },
+    "chiffres arabes-indiens": {
+      "texte": "Tel ٧٧ ١٢٣ ٤٥ ٦٧",
+      "masquer": "Tel [TELEPHONE]",
+      "ecarter": [
+        "٧٧ ١٢٣ ٤٥ ٦٧"
+      ],
+      "refus_stop": [
+        "+221771234567"
+      ],
+      "contact_d_office": [
+        "+221771234567"
+      ]
+    },
+    "coupé par un invisible": {
+      "texte": "Tel 77\u200b123 45 67",
+      "masquer": "Tel [TELEPHONE]",
+      "ecarter": [
+        "77\u200b123 45 67"
+      ],
+      "refus_stop": [
+        "+221771234567"
+      ],
+      "contact_d_office": [
+        "+221771234567"
+      ]
+    },
+    "étage puis numéro": {
+      "texte": "Villa R+1 77 123 45 67",
+      "masquer": "Villa R+1 [TELEPHONE]",
+      "ecarter": [
+        "77 123 45 67"
+      ],
+      "refus_stop": [
+        "+221771234567"
+      ],
+      "contact_d_office": [
+        "+221771234567"
+      ]
+    },
+    "étage puis prix": {
+      "texte": "Immeuble R+1 1 250 500 750 F",
+      "masquer": "Immeuble R+1 1 250 500 750 F",
+      "ecarter": [],
+      "refus_stop": [],
+      "contact_d_office": []
+    },
+    "plus nu devant": {
+      "texte": "Tel +77 123 45 67",
+      "masquer": "Tel +[TELEPHONE]",
+      "ecarter": [
+        "77 123 45 67"
+      ],
+      "refus_stop": [
+        "+221771234567"
+      ],
+      "contact_d_office": []
+    },
+    "unité derrière": {
+      "texte": "30 20 5 20 10 min",
+      "masquer": "[TELEPHONE] min",
+      "ecarter": [
+        "30 20 5 20 10"
+      ],
+      "refus_stop": [
+        "+221302052010"
+      ],
+      "contact_d_office": []
+    },
+    "mot de prix devant": {
+      "texte": "Prix 33 821 00 00",
+      "masquer": "Prix [TELEPHONE]",
+      "ecarter": [
+        "33 821 00 00"
+      ],
+      "refus_stop": [
+        "+221338210000"
+      ],
+      "contact_d_office": []
+    },
+    "liste de lots": {
+      "texte": "Lots 219 220 221 330 331 332",
+      "masquer": "Lots 219 220 [TELEPHONE]",
+      "ecarter": [
+        "221 330 331 332"
+      ],
+      "refus_stop": [
+        "+221330331332"
+      ],
+      "contact_d_office": []
+    },
+    "barre entre deux nombres": {
+      "texte": "221 770123/500 F",
+      "masquer": "[TELEPHONE] F",
+      "ecarter": [
+        "221 770123/500"
+      ],
+      "refus_stop": [
+        "+221770123500"
+      ],
+      "contact_d_office": []
+    },
+    "prix marqué": {
+      "texte": "Loyer 750000000 FCFA",
+      "masquer": "Loyer 750000000 FCFA",
+      "ecarter": [],
+      "refus_stop": [],
+      "contact_d_office": []
+    },
+    "fictif 74": {
+      "texte": "+221 74 123 45 67",
+      "masquer": "+221 74 123 45 67",
+      "ecarter": [],
+      "refus_stop": [],
+      "contact_d_office": []
+    }
   }
 }

@@ -43,9 +43,7 @@ const ERREURS_CONNUES = { 'ai.eval.job_lost': 'jobLost', 'ai.eval.job_failed': '
 function exigeUnMotif(error: unknown): boolean {
   return error instanceof ApiError
     && error.status === 422
-    && typeof error.data === 'object'
-    && error.data !== null
-    && (error.data as { code?: unknown }).code === 'ai.evaluation_below_baseline';
+    && error.codeMetier === 'ai.evaluation_below_baseline';
 }
 
 /**

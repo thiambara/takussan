@@ -429,7 +429,11 @@ const handlers = handlersDuBff();
 let juges = 0;
 let invérifiables = 0;
 const ecarts = new Map();
+// `src/test/` est le harnais de test (TCK-3010) : sa table des relais nomme des PRÉFIXES du BFF
+// (`/api/super-admin/`), pas des appels, au même titre que les `__tests__` exclus par `fichiers`.
+const HARNAIS = join(SRC, 'test') + sep;
 for (const f of fichiers(SRC, (n) => /\.(ts|tsx)$/.test(n) && !/\.test\.tsx?$/.test(n) && !/\.d\.ts$/.test(n))) {
+  if (f.startsWith(HARNAIS)) continue;
   const source = readFileSync(f, 'utf8');
   const fichier = relative(WEB, f);
   const usurpe = source.includes('_method');

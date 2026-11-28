@@ -26,6 +26,7 @@ import { Pagination } from '@/components/console/Pagination';
 import { useDemarrerImpersonation } from '@/hooks/useImpersonation';
 import { usePlatformAbilities } from '@/components/admin/super/PlatformAbilitiesProvider';
 import { ApiError } from '@/lib/api';
+import { appelBff } from '@/lib/bff';
 import type { User, UserRole, UserStatus } from '@/types/user';
 import { lireTable } from '@/lib/table-de-statut';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -134,37 +135,27 @@ type UsersParams = {
 };
 
 async function fetchUsers(params: UsersParams): Promise<UsersResponse> {
-  const qs = new URLSearchParams();
-  if (params.search) qs.set('filter[search]', params.search);
-  if (params.role) qs.set('filter[role]', params.role);
-  if (params.agencyId) qs.set('filter[agency_id]', params.agencyId);
-  if (params.status) qs.set('filter[status]', params.status);
-  if (params.emailVerified) qs.set('filter[email_verified]', params.emailVerified);
-  if (params.twoFactor) qs.set('filter[two_factor_enabled]', params.twoFactor);
-  qs.set('page', String(params.page));
-  qs.set('per_page', '20');
-  // P100.05 (TCK-1186) — `fields` inerte : `Admin\UserDetailController::index` est une liste écrite à la main.
-  qs.set(
-    'fields[users]',
-    'id,first_name,last_name,email,phone,status,email_verified_at,two_factor_enabled,last_login_at,created_at',
-  );
-  // TCK-1842 (P186.03) — pas d'`include` : `Admin\UserDetailController::index` charge en dur les profils
-  // (agent, propriétaire, admin d'agence, prestataire, plateforme) et les rôles qu'il rend.
-  qs.set('sort', '-created_at');
-  const res = await fetch(`/api/super-admin-users?${qs.toString()}`, { credentials: 'include' });
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    // TCK-292 (2026-08-22) — un `Error` NU portait ici le libellé anglais « Users fetch failed ».
-    // `messageErreurApi` ne le reconnaissait ni comme `ApiError`, ni comme forme technique
-    // (`/^API error \d+/`), ni comme sentinelle de framework : il retombait donc dans la branche
-    // « un Error nu transporte un message DÉJÀ traduit » et l'affichait TEL QUEL dans
-    // `<ErrorState>`, dans les trois langues. Le repli `t('error')` n'était jamais atteint.
-    // `ApiError` est la forme que le reste du dépôt lève (`jsonOrThrow` de
-    // `src/lib/queries/{admin-users,super-admin,billing,…}.ts`) — et c'est aussi ce que le type
-    // `useQuery<UsersResponse, ApiError>` ci-dessous a toujours PRÉTENDU recevoir.
-    throw new ApiError(res.status, data);
-  }
-  return res.json();
+  // TCK-292 (2026-08-22) — un refus lève une `ApiError`, jamais un `Error` nu : `messageErreurApi` affichait le
+  // libellé anglais d'un `Error` TEL QUEL dans `<ErrorState>`. TCK-3009 — `appelBff` la lève, comme `apiRequest`.
+  return appelBff<UsersResponse>('/api/super-admin-users', {
+    params: {
+      // P100.05 (TCK-1186) — `fields` inerte : `Admin\UserDetailController::index` est une liste écrite à la main.
+      fields: { users: 'id,first_name,last_name,email,phone,status,email_verified_at,two_factor_enabled,last_login_at,created_at' },
+      filter: {
+        search: params.search,
+        role: params.role,
+        agency_id: params.agencyId,
+        status: params.status,
+        email_verified: params.emailVerified,
+        two_factor_enabled: params.twoFactor,
+      },
+      // TCK-1842 (P186.03) — pas d'`include` : `Admin\UserDetailController::index` charge en dur les profils
+      // (agent, propriétaire, admin d'agence, prestataire, plateforme) et les rôles qu'il rend.
+      sort: '-created_at',
+      page: params.page,
+      per_page: 20,
+    },
+  });
 }
 
 function getUserDisplayName(user: SuperAdminUser): string {

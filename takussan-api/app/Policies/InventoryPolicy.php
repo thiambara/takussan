@@ -4,7 +4,7 @@ namespace App\Policies;
 
 use App\Models\Inventory;
 use App\Models\User;
-use App\Services\Property\BailleurDuBien;
+use App\Services\Lecture\InventairesLisibles;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -16,30 +16,12 @@ use Illuminate\Database\Eloquent\Model;
 class InventoryPolicy extends BasePolicy
 {
     /**
-     * Lire un état des lieux : super-admin, celui qui l'a conduit, le propriétaire du bien, le
-     * LOCATAIRE, ou le périmètre d'agence du bien.
+     * Lire un état des lieux : la règle de {@see InventairesLisibles}, que la liste applique aussi
+     * (TCK-3006, ADR-0138) — le bien supprimé en douceur s'y juge sur son agence.
      */
     public function view(User $user, Model $model): bool
     {
-        if (! $model instanceof Inventory) {
-            return false;
-        }
-
-        $property = $model->property;
-        $tenant = $model->tenant;
-
-        return $user->isSuperAdmin()
-            // P218.04 (TCK-2198) — le conducteur encore membre de l'agence du bien, ou qui y a un
-            // profil de bailleur de tout statut (le bailleur bloqué garde la lecture).
-            || $this->auteurEncoreMembre($user, $model->conducted_by, $property?->agency_id)
-            || ($property?->agency_id !== null && $model->conducted_by === $user->id
-                // TCK-2655 (vérification adverse) — la même requête, jugée en mémoire sous amorce.
-                && BailleurDuBien::tientUnProfil($user, (int) $property->agency_id))
-            // TCK-1928 (P190.01, décision du porteur) — le bailleur du bien, de tout statut ; plus
-            // l'agent qui l'a saisi (`properties.user_id`), jugé au titre du personnel.
-            || ($property && BailleurDuBien::est($user, $property->user_id, $property->agency_id))
-            || ($tenant && $tenant->user_id === $user->id)
-            || ($property && $this->isStaffOf($user, $property->agency_id));
+        return $model instanceof Inventory && InventairesLisibles::peut($user, $model);
     }
 
     /**

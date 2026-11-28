@@ -203,7 +203,7 @@ class VisitWindowNotificationsTest extends ApiTestCase
 
     /**
      * Contre-vérification — le visiteur reporte sa tranche à l'heure EXACTE de son début (14:00) :
-     * `scheduled_at` ne change pas, le crochet du modèle ne voit rien ; `rescheduleOrFail` lève la
+     * `scheduled_at` ne change pas, le crochet du modèle ne voit rien ; `GestesDeLaVisite::proposerUnCreneau` lève la
      * tranche lui-même.
      */
     public function test_le_visiteur_reporte_a_l_heure_du_debut_de_tranche_la_tranche_tombe(): void

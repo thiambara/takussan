@@ -2,10 +2,11 @@
  * TCK-2797 — chaque lecture de `/api/property-visits` demande toutes les clés qu'elle lit.
  *
  * L'API ne rend plus que `id`, les clés de `fields[property_visits]` et les blocs de `include=`
- * (`PropertyVisitResource::toArray`). Ici, le réseau est doublé au niveau d'`apiRequest` par
- * `commeLApi` (`src/test/visites-comme-l-api.ts`) : la visite servie est réduite aux clés demandées,
- * et toute lecture d'une autre clé de visite est notée. Une liste qui lit sans demander rend alors
- * un écran vide ET une lecture notée.
+ * (`PropertyVisitResource::toArray`). Ici, le réseau est doublé au niveau de `fetch` par
+ * `doublerLApi` (`src/test/api-simulee.ts`, TCK-3010) : la visite servie est réduite aux clés demandées,
+ * et toute lecture d'une autre clé de visite fait échouer le test. Une liste qui lit sans demander rend
+ * alors un écran vide ET un test rouge qui nomme la clé. Le double lui-même (ses clés, gardées contre
+ * `PropertyVisitResource`) est éprouvé dans `src/test/__tests__/api-simulee.test.tsx`.
  *
  * Les autres listes sont gardées là où leurs écrans sont déjà rendus sur ce double :
  *  - `VISIT_TIME_FIELDS` : `VisitesParLeTemps`, `toutes-ouvre-toutes`, `MaJournee`, et
@@ -15,16 +16,11 @@
  * « Ses visites » de la fiche (`FicheDeLaVisite`) lit une `VisiteDuClient`, typée sur ses seules clés
  * demandées : `tsc` refuse toute autre lecture.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { render, renderHook, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
 
-import { withIntl } from '@/test/intl';
-import { CLES_D_UNE_VISITE, lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
-import { RACINE_DU_DEPOT } from './attributs-calcules-de-l-api';
+import { doublerLApi } from '@/test/api-simulee';
+import { rendre, rendreLeHook } from '@/test/rendu';
 import type { PropertyVisit } from '@/types/visit';
 
 import { VisitsList } from '@/components/visits/VisitsList';
@@ -62,50 +58,26 @@ const VISITE_ENTIERE: PropertyVisit = {
   created_at: '2026-11-10T09:00:00Z',
 };
 
-const etat = vi.hoisted(() => ({ chemins: [] as string[] }));
-
 vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 3, roles: ['agent'], agency_id: 1 }, token: 'jeton' }) }));
-vi.mock('@/lib/api', async (original) => {
-  const vrai = await original<typeof import('@/lib/api')>();
-  return {
-    ...vrai,
-    apiRequest: vi.fn(async (chemin: string) => {
-      etat.chemins.push(chemin);
-      const { commeLApi } = await import('@/test/visites-comme-l-api');
-      const route = chemin.split('?')[0];
-      if (route === '/api/property-visits') {
-        return commeLApi(chemin, { data: [VISITE_ENTIERE], meta: { total: 1, per_page: 30, current_page: 1, last_page: 1 } });
-      }
-      return { data: [], meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 } };
-    }),
-  };
-});
 
-function avecClient(ui: ReactNode) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
+const api = doublerLApi()
+  // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  .servir('visites', [VISITE_ENTIERE], { filtres: ['status', 'scheduled_at_min', 'scheduled_at_max', 'customer_id', 'unassigned'] })
+  .parDefaut({ data: [], meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 } });
 
-beforeEach(() => {
-  etat.chemins = [];
-  oublierLesLectures();
-});
-afterEach(() => {
-  expect(lecturesHorsFields()).toEqual([]);
-});
+const COMPTE = { utilisateur: { id: 3, roles: ['agent'], agency_id: 1 }, jeton: 'jeton' } as const;
 
 describe('chaque lecture de visites demande ce qu’elle lit', () => {
   it('`VISIT_LIST_FIELDS` — la liste par statut rend le bien, l’heure et la durée', async () => {
-    render(avecClient(<VisitsList />));
+    rendre(<VisitsList />, { compte: COMPTE });
 
     expect(await screen.findByText('Villa à Almadies')).toBeInTheDocument();
     expect(screen.getByText(/45/)).toBeInTheDocument();
-    expect(etat.chemins.some((c) => decodeURIComponent(c).includes('fields[property_visits]='))).toBe(true);
+    expect(api.appels('/api/property-visits').some((a) => a.requete.has('fields[property_visits]'))).toBe(true);
   });
 
   it('`useRappelDuPersona` — la prochaine visite : son heure et son bien', async () => {
-    const { result } = renderHook(() => useRappelDuPersona('agent'), { wrapper: ({ children }) => avecClient(children) });
+    const { result } = rendreLeHook(() => useRappelDuPersona('agent'), { compte: COMPTE });
 
     await waitFor(() => expect(result.current.visite).toEqual({ date: '2026-11-20T10:00:00Z', bien: 'Villa à Almadies' }));
   });
@@ -116,28 +88,5 @@ describe('chaque lecture de visites demande ce qu’elle lit', () => {
     expect(lignes).toEqual([
       { id: 41, status: 'scheduled', date: '2026-11-20T10:00:00Z', end_date: null, reference_number: null, property: { id: 10, title: 'Villa à Almadies' } },
     ]);
-  });
-});
-
-describe('le double', () => {
-  it('connaît exactement les clés que `PropertyVisitResource` peut rendre', () => {
-    const php = readFileSync(join(RACINE_DU_DEPOT, 'takussan-api', 'app', 'Http', 'Resources', 'PropertyVisitResource.php'), 'utf8');
-    const corps = /private function toutesLesCles\(Request \$request\): array\n    \{([\s\S]*?)\n    \}\n/.exec(php)?.[1] ?? '';
-    const cles = [...corps.matchAll(/^ {12}'([a-z_]+)' =>/gm)].map((m) => m[1]);
-
-    expect(cles).toEqual([...CLES_D_UNE_VISITE]);
-  });
-
-  it('note la lecture d’une clé non demandée, pas celle d’une clé demandée', async () => {
-    const { commeLApi } = await import('@/test/visites-comme-l-api');
-    const reponse = commeLApi('/api/property-visits?fields%5Bproperty_visits%5D=id%2Cstatus&include=property', { data: [VISITE_ENTIERE] });
-    const v = reponse.data[0];
-
-    expect(Object.keys(v)).toEqual(['id', 'status', 'property']);
-    expect(v.status).toBe('scheduled');
-    expect(lecturesHorsFields()).toEqual([]);
-    expect(v.visitor_display).toBeUndefined();
-    expect(lecturesHorsFields()).toEqual(['visitor_display (/api/property-visits)']);
-    oublierLesLectures();
   });
 });

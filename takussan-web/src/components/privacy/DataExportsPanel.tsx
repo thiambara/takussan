@@ -55,10 +55,9 @@ export function intervalleDeSuivi(exports: readonly DataExport[] | undefined): n
  * autre refus, qui garde le chemin commun.
  */
 export function prochaineDemandePossible(erreur: unknown): string | null {
-  if (!(erreur instanceof ApiError) || erreur.status !== 429) return null;
-  const corps = erreur.data as { code?: unknown; available_at?: unknown } | null;
-  if (!corps || corps.code !== 'data_export_throttled' || typeof corps.available_at !== 'string') return null;
-  return corps.available_at;
+  if (!(erreur instanceof ApiError) || erreur.status !== 429 || erreur.codeMetier !== 'data_export_throttled') return null;
+  const quand = (erreur.data as { available_at?: unknown }).available_at;
+  return typeof quand === 'string' ? quand : null;
 }
 
 export function DataExportsPanel() {

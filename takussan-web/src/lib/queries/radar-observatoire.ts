@@ -1,7 +1,7 @@
 import { buildQueryString } from '@/lib/api';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import { radarKeys } from '@/lib/queries/radar';
-import { jsonOrThrow } from '@/lib/queries/super-admin-coque';
+import { appelBff } from '@/lib/bff';
 import type { PaginatedResponse } from '@/types/api';
 import type {
   RadarNatureHistoryFilters,
@@ -46,8 +46,7 @@ export async function fetchRadarObservatory(filters: RadarObservatoryFilters = {
       source_site: filters.sourceSite,
     },
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/observatory${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<RadarObservatoryResponse>(res);
+  return appelBff<RadarObservatoryResponse>(cheminApi`/api/super-admin/radar/observatory${requete(qs)}`);
 }
 
 /**
@@ -59,8 +58,7 @@ export async function fetchRadarNatureHistory(filters: RadarNatureHistoryFilters
     fields: { radar_observatory: ['nature_history'] },
     filter: { since: filters.since, until: filters.until },
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/observatory${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<RadarObservatoryResponse>(res);
+  return appelBff<RadarObservatoryResponse>(cheminApi`/api/super-admin/radar/observatory${requete(qs)}`);
 }
 
 /** Le classement : par volume d'annonces vivantes (`sort=-listings_count`), le plus gros en tête. */
@@ -72,6 +70,5 @@ export async function fetchRadarRanking(filters: RadarRankingFilters = {}): Prom
     page: filters.page ?? 1,
     per_page: filters.perPage ?? 25,
   });
-  const res = await fetch(cheminApi`/api/super-admin/radar/observatory/advertisers${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<PaginatedResponse<RadarRankingRow>>(res);
+  return appelBff<PaginatedResponse<RadarRankingRow>>(cheminApi`/api/super-admin/radar/observatory/advertisers${requete(qs)}`);
 }

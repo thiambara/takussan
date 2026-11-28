@@ -8,15 +8,20 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { ApiError } from '@/lib/api';
+import { appelBff } from '@/lib/bff';
 import { cn } from '@/lib/utils';
 import type { MaintenanceStatusResponse, MaintenanceWindow } from '@/types/super-admin';
 
 async function fetchStatus(): Promise<MaintenanceStatusResponse | null> {
-  const res = await fetch('/api/maintenance/status');
-  // TCK-1221 (P79.06) — une réponse en échec (le 502 `{ code }` du relais quand l'API ne répond
-  // pas) n'est pas un statut : elle est ignorée, sans lever, et le bandeau ne s'affiche pas.
-  if (!res.ok) return null;
-  return res.json() as Promise<MaintenanceStatusResponse>;
+  try {
+    return await appelBff<MaintenanceStatusResponse>('/api/maintenance/status');
+  } catch (erreur) {
+    // TCK-1221 (P79.06) — une réponse en échec (le 502 `{ code }` du relais quand l'API ne répond
+    // pas) n'est pas un statut : elle est ignorée, sans lever, et le bandeau ne s'affiche pas.
+    if (erreur instanceof ApiError) return null;
+    throw erreur;
+  }
 }
 
 /**

@@ -13,21 +13,8 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment } from '@/types/booking';
 import { useNomDuClient } from './liste/pieces';
+import { gestesDeLaReservation, paiementsRemboursables, plafondDuRemboursement } from './detail/gestes';
 import { Avertissement, FeuilleOuPanneau, PastillesDeChoix, useEnPanneau } from './feuilles/pieces-des-feuilles';
-
-/**
- * TCK-2877 — ce qu'un paiement peut encore rendre : son montant moins le cumul déjà remboursé
- * (TCK-1214 : un remboursement partiel laisse la ligne `paid`). Le plafond que l'API juge
- * (`booking_payment.refund_exceeds_paid`).
- */
-export function plafondDuRemboursement(p: BookingPayment): number {
-  return Math.max(0, Number(p.amount ?? 0) - Number(p.refund_amount ?? 0));
-}
-
-/** TCK-2877 — les paiements qu'on peut encore rembourser : encaissés, et pas entièrement rendus. */
-export function paiementsRemboursables(booking: Booking): BookingPayment[] {
-  return (booking.booking_payments ?? []).filter((p) => p.status === 'paid' && plafondDuRemboursement(p) > 0);
-}
 
 interface BookingRefundPanelProps {
   readonly booking: Booking;
@@ -40,7 +27,7 @@ interface BookingRefundPanelProps {
  * TCK-596 — l'acompte d'une réservation fermée sans avoir eu lieu.
  *
  * Le client voit où en est son remboursement (« en cours », « remboursé ») ; qui peut rembourser
- * (`can_refund`, jugé par l'API) voit « remboursement à traiter » et le geste, paiement par
+ * (`abilities.refund`, jugé par l'API) voit « remboursement à traiter » et le geste, paiement par
  * paiement. Bloc distinct du reçu de TCK-593 : le détail ne le monte que si l'API annonce un état.
  */
 export function BookingRefundPanel({ booking, locale, isCustomer }: BookingRefundPanelProps) {
@@ -51,9 +38,11 @@ export function BookingRefundPanel({ booking, locale, isCustomer }: BookingRefun
 
   const refunded = booking.refund_status === 'refunded';
   const toProcess = !refunded && !isCustomer;
-  // Le geste ne s'affiche qu'à qui peut le faire aboutir : l'API en juge (`can_refund`).
-  const canAct = toProcess && booking.can_refund === true;
-  const paid = (booking.booking_payments ?? []).filter((p) => p.status === 'paid');
+  // Le geste ne s'affiche qu'à qui peut le faire aboutir : l'API en juge (`abilities.refund`), lu par la
+  // fonction pure de la fiche (TCK-3007).
+  const canAct = toProcess && gestesDeLaReservation(booking).rembourser;
+  // TCK-3007 — paiement par paiement, ceux que l'API dit remboursables à la main (`refundable`).
+  const paid = paiementsRemboursables(booking);
 
   const title = refunded ? t('refundedTitle') : toProcess ? t('toProcessTitle') : t('pendingTitle');
   const description = refunded

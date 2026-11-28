@@ -59,39 +59,35 @@ function echeance(partiel: Partial<LeasePayment>): LeasePayment {
   return { id: 1, payment_type: 'deposit', status: 'pending', ...partiel } as LeasePayment;
 }
 
-describe('gestesSecondaires — l’abandon', () => {
-  it('sur un brouillon sans échéance saisie, l’abandon est le dernier geste', () => {
-    expect(gestesSecondaires(bail(), []).at(-1)).toBe('abandonner');
+describe('gestesSecondaires — l’abandon (TCK-3011 : l’API juge le brouillon, l’échéance, l’état des lieux)', () => {
+  it('`abandon` vrai : l’abandon est le dernier geste, sans raison', () => {
+    expect(gestesSecondaires(bail()).at(-1)).toBe('abandonner');
     expect(abandonEmpeche(bail(), [])).toBe(false);
   });
 
-  it('jamais sur un autre statut, ni sans l’ability, ni pendant que les échéances chargent', () => {
-    for (const status of ['pending_signature', 'active', 'terminating', 'terminated'] as const) {
-      expect(gestesSecondaires(bail({ status }), [])).not.toContain('abandonner');
+  it('`abandon` faux : pas de geste, quel que soit le statut servi', () => {
+    for (const status of ['draft', 'pending_signature', 'active', 'terminating', 'terminated'] as const) {
+      expect(gestesSecondaires(bail({ status, abilities: { ...GESTION, abandon: false } }))).not.toContain('abandonner');
     }
-    expect(gestesSecondaires(bail({ abilities: { ...GESTION, abandon: false } }), [])).not.toContain('abandonner');
-    expect(gestesSecondaires(bail(), undefined)).not.toContain('abandonner');
-    expect(abandonEmpeche(bail(), undefined)).toBe(false);
   });
 
-  it('une échéance saisie (caution en attente) remplace l’action par sa raison ; annulée, elle ne compte plus', () => {
-    const caution = [echeance({ status: 'pending' })];
-    expect(gestesSecondaires(bail(), caution)).not.toContain('abandonner');
-    expect(abandonEmpeche(bail(), caution)).toBe(true);
-
-    const annulee = [echeance({ status: 'cancelled' })];
-    expect(gestesSecondaires(bail(), annulee)).toContain('abandonner');
-    expect(abandonEmpeche(bail(), annulee)).toBe(false);
+  it('refusé par une échéance saisie : la raison se nomme ; annulée, elle ne compte pas', () => {
+    const refuse = bail({ abilities: { ...GESTION, abandon: false }, has_inventory: false });
+    expect(raisonDAbandonEmpeche(refuse, [echeance({ status: 'pending' })])).toBe('echeance');
+    expect(raisonDAbandonEmpeche(refuse, [echeance({ status: 'cancelled' })])).toBeNull();
+    // Pendant que les échéances chargent, rien n'est dit.
+    expect(raisonDAbandonEmpeche(refuse, undefined)).toBeNull();
   });
 
-  it('un état des lieux (r1 de la vérification d’ace044c18) remplace aussi l’action par sa raison ; l’échéance passe d’abord', () => {
-    const avecEdl = bail({ has_inventory: true });
-    expect(gestesSecondaires(avecEdl, [])).not.toContain('abandonner');
+  it('refusé par un état des lieux engagé ; l’échéance passe d’abord', () => {
+    const avecEdl = bail({ abilities: { ...GESTION, abandon: false }, has_inventory: true });
+    expect(gestesSecondaires(avecEdl)).not.toContain('abandonner');
     expect(raisonDAbandonEmpeche(avecEdl, [])).toBe('etatDesLieux');
     expect(raisonDAbandonEmpeche(avecEdl, [echeance({ status: 'pending' })])).toBe('echeance');
-    expect(raisonDAbandonEmpeche(bail({ has_inventory: false }), [])).toBeNull();
-    // Pendant que les échéances chargent, rien n'est offert ni dit.
-    expect(raisonDAbandonEmpeche(avecEdl, undefined)).toBeNull();
+  });
+
+  it('à qui ne peut pas abandonner (`has_inventory` non servi), aucune raison', () => {
+    expect(raisonDAbandonEmpeche(bail({ abilities: { ...GESTION, abandon: false } }), [echeance({ status: 'pending' })])).toBeNull();
   });
 });
 

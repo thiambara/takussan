@@ -1,6 +1,6 @@
 'use server';
 
-import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
+import { ApiError, apiRequest, refusDAction, type RefusDAction } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { segmentDeSlug } from '@/lib/slug-de-bien';
 import { getTranslations } from 'next-intl/server';
@@ -16,7 +16,7 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 type ActionResult<T = undefined> =
   | { ok: true; data?: T }
-  | { ok: false; status?: number; code?: string; message: string; errors?: Record<string, string[]> };
+  | ({ ok: false; status?: number; errors?: Record<string, string[]> } & RefusDAction);
 
 /**
  * TCK-1406 (ADR-0072 § 7) — la clé d'idempotence REÇUE du composant client part telle quelle dans
@@ -28,29 +28,29 @@ function enTeteIdempotence(cleIdempotence: string | undefined): { headers?: Reco
 
 async function errorFromApi(
   e: unknown,
-): Promise<{ status?: number; code?: string; message: string; errors?: Record<string, string[]> }> {
+): Promise<{ status?: number; errors?: Record<string, string[]> } & RefusDAction> {
   journaliserErreurInattendue('property', e);
   const [tRacine, t] = await Promise.all([
     getTranslations(),
     getTranslations('serverActions.properties'),
   ]);
   if (e instanceof ApiError) {
-    const data = (e.data ?? {}) as { code?: string; message?: string; errors?: Record<string, string[]> };
+    const data = (e.data ?? {}) as { errors?: Record<string, string[]> };
     // TCK-590 — personne ne lirait la demande (bien sans contact joignable, agence sans admin
     // actif) : l'API refuse AVANT d'écrire, et le visiteur l'apprend dans sa langue, sans
     // croire qu'on le rappellera.
-    if (e.status === 409 && data.code === 'lead.contact_unavailable') {
-      return { status: 409, message: tRacine('publicLeadErrors.contactUnavailable') };
+    if (e.status === 409 && e.codeMetier === 'lead.contact_unavailable') {
+      return { status: 409, code: e.codeMetier, message: tRacine('publicLeadErrors.contactUnavailable') };
     }
     return {
       status: e.status,
-      // TCK-1406 — le composant renouvelle sa clé sur `idempotency.key_reused` (ADR-0072 § 7).
-      ...(data.code === 'idempotency.key_reused' ? { code: data.code } : {}),
+      // TCK-1406 — le composant renouvelle sa clé sur `idempotency.key_reused` (ADR-0072 § 7) : le code
+      // vient de `refusDAction`, qui le rend pour tout refus (TCK-3008).
       // ⚠️ C'était `data.message ?? t('apiError', …)`, et `data.message` relayait TEL QUEL le
       // « Unauthenticated. » anglais de Laravel — le cas le plus fréquent d'un 401. Le repli
       // `Erreur (404).` est un gabarit interpolé, donc invisible au scanner de check-i18n ;
       // il s'affichait bien (TCK-292, lot K).
-      message: messageErreurApi(e, tRacine, t('apiError', { status: String(e.status) })),
+      ...refusDAction(e, tRacine, t('apiError', { status: String(e.status) })),
       errors: data.errors,
     };
   }

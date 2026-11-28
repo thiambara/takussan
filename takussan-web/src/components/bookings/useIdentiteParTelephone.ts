@@ -56,7 +56,7 @@ function erreurDeDemande(err: unknown): ErreurIdentite {
 
 function erreurDeVerification(err: unknown): ErreurIdentite {
   if (err instanceof ApiError) {
-    const code = err.data && typeof err.data === 'object' ? (err.data as { code?: unknown }).code : undefined;
+    const code = err.codeMetier;
     if (err.status === 423 || code === 'account_locked') return 'locked';
     if (code === 'account_blocked') return 'blocked';
     if (err.status === 429) return 'tooMany';

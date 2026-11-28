@@ -10,9 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input, type ProfilDeChamp } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
+import { ApiError, codeMetierDe } from '@/lib/api';
 import { useAjouterUnGarant, useRetirerUnGarant, type GarantSaisi } from '@/lib/queries/candidature-et-bail';
-import { codeDuRefus } from '@/lib/reservations/saisie-de-demande';
 import type { Booking } from '@/types/booking';
 
 import { FeuilleOuPanneau } from '../feuilles/pieces-des-feuilles';
@@ -38,7 +37,7 @@ function useMessageDuRefus(): (erreur: unknown) => string {
   const t = useTranslations('bookings.fiche.garants');
   const messageErreur = useMessageErreurApi();
   return (erreur) => {
-    const code = codeDuRefus(erreur);
+    const code = codeMetierDe(erreur);
     if (code && CLE_DU_CODE[code]) return t(`codes.${CLE_DU_CODE[code]}`);
     const champ = erreur instanceof ApiError ? Object.values(erreur.validationErrors ?? {})[0]?.[0] : undefined;
     return champ ?? messageErreur(erreur, t('echec'));

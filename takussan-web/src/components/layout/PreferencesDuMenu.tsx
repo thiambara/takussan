@@ -18,6 +18,7 @@ import {
 } from '@/lib/navigation/preferences';
 import { lirePreferencesDeNavigation } from '@/lib/navigation/preferences-schema';
 import { Contexte, type PreferencesDuMenu } from './contexte-preferences-du-menu';
+import { appelBff } from '@/lib/bff';
 
 /** TCK-2480 (A4) — le délai avant l'envoi : plusieurs gestes rapprochés partent en UNE écriture. */
 export const DELAI_D_ENVOI_MS = 800;
@@ -84,14 +85,8 @@ export function PreferencesDuMenuProvider({
     derniere.current = { numero, etat, keepalive };
     let ok = false;
     try {
-      const reponse = await fetch('/api/me', {
-        method: 'PATCH',
-        credentials: 'include',
-        keepalive,
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ navigation: versLeCorps(etat) }),
-      });
-      ok = reponse.ok;
+      await appelBff('/api/me', { method: 'PATCH', keepalive, body: { navigation: versLeCorps(etat) } });
+      ok = true;
     } catch {
       ok = false;
     }

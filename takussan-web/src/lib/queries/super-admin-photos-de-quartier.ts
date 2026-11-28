@@ -1,4 +1,4 @@
-import { ApiError } from '@/lib/api';
+import { appelBff } from '@/lib/bff';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import type { MetaDePage } from '@/lib/queries/super-admin-propositions';
 
@@ -79,15 +79,6 @@ interface QuartierAdmin {
   readonly cover?: { readonly url?: unknown; readonly source?: unknown } | null;
 }
 
-async function corpsOuErreur<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new ApiError(res.status, data);
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
-}
-
 function photoDe(cover: QuartierAdmin['cover']): PhotoDeQuartier | null {
   if (!cover || typeof cover.url !== 'string' || cover.url.trim() === '') return null;
   return { url: cover.url, source: typeof cover.source === 'string' ? cover.source : 'upload' };
@@ -107,14 +98,12 @@ export async function listerQuartiersApprouves(f: FiltresDeQuartiers): Promise<P
   qs.set('sort', '-addresses_count');
   qs.set('page', String(f.page));
   qs.set('per_page', '24');
-  const res = await fetch(cheminApi`/api/super-admin/geo/neighborhoods${requete(qs)}`, { credentials: 'include' });
-  const corps = await corpsOuErreur<{ data: QuartierAdmin[]; meta: MetaDePage }>(res);
+  const corps = await appelBff<{ data: QuartierAdmin[]; meta: MetaDePage }>(cheminApi`/api/super-admin/geo/neighborhoods${requete(qs)}`);
   return { data: corps.data.map(depuisLigne), meta: corps.meta };
 }
 
 export async function lirePropositionsWikimedia(id: number): Promise<PropositionsWikimedia> {
-  const res = await fetch(cheminApi`/api/super-admin/geo/neighborhoods/${id}/cover/suggestions`, { credentials: 'include' });
-  const corps = await corpsOuErreur<{ data?: PropositionWikimedia[]; meta?: { unavailable?: boolean } }>(res);
+  const corps = await appelBff<{ data?: PropositionWikimedia[]; meta?: { unavailable?: boolean } }>(cheminApi`/api/super-admin/geo/neighborhoods/${id}/cover/suggestions`);
   return { data: corps.data ?? [], indisponible: corps.meta?.unavailable === true };
 }
 
@@ -129,36 +118,21 @@ export function refusDuFichier(fichier: File): 'type' | 'size' | null {
 export async function envoyerPhoto(id: number, fichier: File): Promise<QuartierApprouve> {
   const donnees = new FormData();
   donnees.append('file', fichier);
-  // Aucun `Content-Type` : le navigateur pose la frontière du multipart.
-  const res = await fetch(cheminApi`/api/super-admin/geo/neighborhoods/${id}/cover`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-    body: donnees,
-  });
-  const corps = await corpsOuErreur<{ data: QuartierAdmin }>(res);
+  const corps = await appelBff<{ data: QuartierAdmin }>(cheminApi`/api/super-admin/geo/neighborhoods/${id}/cover`, { method: 'POST', body: donnees });
   return depuisLigne(corps.data);
 }
 
 /** Import d'une proposition PAR SON TITRE, jamais par URL : le serveur relit le fichier sur Commons. */
 export async function importerDeWikimedia(id: number, titre: string): Promise<QuartierApprouve> {
-  const res = await fetch(cheminApi`/api/super-admin/geo/neighborhoods/${id}/cover/import`, {
+  const corps = await appelBff<{ data: QuartierAdmin }>(cheminApi`/api/super-admin/geo/neighborhoods/${id}/cover/import`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ source: 'wikimedia', title: titre }),
+    body: { source: 'wikimedia', title: titre },
   });
-  const corps = await corpsOuErreur<{ data: QuartierAdmin }>(res);
   return depuisLigne(corps.data);
 }
 
 export async function retirerPhoto(id: number): Promise<void> {
-  const res = await fetch(cheminApi`/api/super-admin/geo/neighborhoods/${id}/cover`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-  await corpsOuErreur<unknown>(res);
+  await appelBff<null>(cheminApi`/api/super-admin/geo/neighborhoods/${id}/cover`, { method: 'DELETE' });
 }
 
 /**

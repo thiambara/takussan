@@ -23,7 +23,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { Locale } from '@/i18n/config';
-import { ApiError } from '@/lib/api';
+import { ApiError, codeMetierDe } from '@/lib/api';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { REQUETE_BARRE_PUBLIQUE } from '@/lib/navigation/barre-publique';
 import { cn } from '@/lib/utils';
@@ -70,22 +70,16 @@ const NUMERO_PROBABLE = /(?:\d[\s.-]?){7}\d/;
 
 /** Les champs que l'API nomme dans un refus `radar.claim.name_contains_phone`. */
 function champsDuRefus(err: unknown): ChampDeNom[] {
-  if (codeDe(err) !== 'radar.claim.name_contains_phone') return [];
+  if (codeMetierDe(err) !== 'radar.claim.name_contains_phone') return [];
   const champs = (err as ApiError).data as { fields?: unknown } | null;
   const liste = Array.isArray(champs?.fields) ? champs.fields : [];
   return liste.filter((c): c is ChampDeNom => c === 'first_name' || c === 'space_name');
 }
 
-function codeDe(err: unknown): string | null {
-  if (!(err instanceof ApiError)) return null;
-  const code = (err.data as { code?: unknown } | null)?.code;
-  return typeof code === 'string' ? code : null;
-}
-
 /** Les états de la page qu'une erreur de l'API nomme : le lien ne sert pas, ou plus. */
 function etatDeLErreur(err: unknown): Etat | null {
   if (!(err instanceof ApiError)) return null;
-  const code = codeDe(err);
+  const code = codeMetierDe(err);
   if (err.status === 410) return { kind: code === 'radar.claim.revoked' ? 'revoked' : 'expired' };
   if (err.status === 404) return { kind: 'notFound' };
   if (err.status === 503 && code === 'radar.claim.unavailable') return { kind: 'unavailable' };
@@ -183,7 +177,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
   }, [attente]);
 
   function messageDuRefus(err: unknown): string {
-    const nomme = codeDe(err);
+    const nomme = codeMetierDe(err);
     const cle = nomme ? (ERREURS_RECLAMATION_RADAR[nomme] ?? REFUS_DU_CODE[nomme]) : undefined;
     if (cle) return t(`errors.${cle}`);
     if (err instanceof ApiError && err.status === 429) return t('errors.tooMany');
@@ -212,7 +206,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
       if (nomme && nomme.kind !== 'unavailable') {
         setRefus((r) => ({ ...r, ouvert: false }));
         setEtat(nomme);
-      } else if (codeDe(err) === 'radar.advertiser.busy') setErreurRefus(tL('refus.occupe'));
+      } else if (codeMetierDe(err) === 'radar.advertiser.busy') setErreurRefus(tL('refus.occupe'));
       else if (err instanceof ApiError && err.status === 429) setErreurRefus(t('errors.tooMany'));
       else setErreurRefus(tL('refus.echec'));
     } finally {

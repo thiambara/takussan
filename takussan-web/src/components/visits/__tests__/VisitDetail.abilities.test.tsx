@@ -20,6 +20,7 @@ import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
+import { avecLesGestesDeLApi } from './fixtures/gestes-comme-l-api';
 
 const etat = vi.hoisted(() => ({ visit: null as PropertyVisit | null }));
 const mutation = { mutateAsync: vi.fn(), isPending: false };
@@ -33,7 +34,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/lib/queries/visits', () => ({
   useVisit: () => ({
-    data: etat.visit ? { data: etat.visit } : undefined,
+    data: etat.visit ? { data: avecLesGestesDeLApi(etat.visit) } : undefined,
     isLoading: false,
     isError: !etat.visit,
     error: null,
@@ -138,6 +139,36 @@ describe('<VisitDetail> — gestes jugés par l’API (P152.04)', () => {
   it('sans abilities, rien n’est offert', () => {
     rendre(visite());
     for (const nom of GESTES) expect(screen.queryByRole('button', { name: nom })).toBeNull();
+  });
+
+  it('TCK-3005 (AC4) — `manage` seul ne suffit plus : un geste qu’`abilities` refuse n’est pas affiché', () => {
+    ecrans(true);
+    // L'API sert ses clés de geste : toutes refusées (une visite que l'état ne laisse plus toucher).
+    rendre(
+      visite({
+        status: 'confirmed',
+        abilities: { manage: true, confirm: false, complete: false, no_show: false, cancel: false, reschedule: false, claim: false, assign: false, propose: false },
+      }),
+    );
+
+    for (const nom of GESTES_AU_TELEPHONE) {
+      expect(screen.queryByRole('button', { name: nom })).toBeNull();
+    }
+  });
+
+  it('TCK-3005 (AC4) — seul le geste qu’`abilities` accorde est affiché', () => {
+    ecrans(true);
+    rendre(
+      visite({
+        status: 'confirmed',
+        abilities: { manage: true, confirm: false, complete: false, no_show: true, cancel: false, reschedule: false, claim: false, assign: false, propose: false },
+      }),
+    );
+
+    expect(screen.getByRole('button', { name: f.barre.absent })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: f.barre.terminer })).toBeNull();
+    expect(screen.queryByRole('button', { name: ANNULER })).toBeNull();
+    expect(screen.queryByRole('button', { name: REPLANIFIER })).toBeNull();
   });
 
   it('celui que l’API laisse gérer voit les gestes', async () => {

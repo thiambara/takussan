@@ -1,6 +1,6 @@
 'use server';
 
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction, type RefusDAction } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
 import {
@@ -22,7 +22,7 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; message: string; obligations?: AccountDeletionObligation[]; errors?: Record<string, string[]> };
+  | ({ ok: false; obligations?: AccountDeletionObligation[]; errors?: Record<string, string[]> } & RefusDAction);
 
 /**
  * Le jeton manque. Le littéral d'origine était l'anglais « Not authenticated. », affiché tel quel
@@ -44,14 +44,13 @@ function requireToken(
 /** Clés de repli de `serverActions.accountDeletion`. */
 type CleRepli = 'loadFailed' | 'submitFailed' | 'sendCodeFailed' | 'cancelFailed';
 
-async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string; obligations?: AccountDeletionObligation[]; errors?: Record<string, string[]> }> {
+async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; obligations?: AccountDeletionObligation[]; errors?: Record<string, string[]> } & RefusDAction> {
   journaliserErreurInattendue('account-deletion', err);
   const t = await getTranslations('serverActions.accountDeletion');
   const fallback = t(cleRepli);
   if (err instanceof ApiError) {
     const data = err.data as
       | {
-          message?: string;
           obligations?: AccountDeletionObligation[];
           errors?: Record<string, string[]>;
         }
@@ -60,7 +59,7 @@ async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; m
       ok: false,
       // `data?.message` pouvait être la sentinelle anglaise « Unauthenticated. » de Laravel, et
       // `err.displayMessage` la CLÉ i18n : `messageErreurApi` écarte les deux.
-      message: messageErreurApi(err, await getTranslations(), fallback),
+      ...refusDAction(err, await getTranslations(), fallback),
       obligations: data?.obligations,
       errors: data?.errors,
     };

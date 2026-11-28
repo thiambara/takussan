@@ -3,10 +3,25 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\User;
+use App\Services\Invoice\GestesDeLaFacture;
 use Illuminate\Http\Request;
 
 class InvoiceResource extends BaseResource
 {
+    private ?User $viewer = null;
+
+    /**
+     * TCK-3011 (ADR-0139) — la fiche et les réponses de ses gestes (`InvoiceController::presenter`) :
+     * `abilities` se juge pour ce lecteur. Jamais en liste (ADR-0139 § 5).
+     */
+    public function forViewer(?User $viewer): static
+    {
+        $this->viewer = $viewer;
+
+        return $this;
+    }
+
     public function toArray(Request $request): array
     {
         return [
@@ -39,6 +54,8 @@ class InvoiceResource extends BaseResource
             'currency' => $this->currency?->value,
             'notes' => $this->notes,
             'created_at' => $this->iso($this->created_at),
+            // TCK-3011 (ADR-0139) — chaque geste que l'API accepterait maintenant, policy et état compris.
+            'abilities' => $this->when($this->viewer !== null, fn (): array => app(GestesDeLaFacture::class)->pour($this->viewer, $this->resource)),
         ];
     }
 }

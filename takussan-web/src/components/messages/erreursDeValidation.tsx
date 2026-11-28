@@ -20,12 +20,9 @@ import { cn } from '@/lib/utils';
  */
 export function phrasesDeValidation(erreur: unknown): string[] | null {
   if (!(erreur instanceof ApiError)) return null;
-  const parChamp = erreur.validationErrors;
-  if (!parChamp) return null;
-
-  const phrases = Object.values(parChamp)
-    .flat()
-    .filter((phrase): phrase is string => typeof phrase === 'string' && phrase.trim().length > 0);
+  // TCK-3008 — l'aplatissement est celui d'`ApiError` ; restent ici ce que la messagerie y ajoute : ni
+  // phrase blanche, ni doublon (deux champs qui disent la même chose ne s'affichent qu'une fois).
+  const phrases = erreur.messagesDeValidation().filter((phrase) => phrase.trim().length > 0);
 
   return phrases.length > 0 ? [...new Set(phrases)] : null;
 }

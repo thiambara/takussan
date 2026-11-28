@@ -11,6 +11,6 @@ export function estPenaliteHorsLigne(erreur: unknown): boolean {
   return (
     erreur instanceof ApiError &&
     erreur.status === 409 &&
-    (erreur.data as { code?: unknown } | null)?.code === PENALITE_HORS_LIGNE
+    erreur.codeMetier === PENALITE_HORS_LIGNE
   );
 }

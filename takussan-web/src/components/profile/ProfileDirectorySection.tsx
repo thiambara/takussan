@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { appelBff } from '@/lib/bff';
 
 interface ProfileDirectorySectionProps {
   /** `users.listed_in_public_directory`, servi pour SOI par `GET /api/auth/me` ; absent vaut « non ». */
@@ -28,13 +29,8 @@ export function ProfileDirectorySection({ listed = false }: ProfileDirectorySect
     demarrer(async () => {
       let ok = false;
       try {
-        const res = await fetch('/api/me', {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ listed_in_public_directory: valeur }),
-        });
-        ok = res.ok;
+        await appelBff('/api/me', { method: 'PATCH', body: { listed_in_public_directory: valeur } });
+        ok = true;
       } catch {
         ok = false;
       }

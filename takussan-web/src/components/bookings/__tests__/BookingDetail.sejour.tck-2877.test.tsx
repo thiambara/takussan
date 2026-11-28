@@ -12,6 +12,7 @@ import fr from '@/messages/fr.json';
 import { ToastProvider } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useBooking } from '@/lib/queries/bookings';
+import { gestesServis, permis } from './abilities-de-test';
 import { BookingDetail } from '../BookingDetail';
 import { nuitsDuMois } from '../detail/nuits-du-bien';
 
@@ -24,7 +25,6 @@ vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => ecran.telepho
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 5 }));
 vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => new Date('2026-11-10T10:00:00Z') }));
 vi.mock('@/lib/jour-de-l-api', async (importOriginal) => ({ ...(await importOriginal<object>()), jourDeLApi: () => '2026-11-10' }));
-vi.mock('@/hooks/useCan', () => ({ useCanAll: () => ({ can: true, isLoading: false }) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/usePaymentProviders', () => ({ usePaymentProviders: () => ({ providers: [] }) }));
 vi.mock('@/lib/queries/nuits-du-bien', () => ({
@@ -56,12 +56,11 @@ const SEJOUR = {
   guests: 2,
   created_at: '2026-11-06T16:40:00Z',
   confirmed_at: '2026-11-06T17:05:00Z',
-  can_refund: true,
   customer_id: 3,
   customer: { id: 3, user_id: 40, first_name: 'Awa', last_name: 'Diop', phone: '+221774513680' },
   property: { id: 9, title: 'Appartement vue mer', slug: 'appartement', price: 55_000, currency: 'XOF', contract_type: 'rent', rent_period: 'daily', location: { quarter: 'Ngor' }, main_photo_url: null },
   booking_payments: [
-    { id: 61, amount: 49_500, currency: 'XOF', payment_type: 'deposit', payment_method: 'orange_money', status: 'paid', paid_at: '2026-11-06T18:42:00Z', payment_date: '2026-11-06T18:42:00Z', created_at: '2026-11-06T18:40:00Z' },
+    { id: 61, amount: 49_500, currency: 'XOF', payment_type: 'deposit', payment_method: 'orange_money', status: 'paid', paid_at: '2026-11-06T18:42:00Z', payment_date: '2026-11-06T18:42:00Z', created_at: '2026-11-06T18:40:00Z', refundable: true },
   ],
   notes: null,
 };
@@ -71,7 +70,9 @@ const montant = (t: string) => new RegExp(t.replace(/ /g, '[\\s\\u00a0\\u202f]')
 
 function rendre(booking: Record<string, unknown>, userId = 3) {
   vi.mocked(useAuth).mockReturnValue({ user: { id: userId, roles: ['agent'] }, token: 'tok' } as unknown as ReturnType<typeof useAuth>);
-  vi.mocked(useBooking).mockReturnValue({ data: { data: booking }, isLoading: false, isError: false } as unknown as ReturnType<typeof useBooking>);
+  // TCK-3007 — les gestes que l'API servirait : à l'agent qui tient `bookings.refund`, ou au client (40).
+  const servie = { ...booking, abilities: booking.abilities ?? (userId === 40 ? gestesServis(booking, 'client') : gestesServis(booking, 'personnel', 'refund')) };
+  vi.mocked(useBooking).mockReturnValue({ data: { data: servie }, isLoading: false, isError: false } as unknown as ReturnType<typeof useBooking>);
   return render(
     withIntl(
       <ToastProvider>
@@ -129,14 +130,14 @@ describe('TCK-2877 — « Rembourser » un séjour confirmé', () => {
     expect(i).toBeLessThan(gestes.indexOf(fr.bookings.paymentDialog.title));
   });
 
-  it('absent sans paiement encaissé, sans `can_refund`, sur un paiement entièrement remboursé, et pour le client', () => {
-    const { unmount } = rendre({ ...SEJOUR, booking_payments: [{ ...SEJOUR.booking_payments[0], status: 'pending' }] });
+  it('absent sans paiement encaissé, sans `abilities.refund`, sur un paiement entièrement remboursé, et pour le client', () => {
+    const { unmount } = rendre({ ...SEJOUR, booking_payments: [{ ...SEJOUR.booking_payments[0], status: 'pending', refundable: false }] });
     expect(screen.queryByRole('button', { name: fr.bookings.fiche.gestes.rembourser })).toBeNull();
     unmount();
-    const r2 = rendre({ ...SEJOUR, can_refund: false });
+    const r2 = rendre({ ...SEJOUR, abilities: permis() });
     expect(screen.queryByRole('button', { name: fr.bookings.fiche.gestes.rembourser })).toBeNull();
     r2.unmount();
-    const r3 = rendre({ ...SEJOUR, booking_payments: [{ ...SEJOUR.booking_payments[0], refund_amount: 49_500 }] });
+    const r3 = rendre({ ...SEJOUR, booking_payments: [{ ...SEJOUR.booking_payments[0], refund_amount: 49_500, refundable: false }] });
     expect(screen.queryByRole('button', { name: fr.bookings.fiche.gestes.rembourser })).toBeNull();
     r3.unmount();
     rendre(SEJOUR, 40);

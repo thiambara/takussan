@@ -14,6 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
+import { avecLesGestesDeLApi } from './fixtures/gestes-comme-l-api';
 
 const mutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const visite: PropertyVisit = {
@@ -44,7 +45,7 @@ vi.mock('@/lib/api', async (orig) => ({
   apiFetch: () => Promise.resolve({ data: { slots: [] } }),
 }));
 vi.mock('@/lib/queries/visits', () => ({
-  useVisit: () => ({ data: { data: visite }, isLoading: false, isError: false }),
+  useVisit: () => ({ data: { data: avecLesGestesDeLApi(visite) }, isLoading: false, isError: false }),
   useCancelVisit: () => mutation,
   useCompleteVisit: () => mutation,
   useConfirmVisit: () => mutation,

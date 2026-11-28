@@ -1,18 +1,17 @@
 /**
  * TCK-2882 — au bureau, « Liste · Semaine » (mode par le temps), le filtre « Statut » (par le temps)
  * et le filtre « Type » (« Toutes », la vue des statuts). Les vrais `VisitesParLeTemps`,
- * `VisitsList` et `SemaineDeLAgenda`, une URL qui change vraiment, le réseau doublé à `apiRequest`.
+ * `VisitsList` et `SemaineDeLAgenda`, une URL qui change vraiment, le réseau doublé à `fetch` (`doublerLApi`, TCK-3010).
  *
  * Horloge : mardi 10 novembre 2026, 10:12 à Dakar ; la semaine va du lundi 9 au dimanche 15.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { doublerLApi } from '@/test/api-simulee';
 import { navigationDeTest } from '@/test/navigation-url';
-import { withIntl } from '@/test/intl';
-import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
+import { rendre } from '@/test/rendu';
 import type { PropertyVisit } from '@/types/visit';
 
 import { VisitesParLeTemps } from '../VisitesParLeTemps';
@@ -20,13 +19,12 @@ import { VisitesParLeTemps } from '../VisitesParLeTemps';
 // Un fuseau qui n'est pas celui de Dakar : la semaine et ses heures doivent rester à l'heure de Dakar.
 process.env.TZ = 'Europe/Paris';
 
-const etat = vi.hoisted(() => ({ appels: [] as string[], assigner: true }));
+const etat = vi.hoisted(() => ({ assigner: true }));
 
 vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: (requete: string) => requete.includes('64rem') }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ useAgenceDuPersonnelActif: () => 3, usePersonnelActif: () => true }));
 vi.mock('@/hooks/useCan', () => ({ useCan: (c: string) => ({ can: c === 'crm.assign' ? etat.assigner : true, isLoading: false }) }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 7, roles: ['agent'], agency_id: 3 }, token: 'jeton' }) }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/components/layout/en-tete-de-la-coque', () => ({ DeclarerEnTete: () => null }));
 vi.mock('@/components/visits/PlanifierUneVisite', () => ({ PlanifierDialog: () => null }));
@@ -47,44 +45,29 @@ const VENDREDI: PropertyVisit = { ...MERCREDI, id: 42, status: 'scheduled', type
 const LUNDI_TERMINEE: PropertyVisit = { ...MERCREDI, id: 43, status: 'completed', scheduled_at: '2026-11-09T09:00:00Z', property: { id: 12, title: 'Appartement Fann', slug: 'fann' } } as PropertyVisit;
 const MARDI_ABSENT: PropertyVisit = { ...MERCREDI, id: 44, status: 'no_show', scheduled_at: '2026-11-10T08:30:00Z', property: { id: 13, title: 'Studio Ouakam', slug: 'ouakam' } } as PropertyVisit;
 
-vi.mock('@/lib/api', async (original) => {
-  const vrai = await original<typeof import('@/lib/api')>();
-  return {
-    ...vrai,
-    apiRequest: vi.fn(async (chemin: string, options: { method?: string } = {}) => {
-      if ((options.method ?? 'GET') === 'GET') etat.appels.push(chemin);
-      const [route, qs] = chemin.split('?');
-      const p = new URLSearchParams(qs ?? '');
-      if (route === '/api/property-visits/counts') return { data: COMPTES };
-      if (route === '/api/property-visits') {
-        const semaine = p.get('filter[scheduled_at_min]') === '2026-11-09T00:00:00Z';
-        const data = semaine ? [MERCREDI, VENDREDI, LUNDI_TERMINEE, MARDI_ABSENT] : p.get('filter[type]') === 'virtual' ? [MERCREDI] : [MERCREDI, VENDREDI];
-        const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
-        return servir(chemin, { data, meta: { total: data.length, per_page: 30, current_page: 1, last_page: 1 } });
-      }
-      return { data: [], meta: { total: 0, per_page: 8, current_page: 1, last_page: 1 } };
-    }),
-  };
-});
+const api = doublerLApi()
+  .sur('GET', '/api/property-visits/counts', { data: COMPTES })
+  .servir('visites', ({ requete: p }) => {
+    const semaine = p.get('filter[scheduled_at_min]') === '2026-11-09T00:00:00Z';
+    return semaine ? [MERCREDI, VENDREDI, LUNDI_TERMINEE, MARDI_ABSENT] : p.get('filter[type]') === 'virtual' ? [MERCREDI] : [MERCREDI, VENDREDI];
+    // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  }, { filtres: ['status', 'day', 'scheduled_at_max', 'agent_id', 'property_id', 'search', 'unassigned'] })
+  .parDefaut({ data: [], meta: { total: 0, per_page: 8, current_page: 1, last_page: 1 } });
 
 function monter() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{withIntl(<VisitesParLeTemps titre="Visites" />)}</QueryClientProvider>);
+  return rendre(<VisitesParLeTemps titre="Visites" />, { compte: { utilisateur: { id: 7, roles: ['agent'], agency_id: 3 }, jeton: 'jeton' } });
 }
 
-const lectures = (route: string) => etat.appels.filter((c) => c.split('?')[0] === route).map((c) => new URLSearchParams(c.split('?')[1] ?? ''));
+const lectures = (route: string) => api.appels(route).filter((a) => a.methode === 'GET').map((a) => a.requete);
 const url = () => new URLSearchParams(navigationDeTest.requete());
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-10T10:12:00Z'));
-  etat.appels = [];
   etat.assigner = true;
-  oublierLesLectures();
 });
 afterEach(() => {
   vi.useRealTimers();
-  expect(lecturesHorsFields()).toEqual([]);
 });
 
 describe('AC1 — « Liste · Semaine »', () => {
@@ -95,7 +78,9 @@ describe('AC1 — « Liste · Semaine »', () => {
 
     const bascule = screen.getByRole('radiogroup', { name: 'Affichage' });
     expect(within(bascule).getByRole('radio', { name: 'Liste' })).toHaveAttribute('aria-checked', 'true');
-    etat.appels = [];
+    // La lecture de la liste part après les attentes d'`apiRequest` : on la laisse partir avant de compter.
+    await waitFor(() => expect(lectures('/api/property-visits')).toHaveLength(1));
+    api.oublierLesAppels();
     await user.click(within(bascule).getByRole('radio', { name: 'Semaine' }));
 
     expect(url().get('affichage')).toBe('semaine');
@@ -139,7 +124,8 @@ describe('AC1 — « Liste · Semaine »', () => {
     monter();
     await screen.findByTestId('calendar-event-pill-visit-41');
     expect(screen.queryByRole('button', { name: /^Agent/ })).toBeNull();
-    expect(etat.appels.some((c) => c.startsWith('/api/agencies/'))).toBe(false);
+    await api.auRepos();
+    expect(api.appels().some((a) => a.chemin.startsWith('/api/agencies/'))).toBe(false);
   });
 
   it('le filtre « Statut » de la semaine part en `filter[status]`', async () => {
@@ -191,6 +177,7 @@ describe('AC2 — le filtre « Type » de « Toutes »', () => {
     navigationDeTest.reinitialiser('vue=status&tab=all&type=virtual');
     monter();
     await screen.findByText('Villa Ngor');
+    await api.auRepos();
     expect(lectures('/api/property-visits').some((p) => p.get('filter[type]'))).toBe(false);
     espion.mockRestore();
   });

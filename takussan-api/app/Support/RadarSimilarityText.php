@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Support\Telephone\Repli;
+
 /**
  * TCK-2392 — le texte que compare le quatrième signal de rapprochement (`RadarMatcher::SIGNAL_TEXT`).
  *
@@ -33,7 +35,7 @@ final class RadarSimilarityText
             return null;
         }
 
-        $text = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $text));
+        $text = Repli::texte($text);
         $text = (string) preg_replace('/\d+/u', ' ', $text);
         $text = mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $text)));
         if (mb_strlen($text) < self::MIN_CHARS) {

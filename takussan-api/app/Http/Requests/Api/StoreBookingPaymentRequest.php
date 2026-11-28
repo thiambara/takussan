@@ -10,7 +10,7 @@ use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Rules\InstantIso;
-use App\Services\Booking\BookingMoneyAccess;
+use App\Services\Booking\GestesDeLaReservation;
 use Illuminate\Validation\Rule;
 
 /**
@@ -52,11 +52,10 @@ class StoreBookingPaymentRequest extends BaseFormRequest
         $booking = $this->route('booking');
         $user = $this->user();
 
+        // TCK-3007 — la règle vit avec le geste « payer » (`abilities.pay`) : une seule définition.
         return $booking instanceof Booking
             && $user !== null
-            && $booking->customer !== null
-            && $booking->customer->user_id === $user->id
-            && ! BookingMoneyAccess::canRecordAsCollector($user, $booking);
+            && GestesDeLaReservation::estLePayeurClient($user, $booking);
     }
 
     /** @return array<string, mixed> */

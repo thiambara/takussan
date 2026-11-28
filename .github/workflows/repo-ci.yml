@@ -1092,6 +1092,17 @@ jobs:
         # (`Unsupported cipher or incorrect key length`). Rien ne le voyait avant le déploiement.
         run: node scripts/check-app-key-base64.mjs --report
 
+      - name: Le lecteur unique des tickets lit chaque forme admise
+        # `gen-index`, `check-backlog` et `ranger-tickets` lisent les tickets par le seul
+        # `docs/backlog/tickets.mjs` (TCK-3003) : deux parseurs écrits séparément avaient divergé
+        # trois fois sur le même format. Ses tests fabriquent une forme YAML par cas — liste en
+        # bloc, `wave:` vide, sous-clés de `spec_refs` — et vérifient qu'aucun des trois outils
+        # ne relit le format pour son compte. Les deux `paths` couvrent déjà `docs/**`.
+        #
+        # ⚠ Le GLOB entre guillemets, pas le dossier : sous Node 24, `node --test <dossier>` prend
+        # le dossier pour un fichier et échoue sans lancer un seul test (mesuré le 2026-11-27).
+        run: node --test 'docs/backlog/__tests__/*.test.mjs'
+
       - name: La source du backlog se rend en index sans erreur
         # INDEX.md n'est plus versionné (ADR-0067) : il n'y a plus de copie à juger périmée. Reste
         # la SOURCE — `--check` n'écrit rien et sort non nul sur un id dupliqué, un statut ou une

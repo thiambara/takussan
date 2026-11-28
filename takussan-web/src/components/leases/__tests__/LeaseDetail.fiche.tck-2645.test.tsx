@@ -133,7 +133,14 @@ const RIEN: LeaseAbilities = {
   give_notice: false,
   rent_review_force: false,
 };
-const GESTION: LeaseAbilities = { ...RIEN, renew: true, review_rent: true, record_payment: true, refund_deposit: true, request_early_termination: true, update: true, attach_guarantor: true, add_document: true, download_contract: true };
+// TCK-3011 (ADR-0139) — ce que l'API sert à la gestion d'un bail ACTIF dont l'échéancier existe : chaque clé
+// porte l'état (la caution ne se restitue qu'en fin de bail, une ligne se pose sur un bail qui court).
+const GESTION: LeaseAbilities = { ...RIEN, renew: true, review_rent: true, record_payment: true, add_payment: true, request_early_termination: true, update: true, attach_guarantor: true, add_document: true, download_contract: true };
+/**
+ * Un brouillon ou un bail en signature : la demande de signature ; ni ligne à poser, ni révision, ni
+ * renouvellement, ni préavis — l'API ne les sert que sur un bail qui court.
+ */
+const SIGNATURE: LeaseAbilities = { ...GESTION, add_payment: false, renew: false, review_rent: false, request_early_termination: false, request_signature: true };
 const LOCATAIRE: LeaseAbilities = { ...RIEN, request_early_termination: true, add_document: true, download_contract: true, leave_review: true, give_notice: true };
 
 /** Le premier jour du mois dans `n` mois, à Dakar (UTC). */
@@ -157,6 +164,8 @@ function echeance(partiel: Partial<LeasePayment>): LeasePayment {
     receipt_available: false,
     is_overdue: false,
     late_fee_outstanding: 0,
+    // TCK-3011 — la ligne dit si l'API la laisse encaisser : un reste dû, ni payée ni annulée.
+    abilities: { pay: false, remind: false, record_payment: !['paid', 'cancelled'].includes(partiel.status ?? 'pending') },
     ...partiel,
   } as LeasePayment;
 }
@@ -249,7 +258,7 @@ describe('le geste principal', () => {
   });
 
   it('en signature, la gestion relance par WhatsApp la partie qui n’a pas signé (décision 4)', () => {
-    etat.lease = bail(GESTION, { status: 'pending_signature', can_request_signature: true, can_sign_as: [], signatures: [] });
+    etat.lease = bail(SIGNATURE, { status: 'pending_signature', can_request_signature: true, can_sign_as: [], signatures: [] });
     monter();
     const lien = within(barre()!).getByRole('link', { name: new RegExp(fr.lease.fiche.gestes.relancerSignature) });
     expect(lien.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/221770000001\?text=/);
@@ -257,7 +266,7 @@ describe('le geste principal', () => {
   });
 
   it('brouillon, locataire sans compte : « Envoyer à la signature » désactivé, avec sa raison', () => {
-    etat.lease = bail(GESTION, { status: 'draft', can_request_signature: true, tenant: { id: 1, user_id: null, first_name: 'Fatou' } });
+    etat.lease = bail(SIGNATURE, { status: 'draft', can_request_signature: true, tenant: { id: 1, user_id: null, first_name: 'Fatou' } });
     monter();
     expect(within(barre()!).getByRole('button', { name: new RegExp(fr.lease.fiche.gestes.envoyerSignature) })).toBeDisabled();
     expect(screen.getByTestId('signature-bloquee')).toHaveTextContent(fr.lease.fiche.gestes.bloque['sans-compte']);
@@ -291,7 +300,8 @@ describe('la feuille « Gestes » et la carte « Actions »', () => {
     expect(screen.queryByText(fr.lease.fiche.gestes.generer)).toBeNull();
   });
 
-  it('« Générer l’échéancier » quand seule la caution existe ; son refus se dit (P228.01)', () => {
+  it('« Générer l’échéancier » quand l’API l’offre (seule la caution existe) ; son refus se dit (P228.01)', () => {
+    etat.lease = bail({ ...GESTION, generate_schedule: true });
     etat.paiements = [echeance({ id: 1, payment_type: 'deposit' })];
     generer.mutate.mockImplementation((_: unknown, { onError }: { onError: (e: unknown) => void }) =>
       onError(new ApiError(422, { message: 'Le bail n’est pas actif.' })),
@@ -304,6 +314,7 @@ describe('la feuille « Gestes » et la carte « Actions »', () => {
   });
 
   it('un succès après un refus efface le message (P228.01)', () => {
+    etat.lease = bail({ ...GESTION, generate_schedule: true });
     etat.paiements = [echeance({ id: 1, payment_type: 'deposit' })];
     generer.mutate
       .mockImplementationOnce((_: unknown, { onError }: { onError: (e: unknown) => void }) => onError(new ApiError(422, { message: 'Refusé.' })))
@@ -361,6 +372,8 @@ describe('AC6 — le locataire : « Mon bail », le préavis dans « ⋯ »', ()
   });
 
   it('la bannière de résiliation mène le locataire à ses paiements, et l’avis lui est offert (P201.02)', () => {
+    // TCK-3011 — l'annulation du préavis a sa clé : avant, la bannière la lisait dans `request_early_termination`.
+    etat.lease = bail({ ...LOCATAIRE, cancel_early_termination: true });
     monter();
     expect(screen.getByText('bannière préavis : annulable, locataire')).toBeInTheDocument();
     expect(screen.getByText('appel à l’avis')).toBeInTheDocument();
@@ -590,7 +603,10 @@ describe('l’en-tête et les onglets', () => {
 });
 
 describe('TCK-2764 (AC9) — « Abandonner le brouillon »', () => {
-  const BROUILLON: LeaseAbilities = { ...GESTION, abandon: true };
+  // TCK-3011 — l'API juge l'abandon (brouillon, sans échéance ni état des lieux engagé) : `REFUSE` est ce
+  // qu'elle sert quand une échéance ou un état des lieux l'empêche, et `has_inventory` lui est servi.
+  const BROUILLON: LeaseAbilities = { ...SIGNATURE, abandon: true };
+  const REFUSE: LeaseAbilities = { ...SIGNATURE, abandon: false };
 
   it('sur un brouillon, l’action est offerte en fin de carte et ouvre son dialogue', () => {
     etat.lease = bail(BROUILLON, { status: 'draft' });
@@ -606,7 +622,7 @@ describe('TCK-2764 (AC9) — « Abandonner le brouillon »', () => {
   });
 
   it('avec une caution saisie, l’action cède la place à sa raison — au bureau comme dans « ⋯ »', () => {
-    etat.lease = bail(BROUILLON, { status: 'draft' });
+    etat.lease = bail(REFUSE, { status: 'draft', has_inventory: false });
     etat.paiements = [echeance({ payment_type: 'deposit', status: 'pending' })];
     monter();
 
@@ -617,7 +633,7 @@ describe('TCK-2764 (AC9) — « Abandonner le brouillon »', () => {
   });
 
   it('avec un état des lieux, l’action cède la place à sa raison propre (r1 de la vérification d’ace044c18)', () => {
-    etat.lease = bail(BROUILLON, { status: 'draft', has_inventory: true });
+    etat.lease = bail(REFUSE, { status: 'draft', has_inventory: true });
     monter();
 
     expect(within(carteActions()!).queryByRole('button', { name: fr.lease.fiche.gestes.abandonner })).not.toBeInTheDocument();
@@ -628,7 +644,7 @@ describe('TCK-2764 (AC9) — « Abandonner le brouillon »', () => {
   });
 
   it('hors d’un brouillon, ni l’action ni sa raison', () => {
-    etat.lease = bail(BROUILLON, { status: 'pending_signature' });
+    etat.lease = bail(REFUSE, { status: 'pending_signature' });
     etat.paiements = [echeance({ payment_type: 'deposit', status: 'pending' })];
     monter();
 
@@ -740,10 +756,10 @@ describe('AC4 — un seul bouton principal dans la barre collée, dans chaque é
       etat.paiements = [echeance({ id: 29, status: 'late', is_overdue: true, due_date: debutDeMois(-1) })];
     }],
     ['brouillon → Envoyer à la signature', () => {
-      etat.lease = bail(GESTION, { status: 'draft', can_request_signature: true });
+      etat.lease = bail(SIGNATURE, { status: 'draft', can_request_signature: true });
     }],
     ['en attente de signature → Relancer la signature', () => {
-      etat.lease = bail(GESTION, { status: 'pending_signature', can_request_signature: true, can_sign_as: [], signatures: [] });
+      etat.lease = bail(SIGNATURE, { status: 'pending_signature', can_request_signature: true, can_sign_as: [], signatures: [] });
     }],
     ['locataire, échéance due, paiement en ligne → Payer', () => {
       etat.lease = bail(LOCATAIRE);
@@ -789,7 +805,7 @@ describe('`?geste=` — chaque geste ouvrable par lien, à qui l’a seulement',
 
   it('`?geste=restituer` ouvre la restitution d’un bail terminé avec `refund_deposit`, rien sans', () => {
     etat.params = new URLSearchParams('geste=restituer');
-    etat.lease = bail(GESTION, { status: 'terminated', deposit_refunded_amount: 0 });
+    etat.lease = bail({ ...GESTION, refund_deposit: true }, { status: 'terminated', deposit_refunded_amount: 0 });
     const { unmount } = monter();
     expect(screen.getByText('restitution offerte, dialogue ouvert')).toBeInTheDocument();
     unmount();

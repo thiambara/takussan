@@ -1,7 +1,7 @@
 'use client';
 
 import { useApiMutation } from '@/hooks/useApiQuery';
-import { ApiError } from '@/lib/api';
+import { codeMetierDe } from '@/lib/api';
 import { cheminApi } from '@/lib/chemin-api';
 import { conversationContextQueryKey } from '@/lib/queries/conversations-cles';
 import type { ConversationContext, PontDuParticipant } from '@/types/message';
@@ -89,9 +89,8 @@ export const REFUS_D_INVITATION = [
 ] as const;
 
 export function cleDuRefus(err: unknown): string {
-  if (!(err instanceof ApiError) || !err.data || typeof err.data !== 'object') return 'inconnu';
-  const code = (err.data as { code?: unknown }).code;
-  return typeof code === 'string' && (REFUS_D_INVITATION as readonly string[]).includes(code) ? code.slice('pont.'.length) : 'inconnu';
+  const code = codeMetierDe(err);
+  return code !== undefined && (REFUS_D_INVITATION as readonly string[]).includes(code) ? code.slice('pont.'.length) : 'inconnu';
 }
 
 /**

@@ -75,7 +75,8 @@ import type {
   AiProviderTestResponse,
 } from '@/types/super-admin';
 import { cheminApi, requete } from '@/lib/chemin-api';
-import { jsonOrThrow, KYC_DOSSIER_FIELDS } from '@/lib/queries/super-admin-coque';
+import { appelBff } from '@/lib/bff';
+import { KYC_DOSSIER_FIELDS } from '@/lib/queries/super-admin-coque';
 
 /**
  * TCK-1202 (P104.05) — la recherche globale et les quatre lecteurs des files vivent dans
@@ -107,39 +108,35 @@ export async function fetchAdminAgencies(params: {
   page?: number;
   perPage?: number;
 } = {}): Promise<AdminAgenciesResponse> {
-  const qs = new URLSearchParams();
-  // P100.05 (TCK-1186) — `fields` inerte : `Admin\AgencyModerationController::index` est une liste écrite à la main.
-  qs.set('fields[agencies]', 'id,name,slug,status,is_verified,verified_at,primary_admin_id,license_number,email,phone,logo_url,properties_count,members_count,last_activity_at,created_at');
-  if (params.status) qs.set('filter[status]', params.status);
-  if (params.isVerified !== undefined) qs.set('filter[is_verified]', params.isVerified ? '1' : '0');
-  if (params.search) qs.set('filter[search]', params.search);
-  if (params.createdFrom) qs.set('filter[created_from]', params.createdFrom);
-  if (params.createdTo) qs.set('filter[created_to]', params.createdTo);
-  qs.set('sort', params.sort ?? '-created_at');
-  if (params.page) qs.set('page', String(params.page));
-  if (params.perPage) qs.set('per_page', String(params.perPage));
-  const query = qs.toString();
-  const res = await fetch(cheminApi`/api/super-admin/agencies${requete(query)}`, {
-    credentials: 'include',
+  return appelBff<AdminAgenciesResponse>('/api/super-admin/agencies', {
+    params: {
+      // P100.05 (TCK-1186) — `fields` inerte : `Admin\AgencyModerationController::index` est une liste écrite à la main.
+      fields: { agencies: 'id,name,slug,status,is_verified,verified_at,primary_admin_id,license_number,email,phone,logo_url,properties_count,members_count,last_activity_at,created_at' },
+      filter: {
+        status: params.status,
+        // TCK-390 — `'0'` et `'1'`, pas le booléen : `buildQueryString` écrirait `false`.
+        is_verified: params.isVerified === undefined ? undefined : params.isVerified ? '1' : '0',
+        search: params.search,
+        created_from: params.createdFrom,
+        created_to: params.createdTo,
+      },
+      sort: params.sort ?? '-created_at',
+      // `0` n'est pas une page : l'ancien `if (params.page)` ne l'envoyait pas.
+      page: params.page || undefined,
+      per_page: params.perPage || undefined,
+    },
   });
-  return jsonOrThrow<AdminAgenciesResponse>(res);
 }
 
 export async function fetchAdminAgencyDetail(agencyId: number): Promise<AdminAgencyDetailResponse> {
   const qs = new URLSearchParams();
   // P60.03 — pas de `fields[agencies]` : un `show` rend la ressource de détail entière.
   qs.set('include', 'primaryAdmin,address');
-  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AdminAgencyDetailResponse>(res);
+  return appelBff<AdminAgencyDetailResponse>(cheminApi`/api/super-admin/agencies/${agencyId}?${qs.toString()}`);
 }
 
 export async function fetchAdminAgencyHealth(agencyId: number): Promise<AdminAgencyHealthResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/health`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AdminAgencyHealthResponse>(res);
+  return appelBff<AdminAgencyHealthResponse>(cheminApi`/api/super-admin/agencies/${agencyId}/health`);
 }
 
 export async function fetchAdminAgencyTeam(agencyId: number): Promise<AdminAgencyTeamResponse> {
@@ -150,10 +147,7 @@ export async function fetchAdminAgencyTeam(agencyId: number): Promise<AdminAgenc
   // non déclaré. Le backend renvoie déjà `roles` dans le payload.
   qs.set('fields[users]', 'id,first_name,last_name,email,status,last_login_at');
   qs.set('per_page', '10');
-  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/team?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AdminAgencyTeamResponse>(res);
+  return appelBff<AdminAgencyTeamResponse>(cheminApi`/api/super-admin/agencies/${agencyId}/team?${qs.toString()}`);
 }
 
 export async function fetchAdminAgencyProperties(agencyId: number): Promise<AdminPropertiesResponse> {
@@ -162,10 +156,7 @@ export async function fetchAdminAgencyProperties(agencyId: number): Promise<Admi
   qs.set('include', 'address,agency');
   qs.set('sort', '-created_at');
   qs.set('per_page', '8');
-  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/properties?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AdminPropertiesResponse>(res);
+  return appelBff<AdminPropertiesResponse>(cheminApi`/api/super-admin/agencies/${agencyId}/properties?${qs.toString()}`);
 }
 
 
@@ -173,10 +164,7 @@ export async function fetchAdminAgencyKyc(agencyId: number): Promise<KycDossierR
   const qs = new URLSearchParams();
   qs.set('fields[kyc_dossiers]', KYC_DOSSIER_FIELDS);
   qs.set('include', 'subject,reviewer');
-  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/kyc?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<KycDossierResponse>(res);
+  return appelBff<KycDossierResponse>(cheminApi`/api/super-admin/agencies/${agencyId}/kyc?${qs.toString()}`);
 }
 
 export async function postKycReview(
@@ -184,59 +172,36 @@ export async function postKycReview(
   action: 'verify' | 'reject',
   reason?: string,
 ): Promise<KycDossierResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/kyc/${dossierId}/${action}`, {
+  return appelBff<KycDossierResponse>(cheminApi`/api/super-admin/kyc/${dossierId}/${action}`, {
     method: 'POST',
-    credentials: 'include',
-    headers: action === 'reject' ? { 'Content-Type': 'application/json' } : undefined,
-    body: action === 'reject' ? JSON.stringify({ reason }) : undefined,
+    body: action === 'reject' ? { reason } : undefined,
   });
-  return jsonOrThrow<KycDossierResponse>(res);
 }
 
 export async function fetchAdminPlans(): Promise<PlansResponse> {
   const qs = new URLSearchParams();
   qs.set('fields[plans]', 'id,code,label,description,monthly_price_xof,platform_fee_pct,trial_days,limits,is_active,sort_order,created_at,updated_at');
   qs.set('sort', 'sort_order');
-  const res = await fetch(cheminApi`/api/super-admin/plans?${qs.toString()}`, { credentials: 'include' });
-  return jsonOrThrow<PlansResponse>(res);
+  return appelBff<PlansResponse>(cheminApi`/api/super-admin/plans?${qs.toString()}`);
 }
 
 export async function createAdminPlan(payload: Required<Pick<PlanPayload, 'code' | 'label' | 'monthly_price_xof' | 'platform_fee_pct'>> & PlanPayload): Promise<PlanResponse> {
-  const res = await fetch('/api/super-admin/plans', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<PlanResponse>(res);
+  return appelBff<PlanResponse>('/api/super-admin/plans', { method: 'POST', body: payload });
 }
 
 export async function updateAdminPlan(planId: number, payload: PlanPayload): Promise<PlanResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/plans/${planId}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<PlanResponse>(res);
+  return appelBff<PlanResponse>(cheminApi`/api/super-admin/plans/${planId}`, { method: 'PATCH', body: payload });
 }
 
 export async function deleteAdminPlan(planId: number): Promise<unknown> {
-  const res = await fetch(cheminApi`/api/super-admin/plans/${planId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  return jsonOrThrow<unknown>(res);
+  return appelBff<unknown>(cheminApi`/api/super-admin/plans/${planId}`, { method: 'DELETE' });
 }
 
 export async function fetchAdminAgencySubscription(agencyId: number): Promise<AgencySubscriptionResponse> {
   const qs = new URLSearchParams();
   qs.set('fields[agency_subscriptions]', 'id,agency_id,plan_id,status,trial_ends_at,current_period_start,current_period_end,ended_at,platform_fee_pct_override,limits_override,created_at,updated_at');
   qs.set('include', 'plan');
-  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/subscription?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AgencySubscriptionResponse>(res);
+  return appelBff<AgencySubscriptionResponse>(cheminApi`/api/super-admin/agencies/${agencyId}/subscription?${qs.toString()}`);
 }
 
 export async function assignAdminAgencySubscription(
@@ -247,13 +212,7 @@ export async function assignAdminAgencySubscription(
     overrides?: { platform_fee_pct?: number | null; limits?: Record<string, number> };
   },
 ): Promise<AgencySubscriptionResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/subscription`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AgencySubscriptionResponse>(res);
+  return appelBff<AgencySubscriptionResponse>(cheminApi`/api/super-admin/agencies/${agencyId}/subscription`, { method: 'POST', body: payload });
 }
 
 /**
@@ -267,21 +226,11 @@ export async function updateAdminAgencySubscriptionOverrides(
     limits: { max_active_listings: number | null; max_agents: number | null; max_branches: number | null };
   },
 ): Promise<AgencySubscriptionResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/subscription/overrides`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AgencySubscriptionResponse>(res);
+  return appelBff<AgencySubscriptionResponse>(cheminApi`/api/super-admin/agencies/${agencyId}/subscription/overrides`, { method: 'PATCH', body: payload });
 }
 
 export async function cancelAdminAgencySubscription(agencyId: number): Promise<AgencySubscriptionResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/subscription/cancel`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow<AgencySubscriptionResponse>(res);
+  return appelBff<AgencySubscriptionResponse>(cheminApi`/api/super-admin/agencies/${agencyId}/subscription/cancel`, { method: 'POST' });
 }
 
 export type AgencyModerationAction = 'verify' | 'suspend' | 'unverify' | 'reinstate';
@@ -295,13 +244,7 @@ export async function postAgencyAction(
   action: AgencyModerationAction,
   reason?: string,
 ): Promise<unknown> {
-  const res = await fetch(cheminApi`/api/super-admin/agencies/${agencyId}/${action}`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(reason ? { reason } : {}),
-  });
-  return jsonOrThrow<unknown>(res);
+  return appelBff<unknown>(cheminApi`/api/super-admin/agencies/${agencyId}/${action}`, { method: 'POST', body: reason ? { reason } : {} });
 }
 
 export type AgencyOnboardingPayload = {
@@ -334,26 +277,16 @@ export type AgencyOnboardingPayload = {
 export async function postAgencyOnboarding(
   payload: AgencyOnboardingPayload,
 ): Promise<AgencyProvisioningResponse> {
-  const res = await fetch('/api/super-admin/agencies', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AgencyProvisioningResponse>(res);
+  return appelBff<AgencyProvisioningResponse>('/api/super-admin/agencies', { method: 'POST', body: payload });
 }
 
 export async function fetchSystemMetrics(): Promise<SystemMetricsResponse> {
-  const res = await fetch('/api/super-admin/system/metrics', { credentials: 'include' });
-  return jsonOrThrow<SystemMetricsResponse>(res);
+  return appelBff<SystemMetricsResponse>('/api/super-admin/system/metrics');
 }
 
 export async function fetchAdminUserDetail(userId: number): Promise<AdminUserDetailResponse> {
   // P60.03 — ni `fields[users]` ni `include` : un `show` rend la ressource de détail entière.
-  const res = await fetch(cheminApi`/api/super-admin/users/${userId}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AdminUserDetailResponse>(res);
+  return appelBff<AdminUserDetailResponse>(cheminApi`/api/super-admin/users/${userId}`);
 }
 
 export async function fetchAdminUserSessions(userId: number): Promise<AdminUserSessionsResponse> {
@@ -361,20 +294,14 @@ export async function fetchAdminUserSessions(userId: number): Promise<AdminUserS
   // P100.05 (TCK-1186) — `fields` inerte : `Admin\UserDetailController::sessions` est une liste écrite à la main.
   qs.set('fields[personal_access_tokens]', 'id,name,last_used_at,created_at,expires_at');
   qs.set('per_page', '20');
-  const res = await fetch(cheminApi`/api/super-admin/users/${userId}/sessions?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AdminUserSessionsResponse>(res);
+  return appelBff<AdminUserSessionsResponse>(cheminApi`/api/super-admin/users/${userId}/sessions?${qs.toString()}`);
 }
 
 export async function fetchAdminUserActivity(userId: number): Promise<AuditLogResponse> {
   const qs = new URLSearchParams();
   qs.set('sort', '-created_at');
   qs.set('per_page', '20');
-  const res = await fetch(cheminApi`/api/super-admin/users/${userId}/activity?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AuditLogResponse>(res);
+  return appelBff<AuditLogResponse>(cheminApi`/api/super-admin/users/${userId}/activity?${qs.toString()}`);
 }
 
 export type UserSupportAction =
@@ -388,13 +315,7 @@ export async function postUserSupportAction(
   action: UserSupportAction,
   reason: string,
 ): Promise<{ success: true; action_id: number }> {
-  const res = await fetch(cheminApi`/api/super-admin/users/${userId}/${action}`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  });
-  return jsonOrThrow<{ success: true; action_id: number }>(res);
+  return appelBff<{ success: true; action_id: number }>(cheminApi`/api/super-admin/users/${userId}/${action}`, { method: 'POST', body: { reason } });
 }
 
 export type UserLifecycleAction = 'block' | 'reactivate' | 'erase';
@@ -408,13 +329,7 @@ export async function postUserLifecycleAction(
   action: UserLifecycleAction,
   reason: string,
 ): Promise<{ data: unknown }> {
-  const res = await fetch(cheminApi`/api/super-admin/users/${userId}/${action}`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  });
-  return jsonOrThrow<{ data: unknown }>(res);
+  return appelBff<{ data: unknown }>(cheminApi`/api/super-admin/users/${userId}/${action}`, { method: 'POST', body: { reason } });
 }
 
 export async function deleteAdminUserSession(
@@ -422,13 +337,7 @@ export async function deleteAdminUserSession(
   tokenId: number,
   reason: string,
 ): Promise<{ success: true; action_id: number }> {
-  const res = await fetch(cheminApi`/api/super-admin/users/${userId}/sessions/${tokenId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  });
-  return jsonOrThrow<{ success: true; action_id: number }>(res);
+  return appelBff<{ success: true; action_id: number }>(cheminApi`/api/super-admin/users/${userId}/sessions/${tokenId}`, { method: 'DELETE', body: { reason } });
 }
 
 /**
@@ -502,21 +411,14 @@ export async function fetchAdminProperties(
   qs.set('page', String(params.page ?? 1));
   qs.set('per_page', String(params.perPage ?? 20));
 
-  const res = await fetch(cheminApi`/api/super-admin-properties?${qs.toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AdminPropertiesResponse>(res);
+  return appelBff<AdminPropertiesResponse>(cheminApi`/api/super-admin-properties?${qs.toString()}`);
 }
 
 export async function postPropertyAction(
   propertyId: number,
   action: 'publish' | 'unpublish',
 ): Promise<unknown> {
-  const res = await fetch(cheminApi`/api/super-admin-properties/${propertyId}/${action}`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow<unknown>(res);
+  return appelBff<unknown>(cheminApi`/api/super-admin-properties/${propertyId}/${action}`, { method: 'POST' });
 }
 
 /** TCK-952 — `failed` est la liste des refus `{ id, reason }` de `PropertyBulkArchiveService`. */
@@ -526,22 +428,11 @@ export async function archiveProperties(
   propertyIds: number[],
   reason?: string,
 ): Promise<ArchivageEnMasse> {
-  const res = await fetch('/api/super-admin-properties/bulk-archive', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ property_ids: propertyIds, reason }),
-  });
-  return jsonOrThrow<ArchivageEnMasse>(res);
+  return appelBff<ArchivageEnMasse>('/api/super-admin-properties/bulk-archive', { method: 'POST', body: { property_ids: propertyIds, reason } });
 }
 
 export async function deleteProperty(propertyId: number): Promise<unknown> {
-  const res = await fetch(cheminApi`/api/super-admin-properties/${propertyId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  if (res.status === 204) return null;
-  return jsonOrThrow<unknown>(res);
+  return appelBff<unknown>(cheminApi`/api/super-admin-properties/${propertyId}`, { method: 'DELETE' });
 }
 
 export interface AuditLogFilterParams {
@@ -574,10 +465,7 @@ export async function fetchAuditLog(params: AuditLogFilterParams & {
   page?: number;
   perPage?: number;
 } = {}): Promise<AuditLogResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/audit?${requeteJournalAudit(params).toString()}`, {
-    credentials: 'include',
-  });
-  return jsonOrThrow<AuditLogResponse>(res);
+  return appelBff<AuditLogResponse>(cheminApi`/api/super-admin/audit?${requeteJournalAudit(params).toString()}`);
 }
 
 /** TCK-1828 — la requête du journal d'audit, lue par le navigateur et par l'accueil serveur. */
@@ -605,10 +493,7 @@ export interface AuditLogExport {
  */
 export async function exportAuditLog(params: AuditLogFilterParams = {}): Promise<AuditLogExport> {
   const qs = auditFilterQuery(params).toString();
-  const res = await fetch(cheminApi`/api/super-admin/audit/export${requete(qs)}`, {
-    credentials: 'include',
-  });
-  const json = await jsonOrThrow<{ data: AuditLogExport }>(res);
+  const json = await appelBff<{ data: AuditLogExport }>(cheminApi`/api/super-admin/audit/export${requete(qs)}`);
   return json.data;
 }
 
@@ -640,13 +525,7 @@ export async function postModerationDecision(
   itemId: string,
   payload: ModerationDecisionPayload,
 ): Promise<{ data: { id: string; decision: ModerationDecision; subject_type: string; subject_id: number } }> {
-  const res = await fetch(cheminApi`/api/super-admin/moderation/${itemId}/decide`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<{ data: { id: string; decision: ModerationDecision; subject_type: string; subject_id: number } }>(res);
+  return appelBff<{ data: { id: string; decision: ModerationDecision; subject_type: string; subject_id: number } }>(cheminApi`/api/super-admin/moderation/${itemId}/decide`, { method: 'POST', body: payload });
 }
 
 /** TCK-597 (ADR-0043 §7) — une décision et un motif communs à au plus 50 éléments ; un résultat par élément. */
@@ -654,46 +533,27 @@ export async function postModerationDecisionBatch(
   ids: string[],
   payload: ModerationDecisionPayload,
 ): Promise<{ data: ModerationBatchResult[] }> {
-  const res = await fetch('/api/super-admin/moderation/decide-batch', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids, ...payload }),
-  });
-  return jsonOrThrow<{ data: ModerationBatchResult[] }>(res);
+  return appelBff<{ data: ModerationBatchResult[] }>('/api/super-admin/moderation/decide-batch', { method: 'POST', body: { ids, ...payload } });
 }
 
 /** TCK-597 — prendre l'élément en charge pour dix minutes ; tenu par un autre : 409. */
 export async function claimModerationItem(
   itemId: string,
 ): Promise<{ data: { id: string; by: { id: number; name: string | null }; claimed_at: string; expires_at: string } }> {
-  const res = await fetch(cheminApi`/api/super-admin/moderation/${itemId}/claim`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow(res);
+  return appelBff(cheminApi`/api/super-admin/moderation/${itemId}/claim`, { method: 'POST' });
 }
 
 /** TCK-597 — rendre sa prise. L'API répond 204, sans corps. */
 export async function releaseModerationItem(itemId: string): Promise<void> {
-  const res = await fetch(cheminApi`/api/super-admin/moderation/${itemId}/claim`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new ApiError(res.status, data);
-  }
+  await appelBff<null>(cheminApi`/api/super-admin/moderation/${itemId}/claim`, { method: 'DELETE' });
 }
 
 export async function fetchBusinessEnums(): Promise<BusinessEnumsResponse> {
-  const res = await fetch('/api/super-admin/enums', { credentials: 'include' });
-  return jsonOrThrow<BusinessEnumsResponse>(res);
+  return appelBff<BusinessEnumsResponse>('/api/super-admin/enums');
 }
 
 export async function fetchNotificationTemplates(): Promise<NotificationTemplatesResponse> {
-  const res = await fetch('/api/super-admin/notification-templates', { credentials: 'include' });
-  return jsonOrThrow<NotificationTemplatesResponse>(res);
+  return appelBff<NotificationTemplatesResponse>('/api/super-admin/notification-templates');
 }
 
 export async function patchNotificationTemplate(
@@ -704,13 +564,7 @@ export async function patchNotificationTemplate(
     templates: Record<NotificationTemplateLocale, { subject?: string | null; body: string }>;
   },
 ): Promise<NotificationTemplateResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/notification-templates/${event}/${channel}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<NotificationTemplateResponse>(res);
+  return appelBff<NotificationTemplateResponse>(cheminApi`/api/super-admin/notification-templates/${event}/${channel}`, { method: 'PATCH', body: payload });
 }
 
 export async function previewNotificationTemplate(
@@ -718,66 +572,40 @@ export async function previewNotificationTemplate(
   channel: NotificationTemplateChannel,
   locale: NotificationTemplateLocale,
 ): Promise<NotificationTemplatePreviewResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/notification-templates/${event}/${channel}/preview`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ locale }),
-  });
-  return jsonOrThrow<NotificationTemplatePreviewResponse>(res);
+  return appelBff<NotificationTemplatePreviewResponse>(cheminApi`/api/super-admin/notification-templates/${event}/${channel}/preview`, { method: 'POST', body: { locale } });
 }
 
 export async function fetchPlatformSettings(): Promise<PlatformSettingsResponse> {
-  const res = await fetch('/api/super-admin/settings', { credentials: 'include' });
-  return jsonOrThrow<PlatformSettingsResponse>(res);
+  return appelBff<PlatformSettingsResponse>('/api/super-admin/settings');
 }
 
 export async function patchPlatformSettings(
   payload: Record<string, PlatformSettingValue>,
 ): Promise<PlatformSettingsResponse> {
-  const res = await fetch('/api/super-admin/settings', {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<PlatformSettingsResponse>(res);
+  return appelBff<PlatformSettingsResponse>('/api/super-admin/settings', { method: 'PATCH', body: payload });
 }
 
 export async function fetchAdminIntegrations(): Promise<AdminIntegrationsResponse> {
-  const res = await fetch('/api/super-admin/integrations', { credentials: 'include' });
-  return jsonOrThrow<AdminIntegrationsResponse>(res);
+  return appelBff<AdminIntegrationsResponse>('/api/super-admin/integrations');
 }
 
 export async function fetchAdminIntegrationSchema(id: number): Promise<AdminIntegrationSchemaResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/integrations/${id}/schema`, { credentials: 'include' });
-  return jsonOrThrow<AdminIntegrationSchemaResponse>(res);
+  return appelBff<AdminIntegrationSchemaResponse>(cheminApi`/api/super-admin/integrations/${id}/schema`);
 }
 
 export async function patchAdminIntegration(
   id: number,
   payload: { credentials?: Record<string, string>; is_active?: boolean; metadata?: Record<string, unknown> },
 ): Promise<AdminIntegrationResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/integrations/${id}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AdminIntegrationResponse>(res);
+  return appelBff<AdminIntegrationResponse>(cheminApi`/api/super-admin/integrations/${id}`, { method: 'PATCH', body: payload });
 }
 
 export async function testAdminIntegration(id: number): Promise<IntegrationTestResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/integrations/${id}/test`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow<IntegrationTestResponse>(res);
+  return appelBff<IntegrationTestResponse>(cheminApi`/api/super-admin/integrations/${id}/test`, { method: 'POST' });
 }
 
 export async function fetchIntegrationWebhooks(id: number): Promise<IntegrationWebhooksResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/integrations/${id}/webhooks`, { credentials: 'include' });
-  return jsonOrThrow<IntegrationWebhooksResponse>(res);
+  return appelBff<IntegrationWebhooksResponse>(cheminApi`/api/super-admin/integrations/${id}/webhooks`);
 }
 
 // ─── TCK-602 — console « Paiements » et journal des webhooks ───────────────────────────────
@@ -795,13 +623,11 @@ export async function fetchPaymentSupervision(filters: PaymentSupervisionFilters
   if (filters.page) qs.set('page', String(filters.page));
   if (filters.status) qs.set('filter[status]', filters.status);
   if (filters.provider) qs.set('filter[provider]', filters.provider);
-  const res = await fetch(cheminApi`/api/super-admin/payments${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<PaymentSupervisionResponse>(res);
+  return appelBff<PaymentSupervisionResponse>(cheminApi`/api/super-admin/payments${requete(qs)}`);
 }
 
 export async function fetchPaymentSummary(): Promise<PaymentSummaryResponse> {
-  const res = await fetch('/api/super-admin/payments/summary', { credentials: 'include' });
-  return jsonOrThrow<PaymentSummaryResponse>(res);
+  return appelBff<PaymentSummaryResponse>('/api/super-admin/payments/summary');
 }
 
 export type WebhookLogFilters = {
@@ -824,19 +650,16 @@ export async function fetchWebhookLogs(filters: WebhookLogFilters = {}): Promise
   if (filters.channel) qs.set('filter[channel]', filters.channel);
   if (filters.status) qs.set('filter[status]', filters.status);
   if (filters.unmatched) qs.set('filter[unmatched]', '1');
-  const res = await fetch(cheminApi`/api/super-admin/webhook-logs${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<WebhookLogsResponse>(res);
+  return appelBff<WebhookLogsResponse>(cheminApi`/api/super-admin/webhook-logs${requete(qs)}`);
 }
 
 export async function replayWebhookLog(id: number): Promise<{ data: WebhookLog }> {
   if (!Number.isSafeInteger(id) || id <= 0) throw new RangeError(String(id));
-  const res = await fetch(cheminApi`/api/super-admin/webhook-logs/${id}/replay`, { method: 'POST', credentials: 'include' });
-  return jsonOrThrow<{ data: WebhookLog }>(res);
+  return appelBff<{ data: WebhookLog }>(cheminApi`/api/super-admin/webhook-logs/${id}/replay`, { method: 'POST' });
 }
 
 export async function fetchMaintenance(): Promise<MaintenanceStatusResponse> {
-  const res = await fetch('/api/super-admin/maintenance', { credentials: 'include' });
-  return jsonOrThrow<MaintenanceStatusResponse>(res);
+  return appelBff<MaintenanceStatusResponse>('/api/super-admin/maintenance');
 }
 
 export async function scheduleMaintenance(payload: {
@@ -847,54 +670,30 @@ export async function scheduleMaintenance(payload: {
   messages: { fr: string; en?: string; wo?: string };
   banner_lead_minutes?: number;
 }): Promise<MaintenanceStatusResponse> {
-  const res = await fetch('/api/super-admin/maintenance', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<MaintenanceStatusResponse>(res);
+  return appelBff<MaintenanceStatusResponse>('/api/super-admin/maintenance', { method: 'POST', body: payload });
 }
 
 export async function cancelMaintenance(): Promise<MaintenanceStatusResponse> {
-  const res = await fetch('/api/super-admin/maintenance', {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  return jsonOrThrow<MaintenanceStatusResponse>(res);
+  return appelBff<MaintenanceStatusResponse>('/api/super-admin/maintenance', { method: 'DELETE' });
 }
 
 export async function fetchAdminFeatureFlags(): Promise<AdminFeatureFlagsResponse> {
-  const res = await fetch('/api/super-admin/feature-flags', { credentials: 'include' });
-  return jsonOrThrow<AdminFeatureFlagsResponse>(res);
+  return appelBff<AdminFeatureFlagsResponse>('/api/super-admin/feature-flags');
 }
 
 export async function patchAdminFeatureFlag(
   key: string,
   payload: { enabled: boolean; segments?: { roles?: string[]; agency_ids?: number[]; rollout_percentage?: number } },
 ): Promise<AdminFeatureFlagsResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/feature-flags/${key}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AdminFeatureFlagsResponse>(res);
+  return appelBff<AdminFeatureFlagsResponse>(cheminApi`/api/super-admin/feature-flags/${key}`, { method: 'PATCH', body: payload });
 }
 
 export async function overrideAdminFeatureFlag(key: string, enabled: boolean): Promise<{ data: { key: string; enabled: boolean } }> {
-  const res = await fetch(cheminApi`/api/super-admin/feature-flags/${key}/override`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ enabled }),
-  });
-  return jsonOrThrow<{ data: { key: string; enabled: boolean } }>(res);
+  return appelBff<{ data: { key: string; enabled: boolean } }>(cheminApi`/api/super-admin/feature-flags/${key}/override`, { method: 'POST', body: { enabled } });
 }
 
 export async function fetchAlertRules(): Promise<AlertRulesResponse> {
-  const res = await fetch('/api/super-admin/alert-rules', { credentials: 'include' });
-  return jsonOrThrow<AlertRulesResponse>(res);
+  return appelBff<AlertRulesResponse>('/api/super-admin/alert-rules');
 }
 
 export async function createAlertRule(payload: {
@@ -903,37 +702,22 @@ export async function createAlertRule(payload: {
   recipients: { emails?: string[]; webhooks?: string[] };
   is_active: boolean;
 }): Promise<AlertRuleResponse> {
-  const res = await fetch('/api/super-admin/alert-rules', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AlertRuleResponse>(res);
+  return appelBff<AlertRuleResponse>('/api/super-admin/alert-rules', { method: 'POST', body: payload });
 }
 
 export async function patchAlertRule(
   id: number,
   payload: Partial<{ event: string; channels: string[]; recipients: { emails?: string[]; webhooks?: string[] }; is_active: boolean }>,
 ): Promise<AlertRuleResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/alert-rules/${id}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AlertRuleResponse>(res);
+  return appelBff<AlertRuleResponse>(cheminApi`/api/super-admin/alert-rules/${id}`, { method: 'PATCH', body: payload });
 }
 
 export async function deleteAlertRule(id: number): Promise<unknown> {
-  const res = await fetch(cheminApi`/api/super-admin/alert-rules/${id}`, { method: 'DELETE', credentials: 'include' });
-  if (res.status === 204) return null;
-  return jsonOrThrow<unknown>(res);
+  return appelBff<unknown>(cheminApi`/api/super-admin/alert-rules/${id}`, { method: 'DELETE' });
 }
 
 export async function testAlertRule(id: number): Promise<{ data: { queued: boolean } }> {
-  const res = await fetch(cheminApi`/api/super-admin/alert-rules/${id}/test`, { method: 'POST', credentials: 'include' });
-  return jsonOrThrow<{ data: { queued: boolean } }>(res);
+  return appelBff<{ data: { queued: boolean } }>(cheminApi`/api/super-admin/alert-rules/${id}/test`, { method: 'POST' });
 }
 
 export async function fetchAdminAnnouncements(params: {
@@ -948,57 +732,33 @@ export async function fetchAdminAnnouncements(params: {
   if (params.page) qs.set('page', String(params.page));
   if (params.perPage) qs.set('per_page', String(params.perPage));
 
-  const res = await fetch(cheminApi`/api/super-admin/announcements?${qs.toString()}`, { credentials: 'include' });
-  return jsonOrThrow<AnnouncementsResponse>(res);
+  return appelBff<AnnouncementsResponse>(cheminApi`/api/super-admin/announcements?${qs.toString()}`);
 }
 
 export async function createAdminAnnouncement(payload: AnnouncementPayload): Promise<{ data: AnnouncementPayload & { id: number } }> {
-  const res = await fetch('/api/super-admin/announcements', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<{ data: AnnouncementPayload & { id: number } }>(res);
+  return appelBff<{ data: AnnouncementPayload & { id: number } }>('/api/super-admin/announcements', { method: 'POST', body: payload });
 }
 
 export async function patchAdminAnnouncement(
   id: number,
   payload: Partial<AnnouncementPayload> & { segment?: AnnouncementSegment },
 ): Promise<{ data: AnnouncementPayload & { id: number } }> {
-  const res = await fetch(cheminApi`/api/super-admin/announcements/${id}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<{ data: AnnouncementPayload & { id: number } }>(res);
+  return appelBff<{ data: AnnouncementPayload & { id: number } }>(cheminApi`/api/super-admin/announcements/${id}`, { method: 'PATCH', body: payload });
 }
 
 export async function deactivateAdminAnnouncement(id: number): Promise<{ data: AnnouncementPayload & { id: number } }> {
-  const res = await fetch(cheminApi`/api/super-admin/announcements/${id}/deactivate`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow<{ data: AnnouncementPayload & { id: number } }>(res);
+  return appelBff<{ data: AnnouncementPayload & { id: number } }>(cheminApi`/api/super-admin/announcements/${id}/deactivate`, { method: 'POST' });
 }
 
 export async function requestAdminUserDataExport(
   userId: number,
   reason: 'support' | 'legal_request' | 'user_inquiry' | 'other',
 ): Promise<{ data: DataExport }> {
-  const res = await fetch(cheminApi`/api/super-admin/users/${userId}/data-exports`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  });
-  return jsonOrThrow<{ data: DataExport }>(res);
+  return appelBff<{ data: DataExport }>(cheminApi`/api/super-admin/users/${userId}/data-exports`, { method: 'POST', body: { reason } });
 }
 
 export async function fetchPlatformHealth(): Promise<PlatformHealthResponse> {
-  const res = await fetch('/api/super-admin/health', { credentials: 'include' });
-  return jsonOrThrow<PlatformHealthResponse>(res);
+  return appelBff<PlatformHealthResponse>('/api/super-admin/health');
 }
 
 /**
@@ -1009,28 +769,23 @@ export async function fetchPlatformHealth(): Promise<PlatformHealthResponse> {
  * et c'est aussi pourquoi il n'est pas préchargé pour chaque ligne.
  */
 export async function fetchFailedJob(id: number): Promise<FailedJobDetailResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/jobs/failed/${id}`, { credentials: 'include' });
-  return jsonOrThrow<FailedJobDetailResponse>(res);
+  return appelBff<FailedJobDetailResponse>(cheminApi`/api/super-admin/jobs/failed/${id}`);
 }
 
 export async function retryFailedJob(id: number): Promise<{ data: { retried: boolean } }> {
-  const res = await fetch(cheminApi`/api/super-admin/jobs/failed/${id}/retry`, { method: 'POST', credentials: 'include' });
-  return jsonOrThrow<{ data: { retried: boolean } }>(res);
+  return appelBff<{ data: { retried: boolean } }>(cheminApi`/api/super-admin/jobs/failed/${id}/retry`, { method: 'POST' });
 }
 
 export async function deleteFailedJob(id: number): Promise<{ data: { deleted: boolean } }> {
-  const res = await fetch(cheminApi`/api/super-admin/jobs/failed/${id}`, { method: 'DELETE', credentials: 'include' });
-  return jsonOrThrow<{ data: { deleted: boolean } }>(res);
+  return appelBff<{ data: { deleted: boolean } }>(cheminApi`/api/super-admin/jobs/failed/${id}`, { method: 'DELETE' });
 }
 
 export async function retryAllFailedJobs(): Promise<{ data: { queued: number } }> {
-  const res = await fetch('/api/super-admin/jobs/failed/retry-all', { method: 'POST', credentials: 'include' });
-  return jsonOrThrow<{ data: { queued: number } }>(res);
+  return appelBff<{ data: { queued: number } }>('/api/super-admin/jobs/failed/retry-all', { method: 'POST' });
 }
 
 export async function fetchScheduler(): Promise<SchedulerResponse> {
-  const res = await fetch('/api/super-admin/scheduler', { credentials: 'include' });
-  return jsonOrThrow<SchedulerResponse>(res);
+  return appelBff<SchedulerResponse>('/api/super-admin/scheduler');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1055,34 +810,22 @@ export async function fetchAdminPlatformPayouts(params: {
   if (params.periodEndMin) qs.set('filter[period_end_min]', params.periodEndMin);
   if (params.page) qs.set('page', String(params.page));
   if (params.perPage) qs.set('per_page', String(params.perPage));
-  const res = await fetch(cheminApi`/api/super-admin/payouts?${qs.toString()}`, { credentials: 'include' });
-  return jsonOrThrow<PlatformPayoutsResponse>(res);
+  return appelBff<PlatformPayoutsResponse>(cheminApi`/api/super-admin/payouts?${qs.toString()}`);
 }
 
 export async function fetchAdminPlatformPayout(payoutId: number): Promise<PlatformPayoutResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/payouts/${payoutId}`, { credentials: 'include' });
-  return jsonOrThrow<PlatformPayoutResponse>(res);
+  return appelBff<PlatformPayoutResponse>(cheminApi`/api/super-admin/payouts/${payoutId}`);
 }
 
 export async function closeAdminPlatformPayoutPeriod(payload: {
   agency_id?: number | null;
   period_end: string;
 }): Promise<PlatformPayoutClosePeriodResponse> {
-  const res = await fetch('/api/super-admin/payouts/close-period', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<PlatformPayoutClosePeriodResponse>(res);
+  return appelBff<PlatformPayoutClosePeriodResponse>('/api/super-admin/payouts/close-period', { method: 'POST', body: payload });
 }
 
 export async function approveAdminPlatformPayout(payoutId: number): Promise<PlatformPayoutResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/payouts/${payoutId}/approve`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  return jsonOrThrow<PlatformPayoutResponse>(res);
+  return appelBff<PlatformPayoutResponse>(cheminApi`/api/super-admin/payouts/${payoutId}/approve`, { method: 'POST' });
 }
 
 export async function markAdminPlatformPayoutPaid(
@@ -1090,26 +833,14 @@ export async function markAdminPlatformPayoutPaid(
   // TCK-594 (ADR-0039 §4) — l'argent parti se prouve : `payment_reference` est exigé par l'API.
   payload: { processed_at: string; payment_reference: string; metadata?: { bank_ref?: string; batch_id?: string } },
 ): Promise<PlatformPayoutResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/payouts/${payoutId}/mark-paid`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<PlatformPayoutResponse>(res);
+  return appelBff<PlatformPayoutResponse>(cheminApi`/api/super-admin/payouts/${payoutId}/mark-paid`, { method: 'POST', body: payload });
 }
 
 export async function cancelAdminPlatformPayout(
   payoutId: number,
   reason: string,
 ): Promise<PlatformPayoutResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/payouts/${payoutId}/cancel`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  });
-  return jsonOrThrow<PlatformPayoutResponse>(res);
+  return appelBff<PlatformPayoutResponse>(cheminApi`/api/super-admin/payouts/${payoutId}/cancel`, { method: 'POST', body: { reason } });
 }
 
 export async function fetchMyPlatformPayouts(): Promise<PlatformPayoutsResponse> {
@@ -1117,8 +848,7 @@ export async function fetchMyPlatformPayouts(): Promise<PlatformPayoutsResponse>
   qs.set('fields[platform_payouts]', PLATFORM_PAYOUT_FIELDS);
   qs.set('sort', '-period_end');
   qs.set('per_page', '20');
-  const res = await fetch(cheminApi`/api/me/payouts?${qs.toString()}`, { credentials: 'include' });
-  return jsonOrThrow<PlatformPayoutsResponse>(res);
+  return appelBff<PlatformPayoutsResponse>(cheminApi`/api/me/payouts?${qs.toString()}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1141,8 +871,7 @@ export async function fetchAdminReportGrowth(params: {
     qs.set('starts_at', params.starts_at);
     qs.set('ends_at', params.ends_at);
   }
-  const res = await fetch(cheminApi`/api/super-admin/reports/growth?${qs.toString()}`, { credentials: 'include' });
-  return jsonOrThrow<GrowthResponse>(res);
+  return appelBff<GrowthResponse>(cheminApi`/api/super-admin/reports/growth?${qs.toString()}`);
 }
 
 export async function fetchAdminReportRevenue(params: {
@@ -1159,22 +888,19 @@ export async function fetchAdminReportRevenue(params: {
     qs.set('starts_at', params.starts_at);
     qs.set('ends_at', params.ends_at);
   }
-  const res = await fetch(cheminApi`/api/super-admin/reports/revenue?${qs.toString()}`, { credentials: 'include' });
-  return jsonOrThrow<RevenueResponse>(res);
+  return appelBff<RevenueResponse>(cheminApi`/api/super-admin/reports/revenue?${qs.toString()}`);
 }
 
 export async function fetchAdminReportCohorts(params: { depth?: number } = {}): Promise<CohortsResponse> {
   const qs = new URLSearchParams();
   if (params.depth) qs.set('depth', String(params.depth));
-  const res = await fetch(cheminApi`/api/super-admin/reports/cohorts?${qs.toString()}`, { credentials: 'include' });
-  return jsonOrThrow<CohortsResponse>(res);
+  return appelBff<CohortsResponse>(cheminApi`/api/super-admin/reports/cohorts?${qs.toString()}`);
 }
 
 export async function fetchAdminReportFunnel(params: { period?: ReportPeriod } = {}): Promise<FunnelResponse> {
   const qs = new URLSearchParams();
   if (params.period) qs.set('period', params.period);
-  const res = await fetch(cheminApi`/api/super-admin/reports/funnel?${qs.toString()}`, { credentials: 'include' });
-  return jsonOrThrow<FunnelResponse>(res);
+  return appelBff<FunnelResponse>(cheminApi`/api/super-admin/reports/funnel?${qs.toString()}`);
 }
 
 type AdminReportExportResult =
@@ -1273,8 +999,7 @@ export interface SuperAdminCooptationListing {
 }
 
 export async function fetchSuperAdminListing(): Promise<SuperAdminCooptationListing> {
-  const res = await fetch('/api/super-admin/super-admins', { credentials: 'include' });
-  const json = await jsonOrThrow<{ data: SuperAdminCooptationListing }>(res);
+  const json = await appelBff<{ data: SuperAdminCooptationListing }>('/api/super-admin/super-admins');
   return json.data;
 }
 
@@ -1285,13 +1010,7 @@ export async function inviteSuperAdmin(payload: {
   /** TCK-600 — le niveau du coopté (l'API retient `super_admin` sans lui). */
   level?: PlatformLevel;
 }): Promise<SuperAdminPendingInvitation> {
-  const res = await fetch('/api/super-admin/super-admins/invite', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
+  const json = await appelBff<{ data: SuperAdminPendingInvitation }>('/api/super-admin/super-admins/invite', { method: 'POST', body: payload });
   return json.data;
 }
 
@@ -1305,11 +1024,7 @@ export async function inviteSuperAdmin(payload: {
 export async function resendSuperAdminInvitation(
   invitationId: number,
 ): Promise<SuperAdminPendingInvitation> {
-  const res = await fetch(cheminApi`/api/super-admin/super-admins/invitations/${invitationId}/resend`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
+  const json = await appelBff<{ data: SuperAdminPendingInvitation }>(cheminApi`/api/super-admin/super-admins/invitations/${invitationId}/resend`, { method: 'POST' });
   return json.data;
 }
 
@@ -1318,24 +1033,14 @@ export async function resendSuperAdminInvitation(
  * d'impersonation fermées, pairs alertés. Motif requis.
  */
 export async function revokePlatformOperator(userId: number, reason: string): Promise<unknown> {
-  const res = await fetch(cheminApi`/api/super-admin/super-admins/${userId}/revoke`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  });
-  return jsonOrThrow<unknown>(res);
+  return appelBff<unknown>(cheminApi`/api/super-admin/super-admins/${userId}/revoke`, { method: 'POST', body: { reason } });
 }
 
 /** TCK-367 — annulation d'une invitation de cooptation. */
 export async function revokeSuperAdminInvitation(
   invitationId: number,
 ): Promise<SuperAdminPendingInvitation> {
-  const res = await fetch(cheminApi`/api/super-admin/super-admins/invitations/${invitationId}/revoke`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-  const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
+  const json = await appelBff<{ data: SuperAdminPendingInvitation }>(cheminApi`/api/super-admin/super-admins/invitations/${invitationId}/revoke`, { method: 'POST' });
   return json.data;
 }
 
@@ -1437,20 +1142,13 @@ export async function fetchAdminAgencyUpgradeRequests(
   if (params.page) qs.set('page', String(params.page));
   if (params.perPage) qs.set('per_page', String(params.perPage));
 
-  const res = await fetch(
-    cheminApi`/api/super-admin/agency-upgrade-requests?${qs.toString()}`,
-    { credentials: 'include' },
-  );
-  return jsonOrThrow<AdminAgencyUpgradeRequestListResponse>(res);
+  return appelBff<AdminAgencyUpgradeRequestListResponse>(cheminApi`/api/super-admin/agency-upgrade-requests?${qs.toString()}`);
 }
 
 export async function fetchAdminAgencyUpgradeRequest(
   requestId: number,
 ): Promise<AdminAgencyUpgradeRequestDetail> {
-  const res = await fetch(cheminApi`/api/super-admin/agency-upgrade-requests/${requestId}`, {
-    credentials: 'include',
-  });
-  const json = await jsonOrThrow<{ data: AdminAgencyUpgradeRequestDetail }>(res);
+  const json = await appelBff<{ data: AdminAgencyUpgradeRequestDetail }>(cheminApi`/api/super-admin/agency-upgrade-requests/${requestId}`);
   return json.data;
 }
 
@@ -1458,16 +1156,7 @@ export async function approveAdminAgencyUpgradeRequest(
   requestId: number,
   comment: string | null,
 ): Promise<AdminAgencyUpgradeRequestRow> {
-  const res = await fetch(
-    cheminApi`/api/super-admin/agency-upgrade-requests/${requestId}/approve`,
-    {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ comment: comment ?? '' }),
-    },
-  );
-  const json = await jsonOrThrow<{ data: AdminAgencyUpgradeRequestRow }>(res);
+  const json = await appelBff<{ data: AdminAgencyUpgradeRequestRow }>(cheminApi`/api/super-admin/agency-upgrade-requests/${requestId}/approve`, { method: 'POST', body: { comment: comment ?? '' } });
   return json.data;
 }
 
@@ -1475,128 +1164,78 @@ export async function rejectAdminAgencyUpgradeRequest(
   requestId: number,
   comment: string,
 ): Promise<AdminAgencyUpgradeRequestRow> {
-  const res = await fetch(
-    cheminApi`/api/super-admin/agency-upgrade-requests/${requestId}/reject`,
-    {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ comment }),
-    },
-  );
-  const json = await jsonOrThrow<{ data: AdminAgencyUpgradeRequestRow }>(res);
+  const json = await appelBff<{ data: AdminAgencyUpgradeRequestRow }>(cheminApi`/api/super-admin/agency-upgrade-requests/${requestId}/reject`, { method: 'POST', body: { comment } });
   return json.data;
 }
 
 // TCK-2385 (ADR-0076 §12) — la console IA. Aucune de ces routes ne rend ni n'accepte une clé.
 export async function fetchAdminAiRoles(): Promise<AdminAiRolesResponse> {
-  const res = await fetch('/api/super-admin/ai/roles', { credentials: 'include' });
-  return jsonOrThrow<AdminAiRolesResponse>(res);
+  return appelBff<AdminAiRolesResponse>('/api/super-admin/ai/roles');
 }
 
 export async function putAdminAiRole(role: AiModelRole, chain: AiModelLink[], overrideReason?: string): Promise<AdminAiRolesResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/ai/roles/${role}`, {
-    method: 'PUT',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chain, ...(overrideReason ? { override_reason: overrideReason } : {}) }),
-  });
-  return jsonOrThrow<AdminAiRolesResponse>(res);
+  return appelBff<AdminAiRolesResponse>(cheminApi`/api/super-admin/ai/roles/${role}`, { method: 'PUT', body: { chain, ...(overrideReason ? { override_reason: overrideReason } : {}) } });
 }
 
 export async function deleteAdminAiRole(role: AiModelRole): Promise<AdminAiRolesResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/ai/roles/${role}`, { method: 'DELETE', credentials: 'include' });
-  return jsonOrThrow<AdminAiRolesResponse>(res);
+  return appelBff<AdminAiRolesResponse>(cheminApi`/api/super-admin/ai/roles/${role}`, { method: 'DELETE' });
 }
 
 export async function fetchAdminAiUsages(): Promise<AdminAiUsagesResponse> {
-  const res = await fetch('/api/super-admin/ai/usages', { credentials: 'include' });
-  return jsonOrThrow<AdminAiUsagesResponse>(res);
+  return appelBff<AdminAiUsagesResponse>('/api/super-admin/ai/usages');
 }
 
 export async function patchAdminAiUsage(
   key: string,
   payload: { enabled?: boolean; forced_provider?: string | null; forced_model?: string | null; daily_budget_usd?: string | null },
 ): Promise<AdminAiUsagesResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/ai/usages/${key}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AdminAiUsagesResponse>(res);
+  return appelBff<AdminAiUsagesResponse>(cheminApi`/api/super-admin/ai/usages/${key}`, { method: 'PATCH', body: payload });
 }
 
 export async function fetchAdminAiModels(): Promise<AdminAiModelsResponse> {
-  const res = await fetch('/api/super-admin/ai/models', { credentials: 'include' });
-  return jsonOrThrow<AdminAiModelsResponse>(res);
+  return appelBff<AdminAiModelsResponse>('/api/super-admin/ai/models');
 }
 
 export async function postAdminAiModel(payload: AiModelPrices & { provider: string; model: string; active?: boolean }): Promise<AdminAiModelsResponse> {
-  const res = await fetch('/api/super-admin/ai/models', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AdminAiModelsResponse>(res);
+  return appelBff<AdminAiModelsResponse>('/api/super-admin/ai/models', { method: 'POST', body: payload });
 }
 
 export async function patchAdminAiModel(id: number, payload: Partial<AiModelPrices> & { active?: boolean }): Promise<AdminAiModelsResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/ai/models/${id}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AdminAiModelsResponse>(res);
+  return appelBff<AdminAiModelsResponse>(cheminApi`/api/super-admin/ai/models/${id}`, { method: 'PATCH', body: payload });
 }
 
 /** Efface la ligne qui remplace un modèle de la configuration : le tarif de la configuration s'applique de nouveau. */
 export async function deleteAdminAiModel(id: number): Promise<AdminAiModelsResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/ai/models/${id}`, { method: 'DELETE', credentials: 'include' });
-  return jsonOrThrow<AdminAiModelsResponse>(res);
+  return appelBff<AdminAiModelsResponse>(cheminApi`/api/super-admin/ai/models/${id}`, { method: 'DELETE' });
 }
 
 export async function fetchAdminAiProviders(): Promise<AdminAiProvidersResponse> {
-  const res = await fetch('/api/super-admin/ai/providers', { credentials: 'include' });
-  return jsonOrThrow<AdminAiProvidersResponse>(res);
+  return appelBff<AdminAiProvidersResponse>('/api/super-admin/ai/providers');
 }
 
 export async function testAdminAiProvider(provider: string): Promise<AiProviderTestResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/ai/providers/${provider}/test`, { method: 'POST', credentials: 'include' });
-  return jsonOrThrow<AiProviderTestResponse>(res);
+  return appelBff<AiProviderTestResponse>(cheminApi`/api/super-admin/ai/providers/${provider}/test`, { method: 'POST' });
 }
 
 export async function postAdminAiEvaluation(payload: { role: AiModelRole; provider: string; model: string; max_tokens?: number | null }): Promise<AdminAiEvaluationResponse> {
-  const res = await fetch('/api/super-admin/ai/evaluations', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return jsonOrThrow<AdminAiEvaluationResponse>(res);
+  return appelBff<AdminAiEvaluationResponse>('/api/super-admin/ai/evaluations', { method: 'POST', body: payload });
 }
 
 /** TCK-2459 — la dernière évaluation complète, `null` s'il n'y en a jamais eu. */
 export async function fetchAdminAiEvaluationSuite(): Promise<AdminAiEvaluationSuiteResponse> {
-  const res = await fetch('/api/super-admin/ai/evaluations/suite', { credentials: 'include' });
-  return jsonOrThrow<AdminAiEvaluationSuiteResponse>(res);
+  return appelBff<AdminAiEvaluationSuiteResponse>('/api/super-admin/ai/evaluations/suite');
 }
 
 /** TCK-2459 — lance l'évaluation complète : de vrais appels, à la charge du compte. */
 export async function postAdminAiEvaluationSuite(): Promise<AdminAiEvaluationResponse> {
-  const res = await fetch('/api/super-admin/ai/evaluations/suite', { method: 'POST', credentials: 'include' });
-  return jsonOrThrow<AdminAiEvaluationResponse>(res);
+  return appelBff<AdminAiEvaluationResponse>('/api/super-admin/ai/evaluations/suite', { method: 'POST' });
 }
 
 export async function fetchAdminAiEvaluation(id: number): Promise<AdminAiEvaluationResponse> {
-  const res = await fetch(cheminApi`/api/super-admin/ai/evaluations/${id}`, { credentials: 'include' });
-  return jsonOrThrow<AdminAiEvaluationResponse>(res);
+  return appelBff<AdminAiEvaluationResponse>(cheminApi`/api/super-admin/ai/evaluations/${id}`);
 }
 
 export async function fetchAdminAiDashboard(from: string, to: string): Promise<AdminAiDashboardResponse> {
   const qs = new URLSearchParams({ from, to });
-  const res = await fetch(cheminApi`/api/super-admin/ai/dashboard${requete(qs)}`, { credentials: 'include' });
-  return jsonOrThrow<AdminAiDashboardResponse>(res);
+  return appelBff<AdminAiDashboardResponse>(cheminApi`/api/super-admin/ai/dashboard${requete(qs)}`);
 }

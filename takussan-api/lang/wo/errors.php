@@ -152,6 +152,7 @@ return [
     'booking_payment' => [
         'booking_not_payable' => 'Cette réservation n\'est plus en attente ni confirmée : elle ne se paie plus.',
         'exceeds_remaining' => 'Ce montant dépasse le reste dû de la réservation (:remaining).',
+        'not_a_stay' => 'Seul un séjour se paie sur la réservation : une candidature ou une offre ne se règle pas ici.',
         'nothing_due' => 'Cette réservation est soldée : il ne reste rien à payer.',
         'receipt_unpaid' => 'Quittance bi, fay bu ñu fay ba noppi rekk la.',
         'refund_exceeds_paid' => 'Delloo bi mënul a ëpp xaalis bi ñu fay.',

@@ -71,7 +71,8 @@ class BookingRefundTaskTest extends TestCase
 
         $task = $this->assertOneOpenTask($booking, $this->agent);
         $this->assertSame([$payment->id], $task->metadata['booking_payment_ids']);
-        $this->assertSame($this->client->id, $task->created_by_id);
+        // TCK-3006 — la tâche est interne : le client qui annule n'en est pas le créateur, sinon il la lirait.
+        $this->assertNull($task->created_by_id);
     }
 
     /**
@@ -247,5 +248,56 @@ class BookingRefundTaskTest extends TestCase
         $host = User::factory()->create();
         $this->property = Property::factory()->published()->create(['user_id' => $host->id, 'agency_id' => null]);
         $this->assertSame($host->id, $service->assigneeFor($this->bookingOfClient(['agency_id' => null]))->id);
+    }
+
+    /**
+     * TCK-3006 — la tâche est interne (acomptes et reversements du bailleur) : le client qui annule
+     * une réservation hors agence n'en est pas le créateur, donc ne la lit ni ne la coche, en fiche
+     * comme en liste. L'hôte, assigné, la garde.
+     */
+    public function test_the_client_who_closes_is_not_the_creator_and_cannot_read_nor_patch_the_task(): void
+    {
+        $hote = User::factory()->create();
+        $bien = Property::factory()->create(['agency_id' => null, 'user_id' => $hote->id]);
+        $booking = $this->bookingOfClient(['property_id' => $bien->id, 'agency_id' => null]);
+        $this->paidDeposit($booking);
+
+        $task = app(BookingRefundTaskService::class)->openFor($booking, $this->client->id);
+
+        $this->assertNull($task->created_by_id);
+        Sanctum::actingAs($this->client);
+        $this->getJson("/api/tasks/{$task->id}")->assertForbidden();
+        $this->patchJson("/api/tasks/{$task->id}", ['status' => 'done'])->assertForbidden();
+        $this->assertNotContains($task->id, $this->getJson('/api/tasks?per_page=100')->assertOk()->json('data.*.id'));
+        Sanctum::actingAs($hote);
+        $this->getJson("/api/tasks/{$task->id}")->assertOk();
+    }
+
+    /** TCK-3006 — seul le client est retiré : le personnel qui ferme reste le créateur. */
+    public function test_the_staff_who_closes_stays_the_creator(): void
+    {
+        $booking = $this->bookingOfClient();
+        $this->paidDeposit($booking);
+
+        $task = app(BookingRefundTaskService::class)->openFor($booking, $this->agent->id);
+
+        $this->assertSame($this->agent->id, (int) $task->created_by_id);
+    }
+
+    /** TCK-3006 — la reprise retire le client des tâches déjà écrites ; les autres ne bougent pas. */
+    public function test_the_data_fix_removes_the_client_from_refund_tasks_already_written(): void
+    {
+        $booking = $this->bookingOfClient();
+        $rattachement = ['taskable_type' => $booking->getMorphClass(), 'taskable_id' => $booking->id];
+        $remboursement = ['metadata' => ['kind' => BookingRefundTaskService::KIND]];
+        $duClient = Task::factory()->create($rattachement + $remboursement + ['created_by_id' => $this->client->id]);
+        $duPersonnel = Task::factory()->create($rattachement + $remboursement + ['created_by_id' => $this->agent->id]);
+        $ordinaire = Task::factory()->create($rattachement + ['created_by_id' => $this->client->id]);
+
+        (require base_path('database/migrations/2026_11_28_120100_la_tache_de_remboursement_n_a_pas_le_client_pour_createur.php'))->up();
+
+        $this->assertNull($duClient->fresh()->created_by_id);
+        $this->assertSame($this->agent->id, (int) $duPersonnel->fresh()->created_by_id);
+        $this->assertSame($this->client->id, (int) $ordinaire->fresh()->created_by_id);
     }
 }

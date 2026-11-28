@@ -18,10 +18,11 @@ export type CodeDoubleFacteur = (typeof CODES_DOUBLE_FACTEUR)[number];
 /** Le code de second facteur que porte ce refus, ou `null` s'il ne s'agit pas de ça. */
 export function codeDoubleFacteur(err: unknown): CodeDoubleFacteur | null {
   if (!(err instanceof ApiError) || err.status !== 403) return null;
-  const data = err.data;
-  if (!data || typeof data !== 'object' || !('code' in data)) return null;
-  const code = (data as { code?: unknown }).code;
-  return (CODES_DOUBLE_FACTEUR as readonly unknown[]).includes(code) ? (code as CodeDoubleFacteur) : null;
+  return estCodeDoubleFacteur(err.codeMetier) ? err.codeMetier : null;
+}
+
+function estCodeDoubleFacteur(code: string | undefined): code is CodeDoubleFacteur {
+  return (CODES_DOUBLE_FACTEUR as readonly unknown[]).includes(code);
 }
 
 export const ENROLEMENT_SUPER_ADMIN_COOPTE = '/onboarding/super-admin';
@@ -77,15 +78,17 @@ export async function avecGardeDoubleFacteur<T>(
  * TCK-293 — la même chose pour une ACTION SERVEUR, qui ne lève pas d'`ApiError` mais rend un
  * résultat `{ ok: false, code }`. Le refus de second facteur est confié à `garde`, puis l'action
  * est rejouée ; deux passages au plus, comme {@link avecGardeDoubleFacteur}. Tout autre résultat
- * revient tel quel.
+ * revient tel quel — TCK-3008 : y compris un refus qui porte un AUTRE code métier, que les actions
+ * rendent désormais (`refusDAction`).
  */
-export async function avecGardeDoubleFacteurAction<R extends { ok: boolean; code?: CodeDoubleFacteur }>(
+export async function avecGardeDoubleFacteurAction<R extends { ok: boolean; code?: string }>(
   action: () => Promise<R>,
   garde: GardeDoubleFacteurFn | null,
 ): Promise<R> {
   for (let passage = 0; ; passage++) {
     const resultat = await action();
-    if (resultat.ok || !resultat.code || garde === null || passage >= 2) return resultat;
-    if (!(await garde(resultat.code))) return resultat;
+    const code = resultat.ok ? undefined : resultat.code;
+    if (!estCodeDoubleFacteur(code) || garde === null || passage >= 2) return resultat;
+    if (!(await garde(code))) return resultat;
   }
 }

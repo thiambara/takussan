@@ -83,7 +83,8 @@ describe('<ImpersonationBanner>', () => {
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'Quitter' }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/impersonation/stop', { method: 'POST' }));
+    // TCK-3009 — par `appelBff` : `credentials` et `Accept` accompagnent la méthode.
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/impersonation/stop', expect.objectContaining({ method: 'POST' })));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('/super-admin/users/42'));
   });
 

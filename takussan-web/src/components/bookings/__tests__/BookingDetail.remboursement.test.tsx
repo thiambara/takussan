@@ -6,15 +6,14 @@ vi.mock('@/components/messages/salle/BlocDeLaSalle', () => ({ BlocDeLaSalle: () 
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 1 }));
 
 import { withIntl } from '@/test/intl';
+import { permis } from './abilities-de-test';
 import { BookingDetail } from '../BookingDetail';
-import { useCanAll } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { useBooking } from '@/lib/queries/bookings';
 import { ToastProvider } from '@/components/ui/toast';
 
 const etat = vi.hoisted(() => ({ refund: vi.fn() }));
 
-vi.mock('@/hooks/useCan', () => ({ useCanAll: vi.fn() }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/usePaymentProviders', () => ({
   usePaymentProviders: () => ({ providers: [] }),
@@ -37,6 +36,7 @@ const PAYE = {
   payment_type: 'deposit',
   payment_method: 'cash',
   status: 'paid',
+  refundable: true,
   created_at: '2026-10-01T10:00:00Z',
 };
 
@@ -74,11 +74,10 @@ describe('BookingDetail — acompte d’une réservation fermée (TCK-596 AC5)',
   beforeEach(() => {
     vi.clearAllMocks();
     etat.refund.mockResolvedValue({ data: {} });
-    vi.mocked(useCanAll).mockReturnValue({ can: false, isLoading: false });
   });
 
   it('le client lit « remboursement en cours », sans geste', () => {
-    monter(reservation({ refund_status: 'pending', can_refund: false }), { id: CLIENT_ID, roles: ['customer'] });
+    monter(reservation({ refund_status: 'pending', abilities: permis() }), { id: CLIENT_ID, roles: ['customer'] });
 
     const panneau = screen.getByTestId('booking-refund-panel');
     expect(within(panneau).getByRole('heading', { name: 'Remboursement en cours' })).toBeInTheDocument();
@@ -87,7 +86,7 @@ describe('BookingDetail — acompte d’une réservation fermée (TCK-596 AC5)',
 
   it('le client lit « remboursé » une fois l’acompte rendu', () => {
     monter(
-      reservation({ refund_status: 'refunded', can_refund: false, booking_payments: [{ ...PAYE, status: 'refunded' }] }),
+      reservation({ refund_status: 'refunded', abilities: permis(), booking_payments: [{ ...PAYE, status: 'refunded', refundable: false }] }),
       { id: CLIENT_ID, roles: ['customer'] },
     );
 
@@ -101,7 +100,7 @@ describe('BookingDetail — acompte d’une réservation fermée (TCK-596 AC5)',
   });
 
   it('qui peut rembourser voit « à traiter » et rembourse le paiement encaissé', async () => {
-    monter(reservation({ refund_status: 'pending', can_refund: true }), { id: 3, roles: ['agency_admin'] });
+    monter(reservation({ refund_status: 'pending', abilities: permis('refund') }), { id: 3, roles: ['agency_admin'] });
 
     const panneau = screen.getByTestId('booking-refund-panel');
     expect(within(panneau).getByRole('heading', { name: 'Remboursement à traiter' })).toBeInTheDocument();
@@ -119,7 +118,7 @@ describe('BookingDetail — acompte d’une réservation fermée (TCK-596 AC5)',
   });
 
   it('un agent sans le droit voit ce qui reste à traiter, sans le geste', () => {
-    monter(reservation({ refund_status: 'pending', can_refund: false }), { id: 4, roles: ['agent'] });
+    monter(reservation({ refund_status: 'pending', abilities: permis() }), { id: 4, roles: ['agent'] });
 
     const panneau = screen.getByTestId('booking-refund-panel');
     expect(within(panneau).getByRole('heading', { name: 'Remboursement à traiter' })).toBeInTheDocument();
@@ -131,7 +130,6 @@ describe('BookingDetail — acompte déjà reversé au bailleur (P205.02, TCK-21
   beforeEach(() => {
     vi.clearAllMocks();
     etat.refund.mockResolvedValue({ data: {} });
-    vi.mocked(useCanAll).mockReturnValue({ can: false, isLoading: false });
   });
 
   const REVERSE = {
@@ -140,7 +138,7 @@ describe('BookingDetail — acompte déjà reversé au bailleur (P205.02, TCK-21
   };
 
   it('la ligne et le dialogue disent le reversement, et le geste reste permis', async () => {
-    monter(reservation({ refund_status: 'pending', can_refund: true, booking_payments: [REVERSE] }), {
+    monter(reservation({ refund_status: 'pending', abilities: permis('refund'), booking_payments: [REVERSE] }), {
       id: 3,
       roles: ['agency_admin'],
     });
@@ -158,7 +156,7 @@ describe('BookingDetail — acompte déjà reversé au bailleur (P205.02, TCK-21
   });
 
   it('un acompte jamais reversé n’affiche ni la mention ni l’avertissement', async () => {
-    monter(reservation({ refund_status: 'pending', can_refund: true }), { id: 3, roles: ['agency_admin'] });
+    monter(reservation({ refund_status: 'pending', abilities: permis('refund') }), { id: 3, roles: ['agency_admin'] });
 
     const panneau = screen.getByTestId('booking-refund-panel');
     expect(within(panneau).queryByText(/Reversé au bailleur/)).not.toBeInTheDocument();

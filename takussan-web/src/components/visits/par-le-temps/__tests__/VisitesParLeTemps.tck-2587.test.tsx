@@ -1,15 +1,15 @@
 /**
- * TCK-2587 — les Visites « par le temps ». Le réseau est doublé au niveau d'`apiRequest` (les hooks
+ * TCK-2587 — les Visites « par le temps ». Le réseau est doublé au niveau de `fetch` (`doublerLApi`, TCK-3010 ; les hooks
  * de requête et de mutation tournent pour de vrai, sur un `QueryClient` de test) : on compte les
  * lectures et on lit les corps postés, comme au relevé réseau.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { withIntl } from '@/test/intl';
-import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
+import { ApiError } from '@/lib/api';
+import { doublerLApi } from '@/test/api-simulee';
+import { enveloppeDeTest, rendre } from '@/test/rendu';
 import type { PropertyVisit } from '@/types/visit';
 
 import { VisitesParLeTemps } from '../VisitesParLeTemps';
@@ -19,7 +19,6 @@ const etat = vi.hoisted(() => ({
   large: false,
   agence: 3 as number | null,
   capacites: ['crm.assign'] as string[],
-  appels: [] as { chemin: string; methode: string; corps: unknown }[],
   lot: null as unknown,
   aClore: null as PropertyVisit[] | null,
   aConfirmer: null as PropertyVisit[] | null,
@@ -46,7 +45,6 @@ vi.mock('@/hooks/usePersonnelActif', () => ({
   usePersonnelActif: () => etat.agence !== null,
 }));
 vi.mock('@/hooks/useCan', () => ({ useCan: (c: string) => ({ can: etat.capacites.includes(c), isLoading: false }) }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 7, roles: ['agent'], agency_id: 3 }, token: 'jeton' }) }));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: toastAdd }) }));
 vi.mock('@/components/layout/en-tete-de-la-coque', () => ({ DeclarerEnTete: () => null }));
 vi.mock('@/components/visits/PlanifierUneVisite', () => ({ PlanifierDialog: () => <div data-testid="planifier" /> }));
@@ -110,71 +108,57 @@ function liste(filtre: URLSearchParams): PropertyVisit[] {
   return [];
 }
 
-vi.mock('@/lib/api', async (original) => {
-  const vrai = await original<typeof import('@/lib/api')>();
-  return {
-    ...vrai,
-    apiRequest: vi.fn(async (chemin: string, options: { method?: string; body?: unknown } = {}) => {
-      const methode = options.method ?? 'GET';
-      etat.appels.push({ chemin, methode, corps: options.body });
-      const [route, qs] = chemin.split('?');
-      const p = new URLSearchParams(qs ?? '');
-      if (route === '/api/property-visits/counts') return { data: COMPTES };
-      if (route === '/api/property-visits/slots') {
-        if (etat.agentParti !== null && p.get('agent_id') === String(etat.agentParti)) {
-          throw new vrai.ApiError(422, { message: 'Le champ agent est invalide.', errors: { agent_id: ['Le champ agent est invalide.'] } });
-        }
-        const jour = p.get('date');
-        return {
-          data: {
-            date: jour,
-            timezone: 'Africa/Dakar',
-            slots: ['14:00', '15:00', '15:30', '17:00'].map((h) => ({ start: `${jour}T${h}:00Z`, label: h, available: h !== '14:00' })),
-          },
-        };
-      }
-      if (route === '/api/property-visits') {
-        const data = liste(p);
-        // TCK-2797 — servies comme l'API : les seules clés de `fields[property_visits]`.
-        const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
-        return servir(chemin, { data, meta: { total: data.length, per_page: 30, current_page: 1, last_page: 1 } });
-      }
-      if (route === '/api/property-visits/bulk-confirm') return etat.lot;
-      // L'attribution en lot répond comme la confirmation en lot : une ligne par visite, et ses comptes.
-      if (route === '/api/property-visits/bulk-assign') return { data: [{ id: 2301, ok: true }], meta: { ok: 1, failed: 0 } };
-      if (route.endsWith('/report')) return { data: LIBERTE, customer_note: null, suggested_stage: null };
-      if (route.startsWith('/api/agencies/')) return { data: [{ id: 21, first_name: 'Moussa', last_name: 'Fall' }], meta: { total: 1 } };
-      if (methode === 'POST' && route.endsWith('/no-show')) return { data: {}, ...(etat.smsAbsent === undefined ? {} : { sms_sent: etat.smsAbsent }) };
-      if (methode === 'POST') return { data: {} };
-      return { data: [], meta: { total: 0, per_page: 8, current_page: 1, last_page: 1 } };
-    }),
-  };
-});
+// Les déclarations plus bas l'emportent : l'écriture générique d'abord.
+const api = doublerLApi()
+  .sur('POST', /^\/api\/property-visits\//, { data: {} })
+  .sur('GET', '/api/property-visits/counts', { data: COMPTES })
+  .sur('GET', '/api/property-visits/slots', ({ requete: p }) => {
+    if (etat.agentParti !== null && p.get('agent_id') === String(etat.agentParti)) {
+      throw new ApiError(422, { message: 'Le champ agent est invalide.', errors: { agent_id: ['Le champ agent est invalide.'] } });
+    }
+    const jour = p.get('date');
+    return {
+      data: {
+        date: jour,
+        timezone: 'Africa/Dakar',
+        slots: ['14:00', '15:00', '15:30', '17:00'].map((h) => ({ start: `${jour}T${h}:00Z`, label: h, available: h !== '14:00' })),
+      },
+    };
+  })
+  // TCK-2797 — servies comme l'API : les seules clés de `fields[property_visits]`.
+  // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+  .servir('visites', ({ requete }) => liste(requete), { filtres: ['scheduled_at_min'] })
+  .sur('POST', '/api/property-visits/bulk-confirm', () => etat.lot)
+  // L'attribution en lot répond comme la confirmation en lot : une ligne par visite, et ses comptes.
+  .sur('POST', '/api/property-visits/bulk-assign', { data: [{ id: 2301, ok: true }], meta: { ok: 1, failed: 0 } })
+  .sur('POST', /\/report$/, { data: LIBERTE, customer_note: null, suggested_stage: null })
+  .sur('GET', /^\/api\/agencies\//, { data: [{ id: 21, first_name: 'Moussa', last_name: 'Fall' }], meta: { total: 1 } })
+  .sur('POST', /\/no-show$/, () => ({ data: {}, ...(etat.smsAbsent === undefined ? {} : { sms_sent: etat.smsAbsent }) }))
+  .parDefaut({ data: [], meta: { total: 0, per_page: 8, current_page: 1, last_page: 1 } });
 
 /** Mardi 10 novembre 2026, 10:12 à Dakar : la visite de 10:57 part « dans 45 min ». */
 const MAINTENANT = new Date('2026-11-10T10:12:00Z');
 
+const COMPTE = { utilisateur: { id: 7, roles: ['agent'], agency_id: 3 }, jeton: 'jeton' } as const;
+
 function monter() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{withIntl(<VisitesParLeTemps titre="Visites" />)}</QueryClientProvider>);
+  return rendre(<VisitesParLeTemps titre="Visites" />, { compte: COMPTE });
 }
 
-const lectures = (route: string) => etat.appels.filter((a) => a.methode === 'GET' && a.chemin.split('?')[0] === route);
-const ecritures = (fin: string) => etat.appels.filter((a) => a.methode === 'POST' && a.chemin.endsWith(fin));
+/** Les requêtes des lectures d'une route. */
+const lectures = (route: string) => api.appels(route).filter((a) => a.methode === 'GET').map((a) => a.requete);
+const ecritures = (fin: string) => api.appels().filter((a) => a.methode === 'POST' && a.chemin.endsWith(fin));
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { recherche: '', large: false, agence: 3, capacites: ['crm.assign'], appels: [], lot: null, aClore: null, aConfirmer: null, agentParti: null, smsAbsent: undefined });
+  Object.assign(etat, { recherche: '', large: false, agence: 3, capacites: ['crm.assign'], lot: null, aClore: null, aConfirmer: null, agentParti: null, smsAbsent: undefined });
   remplacer.mockClear();
   pousser.mockClear();
   toastAdd.mockClear();
-  oublierLesLectures();
 });
 afterEach(() => {
   vi.useRealTimers();
-  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas (`VISIT_TIME_FIELDS`).
-  expect(lecturesHorsFields()).toEqual([]);
 });
 
 describe('les pastilles', () => {
@@ -196,7 +180,7 @@ describe('les pastilles', () => {
     const rangee = screen.getByLabelText('Vues des visites');
     expect(within(rangee).getByRole('button', { name: /À confirmer/ })).toHaveAttribute('aria-pressed', 'true');
     await screen.findAllByText(/Mariama Fall/);
-    const liste = lectures('/api/property-visits').map((a) => new URLSearchParams(a.chemin.split('?')[1]));
+    const liste = lectures('/api/property-visits');
     expect(liste.some((p) => p.get('filter[status]') === 'scheduled' && p.get('filter[scheduled_at_min]') === '2026-11-10T10:12:00.000Z')).toBe(true);
   });
 
@@ -233,14 +217,14 @@ describe('À confirmer : confirmer sans ouvrir la fiche', () => {
     await waitFor(() => expect(ecritures('/api/property-visits/2301/confirm')).toHaveLength(1));
     expect(ecritures('/api/property-visits/2301/confirm')[0].corps).toEqual({ scheduled_at: '2026-11-11T15:00:00Z' });
     // Les créneaux sont lus pour CE bien et CE jour.
-    expect(lectures('/api/property-visits/slots').some((a) => a.chemin.includes('property_id=53') && a.chemin.includes('date=2026-11-11'))).toBe(true);
+    expect(lectures('/api/property-visits/slots').some((p) => p.get('property_id') === '53' && p.get('date') === '2026-11-11')).toBe(true);
   });
 
   it('d1 — les heures proposées sont celles de l’agent de la visite : `agent_id` part avec la lecture des créneaux', async () => {
     etat.recherche = 'vue=to_confirm';
     monter();
     await screen.findByRole('button', { name: 'Confirmer 15:00' });
-    const creneaux = lectures('/api/property-visits/slots').map((a) => new URLSearchParams(a.chemin.split('?')[1]));
+    const creneaux = lectures('/api/property-visits/slots');
     expect(creneaux.length).toBeGreaterThan(0);
     // YOFF (tranche, bien 53) est attribuée à l'agent 3 — l'appelant est l'utilisateur 7.
     expect(creneaux.filter((p) => p.get('property_id') === '53').map((p) => p.get('agent_id'))).toEqual(expect.arrayContaining(['3']));
@@ -252,7 +236,7 @@ describe('À confirmer : confirmer sans ouvrir la fiche', () => {
     etat.aConfirmer = [{ ...YOFF, duration_minutes: 45 } as PropertyVisit];
     monter();
     await waitFor(() => expect(lectures('/api/property-visits/slots').length).toBeGreaterThan(0));
-    const creneaux = lectures('/api/property-visits/slots').map((a) => new URLSearchParams(a.chemin.split('?')[1]));
+    const creneaux = lectures('/api/property-visits/slots');
     // Jugée sur 30 min, la grille offrait 09:30 à une visite de 45 min que `confirm` refusait.
     expect(creneaux.filter((p) => p.get('property_id') === '53').map((p) => p.get('duration_minutes'))).toEqual(expect.arrayContaining(['45']));
   });
@@ -262,7 +246,7 @@ describe('À confirmer : confirmer sans ouvrir la fiche', () => {
     etat.aConfirmer = [{ ...YOFF, agent_id: null, agent: null } as PropertyVisit];
     monter();
     await waitFor(() => expect(lectures('/api/property-visits/slots').length).toBeGreaterThan(0));
-    const creneaux = lectures('/api/property-visits/slots').map((a) => new URLSearchParams(a.chemin.split('?')[1]));
+    const creneaux = lectures('/api/property-visits/slots');
     expect(creneaux.every((p) => !p.has('agent_id'))).toBe(true);
   });
 
@@ -276,7 +260,7 @@ describe('À confirmer : confirmer sans ouvrir la fiche', () => {
     expect(within(carte).queryByRole('button', { name: /^Confirmer/ })).toBeNull();
     expect(within(carte).queryByText('Aucune heure libre dans la tranche')).toBeNull();
     // Aucune relecture sans `agent_id` : les heures de l'appelant ne remplacent pas celles de la visite.
-    const creneaux = lectures('/api/property-visits/slots').map((a) => new URLSearchParams(a.chemin.split('?')[1]));
+    const creneaux = lectures('/api/property-visits/slots');
     expect(creneaux.filter((q) => q.get('property_id') === '53').every((q) => q.get('agent_id') === '3')).toBe(true);
   });
 
@@ -429,6 +413,7 @@ describe('le bailleur', () => {
     expect(within(rangee).queryByRole('button', { name: /À clore/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Confirmer/ })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Autre heure' })).toBeNull();
+    await api.auRepos();
     expect(lectures('/api/property-visits/slots')).toHaveLength(0);
   });
 
@@ -445,11 +430,14 @@ describe('l’hydratation', () => {
     const { renderToString } = await import('react-dom/server');
     const { hydrateRoot } = await import('react-dom/client');
     const { act } = await import('react');
-    const arbre = () => (
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        {withIntl(<VisitesParLeTemps titre="Visites" />)}
-      </QueryClientProvider>
-    );
+    const arbre = () => {
+      const { Enveloppe } = enveloppeDeTest({ compte: COMPTE });
+      return (
+        <Enveloppe>
+          <VisitesParLeTemps titre="Visites" />
+        </Enveloppe>
+      );
+    };
     // Le serveur rend sans les profils (le cache du serveur ne les a pas lus)…
     etat.agence = null;
     const html = renderToString(arbre());

@@ -7,7 +7,7 @@ use App\Http\Requests\Api\StoreInvoiceRequest;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Customer;
 use App\Models\Invoice;
-use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Lecture\FacturesLisibles;
 use App\Services\Model\InvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,22 +20,8 @@ class InvoiceController extends Controller
     {
         $user = $request->user();
 
-        $base = Invoice::query()->with('customer');
-
-        if (! $user->isSuperAdmin()) {
-            // P218.03 (TCK-2196) — l'émetteur encore membre de l'agence, comme `InvoicePolicy::view`.
-            $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
-            $base->where(function ($q) use ($user, $memberAgencyIds) {
-                $q->where(fn ($a) => $a->where('issued_by_id', $user->id)
-                    ->where(fn ($m) => $m->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds)))
-                    ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
-                // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
-                // listait les ressources de tous les autres.
-                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
-                    $q->orWhere('agency_id', $staffAgencyId);
-                }
-            });
-        }
+        // TCK-3006 (ADR-0138) — la règle de lecture de la fiche, en SQL : `FacturesLisibles`.
+        $base = FacturesLisibles::restreindre(Invoice::query()->with('customer'), $user);
 
         $paginator = Invoice::buildQuery($base, $request)
             ->defaultSort('-created_at')
@@ -99,6 +85,7 @@ class InvoiceController extends Controller
     private function presenter(Request $request, Invoice $invoice): array
     {
         // TCK-594 (ADR-0039 §7) — l'avoir se lit sur la facture qu'il annule.
-        return InvoiceResource::make($invoice->load(['creditNotes']))->resolve($request);
+        // TCK-3011 (ADR-0139) — et ses gestes pour ce lecteur : la fiche se met à jour sans relecture.
+        return InvoiceResource::make($invoice->load(['creditNotes']))->forViewer($request->user())->resolve($request);
     }
 }

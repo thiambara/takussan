@@ -1,6 +1,6 @@
 'use server';
 
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction, type RefusDAction } from '@/lib/api';
 import { fetchMyProfiles } from '@/lib/profiles';
 import { getActiveProfileId, getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
@@ -9,7 +9,7 @@ import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 export type ProfilesActionResult =
   | { ok: true; data: MyProfilesResponse }
-  | { ok: false; message: string };
+  | ({ ok: false } & RefusDAction);
 
 export async function getMyProfilesAction(): Promise<ProfilesActionResult> {
   const token = await getToken();
@@ -36,7 +36,7 @@ export async function getMyProfilesAction(): Promise<ProfilesActionResult> {
     const repli = t('loadFailed');
     if (err instanceof ApiError) {
       // Module `'use server'` : `err.displayMessage` seul rendait ici la CLÉ `errors.api.*`.
-      return { ok: false, message: messageErreurApi(err, tRacine, repli) };
+      return { ok: false, ...refusDAction(err, tRacine, repli) };
     }
     return { ok: false, message: repli };
   }

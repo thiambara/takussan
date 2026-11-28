@@ -1,24 +1,11 @@
 /**
- * P201.03 (TCK-2037) — les prédicats suivent `ReviewEligibility::BOOKING_STATUSES`
- * (`confirmed`, `completed`) et `LEASE_STATUSES` (`active`, `terminating`, `terminated`,
- * `expired`) de l'API (ADR-0043 § 3) : un test par statut, les deux sens.
+ * P201.03 (TCK-2037) — le prédicat suit `ReviewEligibility::LEASE_STATUSES` (`active`, `terminating`,
+ * `terminated`, `expired`) de l'API (ADR-0043 § 3) : un test par statut, les deux sens. Celui de la
+ * réservation est parti avec TCK-3007 : la fiche lit `abilities.leave_review`.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  canBookingLeaveReview,
-  canLeaseLeaveReview,
-} from '../reviewEligibility';
-import type { BookingStatus } from '@/types/booking';
+import { canLeaseLeaveReview } from '../reviewEligibility';
 import type { LeaseStatus } from '@/types/lease';
-
-const BOOKING: Record<BookingStatus, boolean> = {
-  pending: false,
-  confirmed: true,
-  rejected: false,
-  cancelled: false,
-  expired: false,
-  completed: true,
-};
 
 const LEASE: Record<LeaseStatus, boolean> = {
   draft: false,
@@ -29,25 +16,6 @@ const LEASE: Record<LeaseStatus, boolean> = {
   terminated: true,
   renewed: false,
 };
-
-describe('canBookingLeaveReview', () => {
-  it.each(Object.entries(BOOKING) as [BookingStatus, boolean][])(
-    'réservation %s avec un bien → %s',
-    (status, attendu) => {
-      expect(canBookingLeaveReview({ status, property: { slug: 'villa-dakar' } })).toBe(attendu);
-    },
-  );
-
-  it('returns false when the property slug is missing', () => {
-    expect(canBookingLeaveReview({ status: 'completed' })).toBe(false);
-    expect(
-      canBookingLeaveReview({ status: 'completed', property: null }),
-    ).toBe(false);
-    expect(
-      canBookingLeaveReview({ status: 'completed', property: { slug: null } }),
-    ).toBe(false);
-  });
-});
 
 describe('canLeaseLeaveReview', () => {
   it.each(Object.entries(LEASE) as [LeaseStatus, boolean][])(

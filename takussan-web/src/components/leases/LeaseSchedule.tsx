@@ -333,7 +333,10 @@ export function LeaseSchedule({
             const mois = f.date(p.period_start, { month: 'long', year: 'numeric' });
             const periode = tFiche('periode', { type, mois });
             const due = !annulee && p.amount_due > 0;
-            const ouverte = !annulee && (p.status === 'pending' || p.status === 'late' || p.status === 'partially_paid' || p.status === 'failed');
+            // TCK-3011 (D2) — « Encaisser » sur la ligne suit la LIGNE (`abilities.record_payment` : la policy et
+            // la règle de `markPaid`), plus la clé repère du bail et le statut : une échéance en échec
+            // s'offrait, et l'API la refusait.
+            const encaissable = p.abilities?.record_payment === true;
             const marquerPenalite = canRecordPayment && !annulee && p.late_fee_outstanding > 0;
             const copierLien = canManage && due && !locataire;
             // TCK-608 — un encaissement en double attend d'être rendu : la gestion constate le remboursement.
@@ -404,7 +407,7 @@ export function LeaseSchedule({
                         montant={detailMontantDu(p)}
                       />
                     ) : null}
-                    {!locataire && onEncaisser && canRecordPayment && ouverte ? (
+                    {!locataire && onEncaisser && encaissable ? (
                       <Button type="button" size="sm" onClick={() => onEncaisser(p.id)}>
                         {tFiche('encaisser')}
                       </Button>

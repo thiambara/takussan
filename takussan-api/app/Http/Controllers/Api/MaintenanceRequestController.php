@@ -55,7 +55,9 @@ class MaintenanceRequestController extends Controller
         $user = $request->user();
 
         // TCK-592 — un seul périmètre, celui de la policy `view` : {@see MaintenanceRequest::scopeVisibleTo()}.
-        $base = MaintenanceRequest::query()->visibleTo($user);
+        // TCK-3006 — le bien chargé en une requête : la ressource le lit sur chaque ligne
+        // (`maintenance_response_minutes`), et le relisait une fois par ligne.
+        $base = MaintenanceRequest::query()->with('property')->visibleTo($user);
 
         // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
         // `buildQuery()`, qui est ce qui interroge Meilisearch.

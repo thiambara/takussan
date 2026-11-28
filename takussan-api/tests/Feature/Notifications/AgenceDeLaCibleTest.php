@@ -277,11 +277,7 @@ class AgenceDeLaCibleTest extends TestCase
         $bien = Property::factory()->create(['agency_id' => $agence->id]);
         $enCorbeille = MaintenanceRequest::factory()->create(['property_id' => $bien->id]);
         $enCorbeille->delete();
-        $bienEnCorbeille = Property::factory()->create(['agency_id' => $agence->id]);
-        $visite = PropertyVisit::factory()->create(['property_id' => $bienEnCorbeille->id]);
-        $bienEnCorbeille->delete();
         $this->notifier($membre, NotificationTarget::of('maintenance', $enCorbeille->id));
-        $this->notifier($membre, NotificationTarget::of('visit', $visite->id));
         $this->notifier($membre, NotificationTarget::of('lease', 999_999_999));
         $this->notifier($membre, NotificationTarget::of('lead', 999_999_999));
         Sanctum::actingAs($membre);
@@ -289,10 +285,40 @@ class AgenceDeLaCibleTest extends TestCase
         $lignes = $this->getJson('/api/notifications')->assertOk()->json('data');
 
         $this->assertSoftDeleted($enCorbeille);
-        $this->assertCount(4, $lignes);
+        $this->assertCount(3, $lignes);
         foreach ($lignes as $ligne) {
             $this->assertArrayNotHasKey('agency_id', $ligne['target'], $ligne['target']['kind'].' : clé rendue pour un objet absent.');
         }
+    }
+
+    /**
+     * TCK-3006 (ADR-0138 § 4) — la visite et l'état des lieux d'un bien en CORBEILLE restent lisibles
+     * par le personnel de l'agence du bien (`VisitesLisibles`, `InventairesLisibles`) : leur cible
+     * porte l'agence, pour que la cloche bascule sur le bon profil avant d'ouvrir la fiche. Le témoin :
+     * l'intervention d'un bien en corbeille, que personne d'autre que son demandeur ne lit plus
+     * (`InterventionsLisibles`), n'en porte pas.
+     */
+    public function test_l_objet_d_un_bien_en_corbeille_porte_l_agence_du_bien_quand_la_fiche_le_lit(): void
+    {
+        $agence = Agency::factory()->create();
+        $membre = $this->agentDe($agence);
+        $bienEnCorbeille = Property::factory()->create(['agency_id' => $agence->id]);
+        $visite = PropertyVisit::factory()->create(['property_id' => $bienEnCorbeille->id]);
+        $etat = Inventory::factory()->create(['property_id' => $bienEnCorbeille->id]);
+        $intervention = MaintenanceRequest::factory()->create(['property_id' => $bienEnCorbeille->id]);
+        $bienEnCorbeille->delete();
+        $this->notifier($membre, NotificationTarget::of('visit', $visite->id));
+        $this->notifier($membre, NotificationTarget::of('inventory', $etat->id));
+        $this->notifier($membre, NotificationTarget::of('maintenance', $intervention->id));
+        Sanctum::actingAs($membre);
+
+        $cibles = collect($this->getJson('/api/notifications')->assertOk()->json('data'))->keyBy('target.kind');
+
+        $this->assertSame($agence->id, $cibles['visit']['target']['agency_id'] ?? null);
+        $this->assertSame($agence->id, $cibles['inventory']['target']['agency_id'] ?? null);
+        $this->assertArrayNotHasKey('agency_id', $cibles['maintenance']['target']);
+        $this->getJson("/api/property-visits/{$visite->id}")->assertOk();
+        $this->getJson("/api/inventories/{$etat->id}")->assertOk();
     }
 
     /** Les lignes anciennes, dont la cible se déduit de `data`, en profitent sans reprise. */

@@ -25,6 +25,7 @@ import type { Locale } from '@/i18n/config';
 import type { InvoiceStatus } from '@/types/invoice';
 
 import { INVOICE_STATUS_TONE } from './constants';
+import { gestesDeLaFacture } from './gestes-de-la-facture';
 import { PayOnlineButton } from './PayOnlineButton';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -64,6 +65,9 @@ export function InvoiceDetailDialog({ invoiceId, onClose, sansIdentifiants = fal
   const isCreditNote = invoice?.kind === 'credit_note';
   const status = (invoice?.status ?? 'draft') as InvoiceStatus;
   const { providers } = usePaymentProviders('invoices', invoiceId);
+  // TCK-3011 (ADR-0139) — les gestes suivent `abilities` (policy ET état), jamais le statut : le client
+  // voyait les gestes de gestion (403), et « Payer en ligne » s'offrait sur un brouillon (409).
+  const gestes = gestesDeLaFacture(invoice);
 
   return (
     <Dialog open={invoiceId !== null} onOpenChange={(open) => !open && onClose()}>
@@ -177,7 +181,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose, sansIdentifiants = fal
             ) : null}
 
             <div className="flex flex-wrap justify-end gap-2">
-              {status === 'draft' ? (
+              {gestes.envoyer ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -187,7 +191,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose, sansIdentifiants = fal
                   {send.isPending ? t('sending') : t('send')}
                 </Button>
               ) : null}
-              {status !== 'paid' && status !== 'cancelled' && status !== 'void' ? (
+              {gestes.marquerPayee ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -197,7 +201,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose, sansIdentifiants = fal
                   {markPaid.isPending ? t('working') : t('markPaid')}
                 </Button>
               ) : null}
-              {status !== 'cancelled' && status !== 'void' && status !== 'paid' ? (
+              {gestes.annuler ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -207,7 +211,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose, sansIdentifiants = fal
                   {cancel.isPending ? t('working') : t('cancelInvoice')}
                 </Button>
               ) : null}
-              {status !== 'paid' && status !== 'cancelled' && status !== 'void' && invoiceId ? (
+              {gestes.payerEnLigne && invoiceId ? (
                 <PayOnlineButton
                   paymentType="invoices"
                   paymentId={invoiceId}

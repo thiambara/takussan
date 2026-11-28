@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import {
   attachCustomerTags,
@@ -34,17 +34,18 @@ type ActionResult<T = void> =
       ok: false;
       status?: number;
       message: string;
+      /** TCK-3008 — le code métier et les paramètres du refus, quand l'API en donne. */
+      code?: string;
+      params?: Readonly<Record<string, unknown>>;
       errors?: Record<string, string[]>;
       /** TCK-591 — présent sur un 409 `customer.duplicate` : le formulaire le présente comme une aide. */
       duplicates?: CustomerDuplicateMatch[];
     };
 
 function duplicatesOf(e: ApiError): CustomerDuplicateMatch[] | undefined {
-  const data = e.data as { code?: unknown; existing?: unknown } | null;
-  if (e.status !== 409 || !data || data.code !== 'customer.duplicate' || !Array.isArray(data.existing)) {
-    return undefined;
-  }
-  return data.existing as CustomerDuplicateMatch[];
+  if (e.status !== 409 || e.codeMetier !== 'customer.duplicate') return undefined;
+  const existantes = (e.data as { existing?: unknown }).existing;
+  return Array.isArray(existantes) ? (existantes as CustomerDuplicateMatch[]) : undefined;
 }
 
 async function mapError(e: unknown): Promise<{
@@ -52,9 +53,11 @@ async function mapError(e: unknown): Promise<{
   message: string;
   errors?: Record<string, string[]>;
   duplicates?: CustomerDuplicateMatch[];
+  code?: string;
+  params?: Readonly<Record<string, unknown>>;
 }> {
   journaliserErreurInattendue('dashboard-customers', e);
-  // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
+  // `refusDAction` (`messageErreurApi`) compose le CODE de l'erreur avec un traducteur que CE contexte sait
   // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
   // primitive correcte ici. Lire `e.displayMessage` seul rendait la clé i18n brute à l'écran.
   const [tRacine, t] = await Promise.all([
@@ -65,7 +68,7 @@ async function mapError(e: unknown): Promise<{
   if (e instanceof ApiError) {
     return {
       status: e.status,
-      message: messageErreurApi(e, tRacine, repli),
+      ...refusDAction(e, tRacine, repli),
       errors: e.validationErrors,
       duplicates: duplicatesOf(e),
     };

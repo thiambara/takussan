@@ -45,12 +45,6 @@ export function elide(prenom: string): boolean {
   return /^[aeiouàâäéèêëîïôöùûüœæ]/i.test(prenom.normalize('NFC'));
 }
 
-function codeDeLApi(erreur: unknown): string | undefined {
-  if (!(erreur instanceof ApiError)) return undefined;
-  const code = erreur.data && typeof erreur.data === 'object' ? (erreur.data as { code?: unknown }).code : undefined;
-  return typeof code === 'string' ? code : undefined;
-}
-
 /** « 0:42 » */
 function delai(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -241,7 +235,7 @@ function SignatureParCode({ inventory, partie, titre, nom, prenom, avantDeSigner
     } catch (erreur) {
       // Un code est déjà parti il y a moins d'une minute (une page rechargée l'a oublié) : les cases
       // s'ouvrent quand même, le code reçu reste bon.
-      if (erreur instanceof ApiError && erreur.status === 429 && codeDeLApi(erreur) === 'inventory_signature.resend_too_soon') {
+      if (erreur instanceof ApiError && erreur.status === 429 && erreur.codeMetier === 'inventory_signature.resend_too_soon') {
         setEnvoi((avant) => avant ?? { destination: null, a: Date.now() });
         setMaintenant(Date.now());
         onEtat?.({ codeEnvoye: true });

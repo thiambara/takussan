@@ -12,7 +12,7 @@ use App\Services\Inventory\InventorySignatureService;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Messaging\SallesDuFil;
 use App\Services\Model\InventoryService;
-use App\Services\Visit\VisitSchedulingService;
+use App\Services\Visit\GestesDeLaVisite;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -101,11 +101,12 @@ class CloturesDesObjetsTest extends ApiTestCase
         $bien = Property::factory()->create(['user_id' => $proprietaire->id, 'agency_id' => null]);
         $visite = PropertyVisit::factory()->create(['property_id' => $bien->id, 'visitor_id' => $prospect->id, 'scheduled_at' => now()->addDays(3)->setTime(11, 0)]);
         $fil = app(PropertyConversationResolver::class)->firstOrCreate($bien, $prospect, $proprietaire);
-        app(VisitSchedulingService::class)->rescheduleOrFail($visite->refresh(), now()->addDays(6)->setTime(15, 0)->toImmutable());
+        // TCK-3005 — les gestes par leur seul chemin : le prospect propose, puis annule.
+        app(GestesDeLaVisite::class)->proposerUnCreneau($prospect, $visite->refresh(), now()->addDays(6)->setTime(15, 0)->toImmutable());
         $this->assertTrue($this->attendus($proprietaire, $fil, $visite)['visit.rescheduled']);
         $this->travel(1)->seconds();
 
-        app(VisitSchedulingService::class)->cancelOrFail($visite->refresh(), null);
+        app(GestesDeLaVisite::class)->annuler($prospect, $visite->refresh(), null);
 
         $this->assertSame([], $this->dernier($fil, 'visit.cancelled')->metadata['action_for']);
         $this->assertSame(['visit.cancelled' => false, 'visit.rescheduled' => false], $this->attendus($proprietaire, $fil, $visite));

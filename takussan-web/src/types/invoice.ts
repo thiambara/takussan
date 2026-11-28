@@ -33,6 +33,19 @@ export type Invoice = {
   kind?: InvoiceKind;
   credited_invoice_id?: number | null;
   credit_notes?: Array<Pick<Invoice, 'id' | 'reference_number' | 'total_amount' | 'currency' | 'issue_date'>>;
+  /**
+   * TCK-3011 (ADR-0139) — `show` et les réponses des gestes seulement : chaque geste que l'API accepterait
+   * MAINTENANT pour ce lecteur, policy et état compris (`GestesDeLaFacture`). Absent, aucun geste.
+   */
+  abilities?: InvoiceAbilities;
+};
+
+export type InvoiceAbilities = {
+  readonly send: boolean;
+  readonly mark_paid: boolean;
+  readonly cancel: boolean;
+  /** Payer en ligne : une facture émise ou échue (`PaymentGatewayService::isPayable`), à qui la gère. */
+  readonly pay: boolean;
 };
 
 export type InvoiceKind = 'invoice' | 'credit_note';

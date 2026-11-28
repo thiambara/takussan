@@ -89,8 +89,8 @@ function Recap({ inventory, bail }: { readonly inventory: Inventory; readonly ba
   const soumettre = useSubmitInventory(inventory.id);
   const [codeEnvoye, setCodeEnvoye] = useState(false);
 
-  const brouillon = inventory.status === 'draft';
-  const modifiable = brouillon && inventory.abilities?.update === true;
+  // TCK-3011 (ADR-0139) — `abilities.edit` : la policy ET le brouillon, jugés par l'API.
+  const modifiable = inventory.abilities?.edit === true;
   const roles = inventory.can_sign_as ?? [];
   const signe = inventory.status === 'signed';
 

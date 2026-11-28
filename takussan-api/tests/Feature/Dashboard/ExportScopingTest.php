@@ -8,6 +8,7 @@ use App\Models\Enums\Capability;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Payout;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -146,6 +147,33 @@ class ExportScopingTest extends ApiTestCase
         $customers = $this->export('customers');
         $this->assertStringContainsString($this->tenantA->email, $customers);
         $this->assertStringNotContainsString($foreign->email, $customers);
+    }
+
+    /**
+     * TCK-3006 — l'export ne rend jamais plus que la liste (`ClientsLisibles`). Le personnel sans
+     * `crm.view_all` lit ses propres fiches, jamais celle d'un collègue ; `crm.export` seul lui
+     * rendait toutes les fiches de l'agence, nom, e-mail et téléphone compris.
+     */
+    public function test_staff_without_crm_view_all_exports_only_the_customers_his_list_shows(): void
+    {
+        $membre = $this->adminWithout($this->agencyA, Capability::CrmViewAll);
+        $sienne = Customer::factory()->create(['agency_id' => $this->agencyA->id, 'added_by_id' => $membre->id, 'email' => 'sienne@agence-a.test']);
+        $this->actingAs($membre, 'sanctum');
+
+        $customers = $this->export('customers');
+        $this->assertStringContainsString($sienne->email, $customers);
+        $this->assertStringNotContainsString($this->tenantA->email, $customers);
+        $this->assertSame([$sienne->id], collect($this->apiGet('/api/customers?per_page=100')->assertOk()->json('data'))->pluck('id')->all());
+    }
+
+    /** TCK-3006 — même plafond pour les reversements (`ReversementsLisibles` : `payouts.create`). */
+    public function test_staff_without_payouts_create_does_not_export_the_payouts_his_list_refuses(): void
+    {
+        Payout::factory()->create(['agency_id' => $this->agencyA->id, 'reference_number' => 'PO-CIBLE-A']);
+        $this->actingAs($this->adminWithout($this->agencyA, Capability::PayoutsCreate), 'sanctum');
+
+        $this->assertStringNotContainsString('PO-CIBLE-A', $this->export('payouts'));
+        $this->assertSame([], $this->apiGet('/api/payouts?per_page=100')->assertOk()->json('data'));
     }
 
     public function test_agency_staff_never_export_the_properties_of_another_agency(): void

@@ -75,7 +75,7 @@ class RentReviewService
         return DB::transaction(function () use ($lease, $actor, $reason, $newRent, $force, $effectiveDate) {
             $lease = Lease::query()->lockForUpdate()->findOrFail($lease->id);
 
-            if (! in_array($lease->status, self::REVIEWABLE_STATUSES, true)) {
+            if (! GestesDuBail::revisable($lease)) {
                 throw ValidationException::withMessages([
                     'status' => [__('messages.lease_rent_review_status_not_reviewable')],
                 ])->status(422);

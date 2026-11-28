@@ -67,7 +67,7 @@ Le cache applicatif est `redis` en préproduction (`docs/infra/prod-drivers.json
 Le porteur a tranché le 2026-10-22 (statuts de P144.01 à P144.08). Il retient une brique commune
 sur le modèle de TCK-822, appliquée à chaque route mesurée, sans `client_id` propre au message et
 sans rapprochement des réservations par client, bien et dates. Les visites se rapprochent par
-(visiteur, bien, créneau) dans `VisitSchedulingService::createOrFail`, **sans** la brique (P144.08).
+(visiteur, bien, créneau) dans `VisitSchedulingService::createOrFail` — depuis TCK-3005, `GestesDeLaVisite::demander` —, **sans** la brique (P144.08).
 
 ## Décision
 

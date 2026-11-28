@@ -78,8 +78,7 @@ export function useEntreeParTelephone({ onConnecte, onEmail, auSixiemeChiffre = 
 
   function messageVerification(err: unknown): string {
     if (err instanceof ApiError) {
-      const codeErreur =
-        err.data && typeof err.data === 'object' ? (err.data as { code?: unknown }).code : undefined;
+      const codeErreur = err.codeMetier;
       if (err.status === 423 || codeErreur === 'account_locked') return t('locked');
       if (codeErreur === 'account_blocked') return t('blocked');
       if (err.status === 429) return t('tooMany');

@@ -9,6 +9,7 @@ use App\Models\Enums\RadarConfidence;
 use App\Models\Enums\RentPeriod;
 use App\Support\PhoneMasker;
 use App\Support\RadarPhone;
+use App\Support\Telephone\Repli;
 
 /**
  * TCK-2386 (ADR-0077 §5, AC3, AC4, AC5) — la sortie de `radar.extraction` relue par du code avant
@@ -715,7 +716,7 @@ final class ExtractionNormalizer
     private static function fold(string $text): string
     {
         $nfc = \Normalizer::normalize($text, \Normalizer::FORM_C);
-        $text = PhoneMasker::normalizeDigits((string) preg_replace(PhoneMasker::INVISIBLE, '', $nfc === false ? $text : $nfc));
+        $text = Repli::texte($nfc === false ? $text : $nfc);
         $text = strtr($text, ['’' => "'", 'ʼ' => "'", '‘' => "'", '`' => "'", '´' => "'"]);
         $text = (string) preg_replace('/[«»“”„‟"]/u', ' ', $text);
         $text = (string) preg_replace('/[‐‑‒–—―−]/u', '-', $text);

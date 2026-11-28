@@ -111,9 +111,25 @@ class BookingPaymentService
      * résultat tel quel. Même règle que celle du navigateur, déplacée : les lignes
      * `partially_paid` et `refunded` ne comptent pas.
      *
+     * Le refus de l'écriture (`booking_payment.nothing_due`) enveloppe {@see self::aRegler()}.
+     *
      * @return array{0: float, 1: string} le montant et le `payment_type`
      */
     public function dueFromCustomer(Booking $booking): array
+    {
+        $du = $this->aRegler($booking);
+        abort_code_if($du === null, 422, 'booking_payment.nothing_due');
+
+        return $du;
+    }
+
+    /**
+     * TCK-3007 — la même règle, en lecture : `null` quand plus rien n'est dû. `abilities.pay`
+     * (`GestesDeLaReservation::peutPayer`) la lit, pour ne pas recompter le dû à côté.
+     *
+     * @return array{0: float, 1: string}|null le montant et le `payment_type`
+     */
+    public function aRegler(Booking $booking): ?array
     {
         // TCK-2892 — une caution ou un paiement « autre » encaissé ne réduit pas ce que le client doit
         // sur le séjour.
@@ -121,7 +137,9 @@ class BookingPaymentService
             ->whereNotIn('payment_type', [BookingPaymentType::SecurityDeposit->value, BookingPaymentType::Other->value])
             ->sum('amount');
         $remaining = max((float) $booking->total_amount - $paid, 0.0);
-        abort_code_if($remaining <= 0, 422, 'booking_payment.nothing_due');
+        if ($remaining <= 0) {
+            return null;
+        }
 
         $deposit = (float) $booking->deposit_amount;
         if ($paid <= 0 && $deposit > 0) {

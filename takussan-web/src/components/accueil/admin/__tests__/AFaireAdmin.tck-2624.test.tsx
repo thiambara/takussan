@@ -1,26 +1,23 @@
 /**
  * TCK-2624 — « À faire maintenant » et « Équipe aujourd'hui » de l'admin d'agence. Le réseau est
- * doublé au niveau d'`apiRequest` (les hooks de requête et de mutation tournent pour de vrai, sur un
+ * doublé au niveau de `fetch` (`doublerLApi`, TCK-3010 ; les hooks de requête et de mutation tournent pour de vrai, sur un
  * `QueryClient` de test) : on lit les requêtes émises avec leurs filtres et les gestes envoyés, comme
  * au relevé réseau. Les compteurs de la colonne sont montés à côté, sur LE MÊME client : un geste qui
  * fait baisser la pastille sans rechargement se voit ici (AC1).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useQuery } from '@tanstack/react-query';
 
-import { withIntl } from '@/test/intl';
-import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
+import { doublerLApi } from '@/test/api-simulee';
+import { rendre } from '@/test/rendu';
 import { propertyModerationCountQueryOptions } from '@/lib/queries/agency-queues';
 import { usePendingVisitsCount } from '@/lib/queries/visits';
 
 import { AFaireAdmin } from '../AFaireAdmin';
 import { EquipeDuJour } from '../EquipeDuJour';
 
-type Reponse = unknown;
-
 const etat = vi.hoisted(() => ({
-  appels: [] as { chemin: string; methode: string; corps: unknown }[],
   biens: 1,
   demandes: 3,
   visites: 12,
@@ -31,15 +28,10 @@ const etat = vi.hoisted(() => ({
   peutAttribuer: true,
   /** La visite demandée en TRANCHE (« le matin ») plutôt qu'à heure fixée. */
   tranche: false,
-  /** Les routes qui répondent en erreur, et leur statut. */
-  pannes: new Map<string, number>(),
-  /** Les gestes refusés par l'API (403). */
-  refus: new Set<string>(),
   /** Les notifications émises (titre). */
   toasts: [] as string[],
 }));
 
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 1, roles: ['agency_admin'], agency_id: 7 }, token: 'jeton' }) }));
 vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: etat.peutAttribuer, isLoading: false }) }));
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => false }));
 vi.mock('@/components/ui/toast', async (original) => ({
@@ -110,70 +102,50 @@ const EQUIPE = {
   ],
 };
 
-vi.mock('@/lib/api', async (original) => {
-  const vrai = await original<typeof import('@/lib/api')>();
-  return {
-    ...vrai,
-    apiRequest: vi.fn(async (chemin: string, options: { method?: string; body?: unknown } = {}): Promise<Reponse> => {
-      const methode = options.method ?? 'GET';
-      etat.appels.push({ chemin, methode, corps: options.body });
-      const [route] = chemin.split('?');
-      const panne = etat.pannes.get(route!);
-      if (panne) throw new vrai.ApiError(panne, {});
-      if (methode !== 'GET') {
-        if (etat.refus.has(route!)) throw new vrai.ApiError(403, { message: 'Refusé' });
-        if (route === '/api/properties/9/approve') etat.biens = 0;
-        if (route === '/api/property-visits/501/confirm') etat.visites -= 1;
-        return { data: {} };
-      }
-      // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
-      const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
-      const page = (data: unknown[], total: number) => servir(chemin, { data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1, pending_count: total } });
-      switch (route) {
-        case '/api/properties/moderation':
-          return page([BIEN], etat.biens);
-        case '/api/contact-leads':
-          return page(DEMANDES, etat.demandes);
-        case '/api/property-visits':
-          return page([etat.tranche ? { ...VISITE, preferred_window: 'morning' } : VISITE], etat.visites);
-        case '/api/property-visits/slots':
-          return {
-            data: {
-              date: '2026-11-11',
-              timezone: 'Africa/Dakar',
-              slots: [
-                { start: '2026-11-11T09:00:00Z', label: '09:00', available: false },
-                { start: '2026-11-11T10:30:00Z', label: '10:30', available: true },
-              ],
-            },
-          };
-        case '/api/reviews':
-          return page([{ id: 1, created_at: '2026-11-07T10:12:00Z' }], etat.avis);
-        case '/api/invitations':
-          return page([{ id: 1 }], etat.invitations);
-        case '/api/agencies/7/finance/aging': {
-          const cellule = (count: number) => ({ count, amount: count * 1_000_000 });
-          return {
-            data: {
-              as_of: '2026-11-10',
-              group_by: 'tenant',
-              buckets: etat.impayes > 0 ? { '1_30': cellule(9), '31_60': cellule(3), '61_90': cellule(0), '90_plus': cellule(4) } : { '1_30': cellule(0), '31_60': cellule(0), '61_90': cellule(0), '90_plus': cellule(0) },
-              total: { count: etat.impayes, amount: etat.impayes > 0 ? 33_715_000 : 0 },
-              rows: [],
-              deposits_held: { total: 0, by_landlord: [] },
-            },
-          };
-        }
-        case '/api/payments/history':
-          return page([ECHEANCE, { ...ECHEANCE, id: 78, days_late: 12 }, { ...ECHEANCE, id: 79, source: 'booking' }], etat.impayes);
-        case '/api/agencies/7/team-today':
-          return { data: EQUIPE };
-        default:
-          return page([], 0);
-      }
-    }),
-  };
-});
+const page = (data: unknown[], total: number) => ({ data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1, pending_count: total } });
+
+const api = doublerLApi()
+  .sur('POST', /^\/api\//, ({ chemin }) => {
+    if (chemin === '/api/properties/9/approve') etat.biens = 0;
+    if (chemin === '/api/property-visits/501/confirm') etat.visites -= 1;
+    return { data: {} };
+  })
+  .sur('GET', '/api/properties/moderation', () => page([BIEN], etat.biens))
+  .sur('GET', '/api/contact-leads', () => page(DEMANDES, etat.demandes))
+  // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
+  .servir('visites', () => (etat.visites > 0 ? [etat.tranche ? { ...VISITE, preferred_window: 'morning' } : VISITE] : []), {
+    meta: () => ({ total: etat.visites, per_page: 20, pending_count: etat.visites }),
+    // TCK-3010 — la doublure ne filtre pas : ces filter[…] ne se jugent ici que sur la requête envoyée.
+    filtres: ['status', 'scheduled_at_min'],
+  })
+  .sur('GET', '/api/property-visits/slots', {
+    data: {
+      date: '2026-11-11',
+      timezone: 'Africa/Dakar',
+      slots: [
+        { start: '2026-11-11T09:00:00Z', label: '09:00', available: false },
+        { start: '2026-11-11T10:30:00Z', label: '10:30', available: true },
+      ],
+    },
+  })
+  .sur('GET', '/api/reviews', () => page([{ id: 1, created_at: '2026-11-07T10:12:00Z' }], etat.avis))
+  .sur('GET', '/api/invitations', () => page([{ id: 1 }], etat.invitations))
+  .sur('GET', '/api/agencies/7/finance/aging', () => {
+    const cellule = (count: number) => ({ count, amount: count * 1_000_000 });
+    return {
+      data: {
+        as_of: '2026-11-10',
+        group_by: 'tenant',
+        buckets: etat.impayes > 0 ? { '1_30': cellule(9), '31_60': cellule(3), '61_90': cellule(0), '90_plus': cellule(4) } : { '1_30': cellule(0), '31_60': cellule(0), '61_90': cellule(0), '90_plus': cellule(0) },
+        total: { count: etat.impayes, amount: etat.impayes > 0 ? 33_715_000 : 0 },
+        rows: [],
+        deposits_held: { total: 0, by_landlord: [] },
+      },
+    };
+  })
+  .sur('GET', '/api/payments/history', () => page([ECHEANCE, { ...ECHEANCE, id: 78, days_late: 12 }, { ...ECHEANCE, id: 79, source: 'booking' }], etat.impayes))
+  .sur('GET', '/api/agencies/7/team-today', { data: EQUIPE })
+  .parDefaut(page([], 0));
 
 /** La pastille « Biens à valider » et « Visites à confirmer » de la colonne : leurs VRAIES options. */
 function Compteurs() {
@@ -188,22 +160,17 @@ function Compteurs() {
 }
 
 function monter(contenu: React.ReactNode = <AFaireAdmin agencyId={7} />) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(
-    <QueryClientProvider client={client}>
-      {withIntl(
-        <>
-          <Compteurs />
-          {contenu}
-        </>,
-      )}
-    </QueryClientProvider>,
+  return rendre(
+    <>
+      <Compteurs />
+      {contenu}
+    </>,
+    { compte: { utilisateur: { id: 1, roles: ['agency_admin'], agency_id: 7 }, jeton: 'jeton' } },
   );
 }
 
-const lectures = (route: string) =>
-  etat.appels.filter((a) => a.methode === 'GET' && a.chemin.split('?')[0] === route).map((a) => new URLSearchParams(a.chemin.split('?')[1] ?? ''));
-const gestes = () => etat.appels.filter((a) => a.methode !== 'GET');
+const lectures = (route: string) => api.appels(route).filter((a) => a.methode === 'GET').map((a) => a.requete);
+const gestes = () => api.appels().filter((a) => a.methode !== 'GET');
 const telephone = () => document.querySelector<HTMLElement>('[data-slot="a-faire-telephone"]')!;
 const bureau = () => document.querySelector<HTMLElement>('[data-slot="a-faire-bureau"]')!;
 const groupe = (nom: string) => within(bureau()).getByRole('region', { name: nom });
@@ -214,13 +181,10 @@ const MAINTENANT = new Date('2026-11-10T10:12:00Z');
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { appels: [], biens: 1, demandes: 3, visites: 12, avis: 5, invitations: 0, kyc: 'verified', impayes: 16, peutAttribuer: true, tranche: false, pannes: new Map(), refus: new Set(), toasts: [] });
-  oublierLesLectures();
+  Object.assign(etat, { biens: 1, demandes: 3, visites: 12, avis: 5, invitations: 0, kyc: 'verified', impayes: 16, peutAttribuer: true, tranche: false, toasts: [] });
 });
 afterEach(() => {
   vi.useRealTimers();
-  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas.
-  expect(lecturesHorsFields()).toEqual([]);
 });
 
 describe('les files lues', () => {
@@ -337,13 +301,14 @@ describe('« À faire » ne liste que l’inachevé', () => {
     Object.assign(etat, { biens: 0, demandes: 0, visites: 0, avis: 0, impayes: 0, peutAttribuer: false });
     monter();
     expect(await screen.findByText('Tout est à jour')).toBeTruthy();
+    await api.auRepos();
     // La file qui ne s'applique pas n'est même pas lue.
     expect(lectures('/api/contact-leads')).toHaveLength(0);
   });
 
   it('une file en panne n’est pas une file vide : pas de « Tout est à jour », l’erreur est dite', async () => {
     Object.assign(etat, { biens: 0, demandes: 0, visites: 0, impayes: 0 });
-    etat.pannes.set('/api/reviews', 500);
+    api.refuser('GET', '/api/reviews', 500, {});
     monter();
     expect(await screen.findByText(/Impossible de charger ce qui vous attend/)).toBeTruthy();
     expect(screen.queryByText('Tout est à jour')).toBeNull();
@@ -388,7 +353,7 @@ describe('les gestes, sans quitter l’accueil', () => {
   });
 
   it('un geste que l’API refuse (403) devient « Voir » : la ligne mène à la visite', async () => {
-    etat.refus.add('/api/property-visits/501/confirm');
+    api.refuser('POST', '/api/property-visits/501/confirm', 403, { message: 'Refusé' });
     monter();
     await screen.findAllByText('3 demandes à attribuer');
     fireEvent.click(within(groupe('Visites à confirmer')).getByRole('button', { name: 'Confirmer' }));
@@ -420,6 +385,7 @@ describe('les gestes, sans quitter l’accueil', () => {
     // Aucun bouton de relance : le geste n'est plus monté sur l'accueil.
     expect(screen.queryByRole('button', { name: /Relancer/ })).toBeNull();
     fireEvent.click(within(impayes).getByRole('link', { name: 'Relancer tout' }));
+    await api.auRepos();
     // L'accueil ne lit pas les 100 échéances (c'est l'écran Impayés qui les lit), et n'écrit rien.
     expect(lectures('/api/payments/history').some((p) => p.get('per_page') === '100')).toBe(false);
     expect(gestes()).toEqual([]);
@@ -446,7 +412,7 @@ describe('« Équipe aujourd’hui »', () => {
   });
 
   it('une panne de `team-today` se dit dans le bloc, avec « Réessayer »', async () => {
-    etat.pannes.set('/api/agencies/7/team-today', 500);
+    api.refuser('GET', '/api/agencies/7/team-today', 500, {});
     monter(<EquipeDuJour agencyId={7} />);
     expect(await screen.findByText(/Impossible de charger l’équipe du jour/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Réessayer' })).toBeTruthy();

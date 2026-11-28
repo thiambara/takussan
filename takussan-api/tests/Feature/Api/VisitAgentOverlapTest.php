@@ -11,6 +11,7 @@ use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Services\Visit\GestesDeLaVisite;
 use App\Services\Visit\VisitSchedulingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -402,7 +403,7 @@ class VisitAgentOverlapTest extends ApiTestCase
 
     /**
      * L'attribution et la modification verrouillent la ligne de la VISITE avant celle de l'agent :
-     * l'ordre de `confirmOrFail` (la visite, puis l'agent). L'ordre inverse croisait une confirmation
+     * l’ordre de `GestesDeLaVisite::confirmer` (la visite, puis l’agent). L'ordre inverse croisait une confirmation
      * concurrente (interblocage), et le statut se jugeait sur la visite lue avant la transaction.
      */
     public function test_prendre_en_charge_et_modifier_verrouillent_la_visite_avant_l_agent(): void
@@ -471,10 +472,27 @@ class VisitAgentOverlapTest extends ApiTestCase
 
                 return $this->postJson('/api/property-visits/bulk-assign', ['ids' => [$v->id], 'agent_id' => $this->agentX->id])->assertJsonPath('data.0.ok', true);
             }, ['properties', 'property_visits', 'users']],
-            'proposer un autre créneau' => [$confirmee, function (PropertyVisit $v) {
-                app(VisitSchedulingService::class)->rescheduleOrFail($v, $this->h(14));
+            // TCK-3005 — le geste du visiteur, par sa route (`GestesDeLaVisite::proposerUnCreneau`).
+            'proposer un autre créneau' => [fn () => $confirmee(['visitor_id' => $this->client()->id]), function (PropertyVisit $v) {
+                Sanctum::actingAs(User::query()->findOrFail($v->visitor_id));
 
-                return null;
+                return $this->postJson("/api/property-visits/{$v->id}/reschedule", ['scheduled_at' => $this->h(14)->toIso8601String()]);
+            }, ['properties', 'property_visits']],
+            // TCK-3005 — clore, déclarer absent et annuler relisent la visite sous verrou, dans l'ordre de tous.
+            'clore' => [fn () => $this->visite($this->a, 11, 0, ['status' => VisitStatus::Confirmed, 'scheduled_at' => now()->subHour()]), function (PropertyVisit $v) {
+                Sanctum::actingAs($this->admin);
+
+                return $this->postJson("/api/property-visits/{$v->id}/complete");
+            }, ['properties', 'property_visits']],
+            'déclarer absent' => [fn () => $this->visite($this->a, 11, 0, ['status' => VisitStatus::Confirmed, 'scheduled_at' => now()->subHour()]), function (PropertyVisit $v) {
+                Sanctum::actingAs($this->admin);
+
+                return $this->postJson("/api/property-visits/{$v->id}/no-show");
+            }, ['properties', 'property_visits']],
+            'annuler' => [$confirmee, function (PropertyVisit $v) {
+                Sanctum::actingAs($this->admin);
+
+                return $this->postJson("/api/property-visits/{$v->id}/cancel", ['reason' => 'Empêché']);
             }, ['properties', 'property_visits']],
             'planifier confirmée' => [fn () => null, function () {
                 Sanctum::actingAs($this->admin);

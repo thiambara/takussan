@@ -55,6 +55,12 @@ function echeance(p: Partial<LeasePayment> & Pick<LeasePayment, 'id' | 'status'>
     notes: null,
     created_at: '2026-04-01T00:00:00+00:00',
     ...p,
+    // TCK-3011 (D2) — comme l'API (`GestesDuBail::echeanceEncaissable`) : la ligne dit si `mark-paid` l'encaisse.
+    abilities: p.abilities ?? {
+      pay: false,
+      remind: false,
+      record_payment: (p.payment_type ?? 'rent') !== 'deposit_refund' && ['pending', 'late', 'partially_paid'].includes(p.status),
+    },
   };
 }
 
@@ -69,11 +75,13 @@ beforeEach(() => {
     echeance({ id: 12, status: 'late', period_start: '2026-04-01', period_end: '2026-04-30' }),
     echeance({ id: 13, status: 'pending', period_start: '2026-05-01', period_end: '2026-05-31' }),
     echeance({ id: 14, status: 'cancelled', period_start: '2026-06-01', period_end: '2026-06-30' }),
+    // TCK-3011 (D2) — une échéance en échec : `mark-paid` la refuse, l'API ne l'annonce pas encaissable.
+    echeance({ id: 16, status: 'failed', period_start: '2026-07-01', period_end: '2026-07-31' }),
   ];
 });
 
 describe('LeasePaymentDialog — règle une échéance existante (TCK-681)', () => {
-  it('ne propose que les échéances en attente ou en retard', async () => {
+  it('ne propose que les échéances que la ligne dit encaissables (en attente ou en retard, jamais en échec)', async () => {
     const user = userEvent.setup();
     monter();
 

@@ -152,6 +152,7 @@ return [
     'booking_payment' => [
         'booking_not_payable' => 'This booking is no longer pending or confirmed: it can no longer be paid.',
         'exceeds_remaining' => 'This amount exceeds what is left to pay on the booking (:remaining).',
+        'not_a_stay' => 'Only a stay is paid on the booking: an application or an offer is not settled here.',
         'nothing_due' => 'This booking is fully paid: nothing is left to pay.',
         'receipt_unpaid' => 'The receipt is only available for a settled payment.',
         'refund_exceeds_paid' => 'The refund cannot exceed the amount paid.',

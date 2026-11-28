@@ -4,10 +4,9 @@ namespace App\Http\Resources;
 
 use App\Http\Requests\InventorySignRequest;
 use App\Http\Resources\Bases\BaseResource;
-use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\User;
-use App\Policies\InventoryPolicy;
+use App\Services\Inventory\GestesDeLEtatDesLieux;
 use App\Services\Inventory\InventoryRetention;
 use App\Services\Inventory\InventorySignatureService;
 use App\Services\Lease\LandlordSignatory;
@@ -87,17 +86,9 @@ class InventoryResource extends BaseResource
                 $this->viewer !== null && $this->signatures !== null,
                 fn () => $this->canSignAs(),
             ),
-            // P189.02 (TCK-1869) — le verdict d'`InventoryPolicy::update`, qui garde la soumission et
-            // les photos : l'écran les jugeait sur le seul statut, et les montrait au locataire et au
-            // bailleur suspendu, refusés en 403.
-            'abilities' => $this->when($this->viewer !== null, fn (): array => [
-                'update' => $this->viewer->can('update', $this->resource),
-                // TCK-2648 — « Contester » : la policy appelée EN DIRECT, sans `Gate::before` — le
-                // super-admin passerait par la Gate, mais n'est partie ni au bail ni au constat — et
-                // seulement quand le service l'accepterait (à signer, ou signé : `inventory.cannot_dispute`).
-                'dispute' => in_array($this->status, [InventoryStatus::PendingSignature, InventoryStatus::Signed], true)
-                    && app(InventoryPolicy::class)->dispute($this->viewer, $this->resource),
-            ]),
+            // P189.02 (TCK-1869), TCK-3011 (ADR-0139) — chaque geste que l'API accepterait maintenant, policy et
+            // état compris : l'écran les jugeait sur le statut (puis sur `update && status`).
+            'abilities' => $this->when($this->viewer !== null, fn (): array => app(GestesDeLEtatDesLieux::class)->pour($this->viewer, $this->resource)),
             // TCK-2648 — les parties et les signataires NOMMÉS, sous `show` seulement (chargés par le
             // contrôleur) : un id et un nom, jamais un téléphone ni un e-mail.
             'tenant' => $this->when($this->viewer !== null, fn (): ?array => $this->tenant === null ? null : [
@@ -141,13 +132,16 @@ class InventoryResource extends BaseResource
      */
     private function canSignAs(): array
     {
+        // TCK-3011 (ADR-0139) — les rôles qui peuvent signer MAINTENANT : la partie, sur un état des lieux qui
+        // se signe et qu'elle n'a pas déjà signé. La fiche n'y ajoute plus le statut.
         $roles = array_values(array_filter(
             InventorySignRequest::ROLES,
-            fn (string $role) => $this->signatures->canSignAs($this->resource, $this->viewer, $role),
+            fn (string $role) => GestesDeLEtatDesLieux::resteASigner($this->resource, $role)
+                && $this->signatures->canSignAs($this->resource, $this->viewer, $role),
         ));
 
         if (! $this->tenant_signed
-            && in_array($this->status, [InventoryStatus::Draft, InventoryStatus::PendingSignature], true)
+            && GestesDeLEtatDesLieux::signable($this->resource)
             && ! in_array(InventorySignRequest::ROLE_TENANT, $roles, true)
             && $this->signatures->canSignOnsite($this->resource, $this->viewer)) {
             $roles[] = InventorySignatureService::ROLE_TENANT_ONSITE;
@@ -156,7 +150,7 @@ class InventoryResource extends BaseResource
         // TCK-2913 (ADR-0098, amendement A) — la même voie pour le bailleur. Le personnel qui signerait
         // POUR SON COMPTE (`landlord`) peut aussi recueillir SA signature : les deux rôles coexistent.
         if (! $this->owner_signed
-            && in_array($this->status, [InventoryStatus::Draft, InventoryStatus::PendingSignature], true)
+            && GestesDeLEtatDesLieux::signable($this->resource)
             && $this->signatures->canSignOnsite($this->resource, $this->viewer, InventorySignRequest::ROLE_LANDLORD)
             // TCK-2914 — le code ne peut partir qu'au numéro VÉRIFIÉ du compte du bailleur (même condition
             // que le 422 `landlord_without_phone` de l'envoi) : sans lui, « Lui envoyer un code par SMS »

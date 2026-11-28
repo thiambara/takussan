@@ -2,7 +2,7 @@
 
 import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
-import { ApiError, messageErreurApi } from '@/lib/api';
+import { ApiError, refusDAction, type RefusDAction } from '@/lib/api';
 import { getMe, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
 import { getOperatorActiveProfileId, getOperatorToken, getToken } from '@/lib/session';
 import { utilisateurDuRendu } from '@/lib/utilisateur-du-rendu';
@@ -39,7 +39,7 @@ export async function resendVerificationEmailAction(): Promise<{ ok: boolean; me
 
 export type UpdateProfileResult =
   | { ok: true; user: User }
-  | { ok: false; message: string };
+  | ({ ok: false } & RefusDAction);
 
 export async function updateProfileAction(
   formData: FormData,
@@ -98,7 +98,7 @@ export async function updateProfileAction(
     if (err instanceof ApiError) {
       // ⚠️ REPLI MORT corrigé : `err.displayMessage || repli` ne prenait JAMAIS la branche droite,
       // `displayMessage` rendant une clé i18n — et une clé est *truthy*.
-      return { ok: false, message: messageErreurApi(err, tRacine, repli) };
+      return { ok: false, ...refusDAction(err, tRacine, repli) };
     }
     return { ok: false, message: repli };
   }

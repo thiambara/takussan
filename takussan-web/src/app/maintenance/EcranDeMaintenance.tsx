@@ -3,11 +3,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { BarreDeMarque } from '@/components/brand/BarreDeMarque';
+import { appelBff } from '@/lib/bff';
 import type { MaintenanceStatusResponse } from '@/types/super-admin';
 
-async function fetchStatus(): Promise<MaintenanceStatusResponse> {
-  const res = await fetch('/api/maintenance/status');
-  return res.json() as Promise<MaintenanceStatusResponse>;
+/**
+ * TCK-3009 — le statut ou une `ApiError` : le 502 `{ code }` du relais (l'API ne répond pas, le cas même d'une
+ * maintenance) n'est plus pris pour un statut — `data.data.window` levait au rendu. L'écran garde son repli.
+ */
+function fetchStatus(): Promise<MaintenanceStatusResponse> {
+  return appelBff<MaintenanceStatusResponse>('/api/maintenance/status');
 }
 
 export function EcranDeMaintenance() {

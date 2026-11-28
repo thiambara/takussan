@@ -10,8 +10,7 @@ use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
 use App\Models\Enums\UserStatus;
 use App\Policies\TaskPolicy;
-use App\Services\Agency\AgentAvailability;
-use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Lecture\TachesLisibles;
 use App\Sorts\TaskPrioritySort;
 use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
@@ -249,30 +248,6 @@ class Task extends AbstractModel
     }
 
     /**
-     * TCK-591 (verif-591 B1) — les tâches dont le parent est hors de toute agence, ou dans l'une des
-     * agences données. Forme SQL de la borne que `TaskPolicy::view` applique à une ligne.
-     *
-     * TCK-617 (décision du porteur, 2026-11-16) — parent supprimé en douceur COMPRIS, comme
-     * {@see self::scopeParentInAgency()} et comme la policy (`parentRecord()`) : la tâche ouverte d'un
-     * bien ou d'un client supprimé reste dans la liste de son responsable, marquée (`parent_deleted`),
-     * au lieu de disparaître de la liste quand le détail la rend. Un parent effacé pour de bon reste
-     * hors liste, comme il est hors détail (`parentIsMissing()`).
-     *
-     * @param  Builder<Task>  $query
-     * @param  list<int>  $agencyIds
-     * @return Builder<Task>
-     */
-    public function scopeParentAgencyIn(Builder $query, array $agencyIds): Builder
-    {
-        return $query->where(function (Builder $q) use ($agencyIds) {
-            $q->whereNull('taskable_type')
-                ->orWhereHasMorph('taskable', [Customer::class, Property::class], fn (Builder $parent) => $parent
-                    ->withoutGlobalScope(SoftDeletingScope::class)
-                    ->where(fn (Builder $w) => $w->whereNull('agency_id')->orWhereIn('agency_id', $agencyIds)));
-        });
-    }
-
-    /**
      * TCK-2595 — l'assigné est PERSONNEL ACTIF de l'agence : compte ni bloqué ni supprimé, profil
      * agent ou admin actif, ou délégation EN VIGUEUR de ces rôles (`enVigueur()`, celle de
      * `MembershipCapabilityResolver::isStaffAt()` : active ET portée par un profil d'agence actif du
@@ -306,8 +281,11 @@ class Task extends AbstractModel
      * auteur lisait le titre de la tâche que l'admin s'était donnée sur sa fiche, que
      * `GET /api/tasks/{id}` lui refuse.
      *
-     * Le parent étant fixé, les bornes d'agence de la policy (membre, personnel, absence couverte,
-     * lecteur d'équipe) se jugent une fois pour la requête, jamais par ligne.
+     * TCK-3006 (ADR-0138) — la règle de la fiche, pas une copie : « mes tâches »
+     * ({@see TachesLisibles::restreindre()}) réunies à la vue d'équipe
+     * ({@see TachesLisibles::restreindreALEquipe()}), celle-ci seulement quand l'agence active de
+     * l'appelant est celle du parent. La copie qu'elle portait jugeait l'appartenance une fois pour le
+     * parent ; elle ne se tenait que tant que la règle ne bougeait pas.
      *
      * @param  Builder<Task>  $query
      * @return Builder<Task>
@@ -318,23 +296,11 @@ class Task extends AbstractModel
             return $query;
         }
 
-        $resolver = app(MembershipCapabilityResolver::class);
-        // `participates` : créateur membre, assigné personnel de l'agence du parent.
-        $createur = $parentAgencyId === null || $resolver->isMemberAt($user, $parentAgencyId);
-        $assigne = $parentAgencyId === null || $resolver->isStaffAt($user, $parentAgencyId);
-        // `coversAssignee` : les absents que l'appelant remplace dans cette agence.
-        $absents = $parentAgencyId === null ? [] : app(AgentAvailability::class)->coveredBy($user)
-            ->where('agency_id', $parentAgencyId)->pluck('absent_id')->all();
-        // `readsAsTeam` : `crm.view_all` dans l'agence active, qui est celle du parent.
-        $equipe = $parentAgencyId !== null && TaskPolicy::teamAgencyOf($user)?->id === $parentAgencyId;
+        $equipe = $parentAgencyId === null ? null : TaskPolicy::teamAgencyOf($user);
+        $equipe = $equipe !== null && (int) $equipe->id === $parentAgencyId ? $equipe : null;
 
-        return $query->where(function (Builder $q) use ($user, $createur, $assigne, $absents, $equipe, $parentAgencyId) {
-            $q->whereRaw('1 = 0')
-                ->when($createur, fn (Builder $w) => $w->orWhere('created_by_id', $user->id))
-                ->when($assigne, fn (Builder $w) => $w->orWhere('assigned_to_id', $user->id))
-                ->when($absents !== [], fn (Builder $w) => $w->orWhereIn('assigned_to_id', $absents))
-                ->when($equipe, fn (Builder $w) => $w->orWhere(fn (Builder $t) => $t->assigneAuPersonnelActifDe((int) $parentAgencyId)));
-        });
+        return $query->where(fn (Builder $q) => TachesLisibles::restreindre($q, $user)
+            ->when($equipe !== null, fn (Builder $w) => $w->orWhere(fn (Builder $t) => TachesLisibles::restreindreALEquipe($t, $equipe))));
     }
 
     public function assignee(): BelongsTo
