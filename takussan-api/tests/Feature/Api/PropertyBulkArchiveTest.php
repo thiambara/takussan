@@ -42,12 +42,6 @@ class PropertyBulkArchiveTest extends TestCase
         return $user;
     }
 
-    public function test_requires_auth(): void
-    {
-        $this->postJson('/api/properties/bulk-archive', ['property_ids' => [1]])
-            ->assertUnauthorized();
-    }
-
     public function test_archives_authorized_properties(): void
     {
         $owner = $this->membre();

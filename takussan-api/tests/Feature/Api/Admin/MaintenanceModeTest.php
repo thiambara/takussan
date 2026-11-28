@@ -79,7 +79,7 @@ class MaintenanceModeTest extends TestCase
             ->assertJsonPath('data.window.mode', 'banner');
     }
 
-    public function test_schedule_validates_dates_and_agency_admin_is_forbidden(): void
+    public function test_schedule_validates_dates(): void
     {
         $this->actingAsRole('super_admin');
 
@@ -90,15 +90,6 @@ class MaintenanceModeTest extends TestCase
             'severity' => 'scheduled',
             'messages' => ['fr' => 'Maintenance planifiée'],
         ])->assertUnprocessable();
-
-        $this->actingAsRole('agency_admin');
-        $this->postJson('/api/admin/maintenance', [
-            'starts_at' => now()->addHour()->toISOString(),
-            'ends_at' => now()->addHours(2)->toISOString(),
-            'mode' => 'banner',
-            'severity' => 'scheduled',
-            'messages' => ['fr' => 'Maintenance planifiée'],
-        ])->assertForbidden();
     }
 
     public function test_schedule_and_cancel_are_audited(): void

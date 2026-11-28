@@ -250,11 +250,6 @@ class LocateAcrossProfilesTest extends TestCase
 
         $this->getJson('/api/me/locate?'.http_build_query($query))->assertStatus(422);
     }
-
-    public function test_sans_authentification_401(): void
-    {
-        $this->getJson('/api/me/locate?type=bien&id=1')->assertUnauthorized();
-    }
 }
 
 /** AC4 — une policy de bien qui dit oui à tout, pour montrer que c'est elle qui garde. */

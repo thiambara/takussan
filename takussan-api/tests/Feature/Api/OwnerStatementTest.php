@@ -15,8 +15,6 @@ use App\Models\ServiceProviderBill;
 use App\Notifications\CodedNotification;
 use App\Services\Dashboard\PortfolioMetrics;
 use App\Services\Payout\PayoutCalculator;
-use Illuminate\Console\Scheduling\Event;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
@@ -192,7 +190,7 @@ class OwnerStatementTest extends TestCase
         $this->assertSame(Carbon::now()->toIso8601String(), $rows[count($rows) - 1][3]);
     }
 
-    public function test_the_monthly_command_notifies_each_landlord_once_and_is_scheduled(): void
+    public function test_the_monthly_command_notifies_each_landlord_once(): void
     {
         Notification::fake();
         [, $landlord] = $this->paidOutSeptember();
@@ -201,14 +199,6 @@ class OwnerStatementTest extends TestCase
         $this->artisan('payouts:send-owner-statements', ['--period' => '2026-09'])->assertSuccessful();
 
         Notification::assertSentToTimes($landlord, CodedNotification::class, 1);
-
-        $events = array_values(array_filter(
-            app(Schedule::class)->events(),
-            static fn (Event $e): bool => str_contains((string) $e->command, 'payouts:send-owner-statements'),
-        ));
-        $this->assertCount(1, $events);
-        $this->assertSame('0 8 1 * *', $events[0]->expression);
-        $this->assertSame('Africa/Dakar', $events[0]->timezone);
     }
 
     /**

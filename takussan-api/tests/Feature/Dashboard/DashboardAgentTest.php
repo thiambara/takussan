@@ -198,11 +198,6 @@ class DashboardAgentTest extends ApiTestCase
         $this->apiGet('/api/dashboard/agent')->assertForbidden();
     }
 
-    public function test_unauthenticated_is_rejected(): void
-    {
-        $this->apiGet('/api/dashboard/agent')->assertUnauthorized();
-    }
-
     public function test_timeseries_returned_for_agent(): void
     {
         $agency = Agency::factory()->create();

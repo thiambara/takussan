@@ -102,11 +102,6 @@ class ActivityLogExporterTest extends ApiTestCase
         $this->apiGet('/api/activity-logs/export?format=csv')->assertForbidden();
     }
 
-    public function test_unauthenticated_is_rejected(): void
-    {
-        $this->getJson('/api/activity-logs/export?format=csv')->assertUnauthorized();
-    }
-
     // ─── AC4 — agency scoping ─────────────────────────────────────────────────
 
     public function test_agency_admin_does_not_see_logs_from_another_agency(): void

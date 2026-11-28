@@ -106,17 +106,6 @@ class IntegrationAdminTest extends TestCase
         $this->assertTrue(Activity::query()->where('event', 'super_admin_integration_tested')->exists());
     }
 
-    public function test_agency_admin_is_forbidden_on_super_admin_endpoints(): void
-    {
-        $this->actingAsRole('agency_admin');
-        $integration = Integration::factory()->create(['provider' => 'wave']);
-
-        $this->getJson('/api/admin/integrations')->assertForbidden();
-        $this->getJson("/api/admin/integrations/{$integration->id}")->assertForbidden();
-        $this->patchJson("/api/admin/integrations/{$integration->id}", ['is_active' => false])->assertForbidden();
-        $this->postJson("/api/admin/integrations/{$integration->id}/test")->assertForbidden();
-    }
-
     /**
      * TCK-602 (AC8) — lire la piste ne purge plus rien : la rétention appartient à
      * `webhooks:prune`, jamais à une lecture.

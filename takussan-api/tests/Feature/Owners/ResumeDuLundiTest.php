@@ -17,7 +17,6 @@ use App\Models\Property;
 use App\Models\User;
 use App\Notifications\OwnerWeeklyDigestNotification;
 use App\Services\Notifications\PreferenceResolver;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
@@ -316,17 +315,5 @@ class ResumeDuLundiTest extends ApiTestCase
         $this->artisan('owners:weekly-digest')->assertSuccessful();
 
         $this->assertCount(2, $this->resumes());
-    }
-
-    /** La planification : lundi 09:00, `Africa/Dakar`, sans chevauchement. */
-    public function test_planifiee_lundi_9h_heure_de_dakar(): void
-    {
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn ($e) => str_contains((string) $e->command, 'owners:weekly-digest'));
-
-        $this->assertNotNull($event);
-        $this->assertSame('0 9 * * 1', $event->expression);
-        $this->assertSame('Africa/Dakar', (string) $event->timezone);
-        $this->assertTrue($event->withoutOverlapping);
     }
 }

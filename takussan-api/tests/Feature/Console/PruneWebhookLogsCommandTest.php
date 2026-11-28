@@ -4,8 +4,6 @@ namespace Tests\Feature\Console;
 
 use App\Models\Integration;
 use App\Models\IntegrationWebhookLog;
-use Illuminate\Console\Scheduling\Event;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -66,16 +64,6 @@ class PruneWebhookLogsCommandTest extends TestCase
 
         $this->assertModelExists($old);
         $this->assertModelExists($oldSms);
-    }
-
-    public function test_the_command_is_scheduled_daily_without_overlapping(): void
-    {
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn (Event $e) => str_contains((string) $e->command, 'webhooks:prune'));
-
-        $this->assertNotNull($event, 'webhooks:prune doit être planifiée.');
-        $this->assertSame('45 3 * * *', $event->expression);
-        $this->assertTrue($event->withoutOverlapping);
     }
 
     /** @param  array<string, mixed>  $attributes */

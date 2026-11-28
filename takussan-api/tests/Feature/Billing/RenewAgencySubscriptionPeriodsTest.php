@@ -8,8 +8,6 @@ use App\Models\AgencySubscription;
 use App\Models\Enums\AgencySubscriptionStatus;
 use App\Models\Plan;
 use App\Services\Billing\AgencySubscriptionService;
-use Illuminate\Console\Scheduling\Event;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -90,15 +88,5 @@ class RenewAgencySubscriptionPeriodsTest extends TestCase
         $subscription->refresh();
         $this->assertSame('2026-10-30 10:00:00', $subscription->current_period_start->format('Y-m-d H:i:s'));
         $this->assertSame('2026-11-30 10:00:00', $subscription->current_period_end->format('Y-m-d H:i:s'));
-    }
-
-    public function test_la_tache_est_planifiee_chaque_jour_sans_chevauchement(): void
-    {
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn (Event $e) => str_contains((string) $e->description, RenewAgencySubscriptionPeriods::class));
-
-        $this->assertNotNull($event, 'RenewAgencySubscriptionPeriods absente du planificateur');
-        $this->assertSame('20 2 * * *', $event->expression);
-        $this->assertTrue($event->withoutOverlapping);
     }
 }

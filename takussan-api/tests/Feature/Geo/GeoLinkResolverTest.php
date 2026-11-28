@@ -185,10 +185,4 @@ class GeoLinkResolverTest extends TestCase
 
         $this->resoudre('https://maps.app.goo.gl/paris')->assertOk()->assertJsonPath('data.outside_senegal', true);
     }
-
-    public function test_sans_compte_le_point_d_acces_est_ferme(): void
-    {
-        $this->postJson('/api/geo/resolve-link', ['url' => self::FICHE])->assertUnauthorized();
-        Http::assertNothingSent();
-    }
 }

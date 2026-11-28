@@ -71,11 +71,6 @@ class MessagingContactsTest extends ApiTestCase
         return collect($response->json('data'))->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
     }
 
-    public function test_un_visiteur_anonyme_est_refuse(): void
-    {
-        $this->getJson('/api/conversations/contacts')->assertUnauthorized();
-    }
-
     public function test_liste_les_personnes_joignables_et_elles_seules(): void
     {
         $agency = Agency::factory()->create();

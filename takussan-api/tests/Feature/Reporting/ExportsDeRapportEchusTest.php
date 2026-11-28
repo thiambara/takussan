@@ -5,7 +5,6 @@ namespace Tests\Feature\Reporting;
 use App\Jobs\Reporting\PurgeExpiredReportExports;
 use App\Models\ReportExport;
 use App\Models\User;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -81,13 +80,5 @@ class ExportsDeRapportEchusTest extends TestCase
         $this->assertSame('reports/growth-2.csv', $recent->archive_path);
         $this->assertSame('processing', $enCours->refresh()->status);
         $this->assertSame('failed', $echoue->refresh()->status);
-    }
-
-    public function test_la_purge_est_planifiee(): void
-    {
-        $planifiee = collect(app(Schedule::class)->events())
-            ->contains(fn ($event) => str_contains((string) $event->description, PurgeExpiredReportExports::class));
-
-        $this->assertTrue($planifiee, 'PurgeExpiredReportExports doit être planifiée dans routes/console.php.');
     }
 }

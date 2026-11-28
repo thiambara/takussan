@@ -234,11 +234,6 @@ class HostAutoOnboardTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['primary_city']);
     }
 
-    public function test_anonyme_401(): void
-    {
-        $this->postJson(self::ROUTE)->assertUnauthorized();
-    }
-
     /** L'espace INDIVIDUEL d'un autre, où l'on n'est que bailleur, n'est jamais « le sien ». */
     public function test_n_adopte_pas_l_espace_d_un_autre(): void
     {

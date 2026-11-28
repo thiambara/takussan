@@ -90,11 +90,6 @@ class DashboardOwnerTest extends ApiTestCase
         $this->apiGet('/api/dashboard/owner')->assertForbidden();
     }
 
-    public function test_unauthenticated_is_rejected(): void
-    {
-        $this->apiGet('/api/dashboard/owner')->assertUnauthorized();
-    }
-
     public function test_timeseries_is_included_on_demand(): void
     {
         $this->apiActingAsRole('owner');

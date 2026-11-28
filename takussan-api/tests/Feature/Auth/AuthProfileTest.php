@@ -29,13 +29,6 @@ class AuthProfileTest extends TestCase
             ]);
     }
 
-    public function test_unauthenticated_request_returns_401(): void
-    {
-        $response = $this->getJson('/api/auth/me');
-
-        $response->assertStatus(401);
-    }
-
     public function test_authenticated_user_can_update_profile(): void
     {
         $user = User::factory()->create();
@@ -58,16 +51,6 @@ class AuthProfileTest extends TestCase
             'first_name' => 'Updated',
             'last_name' => 'Name',
         ]);
-    }
-
-    public function test_profile_update_requires_authentication(): void
-    {
-        $response = $this->putJson('/api/auth/profile', [
-            'first_name' => 'Updated',
-            'last_name' => 'Name',
-        ]);
-
-        $response->assertStatus(401);
     }
 
     public function test_profile_update_validates_required_fields(): void

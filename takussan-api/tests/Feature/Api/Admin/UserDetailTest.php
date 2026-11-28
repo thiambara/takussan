@@ -205,19 +205,4 @@ class UserDetailTest extends TestCase
         $this->assertSame('demande', $response->json('data.0.properties.reason'));
         $this->assertStringNotContainsString('temoin.tck1018', $response->getContent());
     }
-
-    public function test_agency_admin_is_forbidden_on_user_detail_routes(): void
-    {
-        $this->actingAsRole('agency_admin');
-        $user = User::factory()->create();
-
-        foreach ([
-            '/api/admin/users',
-            "/api/admin/users/{$user->id}",
-            "/api/admin/users/{$user->id}/sessions",
-            "/api/admin/users/{$user->id}/activity",
-        ] as $uri) {
-            $this->getJson($uri)->assertForbidden();
-        }
-    }
 }

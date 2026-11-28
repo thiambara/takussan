@@ -56,9 +56,4 @@ class CreditBalanceEndpointTest extends ApiTestCase
 
         $this->apiGet('/api/credits/balance')->assertStatus(422)->assertJsonPath('code', 'credits.no_space');
     }
-
-    public function test_un_anonyme_est_refuse(): void
-    {
-        $this->getJson('/api/credits/balance')->assertUnauthorized();
-    }
 }

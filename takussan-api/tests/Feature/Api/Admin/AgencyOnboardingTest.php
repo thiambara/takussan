@@ -68,13 +68,6 @@ class AgencyOnboardingTest extends TestCase
         $this->assertArrayNotHasKey('onboarding_type', $agency->metadata ?? []);
     }
 
-    public function test_agency_admin_cannot_onboard_agency(): void
-    {
-        $this->actingAsRole('agency_admin');
-
-        $this->postJson('/api/admin/agencies', $this->payload())->assertForbidden();
-    }
-
     public function test_admin_email_collision_returns_409(): void
     {
         Notification::fake();

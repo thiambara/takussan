@@ -19,11 +19,6 @@ class DashboardMeTest extends ApiTestCase
 {
     use RefreshDatabase;
 
-    public function test_returns_401_when_unauthenticated(): void
-    {
-        $this->apiGet('/api/dashboard/me')->assertUnauthorized();
-    }
-
     /**
      * TCK-595 — un compte sans autre rôle est un client, fiche `Customer` ou non : il recevait 404 et
      * l'état vide générique.

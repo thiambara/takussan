@@ -105,12 +105,4 @@ class PlatformSettingTest extends TestCase
             ->assertJsonMissingPath('data.platform.session_max_minutes')
             ->assertHeader('Cache-Control', 'max-age=300, public');
     }
-
-    public function test_agency_admin_is_forbidden(): void
-    {
-        $this->actingAsRole('agency_admin');
-
-        $this->getJson('/api/admin/settings')->assertForbidden();
-        $this->patchJson('/api/admin/settings', ['currency.default' => 'EUR'])->assertForbidden();
-    }
 }

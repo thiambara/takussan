@@ -20,17 +20,6 @@ class PropertyBookingRequestTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_unauthenticated_returns_401(): void
-    {
-        $property = Property::factory()->published()->create();
-
-        $this->postJson("/api/public/properties/{$property->slug}/booking-request", [
-            'start_date' => now()->addDay()->toDateString(),
-            'end_date' => now()->addDays(3)->toDateString(),
-            'guests' => 2,
-        ])->assertStatus(401);
-    }
-
     public function test_authenticated_creates_booking_and_customer(): void
     {
         $property = Property::factory()->published()->create([

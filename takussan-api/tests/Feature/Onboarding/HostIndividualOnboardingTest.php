@@ -362,12 +362,6 @@ class HostIndividualOnboardingTest extends TestCase
         $this->assertNotNull($activity->properties->get('agency_id'));
     }
 
-    public function test_endpoint_requires_authentication(): void
-    {
-        $this->postJson('/api/host/individual/onboard', $this->defaultPayload())
-            ->assertStatus(401);
-    }
-
     public function test_second_onboarding_attempt_is_rejected_and_does_not_create_duplicate_agency(): void
     {
         $user = User::factory()->create([

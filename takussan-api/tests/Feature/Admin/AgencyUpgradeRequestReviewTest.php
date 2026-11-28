@@ -41,13 +41,6 @@ class AgencyUpgradeRequestReviewTest extends TestCase
         return $this->actingAsRole('super_admin');
     }
 
-    private function asAgencyAdmin(): User
-    {
-        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
-
-        return $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
-    }
-
     /**
      * TCK-1003 (P49.02) — la demande ne s'approuve que si le dossier KYC de l'agence est vérifié :
      * l'aide le pose par défaut, pour que chaque test ne dise que ce qu'il garde.
@@ -105,25 +98,6 @@ class AgencyUpgradeRequestReviewTest extends TestCase
             ->assertJsonPath('data.agency.id', $request->agency_id)
             ->assertJsonPath('data.counts.other_requests', 1)
             ->assertJsonPath('data.counts.properties', 0);
-    }
-
-    public function test_non_super_admin_gets_403_on_listing(): void
-    {
-        $this->asAgencyAdmin();
-
-        $this->getJson('/api/admin/agency-upgrade-requests')->assertStatus(403);
-    }
-
-    public function test_non_super_admin_gets_403_on_detail_and_decisions(): void
-    {
-        $this->asAgencyAdmin();
-        $request = $this->pendingRequest();
-
-        $this->getJson("/api/admin/agency-upgrade-requests/{$request->id}")->assertStatus(403);
-        $this->postJson("/api/admin/agency-upgrade-requests/{$request->id}/approve")->assertStatus(403);
-        $this->postJson("/api/admin/agency-upgrade-requests/{$request->id}/reject", [
-            'comment' => 'Not enough docs provided',
-        ])->assertStatus(403);
     }
 
     public function test_super_admin_approves_pending_request_dispatches_event_and_notifies(): void

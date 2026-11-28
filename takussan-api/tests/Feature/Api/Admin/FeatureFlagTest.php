@@ -97,12 +97,6 @@ class FeatureFlagTest extends TestCase
         $this->assertFalse(FeatureFlag::query()->where('key', 'property_compare')->exists());
     }
 
-    public function test_agency_admin_is_forbidden(): void
-    {
-        $this->actingAsRole('agency_admin');
-        $this->patchJson('/api/admin/feature-flags/property_compare', ['enabled' => true])->assertForbidden();
-    }
-
     /**
      * TCK-1125 (P98.01) — le dialogue « Configurer » envoie toujours `roles` et
      * `rollout_percentage`, vides et à 0 sans ciblage. Ce corps, que l'écran affiche « Global »,

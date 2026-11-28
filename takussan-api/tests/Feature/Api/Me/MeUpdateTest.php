@@ -87,15 +87,6 @@ class MeUpdateTest extends TestCase
             ->assertJsonValidationErrors(['search_intent']);
     }
 
-    public function test_anonymous_request_is_rejected(): void
-    {
-        $response = $this->patchJson('/api/me', [
-            'city' => 'Dakar',
-        ]);
-
-        $response->assertStatus(401);
-    }
-
     /**
      * TCK-493 — l'intention d'entrée se mémorise, et elle n'accorde rien.
      */

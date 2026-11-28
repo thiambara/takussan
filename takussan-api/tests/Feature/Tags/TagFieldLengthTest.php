@@ -11,6 +11,10 @@ use Tests\TestCase;
  * TCK-1107 (P91.02) — `tags.color` est un `varchar(7)` (taillé pour `#rrggbb`), `tags.icon` un
  * `varchar(255)`. La création et la modification les bornent à la colonne : au-delà, 422 sur la
  * clé, et non le 500 de PostgreSQL (22001). Le format de la couleur n'est pas jugé ici.
+ *
+ * TCK-3015 (ADR-0140 § 4) — la borne de CHAQUE voie est tenue par le recensement
+ * `Validation\BornesMaxFaceAuSchemaTest` ; ce fichier n'en garde qu'un témoin HTTP, la preuve que la requête
+ * bornée est bien celle que la route reçoit.
  */
 class TagFieldLengthTest extends TestCase
 {
@@ -35,25 +39,5 @@ class TagFieldLengthTest extends TestCase
             'color' => '#ff0000',
             'icon' => str_repeat('i', 255),
         ])->assertCreated();
-    }
-
-    public function test_modifier_une_etiquette_avec_une_couleur_ou_une_icone_trop_longue_rend_422(): void
-    {
-        $this->actingAsRole('super_admin');
-        $tag = Tag::factory()->create(['color' => '#000000', 'icon' => 'avant']);
-
-        foreach (['color' => 'turquoise', 'icon' => str_repeat('i', 256)] as $cle => $valeur) {
-            $this->patchJson("/api/tags/{$tag->id}", [$cle => $valeur])
-                ->assertStatus(422)
-                ->assertJsonValidationErrors($cle);
-        }
-
-        $tag->refresh();
-        $this->assertSame('#000000', $tag->color);
-        $this->assertSame('avant', $tag->icon);
-
-        // Témoin : à la borne de la colonne, la modification passe.
-        $this->patchJson("/api/tags/{$tag->id}", ['color' => '#ffffff', 'icon' => str_repeat('i', 255)])
-            ->assertOk();
     }
 }

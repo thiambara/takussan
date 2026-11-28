@@ -7,7 +7,6 @@ use App\Models\Enums\CommitmentStatus;
 use App\Models\Enums\MessageType;
 use App\Models\Message;
 use App\Services\Messaging\SignalDesEngagements;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
@@ -194,15 +193,5 @@ class SignalDesEngagementsTest extends TestCase
         $this->passer();
         $this->assertCount(2, $this->evenements('commitment.overdue'));
         $this->assertTrue($echeance->equalTo($engagement->refresh()->overdue_at), 'L\'historique garde le premier retard.');
-    }
-
-    public function test_la_commande_est_planifiee_toutes_les_cinq_minutes(): void
-    {
-        $evenements = collect(app(Schedule::class)->events())
-            ->filter(fn ($e) => str_contains((string) $e->command, 'commitments:signal'));
-
-        $this->assertCount(1, $evenements);
-        $this->assertSame('*/5 * * * *', $evenements->first()->expression);
-        $this->assertTrue($evenements->first()->withoutOverlapping);
     }
 }

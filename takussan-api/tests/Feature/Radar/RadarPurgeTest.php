@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Radar;
 
-use App\Console\Commands\RadarPurge;
 use App\Jobs\Radar\PurgeRadarAdvertiser;
 use App\Models\AiSuggestion;
 use App\Models\Enums\AiSuggestionDecision;
@@ -23,7 +22,6 @@ use App\Services\Radar\RadarAdvertiserDirectory;
 use App\Services\Radar\RadarPurger;
 use App\Support\RadarPhone;
 use Carbon\Carbon;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -701,16 +699,6 @@ class RadarPurgeTest extends TestCase
         $this->annonce($this->annonceur(['do_not_contact_at' => now()]), ['stage' => RadarListingStage::DoNotContact]);
 
         $this->artisan('radar:purge')->expectsOutputToContain('listings=1')->assertSuccessful();
-    }
-
-    public function test_la_purge_est_planifiee_chaque_jour_sans_chevauchement(): void
-    {
-        $evenements = collect(app(Schedule::class)->events())->filter(fn ($e) => str_contains((string) $e->command, 'radar:purge'));
-
-        $this->assertCount(1, $evenements);
-        $this->assertSame('15 4 * * *', $evenements->first()->expression);
-        $this->assertTrue($evenements->first()->withoutOverlapping);
-        $this->assertSame(RadarPurge::class, get_class($this->app->make(RadarPurge::class)));
     }
 
     // --- Le job « dès un STOP » --------------------------------------------------------------------

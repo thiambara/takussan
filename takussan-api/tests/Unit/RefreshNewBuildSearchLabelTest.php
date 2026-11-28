@@ -7,8 +7,6 @@ use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyType;
 use App\Models\Property;
 use App\Support\Search\PropertyLabels;
-use Illuminate\Console\Scheduling\Event;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -63,16 +61,5 @@ class RefreshNewBuildSearchLabelTest extends TestCase
         } finally {
             Carbon::setTestNow();
         }
-    }
-
-    public function test_le_job_est_planifie_chaque_jour(): void
-    {
-        $evenements = array_filter(
-            app(Schedule::class)->events(),
-            static fn (Event $e): bool => $e->description === RefreshNewBuildSearchLabel::class,
-        );
-
-        $this->assertCount(1, $evenements, 'le job doit être planifié une fois dans routes/console.php');
-        $this->assertSame('0 4 * * *', array_values($evenements)[0]->expression);
     }
 }

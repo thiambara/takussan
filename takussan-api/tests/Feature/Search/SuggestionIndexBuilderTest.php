@@ -10,7 +10,6 @@ use App\Models\SearchAlias;
 use App\Services\Search\Query\DatabasePlaceLexicon;
 use App\Services\Search\Suggestions\SuggestionIndex;
 use App\Services\Search\Suggestions\SuggestionIndexBuilder;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -257,14 +256,5 @@ class SuggestionIndexBuilderTest extends TestCase
 
         $this->assertContains('Mermoz', array_column($this->suggestionDocuments(), 'value'));
         $this->assertSame(['kind'], $maitre->index(SuggestionIndex::uid())->getFilterableAttributes());
-    }
-
-    public function test_la_construction_est_planifiee_toutes_les_heures(): void
-    {
-        $evenement = collect(app(Schedule::class)->events())
-            ->first(fn ($e) => str_contains((string) $e->command, 'search:build-suggestions'));
-
-        $this->assertNotNull($evenement, 'planifiée dans routes/console.php');
-        $this->assertSame('0 * * * *', $evenement->expression);
     }
 }

@@ -54,11 +54,4 @@ class AuthMeRolesTest extends TestCase
             ->assertJsonPath('roles', ['super_admin', 'customer'])
             ->assertJsonPath('agency_id', null);
     }
-
-    public function test_me_requires_authentication_even_with_team_middleware(): void
-    {
-        // Sanity check that the new middleware doesn't accidentally expose
-        // /auth/me to anonymous callers via the sanctum guard fallback.
-        $this->getJson('/api/auth/me')->assertStatus(401);
-    }
 }

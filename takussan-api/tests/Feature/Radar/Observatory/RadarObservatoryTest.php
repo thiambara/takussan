@@ -270,10 +270,4 @@ class RadarObservatoryTest extends TestCase
         $this->assertSame('2026-10-29T10:00:00+00:00', $sources[0]['gone_at']);
         $this->assertSame(['id' => $this->bienPublie->id, 'title' => $this->bienPublie->title, 'public' => true], $sources[0]['property']);
     }
-
-    /** La route est fermée à qui n'opère pas le Radar. */
-    public function test_la_route_est_gardee(): void
-    {
-        $this->getJson('/api/admin/radar/observatory')->assertUnauthorized();
-    }
 }

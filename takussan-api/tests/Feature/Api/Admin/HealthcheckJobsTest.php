@@ -24,15 +24,6 @@ class HealthcheckJobsTest extends TestCase
             ->assertJsonPath('data.sms.status', 'failed');
     }
 
-    public function test_agency_admin_is_forbidden(): void
-    {
-        $this->actingAsRole('agency_admin');
-
-        $this->getJson('/api/admin/health')->assertForbidden();
-        $this->getJson('/api/admin/jobs/failed')->assertForbidden();
-        $this->getJson('/api/admin/scheduler')->assertForbidden();
-    }
-
     public function test_failed_jobs_list_truncates_payload(): void
     {
         $this->actingAsRole('super_admin');

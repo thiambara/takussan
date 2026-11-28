@@ -45,18 +45,6 @@ class MediaUploadTest extends TestCase
         $this->assertDatabaseCount('media', 1);
     }
 
-    public function test_guest_cannot_upload(): void
-    {
-        $user = User::factory()->create();
-
-        $this->postJson('/api/media', [
-            'file' => UploadedFile::fake()->image('hero.jpg'),
-            'collection' => 'photos',
-            'model_type' => User::class,
-            'model_id' => $user->id,
-        ])->assertUnauthorized();
-    }
-
     public function test_rejects_unsupported_mime(): void
     {
         $user = User::factory()->create();

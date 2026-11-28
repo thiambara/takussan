@@ -181,22 +181,6 @@ class PlatformPayoutTest extends TestCase
         $this->assertSame(5, $response->json('data.breakdown.lease.count'));
     }
 
-    public function test_agency_admin_is_forbidden_on_admin_endpoints(): void
-    {
-        $agency = Agency::factory()->create();
-        $this->actingAsRole('agency_admin', ['agency' => $agency]);
-        $payout = PlatformPayout::factory()->create(['agency_id' => $agency->id]);
-
-        $this->getJson('/api/admin/payouts')->assertForbidden();
-        $this->postJson('/api/admin/payouts/close-period', [
-            'period_end' => '2026-05-31',
-        ])->assertForbidden();
-        $this->postJson("/api/admin/payouts/{$payout->id}/approve")->assertForbidden();
-        $this->postJson("/api/admin/payouts/{$payout->id}/mark-paid", [
-            'processed_at' => '2026-05-15T12:00:00Z',
-        ])->assertForbidden();
-    }
-
     public function test_agency_admin_can_read_their_own_payouts_via_me_endpoint(): void
     {
         $agency = Agency::factory()->create();

@@ -6,37 +6,28 @@ use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Auth\Middleware\AuthenticateWithBasicAuth;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 use Tests\TestCase;
 
 /**
- * TCK-2787 (AC6) — aucun guard `token` : l'avis critique de laravel/framework < 13.27.0
- * (GHSA-f9x3-7vq9-cph6, contournement du `TokenGuard`) ne touche une application que si l'un de ses
- * guards a le driver `token`. Le relevé du 2026-11-13 l'a jugé inatteignable ici : deux guards, `web`
- * (session) et `sanctum`, et toutes les routes authentifiées sous `auth:sanctum`. Cette garde fige ce
- * verdict, pour qu'il ne se périme pas en silence :
+ * Le recensement de l'authentification des routes (ADR-0140 § 4) : une route `api/*` est sous `auth:sanctum`, ou
+ * figure dans une liste FERMÉE qui dit pourquoi elle ne l'est pas. Une route neuve oubliée rougit ici, sans qu'un
+ * test « sans session → 401 » soit écrit pour elle.
  *
- * 1. les guards configurés sont exactement `GUARDS` (driver par guard) ;
- * 2. aucun `TokenGuard`, `RequestGuard`, `createTokenDriver`, `viaRequest` ni `Auth::extend` dans le
- *    CODE (commentaires ignorés) de `app/`, `config/`, `bootstrap/` et `routes/` ;
- * 3. toute route dont la pile résolue (groupes et alias dépliés, middleware de contrôleur compris)
- *    porte un middleware d'authentification le porte sous le seul guard `sanctum` — `auth` sans
- *    paramètre (guard par défaut), `auth:api` ou `auth.basic` rougissent ;
- * 4. une route `api/*` sans authentification figure dans `SANS_AUTHENTIFICATION`, liste FERMÉE dont
- *    chaque entrée dit pourquoi ; une entrée qui ne correspond plus à une route sans authentification
- *    en sort.
+ * 1. toute route dont la pile résolue (groupes et alias dépliés, middleware de contrôleur compris) porte un
+ *    middleware d'authentification le porte sous le seul guard `sanctum` — `auth` sans paramètre (le guard `web`,
+ *    par session : un client à jeton y reçoit 401), `auth:api` ou `auth.basic` rougissent ;
+ * 2. une route `api/*` sans authentification figure dans `SANS_AUTHENTIFICATION`, liste FERMÉE dont chaque entrée
+ *    dit pourquoi ; une entrée qui ne correspond plus à une route sans authentification en sort.
  *
- * Le guard `sanctum` lui-même passe par `RequestGuard` : il est fourni par le paquet, pas par `app/`.
+ * TCK-3015 — ce fichier est né de TCK-2787 (AC6), qui figeait aussi deux constats pour l'avis critique de
+ * laravel/framework < 13.27.0 (GHSA-f9x3-7vq9-cph6, contournement du `TokenGuard`) : les guards configurés sont
+ * exactement `web` et `sanctum`, et aucun `TokenGuard`/`RequestGuard`/`viaRequest`/`Auth::extend` dans le code.
+ * Ces deux tests sont retirés : `composer.lock` installe la v13.42.0, où l'avis est corrigé, et ils ne gardaient
+ * rien d'autre. Le point 1 reste : il est la définition même d'« authentifiée » pour le point 2. Il remplace les
+ * tests « sans session → 401 » recopiés route par route (liste dans TCK-3015).
  */
 class AucunGuardTokenTest extends TestCase
 {
-    /** Les guards de `config('auth.guards')`, avec leur driver. */
-    private const GUARDS = [
-        'web' => 'session',
-        'sanctum' => 'sanctum',
-    ];
-
     private const ENTREE = 'entrée de session';
 
     private const PUBLIQUE = 'site public, sans compte';
@@ -169,37 +160,6 @@ class AucunGuardTokenTest extends TestCase
         'POST api/webhooks/messagerie/{canal}/{token}' => self::WEBHOOK,
     ];
 
-    /** Ce que le code ne doit pas nommer : chacun ouvre un guard hors de Sanctum. */
-    private const MOTIFS_INTERDITS = '/\\b(TokenGuard|RequestGuard|createTokenDriver|viaRequest)\\b|\\bAuth::extend\\b|[\'"]driver[\'"]\\s*=>\\s*[\'"]token[\'"]/';
-
-    public function test_les_guards_configures_sont_exactement_ceux_attendus(): void
-    {
-        $guards = array_map(fn (array $guard) => $guard['driver'] ?? null, (array) config('auth.guards'));
-        ksort($guards);
-        $attendus = self::GUARDS;
-        ksort($attendus);
-
-        $this->assertSame($attendus, $guards, "Un guard a été ajouté ou a changé de driver. Un driver « token » rouvre GHSA-f9x3-7vq9-cph6 (TCK-2787) ; tout autre guard se décide, puis s'écrit dans GUARDS.");
-        $this->assertSame('web', config('auth.defaults.guard'));
-    }
-
-    public function test_aucun_guard_hors_sanctum_n_est_cree_dans_le_code(): void
-    {
-        $fautifs = [];
-        foreach (['app', 'config', 'bootstrap', 'routes'] as $dossier) {
-            foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(base_path($dossier))) as $fichier) {
-                if ($fichier->getExtension() !== 'php' || str_contains($fichier->getPathname(), DIRECTORY_SEPARATOR.'cache'.DIRECTORY_SEPARATOR)) {
-                    continue;
-                }
-                if (preg_match(self::MOTIFS_INTERDITS, $this->codeSansCommentaires((string) file_get_contents($fichier->getPathname())), $m) === 1) {
-                    $fautifs[] = substr($fichier->getPathname(), strlen(base_path()) + 1).' : '.$m[0];
-                }
-            }
-        }
-
-        $this->assertSame([], $fautifs, "Un guard hors de Sanctum est créé dans le code (TCK-2787, AC6) :\n".implode("\n", $fautifs));
-    }
-
     public function test_toute_route_authentifiee_l_est_sous_le_seul_guard_sanctum(): void
     {
         $fautives = [];
@@ -267,18 +227,5 @@ class AucunGuardTokenTest extends TestCase
         }
 
         return $trouves;
-    }
-
-    private function codeSansCommentaires(string $source): string
-    {
-        $code = '';
-        foreach (token_get_all($source) as $jeton) {
-            if (is_array($jeton) && in_array($jeton[0], [T_COMMENT, T_DOC_COMMENT], true)) {
-                continue;
-            }
-            $code .= is_array($jeton) ? $jeton[1] : $jeton;
-        }
-
-        return $code;
     }
 }

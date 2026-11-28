@@ -30,6 +30,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -38,14 +39,29 @@ use Tests\TestCase;
  * authenticated `agency_admin` is rejected with 403, regardless of the
  * specific endpoint. New routes added under the prefix automatically join
  * the guarded set — no per-route test maintenance.
+ *
+ * TCK-3015 (ADR-0140 § 4) — le recensement du refus par espace : il balaie aussi l'agent, le bailleur et le
+ * locataire, et remplace les « l'admin d'agence reçoit 403 » recopiés route par route dans `Api/Admin/*`.
  */
 class NamespaceAccessGuardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_agency_admin_is_rejected_on_every_admin_route(): void
+    /** @return array<string, array{string}> */
+    public static function acteursHorsPlateforme(): array
     {
-        $this->actingAsRole('agency_admin');
+        return [
+            'admin d\'agence' => ['agency_admin'],
+            'agent' => ['agent'],
+            'bailleur' => ['owner'],
+            'locataire' => ['tenant'],
+        ];
+    }
+
+    #[DataProvider('acteursHorsPlateforme')]
+    public function test_un_acteur_hors_plateforme_est_refuse_sur_chaque_route_admin(string $role): void
+    {
+        $this->actingAsRole($role);
 
         $agency = Agency::factory()->create();
         $alertRule = AlertRule::create([
@@ -190,7 +206,7 @@ class NamespaceAccessGuardTest extends TestCase
                 $this->assertSame(
                     403,
                     $response->status(),
-                    "Expected 403 from $method $resolved, got {$response->status()}: {$response->getContent()}",
+                    "Expected 403 for $role from $method $resolved, got {$response->status()}: {$response->getContent()}",
                 );
             }
         }

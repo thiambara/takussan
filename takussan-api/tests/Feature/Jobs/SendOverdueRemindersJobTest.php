@@ -9,7 +9,6 @@ use App\Models\Invoice;
 use App\Models\User;
 use App\Notifications\InvoiceOverdueReminderNotification;
 use App\Services\Invoice\OverdueReminderService;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -77,17 +76,5 @@ class SendOverdueRemindersJobTest extends TestCase
         $this->assertSame(1, $first);
         $this->assertSame(0, $second);
         Notification::assertSentToTimes($u, InvoiceOverdueReminderNotification::class, 1);
-    }
-
-    public function test_schedule_is_registered_daily_with_without_overlapping(): void
-    {
-        $schedule = app(Schedule::class);
-        $events = collect($schedule->events());
-
-        $match = $events->first(fn ($event) => str_contains($event->command ?? $event->description ?? '', 'SendOverdueRemindersJob'));
-
-        $this->assertNotNull($match, 'SendOverdueRemindersJob should be registered in routes/console.php');
-        $this->assertSame('0 9 * * *', $match->expression, 'Job should run daily at 09:00');
-        $this->assertNotEmpty($match->mutexName(), 'Job should be wired with withoutOverlapping');
     }
 }

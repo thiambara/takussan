@@ -21,7 +21,7 @@ use Tests\TestCase;
  * P208.01 (TCK-2190) — la route générique `POST /api/invitations` est retirée : ces tests
  * éprouvent `InvitationService::send()`, que traversent les routes par rôle et la cooptation.
  * L'autorisation de chaque route par rôle se teste avec elle (`InviteAgentTest`…), et le retrait
- * de la route dans `CreationGeneriqueRetireeTest`.
+ * de la route dans `Routes\RoutesEnDoubleRetireesTest`.
  */
 class InvitationSendTest extends TestCase
 {
