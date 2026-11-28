@@ -187,7 +187,8 @@ class GestesDeLaVisite
             'preferred_window' => $saisie['preferred_window'] ?? null,
             'duration_minutes' => $saisie['duration_minutes'] ?? null,
             'type' => $saisie['type'] ?? VisitType::InPerson->value,
-            'visitor_name' => ($saisie['visitor_name'] ?? null) ?? (trim(($visiteur?->first_name ?? '').' '.($visiteur?->last_name ?? '')) ?: null),
+            // Comme la porte publique d'avant 4e3a929f7 : un nom vide n'est pas un nom (`?:` après `??`).
+            'visitor_name' => (($saisie['visitor_name'] ?? null) ?? trim(($visiteur?->first_name ?? '').' '.($visiteur?->last_name ?? ''))) ?: null,
             'visitor_email' => $saisie['visitor_email'] ?? $visiteur?->email,
             'visitor_phone' => $saisie['visitor_phone'] ?? $visiteur?->phone,
             'notes' => $saisie['notes'] ?? null,
@@ -426,6 +427,84 @@ class GestesDeLaVisite
         $this->notifier->rescheduledByVisitor($visit->fresh(['property', 'agent']));
 
         return $visit;
+    }
+
+    /* ───────────────────────────── déplacer (le personnel) ───────────────────────────── */
+
+    /**
+     * `PATCH /property-visits/{id}` — le personnel du bien modifie la visite : l'heure ({@see peutDeplacer()}),
+     * la durée, l'agent, les notes, le type. `status` n'y entre jamais : chaque transition a son geste.
+     *
+     * Les refus d'état se jugent sur la ligne RELUE sous verrou (bien, puis visite, puis agent), dans
+     * l'ordre historique : 422 `visit.closed` (terminée ou annulée), 422 `visit.reschedule_inactive` si
+     * l'heure change hors d'une visite vivante (TCK-1838), 403 `visit.reassign_forbidden` si l'agent
+     * déjà posé change sans `crm.assign` (TCK-590), puis, sur une visite confirmée, le chevauchement du
+     * bien et l'agent libre, jugés sur les valeurs RÉSULTANTES (TCK-2744). Le visiteur est prévenu
+     * d'un déplacement d'heure APRÈS le commit (TCK-590, contrainte 11).
+     *
+     * Vérification adverse de TCK-3005 : ces refus se jugeaient sur le modèle lié à la route, et une
+     * visite annulée sous la ligne voyait son heure réécrite et le visiteur prévenu.
+     *
+     * @param  array<string, mixed>  $data  saisie validée ; `scheduled_at` déjà ramené à l'instant désigné
+     * @return array{0: PropertyVisit, 1: ?bool} la visite, et le sort du SMS (null : aucun avis)
+     */
+    public function deplacer(User $acteur, PropertyVisit $visit, array $data): array
+    {
+        // Vérification adverse, passe 2 (b) — déplacer l'heure, c'est parler au visiteur au nom de
+        // l'agence : sur un bien d'agence, le personnel seul.
+        abort_code_unless(PropertyVisitPolicy::agitPourLeBien($acteur, $visit), 403, 'visit.staff_only');
+
+        // TCK-2502 — une heure envoyée par l'agence fixe l'heure, même égale au début de tranche.
+        if (array_key_exists('scheduled_at', $data)) {
+            $data['preferred_window'] = null;
+        }
+
+        [$visit, $avant] = DB::transaction(function () use ($acteur, $visit, $data): array {
+            $fresh = $this->scheduling->verrouillerBienPuisVisite($visit);
+            $avant = $fresh->scheduled_at;
+
+            abort_code_if(in_array($fresh->status, [VisitStatus::Completed, VisitStatus::Cancelled], true), 422, 'visit.closed');
+
+            if (array_key_exists('scheduled_at', $data) && ! $data['scheduled_at']?->equalTo($fresh->scheduled_at)) {
+                abort_code_unless(self::vivante($fresh), 422, 'visit.reschedule_inactive');
+            }
+
+            if (array_key_exists('agent_id', $data)
+                && $fresh->agent_id !== null
+                && ($data['agent_id'] === null || (int) $data['agent_id'] !== $fresh->agent_id)) {
+                abort_code_unless(self::attribue($acteur, $fresh), 403, 'visit.reassign_forbidden');
+            }
+
+            $temps = array_key_exists('scheduled_at', $data) || array_key_exists('duration_minutes', $data);
+            if ($fresh->status === VisitStatus::Confirmed && ($temps || array_key_exists('agent_id', $data))) {
+                $debut = array_key_exists('scheduled_at', $data) ? Carbon::instance($data['scheduled_at']) : $fresh->scheduled_at;
+                $duree = array_key_exists('duration_minutes', $data) ? $data['duration_minutes'] : $fresh->duration_minutes;
+                if ($temps) {
+                    $this->scheduling->assertNoOverlap($fresh, $debut, $duree, lockForUpdate: true);
+                }
+                $agent = array_key_exists('agent_id', $data) ? $data['agent_id'] : $fresh->agent_id;
+                // Une visite confirmée à tranche (sans heure fixée) n'occupe personne, sauf si l'écriture fixe l'heure.
+                $fixee = array_key_exists('scheduled_at', $data) || $fresh->preferred_window === null;
+                $this->scheduling->assertAgentFree(
+                    $fresh,
+                    $agent !== null ? (int) $agent : null,
+                    $fixee ? $debut : null,
+                    $duree !== null ? (int) $duree : null,
+                    lockForUpdate: true,
+                );
+            }
+
+            $fresh->fill($data)->save();
+
+            return [$fresh, $avant];
+        });
+
+        $sms = null;
+        if (array_key_exists('scheduled_at', $data) && ! $visit->scheduled_at?->equalTo($avant)) {
+            $sms = $this->notifier->rescheduledByAgency($visit->fresh(['property', 'visitor']), $acteur);
+        }
+
+        return [$visit, $sms];
     }
 
     /* ───────────────────────────── clore ───────────────────────────── */

@@ -7,6 +7,7 @@ use App\Models\Enums\VisitStatus;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Notifications\CodedNotification;
 use App\Services\Visit\GestesDeLaVisite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -106,6 +107,116 @@ class GestesDeLaVisiteTest extends ApiTestCase
 
         $this->assertSame(VisitStatus::Cancelled, $visite->fresh()->status);
         Notification::assertNothingSent();
+    }
+
+    /* ─────── Vérification adverse — déplacer, attribuer, proposer rejugent la ligne relue ─────── */
+
+    /**
+     * Le personnel déplace l'heure (PATCH) d'une visite annulée sous la ligne : `visit.closed`,
+     * comme sur une visite déjà annulée, l'heure ne bouge pas et le visiteur n'est pas prévenu.
+     */
+    public function test_deplacer_une_visite_annulee_sous_la_ligne_rend_422_et_ne_previent_personne(): void
+    {
+        $avant = now()->addDays(2)->setTime(10, 0);
+        $visite = $this->visite(VisitStatus::Confirmed, ['scheduled_at' => $avant]);
+        $this->changerLaBaseApresLaLiaison($visite, VisitStatus::Cancelled);
+
+        Sanctum::actingAs($this->agent);
+        $this->patchJson("/api/property-visits/{$visite->id}", ['scheduled_at' => now()->addDays(3)->setTime(15, 0)->toIso8601String()])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'visit.closed');
+
+        $this->assertTrue($visite->fresh()->scheduled_at->equalTo($avant));
+        Notification::assertNothingSent();
+    }
+
+    /** Une visite passée `no_show` sous la ligne ne se déplace plus : `visit.reschedule_inactive`. */
+    public function test_deplacer_une_visite_passee_absente_sous_la_ligne_rend_reschedule_inactive(): void
+    {
+        $avant = now()->addDays(2)->setTime(10, 0);
+        $visite = $this->visite(VisitStatus::Confirmed, ['scheduled_at' => $avant]);
+        $this->changerLaBaseApresLaLiaison($visite, VisitStatus::NoShow);
+
+        Sanctum::actingAs($this->agent);
+        $this->patchJson("/api/property-visits/{$visite->id}", ['scheduled_at' => now()->addDays(3)->setTime(15, 0)->toIso8601String()])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'visit.reschedule_inactive');
+
+        $this->assertTrue($visite->fresh()->scheduled_at->equalTo($avant));
+        Notification::assertNothingSent();
+    }
+
+    public function test_deplacer_une_visite_restee_confirmee_ecrit_l_heure_et_previent_le_visiteur(): void
+    {
+        $visite = $this->visite(VisitStatus::Confirmed, ['scheduled_at' => now()->addDays(2)->setTime(10, 0)]);
+        $apres = now()->addDays(3)->setTime(15, 0);
+
+        Sanctum::actingAs($this->agent);
+        $this->patchJson("/api/property-visits/{$visite->id}", ['scheduled_at' => $apres->toIso8601String()])->assertOk();
+
+        $this->assertTrue($visite->fresh()->scheduled_at->equalTo($apres));
+        Notification::assertSentTo($this->visiteur, CodedNotification::class);
+    }
+
+    public function test_prendre_en_charge_une_visite_annulee_sous_la_ligne_rend_422_et_n_ecrit_pas_l_agent(): void
+    {
+        $visite = $this->visite(VisitStatus::Scheduled, ['agent_id' => null, 'scheduled_at' => now()->addDays(2)]);
+        $this->changerLaBaseApresLaLiaison($visite, VisitStatus::Cancelled);
+
+        Sanctum::actingAs($this->agent);
+        $this->postJson("/api/property-visits/{$visite->id}/claim")
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'visit.closed');
+
+        $this->assertNull($visite->fresh()->agent_id);
+    }
+
+    public function test_attribuer_en_lot_une_visite_annulee_sous_la_ligne_refuse_la_ligne(): void
+    {
+        $visite = $this->visite(VisitStatus::Scheduled, ['agent_id' => null, 'scheduled_at' => now()->addDays(2)]);
+        $this->changerLaBaseApresLaLiaison($visite, VisitStatus::Cancelled);
+
+        Sanctum::actingAs($this->agent);
+        $this->postJson('/api/property-visits/bulk-assign', ['ids' => [$visite->id], 'agent_id' => $this->agent->id])
+            ->assertOk()
+            ->assertJsonPath('data.0.ok', false)
+            ->assertJsonPath('data.0.code', 'visit.closed');
+
+        $this->assertNull($visite->fresh()->agent_id);
+    }
+
+    /** Le visiteur propose un autre créneau pour une visite annulée sous la ligne : rien ne s'écrit. */
+    public function test_proposer_un_creneau_sur_une_visite_annulee_sous_la_ligne_rend_422_et_ne_previent_personne(): void
+    {
+        $avant = now()->addDays(2)->setTime(10, 0);
+        $visite = $this->visite(VisitStatus::Confirmed, ['scheduled_at' => $avant]);
+        $this->changerLaBaseApresLaLiaison($visite, VisitStatus::Cancelled);
+
+        Sanctum::actingAs($this->visiteur);
+        $this->postJson("/api/property-visits/{$visite->id}/reschedule", ['scheduled_at' => now()->addDays(3)->setTime(15, 0)->toIso8601String()])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'visit.reschedule_inactive');
+
+        $relue = $visite->fresh();
+        $this->assertSame(VisitStatus::Cancelled, $relue->status);
+        $this->assertTrue($relue->scheduled_at->equalTo($avant));
+        Notification::assertNothingSent();
+    }
+
+    /**
+     * Mesure demandée par la vérification adverse : avant 4e3a929f7, la porte publique écrivait
+     * `($nom ?? $nomDuCompte) ?: null`, et un nom vide donnait `null`. Par HTTP, `ConvertEmptyStringsToNull`
+     * le fait déjà ; le module, appelé directement, doit le tenir lui-même.
+     */
+    public function test_demander_avec_un_nom_vide_ecrit_null(): void
+    {
+        $visite = app(GestesDeLaVisite::class)->demander($this->bien, null, [
+            'scheduled_at' => now()->addDays(2)->setTime(10, 0),
+            'visitor_name' => '',
+            'visitor_phone' => '+221771234567',
+        ]);
+
+        $this->assertNull($visite->fresh()->visitor_name);
     }
 
     public function test_clore_et_absent_aboutissent_sur_une_visite_restee_confirmee(): void

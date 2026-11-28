@@ -38,7 +38,6 @@ use App\Services\Visit\VisitReadContext;
 use App\Services\Visit\VisitReportService;
 use App\Services\Visit\VisitSchedulingService;
 use App\Support\TelephoneSaisi;
-use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -334,6 +333,9 @@ class PropertyVisitController extends Controller
     {
         DB::transaction(function () use ($visit, $agentId): void {
             $this->relireSousVerrou($visit);
+            // Vérification adverse de TCK-3005 — l'état se rejuge sur la ligne relue : une visite
+            // annulée sous la ligne recevait son agent.
+            abort_code_if(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true), 422, 'visit.closed');
             if ($visit->status === VisitStatus::Confirmed && $visit->preferred_window === null) {
                 $this->scheduling->assertAgentFree($visit, $agentId, $visit->scheduled_at, $visit->duration_minutes, lockForUpdate: true);
             }
@@ -530,16 +532,6 @@ class PropertyVisitController extends Controller
 
     public function update(UpdatePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        // Vérification adverse, passe 2 (b) — déplacer l'heure, c'est parler au visiteur au nom
-        // de l'agence : sur un bien d'agence, le personnel seul (cf. `agitPourLeBien`).
-        abort_code_unless($this->agitPourLeBien($request->user(), $visit), 403, 'visit.staff_only');
-
-        abort_code_if(
-            in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
-            422,
-            'visit.closed'
-        );
-
         // `status` is intentionally NOT part of this validator: every
         // status transition must go through a dedicated endpoint
         // (/confirm, /complete, /cancel). Those endpoints enforce valid
@@ -556,70 +548,8 @@ class PropertyVisitController extends Controller
             $data['scheduled_at'] = $request->scheduledAt();
         }
 
-        // TCK-1838 (P184.04) — déplacer l'heure suit la règle du report (`GestesDeLaVisite::proposerUnCreneau`) :
-        // hors statut actif (`no_show`…), plus rien ne confirme ni ne reporte la visite, et le
-        // visiteur recevait l'annonce d'un rendez-vous mort. Notes, type et agent restent ouverts.
-        if (array_key_exists('scheduled_at', $data)
-            && ! $data['scheduled_at']?->equalTo($visit->scheduled_at)) {
-            abort_code_unless(
-                in_array($visit->status, VisitSchedulingService::ACTIVE_STATUSES, true),
-                422,
-                'visit.reschedule_inactive',
-            );
-        }
-
-        // TCK-590 (contrainte 2) — changer l'agent d'une visite DÉJÀ attribuée à un autre est un
-        // geste d'attribution : il exige `crm.assign` dans l'agence du bien.
-        if (array_key_exists('agent_id', $data)
-            && $visit->agent_id !== null
-            && ($data['agent_id'] === null || (int) $data['agent_id'] !== $visit->agent_id)) {
-            abort_code_unless(GestesDeLaVisite::attribue($request->user(), $visit), 403, 'visit.reassign_forbidden');
-        }
-
-        $previous = $visit->scheduled_at;
-        // TCK-2502 — une heure envoyée par l'agence fixe l'heure, même égale au début de tranche.
-        if (array_key_exists('scheduled_at', $data)) {
-            $data['preferred_window'] = null;
-        }
-
-        // TCK-2744 — les deux gardes d'une visite confirmée (le bien, puis l'agent) et l'écriture, dans
-        // UNE transaction et sous verrou : la garde du bien courait ici sans verrou. Jugées sur les
-        // valeurs RÉSULTANTES (nouvelle heure, nouvelle durée, nouvel agent) dès que l'écriture en
-        // porte une : la visite elle-même est écartée, une durée repassée telle quelle passe.
-        DB::transaction(function () use ($visit, $data): void {
-            $this->relireSousVerrou($visit);
-            $temps = array_key_exists('scheduled_at', $data) || array_key_exists('duration_minutes', $data);
-            if ($visit->status === VisitStatus::Confirmed && ($temps || array_key_exists('agent_id', $data))) {
-                $newStart = array_key_exists('scheduled_at', $data)
-                    ? Carbon::instance($data['scheduled_at'])
-                    : $visit->scheduled_at;
-                $newDuration = array_key_exists('duration_minutes', $data)
-                    ? $data['duration_minutes']
-                    : $visit->duration_minutes;
-                if ($temps) {
-                    $this->scheduling->assertNoOverlap($visit, $newStart, $newDuration, lockForUpdate: true);
-                }
-                $newAgent = array_key_exists('agent_id', $data) ? $data['agent_id'] : $visit->agent_id;
-                // Une visite confirmée à tranche (sans heure fixée) n'occupe personne, sauf si l'écriture fixe l'heure.
-                $fixee = array_key_exists('scheduled_at', $data) || $visit->preferred_window === null;
-                $this->scheduling->assertAgentFree(
-                    $visit,
-                    $newAgent !== null ? (int) $newAgent : null,
-                    $fixee ? $newStart : null,
-                    $newDuration !== null ? (int) $newDuration : null,
-                    lockForUpdate: true,
-                );
-            }
-
-            $visit->fill($data)->save();
-        });
-
-        // TCK-590 (contrainte 11) — tout déplacement d'heure par l'agence prévient le visiteur,
-        // une fois. `update` déplaçait l'heure sans prévenir personne.
-        $sms = null;
-        if (array_key_exists('scheduled_at', $data) && ! $visit->scheduled_at?->equalTo($previous)) {
-            $sms = $this->notifier->rescheduledByAgency($visit->fresh(['property', 'visitor']), $request->user());
-        }
+        // TCK-3005 — le geste du personnel, ses refus d'état jugés sur la ligne relue sous verrou.
+        [$visit, $sms] = $this->gestes->deplacer($request->user(), $visit, $data);
 
         return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)], $sms));
     }

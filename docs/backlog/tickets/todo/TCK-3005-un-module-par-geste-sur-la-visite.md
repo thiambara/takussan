@@ -104,4 +104,19 @@ troisième ligne citée (`VisitSchedulingService` ~:529) est cette planification
 - **Appelants repris** : les tests de la messagerie (`EvenementsDesObjetsTest`, `CloturesDesObjetsTest`) passent par
   `confirmer`, `proposerUnCreneau` et `annuler`, avec un acteur légitime (l'hôte du bien, le prospect). Le report de
   `VisitAgentOverlapTest` passe par sa route. Le commentaire de `PropertyVisit.php:69` est corrigé.
+- **Vérification adverse (deux défauts reproduits, chacun rouge avant le correctif)** :
+  - le PATCH de `scheduled_at` jugeait `visit.closed` et `visit.reschedule_inactive` sur le modèle de la route : une
+    visite annulée sous la ligne recevait sa nouvelle heure (200) et l'avis `rescheduledByAgency`. Le PATCH du personnel
+    est devenu le geste `GestesDeLaVisite::deplacer` : tous ses refus d'état (`visit.closed`, `visit.reschedule_inactive`
+    via l'état de `peutDeplacer`, `visit.reassign_forbidden`, chevauchement, agent libre) se jugent sur la ligne relue sous
+    verrou, dans l'ordre d'avant, et l'avis part après le commit. Le contrôleur délègue ;
+  - `claim` et `bulk-assign` écrivaient `agent_id` sur une visite annulée sous la ligne : l'attribution rejuge
+    `visit.closed` sur la ligne relue ;
+  - `proposerUnCreneau` est épinglé sous verrou par un test (ablation `$fresh` → modèle de la route : rouge) ;
+  - ablations rejouées, md5 vérifié : refus jugés sur le modèle de la route dans le module → 3 rouges ; rejugement de
+    l'attribution retiré → 2 rouges.
+- **Nom vide** : mesuré, `demander` appelé avec `visitor_name: ''` écrivait `''` (par HTTP, `ConvertEmptyStringsToNull`
+  le masquait). Il écrit `null`, comme la porte publique d'avant 4e3a929f7 (test rouge avant).
+- **`MesVisites` (annuler)** : la liste ne sert pas `abilities` (seuls le détail et la carte du fil, ADR-0139 § 5) ; le
+  bouton reste tel quel, l'API rejuge à l'écriture.
 - **Reste à la session** : `docs/adr/0072-…` nomme encore `VisitSchedulingService::createOrFail`.
